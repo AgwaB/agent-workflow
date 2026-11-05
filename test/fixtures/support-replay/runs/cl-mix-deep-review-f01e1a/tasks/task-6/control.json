@@ -1,0 +1,73 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "eae17e9b36d96b5b9ffc2fa8dba3145006cb48ce86903132d98d7ab6816d3cfb",
+  "maxChars": 15000,
+  "actualChars": 1863,
+  "expectedVerdict": "NEEDS_WORK",
+  "partitionSummary": {
+    "keep": 6,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 6,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 6,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "sourceStatusSummary": {
+    "total": 7,
+    "completed": 7,
+    "nonCompleted": 0,
+    "partialFailureCount": 0,
+    "partialFailures": []
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "중지 감시 주기(pollMs) 기본값 및 최소 하한 설정의 명세(S3) 위반",
+        "severity": "high",
+        "recommendedAction": "계산식을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 옵션 생략 시 50ms 및 1~9ms 지정 시 10ms가 타이머에 전달되는 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-002",
+        "title": "provider 취소 판별 시 cancelled 및 timeout 문자열 오승격으로 인한 명세(C1) 위반",
+        "severity": "high",
+        "recommendedAction": "문자열 비교에서 \"cancelled\"와 \"timeout\"을 제거하고, 최상위 및 details의 error/reason과 content JSON에서 두 값이 취소로 판정되지 않는 회귀 테스트를 추가한다. 기존 세 문자열과 명시적인 cancelled: true 동작은 유지한다."
+      },
+      {
+        "findingId": "finding-003",
+        "title": "종료 요약 공개 계약 필드인 launchRetryAttempts가 launchRetries로 무단 변경되어 외부 도구 호환성 파괴",
+        "severity": "high",
+        "recommendedAction": "인터페이스와 반환 객체의 필드명을 launchRetryAttempts로 복구하고, 공개 필드의 존재와 전체 작업의 재시도 합계를 검증하는 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "src/workflow-stop.ts: pollMs 기본값 및 최소 주기 명세(S3) 위반과 검증 단위 테스트 부재",
+        "severity": "medium",
+        "recommendedAction": "pollMs 계산을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 기본값과 10ms 미만 입력의 하한 처리를 검증하는 타이머 모킹 단위 테스트 및 테스트 실행 경로를 추가한다."
+      }
+    ],
+    "weaken": [],
+    "drop": [],
+    "needsHuman": [],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [],
+  "overflowCounts": {
+    "keep": 2,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 0,
+    "omittedStringChars": 0
+  }
+}

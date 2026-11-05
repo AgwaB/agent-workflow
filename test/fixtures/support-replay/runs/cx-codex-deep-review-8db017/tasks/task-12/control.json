@@ -1,0 +1,29 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S3 명세와 구현이 직접 불일치하며, 기본 감시 지연이 최대 약 200ms로 늘어나므로 finding을 유지한다.",
+  "findingId": "finding-001",
+  "finding": "중지 감시 주기가 명세보다 길어져 중지 감지가 지연됨",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "lineEnd": 14,
+      "quote": "기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 81,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const timer = setInterval(() => void check(), pollMs);"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "pollMs를 기본 50ms, 최솟값 10ms로 복원하고 기본 및 경계값에 대한 중지 감지 지연 회귀 테스트를 추가한다."
+}

@@ -1,0 +1,29 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "provider timeout 분류 결함은 src/workflow-cancellation.ts:20에서 확인됨. 다만 src/ 내 호출자가 없어 실제 영향은 외부 소비자에 달려 있음.",
+  "findingId": "finding-001",
+  "finding": "Provider timeouts are classified as cancellation",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 20,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 10,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "Keep this check deliberately exact: arbitrary provider errors must not be"
+    }
+  ],
+  "counterEvidence": [
+    "src/ 안에서 isWorkflowReturnedCancellation의 호출자는 정의부(13행)와 재귀 호출(28행)뿐이며, 이 함수를 써서 사용자 취소와 실패를 가르는 코드는 저장소 내에 없음",
+    "\"timeout\"과 \"cancelled\" 허용은 이 리뷰가 지목한 커밋 654f639에서 확대된 것으로 보이나, 커밋 diff는 이 탐색에서 직접 확인하지 못함",
+    "영향은 외부 소비자가 이 export 함수로 취소 여부를 판단하는 경우에만 성립하므로 심각도 high는 과대일 수 있음"
+  ],
+  "recommendedAction": "bare-string 허용 목록에서 \"timeout\"(및 error/reason 필드의 \"cancelled\")을 제거하거나 별도의 timeout 분류를 반환하도록 하고, 취소는 명시적 AbortError, cancelled:true, 명시적 취소 마커로만 한정할 것. {error:\"timeout\"}이 취소로 분류되지 않는 회귀 테스트를 추가할 것.",
+  "readerTitle": "제공자 timeout이 취소로 분류됨",
+  "readerRationale": "커밋 654f639('treat cancelled/timeout as cancellation')이 분류기를 넓혔고, 바로 위 주석이 정확성을 유지하라고 명시하고 있어 모순된다. 이 술어를 사용자 취소와 실패의 구분에 쓰는 호출자는 제공자 timeout을 사용자 취소로 보고할 수 있어 재시도나 실패 진단을 억제하고 실행 결과를 잘못 표시할 수 있다. timeout은 사용자가 시작한 중지가 아니라 오류 상태이므로 두 분류를 한 집합으로 묶으면 안 된다. 다만 src/ 내 호출자가 없어 영향은 외부 소비자에 대한 추정이며, 신뢰도는 medium이다."
+}

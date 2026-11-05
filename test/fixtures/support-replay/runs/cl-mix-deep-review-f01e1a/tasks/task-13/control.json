@@ -1,0 +1,40 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "현재 구현은 error/reason의 정확한 'timeout'·'cancelled' 값을 취소로 오분류하여 C1을 위반하므로 지적을 유지한다.",
+  "findingId": "finding-002",
+  "finding": "provider 취소 판별 시 cancelled 및 timeout 문자열 오승격으로 인한 명세(C1) 위반",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 25,
+      "lineEnd": 26,
+      "quote": "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 19,
+      "quote": "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 20,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 15,
+      "quote": "if (!isRecord(value)) return false;"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 28,
+      "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+    }
+  ],
+  "counterEvidence": [
+    "최상위 문자열 \"timeout\" 자체는 객체 검사에서 거부된다. 모든 타임아웃 오류가 취소되는 것은 아니지만, 객체의 error/reason 값에 대한 오분류는 그대로 존재한다."
+  ],
+  "recommendedAction": "문자열 비교에서 \"cancelled\"와 \"timeout\"을 제거하고, 최상위 및 details의 error/reason과 content JSON에서 두 값이 취소로 판정되지 않는 회귀 테스트를 추가한다. 기존 세 문자열과 명시적인 cancelled: true 동작은 유지한다."
+}

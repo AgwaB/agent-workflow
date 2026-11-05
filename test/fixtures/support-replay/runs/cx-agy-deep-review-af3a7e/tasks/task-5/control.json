@@ -1,0 +1,1184 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "partition: keep=4, weaken=0, drop=3, needsHuman=0, missingVerdicts=0, partialFailures=0, supportNotes=0, ledgerDigest=e5247c08633250cfa513edeb99d34ef8b0a47bdc19d49d0c9a9f23e95c8bf12d",
+  "partitions": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "originalFindingId": "finding-001",
+        "rootCauseId": "root-001",
+        "title": "중지 감시 주기(pollMs) 기본값 및 최소 하한치 명세(S3) 위반",
+        "originalSeverity": "high",
+        "source": "reviewers",
+        "reviewerIdentity": {
+          "source": "reviewers",
+          "specId": "reviewers.runtime-correctness",
+          "taskId": "task-9",
+          "itemIdentity": "runtime-correctness",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "high",
+        "file": "src/workflow-stop.ts",
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 67,
+            "symbol": "createWorkflowStopSignal"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "const pollMs = Math.max(1, options.pollMs ?? 200);"
+        ],
+        "evidenceQuotes": [
+          "const pollMs = Math.max(1, options.pollMs ?? 200);",
+          "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+          "  짧아지면 안 된다."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 67,
+            "symbol": "createWorkflowStopSignal",
+            "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 13,
+            "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 14,
+            "quote": "  짧아지면 안 된다."
+          }
+        ],
+        "rationale": "SPEC.md S3('중지 감시 주기(pollMs)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다.')를 정면으로 위반합니다. 기본값이 200ms이면 디스크에 기록된 중지 의도 감지가 최대 200ms 지연되어 워크플로 중지 응답성이 저하되고, 호출자가 너무 작은 값을 제공했을 때 1ms 간격으로 디스크 I/O를 수행하여 불필요한 시스템 부하를 유발합니다.",
+        "verifierEvidence": [
+          "const pollMs = Math.max(1, options.pollMs ?? 200);",
+          "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+          "  짧아지면 안 된다."
+        ],
+        "counterEvidence": [],
+        "recommendedAction": "src/workflow-stop.ts의 createWorkflowStopSignal에서 pollMs 계산 로직을 Math.max(10, options.pollMs ?? 50)으로 수정하여 기본값을 50ms, 최소 하한치를 10ms로 강제합니다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate",
+          "specId": "devil-advocate.finding-001",
+          "taskId": "task-11",
+          "itemIdentity": "finding-001",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      },
+      {
+        "findingId": "finding-003",
+        "originalFindingId": "finding-003",
+        "rootCauseId": "root-003",
+        "title": "중지 오류 판별 시 에러 메시지 내용 검사로 인한 명세(S6) 위반",
+        "originalSeverity": "high",
+        "source": "reviewers",
+        "reviewerIdentity": {
+          "source": "reviewers",
+          "specId": "reviewers.runtime-correctness",
+          "taskId": "task-9",
+          "itemIdentity": "runtime-correctness",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "high",
+        "file": "src/workflow-stop.ts",
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 53,
+            "lineEnd": 59,
+            "symbol": "isWorkflowStopRequestedError"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "error.message.startsWith(\"workflow stop requested\")"
+        ],
+        "evidenceQuotes": [
+          "error.message.startsWith(\"workflow stop requested\")",
+          "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로",
+          "인정한다. 메시지 내용으로 판별해서는 안 된다."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 57,
+            "lineEnd": 57,
+            "symbol": "isWorkflowStopRequestedError",
+            "quote": "error.message.startsWith(\"workflow stop requested\")"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 18,
+            "lineEnd": 18,
+            "quote": "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 19,
+            "lineEnd": 19,
+            "quote": "인정한다. 메시지 내용으로 판별해서는 안 된다."
+          }
+        ],
+        "rationale": "SPEC.md S6('isWorkflowStopRequestedError는 이름이 WorkflowStopRequested인 오류만 중지 오류로 인정한다. 메시지 내용으로 판별해서는 안 된다.')을 명백히 위반합니다. 메시지 시작 문자열로 오류를 판별하면 하위 라이브러리나 서드파티 에러 중 우연히 메시지가 유사한 일반 예외까지 워크플로 중지로 오인식되어 비정상적인 흐름 제어가 발생할 위험이 있습니다.",
+        "verifierEvidence": [
+          "error.message.startsWith(\"workflow stop requested\")",
+          "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로",
+          "인정한다. 메시지 내용으로 판별해서는 안 된다."
+        ],
+        "counterEvidence": [],
+        "recommendedAction": "src/workflow-stop.ts의 isWorkflowStopRequestedError에서 error.message.startsWith 검사 조건을 제거하고, SPEC.md S6에 따라 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 검사하도록 수정합니다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-003",
+          "specId": "devil-advocate.finding-003",
+          "taskId": "task-13",
+          "itemIdentity": "finding-003",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      },
+      {
+        "findingId": "finding-004",
+        "originalFindingId": "finding-004",
+        "rootCauseId": "root-004",
+        "title": "취소 판별 시 timeout 및 cancelled 오승격으로 인한 장애 마스킹(C1 위반)",
+        "originalSeverity": "high",
+        "source": "reviewers",
+        "reviewerIdentity": {
+          "source": "reviewers",
+          "specId": "reviewers.runtime-correctness",
+          "taskId": "task-9",
+          "itemIdentity": "runtime-correctness",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "high",
+        "file": "src/workflow-cancellation.ts",
+        "locations": [
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 19,
+            "lineEnd": 22,
+            "symbol": "isWorkflowReturnedCancellation"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+        ],
+        "evidenceQuotes": [
+          "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+          "provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,",
+          "`AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 20,
+            "lineEnd": 20,
+            "symbol": "isWorkflowReturnedCancellation",
+            "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 25,
+            "lineEnd": 25,
+            "quote": "provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 26,
+            "lineEnd": 26,
+            "quote": "`AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+          }
+        ],
+        "rationale": "SPEC.md C1('provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 aborted, AbortError, ABORT_ERR 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.')을 위반합니다. 특히 timeout 오류를 취소로 승격하면 네트워크/게이트웨이 타임아웃 등의 장애가 단순 취소로 은폐되어 문제 원인 파악과 재시도가 불가능해집니다.",
+        "verifierEvidence": [
+          "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+          "provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,",
+          "`AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+        ],
+        "counterEvidence": [],
+        "recommendedAction": "src/workflow-cancellation.ts의 isWorkflowReturnedCancellation에서 candidate 검사 조건 중 \"cancelled\"와 \"timeout\"을 제거하여 SPEC.md C1에 명시된 \"aborted\", \"AbortError\", \"ABORT_ERR\"만 취소 문자열로 인정하도록 수정합니다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-004",
+          "specId": "devil-advocate.finding-004",
+          "taskId": "task-14",
+          "itemIdentity": "finding-004",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      },
+      {
+        "findingId": "finding-006",
+        "originalFindingId": "finding-006",
+        "rootCauseId": "root-006",
+        "title": "외부 도구 공개 계약 필드명인 launchRetryAttempts가 launchRetries로 오선언되어 계약 파기 발생",
+        "originalSeverity": "high",
+        "source": "reviewers.api-contract",
+        "reviewerIdentity": {
+          "source": "reviewers.api-contract",
+          "specId": "reviewers.api-contract",
+          "taskId": "task-10",
+          "itemIdentity": "api-contract",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers.api-contract"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "high",
+        "file": "src/workflow-terminal.ts",
+        "locations": [
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 33,
+            "lineEnd": 33,
+            "symbol": "WorkflowTerminalSummary"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 107,
+            "lineEnd": 110,
+            "symbol": "summarizeWorkflowTerminal"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "\tlaunchRetries: number;",
+          "\t\tlaunchRetries: run.tasks.reduce(",
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+          "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+        ],
+        "evidenceQuotes": [
+          "\tlaunchRetries: number;",
+          "\t\tlaunchRetries: run.tasks.reduce(",
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+          "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+        ],
+        "evidence": [
+          {
+            "file": "SPEC.md",
+            "line": 35,
+            "lineEnd": 35,
+            "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 36,
+            "lineEnd": 36,
+            "quote": "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 33,
+            "lineEnd": 33,
+            "symbol": "WorkflowTerminalSummary",
+            "quote": "\tlaunchRetries: number;"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 107,
+            "lineEnd": 107,
+            "symbol": "summarizeWorkflowTerminal",
+            "quote": "\t\tlaunchRetries: run.tasks.reduce("
+          }
+        ],
+        "rationale": "명세(T3)는 outputRetryAttempts와 launchRetryAttempts가 외부 도구가 읽는 공개 계약(public contract)임을 명시하고 있습니다. 현재 구현에서는 타입 정의와 런타임 요약 객체 모두 launchRetries로 선언되어 있어, 외부 모니터링 도구나 오케스트레이터가 launchRetryAttempts를 참조할 경우 undefined를 얻게 되어 재시도 횟수 집계 실패 및 호환성 장애가 발생합니다.",
+        "verifierEvidence": [
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+          "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+          "\tlaunchRetries: number;",
+          "\t\tlaunchRetries: run.tasks.reduce("
+        ],
+        "counterEvidence": [],
+        "recommendedAction": "WorkflowTerminalSummary 인터페이스(33행) 및 summarizeWorkflowTerminal 반환 객체(107행)의 필드명을 SPEC.md T3에 명시된 공개 계약 필드명인 launchRetryAttempts로 변경하십시오.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-006",
+          "specId": "devil-advocate.finding-006",
+          "taskId": "task-16",
+          "itemIdentity": "finding-006",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      }
+    ],
+    "weaken": [],
+    "drop": [
+      {
+        "findingId": "finding-002",
+        "originalFindingId": "finding-002",
+        "rootCauseId": "root-002",
+        "title": "dispose() 호출 이후 진행 중인 비동기 디스크 읽기 및 후속 처리 미차단(S5 위반)",
+        "originalSeverity": "high",
+        "source": "reviewers",
+        "reviewerIdentity": {
+          "source": "reviewers",
+          "specId": "reviewers.runtime-correctness",
+          "taskId": "task-9",
+          "itemIdentity": "runtime-correctness",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "DROP",
+        "originalVerdict": "DROP",
+        "severity": "high",
+        "file": "src/workflow-stop.ts",
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 68,
+            "lineEnd": 86,
+            "symbol": "createWorkflowStopSignal"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "dispose: () => clearInterval(timer),"
+        ],
+        "evidenceQuotes": [
+          "dispose: () => clearInterval(timer),",
+          "- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.",
+          "const timer = setInterval(() => void check(), pollMs);"
+        ],
+        "evidence": [
+          {
+            "file": "SPEC.md",
+            "line": 17,
+            "lineEnd": 17,
+            "quote": "- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다."
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 81,
+            "lineEnd": 81,
+            "symbol": "createWorkflowStopSignal",
+            "quote": "const timer = setInterval(() => void check(), pollMs);"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 85,
+            "lineEnd": 85,
+            "symbol": "createWorkflowStopSignal",
+            "quote": "dispose: () => clearInterval(timer),"
+          }
+        ],
+        "rationale": "SPEC.md S5('dispose()를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.')를 위반합니다. 타이머만 해제할 뿐 dispose 플래그가 없어 즉시 실행된 check()나 비동기 I/O가 백그라운드에서 완료되면서 의도치 않게 signal을 abort하거나 불필요한 디스크 I/O를 지속합니다.",
+        "verifierEvidence": [
+          "- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.",
+          "const timer = setInterval(() => void check(), pollMs);",
+          "dispose: () => clearInterval(timer),"
+        ],
+        "counterEvidence": [
+          "SPEC.md S5 명세의 요구사항은 'dispose()를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다'이며, 신규 디스크 읽기가 시작되지 않도록 차단하는 것만을 규정합니다.",
+          "createWorkflowStopSignal에서 주기적 디스크 읽기를 유발하는 유일한 메커니즘은 setInterval(timer)이며, dispose()가 호출되면 즉시 clearInterval(timer)가 실행되어 이후 어떠한 신규 check() 호출 및 readWorkflowStopIntent도 시작되지 않습니다.",
+          "dispose() 호출 시점에 이미 실행 중이던 비동기 디스크 읽기는 dispose() 호출 이전에 이미 개시된 것이며, S5 명세는 이미 진행 중인 비동기 I/O의 abort 반영 차단이나 별도의 disposed 플래그 상태 머신을 요구하지 않습니다."
+        ],
+        "recommendedAction": "해당 지적은 S5 명세('새로운 디스크 읽기 미시작')의 범위를 과도하게 해석한 오탐이므로 추가 코드 수정 없이 DROP 처리합니다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-002",
+          "specId": "devil-advocate.finding-002",
+          "taskId": "task-12",
+          "itemIdentity": "finding-002",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      },
+      {
+        "findingId": "finding-005",
+        "originalFindingId": "finding-005",
+        "rootCauseId": "root-005",
+        "title": "content JSON 파싱 재귀 검사 시 동일 값 중복 검사 및 무한 재귀 방지 미흡(C2 위반)",
+        "originalSeverity": "medium",
+        "source": "reviewers",
+        "reviewerIdentity": {
+          "source": "reviewers",
+          "specId": "reviewers.runtime-correctness",
+          "taskId": "task-9",
+          "itemIdentity": "runtime-correctness",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "DROP",
+        "originalVerdict": "DROP",
+        "severity": "medium",
+        "file": "src/workflow-cancellation.ts",
+        "locations": [
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 27,
+            "lineEnd": 28,
+            "symbol": "isWorkflowReturnedCancellation"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+        ],
+        "evidenceQuotes": [
+          "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+          "const parsed: unknown = JSON.parse(entry.text);",
+          "- **C2.** `content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시\n  검사하는 무한 재귀가 없어야 한다."
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 27,
+            "lineEnd": 27,
+            "symbol": "isWorkflowReturnedCancellation",
+            "quote": "const parsed: unknown = JSON.parse(entry.text);"
+          },
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 28,
+            "lineEnd": 28,
+            "symbol": "isWorkflowReturnedCancellation",
+            "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 27,
+            "lineEnd": 28,
+            "quote": "- **C2.** `content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시\n  검사하는 무한 재귀가 없어야 한다."
+          }
+        ],
+        "rationale": "SPEC.md C2('content 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시 검사하는 무한 재귀가 없어야 한다.')를 충족하지 못합니다. 참조 비교 parsed !== value는 새로 생성된 객체 참조와 비교하므로 방어 효과가 없으며, 깊게 중첩되거나 순환하는 구조에서 콜스택 오버플로 위험이 있습니다.",
+        "verifierEvidence": [
+          "const parsed: unknown = JSON.parse(entry.text);",
+          "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+          "- **C2.** `content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시\n  검사하는 무한 재귀가 없어야 한다."
+        ],
+        "counterEvidence": [
+          "ECMAScript 사양상 JSON.parse()는 항상 새로운 비순환 트리(Acyclic Tree) 객체를 생성하며, JSON 형식 자체에 순환 참조나 포인터 문법이 존재하지 않아 순환 구조가 생성될 수 없습니다.",
+          "유한한 크기의 입력 문자열에서 중첩된 JSON 파싱이 발생하더라도, 각 재귀 단계의 entry.text는 직전 JSON 문자열의 내부 프로퍼티이므로 문자열 길이가 엄격하게 단조 감소(Ln+1 < Ln)하여 무한 재귀는 물리적으로 발생할 수 없습니다.",
+          "따라서 코드의 parsed !== value 조건이 매번 새로 생성된 객체 참조를 비교하여 항상 참이 되는 무의미한 방어 코드(dead guard)인 것은 사실이나, 이로 인해 무한 재귀가 발생하지 않으므로 SPEC.md C2('같은 값을 다시 검사하는 무한 재귀가 없어야 한다')를 위반하지 않습니다.",
+          "리뷰어가 권장한 Set<string> 기반 방문 추적 역시 매 중첩 레벨마다 JSON 문자열 내용(이스케이프 및 구조)이 달라지므로 깊은 중첩으로 인한 콜스택 소모를 방지할 수 없어 제안된 조치도 유효하지 않습니다.",
+          "또한 검토 대상인 최근 커밋(HEAD)에서 src/workflow-cancellation.ts의 변경 사항은 20행의 candidate 목록(cancelled, timeout 추가)뿐이며, 27~28행의 JSON 재귀 파싱 코드는 변경되지 않았습니다."
+        ],
+        "recommendedAction": "parsed !== value는 항상 참인 무의미한 방어 코드이므로 단순 dead guard로 제거할 수 있으나, JSON 파싱 특성상 무한 재귀나 C2 위반은 발생하지 않으므로 결함을 기각하고 추가 조치 없이 유지합니다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-005",
+          "specId": "devil-advocate.finding-005",
+          "taskId": "task-15",
+          "itemIdentity": "finding-005",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      },
+      {
+        "findingId": "finding-007",
+        "originalFindingId": "finding-007",
+        "rootCauseId": "root-007",
+        "title": "direct-dynamic 실행 종료 요약 시 엔진 실패 상태(failed 등) 마스킹 및 degradation 미반영(T1, T2 불일치)",
+        "originalSeverity": "high",
+        "source": "reviewers.api-contract",
+        "reviewerIdentity": {
+          "source": "reviewers.api-contract",
+          "specId": "reviewers.api-contract",
+          "taskId": "task-10",
+          "itemIdentity": "api-contract",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers.api-contract"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "DROP",
+        "originalVerdict": "DROP",
+        "severity": "high",
+        "file": "src/workflow-terminal.ts",
+        "locations": [
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 80,
+            "lineEnd": 96,
+            "symbol": "summarizeWorkflowTerminal"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "\tif (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+          "\t\telse semanticStatus = \"completed_without_semantic_result\";",
+          "- **T1.** `completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다.",
+          "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+          "  `completed_without_semantic_result`이다."
+        ],
+        "evidenceQuotes": [
+          "\tif (terminal && run.provenance?.mode === \"direct-dynamic\") {",
+          "\t\telse semanticStatus = \"completed_without_semantic_result\";",
+          "- **T1.** `completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다.",
+          "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+          "  `completed_without_semantic_result`이다.",
+          "else semanticStatus = \"completed_without_semantic_result\";",
+          "engineStatus: run.status,"
+        ],
+        "evidence": [
+          {
+            "file": "SPEC.md",
+            "line": 33,
+            "lineEnd": 33,
+            "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 34,
+            "lineEnd": 34,
+            "quote": "  `completed_without_semantic_result`이다."
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 95,
+            "lineEnd": 95,
+            "symbol": "summarizeWorkflowTerminal",
+            "quote": "else semanticStatus = \"completed_without_semantic_result\";"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 100,
+            "lineEnd": 100,
+            "symbol": "summarizeWorkflowTerminal",
+            "quote": "engineStatus: run.status,"
+          }
+        ],
+        "rationale": "SPEC.md T2에 따르면 direct-dynamic 실행에서 controller의 control.json을 읽을 수 없을 때 completed_without_semantic_result가 되어야 하지만, 이는 엔진 상태가 completed인 정상 종료 상황을 전제로 해야 합니다. 만약 실행 엔진 자체가 failed 또는 interrupted로 종료된 경우 control.json이 생성되지 않는데, 이를 completed_without_semantic_result로 처리하면 실행 장애가 완료 상태로 둔갑하여 모니터링 및 복구 체계를 교란합니다. 또한 T1 명세상 completed 실행에 degradation 기록이 있으면 completed_degraded여야 하나 direct-dynamic 경로에서는 degradation 검사가 누락됩니다.",
+        "verifierEvidence": [
+          "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+          "  `completed_without_semantic_result`이다.",
+          "else semanticStatus = \"completed_without_semantic_result\";",
+          "engineStatus: run.status,"
+        ],
+        "counterEvidence": [
+          "SPEC.md T2 명세에 따르면 direct-dynamic 실행에서 controller의 control.json을 읽을 수 없을 때 semanticStatus를 completed_without_semantic_result로 처리하는 것은 명세에 정확히 부합하는 의도된 동작입니다.",
+          "summarizeWorkflowTerminal은 반환 객체에서 engineStatus: run.status를 통해 실행 엔진의 실제 종료 상태(failed, interrupted 등)를 마스킹 없이 그대로 보존하여 반환합니다.",
+          "해당 로직(src/workflow-terminal.ts 80-96행)은 최초 커밋(11bc671)부터 존재하던 코드로, 최근 커밋(HEAD)에서 변경되거나 도입된 변경 사항이 아니므로 이번 HEAD 리뷰 대상 범위에 포함되지 않습니다."
+        ],
+        "recommendedAction": "해당 동작은 SPEC.md T2 명세에 부합하고 engineStatus가 별도로 보존되며 최근 커밋(HEAD)의 변경 사항이 아니므로 기각(DROP) 처리하고 기존 구현을 유지합니다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-007",
+          "specId": "devil-advocate.finding-007",
+          "taskId": "task-17",
+          "itemIdentity": "finding-007",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      }
+    ],
+    "needsHuman": []
+  },
+  "supportNotes": [],
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "rootCauseId": "root-001",
+        "title": "중지 감시 주기(pollMs) 기본값 및 최소 하한치 명세(S3) 위반",
+        "severity": "high",
+        "recommendedAction": "src/workflow-stop.ts의 createWorkflowStopSignal에서 pollMs 계산 로직을 Math.max(10, options.pollMs ?? 50)으로 수정하여 기본값을 50ms, 최소 하한치를 10ms로 강제합니다."
+      },
+      {
+        "findingId": "finding-003",
+        "rootCauseId": "root-003",
+        "title": "중지 오류 판별 시 에러 메시지 내용 검사로 인한 명세(S6) 위반",
+        "severity": "high",
+        "recommendedAction": "src/workflow-stop.ts의 isWorkflowStopRequestedError에서 error.message.startsWith 검사 조건을 제거하고, SPEC.md S6에 따라 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 검사하도록 수정합니다."
+      },
+      {
+        "findingId": "finding-004",
+        "rootCauseId": "root-004",
+        "title": "취소 판별 시 timeout 및 cancelled 오승격으로 인한 장애 마스킹(C1 위반)",
+        "severity": "high",
+        "recommendedAction": "src/workflow-cancellation.ts의 isWorkflowReturnedCancellation에서 candidate 검사 조건 중 \"cancelled\"와 \"timeout\"을 제거하여 SPEC.md C1에 명시된 \"aborted\", \"AbortError\", \"ABORT_ERR\"만 취소 문자열로 인정하도록 수정합니다."
+      },
+      {
+        "findingId": "finding-006",
+        "rootCauseId": "root-006",
+        "title": "외부 도구 공개 계약 필드명인 launchRetryAttempts가 launchRetries로 오선언되어 계약 파기 발생",
+        "severity": "high",
+        "recommendedAction": "WorkflowTerminalSummary 인터페이스(33행) 및 summarizeWorkflowTerminal 반환 객체(107행)의 필드명을 SPEC.md T3에 명시된 공개 계약 필드명인 launchRetryAttempts로 변경하십시오."
+      }
+    ],
+    "weaken": [],
+    "drop": [
+      {
+        "findingId": "finding-002",
+        "rootCauseId": "root-002",
+        "title": "dispose() 호출 이후 진행 중인 비동기 디스크 읽기 및 후속 처리 미차단(S5 위반)",
+        "severity": "high",
+        "recommendedAction": "해당 지적은 S5 명세('새로운 디스크 읽기 미시작')의 범위를 과도하게 해석한 오탐이므로 추가 코드 수정 없이 DROP 처리합니다."
+      },
+      {
+        "findingId": "finding-005",
+        "rootCauseId": "root-005",
+        "title": "content JSON 파싱 재귀 검사 시 동일 값 중복 검사 및 무한 재귀 방지 미흡(C2 위반)",
+        "severity": "medium",
+        "recommendedAction": "parsed !== value는 항상 참인 무의미한 방어 코드이므로 단순 dead guard로 제거할 수 있으나, JSON 파싱 특성상 무한 재귀나 C2 위반은 발생하지 않으므로 결함을 기각하고 추가 조치 없이 유지합니다."
+      },
+      {
+        "findingId": "finding-007",
+        "rootCauseId": "root-007",
+        "title": "direct-dynamic 실행 종료 요약 시 엔진 실패 상태(failed 등) 마스킹 및 degradation 미반영(T1, T2 불일치)",
+        "severity": "high",
+        "recommendedAction": "해당 동작은 SPEC.md T2 명세에 부합하고 engineStatus가 별도로 보존되며 최근 커밋(HEAD)의 변경 사항이 아니므로 기각(DROP) 처리하고 기존 구현을 유지합니다."
+      }
+    ],
+    "needsHuman": [],
+    "supportNoteSummaries": [],
+    "partialFailures": []
+  },
+  "reportPacket": {
+    "schema": "deep-review-report-packet-v1",
+    "digest": "e5247c08633250cfa513edeb99d34ef8b0a47bdc19d49d0c9a9f23e95c8bf12d",
+    "maxChars": 15000,
+    "actualChars": 2714,
+    "expectedVerdict": "NEEDS_WORK",
+    "partitionSummary": {
+      "keep": 4,
+      "weaken": 0,
+      "drop": 3,
+      "needsHuman": 0,
+      "supportNotes": 0,
+      "mergedFindings": 0,
+      "verdictsReceived": 7,
+      "batchIntegrityIssues": 0,
+      "verdictIntegrityIssues": 0,
+      "reviewerCoverageIssues": 0,
+      "reviewerFindings": 7,
+      "missingVerdicts": 0,
+      "partialFailures": 0
+    },
+    "sourceStatusSummary": {
+      "total": 8,
+      "completed": 8,
+      "nonCompleted": 0,
+      "partialFailureCount": 0,
+      "partialFailures": []
+    },
+    "reportContext": {
+      "keep": [
+        {
+          "findingId": "finding-001",
+          "title": "중지 감시 주기(pollMs) 기본값 및 최소 하한치 명세(S3) 위반",
+          "severity": "high",
+          "recommendedAction": "src/workflow-stop.ts의 createWorkflowStopSignal에서 pollMs 계산 로직을 Math.max(10, options.pollMs ?? 50)으로 수정하여 기본값을 50ms, 최소 하한치를 10ms로 강제합니다."
+        },
+        {
+          "findingId": "finding-003",
+          "title": "중지 오류 판별 시 에러 메시지 내용 검사로 인한 명세(S6) 위반",
+          "severity": "high",
+          "recommendedAction": "src/workflow-stop.ts의 isWorkflowStopRequestedError에서 error.message.startsWith 검사 조건을 제거하고, SPEC.md S6에 따라 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 검사하도록 수정합니다."
+        },
+        {
+          "findingId": "finding-004",
+          "title": "취소 판별 시 timeout 및 cancelled 오승격으로 인한 장애 마스킹(C1 위반)",
+          "severity": "high",
+          "recommendedAction": "src/workflow-cancellation.ts의 isWorkflowReturnedCancellation에서 candidate 검사 조건 중 \"cancelled\"와 \"timeout\"을 제거하여 SPEC.md C1에 명시된 \"aborted\", \"AbortError\", \"ABORT_ERR\"만 취소 문자열로 인정하도록 수정합니다."
+        },
+        {
+          "findingId": "finding-006",
+          "title": "외부 도구 공개 계약 필드명인 launchRetryAttempts가 launchRetries로 오선언되어 계약 파기 발생",
+          "severity": "high",
+          "recommendedAction": "WorkflowTerminalSummary 인터페이스(33행) 및 summarizeWorkflowTerminal 반환 객체(107행)의 필드명을 SPEC.md T3에 명시된 공개 계약 필드명인 launchRetryAttempts로 변경하십시오."
+        }
+      ],
+      "weaken": [],
+      "drop": [
+        {
+          "findingId": "finding-002",
+          "title": "dispose() 호출 이후 진행 중인 비동기 디스크 읽기 및 후속 처리 미차단(S5 위반)",
+          "severity": "high",
+          "recommendedAction": "해당 지적은 S5 명세('새로운 디스크 읽기 미시작')의 범위를 과도하게 해석한 오탐이므로 추가 코드 수정 없이 DROP 처리합니다."
+        },
+        {
+          "findingId": "finding-005",
+          "title": "content JSON 파싱 재귀 검사 시 동일 값 중복 검사 및 무한 재귀 방지 미흡(C2 위반)",
+          "severity": "medium",
+          "recommendedAction": "parsed !== value는 항상 참인 무의미한 방어 코드이므로 단순 dead guard로 제거할 수 있으나, JSON 파싱 특성상 무한 재귀나 C2 위반은 발생하지 않으므로 결함을 기각하고 추가 조치 없이 유지합니다."
+        },
+        {
+          "findingId": "finding-007",
+          "title": "direct-dynamic 실행 종료 요약 시 엔진 실패 상태(failed 등) 마스킹 및 degradation 미반영(T1, T2 불일치)",
+          "severity": "high",
+          "recommendedAction": "해당 동작은 SPEC.md T2 명세에 부합하고 engineStatus가 별도로 보존되며 최근 커밋(HEAD)의 변경 사항이 아니므로 기각(DROP) 처리하고 기존 구현을 유지합니다."
+        }
+      ],
+      "needsHuman": [],
+      "supportNoteSummaries": []
+    },
+    "normalizationNotes": [],
+    "overflowCounts": {
+      "keep": 0,
+      "weaken": 0,
+      "drop": 0,
+      "needsHuman": 0,
+      "supportNotes": 0,
+      "partialFailures": 0,
+      "normalizationNotes": 0,
+      "truncatedStrings": 0,
+      "omittedStringChars": 0
+    }
+  },
+  "dedupSummary": {
+    "complete": true,
+    "rawCount": 7,
+    "uniqueCount": 7,
+    "duplicateCount": 0,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-003",
+      "finding-004",
+      "finding-006",
+      "finding-002",
+      "finding-005",
+      "finding-007"
+    ],
+    "supportFindingIds": [],
+    "lineageFindingIds": [],
+    "duplicates": []
+  },
+  "reviewerLedger": {
+    "plannedLensIds": [
+      "runtime-correctness",
+      "api-contract"
+    ],
+    "materializedReviewerIds": [
+      "runtime-correctness",
+      "api-contract"
+    ],
+    "attestedLensIds": [
+      "runtime-correctness",
+      "api-contract"
+    ],
+    "materializedReviewerSourceIds": [
+      "reviewers",
+      "reviewers.api-contract"
+    ],
+    "validAttestationSourceIds": [
+      "reviewers",
+      "reviewers.api-contract"
+    ],
+    "ownerMap": [
+      {
+        "source": "reviewers",
+        "specId": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.api-contract",
+        "specId": "reviewers.api-contract",
+        "taskId": "task-10",
+        "itemIdentity": "api-contract",
+        "placeholderSpecId": "reviewers.item"
+      }
+    ],
+    "invalidAttestations": [],
+    "missingPlannedLensIds": [],
+    "missingAttestedLensIds": [],
+    "unexpectedMaterializedReviewerIds": [],
+    "unexpectedAttestedLensIds": [],
+    "duplicateMaterializedReviewerIds": [],
+    "setEquality": true,
+    "sourceStatuses": [
+      {
+        "source": "triage",
+        "displayName": "triage.main",
+        "taskId": "task-1",
+        "specId": "triage.main",
+        "stageId": "triage",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers",
+        "displayName": "reviewers.runtime-correctness",
+        "taskId": "task-9",
+        "specId": "reviewers.runtime-correctness",
+        "stageId": "reviewers",
+        "itemIdentity": "runtime-correctness",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.api-contract",
+        "displayName": "reviewers.api-contract",
+        "taskId": "task-10",
+        "specId": "reviewers.api-contract",
+        "stageId": "reviewers",
+        "itemIdentity": "api-contract",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      }
+    ],
+    "sourceCoverageFailures": [],
+    "complete": true,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "validFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "invalidFindingIds": [],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-003",
+      "finding-004",
+      "finding-006",
+      "finding-002",
+      "finding-005",
+      "finding-007"
+    ],
+    "supportFindingIds": [],
+    "lineageFindingIds": [],
+    "provenanceOwnerFindingIds": [
+      "finding-001",
+      "finding-003",
+      "finding-004",
+      "finding-006",
+      "finding-002",
+      "finding-005",
+      "finding-007"
+    ]
+  },
+  "verifierCoverage": {
+    "verdictsReceived": 7,
+    "complete": true,
+    "expectedFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "verdictFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "missingFindingIds": [],
+    "orphanFindingIds": [],
+    "duplicateFindingIds": [],
+    "ownerIssues": [],
+    "statusIssues": [],
+    "exactSetEquality": true,
+    "rows": [
+      {
+        "sourceId": "devil-advocate",
+        "index": 0,
+        "findingId": "finding-001",
+        "owner": {
+          "source": "devil-advocate",
+          "specId": "devil-advocate.finding-001",
+          "taskId": "task-11",
+          "itemIdentity": "finding-001",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate",
+        "ownerSpecId": "devil-advocate.finding-001",
+        "ownerTaskId": "task-11",
+        "ownerItemIdentity": "finding-001",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-002",
+        "index": 1,
+        "findingId": "finding-002",
+        "owner": {
+          "source": "devil-advocate.finding-002",
+          "specId": "devil-advocate.finding-002",
+          "taskId": "task-12",
+          "itemIdentity": "finding-002",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-002",
+        "ownerSpecId": "devil-advocate.finding-002",
+        "ownerTaskId": "task-12",
+        "ownerItemIdentity": "finding-002",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-003",
+        "index": 2,
+        "findingId": "finding-003",
+        "owner": {
+          "source": "devil-advocate.finding-003",
+          "specId": "devil-advocate.finding-003",
+          "taskId": "task-13",
+          "itemIdentity": "finding-003",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-003",
+        "ownerSpecId": "devil-advocate.finding-003",
+        "ownerTaskId": "task-13",
+        "ownerItemIdentity": "finding-003",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-004",
+        "index": 3,
+        "findingId": "finding-004",
+        "owner": {
+          "source": "devil-advocate.finding-004",
+          "specId": "devil-advocate.finding-004",
+          "taskId": "task-14",
+          "itemIdentity": "finding-004",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-004",
+        "ownerSpecId": "devil-advocate.finding-004",
+        "ownerTaskId": "task-14",
+        "ownerItemIdentity": "finding-004",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-005",
+        "index": 4,
+        "findingId": "finding-005",
+        "owner": {
+          "source": "devil-advocate.finding-005",
+          "specId": "devil-advocate.finding-005",
+          "taskId": "task-15",
+          "itemIdentity": "finding-005",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-005",
+        "ownerSpecId": "devil-advocate.finding-005",
+        "ownerTaskId": "task-15",
+        "ownerItemIdentity": "finding-005",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-006",
+        "index": 5,
+        "findingId": "finding-006",
+        "owner": {
+          "source": "devil-advocate.finding-006",
+          "specId": "devil-advocate.finding-006",
+          "taskId": "task-16",
+          "itemIdentity": "finding-006",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-006",
+        "ownerSpecId": "devil-advocate.finding-006",
+        "ownerTaskId": "task-16",
+        "ownerItemIdentity": "finding-006",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-007",
+        "index": 6,
+        "findingId": "finding-007",
+        "owner": {
+          "source": "devil-advocate.finding-007",
+          "specId": "devil-advocate.finding-007",
+          "taskId": "task-17",
+          "itemIdentity": "finding-007",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-007",
+        "ownerSpecId": "devil-advocate.finding-007",
+        "ownerTaskId": "task-17",
+        "ownerItemIdentity": "finding-007",
+        "valid": true
+      }
+    ],
+    "sourceStatuses": [
+      {
+        "source": "dedup-findings",
+        "displayName": "dedup-findings.main",
+        "taskId": "task-3",
+        "specId": "dedup-findings.main",
+        "stageId": "dedup-findings",
+        "status": "completed",
+        "statusDetail": "support_completed",
+        "lastMessage": "support completed"
+      },
+      {
+        "source": "devil-advocate",
+        "displayName": "devil-advocate.finding-001",
+        "taskId": "task-11",
+        "specId": "devil-advocate.finding-001",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-001",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-002",
+        "displayName": "devil-advocate.finding-002",
+        "taskId": "task-12",
+        "specId": "devil-advocate.finding-002",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-002",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-003",
+        "displayName": "devil-advocate.finding-003",
+        "taskId": "task-13",
+        "specId": "devil-advocate.finding-003",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-003",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-004",
+        "displayName": "devil-advocate.finding-004",
+        "taskId": "task-14",
+        "specId": "devil-advocate.finding-004",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-004",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-005",
+        "displayName": "devil-advocate.finding-005",
+        "taskId": "task-15",
+        "specId": "devil-advocate.finding-005",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-005",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-006",
+        "displayName": "devil-advocate.finding-006",
+        "taskId": "task-16",
+        "specId": "devil-advocate.finding-006",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-006",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-007",
+        "displayName": "devil-advocate.finding-007",
+        "taskId": "task-17",
+        "specId": "devil-advocate.finding-007",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-007",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      }
+    ],
+    "digest": "98350d5d9118e1453add2553daf3e2dcc9f0a2db96a3b09c80cf1be96f327df2"
+  },
+  "sourceStatusSummary": {
+    "total": 8,
+    "completed": 8,
+    "nonCompleted": 0,
+    "partialFailures": []
+  },
+  "partitionSummary": {
+    "keep": 4,
+    "weaken": 0,
+    "drop": 3,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 7,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 7,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "normalizationNotes": []
+}

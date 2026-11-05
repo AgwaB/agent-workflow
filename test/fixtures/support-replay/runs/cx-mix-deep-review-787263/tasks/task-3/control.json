@@ -1,0 +1,560 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "dedup: raw=7, unique=7, duplicates=0, partialFailures=0",
+  "findings": [
+    {
+      "id": "finding-001",
+      "findingId": "finding-001",
+      "originalFindingId": "finding-001",
+      "rootCauseId": "root-001",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "Stop-error classification falls back to message prefix matching",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 59,
+          "symbol": "isWorkflowStopRequestedError"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 57,
+          "symbol": "isWorkflowStopRequestedError"
+        }
+      ],
+      "evidence": "isWorkflowStopRequestedError returns true for any Error whose message starts with 'workflow stop requested', even when the name is not WorkflowStopRequested. SPEC S6 says only the error name may classify a stop, and that message content must not be used.",
+      "evidenceQuotes": [
+        "error.message.startsWith(\"workflow stop requested\"))"
+      ],
+      "reviewerEvidenceQuotes": [
+        "error.message.startsWith(\"workflow stop requested\"))"
+      ],
+      "rationale": "Any ordinary error whose message happens to start with that prefix, such as a provider or wrapped error that echoes it, is treated as a deliberate stop. The run is then reported as stopped instead of failing with its real diagnostic, which misclassifies the terminal outcome. The spec explicitly forbids this path.",
+      "recommendedAction": "Compare only error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME, and remove the startsWith fallback. If legacy errors must still match, use an explicit marker property set by createWorkflowStopRequestedError rather than message text.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-002",
+      "findingId": "finding-002",
+      "originalFindingId": "finding-002",
+      "rootCauseId": "root-002",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "Provider cancellation allowlist includes 'cancelled' and 'timeout' beyond the spec's three markers",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 13,
+          "lineEnd": 33,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "The string check accepts 'aborted', 'AbortError', 'ABORT_ERR', 'cancelled', and 'timeout'. SPEC C1 allows exactly 'aborted', 'AbortError', and 'ABORT_ERR', and says other provider errors must not be promoted to cancellation. The code comment also says the check is deliberately exact.",
+      "evidenceQuotes": [
+        "candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "reviewerEvidenceQuotes": [
+        "candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "rationale": "A genuine provider failure reported as error 'timeout' or reason 'cancelled' is classified as user cancellation. That suppresses its diagnostic and can produce a cancelled terminal state for a run that actually failed. Because the spec names exact tokens and the comment says the list is intentionally exact, this widens the classifier beyond its contract.",
+      "recommendedAction": "Restrict the candidate check to 'aborted', 'AbortError', and 'ABORT_ERR' per C1. If 'timeout' or 'cancelled' must be honored for an existing provider, scope that to the specific adapter and update SPEC C1 explicitly, rather than changing the shared classifier.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-003",
+      "findingId": "finding-003",
+      "originalFindingId": "finding-003",
+      "rootCauseId": "root-003",
+      "generatedRootCauseId": true,
+      "severity": "medium",
+      "originalSeverity": "medium",
+      "title": "Stop-watch poll default and minimum deviate from spec S3",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "The code uses Math.max(1, options.pollMs ?? 200), so the default is 200ms and the floor is 1ms. SPEC S3 sets the default at 50ms and the floor at 10ms.",
+      "evidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "reviewerEvidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "rationale": "With the default, a stop intent written to disk can take up to about four times longer to abort the in-flight run than the spec allows. Callers passing very small values can also poll far more often than the spec permits, creating disk-read load. Both are runtime-behavior deviations, not only documentation drift.",
+      "recommendedAction": "Set the default to 50 and the floor to 10 to match S3, and add a test that pins both values. If 200ms is the intended default, update SPEC S3 in the same change so the contract matches the code.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-004",
+      "findingId": "finding-004",
+      "originalFindingId": "finding-004",
+      "rootCauseId": "root-004",
+      "generatedRootCauseId": true,
+      "severity": "low",
+      "originalSeverity": "low",
+      "title": "Re-binding the same AbortSignal can drop the launch fence early",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 14,
+          "lineEnd": 16,
+          "symbol": "bindWorkflowLaunchSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 18,
+          "symbol": "bindWorkflowLaunchSignal"
+        }
+      ],
+      "evidence": "Registrations use a Set, so binding the same signal twice stores it once. The first release calls signals.delete(signal), which removes it even though the second binding is still active. SPEC S7 requires that a run's registration persist until the last signal is released.",
+      "evidenceQuotes": [
+        "signals.add(signal);",
+        "signals.delete(signal);"
+      ],
+      "reviewerEvidenceQuotes": [
+        "signals.add(signal);",
+        "signals.delete(signal);"
+      ],
+      "rationale": "If the same foreground signal is bound twice for one run and one owner releases first, the remaining active launch loses its synchronous stop fence, and a later abort may not be seen before dispatch. No in-repo caller binding the same signal twice was found, so the practical likelihood is low.",
+      "recommendedAction": "Use a reference count per signal, or a token per binding, so release removes only that binding and the entry is deleted when the last binding is gone.",
+      "confidence": "medium",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-005",
+      "findingId": "finding-005",
+      "originalFindingId": "finding-005",
+      "rootCauseId": "root-005",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "공개 재시도 집계 필드 이름이 명세와 다르다 (launchRetryAttempts → launchRetries)",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 33,
+          "symbol": "WorkflowTerminalSummary"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "lineEnd": 110,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 35,
+          "symbol": "T3"
+        }
+      ],
+      "evidence": "SPEC T3은 요약 필드 launchRetryAttempts를 공개 계약(외부 도구가 읽음)으로 명시하지만, 구현의 인터페이스와 반환 객체는 launchRetries를 사용한다. 저장소 내 다른 참조는 없어 호출자 영향은 이 발췌만으로 확인할 수 없다.",
+      "evidenceQuotes": [
+        "\tlaunchRetries: number;",
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+      ],
+      "reviewerEvidenceQuotes": [
+        "\tlaunchRetries: number;",
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+      ],
+      "rationale": "공개 필드 이름 변경은 외부 소비자의 조회를 조용히 undefined로 만든다. 집계 로직 자체는 올바르지만 계약 위반이다. HEAD 커밋 메시지 'shorter retry field name'이 이 변경의 의도로 보이나, 명세와 불일치하며 호환 별칭도 없다.",
+      "recommendedAction": "필드명을 launchRetryAttempts로 되돌리거나, 명세(SPEC T3)와 CHANGELOG를 함께 갱신하고 이전 이름을 deprecated 별칭으로 유지한다. 외부 소비자 영향은 저장소 밖에서 확인이 필요하다.",
+      "confidence": "high",
+      "source": "reviewers.terminal-api-contract",
+      "sourceLineage": [
+        "reviewers.terminal-api-contract"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.terminal-api-contract",
+        "specId": "reviewers.terminal-api-contract",
+        "taskId": "task-10",
+        "itemIdentity": "terminal-api-contract",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-006",
+      "findingId": "finding-006",
+      "originalFindingId": "finding-006",
+      "rootCauseId": "root-006",
+      "generatedRootCauseId": true,
+      "severity": "medium",
+      "originalSeverity": "medium",
+      "title": "dynamic_incomplete가 control.json 읽기 실패 시의 T2 상태를 덮어쓴다",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 83,
+          "lineEnd": 86,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 37,
+          "lineEnd": 62,
+          "symbol": "readDynamicControllerControl"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 32,
+          "lineEnd": 34,
+          "symbol": "T2"
+        }
+      ],
+      "evidence": "control이 undefined(읽기 실패 포함)이어도, run.tasks에 statusDetail 'dynamic_incomplete' 작업이 있으면 semanticStatus는 dynamic_incomplete로 고정된다. T2의 completed_without_semantic_result 대체 경로는 incomplete 작업이 없을 때만 도달한다.",
+      "evidenceQuotes": [
+        "\t\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";",
+        "\t\t\telse semanticStatus = \"completed_without_semantic_result\";",
+        "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는"
+      ],
+      "reviewerEvidenceQuotes": [
+        "\t\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";",
+        "\t\t\telse semanticStatus = \"completed_without_semantic_result\";",
+        "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는"
+      ],
+      "rationale": "명세 T2는 control.json 읽기 불가 시 completed_without_semantic_result를 요구한다. 현재 우선순위는 incomplete 작업 존재 여부를 먼저 보므로, 두 조건이 겹치면 명세 상태와 다른 값이 나온다. dynamic_incomplete를 우선할지는 명세가 명시하지 않아 의도 확인이 필요하다.",
+      "recommendedAction": "우선순위를 명세에 맞춰 control 읽기 실패 시 completed_without_semantic_result를 반환하도록 정리하거나, dynamic_incomplete 우선 규칙을 SPEC T2에 명시하고 테스트로 고정한다.",
+      "confidence": "medium",
+      "source": "reviewers.terminal-api-contract",
+      "sourceLineage": [
+        "reviewers.terminal-api-contract"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.terminal-api-contract",
+        "specId": "reviewers.terminal-api-contract",
+        "taskId": "task-10",
+        "itemIdentity": "terminal-api-contract",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-007",
+      "findingId": "finding-007",
+      "originalFindingId": "finding-007",
+      "rootCauseId": "root-007",
+      "generatedRootCauseId": true,
+      "severity": "medium",
+      "originalSeverity": "medium",
+      "title": "No regression test harness or test files for the S/C/T stop-cancel spec",
+      "file": "package.json",
+      "locations": [
+        {
+          "file": "package.json",
+          "line": 7,
+          "lineEnd": 7,
+          "symbol": "scripts"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 40,
+          "lineEnd": 40,
+          "symbol": "Q1"
+        }
+      ],
+      "evidence": "SPEC.md Q1 requires a unit test for every S/C/T item, but package.json defines only a typecheck script, no test script, and no devDependencies. Glob found no *.test.* or *.spec.* files and no test/tests/__tests__ directories. Glob found no node_modules directory, so tsc is not installed locally.",
+      "evidenceQuotes": [
+        "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "reviewerEvidenceQuotes": [
+        "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "rationale": "Q1 is a stated acceptance criterion, and it cannot currently be met or checked. The spec items S1–S7, C1–C2, and T1–T3 have no executable verification, so a regression in any of them would pass unnoticed. The only verification path is a typecheck, which needs an undeclared tsc. Even that check is weak: tsconfig.json includes only src/**/*.ts, and the source imports store.js and types.js, which the excerpt omits, so the typecheck will likely fail to resolve those modules. The missing tests are a support symptom of this verification gap, so the gap is reported once here rather than as separate test-coverage findings. The behavioral defects in src/ are outside this lens and were not assessed.",
+      "recommendedAction": "Add a test script (for example node --test) and declare the test runner and typescript (plus @types/node) in devDependencies. Add unit tests that map one-to-one to S1–S7, C1–C2, and T1–T3, and name each test with its spec ID. Include or stub store.js and types.js so that typecheck can run, or document that they are required for typecheck to pass.",
+      "confidence": "high",
+      "source": "reviewers.regression-test-hygiene",
+      "sourceLineage": [
+        "reviewers.regression-test-hygiene"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.regression-test-hygiene",
+        "specId": "reviewers.regression-test-hygiene",
+        "taskId": "task-11",
+        "itemIdentity": "regression-test-hygiene",
+        "placeholderSpecId": "reviewers.item"
+      }
+    }
+  ],
+  "coverageIssues": [],
+  "reviewerLedger": {
+    "plannedLensIds": [
+      "stop-cancel-runtime",
+      "terminal-api-contract",
+      "regression-test-hygiene"
+    ],
+    "materializedReviewerIds": [
+      "stop-cancel-runtime",
+      "terminal-api-contract",
+      "regression-test-hygiene"
+    ],
+    "attestedLensIds": [
+      "stop-cancel-runtime",
+      "terminal-api-contract",
+      "regression-test-hygiene"
+    ],
+    "materializedReviewerSourceIds": [
+      "reviewers",
+      "reviewers.terminal-api-contract",
+      "reviewers.regression-test-hygiene"
+    ],
+    "validAttestationSourceIds": [
+      "reviewers",
+      "reviewers.terminal-api-contract",
+      "reviewers.regression-test-hygiene"
+    ],
+    "ownerMap": [
+      {
+        "source": "reviewers",
+        "specId": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.terminal-api-contract",
+        "specId": "reviewers.terminal-api-contract",
+        "taskId": "task-10",
+        "itemIdentity": "terminal-api-contract",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.regression-test-hygiene",
+        "specId": "reviewers.regression-test-hygiene",
+        "taskId": "task-11",
+        "itemIdentity": "regression-test-hygiene",
+        "placeholderSpecId": "reviewers.item"
+      }
+    ],
+    "invalidAttestations": [],
+    "missingPlannedLensIds": [],
+    "missingAttestedLensIds": [],
+    "unexpectedMaterializedReviewerIds": [],
+    "unexpectedAttestedLensIds": [],
+    "duplicateMaterializedReviewerIds": [],
+    "setEquality": true,
+    "sourceStatuses": [
+      {
+        "source": "triage",
+        "displayName": "triage.main",
+        "taskId": "task-1",
+        "specId": "triage.main",
+        "stageId": "triage",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers",
+        "displayName": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "specId": "reviewers.stop-cancel-runtime",
+        "stageId": "reviewers",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.terminal-api-contract",
+        "displayName": "reviewers.terminal-api-contract",
+        "taskId": "task-10",
+        "specId": "reviewers.terminal-api-contract",
+        "stageId": "reviewers",
+        "itemIdentity": "terminal-api-contract",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.regression-test-hygiene",
+        "displayName": "reviewers.regression-test-hygiene",
+        "taskId": "task-11",
+        "specId": "reviewers.regression-test-hygiene",
+        "stageId": "reviewers",
+        "itemIdentity": "regression-test-hygiene",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      }
+    ],
+    "sourceCoverageFailures": [],
+    "plannedRangeCorrections": [
+      {
+        "source": "reviewers.terminal-api-contract",
+        "lens": "terminal-api-contract",
+        "kind": "coverage-quote",
+        "path": "src/workflow-terminal.ts:48-112",
+        "actual": "86",
+        "reason": "whitespace"
+      }
+    ],
+    "complete": true,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "validFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "invalidFindingIds": []
+  },
+  "rawFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005",
+    "finding-006",
+    "finding-007"
+  ],
+  "dedupFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005",
+    "finding-006",
+    "finding-007"
+  ],
+  "sourceStatusSummary": {
+    "total": 4,
+    "completed": 4,
+    "nonCompleted": 0,
+    "partialFailures": []
+  },
+  "dedupSummary": {
+    "complete": true,
+    "rawCount": 7,
+    "uniqueCount": 7,
+    "duplicateCount": 0,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006",
+      "finding-007"
+    ],
+    "supportFindingIds": [],
+    "lineageFindingIds": [],
+    "duplicates": []
+  }
+}

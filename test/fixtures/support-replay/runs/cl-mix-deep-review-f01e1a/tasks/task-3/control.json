@@ -1,0 +1,503 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "dedup: raw=6, unique=6, duplicates=0, partialFailures=0",
+  "findings": [
+    {
+      "id": "finding-001",
+      "findingId": "finding-001",
+      "originalFindingId": "finding-001",
+      "rootCauseId": "root-001",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "중지 감시 주기(pollMs) 기본값 및 최소 하한 설정의 명세(S3) 위반",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "lineEnd": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "src/workflow-stop.ts 67행에서 createWorkflowStopSignal이 pollMs를 Math.max(1, options.pollMs ?? 200)으로 계산하여 기본값을 200ms로 두고 최소 하한을 1ms로 처리하고 있다.",
+      "evidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "reviewerEvidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "rationale": "SPEC.md S3는 '중지 감시 주기(pollMs)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다'고 규정한다. 현재 코드는 기본 폴링 주기가 200ms로 설정되어 디스크 의도 감지가 최대 200ms까지 지연될 수 있으며(기준 대비 4배), 호출자가 1~9ms를 지정했을 때 10ms 미만으로 폴링을 허용하여 디스크 읽기 과부하를 초래할 위험이 있다.",
+      "recommendedAction": "src/workflow-stop.ts의 createWorkflowStopSignal 함수에서 pollMs 계산식을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 기본 주기 50ms 및 10ms 하한이 보장되는지 확인하는 단위 테스트를 보강한다.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-002",
+      "findingId": "finding-002",
+      "originalFindingId": "finding-002",
+      "rootCauseId": "root-002",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "provider 취소 판별 시 cancelled 및 timeout 문자열 오승격으로 인한 명세(C1) 위반",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "lineEnd": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "src/workflow-cancellation.ts 20행에서 오류/사유 candidate 검사 시 'cancelled' 및 'timeout'을 취소(true)로 판정한다.",
+      "evidenceQuotes": [
+        "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "reviewerEvidenceQuotes": [
+        "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "rationale": "SPEC.md C1은 'provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 aborted, AbortError, ABORT_ERR 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다'고 명시한다. 'timeout'과 'cancelled' 문자열을 취소로 인정하면, 일반 네트워크 타임아웃이나 모델 API 게이트웨이 타임아웃 등 재시도 또는 정상 진단이 필요한 일반 장애 상황이 취소로 잘못 분류되어 워크플로가 부적절하게 종료된다.",
+      "recommendedAction": "src/workflow-cancellation.ts 20행의 candidate 비교문에서 'cancelled' 및 'timeout' 조건을 제거하여 'aborted', 'AbortError', 'ABORT_ERR' 세 가지만 취소로 인정하도록 수정하고, provider timeout 오류가 취소로 승격되지 않음을 검증하는 단위 테스트를 추가한다.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-003",
+      "findingId": "finding-003",
+      "originalFindingId": "finding-003",
+      "rootCauseId": "root-003",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "종료 요약 공개 계약 필드인 launchRetryAttempts가 launchRetries로 무단 변경되어 외부 도구 호환성 파괴",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 33,
+          "symbol": "WorkflowTerminalSummary"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 35,
+          "lineEnd": 36
+        }
+      ],
+      "evidence": "최근 커밋(HEAD)에서 src/workflow-terminal.ts의 WorkflowTerminalSummary 인터페이스(line 33) 및 summarizeWorkflowTerminal 반환 객체(line 107)의 필드명이 launchRetryAttempts에서 launchRetries로 변경되었다. SPEC.md T3(lines 35-36)은 '요약의 outputRetryAttempts와 launchRetryAttempts는 모든 작업의 재시도 횟수 합이며, 이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)'라고 명시하고 있으므로, 외부 도구가 의존하는 공개 인터페이스 계약을 직접 위반한다.",
+      "evidenceQuotes": [
+        "+\tlaunchRetries: number;",
+        "-\tlaunchRetryAttempts: number;",
+        "+\t\tlaunchRetries: run.tasks.reduce(",
+        "-\t\tlaunchRetryAttempts: run.tasks.reduce(",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+        "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      ],
+      "reviewerEvidenceQuotes": [
+        "+\tlaunchRetries: number;",
+        "-\tlaunchRetryAttempts: number;",
+        "+\t\tlaunchRetries: run.tasks.reduce(",
+        "-\t\tlaunchRetryAttempts: run.tasks.reduce(",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+        "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      ],
+      "rationale": "명세 SPEC.md의 T3에 따르면 워크플로 종료 요약의 outputRetryAttempts와 launchRetryAttempts는 외부 도구가 파싱하고 의존하는 공개 계약(public contract)이다. 저장소 내부 코드에 해당 필드를 직접 소비하는 호출처가 없더라도 외부 도구 및 워크플로 런타임 소비자가 launchRetryAttempts 필드를 조회하므로, 필드명이 launchRetries로 변경되면 외부 소비자에게 undefined가 전달되어 호환성 회귀가 발생한다.",
+      "recommendedAction": "src/workflow-terminal.ts의 WorkflowTerminalSummary 인터페이스(line 33)와 summarizeWorkflowTerminal 반환 객체(line 107)에서 launchRetries를 원래의 공개 계약 필드명인 launchRetryAttempts로 복구해야 한다. 축약형 이름 지원이 필요하다면 launchRetryAttempts를 필수 공개 필드로 유지한 채 launchRetries를 옵셔널/별칭 필드로 병행 제공해야 한다.",
+      "confidence": "high",
+      "source": "reviewers.terminal-api-contract",
+      "sourceLineage": [
+        "reviewers.terminal-api-contract"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.terminal-api-contract",
+        "specId": "reviewers.terminal-api-contract",
+        "taskId": "task-10",
+        "itemIdentity": "terminal-api-contract",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-004",
+      "findingId": "finding-004",
+      "originalFindingId": "finding-004",
+      "rootCauseId": "root-004",
+      "generatedRootCauseId": true,
+      "classification": "behavioral",
+      "severity": "medium",
+      "originalSeverity": "medium",
+      "title": "src/workflow-stop.ts: pollMs 기본값 및 최소 주기 명세(S3) 위반과 검증 단위 테스트 부재",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "createWorkflowStopSignal에서 pollMs 기본값이 200ms, 하한이 1ms로 구현되어 SPEC.md S3(기본 50ms, 하한 10ms)와 불일치하며, package.json에 test 스크립트 및 S3 동작을 검증하는 단위 테스트(SPEC.md Q1)가 없음.",
+      "evidenceQuotes": [
+        "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+        "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.",
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "reviewerEvidenceQuotes": [
+        "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+        "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.",
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "rationale": "중지 감시 주기가 기본 200ms로 늘어나면 중지 요청 감지가 최대 200ms 지연될 수 있으며, 10ms 미만(최소 1ms)의 과도하게 잦은 폴링도 허용하게 된다. 저장소에 단위 테스트(SPEC.md Q1)가 구비되어 있지 않아 이러한 명세 위반 결함이 사전 검증되지 못하고 회귀로 고착될 위험이 있다.",
+      "recommendedAction": "src/workflow-stop.ts:67의 pollMs 계산식을 Math.max(10, options.pollMs ?? 50)으로 복원하고, SPEC.md Q1에 따라 기본값(50ms) 및 하한(10ms) 제약 조건을 검증하는 단위 테스트를 추가한다.",
+      "confidence": "high",
+      "source": "reviewers.test-hygiene",
+      "sourceLineage": [
+        "reviewers.test-hygiene"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.test-hygiene",
+        "specId": "reviewers.test-hygiene",
+        "taskId": "task-11",
+        "itemIdentity": "test-hygiene",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-005",
+      "findingId": "finding-005",
+      "originalFindingId": "finding-005",
+      "rootCauseId": "root-005",
+      "generatedRootCauseId": true,
+      "classification": "behavioral",
+      "severity": "medium",
+      "originalSeverity": "medium",
+      "title": "src/workflow-cancellation.ts: 취소 인정 사유에 cancelled 및 timeout 임의 추가(C1 위반)와 검증 단위 테스트 부재",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "isWorkflowReturnedCancellation에서 provider 반환 오류/사유 판별 시 'cancelled'와 'timeout'을 취소로 승격하여 SPEC.md C1(정확히 'aborted', 'AbortError', 'ABORT_ERR' 세 가지만 인정)을 위반하며, 단위 테스트(Q1)가 부재함.",
+      "evidenceQuotes": [
+        "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "reviewerEvidenceQuotes": [
+        "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "rationale": "C1 명세는 일반적인 provider 오류가 취소로 오판되어 진단 정보 손실이나 재시도 누락이 발생하는 것을 방지하도록 제한한다. 'cancelled'와 'timeout'을 취소로 처리하면 타임아웃 오류 등이 취소로 분류되어 장애 진단 흐름을 방해한다. 단위 테스트(Q1)가 없어 비취소 오류가 오분류되는 회귀를 방어하지 못한다.",
+      "recommendedAction": "src/workflow-cancellation.ts:20에서 'cancelled' 및 'timeout' 비교 조건을 제거하여 'aborted', 'AbortError', 'ABORT_ERR' 세 가지만 취소로 판별하도록 수정하고, provider 반환값에 대한 단위 테스트를 작성한다.",
+      "confidence": "high",
+      "source": "reviewers.test-hygiene",
+      "sourceLineage": [
+        "reviewers.test-hygiene"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.test-hygiene",
+        "specId": "reviewers.test-hygiene",
+        "taskId": "task-11",
+        "itemIdentity": "test-hygiene",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-006",
+      "findingId": "finding-006",
+      "originalFindingId": "finding-006",
+      "rootCauseId": "root-006",
+      "generatedRootCauseId": true,
+      "classification": "behavioral",
+      "severity": "medium",
+      "originalSeverity": "medium",
+      "title": "src/workflow-terminal.ts: 종료 요약 공개 계약 필드 launchRetryAttempts 임의 변경(T3 위반)과 검증 단위 테스트 부재",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "lineEnd": 110,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 33,
+          "symbol": "WorkflowTerminalSummary"
+        }
+      ],
+      "evidence": "WorkflowTerminalSummary 인터페이스(33행) 및 summarizeWorkflowTerminal 반환 객체(107행)에서 외부 공개 계약 필드명인 launchRetryAttempts가 launchRetries로 변경되어 SPEC.md T3를 위반하며, 단위 테스트(Q1)가 부재함.",
+      "evidenceQuotes": [
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "\tlaunchRetries: number;",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "reviewerEvidenceQuotes": [
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "\tlaunchRetries: number;",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+      ],
+      "rationale": "SPEC.md T3는 outputRetryAttempts와 launchRetryAttempts 필드명이 외부 도구가 의존하는 공개 계약임을 명시하고 있다. 필드명이 launchRetries로 변경되면 외부 도구 및 모니터링 시스템에서 재시도 횟수를 파싱하지 못하거나 런타임 호환성 결함이 발생한다. 단위 테스트(Q1)가 없어 인터페이스 계약 파괴가 사전에 감지되지 못했다.",
+      "recommendedAction": "src/workflow-terminal.ts의 WorkflowTerminalSummary 인터페이스 및 summarizeWorkflowTerminal 반환 객체의 필드명을 launchRetryAttempts로 복원하고, 종료 요약 필드 규격을 검증하는 단위 테스트를 추가한다.",
+      "confidence": "high",
+      "source": "reviewers.test-hygiene",
+      "sourceLineage": [
+        "reviewers.test-hygiene"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.test-hygiene",
+        "specId": "reviewers.test-hygiene",
+        "taskId": "task-11",
+        "itemIdentity": "test-hygiene",
+        "placeholderSpecId": "reviewers.item"
+      }
+    }
+  ],
+  "coverageIssues": [],
+  "reviewerLedger": {
+    "plannedLensIds": [
+      "stop-cancel-runtime",
+      "terminal-api-contract",
+      "test-hygiene"
+    ],
+    "materializedReviewerIds": [
+      "stop-cancel-runtime",
+      "terminal-api-contract",
+      "test-hygiene"
+    ],
+    "attestedLensIds": [
+      "stop-cancel-runtime",
+      "terminal-api-contract",
+      "test-hygiene"
+    ],
+    "materializedReviewerSourceIds": [
+      "reviewers",
+      "reviewers.terminal-api-contract",
+      "reviewers.test-hygiene"
+    ],
+    "validAttestationSourceIds": [
+      "reviewers",
+      "reviewers.terminal-api-contract",
+      "reviewers.test-hygiene"
+    ],
+    "ownerMap": [
+      {
+        "source": "reviewers",
+        "specId": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.terminal-api-contract",
+        "specId": "reviewers.terminal-api-contract",
+        "taskId": "task-10",
+        "itemIdentity": "terminal-api-contract",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.test-hygiene",
+        "specId": "reviewers.test-hygiene",
+        "taskId": "task-11",
+        "itemIdentity": "test-hygiene",
+        "placeholderSpecId": "reviewers.item"
+      }
+    ],
+    "invalidAttestations": [],
+    "missingPlannedLensIds": [],
+    "missingAttestedLensIds": [],
+    "unexpectedMaterializedReviewerIds": [],
+    "unexpectedAttestedLensIds": [],
+    "duplicateMaterializedReviewerIds": [],
+    "setEquality": true,
+    "sourceStatuses": [
+      {
+        "source": "triage",
+        "displayName": "triage.main",
+        "taskId": "task-1",
+        "specId": "triage.main",
+        "stageId": "triage",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers",
+        "displayName": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "specId": "reviewers.stop-cancel-runtime",
+        "stageId": "reviewers",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.terminal-api-contract",
+        "displayName": "reviewers.terminal-api-contract",
+        "taskId": "task-10",
+        "specId": "reviewers.terminal-api-contract",
+        "stageId": "reviewers",
+        "itemIdentity": "terminal-api-contract",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.test-hygiene",
+        "displayName": "reviewers.test-hygiene",
+        "taskId": "task-11",
+        "specId": "reviewers.test-hygiene",
+        "stageId": "reviewers",
+        "itemIdentity": "test-hygiene",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      }
+    ],
+    "sourceCoverageFailures": [],
+    "plannedRangeCorrections": [
+      {
+        "source": "reviewers.test-hygiene",
+        "lens": "test-hygiene",
+        "kind": "planned-range-end",
+        "path": "package.json:1-10",
+        "fileLines": 8,
+        "checked": "1-8"
+      },
+      {
+        "source": "reviewers.test-hygiene",
+        "lens": "test-hygiene",
+        "kind": "planned-range-end",
+        "path": "SPEC.md:38-42",
+        "fileLines": 40,
+        "checked": "38-40"
+      }
+    ],
+    "complete": true,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "validFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "invalidFindingIds": []
+  },
+  "rawFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005",
+    "finding-006"
+  ],
+  "dedupFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005",
+    "finding-006"
+  ],
+  "sourceStatusSummary": {
+    "total": 4,
+    "completed": 4,
+    "nonCompleted": 0,
+    "partialFailures": []
+  },
+  "dedupSummary": {
+    "complete": true,
+    "rawCount": 6,
+    "uniqueCount": 6,
+    "duplicateCount": 0,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "supportFindingIds": [],
+    "lineageFindingIds": [],
+    "duplicates": []
+  }
+}

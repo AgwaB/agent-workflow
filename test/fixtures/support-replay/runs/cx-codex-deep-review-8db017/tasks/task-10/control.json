@@ -1,0 +1,64 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 종료 요약 필드 launchRetryAttempts를 launchRetries로 변경해 외부 소비자 계약을 깨뜨립니다.",
+  "lens": "api-compatibility",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "공개 종료 요약 필드명 변경으로 외부 소비자 호환성 파괴",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 33,
+          "symbol": "WorkflowTerminalSummary"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "symbol": "summarizeWorkflowTerminal"
+        }
+      ],
+      "evidence": "HEAD는 WorkflowTerminalSummary 인터페이스와 실제 반환 객체의 공개 필드명을 launchRetryAttempts에서 launchRetries로 변경했습니다. SPEC.md는 launchRetryAttempts를 외부 도구가 읽는 공개 계약으로 명시합니다.",
+      "evidenceQuotes": [
+        "-\tlaunchRetryAttempts: number;",
+        "+ \tlaunchRetries: number;",
+        "-\tlaunchRetryAttempts: run.tasks.reduce(",
+        "+\tlaunchRetries: run.tasks.reduce(",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+      ],
+      "rationale": "저장된 종료 요약이나 외부 도구가 기존 launchRetryAttempts 키를 읽으면 새 버전에서 값이 사라져 undefined가 됩니다. 저장된 요약 소비자와 외부 워크플로는 저장소 내부 호출자가 아니므로, 현재 in-repo 참조가 없더라도 공개 계약 변경으로 인한 호환성 회귀입니다.",
+      "recommendedAction": "기존 launchRetryAttempts 필드명을 유지하십시오. 새 축약 이름이 필요하면 기존 필드를 제거하지 말고 호환 기간 동안 별칭으로 추가하며, 계약 변경이 의도된 경우 명시적 버전 전환을 제공하십시오.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-terminal.ts:27-35",
+    "src/workflow-terminal.ts:98-112",
+    "SPEC.md:35"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-terminal.ts:27-35",
+      "status": "read",
+      "evidence": "launchRetries: number;",
+      "artifact": "",
+      "reason": "지정된 소스 범위를 직접 읽었습니다."
+    },
+    {
+      "path": "src/workflow-terminal.ts:98-112",
+      "status": "read",
+      "evidence": "launchRetries: run.tasks.reduce(",
+      "artifact": "",
+      "reason": "지정된 소스 범위를 직접 읽었습니다."
+    },
+    {
+      "path": "SPEC.md:35",
+      "status": "read",
+      "evidence": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+      "artifact": "",
+      "reason": "지정된 명세 행을 직접 읽었습니다."
+    }
+  ],
+  "noIssueNotes": []
+}

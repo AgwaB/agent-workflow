@@ -1,0 +1,88 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "9082955ef91dcd4a1743af317a46d41436abdfdd0206a1245979b813c797b8b7",
+  "maxChars": 15000,
+  "actualChars": 2395,
+  "expectedVerdict": "NEEDS_WORK",
+  "partitionSummary": {
+    "keep": 4,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 1,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 5,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 5,
+    "missingVerdicts": 0,
+    "partialFailures": 1
+  },
+  "sourceStatusSummary": {
+    "total": 7,
+    "completed": 6,
+    "nonCompleted": 1,
+    "partialFailureCount": 1,
+    "partialFailures": [
+      {
+        "source": "devil-advocate.finding-003",
+        "status": "verifier_evidence_unverified",
+        "statusDetail": "verifier evidence was not grounded: src/workflow-cancellation.ts:19-20 did not contain the exact verifier quote"
+      }
+    ]
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "중지 감시 주기의 기본값과 하한을 명세대로 적용해야 한다",
+        "severity": "medium",
+        "recommendedAction": "주기 계산을 Math.max(10, options.pollMs ?? 50)으로 수정하고, pollMs 생략 시 50ms, 0·1·9 입력 시 10ms, 10ms 이상 입력 시 해당 값이 setInterval에 전달되는지 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-002",
+        "title": "메시지 접두사로 일반 오류를 중지 오류로 인정하지 않아야 한다",
+        "severity": "medium",
+        "recommendedAction": "메시지 접두사 분기를 제거하고 Error 인스턴스의 name만 정확히 비교한다. 동일 접두사의 일반 Error는 false, 전용 생성기로 만든 오류는 true인지 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "공개 계약 필드 launchRetryAttempts가 반환되지 않음",
+        "severity": "high",
+        "recommendedAction": "WorkflowTerminalSummary와 반환 객체에 launchRetryAttempts를 복원하고, 여러 작업의 합산값 및 재시도가 없는 경우의 0을 해당 공개 키로 검증하는 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-005",
+        "title": "dynamic_incomplete가 controller 읽기 실패의 필수 상태를 덮어씀",
+        "severity": "medium",
+        "recommendedAction": "controller 읽기 실패를 dynamic_incomplete 판정보다 먼저 처리하고, 종료된 direct-dynamic 실행에서 두 조건이 동시에 발생하는 회귀 테스트를 추가한다."
+      }
+    ],
+    "weaken": [],
+    "drop": [],
+    "needsHuman": [
+      {
+        "findingId": "finding-003",
+        "title": "timeout·cancelled 오류를 취소로 분류하지 않아야 한다",
+        "severity": "medium",
+        "recommendedAction": "오류·사유 문자열 허용 목록을 aborted, AbortError, ABORT_ERR로 제한하고 cancelled:true 및 AbortError 객체 판별은 유지하라. 최상위·details·JSON content 각각에서 timeout과 cancelled 문자열이 false인지 회귀 테스트를 추가하라."
+      }
+    ],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [
+    "verdict for \"timeout·cancelled 오류를 취소로 분류하지 않아야 한다\" had ungrounded verifier evidence; routed to NEEDS_HUMAN instead of KEEP"
+  ],
+  "overflowCounts": {
+    "keep": 0,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 0,
+    "omittedStringChars": 0
+  }
+}

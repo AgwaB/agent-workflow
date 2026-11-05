@@ -1,0 +1,42 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "명세의 기본 50ms·하한 10ms와 구현의 200ms·1ms가 불일치하므로 지적을 유지한다.",
+  "findingId": "finding-004",
+  "finding": "src/workflow-stop.ts: pollMs 기본값 및 최소 주기 명세(S3) 위반과 검증 단위 테스트 부재",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\tconst pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 80,
+      "lineEnd": 81,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "lineEnd": 14,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+    },
+    {
+      "file": "SPEC.md",
+      "line": 40,
+      "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+    },
+    {
+      "file": "package.json",
+      "line": 7,
+      "quote": "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+    }
+  ],
+  "counterEvidence": [
+    "생성 시 void check()를 즉시 실행하므로 이미 존재하는 중지 요청까지 반드시 200ms 기다리는 것은 아니다. 다만 이후 감시 주기의 기본값과 하한이 명세를 위반한다는 사실은 바뀌지 않는다."
+  ],
+  "recommendedAction": "pollMs 계산을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 기본값과 10ms 미만 입력의 하한 처리를 검증하는 타이머 모킹 단위 테스트 및 테스트 실행 경로를 추가한다."
+}

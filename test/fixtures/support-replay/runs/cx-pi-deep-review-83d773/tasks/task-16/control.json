@@ -1,0 +1,43 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "controller 읽기 실패와 dynamic_incomplete가 겹치면 T2의 대체 상태가 선택되지 않으므로 지적을 유지한다.",
+  "findingId": "finding-005",
+  "finding": "controller 읽기 실패보다 dynamic_incomplete를 우선하여 종료 상태를 오분류함",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 33,
+      "lineEnd": 34,
+      "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\n  `completed_without_semantic_result`이다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 59,
+      "lineEnd": 61,
+      "symbol": "readDynamicControllerControl",
+      "quote": "return await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 80,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "if (terminal && run.provenance?.mode === \"direct-dynamic\") {"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 83,
+      "lineEnd": 86,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "const incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 95,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "else semanticStatus = \"completed_without_semantic_result\";"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "controller 읽기 실패로 control이 없으면 completed_without_semantic_result를 먼저 선택하고, control이 있을 때만 dynamic_incomplete 우선순위를 적용한다. 종료된 direct-dynamic 실행에서 읽기 실패와 dynamic_incomplete가 겹치는 회귀 테스트를 추가한다."
+}

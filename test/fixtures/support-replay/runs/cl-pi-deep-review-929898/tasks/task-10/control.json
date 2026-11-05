@@ -1,0 +1,73 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "취소 문자열 허용 목록이 계약보다 넓어 timeout·cancelled 오류를 취소로 오분류하며, 중첩 JSON에도 동일하게 전파된다.",
+  "lens": "provider-cancellation",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "timeout·cancelled 오류를 취소로 분류하지 않아야 한다",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 19,
+          "lineEnd": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 23,
+          "lineEnd": 28,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 25,
+          "lineEnd": 28
+        }
+      ],
+      "evidence": "오류·사유 후보에 timeout 또는 cancelled가 있으면 true를 반환한다. 따라서 {error:\"timeout\"}, {details:{reason:\"cancelled\"}}와 이들을 content[].text에 JSON으로 담은 값도 취소로 판정된다. 이는 C1의 정확한 세 문자열 계약을 위반한다.",
+      "evidenceQuotes": [
+        "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+      ],
+      "rationale": "실제 provider 시간 초과도 취소와 구별되지 않는다. 이 반환값으로 실패 처리를 생략하는 소비자는 오류 진단을 억제할 수 있다. 중첩 content도 동일 함수를 재사용하므로 같은 오분류가 발생한다. 실제 소비자의 진단 억제 여부는 제공된 발췌에서 확인되지 않았지만, 판별 결과의 계약 위반은 코드상 확정적이다.",
+      "recommendedAction": "오류·사유 문자열 허용 목록을 aborted, AbortError, ABORT_ERR로 제한하라. 별도의 cancelled:true 및 AbortError 객체 판별은 유지하고, 최상위·details·중첩 content 각각에서 timeout과 cancelled 문자열은 false인지 회귀 검증하라.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-cancellation.ts:1-36",
+    "SPEC.md:23-28",
+    "package.json",
+    "src/ 내 isWorkflowReturnedCancellation 및 isWorkflowAbortError 참조 검색"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-cancellation.ts:1-36",
+      "status": "read",
+      "evidence": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:23-28",
+      "status": "read",
+      "evidence": "  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "package.json",
+      "status": "read",
+      "evidence": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "중첩 content의 JSON은 동일 판별 함수를 호출한다. 별도 규칙 불일치가 아니라 동일한 허용 목록 결함의 전파이므로 하나의 문제로 보고했다.",
+    "제공된 src에서 판별 함수 소비자는 발견되지 않아 실제 진단 억제 경로는 확인하지 못했다."
+  ]
+}

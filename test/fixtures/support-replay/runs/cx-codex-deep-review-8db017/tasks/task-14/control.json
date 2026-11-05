@@ -1,0 +1,27 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 계약과 실제 반환 객체 모두 launchRetryAttempts를 제거했으므로 호환성 회귀를 유지합니다.",
+  "findingId": "finding-003",
+  "finding": "공개 종료 요약 필드명 변경으로 외부 소비자 호환성 파괴",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "lineEnd": 36,
+      "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 33,
+      "quote": "\tlaunchRetries: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 107,
+      "quote": "\t\tlaunchRetries: run.tasks.reduce("
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "기존 launchRetryAttempts 필드를 유지하고, 필요하면 launchRetries를 호환 별칭으로 추가하십시오. 의도된 계약 변경이라면 명시적 버전 전환을 제공해야 합니다."
+}

@@ -1,0 +1,98 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "중지 감시 주기의 기본값·최솟값 위반과 메시지 접두사에 의한 일반 오류의 중지 오분류를 확인했다.",
+  "lens": "stop-runtime",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "감시 주기가 기본 50ms·최소 10ms 계약을 위반함",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 81,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 13,
+          "lineEnd": 14
+        }
+      ],
+      "evidence": "pollMs를 생략하면 200ms가 적용되고, 1ms를 지정하면 그대로 1ms가 적용된다. 이 값이 setInterval에 전달되므로 S3의 기본 50ms·최소 10ms를 모두 위반한다.",
+      "evidenceQuotes": [
+        "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+        "\tconst timer = setInterval(() => void check(), pollMs);",
+        "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+      ],
+      "rationale": "초기 확인 직후 중지 의도가 생기면 기본 설정에서 다음 확인까지의 대기가 명세보다 약 150ms 길어질 수 있다. 반대로 작은 값을 지정하면 1ms마다 디스크 읽기를 예약하며, 비동기 읽기의 완료를 기다리지 않으므로 느린 저장소에서는 읽기가 중첩되어 부하가 증가할 수 있다.",
+      "recommendedAction": "Math.max(10, options.pollMs ?? 50)으로 계약에 맞추고, 기본값과 10ms 미만 입력의 실제 예약 주기를 검증한다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "medium",
+      "title": "메시지 접두사가 같은 일반 오류를 중지 오류로 오분류함",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 58,
+          "symbol": "isWorkflowStopRequestedError"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 18,
+          "lineEnd": 19
+        }
+      ],
+      "evidence": "이름 비교와 메시지 접두사 검사를 OR로 연결한다. 따라서 이름이 Error인 new Error(\"workflow stop requested persistence failed\")도 true로 판별되며 S6에 어긋난다.",
+      "evidenceQuotes": [
+        "\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))",
+        "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다."
+      ],
+      "rationale": "중지 요청 처리 자체의 실패나 다른 일반 오류가 이 접두사를 사용하면 정상적인 중지로 취급될 수 있다. 이 판별값을 사용하는 호출자는 실제 실패 진단을 누락할 위험이 있다. 제공된 발췌에는 호출자가 없어 구체적인 종료 상태 변경까지는 확인할 수 없다.",
+      "recommendedAction": "메시지 기반 분기를 제거하고 Error 여부와 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME만 검사한다. 동일 접두사를 가진 일반 Error가 false인지 검증한다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:7-28",
+    "src/workflow-stop.ts:43-98",
+    "SPEC.md:6-21",
+    "package.json:1-8"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:7-28",
+      "status": "read",
+      "evidence": "\t\tif (signals.size === 0 && launchSignals.get(key) === signals)",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:43-98",
+      "status": "read",
+      "evidence": "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:6-21",
+      "status": "read",
+      "evidence": "- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "서로 다른 signal의 등록·해제 경로에서는 해제 대상만 삭제하고, 마지막 signal이 제거되면 동일 Set인지 확인한 뒤 Map 항목을 삭제한다. 이 경로에서 등록 잔존 문제는 확인하지 못했다.",
+    "dispose는 interval을 해제하며 진행 중인 check에는 추가 읽기 반복이 없다. 이미 시작된 읽기가 완료될 수는 있지만, 이것만으로 S5의 새 읽기 금지를 위반한다고 판단하지 않았다.",
+    "감시 경로는 읽기 실패를 무시하고, throwIfWorkflowStopRequested는 읽기 오류를 그대로 전파한다. 읽기 전후 foreground abort 확인과 중지 오류 생성 형식도 명세에 부합한다."
+  ]
+}

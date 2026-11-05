@@ -1,0 +1,27 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1이 문자열 허용 목록을 정확히 세 값으로 제한하지만 HEAD는 cancelled와 timeout도 true로 분류하므로 finding을 유지한다.",
+  "findingId": "finding-002",
+  "finding": "cancelled와 timeout provider 오류가 취소로 오분류됨",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 20,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 25,
+      "quote": "오류·사유 문자열은 정확히 `aborted`,"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 26,
+      "quote": "`AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "오류·사유 문자열 비교를 aborted, AbortError, ABORT_ERR 세 값으로 되돌리고 cancelled와 timeout에는 별도 계약이 없으면 취소 판정을 내리지 않도록 회귀 테스트를 추가한다."
+}

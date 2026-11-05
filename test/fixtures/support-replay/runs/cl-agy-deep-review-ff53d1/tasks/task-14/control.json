@@ -1,0 +1,24 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC S6에서 중지 오류 판별 시 에러 메시지 내용 검사를 명시적으로 금지하고 있음에도 src/workflow-stop.ts가 error.message 접두어를 검사하고 있으므로 지적을 유지(KEEP)합니다.",
+  "findingId": "finding-003",
+  "finding": "SPEC S6 위반: 에러 메시지 검사를 통한 중지 오류 판별",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 56,
+      "lineEnd": 57,
+      "symbol": "isWorkflowStopRequestedError",
+      "quote": "(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 18,
+      "lineEnd": 19,
+      "quote": "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "error.message.startsWith(\"workflow stop requested\") 조건을 완전히 제거하고, error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 검사하도록 단일화해야 합니다."
+}

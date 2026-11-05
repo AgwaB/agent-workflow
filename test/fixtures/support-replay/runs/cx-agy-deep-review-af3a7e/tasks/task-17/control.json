@@ -1,0 +1,41 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md T2 명세에 완벽히 부합하며 실제 engineStatus도 별도 필드로 보존되고 최근 커밋(HEAD)의 변경이 아니므로 지적을 기각(DROP)합니다.",
+  "findingId": "finding-007",
+  "finding": "direct-dynamic 실행 종료 요약 시 엔진 실패 상태(failed 등) 마스킹 및 degradation 미반영(T1, T2 불일치)",
+  "verdict": "DROP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 33,
+      "lineEnd": 33,
+      "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 34,
+      "lineEnd": 34,
+      "quote": "  `completed_without_semantic_result`이다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 95,
+      "lineEnd": 95,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "else semanticStatus = \"completed_without_semantic_result\";"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 100,
+      "lineEnd": 100,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "engineStatus: run.status,"
+    }
+  ],
+  "counterEvidence": [
+    "SPEC.md T2 명세에 따르면 direct-dynamic 실행에서 controller의 control.json을 읽을 수 없을 때 semanticStatus를 completed_without_semantic_result로 처리하는 것은 명세에 정확히 부합하는 의도된 동작입니다.",
+    "summarizeWorkflowTerminal은 반환 객체에서 engineStatus: run.status를 통해 실행 엔진의 실제 종료 상태(failed, interrupted 등)를 마스킹 없이 그대로 보존하여 반환합니다.",
+    "해당 로직(src/workflow-terminal.ts 80-96행)은 최초 커밋(11bc671)부터 존재하던 코드로, 최근 커밋(HEAD)에서 변경되거나 도입된 변경 사항이 아니므로 이번 HEAD 리뷰 대상 범위에 포함되지 않습니다."
+  ],
+  "recommendedAction": "해당 동작은 SPEC.md T2 명세에 부합하고 engineStatus가 별도로 보존되며 최근 커밋(HEAD)의 변경 사항이 아니므로 기각(DROP) 처리하고 기존 구현을 유지합니다."
+}

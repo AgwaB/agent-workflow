@@ -1,0 +1,295 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2wrgza_ff53d1",
+  "taskId": "task-5",
+  "sources": [
+    {
+      "source": "dedup-findings",
+      "displayName": "dedup-findings.main",
+      "taskId": "task-3",
+      "specId": "dedup-findings.main",
+      "stageId": "dedup-findings",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "dedup: raw=8, unique=8, duplicates=0, partialFailures=0",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-3/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-3/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-3/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-3/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate",
+      "displayName": "devil-advocate.finding-001",
+      "taskId": "task-12",
+      "specId": "devil-advocate.finding-001",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC S3 명세에 명시된 기본값 50ms 및 하한 10ms 요건과 src/workflow-stop.ts의 구현(기본값 200ms, 하한 1ms)이 명백히 불일치하므로 지적을 유지(KEEP)합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-002",
+      "displayName": "devil-advocate.finding-002",
+      "taskId": "task-13",
+      "specId": "devil-advocate.finding-002",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "createWorkflowStopSignal의 dispose는 clearInterval(timer)를 통해 후속 check() 실행을 동기적으로 차단하므로 dispose 호출 이후 새로운 디스크 읽기가 시작되지 않아 SPEC S5를 준수합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-003",
+      "displayName": "devil-advocate.finding-003",
+      "taskId": "task-14",
+      "specId": "devil-advocate.finding-003",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC S6에서 중지 오류 판별 시 에러 메시지 내용 검사를 명시적으로 금지하고 있음에도 src/workflow-stop.ts가 error.message 접두어를 검사하고 있으므로 지적을 유지(KEEP)합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-14/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-14/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-14/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-14/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-004",
+      "displayName": "devil-advocate.finding-004",
+      "taskId": "task-15",
+      "specId": "devil-advocate.finding-004",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC C1 명세에 따라 candidate 오류·사유 문자열은 정확히 'aborted', 'AbortError', 'ABORT_ERR'만 인정되어야 하므로 'cancelled' 및 'timeout'을 취소로 승격하는 것은 명세 위반이며 지적은 유효합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-15/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-15/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-15/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-15/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-005",
+      "displayName": "devil-advocate.finding-005",
+      "taskId": "task-16",
+      "specId": "devil-advocate.finding-005",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "JSON.parse는 순환 참조를 생성할 수 없으며 중첩된 JSON 문자열의 재귀 깊이는 유한한 문자열 길이에 의해 엄격히 제한되므로 무한 재귀 및 콜스택 오버플로 취약점 주장은 사실이 아닙니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-16/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-16/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-16/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-16/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-006",
+      "displayName": "devil-advocate.finding-006",
+      "taskId": "task-17",
+      "specId": "devil-advocate.finding-006",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC.md T3 공개 계약에 명시된 launchRetryAttempts 필드명이 src/workflow-terminal.ts에서 launchRetries로 선언되어 외부 도구와의 연동 계약을 위반함을 확인하여 지적을 유지(KEEP)합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-17/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-17/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-17/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-17/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-007",
+      "displayName": "devil-advocate.finding-007",
+      "taskId": "task-18",
+      "specId": "devil-advocate.finding-007",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-007",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC.md T2에 따라 direct-dynamic 모드에서 control.json을 읽을 수 없을 때 semanticStatus를 completed_without_semantic_result로 설정하는 것은 의도된 명세 동작이며, engineStatus에 run.status가 그대로 보존되므로 finding-007을 DROP합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-18/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-18/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-18/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-18/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-008",
+      "displayName": "devil-advocate.finding-008",
+      "taskId": "task-19",
+      "specId": "devil-advocate.finding-008",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-008",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC Q1 명세에서 요구하는 단위 테스트 및 테스트 실행 환경이 저장소 전체에 전무함을 확인하여 지적을 유지(KEEP)합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-19/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-19/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-19/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-19/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

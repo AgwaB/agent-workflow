@@ -1,0 +1,114 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "중지 감시 주기의 기본값·하한 위반과 메시지 접두사에 의한 일반 오류의 중지 오분류를 확인했다.",
+  "lens": "stop-runtime",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "중지 감시 주기의 기본값과 하한을 명세대로 적용해야 한다",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 81,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 13,
+          "lineEnd": 14
+        }
+      ],
+      "evidence": "pollMs를 생략하면 200ms, 0이나 1을 전달하면 1ms가 실제 setInterval 주기로 사용된다. 명세 S3은 기본값 50ms와 최소 10ms를 요구한다.",
+      "evidenceQuotes": [
+        "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+        "\tconst timer = setInterval(() => void check(), pollMs);",
+        "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+      ],
+      "rationale": "직전 검사 후 중지가 요청되면 기본 설정에서는 다음 검사까지 약 200ms를 기다리므로 요구된 주기보다 감지가 늦어진다. 반대로 작은 값을 지정하면 최대 매 1ms마다 디스크 읽기를 시작할 수 있다. 비동기 검사 간 직렬화도 없어 읽기가 느린 경우 중첩 I/O가 발생할 수 있다.",
+      "recommendedAction": "주기 계산을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 기본 주기와 10ms 미만 입력의 보정을 검증한다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "medium",
+      "title": "메시지 접두사로 일반 오류를 중지 오류로 인정하지 않아야 한다",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 58,
+          "symbol": "isWorkflowStopRequestedError"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 18,
+          "lineEnd": 19
+        }
+      ],
+      "evidence": "오류 이름 검사와 메시지 startsWith 검사가 OR로 연결되어 있다. 따라서 이름이 Error인 new Error(\"workflow stop requested: permission denied\")도 true로 분류된다.",
+      "evidenceQuotes": [
+        "\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))",
+        "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다."
+      ],
+      "rationale": "실제 중지와 관계없이 메시지 접두사가 일치하는 일반 실패까지 중지로 승격된다. 이 판별 결과를 사용하는 경계에서 실패 진단이 정상적인 중지 처리로 가려질 수 있다. 이는 S6의 명시적 오류 식별 계약 위반이며, 발췌에는 호출부가 없어 구체적인 후속 처리 영향까지는 확인할 수 없다.",
+      "recommendedAction": "메시지 접두사 분기를 제거하고 Error 인스턴스의 name이 WORKFLOW_STOP_REQUESTED_ERROR_NAME과 정확히 일치하는지만 검사한다. 동일 접두사의 일반 Error가 false인지 회귀 검증한다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:7-28",
+    "src/workflow-stop.ts:30-50",
+    "src/workflow-stop.ts:53-99",
+    "SPEC.md:8-21",
+    "package.json",
+    "src/workflow-cancellation.ts",
+    "src/workflow-terminal.ts",
+    "tsconfig.json",
+    ".git/HEAD",
+    ".git/refs/heads/main",
+    ".git/logs/HEAD"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:7-28",
+      "status": "read",
+      "evidence": "\t\tif (signals.size === 0 && launchSignals.get(key) === signals)\n\t\t\tlaunchSignals.delete(key);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:53-99",
+      "status": "read",
+      "evidence": "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:8-21",
+      "status": "read",
+      "evidence": "- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "package.json",
+      "status": "read",
+      "evidence": "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "S1·S2: foreground abort와 디스크 의도를 검사하며, 디스크 읽기 후 foreground 상태를 재확인한다. 생성하는 중지 오류의 이름과 메시지도 명세와 일치한다.",
+    "S4: 감시 경로는 디스크 읽기 rejection을 undefined로 처리하지만 throwIfWorkflowStopRequested는 catch하지 않아 읽기 오류를 전파한다.",
+    "S5: dispose는 interval을 해제하며 검사 함수 자체에는 후속 검사를 예약하는 코드가 없다. 이미 시작한 읽기의 완료 후 abort 가능성은 새로운 읽기를 금지하는 S5 위반으로 보고하지 않았다.",
+    "S7: 해제 함수는 signal을 제거하고 마지막 signal 제거 시 Map 항목도 삭제한다. 이전 등록의 해제가 새 Set을 삭제하지 않도록 동일성 검사도 수행한다.",
+    "파일 조회만 허용되어 테스트·타입 검사는 실행하지 않았다. SPEC과 package.json에 명시된 발췌 특성상 store.js·types.js 구현 및 실제 소비 호출부도 검증할 수 없었다."
+  ]
+}

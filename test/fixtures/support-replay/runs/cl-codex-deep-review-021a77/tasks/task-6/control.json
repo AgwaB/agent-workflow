@@ -1,0 +1,77 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "c1794331f48921bd09b8fecf40c22cee853956823baff96539a3d9d3ff4cb183",
+  "maxChars": 15000,
+  "actualChars": 1972,
+  "expectedVerdict": "NEEDS_WORK",
+  "partitionSummary": {
+    "keep": 1,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 2,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 3,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 3,
+    "missingVerdicts": 0,
+    "partialFailures": 1
+  },
+  "sourceStatusSummary": {
+    "total": 5,
+    "completed": 4,
+    "nonCompleted": 1,
+    "partialFailureCount": 1,
+    "partialFailures": [
+      {
+        "source": "reviewers",
+        "status": "source_coverage_incomplete",
+        "statusDetail": "runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range)"
+      }
+    ]
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-003",
+        "title": "공개 종료 요약 필드명이 launchRetryAttempts에서 launchRetries로 변경됨",
+        "severity": "high",
+        "recommendedAction": "공개 필드명 launchRetryAttempts를 복원하고, 필요하면 launchRetries를 별도 alias로 추가한 뒤 충분한 마이그레이션 기간 후 폐기하십시오."
+      }
+    ],
+    "weaken": [],
+    "drop": [],
+    "needsHuman": [
+      {
+        "findingId": "finding-001",
+        "title": "중지 폴링 기본값과 최소값이 명세보다 완화되어 중지 지연 및 busy loop가 발생할 수 있음",
+        "severity": "high",
+        "recommendedAction": "pollMs 계산을 Math.max(10, options.pollMs ?? 50)로 수정하고 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-002",
+        "title": "허용 목록에 cancelled와 timeout을 추가해 정상 provider 오류를 취소로 오인할 수 있음",
+        "severity": "high",
+        "recommendedAction": "문자열 판별을 `aborted`, `AbortError`, `ABORT_ERR` 세 값으로 제한하고, 추가 provider 형태가 필요하면 명세와 공개 계약을 먼저 갱신한다."
+      }
+    ],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [
+    "verdict for \"중지 폴링 기본값과 최소값이 명세보다 완화되어 중지 지연 및 busy loop가 발생할 수 있음\" came from incomplete source coverage; routed to NEEDS_HUMAN instead of KEEP",
+    "verdict for \"허용 목록에 cancelled와 timeout을 추가해 정상 provider 오류를 취소로 오인할 수 있음\" came from incomplete source coverage; routed to NEEDS_HUMAN instead of KEEP"
+  ],
+  "overflowCounts": {
+    "keep": 0,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 0,
+    "omittedStringChars": 0
+  }
+}

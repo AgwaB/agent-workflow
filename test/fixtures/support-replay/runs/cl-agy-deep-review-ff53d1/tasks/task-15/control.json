@@ -1,0 +1,24 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC C1 명세에 따라 candidate 오류·사유 문자열은 정확히 'aborted', 'AbortError', 'ABORT_ERR'만 인정되어야 하므로 'cancelled' 및 'timeout'을 취소로 승격하는 것은 명세 위반이며 지적은 유효합니다.",
+  "findingId": "finding-004",
+  "finding": "SPEC C1 위반: cancelled 및 timeout 등 비인가 문자열의 임의 취소 승격",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 25,
+      "lineEnd": 26,
+      "quote": "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 20,
+      "lineEnd": 20,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "candidate 검사 조건에서 \"cancelled\"와 \"timeout\"을 제거하고, 정확히 \"aborted\", \"AbortError\", \"ABORT_ERR\" 및 isWorkflowAbortError(candidate)만 인정하도록 수정해야 합니다."
+}

@@ -1,0 +1,31 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 계약 필드 launchRetryAttempts가 타입과 반환 객체 모두에 없어 지적을 유지한다.",
+  "findingId": "finding-004",
+  "finding": "공개 계약인 launchRetryAttempts 대신 launchRetries를 반환함",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "lineEnd": 36,
+      "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 32,
+      "lineEnd": 33,
+      "symbol": "WorkflowTerminalSummary",
+      "quote": "\toutputRetryAttempts: number;\n\tlaunchRetries: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 107,
+      "lineEnd": 110,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "인터페이스와 반환 객체에 계약된 launchRetryAttempts를 제공하고, 실제 반환 객체의 필드명과 여러 작업의 재시도 합계를 검증하는 회귀 테스트를 추가한다. launchRetries를 유지한다면 호환 별칭으로만 제공한다."
+}

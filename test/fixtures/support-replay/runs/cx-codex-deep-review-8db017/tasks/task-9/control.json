@@ -1,0 +1,78 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "중지 폴링 기본값·최솟값이 명세를 위반하고, cancelled/timeout 문자열이 provider 오류를 취소로 오분류한다.",
+  "lens": "runtime-correctness",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "중지 감시 주기가 명세보다 길어져 중지 감지가 지연됨",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "HEAD에서 기본 pollMs가 50ms에서 200ms로, 최솟값이 10ms에서 1ms로 변경되었다. 이는 S3의 기본값과 하한을 모두 위반하며, 디스크 중지 의도의 감지 지연을 최대 약 200ms까지 늘린다.",
+      "evidenceQuotes": [
+        "+\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+        "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+      ],
+      "rationale": "감시가 setInterval(pollMs)에 직접 연결되어 있으므로 기본 실행에서 중지 의도가 다음 200ms 주기까지 감지되지 않을 수 있다. 호출자가 1~9ms를 지정하면 명세가 요구하는 10ms 하한도 깨진다.",
+      "recommendedAction": "pollMs 계산을 명세대로 기본 50ms, 최솟값 10ms로 복원하고 관련 중지 지연 동작을 검증한다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "cancelled와 timeout provider 오류가 취소로 오분류됨",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "HEAD가 오류·사유 문자열 취소 목록에 cancelled와 timeout을 추가했다. C1은 aborted, AbortError, ABORT_ERR 세 문자열만 인정하도록 요구한다.",
+      "evidenceQuotes": [
+        "+\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,"
+      ],
+      "rationale": "provider가 정상적인 timeout 또는 cancelled 오류를 반환해도 이 함수가 true를 반환한다. 호출자가 이를 취소로 분류하면 실제 provider 실패가 취소로 승격되어 진단·종료 상태가 왜곡될 수 있다.",
+      "recommendedAction": "오류·사유 문자열 비교를 aborted, AbortError, ABORT_ERR 세 값으로 되돌리고, cancelled/timeout은 명시적인 별도 계약이 없는 한 취소로 분류하지 않는다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:67",
+    "src/workflow-cancellation.ts:13-31",
+    "SPEC.md:13-27"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:67",
+      "status": "read",
+      "evidence": "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-cancellation.ts:13-31",
+      "status": "read",
+      "evidence": "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:13-27",
+      "status": "read",
+      "evidence": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "content JSON 재귀에는 parsed !== value 가드가 있어 동일 객체 재검사 무한 재귀는 확인되지 않았다."
+  ]
+}

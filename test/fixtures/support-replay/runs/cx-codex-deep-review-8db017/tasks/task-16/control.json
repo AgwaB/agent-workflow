@@ -1,0 +1,23 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "명세와 HEAD 구현이 직접 충돌하므로 finding-005를 유지한다.",
+  "findingId": "finding-005",
+  "finding": "취소 판별이 명세의 허용 목록보다 넓어짐",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 20,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 25,
+      "lineEnd": 26,
+      "quote": "provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "`cancelled`와 `timeout` 분기를 제거하고, 허용된 세 마커의 양성 테스트와 `cancelled`, `timeout`, 임의 provider 오류 및 중첩 content JSON의 음성 테스트를 추가한다."
+}

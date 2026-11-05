@@ -1,0 +1,198 @@
+{
+  "schema": "deep-review-render-v1",
+  "digest": "Rendered 4 findings: high=1, medium=3.",
+  "status": "passed",
+  "verdict": "NEEDS_WORK",
+  "completionSummaryMarkdown": "## Core conclusion\n\nVerdict: **NEEDS_WORK**. Review coverage is partial. The deterministic ledger contains 4 kept or weakened findings and 1 needs-human items.\n\n## Key findings\n\n- **high / KEEP:** 공개 계약 필드 launchRetryAttempts가 반환되지 않음\n- **medium / KEEP:** 중지 감시 주기의 기본값과 하한을 명세대로 적용해야 한다\n- **medium / KEEP:** 메시지 접두사로 일반 오류를 중지 오류로 인정하지 않아야 한다\n- **medium / KEEP:** dynamic\\_incomplete가 controller 읽기 실패의 필수 상태를 덮어씀\n- **medium / NEEDS\\_HUMAN:** timeout·cancelled 오류를 취소로 분류하지 않아야 한다\n\n## Evidence level\n\n- Canonical rows: 4 kept or weakened findings, 1 needs-human items, and 0 supporting observations.\n- Coverage: partial.\n\n## Important limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.\n- Review coverage is partial because a task did not complete or required source content was unavailable.",
+  "markdown": "# Deep review report\n\n## Executive summary\n\n### Core conclusion\n\nVerdict: **NEEDS_WORK**. Review coverage is partial. The deterministic ledger contains 4 kept or weakened findings and 1 needs-human items.\n\n### Key findings\n\n- **high / KEEP:** 공개 계약 필드 launchRetryAttempts가 반환되지 않음\n- **medium / KEEP:** 중지 감시 주기의 기본값과 하한을 명세대로 적용해야 한다\n- **medium / KEEP:** 메시지 접두사로 일반 오류를 중지 오류로 인정하지 않아야 한다\n- **medium / KEEP:** dynamic\\_incomplete가 controller 읽기 실패의 필수 상태를 덮어씀\n- **medium / NEEDS\\_HUMAN:** timeout·cancelled 오류를 취소로 분류하지 않아야 한다\n\n### Evidence level\n\n- Canonical rows: 4 kept or weakened findings, 1 needs-human items, and 0 supporting observations.\n- Coverage: partial.\n\n### Important limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.\n- Review coverage is partial because a task did not complete or required source content was unavailable.\n\n## Finding summary\n\n| Severity | Count |\n|---|---:|\n| high | 1 |\n| medium | 3 |\n\n## Synthesis narrative\n\nSummary: 최근 커밋은 수정 후 재검토가 필요합니다. 중지·취소 처리와 종료 요약에서 지적 4건(높음 1건, 중간 3건)이 유지됐으며, 추가 1건은 사람의 근거 확인이 필요합니다.\n\n## Risks and partial-review limitations\n\n- 취소 오류 분류 관련 1건은 검증 인용과 실제 소스의 일치가 확인되지 않아 검토가 미완료입니다. 이 한계는 유지된 4건의 판단과는 별개입니다.\n- 이번 종합 단계에서는 코드를 직접 재검증하거나 테스트를 실행하지 않았으므로, 수정 효과는 별도로 확인해야 합니다.\n- Partial source: devil-advocate.finding-003 (verifier\\_evidence\\_unverified)\n- Partial source: devil-advocate.finding-003 (verifier\\_evidence\\_unverified)\n- Normalization note: verdict for \"timeout·cancelled 오류를 취소로 분류하지 않아야 한다\" had ungrounded verifier evidence; routed to NEEDS\\_HUMAN instead of KEEP\n\nRecommended synthesis action: 유지된 4건을 수정하고 관련 회귀 테스트를 보강한 뒤 재검토하세요. 보류된 1건은 실제 소스와 검증 근거를 대조해 판단을 확정하세요.\n\n## High findings\n\n### finding-004 — 공개 계약 필드 launchRetryAttempts가 반환되지 않음\n\nSeverity: **high**  \nRoot cause: `root-004`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-terminal.ts` | 107-110 | `summarizeWorkflowTerminal` |\n| `src/workflow-terminal.ts` | 33 | `WorkflowTerminalSummary` |\n| `SPEC.md` | 35-36 | — |\n\nReviewer/source evidence:\n\n```text\n\tlaunchRetries: number;\n```\n\n```text\n\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),\n```\n\n```text\n- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).\n```\n\nVerifier evidence:\n\n```text\n- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).\n```\n\n```text\n\tlaunchRetries: number;\n```\n\n```ts\n\treturn {\n\t\tterminal,\n\t\tengineStatus: run.status,\n\t\tsemanticStatus,\n\t\toutputTaskIds,\n\t\toutputRetryAttempts: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.outputRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),\n\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),\n\t\tartifactRoot: workflowRunDir(cwd, run.runId),\n\t};\n```\n\nRationale:\n\n모든 작업의 재시도 횟수를 올바르게 합산해도 계약된 키가 없으므로 외부 소비자가 summary.launchRetryAttempts를 읽으면 undefined가 된다. JSON 결과에서도 해당 키가 누락되며, 타입을 사용하는 소비자도 기존 필드를 참조할 수 없다. 저장소 내부 호출자 존재 여부와 무관한 공개 API 호환성 결함이다.\n\nRecommended action:\n\nWorkflowTerminalSummary와 반환 객체에 launchRetryAttempts를 복원하고, 여러 작업의 합산값 및 재시도가 없는 경우의 0을 해당 공개 키로 검증하는 회귀 테스트를 추가한다.\n\n## Medium findings\n\n### finding-001 — 중지 감시 주기의 기본값과 하한을 명세대로 적용해야 한다\n\nSeverity: **medium**  \nRoot cause: `root-001`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-stop.ts` | 67 | `createWorkflowStopSignal` |\n| `src/workflow-stop.ts` | 81 | `createWorkflowStopSignal` |\n| `SPEC.md` | 13-14 | — |\n\nReviewer/source evidence:\n\n```ts\n\tconst pollMs = Math.max(1, options.pollMs ?? 200);\n```\n\n```ts\n\tconst timer = setInterval(() => void check(), pollMs);\n```\n\n```text\n- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.\n```\n\nVerifier evidence:\n\n```text\n- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.\n```\n\n```ts\n\tconst pollMs = Math.max(1, options.pollMs ?? 200);\n```\n\n```text\n\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);\n```\n\nRationale:\n\n직전 검사 후 중지가 요청되면 기본 설정에서는 다음 검사까지 약 200ms를 기다리므로 요구된 주기보다 감지가 늦어진다. 반대로 작은 값을 지정하면 최대 매 1ms마다 디스크 읽기를 시작할 수 있다. 비동기 검사 간 직렬화도 없어 읽기가 느린 경우 중첩 I/O가 발생할 수 있다.\n\nRecommended action:\n\n주기 계산을 Math.max(10, options.pollMs ?? 50)으로 수정하고, pollMs 생략 시 50ms, 0·1·9 입력 시 10ms, 10ms 이상 입력 시 해당 값이 setInterval에 전달되는지 회귀 테스트를 추가한다.\n\nCaveat / counter-evidence:\n\n- src/workflow-stop.ts:80에서 최초 검사를 즉시 시작하므로 이미 요청된 중지가 반드시 200ms를 기다리는 것은 아니다. 그러나 이후 반복 감시의 기본값과 하한 위반은 해소되지 않는다.\n\n### finding-002 — 메시지 접두사로 일반 오류를 중지 오류로 인정하지 않아야 한다\n\nSeverity: **medium**  \nRoot cause: `root-002`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-stop.ts` | 53-58 | `isWorkflowStopRequestedError` |\n| `SPEC.md` | 18-19 | — |\n\nReviewer/source evidence:\n\n```text\n\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))\n```\n\n```text\n- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다.\n```\n\nVerifier evidence:\n\n```text\n\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))\n```\n\n```text\n- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다.\n```\n\n```ts\n\tconst error = new Error(workflowStopRequestedMessage(runId));\n\terror.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;\n\treturn error;\n```\n\nRationale:\n\n실제 중지와 관계없이 메시지 접두사가 일치하는 일반 실패까지 중지로 승격된다. 이 판별 결과를 사용하는 경계에서 실패 진단이 정상적인 중지 처리로 가려질 수 있다. 이는 S6의 명시적 오류 식별 계약 위반이며, 발췌에는 호출부가 없어 구체적인 후속 처리 영향까지는 확인할 수 없다.\n\nRecommended action:\n\n메시지 접두사 분기를 제거하고 Error 인스턴스의 name만 정확히 비교한다. 동일 접두사의 일반 Error는 false, 전용 생성기로 만든 오류는 true인지 회귀 테스트를 추가한다.\n\n### finding-005 — dynamic\\_incomplete가 controller 읽기 실패의 필수 상태를 덮어씀\n\nSeverity: **medium**  \nRoot cause: `root-005`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-terminal.ts` | 81-87 | `summarizeWorkflowTerminal` |\n| `src/workflow-terminal.ts` | 59-61 | `readDynamicControllerControl` |\n| `src/workflow-terminal.ts` | 95 | `summarizeWorkflowTerminal` |\n| `SPEC.md` | 33-34 | — |\n\nReviewer/source evidence:\n\n```ts\n\treturn await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);\n```\n\n```ts\n\t\tconst control = await readDynamicControllerControl(cwd, run);\n\t\toutputTaskIds = stringArray(control?.outputTasks);\n\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";\n```\n\n```text\n\t\telse semanticStatus = \"completed_without_semantic_result\";\n```\n\n```text\n- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\n  `completed_without_semantic_result`이다.\n```\n\nVerifier evidence:\n\n```text\n- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\n  `completed_without_semantic_result`이다.\n```\n\n```ts\n\treturn await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);\n```\n\n```ts\n\tif (terminal && run.provenance?.mode === \"direct-dynamic\") {\n\t\tconst control = await readDynamicControllerControl(cwd, run);\n\t\toutputTaskIds = stringArray(control?.outputTasks);\n\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);\n\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";\n```\n\n```text\n\t\telse semanticStatus = \"completed_without_semantic_result\";\n```\n\nRationale:\n\n종료된 direct-dynamic 실행에 dynamic\\_incomplete 작업이 있고 controller 파일이 없거나 읽기에 실패하는 경우, T2가 요구하는 completed\\_without\\_semantic\\_result 대신 dynamic\\_incomplete를 반환한다. 따라서 외부 요약 소비자는 controller 결과를 확보하지 못한 상황을 명세에 따른 상태로 식별할 수 없다.\n\nRecommended action:\n\ncontroller 읽기 실패를 dynamic\\_incomplete 판정보다 먼저 처리하고, 종료된 direct-dynamic 실행에서 두 조건이 동시에 발생하는 회귀 테스트를 추가한다.\n\nCaveat / counter-evidence:\n\n- dynamic\\_incomplete 작업이 없다면 읽기 실패는 95행의 기본 분기로 처리된다. 따라서 모든 읽기 실패가 아니라 두 조건이 겹치는 경우에 한정된 문제다.\n\n## Needs human review\n\n### finding-003 — timeout·cancelled 오류를 취소로 분류하지 않아야 한다\n\nSeverity: **medium**  \nRoot cause: `root-003`  \nVerifier verdict: **NEEDS\\_HUMAN**  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/workflow-cancellation.ts` | 19-20 | `isWorkflowReturnedCancellation` |\n| `src/workflow-cancellation.ts` | 23-28 | `isWorkflowReturnedCancellation` |\n| `SPEC.md` | 25-28 | — |\n\nReviewer/source evidence:\n\n```ts\n\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;\n```\n\n```ts\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;\n```\n\n```text\n- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.\n```\n\nVerifier evidence:\n\n```ts\n\tfor (const candidate of [value.error, details?.error, value.reason, details?.reason]) {\n\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;\n```\n\n```ts\n\tif (Array.isArray(value.content)) {\n\t\tfor (const entry of value.content) {\n\t\t\tif (!isRecord(entry) || typeof entry.text !== \"string\") continue;\n\t\t\ttry {\n\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;\n```\n\n```text\n- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.\n- **C2.** `content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시\n  검사하는 무한 재귀가 없어야 한다.\n```\n\nRationale:\n\n실제 provider 시간 초과도 취소와 구별되지 않는다. 이 반환값으로 실패 처리를 생략하는 소비자는 오류 진단을 억제할 수 있다. 중첩 content도 동일 함수를 재사용하므로 같은 오분류가 발생한다. 실제 소비자의 진단 억제 여부는 제공된 발췌에서 확인되지 않았지만, 판별 결과의 계약 위반은 코드상 확정적이다.\n\nReview note:\n\nverifier evidence was not grounded: src/workflow-cancellation.ts:19-20 did not contain the exact verifier quote\n\nRecommended action:\n\n오류·사유 문자열 허용 목록을 aborted, AbortError, ABORT\\_ERR로 제한하고 cancelled:true 및 AbortError 객체 판별은 유지하라. 최상위·details·JSON content 각각에서 timeout과 cancelled 문자열이 false인지 회귀 테스트를 추가하라.\n\nCaveat / counter-evidence:\n\n- verifier evidence was not grounded: src/workflow-cancellation.ts:19-20 did not contain the exact verifier quote\n\n## Recommended next action\n\nAddress kept or weakened findings and resolve needs-human items before release.\n\n## Evidence and review coverage\n\n- Canonical ledger rows rendered: 4 kept or weakened findings, 1 needs-human items, and 0 supporting observations.\n- Source coverage: partial; see limitations below.\n- Finding cards preserve ledger locations, evidence quotes, verifier dispositions, counter-evidence, and recommended actions where present.\n- Counts, dispositions, and the effective verdict come from deterministic partition state; narrative synthesis cannot override them.\n\n## Limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.\n- Review coverage is partial because a task did not complete or required source content was unavailable.\n\n## Related artifacts\n\n- [Machine-readable report](control.json) — structured renderer output and completion-summary contract.\n- [Structured source references](refs.json) — source pointers retained by the final workflow task.\n- [Legacy compatibility report](review.md) — byte-identical copy of this report.",
+  "findingSummary": {
+    "total": 4,
+    "bySeverity": {
+      "medium": 3,
+      "high": 1
+    }
+  },
+  "renderedFindingIds": [
+    "finding-004",
+    "finding-001",
+    "finding-002",
+    "finding-005"
+  ],
+  "renderedNeedsHumanIds": [
+    "finding-003"
+  ],
+  "renderedDroppedIds": [],
+  "renderedLineageIds": [],
+  "emissionRows": [
+    {
+      "kind": "top-level",
+      "id": "finding-001"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-002"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-004"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-005"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-003"
+    }
+  ],
+  "expectedEmissionRows": [
+    {
+      "kind": "top-level",
+      "id": "finding-001"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-002"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-004"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-005"
+    },
+    {
+      "kind": "top-level",
+      "id": "finding-003"
+    }
+  ],
+  "expectedFindingCount": 4,
+  "rawReviewerFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005"
+  ],
+  "dedupFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005"
+  ],
+  "rawDuplicateLineageIssues": [],
+  "independentlyDispositionedRawDuplicates": [],
+  "duplicateLedgerRawIdsMismatch": false,
+  "verdictsReceived": 5,
+  "verifierCoverage": {
+    "expectedFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "verdictFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "missingFindingIds": [],
+    "orphanFindingIds": [],
+    "duplicateFindingIds": [],
+    "ownershipIssues": [],
+    "statusIssues": []
+  },
+  "expectedMergedFindingCount": 0,
+  "mergedFindingCount": 0,
+  "needsHumanSummary": {
+    "actual": 1,
+    "expected": 1,
+    "metadataMissing": false,
+    "incompleteEvidence": 0,
+    "verifierEvidenceIncomplete": 0,
+    "verifierEvidenceUnavailable": 0
+  },
+  "supportNoteSummary": {
+    "actual": 0,
+    "expected": 0,
+    "metadataMissing": false,
+    "incompleteEvidence": 0
+  },
+  "sourceArtifacts": [
+    "partition-verdicts.control.json",
+    "report.control.json"
+  ],
+  "gates": {
+    "renderedAllFindings": true,
+    "renderedAllNeedsHuman": true,
+    "renderedAllSupportNotes": true,
+    "findingCountMismatch": false,
+    "duplicateCountMismatch": false,
+    "duplicateLedgerReconciled": true,
+    "duplicateLedgerPairsMismatch": false,
+    "duplicateLedgerIssues": [],
+    "rawDuplicateIdsMissing": [],
+    "rawDuplicateLineageIssues": [],
+    "independentlyDispositionedRawDuplicates": [],
+    "duplicateLedgerRawIdsMismatch": false,
+    "verdictsReceivedMismatch": false,
+    "partitionVerdictsReceived": 5,
+    "verifierVerdictsReceived": 5,
+    "ledgerTopLevelCountMismatch": false,
+    "uniqueLedgerIds": true,
+    "duplicateLedgerIds": [],
+    "mergedFindingCountMismatch": false,
+    "rawReviewerFindingIdsMissing": [],
+    "dedupFindingIdsMissing": [],
+    "rawReviewerIdsMismatch": false,
+    "dedupIdsMismatch": false,
+    "rawCountMismatch": false,
+    "uniqueCountMismatch": false,
+    "reviewerCoverageReconciled": true,
+    "requiredLedgersPresent": true,
+    "ledgerCompleteness": true,
+    "idLedgerExact": true,
+    "provenanceOwnerIssues": [],
+    "supportRelationIssues": [],
+    "reviewerFindingOwnerIssues": [],
+    "verifierExpectedMismatch": false,
+    "verifierDeclaredRowsMismatch": false,
+    "verifierStatusIssues": [],
+    "reviewerOwnerMapIssues": [],
+    "reviewerMissingAttestedLensIds": [],
+    "reviewerUnexpectedAttestedIds": [],
+    "reviewerMissingLensIds": [],
+    "reviewerUnexpectedIds": [],
+    "reviewerDuplicateIds": [],
+    "verifierCoverageExact": true,
+    "verifierDigestMatches": true,
+    "verifierMissingIds": [],
+    "verifierOrphanIds": [],
+    "verifierDuplicateIds": [],
+    "verifierOwnershipIssues": [],
+    "renderedAllLineage": true,
+    "renderedAllTopLevel": true,
+    "renderedAllDropped": true,
+    "needsHumanCountMismatch": false,
+    "needsHumanMetadataMissing": false,
+    "needsHumanEvidenceIncomplete": false,
+    "needsHumanEvidenceUnavailable": false,
+    "reportSynthesisAvailable": true,
+    "reportVerdictConsistent": true,
+    "supportNoteCountMismatch": false,
+    "supportNoteMetadataMissing": false,
+    "supportNoteEvidenceIncomplete": false,
+    "supportProvenanceIssues": [],
+    "supportProvenanceValid": true,
+    "reviewedSnapshotOnly": true,
+    "currentTreeBytesAttested": false,
+    "sidecarWriteFailed": false,
+    "passed": true
+  },
+  "sidecarPath": "final-report.md"
+}

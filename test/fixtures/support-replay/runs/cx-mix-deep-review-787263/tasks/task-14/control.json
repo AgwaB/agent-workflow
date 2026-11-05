@@ -1,0 +1,29 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC S3의 pollMs 기본값(50ms) 및 최솟값(10ms) 규격과 코드 구현(200ms, 1ms) 간의 불일치를 확인하여 KEEP으로 판정합니다.",
+  "findingId": "finding-003",
+  "finding": "Stop-watch poll default and minimum deviate from spec S3",
+  "readerTitle": "중지 감시 poll 기본값과 최솟값이 명세 S3과 불일치",
+  "readerRationale": "기본값을 사용할 경우 디스크에 기록된 중지 의도가 실행 중인 실행(run)을 중단시키는 데 걸리는 시간이 명세에서 허용하는 시간보다 최대 약 4배 길어질 수 있습니다. 또한 호출자가 매우 작은 값을 전달하면 명세가 허용하는 것보다 훨씬 자주 폴링하여 디스크 읽기 부하를 초래할 수 있습니다. 이는 단순한 문서 괴리가 아닌 런타임 동작상의 편차입니다.",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "lineEnd": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "lineEnd": 14,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+    }
+  ],
+  "counterEvidence": [
+    "최근 커밋(654f639)의 메시지가 'stop: poll less often'인 점으로 미루어 기본 폴링 주기를 200ms로 늘린 것은 디스크 I/O 빈도를 낮추기 위한 의도적 변경으로 해석될 여지가 있습니다.",
+    "그러나 하한선(floor)이 10ms에서 1ms로 완화된 점은 'poll less often' 의도와 상충하며, SPEC.md S3이 함께 개정되지 않아 런타임 명세 위반이 발생합니다."
+  ],
+  "recommendedAction": "SPEC.md S3 명세에 맞춰 pollMs 기본값을 50ms, 최솟값을 10ms로 복원하고 이를 검증하는 테스트를 추가하십시오. 만약 200ms가 의도된 새 기본값이라면 SPEC.md S3 명세도 함께 개정하여 계약과 코드를 일치시켜야 합니다."
+}

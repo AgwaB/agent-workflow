@@ -1,0 +1,32 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "즉시 최초 확인은 수행하지만 이후 주기는 기본 200ms·최소 1ms여서 S3 위반이 확인된다.",
+  "findingId": "finding-001",
+  "finding": "감시 주기가 기본 50ms·최소 10ms 계약을 위반함",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "lineEnd": 14,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 80,
+      "lineEnd": 81,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);"
+    }
+  ],
+  "counterEvidence": [
+    "최초에는 void check()를 즉시 호출하므로 이미 존재하는 중지 의도가 반드시 200ms 지연되는 것은 아니다. 그러나 이후 감시 주기의 계약 위반은 해소되지 않는다."
+  ],
+  "recommendedAction": "Math.max(10, options.pollMs ?? 50)으로 수정하고, 옵션 생략 시 50ms 및 10ms 미만 입력 시 10ms로 타이머가 예약되는지 회귀 테스트를 추가한다."
+}

@@ -1,0 +1,76 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "중지 감시 주기(pollMs)의 기본값 및 하한 설정이 명세 S3를 위반하고, provider 취소 판별에서 timeout 및 cancelled 문자열을 취소로 오승격하여 명세 C1을 위반하는 런타임 신뢰성 결함 2건을 확인했다.",
+  "lens": "stop-cancel-runtime",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "중지 감시 주기(pollMs) 기본값 및 최소 하한 설정의 명세(S3) 위반",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "lineEnd": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "src/workflow-stop.ts 67행에서 createWorkflowStopSignal이 pollMs를 Math.max(1, options.pollMs ?? 200)으로 계산하여 기본값을 200ms로 두고 최소 하한을 1ms로 처리하고 있다.",
+      "evidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "rationale": "SPEC.md S3는 '중지 감시 주기(pollMs)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다'고 규정한다. 현재 코드는 기본 폴링 주기가 200ms로 설정되어 디스크 의도 감지가 최대 200ms까지 지연될 수 있으며(기준 대비 4배), 호출자가 1~9ms를 지정했을 때 10ms 미만으로 폴링을 허용하여 디스크 읽기 과부하를 초래할 위험이 있다.",
+      "recommendedAction": "src/workflow-stop.ts의 createWorkflowStopSignal 함수에서 pollMs 계산식을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 기본 주기 50ms 및 10ms 하한이 보장되는지 확인하는 단위 테스트를 보강한다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "provider 취소 판별 시 cancelled 및 timeout 문자열 오승격으로 인한 명세(C1) 위반",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "lineEnd": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "src/workflow-cancellation.ts 20행에서 오류/사유 candidate 검사 시 'cancelled' 및 'timeout'을 취소(true)로 판정한다.",
+      "evidenceQuotes": [
+        "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "rationale": "SPEC.md C1은 'provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 aborted, AbortError, ABORT_ERR 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다'고 명시한다. 'timeout'과 'cancelled' 문자열을 취소로 인정하면, 일반 네트워크 타임아웃이나 모델 API 게이트웨이 타임아웃 등 재시도 또는 정상 진단이 필요한 일반 장애 상황이 취소로 잘못 분류되어 워크플로가 부적절하게 종료된다.",
+      "recommendedAction": "src/workflow-cancellation.ts 20행의 candidate 비교문에서 'cancelled' 및 'timeout' 조건을 제거하여 'aborted', 'AbortError', 'ABORT_ERR' 세 가지만 취소로 인정하도록 수정하고, provider timeout 오류가 취소로 승격되지 않음을 검증하는 단위 테스트를 추가한다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:61-86",
+    "src/workflow-cancellation.ts:13-32",
+    "SPEC.md:10-28"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:61-86",
+      "status": "read",
+      "evidence": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-cancellation.ts:13-32",
+      "status": "read",
+      "evidence": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:10-28",
+      "status": "read",
+      "evidence": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

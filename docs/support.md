@@ -72,6 +72,27 @@ The bundled workflows were not run live in `safe` mode. Its offline negotiation 
 degrade to `forcedReadOnly` (the bundled specs opt in with `allowReadOnlyDowngrade`), and environment
 warnings need confirmation in an interactive host.
 
+## Host × executor matrix, 2026-11-04
+
+deep-review on the same target, the host driving it through its plugin's MCP server in print mode
+(Codex: `codex exec`, gpt-5.6-luna low, the user's `approval_policy = "never"`; Claude Code:
+`claude -p --model haiku`), Korean task. Mixed A: triage pi, reviewers claude, devil's advocate
+antigravity, report codex. Mixed B: triage codex, reviewers antigravity, devil's advocate pi, report
+claude. Every run completed with `NEEDS_WORK`; each host reported verdict, run id and dashboard link.
+
+| Host → workers | Confirmation | Notes |
+|---|---|---|
+| Codex → codex, claude, pi | not needed | 101–311 s |
+| Codex → antigravity, Mixed A | dialog: Codex accepted it itself (`approval_policy = "never"`, owner decision O2) | Mixed A stopped mid-run and resumed through the host: only the interrupted verifier and the steps after it ran again |
+| Claude Code → codex, pi | not needed | |
+| Claude Code → antigravity, Mixed B | asked in chat (print mode cancels dialogs): no run until the user agreed, then `acceptDegradations: ["resume"]` (`confirmedVia: "chat"`) | |
+
+The limit that needs an OK on antigravity is `resume` (a repair starts a new session). Three runs
+were partial (a reviewer or verifier quote not in its cited lines, or coverage of an unassigned
+file), each named in the report. Waiting is cheap on the Claude host ($0.009–0.018 per run) and
+token-heavy on the Codex host (0.6–1.2 M input tokens per run, ~95 % cached: one `workflow_wait`
+call per 45 s). All nine runs are replay fixtures (`test/fixtures/support-replay/`).
+
 ## Hosts (stage 2)
 
 The agent that the user talks to. Workers run on the executor the run selects (explicit choice,

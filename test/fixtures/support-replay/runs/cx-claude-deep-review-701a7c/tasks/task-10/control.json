@@ -1,0 +1,76 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC T3 names launchRetryAttempts as a public field, but the exported WorkflowTerminalSummary field is launchRetries, a breaking rename for external readers.",
+  "lens": "api-contract-terminal",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "Public summary field launchRetryAttempts renamed to launchRetries, breaking the documented contract",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 33,
+          "symbol": "WorkflowTerminalSummary"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "lineEnd": 110,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 35,
+          "lineEnd": 36,
+          "symbol": "T3"
+        }
+      ],
+      "evidence": "SPEC.md T3 declares both outputRetryAttempts and launchRetryAttempts as public contract names read by external tools. The code exports outputRetryAttempts (line 32) but exports launchRetries (line 33) and computes it at line 107. No occurrence of launchRetryAttempts exists anywhere in the repository outside SPEC.md. HEAD commit message 654f639 reads 'shorter retry field name', which indicates the rename was intentional in this commit. The git diff could not be inspected with the enabled tools, so the exact prior field name in HEAD is inferred from the spec and commit message.",
+      "evidenceQuotes": [
+        "launchRetries: number;",
+        "launchRetries: run.tasks.reduce(",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+      ],
+      "rationale": "Consumers of the terminal summary that read launchRetryAttempts will get undefined after this change, with no error raised. The field is named as a public contract in the spec, and external tools depend on it, so a rename without a compatibility alias or versioned schema is a breaking change. The inconsistency also leaves the summary with mixed naming: outputRetryAttempts keeps the long suffix while launchRetries drops it. Renaming a public field is a compatibility regression even when no in-repo caller reads the old name.",
+      "recommendedAction": "Restore the public name launchRetryAttempts in WorkflowTerminalSummary and in the computation at line 107. If a shorter name is needed, add it as a new field and keep the old field populated for a deprecation window, then update SPEC T3 and record the change as a breaking change. Keep the two retry fields consistently named.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-terminal.ts:27-35",
+    "src/workflow-terminal.ts:103-110",
+    "SPEC.md:35-36",
+    "src/workflow-terminal.ts:107",
+    "repo-wide grep for launchRetr(y|ies|yAttempts) and outputRetryAttempts"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-terminal.ts:27-35",
+      "status": "read",
+      "evidence": "launchRetries: number;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-terminal.ts:103-110",
+      "status": "read",
+      "evidence": "launchRetries: run.tasks.reduce(",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:35-36",
+      "status": "read",
+      "evidence": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "T1 is consistent with nonDynamicSemanticStatus: a completed run with degradation maps to completed_degraded (lines 67-68).",
+    "T2 is consistent: readDynamicControllerControl catches read errors and returns undefined, which falls through to completed_without_semantic_result (lines 93-95).",
+    "outputRetryAttempts matches the T3 spec name and the summation logic (lines 103-106).",
+    "No repo consumers of launchRetryAttempts or launchRetries were found, so the impact depends entirely on external tools."
+  ]
+}

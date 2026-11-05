@@ -1,0 +1,138 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC S3, S5, S6 및 C1, C2와 불일치하는 중지 주기·디스크 읽기 방어·메시지 검사·임의 취소 승격·JSON 무한 재귀 취약점 5건을 식별했습니다.",
+  "lens": "runtime-correctness",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "SPEC S3 위반: 중지 감시 주기(pollMs) 기본값 200ms 및 하한 1ms 설정 결함",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "lineEnd": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "src/workflow-stop.ts 67행에서 options.pollMs 기본값이 200ms로 설정되어 있고 하한이 Math.max(1, ...)로 1ms로 처리되어 있습니다.",
+      "evidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "rationale": "SPEC S3에 따르면 중지 감시 주기 pollMs의 기본값은 50ms여야 하며, 호출자가 더 작은 값을 지정하더라도 10ms 미만으로 내려가서는 안 됩니다. 현재 구현은 기본값이 200ms로 설정되어 중지 요청 감지가 최대 200ms 지연될 수 있고, 10ms 미만의 빈번한 폴링 주기가 허용되어 디스크 I/O 과부하를 유발할 수 있습니다.",
+      "recommendedAction": "options.pollMs 기본값을 50ms로 변경하고, 하한 검사를 Math.max(10, options.pollMs ?? 50)으로 수정해야 합니다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "SPEC S5 위반: dispose() 호출 후 진행 중이거나 대기 중인 디스크 읽기 방지 미흡",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 68,
+          "lineEnd": 86,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "createWorkflowStopSignal의 dispose 구현은 clearInterval(timer)만 수행하며 disposed 불리언 플래그를 두지 않아, 비동기 check() 루틴 내 readWorkflowStopIntent 전후로 dispose 여부를 차단하지 않습니다.",
+      "evidenceQuotes": [
+        "const intent = await readWorkflowStopIntent(cwd, runId).catch(\n\t\t\t() => undefined,\n\t\t);",
+        "dispose: () => clearInterval(timer),"
+      ],
+      "rationale": "SPEC S5는 dispose()를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다고 규정합니다. 현재 코드는 dispose 호출 시점에 이미 큐잉되었거나 초기 실행 중인 check() 비동기 함수가 계속 실행되어 readWorkflowStopIntent 디스크 읽기가 발생하며, 폐기된 컨트롤러를 abort 시킬 수 있는 레이스 컨디션이 존재합니다.",
+      "recommendedAction": "createWorkflowStopSignal 내부에 let disposed = false 상태를 관리하고, dispose() 호출 시 disposed = true로 전환한 뒤 check() 진입 시점 및 readWorkflowStopIntent 호출 직전/직후에 disposed 상태를 확인하여 즉시 return하도록 구현해야 합니다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "SPEC S6 위반: 에러 메시지 검사를 통한 중지 오류 판별",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 59,
+          "symbol": "isWorkflowStopRequestedError"
+        }
+      ],
+      "evidence": "isWorkflowStopRequestedError 함수에서 error.name이 WORKFLOW_STOP_REQUESTED_ERROR_NAME인지 검사하는 것 외에 error.message.startsWith(\"workflow stop requested\") 검사를 추가로 수행합니다.",
+      "evidenceQuotes": [
+        "\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))"
+      ],
+      "rationale": "SPEC S6은 isWorkflowStopRequestedError가 이름이 WorkflowStopRequested인 오류만 중지 오류로 인정하고 메시지 내용으로 판별해서는 안 된다고 명시합니다. 에러 메시지 접두어 검사는 임의의 다른 원인으로 발생한 예외가 의도치 않게 워크플로 중지 오류로 오인 판정되는 결함을 유발합니다.",
+      "recommendedAction": "error.message.startsWith(\"workflow stop requested\") 조건을 완전히 제거하고, error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 검사하도록 단일화해야 합니다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "SPEC C1 위반: cancelled 및 timeout 등 비인가 문자열의 임의 취소 승격",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 19,
+          "lineEnd": 22,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "isWorkflowReturnedCancellation 함수에서 candidate 문자열을 검사할 때 \"cancelled\"와 \"timeout\"을 취소 조건으로 인정합니다.",
+      "evidenceQuotes": [
+        "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "rationale": "SPEC C1은 provider가 돌려준 값이 취소인지 판별할 때 오류·사유 문자열은 정확히 'aborted', 'AbortError', 'ABORT_ERR' 세 가지만 인정하고 다른 provider 오류를 취소로 승격해서는 안 된다고 명시합니다. timeout(시간 초과)이나 임의 provider의 cancelled 오류를 일반 취소로 승격하면 타임아웃 진단이 은폐되고 장애 분석이 왜곡됩니다.",
+      "recommendedAction": "candidate 검사 조건에서 \"cancelled\"와 \"timeout\"을 제거하고, 정확히 \"aborted\", \"AbortError\", \"ABORT_ERR\" 및 isWorkflowAbortError(candidate)만 인정하도록 수정해야 합니다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "SPEC C2 위반: JSON 파싱 재귀 검사 시 무한 재귀 및 콜스택 오버플로 취약점",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 23,
+          "lineEnd": 31,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "content 내 문자열을 JSON.parse한 후 parsed !== value 조건으로 재귀 호출을 수행하고 있으나, JSON.parse는 항상 새 객체 참조를 반환하므로 자기 참조나 중첩 순환 구조에 대해 무한 재귀를 막을 수 없습니다.",
+      "evidenceQuotes": [
+        "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+      ],
+      "rationale": "SPEC C2는 content 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되 같은 값을 다시 검사하는 무한 재귀가 없어야 한다고 규정합니다. parsed !== value는 객체 참조 동일성만 확인하므로 동일 텍스트가 중첩된 JSON 구조나 상호 참조 JSON 텍스트에서 RangeError: Maximum call stack size exceeded 크래시를 유발합니다.",
+      "recommendedAction": "재귀 호출 시 방문한 텍스트 또는 객체를 추적하는 Set(visited)을 인자로 전달하거나, 최대 재귀 깊이(depth limit)를 두어 중복 검사 및 무한 재귀 루프를 차단해야 합니다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:53-60",
+    "src/workflow-stop.ts:61-87",
+    "src/workflow-cancellation.ts:13-33",
+    "SPEC.md:1-41"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:53-60",
+      "status": "read",
+      "evidence": "error.message.startsWith(\"workflow stop requested\")",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:61-87",
+      "status": "read",
+      "evidence": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-cancellation.ts:13-33",
+      "status": "read",
+      "evidence": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

@@ -1,0 +1,48 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "launchRetryAttempts 제거는 코드와 SPEC T3 불일치로 확인됨; 공개 계약 파기 위험이 실재한다.",
+  "findingId": "finding-004",
+  "finding": "Public summary field launchRetryAttempts renamed to launchRetries, breaking the documented contract",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 32,
+      "symbol": "WorkflowTerminalSummary",
+      "quote": "outputRetryAttempts: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 33,
+      "symbol": "WorkflowTerminalSummary",
+      "quote": "launchRetries: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 107,
+      "lineEnd": 110,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "launchRetries: run.tasks.reduce("
+    },
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "symbol": "T3",
+      "quote": "`outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 36,
+      "symbol": "T3",
+      "quote": "이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+    }
+  ],
+  "counterEvidence": [
+    "커밋 메시지 654f639의 'shorter retry field name'은 이름 변경이 의도적이었음을 시사한다.",
+    "저장소 안에 launchRetryAttempts를 읽는 코드나 테스트가 없어, 실제 외부 소비자 존재는 저장소만으로 확인할 수 없다.",
+    "HEAD 이전 버전의 diff는 확인하지 못했으므로 이전 필드명은 명세와 커밋 메시지로 추정했다. 다만 작업 트리가 HEAD와 일치(clean)하므로 명세와 코드의 불일치 자체는 HEAD에 존재한다."
+  ],
+  "recommendedAction": "WorkflowTerminalSummary의 launchRetryAttempts 필드명과 107행 계산을 복원하라. 더 짧은 이름이 꼭 필요하면 새 필드를 추가하고 옛 필드를 유예 기간 동안 함께 채운 뒤, SPEC T3를 갱신하고 breaking change로 기록하라. 두 재시도 필드 이름은 일관되게 유지하라.",
+  "readerTitle": "공개 요약 필드 launchRetryAttempts가 launchRetries로 이름이 바뀌어 문서화된 계약을 깨뜨림",
+  "readerRationale": "이 변경 후 launchRetryAttempts를 읽는 종료 요약 소비자는 오류 없이 undefined를 받게 된다. 명세가 이 필드를 공개 계약으로 명시하고 외부 도구가 이에 의존하므로, 호환 별칭이나 버전 스키마 없이 이름을 바꾸는 것은 호환성을 깨는 변경이다. 또한 outputRetryAttempts는 긴 접미사를 유지하는 반면 launchRetries는 이를 생략해 요약의 이름 규칙이 섞인다. 저장소 내부 호출자가 옛 이름을 읽지 않더라도 공개 필드 이름 변경은 호환성 회귀다."
+}

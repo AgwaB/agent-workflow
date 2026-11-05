@@ -1,0 +1,36 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "dynamic_incomplete 상태는 태스크 미완료를 나타내므로 control.json 부재 시의 대체 상태(completed_without_semantic_result)보다 우선하는 것이 도메인상 정합하며, 코드 수정 시 미완료 태스크 은폐 위험이 있어 지적의 결함 성격을 완화(WEAKEN)합니다.",
+  "findingId": "finding-006",
+  "finding": "dynamic_incomplete가 control.json 읽기 실패 시의 T2 상태를 덮어쓴다",
+  "verdict": "WEAKEN",
+  "evidence": [
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 86,
+      "lineEnd": 86,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 95,
+      "lineEnd": 95,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "\t\telse semanticStatus = \"completed_without_semantic_result\";"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 33,
+      "lineEnd": 34,
+      "symbol": "T2",
+      "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\n  `completed_without_semantic_result`이다."
+    }
+  ],
+  "counterEvidence": [
+    "동적 실행(direct-dynamic)에서 하위 태스크가 미완료(dynamic_incomplete)된 경우, 컨트롤러의 정상 실행이나 control.json 생성이 중단되었을 가능성이 높습니다. 만약 control 읽기 실패를 dynamic_incomplete보다 우선시하면 태스크 실패가 completed_without_semantic_result로 은폐되는 심각한 상태 왜곡이 발생합니다.",
+    "SPEC.md T2는 incomplete 태스크가 없을 때 control.json을 읽지 못한 일반적 부재 케이스에 대한 최종 fallback(else 분기)을 기술한 것으로 해석되며, T2가 태스크 수준의 실패/미완료 상태를 덮어써야 한다는 명시적 근거는 없습니다.",
+    "해당 우선순위 로직은 최근 커밋(HEAD, 654f639)의 변경 대상이 아니며, 초기 구현부터 유지되어 온 기존 동작입니다(HEAD 커밋은 오직 launchRetryAttempts 명칭 변경만 포함)."
+  ],
+  "recommendedAction": "런타임 코드의 우선순위를 역전시켜 미완료 태스크 상태를 은폐하지 않도록 현행 우선순위를 유지하되, SPEC.md T2에 dynamic_incomplete 작업이 없을 때 control.json 읽기 실패 시 completed_without_semantic_result로 폴백된다는 우선순위 관계를 명문화하고 단위 테스트로 고정하십시오."
+}

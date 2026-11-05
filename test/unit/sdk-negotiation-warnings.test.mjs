@@ -280,7 +280,7 @@ test("capability preview: the confirmation prompt says once what needs an OK and
 			"fake@0.1.0 · 3 stages · permission mode free",
 			"",
 			"Needs your OK:",
-			"• web search safety rules are not enforced by the engine (all 3 stages)",
+			"• web search safety rules are not enforced by the engine (in all 3 stages)",
 			"",
 			"Recorded only, no OK needed:",
 			"• read-only is not strictly enforced; cost is recorded as unknown (tokens only); workers are not fully isolated from your own setup",
@@ -299,11 +299,11 @@ test("capability preview: the confirmation prompt says once what needs an OK and
 	});
 	assert.match(
 		safe.prompt,
-		/• read-only is not strictly enforced: 152 allow rules in R \(all 3 stages\)/,
+		/• read-only is not strictly enforced: 152 allow rules in R \(in all 3 stages\)/,
 	);
 	assert.match(
 		safe.prompt,
-		/• workers are not fully isolated from your own setup: global AGENTS\.md loaded \(all 3 stages\)/,
+		/• workers are not fully isolated from your own setup: global AGENTS\.md loaded \(in all 3 stages\)/,
 	);
 	assert.doesNotMatch(safe.prompt, /CAPABILITY_|plan §/);
 });

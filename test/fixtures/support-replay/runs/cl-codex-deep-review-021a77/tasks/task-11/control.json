@@ -1,0 +1,24 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "코드와 명세가 직접 불일치하므로 finding을 유지한다.",
+  "findingId": "finding-001",
+  "finding": "중지 폴링 기본값과 최소값이 명세보다 완화되어 중지 지연 및 busy loop가 발생할 수 있음",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "lineEnd": 14,
+      "symbol": "S3",
+      "quote": "기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "pollMs 계산을 Math.max(10, options.pollMs ?? 50)로 수정하고 회귀 테스트를 추가한다."
+}

@@ -1,0 +1,49 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "중지 판별·취소 분류·종료 요약에서 명세 불일치 후보를 확인했으며, 공개 필드 호환성을 포함한 3개 렌즈로 후속 리뷰를 권장한다.",
+  "reviewLenses": [
+    {
+      "id": "stop-runtime",
+      "focus": "중지 감지 주기와 오류 판별 및 감시 수명주기",
+      "whyNeeded": "감시 주기가 명세와 다르고 메시지 접두사로 일반 오류를 중지로 오인할 수 있다. 등록 해제·디스크 읽기 실패·dispose 경계도 함께 확인해야 한다.",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:7-28",
+        "src/workflow-stop.ts:53-99",
+        "SPEC.md:8-21",
+        "package.json"
+      ],
+      "severityBias": "medium"
+    },
+    {
+      "id": "provider-cancellation",
+      "focus": "provider 오류의 취소 오분류와 중첩 JSON 판별",
+      "whyNeeded": "정확한 문자열 집합만 허용한다는 계약과 달리 cancelled 및 timeout도 취소로 인정한다. 실제 실패의 진단이 억제될 가능성과 중첩 content에도 같은 규칙이 적용되는지 확인해야 한다.",
+      "evidenceToInspect": [
+        "src/workflow-cancellation.ts:1-36",
+        "SPEC.md:23-28",
+        "package.json"
+      ],
+      "severityBias": "medium"
+    },
+    {
+      "id": "terminal-api-compatibility",
+      "focus": "종료 의미 상태의 우선순위와 공개 요약 필드 호환성",
+      "whyNeeded": "공개 계약인 launchRetryAttempts 대신 launchRetries를 반환한다. controller 결과 읽기 실패 시 dynamic_incomplete가 기본 의미 상태보다 우선하는 분기도 명세와 대조해야 한다.",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:28-35",
+        "src/workflow-terminal.ts:48-69",
+        "src/workflow-terminal.ts:71-113",
+        "SPEC.md:30-36",
+        "SPEC.md:38-40"
+      ],
+      "severityBias": "high"
+    }
+  ],
+  "triageSummary": "현재 src와 SPEC을 대조해 감시 주기, 중지 오류 오인, 취소 문자열 확대, 공개 재시도 필드명, 동적 종료 상태 우선순위의 불일치 후보를 찾았다. 세 렌즈로 집중 리뷰하고 각 렌즈에 회귀 테스트 확인을 포함한다. 허용 도구로 HEAD 부모 대비 diff는 확인하지 못해 신규 회귀 귀속은 미확인이다. store.js·types.js와 외부 소비자는 저장소에 없어 통합 동작은 검증 범위 밖이다.",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "독립 보안 리뷰: 현재 범위에서 인증·권한·기밀 처리 변경 근거가 없어 생략한다.",
+    "별도 릴리스 렌즈: 테스트 부재와 회귀 검증은 각 선정 렌즈에서 다룬다.",
+    "외부 모듈·소비자 통합 리뷰: store.js·types.js 및 외부 도구가 제공되지 않아 별도 저장소 검토가 필요하다."
+  ]
+}

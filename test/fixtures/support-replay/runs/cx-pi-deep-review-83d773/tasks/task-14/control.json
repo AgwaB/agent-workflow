@@ -1,0 +1,40 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "현재 코드에서 timeout·cancelled가 명시적 취소 표시 없이 true로 판정되어 C1을 위반하므로 지적을 유지한다.",
+  "findingId": "finding-003",
+  "finding": "허용 목록 밖의 provider 실패를 취소로 분류한다",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 25,
+      "lineEnd": 26,
+      "quote": "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 19,
+      "lineEnd": 20,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "\tfor (const candidate of [value.error, details?.error, value.reason, details?.reason]) {\n\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 27,
+      "lineEnd": 28,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 15,
+      "lineEnd": 18,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "\tif (!isRecord(value)) return false;\n\tif (value.cancelled === true) return true;\n\tconst details = isRecord(value.details) ? value.details : undefined;\n\tif (details?.cancelled === true) return true;"
+    }
+  ],
+  "counterEvidence": [
+    "원시 문자열 \"timeout\"은 객체 검사에서 거부되며 문자열 비교도 부분 일치가 아닌 정확한 일치다. 따라서 모든 timeout 관련 메시지가 취소되는 것은 아니다. 다만 지적된 객체의 error·reason 값에는 이 제한이 방어가 되지 않는다."
+  ],
+  "recommendedAction": "오류·사유 문자열 허용 목록에서 timeout과 cancelled를 제거하고 명세의 세 값만 유지한다. cancelled:true와 AbortError 객체 지원은 보존하며, 직접 필드·details·content JSON 각각에 두 문자열의 음성 회귀 테스트를 추가한다."
+}

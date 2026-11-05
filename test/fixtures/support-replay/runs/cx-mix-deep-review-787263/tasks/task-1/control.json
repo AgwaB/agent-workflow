@@ -1,0 +1,47 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "중지·취소 판별과 종료 요약의 명세 불일치를 확인했으며, 런타임·공개 계약·회귀 테스트의 세 관점으로 후속 리뷰를 권고한다.",
+  "reviewLenses": [
+    {
+      "id": "stop-cancel-runtime",
+      "focus": "runtime/correctness: 중지 감지, 폴링, 오류·취소 분류와 감시 해제",
+      "whyNeeded": "폴링 기본값·최솟값, 메시지 기반 중지 오류 판정, 취소 문자열 허용 목록이 명세와 다르다. 정상 오류가 취소로 처리되거나 중지 반응이 늦어지는 경로를 우선 확인해야 한다.",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:7-28",
+        "src/workflow-stop.ts:53-99",
+        "src/workflow-cancellation.ts:1-36",
+        "SPEC.md:8-28"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "terminal-api-contract",
+      "focus": "API/migration 및 correctness: 종료 의미 상태와 공개 재시도 집계 필드",
+      "whyNeeded": "공개 계약인 launchRetryAttempts 대신 launchRetries를 반환한다. controller 정보를 읽지 못했을 때 dynamic_incomplete가 명세의 대체 상태보다 우선하는 경로도 확인이 필요하다. 저장소 밖 소비자 영향은 이 발췌만으로 검증할 수 없다.",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:27-35",
+        "src/workflow-terminal.ts:48-112",
+        "SPEC.md:30-36"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "regression-test-hygiene",
+      "focus": "release/test hygiene: 명세별 회귀 테스트와 검증 가능성",
+      "whyNeeded": "Q1은 모든 S·C·T 항목의 단위 테스트를 요구하지만 테스트 파일을 찾지 못했고 package.json에는 typecheck만 있다. 누락된 저장소 의존성 때문에 실제 실행 검증 범위도 제한된다.",
+      "evidenceToInspect": [
+        "package.json:1-8",
+        "tsconfig.json:1-11",
+        "SPEC.md:3-4",
+        "SPEC.md:38-40"
+      ],
+      "severityBias": "medium"
+    }
+  ],
+  "triageSummary": "HEAD는 654f639606913ae2ea7b2465cf1bdcae71c03ff2이며 src의 세 파일을 모두 정적으로 확인했다. 폴링 값, 오류·취소 분류, 공개 요약 필드에서 명세와 직접 충돌하는 후보가 있어 우선 리뷰가 필요하다. 현재 도구로 부모 커밋과의 diff는 확인하지 못했으므로 HEAD에서 도입된 회귀인지는 미확정이다. store.js/types.js와 외부 호출자는 발췌에 없어 통합 동작·외부 호환성은 검증하지 않았다. 테스트는 실행하지 않았다.",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "safety/security: 현재 범위에서는 별도 보안 리뷰를 정당화할 인증·권한·비밀 처리 변경 근거가 없다.",
+    "외부 저장소·소비자 통합 검증: 발췌 밖 구현과 공개 필드 소비자는 별도 저장소 루트의 리뷰가 필요하다."
+  ]
+}

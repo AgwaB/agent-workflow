@@ -1,0 +1,30 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "코드와 SPEC S3가 기본 주기(200ms vs 50ms)와 하한(1ms vs 10ms)에서 실제로 어긋남을 확인함. 의도된 변경인지 여부는 저장소 증거로 결정 불가.",
+  "findingId": "finding-005",
+  "finding": "Stop-poll default and floor diverge from SPEC S3",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "symbol": "createWorkflowStopSignal"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "lineEnd": 14,
+      "quote": "중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+      "symbol": "S3"
+    }
+  ],
+  "counterEvidence": [
+    "커밋 메시지 'stop: poll less often'은 기본 주기를 200ms로 올리는 변경이 의도적이었음을 시사한다.",
+    "SPEC.md 자체는 이 변경 이후 갱신되지 않았지만, 저장소 안에서 명세를 바꿨다는 근거는 없다.",
+    "저장소 전체 검색 결과 pollMs를 넘기는 호출자는 없어 기본값이 실제 동작을 결정한다. 이는 반증이 아니라 영향 범위에 대한 근거다."
+  ],
+  "recommendedAction": "명세와 코드 중 기준을 먼저 정한다. 명세가 맞다면 기본값을 50, 하한을 Math.max(10, ...)으로 바꾼다. 200ms가 의도라면 SPEC S3를 갱신하고 변경 이유를 기록한다. 어느 쪽이든 기본값과 하한을 검증하는 단위 테스트를 추가한다(Q1).",
+  "readerTitle": "폴링 기본값과 하한이 SPEC S3와 어긋남",
+  "readerRationale": "S3은 명시된 계약이다. 코드는 기본 200ms, 하한 1ms로, 명세 기본값보다 4배 느리고 명세 하한보다 10배 낮다. 전경·백그라운드 실행 모두의 중지 지연에 영향을 준다. 커밋 메시지는 기본값 상향이 의도적이었을 수 있음을 보여주므로, 명세와 코드 중 무엇이 정답인지 결정이 필요하다. 하한이 낮으면 외부 호출자가 명세상 금지된 주기로 폴링할 수 있어 계약이 깨진다."
+}

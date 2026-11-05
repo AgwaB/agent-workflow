@@ -1,0 +1,135 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2wnjmt_929898",
+  "taskId": "task-3",
+  "sources": [
+    {
+      "source": "triage",
+      "displayName": "triage.main",
+      "taskId": "task-1",
+      "specId": "triage.main",
+      "stageId": "triage",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "중지 판별·취소 분류·종료 요약에서 명세 불일치 후보를 확인했으며, 공개 필드 호환성을 포함한 3개 렌즈로 후속 리뷰를 권장한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers",
+      "displayName": "reviewers.stop-runtime",
+      "taskId": "task-9",
+      "specId": "reviewers.stop-runtime",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "stop-runtime",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "중지 감시 주기의 기본값·하한 위반과 메시지 접두사에 의한 일반 오류의 중지 오분류를 확인했다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.provider-cancellation",
+      "displayName": "reviewers.provider-cancellation",
+      "taskId": "task-10",
+      "specId": "reviewers.provider-cancellation",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "provider-cancellation",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "취소 문자열 허용 목록이 계약보다 넓어 timeout·cancelled 오류를 취소로 오분류하며, 중첩 JSON에도 동일하게 전파된다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.terminal-api-compatibility",
+      "displayName": "reviewers.terminal-api-compatibility",
+      "taskId": "task-11",
+      "specId": "reviewers.terminal-api-compatibility",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "terminal-api-compatibility",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "공개 재시도 필드명 불일치와 controller 읽기 실패 시 의미 상태 우선순위 오류를 확인했다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wnjmt_929898/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD는 중지 폴링 계약과 provider 취소 판별 계약을 각각 위반해 중지 지연·busy loop 및 정상 오류 오인을 유발할 수 있다.",
+  "lens": "runtime-correctness",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "중지 폴링 기본값과 최소값이 명세보다 완화되어 중지 지연 및 busy loop가 발생할 수 있음",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 13,
+          "lineEnd": 14,
+          "symbol": "S3"
+        }
+      ],
+      "evidence": "HEAD 변경은 기본 pollMs를 200ms로 높이고 하한을 1ms로 낮췄다. 명세는 기본 50ms 및 최소 10ms를 요구한다.",
+      "evidenceQuotes": [
+        "+\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+        "- **S3.** 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다."
+      ],
+      "rationale": "옵션을 생략하면 디스크 중지 의도 감지가 기존 계약보다 최대 4배 늦어질 수 있다. pollMs가 1~9ms이면 매우 잦은 setInterval과 디스크 읽기로 busy loop가 발생할 수 있다.",
+      "recommendedAction": "pollMs 계산을 `Math.max(10, options.pollMs ?? 50)`로 되돌리거나 명세에 맞는 동일한 하한·기본값을 적용한다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "허용 목록에 cancelled와 timeout을 추가해 정상 provider 오류를 취소로 오인할 수 있음",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 25,
+          "lineEnd": 26,
+          "symbol": "C1"
+        }
+      ],
+      "evidence": "HEAD 변경은 provider의 error/reason 값이 cancelled 또는 timeout인 경우를 취소로 인정한다. 명세는 정확히 세 문자열만 허용한다.",
+      "evidenceQuotes": [
+        "+\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+      ],
+      "rationale": "provider가 일반 오류의 error/reason으로 cancelled 또는 timeout을 사용하면 isWorkflowReturnedCancellation이 true를 반환한다. 호출자가 실제 장애를 취소로 처리해 진단과 오류 전파를 잃을 수 있으며, 이는 C1의 명시적 exact-match 계약 위반이다.",
+      "recommendedAction": "문자열 판별을 `aborted`, `AbortError`, `ABORT_ERR` 세 값으로 제한하고, 추가 provider 형태가 필요하면 명세와 공개 계약을 먼저 갱신한다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:67",
+    "SPEC.md:13-16",
+    "src/workflow-cancellation.ts:16-21",
+    "SPEC.md:25-28"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:67",
+      "status": "read",
+      "evidence": "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:13-16",
+      "status": "read",
+      "evidence": "- **S3.** 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다.",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-cancellation.ts:16-21",
+      "status": "read",
+      "evidence": "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:25-28",
+      "status": "read",
+      "evidence": "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

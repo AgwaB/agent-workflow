@@ -1,0 +1,231 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2wri0c_f01e1a",
+  "taskId": "task-5",
+  "sources": [
+    {
+      "source": "dedup-findings",
+      "displayName": "dedup-findings.main",
+      "taskId": "task-3",
+      "specId": "dedup-findings.main",
+      "stageId": "dedup-findings",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "dedup: raw=6, unique=6, duplicates=0, partialFailures=0",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-3/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-3/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-3/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-3/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate",
+      "displayName": "devil-advocate.finding-001",
+      "taskId": "task-12",
+      "specId": "devil-advocate.finding-001",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "현재 구현은 기본 200ms·최소 1ms를 실제 타이머에 적용하므로, S3의 기본 50ms·최소 10ms 계약 위반이 확인된다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-002",
+      "displayName": "devil-advocate.finding-002",
+      "taskId": "task-13",
+      "specId": "devil-advocate.finding-002",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "현재 구현은 error/reason의 정확한 'timeout'·'cancelled' 값을 취소로 오분류하여 C1을 위반하므로 지적을 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-003",
+      "displayName": "devil-advocate.finding-003",
+      "taskId": "task-14",
+      "specId": "devil-advocate.finding-003",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "적용된 코드가 공개 계약인 launchRetryAttempts를 반환하지 않으며 호환 별칭도 없어 지적을 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-14/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-14/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-14/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-14/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-004",
+      "displayName": "devil-advocate.finding-004",
+      "taskId": "task-15",
+      "specId": "devil-advocate.finding-004",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "명세의 기본 50ms·하한 10ms와 구현의 200ms·1ms가 불일치하므로 지적을 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-15/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-15/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-15/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-15/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-005",
+      "displayName": "devil-advocate.finding-005",
+      "taskId": "task-16",
+      "specId": "devil-advocate.finding-005",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "현재 구현은 timeout·cancelled 오류 문자열을 취소로 오분류하여 C1을 위반하며, 제공된 저장소에는 이를 검증하는 단위 테스트도 없다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-16/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-16/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-16/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-16/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-006",
+      "displayName": "devil-advocate.finding-006",
+      "taskId": "task-17",
+      "specId": "devil-advocate.finding-006",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "공개 계약인 launchRetryAttempts가 타입과 반환값 모두에서 누락되어 있어 지적을 유지한다. 합산 계산 자체는 올바르다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-17/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-17/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-17/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wri0c_f01e1a/tasks/task-17/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

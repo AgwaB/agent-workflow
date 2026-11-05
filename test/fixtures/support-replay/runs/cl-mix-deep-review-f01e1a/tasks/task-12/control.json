@@ -1,0 +1,37 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "현재 구현은 기본 200ms·최소 1ms를 실제 타이머에 적용하므로, S3의 기본 50ms·최소 10ms 계약 위반이 확인된다.",
+  "findingId": "finding-001",
+  "finding": "중지 감시 주기(pollMs) 기본값 및 최소 하한 설정의 명세(S3) 위반",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "lineEnd": 14,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 80,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "void check();"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 81,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const timer = setInterval(() => void check(), pollMs);"
+    }
+  ],
+  "counterEvidence": [
+    "최초 검사는 void check()로 즉시 실행되므로 이미 존재하는 중지 의도까지 반드시 200ms를 기다리는 것은 아니다. 하지만 이후 감시 주기의 기본값과 최소 하한 위반은 해소되지 않는다."
+  ],
+  "recommendedAction": "계산식을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 옵션 생략 시 50ms 및 1~9ms 지정 시 10ms가 타이머에 전달되는 회귀 테스트를 추가한다."
+}

@@ -1,0 +1,35 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "최근 커밋은 중지 감시 계약, 취소 오탐 방지, 종료 요약 공개 필드에서 높은 신뢰성·호환성 위험이 있어 집중 리뷰가 필요하다.",
+  "reviewLenses": [
+    {
+      "id": "runtime-correctness",
+      "focus": "중지 감지 및 provider 취소 판별의 계약 준수와 오탐",
+      "whyNeeded": "poll 주기 완화와 취소 문자열 확장이 명세와 달라 중지 지연, busy loop, 정상 오류의 취소 오인 가능성이 있다.",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:67",
+        "SPEC.md:13-16",
+        "src/workflow-cancellation.ts:16-21",
+        "SPEC.md:25-28"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "api-compatibility",
+      "focus": "종료 요약 공개 계약과 외부 소비자 호환성",
+      "whyNeeded": "공개 필드명이 launchRetryAttempts에서 launchRetries로 변경되어 저장된 요약 및 외부 도구가 깨질 수 있다.",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:27-34",
+        "src/workflow-terminal.ts:107-110",
+        "SPEC.md:35-36"
+      ],
+      "severityBias": "high"
+    }
+  ],
+  "triageSummary": "세 가지 직접 검토 대상이 있다: 기본 pollMs가 50에서 200으로 바뀌고 최소값이 10에서 1로 낮아져 S3를 위반한다. 취소 판별에 cancelled와 timeout을 추가해 C1의 정확한 허용 목록을 넓혔다. 종료 요약의 공개 필드명을 바꿔 T3 호환성을 깨뜨릴 가능성이 있다. 저장소에는 단위 테스트가 없어 Q1 검증 공백도 확인된다.",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "security: 변경 diff에 인증·권한·비밀정보 처리 표면이 없음",
+    "release/test hygiene: 별도 렌즈로 확장하지 않고 triageSummary의 테스트 부재만 기록"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md Q1에서 요구하는 S·C·T 단위 테스트 스위트 및 package.json 내 test 실행 스크립트가 완전히 누락되어 런타임 회귀 방지 검증이 불가능합니다.",
+  "lens": "release-test-hygiene",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "SPEC Q1 단위 테스트 스위트 및 테스트 실행 환경 완전 부재",
+      "file": "package.json",
+      "locations": [
+        {
+          "file": "package.json",
+          "line": 7,
+          "symbol": "scripts"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 40,
+          "symbol": "Q1"
+        }
+      ],
+      "evidence": "SPEC.md 40행(Q1)은 '위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다'고 규정하고 있으나, package.json 7행에는 'scripts': { 'typecheck': 'tsc --noEmit' }만 정의되어 있고 'test' 스크립트나 테스트 프레임워크(node:test, vitest, jest 등) 의존성이 전무하며 저장소 전체에 단위 테스트 파일이 단 하나도 존재하지 않습니다.",
+      "evidenceQuotes": [
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+        "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+      ],
+      "rationale": "중지 감시 주기 기본값 및 하한 미준수(S3), 중지 오류 판별 메시지 검사 금지 위반(S6), 취소 문자열 임의 승격(C1), 종료 요약의 공개 계약 필드명 불일치(T3) 등 신뢰성 및 명세 위반 결함들이 존재하는 상황에서 회귀를 감지하고 계약을 보증할 테스트 러너 및 단위 테스트 스위트가 없어 런타임 신뢰성 훼손 위험이 큽니다.",
+      "recommendedAction": "package.json에 테스트 러너(예: node:test 또는 vitest) 의존성과 'test' 스크립트를 추가하고, SPEC.md S1~S7, C1~C2, T1~T3의 요구사항을 검증하는 단위 테스트 스위트를 작성하여 CI 파이프라인에서 자동 검증되도록 구성하십시오.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "SPEC.md:38-41",
+    "package.json:6-8"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "SPEC.md:38-41",
+      "status": "read",
+      "evidence": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "package.json:6-8",
+      "status": "read",
+      "evidence": "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

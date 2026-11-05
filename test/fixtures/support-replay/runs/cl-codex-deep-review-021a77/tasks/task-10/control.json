@@ -1,0 +1,67 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 종료 요약 필드명이 launchRetryAttempts에서 launchRetries로 변경되어 외부 소비자 호환성이 깨집니다.",
+  "lens": "api-compatibility",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "공개 종료 요약 필드명이 launchRetryAttempts에서 launchRetries로 변경됨",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 33,
+          "symbol": "WorkflowTerminalSummary.launchRetries"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "lineEnd": 110,
+          "symbol": "summarizeWorkflowTerminal"
+        }
+      ],
+      "evidence": "HEAD에서 종료 요약의 인터페이스 필드와 반환 객체 키가 모두 launchRetries로 변경되었습니다. SPEC.md는 기존 launchRetryAttempts 이름을 외부 도구가 읽는 공개 계약으로 명시합니다.",
+      "evidenceQuotes": [
+        "-\tlaunchRetryAttempts: number;",
+        "+\tlaunchRetries: number;",
+        "-\tlaunchRetryAttempts: run.tasks.reduce(",
+        "+\tlaunchRetries: run.tasks.reduce(",
+        "\tlaunchRetries: number;",
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      ],
+      "rationale": "이 변경은 기존 키를 유지하지 않고 제거하므로 저장된 요약을 읽거나 launchRetryAttempts를 참조하는 외부 도구가 값을 찾지 못합니다. 저장소 내 기존 소비자가 검색되지 않더라도 SPEC.md가 외부 도구 소비를 명시하므로 호환성 회귀입니다. 재시도 횟수 계산식 자체는 동일하지만 공개 키 변경만으로 계약이 깨집니다.",
+      "recommendedAction": "공개 필드명 launchRetryAttempts를 복원하십시오. 새 이름이 필요하면 기존 필드를 유지한 채 launchRetries를 추가 alias로 제공하고, 충분한 마이그레이션 기간 후 폐기하십시오.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-terminal.ts:27-34",
+    "src/workflow-terminal.ts:107-110",
+    "SPEC.md:35-36"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-terminal.ts:27-34",
+      "status": "read",
+      "evidence": "\tlaunchRetries: number;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-terminal.ts:107-110",
+      "status": "read",
+      "evidence": "\t\tlaunchRetries: run.tasks.reduce(",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:35-36",
+      "status": "read",
+      "evidence": "이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

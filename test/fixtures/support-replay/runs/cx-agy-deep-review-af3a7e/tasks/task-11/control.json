@@ -1,0 +1,27 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md S3 명세와 비교 검증 결과 createWorkflowStopSignal의 pollMs 기본값(200ms) 및 최소 하한치(1ms)가 명세를 직접 위반함을 확인하여 지적을 유지(KEEP)합니다.",
+  "findingId": "finding-001",
+  "finding": "중지 감시 주기(pollMs) 기본값 및 최소 하한치 명세(S3) 위반",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 14,
+      "quote": "  짧아지면 안 된다."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "src/workflow-stop.ts의 createWorkflowStopSignal에서 pollMs 계산 로직을 Math.max(10, options.pollMs ?? 50)으로 수정하여 기본값을 50ms, 최소 하한치를 10ms로 강제합니다."
+}

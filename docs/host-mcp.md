@@ -190,8 +190,9 @@ confirmation is required, ask; otherwise skip"):
   session is `2025-06-18` or later, the server sends `elicitation/create` with message
   `Proceed with these executor capability degradations?` plus the preview's short `prompt` (2026-11-03,
   owner: the full per-stage report made a 30+ line dialog): executor · stages · permission mode, the
-  limits that need the user's OK once each with the stages they cover (an environment warning names
-  what was found), one line of limits that are only recorded, and a note that the full report is
+  limits that need the user's OK once each with the stages they cover ("(in all 4 stages)"; before
+  2026-11-04 "(all 4 stages)", which a Claude Code host relayed as "all 4 stages run again"; an
+  environment warning names what was found), one line of limits that are only recorded, and a note that the full report is
   saved with the run (`capabilityNegotiation`; the terminal CLI still prints it) — and an empty
   form (`requestedSchema: {type: "object", properties: {}}`; `mode: "form"` on `2025-11-25`).
   `accept` proceeds (`capability.confirmation: "confirmed"`, `confirmedVia: "dialog"`); `decline`

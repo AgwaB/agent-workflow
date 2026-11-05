@@ -1,0 +1,38 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md T2에 따라 direct-dynamic 모드에서 control.json을 읽을 수 없을 때 semanticStatus를 completed_without_semantic_result로 설정하는 것은 의도된 명세 동작이며, engineStatus에 run.status가 그대로 보존되므로 finding-007을 DROP합니다.",
+  "findingId": "finding-007",
+  "finding": "direct-dynamic 비정상 종료 시 semanticStatus 전이 왜곡 및 degradation 미반영",
+  "verdict": "DROP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 33,
+      "lineEnd": 34,
+      "quote": "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는\n  `completed_without_semantic_result`이다."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 95,
+      "quote": "\t\telse semanticStatus = \"completed_without_semantic_result\";"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 98,
+      "lineEnd": 101,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "\treturn {\n\t\tterminal,\n\t\tengineStatus: run.status,\n\t\tsemanticStatus,"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 32,
+      "quote": "- **T1.** `completed` 실행에 degradation 기록이 있으면 의미 상태는 `completed_degraded`이다."
+    }
+  ],
+  "counterEvidence": [
+    "SPEC.md T2는 'direct-dynamic 실행에서 controller의 control.json을 읽을 수 없으면 의미 상태는 completed_without_semantic_result이다.'라고 명시적으로 규정하고 있으며, 현재 코드는 이 요구사항을 정확히 구현한 것입니다.",
+    "summarizeWorkflowTerminal 반환 객체의 engineStatus 필드에 run.status가 그대로 보존되므로 엔진 수준의 실패/중단 상태가 유실되거나 정상 완료로 왜곡되지 않습니다.",
+    "SPEC.md T1은 일반 실행(nonDynamicSemanticStatus)의 completed 상태에 대한 degradation 규칙이며, direct-dynamic 실행은 컨트롤러 상태 기반 체계를 따르므로 direct-dynamic 분기에서 degradation을 별도 확인하지 않는 것은 명세 위반이 아닙니다."
+  ],
+  "recommendedAction": "SPEC.md T2의 명세에 따라 direct-dynamic 모드에서 control.json 부재 시 semanticStatus를 completed_without_semantic_result로 지정하고 engineStatus에 run.status를 보존하는 현재 구현을 유지하며, 해당 제안(finding-007)을 기각(DROP)합니다."
+}

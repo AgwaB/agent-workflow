@@ -1,0 +1,284 @@
+{
+ "runId": "workflow_mw2wrgza_ff53d1",
+ "name": "deep-review",
+ "bundle": "deep-review",
+ "project": "694bf24b8b07",
+ "evidenceRefetch": true,
+ "status": "completed",
+ "tasks": [
+  {
+   "taskId": "task-1",
+   "specId": "triage.main",
+   "stageId": "triage",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-2",
+   "specId": "reviewers.item",
+   "stageId": "reviewers",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-9",
+   "specId": "reviewers.runtime-correctness",
+   "stageId": "reviewers",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "reviewers.item",
+    "itemIdentity": "runtime-correctness",
+    "itemHash": "945d2ab5652784fd70b02dc45f109d777948469b5d928714f67e31f8d3f8b2a0",
+    "itemSourceTaskId": "task-1",
+    "itemSourceSpecId": "triage.main",
+    "itemSourceKind": "control",
+    "itemRef": "triage.main:control:$.reviewLenses[0]"
+   }
+  },
+  {
+   "taskId": "task-10",
+   "specId": "reviewers.api-contract",
+   "stageId": "reviewers",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "reviewers.item",
+    "itemIdentity": "api-contract",
+    "itemHash": "de21ac501bff94d477f047abfd4923aaadd5942b7c41b3918b5b9336f8bd0e4e",
+    "itemSourceTaskId": "task-1",
+    "itemSourceSpecId": "triage.main",
+    "itemSourceKind": "control",
+    "itemRef": "triage.main:control:$.reviewLenses[1]"
+   }
+  },
+  {
+   "taskId": "task-11",
+   "specId": "reviewers.release-test-hygiene",
+   "stageId": "reviewers",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "reviewers.item",
+    "itemIdentity": "release-test-hygiene",
+    "itemHash": "ca8fe373c30221079155f973902b0b33034093914edde163a7bcf0bda145c8df",
+    "itemSourceTaskId": "task-1",
+    "itemSourceSpecId": "triage.main",
+    "itemSourceKind": "control",
+    "itemRef": "triage.main:control:$.reviewLenses[2]"
+   }
+  },
+  {
+   "taskId": "task-3",
+   "specId": "dedup-findings.main",
+   "stageId": "dedup-findings",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-4",
+   "specId": "devil-advocate.item",
+   "stageId": "devil-advocate",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-12",
+   "specId": "devil-advocate.finding-001",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-001",
+    "itemHash": "99667760d399296b8902d7ecc68600138ae16e29b26d5c9725ff75f775a5cadf",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[0]"
+   }
+  },
+  {
+   "taskId": "task-13",
+   "specId": "devil-advocate.finding-002",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-002",
+    "itemHash": "8dd839cde590a6b8dbfb059366a34ad03e74890fb28d8c98f62d2e4d9e2c7612",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[1]"
+   }
+  },
+  {
+   "taskId": "task-14",
+   "specId": "devil-advocate.finding-003",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-003",
+    "itemHash": "6c61fe1ab30202b647cc776b971fdcc456b25f681a07c2bf1931095d46881dd6",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[2]"
+   }
+  },
+  {
+   "taskId": "task-15",
+   "specId": "devil-advocate.finding-004",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-004",
+    "itemHash": "d7e1788c58a881c9caabcdee3365c9286bf5712b8d62a3584546dab4fda79a74",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[3]"
+   }
+  },
+  {
+   "taskId": "task-16",
+   "specId": "devil-advocate.finding-005",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-005",
+    "itemHash": "5176a7d85f93f67c5c12329c696acfca32b79d1277d2af6cc15c3e2bebf32111",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[4]"
+   }
+  },
+  {
+   "taskId": "task-17",
+   "specId": "devil-advocate.finding-006",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-006",
+    "itemHash": "85e9760d9a21f3570b97fe3178464638a7c2c789b0ebf194b331c9e656905202",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[5]"
+   }
+  },
+  {
+   "taskId": "task-18",
+   "specId": "devil-advocate.finding-007",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-007",
+    "itemHash": "819df5bdfa5bf95089c004a45d537189b8a056509cdffc3ce92dfbdef768e0d7",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[6]"
+   }
+  },
+  {
+   "taskId": "task-19",
+   "specId": "devil-advocate.finding-008",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-008",
+    "itemHash": "e0b94bce166a297824584343e9c8ab9a2c9abe244e4c00b15e1809f68c0d6538",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[7]"
+   }
+  },
+  {
+   "taskId": "task-5",
+   "specId": "partition-verdicts.main",
+   "stageId": "partition-verdicts",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-6",
+   "specId": "report-packet.main",
+   "stageId": "report-packet",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-7",
+   "specId": "report.main",
+   "stageId": "report",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-8",
+   "specId": "final.main",
+   "stageId": "final",
+   "status": "completed"
+  }
+ ],
+ "supportTasks": [
+  {
+   "specId": "dedup-findings.main",
+   "dependsOn": [
+    "triage.main",
+    "reviewers.runtime-correctness",
+    "reviewers.api-contract",
+    "reviewers.release-test-hygiene"
+   ],
+   "support": {
+    "uses": "./helpers/finding-pipeline.mjs",
+    "options": {
+     "mode": "dedup"
+    }
+   }
+  },
+  {
+   "specId": "partition-verdicts.main",
+   "dependsOn": [
+    "dedup-findings.main",
+    "devil-advocate.finding-001",
+    "devil-advocate.finding-002",
+    "devil-advocate.finding-003",
+    "devil-advocate.finding-004",
+    "devil-advocate.finding-005",
+    "devil-advocate.finding-006",
+    "devil-advocate.finding-007",
+    "devil-advocate.finding-008"
+   ],
+   "support": {
+    "uses": "./helpers/finding-pipeline.mjs",
+    "options": {
+     "mode": "partition",
+     "dedupStage": "dedup-findings"
+    }
+   }
+  },
+  {
+   "specId": "report-packet.main",
+   "dependsOn": [
+    "partition-verdicts.main"
+   ],
+   "support": {
+    "uses": "./helpers/finding-pipeline.mjs",
+    "options": {
+     "mode": "report-packet",
+     "partitionStage": "partition-verdicts"
+    }
+   }
+  },
+  {
+   "specId": "final.main",
+   "dependsOn": [
+    "report.main",
+    "partition-verdicts.main"
+   ],
+   "support": {
+    "uses": "./helpers/render-review-report.mjs"
+   }
+  }
+ ]
+}

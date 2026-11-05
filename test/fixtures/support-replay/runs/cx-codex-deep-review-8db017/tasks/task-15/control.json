@@ -1,0 +1,22 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "명세와 HEAD의 pollMs 변경이 정확히 일치하므로 finding을 유지한다.",
+  "findingId": "finding-004",
+  "finding": "중지 감시 기본 주기와 최소 주기가 명세와 다름",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "quote": "기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "Math.max(10, options.pollMs ?? 50)으로 복원하고 기본값, 10ms 미만 값, 정상적인 사용자 지정값에 대한 경계 테스트를 추가한다."
+}

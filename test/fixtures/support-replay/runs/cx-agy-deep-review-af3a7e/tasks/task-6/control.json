@@ -1,0 +1,92 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "e5247c08633250cfa513edeb99d34ef8b0a47bdc19d49d0c9a9f23e95c8bf12d",
+  "maxChars": 15000,
+  "actualChars": 2714,
+  "expectedVerdict": "NEEDS_WORK",
+  "partitionSummary": {
+    "keep": 4,
+    "weaken": 0,
+    "drop": 3,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 7,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 7,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "sourceStatusSummary": {
+    "total": 8,
+    "completed": 8,
+    "nonCompleted": 0,
+    "partialFailureCount": 0,
+    "partialFailures": []
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "중지 감시 주기(pollMs) 기본값 및 최소 하한치 명세(S3) 위반",
+        "severity": "high",
+        "recommendedAction": "src/workflow-stop.ts의 createWorkflowStopSignal에서 pollMs 계산 로직을 Math.max(10, options.pollMs ?? 50)으로 수정하여 기본값을 50ms, 최소 하한치를 10ms로 강제합니다."
+      },
+      {
+        "findingId": "finding-003",
+        "title": "중지 오류 판별 시 에러 메시지 내용 검사로 인한 명세(S6) 위반",
+        "severity": "high",
+        "recommendedAction": "src/workflow-stop.ts의 isWorkflowStopRequestedError에서 error.message.startsWith 검사 조건을 제거하고, SPEC.md S6에 따라 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 검사하도록 수정합니다."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "취소 판별 시 timeout 및 cancelled 오승격으로 인한 장애 마스킹(C1 위반)",
+        "severity": "high",
+        "recommendedAction": "src/workflow-cancellation.ts의 isWorkflowReturnedCancellation에서 candidate 검사 조건 중 \"cancelled\"와 \"timeout\"을 제거하여 SPEC.md C1에 명시된 \"aborted\", \"AbortError\", \"ABORT_ERR\"만 취소 문자열로 인정하도록 수정합니다."
+      },
+      {
+        "findingId": "finding-006",
+        "title": "외부 도구 공개 계약 필드명인 launchRetryAttempts가 launchRetries로 오선언되어 계약 파기 발생",
+        "severity": "high",
+        "recommendedAction": "WorkflowTerminalSummary 인터페이스(33행) 및 summarizeWorkflowTerminal 반환 객체(107행)의 필드명을 SPEC.md T3에 명시된 공개 계약 필드명인 launchRetryAttempts로 변경하십시오."
+      }
+    ],
+    "weaken": [],
+    "drop": [
+      {
+        "findingId": "finding-002",
+        "title": "dispose() 호출 이후 진행 중인 비동기 디스크 읽기 및 후속 처리 미차단(S5 위반)",
+        "severity": "high",
+        "recommendedAction": "해당 지적은 S5 명세('새로운 디스크 읽기 미시작')의 범위를 과도하게 해석한 오탐이므로 추가 코드 수정 없이 DROP 처리합니다."
+      },
+      {
+        "findingId": "finding-005",
+        "title": "content JSON 파싱 재귀 검사 시 동일 값 중복 검사 및 무한 재귀 방지 미흡(C2 위반)",
+        "severity": "medium",
+        "recommendedAction": "parsed !== value는 항상 참인 무의미한 방어 코드이므로 단순 dead guard로 제거할 수 있으나, JSON 파싱 특성상 무한 재귀나 C2 위반은 발생하지 않으므로 결함을 기각하고 추가 조치 없이 유지합니다."
+      },
+      {
+        "findingId": "finding-007",
+        "title": "direct-dynamic 실행 종료 요약 시 엔진 실패 상태(failed 등) 마스킹 및 degradation 미반영(T1, T2 불일치)",
+        "severity": "high",
+        "recommendedAction": "해당 동작은 SPEC.md T2 명세에 부합하고 engineStatus가 별도로 보존되며 최근 커밋(HEAD)의 변경 사항이 아니므로 기각(DROP) 처리하고 기존 구현을 유지합니다."
+      }
+    ],
+    "needsHuman": [],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [],
+  "overflowCounts": {
+    "keep": 0,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 0,
+    "omittedStringChars": 0
+  }
+}

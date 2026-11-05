@@ -1,0 +1,32 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "최초 검사는 즉시 실행되지만 반복 주기는 기본 200ms·최소 1ms이므로 S3의 기본 50ms·최소 10ms 계약을 위반한다.",
+  "findingId": "finding-001",
+  "finding": "중지 감시 주기의 기본값과 하한을 명세대로 적용해야 한다",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 13,
+      "lineEnd": 14,
+      "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 67,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\tconst pollMs = Math.max(1, options.pollMs ?? 200);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 80,
+      "lineEnd": 81,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);"
+    }
+  ],
+  "counterEvidence": [
+    "src/workflow-stop.ts:80에서 최초 검사를 즉시 시작하므로 이미 요청된 중지가 반드시 200ms를 기다리는 것은 아니다. 그러나 이후 반복 감시의 기본값과 하한 위반은 해소되지 않는다."
+  ],
+  "recommendedAction": "주기 계산을 Math.max(10, options.pollMs ?? 50)으로 수정하고, pollMs 생략 시 50ms, 0·1·9 입력 시 10ms, 10ms 이상 입력 시 해당 값이 setInterval에 전달되는지 회귀 테스트를 추가한다."
+}

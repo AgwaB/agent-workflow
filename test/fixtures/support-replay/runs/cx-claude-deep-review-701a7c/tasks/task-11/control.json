@@ -1,0 +1,62 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/workflow-stop.ts uses a 200ms default poll interval and a 1ms floor, but SPEC.md S3 requires a 50ms default and a 10ms floor.",
+  "lens": "spec-conformance-polling",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "Stop-poll default and floor diverge from SPEC S3",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 81,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 13,
+          "lineEnd": 14,
+          "symbol": "S3"
+        }
+      ],
+      "evidence": "createWorkflowStopSignal sets the default pollMs to 200 and clamps it with a floor of 1ms. SPEC S3 requires a 50ms default and a floor of 10ms, so a stop is detected up to 200ms late by default, and callers can request 1–9ms polling that the spec forbids. No in-repo caller passes pollMs, so the default is the effective behavior.",
+      "evidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);",
+        "중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다"
+      ],
+      "rationale": "S3 is a stated contract. Code has a 200ms default and 1ms floor, which is 4x slower than the spec default and 10x below the spec floor. This affects stop latency for foreground and background runs. The commit message 'stop: poll less often' suggests the default was raised deliberately, so the spec and code now disagree on purpose or by accident. The lower floor also means a caller can request polling the spec forbids, and that breaks the contract for external callers.",
+      "recommendedAction": "Decide whether the spec or the code is authoritative. If the spec stands, change the default to 50 and the clamp to Math.max(10, ...). If 200ms is intended, update SPEC S3 and record the change. Either way, add a unit test for the default and the floor, since S3 has a test requirement under Q1.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:61-87",
+    "SPEC.md:13-14"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:64-67",
+      "status": "read",
+      "evidence": "options: { pollMs?: number } = {},",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:13-14",
+      "status": "read",
+      "evidence": "중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "Repo-wide search found no caller passing pollMs and no test file referencing createWorkflowStopSignal, so the effective default is 200ms and no existing test covers S3.",
+    "The Math.max(1, ...) guard does enforce a positive interval, so the only defect is the threshold value, not a missing guard."
+  ]
+}

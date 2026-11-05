@@ -1,0 +1,25 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC Q1 명세에서 요구하는 단위 테스트 및 테스트 실행 환경이 저장소 전체에 전무함을 확인하여 지적을 유지(KEEP)합니다.",
+  "findingId": "finding-008",
+  "finding": "SPEC Q1 단위 테스트 스위트 및 테스트 실행 환경 완전 부재",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 40,
+      "lineEnd": 40,
+      "symbol": "Q1",
+      "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+    },
+    {
+      "file": "package.json",
+      "line": 7,
+      "lineEnd": 7,
+      "symbol": "scripts",
+      "quote": "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "package.json에 테스트 러너(node:test 또는 vitest) 의존성과 'test' 스크립트를 추가하고, SPEC.md S1~S7, C1~C2, T1~T3 요구사항을 검증하는 단위 테스트 스위트를 작성해야 합니다."
+}

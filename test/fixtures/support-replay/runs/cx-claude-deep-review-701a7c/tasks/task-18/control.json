@@ -1,0 +1,31 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC Q1의 단위 테스트 요구는 저장소에 테스트 파일도 테스트 러너도 없어 그대로 확인되므로 finding-006은 유지한다.",
+  "findingId": "finding-006",
+  "finding": "SPEC Q1 requires unit tests for all 12 S/C/T items, but none exist",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 40,
+      "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+    },
+    {
+      "file": "package.json",
+      "line": 7,
+      "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+    },
+    {
+      "file": "tsconfig.json",
+      "line": 10,
+      "quote": "\"include\": [\"src/**/*.ts\"]"
+    }
+  ],
+  "counterEvidence": [
+    "이 저장소는 SPEC.md 3-4행과 package.json 6행에서 스タン드얼론 발췌본으로 명시되어 있어, 전체 프로젝트에는 테스트가 있을 수 있다. 다만 이는 적용 범위의 한계이지 명세 위반을 뒤집는 근거는 아니다.",
+    "package.json에 test 스크립트나 테스트 러너 의존성이 없고, src/**/*.ts 외에 테스트 파일도 발견되지 않았다(Glob/Grep 검색 결과 없음)."
+  ],
+  "recommendedAction": "package.json에 테스트 러너(node:test 또는 vitest)와 test 스크립트를 추가하고, S1-S7, C1-C2, T1-T3마다 최소 하나의 단위 테스트를 작성한다. S4 읽기 오류 비대칭, S3 10ms 하한, T3 필드 이름을 반드시 포함하며, 테스트 파일도 타입 검사되도록 tsconfig.json을 확장한다.",
+  "readerTitle": "SPEC Q1은 S/C/T 항목 12개 모두에 단위 테스트를 요구하지만 테스트가 존재하지 않는다",
+  "readerRationale": "명세의 요구사항이 충족되지 않았으며, S/C/T 동작이 실행 가능한 테스트로 검증되지 않은 상태다. 현재 typecheck만으로는 이 영역의 회귀를 잡아낼 수 없다."
+}

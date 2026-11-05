@@ -1,0 +1,122 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Two read-only findings in the cancellation classifiers: bare \"timeout\"/\"cancelled\" strings are now treated as user cancellation, and stop detection matches error message text. A lower-severity issue is that the disk stop poll silently swallows read errors.",
+  "lens": "runtime-cancellation",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "Provider timeouts are classified as cancellation",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 13,
+          "lineEnd": 22,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "The loop over value.error, details.error, value.reason and details.reason returns true for the bare strings \"cancelled\" and \"timeout\". The function's own doc comment says the check must stay deliberately exact so that arbitrary provider errors are not promoted to cancellation. A provider-reported timeout therefore becomes indistinguishable from a user stop.",
+      "evidenceQuotes": [
+        "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "Keep this check deliberately exact: arbitrary provider errors must not be"
+      ],
+      "rationale": "Commit 654f639 ('treat cancelled/timeout as cancellation') widened the classifier, which contradicts the comment directly above it. Any caller that uses this predicate to decide between user-cancelled and failed will report a provider timeout as a user cancellation. That can suppress retry or failure diagnostics and misstate the run outcome. Timeout is an error condition, not a user-initiated stop, so the two should not share one classification. No in-repo caller of isWorkflowReturnedCancellation exists under src/, so the impact rests on external consumers of this exported function, which the contract treats as part of the API.",
+      "recommendedAction": "Remove \"timeout\" (and probably \"cancelled\" for error/reason fields) from the bare-string allowlist, or return a distinct timeout classification. Keep cancellation limited to explicit AbortError, cancelled:true, or an explicit cancellation marker. Add a regression test where {error:\"timeout\"} is not classified as cancellation.",
+      "confidence": "medium"
+    },
+    {
+      "severity": "medium",
+      "title": "Stop-request detection matches on error message text",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 59,
+          "symbol": "isWorkflowStopRequestedError"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 56,
+          "lineEnd": 57,
+          "symbol": "isWorkflowStopRequestedError"
+        }
+      ],
+      "evidence": "isWorkflowStopRequestedError returns true when error.name equals WorkflowStopRequested or when error.message starts with the prefix \"workflow stop requested\". Classification therefore depends on free-form text, not on a typed marker.",
+      "evidenceQuotes": [
+        "error.message.startsWith(\"workflow stop requested\"))"
+      ],
+      "rationale": "Any Error whose message begins with that phrase is treated as a stop, including a provider or adapter error that re-wraps or echoes the text with a new Error and loses the name. That is a misclassification of a provider error as a stop signal, and the reverse failure, a real stop whose name was lost, is only partly covered by the same fragile text match. The message fallback is a symptom of the root cause: the stop marker is not carried across provider boundaries in a typed form. The predicate also has no in-repo caller under src/, so its effect depends on external consumers.",
+      "recommendedAction": "Carry a typed marker that survives re-wrapping, for example a code property or a cause chain checked by identity, and drop the message-prefix fallback. If the fallback must stay for compatibility, restrict it to errors that the module itself created and document it. Add a test for a provider Error whose message starts with the prefix but whose name is not WorkflowStopRequested.",
+      "confidence": "medium"
+    },
+    {
+      "severity": "medium",
+      "title": "Disk stop-intent read failures are silently swallowed in the poll",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 74,
+          "lineEnd": 76,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 95,
+          "symbol": "throwIfWorkflowStopRequested"
+        }
+      ],
+      "evidence": "The poll in createWorkflowStopSignal calls readWorkflowStopIntent(...).catch(() => undefined), so any read error is treated as 'no stop intent'. The synchronous path throwIfWorkflowStopRequested does not catch and lets the read error propagate.",
+      "evidenceQuotes": [
+        "const intent = await readWorkflowStopIntent(cwd, runId).catch("
+      ],
+      "rationale": "The two stop-detection paths handle the same read differently. In the poll, a persistent read failure, such as a permissions or I/O error on the intent file, means a durably written stop is never honored from the disk path. The launch-signal path is the only remaining fence. A transient failure only delays the stop until the next 200ms poll. The persistent case is the reliability risk. Severity and confidence are moderate because this depends on the failure mode of readWorkflowStopIntent, which is not in the evidence set.",
+      "recommendedAction": "Fail closed or surface the error: on a read error, record it and retry, or abort with a stop-pending error, rather than mapping it to undefined. Make the poll and the synchronous check handle read errors the same way. Confirm the behavior of readWorkflowStopIntent for a missing file versus an unreadable file.",
+      "confidence": "medium"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-cancellation.ts:13-22",
+    "src/workflow-stop.ts:53-59",
+    "src/workflow-stop.ts:61-87",
+    "src/workflow-cancellation.ts:2-6",
+    "src/workflow-cancellation.ts:28",
+    "src/workflow-stop.ts:95-98",
+    "grep: isWorkflowReturnedCancellation|isWorkflowStopRequestedError across src/"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-cancellation.ts:13-22",
+      "status": "read",
+      "evidence": "export function isWorkflowReturnedCancellation(value: unknown): boolean {",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:53-59",
+      "status": "read",
+      "evidence": "error.message.startsWith(\"workflow stop requested\"))",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:61-87",
+      "status": "read",
+      "evidence": "if (intent || launchStopRequested(cwd, runId))",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "isWorkflowAbortError (src/workflow-cancellation.ts:2-6) checks name === AbortError on DOMException or record values. It is narrow and has no obvious misclassification.",
+    "The recursive JSON parse in src/workflow-cancellation.ts:28 is bounded by finite nesting in the input text, and the parsed !== value guard only blocks direct self-reference. This is not an infinite-recursion risk.",
+    "bindWorkflowLaunchSignal and launchStopRequested fence the foreground abort synchronously, as the comment describes. The reads in throwIfWorkflowStopRequested re-check after the disk read, so the in-flight race is handled.",
+    "Minor, not reported: an in-flight check() can still call controller.abort after dispose() clears the interval. This is harmless because the signal is only consumed by the run that owns it."
+  ]
+}

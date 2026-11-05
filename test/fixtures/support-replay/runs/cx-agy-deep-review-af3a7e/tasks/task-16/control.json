@@ -1,0 +1,37 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md T3에 명시된 공개 계약 필드명인 launchRetryAttempts 대신 launchRetries가 선언되어 외부 도구 계약 파기가 발생함을 확인하여 결함을 유지(KEEP)합니다.",
+  "findingId": "finding-006",
+  "finding": "외부 도구 공개 계약 필드명인 launchRetryAttempts가 launchRetries로 오선언되어 계약 파기 발생",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "lineEnd": 35,
+      "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 36,
+      "lineEnd": 36,
+      "quote": "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 33,
+      "lineEnd": 33,
+      "symbol": "WorkflowTerminalSummary",
+      "quote": "\tlaunchRetries: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 107,
+      "lineEnd": 107,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "\t\tlaunchRetries: run.tasks.reduce("
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "WorkflowTerminalSummary 인터페이스(33행) 및 summarizeWorkflowTerminal 반환 객체(107행)의 필드명을 SPEC.md T3에 명시된 공개 계약 필드명인 launchRetryAttempts로 변경하십시오."
+}

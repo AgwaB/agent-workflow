@@ -1,0 +1,45 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "현재 구현은 timeout·cancelled 오류 문자열을 취소로 오분류하여 C1을 위반하며, 제공된 저장소에는 이를 검증하는 단위 테스트도 없다.",
+  "findingId": "finding-005",
+  "finding": "src/workflow-cancellation.ts: 취소 인정 사유에 cancelled 및 timeout 임의 추가(C1 위반)와 검증 단위 테스트 부재",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 19,
+      "quote": "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {",
+      "symbol": "isWorkflowReturnedCancellation"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 20,
+      "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "symbol": "isWorkflowReturnedCancellation"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 25,
+      "lineEnd": 26,
+      "quote": "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 28,
+      "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+      "symbol": "isWorkflowReturnedCancellation"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 40,
+      "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+    },
+    {
+      "file": "package.json",
+      "line": 7,
+      "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "문자열 비교에서 cancelled와 timeout을 제거하되 명시적 cancelled 불리언 처리는 유지한다. 허용된 세 문자열의 양성 사례와 cancelled·timeout·일반 오류의 음성 사례를 error/reason, details 및 content JSON 경로에 걸쳐 단위 테스트로 추가한다."
+}

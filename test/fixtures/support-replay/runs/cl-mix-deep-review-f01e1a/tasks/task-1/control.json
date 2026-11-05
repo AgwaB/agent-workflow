@@ -1,0 +1,44 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "최근 커밋은 명세 위반 3건을 도입해 중지 지연, 취소 오판, 공개 요약 API 호환성 위험이 있다.",
+  "reviewLenses": [
+    {
+      "id": "stop-cancel-runtime",
+      "focus": "중지 감지 주기와 provider 취소 판별의 런타임 정확성",
+      "whyNeeded": "변경된 polling 및 cancellation 조건이 명세와 실제 오류 처리 의미를 바꾼다.",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:61-86",
+        "src/workflow-cancellation.ts:13-32",
+        "SPEC.md:10-28"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "terminal-api-contract",
+      "focus": "종료 요약 공개 필드의 호환성",
+      "whyNeeded": "요약 인터페이스의 필드명이 외부 도구가 의존하는 공개 계약과 일치하는지 확인해야 한다.",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:27-35",
+        "src/workflow-terminal.ts:98-112",
+        "SPEC.md:30-36"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "test-hygiene",
+      "focus": "변경된 S/C/T 동작의 검증 가능성",
+      "whyNeeded": "저장소에 단위 테스트가 보이지 않아 명세 위반이 회귀로 고정될 위험이 있다.",
+      "evidenceToInspect": [
+        "package.json:1-10",
+        "SPEC.md:38-42",
+        "src/workflow-stop.ts:61-86",
+        "src/workflow-cancellation.ts:13-32",
+        "src/workflow-terminal.ts:72-113"
+      ],
+      "severityBias": "medium"
+    }
+  ],
+  "triageSummary": "HEAD의 src 변경은 SPEC과 직접 충돌한다. pollMs 기본값/하한이 50/10ms에서 200/1ms로 바뀌었고, 취소 문자열에 cancelled와 timeout을 추가했으며, 공개 필드 launchRetryAttempts를 launchRetries로 이름 변경했다. 세 변경 모두 후속 심층 리뷰 대상으로 적합하다.",
+  "riskLevel": "high",
+  "skippedLenses": []
+}

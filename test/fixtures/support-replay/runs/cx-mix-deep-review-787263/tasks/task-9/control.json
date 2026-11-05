@@ -1,0 +1,146 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Stop/cancel runtime deviates from SPEC: stop detection accepts message-based errors, provider cancellation accepts 'cancelled'/'timeout', and the poll default and minimum differ from spec. One signal-binding dedupe risk is noted at lower confidence.",
+  "lens": "stop-cancel-runtime",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "Stop-error classification falls back to message prefix matching",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineEnd": 59,
+          "line": 53,
+          "symbol": "isWorkflowStopRequestedError"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 57,
+          "symbol": "isWorkflowStopRequestedError"
+        }
+      ],
+      "evidence": "isWorkflowStopRequestedError returns true for any Error whose message starts with 'workflow stop requested', even when the name is not WorkflowStopRequested. SPEC S6 says only the error name may classify a stop, and that message content must not be used.",
+      "evidenceQuotes": [
+        "error.message.startsWith(\"workflow stop requested\"))"
+      ],
+      "rationale": "Any ordinary error whose message happens to start with that prefix, such as a provider or wrapped error that echoes it, is treated as a deliberate stop. The run is then reported as stopped instead of failing with its real diagnostic, which misclassifies the terminal outcome. The spec explicitly forbids this path.",
+      "recommendedAction": "Compare only error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME, and remove the startsWith fallback. If legacy errors must still match, use an explicit marker property set by createWorkflowStopRequestedError rather than message text.",
+      "confidence": "high"
+    },
+    {
+      "severity": "high",
+      "title": "Provider cancellation allowlist includes 'cancelled' and 'timeout' beyond the spec's three markers",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 20,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 13,
+          "lineEnd": 33,
+          "symbol": "isWorkflowReturnedCancellation"
+        }
+      ],
+      "evidence": "The string check accepts 'aborted', 'AbortError', 'ABORT_ERR', 'cancelled', and 'timeout'. SPEC C1 allows exactly 'aborted', 'AbortError', and 'ABORT_ERR', and says other provider errors must not be promoted to cancellation. The code comment also says the check is deliberately exact.",
+      "evidenceQuotes": [
+        "candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+      ],
+      "rationale": "A genuine provider failure reported as error 'timeout' or reason 'cancelled' is classified as user cancellation. That suppresses its diagnostic and can produce a cancelled terminal state for a run that actually failed. Because the spec names exact tokens and the comment says the list is intentionally exact, this widens the classifier beyond its contract.",
+      "recommendedAction": "Restrict the candidate check to 'aborted', 'AbortError', and 'ABORT_ERR' per C1. If 'timeout' or 'cancelled' must be honored for an existing provider, scope that to the specific adapter and update SPEC C1 explicitly, rather than changing the shared classifier.",
+      "confidence": "high"
+    },
+    {
+      "severity": "medium",
+      "title": "Stop-watch poll default and minimum deviate from spec S3",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        }
+      ],
+      "evidence": "The code uses Math.max(1, options.pollMs ?? 200), so the default is 200ms and the floor is 1ms. SPEC S3 sets the default at 50ms and the floor at 10ms.",
+      "evidenceQuotes": [
+        "const pollMs = Math.max(1, options.pollMs ?? 200);"
+      ],
+      "rationale": "With the default, a stop intent written to disk can take up to about four times longer to abort the in-flight run than the spec allows. Callers passing very small values can also poll far more often than the spec permits, creating disk-read load. Both are runtime-behavior deviations, not only documentation drift.",
+      "recommendedAction": "Set the default to 50 and the floor to 10 to match S3, and add a test that pins both values. If 200ms is the intended default, update SPEC S3 in the same change so the contract matches the code.",
+      "confidence": "high"
+    },
+    {
+      "severity": "low",
+      "title": "Re-binding the same AbortSignal can drop the launch fence early",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 14,
+          "lineEnd": 16,
+          "symbol": "bindWorkflowLaunchSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 18,
+          "symbol": "bindWorkflowLaunchSignal"
+        }
+      ],
+      "evidence": "Registrations use a Set, so binding the same signal twice stores it once. The first release calls signals.delete(signal), which removes it even though the second binding is still active. SPEC S7 requires that a run's registration persist until the last signal is released.",
+      "evidenceQuotes": [
+        "signals.add(signal);",
+        "signals.delete(signal);"
+      ],
+      "rationale": "If the same foreground signal is bound twice for one run and one owner releases first, the remaining active launch loses its synchronous stop fence, and a later abort may not be seen before dispatch. No in-repo caller binding the same signal twice was found, so the practical likelihood is low.",
+      "recommendedAction": "Use a reference count per signal, or a token per binding, so release removes only that binding and the entry is deleted when the last binding is gone.",
+      "confidence": "medium"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-stop.ts:7-28",
+    "src/workflow-stop.ts:53-99",
+    "src/workflow-cancellation.ts:1-36",
+    "SPEC.md:8-28"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-stop.ts:7-28",
+      "status": "read",
+      "evidence": "if (!signal) return () => {};",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-stop.ts:53-99",
+      "status": "read",
+      "evidence": "error.message.startsWith(\"workflow stop requested\"))",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-cancellation.ts:1-36",
+      "status": "read",
+      "evidence": "candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:8-28",
+      "status": "read",
+      "evidence": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "S2: createWorkflowStopRequestedError uses the required name and the 'workflow stop requested for <runId>' message format.",
+    "S4: the watch path catches disk-read errors as non-stop, and throwIfWorkflowStopRequested lets them propagate, as specified.",
+    "S5: dispose() clears the interval, so the timer starts no new reads. A check already in flight may finish, which is acceptable.",
+    "C2: each recursion level parses a strictly shorter nested JSON string, so there is no infinite recursion. The parsed !== value guard is redundant but harmless.",
+    "C1 exact-match design for AbortError, aborted, and ABORT_ERR matches the spec. The only deviation is the extra tokens noted in the findings.",
+    "Not reviewed: src/workflow-terminal.ts (T1-T3) and the store.js readWorkflowStopIntent implementation, which are outside the planned evidence list."
+  ]
+}

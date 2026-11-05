@@ -1,0 +1,53 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD stop/cancel/terminal code conflicts with SPEC.md in several places: pollMs default 200 vs 50, cancellation markers widened beyond the exact three, a launchRetries rename that breaks the public launchRetryAttempts field, and message-based stop detection. No tests exist.",
+  "reviewLenses": [
+    {
+      "id": "runtime-cancellation",
+      "focus": "correctness of stop detection and cancellation classification",
+      "whyNeeded": "isWorkflowReturnedCancellation now treats cancelled/timeout as cancellation and isWorkflowStopRequestedError matches on message text, which can misclassify provider errors and stop signals",
+      "evidenceToInspect": [
+        "src/workflow-cancellation.ts:13-22",
+        "src/workflow-stop.ts:53-59",
+        "src/workflow-stop.ts:61-87"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "api-contract-terminal",
+      "focus": "public summary field names and semantic status mapping",
+      "whyNeeded": "SPEC T3 names launchRetryAttempts as a public contract read by external tools, but the code exports launchRetries; the rename is a breaking change",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:27-35",
+        "src/workflow-terminal.ts:103-110",
+        "SPEC.md:35-36"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "spec-conformance-polling",
+      "focus": "polling default and minimum interval vs spec",
+      "whyNeeded": "SPEC S3 requires a 50ms default and a 10ms floor, but code uses 200ms default and a 1ms floor, which affects stop latency and the spec contract",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:64-67",
+        "SPEC.md:13-14"
+      ],
+      "severityBias": "medium"
+    },
+    {
+      "id": "release-test-hygiene",
+      "focus": "unit test coverage for S/C/T items",
+      "whyNeeded": "SPEC Q1 requires a unit test per S/C/T item, but no test files were found in the repo, so the regressions above are unguarded",
+      "evidenceToInspect": [
+        "SPEC.md:40-41"
+      ],
+      "severityBias": "medium"
+    }
+  ],
+  "triageSummary": "Narrow HEAD change in three src files with high reliability risk. Spec mismatches are concrete: C1 exact markers, S6 name-only check, S3 polling defaults, T3 field name. Verify by reading; no runtime or tests were executed.",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "security: no auth or external input handling beyond provider error classification",
+    "migration: folded into api-contract-terminal rather than a separate lens"
+  ]
+}

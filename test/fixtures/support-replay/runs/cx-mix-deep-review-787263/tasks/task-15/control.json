@@ -1,0 +1,45 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "동일한 AbortSignal을 중복 바인딩할 경우 Set 기반 관리로 인해 첫 번째 해제 시 신호가 조기 삭제되어 다른 활성 런칭의 중지 펜스가 상실되는 결함이 확인되므로, 지적의 유효성을 인정하여 KEEP으로 판정합니다.",
+  "findingId": "finding-004",
+  "finding": "Re-binding the same AbortSignal can drop the launch fence early",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 5,
+      "lineEnd": 5,
+      "symbol": "launchSignals",
+      "quote": "const launchSignals = new Map<string, Set<AbortSignal>>();"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 15,
+      "lineEnd": 15,
+      "symbol": "bindWorkflowLaunchSignal",
+      "quote": "signals.add(signal);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 18,
+      "lineEnd": 18,
+      "symbol": "bindWorkflowLaunchSignal",
+      "quote": "signals.delete(signal);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 20,
+      "lineEnd": 21,
+      "symbol": "S7",
+      "quote": "- **S7.** foreground signal 등록은 해제 함수로 되돌릴 수 있어야 하며, 마지막 signal이 해제되면 그\n  실행의 등록 항목이 남지 않아야 한다."
+    }
+  ],
+  "counterEvidence": [
+    "src/workflow-stop.ts 4행 주석에 'Registrations live only for this exact launch owner'라고 명시되어 있어, 각 런칭 소유자가 단일 signal 인스턴스를 관리한다는 가정을 전제로 설계된 구조로 볼 수 있습니다.",
+    "현재 저장소(src/) 내에 동일한 AbortSignal을 같은 runId에 중복 등록하는 호출 패턴이 존재하지 않으므로, 즉각적인 프로덕션 장애를 유발할 실질적 위험성은 낮습니다.",
+    "그러나 공통 상위 AbortSignal이 여러 하위 런칭에 공유되거나 동일 신호가 재등록되는 상황에서 한 소유자의 해제 호출이 다른 활성 런칭의 동기 중지 펜스까지 조기 제거하므로, 명세 S7의 의도 및 방어적 신뢰성 관점에서 지적 자체는 유효합니다."
+  ],
+  "recommendedAction": "동일 AbortSignal의 중복 바인딩 시 조기 삭제를 방지하기 위해, signal별 참조 카운트(reference count)를 유지하거나 바인딩마다 고유 토큰(또는 Symbol)을 발급하여 해당 토큰의 해제 함수 호출 시에만 참조를 감소시키고 카운트가 0이 될 때 Map/Set에서 제거하도록 수정하십시오. 또한 동일 신호 재등록 및 순차 해제 시나리오를 검증하는 단위 테스트를 추가하십시오.",
+  "readerTitle": "동일한 AbortSignal을 재등록하면 실행 중지 펜스가 조기에 해제될 수 있음",
+  "readerRationale": "동일한 foreground signal이 한 실행에 대해 두 번 바인딩되고 한 소유자가 먼저 해제하면, 남아 있는 활성 실행은 동기식 중지 펜스(stop fence)를 잃게 되어 이후 발생한 abort가 디스패치 전에 감지되지 않을 수 있습니다. 저장소 내에서 동일한 signal을 두 번 바인딩하는 호출자는 발견되지 않았으므로 실제 발생 가능성은 낮습니다."
+}

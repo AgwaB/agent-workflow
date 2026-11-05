@@ -1,0 +1,252 @@
+{
+ "runId": "workflow_mw2vdn7u_af3a7e",
+ "name": "deep-review",
+ "bundle": "deep-review",
+ "project": "694bf24b8b07",
+ "evidenceRefetch": true,
+ "status": "completed",
+ "tasks": [
+  {
+   "taskId": "task-1",
+   "specId": "triage.main",
+   "stageId": "triage",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-2",
+   "specId": "reviewers.item",
+   "stageId": "reviewers",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-9",
+   "specId": "reviewers.runtime-correctness",
+   "stageId": "reviewers",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "reviewers.item",
+    "itemIdentity": "runtime-correctness",
+    "itemHash": "6e08ba898174322346bb2ba8ef751685caea4991c1bc47e155bc6870e4d99865",
+    "itemSourceTaskId": "task-1",
+    "itemSourceSpecId": "triage.main",
+    "itemSourceKind": "control",
+    "itemRef": "triage.main:control:$.reviewLenses[0]"
+   }
+  },
+  {
+   "taskId": "task-10",
+   "specId": "reviewers.api-contract",
+   "stageId": "reviewers",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "reviewers.item",
+    "itemIdentity": "api-contract",
+    "itemHash": "75bbed6782acfba171847b2267327c6fe9bb1af7ce43642100420ce6384e36e0",
+    "itemSourceTaskId": "task-1",
+    "itemSourceSpecId": "triage.main",
+    "itemSourceKind": "control",
+    "itemRef": "triage.main:control:$.reviewLenses[1]"
+   }
+  },
+  {
+   "taskId": "task-3",
+   "specId": "dedup-findings.main",
+   "stageId": "dedup-findings",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-4",
+   "specId": "devil-advocate.item",
+   "stageId": "devil-advocate",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-11",
+   "specId": "devil-advocate.finding-001",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-001",
+    "itemHash": "bb319ab16e1bdc8696c7d5d04fa396b2f4c709b406b3afd41614279b225c7907",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[0]"
+   }
+  },
+  {
+   "taskId": "task-12",
+   "specId": "devil-advocate.finding-002",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-002",
+    "itemHash": "3834bd3ffa957d98d3437da607e663f615800052ea826e479ff9fabe45292618",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[1]"
+   }
+  },
+  {
+   "taskId": "task-13",
+   "specId": "devil-advocate.finding-003",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-003",
+    "itemHash": "ed7005a30a5b2f8abf435b8ca5c7de8c47a8a93371c35bfa886aa5e34ffd55f6",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[2]"
+   }
+  },
+  {
+   "taskId": "task-14",
+   "specId": "devil-advocate.finding-004",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-004",
+    "itemHash": "4168ad04f04262abb8bcb40f77c0c36ce7846abcd7c920e130d04619153497bf",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[3]"
+   }
+  },
+  {
+   "taskId": "task-15",
+   "specId": "devil-advocate.finding-005",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-005",
+    "itemHash": "bc470180cabd21e2eb9dd86ef66bbe13eaa06bbebdd1332f8985bbbe0a9fff90",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[4]"
+   }
+  },
+  {
+   "taskId": "task-16",
+   "specId": "devil-advocate.finding-006",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-006",
+    "itemHash": "fbbcb1cc12784e80c953f638ba06598922d3de41080e7d6ffec6e795d01965bd",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[5]"
+   }
+  },
+  {
+   "taskId": "task-17",
+   "specId": "devil-advocate.finding-007",
+   "stageId": "devil-advocate",
+   "status": "completed",
+   "foreachGenerated": {
+    "placeholderSpecId": "devil-advocate.item",
+    "itemIdentity": "finding-007",
+    "itemHash": "d2f66ea16139dcc97fa642db806db46fe50621175ce0ef27d04bef2ba441175d",
+    "itemSourceTaskId": "task-3",
+    "itemSourceSpecId": "dedup-findings.main",
+    "itemSourceKind": "control",
+    "itemRef": "dedup-findings.main:control:$.findings[6]"
+   }
+  },
+  {
+   "taskId": "task-5",
+   "specId": "partition-verdicts.main",
+   "stageId": "partition-verdicts",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-6",
+   "specId": "report-packet.main",
+   "stageId": "report-packet",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-7",
+   "specId": "report.main",
+   "stageId": "report",
+   "status": "completed"
+  },
+  {
+   "taskId": "task-8",
+   "specId": "final.main",
+   "stageId": "final",
+   "status": "completed"
+  }
+ ],
+ "supportTasks": [
+  {
+   "specId": "dedup-findings.main",
+   "dependsOn": [
+    "triage.main",
+    "reviewers.runtime-correctness",
+    "reviewers.api-contract"
+   ],
+   "support": {
+    "uses": "./helpers/finding-pipeline.mjs",
+    "options": {
+     "mode": "dedup"
+    }
+   }
+  },
+  {
+   "specId": "partition-verdicts.main",
+   "dependsOn": [
+    "dedup-findings.main",
+    "devil-advocate.finding-001",
+    "devil-advocate.finding-002",
+    "devil-advocate.finding-003",
+    "devil-advocate.finding-004",
+    "devil-advocate.finding-005",
+    "devil-advocate.finding-006",
+    "devil-advocate.finding-007"
+   ],
+   "support": {
+    "uses": "./helpers/finding-pipeline.mjs",
+    "options": {
+     "mode": "partition",
+     "dedupStage": "dedup-findings"
+    }
+   }
+  },
+  {
+   "specId": "report-packet.main",
+   "dependsOn": [
+    "partition-verdicts.main"
+   ],
+   "support": {
+    "uses": "./helpers/finding-pipeline.mjs",
+    "options": {
+     "mode": "report-packet",
+     "partitionStage": "partition-verdicts"
+    }
+   }
+  },
+  {
+   "specId": "final.main",
+   "dependsOn": [
+    "report.main",
+    "partition-verdicts.main"
+   ],
+   "support": {
+    "uses": "./helpers/render-review-report.mjs"
+   }
+  }
+ ]
+}

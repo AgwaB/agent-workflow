@@ -1,0 +1,1167 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "partition: keep=6, weaken=0, drop=0, needsHuman=0, missingVerdicts=0, partialFailures=0, supportNotes=0, ledgerDigest=eae17e9b36d96b5b9ffc2fa8dba3145006cb48ce86903132d98d7ab6816d3cfb",
+  "partitions": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "originalFindingId": "finding-001",
+        "rootCauseId": "root-001",
+        "title": "중지 감시 주기(pollMs) 기본값 및 최소 하한 설정의 명세(S3) 위반",
+        "originalSeverity": "high",
+        "source": "reviewers",
+        "reviewerIdentity": {
+          "source": "reviewers",
+          "specId": "reviewers.stop-cancel-runtime",
+          "taskId": "task-9",
+          "itemIdentity": "stop-cancel-runtime",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "high",
+        "file": "src/workflow-stop.ts",
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 67,
+            "lineEnd": 67,
+            "symbol": "createWorkflowStopSignal"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "const pollMs = Math.max(1, options.pollMs ?? 200);"
+        ],
+        "evidenceQuotes": [
+          "const pollMs = Math.max(1, options.pollMs ?? 200);",
+          "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.",
+          "void check();",
+          "const timer = setInterval(() => void check(), pollMs);"
+        ],
+        "evidence": [
+          {
+            "file": "SPEC.md",
+            "line": 13,
+            "lineEnd": 14,
+            "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 67,
+            "symbol": "createWorkflowStopSignal",
+            "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 80,
+            "symbol": "createWorkflowStopSignal",
+            "quote": "void check();"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 81,
+            "symbol": "createWorkflowStopSignal",
+            "quote": "const timer = setInterval(() => void check(), pollMs);"
+          }
+        ],
+        "rationale": "SPEC.md S3는 '중지 감시 주기(pollMs)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다'고 규정한다. 현재 코드는 기본 폴링 주기가 200ms로 설정되어 디스크 의도 감지가 최대 200ms까지 지연될 수 있으며(기준 대비 4배), 호출자가 1~9ms를 지정했을 때 10ms 미만으로 폴링을 허용하여 디스크 읽기 과부하를 초래할 위험이 있다.",
+        "verifierEvidence": [
+          "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.",
+          "const pollMs = Math.max(1, options.pollMs ?? 200);",
+          "void check();",
+          "const timer = setInterval(() => void check(), pollMs);"
+        ],
+        "counterEvidence": [
+          "최초 검사는 void check()로 즉시 실행되므로 이미 존재하는 중지 의도까지 반드시 200ms를 기다리는 것은 아니다. 하지만 이후 감시 주기의 기본값과 최소 하한 위반은 해소되지 않는다."
+        ],
+        "recommendedAction": "계산식을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 옵션 생략 시 50ms 및 1~9ms 지정 시 10ms가 타이머에 전달되는 회귀 테스트를 추가한다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate",
+          "specId": "devil-advocate.finding-001",
+          "taskId": "task-12",
+          "itemIdentity": "finding-001",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      },
+      {
+        "findingId": "finding-002",
+        "originalFindingId": "finding-002",
+        "rootCauseId": "root-002",
+        "title": "provider 취소 판별 시 cancelled 및 timeout 문자열 오승격으로 인한 명세(C1) 위반",
+        "originalSeverity": "high",
+        "source": "reviewers",
+        "reviewerIdentity": {
+          "source": "reviewers",
+          "specId": "reviewers.stop-cancel-runtime",
+          "taskId": "task-9",
+          "itemIdentity": "stop-cancel-runtime",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "high",
+        "file": "src/workflow-cancellation.ts",
+        "locations": [
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 20,
+            "lineEnd": 20,
+            "symbol": "isWorkflowReturnedCancellation"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+        ],
+        "evidenceQuotes": [
+          "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+          "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+          "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {",
+          "if (!isRecord(value)) return false;",
+          "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+        ],
+        "evidence": [
+          {
+            "file": "SPEC.md",
+            "line": 25,
+            "lineEnd": 26,
+            "quote": "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+          },
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 19,
+            "quote": "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {"
+          },
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 20,
+            "symbol": "isWorkflowReturnedCancellation",
+            "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+          },
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 15,
+            "quote": "if (!isRecord(value)) return false;"
+          },
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 28,
+            "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+          }
+        ],
+        "rationale": "SPEC.md C1은 'provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 aborted, AbortError, ABORT_ERR 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다'고 명시한다. 'timeout'과 'cancelled' 문자열을 취소로 인정하면, 일반 네트워크 타임아웃이나 모델 API 게이트웨이 타임아웃 등 재시도 또는 정상 진단이 필요한 일반 장애 상황이 취소로 잘못 분류되어 워크플로가 부적절하게 종료된다.",
+        "verifierEvidence": [
+          "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+          "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {",
+          "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+          "if (!isRecord(value)) return false;",
+          "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+        ],
+        "counterEvidence": [
+          "최상위 문자열 \"timeout\" 자체는 객체 검사에서 거부된다. 모든 타임아웃 오류가 취소되는 것은 아니지만, 객체의 error/reason 값에 대한 오분류는 그대로 존재한다."
+        ],
+        "recommendedAction": "문자열 비교에서 \"cancelled\"와 \"timeout\"을 제거하고, 최상위 및 details의 error/reason과 content JSON에서 두 값이 취소로 판정되지 않는 회귀 테스트를 추가한다. 기존 세 문자열과 명시적인 cancelled: true 동작은 유지한다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-002",
+          "specId": "devil-advocate.finding-002",
+          "taskId": "task-13",
+          "itemIdentity": "finding-002",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      },
+      {
+        "findingId": "finding-003",
+        "originalFindingId": "finding-003",
+        "rootCauseId": "root-003",
+        "title": "종료 요약 공개 계약 필드인 launchRetryAttempts가 launchRetries로 무단 변경되어 외부 도구 호환성 파괴",
+        "originalSeverity": "high",
+        "source": "reviewers.terminal-api-contract",
+        "reviewerIdentity": {
+          "source": "reviewers.terminal-api-contract",
+          "specId": "reviewers.terminal-api-contract",
+          "taskId": "task-10",
+          "itemIdentity": "terminal-api-contract",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers.terminal-api-contract"
+        ],
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "high",
+        "file": "src/workflow-terminal.ts",
+        "locations": [
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 33,
+            "symbol": "WorkflowTerminalSummary"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 107,
+            "symbol": "summarizeWorkflowTerminal"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 35,
+            "lineEnd": 36
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "+\tlaunchRetries: number;",
+          "-\tlaunchRetryAttempts: number;",
+          "+\t\tlaunchRetries: run.tasks.reduce(",
+          "-\t\tlaunchRetryAttempts: run.tasks.reduce(",
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+          "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+        ],
+        "evidenceQuotes": [
+          "+\tlaunchRetries: number;",
+          "-\tlaunchRetryAttempts: number;",
+          "+\t\tlaunchRetries: run.tasks.reduce(",
+          "-\t\tlaunchRetryAttempts: run.tasks.reduce(",
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+          "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+          "launchRetries: number;",
+          "\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),"
+        ],
+        "evidence": [
+          {
+            "file": "SPEC.md",
+            "line": 35,
+            "lineEnd": 36,
+            "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 33,
+            "symbol": "WorkflowTerminalSummary",
+            "quote": "launchRetries: number;"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 107,
+            "lineEnd": 110,
+            "symbol": "summarizeWorkflowTerminal",
+            "quote": "\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),"
+          }
+        ],
+        "rationale": "명세 SPEC.md의 T3에 따르면 워크플로 종료 요약의 outputRetryAttempts와 launchRetryAttempts는 외부 도구가 파싱하고 의존하는 공개 계약(public contract)이다. 저장소 내부 코드에 해당 필드를 직접 소비하는 호출처가 없더라도 외부 도구 및 워크플로 런타임 소비자가 launchRetryAttempts 필드를 조회하므로, 필드명이 launchRetries로 변경되면 외부 소비자에게 undefined가 전달되어 호환성 회귀가 발생한다.",
+        "verifierEvidence": [
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+          "launchRetries: number;",
+          "\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),"
+        ],
+        "counterEvidence": [
+          "재시도 합산식 자체는 모든 작업의 launchRetry.attempts를 합산하므로 계산 누락 문제는 아니다. 그러나 그 값을 launchRetries로만 반환하여 공개 필드명 불일치는 남는다."
+        ],
+        "recommendedAction": "인터페이스와 반환 객체의 필드명을 launchRetryAttempts로 복구하고, 공개 필드의 존재와 전체 작업의 재시도 합계를 검증하는 회귀 테스트를 추가한다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-003",
+          "specId": "devil-advocate.finding-003",
+          "taskId": "task-14",
+          "itemIdentity": "finding-003",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      },
+      {
+        "findingId": "finding-004",
+        "originalFindingId": "finding-004",
+        "rootCauseId": "root-004",
+        "title": "src/workflow-stop.ts: pollMs 기본값 및 최소 주기 명세(S3) 위반과 검증 단위 테스트 부재",
+        "originalSeverity": "medium",
+        "source": "reviewers.test-hygiene",
+        "reviewerIdentity": {
+          "source": "reviewers.test-hygiene",
+          "specId": "reviewers.test-hygiene",
+          "taskId": "task-11",
+          "itemIdentity": "test-hygiene",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers.test-hygiene"
+        ],
+        "classification": "behavioral",
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "medium",
+        "file": "src/workflow-stop.ts",
+        "locations": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 67,
+            "symbol": "createWorkflowStopSignal"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+          "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.",
+          "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+        ],
+        "evidenceQuotes": [
+          "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+          "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.",
+          "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+          "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);",
+          "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 67,
+            "symbol": "createWorkflowStopSignal",
+            "quote": "\tconst pollMs = Math.max(1, options.pollMs ?? 200);"
+          },
+          {
+            "file": "src/workflow-stop.ts",
+            "line": 80,
+            "lineEnd": 81,
+            "symbol": "createWorkflowStopSignal",
+            "quote": "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 13,
+            "lineEnd": 14,
+            "quote": "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+          },
+          {
+            "file": "SPEC.md",
+            "line": 40,
+            "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+          },
+          {
+            "file": "package.json",
+            "line": 7,
+            "quote": "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+          }
+        ],
+        "rationale": "중지 감시 주기가 기본 200ms로 늘어나면 중지 요청 감지가 최대 200ms 지연될 수 있으며, 10ms 미만(최소 1ms)의 과도하게 잦은 폴링도 허용하게 된다. 저장소에 단위 테스트(SPEC.md Q1)가 구비되어 있지 않아 이러한 명세 위반 결함이 사전 검증되지 못하고 회귀로 고착될 위험이 있다.",
+        "verifierEvidence": [
+          "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+          "\tvoid check();\n\tconst timer = setInterval(() => void check(), pollMs);",
+          "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다.",
+          "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+          "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+        ],
+        "counterEvidence": [
+          "생성 시 void check()를 즉시 실행하므로 이미 존재하는 중지 요청까지 반드시 200ms 기다리는 것은 아니다. 다만 이후 감시 주기의 기본값과 하한이 명세를 위반한다는 사실은 바뀌지 않는다."
+        ],
+        "recommendedAction": "pollMs 계산을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 기본값과 10ms 미만 입력의 하한 처리를 검증하는 타이머 모킹 단위 테스트 및 테스트 실행 경로를 추가한다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-004",
+          "specId": "devil-advocate.finding-004",
+          "taskId": "task-15",
+          "itemIdentity": "finding-004",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      },
+      {
+        "findingId": "finding-005",
+        "originalFindingId": "finding-005",
+        "rootCauseId": "root-005",
+        "title": "src/workflow-cancellation.ts: 취소 인정 사유에 cancelled 및 timeout 임의 추가(C1 위반)와 검증 단위 테스트 부재",
+        "originalSeverity": "medium",
+        "source": "reviewers.test-hygiene",
+        "reviewerIdentity": {
+          "source": "reviewers.test-hygiene",
+          "specId": "reviewers.test-hygiene",
+          "taskId": "task-11",
+          "itemIdentity": "test-hygiene",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers.test-hygiene"
+        ],
+        "classification": "behavioral",
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "medium",
+        "file": "src/workflow-cancellation.ts",
+        "locations": [
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 20,
+            "symbol": "isWorkflowReturnedCancellation"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+          "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+          "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+        ],
+        "evidenceQuotes": [
+          "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+          "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+          "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+          "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {",
+          "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+          "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+          "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 19,
+            "symbol": "isWorkflowReturnedCancellation",
+            "quote": "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {"
+          },
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 20,
+            "symbol": "isWorkflowReturnedCancellation",
+            "quote": "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 25,
+            "lineEnd": 26,
+            "quote": "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+          },
+          {
+            "file": "src/workflow-cancellation.ts",
+            "line": 28,
+            "symbol": "isWorkflowReturnedCancellation",
+            "quote": "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 40,
+            "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+          },
+          {
+            "file": "package.json",
+            "line": 7,
+            "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+          }
+        ],
+        "rationale": "C1 명세는 일반적인 provider 오류가 취소로 오판되어 진단 정보 손실이나 재시도 누락이 발생하는 것을 방지하도록 제한한다. 'cancelled'와 'timeout'을 취소로 처리하면 타임아웃 오류 등이 취소로 분류되어 장애 진단 흐름을 방해한다. 단위 테스트(Q1)가 없어 비취소 오류가 오분류되는 회귀를 방어하지 못한다.",
+        "verifierEvidence": [
+          "for (const candidate of [value.error, details?.error, value.reason, details?.reason]) {",
+          "if (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+          "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+          "if (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+          "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+          "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+        ],
+        "counterEvidence": [],
+        "recommendedAction": "문자열 비교에서 cancelled와 timeout을 제거하되 명시적 cancelled 불리언 처리는 유지한다. 허용된 세 문자열의 양성 사례와 cancelled·timeout·일반 오류의 음성 사례를 error/reason, details 및 content JSON 경로에 걸쳐 단위 테스트로 추가한다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-005",
+          "specId": "devil-advocate.finding-005",
+          "taskId": "task-16",
+          "itemIdentity": "finding-005",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      },
+      {
+        "findingId": "finding-006",
+        "originalFindingId": "finding-006",
+        "rootCauseId": "root-006",
+        "title": "src/workflow-terminal.ts: 종료 요약 공개 계약 필드 launchRetryAttempts 임의 변경(T3 위반)과 검증 단위 테스트 부재",
+        "originalSeverity": "medium",
+        "source": "reviewers.test-hygiene",
+        "reviewerIdentity": {
+          "source": "reviewers.test-hygiene",
+          "specId": "reviewers.test-hygiene",
+          "taskId": "task-11",
+          "itemIdentity": "test-hygiene",
+          "placeholderSpecId": "reviewers.item"
+        },
+        "sourceLineage": [
+          "reviewers.test-hygiene"
+        ],
+        "classification": "behavioral",
+        "generatedRootCauseId": true,
+        "verdict": "KEEP",
+        "originalVerdict": "KEEP",
+        "severity": "medium",
+        "file": "src/workflow-terminal.ts",
+        "locations": [
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 107,
+            "lineEnd": 110,
+            "symbol": "summarizeWorkflowTerminal"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 33,
+            "symbol": "WorkflowTerminalSummary"
+          }
+        ],
+        "reviewerEvidenceQuotes": [
+          "\t\tlaunchRetries: run.tasks.reduce(",
+          "\tlaunchRetries: number;",
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+          "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+        ],
+        "evidenceQuotes": [
+          "\t\tlaunchRetries: run.tasks.reduce(",
+          "\tlaunchRetries: number;",
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+          "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+          "\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),",
+          "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+        ],
+        "evidence": [
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 33,
+            "symbol": "WorkflowTerminalSummary",
+            "quote": "\tlaunchRetries: number;"
+          },
+          {
+            "file": "src/workflow-terminal.ts",
+            "line": 107,
+            "lineEnd": 110,
+            "symbol": "summarizeWorkflowTerminal",
+            "quote": "\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),"
+          },
+          {
+            "file": "SPEC.md",
+            "line": 35,
+            "lineEnd": 36,
+            "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+          },
+          {
+            "file": "SPEC.md",
+            "line": 40,
+            "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다."
+          },
+          {
+            "file": "package.json",
+            "line": 7,
+            "quote": "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+          }
+        ],
+        "rationale": "SPEC.md T3는 outputRetryAttempts와 launchRetryAttempts 필드명이 외부 도구가 의존하는 공개 계약임을 명시하고 있다. 필드명이 launchRetries로 변경되면 외부 도구 및 모니터링 시스템에서 재시도 횟수를 파싱하지 못하거나 런타임 호환성 결함이 발생한다. 단위 테스트(Q1)가 없어 인터페이스 계약 파괴가 사전에 감지되지 못했다.",
+        "verifierEvidence": [
+          "\tlaunchRetries: number;",
+          "\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),",
+          "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+          "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+          "  \"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+        ],
+        "counterEvidence": [
+          "src/workflow-terminal.ts:107-110의 합산은 모든 작업의 launchRetry.attempts를 포함하고 누락값을 0으로 처리한다. 따라서 계산 오류가 아니라 공개 필드명 불일치가 핵심이다."
+        ],
+        "recommendedAction": "인터페이스와 반환 객체의 필드명을 launchRetryAttempts로 복원하고, 공개 필드명 및 여러 작업·누락값·빈 작업 목록의 합산 결과를 검증하는 회귀 단위 테스트를 추가한다.",
+        "sourceCoverageComplete": true,
+        "sourceCoverageIssuePaths": [],
+        "verifierOwner": {
+          "source": "devil-advocate.finding-006",
+          "specId": "devil-advocate.finding-006",
+          "taskId": "task-17",
+          "itemIdentity": "finding-006",
+          "placeholderSpecId": "devil-advocate.item"
+        }
+      }
+    ],
+    "weaken": [],
+    "drop": [],
+    "needsHuman": []
+  },
+  "supportNotes": [],
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "rootCauseId": "root-001",
+        "title": "중지 감시 주기(pollMs) 기본값 및 최소 하한 설정의 명세(S3) 위반",
+        "severity": "high",
+        "recommendedAction": "계산식을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 옵션 생략 시 50ms 및 1~9ms 지정 시 10ms가 타이머에 전달되는 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-002",
+        "rootCauseId": "root-002",
+        "title": "provider 취소 판별 시 cancelled 및 timeout 문자열 오승격으로 인한 명세(C1) 위반",
+        "severity": "high",
+        "recommendedAction": "문자열 비교에서 \"cancelled\"와 \"timeout\"을 제거하고, 최상위 및 details의 error/reason과 content JSON에서 두 값이 취소로 판정되지 않는 회귀 테스트를 추가한다. 기존 세 문자열과 명시적인 cancelled: true 동작은 유지한다."
+      },
+      {
+        "findingId": "finding-003",
+        "rootCauseId": "root-003",
+        "title": "종료 요약 공개 계약 필드인 launchRetryAttempts가 launchRetries로 무단 변경되어 외부 도구 호환성 파괴",
+        "severity": "high",
+        "recommendedAction": "인터페이스와 반환 객체의 필드명을 launchRetryAttempts로 복구하고, 공개 필드의 존재와 전체 작업의 재시도 합계를 검증하는 회귀 테스트를 추가한다."
+      },
+      {
+        "findingId": "finding-004",
+        "rootCauseId": "root-004",
+        "title": "src/workflow-stop.ts: pollMs 기본값 및 최소 주기 명세(S3) 위반과 검증 단위 테스트 부재",
+        "severity": "medium",
+        "recommendedAction": "pollMs 계산을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 기본값과 10ms 미만 입력의 하한 처리를 검증하는 타이머 모킹 단위 테스트 및 테스트 실행 경로를 추가한다."
+      },
+      {
+        "findingId": "finding-005",
+        "rootCauseId": "root-005",
+        "title": "src/workflow-cancellation.ts: 취소 인정 사유에 cancelled 및 timeout 임의 추가(C1 위반)와 검증 단위 테스트 부재",
+        "severity": "medium",
+        "recommendedAction": "문자열 비교에서 cancelled와 timeout을 제거하되 명시적 cancelled 불리언 처리는 유지한다. 허용된 세 문자열의 양성 사례와 cancelled·timeout·일반 오류의 음성 사례를 error/reason, details 및 content JSON 경로에 걸쳐 단위 테스트로 추가한다."
+      },
+      {
+        "findingId": "finding-006",
+        "rootCauseId": "root-006",
+        "title": "src/workflow-terminal.ts: 종료 요약 공개 계약 필드 launchRetryAttempts 임의 변경(T3 위반)과 검증 단위 테스트 부재",
+        "severity": "medium",
+        "recommendedAction": "인터페이스와 반환 객체의 필드명을 launchRetryAttempts로 복원하고, 공개 필드명 및 여러 작업·누락값·빈 작업 목록의 합산 결과를 검증하는 회귀 단위 테스트를 추가한다."
+      }
+    ],
+    "weaken": [],
+    "drop": [],
+    "needsHuman": [],
+    "supportNoteSummaries": [],
+    "partialFailures": []
+  },
+  "reportPacket": {
+    "schema": "deep-review-report-packet-v1",
+    "digest": "eae17e9b36d96b5b9ffc2fa8dba3145006cb48ce86903132d98d7ab6816d3cfb",
+    "maxChars": 15000,
+    "actualChars": 1863,
+    "expectedVerdict": "NEEDS_WORK",
+    "partitionSummary": {
+      "keep": 6,
+      "weaken": 0,
+      "drop": 0,
+      "needsHuman": 0,
+      "supportNotes": 0,
+      "mergedFindings": 0,
+      "verdictsReceived": 6,
+      "batchIntegrityIssues": 0,
+      "verdictIntegrityIssues": 0,
+      "reviewerCoverageIssues": 0,
+      "reviewerFindings": 6,
+      "missingVerdicts": 0,
+      "partialFailures": 0
+    },
+    "sourceStatusSummary": {
+      "total": 7,
+      "completed": 7,
+      "nonCompleted": 0,
+      "partialFailureCount": 0,
+      "partialFailures": []
+    },
+    "reportContext": {
+      "keep": [
+        {
+          "findingId": "finding-001",
+          "title": "중지 감시 주기(pollMs) 기본값 및 최소 하한 설정의 명세(S3) 위반",
+          "severity": "high",
+          "recommendedAction": "계산식을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 옵션 생략 시 50ms 및 1~9ms 지정 시 10ms가 타이머에 전달되는 회귀 테스트를 추가한다."
+        },
+        {
+          "findingId": "finding-002",
+          "title": "provider 취소 판별 시 cancelled 및 timeout 문자열 오승격으로 인한 명세(C1) 위반",
+          "severity": "high",
+          "recommendedAction": "문자열 비교에서 \"cancelled\"와 \"timeout\"을 제거하고, 최상위 및 details의 error/reason과 content JSON에서 두 값이 취소로 판정되지 않는 회귀 테스트를 추가한다. 기존 세 문자열과 명시적인 cancelled: true 동작은 유지한다."
+        },
+        {
+          "findingId": "finding-003",
+          "title": "종료 요약 공개 계약 필드인 launchRetryAttempts가 launchRetries로 무단 변경되어 외부 도구 호환성 파괴",
+          "severity": "high",
+          "recommendedAction": "인터페이스와 반환 객체의 필드명을 launchRetryAttempts로 복구하고, 공개 필드의 존재와 전체 작업의 재시도 합계를 검증하는 회귀 테스트를 추가한다."
+        },
+        {
+          "findingId": "finding-004",
+          "title": "src/workflow-stop.ts: pollMs 기본값 및 최소 주기 명세(S3) 위반과 검증 단위 테스트 부재",
+          "severity": "medium",
+          "recommendedAction": "pollMs 계산을 Math.max(10, options.pollMs ?? 50)으로 수정하고, 기본값과 10ms 미만 입력의 하한 처리를 검증하는 타이머 모킹 단위 테스트 및 테스트 실행 경로를 추가한다."
+        }
+      ],
+      "weaken": [],
+      "drop": [],
+      "needsHuman": [],
+      "supportNoteSummaries": []
+    },
+    "normalizationNotes": [],
+    "overflowCounts": {
+      "keep": 2,
+      "weaken": 0,
+      "drop": 0,
+      "needsHuman": 0,
+      "supportNotes": 0,
+      "partialFailures": 0,
+      "normalizationNotes": 0,
+      "truncatedStrings": 0,
+      "omittedStringChars": 0
+    }
+  },
+  "dedupSummary": {
+    "complete": true,
+    "rawCount": 6,
+    "uniqueCount": 6,
+    "duplicateCount": 0,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "supportFindingIds": [],
+    "lineageFindingIds": [],
+    "duplicates": []
+  },
+  "reviewerLedger": {
+    "plannedLensIds": [
+      "stop-cancel-runtime",
+      "terminal-api-contract",
+      "test-hygiene"
+    ],
+    "materializedReviewerIds": [
+      "stop-cancel-runtime",
+      "terminal-api-contract",
+      "test-hygiene"
+    ],
+    "attestedLensIds": [
+      "stop-cancel-runtime",
+      "terminal-api-contract",
+      "test-hygiene"
+    ],
+    "materializedReviewerSourceIds": [
+      "reviewers",
+      "reviewers.terminal-api-contract",
+      "reviewers.test-hygiene"
+    ],
+    "validAttestationSourceIds": [
+      "reviewers",
+      "reviewers.terminal-api-contract",
+      "reviewers.test-hygiene"
+    ],
+    "ownerMap": [
+      {
+        "source": "reviewers",
+        "specId": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.terminal-api-contract",
+        "specId": "reviewers.terminal-api-contract",
+        "taskId": "task-10",
+        "itemIdentity": "terminal-api-contract",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.test-hygiene",
+        "specId": "reviewers.test-hygiene",
+        "taskId": "task-11",
+        "itemIdentity": "test-hygiene",
+        "placeholderSpecId": "reviewers.item"
+      }
+    ],
+    "invalidAttestations": [],
+    "missingPlannedLensIds": [],
+    "missingAttestedLensIds": [],
+    "unexpectedMaterializedReviewerIds": [],
+    "unexpectedAttestedLensIds": [],
+    "duplicateMaterializedReviewerIds": [],
+    "setEquality": true,
+    "sourceStatuses": [
+      {
+        "source": "triage",
+        "displayName": "triage.main",
+        "taskId": "task-1",
+        "specId": "triage.main",
+        "stageId": "triage",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers",
+        "displayName": "reviewers.stop-cancel-runtime",
+        "taskId": "task-9",
+        "specId": "reviewers.stop-cancel-runtime",
+        "stageId": "reviewers",
+        "itemIdentity": "stop-cancel-runtime",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.terminal-api-contract",
+        "displayName": "reviewers.terminal-api-contract",
+        "taskId": "task-10",
+        "specId": "reviewers.terminal-api-contract",
+        "stageId": "reviewers",
+        "itemIdentity": "terminal-api-contract",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.test-hygiene",
+        "displayName": "reviewers.test-hygiene",
+        "taskId": "task-11",
+        "specId": "reviewers.test-hygiene",
+        "stageId": "reviewers",
+        "itemIdentity": "test-hygiene",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      }
+    ],
+    "sourceCoverageFailures": [],
+    "plannedRangeCorrections": [
+      {
+        "source": "reviewers.test-hygiene",
+        "lens": "test-hygiene",
+        "kind": "planned-range-end",
+        "path": "package.json:1-10",
+        "fileLines": 8,
+        "checked": "1-8"
+      },
+      {
+        "source": "reviewers.test-hygiene",
+        "lens": "test-hygiene",
+        "kind": "planned-range-end",
+        "path": "SPEC.md:38-42",
+        "fileLines": 40,
+        "checked": "38-40"
+      }
+    ],
+    "complete": true,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "validFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "invalidFindingIds": [],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "supportFindingIds": [],
+    "lineageFindingIds": [],
+    "provenanceOwnerFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ]
+  },
+  "verifierCoverage": {
+    "verdictsReceived": 6,
+    "complete": true,
+    "expectedFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "verdictFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005",
+      "finding-006"
+    ],
+    "missingFindingIds": [],
+    "orphanFindingIds": [],
+    "duplicateFindingIds": [],
+    "ownerIssues": [],
+    "statusIssues": [],
+    "exactSetEquality": true,
+    "rows": [
+      {
+        "sourceId": "devil-advocate",
+        "index": 0,
+        "findingId": "finding-001",
+        "owner": {
+          "source": "devil-advocate",
+          "specId": "devil-advocate.finding-001",
+          "taskId": "task-12",
+          "itemIdentity": "finding-001",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate",
+        "ownerSpecId": "devil-advocate.finding-001",
+        "ownerTaskId": "task-12",
+        "ownerItemIdentity": "finding-001",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-002",
+        "index": 1,
+        "findingId": "finding-002",
+        "owner": {
+          "source": "devil-advocate.finding-002",
+          "specId": "devil-advocate.finding-002",
+          "taskId": "task-13",
+          "itemIdentity": "finding-002",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-002",
+        "ownerSpecId": "devil-advocate.finding-002",
+        "ownerTaskId": "task-13",
+        "ownerItemIdentity": "finding-002",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-003",
+        "index": 2,
+        "findingId": "finding-003",
+        "owner": {
+          "source": "devil-advocate.finding-003",
+          "specId": "devil-advocate.finding-003",
+          "taskId": "task-14",
+          "itemIdentity": "finding-003",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-003",
+        "ownerSpecId": "devil-advocate.finding-003",
+        "ownerTaskId": "task-14",
+        "ownerItemIdentity": "finding-003",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-004",
+        "index": 3,
+        "findingId": "finding-004",
+        "owner": {
+          "source": "devil-advocate.finding-004",
+          "specId": "devil-advocate.finding-004",
+          "taskId": "task-15",
+          "itemIdentity": "finding-004",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-004",
+        "ownerSpecId": "devil-advocate.finding-004",
+        "ownerTaskId": "task-15",
+        "ownerItemIdentity": "finding-004",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-005",
+        "index": 4,
+        "findingId": "finding-005",
+        "owner": {
+          "source": "devil-advocate.finding-005",
+          "specId": "devil-advocate.finding-005",
+          "taskId": "task-16",
+          "itemIdentity": "finding-005",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-005",
+        "ownerSpecId": "devil-advocate.finding-005",
+        "ownerTaskId": "task-16",
+        "ownerItemIdentity": "finding-005",
+        "valid": true
+      },
+      {
+        "sourceId": "devil-advocate.finding-006",
+        "index": 5,
+        "findingId": "finding-006",
+        "owner": {
+          "source": "devil-advocate.finding-006",
+          "specId": "devil-advocate.finding-006",
+          "taskId": "task-17",
+          "itemIdentity": "finding-006",
+          "placeholderSpecId": "devil-advocate.item"
+        },
+        "ownerSource": "devil-advocate.finding-006",
+        "ownerSpecId": "devil-advocate.finding-006",
+        "ownerTaskId": "task-17",
+        "ownerItemIdentity": "finding-006",
+        "valid": true
+      }
+    ],
+    "sourceStatuses": [
+      {
+        "source": "dedup-findings",
+        "displayName": "dedup-findings.main",
+        "taskId": "task-3",
+        "specId": "dedup-findings.main",
+        "stageId": "dedup-findings",
+        "status": "completed",
+        "statusDetail": "support_completed",
+        "lastMessage": "support completed"
+      },
+      {
+        "source": "devil-advocate",
+        "displayName": "devil-advocate.finding-001",
+        "taskId": "task-12",
+        "specId": "devil-advocate.finding-001",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-001",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-002",
+        "displayName": "devil-advocate.finding-002",
+        "taskId": "task-13",
+        "specId": "devil-advocate.finding-002",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-002",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-003",
+        "displayName": "devil-advocate.finding-003",
+        "taskId": "task-14",
+        "specId": "devil-advocate.finding-003",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-003",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-004",
+        "displayName": "devil-advocate.finding-004",
+        "taskId": "task-15",
+        "specId": "devil-advocate.finding-004",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-004",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-005",
+        "displayName": "devil-advocate.finding-005",
+        "taskId": "task-16",
+        "specId": "devil-advocate.finding-005",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-005",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "devil-advocate.finding-006",
+        "displayName": "devil-advocate.finding-006",
+        "taskId": "task-17",
+        "specId": "devil-advocate.finding-006",
+        "stageId": "devil-advocate",
+        "itemIdentity": "finding-006",
+        "placeholderSpecId": "devil-advocate.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      }
+    ],
+    "digest": "8c8e4573c41e41b7e9958cd1c16bbcea4d94a36604a08fb0f0e5591ff77684c6"
+  },
+  "sourceStatusSummary": {
+    "total": 7,
+    "completed": 7,
+    "nonCompleted": 0,
+    "partialFailures": []
+  },
+  "partitionSummary": {
+    "keep": 6,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 6,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 6,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "normalizationNotes": [],
+  "evidenceCorrections": [
+    {
+      "source": "reviewers.test-hygiene",
+      "lens": "test-hygiene",
+      "kind": "planned-range-end",
+      "path": "package.json:1-10",
+      "fileLines": 8,
+      "checked": "1-8"
+    },
+    {
+      "source": "reviewers.test-hygiene",
+      "lens": "test-hygiene",
+      "kind": "planned-range-end",
+      "path": "SPEC.md:38-42",
+      "fileLines": 40,
+      "checked": "38-40"
+    }
+  ]
+}

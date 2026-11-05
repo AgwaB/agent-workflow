@@ -1,0 +1,29 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC T3의 공개 계약 필드명인 launchRetryAttempts 대신 launchRetries가 사용되고 있음을 확인하였으며 반박 근거가 없어 지적을 유지(KEEP)합니다.",
+  "findingId": "finding-005",
+  "finding": "공개 재시도 집계 필드 이름이 명세와 다르다 (launchRetryAttempts → launchRetries)",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "symbol": "T3",
+      "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 33,
+      "symbol": "WorkflowTerminalSummary",
+      "quote": "\tlaunchRetries: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 107,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "\t\tlaunchRetries: run.tasks.reduce("
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "WorkflowTerminalSummary 인터페이스 및 summarizeWorkflowTerminal의 반환 객체 필드명을 명세(SPEC T3)에 맞추어 launchRetryAttempts로 복구하거나, 하위 호환성을 위해 launchRetryAttempts와 launchRetries를 함께 제공하도록 수정한다."
+}

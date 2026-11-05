@@ -1,0 +1,42 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC S4가 감시 경로의 디스크 읽기 실패를 중지로 보지 않도록 명시하므로 결함이 아니라 의도된 설계다. 다만 영구 실패 시 디스크 중지가 감시 경로에서 반영되지 않는 한계는 남는다.",
+  "findingId": "finding-003",
+  "finding": "Disk stop-intent read failures are silently swallowed in the poll",
+  "verdict": "WEAKEN",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 74,
+      "lineEnd": 76,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const intent = await readWorkflowStopIntent(cwd, runId).catch("
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 95,
+      "symbol": "throwIfWorkflowStopRequested",
+      "quote": "const intent = await readWorkflowStopIntent(cwd, runId);"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 15,
+      "quote": "감시 경로(`createWorkflowStopSignal`)에서 디스크 읽기 실패는 중지로 간주하지 않는다."
+    },
+    {
+      "file": "SPEC.md",
+      "line": 16,
+      "quote": "throwIfWorkflowStopRequested에서는 읽기 오류가 호출자에게 그대로 전달되어야 한다."
+    }
+  ],
+  "counterEvidence": [
+    "SPEC.md S4는 감시 경로에서 디스크 읽기 실패를 중지로 보지 않는 것을 명시 요구하므로, 코드의 .catch(() => undefined)는 명세와 일치한다.",
+    "동기 경로 throwIfWorkflowStopRequested는 읽기 오류를 잡지 않고 전파하므로 디스크 중지 확인 지점(디스패치 전)에서 오류가 드러난다.",
+    "감시 경로의 일시적 읽기 실패는 다음 주기에 재시도되어 중지가 지연될 뿐 누락되지 않는다.",
+    "readWorkflowStopIntent의 구현(store.js)은 저장소에 없어 파일 없음과 읽기 불가를 구분하는지 확인되지 않았다. 이는 적용 가능성에 대한 한계이며 반증 근거는 아니다.",
+    "SPEC.md S3은 기본 pollMs를 50ms로 명시하지만 코드 기본값은 200ms다. 이는 이 결함과 별개의 불일치다."
+  ],
+  "recommendedAction": "S4 명세를 우선 기준으로 삼아 이 동작을 의도된 트레이드오프로 문서화하라. 영구 읽기 실패 시 중지가 감시 경로에 반영되지 않는 한계를 테스트로 고정하고, fail-closed로 바꿀지는 명세 개정 후 결정하라.",
+  "readerTitle": "디스크 중지 의도의 읽기 실패가 폴링에서 조용히 무시됨",
+  "readerRationale": "두 중지 감지 경로가 같은 읽기를 다르게 처리한다. 폴링에서는 지속적인 읽기 실패(권한 또는 I/O 오류)가 디스크에 기록된 중지를 반영하지 못하게 되며, 발launch 신호 경로만 남는다. 일시적 실패는 다음 200ms 폴링까지만 중지를 늦춘다. 위험은 지속적 실패 경우다. readWorkflowStopIntent의 실패 양상이 증거 집합에 없어 심각도와 확신도는 중간이다."
+}

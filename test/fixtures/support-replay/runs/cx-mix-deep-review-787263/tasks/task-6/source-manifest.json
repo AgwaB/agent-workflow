@@ -1,0 +1,40 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2vdmyp_787263",
+  "taskId": "task-6",
+  "sources": [
+    {
+      "source": "partition-verdicts",
+      "displayName": "partition-verdicts.main",
+      "taskId": "task-5",
+      "specId": "partition-verdicts.main",
+      "stageId": "partition-verdicts",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "generation": 1,
+      "digest": "partition: keep=6, weaken=1, drop=0, needsHuman=0, missingVerdicts=0, partialFailures=0, supportNotes=0, ledgerDigest=3cd6f8864c6a52985bd61529286aa26a6264640ce0e10bcb545a7775d86a84e5",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-5/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-5/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-5/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-5/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

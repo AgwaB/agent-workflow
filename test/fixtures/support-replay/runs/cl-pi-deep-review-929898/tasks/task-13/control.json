@@ -1,0 +1,31 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "일반 Error도 메시지 접두사만으로 중지 오류가 되어 S6을 위반하므로 지적을 유지한다.",
+  "findingId": "finding-002",
+  "finding": "메시지 접두사로 일반 오류를 중지 오류로 인정하지 않아야 한다",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 55,
+      "lineEnd": 57,
+      "symbol": "isWorkflowStopRequestedError",
+      "quote": "\t\terror instanceof Error &&\n\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 18,
+      "lineEnd": 19,
+      "quote": "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 48,
+      "lineEnd": 50,
+      "symbol": "createWorkflowStopRequestedError",
+      "quote": "\tconst error = new Error(workflowStopRequestedMessage(runId));\n\terror.name = WORKFLOW_STOP_REQUESTED_ERROR_NAME;\n\treturn error;"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "메시지 접두사 분기를 제거하고 Error 인스턴스의 name만 정확히 비교한다. 동일 접두사의 일반 Error는 false, 전용 생성기로 만든 오류는 true인지 회귀 테스트를 추가한다."
+}

@@ -1,0 +1,29 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "명세 SPEC C1은 취소 오류·사유 문자열을 정확히 'aborted', 'AbortError', 'ABORT_ERR' 세 가지만 인정하도록 규정하고 있으므로, 'cancelled'와 'timeout'을 허용 목록에 추가한 것은 명세 위반이자 실패 진단을 억제하는 신뢰성 문제로 판정되어 KEEP을 유지합니다.",
+  "findingId": "finding-002",
+  "finding": "Provider cancellation allowlist includes 'cancelled' and 'timeout' beyond the spec's three markers",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 20,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\""
+    },
+    {
+      "file": "SPEC.md",
+      "line": 25,
+      "quote": "오류·사유 문자열은 정확히 `aborted`,"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 26,
+      "quote": "세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "SPEC C1에 명시된 대로 `src/workflow-cancellation.ts`의 `candidate` 검사에서 'cancelled'와 'timeout'을 제거하고 'aborted', 'AbortError', 'ABORT_ERR' 세 가지만 허용하도록 제한해야 합니다. 특정 프로바이더에서 추가 처리가 필요하다면 공용 분류기를 임의 확장하지 말고 해당 어댑터 범위로 한정하거나 SPEC C1을 명시적으로 개정해야 합니다.",
+  "readerTitle": "프로바이더 취소 허용 목록에 명세의 세 가지 마커를 넘어 'cancelled'와 'timeout'이 포함되어 있음",
+  "readerRationale": "오류 'timeout' 또는 사유 'cancelled'로 보고된 실제 프로바이더 실패가 사용자 취소로 분류됩니다. 이는 진단 정보를 억제하고 실제로 실패한 실행에 대해 취소된 최종 상태를 생성할 수 있습니다. 명세는 정확한 토큰을 명시하고 주석에서도 목록이 의도적으로 정확하다고 밝히고 있으므로, 이는 분류기를 계약 범위를 넘어 확장합니다."
+}

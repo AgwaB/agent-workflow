@@ -1,0 +1,39 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2wrgza_ff53d1",
+  "taskId": "task-7",
+  "sources": [
+    {
+      "source": "report-packet",
+      "displayName": "report-packet.main",
+      "taskId": "task-6",
+      "specId": "report-packet.main",
+      "stageId": "report-packet",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "458a56a7168f1f285fbf8bd0eadfb672cb2a6594571f2226db544d1e792881b6",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-6/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-6/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-6/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-6/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

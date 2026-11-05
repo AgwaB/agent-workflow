@@ -605,8 +605,10 @@ function confirmationPrompt(
 	const lines = [heading];
 	if (ask.size > 0) {
 		lines.push("", "Needs your OK:");
+		// 2026-11-04 (live Claude Code host, haiku): "a repair starts a new session (all 4 stages)" was
+		// relayed as "all 4 stages run again"; "in" says where the limit applies.
 		for (const { words, labels } of ask.values())
-			lines.push(`• ${words} (${stageList(labels, stages.length)})`);
+			lines.push(`• ${words} (in ${stageList(labels, stages.length)})`);
 	}
 	// A limit that some stage asks about is not repeated as recorded-only for the others.
 	const quiet = [...recorded.entries()]

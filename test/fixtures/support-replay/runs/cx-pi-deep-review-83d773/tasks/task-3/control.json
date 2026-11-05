@@ -1,0 +1,476 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "dedup: raw=5, unique=5, duplicates=0, partialFailures=0",
+  "findings": [
+    {
+      "id": "finding-001",
+      "findingId": "finding-001",
+      "originalFindingId": "finding-001",
+      "rootCauseId": "root-001",
+      "generatedRootCauseId": true,
+      "severity": "medium",
+      "originalSeverity": "medium",
+      "title": "감시 주기가 기본 50ms·최소 10ms 계약을 위반함",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 67,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 81,
+          "symbol": "createWorkflowStopSignal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 13,
+          "lineEnd": 14
+        }
+      ],
+      "evidence": "pollMs를 생략하면 200ms가 적용되고, 1ms를 지정하면 그대로 1ms가 적용된다. 이 값이 setInterval에 전달되므로 S3의 기본 50ms·최소 10ms를 모두 위반한다.",
+      "evidenceQuotes": [
+        "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+        "\tconst timer = setInterval(() => void check(), pollMs);",
+        "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+      ],
+      "reviewerEvidenceQuotes": [
+        "\tconst pollMs = Math.max(1, options.pollMs ?? 200);",
+        "\tconst timer = setInterval(() => void check(), pollMs);",
+        "- **S3.** 중지 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n  짧아지면 안 된다."
+      ],
+      "rationale": "초기 확인 직후 중지 의도가 생기면 기본 설정에서 다음 확인까지의 대기가 명세보다 약 150ms 길어질 수 있다. 반대로 작은 값을 지정하면 1ms마다 디스크 읽기를 예약하며, 비동기 읽기의 완료를 기다리지 않으므로 느린 저장소에서는 읽기가 중첩되어 부하가 증가할 수 있다.",
+      "recommendedAction": "Math.max(10, options.pollMs ?? 50)으로 계약에 맞추고, 기본값과 10ms 미만 입력의 실제 예약 주기를 검증한다.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.stop-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-runtime",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-002",
+      "findingId": "finding-002",
+      "originalFindingId": "finding-002",
+      "rootCauseId": "root-002",
+      "generatedRootCauseId": true,
+      "severity": "medium",
+      "originalSeverity": "medium",
+      "title": "메시지 접두사가 같은 일반 오류를 중지 오류로 오분류함",
+      "file": "src/workflow-stop.ts",
+      "locations": [
+        {
+          "file": "src/workflow-stop.ts",
+          "line": 53,
+          "lineEnd": 58,
+          "symbol": "isWorkflowStopRequestedError"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 18,
+          "lineEnd": 19
+        }
+      ],
+      "evidence": "이름 비교와 메시지 접두사 검사를 OR로 연결한다. 따라서 이름이 Error인 new Error(\"workflow stop requested persistence failed\")도 true로 판별되며 S6에 어긋난다.",
+      "evidenceQuotes": [
+        "\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))",
+        "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다."
+      ],
+      "reviewerEvidenceQuotes": [
+        "\t\t(error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME ||\n\t\t\terror.message.startsWith(\"workflow stop requested\"))",
+        "- **S6.** `isWorkflowStopRequestedError`는 이름이 `WorkflowStopRequested`인 오류만 중지 오류로\n  인정한다. 메시지 내용으로 판별해서는 안 된다."
+      ],
+      "rationale": "중지 요청 처리 자체의 실패나 다른 일반 오류가 이 접두사를 사용하면 정상적인 중지로 취급될 수 있다. 이 판별값을 사용하는 호출자는 실제 실패 진단을 누락할 위험이 있다. 제공된 발췌에는 호출자가 없어 구체적인 종료 상태 변경까지는 확인할 수 없다.",
+      "recommendedAction": "메시지 기반 분기를 제거하고 Error 여부와 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME만 검사한다. 동일 접두사를 가진 일반 Error가 false인지 검증한다.",
+      "confidence": "high",
+      "source": "reviewers",
+      "sourceLineage": [
+        "reviewers"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers",
+        "specId": "reviewers.stop-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-runtime",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-003",
+      "findingId": "finding-003",
+      "originalFindingId": "finding-003",
+      "rootCauseId": "root-003",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "허용 목록 밖의 provider 실패를 취소로 분류한다",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 19,
+          "lineEnd": 21,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 23,
+          "lineEnd": 28,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 25,
+          "lineEnd": 26
+        }
+      ],
+      "evidence": "문자열 비교에 명세의 aborted·AbortError·ABORT_ERR뿐 아니라 cancelled·timeout도 포함된다. 따라서 {\"error\":\"timeout\"}과 {\"details\":{\"reason\":\"cancelled\"}}는 명시적 취소 표시가 없어도 true가 된다. content의 JSON에도 같은 함수를 재귀 적용하므로 동일한 오분류가 전파된다. 이는 소스에 따른 정적 판정이며 실행 검증은 하지 않았다.",
+      "evidenceQuotes": [
+        "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+      ],
+      "reviewerEvidenceQuotes": [
+        "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+      ],
+      "rationale": "provider의 timeout은 사용자 취소와 별개인 실패인데 이 경계에서는 둘을 구분하지 못한다. 반환값을 취소로 취급하는 소비자가 실패 진단이나 복구를 생략할 위험이 있고 C1을 직접 위반한다. 이 발췌에는 소비자가 없어 구체적인 후속 피해는 확인할 수 없지만, 분류 오류 자체는 명확하다.",
+      "recommendedAction": "오류·사유 문자열의 기본 허용 목록을 명세의 세 값으로 제한하고 직접 값, details, 중첩 content JSON에 동일하게 적용한다. 기존 cancelled:true 및 AbortError 객체 지원까지 함께 제거하지 않는다. 외부 어댑터가 추가 문자열에 의존할 가능성은 별도로 조사하고, 필요한 호환 처리는 명시적 어댑터 변환으로 격리한다. timeout과 cancelled의 음성 사례도 검증한다.",
+      "confidence": "high",
+      "source": "reviewers.cancellation-boundary",
+      "sourceLineage": [
+        "reviewers.cancellation-boundary"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.cancellation-boundary",
+        "specId": "reviewers.cancellation-boundary",
+        "taskId": "task-10",
+        "itemIdentity": "cancellation-boundary",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-004",
+      "findingId": "finding-004",
+      "originalFindingId": "finding-004",
+      "rootCauseId": "root-004",
+      "generatedRootCauseId": true,
+      "severity": "high",
+      "originalSeverity": "high",
+      "title": "공개 계약인 launchRetryAttempts 대신 launchRetries를 반환함",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "lineEnd": 110,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 32,
+          "lineEnd": 33,
+          "symbol": "WorkflowTerminalSummary"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 35,
+          "lineEnd": 36
+        }
+      ],
+      "evidence": "SPEC T3는 launchRetryAttempts를 외부 도구가 읽는 공개 필드로 명시한다. 그러나 반환 객체와 export된 인터페이스 모두 launchRetries만 선언하며, src 검색에서도 launchRetryAttempts를 제공하는 호환 경로는 없다.",
+      "evidenceQuotes": [
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),",
+        "\tlaunchRetries: number;",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+        "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      ],
+      "reviewerEvidenceQuotes": [
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),",
+        "\tlaunchRetries: number;",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+        "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      ],
+      "rationale": "합계 계산 자체는 맞지만 계약된 키가 없으므로 외부 소비자는 재시도가 발생해도 summary.launchRetryAttempts에서 undefined를 받는다. 타입을 사용하는 소비자에게도 해당 필드가 제공되지 않는다. 저장소 내부 호출자가 없어도 공개 출력 계약 위반이다.",
+      "recommendedAction": "인터페이스와 반환 객체에서 launchRetryAttempts를 제공하도록 수정한다. launchRetries를 유지해야 한다면 호환 별칭으로 추가하되 계약된 키를 대체하지 않도록 하고, 실제 반환 객체의 키와 합계를 검증한다.",
+      "confidence": "high",
+      "source": "reviewers.terminal-contract",
+      "sourceLineage": [
+        "reviewers.terminal-contract"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.terminal-contract",
+        "specId": "reviewers.terminal-contract",
+        "taskId": "task-11",
+        "itemIdentity": "terminal-contract",
+        "placeholderSpecId": "reviewers.item"
+      }
+    },
+    {
+      "id": "finding-005",
+      "findingId": "finding-005",
+      "originalFindingId": "finding-005",
+      "rootCauseId": "root-005",
+      "generatedRootCauseId": true,
+      "severity": "medium",
+      "originalSeverity": "medium",
+      "title": "controller 읽기 실패보다 dynamic_incomplete를 우선하여 종료 상태를 오분류함",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 81,
+          "lineEnd": 86,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 59,
+          "lineEnd": 61,
+          "symbol": "readDynamicControllerControl"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 95,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 33,
+          "lineEnd": 34
+        }
+      ],
+      "evidence": "controller control.json 읽기가 reject되면 helper는 undefined를 반환한다. 하지만 요약 함수는 control 부재보다 작업의 dynamic_incomplete 표시를 먼저 검사하므로, 두 조건이 겹치면 SPEC T2의 completed_without_semantic_result 대신 dynamic_incomplete를 반환한다.",
+      "evidenceQuotes": [
+        "\treturn await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);",
+        "\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);",
+        "\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";",
+        "\t\telse semanticStatus = \"completed_without_semantic_result\";",
+        "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+        "  `completed_without_semantic_result`이다."
+      ],
+      "reviewerEvidenceQuotes": [
+        "\treturn await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);",
+        "\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);",
+        "\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";",
+        "\t\telse semanticStatus = \"completed_without_semantic_result\";",
+        "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+        "  `completed_without_semantic_result`이다."
+      ],
+      "rationale": "종료된 direct-dynamic 실행에 dynamic_incomplete 작업이 하나라도 있고 controller 읽기가 실패하면 항상 재현되는 분기 충돌이다. controller 의미 결과를 확보하지 못했다는 상태가 작업 표시로 가려져, 종료 요약을 읽는 도구가 명세와 다른 상태로 분류하게 된다.",
+      "recommendedAction": "control 읽기 실패 또는 부재를 먼저 처리해 completed_without_semantic_result를 선택하고, control을 확보한 경우에만 dynamic_incomplete 등 의미 상태를 결정한다. 읽기 실패와 dynamic_incomplete가 동시에 발생하는 사례를 검증한다.",
+      "confidence": "high",
+      "source": "reviewers.terminal-contract",
+      "sourceLineage": [
+        "reviewers.terminal-contract"
+      ],
+      "sourceCoverageComplete": true,
+      "sourceCoverageIssuePaths": [],
+      "reviewerIdentity": {
+        "source": "reviewers.terminal-contract",
+        "specId": "reviewers.terminal-contract",
+        "taskId": "task-11",
+        "itemIdentity": "terminal-contract",
+        "placeholderSpecId": "reviewers.item"
+      }
+    }
+  ],
+  "coverageIssues": [],
+  "reviewerLedger": {
+    "plannedLensIds": [
+      "stop-runtime",
+      "cancellation-boundary",
+      "terminal-contract"
+    ],
+    "materializedReviewerIds": [
+      "stop-runtime",
+      "cancellation-boundary",
+      "terminal-contract"
+    ],
+    "attestedLensIds": [
+      "stop-runtime",
+      "cancellation-boundary",
+      "terminal-contract"
+    ],
+    "materializedReviewerSourceIds": [
+      "reviewers",
+      "reviewers.cancellation-boundary",
+      "reviewers.terminal-contract"
+    ],
+    "validAttestationSourceIds": [
+      "reviewers",
+      "reviewers.cancellation-boundary",
+      "reviewers.terminal-contract"
+    ],
+    "ownerMap": [
+      {
+        "source": "reviewers",
+        "specId": "reviewers.stop-runtime",
+        "taskId": "task-9",
+        "itemIdentity": "stop-runtime",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.cancellation-boundary",
+        "specId": "reviewers.cancellation-boundary",
+        "taskId": "task-10",
+        "itemIdentity": "cancellation-boundary",
+        "placeholderSpecId": "reviewers.item"
+      },
+      {
+        "source": "reviewers.terminal-contract",
+        "specId": "reviewers.terminal-contract",
+        "taskId": "task-11",
+        "itemIdentity": "terminal-contract",
+        "placeholderSpecId": "reviewers.item"
+      }
+    ],
+    "invalidAttestations": [],
+    "missingPlannedLensIds": [],
+    "missingAttestedLensIds": [],
+    "unexpectedMaterializedReviewerIds": [],
+    "unexpectedAttestedLensIds": [],
+    "duplicateMaterializedReviewerIds": [],
+    "setEquality": true,
+    "sourceStatuses": [
+      {
+        "source": "triage",
+        "displayName": "triage.main",
+        "taskId": "task-1",
+        "specId": "triage.main",
+        "stageId": "triage",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers",
+        "displayName": "reviewers.stop-runtime",
+        "taskId": "task-9",
+        "specId": "reviewers.stop-runtime",
+        "stageId": "reviewers",
+        "itemIdentity": "stop-runtime",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.cancellation-boundary",
+        "displayName": "reviewers.cancellation-boundary",
+        "taskId": "task-10",
+        "specId": "reviewers.cancellation-boundary",
+        "stageId": "reviewers",
+        "itemIdentity": "cancellation-boundary",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      },
+      {
+        "source": "reviewers.terminal-contract",
+        "displayName": "reviewers.terminal-contract",
+        "taskId": "task-11",
+        "specId": "reviewers.terminal-contract",
+        "stageId": "reviewers",
+        "itemIdentity": "terminal-contract",
+        "placeholderSpecId": "reviewers.item",
+        "status": "completed",
+        "statusDetail": "completed",
+        "lastMessage": "completed"
+      }
+    ],
+    "sourceCoverageFailures": [],
+    "complete": true,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "validFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "invalidFindingIds": []
+  },
+  "rawFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005"
+  ],
+  "dedupFindingIds": [
+    "finding-001",
+    "finding-002",
+    "finding-003",
+    "finding-004",
+    "finding-005"
+  ],
+  "sourceStatusSummary": {
+    "total": 4,
+    "completed": 4,
+    "nonCompleted": 0,
+    "partialFailures": []
+  },
+  "dedupSummary": {
+    "complete": true,
+    "rawCount": 5,
+    "uniqueCount": 5,
+    "duplicateCount": 0,
+    "rawFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "dedupFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "dispositionFindingIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "supportFindingIds": [],
+    "lineageFindingIds": [],
+    "duplicates": []
+  }
+}

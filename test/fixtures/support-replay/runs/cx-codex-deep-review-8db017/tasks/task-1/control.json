@@ -1,0 +1,46 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "중지 주기·취소 분류·종료 요약 공개 계약의 세 변경이 명세와 호환되는지 우선 검토한다.",
+  "reviewLenses": [
+    {
+      "id": "runtime-correctness",
+      "focus": "중지 감지와 provider 취소 분류의 실제 동작",
+      "whyNeeded": "poll 주기와 취소 문자열 변경은 중지 지연 및 정상 오류의 취소 승격을 유발할 수 있다.",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:67",
+        "src/workflow-cancellation.ts:13-31",
+        "SPEC.md:13-27"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "api-compatibility",
+      "focus": "종료 요약 공개 필드 계약",
+      "whyNeeded": "재시도 필드명 변경은 저장된 요약 소비자와 외부 도구를 직접 깨뜨릴 수 있다.",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:27-35",
+        "src/workflow-terminal.ts:98-112",
+        "SPEC.md:35"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "test-hygiene",
+      "focus": "변경된 명세 항목의 검증 가능성",
+      "whyNeeded": "저장소에 테스트 스크립트·테스트 파일이 보이지 않아 회귀 검증 공백을 확인해야 한다.",
+      "evidenceToInspect": [
+        "package.json",
+        "SPEC.md:38-40",
+        "src/workflow-stop.ts:61-87",
+        "src/workflow-cancellation.ts:13-32"
+      ],
+      "severityBias": "medium"
+    }
+  ],
+  "triageSummary": "HEAD는 세 영역을 변경했다. 취소 판별은 SPEC C1의 허용 목록을 넓혔고, 중지 poll 기본값·최솟값은 SPEC S3와 다르며, launchRetryAttempts 공개 필드를 launchRetries로 바꿨다. 모두 후속 심층 리뷰가 필요한 명시적 계약 위반 후보이며 외부 소비자는 이 저장소에서 확인할 수 없다.",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "safety/security: 인증·권한·비밀 처리 변경이 없어 우선순위가 낮음",
+    "migration: 별도 스키마/데이터 마이그레이션 파일은 없지만 공개 요약 필드 호환성은 api-compatibility 렌즈에서 다룸"
+  ]
+}

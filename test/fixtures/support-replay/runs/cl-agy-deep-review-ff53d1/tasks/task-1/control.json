@@ -1,0 +1,44 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "HEAD 변경 사항에서 중지 감시 주기·오류 판별·취소 사유 승격·공개 계약 필드명 불일치 및 단위 테스트 누락 등 명세 위반과 신뢰성 결함이 다수 확인되어 심층 리뷰 렌즈를 설정합니다.",
+  "reviewLenses": [
+    {
+      "id": "runtime-correctness",
+      "focus": "중지 감지 주기 및 취소 판별 로직의 명세 일치성과 무한 재귀 방지 신뢰성 검증",
+      "whyNeeded": "SPEC S3(pollMs 기본값 50ms/하한 10ms 미준수), S5(dispose 후 디스크 읽기 방지 미흡), S6(오류명 외 메시지 검사 금지 위반), C1(cancelled/timeout 임의 승격), C2(JSON 재귀 검사 루프) 결함 조사",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:53-60",
+        "src/workflow-stop.ts:61-87",
+        "src/workflow-cancellation.ts:13-33"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "api-contract",
+      "focus": "종료 요약 공개 계약 필드명 일치성 및 동적 모드 의미 상태 전이 무결성 검증",
+      "whyNeeded": "SPEC T3의 공개 계약 필드 launchRetryAttempts가 launchRetries로 선언되어 외부 연동 파손 위험이 있고, SPEC T1/T2의 degradation 반영 및 direct-dynamic 비정상 종료 시 semanticStatus 전이 오류 발생 가능성 조사",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:27-36",
+        "src/workflow-terminal.ts:64-71",
+        "src/workflow-terminal.ts:72-113"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "release-test-hygiene",
+      "focus": "중지·취소·종료 요약 명세에 대한 단위 테스트 부재 및 회귀 방지 검증",
+      "whyNeeded": "SPEC Q1에 따라 명세 S·C·T 전반에 대한 단위 테스트가 필수이나 저장소 내 단위 테스트 스위트가 누락되어 런타임 신뢰성 회귀 위험이 큼",
+      "evidenceToInspect": [
+        "SPEC.md:38-41",
+        "package.json:6-8"
+      ],
+      "severityBias": "medium"
+    }
+  ],
+  "triageSummary": "최근 변경된 src/ 코드베이스를 SPEC.md 명세와 대조한 결과 중지 감지, 취소 판별, 종료 요약 및 테스트 전반에서 신뢰성 결함과 공개 API 계약 위반이 확인되었습니다.",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "safety-security",
+    "migration-compatibility"
+  ]
+}

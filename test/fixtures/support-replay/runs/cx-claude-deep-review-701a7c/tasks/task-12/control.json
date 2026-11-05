@@ -1,0 +1,56 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC Q1 requires a unit test for each of the 12 S/C/T items, but the repo has no test files, no test runner, and only a typecheck script, so none of those behaviors are guarded.",
+  "lens": "release-test-hygiene",
+  "findings": [
+    {
+      "severity": "medium",
+      "title": "SPEC Q1 requires unit tests for all 12 S/C/T items, but none exist",
+      "file": "SPEC.md",
+      "locations": [
+        {
+          "file": "SPEC.md",
+          "line": 40,
+          "lineEnd": 41,
+          "symbol": "Q1"
+        },
+        {
+          "file": "package.json",
+          "line": 7,
+          "symbol": "scripts"
+        },
+        {
+          "file": "tsconfig.json",
+          "line": 10,
+          "symbol": "include"
+        }
+      ],
+      "evidence": "SPEC.md Q1 (line 40) requires a unit test for every S/C/T item (S1-S7, C1-C2, T1-T3, 12 items). The repo has no test files (glob and content searches for test/spec files and test-framework references found none outside .agent-workflow/ and .git/). package.json defines only a typecheck script and no test runner dependency. tsconfig.json includes only src/**/*.ts. The stop, cancellation, and terminal behaviors are therefore not verified by any executable test.",
+      "evidenceQuotes": [
+        "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+        "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }"
+      ],
+      "rationale": "This is an unmet requirement in the spec, and it leaves the S/C/T behaviors unguarded. Relevant examples are the S3 pollMs floor, the S4 read-error asymmetry between the watch path and throwIfWorkflowStopRequested, the S5 dispose rule, the C2 recursion guard, and the T3 public field names. Regressions in these areas would pass the current typecheck. This is reported once as the root gap, with the missing test runner and absent tests as its symptoms.",
+      "recommendedAction": "Add a test runner (for example node:test or vitest) and a \"test\" script to package.json. Then add at least one unit test per S1-S7, C1-C2, and T1-T3 item, using the SPEC wording as the assertion. Include the S4 read-error asymmetry, the S3 10ms floor, and the T3 field names. Extend tsconfig.json or the test config so the tests are type-checked.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "SPEC.md:40-41",
+    "package.json:7",
+    "tsconfig.json:10"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "SPEC.md:40-41",
+      "status": "read",
+      "evidence": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "Grep for test/spec/vitest/jest/node:test patterns across src/, package.json, tsconfig.json, and .gitignore matched no test code. The only hit was the specId string \"dynamic.controller\" in src/workflow-terminal.ts:54, which is a false positive.",
+    "Glob for test/tests/__tests__/spec directories and *.test.*/*.spec.* files found none in the repo."
+  ]
+}

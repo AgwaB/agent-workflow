@@ -1,0 +1,80 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "3cd6f8864c6a52985bd61529286aa26a6264640ce0e10bcb545a7775d86a84e5",
+  "maxChars": 15000,
+  "actualChars": 2469,
+  "expectedVerdict": "NEEDS_WORK",
+  "partitionSummary": {
+    "keep": 6,
+    "weaken": 1,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 7,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 7,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "sourceStatusSummary": {
+    "total": 8,
+    "completed": 8,
+    "nonCompleted": 0,
+    "partialFailureCount": 0,
+    "partialFailures": []
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "Stop-error classification falls back to message prefix matching",
+        "severity": "high",
+        "recommendedAction": "isWorkflowStopRequestedError에서 error.message.startsWith 검사를 제거하고 error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 검사만 수행하도록 수정합니다."
+      },
+      {
+        "findingId": "finding-002",
+        "title": "Provider cancellation allowlist includes 'cancelled' and 'timeout' beyond the spec's three markers",
+        "severity": "high",
+        "recommendedAction": "SPEC C1에 명시된 대로 `src/workflow-cancellation.ts`의 `candidate` 검사에서 'cancelled'와 'timeout'을 제거하고 'aborted', 'AbortError', 'ABORT_ERR' 세 가지만 허용하도록 제한해야 합니다. 특정 프로바이더에서 추가 처리가 필요하다면 공용 분류기를 임의 확장하지 말고 해당 어댑터 범위로 한정하거나 SPEC C1"
+      },
+      {
+        "findingId": "finding-003",
+        "title": "Stop-watch poll default and minimum deviate from spec S3",
+        "severity": "medium",
+        "recommendedAction": "SPEC.md S3 명세에 맞춰 pollMs 기본값을 50ms, 최솟값을 10ms로 복원하고 이를 검증하는 테스트를 추가하십시오. 만약 200ms가 의도된 새 기본값이라면 SPEC.md S3 명세도 함께 개정하여 계약과 코드를 일치시켜야 합니다."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "Re-binding the same AbortSignal can drop the launch fence early",
+        "severity": "low",
+        "recommendedAction": "동일 AbortSignal의 중복 바인딩 시 조기 삭제를 방지하기 위해, signal별 참조 카운트(reference count)를 유지하거나 바인딩마다 고유 토큰(또는 Symbol)을 발급하여 해당 토큰의 해제 함수 호출 시에만 참조를 감소시키고 카운트가 0이 될 때 Map/Set에서 제거하도록 수정하십시오. 또한 동일 신호 재등록 및 순차 해제 시나리오를 검증하는 단위 테스트를 추가하십시"
+      }
+    ],
+    "weaken": [
+      {
+        "findingId": "finding-006",
+        "title": "dynamic_incomplete가 control.json 읽기 실패 시의 T2 상태를 덮어쓴다",
+        "severity": "medium",
+        "recommendedAction": "런타임 코드의 우선순위를 역전시켜 미완료 태스크 상태를 은폐하지 않도록 현행 우선순위를 유지하되, SPEC.md T2에 dynamic_incomplete 작업이 없을 때 control.json 읽기 실패 시 completed_without_semantic_result로 폴백된다는 우선순위 관계를 명문화하고 단위 테스트로 고정하십시오."
+      }
+    ],
+    "drop": [],
+    "needsHuman": [],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [],
+  "overflowCounts": {
+    "keep": 2,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 2,
+    "omittedStringChars": 19
+  }
+}

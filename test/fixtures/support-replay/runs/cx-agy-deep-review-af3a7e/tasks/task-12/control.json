@@ -1,0 +1,35 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "S5 명세는 dispose() 호출 후 신규 디스크 읽기 미시작만을 요구하며, clearInterval을 통해 신규 디스크 조회가 이미 완전하게 차단되므로 finding-002를 DROP합니다.",
+  "findingId": "finding-002",
+  "finding": "dispose() 호출 이후 진행 중인 비동기 디스크 읽기 및 후속 처리 미차단(S5 위반)",
+  "verdict": "DROP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 17,
+      "lineEnd": 17,
+      "quote": "- **S5.** `dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다."
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 81,
+      "lineEnd": 81,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "const timer = setInterval(() => void check(), pollMs);"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "line": 85,
+      "lineEnd": 85,
+      "symbol": "createWorkflowStopSignal",
+      "quote": "dispose: () => clearInterval(timer),"
+    }
+  ],
+  "counterEvidence": [
+    "SPEC.md S5 명세의 요구사항은 'dispose()를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다'이며, 신규 디스크 읽기가 시작되지 않도록 차단하는 것만을 규정합니다.",
+    "createWorkflowStopSignal에서 주기적 디스크 읽기를 유발하는 유일한 메커니즘은 setInterval(timer)이며, dispose()가 호출되면 즉시 clearInterval(timer)가 실행되어 이후 어떠한 신규 check() 호출 및 readWorkflowStopIntent도 시작되지 않습니다.",
+    "dispose() 호출 시점에 이미 실행 중이던 비동기 디스크 읽기는 dispose() 호출 이전에 이미 개시된 것이며, S5 명세는 이미 진행 중인 비동기 I/O의 abort 반영 차단이나 별도의 disposed 플래그 상태 머신을 요구하지 않습니다."
+  ],
+  "recommendedAction": "해당 지적은 S5 명세('새로운 디스크 읽기 미시작')의 범위를 과도하게 해석한 오탐이므로 추가 코드 수정 없이 DROP 처리합니다."
+}

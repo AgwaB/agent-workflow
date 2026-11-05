@@ -1,0 +1,31 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "timeout·cancelled 문자열을 취소로 인정하는 현재 구현은 C1 계약을 직접 위반하므로 지적을 유지한다.",
+  "findingId": "finding-003",
+  "finding": "timeout·cancelled 오류를 취소로 분류하지 않아야 한다",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 19,
+      "lineEnd": 20,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "\tfor (const candidate of [value.error, details?.error, value.reason, details?.reason]) {\n\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;"
+    },
+    {
+      "file": "src/workflow-cancellation.ts",
+      "line": 23,
+      "lineEnd": 28,
+      "symbol": "isWorkflowReturnedCancellation",
+      "quote": "\tif (Array.isArray(value.content)) {\n\t\tfor (const entry of value.content) {\n\t\t\tif (!isRecord(entry) || typeof entry.text !== \"string\") continue;\n\t\t\ttry {\n\t\t\t\tconst parsed: unknown = JSON.parse(entry.text);\n\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;"
+    },
+    {
+      "file": "SPEC.md",
+      "line": 25,
+      "lineEnd": 28,
+      "quote": "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.\n- **C2.** `content` 배열 안의 텍스트가 JSON이면 그 내용도 같은 규칙으로 판별하되, 같은 값을 다시\n  검사하는 무한 재귀가 없어야 한다."
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "오류·사유 문자열 허용 목록을 aborted, AbortError, ABORT_ERR로 제한하고 cancelled:true 및 AbortError 객체 판별은 유지하라. 최상위·details·JSON content 각각에서 timeout과 cancelled 문자열이 false인지 회귀 테스트를 추가하라."
+}

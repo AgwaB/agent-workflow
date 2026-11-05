@@ -1,0 +1,135 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2wrgza_ff53d1",
+  "taskId": "task-3",
+  "sources": [
+    {
+      "source": "triage",
+      "displayName": "triage.main",
+      "taskId": "task-1",
+      "specId": "triage.main",
+      "stageId": "triage",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "HEAD 변경 사항에서 중지 감시 주기·오류 판별·취소 사유 승격·공개 계약 필드명 불일치 및 단위 테스트 누락 등 명세 위반과 신뢰성 결함이 다수 확인되어 심층 리뷰 렌즈를 설정합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers",
+      "displayName": "reviewers.runtime-correctness",
+      "taskId": "task-9",
+      "specId": "reviewers.runtime-correctness",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "runtime-correctness",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC S3, S5, S6 및 C1, C2와 불일치하는 중지 주기·디스크 읽기 방어·메시지 검사·임의 취소 승격·JSON 무한 재귀 취약점 5건을 식별했습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.api-contract",
+      "displayName": "reviewers.api-contract",
+      "taskId": "task-10",
+      "specId": "reviewers.api-contract",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "api-contract",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC T3 공개 계약 필드명 불일치(launchRetryAttempts vs launchRetries) 및 direct-dynamic 비정상 종료 시 semanticStatus 전이 왜곡 결함을 확인했습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.release-test-hygiene",
+      "displayName": "reviewers.release-test-hygiene",
+      "taskId": "task-11",
+      "specId": "reviewers.release-test-hygiene",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "release-test-hygiene",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC.md Q1에서 요구하는 S·C·T 단위 테스트 스위트 및 package.json 내 test 실행 스크립트가 완전히 누락되어 런타임 회귀 방지 검증이 불가능합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-11/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-11/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-11/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2wrgza_ff53d1/tasks/task-11/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

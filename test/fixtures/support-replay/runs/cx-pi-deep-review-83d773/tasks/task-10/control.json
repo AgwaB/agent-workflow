@@ -1,0 +1,69 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "provider 오류 문자열 cancelled·timeout을 취소로 오인하며, 중첩 JSON에서도 같은 오분류가 발생한다.",
+  "lens": "cancellation-boundary",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "허용 목록 밖의 provider 실패를 취소로 분류한다",
+      "file": "src/workflow-cancellation.ts",
+      "locations": [
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 19,
+          "lineEnd": 21,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "src/workflow-cancellation.ts",
+          "line": 23,
+          "lineEnd": 28,
+          "symbol": "isWorkflowReturnedCancellation"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 25,
+          "lineEnd": 26
+        }
+      ],
+      "evidence": "문자열 비교에 명세의 aborted·AbortError·ABORT_ERR뿐 아니라 cancelled·timeout도 포함된다. 따라서 {\"error\":\"timeout\"}과 {\"details\":{\"reason\":\"cancelled\"}}는 명시적 취소 표시가 없어도 true가 된다. content의 JSON에도 같은 함수를 재귀 적용하므로 동일한 오분류가 전파된다. 이는 소스에 따른 정적 판정이며 실행 검증은 하지 않았다.",
+      "evidenceQuotes": [
+        "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+        "\t\t\t\tif (parsed !== value && isWorkflowReturnedCancellation(parsed)) return true;",
+        "- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`,\n  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다."
+      ],
+      "rationale": "provider의 timeout은 사용자 취소와 별개인 실패인데 이 경계에서는 둘을 구분하지 못한다. 반환값을 취소로 취급하는 소비자가 실패 진단이나 복구를 생략할 위험이 있고 C1을 직접 위반한다. 이 발췌에는 소비자가 없어 구체적인 후속 피해는 확인할 수 없지만, 분류 오류 자체는 명확하다.",
+      "recommendedAction": "오류·사유 문자열의 기본 허용 목록을 명세의 세 값으로 제한하고 직접 값, details, 중첩 content JSON에 동일하게 적용한다. 기존 cancelled:true 및 AbortError 객체 지원까지 함께 제거하지 않는다. 외부 어댑터가 추가 문자열에 의존할 가능성은 별도로 조사하고, 필요한 호환 처리는 명시적 어댑터 변환으로 격리한다. timeout과 cancelled의 음성 사례도 검증한다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-cancellation.ts:1-37",
+    "SPEC.md:23-28",
+    "src/workflow-stop.ts",
+    "src/workflow-terminal.ts",
+    "package.json",
+    ".git/HEAD",
+    ".git/logs/HEAD"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-cancellation.ts:1-35",
+      "status": "read",
+      "evidence": "\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:23-28",
+      "status": "read",
+      "evidence": "  `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "중첩 JSON은 동일한 분류 함수를 사용한다. 일반 JSON은 객체 순환 참조를 표현할 수 없으므로, 해당 경로에서 별도의 동일 값 무한 재귀 결함은 확인하지 못했다.",
+    "외부 호출자와 이전 버전의 호환성 자료는 제공되지 않았다. 저장소 내부 호출자가 없다는 이유로 허용 목록 축소의 외부 호환성 영향을 배제하지 않았다."
+  ]
+}

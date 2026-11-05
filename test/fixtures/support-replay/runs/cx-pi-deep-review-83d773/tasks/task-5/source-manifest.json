@@ -1,0 +1,199 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2vdod9_83d773",
+  "taskId": "task-5",
+  "sources": [
+    {
+      "source": "dedup-findings",
+      "displayName": "dedup-findings.main",
+      "taskId": "task-3",
+      "specId": "dedup-findings.main",
+      "stageId": "dedup-findings",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "dedup: raw=5, unique=5, duplicates=0, partialFailures=0",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-3/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-3/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-3/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-3/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate",
+      "displayName": "devil-advocate.finding-001",
+      "taskId": "task-12",
+      "specId": "devil-advocate.finding-001",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "즉시 최초 확인은 수행하지만 이후 주기는 기본 200ms·최소 1ms여서 S3 위반이 확인된다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-002",
+      "displayName": "devil-advocate.finding-002",
+      "taskId": "task-13",
+      "specId": "devil-advocate.finding-002",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "실제 Error도 메시지 접두사만으로 중지 오류로 판별되므로 S6 위반이 확인된다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-003",
+      "displayName": "devil-advocate.finding-003",
+      "taskId": "task-14",
+      "specId": "devil-advocate.finding-003",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "현재 코드에서 timeout·cancelled가 명시적 취소 표시 없이 true로 판정되어 C1을 위반하므로 지적을 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-14/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-14/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-14/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-14/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-004",
+      "displayName": "devil-advocate.finding-004",
+      "taskId": "task-15",
+      "specId": "devil-advocate.finding-004",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "공개 계약 필드 launchRetryAttempts가 타입과 반환 객체 모두에 없어 지적을 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-15/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-15/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-15/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-15/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-005",
+      "displayName": "devil-advocate.finding-005",
+      "taskId": "task-16",
+      "specId": "devil-advocate.finding-005",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "controller 읽기 실패와 dynamic_incomplete가 겹치면 T2의 대체 상태가 선택되지 않으므로 지적을 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-16/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-16/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-16/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdod9_83d773/tasks/task-16/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

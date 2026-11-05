@@ -1,0 +1,134 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "종료 요약에서 공개 재시도 필드명 불일치와 controller 읽기 실패 시 의미 상태 우선순위 위반을 확인했다.",
+  "lens": "terminal-contract",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "공개 계약인 launchRetryAttempts 대신 launchRetries를 반환함",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "lineEnd": 110,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 32,
+          "lineEnd": 33,
+          "symbol": "WorkflowTerminalSummary"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 35,
+          "lineEnd": 36
+        }
+      ],
+      "evidence": "SPEC T3는 launchRetryAttempts를 외부 도구가 읽는 공개 필드로 명시한다. 그러나 반환 객체와 export된 인터페이스 모두 launchRetries만 선언하며, src 검색에서도 launchRetryAttempts를 제공하는 호환 경로는 없다.",
+      "evidenceQuotes": [
+        "\t\tlaunchRetries: run.tasks.reduce(",
+        "\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),",
+        "\tlaunchRetries: number;",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+        "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      ],
+      "rationale": "합계 계산 자체는 맞지만 계약된 키가 없으므로 외부 소비자는 재시도가 발생해도 summary.launchRetryAttempts에서 undefined를 받는다. 타입을 사용하는 소비자에게도 해당 필드가 제공되지 않는다. 저장소 내부 호출자가 없어도 공개 출력 계약 위반이다.",
+      "recommendedAction": "인터페이스와 반환 객체에서 launchRetryAttempts를 제공하도록 수정한다. launchRetries를 유지해야 한다면 호환 별칭으로 추가하되 계약된 키를 대체하지 않도록 하고, 실제 반환 객체의 키와 합계를 검증한다.",
+      "confidence": "high"
+    },
+    {
+      "severity": "medium",
+      "title": "controller 읽기 실패보다 dynamic_incomplete를 우선하여 종료 상태를 오분류함",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 81,
+          "lineEnd": 86,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 59,
+          "lineEnd": 61,
+          "symbol": "readDynamicControllerControl"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 95,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 33,
+          "lineEnd": 34
+        }
+      ],
+      "evidence": "controller control.json 읽기가 reject되면 helper는 undefined를 반환한다. 하지만 요약 함수는 control 부재보다 작업의 dynamic_incomplete 표시를 먼저 검사하므로, 두 조건이 겹치면 SPEC T2의 completed_without_semantic_result 대신 dynamic_incomplete를 반환한다.",
+      "evidenceQuotes": [
+        "\treturn await readJson<DynamicControllerControl>(\n\t\tjoin(dirname(taskOutput), \"control.json\"),\n\t).catch(() => undefined);",
+        "\t\tconst incomplete = run.tasks.some(\n\t\t\t(task) => task.statusDetail === \"dynamic_incomplete\",\n\t\t);",
+        "\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";",
+        "\t\telse semanticStatus = \"completed_without_semantic_result\";",
+        "- **T2.** direct-dynamic 실행에서 controller의 `control.json`을 읽을 수 없으면 의미 상태는",
+        "  `completed_without_semantic_result`이다."
+      ],
+      "rationale": "종료된 direct-dynamic 실행에 dynamic_incomplete 작업이 하나라도 있고 controller 읽기가 실패하면 항상 재현되는 분기 충돌이다. controller 의미 결과를 확보하지 못했다는 상태가 작업 표시로 가려져, 종료 요약을 읽는 도구가 명세와 다른 상태로 분류하게 된다.",
+      "recommendedAction": "control 읽기 실패 또는 부재를 먼저 처리해 completed_without_semantic_result를 선택하고, control을 확보한 경우에만 dynamic_incomplete 등 의미 상태를 결정한다. 읽기 실패와 dynamic_incomplete가 동시에 발생하는 사례를 검증한다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-terminal.ts:27-35",
+    "src/workflow-terminal.ts:48-95",
+    "src/workflow-terminal.ts:98-113",
+    "SPEC.md:30-40",
+    "package.json:1-8",
+    "src/workflow-terminal.ts:64-69",
+    "src/: launchRetryAttempts, launchRetries, summarizeWorkflowTerminal 검색"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-terminal.ts:27-35",
+      "status": "read",
+      "evidence": "\tlaunchRetries: number;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-terminal.ts:48-95",
+      "status": "read",
+      "evidence": "\t\tif (incomplete) semanticStatus = \"dynamic_incomplete\";",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-terminal.ts:98-113",
+      "status": "read",
+      "evidence": "\t\tlaunchRetries: run.tasks.reduce(",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:30-40",
+      "status": "read",
+      "evidence": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "package.json:1-8",
+      "status": "read",
+      "evidence": "  \"description\": \"Excerpt of pi-workflow stop/cancel handling (store.js and types.js are not included).\",",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": [
+    "outputRetryAttempts와 launch 재시도 합계 계산은 모든 작업을 순회하고 누락된 attempts를 0으로 처리한다. 첫 번째 결함은 계산이 아니라 공개 필드명이다.",
+    "nonDynamicSemanticStatus는 completed 실행에 degradation이 있으면 completed_degraded를 반환한다.",
+    "controller 읽기 실패 시 dynamic_incomplete 표시가 없다면 최종 fallback은 명세대로 completed_without_semantic_result를 반환한다."
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "공개 계약은 launchRetryAttempts를 요구하지만 타입과 반환 객체 모두 launchRetries만 제공하므로 지적을 유지한다.",
+  "findingId": "finding-004",
+  "finding": "공개 계약 필드 launchRetryAttempts가 반환되지 않음",
+  "verdict": "KEEP",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "line": 35,
+      "lineEnd": 36,
+      "quote": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 33,
+      "symbol": "WorkflowTerminalSummary",
+      "quote": "\tlaunchRetries: number;"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "line": 98,
+      "lineEnd": 112,
+      "symbol": "summarizeWorkflowTerminal",
+      "quote": "\treturn {\n\t\tterminal,\n\t\tengineStatus: run.status,\n\t\tsemanticStatus,\n\t\toutputTaskIds,\n\t\toutputRetryAttempts: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.outputRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),\n\t\tlaunchRetries: run.tasks.reduce(\n\t\t\t(total, task) => total + (task.launchRetry?.attempts ?? 0),\n\t\t\t0,\n\t\t),\n\t\tartifactRoot: workflowRunDir(cwd, run.runId),\n\t};"
+    }
+  ],
+  "counterEvidence": [],
+  "recommendedAction": "WorkflowTerminalSummary와 반환 객체에 launchRetryAttempts를 복원하고, 여러 작업의 합산값 및 재시도가 없는 경우의 0을 해당 공개 키로 검증하는 회귀 테스트를 추가한다."
+}

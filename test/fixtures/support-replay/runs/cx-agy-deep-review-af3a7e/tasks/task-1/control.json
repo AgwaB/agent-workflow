@@ -1,0 +1,35 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/의 중지·취소 처리 및 종료 요약에서 명세(SPEC.md) 위반과 공개 계약 파기 등 높은 신뢰성 위험이 확인되어 2개 렌즈로 심층 리뷰를 계획합니다.",
+  "reviewLenses": [
+    {
+      "id": "runtime-correctness",
+      "focus": "중지(stop) 감지 타이머/오류 판별 로직 및 취소(cancellation) 판별 정확도",
+      "whyNeeded": "workflow-stop.ts의 pollMs 기본값/하한치 및 메시지 기반 오류 판별 오류, workflow-cancellation.ts의 timeout 오류 승격 및 재귀 방지 미흡 등 명세(S3, S5, S6, C1, C2) 불일치 결함을 검증하기 위해 필요합니다.",
+      "evidenceToInspect": [
+        "src/workflow-stop.ts:53-59",
+        "src/workflow-stop.ts:61-87",
+        "src/workflow-cancellation.ts:13-33",
+        "SPEC.md:6-29"
+      ],
+      "severityBias": "high"
+    },
+    {
+      "id": "api-contract",
+      "focus": "종료 요약 인터페이스 및 외부 공개 계약 필드명 호환성",
+      "whyNeeded": "workflow-terminal.ts에서 외부 도구가 참조하는 공개 계약 필드인 launchRetryAttempts가 launchRetries로 오선언되어 계약 파기가 발생하고, direct-dynamic 상태 요약이 명세(T1, T2, T3)와 불일치하는 결함을 검증하기 위해 필요합니다.",
+      "evidenceToInspect": [
+        "src/workflow-terminal.ts:27-35",
+        "src/workflow-terminal.ts:72-113",
+        "SPEC.md:30-37"
+      ],
+      "severityBias": "high"
+    }
+  ],
+  "triageSummary": "src/ 전반에서 SPEC.md와 불일치하는 다수의 신뢰성 결함이 확인되었습니다. workflow-stop.ts에서는 pollMs 기본값(200ms vs 50ms) 및 최소 하한(1ms vs 10ms) 위반, dispose 시 진행 중인 비동기 검사 미차단, 에러명 대신 메시지 접두사로 중지를 판별하는 결함이 존재합니다. workflow-cancellation.ts에서는 timeout 및 cancelled를 취소로 오승격하여 타임아웃 장애를 마스킹하고 content 재귀 방지가 불완전합니다. workflow-terminal.ts에서는 외부 공개 계약 필드명인 launchRetryAttempts가 launchRetries로 선언되어 호환성을 파기합니다.",
+  "riskLevel": "high",
+  "skippedLenses": [
+    "safety-security: 인증/권한 및 시크릿 노출과 관련된 변경사항 없음",
+    "release-test-hygiene: 독립된 테스트 제품군이 미포함된 발췌 저장소이며 테스트 결함은 구현 결함의 부수 증상으로 취급"
+  ]
+}

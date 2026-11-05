@@ -1,0 +1,92 @@
+{
+  "schema": "deep-review-report-packet-v1",
+  "digest": "458a56a7168f1f285fbf8bd0eadfb672cb2a6594571f2226db544d1e792881b6",
+  "maxChars": 15000,
+  "actualChars": 2799,
+  "expectedVerdict": "NEEDS_WORK",
+  "partitionSummary": {
+    "keep": 5,
+    "weaken": 0,
+    "drop": 3,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "mergedFindings": 0,
+    "verdictsReceived": 8,
+    "batchIntegrityIssues": 0,
+    "verdictIntegrityIssues": 0,
+    "reviewerCoverageIssues": 0,
+    "reviewerFindings": 8,
+    "missingVerdicts": 0,
+    "partialFailures": 0
+  },
+  "sourceStatusSummary": {
+    "total": 9,
+    "completed": 9,
+    "nonCompleted": 0,
+    "partialFailureCount": 0,
+    "partialFailures": []
+  },
+  "reportContext": {
+    "keep": [
+      {
+        "findingId": "finding-001",
+        "title": "SPEC S3 위반: 중지 감시 주기(pollMs) 기본값 200ms 및 하한 1ms 설정 결함",
+        "severity": "high",
+        "recommendedAction": "options.pollMs 기본값을 50ms로 복원하고, 하한 검사를 Math.max(10, options.pollMs ?? 50)으로 수정해야 합니다."
+      },
+      {
+        "findingId": "finding-003",
+        "title": "SPEC S6 위반: 에러 메시지 검사를 통한 중지 오류 판별",
+        "severity": "high",
+        "recommendedAction": "error.message.startsWith(\"workflow stop requested\") 조건을 완전히 제거하고, error.name === WORKFLOW_STOP_REQUESTED_ERROR_NAME 조건만 검사하도록 단일화해야 합니다."
+      },
+      {
+        "findingId": "finding-004",
+        "title": "SPEC C1 위반: cancelled 및 timeout 등 비인가 문자열의 임의 취소 승격",
+        "severity": "high",
+        "recommendedAction": "candidate 검사 조건에서 \"cancelled\"와 \"timeout\"을 제거하고, 정확히 \"aborted\", \"AbortError\", \"ABORT_ERR\" 및 isWorkflowAbortError(candidate)만 인정하도록 수정해야 합니다."
+      },
+      {
+        "findingId": "finding-006",
+        "title": "종료 요약 공개 계약 필드명 불일치 (launchRetryAttempts가 launchRetries로 선언됨)",
+        "severity": "high",
+        "recommendedAction": "WorkflowTerminalSummary 인터페이스(33행) 및 summarizeWorkflowTerminal 반환 객체(107행)에서 필드명을 'launchRetries'에서 명세(SPEC.md T3)에 부합하는 'launchRetryAttempts'로 수정하거나, 하위 호환성을 보장해야 하는 경우 두 필드를 모두 제공하도록 수정한다."
+      }
+    ],
+    "weaken": [],
+    "drop": [
+      {
+        "findingId": "finding-002",
+        "title": "SPEC S5 위반: dispose() 호출 후 진행 중이거나 대기 중인 디스크 읽기 방지 미흡",
+        "severity": "high",
+        "recommendedAction": "해당 지적은 기각(DROP)하며, createWorkflowStopSignal의 dispose 구현은 clearInterval(timer)로 이후 새로운 디스크 읽기 스케줄링을 이미 완전하게 차단하므로 별도의 disposed 플래그 추가 조치가 필요하지 않습니다."
+      },
+      {
+        "findingId": "finding-005",
+        "title": "SPEC C2 위반: JSON 파싱 재귀 검사 시 무한 재귀 및 콜스택 오버플로 취약점",
+        "severity": "high",
+        "recommendedAction": "JSON.parse 특성상 순환 참조 및 무한 재귀가 발생할 수 없으므로 지적을 기각(DROP)하며, 필요 시 잉여 조건인 parsed !== value만 if (isWorkflowReturnedCancellation(parsed))로 단순화 정리합니다."
+      },
+      {
+        "findingId": "finding-007",
+        "title": "direct-dynamic 비정상 종료 시 semanticStatus 전이 왜곡 및 degradation 미반영",
+        "severity": "high",
+        "recommendedAction": "SPEC.md T2의 명세에 따라 direct-dynamic 모드에서 control.json 부재 시 semanticStatus를 completed_without_semantic_result로 지정하고 engineStatus에 run.status를 보존하는 현재 구현을 유지하며, 해당 제안(finding-007)을 기각(DROP)합니다."
+      }
+    ],
+    "needsHuman": [],
+    "supportNoteSummaries": []
+  },
+  "normalizationNotes": [],
+  "overflowCounts": {
+    "keep": 1,
+    "weaken": 0,
+    "drop": 0,
+    "needsHuman": 0,
+    "supportNotes": 0,
+    "partialFailures": 0,
+    "normalizationNotes": 0,
+    "truncatedStrings": 0,
+    "omittedStringChars": 0
+  }
+}

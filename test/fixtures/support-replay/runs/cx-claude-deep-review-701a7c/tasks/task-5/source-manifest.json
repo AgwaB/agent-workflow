@@ -1,0 +1,231 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2vdi73_701a7c",
+  "taskId": "task-5",
+  "sources": [
+    {
+      "source": "dedup-findings",
+      "displayName": "dedup-findings.main",
+      "taskId": "task-3",
+      "specId": "dedup-findings.main",
+      "stageId": "dedup-findings",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "dedup: raw=6, unique=6, duplicates=0, partialFailures=0",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-3/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-3/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-3/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-3/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate",
+      "displayName": "devil-advocate.finding-001",
+      "taskId": "task-13",
+      "specId": "devil-advocate.finding-001",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "provider timeout 분류 결함은 src/workflow-cancellation.ts:20에서 확인됨. 다만 src/ 내 호출자가 없어 실제 영향은 외부 소비자에 달려 있음.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-002",
+      "displayName": "devil-advocate.finding-002",
+      "taskId": "task-14",
+      "specId": "devil-advocate.finding-002",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC.md S6이 메시지 기반 판별을 명시적으로 금지하므로 finding-002는 근거가 확인되어 유지한다. 다만 in-repo 호출자가 없어 실제 영향은 외부 소비자에 달려 있다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-14/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-14/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-14/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-14/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-003",
+      "displayName": "devil-advocate.finding-003",
+      "taskId": "task-15",
+      "specId": "devil-advocate.finding-003",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC S4가 감시 경로의 디스크 읽기 실패를 중지로 보지 않도록 명시하므로 결함이 아니라 의도된 설계다. 다만 영구 실패 시 디스크 중지가 감시 경로에서 반영되지 않는 한계는 남는다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-15/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-15/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-15/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-15/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-004",
+      "displayName": "devil-advocate.finding-004",
+      "taskId": "task-16",
+      "specId": "devil-advocate.finding-004",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "launchRetryAttempts 제거는 코드와 SPEC T3 불일치로 확인됨; 공개 계약 파기 위험이 실재한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-16/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-16/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-16/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-16/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-005",
+      "displayName": "devil-advocate.finding-005",
+      "taskId": "task-17",
+      "specId": "devil-advocate.finding-005",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "코드와 SPEC S3가 기본 주기(200ms vs 50ms)와 하한(1ms vs 10ms)에서 실제로 어긋남을 확인함. 의도된 변경인지 여부는 저장소 증거로 결정 불가.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-17/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-17/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-17/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-17/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-006",
+      "displayName": "devil-advocate.finding-006",
+      "taskId": "task-18",
+      "specId": "devil-advocate.finding-006",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC Q1의 단위 테스트 요구는 저장소에 테스트 파일도 테스트 러너도 없어 그대로 확인되므로 finding-006은 유지한다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-18/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-18/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-18/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdi73_701a7c/tasks/task-18/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

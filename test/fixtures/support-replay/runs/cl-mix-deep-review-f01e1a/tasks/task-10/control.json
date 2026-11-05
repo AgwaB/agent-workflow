@@ -1,0 +1,70 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC.md T3 공개 계약인 launchRetryAttempts 필드가 src/workflow-terminal.ts에서 launchRetries로 변경되어 외부 도구 호환성 파괴를 확인했다.",
+  "lens": "terminal-api-contract",
+  "findings": [
+    {
+      "severity": "high",
+      "title": "종료 요약 공개 계약 필드인 launchRetryAttempts가 launchRetries로 무단 변경되어 외부 도구 호환성 파괴",
+      "file": "src/workflow-terminal.ts",
+      "locations": [
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 33,
+          "symbol": "WorkflowTerminalSummary"
+        },
+        {
+          "file": "src/workflow-terminal.ts",
+          "line": 107,
+          "symbol": "summarizeWorkflowTerminal"
+        },
+        {
+          "file": "SPEC.md",
+          "line": 35,
+          "lineEnd": 36
+        }
+      ],
+      "evidence": "최근 커밋(HEAD)에서 src/workflow-terminal.ts의 WorkflowTerminalSummary 인터페이스(line 33) 및 summarizeWorkflowTerminal 반환 객체(line 107)의 필드명이 launchRetryAttempts에서 launchRetries로 변경되었다. SPEC.md T3(lines 35-36)은 '요약의 outputRetryAttempts와 launchRetryAttempts는 모든 작업의 재시도 횟수 합이며, 이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)'라고 명시하고 있으므로, 외부 도구가 의존하는 공개 인터페이스 계약을 직접 위반한다.",
+      "evidenceQuotes": [
+        "+\tlaunchRetries: number;",
+        "-\tlaunchRetryAttempts: number;",
+        "+\t\tlaunchRetries: run.tasks.reduce(",
+        "-\t\tlaunchRetryAttempts: run.tasks.reduce(",
+        "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+        "  이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다)."
+      ],
+      "rationale": "명세 SPEC.md의 T3에 따르면 워크플로 종료 요약의 outputRetryAttempts와 launchRetryAttempts는 외부 도구가 파싱하고 의존하는 공개 계약(public contract)이다. 저장소 내부 코드에 해당 필드를 직접 소비하는 호출처가 없더라도 외부 도구 및 워크플로 런타임 소비자가 launchRetryAttempts 필드를 조회하므로, 필드명이 launchRetries로 변경되면 외부 소비자에게 undefined가 전달되어 호환성 회귀가 발생한다.",
+      "recommendedAction": "src/workflow-terminal.ts의 WorkflowTerminalSummary 인터페이스(line 33)와 summarizeWorkflowTerminal 반환 객체(line 107)에서 launchRetries를 원래의 공개 계약 필드명인 launchRetryAttempts로 복구해야 한다. 축약형 이름 지원이 필요하다면 launchRetryAttempts를 필수 공개 필드로 유지한 채 launchRetries를 옵셔널/별칭 필드로 병행 제공해야 한다.",
+      "confidence": "high"
+    }
+  ],
+  "evidenceChecked": [
+    "src/workflow-terminal.ts:27-35",
+    "src/workflow-terminal.ts:98-112",
+    "SPEC.md:30-36"
+  ],
+  "sourceCoverage": [
+    {
+      "path": "src/workflow-terminal.ts:27-35",
+      "status": "read",
+      "evidence": "\tlaunchRetries: number;",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "src/workflow-terminal.ts:98-112",
+      "status": "read",
+      "evidence": "\t\tlaunchRetries: run.tasks.reduce(",
+      "artifact": "",
+      "reason": ""
+    },
+    {
+      "path": "SPEC.md:30-36",
+      "status": "read",
+      "evidence": "- **T3.** 요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,",
+      "artifact": "",
+      "reason": ""
+    }
+  ],
+  "noIssueNotes": []
+}

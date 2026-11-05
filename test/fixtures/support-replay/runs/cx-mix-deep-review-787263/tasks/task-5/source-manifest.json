@@ -1,0 +1,264 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2vdmyp_787263",
+  "taskId": "task-5",
+  "sources": [
+    {
+      "source": "dedup-findings",
+      "displayName": "dedup-findings.main",
+      "taskId": "task-3",
+      "specId": "dedup-findings.main",
+      "stageId": "dedup-findings",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "dedup: raw=7, unique=7, duplicates=0, partialFailures=0",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-3/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-3/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-3/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-3/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate",
+      "displayName": "devil-advocate.finding-001",
+      "taskId": "task-12",
+      "specId": "devil-advocate.finding-001",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "isWorkflowStopRequestedError의 메시지 접두사 검사는 SPEC S6 명세를 정면으로 위반하며 반박 근거가 없으므로 지적을 유지(KEEP)합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-12/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-12/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-12/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-12/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-002",
+      "displayName": "devil-advocate.finding-002",
+      "taskId": "task-13",
+      "specId": "devil-advocate.finding-002",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "명세 SPEC C1은 취소 오류·사유 문자열을 정확히 'aborted', 'AbortError', 'ABORT_ERR' 세 가지만 인정하도록 규정하고 있으므로, 'cancelled'와 'timeout'을 허용 목록에 추가한 것은 명세 위반이자 실패 진단을 억제하는 신뢰성 문제로 판정되어 KEEP을 유지합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-13/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-13/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-13/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-13/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-003",
+      "displayName": "devil-advocate.finding-003",
+      "taskId": "task-14",
+      "specId": "devil-advocate.finding-003",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC S3의 pollMs 기본값(50ms) 및 최솟값(10ms) 규격과 코드 구현(200ms, 1ms) 간의 불일치를 확인하여 KEEP으로 판정합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-14/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-14/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-14/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-14/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-004",
+      "displayName": "devil-advocate.finding-004",
+      "taskId": "task-15",
+      "specId": "devil-advocate.finding-004",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "generation": 1,
+      "sourceGeneration": 0,
+      "digest": "동일한 AbortSignal을 중복 바인딩할 경우 Set 기반 관리로 인해 첫 번째 해제 시 신호가 조기 삭제되어 다른 활성 런칭의 중지 펜스가 상실되는 결함이 확인되므로, 지적의 유효성을 인정하여 KEEP으로 판정합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-15/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-15/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-15/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-15/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-005",
+      "displayName": "devil-advocate.finding-005",
+      "taskId": "task-16",
+      "specId": "devil-advocate.finding-005",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC T3의 공개 계약 필드명인 launchRetryAttempts 대신 launchRetries가 사용되고 있음을 확인하였으며 반박 근거가 없어 지적을 유지(KEEP)합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-16/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-16/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-16/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-16/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-006",
+      "displayName": "devil-advocate.finding-006",
+      "taskId": "task-17",
+      "specId": "devil-advocate.finding-006",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-006",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "dynamic_incomplete 상태는 태스크 미완료를 나타내므로 control.json 부재 시의 대체 상태(completed_without_semantic_result)보다 우선하는 것이 도메인상 정합하며, 코드 수정 시 미완료 태스크 은폐 위험이 있어 지적의 결함 성격을 완화(WEAKEN)합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-17/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-17/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-17/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-17/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "devil-advocate.finding-007",
+      "displayName": "devil-advocate.finding-007",
+      "taskId": "task-18",
+      "specId": "devil-advocate.finding-007",
+      "stageId": "devil-advocate",
+      "status": "completed",
+      "itemIdentity": "finding-007",
+      "placeholderSpecId": "devil-advocate.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "SPEC.md Q1 명세에 요구된 단위 테스트 및 package.json 내 테스트 스크립트 부재가 확인되어 finding-007을 유효한 지적으로 유지(KEEP)합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-18/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-18/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-18/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdmyp_787263/tasks/task-18/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

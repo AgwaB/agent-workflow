@@ -1,0 +1,103 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2vdn7u_af3a7e",
+  "taskId": "task-3",
+  "sources": [
+    {
+      "source": "triage",
+      "displayName": "triage.main",
+      "taskId": "task-1",
+      "specId": "triage.main",
+      "stageId": "triage",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "src/의 중지·취소 처리 및 종료 요약에서 명세(SPEC.md) 위반과 공개 계약 파기 등 높은 신뢰성 위험이 확인되어 2개 렌즈로 심층 리뷰를 계획합니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-1/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-1/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-1/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-1/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers",
+      "displayName": "reviewers.runtime-correctness",
+      "taskId": "task-9",
+      "specId": "reviewers.runtime-correctness",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "runtime-correctness",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "src/workflow-stop.ts 및 src/workflow-cancellation.ts에서 중지 타이머 주기·하한치(S3), dispose 후 I/O 차단(S5), 오류 판별(S6) 및 취소 판별 시 timeout 오승격(C1), 무한 재귀 방지 미흡(C2) 등 5건의 결함을 확인했습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "reviewers.api-contract",
+      "displayName": "reviewers.api-contract",
+      "taskId": "task-10",
+      "specId": "reviewers.api-contract",
+      "stageId": "reviewers",
+      "status": "completed",
+      "itemIdentity": "api-contract",
+      "placeholderSpecId": "reviewers.item",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "sourceGeneration": 0,
+      "digest": "외부 공개 계약인 launchRetryAttempts 필드명의 launchRetries 오선언과 direct-dynamic 모드 종료 요약 시 비정상 종료 마스킹 및 degradation 미반영(T1, T2 불일치) 결함을 확인했습니다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-10/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-10/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-10/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2vdn7u_af3a7e/tasks/task-10/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}
