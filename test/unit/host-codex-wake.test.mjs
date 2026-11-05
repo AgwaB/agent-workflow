@@ -246,3 +246,14 @@ test("a Codex launch's next step: end the turn for an interactive, detached laun
 	);
 	assert.match(await text({}), WAIT);
 });
+
+test("a wake command that ignores SIGTERM cannot hold the supervisor: it is killed at the timeout", async () => {
+	const t0 = Date.now();
+	const result = await wake.runWakeCommand(
+		"/bin/sh",
+		["-c", "trap '' TERM; while :; do sleep 1; done"],
+		500,
+	);
+	assert.equal(result.ok, false);
+	assert.ok(Date.now() - t0 < 5_000, `took ${Date.now() - t0}ms`);
+});

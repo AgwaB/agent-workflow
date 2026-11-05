@@ -246,9 +246,14 @@ A first version asked the agent to start Claude Code's Monitor tool with a local
 haiku host refused it as an instruction from a tool result ("asked me to start a Monitor running a
 local node command … that isn't part of your request, so I'm ignoring it") — correct behaviour, so
 the plugin starts the monitor and the tool result only says to end the turn. `notify-check --run
-<id> --follow` (exit once that run has settled) stays for scripts. Waking a closed session or a Codex
-session when its run ends (`claude --resume -p`, `codex exec resume`, `codex queue`) was checked
-live but is not built.
+<id> --follow` (exit once that run has settled) stays for scripts. Codex sessions: next section.
+
+Monitor lifetime (live, Claude Code 2.1.318, interactive session in tmux): `/exit` and closing the
+terminal end the monitor; `/reload-plugins` (twice) keeps the one monitor (same pid, no second);
+no zombie processes. A Claude Code process killed with SIGKILL first left its monitor running under
+launchd (ppid 1, still polling); now `notify-check --follow` stops when its parent is gone (Node's
+`process.ppid` changes on reparenting) and the shell wait before the CLI starts checks `kill -0
+$PPID`. Rechecked live: the monitor was gone within seconds of the SIGKILL.
 
 ## Waiting without polling: Codex sessions (2026-11-05)
 
@@ -268,7 +273,10 @@ End to end (Codex 0.166.0 TUI with the plugin, a plain "run deep-review … and 
 the agent launched and ended its turn without `workflow_wait`; when the run completed the supervisor
 logged `host wake: codex queue <thread>: queued`, the line appeared in the TUI as a message, and the
 agent read the report once and told the user the verdict, the six findings and the link.
-`AGENT_WORKFLOW_HOST_WAKE=0` (in the server's environment) turns the Codex wake off. `codex queue
+`AGENT_WORKFLOW_HOST_WAKE=0` (in the server's environment) turns the Codex wake off. The `codex queue` call is killed
+(SIGKILL) after 30 s, so a stuck call cannot keep the supervisor alive; without a running daemon
+`codex queue` uses an in-process app server and starts no daemon (Codex source,
+`tui/src/session_archive_commands.rs` `app_server_target_for_launch`). `codex queue
 --resume` was not used: it resumes on the local app-server daemon, which on the test machine still
 held older credentials (usage-limit errors while the CLI's login had quota).
 

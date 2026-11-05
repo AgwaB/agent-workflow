@@ -39,12 +39,19 @@ export type HostWakeRunner = (
 	args: readonly string[],
 ) => Promise<{ ok: boolean; output: string }>;
 
-const runCommand: HostWakeRunner = (command, args) =>
-	new Promise((resolve) => {
+// 2026-11-05: SIGKILL on timeout. execFile calls back only once the child has exited, so a `codex
+// queue` that ignored the default SIGTERM would keep the supervisor waiting for ever (checked: an
+// sh that traps TERM was still running 6 s after a 1 s timeout; with SIGKILL it ended at 1 s).
+export function runWakeCommand(
+	command: string,
+	args: readonly string[],
+	timeoutMs = 30_000,
+): Promise<{ ok: boolean; output: string }> {
+	return new Promise((resolve) => {
 		execFile(
 			command,
 			[...args],
-			{ timeout: 30_000, encoding: "utf8" },
+			{ timeout: timeoutMs, killSignal: "SIGKILL", encoding: "utf8" },
 			(error, stdout, stderr) =>
 				resolve({
 					ok: !error,
@@ -52,6 +59,7 @@ const runCommand: HostWakeRunner = (command, args) =>
 				}),
 		);
 	});
+}
 
 /** Called by the detached supervisor once the run has settled. Never throws. */
 export async function wakeLaunchingHostSessions(
@@ -81,7 +89,7 @@ export async function wakeLaunchingHostSessions(
 		}
 		const message = `${line}\n(agent-workflow: the run you started from this session has finished; tell the user the verdict, the run id and the link.)`;
 		for (const thread of sessions) {
-			const queued = await (options.run ?? runCommand)("codex", [
+			const queued = await (options.run ?? runWakeCommand)("codex", [
 				"queue",
 				"--thread",
 				thread,
