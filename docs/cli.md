@@ -1,8 +1,7 @@
 # `agent-workflow` CLI
 
-The host-neutral command line of agent-workflow (WP11a). It needs no Pi packages. Every command is
-a thin argv layer over one host API handler (`docs/host-api.md`), so the CLI, the stage-2 host MCP
-server and the Pi host behave the same.
+The CLI needs no Pi packages. It shares [host API handlers](host-api.md) with the MCP server
+and Pi host.
 
 ```sh
 npm install @agwab/agent-workflow      # provides the agent-workflow bin
@@ -11,16 +10,13 @@ npx agent-workflow --help
 
 **Project directory.** The CLI works on the nearest enclosing project: walking up from the current
 directory, the first directory with a `.agent-workflow/` or a `.git` (never the one that holds the
-user-level `~/.agent-workflow`), else the current directory — like Codex's project-root markers
-(2026-11-04). Its `workflows/` and `.agent-workflow/workflows/` are searched and runs are recorded
+user-level `~/.agent-workflow`), else the current directory. Its `workflows/` and `.agent-workflow/workflows/` are searched and runs are recorded
 in its `.agent-workflow/`; workers run there, so paths in a task are read from the project root.
 When that is not the current directory the CLI says so on stderr ("agent-workflow: project <dir> (the
 current directory is inside it …)"). To make a subdirectory its own project, create
 `.agent-workflow/` in it. The directory that holds the user-level `~/.agent-workflow` (usually ~) is
 never a project, in the CLI, the MCP server and the Pi host alike: runs started there are recorded in
-`~/.agent-workflow/home-runs` and their workers run in it (the CLI says so on stderr). Codex and
-Gemini CLI also never read their home directory's dot-directory as project state (2026-11-04). The
-MCP server and the Pi host otherwise use the directory their host gives them; a
+`~/.agent-workflow/home-runs` and their workers run in it (the CLI says so on stderr). The MCP server and the Pi host otherwise use the directory their host gives them; a
 workflow name that only an enclosing project has then fails with "not found in <dir>; the project
 <ancestor> has it — … run from <ancestor> (or pass the spec path)".
 
@@ -36,34 +32,34 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `show <workflow>` | The resolved spec file. |
 | `show <run> [--raw]` | Run details. Arguments that start with `workflow_` (or `--raw`) are runs. |
 | `profile list \| show [name] \| set <name> … \| delete <name> \| default <name> \| default --clear \| presets` | Saved user profiles, roles and built-in presets (below). |
-| `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | Saved per-workflow preferences (WP31, below). |
+| `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | Saved per-workflow preferences (below). |
 | `run <workflow> <task…>` | Start exactly the named workflow and wait in the foreground until it is terminal. |
 | `dynamic <task…>` | Start a spec-less direct dynamic run; same options as `run`. |
-| `auto <task…> [--yes]` | WP32: recommend a workflow for the task (one classifier request, only with your consent) and start the one you choose; same options as `run`. Below. |
+| `auto <task…> [--yes]` | Recommend a workflow for the task (one classifier request, only with your consent) and start the one you choose; same options as `run`. Below. |
 | `status [run]` | All top-level runs, or one run. |
 | `inspect <run> [--failures] [--results]` | Reliability summary and task listing. `--failures` lists failed/blocked/interrupted tasks; `--results` prints task results (with `--failures` on a clean run: every result). |
-| `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded tail of task output, stderr and executor events (the latest attempt's `exec-events.jsonl`); every started task by default (at most 6). Lines per stream 1-400 (default 20), lines cut at 400 characters, the text at 48 000. Credentials (WP19: also quoted structured fields such as `"Authorization":"Basic …"` and `"refresh_token":"…"`), bearer tokens, URL secrets, macOS/Linux/Windows home paths and values of sensitive environment variables are redacted, here and in `status`/`show`/`inspect`/`wait` text. WP19: only files inside the project's `.agent-workflow/` are read; a tampered absolute, `..` or symlink-escaping path is refused and the reason shown. |
+| `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded tail of task output, stderr and executor events (the latest attempt's `exec-events.jsonl`); every started task by default (at most 6). Lines per stream 1-400 (default 20), lines cut at 400 characters, the text at 48 000. Credentials (including quoted structured fields such as `"Authorization":"Basic …"` and `"refresh_token":"…"`), bearer tokens, URL secrets, macOS/Linux/Windows home paths and values of sensitive environment variables are redacted, here and in `status`/`show`/`inspect`/`wait` text. Only files inside the project's `.agent-workflow/` are read; a tampered absolute, `..` or symlink-escaping path is refused and the reason shown. |
 | `wait <run> [--timeout D]` | Drive and wait until the run is terminal or needs action. |
 | `resume <run> [--detach] [--timeout D]` | Reset failed, interrupted and resumable blocked tasks, then continue in the foreground or detached. |
-| `approve <run> [--request <id>] [--reject] [--yes] [--detach] [--timeout D]` | WP29: answer a dynamic-controller approval the run is blocked on (below). |
+| `approve <run> [--request <id>] [--reject] [--yes] [--detach] [--timeout D]` | Answer a dynamic-controller approval the run is blocked on (below). |
 | `stop <run>` | Stop a non-terminal run (durable stop intent; workers are cancelled). Waits up to 15 s for confirmation (below). |
-| `prune --run <run-id>… [--yes]` | (2026-11-01) Delete exactly the named terminal runs (exact ids, repeatable; not combinable with `--keep`/`--older-than`). Any id that is not a terminal run in the project fails the call and deletes nothing; the run protections (live lease, retained children, worktree rules, owned sessions) apply as below; the age-based sweeps (executor attempt records, host launch claims, `auto` requests) are skipped. A dry run without `--yes`. |
-| `prune [--keep N] [--older-than DAYS] [--yes]` | Delete terminal runs beyond the filters, and (WP18b) terminal executor attempt records older than 7 days (or `--older-than`) under `~/.agent-workflow/executors/` (WP19: a launched attempt's record becomes a compact tombstone that is never pruned, so reconcile never reports it absent; containment is physical: a symlinked `attempts/`, Pi `runs/` or other ancestor is refused and reported, never followed; WP19 round 7/8: orphans are removed only when the name is adapter-written — the adapter's own attemptKey digest of exactly its length (Claude 40, Codex 32, Pi 64 hex) alone or with `.events.jsonl`/`.log`/an atomic-write temp suffix — so other files there are never touched), and stale host launch claims (`.agent-workflow/host-launches/`, older than 1 h); WP39b: a pruned run's managed worktrees (merged branches deleted, unmerged kept) and the `auto` classifier's requests (`.agent-workflow/workflows/auto-router-runs/`, same filters); a dry run without `--yes`. |
+| `prune --run <run-id>… [--yes]` | Delete exactly the named terminal runs (exact ids, repeatable; not combinable with `--keep`/`--older-than`). Any id that is not a terminal run in the project fails the call and deletes nothing; the run protections (live lease, retained children, worktree rules, owned sessions) apply as below; the age-based sweeps (executor attempt records, host launch claims, `auto` requests) are skipped. A dry run without `--yes`. |
+| `prune [--keep N] [--older-than DAYS] [--yes]` | Preview deletion of old terminal runs (default: keep newest 50), classifier requests, managed worktrees, terminal executor attempts older than 7 days (or `--older-than`), and host launch claims older than 1 h. `--yes` applies it. See [retention](usage.md#run-records) for protections and cleanup rules. |
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
-| `dashboard [--port N] [--readonly] [--open] [--project DIR]` | WP43: private localhost web dashboard: run/task state, logs, reports, Stop/Resume/Approve/Reject. |
-| `watch [run] [--follow] [--once] [--interval S] [--bell]` | WP36: live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
-| `statusline` | WP36: one line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
-| `notify-check [--host H] [--json] [--stamp N] [--run ID] [--follow [--interval S]]` | WP36: one line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
+| `dashboard [--port N] [--readonly] [--open] [--project DIR]` | Private localhost web dashboard: run/task state, logs, reports, Stop/Resume/Approve/Reject. |
+| `watch [run] [--follow] [--once] [--interval S] [--bell]` | Live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
+| `statusline` | One line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
+| `notify-check [--host H] [--json] [--stamp N] [--run ID] [--follow [--interval S]]` | One line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
 | `doctor [--fix [--yes]] [--json]` | Check this machine without a model call: executors (installed, version vs verified, login), the default executor here and why, permission-mode default, Node, `AGENT_WORKFLOW_HOME`, Codex environment warnings, stale run-index entries. Exit 0 when at least one executor is usable. Below. |
 | `help [command]`, `<command> --help`, `--version` | Help and version. |
 
 A run argument accepts the run id or an unambiguous prefix.
 
-WP28: every command except `help`/`--version` (and the WP36 terminal views `watch`, `dashboard`, `statusline`,
+Every command except `help`/`--version` (and the terminal views `watch`, `dashboard`, `statusline`,
 `notify-check`, whose data the `workflow_status`/`workflow_wait` tools already return) is also a host MCP tool (`workflow_<command>`,
 [host-mcp.md](host-mcp.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default`, `profile workflow set|clear` and
-`notices acknowledge|clear` ask the user to confirm through MCP elicitation (WP29: as does
+`notices acknowledge|clear` ask the user to confirm through MCP elicitation (as does
 `workflow_approve`, the MCP form of `approve`), and a client that
 cannot ask is refused with the CLI command line to run here instead. `supervise` on MCP starts the
 detached supervisor and returns at once.
@@ -75,20 +71,22 @@ agent-workflow check <workflow> [<task...>] [--executor <id>] [--profile <name>]
                      [--model <id>] [--effort <level>] [--role …]... [--permission-mode free|safe] [--json]
 ```
 
-The launch preflight without the launch (2026-10-30): the same executor selection, compile and
+The launch preflight without the launch: the same executor selection, compile and
 checks as `run` — executor installed and logged in, every stage's tools, model and effort available
 on the executor that would run it (names rewritten to that tool's form), capabilities. Prints the
 short check and exits 0, or `Not started: …` with each problem (`✗`) and exits 1. No run, no
 duplicate-launch claim, no model call. See [usage.md](usage.md#preflight-capability-tools-models-and-effort).
 
-## Launch options (`run`, `dynamic`, `auto`)
+## Launch options (`run`, `dynamic`)
+
+These options also apply to `auto`.
 
 | Option | Meaning |
 |---|---|
 | `--executor <id>` | Executor for this run: `pi`, `codex`, `claude` (or a registered id). Highest precedence. |
 | `--profile <name>` | A profile the workflow declares (`executionProfiles`), else a saved user profile with that name, else a built-in preset (`codex`, `claude`, `pi`, `mixed`). Without it: the workflow's saved preference profile, if any. |
 | `--permission-mode free\|safe` | Approvals and sandbox (`docs/permissions.md`). Default `free`. |
-| `--allow-unverified <a,b>` | Accept these `unverified` executor capabilities (B4 opt-in), e.g. `contextIsolation`. |
+| `--allow-unverified <a,b>` | Accept these `unverified` executor capabilities, e.g. `contextIsolation`. |
 | `--model <id>` | Model override for every stage. |
 | `--effort <level>` | Effort override: `off minimal low medium high xhigh max ultra` (`--thinking`/`--reasoning` are aliases). Each executor and model gets the nearest level it supports, the lower one on a tie (Codex `ultra` on Luna → `max`; Claude/Pi `ultra` → `max`; Codex `off`/`minimal` → `low`), and `check`/the launch text says so. |
 | `--input <key=value>` | Set a workflow input the spec declares (repeatable; `--input=key=value` also works). Typed like the declared default: string as is, number, `true`/`false`, JSON for arrays, objects and `null`. An undeclared key, a wrong type, a repeated key or a missing `=` is a usage error (exit 2, nothing starts). Example: `--input depth=quick`. |
@@ -105,17 +103,17 @@ The task is every remaining positional word. Put `--` before task text that star
 
 Executor and permission mode: **run flag > workflow-declared profile > saved user profile >
 default** (mode `free`; executor: below). Without `--profile` a launch uses the workflow's saved
-preference profile (WP31), else its `defaultExecutionProfile` if it declares one, else the default
-saved user profile. The precedence holds field by field (B2, WP37): a workflow-declared profile
+preference profile, else its `defaultExecutionProfile` if it declares one, else the default
+saved user profile. The precedence holds field by field: a workflow-declared profile
 that does not set the executor, the permission mode or `strictCapabilities` takes them from the
-default saved user profile. WP31 extends it to roles: per stage, each of executor, model and effort
+default saved user profile. For roles: per stage, each of executor, model and effort
 comes from the highest layer that has a value for that stage — run flag > per-workflow preference
 roles > workflow-declared profile > saved user profile > default ([usage.md](usage.md#roles-presets-and-mixed-runs)).
 
-**Default executor (WP17).** When nothing above selects one, the CLI uses the **first installed and
+**Default executor.** When nothing above selects one, the CLI uses the **first installed and
 logged-in** of `pi` → `claude` → `codex`. Each candidate is checked with its adapter's probe (version
 and login status commands, no model call): it must be installed and its login not `missing` or
-`expired`. WP19 (review #9): a candidate with a *verified* login (auth `ok`) wins over an earlier
+`expired`. A candidate with a *verified* login (auth `ok`) wins over an earlier
 one whose login is `unknown`, so the order is walked until the first verified one (Pi with unknown
 auth + Claude logged in → Claude). Only when none is verified does the first usable `unknown`
 candidate win; the launch text and `doctor` then say its login could not be verified and how to log
@@ -140,7 +138,7 @@ A run that mixes executors (roles) probes all of them first and names every one 
 with the stages that use it, in one refusal; nothing starts.
 Probe results that are usable are reused within one process for 60 s.
 
-### Capability preview and confirmation (B4)
+### Capability preview and confirmation
 
 Every launch prints the short preflight (`Capability check (<executor>@<version>, <n> stages,
 permission mode: …): …`, then each warning once with the stages it affects; the full per-stage
@@ -166,7 +164,7 @@ exits; any later process can `status`, `wait` or `stop` it.
 `wait` without `--timeout` loops until the run is terminal or blocked. With `--timeout` it returns
 when the time is up; a run still running then exits 1 with `data.stillRunning: true`.
 
-### `auto` (WP32)
+### `auto`
 
 `agent-workflow auto "<task>"` recommends a workflow for a task in the terminal. It compares the
 trusted dynamic workflow and the discoverable workflows (at most 24) and starts the one you choose:
@@ -174,8 +172,7 @@ trusted dynamic workflow and the discoverable workflows (at most 24) and starts 
 1. **Local shortlist, no model call.** The candidates are ranked by the task's words against each
    spec's `routing` hints (`useWhen`, `outputs`) and name.
 2. **Consent.** Comparing them sends one request to a classifier model: your task and the bounded
-   descriptions of the candidates, without tools. It runs on the run's default executor (owner
-   decision Q5): `--executor`, else the executor of the saved user profile (`--profile <name>` or
+   descriptions of the candidates, without tools. It runs on the run's default executor: `--executor`, else the executor of the saved user profile (`--profile <name>` or
    the default one), else the first installed and logged-in of `pi`, `claude`, `codex`; with
    `--model`/`--effort` or the profile's model, else the executor's default model. On a terminal
    you see the task, the candidate names and the executor/model and are asked
@@ -199,7 +196,7 @@ the consent source (`prompt` or `flag`); the task only as its SHA-256. `show <ru
 `classifier-unavailable`, `ranked`, `cancelled`, `stale` or `launched` (`data.launch` then holds
 the launch result).
 
-### Dynamic-controller approval (WP29)
+### Dynamic-controller approval
 
 A dynamic stage that declares `dynamic.permissions.approval: "ask"` needs the user's approval before
 its controller runs ([usage.md](usage.md#dynamic-approval)).
@@ -245,11 +242,11 @@ agent-workflow profile delete fast
 ```
 
 Fields: `executor`, `model`, `effort`, `permissionMode`, `strictCapabilities` (capability names
-that must be `native`), `roles` (WP31). Stored in `$AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json` (default
+that must be `native`), `roles`. Stored in `$AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json` (default
 `~/.agent-workflow`, private file). `model`/`effort` are run defaults (stage and agent settings
 still win; `--model`/`--effort` override everything).
 
-### Roles and presets (WP31)
+### Roles and presets
 
 ```sh
 agent-workflow profile presets                         # codex, claude, pi, mixed and their role tables
@@ -266,7 +263,7 @@ the preset's (other fields stay; `--executor`/`--role` given with it still win).
 executor id is refused when the profile is saved (exit 2); role models are checked against the
 executor's probe when a run starts.
 
-### Per-workflow preferences (WP31)
+### Per-workflow preferences
 
 ```sh
 agent-workflow profile workflow set deep-research --profile mixed \
@@ -294,10 +291,9 @@ and above the selected profile. Stored in
   why (saved default profile, host default, or the installed-default order);
 - the permission-mode default (`free`, or the default saved profile's mode);
 - the Node version (requires `>=22`); `AGENT_WORKFLOW_HOME` and whether it is writable;
-- Pi's web tools (WP35): whether `pi-web-access` is installed in the user's Pi (`pi list`), shown under
+- Pi's web tools: whether `pi-web-access` is installed in the user's Pi (`pi list`), shown under
   `pi`; when it is missing, the install command `pi install npm:pi-web-access` (it is not bundled);
-  which of `web_search` / `fetch_content` it actually registers (2026-11-02: a Pi session that exits
-  before any model request lists them); a tool turned off in its config is a warning, and stages that
+  which of `web_search` / `fetch_content` it actually registers (checked without a model request); a tool turned off in its config is a warning, and stages that
   need it are refused before a run;
 - warnings: Codex allow rules under `$CODEX_HOME/rules` and a global `$CODEX_HOME/AGENTS.md`
   (counts and paths only, never rule contents), CLI versions that differ from the verified ones, an
@@ -347,7 +343,7 @@ cleanup. Both accept `--project` and exit 1 if no dashboard is running.
 on every successful launch, starting a detached loopback server if needed (at most 3 seconds); the
 link opens directly. A newly started server sets launch data `dashboard.started: true`; under
 `AGENT_WORKFLOW_DASHBOARD_AUTH=1` the data also carries `dashboard.auth: true` and a newly started
-server's line adds ` · first time in this browser? agent-workflow dashboard --open`. Set `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` to opt out;
+server's line adds `· first time in this browser? agent-workflow dashboard --open`. Set `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` to opt out;
 worker roles, read-only contexts and failed launches never auto-start. When disabled or startup
 fails, the line is `Dashboard: not running · agent-workflow dashboard --open`; dashboard failure
 never fails the run. Auto-start does not open a browser. Opt in to opening after a successful launch:
@@ -370,17 +366,16 @@ Security and HTTP contract: [dashboard.md](dashboard.md).
 
 ## `statusline`, `watch`, `notify-check`
 
-WP36 (owner decisions E1/E2, [host-ux-investigation.md](host-ux-investigation.md)): progress and
-completion for hosts that have no session UI of their own. All three only read the project's run
+Progress and completion for hosts that have no session UI of their own. All three only read the project's run
 records (the run index names the candidates), never drive a run, take no lease and call no model.
 
 **`statusline`** prints `aw: deep-review 5/13 running 12m · +1 more` for the newest active
 top-level run (and how many others), or nothing when idle. States: `running`, `running (no
 supervisor)` (no live process holds the run lease: start `agent-workflow supervise <run>`),
-`awaiting approval` (WP29), `needs action` (blocked; shown for a day after its last update). It reads
+`awaiting approval`, `needs action` (blocked; shown for a day after its last update). It reads
 the JSON Claude Code pipes on stdin (`workspace.project_dir`, `workspace.current_dir`, `cwd`; at most
 150 ms) and shows the runs of those directories, else of the working directory. Any error prints
-nothing; the exit code is always 0. The bin loads only this command's module (typically ~50 ms).
+nothing; the exit code is always 0. The bin loads only this command's module.
 Claude Code setup (a user setting; plugins cannot set it):
 
 ```json
@@ -412,8 +407,8 @@ agent-workflow: workflow "deep-review" (run workflow_…) finished — verdict N
 ```
 
 and nothing otherwise (exit 0). `--run <id>` looks at that run only; with `--follow` it exits once
-the run has settled (after printing its line, or at once when that state was already reported):
-(2026-11-05). `--session <id>` reports only the runs that Claude Code session launched and keeps
+the run has settled (after printing its line, or at once when that state was already reported).
+`--session <id>` reports only the runs that Claude Code session launched and keeps
 its monitor stamp fresh: the Claude Code plugin's completion monitor ([host-mcp.md](host-mcp.md)). Blocked runs name the approval (`approve`) or the
 inspect/resume commands; `--host claude-code|codex|generic` words the follow-ups as MCP tool calls.
 Receipts: `.agent-workflow/notify-check/` (created by the first check in a project that has runs,
@@ -421,13 +416,11 @@ or by the first `wait` that returns a settled state)
 holds `baseline.json` (the first check also reports runs that settled in the hour before it) and one
 marker per reported state, created exclusively so concurrent checks print a state once. A resumed
 run that settles again is reported again. `wait` (CLI, MCP `workflow_wait`, Pi) marks the state it
-returned, so a result the host already showed is not repeated; since WP39b also in a fresh project
-(it creates the directory and the baseline; before, the first run of a project was announced once
-more by the hook). At most 5 runs per check (the rest
+returned, creating the directory and baseline if needed, so a result the host already showed is
+not repeated. At most 5 runs per check (the rest
 next time); markers of pruned runs are removed. `--json` prints `{action, ok, outcome, data:
 {notifications, deferred}}`. `--follow` checks every 5 s (`--interval` 1-60) and prints new lines as
-they appear (a long-lived feed, for example a Claude Code plugin monitor). `--stamp <name>` (WP42,
-the plugin hook's idle test) writes `.agent-workflow/notify-check/<name>.stamp` after a successful
+they appear (a long-lived feed, for example a Claude Code plugin monitor). `--stamp <name>` writes `.agent-workflow/notify-check/<name>.stamp` after a successful
 check, with the check's start time as its mtime (a check that deferred runs removes it instead, so
 the hook checks again until the backlog is drained); the receipts directory is created only as a real
 directory inside a real `.agent-workflow` (a symlinked one is refused and nothing is written). Hook
@@ -444,28 +437,19 @@ setup: [plugins.md](plugins.md#completion-check-hook).
 `supervise` exits 1 for blocked runs, like every other command. Its log lines and its structured
 result say `blocked`.
 
-**Non-passing domain verdicts exit 1 (CI semantics, WP18b).** A workflow whose final step reports a
+**Non-passing domain verdicts exit 1 (CI semantics).** A workflow whose final step reports a
 non-passing verdict as `failed` (for example deep-review's `PARTIAL_REVIEW`, statusDetail
 `support_declared_failed`) leaves the run `failed`, so `run`/`wait` exit 1 and a CI job fails. The
 text still presents it as a finished run, not as a crash: `Workflow finished — verdict: PARTIAL_REVIEW
 (report ready)`, the run status on its own line, the result preview and the report path; `--json`
-has `data.verdict` and `data.verdictGate: true`. WP19: only when the output task declared a
+has `data.verdict` and `data.verdictGate: true`. This applies only when the output task declared a
 domain verdict *and* wrote its report inside the run directory; any other support failure is shown
 as a failure. Passing verdicts (for example `NEEDS_WORK` and
 `REVIEW_COMPLETE` in deep-review) complete the run and exit 0.
 
 ## Environment
 
-| Variable | Meaning |
-|---|---|
-| `AGENT_WORKFLOW_DASHBOARD_AUTOSTART` | Default on; exactly `0` disables detached dashboard auto-start after successful launches. Never starts for worker roles or read-only contexts. |
-| `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` | Detached dashboard idle exit interval in milliseconds; default 7200000 (2 h), minimum 60000. Requires no SSE clients and no live run. Invalid values exit 2. |
-| `AGENT_WORKFLOW_DASHBOARD_OPEN=1` | Opt in to opening the run dashboard on terminals; suppressed in agent environments unless `--open` is explicit. Default off. |
-| `BROWSER` / `BROWSER_ARGS` | Browser program (and arguments) for `--open`; `BROWSER=none` disables opening. Default: the platform opener. |
-| `AGENT_WORKFLOW_HOME` | Per-user directory (profiles, user workflows and agents). Default `~/.agent-workflow`. |
-| `AGENT_WORKFLOW_ROLE` | `worker`/`disabled` processes may only `validate`/`help`. |
-| `AGENT_WORKFLOW_CONTAIN_DETACHED_SUPERVISOR=1` | Keep the detached supervisor in the CLI's process group (tests). |
-| `AGENT_WORKFLOW_TEST_EXECUTOR_MODULE`, `AGENT_WORKFLOW_TEST_EXECUTOR_ACK` | Test-only executor hook, below. |
+See [environment variables](environment.md) for configuration and defaults.
 
 ### Test-executor hook (tests only)
 
@@ -498,37 +482,3 @@ agent-workflow inspect "$id" --failures --results
 agent-workflow stop "$id" && agent-workflow resume "$id" --detach
 agent-workflow prune --keep 20 --yes
 ```
-
-## Change log
-
-- **WP43b:** dashboard discovery, one-time browser sign-in links, token-free run links, opt-in
-  `run`/`dynamic`/`auto --open` with agent suppression, and `dashboard --detached/--status/--stop`.
-
-- **WP43:** added the private localhost `dashboard` host with read-only mode, bounded logs/reports,
-  live SSE updates and the Pi board’s Stop / Resume / Approve / Reject actions.
-
-- **Live bundle 6: the `prune` dry run agreed with `--yes` only for removable worktrees.** A run
-  whose managed worktree prune keeps (checked out on a user branch, not identified, unknown state)
-  was listed under "Runs that would be deleted" and counted in the total bytes, with only the
-  worktree line saying "kept"; `--yes` then kept the run ("protected: worktree removal failed: …").
-  The dry run now marks such a run `protected: worktree kept: <path>: <reason>` and leaves its bytes
-  out of the total; `--yes` is unchanged. Test:
-  `test/unit/core-live6-prune-preview-kept-worktree.test.mjs` (fails on the old code:
-  `protected` false).
-- **Live bundle 5 (WP39): terminal answers were read as no answer.** On a real terminal every y/N
-  question of the CLI (the `auto` consent and pick-list, `Proceed with these capability
-  degradations?`, the dynamic-controller approval of foreground `run`/`dynamic`/`wait`/`resume`, and
-  `approve`) received an empty answer whatever was typed: the readline prompt closed its interface
-  before resolving the typed line, and the synchronous `close` event resolved `""` first. So `y` to
-  the `auto` consent printed "Not sent: you did not agree", a degradation confirmation declined, and
-  an approval stayed open (`dynamic_approval_timeout`). Nothing was sent or started by mistake (every
-  path fails closed). The prompt (`readlinePrompt`) now settles the typed line before closing; end of
-  input and an abort still answer `""`. The unit tests of these flows script `io.prompt` and never ran
-  the real prompt; `test/unit/host-wp39-cli-readline-prompt.test.mjs` runs it on a stream (fails with
-  the old ordering: `'' !== 'y'`).
-- **WP39b (live bundle 5, O14): no progress output on an open question.** A foreground run whose
-  dynamic-controller approval question stayed open past a wait slice printed `still running …` and
-  progress lines right after `Run dynamic workflow controller? [y/n]`, on the question's line.
-  Progress output now pauses while a question is open and the newest held line is printed after the
-  answer. Test: `host-wp29-cli-approval.test.mjs` "no progress line is printed while the approval
-  question is open" (fails on the old code).

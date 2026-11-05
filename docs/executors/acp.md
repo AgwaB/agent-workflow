@@ -1,234 +1,245 @@
 # ACP executor
 
-Entry point: `@agwab/agent-workflow/executors/acp`. Source: `src/executors/acp/`.
+Entry point: `@agwab/agent-workflow/executors/acp`; source: `src/executors/acp/`.
+Use `createExecutor(config)` or the typed `createAcpExecutor({ config, faults })`.
+Adapter and SDK contract version: `0.1.0`; ACP protocol version: **1**.
+`config.preset` selects the agent and executor id.
 
-- Factory: `createExecutor(config)` (descriptor convention, R#15); `createAcpExecutor({ config, faults })`
-  is the typed form. `config.preset` picks the agent and the executor id.
-- Adapter version: `0.1.0`. SDK contract: `0.1.0`. ACP protocol version 1.
-- **Status: `antigravity` is a built-in executor (`--executor antigravity`, 2026-11-02); `gemini` is
-  still a pilot preset.** Offline and runtime conformance pass against a scripted ACP agent
-  (`test/unit/executor-acp-conformance.test.mjs`). For Antigravity, the live tier
-  (`test/unit/executor-acp-antigravity-live.test.mjs`, `AGENT_WORKFLOW_LIVE=1`) passed on
-  agy_acp_server 1.4.5 with gemini-3.8-flash (low):
-  - smoke: a 200,000-char MCP result was delivered in full;
-  - `live.readonly_enforced` and `live.isolation` passed, and `live.tool_allowlist` too once the
-    allowlist existed (second run);
-  - `live.session_ownership` and `live.resume` skip (declared none).
-  
-  A two-stage AW run (`--executor antigravity`: a file read, then an artifact read through
-  `workflow_artifact`) completed cleanly. Capabilities stay `declared`.
-- `doctor` lists it after pi, claude and codex (never the installed default); verified server 1.4.5.
-- Built-in descriptor: `{ id: "antigravity", module: <dist>/executors/acp/index.js, config: { preset:
-  "antigravity" } }`. The server must be on PATH as `agy_acp_server`, or named in
-  `AGENT_WORKFLOW_AGY_ACP_SERVER`. The registry ships it as an archive with no installer. When the
-  server is reached through a symlink, the adapter sets `ANTIGRAVITY_HARNESS_PATH` to the
-  `localharness_external` beside the real file, as agent-orchestrator does.
-- Presets: `gemini` (Gemini CLI, `gemini --acp`) and `antigravity` (Google Antigravity's separate ACP
-  server `agy_acp_server`, ACP registry entry `antigravity-acp`). On 2026-11-02 Google refused Gemini
-  CLI's free "Code Assist for individuals" tier (`IneligibleTierError`, "migrate to Antigravity"); the
-  Antigravity server logs in with the same Google account (`authenticate` `oauth-personal`, a browser
-  login the user completes once).
+**Antigravity** is built in (`--executor antigravity`), verified with **agy_acp_server 1.4.5** and
+`gemini-3.8-flash` (low). Live readOnly, tool-allowlist, isolation and artifact-MCP checks pass;
+resume/session-ownership checks skip because those capabilities are none. Capabilities remain
+`declared`. **Gemini CLI** (`gemini --acp`) is a pilot preset without a verified live CLI version.
+Offline and runtime conformance use a scripted ACP agent.
 
 ## Config (descriptor `config`, JSON, no secrets)
 
 | Key | Default | Meaning |
 |---|---|---|
-| `preset` | `gemini` | Agent preset; also the executor id |
-| `command` | the preset's (`gemini`, `agy_acp_server`; antigravity: `$AGENT_WORKFLOW_AGY_ACP_SERVER` first) | Agent executable |
-| `agentHome` | `<stateDir>/<preset>-home` | Engine-owned agent home (presets that isolate through it) |
-| `stateDir` | `$AGENT_WORKFLOW_HOME/executors/acp` (`~/.agent-workflow/…`) | Attempt records (reconcile) |
-| `killGraceMs` | `2000` | Grace between closing the agent's stdin → SIGTERM → SIGKILL |
-| `handshakeTimeoutMs` | `60000` | Limit for `initialize` and `session/new` |
+| `preset` | `gemini` | Agent preset and executor id |
+| `command` | `gemini` or `agy_acp_server`; Antigravity checks `$AGENT_WORKFLOW_AGY_ACP_SERVER` first | Executable |
+| `agentHome` | `<stateDir>/<preset>-home` | Engine-owned login home for presets supporting isolation |
+| `stateDir` | `$AGENT_WORKFLOW_HOME/executors/acp` (`~/.agent-workflow/…`) | Attempt records |
+| `killGraceMs` | `2000` | Grace between stdin close, SIGTERM and SIGKILL |
+| `handshakeTimeoutMs` | `60000` | Bound for `initialize` and `session/new` |
 
-Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descriptor in process:
-`registerWorkflowExecutor({ id: "gemini", version: "0.1.0", contractVersion: "0.1.0", module:
-"@agwab/agent-workflow/executors/acp", config: { preset: "gemini" } })`, then run with
-`executor: "gemini"`.
+Unknown keys fail with `DESCRIPTOR_INVALID`. Keep secrets in request/MCP environment, not descriptor
+config. The built-in descriptor is
+`{ id: "antigravity", module: <dist>/executors/acp/index.js, config: { preset: "antigravity" } }`.
+To use Gemini, register in process:
+
+```js
+registerWorkflowExecutor({
+  id: "gemini", version: "0.1.0", contractVersion: "0.1.0",
+  module: "@agwab/agent-workflow/executors/acp", config: { preset: "gemini" }
+});
+```
+
+Then select `executor: "gemini"`.
 
 ## One attempt
 
-1. Before the authority is consumed: a readOnly request that injects an MCP server other than
-   `workflow_artifact` is refused (its tools may mutate; same rule as the Claude adapter), and the
-   launch argv is built.
-2. The agent is started with the request env on top of the inherited environment. Gemini:
-   `gemini --acp [--model <m>] --allowed-mcp-server-names <engine servers> --approval-mode <mode>`.
-   - `--allowed-mcp-server-names`: ACP-supplied servers are merged into the user's settings
-     servers; the allow list keeps only the engine's. Without engine servers it names
-     `agent-workflow-none`, so no user server loads.
-   - `--approval-mode`: readOnly → `plan`; `free` on a writing stage → `yolo`; otherwise `default`.
-3. `initialize` (client offers no `fs` and no `terminal`: agents use their own tools) →
-   `session/new { cwd, mcpServers }` (MCP env values travel only in this message, never on argv or
-   on disk) → one `session/prompt`. ACP has no system prompt field: the system prompt is put ahead
-   of the task, separated by `---`.
-4. When the prompt settles the adapter closes the agent's stdin (SIGTERM / SIGKILL after the grace).
+1. Build launch argv and validate before consuming authority. ReadOnly requests injecting servers
+   other than the engine's read-only `workflow_artifact` server are refused.
+2. Launch the agent with inherited environment plus request env, subject to preset isolation.
+3. Send `initialize` without client `fs` or `terminal` capabilities: the agent uses its own tools.
+4. Send `session/new {cwd, mcpServers}`, followed by preset mode/model/effort configuration and one
+   `session/prompt`. MCP env values travel in `session/new`, never on argv or disk.
+5. Close stdin when the prompt settles, then escalate through SIGTERM/SIGKILL after the grace.
+
+ACP has no system-prompt field. The adapter prefixes the system prompt to the task, separated by `---`;
+this is emulated append, not a privileged system message. Sessions are process-bound, not resumable.
+
+## Gemini preset
+
+Launch:
+
+```text
+gemini --acp [--model <m>] --allowed-mcp-server-names <engine servers> --approval-mode <mode>
+```
+
+ACP servers merge into user-configured servers. `--allowed-mcp-server-names` excludes ambient servers;
+with no engine servers it uses the sentinel `agent-workflow-none`.
+ReadOnly uses `--approval-mode plan`, free/non-readOnly uses `yolo`, and safe/default uses `default`.
+Permission requests still pass through engine policy. GEMINI.md memory and user settings remain;
+`contextIsolation` is none and no fine tool allowlist is offered.
+
+The expected artifact name is `mcp_workflow_artifact_workflow_artifact` from Gemini source, not yet
+verified live. Its MCP delivery limit, real approval behavior, cancellation and usage numbers are
+also unverified. `probe()` reads `--version`; auth is `unknown`, because ACP initialization lists
+methods rather than login status. Gemini tools send display text, not full results; these events
+cannot serve as evidence receipts.
 
 ## Antigravity preset
 
-- Launch: no arguments on macOS (`--uid=` on Linux), as agent-orchestrator's `agyacp` driver.
-- After `session/new`: `session/set_mode` (`yolo` for `free` on a writing stage, else `default`),
-  `session/set_config_option` `model` (refused when the session does not offer it, class `config`;
-  an OpenAI, Anthropic or other non-Google name is refused before launch, since 1.4.5 offers only
-  Gemini models) and
-  `thinking_level` from the effort (low / medium / high, nearest).
-- No read-only mode and no MCP allow list: readOnly relies on the engine denying writing kinds in
-  permission requests.
-- `session/new` carries `_meta.antigravity` with a built-in tool allowlist built from the stage's
-  tools (`antigravitySessionMeta`, `ANTIGRAVITY_TOOL_MAPPING`):
-  - `read` → `view_file`; `grep`/`find`/`ls`/`bash` → `run_command`; `edit` → `edit_file`;
-    `write` → `create_file`. A readOnly stage drops the writing tools.
-  - Web tools are not mapped yet: their results are not captured as evidence, so `webTools` stays none.
-  - `enabledTools` lists the result. When nothing maps, `disabledTools` lists all 15 names the filter
-    knows instead, because what an empty allowlist does is not verified.
-  - Every unlisted built-in is off: `run_workflow`, `schedule`, `invoke_subagent`, `ask_question`,
-    `generate_image`. That means nothing starts agents or timers outside the engine, and nothing asks
-    a question no one answers.
-  - Live (2026-11-02, 1.4.5): `enabledTools` is a server-enforced allowlist (only the listed tools were
-    offered); engine MCP tools are not affected. `toolAllowlist` is native, coarse (`run_command`
-    covers several Pi tools).
-  - The filter knows only the SDK `BuiltinTools` names and warns about any other name. A no-model
-    probe found 15. `list_directory`, `search_directory` and `find_file` are not offered even when
-    enabled. `_meta.agy` (documented since ACP server 1.2.1) is logged as legacy.
-  - Without the filter, 1.4.2+ writes `skills/system/run-workflow/SKILL.md` into the cwd at
-    `session/new`, which lands in the user's checkout or a worktree diff. With it: no file.
-  - Input tokens per request: 13,619 with no filter, 8,531 with five tools off, 4,073 with only
-    `view_file`.
-- Workspace customizations, measured on 1.4.5 by input tokens and marker instructions, with and
-  without a git repository:
-  - `AGENTS.md`, `GEMINI.md` and `.agents/rules` in the cwd are **not** loaded into ACP sessions, even
-    though the app/CLI docs list them.
-  - `.agents/skills` **are** offered: the skill list adds about 290 tokens per skill, and the model
-    can read the skill file.
-  - No switch turns skills off, so `contextIsolation` stays `emulated` with a warning, recorded as a
-    degradation on every run, like Codex's global `AGENTS.md`.
-  - Workspace hooks need workspace trust (`AGY_ACP_DISABLE_WORKSPACE_TRUST`, removed by the env
-    scrub). That they stay off is an inference from agent-orchestrator, not observed.
-- Web tools: `web_search` → `search_web`, `fetch_content` → `read_url_content` + `view_file` (the
-  model only gets the saved file's path, so it needs `view_file` to read the page); `webTools`
-  search+fetch, safety unknown.
-  - `search_web` returns a grounded summary with links, and its rawOutput is that text (receipt form
-    search-results). Some links are `vertexaisearch.cloud.google.com/grounding-api-redirect/…`.
-  - `read_url_content` reports only a title. The adapter releases the page instead: the transcript
-    says "has been saved to: <session>/.system_generated/steps/<n>/content.md", and that Markdown
-    becomes the output (receipt form page-text, keyed by its `Url`).
-  - Titles "Run <tool>?" / "Running <tool>" are reported as the tool name. A `search_web` permission
-    request (ACP kind `search`) is judged as `fetch`, the kind of the Pi web tools.
-  - Live: a probe with `read_url_content` but no `view_file` could not read the saved page. It ran
-    35 `search_web` calls for a verbatim quote: 37 requests, 0.97 M input tokens counted cumulatively,
-    of which 0.76 M were cache reads. Hence the `view_file` pairing. With `read` in the stage (as in
-    deep-research), workers read the saved pages with `view_file`.
-- Built-in tool outputs (e.g. `view_file`) are display summaries in ACP ("Read workflow-stop.ts");
-  only engine MCP results are recovered from the transcript. Their inputs (path, line range) are real.
-- Tool names (live 2026-11-02): the model listed `view_file`, `write_to_file`,
-  `replace_file_content`, `run_command`, `search_web`, `read_url_content`, `call_mcp_tool`,
-  `list_resources`, `read_resource`, `manage_task`, `ask_question` and `generate_image`. It has
-  no list, grep or find tool, so those go through `run_command`. That is an `execute` request,
-  which the engine denies on a read-only stage. The worker prompt's tool note says so
-  (`WORKER_TOOL_NAME_MAPPINGS.antigravity`).
-- MCP tools are called through `call_mcp_tool(ServerName, ToolName, Arguments)`. Told to call
-  `mcp__workflow_artifact__echo`, the model read the tool schema and called it, so the artifact tool
-  keeps the common `mcp__workflow_artifact__workflow_artifact` name (`ARTIFACT_TOOL_NAME_MAPPINGS`).
-- Tool results: for an engine MCP tool the server's ACP `rawOutput` is a display summary ("Echo
-  tool"). The adapter holds such a call's closing report back. After the turn it takes the result
-  the server recorded in the worker home: the step after the call in
-  `antigravity-acp/brain/<session>/.system_generated/logs/transcript_full.jsonl`, or the
-  `steps/<n>/output.txt` file that step names (only files inside that session's folder, at most
-  8 MiB). The call is then reported once, with the result. Calls are matched by server, tool and
-  arguments. An unmatched call closes without an output, and so does a call in an attempt that
-  inherits the user's home. Shell `rawOutput` is an object (`combinedOutput`, `exitCode`) and is
-  kept. The server itself truncates long shell output. What was released is written to the raw log
-  (`{"agentWorkflow":"tool-results"}`), so a replay releases the same.
-- Built-in read tools (`view_file`, `list_directory`, `search_directory`, `find_file`): `rawOutput` is
-  a title ("Read evidence-safe-fetch.ts"), `rawInput` the path and range (`file_path`, `start_line`,
-  `end_line`; recorded deep-review stream, 2026-11-02). Not released from the transcript, on purpose
-  (2026-11-04): no engine feature reads their output. Local evidence is checked against the file's
-  bytes, the read-coverage measurement uses paths and ranges (the inputs are kept), and the web
-  receipts use only web tools, whose outputs are complete: `search_web` returns its grounded summary
-  as `rawOutput`, `read_url_content` is released as above. Revisit if file receipts are built.
-- Inherited variables that would switch the account, project or harness (`GEMINI_API_KEY`,
-  `GOOGLE_*`, `GCLOUD_PROJECT`, `CLOUDSDK_CORE_PROJECT`, `ANTIGRAVITY_HARNESS_PATH`, `AGY_ACP_*`;
-  Orca's list) are dropped for an isolated worker unless the request sets them. Their names are in
-  `acp-invocation.json` `envRemoved`.
-- An answer that is the server's failure report fails the attempt. "Usage Limit Reached" → class
-  `rate_limit`; "Agent execution error: …" → classified; "The MCP server '…' failed to initialize" →
-  `unknown`. The patterns come from OpenBot's 1.3.0/1.4.4 handling and have not been seen live here.
-- Workers run with `GEMINI_HOME` set to an engine-owned home (`agentHome`, default
-  `<stateDir>/antigravity-home`), so the user's global hooks (`config/hooks.json`), MCP servers
-  (`config/mcp_config.json`), GEMINI.md and conversation history stay out (`contextIsolation`
-  emulated). An attempt with `isolation.inherit` uses the user's home. In the first live check
-  (2026-11-02) a user status hook in the shared home denied every tool call.
-- Each isolated attempt runs in its own fresh home (2026-11-03): a private temporary directory
-  (`aw-antigravity-home-*`) holding only a copy of the worker home's `antigravity-acp/settings.json`,
-  removed when the server exits. The worker home keeps only the login. In the flash deep-research
-  run before this, workers listed and opened other sessions' `conversations/` and `brain/` files
-  in the shared home (view_file is not permission-gated over ACP, so the adapter cannot deny it).
-  A fresh home opens a session with the same login (no-model check: 3 s).
-- Login prompts (2026-11-03): every server start refreshes the access token from the keychain
-  login. In six live runs 9 of 145 starts logged "Credentials missing or invalid. Launching browser
-  login flow…" and opened Google's login page; all were in bursts of 6–12 concurrent starts (foreach
-  stages), none in sequential starts. Now attempts of one login home start one at a time (a lock in
-  the worker home, held from spawn until `session/new` returns, at most ~2 min of waiting), so a
-  stage of 7 workers needs ~30 s more to start; no-model check: 30 starts in three bursts of 10, no
-  login. A worker also gets `BROWSER=true` (no browser window) and an attempt whose server asks for a
-  login fails at once as `auth` ("…asked for an interactive Google login…"); sign the worker home
-  in again then (`authenticateAcpAgent` opens the browser as before). Not checked live: that
-  `BROWSER=true` keeps the window closed.
-- MCP results reach the model inline up to `_meta.antigravity.mcpMaxOutputBytes` = 131,072 bytes
-  (sent with every `session/new`; ACP server ≥ 1.4.0). Without it 1.4.5 saves an on-demand MCP result
-  over 4 KB to a step file the model has to open. The probe declares `mcpOutputLimitChars` 32,768
-  (the byte bound / 4), so the workflow_artifact server pages fit (before: its 8,192-char default
-  cut every 16,000-char required read, and final-audit failed after three attempts and 9.9 M
-  tokens). Live 2026-11-03: a 30,000-char result arrived inline.
-- The worker home needs a one-time `authenticateAcpAgent(config, "oauth-personal")`. If the user has
-  already logged in to the Antigravity ACP server, no browser opens: the server keeps its Google
-  credentials outside `GEMINI_HOME` and only writes the method to
-  `<agentHome>/antigravity-acp/settings.json` (observed 2026-11-02, macOS). Otherwise it opens
-  Google's login (the link is printed on stderr). `probe()` reports `auth` missing until that file
-  records a method (only the method is read, never credentials).
-- Tool events carry the raw arguments (`rawInput`), but `rawOutput` is a display summary, not the
-  tool result (live check 2026-11-02): evidence from tool output must come from engine-side capture
-  (an engine MCP server), not from these events.
-- `probe()` asks ACP `initialize` for `agentInfo.version` (its `--version` prints build data only); no
-  session, no model.
+Install the registry archive (`antigravity-acp`) and expose `agy_acp_server` on PATH, or set
+`AGENT_WORKFLOW_AGY_ACP_SERVER`. There is no installer. `doctor` lists Antigravity after Pi, Claude
+and Codex, but does not make it the installed default.
+
+Launch uses no arguments on macOS and `--uid=` on Linux. For symlinked executables, the adapter sets
+`ANTIGRAVITY_HARNESS_PATH` to `localharness_external` beside the real file.
+
+After `session/new`, the adapter sends `session/set_mode`: `yolo` for free/non-readOnly, otherwise
+`default`. Antigravity has no read-only mode; enforcement relies on tool filtering and engine
+permission decisions, not a filesystem sandbox. `session/set_config_option` selects `model` and
+`thinking_level`. Models outside the offered list fail as config; non-Google provider names are
+refused before launch because 1.4.5 offers only Gemini models. Effort maps to low/medium/high:
+`off`/`minimal`/`low` → low, `medium` → medium, `high`/`xhigh`/`max`/`ultra` → high, when offered.
+
+### Tool mapping
+
+`ANTIGRAVITY_TOOL_MAPPING` builds `_meta.antigravity.enabledTools` for `session/new`.
+The server enforces this allowlist; engine MCP tools are unaffected.
+
+| Pi tool | Antigravity built-in / MCP tool |
+|---|---|
+| `read` | `view_file` |
+| `grep`, `find`, `ls`, `bash` | `run_command` |
+| `edit` | `edit_file` |
+| `write` | `create_file` |
+| `web_search` | `search_web` |
+| `fetch_content` | `read_url_content` plus `view_file` |
+| `workflow_artifact` | MCP `workflow_artifact` / `workflow_artifact` |
+
+ReadOnly drops `edit_file` and `create_file`. Shell access remains coarse and permission-gated;
+`grep`/`find`/`ls` have no dedicated live tools in 1.4.5. `list_directory`, `search_directory`,
+`find_file` are not offered even if enabled. The model may expose write tools as `write_to_file`
+and `replace_file_content`; the table uses the server's filter names.
+
+Every unlisted built-in is disabled, including `run_workflow`, `schedule`, `invoke_subagent`,
+`ask_question`, `generate_image`. This prevents out-of-engine agents/timers and unattended questions;
+disabling `run_workflow` also prevents its startup `skills/system/run-workflow/SKILL.md` write in cwd.
+When nothing maps, `disabledTools` lists all **15** known filter names instead; empty-allowlist
+semantics are unverified. Unknown filter names are warned about. The adapter uses `_meta.antigravity`,
+not legacy `_meta.agy` (documented since server 1.2.1).
+
+### Isolation and authentication
+
+Isolated attempts set `GEMINI_HOME` to a fresh private `aw-antigravity-home-*` directory containing
+only a copy of `<agentHome>/antigravity-acp/settings.json`. The temporary home is removed after server
+exit. The shared worker home retains login configuration, not worker conversations. This excludes
+user global hooks (`config/hooks.json`), MCP servers (`config/mcp_config.json`), GEMINI.md and history.
+`isolation.inherit` instead uses the user's home.
+
+Workspace `AGENTS.md`, `GEMINI.md` and `.agents/rules` are not loaded on 1.4.5, but `.agents/skills`
+are offered with no disable switch. `contextIsolation` is therefore emulated with a warning.
+Workspace hooks are expected to require trust, but their absence has not been observed directly.
+
+Inherited `GEMINI_API_KEY`, `GOOGLE_*`, `GCLOUD_PROJECT`, `CLOUDSDK_CORE_PROJECT`,
+`ANTIGRAVITY_HARNESS_PATH`, `AGY_ACP_*` are removed unless explicitly set in the request.
+Removed names are recorded as `envRemoved` in `acp-invocation.json`.
+
+Authenticate the worker home once with `authenticateAcpAgent(config, "oauth-personal")`.
+The server manages Google credentials outside `GEMINI_HOME`; only the method is recorded in
+`<agentHome>/antigravity-acp/settings.json` (verified on macOS). Existing server login can avoid a new
+browser flow; otherwise the user completes Google login. The probe reads only the method, never
+credentials, and reports missing auth until it is recorded.
+
+Server starts refresh the login token. A cross-process lock per login home serializes startup from
+spawn through `session/new`, with at most about 2 min waiting, reducing concurrent-refresh login
+prompts. Workers get `BROWSER=true`. A server requesting interactive login fails immediately as
+`auth`; authenticate the worker home again. Browser suppression itself is unverified live.
+
+### MCP and web results
+
+The artifact prompt name remains **`mcp__workflow_artifact__workflow_artifact`**. The model routes
+MCP calls through `call_mcp_tool(ServerName, ToolName, Arguments)`.
+Every session sets `_meta.antigravity.mcpMaxOutputBytes = 131072` (server ≥ 1.4.0);
+`probe().mcpOutputLimitChars = 32768` (byte bound / 4). A 30,000-character result is verified inline.
+Without this override, 1.4.5 spills on-demand MCP results over 4 KB to step files.
+
+ACP MCP `rawOutput` is a display summary. The adapter holds completion until after the turn, then
+matches server/tool/arguments against
+`antigravity-acp/brain/<session>/.system_generated/logs/transcript_full.jsonl`.
+Results come from the matching following step or its `steps/<n>/output.txt`, restricted to the
+session directory and clipped at **8 MiB**. Transcripts over **64 MiB** are not read. An unmatched
+call, or a call using an inherited home, closes without recovered output.
+Released results are recorded in `acp-stream.jsonl` as `{"agentWorkflow":"tool-results"}` so replay
+releases the same output.
+
+`search_web` returns a grounded summary with links; some use
+`vertexaisearch.cloud.google.com/grounding-api-redirect/…`. `read_url_content` reports a title and
+saves page Markdown to `.system_generated/steps/<n>/content.md`; the adapter releases that page as
+output keyed by `Url`. The model also needs `view_file` to read the saved page, hence the paired
+mapping. `search_web` permission requests are treated as fetch, not ACP search.
+Web safety policy is unknown.
+
+Shell `rawOutput` retains `combinedOutput` and `exitCode`, but the server truncates long shell output.
+Built-in reads retain real paths/ranges (`file_path`, `start_line`, `end_line`) but only display-summary
+output. They are not recovered from transcripts. Evidence must use local file bytes, captured MCP
+results, or the complete web outputs above, not display summaries.
 
 ## Events
 
 | ACP | SDK event |
 |---|---|
-| `agent_message_chunk` (text) | `message_delta`; the answer is their concatenation |
-| `tool_call`, `tool_call_update` | `tool_call` (kinds as in ACP; `pending` / `in_progress` / `completed` / `failed` → `pending` / `running` / `completed` / `failed`; a rejected permission → `denied`) |
-| `session/request_permission` | `approval_request`; `respond()` selects the agent's `allow_once` or `reject_once` option (never an `*_always` option; none offered → `cancelled`); unanswered → denied after `approvalPolicy.timeoutMs` |
-| prompt result `usage` | `usage`: input = `inputTokens − cachedReadTokens`, output = `outputTokens + thoughtTokens`, cost unknown |
-| stop reason `end_turn` | `completed` |
-| `cancelled` | `failed` / `cancelled` |
-| `max_tokens`, `max_turn_requests`, `refusal` | `failed` / `permanent` |
+| `agent_message_chunk` text | `message_delta`; concatenated answer |
+| `tool_call`, `tool_call_update` | `tool_call`; pending/in_progress/completed/failed → pending/running/completed/failed; rejected permission → denied |
+| `session/request_permission` | `approval_request`; allow_once/reject_once only, never *_always; absent option → cancelled; timeout → denied |
+| prompt result `usage` | input = `inputTokens − cachedReadTokens`, output = `outputTokens + thoughtTokens`, cost unknown |
+| `end_turn` | `completed` |
+| `cancelled` | `failed/cancelled` |
+| `max_tokens`, `max_turn_requests`, `refusal` | `failed/permanent` |
 
-Tool input/output are the agent's `rawInput` / `rawOutput` when sent; otherwise the display fields
-(title, locations, text content). **Gemini sends display text only** (its `tool_call_update` content
-is the tool's `returnDisplay`, empty for a file read), so its tool events cannot serve as evidence
-receipts: the web quote check re-fetches pages, and deep-review evidence is checked against file bytes
-as for every executor.
+Other agent requests (`fs/*`, `terminal/*`) receive JSON-RPC error **-32601**.
+`cancel` sends `session/cancel`; process cleanup uses stdin close and signal escalation.
 
-Agent requests other than `session/request_permission` (`fs/*`, `terminal/*`) get JSON-RPC error
--32601. Failures without a stop reason are classified from the error text (auth, rate limit, config,
-transient, else unknown).
-
-Raw output: `<artifactsDir>/acp-stream.jsonl` (agent → client lines), `acp-stderr.log` and
-`acp-invocation.json` (argv, env keys, MCP server names and env keys), with request env values of 8+
-characters redacted. Another process replays the stream from these files; without a recorded prompt
-result `reconcile` reports `unknown` (the ACP session belonged to the gone process).
+Raw files: `<artifactsDir>/acp-stream.jsonl` (agent-to-client lines), `acp-stderr.log`,
+`acp-invocation.json` (argv, env keys, MCP server names/env keys). Request env values of at least
+8 characters are redacted. Cross-process observe replays these files; without a prompt result,
+reconcile reports `unknown` because the original process owned the session.
 
 ## Capabilities (Gemini preset, declared)
 
-`mcpInjection` native, `readOnly` emulated (`plan` mode + permission policy), `toolAllowlist` none,
-`systemPrompt` emulated (append), `modelSelect` native, `partialStream` native, `usage` tokens,
-`toolTelemetry` native, `cancel` notify (`session/cancel`), `contextIsolation` none (GEMINI.md memory
-and user settings still load), `webTools` search+fetch with an unknown safety policy, `resume` none,
-`sessionBound` true. `probe()` reads `--version`; auth is `unknown` (ACP `initialize` lists methods,
-not whether one is set up).
+All capability levels remain declared. Source: `src/executors/acp/capabilities.ts`.
+The Antigravity column includes its live-verified behavior without upgrading metadata to probed.
 
-## Not verified yet (live tier)
+| Capability | Gemini | Antigravity | Basis |
+|---|---|---|---|
+| toolLoop / context | agent / agent | agent / agent | agent-owned loop |
+| sessionBound | true | true | process-owned ACP session |
+| mcpInjection | native | native | `session/new`; Antigravity live, 1.4.5 |
+| readOnly | emulated | emulated | plan/default mode plus engine policy |
+| toolAllowlist | none | native, coarse | Antigravity `enabledTools`, live 1.4.5 |
+| systemPrompt | emulated, append | emulated, append | prompt prefix |
+| modelSelect | native | native | CLI flag / session config |
+| effortLevels | none | low, medium, high | preset config |
+| partialStream | native | native | `agent_message_chunk` |
+| usage | native, tokens | native, tokens | prompt result usage |
+| toolTelemetry | native | native | ACP tool events |
+| cancel | native, notify | native, notify | `session/cancel` |
+| nativeSchema | none | none | source: capabilities declaration |
+| contextIsolation | none | emulated | Gemini memory/settings; Antigravity workspace skills |
+| fastTier | none | none | source: capabilities declaration |
+| toolResultBudget | none | none | source: capabilities declaration |
+| webTools | search+fetch, safety unknown | search+fetch, safety unknown | preset declaration; Antigravity web result capture |
+| resume | none | none | source: capabilities declaration |
 
-- The engine's server is connected and its tool called; a user server is absent (allow list).
-- Gemini's MCP tool name for the artifact tool (`mcp_workflow_artifact_workflow_artifact` per its
-  source) and the delivery limit of MCP results.
-- Approval modes and permission requests on the real CLI; cancel; usage numbers.
+## Errors and retries
+
+Failures without a stop reason are classified from error text as auth, rate_limit, config, transient,
+or unknown. The engine decides retry eligibility; the adapter does not infer success from an
+unrecorded result or automatically reattach to another process's session.
+
+Antigravity failure-shaped answers are handled explicitly:
+
+| Answer / condition | Class |
+|---|---|
+| `Usage Limit Reached` | rate_limit |
+| `Agent execution error: …` | classified from detail |
+| `The MCP server '…' failed to initialize` | unknown |
+| Interactive Google login request on stderr | auth |
+| Unsupported offered model | config |
+
+The failure-answer patterns are source-based and have not been observed live here.
+
+## Known limits
+
+- Gemini live MCP naming/delivery, approvals, cancellation and usage remain unverified.
+- Neither preset supports resume or session adoption after owner loss.
+- Antigravity has no filesystem sandbox or native read-only mode; readOnly is emulated.
+- Antigravity workspace skills remain visible under isolation; workspace-hook exclusion is unverified.
+- Antigravity unknown/new built-ins and empty-allowlist semantics need verification on newer servers.
+- Raw tool display summaries are not full evidence; result recovery is unavailable with inherited homes.
+- Web safety policy is unknown for both presets.
+- Startup serialization mitigates refresh contention but does not prove interactive login impossible;
+  `BROWSER=true` suppression remains unverified live.

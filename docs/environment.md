@@ -16,19 +16,23 @@ otherwise.
 | `AGENT_WORKFLOW_DASHBOARD_AUTH` | Exactly `1`: dashboards started without `--auth` (including auto-started detached ones) require the browser sign-in session instead of the default open loopback mode. | off |
 | `AGENT_WORKFLOW_DASHBOARD_AUTOSTART` | Exactly `0` disables detached dashboard auto-start after successful run/dynamic/auto launches; worker roles and read-only contexts never auto-start. Does not open a browser. | on |
 | `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` | Detached dashboard idle exit interval (milliseconds); no SSE clients and no live run. Minimum 60000; invalid values are usage errors. Foreground dashboards never idle out. | `7200000` (2 h) |
+| `AGENT_WORKFLOW_DASHBOARD_POLL_MS` | Dashboard polling interval; accepts 500–10000 ms with a 1000 ms minimum effective interval. | `1000` |
 | `AGENT_WORKFLOW_DASHBOARD_OPEN` | Exactly `1`: open a dashboard after CLI run/dynamic/auto launches on a terminal; suppressed in agent environments. Explicit `--open` overrides suppression and non-TTY checks. | off |
 | `BROWSER`, `BROWSER_ARGS` | Program (and extra arguments) used to open dashboard URLs instead of the platform opener (`open` / `xdg-open` / `rundll32`); `BROWSER=none` opens nothing. Vite/Jupyter convention. | platform opener |
+| `AGENT_WORKFLOW_AGY_ACP_SERVER` | Antigravity ACP server command override. | `agy_acp_server` on PATH |
+| `AGENT_WORKFLOW_HOST_WAKE` | `0` disables completion messages queued into the interactive Codex session that launched a run through MCP. Already reported states do not wake the session. | on |
+| `AGENT_WORKFLOW_LOGIN_SHELL_PATH` | `0` disables importing missing absolute PATH entries from the user's login shell for the MCP server. Existing PATH entries keep priority. On non-Windows systems, tries login and interactive-login shells, each with a 10 s timeout; unavailable output leaves PATH unchanged. | on |
+| `AGENT_WORKFLOW_EVIDENCE_REFETCH` | `0` disables the engine-side web quote check for new runs. The run records the setting for later supervisors and resumes. See [support helpers](usage.md#support-helpers). | on |
 | `AGENT_WORKFLOW_HOME` | Per-user directory: user workflows (`workflows/`), user agents (`agents/`), saved user profiles (`user-profiles/v1/profiles.json`), per-workflow profile preferences, executor state (`executors/<id>/`). | `~/.agent-workflow` |
 | `AGENT_WORKFLOW_RUN_INDEX_DIR` | Directory of the runtime's run locator index (lets `status`/`wait` find a run by id from another process). | `~/.agent-workflow/run-index` |
 | `AGENT_WORKFLOW_RUN_LOCATOR_PRUNE_AFTER_MS` | Age after which stale run locators are pruned from the index. | 30 days |
 | `AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA` | `1`: reject a named workflow before launch when its prompt/schema diagnostics are strict-blocking (direct dynamic runs are excluded). Ordinary validation applies either way. | off |
 | `AGENT_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS` | Tool-result budget for dynamic generated tasks (static stages keep their spec budgets). `0` or a negative value disables it. | `320000` |
-| `AGENT_WORKFLOW_TOOL_EXPOSURE` | Pi host only (WP28): `deferred` registers the `aw_*` tools with deferred exposure, so they stay out of every model request until Pi's `tool_search` loads them (enable it with `"defaultTools": ["+tool_search"]`). Any other value: normal registration. The `/aw` command and the host MCP server are unaffected (Claude Code already loads MCP tool schemas on demand). | unset (normal) |
+| `AGENT_WORKFLOW_TOOL_EXPOSURE` | Pi host only: `deferred` registers the `aw_*` tools with deferred exposure, so they stay out of every model request until Pi's `tool_search` loads them (enable it with `"defaultTools": ["+tool_search"]`). Any other value: normal registration. The `/aw` command and the host MCP server are unaffected (Claude Code already loads MCP tool schemas on demand). | unset (normal) |
 
-`PI_CODING_AGENT_DIR` (Pi's own variable) is honored only to locate the legacy Pi directory that
-workflow and agent discovery reads **read-only** (default `~/.pi/agent`). agent-workflow never writes
-there. Executor CLIs keep their own variables (`CODEX_HOME`, `ANTHROPIC_API_KEY`, …); see
-[`executors/`](executors/).
+`PI_CODING_AGENT_DIR` locates Pi's `web-search.json` for web-tool diagnostics and the confirmed
+`doctor --fix` action. It does not add workflow or agent discovery roots. Executor CLIs keep their
+own variables (`CODEX_HOME`, `ANTHROPIC_API_KEY`, …); see [`executors/`](executors/).
 
 ## Operational limits
 
@@ -66,7 +70,7 @@ Flags. No general speed or quality claim is implied by any of them.
 | `AGENT_WORKFLOW_EXPERIMENTAL_TOOL_DEDUP` | The artifact server suppresses an identical re-read (ledger row with `returnedBytes: 0`). An adapter that wants it must pass it in `McpServerSpec.env` ([`mcp.md`](mcp.md)). |
 | `AGENT_WORKFLOW_EXPERIMENTAL_CACHE_STABLE_FOREACH` | Foreach prompts keep the item payload out of the instruction text (cache-stable prefix). |
 | `AGENT_WORKFLOW_EXPERIMENTAL_LAUNCH_RAMP` | Shorter launch-slot release delay. |
-| `AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR` | Output repair retries continue the worker's kept session instead of a fresh attempt (untested live with Claude). The only setting that makes the engine request kept worker sessions (D3); without it no attempt keeps one. Kept sessions are released at task/run end ([`usage.md`](usage.md#run-records) "Worker sessions"). |
+| `AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR` | Output repair retries continue the worker's kept session instead of a fresh attempt. The only setting that makes the engine request kept worker sessions; without it no attempt keeps one. Kept sessions are released at task/run end ([`usage.md`](usage.md#run-records) "Worker sessions"). |
 | `AGENT_WORKFLOW_PER_ITEM_DISPATCH` | Streaming foreach children whose projection is satisfiable from published partial output start per item. |
 | `AGENT_WORKFLOW_ADAPTIVE_LIVE_WORKERS` | Adaptive live-worker limit (floor 4, ceiling `AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS` or 16). |
 
@@ -79,16 +83,13 @@ Defined but inactive (they enable no behavior): `AGENT_WORKFLOW_CACHE_SHAPE_METR
 |---|---|
 | `AGENT_WORKFLOW_ROLE` | Process role: `supervisor` (default), `worker`, `disabled`. Workers get `worker`; `worker`/`disabled` processes may only `help`/`validate` and the Pi host registers no tools. |
 | `AGENT_WORKFLOW_HOST_CONTEXT` | JSON host context (`version`, `cwd`, `homeDir`, `projectTrusted`) passed to headless children. |
-| `AGENT_WORKFLOW_PARENT_SUBAGENT_CWD`, `_RUNS_DIR`, `_RUN_ID`, `_ATTEMPT_ID` | Identify the parent runtime attempt of a nested workflow so child events and usage are recorded on it. |
+| `AGENT_WORKFLOW_PARENT_SUBAGENT_CWD`, `AGENT_WORKFLOW_PARENT_SUBAGENT_RUNS_DIR`, `AGENT_WORKFLOW_PARENT_SUBAGENT_RUN_ID`, `AGENT_WORKFLOW_PARENT_SUBAGENT_ATTEMPT_ID` | Identify the parent runtime attempt of a nested workflow so child events and usage are recorded on it. |
 | `AGENT_WORKFLOW_DURABLE_WORKER_BINDING_JSON` | Barrier binding handed to a durable worker. |
 | `AGENT_WORKFLOW_DURABLE_WORKER_REQUEST_ENV_JSON` | Env values (`SubmitRequest.env`, MCP server env) for a durable worker; removed from the worker's `process.env` at startup, never written to disk. |
 | `AGENT_WORKFLOW_PI_RUN_SECRETS_JSON` | Secret part of the Pi executor's per-run config; deleted as soon as the in-Pi extension loads. |
 | `AGENT_WORKFLOW_EXTERNAL_LAUNCH_GRANT_SHA256` | Lowercase SHA-256 of an external launch grant bound into launch provenance. |
 | `AGENT_WORKFLOW_REQUIRE_EXTERNAL_LAUNCH_GRANT` | `1`: a launch without the grant digest fails. |
 | `AGENT_WORKFLOW_CAPTURE_TOOL_CALLS` | Flag: record worker tool calls in launch provenance (diagnostics). |
-
-`PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON` (pi-subagent's name) is removed from worker environments; it
-is never read.
 
 ## Test-only (the package reads them; never set them in normal use)
 

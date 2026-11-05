@@ -82,6 +82,14 @@ export const PI_PACKAGE_SKILL_PATHS = Object.freeze(
 	Object.values(PI_SKILLS).map((name) => `./${PI_SKILLS_DIR}/${name}`),
 );
 
+/** Relative Markdown links of docs/usage.md (other docs, ../README.md) → the repository on GitHub. */
+export function referenceDocLinks(text) {
+	return text.replace(/\]\((?!https?:|#)([^)\s]+)\)/g, (_, target) => {
+		const path = target.startsWith("../") ? target.slice(3) : `docs/${target}`;
+		return `](${REPOSITORY}/blob/main/${path})`;
+	});
+}
+
 /** Bundled specs the workflow-guide skill names as quality references. */
 export const REFERENCE_WORKFLOWS = Object.freeze([
 	"deep-research",
@@ -204,7 +212,7 @@ export function notifyHookCommand(cli, host) {
 
 /**
  * WP36: Claude Code plugin hooks (inline event map): `UserPromptSubmit` adds its plain stdout to
- * the model's context (docs/host-ux-investigation.md). Codex gets no plugin hook: plugin hooks need
+ * the model's context (host UX investigation record). Codex gets no plugin hook: plugin hooks need
  * a trust review there and make a plugin ineligible for the public directory, so the Codex hook is
  * documented as user configuration instead (docs/plugins.md).
  */
@@ -559,7 +567,12 @@ export async function renderPluginFiles({
 			rel === "README.md" ? adaptScaffoldReadme(bytes.toString("utf8")) : bytes,
 		);
 	}
-	files.set("reference/docs/usage.md", await read("docs/usage.md"));
+	// 2026-11-05: the copy's relative links point at docs that are not in the plugin; send them to
+	// the repository (the README and docs on GitHub).
+	files.set(
+		"reference/docs/usage.md",
+		referenceDocLinks(await read("docs/usage.md")),
+	);
 	files.set("reference/workflows/README.md", await read("workflows/README.md"));
 	for (const name of REFERENCE_WORKFLOWS)
 		files.set(

@@ -12,7 +12,7 @@ talks to a CLI directly: it builds a `SubmitRequest` per task attempt and hands 
 
 The SDK has no Pi imports and no runtime dependencies. Contract version:
 `EXECUTOR_CONTRACT_VERSION = "0.1.0"`. For 0.x, compatible means the same major and minor; from 1.0
-the same major. The three stage-1 adapters are references: [`executors/pi.md`](executors/pi.md),
+the same major. Built-in adapter references: [`executors/pi.md`](executors/pi.md),
 [`executors/codex.md`](executors/codex.md), [`executors/claude.md`](executors/claude.md).
 
 ## The contract
@@ -38,14 +38,14 @@ every method).
 
 | Method | Obligation |
 |---|---|
-| `probe()` | Readiness without a model call: `installed`, `cliVersion`, `auth` (`ok`/`missing`/`expired`/`unknown`; auth is the CLI's own, D1), optional `capabilities` rows confirmed on this machine (merged as `source: "probed"`), `mcpOutputLimitChars` / `mcpOutputNoticeChars` (below), `modelListComplete` (WP31: the reported model list names every model the CLI accepts; absent/`false` = a missing role model is only noted, `true` = it is refused), `notes`. |
+| `probe()` | Readiness without a model call: `installed`, `cliVersion`, `auth` (`ok`/`missing`/`expired`/`unknown`; auth is the CLI's own), optional `capabilities` rows confirmed on this machine (merged as `source: "probed"`), `mcpOutputLimitChars` / `mcpOutputNoticeChars` (below), `modelListComplete` (the reported model list names every model the CLI accepts; absent/`false` = a missing role model is only noted, `true` = it is refused), `notes`. |
 | `capabilities()` | The declared capability table (below). Pure; no I/O. |
 | `submit(req)` | Start the attempt, or return the existing `ExecRef` for a known `attemptKey` (idempotent: the same key never causes a second effect). Calls `req.authority.consume()` immediately before the first side effect (next section). |
 | `observe(ref)` | The normalized event stream of the attempt: `started` first and once, then any events, then exactly one terminal event (`completed` or `failed`). Another process may call it (`sessionBound` says whether that can re-attach). |
-| `respond(ref, id, decision)` | Answer an `approval_request` the stream emitted (R#4). |
+| `respond(ref, id, decision)` | Answer an `approval_request` the stream emitted. |
 | `cancel(ref, scope)` | `turn` interrupts the current turn; `owned` stops everything the attempt owns. The result is not evidence of termination: `observe`/`reconcile` decide that. Waiting past a deadline is never a cancel. |
-| `reconcile(attemptKey)` | After a crash: `found` (the attempt exists), `absent` (proven never launched) or `unknown` (cannot prove either way). `unknown` is not `absent`: the engine stops and asks a person instead of retrying (B3). |
-| `deleteOwnedSession(session)` | Optional (D3, R#10). Delete a CLI session the adapter kept and reported as `ownedSession` on a terminal event. The engine calls it only with locators recorded as owned by this executor id: when the task completes or is skipped, when the run completes or fails, and on `prune` (below). Refuse anything else (`refused`). `not_found` is not an error; `failed` means the deletion did not complete (retried on prune). Without the method the engine records `unsupported`. |
+| `reconcile(attemptKey)` | After a crash: `found` (the attempt exists), `absent` (proven never launched) or `unknown` (cannot prove either way). `unknown` is not `absent`: the engine stops and asks a person instead of retrying. |
+| `deleteOwnedSession(session)` | Optional. Delete a CLI session the adapter kept and reported as `ownedSession` on a terminal event. The engine calls it only with locators recorded as owned by this executor id: when the task completes or is skipped, when the run completes or fails, and on `prune` (below). Refuse anything else (`refused`). `not_found` is not an error; `failed` means the deletion did not complete (retried on prune). Without the method the engine records `unsupported`. |
 
 `SubmitRequest` carries `attemptKey`, `authority`, `cwd` (always explicit), `prompt`, optional
 `systemPrompt`, `model`, `effort`, `tools` (Pi tool names), `readOnly`, `mcpServers`, optional
@@ -58,7 +58,7 @@ is rejected).
 
 ## Execution authority
 
-Every request carries a one-time `ExecutionAuthority` (R#1). The durable runtime backs it with the
+Every request carries a one-time `ExecutionAuthority`. The durable runtime backs it with the
 launch barrier: `consume()` waits for the engine's `released`-or-`revoked` decision.
 
 1. Do all preparation that has no external effect first (build argv, write private config files in
@@ -84,7 +84,7 @@ conformance kit's `fencing.*` checks verify the order with an effect counter fro
 interface Level {
   level: "native" | "emulated" | "none";
   source: "declared" | "probed" | "unverified";
-  verifiedWith?: string;   // e.g. "codex-cli 0.159.2, conformance 2026-10-26"
+  verifiedWith?: string;   // e.g. CLI version and conformance kit version
   warning?: string;        // environment weakness on this machine (no secrets, no user patterns)
 }
 ```
@@ -97,7 +97,7 @@ search | search+fetch | none`, `safetyPolicy: engine | cli | unknown`), plus `to
 `sessionBound` and `effortLevels`. Start from `noneCapabilities()` and spread your rows over it;
 `validateCapabilities` checks the table.
 
-How the engine reads a row (B4, `negotiateCapabilities`):
+How `negotiateCapabilities` reads a row:
 
 - **`source`.** `declared`: you claim it. `probed`: your `probe()` confirmed it on this machine (it
   overrides the declared row). `unverified`: nobody has confirmed it yet; it is **refused** wherever
@@ -117,8 +117,8 @@ How the engine reads a row (B4, `negotiateCapabilities`):
   and does not emulate cost. A preferred `usage.cost` degrades with `recordOnly: true` (the cost is
   recorded as unknown, `null`, never `0`; no confirmation needed, `strict` still refuses it); a
   required one is refused.
-- **`webTools.safetyPolicy`** other than `engine` always records a degradation (`unknown` for every
-  stage-1 CLI: URL, private-network and redaction controls are the CLI's).
+- **`webTools.safetyPolicy`** other than `engine` always records a degradation (`unknown` for the built-in
+  CLIs: URL, private-network and redaction controls are the CLI's).
 - **`toolAllowlist`** below `fine` on a stage with a precise `tools` list: `free` mode records it
   (`acceptedByFreeMode`); `safe` mode refuses unless the spec sets `allowReadOnlyDowngrade` (then the
   stage runs with readOnly enforced, `forcedReadOnly`). The forced `readOnly` is then negotiated
@@ -126,7 +126,7 @@ How the engine reads a row (B4, `negotiateCapabilities`):
   warning is recorded as `CAPABILITY_WARNING:readOnly` (and needs confirmation when interactive).
 
 Stage requirements come from the spec (readOnly, required reads → `mcpInjection`, tools, web tools,
-partial output, same-session repair, B5 `inherit`). The run records the negotiation; the user sees
+partial output, same-session repair, context inheritance). The run records the negotiation; the user sees
 it as the capability preview before launch.
 
 ## Tools
@@ -152,7 +152,7 @@ kinds (`edit`, `delete`, `move`, `execute`) are denied on readOnly stages.
 | `completed` | `finalText`, optional `ownedSession` |
 | `failed` | `class` (below), `message`, `raw` (JSON or `null`), optional `ownedSession` |
 
-Usage shape (WP12a, the same for every adapter whatever its CLI reports): `input` = input tokens
+Usage shape (the same for every adapter): `input` = input tokens
 **excluding** cache reads and cache writes (subtract them when the CLI counts them inside its input),
 `cached` = cache-read input tokens, `cacheWrite` = cache-creation input tokens (absent = none),
 `output` = output tokens with reasoning included, `model` = the model that served the request (the
@@ -165,14 +165,14 @@ Usage rules: `null` means unknown and is different from `0`. `source: "unknown"`
 `cost: null`, and `cost: null` always with `source: "unknown"`; never invent a cost. `estimated`
 marks a cost you computed (for example from the CLI's price catalog). The runtime sums usage events
 per attempt; a field is `null` when any event reported it unknown. Keep raw CLI output in
-`artifactsDir`; events are a view over it (D3).
+`artifactsDir`; events are a view over it.
 
 ### Sessions and retention
 
-Workers keep no CLI session by default (D3, WP12a). The engine sets `SubmitRequest.sessionId` only
+Workers keep no CLI session by default. The engine sets `SubmitRequest.sessionId` only
 when a task needs a kept session (today: the experimental same-session repair,
 `AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR`). Without a `sessionId` run the CLI without session
-persistence (the stage-1 adapters use Claude `--no-session-persistence`, Codex `ephemeral: true`, Pi
+persistence (the built-in adapters use Claude `--no-session-persistence`, Codex `ephemeral: true`, Pi
 `--no-session`) and report no `ownedSession`. With one, report the kept session as `ownedSession` on
 the terminal event; the engine records it on the task and later passes exactly that locator to
 `deleteOwnedSession`: at once for a completed or skipped task, for every remaining entry when the run
@@ -228,7 +228,7 @@ is not `readOnly`. An adapter must:
    restrictions, with the CLI's documented setting (prefer a documented mode value over a
    `--dangerously-*` alias). Keep the approval channel wired.
 3. readOnly: exactly the `safe` settings in both modes.
-4. Keep B5 isolation (no user settings, instructions, hooks, skills unless `isolation.inherit`)
+4. Keep context isolation (no user settings, instructions, hooks, skills unless `isolation.inherit`)
    independent of the mode.
 5. Document both mappings and register them with the conformance kit (`harness.permissionModes`,
    check `permission.mode_mapping`); a CLI without approvals or a sandbox declares `equivalent` with
@@ -252,17 +252,17 @@ engine uses it for the `workflow_artifact` server ([`mcp.md`](mcp.md)); a stage 
 needs `mcpInjection` and is refused on an executor without it.
 
 - Attach each server under exactly its `name`; the model sees the tool under the CLI's naming scheme
-  (all stage-1 CLIs: `mcp__<server>__<tool>`). The engine renders `workflow_artifact` in prompts per
+  (Pi, Codex and Claude: `mcp__<server>__<tool>`). The engine renders `workflow_artifact` in prompts per
   executor id (`ARTIFACT_TOOL_NAME_MAPPINGS`); an id without a row gets
   `mcp__workflow_artifact__workflow_artifact`, so a CLI with a different scheme needs a row there.
 - Pass `env` to the server process only; never put an env value on argv.
-- Do not merge in the user's own MCP servers unless the request inherits context (B5).
-- **Delivery limit (R#9).** If the CLI cuts long tool results, declare it in `probe()`:
+- Do not merge in the user's own MCP servers unless the request inherits context.
+- **Delivery limit.** If the CLI cuts long tool results, declare it in `probe()`:
   `mcpOutputLimitChars` (results up to this size pass unchanged) and `mcpOutputNoticeChars` (what the
   CLI adds around a cut result). The engine then starts the artifact server with
   `artifactServerOutputLimit(probe)` = limit − notice − max(256, 5 % of the limit), clamped to
   [512, 16 MiB]; a text fits when both its UTF-16 length and its UTF-8 byte length are within it. Without
-  a declaration the server uses 8192. Measured stage-1 limits are in [`mcp.md`](mcp.md).
+  a declaration the server uses 8192. Measured limits are in [`mcp.md`](mcp.md).
 
 ## Conformance
 

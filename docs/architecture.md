@@ -5,17 +5,17 @@ agent host or CLI: hosts call the engine through a shared host API, and the engi
 worker to an executor through the executor SDK.
 
 ```text
- hosts           CLI (agent-workflow)   Pi extension (/aw)   [stage 2: Codex/Claude host plugins]
+ hosts           CLI (agent-workflow)   Pi extension (/aw)   Codex/Claude host plugins
                          \                  |                   /
  host API                 hosts/api — one handler per action (run, wait, status, stop, …)
                                             |
- core             compiler · engine · scheduler · artifact graph · B4 negotiation · run store
+ core             compiler · engine · scheduler · artifact graph · capability negotiation · run store
                      |                         |                               |
  runtime          durable worker · launch barrier · control mailbox · run registry · reconcile
                      |
  sdk              WorkflowExecutor contract · capabilities · events · errors · conformance kit
                      |
- executors        pi (pi --mode json)   codex (codex app-server)   claude (claude -p stream-json)
+ executors        pi (JSON)   codex (app-server)   claude (stream-json)   antigravity (ACP)
                      |
  mcp              workflow_artifact stdio server (workers read upstream artifacts through it)
 ```
@@ -25,30 +25,30 @@ worker to an executor through the executor SDK.
 | core | `@agwab/agent-workflow` | `src/core/` | sdk, runtime |
 | runtime | `@agwab/agent-workflow/runtime` | `src/runtime/` | sdk |
 | sdk | `@agwab/agent-workflow/sdk`, `/sdk/testing`, `/sdk/conformance` | `src/sdk/` | nothing |
-| executors | `@agwab/agent-workflow/executors/{pi,codex,claude}` | `src/executors/` | sdk |
+| executors | `@agwab/agent-workflow/executors/{pi,codex,claude,acp}` | `src/executors/` | sdk |
 | mcp | (spawned by path, `dist/mcp/artifact-server/server.js`) | `src/mcp/` | core tool body |
 | host API | `@agwab/agent-workflow/hosts/api` | `src/hosts/*.ts` | core |
 | CLI host | `agent-workflow` bin, `@agwab/agent-workflow/hosts/cli` | `src/hosts/cli/` | host API |
 | Pi host | `@agwab/agent-workflow/hosts/pi` (Pi extension) | `src/hosts/pi/` | host API, Pi peers |
 
 The package has no runtime `dependencies`. The Pi packages are optional peers needed only by the Pi
-host; nothing else imports them (`npm run e2e` scans the packed files for this). The core loads an
+host; nothing else imports them. The core loads an
 executor adapter only through its descriptor, never by a static import.
 
 ## Core
 
-The core is ported from pi-workflow 0.16.4 ([`core-port.md`](core-port.md)). It compiles a JSON spec
+The core compiles a JSON spec
 into tasks (`compiler.ts`), schedules them (`engine.ts`, launch slots, retries), validates each
 worker's `<control>/<analysis>/<refs>` output, enforces required reads through the read ledger, runs
 support helpers in process, and stores the run record. Before any launch it probes the selected
-executor and negotiates every stage's requirements against the executor's capability table (B4):
+executor and negotiates every stage's requirements against the executor's capability table:
 `accept`, `degrade` (recorded, maybe confirmed) or `refuse` (nothing starts). The permission mode
 (`free`/`safe`, [`permissions.md`](permissions.md)) is part of that policy and of every submit request.
 
 Executor selection and permission mode follow one precedence: run flag > workflow-declared profile >
 saved user profile > default (executor: the host's own CLI, in the terminal CLI the first installed
-and logged-in of pi → claude → codex, WP17; mode `free`). The run record keeps the executor descriptor, so a
-detached supervisor or a resumed run reloads the same adapter (R#15).
+and logged-in of pi → claude → codex; mode `free`). The run record keeps the executor descriptor, so a
+detached supervisor or a resumed run reloads the same adapter.
 
 **Usage.** Adapters emit one normalized `usage` event shape (input excluding cache reads and writes,
 `cached`, `cacheWrite`, output, `model`, `cost` or `null` with its `source`); the runtime sums it per
@@ -56,7 +56,7 @@ attempt with a total, the core records it on the task (with the serving model) a
 terminal and blocked runs. An unknown cost stays `null` (`cost unknown` in host text), never `0`;
 support helpers report nothing.
 
-**Worker sessions (D3).** The engine requests a kept CLI session (`SubmitRequest.sessionId`) only for
+**Worker sessions.** The engine requests a kept CLI session (`SubmitRequest.sessionId`) only for
 the experimental same-session repair; otherwise workers run without session persistence and repairs,
 retries and resumes start fresh attempts. Sessions an adapter reports as `ownedSession` are recorded
 on the task and released through the executor's `deleteOwnedSession` at the end of each refresh and
@@ -66,8 +66,7 @@ resolved or pruned; `prune` retries entries not yet `deleted`/`not_found`.
 
 ## Runtime: durable worker, launch barrier, control mailbox
 
-The runtime is ported from pi-subagent 0.7.2 ([`runtime-port.md`](runtime-port.md)). Each task
-attempt runs in a **durable worker**: a detached `node dist/runtime/workers/durable-worker.js
+Each task attempt runs in a **durable worker**: a detached `node dist/runtime/workers/durable-worker.js
 <worker.json>` process that reloads the executor from its descriptor, so the attempt survives the
 host process exiting.
 
@@ -85,16 +84,48 @@ host process exiting.
   directory can answer an approval or request a cancel.
 - **Reconcile.** After a crash the runtime asks the adapter `reconcile(attemptKey)`: `found` (adopt),
   `absent` (proven never launched; may retry) or `unknown` (the engine stops and asks a person; it
-  never retries automatically, B3).
+  never retries automatically).
 - **Terminal last write.** The worker writes logs, closes the mailbox, and only then writes
   `result.json`; a terminal finalizer drains ownership.
+
+## Failure kinds
+
+The runtime maps executor `failed.class` events to attempt status and `failureKind`:
+
+| Failure class or outcome | Status | `failureKind` | Automatic retry |
+|---|---|---|---|
+| `cancelled` | `cancelled` | `cancelled`, or the runtime's stop kind | No |
+| Engine revoke before release | `cancelled` | `revoked` (nothing ran) | No |
+| `transient` | `failed` | `transient` | Allowed |
+| `rate_limit` | `failed` | `rate_limit` | Allowed after backoff |
+| `auth` | `failed` | `executor_auth` | No |
+| `config` | `failed` | `executor_config` | No |
+| `permanent` | `failed` | `executor_permanent` | No |
+| `unknown` | `failed` | `executor_unknown` | No |
+| Orphan reconcile proves `absent` | `failed` | `not_started` | Safe to relaunch with a new attempt |
+| Reconcile cannot establish ownership/outcome | `failed` | `needs_decision` | Never; ask a person |
+
+`executor_unknown` means an adapter could not classify a known failure. `needs_decision` means
+execution or ownership cannot be proved; it must not be treated as absence. The runtime never
+relaunches an attempt itself.
+
+Before release, adapter refusals become `validation` (`INVALID_REQUEST` / capability errors) or
+`spawn`; authority/descriptor integrity failures become `guard_failure`. A submit error after
+release triggers reconcile: `found` is observed, `absent` becomes `spawn` (or the error's explicit
+failure kind), and unknown/error becomes `needs_decision`. Descriptor rediscovery failures, fence
+violations, invalid event sequences and streams ending without a terminal event are `guard_failure`.
+
+Runtime stops use `timeout` (`failed`), `abort` or `user_cancelled` (`cancelled`). The runtime sends
+`cancel(ref, "owned")` and waits `AGENT_WORKFLOW_CANCEL_GRACE_MS` (default 10 s) for a terminal
+event. Without one, it records `metadata.executor.termination: "unconfirmed"`; a cancel ack is not
+termination evidence. Partial streamed output remains marked `outputPartial: true`.
 
 ## SDK and executors
 
 The SDK ([`sdk.md`](sdk.md)) defines the contract every adapter implements; the conformance kit
-([`conformance.md`](conformance.md)) checks it. Stage 1 ships three adapters
-([`executors/pi.md`](executors/pi.md), [`executors/codex.md`](executors/codex.md),
-[`executors/claude.md`](executors/claude.md)); their live status is in [`support.md`](support.md).
+([`conformance.md`](conformance.md)) checks it. Built-in adapters cover
+[Pi](executors/pi.md), [Codex](executors/codex.md), [Claude](executors/claude.md) and experimental
+[Antigravity via ACP](executors/acp.md). See the [support matrix](support.md).
 
 ## MCP artifact server
 
@@ -106,8 +137,8 @@ ledger, and page reads are sized to each executor's measured MCP delivery limit.
 ## Hosts
 
 Hosts translate a user surface into host API calls ([`host-api.md`](host-api.md)): the CLI
-([`cli.md`](cli.md)) and the Pi extension ([`pi-host.md`](pi-host.md)). Stage 2 adds a host MCP
-server and Codex/Claude host plugins.
+([`cli.md`](cli.md)), the Pi extension ([`pi-host.md`](pi-host.md)), and the
+[host MCP server](host-mcp.md) used by Codex/Claude plugins.
 
 ## Data layout
 
@@ -129,5 +160,6 @@ User (`$AGENT_WORKFLOW_HOME`, default `~/.agent-workflow/`): `workflows/`, `agen
 `user-profiles/v1/profiles.json`, `workflow-preferences/v1/`, `run-index/` (run locators),
 `executors/<id>/` (adapter state; session records only for sessions the engine asked to keep).
 
-Read-only legacy roots (F5): `<cwd>/.pi/workflows`, `~/.pi/agent/workflows`, `<cwd>/.pi/agents`,
-`~/.pi/agent/agents` are searched after the agent-workflow roots and never written.
+Workflow lookup order is project-shared `<cwd>/workflows/`, project-private
+`<cwd>/.agent-workflow/workflows/`, user `workflows/`, then bundled workflows. Pi configuration
+directories are not searched for workflows or agents.
