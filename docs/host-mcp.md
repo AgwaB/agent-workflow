@@ -241,7 +241,11 @@ When that directory holds only the run being launched, the launch waits up to 5 
 stamp (`monitorStartsWithRun`, `awaitHostSessionMonitor`); not in print mode or the Agent SDK
 (`CLAUDE_CODE_ENTRYPOINT` `sdk-cli`/`sdk-ts`/`sdk-py`, observed: no monitor process runs there), and
 not when the session started in another directory than the run's project (the monitor watches its
-own directory). A probe: the CLI start of `notify-check` takes about 0.2 s.
+own directory). A probe: the CLI start of `notify-check` takes about 0.2 s. Live (2.1.318, a fresh
+project without `.agent-workflow/`, plain request, haiku): the launch got the monitor next step, the
+agent ended its turn without `workflow_wait`, and the monitor's line woke it at the end. A first try
+had the host API's "Wait for the result: workflow_wait …" line in the same result and haiku followed
+that line; a pushed launch now drops it (`withoutWaitLine`).
 
 ## Long waits (2026-11-05)
 
@@ -265,6 +269,11 @@ after 30 s (`wait` after 10 s), each a model turn, unless the cell asks for more
 pragma (`// @exec: {"yield_time_ms": …}`; Codex sets no maximum: `code-mode-runtime/src/service.rs`
 `resolve_yield_timeout`, `max_yield_time_ms` unset). With a long wait the Codex next steps say to begin
 the cell with `// @exec: {"yield_time_ms": 1830000}` and give `wait` the same value.
+
+End to end (deep-review, claude/haiku workers, about 2 min): `claude -p` (haiku host) made one
+`workflow_wait` call for the whole run (4 host turns in all, $0.007); `codex exec` (gpt-5.6-luna low,
+code mode) wrote the pragma, its one `workflow_wait` cell ran 134 s without a model turn, 7 model
+requests in all. With 45 s calls each would have needed several more.
 
 Live check (Claude Code 2.1.318, interactive, haiku, a project that already had runs; internal
 host-wake-20261105): the user only asked "run deep-review … and tell me the result". The agent
