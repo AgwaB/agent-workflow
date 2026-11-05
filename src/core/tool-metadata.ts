@@ -26,30 +26,10 @@ const BUILTIN_TOOL_METADATA: Record<string, CompiledToolProvider> = {
 	bash: { classification: "mutation-capable" },
 };
 
-/**
- * Test seam: tools classified as if built in, for replaying recordings made with another tool's
- * names (test/replay engine-only variants). Empty in the product.
- */
-let extraBuiltinTools: Readonly<
-	Record<string, { classification: TaskCapability; network?: boolean }>
-> = {};
-
-export function setExtraBuiltinToolsForTests(
-	tools: Record<
-		string,
-		{ classification: TaskCapability; network?: boolean }
-	> = {},
-): void {
-	extraBuiltinTools = { ...tools };
-}
-
 function builtinToolMetadata(tool: string): CompiledToolProvider | undefined {
-	if (Object.hasOwn(BUILTIN_TOOL_METADATA, tool))
-		return BUILTIN_TOOL_METADATA[tool];
-	const extra = extraBuiltinTools[tool];
-	return extra === undefined
-		? undefined
-		: { classification: extra.classification };
+	return Object.hasOwn(BUILTIN_TOOL_METADATA, tool)
+		? BUILTIN_TOOL_METADATA[tool]
+		: undefined;
 }
 
 const NON_DOWNGRADABLE_TOOL_FLOORS: Record<string, TaskCapability> = {
@@ -215,8 +195,7 @@ export function effectiveToolClassification(
 export function toolNetworkCapability(
 	tool: string,
 ): "local" | "network" | "unknown" {
-	if (NETWORK_CAPABLE_TOOLS.has(tool) || extraBuiltinTools[tool]?.network)
-		return "network";
+	if (NETWORK_CAPABLE_TOOLS.has(tool)) return "network";
 	if (KNOWN_LOCAL_TOOLS.has(tool)) return "local";
 	return "unknown";
 }
@@ -255,10 +234,7 @@ export function buildAvailableToolView(
 	tools?: readonly string[],
 	toolProviders?: Record<string, CompiledToolProvider>,
 ): AvailableToolViewItem[] {
-	const names = new Set<string>([
-		...Object.keys(BUILTIN_TOOL_METADATA),
-		...Object.keys(extraBuiltinTools),
-	]);
+	const names = new Set<string>(Object.keys(BUILTIN_TOOL_METADATA));
 	for (const tool of tools ?? []) names.add(tool);
 	for (const tool of Object.keys(toolProviders ?? {})) names.add(tool);
 	return [...names].sort().map((name) => {

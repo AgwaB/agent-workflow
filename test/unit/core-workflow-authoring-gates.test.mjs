@@ -32,7 +32,7 @@ const VALID_SPEC = {
 };
 
 async function scratch(prefix) {
-	return mkdtemp(join(tmpdir(), `pi-workflow-${prefix}-`));
+	return mkdtemp(join(tmpdir(), `agent-workflow-${prefix}-`));
 }
 
 test("a bundle directory containing spec.json resolves as a workflow path", async () => {

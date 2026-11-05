@@ -26,7 +26,7 @@ import { withMaterializedRawHost } from "../helpers/raw-host-fixture.mjs";
 const setTaskRuntimeApiForTests = withMaterializedRawHost(setRawApi);
 import { setTaskRuntimeApiForTests as setRawApi } from "../../dist/core/runtime-port.js";
 
-const UNIT_TEST_ROOT = mkdtempSync(join(tmpdir(), "pi-workflow-tests-"));
+const UNIT_TEST_ROOT = mkdtempSync(join(tmpdir(), "agent-workflow-tests-"));
 const UNIT_TEST_HOME = mkdtempSync(
 	join(UNIT_TEST_ROOT, "execution-profiles-home-"),
 );
@@ -191,7 +191,7 @@ function installFakeSubagentApi(cwd) {
 			const seq = calls.launches.length;
 			const runId = `run_task_${seq}`;
 			const attemptId = `attempt_task_${seq}`;
-			const runsDir = String(options.runsDir ?? ".pi/agent/runs");
+			const runsDir = String(options.runsDir ?? ".agent-workflow/runs");
 			const artifactDir = writeCompletedSubagentArtifacts(
 				cwd,
 				runsDir,

@@ -266,56 +266,6 @@ test("worker role: no agent tools and no notices; /aw help and validate still wo
 	);
 });
 
-test("coexistence: aw names never collide with pi-workflow's /workflow and workflow_* in one ExtensionAPI", async () => {
-	const { env } = await project();
-	const pi = fakePi();
-	// pi-workflow 0.16.4 (b83cc4f) registrations, stated independently of names.ts.
-	const piWorkflow = {
-		command: "workflow",
-		tools: [
-			"workflow_list",
-			"workflow_run",
-			"workflow_dynamic",
-			"workflow_wait",
-		],
-	};
-	pi.registerCommand(piWorkflow.command, { handler: async () => undefined });
-	for (const name of piWorkflow.tools)
-		pi.registerTool({
-			name,
-			label: name,
-			description: name,
-			parameters: {},
-			execute: async () => ({}),
-		});
-	// The fake throws on any duplicate name, so loading the Pi host after pi-workflow must succeed.
-	ext.createAgentWorkflowPiExtension({ env })(pi);
-	assert.deepEqual([...pi.commands.keys()].sort(), ["aw", "workflow"]);
-	assert.equal(pi.tools.size, 8);
-	const ours = [names.AW_COMMAND, ...names.AW_TOOL_NAMES];
-	const theirs = [piWorkflow.command, ...piWorkflow.tools];
-	assert.deepEqual(
-		ours.filter((name) => theirs.includes(name)),
-		[],
-	);
-	for (const name of ours) assert.doesNotMatch(name, /^workflow/);
-	// And the reverse load order.
-	const reverse = fakePi();
-	ext.createAgentWorkflowPiExtension({ env })(reverse);
-	reverse.registerCommand(piWorkflow.command, {
-		handler: async () => undefined,
-	});
-	for (const name of piWorkflow.tools)
-		reverse.registerTool({
-			name,
-			label: name,
-			description: name,
-			parameters: {},
-			execute: async () => ({}),
-		});
-	assert.equal(reverse.tools.size, 8);
-});
-
 test("/aw catalog actions delegate to the host API and show the handler text", async () => {
 	const { cwd, env } = await project();
 	const { calls, command } = install({ env });
@@ -907,8 +857,8 @@ test("./hosts/pi entry: clear error without Pi; nothing else imports the Pi host
 	assert.deepEqual(pkg.pi, {
 		extensions: ["./dist/hosts/pi/index.js"],
 		skills: [
-			"./plugins/pi/skills/aw-workflow-guide",
-			"./plugins/pi/skills/aw-execution-router",
+			"./plugins/pi/skills/workflow-guide",
+			"./plugins/pi/skills/execution-router",
 		],
 	});
 	assert.equal(pkg.exports["./hosts/pi"].default, "./dist/hosts/pi/index.js");

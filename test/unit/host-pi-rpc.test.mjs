@@ -3,9 +3,7 @@
 // `data.disposition: "handled"` starts no agent run (Pi docs/rpc.md). The recorded, scrubbed
 // transcript (test/fixtures/host-pi/rpc-aw-transcript.jsonl) is checked on every unit run; a live
 // re-check runs only with AGENT_WORKFLOW_PI_BIN=<absolute path of the pi bin> (unit runs shadow
-// `pi` on PATH), and AGENT_WORKFLOW_PI_RPC_RECORD=1 rewrites the fixture. With
-// AGENT_WORKFLOW_PI_WORKFLOW_EXTENSION=<pi-workflow src/extension.ts> the live check also loads
-// pi-workflow next to the Pi host and checks that both commands register.
+// `pi` on PATH), and AGENT_WORKFLOW_PI_RPC_RECORD=1 rewrites the fixture.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
@@ -27,7 +25,6 @@ const FIXTURE = join(
 );
 const ENTRY = join(repo, "dist", "hosts", "pi", "index.js");
 const PI_BIN = process.env.AGENT_WORKFLOW_PI_BIN;
-const PI_WORKFLOW = process.env.AGENT_WORKFLOW_PI_WORKFLOW_EXTENSION;
 
 const PROMPTS = [
 	{ id: "aw-help", message: "/aw help" },
@@ -205,33 +202,6 @@ test("live real-Pi RPC check (AGENT_WORKFLOW_PI_BIN)", {
 				FIXTURE,
 				`${[meta, ...scrubbed].map((entry) => JSON.stringify(entry)).join("\n")}\n`,
 			);
-		}
-		if (PI_WORKFLOW) {
-			const both = await rpcSession(
-				cwd,
-				[ENTRY, PI_WORKFLOW],
-				[
-					{ id: "commands", type: "get_commands" },
-					{ id: "aw-help", type: "prompt", message: "/aw help" },
-					{ id: "workflow-help", type: "prompt", message: "/workflow help" },
-				],
-			);
-			const out = both
-				.filter((entry) => entry.dir === "out")
-				.map((entry) => entry.record);
-			const names = out
-				.find((record) => record.id === "commands")
-				.data.commands.map((command) => command.name);
-			assert.ok(
-				names.includes("aw") && names.includes("workflow"),
-				names.join(","),
-			);
-			for (const id of ["aw-help", "workflow-help"])
-				assert.equal(
-					out.find((record) => record.type === "response" && record.id === id)
-						.data.disposition,
-					"handled",
-				);
 		}
 	} finally {
 		await rm(cwd, {

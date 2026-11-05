@@ -13,7 +13,9 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 test("run-locator-sweep", async () => {
-	const indexDir = await mkdtemp(join(tmpdir(), "pi-subagent-locator-sweep-"));
+	const indexDir = await mkdtemp(
+		join(tmpdir(), "agent-workflow-locator-sweep-"),
+	);
 	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR = indexDir;
 
 	const {
@@ -23,7 +25,7 @@ test("run-locator-sweep", async () => {
 		writeRunLocator,
 	} = await import("../../dist/runtime/orchestrate/run-ref.js");
 
-	const cwd = await mkdtemp(join(tmpdir(), "pi-subagent-locator-cwd-"));
+	const cwd = await mkdtemp(join(tmpdir(), "agent-workflow-locator-cwd-"));
 	const DAY = 24 * 60 * 60 * 1000;
 
 	async function seedLocator(runId, ageDays) {

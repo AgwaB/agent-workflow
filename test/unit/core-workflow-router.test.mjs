@@ -37,7 +37,7 @@ import { parseArtifactGraphWorkflowSpec } from "../../dist/core/artifact-graph-s
 
 // Not ported: initTheme(undefined, false) (Pi TUI theme; no Pi package in agent-workflow).
 
-const ROOT = mkdtempSync(join(tmpdir(), "pi-workflow-auto-test-"));
+const ROOT = mkdtempSync(join(tmpdir(), "agent-workflow-auto-test-"));
 after(() => {
 	setTaskRuntimeApiForTests(undefined);
 	rmSync(ROOT, {
@@ -121,7 +121,7 @@ function installBlockingDynamicSubagentApi(cwd, statusGate) {
 			const attemptId = `attempt_dynamic_${calls.launches}`;
 			const artifactDir = join(
 				cwd,
-				String(options.runsDir ?? ".pi/agent/runs"),
+				String(options.runsDir ?? ".agent-workflow/runs"),
 				runId,
 				"attempts",
 				attemptId,

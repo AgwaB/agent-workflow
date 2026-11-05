@@ -1,7 +1,0 @@
-The provider-content finding concerns provenance, not loose string matching. A response containing `content: [{text: '{"cancelled":true,"orderId":"123"}'}]` reaches JSON.parse at line 27, recursively enters the classifier at line 28, and returns true at line 16. Nothing distinguishes cancellation of an application entity from cancellation of the workflow. This is a static counterexample, not an observed provider incident; absent adapter contracts limit confidence about production reachability. Any correction should preserve supported historical wrappers explicitly.
-
-The stop-error finding is narrower and directly demonstrable from the predicate. An ordinary error reporting that a stop request failed still matches line 57. Its message need not contain the generated “for <runId>” suffix, and a conflicting error name does not prevent acceptance. The message fallback therefore weakens the dedicated error contract.
-
-workflow-terminal.ts was also read; it contains no provider cancellation-marker recognition. No additional missing-shape findings are asserted because the repository supplies no adapter implementations or compatibility tests establishing those contracts.
-
-The requested root-level schema file was unavailable. The workflow bundle’s reviewers-control schema was read, and this control object was manually checked against its required fields, enums, and bounds. No executable validation or runtime tests were performed; only read/search tools were available.

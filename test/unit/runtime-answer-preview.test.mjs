@@ -8,7 +8,7 @@ import { readAnswerPreview } from "../../dist/runtime/artifacts/preview.js";
 import { test } from "node:test";
 
 test("answer-preview", async () => {
-	const cwd = await mkdtemp(join(tmpdir(), "pi-subagent-answer-preview-"));
+	const cwd = await mkdtemp(join(tmpdir(), "agent-workflow-answer-preview-"));
 	try {
 		const store = await createAttemptArtifactStore({
 			cwd,

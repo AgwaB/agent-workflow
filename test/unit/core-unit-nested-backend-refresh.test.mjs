@@ -19,7 +19,7 @@ test("refreshes a suspended nested child under its lease and advances sequential
 				const n = launched.length + 1;
 				const runId = `backend-child-${n}`;
 				const attemptId = `attempt-${n}`;
-				const runsDir = String(options.runsDir ?? ".pi/agent/runs");
+				const runsDir = String(options.runsDir ?? ".agent-workflow/runs");
 				const runDir = runsDir.startsWith("/")
 					? join(runsDir, runId)
 					: join(cwd, runsDir, runId);

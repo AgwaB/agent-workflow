@@ -10,7 +10,7 @@ import {
 import { test } from "node:test";
 
 test("artifacts", async () => {
-	const tempRoot = await mkdtemp(join(tmpdir(), "pi-subagent-artifacts-"));
+	const tempRoot = await mkdtemp(join(tmpdir(), "agent-workflow-artifacts-"));
 
 	try {
 		const cwd = join(tempRoot, "workspace");

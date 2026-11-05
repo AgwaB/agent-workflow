@@ -1,7 +1,0 @@
-<control>{"schema":"stage-control-v1","digest":"Seven retained stop/cancel defects require fixes; all eight review sources completed.","summary":"Stop/cancel handling needs corrective work: seven findings were retained, none were weakened or deferred for human review, and all eight review sources completed.","verdict":"NEEDS_WORK","risks":["Narrative context samples only four of seven retained findings and shortens one recommendation; this limits synthesis detail, not the authoritative evidence ledger.","This synthesis relies on upstream review results without independently inspecting code or executing tests."],"recommendedNextAction":"Address all seven retained findings using the complete evidence ledger, add targeted stop/cancel regression coverage, and rerun tests and review."}</control>
-
-<analysis>NEEDS_WORK follows from seven retained findings with zero weakened or human-review findings. All eight sources completed, with no partial failures, missing verdicts, or recorded integrity or reviewer-coverage issues; PARTIAL_REVIEW is therefore not warranted.
-
-The bounded narrative omits three retained entries and truncates one recommendation by 15 characters. These are presentation limits, not evidence of lost findings or upstream review failure. Individual findings, locations, and evidence quotations are intentionally left to the final renderer.</analysis>
-
-<refs>[]</refs>

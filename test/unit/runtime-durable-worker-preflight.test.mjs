@@ -9,7 +9,9 @@ import { createDurableLaunchBarrierV2 } from "../../dist/runtime/durable-launch-
 import { test } from "node:test";
 
 test("durable-worker-preflight", async () => {
-	const root = await mkdtemp(join(tmpdir(), "pi-subagent-worker-preflight-"));
+	const root = await mkdtemp(
+		join(tmpdir(), "agent-workflow-worker-preflight-"),
+	);
 	try {
 		const barrier = await createDurableLaunchBarrierV2({
 			directory: join(root, "barrier"),

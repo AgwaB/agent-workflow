@@ -16,7 +16,7 @@ import { acquireDirectoryLock } from "../../dist/runtime/artifacts/dir-lock.js";
 import { test } from "node:test";
 
 test("run-lock", async () => {
-	const tempRoot = await mkdtemp(join(tmpdir(), "pi-subagent-run-lock-"));
+	const tempRoot = await mkdtemp(join(tmpdir(), "agent-workflow-run-lock-"));
 	try {
 		// 1. Concurrent mutations serialize without losing updates.
 		const cwd = join(tempRoot, "concurrent");

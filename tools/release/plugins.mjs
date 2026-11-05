@@ -3,8 +3,8 @@
 // repo marketplaces (`.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`).
 // Sources of truth: package.json (version), skills/ (agent-workflow, workflow-guide,
 // execution-router), docs/usage.md and the bundled workflow specs. docs/plugins.md explains the
-// layout. WP33: also the Pi package skills `plugins/pi/skills/aw-*` (renamed copies, owner
-// decision Q10) and their package.json `pi.skills` entry.
+// layout. Also generates the Pi package skills `plugins/pi/skills/` and validates their
+// package.json `pi.skills` entry.
 //
 //   node tools/release/plugins.mjs build             regenerate the committed plugin + marketplaces
 //   node tools/release/plugins.mjs check             exit 1 when the committed files drift
@@ -61,25 +61,12 @@ export const PLUGIN_SKILLS = Object.freeze([
 	"execution-router",
 	"workflow-guide",
 ]);
-/**
- * WP33 (parity row 59, owner decision Q10): the Pi package skills. pi-workflow ships `workflow-guide`
- * and `execution-router`, and Pi keeps the first skill of a name (frontmatter `name`; the directory
- * name does not count), so the Pi copies carry the `aw-` prefix. `agent-workflow` (the MCP tool
- * protocol) is not exposed: in Pi the `aw_*` tools carry their own guidelines.
- */
+/** Pi exposes the authoring and routing skills; `aw_*` tools carry their own MCP guidance. */
 export const PI_SKILLS_DIR = "plugins/pi/skills";
-export const PI_SKILLS = Object.freeze({
-	"workflow-guide": "aw-workflow-guide",
-	"execution-router": "aw-execution-router",
-});
-/** pi-workflow 0.16.4 (b83cc4f) `pi.skills` names; the Pi copies must never use one. */
-export const PI_WORKFLOW_SKILL_NAMES = Object.freeze([
-	"workflow-guide",
-	"execution-router",
-]);
+export const PI_SKILLS = Object.freeze(["workflow-guide", "execution-router"]);
 /** package.json `pi.skills` (paths relative to the package root). */
 export const PI_PACKAGE_SKILL_PATHS = Object.freeze(
-	Object.values(PI_SKILLS).map((name) => `./${PI_SKILLS_DIR}/${name}`),
+	PI_SKILLS.map((name) => `./${PI_SKILLS_DIR}/${name}`),
 );
 
 /** Relative Markdown links of docs/usage.md (other docs, ../README.md) → the repository on GitHub. */
@@ -591,67 +578,33 @@ export async function renderPluginFiles({
 	return files;
 }
 
-/** The source skill's frontmatter `name: <source>` becomes `name: <target>` (exactly once). */
-function renameSkill(text, file, source, target) {
-	const from = `---\nname: ${source}\n`;
-	if (!text.startsWith(from))
-		throw new Error(
-			`${file}: expected frontmatter "name: ${source}" (update tools/release/plugins.mjs)`,
-		);
-	return `---\nname: ${target}\n${text.slice(from.length)}`;
-}
-
 /** From `plugins/pi/skills/<name>/` back to the package root. */
 const PI_SKILL_TO_ROOT = "../../../../";
 
 /** WP33: the Pi copy of skills/workflow-guide/SKILL.md (relative paths point into the package). */
 export function adaptPiWorkflowGuide(text) {
 	const file = "skills/workflow-guide/SKILL.md";
-	return replaceAll(
-		renameSkill(text, file, "workflow-guide", PI_SKILLS["workflow-guide"]),
-		file,
-		[
-			["`../../docs/", `\`${PI_SKILL_TO_ROOT}docs/`],
-			["`../../workflows/", `\`${PI_SKILL_TO_ROOT}workflows/`],
-			["./scaffolds/", `${PI_SKILL_TO_ROOT}skills/workflow-guide/scaffolds/`],
-		],
-	);
-}
-
-/** WP33: the Pi copy of skills/execution-router/SKILL.md. */
-export function adaptPiExecutionRouter(text) {
-	const file = "skills/execution-router/SKILL.md";
-	return replaceAll(
-		renameSkill(text, file, "execution-router", PI_SKILLS["execution-router"]),
-		file,
-		[
-			[
-				"Consult `workflow-guide` only after",
-				`Consult \`${PI_SKILLS["workflow-guide"]}\` only after`,
-			],
-		],
-	);
+	return replaceAll(text, file, [
+		["`../../docs/", `\`${PI_SKILL_TO_ROOT}docs/`],
+		["`../../workflows/", `\`${PI_SKILL_TO_ROOT}workflows/`],
+		["./scaffolds/", `${PI_SKILL_TO_ROOT}skills/workflow-guide/scaffolds/`],
+	]);
 }
 
 /** WP33: the Pi package skills, keyed by path relative to PI_SKILLS_DIR. */
 export async function renderPiSkillFiles({ root = REPO_ROOT } = {}) {
 	const read = (path) => readFile(join(root, path), "utf8");
-	const files = new Map([
-		[
-			`${PI_SKILLS["workflow-guide"]}/SKILL.md`,
-			adaptPiWorkflowGuide(await read("skills/workflow-guide/SKILL.md")),
-		],
-		[
-			`${PI_SKILLS["execution-router"]}/SKILL.md`,
-			adaptPiExecutionRouter(await read("skills/execution-router/SKILL.md")),
-		],
-	]);
-	for (const [path, content] of files) {
-		const name = /^---\nname: ([^\n]+)\n/.exec(String(content))?.[1];
-		if (!name?.startsWith("aw-") || PI_WORKFLOW_SKILL_NAMES.includes(name))
+	const files = new Map();
+	for (const name of PI_SKILLS) {
+		const text = await read(`skills/${name}/SKILL.md`);
+		const content =
+			name === "workflow-guide" ? adaptPiWorkflowGuide(text) : text;
+		const actual = /^---\nname: ([^\n]+)\n/.exec(content)?.[1];
+		if (actual !== name)
 			throw new Error(
-				`${path}: Pi skill name must use the aw- prefix: ${name}`,
+				`skills/${name}/SKILL.md: expected frontmatter "name: ${name}", got ${actual}`,
 			);
+		files.set(`${name}/SKILL.md`, content);
 	}
 	return files;
 }
@@ -697,7 +650,7 @@ export async function buildCommitted(root = REPO_ROOT) {
 	await rm(join(root, PLUGIN_DIR), { recursive: true, force: true });
 	await writeTree(join(root, PLUGIN_DIR), files);
 	await writeTree(root, renderMarketplaceFiles());
-	// WP33: the Pi package skills (aw- names).
+	// The Pi package skills retain their source names.
 	const piSkills = await renderPiSkillFiles({ root });
 	await rm(join(root, PI_SKILLS_DIR), { recursive: true, force: true });
 	await writeTree(join(root, PI_SKILLS_DIR), piSkills);

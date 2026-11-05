@@ -1,3 +1,0 @@
-The official announcement explicitly publishes version 2026-07-28, and its dedicated stdio specification page is accessible. This is stronger evidence than relying on the older transport page returned by the initial search. The canonical citation for downstream framing and stream-policy extraction is https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio.
-
-The stdio page directly contains newline framing and stdout/stderr requirements. No need to infer them from SDK behavior. Publication is verified; exhaustive latest-version navigation remains a narrow caveat because the planning dashboard exposed only a title.

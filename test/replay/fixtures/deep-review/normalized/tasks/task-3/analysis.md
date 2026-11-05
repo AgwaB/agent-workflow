@@ -1,1 +1,0 @@
-Support helper completed deterministically.

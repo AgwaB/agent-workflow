@@ -14,7 +14,9 @@ import {
 import { test } from "node:test";
 
 test("parent-session", async () => {
-	const tempRoot = await mkdtemp(join(tmpdir(), "pi-subagent-parent-session-"));
+	const tempRoot = await mkdtemp(
+		join(tmpdir(), "agent-workflow-parent-session-"),
+	);
 
 	try {
 		const cwd = join(tempRoot, "workspace");

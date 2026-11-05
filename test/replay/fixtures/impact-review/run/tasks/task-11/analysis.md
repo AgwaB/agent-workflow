@@ -1,9 +1,0 @@
-Ship recommendation: needs-work, not an unconditional block on the design. With the variable unset or blank, the loader retains the real API object and avoids recording writes. No workflow migration, new dependency, or package export is indicated.
-
-The release-critical issue is the enabled-mode contract. Argument serialization happens before API invocation; filesystem initialization can reject the cached loader promise; outcome recording can turn success into failure or replace an original exception. Therefore, enabled recording is not behavior-transparent. A deliberate, tested strict diagnostic policy is acceptable; best-effort recording is not automatically required.
-
-Existing tests cover direct-wrapper happy paths and replay compatibility, but replay explicitly clears the recording variable and injects an API. They do not establish that the changed production loader activates correctly. No upstream lens supplied execution results, so green validation remains an outstanding release gate rather than an observed failure.
-
-Documentation is also required for safe diagnostic use: records contain unredacted plaintext, permissions depend on the surrounding filesystem/umask, and retention is unbounded. Reusing a directory appends calls while sequence numbers restart and surface metadata is overwritten. Fresh private, single-writer directories are a proportionate initial restriction; shared-session support, redaction, rotation, and performance redesign remain optional unless broader use is promised.
-
-Packaging configuration already includes src and dist, but inclusion and exclusion of sensitive recordings still require verification from a fresh build. The control object satisfies the inspected schema’s required fields, status enum, and object-array types by manual inspection; automated validation was unavailable.

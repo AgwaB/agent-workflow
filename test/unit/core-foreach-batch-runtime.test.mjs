@@ -61,7 +61,7 @@ import * as rawContract from "../../dist/core/workflow-raw-contract.js";
 const { establishRawOwner, setRawOwnerEstablishmentHookForTests } = rawContract;
 import { setWorkflowOutputArtifactWriteHookForTests } from "../../dist/core/workflow-output-artifacts.js";
 
-const UNIT_TEST_ROOT = mkdtempSync(join(tmpdir(), "pi-workflow-tests-"));
+const UNIT_TEST_ROOT = mkdtempSync(join(tmpdir(), "agent-workflow-tests-"));
 const UNIT_TEST_HOME = mkdtempSync(
 	join(UNIT_TEST_ROOT, "foreach-batch-runtime-home-"),
 );

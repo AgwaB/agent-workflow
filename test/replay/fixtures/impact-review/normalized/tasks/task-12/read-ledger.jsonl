@@ -1,5 +1,0 @@
-{"artifact":"control","at":"<TS>","bytes":7349,"maxChars":51200,"path":"$","returnedBytes":6164,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.change-scope","taskId":"task-12","truncated":false}
-{"artifact":"control","at":"<TS>","bytes":2433,"maxChars":51200,"path":"$","returnedBytes":2170,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.contract-consistency","taskId":"task-12","truncated":false}
-{"artifact":"control","at":"<TS>","bytes":3326,"maxChars":51200,"path":"$","returnedBytes":2893,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.regression-risk","taskId":"task-12","truncated":false}
-{"artifact":"control","at":"<TS>","bytes":5628,"maxChars":51200,"path":"$","returnedBytes":4842,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.ship-readiness","taskId":"task-12","truncated":false}
-{"artifact":"refs","at":"<TS>","bytes":1264,"returnedBytes":1264,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.ship-readiness","taskId":"task-12","truncated":false}

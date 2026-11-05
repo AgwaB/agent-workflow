@@ -1,4 +1,0 @@
-{"artifact":"control","at":"<TS>","bytes":1719,"maxChars":51200,"path":"$","returnedBytes":1584,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.api-contract-impact","taskId":"task-10","truncated":false}
-{"artifact":"control","at":"<TS>","bytes":4927,"maxChars":51200,"path":"$","returnedBytes":4106,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.state-data-impact","taskId":"task-10","truncated":false}
-{"artifact":"control","at":"<TS>","bytes":5863,"maxChars":51200,"path":"$","returnedBytes":5346,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.validation-impact","taskId":"task-10","truncated":false}
-{"artifact":"control","at":"<TS>","bytes":4048,"maxChars":51200,"path":"$","returnedBytes":3363,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.security-performance-impact","taskId":"task-10","truncated":false}

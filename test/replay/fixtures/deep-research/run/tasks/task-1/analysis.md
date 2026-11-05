@@ -1,1 +1,0 @@
-The plan uses three focused questions: establish specification currency, extract framing requirements, and extract server stream rules. All requested behavior is treated as normative policy requiring primary evidence. Research should remain narrow; SDK examples and historical comparisons are unnecessary unless the official text is ambiguous.
