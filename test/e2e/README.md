@@ -23,4 +23,3 @@ blocks network connections and package-install, registry, network-fetch and agen
 processes before they start. `no-external-actions-command-shim.mjs` stands in for `npm`, `npx`,
 `pnpm`, `yarn`, `bun`, `curl`, `wget`, `pi`, `codex` and `claude` on `PATH`; only allowed `npm`
 subcommands reach the real npm.
-
