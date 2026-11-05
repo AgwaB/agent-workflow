@@ -11,7 +11,7 @@ import { test } from "node:test";
 
 test("workspace-policy", async () => {
 	const tempRoot = await mkdtemp(
-		join(tmpdir(), "pi-subagent-workspace-policy-"),
+		join(tmpdir(), "agent-workflow-workspace-policy-"),
 	);
 	try {
 		// Plain directory, no git checkout.

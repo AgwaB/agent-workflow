@@ -1,1 +1,0 @@
-{"schema":"workflow-artifact-read-v1","runId":"workflow_mvouzm7h_b19c26","taskId":"task-4","source":"normalize-input-packet","artifact":"control","at":"2026-10-26T06:14:26.077Z","bytes":32193,"returnedBytes":23737,"truncated":false,"path":"$.packet","maxChars":51200}

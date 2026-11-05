@@ -1,2 +1,0 @@
-{"schema":"workflow-artifact-read-v1","runId":"workflow_mvotu0ko_b9761d","taskId":"task-6","source":"impact-analysis.change-scope","artifact":"control","at":"2026-10-26T05:42:50.016Z","bytes":7349,"returnedBytes":6164,"truncated":false,"path":"$","maxChars":51200}
-{"schema":"workflow-artifact-read-v1","runId":"workflow_mvotu0ko_b9761d","taskId":"task-6","source":"impact-analysis.validation-map","artifact":"control","at":"2026-10-26T05:42:51.834Z","bytes":12349,"returnedBytes":9657,"truncated":false,"path":"$","maxChars":51200}

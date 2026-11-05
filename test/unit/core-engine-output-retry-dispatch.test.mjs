@@ -132,7 +132,7 @@ function makeFakeSubagentApi({ cwd, runs, outputsByLaunch, onLaunch }) {
 			const launchIndex = onLaunch();
 			const runId = `run_retry_dispatch_${launchIndex}`;
 			const attemptId = `attempt_retry_dispatch_${launchIndex}`;
-			const runsDir = String(options.runsDir ?? ".pi/agent/runs");
+			const runsDir = String(options.runsDir ?? ".agent-workflow/runs");
 			const outputText =
 				outputsByLaunch[launchIndex - 1] ??
 				outputsByLaunch[outputsByLaunch.length - 1];

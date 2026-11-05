@@ -132,7 +132,7 @@ test("deep-review verifies exact read/OCR coverage and fails partial rendering c
 	}
 
 	const coverageRoot = mkdtempSync(
-		join(tmpdir(), "pi-workflow-deep-review-coverage-"),
+		join(tmpdir(), "agent-workflow-deep-review-coverage-"),
 	);
 	t.after(() =>
 		rmSync(coverageRoot, {
@@ -470,7 +470,7 @@ test("deep-review verifies exact read/OCR coverage and fails partial rendering c
 
 test("deep-review duplicate merge remains incomplete in either reviewer order", async (t) => {
 	const coverageRoot = mkdtempSync(
-		join(tmpdir(), "pi-workflow-deep-review-merge-"),
+		join(tmpdir(), "agent-workflow-deep-review-merge-"),
 	);
 	t.after(() =>
 		rmSync(coverageRoot, {
@@ -552,7 +552,9 @@ test("deep-review duplicate merge remains incomplete in either reviewer order", 
 });
 
 test("deep-review grounds structured singleton verifier evidence", async (t) => {
-	const cwd = mkdtempSync(join(tmpdir(), "pi-workflow-deep-review-verifier-"));
+	const cwd = mkdtempSync(
+		join(tmpdir(), "agent-workflow-deep-review-verifier-"),
+	);
 	t.after(() =>
 		rmSync(cwd, {
 			recursive: true,
@@ -656,7 +658,7 @@ test("deep-review grounds structured singleton verifier evidence", async (t) => 
 
 test("deep-review carries 26 mixed legacy recommendations through schema-valid partition and final rendering", async (t) => {
 	const coverageRoot = mkdtempSync(
-		join(tmpdir(), "pi-workflow-deep-review-recommendations-"),
+		join(tmpdir(), "agent-workflow-deep-review-recommendations-"),
 	);
 	t.after(() =>
 		rmSync(coverageRoot, {

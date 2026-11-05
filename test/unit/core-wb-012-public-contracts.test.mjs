@@ -21,7 +21,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const readRoot = (path) => readFile(join(root, path), "utf8");
 
 test("workflow name resolution follows documented priority and same-root ambiguity", async () => {
-	const cwd = await mkdtemp(join(tmpdir(), "pi-workflow-resolution-contract-"));
+	const cwd = await mkdtemp(
+		join(tmpdir(), "agent-workflow-resolution-contract-"),
+	);
 	const home = join(cwd, "home");
 	const previousHome = process.env.HOME;
 	const previousAwHome = process.env.AGENT_WORKFLOW_HOME;

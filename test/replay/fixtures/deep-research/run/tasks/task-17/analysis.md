@@ -1,1 +1,0 @@
-The independently requested exact-source read confirmed the supplied quotation. Plain-text logs, banners, or debugging output that are not valid MCP messages consequently cannot be written to stdout. The verdict applies to the normalized claim rather than its earlier framing formulation.

@@ -22,7 +22,7 @@ import {
 } from "../../dist/core/fast-tier.js";
 import { selectWorkflowRuntime } from "../../dist/core/workflow-runtime.js";
 
-const ROOT = mkdtempSync(join(tmpdir(), "pi-workflow-fast-mode-"));
+const ROOT = mkdtempSync(join(tmpdir(), "agent-workflow-fast-mode-"));
 
 after(() => {
 	rmSync(ROOT, {

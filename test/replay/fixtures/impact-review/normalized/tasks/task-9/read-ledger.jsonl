@@ -1,8 +1,0 @@
-{"artifact":"control","at":"<TS>","bytes":1719,"maxChars":51200,"path":"$","returnedBytes":1584,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.api-contract-impact","taskId":"task-9","truncated":false}
-{"artifact":"control","at":"<TS>","bytes":4927,"maxChars":51200,"path":"$","returnedBytes":4106,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.state-data-impact","taskId":"task-9","truncated":false}
-{"artifact":"control","at":"<TS>","bytes":3876,"maxChars":51200,"path":"$","returnedBytes":3034,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.docs-release-impact","taskId":"task-9","truncated":false}
-{"artifact":"analysis","at":"<TS>","bytes":2748,"returnedBytes":2748,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.api-contract-impact","taskId":"task-9","truncated":false}
-{"artifact":"analysis","at":"<TS>","bytes":4488,"returnedBytes":4488,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.state-data-impact","taskId":"task-9","truncated":false}
-{"artifact":"analysis","at":"<TS>","bytes":3492,"returnedBytes":3492,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.docs-release-impact","taskId":"task-9","truncated":false}
-{"artifact":"refs","at":"<TS>","bytes":2023,"returnedBytes":2023,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.docs-release-impact","taskId":"task-9","truncated":false}
-{"artifact":"refs","at":"<TS>","bytes":2346,"returnedBytes":2346,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.state-data-impact","taskId":"task-9","truncated":false}

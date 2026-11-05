@@ -1,1 +1,0 @@
-An initial wording search failed; a candidate window identified the actual sentence, which was then independently confirmed by an exact-match read. The normative strength and scope match the claim. This verifies the cited specification text, not whether that version is currently the latest release.

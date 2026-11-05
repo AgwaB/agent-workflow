@@ -1,2 +1,0 @@
-{"artifact":"control","at":"<TS>","bytes":7349,"maxChars":51200,"path":"$","returnedBytes":6164,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.change-scope","taskId":"task-5","truncated":false}
-{"artifact":"control","at":"<TS>","bytes":13078,"maxChars":51200,"path":"$","returnedBytes":10412,"runId":"<WF_RUN_1>","schema":"workflow-artifact-read-v1","source":"impact-analysis.implementation-map","taskId":"task-5","truncated":false}

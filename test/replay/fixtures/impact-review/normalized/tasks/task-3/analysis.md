@@ -1,9 +1,0 @@
-The closest direct validation is the recorder test at `test/unit/replay-self-consistency.test.mjs:217`. It checks three representative call outcomes and selected serialized fields, rather than the recorder’s entire serialization and forwarding contract.
-
-The same file supplies broader engine compatibility evidence through three fixture-driven replays and one intentionally mismatched launch. Importantly, those replay tests clear the recording environment variable and inject their replay API. They validate consumption of recorded data and normalized engine output, not activation of the new wrapper inside `loadSubagentApi()`.
-
-The fixtures contain recorded API calls, complete method-surface inventories, workflow artifacts, worker artifacts, and normalized snapshots. Their comparison is policy-qualified: observation polling can repeat, host-specific fields are normalized, and documented digest differences are allowed. Manifest digest assertions independently retain binding checks. The spec-review fixture intentionally expects a failed workflow; that is its baseline, not evidence of a failing test.
-
-Package validation matters because the backend now imports another runtime module. Both source and generated JavaScript/declarations fall within package inclusion rules. Existing packed-consumer checks exercise module loading and the bundled dependency surface, but no recorder-enabled packed test was located. The local recording drivers demonstrate intended usage, although they are ignored maintenance files rather than distributable tooling.
-
-No files were modified and no commands were executed. Confidence is high in the identified direct tests, fixture inventory, and package wiring; coverage-absence statements are limited to inspected files and targeted searches. The control object was manually checked against the located workflow schema: required strings are nonempty and all five evidence collections contain objects. No final risk verdict is made.

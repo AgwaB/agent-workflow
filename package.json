@@ -86,8 +86,8 @@
       "./dist/hosts/pi/index.js"
     ],
     "skills": [
-      "./plugins/pi/skills/aw-workflow-guide",
-      "./plugins/pi/skills/aw-execution-router"
+      "./plugins/pi/skills/workflow-guide",
+      "./plugins/pi/skills/execution-router"
     ]
   },
   "scripts": {

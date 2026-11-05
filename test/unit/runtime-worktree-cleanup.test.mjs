@@ -89,7 +89,7 @@ test("worktree-cleanup", async () => {
 	}
 
 	const tempRoot = await mkdtemp(
-		join(tmpdir(), "pi-subagent-worktree-cleanup-"),
+		join(tmpdir(), "agent-workflow-worktree-cleanup-"),
 	);
 	try {
 		const repo = await createRepo(tempRoot);

@@ -40,7 +40,9 @@ async function withStaticArtifacts(
 	bundleSpec = `${JSON.stringify({ name: "fixture", stages: [{ id: "main" }] }, null, 2)}\n`,
 	hook,
 ) {
-	const root = await mkdtemp(join(tmpdir(), "pi-workflow-static-artifacts-"));
+	const root = await mkdtemp(
+		join(tmpdir(), "agent-workflow-static-artifacts-"),
+	);
 	const sourceDir = join(root, "workflow");
 	const runId = "workflow_static_artifact_link";
 	const originalSpec = { name: "fixture", stages: [{ id: "main" }] };
@@ -67,7 +69,7 @@ async function withStaticArtifacts(
 }
 
 async function withTaskDir(fn) {
-	const root = await mkdtemp(join(tmpdir(), "pi-workflow-artifacts-"));
+	const root = await mkdtemp(join(tmpdir(), "agent-workflow-artifacts-"));
 	let failed = false;
 	try {
 		await fn(root);
@@ -202,7 +204,7 @@ async function writeRun(cwd, run) {
 }
 
 test("prune dry run is non-destructive and selects only beyond-keep terminal runs", async () => {
-	const cwd = await mkdtemp(join(tmpdir(), "pi-workflow-prune-"));
+	const cwd = await mkdtemp(join(tmpdir(), "agent-workflow-prune-"));
 	try {
 		await writeRun(
 			cwd,
@@ -238,7 +240,7 @@ test("prune dry run is non-destructive and selects only beyond-keep terminal run
 });
 
 test("prune yes removes workflow and subagent mirrors and rewrites the index", async () => {
-	const cwd = await mkdtemp(join(tmpdir(), "pi-workflow-prune-"));
+	const cwd = await mkdtemp(join(tmpdir(), "agent-workflow-prune-"));
 	try {
 		await writeRun(
 			cwd,
@@ -294,7 +296,7 @@ test("prune yes removes workflow and subagent mirrors and rewrites the index", a
 });
 
 test("prune protects running, blocked, and live-lease runs", async () => {
-	const cwd = await mkdtemp(join(tmpdir(), "pi-workflow-prune-"));
+	const cwd = await mkdtemp(join(tmpdir(), "agent-workflow-prune-"));
 	try {
 		await writeRun(
 			cwd,
@@ -343,7 +345,7 @@ test("prune protects running, blocked, and live-lease runs", async () => {
 });
 
 test("older-than combines with the keep window and retains mock terminal runs as candidates", async () => {
-	const cwd = await mkdtemp(join(tmpdir(), "pi-workflow-prune-"));
+	const cwd = await mkdtemp(join(tmpdir(), "agent-workflow-prune-"));
 	try {
 		const now = Date.now();
 		await writeRun(
@@ -383,8 +385,8 @@ test("older-than combines with the keep window and retains mock terminal runs as
 });
 
 test("prune skips symlinked run directories outside the workflow root", async () => {
-	const cwd = await mkdtemp(join(tmpdir(), "pi-workflow-prune-"));
-	const outside = await mkdtemp(join(tmpdir(), "pi-workflow-outside-"));
+	const cwd = await mkdtemp(join(tmpdir(), "agent-workflow-prune-"));
+	const outside = await mkdtemp(join(tmpdir(), "agent-workflow-outside-"));
 	try {
 		await mkdir(join(cwd, ".agent-workflow", "workflows"), { recursive: true });
 		await writeRun(

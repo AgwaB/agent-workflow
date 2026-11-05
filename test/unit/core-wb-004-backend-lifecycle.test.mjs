@@ -17,7 +17,7 @@ function backendHandle() {
 		runId: "child-run",
 		attemptId: "child-attempt",
 		cwd: "/tmp/project",
-		runsDir: ".pi/runs",
+		runsDir: ".agent-workflow/runs",
 		display: "child-run/child-attempt",
 	};
 }

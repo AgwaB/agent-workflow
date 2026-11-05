@@ -1056,7 +1056,7 @@ test("subagent backend records parent child lifecycle events when parent env is 
 		assert.equal(childEvents.length, 1);
 		assert.deepEqual(childEvents[0], {
 			cwd,
-			runsDir: ".pi/agent/runs",
+			runsDir: ".agent-workflow/runs",
 			runId: "parent_run",
 			attemptId: "parent_attempt",
 			event: "started",
@@ -1117,7 +1117,7 @@ test("subagent backend records parent child lifecycle events when parent env is 
 		assert.equal(childEvents.length, 2);
 		assert.deepEqual(childEvents[1], {
 			cwd,
-			runsDir: ".pi/agent/runs",
+			runsDir: ".agent-workflow/runs",
 			runId: "parent_run",
 			attemptId: "parent_attempt",
 			event: "completed",
@@ -1228,7 +1228,7 @@ test("subagent terminal failure records parent child failed when parent env is s
 		assert.equal(childEvents.length, 1);
 		assert.deepEqual(childEvents[0], {
 			cwd,
-			runsDir: ".pi/agent/runs",
+			runsDir: ".agent-workflow/runs",
 			runId: "parent_run",
 			attemptId: "parent_attempt",
 			event: "failed",
@@ -2173,7 +2173,7 @@ test("refresh retries zero-output transient subagent model failures", async () =
 				exitCode: 0,
 				completedAt: new Date().toISOString(),
 				startedAt: task.startedAt,
-				errorMessage: "pi-subagent run failed: model",
+				errorMessage: "agent-workflow run failed: model",
 				metadata: { contextLengthExceeded: false },
 			}),
 		);

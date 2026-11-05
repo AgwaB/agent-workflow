@@ -213,7 +213,7 @@ function rmSync(path, options) {
 	return nodeRmSync(path, retryOptions);
 }
 
-const UNIT_TEST_ROOT = mkdtempSync(join(tmpdir(), "pi-workflow-tests-"));
+const UNIT_TEST_ROOT = mkdtempSync(join(tmpdir(), "agent-workflow-tests-"));
 const UNIT_TEST_HOME = mkdtempSync(join(UNIT_TEST_ROOT, "workflow-unit-home-"));
 process.env.HOME = UNIT_TEST_HOME;
 process.env.USERPROFILE = UNIT_TEST_HOME;
@@ -292,7 +292,7 @@ function restoreParentSubagentEnv(previous) {
 
 function setParentSubagentEnv(cwd) {
 	process.env.AGENT_WORKFLOW_PARENT_SUBAGENT_CWD = cwd;
-	process.env.AGENT_WORKFLOW_PARENT_SUBAGENT_RUNS_DIR = ".pi/agent/runs";
+	process.env.AGENT_WORKFLOW_PARENT_SUBAGENT_RUNS_DIR = ".agent-workflow/runs";
 	process.env.AGENT_WORKFLOW_PARENT_SUBAGENT_RUN_ID = "parent_run";
 	process.env.AGENT_WORKFLOW_PARENT_SUBAGENT_ATTEMPT_ID = "parent_attempt";
 }
@@ -576,7 +576,7 @@ async function createFailFastPolicyRun(cwd, policy = {}) {
 		runId: "child-running",
 		attemptId: "attempt-running",
 		cwd,
-		runsDir: ".pi/subagents/fail-fast",
+		runsDir: ".agent-workflow/runs/fail-fast",
 	};
 	running.backendTaskId = "child-running";
 	await writeRunRecord(cwd, run);
@@ -1306,7 +1306,7 @@ async function refreshZeroOutputModelFailure(cwd, options) {
 			exitCode: 0,
 			completedAt: new Date().toISOString(),
 			startedAt: task.startedAt,
-			errorMessage: options.errorMessage ?? "pi-subagent run failed: model",
+			errorMessage: options.errorMessage ?? "agent-workflow run failed: model",
 			metadata: statusMetadata,
 		}),
 	);

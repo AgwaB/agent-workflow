@@ -15,7 +15,7 @@ import {
 
 test("durable-worker-payload", async () => {
 	const sha256 = (value) => createHash("sha256").update(value).digest("hex");
-	const root = await mkdtemp(join(tmpdir(), "pi-subagent-payload-"));
+	const root = await mkdtemp(join(tmpdir(), "agent-workflow-payload-"));
 	try {
 		// 1. Writer externalizes string prompts and references them by name, size, and digest.
 		const attemptDir = join(root, "attempts", "attempt-1");

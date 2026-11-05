@@ -30,7 +30,7 @@ test("panel-session-scope", async () => {
 	}
 	// ---------------------------------------------------------------------------
 
-	const tempRoot = await mkdtemp(join(tmpdir(), "pi-subagent-panel-scope-"));
+	const tempRoot = await mkdtemp(join(tmpdir(), "agent-workflow-panel-scope-"));
 	try {
 		const cwd = join(tempRoot, "workspace"); // shared cwd => shared runs dir
 		await mkdir(cwd, { recursive: true });

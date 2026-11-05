@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 test("prune", async () => {
-	const indexDir = await mkdtemp(join(tmpdir(), "pi-subagent-prune-index-"));
+	const indexDir = await mkdtemp(join(tmpdir(), "agent-workflow-prune-index-"));
 	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR = indexDir;
 
 	const { beginRunRecord, readRunRecord, upsertRunAttempt } = await import(
@@ -29,11 +29,11 @@ test("prune", async () => {
 	);
 	const runtime = await import("../../dist/runtime/index.js");
 
-	const cwd = await mkdtemp(join(tmpdir(), "pi-subagent-prune-cwd-"));
+	const cwd = await mkdtemp(join(tmpdir(), "agent-workflow-prune-cwd-"));
 	// Run directories only: the hidden `.locks` directory is registry state.
 	const listRuns = async (dir) =>
 		(await readdir(dir)).filter((name) => !name.startsWith("."));
-	const otherCwd = await mkdtemp(join(tmpdir(), "pi-subagent-prune-other-"));
+	const otherCwd = await mkdtemp(join(tmpdir(), "agent-workflow-prune-other-"));
 	const DAY = 24 * 60 * 60 * 1000;
 	const now = Date.parse("2026-09-02T00:00:00.000Z");
 
@@ -246,7 +246,9 @@ test("prune", async () => {
 		// Pi extension entry point (src/index.ts), which is not ported.
 
 		// 7. Symlinked runs roots are refused; symlinked run entries are skipped.
-		const outside = await mkdtemp(join(tmpdir(), "pi-subagent-prune-outside-"));
+		const outside = await mkdtemp(
+			join(tmpdir(), "agent-workflow-prune-outside-"),
+		);
 		await mkdir(join(outside, "run_victim", "attempts"), { recursive: true });
 		await writeFile(
 			join(outside, "run_victim", "run.json"),
@@ -264,7 +266,7 @@ test("prune", async () => {
 			}),
 		);
 		const linkedCwd = await mkdtemp(
-			join(tmpdir(), "pi-subagent-prune-linked-"),
+			join(tmpdir(), "agent-workflow-prune-linked-"),
 		);
 		await mkdir(join(linkedCwd, ".agent-workflow"), { recursive: true });
 		await symlink(outside, join(linkedCwd, ".agent-workflow", "runs"));
@@ -275,7 +277,7 @@ test("prune", async () => {
 		);
 		await stat(join(outside, "run_victim", "run.json"));
 		const linkedEntryCwd = await mkdtemp(
-			join(tmpdir(), "pi-subagent-prune-linked-entry-"),
+			join(tmpdir(), "agent-workflow-prune-linked-entry-"),
 		);
 		await mkdir(join(linkedEntryCwd, ".agent-workflow", "runs"), {
 			recursive: true,
@@ -298,7 +300,7 @@ test("prune", async () => {
 		assert.equal(
 			(
 				await pruneSubagentRuns({
-					cwd: await mkdtemp(join(tmpdir(), "pi-subagent-prune-none-")),
+					cwd: await mkdtemp(join(tmpdir(), "agent-workflow-prune-none-")),
 					yes: true,
 				})
 			).scanned,

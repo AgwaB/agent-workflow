@@ -67,7 +67,7 @@ import {
 } from "../../dist/core/store.js";
 import { completeTask, taskBySpec } from "../helpers/unit-test-support.mjs";
 
-const UNIT_TEST_ROOT = mkdtempSync(join(tmpdir(), "pi-workflow-tests-"));
+const UNIT_TEST_ROOT = mkdtempSync(join(tmpdir(), "agent-workflow-tests-"));
 const UNIT_TEST_HOME = mkdtempSync(
 	join(UNIT_TEST_ROOT, "workflow-refresh-home-"),
 );
@@ -204,7 +204,7 @@ test("waitForRun records transient refresh poll failures and continues", async (
 				launchCount += 1;
 				const runId = `run_wait_refresh_${launchCount}`;
 				const attemptId = `attempt_wait_refresh_${launchCount}`;
-				const runsDir = String(options.runsDir ?? ".pi/agent/runs");
+				const runsDir = String(options.runsDir ?? ".agent-workflow/runs");
 				const artifactDir = writeCompletedSubagentArtifacts(
 					cwd,
 					runsDir,

@@ -1,1 +1,0 @@
-The cited primary source was inspected through its cached source reference. Its Revisions section explicitly identifies 2026-07-28 as current and defines Current as ready for use, with backwards-compatible changes still possible. This verifies the versioning claim only; transport framing and stdout/stderr requirements require separate evidence.
