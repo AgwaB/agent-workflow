@@ -216,7 +216,7 @@ function validComparison(
 
 // Moved (WP11a, host API parsers): test("explicit run and dynamic reject retired routing flags while preserving quoted task text") → test/unit/host-ported-cli-args.test.mjs.
 
-// Not applicable (WP38: `/aw run|dynamic` return at start, no foreground launch loader; docs/core-port.md "WP38"): test("cancelling a dynamic foreground launch reclaims the created run").
+// Not applicable (WP38: `/aw run|dynamic` return at start, no foreground launch loader; core-port record "WP38"): test("cancelling a dynamic foreground launch reclaims the created run").
 
 test("routing hints are schema-validated, bounded, and author-controlled", () => {
 	const base = {

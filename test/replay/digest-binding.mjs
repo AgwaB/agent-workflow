@@ -1,7 +1,7 @@
 // WP1b digest bindings: a replayed sha256 that differs from the recorded one only because the bytes it
 // digests contain a renamed literal (allowed-differences.json `renames`, e.g. the run state path
 // `.agent-workflow/workflows` ↔ `.pi/workflows`) is mapped to the recorded value — but only with a
-// binding check that recomputes both digests (docs/replay.md "Digest bindings"):
+// binding check that recomputes both digests (replay record "Digest bindings"):
 //
 //   file  X' = sha256(replayed file bytes), X = sha256(recorded file bytes, host root restored), and
 //         the two files are equal after normalization, literal renames and the bindings proven so far.

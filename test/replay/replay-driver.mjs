@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // WP1b replay driver: runs a recorded pi-workflow fixture's ORIGINAL workflow spec through the
 // agent-workflow engine (engine → core task backend → runtime durable worker → replay executor)
-// and returns the run directory to compare. See docs/replay.md.
+// and returns the run directory to compare. See replay record.
 //
 // Library: replayFixture(name, options) → { fixture, project, roots, run, runDir, trace, ... }
 // CLI:     node test/replay/replay-driver.mjs <fixture> [--keep]   (needs `npm run build`)
@@ -10,7 +10,7 @@
 // absolute project path), `rootPathLength` (padded project path), `projectIsPackageRoot` (the
 // recording ran inside the pi-workflow checkout: <ROOT> == <PKG>, so the original workflow
 // directory is placed at <project>/workflows/<name>), `executionProfile`, `inputOverrides`,
-// `env` (PI_WORKFLOW_* names mapped to their AGENT_WORKFLOW_* renames, docs/core-port.md WP4c-1).
+// `env` (PI_WORKFLOW_* names mapped to their AGENT_WORKFLOW_* renames, core-port record WP4c-1).
 // Agents the recording had in `<project>/.pi/agents/<agent>.md` are installed in
 // `<project>/.agent-workflow/agents/` (agent-workflow no longer reads Pi's directories, 2026-10-30).
 // The original bundled spec directory is the fixture's `run/bundle/` (the frozen copy the recorded
@@ -54,7 +54,7 @@ export function fixtureSkipReason({ fixture }) {
 		: false;
 }
 
-/** `PI_WORKFLOW_*` host pins under their agent-workflow names (docs/core-port.md renames). */
+/** `PI_WORKFLOW_*` host pins under their agent-workflow names (core-port record renames). */
 export function renamedEnvPins(env = {}) {
 	return Object.fromEntries(
 		Object.entries(env).map(([key, value]) => [
@@ -193,9 +193,9 @@ function projectDir(loaded, work) {
 }
 
 /**
- * Variant `state-path-migrated` (docs/replay.md): rewrite the one form in which original bundled
+ * Variant `state-path-migrated` (replay record): rewrite the one form in which original bundled
  * helpers read engine state, the template literal `` `.pi/workflows/${runId}/… ``, to the renamed
- * state path (docs/core-port.md WP4b change log 1). The comparison's literal renames map the
+ * state path (core-port record WP4b change log 1). The comparison's literal renames map the
  * rewritten text back, so the bundle still compares equal; sidecar writes built with
  * `join(cwd, ".pi", "workflows", …)` are left alone. Returns [{file, count}].
  */

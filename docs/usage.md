@@ -24,8 +24,7 @@ A name resolves from the first root that has a match:
 3. `$AGENT_WORKFLOW_HOME/workflows/` (default `~/.agent-workflow/workflows/`) — user
 4. the package's bundled `workflows/`
 
-Pi's directories (`~/.pi/agent/workflows/`, `<cwd>/.pi/workflows/`) are **not** read (2026-10-30
-owner decision). A spec from elsewhere runs when copied into one of the roots above or passed by
+Pi's directories (`~/.pi/agent/workflows/`, `<cwd>/.pi/workflows/`) are **not** read. A spec from elsewhere runs when copied into one of the roots above or passed by
 path, written with agent-workflow's tool names (`web_search`, `fetch_content`, …).
 
 A higher root shadows lower ones; more than one match in the winning root (for example both
@@ -41,8 +40,9 @@ Agents (`agent:` in a spec) resolve the same way: `<cwd>/.agent-workflow/agents/
 a copy in `$AGENT_WORKFLOW_HOME/agents/` or `.agent-workflow/agents/`. `agent-workflow agents` lists
 what resolves and from where.
 
-agent-workflow never reads or writes Pi's directories; its runs and settings live under
-`.agent-workflow/` and `$AGENT_WORKFLOW_HOME`. `logs`/`inspect` read only files inside
+Workflow and agent discovery do not use Pi's directories; runs and settings live under
+`.agent-workflow/` and `$AGENT_WORKFLOW_HOME`. Pi web-tool diagnostics read Pi's web-search config;
+`doctor --fix` changes it only with confirmation (or `--yes`). `logs`/`inspect` read only files inside
 `.agent-workflow/`; a file outside it shows as `(not read: path is outside the project's artifact
 root …)`.
 
@@ -100,40 +100,19 @@ silently.
 agent-workflow auto "Review the current diff for reliability and test coverage."
 ```
 
-`auto` (WP32) recommends one of the existing workflows for a task
-and starts the one you choose. It never chats instead of running a workflow and never starts
-anything on its own:
+`auto` shortlists the dynamic workflow and discoverable workflows (at most 24), then asks consent
+for one tool-free classifier request containing your task and bounded candidate descriptions.
+You choose from the ranking; cancelling starts nothing. A workflow changed since comparison is
+refused. The chosen workflow uses the normal launch preflight, profiles and approvals.
 
-1. **Local shortlist (no model call).** The dynamic workflow and the discoverable workflows (at most
-   24), ranked by the task's words against each spec's `routing` hints (`useWhen`, `outputs`) and
-   name. Specs are read as bounded metadata only (no helpers or controllers are loaded).
-2. **Consent before any transmission (owner decision Q5).** Comparing the candidates takes one
-   classifier request that sends your task and the bounded candidate descriptions to a model,
-   without tools. It runs on the run's **default executor**, chosen by the same rule as a run's
-   executor: `--executor`, else the saved user profile (`--profile <name>` or the default one), else
-   the host's own CLI (Claude Code → `claude`, Codex → `codex`, Pi → `pi`; the terminal CLI and a
-   generic MCP client → the first installed and logged-in of `pi`, `claude`, `codex`), with
-   `--model`/`--effort` or the profile's model, else the host's current model (Pi) or the
-   executor's default. Before the request you see the task, the candidate names and the executor
-   and model, and are asked: a `y/N` question in a terminal, `ctx.ui.confirm` in Pi, an MCP
-   elicitation dialog in Claude Code and Codex. Only an explicit yes sends it; the CLI's `--yes` is
-   that yes given in advance. **Where the question cannot be asked** — no terminal and no `--yes`,
-   Pi print/JSON mode, an MCP client without elicitation — **no request is sent**: you get the local
-   shortlist and the command (or tool call) that starts each candidate directly.
-3. **Choice.** The ranked candidates, the recommendation first with the classifier's confidence and
-   reasons, then your pick: a numbered list in a terminal (Enter takes the recommendation), Pi's
-   select plus a final confirmation, an MCP form with one choice field. Cancelling or declining
-   starts nothing.
-4. **Launch.** The chosen workflow starts through the normal launch path (duplicate guard,
-   profiles, capability preview, approvals), exactly as `run`/`dynamic` would. A named workflow that
-   changed after the comparison is refused; run `auto` again.
+The classifier uses the run's default executor and `--model`/`--effort` or profile settings;
+otherwise it uses Pi's current host model or the executor's default. See [executor selection](#executors)
+and [CLI `auto`](cli.md#auto) for selection, consent, launch metadata and JSON outcomes.
 
-The run records the selection in its launch metadata (`agent-workflow-run-launch-v2`): the offered
-candidates (opaque id, kind, name), the recommendation, your choice, the classifier executor and
-model and how you consented (`prompt`, `flag` or `elicitation`); the task only as a SHA-256, never
-the classifier's prose. `show <run>` prints an `Auto selection:` line. The classifier request's own
-record lives under `.agent-workflow/workflows/auto-router-runs/`. Commands: [cli.md](cli.md#auto-wp32),
-[pi-host.md](pi-host.md#aw-auto-wp32-owner-decision-q5), [host-mcp.md](host-mcp.md#auto-workflow-selection-wp32-owner-decision-q5).
+Pi asks through a confirm dialog, then a select and final confirmation; MCP hosts use elicitation
+and a one-choice form. Pi print/JSON mode and MCP clients without elicitation send no request:
+they return the local shortlist and direct launch commands. Only explicit consent sends the task;
+CLI `--yes` supplies that consent in advance. Host details: [Pi](pi-host.md), [MCP](host-mcp.md).
 
 The `execution-router` skill stays recommendation-only: it may suggest `auto`, but never runs it.
 
@@ -214,6 +193,7 @@ exits 1; the intent stays durable and is applied when the supervisor next runs.
 | `pi` | `pi --mode json` | Pi 1.1+. deep-research needs the `pi-web-access` extension (`pi install npm:pi-web-access`; `agent-workflow doctor` checks it). |
 | `codex` | `codex app-server` | codex-cli 0.159+. Coarse tool allowlist (a sandbox mode). |
 | `claude` | `claude -p` (stream-json) | Claude Code 2.1+. |
+| `antigravity` (experimental) | `agy_acp_server` (ACP) | Gemini models; see [ACP configuration and limits](executors/acp.md). |
 
 Each executor uses its own CLI login (agent-workflow never handles credentials). Choose with
 `--executor <id>`, a profile, or a saved default profile. Precedence for both the executor and the
@@ -222,7 +202,7 @@ permission mode: **run flag > workflow-declared profile > saved user profile > d
 
 **Default executor.** Without a choice, a run uses the host's own CLI (`host-default`): `pi` in the
 Pi host, `claude` in Claude Code, `codex` in Codex. The terminal CLI uses the first installed and
-logged-in of `pi` → `claude` → `codex` (`installed-default`; since WP19 a verified login wins over
+logged-in of `pi` → `claude` → `codex` (`installed-default`; a verified login wins over
 an earlier `unknown` one, and an `unknown` login is used only when none is verified, with a note in
 the launch text and in `doctor`; recorded in `run.executor.candidates`). Pi counts as logged in
 when `pi --list-models` lists at least one model (Pi lists only models whose provider has auth). `run.executor.host` names the host. Nested runs keep their
@@ -249,7 +229,7 @@ Two layers:
 2. **Saved user profiles.** `agent-workflow profile set <name> --executor codex --effort high
    --permission-mode safe [--strict-capabilities readOnly,contextIsolation] [--default]`. Fields:
    `executor`, `model`, `effort`, `permissionMode`, `strictCapabilities` (capabilities that must be
-   `native`, else the run is refused), `roles` (WP31, below). Stored in
+   `native`, else the run is refused), `roles` (below). Stored in
    `$AGENT_WORKFLOW_HOME/user-profiles/v1/profiles.json`.
    `--profile <name>` picks a declared profile first, then a saved one, then a built-in preset;
    without `--profile` a launch uses the workflow's saved preference profile, else the declared
@@ -274,7 +254,7 @@ Every model-backed stage in a bundled workflow declares a semantic `profileRole`
 
 ### Roles, presets and mixed runs
 
-**Roles (WP31, owner decision B2).** A saved user profile (`roles`), a workflow-declared profile
+**Roles.** A saved user profile (`roles`), a workflow-declared profile
 (`executionProfileRoles`) and a per-workflow preference can map *roles* to
 `{executor?, model?, effort?}`. A role addresses model-backed stages without naming stage ids, so one
 profile fits every workflow:
@@ -308,8 +288,7 @@ agent-workflow profile set team --role verification=codex:gpt-5.6-luna:high
 agent-workflow profile workflow set deep-research --profile team --role synthesis=::high
 ```
 
-**Precedence, per stage and per field** (executor, model, effort each on its own; WP37 extended to
-roles):
+**Precedence, per stage and per field** (executor, model and effort each on its own):
 
 | Layer (highest first) | Executor | Model / effort |
 |---|---|---|
@@ -350,7 +329,7 @@ profile has that name, or `profile set <name> --preset <preset>`):
 
 Efforts in every preset: `high` for planning, verification and final judgment, `medium` otherwise.
 In `mixed`, verification runs on a different model family from the codex workers whose findings it
-checks (owner decision E4). Preset models are names the CLIs accept today; if your account lacks
+checks. Preset models are names the CLIs accept today; if your account lacks
 one, override the role (`--role research-execution=codex:<model>`) or use `--model`.
 
 **Per-workflow preferences** (`agent-workflow profile workflow set <workflow> [--profile <name>]
@@ -359,7 +338,7 @@ workflow's `name`, stored in `$AGENT_WORKFLOW_HOME/workflow-preferences/v1/prefe
 applied by every launch of that workflow from the CLI, MCP hosts and Pi: its `profile` when the
 launch names none (before the declared default), its roles as the layer above the selected profile.
 
-**Mixed runs (owner decision Q4).** When stages resolve to more than one executor, one run mixes
+**Mixed runs.** When stages resolve to more than one executor, one run mixes
 them. Each executor is probed once; every stage is negotiated against *its* executor (readOnly,
 artifact MCP, web tools, isolation, permission mode) and a stage whose executor cannot satisfy it is
 refused before launch, naming the stage and executor (`stage "search.main" on codex: webTools —
@@ -386,18 +365,12 @@ an interactive host. Select it with `--permission-mode safe`, a declared profile
 `permissionMode` on a saved profile. An invalid value fails before anything starts. Nested runs follow
 their parent's mode.
 
-| Executor | `free` (stage not readOnly) | `safe` / readOnly stage |
-|---|---|---|
-| Claude | `--permission-mode bypassPermissions` | `--permission-mode default` (+ disallowed write tools for readOnly) |
-| Codex | sandbox `danger-full-access`, approvals `never` | `workspace-write` / `read-only` sandbox, approvals `on-request` |
-| Pi | every requested tool (Pi has no approvals or sandbox) | readOnly drops mutating tools |
-
-Details: [`permissions.md`](permissions.md).
+Executor mappings, worktree exceptions and SDK obligations: [`permissions.md`](permissions.md).
 
 ## Preflight: capability, tools, models and effort
 
 Before a run starts, the engine probes the executor (installed, CLI version, login, model list; no
-model call) and checks every stage against the executor that would run it (B4). Anything that would
+model call) and checks every stage against the executor that would run it. Anything that would
 fail a stage mid-run stops the launch instead, with the reason and what to do (`Not started: …`,
 exit 1, no run record):
 
@@ -562,9 +535,6 @@ const items = context.sourceStatuses
   .map((row) => ({ id: row.itemIdentity, status: row.status, control: sources[row.source] }));
 ```
 
-(2026-11-04: a workflow authored with the workflow-guide skill filtered `analyze.` keys and lost its
-first subsystem.)
-
 **Report.** A final support stage publishes the run's report as its `markdown` (or `analysis`)
 field — hosts and the dashboard open that `analysis.md` as the report — or by writing
 `final-report.md` into its own task directory and returning `sidecarPath: "final-report.md"` (the
@@ -641,8 +611,6 @@ directory there. A later stage does not see
 a worktree's changes through the project files, so put the check where the change is: let the
 writing task run the build or tests in its worktree and report the result in its control, or give a
 separate verification stage that worktree's path. Workers never commit.
-(2026-11-04: a workflow authored with the workflow-guide skill could not find these keys in this
-guide and left its write stage without a policy or a check.)
 
 ### Local review evidence
 
@@ -678,7 +646,7 @@ Workers read upstream artifacts through one MCP tool, `workflow_artifact` (`list
 `source`, `artifact` = `control`, `analysis`, `refs`, `raw`, `prompt`, `system-prompt`, `stderr`,
 `result`, optional `path` / `maxItems` / `maxChars` projections, or `offset` for paging). Prompts
 name it `workflow_artifact`; the engine renders the name each executor shows its model
-(`mcp__workflow_artifact__workflow_artifact` on all three stage-1 CLIs). Every read appends a row to
+(`mcp__workflow_artifact__workflow_artifact` on Pi, Codex and Claude Code). Every read appends a row to
 the task's `read-ledger.jsonl`. Details: [`mcp.md`](mcp.md).
 
 `inputPolicy.requiredReads` (with `enforcement: "fail"`) makes a stage prove it read named
@@ -695,7 +663,7 @@ reads passed, the ledger proves every one was delivered complete, so a `truncate
 `missing_read` block is a misjudgment: the engine repeats the attempt with that evidence and fails
 the stage if the claim persists (`input_integrity_contradicted_exhausted`). `inconsistent_input` and
 `budget_block` are about content and are accepted as reported. deep-research's final audit requires
-the field (2026-11-01: a model withheld a complete packet as "truncated").
+the field.
 
 **Paging.** Each executor's CLI cuts long MCP results (Pi 1.1 at about 20 KB, Claude at 22,500
 chars, Codex at about 32,000 chars). The engine starts the artifact server with a limit below the
@@ -736,12 +704,11 @@ host text (`cost=unknown` in the detailed run view), never `0` or `$0`; the run 
 task reported a cost. Codex reports no cost; Pi's is an estimate; Claude's is notional on a
 subscription: see [`support.md`](support.md).
 
-**Worker sessions.** By default no worker keeps a CLI session (D3): workers run without session
+**Worker sessions.** By default no worker keeps a CLI session: workers run without session
 persistence (Claude `--no-session-persistence`, Codex ephemeral threads, Pi `--no-session`), and output
 repairs, launch retries and resumes start fresh attempts. Only the experimental same-session repair
 (`AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR`) requests kept sessions. Only such a run negotiates
-`resume` before launch (2026-11-04; before, every artifact-graph stage did, and executors without
-`resume`, such as antigravity, needed an OK for a difference that did not exist). Sessions the engine did
+`resume` before launch. Sessions the engine did
 request are released through the executor's `deleteOwnedSession`: a completed or skipped task's at
 once, every remaining one when the run completes or fails. A blocked or interrupted run keeps the
 sessions of its failed, blocked and interrupted tasks until it is resolved or pruned. Each released
@@ -756,9 +723,9 @@ still recorded as owned (where the adapter supports `deleteOwnedSession`; alread
 The `auto` classifier's requests (`.agent-workflow/workflows/auto-router-runs/run_*`, one per
 comparison) follow the same rules (terminal only, the newest `--keep` kept, `--older-than`, deleted
 only with `--yes`) and are listed separately as "Classifier requests"; they are never shown as runs
-and never hold back the pruning of runs (WP39b).
+and never hold back the pruning of runs.
 
-What prune removes and what it keeps (WP42):
+What prune removes and what it keeps:
 
 - Nothing is listed or deleted when `.agent-workflow` or `.agent-workflow/workflows` is a symlink
   or otherwise not a real directory inside the project; prune reports `unsafe retention root`.
@@ -775,7 +742,7 @@ What prune removes and what it keeps (WP42):
   pins its requests (`auto-router-runs/.pins/`) from launch until the output is consumed, and prune
   lists records updated since a live pin as `protected`. Pins of processes that are gone are
   ignored and removed. When a pin cannot be created (for example an unwritable `.pins`), the
-  recommendation is `routing-unavailable` and no classifier is called (WP42 review round 2); only a
+  recommendation is `routing-unavailable` and no classifier is called; only a
   layout prune never deletes in (a symlinked or non-directory `.agent-workflow`, `workflows` or
   `auto-router-runs`) runs without a pin.
 - A run directory is kept, with the reason listed, while it contains a worktree that your
@@ -791,13 +758,13 @@ What prune removes and what it keeps (WP42):
 in place after the run: there is no auto-merge, the worktree and its branch
 hold the result for you to review and merge (`show`/`inspect`/`status` name the path and branch).
 The run's attempt state stays in the project's own `.agent-workflow/`, and the project's
-`.agent-workflow/` is never copied into a worktree (WP39b). To remove one yourself:
+`.agent-workflow/` is never copied into a worktree. To remove one yourself:
 `git worktree remove <path>` (add `--force` to discard uncommitted changes) and
 `git branch -D agent-workflow/<run>-<task>`. `agent-workflow prune` includes them: the dry run lists
 each worktree of a run it would delete with its branch, `uncommitted changes` and the number of
 commits on the branch that your checkout's HEAD does not contain; `--yes` removes them
 (`git worktree remove --force`, so uncommitted changes in them are discarded only with `--yes`).
-Prune touches a worktree only when agent-workflow created it for that task or loop (WP42): the
+Prune touches a worktree only when agent-workflow created it for that task or loop: the
 recorded branch is the managed `agent-workflow/<run>-<task>`; every directory from the project down
 to `<run>/worktrees/<task>` is a real directory (no symlinked parent); and your repository's
 `git worktree list` registers that path checked out on that branch (the recorded `baseCwd` is not
@@ -812,13 +779,18 @@ one whose state is unknown is kept with its branch and its run, and the reason i
 run already lists that run as `protected: worktree kept: …`).
 
 Executor adapters keep one attempt record per worker attempt under
-`~/.agent-workflow/executors/{claude,codex,pi}/attempts/`. Since WP18b, terminal attempt records
+`~/.agent-workflow/executors/{claude,codex,pi}/attempts/`. Terminal attempt records
 older than 7 days are removed with their event logs and per-attempt dirs, in the background when a
 worker is submitted (at most every 6 h) and by `agent-workflow prune` (same dry-run rule;
 `--older-than DAYS` sets the window). Records of attempts that may still run are never removed.
-Since WP19 an attempt that was launched leaves a small tombstone in place of its record (never
+An attempt that was launched leaves a small tombstone in place of its record (never
 pruned), so a later reconcile reports it as "launched, outcome unknown or as recorded" and never
 as "never started": nothing is retried automatically.
+
+Attempt cleanup refuses symlinked ancestors (including `attempts/` and Pi `runs/`). Orphans are
+removed only when named with the adapter's attemptKey hex digest (Claude 40, Codex 32, Pi 64
+characters), alone or with `.events.jsonl`, `.log` or an atomic-write temp suffix. Other files
+are left untouched.
 
 ## Troubleshooting
 
@@ -829,7 +801,7 @@ as "never started": nothing is retried automatically.
 | `Not started: … CAPABILITY_REFUSED` | A stage needs something the executor cannot do. The message lists each refusal and its opt-in, if any (`--allow-unverified`, `allowReadOnlyDowngrade`, `--permission-mode free`). |
 | deep-research refused on Pi with `webTools` | Your Pi has no `pi-web-access` (not bundled). Install it with `pi install npm:pi-web-access` (check with `pi list` or `agent-workflow doctor`), or use `--executor claude`/`codex`. The refusal and the preview name the same command. |
 | Codex runs show `readOnly`/`contextIsolation` warnings | Your `~/.codex/rules` has allow rules or a global `~/.codex/AGENTS.md` exists. Recorded only; remove them for a clean run. |
-| A workflow or agent from `~/.pi/agent/` is missing in `agent-workflow list`/`agents` | By design (2026-10-30): Pi's directories are Pi configuration and are not read. Copy what you want into `$AGENT_WORKFLOW_HOME/workflows/` or `…/agents/` (or the project's `.agent-workflow/`), or pass a spec path. |
+| A workflow or agent from `~/.pi/agent/` is missing in `agent-workflow list`/`agents` | By design: Pi's directories are Pi configuration and are not read. Copy what you want into `$AGENT_WORKFLOW_HOME/workflows/` or `…/agents/` (or the project's `.agent-workflow/`), or pass a spec path. |
 | `input <key> is not declared by this workflow (declared: …)`, `input <key> must be a number` (exit 2) | `--input` / `inputs` names a key the spec does not declare or a value of the wrong type. Use a declared key (`agent-workflow show <workflow>` shows `input`) and a value of the default's type. |
 | Usage shows `cost unknown` | The executor reported no cost (Codex always; any task without a cost). Token counts are still recorded; nothing is estimated. |
 | The run is `failed` but the report looks fine | A final render declares failure (`support_declared_failed`) when the review could not be completed — deep-review `PARTIAL_REVIEW` without confirmed findings, spec-review `INCONCLUSIVE`; the report says what is missing. Verdicts about the target (`NEEDS_WORK`, `GAPS_FOUND`, impact-review `BLOCKED`) finish the run normally. Read `final-report.md`. |

@@ -1,691 +1,219 @@
 # Pi host (`@agwab/agent-workflow/hosts/pi`)
 
-WP11b, WP16. A Pi extension over the host API (`docs/host-api.md`): the `/aw` command, four agent
-tools (`aw_list`, `aw_run`, `aw_dynamic`, `aw_wait`), an unfinished-run notice at session start and
-(WP16) a footer status line plus completion delivery into the session for runs it launched, and
-(WP34) in the TUI a run board (`/aw`, `/aw <run>`) and a profile picker (`/aw profile`).
-The parent agent is Pi; the workflow **workers** run on whichever executor is selected (`--executor`,
-a profile, or the default `pi`). Every action calls one host API handler, so the Pi host, the
-`agent-workflow` CLI (`docs/cli.md`) and the stage-2 MCP host behave the same.
-
-Sources: `src/hosts/pi/` — `index.ts` (package entry and Pi presence check), `extension.ts`
-(registration), `command.ts` (`/aw`), `tools.ts` (`aw_*`), `notices.ts` (session start),
-`feedback.ts` (WP16 status line and completion delivery), `host.ts` (host context, confirmation,
-profile choice, output), `names.ts`, `pi-types.ts` (the Pi API subset used); WP34: `board.ts`,
-`board-source.ts`, `board-format.ts` (the board), `profile-picker.ts`, `profile-tui.ts` (the
-picker), `tui-kit.ts` (keys, widths, boxes, theme helpers shared by both).
+The Pi extension provides `/aw`, four agent tools, a run board, a profile picker, session-start notices and completion delivery. Pi is the parent agent; workflow workers use the selected executor, profile or default `pi`. Actions use the shared [host API](host-api.md), as do the [CLI](cli.md) and [MCP host](host-mcp.md).
 
 ## Install
 
-Pi 1.1 or newer. The Pi packages (`@earendil-works/pi-coding-agent`, `pi-ai`, `pi-tui`) are optional
-peer dependencies: Pi provides them to extensions, nothing else in agent-workflow needs them.
+Requires Pi 1.1 or newer. Pi supplies the optional `@earendil-works/pi-coding-agent`, `pi-ai` and `pi-tui` peer dependencies.
 
 ```sh
-# one invocation, without changing Pi settings
+# One invocation, without changing Pi settings:
 pi -e ./node_modules/@agwab/agent-workflow/dist/hosts/pi/index.js
 pi -e npm:@agwab/agent-workflow
 
-# install as a Pi package (package.json "pi.extensions": ["./dist/hosts/pi/index.js"])
-pi install npm:@agwab/agent-workflow        # personal; add -l for the project
+# Install as a Pi package; add -l for the project:
+pi install npm:@agwab/agent-workflow
 ```
 
-The package manifest declares the extension and (WP33, owner decision Q10) two Pi skills with the
-`aw-` prefix: `aw-workflow-guide` (workflow authoring, scaffolds) and `aw-execution-router` (route
-recommendation). Pi resolves a skill by its frontmatter `name` (not the directory) and keeps the first
-skill of a name (other packages may ship the same names), so the Pi copies are
-renamed: `node tools/release/plugins.mjs build` generates `plugins/pi/skills/aw-*/SKILL.md` from
-`skills/` (the source of truth; only the name, the relative paths into the package and the skill
-cross-reference change; `check` fails on drift) and package.json `pi.skills` lists them. The
-`agent-workflow` skill (the MCP tool protocol) is not exposed in Pi: the `aw_*` tools carry their own
-prompt guidelines. Use them with `/skill:aw-workflow-guide` or `/skill:aw-execution-router`.
+The package registers the extension and two prefixed skills, avoiding collisions with other packages: `/skill:aw-workflow-guide` (authoring and scaffolds) and `/skill:aw-execution-router` (route recommendation). The MCP protocol skill is not exposed in Pi; `aw_*` tools carry their own guidelines.
 
-Importing `@agwab/agent-workflow/hosts/pi` outside Pi without the peer fails with
-`PiHostUnavailableError` ("… is a Pi extension and needs the Pi coding agent …") instead of a bare
-module-resolution error. No other module of the package imports the Pi host (a unit test checks
-`src/` and `dist/`).
+Importing `@agwab/agent-workflow/hosts/pi` outside Pi without its peer raises `PiHostUnavailableError`, not a bare module-resolution error. Other package modules do not import the Pi host.
 
 ## `/aw` command
 
-A Pi session started in ~ records its runs in `~/.agent-workflow/home-runs` (the home directory is
-never a project, see [cli.md](cli.md)); every `/aw` action, tool and session handler sees that
-directory as the project.
+A Pi session started in the home directory uses `~/.agent-workflow/home-runs` for every action and tool; the home directory itself is not a project.
 
-`/aw help` lists the actions; `/aw help <action>` shows the shared help of one action (the CLI help
-with `/aw`). Output is the handler's `text`, shown as a Pi notification (stdout/stderr in print/JSON
-mode); errors are error notifications.
+`/aw help` lists actions; `/aw help <action>` shows shared action help. Text results appear as Pi notifications (stdout/stderr in print/JSON mode); errors are error notifications.
 
-| `/aw …` | Host API handler |
+| Command | Behavior |
 |---|---|
-| (none) / `<run-id-or-prefix>` | TUI: the board ([below](#board-wp34)); otherwise `/aw` is `help` and `/aw <run>` an unknown action, as before |
-| `help [action]` | `helpAction` (one action); the action list is Pi-specific |
-| `list [--query T] [--offset N] [--limit N]` | `listWorkflowsAction` |
-| `validate <workflow>`, `roles <workflow>` | `validateWorkflowAction`, `workflowRolesAction` |
-| `agents` | `listAgentsAction` |
-| `profile` (no operation) | TUI: the profile picker ([below](#profile-picker-wp34)); otherwise `profileAction` `list`, as before |
-| `profile list \| show [name] \| set <name> … [--default] \| delete <name> \| default <name> \| default --clear \| presets` | `profileAction` (saved user profiles; same options as the CLI, WP31: `--preset`, `--role`) |
-| `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | `workflowPreferenceAction` (WP31: saved per-workflow preferences; every host's launch applies them) |
-| `run <workflow> <task> [options]` | `runWorkflowAction` |
-| `dynamic <task> [options]` | `runDynamicAction` |
-| `auto <task> [options]` | `autoAction` (WP32): recommend a workflow and start the one the user chooses (below); print/JSON mode sends nothing |
-| `status [run]` | `statusAction` |
-| `show <workflow>` / `show <run> [--raw]` | `showAction` |
-| `inspect <run> [--failures] [--results]` | `inspectAction` |
-| `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | `logsAction` (WP16): bounded, redacted tail of task output, stderr and executor events (WP19: contained to `.agent-workflow/`, structured credentials redacted; the completion message is redacted the same way) |
-| `wait <run> [timeout \| --timeout D]` | `waitAction` with `longWait` (WP28): until the run is terminal or needs action, or the timeout passes; default 60 s, max 4 h; a bare number is milliseconds |
-| `resume <run> [--detach]` | `resumeAction` |
-| `approve <run> [--request <id>] [--reject] [--detach] [--yes]` | `approveAction` (WP29): answers a dynamic-controller approval the run waits on through `ctx.ui.confirm`; without a dialog UI `--yes` is required |
-| `stop <run>` | `stopAction` |
-| `prune [--keep N] [--older-than DAYS] [--yes]` | `pruneAction` |
-| `notices list \| acknowledge <run> --state <sha256> --reason <text> \| clear <run>` | `noticesAction` |
+| `/aw`, `/aw <run-id-or-prefix>` | TUI: [board](#board); outside TUI, `/aw` shows help and a bare run id is an unknown action |
+| `help [action]` | Action list or shared action help |
+| `list [--query T] [--offset N] [--limit N]` | Discover workflows |
+| `validate <workflow>`, `roles <workflow>`, `agents` | Validate a spec, list its roles, or list agents |
+| `profile` | TUI: [profile picker](#profile-picker); otherwise list profiles |
+| `profile list \| show [name] \| set <name> … [--default] \| delete <name> \| default <name> \| default --clear \| presets` | Saved user profiles; CLI options include `--preset` and `--role` |
+| `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | Per-workflow preferences applied by every host |
+| `run <workflow> <task> [options]` | Launch a named workflow |
+| `dynamic <task> [options]` | Launch a dynamic workflow |
+| `auto <task> [options]` | Classify with consent, then launch the user's choice; print/JSON sends nothing |
+| `dashboard [<run-id-or-prefix>]` | Open the project's [web dashboard](dashboard.md) |
+| `status [run]` | Run status |
+| `show <workflow>` / `show <run> [--raw]` | Workflow or run details |
+| `inspect <run> [--failures] [--results]` | Reliability and results |
+| `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded, redacted log tails |
+| `wait <run> [timeout \| --timeout D]` | Wait until settled/action required or timeout; default 60 s, max 4 h; bare number means milliseconds |
+| `resume <run> [--detach]` | Continue a run |
+| `approve <run> [--request <id>] [--reject] [--detach] [--yes]` | Answer a dynamic approval; no dialog UI requires `--yes` |
+| `stop <run>` | Stop a run |
+| `prune [--keep N] [--older-than DAYS] [--yes]` | Prune stored runs |
+| `notices list \| acknowledge <run> --state <sha256> --reason <text> \| clear <run>` | Manage unfinished-run notices |
 
-Run options (leading or trailing, quoted text is literal; the host API parser
-`parseWorkflowRunArgs`): `--executor <id> --profile <name> --permission-mode free|safe
---allow-unverified <a,b> --model <id> --effort <level> --input <key=value> (repeatable) --detach
---force-new`.
+Run options may lead or trail the task; quoted text is literal:
 
-`/aw run` returns once the run is launched. The engine's in-process watcher keeps driving it while
-the Pi session lives; `/aw wait`, `/aw status` or `aw_wait` show progress, `--detach` hands it to a
-standalone supervisor that outlives the session. `supervise` is CLI-only (MCP: `workflow_supervise`).
+```text
+--executor <id> --profile <name> --permission-mode free|safe
+--allow-unverified <a,b> --model <id> --effort <level>
+--input <key=value> (repeatable) --detach --force-new
+```
 
-Run texts name `/aw …` follow-up commands (`Open: /aw status <run>`, `Resume: /aw resume <run>`,
-`/aw logs <run> --task <task>`): the Pi host passes `host: "pi"` and the host API picks the hints
-(WP18b, [host-api.md](host-api.md#common-contract)). Core messages that cannot know the host (for
-example the `auto`/profile errors) name both forms: `agent-workflow auto (Pi: /aw auto)`.
+`/aw run` returns after launch; the in-process watcher drives the run while Pi lives. Use `/aw wait`, `/aw status` or `aw_wait` for progress. `--detach` starts a standalone supervisor that outlives the session. `supervise` itself is CLI-only (MCP: `workflow_supervise`).
+
+Run output names `/aw` follow-up commands. Logs are contained to `.agent-workflow/` and redact credentials; completion messages use the same redaction.
 
 ## Tools
 
+| Tool | Parameters |
+|---|---|
+| `aw_list` | `query?`, `offset?`, `limit?` (1–20, default 20) |
+| `aw_run` | `workflow`, `task`, `executor?`, `profile?`, `permissionMode?` (`free`/`safe`), `allowUnverified?` (string[]), `model?`, `effort?`, `detach?`, `forceNew?`, `inputs?` (object), `awaitTerminal?`, `timeoutMs?` (1000–14400000, requires `awaitTerminal`) |
+| `aw_dynamic` | `task` and the same launch options |
+| `aw_wait` | `runId`, `timeoutMs?` (1000–14400000, default 1800000) |
 
-| Tool | Parameters | Handler |
-|---|---|---|
-| `aw_list` | `query?`, `offset?`, `limit?` (1-20, default 20) | `listWorkflowsAction` |
-| `aw_run` | `workflow`, `task`, `executor?`, `profile?`, `permissionMode?` (`free`/`safe`), `allowUnverified?` (string[]), `model?`, `effort?`, `detach?`, `forceNew?`, `inputs?` (object), `awaitTerminal?`, `timeoutMs?` (1000-14400000, needs `awaitTerminal`) | `runWorkflowAction` (+ `waitAction` with `awaitTerminal`) |
-| `aw_dynamic` | `task` and the same options | `runDynamicAction` (+ `waitAction`) |
-| `aw_wait` | `runId`, `timeoutMs?` (1000-14400000, default 1800000) | `waitAction` with `longWait` |
+`AGENT_WORKFLOW_TOOL_EXPOSURE=deferred` registers all `aw_*` tools with deferred exposure: Pi loads them through `tool_search` instead of including them in every request. Unset or any other value uses normal registration ([environment.md](environment.md)).
 
-Exposure (WP28): with `AGENT_WORKFLOW_TOOL_EXPOSURE=deferred` every `aw_*` tool is registered with
-`exposure: "deferred"`, so Pi keeps it out of each request until `tool_search` loads it ([environment.md](environment.md)). Unset or any other
-value: normal registration.
+Results contain handler text in `content` and handler data plus `outcome`/`ok` in `details`. Launches add `waitWith`. Refused launches set `isError: true` and `details.refusal`; usage errors throw with the host API message.
 
-Results: `content` is the handler text; `details` is the handler `data` plus `outcome`/`ok`.
-Launches add `waitWith`; a refused launch is returned with `isError: true` (the refusal code is in
-`details.refusal`). WP16: an identical launch while the first run is active (also with `detach`) is
-not an error: `details.outcome` is `existing`, `details.runId`/`duplicateOf` name that run and
-`waitWith` points at it; `forceNew: true` starts another run. `aw_wait` returns `terminal`, `actionRequired`, `stillRunning`, `semanticStatus`,
-`preview` (bounded authoritative result), `reportArtifacts`, `taskSummary`, … and streams progress
-through `onUpdate`. WP28 (owner decision Q9):
-`aw_wait` waits until the run is terminal or needs action, or `timeoutMs` passes (default 30 min,
-max 4 h; the host API `longWait`); `stillRunning: true` only means the timeout came first.
-`aw_run`/`aw_dynamic` with `awaitTerminal: true` launch and then wait the same way and return the
-wait result (`details` = wait data plus `launch` = the launch details); `detach` and `awaitTerminal`
-are mutually exclusive and `timeoutMs` requires `awaitTerminal`. Cancelling a tool call cancels only
-the wait. An awaited result is not delivered again as a completion message; when the wait ends
-first (timeout or cancel) the run is tracked like a plain tool launch and reports back when it
-settles. The MCP server keeps its 45 s cap; the CLI is unchanged.
+An identical active launch returns `details.outcome: "existing"`, its `runId`/`duplicateOf`, and `waitWith`, including for detached runs. `forceNew: true` starts another.
 
-`inputs` (WP12c) is the tool form of `--input`: an object of declared workflow inputs, passed to the
-host API as `inputOverrides` and typed there like the CLI's strings (a string is converted for a
-number, boolean or JSON default; any other value must already have the declared type; an undeclared
-key is refused before anything starts; [`usage.md`](usage.md#workflow-inputs---input-keyvalue)).
+`aw_wait` streams progress through `onUpdate` and returns `terminal`, `actionRequired`, `stillRunning`, `semanticStatus`, bounded authoritative `preview`, `reportArtifacts` and `taskSummary`. It waits until settled/action required or timeout (default 30 min, max 4 h); `stillRunning` means the timeout came first.
 
-Usage errors (unknown parameter, bad permission mode, undeclared or mistyped input, unknown run)
-throw, so Pi reports a failed tool result with the host API message.
+`awaitTerminal: true` on a launch returns the wait result with launch details under `details.launch`. It is mutually exclusive with `detach`; launch `timeoutMs` requires it. Cancelling the call stops only the wait. A settled awaited result is not delivered again as a completion message; timeout/cancel leaves the run tracked for later delivery.
+
+`inputs` is the object form of `--input`: declared keys only. Strings are converted to the declared number, boolean or JSON type; other values must already match. Invalid input is refused before launch ([workflow inputs](usage.md#workflow-inputs---input-keyvalue)).
 
 ## Confirmation and profile choice
 
-When the session has a dialog-capable UI (`ctx.hasUI`: TUI and RPC), launches from `/aw` and the
-tools are interactive: a capability degradation that needs confirmation (WP4d) asks
-`ctx.ui.confirm("Proceed with these executor capability degradations?", <preview.prompt>)` (the short dialog text: each limit once, with its stages; the full report is saved with the run); declining
-refuses the launch (`CAPABILITY_DEGRADATION_DECLINED`, no run). A workflow that declares execution
-profiles and none is named offers them through `ctx.ui.select`. Without a UI (print/JSON mode)
-launches are non-interactive: degradations are recorded (`non-interactive`) and the run proceeds.
+With a dialog UI (`ctx.hasUI`, TUI or RPC), capability limits needing consent ask `ctx.ui.confirm("Proceed with these executor capability degradations?", <preview.prompt>)`. The short prompt lists each limit once with its stages; the full report is saved with the run. Decline refuses with `CAPABILITY_DEGRADATION_DECLINED`. Without UI, degradations are recorded as `non-interactive` and the run proceeds.
 
-Profile text fallback (WP16): without a dialog UI, a workflow that declares execution profiles and
-none is named runs with the headless choice (the declared default, else the base spec) and the
-launch output (command text or tool `content`) ends with
+Workflow-declared execution profiles are offered through `ctx.ui.select` when none is named. Without UI, the declared default or base spec is used; output names the selected profile and available alternatives. Explicit profiles or saved per-workflow preferences skip the chooser.
 
-```
-Execution profile (no dialog UI): the workflow declares execution profiles; this launch used "Profile: fast". Choose another with:
-  --profile fast (used)
-  --profile deep
-  Base (no profile)
-```
+In the TUI, `/aw run` also offers `Custom… (open the profile picker)`. This cancels the launch attempt and opens the [picker](#profile-picker) for that workflow. Saving a per-workflow preference retries the launch with that preference; closing without saving starts nothing. RPC and agent tools keep the plain chooser.
 
-(the host API passes the headless option as `selectProfile(title, options, {headlessOption})`). A
-saved per-workflow Pi preference or `--profile` skips the choice, as before.
+Each call uses Pi's cwd and model registry. Pi's current model and thinking level supply runtime defaults when no executor or `pi` is explicitly selected; explicit `--executor codex` does not inherit them. Saved per-workflow preferences and stage overrides are resolved once for both launch and duplicate identity, so changing them starts a new run.
 
-Custom (WP34): in the TUI, the chooser of `/aw run` also offers `Custom… (open the profile picker)`.
-Choosing it cancels that launch attempt before anything starts (the duplicate-launch claim is
-released), opens the [profile picker](#profile-picker-wp34) for that workflow, and when the picker
-saves a per-workflow preference, launches again: the saved preference now resolves before the
-chooser, so it is not asked again, and the launch output ends with the picker's save text. Closing
-the picker without saving reports `Launch cancelled: …; nothing started.` RPC mode and the agent
-tools keep the plain chooser.
+## Board
 
-Host context per call: `cwd` = Pi's cwd; `availableModels` = Pi's model registry (so saved
-per-workflow Pi profile preferences apply; WP19 round 2: the preference, resolved once with its stage
-overrides, is part of the duplicate-launch identity and the run is launched from that same
-resolution, so changing it starts a new run); `runtimeDefaults` = Pi's current model and thinking level,
-only when no executor or `pi` is selected — a `--executor codex` run does not inherit Pi's model.
+`/aw` opens the run list; `/aw <run-id-or-prefix>` opens that run's stages, pinning a child run otherwise omitted from the list. This requires TUI mode and `ctx.ui.custom`; RPC/print/JSON keep text behavior. The command returns when the board closes.
 
-## Board (WP34)
-
-The run board (owner decision Q1, parity row 22).
-`/aw` without arguments opens it on the run list; `/aw <run-id-or-prefix>` opens that run's stages (a
-child run the list omits is pinned first). Only in the TUI (`ctx.mode === "tui"` with
-`ctx.ui.custom`); RPC, print and JSON mode keep the text behavior. The board is Pi's custom
-component for the editor area; the command returns when it closes.
-
-Levels: runs → stages → tasks → task detail. The run list shows each top-level run with status,
-progress and its executors (`claude+codex` for a WP31 mixed run). The side pane shows the selected
-run: run id, start, elapsed, executor(s), the domain verdict, report paths (`Final report`,
-`Evidence audit`), pending dynamic-controller approvals (WP29), the parent-session usage (WP33) and
-the launch capture (source, entry, profile, task size, whether the command is available). Tasks
-list problem tasks first, each with its `executor model effort`. The task detail shows stage,
-agent, elapsed, executor/model/effort, the status detail, the last message, the run verdict, the
-`/aw logs` command and the task's logs (output, stderr, events; up to 400 lines each).
+Navigate runs → stages → tasks → task detail. The list includes all top-level project runs, with progress and executors. The side pane shows id, timing, verdict, report paths, approvals, parent-session usage and launch details. Problem tasks appear first. Task details include executor/model/effort, status reason, last message and up to 400 lines each of output, stderr and events.
 
 | Key | Where | Action |
 |---|---|---|
-| ↑/↓, `k`/`j`, `[`/`]`, `p`/`n` | lists | move (wraps) |
-| Enter, →, `l` | lists | drill down (runs → stages → tasks → detail) |
-| Esc, ←, `h`, `b`, Backspace | lists, detail | back one level; on the run list Esc closes |
-| `q`, Ctrl+C, Ctrl+D | anywhere | close |
-| `r` | anywhere | refresh now (it also refreshes every 2 s) |
-| `v` | runs, stages, tasks | open the launch command viewer (WP33 capture; redacted at capture, control and bidi characters escaped) |
-| `c` | launch viewer, runs, stages, tasks | copy the exact launch command (Pi's `copyToClipboard`) |
-| ↑/↓ | launch viewer | scroll; `b`/Esc back |
-| ←/→ | task detail | switch output / stderr / events |
-| ↑/↓ | task detail | scroll the log |
-| `[`/`]`, `p`/`n` | task detail | previous / next task of the stage |
-| `s` | anywhere | stop the selected run (`stopAction`), after `y` |
-| `u` | anywhere | resume the selected failed, interrupted or blocked run (`resumeAction`, attached; tracked for the status line and completion delivery like `/aw resume`), after `y` |
-| `a` | anywhere | answer the run's first pending approval (`approveAction`): `y` approves (and resumes), `x` rejects (never asked again), Esc cancels |
-| `y` / `n` / Esc | confirmation | yes / no / cancel |
+| ↑/↓, `k`/`j`, `[`/`]`, `p`/`n` | Lists | Move, wrapping |
+| Enter, →, `l` | Lists | Drill down |
+| Esc, ←, `h`, `b`, Backspace | Lists/detail | Back; Esc on run list closes |
+| `q`, Ctrl+C, Ctrl+D | Anywhere | Close |
+| `r` | Anywhere | Refresh; also automatic every 2 s |
+| `v` | Runs/stages/tasks | View redacted launch command; control/bidi characters escaped |
+| `c` | Launch viewer/runs/stages/tasks | Copy exact launch command |
+| ↑/↓; `b`/Esc | Launch viewer | Scroll; back |
+| ←/→ | Task detail | Switch output/stderr/events |
+| ↑/↓ | Task detail | Scroll logs |
+| `[`/`]`, `p`/`n` | Task detail | Previous/next task in stage |
+| `s` | Anywhere | Stop selected run after `y` |
+| `u` | Anywhere | Resume failed/interrupted/blocked run, attached, after `y` |
+| `a` | Anywhere | First pending approval: `y` approves/resumes, `x` rejects, Esc cancels |
+| `y` / `n` / Esc | Confirmation | Yes / no / cancel |
 
-Reads go through the host API only: `statusAction` (run list; one run with per-task runtime,
-verdict, report paths, pending approvals, parent usage), `showAction` (the run record for stages,
-task names, agents and timestamps, and the launch capture) and `logsAction` (the task's bounded,
-redacted tails); it reads no run store directly. Stop/resume/approve keys; `c` also works without
-opening the viewer; a 2 s refresh (each tick is up to two host API reads).
+Reads and actions use only the host API. Resumed runs are tracked for completion. Task details show logs, not task prompts.
 
-## `/aw dashboard` (WP43b)
+## `/aw dashboard`
 
-`/aw dashboard [<run-id-or-prefix>]` opens the project's local web dashboard in the browser (starting it detached when none runs) through a one-time launch URL; the session token and launch key never reach the chat. Pi is a local TUI, so opening the browser directly is the right move (the MCP hosts use URL elicitation or terminal instructions instead; see [dashboard.md](dashboard.md)). The `/aw` TUI board remains the in-terminal view.
+`/aw dashboard [<run-id-or-prefix>]` opens the project's local dashboard in the browser, starting it detached if necessary. A one-time launch URL keeps session tokens and launch keys out of chat. The board remains the in-terminal view. See [dashboard.md](dashboard.md) for authentication and lifecycle options.
 
+## Profile picker
 
-## Profile picker (WP34)
+`/aw profile` opens the TUI picker; outside TUI it lists profiles. Text operations remain available.
 
-The profile picker (parity row 24) over WP31 role profiles. `/aw profile` alone opens it
-in the TUI; the text operations (`/aw profile list|show|set|…|workflow …`) are unchanged, and
-outside the TUI `/aw profile` still lists.
+1. Choose scope: a saved user profile for every workflow, or one workflow's saved preference. The launch chooser's `Custom…` skips this step.
+2. Choose preset (`Codex`, `Claude`, `Pi`, `Mixed`), saved profile, or `Custom…`. Custom starts from the current choice, otherwise `Pi`.
+3. Preview executor/model/effort per role: `default`, `planning`, `research-execution`, `synthesis`, `verification`, `final-judgment`, then `agent:<name>`. Missing role entries inherit the default. Warnings show missing/logged-out executors and unknown models (complete model lists cause launch refusal; partial lists only note the mismatch). Below 66 columns, rows stack over two lines.
+4. Edit roles: choose executor (`pi`, `claude`, `codex`), model (executor default, probed list or manual id), effort, or remove the role. Changing executor clears the model. Probes make no model calls; edits write nothing until Save.
+5. Save. User scope can update/create a named profile and make it default; an unedited saved profile only asks about making it default. Workflow scope saves the base profile and differing role overrides, replacing earlier overrides. A preference cannot remove a base-profile role; the picker warns and keeps it.
 
-1. Scope: `Every workflow: a saved user profile` or `One workflow: its saved preference…` (then the
-   workflow, from `listWorkflowsAction`). The launch chooser's `Custom…` skips this step.
-2. Profile: the built-in presets `Codex`, `Claude`, `Pi`, `Mixed` (with their descriptions), each
-   saved user profile (`Saved: <name>`), and `Custom…`. The current choice is marked `(default)` or
-   `(saved for this workflow)`. `Custom…` starts from the current choice (else `Pi`) and opens the
-   role editor.
-3. Preview: a colour table, one row per role (`default`, `planning`, `research-execution`,
-   `synthesis`, `verification`, `final-judgment`, then `agent:<name>` roles) with EXECUTOR, MODEL
-   and EFFORT. Executors have their own colour (pi `accent`, codex `mdLink`, claude `mdHeading`); a
-   role without an entry of its own is dimmed (the default role applies). Warnings follow a row: an
-   executor that is not installed or logged out, a model missing from the executor's probe list
-   (complete list: refused at launch; partial: only noted). Then one note per executor in use with
-   its probe's `modelListComplete` meaning. Actions: Save, Edit a role…, Back to profiles (↑/↓,
-   Enter, Esc = back). Below 66 columns the table stacks two lines per role.
-4. Edit a role: pick the role (or `Add an agent role (agent:<name>)…`), then Executor (pi, claude,
-   codex, with their probe state; changing it clears the model, which belongs to the executor),
-   Model (`(executor default)`, the models of that executor's probe — `executorModelsAction`, no
-   model call — or `Other model id…`), Effort (`(default)` or a thinking level), or remove the
-   role. Nothing is written while editing.
-5. Save. User scope: an unedited saved profile only asks whether to make it the default
-   (`profileAction` `default`); otherwise `Update saved profile "<name>"` or `Save as a new
-   profile…` (name via `ctx.ui.input`), then "Make it the default?"; an unedited preset is saved
-   with `preset: <id>`, an edited one with its full role table (`profileAction` `set`). Workflow
-   scope: `workflowPreferenceAction` `set` with the base profile and only the roles that differ
-   from it (earlier overrides are replaced); a preference cannot remove a role of its base profile
-   (the picker warns and keeps it).
+Back/cancel writes nothing. Workflow-declared execution profiles remain in the launch chooser, not the picker.
 
-Back and cancel write nothing. Workflow-declared execution profiles are not listed in the picker
-(they stay in the launch chooser).
+## `/aw auto`
 
-## `/aw auto` (WP32, owner decision Q5)
+`/aw auto <task> [options]` recommends a workflow and launches only the user's choice:
 
-`/aw auto` on the host API `autoAction` (same flow on every host, [cli.md](cli.md#auto-wp32)):
+1. Build a local shortlist from the dynamic workflow and discoverable workflows using `routing` hints; no model call.
+2. With dialog UI, ask `Send this task to <executor> to compare workflows?`, showing task, candidates and classifier executor/model. Executor precedence is explicit option, saved user profile, then `pi` with Pi's current model/thinking. No means nothing is sent or started.
+3. Yes sends one tool-less classifier request. TUI shows `Comparing workflow candidates… (Esc cancels; nothing starts)`; Escape aborts the request. RPC shows a notification. Choose a ranked workflow, then confirm `Confirm selected workflow launch`. Normal profile/degradation dialogs still apply; the run is tracked for completion.
+4. Print/JSON sends nothing and prints shortlist launch commands (exit code 1).
 
-1. A local shortlist without a model call (the dynamic workflow and the discoverable workflows,
-   ranked by their `routing` hints).
-2. With a dialog UI (`ctx.hasUI`, not print/JSON mode): `ctx.ui.confirm("Send this task to <executor>
-   to compare workflows?", …)` shows the task, the candidate names and the classifier executor and
-   model. The classifier runs on the run's default executor: `--executor`, else the saved user
-   profile, else `pi` (the Pi host's own CLI) with Pi's current model and thinking level (when the
-   executor is `pi`). No = nothing is sent, nothing starts.
-3. Yes sends one tool-less classifier request. In the TUI it runs behind a cancellable loader
-   ("Comparing workflow candidates… (Esc cancels; nothing starts)", WP33 `withForegroundLoader`,
-   WP38b): Escape aborts the in-flight request (the executor's cancel) and starts nothing; RPC mode
-   shows a "Comparing workflow candidates…" notification instead. Then `ctx.ui.select` lists the ranked workflows
-   (`1. <name> · recommended — <reason>`, …, `Cancel (start nothing)`), and a separate
-   `ctx.ui.confirm("Confirm selected workflow launch", …)`
-   starts it through the normal launch path (`/aw run` options, degradation and profile dialogs). The
-   run is tracked for the status line and completion delivery like `/aw run`.
-4. Print/JSON mode cannot ask, so it sends nothing: it prints the local shortlist with the
-   `/aw run`/`/aw dynamic` command of each candidate (exit code 1).
+Session shutdown during comparison or questions cancels the operation. Once launched, the command returns like `/aw run`; stop it with `/aw stop <run>`. Metadata records candidates, recommendation, selection, classifier executor/model and consent `prompt`. There is no `aw_auto` tool: agents cannot initiate classification on their own.
 
-The run's launch metadata (`agent-workflow-run-launch-v2`, source `pi`, entry `command auto`) records
-the offered candidates, the recommendation, the choice, the classifier executor/model and consent
-`prompt`. There is no `aw_auto`: agents cannot start the
-classifier request on their own.
+## Dynamic-controller approval
 
-## Dynamic-controller approval (WP29)
+With dialog UI, an attached run whose controller declares `dynamic.permissions.approval: "ask"` asks while this session drives it: attached launches, awaited tools, waits, resume and session-start re-drive.
 
-When the session has a dialog UI (`ctx.hasUI`, not
-print/JSON mode), the host context carries `dynamicUi` (`host.ts` `piDynamicUi`), so a dynamic stage
-whose controller declares `dynamic.permissions.approval: "ask"` is asked while this session drives
-the run: attached `/aw run|dynamic`, `aw_run`/`aw_dynamic` (with `awaitTerminal`), `aw_wait`,
-`/aw wait`, `/aw resume` and the session-start re-drive. The dialog is
-`ctx.ui.confirm("Run dynamic workflow controller?", <scope>, {timeout: 300000, signal})`: yes runs
-the controller (recorded as `decidedBy: {host: "pi", via: "prompt"}`), no rejects it for this run
-(`dynamic_approval_rejected`, never asked again), a timeout leaves it blocked and resumable
-(`dynamic_approval_timeout`). `--detach` launches and resumes never ask (their supervisor has no UI),
-and print/JSON mode keeps `dynamic_ui_unavailable`; the blocked message, `/aw status` and `/aw wait`
-name `/aw approve <run> --request <id>` (and `--reject`).
+The dialog is `ctx.ui.confirm("Run dynamic workflow controller?", <scope>, {timeout: 300000, signal})`. Yes runs the controller (`decidedBy: {host: "pi", via: "prompt"}`); no rejects for this run (`dynamic_approval_rejected`, never asked again); timeout leaves it blocked and resumable (`dynamic_approval_timeout`). Detached launches/resumes have no UI; print/JSON blocks as `dynamic_ui_unavailable`.
 
-`/aw approve <run>` answers an open approval later (also one a detached run, the CLI or an MCP
-client left): the same confirm dialog; yes approves and resumes the run (tracked for the status line
-and completion delivery like `/aw resume`; completed tasks are not relaunched), no rejects. Without a
-dialog UI it needs `--yes`, and the flags are the decision. Agents get no `aw_approve` tool: an
-approval is the user's decision.
+Answer later with `/aw approve <run> --request <id>` (or `--reject`), including approvals left by other hosts. Yes approves and resumes without relaunching completed tasks; no rejects. No dialog UI requires `--yes`, with flags supplying the decision. There is no `aw_approve` tool: approval belongs to the user.
 
-## Host tools for Pi workers (WP35)
+## Host tools for Pi workers
 
-A Pi 1.1 session with native MCP (`pi.getMcpServers`) and project trust (`ctx.isProjectTrusted`) lends its native tools to Pi workers:
+Pi 1.1 with native MCP (`pi.getMcpServers`) and project trust (`ctx.isProjectTrusted`) can lend native tools to Pi workers. Launch records host context references (cwd, agent-workflow home, project trust), never MCP configuration or credentials.
 
-- `hostContext()` adds `hostTools: { projectTrusted }` (`piNativeHostTools`, `src/hosts/pi/host.ts`).
-- The host API launch then sets the run option `inheritHostTools` and records the run's host context
-  (`run.hostContext`: cwd, agent-workflow home, project trust; references only, never MCP
-  configuration or credentials).
-- The engine honors it only for tasks whose executor is `pi`; a `--executor codex|claude` run (or a
-  profile that selects one) is unchanged. In a mixed role-profile run (WP31) the decision is per
-  task: pi stages inherit, claude/codex stages do not (compile option `runExecutor`, launch
-  provenance checks the task's own executor). Codex/Claude user-MCP inheritance is a separate opt-in
-  (B6), not this flag.
-- Each non-readOnly Pi worker gets `codemode`, `tool_search`, `mcp__*`, `list_mcp_resources`,
-  `list_mcp_resource_templates` and `read_mcp_resource` (Pi executor, `docs/executors/pi.md`).
-  These are mutation-capable: the stage is classified so, and the worktree/approval rules of the
-  permission mode apply.
-- A stage that declares `readOnly` never inherits them (compile records `inheritHostTools: false`);
-  a stage forced readOnly by negotiation gets none either (the Pi executor drops them).
-- The capability preview and `run.capabilityNegotiation.notices` record a `host tools: …` notice
-  naming the inheriting stages, the readOnly stages that do not inherit and (mixed runs) the stages
-  on other executors. Each stage's preview block also has a `host tools: …` line, and its record
-  `run.capabilityNegotiation.stages[].hostTools` says `inherited`, `readOnly`, `no-tools` or
-  `executor` (not pi).
-- Older Pi hosts (no native MCP) and the CLI/MCP hosts launch exactly as before.
+Only non-readOnly Pi tasks inherit `codemode`, `tool_search`, `mcp__*`, `list_mcp_resources`, `list_mcp_resource_templates` and `read_mcp_resource`. These are mutation-capable; permission-mode worktree/approval rules apply. Declared or negotiated readOnly tasks get none. In mixed runs the decision is per task; Claude/Codex inheritance is a separate opt-in. Older Pi hosts and CLI/MCP hosts do not enable this inheritance.
+
+The capability preview names inheriting/excluded stages; `run.capabilityNegotiation.stages[].hostTools` is `inherited`, `readOnly`, `no-tools` or `executor` (not Pi).
+
+Inheritance uses file configuration: workers read the user's `mcp.json`; live parent MCP connections and `registerMcpServer()` registrations are not transferred. Under isolation (`--no-approve`), workers do not load a trusted project's `.pi/mcp.json`; recorded project trust is not yet used.
 
 ## Session start
 
-On `session_start` (not awaited, never delays startup; supervisor role only) the host first
-re-drives running runs (WP28):
-`redriveRunsAction` schedules every run of the project that still has scheduler work and that no
-other live process drives (a held run lease, or a `supervisor.json`/`supervisor-lease.json`
-heartbeat younger than 30 s from a live pid other than this Pi process), then keeps watching it in
-this process. So an attached run whose Pi session (or CLI, or `detach: false` MCP server) ended
-continues when Pi starts again in the project; a detached run whose supervisor is alive, or a run
-another Pi session drives, is left alone. Re-driving only schedules: a blocked run stays blocked,
-and an attempt whose worker died without a terminal record is reconciled by the engine, where an
-`unknown` outcome blocks the task as `executor_needs_decision` (B3), never a relaunch. Delivery is
-not taken over: nothing is bound, so the completion message still goes only to the run's WP16
-audience session (when that session starts, its catch-up delivers it). Then the host calls
-`noticesAction({argv: ["list"]})` and shows one warning notification listing unfinished runs: top-level failed/interrupted runs and blocked runs waiting for a
-dynamic approval or an executor decision, excluding mock runs, runs with an active acknowledgement
-and runs not updated for 7 days; at most 5 listed, each as `<workflow name> <run>: <status>` (WP38:
-`failed (final rendered — degraded)` when the final output was rendered) with `/aw resume <run>`. A
-malformed acknowledgement sidecar suppresses nothing (WP38; the `notices` command still refuses it). A
-run is notified
-again only when its status/updatedAt changed, its acknowledgement became stale, or 6 hours passed
-(state: `.agent-workflow/workflows/unfinished-notices.json`). Silence a run with
-`/aw notices acknowledge <run> --state <sha256> --reason <text>`.
+Startup work is asynchronous and does not delay Pi. In supervisor role, the host re-drives project runs with scheduler work and no live driver. A held lease or a live other pid with a supervisor heartbeat younger than 30 s prevents takeover. Blocked runs stay blocked. Workers that died without terminal records are reconciled; unknown outcomes block as `executor_needs_decision`, never automatically relaunch.
 
-## Status line and completion delivery (WP16)
+Re-driving does not take over completion delivery: the original audience session still owns it. Attached runs continue only while Pi runs; use `--detach` to outlive sessions.
 
-Completion feedback delivery (per-epoch receipts) and an active-run status entry, without the board widget (WP33 adds the presentation lease, below). Only with a UI (TUI or RPC;
-`ctx.hasUI`, not print/JSON mode).
+The host then warns about unfinished top-level failed/interrupted runs and blocked runs needing approval or executor decisions. It excludes mock runs, active acknowledgements and runs not updated for 7 days; at most 5 appear. Rendered degraded finals are labeled `failed (final rendered — degraded)`. Malformed acknowledgement sidecars suppress nothing.
 
-- **Audience.** A run launched (or resumed, or returned as `existing`) by `/aw run|dynamic|resume`,
-  `aw_run` or `aw_dynamic` in this session is bound to the Pi session id
-  (`ctx.sessionManager.getSessionId()`) in `<run dir>/pi-feedback-audience.json`, created exclusively:
-  the first session wins and no other session ever tracks or receives that run, not even through
-  an identical launch that the duplicate guard answers with the same run.
-- **Status line.** While at least one such run is `running`/`pending`, the footer entry
-  `agent-workflow` shows `aw: <name> <completed>/<total> running` (`+N more` with several runs).
-  One timer per session polls every second, reads only the tracked runs' `run.json` (the progress
-  file the engine or the detached supervisor writes; it never drives a run), calls `setStatus` only
-  when the text changes, clears the entry and stops when no tracked run is active, and stops at
-  `session_shutdown`.
-- **Delivery.** When a tracked run settles — terminal (`completed`, `failed`, `interrupted`) or
-  action required (`blocked`) — the session gets one custom message (`customType:
-  "agent-workflow-completion"`, `display: true`) with status, task counts, the first problem task,
-  `Verdict: <domain verdict>` (WP18b: the output task's `verdict`, for example `NEEDS_WORK`; omitted
-  when the workflow reports none) and `Run status: <semantic status>` as separate lines, report
-  paths, the bounded result preview, next commands (`/aw status|logs`, or `/aw inspect … --failures`
-  and `/aw resume`), and `details` `{runId, name, status, semanticStatus, verdict?, terminal,
-  actionRequired, taskSummary, reportArtifacts}`, plus an info or
-  warning notification. A run launched by `/aw` (the user) does not start an agent turn
-  (`triggerTurn: false`); a run launched by `aw_run`/`aw_dynamic` (the agent) is delivered as a
-  `followUp` turn with a "treat as data, summarize/present the result" instruction.
-- **Once while Pi runs, at least once after a crash (WP19, review #5).** One delivery per run,
-  session and settled state (epoch = SHA-256 of the run status and each task's status, timestamps,
-  exit code and resume events; a resumed run that settles again is a new epoch). The receipt
-  `<run dir>/pi-feedback-receipts/<epoch>.json` is first a *pending reservation* (`state:
-  "pending"`, owner token and pid, written under a per-epoch lock before `pi.sendMessage`). WP19
-  round 2 (N2): once `sendMessage` returned it is `state: "sent"`, not a durable acknowledgement
-  (while the agent streams, Pi only queues the message in this process's memory); it becomes
-  `state: "confirmed"` when Pi's session history (`ctx.sessionManager.getEntries()`) holds an
-  `agent-workflow-completion` `custom_message` whose `details` carry this `runId` and
-  `feedbackEpoch`. The tracker keeps polling for up to 10 min after a send to confirm it on a
-  later tick. Every receipt records its sender: pid, host and a random per-process id (WP19 round
-  3). A pending reservation whose owner is gone (a crash between reservation and send) is resolved
-  like a `sent` receipt. A throwing send drops the reservation (retried on the next poll, at most 4
-  attempts, then an error notification); WP19 round 5: only that unsent attempt is refunded, the
-  receipt it replaced is restored with its attempt history (deleting it reset the budget below). An empty or corrupt receipt is never proof of delivery.
-  Round-1 `"delivered"` receipts are read as `sent`; receipts written before WP19 count as
-  delivered when the history holds the run's message or the history is unreadable.
-- **Delivery decision (WP19 round 3 R2/R3, round 4 F1/F3/F4, round 5) — the exact guarantee.** On every
-  delivery attempt, whatever the receipt says, in this order:
-  1. *This OS process enqueued the epoch into the still-live queue of the current session
-     runtime* → never sent again. Pi 1.1 keeps queued messages per session runtime
-     (`AgentSession`: the agent's follow-up queue and pending custom messages). `/reload` keeps the
-     runtime and its queue; `/new`, `/resume`, `/fork` and quit abort and dispose it
-     (`AgentSessionRuntime.teardownCurrent`), dropping what is still queued. The queue lifetime is
-     identified by the runtime's `ctx.sessionManager` object (assigned once per `AgentSession`;
-     a WeakMap on `globalThis`, `Symbol.for("agent-workflow.pi-feedback.process-state.v2")`, so it
-     survives an extension reload and holds no strong reference), and `session_shutdown` with
-     `reason` `new`/`resume`/`fork`/`quit` ends it eagerly: that session's epochs become
-     "unconfirmed, reconcile against the history", a durable queue-end tombstone is written
-     (round 5: `.agent-workflow/pi-feedback-queue-ends/<lifetime>.json` under the session's cwd,
-     whatever the bounded in-memory maps still hold), the receipts still in memory are published as
-     `sent` with `queueEndedAt`, and their in-memory entries are dropped. `reload` (and an unknown reason)
-     keeps them. The identity check also covers a replaced runtime whose shutdown event we missed.
-     Suppression is in memory and in the receipt (`queueLifetime` + this process's id), so it
-     survives eviction of the in-memory entry.
-  2. *Otherwise, readable session history*: present → `confirmed`, nothing sent; absent → sent
-     (again). A `confirmed` receipt written by another process does not overrule explicit absence
-     (Pi 1.1's `getEntries()` is in memory: a message whose append to the session file failed was
-     "seen" and confirmed, yet the restarted session lacks it). Exception: a `sent` (unconfirmed)
-     receipt of another *live* Pi process on this host is left to that process only while its
-     queue lifetime is confirmed alive: the receipt names a `queueLifetime`, the owner has not
-     marked it ended (`queueEndedAt`) nor published a queue-end tombstone for it (round 5) and it
-     was sent less than 10 min ago. Such a delivery is `deferred`, not settled: the tracker keeps
-     it (also a catch-up one, which never starts a turn) and retries every poll until that queue
-     ends, the history shows it or the 10 min pass. Otherwise it is reconciled like any other
-     receipt (round 4; round 3 trusted any live owner).
-  3. *Otherwise (history unreadable: no `getEntries`, or it throws)*: a `confirmed` receipt is
-     final and another live process's `sent` receipt is deferred to it under the same queue
-     lifetime/tombstone/10 min rule (round 5; round 4 deferred unconditionally); otherwise the
-     epoch is sent again, but every reservation counts (`attempts`), including an orphaned
-     `pending` one (sent, then the `sent` publication was lost): at most 2 enqueue attempts per
-     epoch (round 4, F3). A reservation whose send provably did not happen (fence, or
-     `sendMessage` threw) is refunded without erasing earlier attempts (round 5). Consequence: two consecutive crashes between reservation and `sendMessage` exhaust the
-     budget without a message (at-least-once does not hold in that double-crash case).
+Notices repeat after status/update changes, stale acknowledgement or 6 hours. State lives in `.agent-workflow/workflows/unfinished-notices.json`. Silence a state with `/aw notices acknowledge <run> --state <sha256> --reason <text>`.
 
-  | Situation | Messages per epoch |
-  |---|---|
-  | Normal (one process; queued while streaming, then persisted) | exactly 1 |
-  | `/reload` (module re-imported; Pi keeps the runtime and its queue) or tracker stop/restore | exactly 1 (never resent into the live queue) |
-  | `/reload` that upgrades the module across a process-state schema (round 5) | at least 1, at most 1 duplicate (older state is only reconciled against the history) |
-  | `/new`, `/resume`, `/fork` (queue disposed), session active again in this or a later process | exactly 1 in its history: present → nothing sent; absent (queue dropped) → sent once into the resumed session |
-  | Another live Pi process queued it (same session) | deferred and retried while its queue lifetime is alive (≤ 10 min after its send, no tombstone); then reconciled: exactly 1 with readable history |
-  | Crash/restart, history readable | 1 if the durable history has it; otherwise 1 more on restart (also after a `confirmed` receipt) |
-  | Crash/restart, history unreadable | at most 2 successful enqueue attempts (pending reservations count; a refunded failed send does not erase earlier ones); at least 1 unless two attempts crashed before `sendMessage` |
+## Status line and completion delivery
 
-  Upgrades (round 5): the process state is versioned (the `globalThis` key ends in `.v<schema>`
-  and the state records `schema`). Rule: state left by another version of this module may cause
-  at most one duplicate, never a loss. A module never reuses state of another key or schema for
-  suppression (it starts a fresh state with a new sender id), and an in-memory entry without a
-  concrete queue lifetime never counts as "enqueued into this queue": what the older module
-  enqueued is reconciled against the history (present → confirmed, absent → sent again;
-  unreadable → the receipt's attempt budget). Any incompatible change to the process state must
-  bump the schema; older state is only ever downgraded to "reconcile against the history".
+With UI (TUI/RPC), launches, resumes and duplicate-existing results bind a run exclusively to the first Pi session in `<run dir>/pi-feedback-audience.json`. Other sessions do not track or receive it.
 
-  Queue-end tombstones (round 5) are pruned at every write: older than 20 min (a receipt counts as
-  queued in a live queue only within 10 min of its send, which precedes the queue end) or beyond
-  1024 files (the oldest; a missing one only delays reconciliation to the 10 min window end).
-  Round 6: the directory is written or pruned only when it is physically
-  `<real cwd>/.agent-workflow/pi-feedback-queue-ends` — neither `.agent-workflow` nor
-  `pi-feedback-queue-ends` may be a symlink — otherwise no tombstone is written (recovery waits for
-  the 10 min window) and nothing is pruned. Pruning removes only files that are positively ours: a
-  `<lifetime>.json` whose content carries the queue-end schema and that lifetime, or a writer's
-  `<lifetime>.json.<pid>.<hex>.tmp`; any other file there is left alone.
+- **Status:** the `agent-workflow` footer shows `aw: <name> <completed>/<total> running`, with `+N more` for additional runs. One timer polls tracked `run.json` files every second without driving execution, updating only on text changes. It stops when inactive or on shutdown.
+- **Completion:** settled runs (completed/failed/interrupted/blocked) produce an `agent-workflow-completion` custom message with status, counts, problem task, separate domain verdict and semantic run status, report paths, bounded preview and next commands. User-command launches do not start agent turns; tool launches deliver a follow-up instructing the agent to treat the message as data and present the result. TUI shows only the message; RPC/other UI modes also receive an info/warning notice.
+- **Restart:** at session start, active audience-owned runs are tracked again. Up to 5 top-level runs updated within 7 days receive catch-up completion without starting a turn.
 
-  Catch-up (round 6): at session start at most 5 catch-up messages are sent in total. A catch-up
-  deferred to another live owner reserves one of the 5 slots, so the tracker's later retries of
-  deferred catch-ups never push the total past 5.
+Delivery is once per session/run/settled state in normal operation. Resuming and settling again creates a new state. Receipts under `<run dir>/pi-feedback-receipts/<epoch>.json` reconcile with session history: messages queued in a live runtime are not resent; history confirmation prevents duplication after restart. `/reload` keeps the queue, while `/new`, `/resume`, `/fork` and quit dispose it. A missing history entry can cause redelivery after a crash or queue disposal. A module upgrade across receipt process-state schemas may produce at most one duplicate.
 
-  Memory (round 4, F4): the confirmation watch (sent, not yet in the history, < 10 min, at most 64
-  entries) is separate from the dedup map (epochs enqueued into live queues, at most 256; durable
-  entries are evicted first, their receipts still suppress). Confirmed entries and the entries of
-  an ended queue lifetime are dropped; durable receipts and the session history are the source of
-  truth after eviction. Residual: evicting a *non-durable* entry (its `sent` publication failed)
-  of a still-live queue, i.e. more than 256 such entries, falls back to the receipt rules.
+Another live process's unconfirmed delivery is deferred for at most 10 min while its queue lifetime remains alive. With unreadable history, recovery allows at most 2 enqueue attempts per epoch, including orphaned pending reservations; two crashes before sending can exhaust this budget without delivery. Throwing sends retry at most 4 times before an error notification. Queue-end tombstones live in `.agent-workflow/pi-feedback-queue-ends`, expire after 20 min and are capped at 1024 files. Symlinked directories are not written or pruned; recovery then waits for the 10 min window.
 
-- **Session-owned waits (WP33, parity row 20).** The
-  session that owns a run (its audience) presents its completion. `aw_wait` refuses a run another
-  Pi session owns (`run … is owned by another Pi session`; a context without a session id owns
-  nothing); a run no session owns (CLI, MCP, print mode) can be waited on and nothing is recorded.
-  While an agent of the owning session waits (`aw_wait`, or `aw_run`/`aw_dynamic` with
-  `awaitTerminal`, which now track the run before waiting), the tracker holds an in-process
-  *presentation lease* for that run: it keeps the status line but does not send the completion. A
-  wait that returns the settled run is its presentation: the receipt of that epoch is written as
-  `sent` with `channel: "tool-result"` and `presentedBy`, the run is no longer tracked and the tool
-  result's `details.feedbackEpoch` lets the session history confirm it (an `aw_*` `toolResult`
-  entry with that `runId` and epoch counts like the completion message). So every WP19 rule above
-  applies unchanged: no completion message into the same live queue; after a crash or a disposed
-  queue, a history without that tool result gets the message once. A wait that ends first
-  (timeout, cancel) releases the lease and the tracker delivers as before. When the message reached
-  the session before the wait returned, the result says so (`details.completionAlreadyDelivered`,
-  "The completion message of this result was already delivered to this session."). `/aw wait` (a
-  user command) does not present: the message still follows.
-- **Concurrent deliveries (WP19 round 2, N3).** A delivery keeps in-process ownership of its
-  reservation through its final `sent` transition; a concurrent delivery of the same epoch in this
-  process returns `in-flight` without sending. Every receipt transition (reserve, drop, sent,
-  confirmed) is serialized per receipt (an in-process queue plus the per-epoch directory lock) and
-  only rewrites a receipt that still carries the transition's owner token.
-- **Session fence (WP19, review #6).** Pi's `sendMessage` goes to the runtime's *current* session
-  (there is no session-targeted form). Right before it, synchronously, the delivery re-checks the
-  current session id against the audience and the tracker's session generation (bumped on
-  `session_start`/`session_shutdown`); on a mismatch nothing is sent, the reservation is dropped
-  (`session-changed`) and the delivery stays pending for the audience session's next catch-up.
-- **Restart.** At `session_start` (after the unfinished-run notice, not awaited) the host tracks
-  this session's runs that are still active and delivers, without a turn, those that settled while
-  no Pi process of the session watched (top-level runs updated in the last 7 days, at most 5).
-  WP19 round 2 (N7): a `session_shutdown` while this restore awaits a read wins: the restore
-  re-checks the session generation and context after each await and right before scheduling, so it
-  tracks nothing and starts no timer; a poll that finds no session context clears the timer.
+### Session-owned waits
 
-## Active workflows widget and foreground loader (WP33)
+`aw_wait` refuses runs owned by another Pi session. Unowned CLI/MCP/print-mode runs may be waited on without recording ownership. Contexts without session ids own nothing and receive no footer/completion delivery.
 
-Active-workflow presentation (parity row 23), with a UI only (TUI or RPC; print
-and JSON mode show nothing):
+While the owning session waits through `aw_wait` or an awaited launch, completion messages are held back. A settled tool result is the presentation; its `details.feedbackEpoch` lets session history confirm it. Timeout/cancel releases the hold for later completion delivery. If a completion already arrived, the tool reports `details.completionAlreadyDelivered`. User-command `/aw wait` does not suppress the completion message.
 
-- **Widget.** Next to the WP16 footer entry (kept as is) the tracker sets the widget
-  `agent-workflow-active` (`ctx.ui.setWidget`, placement `belowEditor`): `Active workflows`, then one line per active run of this
-  session (`● <name> <completed+running>/<total> <status> · <elapsed>`, newest first, at most 5,
-  then `… and N more`). It lists only the runs this session tracks (its audience), not every
-  running run of the project, is rewritten only when its text changes, and is
-  cleared when no tracked run is active and at session shutdown.
-- **Loader.** `/aw wait <run>` blocks the session, so in the TUI (`ctx.mode === "tui"`) it runs
-  behind Pi's cancellable `BorderedLoader` (`ctx.ui.custom`; "Waiting for <run> (Esc stops
-  waiting; the run continues)…"). Escape cancels only the wait (WP28): the command reports
-  `Stopped waiting for <run>; the run continues …` and the run keeps going (tracked runs still
-  report back). RPC mode has no `ctx.ui.custom` and runs the wait as before. `/aw run`, `dynamic`,
-  `resume` and `approve` return once started, so they need no loader; the agent's `aw_wait` and
-  awaited launches are tool calls (Pi shows their progress; aborting the turn cancels the wait).
+## Active workflows widget and foreground loader
 
-## Parent-session usage (WP33)
+With UI, the `agent-workflow-active` widget below the editor lists active runs tracked by this session, newest first, at most 5 plus an overflow count. It clears when no tracked run is active and at shutdown.
 
-`parent-usage.json` (`src/core/workflow-parent-usage.ts`; parity row 33). A run that `/aw run|dynamic|resume|approve`,
-`aw_run` or `aw_dynamic` started (or returned as `existing`) in this session is tracked under the Pi
-session id; every parent assistant message (`message_end` with `usage`) while the run is active adds
-its usage (input, output, total, cache read/write, reasoning tokens, cost) to
-`<run dir>/parent-usage.json`, and the first assistant message after the run settled is counted once
-as the wrap-up (`completedAt`). `session_start` resumes counting for this session's running runs,
-`session_shutdown` flushes and detaches. The core module's rules apply (one writer under the run's
-lease, replay receipts, a run owned by another session — its `pi-feedback-audience.json` — is never
-written). The sidecar holds only numbers, timestamps, the session id and message hashes, never message
-content. It needs a session id, not a UI (print mode counts too). `status <run>` and `inspect <run>`
-(every host) show `Parent session usage: <total> tokens (in …, out …, cache read/write …/…), $<cost>,
-<n> assistant messages` (`(counting)` while open) and return it as `parentUsage` (totals only). Other
-hosts record none: an MCP server cannot see its host's usage.
+In TUI, `/aw wait` uses a cancellable loader: `Waiting for <run> (Esc stops waiting; the run continues)…`. Escape cancels only the wait. RPC waits without a custom loader; agent tools use Pi's normal tool progress and turn cancellation. Launch/resume/approve commands return after startup and need no loader.
+
+## Parent-session usage
+
+Runs launched, resumed, approved or returned as existing in this session track parent assistant usage in `<run dir>/parent-usage.json`, including print mode. Assistant messages while active contribute usage; the first after settlement counts once as wrap-up. Session start resumes counting owned active runs; shutdown flushes it.
+
+The sidecar contains numbers, timestamps, session id and message hashes, never message content. Other sessions' runs are not written. Status and inspect expose totals as `parentUsage` and show whether counting is ongoing. MCP hosts cannot collect parent usage because the server cannot observe it.
 
 ## Process roles
 
-With `AGENT_WORKFLOW_ROLE=worker` or `disabled` (a Pi worker that loads this package) the tools are not
-registered and no notice is shown; `/aw help` and `/aw validate` still work and other actions are
-refused by the host API.
+With `AGENT_WORKFLOW_ROLE=worker` or `disabled`, tools and notices are not registered. `/aw help` and `/aw validate` remain available; other actions are refused by the host API.
 
 ## Other Pi extensions
 
-The Pi host registers only `/aw`, `aw_*` tools and `aw-` skills; a unit test registers them next to
-another extension's `/workflow` and `workflow_*` names in one fake `ExtensionAPI` (which throws on a
-duplicate) in both orders. Its runs live in `.agent-workflow/`.
-
-## Verification
-
-- WP34: `host-wp34-pi-board.test.mjs` (fake source: navigation, mixed-run executor/model/effort,
-  verdict, report path, pending approvals, launch viewer escaping and copy, stop/resume/approve
-  confirmed in the board; through the Pi host with a fake TUI: `/aw` and `/aw <prefix>` open the
-  board over `statusAction`/`showAction`/`logsAction` only, `s`/`u` stop and resume a real fixture
-  run, RPC and print/JSON keep the text behavior) and `host-wp34-pi-profile-picker.test.mjs`
-  (`executorModelsAction` with a fake prober, preview rows and renderer, the scripted flow: Back and
-  cancel write nothing, a preset saved as the default, Custom role editing saved as a user profile, a
-  per-workflow preference; `/aw profile` with the preview component; the launch chooser's `Custom…`
-  saves a preference and launches once, closing without saving starts nothing).
-- WP33: `host-wp33-pi-owned-wait.test.mjs` (aw_wait presents the result of this session's run, no
-  completion message follows; another session is refused; unowned runs; a timed-out wait leaves
-  delivery to the tracker; already-delivered note; awaited duplicate launch; restart with and
-  without the tool result in the history).
-- WP33: `host-wp33-pi-active-ui.test.mjs` (widget lines, this session only, footer kept, cleared;
-  no UI shows nothing; `/aw wait` loader in the TUI, Escape cancels only the wait; no loader in RPC).
-- WP33: `host-wp33-pi-parent-usage.test.mjs` (totals of this session's assistant messages while the
-  run is active, not other sessions', not content; wrap-up counted once; status/inspect line; CLI
-  runs record nothing; print mode counts).
-- WP33: `host-wp33-launch-capture.test.mjs` (launch capture from the CLI, `/aw`, `aw_dynamic` and
-  MCP; redaction; show/inspect) and `host-wp33-pi-skills.test.mjs` (`pi.skills`, `aw-` names, no
-  collision with same-named skills, generated copies in sync, relative paths resolve).
-- WP28: `host-wp28-pi-waits.test.mjs` (long `aw_wait`, `awaitTerminal` on `aw_run`/`aw_dynamic`,
-  cancel = only the wait, no second delivery of an awaited result, `/aw wait <run> [timeout]`),
-  `host-wp28-pi-redrive.test.mjs` (a child process launches an attached run and exits; session start
-  re-drives it, B3 decision instead of a relaunch after a killed worker, audience kept, live drivers
-  skipped), `host-wp28-pi-exposure.test.mjs` (deferred tool exposure).
-- WP32: `host-wp32-auto.test.mjs` (`/aw auto`: consent, ranked select and final confirm launch and
-  track the run with one classifier submit on `pi` with Pi's model; declined consent, declined final
-  confirmation and Cancel start nothing; print/JSON mode sends nothing).
-- WP38b: `host-wp38b-auto-launch-cancellation.test.mjs` (launch-cancellation
-  cases: Escape or session end at the final confirmation start nothing; Escape on the comparison
-  loader cancels the in-flight classifier request; `/aw stop` after the launch is exact-run;
-  uncancelled named and dynamic launches dispatch) and `host-wp38b-auto-router.test.mjs` (slash
-  capture, fail-closed without a confirmation dialog, no-transmit and no-fit choices, unranked manual
-  fallback provenance).
-- WP29: `host-wp29-pi-approval.test.mjs` (confirm yes runs the controller, no rejects it, json mode
-  blocks with the approve commands, `/aw resume` asks the open approval), `host-wp29-approve-later.test.mjs`
-  (`/aw approve` through the dialog, `--yes` without one).
-- WP35: `test/unit/executor-wp35-host-tools.test.mjs` (fake native Pi host → `hostTools`; Pi host +
-  pi executor → per-task `inheritHostTools`, readOnly stage excluded, preview notice; Pi executor
-  argv with/without readOnly; non-Pi host and non-pi executor unchanged; provenance fails closed for
-  other executors). WP31×WP35: `test/unit/host-wp31-wp35-mixed-host-tools.test.mjs` (mixed pi +
-  claude run from a fake native Pi host: pi tasks inherit, claude and readOnly pi stages do not;
-  per-stage preview lines; provenance per task executor).
-- `test/unit/host-pi-extension.test.mjs`: fake `ExtensionAPI`; every action and tool delegates to the
-  right handler with the right arguments (a recording wrapper over the real host API); runs use the
-  WP11a guarded test-executor hook; confirmation (decline, accept, no UI); session-start notices
-  (eligibility, dedup, acknowledgement, non-blocking); worker role; no-collision; entry guard and
-  import isolation.
-- WP16: `host-wp16-guard.test.mjs` (duplicate guard through the host API, the CLI, `aw_run` and the
-  host MCP server: identical detached launches → one run, different inputs/options, `forceNew`, a
-  terminal run, concurrent launches), `host-wp16-logs.test.mjs` (bounds, redaction, CLI and
-  `/aw logs`), `host-wp16-pi-feedback.test.mjs` (fake Pi UI: status lifecycle, one delivery,
-  receipts across a simulated restart and catch-up, other session never delivered, failed send
-  retried, no UI, blocked message, profile dialog vs text fallback), `host-wp16-pi-rpc.test.mjs`
-  (real Pi in RPC mode, no model turn: `/aw run` on the guarded test executor → `setStatus`
-  `aw: wp16-rpc 0/1 running`, an identical `/aw run` → `Duplicate launch guard`, one
-  `agent-workflow-completion` custom message, status cleared, `/aw logs <run>` and
-  `/aw status <run>`; recorded transcript `test/fixtures/host-pi/rpc-wp16-transcript.jsonl`, live with
-  `AGENT_WORKFLOW_PI_BIN`).
-- `test/unit/host-pi-rpc.test.mjs`: real Pi 1.1 in RPC mode with no model turn — `/aw help`,
-  `/aw list`, `/aw validate deep-review` are answered with `disposition: "handled"` and the expected
-  notification text; nothing but responses and extension UI records is emitted. The scrubbed
-  transcript `test/fixtures/host-pi/rpc-aw-transcript.jsonl` is checked on every run; the live check
-  runs with `AGENT_WORKFLOW_PI_BIN=<path to pi>` (re-record with `AGENT_WORKFLOW_PI_RPC_RECORD=1`; add
-  `AGENT_WORKFLOW_PI_WORKFLOW_EXTENSION=<pi-workflow src/extension.ts>` for the coexistence check).
+The extension uses only `/aw`, `aw_*` tools and `aw-` skills. Runs live in `.agent-workflow/`.
 
 ## Limits
 
-- The board (WP34) lists top-level runs of this project (not only this session's); its task detail
-  shows logs, not the task prompt (the host API exposes no prompt read). A dynamic-controller
-  approval asked while the board is open (an attached run of this session) replaces the board with
-  Pi's dialog, as with the `/aw wait` loader.
-- The `/aw wait` loader shares Pi's editor slot with dialogs: a dynamic-controller approval asked
-  during the wait (WP29) replaces the loader; the wait continues after the answer, without the
-  loader (cancel it with a new `/aw wait` … Escape, or let it finish).
-- A context without a session id gets no status line or delivery (Pi 1.1 has one in TUI and RPC,
-  also with `--no-session`).
-- The profile picker (WP34) edits WP31 role profiles and does not list workflow-declared execution profiles.
-- `/aw auto` (WP32) has a loader only while the classifier compares (WP38b); once the chosen workflow
-  starts, the command returns like `/aw run` (`/aw stop <run>` stops it). A session that ends (`session_shutdown`)
-  while `/aw auto` is still comparing or asking cancels it: nothing starts.
-- Runs left running by a gone process are re-driven at session start (WP28) only while Pi runs;
-  for a run that should outlive every session use `--detach` (or `agent-workflow supervise`).
-- Host tools (WP35) are file-configuration inheritance: workers read the user's
-  `mcp.json` themselves; live MCP connections and `registerMcpServer()` registrations of the parent
-  session are not transferred. Under isolation (`--no-approve`) a trusted project's `.pi/mcp.json`
-  is not loaded by the worker; the recorded project trust is not yet used.
-  Live bundle 5: the worker's tool list held `codemode`, `tool_search` and the user-level `mcp__*`
-  tools (a readOnly stage none), the target's `.pi/mcp.json` server did not reach it, and the worker
-  system prompt's "Effective Tool Policy" still names only the stage's tools, so the model did not
-  call them ([live-acceptance-features.md](live-acceptance-features.md), O8/O9). Since WP39b the
-  policy lists them; in live bundle 6 a worker called `tool_search` and `list_mcp_resources` (a
-  readOnly stage still had neither).
-- WP34 was live-checked in a Pi 1.1.0 TUI in live bundle 5 (board keys, logs tabs, `v`/`c`,
-  `s`/`u`/`a`, narrow width, picker with `ctx.ui.input`, chooser `Custom…` → picker → one launch;
-  `c` works since the fix above). `/aw <run-prefix>` opened that run's board in live bundle 6. Not
-  checked live: a mixed run in the board.
-- WP33 was live-checked in live bundle 5: `aw_run` + `aw_wait` (no follow-up message, the receipt
-  `confirmed` on the tool-result channel), the widget, `parent-usage.json`, and the `aw-` skills. The loaders work since the fix above (verified on `/aw auto` with Escape); usage
-  totals were not compared against Pi's own session usage, and `/resume` history confirmation was not
-  exercised.
-- `runtimeDefaults` follow the explicit executor only: a profile that selects a non-Pi executor still
-  receives Pi's current model as the lowest-precedence default.
-
-## Change log
-
-- **Live bundle 5 (WP39): `/aw auto` task text.** `/aw auto "<task>"` parsed its arguments with the
-  `dynamic` parser, which strips only a leading `dynamic`, so the classifier got `auto "<task>"`
-  (the action word and the quotes; "158 characters" for a 151-character task in the consent dialog)
-  and the chosen workflow would have run with that text. It now strips `auto` and unquotes the task
-  like `/aw run|dynamic`; launch options may lead or trail it, an option inside the task is refused.
-  Tests: `host-wp32-auto.test.mjs` ("the task is the text after `auto`…", fails on the old code);
-  `host-wp38b-auto-router.test.mjs` now places the refused option inside the task.
-- **Live bundle 5 (WP39): loaders and copyToClipboard in a real Pi.** Pi 1.1 resolves its packages for an
-  extension only while it loads the extension's entry. The late `import()` of
-  `@earendil-works/pi-coding-agent` in `active-ui.ts` (Pi's `BorderedLoader`) and `board-source.ts`
-  (`copyToClipboard`) resolved natively and failed with `pi -e <checkout>/dist/hosts/pi/index.js`
-  (no Pi copy next to the extension; `pi install` does not install the optional peer either): the
-  `/aw auto` comparison and `/aw wait` ran without a loader (Escape could not cancel them) and the
-  board's `c` reported "Launch command copy failed". Verified with a probe extension in Pi 1.1.0
-  (entry import ok, nested late import `ERR_MODULE_NOT_FOUND`). `index.ts` now registers the module
-  its entry import returned (`pi-runtime.ts`) and the late users read it. Test:
-  `host-wp39-pi-runtime-module.test.mjs`.
-- **WP39b (live bundle 5, O10): completion message for a run that settles inside the approve call.**
-  A run that finished inside `/aw approve` or the board's `a` (foreground resume after the
-  decision) got no completion message: tracking started only for `running`/`pending` results. A
-  settled result of `approve` or `resume` (`completed`, `failed`, `interrupted`, `blocked` again)
-  is now tracked too, so the tracker delivers it with the usual receipts (exactly once). Test:
-  `host-wp29-approve-later.test.mjs` "Pi /aw approve: a run that settles inside the approve call …"
-  (fails on the old code).
-- **WP39b (live bundle 5, O11): the completion shown once in the TUI.** The live pane showed the
-  `[agent-workflow-completion]` message ("Workflow blocked; action required: …") and right after it
-  a `Warning:` notification with the same body, while the session history held the message once:
-  the tracker sends the custom message and then calls `ctx.ui.notify` with its notice, and the TUI
-  prints both in the scrollback. In the TUI the message is now the only notification; RPC and other
-  modes keep the notice. Test: `host-wp16-pi-feedback.test.mjs` "TUI: the completion is shown once
-  …" (fails on the old code).
+- The board lists all top-level project runs, not just the current session's. A dynamic approval dialog replaces an open board or wait loader. The wait continues after the answer without its loader; start another `/aw wait` and press Escape to cancel waiting, or let it finish.
+- The profile picker edits role profiles, not workflow-declared execution profiles.
+- Runtime defaults follow the explicit executor option: a profile selecting a non-Pi executor can still receive Pi's current model as its lowest-precedence default.
+- Completion recovery with unreadable history has the bounded retry limits described above, not an unconditional delivery guarantee.

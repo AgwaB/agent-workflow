@@ -2,7 +2,7 @@
 // the agent-workflow engine → core task backend → runtime durable worker → replay executor
 // (test/replay/replay-executor.mjs; no model, no agent CLI), and the run directory is compared with
 // the recording (test/replay/compare.mjs). Each variant runs in its own Node process.
-// See docs/replay.md for the match key, the classification rules and the per-fixture results.
+// See replay record for the match key, the classification rules and the per-fixture results.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { runFixture } from "../replay/acceptance.mjs";

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/tool-metadata.ts. MIT, same author. Changes: the workflow_web_* tools are not built in (C2: web tools are each CLI's own); an agent's tools authorise exactly those names.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/tool-metadata.ts. MIT, same author. Changes: the workflow_web_* tools are not built in (C2: web tools are each CLI's own); an agent's tools authorise exactly those names. 2026-11-05: the built-in names are the ones every executor maps (read, grep, find, ls, web_search, fetch_content, edit, write, bash); Pi-only extension names (lsp_*, ast_grep_search, code_search, get_search_content, scrapling_fetch) are custom tools like any other.
 import type {
 	CompiledToolProvider,
 	TaskCapability,
@@ -19,14 +19,8 @@ const BUILTIN_TOOL_METADATA: Record<string, CompiledToolProvider> = {
 	grep: { classification: "read-only" },
 	find: { classification: "read-only" },
 	ls: { classification: "read-only" },
-	lsp_diagnostics: { classification: "read-only" },
-	lsp_navigation: { classification: "read-only" },
-	ast_grep_search: { classification: "read-only" },
 	web_search: { classification: "read-only" },
-	code_search: { classification: "read-only" },
 	fetch_content: { classification: "read-only" },
-	get_search_content: { classification: "read-only" },
-	scrapling_fetch: { classification: "read-only" },
 	edit: { classification: "write-capable" },
 	write: { classification: "write-capable" },
 	bash: { classification: "mutation-capable" },
@@ -68,22 +62,12 @@ const NON_DOWNGRADABLE_TOOL_FLOORS: Record<string, TaskCapability> = {
 // provider can still reach the network, while a shell can do both local and
 // network work. Unknown/custom providers stay unknown rather than receiving a
 // permissive name-based guess.
-const NETWORK_CAPABLE_TOOLS = new Set([
-	"bash",
-	"web_search",
-	"code_search",
-	"fetch_content",
-	"get_search_content",
-	"scrapling_fetch",
-]);
+const NETWORK_CAPABLE_TOOLS = new Set(["bash", "web_search", "fetch_content"]);
 const KNOWN_LOCAL_TOOLS = new Set([
 	"read",
 	"grep",
 	"find",
 	"ls",
-	"lsp_diagnostics",
-	"lsp_navigation",
-	"ast_grep_search",
 	"edit",
 	"write",
 ]);

@@ -1,221 +1,142 @@
-# Local web dashboard (WP43)
+# Local web dashboard
 
-`agent-workflow dashboard` serves a **localhost-only** web view of the project's runs: where each agent is, how far along the run is, what needs the human, and the task logs — with Stop / Resume / Approve / Reject. It is the browser form of the Pi `/aw` board and of `watch`, and like them it is a **host**: every read and every action goes through the host API (`statusAction`, `showAction`, `logsAction`, `stopAction`, `resumeAction`, `approveAction`), so it inherits their containment, redaction and semantics. The only run files it reads itself are a task's result files (`control.json`, `analysis.md`, `refs.json` beside its `result.json`, for item titles, outcome lines and the Result tab), contained to the project's artifact root, size-bounded and redacted. It takes no lease and calls no model.
-
-Design reference: the approved F v9-O mockup (`dashboard-mockups/f-combined-v9-o.html`, 2026-10-29): rail · run header (status sentence + `N / total`) · DAG with the active foreach stage listing its agents · inspector; dark "control room" look; only what a person looks at more than once a day is on the default screen.
+`agent-workflow dashboard` serves a localhost-only view of one project's runs: progress, stages, agent activity, logs, results and items needing attention. Stop, Resume, Approve and Reject use the shared [host API](host-api.md). The dashboard takes no run lease and makes no model calls itself; resuming or approving can continue model work.
 
 ## Command
 
-```
+```sh
 agent-workflow dashboard [--port <n>] [--readonly] [--auth] [--open] [--project <dir>]
+agent-workflow dashboard --status [--project <dir>]
+agent-workflow dashboard --stop [--project <dir>]
+agent-workflow dashboard --reset-session [--project <dir>]
 ```
 
-- Binds **127.0.0.1 only** (never `0.0.0.0`, never IPv6-any). Port: the project's last port when free, else a free ephemeral port, unless `--port`.
-- Prints one line with the URL and keeps running until SIGINT/SIGTERM (exit 0). `--open` opens it in the default browser. **By default there is no sign-in** (WP43d, below): the URL is plain. With `--auth` the URL includes the session token.
-- `--readonly`: the UI shows a read-only badge and the server rejects every mutation with 403, whoever asks.
-- `--project`: project directory (default: cwd). One server = one project (`<dir>/.agent-workflow/`).
-- Exit 2 on usage errors (port in use, port out of range, not a directory).
+- Binds **127.0.0.1 only**, never `0.0.0.0` or IPv6-any. Reuses the project's last port when free, otherwise chooses an ephemeral port. Explicit `--port` is strict.
+- `--project` defaults to cwd. One server serves one project's `.agent-workflow/`.
+- Foreground mode prints the URL and runs until SIGINT/SIGTERM (exit 0). Usage errors, including unavailable/invalid ports or a non-directory project, exit 2.
+- `--open` opens the browser. Default URLs need no sign-in; with `--auth`, the printed foreground URL includes a session token.
+- `--readonly` disables controls and rejects every mutation with 403.
+- `--status` reports discovery state, pid, port, start time, auth mode and detached idle-exit timing. `--stop` sends SIGTERM and waits for discovery removal.
+- `--detached` runs in the background without printing a session URL. Detached servers exit after 2 h with no SSE client and no live running/blocked run; foreground servers never idle out.
+
+## What it shows
+
+The sidebar lists runs with task previews, timing, progress and reports. **Needs you** collects approvals, executor decisions and failed/blocked runs. Failures can be dismissed in this browser; approvals and decisions cannot. A stopped run offers Resume rather than appearing as a new need.
+
+The run view separates process status from the workflow's verdict: a workflow may finish its work and still report “Needs work”. The graph shows stages, dependencies and agent progress. Code steps are hidden by default; Show/Hide remembers your choice. Failed, running, attention-required or selected code steps remain visible. Fit, Focus and direction controls help navigate larger graphs.
+
+Select a stage or agent to see activity, results, output, stderr or events. Finished agents expand in place; **Open agent** shows full detail and log tabs. Run details show the task, redacted launch command, permission mode, host and usage. Unreported cost is `null`/“Not collected”, not zero.
+
+Reports and task results render text-only Markdown, with no active links, images or HTML. Code highlighting loads locally when available and falls back to plain text. The report's Light/Dark page choice is independent of the dashboard's Auto/Light/Dark theme. Theme, sidebar and display choices are stored in this browser.
+
+Stop explains its impact and records a durable request for the supervisor. Resume does not relaunch completed tasks. Approval dialogs show the controller question and scope; rejecting leaves the run blocked.
+
+`Live`, `Reconnecting` and `Stale (updated …)` describe the connection, not run status. Stale appears after 30 s without a heartbeat. Reduced-motion preferences disable animations. Keyboard controls include ↑/↓ navigation, Enter, Escape, `⌘K` search, and `j`/`k` between agents. Clicking empty canvas closes the inspector; dragging pans instead.
+
+Deep-link state includes `run`, `stage`, `task`, `tab=result|output|stderr|events`, `view=report|details`, and `dialog=stop|resume|approve|reject`.
 
 ## Security model
 
-The default mode (WP43d) has **no sign-in**; the rows marked *(`--auth`)* apply only when sign-in is turned on. See "No sign-in by default" at the end for the reasoning and the stated residual risk.
+**Default: no sign-in.** Any local OS user or process able to reach the port can view runs and use Stop/Resume/Approve/Reject. Use `--auth` on shared machines and `--readonly` when mutations are unwanted. Loopback binding does not isolate users on the same machine.
 
 | Threat | Control |
-| --- | --- |
-| Another local user / process on the machine | Bind `127.0.0.1`. **Default: accepted** — a local party that can reach the port can view runs and press the controls (same parties can read `.agent-workflow/` anyway). *(`--auth`)* 256-bit random **session token** required for everything except the bootstrap redirect; printed once to the launching terminal only. |
-| Token leaking via URL/history/referrer *(`--auth`)* | The URL form `http://127.0.0.1:<port>/?token=…` is accepted **once per request** to set an `HttpOnly; SameSite=Strict; Path=/` cookie and `302` to `/`. All later requests use the cookie. `Referrer-Policy: no-referrer` on every response (both modes). |
-| DNS rebinding / a web page on another origin calling the API | `Host` must be `127.0.0.1:<port>` or `localhost:<port>` (else 421). No CORS headers, so a foreign page cannot read any response. Mutations require `Origin` equal to the server origin (else 403). `Sec-Fetch-Site`, when present, must be `same-origin` or `none`; **default mode requires `same-origin` on every mutation** (browsers set it; pages elsewhere cannot). |
-| CSRF | Mutations are `POST` with `Content-Type: application/json` and header `X-AW-CSRF: <csrf>`; the csrf value comes from `GET /api/session`, which only a same-origin page can read. *(`--auth`)* it is tied to the session token (HMAC) and the cookie is `SameSite=Strict`. No form posts. |
-| XSS from worker output / reports / prompts | UI renders every string with `textContent`/`createElement`; reports are shown as **text** (headings and lists built as DOM nodes; no HTML, no images, no links from content). CSP: `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`. No inline scripts/styles, no external resources, no web fonts. `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cache-Control: no-store`. |
-| Secrets / home paths in logs and launch commands | Everything passes the host API's redaction (`hostTextRedactor`, logs containment of WP19); the dashboard adds nothing unredacted. |
-| Unbounded reads | Log tails bounded by the host API (≤ 400 lines, ≤ 48 kB per call); report body capped at 256 kB (truncated with a notice); task result files ≤ 1 MiB each, analysis ≤ 60,000 and control ≤ 40,000 characters, ≤ 100 references; SSE one connection per tab, server-side poll ≥ 1 s. |
-| Mutation by a page in read-only mode | `--readonly` → 403 `{ error: "read-only" }` server-side; the UI disables the controls as well. |
+|---|---|
+| Local access (`--auth`) | 256-bit random per-project session token; required except for bootstrap/sign-in routes |
+| Token exposure (`--auth`) | `?token=…` sets `HttpOnly; SameSite=Strict; Path=/` cookie, then 302 redirects to a token-free URL; `Referrer-Policy: no-referrer` |
+| DNS rebinding / foreign pages | `Host` must be `127.0.0.1:<port>` or `localhost:<port>` (else 421); no CORS headers |
+| CSRF | Mutations require POST, JSON content type, matching `Origin` and `X-AW-CSRF` from same-origin `GET /api/session`. Default mode requires `Sec-Fetch-Site: same-origin`; otherwise, when present, it must be `same-origin` or `none`. With auth, CSRF is tied to the token by HMAC. |
+| Untrusted output | Text DOM nodes, no `innerHTML`; reports cannot execute HTML or load content resources |
+| Browser execution | CSP: `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`; no inline scripts/styles or external resources |
+| Response leakage | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cache-Control: no-store`, no-referrer |
+| Secrets and paths | Host API containment/redaction; result files contained to the project's artifact root and redacted |
+| Unbounded reads | Logs ≤400 lines / ≤48 kB per call; report ≤256 kB with truncation notice; task result files ≤1 MiB each, analysis ≤60,000 characters, control ≤40,000 characters, references ≤100 |
+| Read-only mutation | Server-side 403 `{ "error": "read-only" }`; UI controls also disabled |
 
-Paths from the host API are project-relative already; the dashboard never echoes absolute paths beyond what `showAction` (redacted) returns.
+The UI receives a projection, not raw run records. Task activity labels describe tool intent, never tool output; URLs omit query/fragment, paths are relative or reduced to basenames, and secret-like values are redacted.
+
+## Authentication
+
+Enable with `--auth` or `AGENT_WORKFLOW_DASHBOARD_AUTH=1` (also applies to auto-started servers).
+
+The session token is stored in `<project>/.agent-workflow/dashboard-session` (0600, 32 random bytes base64url) and reused across restarts, so signed-in browser cookies remain valid. `--reset-session` stops a running dashboard and rotates the token, requiring browsers to sign in again.
+
+Unauthenticated UI requests receive a 401 sign-in page (`/app.css` remains public). **Sign in on this computer** calls `POST /api/signin-local`; matching Origin and `Sec-Fetch-Site: same-origin` are required, with one call per 3 s. The server opens a one-time URL through the OS browser opener; it never returns that URL to the page. Alternatively, use `agent-workflow dashboard --open` or ask the host to open it.
+
+One-time auth launch tokens contain 32 random bytes, expire after 60 s and are single-use. The persistent session token remains available for manual sign-in.
+
+## Launch integration
+
+`run`, `dynamic` and launched `auto` operations auto-start a detached dashboard if needed and print a token-free link:
+
+```text
+Dashboard: http://127.0.0.1:<port>/?run=<id>
+```
+
+Launch data includes `dashboard: {url, port, started?: true, auth?: true}`. Startup waits at most 3 s. Dashboard failure never fails the workflow launch; the fallback is `Dashboard: not running · agent-workflow dashboard --open`.
+
+When `wait` returns a settled or blocked run, it supplies the dashboard link again. Finished runs with reports use `&view=report`.
+
+Auto-start never opens a browser. Opening is opt-in through CLI `--open`, `AGENT_WORKFLOW_DASHBOARD_OPEN=1`, Pi `/aw dashboard`, or MCP `workflow_dashboard`. Environment-requested opening is suppressed when `CLAUDECODE`, `CODEX_SANDBOX`, `CODEX_THREAD_ID`, `CURSOR_AGENT` or `AI_AGENT` is set, or the host is Pi/Codex/Claude Code. Explicit `--open` overrides suppression. Openers honor `BROWSER`/`BROWSER_ARGS`.
+
+Set `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` to disable auto-start. It is also disabled for worker roles and read-only contexts. Browser-opening host behavior is documented in [host-mcp.md](host-mcp.md#dashboard-opening) and [pi-host.md](pi-host.md#aw-dashboard).
+
+The last port is stored in `<project>/.agent-workflow/dashboard-port`. Reusing it keeps older links usable after restarts when the port is available; with auth, persistent cookies also survive restarts.
+
+## Environment variables
+
+| Variable | Meaning |
+|---|---|
+| `AGENT_WORKFLOW_DASHBOARD_AUTH=1` | Require sign-in, including auto-started servers |
+| `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` | Disable automatic dashboard startup |
+| `AGENT_WORKFLOW_DASHBOARD_OPEN=1` | Open after launch, subject to agent suppression |
+| `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` | Detached idle timeout; default 2 h, minimum 1 min |
+| `AGENT_WORKFLOW_DASHBOARD_POLL_MS` | SSE poll interval; default 1000 ms, range 500–10000 ms |
+| `BROWSER`, `BROWSER_ARGS` | Browser opener command and arguments |
 
 ## HTTP API
 
-All JSON responses: `Content-Type: application/json; charset=utf-8`. Errors: `{ "error": string }` with 400/401/403/404/409/421/500.
+JSON responses use `Content-Type: application/json; charset=utf-8`. Errors are `{ "error": string }` with 400/401/403/404/409/421/500 as appropriate. Auth mode requires a session except on bootstrap/sign-in routes; mutations require the controls above. Run ids must match `^workflow_[A-Za-z0-9_-]+$`; prefixes are not accepted over HTTP.
 
-| Method & path | Returns |
-| --- | --- |
-| `GET /?launch=…` (default) | marks that launch consumed (unknown ids ignored), 302 → `/` keeping well-formed `run`, `task`, `tab`, `view` params; a stray `?token=` is dropped the same way |
-| `GET /?token=…` *(`--auth`)* | sets cookie, 302 → `/` — a printed deep link keeps its well-formed `run`, `task`, `tab`, `view` params (never the token, nothing else) |
-| `GET /` `/app.js` `/app.css` | the UI (*`--auth`*: cookie required; 401 otherwise with the sign-in page) |
-| `GET /api/session` | `{ apiVersion: 1, project: { path, name }, mode: "read-write" \| "read-only", auth: boolean, csrf, serverTime, version }` |
-| `GET /api/runs` | `{ serverTime, runs: DashboardRunSummary[] }` — every top-level run, newest first |
-| `GET /api/runs/:runId` | `DashboardRun` (full projection, below) |
-| `GET /api/runs/:runId/tasks/:taskId/logs?stream=output\|stderr\|events\|all&lines=1..400` | `logsAction` data for that task (`LogsTask`, with `truncated`/`refused` as the host API reports) |
-| `GET /api/runs/:runId/tasks/:taskId/result` | `{ digest?, analysis?, refs?: [{title?, url?, note?}], control? (pretty JSON), *Truncated? }` from the task's result files; `{}` for a known task without them; 404 for an unknown task |
-| `GET /api/runs/:runId/report` | `{ path, text, truncated }` of the first report artifact (text only) or 404 |
-| `GET /api/events?run=<runId>` | SSE. Events: `runs` (`{ serverTime, runs }`), `run` (`DashboardRun` of `run`), `heartbeat` every 15 s. A payload is sent only when its content hash changed; first payloads immediately on connect. Poll interval 1 s (env `AGENT_WORKFLOW_DASHBOARD_POLL_MS`, 500–10000). |
-| `POST /api/runs/:runId/stop` | `stopAction` → `{ outcome, status, pending, interruptedTaskIds, text }` |
-| `POST /api/runs/:runId/resume` | `resumeAction` (detached supervisor, like the Pi board) → `{ outcome, status, resetTaskIds, text }` |
-| `POST /api/runs/:runId/approve` body `{ requestId, decision: "approve"\|"reject" }` | `approveAction` → `{ outcome, status, text }` |
+| Method & path | Result |
+|---|---|
+| `GET /?launch=…` | Mark launch consumed; 302 to `/`, forwarding valid `run`, `task`, `tab`, `view`; unknown ids ignored and stray tokens dropped in default mode |
+| `GET /?token=…` (`--auth`) | Set cookie and redirect, forwarding valid UI parameters without token |
+| `GET /`, `/app.js`, `/app.css` | UI assets |
+| `GET /api/session` | `{apiVersion: 1, project: {path, name}, mode: "read-write" \| "read-only", auth, csrf, serverTime, version}` |
+| `GET /api/runs` | `{serverTime, runs}`; top-level run summaries, newest first |
+| `GET /api/runs/:runId` | Full dashboard projection |
+| `GET /api/runs/:runId/tasks/:taskId/logs?stream=output\|stderr\|events\|all&lines=1..400` | Host API task log data, including truncation/refusal information |
+| `GET /api/runs/:runId/tasks/:taskId/result` | `{digest?, analysis?, refs?: [{title?, url?, note?}], control?, *Truncated?}`; `{}` if known task has no results; 404 if unknown |
+| `GET /api/runs/:runId/report` | `{path, text, truncated}` for first report artifact, or 404 |
+| `GET /api/events?run=<runId>` | SSE `runs`, selected `run`, and 15 s `heartbeat`; initial payload immediately, later payloads only when content changes |
+| `POST /api/runs/:runId/stop` | `{outcome, status, pending, interruptedTaskIds, text}` |
+| `POST /api/runs/:runId/resume` | Detached resume: `{outcome, status, resetTaskIds, text}` |
+| `POST /api/runs/:runId/approve` | Body `{requestId, decision: "approve"\|"reject"}`; result `{outcome, status, text}` |
 
-Mutations in read-only mode: 403. Unknown run: 404. A run id must match `^workflow_[A-Za-z0-9_-]+$` (no prefixes over HTTP).
+### Dashboard projection
 
-## Dashboard projection (what the UI renders)
+Run summaries include `runId`, `name`, `status`, `statusDetail?`, timestamps, redacted `taskPreview?` (≤140 characters), executor(s), host, task/agent counts, verdict, report availability, `needsYou` and `live` (a supervisor holds the lease).
 
-The server projects host-API data into one JSON shape; the UI never sees the raw run record. Field sources in brackets.
+Full runs add the redacted runtime task, permission mode, usage (or `null`), redacted launch details, pending approvals and tasks. Tasks include ids, kind, agent, state/reason, dependencies, executor/model/effort, timing, retry information, last message, usage, worktree, log availability, item title, outcome and current activity.
 
-```ts
-interface DashboardRunSummary {
-  runId: string; name: string;                    // [RunSummary]
-  status: "running"|"completed"|"failed"|"blocked"|"interrupted"|"pending";
-  statusDetail?: string;                           // run-level hint when blocked (e.g. dynamic_approval_rejected)
-  createdAt: string; updatedAt: string;
-  taskPreview?: string;                            // the user's task on one line, ≤140 chars [show runtimeTask, redacted]
-  executor?: string; executors?: string[];         // mixed runs: every executor
-  host?: string;                                   // [launch.host] "cli" | "pi" | "codex" | "claude-code" | …
-  taskSummary: { total, completed, running, pending, failed, blocked, interrupted, skipped };
-  agentSummary?: { completed, total };             // agents only: no foreach placeholders, support helpers, controllers
-  verdict?: string; reportAvailable: boolean;      // [statusAction verdict / reportArtifacts]
-  needsYou: Array<{ kind: "approval"|"failed"|"decision"; title: string; requestId?: string; taskId?: string; since: string }>;
-  live: boolean;                                   // a supervisor holds the lease [watch readWatchRun semantics]
-}
-interface DashboardRun extends DashboardRunSummary {
-  task?: string;                                   // the user's task text (redacted) [record.description / launch]
-  permissionMode?: string;
-  usage: { tasksReporting, taskCount, input?, output?, cacheRead?, total?, costUsd: number|null, note?: string } | null;  // null → "Not collected"
-  launch?: { host, entry, command }                // [showAction launch, redacted]
-  pendingApprovals: Array<{ requestId, controllerSpecId, taskId, title, message, requestedAt }>;
-  tasks: DashboardTask[];
-}
-interface DashboardTask {
-  taskId; specId; stageId; kind: "single"|"foreach"|"reduce"|"support"|"dynamic"|"loop"|string; agent;
-  status; statusDetail;                            // raw engine values; the UI maps them to sentences
-  dependsOn: string[];                             // spec ids
-  generated: boolean; placeholder: boolean;        // foreach/dynamic expansion
-  executor?; model?; effort?;
-  startedAt?; completedAt?; elapsedMs?;
-  retry?: { attempt: number; maxAttempts?: number; reason?: string; nextRetryAt?: string };  // [launchRetry / outputRetry]
-  lastMessage?: string;                            // redacted
-  usage: { input?, output?, total?, costUsd: number|null } | null;
-  worktree?: { path: string|null; branch: string|null };
-  hasLogs: boolean;                                // a started task with output/stderr files
-  title?: string;                                  // foreach item's human title [source item, task-text.ts]
-  outcome?: { status?: string; tone: "ok"|"warn"|"err"; text?: string };  // completed: status word + one line [control.json]
-  activity?: { kind: "read"|"search"|"web"|"edit"|"shell"|"agent"|"tool"; label: string; at: string };  // running only
-}
-```
+Agent counts exclude foreach placeholders, support helpers and controllers. Pending approvals expose request id, controller spec id, task id, title, message and request time. `needsYou` contains approvals, `executor_needs_decision` tasks, and failed/blocked runs. Cost is `null` unless reported by the executor.
 
-Rules: `task` is the run's runtime task text from `showAction({ includeTask })` (redacted, bounded), never the workflow's `description`. `costUsd` is `null` unless the executor reported a cost — never 0. Pending approvals come from `pendingDynamicApprovals` (status). `needsYou` = pending approvals (`approval`), tasks with `statusDetail === "executor_needs_decision"` (`decision`), and failed/blocked runs (`failed`). A run the user stopped (`interrupted`) is not a need: its sentence says "Stopped by you … Resume when ready" and the Resume action is offered; it is not pinned. Strings are redacted by the host API before projection.
+## Discovery file
 
-`title` and `outcome` (2026-11-01) come from `task-text.ts`: a foreach item's title is the first text field (`title`, `name`, `claim`, `question`, `text`, …) of its source item, found through the dispatch map, the task's own `itemRef`, or the run spec's foreach source; a completed task's outcome is its control's `status`/`verdict` word (tone `err` for blocked/failed/refuted-like words, `warn` for partial/uncertain-like, else `ok`) and the first summary field (`summary`, `conclusion`, `headline`, `answer`, `digest`). Reads are contained to the project's artifact root, ≤ 512 KB, cached by mtime/size; text is one line, ≤ 160 chars, rendered as text.
-
-`activity` (2026-11-01) is the running task's latest tool intent: executor `tool_call` events (Codex, Claude, Pi) → one sanitized label on the attempt's heartbeat write (≤ 1/s) → the task record while it runs (cleared at terminal) → the projection. Labels are verb-first (`Reading src/a.ts`, `Searching "…"`, `Opening host/path`, `Running npm test`); never tool output; URLs keep host + path only; paths are cwd-relative (also across a symlinked cwd) or a basename outside it; shell wrappers (`zsh -lc '…'`) are unwrapped, `KEY=value` prefixes dropped, token shapes (`sk-…`, `ghp_…`, `github_pat_…`, AWS/Slack/Google keys, long mixed letter-digit runs, bearer values) and anything after an assignment/flag/header naming a secret (or a bare secret word such as "password") redacted; everyday words such as "tokens" or `auth/session.ts` stay readable.
-
-## UI
-
-Single page, no build step: `src/hosts/dashboard/ui/{index.html,app.css,app.js}` (ES module). Behavior is the F v9-O mockup with the fixture replaced by `/api/*` + SSE:
-
-- Rail (260 px, 232 px at ≤1200 px; 2026-11-03, owner: wider, and foldable): the top bar's sidebar button folds it away and back (`aria-expanded`), the choice is kept in this browser (`localStorage` `agent-workflow:rail`), and `Needs you` opens a folded rail. Below 1440 px the rail steps aside while the inspector is open (the button brings it back for that inspection, not kept). On a phone (≤800 px) the page is one column and the rail is a drawer over it (scrim), closed until the button opens it and closed again by a pick, the scrim or Escape; the top bar keeps the logo, project and a search icon, the run header's actions take their own line, the code-step switch reads `4 hidden · Show`, the inspector opens full width, and a long report's contents fold behind `Contents ▾`. Each run row also shows when it started (`4h ago`, full date in its tooltip) and the first two lines of its task (`taskPreview`), so runs of one workflow read apart. The graph's code-step switch and view toolbar line up with the run header's left edge (28 px; 16 px at ≤1200 px). Needs you (across the project's runs) · Runs (name, one human line, agents `done/total`, elapsed, thin neutral bar; completed runs with a report get `Report ↗`; workflow verdict tokens such as `BLOCKED` in sentence case).
-- Run header (2026-11-01): a 34 px **progress ring** (agents done / total, green while running) that closes into a drawn check when the run finishes (red ✕ failed, amber ! blocked/needs you), the state word, a sub line (workflow · elapsed · `N of M agents done`), actions (Stop…, Resume…, Review approval…, Open report, Run details). Below it the **status sentence** (mapping table in `app.js`) — as a quiet **Result** block only for a run that finished its work (completed or verdict-gated); a failed, stopped or blocked run keeps `Status`. A finished run's outcome (2026-11-03, owner, in two steps: first a deep-review that ended `NEEDS_WORK` read like a success; then "NEEDS_WORK belongs in the report, not the process"): the header, the rail glyph and the graph show the **process** — a run that did all its work is "Finished" under the green check; the workflow's verdict is the **result** — the Result block leads with it in plain words (`! Needs work` amber, `✓ Review complete` green; the token in its tooltip) above the summary, and the rail line reads `Finished · Needs work`. A verdict that says the run itself fell short stays in the header with the amber `!` ring: a verdict gate the workflow made its success condition (the run ends failed; "Gate not passed" without a verdict) and a partial or incomplete review (`PARTIAL_REVIEW`, `incomplete`). A run without a verdict whose agents left caveats stays "Finished" under a check with an amber `With caveats` tag (rail: `Finished · with caveats`); a clean run stays "Finished". In the graph a finished stage names, in its text only, the outcomes that leave work to do (owner: "where did it fail?"): a many-agent stage reads `3 agents · 1 keep · 2 weaken` (non-ok outcome statuses counted) and a single-agent stage `Needs work · 10s`; review outcomes that leave work (`needs work`, `gaps found`, a deep-review verifier's `keep`/`weaken`) are warnings, so those agents sit under "Needs a look" with an amber `!` in the agent list. A finished stage's mark says that it finished (owner: every finished node had the same faint check; then "finished should look finished", 2026-11-03, superseding the earlier neutral-done rule; the amber `!` and outline a stage briefly had for such outcomes were removed the same day, since they are results, not process): a **green** ✓ (accent, 2 px stroke) — code steps at reduced opacity — and the red ✕ for failures. The same green marks a clean finish elsewhere: the header ring and its check, the rail glyph and a finished agent's row icon. Colour stays on glyphs, never fills; running keeps its green dot, so shape (dot vs ✓) tells running from done. A card's outline colour means its state only — running, retry, needs you, failed (owner: the white frame of the selected card read as a signal): selection lightens the card and thickens its own outline (grey on a neutral card), hover lifts a quiet grey outline on any card, code steps included, and only keyboard focus (`:focus-visible`) draws the text-colour frame. A code step's tooltip reads "<Name> · code step (no model)". Cards (2026-11-03, owner's pick after mock-ups comparing the thin code rows, folding code steps onto the edges, and full cards): **every stage is a full card**; at its right a mark says who did the work (owner's pick of four mock-ups — tags after the name, plain words, icon + words, a side bar): `✦ agent` / `✦ N agents` for a stage agents work, `</> code` for a step the engine runs itself; with no code card in view every card is an agent's, so a lone `✦ agent` is left out and only counts stay. **Code steps are hidden by default** (owner, after mock-ups of always shown, folded onto the edges, and hidden with a switch): the switch at the canvas's top left reads `N code steps hidden · Show` / `N code steps shown · Hide`, its choice is kept in this browser (`localStorage` `agent-workflow:code-steps`), and each choice keeps its own view (showing them fits the taller graph anew). A hidden step's neighbours connect straight across it; a code step that failed, runs, waits on a person, or is the selected stage (Jump, a `stage=` link) stays in place. A code step's card has no fill and a quieter frame and text, so agent stages read first, and its second line shows its short result (`raw 3 · unique 3 · duplicates 0`, `Rendered 3 findings…`; never a hash) and time; a failed code step reads `Failed — <reason>` on a red card. A finished card's second line drops "Done" (the check says it) and the agent count (the tag says it): `17s`, `2 weaken · 1 keep · 17s`, `Needs work · 10s`. A waiting stage is a dashed card that reads `Waiting`. Layers sit 34 px apart.
-- DAG: top-down (left-right toggle), outlined nodes with humanized names (`verify-claims` → "Verify claims"; ids stay in data attributes and ARIA), dimmed pending, the **active foreach node lists its agents** (≤ 6), a foreach card's **segment strip** (one segment per item up to 48: hollow waiting, breathing green running, done, hatched red failure — an agent's outcome is in the segment's label, not its colour; an aggregate bar above 48), support helpers as compact cards. `Fit`, `Focus`, layout toggle, `?` (status key).
-- DAG shape for dense graphs (2026-10-30, owner feedback "too complex", reference: GitHub Actions' workflow visualization graph — <https://docs.github.com/en/actions/how-tos/monitor-workflows/use-the-visualization-graph> — which stacks jobs that share dependencies into one card, collapses a matrix into one card, routes edges as orthogonal elbows with port dots and merges joins into one trunk): (1) **stacked cards** — stages in the same layer with identical inputs *and* outputs become one card titled `<shared prefix> · n in parallel` with a row per stage (status glyph, short name, `Done · 27s`), a done/total bar, the worst status as the card's; rows open their own stage, the card opens its first; foreach/approval/ghost stages keep their own card; (2) **orthogonal rails** — every edge is stem → shared rail through the middle of the channel between the two layers → stem, rounded corners, a port dot at the source; edges of one channel merge into one bus line, so a fan-out/join is a few lines instead of n×m crossing curves; an edge that skips layers travels down the gap beside its source; (3) **hover/focus tracing** — a hovered or focused card keeps its own edges and neighbours lit and dims the rest (`.graph.tracing`), which recovers the exact pairs a bus hides; (4) a dotted prefix shared by every stage (`impact-analysis.`) is dropped from card text (titles, labels and the inspector keep full names).
-- DAG direction and position (2026-10-30, owner feedback "arrows are hard to see; show where it's going; the canvas scrolls forever"): every edge ends in an **arrowhead** (constant 13 px at any zoom) and carries a state — `active` (into a running/retry stage: accent, dashes flowing toward the stage), `blocked` (amber, slow flow), `next` (the stage work goes to next: dashed accent, slow flow; that node gets a dashed accent outline), `done` (travelled: solid, static), `later` (faint dashed), `failed` (red). **Handoff packets** (2026-11-01, replacing the perpetual glint): a dot travels an edge only when something happens — into a stage when one of its tasks starts, out of it when one completes (white, amber or red by the outcome tone), diffed between consecutive projections, ≤ 24 at once, none on first load or while the graph is hidden. **Reshape morph** (2026-11-01, owner's choice after a side-by-side comparison): a status change that changes the graph's shape (a card collapses or expands, later cards move, the view re-centres) moves cards, outlines and edges from their previous geometry over 400 ms; a resized card's old content fades out as an inert copy (no focus, roles or data hooks; `aria-hidden`) while the new fades in. Since 2026-11-03 (owner: showing/hiding the code steps jumped; "smoother"): 460 ms with an ease-out curve, the view itself glides from the old zoom/pan to the new one (no jump in card size), cards that leave fade out where they were (inert copies, edges too) and new cards settle in from 8 px above. **Motion family** (2026-11-03, owner: "run details should be smooth too; check consistency"): one set of tokens — `--t-fast` 0.15 s (hover, colour), `--t-base` 0.22 s (things that enter: dialogs, results, scrims, a new subject in the inspector), `--t-layout` 0.28 s (panels that change the layout), `--t-leave` 0.16 s (leaving is quicker), `--ease-out` for entering and moving; app.js `MOTION` mirrors them (graph reshape 460 ms). Every panel moves both ways: the rail's and the inspector's columns grow and narrow (the grid always has three tracks; the content keeps its width and fades; a closing inspector stays drawn, `hidden` and inert, until its column is gone), a phone's rail and inspector slide in from their sides (the rail over a fading scrim), dialogs rise in and sink out with their backdrop (`@starting-style`, `allow-discrete`; the report's light/dark page cross-fades), an agent's result unfolds and folds away, a new subject in an open inspector (stage → Run details, next agent) slides in 8 px, another tab's panel fades in, and switching runs keeps the previous run dimmed and inert until the next is drawn (no "Loading run…" flash). The first drawing of a page places the panels without motion (`body[data-ready]`). All of it is off under reduced motion. Status motion (the running dot's pulse, breathing borders, handoff packets, the progress ring's closing check, the first-load replay) is a separate, deliberate family. The code-step switch is a framed control (`--panel` fill, `--line2` border, a bright "Show") so its off state reads as a control; run rows indent every line under the run's name. Layers sit 48 px apart (72 px left-right) so edges read as a path. `Fit` never zooms below 0.7 (boxes stay large enough for their text); a graph that still overflows starts at its top/left, **pan is clamped** so the graph can never leave the canvas, and a pill per side (`4 more →`, accent `· active` when the work is over there) counts the off-screen stages and pans to them on click. The status key lists the arrow states. **Replay on first view**: the first time a run is drawn in a tab, its cards fade in layer by layer and the solid (travelled) edges draw themselves toward the next layer, ending with one pulse on the card where the run ended (red for failed, amber for blocked, accent otherwise) — a finished run shows how the work went even though nothing moves afterwards; redraws caused by status changes do not replay, and a run update that changes nothing structural keeps the drawn graph (so the flow keeps its phase). `prefers-reduced-motion` stops the flow, the breathing, the packets, the morph, the shimmer and the replay (final states only).
-- Foreach inspector (2026-11-01): the stage's agents grouped **Running → Needs a look → Waiting → Done** with counts; a row is status icon, index, title (else the item id) and one word of time (running seconds in green, finished duration); a second line says what it is doing (`activity.label`, subtle shimmer, else `Starting…`), why it needs a look (outcome word in its tone · one line) or why it failed; done rows are one line. Rows change group in place (the move stays inside the row's clipped slot, so the list never flashes empty); search matches titles; status filters stay selected at zero.
-- Inspector: task name (or item title) with its activity/outcome line, one status line (live countdown from `retry.nextRetryAt`), reason, `executor · model · effort` (a task on the executor's default model shows the model its usage reported, else `default model`), **Result** / Output / Stderr / Events tabs and one `untrusted output` label, `Copy`. Result (2026-11-03, the default for a finished task; failed → Stderr, running → Output): the digest, the analysis as text-only Markdown (headings by level, lists, tables, rules, kept line breaks, bold/emphasis/code, backslash escapes; a link shows its text and address as plain text, an image its alt text; no links, HTML or images), the references as text, and the control JSON folded away. Output / Stderr / Events show the bounded redacted tail. Then collapsed **Details** (attempts, timestamps, usage/`Not collected`, dependencies, worktree, terminal handoff commands).
-- Run details view: task text, launch command (copy), usage, permission mode, host.
-- Dialogs: Stop (impact: running/pending counts; "stop is recorded durably and confirmed by the supervisor"), Approve (question + scope from the approval message), Reject (run stays blocked), Resume (completed tasks are not relaunched). Read-only disables confirm.
-- Connection: `Live` while SSE delivers; `Reconnecting` on error with automatic retry; `Stale (updated …)` when no heartbeat for 30 s — independent of run status.
-- Report dialog (`Open report`, `view=report`; 2026-11-03): the same text-only Markdown, with a contents list of its sections (sticky while reading) and a sticky footer. Owner report: white text on a black page, one wall of text, hard to read at length; the look follows the owner's dashboard design rules (F5/DIRECTIONS briefs: neutral surfaces, no filled cards or tinted chips, hairlines and space, status as glyph + short word with colour on the glyph only, body ≥ 15 px). Reading aids, also in the task Result: a line that starts with a short English field label ("Evidence status:", "Sources:") shows the label quietly; an evidence word as a bold value, field value or table cell reads as glyph + plain word (✓ Verified, ◐ Partly supported / Partly covered in amber, ✕ Unsupported / Not covered, ≠ Sources disagree, ⊘ Not checked in red, ○ Proposal, High/Medium/Low; the raw word is the title); consecutive list items that start with the same `**Label:**` are grouped under that label once with a count; a double-quoted passage of 8+ characters reads as an italic quote; a link named by its host shows host + quiet path, any other its address in brackets; a verdict code in bold text or a group label (`NEEDS_WORK`, `BLOCKED`, `WEAKEN`, any `A_B` code) reads in sentence case with the code as its title (other capitals such as `API` stay); a fenced code block (```` ```ts ````) shows verbatim in a monospace block with a hairline rule (whitespace kept, no Markdown inside; stacked snippets sit close) coloured by Shiki (owner decision 2026-11-03 after a side-by-side with a small built-in tokenizer): `tools/release/vendor-shiki.mjs` vendors Shiki 4.6 with its JavaScript regex engine (no WASM, so the CSP stays as it is) into `ui/vendor/shiki/` — the entry `highlight.js` (~170 KB) loads only when a page has a fenced block, and each grammar is its own lazily loaded chunk (typescript, tsx, javascript, json/jsonc, python, go, rust, java, kotlin, swift, c, csharp, shell, diff, sql, html, css, markdown, docker; aliases such as ts, js, py, sh, yml→plain). Tokens become text spans (never markup, as in opencode's `codeToTokens` viewer) with colour classes from the generated `colours.css` (`.shl-<hex>`/`.shd-<hex>` set `--shiki-light`/`--shiki-dark`; no inline styles), and the page's colour scheme picks github-light or github-dark-dimmed. The text is plain until the tokens arrive and stays plain for other languages or on any failure. The server serves only `highlight.js`, `chunk-<HASH>.js` and `colours.css` from that directory; licences of every bundled package, grammar and theme are in `ui/vendor/shiki/THIRD-PARTY-NOTICES.txt` (all MIT; the script refuses a grammar without a recorded MIT licence, so YAML and TOML stay plain); a list item that is one flat JSON object (older report rows) reads as its main text and `key: value` fields; the entities report renderers write (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&#39;`) read as characters (still text nodes); `### N. title` hangs its number; an indented bullet nests under the item above and a numbered list keeps counting; Korean wraps between words. In the report each `###` part is a section set apart by a hairline (no box). `Light page` / `Dark page` in the footer sets the report's own colour (kept in this browser, `agent-workflow:report-page`); without a choice it follows the dashboard theme. Measured on the context-rot report: 0 coloured surfaces and 0 coloured text runs (before: 12 and 62).
-- A click on the empty canvas closes the open inspector (a stage, an agent or Run details; 2026-11-04, owner); a press that moves 4 px or more is a pan and keeps it; cards, buttons and the toolbar are not empty space. Escape still closes it too.
-- A one-agent stage (2026-11-03, owner: a many-agent stage opened as a readable list, a one-agent stage as the raw agent): clicking it opens the stage (`stage=`), not the task — its name and state, what it is doing (running) or why it failed, a quiet `state · time · executor · model · effort` line, then its result as text (digest, analysis), and `Open agent ›` for the raw output, logs and events. A foreach stage whose agents are not generated yet draws no bar or `0/0`; finished with none it reads `No agents ran`. Report tables of four or more columns read as one entry per row: the first cell as the title with a status word beside it, the other columns as label and value, link lists last with one source per line (`stackWideTable`); narrower tables stay tables.
-- Agents of a many-agent stage (2026-11-03, owner: open, Back, open, Back was tedious): a finished agent's list row shows its one-line outcome when it has one. A row **opens in place** (owner's pick after comparing numbered tabs, a list beside the detail, and expanding in place on real runs): it shows that agent's digest and analysis (text-only Markdown, fetched once per agent state) or, before it finishes, its state, plus `Open agent ›` for the full view; several rows can be open, and they stay open through live updates. In the full view an agent shows `‹ <Stage> · N agents` (back to the list) and `‹ i / n ›` above its header. ‹ / › and the `j` / `k` keys follow the list's order and filter and replace the history entry, so the browser's Back still returns to the list; the open tab (Result, Output…) is kept.
-- URL state: `?run=<id>&task=<specId>&tab=result|output|stderr|events&view=report|details&dialog=stop|resume|approve|reject`. When the open run leaves `running`, a selected stage is cleared (2026-11-03: a finished run kept a watched stage selected, hiding the result); a selected task stays. Keyboard: ↑/↓ runs or tasks, Enter opens, Esc closes, `⌘K` palette (jump to run/stage).
-- Body 15 px; nothing < 12 px; no `innerHTML`. Colour (2026-11-01, replacing the 2026-10-30 glow palette; owner: minimal, no "AI slop"): neutral near-black surfaces (`#141414` ground, `#181818` panels, `#1c1c1c` cards, white 7 %/14 % lines), text `#ededed`/`#b0b0b0`/`#8c8c8c`; colour only for meaning — green `#6fbf8e` running, amber `#d9a548` warning / needs you, red `#e5675a` failure; finished work is neutral grey; white primary button; no gradients or glows. Status also reads without colour (✓ ! ✕ ● ○ glyphs, hatching for failure). `GET /favicon.ico` answers 204.
-- Theme (2026-11-01, owner choice: follow the system + a switch): `color-scheme: light dark` with `light-dark()` palette pairs, so an unpinned page follows the OS with no script; the top-bar button cycles **Auto → Light → Dark** and keeps a pinned choice in `localStorage` (`agent-workflow:theme`). Light ("paper"): `#f6f5f1` ground, `#fbfaf7` panels, white cards, text `#1c1b19`/`#55534d`/`#66645d`, green `#1f7a4d`, amber `#925f10` (`#7a4f0c` on its tint), red `#b4372a`, dark primary button; every text and meaning colour is ≥ 4.5:1 on every surface (tested). The logo follows the theme.
-- Needs you (2026-11-01): a **failure** can be dismissed (×) in this browser (`localStorage`, keyed by run, kind, task and when it happened — a new failure of the same run shows again); approvals and decisions block their run and cannot be dismissed. The top-bar count excludes dismissed items; `Show N dismissed` restores them.
-- Support helpers (owner choice: keep them as cards): lighter than agent stages — faint outline and name, dimmed glyph — back to normal on hover/focus; running, retry, blocked and failed helpers keep their state colours.
-
-## Acceptance (verifiable)
-
-1. `npm run validate` passes (format, typecheck, unit); new unit tests cover: projection from a synthetic `WorkflowRunRecord` (retry, foreach, approval, decision, usage null→`costUsd: null`), every security control (bind address, token bootstrap once, cookie flags, Host 421, Origin 403, CSRF 403, read-only 403, CSP/nosniff/no-referrer headers present, run id validation, 404), SSE change-only delivery, and the CLI parse (`--port` validation, exit codes).
-2. An e2e test (`test/e2e`, using the existing test-executor hook) starts a real run, starts the dashboard, and asserts over HTTP: the run appears, tasks and `needsYou` match the record, logs are bounded and redacted, `stop` interrupts the run, `--readonly` blocks it.
-3. A headless-Chrome check (`test/unit/host-wp43-dashboard-ui.test.mjs`, skipped when Chrome is absent) loads the UI against a CSP-identical fixture server (the live server was exercised manually: real runs, stop, resume, deep links): no console errors, no network requests off-origin, the status sentence and `N / total` render, selecting a task shows the inspector with the countdown, and the CSP header is honored (an injected `<script>` text in a log line stays text).
-3a. Animation timing checks (2026-11-05: real-time, so not deterministic on slower CI machines) are
-    opt-in: `npm run test:ui-motion` (`AGENT_WORKFLOW_UI_MOTION=1`) runs the entrance replay count, the
-    morph geometry, handoff packets and the shared motion family; `validate` and CI skip them. Reduced
-    motion, finished graphs without packets and waiting for animations to settle stay in `validate`.
-    Run the motion checks when changing dashboard animations.
-4. Package: `npm run pack:dry` lists the UI files; `check:public-surface` passes (the dashboard is a host, not an SDK export).
-5. Docs: this file, `docs/cli.md` (command section + change log), `README.md` one line.
-
-## Out of scope (v1)
-
-Multiple projects in one server, authentication beyond the local token, HTTPS, remote access, editing workflows, launching runs from the browser, desktop app / MCP Apps.
-
-## Launch integration (WP43b — "run" and the dashboard)
-
-Decision (owner, 2026-10-30, after the survey in the analysis workspace): running a workflow never starts or opens a dashboard by itself; `run` prints a token-free link when a dashboard is already running; opening is opt-in and is suppressed when an AI agent launched the command.
-
-### Discovery file
-
-`<project>/.agent-workflow/dashboard.json`, mode `0600`, written by the dashboard after it listens and removed when it exits (SIGINT/SIGTERM/close):
+`<project>/.agent-workflow/dashboard.json` is written with mode 0600 after listening and removed on clean shutdown:
 
 ```json
-{ "schema": "agent-workflow-dashboard-v1", "pid": 12345, "port": 47318, "startedAt": "…", "launchKey": "<32 random bytes, base64url>", "auth": false }
+{"schema":"agent-workflow-dashboard-v1","pid":12345,"port":47318,"startedAt":"…","launchKey":"<32 random bytes, base64url>","auth":false}
 ```
 
-- `launchKey` is a **local control secret** that only mints one-time launch URLs (below). It is never the session token, and it is never printed. Same trust boundary as the run records next to it (same user, 0600).
-- `auth` (WP43d) says whether that server requires sign-in; a file without it (older server) means it does.
-- Readers (`readDashboardDiscovery(cwd)`) accept the file only if the pid is alive and `GET http://127.0.0.1:<port>/api/session` answers within 3 s (each local dashboard request — this check, minting a launch URL, asking whether it was used — is bounded by 3 s) either 401 with our JSON error (`--auth`) or 200 with `apiVersion: 1, auth: false` (default) — proves the port is ours. A stale file whose pid is dead is deleted.
+`launchKey` is a local control secret, never printed and distinct from the session token. Missing `auth` means the server requires sign-in. Readers require a live pid and a matching `/api/session` response: 401 with the dashboard JSON error under auth, or 200 with `apiVersion: 1, auth: false`. Local discovery/launch requests time out after 3 s. Dead-pid discovery files are removed.
 
 ### One-time launch URLs
 
-- `POST /api/launch` — loopback + Host checks; header `X-AW-Launch-Key` (timing-safe compare); JSON body with optional `run`, `task`, `tab`, `view` (validated like the bootstrap forward). Response `{ "url", "launchId" }`; the URL is `http://127.0.0.1:<port>/?launch=<id>&run=…` by default (no credential) and `…/?token=<one-time>&run=…` under `--auth`. No cookie or CSRF (the key authenticates). 401 on a bad key, 429 with more than 16 outstanding launches.
-- One-time tokens (`--auth`): 32 random bytes, 60 s TTL, single use; the bootstrap accepts them exactly like the session token (sets the same session cookie, forwards the UI params) and then discards them. The session token still works for manual sign-in. By default the launch id only lets the minter learn that the browser arrived (`GET /api/launch/:id`, launch-key protected).
-- `dashboard --open` opens a launch URL, never a session URL (Jupyter's launch-token pattern under `--auth`).
+`POST /api/launch` requires loopback/Host checks and `X-AW-Launch-Key` (timing-safe comparison), not cookie/CSRF. JSON accepts optional validated `run`, `task`, `tab`, `view`; response is `{url, launchId}`. A bad key returns 401; more than 16 outstanding launches returns 429.
 
-### `run` / `dynamic` / `auto`
+Default URLs use `?launch=<id>` only to signal browser arrival; auth URLs use one-time `?token=<token>`. `GET /api/launch/:id`, protected by the launch key, reports consumption so MCP URL elicitation can complete. Session tokens and launch keys never appear in host tool results.
 
-- `LaunchData.dashboard?: { url, port }` when discovery validates — `url` is token-free (`http://127.0.0.1:<port>/?run=<id>`); the text gets one line `Dashboard: <url>` right after the run heading. When no dashboard runs the line reads `Dashboard: not running · agent-workflow dashboard --open` (one short line; the owner asked for the link to come first).
-- `--open` (CLI flag) or `AGENT_WORKFLOW_DASHBOARD_OPEN=1`: after the launch, make sure a dashboard runs (start one detached when absent: `agent-workflow dashboard --project <cwd> --detached`, which prints no session URL and only writes the discovery file; wait ≤ 3 s), mint a one-time URL for `run=<id>` and open it with the platform opener.
-- **Agent suppression (Storybook's rule):** when `CLAUDECODE`, `CODEX_SANDBOX`, `CODEX_THREAD_ID`, `CURSOR_AGENT` or `AI_AGENT` is set, or the host context is `pi`/`codex`/`claude-code`, the env-var form does not open (the token-free line is printed with "not opened: AI agent environment; pass --open to force"). The explicit `--open` flag always opens.
-- `dashboard --status` prints the discovery state (pid, port, since, auth on/off); `dashboard --stop` sends SIGTERM to the recorded pid and waits for the file to disappear.
+## Limits
 
-### MCP hosts (Codex, Claude Code)
-
-- `workflow_run` / `workflow_dynamic` / `workflow_auto` results carry the token-free `dashboard` line through `LaunchData`.
-- New tool `workflow_dashboard { run? }`: ensure a dashboard runs (start detached when absent), mint a one-time URL, then: if the client advertises `elicitation.url` (MCP 2025-11-25), send `elicitation/create` with `mode: "url"`, `url`, `elicitationId`, `message` ("Open the agent-workflow dashboard for <project>?"); the user consents in the client's dialog and the client opens it — the URL never enters the tool result — and once the browser has consumed the one-time token the server sends `notifications/elicitation/complete` (polled through `GET /api/launch/:id`, launch-key protected) so the client stops waiting. If the client has only form elicitation (Codex today), a form dialog asks "Open the agent-workflow dashboard for <project> in your browser?" and on accept the MCP server — which runs on the user's machine — opens the browser itself (`BROWSER` honored), like `/aw dashboard` in Pi. Clients without any dialog get instructions only: "Dashboard is running on 127.0.0.1:<port>; open it from a terminal with `agent-workflow dashboard --open`". `structuredContent`: `{ running, port, opened, method: "url-elicitation" | "form-consent" | "instructions" }`. Never the token, never the launch key.
-- Launch results (`workflow_run`/`workflow_dynamic`/`workflow_auto`, CLI `run`) put the `Dashboard:` line right after the run heading; when no dashboard runs the line reads `Dashboard: not running · agent-workflow dashboard --open`, and the MCP "Next:" guidance tells the model to report the run id and that line to the user **before** waiting (people want the link first).
-- Codex today advertises form-only elicitation by default (openai/codex#29344), so Codex gets the instructions path until that lands; Claude Code (≥ 2.1.87) gets the URL dialog.
-
-## Always a link (WP43c — owner decision A, 2026-10-30)
-
-The owner wants the dashboard link in the launch result every time, clickable, without a token in the chat. Three pieces make that work. (WP43d then made the session optional: the persistent-session section below applies under `--auth`; auto-start, sticky port and idle exit apply always.)
-
-### Persistent session (sign in once per browser) — `--auth` only
-
-- The session token is stored in `<project>/.agent-workflow/dashboard-session` (mode 0600, 32 random bytes base64url) and **reused** by every dashboard start for that project, so a browser that signed in once keeps a valid cookie across dashboard restarts. Same trust boundary as `dashboard.json`'s launch key and the run records beside it.
-- `agent-workflow dashboard --reset-session` writes a new token (every browser must sign in again) and stops a running dashboard first if there is one.
-- The foreground `dashboard` command still prints the token URL once; `--detached` prints nothing but the port.
-- A request without the cookie for `/` or `/app.js` gets a **401 sign-in page** (CSP-safe; `/app.css` is public so the page is styled): "This browser isn't signed in to the agent-workflow dashboard for `<project basename>`. Sign in once; after that, links like this one open directly." with a **"Sign in on this computer"** button. The button's script (`/signin.js`, same-origin fetch) calls `POST /api/signin-local`; the server accepts it only with `Sec-Fetch-Site: same-origin` and a matching `Origin` (cross-site pages and non-browser callers are refused; one call per 3 s), mints a one-time URL forwarding the page's `run/task/tab/view`, and opens it through the OS opener (`BROWSER` honored) — a signed-in tab appears and the original tab polls `/api/session` and reloads. The one-time URL never reaches the page, the chat or a foreign caller. The terminal (`agent-workflow dashboard --open`) and "ask your agent" paths remain.
-
-### Auto-start on launch
-
-- `run` / `dynamic` / `auto` (host API, so CLI, Pi and MCP alike): when no dashboard runs for the project, start one detached (`agent-workflow dashboard --project <cwd> --detached`; it inherits `AGENT_WORKFLOW_DASHBOARD_AUTH`), wait ≤ 3 s for its discovery file, and fill `LaunchData.dashboard = { url, port, started: true, auth?: true }`. The text line is always `Dashboard: http://127.0.0.1:<port>/?run=<id>`; when an `--auth` dashboard was started just now the line ends with ` · first time in this browser? agent-workflow dashboard --open`.
-- Opening the browser is still opt-in (`--open`, env var, `workflow_dashboard`, `/aw dashboard`) and still suppressed under agent environments — auto-start only runs a loopback server.
-- `wait` (2026-11-03): when the run settles (finished or blocked), `WaitData.dashboard` and a last text line `Dashboard: <url>` give the same project dashboard again (started the same way if none runs); for a finished run with a report the URL adds `&view=report`, which opens the report. The MCP guidance asks the model to give that link with the report paths.
-- Off switch: `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0`. Never auto-starts under the `worker` process role, in `--readonly` contexts, or when the start fails (the launch still succeeds; the line then reads `Dashboard: not running · agent-workflow dashboard --open`). The unit runner and the e2e guard set the variable to `0`; tests that cover auto-start opt in.
-- MCP `Next:` guidance: tell the user the run id and the Dashboard link before waiting; if the user wants it opened for them (or, under `--auth`, says the link asks them to sign in), call `workflow_dashboard` (consent dialog → browser).
-
-### Sticky port
-
-The port a project's dashboard used last is kept in `<project>/.agent-workflow/dashboard-port` and reused on the next start when nothing else holds it (an explicit `--port` is strict; a busy preferred port falls back to an ephemeral one). Together with the persistent session this keeps `Dashboard:` links in older chat messages working across idle exits and restarts.
-
-### Idle exit for detached dashboards
-
-- A dashboard started `--detached` exits by itself after `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` (default 2 h, min 1 min) with **no SSE client connected and no live run** (running/blocked with a live lease) in the project; it removes its discovery file on the way out. A foreground dashboard never idles out. `dashboard --status` shows "idle exit in …" for detached ones.
-
-## No sign-in by default (WP43d — owner decision, 2026-10-30)
-
-Local dev UIs in the survey (Dagster, Prefect, Temporal dev, Inngest, Mastra, MLflow) have no sign-in on loopback; the owner found the one-time sign-in friction not worth what it buys on a personal machine. So:
-
-- **Default (`auth: false`)**: no session token, no cookie, no sign-in page. Any loopback request may read the UI and the API; `Dashboard:` links open directly in any browser. What still holds: `127.0.0.1` bind, `Host` allowlist (421 against DNS rebinding), no CORS headers (foreign pages cannot read responses), mutations require `Origin` = server origin **and** `Sec-Fetch-Site: same-origin` **and** `X-AW-CSRF` (a per-server random value delivered by `GET /api/session`, which foreign pages cannot read), CSP/nosniff/DENY/no-referrer/no-store, bounded bodies/logs/reports, read-only mode. **Residual risk, stated plainly:** another OS user or process on the same machine can view runs and press Stop/Resume/Approve/Reject while a dashboard is up. The `.agent-workflow/` run records beside it are readable by the same parties anyway.
-- **Opt-in (`agent-workflow dashboard --auth`, or `AGENT_WORKFLOW_DASHBOARD_AUTH=1` so auto-started dashboards use it too)**: the previous model exactly — persistent per-project session token, cookie bootstrap, one-time launch URLs, sign-in page with the one-click button, `--reset-session`. For shared machines.
-- `GET /api/session` reports `auth: true|false`; the UI shows no sign-in state when auth is off (a restart just reconnects).
-- Links and openers in the default mode carry no token: the launch line is `Dashboard: http://127.0.0.1:<port>/?run=<id>` (no "first time" hint); `dashboard --open`, `/aw dashboard`, `workflow_dashboard` and `--open` open `http://127.0.0.1:<port>/?run=…` directly. `POST /api/launch` (launch-key protected as before) returns `{ url, launchId }` where the URL carries `launch=<id>` instead of a token; serving `/` with `launch=<id>` marks it consumed (then the UI params are forwarded without it), so the MCP tool's `notifications/elicitation/complete` keeps working. The discovery file records `auth: true|false`.
-- `dashboard --status` prints `auth: on|off`. Docs/README say which mode is on and why.
+The dashboard does not support multiple projects per server, remote access, HTTPS, authentication beyond the local token, workflow editing or launching runs from the browser.

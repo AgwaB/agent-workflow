@@ -3,7 +3,7 @@
 // user) since the last check — "workflow X finished — verdict Y, report Z" — and prints each
 // settled state once. Hosts without a completion push call it from a hook that adds its output to
 // the model's context (Claude Code's `UserPromptSubmit`, shipped by the plugin; Codex's
-// `UserPromptSubmit`, configured by the user; docs/host-ux-investigation.md), so a run that
+// `UserPromptSubmit`, configured by the user; host UX investigation record), so a run that
 // finished after the host stopped waiting reaches the conversation at the user's next message.
 //
 // Receipts (the WP16/WP19 receipt idea, host-neutral): `.agent-workflow/notify-check/` holds

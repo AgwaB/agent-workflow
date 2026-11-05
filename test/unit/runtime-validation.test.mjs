@@ -1,7 +1,7 @@
 // Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) to node:test against dist/:
 // test/checks/no-chain.mjs (whole), and the runtime-only parts of
 // test/checks/schema-sync.mjs, thinking-levels.mjs, tool-result-budget.mjs and
-// output-recovery.mjs. MIT, same author. Changes: see docs/runtime-port.md (test table).
+// output-recovery.mjs. MIT, same author. Changes: see runtime-port record (test table).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {

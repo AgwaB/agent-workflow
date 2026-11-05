@@ -1,48 +1,30 @@
 # agent-workflow
 
-`@agwab/agent-workflow` runs staged, multi-worker workflows for coding-agent CLIs. A workflow is a
-JSON spec: a graph of model stages (fan-out, fan-in, loops), deterministic helper stages, structured
-outputs and required-read gates. agent-workflow compiles it, schedules the stages, and dispatches each
-worker to an **executor**, a supported agent CLI: **Pi**, **Codex** or **Claude Code**. The engine
-does not depend on any one of them; you can run the same workflow on each. It descends from
-`@agwab/pi-workflow`.
+`@agwab/agent-workflow` runs multi-worker workflows on coding-agent CLIs: **Pi**, **Codex**,
+**Claude Code** and experimental **Antigravity**. A JSON spec defines model stages, fan-out,
+fan-in, loops, deterministic helpers, structured outputs and required-read gates. The engine
+compiles the spec, schedules stages and dispatches workers to the selected executors.
 
-**Status: pre-release (stage 1).** The engine, the three executors, the CLI and the Pi host work and
-were accepted live on all four bundled workflows ([`docs/support.md`](docs/support.md)). Expect
-breaking changes before 1.0, including to the executor SDK contract (0.1.0).
-
-## Permission modes: `free` by default
-
-> **By default (`free`), workers run without approval prompts and without a sandbox** on every stage
-> the workflow does not declare `readOnly`. Read-only stages stay read-only, and workers still do not
-> load your personal settings, instructions, hooks or skills unless a stage opts in.
->
-> Use **`safe`** for the conservative behavior: no bypass flags, policy-based approvals that fail
-> closed, a worktree for every write-capable stage. Choose it per run (`--permission-mode safe`), in
-> a workflow-declared profile, or as `permissionMode` on a saved profile.
-
-All four bundled workflows are read-only. Details: [`docs/permissions.md`](docs/permissions.md).
+Pre-release: expect breaking changes before 1.0, including to the executor SDK contract.
 
 ## Install
 
-Node.js 22 or newer, plus at least one executor CLI, installed and logged in with its own login:
-[Pi](docs/executors/pi.md) 1.1+, [Codex](docs/executors/codex.md) (`codex-cli` 0.159+) or
-[Claude Code](docs/executors/claude.md) 2.1+. agent-workflow never handles credentials.
+Requires Node.js 22+ and at least one executor CLI installed and logged in:
+[Pi](docs/executors/pi.md) 1.1+, [Codex](docs/executors/codex.md) (`codex-cli` 0.159+),
+[Claude Code](docs/executors/claude.md) 2.1+, or [Antigravity](docs/executors/acp.md).
+Each executor uses its own login; agent-workflow never handles credentials.
 
 ```sh
-npm install @agwab/agent-workflow       # project-local; provides the agent-workflow bin
+npm install @agwab/agent-workflow       # project-local
 npm install -g @agwab/agent-workflow    # or globally
 ```
 
-The package has no runtime dependencies. The Pi packages are optional peers, needed only by the Pi
-host.
+The package has no runtime dependencies. Pi packages are optional peers, needed only by the Pi host.
 
 ## Quick start
 
-### CLI (`agent-workflow`)
-
 ```sh
-npx agent-workflow list                                   # workflows you can run
+npx agent-workflow list
 npx agent-workflow validate deep-review
 npx agent-workflow run deep-review "Review the current diff for reliability" --executor claude
 npx agent-workflow run spec-review "Check docs/spec.md against src/" --executor codex --permission-mode safe
@@ -51,81 +33,76 @@ npx agent-workflow wait "$id" --timeout 30m
 npx agent-workflow inspect "$id" --failures --results
 ```
 
-`run` prints a capability preview, starts the run and waits in the foreground; `--detach` hands it
-to a background supervisor. Full reference: [`docs/cli.md`](docs/cli.md).
+`run` prints a capability preview and waits in the foreground. `--detach` hands the run to a
+background supervisor. See the [CLI reference](docs/cli.md).
 
-`agent-workflow dashboard --open` provides a loopback-only [local web dashboard](docs/dashboard.md) with live tasks, logs, reports and run controls; every launch prints its link, which opens directly (no sign-in by default; `--auth` adds a browser session for shared machines, `--readonly` disables controls). `run … --open` opts in to opening it for a new run.
+**The default permission mode is `free`: workers run without approval prompts or a sandbox unless
+the stage declares `readOnly`.** Use `--permission-mode safe` for policy-based approvals that fail
+closed and a worktree for every write-capable stage. All four bundled workflows are read-only.
+See [permission modes](docs/permissions.md) for limits and executor mappings.
 
-### Pi (`/aw`)
+Every launch prints a link to the loopback-only [dashboard](docs/dashboard.md), with live tasks,
+logs, reports and controls. `agent-workflow dashboard --open` opens it; `run … --open` opens it
+for a new run. No sign-in is required by default; `--auth` adds a browser session for shared
+machines and `--readonly` disables controls.
+
+## Hosts and executors
+
+A **host** is where you launch and monitor workflows. An **executor** runs the workers; it need
+not be the same CLI as the host.
+
+| Executor | Runs | Notes |
+|---|---|---|
+| `pi` | `pi --mode json` | Native MCP and tool allowlist; deep-research needs `pi-web-access`. |
+| `codex` | `codex app-server` | Coarse tool allowlist (sandbox modes); global `AGENTS.md` and exec-policy rules apply. |
+| `claude` | `claude -p` stream-json | Fine tool allowlist, native read-only mode. |
+| `antigravity` (experimental) | `agy_acp_server` (ACP) | Antigravity login, Gemini models; workspace `AGENTS.md`/`GEMINI.md` not isolated. |
+
+Choose with `--executor <id>` or an [execution profile](docs/usage.md#profiles). Without a choice,
+hosts use their own CLI; the terminal selects an installed, logged-in executor from `pi` →
+`claude` → `codex`, preferring verified logins. `agent-workflow doctor` checks readiness.
+The [preflight](docs/usage.md#preflight-capability-tools-models-and-effort) refuses unsupported
+stage needs or records explicit degradations before launch.
+
+### Pi host
 
 ```sh
-pi -e npm:@agwab/agent-workflow            # one session, without changing Pi settings
-pi install npm:@agwab/agent-workflow       # or install as a Pi package (add -l for the project)
+pi -e npm:@agwab/agent-workflow          # one session
+pi install npm:@agwab/agent-workflow     # persistent; add -l for the project
 ```
 
-Then in Pi: `/aw list`, `/aw run deep-review "Review the current diff" --executor codex`,
-`/aw wait <run>`. The agent can use the `aw_list`, `aw_run`, `aw_dynamic` and `aw_wait` tools
-(`awaitTerminal` and waits of up to 4 h; `AGENT_WORKFLOW_TOOL_EXPOSURE=deferred` defers them until
-`tool_search`). A new Pi session picks up attached runs a gone session left running. Pi is
-the parent agent; workers run on whichever executor is selected. See [`docs/pi-host.md`](docs/pi-host.md).
+In Pi: `/aw list`, `/aw run deep-review "Review the current diff" --executor codex`,
+`/aw wait <run>`. The agent can also use the `aw_*` tools. See the [Pi host guide](docs/pi-host.md).
 
-### Codex and Claude Code as hosts
+### Codex and Claude Code hosts
 
-Codex and Claude Code are supported **executors** (they run the workers). To run workflows *from
-inside* them, install the `agent-workflow` plugin: it registers the host MCP server
-`agent-workflow-mcp` with the right `--host` and adds the `agent-workflow`, `workflow-guide` and
-`execution-router` skills.
+Install the plugin to register the host MCP server and the `agent-workflow`, `workflow-guide`
+and `execution-router` skills:
 
 ```sh
 claude plugin marketplace add AgwaB/agent-workflow && claude plugin install agent-workflow@agent-workflow
 codex plugin marketplace add AgwaB/agent-workflow && codex plugin add agent-workflow@agent-workflow
 ```
 
-Alternative without the plugin (server only):
-`claude mcp add agent-workflow -- npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow-mcp --host claude-code`
-or `codex mcp add agent-workflow -- npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow-mcp --host codex`.
-Then ask for a workflow in the conversation: the agent launches it with `workflow_run`, waits in
-bounded 45 s `workflow_wait` calls and quotes the result and report paths. Every CLI command is also
-a tool (`workflow_resume`, `workflow_show`, `workflow_profile`, `workflow_prune`, …); prune, profile
-and notice changes ask the user to confirm in a dialog first. Local development
-(`--plugin-dir`), timeouts and tool names: [`docs/plugins.md`](docs/plugins.md); the server:
-[`docs/host-mcp.md`](docs/host-mcp.md).
-
-## Executors
-
-| Executor | Runs | Notes |
-|---|---|---|
-| `pi` | `pi --mode json` | Native MCP and tool allowlist; deep-research needs the `pi-web-access` extension. |
-| `codex` | `codex app-server` | Coarse tool allowlist (sandbox modes); global `AGENTS.md` and exec-policy rules apply. |
-| `claude` | `claude -p` stream-json | Fine tool allowlist, native read-only mode. |
-| `antigravity` (experimental) | `agy_acp_server` (ACP) | Antigravity login, Gemini models; capabilities declared, workspace `AGENTS.md`/`GEMINI.md` not isolated. See [`docs/executors/acp.md`](docs/executors/acp.md). |
-
-Choose with `--executor <id>`, with a profile (`--profile <name>`: one the workflow declares, else a
-saved one, see `agent-workflow profile`), or with a saved default profile. Precedence for the executor
-and the permission mode: **run flag > workflow-declared profile > saved user profile > default**
-(executor: the host's own CLI, in a terminal the first installed and logged-in of `pi` → `claude` →
-`codex`; mode `free`). `agent-workflow doctor` shows which executors are ready. Before any run starts, the engine probes the executor and checks every stage's needs
-against what the executor can enforce; gaps are refused or recorded, never silent
-([`docs/usage.md`](docs/usage.md#preflight-capability-tools-models-and-effort)). Writing your own executor:
-[`docs/sdk.md`](docs/sdk.md).
+Then ask for a workflow in the conversation. For server-only installation, local development and
+timeouts, see [plugins](docs/plugins.md) and the [host MCP server](docs/host-mcp.md).
 
 ## Bundled workflows
 
 | Workflow | Use when |
 |---|---|
-| `deep-research` | You need a grounded answer based on source material (uses the executor's web tools). |
-| `deep-review` | You want code or design reviewed carefully from several angles. |
-| `spec-review` | You want to check whether a spec or contract is reflected in the implementation and tests. |
-| `impact-review` | Before merging or releasing: affected areas, risks, missing tests and docs. |
+| `deep-research` | You need a grounded answer based on source material, using the executor's web tools. |
+| `deep-review` | You want code or design reviewed from several angles. |
+| `spec-review` | You want to check a spec or contract against implementation and tests. |
+| `impact-review` | You need affected areas, risks, missing tests and docs before merging or releasing. |
 
-Per-executor results: [`docs/support.md`](docs/support.md). Workflow details:
-[`workflows/README.md`](workflows/README.md). Write your own with the bundled `workflow-guide`
-skill and [`docs/usage.md`](docs/usage.md).
+See [workflow details](workflows/README.md) and [executor support](docs/support.md).
+Write your own with the bundled `workflow-guide` skill and the [usage guide](docs/usage.md).
 
 ## Documentation
 
-[`docs/README.md`](docs/README.md) indexes everything: usage, CLI, Pi host, permission modes,
-support matrix, executors, SDK, architecture, environment variables.
+The [documentation index](docs/README.md) covers usage, hosts, executors, permissions,
+configuration, the SDK and architecture.
 
 ## License
 

@@ -136,7 +136,7 @@ export function summarizeUsage(
 	};
 }
 
-/** `failed.class` → (status, failureKind). See docs/runtime-port.md "Failure kinds". */
+/** `failed.class` → (status, failureKind). See docs/architecture.md "Failure kinds". */
 export function statusForFailureClass(failureClass: FailedEvent["class"]): {
 	status: Status;
 	failureKind: FailureKind;

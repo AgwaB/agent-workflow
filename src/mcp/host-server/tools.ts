@@ -82,7 +82,7 @@ export type HostMcpHost = (typeof HOST_MCP_HOSTS)[number];
 
 /**
  * WP18b: hosts whose host API results get text `content` only, without `structuredContent`. Live bundle 4
- * (Claude Code 2.1.310, docs/live-acceptance-stage2.md case 1): Claude Code hands the model the
+ * (Claude Code 2.1.310, stage-2 live acceptance record case 1): Claude Code hands the model the
  * serialized `structuredContent` JSON instead of the `content` text when both are present, so every
  * result reached the model twice (`data` plus the same `text`). The tools declare no
  * `outputSchema`, so `structuredContent` is optional (MCP 2025-06-18). Codex and generic clients

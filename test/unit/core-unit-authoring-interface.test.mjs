@@ -3789,11 +3789,11 @@ test("workflow registry fails closed when flat and bundle specs conflict", async
 	}
 });
 
-// Not ported (Pi-only harness export: parseWorkflowDynamicArgs; see docs/core-port.md WP10): test("workflow command completions and run arg parsing preserve task text").
+// Not ported (Pi-only harness export: parseWorkflowDynamicArgs; see core-port record WP10): test("workflow command completions and run arg parsing preserve task text").
 
-// Not ported (Pi-only harness export: WORKFLOW_DYNAMIC_TOOL; see docs/core-port.md WP10): test("natural-language workflow tools list and start workflows").
+// Not ported (Pi-only harness export: WORKFLOW_DYNAMIC_TOOL; see core-port record WP10): test("natural-language workflow tools list and start workflows").
 
-// Not ported (Pi-only harness export: WORKFLOW_DYNAMIC_TOOL; see docs/core-port.md WP10): test("natural-language workflow tools list and start workflows").
+// Not ported (Pi-only harness export: WORKFLOW_DYNAMIC_TOOL; see core-port record WP10): test("natural-language workflow tools list and start workflows").
 
 function writeWorkflowFeedbackAudience(cwd, runId, sessionId) {
 	writeFileSync(
@@ -3816,19 +3816,19 @@ function workflowFeedbackContext(cwd, sessionId) {
 	};
 }
 
-// Not ported (Pi-only harness export: deliverMissedWorkflowFeedback; see docs/core-port.md WP10): test("deliverMissedWorkflowFeedback does not auto-trigger an agent turn on startup").
+// Not ported (Pi-only harness export: deliverMissedWorkflowFeedback; see core-port record WP10): test("deliverMissedWorkflowFeedback does not auto-trigger an agent turn on startup").
 
-// Not ported (Pi-only harness export: deliverMissedWorkflowFeedback; see docs/core-port.md WP10): test("completion feedback is delivered only to the workflow owner session").
+// Not ported (Pi-only harness export: deliverMissedWorkflowFeedback; see core-port record WP10): test("completion feedback is delivered only to the workflow owner session").
 
-// Not ported (Pi-only harness export: workflowExtension; see docs/core-port.md WP10): test("workflow extension skips missed completion feedback during session reload").
+// Not ported (Pi-only harness export: workflowExtension; see core-port record WP10): test("workflow extension skips missed completion feedback during session reload").
 
-// Not ported (Pi-only harness export: notifyUnfinishedRuns; see docs/core-port.md WP10): test("notifyUnfinishedRuns labels degraded failed runs as final rendered").
+// Not ported (Pi-only harness export: notifyUnfinishedRuns; see core-port record WP10): test("notifyUnfinishedRuns labels degraded failed runs as final rendered").
 
-// Not ported (Pi-only harness export: notifyUnfinishedRuns; see docs/core-port.md WP10): test("notifyUnfinishedRuns never notifies runs with mock provenance and formatStatus annotates them").
+// Not ported (Pi-only harness export: notifyUnfinishedRuns; see core-port record WP10): test("notifyUnfinishedRuns never notifies runs with mock provenance and formatStatus annotates them").
 
-// Not ported (Pi-only harness export: notifyUnfinishedRuns; see docs/core-port.md WP10): test("notifyUnfinishedRuns re-notifies only runs whose own state changed").
+// Not ported (Pi-only harness export: notifyUnfinishedRuns; see core-port record WP10): test("notifyUnfinishedRuns re-notifies only runs whose own state changed").
 
-// Not ported (Pi-only harness export: notifyUnfinishedRuns; see docs/core-port.md WP10): test("notifyUnfinishedRuns migrates legacy composite notice keys without crashing").
+// Not ported (Pi-only harness export: notifyUnfinishedRuns; see core-port record WP10): test("notifyUnfinishedRuns migrates legacy composite notice keys without crashing").
 
 test("deep-research verification tier planner enforces sanitize schema caps", async () => {
 	const helperPath = join(
@@ -4046,14 +4046,14 @@ test("minimal JSON schema validator enforces control schema subset", () => {
 	assert.ok(invalid.issues.some((issue) => issue.path === "$.items"));
 });
 
-// Not ported (Pi-only harness export: workflowViewFixture; see docs/core-port.md WP10): test("workflow TUI surfaces a Pi thinking clamp in task detail").
+// Not ported (Pi-only harness export: workflowViewFixture; see core-port record WP10): test("workflow TUI surfaces a Pi thinking clamp in task detail").
 
-// Not ported (Pi-only harness export: workflowViewFixture; see docs/core-port.md WP10): test("workflow TUI keeps health inline without a Health section").
+// Not ported (Pi-only harness export: workflowViewFixture; see core-port record WP10): test("workflow TUI keeps health inline without a Health section").
 
-// Not ported (Pi-only harness export: workflowViewFixture; see docs/core-port.md WP10): test("workflow TUI keeps run summaries compact without Health or Navigation sections").
+// Not ported (Pi-only harness export: workflowViewFixture; see core-port record WP10): test("workflow TUI keeps run summaries compact without Health or Navigation sections").
 
-// Not ported (Pi-only harness export: workflowViewFixture; see docs/core-port.md WP10): test("workflow TUI renders likely-stuck inline status and keeps narrow widths bounded").
-// Not ported (Pi-only harness export: WorkflowView; see docs/core-port.md WP10): test("workflow board render clamps ANSI and wide glyphs to viewport width").
+// Not ported (Pi-only harness export: workflowViewFixture; see core-port record WP10): test("workflow TUI renders likely-stuck inline status and keeps narrow widths bounded").
+// Not ported (Pi-only harness export: WorkflowView; see core-port record WP10): test("workflow board render clamps ANSI and wide glyphs to viewport width").
 
 test("workflow-guide scaffolds load and compile without warnings", async () => {
 	const scaffoldsRoot = join(
@@ -4129,4 +4129,4 @@ test("formatRun omits stall warning when task transitions are recent", async () 
 	}
 });
 
-// Not ported (Pi-only harness export: workflowViewFixture; see docs/core-port.md WP10): test("workflow board shows stall badge on run rows and detail header").
+// Not ported (Pi-only harness export: workflowViewFixture; see core-port record WP10): test("workflow board shows stall badge on run rows and detail header").

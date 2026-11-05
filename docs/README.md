@@ -4,49 +4,35 @@
 
 | Document | Content |
 |---|---|
-| [`../README.md`](../README.md) | What agent-workflow is, install, quick start, permission modes, executors |
-| [`usage.md`](usage.md) | Workflows and specs, running, waiting, resuming, stopping, profiles, permission modes, capability preview, stage model and authoring, artifacts and required reads, run records, troubleshooting |
-| [`cli.md`](cli.md) | `agent-workflow` CLI reference: commands, launch options, exit codes, test-executor hook |
-| [`host-mcp.md`](host-mcp.md) | Host MCP server `agent-workflow-mcp` for Claude Code / Codex: tools (every CLI command), call protocol, `--host`, `cwd` rule, elicitation and confirmed changes |
-| [`plugins.md`](plugins.md) | Claude Code and Codex plugin: install, `mcp add` alternative, local dev plugin, timeouts, tool names, status line, completion-check hook, validation evidence |
-| [`host-ux-investigation.md`](host-ux-investigation.md) | Progress display and completion delivery in Claude Code / Codex (WP36): what the installed versions support, evidence, recommendation, live checks |
-| [`pi-host.md`](pi-host.md) | Pi host: `/aw` command, `aw_*` tools (long waits, deferred exposure), install, confirmation, session-start re-drive and notices |
-| [`permissions.md`](permissions.md) | Permission modes `free` (default) and `safe`: behavior, selection, per-adapter mapping |
-| [`support.md`](support.md) | Support matrix (live and offline), verified CLI versions, hosts, known limits per executor |
-| [`environment.md`](environment.md) | Every `AGENT_WORKFLOW_*` environment variable |
-| [`bundled-workflows.md`](bundled-workflows.md) | Bundled workflows, skills and agents: provenance, migration changes, generated offline support table |
-| [`../workflows/README.md`](../workflows/README.md) | The bundled workflows in detail |
+| [usage.md](usage.md) | Running and authoring workflows, profiles, artifacts, run records and troubleshooting |
+| [cli.md](cli.md) | CLI commands, launch options and exit codes |
+| [dashboard.md](dashboard.md) | Local web dashboard, controls and security |
+| [host-mcp.md](host-mcp.md) | MCP server for Claude Code and Codex: tools, call protocol and confirmation |
+| [plugins.md](plugins.md) | Claude Code and Codex plugin installation and host integration |
+| [pi-host.md](pi-host.md) | Pi `/aw` commands, tools, waits, confirmation and notices |
+| [permissions.md](permissions.md) | Permission modes `free` (default) and `safe` |
+| [support.md](support.md) | Supported hosts and executors, CLI versions and known limits |
+| [environment.md](environment.md) | Environment variables and defaults |
+| [bundled-workflows.md](bundled-workflows.md) | Bundled workflows, skills and agents |
 
 ## Executors
 
 | Document | Content |
 |---|---|
-| [`executors/pi.md`](executors/pi.md) | Pi executor: invocation, isolation, tool mapping, MCP, capabilities, errors, limits |
-| [`executors/codex.md`](executors/codex.md) | Codex executor (`codex app-server`) |
-| [`executors/claude.md`](executors/claude.md) | Claude Code executor (`claude -p` stream-json) |
-| [`executors/acp.md`](executors/acp.md) | ACP executor: built-in `antigravity` (Google Antigravity ACP server); `gemini` preset is a pilot |
+| [executors/pi.md](executors/pi.md) | Pi invocation, isolation, tools, MCP and limits |
+| [executors/codex.md](executors/codex.md) | Codex app-server executor |
+| [executors/claude.md](executors/claude.md) | Claude Code stream-json executor |
+| [executors/acp.md](executors/acp.md) | ACP executor and experimental Antigravity preset |
 
 ## Extending and integrating
 
 | Document | Content |
 |---|---|
-| [`sdk.md`](sdk.md) | Writing an executor adapter: contract, execution authority, capabilities, events, errors, descriptors, permission modes, MCP |
-| [`conformance.md`](conformance.md) | Executor conformance kit: tiers, harness contract, check catalog |
-| [`host-api.md`](host-api.md) | Host API handlers shared by every host |
-| [`mcp.md`](mcp.md) | The `workflow_artifact` MCP server: protocol, read ledger, paged reads, delivery limits |
-| [`architecture.md`](architecture.md) | Layers, durable worker, launch barrier, control mailbox, data layout |
-
-## Port and maintenance records
-
-How the code was ported from pi-workflow and pi-subagent, and how stage 1 was accepted.
-
-| Document | Content |
-|---|---|
-| [`core-port.md`](core-port.md) | Core port from pi-workflow 0.16.4: module and test tables, renames, behavior changes |
-| [`runtime-port.md`](runtime-port.md) | Runtime port from pi-subagent 0.7.2: executor seam, durable worker, control channel |
-| [`replay.md`](replay.md) | Replay acceptance of recorded pi-workflow runs |
-| [`live-acceptance-stage1.md`](live-acceptance-stage1.md) | Live stage-1 acceptance: bundled workflows × executors, evidence, failures and fixes, open problems |
-| [`live-acceptance-stage2.md`](live-acceptance-stage2.md) | Live stage-2 host acceptance: Claude Code, Codex and Pi as hosts, nesting, concurrency, D3 check, ledger, open problems |
+| [sdk.md](sdk.md) | Executor adapter contract, capabilities, events and errors |
+| [conformance.md](conformance.md) | Executor conformance kit and check catalog |
+| [host-api.md](host-api.md) | Shared host API handlers |
+| [mcp.md](mcp.md) | Artifact MCP server, read ledger, paging and delivery limits |
+| [architecture.md](architecture.md) | Engine layers, durable workers, launch barrier and data layout |
 
 ## Tests
 

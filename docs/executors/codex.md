@@ -1,178 +1,142 @@
-# Codex executor adapter (WP7)
+# Codex executor adapter
 
-Entry point: `@agwab/agent-workflow/executors/codex` (source `src/executors/codex/`). Descriptor
-convention: `createExecutor(config)`; descriptor
+Entry point: `@agwab/agent-workflow/executors/codex`; source: `src/executors/codex/`.
+Use `createExecutor(config)` with descriptor
 `{ id: "codex", version: "0.1.0", contractVersion: "0.1.0", module: "@agwab/agent-workflow/executors/codex", config: {} }`.
+Keep secrets in `SubmitRequest.env` or `McpServerSpec.env`, not descriptor config.
 
-Verified against **codex-cli 0.159.2** (ChatGPT login) on 2026-10-26 with 18 live model calls
-(log: `test/fixtures/executors/codex/live-calls.md`); the live tier re-passed on **codex-cli 0.165.0**
-on 2026-11-01 (7 calls) and on **codex-cli 0.166.0** on 2026-11-04 (7 calls), which is now the
-verified version. Protocol notes below still cite 0.159.2
-where they were established. Model for every recording: `gpt-5.6-luna`,
-effort `low` (cheapest tier listed by `model/list`; the CLI reports no prices).
+Verified with **codex-cli 0.166.0** using ChatGPT login. Live coverage also exists for **0.159.2**
+and **0.165.0**. Protocol details were established on 0.159.2; MCP output bounds were rechecked
+on 0.165.0 and 0.166.0.
 
 ## Transport: `codex app-server`
 
-One `codex app-server` process (JSON-RPC 2.0 over stdio, newline-delimited) per attempt.
+Each attempt owns one `codex app-server` process using newline-delimited JSON-RPC 2.0 over stdio.
+The adapter splits only on `\n`, preserving U+2028/U+2029 inside JSON strings.
 
-- Protocol source: `codex app-server generate-ts` / `generate-json-schema` from 0.159.2, plus live
-  traffic. Message shapes follow openai/codex-plugin-cc `app-server.mjs` (Apache-2.0); no code was
-  copied, so no NOTICE entry is needed.
-- Why not `codex exec --json`: app-server gives everything the contract needs in one process —
-  `thread/start` overrides (sandbox, approval routing, per-thread config), approval requests as
-  server→client requests, `turn/interrupt`, `thread/resume`/`thread/delete`, per-thread MCP status,
-  token usage notifications. Nothing forced a fallback.
-- Lines are split on `\n` only. `node:readline` also splits on U+2028/U+2029, which Codex emits
-  unescaped inside JSON strings (live call #6 web results); that bug was found live and is covered
-  by a unit test.
+1. Consume authority immediately before spawn. Revoked authority yields `AUTHORITY_REVOKED` without
+   a process; released authority is recorded as `consumed`.
+2. Spawn `codex -c log_dir="<stateDir>/attempts/<digest>.log" app-server` in the request cwd, with
+   inherited environment plus `req.env`. Prompt and secrets are not on argv.
+3. Send `initialize` (`clientInfo.name = agent_workflow`) then `initialized`, opting out of reasoning,
+   output, account and remote-control notifications not needed by the adapter.
+4. Under isolation, read user MCP server names through `config/read {cwd}`.
+5. Send `thread/start`, or `thread/resume {threadId}` for `resumeSessionId`, with cwd, model,
+   permission settings, `serviceTier: null`, `developerInstructions: systemPrompt`,
+   `ephemeral: !keptSession`, and per-thread config.
+6. Under isolation, check `mcpServerStatus/list {threadId, detail: "toolsAndAuthOnly"}`. A server with
+   tools that the request did not inject fails as `config` before the turn.
+7. Send `turn/start {threadId, input: [{type: "text", text: prompt}], model, effort}`.
+8. Normalize notifications until `turn/completed`, close stdin, and SIGKILL after 3 s if needed.
 
-Sequence (request ids are fixed, which the replay fixtures rely on):
+`submit` returns after turn start or a reported failure, so a kept session's thread id can be in the ref.
 
-1. `authority.consume()` — immediately before the spawn (R#1). Revoked → `AUTHORITY_REVOKED`, no
-   process. Released → durable record `consumed`, then spawn.
-2. spawn `codex -c log_dir="<stateDir>/attempts/<digest>.log" app-server` (cwd = request cwd, env =
-   process env + `req.env`). `log_dir` keeps CLI logs per attempt (0.159.2 writes nothing there for
-   app-server) and puts the attempt digest on argv, which the conformance harness uses to count
-   launches. Nothing else is on argv.
-3. `initialize` (`clientInfo.name = agent_workflow`, opt-out of reasoning deltas, output deltas and
-   account/remote-control notifications) → `initialized`.
-4. `config/read {cwd}` (isolation only): names of the user's MCP servers, kept in memory only.
-5. `thread/start` (or `thread/resume {threadId}` for `resumeSessionId`):
-   `{cwd, model, approvalPolicy: "on-request", approvalsReviewer: "user", sandbox, serviceTier: null,
-   developerInstructions: systemPrompt, ephemeral: !keptSession, config}`.
-6. Isolation guard: `mcpServerStatus/list {threadId, detail: "toolsAndAuthOnly"}`; any server with
-   tools that the request did not inject fails the attempt (`config`) before a turn starts.
-7. `turn/start {threadId, input: [{type: "text", text: prompt}], model, effort}`.
-8. Notifications → events until `turn/completed`; then stdin is closed (the server exits on EOF;
-   SIGKILL after 3 s).
+### Flags and overrides
 
-`submit` returns after step 7 (or after a failure, reported as a `failed` event), so the ExecRef can
-carry the thread id of a kept session.
+| Setting | Value / purpose |
+|---|---|
+| `sandbox` | Safe/default: `read-only` for readOnly or read-only tools; `workspace-write` for write/exec tools or an empty tool list on a writable stage. Free and non-readOnly: `danger-full-access` |
+| `approvalPolicy` | `on-request`; `never` only for free, non-readOnly stages |
+| `approvalsReviewer` | `user`, preventing user config from routing decisions to auto-review |
+| `serviceTier` | `null` (standard); fast tier is not offered |
+| `ephemeral` | true unless `sessionId`/`resumeSessionId` is requested |
+| `developerInstructions` | Appends `systemPrompt`; does not replace Codex's base prompt |
+| config `web_search` | `live` for `web_search`/`fetch_content`, otherwise `disabled` |
+| config `tool_output_token_limit` | 10000 by adapter default, independent of model catalog |
+| config `features.multi_agent` | false, preventing worker subagents outside engine slots |
+| config `mcp_servers.<name>.{command,args,env,enabled,tool_timeout_sec,startup_timeout_sec}` | Injected over stdin; default timeouts 300 s / 30 s |
+| `effort` | Request value when set; otherwise the user's `model_reasoning_effort` applies |
 
-### Flags and overrides, and why
+## Permission mode
 
-| Setting | Value | Why |
-|---|---|---|
-| `sandbox` | `safe` (or no `permissionMode`): `read-only` when `readOnly` or only read tools; `workspace-write` when a write/exec tool is requested or `tools` is empty on a writable stage. `free` (WP4e) on a non-readOnly stage: `danger-full-access`. readOnly is `read-only` in both modes | coarse tool mapping (below); never `danger-full-access` in safe mode (D2). The user's config here defaults to `danger-full-access` + `never`, so the override is required |
-| `approvalPolicy` | `on-request`; `never` for `free` on a non-readOnly stage (WP4e) | escalations reach the engine as approval requests (R#4). Key and values checked against `codex app-server generate-json-schema` 0.159.2 (`AskForApproval`, `SandboxMode`); live #19 echoed `approvalPolicy: "never"`, `sandbox: {type: "dangerFullAccess"}` |
-| `approvalsReviewer` | `user` | the user's config may route approvals to `auto_review`/guardian, which would auto-decide (D2) |
-| `serviceTier` | `null` (standard) | `fastTier` is not offered; the user's config here selects `priority` |
-| `ephemeral` | true unless `sessionId`/`resumeSessionId` | D3: no rollout on disk by default |
-| `developerInstructions` | `systemPrompt` | appended developer message (verified live #17); `baseInstructions` would replace Codex's own agent prompt |
-| config `web_search` | `live` if `web_search`/`fetch_content` requested, else `disabled` | C2 |
-| config `tool_output_token_limit` | 10000 (adapter config) | pins the C1 output cap independent of the model catalog |
-| config `features.multi_agent` | false | worker sub-agents would be model calls outside the engine's slots |
-| config `mcp_servers.<name>.{command,args,env,enabled,tool_timeout_sec,startup_timeout_sec}` | per injected server; timeouts 300 s / 30 s (adapter config) | MCP injection over stdin; env values never on argv |
-| `effort` | `req.effort` when set | when unset, the user's `model_reasoning_effort` applies (profiles should always set it) |
+`free` on a non-readOnly stage uses `danger-full-access` plus `never`. Safe/default uses the mapped
+sandbox plus `on-request`; readOnly uses `read-only` plus `on-request` in either mode.
+Free mode records coarse-tool and environment degradations without strict refusal or confirmation.
+See [permissions](../permissions.md); mapping: `CODEX_PERMISSION_MODE_SETTINGS`.
 
-## Isolation (B5)
+## Isolation
 
-With `isolation.inherit = false` the thread config adds:
+With `isolation.inherit = false`, per-thread config sets:
 
-`project_doc_max_bytes = 0`, `skills.include_instructions = false`, `features.plugins = false`,
-`features.apps = false`, `features.hooks = false`, `features.memories = false`,
-`include_apps_instructions = false`, `history.persistence = "none"`, `notify = []`, and
-`mcp_servers.<user server>.enabled = false` for every server `config/read` lists.
+```text
+project_doc_max_bytes = 0
+skills.include_instructions = false
+features.plugins = false
+features.apps = false
+features.hooks = false
+features.memories = false
+include_apps_instructions = false
+history.persistence = "none"
+notify = []
+mcp_servers.<user server>.enabled = false
+```
 
-- Login is untouched: `CODEX_HOME` is never relocated, no credential file is read.
-- Per-server `-c mcp_servers.X.enabled=false` on argv fails in app-server 0.159.2 ("invalid
-  transport in `mcp_servers.aside`": the override layer is validated alone); the same keys in the
-  `thread/start` config work. `-c mcp_servers={}` merges instead of replacing.
+`CODEX_HOME` is not relocated and credential files are not read. Project `AGENTS.md`, skills, plugins,
+apps and personal MCP tools are disabled. MCP disabling uses thread config: per-server argv overrides
+fail validation on 0.159.2, while `-c mcp_servers={}` merges rather than replacing.
 
-Evidence:
+Global `$CODEX_HOME/AGENTS.md`, `~/.codex/rules/*.rules` and built-in collaboration role blocks remain.
+An exec-policy `allow` rule can run a matching command outside the sandbox without engine approval.
 
-- `codex debug prompt-input` (no model) with these keys: the skills block, recommended plugins and
-  apps instructions and the project `AGENTS.md` disappear.
-- `thread/start` returns `instructionSources: ["<HOME>/.codex/AGENTS.md"]` with a project
-  `AGENTS.md` present (project file not loaded).
-- `mcpServerStatus/list` for the thread: every user server at 0 tools, `codex_apps` absent.
-- Live #1 and kit `live.isolation` (#13): a marker demanded by the project `AGENTS.md`/`CLAUDE.md`
-  never appears.
+## Environment probe
 
-Residuals (why `contextIsolation` is `emulated`, not `native`):
-
-1. `$CODEX_HOME/AGENTS.md` (global user instructions) is always loaded; no config key in 0.159.2
-   disables it short of relocating `CODEX_HOME`, which would need the credentials copied (D1).
-2. `~/.codex/rules/*.rules` exec-policy rules still apply. The permissions prompt lists the user's
-   prefix rules, and a command matching an `allow` rule runs outside the sandbox without an
-   approval request. This is a **D2 gap** for workers; open problem below.
-3. Codex's built-in collaboration/multi-agent role blocks remain (product prompt, not user context).
-
-## Environment probe (WP4d)
-
-`probe()` also inspects `$CODEX_HOME` (default `~/.codex`; `src/executors/codex/environment.ts`). It
-opens only `rules/*.rules` and `AGENTS.md`, never `auth.json` or other credential files (D1).
+`probe()` inspects only `rules/*.rules` and `AGENTS.md` under `$CODEX_HOME` (default `~/.codex`),
+never `auth.json`. Source: `src/executors/codex/environment.ts`.
 
 | Finding | Probe capability row | Negotiation |
 |---|---|---|
-| `rules/*.rules` with N > 0 `decision = "allow"` rules | `readOnly = { level: "emulated", source: "probed", warning: "N allow rules in <CODEX_HOME>/rules let matching commands run without approval" }` | readOnly stages degrade (`CAPABILITY_WARNING:readOnly`); interactive → confirm; strict `readOnly` → refuse |
-| no allow rules | (row not returned; declared `readOnly: native` stays) | native |
-| `AGENTS.md` exists and is non-empty | `contextIsolation = { level: "emulated", source: "probed", warning: "global <CODEX_HOME>/AGENTS.md is loaded into every Codex worker" }` | every non-`inherit` stage degrades (`CAPABILITY_WARNING:contextIsolation`); strict → refuse |
-| `AGENTS.md` absent or whitespace-only | `contextIsolation = { level: "native", source: "probed" }` | native |
+| N > 0 `decision = "allow"` rules | `readOnly: emulated`, warning with count and path | readOnly degradation (`CAPABILITY_WARNING:readOnly`); interactive confirmation; strict refusal |
+| No allow rules | Declared `readOnly: native` remains | native |
+| Non-empty global `AGENTS.md` | `contextIsolation: emulated`, warning with path | non-inherit degradation (`CAPABILITY_WARNING:contextIsolation`); strict refusal |
+| Absent or whitespace-only global `AGENTS.md` | `contextIsolation: native` | native |
 
-- Owner decisions "Codex allow 규칙" (run but warn; strict refuses) and "Codex 전역 AGENTS.md" (show only
-  when the file exists).
-- Rules are counted with a small Starlark tokenizer: `decision = "allow"` / `'allow'` / `r"allow"`
-  keyword arguments only; comments, other decisions and strings that merely contain `decision="allow"`
-  are not counted. Only the count and paths are recorded, never rule patterns or file contents. Probe
-  notes: `exec-policy rules: N allow rules in F files under <path>`, `global instructions: <path>
-  present|absent|empty`, and unreadable paths if any.
-- This machine (2026-10-26, codex-cli 0.159.2): 151 allow rules in 1 file; global `AGENTS.md` present.
-  So Codex readOnly stages and every isolated stage run degraded (recorded; confirmed on interactive
-  hosts) unless a strict profile refuses them.
+The rule tokenizer counts keyword arguments (`"allow"`, `'allow'`, `r"allow"`), not comments or strings
+containing similar text. Only counts and paths are recorded, not patterns or file contents.
+Unreadable paths are noted. Free-mode behavior is described above.
+
+Models come from `codex debug models`: visible slugs and per-model `supported_reasoning_levels` become
+`modelEfforts`. Stage effort maps to the nearest supported level, lower on a tie.
+`modelListComplete: false`: unlisted API-key/custom-provider models are noted, not refused.
 
 ## Tool mapping (Pi name → Codex)
 
 | Pi tool | Mapping | Codex tool | Verified live |
 |---|---|---|---|
-| `read` | sandbox `read-only` | shell (`cat`, `sed`) | yes (#1: `cat a.txt`, read action) |
+| `read` | sandbox `read-only` | shell (`cat`, `sed`) | yes, 0.159.2 |
 | `grep` | sandbox `read-only` | shell (`rg`/`grep`) | no |
 | `find` | sandbox `read-only` | shell (`rg --files`/`find`) | no |
 | `ls` | sandbox `read-only` | shell (`ls`) | no |
-| `bash` | sandbox `workspace-write` | shell (`exec_command`) | yes (#12 blocked → approval → denied; #18 ran) |
-| `edit` | sandbox `workspace-write` | `apply_patch` | yes (#18) |
-| `write` | sandbox `workspace-write` | `apply_patch` | yes (#18) |
-| `web_search` | tool `web_search` (`web_search = "live"`) | hosted web search | yes (#6) |
+| `bash` | sandbox `workspace-write` | shell (`exec_command`) | yes, 0.159.2 |
+| `edit` | sandbox `workspace-write` | `apply_patch` | yes, 0.159.2 |
+| `write` | sandbox `workspace-write` | `apply_patch` | yes, 0.159.2 |
+| `web_search` | tool `web_search` (`web_search = "live"`) | hosted web search | yes, 0.159.2 |
 | `fetch_content` | tool `web_search` | hosted web search `open_page`/`find_in_page` actions | no |
-| `workflow_artifact` | MCP `workflow_artifact`/`workflow_artifact` | `mcp__workflow_artifact__workflow_artifact` | yes (#2) |
+| `workflow_artifact` | MCP `workflow_artifact`/`workflow_artifact` | `mcp__workflow_artifact__workflow_artifact` | yes, 0.159.2 |
 
-`toolAllowlist` is `coarse`: Codex has no per-tool allowlist. Any other tool name is refused with
-`INVALID_REQUEST` before consume (B4 decides earlier from `CODEX_TOOL_MAPPING`).
+`CODEX_TOOL_MAPPING` is coarse: Codex has no per-tool allowlist. Unknown names are refused with
+`INVALID_REQUEST` before consume. Shell access is controlled by the sandbox, not exact tool names.
 
 ## MCP injection
 
-- Method: dotted keys in the `thread/start` `config` (stdin), e.g.
-  `"mcp_servers.workflow_artifact.command"`, `.args`, `.env` (values), `.enabled`,
-  `.tool_timeout_sec`, `.startup_timeout_sec`. Live #2: the stub server received its env variable,
-  argv carried only the script path.
-- Visible tool name: **`mcp__workflow_artifact__workflow_artifact`** (live #2: the model called it by
-  that name; `non_prefixed_mcp_tool_names` is off by default in 0.159.2). The WP5 table
-  (`src/mcp/visible-names.ts`) still says `verified: false`; flipping it belongs to the MCP owner.
-- Output limit: Codex truncates tool output to `tool_output_token_limit` tokens, estimating 4 bytes
-  per token. Live #2: a 60,008-char result was cut with `Warning: truncated output (original token
-  count: 15002)` (= 60,008 / 4) and head and tail kept, so the delivered bound is about 40,000
-  bytes at the pinned 10,000-token limit. `probe().mcpOutputLimitChars = 32000` (20 % headroom;
-  the WP5 server checks UTF-16 length and UTF-8 bytes). Since WP5b the engine launches the artifact
-  server with `--max-output-chars 30400` (32,000 − 5 % margin; docs/mcp.md "Measured limits"), and
-  larger whole reads are paged.
-  Re-measured 2026-11-01 on **codex-cli 0.165.0** (same pinned 10,000-token limit, no model call:
-  a mock Responses API recorded what Codex sends): results up to about **48,000 bytes** arrive
-  intact (47,500 B intact; 48,500 B → 48,022 B), larger ones are cut in the middle with a
-  `…N tokens truncated…` marker, head and tail kept; ASCII and Korean text cut at the same byte
-  size, so the estimate is still byte-based. Seventeen parallel results totalling 61,810 chars
-  (the deep-research final-audit pages) all arrived intact through the app-server adapter. The
-  30,400-char/-byte server limit stays below both versions' bounds; no change was needed.
-  Re-measured 2026-11-04 on **codex-cli 0.166.0** the same way (Codex now lists MCP tools as a
-  `namespace` tool): 47,500 B intact, 48,500 B and larger arrive as 47,988 B with head, tail and the
-  truncation marker; Korean cut at the same byte size. No change.
-- Tool timeout: `tool_timeout_sec` per server is honored (2 s → "timed out awaiting tools/call
-  after 2s", measured offline with `mcpServer/tool/call`); with no value, a direct call did not time
-  out within 200 s. The adapter sets 300 s.
-- Normalized `tool_call.output` is clipped at 16,384 chars with a note; the raw transcript keeps the
-  full result. The kit's `mcp.delivery_bound` therefore passes on the event view; the real model
-  bound is the one above. For the same reason `mcp.paged_read` (WP5b) is skipped, justified: a
-  30,400-char page cannot show whole in a 16,384-char event (the harness declares
-  `toolOutputEventLimitChars`); 30,400 is below the ~40,000 bytes measured live (#2).
+Injected servers use dotted `thread/start` config keys such as
+`mcp_servers.workflow_artifact.command`, `.args`, `.env`, `.enabled`, `.tool_timeout_sec`,
+`.startup_timeout_sec`. Env values travel over stdin, not argv. The artifact tool is
+**`mcp__workflow_artifact__workflow_artifact`**.
+
+Injected MCP servers run outside Codex's sandbox. ReadOnly requests may inject only the engine's
+read-only artifact server; other servers fail before consume with `CAPABILITY_MISSING:readOnly`.
+
+Codex limits results through `tool_output_token_limit` (default 10,000), retaining head and tail.
+On 0.159.2 the measured bound is about **40,000 bytes**, estimated at 4 bytes/token.
+On 0.165.0, 47,500 bytes arrived intact and 48,500 bytes became 48,022 bytes; on 0.166.0,
+47,500 bytes arrived intact and 48,500 bytes or more became 47,988 bytes with a truncation marker.
+ASCII and Korean text hit the same byte bound.
+
+The probe conservatively reports `mcpOutputLimitChars = 32000`. The engine sets
+`--max-output-chars 30400` (5% margin), bounding both UTF-16 length and UTF-8 bytes; larger whole
+reads are paged. See [MCP](../mcp.md). Normalized `tool_call.output` is separately clipped at
+16,384 characters; the raw transcript keeps the full result. `tool_timeout_sec` is honored;
+the adapter defaults to 300 s (startup 30 s).
 
 ## Events
 
@@ -180,217 +144,104 @@ opens only `rules/*.rules` and `AGENTS.md`, never `auth.json` or other credentia
 |---|---|
 | thread started | `started {sessionId: threadId}` |
 | `item/agentMessage/delta` | `message_delta` |
-| `item/started`/`item/completed` `commandExecution` | `tool_call shell`, kind from `commandActions` (read/listFiles → read, search → search, else execute), status inProgress→running, completed (non-zero exit → failed), failed, declined→denied |
-| `fileChange` | `tool_call apply_patch`, kind edit (all deletes → delete) |
-| `mcpToolCall` | `tool_call mcp__<server>__<tool>`, kind read for the artifact tool or `readOnlyHint`, else other |
-| `webSearch` | `tool_call web_search`, kind fetch |
-| `dynamicToolCall`, `imageView`, `collabAgentToolCall` | `tool_call` (other/read/other) |
-| `thread/tokenUsage/updated` | one `usage` per turn: thread total minus the total before the turn's first request, keyed by `turnId` (`thread/resume` replays the previous turn's usage; live #16). `cost: null`, `source: "unknown"` |
-| server request `item/commandExecution/requestApproval` | `approval_request` kind execute (fetch with a network context) |
-| `item/fileChange/requestApproval`, `applyPatchApproval` | `approval_request` kind edit |
-| `item/permissions/requestApproval` | `approval_request` (edit for file system, fetch for network) |
-| `mcpServer/elicitation/request` | declined (no person behind a worker); `item/tool/requestUserInput` → empty answers |
-| `turn/completed` completed / failed / interrupted | `completed {finalText}` (the `final_answer` message) / `failed` (classified) / `failed cancelled` |
-| process exit before `turn/completed` | `failed` classified from the last error or stderr; `cancelled` after a cancel |
+| `commandExecution` started/completed | `tool_call shell`; read/listFiles → read, search → search, otherwise execute; nonzero exit → failed, declined → denied |
+| `fileChange` | `tool_call apply_patch`, edit (delete if all changes delete) |
+| `mcpToolCall` | `tool_call mcp__<server>__<tool>`; read for artifact or `readOnlyHint`, otherwise other |
+| `webSearch` | `tool_call web_search`, fetch |
+| `dynamicToolCall`, `imageView`, `collabAgentToolCall` | `tool_call`, kinds other/read/other |
+| `thread/tokenUsage/updated` | One turn delta keyed by `turnId`; resumed previous-turn usage is excluded |
+| `item/commandExecution/requestApproval` | `approval_request`, execute (fetch with network context) |
+| `item/fileChange/requestApproval`, `applyPatchApproval` | `approval_request`, edit |
+| `item/permissions/requestApproval` | `approval_request`, edit for filesystem, fetch for network |
+| `mcpServer/elicitation/request`, `item/tool/requestUserInput` | Declined / empty answers |
+| `turn/completed` | completed → `completed {finalText}` from `final_answer`; failed → classified `failed`; interrupted → `failed cancelled` |
+| early process exit | Classified failure; cancelled after adapter cancellation |
 
-Raw stream: `<artifactsDir>/codex-app-server.jsonl` (`{at, dir: out|in|stderr|meta, msg}`), or
-under the attempt log dir when no `artifactsDir` is given. Redacted there: MCP env values,
-`config/read` (only server names), `mcpServerStatus/list` (names and tool counts), `account/*` and
-`remoteControl/*` notifications.
+Usage normalizes `input = inputTokens − cachedInputTokens − cacheWriteInputTokens`,
+`cached = cachedInputTokens`, `cacheWrite = cacheWriteInputTokens`; model comes from thread start/resume,
+else the request. Output includes reasoning. Cost is `null`, source `unknown`.
+
+Raw stream: `<artifactsDir>/codex-app-server.jsonl` (`{at, dir: out|in|stderr|meta, msg}`), falling
+back to the attempt log directory. Request and MCP env values of at least 8 characters are redacted
+in raw logs, stderr and normalized events as `<redacted:KEY>` / `<redacted:server.KEY>`.
+`config/read` retains only server names; MCP status retains names and counts; account and
+remote-control notifications are redacted. Messages sent to the CLI remain unchanged.
 
 ## respond / cancel / reconcile / sessions
 
-- `respond`: allow → `accept`, deny → `decline` (never `acceptForSession`); permissions requests get
-  the requested permissions for the turn or none. Unanswered requests are denied when
-  `approvalPolicy.timeoutMs` expires (fail closed). Unknown id → `unknown_request`; answered or
-  resolved by the server (`serverRequest/resolved`) → `too_late`.
-- `cancel`: `turn/interrupt` (live #5: `cancelled`, turn `interrupted` → `failed cancelled`). `owned`,
-  or no turn yet: interrupt, then SIGTERM/SIGKILL the app-server. A cancel that loses the race to
-  completion returns `too_late`; one that cannot be confirmed returns `uncertain`. Attempts owned by
-  another process: `too_late` (terminal), `no_active` (owner gone) or `uncertain`.
-- `reconcile`: durable records under `stateDir` (`$AGENT_WORKFLOW_HOME/executors/codex/attempts/`,
-  `O_EXCL` create): none/revoked → `absent`; consumed without spawn → `unknown`; spawned/terminal →
-  `found`. `sessionBound: true`, so the runtime never adopts a found attempt in another process.
-  `observe` of an attempt owned by an earlier process replays its durable event log (and reports
-  `failed unknown` when its app-server died without a terminal event).
-- Sessions (D3): kept only when `sessionId`/`resumeSessionId` is set. Codex picks the thread id;
-  `ExecRef.sessionId` and `ownedSession {kind: "codex-thread", locator: threadId}` carry it.
-  `deleteOwnedSession(owned)` → `thread/delete` (live kit run: 2 deleted, 1 `not_found` for the
-  already deleted resumed thread).
+- `respond`: allow → `accept`, deny → `decline`, never `acceptForSession`. Permissions are granted
+  only for the turn. Unanswered requests are denied at `approvalPolicy.timeoutMs`. Unknown id →
+  `unknown_request`; already answered or server-resolved → `too_late`.
+- `cancel`: `turn/interrupt`; `owned` or no active turn also terminates the process with
+  SIGTERM/SIGKILL. Completion races return `too_late`; unconfirmed cancellation returns `uncertain`.
+  For another process's attempt, results are `too_late` (terminal), `no_active` (owner gone), or `uncertain`.
+- `reconcile`: records under `$AGENT_WORKFLOW_HOME/executors/codex/attempts/` use exclusive claims.
+  None/revoked → `absent`; consumed without spawn → `unknown`; spawned/terminal → `found`.
+  Unreadable records are `unknown`, block resubmission with `AUTHORITY_ALREADY_CONSUMED`, and make
+  cancel `uncertain`. Session-bound attempts are never adopted by another process.
+- Cross-process `observe` replays the durable event log, ending `failed unknown` if the server died
+  without a terminal event.
+- Sessions are kept only for `sessionId`/`resumeSessionId`. Codex picks the thread id, returned in
+  `ExecRef.sessionId` and `ownedSession {kind: "codex-thread", locator: threadId}` for owned threads.
+  Ownership records live in `<stateDir>/sessions/`; a resumed foreign thread is not marked owned.
+  `deleteOwnedSession` refuses unrecorded threads, otherwise uses `thread/delete` and removes the
+  record after `deleted`/`not_found`.
 
 ## Capabilities
 
 | Row | Value | Source | Evidence |
 |---|---|---|---|
-| toolLoop / context | agent / agent | — | Codex runs its own loop |
+| toolLoop / context | agent / agent | — | Codex owns the loop |
 | sessionBound | true | — | one stdio connection owns the thread |
-| mcpInjection | native | probed | #2, offline fake app-server check |
-| readOnly | native | probed | #11, #12. `probe()` lowers it to emulated + warning when `allow` rules exist (WP4d) |
-| toolAllowlist | native, coarse | probed | #12 (`tools: [read]` → read-only sandbox; `touch` denied) |
-| systemPrompt | native, append | declared | #17 (`developerInstructions` honored) |
-| modelSelect | native | probed | all calls (`x-codex-turn-metadata` model) |
-| effortLevels | low, medium, high, xhigh, max, ultra | — | `model/list` union (Luna models stop at max); per model from `codex debug models` `supported_reasoning_levels` (probe `modelEfforts`), so a stage effort maps to the nearest level its model has (the lower on a tie) before launch |
-| resume | native, native | probed | kit `live.resume` (#15–16) |
+| mcpInjection | native | probed | live, 0.159.2; offline app-server |
+| readOnly | native | probed | live, 0.159.2; environment probe can lower it |
+| toolAllowlist | native, coarse | probed | read-only sandbox; live, 0.159.2 |
+| systemPrompt | native, append | declared | `developerInstructions`; live, 0.159.2 |
+| modelSelect | native | probed | live, 0.159.2 |
+| effortLevels | low, medium, high, xhigh, max, ultra | — | `model/list`; `codex debug models` |
+| resume | native, native | probed | live, 0.159.2 |
 | partialStream | native | probed | `item/agentMessage/delta` |
-| usage | native, tokens | probed | every completed call; cost never reported |
-| toolTelemetry | native | probed | #1, #2, #12, #18 |
-| cancel | native, interrupt | probed | #5 |
-| nativeSchema | none | declared | `turn/start.outputSchema` exists, SDK v0 `SubmitRequest` has no schema field |
-| contextIsolation | emulated | probed | see Isolation; global `AGENTS.md` and exec-policy rules remain. `probe()` overrides it per machine (WP4d: native without a global `AGENTS.md`, emulated + warning with one) |
-| fastTier | none | declared | standard tier forced (Pi-only feature, A2-4) |
-| toolResultBudget | none | declared | C1 |
-| webTools | native, search, safetyPolicy **unknown** | probed | #6; hosted search, credential-URL/redaction/budget controls unconfirmed (C2, plan §6.5) |
+| usage | native, tokens | probed | turn usage notifications |
+| toolTelemetry | native | probed | live, 0.159.2 |
+| cancel | native, interrupt | probed | live, 0.159.2 |
+| nativeSchema | none | declared | SDK has no schema field |
+| contextIsolation | emulated | probed | global instructions/rules; environment-dependent |
+| fastTier | none | declared | standard tier forced |
+| toolResultBudget | none | declared | source: capabilities declaration |
+| webTools | native, search, safetyPolicy **unknown** | probed | hosted search; live, 0.159.2 |
 
-`probed` rows carry `verifiedWith: "codex-cli 0.159.2, WP7 live 2026-10-26"`. `probe()` notes a
-different CLI version (F3: rerun the kit).
+Capability metadata retains the original 0.159.2 verification baseline; the latest verified CLI is
+0.166.0. A differing installed version is noted by the probe.
 
 ## Error classification
 
-`codexErrorInfo` decides first (`src/executors/codex/errors.ts`), then the text table.
+`codexErrorInfo` takes precedence over text rules (`src/executors/codex/errors.ts`).
 
 | Input | Class | Source |
 |---|---|---|
-| 400 `model_not_found` ("model is not supported…"), codexErrorInfo `other` | config | recorded #3 |
-| 401 (`httpConnectionFailed{httpStatusCode: 401}`), "Missing bearer…" | auth | recorded #4 |
-| interrupted turn / exit after cancel | cancelled | recorded #5 |
-| `unauthorized`, "not logged in", "token expired" | auth | protocol / text |
-| `usageLimitExceeded`, `rateLimitExceeded`, any HTTP 429, "rate limit" | rate_limit | protocol |
-| `serverOverloaded`, `internalServerError`, `httpConnectionFailed`, `responseStream*`, `responseTooManyFailedAttempts`, `flexUnavailable`, 5xx, "connection reset", "stream disconnected" | transient | protocol |
+| 400 `model_not_found`, unsupported model | config | live, 0.159.2 |
+| 401 `httpConnectionFailed`, missing bearer | auth | live, 0.159.2 |
+| interrupted turn / exit after cancel | cancelled | live, 0.159.2 |
+| unauthorized, not logged in, token expired | auth | protocol / text |
+| `usageLimitExceeded`, `rateLimitExceeded`, HTTP 429 | rate_limit | protocol |
+| `serverOverloaded`, `internalServerError`, `httpConnectionFailed`, `responseStream*`, `responseTooManyFailedAttempts`, `flexUnavailable`, 5xx, connection reset/disconnected | transient | protocol |
 | `contextWindowExceeded`, `sessionBudgetExceeded`, `cyberPolicy`, `misalignmentPolicyViolation`, `tooManyDenials`, `threadRollbackFailed` | permanent | protocol |
-| `badRequest`, `sandboxError`, "failed to load configuration", "invalid transport", ENOENT / CLI missing, isolation guard | config | protocol / observed offline |
-| anything else (incl. `other` without a matching text) | unknown | B3 |
+| `badRequest`, `sandboxError`, invalid configuration/transport, CLI missing/ENOENT, isolation guard | config | protocol / offline |
+| otherwise | unknown | source: `errors.ts` |
 
-Not reproducible safely: expired tokens, real rate limits, context overflow (protocol rows only).
-
-## Concurrency
-
-Three app-servers in parallel (#7–9): all completed, wall 5.2 s, no auth/refresh/lock messages in
-any stderr. Token refresh did not happen during the test (fresh token), so refresh contention
-between concurrent app-servers is **not** proven absent.
-
-## Web tool
-
-Live call #6 with `web_search = "live"`: one `webSearch` item (action `search`), the answer cited the Wikipedia
-URL. `safetyPolicy: "unknown"` (owner decision Q2): the search is hosted, so private-IP/DNS
-rebinding concerns do not apply locally, but credential-URL blocking, redaction and a character
-budget are not confirmed. `fetch_content` (open_page) not observed.
-
-## Tests
-
-- Offline (`test/unit/executor-codex-conformance.test.mjs`): the full offline kit, 34/34 pass.
-  Stub `codex` = `createStubCli` replaying `test/fixtures/executors/codex/recorded/*.jsonl` (complete,
-  usage_unknown, slow, approval-deny, fail_auth, fail_config recorded; transient, rate_limit,
-  permanent, unknown, crash_after_consume and the approval allow branch synthetic from the
-  protocol). `mcp_tool` uses `fake-mcp-app-server.mjs`, which launches the injected server from the
-  thread config like Codex. `crash_after_consume` uses the test-only `testFaults` config.
-- Runtime tier (`executor-codex-runtime.test.mjs`): `runtime.durable_authority`,
-  `runtime.detach_rediscovery`, `runtime.control_relay` pass with the adapter descriptor against
-  the stub.
-- Parser, error table, mapping, isolation config, redaction (`executor-codex-parser.test.mjs`,
-  `executor-codex-config.test.mjs`); fixture scrub (`executor-codex-fixtures-scrub.test.mjs`).
-- Live (`executor-codex-live.test.mjs`, `AGENT_WORKFLOW_LIVE=1`, real HOME): smoke + kit live tier,
-  run once: 5/5 live checks pass (`readonly_enforced`, `tool_allowlist`, `isolation`,
-  `session_ownership`, `resume`). Re-run 2026-11-01 on **codex-cli 0.165.0**: smoke and 5/5 pass;
-  the verified version became 0.165.0 (`live-calls.md` "Re-verification on 0.165.0"). Re-run
-  2026-11-04 on **codex-cli 0.166.0**: smoke and 5/5 pass; verified version now 0.166.0 (the MCP
-  output limit was re-measured the same day, unchanged).
+The engine decides retries by failure class; a consumed attempt is not relaunched by the adapter.
+Expired-token, rate-limit and context-overflow cases have protocol coverage, not live reproduction.
 
 ## Known limits
 
-- Global `$CODEX_HOME/AGENTS.md` and `~/.codex/rules` cannot be disabled per run (see Isolation); since
-  WP4d the probe reports them as warnings and negotiation records the degradation.
-- `effort` falls back to the user's config when the request has none.
-- Output includes reasoning tokens. (Since WP12a the adapter subtracts cached and cache-write tokens from Codex's `inputTokens`, so `input` excludes them like every executor.)
-- A user MCP server with the same name as an injected one merges keys (e.g. `url` + `command` →
-  config failure).
-- Attempt records and logs under `stateDir`: since WP18b a record in phase `terminal` or `revoked`
-  (or `spawned` with its app-server process gone) older than 7 days is pruned with its
-  `.events.jsonl` and `.log/` dir (`src/executors/state-retention.ts`; on submit at most every 6 h,
-  and by `agent-workflow prune`).
-  WP19 (review #2): a launched attempt's record (`spawned` or `terminal`) is not deleted but replaced by a compact tombstone (`agent-workflow-attempt-tombstone-v1`: attemptKey, the `terminal` outcome, finishedAt, prunedAt); reconcile reads it as `unknown` ("launched, record pruned"), never `absent`, and submit refuses that attemptKey, so an orphaned workflow never retries an attempt that already ran. Tombstones are never pruned; only `revoked` (never-launched) records are removed.
-- `probe()` lists models with `codex debug models` (a debug subcommand; app-server `model/list`
-  would need a second app-server spawn). The list keeps visible slugs only and the CLI passes any
-  model on (API-key and custom-provider logins), so `modelListComplete: false`: a role model missing
-  from it is noted as not verified, never refused (WP31 follow-up).
-- `fetch_content`, `grep`, `find`, `ls` mappings and token-refresh contention are unverified.
-
-## What later work packages need
-
-- **WP9b**: use `createCodexStubHarness` / `createCodexLiveHarness`
-  (`test/fixtures/executors/codex/harness.mjs`); flip `ARTIFACT_TOOL_NAME_MAPPINGS.codex.verified`
-  (evidence: live #2); the kit's `live.isolation` only covers project files, so the global
-  `AGENTS.md` residual needs its own row.
-- **WP10**: Codex's web tool is `web_search` (request `tools: ["web_search"]`); prompts name the
-  artifact tool `mcp__workflow_artifact__workflow_artifact`; precise tool lists degrade to the
-  coarse sandbox (B4 `toolAllowlist.fine` → readOnly downgrade where allowed).
-- **WP11 / WP4c**: launch the artifact server with `probe().mcpOutputLimitChars` (done by the engine
-  since WP5b: `--max-output-chars 30400`); always
-  pass `effort`; keep secrets in `SubmitRequest.env`/`McpServerSpec.env`, never in descriptor
-  config; prune should call `deleteOwnedSession` for `codex-thread` sessions (R#10) and sweep
-  `stateDir`. The exec-policy-rules gap is decided (WP4d: accept and record with a warning; strict
-  profiles refuse).
-
-## Change log
-
-- **WP12d-2 review #10 (checked, no change):** `launch`, `deleteOwnedSession` and `runCli` attach
-  every child handler (`AppServerConnection` installs `error`/`close`/stdout/stdin listeners)
-  synchronously after `spawn`; the only writes in between are synchronous.
-
-- **WP12d-2 review #9:** session deletion requires ownership evidence. A kept thread the adapter
-  creates with `thread/start` gets a durable record under `<stateDir>/sessions/`
-  (`ThreadOwnershipStore`); `deleteOwnedSession` refuses any thread without one (no app-server is
-  started) and drops the record after `deleted` / `not_found`. Resuming a thread reports
-  `ownedSession` only when that thread is recorded, so a resumed user thread is never marked owned
-  (retention cannot delete it). Test: `executor-wp12d2-session-ownership.test.mjs`.
-
-- **WP12d-2 review #6:** injected MCP servers run outside the Codex sandbox, so readOnly cannot be
-  enforced on their tools. A readOnly request that injects any server other than the engine's
-  artifact server (one read-only tool) is refused in `submit` before consume with
-  `CAPABILITY_MISSING:readOnly`; non-readOnly requests are unchanged. The conformance kit's
-  `mcp_tool` requests are now non-readOnly. Test: `executor-wp12d2-mcp-readonly.test.mjs`.
-
-- **WP12d-2 review #5:** request secrets echoed by the worker are no longer persisted. Every value of
-  `SubmitRequest.env` and of injected MCP server `env` (≥ 8 chars) is replaced by
-  `<redacted:KEY>` / `<redacted:server.KEY>` (shared `src/executors/redact.ts`) in every raw
-  transcript line (`codex-app-server.jsonl`, both directions), in stderr (a value split across stderr
-  chunks is held back until it can be redacted) and in every normalized event before it enters the
-  run log, the durable `*.events.jsonl` log or a failure message. Messages sent to the app-server
-  (thread/start config, approval answers) are unchanged. Test: `executor-wp12d2-secret-echo.test.mjs`
-  (fake app-server `fake-echo-app-server.mjs` echoes both kinds of value through a command item, an
-  agent message and split stderr).
-
-- **WP12d-2 review #3:** unreadable launch evidence is no longer proven absence. `AttemptStore.lookup` returns `missing` only on
-  ENOENT; a record that cannot be read, does not parse, has the wrong schema/phase or names another
-  attemptKey is `unreadable`: `reconcile` answers `unknown` (the runtime records
-  `failed/needs_decision`, `src/runtime/orchestrate/reconcile.ts` already maps every non-`absent`
-  outcome there and is unchanged), `submit` refuses with `AUTHORITY_ALREADY_CONSUMED` before consuming
-  the authority, and `cancel` answers `uncertain`. The first record is now created by hard-linking a fully written temp file (no half-written claim is visible). Test: `executor-wp12d2-evidence.test.mjs`
-  (malformed, empty, directory and mismatched records for all three adapters).
-
-- **WP12a (2026-10-27):** usage is normalized (docs/core-port.md WP12a change log 3): `input` =
-  `inputTokens − cachedInputTokens − cacheWriteInputTokens` (Codex counts cached input inside
-  `inputTokens`), `cached` = `cachedInputTokens`, `cacheWrite` = `cacheWriteInputTokens`, `model` =
-  the `thread/start` / `thread/resume` response model (else the request model). Cost stays `null`.
-  Tests: `executor-codex-parser.test.mjs`, `core-wp12a-usage-normalized.test.mjs`.
-
-- **WP12a (2026-10-27):** no adapter change for cost: usage events keep `cost: null`,
-  `source: "unknown"`. The engine no longer negotiates `usage.cost` as "emulated by engine" (it has no
-  price table); the preview records `usage.cost: degraded … cost recorded as unknown`, and run rollups
-  and host text show the cost as `null` / `unknown` instead of 0 (docs/core-port.md WP12a change log 2).
-
-- **WP4e (2026-10-26):** permission modes (D2 revised, [`../permissions.md`](../permissions.md)).
-  `planCodexTools(tools, readOnly, permissionMode)` returns `sandbox` and `approvalPolicy`: `free` on a
-  non-readOnly request → `danger-full-access` + `never`; `safe`/absent and every readOnly request keep
-  the mapped sandbox + `on-request`. The coarse tool list is accepted in free mode (engine records
-  `CAPABILITY_MISSING:toolAllowlist.fine` as a degradation, never a refusal); environment warnings are
-  recorded without strict refusal or confirmation in free mode. Conformance harness documents the
-  `thread/start` params (`CODEX_PERMISSION_MODE_SETTINGS`; the stub CLI's launches now carry stdin).
-  Tests: `executor-codex-config.test.mjs`. Live #19 (1 call).
-
-- **WP4d (2026-10-26):** `probe()` returns `capabilities.readOnly` (emulated + warning when
-  `$CODEX_HOME/rules/*.rules` has `allow` rules) and `capabilities.contextIsolation` (native without a
-  global `AGENTS.md`, emulated + warning with a non-empty one), plus count/path notes; credential files
-  are never read. Engine B4 negotiation turns these warnings into recorded degradations (see
-  `docs/core-port.md` "WP4d"). Tests: `executor-codex-environment.test.mjs` (rule counting, temp
-  `CODEX_HOME` with rules/`AGENTS.md` present/absent/empty and an unreadable `auth.json`, `probe()` over
-  the stub CLI, engine `probeWorkflowExecutor` merge).
+- Global instructions and exec-policy rules remain; the probe warns and records degradations.
+- Always pass effort if user defaults must not apply.
+- An injected MCP name colliding with a user server can merge incompatible keys and fail config.
+- `fetch_content`, `grep`, `find`, `ls` mappings and concurrent token refresh are unverified.
+- Three parallel app-servers are verified; refresh contention was not exercised.
+- Hosted web search safety controls are unconfirmed (`safetyPolicy: unknown`).
+- Terminal/revoked records, or spawned records with a dead server, are eligible for pruning after
+  7 days, on submit at most every 6 h and by `agent-workflow prune`, with `.events.jsonl` and `.log/`.
+  Launched records become permanent `agent-workflow-attempt-tombstone-v1` tombstones (attemptKey,
+  terminal outcome, finishedAt, prunedAt). Reconcile reports `unknown`, never `absent`, and submit
+  refuses the key. Only never-launched revoked records are removed.

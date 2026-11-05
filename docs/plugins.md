@@ -1,92 +1,40 @@
 # Claude Code and Codex plugins
 
-WP14/WP15. One plugin, `plugins/agent-workflow/`, makes agent-workflow usable from a Claude Code or
-Codex conversation: it registers the [host MCP server](host-mcp.md) `agent-workflow-mcp` with the
-right `--host` for each host and ships three skills. The plugin is the main install path; a one-line
-`mcp add` is the alternative. Verified offline with Claude Code 2.1.310 and codex-cli 0.159.2.
+The plugin in `plugins/agent-workflow/` registers the [host MCP server](host-mcp.md) with the correct `--host` and supplies three skills: `agent-workflow` (tool protocol), `workflow-guide` (authoring and scaffolds), and `execution-router` (route recommendation). A direct `mcp add` registration is an alternative without skills.
 
 ## What the user gets
 
-Ask for a workflow in the conversation ("run deep-review on the current diff", "deep-research X").
-The agent calls `workflow_list` if the name is unclear, `workflow_run` (returns a `runId` at once,
-the run is detached), then `workflow_wait` (calls of up to 30 min in Claude Code and with the Codex plugin, else 45 s; an
-interactive session may instead be woken when the run ends, see host-mcp.md) until the run is finished, and
-finally quotes the result preview and report paths. Permission mode is `free` unless the user asks
-for `safe`; the executor is the workflow profile or the host default unless the user names one.
-`workflow_status`, `workflow_inspect`, `workflow_logs` and `workflow_stop` manage runs, `workflow_validate` checks a
-spec. WP28: the other CLI commands are tools too (`workflow_resume`, `workflow_show`, `workflow_roles`,
-`workflow_agents`, `workflow_notices`, `workflow_doctor`, `workflow_prune`, `workflow_profile`,
-`workflow_supervise`); prune, profile and notices changes ask the user to confirm in a dialog.
-WP29: `workflow_approve` answers a dynamic-controller approval a run waits on, also after a dialog.
-Details: [host-mcp.md](host-mcp.md).
+Ask for a workflow in the conversation, for example “run deep-review on the current diff”. The agent launches a detached run, reports its id and dashboard link, then waits or receives a completion notification. It quotes the result preview and report paths when finished.
 
-WP36: when a run outlives the host's patience, the user follows it in a terminal with
-`agent-workflow watch <runId>`, sees it in Claude Code's status line (`agent-workflow statusline`,
-user setting), and the Claude Code plugin's prompt hook adds a line such as
-`agent-workflow: workflow "deep-review" (run …) finished — verdict NEEDS_WORK, report …` to the
-conversation at the user's next message ([below](#completion-check-hook)).
+Permission mode defaults to `free`; the executor is the workflow profile or host default unless you name one. Tools support status, logs, inspection, stopping, resuming, validation, profiles and dynamic approvals. State-changing profile, prune and notice calls require confirmation. See [tools and confirmation behavior](host-mcp.md#tools).
 
 ## Layout
 
-```
+```text
 .claude-plugin/marketplace.json          Claude Code marketplace (repo root)
 .agents/plugins/marketplace.json         Codex marketplace (repo root)
 plugins/agent-workflow/
-  .claude-plugin/plugin.json             Claude Code manifest: mcpServers → --host claude-code,
-                                         hooks → UserPromptSubmit notify-check (WP36)
-  .codex-plugin/plugin.json              Codex manifest: mcpServers → --host codex, skills, timeouts
-  README.md
-  skills/agent-workflow/                 tool call protocol (source: skills/agent-workflow/)
-  skills/workflow-guide/                 authoring guide + scaffolds, adapted to the MCP tools
-  skills/execution-router/               route recommendation, adapted to the MCP tools
-  reference/                             docs/usage.md, workflows/README.md, 4 bundled spec.json
+  .claude-plugin/plugin.json             Claude Code server, prompt hook and monitor
+  .codex-plugin/plugin.json              Codex server, skills and timeouts
+  skills/agent-workflow/
+  skills/workflow-guide/
+  skills/execution-router/
+  reference/                            Usage guide, workflow guide and bundled specs
 ```
 
-Why this shape:
+The plugin uses two manifests so each host passes its own `--host`. It has no `.mcp.json`, which Claude Code would load as a second server. Codex's compatibility manifest starts the server in the session directory; portable Agent Plugins manifests use the plugin root instead.
 
-- **One directory, two manifests.** Claude Code reads only `.claude-plugin/plugin.json`; Codex reads
-  the first of root `plugin.json` (Agent Plugins), `.codex-plugin/plugin.json`,
-  `.claude-plugin/plugin.json`. Each manifest declares the server inline with its own `--host`, so
-  each host passes the right value. There is no `.mcp.json` (Claude Code would load it as a second
-  server).
-- **No portable root `plugin.json`/`mcp.json`.** Codex starts Agent Plugins stdio servers in the
-  plugin root (`cwd` defaults to `${PLUGIN_ROOT}` and may only point inside the plugin or its data
-  directory), but the server takes its project from its working directory. Measured: a portable
-  `mcp.json` server started in `$CODEX_HOME/plugins/cache/agent-workflow/agent-workflow/0.1.0`; the
-  same server from `.codex-plugin/plugin.json` started in the session directory. The compatibility
-  manifest stays supported by Codex. Switching to the portable layout needs the server to learn the
-  project from the client instead (open item).
-- **Not the repo root as plugin.** The repository is ~40 MB with `agents/*.md` that Claude Code would
-  load as subagents; hosts copy or clone the plugin directory on install.
-- **Generated.** `node tools/release/plugins.mjs build` writes the plugin and both marketplaces from
-  `package.json` (version), `skills/` and the docs; `… check` reports drift and the unit test fails
-  on drift. The root skills keep the Pi names (`aw_*`, `/aw`); the generator replaces them with the
-  MCP tool names and fails when an expected source sentence changed. Do not edit
-  `plugins/agent-workflow/` by hand.
-- **Pi skills (WP33).** The same generator writes `plugins/pi/skills/aw-workflow-guide/` and
-  `plugins/pi/skills/aw-execution-router/`: renamed copies of `skills/workflow-guide` and
-  `skills/execution-router` (frontmatter `name` with the `aw-` prefix, relative paths pointing into
-  the package) for the Pi package manifest (`pi.skills`; `plugins/pi` is in package.json `files`).
-  Pi keeps the first skill of a name, so the copies are prefixed to stay distinct from same-named
-  skills of other packages (owner decision Q10). `check` also fails when `pi.skills` does not list exactly these directories.
+For maintainers, `node tools/release/plugins.mjs build` generates the plugin and marketplaces from `package.json`, `skills/` and documentation; `check` reports drift. Do not edit generated plugin files by hand. The generator also writes Pi's prefixed `aw-workflow-guide` and `aw-execution-router` skills under `plugins/pi/skills/`, avoiding collisions with other packages' skill names.
 
 ## Server launch
 
-Released plugin: `npx -y --package=@agwab/agent-workflow@<package version> agent-workflow-mcp
---host <claude-code|codex>`. The version is pinned exactly (test: equal to `package.json`).
-`--package` is required: with `npx <package> agent-workflow-mcp`, npx runs the package's bin named
-like the package (`agent-workflow`) and passes `agent-workflow-mcp` as an argument. The first start
-downloads the package (Node.js 22+). Until the package is on npm (stage 3) use the dev plugin below
-or an `mcp add` registration of a local install. Verified with a packed tarball:
+The released plugin uses an exact package version:
 
-```
-$ npx -y --package=<dir>/agwab-agent-workflow-0.1.0.tgz agent-workflow-mcp --host codex   # + initialize, tools/list
-serverInfo: {"name":"agent-workflow","version":"0.1.0"}
-tools: workflow_list,workflow_run,workflow_dynamic,workflow_status,workflow_wait,workflow_stop,workflow_inspect,workflow_validate
+```sh
+npx -y --package=@agwab/agent-workflow@<package version> agent-workflow-mcp --host <claude-code|codex>
 ```
 
-(Recorded before WP18b added `workflow_logs` and WP28 added the CLI-command tools; the server now
-lists 18 tools.)
+Node.js 22+ is required. First startup downloads the package. Keep `--package`: `npx <package> agent-workflow-mcp` would select the package's `agent-workflow` binary and pass `agent-workflow-mcp` as an argument. For an unpublished or local version, use the development plugin below or register a local install with `mcp add`.
 
 ## Install (plugin)
 
@@ -94,275 +42,131 @@ Claude Code:
 
 ```sh
 claude plugin marketplace add AgwaB/agent-workflow
-claude plugin install agent-workflow@agent-workflow              # --scope project|local to share/limit
-# in a session (Claude Code 2.1.275+): /plugin install agent-workflow --marketplace AgwaB/agent-workflow
+claude plugin install agent-workflow@agent-workflow
+# Add --scope project|local to share or limit the installation.
+# In a session, Claude Code 2.1.275+ also supports:
+# /plugin install agent-workflow --marketplace AgwaB/agent-workflow
 ```
 
 Codex:
 
 ```sh
-codex plugin marketplace add AgwaB/agent-workflow                # optional: --sparse .agents/plugins --sparse plugins/agent-workflow
+codex plugin marketplace add AgwaB/agent-workflow
 codex plugin add agent-workflow@agent-workflow
 ```
 
-Per project, Codex can switch an installed plugin on or off in `.codex/config.toml` (loaded only for
-trusted projects): `[plugins."agent-workflow@agent-workflow"] enabled = true|false`. The repo
-marketplace file `.agents/plugins/marketplace.json` alone was not picked up by the 0.159.2 CLI
-(`codex plugin marketplace list`: "No plugin marketplaces in scope." in a trusted project); the
-CLI needs `codex plugin marketplace add` (or a `marketplaces` config entry), and `plugin add`
-installs the copy into `$CODEX_HOME/plugins/cache/`.
+Codex marketplace registration can use `--sparse .agents/plugins --sparse plugins/agent-workflow`. The repository marketplace file alone is not enough: register it with `plugin marketplace add` or a `marketplaces` configuration entry. Installed copies live under `$CODEX_HOME/plugins/cache/`.
 
-Codex's `approval_policy` decides whether you see the confirmation dialogs: under
-`approval_policy = "never"` Codex auto-accepts confirm dialogs (auto consent, degradations,
-approvals, profile/prune/notice changes) without asking, and agent-workflow treats that as your
-consent (owner decision O2, like the permission mode `free`). To be asked, start Codex with
-`-c approval_policy="on-request"` ([host-mcp.md](host-mcp.md#codex-approval_policy--never-owner-decision-o2-2026-10-28)).
+Trusted projects can enable or disable the Codex plugin in `.codex/config.toml`:
 
-Restart the session after installing. Claude Code shows the server as
-`plugin:agent-workflow:agent-workflow` (`claude mcp list`), Codex as `agent-workflow`.
+```toml
+[plugins."agent-workflow@agent-workflow"]
+enabled = true
+```
+
+Codex's `approval_policy = "never"` automatically accepts empty confirmation dialogs; required-field workflow choices are cancelled. To see dialogs, use `-c approval_policy="on-request"` ([Codex approval](host-mcp.md#codex-approval)).
+
+Restart the session after installation. Claude Code lists the server as `plugin:agent-workflow:agent-workflow`; Codex lists it as `agent-workflow`.
 
 ## Alternative: `mcp add`
 
-Without the plugin (no skills; the server's own instructions carry the call protocol):
+Without plugin skills, the server's instructions still provide the tool protocol:
 
 ```sh
 claude mcp add agent-workflow -- npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow-mcp --host claude-code
 codex mcp add agent-workflow -- npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow-mcp --host codex
 ```
 
-With the package installed (`npm install -g @agwab/agent-workflow`), the command is just
-`agent-workflow-mcp --host …`. `claude mcp add` takes `--scope local|project|user`
-(`project` writes `.mcp.json`); `codex mcp add` writes `~/.codex/config.toml`
-(`[mcp_servers.agent-workflow]`).
+Replace the version with the package version you want. With a global install (`npm install -g @agwab/agent-workflow`), use `agent-workflow-mcp --host …` directly.
+
+`claude mcp add` accepts `--scope local|project|user` (`project` writes `.mcp.json`). `codex mcp add` writes `[mcp_servers.agent-workflow]` in `~/.codex/config.toml`.
 
 ## Timeouts
 
-- `workflow_wait` blocks up to 30 min per call where the server knows the host's limit, else 45 s
-  ([host-mcp.md](host-mcp.md#long-waits-2026-11-05)). The Codex manifest sets `tool_timeout_sec = 1920`
-  and passes it to the server (`--tool-timeout-ms 1920000`), and `startup_timeout_sec = 120` (first
-  `npx` download). With `codex mcp add`, waits stay 45 s. For 30 min waits, add
-  `--tool-timeout-ms 1920000` after `--host codex` **and** `tool_timeout_sec = 1920` under
-  `[mcp_servers.agent-workflow]` in `~/.codex/config.toml` (`codex mcp add` has no timeout option);
-  the flag alone would let a wait run past Codex's default limit (300 s in the 0.165 source). Set
-  `startup_timeout_sec` there too if the first start times out.
-- Claude Code: `MCP_TIMEOUT` (server start, ms) and `MCP_TOOL_TIMEOUT` (tool calls, ms), or a
-  per-server `timeout` (ms) in an `.mcp.json`/`mcpServers` entry. The plugin sets none; if the first
-  `npx` start is slow, start Claude Code once with `MCP_TIMEOUT=60000`.
+`workflow_wait` uses up to 30 min per call where the host limit is known, otherwise 45 s. See [long waits](host-mcp.md#long-waits).
+
+- The Codex plugin sets `tool_timeout_sec = 1920`, server flag `--tool-timeout-ms 1920000`, and `startup_timeout_sec = 120` for the first `npx` download.
+- With `codex mcp add`, waits remain 45 s. For 30 min waits, add `--tool-timeout-ms 1920000` after `--host codex` **and** set `tool_timeout_sec = 1920` under `[mcp_servers.agent-workflow]`. The flag alone can exceed Codex's tool limit. Add `startup_timeout_sec = 120` if first startup times out.
+- Claude Code uses `MCP_TIMEOUT` for startup and `MCP_TOOL_TIMEOUT` for calls (milliseconds), or per-server `timeout` in `.mcp.json`/`mcpServers`. The plugin sets none. If the first download is slow, start Claude Code with `MCP_TIMEOUT=60000`.
 
 ## Status line and watch
 
-WP36 ([host-ux-investigation.md](host-ux-investigation.md), [cli.md](cli.md#statusline-watch-notify-check)).
+A Claude Code plugin cannot set the main status line. Add this to `~/.claude/settings.json` or a trusted project's `.claude/settings.json`:
 
-- **Claude Code status line.** A plugin cannot set `statusLine` (a plugin's settings apply only
-  `agent` and `subagentStatusLine`), so the user adds it to `~/.claude/settings.json` or the
-  project's `.claude/settings.json`:
-  `{"statusLine": {"type": "command", "command": "agent-workflow statusline", "refreshInterval": 2}}`
-  (with `npx -y --package=@agwab/agent-workflow@<package version> agent-workflow statusline` when the
-  package is not installed globally). It shows `aw: deep-review 5/13 running 12m · +1 more` and
-  nothing when idle; the folder must be trusted.
-- **Codex and Claude Code: `agent-workflow watch [runId]`** in another terminal pane: tasks, status,
-  elapsed, pending approvals and the verdict and report at the end; `--bell` rings the terminal bell
-  when the run ends. Codex has no status-line command (`tui.status_line` takes only built-in items)
-  and no `watch` of its own.
+```json
+{"statusLine": {"type": "command", "command": "agent-workflow statusline", "refreshInterval": 2}}
+```
+
+Without a global install, use `npx -y --package=@agwab/agent-workflow@<package version> agent-workflow statusline` as the command. It shows active workflow progress and nothing when idle.
+
+For either host, run `agent-workflow watch [runId]` in another terminal pane to see tasks, elapsed time, pending approvals, and final verdict/report. `--bell` rings when the run ends. Codex's `tui.status_line` accepts only built-in items, not commands. See [CLI feedback commands](cli.md#statusline-watch-notify-check).
 
 ## Completion check hook
 
-The host MCP server cannot push a result into the conversation (no completion push on the installed
-versions: [host-ux-investigation.md](host-ux-investigation.md)). The common mechanism (owner decision
-E2) is `agent-workflow notify-check`, run from a hook whose output the host adds to the model's
-context: at the user's next message, each run that finished since the last check is announced once.
+`agent-workflow notify-check` announces newly settled run states once. A `UserPromptSubmit` hook adds its output to the host's context at the user's next message. Interactive session wake mechanisms work without waiting for another prompt; see [completion delivery](host-mcp.md#completion-delivery).
 
-- **Claude Code (shipped in the plugin).** `.claude-plugin/plugin.json` declares an inline
-  `UserPromptSubmit` command hook (timeout 60 s) that runs
-  `npx -y --package=@agwab/agent-workflow@<package version> agent-workflow notify-check --host claude-code`
-  in the project directory (`$CLAUDE_PROJECT_DIR`; exact command: `notifyHookCommand` in
-  `tools/release/plugins.mjs`). The hook runs on every prompt, so it starts the CLI only when it has
-  something to check: in a project without runs it is a directory test, and after a successful check
-  it keeps a stamp (`.agent-workflow/notify-check/hook-claude-code.stamp`) and exits at once unless a
-  `run.json` changed since (one `find`; no `npx` start while nothing changed). The shell only reads
-  (WP42 review round 1: no `mkdir`, `touch` or `mv` on workspace paths, which a symlinked
-  `.agent-workflow` or `notify-check/` could redirect outside the project): the stamp is written by
-  the check itself (`notify-check --stamp hook-claude-code`), through the same contained writer as
-  the receipts, only after the check succeeded, and timed to the check's start, so a change during a
-  check or a failed check is looked at again on the next prompt. A check that left runs for later
-  (at most 5 per check) keeps no stamp, so the next prompt checks again until the backlog is drained
-  (WP42; before, the deferred runs waited for some `run.json` to change). It never blocks a prompt
-  and prints nothing on errors. Claude Code adds the plain stdout of `UserPromptSubmit` hooks to the
-  context, prefixed `UserPromptSubmit hook success: ` (live bundle 5), so the server instructions and
-  the skill speak of a line *containing* `agent-workflow:`, not one starting with it (WP39b). There is no `hooks/hooks.json` (Claude Code loads that file by default, and Codex would
-  read it too). The dev plugin runs the checkout's CLI instead of `npx`.
-- **Claude Code completion monitor (2026-11-05).** `.claude-plugin/plugin.json` also declares
-  `experimental.monitors` `run-completion` (`claudeCompletionMonitor` in `tools/release/plugins.mjs`):
-  interactive sessions only; it waits in the shell until the project has runs, then follows
-  `notify-check --follow --session $CLAUDE_CODE_SESSION_ID`. Its lines wake the idle session, so the
-  agent does not poll with `workflow_wait` ([host-mcp.md](host-mcp.md#waiting-without-polling-the-claude-code-completion-monitor-2026-11-05)).
-- **Codex (manual).** The plugin ships no Codex hook: Codex skips plugin hooks until the user
-  trusts them in `/hooks`, and plugins with lifecycle hooks are not eligible for the public plugin
-  directory. Add it to `~/.codex/hooks.json` or the project's `.codex/hooks.json` (trusted projects
-  only), then trust it with `/hooks`:
+### Claude Code
 
-  ```json
-  {
-    "hooks": {
-      "UserPromptSubmit": [
-        {
-          "hooks": [
-            {
-              "type": "command",
-              "command": "[ -d .agent-workflow/workflows ] || exit 0; agent-workflow notify-check --host codex 2>/dev/null; exit 0",
-              "timeout": 60
-            }
-          ]
-        }
-      ]
-    }
+The plugin includes a `UserPromptSubmit` command hook with a 60 s timeout. It runs this in `$CLAUDE_PROJECT_DIR`:
+
+```sh
+npx -y --package=@agwab/agent-workflow@<package version> agent-workflow notify-check --host claude-code
+```
+
+The generated hook skips CLI startup when there are no runs or no `run.json` changes since `.agent-workflow/notify-check/hook-claude-code.stamp`. Its shell only reads workspace paths; `notify-check --stamp hook-claude-code` writes the stamp through a contained writer after success. Failed checks or changes during a check are retried at the next prompt. At most 5 runs are announced per check; deferred runs prevent stamping so the next prompt drains the backlog. Errors print nothing and do not fail the prompt.
+
+The plugin also declares the interactive `run-completion` monitor under `experimental.monitors`. It follows session-scoped completion checks and wakes idle sessions, so agents need not poll. See [Claude Code monitor](host-mcp.md#waiting-without-polling-the-claude-code-completion-monitor).
+
+### Codex
+
+The plugin ships no Codex lifecycle hook. To add next-prompt completion checks, put this in `~/.codex/hooks.json` or a trusted project's `.codex/hooks.json`, then trust it with `/hooks`:
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d .agent-workflow/workflows ] || exit 0; agent-workflow notify-check --host codex 2>/dev/null; exit 0",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
   }
-  ```
+}
+```
 
-  Codex runs hooks in the session directory and adds plain stdout of `UserPromptSubmit` as developer
-  context. Without a global install, use the `npx -y --package=@agwab/agent-workflow@<package version>
-  agent-workflow` form.
-- Push into an idle session (2026-11-05, verified live): the Claude Code plugin's monitor
-  (`notify-check --follow`), a long `workflow_wait` that Claude Code backgrounds, and `codex queue`
-  for interactive Codex sessions ([host-mcp.md](host-mcp.md#waiting-without-polling-the-claude-code-completion-monitor-2026-11-05)).
+Codex runs hooks in the session directory and adds stdout as developer context. Without a global install, substitute the version-pinned `npx --package` command. Interactive Codex sessions also receive supervisor-delivered completions through `codex queue`; `codex exec` uses waits ([details](host-mcp.md#waiting-without-polling-codex-sessions)).
 
 ## Tool names
 
-The skills use the short names (`workflow_run`, …). Hosts prefix them:
+Skills use short tool names; hosts prefix them:
 
-| Registration | Name the model sees |
+| Registration | Model-visible name |
 |---|---|
-| Claude Code plugin | `mcp__plugin_agent-workflow_agent-workflow__workflow_run` (Claude Code's `mcp__plugin_<plugin>_<server>__` scheme) |
+| Claude Code plugin | `mcp__plugin_agent-workflow_agent-workflow__workflow_run` |
 | `claude mcp add agent-workflow` | `mcp__agent-workflow__workflow_run` |
-| Codex (plugin or `mcp add`) | `mcp__agent_workflow__workflow_run`: Codex turns the hyphen of the server name into an underscore (observed live 4b, codex-cli 0.159.2). In code mode, the 0.159.2 default, the model's only tools are `exec` (a JavaScript cell) and `wait`; the MCP tools are functions inside the cell, called as `tools.mcp__agent_workflow__workflow_run({…})`. The `codex exec --json` stream still reports server `agent-workflow`, tool `workflow_run`. |
+| Codex plugin or `mcp add` | `mcp__agent_workflow__workflow_run` |
 
-A `workflow_wait` call can outlast Codex's 30 s code-mode cell yield; the model then resumes the cell
-with `wait` (2026-11-05: with a long wait the next steps ask for a `// @exec` `yield_time_ms` pragma) ([live-acceptance-stage2.md](live-acceptance-stage2.md#case-2-codex-host--codex-workers)).
+In Codex code mode, MCP functions are called inside JavaScript cells, for example `tools.mcp__agent_workflow__workflow_run({…})`. A long call can outlast the cell's 30 s yield; the model resumes it with `wait`. Long-wait guidance supplies a `// @exec` `yield_time_ms` pragma ([long waits](host-mcp.md#long-waits)).
 
-Codex lists plugin skills as `agent-workflow:agent-workflow`, `agent-workflow:workflow-guide`,
-`agent-workflow:execution-router`.
+Codex names plugin skills `agent-workflow:agent-workflow`, `agent-workflow:workflow-guide`, and `agent-workflow:execution-router`.
 
 ## Local development
 
 ```sh
-npm run build                                          # bin.mjs runs dist/
-node tools/release/plugins.mjs dev /tmp/aw-dev        # marketplace root; --force to rewrite
+npm run build
+node tools/release/plugins.mjs dev /tmp/aw-dev
 claude --plugin-dir /tmp/aw-dev/plugins/agent-workflow
 ```
 
-The dev copy equals the committed plugin except the server command:
-`<node> <checkout>/src/mcp/host-server/bin.mjs --host claude-code|codex` (absolute paths). For Codex,
-test in a throw-away `CODEX_HOME` so the user configuration stays untouched (next section).
+Use `--force` to rewrite a development marketplace. Its server command uses absolute paths: `<node> <checkout>/src/mcp/host-server/bin.mjs --host claude-code|codex`.
 
-## Validation evidence (offline, no model turn)
+Use a throw-away `CODEX_HOME` for Codex integration probes: `codex app-server`'s `thread/start` can write project trust into its configuration. Do not probe against the user's real configuration.
 
-Paths are scrubbed (`<repo>`, `<tmp>`, `$CODEX_HOME`).
+## Limits
 
-Claude Code 2.1.310:
-
-```
-$ claude plugin validate plugins/agent-workflow --strict        → ✔ Validation passed
-$ claude plugin validate . --strict                             → ✔ Validation passed   (marketplace)
-$ claude plugin validate <tmp>/market/plugins/agent-workflow --strict   → ✔ Validation passed (dev copy)
-$ claude --plugin-dir <tmp>/market/plugins/agent-workflow mcp list       # in <tmp>/proj
-plugin:agent-workflow:agent-workflow: <node> <repo>/src/mcp/host-server/bin.mjs --host claude-code - ✔ Connected
-# with CLAUDE_CONFIG_DIR=<tmp>/claude-config (not the user's config):
-$ claude plugin marketplace add <tmp>/market       → ✔ Successfully added marketplace: agent-workflow
-$ claude plugin install agent-workflow@agent-workflow --scope project
-                                                   → ✔ Successfully installed plugin: agent-workflow@agent-workflow (scope: project)
-$ claude plugin details agent-workflow@agent-workflow
-  Skills (3)  agent-workflow, execution-router, workflow-guide
-  MCP servers (1)  agent-workflow
-  Always-on: ~246 tok
-$ claude mcp list   → plugin:agent-workflow:agent-workflow: … --host claude-code - ✔ Connected
-```
-
-WP36, same procedure with the dev plugin (throw-away `CLAUDE_CONFIG_DIR` and project):
-`claude plugin validate plugins/agent-workflow --strict` → `✔ Validation passed`;
-`claude plugin details agent-workflow@agent-workflow` → `Hooks (1)  UserPromptSubmit  (harness-only
-— no model context cost)`, `Always-on: ~267 tok`.
-
-A probe server confirmed that Claude Code starts plugin servers in the project directory
-(`CLAUDE_PROJECT_DIR` set) and expands `${CLAUDE_PLUGIN_ROOT}` (not `${PLUGIN_ROOT}`) in `args`; it
-ignores a root `mcp.json`.
-
-codex-cli 0.159.2, temporary project `<tmp>/cproj` = the dev marketplace root (`node tools/release/plugins.mjs dev <tmp>/cproj`)
-plus `git init` and `.codex/config.toml` enabling `agent-workflow@agent-workflow`; `CODEX_HOME` is a
-temporary directory (no login); per-run overrides
-`T='projects={"<tmp>/cproj"={trust_level="trusted"}}'` and
-`M='marketplaces={agent-workflow={source_type="local",source="<tmp>/cproj"}}'` (the dotted form
-`projects."<path>".trust_level=…` did not apply):
-
-```
-$ codex -c "$T" plugin marketplace list            → No plugin marketplaces in scope.
-$ codex -c "$T" -c "$M" plugin marketplace list    → agent-workflow  <tmp>/cproj
-$ codex -c "$T" -c "$M" plugin list                → agent-workflow@agent-workflow  not installed
-$ codex -c "$T" -c "$M" plugin add agent-workflow@agent-workflow
-  Installed plugin root: $CODEX_HOME/plugins/cache/agent-workflow/agent-workflow/0.1.0
-$ codex -c "$T" -c "$M" plugin list                → agent-workflow@agent-workflow  installed, enabled  0.1.0
-$ codex -c "$T" -c "$M" mcp list
-  agent-workflow  <node>  <repo>/src/mcp/host-server/bin.mjs --host codex  -  -  enabled  Unsupported
-# user config emptied: enablement then comes from the project file; untrusted (no "$T") → not installed;
-# project enabled = false → installed, disabled
-```
-
-`codex mcp list` does not start servers. To see skills and tools without a model turn, drive
-`codex app-server` over stdio, cwd `<tmp>/cproj`: `initialize` → `thread/start {cwd, ephemeral:
-true}` → `skills/list {cwds:[cwd], forceReload:true}` → `mcpServerStatus/list {threadId}`; never
-`turn/start`. (Thread start also tries to pre-connect the Responses websocket; without a login it
-fails with 401 and nothing is sent.)
-
-**`thread/start` trusts its cwd in the config it runs with**: it writes `[projects."<cwd>"]
-trust_level = "trusted"` into `$CODEX_HOME/config.toml` unless the project is already trusted
-(live 4 wrote this entry into the real `~/.codex/config.toml`). Keep the probe away from the user
-config:
-
-```sh
-export CODEX_HOME="$(mktemp -d)"          # throw-away; never the real ~/.codex for this probe
-T='projects={"<tmp>/cproj"={trust_level="trusted"},"/private<tmp>/cproj"={trust_level="trusted"}}'
-codex -c "$T" -c "$M" app-server          # inline trust: thread/start writes no trust_level entry
-```
-
-The inline `projects` override (both the path and its `/private` realpath on macOS) also kept the
-real config untouched in live 4b, where the real `CODEX_HOME` (login) was needed. If the real
-config must be used, back it up first and restore it afterwards:
-
-```sh
-cp ~/.codex/config.toml /tmp/codex-config.backup.toml
-# … codex -c "$T" … runs …
-diff /tmp/codex-config.backup.toml ~/.codex/config.toml   # expect no trust_level line
-cp /tmp/codex-config.backup.toml ~/.codex/config.toml && cmp /tmp/codex-config.backup.toml ~/.codex/config.toml
-```
-
-```
-skill: agent-workflow:agent-workflow   -> $CODEX_HOME/plugins/cache/agent-workflow/agent-workflow/0.1.0/skills/agent-workflow/SKILL.md
-skill: agent-workflow:execution-router -> …/skills/execution-router/SKILL.md
-skill: agent-workflow:workflow-guide   -> …/skills/workflow-guide/SKILL.md
-mcp server: agent-workflow plugin: agent-workflow@agent-workflow status: "connected" server: agent-workflow
-  tools: workflow_dynamic,workflow_inspect,workflow_list,workflow_run,workflow_status,workflow_stop,workflow_validate,workflow_wait
-```
-
-Probe findings for Codex: `.codex-plugin/plugin.json` servers start in the thread's cwd without
-`PLUGIN_ROOT`/`PLUGIN_DATA` and without placeholder expansion in `args`; portable `mcp.json` servers
-start in the plugin cache root with `PLUGIN_ROOT`/`PLUGIN_DATA` set and `${PLUGIN_ROOT}` (not
-`${CLAUDE_PLUGIN_ROOT}`) expanded in `args`. `startup_timeout_sec`/`tool_timeout_sec` in the
-compatibility manifest are honored (`codex mcp list --json`).
-
-Unit tests: `test/unit/plugin-manifests.test.mjs` (generator drift, fields, version, npx pin,
-per-host `--host`, timeouts, no `.mcp.json`/portable manifest, marketplace paths, not in the npm
-package), `plugin-skills.test.mjs` (skills present, tool names = server tools, 45 s cap, no Pi names,
-`../../reference` paths exist), `plugin-dev-generator.test.mjs` (dev output, `--force`, usage
-errors, the dev Codex command serving `tools/list` in a project directory).
-
-## Open items (live step)
-
-- One live conversation per host: install from the marketplace, run deep-review through the tools,
-  confirm the exact tool permission names above, which of `content`/`structuredContent` the model
-  sees, elicitation with the empty form, and that the server's cwd is the project in a real session.
-- Codex: whether the repo marketplace is picked up by the interactive CLI or only the desktop app.
-- The `npx` pin works only after `@agwab/agent-workflow` is published (stage 3).
-- Portable Agent Plugins layout for Codex once the server can take the project from the client
-  (for example MCP roots or Codex's sandbox-state metadata) instead of its working directory.
-- Windows: `npx` resolves to `npx.cmd`; not verified. The WP36 hook command is POSIX shell (Claude
-  Code runs hooks through Git Bash on Windows; not verified).
-- WP36 live checks L1-L6 ([host-ux-investigation.md](host-ux-investigation.md#live-checks-for-bundle-5-one-host-turn-each-temporary-projects-and-config)).
+The generated completion-hook command uses POSIX shell. Windows `npx.cmd` startup and Git Bash hook behavior have not been verified.
