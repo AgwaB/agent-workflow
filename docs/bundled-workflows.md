@@ -490,7 +490,10 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
   and is at its T6 length ceiling): write each claim's text in the language of its source evidence; the
   final synthesis translates what the reader sees. Test:
   `core-deep-research-sanitizer-followup.test.mjs` "claims in another script than their source
-  quotes reach the verifiers". A live Korean run with (A) is not yet done.
+  quotes reach the verifiers". Live with (A), 2026-11-04 (Korean task, codex, tiered variant
+  `workflow_mw1ipu5z_88c698`, frozen in `test/fixtures/support-replay/`): normalize-claims wrote all
+  18 verification candidates and 8 preserved claims in English like their sources, the sanitizer kept
+  18 of 18 (no cross-script case needed), the report was Korean.
 
 ## Open problems for the live bundle
 
