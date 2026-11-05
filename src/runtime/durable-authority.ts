@@ -13,12 +13,9 @@ import type {
 } from "../sdk/authority.js";
 import { SdkError } from "../sdk/errors.js";
 import {
-	assertDurableLaunchBarrierAnyDescriptor,
+	assertDurableLaunchBarrierV2Descriptor,
 	assertDurableLaunchBarrierV2ExecutionAuthorized,
-	awaitDurableLaunchBarrier,
 	awaitDurableLaunchBarrierV2,
-	type DurableLaunchBarrierAck,
-	type DurableLaunchBarrierDescriptor,
 	type DurableLaunchBarrierV2Ack,
 	type DurableLaunchBarrierV2Descriptor,
 	durableLaunchBarrierDigest,
@@ -102,26 +99,17 @@ export interface DurableLaunchAuthority extends ExecutionAuthority {
 
 function barrierOf(
 	payload: DurableWorkerBindingPayload | null | undefined,
-):
-	| DurableLaunchBarrierDescriptor
-	| DurableLaunchBarrierV2Descriptor
-	| undefined {
+): DurableLaunchBarrierV2Descriptor | undefined {
 	const barrier: unknown = payload?.input?.durableLaunchBarrier;
 	if (!barrier) return undefined;
 	try {
-		assertDurableLaunchBarrierAnyDescriptor(barrier);
+		assertDurableLaunchBarrierV2Descriptor(barrier);
 	} catch (error) {
 		throw new DurableWorkerGuardError(
 			`durable launch barrier descriptor is invalid: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
 	return barrier;
-}
-
-function isV2(
-	barrier: DurableLaunchBarrierDescriptor | DurableLaunchBarrierV2Descriptor,
-): barrier is DurableLaunchBarrierV2Descriptor {
-	return barrier.schema === "pi-subagent-durable-launch-barrier-v2";
 }
 
 async function createConsumptionRecord(
@@ -173,7 +161,7 @@ async function updateConsumptionRecord(
  *
  * `consume()` order (single use):
  *   abort check → exclusive `authority.json` → barrier await (V2: READY with launchPayloadSha256 +
- *   executionPlanSha256, engine decision, ACK; V1: READY/RELEASE/ACK) → install worker binding →
+ *   executionPlanSha256, engine decision, ACK) → install worker binding →
  *   abort check → `assertDurableLaunchBarrierV2ExecutionAuthorized` (V2) → abort check →
  *   `released`.
  * A revoked barrier or an abort resolves `revoked` (no throw). Guard/integrity failures throw
@@ -253,27 +241,17 @@ export function createDurableLaunchAuthority(
 				throw new DurableAuthorityError(
 					"durable launch barrier requires launch payload and execution plan digests",
 				);
-			let ack: DurableLaunchBarrierV2Ack | DurableLaunchBarrierAck;
+			let ack: DurableLaunchBarrierV2Ack;
 			try {
-				ack = isV2(barrier)
-					? await awaitDurableLaunchBarrierV2({
-							descriptor: barrier,
-							runId,
-							attemptId,
-							launchPayloadSha256: options.launchPayloadSha256,
-							executionPlanSha256: options.executionPlanSha256,
-							workerProcessGroupId: options.workerProcessGroupId,
-							signal,
-						})
-					: await awaitDurableLaunchBarrier({
-							descriptor: barrier,
-							runId,
-							attemptId,
-							launchPayloadSha256: options.launchPayloadSha256,
-							executionPlanSha256: options.executionPlanSha256,
-							workerProcessGroupId: options.workerProcessGroupId,
-							signal,
-						});
+				ack = await awaitDurableLaunchBarrierV2({
+					descriptor: barrier,
+					runId,
+					attemptId,
+					launchPayloadSha256: options.launchPayloadSha256,
+					executionPlanSha256: options.executionPlanSha256,
+					workerProcessGroupId: options.workerProcessGroupId,
+					signal,
+				});
 			} catch (error) {
 				if (isDurableLaunchBarrierRevokedError(error))
 					return await revoke(
@@ -294,15 +272,10 @@ export function createDurableLaunchAuthority(
 			});
 			if (signal?.aborted)
 				return await revoke("aborted after release acknowledgement");
-			if (isV2(barrier)) {
-				await assertDurableLaunchBarrierV2ExecutionAuthorized(
-					barrier,
-					ack as DurableLaunchBarrierV2Ack,
-				);
-				if (signal?.aborted)
-					return await revoke("aborted before prepared execution");
-				grantId = (ack as DurableLaunchBarrierV2Ack).decisionSha256;
-			} else grantId = (ack as DurableLaunchBarrierAck).releaseSha256;
+			await assertDurableLaunchBarrierV2ExecutionAuthorized(barrier, ack);
+			if (signal?.aborted)
+				return await revoke("aborted before prepared execution");
+			grantId = ack.decisionSha256;
 		}
 		state = "released";
 		lastDecision = { kind: "released", attemptKey, grantId };
@@ -355,8 +328,7 @@ export function createDurableLaunchAuthority(
 
 /**
  * Environment entries an adapter adds to its child after `released`, so a durable child can
- * prove which launch it belongs to. WP6's Pi adapter must also set the legacy
- * `PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON` (see `LEGACY_PI_DURABLE_WORKER_BINDING_ENV`).
+ * prove which launch it belongs to.
  */
 export function durableWorkerBindingEnv(
 	authority: ExecutionAuthority,

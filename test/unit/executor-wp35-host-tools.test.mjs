@@ -349,8 +349,6 @@ test("launch provenance: inheriting host tools needs the run's pi executor (fail
 	);
 	const prepared = await prepareDagTask(cwd, run, compiled, 0);
 	const launch = {
-		extensions: [],
-		generatedExtensions: [],
 		captureToolCalls: false,
 		hostContext: { ...context },
 		resourcePolicy: resolveWorkflowResourcePolicy(prepared),

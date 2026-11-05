@@ -514,13 +514,6 @@ function validateAgentRuntime(
 	issues: ValidationIssue[],
 	path: string,
 ): void {
-	if (agent.maxSubagentDepth > 0) {
-		issues.push({
-			path,
-			message: `agent ${agent.displayName} declares maxSubagentDepth > 0, which is invalid in MVP`,
-		});
-	}
-
 	validateDelegationBoundary(agent.tools, issues, path);
 }
 
@@ -591,10 +584,6 @@ function validateToolObjectMetadata(
 	path: string,
 	issues: ValidationIssue[],
 ): void {
-	if (tool.extensions !== undefined)
-		validateStringArrayValue(tool.extensions, `${path}.extensions`, issues, {
-			validateToolNames: false,
-		});
 	if (
 		tool.classification !== undefined &&
 		!TOOL_CLASSIFICATION_VALUES.has(tool.classification)
@@ -1956,7 +1945,6 @@ async function compileArtifactGraphPlan(
 			agentPath: stageAgent.sourcePath,
 			agentDescription: stageAgent.description,
 			agentSystemPrompt: stageAgent.body,
-			systemPromptMode: stageAgent.systemPromptMode,
 			inheritProjectContext: stageAgent.inheritProjectContext,
 			inheritSkills: stageAgent.inheritSkills,
 			resourcePolicyVersion: WORKFLOW_RESOURCE_POLICY_VERSION,

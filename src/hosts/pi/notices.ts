@@ -76,8 +76,6 @@ async function readState(file: string): Promise<Record<string, NoticeState>> {
 			return {};
 		const state: Record<string, NoticeState> = {};
 		for (const [runId, entry] of Object.entries(parsed.notices)) {
-			// Legacy pi-workflow composite keys (`runId:status:updatedAt|…`) are dropped.
-			if (runId.includes("|") || runId.includes(":")) continue;
 			if (entry && typeof entry === "object" && !Array.isArray(entry))
 				state[runId] = entry as NoticeState;
 		}

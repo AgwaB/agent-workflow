@@ -276,10 +276,10 @@ test("worktree-cleanup", async () => {
 			/my-spec\.json/,
 			"user files under .agent-workflow/workflows stay in the diff",
 		);
-		assert.doesNotMatch(
+		assert.match(
 			completedDiff,
 			/\.pi\/agent\/runs/,
-			"nested run state is excluded from the diff",
+			"foreign runtime state has no special diff exclusion",
 		);
 		assert.doesNotMatch(
 			completedDiff,
@@ -296,10 +296,8 @@ test("worktree-cleanup", async () => {
 			"utf8",
 		);
 		assert.match(completedStatus, /new-file\.txt/);
-		assert.doesNotMatch(
-			completedStatus,
-			/\.pi\/agent\/runs|\.agent-workflow\/runs|index\.json/,
-		);
+		assert.match(completedStatus, /\.pi\/agent\/runs/);
+		assert.doesNotMatch(completedStatus, /\.agent-workflow\/runs|index\.json/);
 
 		const customRunsDir = ".custom-runs";
 		const customWorkspace = await resolveWorkspace({

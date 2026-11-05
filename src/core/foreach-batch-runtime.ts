@@ -552,7 +552,6 @@ export function foreachBatchExecutionSurfaceSha256(task: CompiledTask): string {
 		agent: task.agent,
 		agentPath: task.agentPath,
 		agentSystemPrompt: task.agentSystemPrompt,
-		systemPromptMode: task.systemPromptMode,
 		inheritProjectContext: task.inheritProjectContext,
 		inheritSkills: task.inheritSkills,
 		roleNames: task.roleNames,

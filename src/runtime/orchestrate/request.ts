@@ -29,10 +29,6 @@ import { durableLaunchBarrierDigest } from "../durable-launch-barrier.js";
 import { DURABLE_WORKER_BINDING_ENV } from "../workers/durable-worker-binding.js";
 import { digestEnvValues } from "./env-values.js";
 
-/** Legacy Pi child env name that carries the same binding (WP6 Pi adapter). */
-export const LEGACY_PI_DURABLE_WORKER_BINDING_ENV =
-	"PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON";
-
 /**
  * Deadline used when the caller sets no `timeoutMs`: the largest valid `Date` (8.64e15 ms).
  * pi-subagent had no default timeout; SubmitRequest requires a finite deadline, so "none" is
@@ -345,7 +341,6 @@ function sanitizedEnv(
 	const copy = { ...(env ?? {}) };
 	// The binding is handed over by the authority after release, never by the caller.
 	delete copy[DURABLE_WORKER_BINDING_ENV];
-	delete copy[LEGACY_PI_DURABLE_WORKER_BINDING_ENV];
 	return copy;
 }
 

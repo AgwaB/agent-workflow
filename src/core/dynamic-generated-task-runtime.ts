@@ -163,11 +163,6 @@ export async function buildDynamicGeneratedCompiledTask(input: {
 	if (!agentDefinition) {
 		throw new Error(`Agent not found: ${requestedAgent}`);
 	}
-	if (agentDefinition.maxSubagentDepth > 0) {
-		throw new Error(
-			`dynamic agent ${agentDefinition.displayName} declares maxSubagentDepth > 0, which is invalid in dynamic generated tasks`,
-		);
-	}
 	const authoredTools =
 		executionProfile?.tools ?? input.request.tools ?? agentDefinition.tools;
 	if (input.request.tools && !executionProfile && !agentDefinition.tools) {
@@ -332,7 +327,6 @@ export async function buildDynamicGeneratedCompiledTask(input: {
 		agentPath: agentDefinition.sourcePath,
 		agentDescription: agentDefinition.description,
 		agentSystemPrompt: agentDefinition.body,
-		systemPromptMode: agentDefinition.systemPromptMode,
 		inheritProjectContext: agentDefinition.inheritProjectContext,
 		inheritSkills: agentDefinition.inheritSkills,
 		...(controllerResourcePolicy

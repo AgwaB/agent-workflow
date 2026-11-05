@@ -53,8 +53,6 @@ import { hashDynamicRequest } from "../../dist/core/dynamic-events.js";
 import {
 	compiledWorkflowPath,
 	createTaskRunRecord,
-	createRunRecord,
-	createWorkflowRunRecord,
 	readRunRecord,
 	writeRunRecord,
 	writeStaticRunArtifacts,
@@ -3561,3 +3559,8 @@ test("a healthy old lease heartbeat is not reclaimable by absolute age alone", a
 		});
 	}
 });
+
+import {
+	createRunRecord,
+	createWorkflowRunRecord,
+} from "../helpers/unit-test-support.mjs";

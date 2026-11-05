@@ -7731,7 +7731,6 @@ test("dynamic controllers expose a deterministic available tool view", async () 
 					{
 						name: "custom_external_tool",
 						classification: "read-only",
-						extensions: ["unit-provider"],
 					},
 					{ name: "bash", classification: "read-only" },
 				],
@@ -7773,7 +7772,10 @@ test("dynamic controllers expose a deterministic available tool view", async () 
 			control.tools.map((tool) => [tool.name, tool]),
 		);
 		assert.equal(byName.custom_external_tool.classification, "read-only");
-		assert.deepEqual(byName.custom_external_tool.extensions, ["unit-provider"]);
+		assert.equal(
+			Object.hasOwn(byName.custom_external_tool, "extensions"),
+			false,
+		);
 		assert.equal(byName.bash.classification, "mutation-capable");
 		assert.equal(byName.bash.floor, "mutation-capable");
 	} finally {
@@ -7812,7 +7814,6 @@ test("dynamic generated tasks propagate toolProviders and enforce tool ceilings"
 					{
 						name: "custom_external_tool",
 						classification: "read-only",
-						extensions: ["unit-provider"],
 					},
 				],
 			},
@@ -7852,7 +7853,6 @@ test("dynamic generated tasks propagate toolProviders and enforce tool ceilings"
 		assert.deepEqual(generated.runtime.toolProviders, {
 			custom_external_tool: {
 				classification: "read-only",
-				extensions: ["unit-provider"],
 			},
 		});
 		assert.equal(generated.safety.capability, "read-only");
@@ -7983,8 +7983,9 @@ test("dynamic generated tasks reject delegation tools on target agents", async (
 	}
 });
 
-test("dynamic generated tasks reject maxSubagentDepth on target agents", async () => {
+test("dynamic generated tasks ignore unsupported agent frontmatter", async () => {
 	const cwd = makeProject();
+	captureSubagentPrompts([]);
 	try {
 		const agentDir = join(cwd, ".agent-workflow", "agents");
 		mkdirSync(agentDir, { recursive: true });
@@ -8018,7 +8019,7 @@ test("dynamic generated tasks reject maxSubagentDepth on target agents", async (
 		writeFileSync(specPath, JSON.stringify(spec));
 		const compiled = await compileWorkflow(spec, {
 			cwd,
-			task: "Reject nested agent.",
+			task: "Ignore unsupported frontmatter.",
 			specPath,
 		});
 		const { run } = await createWorkflowRunRecord(cwd, compiled, specPath);
@@ -8027,10 +8028,22 @@ test("dynamic generated tasks reject maxSubagentDepth on target agents", async (
 
 		await scheduleRun(cwd, run.runId);
 		const updated = await readRunRecord(cwd, run.runId);
-		const controller = taskBySpec(updated, "adaptive.controller");
-		assert.equal(controller.status, "failed");
-		assert.match(controller.lastMessage, /maxSubagentDepth > 0/);
+		const generated = taskBySpec(updated, "adaptive.bad");
+		assert.equal(generated.status, "running");
+		assert.doesNotMatch(generated.lastMessage ?? "", /maxSubagentDepth/);
+		const persisted = JSON.parse(
+			readFileSync(
+				join(cwd, ".agent-workflow", "workflows", run.runId, "compiled.json"),
+				"utf8",
+			),
+		);
+		const compiledGenerated = persisted.tasks.find(
+			(task) => task.id === "adaptive.bad",
+		);
+		assert.ok(compiledGenerated);
+		assert.equal(Object.hasOwn(compiledGenerated, "maxSubagentDepth"), false);
 	} finally {
+		setTaskRuntimeApiForTests(undefined);
 		rmSync(cwd, {
 			recursive: true,
 			force: true,
@@ -9156,6 +9169,7 @@ const compiled = await compileWorkflow(spec, {
 	specPath,
 });
 const { run } = await createWorkflowRunRecord(cwd, compiled, specPath);
+run.executor = (await import(distUrl("executor-registry.js"))).resolveRunExecutorSelection({ runFlag: "pi" });
 await writeStaticRunArtifacts(cwd, run, compiled, spec);
 await writeRunRecord(cwd, run);
 await scheduleRun(cwd, run.runId);

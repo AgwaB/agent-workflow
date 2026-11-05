@@ -80,7 +80,6 @@ export interface ToolSelection {
 export interface AvailableToolViewItem {
 	name: string;
 	classification?: TaskCapability;
-	extensions?: string[];
 	optional?: boolean;
 	fallbackTools?: string[];
 	builtin: boolean;
@@ -115,8 +114,6 @@ export function providerFromToolObject(
 	tool: WorkflowToolObjectSpec,
 ): CompiledToolProvider | undefined {
 	const provider: CompiledToolProvider = {};
-	if (Array.isArray(tool.extensions))
-		provider.extensions = [...tool.extensions];
 	if (tool.classification !== undefined)
 		provider.classification = tool.classification;
 	if (tool.optional !== undefined) provider.optional = tool.optional;
@@ -130,8 +127,6 @@ export function mergeToolProviders(
 	override: CompiledToolProvider,
 ): CompiledToolProvider {
 	const merged: CompiledToolProvider = { ...(base ?? {}) };
-	if (override.extensions !== undefined)
-		merged.extensions = [...override.extensions];
 	if (override.classification !== undefined)
 		merged.classification = override.classification;
 	if (override.optional !== undefined) merged.optional = override.optional;
@@ -184,9 +179,6 @@ export function cloneToolProvider(
 	provider: CompiledToolProvider,
 ): CompiledToolProvider {
 	return {
-		...(provider.extensions !== undefined
-			? { extensions: [...provider.extensions] }
-			: {}),
 		...(provider.classification !== undefined
 			? { classification: provider.classification }
 			: {}),
@@ -199,7 +191,6 @@ export function cloneToolProvider(
 
 export function hasProviderMetadata(provider: CompiledToolProvider): boolean {
 	return (
-		provider.extensions !== undefined ||
 		provider.classification !== undefined ||
 		provider.optional !== undefined ||
 		provider.fallbackTools !== undefined
@@ -220,24 +211,12 @@ export function effectiveToolClassification(
 	);
 }
 
-/** Provider extensions execute code, so auto-routing must not trust read-only metadata. */
-export function hasExecutableToolProviderExtension(
-	tool: string,
-	toolProviders: Record<string, CompiledToolProvider> | undefined,
-): boolean {
-	return (toolProviders?.[tool]?.extensions?.length ?? 0) > 0;
-}
-
 /** Trusted network posture for an effective selected tool. */
 export function toolNetworkCapability(
 	tool: string,
-	toolProviders: Record<string, CompiledToolProvider> | undefined,
 ): "local" | "network" | "unknown" {
 	if (NETWORK_CAPABLE_TOOLS.has(tool) || extraBuiltinTools[tool]?.network)
 		return "network";
-	// An extension can change a normally local tool's behavior. Its network
-	// authority is not represented by tool classification, so fail closed.
-	if ((toolProviders?.[tool]?.extensions?.length ?? 0) > 0) return "unknown";
 	if (KNOWN_LOCAL_TOOLS.has(tool)) return "local";
 	return "unknown";
 }
@@ -291,9 +270,6 @@ export function buildAvailableToolView(
 		return {
 			name,
 			classification: effectiveToolClassification(name, toolProviders),
-			...(merged.extensions !== undefined
-				? { extensions: [...merged.extensions] }
-				: {}),
 			...(merged.optional !== undefined ? { optional: merged.optional } : {}),
 			...(merged.fallbackTools !== undefined
 				? { fallbackTools: [...merged.fallbackTools] }

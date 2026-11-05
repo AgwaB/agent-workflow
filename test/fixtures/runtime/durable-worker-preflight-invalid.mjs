@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
-import { awaitDurableLaunchBarrier } from "../../../dist/runtime/durable-launch-barrier.js";
+import { awaitDurableLaunchBarrierV2 } from "../../../dist/runtime/durable-launch-barrier.js";
 import { prepareDurableWorkerBinding } from "../../../dist/runtime/workers/durable-worker-binding.js";
 
 const [payloadPath, resultPath] = process.argv.slice(2);
@@ -19,7 +19,7 @@ try {
 			.digest("hex"),
 		executionPlanSha256: "9".repeat(64),
 	});
-	await awaitDurableLaunchBarrier({
+	await awaitDurableLaunchBarrierV2({
 		descriptor: payload.input.durableLaunchBarrier,
 		runId: payload.runId,
 		attemptId: payload.attemptId,

@@ -555,7 +555,7 @@ test("Pi-only options: fast tier, tool-result budget, inheritHostTools go into t
 	assert.ok(!second.argv.includes("builtin:mcp"));
 });
 
-test("durable binding env: agent-workflow name always, legacy Pi name only when the worker inherits extensions", async () => {
+test("durable binding env: agent-workflow name always, no pi-subagent alias even when the worker inherits extensions", async () => {
 	const { executor, cli } = await stage(await completeSteps());
 	const withBinding = (isolation) => {
 		const { req } = request({ isolation });
@@ -581,7 +581,10 @@ test("durable binding env: agent-workflow name always, legacy Pi name only when 
 		!isolated.envKeys.includes("PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON"),
 	);
 	assert.ok(
-		inherited.envKeys.includes("PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON"),
+		inherited.envKeys.includes("AGENT_WORKFLOW_DURABLE_WORKER_BINDING_JSON"),
+	);
+	assert.ok(
+		!inherited.envKeys.includes("PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON"),
 	);
 	assert.ok(
 		!inherited.argv.includes("--no-extensions") &&

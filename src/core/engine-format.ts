@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine-format.ts. MIT, same author. Changes: WP12a usage lines show the run cost, `unknown` when no task reported one (never $0); WP18b next-step hints (`Open:`, `Resume:`, `Logs:`, stall warnings) come from the caller's `WorkflowCommandHints` (default pi-workflow's `/workflow …`); a run that only waits for a scheduled retry says "waiting for scheduled retry at <time>" instead of the no-progress stall warning. WP31: task lines name the task's executor in role-profile runs.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine-format.ts. MIT, same author. Changes: WP12a usage lines show the run cost, `unknown` when no task reported one (never $0); WP18b next-step hints (`Open:`, `Resume:`, `Logs:`, stall warnings) come from the caller's `WorkflowCommandHints` (default `agent-workflow …`); a run that only waits for a scheduled retry says "waiting for scheduled retry at <time>" instead of the no-progress stall warning. WP31: task lines name the task's executor in role-profile runs.
 import { lstat } from "node:fs/promises";
 import { isAbsolute, relative } from "node:path";
 import {

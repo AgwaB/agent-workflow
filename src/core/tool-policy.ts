@@ -56,8 +56,7 @@ export interface WorkflowToolPolicy {
 /**
  * WP31×WP35: whether the run's host-tool decision applies to one task. Host tools are inherited
  * per task, only by tasks whose executor is pi: the task's own executor (`runtime.executor`, mixed
- * role-profile runs), else the run's. Runs recorded without an executor (legacy pi-workflow
- * records) ran on Pi.
+ * role-profile runs), else the run's. A missing executor never implies Pi.
  */
 export function runInheritsHostToolsForTask(
 	run: { inheritHostTools?: boolean; executor?: { id: string } },
@@ -65,7 +64,7 @@ export function runInheritsHostToolsForTask(
 ): boolean {
 	if (run.inheritHostTools !== true) return false;
 	const executorId = task.runtime.executor ?? run.executor?.id;
-	return executorId === undefined || executorId === PI_EXECUTOR_ID;
+	return executorId === PI_EXECUTOR_ID;
 }
 
 /**
@@ -209,8 +208,6 @@ function cloneToolProviders(
 	return Object.fromEntries(
 		Object.entries(providers).map(([tool, provider]) => {
 			const copy: CompiledToolProvider = { ...provider };
-			if (provider.extensions !== undefined)
-				copy.extensions = [...provider.extensions];
 			if (provider.fallbackTools !== undefined)
 				copy.fallbackTools = [...provider.fallbackTools];
 			return [tool, copy];

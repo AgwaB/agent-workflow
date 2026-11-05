@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-router.ts. MIT, same author. Changes: the one-shot comparison call goes through the core task backend (runtime API, executor selected by request.executor or the default; `backend: "headless"` removed); auto-router runs dir .pi/workflows/auto-router-runs→.agent-workflow/workflows/auto-router-runs; system prompt says "workflow" instead of "pi-workflow". Schema ids (pi-workflow-auto-*) unchanged. WP10 (C2): the direct-dynamic catalog facts list web_search/fetch_content (was workflow_web_*), matching the v5 runtime bundle.
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-router.ts. MIT, same author. Changes: the one-shot comparison call goes through the core task backend (runtime API, executor explicitly selected by request.executor; `backend: "headless"` removed); auto-router runs dir .pi/workflows/auto-router-runs→.agent-workflow/workflows/auto-router-runs; system prompt says "workflow" instead of "pi-workflow". WP10 (C2): the direct-dynamic catalog facts list web_search/fetch_content (was workflow_web_*), matching the v5 runtime bundle.
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
@@ -33,7 +33,6 @@ import {
 } from "./agents.js";
 import {
 	effectiveToolClassification,
-	hasExecutableToolProviderExtension,
 	toolNetworkCapability,
 } from "./tool-metadata.js";
 import type {
@@ -284,7 +283,7 @@ export interface WorkflowAutoRequest {
 	 */
 	transmissionPolicy: WorkflowAutoTransmissionPolicy;
 	signal?: AbortSignal;
-	/** Executor id for the comparison call (run flag); default executor otherwise (B2). */
+	/** Explicit executor id required when making a comparison call. */
 	executor?: string;
 }
 
@@ -796,7 +795,6 @@ async function resolveEffectiveCandidateFacts(
 		const seenSchemas = new Set<string>();
 		const schemas: Array<{ path: string; depth: number }> = [];
 		const compiled: Array<{ tasks: any[] }> = [];
-		const externalExtensions = new Set<string>();
 
 		for (let index = 0; index < documents.length; index += 1) {
 			const document = documents[index]!;
@@ -805,8 +803,6 @@ async function resolveEffectiveCandidateFacts(
 					"nested metadata depth reached",
 				);
 			const declarations = workflowAutoMetadataDeclarations(document.spec);
-			for (const extension of declarations.externalExtensions)
-				externalExtensions.add(extension);
 			for (const schemaRef of declarations.schemaRefs) {
 				const path = resolveWorkflowAutoMetadataRef(
 					schemaRef,
@@ -886,12 +882,6 @@ async function resolveEffectiveCandidateFacts(
 			candidate.facts,
 		);
 		candidate.comparison = comparisonFromSpec(candidate.spec, candidate.facts);
-		if (externalExtensions.size > 0) {
-			blockCandidate(
-				candidate,
-				"Auto launch cannot freeze an externally referenced executable provider extension.",
-			);
-		}
 	} catch (error) {
 		// Preselection remains a bounded metadata surface. Source-code closure and
 		// full selected-resource verification occur only after a user picks a path.
@@ -908,11 +898,9 @@ async function resolveEffectiveCandidateFacts(
 function workflowAutoMetadataDeclarations(value: unknown): {
 	workflowRefs: string[];
 	schemaRefs: string[];
-	externalExtensions: string[];
 } {
 	const workflowRefs = new Set<string>();
 	const schemaRefs = new Set<string>();
-	const externalExtensions = new Set<string>();
 	const stack: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
 	let nodes = 0;
 	while (stack.length > 0) {
@@ -939,16 +927,6 @@ function workflowAutoMetadataDeclarations(value: unknown): {
 			schemaRefs.add(record.inputSchema);
 		if (typeof record.outputSchema === "string")
 			schemaRefs.add(record.outputSchema);
-		if (Array.isArray(record.extensions)) {
-			for (const extension of record.extensions) {
-				if (
-					typeof extension === "string" &&
-					extension.trim() !== "" &&
-					!isBundleLocalProviderExtension(extension)
-				)
-					externalExtensions.add(extension);
-			}
-		}
 		const dynamic = record.dynamic;
 		if (
 			dynamic &&
@@ -981,7 +959,6 @@ function workflowAutoMetadataDeclarations(value: unknown): {
 	return {
 		workflowRefs: [...workflowRefs],
 		schemaRefs: [...schemaRefs],
-		externalExtensions: [...externalExtensions],
 	};
 }
 
@@ -1012,14 +989,6 @@ function workflowAutoSchemaRefs(value: unknown): string[] {
 			stack.push({ value: child, depth: item.depth + 1 });
 	}
 	return [...refs];
-}
-
-function isBundleLocalProviderExtension(ref: string): boolean {
-	return (
-		ref.startsWith("./") &&
-		!ref.includes("\\") &&
-		!ref.split("/").includes("..")
-	);
 }
 
 function resolveWorkflowAutoMetadataRef(
@@ -1153,11 +1122,7 @@ function deriveEffectiveWorkflowFacts(
 				effectiveToolClassification(tool, runtime.toolProviders) === undefined
 			)
 				unknownTools.add(tool);
-			// Provider extensions are executable code. Their authored readOnly or
-			// tool classification cannot lower the auto-routing safety posture.
-			if (hasExecutableToolProviderExtension(tool, runtime.toolProviders))
-				capabilities.add("write-capable");
-			const posture = toolNetworkCapability(tool, runtime.toolProviders);
+			const posture = toolNetworkCapability(tool);
 			if (posture === "network") sawNetwork = true;
 			else if (posture === "unknown") sawUnknownNetwork = true;
 		}
@@ -1271,16 +1236,6 @@ export function assertWorkflowAutoResolvedCandidateSafety(
 		throw new Error(
 			"Auto selection cannot start: resolved profile/runtime capability is incompatible with the requested safety constraints. Run agent-workflow auto (Pi: /aw auto) again.",
 		);
-}
-
-function blockCandidate(
-	candidate: WorkflowAutoCandidate,
-	message: string,
-): void {
-	candidate.readiness.status = "blocked";
-	candidate.readiness.startAllowed = false;
-	if (!candidate.readiness.blockers.includes(message))
-		candidate.readiness.blockers.push(message);
 }
 
 function markCandidateNeedsCheck(
@@ -1753,9 +1708,11 @@ async function runPinnedWorkflowAutoComparison(
 	request: WorkflowAutoRequest,
 	packet: string,
 ): Promise<string> {
+	if (request.executor === undefined)
+		throw new Error("workflow auto comparison requires an explicit executor");
 	const envelope = await runOneShotSubagentCall({
 		cwd: request.cwd,
-		...(request.executor === undefined ? {} : { executor: request.executor }),
+		executor: request.executor,
 		task: packet,
 		systemPrompt: AUTO_ROUTER_SYSTEM_PROMPT,
 		...((request.runtimeOverrides?.model ?? request.runtimeDefaults?.model)

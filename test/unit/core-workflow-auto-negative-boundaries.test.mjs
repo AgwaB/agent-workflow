@@ -80,6 +80,7 @@ for (const task of [
 			},
 		});
 		const result = await recommendWorkflowAuto({
+			executor: "pi",
 			cwd,
 			task,
 			transmissionPolicy: "allowed",
@@ -120,6 +121,7 @@ for (const task of [
 			},
 		});
 		const result = await recommendWorkflowAuto({
+			executor: "pi",
 			cwd,
 			task,
 			transmissionPolicy: "allowed",
@@ -162,6 +164,7 @@ test("positive mutation request remains positive, not a read-only permission", a
 		},
 	});
 	const result = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Modify and fix the source.",
 		transmissionPolicy: "allowed",

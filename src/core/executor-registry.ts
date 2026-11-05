@@ -38,12 +38,6 @@ export const BUILTIN_EXECUTOR_IDS = [
 	"antigravity",
 ] as const;
 
-/**
- * Executor of a run record that carries no selection (created directly through the store). New runs
- * never use it: their default is the host's own CLI (WP17, executor-default.ts).
- */
-export const LEGACY_RECORD_EXECUTOR_ID = "pi";
-
 const EXECUTOR_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 
 export interface WorkflowExecutorRegistration {

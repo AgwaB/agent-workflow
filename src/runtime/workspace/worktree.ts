@@ -159,12 +159,10 @@ async function appendGitFile(
 /**
  * Runtime state that a child session writes inside the worktree is not task
  * output: nested runs and the workflow index would otherwise show up as "new
- * files" in every diff artifact. The `.pi/agent/runs` entry covers nested
- * pi-subagent runs of Pi children.
+ * files" in every diff artifact.
  */
 const WORKTREE_DIFF_EXCLUDES = [
 	":(glob,exclude)**/.agent-workflow/runs/**",
-	":(glob,exclude)**/.pi/agent/runs/**",
 	":(glob,exclude)**/.agent-workflow/workflows/index.json",
 	":(glob,exclude)**/.agent-workflow/workflows/index.lock",
 ];

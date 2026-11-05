@@ -2351,13 +2351,6 @@ function rewriteCompiledBundlePathsInValue(
 		return;
 	}
 	const record = value as Record<string, any>;
-	if (Array.isArray(record.extensions)) {
-		record.extensions = record.extensions.map((extension: unknown) =>
-			typeof extension === "string" && extension.startsWith("./")
-				? join(bundleDir, stripBundleRefPrefix(extension))
-				: extension,
-		);
-	}
 	const output = record.artifactGraph?.output;
 	if (output?.controlSchema) {
 		output.controlSchemaPath = join(
@@ -2659,13 +2652,6 @@ function visitWorkflowBundleRefs(
 		return;
 	}
 	const record = value as Record<string, unknown>;
-	if (Array.isArray(record.extensions)) {
-		for (const extension of record.extensions) {
-			if (typeof extension === "string") {
-				addWorkflowBundleRef(collection, extension, "file");
-			}
-		}
-	}
 	if (
 		record.defaults &&
 		typeof record.defaults === "object" &&

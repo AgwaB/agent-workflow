@@ -1,9 +1,9 @@
 // New in agent-workflow (WP33 item 4, parity row 35): host-neutral launch capture. Every host API
 // launch (CLI, Pi `/aw` command and `aw_*` tools, host MCP server) records `run.launch` (schema
-// `agent-workflow-run-launch-v1`: pi-workflow's v2 field set without `selection`, plus the
-// host-neutral `source` `cli`/`pi`/`mcp:<host>` and `entry`) and `launch-command.txt` (0600, the
+// `agent-workflow-run-launch-v1`, with host-neutral `source` `cli`/`pi`/`mcp:<host>` and
+// `entry`) and `launch-command.txt` (0600, the
 // human-readable command, credentials redacted, home directory as `~`); `show <run>` and
-// `inspect <run>` show it. pi-workflow v1/v2 records stay valid. Runs use the workflow executor
+// `inspect <run>` show it. Runs use the workflow executor
 // fixture (no model or agent-CLI calls).
 import assert from "node:assert/strict";
 import {

@@ -44,7 +44,6 @@ import { isTaskRuntimeApiInjected } from "./runtime-port.js";
 import { workflowRunPermissionMode } from "./permission-mode.js";
 import {
 	recordedRunExecutorDescriptor,
-	LEGACY_RECORD_EXECUTOR_ID,
 	resolveRunExecutorSelection,
 } from "./executor-registry.js";
 import {
@@ -194,15 +193,6 @@ export async function launchSubagentTask(
 	// task before any effect; runs recorded before WP4d carry none and are not checked.
 	let capabilityLaunch: ReturnType<typeof workflowTaskCapabilityLaunch>;
 	try {
-		// Runs created directly through the store carry no selection yet: they get the legacy record
-		// executor, which must itself be available (never a substitute). New runs always record a
-		// selection (WP17 host default).
-		if (run.executor === undefined) {
-			run.executor = resolveRunExecutorSelection({
-				defaultExecutor: LEGACY_RECORD_EXECUTOR_ID,
-			});
-			await writeRunRecord(cwd, run);
-		}
 		// WP31 (Q4): the task's own executor in a mixed run (role profile).
 		executor = recordedRunExecutorDescriptor(
 			run,
@@ -1221,7 +1211,7 @@ export function workflowTaskExecutorDescriptor(
  * Prepare the sealed launch inputs for one task (subagent-backend.ts 6406-6639). Pi-only parts
  * (provider extension resolution, fetch-cache/web-source/native-host/fast-mode wrappers, the
  * extension isolation probe) are not ported: they belong to the Pi executor (WP6) or were dropped
- * with the workflow web tools (C2). `extensions`/`generatedExtensions` therefore stay empty here.
+ * with the workflow web tools (C2).
  */
 export async function prepareSubagentTaskLaunch(
 	cwd: string,
@@ -1249,13 +1239,11 @@ export async function prepareSubagentTaskLaunch(
 			: undefined;
 	const toolResultBudget = dynamicTaskToolResultBudgetConfiguration(task);
 	return {
-		extensions: [],
 		...(resourcePolicy === undefined ? {} : { resourcePolicy }),
 		...(hostContext === undefined ? {} : { hostContext: { ...hostContext } }),
 		...(toolProviders
 			? { toolProviders: clonePreparedToolProviders(toolProviders) }
 			: {}),
-		generatedExtensions: [],
 		captureToolCalls: captureToolCallsEnabled(),
 		...(toolResultBudget === undefined ? {} : { toolResultBudget }),
 		...(artifactBinding === undefined ? {} : { artifactBinding }),
@@ -1315,16 +1303,6 @@ async function assertPreparedSubagentTaskLaunch(
 		)
 			throw new Error("launch-bootstrap artifact binding drift detected");
 	}
-	for (const extension of preparedLaunch.generatedExtensions) {
-		let actual: string;
-		try {
-			actual = await readFile(extension.path, "utf8");
-		} catch {
-			throw new Error("launch-bootstrap generated extension is unavailable");
-		}
-		if (actual !== extension.expectedBytes)
-			throw new Error("launch-bootstrap generated extension drift detected");
-	}
 }
 
 function clonePreparedToolProviders(
@@ -1335,9 +1313,6 @@ function clonePreparedToolProviders(
 			tool,
 			{
 				...provider,
-				...(provider.extensions !== undefined
-					? { extensions: [...provider.extensions] }
-					: {}),
 				...(provider.fallbackTools !== undefined
 					? { fallbackTools: [...provider.fallbackTools] }
 					: {}),
@@ -1640,23 +1615,22 @@ export interface OneShotSubagentEnvelope {
  * Shared entry point for one-off synchronous executor calls (workflow router comparison).
  * Honors setTaskRuntimeApiForTests. Pi option names are translated (`thinking` → `effort`);
  * `backend` is replaced by the executor selected with `executor` (B2: the call's executor id,
- * else the default), and an unavailable executor throws before any launch.
+ * required explicitly), and an unavailable executor throws before any launch.
  */
 export async function runOneShotSubagentCall(
-	options: Record<string, unknown> & { executor?: string },
+	options: Record<string, unknown> & { executor: string },
 ): Promise<OneShotSubagentEnvelope> {
+	if (typeof options.executor !== "string" || options.executor.trim() === "")
+		throw new Error("one-shot calls require an explicit executor");
 	const api = await loadSubagentApi();
 	const {
 		backend: _backend,
 		thinking,
 		executor: executorId,
-		extensions: _extensions,
-		noExtensions: _noExtensions,
 		...rest
 	} = options;
 	const selection = resolveRunExecutorSelection({
-		...(typeof executorId === "string" ? { runFlag: executorId } : {}),
-		defaultExecutor: LEGACY_RECORD_EXECUTOR_ID,
+		runFlag: executorId,
 	});
 	return (await api.runSubagent({
 		// WP4e: engine calls always set the mode (engine default free; readOnly either way).

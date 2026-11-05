@@ -216,8 +216,6 @@ test("launch provenance digests the server spec with the limit actually launched
 	const prepared = await prepareDagTask(cwd, run, compiled, 1);
 	const server = prepared.runtime.toolProviders.workflow_artifact.mcpServer;
 	const launch = {
-		extensions: [],
-		generatedExtensions: [],
 		captureToolCalls: false,
 		resourcePolicy: resolveWorkflowResourcePolicy(prepared),
 	};

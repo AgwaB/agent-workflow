@@ -19,11 +19,7 @@ import type { ExecutionMode } from "../core/constants.js";
 import { writeDurableWorkerPayload } from "../durable-worker-payload.js";
 import { captureProcessIdentity } from "../process-identity.js";
 import { DURABLE_WORKER_BINDING_ENV } from "../workers/durable-worker-binding.js";
-import {
-	defaultAttemptKey,
-	LEGACY_PI_DURABLE_WORKER_BINDING_ENV,
-	type RuntimeRunInput,
-} from "./request.js";
+import { defaultAttemptKey, type RuntimeRunInput } from "./request.js";
 import {
 	MAX_PARALLEL_TASKS,
 	mergeTaskInput,
@@ -296,7 +292,6 @@ export async function startAsyncSubagentRun(
 	const workerLogFd = openSync(join(store.attemptDir, "worker.log"), "a");
 	const workerEnv = { ...process.env };
 	delete workerEnv[DURABLE_WORKER_BINDING_ENV];
-	delete workerEnv[LEGACY_PI_DURABLE_WORKER_BINDING_ENV];
 	delete workerEnv[DURABLE_WORKER_REQUEST_ENV];
 	if (envChannel !== undefined)
 		workerEnv[DURABLE_WORKER_REQUEST_ENV] = JSON.stringify(envChannel);

@@ -3,6 +3,7 @@
 import { withMaterializedRawHost } from "../helpers/raw-host-fixture.mjs";
 const setTaskRuntimeApiForTests = withMaterializedRawHost(setRawApi);
 import { createHash } from "node:crypto";
+import { resolveRunExecutorSelection } from "../../dist/core/executor-registry.js";
 import { subagentLaunchSlotStateForTests } from "../../dist/core/task-observability.js";
 import { subagentLiveModelWorkerSlotCountForTests } from "../../dist/core/launch-slots.js";
 import {
@@ -4003,6 +4004,7 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 			const run = {
 				schemaVersion: 1,
 				runId: `workflow_launch_${suffix}`,
+				executor: resolveRunExecutorSelection({ runFlag: "pi" }),
 				type: WORKFLOW_RUN_TYPE,
 				status: "running",
 				taskSummary: {

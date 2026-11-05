@@ -26,7 +26,7 @@ import {
 	type ToolResultBudgetInput,
 	type WorkspaceInput,
 } from "./constants.js";
-import { assertDurableLaunchBarrierAnyDescriptor } from "../durable-launch-barrier.js";
+import { assertDurableLaunchBarrierV2Descriptor } from "../durable-launch-barrier.js";
 
 export type ResolveValidationResult =
 	| { ok: true; input: ResolveInput }
@@ -706,7 +706,7 @@ export function validateResolveInput(
 
 	if (raw.durableLaunchBarrier !== undefined) {
 		try {
-			assertDurableLaunchBarrierAnyDescriptor(raw.durableLaunchBarrier);
+			assertDurableLaunchBarrierV2Descriptor(raw.durableLaunchBarrier);
 		} catch (error) {
 			return failure(
 				error instanceof Error ? error.message : String(error),

@@ -1,8 +1,5 @@
 // Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/core/constants.ts. MIT, same author. Changes: inline/headless/tmux backend enums replaced by generic executor ids, DEFAULT_RUNS_DIR=".agent-workflow/runs" added, sandboxAllowedDomains (srt hook) removed, Pi wording dropped from comments; WP2a-2 adds executor failure kinds (transient, rate_limit, executor_*, not_started, needs_decision); WP2c adds failure kind "revoked" (engine revoke before release).
-import type {
-	DurableLaunchBarrierDescriptor,
-	DurableLaunchBarrierV2Descriptor,
-} from "../durable-launch-barrier.js";
+import type { DurableLaunchBarrierV2Descriptor } from "../durable-launch-barrier.js";
 
 /**
  * Project-local default for run records and attempt artifacts (owner decision,
@@ -222,9 +219,7 @@ export interface ResolveInput {
 	/** Session id of the parent that launched this run. Injected by the host, not a model-settable tool arg. */
 	parentSessionId?: string;
 	/** Optional general gate that pauses a durable worker before model/provider execution. */
-	durableLaunchBarrier?:
-		| DurableLaunchBarrierDescriptor
-		| DurableLaunchBarrierV2Descriptor;
+	durableLaunchBarrier?: DurableLaunchBarrierV2Descriptor;
 }
 
 export interface ResolveSuccess {

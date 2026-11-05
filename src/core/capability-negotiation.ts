@@ -488,9 +488,7 @@ function stageHostTools(
 		return workflowTaskReadOnly(task) ? "readOnly" : "no-tools";
 	if (!offered) return undefined;
 	const executorId = task.runtime.executor ?? runExecutorId;
-	return executorId === undefined || executorId === PI_EXECUTOR_ID
-		? undefined
-		: "executor";
+	return executorId === PI_EXECUTOR_ID ? undefined : "executor";
 }
 
 function stageHostToolsLine(
@@ -528,11 +526,11 @@ export function hostToolInheritanceNotice(
 		)
 		.map((task) => task.id);
 	if (inheriting.length === 0 && withheld.length === 0) return undefined;
-	const byExecutor = new Map<string, string[]>();
+	const byExecutor = new Map<string | undefined, string[]>();
 	for (const task of tasks) {
 		if (task.runtime.inheritHostTools !== undefined) continue;
 		const executorId = task.runtime.executor ?? runExecutorId;
-		if (executorId === undefined || executorId === PI_EXECUTOR_ID) continue;
+		if (executorId === PI_EXECUTOR_ID) continue;
 		byExecutor.set(executorId, [
 			...(byExecutor.get(executorId) ?? []),
 			task.id,
@@ -546,7 +544,7 @@ export function hostToolInheritanceNotice(
 	const others = [...byExecutor.entries()]
 		.map(
 			([executorId, ids]) =>
-				`; not by ${executorId} stage${ids.length === 1 ? "" : "s"} ${ids.join(", ")} (only pi inherits)`,
+				`; not by ${executorId ?? "unselected executor"} stage${ids.length === 1 ? "" : "s"} ${ids.join(", ")} (only pi inherits)`,
 		)
 		.join("");
 	return `host tools: the Pi host's codemode, tool_search, MCP tools (mcp__*) and MCP resource tools are inherited by ${by} (mutation-capable: worktree and approval rules apply)${not}${others}`;

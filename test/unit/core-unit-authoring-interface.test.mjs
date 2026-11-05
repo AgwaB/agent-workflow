@@ -2283,7 +2283,7 @@ test("schema accepts object-form tools and rejects invalid tool objects", () => 
 				"read",
 				{
 					name: "scrapling_fetch",
-					extensions: ["packages/pi-scrapling-access"],
+
 					classification: "read-only",
 					optional: true,
 					fallbackTools: ["fetch_content"],
@@ -2310,7 +2310,7 @@ test("schema accepts object-form tools and rejects invalid tool objects", () => 
 					"read",
 					{ name: "bad tool" },
 					{ name: "custom_class", classification: "side-effect" },
-					{ name: "custom_ext", extensions: "pkg" },
+					{ name: "custom_optional", optional: "yes" },
 					{ name: "custom_fallback", fallbackTools: ["bad tool"] },
 				],
 			}),
@@ -2318,7 +2318,15 @@ test("schema accepts object-form tools and rejects invalid tool objects", () => 
 	);
 	assertIssue(invalid, "$.defaults.tools[1].name", "invalid tool name");
 	assertIssue(invalid, "$.defaults.tools[2].classification", "must be one of");
-	assertIssue(invalid, "$.defaults.tools[3].extensions", "must be an array");
+	assertIssue(invalid, "$.defaults.tools[3].optional", "must be a boolean");
+	const removed = assertThrowsFlow(() =>
+		parseWorkflow(
+			workflowSpec("unit-scout", {
+				tools: [{ name: "read", extensions: ["pkg"] }],
+			}),
+		),
+	);
+	assertIssue(removed, "$.defaults.tools[0].extensions", "unknown field");
 	assertIssue(
 		invalid,
 		"$.defaults.tools[4].fallbackTools[0]",
@@ -2337,7 +2345,7 @@ test("compiler normalizes object-form tools and treats classified custom read-on
 					"fetch_content",
 					{
 						name: "scrapling_fetch",
-						extensions: ["packages/pi-scrapling-access"],
+
 						classification: "read-only",
 						optional: true,
 						fallbackTools: ["fetch_content"],
@@ -2355,7 +2363,6 @@ test("compiler normalizes object-form tools and treats classified custom read-on
 		]);
 		assert.deepEqual(task.runtime.toolProviders, {
 			scrapling_fetch: {
-				extensions: ["packages/pi-scrapling-access"],
 				classification: "read-only",
 				optional: true,
 				fallbackTools: ["fetch_content"],
@@ -2497,7 +2504,7 @@ test("narrow tool scopes inherit metadata for strings and override it for object
 					"read",
 					{
 						name: "scrapling_fetch",
-						extensions: ["packages/base-provider"],
+
 						classification: "mutation-capable",
 						optional: true,
 					},
@@ -2516,7 +2523,7 @@ test("narrow tool scopes inherit metadata for strings and override it for object
 							tools: [
 								{
 									name: "scrapling_fetch",
-									extensions: ["packages/stage-provider"],
+
 									classification: "read-only",
 								},
 							],
@@ -2534,14 +2541,12 @@ test("narrow tool scopes inherit metadata for strings and override it for object
 		assert.deepEqual(byKey["inherit.main"].runtime.tools, ["scrapling_fetch"]);
 		assert.deepEqual(byKey["inherit.main"].runtime.toolProviders, {
 			scrapling_fetch: {
-				extensions: ["packages/base-provider"],
 				classification: "mutation-capable",
 				optional: true,
 			},
 		});
 		assert.deepEqual(byKey["override.main"].runtime.toolProviders, {
 			scrapling_fetch: {
-				extensions: ["packages/stage-provider"],
 				classification: "read-only",
 				optional: true,
 			},

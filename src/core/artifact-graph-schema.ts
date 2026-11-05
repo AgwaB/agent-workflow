@@ -287,7 +287,6 @@ const SIMPLE_JSON_PATH_DIAGNOSTIC =
 
 const TOOL_OBJECT_KEYS = new Set([
 	"name",
-	"extensions",
 	"classification",
 	"optional",
 	"fallbackTools",
@@ -2613,7 +2612,6 @@ function validateWorkflowToolObject(
 	issues: ValidationIssue[],
 ): void {
 	rejectUnknownKeys(value, TOOL_OBJECT_KEYS, path, issues);
-	validateStringArray(value.extensions, `${path}.extensions`, issues);
 	validateToolNameArray(value.fallbackTools, `${path}.fallbackTools`, issues);
 	optionalBoolean(value.optional, `${path}.optional`, issues);
 	if (
