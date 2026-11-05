@@ -4,6 +4,16 @@ import { access, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+/**
+ * 2026-11-05 (owner: real-time animation checks are not deterministic): checks of animation timing
+ * (entrance replay, morph, handoff packets, the motion family) run only with
+ * AGENT_WORKFLOW_UI_MOTION=1 (`npm run test:ui-motion`), not in `npm run validate` or CI. Run them when
+ * changing dashboard motion.
+ */
+export const motionChecks = process.env.AGENT_WORKFLOW_UI_MOTION === "1";
+export const MOTION_SKIP =
+	"animation timing check; run with npm run test:ui-motion (AGENT_WORKFLOW_UI_MOTION=1)";
+
 export async function findChrome() {
 	const candidates = [
 		process.env.CHROME,
