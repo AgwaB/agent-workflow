@@ -7,6 +7,7 @@ import {
 	chmod,
 	mkdir,
 	mkdtemp,
+	readFile,
 	realpath,
 	rm,
 	writeFile,
@@ -110,6 +111,58 @@ test("adoptLoginShellPath runs -l and -i -l, adds both, and leaves PATH alone wh
 		assert.equal(ran, false);
 		assert.equal(env2.PATH, "/usr/bin");
 	}
+});
+
+// 2026-11-05 (live: a Codex TUI froze — the interactive shell took the terminal's foreground process
+// group and did not give it back): the shell runs in its own session, as its own process group leader.
+test("the login shell runs detached from the server's terminal (its own process group)", async () => {
+	const out = join(root, "pgid.txt");
+	const shell = join(root, "pgid-shell");
+	await writeFile(
+		shell,
+		`#!/bin/sh\nps -o pid=,pgid= -p $$ > ${JSON.stringify(out)}\necho ${MARK}\necho "PATH=/opt/detached-check"\n`,
+	);
+	await chmod(shell, 0o755);
+	const env = { PATH: "/usr/bin:/bin", SHELL: shell };
+	await shellPath.adoptLoginShellPath(env, { platform: "darwin" });
+	assert.equal(env.PATH, "/usr/bin:/bin:/opt/detached-check");
+	const [pid, pgid] = (await readFile(out, "utf8"))
+		.trim()
+		.split(/\s+/)
+		.map(Number);
+	assert.ok(pid > 0);
+	assert.equal(
+		pgid,
+		pid,
+		"the shell leads its own process group (setsid), so it cannot take the host's terminal",
+	);
+	assert.notEqual(
+		pgid,
+		Number(
+			(await import("node:child_process"))
+				.execFileSync("ps", ["-o", "pgid=", "-p", String(process.pid)], {
+					encoding: "utf8",
+				})
+				.trim(),
+		),
+	);
+});
+
+test("a login shell that hangs is killed at the timeout, with its children", async () => {
+	const shell = join(root, "hang-shell");
+	await writeFile(shell, "#!/bin/sh\nsleep 30 &\nsleep 30\n");
+	await chmod(shell, 0o755);
+	const started = Date.now();
+	const env = { PATH: "/usr/bin:/bin", SHELL: shell };
+	assert.deepEqual(
+		await shellPath.adoptLoginShellPath(env, {
+			platform: "darwin",
+			timeoutMs: 500,
+		}),
+		[],
+	);
+	assert.ok(Date.now() - started < 5_000, `${Date.now() - started} ms`);
+	assert.equal(env.PATH, "/usr/bin:/bin");
 });
 
 test("the MCP server finds a CLI that only the login shell's PATH has", async () => {

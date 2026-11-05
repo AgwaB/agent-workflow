@@ -8,7 +8,7 @@
 // test machine) run, at most 10 s; any failure leaves PATH as it is. `/usr/bin/env` by absolute path
 // (a bare `env` would resolve through the inherited PATH). AGENT_WORKFLOW_LOGIN_SHELL_PATH=0 turns
 // it off.
-import { execFile } from "node:child_process";
+import { spawn } from "node:child_process";
 import { userInfo } from "node:os";
 import { basename } from "node:path";
 
@@ -24,25 +24,45 @@ export type LoginShellRunner = (
 	timeoutMs: number,
 ) => Promise<string>;
 
+// 2026-11-05 (live: a Codex TUI froze at 100 % CPU, ignoring every key): an interactive shell takes
+// the terminal's foreground process group for job control and did not give it back, so the host
+// TUI that started this server (same controlling terminal) could no longer read its input. The
+// shell therefore runs in its own session (`detached`: setsid, no controlling terminal) with stdin
+// closed, and the whole group is killed at the timeout.
 const runShell: LoginShellRunner = (shell, args, timeoutMs) =>
 	new Promise((resolve) => {
+		let stdout = "";
+		let done = false;
+		const finish = () => {
+			if (done) return;
+			done = true;
+			clearTimeout(timer);
+			resolve(stdout);
+		};
+		let child: ReturnType<typeof spawn>;
 		try {
-			const child = execFile(
-				shell,
-				[...args],
-				{
-					timeout: timeoutMs,
-					killSignal: "SIGKILL",
-					encoding: "utf8",
-					maxBuffer: 4 * 1024 * 1024,
-				},
-				(_error, stdout) => resolve(typeof stdout === "string" ? stdout : ""),
-			);
-			// An interactive shell that reads stdin gets EOF at once.
-			child.stdin?.end();
+			child = spawn(shell, [...args], {
+				detached: true,
+				stdio: ["ignore", "pipe", "ignore"],
+			});
 		} catch {
 			resolve("");
+			return;
 		}
+		const timer = setTimeout(() => {
+			try {
+				if (child.pid) process.kill(-child.pid, "SIGKILL");
+			} catch {
+				// Already gone.
+			}
+			finish();
+		}, timeoutMs);
+		child.stdout?.setEncoding("utf8");
+		child.stdout?.on("data", (chunk: string) => {
+			if (stdout.length < 4 * 1024 * 1024) stdout += chunk;
+		});
+		child.on("error", finish);
+		child.on("close", finish);
 	});
 
 /** PATH from the env dump after the last marker (profile output before it is ignored). */
