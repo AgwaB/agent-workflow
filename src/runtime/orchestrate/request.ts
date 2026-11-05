@@ -64,8 +64,8 @@ export interface ExecutorRequestFields {
 	attemptKey?: string;
 }
 
-/** Pi-specific keys that the runtime API refuses (they have executor-neutral replacements). */
-export const PI_SPECIFIC_INPUT_KEYS = [
+/** Unsupported request fields that the runtime API refuses. */
+export const UNSUPPORTED_REQUEST_FIELDS = [
 	"agent",
 	"backend",
 	"extensions",
@@ -81,14 +81,14 @@ export const PI_SPECIFIC_INPUT_KEYS = [
 	"visible",
 ] as const;
 
-type PiSpecificKey = (typeof PI_SPECIFIC_INPUT_KEYS)[number];
+type UnsupportedRequestField = (typeof UNSUPPORTED_REQUEST_FIELDS)[number];
 type GenericTaskFields = Omit<
 	SubagentTaskInput,
-	PiSpecificKey | keyof ExecutorRequestFields
+	UnsupportedRequestField | keyof ExecutorRequestFields
 >;
 type GenericRunFields = Omit<
 	ResolveInput,
-	PiSpecificKey | "tasks" | keyof ExecutorRequestFields
+	UnsupportedRequestField | "tasks" | keyof ExecutorRequestFields
 >;
 
 export interface RuntimeTaskInput
@@ -127,24 +127,14 @@ function fail(error: string, backend?: string): RuntimeValidationResult {
 	};
 }
 
-const PI_REPLACEMENTS: Partial<Record<PiSpecificKey, string>> = {
-	agent: "supply prompt/systemPrompt/model/tools in the request",
-	backend: "pass executor: ExecutorDescriptor",
-	thinking: "use effort",
-	thinkingLevel: "use effort",
-	reasoningLevel: "use effort",
-	extensions: "use mcpServers or executor config",
-	noExtensions: "use isolation",
-};
-
 /** Validate the executor-specific request fields of one run or task. Returns an error or null. */
 function validateRequestFields(
 	value: Record<string, unknown>,
 	label: string,
 ): string | null {
-	for (const key of PI_SPECIFIC_INPUT_KEYS)
+	for (const key of UNSUPPORTED_REQUEST_FIELDS)
 		if (value[key] !== undefined)
-			return `${label}${key} is a Pi-specific option and is not accepted by the runtime API${PI_REPLACEMENTS[key] ? `; ${PI_REPLACEMENTS[key]}` : ""}.`;
+			return `unsupported request field ${label}${key}`;
 	if (
 		value.effort !== undefined &&
 		(typeof value.effort !== "string" || value.effort.length === 0)
@@ -267,8 +257,8 @@ function withoutRequestFields(
 
 /**
  * Validate a runtime run input. Generic fields go through the ported `validateResolveInput`
- * (with `backend` set to the executor id); executor fields are validated here. Pi-specific keys
- * are refused with a validation failure that names the replacement.
+ * (with `backend` set to the executor id); executor fields are validated here. Unsupported request
+ * fields are refused with a validation failure that names the field.
  */
 export function validateRuntimeRunInput(raw: unknown): RuntimeValidationResult {
 	if (!isRecord(raw)) return fail("runtime run input must be an object.");

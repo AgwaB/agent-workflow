@@ -1,5 +1,5 @@
 /**
- * Pi tool name → Codex mapping (plan §2.4, owner decision "Pi 도구 이름 매핑", B4, C2).
+ * Workflow tool name → Codex mapping (plan §2.4, owner decision "workflow tool mapping", B4, C2).
  * Codex has no per-tool allowlist: file/shell tools are only expressible as a sandbox mode
  * (`toolAllowlist: coarse`). Web tools map to Codex's hosted `web_search` (C2), the artifact tool
  * to the engine-injected MCP server (A2-4). `verified` records whether a live codex-cli run
@@ -19,7 +19,7 @@ import {
 } from "../../sdk/tools.js";
 
 export interface CodexToolMappingRow {
-	readonly piName: string;
+	readonly workflowName: string;
 	readonly entry: ToolMappingEntry;
 	/** What the Codex model actually uses for it. */
 	readonly codexTool: string;
@@ -32,7 +32,7 @@ const WRITE: ToolMappingEntry = { type: "sandbox", mode: "workspace-write" };
 
 export const CODEX_TOOL_MAPPING_ROWS: readonly CodexToolMappingRow[] = [
 	{
-		piName: "read",
+		workflowName: "read",
 		entry: READ_ONLY,
 		codexTool: "shell (exec_command: cat/sed/nl) under the read-only sandbox",
 		verified: true,
@@ -40,21 +40,21 @@ export const CODEX_TOOL_MAPPING_ROWS: readonly CodexToolMappingRow[] = [
 			"live call #1: `cat a.txt` reported as commandExecution with a read action",
 	},
 	{
-		piName: "grep",
+		workflowName: "grep",
 		entry: READ_ONLY,
 		codexTool: "shell (rg/grep) under the read-only sandbox",
 		verified: false,
 		evidence: "same shell tool as read; search action not recorded live",
 	},
 	{
-		piName: "find",
+		workflowName: "find",
 		entry: READ_ONLY,
 		codexTool: "shell (rg --files/find) under the read-only sandbox",
 		verified: false,
 		evidence: "same shell tool as read",
 	},
 	{
-		piName: "ls",
+		workflowName: "ls",
 		entry: READ_ONLY,
 		codexTool: "shell (ls) under the read-only sandbox",
 		verified: false,
@@ -62,7 +62,7 @@ export const CODEX_TOOL_MAPPING_ROWS: readonly CodexToolMappingRow[] = [
 			"not exercised live; listFiles is a commandActions type in the 0.159.2 protocol",
 	},
 	{
-		piName: "bash",
+		workflowName: "bash",
 		entry: WRITE,
 		codexTool: "shell (exec_command) under the workspace-write sandbox",
 		verified: true,
@@ -70,7 +70,7 @@ export const CODEX_TOOL_MAPPING_ROWS: readonly CodexToolMappingRow[] = [
 			"live #12: `touch` under read-only raised an execute approval (denied); live #18: shell ran in workspace-write",
 	},
 	{
-		piName: "edit",
+		workflowName: "edit",
 		entry: WRITE,
 		codexTool: "apply_patch under the workspace-write sandbox",
 		verified: true,
@@ -78,7 +78,7 @@ export const CODEX_TOOL_MAPPING_ROWS: readonly CodexToolMappingRow[] = [
 			"live #18: apply_patch created out.txt under workspace-write (disposable temp dir)",
 	},
 	{
-		piName: "write",
+		workflowName: "write",
 		entry: WRITE,
 		codexTool: "apply_patch under the workspace-write sandbox",
 		verified: true,
@@ -86,7 +86,7 @@ export const CODEX_TOOL_MAPPING_ROWS: readonly CodexToolMappingRow[] = [
 			"live #18: apply_patch created out.txt under workspace-write (disposable temp dir)",
 	},
 	{
-		piName: "web_search",
+		workflowName: "web_search",
 		entry: { type: "tool", names: ["web_search"] },
 		codexTool: 'hosted web_search (thread config web_search = "live")',
 		verified: true,
@@ -94,7 +94,7 @@ export const CODEX_TOOL_MAPPING_ROWS: readonly CodexToolMappingRow[] = [
 			'live #6: webSearch item (action search) under web_search = "live"',
 	},
 	{
-		piName: "fetch_content",
+		workflowName: "fetch_content",
 		entry: { type: "tool", names: ["web_search"] },
 		codexTool:
 			'hosted web_search open_page/find_in_page actions (web_search = "live")',
@@ -103,7 +103,7 @@ export const CODEX_TOOL_MAPPING_ROWS: readonly CodexToolMappingRow[] = [
 			"WebSearchAction openPage exists in the 0.159.2 protocol; not observed live",
 	},
 	{
-		piName: WORKFLOW_ARTIFACT_TOOL_NAME,
+		workflowName: WORKFLOW_ARTIFACT_TOOL_NAME,
 		entry: {
 			type: "mcp",
 			server: ARTIFACT_MCP_SERVER_NAME,
@@ -119,7 +119,7 @@ export const CODEX_TOOL_MAPPING_ROWS: readonly CodexToolMappingRow[] = [
 export const CODEX_TOOL_MAPPING: ToolMapping = {
 	executorId: "codex",
 	entries: Object.fromEntries(
-		CODEX_TOOL_MAPPING_ROWS.map((row) => [row.piName, row.entry]),
+		CODEX_TOOL_MAPPING_ROWS.map((row) => [row.workflowName, row.entry]),
 	),
 };
 

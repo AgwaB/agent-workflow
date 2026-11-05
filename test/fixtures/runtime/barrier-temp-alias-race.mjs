@@ -21,7 +21,7 @@ async function readyFixture(directory) {
 		pollIntervalMs: 2,
 	});
 	const body = {
-		schema: "pi-subagent-durable-launch-barrier-ready-v2",
+		schema: "agent-workflow-durable-launch-barrier-ready-v2",
 		barrierIdentitySha256: descriptor.identitySha256,
 		challenge: descriptor.challenge,
 		decisionNonce: descriptor.decisionNonce,

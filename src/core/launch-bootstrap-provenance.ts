@@ -527,8 +527,8 @@ function isBackend(value: unknown): boolean {
 		isRecord(value) &&
 		hasExactKeys(value, ["id", "type", "mode"]) &&
 		nonEmptyString(value.id) &&
-		nonEmptyString(value.type) &&
-		nonEmptyString(value.mode)
+		value.type === "local" &&
+		value.mode === "headless"
 	);
 }
 

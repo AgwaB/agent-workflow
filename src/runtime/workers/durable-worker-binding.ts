@@ -52,11 +52,11 @@ interface DurableWorkerBindingPrepared {
 
 export interface DurableWorkerBindingPreflight
 	extends DurableWorkerBindingPrepared {
-	schema: "pi-subagent-durable-worker-binding-preflight-v2";
+	schema: "agent-workflow-durable-worker-binding-preflight-v2";
 }
 
 export interface DurableWorkerBindingV2 extends DurableWorkerBindingPrepared {
-	schema: "pi-subagent-durable-worker-binding-v2";
+	schema: "agent-workflow-durable-worker-binding-v2";
 	readySha256: string;
 	decisionSha256: string;
 	ackSha256: string;
@@ -142,10 +142,10 @@ export function prepareDurableWorkerBinding({
 	const authorityBindingSha256 = descriptor.authorityBindingSha256;
 	if (authorityBindingSha256 !== undefined)
 		requireSha256("authority binding", authorityBindingSha256);
-	if (descriptor.schema !== "pi-subagent-durable-launch-barrier-v2")
+	if (descriptor.schema !== "agent-workflow-durable-launch-barrier-v2")
 		throw new DurableWorkerGuardError("durable launch barrier v2 is required");
 	return Object.freeze({
-		schema: "pi-subagent-durable-worker-binding-preflight-v2",
+		schema: "agent-workflow-durable-worker-binding-preflight-v2",
 		runId: requireText("subagent run id", payload.runId),
 		attemptId: requireText("subagent attempt id", payload.attemptId),
 		...(correlationId === undefined ? {} : { correlationId }),
@@ -192,17 +192,17 @@ export function buildDurableWorkerBinding(
 			executionPlanSha256,
 			workerPid,
 		});
-	if (preflight.schema !== "pi-subagent-durable-worker-binding-preflight-v2")
+	if (preflight.schema !== "agent-workflow-durable-worker-binding-preflight-v2")
 		throw new DurableWorkerGuardError(
 			"durable worker binding v2 preflight is required",
 		);
 	const { schema: _schema, ...prepared } = preflight;
-	if (ack?.schema !== "pi-subagent-durable-launch-barrier-ack-v2")
+	if (ack?.schema !== "agent-workflow-durable-launch-barrier-ack-v2")
 		throw new DurableWorkerGuardError(
 			"durable launch barrier v2 acknowledgement is required",
 		);
 	return Object.freeze({
-		schema: "pi-subagent-durable-worker-binding-v2",
+		schema: "agent-workflow-durable-worker-binding-v2",
 		...prepared,
 		readySha256: requireSha256("ready digest", ack.readySha256),
 		decisionSha256: requireSha256(

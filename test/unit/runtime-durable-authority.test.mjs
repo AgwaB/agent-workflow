@@ -131,7 +131,7 @@ test("V2 barrier: READY carries both digests, release → binding after ACK", as
 	assert.equal(decision.kind, "released");
 	assert.equal(decision.grantId, resolution.decision.decisionSha256);
 	const binding = authority.binding();
-	assert.equal(binding.schema, "pi-subagent-durable-worker-binding-v2");
+	assert.equal(binding.schema, "agent-workflow-durable-worker-binding-v2");
 	assert.equal(binding.ackSha256, ack.ackSha256);
 	assert.equal(binding.executionPlanSha256, executionPlanSha256);
 	assert.deepEqual(Object.keys(durableWorkerBindingEnv(authority)), [

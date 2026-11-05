@@ -258,7 +258,10 @@ test("tool mapping: fine, coarse (sandbox), MCP, and unmapped tools", () => {
 	assert.equal(write.kinds.edit, "edit");
 
 	const identity = sdk.identityToolMapping("pi");
-	assert.deepEqual(sdk.mapTools([...sdk.PI_TOOL_NAMES], identity).unmapped, []);
+	assert.deepEqual(
+		sdk.mapTools([...sdk.WORKFLOW_TOOL_NAMES], identity).unmapped,
+		[],
+	);
 	assert.equal(sdk.toolKind("bash"), "execute");
 	assert.equal(sdk.toolKind("custom_tool"), "other");
 	assert.equal(

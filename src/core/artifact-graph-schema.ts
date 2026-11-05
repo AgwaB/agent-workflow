@@ -303,7 +303,6 @@ const DEFAULTS_KEYS = new Set([
 	"worktreePolicy",
 	"maxConcurrency",
 	"maxRuntimeMs",
-	"backend",
 ]);
 const ROLES_KEYS = new Set([
 	"fromAgent",
@@ -2462,7 +2461,6 @@ function validateDefaults(
 		`${path}.worktreePolicy`,
 		issues,
 	);
-	validateBackend(defaults.backend, `${path}.backend`, issues);
 	optionalBoolean(defaults.readOnly, `${path}.readOnly`, issues);
 	optionalPositiveInteger(
 		defaults.maxConcurrency,
@@ -2860,26 +2858,6 @@ function optionalEnum<T extends readonly string[]>(
 	if (value === undefined) return;
 	if (!values.includes(value as never)) {
 		issues.push({ path, message: `must be one of: ${values.join(", ")}` });
-	}
-}
-
-function validateBackend(
-	value: unknown,
-	path: string,
-	issues: ValidationIssue[],
-): void {
-	if (value === undefined) return;
-	const backend = recordAt(value, path, issues);
-	if (!backend) return;
-	rejectUnknownKeys(backend, new Set(["type", "mode"]), path, issues);
-	if (backend.type !== undefined && backend.type !== "local-pi") {
-		issues.push({ path: `${path}.type`, message: 'must be "local-pi"' });
-	}
-	if (backend.mode !== undefined && backend.mode !== "headless") {
-		issues.push({
-			path: `${path}.mode`,
-			message: 'must be "headless"',
-		});
 	}
 }
 

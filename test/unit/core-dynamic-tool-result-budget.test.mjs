@@ -150,7 +150,7 @@ function syntheticRun(tasks, overrides = {}) {
 		status: overrides.status ?? "completed",
 		taskSummary: statusCounts,
 		cwd: "/tmp/dynamic-budget",
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-07-10T00:00:00.000Z",
 		updatedAt: "2026-07-10T00:00:02.000Z",
 		specPath: "/tmp/dynamic-budget/spec.json",

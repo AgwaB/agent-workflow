@@ -47,7 +47,7 @@ async function failedRun(cwd, owner) {
 			interrupted: 0,
 		},
 		cwd,
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		createdAt: at,
 		updatedAt: at,
 		specPath: "spec.json",

@@ -565,7 +565,7 @@ test("resubmitting the same attempt from a fresh executor instance produces no s
 	);
 });
 
-test("runtime input validation refuses Pi-specific options and requires an executor", async () => {
+test("runtime input validation refuses unsupported request fields and requires an executor", async () => {
 	const executor = fixtureDescriptor({ effectLog: join(root, "unused.jsonl") });
 	assert.equal(validateRuntimeRunInput({ task: "x" }).ok, false);
 	for (const key of [
@@ -574,7 +574,14 @@ test("runtime input validation refuses Pi-specific options and requires an execu
 		"extensions",
 		"noExtensions",
 		"thinking",
+		"thinkingLevel",
+		"reasoningLevel",
+		"agentScope",
+		"confirmProjectAgents",
+		"roleContext",
 		"skills",
+		"toolResultBudget",
+		"visible",
 	]) {
 		const validation = validateRuntimeRunInput({
 			executor,
@@ -582,12 +589,16 @@ test("runtime input validation refuses Pi-specific options and requires an execu
 			[key]: key === "noExtensions" ? true : "v",
 		});
 		assert.equal(validation.ok, false, key);
-		assert.match(validation.failure.error, /Pi-specific option/u, key);
+		assert.equal(
+			validation.failure.error,
+			`unsupported request field ${key}`,
+			key,
+		);
 	}
 	assert.match(
 		validateRuntimeRunInput({ executor, tasks: [{ task: "x", agent: "a" }] })
 			.failure.error,
-		/tasks\[0\]\.agent is a Pi-specific option/u,
+		/unsupported request field tasks\[0\]\.agent/u,
 	);
 	assert.equal(
 		validateRuntimeRunInput({ executor, task: "x", readOnly: "yes" }).ok,

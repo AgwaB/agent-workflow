@@ -373,7 +373,6 @@ function workflowSpec(agent = "unit-scout", extra = {}) {
 		worktreePolicy,
 		maxConcurrency,
 		maxRuntimeMs,
-		backend,
 		...rest
 	} = extra;
 	const baseDefaults = {
@@ -387,7 +386,6 @@ function workflowSpec(agent = "unit-scout", extra = {}) {
 		...(worktreePolicy !== undefined ? { worktreePolicy } : {}),
 		...(maxConcurrency !== undefined ? { maxConcurrency } : {}),
 		...(maxRuntimeMs !== undefined ? { maxRuntimeMs } : {}),
-		...(backend !== undefined ? { backend } : {}),
 		...(defaults ?? {}),
 	};
 	const graph = artifactGraph ?? {
@@ -722,7 +720,7 @@ function makeSubagentLaunchFixture(cwd, suffix) {
 			total: 1,
 		},
 		cwd,
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		createdAt: now,
 		updatedAt: now,
 		specPath: "workflow.json",
@@ -1551,7 +1549,7 @@ function writeUnfinishedNoticeIndex(cwd, runs) {
 				...run,
 				schemaVersion: 1,
 				cwd,
-				backend: { type: "local-pi", mode: "headless" },
+				backend: { type: "local", mode: "headless" },
 				specPath: run.specPath ?? "x",
 				tasks: run.tasks?.length > 0 ? run.tasks : unfinishedNoticeTasks(run),
 			}),
@@ -1579,7 +1577,7 @@ function writeUnfinishedNoticeRunRecord(cwd, runId, provenance) {
 			...(indexedRun?.name ? { name: indexedRun.name } : {}),
 			taskSummary: UNFINISHED_NOTICE_TEST_SUMMARY,
 			cwd,
-			backend: { type: "local-pi", mode: "headless" },
+			backend: { type: "local", mode: "headless" },
 			createdAt: "2026-06-11T00:00:00.000Z",
 			updatedAt: "2026-06-11T00:00:00.000Z",
 			specPath: "x",
@@ -1676,7 +1674,7 @@ function workflowViewRun(tasks) {
 		status: deriveWorkflowStatus(summarizeTasks(tasks)),
 		taskSummary: summarizeTasks(tasks),
 		cwd: process.cwd(),
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-06-17T06:00:00.000Z",
 		updatedAt: "2026-06-17T06:02:00.000Z",
 		specPath: "workflows/ui.json",
@@ -1776,7 +1774,7 @@ function stallProgressRun(cwd, runId, status, createdAt) {
 		status: deriveWorkflowStatus(summarizeTasks(tasks)),
 		taskSummary: summarizeTasks(tasks),
 		cwd,
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		createdAt,
 		updatedAt: createdAt,
 		specPath: "workflows/stall-unit.json",

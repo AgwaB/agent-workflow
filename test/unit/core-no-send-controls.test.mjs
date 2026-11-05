@@ -31,7 +31,7 @@ function parseJson(text, context) {
 
 function barrierDescriptor(cwd, options = {}) {
 	return {
-		schema: "pi-subagent-durable-launch-barrier-v2",
+		schema: "agent-workflow-durable-launch-barrier-v2",
 		identitySha256: sha256("1"),
 		directory: join(cwd, "barrier"),
 		readyPath: join(cwd, "barrier", "ready-v2.json"),
@@ -51,7 +51,7 @@ function barrierDescriptor(cwd, options = {}) {
 
 function barrierReady(descriptor) {
 	return {
-		schema: "pi-subagent-durable-launch-barrier-ready-v2",
+		schema: "agent-workflow-durable-launch-barrier-ready-v2",
 		barrierIdentitySha256: descriptor.identitySha256,
 		challenge: descriptor.challenge,
 		decisionNonce: descriptor.decisionNonce,
@@ -71,7 +71,7 @@ function barrierReady(descriptor) {
 
 function barrierRelease(descriptor, ready, releasePayloadSha256) {
 	return {
-		schema: "pi-subagent-durable-launch-barrier-decision-v2",
+		schema: "agent-workflow-durable-launch-barrier-decision-v2",
 		kind: "released",
 		barrierIdentitySha256: descriptor.identitySha256,
 		challenge: descriptor.challenge,
@@ -90,7 +90,7 @@ function barrierRelease(descriptor, ready, releasePayloadSha256) {
 
 function barrierRevocation(descriptor, options) {
 	return {
-		schema: "pi-subagent-durable-launch-barrier-decision-v2",
+		schema: "agent-workflow-durable-launch-barrier-decision-v2",
 		kind: "revoked",
 		barrierIdentitySha256: descriptor.identitySha256,
 		challenge: descriptor.challenge,
@@ -107,7 +107,7 @@ function barrierRevocation(descriptor, options) {
 
 function barrierAck(descriptor, release) {
 	return {
-		schema: "pi-subagent-durable-launch-barrier-ack-v2",
+		schema: "agent-workflow-durable-launch-barrier-ack-v2",
 		barrierIdentitySha256: descriptor.identitySha256,
 		challenge: descriptor.challenge,
 		decisionNonce: descriptor.decisionNonce,

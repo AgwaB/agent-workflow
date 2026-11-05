@@ -228,7 +228,7 @@ test("happy path: barrier release → events → completed result with usage (co
 	assert.equal(consume.outcome, "released");
 	assert.equal(
 		consume.bindingSchema,
-		"pi-subagent-durable-worker-binding-v2",
+		"agent-workflow-durable-worker-binding-v2",
 		"the adapter sees the installed worker binding after release",
 	);
 	const submit = effects.find((entry) => entry.type === "submit");

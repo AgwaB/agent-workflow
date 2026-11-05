@@ -773,7 +773,7 @@ test("wait marks a returned settled state seen in a fresh project; notify-check 
 		"run.json",
 	);
 	const record = JSON.parse(await readFile(runFile, "utf8"));
-	record.backend = { type: "local-pi", mode: "headless" };
+	record.backend = { type: "local", mode: "headless" };
 	await writeFile(runFile, JSON.stringify(record));
 	assert.equal(existsSync(join(cwd, ".agent-workflow", "notify-check")), false);
 	const waited = await runCli(cwd, ["wait", "workflow_fresh", "--json"], {

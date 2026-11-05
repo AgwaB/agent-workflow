@@ -75,7 +75,6 @@ export { parseArtifactGraphWorkflowSpec } from "./artifact-graph-schema.js";
 export type {
 	AgentDefinition,
 	ApprovalMode,
-	BackendOptions,
 	CompiledWorkflow,
 	CompiledRole,
 	CompiledTask,

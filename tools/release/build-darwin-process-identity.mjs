@@ -47,7 +47,7 @@ const sdkVersion = execFileSync(
 	{ encoding: "utf8" },
 ).trim();
 const record = {
-	schema: "pi-subagent-darwin-process-identity-helper-v1",
+	schema: "agent-workflow-darwin-process-identity-helper-v1",
 	sourceSha256: sha256(await readFile(source)),
 	binarySha256: sha256(await readFile(binary)),
 	architectures: ["arm64", "x86_64"],

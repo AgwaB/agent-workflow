@@ -104,7 +104,7 @@ async function fixture(name, options = {}) {
 			total: 1,
 		},
 		cwd,
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		createdAt: now,
 		updatedAt: now,
 		specPath: "workflow.json",

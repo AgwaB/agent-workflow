@@ -909,7 +909,7 @@ test("artifact graph schema enforces launch-time invariants", () => {
 			}),
 		),
 	);
-	assertIssue(backendAuto, "$.defaults.backend.mode", 'must be "headless"');
+	assertIssue(backendAuto, "$.defaults.backend", "unknown field");
 
 	assert.doesNotThrow(() =>
 		parsePublicWorkflow(
@@ -6462,7 +6462,7 @@ test("recovered artifact graph subagent handle preserves same-session retry", as
 				total: 1,
 			},
 			cwd,
-			backend: { type: "local-pi", mode: "headless" },
+			backend: { type: "local", mode: "headless" },
 			createdAt: now,
 			updatedAt: now,
 			specPath: "workflow.json",
@@ -6581,7 +6581,7 @@ test("non artifact graph subagent launches do not request child sessions", async
 				total: 1,
 			},
 			cwd,
-			backend: { type: "local-pi", mode: "headless" },
+			backend: { type: "local", mode: "headless" },
 			createdAt: now,
 			updatedAt: now,
 			specPath: "workflow.json",

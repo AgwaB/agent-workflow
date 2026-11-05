@@ -2234,17 +2234,6 @@ async function compileArtifactGraphPlan(
 		topLevelSourceStageIds.set(stage.id, runtimeStage.id);
 	}
 
-	const backendOptions = spec.defaults?.backend ?? {};
-	if (backendOptions.type !== undefined && backendOptions.type !== "local-pi")
-		issues.push({
-			path: "$.defaults.backend.type",
-			message: 'must be "local-pi"',
-		});
-	if (backendOptions.mode !== undefined && backendOptions.mode !== "headless")
-		issues.push({
-			path: "$.defaults.backend.mode",
-			message: 'must be "headless"',
-		});
 	if (issues.length > 0) throw new WorkflowValidationError(issues);
 
 	const failurePolicy = compileWorkflowFailurePolicy(spec.artifactGraph);
@@ -2255,7 +2244,7 @@ async function compileArtifactGraphPlan(
 		type: WORKFLOW_RUN_TYPE,
 		task: options.task,
 		cwd: options.cwd,
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		maxConcurrency: spec.defaults?.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
 		...(failurePolicy ? { failurePolicy } : {}),
 		roles,

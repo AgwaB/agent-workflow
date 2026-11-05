@@ -46,11 +46,6 @@ export type WorktreePolicy = (typeof WORKTREE_POLICIES)[number];
 export type ToolClassification = (typeof TOOL_CLASSIFICATIONS)[number];
 export type WorkflowRunType = typeof WORKFLOW_RUN_TYPE;
 
-export interface BackendOptions {
-	type?: "local-pi";
-	mode?: "auto" | "headless";
-}
-
 export interface WorkflowBackendHandle {
 	display?: string;
 	[key: string]: unknown;
@@ -89,7 +84,6 @@ export interface WorkflowDefaults {
 	worktreePolicy?: WorktreePolicy;
 	maxConcurrency?: number;
 	maxRuntimeMs?: number;
-	backend?: BackendOptions;
 }
 
 export interface RoleSpec {
@@ -954,7 +948,7 @@ export interface LaunchBootstrapProvenanceRecordBase {
 		physicalAttempt?: number;
 	};
 	sessionId?: string;
-	backend: { id: string; type: string; mode: string };
+	backend: { id: string; type: "local"; mode: "headless" };
 	prompt: { sha256: string; bytes: number };
 	/**
 	 * Artifact access binding. `configSha256` covers the canonical JSON of the
@@ -1060,7 +1054,7 @@ export interface WorkflowLaunchAuthorityHistory {
 }
 
 export interface WorkflowDurableLaunchBarrierDescriptor {
-	schema: "pi-subagent-durable-launch-barrier-v2";
+	schema: "agent-workflow-durable-launch-barrier-v2";
 	identitySha256: string;
 	directory: string;
 	readyPath: string;
@@ -1901,7 +1895,7 @@ export interface WorkflowRunRecord {
 	degradation?: WorkflowRunDegradation;
 	taskSummary: TaskSummary;
 	cwd: string;
-	backend: { type: "local-pi"; mode: "headless" };
+	backend: { type: "local"; mode: "headless" };
 	failurePolicy?: Required<WorkflowFailurePolicy>;
 	parentRunId?: string;
 	rootRunId?: string;
@@ -2010,7 +2004,7 @@ export interface CompiledWorkflow {
 	type: WorkflowRunType;
 	task?: string;
 	cwd: string;
-	backend: { type: "local-pi"; mode: "headless" };
+	backend: { type: "local"; mode: "headless" };
 	maxConcurrency: number;
 	failurePolicy?: Required<WorkflowFailurePolicy>;
 	roles: CompiledRole[];

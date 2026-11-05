@@ -209,7 +209,7 @@ test("formatLogs uses bounded tail IO for huge single-line output", async (t) =>
 				interrupted: 0,
 			},
 			cwd,
-			backend: { type: "local-pi", mode: "headless" },
+			backend: { type: "local", mode: "headless" },
 			createdAt: now,
 			updatedAt: now,
 			specPath: "spec.json",

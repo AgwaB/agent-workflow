@@ -307,7 +307,7 @@ test("formatRun stays byte-identical when fail-fast policy is unset", () => {
 			skipped: 0,
 		},
 		cwd: "/tmp/pi-workflow-unit",
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-01-02T03:04:05.000Z",
 		updatedAt: "2026-01-02T03:04:06.000Z",
 		specPath: "workflows/unit.json",
@@ -333,7 +333,7 @@ test("formatRun stays byte-identical when fail-fast policy is unset", () => {
 
 	assert.equal(
 		formatRun(run),
-		`run-fixed [completed] type=artifact-graph backend=local-pi/headless
+		`run-fixed [completed] type=artifact-graph backend=local/headless
 created=2026-01-02T03:04:05.000Z updated=2026-01-02T03:04:06.000Z
 tasks=1/1 completed, running=0, pending=0, blocked=0, failed=0, interrupted=0
 completion=clean, outputRetries=0, launchRetries=0, resumeEvents=0, contextLimitFailures=0
@@ -3411,7 +3411,7 @@ test("formatRun surfaces terminal capture lag separately from execution time", (
 			total: 1,
 		},
 		cwd: "/tmp/capture-lag",
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-06-08T00:00:00.000Z",
 		updatedAt: "2026-06-08T00:05:00.000Z",
 		tasks: [

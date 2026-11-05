@@ -68,8 +68,7 @@ const backends = new Map<WorkflowBackendKey, WorkflowBackend>();
 
 /**
  * Register the backend that serves `run.backend` records of this type/mode.
- * pi-workflow hard-wired `local-pi/headless` to pi-subagent; WP4c registers
- * the runtime-API backend here. Returns an unregister function.
+ * The runtime-API backend registers `local/headless` here. Returns an unregister function.
  */
 export function registerWorkflowBackend(
 	backend: {

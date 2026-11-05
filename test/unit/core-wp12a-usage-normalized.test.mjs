@@ -250,7 +250,7 @@ test("run rollup: totalTokens is the sum (not 0); a blocked run carries the usag
 			interrupted: 0,
 		},
 		cwd: "/tmp/usage",
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-10-27T00:00:00.000Z",
 		updatedAt: "2026-10-27T00:00:00.000Z",
 		specPath: "spec.json",

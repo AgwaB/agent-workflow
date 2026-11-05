@@ -130,7 +130,7 @@ function runningRun(cwd, runId) {
 		type: "artifact-graph",
 		status: "running",
 		cwd,
-		backend: { type: "local-pi", mode: "headless" },
+		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-07-10T02:00:00.000Z",
 		updatedAt: "2026-07-10T02:00:00.000Z",
 		specPath: "fixture.json",
