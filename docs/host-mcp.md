@@ -327,6 +327,19 @@ after the login-shell PATH fix below (before it, the app's server could not find
 --resume` was not used: it resumes on the local app-server daemon, which on the test machine still
 held older credentials (usage-limit errors while the CLI's login had quota).
 
+## The client's roots (2026-11-05)
+
+A call without `cwd` from a client that declares the MCP `roots` capability takes the client's single
+file root as its project (`roots/list` during the call, 5 s at most; `resolveCallDirectory`); an
+explicit `cwd` may lie inside the server's root or inside a client root; with several roots and no
+`cwd` the call is refused with the list. Why: the Claude desktop app offers its own server
+(`claude_desktop_config.json`, started in `~`) to Code-tab sessions too, next to the plugin's, and a
+model called it without `cwd`: the run went to `~/.agent-workflow/home-runs` (live). Observed
+connections of that server: chat `clientInfo` `claude-ai` (no roots), Code tab
+`local-agent-mode-agent-workflow` with `roots`, whose `roots/list` named the session's folder
+(`file:///…/research`). Neither sends `_meta` with its calls. As mcp-python-sdk's roots example
+(`examples/stories/roots/server.py`: the tool asks the client during the call).
+
 ## PATH of a server an app starts (2026-11-05)
 
 The ChatGPT app's Codex starts MCP servers with `PATH=/usr/bin:/bin:/usr/sbin:/sbin` plus its own

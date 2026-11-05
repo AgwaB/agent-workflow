@@ -60,8 +60,8 @@ test("adoptLoginShellPath runs -l and -i -l, adds both, and leaves PATH alone wh
 		run: async (shell, args) => {
 			calls.push([shell, ...args.slice(0, -1)]);
 			return args[0] === "-i"
-				? `rc chatter\n${MARK}\nPATH=/Users/u/.nvm/bin:/usr/bin:/Users/u/.local/bin\n`
-				: `${MARK}\nPATH=/Users/u/.local/bin:/usr/local/bin\n`;
+				? `rc chatter\n${MARK}\nPATH=/opt/u/.nvm/bin:/usr/bin:/opt/u/.local/bin\n`
+				: `${MARK}\nPATH=/opt/u/.local/bin:/usr/local/bin\n`;
 		},
 	});
 	assert.deepEqual(calls, [
@@ -70,12 +70,12 @@ test("adoptLoginShellPath runs -l and -i -l, adds both, and leaves PATH alone wh
 	]);
 	assert.equal(
 		env.PATH,
-		"/usr/bin:/bin:/Users/u/.local/bin:/usr/local/bin:/Users/u/.nvm/bin",
+		"/usr/bin:/bin:/opt/u/.local/bin:/usr/local/bin:/opt/u/.nvm/bin",
 	);
 	assert.deepEqual(added, [
-		"/Users/u/.local/bin",
+		"/opt/u/.local/bin",
 		"/usr/local/bin",
-		"/Users/u/.nvm/bin",
+		"/opt/u/.nvm/bin",
 	]);
 	// A broken or hanging interactive shell: the other result still counts; nothing throws.
 	const half = { PATH: "/usr/bin", SHELL: "/bin/zsh" };

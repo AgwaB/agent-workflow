@@ -30,6 +30,7 @@
 import { randomUUID } from "node:crypto";
 import { realpath, stat } from "node:fs/promises";
 import { basename, isAbsolute, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import * as hostApi from "../../hosts/api.js";
 import {
@@ -1212,6 +1213,77 @@ export async function resolveCallCwd(
 	return real;
 }
 
+/**
+ * 2026-11-05 (live, the Claude desktop app's Code tab): a Code session also sees the app's own
+ * agent-workflow server (claude_desktop_config.json, started in ~), and a model called it without
+ * cwd, so the run went to ~/.agent-workflow/home-runs instead of the session's project. That
+ * connection (clientInfo "local-agent-mode-…") declares `roots` and roots/list answers the session's
+ * folder (file:///…/research); the chat connection ("claude-ai") declares none. So the client's
+ * file roots are asked during the call, as in mcp-python-sdk's roots story
+ * (examples/stories/roots/server.py). Existing directories only; [] when the client has no roots,
+ * does not answer within 5 s or fails.
+ */
+export async function clientRootDirectories(
+	call: McpToolCallContext | undefined,
+): Promise<string[]> {
+	if (!call?.clientCapabilities.roots) return [];
+	try {
+		const answer = asRecord(
+			await call.sendRequest(
+				"roots/list",
+				{},
+				AbortSignal.any([call.signal, AbortSignal.timeout(5_000)]),
+			),
+		);
+		const dirs: string[] = [];
+		for (const root of Array.isArray(answer?.roots) ? answer.roots : []) {
+			const uri = asRecord(root)?.uri;
+			if (typeof uri !== "string" || !uri.startsWith("file:")) continue;
+			try {
+				const real = await realpath(fileURLToPath(uri));
+				if ((await stat(real)).isDirectory() && !dirs.includes(real))
+					dirs.push(real);
+			} catch {
+				// A root that does not exist (any more) is skipped.
+			}
+		}
+		return dirs;
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * The directory of a call: its cwd (inside the server's root or, 2026-11-05, inside a root the
+ * client declared: the client's own statement, not the model's), else the client's single root,
+ * else the server's root. Several client roots and no cwd: the call must name one.
+ */
+export async function resolveCallDirectory(
+	root: string,
+	requested: string | undefined,
+	call: McpToolCallContext | undefined,
+): Promise<string> {
+	if (requested === undefined) {
+		const roots = await clientRootDirectories(call);
+		if (roots.length > 1)
+			throw new UsageError(
+				`this client has several roots (${roots.join(", ")}); pass cwd with the project directory of this conversation`,
+			);
+		return roots[0] ?? root;
+	}
+	try {
+		return await resolveCallCwd(root, requested);
+	} catch (error) {
+		for (const clientRoot of await clientRootDirectories(call))
+			try {
+				return await resolveCallCwd(clientRoot, requested);
+			} catch {
+				// Not inside this root either.
+			}
+		throw error;
+	}
+}
+
 /** The client can show a form-mode elicitation (MCP 2025-06-18 and later). */
 export function clientSupportsFormElicitation(
 	protocolVersion: string,
@@ -1605,11 +1677,16 @@ export function createHostMcpService(
 
 	const context = async (
 		args: Record<string, unknown>,
+		call?: McpToolCallContext,
 	): Promise<HostApiContext> => ({
 		// 2026-11-04: the home directory (whose .agent-workflow is the user-level home) is never the
 		// project; the Claude desktop app starts this server in ~ (src/hosts/project-root.ts).
 		cwd: runProject(
-			await resolveCallCwd(options.root, optionalString(args, "cwd")),
+			await resolveCallDirectory(
+				options.root,
+				optionalString(args, "cwd"),
+				call,
+			),
 			env,
 		),
 		env,
@@ -1803,7 +1880,7 @@ export function createHostMcpService(
 			for (const key of ["profile", "roles", "unset"])
 				if (args[key] !== undefined)
 					throw new UsageError(`${key} is only valid with op workflow-set`);
-		const ctx = await context(args);
+		const ctx = await context(args, call);
 		const cli = (words: string[]) =>
 			`agent-workflow profile workflow ${words.map(shellWord).join(" ")}`;
 		let request: hostApi.WorkflowPreferenceRequest;
@@ -1902,7 +1979,7 @@ export function createHostMcpService(
 		) => Promise<HostMcpToolResult>
 	> = {
 		[WORKFLOW_DASHBOARD_TOOL]: async (args, call) => {
-			const ctx = await context(args);
+			const ctx = await context(args, call);
 			// Same local-process authority as stop; never bypass worker/disabled role restrictions.
 			assertActionAllowed(ctx, "stop");
 			const run = args.run;
@@ -2017,7 +2094,7 @@ export function createHostMcpService(
 				Number.MAX_SAFE_INTEGER,
 			);
 			const limit = optionalInteger(args, "limit", 1, 20) ?? 20;
-			const listed = await api.listWorkflowsAction(await context(args), {
+			const listed = await api.listWorkflowsAction(await context(args, call), {
 				...(query ? { query } : {}),
 				...(offset === undefined ? {} : { offset }),
 				limit,
@@ -2025,7 +2102,7 @@ export function createHostMcpService(
 			return finish(call, listed, listed.data);
 		},
 		[WORKFLOW_RUN_TOOL]: async (args, call) => {
-			const ctx = await context(args);
+			const ctx = await context(args, call);
 			const confirmation: { unanswered?: CapabilityPreview } = {};
 			const workflow = requiredString(args, "workflow");
 			const launched = await api.runWorkflowAction(ctx, {
@@ -2055,7 +2132,7 @@ export function createHostMcpService(
 			);
 		},
 		[WORKFLOW_DYNAMIC_TOOL]: async (args, call) => {
-			const ctx = await context(args);
+			const ctx = await context(args, call);
 			const confirmation: { unanswered?: CapabilityPreview } = {};
 			const launched = await api.runDynamicAction(ctx, {
 				...launchRequestFromArguments(args),
@@ -2082,7 +2159,7 @@ export function createHostMcpService(
 			);
 		},
 		[WORKFLOW_AUTO_TOOL]: async (args, call) => {
-			const ctx = await context(args);
+			const ctx = await context(args, call);
 			const elicitation = clientSupportsFormElicitation(
 				call.protocolVersion,
 				call.clientCapabilities,
@@ -2169,7 +2246,7 @@ export function createHostMcpService(
 		[WORKFLOW_STATUS_TOOL]: async (args, call) => {
 			const runId = optionalString(args, "runId");
 			const status = await api.statusAction(
-				await context(args),
+				await context(args, call),
 				runId ? { runId } : {},
 			);
 			return finish(
@@ -2193,7 +2270,7 @@ export function createHostMcpService(
 				throw new UsageError("timeoutMs must be a number");
 			let progress = 0;
 			let lastLine = "";
-			const waited = await api.waitAction(await context(args), {
+			const waited = await api.waitAction(await context(args, call), {
 				runId: requiredString(args, "runId"),
 				// 2026-11-05: a host with a long per-call limit waits up to waitSliceMs (hostMcpWaitSliceMs).
 				...(longWait
@@ -2227,7 +2304,7 @@ export function createHostMcpService(
 			return finish(call, waited, waited.data, waitNext(waited.data, waitHint));
 		},
 		[WORKFLOW_STOP_TOOL]: async (args, call) => {
-			const stopped = await api.stopAction(await context(args), {
+			const stopped = await api.stopAction(await context(args, call), {
 				runId: requiredString(args, "runId"),
 			});
 			return finish(
@@ -2242,7 +2319,7 @@ export function createHostMcpService(
 		[WORKFLOW_INSPECT_TOOL]: async (args, call) => {
 			const failures = optionalBoolean(args, "failures");
 			const results = optionalBoolean(args, "results");
-			const inspected = await api.inspectAction(await context(args), {
+			const inspected = await api.inspectAction(await context(args, call), {
 				runId: requiredString(args, "runId"),
 				...(failures ? { failures: true } : {}),
 				...(results ? { results: true } : {}),
@@ -2261,7 +2338,7 @@ export function createHostMcpService(
 				throw new UsageError(
 					`stream must be one of ${[...hostApi.LOG_STREAMS, "all"].join(", ")}`,
 				);
-			const logs = await api.logsAction(await context(args), {
+			const logs = await api.logsAction(await context(args, call), {
 				runId: requiredString(args, "runId"),
 				...(task ? { task } : {}),
 				...(lines === undefined ? {} : { lines }),
@@ -2270,9 +2347,12 @@ export function createHostMcpService(
 			return finish(call, logs, logs.data);
 		},
 		[WORKFLOW_VALIDATE_TOOL]: async (args, call) => {
-			const validated = await api.validateWorkflowAction(await context(args), {
-				workflow: requiredString(args, "workflow"),
-			});
+			const validated = await api.validateWorkflowAction(
+				await context(args, call),
+				{
+					workflow: requiredString(args, "workflow"),
+				},
+			);
 			return finish(call, validated, validated.data);
 		},
 		[WORKFLOW_CHECK_TOOL]: async (args, call) => {
@@ -2280,7 +2360,7 @@ export function createHostMcpService(
 				...args,
 				task: optionalString(args, "task") ?? "preflight check",
 			});
-			const checked = await api.checkWorkflowAction(await context(args), {
+			const checked = await api.checkWorkflowAction(await context(args, call), {
 				workflow: requiredString(args, "workflow"),
 				...request,
 			});
@@ -2290,7 +2370,7 @@ export function createHostMcpService(
 			const runId = requiredString(args, "runId");
 			// Time-limited calls: detach unless the caller opts out (as launches).
 			const detach = optionalBoolean(args, "detach") ?? true;
-			const resumed = await api.resumeAction(await context(args), {
+			const resumed = await api.resumeAction(await context(args, call), {
 				runId,
 				...(detach ? { detach: true } : {}),
 			});
@@ -2310,7 +2390,7 @@ export function createHostMcpService(
 			if (decision !== "approve" && decision !== "reject")
 				throw new UsageError('decision must be "approve" or "reject"');
 			const detach = optionalBoolean(args, "detach") ?? true;
-			const ctx = await context(args);
+			const ctx = await context(args, call);
 			if (
 				!clientSupportsFormElicitation(
 					call.protocolVersion,
@@ -2360,7 +2440,7 @@ export function createHostMcpService(
 		[WORKFLOW_SHOW_TOOL]: async (args, call) => {
 			const ref = requiredString(args, "ref");
 			const raw = optionalBoolean(args, "raw");
-			const shown = await api.showAction(await context(args), {
+			const shown = await api.showAction(await context(args, call), {
 				ref,
 				...(raw ? { raw: true } : {}),
 			});
@@ -2374,22 +2454,22 @@ export function createHostMcpService(
 			);
 		},
 		[WORKFLOW_ROLES_TOOL]: async (args, call) => {
-			const roles = await api.workflowRolesAction(await context(args), {
+			const roles = await api.workflowRolesAction(await context(args, call), {
 				workflow: requiredString(args, "workflow"),
 			});
 			return finish(call, roles, roles.data);
 		},
 		[WORKFLOW_AGENTS_TOOL]: async (args, call) => {
-			const agents = await api.listAgentsAction(await context(args));
+			const agents = await api.listAgentsAction(await context(args, call));
 			return finish(call, agents, agents.data);
 		},
 		[WORKFLOW_DOCTOR_TOOL]: async (args, call) => {
-			const doctor = await api.doctorAction(await context(args));
+			const doctor = await api.doctorAction(await context(args, call));
 			return finish(call, doctor, doctor.data);
 		},
 		[WORKFLOW_SUPERVISE_TOOL]: async (args, call) => {
 			const supervised = await api.superviseDetachedAction(
-				await context(args),
+				await context(args, call),
 				{ runId: requiredString(args, "runId") },
 			);
 			return finish(
@@ -2434,7 +2514,7 @@ export function createHostMcpService(
 					error instanceof Error ? error.message : String(error),
 				);
 			}
-			const ctx = await context(args);
+			const ctx = await context(args, call);
 			if (action !== "list") {
 				const refused = await requireConfirmation(call, {
 					action: "notices",
@@ -2466,7 +2546,7 @@ export function createHostMcpService(
 				...(keep === undefined ? {} : { keep }),
 				...(olderThanDays === undefined ? {} : { olderThanDays }),
 			};
-			const ctx = await context(args);
+			const ctx = await context(args, call);
 			if (!dryRun) {
 				const refused = await requireConfirmation(call, {
 					action: "prune",
@@ -2578,7 +2658,7 @@ export function createHostMcpService(
 						"op must be one of list, show, set, delete, default, clear-default, presets",
 					);
 			}
-			const ctx = await context(args);
+			const ctx = await context(args, call);
 			if (change) {
 				const refused = await requireConfirmation(call, {
 					action: "profile",
