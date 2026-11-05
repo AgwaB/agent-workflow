@@ -137,6 +137,13 @@ Unknown keys are refused (`DESCRIPTOR_INVALID`). To try it, register a descripto
   inherits the user's home. Shell `rawOutput` is an object (`combinedOutput`, `exitCode`) and is
   kept. The server itself truncates long shell output. What was released is written to the raw log
   (`{"agentWorkflow":"tool-results"}`), so a replay releases the same.
+- Built-in read tools (`view_file`, `list_directory`, `search_directory`, `find_file`): `rawOutput` is
+  a title ("Read evidence-safe-fetch.ts"), `rawInput` the path and range (`file_path`, `start_line`,
+  `end_line`; recorded deep-review stream, 2026-11-02). Not released from the transcript, on purpose
+  (2026-11-04): no engine feature reads their output. Local evidence is checked against the file's
+  bytes, the read-coverage measurement uses paths and ranges (the inputs are kept), and the web
+  receipts use only web tools, whose outputs are complete: `search_web` returns its grounded summary
+  as `rawOutput`, `read_url_content` is released as above. Revisit if file receipts are built.
 - Inherited variables that would switch the account, project or harness (`GEMINI_API_KEY`,
   `GOOGLE_*`, `GCLOUD_PROJECT`, `CLOUDSDK_CORE_PROJECT`, `ANTIGRAVITY_HARNESS_PATH`, `AGY_ACP_*`;
   Orca's list) are dropped for an isolated worker unless the request sets them. Their names are in
