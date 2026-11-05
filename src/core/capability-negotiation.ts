@@ -136,8 +136,9 @@ function withTimeout<T>(
 	return Promise.race([
 		promise,
 		new Promise<T>((_, reject) => {
+			// Not unref'd (2026-11-05, first CI run on Node 22): it keeps the loop alive while the probe
+			// hangs; cleared as soon as the race settles.
 			timer = setTimeout(() => reject(onTimeout()), timeoutMs);
-			timer.unref?.();
 		}),
 	]).finally(() => clearTimeout(timer));
 }

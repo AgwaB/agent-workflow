@@ -42,6 +42,11 @@ const keep = process.env.AGENT_WORKFLOW_KEEP_TEST_HOME === "1";
 const testTimeoutFlag = flags.some((flag) => flag.startsWith("--test-timeout"))
 	? []
 	: ["--test-timeout=300000"];
+// The spec reporter unless the caller picks one: the summary below reads its "ℹ tests N" lines, and
+// Node 22 writes TAP ("# tests N") to a non-terminal (first CI run 2026-11-05: summary 0 on Node 22).
+const reporterFlag = flags.some((flag) => flag.startsWith("--test-reporter"))
+	? []
+	: ["--test-reporter=spec"];
 const fileTimeoutMs =
 	Number.parseInt(process.env.AGENT_WORKFLOW_TEST_FILE_TIMEOUT_MS ?? "", 10) ||
 	15 * 60 * 1000;
@@ -98,7 +103,7 @@ function runFile(file) {
 		const home = mkdtempSync(join(tmpdir(), "aw-unit-home-"));
 		const child = spawn(
 			process.execPath,
-			["--test", ...testTimeoutFlag, ...flags, file],
+			["--test", ...testTimeoutFlag, ...reporterFlag, ...flags, file],
 			{
 				env: isolatedEnv(home),
 				stdio: ["ignore", "pipe", "pipe"],

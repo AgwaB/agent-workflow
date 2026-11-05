@@ -260,7 +260,9 @@ export function withTimeout<T>(
 				() => reject(new Error(`probe did not finish within ${timeoutMs} ms`)),
 				timeoutMs,
 			);
-			timer.unref?.();
+			// Not unref'd (2026-11-05, first CI run on Node 22): while a probe hangs this timer is all
+			// that keeps the event loop alive; unref'd, Node 22 ended the loop with the probe pending.
+			// It is cleared as soon as the race settles.
 		}),
 	]).finally(() => clearTimeout(timer));
 }
