@@ -535,7 +535,7 @@ async function guarded<T>(work: () => Promise<T>): Promise<T> {
 	}
 }
 
-/** WP28 environment switch of the `aw_*` tools' exposure (docs/environment.md). */
+/** WP28 environment switch of the `aw_*` tools' exposure (docs/usage.md#environment-variables). */
 export const AW_TOOL_EXPOSURE_ENV = "AGENT_WORKFLOW_TOOL_EXPOSURE";
 
 /**

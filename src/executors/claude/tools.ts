@@ -1,7 +1,7 @@
 /**
  * Workflow tool name → Claude Code tool mapping (plan §2.4, owner decision "workflow tool mapping").
  * Names verified against `claude` 2.1.310 `system/init.tools` and live tool calls (WP8); see
- * docs/executors/claude.md for the evidence per row.
+ * docs/executors.md#claude-code for the evidence per row.
  */
 import type { ToolKind } from "../../sdk/events.js";
 import type { ToolMapping } from "../../sdk/tools.js";

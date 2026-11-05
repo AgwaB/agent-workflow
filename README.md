@@ -10,8 +10,8 @@ Pre-release: expect breaking changes before 1.0, including to the executor SDK c
 ## Install
 
 Requires Node.js 22+ and at least one executor CLI installed and logged in:
-[Pi](docs/executors/pi.md) 1.1+, [Codex](docs/executors/codex.md) (`codex-cli` 0.159+),
-[Claude Code](docs/executors/claude.md) 2.1+, or [Antigravity](docs/executors/acp.md).
+[Pi](docs/executors.md#pi) 1.1+, [Codex](docs/executors.md#codex) (`codex-cli` 0.159+),
+[Claude Code](docs/executors.md#claude-code) 2.1+, or [Antigravity](docs/executors.md#antigravity-acp).
 Each executor uses its own login; agent-workflow never handles credentials.
 
 ```sh
@@ -39,9 +39,9 @@ background supervisor. See the [CLI reference](docs/cli.md).
 **The default permission mode is `free`: workers run without approval prompts or a sandbox unless
 the stage declares `readOnly`.** Use `--permission-mode safe` for policy-based approvals that fail
 closed and a worktree for every write-capable stage. All four bundled workflows are read-only.
-See [permission modes](docs/permissions.md) for limits and executor mappings.
+See [permission modes](docs/usage.md#permission-modes) for limits and executor mappings.
 
-Every launch prints a link to the loopback-only [dashboard](docs/dashboard.md), with live tasks,
+Every launch prints a link to the loopback-only [dashboard](docs/hosts.md#dashboard), with live tasks,
 logs, reports and controls. `agent-workflow dashboard --open` opens it; `run … --open` opens it
 for a new run. No sign-in is required by default; `--auth` adds a browser session for shared
 machines and `--readonly` disables controls.
@@ -72,7 +72,7 @@ pi install npm:@agwab/agent-workflow     # persistent; add -l for the project
 ```
 
 In Pi: `/aw list`, `/aw run deep-review "Review the current diff" --executor codex`,
-`/aw wait <run>`. The agent can also use the `aw_*` tools. See the [Pi host guide](docs/pi-host.md).
+`/aw wait <run>`. The agent can also use the `aw_*` tools. See the [Pi host guide](docs/hosts.md#pi).
 
 ### Codex and Claude Code hosts
 
@@ -85,7 +85,7 @@ codex plugin marketplace add AgwaB/agent-workflow && codex plugin add agent-work
 ```
 
 Then ask for a workflow in the conversation. For server-only installation, local development and
-timeouts, see [plugins](docs/plugins.md) and the [host MCP server](docs/host-mcp.md).
+timeouts, see [plugins](docs/hosts.md#claude-code-and-codex) and the [host MCP server](docs/hosts.md#claude-code-and-codex).
 
 ## Bundled workflows
 
@@ -96,13 +96,20 @@ timeouts, see [plugins](docs/plugins.md) and the [host MCP server](docs/host-mcp
 | `spec-review` | You want to check a spec or contract against implementation and tests. |
 | `impact-review` | You need affected areas, risks, missing tests and docs before merging or releasing. |
 
-See [workflow details](workflows/README.md) and [executor support](docs/support.md).
+See [workflow details](workflows/README.md) and [executor support](docs/usage.md#support-matrix).
 Write your own with the bundled `workflow-guide` skill and the [usage guide](docs/usage.md).
 
 ## Documentation
 
-The [documentation index](docs/README.md) covers usage, hosts, executors, permissions,
-configuration, the SDK and architecture.
+| Document | For |
+|---|---|
+| [docs/usage.md](docs/usage.md) | Running and writing workflows: profiles, permission modes, bundled workflows, support matrix, environment variables |
+| [docs/cli.md](docs/cli.md) | The `agent-workflow` command reference |
+| [docs/hosts.md](docs/hosts.md) | Using it from Claude Code, Codex and Pi; the dashboard |
+| [docs/executors.md](docs/executors.md) | How each executor CLI (Pi, Codex, Claude Code, Antigravity) is driven |
+| [docs/extending.md](docs/extending.md) | Writing an executor adapter or another host; architecture |
+
+Tests: `npm run validate` (checks, typecheck, unit tests), `npm run e2e` (packed install), `npm run test:ui-motion` (dashboard animation timing).
 
 ## License
 

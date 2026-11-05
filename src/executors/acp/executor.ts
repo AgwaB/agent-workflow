@@ -808,7 +808,7 @@ export function createAcpExecutor(options: {
 				run.loginRequired === undefined &&
 				preset.loginRequiredPattern?.test(text) === true
 			) {
-				run.loginRequired = `${preset.label} asked for an interactive Google login; the worker home's login is missing or unreadable (sign it in again, docs/executors/acp.md)`;
+				run.loginRequired = `${preset.label} asked for an interactive Google login; the worker home's login is missing or unreadable (sign it in again, docs/executors.md#antigravity-acp)`;
 				reap(run);
 			}
 		};
@@ -976,11 +976,11 @@ export function createAcpExecutor(options: {
 					: { mcpOutputLimitChars: preset.mcpOutputLimitChars }),
 				notes: [
 					preset.id === "antigravity"
-						? `${preset.label} ${cliVersion}: built-in; live tier passed on 1.4.5 (docs/executors/acp.md)`
+						? `${preset.label} ${cliVersion}: built-in; live tier passed on 1.4.5 (docs/executors.md#antigravity-acp)`
 						: `ACP pilot: capabilities are declared, not live-verified (${preset.label} ${cliVersion})`,
 					...(recorded === false
 						? [
-								`no login in the worker home ${config.agentHome}; log in once with authenticateAcpAgent (docs/executors/acp.md)`,
+								`no login in the worker home ${config.agentHome}; log in once with authenticateAcpAgent (docs/executors.md#antigravity-acp)`,
 							]
 						: []),
 				],

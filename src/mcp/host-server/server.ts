@@ -5,7 +5,7 @@
 // --tool-timeout-ms: the host's per-call limit for this server when the plugin set one (Codex
 // tool_timeout_sec); workflow_wait then waits longer per call (hostMcpWaitSliceMs).
 // The project is the server's working directory. stdout carries only MCP protocol messages; every
-// diagnostic goes to stderr. docs/host-mcp.md.
+// diagnostic goes to stderr. docs/hosts.md#claude-code-and-codex.
 import { realpathSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { packageVersion } from "../package-version.js";

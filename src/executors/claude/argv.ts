@@ -1,6 +1,6 @@
 /**
  * `SubmitRequest` → `claude -p` invocation (WP8). Every flag below was checked against
- * `claude --help` 2.1.310 and live runs; docs/executors/claude.md explains each one.
+ * `claude --help` 2.1.310 and live runs; docs/executors.md#claude-code explains each one.
  *
  * Transport: `-p --input-format stream-json --output-format stream-json --verbose
  * --include-partial-messages`. The prompt is written to stdin as one `user` message, which keeps

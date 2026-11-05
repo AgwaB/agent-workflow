@@ -1,5 +1,5 @@
 // WP13 host MCP server: library surface (no side effects). The stdio entry is server.ts; the
-// `agent-workflow-mcp` bin (bin.mjs) launches it. docs/host-mcp.md.
+// `agent-workflow-mcp` bin (bin.mjs) launches it. docs/hosts.md#claude-code-and-codex.
 export const MODULE = "src/mcp/host-server";
 
 export { type HostMcpStdioOptions, serveHostMcpStdio } from "./serve.js";

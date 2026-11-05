@@ -228,7 +228,7 @@ export function artifactMcpServerSpec(
 	};
 }
 
-/** Server flag carrying the per-result output limit (WP5, R#9). Not a config key: see docs/mcp.md. */
+/** Server flag carrying the per-result output limit (WP5, R#9). Not a config key: see docs/extending.md#workflow-artifact-mcp-server. */
 export const ARTIFACT_MCP_OUTPUT_LIMIT_FLAG = "--max-output-chars" as const;
 
 /**

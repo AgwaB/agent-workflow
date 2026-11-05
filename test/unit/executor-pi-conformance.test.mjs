@@ -17,7 +17,7 @@ registerConformanceTests({
 	onResult: (result) => results.push(result),
 });
 
-// Skips must be exactly the justified ones (docs/executors/pi.md "Conformance").
+// Skips must be exactly the justified ones (docs/executors.md#pi "Conformance").
 const JUSTIFIED_SKIPS = {
 	// Pi has no permission prompts in `--mode json --print`: tools outside the allowlist do not exist
 	// for the worker (D2), so there is no approval_request to stage.

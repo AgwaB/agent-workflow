@@ -27,7 +27,7 @@ export const PI_FREE_CODE_PREFIXES = Object.freeze([
 	"dist/hosts/user-profiles.",
 ]);
 
-/** Bundled assets (M4, docs/bundled-workflows.md). */
+/** Bundled assets (M4, docs/usage.md#bundled-workflows). */
 export const BUNDLED_ASSET_PREFIXES = Object.freeze([
 	"workflows/",
 	"skills/",

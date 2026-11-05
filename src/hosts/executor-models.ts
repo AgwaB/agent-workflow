@@ -2,7 +2,7 @@
 // the Pi profile picker (and any host that edits role profiles). For each executor it reports the
 // models its probe lists (no model call: `pi --list-models`, `codex debug models`, Claude Code's
 // aliases; WP31 `probeModelList`) and whether the probe declares that list exhaustive
-// (`modelListComplete`, docs/sdk.md): a role model missing from a complete list is refused at
+// (`modelListComplete`, docs/extending.md#writing-an-executor-adapter): a role model missing from a complete list is refused at
 // launch, one missing from a partial list is only noted. Probes go through the shared per-process
 // cache (`cachedExecutorProber`, 60 s), so opening the picker twice probes once. Never throws for
 // one executor: an unknown, unavailable or failing executor is reported with its state.

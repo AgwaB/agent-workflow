@@ -1,6 +1,6 @@
 /**
  * Codex capability table (plan §2.2) with evidence. `probed` rows were confirmed against a live
- * codex-cli (see docs/executors/codex.md and test/fixtures/executors/codex/live-calls.md);
+ * codex-cli (see docs/executors.md#codex and test/fixtures/executors/codex/live-calls.md);
  * `declared` rows follow the 0.159.2 app-server protocol without a live proof.
  */
 import {
@@ -14,13 +14,13 @@ import {
 // session_ownership, resume) re-passed on 0.165.0 (test/fixtures/executors/codex/live-calls.md
 // "Re-verification on 0.165.0"); the MCP output limit was re-measured on it the same day. Again on
 // 0.166.0 on 2026-11-04 ("Re-verification on 0.166.0"); the output limit was re-measured on it the
-// same day (docs/executors/codex.md, unchanged).
+// same day (docs/executors.md#codex, unchanged).
 export const CODEX_VERIFIED_CLI_VERSION = "0.166.0";
 export const CODEX_VERIFIED_WITH = `codex-cli ${CODEX_VERIFIED_CLI_VERSION}, WP7 live 2026-10-26, re-verified 2026-11-04`;
 
 /**
  * Characters of one MCP tool result the model receives (R#9), measured live with the per-run
- * `tool_output_token_limit` below (see docs/executors/codex.md "MCP output limit"). The artifact
+ * `tool_output_token_limit` below (see docs/executors.md#codex "MCP output limit"). The artifact
  * server is launched with `--max-output-chars` at or below this value.
  */
 export const CODEX_TOOL_OUTPUT_TOKEN_LIMIT = 10_000;

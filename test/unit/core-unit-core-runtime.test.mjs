@@ -1019,7 +1019,7 @@ test("deep-research sanitizer uses Unicode tokens for Korean quote-backed rewrit
 	assert.equal(rewritten.sourceEvidenceHints[0].quote, quote);
 });
 
-// WP10 (C2, docs/bundled-workflows.md M8): URL-only web candidates are no longer demoted (the CLI
+// WP10 (C2, docs/usage.md#bundled-workflows M8): URL-only web candidates are no longer demoted (the CLI
 // web tools issue no wsrc_* sourceRefs) and no preserved claim is promoted in their place. Was:
 // test("deep-research sanitizer demotes url-only candidates and promotes source-backed preserved
 // claims") asserting webUrlOnlyDemotedIds ["claim-001"], promotedCandidateIds ["claim-009"], claim-001

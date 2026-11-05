@@ -88,7 +88,7 @@ import {
 export { PI_EXECUTOR_ID, PI_EXECUTOR_VERSION };
 /** Pi version the adapter was built and verified against (A2-4 native MCP needs 1.1). */
 export const PI_MIN_CLI_VERSION = "1.1.0";
-/** Pi 1.1 cuts MCP text results above 20 KiB (`MCP_OUTPUT_MAX_BYTES`, measured live, docs/executors/pi.md). */
+/** Pi 1.1 cuts MCP text results above 20 KiB (`MCP_OUTPUT_MAX_BYTES`, measured live, docs/executors.md#pi). */
 export const PI_MCP_OUTPUT_LIMIT_CHARS = 20 * 1024;
 /**
  * Upper bound of what Pi adds around a cut MCP result: "Warning: truncated output (…)" header,
@@ -127,7 +127,7 @@ export interface PiExecutorProbe extends ExecutorProbe {
 	readonly webAccessExtension: string | null;
 }
 
-/** Declared capability table (docs/executors/pi.md lists the evidence for every row). */
+/** Declared capability table (docs/executors.md#pi lists the evidence for every row). */
 export function piCapabilities(): ExecutorCapabilities {
 	const live = (name: "native" | "emulated") =>
 		level(name, "probed", PI_VERIFIED_WITH);

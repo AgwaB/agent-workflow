@@ -1,5 +1,5 @@
 // Host-neutral API: CLI, MCP, and Pi adapters call one typed handler per action.
-// No Pi imports; contracts are in docs/host-api.md.
+// No Pi imports; contracts are in docs/extending.md#host-api.
 import { showWorkflowSpecAction } from "./catalog.js";
 import { showRunAction } from "./runs.js";
 import type { HostApiContext, HostResult } from "./types.js";

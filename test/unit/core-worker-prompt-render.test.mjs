@@ -109,7 +109,7 @@ test("the renderer maps the enabled logical tool names for Codex and Claude, not
 	assert.equal(workerToolMappingNote(["read"], "pi"), undefined);
 	assert.equal(workerToolMappingNote([VISIBLE], "codex"), undefined);
 	assert.equal(workerToolMappingNote(["read"], "my-cli"), undefined);
-	// Every tool the adapters map (docs/executors/*.md "Tool mapping") has a row.
+	// Every tool the adapters map (docs/executors.md "Tool mapping") has a row.
 	for (const id of ["codex", "claude", "antigravity"])
 		assert.deepEqual(Object.keys(WORKER_TOOL_NAME_MAPPINGS[id]).sort(), [
 			"bash",

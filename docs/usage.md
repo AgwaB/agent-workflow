@@ -2,7 +2,7 @@
 
 How to find, write, run, wait for, resume and stop workflows, how executors, profiles and permission
 modes are chosen, what a run leaves on disk, and what to do when something goes wrong. Command
-reference: [`cli.md`](cli.md) (CLI) and [`pi-host.md`](pi-host.md) (Pi `/aw`). Install and quick
+reference: [`cli.md`](cli.md) (CLI) and [`pi-host.md`](hosts.md#pi) (Pi `/aw`). Install and quick
 start: [`../README.md`](../README.md).
 
 Examples use the CLI. In Pi, the same actions are `/aw <action> …` (and the `aw_list`, `aw_run`,
@@ -46,17 +46,145 @@ Workflow and agent discovery do not use Pi's directories; runs and settings live
 `.agent-workflow/`; a file outside it shows as `(not read: path is outside the project's artifact
 root …)`.
 
-### Bundled workflows
+## Bundled workflows
 
-| Workflow | Agent | Use when |
+Bundled workflows ship as directory-local bundles with a spec, schemas and support helpers.
+
+### Workflows
+
+| Workflow | Agent | Purpose |
 |---|---|---|
-| `deep-research` | `researcher` | You need a grounded answer based on source material (uses the executor's web tools). |
-| `deep-review` | `scout` | You want code or design reviewed carefully from several angles. |
-| `spec-review` | `scout` | You want to check whether requirements, an API spec or a contract are reflected in the implementation and tests. |
-| `impact-review` | `scout` | Before merging or releasing: affected areas, risks, missing tests and docs. |
+| `deep-research` | `researcher` | Source-backed research, claim verification, synthesis and evidence audit |
+| `deep-review` | `scout` | Independent code/design review, finding verification and deterministic report |
+| `spec-review` | `scout` | Requirements extraction, implementation/test coverage and gap verification |
+| `impact-review` | `scout` | Change scope, contract impact, regression risk and ship readiness |
 
-Every bundled stage is read-only. Which executor runs which bundled workflow, and with which
-degradations: [`support.md`](support.md). Per-workflow detail: [`../workflows/README.md`](../workflows/README.md).
+`deep-research/tiered-verification.spec.json` is an alternative research spec that separates core
+and tail verification. Every bundled spec opts into `allowReadOnlyDowngrade`; all model-backed
+stages are readOnly. None requires Pi-only `fast`, `toolResultBudget` or `inheritHostTools`.
+
+```sh
+agent-workflow list
+agent-workflow show deep-review
+agent-workflow run deep-review "Review the current change." --executor claude
+agent-workflow run deep-research "Compare the storage designs." --input depth=max --profile high
+```
+
+Pi exposes the same actions through `/aw`; MCP hosts use `workflow_list`, `workflow_run` and
+`workflow_wait`. See [workflow inputs](#workflow-inputs---input-keyvalue), [profiles](#profiles),
+[roles](#roles-presets-and-mixed-runs) and [bundle lookup priority](#where-workflows-are-found).
+
+### Reports and evidence
+
+Each workflow emits explicit limitations and the [standard report outputs](#run-records).
+Full reports end with Related artifacts. Deep-research also writes
+`executive.md` and `audit.md`; deep-review writes `review.md`; spec-review and impact-review write
+`source-ledger.json`. Missing or inconsistent canonical inputs fail or block rendering rather than
+produce a clean report.
+
+Review verdicts are deterministic. Kept/weakened findings make deep-review `NEEDS_WORK`, with
+incomplete coverage named as limitations; without findings, incomplete coverage is `PARTIAL_REVIEW`.
+Grounded spec-review gaps on an intact ledger yield `GAPS_FOUND`; without gaps, unresolved
+requirements yield `INCONCLUSIVE`, and `CONFORMS` requires complete coverage. See
+[local review evidence](#local-review-evidence) for requirement rechecks and repository-byte
+citation checks.
+
+Deep-research uses the CLI's `web_search` and `fetch_content` mappings and the
+[web quote check](#support-helpers). The check accepts exact and formatting-folded quotes, with
+symbol-spacing tolerance only for math; without it, source verification is model-reported.
+
+Research synthesis requires a header and all sixteen indexed pages at `maxChars: 16000`, including
+empty tails, exactly once. Pages are bounded in UTF-16 units and UTF-8 bytes, with 256,000 aggregate
+page units plus a bounded header. Oversized rows or bank exhaustion block explicitly; larger/root
+reads do not substitute for the required projections.
+
+Reports use the task's requested language (otherwise its language), retaining verdict tokens,
+identifiers, paths, code and evidence quotes. Impact-review's completion summary lists at most four
+action rows, blocking first, and counts the remainder; the full report retains every row.
+
+### Skills and agents
+
+| Asset | Purpose |
+|---|---|
+| `skills/agent-workflow/SKILL.md` | Host MCP tool protocol |
+| `skills/workflow-guide/SKILL.md` and `scaffolds/` | Workflow authoring, validation and starter patterns |
+| `skills/execution-router/SKILL.md` | Recommendation-only execution-path selection |
+| `agents/scout.md` | Local exploration for review workflows |
+| `agents/researcher.md` | Research with `read`, `grep`, `find`, `ls`, `web_search`, `fetch_content` |
+
+Plugin skill copies are generated for the host's MCP tool names; see [plugins](hosts.md#claude-code-and-codex).
+Unknown tool names do not grant tools: use `web_search` / `fetch_content`, not `workflow_web_*`.
+
+### Worker prompt rendering
+
+Write `workflow_artifact` or `{{workflow_artifact}}` in prompts. The engine renders it to the
+executor-visible name, leaving evidence locators such as `workflow_artifact:<id>` unchanged.
+Persisted prompts and their hashes retain canonical logical names. Workers with the artifact server
+also receive its guidelines in the system prompt.
+
+Logical tools are rendered per executor: Claude uses `Read`, `Grep`, `Glob`, `WebSearch` and
+`WebFetch`; Codex uses read-only shell commands and hosted `web_search`; Pi keeps the logical names.
+See [MCP](extending.md#visible-tool-names) for artifact tool naming.
+
+### Support table
+
+This is offline capability negotiation, not a model-quality comparison. Each spec is compiled with
+its default profile, then negotiated in `free` (the run default) and `safe` modes. The policy is
+non-interactive, with no unverified opt-in or strict profile, and uses the spec's
+`allowReadOnlyDowngrade`.
+
+“Declared table” uses `createExecutor(null).capabilities()`. “Probed, clean environment” merges
+probe rows for Pi with `pi-web-access`, Codex without global `AGENTS.md` or allow rules, and Claude
+with no changed negotiated row. Generator: `test/helpers/bundled-support-table.mjs --write`.
+
+- **accept**: no degradation. **degrade**: accepted and recorded. **refuse**: nothing starts.
+- `webTools.safetyPolicy:unknown`: CLI browsing policy is not engine-enforced.
+- `CAPABILITY_MISSING:toolAllowlist.fine`: Codex cannot enforce precise tool lists. `free` records
+  this; `safe` uses `forcedReadOnly` because these specs opt in. Bundled stages remain readOnly in
+  both modes.
+- `CAPABILITY_MISSING:usage.cost`: token-only usage; unknown cost is `null`.
+- `CAPABILITY_UNVERIFIED:webTools`: Pi's declared table cannot confirm `pi-web-access`; the probe
+  must find it. Without it, research is refused with `CAPABILITY_MISSING:webTools`.
+- Codex global instructions or allow rules can add isolation/readOnly warnings. `free` records
+  them; `safe` asks an interactive host, and strict capabilities can refuse them.
+
+<!-- bundled-support-table:start -->
+<!-- Generated by test/helpers/bundled-support-table.mjs; do not edit by hand. -->
+
+| Workflow | Executor | Mode | Stages | Declared table | Probed, clean environment |
+|---|---|---|---|---|---|
+| `deep-research/spec.json` | pi | free | 5 | refuse: `CAPABILITY_UNVERIFIED:webTools` | degrade: `webTools.safetyPolicy:unknown` |
+| `deep-research/spec.json` | pi | safe | 5 | refuse: `CAPABILITY_UNVERIFIED:webTools` | degrade: `webTools.safetyPolicy:unknown` |
+| `deep-research/spec.json` | codex | free | 5 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `webTools.safetyPolicy:unknown` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `webTools.safetyPolicy:unknown` |
+| `deep-research/spec.json` | codex | safe | 5 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` |
+| `deep-research/spec.json` | claude | free | 5 | degrade: `webTools.safetyPolicy:unknown` | degrade: `webTools.safetyPolicy:unknown` |
+| `deep-research/spec.json` | claude | safe | 5 | degrade: `webTools.safetyPolicy:unknown` | degrade: `webTools.safetyPolicy:unknown` |
+| `deep-research/tiered-verification.spec.json` | pi | free | 6 | refuse: `CAPABILITY_UNVERIFIED:webTools` | degrade: `webTools.safetyPolicy:unknown` |
+| `deep-research/tiered-verification.spec.json` | pi | safe | 6 | refuse: `CAPABILITY_UNVERIFIED:webTools` | degrade: `webTools.safetyPolicy:unknown` |
+| `deep-research/tiered-verification.spec.json` | codex | free | 6 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `webTools.safetyPolicy:unknown` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `webTools.safetyPolicy:unknown` |
+| `deep-research/tiered-verification.spec.json` | codex | safe | 6 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly`, `webTools.safetyPolicy:unknown` |
+| `deep-research/tiered-verification.spec.json` | claude | free | 6 | degrade: `webTools.safetyPolicy:unknown` | degrade: `webTools.safetyPolicy:unknown` |
+| `deep-research/tiered-verification.spec.json` | claude | safe | 6 | degrade: `webTools.safetyPolicy:unknown` | degrade: `webTools.safetyPolicy:unknown` |
+| `deep-review/spec.json` | pi | free | 4 | accept | accept |
+| `deep-review/spec.json` | pi | safe | 4 | accept | accept |
+| `deep-review/spec.json` | codex | free | 4 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost` |
+| `deep-review/spec.json` | codex | safe | 4 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` |
+| `deep-review/spec.json` | claude | free | 4 | accept | accept |
+| `deep-review/spec.json` | claude | safe | 4 | accept | accept |
+| `impact-review/spec.json` | pi | free | 12 | accept | accept |
+| `impact-review/spec.json` | pi | safe | 12 | accept | accept |
+| `impact-review/spec.json` | codex | free | 12 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost` |
+| `impact-review/spec.json` | codex | safe | 12 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` |
+| `impact-review/spec.json` | claude | free | 12 | accept | accept |
+| `impact-review/spec.json` | claude | safe | 12 | accept | accept |
+| `spec-review/spec.json` | pi | free | 7 | accept | accept |
+| `spec-review/spec.json` | pi | safe | 7 | accept | accept |
+| `spec-review/spec.json` | codex | free | 7 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost` |
+| `spec-review/spec.json` | codex | safe | 7 | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` | degrade: `CAPABILITY_MISSING:toolAllowlist.fine`, `CAPABILITY_MISSING:usage.cost`, `forcedReadOnly` |
+| `spec-review/spec.json` | claude | free | 7 | accept | accept |
+| `spec-review/spec.json` | claude | safe | 7 | accept | accept |
+
+<!-- bundled-support-table:end -->
 
 ## Running
 
@@ -112,7 +240,7 @@ and [CLI `auto`](cli.md#auto) for selection, consent, launch metadata and JSON o
 Pi asks through a confirm dialog, then a select and final confirmation; MCP hosts use elicitation
 and a one-choice form. Pi print/JSON mode and MCP clients without elicitation send no request:
 they return the local shortlist and direct launch commands. Only explicit consent sends the task;
-CLI `--yes` supplies that consent in advance. Host details: [Pi](pi-host.md), [MCP](host-mcp.md).
+CLI `--yes` supplies that consent in advance. Host details: [Pi](hosts.md#pi), [MCP](hosts.md#claude-code-and-codex).
 
 The `execution-router` skill stays recommendation-only: it may suggest `auto`, but never runs it.
 
@@ -193,7 +321,7 @@ exits 1; the intent stays durable and is applied when the supervisor next runs.
 | `pi` | `pi --mode json` | Pi 1.1+. deep-research needs the `pi-web-access` extension (`pi install npm:pi-web-access`; `agent-workflow doctor` checks it). |
 | `codex` | `codex app-server` | codex-cli 0.159+. Coarse tool allowlist (a sandbox mode). |
 | `claude` | `claude -p` (stream-json) | Claude Code 2.1+. |
-| `antigravity` (experimental) | `agy_acp_server` (ACP) | Gemini models; see [ACP configuration and limits](executors/acp.md). |
+| `antigravity` (experimental) | `agy_acp_server` (ACP) | Gemini models; see [ACP configuration and limits](executors.md#antigravity-acp). |
 
 Each executor uses its own CLI login (agent-workflow never handles credentials). Choose with
 `--executor <id>`, a profile, or a saved default profile. Precedence for both the executor and the
@@ -353,19 +481,101 @@ executor.
 
 ## Permission modes
 
-**The default is `free`.** Workers start without approval prompts and without sandbox restrictions,
-except on stages the workflow declares `readOnly`, which stay read-only in both modes. Workers still
-do not load your personal settings, instructions, hooks or skills unless a stage opts in (`inherit`).
-Approval requests that still arrive are allowed by engine policy and audited
-(`engine-policy:free`); mutating requests on a readOnly stage are denied.
+Workers run in `free` mode by default. Choose `safe` for conservative approvals and sandbox settings.
 
-Choose **`safe`** for the conservative behavior: no bypass flags, policy-based approvals that fail
-closed, a worktree for every write-capable stage, and capability warnings that need confirmation in
-an interactive host. Select it with `--permission-mode safe`, a declared profile's mode, or
-`permissionMode` on a saved profile. An invalid value fails before anything starts. Nested runs follow
-their parent's mode.
+### The two modes
 
-Executor mappings, worktree exceptions and SDK obligations: [`permissions.md`](permissions.md).
+| | `free` (default) | `safe` |
+|---|---|---|
+| Approval prompts | none: the worker CLI is started without them. A request that still arrives is answered `allow` by the engine and audited `engine-policy:free` | policy-based: kinds the stage's tools imply are allowed, everything else is denied (fail-closed) unless an interactive host answers |
+| Sandbox | none for stages that are not `readOnly` | the adapter's narrowest mapping (no bypass flags) |
+| Write-capable stage with spec `worktreePolicy: "off"` | runs in the shared checkout as written | still gets a worktree unless the run option `allowSharedCheckoutWrites` waives it |
+| `worktreePolicy: "auto"` / `"on"` | a worktree for write-capable stages | same |
+| Coarse tool allowlist (Codex) | accepted for every stage; recorded as a degradation `CAPABILITY_MISSING:toolAllowlist.fine` | refused, or run as readOnly when the spec sets `allowReadOnlyDowngrade` |
+| Environment warnings (Codex `~/.codex/rules` allow rules, global `AGENTS.md`) | recorded degradations; never refused (not even by a profile's `strictCapabilities`), no confirmation prompt | recorded degradations; interactive hosts confirm; `strictCapabilities` refuses |
+
+**Kept in both modes:**
+
+- A stage the spec declares `readOnly` stays read-only: Claude read-only tool set with
+  `--permission-mode default`, Codex `read-only` sandbox with approvals `on-request`, Pi read-only tool
+  list. Approval requests for mutating kinds on a readOnly stage are denied.
+- Context isolation: workers do not load the user's settings, instructions, hooks or skills unless the
+  stage sets `inherit` (`inheritProjectContext` / `inheritSkills`).
+- Capability checks for missing or unverified capabilities, MCP injection and web tools.
+
+### Choosing a mode
+
+Selection follows [executor precedence](#executors); the default is `free`.
+Use CLI `--permission-mode safe` (or `free`), or the API/profile settings below.
+
+| Where | How |
+|---|---|
+| Run flag | engine run option `permissionMode: "safe"` (or `"free"`) on `runWorkflowSpec` / `runDynamicTask` |
+| Workflow-declared profile | spec top level `"executionProfilePermissionModes": { "<declared profile>": "safe" }`, selected with `executionProfile` |
+| Saved user profile | `permissionMode: "safe"` on the captured profile (`WorkflowCapturedExecutionProfile`) |
+
+An invalid value from any source fails before any run record or launch, naming the source. Nested runs
+follow the parent run's recorded mode. Older runs without a recorded mode run as `safe`.
+
+### Where the mode is visible
+
+- Run record: `run.permissionMode = { mode, source, profile? }` (`source`: `run-flag`,
+  `workflow-profile`, `user-profile`, `default`, `parent-run`).
+- Capability preview, first line: `Capability check (<executor>@<version>, <n> stages, permission
+  mode: free): …`; free-accepted entries are marked `(accepted: free mode)`. The recorded negotiation
+  policy carries `permissionMode` too.
+- Mixed runs: the mode is one per run; each stage's executor applies it its own way (the
+  adapter table below), so a `free` run whose planning stage runs on Claude
+  and research on Codex gets `bypassPermissions` there and `danger-full-access` here. The preview
+  names every executor (`Capability check (mixed: claude@… ×n + codex@… ×m, …)`).
+- Each attempt: `SubmitRequest.permissionMode` (execution plan, `executor.json`, durable worker payload);
+  adapters record their resulting invocation (`claude-invocation.json`, the Codex raw transcript).
+- Approvals: `approvals.jsonl` and the result metadata record `by: "engine-policy:free"` for answers made
+  by the free-mode policy.
+
+### SDK contract and adapter obligations
+
+`SubmitRequest.permissionMode?: "free" | "safe"` is additive and validated (`validateSubmitRequest`).
+**Absent means `safe`** (`effectivePermissionMode`), so a third-party caller that omits it gets the
+conservative behavior. The engine always sets it. `isUnrestricted(req)` is true only for `free` on a
+request that is not `readOnly`.
+
+An adapter must:
+
+1. For `safe` (or absent): use no bypass/auto-accept setting; route approvals to `respond()`.
+2. For `free` on a non-readOnly request: start the CLI without approval prompts and without sandbox
+   restrictions, using the CLI's documented setting (prefer a documented mode value over a
+   `--dangerously-*` alias). Keep the approval channel wired, so a request that still arrives reaches
+   the engine.
+3. For a readOnly request: use exactly the `safe` settings in both modes.
+4. Keep context isolation independent of the mode.
+5. Document both mappings and register them with the conformance kit (`harness.permissionModes`,
+   offline check `permission.mode_mapping`). An adapter whose CLI has no approval or sandbox concept sets
+   `equivalent` with the reason.
+
+| Adapter | `free` (not readOnly) | `safe` / readOnly |
+|---|---|---|
+| Claude (2.1.310) | `--permission-mode bypassPermissions` | `--permission-mode default` (+ `--disallowedTools` for readOnly) |
+| Codex (0.159.2) | `thread/start` `sandbox: "danger-full-access"`, `approvalPolicy: "never"` | mapped sandbox (`workspace-write` / `read-only`), `approvalPolicy: "on-request"` |
+| Pi (1.1.0) | same argv as `safe`: every requested tool (Pi has no approvals or sandbox) | readOnly drops mutating tools from `--tools` |
+
+The engine's approval decision (`decideApproval(policy, request, {readOnly, permissionMode})`): `free`
+allows everything except mutating kinds on a readOnly stage; `safe` uses the stage's approval policy.
+
+### Read-only shell commands
+
+An agent with no list, grep or find tool (Antigravity) runs
+`ls` or `rg` through its shell tool, which reports every command as `execute`. On a readOnly
+stage, an `execute` request whose `command` (the exact command line, when the adapter can see
+it) is one plain inspection command is judged as `search`. A plain command has no shell
+operators, `$`, backticks, unquoted globs or braces, word-initial `~`, backslashes or newlines.
+The inspection commands are `cat du file find git grep head ls pwd rg stat tail tree wc`, with git
+limited to `status log show diff blame rev-parse ls-files`. Options that write, run another program
+or never end are refused per command: `rg --pre/--pre-glob/--hostname-bin/-z`, `tree -o`,
+`file -C`, `find -exec/-execdir/-ok/-okdir/-delete/-fprint*/-fls`, `tail -f/-F`, and
+`git --output/--ext-diff/--textconv/--exec`. Everything else stays `execute` and is denied.
+The command string must already be plain: the approval handler does not rewrite it.
+The approval audit records the command and "read-only command judged as search".
 
 ## Preflight: capability, tools, models and effort
 
@@ -589,13 +799,14 @@ classification for execution profiles, not a context role.
 ### Tool allowlists
 
 `tools` (agent frontmatter < `defaults.tools` < stage `tools`; the most specific list wins) names
-tools with Pi names: `read`, `grep`, `find`, `ls`, `bash`, `edit`, `write`, `web_search`,
-`fetch_content`, `workflow_artifact`. Each executor maps them (Claude: `Read`, `Grep`, `Glob`,
+built-in tools: `read`, `grep`, `find`, `ls`, `web_search`, `fetch_content`, `edit`, `write`,
+`bash`. Other names are custom tools; `workflow_artifact` is the
+[artifact MCP tool](#artifacts-and-required-reads). Each executor maps them (Claude: `Read`, `Grep`, `Glob`,
 `WebSearch`, `WebFetch`; Codex: its shell and sandbox, hosted `web_search`; Pi: the same names) and
 the engine tells the worker the mapping in its system prompt. The agent's frontmatter `tools` are the
-ceiling: a spec cannot grant a tool the agent did not declare. Object entries (`{name, extensions,
-classification, optional, fallbackTools}`) describe custom tools; unclassified custom tools are
-blocked. `readOnly: true` is a safety declaration (read-only tools, read-only sandbox where the
+ceiling: a spec cannot grant a tool the agent did not declare. Object entries
+(`{name, classification, optional, fallbackTools}`) describe custom tools; unclassified custom tools
+are blocked. `readOnly: true` is a safety declaration (read-only tools, read-only sandbox where the
 executor has one), not filesystem isolation.
 
 **Write-capable stages.** A stage that is not `readOnly` and keeps a mutating tool (`edit`, `write`,
@@ -603,7 +814,7 @@ executor has one), not filesystem isolation.
 `defaults`') `worktreePolicy`: `"auto"` (default) and `"on"` give each write-capable task its own
 managed git worktree (`.agent-workflow/workflows/<run>/worktrees/<task>`, branch
 `agent-workflow/<run>-<task>`); `"off"` writes in the shared checkout in `free` mode only — `safe`
-still uses a worktree unless the run sets `allowSharedCheckoutWrites` (docs/permissions.md). There is
+still uses a worktree unless the run sets `allowSharedCheckoutWrites` ([permission modes](#permission-modes)). There is
 no auto-merge: the user reviews and merges the branch (see "Worktrees" under Retention). A worktree
 needs a git repository: outside one a task that needs a worktree does not start (`managed worktree
 required … is not inside a git repository`); only `"off"` in `free` mode writes in the live
@@ -613,6 +824,12 @@ writing task run the build or tests in its worktree and report the result in its
 separate verification stage that worktree's path. Workers never commit.
 
 ### Local review evidence
+
+Local review citations are checked against repository bytes. Unique matches can receive recorded
+corrections for positions at most 10 lines away, whitespace/line endings, quote/dash/space folding,
+soft-wrapped lines, and omitted inline-code/emphasis markers in Markdown files. Different words,
+ambiguous matches and invalid UTF-8 still fail. Reports list Evidence corrections. See
+the reader boundaries and source accounting below.
 
 `spec-review` verifiers cite typed local evidence rows `{file, lineStart, lineEnd, quote,
 relevance?}` (at most 64 per array). KEEP/WEAKEN need verified evidence, DROP needs verified
@@ -635,8 +852,8 @@ per unique extracted requirement id (`covered`, `gap`, `partial`, `unclear`, `ne
 needs every requirement covered by typed bytes, and anything unresolved stays `INCONCLUSIVE`.
 Requirements the candidate stage leaves `unclear` (at most 8) get one more look in
 `recheck-requirements`: a recheck that finds the behavior with verified citations makes the row
-`covered`; any other answer stays `unclear` and is shown beside it in the coverage table. The
-renderer rereads the source chain and rechecks citations before `passed`. `deep-review` applies the
+`covered`; any other answer stays `unclear` and is shown beside it in the coverage table.
+`needsHuman` rows are not rechecked. The renderer rereads the source chain and rechecks citations before `passed`. `deep-review` applies the
 same idea to reviewer `sourceCoverage` (`read`, `ocr-extracted`, `metadata-only`, `unreadable`):
 unverifiable required sources force `PARTIAL_REVIEW`.
 
@@ -647,7 +864,7 @@ Workers read upstream artifacts through one MCP tool, `workflow_artifact` (`list
 `result`, optional `path` / `maxItems` / `maxChars` projections, or `offset` for paging). Prompts
 name it `workflow_artifact`; the engine renders the name each executor shows its model
 (`mcp__workflow_artifact__workflow_artifact` on Pi, Codex and Claude Code). Every read appends a row to
-the task's `read-ledger.jsonl`. Details: [`mcp.md`](mcp.md).
+the task's `read-ledger.jsonl`. Details: [`mcp.md`](extending.md#workflow-artifact-mcp-server).
 
 `inputPolicy.requiredReads` (with `enforcement: "fail"`) makes a stage prove it read named
 artifacts before its output is accepted. A string entry (`"plan.control"`) requires a complete read;
@@ -702,7 +919,7 @@ of all four. Support helpers make no model call and report nothing (not zeros). 
 reported, estimated or **unknown**: an unknown cost is `null` in the records and `cost unknown` in the
 host text (`cost=unknown` in the detailed run view), never `0` or `$0`; the run roll-up's `costUsd` is `null` when no
 task reported a cost. Codex reports no cost; Pi's is an estimate; Claude's is notional on a
-subscription: see [`support.md`](support.md).
+subscription: see [support matrix](#support-matrix).
 
 **Worker sessions.** By default no worker keeps a CLI session: workers run without session
 persistence (Claude `--no-session-persistence`, Codex ephemeral threads, Pi `--no-session`), and output
@@ -792,12 +1009,87 @@ removed only when named with the adapter's attemptKey hex digest (Claude 40, Cod
 characters), alone or with `.events.jsonl`, `.log` or an atomic-write temp suffix. Other files
 are left untouched.
 
+## Support matrix
+
+Hosts call the shared host API; workers run on the executor selected for each stage. An explicit
+run choice takes precedence over profiles and host defaults. See the generated
+[bundled workflow support table](#support-table) for capability negotiation in
+`free` and `safe` modes.
+
+### Verified CLI versions
+
+| Executor | Adapter | Verified CLI | Documentation |
+|---|---|---|---|
+| `pi` | 0.1.0 | Pi 1.1.0 (minimum 1.1.0 for native MCP) | [Pi](executors.md#pi) |
+| `codex` | 0.1.0 | codex-cli 0.166.0 | [Codex](executors.md#codex) |
+| `claude` | 0.1.0 | claude-code 2.1.318 | [Claude](executors.md#claude-code) |
+| `antigravity` (experimental) | ACP adapter | `agy_acp_server` 1.4.5 | [ACP](executors.md#antigravity-acp) |
+
+These versions were checked on macOS. SDK contract: `0.1.0`. `probe()` notes a CLI version that
+differs from the verified version; run the [conformance kit](extending.md#conformance-kit) before relying on it.
+Authentication is the CLI's own login.
+
+### Hosts
+
+| Host | Integration | Default executor | Worker executors |
+|---|---|---|---|
+| Pi 1.1.0 | [Extension](hosts.md#pi), `/aw` commands and `aw_*` tools | `pi` | pi, codex, claude; experimental antigravity |
+| Claude Code 2.1.318 | [Plugin](hosts.md#claude-code-and-codex) or [host MCP server](hosts.md#claude-code-and-codex) | `claude` | pi, codex, claude; experimental antigravity; mixed roles |
+| Codex 0.166.0 | [Plugin](hosts.md#claude-code-and-codex) or [host MCP server](hosts.md#claude-code-and-codex) | `codex` | pi, codex, claude; experimental antigravity; mixed roles |
+| Terminal CLI | `agent-workflow` | First installed and logged-in of pi → claude → codex | Any registered executor |
+
+MCP hosts use `workflow_*` tools. Pi uses `aw_*` tools and `/aw` commands. All worker executors must
+be installed and logged in before launch; mixed runs probe each executor once.
+
+| Host | Progress and completion | Limits |
+|---|---|---|
+| Pi | Footer, run board, one completion message | RPC, print and JSON modes use text commands instead of the board |
+| Claude Code | `workflow_wait` / `workflow_status`, optional status line and prompt hook, terminal `agent-workflow watch` | Print mode (`-p`) cancels elicitation, so actions requiring a dialog cannot obtain consent there |
+| Codex | `workflow_wait` / `workflow_status`, interactive-session completion wake, optional prompt hook, terminal `agent-workflow watch --bell` | `approval_policy="never"` auto-accepts empty confirmation forms and cancels enum forms; use `on-request` to be asked |
+
+Interactive Codex runs linked through MCP wake the host with `codex queue` once on settlement;
+`codex exec` uses polling instead. `AGENT_WORKFLOW_HOST_WAKE=0` disables wake delivery. A result
+already received through `workflow_wait` is not delivered again.
+
+### Offline matrix
+
+See the [generated support table](#support-table) for both permission modes and both
+deep-research specs.
+
+A domain verdict such as `NEEDS_WORK`, `GAPS_FOUND` or `BLOCKED` describes the reviewed target, not
+an executor failure. A final verdict gate may still mark the run `failed`; hosts present a declared
+verdict with an existing in-run report as “finished — verdict: X (report ready)”.
+
+### Known limits per executor
+
+Full adapter limits: [Pi](executors.md#known-limits), [Codex](executors.md#known-limits-1),
+[Claude](executors.md#known-limits-2), [ACP](executors.md#antigravity-acp).
+
+| Executor | Limits |
+|---|---|
+| Pi | No approvals or sandbox: both modes use the same argv; readOnly removes mutating tools. `sessionBound`: cannot re-attach after the owning process dies. Deep-research needs `pi install npm:pi-web-access`. Cost is a catalog estimate, including on subscriptions. Fast tier remains unverified and requires `allowUnverifiedCapabilities: ["fastTier"]`; guard failure is `config`, degradation is `payload-only`, recorded in `pi-fast-tier.json`. |
+| Codex | Only a coarse tool allowlist. `free` records precise-list degradation; `safe` forces readOnly if the spec permits, otherwise refuses. Global `$CODEX_HOME/AGENTS.md` and rules cannot be disabled per run; the probe warns about weakened isolation/readOnly. Tokens only: cost is `null`, never `0`. Hosted `web_search` has no separate fetch. `fetch_content`, `grep`, `find`, `ls` mappings and token-refresh contention are unverified. See [run records](#run-records) for attempt-record retention. |
+| Claude | `sessionBound`: lost stdio requires a reconcile decision. The CLI auto-allows reads inside cwd and read-only Bash commands. The full environment is inherited; `ANTHROPIC_API_KEY` selects API-key billing. Cost is `total_cost_usd`, notional on subscriptions. The runtime, not the adapter, enforces timeouts. |
+| Antigravity | Experimental; capabilities remain `declared`. Workspace `AGENTS.md` / `GEMINI.md` are not isolated. No session ownership or resume. |
+
+### Shared limits
+
+- CLI browsing safety limits are described in [capability preflight](#preflight-capability-tools-models-and-effort).
+- See [run records](#run-records) for normalized usage, cost and worker-session retention.
+- Non-readOnly Pi workers may inherit native host codemode/MCP tools from a trusted Pi host;
+  readOnly workers never do. Project `.pi/mcp.json` servers do not reach workers. Other executors'
+  user-MCP inheritance is a separate opt-in.
+- See [roles, presets and mixed runs](#roles-presets-and-mixed-runs) for per-stage negotiation
+  and model availability. A run-level `--model` is not checked against the probe's model list.
+- Host text carrying worker output redacts structured credentials and home paths.
+  See [discovery and artifact boundaries](#where-workflows-are-found) for log-read restrictions.
+
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
 | `Not started: no executor is usable` | No `--executor`/profile chose one and none of `pi`, `claude`, `codex` is installed and logged in. The message lists each CLI's state and its install or login command; `agent-workflow doctor` shows the same. |
-| `Not started: … EXECUTOR_NOT_INSTALLED` / `EXECUTOR_AUTH_NOT_READY` | The executor CLI is missing or not logged in. The message names the install command or the login command (`pi` then `/login`, `codex login`, `claude auth login`; antigravity: sign its worker home in once, `docs/executors/acp.md`); or pick another `--executor`. Every executor a run uses is checked before anything starts: a mixed run lists each one it cannot use with the stages that use it (`2 executors this run needs cannot be used: …`). |
+| `Not started: … EXECUTOR_NOT_INSTALLED` / `EXECUTOR_AUTH_NOT_READY` | The executor CLI is missing or not logged in. The message names the install command or the login command (`pi` then `/login`, `codex login`, `claude auth login`; antigravity: sign its worker home in once, `docs/executors.md#antigravity-acp`); or pick another `--executor`. Every executor a run uses is checked before anything starts: a mixed run lists each one it cannot use with the stages that use it (`2 executors this run needs cannot be used: …`). |
 | `Not started: … CAPABILITY_REFUSED` | A stage needs something the executor cannot do. The message lists each refusal and its opt-in, if any (`--allow-unverified`, `allowReadOnlyDowngrade`, `--permission-mode free`). |
 | deep-research refused on Pi with `webTools` | Your Pi has no `pi-web-access` (not bundled). Install it with `pi install npm:pi-web-access` (check with `pi list` or `agent-workflow doctor`), or use `--executor claude`/`codex`. The refusal and the preview name the same command. |
 | Codex runs show `readOnly`/`contextIsolation` warnings | Your `~/.codex/rules` has allow rules or a global `~/.codex/AGENTS.md` exists. Recorded only; remove them for a clean run. |
@@ -812,4 +1104,118 @@ are left untouched.
 | The CLI prints a test-executor warning or exits 2 on every command | `AGENT_WORKFLOW_TEST_EXECUTOR_MODULE` is set; unset it (test-only hook). |
 | Changed a bundled workflow but the run still uses the old one | Runs execute their copied `bundle/`; start a new run. |
 
-Environment variables: [`environment.md`](environment.md).
+## Environment variables
+
+Every `AGENT_WORKFLOW_*` variable that the package reads (`src/`), what it does and its default,
+followed by the variables only the test suites and release tools read. Set user controls before you
+start the CLI, the Pi host or a detached supervisor: child processes (durable workers, supervisors,
+the artifact MCP server) inherit them. None of these variables grants a worker more tool authority or
+weakens an evidence gate.
+
+Boolean flags marked "flag" are on for `1`, `true`, `yes` or `on` (case-insensitive) and off
+otherwise.
+
+### Supported configuration
+
+| Variable | What it does | Default |
+|---|---|---|
+| `AGENT_WORKFLOW_DASHBOARD_AUTH` | Exactly `1`: dashboards started without `--auth` (including auto-started detached ones) require the browser sign-in session instead of the default open loopback mode. | off |
+| `AGENT_WORKFLOW_DASHBOARD_AUTOSTART` | Exactly `0` disables detached dashboard auto-start after successful run/dynamic/auto launches; worker roles and read-only contexts never auto-start. Does not open a browser. | on |
+| `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` | Detached dashboard idle exit interval (milliseconds); no SSE clients and no live run. Minimum 60000; invalid values are usage errors. Foreground dashboards never idle out. | `7200000` (2 h) |
+| `AGENT_WORKFLOW_DASHBOARD_POLL_MS` | Dashboard polling interval; accepts 500–10000 ms with a 1000 ms minimum effective interval. | `1000` |
+| `AGENT_WORKFLOW_DASHBOARD_OPEN` | Exactly `1`: open a dashboard after CLI run/dynamic/auto launches on a terminal; suppressed in agent environments. Explicit `--open` overrides suppression and non-TTY checks. | off |
+| `BROWSER`, `BROWSER_ARGS` | Program (and extra arguments) used to open dashboard URLs instead of the platform opener (`open` / `xdg-open` / `rundll32`); `BROWSER=none` opens nothing. Vite/Jupyter convention. | platform opener |
+| `AGENT_WORKFLOW_AGY_ACP_SERVER` | Antigravity ACP server command override. | `agy_acp_server` on PATH |
+| `AGENT_WORKFLOW_HOST_WAKE` | `0` disables completion messages queued into the interactive Codex session that launched a run through MCP. Already reported states do not wake the session. | on |
+| `AGENT_WORKFLOW_LOGIN_SHELL_PATH` | `0` disables importing missing absolute PATH entries from the user's login shell for the MCP server. Existing PATH entries keep priority. On non-Windows systems, tries login and interactive-login shells, each with a 10 s timeout; unavailable output leaves PATH unchanged. | on |
+| `AGENT_WORKFLOW_EVIDENCE_REFETCH` | `0` disables the engine-side web quote check for new runs. The run records the setting for later supervisors and resumes. See [support helpers](usage.md#support-helpers). | on |
+| `AGENT_WORKFLOW_HOME` | Per-user directory: user workflows (`workflows/`), user agents (`agents/`), saved user profiles (`user-profiles/v1/profiles.json`), per-workflow profile preferences, executor state (`executors/<id>/`). | `~/.agent-workflow` |
+| `AGENT_WORKFLOW_RUN_INDEX_DIR` | Directory of the runtime's run locator index (lets `status`/`wait` find a run by id from another process). | `~/.agent-workflow/run-index` |
+| `AGENT_WORKFLOW_RUN_LOCATOR_PRUNE_AFTER_MS` | Age after which stale run locators are pruned from the index. | 30 days |
+| `AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA` | `1`: reject a named workflow before launch when its prompt/schema diagnostics are strict-blocking (direct dynamic runs are excluded). Ordinary validation applies either way. | off |
+| `AGENT_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS` | Tool-result budget for dynamic generated tasks (static stages keep their spec budgets). `0` or a negative value disables it. | `320000` |
+| `AGENT_WORKFLOW_TOOL_EXPOSURE` | Pi host only: `deferred` registers the `aw_*` tools with deferred exposure, so they stay out of every model request until Pi's `tool_search` loads them (enable it with `"defaultTools": ["+tool_search"]`). Any other value: normal registration. The `/aw` command and the host MCP server are unaffected (Claude Code already loads MCP tool schemas on demand). | unset (normal) |
+
+`PI_CODING_AGENT_DIR` locates Pi's `web-search.json` for web-tool diagnostics and the confirmed
+`doctor --fix` action. It does not add workflow or agent discovery roots. Executor CLIs keep their
+own variables (`CODEX_HOME`, `ANTHROPIC_API_KEY`, …); see [executors.md](executors.md).
+
+### Operational limits
+
+| Variable | What it does | Default |
+|---|---|---|
+| `AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES` | Positive cap on concurrent worker launches per process (launch gate). | `max(2, floor(cores / 2))` |
+| `AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS` | Optional positive ceiling on live model workers. | unset (no ceiling) |
+| `AGENT_WORKFLOW_TRANSIENT_MODEL_FAILURE_RETRIES` | Retries of a task after a transient model/executor failure (non-negative). | `5` |
+| `AGENT_WORKFLOW_ARTIFACT_OUTPUT_RETRIES` | Retries of a task whose output fails the output contract (non-negative). | `2` |
+| `AGENT_WORKFLOW_CANCEL_GRACE_MS` | Grace period between a cancel request and forced termination of a worker. | `10000` |
+| `AGENT_WORKFLOW_HEARTBEAT_MS` | Durable worker heartbeat interval (minimum 50). | `5000` |
+| `AGENT_WORKFLOW_CONTROL_POLL_MS` | Poll interval of the durable control mailbox (approval answers, cancel requests; minimum 5). | `50` |
+| `AGENT_WORKFLOW_EVENT_READ_CACHE_MAX` | Entries in the run-event read cache (`0` disables it). | `64` |
+| `AGENT_WORKFLOW_LAUNCH_SLOT_RELEASE_DELAY_MS` | Delay before a launch slot is released after a launch. | `3000` (`250` with `AGENT_WORKFLOW_EXPERIMENTAL_LAUNCH_RAMP`) |
+
+Lower retries or higher concurrency trade reliability or quality for speed; they are not
+recommended defaults.
+
+### Worktree runtime artifacts
+
+These belong to the managed-worktree implementation (write-capable stages), not to portable specs.
+
+| Variable | What it does | Default |
+|---|---|---|
+| `AGENT_WORKFLOW_PRIVATE_RUNTIME_ARTIFACT_NAMES` | Comma-separated directory names (for example build outputs) that each worktree gets a private copy of. `0`/`false`/`off`/`none`/`no` disables. | `target` |
+| `AGENT_WORKFLOW_CLONE_RUNTIME_ARTIFACT_DIRS` | Flag: clone those directories into new worktrees (copy-on-write `cp -c`). | off |
+| `AGENT_WORKFLOW_ALLOW_FULL_RUNTIME_ARTIFACT_COPY` | Flag: fall back to a full copy when copy-on-write cloning fails. | off |
+
+### Experimental (default off)
+
+Flags. No general speed or quality claim is implied by any of them.
+
+| Variable | What it does |
+|---|---|
+| `AGENT_WORKFLOW_EXPERIMENTAL_TOOL_DEDUP` | The artifact server suppresses an identical re-read (ledger row with `returnedBytes: 0`). An adapter that wants it must pass it in `McpServerSpec.env` ([`mcp.md`](extending.md#workflow-artifact-mcp-server)). |
+| `AGENT_WORKFLOW_EXPERIMENTAL_CACHE_STABLE_FOREACH` | Foreach prompts keep the item payload out of the instruction text (cache-stable prefix). |
+| `AGENT_WORKFLOW_EXPERIMENTAL_LAUNCH_RAMP` | Shorter launch-slot release delay. |
+| `AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR` | Output repair retries continue the worker's kept session instead of a fresh attempt. The only setting that makes the engine request kept worker sessions; without it no attempt keeps one. Kept sessions are released at task/run end ([`usage.md`](usage.md#run-records) "Worker sessions"). |
+| `AGENT_WORKFLOW_PER_ITEM_DISPATCH` | Streaming foreach children whose projection is satisfiable from published partial output start per item. |
+| `AGENT_WORKFLOW_ADAPTIVE_LIVE_WORKERS` | Adaptive live-worker limit (floor 4, ceiling `AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS` or 16). |
+
+Defined but inactive (they enable no behavior): `AGENT_WORKFLOW_CACHE_SHAPE_METRICS`,
+`AGENT_WORKFLOW_EXPERIMENTAL_DEPTH_ROUTER`.
+
+### Internal (set by the engine or for integrations; leave unset)
+
+| Variable | What it is |
+|---|---|
+| `AGENT_WORKFLOW_ROLE` | Process role: `supervisor` (default), `worker`, `disabled`. Workers get `worker`; `worker`/`disabled` processes may only `help`/`validate` and the Pi host registers no tools. |
+| `AGENT_WORKFLOW_HOST_CONTEXT` | JSON host context (`version`, `cwd`, `homeDir`, `projectTrusted`) passed to headless children. |
+| `AGENT_WORKFLOW_PARENT_SUBAGENT_CWD`, `AGENT_WORKFLOW_PARENT_SUBAGENT_RUNS_DIR`, `AGENT_WORKFLOW_PARENT_SUBAGENT_RUN_ID`, `AGENT_WORKFLOW_PARENT_SUBAGENT_ATTEMPT_ID` | Identify the parent runtime attempt of a nested workflow so child events and usage are recorded on it. |
+| `AGENT_WORKFLOW_DURABLE_WORKER_BINDING_JSON` | Barrier binding handed to a durable worker. |
+| `AGENT_WORKFLOW_DURABLE_WORKER_REQUEST_ENV_JSON` | Env values (`SubmitRequest.env`, MCP server env) for a durable worker; removed from the worker's `process.env` at startup, never written to disk. |
+| `AGENT_WORKFLOW_PI_RUN_SECRETS_JSON` | Secret part of the Pi executor's per-run config; deleted as soon as the in-Pi extension loads. |
+| `AGENT_WORKFLOW_EXTERNAL_LAUNCH_GRANT_SHA256` | Lowercase SHA-256 of an external launch grant bound into launch provenance. |
+| `AGENT_WORKFLOW_REQUIRE_EXTERNAL_LAUNCH_GRANT` | `1`: a launch without the grant digest fails. |
+| `AGENT_WORKFLOW_CAPTURE_TOOL_CALLS` | Flag: record worker tool calls in launch provenance (diagnostics). |
+
+### Test-only (the package reads them; never set them in normal use)
+
+| Variable | What it does |
+|---|---|
+| `AGENT_WORKFLOW_TEST_EXECUTOR_MODULE` | Absolute path of a test executor module for the CLI's guarded hook ([`cli.md`](cli.md)). |
+| `AGENT_WORKFLOW_TEST_EXECUTOR_ACK` | Must be exactly `test-only` when the module is set; otherwise every CLI command exits 2. |
+| `AGENT_WORKFLOW_CONTAIN_DETACHED_SUPERVISOR` | `1`: the detached supervisor stays in the CLI's process group (test cleanup). |
+| `AGENT_WORKFLOW_DURABLE_WORKER_START_DELAY_MS` | Delays durable worker startup (race tests). Default `0`. |
+| `AGENT_WORKFLOW_DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS` | Delays the durable worker's terminal write (race tests). Default `0`. |
+
+### Read only by the test suites and release tools
+
+Not read by the package.
+
+| Variable | Used by |
+|---|---|
+| `AGENT_WORKFLOW_TEST_CONCURRENCY`, `AGENT_WORKFLOW_KEEP_TEST_HOME` | `test/run-unit.mjs`: parallel test files; keep the per-file test homes. |
+| `AGENT_WORKFLOW_LIVE`, `AGENT_WORKFLOW_LIVE_PI_MODEL`, `AGENT_WORKFLOW_LIVE_CLAUDE_MODEL`, `AGENT_WORKFLOW_LIVE_REPORT`, `AGENT_WORKFLOW_CODEX_LIVE_MODEL`, `AGENT_WORKFLOW_CODEX_LIVE_REPORT` | Live executor tiers (real CLIs and models; cost money). Off unless `AGENT_WORKFLOW_LIVE=1`. |
+| `AGENT_WORKFLOW_PI_BIN`, `AGENT_WORKFLOW_PI_RPC_RECORD`, `AGENT_WORKFLOW_PI_WORKFLOW_EXTENSION` | Live Pi host RPC check ([`pi-host.md`](hosts.md#pi)). |
+| `AGENT_WORKFLOW_ROOT` | Replay fixture builder. |
+| `AGENT_WORKFLOW_E2E_NO_EXTERNAL_ACTIONS`, `AGENT_WORKFLOW_E2E_PROCESS_LOG`, `AGENT_WORKFLOW_E2E_REAL_NPM` | `npm run e2e`: the no-external-actions guard and its command shims (set by `test/e2e/run.mjs`). |
+| `AGENT_WORKFLOW_ALLOW_PUBLISHED_VERSION` | `tools/release/release-check.mjs`: allow a validation-only rerun of an already published version. |

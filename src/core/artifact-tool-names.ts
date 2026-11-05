@@ -38,7 +38,7 @@ export const ARTIFACT_TOOL_NAME_MAPPINGS: Readonly<
 		visibleName: PREFIXED,
 		rule: "mcp__<server>__<tool>",
 		evidence:
-			"Claude Code MCP documentation; live WP8 #10 (docs/executors/claude.md): the model called mcp__workflow_artifact__workflow_artifact against the real artifact server (1 ledger row)",
+			"Claude Code MCP documentation; live WP8 #10 (docs/executors.md#claude-code): the model called mcp__workflow_artifact__workflow_artifact against the real artifact server (1 ledger row)",
 		verified: true,
 	},
 	codex: {
@@ -46,7 +46,7 @@ export const ARTIFACT_TOOL_NAME_MAPPINGS: Readonly<
 		visibleName: PREFIXED,
 		rule: "mcp__<server>__<tool> (unless the non_prefixed_mcp_tool_names feature is on)",
 		evidence:
-			"codex-cli 0.159.2 build strings; live WP7 #2 (docs/executors/codex.md): the model called mcp__workflow_artifact__workflow_artifact",
+			"codex-cli 0.159.2 build strings; live WP7 #2 (docs/executors.md#codex): the model called mcp__workflow_artifact__workflow_artifact",
 		verified: true,
 	},
 	pi: {
@@ -54,7 +54,7 @@ export const ARTIFACT_TOOL_NAME_MAPPINGS: Readonly<
 		visibleName: PREFIXED,
 		rule: "mcp__<server>__<tool>, chars outside [A-Za-z0-9_] → _, hash suffix on collision",
 		evidence:
-			"Pi 1.1.0 docs/mcp.md and createMcpToolName; live WP6 #4 (docs/executors/pi.md): the model called mcp__workflow_artifact__workflow_artifact",
+			"Pi 1.1.0 docs/extending.md#workflow-artifact-mcp-server and createMcpToolName; live WP6 #4 (docs/executors.md#pi): the model called mcp__workflow_artifact__workflow_artifact",
 		verified: true,
 	},
 	antigravity: {
@@ -62,7 +62,7 @@ export const ARTIFACT_TOOL_NAME_MAPPINGS: Readonly<
 		visibleName: PREFIXED,
 		rule: "MCP tools are called through call_mcp_tool(ServerName, ToolName, Arguments); the model resolves mcp__<server>__<tool> to them",
 		evidence:
-			"agy_acp_server 1.4.5 live 2026-11-02 (docs/executors/acp.md): told to call mcp__workflow_artifact__echo of a stub server named workflow_artifact, the model read the tool schema and called call_mcp_tool(ServerName workflow_artifact, ToolName echo); the stub logged the call",
+			"agy_acp_server 1.4.5 live 2026-11-02 (docs/executors.md#antigravity-acp): told to call mcp__workflow_artifact__echo of a stub server named workflow_artifact, the model read the tool schema and called call_mcp_tool(ServerName workflow_artifact, ToolName echo); the stub logged the call",
 		verified: true,
 	},
 };
@@ -100,7 +100,7 @@ const LOGICAL_ARTIFACT_TOOL_MENTION =
 /**
  * Live bundle 3: how the logical (Pi-vocabulary) tool names of a stage's `tools` list surface on
  * executors whose CLI names them differently. Taken from the adapters' tool mappings
- * (`docs/executors/codex.md` and `docs/executors/claude.md` "Tool mapping"). Pi uses the logical
+ * (`docs/executors.md#codex` and `docs/executors.md#claude-code` "Tool mapping"). Pi uses the logical
  * names as they are, so it has no row. Codex has no `read`/`grep`/`find`/`ls` tools: a Codex worker
  * told "only read, grep, find, ls are enabled" concluded it could not read files (spec-review
  * extract-spec reported SPEC.md "unavailable").
@@ -205,7 +205,7 @@ export function renderWorkerPromptToolNames(
 /**
  * WP37 (stage-1 open problem 8): inline renames of logical tool names in task prompts, per executor.
  * Only executors whose CLI tools have plain names are listed (Claude, from the adapter's tool
- * mapping, docs/executors/claude.md). Codex maps the logical names to the shell and the hosted
+ * mapping, docs/executors.md#claude-code). Codex maps the logical names to the shell and the hosted
  * `web_search` tool, which are not names a sentence can use in place of `read`; its task prompts
  * keep the logical names and get the M17 note. Pi uses the logical names.
  */
