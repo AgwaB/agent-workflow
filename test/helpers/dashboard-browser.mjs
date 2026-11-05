@@ -297,10 +297,34 @@ export async function createBrowser(executable) {
 		await close();
 		throw error;
 	}
+	// 2026-11-05 (CI: a fixed 450 ms after a 0.28 s transition read the rail mid-way on a slower
+	// macOS runner): wait until every finite animation and transition has run out (two frames
+	// later), instead of sleeping for its nominal duration. Infinite decorative loops are ignored.
+	const waitForMotionEnd = (timeout) =>
+		waitFor(
+			() =>
+				new Promise((resolve) =>
+					requestAnimationFrame(() =>
+						requestAnimationFrame(() =>
+							resolve(
+								document
+									.getAnimations()
+									.every(
+										(animation) =>
+											animation.playState !== "running" ||
+											animation.effect?.getTiming().iterations === Infinity,
+									),
+							),
+						),
+					),
+				),
+			timeout,
+		);
 	return {
 		send: sendWithScheme,
 		evaluate,
 		waitFor,
+		waitForMotionEnd,
 		open,
 		click,
 		key,

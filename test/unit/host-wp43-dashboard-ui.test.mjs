@@ -1256,7 +1256,7 @@ test("dashboard Chrome: a stage's agent opens in place, stays open through live 
 		(selector) => document.querySelector(selector).click(),
 		row("refund-idempotency"),
 	);
-	await new Promise((resolve) => setTimeout(resolve, 400));
+	await browser.waitForMotionEnd();
 	assert.deepEqual(
 		await browser.evaluate(
 			(selector) => [
@@ -1397,7 +1397,7 @@ test("dashboard Chrome: the runs rail folds and stays folded; graph controls lin
 	assert.deepEqual(open.sentence, ["block", "14px"]);
 	await browser.evaluate(() => document.querySelector(".rail-button").click());
 	await browser.waitFor(() => document.getElementById("rail").inert);
-	await new Promise((resolve) => setTimeout(resolve, 450)); // the column narrows (0.28 s)
+	await browser.waitForMotionEnd(); // the column narrows (0.28 s)
 	const folded = await layout();
 	assert.equal(folded.button, "false");
 	assert.equal(new Set(folded.lefts).size, 1, JSON.stringify(folded.lefts));
