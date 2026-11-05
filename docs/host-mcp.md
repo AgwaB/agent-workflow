@@ -354,7 +354,12 @@ and appends the absolute entries the current PATH lacks; tool calls wait for it,
 not. Workers and the detached supervisor inherit the result. As kimi-code
 (`packages/kaos/src/login-shell-path.ts`), trilium (`binary_lookup.ts` `findOnPath`) and cline
 (`remote/shell-path.ts`). On the test machine `-l` took 0.01 s (no nvm or homebrew entries), `-i -l`
-3-5 s. `AGENT_WORKFLOW_LOGIN_SHELL_PATH=0` turns it off; Windows and csh/tcsh are skipped.
+3-5 s. `AGENT_WORKFLOW_LOGIN_SHELL_PATH=0` turns it off; Windows and csh/tcsh are skipped. The shell runs
+in its own session (`detached`: setsid, no controlling terminal; stdin closed; its process group is
+killed at the timeout): the first version ran it on the server's terminal, and an interactive zsh took
+that terminal's foreground process group and never gave it back, so a Codex TUI that had started the
+server stopped reading keys and spun at 100 % CPU (live). Rechecked live: Codex and Claude Code TUIs
+keep their foreground group and take input.
 
 ## Server started in the home directory (2026-11-04)
 
