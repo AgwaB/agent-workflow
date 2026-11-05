@@ -87,7 +87,9 @@ export async function wakeLaunchingHostSessions(
 			log(`host wake: ${run.runId} already reported; no Codex session woken`);
 			return;
 		}
-		const message = `${line}\n(agent-workflow: the run you started from this session has finished; tell the user the verdict, the run id and the link.)`;
+		// 2026-11-05 (owner: the queued message shows as the user's own message in the session): the
+		// completion line only; the launch already told the agent what to do when it arrives.
+		const message = line;
 		for (const thread of sessions) {
 			const queued = await (options.run ?? runWakeCommand)("codex", [
 				"queue",

@@ -735,7 +735,8 @@ test("degradation confirmation: a dialog where the client shows one; otherwise t
 			...base,
 			task: `declined ${JSON.stringify(reply)}`,
 		});
-		assert.equal(declined.isError, true);
+		// 2026-11-05: a user's no is an error result; "ask the user" (cancel, no UI) is not.
+		assert.equal(declined.isError, reply.action === "decline");
 		assert.equal(declined.structuredContent.outcome, "refused");
 		// decline is the user's no; cancel or an error means nobody asked the user.
 		assert.equal(
@@ -757,7 +758,8 @@ test("degradation confirmation: a dialog where the client shows one; otherwise t
 		...base,
 		task: "unasked",
 	});
-	assert.equal(unasked.isError, true);
+	// 2026-11-05: a question to the user, not a failed call (the desktop chat showed it as failed).
+	assert.equal(unasked.isError, false);
 	assert.match(
 		text(unasked),
 		/Nothing started: this run needs the user's OK, and this client could not ask them in a dialog/,
@@ -849,7 +851,7 @@ test("degradation confirmation: a dialog where the client shows one; otherwise t
 		);
 		const task = `headless ${version} ${JSON.stringify(capabilities)}`;
 		const unaskedHere = await headless.call("workflow_run", { ...base, task });
-		assert.equal(unaskedHere.isError, true, text(unaskedHere));
+		assert.equal(unaskedHere.isError, false, text(unaskedHere));
 		assert.match(text(unaskedHere), /could not ask them in a dialog/);
 		assert.match(
 			text(unaskedHere),

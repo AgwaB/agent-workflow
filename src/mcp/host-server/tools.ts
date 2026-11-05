@@ -1830,6 +1830,8 @@ export function createHostMcpService(
 		outcome: HostResult<T>,
 		data: unknown,
 		next?: string,
+		/** 2026-11-05: a launch that waits for the user's OK in the chat is a question, not a failure. */
+		question = false,
 	): HostMcpToolResult => {
 		const text = boundedText(outcome.text);
 		const structured = hostMcpSendsStructuredContent(
@@ -1850,7 +1852,9 @@ export function createHostMcpService(
 						},
 					}
 				: {}),
-			isError: outcome.outcome === "refused",
+			// 2026-11-05 (live, the Claude desktop app's chat showed the "ask the user" result as a failed
+			// tool call): a launch that only waits for the user's OK is no error.
+			isError: outcome.outcome === "refused" && !question,
 		};
 	};
 
@@ -2129,6 +2133,7 @@ export function createHostMcpService(
 				withoutWaitLine(launched, how),
 				launched.data,
 				confirm ?? launchNext(launched.data, how, waitHint),
+				confirm !== undefined,
 			);
 		},
 		[WORKFLOW_DYNAMIC_TOOL]: async (args, call) => {
@@ -2156,6 +2161,7 @@ export function createHostMcpService(
 				withoutWaitLine(launched, how),
 				launched.data,
 				confirm ?? launchNext(launched.data, how, waitHint),
+				confirm !== undefined,
 			);
 		},
 		[WORKFLOW_AUTO_TOOL]: async (args, call) => {
@@ -2241,7 +2247,13 @@ export function createHostMcpService(
 				next = `The user declined: nothing was sent and nothing started. Do not retry unless the user asks.`;
 			else if (data.phase === "consent-cancelled")
 				next = `The client cancelled the confirmation dialog or cannot ask the user here (no answer was given): nothing was sent and nothing started. Show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}).`;
-			return finish(call, withoutWaitLine(auto, how), data, next);
+			return finish(
+				call,
+				withoutWaitLine(auto, how),
+				data,
+				next,
+				data.phase === "launched" && confirmation.unanswered !== undefined,
+			);
 		},
 		[WORKFLOW_STATUS_TOOL]: async (args, call) => {
 			const runId = optionalString(args, "runId");

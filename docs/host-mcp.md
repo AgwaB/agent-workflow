@@ -131,6 +131,9 @@ read-only; `run`, `dynamic`, `auto`, `stop`, `resume`, `prune`, `profile`, `appr
   `structuredContent: {ok: false, outcome: kind, error: {kind, message}}` with `kind` `usage`
   (`HostUsageError`, text prefixed `Usage error:`), `validation` (invalid spec) or `error` (for
   example an unknown run). Tool-level errors let the model correct the call (MCP guidance).
+  2026-11-05: a launch that waits for the user's OK in the conversation (`CAPABILITY_CONFIRMATION_REQUIRED`,
+  "Nothing started: this run needs the user's OK…") is `isError: false` (still `outcome: "refused"`):
+  it is a question, and the Claude desktop app's chat showed it as a failed tool call (live).
 - JSON-RPC errors only for protocol problems: unknown tool or non-object `arguments` (`-32602`),
   unknown method (`-32601`), requests before `initialize` (`-32600`).
 - Worker processes (`AGENT_WORKFLOW_ROLE=worker`) may only `workflow_validate` and `workflow_check` (host API role check; `check` uses the `validate` permission).

@@ -258,7 +258,8 @@ test("official SDK client: elicitation accept and decline for a degraded safe-mo
 		executor: "test-fixture",
 		permissionMode: "safe",
 	});
-	assert.equal(unasked.isError, true);
+	// 2026-11-05: waiting for the user's OK in the chat is no error result.
+	assert.equal(unasked.isError, false);
 	assert.equal(
 		unasked.structuredContent.data.refusal.code,
 		"CAPABILITY_CONFIRMATION_REQUIRED",
