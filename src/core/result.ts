@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/result.ts. MIT, same author. Changes: none.
 import { modelTaskRuntimeDeadlineMs } from "./model-task-runtime.js";
 import type { WorkflowTaskRunRecord } from "./types.js";
 import { nowIso, setTaskTerminal } from "./store.js";

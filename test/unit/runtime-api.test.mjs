@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/checks/api.mjs and test/checks/fail-fast.mjs, plus the executor-run half of test/checks/answer-preview.mjs. MIT, same author. Changes: imports the compiled runtime API (dist/runtime/index.js) instead of api.mjs; runs use the fake executor fixture (failures come from a scripted `failed` event instead of an agent tools-ceiling error); supportsExplicitExtensionIsolation and the package "./api" export are dropped; runs dir ".agent-workflow/runs"; env AGENT_WORKFLOW_RUN_INDEX_DIR.
 import assert from "node:assert/strict";
 import {
 	mkdir,

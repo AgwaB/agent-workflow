@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/render-executive.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 import { validateSynthesisPages } from "./synthesis-pages.mjs";
 
 // Deterministic evidence-backed renderer for deep-research.

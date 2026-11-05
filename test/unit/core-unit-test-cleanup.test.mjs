@@ -1,7 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/unit-test-cleanup.test.mjs. MIT, same
-// author. Changes: fixture test/fixtures/core/unit-cleanup-lifecycle.mjs (over the ported harness
-// test/helpers/unit-test-support.mjs, whose `after` hook drains the advisory index writer before it
-// removes its root); the child also gets an isolated AGENT_WORKFLOW_HOME and PI_CODING_AGENT_DIR.
+// The child harness drains the advisory index writer before removing its isolated root.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";

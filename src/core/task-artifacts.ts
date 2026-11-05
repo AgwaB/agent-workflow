@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 162, 263-286, 6394-6400, 7038-7370 (runtime artifact refs, log copies, tool-call summaries, backend handles). MIT, same author. Changes: runs root .pi/workflow-subagents→.agent-workflow/workflow-subagents; handle {engine: "pi-subagent", backend: "headless"}→{engine: "agent-workflow", backend: "runtime"}; backend id pi-subagent/headless→agent-workflow/runtime.
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
 import {
 	copyFile,
@@ -20,8 +19,8 @@ import { isInsidePath } from "./physical-paths.js";
 /** Runtime runs directory root for workflow tasks (was `.pi/workflow-subagents`). */
 export const DEFAULT_SUBAGENT_RUNS_ROOT = ".agent-workflow/workflow-subagents";
 /**
- * Backend id recorded in launch authorities and launch-bootstrap provenance (was
- * `pi-subagent/headless`): the core task backend on the agent-workflow runtime API.
+ * Backend id recorded in launch authorities and launch-bootstrap provenance
+ * for the core task backend on the agent-workflow runtime API.
  */
 export const WORKFLOW_TASK_BACKEND_ID = "agent-workflow/runtime";
 const MAX_FAILED_TOOL_CALL_RECORDS = 20;

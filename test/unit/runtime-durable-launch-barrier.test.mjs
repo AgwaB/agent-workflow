@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/checks/durable-launch-barrier.mjs to node:test against dist/. MIT, same author. Changes: see runtime-port record (test table).
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import {
@@ -70,9 +69,8 @@ test("durable-launch-barrier", async () => {
 			/directory was replaced/,
 		);
 
-		// TEST-ONLY dependency substitution: production code still imports the real
-		// lstat; a temporary copy of the compiled module (pi-subagent used Jiti on the
-		// .ts source) has only that builtin dependency replaced.
+		// Test-only dependency substitution: replace lstat in a temporary compiled-module
+		// copy. Production imports the real builtin.
 		let injectedLstat = lstat;
 		const lstatModulePath = join(root, "durable-barrier-fs-promises.mjs");
 		await writeFile(

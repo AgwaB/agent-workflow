@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-raw-contract.ts. MIT, same author. Changes: project state paths .pi/workflows and .pi/workflow-subagents→.agent-workflow/….
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { createHash } from "node:crypto";
 import { constants, type Stats } from "node:fs";

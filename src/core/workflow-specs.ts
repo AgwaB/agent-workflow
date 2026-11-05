@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-specs.ts. MIT, same author. Changes: discovery roots .pi/workflows→.agent-workflow/workflows and ~/.pi/agent/workflows→~/.agent-workflow/workflows, 2026-10-30: Pi's workflow directories are no longer read (the F5 legacy roots are gone); package workflow root resolved from dist/core/.
+// Workflow discovery reads only agent-workflow roots, not Pi workflow directories.
 import {
 	lstat,
 	open,
@@ -32,7 +32,7 @@ import {
 } from "./types.js";
 
 const SPEC_EXTENSIONS = new Set([".json"]);
-// dist/core/workflow-specs.js → <package>/workflows (one level deeper than pi-workflow's flat dist/).
+// Resolve dist/core/workflow-specs.js to the package workflows directory.
 const PACKAGE_WORKFLOW_ROOT = resolve(
 	dirname(fileURLToPath(import.meta.url)),
 	"..",

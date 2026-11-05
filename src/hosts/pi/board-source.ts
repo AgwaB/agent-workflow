@@ -1,11 +1,5 @@
-// New in agent-workflow (WP34, parity row 22): what the `/aw` board reads and does, through the host
-// API only. pi-workflow 0.16.4 (b83cc4f) src/workflow-view.ts read its run store directly
-// (`readIndex`, `readRunRecord`, `readWorkflowLaunchCommandArtifact`, the task output/prompt files);
-// the board here calls host API handlers: `statusAction` (runs; one run with its per-task
-// executor/model/effort, verdict, report paths, pending approvals and parent usage), `showAction`
-// (the run record and its WP33 launch capture, redacted), `logsAction` (the task's bounded,
-// redacted output/stderr/events tails), and `stopAction`, `resumeAction`, `approveAction` for the
-// board's keys. Copying uses Pi 1.1's exported `copyToClipboard`.
+// The board reads and acts only through host API handlers: status, show, logs, stop,
+// resume, and approve. Logs are bounded and redacted; copying uses Pi copyToClipboard.
 import type {
 	LogsTask,
 	RunSummary,

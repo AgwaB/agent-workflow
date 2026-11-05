@@ -1,4 +1,6 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine.ts. MIT, same author. Changes: the backend comes from the task-launch registry and the core task backend registers itself (was hard-wired pi-subagent); acknowledgeSubagentTaskInterrupted from task-cancellation.ts; run options executor/defaultExecutor (B2 executor selection before the run record exists, frozen as run.executor; nested runs copy the parent's) and inheritHostTools/allowSharedCheckoutWrites passed into compileWorkflow (nested runs follow the parent record); native host context → withHostContext(resolveHostContext()); foreach batch eligibility uses prepareWorkflowTaskToolPolicy with the run's host-tool and shared-checkout decisions (R#5); messages say agent-workflow. WP4d: B4 capability negotiation after executor selection and compile, before the run record (probe once, refuse/degrade/confirm, record run.capabilityNegotiation; run options interactive/confirmDegradations/allowUnverifiedCapabilities/executorProber/executorProbeTimeoutMs). WP4e: run option permissionMode resolved with B2 precedence (permission-mode.ts), passed to compile and negotiation, recorded as run.permissionMode (nested runs follow the parent). WP17: run option host; with no explicit executor the default is the host's own CLI (terminal: first usable of pi → claude → codex via cached probes, executor-default.ts), recorded as run.executor.source host-default/installed-default with the host; the cached prober is shared with negotiation. WP18b: re-exports scheduledRetryWait/formatScheduledRetryWait. WP35: the inheritHostTools run option takes effect only for tasks whose executor is pi (WP31 mixed runs: per task). WP31: role-level profiles (role-execution.ts): run options workflowPreference and roles on saved profiles; per-stage executor/model/effort recorded as run.roleExecution; mixed runs (Q4) compile runtime.executor per task and negotiate every stage against its own executor.
+// Executor selection and capability negotiation precede the run record.
+// Nested runs inherit the parent executor and permission decisions.
+// Mixed runs negotiate each stage against its own executor; only Pi tasks inherit host tools.
 import { releaseUnneededOwnedSessions } from "./owned-session-release.js";
 import {
 	appendFile,
@@ -314,7 +316,7 @@ export type {
 	WorkflowScheduledRetryWait,
 } from "./engine-format.js";
 
-// pi-workflow hard-wired the pi-subagent backend; the core task backend registers itself.
+// The core task backend registers itself.
 ensureWorkflowTaskBackendRegistered();
 
 const MAX_SAME_LEASE_SCHEDULE_RESCANS = 8;
@@ -1651,10 +1653,8 @@ function markRunStopped(run: WorkflowRunRecord): string[] {
 		) {
 			interruptedTaskIds.push(task.taskId);
 		} else if (task.status === "blocked") {
-			// agent-workflow 2026-11-04: a blocked task (a decision, an approval, a declared-blocked
-			// step) is terminal for the task but keeps the run blocked; stopping the run abandons it
-			// (core-port record: "`stop` abandons it"). Before, stopping a blocked run left it
-			// blocked and listed under "Needs you". It resumes like any stopped task.
+			// Stopping the run abandons blocked tasks, including decisions and approvals.
+			// They become interrupted and resume like any stopped task.
 			delete task.activity;
 			task.status = "interrupted";
 			task.statusDetail = "workflow_stopped";

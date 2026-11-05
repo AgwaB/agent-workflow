@@ -1,16 +1,7 @@
-// New in agent-workflow (WP29, parity row 43): the `approve` host action. A run blocked on a dynamic
-// controller with `dynamic.permissions.approval: "ask"` (`dynamic_ui_unavailable`, or
-// `dynamic_approval_timeout` after an unanswered prompt) is answered here from any host, later and
-// from another process than the one that scheduled it: the CLI `agent-workflow approve <run>`, Pi
-// `/aw approve <run>` and the host MCP tool `workflow_approve`. pi-workflow 0.16.4 (b83cc4f) could
-// only answer through the Pi UI of a resuming session (`/workflow resume`); its prompt semantics are
-// kept: the question is "Run dynamic workflow controller?" with the approval scope, yes runs the
-// controller, no rejects it for this run (`dynamic_approval_rejected`, never asked again), no answer
-// (cancel, dialog error, the 5-minute bound) changes nothing. The decision is recorded durably on the
-// run (`approval.resolved` with `decidedBy: {host, via: "approve"}`; src/core/dynamic-approval.ts).
-// After an approval the run is resumed (B3 unchanged: completed tasks are not relaunched) unless it
-// also holds tasks whose resume is an owner decision of its own (failed, interrupted,
-// `executor_needs_decision`): then only the decision is recorded and the result names `resume`.
+// Answer blocked dynamic-controller approvals from any host and record the decision durably.
+// Yes runs the controller; no permanently rejects it for this run; cancel, error, or timeout
+// changes nothing. Approval resumes the run without relaunching completed tasks, unless
+// other failed, interrupted, or decision-blocked tasks require an explicit resume.
 import {
 	DYNAMIC_APPROVAL_PENDING_DETAILS,
 	DYNAMIC_APPROVAL_TIMEOUT_MS,

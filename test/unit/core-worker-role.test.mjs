@@ -1,13 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/worker-role.test.mjs. MIT, same author.
-// Changes: imports from dist/core (subagent-backend names from task-backend, runtime-port,
-// launch-slots); env PI_WORKFLOW_ROLE→AGENT_WORKFLOW_ROLE; paths .pi/{workflows,agents}→
-// .agent-workflow/…; the worker role reaches the executor as the launch request's `env`
-// (`{AGENT_WORKFLOW_ROLE: "worker"}`, runtime-port record) instead of a process-wide env swap
-// around pi-subagent's `runSubagent`, so the assertion reads `options.env` (was: process.env during
-// the call and no `env` option) and the parent role is never changed. Not ported here
-// (core-port record "WP38"): "worker role extension startup does not resume workflow supervisors" —
-// superseded by host-pi-extension.test.mjs "worker role: no agent tools and no notices …" and
-// host-wp28-pi-redrive.test.mjs (a worker process never re-drives runs at session start).
+// The worker role is request-scoped through env; the parent process role never changes.
 import { resolveRunExecutorSelection } from "../../dist/core/executor-registry.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";

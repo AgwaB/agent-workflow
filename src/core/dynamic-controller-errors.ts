@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-controller-errors.ts. MIT, same author. Changes: none.
 export class DynamicControllerSuspended extends Error {
 	constructor(message: string) {
 		super(message);

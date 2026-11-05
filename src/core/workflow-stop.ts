@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-stop.ts. MIT, same author. Changes: none.
 import { readWorkflowStopIntent, workflowRunPath } from "./store.js";
 
 // A foreground abort must fence dispatch synchronously, before its durable stop

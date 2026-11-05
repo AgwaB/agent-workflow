@@ -1,15 +1,8 @@
-// New in agent-workflow (WP16): the `logs` host action, a bounded and redacted tail of a run's task
-// output, stderr and executor events. Port in spirit of pi-workflow 0.16.4 (b83cc4f)
-// `/workflow logs <run> [task] [lines]` (core `formatLogs`: one task's output tail), extended to
-// stderr and the latest attempt's `exec-events.jsonl`, every started task by default, and bounds on
-// lines per stream, characters per line, tasks and total text. Every line goes through the shared
-// redaction (`redactSensitiveWorkflowText`: credential assignments, bearer tokens, URL secrets, home
-// paths) and the values of sensitive host environment variables (`*_KEY`, `*TOKEN*`, `*SECRET*`, …,
-// via the executors' `createSecretRedactor`) are replaced, so a tail never echoes a secret.
-// WP19 (review #4): every path read here (task `files.*` from the persisted run record, the
-// attempt dirs under `workflow-subagents/`) must resolve canonically inside the project's artifact
-// root (`resolveContainedRunFile`); absolute paths, traversal and symlink escapes are refused and the
-// stream says why instead of showing the file.
+// Bounded, redacted tails of task output, stderr, and latest executor events.
+// Bound lines, line length, task count, and total text; redact credentials, URL secrets,
+// home paths, and sensitive host environment values.
+// Resolve every persisted path canonically inside the project artifact root; refuse
+// absolute paths, traversal, and symlink escapes with an explanatory stream message.
 import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/deep-review-source-scope.test.mjs. MIT, same author. Changes: 2026-11-01 — a quote at most 10 lines outside its planned range is accepted (recorded), so the "not found" case moved 12 lines away; imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*.
+// Quotes at most 10 lines outside a planned range are accepted with a recorded correction.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {

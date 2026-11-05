@@ -1,15 +1,7 @@
-// New in agent-workflow (WP29, parity row 43): dynamic-controller approval outside the scheduler's
-// own prompt. pi-workflow 0.16.4 (b83cc4f) only approved a dynamic controller (`dynamic.permissions.
-// approval: "ask"`) through the Pi UI of the process that scheduled it (`ctx.ui.confirm`, see
-// dynamic-controller-policy.ts); a run without that UI blocked as `dynamic_ui_unavailable` until an
-// interactive Pi session resumed it. agent-workflow hosts (CLI, host MCP server, detached
-// supervisors) often have no UI where the scheduler runs, so a blocked approval can be answered
-// later from any host: the pending request (the `approval.pending` dynamic event the policy already
-// records) is listed here, and a decision is appended as the matching `approval.resolved` event
-// under the run lease. The scheduler then honors it on resume exactly like a prompt answer: an
-// approval lets the controller run without asking again, a rejection blocks it as
-// `dynamic_approval_rejected` for good (the pi-workflow semantics of a declined confirm). The
-// decision records the deciding host id and how it was made (`decidedBy`), never a secret.
+// Dynamic-controller approvals can be answered from any host under the run lease.
+// Match approval.pending with approval.resolved; resume honors the decision without re-prompting.
+// Approval runs the controller; rejection permanently blocks it as dynamic_approval_rejected.
+// Record only the deciding host and decision method, never secrets.
 import { readDynamicEvents } from "./dynamic-events.js";
 import {
 	recordDynamicControllerStatus,
@@ -22,10 +14,10 @@ import {
 } from "./store.js";
 import type { WorkflowRunRecord } from "./types.js";
 
-/** Title of every dynamic-controller approval question (pi-workflow's confirm title). */
+/** Title of every dynamic-controller approval question. */
 export const DYNAMIC_APPROVAL_TITLE = "Run dynamic workflow controller?";
 
-/** pi-workflow's prompt bound: an unanswered approval question gives up after 5 minutes. */
+/** An unanswered approval question times out after five minutes. */
 export const DYNAMIC_APPROVAL_TIMEOUT_MS = 5 * 60_000;
 
 /** Blocked-task details of a controller whose approval is still open (resume re-asks). */

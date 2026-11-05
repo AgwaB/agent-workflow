@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workers/terminal-finalizer.mjs. MIT, same author. Changes: converted to TypeScript (compiled to dist/runtime/workers/terminal-finalizer.js); runtime TypeScript loader imports replaced by static imports of the compiled modules; behavior unchanged.
 import { appendTerminalEventsIfCurrent } from "../artifacts/index.js";
 import type { Status } from "../core/constants.js";
 import { reconcileSubagentRun } from "../orchestrate/reconcile.js";

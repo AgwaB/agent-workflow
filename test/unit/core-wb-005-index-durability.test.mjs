@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/wb-005-index-durability.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); run state root .pi/workflows→.agent-workflow/workflows.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";

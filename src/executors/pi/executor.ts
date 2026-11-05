@@ -1,8 +1,7 @@
-// New in agent-workflow (WP6): the Pi executor (`pi --mode json --print`, owner decision A2-3).
-// The argv logic and JSON parsing are ported from pi-subagent (see argv.ts, parse.ts); the process
-// handling follows pi-subagent `runners/headless-model.ts` (own process group, SIGTERM then SIGKILL)
-// on top of the SDK contract: authority consumed immediately before the spawn (R#1), idempotent per
-// attemptKey with durable launch evidence (B3, state.ts), raw stream saved under `artifactsDir` (D3).
+// Pi executor using pi --mode json --print in its own process group.
+// Consume authority immediately before spawn; attempts are idempotent by attemptKey
+// with durable launch evidence. Save raw streams under artifactsDir.
+// Cancellation sends SIGTERM, then SIGKILL.
 import { type ChildProcess, execFile, spawn } from "node:child_process";
 import { createWriteStream, type WriteStream } from "node:fs";
 import {

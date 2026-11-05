@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/final-audit-packet.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 import { buildSynthesisPages } from "./synthesis-pages.mjs";
 import { findSource, asArray, asObject, stringOf } from "./source-access.mjs";
 

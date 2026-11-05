@@ -1,5 +1,4 @@
 import { findSource as canonicalSource } from "./source-access.mjs";
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/shadow-select-verification.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Shadow-only selective verification reporter for deep-research.
 //
 // This helper never skips verification. It records which candidates a future

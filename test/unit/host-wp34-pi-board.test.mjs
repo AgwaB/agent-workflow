@@ -1,12 +1,7 @@
-// New in agent-workflow (WP34 item 1, owner decision Q1, parity row 22): the `/aw` board, a port of
-// pi-workflow src/workflow-view.ts (runs → stages → tasks → task detail, `r`, `v`, `c`, q/Esc, the
-// h/j/k/l, arrow, Enter, b and [/]/n/p keys) whose reads and actions go through the host API.
-// Part 1 drives the component over a fake source (navigation, per-task executor/model/effort of a
-// mixed run, verdict, report path, pending approvals, the launch viewer and copy, stop/resume/approve
-// confirmed in the board). Part 2 drives `/aw` through the Pi host with a fake Pi TUI (`ctx.ui.custom`)
-// and runs on the workflow executor fixture (no model or agent-CLI calls): the board opens only in
-// the TUI, `/aw <run>` opens the run's stages, every read is a host API call, print/JSON/RPC keep the
-// text behavior.
+// Board reads and actions go through the host API. Fake sources cover navigation,
+// mixed-executor details, verdicts, reports, approval, copy, and confirmed mutations.
+// Fake TUI integration opens /aw and /aw <run> only in TUI mode; other modes keep text.
+// Fixture executors avoid model or agent CLI calls.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

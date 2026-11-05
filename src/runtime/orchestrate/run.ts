@@ -1,4 +1,6 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/run.ts. MIT, same author. Changes: Pi agent loading (loadAgentByName, agent tools ceiling) removed — the core supplies prompt/system prompt/model/tools in the request; resolveBackend replaced by the run's ExecutorDescriptor (backend = executor id); the headless/inline/tmux runners replaced by executeAttempt (SDK submit/observe under the durable authority); tmux metadata plumbing and the inline-binding guard removed; a pre-effect ExecutionNotStartedError is written as a terminal result instead of thrown from runSubagentTask; the durable worker binding is handed out by the authority, not by childEnv. WP2c: discardPreparedExecutionWorkspace (workspace-only discard for callers that write their own terminal result); discardSubagentExecution clears activeAttemptId (pi-subagent left the cancelled attempt active). WP2b: in worktree mode the terminal result.json is written once, after the worktree finalization; the durable control mailbox (orchestrate/control.ts) is served during execution and closed before the terminal result.
+// The launch authority supplies the durable worker binding.
+// Discarding an execution clears its active attempt. In worktree mode, write the terminal
+// result once, after workspace finalization and control mailbox closure.
 import { resolve } from "node:path";
 import type { TaskActivity } from "../../core/task-activity.js";
 import { ActivityHeartbeat } from "../telemetry/task-activity.js";
@@ -444,9 +446,8 @@ export async function discardSubagentExecution(
 			worktreeCleanupStatus:
 				prepared.workspace.mode === "worktree" ? "removed" : "not-needed",
 		},
-		// WP2c: a terminal upsert of the active attempt clears activeAttemptId (pi-subagent passed
-		// activate: false, which kept the cancelled attempt active). onlyIfActive still spares a
-		// successor.
+		// A terminal upsert clears activeAttemptId only for the active attempt;
+		// onlyIfActive protects a successor.
 		mustExist: true,
 		onlyIfActive: true,
 	}).catch(() => undefined);
@@ -478,8 +479,8 @@ async function writeOwnedExecutionFailure(
 			? "cancelled"
 			: "failed");
 
-	// A pre-effect stop leaves a pristine prepared worktree: discard it like pi-subagent did
-	// before release. Anything that may have run keeps its workspace.
+	// A pre-effect stop discards the pristine prepared worktree.
+	// Anything that may have run keeps its workspace.
 	let cleanupStatus: "not-needed" | "removed" | "kept";
 	if (notStarted !== undefined && prepared.ownership.state === "prepared") {
 		await discardPreparedWorkspace(workspace).catch(() => undefined);

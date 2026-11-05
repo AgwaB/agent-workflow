@@ -1,4 +1,7 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-artifact-tool.ts. MIT, same author. Changes: read-ledger rows keep deliveryUnverified: true (R#9 groundwork, WP4c); the read ledger is appended and read without following links (O_NOFOLLOW + lstat/fstat same-file check; symlinked parent directory, hard-linked or non-regular ledger refused; mode 0600; one write per row) (WP4c-2); handleWorkflowArtifactToolCall takes `{onLedgerRecord, appendLedger}` so a caller receives the ledger row and can persist it itself (WP4c-2, for the MCP server). WP5b: paged whole-artifact reads (`offset` input, `pageLimitChars` option; a whole read that does not fit the page limit is served as its first page), page rows carry rangeStart/rangeEnd/totalChars/contentSha256 and an explicit deliveryUnverified: false.
+// Read-ledger access refuses symlinked parents, hard-linked or non-regular files,
+// and uses O_NOFOLLOW plus lstat/fstat same-file checks, mode 0600, and one write per row.
+// Unverified delivery stays marked; verified pages carry explicit delivery verification,
+// range bounds, total length, and a content hash.
 import { createHash } from "node:crypto";
 import { constants as fsConstants, type Stats } from "node:fs";
 import {

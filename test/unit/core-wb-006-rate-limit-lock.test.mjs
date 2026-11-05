@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/wb-006-rate-limit-lock.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); shared backoff file ~/.pi/agent→AGENT_WORKFLOW_HOME (~/.agent-workflow); the child gets AGENT_WORKFLOW_HOME under the test HOME.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile } from "node:fs/promises";

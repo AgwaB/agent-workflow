@@ -1,15 +1,6 @@
-// New in agent-workflow (WP34, owner decision Q1, parity row 22): the `/aw` board. Ported from
-// pi-workflow 0.16.4 (b83cc4f) src/workflow-view.ts (`WorkflowView`, `showWorkflowView`): runs →
-// stages → tasks → task detail, a launch-command viewer (`v`, copy with `c`), refresh (`r`), the
-// h/j/k/l, arrow, Enter, Esc/b, [/]/n/p and q keys. MIT, same author. Changes: every read goes
-// through the host API (board-source.ts) instead of the run store; the task detail shows the
-// task's executor/model/effort (WP31 mixed runs), the run's verdict, report paths and pending
-// approvals (WP29), and its logs (`logsAction`: output, stderr, events) instead of the raw output
-// and prompt files; new keys stop (`s`), resume (`u`) and approve/reject (`a`), each confirmed in
-// the board (`y`; for an approval `y` approves, `x` rejects); `c` also copies the launch command
-// without opening the viewer; the refresh interval is 2 s (each tick is up to two host API reads).
-// Opened only in the TUI (`ctx.mode === "tui"` with `ctx.ui.custom`); other modes keep the text
-// commands.
+// The TUI-only /aw board navigates runs, stages, tasks, details, and launch commands.
+// Every read and action goes through the host API. Stop, resume, and approval decisions
+// require confirmation. Refresh every two seconds; other modes use text commands.
 import type { LogsTask, RunSummary } from "../api.js";
 import {
 	type BoardTask,
@@ -152,7 +143,7 @@ export class AwBoard implements Component {
 		if (this.closed) return;
 		this.dispose();
 		this.done();
-		// A tall custom panel is replaced by the editor: repaint fully (pi-workflow).
+		// A tall custom panel is replaced by the editor: repaint fully.
 		this.tui.requestRender(true);
 	}
 
@@ -389,7 +380,7 @@ export class AwBoard implements Component {
 			const previous = this.selectedRunSummary()?.runId;
 			const runs = await this.source.listRuns();
 			if (this.closed || generation !== this.generation) return;
-			// `/aw <child run>`: a run the top-level list omits stays listed first (pi-workflow).
+			// /aw <child run>: a run omitted from the top-level list stays listed first.
 			const pinned = this.options.initialRunId;
 			if (
 				pinned &&
@@ -561,7 +552,7 @@ export class AwBoard implements Component {
 
 	render(width: number): string[] {
 		const viewport = Math.max(1, Math.floor(width || 1));
-		// A right gutter: some terminals leave stale cells in the last columns (pi-workflow).
+		// Keep a right gutter: some terminals leave stale cells in the last columns.
 		const content = Math.max(1, viewport - 2);
 		const lines = this.launchOpen
 			? this.renderLaunch(content)
@@ -1013,8 +1004,8 @@ export class AwBoard implements Component {
 }
 
 /**
- * Open the board in the TUI and resolve when it closes. `initialRunId` selects that run and opens
- * its stages (pi-workflow `/workflow <run>`).
+ * Open the board in the TUI and resolve when it closes. initialRunId selects that
+ * run and opens its stages.
  */
 export async function showAwBoard(
 	ctx: PiExtensionContext,

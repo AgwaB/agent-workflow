@@ -1,4 +1,5 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/artifacts/store.ts. MIT, same author. Changes: default runs dir is DEFAULT_RUNS_DIR (".agent-workflow/runs") from core/constants; WP2a-2 adds exec-events.jsonl. WP2b (terminal-last-write): writeResult fsyncs the temp file (and, for a terminal result, every listed artifact) before the rename and the directory after it; buildResult returns the envelope writeResult would write without writing it; ensureTextArtifact creates a missing artifact empty.
+// Write terminal results last: fsync the temporary result and every listed artifact
+// before rename, then fsync the directory. Missing text artifacts are created empty.
 import { randomBytes } from "node:crypto";
 import {
 	appendFile,

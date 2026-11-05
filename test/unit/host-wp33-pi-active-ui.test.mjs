@@ -1,9 +1,6 @@
-// New in agent-workflow (WP33 item 2, parity row 23): the active-workflows widget and the
-// cancellable foreground loader (port of pi-workflow src/workflow-active-ui.ts). The widget lists
-// the runs this session tracks with their progress, next to the WP16 footer entry (kept), and is
-// cleared when none is active; print/JSON mode shows nothing. `/aw wait` runs behind a cancellable
-// loader in the TUI; cancelling cancels only the wait (WP28), the run continues. Runs use the
-// workflow executor fixture (no model or agent-CLI calls); the loader is a fake component.
+// The widget lists only session-tracked runs and clears when none are active.
+// Print/JSON shows nothing. Cancelling the TUI wait loader leaves the run running.
+// Use a fixture executor and fake loader, without model or agent CLI calls.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

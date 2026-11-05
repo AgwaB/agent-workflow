@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/worktree.ts. MIT, same author. Changes: env PI_WORKFLOW_{PRIVATE_RUNTIME_ARTIFACT_NAMES,CLONE_RUNTIME_ARTIFACT_DIRS,ALLOW_FULL_RUNTIME_ARTIFACT_COPY}→AGENT_WORKFLOW_*; state dir .pi→.agent-workflow (artifact scan still also skips legacy .pi). Managed worktree branch pi-workflow/<run>-<task>→agent-workflow/<run>-<task> (WP4c, user-visible).
 // @ts-nocheck
 import { PI_PROJECT_DIRECTORY, PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { execFileSync } from "node:child_process";

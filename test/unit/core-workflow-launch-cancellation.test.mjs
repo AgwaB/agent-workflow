@@ -1,15 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-launch-cancellation.test.mjs.
-// MIT, same author. Changes: imports from dist/core; setSubagentApiForTests→setTaskRuntimeApiForTests;
-// paths .pi/…→.agent-workflow/…. WP38b: the four "auto … cancellation fences first dispatch while
-// durable stop publication is delayed" cases are ported at the core level: agent-workflow's
-// `/aw auto` (WP32), like `/aw run|dynamic`, returns once the run started (no "Starting …" loader),
-// so the engine's in-memory launch fence (`launchSignal`, the signal pi-workflow's start loader
-// aborted on Escape) is driven directly through `runWorkflowSpec`/`runDynamicTask`; the
-// `auto-router` comparison call and the Pi handler are not involved. In the deadline case the
-// pi-workflow Pi warning ("cancellation is still pending" after the 1500 ms stop budget) is a host
-// notice agent-workflow has no counterpart for; the port asserts the durable stop intent survives
-// past that budget while the competing supervisor holds the lease. The other ten `auto …` cases run
-// against `/aw auto` in host-wp38b-auto-launch-cancellation.test.mjs.
+// Drive the engine launch fence directly; durable stop intent survives the stop budget
+// while a competing supervisor holds the lease.
 import assert from "node:assert/strict";
 import {
 	existsSync,
@@ -161,7 +151,7 @@ for (const selectedKind of ["named-workflow", "direct-dynamic"]) {
 			const stopGate = new Promise((resolve) => {
 				releaseStop = resolve;
 			});
-			// The signal pi-workflow's foreground start loader aborted on Escape.
+			// The foreground launch cancellation signal.
 			const launch = new AbortController();
 			try {
 				fixture = await setup();
@@ -245,7 +235,7 @@ for (const selectedKind of ["named-workflow", "direct-dynamic"]) {
 				releaseStop();
 				await waitFor(() => stopCommitted, "durable stop was not published");
 				if (contention === "deadline") {
-					// Beyond pi-workflow's unchanged 1500 ms stop budget: the intent stays durable.
+					// The stop intent remains durable beyond the 1500 ms stop budget.
 					await new Promise((resolve) => setTimeout(resolve, 1_700));
 					assert.ok(existsSync(join(runDirectory, "stop-intent.json")));
 					assert.notEqual(

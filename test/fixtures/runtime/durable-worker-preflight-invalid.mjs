@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/fixtures/durable-worker-preflight-invalid.mjs. MIT, same author. Changes: imports the compiled runtime from dist/.
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 

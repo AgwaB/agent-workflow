@@ -2,7 +2,6 @@ import {
 	projectTaskActivity,
 	type TaskActivity,
 } from "../../core/task-activity.js";
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/status.ts. MIT, same author. Changes: default runs dir ".agent-workflow/runs"; result backend check accepts any executor id; missing backend reported as "unknown" instead of "headless".
 import { readdir, readFile } from "node:fs/promises";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import {
@@ -34,7 +33,7 @@ import { assertSafeId, isInsideOrEqual } from "../core/paths.js";
 import { isTerminalStatus } from "../core/constants.js";
 export { isTerminalStatus } from "../core/constants.js";
 
-/** Backend reported for records that never stored one (was "headless" in pi-subagent). */
+/** Backend reported when a record stores none. */
 export const UNKNOWN_BACKEND = "unknown";
 const EVENT_TAIL_LIMIT = 20;
 const CHILD_EVENT_SCAN_LIMIT = Number.POSITIVE_INFINITY;

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/thinking-max.test.mjs. MIT, same author. Changes: imports from dist/core; the run/dynamic parsers come from dist/hosts/args (moved from extension.ts in WP11a) and report usage errors as "Invalid effort level … Supported: …, xhigh, max" (was "… xhigh, max"); the Pi executor's `--thinking` levels include max as well (PI_EFFORT_LEVELS). 2026-10-30: the workflow vocabulary adds Codex's "ultra" above max (Pi keeps max as its top level).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

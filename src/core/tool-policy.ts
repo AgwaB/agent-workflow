@@ -1,4 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-native-tool-policy.ts. MIT, same author. Changes: the native-host expansion (codemode, tool_search, mcp__*, MCP resource tools) is no longer added here; it becomes the task flag runtime.inheritHostTools that only the Pi executor honors (WP6), and core keeps the conservative mutation-capable safety it implied. WP4e: inheritedHostToolSafety/prepareWorkflowTaskToolPolicy take permissionMode (R#5 only in safe). WP35: applyWorkflowToolPolicy readOnlyDeclared (readOnly stages never inherit host tools). WP31×WP35: runInheritsHostToolsForTask (a mixed run's host-tool decision applies only to tasks on the pi executor).
+// Only Pi tasks may inherit host tools; declared read-only stages never do.
+// Host-tool inheritance remains conservatively mutation-capable in safe mode.
 import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
 import type {
 	CompiledTask,
@@ -8,8 +9,8 @@ import type {
 } from "./types.js";
 
 /**
- * Tools `inheritHostTools` adds to a Pi worker (pi-workflow `workflowNativeLaunchTools`). The Pi
- * executor passes them to the worker (executors/pi/argv.ts); the worker prompt names them (WP39b).
+ * Tools inheritHostTools adds to Pi workers. The Pi executor passes them to
+ * the worker, and the worker prompt names them.
  */
 export const INHERITED_HOST_TOOL_NAMES = [
 	"codemode",
@@ -135,9 +136,9 @@ export function inheritedHostToolSafety(
 		...safety,
 		capability: INHERITED_HOST_TOOLS_CLASSIFICATION,
 		sharedCwdSafe: false,
-		// D2/R#5 (safe mode): a write-capable task needs a worktree even under a
-		// spec-level "off"; only the executing user's run option can waive it.
-		// WP4e free mode: the spec's worktreePolicy as written (pi-workflow).
+		// In safe mode, write-capable tasks require a worktree even under spec policy off;
+		// only the executing user can waive this through the run option.
+		// Free mode honors the spec policy as written.
 		requiresWorktree: free ? safety.worktreePolicy !== "off" : !allowShared,
 		...(allowShared ? { allowSharedCheckoutWrites: true as const } : {}),
 		permission:

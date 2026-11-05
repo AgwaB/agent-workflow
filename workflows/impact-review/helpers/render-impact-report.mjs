@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/impact-review/helpers/render-impact-report.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Deterministic completion renderer for impact-review.
 //
 // The three readiness joins and impact-synthesis keep their workflow-specific

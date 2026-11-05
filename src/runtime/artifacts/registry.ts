@@ -1,5 +1,4 @@
 import type { TaskActivity } from "../../core/task-activity.js";
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/artifacts/registry.ts. MIT, same author. Changes: proper-lockfile replaced by zero-dep ./dir-lock.ts; default runs dir ".agent-workflow/runs"; env PI_SUBAGENT_EVENT_READ_CACHE_MAX -> AGENT_WORKFLOW_EVENT_READ_CACHE_MAX; WP2a-2 adds the attempt.executor_submitted and reconcile.executor_outcome event types.
 import { randomBytes } from "node:crypto";
 import {
 	appendFile,

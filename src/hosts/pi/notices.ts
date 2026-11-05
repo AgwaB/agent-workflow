@@ -1,13 +1,9 @@
-// New in agent-workflow (WP11b): unfinished-run notices at Pi session start. Port of pi-workflow
-// 0.16.4 (b83cc4f) `notifyUnfinishedRuns` over the host API `notices list` handler, which already
-// applies pi-workflow's eligibility (top-level failed/interrupted runs; blocked runs whose blocked
-// task is resumable: dynamic approval or an executor decision; mock runs excluded). Kept from
-// pi-workflow: active acknowledgements suppress a notice, runs older than 7 days are skipped, at most
-// 5 runs are listed, and a run is re-notified only when its status/updatedAt changed, its
-// acknowledgement became stale since the last notice, or 6 hours passed (per-run state in
-// `.agent-workflow/workflows/unfinished-notices.json`, pruned on write). Hints point at `/aw`.
-// WP38: a malformed acknowledgement sidecar no longer hides every notice (it suppresses none, as in
-// pi-workflow); each line names the workflow and marks a degraded failed run (final rendered).
+// Session-start notices use host API eligibility: top-level failed/interrupted runs
+// and resumable approval or executor-decision blocks, excluding mocks.
+// Valid acknowledgements suppress notices; malformed sidecars suppress none. Skip runs
+// older than seven days and list at most five. Re-notify on status/update changes,
+// stale acknowledgements, or after six hours; prune notice state on write.
+// Name the workflow, mark degraded rendered failures, and point hints at /aw.
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -94,8 +90,8 @@ export async function unfinishedRunNotice(
 	ctx: HostApiContext,
 	nowMs: number,
 ): Promise<string | undefined> {
-	// pi-workflow: a malformed or invalid acknowledgement sidecar never suppresses a notice. The
-	// strict `notices list` refuses it, so list again treating it as "no acknowledgements".
+	// Malformed or invalid acknowledgements never suppress notices. The strict list
+	// refuses them, so retry treating them as no acknowledgements.
 	const data = await api
 		.noticesAction(ctx, { argv: ["list"] })
 		.then((listed) => listed.data)
@@ -165,8 +161,8 @@ export async function unfinishedRunNotice(
 	await writeFile(temp, `${JSON.stringify({ notices: state }, null, 2)}\n`);
 	await rename(temp, file);
 
-	// pi-workflow parity: the line names the workflow and marks a failed run whose final output
-	// was rendered as degraded (read from the run record; a record that cannot be read adds nothing).
+	// Name the workflow and mark failed runs with degraded rendered output.
+	// Unreadable run records add no detail.
 	const lines = await Promise.all(
 		needing.slice(0, MAX_RUNS).map(async (run) => {
 			const record = await readRunRecord(ctx.cwd, run.runId).catch(

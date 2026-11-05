@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-metrics.ts. MIT, same author. Changes: WP12a support tasks observe no usage (observed values null, not 0).
+// Support tasks have no observed usage: values are null, not zero.
 import type {
 	TaskRunStatus,
 	WorkflowRunRecord,

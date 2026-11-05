@@ -1,14 +1,7 @@
-// New in agent-workflow (WP34 item 2, owner decision Q1, parity row 24): the `/aw profile` picker
-// flow. Ported from pi-workflow 0.16.4 (b83cc4f) src/workflow-profile-ui.ts
-// (`configureWorkflowExecutionProfile`: choose a profile, preview it, edit, save; nothing is written
-// until Save) over agent-workflow's WP31 model instead of pi-workflow's per-stage Pi model/thinking
-// settings: the choices are the built-in presets (`codex`, `claude`, `pi`, `mixed`), the saved user
-// profiles and Custom; editing is per role (`default`, the profile roles, `agent:<name>`) with an
-// executor, a model from that executor's probe list (`executorModelsAction`; the list's
-// `modelListComplete` note is shown) and an effort. Saving writes through the host API: a saved user
-// profile (`profileAction` set, optionally the default) or one workflow's preference
-// (`workflowPreferenceAction` set: the base profile plus the edited roles). Every read and write is
-// a host API call; the UI is an interface (profile-tui.ts is Pi's; tests script it).
+// Profile picker: choose a preset, saved profile, or Custom; preview and edit per-role
+// executor/model/effort. Read model lists and completeness notes through executor probes.
+// All reads and writes use the host API; write nothing until Save. Save either a user
+// profile or a workflow preference. The UI interface is scriptable for tests.
 import { roleKeyProblem, sortedRoleKeys } from "../../core/role-profiles.js";
 import {
 	THINKING_LEVELS,

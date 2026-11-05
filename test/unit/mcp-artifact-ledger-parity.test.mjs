@@ -1,5 +1,4 @@
-// New in agent-workflow (WP5): list/read results and read-ledger rows from the MCP server match
-// the core workflow_artifact tool (the pi-workflow Pi tool body) for the same fixture run.
+// MCP artifact results and read-ledger rows match the core tool for the same run fixture.
 import assert from "node:assert/strict";
 import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";

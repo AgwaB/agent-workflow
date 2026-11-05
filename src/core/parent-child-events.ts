@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 188-191, 463-482, 666-764 (child events for a parent runtime run). MIT, same author. Changes: env PI_WORKFLOW_PARENT_SUBAGENT_*→AGENT_WORKFLOW_PARENT_SUBAGENT_*.
 import {
 	type SubagentRunStatusSnapshot,
 	loadSubagentApi,

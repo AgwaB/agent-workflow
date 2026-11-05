@@ -1,11 +1,6 @@
-// New in agent-workflow (WP33 item 4, parity row 35): host-neutral launch capture. pi-workflow
-// recorded launch provenance (`launch-command.txt` + `run.launch` v1/v2) only for its own Pi slash
-// commands and tools; the host API now records it for every host: the CLI, the Pi host and the host
-// MCP server. `source` is the host (`cli`, `pi`, `mcp:<host>`), `entry` how it was asked (a command
-// line or a tool call), and the command text is human readable: the host's own command line
-// (`agent-workflow run …`, `/aw run …`) or `<tool> <JSON arguments>`, synthesized from the request
-// when a host passes none. Before it is written the text is redacted (the host redactor: tokens,
-// keys, credential headers) and the user's home directory becomes `~`.
+// Capture launch provenance for CLI, Pi, and MCP hosts. Source identifies the host;
+// entry identifies the command or tool call. Synthesize human-readable command text
+// when absent, redact credentials before writing, and replace the user home path with ~.
 import { homedir } from "node:os";
 
 import type {

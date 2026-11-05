@@ -1,12 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/extension.ts (readWorkflowResultPresentation
-// and its safe task-artifact helpers, used by the workflow_wait tool). MIT, same author. Changes
-// (WP11a): moved into the host API; the truncation notice no longer names the Pi `/workflow` board.
-// WP18b: the presentation carries the output task's domain `verdict`; a run that failed only at its
-// final verdict gate presents the declared-failed output task (`isVerdictGateFailure`).
-// WP19 (review #10): `isVerdictGateFailure` is only the structural precondition; a run is presented
-// as a verdict gate only with explicit evidence: a non-empty domain verdict in the output task's
-// control AND an existing final-report artifact inside the run's directory. A generic support
-// failure without them (e.g. "required evidence missing") stays a failure.
+// Present a verdict-gate failure only with a non-empty domain verdict and an existing
+// final-report artifact inside the run directory; a generic support failure stays a failure.
 import { realpath, readFile, open } from "node:fs/promises";
 import {
 	dirname,

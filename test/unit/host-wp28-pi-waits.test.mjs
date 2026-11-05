@@ -1,9 +1,6 @@
-// New in agent-workflow (WP28, owner decision Q9): Pi long waits. `aw_run`/`aw_dynamic` accept
-// `awaitTerminal` + `timeoutMs` and `aw_wait` / `/aw wait <run> [timeout]` wait until the run is
-// terminal (or needs action) or the timeout passes, with pi-workflow's bounds (tools: default
-// 30 min, max 4 h; the command: default 60 s). Cancelling cancels only the wait. An awaited result is
-// not delivered again; a wait that ends first leaves the run tracked for delivery. MCP keeps its
-// 45 s cap (host API default). Runs use the workflow executor fixture (no model or agent-CLI calls).
+// Pi tools support long waits: default 30 minutes, maximum four hours; /aw wait defaults
+// to 60 seconds. Cancellation stops only the wait. Awaited results are not delivered
+// again; unsettled runs remain tracked. MCP keeps a 45-second cap. Fixture executor only.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-runtime.ts. MIT, same author. Changes: none.
 import { THINKING_LEVELS, type FastMode, type ThinkingLevel } from "./types.js";
 
 export type WorkflowModelThinkingLevelMap = Partial<

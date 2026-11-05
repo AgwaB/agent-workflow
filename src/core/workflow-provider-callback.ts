@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-provider-callback.ts. MIT, same author. Changes: none.
 import { redactSensitiveWorkflowText } from "./workflow-sensitive-query.js";
 
 /**

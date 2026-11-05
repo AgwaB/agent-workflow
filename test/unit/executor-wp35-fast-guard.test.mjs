@@ -1,10 +1,7 @@
-// New in agent-workflow (WP35, feature-parity row 39): the Pi executor's fast-tier provider-stream
-// guard, ported from pi-workflow `workflow-fast-mode-extension.ts`. Fake provider streams and a fake
-// Pi extension API stand in for Pi; the executor runs against a stub CLI. Covers: the guard forces
-// `serviceTier: priority` on the re-registered OpenAI stream and stamps the payload, the binding
-// check aborts and reports `failed`, the degrade path (`payload-only`), the generated wrapper hands
-// in Pi's stream functions, the attempt outcome on a guard failure, and the per-task descriptor
-// config (fast only when negotiation accepted fastTier). No model or agent-CLI calls.
+// Pi fast-tier guard tests use fake provider streams, a fake extension API, and a stub CLI.
+// Cover priority service tier, payload stamping, binding-failure aborts, degraded support,
+// wrapper stream injection, attempt failure, and negotiation-gated task config.
+// No model or agent CLI calls.
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

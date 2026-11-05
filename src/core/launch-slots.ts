@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 176-193, 199-200, 765-779, 962-983, 1079-1327, 1506-1684, 2680-2726 (launch slots and concurrency: process launch gate, live model worker slots, adaptive live workers, launch ramp, retry jitter, test controls). MIT, same author. Changes: env PI_WORKFLOW_MAX_CONCURRENT_LAUNCHES/MAX_LIVE_MODEL_WORKERS/ADAPTIVE_LIVE_WORKERS/LAUNCH_SLOT_RELEASE_DELAY_MS→AGENT_WORKFLOW_*; messages say "executor" instead of "pi-subagent".
 import { availableParallelism } from "node:os";
 import {
 	EXPERIMENTAL_LAUNCH_RAMP_ENV,

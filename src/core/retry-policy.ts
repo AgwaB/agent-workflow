@@ -1,4 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 169-174, 208-213, 781-961, 2727-2736, 5776-6122, 6146-6261 (retry limits, transient/rate-limit backoff incl. shared cross-process backoffs, failure classification). MIT, same author. Changes: R#12 auth.json read (6014-6047) removed; unknown auth kind takes the conservative (OAuth) backoff, with a setExecutorAuthKindProbe hook for a probe-reported non-secret auth kind; shared backoff file under AGENT_WORKFLOW_HOME (was ~/.pi/agent); env PI_WORKFLOW_TRANSIENT_MODEL_FAILURE_RETRIES/ARTIFACT_OUTPUT_RETRIES→AGENT_WORKFLOW_*; runtime failure kinds transient/rate_limit/not_started join the retryable set; failureKind rate_limit backs off without text evidence.
+// Never read host auth secrets. Unknown auth kinds use conservative OAuth backoff;
+// auth-kind probes report only non-secret metadata. Rate-limit failures back off without text evidence.
 import { randomBytes } from "node:crypto";
 import { rmSync } from "node:fs";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
@@ -462,10 +463,9 @@ function retryAfterMsFromRateLimitText(
 }
 
 /**
- * R#12: non-secret auth kind an executor probe can report for a provider backoff key
- * (`subscription` = account-level subscription limits, `api-key` = per-key API limits).
- * pi-workflow read `~/.pi/agent/auth.json` to tell them apart; that read is removed (D1: the
- * engine never reads credential stores).
+ * Non-secret auth kind reported by an executor probe for provider backoff.
+ * Subscription limits are account-level; API-key limits are per key.
+ * The engine never reads credential stores.
  */
 export type ExecutorAuthKind = "subscription" | "api-key" | "unknown";
 
@@ -708,10 +708,8 @@ export function retryOrFailArtifactGraphTask(
 }
 
 /**
- * Failure kinds eligible for the transient retry policy. `model` is the pi-subagent kind; the
- * runtime reports `transient`, `rate_limit` and reconcile-proven `not_started` (B3: safe to
- * relaunch with a new attempt). `needs_decision`, `executor_unknown`, `executor_auth`,
- * `executor_config` and `executor_permanent` are never retried automatically.
+ * Transient retry accepts model, transient, rate_limit, and reconcile-proven not_started failures.
+ * Decision, unknown, auth, config, and permanent executor failures are never retried automatically.
  */
 export const RETRYABLE_EXECUTOR_FAILURE_KINDS: ReadonlySet<string> = new Set([
 	"model",

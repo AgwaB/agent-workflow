@@ -1,34 +1,11 @@
-// New in agent-workflow (WP32, owner decision Q5, parity row 21): the host API `auto` action, the
-// host-neutral port of pi-workflow 0.16.4 (b83cc4f) src/extension.ts `handleWorkflowAutoRequest`
-// (`/workflow auto`). Flow and consent semantics are pi-workflow's:
-//   1. a local shortlist (no model call): the trusted dynamic workflow plus the bounded catalog of
-//      named workflows, ranked by the task's words against each spec's `routing` hints; WP42: the
-//      classifier request packet (task, these candidates, their bounded descriptions) is built
-//      here, once (core `prepareWorkflowAutoComparison`, nothing sent);
-//   2. explicit consent before anything leaves the machine: the host shows what would be sent (the
-//      task text, the candidate workflows, the classifier executor and model; exactly the prepared
-//      packet is transmitted, a catalog change during the dialog is not) and asks through its
-//      own dialog (`consent.confirm`: CLI y/n on a terminal, Pi `ctx.ui.confirm`, MCP elicitation)
-//      or passes an explicit user flag (`consent: { source: "flag" }`, CLI `--yes`). No consent
-//      hook = no call (print/JSON mode, no terminal, an MCP client without elicitation): the
-//      result is the local shortlist and the commands to run a workflow directly;
-//   3. exactly one tool-less classifier call on the run's default executor (Q5: the same rule as a
-//      run's executor: run flag > saved user profile > host override > host default, so Claude
-//      Code → claude, Codex → codex, Pi → pi, the terminal CLI → the first installed and logged-in
-//      of pi → claude → codex);
-//   4. the ranked recommendation with the classifier's reasons, then the user's final choice among
-//      the launchable candidates (`choose`; no hook = the ranking is returned and nothing starts);
-//   5. the chosen workflow starts through the normal launch path (duplicate guard, profiles,
-//      capability confirmation, dynamic approvals) and its launch capture records the selection
-//      (`agent-workflow-run-launch-v2`: candidates, recommendation, choice, classifier executor and
-//      model, consent source; the task only as a SHA-256, never classifier prose or secrets).
-// Cancelling any step starts nothing; there is no hidden fallback and no current-conversation
-// choice. WP38b: a host may run the comparison behind a cancellable loader (`compare`; Pi in the
-// TUI): cancelling it aborts the in-flight classifier request and starts nothing, and `signal`
-// (Pi: the session ended) cancels every step before the launch. Changes from pi-workflow: one action for every host (CLI, Pi, MCP) instead of a TUI-only
-// slash command; the consent prompt names the classifier executor/model and shows the task; the
-// final choice is a single host dialog (Pi adds a separate confirmation); a stale named spec
-// (changed since the comparison) is refused.
+// Host-neutral auto selection: build a local shortlist and an immutable comparison packet.
+// Obtain explicit consent showing the task, candidates, classifier executor, and model before
+// one tool-less classifier call. Without a consent hook, return only the local shortlist.
+// The classifier uses normal executor precedence. Launch only the user-selected startable
+// workflow through the normal guarded launch path; stale named definitions are refused.
+// Capture the selection, classifier identity, consent source, and task hash, never secrets
+// or classifier prose. Cancellation, including session end, starts nothing; abort an
+// in-flight comparison when its loader is cancelled. There is no hidden fallback.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
@@ -414,7 +391,7 @@ async function availableAgentNames(cwd: string): Promise<string[] | undefined> {
 	try {
 		return [...(await discoverAgents(cwd)).byAlias.keys()];
 	} catch {
-		// A malformed unrelated agent must not fail recommendation-only auto (pi-workflow).
+		// A malformed unrelated agent must not fail recommendation-only auto.
 		return undefined;
 	}
 }
@@ -759,7 +736,7 @@ export async function autoAction(
 				"Auto selection cancelled. No workflow has been started.",
 			].join("\n"),
 		);
-	// A named workflow must be the exact spec that was compared (pi-workflow's stale check).
+	// A named workflow must be the exact spec that was compared.
 	if (source.kind === "named-workflow") {
 		let current: string | undefined;
 		try {

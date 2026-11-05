@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/foreach-batch-runtime.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules: task-backend, foreach-recovery, runtime-port, launch-slots, required-reads); helper from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests (aliased); registers the default fixture executor; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…; backend id pi-subagent/headless→agent-workflow/runtime; "prepared batch execution-surface drift …" schedules until both singleton fallbacks launched (bounded load margin: a pass can skip while the in-process supervisor holds the lease).
 import { createWorkflowRunRecord } from "../helpers/unit-test-support.mjs";
 import {
 	drainWorkflowFixture,

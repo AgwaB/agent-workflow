@@ -153,10 +153,8 @@ function availableModels(
 }
 
 /**
- * WP35 (row 40): Pi's native host tools, captured like pi-workflow's native host context: a Pi 1.1
- * session with native MCP (`pi.getMcpServers`) and project trust (`ctx.isProjectTrusted`) lends
- * codemode, tool_search, `mcp__*` and the MCP resource tools to Pi workers. Older Pi hosts lend
- * nothing (their launches are unchanged).
+ * A trusted Pi session with native MCP lends codemode, tool_search, mcp__*,
+ * and resource tools to Pi workers. Hosts without those APIs lend nothing.
  */
 export function piNativeHostTools(
 	pi: PiExtensionApi,
@@ -207,12 +205,10 @@ export function hasDialogUi(ctx: PiExtensionContext): boolean {
 }
 
 /**
- * WP29 (parity row 43): pi-workflow's `dynamicUiFromContext` (src/extension.ts): a dynamic
- * controller with `approval: "ask"` is approved through Pi's `ctx.ui.confirm` ("Run dynamic
- * workflow controller?", the approval scope as the message, a 5-minute timeout and an abort signal).
- * Yes runs it; no rejects it for this run (no re-prompt on resume); a timeout leaves it blocked and
- * resumable. Only attached launches, waits, resumes and re-drives of a session with a dialog UI get
- * it (src/hosts/types.ts `dynamicUi`); print/JSON mode keeps `dynamic_ui_unavailable`.
+ * Dynamic controllers with approval ask use Pi confirmation with scope, a five-minute
+ * timeout, and an abort signal. Yes runs; no permanently rejects this run; timeout
+ * leaves it resumable. Only attached calls with dialog UI ask; print and JSON modes
+ * retain dynamic_ui_unavailable.
  */
 export function piDynamicUi(
 	ctx: PiExtensionContext,

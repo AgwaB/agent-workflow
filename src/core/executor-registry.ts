@@ -1,7 +1,5 @@
-// New in agent-workflow (WP4c-1): executor selection for workflow runs (owner decision B2) and the
-// registry that maps executor ids to ExecutorDescriptor modules. pi-workflow had exactly one
-// executor (pi-subagent headless Pi); here the run records which executor it uses, and an unknown or
-// unavailable executor fails the run before any launch (never a silent fallback).
+// Executor selection and the registry of executor descriptor modules.
+// An unknown or unavailable executor fails before launch; there is no silent fallback.
 import { ACP_ADAPTER_VERSION } from "../executors/acp/version.js";
 import {
 	CLAUDE_ADAPTER_VERSION,

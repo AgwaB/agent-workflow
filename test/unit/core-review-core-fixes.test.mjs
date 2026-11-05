@@ -1,8 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/review-core-fixes.test.mjs. MIT, same
-// author. WP38: the IR1-03 (parent usage) and IR1-04/IR1-05 (json-schema) tests; the IR1-08/IR1-09
-// tests were ported in WP11a (host-ported-cli-args.test.mjs). Changes: imports from dist/core; run
-// root .pi/workflows→.agent-workflow/workflows; the IR1-03 message_end test drives the agent-workflow
-// Pi host (createAgentWorkflowPiExtension, WP33 parent usage; was pi-workflow's extension).
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs, { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";

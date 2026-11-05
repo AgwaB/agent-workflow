@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-artifact-footprint.test.mjs. MIT, same author. Changes: imports from dist/core/; .pi/workflows and .pi/workflow-subagents→.agent-workflow/….
 import assert from "node:assert/strict";
 import {
 	mkdtemp,

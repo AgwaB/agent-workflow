@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-helpers.ts. MIT, same author. Changes: 2026-11-01 optional `context.evidence` (engine-side evidence checks).
 import type { SupportEvidenceContext } from "./evidence-web-quotes.js";
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute, resolve, sep } from "node:path";

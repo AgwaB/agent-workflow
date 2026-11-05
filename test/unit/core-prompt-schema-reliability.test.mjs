@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/prompt-schema-reliability.test.mjs. MIT, same author. Changes: imports from dist/core/; env AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA; the engine.ts source test (restored in WP4c-1) reads src/core/engine.ts.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";

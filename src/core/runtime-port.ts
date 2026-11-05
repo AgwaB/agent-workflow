@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts (SubagentApi seam, lines 287-533). MIT, same author. Changes: the engine calls the in-repo runtime API (src/runtime/api.ts) statically instead of importing @agwab/pi-subagent/api; `supportsExplicitExtensionIsolation` dropped (Pi only); the test seam is setTaskRuntimeApiForTests (was setSubagentApiForTests). Result/barrier shapes are the pi-subagent ones the runtime kept (runtime-port record "SubagentApi → runtime API").
 import {
 	type SubagentResultArtifactRef,
 	type SubagentRunLogRef,
@@ -197,9 +196,8 @@ export function isTaskRuntimeApiInjected(): boolean {
 }
 
 /**
- * Test seam (pi-workflow `setSubagentApiForTests`): replace the runtime API the
- * task backend calls. `undefined` restores the real runtime and clears shared
- * rate-limit backoff state, as before.
+ * Test seam for the runtime API called by the task backend.
+ * Undefined restores the real runtime and clears shared rate-limit backoff state.
  */
 export function setTaskRuntimeApiForTests(api: unknown | undefined): void {
 	injectedSubagentApi = api === undefined ? undefined : (api as SubagentApi);

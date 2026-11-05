@@ -1,11 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/extension.ts (parseWorkflowRunArgs,
-// parseWorkflowDynamicArgs, parseWorkflowPruneArgs, the run-option tokenizer) and src/cli.mjs (the
-// supervise option loop). MIT, same author. Changes (WP11a): moved out of the Pi extension into the
-// host-neutral host API so every host (CLI, host MCP server, Pi host) parses the same way; no Pi
-// imports; errors are HostUsageError; `/workflow dynamic` now accepts `--profile` (saved user
-// profiles apply to dynamic runs too); new run options `--executor`, `--permission-mode`,
-// `--allow-unverified`, `--effort` (`--thinking`/`--reasoning` stay as aliases). WP12a: repeatable
-// `--input key=value`.
+// Every host shares these host-neutral argument parsers and HostUsageError failures.
 import { THINKING_LEVELS, type ThinkingLevel } from "../core/types.js";
 
 /** A caller mistake (bad flag, missing argument). CLI exit code 2; MCP hosts map it to invalid params. */

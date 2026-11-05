@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-source-context-runtime.ts. MIT, same author. Changes: none.
 import { readFile, readdir, stat } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
 

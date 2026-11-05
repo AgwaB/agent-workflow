@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/wb-003-package-closure.test.mjs. MIT, same author. Changes: fixtures copied to test/fixtures/core/package-closure; env PI_WORKFLOW_ALLOW_PUBLISHED_VERSION→AGENT_WORKFLOW_ALLOW_PUBLISHED_VERSION (tools/release/release-policy.mjs). "WB-003 real dry-run pack contains storage and the recursive pi-web-access closure" is not ported (agent-workflow bundles no pi-web-access: C2, the CLIs bring their own web tools; core-port record "WP38"). The E2E inventory test checks agent-workflow's runner (packed-install/cli-run/durable-barrier cases, no-external-actions guard, agent-CLI audit; pi-workflow's packed-web-loader case was dropped with C2) and ignores comment lines when it scans for install commands; the publish dry-run call is the multi-line form of release-check.mjs.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";

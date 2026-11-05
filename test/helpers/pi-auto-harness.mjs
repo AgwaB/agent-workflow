@@ -1,8 +1,6 @@
-// New in agent-workflow (WP38b): a shared harness for the ported pi-workflow `/workflow auto` tests
-// that now run against WP32 `/aw auto` (host API `autoAction`) in a fake Pi session. The built-in
-// executor ids are shadowed by the workflow executor fixture (no agent CLI, no model call): its
-// `autoRecommend` answers the classifier call (`autoClassifier: true` in the effect log), every
-// other submit is a workflow task. `classify` replaces the classifier answer (for example no-fit).
+// Shared /aw auto harness in a fake Pi session. Shadow built-in executor ids with
+// the fixture executor: autoRecommend answers classifier calls, other submits are
+// workflow tasks. Classify overrides the answer. No model or agent CLI calls.
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 

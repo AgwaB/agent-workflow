@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-audit.ts. MIT, same author. Changes: none.
 // Deterministic claim-support audit for direct dynamic runs.
 //
 // Mirrors the counting semantics of the static deep-research audit helpers

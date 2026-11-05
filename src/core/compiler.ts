@@ -1,4 +1,6 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/compiler.ts. MIT, same author. Changes: R#5/D2 write-capable tasks require a worktree even under spec worktreePolicy "off" (warning; only the run option allowSharedCheckoutWrites waives it); fast mode from fast-tier.ts; native host → inheritHostTools compile option (tool-policy.ts). WP4e: compile option permissionMode — R#5 only in "safe"; "free" honors worktreePolicy as written (pi-workflow). WP35: a declared readOnly stage never inherits host tools; with compile option runExecutor (WP31 mixed runs) only stages on the pi executor do. WP31: a stage's executor (EXECUTION_PROFILE_EXECUTOR) reaches runtime.executor; host model defaults and the model registry apply only to stages on their executor.
+// In safe mode, write-capable tasks require a worktree unless allowSharedCheckoutWrites is set.
+// Read-only stages never inherit host tools; only Pi tasks may inherit them.
+// Host model defaults and the model registry apply only to tasks on their executor.
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
@@ -107,10 +109,8 @@ export interface CompileOptions {
 	 */
 	allowSharedCheckoutWrites?: boolean;
 	/**
-	 * WP4e (D2 revised): the run's permission mode. R#5 (a write-capable task
-	 * needs a worktree even under a spec "off") applies only in `safe`; in
-	 * `free` the spec's worktreePolicy is honored as written (pi-workflow
-	 * behavior). Absent = `safe`; the engine always passes the run's mode.
+	 * The run permission mode defaults to safe. In safe mode, write-capable tasks require
+	 * a worktree even under spec policy off; free mode honors the spec policy as written.
 	 */
 	permissionMode?: "free" | "safe";
 	/**
@@ -748,7 +748,7 @@ function classifySafety(
 					effectiveToolClassification(tool, toolProviders) === "read-only",
 			),
 	);
-	// WP4e: free mode honors the spec's worktreePolicy as written (pi-workflow).
+	// Free mode honors the spec's worktreePolicy as written.
 	if (options.permissionMode === "free")
 		return {
 			readOnlyDeclared,

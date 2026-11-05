@@ -233,7 +233,7 @@ test("registration: /aw command, four aw_* tools with executor-neutral schemas, 
 		"workflow",
 		"task",
 	]);
-	// WP28 (Q9): pi-workflow's long waits (max 4 h).
+	// Long waits cap at four hours.
 	assert.equal(
 		pi.tools.get("aw_wait").parameters.properties.timeoutMs.maximum,
 		14_400_000,

@@ -1,5 +1,4 @@
 import { findSource, asArray, asObject, stringOf } from "./source-access.mjs";
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/normalize-input-packet.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Deterministic compact input packet for deep-research normalize-claims.
 //
 // This helper performs mechanical context hygiene before the normalizer LLM:

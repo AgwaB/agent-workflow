@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/e2e/forbidden-term-scanner.mjs. MIT, same author. Changes: scans the files of the packed package (a directory given on the command line) instead of the source checkout; the legacy recipe/flow terms are replaced by agent-workflow's rules: no Pi-only code in the Pi-free entry points, no Pi-only names in the bundled workflows/skills/agents, no local home paths and no secret-shaped values anywhere, no non-product files in the tarball, no runtime dependencies. Exit codes unchanged (0 clean, 2 forbidden match, 3 read/setup error).
 //
 //   node test/e2e/forbidden-term-scanner.mjs <installed-package-root>
 import { lstatSync, readdirSync, readFileSync } from "node:fs";
@@ -36,8 +35,8 @@ export const BUNDLED_ASSET_PREFIXES = Object.freeze([
 ]);
 
 /**
- * Pi-only names in code lines (comments are skipped: ported files name their sources). The legacy
- * pi-subagent binding variable is allowed only where the runtime strips it from worker envs.
+ * Scan Pi-only names in code, skipping comments. The legacy binding environment
+ * variable is allowed only where the runtime strips it from worker environments.
  */
 export const PI_ONLY_CODE_RULES = Object.freeze([
 	{ id: "pi-peer-import", pattern: /@earendil-works\//u },

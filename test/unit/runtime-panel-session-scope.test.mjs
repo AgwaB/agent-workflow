@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/checks/panel-session-scope.mjs to node:test against dist/. MIT, same author. Changes: see runtime-port record (test table).
 // Cross-component contract test: the engine writes parentSessionId into run.json,
 // and pi-panel scopes its footer to runs whose parentSessionId matches the
 // reading session. This reproduces the reported bug (session A's run leaking

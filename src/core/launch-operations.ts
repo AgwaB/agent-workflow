@@ -1,5 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 196-198, 984-1078, 1685-1687 (bounded runtime operations: abort/stop checks, operation timeouts). MIT, same author. Changes: none beyond the split.
-
 import { throwIfWorkflowStopRequested } from "./workflow-stop.js";
 
 export const SUBAGENT_LAUNCH_ACK_TIMEOUT_MS = 30_000;

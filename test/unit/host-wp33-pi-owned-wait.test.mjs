@@ -1,10 +1,7 @@
-// New in agent-workflow (WP33 item 1, parity row 20): session-owned waits / presentation lease
-// (pi-workflow `workflow_wait` session binding). A run's completion is presented by the session that
-// owns it; an agent of that session that waited and received the settled result (`aw_wait`, or an
-// awaited launch on a run that is already tracked) does not get the completion message again;
-// another session cannot wait on (take) the presentation. The WP19 rules stay: the presentation is a
-// `sent` receipt (channel `tool-result`), confirmed by the tool result in the session history, and a
-// history without it gets the message once after a restart. Runs use the workflow executor fixture.
+// Completion belongs to the owning session. Its awaited tool result prevents a
+// duplicate completion message; other sessions cannot take that presentation.
+// Tool-result receipts are confirmed by session history; missing history after a
+// restart permits redelivery. Use the workflow executor fixture.
 import assert from "node:assert/strict";
 import {
 	mkdir,

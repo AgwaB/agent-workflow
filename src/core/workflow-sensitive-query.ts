@@ -1,6 +1,6 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-sensitive-query.ts. MIT, same author. Changes: WP19 (stage-2 review #7) `redactSensitiveWorkflowText` also redacts quoted structured credentials (JSON/header fields such as `"Authorization":"Basic …"`, `"refresh_token":"…"`, also inside escaped JSON), `Proxy-Authorization`/`x-api-key` header lines, and Linux (`/home/<user>`) and Windows (`C:\\Users\\<user>`) home paths besides macOS.
-// WP19 round 2: escape-aware structured values (N4); prose such as `Exit code: 1` or `Authorization: missing …` is kept, credential header values and tokens are not (N6).
-// WP19 round 3 (R1): a value under a credential header (`Authorization`, `x-api-key`, `Cookie`, `*-token`, …) is always redacted, whatever its length or alphabet; the only prose exception is an obvious statement after `Authorization:` (`missing …`, `not required …`).
+// Redact structured credentials (including escaped JSON), credential headers, and user home paths.
+// Credential header values are redacted regardless of length or alphabet; only obvious
+// Authorization prose such as "missing" or "not required" is kept.
 const SENSITIVE_QUERY_TOKENS = new Set([
 	"access",
 	"auth",

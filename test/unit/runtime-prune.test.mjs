@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/checks/prune.mjs to node:test against dist/. MIT, same author. Changes: see runtime-port record (test table).
 import assert from "node:assert/strict";
 import {
 	mkdir,
@@ -209,9 +208,7 @@ test("prune", async () => {
 			/Deleted: 3 run\(s\), \d+ bytes/u,
 		);
 
-		// 5. [rewritten] pi-subagent exercised these through the Pi extension tool
-		// action (src/index.ts, not ported). The same selections are asserted on the
-		// runtime function directly: keep 0 dry run, then keep 0 + yes.
+		// Assert runtime selections directly: keep 0 dry run, then keep 0 with yes.
 		const toolDry = await pruneSubagentRuns({ cwd, keep: 0 });
 		assert.equal(toolDry.status, "dry-run");
 		assert.deepEqual(toolDry.selected.map((run) => run.runId).sort(), [
@@ -598,8 +595,7 @@ test("prune", async () => {
 			);
 		}
 
-		// 11. Default keep is 50 and the ./runtime entry point export is the same
-		// function (pi-subagent checked api.mjs).
+		// Default keep is 50; the runtime entry point exports the same function.
 		assert.equal(runtime.pruneSubagentRuns, pruneSubagentRuns);
 		const viaApi = await runtime.pruneSubagentRuns({ cwd });
 		assert.equal(viaApi.keep, 50);

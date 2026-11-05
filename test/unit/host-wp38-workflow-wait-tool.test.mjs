@@ -1,15 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-wait-tool.test.mjs. MIT, same
-// author. WP38: the 37 tests map onto agent-workflow's WP28 long waits, WP33 owned waits and the
-// WP16/WP19 Pi completion delivery (src/hosts/pi/feedback.ts); the dispositions of the tests not
-// ported here are in core-port record "WP38". Changes: imports from dist/core and dist/hosts;
-// pi-workflow `workflow_wait` → `aw_wait` (createAgentWorkflowPiExtension over the fake Pi of
-// test/helpers/pi-host-fake.mjs); `deliverWorkflowFeedback(ctx, pi, run)` → `deliverCompletion(pi,
-// ctx, run, {triggerTurn})` with outcome strings (was `{status}` objects); the audience is bound with
-// `bindFeedbackAudience` (`pi-feedback-audience.json`, was `feedback-audience.json`) and receipts
-// live in `pi-feedback-receipts/` (was `feedback-delivery-receipts/`); wait details `preview` (was
-// `finalResultPreview`); run root .pi/workflows→.agent-workflow/workflows; the completion message
-// points at `/aw` (was `/workflow`). The watcher retry-exhaustion test drives `PiRunFeedback.tick()`
-// (was `watchWorkflowFeedbackForTests` with a 5 ms poll).
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {

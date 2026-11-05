@@ -1,4 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 5443-5725 (required artifact reads against the read ledger). MIT, same author. Changes: ledger rows marked deliveryUnverified: true (R#9, written by the WP5 MCP server) never satisfy a required read or projection policy. WP5b: a whole-artifact required read is also satisfied when verified page rows (deliveryUnverified: false) of one artifact version (contentSha256) cover [0, totalChars); incomplete coverage is reported with the missing char ranges.
+// Unverified delivery never satisfies a required read or projection policy.
+// Verified pages of one content hash satisfy a whole-artifact read only when they cover [0, totalChars).
 import { join } from "node:path";
 import {
 	type ArtifactGraphRequiredRead,

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-review/helpers/render-review-report.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Deterministic evidence-backed renderer for deep-review.
 //
 // Finding cards are rendered from partition-verdicts.control.json, the

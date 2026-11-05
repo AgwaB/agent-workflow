@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/wb-016-scheduler-performance.test.mjs. MIT, same author. Changes: imports from dist/core/; the engine/backend source test (restored in WP4c-1) reads src/core/engine.ts and src/core/task-backend.ts (refreshRunFromSubagentArtifacts moved there).
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";

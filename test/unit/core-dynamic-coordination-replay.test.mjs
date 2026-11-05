@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/dynamic-coordination-replay.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/unit-test-support.mjs; setSubagentApiForTests→setTaskRuntimeApiForTests.
 // Replay/resume safety tests for the dynamic coordination projection
 // (coordination-projection plan slice S4, AC5a/AC5b).
 import test from "node:test";

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 4511-4921 (foreach batch terminal materialization and restart recovery). MIT, same author. Changes: none beyond the split.
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";

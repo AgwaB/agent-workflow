@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/e2e/cases/packed-workflows.mjs and the
-// consumer checks of cases/packed-web-loader.mjs. MIT, same author. Changes: the consumer has no Pi
-// packages at all (pi-workflow linked its required Pi peers); every Pi-free entry point is imported
-// from the consumer, the Pi host must refuse to load without Pi, the bin answers --help/--version,
-// and the bundled workflows are listed, resolved, validated through the CLI and compiled, with
-// their schemas, helpers and agents present in the tarball.
 //
 //   node test/e2e/cases/packed-install.mjs <installed-package-root> <consumer-project>
 import assert from "node:assert/strict";
@@ -100,7 +94,7 @@ for (const name of officialNames) {
 const api = await import(
 	pathToFileURL(consumerRequire.resolve("@agwab/agent-workflow")).href
 );
-// The compiler is not a public export; load it from the installed dist like pi-workflow's E2E.
+// The compiler is not a public export; load it from the installed dist.
 const { compileWorkflow } = await import(
 	pathToFileURL(join(packageRoot, "dist", "core", "compiler.js")).href
 );

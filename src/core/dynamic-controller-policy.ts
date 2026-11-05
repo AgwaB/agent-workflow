@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-controller-policy.ts. MIT, same author. Changes: run bundle path in approval text .pi/workflows→.agent-workflow/workflows; approval messages name `/aw resume` (WP18b), not pi-workflow's `/workflow resume`. WP29: the no-UI and timeout messages name every approve path (`agent-workflow approve`, `/aw approve`, MCP `workflow_approve`; dynamic-approval.ts); `DynamicWorkflowUi.host` records the answering host on `approval.resolved` (`decidedBy`); title/timeout/rejection text shared with dynamic-approval.ts.
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { basename, relative } from "node:path";
 

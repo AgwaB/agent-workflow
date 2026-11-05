@@ -1,11 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/extension.ts (`/workflow list|validate|roles|
-// agents` handlers, workflow_list tool paging: listWorkflowSummaries, boundedWorkflowListPage,
-// clipWorkflowMetadata). MIT, same author. Changes (WP11a): host-neutral handlers returning
-// structured data and text; list paging is opt-in (`limit`), the CLI lists everything; validate no
-// longer prints the legacy `local-pi/headless` backend line; `profile` manages the new saved user
-// profiles (user-profiles.ts) instead of the Pi TUI per-workflow picker (WP11b). WP31: `profile set
-// --preset`, `profile presets` (built-in executor presets), `profile workflow list|show|set|clear`
-// (saved per-workflow preferences, workflow-preferences.ts).
 import { readFile } from "node:fs/promises";
 
 import { discoverAgents } from "../core/agents.js";

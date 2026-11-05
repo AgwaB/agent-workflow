@@ -1,6 +1,4 @@
-// New in agent-workflow (WP4a): pins the port adaptations listed in
-// core-port record (PI_WORKFLOW_* -> AGENT_WORKFLOW_* env names and the
-// .pi/ -> .agent-workflow/ project path) so they cannot silently regress.
+// Pin agent-workflow environment names and project state paths.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";

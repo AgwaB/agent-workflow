@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/required-artifact-read-completeness.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); none.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { checkRequiredArtifactReads } from "../../dist/core/required-reads.js";

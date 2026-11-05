@@ -1,11 +1,6 @@
-// New in agent-workflow (WP28): Pi session start re-drives running runs that no live process drives
-// (host API `redriveRunsAction`, port of pi-workflow `resumeSupervisors`). A child process launches
-// an attached run and exits while its first task runs (the gone launcher); the run then makes no
-// progress until a Pi session starts in the project and picks it up. Kept: B3 (a crashed attempt
-// whose launch cannot be proven becomes an owner decision, never a relaunch; a blocked run stays
-// blocked), the WP16 audience binding (re-driving binds nothing; the launching session still gets
-// the completion, another session never does), and runs a live process drives are skipped. Runs use
-// the workflow executor fixture (no model or agent-CLI calls).
+// Pi session start re-drives runs without a live driver after an attached launcher exits.
+// Blocked runs stay blocked; uncertain launches require an owner decision, never relaunch.
+// Re-driving binds no audience, and skips live-driven runs. The fixture makes no model calls.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";

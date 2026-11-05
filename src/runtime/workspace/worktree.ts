@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workspace/worktree.ts. MIT, same author. Changes: default worktree parent ".pi-subagent-worktrees" -> ".agent-workflow-worktrees"; diff also excludes **/.agent-workflow/runs/** (new default runs dir); WP39b: shared mode with `workspace.path` runs in that existing directory (state stays under cwd).
+// Shared mode with workspace.path runs in that directory while state stays under cwd.
 import { execFile, spawn } from "node:child_process";
 import { appendFile, mkdir, open, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";

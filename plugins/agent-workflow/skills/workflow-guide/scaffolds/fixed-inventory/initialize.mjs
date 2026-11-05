@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) skills/workflow-guide/scaffolds/fixed-inventory/initialize.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 import { constants } from "node:fs";
 import {
 	lstat,

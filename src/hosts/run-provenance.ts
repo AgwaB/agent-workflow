@@ -1,7 +1,5 @@
-// New in agent-workflow (WP33): per-run sidecars the host API shows in `status`/`show`/`inspect`.
-// Item 3 (parity row 33): parent-session usage (`parent-usage.json`, written by the Pi host while
-// its session drives a run; pi-workflow showed it in the board's run detail). Only totals are
-// returned: never the session's message hashes.
+// Run sidecars shown by status, show, and inspect. Parent-session usage returns
+// only totals, never session message hashes.
 import {
 	isWorkflowRunLaunchMetadata,
 	readWorkflowLaunchCommandArtifact,
@@ -86,7 +84,7 @@ export function formatParentUsage(summary: ParentUsageSummary): string {
 
 export interface LaunchSummary {
 	schema: string;
-	/** `cli`, `pi`, `mcp:<host>`; pi-workflow records: `pi-workflow`. */
+	/** Source host: cli, pi, or mcp:<host>. */
 	source: string;
 	/** `command run`, `tool aw_run`, … */
 	entry: string;

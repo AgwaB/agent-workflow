@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/launch-session.ts. MIT, same author. Changes: worker session ids agent-workflow.<run>.<task> / awf.<digest> (were pi-workflow. / piwf., user-visible in executor CLI sessions; WP4c).
 import { createHash } from "node:crypto";
 
 import type { WorkflowRunRecord, WorkflowTaskRunRecord } from "./types.js";

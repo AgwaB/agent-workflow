@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-nested-depth.ts. MIT, same author. Changes: none.
 import { readDynamicEvents } from "./dynamic-events.js";
 import { readRunRecord } from "./store.js";
 

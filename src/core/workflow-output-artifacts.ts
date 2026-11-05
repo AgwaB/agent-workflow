@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-output-artifacts.ts. MIT, same author. Changes: none.
 import { randomBytes } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { request as httpRequest } from "node:http";

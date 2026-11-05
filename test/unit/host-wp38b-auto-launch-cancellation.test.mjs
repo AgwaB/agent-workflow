@@ -1,21 +1,8 @@
-// Ported (WP38b) from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-launch-cancellation.test.mjs
-// (MIT, same author): the `auto …` cases against WP32 `/aw auto` (host API `autoAction`) in a fake
-// Pi session. The four "cancellation fences first dispatch while durable stop publication is
-// delayed" cases are ported at the core level (core-workflow-launch-cancellation.test.mjs).
-//
-// Changed mechanisms (agent-workflow `/aw run|dynamic|auto` return once the run started, so there
-// is no "Starting …" loader to press Escape on during the launch):
-// - "Escape | session invalidation before publication reaches the engine dispatch boundary" → the
-//   last cancellation point before the launch: Escape on the final confirmation ("Confirm selected
-//   workflow launch", Pi's confirm resolves false) or the session ending while it is open
-//   (`session_shutdown`; then the stale dialog answers yes). Nothing is published or dispatched.
-// - "Escape after run publication uses exact-run stop semantics" → `/aw stop <run>` once the auto
-//   launch returned: that run is interrupted, another run of the project continues.
-// - "cancellation during directory preparation removes the unpublished root" → Escape on the
-//   comparison loader (WP38b, the earliest cancellation after consent): the in-flight classifier
-//   request is aborted (the executor's cancel) and nothing is prepared or started.
-// - pi-workflow's named witness was a support helper writing a marker and its dynamic witness a
-//   fake subagent API; here the fixture executor's effect log shows every workflow-task submit.
+// Auto launch cancellation in a fake Pi session. Escape or session end at final
+// confirmation publishes nothing; /aw stop targets only the exact published run.
+// Cancelling the comparison loader aborts the classifier before preparation.
+// The fixture effect log witnesses every workflow-task submit. Engine dispatch-fence
+// cases are covered in core-workflow-launch-cancellation.test.mjs.
 import assert from "node:assert/strict";
 import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -196,8 +183,8 @@ test("uncancelled auto dynamic launch reaches its first controller provider acti
 			() => submits(log).workflow.length > 0,
 			"the dynamic controller's first provider action",
 		);
-		// The fixture's answer is no controller decision: a dispatch-positive control, not a
-		// successful dynamic workflow (as in pi-workflow).
+		// The fixture answer is no controller decision: this is a dispatch-positive
+		// control, not a successful dynamic workflow.
 	} finally {
 		await api.stopAction({ cwd, env }, { runId }).catch(() => undefined);
 	}

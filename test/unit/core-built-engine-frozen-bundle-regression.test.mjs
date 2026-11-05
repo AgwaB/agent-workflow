@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/built-engine-frozen-bundle-regression.test.mjs. MIT, same author. Changes: imports from dist/core; raw-host fixture and default fixture executor from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; fixture copied to test/fixtures/core/built-engine-frozen-bundle; project agents under .agent-workflow/agents. The runtime launch request has no `extensions` option (tool-provider extensions stay in the sealed prepared launch; loading them is the Pi executor's, core-port record row "Provider extension resolution"), so the two assertions on `options.extensions` became one that it is absent; everything else (frozen bundle copy, cold-load of the copied seed before the provider-like send, the tool contract, fail-closed on a missing seed) is unchanged.
+// Tool-provider extensions stay in the sealed prepared launch; the Pi executor loads them.
 import assert from "node:assert/strict";
 import {
 	existsSync,

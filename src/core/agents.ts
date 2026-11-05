@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/agents.ts. MIT, same author. Changes: agent roots .pi/agents→.agent-workflow/agents and ~/.pi/agent/agents→~/.agent-workflow/agents, 2026-10-30 (owner decision): Pi's agent directories are no longer read (the F5 legacy roots, the legacySource tag and the WP12a shadow notice are gone).
+// Agent discovery reads only agent-workflow agent roots, not Pi configuration.
 import type { Dirent } from "node:fs";
 import {
 	lstat,
@@ -241,10 +241,8 @@ export function parseAgentMarkdown(
 }
 
 /**
- * Search order: the project's `.agent-workflow/agents`, `$AGENT_WORKFLOW_HOME/agents`, then the
- * bundled agents. Pi's directories (`~/.pi/agent/agents`, a project's `.pi/agents`) are Pi
- * configuration — written for pi-workflow's tool and model names — and are not read (2026-10-30
- * owner decision; replaces the F5 read-only legacy roots).
+ * Search order: project .agent-workflow/agents, $AGENT_WORKFLOW_HOME/agents, then bundled agents.
+ * Pi configuration directories are not read.
  */
 function agentRoots(cwd: string): Array<{ path: string; scope: AgentScope }> {
 	return [

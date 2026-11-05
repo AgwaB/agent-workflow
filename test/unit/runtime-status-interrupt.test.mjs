@@ -1,6 +1,4 @@
-// New in agent-workflow (WP2a-1): smoke coverage for orchestrate/status.ts and
-// orchestrate/interrupt.ts, whose pi-subagent coverage lives in lifecycle.mjs /
-// reconcile.mjs (deferred to WP2a-2 because they drive run.ts/async.ts).
+// Smoke coverage for runtime status and interrupt helpers.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";

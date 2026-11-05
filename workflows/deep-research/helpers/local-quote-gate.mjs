@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/local-quote-gate.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Local byte grounding only: never fetch URLs or interpret opaque web refs.
 // A quote may be an exact substring of a declared numeric range. Legacy
 // textual excerpt locations have no range grammar, so their quote is checked

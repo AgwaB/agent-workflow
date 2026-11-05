@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/strings.ts. MIT, same author. Changes: none.
 export interface CompactStringsOptions {
 	/** Trim returned strings before filtering. Defaults to true. */
 	trim?: boolean;

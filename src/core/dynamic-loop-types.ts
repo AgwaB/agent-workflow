@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-loop-types.ts. MIT, same author. Changes: none.
 import type { NormalizedDynamicDecision } from "./dynamic-decision.js";
 import type { CompiledDynamicDecisionLoop } from "./types.js";
 

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/no-send-controls.test.mjs. MIT, same author. Changes: harness from test/helpers/unit-test-support.mjs; subagent-backend names from task-backend, launch-barrier-engine, runtime-port (setSubagentApiForTests→setTaskRuntimeApiForTests, aliased), launch-slots; paths .pi/…→.agent-workflow/…. "the packed workflow contract is locked to pi-subagent 0.7.2 durable APIs" → "… locked to the bundled runtime's durable APIs": the runtime is agent-workflow's own `src/runtime` (WP2), so the test checks that @agwab/pi-subagent is neither a dependency nor bundled and that `dist/runtime/api.js` exports the durable barrier and prune functions (`supportsExplicitExtensionIsolation` is a Pi executor concern and is not part of the runtime API).
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";
@@ -155,7 +154,7 @@ test("the packed workflow contract is locked to the bundled runtime's durable AP
 		readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
 		"package.json",
 	);
-	// The pi-subagent runtime is part of agent-workflow (src/runtime), never a dependency.
+	// The runtime is in-repo under src/runtime, never an external dependency.
 	assert.equal(
 		Object.hasOwn(packageJson.dependencies ?? {}, "@agwab/pi-subagent"),
 		false,

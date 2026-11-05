@@ -1,11 +1,6 @@
-// New in agent-workflow (WP32, owner decision Q5, parity row 21): the host API `auto` action.
-// pi-workflow's `/workflow auto` consent semantics on every host: a local routing-only shortlist
-// without any model call; one classifier call only after explicit consent, on the run's default
-// executor (Claude Code → claude, Codex → codex, Pi → pi, the terminal CLI → the first installed and
-// logged-in of pi → claude → codex); the user's final choice starts the workflow through the normal
-// launch path, and the launch capture (`agent-workflow-run-launch-v2`) records the selection.
-// Fakes only: the built-in executor ids are shadowed by the workflow executor fixture, whose
-// `autoRecommend` answers the classifier call (no agent CLI, no model call).
+// Auto builds a local shortlist without model calls and asks consent before one
+// classifier call on the default executor. Only the final user choice launches;
+// capture records the selection. Fixture executors supply classifier answers.
 import assert from "node:assert/strict";
 import {
 	mkdir,
@@ -641,7 +636,7 @@ test("CLI on a terminal: n at the pick-list starts nothing", async () => {
 	assert.equal(await runCount(cwd), 0);
 });
 
-// Item 3: Pi `/aw auto <task>` (pi-workflow had no auto tool, so there is no aw_auto).
+// Pi /aw auto is a command, not an agent tool.
 const ext = await import("../../dist/hosts/pi/extension.js");
 const { fakeCtx, fakePi } = await import("../helpers/pi-host-fake.mjs");
 const piInstances = [];

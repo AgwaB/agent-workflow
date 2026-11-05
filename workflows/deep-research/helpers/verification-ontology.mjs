@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/verification-ontology.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Bundle-local compatibility surface for the package verification ontology.
 //
 // Workflow support helpers are bundled from the workflow spec directory, so this

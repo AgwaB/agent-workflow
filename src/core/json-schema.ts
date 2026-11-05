@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/json-schema.ts. MIT, same author. Changes: none.
 export type JsonSchema = boolean | JsonSchemaObject;
 
 export interface JsonSchemaObject {

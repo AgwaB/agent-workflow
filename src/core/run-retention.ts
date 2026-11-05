@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/run-retention.ts. MIT, same author. Changes: subagent mirror root .pi/workflow-subagents→.agent-workflow/workflow-subagents. WP4c (R#10, D3): pruning deletes engine-owned worker sessions (task.ownedSessions) through the run executor's optional deleteOwnedSession first and keeps the run when that fails. WP31: sessions of a mixed run are deleted through the executor that reported them.
+// Delete owned sessions through the executor that reported them; keep the run if deletion fails.
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import {
 	lstat,

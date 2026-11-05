@@ -1,14 +1,6 @@
-// New in agent-workflow (WP11a): the host-neutral `agent-workflow` CLI. A thin argv layer over the
-// host API (../api.ts): every command parses its flags, calls one handler and prints the handler's
-// text (or, with --json, one `{action, ok, outcome, data}` object). Exit codes: 0 success or a
-// completed run, 1 failed/blocked/interrupted/refused/still running at --timeout, 2 usage error.
-// Replaces pi-workflow's src/cli.mjs (inspect/prune/notices/supervise), whose prune path imported
-// the Pi extension (R#14).
-// WP17: passes host "cli" (installed-default executor) and adds `doctor`. WP16: `logs`.
-// WP31: `profile set --preset/--role`, `profile presets`, `profile workflow list|show|set|clear`.
-// WP29: on a terminal, foreground runs/waits/resumes ask y/n to approve a dynamic controller
-// (cliDynamicUi); `approve <run>` answers an approval a run is blocked on.
-// WP32: `auto <task>`: consent y/N on a terminal (or --yes), then a pick-list of the ranked workflows.
+// Thin host-neutral CLI: parse flags, call one host API handler, and print text or JSON.
+// Exit codes: 0 success/completed, 1 failed/blocked/interrupted/refused/timeout, 2 usage error.
+// Terminal dialogs handle controller approvals and consent-gated auto comparison.
 import { existsSync, readFileSync } from "node:fs";
 import { setTimeout as dashboardSleep } from "node:timers/promises";
 import {
@@ -211,12 +203,10 @@ function defaultPrompt(
 }
 
 /**
- * WP29 (parity row 43): the CLI's dynamic-controller approval on a terminal, the port of
- * pi-workflow's `ctx.ui.confirm` (src/extension.ts `dynamicUiFromContext`): the approval scope on
- * stderr, then "Run dynamic workflow controller? [y/n]". `y` runs the controller; `n` rejects it for
- * this run (no re-prompt on resume); no answer (empty line, end of input, or the engine's 5-minute
- * timeout) leaves it blocked and resumable. Used by foreground `run`/`dynamic`/`wait`/`resume` on a
- * terminal only; without a terminal, and for `--detach`, the run blocks with the `approve` command.
+ * Terminal dynamic-controller approval shows scope on stderr and asks y/n.
+ * Yes runs the controller; no rejects it permanently for this run; no answer or the
+ * five-minute timeout leaves it blocked and resumable. Non-terminal or detached
+ * calls leave the run blocked with an approve command.
  */
 export function cliDynamicUi(
 	io: CliIo,

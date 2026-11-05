@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/unit-model-task-runtime.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/unit-test-support.mjs; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*.
 import { createWorkflowRunRecord } from "../helpers/unit-test-support.mjs";
 import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";

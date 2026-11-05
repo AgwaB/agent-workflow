@@ -1,4 +1,6 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/reconcile.ts. MIT, same author. Changes: tmux ownership (terminatePrivateTmuxServer, launch identities) removed; when the owner process is gone and no terminal result exists, a non-interrupted attempt with a persisted executor descriptor is reconciled through executor.reconcile(attemptKey) — found (adopt when the executor is not sessionBound, else needs_decision), absent (failed/not_started), unknown (failed/needs_decision, B3) — instead of being marked stale; the runtime never relaunches. WP2b: every terminal result written here is preceded by output.log and the control mailbox close (terminal-last-write).
+// Reconcile ownerless attempts through their recorded executor; never relaunch them.
+// Adopt found sessions only when not session-bound; unknown outcomes require a decision.
+// Write output.log and close the control mailbox before a terminal result.
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import {

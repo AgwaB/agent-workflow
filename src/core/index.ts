@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/index.ts. MIT, same author. Changes: core entry point (`MODULE` kept for the package skeleton test); WORKFLOW_COMMAND/WORKFLOW_HELP (Pi `/workflow` slash-command help text) moved out to the Pi host (WP11b); adds the executor registry, task-backend and runtime test seam exports (WP4c).
 export const MODULE = "src/core";
 export {
 	discoverAgents,

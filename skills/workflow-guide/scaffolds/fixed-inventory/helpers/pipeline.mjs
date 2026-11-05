@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) skills/workflow-guide/scaffolds/fixed-inventory/helpers/pipeline.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 import { assertInventory, reconcileExactSources } from "./exact-source-join.mjs";
 
 // Untrusted text is inline data, never Markdown structure, URLs, HTML, fences or protocol tags.

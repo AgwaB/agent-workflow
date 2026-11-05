@@ -1,11 +1,5 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/runners/headless-model.ts
-// (`buildPiArgv`, lines ~588–643) and @agwab/pi-workflow 0.16.4 (b83cc4f)
-// src/workflow-native-host-context.ts (`workflowNativeLaunchTools`). MIT, same author.
-// Changes: input is the SDK `SubmitRequest` (plus the Pi executor config) instead of agent
-// definitions; the prompt goes to stdin instead of argv (no argv length limit, no prompt in `ps`);
-// the system prompt is a file path; B5 isolation adds `-ne -ns -np --no-themes -na` next to the
-// ported `--no-context-files`; MCP servers and Pi-only options are carried by one generated per-run
-// extension (`-e`); `--session-dir` keeps D3 sessions under adapter state.
+// Send prompts on stdin, not argv; system prompts use a file path.
+// Keep sessions under adapter state and carry MCP servers and Pi options in a per-run extension.
 import { INHERITED_HOST_TOOL_NAMES } from "../../core/tool-policy.js";
 import type { ToolKind } from "../../sdk/events.js";
 import {
@@ -73,7 +67,7 @@ export const PI_EXECUTOR_TOOL_MAPPING: ToolMapping = {
 	},
 };
 
-/** Tools `inheritHostTools` adds (pi-workflow `workflowNativeLaunchTools`; one list, in core). */
+/** Tools inheritHostTools adds; the shared list lives in core. */
 export const INHERITED_HOST_TOOLS = INHERITED_HOST_TOOL_NAMES;
 
 /** `mcp__<server>__<tool>` with chars outside `[A-Za-z0-9_]` → `_` (Pi 1.1 `docs/mcp.md`). */

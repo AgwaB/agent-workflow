@@ -1,12 +1,7 @@
-// New in agent-workflow (WP29 item 3, parity row 43): dynamic-controller approval over the host MCP
-// server. The server can ask its user only during a tool call, so it never approves while it drives
-// a run: workflow_wait/workflow_status show the open approval (the question and its requestId) and
-// name workflow_approve; workflow_approve asks through elicitation before anything is recorded
-// (approve + accept → the run continues; approve + decline → rejected for the run, pi-workflow's
-// "no"; cancel/error → nothing recorded; reject + accept → rejected) and is refused on clients
-// without elicitation with the terminal command. Through the fake MCP client against an in-process
-// server; the controller is a local helper and the earlier stage runs on the workflow executor
-// fixture: no model or agent-CLI calls.
+// MCP shows pending approvals but never asks while driving a run. The approve tool
+// elicits a decision before recording it: accept approves, decline rejects, and cancel
+// or error changes nothing. Clients without elicitation are refused with a CLI hint.
+// Use a fake client, local helper, and fixture executor without model calls.
 import assert from "node:assert/strict";
 import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -211,7 +206,7 @@ test("workflow_approve decline rejects the controller for the run; cancel and er
 		).length,
 		0,
 	);
-	// Declining the approval question is pi-workflow's "no": rejected for this run.
+	// Declining the approval question permanently rejects this run.
 	const declined = await client.call("workflow_approve", {
 		runId,
 		requestId,

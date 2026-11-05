@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/process-role.ts. MIT, same author. Changes: env PI_WORKFLOW_ROLE→AGENT_WORKFLOW_ROLE; exported const PI_WORKFLOW_ROLE_ENV renamed AGENT_WORKFLOW_ROLE_ENV.
 export const AGENT_WORKFLOW_ROLE_ENV = "AGENT_WORKFLOW_ROLE";
 
 export type WorkflowProcessRole = "supervisor" | "worker" | "disabled";

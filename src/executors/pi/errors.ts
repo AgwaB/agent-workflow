@@ -14,7 +14,7 @@ export interface PiErrorRule extends ErrorClassificationRule {
 }
 
 export const PI_ERROR_RULES: readonly PiErrorRule[] = [
-	// Context overflow is permanent for the same request (pi-subagent CONTEXT_LENGTH_ERROR_PATTERN).
+	// Context overflow is permanent for the same request.
 	{
 		class: "permanent",
 		match:

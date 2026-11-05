@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) skills/workflow-guide/scaffolds/fixed-inventory/helpers/exact-source-join.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Copy with the bundle. Pure, bounded singleton/non-streaming join; no runtime imports.
 const own = (value, key) => Object.hasOwn(value, key);
 const record = (value) => value !== null && typeof value === "object" && !Array.isArray(value);

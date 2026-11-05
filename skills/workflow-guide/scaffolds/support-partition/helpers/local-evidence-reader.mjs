@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) skills/workflow-guide/scaffolds/support-partition/helpers/local-evidence-reader.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Current local bytes, not historical attestation or a same-UID OS sandbox.
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";

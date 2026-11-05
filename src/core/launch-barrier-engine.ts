@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 531-533, 1328-1467, 3087-3144, 3322-3573, 3610-3820 (engine side of the durable launch barrier V2: create/resume, READY validation, consume, release vs revoke on stop/lease loss, ACK, cancellation decision, restart reconcile). MIT, same author. Changes: the create and settle blocks of launchSubagentTask became createOrResumeDurableLaunchBarrier / settleDurableLaunchBarrier (same order and checks); barrier functions come from the runtime API. WP1b fix: the READY wait stops (DurableLaunchWorkerEndedError, with the worker stderr) when the provisional worker attempt is terminal without READY — an executor refusal before consume — instead of waiting for the barrier timeout.
+// The READY wait stops when the provisional worker is terminal without READY.
 import {
 	type CompiledTask,
 	type WorkflowForeachBatchRecord,
@@ -552,13 +552,9 @@ async function attemptStderrExcerpt(
 }
 
 /**
- * WP1b fix: wait for READY, but stop as soon as the provisional worker's attempt is terminal
- * without READY. In the runtime the worker writes READY inside `authority.consume()`, which the
- * executor calls from `submit`; an executor that refuses the request before consuming
- * (INVALID_REQUEST, CAPABILITY_MISSING: no effect) ends the worker with a terminal not-started
- * result and no READY. pi-subagent wrote READY before it started Pi, so pi-workflow never had this
- * case; the plain wait then ran into the barrier timeout (up to 120 s per attempt) and reported
- * "durable launch barrier timed out" instead of the executor's refusal.
+ * Wait for READY, stopping when the provisional worker becomes terminal without it.
+ * READY is written inside authority.consume(), called by executor.submit. A pre-consume
+ * refusal has no effects and produces a terminal not-started result, not a barrier timeout.
  */
 async function waitForReadyUnlessWorkerEnded(
 	launchApi: SubagentApi & DurableLaunchBarrierApi,

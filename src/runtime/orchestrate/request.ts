@@ -1,9 +1,6 @@
-// New in agent-workflow (WP2a-2): executor-neutral run input, its validation, the SubmitRequest
-// built from it, and the execution-plan digest a durable worker reports in barrier READY.
-// Replaces pi-subagent's Pi-specific request fields (agent, backend, extensions, noExtensions,
-// thinking, …) with an `ExecutorDescriptor` plus SDK `SubmitRequest` fields.
-// WP2c: the execution plan carries `sha256:<hex>` per env / mcpServers[].env key instead of the
-// value (no secret in the plan object; the digest still changes when only a value changes).
+// Executor-neutral input validation, SDK request construction, and execution-plan digest.
+// Plans store hashes per request/MCP environment key, never secret values; changing a
+// value still changes the digest.
 import {
 	type ApprovalPolicy,
 	defaultApprovalPolicy,
@@ -30,22 +27,20 @@ import { DURABLE_WORKER_BINDING_ENV } from "../workers/durable-worker-binding.js
 import { digestEnvValues } from "./env-values.js";
 
 /**
- * Deadline used when the caller sets no `timeoutMs`: the largest valid `Date` (8.64e15 ms).
- * pi-subagent had no default timeout; SubmitRequest requires a finite deadline, so "none" is
- * encoded as "the end of representable time".
+ * Without timeoutMs, encode no practical timeout as the largest valid Date (8.64e15 ms);
+ * SubmitRequest requires a finite deadline.
  */
 export const NO_DEADLINE_MS = 8_640_000_000_000_000;
 
 /**
- * Executor request fields carried by a run input (SubmitRequest minus `authority`, `cwd`,
- * `deadlineMs`, `artifactsDir`, which the runtime derives). `task` keeps its pi-subagent name and
- * becomes `SubmitRequest.prompt`.
+ * Run input carries SDK request fields except authority, cwd, deadlineMs, and artifactsDir,
+ * which the runtime derives. Task becomes SubmitRequest.prompt.
  */
 export interface ExecutorRequestFields {
 	task?: string;
 	systemPrompt?: string;
 	model?: string;
-	/** Replaces pi-subagent `thinking`; passed through verbatim (executor-specific levels). */
+	/** Pass effort through verbatim; levels are executor-specific. */
 	effort?: string;
 	tools?: string[];
 	readOnly?: boolean;
@@ -409,7 +404,7 @@ export const EXECUTION_PLAN_SCHEMA = "agent-workflow-durable-execution-plan-v1";
 
 export interface ExecutionPlan {
 	schema: typeof EXECUTION_PLAN_SCHEMA;
-	/** Executor id (= `executor.id`); kept under the pi-subagent field name. */
+	/** Executor id, equal to executor.id. */
 	backend: string;
 	/** Env values appear as `sha256:<hex>` (see buildExecutionPlan). */
 	executor: ExecutorDescriptor;

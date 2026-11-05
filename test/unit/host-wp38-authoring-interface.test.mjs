@@ -1,11 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/unit-authoring-interface.test.mjs, the
-// test "workflow command completions and run arg parsing preserve task text" (WP38; the rest of the
-// file is test/unit/core-unit-authoring-interface.test.mjs). MIT, same author. Changes: the `/aw`
-// command completions (`awArgumentCompletions`, src/hosts/pi/command.ts) complete the action names
-// only — agent-workflow's actions (inspect, approve, prune, notices; no auto) and no workflow-name
-// completion after an action (returns null); the run/dynamic parsers come from dist/hosts/args.js
-// (WP11a) and an invalid effort reads "Invalid effort level" (was "Invalid workflow thinking
-// level").
 import assert from "node:assert/strict";
 import test from "node:test";
 

@@ -1,4 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/tool-metadata.ts. MIT, same author. Changes: the workflow_web_* tools are not built in (C2: web tools are each CLI's own); an agent's tools authorise exactly those names. 2026-11-05: the built-in names are the ones every executor maps (read, grep, find, ls, web_search, fetch_content, edit, write, bash); Pi-only extension names (lsp_*, ast_grep_search, code_search, get_search_content, scrapling_fetch) are custom tools like any other.
+// Built-in tool names are shared executor mappings; Pi-only extension names are custom tools.
+// An agent authorizes exactly its declared tool names.
 import type {
 	CompiledToolProvider,
 	TaskCapability,

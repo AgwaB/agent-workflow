@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) scripts/build-darwin-process-identity.mjs. MIT, same author. Changes: paths moved to src/runtime/native; repo root is two levels up. Manifest schema id unchanged.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmod, readFile, writeFile } from "node:fs/promises";

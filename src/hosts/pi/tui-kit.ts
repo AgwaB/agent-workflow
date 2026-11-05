@@ -1,11 +1,6 @@
-// New in agent-workflow (WP34): terminal helpers shared by the `/aw` board (board.ts) and the
-// profile picker (profile-tui.ts). Ported from pi-workflow 0.16.4 (b83cc4f) src/workflow-view.ts
-// (`matchesKey`, the Kitty/modifyOtherKeys parsers, `visibleWidth`, `truncateToWidth`, `boxed`,
-// `joinColumns`, the theme helpers, `escapeLaunchCommandForDisplay`, `wrapLaunchCommand`). MIT, same
-// author. pi-workflow kept them self-contained instead of importing `@earendil-works/pi-tui`; so do
-// we, because this package builds and loads without the optional Pi peer. The only Pi 1.1 APIs the
-// components use are the ones `ctx.ui.custom` hands them: `tui.requestRender()` and the theme's
-// `fg`/`bg`/`bold`.
+// Self-contained terminal helpers for the board and profile picker.
+// Build and load without optional Pi peers; components use only custom UI
+// requestRender and theme fg/bg/bold APIs.
 
 /** The part of Pi's theme the components use (`theme.fg(color, text)`, `bg`, `bold`). */
 export type Theme = {

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/impact-review-fixtures.mjs. MIT, same author. Changes: none (moved to test/helpers/).
 export const impactLedgerStages = [
 	"change-scope",
 	"implementation-map",

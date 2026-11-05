@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/secure-atomic-write.ts. MIT, same author. Changes: none.
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import {

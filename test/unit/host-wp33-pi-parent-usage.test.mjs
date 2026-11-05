@@ -1,9 +1,6 @@
-// New in agent-workflow (WP33 item 3, parity row 33): parent-session usage. The Pi host records
-// the parent session's assistant usage while a run of that session is active into
-// `<run dir>/parent-usage.json` (pi-workflow's sidecar and rules: every assistant `message_end`
-// while running, the first one after the run settled once as the wrap-up), only for the owning
-// session, with numbers and hashes only (never message content), and `status <run>`/`inspect` show
-// it. Runs use the workflow executor fixture (no model or agent-CLI calls).
+// The Pi host records owning-session assistant usage while a run is active and
+// counts the first settled wrap-up once. Persist numbers and hashes, never message
+// content; status and inspect show totals. Fixture executor only.
 import assert from "node:assert/strict";
 import {
 	mkdir,

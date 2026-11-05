@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-runtime-bundle.ts. MIT, same author. Changes: project bundle dir .pi/workflow-runtime/ → .agent-workflow/workflow-runtime/; WP10 (C2): the spec tools drop workflow_web_* for the CLI web tools web_search/fetch_content, so the bundle version is v5.
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 

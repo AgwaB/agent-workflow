@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/durable-worker-payload.ts. MIT, same author. Changes: payload backend must be a resolved executor id instead of one of inline/headless/tmux; WP2a-2 adds the optional `executor` descriptor field (validated, id must equal backend).
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";

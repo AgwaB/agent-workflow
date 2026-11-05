@@ -1,6 +1,5 @@
-// New in agent-workflow (WP18b): stage-2 polish from live bundles 4/4b. Host-aware next-step hints
-// in the core run texts (CLI `agent-workflow …`, Pi `/aw …`, MCP tool calls; never pi-workflow's
-// `/workflow …`). Runs use the workflow executor fixture (no model or agent-CLI calls).
+// Host-aware next-step hints use CLI commands, Pi /aw commands, or MCP tool calls.
+// The fixture executor makes no model or agent CLI calls.
 import assert from "node:assert/strict";
 import {
 	mkdir,

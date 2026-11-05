@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/checks/run-lock.mjs to node:test against dist/. MIT, same author. Changes: see runtime-port record (test table).
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -197,8 +196,7 @@ test("run-lock", async () => {
 		const liveRunId = "run_lock_live";
 		const liveLockPath = runPaths({ cwd: liveCwd, runId: liveRunId }).lockPath;
 		await mkdir(dirname(liveLockPath), { recursive: true });
-		// pi-subagent took this live lock with proper-lockfile (stale 10 s); the
-		// runtime now uses its own zero-dependency directory lock.
+		// Hold the live lock through the runtime directory-lock implementation.
 		const releaseLiveLock = await acquireDirectoryLock(liveLockPath, {
 			retries: 0,
 			retryMs: 25,

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-generated-task-runtime.ts. MIT, same author. Changes: fast-mode config from fast-tier.ts; native-host tool expansion → tool-policy inheritHostTools flag from run.inheritHostTools (task still classified mutation-capable). WP10 (C2): the web budget section applies to the CLI web tools web_search/fetch_content (was workflow_web_*). WP31: generated workers run on the dynamic stage's executor (runtime.executor) in role-profile runs and inherit host tools only on pi.
+// Generated workers use their dynamic stage's executor and inherit host tools only on Pi.
 import { loadAgentByName } from "./agents.js";
 import { readArtifactGraphControl } from "./artifact-graph-runtime.js";
 import { DynamicControllerBudgetBlocked } from "./dynamic-controller-errors.js";
