@@ -956,8 +956,19 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 ];
 
 /** Tool definitions as sent for one negotiated protocol revision. */
-function waitToolDescription(waitSliceMs: number): string {
-	return `Drive and wait for an agent-workflow run for at most ${waitBound(waitSliceMs)} per call. Returns terminal, actionRequired, stillRunning, the status, a bounded result preview and the report artifact paths. If stillRunning is true, call ${WORKFLOW_WAIT_TOOL} again with the same runId. If actionRequired is true, report the blocker and use ${WORKFLOW_INSPECT_TOOL}. When terminal, quote the preview and the report paths rather than paraphrasing them. Do not poll run files; cancelling this call cancels only the wait.`;
+/**
+ * 2026-11-05 (live, codex exec on gpt-6.1-terra and gpt-6.1-sol): with a long bound the models still
+ * passed timeoutMs 45000 (the skill said "at most 45 s per call") and ignored the code-mode pragma in
+ * the launch's next step, so each 45 s call cost an exec and a wait turn. The bound, "leave timeoutMs
+ * out" and (Codex) the pragma are in the tool description, which the model reads when it writes the cell.
+ */
+function longWaitAdvice(waitSliceMs: number, host?: HostMcpHost): string {
+	if (waitSliceMs <= hostApi.HOST_WAIT_MAX_TIMEOUT_MS) return "";
+	return ` Leave timeoutMs out: one call waits up to ${waitBound(waitSliceMs)}.${host === "codex" ? ` In Codex code mode, begin the exec cell that calls it with // @exec: {"yield_time_ms": ${waitSliceMs + 30_000}} (and give wait the same yield_time_ms), so the cell does not yield to you every 30 s.` : ""}`;
+}
+
+function waitToolDescription(waitSliceMs: number, host?: HostMcpHost): string {
+	return `Drive and wait for an agent-workflow run for at most ${waitBound(waitSliceMs)} per call.${longWaitAdvice(waitSliceMs, host)} Returns terminal, actionRequired, stillRunning, the status, a bounded result preview and the report artifact paths. If stillRunning is true, call ${WORKFLOW_WAIT_TOOL} again with the same runId. If actionRequired is true, report the blocker and use ${WORKFLOW_INSPECT_TOOL}. When terminal, quote the preview and the report paths rather than paraphrasing them. Do not poll run files; cancelling this call cancels only the wait.`;
 }
 
 function waitToolInputSchema(waitSliceMs: number): Record<string, unknown> {
@@ -982,13 +993,14 @@ function waitToolInputSchema(waitSliceMs: number): Record<string, unknown> {
 export function hostMcpToolDefinitions(
 	protocolVersion: string,
 	waitSliceMs: number = hostApi.HOST_WAIT_MAX_TIMEOUT_MS,
+	host?: HostMcpHost,
 ): Record<string, unknown>[] {
 	return HOST_MCP_TOOLS.map((tool) => ({
 		name: tool.name,
 		...(mcpVersionHasToolTitle(protocolVersion) ? { title: tool.title } : {}),
 		description:
 			tool.name === WORKFLOW_WAIT_TOOL
-				? waitToolDescription(waitSliceMs)
+				? waitToolDescription(waitSliceMs, host)
 				: tool.description,
 		inputSchema:
 			tool.name === WORKFLOW_WAIT_TOOL
@@ -1629,10 +1641,7 @@ export function createHostMcpService(
 	// 2026-11-05: Codex (0.166.0, code mode) runs tool calls inside a JavaScript cell that yields to the
 	// model after 30 s (its `wait` after 10 s), each a model turn, unless the cell asks for longer
 	// (`// @exec` pragma; Codex sets no maximum). So a long workflow_wait needs the cell to say so.
-	const waitHint =
-		longWait && options.host === "codex"
-			? ` In Codex code mode, begin that exec cell with // @exec: {"yield_time_ms": ${waitSliceMs + 30_000}} (and give wait the same yield_time_ms), so the cell waits for the whole call instead of yielding every 30 s.`
-			: "";
+	const waitHint = longWaitAdvice(waitSliceMs, options.host);
 
 	// 2026-11-05 (owner: wait in code, wake the host once): how this launch's result reaches the
 	// session without workflow_wait. Claude Code: the session id (CLAUDE_CODE_SESSION_ID) is linked to

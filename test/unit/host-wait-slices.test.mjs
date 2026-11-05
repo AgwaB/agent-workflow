@@ -83,7 +83,25 @@ test("instructions and the workflow_wait definition name the bound", () => {
 	const long = wait(tools.hostMcpToolDefinitions("2025-06-18", MIN30));
 	assert.equal(short.inputSchema.properties.timeoutMs.maximum, 45_000);
 	assert.equal(long.inputSchema.properties.timeoutMs.maximum, MIN30);
-	assert.match(long.description, /at most 30 min per call/);
+	assert.match(
+		long.description,
+		/at most 30 min per call\. Leave timeoutMs out/,
+	);
+	assert.doesNotMatch(
+		long.description,
+		/@exec/,
+		"no Codex pragma for other hosts",
+	);
+	assert.doesNotMatch(short.description, /Leave timeoutMs out/);
+	// 2026-11-05 (live: gpt-6.1-terra/sol passed timeoutMs 45000 and skipped the pragma): Codex reads
+	// both in the tool description.
+	const codexWait = wait(
+		tools.hostMcpToolDefinitions("2025-06-18", MIN30, "codex"),
+	);
+	assert.match(
+		codexWait.description,
+		/Leave timeoutMs out: one call waits up to 30 min\. In Codex code mode, begin the exec cell that calls it with \/\/ @exec: \{"yield_time_ms": 1830000\}/,
+	);
 	assert.equal(tools.HOST_MCP_INSTRUCTIONS, tools.hostMcpInstructions());
 });
 
@@ -258,7 +276,7 @@ test("Codex with a long slice is told to keep the code-mode cell from yielding; 
 	);
 	assert.match(
 		waited,
-		/Next: call workflow_wait \{"runId":"workflow_x"\} again\. In Codex code mode, begin that exec cell with/,
+		/Next: call workflow_wait \{"runId":"workflow_x"\} again\. Leave timeoutMs out: one call waits up to 30 min\. In Codex code mode, begin the exec cell that calls it with/,
 	);
 });
 

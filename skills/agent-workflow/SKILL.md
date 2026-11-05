@@ -18,7 +18,7 @@ say the same.
 | `workflow_run` | Launch a named workflow: `{workflow, task}` plus launch options. Returns the `runId` at once. |
 | `workflow_dynamic` | Launch a spec-less dynamic workflow: `{task}` plus launch options. |
 | `workflow_auto` | Let the user pick a workflow for a task: `{task}` plus launch options. Asks the user in a dialog before it sends the task to one classifier request, then lets the user choose the workflow (or none) in a second dialog and starts it. Only when the user asks you to choose a workflow. |
-| `workflow_wait` | Wait for a run, **at most 45 s per call**, or up to 30 min where the host allows it (Claude Code, the Codex plugin; the tool's description says which) (`runId`, `timeoutMs?`). |
+| `workflow_wait` | Wait for a run (`runId`). **Leave `timeoutMs` out**: one call waits as long as this host allows (up to 30 min under Claude Code and the Codex plugin, else at most 45 s per call; the tool's description names the bound and, in Codex code mode, the `yield_time_ms` to give the cell). |
 | `workflow_status` | List runs, or one run with `runId`. |
 | `workflow_inspect` | Details of a run: `failures: true` for failed tasks, `results: true` for task results. |
 | `workflow_logs` | Bounded, redacted tail of task output, stderr and executor events (`runId`, `task?`, `lines?`, `stream?`). |

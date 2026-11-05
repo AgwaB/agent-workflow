@@ -34,7 +34,11 @@ export function serveHostMcpStdio(options: HostMcpStdioOptions): {
 		serverVersion: options.serverVersion,
 		instructions: hostMcpInstructions(options.waitSliceMs),
 		tools: (protocolVersion) =>
-			hostMcpToolDefinitions(protocolVersion, options.waitSliceMs),
+			hostMcpToolDefinitions(
+				protocolVersion,
+				options.waitSliceMs,
+				options.host,
+			),
 		callTool: async (name, args, context) => {
 			await options.ready;
 			return service.call(name, args, context);
