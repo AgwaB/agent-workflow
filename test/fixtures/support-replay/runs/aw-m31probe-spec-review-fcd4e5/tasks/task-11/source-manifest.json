@@ -1,0 +1,39 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2tolt6_fcd4e5",
+  "taskId": "task-11",
+  "sources": [
+    {
+      "source": "candidate-findings",
+      "displayName": "candidate-findings.main",
+      "taskId": "task-4",
+      "specId": "candidate-findings.main",
+      "stageId": "candidate-findings",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "S1·S2·S4·C2·T1·T2는 구현 근거가 확인됐다. S3·S6·C1·T3은 명세와 어긋나고, Q1은 테스트가 없어 gap이다. S5·S7은 probe 지시에 따라 unclear로 둔다.",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-4/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-4/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-4/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-4/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

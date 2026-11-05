@@ -255,11 +255,13 @@ async function partitionFindings(sources, options = {}, context = {}) {
 	const requirementCoverage = Array.isArray(effectiveCoverage)
 		? effectiveCoverage
 		: [];
+	const ignoredRechecks = requirementSource?.ignoredRechecks ?? [];
 	const requirementRechecks = {
 		rechecked: [...rechecks.keys()].sort(),
 		resolved: requirementCoverage
 			.filter((row) => row?.recheck?.from === "unclear")
 			.map((row) => row.requirementId),
+		...(ignoredRechecks.length > 0 ? { ignored: ignoredRechecks } : {}),
 	};
 
 	const verifiers = batchMode
@@ -429,7 +431,9 @@ async function partitionFindings(sources, options = {}, context = {}) {
 		},
 		verdictCounts,
 		requirementCoverage,
-		...(requirementRechecks.rechecked.length > 0 ? { requirementRechecks } : {}),
+		...(requirementRechecks.rechecked.length > 0 || ignoredRechecks.length > 0
+			? { requirementRechecks }
+			: {}),
 		...(evidenceCorrections.length > 0 ? { evidenceCorrections } : {}),
 		finalFindings,
 		droppedFindings,
@@ -523,11 +527,11 @@ async function readSourceAuthority(context, candidateStage) {
 			candidateStatuses[0],
 		);
 		requirementSource = upstream.requirementSource;
-		if (requirementSource)
-			requirementSource.rechecks = await recheckRows(
-				context,
-				context.sourceStatuses,
-			);
+		if (requirementSource) {
+			const checked = await recheckRows(context, context.sourceStatuses);
+			requirementSource.rechecks = checked.rechecks;
+			requirementSource.ignoredRechecks = checked.ignored;
+		}
 		runtimeCandidateUniverse = upstream.runtimeCandidateUniverse;
 		const failures = upstream.failures;
 		sourceStatusSummary.total += failures.length;

@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "SPEC S3 requires pollMs default 50ms and a 10ms floor; src/workflow-stop.ts uses default 200 and floor 1. No tests exist. Verified mismatch.",
+  "id": "finding-001",
+  "verdict": "KEEP",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 13,
+      "quote": "중지 감시 주기(`pollMs`)의 기본값은 50ms이고",
+      "relevance": "Spec S3 sets the pollMs default to 50ms"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 13,
+      "lineEnd": 14,
+      "quote": "호출자가 더 작은 값을 주어도 10ms보다",
+      "relevance": "Spec S3 requires the poll interval never fall below 10ms, even when the caller passes a smaller value"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 67,
+      "lineEnd": 67,
+      "quote": "const pollMs = Math.max(1, options.pollMs ?? 200);",
+      "relevance": "Implementation defaults to 200ms and floors at 1ms, contrary to S3"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "createWorkflowStopSignal sets pollMs to Math.max(1, options.pollMs ?? 200), so the default is 200ms instead of the spec's 50ms and the floor is 1ms instead of 10ms.",
+  "recommendedAction": "Change line 67 to Math.max(10, options.pollMs ?? 50) and add a unit test covering the default and a small caller value (e.g. pollMs: 1 yields 10ms behavior)."
+}

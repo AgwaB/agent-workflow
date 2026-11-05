@@ -1,0 +1,74 @@
+{
+  "schema": "spec-review-unclear-requirements-v1",
+  "digest": "sha256:ac7f077ea4cb6285bd1711ed5fc2a2401797bb0564463d7a9e81ef2fbb791f8c",
+  "requirements": [
+    {
+      "id": "REQ-S5",
+      "requirement": "dispose()를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 17,
+        "lineEnd": 17,
+        "quote": "`dispose()`를 호출한 뒤에는 새로운 디스크 읽기가 시작되지 않아야 한다"
+      },
+      "candidateEvidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 69,
+          "lineEnd": 69,
+          "quote": "if (controller.signal.aborted) return;",
+          "relevance": "check 진입부 가드"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 81,
+          "lineEnd": 81,
+          "quote": "const timer = setInterval(() => void check(), pollMs);",
+          "relevance": "주기적 tick"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 85,
+          "lineEnd": 85,
+          "quote": "dispose: () => clearInterval(timer),",
+          "relevance": "dispose는 interval만 해제, 이미 시작된 read는 막지 않음"
+        }
+      ]
+    },
+    {
+      "id": "REQ-S7",
+      "requirement": "foreground signal 등록은 해제 함수로 되돌릴 수 있어야 하며, 마지막 signal이 해제되면 그 실행의 등록 항목이 남지 않아야 한다.",
+      "specEvidence": {
+        "file": "SPEC.md",
+        "lineStart": 20,
+        "lineEnd": 21,
+        "quote": "foreground signal 등록은 해제 함수로 되돌릴 수 있어야 하며"
+      },
+      "candidateEvidence": [
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 18,
+          "lineEnd": 18,
+          "quote": "signals.delete(signal);",
+          "relevance": "해제 함수가 신호를 제거"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 19,
+          "lineEnd": 19,
+          "quote": "if (signals.size === 0 && launchSignals.get(key) === signals)",
+          "relevance": "빈 Set이면 map 항목 제거"
+        },
+        {
+          "file": "src/workflow-stop.ts",
+          "lineStart": 20,
+          "lineEnd": 20,
+          "quote": "launchSignals.delete(key);",
+          "relevance": "실행 항목 제거"
+        }
+      ]
+    }
+  ],
+  "analysis": "Rechecking 2 unclear requirement(s): REQ-S5, REQ-S7.",
+  "refs": []
+}

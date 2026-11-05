@@ -320,8 +320,17 @@ After stage 2 (2026-11-01):
   Live (2026-11-04, after M31): four spec-review runs (claude haiku ×3, codex gpt-5.6-luna) on the
   same project left no requirement `unclear` (codex used `needsHuman`, which is not rechecked), so
   `recheck-requirements` had no items and cost nothing (claude runs $0.08–0.09 each); three of
-  the 13 earlier recorded runs had one or two unclear rows. The non-empty recheck path is so far
-  covered offline only (IRCF-01, the real scheduler).
+  the 13 earlier recorded runs had one or two unclear rows. A probe then forced the path live
+  (`workflow_mw2tolt6_fcd4e5`, claude haiku, $0.09: a bundle copy whose candidate prompt marks S5
+  and S7 unclear; everything after it real). Both recheck workers decided their requirement as
+  covered with byte-correct citations, but echoed the id as `req-s5` / `req-s7` (the task name's
+  lower case), and the exact-echo check dropped both: the rows stayed unclear (safe, but no gain).
+  Fixed: an echo that differs only in case is accepted and the runtime's item identity kept; every
+  unused recheck is listed in `requirementRechecks.ignored` (task, item, reason); the prompt says the
+  task name is lowercased. Replaying the probe (frozen in `test/fixtures/support-replay/`): S5 and S7
+  covered, no unresolved requirement, GAPS_FOUND passed. The 147 other recorded id echoes (verify-
+  findings, devil's advocate, 24 of them with upper-case ids) were exact. Tests: IRCF-01
+  `unclear-recheck-lowercase-id` (resolved) and `unclear-recheck-wrong-id` (ignored with reason).
 - **M32.** spec-review report owner-ledger copy (2026-11-04, live claude/haiku run
   `workflow_mw2hhe44_d3766c`): the report stage copied the first owner row with `source:
   "verify-findings.finding-001"`; that row's alias is the bare stage id `verify-findings` (a
@@ -451,7 +460,7 @@ interactive host asks once in `safe` mode), **refuse** (the run is not started).
   source-verification statement + support table in sync.
 - `test/unit/core-worker-prompt-render.test.mjs`: per-executor rendering and the task-backend launch.
 - `test/unit/support-replay-golden.test.mjs` (2026-11-04, regression net before refactoring the
-  helpers): 30 recorded live runs of the four bundled workflows on pi, claude, codex and antigravity
+  helpers): 31 recorded live runs of the four bundled workflows on pi, claude, codex and antigravity
   (`test/fixtures/support-replay/`: worker controls, source manifests and the reviewed project files)
   are replayed through every support stage with the current helpers and must give the committed
   golden controls (verdict, report Markdown, ledgers). Intended change:

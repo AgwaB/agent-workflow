@@ -1,0 +1,33 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "finding-004 유지: 요약 객체가 명세의 launchRetryAttempts 대신 launchRetries를 내보낸다.",
+  "id": "finding-004",
+  "verdict": "KEEP",
+  "severity": "high",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 35,
+      "lineEnd": 36,
+      "quote": "이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).",
+      "relevance": "명세는 launchRetryAttempts를 외부 도구가 읽는 공개 계약으로 정함"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 33,
+      "lineEnd": 33,
+      "quote": "launchRetries: number;",
+      "relevance": "요약 인터페이스가 명세와 다른 필드 이름을 선언함"
+    },
+    {
+      "file": "src/workflow-terminal.ts",
+      "lineStart": 107,
+      "lineEnd": 107,
+      "quote": "launchRetries: run.tasks.reduce(",
+      "relevance": "요약 객체가 launchRetries 키로 합계를 내보냄"
+    }
+  ],
+  "counterEvidence": [],
+  "finalClaim": "요약 객체는 outputRetryAttempts는 명세대로 내보내지만, 재시도 합계 필드는 명세의 공개 이름 launchRetryAttempts가 아닌 launchRetries로 노출된다. 로컬 저장소에서 launchRetries 또는 launchRetryAttempts를 참조하는 소비자나 테스트는 없다.",
+  "recommendedAction": "WorkflowTerminalSummary의 launchRetries를 launchRetryAttempts로 바꾸고 src/workflow-terminal.ts:33과 :107을 함께 수정한다. T3 필드 이름을 검증하는 단위 테스트를 추가한다. 외부 소비자가 launchRetries에 의존하는지는 별도로 확인하고, 이름 변경이 호환성을 깨면 임시 별칭을 둘지 결정한다."
+}

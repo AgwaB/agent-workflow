@@ -1,0 +1,41 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "Q1 unmet locally: no unit test files or test script exist for S/C/T, so finding-005 is kept at low severity.",
+  "id": "finding-005",
+  "verdict": "KEEP",
+  "severity": "low",
+  "evidence": [
+    {
+      "file": "SPEC.md",
+      "lineStart": 40,
+      "lineEnd": 40,
+      "quote": "- **Q1.** 위 S·C·T 항목마다 그 동작을 확인하는 단위 테스트가 있어야 한다.",
+      "relevance": "Spec requires a unit test for each S, C, and T item"
+    },
+    {
+      "file": "package.json",
+      "lineStart": 7,
+      "lineEnd": 7,
+      "quote": "\"scripts\": { \"typecheck\": \"tsc --noEmit\" }",
+      "relevance": "The only declared script is typecheck; no test script or test runner is configured"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "package.json",
+      "lineStart": 6,
+      "lineEnd": 6,
+      "quote": "Excerpt of pi-workflow stop/cancel handling (store.js and types.js are not included).",
+      "relevance": "Repo is a partial excerpt, but the note names only store.js and types.js as omitted and says nothing about tests"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 4,
+      "lineEnd": 4,
+      "quote": "`store.js`, `types.js`는 이 발췌에 포함되지 않는다.",
+      "relevance": "Same excerpt-scope caveat from the spec; again no mention of tests living outside this repo"
+    }
+  ],
+  "finalClaim": "Q1 (SPEC.md:40) is not met in this repository: no *.test.* or *.spec.* files exist and no test script or runner is configured, so no unit tests check the S, C, or T behaviors. Severity stays low because the repo is an excerpt and tests could live outside it.",
+  "recommendedAction": "Add unit tests for S1–S7, C1–C2, and T1–T3 under src/ or a tests directory, and add a test script to package.json. If the tests live in another repository, confirm that and record the location."
+}

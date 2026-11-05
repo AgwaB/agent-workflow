@@ -104,9 +104,16 @@ async function verifyRequirementSources(control, context) {
 export const RECHECK_STAGE = "recheck-requirements";
 const RECHECK_STATUSES = ["covered", "gap", "partial", "unclear"];
 
+// 2026-11-04 (live probe workflow_mw2tolt6_fcd4e5): both recheck workers echoed the requirement id
+// in lower case ("req-s5" for REQ-S5), the form of the task name; an echo that differs only in case
+// is accepted and the runtime's item identity is kept. Every recheck that is not used is listed in
+// `ignored` (task, item, reason).
 export async function recheckRows(context, rows) {
   const byId = new Map();
   const duplicates = new Set();
+  const ignored = [];
+  const ignore = (row, reason) =>
+    ignored.push({ taskId: row.taskId, itemIdentity: String(row.itemIdentity ?? ""), reason });
   for (const row of Array.isArray(rows) ? rows : []) {
     if (row?.stageId !== RECHECK_STAGE || row.status !== "completed" || !safeId(row.taskId)) continue;
     let control;
@@ -114,11 +121,23 @@ export async function recheckRows(context, rows) {
       control = JSON.parse(await readLocalText(context.cwd, taskPath(context, row.taskId, "control.json"), context.signal));
     } catch (error) {
       context.signal?.throwIfAborted();
-      void error;
+      ignore(row, `unreadable control (${error.code ?? error.message})`);
       continue;
     }
-    const id = control?.requirementId;
-    if (typeof id !== "string" || !id || id !== row.itemIdentity || !RECHECK_STATUSES.includes(control.status)) continue;
+    const echoed = control?.requirementId;
+    const id = typeof row.itemIdentity === "string" ? row.itemIdentity : "";
+    if (
+      !id ||
+      typeof echoed !== "string" ||
+      (echoed !== id && echoed.toLowerCase() !== id.toLowerCase())
+    ) {
+      ignore(row, "requirementId differs from the item");
+      continue;
+    }
+    if (!RECHECK_STATUSES.includes(control.status)) {
+      ignore(row, "invalid status");
+      continue;
+    }
     if (byId.has(id)) duplicates.add(id);
     byId.set(id, {
       status: control.status,
@@ -126,8 +145,11 @@ export async function recheckRows(context, rows) {
       reason: typeof control.reason === "string" ? control.reason.replace(/\s+/g, " ").trim().slice(0, 600) : "",
     });
   }
-  for (const id of duplicates) byId.delete(id);
-  return byId;
+  for (const id of duplicates) {
+    byId.delete(id);
+    ignored.push({ taskId: "", itemIdentity: id, reason: "rechecked more than once" });
+  }
+  return { rechecks: byId, ignored: ignored.slice(0, 8) };
 }
 
 /** The coverage rows after the rechecks: an unclear row becomes covered with the recheck's evidence,
@@ -206,7 +228,7 @@ export async function rendererRequirementSource(context) {
     const { manifest } = await readManifest(context, owners[0].taskId);
     const candidate = exactSource(manifest.sources, "candidate-findings");
     const source = (await candidateUpstreamFailures(context, candidate)).requirementSource;
-    return source ? { ...source, rechecks: await recheckRows(context, manifest.sources) } : source;
+    return source ? { ...source, rechecks: (await recheckRows(context, manifest.sources)).rechecks } : source;
   } catch (error) {
     context.signal?.throwIfAborted();
     void error;

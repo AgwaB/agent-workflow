@@ -46,6 +46,8 @@ const positives = [
 	"bad-extra-gap-citation",
 	// agent-workflow 2026-11-04: recheck-requirements settles an unclear row with verified evidence.
 	"unclear-rechecked-covered",
+	// Live probe 2026-11-04: recheck workers echoed the id in the task name's lower case.
+	"unclear-recheck-lowercase-id",
 ];
 const modes = [
 	...positives,
@@ -342,7 +344,11 @@ for (const mode of modes)
 				assert.equal(rechecker.foreachGenerated.itemIdentity, "REQ-001");
 				await complete(rechecker, {
 					requirementId:
-						mode === "unclear-recheck-wrong-id" ? "REQ-OTHER" : "REQ-001",
+						mode === "unclear-recheck-wrong-id"
+							? "REQ-OTHER"
+							: mode === "unclear-recheck-lowercase-id"
+								? "req-001"
+								: "REQ-001",
 					status: mode === "unclear-keep" ? "gap" : "covered",
 					evidence:
 						mode === "unclear-recheck-bad-evidence"
@@ -359,6 +365,15 @@ for (const mode of modes)
 			const partitionTask = h.taskBySpec(current, "partition-findings.main");
 			assert.equal(partitionTask.status, "completed");
 			const p = await read(partitionTask);
+			// 2026-11-04: a recheck that is not used is listed with its reason.
+			if (mode === "unclear-recheck-wrong-id")
+				assert.deepEqual(
+					p.requirementRechecks?.ignored?.map((row) => [
+						row.itemIdentity,
+						row.reason,
+					]),
+					[["REQ-001", "requirementId differs from the item"]],
+				);
 			if (isZero) {
 				assert.deepEqual(p.verifierCoverage.ownerLedger, []);
 				assert.deepEqual(p.verifierCoverage.verifierRows, []);
@@ -600,6 +615,11 @@ for (const mode of modes)
 					current.tasks.filter((task) => task.status === "completed").length,
 					tasks,
 				);
+				if (mode === "unclear-recheck-lowercase-id")
+					assert.deepEqual(p.requirementRechecks, {
+						rechecked: ["REQ-001"],
+						resolved: ["REQ-001"],
+					});
 				if (mode === "unclear-rechecked-covered") {
 					assert.deepEqual(p.requirementRechecks, {
 						rechecked: ["REQ-001"],

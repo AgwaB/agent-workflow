@@ -307,7 +307,10 @@
     } }, "maxItems": 80 },
     "requirementRechecks": { "type": "object", "required": ["rechecked", "resolved"], "properties": {
       "rechecked": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
-      "resolved": { "type": "array", "items": { "type": "string" }, "maxItems": 8 }
+      "resolved": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
+      "ignored": { "type": "array", "maxItems": 8, "items": { "type": "object", "required": ["taskId", "itemIdentity", "reason"], "properties": {
+        "taskId": { "type": "string" }, "itemIdentity": { "type": "string" }, "reason": { "type": "string" }
+      }, "additionalProperties": false } }
     }, "additionalProperties": false },
     "evidenceCorrections": { "type": "array", "items": { "type": "object" } },
     "finalFindings": { "type": "array", "items": { "type": "object", "properties": {

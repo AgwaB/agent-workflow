@@ -1,0 +1,34 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "C1 취소 판별이 'cancelled'/'timeout' 문자열을 취소로 승격해 명세의 정확한 3개 값 집합을 넘는다. 단, 불리언 플래그는 C1 문자열 조항 밖이라 제외.",
+  "id": "finding-003",
+  "verdict": "WEAKEN",
+  "severity": "medium",
+  "evidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "candidate === \"cancelled\" || candidate === \"timeout\") return true;",
+      "relevance": "error/reason 문자열 후보에 명세 밖 값 'cancelled'와 'timeout'이 취소로 인정된다"
+    },
+    {
+      "file": "SPEC.md",
+      "lineStart": 25,
+      "lineEnd": 26,
+      "quote": "다른 provider 오류를 취소로 승격해서는 안 된다.",
+      "relevance": "C1은 오류·사유 문자열을 aborted, AbortError, ABORT_ERR 세 값으로 한정하고 다른 provider 오류의 취소 승격을 금지한다"
+    }
+  ],
+  "counterEvidence": [
+    {
+      "file": "src/workflow-cancellation.ts",
+      "lineStart": 16,
+      "lineEnd": 16,
+      "quote": "if (value.cancelled === true) return true;",
+      "relevance": "불리언 cancelled 플래그는 오류·사유 문자열이 아니므로 C1 문자열 조항의 직접 대상이 아니다. finding의 플래그 주장은 이 범위에서 약화된다."
+    }
+  ],
+  "finalClaim": "src/workflow-cancellation.ts:20의 isWorkflowReturnedCancellation은 error/reason/details.error/details.reason 문자열로 'cancelled'와 'timeout'을 취소로 인정하여, SPEC.md C1이 정한 정확한 값 집합(aborted, AbortError, ABORT_ERR)보다 넓다. 이 문자열 승격은 명세 위반이다. 불리언 플래그(value.cancelled, details.cancelled)는 C1 문자열 조항 밖이므로 위반으로 단정하지 않는다.",
+  "recommendedAction": "line 20에서 'cancelled'와 'timeout' 비교를 제거하고 aborted, AbortError, ABORT_ERR만 남긴다. 각 허용 문자열이 취소로 인정되고 'cancelled'/'timeout' 및 임의 provider 오류는 취소로 승격되지 않는 단위 테스트를 추가한다. 불리언 플래그 허용 여부는 별도로 명세에 명시하도록 요청한다."
+}

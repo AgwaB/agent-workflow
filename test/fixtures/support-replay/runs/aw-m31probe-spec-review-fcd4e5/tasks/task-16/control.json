@@ -1,0 +1,23 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "REQ-S5: dispose()가 setInterval을 해제하고 내부 check의 유일한 재진입 경로가 타이머이므로 dispose 후 새 디스크 읽기는 시작되지 않음.",
+  "requirementId": "req-s5",
+  "status": "covered",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 81,
+      "lineEnd": 81,
+      "quote": "const timer = setInterval(() => void check(), pollMs);",
+      "relevance": "check의 재호출 경로는 이 타이머뿐이다"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 85,
+      "lineEnd": 85,
+      "quote": "dispose: () => clearInterval(timer),",
+      "relevance": "dispose가 타이머를 해제해 이후 tick과 그에 따른 새 읽기를 막는다"
+    }
+  ],
+  "reason": "dispose는 타이머를 해제하고 check를 다시 호출하는 경로는 타이머뿐이므로, dispose 이후 새 디스크 읽기는 시작되지 않는다. 이미 시작된 읽기는 명세의 '새로운 읽기'에 해당하지 않는다."
+}

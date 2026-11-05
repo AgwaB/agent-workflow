@@ -1,0 +1,44 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "REQ-S7: 해제 함수가 signal을 제거하고 마지막 해제 시 실행 항목을 삭제하는 것을 코드에서 확인.",
+  "requirementId": "req-s7",
+  "status": "covered",
+  "evidence": [
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 14,
+      "lineEnd": 16,
+      "quote": "const signals = launchSignals.get(key) ?? new Set<AbortSignal>();",
+      "relevance": "실행 키별 Set에 signal을 등록"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 17,
+      "lineEnd": 17,
+      "quote": "return () => {",
+      "relevance": "등록을 되돌리는 해제 함수 반환"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 18,
+      "lineEnd": 18,
+      "quote": "signals.delete(signal);",
+      "relevance": "해제 시 해당 signal 제거"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 19,
+      "lineEnd": 19,
+      "quote": "if (signals.size === 0 && launchSignals.get(key) === signals)",
+      "relevance": "남은 signal이 없고 맵이 같은 Set을 가리킬 때만 진입"
+    },
+    {
+      "file": "src/workflow-stop.ts",
+      "lineStart": 20,
+      "lineEnd": 20,
+      "quote": "launchSignals.delete(key);",
+      "relevance": "마지막 signal 해제 시 실행의 등록 항목 삭제"
+    }
+  ],
+  "reason": "해제 함수가 signal을 Set에서 제거하고, Set이 비면 실행 키 항목도 삭제한다. 단, 같은 signal을 두 번 등록하면 한 번의 해제로 두 등록이 모두 사라지는 경계 사례가 있다."
+}

@@ -1,0 +1,68 @@
+{
+  "schema": "workflow-source-manifest-v1",
+  "runId": "workflow_mw2tolt6_fcd4e5",
+  "taskId": "task-10",
+  "sources": [
+    {
+      "source": "report",
+      "displayName": "report.main",
+      "taskId": "task-9",
+      "specId": "report.main",
+      "stageId": "report",
+      "status": "completed",
+      "statusDetail": "completed",
+      "lastMessage": "completed",
+      "digest": "sha256:8511efd52e67522e4d0ced1554516eb41b2f2c5ddca4ddcdc8dad8cb36f86e17",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-9/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-9/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-9/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-9/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    },
+    {
+      "source": "partition-findings",
+      "displayName": "partition-findings.main",
+      "taskId": "task-8",
+      "specId": "partition-findings.main",
+      "stageId": "partition-findings",
+      "status": "completed",
+      "statusDetail": "support_completed",
+      "lastMessage": "support completed",
+      "digest": "sha256:8511efd52e67522e4d0ced1554516eb41b2f2c5ddca4ddcdc8dad8cb36f86e17",
+      "artifacts": {
+        "control": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-8/control.json",
+          "mediaType": "application/json"
+        },
+        "analysis": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-8/analysis.md",
+          "mediaType": "text/markdown"
+        },
+        "refs": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-8/refs.json",
+          "mediaType": "application/json"
+        },
+        "raw": {
+          "path": ".agent-workflow/workflows/workflow_mw2tolt6_fcd4e5/tasks/task-8/raw.md",
+          "mediaType": "text/markdown"
+        }
+      }
+    }
+  ],
+  "policy": {
+    "accessMode": "workflow-task"
+  }
+}

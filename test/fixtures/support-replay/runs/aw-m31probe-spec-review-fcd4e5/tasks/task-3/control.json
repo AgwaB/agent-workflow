@@ -1,0 +1,34 @@
+{
+  "schema": "stage-control-v1",
+  "digest": "src/에는 테스트 파일이 없어 S·C·T·Q1 모두 테스트 근거가 없다. 구현에서 S3, S6, C1, T1, T3 위반 가능성이 보인다.",
+  "testMap": [],
+  "coverageGapsSuspected": [
+    "Q1: 저장소에 단위 테스트 파일이 없다 (*.test/*.spec 없음, describe/it/test 호출 없음, package.json에 typecheck 스크립트만 있음).",
+    "S1-S7, C1-C2, T1-T3 전부 테스트 근거 없음.",
+    "S3: createWorkflowStopSignal 기본 pollMs가 200이고(명세 50ms), 최소 clamp가 1이다(명세 10ms).",
+    "S6: isWorkflowStopRequestedError가 메시지 접두사 'workflow stop requested'로도 판별한다(명세는 메시지 판별 금지).",
+    "C1: 'cancelled', 'timeout', value.cancelled, details.cancelled 등 명세에 없는 취소 표식을 취소로 인정한다(명세는 aborted/AbortError/ABORT_ERR만).",
+    "T3: 요약 필드명이 launchRetries이다(명세 공개 계약은 launchRetryAttempts).",
+    "T1: direct-dynamic 분기가 semanticStatus를 덮어써서 completed+degradation이어도 completed_degraded가 안 나올 수 있다.",
+    "S7: bindWorkflowLaunchSignal에서 같은 signal을 두 번 등록하면 한 번 해제로 두 등록이 모두 사라진다(테스트 없음)."
+  ],
+  "notes": [
+    "src/workflow-stop.ts, src/workflow-cancellation.ts, src/workflow-terminal.ts 3개 파일만 존재하며 store.js/types.js는 발췌에 없어 import가 해석되지 않는다.",
+    "C2 재귀는 JSON.parse가 문자열을 매번 짧게 만들어 무한 재귀 위험은 낮다. parsed!==value 검사는 사실상 무의미하다(테스트 없음).",
+    "probe/spec-review의 spec.json과 .agent-workflow 번들 사본은 워크플로 데이터이며 src 동작 테스트가 아니다.",
+    "S4, S5, S2는 코드 읽기상 명세와 부합하나 테스트 근거는 없다."
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "이 단계는 명령 실행이 금지되어 테스트를 실행하지 않았다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js/types.js가 발췌에 없어 해당 의존 동작은 코드 읽기로만 추정했다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false
+}

@@ -1,0 +1,106 @@
+{
+  "schema": "spec-review-report-v1",
+  "digest": "sha256:8511efd52e67522e4d0ced1554516eb41b2f2c5ddca4ddcdc8dad8cb36f86e17",
+  "summary": "SPEC 대비 근거가 확인된 gap 5건(finding-001~005: REQ-S3, S6, C1, T3, Q1)이 남아 있다. REQ-S5와 S7은 해석이 확정되지 않아 needs-human 2건으로 미해결이다. 정적 읽기만 수행했고 테스트는 실행하지 않았다.",
+  "verdict": "GAPS_FOUND",
+  "ownerLedger": [
+    {
+      "source": "verify-findings",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-001",
+      "taskId": "task-11",
+      "itemIdentity": "finding-001",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-002",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-002",
+      "taskId": "task-12",
+      "itemIdentity": "finding-002",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-003",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-003",
+      "taskId": "task-13",
+      "itemIdentity": "finding-003",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-004",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-004",
+      "taskId": "task-14",
+      "itemIdentity": "finding-004",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    },
+    {
+      "source": "verify-findings.finding-005",
+      "stageId": "verify-findings",
+      "specId": "verify-findings.finding-005",
+      "taskId": "task-15",
+      "itemIdentity": "finding-005",
+      "placeholderSpecId": "verify-findings.item",
+      "status": "completed"
+    }
+  ],
+  "ownerLedgerReconciliation": {
+    "ownerRowCount": 5,
+    "verifierRowCount": 5,
+    "ownerIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "verifierIds": [
+      "finding-001",
+      "finding-002",
+      "finding-003",
+      "finding-004",
+      "finding-005"
+    ],
+    "duplicateOwnerIds": [],
+    "duplicateVerifierIds": [],
+    "missingOwnerRows": [],
+    "orphanOwnerRows": [],
+    "statusMismatches": [],
+    "cardinalityPassed": true,
+    "passed": true
+  },
+  "risks": [
+    "finding-001 (REQ-S3): pollMs 기본값 200ms, 하한 1ms로 명세의 50ms·10ms와 다름",
+    "finding-002 (REQ-S6): isWorkflowStopRequestedError가 메시지 접두사로도 true를 반환함",
+    "finding-003 (REQ-C1): 취소 문자열 집합에 cancelled·timeout이 포함되어 명세의 3개 값보다 넓음",
+    "finding-004 (REQ-T3): 요약 필드명이 launchRetries이며 명세의 공개 계약 launchRetryAttempts와 다름",
+    "finding-005 (REQ-Q1): 저장소에 테스트 파일과 test 스크립트가 없음",
+    "needs-human-001 (REQ-S5): dispose() 이후 진행 중이던 read 허용 여부가 미확정이라 해결되지 않음",
+    "needs-human-002 (REQ-S7): 해제 함수 구현 근거는 있으나 최종 판정이 확정되지 않아 해결되지 않음"
+  ],
+  "scopeLimitations": [
+    {
+      "kind": "NONBLOCKING",
+      "text": "테스트를 실행하지 않았고 정적 읽기만 했다. 저장소에 테스트 파일이 없어 행동 검증은 구현 읽기에 근거한다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "store.js의 readWorkflowStopIntent와 workflowRunPath 본문은 검토하지 않고 import 경계로만 취급했다.",
+      "blocking": false
+    },
+    {
+      "kind": "NONBLOCKING",
+      "text": "probe 지시에 따라 REQ-S5, REQ-S7은 unclear로 기록했다. 그 행의 증거는 유지했다.",
+      "blocking": false
+    }
+  ],
+  "testExecutionAttested": false,
+  "recommendedNextAction": "finding-001~004의 구현을 명세에 맞게 수정하고(workflow-stop.ts:67, :53-57; workflow-cancellation.ts:20; workflow-terminal.ts:33·107) 각 요구사항에 단위 테스트를 추가한다. needs-human-001(S5)과 needs-human-002(S7)는 명세 작성자와 해석을 확정한 뒤 재판정한다. 테스트가 다른 저장소에 있다면 위치를 확인해 기록한다."
+}
