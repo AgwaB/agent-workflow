@@ -49,6 +49,8 @@ Run every applicable check below. If a change fits more than one category, run t
 | Package contents, exports, plugins, or install surface | `npm run validate`, `npm run e2e`, and `npm run pack:dry` |
 | Performance or default behavior | Include the applicable checks above plus an agreed before/after comparison and evidence that the change does not regress the affected behavior. |
 
+Changes to dashboard animations also need `npm run test:ui-motion` (headless Chrome; its real-time animation checks are not part of `validate` or CI).
+
 Changes to workflow prompts, agent/skill instructions, schemas, or helpers that affect behavior belong in the workflow/runtime category, regardless of file extension. For bug fixes, add a regression test when practical; otherwise explain how you verified the fix.
 
 The unit and E2E suites do not start real executor CLIs or make model calls. Live tiers that do (`AGENT_WORKFLOW_LIVE=1`) cost model usage; they are not required for a pull request unless a maintainer asks for them, and then the model and cost are agreed first.

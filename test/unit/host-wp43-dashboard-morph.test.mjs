@@ -4,7 +4,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
+import {
+	createBrowser,
+	findChrome,
+	MOTION_SKIP,
+	motionChecks,
+} from "../helpers/dashboard-browser.mjs";
 import { createFixtureServer } from "../helpers/dashboard-ui-fixture-server.mjs";
 
 const chrome = await findChrome();
@@ -84,9 +89,11 @@ const morphs = () =>
 	});
 
 test("dashboard graph: reshaping status changes morph from the previous geometry; reduced motion is instant", {
-	skip: chrome
-		? false
-		: "Chrome is not installed (set CHROME to a local executable)",
+	skip: !chrome
+		? "Chrome is not installed (set CHROME to a local executable)"
+		: motionChecks
+			? false
+			: MOTION_SKIP,
 	timeout: 60_000,
 }, async (t) => {
 	const { expanded, collapsed } = await states();

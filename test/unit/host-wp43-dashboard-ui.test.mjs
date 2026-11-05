@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
+import {
+	createBrowser,
+	findChrome,
+	MOTION_SKIP,
+	motionChecks,
+} from "../helpers/dashboard-browser.mjs";
 import {
 	CSP,
 	createFixtureServer,
@@ -753,11 +758,12 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	// First drawing of a run replays the journey: every card and link gets a scripted fade
 	// (layer by layer) on top of the stylesheet's flow animations. 2026-11-05 (CI: on a slower
 	// machine the replay, about 1 s, had finished and left getAnimations() before the check ran):
-	// count the scripted animations as they start instead.
-	const { identifier: replayHook } = await browser.send(
-		"Page.addScriptToEvaluateOnNewDocument",
-		{
-			source: `(() => {
+	// count the scripted animations as they start instead; an animation timing check, so only
+	// with AGENT_WORKFLOW_UI_MOTION=1.
+	const replayHook = motionChecks
+		? (
+				await browser.send("Page.addScriptToEvaluateOnNewDocument", {
+					source: `(() => {
 				const animate = Element.prototype.animate;
 				window.__awAnimated = [];
 				Element.prototype.animate = function (...args) {
@@ -765,20 +771,23 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 					return animate.apply(this, args);
 				};
 			})();`,
-		},
-	);
+				})
+			).identifier
+		: undefined;
 	await open(`run=${running}`);
 	await browser.waitFor(() => document.querySelector(".edge.active"));
-	assert.ok(
-		(await browser.evaluate(
-			() =>
-				window.__awAnimated.filter((target) => target.closest(".graph"))
-					.length,
-		)) >= 15,
-	);
-	await browser.send("Page.removeScriptToEvaluateOnNewDocument", {
-		identifier: replayHook,
-	});
+	if (replayHook !== undefined) {
+		assert.ok(
+			(await browser.evaluate(
+				() =>
+					window.__awAnimated.filter((target) => target.closest(".graph"))
+						.length,
+			)) >= 15,
+		);
+		await browser.send("Page.removeScriptToEvaluateOnNewDocument", {
+			identifier: replayHook,
+		});
+	}
 	await browser.evaluate(() => {
 		document.getElementById("canvas").dataset.mark = "kept";
 		document.getElementById("run-header").dataset.mark = "old";
@@ -1526,9 +1535,11 @@ test("dashboard Chrome: the rail steps aside for the inspector on narrower scree
 });
 
 test("dashboard Chrome: panels and dialogs share one motion family, both ways", {
-	skip: chrome
-		? false
-		: "Chrome is not installed (set CHROME to a local executable)",
+	skip: !chrome
+		? "Chrome is not installed (set CHROME to a local executable)"
+		: motionChecks
+			? false
+			: MOTION_SKIP,
 	timeout: 120_000,
 }, async (t) => {
 	// 2026-11-03 (owner: "run details should be smooth too; check consistency"): the inspector's

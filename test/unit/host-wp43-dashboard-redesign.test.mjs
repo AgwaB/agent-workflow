@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
+import {
+	createBrowser,
+	findChrome,
+	MOTION_SKIP,
+	motionChecks,
+} from "../helpers/dashboard-browser.mjs";
 import {
 	createFixtureServer,
 	injection,
@@ -216,6 +221,7 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 
 	await t.test(
 		"packets follow actual start/completion diffs, use outcome tones, and settle",
+		{ skip: motionChecks ? false : MOTION_SKIP },
 		async () => {
 			assert.equal(
 				await browser.evaluate(

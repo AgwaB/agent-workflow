@@ -32,7 +32,11 @@ const TWO_STAGES = {
 // Adapted from host-wp43-dashboard-server.test.mjs; the default (WP43d open) mode: no cookie,
 // mutations carry same-origin fetch metadata, the server Origin and the CSRF value that
 // /api/session hands out.
-function http(server, path, { method = "GET", headers = {}, body } = {}) {
+function http(
+	server,
+	path,
+	{ method = "GET", headers = {}, body, timeoutMs = 20_000 } = {},
+) {
 	return new Promise((resolve, reject) => {
 		const req = request(
 			{
@@ -60,7 +64,7 @@ function http(server, path, { method = "GET", headers = {}, body } = {}) {
 				});
 			},
 		);
-		req.setTimeout(20_000, () =>
+		req.setTimeout(timeoutMs, () =>
 			req.destroy(new Error(`HTTP timeout: ${path}`)),
 		);
 		req.on("error", reject);
@@ -207,7 +211,7 @@ function unknownCost(run) {
 }
 
 test("dashboard HTTP observes, streams and stops a real multi-task workflow", {
-	timeout: 55_000,
+	timeout: 70_000,
 }, async (t) => {
 	const cwd = await realpath(
 		await mkdtemp(join(tmpdir(), "aw-wp43-dashboard-")),
@@ -381,19 +385,22 @@ test("dashboard HTTP observes, streams and stops a real multi-task workflow", {
 	const stoppingAt = Date.now();
 	// 2026-11-05 (first CI runs: one ubuntu/Node 26 job timed out on this request after 20 s, the
 	// test took 36 s against 9-13 s locally): record how long the stop took and where the run stood.
-	const stopped = await http(server, `${path}/stop`, mutation(server)).catch(
-		async (error) => {
-			const run = await record().catch(() => undefined);
-			t.diagnostic(
-				JSON.stringify({
-					stopMs: Date.now() - stoppingAt,
-					status: run?.status,
-					tasks: run?.tasks.map((task) => task.status),
-				}),
-			);
-			throw error;
-		},
-	);
+	// 2026-11-05 (owner): the client waits 30 s here; the stop confirmation itself may take up to
+	// 15 s (HOST_STOP_CONFIRM_TIMEOUT_MS) plus a retry, and the 20 s bound below still holds.
+	const stopped = await http(server, `${path}/stop`, {
+		...mutation(server),
+		timeoutMs: 30_000,
+	}).catch(async (error) => {
+		const run = await record().catch(() => undefined);
+		t.diagnostic(
+			JSON.stringify({
+				stopMs: Date.now() - stoppingAt,
+				status: run?.status,
+				tasks: run?.tasks.map((task) => task.status),
+			}),
+		);
+		throw error;
+	});
 	t.diagnostic(JSON.stringify({ stopMs: Date.now() - stoppingAt }));
 	assert.equal(stopped.status, 200, stopped.text);
 	await poll(
