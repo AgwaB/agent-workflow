@@ -76,7 +76,7 @@ Released plugin: `npx -y --package=@agwab/agent-workflow@<package version> agent
 --host <claude-code|codex>`. The version is pinned exactly (test: equal to `package.json`).
 `--package` is required: with `npx <package> agent-workflow-mcp`, npx runs the package's bin named
 like the package (`agent-workflow`) and passes `agent-workflow-mcp` as an argument. The first start
-downloads the package (Node.js 22+). Until the package is on npm (stage 3) use the dev plugin below
+downloads the package (Node.js 24+). Until the package is on npm (stage 3) use the dev plugin below
 or an `mcp add` registration of a local install. Verified with a packed tarball:
 
 ```

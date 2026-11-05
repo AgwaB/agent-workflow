@@ -50,8 +50,8 @@ import {
 	toDisplayPath,
 } from "./types.js";
 
-/** Node major version the package supports (package.json `engines.node`). */
-export const DOCTOR_REQUIRED_NODE_MAJOR = 22;
+/** Node major version the package supports (package.json `engines.node`; 24 since 2026-11-05). */
+export const DOCTOR_REQUIRED_NODE_MAJOR = 24;
 
 export interface DoctorRequest {
 	/** Probe seam (tests); default: the real adapters' probe() (cached per process). */

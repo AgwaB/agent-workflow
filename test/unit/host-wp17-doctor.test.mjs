@@ -163,7 +163,7 @@ test("doctorAction: executors, default and why, verified versions, fix commands 
 	});
 	assert.deepEqual(result.data.node, {
 		version: "v24.1.0",
-		required: ">=22",
+		required: ">=24",
 		supported: true,
 	});
 	assert.equal(result.data.home.path, join(cwd, "home"));
@@ -187,7 +187,7 @@ test("doctorAction: executors, default and why, verified versions, fix commands 
 		/Default executor here: claude \(installed-default\): the terminal CLI uses/,
 	);
 	assert.match(result.text, /Permission mode default: free \(default\)/);
-	assert.match(result.text, /Node: v24\.1\.0 \(requires >=22\)/);
+	assert.match(result.text, /Node: v24\.1\.0 \(requires >=24\)/);
 	assert.match(result.text, /OK: 1 of 4 executors usable\./);
 	// Nothing was written by the check.
 	assert.equal(existsSync(join(cwd, "home")), false);
@@ -246,7 +246,7 @@ test("doctorAction: host default, saved default profile, unsupported Node, unusa
 		profile: "mine",
 	});
 	assert.equal(profiled.data.node.supported, false);
-	assert.match(profiled.text, /requires >=22, UNSUPPORTED/);
+	assert.match(profiled.text, /requires >=24, UNSUPPORTED/);
 	assert.match(
 		profiled.text,
 		/Permission mode default: safe \(saved user profile "mine"\)/,

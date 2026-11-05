@@ -27,7 +27,7 @@ Keep each pull request focused on one feature, fix, or documentation change. Do 
 
 ## Set up a local checkout
 
-agent-workflow requires Node.js `>=22`. CI runs on macOS and Linux; native Windows is not tested.
+agent-workflow requires Node.js `>=24`. CI runs on macOS and Linux; native Windows is not tested.
 
 Install the locked dependencies:
 
