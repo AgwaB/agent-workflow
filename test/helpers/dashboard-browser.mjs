@@ -141,23 +141,26 @@ export async function createBrowser(executable) {
 		throw new Error(`Browser condition timed out: ${fn}`);
 	};
 	// The dashboard follows the system theme (2026-11-01) and headless Chrome reports light. Tests
-	// see the dark palette unless they emulate a colour scheme themselves.
+	// see the dark palette unless they emulate a colour scheme themselves. 2026-11-05 (first CI run:
+	// the macOS runner reports reduced motion, so every animation check failed there): motion is
+	// fixed to no-preference the same way, unless a test emulates reduced motion itself.
 	let mediaEmulated = false;
+	const DEFAULT_MEDIA = [
+		{ name: "prefers-color-scheme", value: "dark" },
+		{ name: "prefers-reduced-motion", value: "no-preference" },
+	];
 	const sendWithScheme = (method, params, target) => {
-		if (method === "Emulation.setEmulatedMedia") mediaEmulated = true;
+		if (method !== "Emulation.setEmulatedMedia")
+			return send(method, params, target);
+		mediaEmulated = true;
+		const features = params?.features ?? [];
+		const missing = DEFAULT_MEDIA.filter(
+			(feature) => !features.some((own) => own.name === feature.name),
+		);
 		return send(
 			method,
-			method === "Emulation.setEmulatedMedia" &&
-				!(params?.features ?? []).some(
-					(feature) => feature.name === "prefers-color-scheme",
-				)
-				? {
-						...params,
-						features: [
-							...(params?.features ?? []),
-							{ name: "prefers-color-scheme", value: "dark" },
-						],
-					}
+			missing.length
+				? { ...params, features: [...features, ...missing] }
 				: params,
 			target,
 		);
