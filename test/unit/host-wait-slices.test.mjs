@@ -137,7 +137,7 @@ function fakeApi({ onWait, onRun } = {}) {
 							action: "run",
 							ok: true,
 							outcome: "running",
-							text: "Workflow started: deep-review",
+							text: `Workflow started: deep-review\nDetached supervisor: pid 1, log x\nWait for the result: workflow_wait {"runId":"${runId}"}`,
 							data: {
 								runId,
 								status: "running",
@@ -222,6 +222,29 @@ test("Codex with a long slice is told to keep the code-mode cell from yielding; 
 	assert.ok((await run("codex", MIN30)).includes(pragma));
 	assert.ok(!(await run("codex")).includes("@exec"));
 	assert.ok(!(await run("generic", MIN30)).includes("@exec"));
+	// An interactive Codex turn gets the result queued: no wait line, no pragma.
+	const queued = textOf(
+		await tools
+			.createHostMcpService({
+				root: cwd,
+				host: "codex",
+				env: {},
+				api: fakeApi(),
+				waitSliceMs: MIN30,
+			})
+			.call(
+				"workflow_run",
+				{ workflow: "deep-review", task: "t" },
+				callContext({
+					"x-codex-turn-metadata": {
+						thread_id: "01a1a9fc-37e9-7613-b590-05c91fcc4e84",
+						turn_trigger: "user",
+					},
+				}),
+			),
+	);
+	assert.match(queued, /puts the result into this Codex session/);
+	assert.doesNotMatch(queued, /Wait for the result|@exec/);
 	const waited = textOf(
 		await tools
 			.createHostMcpService({
@@ -298,9 +321,12 @@ test("a project's first run from a Claude Code session waits for the session's m
 	};
 	const first = await launch({ monitorAfterMs: 300 });
 	assert.match(first.text, MONITOR);
+	// The launch text no longer says "Wait for the result" (live: a haiku host followed that line).
+	assert.doesNotMatch(first.text, /Wait for the result/);
 	// No monitor came (plugin monitor off): the launch waits, at most the bound.
 	const none = await launch({});
 	assert.match(none.text, WAIT);
+	assert.match(none.text, /Wait for the result: workflow_wait/);
 	assert.ok(none.ms >= 1_400 && none.ms < 5_000, `${none.ms} ms`);
 	// Print mode / Agent SDK run no monitors; not the first run; a session in another directory:
 	// no waiting at all.

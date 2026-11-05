@@ -1464,9 +1464,28 @@ function profileSetFromArguments(params: Record<string, unknown>): {
  * asked the agent to start a Monitor with a local command; a live haiku host refused that as an
  * instruction from a tool result — rightly — so the plugin starts the monitor itself.)
  */
+type Delivery = "wait" | "claude-monitor" | "codex-queue";
+
+/**
+ * 2026-11-05: when the result comes to the session by itself (monitor, codex queue), the launch text
+ * must not also say "Wait for the result: workflow_wait …" (live: a haiku host given both followed
+ * that line and called workflow_wait).
+ */
+function withoutWaitLine<T>(
+	outcome: HostResult<T>,
+	how: Delivery,
+): HostResult<T> {
+	return how === "wait"
+		? outcome
+		: {
+				...outcome,
+				text: outcome.text.replace(/\nWait for the result: [^\n]*/gu, ""),
+			};
+}
+
 function launchNext(
 	data: LaunchData,
-	delivery: "wait" | "claude-monitor" | "codex-queue" = "wait",
+	delivery: Delivery = "wait",
 	waitHint = "",
 ): string | undefined {
 	if (data.runId && data.status === "running") {
@@ -1552,7 +1571,7 @@ export function createHostMcpService(
 		ctx: HostApiContext,
 		data: LaunchData | undefined,
 		call: McpToolCallContext,
-	): Promise<"wait" | "claude-monitor" | "codex-queue"> => {
+	): Promise<Delivery> => {
 		if (!data?.runId || data.status !== "running") return "wait";
 		if (options.host === "claude-code") {
 			const session = env.CLAUDE_CODE_SESSION_ID;
@@ -2020,19 +2039,19 @@ export function createHostMcpService(
 				},
 				...confirmHooks(call, args, confirmation),
 			});
+			const confirm = confirmNext(
+				`${WORKFLOW_RUN_TOOL} again with the same arguments`,
+				confirmation,
+			);
+			const how =
+				confirm === undefined
+					? await delivery(ctx, launched.data, call)
+					: "wait";
 			return finish(
 				call,
-				launched,
+				withoutWaitLine(launched, how),
 				launched.data,
-				confirmNext(
-					`${WORKFLOW_RUN_TOOL} again with the same arguments`,
-					confirmation,
-				) ??
-					launchNext(
-						launched.data,
-						await delivery(ctx, launched.data, call),
-						waitHint,
-					),
+				confirm ?? launchNext(launched.data, how, waitHint),
 			);
 		},
 		[WORKFLOW_DYNAMIC_TOOL]: async (args, call) => {
@@ -2047,19 +2066,19 @@ export function createHostMcpService(
 				},
 				...confirmHooks(call, args, confirmation),
 			});
+			const confirm = confirmNext(
+				`${WORKFLOW_DYNAMIC_TOOL} again with the same arguments`,
+				confirmation,
+			);
+			const how =
+				confirm === undefined
+					? await delivery(ctx, launched.data, call)
+					: "wait";
 			return finish(
 				call,
-				launched,
+				withoutWaitLine(launched, how),
 				launched.data,
-				confirmNext(
-					`${WORKFLOW_DYNAMIC_TOOL} again with the same arguments`,
-					confirmation,
-				) ??
-					launchNext(
-						launched.data,
-						await delivery(ctx, launched.data, call),
-						waitHint,
-					),
+				confirm ?? launchNext(launched.data, how, waitHint),
 			);
 		},
 		[WORKFLOW_AUTO_TOOL]: async (args, call) => {
@@ -2125,6 +2144,7 @@ export function createHostMcpService(
 			});
 			const data = auto.data;
 			let next: string | undefined;
+			let how: Delivery = "wait";
 			if (data.phase === "launched" && confirmation.unanswered)
 				// Not again through workflow_auto: that would compare (and ask) once more.
 				next = confirmNext(
@@ -2133,13 +2153,10 @@ export function createHostMcpService(
 						: `${WORKFLOW_RUN_TOOL} with the selected workflow and the same task`,
 					confirmation,
 				);
-			else if (data.phase === "launched" && data.launch)
-				next = launchNext(
-					data.launch,
-					await delivery(ctx, data.launch, call),
-					waitHint,
-				);
-			else if (data.phase === "consent-unavailable")
+			else if (data.phase === "launched" && data.launch) {
+				how = await delivery(ctx, data.launch, call);
+				next = launchNext(data.launch, how, waitHint);
+			} else if (data.phase === "consent-unavailable")
 				next = `Next: show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}). Nothing was sent and nothing started.`;
 			else if (data.phase === "ranked" || data.phase === "cancelled")
 				next = `Nothing started. If the user then names a workflow, call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"}; do not call ${WORKFLOW_AUTO_TOOL} again unless the user asks.`;
@@ -2147,7 +2164,7 @@ export function createHostMcpService(
 				next = `The user declined: nothing was sent and nothing started. Do not retry unless the user asks.`;
 			else if (data.phase === "consent-cancelled")
 				next = `The client cancelled the confirmation dialog or cannot ask the user here (no answer was given): nothing was sent and nothing started. Show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}).`;
-			return finish(call, auto, data, next);
+			return finish(call, withoutWaitLine(auto, how), data, next);
 		},
 		[WORKFLOW_STATUS_TOOL]: async (args, call) => {
 			const runId = optionalString(args, "runId");
