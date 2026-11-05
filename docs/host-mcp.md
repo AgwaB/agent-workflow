@@ -278,6 +278,14 @@ End to end (deep-review, claude/haiku workers, about 2 min): `claude -p` (haiku 
 code mode) wrote the pragma, its one `workflow_wait` cell ran 134 s without a model turn, 7 model
 requests in all. With 45 s calls each would have needed several more.
 
+Other Codex models (same run, `codex exec`, medium): gpt-6.1-terra and gpt-6.1-sol first passed
+`timeoutMs: 45000` (the skill then said "at most 45 s per call") and skipped the pragma: an exec and a
+wait turn per 45 s (10 and 8 model requests). With the bound, "leave timeoutMs out" and the pragma in
+the tool description, both left `timeoutMs` out but chose `// @exec: {"yield_time_ms": 1000}` and then
+`wait` every 20 s (terra, 11 requests) or 60 s (sol, 8): the model's own polling, about as many turns
+as before. Only gpt-5.6-luna took the pragma (one cell). Interactive Codex sessions are woken by
+`codex queue` instead and do not wait.
+
 Live check (Claude Code 2.1.318, interactive, haiku, a project that already had runs; internal
 host-wake-20261105): the user only asked "run deep-review … and tell me the result". The agent
 launched, told the user the run id and link, and ended its turn (no `workflow_wait`); about two
