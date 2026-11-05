@@ -1,11 +1,7 @@
-// New in agent-workflow (WP2a-2): drives one SDK executor attempt (submit → observe) under a
-// runtime-enforced fence and turns the normalized event stream into attempt artifacts.
-// Replaces the Pi runner call in pi-subagent's src/orchestrate/run.ts (runHeadlessModel /
-// runInlineModel / runTmuxModel) and the output/usage parsing those runners did.
-// WP2b: approval requests under an interactive policy wait for a host answer through the durable
-// control mailbox (orchestrate/control.ts) up to approvalPolicy.timeoutMs, then deny
-// (default-timeout); every decision is audited in approvals.jsonl with who decided it; a mailbox
-// cancel(owned) takes the stop path, cancel(turn) is forwarded to the executor.
+// Drive one executor attempt under a runtime fence and normalize events into artifacts.
+// Interactive approvals wait through the control mailbox until policy timeout, then deny.
+// Audit every decision with its deciding host. Owned cancellation stops the attempt;
+// turn cancellation is forwarded to the executor.
 import {
 	type ApprovalDecision,
 	decideApproval,

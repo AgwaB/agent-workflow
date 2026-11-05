@@ -24,7 +24,7 @@
 //                 recommendation of the candidate card with this label (true: the first startable
 //                 card); the submit log entry then has `autoClassifier: true`
 //   autoStatus    WP38b: "no-fit" answers the comparison with no recommendation (every card a
-//                 partial fit), as pi-workflow's manual-fallback tests do
+//                 partial fit)
 //   controlSequence  { "<task id>": [control, …] }: the Nth submit for that task (counted in the
 //                 effect log, so across worker processes) answers with the Nth control (the last
 //                 one repeats) instead of the default `{schema, digest}` control

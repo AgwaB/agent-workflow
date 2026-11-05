@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/durable-launch-barrier.ts. MIT, same author. Changes: two doc comments say "the runtime" instead of "pi-subagent"; schema ids unchanged; WP1b: waitForDurableLaunchBarrierV2Ready takes an optional abort signal (the engine stops waiting when the provisional worker ended before READY).
+// The READY wait accepts an abort signal so the engine can stop waiting for an ended worker.
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { link, lstat, mkdir, open, readdir, rm } from "node:fs/promises";

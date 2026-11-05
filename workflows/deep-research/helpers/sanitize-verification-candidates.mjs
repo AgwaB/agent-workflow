@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/sanitize-verification-candidates.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

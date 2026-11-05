@@ -1,5 +1,10 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workers/durable-worker.mjs. MIT, same author. Changes: converted to TypeScript (compiled to dist/runtime/workers/durable-worker.js); runtime TypeScript loader imports replaced by static imports of the compiled modules; the payload carries an ExecutorDescriptor (`executor`) plus serializable request fields instead of Pi agent/backend options — the worker reloads the executor with loadExecutor (a missing module, id or version mismatch fails closed with guard_failure before any effect); the launch barrier sequence (READY/decision/ACK → binding → abort → execution-authorized → abort) moved into the durable LaunchAuthority that the adapter consumes inside submit; execution plan schema "agent-workflow-durable-execution-plan-v1" (see orchestrate/request.ts); a pre-effect ExecutionNotStartedError keeps its status/failureKind; env names PI_SUBAGENT_HEARTBEAT_MS / _DURABLE_WORKER_START_DELAY_MS / _DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS -> AGENT_WORKFLOW_*; fallback backend for unreadable payloads is "unknown" instead of "headless". WP2c: a failure or revoke before release no longer marks the attempt cancelled/user_cancelled in the registry (which skipped the terminal write, left result.json "running" and kept the attempt active); the worker discards the pristine workspace, writes the terminal result (guard/integrity failure → failed/guard_failure, engine revoke → cancelled/revoked) and spawns the terminal finalizer, which drains ownership. WP2c: env / mcpServers[].env values arrive in the spawn environment (AGENT_WORKFLOW_DURABLE_WORKER_REQUEST_ENV_JSON, removed from process.env at startup) and are merged into the persisted keys; a missing or mismatching channel is a guard_failure before any effect. WP2b: terminal-last-write — the pre-release terminal paths write output.log and close the control mailbox (every request acked) before result.json; at most one heartbeat in flight; runtime modules are imported dynamically after the early signal handlers (a SIGTERM during module loading no longer kills the worker before it can record a terminal result); the control mailbox itself is served by runPreparedSubagentExecution (orchestrate/control.ts).
+// Load the recorded executor and fail closed on a missing module or identity/version mismatch.
+// Launch authority enforces READY, decision, ACK, binding, abort checks, and execution authorization.
+// Missing or mismatched environment-value channels fail closed before effects.
+// Before release, failure or revoke discards the pristine workspace, writes output.log,
+// closes the control mailbox, writes the terminal result, then starts ownership finalization.
+// Install signal handlers before loading runtime modules; allow at most one heartbeat in flight.
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
@@ -702,9 +707,8 @@ try {
 		console.error(error instanceof Error ? error.message : String(error));
 		process.exitCode = 1;
 	} else {
-		// Nothing was released: discard the pristine workspace only. The registry is left to
-		// the terminal result below and the finalizer (pi-subagent marked the attempt
-		// cancelled/user_cancelled here, which made the terminal write a no-op).
+		// Before release, discard only the pristine workspace. Leave registry updates
+		// to the terminal result and finalizer.
 		if (preparedExecution?.ownership?.state === "prepared")
 			await discardPreparedExecutionWorkspace(preparedExecution).catch(
 				() => undefined,

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 205-207, 1689-2679, 6123-6145 (usage, timing and tool-result-budget telemetry on task records). MIT, same author. Changes: env PI_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS→AGENT_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS; record source "pi-subagent"→"executor"; WP1b: usage aliases `cached`/`cost` for the runtime UsageSummary. WP12a: the usage summary's `model` is the attempt model.
+// Usage summaries report the attempt's model.
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
 import {
 	normalizedToolResultBudgetValues,

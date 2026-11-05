@@ -19,8 +19,8 @@
 // The server can ask its user only during a tool call, so it never approves while it drives a run:
 // workflow_status/workflow_wait show the open approval (question + request id) and the agent calls
 // workflow_approve after the user decided; the tool asks the user again through elicitation before
-// anything is recorded (accept = as decided; declining the approval question rejects it for the run,
-// pi-workflow's "no"; cancel/failure changes nothing) and refuses clients without elicitation.
+// anything is recorded (accept = as decided; declining the approval question rejects it for the run;
+// cancel/failure changes nothing) and refuses clients without elicitation.
 // WP32 (owner decision Q5): workflow_auto recommends a workflow for a task. Before its one
 // classifier call it asks the user's consent through elicitation (showing the task, the candidates
 // and the classifier executor/model); a second elicitation (a form with one enum field) is the

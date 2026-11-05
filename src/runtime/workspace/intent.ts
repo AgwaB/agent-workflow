@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workspace/intent.ts. MIT, same author. Changes: none (relative import extensions .ts -> .js only).
 import type {
 	ResolveInput,
 	WorkspaceMode,

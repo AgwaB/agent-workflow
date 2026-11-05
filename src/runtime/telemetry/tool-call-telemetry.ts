@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/runners/tool-call-telemetry.ts. MIT, same author. Changes: moved to runtime/telemetry; the sanitized detail value is typed ToolDetailValue instead of unknown (same values); adds processExecEvent, which maps normalized SDK `tool_call` events onto the collector (start for pending/approval_pending/running, end for completed/failed/denied/timed_out) so `captureToolCalls` works for any executor. The Pi JSON `tool_execution_start/end` path (processEvent) is unchanged.
 import type { ArtifactRef, ArtifactType } from "../artifacts/index.js";
 
 const TOOL_CALL_SCHEMA_VERSION = 1 as const;

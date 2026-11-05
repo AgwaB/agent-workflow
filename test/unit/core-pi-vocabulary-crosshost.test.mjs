@@ -1,14 +1,7 @@
-// Pi vocabulary reaching non-Pi executors (2026-10-30, Codex deep-research finding). A legacy
-// `~/.pi/agent` agent or workflow shadows/joins the bundled ones on every host, and carries Pi's
-// names: pi-workflow web tools (`workflow_web_*`) and provider-qualified models
-// (`openai-codex/…`, `anthropic/…`). These tests pin the cross-host contract:
-// - authority: an agent's tools authorise exactly those names (2026-11-02: no aliases; agent-workflow
-//   does not know pi-workflow's names);
-// - tools an executor cannot map are refused BEFORE the run starts (was: run started, earlier
-//   stages spent model calls, then every web stage failed at submit);
-// - Pi provider prefixes the executor's own CLI owns are dropped, foreign ones refused before
-//   launch (claude) or noted (codex: a custom provider may serve them).
-// No model or agent-CLI calls: fake probers and argv builders only.
+// Cross-host vocabulary contract: agents authorize exactly their declared tool names.
+// Executors refuse unmappable tools before a run starts. Drop provider prefixes owned
+// by the selected CLI; refuse foreign prefixes on Claude or note them on Codex, where
+// a custom provider may serve them. Fake probers and argv builders only.
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -52,7 +45,7 @@ after(async () => {
 		});
 });
 
-/** A project whose `researcher` lists pi-workflow's tool names (unknown to agent-workflow). */
+/** A project whose researcher lists unsupported legacy tool names. */
 async function project(
 	tools = "read, grep, find, ls, bash, workflow_web_search, workflow_web_fetch_source, workflow_web_source_read",
 ) {

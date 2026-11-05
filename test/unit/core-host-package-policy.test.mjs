@@ -1,10 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/host-package-policy.test.mjs. MIT, same
-// author. Changes: agent-workflow lists the Pi host packages it may import at runtime
-// (@earendil-works/pi-ai, pi-coding-agent, pi-tui) as optional wildcard peers and does not need them
-// to build or test (the Pi host and executor load them lazily from the user's Pi), so the
-// "devDependency" half is replaced by "optional peer"; pi-agent-core and typebox are not used by
-// agent-workflow and must not appear as dependencies or bundles either. The lockfile half also
-// compares peerDependenciesMeta.
+// Pi host packages are optional peers loaded lazily; builds and tests do not require them.
+// Unused Pi packages must not appear as dependencies or bundles.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";

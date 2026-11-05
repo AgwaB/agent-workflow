@@ -1,9 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-notice-acknowledgements.test.mjs
-// (the five tests that need `notifyUnfinishedRuns`; the rest were ported in WP11a as
-// host-ported-notices.test.mjs). MIT, same author. Changes: `notifyUnfinishedRuns(cwd, notify, now)`
-// → the Pi host's session-start notice `unfinishedRunNotice(hostApi, ctx, now)`
-// (src/hosts/pi/notices.ts, over the host API `notices list`); run root .agent-workflow/workflows;
-// env AGENT_WORKFLOW_ROLE.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {

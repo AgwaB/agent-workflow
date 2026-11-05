@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/core/constants.ts. MIT, same author. Changes: inline/headless/tmux backend enums replaced by generic executor ids, DEFAULT_RUNS_DIR=".agent-workflow/runs" added, sandboxAllowedDomains (srt hook) removed, Pi wording dropped from comments; WP2a-2 adds executor failure kinds (transient, rate_limit, executor_*, not_started, needs_decision); WP2c adds failure kind "revoked" (engine revoke before release).
 import type { DurableLaunchBarrierV2Descriptor } from "../durable-launch-barrier.js";
 
 /**

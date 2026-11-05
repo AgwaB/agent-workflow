@@ -1,17 +1,7 @@
-// Ported (WP38b) from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-router.test.mjs (MIT,
-// same author): the seven `/workflow auto` slash-capture and TUI tests, against WP32 `/aw auto`
-// (host API `autoAction`) in a fake Pi session. The core router tests of that file are in
-// core-workflow-router.test.mjs; "cancelling a dynamic foreground launch reclaims the created run"
-// stays not applicable (`/aw dynamic` returns at start, no foreground loader).
-//
-// Changed mechanisms: pi-workflow's native TUI picker (`ctx.ui.custom`, searchable, "Choose how to
-// run") is Pi's `ctx.ui.select` (the ranked workflows and "Cancel (start nothing)") followed by the
-// separate final confirmation; its transmission dialog "Allow auto comparison transmission" is
-// "Send this task to pi to compare workflows?" (the classifier executor/model and the task are
-// shown); the comparison loader is the WP38b `withForegroundLoader` loader. pi-workflow's
-// `workflowAutoSlashLaunchCapture` (v2 `pi-workflow-run-launch-v2`, `effectiveRuntime`) is the host
-// launch capture `agent-workflow-run-launch-v2` (WP32/WP33; no runtime/fast fields). The classifier
-// answer comes from the workflow executor fixture (`autoRecommend`, `autoStatus: "no-fit"`).
+// Auto routing and launch capture in a fake Pi session. Show a consent dialog with
+// classifier identity and task, then ranked choices and a separate final confirmation.
+// The comparison loader is cancellable. Host launch capture records selection without
+// runtime/fast fields. Fixture executor answers recommendations and no-fit cases.
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -75,7 +65,7 @@ function session(cwd, env, options) {
 	return created;
 }
 
-/** A bare Pi command handler and a hand-made context (pi-workflow's headless/TUI fixtures). */
+/** A bare Pi command handler and a hand-made context. */
 function bareHandler(env) {
 	const pi = fakePi();
 	ext.createAgentWorkflowPiExtension({ env, feedbackPollMs: 50 })(pi);
@@ -114,7 +104,7 @@ function selectionFor(kind, recommendation) {
 }
 
 test("auto v2 command capture preserves the supplied slash arguments exactly once", async () => {
-	// The pure capture (pi-workflow's workflowAutoSlashLaunchCapture → hostLaunchCapture).
+	// The pure host launch capture.
 	const env = { ...process.env, HOME: join(root, "capture-home") };
 	const captured = capture.hostLaunchCapture(
 		"pi",
@@ -144,7 +134,7 @@ test("auto v2 command capture preserves the supplied slash arguments exactly onc
 	);
 	assert.equal(manualFallback.selection.recommendation, null);
 	assert.equal(manualFallback.requestKind, "named-workflow");
-	// pi-workflow refused an unknown selected kind ("direct"); the v2 validation does here.
+	// Capture validation refuses unknown selected kinds such as direct.
 	const invalid = {
 		...captured,
 		command: {
@@ -306,8 +296,7 @@ test("TUI keeps safe choices after no-fit without metadata noise or routing jarg
 	assert.match(pickerText, /No recommendation \(no-fit/);
 	assert.match(pickerText, /manual-fallback-review/);
 	assert.equal(picker.options.at(-1), "Cancel (start nothing)");
-	// Changed: pi-workflow also excluded "named-workflow"; the WP32 ranked list tags each candidate
-	// with its kind and scope (`[named-workflow, project]`), as the CLI and MCP lists do.
+	// The ranked list tags each candidate with kind and scope, as CLI and MCP lists do.
 	assert.doesNotMatch(
 		pickerText,
 		/Current conversation|current conversation|Manual local fallback|unranked|classifier|candidateId|schemas=|verification=/,
@@ -320,7 +309,7 @@ test("TUI keeps safe choices after no-fit without metadata noise or routing jarg
 		pi.confirms.map(({ title }) => title),
 		[CONSENT, FINAL],
 	);
-	// pi-workflow also checked that no chat draft was prepared; `/aw auto` never writes the editor.
+	// /aw auto never writes the editor.
 	assert.equal(await runCount(cwd), 0);
 	assert.ok(
 		pi.ctx.notes.some(({ message }) =>
@@ -343,9 +332,8 @@ for (const task of [
 			foregroundLoader: loaders.factory,
 		});
 		await pi.command(`auto ${JSON.stringify(task)}`);
-		// The task's own restriction blocks the request after consent: nothing is sent and no
-		// workflow is offered (pi-workflow showed a picker with only Cancel; agent-workflow shows
-		// no picker when nothing can start).
+		// The task restriction blocks transmission after consent; no workflow is
+		// offered and no picker opens when nothing can start.
 		assert.equal(submits(log).classifier.length, 0);
 		assert.equal(pi.ctx.selects.length, 0);
 		const text = pi.ctx.notes.map(({ message }) => message).join("\n");

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/execution-profiles.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; 2 of 8 tests not ported (marked in place); registers the default fixture executor (test/helpers/register-default-executor.mjs).
 import assert from "node:assert/strict";
 import {
 	mkdirSync,
@@ -17,7 +16,7 @@ import "../helpers/register-default-executor.mjs";
 
 import { compileWorkflow } from "../../dist/core/compiler.js";
 import { runWorkflow, waitForRun } from "../../dist/core/engine.js";
-// Not ported: import { parseWorkflowRunArgs, selectWorkflowExecutionProfile } from "../../dist/core/extension.js" (Pi host extension (WP11)).
+
 import { parseArtifactGraphWorkflowSpec } from "../../dist/core/artifact-graph-schema.js";
 import { workflowDefinitionFingerprint } from "../../dist/core/execution-profile.js";
 import { loadWorkflowSpec } from "../../dist/core/schema.js";
@@ -186,7 +185,7 @@ function installFakeSubagentApi(cwd) {
 	const launches = new Map();
 	setTaskRuntimeApiForTests({
 		async runSubagent(options) {
-			// runtime API maps thinking → effort (runtime-port record). Was: options.thinking.
+			// The runtime receives the selected effort.
 			calls.launches.push({ model: options.model, thinking: options.effort });
 			const seq = calls.launches.length;
 			const runId = `run_task_${seq}`;

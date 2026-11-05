@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-auto-negative-boundaries.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); setSubagentApiForTests→setTaskRuntimeApiForTests. The default executor id "pi" is registered to the test fixture executor (no Pi adapter until WP6).
 import assert from "node:assert/strict";
 import {
 	mkdtempSync,

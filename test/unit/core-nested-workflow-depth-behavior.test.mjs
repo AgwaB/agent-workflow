@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/nested-workflow-depth-behavior.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/unit-test-support.mjs; setSubagentApiForTests→setTaskRuntimeApiForTests.
 import assert from "node:assert/strict";
 import {
 	mkdtemp,

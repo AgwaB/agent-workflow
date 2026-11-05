@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/schema.ts. MIT, same author. Changes: none.
 import { readFile, realpath } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 

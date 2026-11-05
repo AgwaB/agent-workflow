@@ -1,12 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/unit-engine-store.test.mjs (2 tests) and
-// test/unit/unit-authoring-interface.test.mjs (4 tests): the `notifyUnfinishedRuns` tests (WP38; the
-// rest of both files is ported as core-unit-engine-store / core-unit-authoring-interface). MIT, same
-// author. Changes: `notifyUnfinishedRuns(cwd, notify, now)` → the Pi host's session-start notice
-// `unfinishedRunNotice(hostApi, ctx, now)` (src/hosts/pi/notices.ts, over the host API `notices
-// list`; one notice text, level warning at the call site); harness from test/helpers/; run root
-// .agent-workflow/workflows; the hint is `/aw resume` (was `/workflow resume`); a project without
-// a run store returns no notice; the prune keeps only runs that are still unfinished notices (WP11b;
-// pi-workflow also kept recently notified runs that were still indexed).
 import {
 	assert,
 	formatStatus,
@@ -26,7 +17,7 @@ import { unfinishedRunNotice } from "../../dist/hosts/pi/notices.js";
 
 const env = { ...process.env, AGENT_WORKFLOW_ROLE: "supervisor" };
 
-/** pi-workflow's notifier signature over the Pi host's session-start notice. */
+/** Adapt the Pi session-start notice to a cwd/notify/now test helper. */
 async function notifyUnfinishedRuns(cwd, notify, nowMs) {
 	const text = await unfinishedRunNotice(hostApi, { cwd, env }, nowMs);
 	if (text) notify(text, "warning");
@@ -212,8 +203,7 @@ test("notifyUnfinishedRuns prunes stale and orphaned notice entries on write", a
 		const state = JSON.parse(
 			readFileSync(join(indexDir, "unfinished-notices.json")),
 		);
-		// WP11b: entries of runs that are no longer unfinished notices (here the completed
-		// workflow_done) are pruned too; pi-workflow kept them while the run was indexed.
+		// Prune notice entries for runs no longer eligible, including completed workflow_done.
 		assert.deepEqual(Object.keys(state.notices).sort(), ["workflow_active"]);
 	} finally {
 		rmSync(cwd, {

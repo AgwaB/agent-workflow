@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/e2e/cases/packed-durable-barrier-v2.mjs. MIT, same author. Changes: the runtime API comes from the packed `@agwab/agent-workflow/runtime` (was the bundled @agwab/pi-subagent/api); the worker runs the E2E test executor through its descriptor (was a fake `pi` on PATH, backend "headless"), so "provider entered" is the executor's effect log; runSubagent takes an executor descriptor instead of Pi options.
 //
 //   node test/e2e/cases/packed-durable-barrier-v2.mjs <installed-package-root> <consumer-project>
 // Release: READY → released decision → ACK → the durable worker's executor makes its one effect →

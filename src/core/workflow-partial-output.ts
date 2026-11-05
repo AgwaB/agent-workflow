@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-partial-output.ts. MIT, same author. Changes: none.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 

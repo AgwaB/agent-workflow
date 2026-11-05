@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/fixtures/lease-handoff/contention.mjs. MIT, same author. Changes: imports from dist/core.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";

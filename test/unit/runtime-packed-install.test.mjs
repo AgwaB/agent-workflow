@@ -1,9 +1,5 @@
-// New in agent-workflow (WP2a-1 acceptance): the packed package installs into a
-// project without any Pi packages, `@agwab/agent-workflow/runtime` imports with
-// plain node, the shipped runtime workers spawn from the installed copy, and the
-// Darwin process-identity helper keeps its exec bit in the tarball. Also carries
-// the still-applicable half of pi-subagent test/checks/host-peer-dependencies.mjs.
-// WP2a-2: the installed durable worker also runs the fake executor fixture end to end.
+// The packed runtime imports without Pi packages, spawns shipped workers, preserves
+// the Darwin helper executable bit, and runs the fixture executor end to end.
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-parent-usage.ts. MIT, same author. Changes: normalizedUsageValues comes from task-observability.ts (subagent-backend decomposition); the host adapter feeds parent-session usage (Pi, Codex or Claude host). WP33: the Pi host feeds it (src/hosts/pi/parent-usage.ts) and its audience file `pi-feedback-audience.json` is checked like pi-workflow's `feedback-audience.json`.
 import { createHash, randomUUID } from "node:crypto";
 import { lstat } from "node:fs/promises";
 import { join } from "node:path";

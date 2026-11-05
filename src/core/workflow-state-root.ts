@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-state-root.ts. MIT, same author. Changes: expected state root .pi/workflows→.agent-workflow/workflows.
 import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
 import { link, lstat, mkdir, open, realpath, unlink } from "node:fs/promises";
@@ -9,9 +8,8 @@ import { syncFileAndDirectory, workflowsRoot } from "./store.js";
 import { canonicalWithoutUndefined } from "./json-values.js";
 
 const ROOT_SCHEMA = "agent-workflow-state-root-v1" as const;
-// v2 (2026-11-02): the schema is agent-workflow-state-root-v1 (was pi-workflow-state-root-v1, whose
-// file .state-root-v1.json is left unread); a project gets a new nonce, so runs started before keep
-// their old state-root identity and fail closed where they check it.
+// Use the current state-root schema and a project nonce. Unrecognized sidecars are unread;
+// runs with a mismatched state-root identity fail closed.
 const NONCE_FILE = ".state-root-v2.json";
 const SHA256 = /^[a-f0-9]{64}$/u;
 const CAPABILITIES = new WeakMap<object, WorkflowStateRootIdentity>();

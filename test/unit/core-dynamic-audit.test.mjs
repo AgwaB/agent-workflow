@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/dynamic-audit.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); setSubagentApiForTests→setTaskRuntimeApiForTests; run state root .pi/workflows→.agent-workflow/workflows. The default executor id "pi" is registered to the test fixture executor (no Pi adapter until WP6).
 import { createWorkflowRunRecord } from "../helpers/unit-test-support.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";

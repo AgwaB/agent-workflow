@@ -1,11 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f): test/unit/unit-core-runtime.test.mjs "workflow task
-// list orders problem tasks before completed tasks" and "workflow task selection follows task id
-// after problem reordering changes", and test/unit/surface-regressions.test.mjs "board preserves
-// selected run identity on refresh/re-sort" (WP38). MIT, same author. Changes: pi-workflow's
-// `WorkflowView` over the run store → the WP34 `/aw` board (`AwBoard`, src/hosts/pi/board.ts) over a
-// fake host-API source (`listRuns`, `runDetail`, `taskLogs`); a state change is a source change plus
-// a board refresh (`r`) instead of mutating the view's run and calling `clampStageAndTask()`; the
-// row of an invalid-output task shows its status detail (the board has no "invalid output" label).
 import assert from "node:assert/strict";
 import test from "node:test";
 

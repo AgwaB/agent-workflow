@@ -1,11 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/surface-regressions.test.mjs: "catch-up
-// delivery cap excludes foreign runs" and "catch-up cap counts deliveries rather than five existing
-// receipts" (WP38). MIT, same author. Changes: `deliverMissedWorkflowFeedback(ctx, pi)` → the Pi
-// host's session-start catch-up `PiRunFeedback.restore(ctx)` (src/hosts/pi/feedback.ts, WP16/WP19:
-// at most 5 messages, no new turn); runs are run.json fixtures (failed, settled a minute ago) bound
-// with `bindFeedbackAudience` (`pi-feedback-audience.json`, was `feedback-audience.json`); each restore
-// is a session start of the owning session (a new `fakeCtx` over the same session history, which
-// WP19 consults: a receipt alone is not proof of delivery).
+// Session-start catch-up delivers at most five messages without starting a new turn.
+// A receipt alone is not proof of delivery; consult the owning session history.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

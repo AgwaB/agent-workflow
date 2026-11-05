@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/fixtures/unit-cleanup-lifecycle.mjs. MIT, same author. Changes: harness test/helpers/unit-test-support.mjs; run root .pi/workflows→.agent-workflow/workflows.
 // Disposable child-test observation of the real store's deferred index writer.
 // The gate changes scheduling, not filesystem results; no errno is fabricated.
 import assert from "node:assert/strict";

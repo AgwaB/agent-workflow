@@ -1,8 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/runners/tool-result-budget.ts.
-// MIT, same author. Changes: no ToolResultBudgetInput import (the budget comes from the Pi executor
-// config); env-variable plumbing removed (the per-run extension receives its config directly);
-// `normalizeToolResultBudget` dropped (the config parser validates); otherwise unchanged (enforcer,
-// placeholders, state shape).
 export const TOOL_RESULT_BUDGET_SCHEMA_VERSION = 1 as const;
 export const TOOL_RESULT_BUDGET_STATE_FILENAME = "tool-result-budget.json";
 export const CONTEXT_RECOVERY_EVICT_FRACTION = 0.25;

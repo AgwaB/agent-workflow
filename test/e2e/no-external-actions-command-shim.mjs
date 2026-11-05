@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/e2e/no-external-actions-command-shim.mjs. MIT, same author. Changes: env PI_WORKFLOW_E2E_*→AGENT_WORKFLOW_E2E_*; shims also stand in for the codex and claude CLIs; classification shared with the guard.
 //
 // `test/e2e/run.mjs` copies this file under the names npm, npx, pnpm, yarn, bun, curl, wget, pi,
 // codex and claude into a directory it puts first on PATH. Every invocation is logged; only allowed

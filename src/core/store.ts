@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/store.ts. MIT, same author. Changes: blocked statusDetail executor_needs_decision is resumable (WP4c, B3); run state root .pi/workflows→.agent-workflow/workflows; run.nativeHost→run.hostContext (+ inheritHostTools/allowSharedCheckoutWrites run flags); env PI_WORKFLOW_ROLE→AGENT_WORKFLOW_ROLE. WP31: task runtime.executor copied from the compiled task (role-profile runs).
 import { AsyncLocalStorage } from "node:async_hooks";
 import { isDeepStrictEqual } from "node:util";
 import { assertHostContext, resolveHostContext } from "./host-context.js";

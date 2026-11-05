@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-events.ts. MIT, same author. Changes: none.
 import { createHash } from "node:crypto";
 import { appendFile, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";

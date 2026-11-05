@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 4922-5442, 5726-5775, 6262-6319 (output-contract validation, repair and same-session repair, salvage, claim-support checks). MIT, same author. Changes: executor wording.
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";

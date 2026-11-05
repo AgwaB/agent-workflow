@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workers/durable-worker-binding.mjs. MIT, same author. Changes: converted to TypeScript (compiled to dist/runtime/workers/durable-worker-binding.js); env name PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON -> AGENT_WORKFLOW_DURABLE_WORKER_BINDING_JSON; default runs dir ".agent-workflow/runs". Binding schema ids unchanged.
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { DEFAULT_RUNS_DIR } from "../core/constants.js";

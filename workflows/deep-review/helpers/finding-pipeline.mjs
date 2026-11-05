@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-review/helpers/finding-pipeline.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Deterministic post-processing for deep-review.
 //
 // Four modes (options.mode):

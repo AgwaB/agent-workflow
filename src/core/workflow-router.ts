@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-router.ts. MIT, same author. Changes: the one-shot comparison call goes through the core task backend (runtime API, executor explicitly selected by request.executor; `backend: "headless"` removed); auto-router runs dir .pi/workflows/auto-router-runs→.agent-workflow/workflows/auto-router-runs; system prompt says "workflow" instead of "pi-workflow". WP10 (C2): the direct-dynamic catalog facts list web_search/fetch_content (was workflow_web_*), matching the v5 runtime bundle.
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";

@@ -1,5 +1,7 @@
 import { projectTaskActivity } from "./task-activity.js";
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 535-558, 2868-3609, 3821-4245, 6401-6701, 6756-6774, 7371-end, and src/backend.ts (the backend object and its fatal-error wrapper). MIT, same author. Changes: implements the WorkflowBackend on the runtime API (executor descriptor recorded on the run, engine-issued attemptKey, SubmitRequest fields readOnly/isolation/approvalPolicy/env/mcpServers); Pi argv/extension preflight/noExtensions/skills/toolResultBudget/worker-role process env not ported (Pi executor, WP6); R#5 worktree gate before launch; registered for local-pi/headless run records. WP4d: launch-time capability decision from the run's recorded B4 negotiation (refusal → fatal before any effect; forcedReadOnly → SubmitRequest.readOnly and approval policy). WP4e: SubmitRequest.permissionMode from the run record (absent = safe). WP10: the system and task prompts are rendered per executor (artifact tool visible name, artifact tool guidelines section); the workflow_web_* source-card hint is removed (C2) and the refs URL hint names the CLI web tools. WP35: Pi-only per-task options (inheritHostTools; fast/fastApi when negotiation accepted fastTier) reach the Pi executor as per-task descriptor config. WP31: each task launches on its own executor in mixed runs (compiled runtime.executor, descriptor from run.roleExecution).
+// Apply worktree and capability gates before launch; capability refusal has no effects.
+// Each task uses its recorded executor and the run permission mode (safe when absent).
+// Host-tool inheritance and accepted fast-tier options apply only to Pi tasks.
 import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
 import { INHERITED_HOST_TOOL_NAMES } from "./tool-policy.js";
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
@@ -1646,7 +1648,7 @@ export async function runOneShotSubagentCall(
 	})) as OneShotSubagentEnvelope;
 }
 
-/** The core task backend (pi-workflow `backend.ts` `subagentHeadlessBackend`). */
+/** The core task backend. */
 export const workflowTaskBackend: WorkflowBackend = {
 	id: WORKFLOW_TASK_BACKEND_ID,
 	refreshRun: refreshRunFromSubagentArtifacts,

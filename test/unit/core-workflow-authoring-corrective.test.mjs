@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-authoring-corrective.test.mjs. MIT, same author. Changes: imports from dist/core/; fixture agents .pi/agents→.agent-workflow/agents.
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

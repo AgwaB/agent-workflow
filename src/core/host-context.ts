@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-native-host-context.ts. MIT, same author. Changes: generic HostContext {version, cwd, homeDir, projectTrusted} set by whichever host launched the run; Pi ExtensionContext session tracking, the native-host extension wrapper and workflowNativeLaunchTools dropped (Pi executor only, WP6); env PI_WORKFLOW_NATIVE_HOST_CONTEXT→AGENT_WORKFLOW_HOST_CONTEXT.
+// The launching host supplies the host context.
 import { AsyncLocalStorage } from "node:async_hooks";
 import { isAbsolute, resolve } from "node:path";
 

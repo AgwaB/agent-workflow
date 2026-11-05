@@ -1,14 +1,7 @@
-// New in agent-workflow (WP34 item 2): Pi's UI for the profile picker (profile-picker.ts). Ported
-// from pi-workflow 0.16.4 (b83cc4f) src/workflow-profile-tui.ts (`createNativeWorkflowProfileUi`,
-// `renderWorkflowProfilePreview`, `selectNativeProfilePreview`): lists use Pi's native
-// `ctx.ui.select`, names `ctx.ui.input`, yes/no `ctx.ui.confirm`, and the preview is a custom
-// component (`ctx.ui.custom`) with a colour table and its actions. Changes: the table has one row
-// per role (ROLE, EXECUTOR, MODEL, EFFORT) instead of per stage, each executor has its own colour
-// (pi `accent`, codex `mdLink`, claude `mdHeading`), a role without an entry of its own is dimmed
-// (it uses the default role), probe warnings and model-list notes follow the table; the component
-// is self-contained (no pi-tui SelectList/DynamicBorder imports: the package builds without the
-// optional Pi peer). Without `ctx.ui.custom` the preview falls back to `ctx.ui.select` with a text
-// table.
+// Pi profile UI uses native selection, input, confirmation, and a custom preview.
+// Show role, executor, model, and effort with executor colours; inherited roles are dimmed.
+// Show probe warnings and model-list notes. Keep components self-contained so the package
+// builds without Pi; without custom UI, fall back to a text table in ctx.ui.select.
 import type { PiExtensionContext } from "./pi-types.js";
 import type {
 	PreviewAction,

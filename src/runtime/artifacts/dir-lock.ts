@@ -1,9 +1,6 @@
-// New in agent-workflow (WP2a-1). Zero-dependency replacement for the subset of
-// `proper-lockfile` that @agwab/pi-subagent 0.7.2 src/artifacts/registry.ts used:
-// `lock(path, { realpath: false, lockfilePath: path, stale: Number.MAX_SAFE_INTEGER,
-// retries: { retries, factor: 1, minTimeout, maxTimeout, randomize: true } })`.
+// Zero-dependency directory lock with owner-aware recovery.
 //
-// Semantics kept:
+// Lock semantics:
 // - the lock is an atomically created directory (`mkdir`, EEXIST = held);
 // - a held lock is never stolen on elapsed time (stale stealing was disabled);
 // - contention retries every `retryMs` up to `retries` times (the original

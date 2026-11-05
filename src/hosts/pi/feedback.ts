@@ -1,38 +1,15 @@
-// New in agent-workflow (WP16): the Pi host's status line and completion delivery for runs started
-// from this Pi session. Ported in spirit from pi-workflow 0.16.4 (b83cc4f) src/extension.ts
-// (`bindWorkflowFeedbackAudience`, `watchWorkflowFeedback`, `deliverWorkflowFeedback`,
-// `deliverMissedWorkflowFeedback`, `workflowFeedbackTerminalEpoch`, the immutable per-epoch delivery
-// receipts) and src/workflow-active-ui.ts (`renderActiveWorkflowUi` status entry). Kept: the
-// audience is the Pi session id that launched the run (first binder wins, other sessions never get
-// the message); one message per run per terminal epoch (a hash of the run and task states, so a
-// resumed run that settles again is delivered again) guarded by an exclusive receipt file that
-// survives restarts; catch-up at session start for runs of this session that settled while it was
-// not running (no new turn, at most 5, last 7 days); delivery and status only with a UI (TUI/RPC),
-// never in print/JSON mode. Changes: no presentation lease (the receipt is created exclusively
-// *before* `sendMessage` and removed again if sending throws, so one process delivers); no board
-// widget, only the footer status entry; one ≤1 s timer per session that reads `run.json` (the
-// engine's/supervisor's progress file, never drives the run) for tracked runs only and stops when
-// none is active; a run launched by `/aw` (the user) does not trigger an agent turn, a run launched
-// by the `aw_run`/`aw_dynamic` tools does (`followUp`), so the agent can act on the result.
-// WP18b: the message shows the domain verdict (`Verdict: NEEDS_WORK`) and the run status
-// (`Run status: completed`) on separate lines (was `Verdict: <run status>`); a run whose only
-// failure is the final verdict gate is headed "finished — verdict: X (report ready)".
-// WP19 (reviews #5, #6): the receipt is a pending reservation, then an acknowledged delivery; a
-// pending one left by a crash is resolved against Pi's session history (at least once, never
-// lost), and the current session is re-checked right before `sendMessage` (see deliverCompletion).
-// WP19 round 2 (N2, N3): `sent` (enqueued by this process) is not `confirmed` (in Pi's session
-// history); receipt transitions are serialized and ownership-checked.
-// WP19 round 3 (R2, R3): suppression is process-scoped (state on `globalThis`, surviving extension
-// reloads): an epoch this OS process enqueued is never resent by it; any other delivery attempt
-// is resolved against readable session history, which overrules even a `confirmed` receipt.
-// WP19 round 4 (F1, F3, F4): suppression follows Pi's queue lifetime, not the process lifetime: an
-// epoch is suppressed only while the queue (the Pi session runtime, identified by its
-// `ctx.sessionManager` object) that holds it is alive; `session_shutdown` with `new`/`resume`/
-// `fork`/`quit` ends it (`reload` keeps it). Unreadable-history resends count orphaned pending
-// reservations too. The in-memory delivery state is bounded.
-// WP19 round 5: process state of another module version never suppresses (versioned key and
-// schema; at most one duplicate, never a loss); queue ends are durable tombstones, a delivery left
-// to another live owner is `deferred` and retried; a dropped reservation keeps the attempt history.
+// Pi status and completion delivery are scoped to the launching session; first binder wins.
+// One message per terminal epoch is guarded by an exclusive, ownership-checked receipt.
+// At session start, catch up at most five completions from the last seven days without a
+// new turn. Deliver only with a UI, never in print or JSON modes. User launches do not
+// trigger agent turns; tool launches may. Poll only tracked runs, never drive them here.
+// A receipt is a reservation, not proof of delivery: resolve it against session history.
+// Sent means enqueued; confirmed means present in history. Recheck the session before send.
+// Suppress repeats only within the same live Pi queue; shutdown disposes it except on reload.
+// Queue ends are durable tombstones; another live owner defers delivery for retry.
+// Unreadable-history retries include orphaned reservations; bound in-memory state and
+// version it so another module version cannot suppress delivery. Preserve attempt history.
+// Present domain verdict and run status separately, including report-ready verdict failures.
 import { createHash, randomBytes } from "node:crypto";
 import {
 	lstat,
@@ -1004,15 +981,10 @@ export type PresentationOutcome =
 	| "not-owner";
 
 /**
- * WP33 (parity row 20, pi-workflow `workflowTerminalToolResult` + `claimWorkflowFeedbackDelivery`):
- * an agent in the run's owning session waited and receives the settled result in its tool result.
- * That result is the delivery of this epoch: the receipt is written as `sent` with `channel:
- * "tool-result"` (and the in-memory "enqueued into this queue" entry), so every WP19 rule applies
- * unchanged: this process never sends the completion message into the same live queue, the
- * history confirms it through the tool result (`details.feedbackEpoch`), and after a crash or a
- * disposed queue a history without that tool result gets the message (at least once). The caller
- * holds the tracker's presentation lease while it waits, so the tracker cannot send the message
- * between the run settling and this call.
+ * The owning session receives a settled run in its tool result under a presentation lease.
+ * Record a sent tool-result receipt and its live-queue entry to suppress a duplicate message.
+ * Session history confirms details.feedbackEpoch; after a crash or disposed queue, history
+ * without the tool result receives the completion message at least once.
  */
 export async function presentCompletion(
 	ctx: PiExtensionContext,
@@ -1490,10 +1462,9 @@ export class PiRunFeedback {
 	}
 
 	/**
-	 * WP33 (pi-workflow `feedback-presentation` lease, in process): while an agent of this session
-	 * waits on the run, the tracker keeps showing its progress but never delivers its completion;
-	 * the waiter presents it (presentCompletion) or, when the wait ends first, releases the lease and
-	 * the tracker delivers as before. Returns the release function (idempotent).
+	 * While this session waits on a run, keep showing progress but defer completion delivery
+	 * to the waiter. If the wait ends first, release the lease and let the tracker deliver.
+	 * Return an idempotent release function.
 	 */
 	holdPresentation(cwd: string, runId: string): () => void {
 		const key = `${cwd}\0${runId}`;

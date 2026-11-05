@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/prune.ts. MIT, same author. Changes: locator ownership check uses DEFAULT_RUNS_DIR (".agent-workflow/runs").
 import { lstat, readdir, realpath, stat } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 

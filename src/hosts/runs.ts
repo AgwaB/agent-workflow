@@ -1,13 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/extension.ts (`/workflow status|show|wait|
-// resume|stop|prune|notices` handlers, the workflow_wait tool result) and src/cli.mjs (`inspect`,
-// `supervise`, `prune`, `notices`). MIT, same author. Changes (WP11a): host-neutral handlers with
-// structured data + text and no Pi imports (R#14: the prune parser no longer comes from the Pi
-// extension); `wait` is bounded to 45 s per call and returns `terminal=false` instead of throwing
-// when the run is still running; the Pi completion-delivery receipt/lease of workflow_wait (session
-// feedback) is not part of the host API; `inspect` reads runs through the store (prefixes,
-// `.agent-workflow/workflows`); supervise is a handler with an optional log sink.
-// WP31: status data/inspect lines name each task's executor/model/effort in role-profile runs.
-// WP36: `wait` marks the settled state it returns as seen for `notify-check`.
+// Wait calls are bounded to 45 seconds and return terminal=false for an unsettled run.
+// A returned settled state is marked seen for notification checks.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -1182,17 +1174,11 @@ export interface RedriveData {
 }
 
 /**
- * WP28: port of pi-workflow 0.16.4 (b83cc4f) `resumeSupervisors` (src/engine.ts:2628) for a host
- * process that outlives a run's launcher (the Pi host at session start). Every run of the project
- * with active scheduler work that no live process drives (`isWorkflowRunLeaseLive`: a held run
- * lease, or a `supervisor.json`/`supervisor-lease.json` heartbeat < 30 s from a live pid; for
- * example an attached run whose Pi session or CLI process ended) is scheduled once and then watched
- * by this process. Change from pi-workflow: runs a live supervisor drives are skipped instead of
- * being scheduled concurrently (the run lease arbitrated that), and no run index is rewritten.
- * Re-driving only schedules, never resumes: a blocked run (B3: an attempt whose launch the executor
- * cannot prove either way is `executor_needs_decision`) stays blocked, and a running attempt with an
- * `unknown` reconcile becomes that decision through the engine's normal refresh, never a relaunch.
- * Completion delivery stays with each run's own audience (the host decides; nothing is bound here).
+ * Re-drive project runs with active scheduler work only when no live process drives them.
+ * A held run lease or a recent live supervisor heartbeat counts as a live driver.
+ * Schedule once and watch without rewriting the index. Scheduling is not resuming:
+ * blocked runs stay blocked, unknown reconciliation requires a decision, never relaunch.
+ * Completion remains with the existing audience; this operation binds none.
  */
 export async function redriveRunsAction(
 	ctx: HostApiContext,

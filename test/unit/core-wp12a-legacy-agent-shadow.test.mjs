@@ -1,7 +1,5 @@
-// New in agent-workflow (WP12a, live bundle 3 open problem 2), changed 2026-10-30 (owner decision):
-// Pi's user agents (`~/.pi/agent/agents`, written for pi-workflow's tool/model names) are not read
-// at all — not as a replacement for a bundled agent, not as a fallback for other names. With
-// nothing shadowed there is no shadow notice any more.
+// Pi user agents are not read, either as bundled-agent replacements or fallbacks.
+// No agent is shadowed, so no shadow notice is needed.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

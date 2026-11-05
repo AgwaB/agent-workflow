@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/process-identity.ts. MIT, same author. Changes: WP12a test seam `setProcessIdentityInspectorForTests` (simulates an inspection that times out under load); `captureProcessIdentity` retries a transient `unknown` (2026-10-31).
+// Process identity capture retries transient unknown inspections.
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";

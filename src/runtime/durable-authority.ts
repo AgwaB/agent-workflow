@@ -1,9 +1,6 @@
-// New in agent-workflow (WP2a-2): the durable implementation of the SDK `ExecutionAuthority`.
-// It moves the launch sequence of pi-subagent's src/workers/durable-worker.mjs (lines ~460–530 at
-// ab91a74: barrier await → installDurableWorkerBinding → abort check →
-// assertDurableLaunchBarrierV2ExecutionAuthorized → abort check) behind `consume()`, so an
-// adapter calls it immediately before its first effect (stage-1 plan §2.1 R#1, design §8.6).
-// WP2b: a consume that throws rewrites authority.json to phase "failed" (was left "consuming").
+// Durable execution authority: await barrier, install binding, check abort, verify
+// execution authorization, then check abort again inside consume(). Adapters consume
+// immediately before their first effect. A throwing consume records phase failed.
 import { constants } from "node:fs";
 import { open, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";

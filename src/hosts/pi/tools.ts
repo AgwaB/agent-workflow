@@ -1,19 +1,9 @@
-// New in agent-workflow (WP11b): the four agent tools `aw_list`, `aw_run`, `aw_dynamic`, `aw_wait`.
-// Schemas, descriptions and prompt guidelines are adapted from pi-workflow 0.16.4 (b83cc4f)
-// `workflow_list/run/dynamic/wait` with executor-neutral wording: the parent agent is Pi, the
-// workflow workers run on the selected executor (default pi). Each tool calls one host API handler.
-// WP33: pi-workflow's session-owned wait: `aw_wait` refuses a run another Pi session owns, and a
-// settled result returned to an agent of the owning session is that run's presentation (the
-// completion message is not delivered again; an in-process presentation lease keeps the tracker
-// from sending it while the agent waits). WP28 (owner decision Q9): `awaitTerminal` +
-// `timeoutMs` on run/dynamic and long `aw_wait` calls are restored with pi-workflow's bounds
-// (default 30 min, max 4 h; the host API `longWait`), cancelling the tool call cancels only the
-// wait; a launch whose awaited result is returned is not delivered again later (it is tracked for
-// delivery only when the wait ends before the run settles). WP28: AGENT_WORKFLOW_TOOL_EXPOSURE=deferred
-// registers the tools with deferred exposure (pi-workflow PI_WORKFLOW_TOOL_EXPOSURE). WP12c: `inputs` on run/dynamic (the tool form of --input; typed by the host
-// API like the CLI's strings). WP16: launched runs are tracked for the status line and completion
-// delivery into this session (feedback.ts; a tool launch triggers a follow-up turn when it settles);
-// an identical launch while the first run is active returns that run (`outcome: "existing"`).
+// Pi agent tools call host API handlers; workers use the selected executor.
+// Waits refuse another session's runs. An owning-session tool result presents completion
+// under a lease, preventing duplicate message delivery. Long waits default to 30 minutes
+// and cap at four hours; cancellation stops only the wait, not the run.
+// Track unsettled launches for delivery; identical active launches return the existing run.
+// Deferred exposure keeps tools out of requests until tool_search loads them.
 import {
 	formatHostError,
 	HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS,
@@ -54,7 +44,7 @@ import type {
 const LONG_WAIT_MINUTES = HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS / 60_000;
 const LONG_WAIT_MAX_HOURS = HOST_LONG_WAIT_MAX_TIMEOUT_MS / 3_600_000;
 
-/** WP28: the terminal-wait options of `aw_run`/`aw_dynamic` (pi-workflow `awaitTerminal`). */
+/** Terminal-wait options of aw_run and aw_dynamic. */
 const AWAIT_PROPERTIES = {
 	awaitTerminal: {
 		type: "boolean",
@@ -254,7 +244,7 @@ const LAUNCH_KEYS = new Set([
 	...Object.keys(AWAIT_PROPERTIES),
 ]);
 
-/** `timeoutMs` of a long wait: an integer from 1000 to 14400000 (pi-workflow's bounds). */
+/** Long-wait timeoutMs is an integer from 1000 to 14400000. */
 function optionalWaitTimeout(
 	params: Record<string, unknown>,
 	tool: string,
@@ -273,7 +263,7 @@ function optionalWaitTimeout(
 	return value;
 }
 
-/** WP28: `awaitTerminal`/`timeoutMs` of a launch tool (pi-workflow `parseWorkflowAwaitParams`). */
+/** Parse awaitTerminal and timeoutMs for launch tools. */
 export function awaitOptionsFromToolParams(
 	params: Record<string, unknown>,
 	tool: string,
@@ -328,11 +318,9 @@ function waitDetails(data: WaitData): Record<string, unknown> {
 }
 
 /**
- * WP33 (parity row 20, pi-workflow `workflow_wait` session binding): an agent may wait on a run
- * that this session owns (its WP16 audience) or that no session owns (launched by the CLI, MCP or a
- * session without UI). A run owned by another Pi session is refused: its completion is presented
- * there. Returns the full run id (prefixes resolved) or undefined when the run cannot be read
- * (the wait itself then reports the error).
+ * Agents may wait on runs owned by this session or by no session. Refuse runs owned
+ * by another Pi session; completion belongs there. Return the resolved full run id,
+ * or undefined for unreadable runs so the wait reports the error.
  */
 async function assertWaitOwnership(
 	ctx: PiExtensionContext,
@@ -551,9 +539,8 @@ async function guarded<T>(work: () => Promise<T>): Promise<T> {
 export const AW_TOOL_EXPOSURE_ENV = "AGENT_WORKFLOW_TOOL_EXPOSURE";
 
 /**
- * WP28: opt-in deferred exposure (port of pi-workflow b83cc4f `workflowToolExposure`,
- * `PI_WORKFLOW_TOOL_EXPOSURE=deferred`): the tools stay out of every request until Pi's
- * `tool_search` loads them. Any other value (or none) keeps Pi's default.
+ * Deferred exposure keeps tools out of requests until tool_search loads them.
+ * Any other setting uses the Pi default.
  */
 export function awToolExposure(env: NodeJS.ProcessEnv): {
 	exposure?: "deferred";

@@ -6,8 +6,8 @@
 // (`agent-workflow profile workflow …`), the host MCP tool `workflow_profile` (writes after an
 // elicitation confirmation) and the Pi host share it, and every launch (CLI, MCP, Pi) applies it
 // (launch.ts). Keyed by workflow name rather than definition fingerprint: role overrides address roles,
-// not stage ids, so they stay valid when the definition changes. Owner decision Q2: pi-workflow's
-// legacy `~/.pi/agent/workflow-profiles` is never read.
+// not stage ids, so they stay valid when the definition changes. Pi configuration
+// directories are never read.
 import { lstat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 

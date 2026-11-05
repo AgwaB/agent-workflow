@@ -7,7 +7,7 @@ export type PiNotifyLevel = "info" | "warning" | "error";
 
 export interface PiUiContext {
 	notify(message: string, type?: PiNotifyLevel): void;
-	/** WP29: Pi's dialog options (pi-workflow passes `timeout`/`signal` for dynamic approvals). */
+	/** Pi dialog options, including timeout and signal for dynamic approvals. */
 	confirm(
 		title: string,
 		message: string,

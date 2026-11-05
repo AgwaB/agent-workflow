@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/roles.ts. MIT, same author. Changes: none.
 import { compactStrings } from "./strings.js";
 import type { AgentDefinition, CompiledRole, RoleSpec } from "./types.js";
 

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-launch-metadata.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); run state root and agents dir .pi→.agent-workflow. The default executor id "pi" is registered to the test fixture executor (no Pi adapter until WP6). 2026-11-02: the records are agent-workflow's host launch metadata (agent-workflow-run-launch-v1/v2); pi-workflow's launch records (pi-workflow-run-launch-v1/v2, slash-command sources) are not accepted, so their v2 auto test is replaced by that refusal.
 import assert from "node:assert/strict";
 import {
 	chmod,

@@ -1,7 +1,4 @@
-// New in agent-workflow (WP34): status glyphs, colours, progress bars, stage grouping and time
-// texts of the `/aw` board. Ported from pi-workflow 0.16.4 (b83cc4f) src/workflow-view.ts
-// (`statusGlyph`, `statusColor`, `progressBar`, `stageSummaries`, `summarizeTasks`,
-// `statusForSummary`, `taskProblemPriority`, `timestampText`, `elapsedText`, `formatTokenCount`).
+// Status glyphs, colours, progress bars, stage grouping, and time text for the /aw board.
 import type { BoardRun, BoardRunRecord } from "./board-source.js";
 import {
 	accent,

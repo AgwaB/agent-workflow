@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/engine-wait.ts. MIT, same author. Changes: resolveWorkflowBackend now comes from task-launch.ts (backend registry) instead of backend.ts.
 import { resolveWorkflowBackend } from "./task-launch.js";
 import { formatApproxDuration } from "./run-estimates.js";
 import {

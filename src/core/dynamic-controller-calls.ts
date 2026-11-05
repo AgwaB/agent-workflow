@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-controller-calls.ts. MIT, same author. Changes: the nested-approval message names host-neutral resume commands (WP18b), not `/workflow resume`; WP29: and the approve commands for the nested run.
 import { readFile } from "node:fs/promises";
 import { persistedResumeHint } from "./command-hints.js";
 import { persistedApproveHint } from "./dynamic-approval.js";

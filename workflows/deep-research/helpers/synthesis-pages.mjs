@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/synthesis-pages.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Workflow-local transport, not runtime pagination. Every indexed page (even an
 // empty tail) has a static requiredRead in BOTH research specs.
 import { isDeepStrictEqual } from "node:util";

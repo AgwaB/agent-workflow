@@ -1,10 +1,6 @@
-// New in agent-workflow (WP29 item 1, parity row 43): the Pi host approves dynamic controllers with
-// `approval: "ask"` through `ctx.ui.confirm`, as pi-workflow's `dynamicUiFromContext` did: attached
-// and awaited runs of a session with a dialog UI ask "Run dynamic workflow controller?" with the
-// approval scope, pi-workflow's 5-minute timeout and an abort signal; yes runs the controller, no
-// rejects it for this run (`dynamic_approval_rejected`, no re-prompt), and print/JSON mode keeps
-// `dynamic_ui_unavailable` with a message naming the approve commands. The controller is a local
-// helper and the earlier stage runs on the workflow executor fixture: no model or agent-CLI calls.
+// Attached calls with dialog UI confirm controller approval with scope, a five-minute
+// timeout, and an abort signal. Yes runs; no permanently rejects; print/JSON stays blocked
+// with approve-command hints. Local helpers and the fixture executor avoid model calls.
 import assert from "node:assert/strict";
 import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -118,7 +114,7 @@ test("Pi confirm no: the controller is rejected for this run and resume does not
 	assert.match(controllerTask(run).lastMessage, /will not re-prompt/);
 	assert.equal(await controllerRuns(), 0);
 	assert.equal(ctx.confirms.length, 1);
-	// Not resumable: a rejection is final for this run (pi-workflow semantics).
+	// Rejection is final for this run, not resumable.
 	await assert.rejects(
 		api.resumeAction(
 			{ cwd, env, host: "pi", dynamicUi: { confirm: ctx.ui.confirm } },

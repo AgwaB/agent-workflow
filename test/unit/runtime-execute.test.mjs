@@ -1,9 +1,6 @@
-// New in agent-workflow (WP2a-2): executeAttempt and the in-process run path. Covers the
-// failure-class → status/failureKind table, event and sequence validation (guard_failure),
-// post-release submit failure → executor reconcile, timeout before and after release, the
-// approval answer policy, usage summation (null ≠ 0), output recovery, idempotent resubmission
-// of one attempt, request validation and the execution-plan digest. Ports the still-applicable
-// assertions of pi-subagent checks/usage-accumulation.mjs and checks/output-recovery.mjs.
+// Executor attempt tests cover failure mapping, event/sequence validation, post-release
+// reconciliation, deadlines, approvals, null-aware usage summation, output recovery,
+// idempotent resubmission, request validation, and execution-plan digests.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

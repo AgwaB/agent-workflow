@@ -1,18 +1,9 @@
-// New in agent-workflow (WP11b): the `/aw <action> …` slash command. Each action parses its
-// arguments and calls exactly one host API handler; the output is the handler's `text`. Ported in
-// spirit from pi-workflow 0.16.4 (b83cc4f) `handleWorkflowCommand` (the `/workflow` actions), without
-// `auto` (WP34 adds the board and the TUI profile picker). The command is `/aw`, never `/workflow`, so it can
-// run next to pi-workflow (A2-1). WP16: `/aw logs`; launches and resumes from this session are
-// tracked for the status line and completion delivery (feedback.ts); without a dialog UI the
-// declared-profile choice falls back to text (host.ts `launchHooks`). WP28 (Q9): `/aw wait <run>
-// [timeout]` waits until the run is terminal or needs action, or the timeout passes (pi-workflow
-// `/workflow wait <run> [timeout-ms]`: default 60 s, max 4 h; the host API `longWait`).
-// WP31: `/aw profile set --preset/--role`, `/aw profile presets`, `/aw profile workflow …`.
-// WP29: `/aw approve <run>` answers a dynamic-controller approval through ctx.ui.confirm.
-// WP34: in the TUI, `/aw` with no arguments and `/aw <run>` open the board (board.ts); other modes
-// keep the text behavior (`/aw` = help, `/aw <run>` = unknown action).
-// WP32: `/aw auto <task>` (pi-workflow `/workflow auto`): consent through ctx.ui.confirm, then the
-// ranked workflows in ctx.ui.select and a final ctx.ui.confirm; print/JSON mode sends nothing.
+// The /aw command parses each action and calls one host API handler.
+// Track launches and resumes for status and completion delivery into this session.
+// Without dialog UI, show profile choices as text. The TUI opens the board for /aw
+// and /aw <run>; other modes keep text behavior. Waits default to 60 seconds, up to
+// four hours. Auto requires consent, a ranked choice, and a final confirmation;
+// print and JSON modes transmit nothing.
 import {
 	type AutoChoicePrompt,
 	COMMAND_HELP,
@@ -90,7 +81,7 @@ export const AW_ACTIONS = [
 	"dashboard",
 ] as const;
 
-/** `/aw wait` without a timeout: pi-workflow's `/workflow wait` default (the engine's 60 s). */
+/** /aw wait defaults to the engine wait of 60 seconds. */
 export const AW_WAIT_COMMAND_DEFAULT_TIMEOUT_MS = 60_000;
 
 const RUN_OPTIONS =
@@ -320,9 +311,9 @@ async function dispatch(
 						text: `/${AW_COMMAND} ${args.trim()}`,
 					},
 					...hooks.hooks,
-					// pi-workflow: a session that ends cancels the pending auto selection.
+					// Ending a session cancels its pending auto selection.
 					signal,
-					// pi-workflow: only an interactive session can authorize the transmission.
+					// Only an interactive session can authorize transmission.
 					...(dialog
 						? {
 								consent: {
@@ -330,7 +321,7 @@ async function dispatch(
 									confirm: async (title: string, message: string) =>
 										(await ctx.ui.confirm(title, message)) === true,
 								},
-								// WP38b: pi-workflow's comparison loader (TUI; Escape aborts the request).
+								// The TUI comparison loader aborts the request on Escape.
 								compare: async <T>(
 									operation: (signal: AbortSignal | undefined) => Promise<T>,
 								): Promise<T | undefined> => {
@@ -443,7 +434,7 @@ async function dispatch(
 					? { requestId: parsed.values.get("--request")! }
 					: {}),
 				...(parsed.flags.has("--detach") ? { detach: true } : {}),
-				// pi-workflow's dialog: yes = as decided, no on the approval question = reject.
+				// Yes records the chosen decision; no on the approval question rejects the run.
 				...(dialog
 					? {
 							confirm: async (title: string, message: string) =>
@@ -500,8 +491,8 @@ export const AUTO_COMPARE_LOADER_LABEL =
 export const AUTO_LAUNCH_CONFIRM_TITLE = "Confirm selected workflow launch";
 
 /**
- * WP32: pi-workflow's auto picker (`selectWorkflowAutoChoice`) and its separate final confirmation:
- * the ranked workflows (recommended first) and Cancel in ctx.ui.select, then ctx.ui.confirm.
+ * Show ranked workflows, recommended first, plus Cancel in ctx.ui.select,
+ * then ask for a separate final confirmation through ctx.ui.confirm.
  */
 async function piAutoChoice(
 	ctx: PiExtensionContext,

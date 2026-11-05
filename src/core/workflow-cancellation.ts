@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-cancellation.ts. MIT, same author. Changes: none.
 /** Shared cancellation markers used at provider boundaries. */
 export function isWorkflowAbortError(value: unknown): boolean {
 	if (typeof DOMException !== "undefined" && value instanceof DOMException)

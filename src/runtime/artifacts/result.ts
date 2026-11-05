@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/artifacts/result.ts. MIT, same author. Changes: WP2a-2 adds the "exec-events" artifact type (normalized executor events) and ResultMetadata.executor; WP2b adds ResultExecutorMetadata.approvals[].by.
 import type {
 	FailureKind,
 	ResolvedBackend,

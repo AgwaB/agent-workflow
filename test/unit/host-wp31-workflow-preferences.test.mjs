@@ -1,9 +1,6 @@
-// New in agent-workflow (WP31 item 4, feature-parity row 25): saved per-workflow preferences without
-// the Pi UI. `agent-workflow profile workflow set <workflow> --profile <name> --role …` (and the
-// `workflow_profile` MCP tool's workflow-* ops, with elicitation for writes) save a preference keyed by
-// the workflow name; every launch of that workflow — CLI, MCP and Pi — applies it: its profile when
-// the launch names none, its role overrides just below the run flags. pi-workflow's legacy
-// `~/.pi/agent/workflow-profiles` is never read (owner decision Q2).
+// Workflow preferences are keyed by name and shared across CLI, Pi, and MCP.
+// Apply the saved profile when none is named and role overrides below run flags.
+// Pi configuration stores are never read.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
@@ -43,7 +40,7 @@ before(async () => {
 			),
 		);
 	}
-	// Q2: a legacy pi-workflow preference store is never read (garbage here must not matter).
+	// The Pi preference store is never read; garbage here must not matter.
 	const legacy = join(homedir(), ".pi", "agent", "workflow-profiles", "v1");
 	await mkdir(legacy, { recursive: true });
 	await writeFile(join(legacy, `${"0".repeat(64)}.json`), "{ not json");

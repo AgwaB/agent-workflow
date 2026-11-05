@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/run-estimates.test.mjs. MIT, same author. Changes: imports from dist/core and dist/hosts/args (the run/dynamic parsers moved from extension.ts to the host API); run root .pi/workflows→.agent-workflow/workflows. Not ported here (core-port record "WP38"): "duplicate /workflow run start is blocked …" and "duplicateRunGuardNotice skips …" — superseded by the WP16 launch guard (fingerprint of the resolved launch, `src/hosts/launch-guard.ts`) and its tests in host-wp16-guard.test.mjs.
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/wb-012-public-contracts.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; WP10: the user/global root is $AGENT_WORKFLOW_HOME/workflows, the router names the agent-workflow CLI, the bundled README names ~/.agent-workflow/workflows/; WP38: the two docs tests and the docs/usage.md half of the root-order check are ported against agent-workflow's docs: the commands of the CLI help (`COMMAND_HELP`, src/hosts/help.ts) and its launch flags are documented in docs/cli.md (was: `/workflow …` lines of src/index.ts in docs/usage.md), troubleshooting lives in docs/usage.md and not in the README, the speed/quality note is the `low` effort trade-off in docs/usage.md "Profiles" (pi-workflow's "Speed and quality guardrails" section has no counterpart), the whole docs/ directory is packaged and every relative docs link resolves.
 import assert from "node:assert/strict";
 import {
 	access,
@@ -157,9 +156,7 @@ test("workflow-guide owns authoring detail while execution-router permits bounde
 	assert.match(router, /bounded read-only discovery/i);
 	// WP12c: agent-workflow's own names (Pi `aw_list`, `/aw …`). Was: `workflow_list`.
 	assert.match(router, /`aw_list`/);
-	// WP10: the router also names the agent-workflow CLI. Was: "…, `/workflow dynamic`, or
-	// `/workflow auto`". WP12c: `aw_run`/`aw_dynamic`/`/aw …` instead of pi-workflow's
-	// `workflow_run`/`workflow_dynamic`/`/workflow …`. WP32: `auto` is back (`/aw auto`, consent-gated).
+	// Router hints name host-appropriate commands and consent-gated /aw auto.
 	assert.match(
 		router,
 		/Never invoke `aw_run`, `aw_dynamic`, `\/aw run`, `\/aw dynamic`, `\/aw auto`, `\/aw resume`, `\/aw approve`, or the matching `agent-workflow` CLI commands/,

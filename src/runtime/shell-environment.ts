@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/shell-environment.ts. MIT, same author. Changes: none.
 const UNSAFE_SHELL_ENV_NAMES = new Set(["BASH_ENV", "ENV"]);
 
 export function withoutShellStartupAuthority(

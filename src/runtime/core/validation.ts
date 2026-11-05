@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/core/validation.ts. MIT, same author. Changes: backend accepts "auto" or any executor id; tmux-only visible rule and inline-sandbox rule removed; chain error no longer names pi-subagent.
 import {
 	AGENT_SCOPES,
 	ASYNC_DEPENDENCIES,

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 1468-1505, 2737-2867 (cancellation: exact-attempt interrupt acknowledgement, run cleanup). MIT, same author. Changes: interrupts go through the runtime API (runtime → executor.cancel(ref, "owned")).
+// Interrupts go through the runtime to the executor with owned scope.
 import { loadSubagentApi } from "./runtime-port.js";
 import { activeForeachBatchRecordForTask } from "./foreach-batch-runtime.js";
 import { decideDurableBarrierCancellation } from "./launch-barrier-engine.js";

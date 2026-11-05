@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-user-profiles.test.mjs. MIT, same author. Changes: 2026-11-02: the tests of the per-workflow Pi TUI profile store (workflow-profile-settings: built-in Codex/Claude/Mixed profiles, Custom profiles, saved preferences) are removed with that store (agent-workflow never wrote it; per-workflow preferences are workflow-preferences.ts, WP31); imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; settings home AGENT_WORKFLOW_HOME (was PI_CODING_AGENT_DIR, WP4b); 17 of 27 tests not ported (marked in place).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

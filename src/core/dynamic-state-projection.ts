@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-state-projection.ts. MIT, same author. Changes: none.
 /**
  * Pure, dependency-free projection of raw `DynamicStateIndex.index` payloads
  * (gaps/blockers/conflicts/omissions/failedWork) into a cumulative

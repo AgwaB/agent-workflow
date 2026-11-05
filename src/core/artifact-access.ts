@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-artifact-extension.ts. MIT, same author. Changes: instead of generating a Pi extension wrapper that registers workflow_artifact, core writes a serializable ArtifactAccessConfig and describes the stdio MCP server (WP5) that serves it; Pi registerTool/activation code dropped. WP31: the artifact server output limit comes from the task's executor probe in mixed runs.
+// The artifact server output limit comes from the task's executor probe.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";

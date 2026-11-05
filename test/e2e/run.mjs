@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/e2e/run.mjs. MIT, same author. Changes: env
-// PI_WORKFLOW_E2E_*→AGENT_WORKFLOW_E2E_*; shims and the guard also block the codex and claude CLIs;
-// the isolated environment adds AGENT_WORKFLOW_HOME, CODEX_HOME and CLAUDE_CONFIG_DIR; the package is
-// built, packed once and unpacked into an isolated consumer without npm install and without any Pi
-// package, and every case runs against that packed artifact (pi-workflow ran most checks against
-// its compiled test build). Cases: forbidden-term scan of the packed files (plus a scanner
-// self-test), packed install, a bundled-style workflow through the packed CLI against the E2E test
-// executor, the same workflow through the packed `agent-workflow-mcp` host MCP server (WP13), the
-// durable launch barrier v2 through the packed runtime, and the no-external-actions audit. Dropped: packed-web-loader (pi-workflow's workflow web-source tools and pi-web-access
-// wrappers do not exist in agent-workflow: deep-research uses each executor's own web tools, C2),
-// the Pi-session registry/parse/run-boundary evals (covered by the unit suite) and the legacy
-// recipe/flow term scan.
 //
 // `npm run e2e` — offline; evidence in .tmp/test-results/e2e/run-*/ (report.md).
 import { spawnSync } from "node:child_process";

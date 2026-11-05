@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/dynamic-loop-actions.ts. MIT, same author. Changes: none.
 import type {
 	DynamicDecisionAction,
 	DynamicDecisionAddWorkItemAction,

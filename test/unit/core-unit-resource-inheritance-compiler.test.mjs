@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/unit-resource-inheritance-compiler.test.mjs. MIT, same author. Changes: imports from dist/core/; fixture agents and run paths .pi→.agent-workflow.
 import assert from "node:assert/strict";
 import {
 	mkdirSync,

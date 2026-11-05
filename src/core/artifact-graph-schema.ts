@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-schema.ts. MIT, same author. Changes: new optional top-level executionProfileExecutors (WP4c, B2: executor id per declared profile); WP4d: optional top-level executionProfileStrictCapabilities and allowReadOnlyDowngrade (B4 capability negotiation). WP4e: optional top-level executionProfilePermissionModes. WP31: optional top-level executionProfileRoles (role → executor/model/effort per declared profile).
 import { isAbsolute } from "node:path";
 
 import { LEVEL_CAPABILITY_NAMES } from "../sdk/capabilities.js";

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/checks/durable-worker-payload.mjs sections 5b–7 and test/checks/lifecycle.mjs. MIT, same author. Changes: workers are the compiled dist/runtime/workers/*.js; payloads carry an ExecutorDescriptor (the fake executor fixture) instead of backend "headless"/"inline", so the model-backed sections 6–7 run provider-free; runs dir ".agent-workflow/runs"; env names AGENT_WORKFLOW_*; the stubborn headless-Pi interrupt case is dropped (see runtime-port record).
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";

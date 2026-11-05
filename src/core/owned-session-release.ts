@@ -23,11 +23,9 @@ import type {
 } from "./types.js";
 
 /**
- * D3: whether this attempt asks the executor to keep its CLI session. Only same-session output
- * repair (experimental, `AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR`) ever continues a kept
- * session, so only then do artifact-graph attempts keep theirs (as pi-workflow did; the engine
- * releases them when the task or run ends). Without the flag no attempt keeps a session: output
- * repairs, launch retries and resumes always start a fresh one.
+ * Only experimental same-session output repair continues a kept CLI session.
+ * Artifact-graph attempts keep sessions only with that flag; the engine releases them
+ * when the task or run ends. Otherwise repairs, retries, and resumes start fresh sessions.
  */
 export function workflowTaskKeepsSession(
 	task: Pick<WorkflowTaskRunRecord, "artifactGraph">,

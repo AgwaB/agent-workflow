@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/wb-018-dynamic-tail-performance.test.mjs. MIT, same author. Changes: imports from dist/core; readFileLinesBounded moved from workflow-view.ts (Pi board) to core workflow-preview.ts.
 import assert from "node:assert/strict";
 import {
 	appendFile,

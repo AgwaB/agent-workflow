@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-fast-mode-extension.ts. MIT, same author. Changes: kept only the pure config resolution behind capability fastTier (eligible models, service tier, resolveWorkflowFastModeConfig); the Pi provider-stream guard, payload hooks and extension wrapper moved out (Pi executor, WP6).
+// Fast-tier configuration is executor-neutral; provider-stream guards belong to the Pi executor.
 import type { FastMode } from "./types.js";
 import type { WorkflowModelInfo } from "./workflow-runtime.js";
 

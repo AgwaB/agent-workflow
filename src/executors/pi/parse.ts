@@ -1,12 +1,5 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/runners/headless-model.ts
-// (`PiJsonStreamParser`, `parsePiJsonLine`, `textFromContent`, `errorText`). MIT, same author.
-// Changes: the parser yields normalized SDK `ExecEvent`s (plan §2.3) instead of a result envelope:
-// `text_delta` → `message_delta`, `tool_execution_*` → `tool_call` with ACP kind and status, each
-// assistant `message_end` → one `usage` (per request, so the runtime's sum is the run total, as the
-// original `message_end` accumulation), and the process exit → exactly one terminal event. Pi's
-// usage cost is computed by Pi from its model catalog, so it is reported as `estimated`; a zero
-// cost is reported as unknown (`cost: null`, never 0), because Pi cannot tell a free model from an
-// unpriced one. WP12a: usage carries `cacheWrite` and the assistant message's `model`.
+// Emit per-request usage and exactly one terminal event at process exit.
+// Pi catalog cost is estimated; zero cost is unknown (null), not proof of a free model.
 import { StringDecoder } from "node:string_decoder";
 import type { FailureClass } from "../../sdk/errors.js";
 import type {
@@ -20,7 +13,7 @@ import { isJsonValue } from "../../sdk/json.js";
 import { piToolKind } from "./argv.js";
 import { classifyPiFailure } from "./errors.js";
 
-/** Pi JSON lines larger than this are skipped (pi-subagent MAX_JSON_LINE_CHARS). */
+/** Skip Pi JSON lines larger than this limit. */
 export const MAX_JSON_LINE_CHARS = 64 * 1024 * 1024;
 /** Tool output kept in a normalized `tool_call` event (the raw stream keeps everything). */
 export const MAX_TOOL_OUTPUT_CHARS = 64 * 1024;

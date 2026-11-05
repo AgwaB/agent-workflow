@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/backend.ts. MIT, same author. Changes: core-side launch/backend types only; the built-in pi-subagent headless backend became a registration hook (WP4c binds it to the runtime API); Pi-specific fields marked; artifactBinding now carries the artifact-access config and MCP server spec instead of the extension wrapper.
 import type { ArtifactMcpServerSpec } from "./artifact-access.js";
 import type { HostContext } from "./host-context.js";
 import type {

@@ -1,15 +1,7 @@
-// New in agent-workflow (WP33 item 2, parity row 23). Ported from pi-workflow 0.16.4 (b83cc4f)
-// src/workflow-active-ui.ts (`formatActiveWorkflowLines`, `renderActiveWorkflowUi`,
-// `withWorkflowLaunchForeground`). MIT, same author. Changes: the widget lists the runs *this
-// session* tracks (its WP16 audience, launched or resumed here), not every running run of the
-// project, and is rendered by the WP16 tracker (feedback.ts) next to its footer entry, which stays;
-// key `agent-workflow-active` (pi-workflow uses `pi-workflow-active`, so both can coexist). The
-// foreground loader wraps `/aw wait` (launches and resumes return once started): cancelling it
-// cancels only the wait, never the run (WP28). WP38b: it also wraps the `/aw auto` classifier call;
-// cancelling it aborts that request and starts nothing. It uses
-// Pi 1.1's `ctx.ui.custom` with the exported `BorderedLoader` (loaded from Pi at call time, since
-// the package builds without the optional Pi peer) and only in the TUI (`ctx.mode === "tui"`);
-// RPC, print and JSON modes run the operation without a loader, as pi-workflow does.
+// The active-workflows widget lists only runs tracked by this Pi session.
+// The TUI foreground loader cancels waits without stopping runs; cancelling auto
+// comparison aborts its request and starts nothing. Load BorderedLoader lazily from Pi;
+// RPC, print, and JSON modes run without a loader.
 import type { WorkflowRunRecord } from "../../core/types.js";
 import type { PiExtensionContext } from "./pi-types.js";
 import { loadPiRuntimeModule } from "./pi-runtime.js";
@@ -38,7 +30,7 @@ function formatElapsed(ms: number): string {
 	return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}m`;
 }
 
-/** pi-workflow's visible progress: completed plus running tasks. */
+/** Visible progress includes completed and running tasks. */
 function visibleProgress(run: ActiveRun): number {
 	return (run.taskSummary.completed ?? 0) + (run.taskSummary.running ?? 0);
 }

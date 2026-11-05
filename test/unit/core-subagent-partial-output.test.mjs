@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/subagent-partial-output.test.mjs. MIT, same author. Changes: harness and raw-host fixture from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; backend handle {engine: "agent-workflow", backend: "runtime"} (was pi-subagent/headless); runs dir .agent-workflow/workflow-subagents. The runtime keeps pi-subagent 0.7's `outputPartial` metadata contract, so the test titles keep their "pi-subagent 0.7" prefix.
 import { withMaterializedRawHost } from "../helpers/raw-host-fixture.mjs";
 import {
 	assert,

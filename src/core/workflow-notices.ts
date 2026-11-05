@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-notices.ts. MIT, same author. Changes: notices root .pi/workflows→.agent-workflow/workflows; a run blocked on executor_needs_decision (WP4c, B3) is an eligible notice.
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
@@ -244,9 +243,8 @@ export async function noticeAcknowledgementMatch(
 }
 
 /**
- * The session-start notifier's list (pi-workflow `notifyUnfinishedRuns`): a malformed or invalid
- * acknowledgement sidecar never suppresses a notice, so it counts as "no acknowledgements" here
- * (the `notices` command itself still refuses it and preserves its bytes).
+ * The session-start notifier treats malformed or invalid acknowledgement sidecars as
+ * no acknowledgements. The notices command still refuses them and preserves their bytes.
  */
 export function listUnfinishedNoticesIgnoringInvalidAcknowledgements(
 	cwd: string,

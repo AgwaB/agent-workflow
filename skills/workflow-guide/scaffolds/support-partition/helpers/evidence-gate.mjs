@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) skills/workflow-guide/scaffolds/support-partition/helpers/evidence-gate.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Byte-level evidence gate for repository citations.
 //
 // A JSON Schema can require `file`/`line`/`lineEnd`/`evidenceQuotes`, but it

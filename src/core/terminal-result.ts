@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts lines 4246-4510, 6320-6393 (terminal result mapping). MIT, same author. Changes: runtime failure kind needs_decision blocks the task (statusDetail executor_needs_decision, B3: no retry/relaunch, batches stop instead of falling back); executor wording instead of "child Pi"/"pi-subagent".
+// An executor decision blocks the task without retry or relaunch; batches stop instead of falling back.
 import { markForeachBatchStopped } from "./foreach-batch-runtime.js";
 import { setTaskTerminal } from "./store.js";
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";

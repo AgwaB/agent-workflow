@@ -1,11 +1,6 @@
-// New in agent-workflow (WP34 item 2, owner decision Q1, parity row 24): the `/aw profile` picker, a
-// port of pi-workflow src/workflow-profile-ui.ts / workflow-profile-tui.ts over WP31 role profiles.
-// Covers: `executorModelsAction` (probe model lists and the `modelListComplete` note, through a fake
-// prober: no agent CLI), the colour preview renderer, the flow over a scripted UI (presets, saved
-// profiles, Custom, per-role executor/model/effort editing, Back/cancel write nothing, saving a user
-// profile or a per-workflow preference through the host API), `/aw profile` through the Pi host with
-// a fake TUI (`ctx.ui.custom` preview) while RPC keeps the text list, and the launch-time chooser's
-// "Custom…" that opens the picker and launches with the saved preference (workflow executor fixture).
+// Role-profile picker tests cover probed model lists, previews, and scripted editing.
+// Back/cancel writes nothing; Save writes a user profile or workflow preference via
+// the host API. Fake TUI integration covers Custom launch choices; RPC keeps text.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

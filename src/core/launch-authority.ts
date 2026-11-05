@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/launch-authority.ts. MIT, same author. Changes: none.
 import { createHash } from "node:crypto";
 
 import { assertRecordedLaunchBootstrapProvenance } from "./launch-bootstrap-provenance.js";

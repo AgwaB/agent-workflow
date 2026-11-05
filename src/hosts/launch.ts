@@ -1,17 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/extension.ts (startWorkflowRunFromRequest,
-// startDynamicRunFromRequest, selectWorkflowExecutionProfile, resolveWorkflowExecutionProfileForLaunch,
-// duplicateRunGuardNotice, spawnDetachedSupervisor). MIT, same author. Changes (WP11a): host-neutral
-// `run`/`dynamic` handlers with no Pi context: the run options executor, profile, permissionMode,
-// allowUnverifiedCapabilities, interactive + confirmDegradations (WP4d), model/effort; saved user
-// profiles (user-profiles.ts) as the B2 "saved user profile" tier; capability refusals and the
-// duplicate guard return `refused` results instead of throwing; WP33: every launch records the
-// host-neutral launch capture (launch-capture.ts, schema agent-workflow-run-launch-v1); the detached supervisor is the
-// `agent-workflow supervise` CLI and logs to `<run dir>/supervise.log`.
-// WP17: HostApiContext.host reaches the engine (host-default executor) and launch data shows it.
-// WP35: HostApiContext.hostTools (Pi host) → run option inheritHostTools + the run's host context.
-// WP31: built-in presets as `--profile <id>`; the saved per-workflow preference (workflow-
-// preferences.ts) applies to every host's launch (its profile when none is named, its role overrides
-// as the engine's workflowPreference layer); launch data/text show the per-stage role assignment.
+// Every launch records host-neutral launch capture; saved workflow preferences apply across hosts.
 import { spawn } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import { join } from "node:path";

@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/deep-research/helpers/claim-evidence-gate.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 import localQuoteGate, {
 	isConservativeLocalLocator,
 	isLocalLocator,

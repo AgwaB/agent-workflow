@@ -29,11 +29,7 @@ const BIG_ANALYSIS = Array.from(
 	(_, index) => `analysis line ${index} ${"x".repeat(40)}`,
 ).join("\n"); // ~20 KB, below the core 50 KB / 2000-line read cap
 
-/**
- * Same predicate as pi-workflow's required-read check (`requiredArtifactReadSatisfied`:
- * `!entry.truncated`), extended with the WP5 rule the engine adopts (WP4c-1):
- * `deliveryUnverified` rows never count.
- */
+/** Required reads reject truncated entries and rows with unverified delivery. */
 function satisfiesRequiredRead(rows, source, artifact) {
 	return rows.some(
 		(row) =>

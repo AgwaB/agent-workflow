@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/prompt-json.ts. MIT, same author. Changes: none.
 /**
  * Serialize JSON embedded directly in prompts/model context.
  *

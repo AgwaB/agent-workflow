@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/e2e/no-external-actions-guard.mjs. MIT, same author. Changes: env PI_WORKFLOW_E2E_*→AGENT_WORKFLOW_E2E_*; every stage-1 agent CLI (pi, codex, claude) is a blocked "agent-cli-executable" (was: pi only, "provider-executable"); the guard state symbol is agent-workflow's.
 //
 // Loaded into every Node process of `npm run e2e` (`NODE_OPTIONS=--import=<this file>`). It logs the
 // process tree to AGENT_WORKFLOW_E2E_PROCESS_LOG and blocks, before they happen, every network

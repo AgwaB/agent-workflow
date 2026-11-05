@@ -1,8 +1,6 @@
-// Quality A/B 2026-11-02 (B3): an output retry of a managed-worktree task starts from the base
-// checkout and reuses the task's worktree. The retry used to keep the worktree as its cwd, so
-// ensureManagedWorktree took the worktree as the git root, removed it and ran `git worktree add`
-// inside the removed directory: "spawnSync git ENOENT" (inherited from pi-workflow 0.16.4, where it
-// failed a live deep-review triage). Temporary git repository only; no agent CLI, no model call.
+// Managed-worktree output retries start from the base checkout and reuse the task worktree.
+// Preparing a retry from inside that worktree risks removing the cwd before git runs.
+// Temporary git repository only; no agent CLI or model calls.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { test } from "node:test";

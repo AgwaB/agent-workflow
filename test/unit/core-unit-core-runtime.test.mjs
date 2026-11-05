@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/unit-core-runtime.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; 2 of 111 tests not ported (marked in place). Changed assertions: WP4c-1 backend handle literal {engine: "agent-workflow", backend: "runtime"}; WP4c-1 R#12 conservative rate-limit backoff (900_000) for an unknown auth kind; WP10 C2 (docs/bundled-workflows.md M7/M8): the sanitizer keeps URL-only web candidates and the claim-evidence gate records no sourceRef join failures (see core-port record WP10).
 import {
 	buildSynthesisPages,
 	reconstructSynthesisPages,
@@ -4804,8 +4803,8 @@ test("refresh backs off zero-output rate-limit model failures", async () => {
 		assert.equal(refreshedTask.launchRetry?.attempts, 1);
 		assert.equal(refreshedTask.launchRetry?.maxAttempts, 5);
 		assert.equal(refreshedTask.launchRetry?.reason, "model_rate_limit");
-		// WP4c-1 R#12 (core-port): no auth.json read; an unknown auth kind takes the conservative
-		// subscription/OAuth base backoff of 15 min. Was: 60_000 (pi-workflow read ~/.pi auth.json).
+		// Never read auth.json; unknown auth kinds use conservative
+		// subscription/OAuth base backoff of 15 minutes.
 		assert.equal(refreshedTask.launchRetry?.retryAfterMs, 900_000);
 		assert.ok(
 			Date.parse(refreshedTask.launchRetry?.nextEligibleAt ?? "") >=
@@ -10813,10 +10812,6 @@ test("workflow progress health treats runtime budget overrun as resumable", () =
 	assert.equal(health.label, "runtime exceeded");
 	assert.equal(health.suggestion, "resume");
 });
-
-// Not ported (Pi-only harness export: workflowViewFixture; see core-port record WP10): test("workflow task list orders problem tasks before completed tasks").
-
-// Not ported (Pi-only harness export: workflowViewFixture; see core-port record WP10): test("workflow task selection follows task id after problem reordering changes").
 
 test("deep-review strict ledgers reject omission and swapped verifier ownership", async () => {
 	const helperDir = join(

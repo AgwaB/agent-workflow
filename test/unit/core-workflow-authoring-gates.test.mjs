@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-authoring-gates.test.mjs. MIT, same author. Changes: imports from dist/core/; .pi→.agent-workflow paths; env AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA; scaffold helper from test/fixtures/core/; 2 cli.mjs inspect tests dropped (WP11a).
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

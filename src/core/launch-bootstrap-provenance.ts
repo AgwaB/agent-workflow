@@ -1,4 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/launch-bootstrap-provenance.ts. MIT, same author. Changes: artifact provenance digests the canonical ArtifactAccessConfig + workflow_artifact MCP server spec instead of the Pi extension wrapper (WP5b: the server spec as launched, with the run's --max-output-chars); native host check → HostContext/inheritHostTools; env PI_WORKFLOW_{EXTERNAL_LAUNCH_GRANT_SHA256,REQUIRE_EXTERNAL_LAUNCH_GRANT}→AGENT_WORKFLOW_*. WP35: host-tool inheritance requires the task's executor to be pi (WP31: per task in mixed runs) instead of a generated native-host wrapper. WP31: the artifact server output limit comes from the task's executor probe in mixed runs.
+// Artifact provenance covers the canonical access config and launched MCP server spec.
+// The output limit comes from the task's executor probe; only Pi tasks inherit host tools.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";

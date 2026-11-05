@@ -1,7 +1,5 @@
-// New in agent-workflow (WP28): opt-in deferred exposure of the Pi host's `aw_*` tools
-// (AGENT_WORKFLOW_TOOL_EXPOSURE=deferred; port of pi-workflow b83cc4f PI_WORKFLOW_TOOL_EXPOSURE):
-// with it every tool is registered with `exposure: "deferred"` (Pi keeps it out of each request
-// until `tool_search` loads it); without it, or with any other value, tools are registered as before.
+// Deferred exposure registers aw_* tools with exposure deferred so tool_search
+// loads them on demand. Absent or other settings keep default registration.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

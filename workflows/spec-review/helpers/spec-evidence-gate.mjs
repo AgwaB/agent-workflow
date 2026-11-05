@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/spec-review/helpers/spec-evidence-gate.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Typed local citations are the only byte evidence protocol. Strings are
 // display-only, including file:line, URLs and opaque source refs. No network.
 import { createHash } from "node:crypto";

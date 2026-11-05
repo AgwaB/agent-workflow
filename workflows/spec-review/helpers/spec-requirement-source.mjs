@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) workflows/spec-review/helpers/spec-requirement-source.mjs. MIT, same author. Changes: see docs/bundled-workflows.md.
 // Only runtime-owned manifest chains locate requirement controls. Saved gate
 // metadata, model aliases, titles and row positions are never source authority.
 import { createHash } from "node:crypto";

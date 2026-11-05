@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/interrupt.ts. MIT, same author. Changes: none (comment wording only).
 import {
 	appendRunEvent,
 	readRunRecord,

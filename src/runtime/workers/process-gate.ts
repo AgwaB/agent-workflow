@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/workers/process-gate.mjs. MIT, same author. Changes: converted to TypeScript (compiled to dist/runtime/workers/process-gate.js); behavior unchanged.
 //
 // Usage: `node process-gate.js` (payload = first stdin line) or
 // `node process-gate.js --file <path>` (payload file, removed after reading).

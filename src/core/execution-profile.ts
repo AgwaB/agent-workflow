@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/execution-profile.ts. MIT, same author. Changes: WP31 collectWorkflowRoleSlots (role-profile slots with their agent) and the internal EXECUTION_PROFILE_EXECUTOR stage metadata (a stage's executor in a role-profile run).
 import { createHash } from "node:crypto";
 
 import {

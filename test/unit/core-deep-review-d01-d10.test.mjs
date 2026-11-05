@@ -1,4 +1,5 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/deep-review-d01-d10.test.mjs. MIT, same author. Changes: D04 (2026-11-01, owner decision) — whitespace/line-ending/quote-character differences and cited lines or planned ranges at most 10 lines off are accepted with a recorded correction (file text stored); different words, ranges far past the file and invalid UTF-8 still fail; imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; WP10: D09 blocks the .agent-workflow sidecar root (was .pi).
+// Whitespace, line-ending, quote-character, and citation offsets of at most 10 lines
+// are accepted with recorded corrections; different words and invalid UTF-8 fail.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -288,10 +289,9 @@ test("D04 records whitespace/CRLF and small range corrections; rejects different
 	};
 	const good = await dedup([], {}, goodCoverage, cwd);
 	assert.equal(good.sourceStatusSummary.nonCompleted, 0);
-	// agent-workflow 2026-11-01 (owner decision): evidence that differs from the file only in
-	// whitespace, line endings or quote/dash characters, or cites lines at most 10 off, is accepted
-	// with a recorded correction (pi-workflow rejected it); the stored text is the file's own.
-	// Different words, ranges far past the file and invalid UTF-8 still fail.
+	// Whitespace, line endings, quote/dash differences, and citation offsets up to 10 lines
+	// are accepted with recorded corrections using the file text. Different words, ranges
+	// far beyond the file, and invalid UTF-8 fail.
 	const lf = await dedup(
 		[],
 		{},

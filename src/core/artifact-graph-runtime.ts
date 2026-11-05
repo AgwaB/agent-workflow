@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/artifact-graph-runtime.ts. MIT, same author. Changes: artifact access writes artifact-access.json and binds workflow_artifact to the MCP server spec instead of generating a Pi extension wrapper; native tool policy → tool-policy (run.inheritHostTools). WP4e: tool policy gets the run permission mode.
+// Artifact access binds workflow_artifact to the MCP server; tool policy uses the run permission mode.
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -2026,10 +2026,8 @@ export async function prepareArtifactGraphRetryTask(
 		"(empty or unavailable)";
 	const retryTask = {
 		...preparedTask,
-		// A managed worktree task's cwd is its worktree after the first attempt; the retry must start
-		// from the base checkout again. From the worktree, ensureManagedWorktree took the worktree as
-		// the git root, removed it and ran `git worktree add` inside it: spawnSync git ENOENT
-		// (inherited from pi-workflow 0.16.4; seen live there in the 2026-11-02 quality A/B).
+		// A managed-worktree retry must start from the base checkout, not its previous worktree;
+		// otherwise worktree preparation may remove the directory from which git is invoked.
 		cwd:
 			task.worktree?.enabled && task.worktree.baseCwd
 				? task.worktree.baseCwd

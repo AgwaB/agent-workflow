@@ -294,7 +294,7 @@ test("host API without an origin: a synthesized agent-workflow command; strict l
 			false,
 			JSON.stringify(bad),
 		);
-	// 2026-11-02: pi-workflow's launch records are not agent-workflow's (not accepted).
+	// Launch records with unrecognized schemas are not accepted.
 	assert.equal(
 		store.isWorkflowRunLaunchMetadata({
 			schema: "pi-workflow-run-launch-v1",

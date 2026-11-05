@@ -1,7 +1,4 @@
-// New in agent-workflow (WP16): the host duplicate-launch guard for every launch (attached and
-// detached). pi-workflow 0.16.4 (b83cc4f) `duplicateRunGuardNotice` refused an attached launch whose
-// spec name and task matched an active run and skipped detached launches, so a model that retried
-// `workflow_run`/`aw_run` after a tool timeout started a second detached run. Here a launch has a
+// Duplicate-launch guard for attached and detached launches. A launch has a
 // fingerprint (kind, spec path and name, task, typed inputs, executor, profile, permission mode,
 // unverified-capability opt-ins, model, effort, cwd; WP19 review #8: plus the resolved execution
 // identity from launch.ts: host, applying executor and its source, saved-profile contents, inherited

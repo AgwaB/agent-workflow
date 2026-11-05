@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/run-ref.ts. MIT, same author. Changes: default runs dir ".agent-workflow/runs"; locator index ~/.pi/agent/subagent-runs -> ~/.agent-workflow/run-index; env PI_SUBAGENT_RUN_INDEX_DIR / PI_SUBAGENT_RUN_LOCATOR_PRUNE_AFTER_MS -> AGENT_WORKFLOW_RUN_INDEX_DIR / AGENT_WORKFLOW_RUN_LOCATOR_PRUNE_AFTER_MS.
 import {
 	mkdir,
 	readdir,

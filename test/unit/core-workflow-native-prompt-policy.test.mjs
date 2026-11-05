@@ -1,17 +1,6 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-native-prompt-policy.test.mjs.
-// MIT, same author. Changes: harness from test/helpers/unit-test-support.mjs; subagent-backend names
-// from task-backend; setSubagentApiForTests→setTaskRuntimeApiForTests; backend id
-// agent-workflow/runtime. The `native` dimension is the WP35 host-tools inheritance
-// (`compileWorkflow({inheritHostTools: true})` under a recorded host context, was `nativeHost`): core
-// no longer expands the host tools into the tool list (codemode, tool_search, mcp__* and the MCP
-// resource tools are added by the Pi executor from the descriptor's `inheritHostTools`), so the
-// effective tool list is the same with and without it, `effectivePolicy.inheritHostTools` records
-// the inheritance (writable stages with tools only: a readOnly stage never inherits, WP35; as before, an empty tool list inherits nothing), and the "native-host"
-// generated extension is gone (the Pi executor's per-run extension). The tool list reaches the
-// runtime through the system prompt's policy line (no `tools` launch option since WP4c-1), and the
-// prompt sent to the pi executor names the artifact tool by its MCP name (WP39b: with inherited host
-// tools the policy also lists them as available)
-// (`renderWorkerPromptToolNames`, WP10), while system-prompt.md keeps the canonical text.
+// Host-tool inheritance is recorded separately from the effective tool list.
+// Read-only stages and empty tool lists never inherit; the Pi executor expands host tools.
+// Runtime prompts use executor-visible tool names; system-prompt.md keeps canonical text.
 import { readFile } from "node:fs/promises";
 import {
 	assert,
@@ -58,8 +47,8 @@ for (const native of [false, true]) {
 						: null;
 					const compiled = await compileWorkflow(spec, {
 						cwd,
-						// Inherited host tools make the stage mutation-capable; free mode honors the spec's
-						// worktreePolicy "off" as pi-workflow did (safe mode would require a worktree, D2).
+						// Inherited host tools make the stage mutation-capable. Free mode honors
+						// spec worktreePolicy off; safe mode requires a worktree.
 						...(native
 							? { inheritHostTools: true, permissionMode: "free" }
 							: {}),

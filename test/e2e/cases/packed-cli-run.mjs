@@ -1,14 +1,8 @@
 #!/usr/bin/env node
-// New in agent-workflow (WP12b; replaces the Pi-session workflow runs of pi-workflow's E2E): the
-// installed `agent-workflow` bin runs a bundled-style workflow end to end against the E2E test
-// executor (guarded test-executor hook; no model or agent CLI):
-//   triage (single, control schema) → reviewers (foreach over triage lenses) → merge (bundle-local
-//   support helper) → report (reduce with a projected required read through the packed
-//   workflow_artifact MCP server).
-// Then the same workflow in `safe` mode, detached, waited for from a fresh process; status and
-// inspect; and a stop of a slow detached run.
-//
-//   node test/e2e/cases/packed-cli-run.mjs <installed-package-root> <consumer-project>
+// Run the installed CLI through triage, foreach review, support merge, and report
+// with a required artifact read against the E2E executor, without model or CLI calls.
+// Also cover detached safe-mode runs, fresh-process waits, status, inspect, and stop.
+// Usage: node packed-cli-run.mjs <installed-package-root> <consumer-project>
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { cp, mkdir, readdir, readFile, realpath } from "node:fs/promises";

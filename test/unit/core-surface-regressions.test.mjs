@@ -1,10 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/surface-regressions.test.mjs: the parent
-// usage tests (4) and the 8 MiB preview bound (WP38; the CLI/args tests were ported in WP11a as
-// host-ported-cli-args.test.mjs). MIT, same author. Changes: imports from dist/core
-// (readFileLinesBounded moved from workflow-view.ts to core workflow-preview.ts); run root
-// .agent-workflow/workflows; the conflicting audience is the Pi host's own audience file
-// (`pi-feedback-audience.json`, bound with `bindFeedbackAudience`), which core parent usage checks
-// like pi-workflow's `feedback-audience.json` (WP33).
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
@@ -177,9 +170,8 @@ test("foreign feedback-audience sidecars do not claim current parent usage owner
 	assert.equal((await usage.readParentUsage(cwd, runId)).totalTokens, 7);
 });
 
-// Ported: "formatLogs uses bounded tail IO for huge single-line output". Changes: the run is a
-// completed run.json fixture (was a supported run driven by `cli.mjs supervise --all`); core
-// `formatLogs` is the pi-workflow formatter (the hosts use WP16's `logsAction`, host-wp16-logs).
+// Exercise bounded tail IO for huge single-line output using a completed run fixture.
+// Host logs use logsAction; this test covers the core formatLogs helper.
 test("formatLogs uses bounded tail IO for huge single-line output", async (t) => {
 	const { formatLogs } = await import("../../dist/core/engine-format.js");
 	(

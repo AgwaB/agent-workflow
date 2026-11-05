@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/fixtures/barrier-temp-alias-race.mjs. MIT, same author. Changes: imports the compiled runtime from dist/.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";

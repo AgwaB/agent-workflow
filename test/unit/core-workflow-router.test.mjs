@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-router.test.mjs. MIT, same author. Changes: imports from dist/core (subagent-backend names from their WP4c modules); harness from test/helpers/; setSubagentApiForTests→setTaskRuntimeApiForTests; paths .pi/{workflows,agents,workflow-subagents}→.agent-workflow/…, env PI_WORKFLOW_*→AGENT_WORKFLOW_*; 1 of 31 tests not ported and 7 moved to test/unit/host-wp38b-auto-router.test.mjs (WP38b, against `/aw auto`) (marked in place). The Pi theme init (initTheme) is not called (no Pi package).
 import assert from "node:assert/strict";
 import { drainWorkflowFixture } from "../helpers/workflow-fixture-lifecycle.mjs";
 import {
@@ -13,9 +12,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 
-// Not ported: import { initTheme } from "@earendil-works/pi-coding-agent" (Pi package).
-
-// Not ported: import workflowExtension, { parseWorkflowDynamicArgs, parseWorkflowRunArgs, workflowAutoSlashLaunchCapture } from "../../dist/core/extension.js" (Pi host extension (WP11); the `/aw auto` tests use it in host-wp38b-auto-router.test.mjs).
 import { setTaskRuntimeApiForTests as setTaskRuntimeApiForTests } from "../../dist/core/runtime-port.js";
 import {
 	assertWorkflowAutoResolvedCandidateSafety,
@@ -34,8 +30,6 @@ import {
 import { loadAgentMetadataByName } from "../../dist/core/agents.js";
 import { readIndex, readRunRecord } from "../../dist/core/store.js";
 import { parseArtifactGraphWorkflowSpec } from "../../dist/core/artifact-graph-schema.js";
-
-// Not ported: initTheme(undefined, false) (Pi TUI theme; no Pi package in agent-workflow).
 
 const ROOT = mkdtempSync(join(tmpdir(), "agent-workflow-auto-test-"));
 after(() => {
@@ -215,8 +209,6 @@ function validComparison(
 // Moved (WP38b, `/aw auto` (WP32)): test("auto v2 command capture preserves the supplied slash arguments exactly once") → test/unit/host-wp38b-auto-router.test.mjs.
 
 // Moved (WP11a, host API parsers): test("explicit run and dynamic reject retired routing flags while preserving quoted task text") → test/unit/host-ported-cli-args.test.mjs.
-
-// Not applicable (WP38: `/aw run|dynamic` return at start, no foreground launch loader; core-port record "WP38"): test("cancelling a dynamic foreground launch reclaims the created run").
 
 test("routing hints are schema-validated, bounded, and author-controlled", () => {
 	const base = {

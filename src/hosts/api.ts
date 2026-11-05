@@ -1,15 +1,5 @@
-// New in agent-workflow (WP11a): the host API layer (`@agwab/agent-workflow/hosts/api`). One typed,
-// host-neutral handler per action; the `agent-workflow` CLI, the stage-2 host MCP server and the Pi
-// host (WP11b) all call these instead of re-implementing command logic. No Pi imports. Contracts:
-// docs/host-api.md. Logic ported from pi-workflow 0.16.4 (b83cc4f) src/extension.ts and src/cli.mjs
-// (see each module's header). WP17: `doctor` (doctor.ts) and the optional HostApiContext.host.
-// WP16: the duplicate-launch guard covers detached launches (launch-guard.ts, outcome `existing`)
-// and the `logs` action (logs.ts). WP31: `workflowPreferenceAction` (saved per-workflow preferences).
-// and the `logs` action (logs.ts). WP29: the `approve` action (approve.ts) answers a dynamic-controller
-// approval a run is blocked on. WP34: `executorModelsAction` (each executor's probed model list, for
-// role-profile editors such as the Pi profile picker). WP32: the `auto` action (auto.ts) compares
-// workflows for a task (one classifier call, only after the user's consent) and starts the one the
-// user chooses.
+// Host-neutral API: CLI, MCP, and Pi adapters call one typed handler per action.
+// No Pi imports; contracts are in docs/host-api.md.
 import { showWorkflowSpecAction } from "./catalog.js";
 import { showRunAction } from "./runs.js";
 import type { HostApiContext, HostResult } from "./types.js";

@@ -1,14 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-notice-acknowledgements.test.mjs.
-// MIT, same author. Deferred until WP11a because it spawned src/cli.mjs and loaded the Pi extension.
-// Changes: imports from dist/core and dist/hosts; .pi→.agent-workflow; PI_WORKFLOW_ROLE→
-// AGENT_WORKFLOW_ROLE; the CLI is src/hosts/cli/cli.mjs (`agent-workflow`), whose --json output is
-// `{action, ok, outcome, data}` and whose usage errors exit 2 (was 1); the slash-command half of
-// the parity test now compares the CLI with the host API handler (`noticesAction`) that the Pi host
-// (WP11b) calls. Not ported (need the Pi session-start notice `notifyUnfinishedRuns`, Pi host
-// WP11b): "only exact acknowledged failures, interruptions and eligible approval blocks are
-// suppressed", "changed {status,updatedAt,content} invalidates acknowledgement and returns to
-// normal deduplication", "malformed/invalid sidecars never suppress and mutations preserve their
-// exact bytes", and the warnings() assertions inside the ported tests (marked in place).
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -128,7 +117,7 @@ async function hashes(directory) {
 test("notices list/ack/clear preserve all original files and leave status/inspect visible", async (t) => {
 	const cwd = await project(t);
 	await fixture(cwd, "workflow_preserved");
-	// Not ported: the Pi session-start notice baseline (notifyUnfinishedRuns, Pi host WP11b).
+
 	const before = await hashes(root(cwd));
 	const listed = await list(cwd);
 	assert.equal(
@@ -156,7 +145,6 @@ test("notices list/ack/clear preserve all original files and leave status/inspec
 		(path) => !(path in before),
 	);
 	assert.deepEqual(added, [sidecar(cwd)]);
-	// Not ported: the cleared run notifies again at Pi session start (notifyUnfinishedRuns, WP11b).
 });
 
 test("ineligible runs and prefixes cannot be acknowledged; stale and unrelated entries survive clear", async (t) => {
@@ -248,7 +236,6 @@ test("independent concurrent CLI acknowledgements keep every entry and leave run
 	);
 	for (const [path, original] of Object.entries(before))
 		assert.equal(digest(await readFile(path)), original);
-	// Not ported: acknowledged runs stay silent at Pi session start (notifyUnfinishedRuns, WP11b).
 });
 
 test("ID/argument validation rejects paths, traversal, missing state/reason and extra options", () => {

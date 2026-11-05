@@ -1,21 +1,7 @@
-// Per-run Pi extension body (WP6). Runs **inside the Pi worker process**: the adapter writes a small
-// wrapper (`pi-extension.mjs`) into the attempt directory that imports this module and calls
-// `registerPiRun(pi, config, deps)`. Pi-free by construction (no Pi import here; the wrapper hands
-// in Pi's `createMcpExtension` when it is needed), so it compiles with the rest of the package.
-//
-// Ported parts:
-// - tool-result budget: @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74)
-//   src/runners/tool-result-budget-extension.ts. MIT, same author. Changes: config from the run
-//   config instead of env variables.
-// - fast tier: @agwab/pi-workflow 0.16.4 (b83cc4f) src/workflow-fast-mode-extension.ts
-//   (`registerWorkflowFastModeExtension` → `before_provider_request`, `applyWorkflowFastServiceTier`,
-//   `assertWorkflowFastProviderModel`; WP35: `installWorkflowFastProviderGuard`,
-//   `createWorkflowFastProviderStream`, `buildWorkflowFastProviderOptions`,
-//   `resolveReasoningEffort`). MIT, same author. Changes: the OpenAI stream functions and
-//   `clampThinkingLevel` are handed in by the generated wrapper (Pi's own `pi-ai/compat`), so this
-//   module stays Pi-free; WP35 adds failure/degrade reporting (a state file next to the attempt, a
-//   stderr line, `ctx.abort()` on a binding failure). `fastTier` stays `unverified` until a live run
-//   (docs/executors/pi.md).
+// Per-run extension executed inside the Pi worker. The generated wrapper supplies
+// Pi APIs and stream functions so this module has no runtime Pi imports.
+// Tool budgets use run config; fast-tier binding failures abort the request and report
+// to stderr and attempt state. Fast-tier support remains unverified until a live run.
 import { writeFileSync } from "node:fs";
 import { Socket } from "node:net";
 import {
@@ -49,11 +35,9 @@ export interface PiFastTierConfig {
 export const PI_FAST_TIER_STATE_FILE = "pi-fast-tier.json";
 
 /**
- * WP35: what the fast-tier guard reports. `guarded` = the OpenAI provider stream was re-registered
- * with `serviceTier` and a payload guard (pi-workflow behavior); `payload-only` = degraded, Pi
- * offered no provider registry (or the wrapper no stream functions), so only the
- * `before_provider_request` hook sets `service_tier`; `failed` = a model/payload binding check
- * failed and the request was aborted.
+ * Fast-tier guard states: guarded means a registered OpenAI stream has serviceTier and
+ * a payload guard. Payload-only is degraded hook-only support without registry or stream
+ * functions. Failed means a model/payload binding check aborted the request.
  */
 export interface PiFastTierState {
 	readonly schema: "agent-workflow-pi-fast-tier-v1";
@@ -251,11 +235,9 @@ function errorText(error: unknown): string {
 }
 
 /**
- * WP35 (row 39): the fast-tier guard. `session_start` re-registers the bound OpenAI provider with
- * the guarded stream (pi-workflow `installWorkflowFastProviderGuard`); `before_provider_request`
- * still stamps `service_tier` after the binding check. Without a provider registry or stream
- * functions the guard degrades to the payload hook (`payload-only`, reported on stderr and in the
- * state file); any binding failure aborts the request and is reported as `failed`.
+ * At session start, register the bound OpenAI provider with a guarded stream.
+ * The payload hook stamps service_tier after the binding check. Missing registry or
+ * stream functions degrade to payload-only, reported in stderr and state; binding failures abort.
  */
 export function registerFastTierGuard(
 	pi: PiExtensionApiLike,

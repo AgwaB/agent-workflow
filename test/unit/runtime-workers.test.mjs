@@ -1,6 +1,4 @@
-// New in agent-workflow (WP2a-1): direct coverage of the compiled
-// dist/runtime/workers/process-gate.js contract (pi-subagent only exercised it
-// indirectly through the headless/tmux runners, deferred to WP6).
+// Direct coverage of the compiled process-gate contract.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";

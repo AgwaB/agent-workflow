@@ -1,4 +1,5 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) src/orchestrate/async.ts. MIT, same author. Changes: inline-runner hooks (hostPiPackageRoot / PI_PACKAGE_ROOT_ENV) removed; backend resolution replaced by the run's ExecutorDescriptor (per-task override allowed, validated before any spawn); the payload carries the descriptor and the input with an explicit attemptKey; the worker is dist/runtime/workers/durable-worker.js; both binding env names (AGENT_WORKFLOW_ and legacy PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON) are stripped from the worker env. WP2c: env / mcpServers[].env values are not written to worker.json (only their keys); they reach the worker through its spawn environment (orchestrate/env-values.ts).
+// Validate the executor descriptor before spawning. Persist only environment keys in worker.json;
+// request and MCP environment values reach the worker through its spawn environment.
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { closeSync, openSync } from "node:fs";

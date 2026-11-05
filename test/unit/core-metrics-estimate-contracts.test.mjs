@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/metrics-estimate-contracts.test.mjs. MIT, same author. Changes: imports from dist/core/; run root .pi/workflows→.agent-workflow/workflows.
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/pi-agent-dir.ts. MIT, same author. Changes: replaced piAgentDir (PI_CODING_AGENT_DIR or ~/.pi/agent) with agentWorkflowHome (AGENT_WORKFLOW_HOME or ~/.agent-workflow); Pi project state remains separate.
+// Agent-workflow state is separate from Pi project state.
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 

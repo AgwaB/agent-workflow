@@ -1,4 +1,3 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/review-runtime-retention-depth.test.mjs. MIT, same author. Changes: imports from dist/core/; .pi/workflows and .pi/workflow-subagents→.agent-workflow/…; 1 cli.mjs prune test dropped (WP11a).
 import assert from "node:assert/strict";
 import test from "node:test";
 import {

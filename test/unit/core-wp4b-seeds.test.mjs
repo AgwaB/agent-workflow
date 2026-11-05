@@ -1,6 +1,4 @@
-// New in agent-workflow (WP4b): pins the six Pi-seed replacements, the
-// legacy read-only discovery (F5), the R#5/D2 worktree rule and the artifact
-// provenance digests described in core-port record.
+// Pin workflow discovery roots, safe-mode worktree rules, and artifact provenance digests.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";

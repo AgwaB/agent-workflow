@@ -1,9 +1,5 @@
-// New in agent-workflow (WP2c): a durable worker that stops before the launch authority released
-// (barrier timeout = guard failure, engine revoke) must end the attempt terminally: result.json
-// terminal with the right status/failureKind, the attempt no longer active, ownership drained by
-// the terminal finalizer (terminal events published), and the pristine workspace discarded.
-// pi-subagent 0.7.2 recorded these as cancelled/user_cancelled in run.json, left result.json
-// `running` (guard failure) and kept activeAttemptId set.
+// Pre-release stops must write terminal status/failureKind, clear the active attempt,
+// discard the pristine workspace, and drain ownership through the terminal finalizer.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
