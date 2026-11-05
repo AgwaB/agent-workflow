@@ -44,6 +44,7 @@ import {
 	isHostSessionId,
 	recordRunHostSession,
 } from "../../hosts/notify-check.js";
+import { codexTurnSession, hostWakeEnabled } from "../../hosts/host-wake.js";
 import { WORKFLOW_DASHBOARD_TOOL } from "../visible-names.js";
 export { WORKFLOW_DASHBOARD_TOOL } from "../visible-names.js";
 import type {
@@ -1388,11 +1389,17 @@ function profileSetFromArguments(params: Record<string, unknown>): {
  * asked the agent to start a Monitor with a local command; a live haiku host refused that as an
  * instruction from a tool result — rightly — so the plugin starts the monitor itself.)
  */
-function launchNext(data: LaunchData, monitored = false): string | undefined {
+function launchNext(
+	data: LaunchData,
+	delivery: "wait" | "claude-monitor" | "codex-queue" = "wait",
+): string | undefined {
 	if (data.runId && data.status === "running") {
-		const wait = monitored
-			? `This session's agent-workflow completion monitor (from the plugin) reports the run when it has finished: end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When its line "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
-			: `Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
+		const wait =
+			delivery === "codex-queue"
+				? `agent-workflow puts the result into this Codex session when the run has finished (a queued message): end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When the message "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
+				: delivery === "claude-monitor"
+					? `This session's agent-workflow completion monitor (from the plugin) reports the run when it has finished: end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When its line "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
+					: `Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
 		return data.dashboard
 			? `Now tell the user, in your own message (some apps fold tool results): run ${data.runId}, Dashboard: ${data.dashboard.url} — the link as is${data.dashboard.auth ? `; if it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL}` : ""}. ${wait}`
 			: `Now tell the user the run id ${data.runId} in your own message; the dashboard is not running (${WORKFLOW_DASHBOARD_TOOL} opens it when they want it). ${wait}`;
@@ -1451,22 +1458,32 @@ export function createHostMcpService(
 	const env = options.env ?? process.env;
 	const log = options.log ?? (() => undefined);
 
-	// 2026-11-05: a Claude Code launch records its session (CLAUDE_CODE_SESSION_ID, which Claude Code
-	// sets for MCP servers); true when that session's completion monitor is alive.
-	const claudeMonitor = async (
+	// 2026-11-05 (owner: wait in code, wake the host once): how this launch's result reaches the
+	// session without workflow_wait. Claude Code: the session id (CLAUDE_CODE_SESSION_ID) is linked to
+	// the run, and a live completion monitor of that session reports it. Codex: the thread of the call
+	// (x-codex-turn-metadata) is linked when the session is interactive and a detached supervisor
+	// drives the run; the supervisor queues the result into the thread (host-wake.ts).
+	const delivery = async (
 		ctx: HostApiContext,
 		data: LaunchData | undefined,
-	): Promise<boolean> => {
-		const session = env.CLAUDE_CODE_SESSION_ID;
-		if (
-			options.host !== "claude-code" ||
-			!data?.runId ||
-			data.status !== "running" ||
-			!isHostSessionId(session)
-		)
-			return false;
-		await recordRunHostSession(ctx.cwd, data.runId, session);
-		return hostSessionMonitorAlive(ctx.cwd, session);
+		call: McpToolCallContext,
+	): Promise<"wait" | "claude-monitor" | "codex-queue"> => {
+		if (!data?.runId || data.status !== "running") return "wait";
+		if (options.host === "claude-code") {
+			const session = env.CLAUDE_CODE_SESSION_ID;
+			if (!isHostSessionId(session)) return "wait";
+			await recordRunHostSession(ctx.cwd, data.runId, session);
+			return (await hostSessionMonitorAlive(ctx.cwd, session))
+				? "claude-monitor"
+				: "wait";
+		}
+		if (options.host === "codex" && hostWakeEnabled(env) && data.detached) {
+			const turn = codexTurnSession(call.meta);
+			if (!turn?.interactive) return "wait";
+			await recordRunHostSession(ctx.cwd, data.runId, turn.threadId);
+			return "codex-queue";
+		}
+		return "wait";
 	};
 
 	const context = async (
@@ -1912,7 +1929,8 @@ export function createHostMcpService(
 				confirmNext(
 					`${WORKFLOW_RUN_TOOL} again with the same arguments`,
 					confirmation,
-				) ?? launchNext(launched.data, await claudeMonitor(ctx, launched.data)),
+				) ??
+					launchNext(launched.data, await delivery(ctx, launched.data, call)),
 			);
 		},
 		[WORKFLOW_DYNAMIC_TOOL]: async (args, call) => {
@@ -1934,7 +1952,8 @@ export function createHostMcpService(
 				confirmNext(
 					`${WORKFLOW_DYNAMIC_TOOL} again with the same arguments`,
 					confirmation,
-				) ?? launchNext(launched.data, await claudeMonitor(ctx, launched.data)),
+				) ??
+					launchNext(launched.data, await delivery(ctx, launched.data, call)),
 			);
 		},
 		[WORKFLOW_AUTO_TOOL]: async (args, call) => {
@@ -2009,7 +2028,7 @@ export function createHostMcpService(
 					confirmation,
 				);
 			else if (data.phase === "launched" && data.launch)
-				next = launchNext(data.launch, await claudeMonitor(ctx, data.launch));
+				next = launchNext(data.launch, await delivery(ctx, data.launch, call));
 			else if (data.phase === "consent-unavailable")
 				next = `Next: show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}). Nothing was sent and nothing started.`;
 			else if (data.phase === "ranked" || data.phase === "cancelled")

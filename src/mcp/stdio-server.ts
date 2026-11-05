@@ -35,6 +35,8 @@ export interface McpToolCallContext {
 	signal: AbortSignal;
 	/** `params._meta.progressToken` of the call, when the client asked for progress. */
 	progressToken?: JsonRpcId;
+	/** 2026-11-05: the call's `params._meta` (Codex sends `x-codex-turn-metadata` with its thread). */
+	meta?: Record<string, unknown>;
 	/** Send a server→client request; resolves with its result, rejects with a JsonRpcError. */
 	sendRequest(
 		method: string,
@@ -211,12 +213,14 @@ export function serveMcpStdioServer(options: McpStdioServerOptions): {
 						JSONRPC_INVALID_PARAMS,
 						"tools/call params.arguments must be an object",
 					);
-				const token = validId(asRecord(record._meta)?.progressToken);
+				const meta = asRecord(record._meta);
+				const token = validId(meta?.progressToken);
 				return await options.callTool(name, args, {
 					protocolVersion: protocolVersion as string,
 					clientCapabilities,
 					signal,
 					...(token === undefined ? {} : { progressToken: token }),
+					...(meta === undefined ? {} : { meta }),
 					sendRequest,
 					sendNotification,
 				});

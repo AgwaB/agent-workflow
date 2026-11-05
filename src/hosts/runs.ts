@@ -125,6 +125,7 @@ import {
 	result,
 	toDisplayPath,
 } from "./types.js";
+import { wakeLaunchingHostSessions } from "./host-wake.js";
 
 function requireRunRef(value: unknown, action: string): string {
 	if (typeof value !== "string" || !value.trim() || value.startsWith("-"))
@@ -1349,7 +1350,9 @@ export async function superviseAction(
 		}
 		if (runId) {
 			const run = refreshed[0]!;
-			if (run.status !== "running")
+			if (run.status !== "running") {
+				// 2026-11-05: an interactive Codex session that launched the run gets the result.
+				await wakeLaunchingHostSessions(cwd, run, { env: hostEnv(ctx), log });
 				return finish(
 					run.status === "completed"
 						? "completed"
@@ -1359,6 +1362,7 @@ export async function superviseAction(
 					[run],
 					`done: ${run.runId} ${run.status}`,
 				);
+			}
 		} else if (!refreshed.some((run) => run.status === "running")) {
 			const outcomes = refreshed.filter((run) => supervised.has(run.runId));
 			// Failure/interruption takes precedence over blocked, then completed.

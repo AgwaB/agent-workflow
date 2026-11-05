@@ -262,6 +262,26 @@ export async function recordRunHostSession(
 	}
 }
 
+/** The host sessions that launched the run (their links). */
+export async function runHostSessions(
+	cwd: string,
+	runId: string,
+): Promise<string[]> {
+	if (!isSafeRunId(runId)) return [];
+	const dir = await containedProjectStateDir(
+		cwd,
+		NOTIFY_CHECK_DIR,
+		false,
+	).catch(() => undefined);
+	if (!dir) return [];
+	const suffix = `.${runId}.link`;
+	return (await readdir(dir).catch(() => [] as string[]))
+		.filter((name) => name.startsWith("session-") && name.endsWith(suffix))
+		.map((name) => name.slice("session-".length, -suffix.length))
+		.filter(isHostSessionId)
+		.sort();
+}
+
 /** This session's completion monitor checked within MONITOR_ALIVE_MS. */
 export async function hostSessionMonitorAlive(
 	cwd: string,

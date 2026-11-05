@@ -250,6 +250,24 @@ the plugin starts the monitor and the tool result only says to end the turn. `no
 session when its run ends (`claude --resume -p`, `codex exec resume`, `codex queue`) was checked
 live but is not built.
 
+## Waiting without polling: Codex sessions (2026-11-05)
+
+Codex sends each tool call's turn in `params._meta["x-codex-turn-metadata"]` (observed on 0.166.0:
+`thread_id`, `session_id`, `turn_trigger` `"user"` in the TUI, `"exec"` for `codex exec`; the server
+gets it as `McpToolCallContext.meta`). When an interactive turn (not `exec`) launches a run that a
+detached supervisor drives, the server links the run to the thread (the same
+`session-<id>.<run>.link` as Claude Code) and the next step reads "agent-workflow puts the result into
+this Codex session when the run has finished … end your turn now and do not call workflow_wait".
+When the run settles, the supervisor (`wakeLaunchingHostSessions`, `src/hosts/host-wake.ts`) takes
+the run's notify-check line (each settled state once: a result the agent already got from
+`workflow_wait` wakes nothing) and runs `codex queue --thread <id> --message <line>`. Live check
+(internal host-wake-20261105): a message queued into an idle TUI session appeared there and the
+session answered at once; a closed thread gets it when it is resumed. The supervisor runs `codex`
+from its PATH. `codex exec` launches still wait (a woken `exec` thread has nobody watching).
+`AGENT_WORKFLOW_HOST_WAKE=0` (in the server's environment) turns the Codex wake off. `codex queue
+--resume` was not used: it resumes on the local app-server daemon, which on the test machine still
+held older credentials (usage-limit errors while the CLI's login had quota).
+
 ## Server started in the home directory (2026-11-04)
 
 The Claude desktop app starts the server in ~ (no project). Its `.agent-workflow` there is the
