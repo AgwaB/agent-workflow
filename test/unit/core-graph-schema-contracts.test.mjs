@@ -539,10 +539,10 @@ test("public TypeScript workflow authors can declare injectRuntimeTask without c
 		const file = join(cwd, "consumer.mts");
 		const scope = join(cwd, "node_modules", "@agwab");
 		mkdirSync(scope, { recursive: true });
-		symlinkSync(resolve("."), join(scope, "pi-workflow"), "dir");
+		symlinkSync(resolve("."), join(scope, "agent-workflow"), "dir");
 		writeFileSync(
 			file,
-			`import type { ArtifactGraphStageSpec } from "@agwab/pi-workflow";\nconst stage: ArtifactGraphStageSpec = { id: "report", type: "reduce", from: "scan", prompt: "Report", injectRuntimeTask: true };\nexport { stage };\n`,
+			`import type { ArtifactGraphStageSpec } from "@agwab/agent-workflow";\nconst stage: ArtifactGraphStageSpec = { id: "report", type: "reduce", from: "scan", prompt: "Report", injectRuntimeTask: true };\nexport { stage };\n`,
 		);
 		const program = ts.createProgram([file], {
 			noEmit: true,

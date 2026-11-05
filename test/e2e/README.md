@@ -24,9 +24,3 @@ processes before they start. `no-external-actions-command-shim.mjs` stands in fo
 `pnpm`, `yarn`, `bun`, `curl`, `wget`, `pi`, `codex` and `claude` on `PATH`; only allowed `npm`
 subcommands reach the real npm.
 
-Ported from pi-workflow 0.16.4 (`b83cc4f`): `run.mjs`, the guard, the command shim, the
-forbidden-term scanner, `packed-workflows` (now part of `packed-install`) and
-`packed-durable-barrier-v2`. Not ported: `packed-web-loader` (pi-workflow's workflow web-source tools
-and `pi-web-access` wrappers do not exist here; deep-research uses each executor's own web tools,
-C2), the Pi-session registry/parse/run-boundary evaluations against the compiled test build (covered
-by the unit suite), and the legacy recipe/flow term list.

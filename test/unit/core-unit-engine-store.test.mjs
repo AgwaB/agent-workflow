@@ -860,7 +860,7 @@ test("workflow resume reset preserves retry accounting metadata", () => {
 		},
 		backendTaskId: "run_backend",
 		backendHandle: {
-			engine: "pi-subagent",
+			engine: "agent-workflow",
 			runId: "run_backend",
 			attemptId: "attempt_backend",
 		},
@@ -4953,7 +4953,7 @@ test("workflow progress health ignores stale backend handles without fresh heart
 			stageId: "final-audit",
 			startedAt: "2026-07-01T11:00:00.000Z",
 			lastMessage: undefined,
-			backendHandle: { engine: "pi-subagent" },
+			backendHandle: { engine: "agent-workflow" },
 		}),
 		{ updatedAt: "2026-07-01T11:30:00.000Z" },
 		{ nowMs },

@@ -10739,8 +10739,8 @@ test("workflow progress health classifies fresh long-running audit as long-tail 
 		displayName: "final-audit.main",
 		stageId: "final-audit",
 		startedAt: "2026-07-01T12:00:00.000Z",
-		lastMessage: "pi-subagent heartbeat 2026-07-01T12:19:30.000Z",
-		backendHandle: { engine: "pi-subagent" },
+		lastMessage: "worker heartbeat 2026-07-01T12:19:30.000Z",
+		backendHandle: { engine: "agent-workflow" },
 	});
 	const run = workflowViewRun([task]);
 	run.updatedAt = "2026-07-01T12:19:30.000Z";
@@ -10760,8 +10760,8 @@ test("workflow progress health classifies reviewer fanout as long running", () =
 			displayName: "reviewers.rq-001",
 			stageId: "reviewers",
 			startedAt: "2026-07-01T12:00:00.000Z",
-			lastMessage: "pi-subagent heartbeat 2026-07-01T12:11:50.000Z",
-			backendHandle: { engine: "pi-subagent" },
+			lastMessage: "worker heartbeat 2026-07-01T12:11:50.000Z",
+			backendHandle: { engine: "agent-workflow" },
 		}),
 		{ updatedAt: "2026-07-01T12:11:50.000Z" },
 		{ nowMs },
@@ -10784,7 +10784,7 @@ test("workflow progress health surfaces failed fanout before running siblings", 
 		displayName: "reviewers.rq-002",
 		stageId: "reviewers",
 		startedAt: "2026-07-01T12:00:00.000Z",
-		lastMessage: "pi-subagent heartbeat 2026-07-01T12:11:50.000Z",
+		lastMessage: "worker heartbeat 2026-07-01T12:11:50.000Z",
 	});
 	const run = workflowViewRun([running, failed]);
 	const health = diagnoseWorkflowRunHealth(run, { nowMs });

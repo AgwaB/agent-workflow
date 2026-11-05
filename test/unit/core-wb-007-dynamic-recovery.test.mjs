@@ -7,7 +7,7 @@ import {
 } from "../../dist/core/engine-run-graph.js";
 
 function handle(runId) {
-	return { engine: "pi-subagent", runId };
+	return { engine: "agent-workflow", runId };
 }
 
 const compiled = {

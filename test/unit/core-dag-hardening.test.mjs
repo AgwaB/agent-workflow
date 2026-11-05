@@ -82,7 +82,7 @@ function writeAbortResolvingHelper(cwd) {
 
 function writeAbortIgnoringReleasableHelper(cwd) {
 	const workflowDir = join(cwd, "workflows");
-	const key = `pi-workflow-test-support-release:${cwd}`;
+	const key = `agent-workflow-test-support-release:${cwd}`;
 	const gate = deferred();
 	mkdirSync(workflowDir, { recursive: true });
 	writeFileSync(

@@ -5775,9 +5775,9 @@ test("artifactGraph mutation-capable agents publish from managed and shared loop
 			["add", "."],
 			[
 				"-c",
-				"user.name=pi-workflow-test",
+				"user.name=agent-workflow-test",
 				"-c",
-				"user.email=pi-workflow-test@example.invalid",
+				"user.email=agent-workflow-test@example.invalid",
 				"commit",
 				"--no-gpg-sign",
 				"--no-verify",

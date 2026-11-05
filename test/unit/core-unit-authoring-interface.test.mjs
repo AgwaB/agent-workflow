@@ -305,7 +305,7 @@ test("formatRun stays byte-identical when fail-fast policy is unset", () => {
 			blocked: 0,
 			skipped: 0,
 		},
-		cwd: "/tmp/pi-workflow-unit",
+		cwd: "/tmp/agent-workflow-unit",
 		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-01-02T03:04:05.000Z",
 		updatedAt: "2026-01-02T03:04:06.000Z",

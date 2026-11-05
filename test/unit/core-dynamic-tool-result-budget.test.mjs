@@ -797,7 +797,7 @@ test("budget metrics keep retries separate, group controllers, and use max retai
 	];
 	const disabledAttempt = [
 		{
-			source: "pi-workflow-disabled",
+			source: "disabled-recovery",
 			capturedAt: "2026-07-10T00:00:02.000Z",
 			backendRunId: "run-disabled",
 			backendAttemptId: "attempt-disabled",

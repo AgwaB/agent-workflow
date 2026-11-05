@@ -60,7 +60,7 @@ const cases = [
 ];
 
 for (const scenario of cases) {
-	test(`pi-subagent 0.7: ${scenario.name}`, async () => {
+	test(`partial output: ${scenario.name}`, async () => {
 		const cwd = makeProject();
 		try {
 			writeAgent(cwd, "unit-scout", "read");
