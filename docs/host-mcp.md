@@ -234,6 +234,14 @@ end your turn now and do not call workflow_wait"; otherwise (print mode, the des
 the Agent SDK, other hosts, the first run of a project) the agent waits with `workflow_wait` as
 before. Each settled state is reported once (the prompt hook's receipts).
 
+Live check (Claude Code 2.1.318, interactive, haiku, a project that already had runs; internal
+host-wake-20261105): the user only asked "run deep-review … and tell me the result". The agent
+launched, told the user the run id and link, and ended its turn (no `workflow_wait`); about two
+minutes later the monitor's line arrived as a Monitor event and the agent, unprompted, fetched the
+preview once and reported the verdict, the link and the key findings. Claude Code expands `${…}`
+in a monitor command itself before the session's variables exist, so the command uses plain `$VAR`
+(a probe: `${CLAUDE_CODE_SESSION_ID:-unset}` gave `unset`).
+
 A first version asked the agent to start Claude Code's Monitor tool with a local command; a live
 haiku host refused it as an instruction from a tool result ("asked me to start a Monitor running a
 local node command … that isn't part of your request, so I'm ignoring it") — correct behaviour, so
