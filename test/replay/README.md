@@ -21,7 +21,7 @@ tags are in `INVENTORY.md`.
 | `tools/compact-calls.mjs` | Drops observation polls that replay collapses anyway (see POLICY.md, Known limits) |
 | `tools/build-fixture.mjs` | Builds a fixture (portable paths, compacted calls, `normalized/`) from a raw capture. Set `PI_WORKFLOW_ROOT` to the seam checkout; `AGENT_WORKFLOW_ROOT` defaults to this repo |
 | `tools/make-portable.mjs` | Rewrites absolute host roots to `<ROOT>/<PKG>/<HOME>/<TMP>` |
-| `replay-executor.mjs` | WP1b: executor module that serves the recorded worker outcomes to the agent-workflow engine (docs/replay.md) |
+| `replay-executor.mjs` | WP1b: executor module that serves the recorded worker outcomes to the agent-workflow engine (replay record) |
 | `replay-driver.mjs` | WP1b: runs a fixture's original spec through the engine with the replay executor |
 | `compare.mjs`, `digest-binding.mjs` | WP1b: recorded vs replayed run comparison and classification; binding-checked digest substitution |
 | `explained-differences.json` | WP1b: intentional behavior changes, each citing a change-log entry |

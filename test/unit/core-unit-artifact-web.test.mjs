@@ -1123,7 +1123,7 @@ test("artifactAccess none rejects explicit workflow_artifact tools", () => {
 	);
 });
 
-// Not ported (dropped, C2/WP10: the workflow web-source cache and wsrc_* sourceRef backfill are removed (docs/bundled-workflows.md M7/M8); see docs/core-port.md WP10): test("deep-research verification candidate sanitizer backfills sourceRefs from web source cache").
+// Not ported (dropped, C2/WP10: the workflow web-source cache and wsrc_* sourceRef backfill are removed (docs/bundled-workflows.md M7/M8); see core-port record WP10): test("deep-research verification candidate sanitizer backfills sourceRefs from web source cache").
 
 test("compiler warns when sourceProjection paths match no source control schema", async () => {
 	const cwd = makeProject();
@@ -3607,33 +3607,33 @@ test("artifactGraph runtime partial dag join proceeds and exposes outputFrom dow
 	}
 });
 
-// Not ported (Pi-only harness export: registerWorkflowFetchCacheExtension; see docs/core-port.md WP10): test("workflow fetch_content extension provider passes through without cache replay").
+// Not ported (Pi-only harness export: registerWorkflowFetchCacheExtension; see core-port record WP10): test("workflow fetch_content extension provider passes through without cache replay").
 
-// Not ported (Pi-only harness export: registerWorkflowFetchCacheExtension; see docs/core-port.md WP10): test("workflow fetch_content cache correlates concurrent stored data by response id").
+// Not ported (Pi-only harness export: registerWorkflowFetchCacheExtension; see core-port record WP10): test("workflow fetch_content cache correlates concurrent stored data by response id").
 
-// Not ported (Pi-only harness export: registerWorkflowFetchCacheExtension; see docs/core-port.md WP10): test("workflow fetch_content extension provider preserves inline text and stored source data").
+// Not ported (Pi-only harness export: registerWorkflowFetchCacheExtension; see core-port record WP10): test("workflow fetch_content extension provider preserves inline text and stored source data").
 
-// Not ported (dropped, C2/WP10: the Pi fetch-cache extension and normalized workflow_web_* tools are removed; see docs/core-port.md WP10): test("subagent launch can opt out of fetch cache and keep built-in provider mappings").
+// Not ported (dropped, C2/WP10: the Pi fetch-cache extension and normalized workflow_web_* tools are removed; see core-port record WP10): test("subagent launch can opt out of fetch cache and keep built-in provider mappings").
 
-// Not ported (Pi-only harness export: createWorkflowWebSource; see docs/core-port.md WP10): test("workflow web-source core redacts URLs and reads normalized snippets").
+// Not ported (Pi-only harness export: createWorkflowWebSource; see core-port record WP10): test("workflow web-source core redacts URLs and reads normalized snippets").
 
-// Not ported (Pi-only harness export: createWorkflowWebSource; see docs/core-port.md WP10): test("workflow web-source core anchors CJK normalized snippets and multi-match term windows").
+// Not ported (Pi-only harness export: createWorkflowWebSource; see core-port record WP10): test("workflow web-source core anchors CJK normalized snippets and multi-match term windows").
 
-// Not ported (Pi-only harness export: readWorkflowWebSource; see docs/core-port.md WP10): test("workflow web-source extension returns source cards and blocks sensitive URLs without exposing cache paths").
+// Not ported (Pi-only harness export: readWorkflowWebSource; see core-port record WP10): test("workflow web-source extension returns source cards and blocks sensitive URLs without exposing cache paths").
 
-// Not ported (Pi-only harness export: registerWorkflowWebSourceExtension; see docs/core-port.md WP10): test("workflow web-source extension anchors late matches within remaining read budget").
+// Not ported (Pi-only harness export: registerWorkflowWebSourceExtension; see core-port record WP10): test("workflow web-source extension anchors late matches within remaining read budget").
 
-// Not ported (Pi-only harness export: createWorkflowWebSource; see docs/core-port.md WP10): test("workflow web-source extension aggregates mixed source read statuses").
+// Not ported (Pi-only harness export: createWorkflowWebSource; see core-port record WP10): test("workflow web-source extension aggregates mixed source read statuses").
 
-// Not ported (Pi-only harness export: registerWorkflowWebSourceExtension; see docs/core-port.md WP10): test("workflow web-source fetch single-flights duplicate URLs and caches transient empty results in process").
+// Not ported (Pi-only harness export: registerWorkflowWebSourceExtension; see core-port record WP10): test("workflow web-source fetch single-flights duplicate URLs and caches transient empty results in process").
 
-// Not ported (Pi-only harness export: registerWorkflowWebSourceExtension; see docs/core-port.md WP10): test("workflow web-source search disables provider curation by default").
+// Not ported (Pi-only harness export: registerWorkflowWebSourceExtension; see core-port record WP10): test("workflow web-source search disables provider curation by default").
 
-// Not ported (Pi-only harness export: registerWorkflowWebSourceExtension; see docs/core-port.md WP10): test("workflow web-source extension blocks custom fetch to private hosts and reports budget exhaustion").
+// Not ported (Pi-only harness export: registerWorkflowWebSourceExtension; see core-port record WP10): test("workflow web-source extension blocks custom fetch to private hosts and reports budget exhaustion").
 
-// Not ported (Pi-only harness export: registerWorkflowWebSourceExtension; see docs/core-port.md WP10): test("normalized web fetch requires explicit public-host direct-safe preparation").
+// Not ported (Pi-only harness export: registerWorkflowWebSourceExtension; see core-port record WP10): test("normalized web fetch requires explicit public-host direct-safe preparation").
 
-// Not ported (dropped, C2/WP10: the Pi fetch-cache extension and normalized workflow_web_* tools are removed; see docs/core-port.md WP10): test("subagent launch rejects custom normalized fetch ownership before dispatch").
+// Not ported (dropped, C2/WP10: the Pi fetch-cache extension and normalized workflow_web_* tools are removed; see core-port record WP10): test("subagent launch rejects custom normalized fetch ownership before dispatch").
 
 test("failed context-window subagent with valid artifactGraph output is salvaged", async () => {
 	const cwd = makeProject();
@@ -4441,7 +4441,7 @@ test("deep-research claim-evidence-gate backfills sourceRefs from normalize pack
 	assert.deepEqual(out.sourceRefJoinFailures, []);
 });
 
-// Not ported (dropped, C2/WP10: the workflow web-source cache and wsrc_* sourceRef backfill are removed (docs/bundled-workflows.md M7/M8); see docs/core-port.md WP10): test("deep-research claim-evidence-gate backfills sourceRefs from web source cache").
+// Not ported (dropped, C2/WP10: the workflow web-source cache and wsrc_* sourceRef backfill are removed (docs/bundled-workflows.md M7/M8); see core-port record WP10): test("deep-research claim-evidence-gate backfills sourceRefs from web source cache").
 
 test("deep-research claim-evidence-gate backfills npm docs sourceRefs across CLI doc versions", async () => {
 	const helperPath = join(
@@ -5203,7 +5203,7 @@ test("workflow_artifact rejects path injection, unknown artifacts, and debug rea
 	}
 });
 
-// Not ported (Pi-only harness export: registerWorkflowArtifactTool; see docs/core-port.md WP10): test("workflow_artifact extension registers and activates the tool").
+// Not ported (Pi-only harness export: registerWorkflowArtifactTool; see core-port record WP10): test("workflow_artifact extension registers and activates the tool").
 
 test("structured required read policy enforces projection ledger rows separately from string reads", async () => {
 	const cwd = makeProject();
@@ -8712,9 +8712,9 @@ test("workflow artifact bundle writer stores invalid attempts without commit res
 	}
 });
 
-// Not ported (Pi-only harness export: workflowViewFixture; see docs/core-port.md WP10): test("workflow task detail switches between output and prompt artifacts").
+// Not ported (Pi-only harness export: workflowViewFixture; see core-port record WP10): test("workflow task detail switches between output and prompt artifacts").
 
-// Not ported (Pi-only harness export: workflowViewFixture; see docs/core-port.md WP10): test("workflow task detail scrolls the selected artifact with arrow keys").
+// Not ported (Pi-only harness export: workflowViewFixture; see core-port record WP10): test("workflow task detail scrolls the selected artifact with arrow keys").
 
 test("compiler warns when sourceProjection paths match no source schema", async () => {
 	const cwd = mkdtempSync(join(tmpdir(), "wf-proj-warn-"));

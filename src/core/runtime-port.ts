@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts (SubagentApi seam, lines 287-533). MIT, same author. Changes: the engine calls the in-repo runtime API (src/runtime/api.ts) statically instead of importing @agwab/pi-subagent/api; `supportsExplicitExtensionIsolation` dropped (Pi only); the test seam is setTaskRuntimeApiForTests (was setSubagentApiForTests). Result/barrier shapes are the pi-subagent ones the runtime kept (docs/runtime-port.md "SubagentApi → runtime API").
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/subagent-backend.ts (SubagentApi seam, lines 287-533). MIT, same author. Changes: the engine calls the in-repo runtime API (src/runtime/api.ts) statically instead of importing @agwab/pi-subagent/api; `supportsExplicitExtensionIsolation` dropped (Pi only); the test seam is setTaskRuntimeApiForTests (was setSubagentApiForTests). Result/barrier shapes are the pi-subagent ones the runtime kept (runtime-port record "SubagentApi → runtime API").
 import {
 	type SubagentResultArtifactRef,
 	type SubagentRunLogRef,

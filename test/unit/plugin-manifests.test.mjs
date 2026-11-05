@@ -6,7 +6,7 @@
 // marketplaces resolve to the plugin directory. docs/plugins.md.
 // WP36: the Claude Code manifest's inline UserPromptSubmit hook runs `agent-workflow notify-check`
 // from the same pinned package (guarded by the project's run directory, always exit 0); Codex has no
-// plugin hook (docs/host-ux-investigation.md).
+// plugin hook (host UX investigation record).
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";

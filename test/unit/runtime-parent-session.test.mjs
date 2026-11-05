@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/checks/parent-session.mjs to node:test against dist/. MIT, same author. Changes: see docs/runtime-port.md (test table).
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/checks/parent-session.mjs to node:test against dist/. MIT, same author. Changes: see runtime-port record (test table).
 // Verifies parentSessionId is persisted into run.json by beginRunRecord and
 // preserved across subsequent attempt upserts. This is the session-ownership
 // signal pi-panel uses to scope footer subagent rows to the launching session.

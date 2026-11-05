@@ -1,5 +1,5 @@
 // WP1b comparison: recorded pi-workflow run record vs the agent-workflow replay, difference by
-// difference, each classified (docs/replay.md "Classification").
+// difference, each classified (replay record "Classification").
 //
 //   recorded  <fixture>/run/ normalized with the WP1a policy (must equal the committed normalized/)
 //   replayed  <ROOT>/.agent-workflow/workflows/<runId>/ normalized with the replay host roots, then

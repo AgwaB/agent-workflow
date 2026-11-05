@@ -186,7 +186,7 @@ function installFakeSubagentApi(cwd) {
 	const launches = new Map();
 	setTaskRuntimeApiForTests({
 		async runSubagent(options) {
-			// runtime API maps thinking → effort (docs/runtime-port.md). Was: options.thinking.
+			// runtime API maps thinking → effort (runtime-port record). Was: options.thinking.
 			calls.launches.push({ model: options.model, thinking: options.effort });
 			const seq = calls.launches.length;
 			const runId = `run_task_${seq}`;

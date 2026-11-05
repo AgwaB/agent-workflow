@@ -1858,9 +1858,9 @@ test("subagent launch forwards tool-call capture only when env is enabled", asyn
 	}
 });
 
-// Not ported (not applicable, WP38: Pi extension launch options — provider, extra (PI_WORKFLOW_SUBAGENT_EXTRA_EXTENSIONS) and sealed ambient extensions — are not part of the runtime API; the Pi executor launches isolated with one generated per-run extension; see docs/core-port.md "Pi executor (WP6)" and "WP38"): test("subagent launch loads provider extensions for extension-backed tools").
+// Not ported (not applicable, WP38: Pi extension launch options — provider, extra (PI_WORKFLOW_SUBAGENT_EXTRA_EXTENSIONS) and sealed ambient extensions — are not part of the runtime API; the Pi executor launches isolated with one generated per-run extension; see core-port record "Pi executor (WP6)" and "WP38"): test("subagent launch loads provider extensions for extension-backed tools").
 
-// Not ported (not applicable, WP38: Pi extension launch options — provider, extra (PI_WORKFLOW_SUBAGENT_EXTRA_EXTENSIONS) and sealed ambient extensions — are not part of the runtime API; the Pi executor launches isolated with one generated per-run extension; see docs/core-port.md "Pi executor (WP6)" and "WP38"): test("subagent launch appends extra extensions from env").
+// Not ported (not applicable, WP38: Pi extension launch options — provider, extra (PI_WORKFLOW_SUBAGENT_EXTRA_EXTENSIONS) and sealed ambient extensions — are not part of the runtime API; the Pi executor launches isolated with one generated per-run extension; see core-port record "Pi executor (WP6)" and "WP38"): test("subagent launch appends extra extensions from env").
 
 test("completed subagent with contextLengthExceeded and valid output remains completed", async () => {
 	const cwd = makeProject();
@@ -3115,7 +3115,7 @@ test("workflow run runtime overrides reach launched subagents", async () => {
 		assert.equal(run.tasks[0].runtime.model, "kimi-coding/kimi-for-coding");
 		assert.equal(run.tasks[0].runtime.thinking, "low");
 		assert.equal(captured[0].model, "kimi-coding/kimi-for-coding");
-		// runtime API maps thinking → effort (docs/runtime-port.md). Was: captured[0].thinking.
+		// runtime API maps thinking → effort (runtime-port record). Was: captured[0].thinking.
 		assert.equal(captured[0].effort, "low");
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
@@ -3862,9 +3862,9 @@ test("resumeRun rejects completed and loop runs", async () => {
 	}
 });
 
-// Not ported (Pi-only harness export: notifyUnfinishedRuns; see docs/core-port.md WP10): test("notifyUnfinishedRuns reports recent failed root runs with resume hint").
+// Not ported (Pi-only harness export: notifyUnfinishedRuns; see core-port record WP10): test("notifyUnfinishedRuns reports recent failed root runs with resume hint").
 
-// Not ported (Pi-only harness export: notifyUnfinishedRuns; see docs/core-port.md WP10): test("notifyUnfinishedRuns prunes stale and orphaned notice entries on write").
+// Not ported (Pi-only harness export: notifyUnfinishedRuns; see core-port record WP10): test("notifyUnfinishedRuns prunes stale and orphaned notice entries on write").
 
 test("deep-review batch partition rejects stale batch control schema labels", async () => {
 	const helperPath = join(
@@ -5141,7 +5141,7 @@ test("formatRun surfaces supervisor heartbeat lost while run says running", asyn
 	}
 });
 
-// Not ported (Pi-only harness export: workflowViewFixture; see docs/core-port.md WP10): test("workflow board shows heartbeat-lost badge when supervisor heartbeat is stale").
+// Not ported (Pi-only harness export: workflowViewFixture; see core-port record WP10): test("workflow board shows heartbeat-lost badge when supervisor heartbeat is stale").
 
 test("launch-bootstrap provenance is deterministic, attempt-scoped, and bounded on mismatch", async () => {
 	const cwd = makeProject();
@@ -5553,11 +5553,11 @@ test("launch-bootstrap provenance reloads with the prepared artifact manifest be
 	}
 });
 
-// Not ported (WP4b: the generated Pi workflow_artifact wrapper is replaced by artifact-access.json + the MCP server; these tests tamper with wrapper files that no longer exist; see docs/core-port.md WP10): test("launch-bootstrap rejects wrong artifact identity and wrapper bindings before backend invocation").
+// Not ported (WP4b: the generated Pi workflow_artifact wrapper is replaced by artifact-access.json + the MCP server; these tests tamper with wrapper files that no longer exist; see core-port record WP10): test("launch-bootstrap rejects wrong artifact identity and wrapper bindings before backend invocation").
 
-// Not ported (WP4b: the generated Pi workflow_artifact wrapper is replaced by artifact-access.json + the MCP server; these tests tamper with wrapper files that no longer exist; see docs/core-port.md WP10): test("launch-bootstrap rejects artifact binding drift before runSubagent").
+// Not ported (WP4b: the generated Pi workflow_artifact wrapper is replaced by artifact-access.json + the MCP server; these tests tamper with wrapper files that no longer exist; see core-port record WP10): test("launch-bootstrap rejects artifact binding drift before runSubagent").
 
-// Not ported (not applicable, WP38: Pi extension launch options — provider, extra (PI_WORKFLOW_SUBAGENT_EXTRA_EXTENSIONS) and sealed ambient extensions — are not part of the runtime API; the Pi executor launches isolated with one generated per-run extension; see docs/core-port.md "Pi executor (WP6)" and "WP38"): test("launch-bootstrap seals ambient extensions and rejects generated-wrapper drift before runSubagent").
+// Not ported (not applicable, WP38: Pi extension launch options — provider, extra (PI_WORKFLOW_SUBAGENT_EXTRA_EXTENSIONS) and sealed ambient extensions — are not part of the runtime API; the Pi executor launches isolated with one generated per-run extension; see core-port record "Pi executor (WP6)" and "WP38"): test("launch-bootstrap seals ambient extensions and rejects generated-wrapper drift before runSubagent").
 
 test("workflow launch authority is deterministic and enforces its lifecycle", async () => {
 	const cwd = makeProject();
@@ -5879,7 +5879,7 @@ test("subagent launch rejects hook-mutated authority before runSubagent", async 
 	}
 });
 
-// Not ported (WP4b: the generated Pi workflow_artifact wrapper is replaced by artifact-access.json + the MCP server; these tests tamper with wrapper files that no longer exist; see docs/core-port.md WP10): test("subagent launch rejects intact authority when the sealed launch drifts").
+// Not ported (WP4b: the generated Pi workflow_artifact wrapper is replaced by artifact-access.json + the MCP server; these tests tamper with wrapper files that no longer exist; see core-port record WP10): test("subagent launch rejects intact authority when the sealed launch drifts").
 
 // WP38: ported with the runtime launch request's fields. Pi extensions and the tool-result budget
 // are not runtime options (the Pi executor owns them), so the late mutation targets the tools, the

@@ -4,7 +4,7 @@
 // from its descriptor in a fresh process, so the run goes engine → core task backend → runtime
 // durable worker → this module, with no Pi process, model or network.
 //
-// Match key (see docs/replay.md): `<taskId> NUL sha256(normalized task prompt)`.
+// Match key (see replay record): `<taskId> NUL sha256(normalized task prompt)`.
 //   - taskId: the third field of the engine attemptKey (`awf1:<runId>:<taskId>:<hex>`); on the
 //     recorded side the second field of the pi-subagent `correlationId` (`<runId>:<taskId>`).
 //   - normalized task prompt: SubmitRequest.prompt (recorded: runSubagent `task`) through the
@@ -27,7 +27,7 @@
 //      from the request's `workflow_artifact` McpServerSpec (so it reads the task's
 //      artifact-access.json and writes the ledger itself). The server gets
 //      `--max-output-chars <MAX_MCP_OUTPUT_LIMIT_CHARS>`: the recorded Pi worker received these
-//      results whole (its ledger rows say so), see docs/replay.md "What the replay cannot reproduce".
+//      results whole (its ledger rows say so), see replay record "What the replay cannot reproduce".
 //   2. events: `started` (sessionId as the Pi adapter reports it), one `usage` event mapped from
 //      the recorded Pi usage by the Pi adapter's own `usageFromPi`, then `completed` with the
 //      recorded output.log text verbatim (host roots restored) or `failed` with the failure class

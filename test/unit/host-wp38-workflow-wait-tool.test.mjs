@@ -1,7 +1,7 @@
 // Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) test/unit/workflow-wait-tool.test.mjs. MIT, same
 // author. WP38: the 37 tests map onto agent-workflow's WP28 long waits, WP33 owned waits and the
 // WP16/WP19 Pi completion delivery (src/hosts/pi/feedback.ts); the dispositions of the tests not
-// ported here are in docs/core-port.md "WP38". Changes: imports from dist/core and dist/hosts;
+// ported here are in core-port record "WP38". Changes: imports from dist/core and dist/hosts;
 // pi-workflow `workflow_wait` → `aw_wait` (createAgentWorkflowPiExtension over the fake Pi of
 // test/helpers/pi-host-fake.mjs); `deliverWorkflowFeedback(ctx, pi, run)` → `deliverCompletion(pi,
 // ctx, run, {triggerTurn})` with outcome strings (was `{status}` objects); the audience is bound with

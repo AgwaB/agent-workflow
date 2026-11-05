@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/checks/contracts.mjs to node:test against dist/. MIT, same author. Changes: see docs/runtime-port.md (test table).
+// Ported from @agwab/pi-subagent 0.7.2 (pi-subagent-engine ab91a74) test/checks/contracts.mjs to node:test against dist/. MIT, same author. Changes: see runtime-port record (test table).
 import assert from "node:assert/strict";
 import { createResultEnvelope } from "../../dist/runtime/artifacts/index.js";
 import { validateResolveInput } from "../../dist/runtime/core/validation.js";

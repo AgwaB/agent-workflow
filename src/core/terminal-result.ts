@@ -469,7 +469,7 @@ export function withCliErrorLine(message: string, stderrText: string): string {
 	return `${message} — ${line.length > 240 ? `${line.slice(0, 239)}…` : line}`;
 }
 
-/** Runtime failure kind for reconcile `unknown` (docs/runtime-port.md "Failure kinds"). */
+/** Runtime failure kind for reconcile `unknown` (docs/architecture.md "Failure kinds"). */
 export const EXECUTOR_NEEDS_DECISION_FAILURE_KIND = "needs_decision";
 /** Task statusDetail of a task blocked on an owner decision (B3). Resumable by an explicit resume. */
 export const EXECUTOR_NEEDS_DECISION_STATUS_DETAIL = "executor_needs_decision";

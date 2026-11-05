@@ -41,7 +41,7 @@ export const FAILURE_KINDS = [
 	"parse",
 	"internal",
 	"stale",
-	// WP2a-2 executor seam (see docs/runtime-port.md "Failure kinds").
+	// WP2a-2 executor seam (see docs/architecture.md "Failure kinds").
 	/** Executor `failed.class: "transient"`; the core may retry automatically. */
 	"transient",
 	/** Executor `failed.class: "rate_limit"`; the core may retry after backoff. */

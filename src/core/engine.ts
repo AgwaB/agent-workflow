@@ -1653,7 +1653,7 @@ function markRunStopped(run: WorkflowRunRecord): string[] {
 		} else if (task.status === "blocked") {
 			// agent-workflow 2026-11-04: a blocked task (a decision, an approval, a declared-blocked
 			// step) is terminal for the task but keeps the run blocked; stopping the run abandons it
-			// (docs/core-port.md: "`stop` abandons it"). Before, stopping a blocked run left it
+			// (core-port record: "`stop` abandons it"). Before, stopping a blocked run left it
 			// blocked and listed under "Needs you". It resumes like any stopped task.
 			delete task.activity;
 			task.status = "interrupted";
