@@ -196,6 +196,7 @@ import {
 } from "./workflow-partial-output.js";
 import {
 	EXPERIMENTAL_CACHE_STABLE_FOREACH_ENV,
+	EXPERIMENTAL_SAME_SESSION_REPAIR_ENV,
 	PER_ITEM_DISPATCH_ENV,
 	runExperimentalFlagEnabled,
 	runScopedExperimentalFlagsAtLaunch,
@@ -860,6 +861,11 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 				(spec as { allowReadOnlyDowngrade?: unknown })
 					.allowReadOnlyDowngrade === true,
 			permissionMode: permissionMode.mode,
+			// The flag the run record gets below (experimentalFlags): a nested run follows its parent.
+			sameSessionRepair: runExperimentalFlagEnabled(
+				parentRun,
+				EXPERIMENTAL_SAME_SESSION_REPAIR_ENV,
+			),
 		},
 		...(parentRun?.capabilityNegotiation === undefined
 			? {}

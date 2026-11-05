@@ -312,6 +312,14 @@ export interface WorkflowCapabilityPolicy {
 	 * Absent (records created before WP4e) = `safe`.
 	 */
 	permissionMode?: "free" | "safe";
+	/**
+	 * 2026-11-04: the run uses the experimental same-session repair
+	 * (`AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR`). Only then does a stage need `resume`: without
+	 * it every executor repairs in a fresh attempt, and a missing `resume` changes nothing (a live
+	 * Claude Code host asked the user to accept antigravity's "a repair starts a new session" on every
+	 * launch). Absent = off.
+	 */
+	sameSessionRepair?: boolean;
 }
 
 /** B5: a task inherits the user's context files/skills only when the stage or agent opts in. */
@@ -356,7 +364,8 @@ export function workflowTaskRequirementContext(
 		inherit: workflowTaskInheritsContext(task),
 		wantsCost: true,
 		partialStream: (task.artifactGraph?.output.partial?.paths.length ?? 0) > 0,
-		sameSessionRepair: task.artifactGraph?.enabled === true,
+		sameSessionRepair:
+			task.artifactGraph?.enabled === true && policy.sameSessionRepair === true,
 		fastTier: task.runtime.fast === "on",
 		...(needsMcp
 			? { requirements: { mcpInjection: DEFAULT_REQUIREMENTS.mcpInjection } }
@@ -1065,6 +1074,7 @@ export async function negotiateWorkflowRun(
 			strict: [...policy.strict],
 			allowReadOnlyDowngrade: policy.allowReadOnlyDowngrade,
 			permissionMode: policy.permissionMode ?? "safe",
+			...(policy.sameSessionRepair === true ? { sameSessionRepair: true } : {}),
 		},
 		confirmation,
 		...(confirmedVia ? { confirmedVia } : {}),

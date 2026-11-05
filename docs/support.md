@@ -87,7 +87,10 @@ claude. Every run completed with `NEEDS_WORK`; each host reported verdict, run i
 | Claude Code → codex, pi | not needed | |
 | Claude Code → antigravity, Mixed B | asked in chat (print mode cancels dialogs): no run until the user agreed, then `acceptDegradations: ["resume"]` (`confirmedVia: "chat"`) | |
 
-The limit that needs an OK on antigravity is `resume` (a repair starts a new session). Three runs
+The limit that needed an OK on antigravity was `resume` (a repair starts a new session). That was
+wrong: repairs start a fresh attempt on every executor unless the run enables the experimental
+same-session repair, so `resume` is now negotiated only in such runs (antigravity launches need no OK
+in free mode since). Three runs
 were partial (a reviewer or verifier quote not in its cited lines, or coverage of an unassigned
 file), each named in the report. Waiting is cheap on the Claude host ($0.009–0.018 per run) and
 token-heavy on the Codex host (0.6–1.2 M input tokens per run, ~95 % cached: one `workflow_wait`

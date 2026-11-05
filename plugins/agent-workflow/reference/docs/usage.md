@@ -739,7 +739,9 @@ subscription: see [`support.md`](support.md).
 **Worker sessions.** By default no worker keeps a CLI session (D3): workers run without session
 persistence (Claude `--no-session-persistence`, Codex ephemeral threads, Pi `--no-session`), and output
 repairs, launch retries and resumes start fresh attempts. Only the experimental same-session repair
-(`AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR`) requests kept sessions. Sessions the engine did
+(`AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR`) requests kept sessions. Only such a run negotiates
+`resume` before launch (2026-11-04; before, every artifact-graph stage did, and executors without
+`resume`, such as antigravity, needed an OK for a difference that did not exist). Sessions the engine did
 request are released through the executor's `deleteOwnedSession`: a completed or skipped task's at
 once, every remaining one when the run completes or fails. A blocked or interrupted run keeps the
 sessions of its failed, blocked and interrupted tasks until it is resolved or pruned. Each released

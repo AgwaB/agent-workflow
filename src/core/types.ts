@@ -1577,6 +1577,8 @@ export interface WorkflowRunCapabilityNegotiation {
 		allowReadOnlyDowngrade: boolean;
 		/** WP4e; absent on records created before WP4e (= safe). */
 		permissionMode?: "free" | "safe";
+		/** 2026-11-04: the run's experimental same-session repair is on (absent = off). */
+		sameSessionRepair?: boolean;
 	};
 	/** `confirmed`: an interactive host accepted the degradations before launch. */
 	confirmation: "not-needed" | "confirmed" | "non-interactive";
