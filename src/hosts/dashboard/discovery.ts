@@ -429,6 +429,9 @@ export async function ensureDashboard(
 			const exited = new Promise<void>((done) =>
 				failedChild.once("close", () => done()),
 			);
+			// The child was unref'd for the detached dashboard; waiting for its exit must keep the loop
+			// alive (2026-11-05, first CI run on Node 22: the loop ended with this wait pending).
+			failedChild.ref();
 			failedChild.kill("SIGKILL");
 			await exited;
 		}
