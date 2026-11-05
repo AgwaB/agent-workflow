@@ -28,6 +28,7 @@ import {
 	readFile,
 	rename,
 	rm,
+	stat,
 	writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
@@ -192,7 +193,10 @@ async function pruneMarkers(cwd: string, dir: string): Promise<void> {
 	const names = await readdir(dir).catch(() => [] as string[]);
 	const exists = new Map<string, boolean>();
 	for (const name of names) {
-		const match = /^(.+)\.[0-9a-f]{24}\.json$/u.exec(name);
+		// Receipts, and (2026-11-05) the session links of runs that are gone.
+		const match =
+			/^(.+)\.[0-9a-f]{24}\.json$/u.exec(name) ??
+			/^session-[A-Za-z0-9_-]+\.(.+)\.link$/u.exec(name);
 		if (!match) continue;
 		const runId = match[1]!;
 		if (!isSafeRunId(runId)) continue;
@@ -211,6 +215,69 @@ async function pruneMarkers(cwd: string, dir: string): Promise<void> {
 }
 
 const STAMP_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/u;
+
+/**
+ * 2026-11-05 (owner: wait in code, wake the host once): the Claude Code plugin's completion monitor
+ * runs `notify-check --follow --session <id>` for its session (`CLAUDE_CODE_SESSION_ID`). It reports
+ * only the runs that session launched — the MCP server records `session-<id>.<runId>.link` after a
+ * launch — and refreshes `monitor-<id>.stamp` on every check, so the server can tell that this
+ * session has a live monitor and let the agent end its turn instead of calling workflow_wait.
+ * Another session's monitor in the same project never takes the run.
+ */
+const HOST_SESSION_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,55}$/u;
+/** A monitor refreshes its stamp every check (5 s by default); older means it is gone. */
+export const MONITOR_ALIVE_MS = 20_000;
+
+export function isHostSessionId(value: unknown): value is string {
+	return typeof value === "string" && HOST_SESSION_PATTERN.test(value);
+}
+
+function sessionLinkName(session: string, runId: string): string {
+	return `session-${session}.${runId}.link`;
+}
+
+function monitorStampName(session: string): string {
+	return `monitor-${session}`;
+}
+
+/** The MCP server, after a launch: this host session started the run (best effort). */
+export async function recordRunHostSession(
+	cwd: string,
+	runId: string,
+	session: string,
+): Promise<void> {
+	if (!isHostSessionId(session) || !isSafeRunId(runId)) return;
+	try {
+		const dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, true);
+		if (!dir) return;
+		// O_EXCL never follows a symlink at the link path.
+		const handle = await open(
+			join(dir, sessionLinkName(session, runId)),
+			"wx",
+			0o600,
+		);
+		await handle.close();
+	} catch {
+		// Present already, or no state directory: the run is then reported by the prompt hook.
+	}
+}
+
+/** This session's completion monitor checked within MONITOR_ALIVE_MS. */
+export async function hostSessionMonitorAlive(
+	cwd: string,
+	session: string,
+	now = Date.now(),
+): Promise<boolean> {
+	if (!isHostSessionId(session)) return false;
+	try {
+		const dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, false);
+		if (!dir) return false;
+		const info = await stat(join(dir, `${monitorStampName(session)}.stamp`));
+		return now - info.mtimeMs <= MONITOR_ALIVE_MS;
+	} catch {
+		return false;
+	}
+}
 
 /** WP42: a valid `--stamp` name (the hook passes `hook-<host>`); the file is `<name>.stamp`. */
 export function assertNotifyStampName(name: string): void {
@@ -319,13 +386,30 @@ export async function notifyCheck(
 		now?: number;
 		env?: NodeJS.ProcessEnv;
 		stamp?: string;
-		/** 2026-11-05: only this run (a Monitor started for one launch). */
+		/** 2026-11-05: only this run. */
 		runId?: string;
+		/** 2026-11-05: only the runs this host session launched; refreshes its monitor stamp. */
+		session?: string;
 	} = {},
 ): Promise<{ data: NotifyCheckData; text: string }> {
 	if (options.stamp !== undefined) assertNotifyStampName(options.stamp);
+	if (options.session !== undefined && !isHostSessionId(options.session))
+		throw new Error(
+			`invalid host session id ${JSON.stringify(options.session)}`,
+		);
 	// The stamp's mtime: the wall clock when the check started (the hook compares run.json mtimes).
 	const startedAt = Date.now();
+	if (options.session !== undefined) {
+		const dir = await containedProjectStateDir(
+			cwd,
+			NOTIFY_CHECK_DIR,
+			true,
+		).catch(() => undefined);
+		if (dir)
+			await writeStamp(dir, monitorStampName(options.session), startedAt).catch(
+				() => undefined,
+			);
+	}
 	const checked = await checkOnce(cwd, options);
 	if (options.stamp !== undefined)
 		await updateStamp(cwd, options.stamp, checked.data.deferred > 0, startedAt);
@@ -375,6 +459,7 @@ async function checkOnce(
 		now?: number;
 		env?: NodeJS.ProcessEnv;
 		runId?: string;
+		session?: string;
 	},
 ): Promise<{ data: NotifyCheckData; text: string }> {
 	const now = options.now ?? Date.now();
@@ -392,6 +477,11 @@ async function checkOnce(
 	const existing = new Set(await readdir(dir).catch(() => [] as string[]));
 	const candidates = entries
 		.filter((entry) => {
+			if (
+				options.session !== undefined &&
+				!existing.has(sessionLinkName(options.session, entry.runId))
+			)
+				return false;
 			const updated = Date.parse(entry.updatedAt);
 			return !Number.isFinite(updated) || updated >= since;
 		})

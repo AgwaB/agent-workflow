@@ -1,9 +1,10 @@
-// 2026-11-05 (owner: wait in code, wake the host once; live check host-wake-20261105): a Claude Code
-// session waits for a launch through a Monitor on `notify-check --follow --run <id>`, which reads the
-// run state in code, prints one line when the run has settled (the line wakes the idle session) and
-// exits. The launch's next step offers that command to Claude Code hosts only.
+// 2026-11-05 (owner: wait in code, wake the host once; live checks internal host-wake-20261105):
+// the Claude Code plugin's completion monitor runs `notify-check --follow --session <id>` for its
+// session: it reports only the runs that session launched (the MCP server records the link) and keeps
+// a stamp alive, and a launch from a session with a live monitor tells the agent to end its turn
+// instead of calling workflow_wait. `--run` follows one run and exits once it has settled.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,6 +12,10 @@ import { after, before, test } from "node:test";
 
 const cli = await import("../../dist/hosts/cli/index.js");
 const mcpTools = await import("../../dist/mcp/host-server/tools.js");
+const notify = await import("../../dist/hosts/notify-check.js");
+const plugins = await import("../../tools/release/plugins.mjs");
+const SESSION = "6f391173-db3f-4427-95fa-b09adc22b84f";
+const OTHER = "0a1b2c3d-0000-4000-8000-000000000000";
 
 let root;
 let counter = 0;
@@ -142,27 +147,92 @@ test("notify-check --follow --run: prints the one run's line when it settles and
 	assert.equal(missing, 2);
 });
 
-test("monitorCommand runs this package's CLI: one line for a settled run, then it exits", async () => {
+test("--session: only the runs this session launched; the monitor stamp says the monitor is alive", async () => {
 	const cwd = await project();
-	await writeRun(cwd, "workflow_done", "completed");
-	const command = mcpTools.monitorCommand(cwd, "workflow_done");
-	assert.match(
-		command,
-		/notify-check --follow --run workflow_done --host claude-code$/,
-	);
-	const ran = spawnSync("/bin/sh", ["-c", command], {
-		encoding: "utf8",
-		timeout: 60_000,
+	await writeRun(cwd, "workflow_mine", "completed");
+	await writeRun(cwd, "workflow_theirs", "completed");
+	await notify.recordRunHostSession(cwd, "workflow_mine", SESSION);
+	await notify.recordRunHostSession(cwd, "workflow_theirs", OTHER);
+	assert.equal(await notify.hostSessionMonitorAlive(cwd, SESSION), false);
+	const checked = await notify.notifyCheck(cwd, {
+		host: "claude-code",
+		session: SESSION,
 	});
-	assert.equal(ran.status, 0, ran.stderr);
-	assert.match(
-		ran.stdout,
-		/^agent-workflow: workflow "deep-review" \(run workflow_done\) finished/,
+	assert.deepEqual(
+		checked.data.notifications.map((row) => row.runId),
+		["workflow_mine"],
 	);
-	assert.equal(ran.stdout.trim().split("\n").length, 1);
+	assert.equal(await notify.hostSessionMonitorAlive(cwd, SESSION), true);
+	assert.equal(await notify.hostSessionMonitorAlive(cwd, OTHER), false);
+	assert.equal(
+		await notify.hostSessionMonitorAlive(
+			cwd,
+			SESSION,
+			Date.now() + notify.MONITOR_ALIVE_MS + 1_000,
+		),
+		false,
+	);
+	// The other session's run is still there for its own monitor (or the prompt hook).
+	const theirs = await notify.notifyCheck(cwd, {
+		host: "claude-code",
+		session: OTHER,
+	});
+	assert.deepEqual(
+		theirs.data.notifications.map((row) => row.runId),
+		["workflow_theirs"],
+	);
+	assert.equal(
+		await cli.runAgentWorkflowCli(["notify-check", "--session", "../x"], {
+			cwd,
+			env: process.env,
+			stdout: () => {},
+			stderr: () => {},
+			isTTY: false,
+		}),
+		2,
+	);
 });
 
-test("the launch's next step offers the Monitor to Claude Code hosts only", async () => {
+test("the plugin's monitor command: waits for runs, then prints this session's line (dev CLI, real shell)", async () => {
+	const cwd = await project();
+	const monitor = plugins.claudeCompletionMonitor(
+		plugins.devCliLaunch(process.cwd()),
+	);
+	assert.equal(monitor.name, "run-completion");
+	const start = (env) =>
+		spawn("/bin/sh", ["-c", monitor.command], {
+			cwd,
+			env: { ...process.env, CLAUDE_PROJECT_DIR: cwd, ...env },
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+	// No session id (older Claude Code): exits at once.
+	const none = start({ CLAUDE_CODE_SESSION_ID: "" });
+	assert.equal(await new Promise((done) => none.on("exit", done)), 0);
+	await writeRun(cwd, "workflow_mine", "completed");
+	await writeRun(cwd, "workflow_theirs", "completed");
+	await notify.recordRunHostSession(cwd, "workflow_mine", SESSION);
+	await notify.recordRunHostSession(cwd, "workflow_theirs", OTHER);
+	const child = start({ CLAUDE_CODE_SESSION_ID: SESSION });
+	let out = "";
+	const line = await new Promise((done, fail) => {
+		const timer = setTimeout(() => fail(new Error(`no line: ${out}`)), 60_000);
+		child.stdout.on("data", (chunk) => {
+			out += chunk;
+			if (out.includes("\n")) {
+				clearTimeout(timer);
+				done(out);
+			}
+		});
+	});
+	child.kill();
+	assert.match(
+		line,
+		/^agent-workflow: workflow "deep-review" \(run workflow_mine\) finished/,
+	);
+	assert.doesNotMatch(line, /workflow_theirs/);
+});
+
+test("a launch's next step: end the turn when this Claude Code session's monitor is alive, else workflow_wait", async () => {
 	const cwd = await project();
 	const api = new Proxy(
 		{},
@@ -193,29 +263,40 @@ test("the launch's next step offers the Monitor to Claude Code hosts only", asyn
 		sendRequest: async () => ({}),
 		sendNotification: async () => undefined,
 	};
-	const text = async (host) =>
+	const text = async (host, env = {}) =>
 		(
 			await mcpTools
-				.createHostMcpService({ root: cwd, host, env: process.env, api })
+				.createHostMcpService({
+					root: cwd,
+					host,
+					env: { ...process.env, ...env },
+					api,
+				})
 				.call("workflow_run", { workflow: "deep-review", task: "t" }, call)
 		).content
 			.map((part) => part.text)
 			.join("\n");
-	const claude = await text("claude-code");
-	assert.match(claude, /load Claude Code's Monitor tool \(ToolSearch select:Monitor\)/);
-	assert.ok(
-		claude.includes(
-			mcpTools.monitorCommand(cwd, "workflow_launched").replaceAll("'", "'"),
-		),
-	);
+	const WAIT =
+		/Then call workflow_wait \{"runId":"workflow_launched"\} and repeat while stillRunning is true\./;
+	// No monitor yet: wait as before, but the launch is linked to the session.
 	assert.match(
-		claude,
-		/Only if Monitor cannot be loaded \(print mode, SDK\): call workflow_wait/,
+		await text("claude-code", { CLAUDE_CODE_SESSION_ID: SESSION }),
+		WAIT,
 	);
-	const codex = await text("codex");
-	assert.doesNotMatch(codex, /Monitor/);
+	await writeRun(cwd, "workflow_launched", "running");
+	await notify.notifyCheck(cwd, { host: "claude-code", session: SESSION });
+	const monitored = await text("claude-code", {
+		CLAUDE_CODE_SESSION_ID: SESSION,
+	});
 	assert.match(
-		codex,
-		/Then call workflow_wait \{"runId":"workflow_launched"\} and repeat while stillRunning is true\./,
+		monitored,
+		/completion monitor \(from the plugin\) reports the run when it has finished: end your turn now and do not call workflow_wait/,
 	);
+	assert.doesNotMatch(monitored, /notify-check|node /);
+	// Another session, or another host: wait.
+	assert.match(
+		await text("claude-code", { CLAUDE_CODE_SESSION_ID: OTHER }),
+		WAIT,
+	);
+	assert.match(await text("codex", { CLAUDE_CODE_SESSION_ID: SESSION }), WAIT);
 });

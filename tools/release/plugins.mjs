@@ -212,6 +212,41 @@ export function claudePluginHooks(cli) {
 	};
 }
 
+/**
+ * 2026-11-05 (owner: wait in code, wake the host once): the Claude Code plugin's completion monitor.
+ * Claude Code starts a plugin monitor in the background for an interactive session (not with -p) and
+ * hands each line it prints to Claude as a notification, which wakes an idle session. The command
+ * waits in the shell until the project has runs (no CLI start before), then runs
+ * `notify-check --follow --session <CLAUDE_CODE_SESSION_ID>`: one line per run this session launched
+ * once it has settled, and a stamp that tells the MCP server the monitor is alive, so the launch's
+ * next step lets the agent end its turn instead of calling workflow_wait every 45 s. Without a
+ * session id (an older Claude Code) it exits at once.
+ */
+export function claudeCompletionMonitor(cli) {
+	const follow = [
+		cli.command,
+		...cli.args,
+		"notify-check",
+		"--follow",
+		"--host",
+		HOST_IDS.claude,
+		"--session",
+	]
+		.map(shellWord)
+		.join(" ");
+	return {
+		name: "run-completion",
+		command: [
+			's="${CLAUDE_CODE_SESSION_ID:-}"',
+			'[ -n "$s" ] || exit 0',
+			'd="${CLAUDE_PROJECT_DIR:-.}"',
+			'until [ -d "$d/.agent-workflow/workflows" ]; do sleep 5; done',
+			`cd "$d" && exec ${follow} "$s"`,
+		].join("; "),
+		description: "agent-workflow: a run this session started has finished",
+	};
+}
+
 export async function readPackageVersion(root = REPO_ROOT) {
 	const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
 	if (pkg.name !== PACKAGE_NAME)
@@ -242,6 +277,7 @@ export function claudePluginManifest(
 		keywords: [...KEYWORDS],
 		mcpServers: { [MCP_SERVER_NAME]: launch(HOST_IDS.claude) },
 		hooks: claudePluginHooks(cli),
+		experimental: { monitors: [claudeCompletionMonitor(cli)] },
 	};
 }
 

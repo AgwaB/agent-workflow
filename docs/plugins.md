@@ -186,6 +186,11 @@ context: at the user's next message, each run that finished since the last check
   context, prefixed `UserPromptSubmit hook success: ` (live bundle 5), so the server instructions and
   the skill speak of a line *containing* `agent-workflow:`, not one starting with it (WP39b). There is no `hooks/hooks.json` (Claude Code loads that file by default, and Codex would
   read it too). The dev plugin runs the checkout's CLI instead of `npx`.
+- **Claude Code completion monitor (2026-11-05).** `.claude-plugin/plugin.json` also declares
+  `experimental.monitors` `run-completion` (`claudeCompletionMonitor` in `tools/release/plugins.mjs`):
+  interactive sessions only; it waits in the shell until the project has runs, then follows
+  `notify-check --follow --session $CLAUDE_CODE_SESSION_ID`. Its lines wake the idle session, so the
+  agent does not poll with `workflow_wait` ([host-mcp.md](host-mcp.md#waiting-without-polling-the-claude-code-completion-monitor-2026-11-05)).
 - **Codex (manual).** The plugin ships no Codex hook: Codex skips plugin hooks until the user
   trusts them in `/hooks`, and plugins with lifecycle hooks are not eligible for the public plugin
   directory. Add it to `~/.codex/hooks.json` or the project's `.codex/hooks.json` (trusted projects

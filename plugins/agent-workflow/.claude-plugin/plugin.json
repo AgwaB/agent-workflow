@@ -41,5 +41,14 @@
         ]
       }
     ]
+  },
+  "experimental": {
+    "monitors": [
+      {
+        "name": "run-completion",
+        "command": "s=\"${CLAUDE_CODE_SESSION_ID:-}\"; [ -n \"$s\" ] || exit 0; d=\"${CLAUDE_PROJECT_DIR:-.}\"; until [ -d \"$d/.agent-workflow/workflows\" ]; do sleep 5; done; cd \"$d\" && exec npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow notify-check --follow --host claude-code --session \"$s\"",
+        "description": "agent-workflow: a run this session started has finished"
+      }
+    ]
   }
 }

@@ -66,11 +66,10 @@ Use whichever form your tool list shows.
    and opens directly (no sign-in by default). If the user wants it opened for them, can't open it,
    or — on a dashboard started with `--auth` — it asks them to sign in, call `workflow_dashboard`:
    the user confirms in a dialog. People want the link first.
-4. **Claude Code with the Monitor tool (interactive):** when the launch result's next step names a
-   Monitor command (`… notify-check --follow --run <runId> --host claude-code`), load the Monitor tool
-   (`ToolSearch select:Monitor`), start it with that command and its longest timeout and end your turn; do not call `workflow_wait`. The command checks the
-   run in code and prints one line when it has settled; that line arrives as a Monitor event and wakes
-   you: then tell the user the verdict, the `runId` and the link. Otherwise (no Monitor tool, print
+4. **Claude Code with the plugin's completion monitor (interactive sessions):** when the launch
+   result's next step says this session's completion monitor reports the run, end your turn and do
+   not call `workflow_wait`; its line `agent-workflow: workflow … finished — …` arrives as a
+   notification and wakes you: then tell the user the verdict, the `runId` and the link. Otherwise (print
    mode, other hosts): call `workflow_wait {runId}`. While the result says `stillRunning: true`, call `workflow_wait`
    again with the same `runId`; between calls give the user at most a one-line progress note. Do not
    poll with shell `sleep`, and do not start other edits on files the run is reading.

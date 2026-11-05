@@ -107,8 +107,15 @@ test("dev output: manifests launch the checkout's server per host; everything el
 			delete server.args;
 		}
 		delete copy.hooks;
+		// 2026-11-05: the completion monitor runs the same CLI as the hook.
+		for (const monitor of copy.experimental?.monitors ?? [])
+			delete monitor.command;
 		return copy;
 	};
+	assert.match(
+		claude.experimental.monitors[0].command,
+		/src\/hosts\/cli\/cli\.mjs notify-check --follow --host claude-code --session "\$s"$/,
+	);
 	assert.deepEqual(
 		strip(claude),
 		strip(await readJson(join(committed, ".claude-plugin/plugin.json"))),

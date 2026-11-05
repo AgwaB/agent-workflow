@@ -413,7 +413,8 @@ agent-workflow: workflow "deep-review" (run workflow_…) finished — verdict N
 
 and nothing otherwise (exit 0). `--run <id>` looks at that run only; with `--follow` it exits once
 the run has settled (after printing its line, or at once when that state was already reported):
-the command a Claude Code Monitor runs for one launch (2026-11-05). Blocked runs name the approval (`approve`) or the
+(2026-11-05). `--session <id>` reports only the runs that Claude Code session launched and keeps
+its monitor stamp fresh: the Claude Code plugin's completion monitor ([host-mcp.md](host-mcp.md)). Blocked runs name the approval (`approve`) or the
 inspect/resume commands; `--host claude-code|codex|generic` words the follow-ups as MCP tool calls.
 Receipts: `.agent-workflow/notify-check/` (created by the first check in a project that has runs,
 or by the first `wait` that returns a settled state)

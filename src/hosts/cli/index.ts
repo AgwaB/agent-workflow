@@ -71,6 +71,7 @@ import {
 } from "../api.js";
 import {
 	assertNotifyStampName,
+	isHostSessionId,
 	notifyCheck,
 	runSettledStateSeen,
 } from "../notify-check.js";
@@ -1039,16 +1040,22 @@ async function dispatch(
 		case "notify-check": {
 			const parsed = parseCommandArgs(argv, {
 				flags: ["--json", "--follow"],
-				values: ["--host", "--interval", "--stamp", "--run"],
+				values: ["--host", "--interval", "--stamp", "--run", "--session"],
 			});
 			only(
 				parsed,
 				0,
-				"notify-check [--host cli|claude-code|codex|generic] [--json] [--stamp <name>] [--run <run-id>] [--follow [--interval <seconds>]]",
+				"notify-check [--host cli|claude-code|codex|generic] [--json] [--stamp <name>] [--run <run-id>] [--session <host-session-id>] [--follow [--interval <seconds>]]",
 			);
 			// 2026-11-05: one run only; with --follow, exit once it has settled (a Claude Code Monitor
 			// started for one launch: its line wakes the session, then the monitor ends).
 			const runFilter = parsed.values.get("--run");
+			// 2026-11-05: the Claude Code plugin's completion monitor (its session's runs only).
+			const session = parsed.values.get("--session");
+			if (session !== undefined && !isHostSessionId(session))
+				throw new HostUsageError(
+					`invalid --session ${JSON.stringify(session)}`,
+				);
 			// WP42: the prompt hook's idle stamp, written by the check itself (contained writer).
 			const stamp = parsed.values.get("--stamp");
 			if (stamp !== undefined) {
@@ -1085,6 +1092,7 @@ async function dispatch(
 					...(io.now ? { now: io.now() } : {}),
 					...(stamp !== undefined ? { stamp } : {}),
 					...(runFilter !== undefined ? { runId: runFilter } : {}),
+					...(session !== undefined ? { session } : {}),
 				});
 			if (follow && runFilter !== undefined) {
 				const run = await readRunRecord(io.cwd, runFilter).catch(
