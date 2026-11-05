@@ -270,8 +270,6 @@ test("launch provenance checks the task's executor, not the run's", async () => 
 	const prepared = await prepareDagTask(cwd, run, piCompiled, 0);
 	assert.equal(prepared.runtime.inheritHostTools, true);
 	const launch = {
-		extensions: [],
-		generatedExtensions: [],
 		captureToolCalls: false,
 		hostContext: { ...context },
 		resourcePolicy: resolveWorkflowResourcePolicy(prepared),

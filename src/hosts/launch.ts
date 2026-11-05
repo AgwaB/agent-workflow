@@ -201,7 +201,7 @@ export interface LaunchData {
 		confirmedVia?: "dialog" | "chat";
 		degradations: string[];
 		forcedReadOnly: string[];
-		/** WP12a: one-line notices (legacy agents shadowing bundled agents). */
+		/** One-line launch diagnostics. */
 		notices?: string[];
 	};
 	taskSummary?: WorkflowRunRecord["taskSummary"];
@@ -255,8 +255,8 @@ export async function selectWorkflowExecutionProfile(
 }
 
 /**
- * pi-workflow launch precedence for hosts with a model registry: explicit declared profile >
- * saved per-workflow Pi preference > the declared selector above.
+ * Launch precedence for hosts with a model registry: explicit declared profile >
+ * saved per-workflow preference > the declared selector above.
  */
 export async function resolveWorkflowExecutionProfileForLaunch(
 	workflow: string,

@@ -522,6 +522,7 @@ test("auto comparison sends bounded metadata once, has no tools, and never launc
 		},
 	});
 	const result = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Review the supplied implementation.",
 		transmissionPolicy: "allowed",
@@ -566,6 +567,7 @@ test("auto derives mutation-capable bash facts despite an authored readOnly decl
 		},
 	});
 	const result = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Perform a read-only review with no changes.",
 		transmissionPolicy: "allowed",
@@ -610,6 +612,7 @@ test("auto derives inherited bash and unknown custom tools before local safety-b
 		},
 	});
 	const result = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Do a read-only review with no changes.",
 		transmissionPolicy: "allowed",
@@ -633,61 +636,7 @@ test("auto derives inherited bash and unknown custom tools before local safety-b
 	}
 });
 
-test("auto elevates local executable provider extensions inherited by a selected tool", async () => {
-	const cwd = project();
-	writeAgent(cwd);
-	const root = join(cwd, "workflows", "local-provider-extension");
-	writeSpec(cwd, "local-provider-extension", {
-		defaults: {
-			agent: "unit-agent",
-			readOnly: true,
-			tools: [
-				{
-					name: "read",
-					classification: "read-only",
-					extensions: ["./provider.mjs"],
-				},
-			],
-		},
-		artifactGraph: {
-			stages: [
-				{
-					id: "main",
-					type: "single",
-					prompt: "Review.",
-					// Keep the inherited provider metadata while the stage selects by name.
-					tools: ["read"],
-				},
-			],
-		},
-	});
-	writeFileSync(join(root, "provider.mjs"), "export default {};\n");
-	let calls = 0;
-	setTaskRuntimeApiForTests({
-		async runSubagent() {
-			calls += 1;
-			throw new Error(
-				"local executable extension must be gated before compare",
-			);
-		},
-	});
-	const result = await recommendWorkflowAuto({
-		cwd,
-		task: "Do a read-only review with no changes.",
-		transmissionPolicy: "allowed",
-		availableAgentNames: ["unit-agent"],
-	});
-	assert.equal(calls, 1);
-	const card = result.candidates.find(
-		(candidate) => candidate.label === "local-provider-extension",
-	);
-	assert.equal(card?.facts.effective?.capability, "write-capable");
-	assert.equal(card?.facts.effective?.network, "unknown");
-	assert.equal(card?.readiness.startAllowed, false);
-	assert.equal(card?.readiness.status, "blocked");
-});
-
-test("auto marks a nested external provider extension blocked before comparison", async () => {
+test("auto rejects removed provider metadata before comparison", async () => {
 	const cwd = project();
 	writeAgent(cwd);
 	const root = join(cwd, "workflows", "nested-provider");
@@ -731,6 +680,7 @@ test("auto marks a nested external provider extension blocked before comparison"
 		}),
 	);
 	const result = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Review nested provider metadata.",
 		transmissionPolicy: "allowed",
@@ -740,10 +690,7 @@ test("auto marks a nested external provider extension blocked before comparison"
 		(candidate) => candidate.label === "nested-provider",
 	);
 	assert.equal(card?.readiness.startAllowed, false);
-	assert.match(
-		card?.readiness.blockers.join(" ") ?? "",
-		/externally referenced executable provider extension/,
-	);
+	assert.equal(card?.readiness.status, "needs-check");
 });
 
 test("auto comparison does not traverse helper import closures before a path is selected", async () => {
@@ -791,6 +738,7 @@ test("auto comparison does not traverse helper import closures before a path is 
 		},
 	});
 	const result = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Review the bounded workflow metadata.",
 		transmissionPolicy: "allowed",
@@ -859,6 +807,7 @@ test("auto marks oversized and deeply nested declarative metadata as needs-check
 		deep = { nested: deep };
 	writeFileSync(join(deepRoot, "deep.schema.json"), JSON.stringify(deep));
 	const result = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Review bounded declarative metadata.",
 		transmissionPolicy: "allowed",
@@ -921,31 +870,28 @@ test("auto revalidates resolved profile/runtime tools against explicit safety co
 			),
 		/resolved profile\/runtime capability is incompatible/,
 	);
-	assert.throws(
-		() =>
-			assertWorkflowAutoResolvedCandidateSafety(
-				candidate,
-				{
-					tasks: [
-						{
-							kind: "single",
-							agent: "unit-agent",
-							runtime: {
-								tools: ["read"],
-								toolProviders: {
-									read: {
-										classification: "read-only",
-										extensions: ["./provider.mjs"],
-									},
+	assert.doesNotThrow(() =>
+		assertWorkflowAutoResolvedCandidateSafety(
+			candidate,
+			{
+				tasks: [
+					{
+						kind: "single",
+						agent: "unit-agent",
+						runtime: {
+							tools: ["read"],
+							toolProviders: {
+								read: {
+									classification: "read-only",
 								},
 							},
-							safety: { capability: "read-only" },
 						},
-					],
-				},
-				"Perform a read-only review with no changes.",
-			),
-		/resolved profile\/runtime capability is incompatible/,
+						safety: { capability: "read-only" },
+					},
+				],
+			},
+			"Perform a read-only review with no changes.",
+		),
 	);
 });
 
@@ -1003,6 +949,7 @@ test("auto comparison reads only its bounded canonical output artifact", {
 	});
 	for (const _case of cases) {
 		const result = await recommendWorkflowAuto({
+			executor: "pi",
 			cwd,
 			task: "Review this bounded output.",
 			transmissionPolicy: "allowed",
@@ -1040,6 +987,7 @@ test("auto comparison accepts a valid multibyte UTF-8 artifact", async () => {
 		},
 	});
 	const result = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Review valid UTF-8 output.",
 		transmissionPolicy: "allowed",
@@ -1102,6 +1050,7 @@ test("structured transmission policy fails closed across languages and preserves
 		},
 	});
 	const invalid = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "review",
 		transmissionPolicy: "allowed",
@@ -1111,6 +1060,7 @@ test("structured transmission policy fails closed across languages and preserves
 	assert.equal(calls, 1);
 
 	const unrecognizedWithoutPolicy = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "გთხოვთ გადახედოთ ამ ცვლილებას.",
 		availableAgentNames: ["unit-agent"],
@@ -1120,6 +1070,7 @@ test("structured transmission policy fails closed across languages and preserves
 	assert.equal(calls, 1);
 
 	const invalidPolicy = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Review with an invalid runtime policy.",
 		transmissionPolicy: "permit",
@@ -1129,6 +1080,7 @@ test("structured transmission policy fails closed across languages and preserves
 	assert.equal(calls, 1);
 
 	const koreanProhibition = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "이 작업을 외부 모델로 보내지 마세요.",
 		transmissionPolicy: "blocked",
@@ -1138,6 +1090,7 @@ test("structured transmission policy fails closed across languages and preserves
 	assert.equal(calls, 1);
 
 	const explicitlyAuthorized = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "გთხოვთ გადახედოთ ამ ცვლილებას.",
 		transmissionPolicy: "allowed",
@@ -1147,6 +1100,7 @@ test("structured transmission policy fails closed across languages and preserves
 	assert.equal(calls, 2);
 
 	const blocked = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Do not send this task to any external model.",
 		transmissionPolicy: "allowed",
@@ -1155,6 +1109,7 @@ test("structured transmission policy fails closed across languages and preserves
 	assert.equal(blocked.status, "routing-unavailable");
 	assert.equal(blocked.transmission, "blocked");
 	const notTransmitted = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Do not transmit this task outside this machine.",
 		transmissionPolicy: "allowed",
@@ -1162,6 +1117,7 @@ test("structured transmission policy fails closed across languages and preserves
 	});
 	assert.equal(notTransmitted.transmission, "blocked");
 	const cannotOverrideTaskPrivacy = await recommendWorkflowAuto({
+		executor: "pi",
 		cwd,
 		task: "Keep my data local only; do not transmit it.",
 		transmissionPolicy: "allowed",

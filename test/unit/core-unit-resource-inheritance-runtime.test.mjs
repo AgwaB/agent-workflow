@@ -24,6 +24,7 @@ import {
 import { workflowTaskSessionId } from "../../dist/core/launch-session.js";
 import { flushPendingIndexUpdatesForTests } from "../../dist/core/store.js";
 import "../helpers/register-default-executor.mjs";
+import { resolveRunExecutorSelection } from "../../dist/core/executor-registry.js";
 import {
 	launchSubagentTask,
 	prepareSubagentTaskLaunch,
@@ -87,6 +88,7 @@ async function fixture(name, options = {}) {
 		},
 	};
 	const run = {
+		executor: resolveRunExecutorSelection({ runFlag: "pi" }),
 		schemaVersion: 1,
 		runId: `workflow_${name}`,
 		type: "artifact-graph",
@@ -185,7 +187,6 @@ async function launchCapture(name, options) {
 			value.compiledTask,
 		);
 		const expectedSessionId = workflowTaskSessionId(value.run, value.task);
-		prepared.extensions = ["/required-first.mjs", "/required-second.mjs"];
 		installFakeApi(captured);
 		const result = await launchSubagentTask(
 			value.cwd,
@@ -211,7 +212,6 @@ function legacySurface(task) {
 		agent: task.agent,
 		agentPath: task.agentPath,
 		agentSystemPrompt: task.agentSystemPrompt,
-		systemPromptMode: task.systemPromptMode,
 		inheritProjectContext: task.inheritProjectContext,
 		inheritSkills: task.inheritSkills,
 		roleNames: task.roleNames,
@@ -286,7 +286,7 @@ test("resolver preserves legacy behavior and emits warning-only raw diagnostics"
 	);
 });
 
-test("sealed launch applies skills only for current false and preserves tools, extensions, and sessions", async () => {
+test("sealed launch applies skills only for current false and preserves tools and sessions", async () => {
 	const cases = [
 		{
 			name: "legacy-false",
@@ -316,7 +316,7 @@ test("sealed launch applies skills only for current false and preserves tools, e
 	for (const item of cases) {
 		const launched = await launchCapture(item.name, item);
 		// WP4c-1: the runtime gets an explicit tool list, model and effort (was `thinking`);
-		// extensions are Pi executor options (WP6), so prepared extensions never reach it.
+		// Extension options belong to the adapter, not the generic launch request.
 		assert.equal(Object.hasOwn(launched.options, "extensions"), false);
 		assert.deepEqual(launched.options.tools, ["read", "grep"]);
 		assert.equal(launched.options.model, "unit-model");
@@ -429,7 +429,7 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 		legacy.task,
 		legacy.compiledTask,
 		"agent-workflow/runtime",
-		{ extensions: [], generatedExtensions: [], captureToolCalls: false },
+		{ captureToolCalls: false },
 	);
 	assert.equal(
 		legacyDefault.schema,

@@ -17,23 +17,12 @@ export type BackendLaunchResult =
 	| { kind: "fatal"; message: string };
 
 export interface PreparedWorkflowTaskLaunch {
-	/** Pi executor only (WP6): Pi extension paths loaded into the worker. */
-	extensions: string[];
-	/** Pi executor only (WP6): sealed explicit-only discovery; absent preserves legacy additive loading. */
-	noExtensions?: true;
 	/** Present only when the task inherits host tools; equals the run's HostContext. */
 	hostContext?: HostContext;
 	/** Present only for a versioned compiled task and sealed before launch. */
 	resourcePolicy?: WorkflowResourcePolicy;
 	/** Provider metadata retained for launch auditing and wrapper preparation. */
 	toolProviders?: Record<string, CompiledToolProvider>;
-	/** Pi executor only (WP6): generated Pi extension wrappers. */
-	generatedExtensions: Array<{
-		kind: "fetch-cache" | "web-source" | "openai-fast" | "native-host";
-		path: string;
-		expectedBytes: string;
-		config: unknown;
-	}>;
 	captureToolCalls: boolean;
 	toolResultBudget?: {
 		configured: boolean;

@@ -209,7 +209,7 @@ function boundedListPage(
 	return makeListPage(included, total, offset, query);
 }
 
-/** `list`: discoverable workflows (project, user, bundled; legacy Pi roots read-only). */
+/** `list`: discoverable workflows (project, user, bundled). */
 export async function listWorkflowsAction(
 	ctx: HostApiContext,
 	request: ListRequest = {},

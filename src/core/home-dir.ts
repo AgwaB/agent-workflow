@@ -1,4 +1,4 @@
-// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/pi-agent-dir.ts. MIT, same author. Changes: replaced piAgentDir (PI_CODING_AGENT_DIR or ~/.pi/agent) with agentWorkflowHome (AGENT_WORKFLOW_HOME or ~/.agent-workflow); the Pi directory survives only as a read-only legacy discovery root (F5).
+// Ported from @agwab/pi-workflow 0.16.4 (b83cc4f) src/pi-agent-dir.ts. MIT, same author. Changes: replaced piAgentDir (PI_CODING_AGENT_DIR or ~/.pi/agent) with agentWorkflowHome (AGENT_WORKFLOW_HOME or ~/.agent-workflow); Pi project state remains separate.
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -18,5 +18,5 @@ export function agentWorkflowHome(
 /** Project-local state directory (was `<project>/.pi`). */
 export const PROJECT_STATE_DIRECTORY = ".agent-workflow";
 
-/** Legacy project-local Pi directory; discovery reads it, nothing writes it. */
-export const LEGACY_PROJECT_PI_DIRECTORY = ".pi";
+/** Pi's own project state; excluded from runtime artifact scans (Pi is a supported host). */
+export const PI_PROJECT_DIRECTORY = ".pi";

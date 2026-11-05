@@ -19,21 +19,23 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
 	assertDurableLaunchBarrierV2ExecutionAuthorized,
-	createDurableLaunchBarrier,
 	createDurableLaunchBarrierV2,
 	durableLaunchBarrierDigest,
 	readDurableLaunchBarrierV2State,
-	releaseDurableLaunchBarrier,
 	resolveDurableLaunchBarrierV2Release,
 	revokeDurableLaunchBarrierV2,
-	waitForDurableLaunchBarrierAck,
-	waitForDurableLaunchBarrierReady,
 	waitForDurableLaunchBarrierV2Ack,
 	waitForDurableLaunchBarrierV2Ready,
 } from "../../dist/runtime/durable-launch-barrier.js";
 import { validateResolveInput } from "../../dist/runtime/core/validation.js";
 import { checkTransactionTempAliasRace } from "../fixtures/runtime/barrier-temp-alias-race.mjs";
 import { test } from "node:test";
+
+async function releaseDecision(...args) {
+	const resolution = await resolveDurableLaunchBarrierV2Release(...args);
+	assert.equal(resolution.outcome, "released");
+	return resolution.decision;
+}
 
 test("durable-launch-barrier", async () => {
 	const canonical = (value) =>
@@ -50,13 +52,13 @@ test("durable-launch-barrier", async () => {
 
 	const root = await mkdtemp(join(tmpdir(), "pi-subagent-launch-barrier-"));
 	try {
-		const descriptor = await createDurableLaunchBarrier({
+		const descriptor = await createDurableLaunchBarrierV2({
 			directory: join(root, "barrier"),
 			subjectSha256: "a".repeat(64),
 			timeoutMs: 15_000,
 			pollIntervalMs: 5,
 		});
-		const replaced = await createDurableLaunchBarrier({
+		const replaced = await createDurableLaunchBarrierV2({
 			directory: join(root, "replaced-barrier"),
 			subjectSha256: "f".repeat(64),
 			timeoutMs: 100,
@@ -64,7 +66,7 @@ test("durable-launch-barrier", async () => {
 		await rename(replaced.directory, `${replaced.directory}-original`);
 		await mkdir(replaced.directory, { mode: 0o700 });
 		await assert.rejects(
-			waitForDurableLaunchBarrierReady(replaced),
+			waitForDurableLaunchBarrierV2Ready(replaced),
 			/directory was replaced/,
 		);
 
@@ -228,7 +230,7 @@ test("durable-launch-barrier", async () => {
 		delete globalThis.__durableBarrierTestLstat;
 		await rm(fixture);
 
-		const deletedBarrier = await createDurableLaunchBarrier({
+		const deletedBarrier = await createDurableLaunchBarrierV2({
 			directory: join(root, "deleted-barrier"),
 			subjectSha256: "8".repeat(64),
 			timeoutMs: 100,
@@ -240,7 +242,7 @@ test("durable-launch-barrier", async () => {
 			retryDelay: 100,
 		});
 		await assert.rejects(
-			waitForDurableLaunchBarrierReady(deletedBarrier),
+			waitForDurableLaunchBarrierV2Ready(deletedBarrier),
 			(error) =>
 				error?.failureKind === "guard_failure" && /ENOENT/u.test(error.message),
 		);
@@ -249,20 +251,21 @@ test("durable-launch-barrier", async () => {
 			Buffer.alloc(0),
 			Buffer.from('{"schema":'),
 		].entries()) {
-			const crashBarrier = await createDurableLaunchBarrier({
+			const crashBarrier = await createDurableLaunchBarrierV2({
 				directory: join(root, `crash-barrier-${index}`),
 				subjectSha256: "7".repeat(64),
 				timeoutMs: 100,
 			});
-			await writeFile(`${crashBarrier.releasePath}.pending`, "pending\n", {
+			await writeFile(`${crashBarrier.decisionPath}.pending`, "pending\n", {
 				mode: 0o600,
 			});
-			const crashedTempPath = `${crashBarrier.releasePath}.txn.crashed.tmp`;
+			const crashedTempPath = `${crashBarrier.decisionPath}.txn.crashed.tmp`;
 			await writeFile(crashedTempPath, prefix, { mode: 0o600 });
 			const fakeReadyBody = {
-				schema: "pi-subagent-durable-launch-barrier-ready-v1",
+				schema: "pi-subagent-durable-launch-barrier-ready-v2",
 				barrierIdentitySha256: crashBarrier.identitySha256,
 				challenge: crashBarrier.challenge,
+				decisionNonce: crashBarrier.decisionNonce,
 				subjectSha256: crashBarrier.subjectSha256,
 				runId: `run-crash-${index}`,
 				attemptId: `attempt-crash-${index}`,
@@ -277,9 +280,11 @@ test("durable-launch-barrier", async () => {
 			if (index === 1) {
 				await rm(crashedTempPath);
 				const expectedReleaseBody = {
-					schema: "pi-subagent-durable-launch-barrier-release-v1",
+					schema: "pi-subagent-durable-launch-barrier-decision-v2",
+					kind: "released",
 					barrierIdentitySha256: crashBarrier.identitySha256,
 					challenge: crashBarrier.challenge,
+					decisionNonce: crashBarrier.decisionNonce,
 					subjectSha256: crashBarrier.subjectSha256,
 					runId: fakeReady.runId,
 					attemptId: fakeReady.attemptId,
@@ -288,26 +293,26 @@ test("durable-launch-barrier", async () => {
 				};
 				const expectedRelease = {
 					...expectedReleaseBody,
-					releaseSha256: durableLaunchBarrierDigest(expectedReleaseBody),
+					decisionSha256: durableLaunchBarrierDigest(expectedReleaseBody),
 				};
 				await writeFile(
 					crashedTempPath,
 					`${JSON.stringify(canonical(expectedRelease))}\n`,
 					{ mode: 0o600 },
 				);
-				await link(crashedTempPath, `${crashBarrier.releasePath}.txn`);
+				await link(crashedTempPath, `${crashBarrier.decisionPath}.txn`);
 			}
-			const recovered = await releaseDurableLaunchBarrier(
+			const recovered = await releaseDecision(
 				crashBarrier,
 				fakeReady,
 				"4".repeat(64),
 			);
 			assert.equal(recovered.readySha256, fakeReady.readySha256);
-			await assert.rejects(access(`${crashBarrier.releasePath}.pending`));
+			await assert.rejects(access(`${crashBarrier.decisionPath}.pending`));
 			if (index === 1) await assert.rejects(access(crashedTempPath));
 		}
 
-		const abortedBarrier = await createDurableLaunchBarrier({
+		const abortedBarrier = await createDurableLaunchBarrierV2({
 			directory: join(root, "aborted-barrier"),
 			subjectSha256: "2".repeat(64),
 			timeoutMs: 100,
@@ -316,8 +321,8 @@ test("durable-launch-barrier", async () => {
 		aborted.abort();
 		await assert.rejects(
 			import("../../dist/runtime/durable-launch-barrier.js").then(
-				({ awaitDurableLaunchBarrier }) =>
-					awaitDurableLaunchBarrier({
+				({ awaitDurableLaunchBarrierV2 }) =>
+					awaitDurableLaunchBarrierV2({
 						descriptor: abortedBarrier,
 						runId: "run-aborted",
 						attemptId: "attempt-aborted",
@@ -385,7 +390,7 @@ test("durable-launch-barrier", async () => {
 			child.once("exit", (code, signal) => resolveExit({ code, signal }));
 		});
 
-		const ready = await waitForDurableLaunchBarrierReady(descriptor);
+		const ready = await waitForDurableLaunchBarrierV2Ready(descriptor);
 		assert.equal(ready.runId, runId);
 		assert.equal(ready.attemptId, attemptId);
 		assert.equal(ready.launchPayloadSha256, launchPayloadSha256);
@@ -393,9 +398,11 @@ test("durable-launch-barrier", async () => {
 		await assert.rejects(access(markerPath));
 
 		const releaseBody = {
-			schema: "pi-subagent-durable-launch-barrier-release-v1",
+			schema: "pi-subagent-durable-launch-barrier-decision-v2",
+			kind: "released",
 			barrierIdentitySha256: descriptor.identitySha256,
 			challenge: descriptor.challenge,
+			decisionNonce: descriptor.decisionNonce,
 			subjectSha256: descriptor.subjectSha256,
 			runId: ready.runId,
 			attemptId: ready.attemptId,
@@ -404,26 +411,22 @@ test("durable-launch-barrier", async () => {
 		};
 		const expectedRelease = {
 			...releaseBody,
-			releaseSha256: durableLaunchBarrierDigest(releaseBody),
+			decisionSha256: durableLaunchBarrierDigest(releaseBody),
 		};
 		const releaseBytes = Buffer.from(
 			`${JSON.stringify(canonical(expectedRelease))}\n`,
 		);
-		const transactionPath = `${descriptor.releasePath}.txn`;
+		const transactionPath = `${descriptor.decisionPath}.txn`;
 		await writeFile(transactionPath, releaseBytes, { mode: 0o600 });
-		await link(transactionPath, descriptor.releasePath);
-		await writeFile(`${descriptor.releasePath}.pending`, "pending\n", {
+		await link(transactionPath, descriptor.decisionPath);
+		await writeFile(`${descriptor.decisionPath}.pending`, "pending\n", {
 			mode: 0o600,
 		});
-		const release = await releaseDurableLaunchBarrier(
-			descriptor,
-			ready,
-			"d".repeat(64),
-		);
+		const release = await releaseDecision(descriptor, ready, "d".repeat(64));
 		assert.deepEqual(release, expectedRelease);
-		await assert.rejects(access(`${descriptor.releasePath}.pending`));
+		await assert.rejects(access(`${descriptor.decisionPath}.pending`));
 		const ack = await Promise.race([
-			waitForDurableLaunchBarrierAck(descriptor, release),
+			waitForDurableLaunchBarrierV2Ack(descriptor, release),
 			exitPromise.then((exit) => {
 				if (exit.code === 0) return new Promise(() => undefined);
 				throw new Error(
@@ -431,7 +434,7 @@ test("durable-launch-barrier", async () => {
 				);
 			}),
 		]);
-		assert.equal(ack.releaseSha256, release.releaseSha256);
+		assert.equal(ack.decisionSha256, release.decisionSha256);
 
 		const exit = await exitPromise;
 		assert.deepEqual(
@@ -441,10 +444,10 @@ test("durable-launch-barrier", async () => {
 		);
 		assert.equal(await readFile(markerPath, "utf8"), "released\n");
 		await assert.rejects(
-			releaseDurableLaunchBarrier(descriptor, ready, "e".repeat(64)),
-			/duplicate payload mismatch|identity mismatch|exists|EEXIST/i,
+			releaseDecision(descriptor, ready, "e".repeat(64)),
+			/release payload drift/i,
 		);
-		const replayedRelease = await releaseDurableLaunchBarrier(
+		const replayedRelease = await releaseDecision(
 			descriptor,
 			ready,
 			"d".repeat(64),
@@ -452,14 +455,14 @@ test("durable-launch-barrier", async () => {
 		assert.deepEqual(replayedRelease, release);
 		const concurrentReleases = await Promise.all(
 			Array.from({ length: 8 }, () =>
-				releaseDurableLaunchBarrier(descriptor, ready, "d".repeat(64)),
+				releaseDecision(descriptor, ready, "d".repeat(64)),
 			),
 		);
 		assert.equal(concurrentReleases.length, 8);
 		for (const concurrent of concurrentReleases)
 			assert.deepEqual(concurrent, release);
 
-		const ackReplacement = await createDurableLaunchBarrier({
+		const ackReplacement = await createDurableLaunchBarrierV2({
 			directory: join(root, "ack-replacement"),
 			subjectSha256: "9".repeat(64),
 			timeoutMs: 100,
@@ -469,16 +472,19 @@ test("durable-launch-barrier", async () => {
 			...release,
 			barrierIdentitySha256: ackReplacement.identitySha256,
 			challenge: ackReplacement.challenge,
+			decisionNonce: ackReplacement.decisionNonce,
 			subjectSha256: ackReplacement.subjectSha256,
 		};
 		const copiedReleaseBody = { ...copiedRelease };
-		delete copiedReleaseBody.releaseSha256;
-		copiedRelease.releaseSha256 = durableLaunchBarrierDigest(copiedReleaseBody);
+		delete copiedReleaseBody.decisionSha256;
+		copiedRelease.decisionSha256 =
+			durableLaunchBarrierDigest(copiedReleaseBody);
 		const copiedAckBody = {
 			...copiedAck,
 			barrierIdentitySha256: ackReplacement.identitySha256,
 			challenge: ackReplacement.challenge,
-			releaseSha256: copiedRelease.releaseSha256,
+			decisionNonce: ackReplacement.decisionNonce,
+			decisionSha256: copiedRelease.decisionSha256,
 		};
 		delete copiedAckBody.ackSha256;
 		copiedAckBody.ackSha256 = durableLaunchBarrierDigest(copiedAckBody);
@@ -502,7 +508,7 @@ test("durable-launch-barrier", async () => {
 			},
 		);
 		await assert.rejects(
-			waitForDurableLaunchBarrierAck(ackReplacement, copiedRelease),
+			waitForDurableLaunchBarrierV2Ack(ackReplacement, copiedRelease),
 			/directory was replaced/u,
 		);
 
@@ -680,6 +686,7 @@ test("durable-launch-barrier", async () => {
 					? {
 							schema: "pi-subagent-durable-launch-barrier-decision-v2",
 							kind: "released",
+							kind: "released",
 							barrierIdentitySha256: crashV2.identitySha256,
 							challenge: crashV2.challenge,
 							decisionNonce: crashV2.decisionNonce,
@@ -691,6 +698,7 @@ test("durable-launch-barrier", async () => {
 						}
 					: {
 							schema: "pi-subagent-durable-launch-barrier-decision-v2",
+							kind: "released",
 							kind: "revoked",
 							barrierIdentitySha256: crashV2.identitySha256,
 							challenge: crashV2.challenge,

@@ -8,6 +8,7 @@
 // (core-port record "WP38"): "worker role extension startup does not resume workflow supervisors" —
 // superseded by host-pi-extension.test.mjs "worker role: no agent tools and no notices …" and
 // host-wp28-pi-redrive.test.mjs (a worker process never re-drives runs at session start).
+import { resolveRunExecutorSelection } from "../../dist/core/executor-registry.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -54,6 +55,7 @@ function makeLaunchFixture(cwd, suffix) {
 		},
 	};
 	const run = {
+		executor: resolveRunExecutorSelection({ runFlag: "pi" }),
 		schemaVersion: 1,
 		runId,
 		type: WORKFLOW_RUN_TYPE,

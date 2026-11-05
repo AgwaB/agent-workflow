@@ -70,8 +70,6 @@ export async function createLaunchBootstrapProvenance(
 	preparedTask: CompiledTask,
 	backendId: string,
 	preparedLaunch: PreparedWorkflowTaskLaunch = {
-		extensions: [],
-		generatedExtensions: [],
 		captureToolCalls: false,
 	},
 ): Promise<LaunchBootstrapProvenanceRecord> {
@@ -83,8 +81,7 @@ export async function createLaunchBootstrapProvenance(
 	// the prepared launch carries the run's HostContext exactly when the task
 	// inherits host tools. WP35: the Pi executor adds the host tools itself
 	// (per-task descriptor config), so the task's executor must be pi (fails
-	// closed for executors that cannot inherit host tools); a generated
-	// "native-host" wrapper, when present, must still be bound to the context.
+	// closed for executors that cannot inherit host tools).
 	// WP31×WP35: the task's executor is its own in a mixed run (runtime.executor),
 	// else the run's.
 	const inheritHostTools =
@@ -97,23 +94,11 @@ export async function createLaunchBootstrapProvenance(
 	) {
 		throw new Error("workflow host context does not match the run");
 	}
-	const nativeExtensions = preparedLaunch.generatedExtensions.filter(
-		(entry) => entry.kind === "native-host",
-	);
 	const taskExecutorId = preparedTask.runtime.executor ?? run.executor?.id;
 	if (expectedHostContext !== undefined && taskExecutorId !== PI_EXECUTOR_ID)
 		throw new Error(
 			`workflow host-tool inheritance needs the pi executor; task ${task.taskId} uses ${taskExecutorId ?? "no recorded executor"}`,
 		);
-	if (
-		nativeExtensions.length > (expectedHostContext === undefined ? 0 : 1) ||
-		nativeExtensions.some(
-			(entry) =>
-				canonicalJson(entry.config) !== canonicalJson(expectedHostContext),
-		)
-	) {
-		throw new Error("workflow host-tool extension does not match the run");
-	}
 	const sessionId = workflowTaskSessionId(run, task);
 	const artifactIdentities = await artifactIdentity(cwd, run, task);
 	const stateRootIdentity = await workflowStateRootIdentity(cwd);
@@ -315,47 +300,7 @@ export async function assertPreparedLaunchMatchesRecordedProvenance(
 function launchIdentity(
 	preparedLaunch: PreparedWorkflowTaskLaunch,
 ): LaunchBootstrapProvenanceRecord["effectiveLaunch"] {
-	if (
-		(preparedLaunch.noExtensions !== undefined &&
-			preparedLaunch.noExtensions !== true) ||
-		!Array.isArray(preparedLaunch.extensions) ||
-		new Set(preparedLaunch.extensions).size !== preparedLaunch.extensions.length
-	)
-		throw new Error("launch-bootstrap prepared extensions are invalid");
-	const generated = new Map(
-		preparedLaunch.generatedExtensions.map((extension) => [
-			extension.path,
-			extension,
-		]),
-	);
-	if (
-		generated.size !== preparedLaunch.generatedExtensions.length ||
-		preparedLaunch.generatedExtensions.some(
-			(extension) => !preparedLaunch.extensions.includes(extension.path),
-		)
-	)
-		throw new Error("launch-bootstrap prepared extensions are invalid");
 	return {
-		...(preparedLaunch.noExtensions === true
-			? { noExtensions: true as const }
-			: {}),
-		extensions: preparedLaunch.extensions.map((path) => {
-			if (typeof path !== "string" || path.length === 0)
-				throw new Error("launch-bootstrap prepared extensions are invalid");
-			const extension = generated.get(path);
-			return {
-				pathSha256: sha256Text(path),
-				...(extension === undefined
-					? {}
-					: {
-							generated: {
-								kind: extension.kind,
-								wrapperSha256: sha256Text(extension.expectedBytes),
-								configSha256: sha256Canonical(extension.config),
-							},
-						}),
-			};
-		}),
 		captureToolCalls: preparedLaunch.captureToolCalls,
 		...(preparedLaunch.toolResultBudget === undefined
 			? {}
@@ -614,21 +559,17 @@ function isEffectiveLaunch(value: unknown): boolean {
 	if (
 		!isRecord(value) ||
 		!hasAllowedKeys(value, [
-			"extensions",
-			"noExtensions",
 			"captureToolCalls",
 			"toolResultBudgetSha256",
 			"artifactBinding",
 		]) ||
-		(value.noExtensions !== undefined && value.noExtensions !== true) ||
-		!Array.isArray(value.extensions) ||
 		typeof value.captureToolCalls !== "boolean" ||
 		!optionalSha256(value.toolResultBudgetSha256) ||
 		(value.artifactBinding !== undefined &&
 			!isArtifactBindingIdentity(value.artifactBinding))
 	)
 		return false;
-	return value.extensions.every((extension) => isExtensionIdentity(extension));
+	return true;
 }
 
 function isArtifactBindingIdentity(value: unknown): boolean {
@@ -646,26 +587,6 @@ function isArtifactBindingIdentity(value: unknown): boolean {
 		isSha256(value.configPathSha256) &&
 		isSha256(value.configBytesSha256) &&
 		isSha256(value.serverSpecSha256)
-	);
-}
-
-function isExtensionIdentity(value: unknown): boolean {
-	if (
-		!isRecord(value) ||
-		!hasAllowedKeys(value, ["pathSha256", "generated"]) ||
-		!isSha256(value.pathSha256)
-	)
-		return false;
-	if (value.generated === undefined) return true;
-	return (
-		isRecord(value.generated) &&
-		hasExactKeys(value.generated, ["kind", "wrapperSha256", "configSha256"]) &&
-		(value.generated.kind === "fetch-cache" ||
-			value.generated.kind === "web-source" ||
-			value.generated.kind === "openai-fast" ||
-			value.generated.kind === "native-host") &&
-		isSha256(value.generated.wrapperSha256) &&
-		isSha256(value.generated.configSha256)
 	);
 }
 

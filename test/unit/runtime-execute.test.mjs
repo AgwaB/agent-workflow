@@ -684,7 +684,6 @@ test("execution plan digest covers the descriptor and every request field but no
 			task: "x",
 			env: {
 				AGENT_WORKFLOW_DURABLE_WORKER_BINDING_JSON: "{}",
-				PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON: "{}",
 				KEEP: "1",
 			},
 		},

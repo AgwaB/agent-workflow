@@ -442,8 +442,6 @@ test("artifact access: canonical config, MCP server spec, and provenance digests
 	});
 
 	const launch = {
-		extensions: [],
-		generatedExtensions: [],
 		captureToolCalls: false,
 		resourcePolicy: resolveWorkflowResourcePolicy(prepared),
 	};

@@ -24,7 +24,7 @@ import {
 	test,
 	writeAgent,
 } from "../helpers/unit-test-support.mjs";
-import { createRunRecord } from "../../dist/core/store.js";
+import { createRunRecord } from "../helpers/unit-test-support.mjs";
 import {
 	prepareArtifactGraphRetryTask,
 	prepareDagTask,
@@ -113,7 +113,7 @@ for (const native of [false, true]) {
 						provenance.effectivePolicy.inheritHostTools === true,
 						native && !empty,
 					);
-					assert.deepEqual(prepared.generatedExtensions, []);
+					assert.equal(Object.hasOwn(prepared, "generatedExtensions"), false);
 					let captured;
 					setTaskRuntimeApiForTests({
 						async runSubagent(options) {

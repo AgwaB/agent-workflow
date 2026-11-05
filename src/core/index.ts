@@ -185,7 +185,6 @@ export type {
 } from "./workflow-metrics.js";
 export {
 	BUILTIN_EXECUTOR_IDS,
-	LEGACY_RECORD_EXECUTOR_ID,
 	registerWorkflowExecutor,
 	resolveRunExecutorSelection,
 	workflowExecutorRegistration,

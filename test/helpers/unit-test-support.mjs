@@ -22,6 +22,20 @@ import test, { after } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import "./register-default-executor.mjs";
+import { resolveRunExecutorSelection } from "../../dist/core/executor-registry.js";
+
+// Store-created test runs name the registered fixture explicitly; production has no fallback.
+async function createRunRecord(...args) {
+	const result = await createStoredRunRecord(...args);
+	result.run.executor = resolveRunExecutorSelection({ runFlag: "pi" });
+	return result;
+}
+
+async function createWorkflowRunRecord(...args) {
+	const result = await createStoredWorkflowRunRecord(...args);
+	result.run.executor = resolveRunExecutorSelection({ runFlag: "pi" });
+	return result;
+}
 
 import { loadAgentByName, parseAgentMarkdown } from "../../dist/core/agents.js";
 import { compileWorkflow } from "../../dist/core/compiler.js";
@@ -69,8 +83,8 @@ import {
 } from "../../dist/core/schema.js";
 import {
 	acquireSupervisorLease,
-	createRunRecord,
-	createWorkflowRunRecord,
+	createRunRecord as createStoredRunRecord,
+	createWorkflowRunRecord as createStoredWorkflowRunRecord,
 	deriveRunStatus,
 	flushPendingIndexUpdatesForTests,
 	heartbeatSupervisorLease,
@@ -694,6 +708,7 @@ function makeSubagentLaunchFixture(cwd, suffix) {
 	const run = {
 		schemaVersion: 1,
 		runId: `workflow_launch_${suffix}`,
+		executor: resolveRunExecutorSelection({ runFlag: "pi" }),
 		type: WORKFLOW_RUN_TYPE,
 		status: "running",
 		taskSummary: {

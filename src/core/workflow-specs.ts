@@ -786,7 +786,7 @@ async function isRunnableSpecFile(file: string): Promise<boolean> {
 	}
 }
 
-// Run-state directories under .agent-workflow/workflows/ (and legacy .pi/workflows/) contain a spec.json snapshot of
+// Run-state directories under .agent-workflow/workflows/ contain a spec.json snapshot of
 // the workflow that produced them; they are records, not registrable bundles.
 // Older dogfood/eval run ids used descriptive workflow_* names, so prefer the
 // run.json marker over run-id shape when filtering registry candidates.

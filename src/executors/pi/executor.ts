@@ -19,7 +19,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveWorkflowFastModeConfig } from "../../core/fast-tier.js";
 import { agentWorkflowHome } from "../../core/home-dir.js";
 import { durableWorkerBindingEnv } from "../../runtime/durable-authority.js";
-import { LEGACY_PI_DURABLE_WORKER_BINDING_ENV } from "../../runtime/orchestrate/request.js";
 import {
 	captureProcessIdentity,
 	verifyProcessIdentity,
@@ -702,16 +701,10 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 
 		const env: NodeJS.ProcessEnv = { ...process.env };
 		delete env[DURABLE_WORKER_BINDING_ENV];
-		delete env[LEGACY_PI_DURABLE_WORKER_BINDING_ENV];
 		delete env.AGENT_WORKFLOW_DURABLE_WORKER_REQUEST_ENV_JSON;
 		Object.assign(env, req.env);
 		const binding = durableWorkerBindingEnv(req.authority);
 		Object.assign(env, binding);
-		const bindingValue = binding[DURABLE_WORKER_BINDING_ENV];
-		// Only a Pi child that loads the user's extensions (inherit) can run pi-subagent, the one
-		// reader of the legacy name (docs/executors/pi.md).
-		if (!launchPlan.isolated && bindingValue !== undefined)
-			env[LEGACY_PI_DURABLE_WORKER_BINDING_ENV] = bindingValue;
 		env[PI_RUN_SECRETS_ENV] = JSON.stringify({
 			mcpEnv: req.mcpServers.map((server) => server.env ?? null),
 		});

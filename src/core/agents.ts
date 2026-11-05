@@ -21,7 +21,6 @@ import { fileURLToPath } from "node:url";
 
 import { agentWorkflowHome, PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import {
-	APPROVAL_MODES,
 	type AgentDefinition,
 	FAST_MODES,
 	WorkflowValidationError,
@@ -236,9 +235,6 @@ export function parseAgentMarkdown(
 		fast: enumValue(frontmatter.fast, FAST_MODES),
 		tools: toolsValue(frontmatter.tools),
 		readOnly: booleanValue(frontmatter.readOnly),
-		approvalMode: enumValue(frontmatter.approvalMode, APPROVAL_MODES),
-		maxSubagentDepth: numberValue(frontmatter.maxSubagentDepth) ?? 0,
-		systemPromptMode: stringValue(frontmatter.systemPromptMode),
 		inheritProjectContext: booleanValue(frontmatter.inheritProjectContext),
 		inheritSkills: booleanValue(frontmatter.inheritSkills),
 	};
@@ -710,12 +706,6 @@ function stringValue(value: unknown): string | undefined {
 
 function booleanValue(value: unknown): boolean | undefined {
 	return typeof value === "boolean" ? value : undefined;
-}
-
-function numberValue(value: unknown): number | undefined {
-	return typeof value === "number" && Number.isFinite(value)
-		? value
-		: undefined;
 }
 
 function toolsValue(value: unknown): string[] | undefined {

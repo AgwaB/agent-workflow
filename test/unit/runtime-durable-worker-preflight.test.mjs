@@ -5,20 +5,20 @@ import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createDurableLaunchBarrier } from "../../dist/runtime/durable-launch-barrier.js";
+import { createDurableLaunchBarrierV2 } from "../../dist/runtime/durable-launch-barrier.js";
 import { test } from "node:test";
 
 test("durable-worker-preflight", async () => {
 	const root = await mkdtemp(join(tmpdir(), "pi-subagent-worker-preflight-"));
 	try {
-		const barrier = await createDurableLaunchBarrier({
+		const barrier = await createDurableLaunchBarrierV2({
 			directory: join(root, "barrier"),
 			subjectSha256: "1".repeat(64),
 			authorityBindingSha256: "invalid",
 		}).catch(() => null);
 		assert.equal(barrier, null);
 
-		const validBarrier = await createDurableLaunchBarrier({
+		const validBarrier = await createDurableLaunchBarrierV2({
 			directory: join(root, "valid-barrier"),
 			subjectSha256: "1".repeat(64),
 		});

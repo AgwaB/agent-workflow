@@ -35,5 +35,9 @@ export function validateFrozenBundleGuard() {
 }
 
 export default function generatedFrozenBundleGuardExtension() {
-	return validateFrozenBundleGuard();
+	return {
+		control: validateFrozenBundleGuard(),
+		analysis: "Guard checked.",
+		refs: [],
+	};
 }

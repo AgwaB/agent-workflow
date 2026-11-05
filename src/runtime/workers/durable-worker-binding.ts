@@ -32,7 +32,6 @@ export interface DurableWorkerBindingPayload {
 export interface DurableWorkerBindingAck {
 	schema?: unknown;
 	readySha256?: unknown;
-	releaseSha256?: unknown;
 	decisionSha256?: unknown;
 	ackSha256?: unknown;
 }
@@ -53,16 +52,7 @@ interface DurableWorkerBindingPrepared {
 
 export interface DurableWorkerBindingPreflight
 	extends DurableWorkerBindingPrepared {
-	schema:
-		| "pi-subagent-durable-worker-binding-preflight-v1"
-		| "pi-subagent-durable-worker-binding-preflight-v2";
-}
-
-export interface DurableWorkerBindingV1 extends DurableWorkerBindingPrepared {
-	schema: "pi-subagent-durable-worker-binding-v1";
-	readySha256: string;
-	releaseSha256: string;
-	ackSha256: string;
+	schema: "pi-subagent-durable-worker-binding-preflight-v2";
 }
 
 export interface DurableWorkerBindingV2 extends DurableWorkerBindingPrepared {
@@ -72,9 +62,7 @@ export interface DurableWorkerBindingV2 extends DurableWorkerBindingPrepared {
 	ackSha256: string;
 }
 
-export type DurableWorkerBinding =
-	| DurableWorkerBindingV1
-	| DurableWorkerBindingV2;
+export type DurableWorkerBinding = DurableWorkerBindingV2;
 
 export interface PrepareDurableWorkerBindingOptions {
 	payload: DurableWorkerBindingPayload | null | undefined;
@@ -154,11 +142,10 @@ export function prepareDurableWorkerBinding({
 	const authorityBindingSha256 = descriptor.authorityBindingSha256;
 	if (authorityBindingSha256 !== undefined)
 		requireSha256("authority binding", authorityBindingSha256);
-	const v2 = descriptor.schema === "pi-subagent-durable-launch-barrier-v2";
+	if (descriptor.schema !== "pi-subagent-durable-launch-barrier-v2")
+		throw new DurableWorkerGuardError("durable launch barrier v2 is required");
 	return Object.freeze({
-		schema: v2
-			? "pi-subagent-durable-worker-binding-preflight-v2"
-			: "pi-subagent-durable-worker-binding-preflight-v1",
+		schema: "pi-subagent-durable-worker-binding-preflight-v2",
 		runId: requireText("subagent run id", payload.runId),
 		attemptId: requireText("subagent attempt id", payload.attemptId),
 		...(correlationId === undefined ? {} : { correlationId }),
@@ -205,29 +192,24 @@ export function buildDurableWorkerBinding(
 			executionPlanSha256,
 			workerPid,
 		});
-	const { schema: preflightSchema, ...prepared } = preflight;
-	if (preflightSchema === "pi-subagent-durable-worker-binding-preflight-v2") {
-		if (ack?.schema !== "pi-subagent-durable-launch-barrier-ack-v2")
-			throw new DurableWorkerGuardError(
-				"durable launch barrier v2 acknowledgement is required",
-			);
-		return Object.freeze({
-			schema: "pi-subagent-durable-worker-binding-v2",
-			...prepared,
-			readySha256: requireSha256("ready digest", ack.readySha256),
-			decisionSha256: requireSha256(
-				"release decision digest",
-				ack.decisionSha256,
-			),
-			ackSha256: requireSha256("ack digest", ack.ackSha256),
-		});
-	}
+	if (preflight.schema !== "pi-subagent-durable-worker-binding-preflight-v2")
+		throw new DurableWorkerGuardError(
+			"durable worker binding v2 preflight is required",
+		);
+	const { schema: _schema, ...prepared } = preflight;
+	if (ack?.schema !== "pi-subagent-durable-launch-barrier-ack-v2")
+		throw new DurableWorkerGuardError(
+			"durable launch barrier v2 acknowledgement is required",
+		);
 	return Object.freeze({
-		schema: "pi-subagent-durable-worker-binding-v1",
+		schema: "pi-subagent-durable-worker-binding-v2",
 		...prepared,
-		readySha256: requireSha256("ready digest", ack?.readySha256),
-		releaseSha256: requireSha256("release digest", ack?.releaseSha256),
-		ackSha256: requireSha256("ack digest", ack?.ackSha256),
+		readySha256: requireSha256("ready digest", ack.readySha256),
+		decisionSha256: requireSha256(
+			"release decision digest",
+			ack.decisionSha256,
+		),
+		ackSha256: requireSha256("ack digest", ack.ackSha256),
 	});
 }
 

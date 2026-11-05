@@ -3,7 +3,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import {
 	assertDurableLaunchBarrierV2ExecutionAuthorized,
-	awaitDurableLaunchBarrier,
 	awaitDurableLaunchBarrierV2,
 } from "../../../dist/runtime/durable-launch-barrier.js";
 
@@ -26,10 +25,6 @@ const options = {
 	launchPayloadSha256,
 	executionPlanSha256: "e".repeat(64),
 };
-if (descriptor.schema === "pi-subagent-durable-launch-barrier-v2") {
-	const ack = await awaitDurableLaunchBarrierV2(options);
-	await assertDurableLaunchBarrierV2ExecutionAuthorized(descriptor, ack);
-} else {
-	await awaitDurableLaunchBarrier(options);
-}
+const ack = await awaitDurableLaunchBarrierV2(options);
+await assertDurableLaunchBarrierV2ExecutionAuthorized(descriptor, ack);
 await writeFile(markerPath, "released\n", "utf8");

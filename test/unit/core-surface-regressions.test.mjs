@@ -158,6 +158,25 @@ test("durable feedback audience rejects a conflicting explicit usage owner", asy
 	assert.equal(await usage.readParentUsage(cwd, runId), undefined);
 });
 
+test("foreign feedback-audience sidecars do not claim current parent usage ownership", async (t) => {
+	const cwd = await project(t),
+		runId = "workflow_foreign_audience";
+	await index(cwd, [{ runId, status: "running" }]);
+	await mkdir(store.workflowRunDir(cwd, runId), { recursive: true });
+	await writeFile(
+		join(store.workflowRunDir(cwd, runId), "feedback-audience.json"),
+		JSON.stringify({
+			schema: "workflow-feedback-audience-v1",
+			runId,
+			sessionId: "other",
+		}),
+	);
+	usage.beginParentUsageTracking(cwd, runId, "owner");
+	await usage.recordParentSessionUsage(cwd, message(7, 1), "owner");
+	await usage.flushParentUsageTracking(cwd, "owner", true);
+	assert.equal((await usage.readParentUsage(cwd, runId)).totalTokens, 7);
+});
+
 // Ported: "formatLogs uses bounded tail IO for huge single-line output". Changes: the run is a
 // completed run.json fixture (was a supported run driven by `cli.mjs supervise --all`); core
 // `formatLogs` is the pi-workflow formatter (the hosts use WP16's `logsAction`, host-wp16-logs).

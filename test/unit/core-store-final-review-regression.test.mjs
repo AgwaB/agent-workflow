@@ -26,7 +26,7 @@ import { finalStageTasks } from "../../dist/core/store.js";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-test("frozen bundles collect decision-loop providers and TypeScript import closure", async () => {
+test("frozen bundles collect dynamic helpers and TypeScript import closure", async () => {
 	const cwd = makeProject();
 	try {
 		const workflowDir = join(cwd, "workflows", "bundle");
@@ -46,16 +46,6 @@ test("frozen bundles collect decision-loop providers and TypeScript import closu
 			'module.exports = "allowed";\n',
 		);
 
-		const plannerProvider = {
-			name: "planner_provider",
-			extensions: ["./providers/planner.ts"],
-			classification: "read-only",
-		};
-		const allowedProvider = {
-			name: "allowed_provider",
-			extensions: ["./providers/allowed.cts"],
-			classification: "read-only",
-		};
 		const spec = {
 			schemaVersion: 1,
 			name: "decision-loop-provider-bundle",
@@ -66,9 +56,9 @@ test("frozen bundles collect decision-loop providers and TypeScript import closu
 						type: "dynamic",
 						dynamic: {
 							uses: "./controller.mjs",
-							decisionLoop: {
-								planner: { tools: [plannerProvider] },
-								allowedTools: [allowedProvider],
+							helpers: {
+								planner: { uses: "./providers/planner.ts" },
+								allowed: { uses: "./providers/allowed.cts" },
 							},
 						},
 					},
@@ -85,22 +75,7 @@ test("frozen bundles collect decision-loop providers and TypeScript import closu
 		const run = { runId, specPath, tasks: [] };
 		const compiled = {
 			name: spec.name,
-			tasks: [
-				{
-					dynamic: {
-						decisionLoop: {
-							planner: {
-								toolProviders: {
-									planner_provider: plannerProvider,
-								},
-							},
-							allowedToolProviders: {
-								allowed_provider: allowedProvider,
-							},
-						},
-					},
-				},
-			],
+			tasks: [{ dynamic: spec.artifactGraph.stages[0].dynamic }],
 		};
 		await writeStaticRunArtifacts(cwd, run, compiled, spec);
 
@@ -129,14 +104,12 @@ test("frozen bundles collect decision-loop providers and TypeScript import closu
 			),
 		);
 		assert.equal(
-			persisted.tasks[0].dynamic.decisionLoop.planner.toolProviders
-				.planner_provider.extensions[0],
-			join(bundleDir, "providers", "planner.ts"),
+			persisted.tasks[0].dynamic.helpers.planner.uses,
+			"./providers/planner.ts",
 		);
 		assert.equal(
-			persisted.tasks[0].dynamic.decisionLoop.allowedToolProviders
-				.allowed_provider.extensions[0],
-			join(bundleDir, "providers", "allowed.cts"),
+			persisted.tasks[0].dynamic.helpers.allowed.uses,
+			"./providers/allowed.cts",
 		);
 	} finally {
 		rmSync(cwd, {

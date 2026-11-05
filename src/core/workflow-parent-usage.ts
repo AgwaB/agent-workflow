@@ -154,13 +154,6 @@ async function mutate(
 		const existing = await readJson<WorkflowParentUsageRecord>(
 			parentUsageFile(entry.cwd, entry.runId),
 		);
-		// Also check durable feedback ownership when it exists. Legacy sidecars
-		// remain readable but frozen, even if a caller explicitly begins tracking.
-		const audience = await readJson<{
-			schema?: string;
-			runId?: string;
-			sessionId?: string;
-		}>(join(workflowRunDir(entry.cwd, entry.runId), "feedback-audience.json"));
 		if (
 			existing &&
 			(existing.schema !== PARENT_USAGE_SCHEMA ||
@@ -181,13 +174,6 @@ async function mutate(
 			(piAudience.schema !== "agent-workflow-pi-feedback-audience-v1" ||
 				piAudience.runId !== entry.runId ||
 				piAudience.sessionId !== entry.sessionId)
-		)
-			return;
-		if (
-			audience &&
-			(audience.schema !== "workflow-feedback-audience-v1" ||
-				audience.runId !== entry.runId ||
-				audience.sessionId !== entry.sessionId)
 		)
 			return;
 		const record: WorkflowParentUsageRecord = existing ?? {

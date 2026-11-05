@@ -8,7 +8,6 @@
 			"read",
 			{
 				"name": "paid_campaign_send",
-				"extensions": ["./generated-guard-extension.mjs"],
 				"classification": "read-only"
 			}
 		]
@@ -19,10 +18,29 @@
 				"id": "guarded-dispatch",
 				"type": "single",
 				"output": {
-					"analysis": { "required": true },
-					"refs": { "required": true }
+					"analysis": {
+						"required": true
+					},
+					"refs": {
+						"required": true
+					}
 				},
 				"prompt": "Cold-load the workflow-local seed and return the deterministic guard shutdown receipt before any paid campaign dispatch."
+			},
+			{
+				"id": "bundle-guard",
+				"from": "guarded-dispatch",
+				"support": {
+					"uses": "./generated-guard-extension.mjs"
+				},
+				"output": {
+					"analysis": {
+						"required": false
+					},
+					"refs": {
+						"required": false
+					}
+				}
 			}
 		]
 	}
