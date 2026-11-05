@@ -25,7 +25,7 @@ All four bundled workflows are read-only. Details: [`docs/permissions.md`](docs/
 
 ## Install
 
-Node.js 24 or newer, plus at least one executor CLI, installed and logged in with its own login:
+Node.js 22 or newer, plus at least one executor CLI, installed and logged in with its own login:
 [Pi](docs/executors/pi.md) 1.1+, [Codex](docs/executors/codex.md) (`codex-cli` 0.159+) or
 [Claude Code](docs/executors/claude.md) 2.1+. agent-workflow never handles credentials.
 
