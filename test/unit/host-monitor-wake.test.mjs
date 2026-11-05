@@ -202,7 +202,7 @@ test("the launch's next step offers the Monitor to Claude Code hosts only", asyn
 			.map((part) => part.text)
 			.join("\n");
 	const claude = await text("claude-code");
-	assert.match(claude, /if you have the Monitor tool/);
+	assert.match(claude, /load Claude Code's Monitor tool \(ToolSearch select:Monitor\)/);
 	assert.ok(
 		claude.includes(
 			mcpTools.monitorCommand(cwd, "workflow_launched").replaceAll("'", "'"),
@@ -210,7 +210,7 @@ test("the launch's next step offers the Monitor to Claude Code hosts only", asyn
 	);
 	assert.match(
 		claude,
-		/Without the Monitor tool \(print mode, SDK\): call workflow_wait/,
+		/Only if Monitor cannot be loaded \(print mode, SDK\): call workflow_wait/,
 	);
 	const codex = await text("codex");
 	assert.doesNotMatch(codex, /Monitor/);

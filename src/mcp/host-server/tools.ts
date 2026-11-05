@@ -1395,7 +1395,9 @@ export function monitorCommand(cwd: string, runId: string): string | undefined {
 function launchNext(data: LaunchData, monitor?: string): string | undefined {
 	if (data.runId && data.status === "running") {
 		const wait = monitor
-			? `Then, if you have the Monitor tool (interactive Claude Code): start Monitor with the command ${JSON.stringify(monitor)} and its longest timeout, and end your turn without calling ${WORKFLOW_WAIT_TOOL}; when its line "agent-workflow: … finished — verdict …" arrives, tell the user the verdict, the run id and the link (if the monitor times out first, the result comes with the user's next message). Without the Monitor tool (print mode, SDK): call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`
+			? // 2026-11-05 (live, haiku): Monitor is a deferred tool; told "if you have it", the agent took
+				// the workflow_wait branch without loading it, so the step says how to load it.
+				`Then wait without polling: load Claude Code's Monitor tool (ToolSearch select:Monitor) and start it with the command ${JSON.stringify(monitor)} and its longest timeout, then end your turn — do not call ${WORKFLOW_WAIT_TOOL}. The command checks the run in code; when its line "agent-workflow: … finished — verdict …" arrives as a Monitor event, tell the user the verdict, the run id and the link (if the monitor times out first, the result comes with the user's next message). Only if Monitor cannot be loaded (print mode, SDK): call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`
 			: `Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
 		return data.dashboard
 			? `Now tell the user, in your own message (some apps fold tool results): run ${data.runId}, Dashboard: ${data.dashboard.url} — the link as is${data.dashboard.auth ? `; if it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL}` : ""}. ${wait}`
