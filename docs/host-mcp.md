@@ -350,7 +350,10 @@ connections of that server: chat `clientInfo` `claude-ai` (no roots), Code tab
 `local-agent-mode-agent-workflow` with `roots`, whose `roots/list` named the session's folder
 (`file:///…/research`). Neither sends `_meta` with its calls. As mcp-python-sdk's roots example
 (`examples/stories/roots/server.py`: the tool asks the client during the call). Rechecked live: the same
-Code-tab request through that server, told to leave out `cwd`, started its run in the session's project.
+Code-tab request through that server, told to leave out `cwd`, started its run in the session's project. Two Code
+sessions open at once (research and claude): the app's one Code connection answered both folders
+(`roots` = both), the call without `cwd` was refused with "this client has several roots (…); pass cwd
+…", and the session's model then called again with `cwd` = its own folder and got its project (live).
 
 ## PATH of a server an app starts (2026-11-05)
 
