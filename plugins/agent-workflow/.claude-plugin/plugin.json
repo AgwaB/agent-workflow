@@ -46,7 +46,7 @@
     "monitors": [
       {
         "name": "run-completion",
-        "command": "s=\"$CLAUDE_CODE_SESSION_ID\"; [ -n \"$s\" ] || exit 0; d=\"$CLAUDE_PROJECT_DIR\"; [ -n \"$d\" ] || d=.; until [ -d \"$d/.agent-workflow/workflows\" ]; do kill -0 \"$PPID\" 2>/dev/null || exit 0; sleep 5; done; cd \"$d\" && exec npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow notify-check --follow --host claude-code --session \"$s\"",
+        "command": "s=\"$CLAUDE_CODE_SESSION_ID\"; [ -n \"$s\" ] || exit 0; d=\"$CLAUDE_PROJECT_DIR\"; [ -n \"$d\" ] || d=.; until [ -d \"$d/.agent-workflow/workflows\" ]; do kill -0 \"$PPID\" 2>/dev/null || exit 0; sleep 2; done; cd \"$d\" && exec npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow notify-check --follow --host claude-code --session \"$s\"",
         "description": "agent-workflow: a run this session started has finished"
       }
     ]

@@ -31,7 +31,8 @@ node <package>/dist/mcp/host-server/server.js --host <claude-code|codex|generic>
 
 1. `workflow_list` when the workflow name is uncertain; never guess names.
 2. `workflow_run {workflow, task}` (or `workflow_dynamic {task}`) launches and returns the `runId`.
-3. `workflow_wait {runId}` waits **at most 45 s** per call (Codex `tool_timeout_sec` defaults to 60 s).
+3. `workflow_wait {runId}` waits **at most 45 s** per call, or up to 30 min where the host's per-call
+   limit allows it ("Long waits" below; the instructions and the tool description name the bound).
    While `stillRunning` is true, call it again with the same `runId`. `terminal: true` = finished;
    `actionRequired: true` = blocked (report it, use `workflow_inspect`; the user resumes with
    `agent-workflow resume <runId>`).
@@ -73,7 +74,7 @@ Every tool takes an optional `cwd` (see below). Unknown parameters are refused.
 | `workflow_run` | `workflow`, `task`, launch options | `runWorkflowAction` | `LaunchData` |
 | `workflow_dynamic` | `task`, launch options | `runDynamicAction` | `LaunchData` |
 | `workflow_status` | `runId?` | `statusAction` | `StatusData` |
-| `workflow_wait` | `runId`, `timeoutMs?` (1 000-45 000) | `waitAction` | `WaitData` (`terminal`, `actionRequired`, `stillRunning`, `status`, `preview`, `reportArtifacts`, …) |
+| `workflow_wait` | `runId`, `timeoutMs?` (1 000 up to the bound: 45 000, or 1 800 000 with a long wait) | `waitAction` | `WaitData` (`terminal`, `actionRequired`, `stillRunning`, `status`, `preview`, `reportArtifacts`, …) |
 | `workflow_stop` | `runId` | `stopAction` | `StopData` (`pending` when another supervisor applies it) |
 | `workflow_inspect` | `runId`, `failures?`, `results?` | `inspectAction` | `{run, reliability, listed}`; `run` is the run summary plus brief task rows instead of the full run record |
 | `workflow_logs` (WP18b) | `runId`, `task?`, `lines?` (1-400, default 20), `stream?` (`output`/`stderr`/`events`/`all`) | `logsAction` | `LogsData` (bounded, redacted tails per task; WP19: only files inside `.agent-workflow/`, tampered or symlinked paths are refused with a reason; structured credentials and Linux/Windows/macOS home paths redacted, also in `workflow_wait`/`workflow_status` text and previews) |
@@ -231,8 +232,39 @@ after each launch, so a monitor reports only its own session's runs (another ses
 project never takes them) and keeps `monitor-<id>.stamp` fresh. A launch from a session whose
 monitor checked within 20 s gets the next step "this session's completion monitor reports the run …
 end your turn now and do not call workflow_wait"; otherwise (print mode, the desktop app's Code tab,
-the Agent SDK, other hosts, the first run of a project) the agent waits with `workflow_wait` as
-before. Each settled state is reported once (the prompt hook's receipts).
+the Agent SDK, other hosts) the agent waits with `workflow_wait` (a long wait, next section). Each
+settled state is reported once (the prompt hook's receipts).
+
+First run of a project: the monitor waits in its shell (polling every 2 s) until
+`$CLAUDE_PROJECT_DIR/.agent-workflow/workflows` exists, so before the first run there is no stamp.
+When that directory holds only the run being launched, the launch waits up to 5 s for the session's
+stamp (`monitorStartsWithRun`, `awaitHostSessionMonitor`); not in print mode or the Agent SDK
+(`CLAUDE_CODE_ENTRYPOINT` `sdk-cli`/`sdk-ts`/`sdk-py`, observed: no monitor process runs there), and
+not when the session started in another directory than the run's project (the monitor watches its
+own directory). A probe: the CLI start of `notify-check` takes about 0.2 s.
+
+## Long waits (2026-11-05)
+
+One `workflow_wait` waits up to 30 min (2 min below the host's per-call limit) where that limit is
+known, else 45 s (`hostMcpWaitSliceMs`, `src/mcp/host-server/tools.ts`):
+
+| Host | Limit | Wait per call |
+|---|---|---|
+| Claude Code (`--host claude-code`, `CLAUDECODE=1`: terminal, `-p`, Agent SDK, the desktop app's Code tab) | `MCP_TOOL_TIMEOUT`, else 100 000 000 ms (2.1.318 default; per-server `timeout` unset by the plugin) | 30 min |
+| Codex plugin | `tool_timeout_sec = 1920`, passed to the server as `--tool-timeout-ms 1920000` | 30 min |
+| Others (the Claude desktop app's chat, `codex mcp add`, generic) | unknown | 45 s |
+
+Live (Claude Code 2.1.318, a probe tool that sleeps): with `-p` a 150 s call returned normally (one
+tool result); in an interactive session Claude Code moved the call to the background at 120 s, the
+agent ended its turn ("moved to the background as task …; I'll reply when the completion
+notification arrives"), and when the call returned the notification "MCP task … completed" woke the
+session, which answered at once. So a long wait is itself "wait in code, wake once" in Claude Code.
+
+Codex 0.166.0 runs tool calls in code mode: inside a JavaScript `exec` cell that yields to the model
+after 30 s (`wait` after 10 s), each a model turn, unless the cell asks for more with a first-line
+pragma (`// @exec: {"yield_time_ms": …}`; Codex sets no maximum: `code-mode-runtime/src/service.rs`
+`resolve_yield_timeout`, `max_yield_time_ms` unset). With a long wait the Codex next steps say to begin
+the cell with `// @exec: {"yield_time_ms": 1830000}` and give `wait` the same value.
 
 Live check (Claude Code 2.1.318, interactive, haiku, a project that already had runs; internal
 host-wake-20261105): the user only asked "run deep-review … and tell me the result". The agent
@@ -428,8 +460,8 @@ Investigation with the installed Claude Code 2.1.310 and Codex 0.159.2, evidence
   updates a backgrounded call's `/tasks` entry. Claude Code's MCP tasks (beta from 2.1.304) need
   protocol `2026-07-28`; this server speaks up to `2025-11-25`. Codex 0.159.2 has MCP `2026-07-28`
   behind an off feature flag. Claude Code moves a tool call that runs past 2 minutes to the
-  background and delivers its result as a task notification, but `workflow_wait` returns within
-  45 s by design.
+  background and delivers its result as a task notification; 2026-11-05: a long `workflow_wait`
+  uses that ("Long waits").
 - **Common mechanism (E2): `agent-workflow notify-check`** prints one line per run that settled
   since the last check, each state once (receipts in `.agent-workflow/notify-check/`; a state that
   `workflow_wait` returned is marked seen and not repeated). The Claude Code plugin runs it from a
@@ -439,10 +471,10 @@ Investigation with the installed Claude Code 2.1.310 and Codex 0.159.2, evidence
 - **Progress display (E1):** `agent-workflow statusline` as Claude Code's `statusLine.command` (user
   setting; plugins cannot set it) and `agent-workflow watch [runId]` in a terminal next to either host
   ([cli.md](cli.md#statusline-watch-notify-check)).
-- **Push candidates needing live checks (bundle 5):** a Claude Code plugin monitor running
-  `notify-check --follow`, an `asyncRewake` hook, a long `workflow_wait` that Claude Code
-  backgrounds, the MCP tasks extension, and `codex queue` (one model turn per delivery). None is
-  enabled until verified (owner decision Q6).
+- **Push candidates (bundle 5):** the plugin monitor running `notify-check --follow`, a long
+  `workflow_wait` that Claude Code backgrounds, and `codex queue` were verified live and are on
+  (2026-11-05, "Waiting without polling" and "Long waits"); an `asyncRewake` hook and the MCP tasks
+  extension are not used.
 
 ## Tests
 

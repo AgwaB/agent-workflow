@@ -63,9 +63,14 @@ test("dev output: manifests launch the checkout's server per host; everything el
 		assert.ok(isAbsolute(server.args[0]));
 		assert.equal(server.args[0], bin);
 		assert.ok(existsSync(server.args[0]));
-		assert.deepEqual(server.args.slice(1), ["--host", host]);
+		assert.deepEqual(
+			server.args.slice(1),
+			host === "codex"
+				? ["--host", host, "--tool-timeout-ms", "1920000"]
+				: ["--host", host],
+		);
 	}
-	assert.equal(codex.mcpServers["agent-workflow"].tool_timeout_sec, 120);
+	assert.equal(codex.mcpServers["agent-workflow"].tool_timeout_sec, 1920);
 	// WP36: the dev completion hook runs the checkout's CLI.
 	const hook = claude.hooks.UserPromptSubmit[0].hooks[0];
 	assert.ok(

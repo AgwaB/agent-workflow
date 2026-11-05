@@ -5,9 +5,9 @@ import type { Readable, Writable } from "node:stream";
 import { serveMcpStdioServer } from "../stdio-server.js";
 import {
 	createHostMcpService,
-	HOST_MCP_INSTRUCTIONS,
 	HOST_MCP_SERVER_NAME,
 	type HostMcpServiceOptions,
+	hostMcpInstructions,
 	hostMcpToolDefinitions,
 } from "./tools.js";
 
@@ -30,8 +30,9 @@ export function serveHostMcpStdio(options: HostMcpStdioOptions): {
 		log: options.log,
 		serverInfoName: HOST_MCP_SERVER_NAME,
 		serverVersion: options.serverVersion,
-		instructions: HOST_MCP_INSTRUCTIONS,
-		tools: hostMcpToolDefinitions,
+		instructions: hostMcpInstructions(options.waitSliceMs),
+		tools: (protocolVersion) =>
+			hostMcpToolDefinitions(protocolVersion, options.waitSliceMs),
 		callTool: (name, args, context) => service.call(name, args, context),
 		onDrained: options.onDrained,
 	});

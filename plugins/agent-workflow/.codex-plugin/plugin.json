@@ -25,10 +25,12 @@
         "--package=@agwab/agent-workflow@0.1.0",
         "agent-workflow-mcp",
         "--host",
-        "codex"
+        "codex",
+        "--tool-timeout-ms",
+        "1920000"
       ],
       "startup_timeout_sec": 120,
-      "tool_timeout_sec": 120
+      "tool_timeout_sec": 1920
     }
   },
   "interface": {

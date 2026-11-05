@@ -40,8 +40,10 @@ import {
 } from "../../hosts/dashboard/discovery.js";
 import { assertActionAllowed } from "../../hosts/types.js";
 import {
+	awaitHostSessionMonitor,
 	hostSessionMonitorAlive,
 	isHostSessionId,
+	monitorStartsWithRun,
 	recordRunHostSession,
 } from "../../hosts/notify-check.js";
 import { codexTurnSession, hostWakeEnabled } from "../../hosts/host-wake.js";
@@ -139,7 +141,54 @@ export const HOST_MCP_MAX_TEXT_CHARS = 50_000;
 export const DEGRADATION_ELICITATION_TITLE =
 	"Proceed with these executor capability degradations?";
 
-const WAIT_SECONDS = hostApi.HOST_WAIT_MAX_TIMEOUT_MS / 1000;
+/** Claude Code's MCP tool-call limit when neither MCP_TOOL_TIMEOUT nor a per-server timeout is set (2.1.318). */
+export const CLAUDE_CODE_DEFAULT_TOOL_TIMEOUT_MS = 100_000_000;
+/** Room left between one wait and the host's per-call limit. */
+const WAIT_LIMIT_MARGIN_MS = 120_000;
+
+/**
+ * 2026-11-05 (owner: fewer host model turns while waiting): the bound of one workflow_wait call. 45 s
+ * unless the host's per-call limit is known to be long, then up to 30 min (2 min below the limit):
+ * Claude Code (host claude-code, CLAUDECODE=1 in the server's environment) allows MCP_TOOL_TIMEOUT or
+ * 100,000,000 ms — live: in print mode a 150 s call returned normally; in an interactive session
+ * Claude Code moved it to the background at 120 s, the turn ended, and its completion woke the
+ * session. `toolTimeoutMs` is a limit the plugin set itself (`--tool-timeout-ms`, Codex
+ * tool_timeout_sec). Other hosts (the Claude desktop app's chat, hand registrations) keep 45 s.
+ */
+export function hostMcpWaitSliceMs(options: {
+	host: HostMcpHost;
+	env: NodeJS.ProcessEnv;
+	toolTimeoutMs?: number;
+}): number {
+	let limit = options.toolTimeoutMs;
+	if (
+		limit === undefined &&
+		options.host === "claude-code" &&
+		options.env.CLAUDECODE === "1"
+	) {
+		const configured = Number(options.env.MCP_TOOL_TIMEOUT);
+		limit =
+			Number.isFinite(configured) && configured >= 1000
+				? configured
+				: CLAUDE_CODE_DEFAULT_TOOL_TIMEOUT_MS;
+	}
+	if (
+		limit === undefined ||
+		limit - WAIT_LIMIT_MARGIN_MS <= hostApi.HOST_WAIT_MAX_TIMEOUT_MS
+	)
+		return hostApi.HOST_WAIT_MAX_TIMEOUT_MS;
+	return Math.min(
+		hostApi.HOST_LONG_WAIT_DEFAULT_TIMEOUT_MS,
+		limit - WAIT_LIMIT_MARGIN_MS,
+	);
+}
+
+/** "45 s", "30 min". */
+function waitBound(ms: number): string {
+	return ms < 120_000
+		? `${Math.round(ms / 1000)} s`
+		: `${Math.round(ms / 60_000)} min`;
+}
 
 /**
  * Server instructions. Claude Code keeps only the first 4,096 characters ("Server instructions
@@ -148,22 +197,28 @@ const WAIT_SECONDS = hostApi.HOST_WAIT_MAX_TIMEOUT_MS / 1000;
  * said "you can follow it in the dashboard" without the link): some apps fold tool results, so the
  * agent's own message must carry the run id and the dashboard link.
  */
-export const HOST_MCP_INSTRUCTIONS = [
-	"agent-workflow runs multi-agent workflows (for example deep-review, deep-research) whose workers are coding-agent CLIs. Use these tools only when the user asks to run or manage an agent-workflow workflow.",
-	"Call protocol:",
-	`1. ${WORKFLOW_LIST_TOOL} when the workflow name is uncertain; never guess workflow names.`,
-	`2. ${WORKFLOW_RUN_TOOL} {workflow, task} (or ${WORKFLOW_DYNAMIC_TOOL} {task}) starts a run (detached: it keeps going between calls) and returns its runId and a "Dashboard:" link at once. Put both in your next message, the link verbatim: some apps fold tool results, so your message is what the user sees.`,
-	`3. ${WORKFLOW_WAIT_TOOL} {runId} waits at most ${WAIT_SECONDS} s per call; call it again while stillRunning is true. terminal=true: finished; actionRequired=true: blocked, report it and use ${WORKFLOW_INSPECT_TOOL}.`,
-	'4. When it finished, quote the result preview and the report paths verbatim (do not re-summarize the report) and give the Dashboard link again. "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing verdict, not a failure.',
-	`5. There is no completion push. If you stop waiting while it runs (for example a rate-limit backoff, nextRetry), tell the user the runId, what it waits for, the Dashboard link, and that they can ask you again or run \`agent-workflow watch <runId>\`. A line containing "agent-workflow: workflow … finished — …" in a later turn (maybe prefixed by a hook) comes from the completion check: relay it with the report path.`,
-	`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a redacted tail of task output; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a spec. ${WORKFLOW_SHOW_TOOL}, ${WORKFLOW_ROLES_TOOL}, ${WORKFLOW_AGENTS_TOOL}, ${WORKFLOW_DOCTOR_TOOL} are read-only. ${WORKFLOW_RESUME_TOOL} continues a failed, interrupted or blocked run and ${WORKFLOW_SUPERVISE_TOOL} supervises a running one: both start model calls, so only when the user asks.`,
-	`A launch that needs the user's OK and could not ask them in a dialog starts nothing and says which limits to show; ask the user, and only if they agree call again with acceptDegradations as it says.`,
-	`Dynamic approvals: a run stopped with actionRequired=true and pendingApprovals (a question and requestId): show the question; only when the user decides, call ${WORKFLOW_APPROVE_TOOL} {runId, requestId, decision} (it confirms in a dialog; approving starts model calls).`,
-	`Choosing a workflow: only when the user asks you to pick one for a task, call ${WORKFLOW_AUTO_TOOL} {task}: it asks in a dialog before one classifier request, then lets the user choose; without dialogs it returns a local shortlist to show the user.`,
-	`Changes that need the user's confirmation in an MCP dialog (refused with the terminal command without dialogs): ${CONFIRMED_CHANGES.join("; ")}. ${WORKFLOW_PRUNE_TOOL} without dryRun=false only previews.`,
-	'Permission mode is "free" by default (workers run without approval prompts; read-only stages stay read-only); set permissionMode "safe", executor ("claude", "codex", "pi") or profile only when the user asks.',
-	`${WORKFLOW_DASHBOARD_TOOL} opens the dashboard in the user's browser after a dialog; it never returns a sign-in URL. Every tool takes an optional cwd inside the project root.`,
-].join("\n");
+export function hostMcpInstructions(
+	waitSliceMs: number = hostApi.HOST_WAIT_MAX_TIMEOUT_MS,
+): string {
+	return [
+		"agent-workflow runs multi-agent workflows (for example deep-review, deep-research) whose workers are coding-agent CLIs. Use these tools only when the user asks to run or manage an agent-workflow workflow.",
+		"Call protocol:",
+		`1. ${WORKFLOW_LIST_TOOL} when the workflow name is uncertain; never guess workflow names.`,
+		`2. ${WORKFLOW_RUN_TOOL} {workflow, task} (or ${WORKFLOW_DYNAMIC_TOOL} {task}) starts a run (detached: it keeps going between calls) and returns its runId and a "Dashboard:" link at once. Put both in your next message, the link verbatim: some apps fold tool results, so your message is what the user sees.`,
+		`3. ${WORKFLOW_WAIT_TOOL} {runId} waits at most ${waitBound(waitSliceMs)} per call; call it again while stillRunning is true. terminal=true: finished; actionRequired=true: blocked, report it and use ${WORKFLOW_INSPECT_TOOL}.`,
+		'4. When it finished, quote the result preview and the report paths verbatim (do not re-summarize the report) and give the Dashboard link again. "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing verdict, not a failure.',
+		`5. There is no completion push. If you stop waiting while it runs (for example a rate-limit backoff, nextRetry), tell the user the runId, what it waits for, the Dashboard link, and that they can ask you again or run \`agent-workflow watch <runId>\`. A line containing "agent-workflow: workflow … finished — …" in a later turn (maybe prefixed by a hook) comes from the completion check: relay it with the report path.`,
+		`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a redacted tail of task output; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a spec. ${WORKFLOW_SHOW_TOOL}, ${WORKFLOW_ROLES_TOOL}, ${WORKFLOW_AGENTS_TOOL}, ${WORKFLOW_DOCTOR_TOOL} are read-only. ${WORKFLOW_RESUME_TOOL} continues a failed, interrupted or blocked run and ${WORKFLOW_SUPERVISE_TOOL} supervises a running one: both start model calls, so only when the user asks.`,
+		`A launch that needs the user's OK and could not ask them in a dialog starts nothing and says which limits to show; ask the user, and only if they agree call again with acceptDegradations as it says.`,
+		`Dynamic approvals: a run stopped with actionRequired=true and pendingApprovals (a question and requestId): show the question; only when the user decides, call ${WORKFLOW_APPROVE_TOOL} {runId, requestId, decision} (it confirms in a dialog; approving starts model calls).`,
+		`Choosing a workflow: only when the user asks you to pick one for a task, call ${WORKFLOW_AUTO_TOOL} {task}: it asks in a dialog before one classifier request, then lets the user choose; without dialogs it returns a local shortlist to show the user.`,
+		`Changes that need the user's confirmation in an MCP dialog (refused with the terminal command without dialogs): ${CONFIRMED_CHANGES.join("; ")}. ${WORKFLOW_PRUNE_TOOL} without dryRun=false only previews.`,
+		'Permission mode is "free" by default (workers run without approval prompts; read-only stages stay read-only); set permissionMode "safe", executor ("claude", "codex", "pi") or profile only when the user asks.',
+		`${WORKFLOW_DASHBOARD_TOOL} opens the dashboard in the user's browser after a dialog; it never returns a sign-in URL. Every tool takes an optional cwd inside the project root.`,
+	].join("\n");
+}
+
+export const HOST_MCP_INSTRUCTIONS = hostMcpInstructions();
 
 const CWD_PROPERTY = {
 	cwd: {
@@ -358,22 +413,8 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 	{
 		name: WORKFLOW_WAIT_TOOL,
 		title: "Wait for agent-workflow run",
-		description: `Drive and wait for an agent-workflow run for at most ${WAIT_SECONDS} s per call. Returns terminal, actionRequired, stillRunning, the status, a bounded result preview and the report artifact paths. If stillRunning is true, call ${WORKFLOW_WAIT_TOOL} again with the same runId. If actionRequired is true, report the blocker and use ${WORKFLOW_INSPECT_TOOL}. When terminal, quote the preview and the report paths rather than paraphrasing them. Do not poll run files; cancelling this call cancels only the wait.`,
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				...RUN_ID_PROPERTY,
-				timeoutMs: {
-					type: "number",
-					minimum: hostApi.HOST_WAIT_MIN_TIMEOUT_MS,
-					maximum: hostApi.HOST_WAIT_MAX_TIMEOUT_MS,
-					description: `Optional bound of this wait in milliseconds (default and maximum ${hostApi.HOST_WAIT_MAX_TIMEOUT_MS}).`,
-				},
-				...CWD_PROPERTY,
-			},
-			required: ["runId"],
-		},
+		description: waitToolDescription(hostApi.HOST_WAIT_MAX_TIMEOUT_MS),
+		inputSchema: waitToolInputSchema(hostApi.HOST_WAIT_MAX_TIMEOUT_MS),
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: false,
@@ -914,14 +955,44 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 ];
 
 /** Tool definitions as sent for one negotiated protocol revision. */
+function waitToolDescription(waitSliceMs: number): string {
+	return `Drive and wait for an agent-workflow run for at most ${waitBound(waitSliceMs)} per call. Returns terminal, actionRequired, stillRunning, the status, a bounded result preview and the report artifact paths. If stillRunning is true, call ${WORKFLOW_WAIT_TOOL} again with the same runId. If actionRequired is true, report the blocker and use ${WORKFLOW_INSPECT_TOOL}. When terminal, quote the preview and the report paths rather than paraphrasing them. Do not poll run files; cancelling this call cancels only the wait.`;
+}
+
+function waitToolInputSchema(waitSliceMs: number): Record<string, unknown> {
+	return {
+		type: "object",
+		additionalProperties: false,
+		properties: {
+			...RUN_ID_PROPERTY,
+			timeoutMs: {
+				type: "number",
+				minimum: hostApi.HOST_WAIT_MIN_TIMEOUT_MS,
+				maximum: waitSliceMs,
+				description: `Optional bound of this wait in milliseconds (default and maximum ${waitSliceMs}).`,
+			},
+			...CWD_PROPERTY,
+		},
+		required: ["runId"],
+	};
+}
+
+/** 2026-11-05: `waitSliceMs` is the server's bound of one workflow_wait (hostMcpWaitSliceMs). */
 export function hostMcpToolDefinitions(
 	protocolVersion: string,
+	waitSliceMs: number = hostApi.HOST_WAIT_MAX_TIMEOUT_MS,
 ): Record<string, unknown>[] {
 	return HOST_MCP_TOOLS.map((tool) => ({
 		name: tool.name,
 		...(mcpVersionHasToolTitle(protocolVersion) ? { title: tool.title } : {}),
-		description: tool.description,
-		inputSchema: tool.inputSchema,
+		description:
+			tool.name === WORKFLOW_WAIT_TOOL
+				? waitToolDescription(waitSliceMs)
+				: tool.description,
+		inputSchema:
+			tool.name === WORKFLOW_WAIT_TOOL
+				? waitToolInputSchema(waitSliceMs)
+				: tool.inputSchema,
 		...(mcpVersionHasToolAnnotations(protocolVersion)
 			? { annotations: { title: tool.title, ...tool.annotations } }
 			: {}),
@@ -965,6 +1036,10 @@ export interface HostMcpServiceOptions {
 	api?: HostMcpApi;
 	/** Logger for diagnostics (stderr in the server). */
 	log?: (message: string) => void;
+	/** 2026-11-05: bound of one workflow_wait call (default 45 s; the server sets hostMcpWaitSliceMs). */
+	waitSliceMs?: number;
+	/** 2026-11-05: how long a first-run launch waits for the session's monitor (tests shorten it). */
+	monitorStartWaitMs?: number;
 }
 
 export interface HostMcpToolResult {
@@ -1392,6 +1467,7 @@ function profileSetFromArguments(params: Record<string, unknown>): {
 function launchNext(
 	data: LaunchData,
 	delivery: "wait" | "claude-monitor" | "codex-queue" = "wait",
+	waitHint = "",
 ): string | undefined {
 	if (data.runId && data.status === "running") {
 		const wait =
@@ -1399,7 +1475,7 @@ function launchNext(
 				? `agent-workflow puts the result into this Codex session when the run has finished (a queued message): end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When the message "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
 				: delivery === "claude-monitor"
 					? `This session's agent-workflow completion monitor (from the plugin) reports the run when it has finished: end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When its line "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
-					: `Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
+					: `Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.${waitHint}`;
 		return data.dashboard
 			? `Now tell the user, in your own message (some apps fold tool results): run ${data.runId}, Dashboard: ${data.dashboard.url} — the link as is${data.dashboard.auth ? `; if it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL}` : ""}. ${wait}`
 			: `Now tell the user the run id ${data.runId} in your own message; the dashboard is not running (${WORKFLOW_DASHBOARD_TOOL} opens it when they want it). ${wait}`;
@@ -1418,7 +1494,7 @@ function approvalNext(
 	return `Next: the run waits for the user's approval of ${pending.map((approval) => `dynamic controller ${approval.controllerSpecId} (requestId ${approval.requestId})`).join(", ")}. Show the user the approval question above and ask them to approve or reject. Only after they decide, call ${WORKFLOW_APPROVE_TOOL} {"runId":"${runId}","requestId":"…","decision":"approve"|"reject"}; it asks them to confirm in a dialog.`;
 }
 
-function waitNext(data: WaitData): string {
+function waitNext(data: WaitData, waitHint = ""): string {
 	const state = `[${WORKFLOW_WAIT_TOOL}] runId=${data.runId} status=${data.status} terminal=${data.terminal} actionRequired=${data.actionRequired} stillRunning=${data.stillRunning}`;
 	const approval = approvalNext(data.runId, data.pendingApprovals);
 	if (approval) return `${state}\n${approval}`;
@@ -1426,7 +1502,7 @@ function waitNext(data: WaitData): string {
 		const waitingFor = data.nextRetry
 			? `a scheduled retry at ${data.nextRetry.at}${data.nextRetry.reason ? ` (${data.nextRetry.reason})` : ""}`
 			: "its running tasks";
-		return `${state}${data.nextRetry ? ` nextRetryAt=${data.nextRetry.at}` : ""}\nNext: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} again. If you stop waiting, tell the user the run ${data.runId} is still running and waiting for ${waitingFor}, and that they can ask you again for the result or follow it with agent-workflow watch ${data.runId} in a terminal: there is no completion push to this chat.`;
+		return `${state}${data.nextRetry ? ` nextRetryAt=${data.nextRetry.at}` : ""}\nNext: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} again.${waitHint} If you stop waiting, tell the user the run ${data.runId} is still running and waiting for ${waitingFor}, and that they can ask you again for the result or follow it with agent-workflow watch ${data.runId} in a terminal: there is no completion push to this chat.`;
 	}
 	if (data.actionRequired)
 		return `${state}\nNext: report the blocker; ${WORKFLOW_INSPECT_TOOL} {"runId":"${data.runId}","failures":true} shows the failed tasks. When the user asks to continue, ${WORKFLOW_RESUME_TOOL} {"runId":"${data.runId}"} resumes it (new model calls; CLI: agent-workflow resume ${data.runId}).`;
@@ -1457,6 +1533,15 @@ export function createHostMcpService(
 	const api = options.api ?? hostApi;
 	const env = options.env ?? process.env;
 	const log = options.log ?? (() => undefined);
+	const waitSliceMs = options.waitSliceMs ?? hostApi.HOST_WAIT_MAX_TIMEOUT_MS;
+	const longWait = waitSliceMs > hostApi.HOST_WAIT_MAX_TIMEOUT_MS;
+	// 2026-11-05: Codex (0.166.0, code mode) runs tool calls inside a JavaScript cell that yields to the
+	// model after 30 s (its `wait` after 10 s), each a model turn, unless the cell asks for longer
+	// (`// @exec` pragma; Codex sets no maximum). So a long workflow_wait needs the cell to say so.
+	const waitHint =
+		longWait && options.host === "codex"
+			? ` In Codex code mode, begin that exec cell with // @exec: {"yield_time_ms": ${waitSliceMs + 30_000}} (and give wait the same yield_time_ms), so the cell waits for the whole call instead of yielding every 30 s.`
+			: "";
 
 	// 2026-11-05 (owner: wait in code, wake the host once): how this launch's result reaches the
 	// session without workflow_wait. Claude Code: the session id (CLAUDE_CODE_SESSION_ID) is linked to
@@ -1473,7 +1558,20 @@ export function createHostMcpService(
 			const session = env.CLAUDE_CODE_SESSION_ID;
 			if (!isHostSessionId(session)) return "wait";
 			await recordRunHostSession(ctx.cwd, data.runId, session);
-			return (await hostSessionMonitorAlive(ctx.cwd, session))
+			if (await hostSessionMonitorAlive(ctx.cwd, session))
+				return "claude-monitor";
+			// 2026-11-05: the project's first run. The monitor (none in print mode or the Agent SDK,
+			// CLAUDE_CODE_ENTRYPOINT sdk-*) waits in its shell for the run directory this launch created.
+			const projectDir = env.CLAUDE_PROJECT_DIR;
+			return projectDir &&
+				!/^sdk-/u.test(env.CLAUDE_CODE_ENTRYPOINT ?? "") &&
+				(await monitorStartsWithRun(projectDir, data.runId)) &&
+				(await awaitHostSessionMonitor(
+					ctx.cwd,
+					session,
+					options.monitorStartWaitMs,
+					call.signal,
+				))
 				? "claude-monitor"
 				: "wait";
 		}
@@ -1930,7 +2028,11 @@ export function createHostMcpService(
 					`${WORKFLOW_RUN_TOOL} again with the same arguments`,
 					confirmation,
 				) ??
-					launchNext(launched.data, await delivery(ctx, launched.data, call)),
+					launchNext(
+						launched.data,
+						await delivery(ctx, launched.data, call),
+						waitHint,
+					),
 			);
 		},
 		[WORKFLOW_DYNAMIC_TOOL]: async (args, call) => {
@@ -1953,7 +2055,11 @@ export function createHostMcpService(
 					`${WORKFLOW_DYNAMIC_TOOL} again with the same arguments`,
 					confirmation,
 				) ??
-					launchNext(launched.data, await delivery(ctx, launched.data, call)),
+					launchNext(
+						launched.data,
+						await delivery(ctx, launched.data, call),
+						waitHint,
+					),
 			);
 		},
 		[WORKFLOW_AUTO_TOOL]: async (args, call) => {
@@ -2028,7 +2134,11 @@ export function createHostMcpService(
 					confirmation,
 				);
 			else if (data.phase === "launched" && data.launch)
-				next = launchNext(data.launch, await delivery(ctx, data.launch, call));
+				next = launchNext(
+					data.launch,
+					await delivery(ctx, data.launch, call),
+					waitHint,
+				);
 			else if (data.phase === "consent-unavailable")
 				next = `Next: show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}). Nothing was sent and nothing started.`;
 			else if (data.phase === "ranked" || data.phase === "cancelled")
@@ -2068,7 +2178,18 @@ export function createHostMcpService(
 			let lastLine = "";
 			const waited = await api.waitAction(await context(args), {
 				runId: requiredString(args, "runId"),
-				...(timeoutMs === undefined ? {} : { timeoutMs }),
+				// 2026-11-05: a host with a long per-call limit waits up to waitSliceMs (hostMcpWaitSliceMs).
+				...(longWait
+					? {
+							longWait: true,
+							timeoutMs: Math.min(
+								(timeoutMs as number | undefined) ?? waitSliceMs,
+								waitSliceMs,
+							),
+						}
+					: timeoutMs === undefined
+						? {}
+						: { timeoutMs }),
 				signal: call.signal,
 				...(call.progressToken === undefined
 					? {}
@@ -2086,7 +2207,7 @@ export function createHostMcpService(
 							},
 						}),
 			});
-			return finish(call, waited, waited.data, waitNext(waited.data));
+			return finish(call, waited, waited.data, waitNext(waited.data, waitHint));
 		},
 		[WORKFLOW_STOP_TOOL]: async (args, call) => {
 			const stopped = await api.stopAction(await context(args), {

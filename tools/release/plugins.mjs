@@ -49,9 +49,13 @@ export const HOST_IDS = Object.freeze({
 	claude: "claude-code",
 	codex: "codex",
 });
-/** Codex: first `npx` start downloads the package; tool calls stay well below (wait cap 45 s). */
+/** Codex: first `npx` start downloads the package. */
 export const CODEX_STARTUP_TIMEOUT_SEC = 120;
-export const CODEX_TOOL_TIMEOUT_SEC = 120;
+/**
+ * 2026-11-05 (owner: fewer host model turns while waiting): 32 min, so one workflow_wait can wait
+ * 30 min; the server is told the same limit (`--tool-timeout-ms`).
+ */
+export const CODEX_TOOL_TIMEOUT_SEC = 1920;
 export const PLUGIN_SKILLS = Object.freeze([
 	"agent-workflow",
 	"execution-router",
@@ -100,6 +104,14 @@ const KEYWORDS = Object.freeze([
 	"review",
 	"research",
 ]);
+
+/** The host's per-call limit for this server, passed on so the server can size its waits. */
+function withToolTimeout(server, toolTimeoutMs) {
+	return {
+		...server,
+		args: [...server.args, "--tool-timeout-ms", String(toolTimeoutMs)],
+	};
+}
 
 /** Released plugin: the server comes from npm, pinned to the package version. */
 export function npxLaunch(version, host) {
@@ -246,7 +258,9 @@ export function claudeCompletionMonitor(cli) {
 			'[ -n "$d" ] || d=.',
 			// Gone with the session even before the CLI starts: $PPID is the Claude Code process that
 			// started this shell; the CLI then stops itself when it is orphaned (notify-check --follow).
-			'until [ -d "$d/.agent-workflow/workflows" ]; do kill -0 "$PPID" 2>/dev/null || exit 0; sleep 5; done',
+			// Polls every 2 s: a launch from this session waits up to 5 s for the monitor of a project's
+			// first run (MONITOR_FIRST_RUN_WAIT_MS) instead of falling back to workflow_wait.
+			'until [ -d "$d/.agent-workflow/workflows" ]; do kill -0 "$PPID" 2>/dev/null || exit 0; sleep 2; done',
 			`cd "$d" && exec ${follow} "$s"`,
 		].join("; "),
 		description: "agent-workflow: a run this session started has finished",
@@ -300,7 +314,10 @@ export function codexPluginManifest(version, launch) {
 		skills: "./skills/",
 		mcpServers: {
 			[MCP_SERVER_NAME]: {
-				...launch(HOST_IDS.codex),
+				...withToolTimeout(
+					launch(HOST_IDS.codex),
+					CODEX_TOOL_TIMEOUT_SEC * 1000,
+				),
 				startup_timeout_sec: CODEX_STARTUP_TIMEOUT_SEC,
 				tool_timeout_sec: CODEX_TOOL_TIMEOUT_SEC,
 			},

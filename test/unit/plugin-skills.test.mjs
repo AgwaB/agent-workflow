@@ -96,7 +96,9 @@ test("skill tool names are the host MCP server's tools", () => {
 		assert.match(main, new RegExp(`\`${tool}\``), tool);
 	assert.match(
 		main,
-		new RegExp(`at most ${hostApi.HOST_WAIT_MAX_TIMEOUT_MS / 1000} s per call`),
+		new RegExp(
+			`at most ${hostApi.HOST_WAIT_MAX_TIMEOUT_MS / 1000} s per call\\*\\*, or up to 30 min`,
+		),
 	);
 	assert.match(main, /stillRunning/);
 	assert.match(main, /`free` is the default/);

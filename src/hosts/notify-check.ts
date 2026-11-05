@@ -282,6 +282,47 @@ export async function runHostSessions(
 		.sort();
 }
 
+/** 2026-11-05: how long a launch waits for a monitor that starts with the project's first run. */
+export const MONITOR_FIRST_RUN_WAIT_MS = 5_000;
+
+/**
+ * 2026-11-05 (the first run of a project): the plugin's monitor waits in its shell until
+ * `<CLAUDE_PROJECT_DIR>/.agent-workflow/workflows` exists, so it has no stamp before the project's
+ * first run. True when that directory holds no run but `runId`: this launch has just created it,
+ * and the session's monitor, if it has one, starts at its next shell poll (2 s).
+ */
+export async function monitorStartsWithRun(
+	projectDir: string,
+	runId: string,
+): Promise<boolean> {
+	const entries = await readdir(
+		join(projectDir, ".agent-workflow", "workflows"),
+		{
+			withFileTypes: true,
+		},
+	).catch(() => undefined);
+	const runs = entries?.filter(
+		(entry) => entry.isDirectory() && !entry.name.startsWith("."),
+	);
+	return runs?.length === 1 && runs[0]?.name === runId;
+}
+
+/** Waits up to `timeoutMs` for this session's monitor stamp (polls every 200 ms). */
+export async function awaitHostSessionMonitor(
+	cwd: string,
+	session: string,
+	timeoutMs = MONITOR_FIRST_RUN_WAIT_MS,
+	signal?: AbortSignal,
+): Promise<boolean> {
+	const deadline = Date.now() + timeoutMs;
+	while (!signal?.aborted) {
+		if (await hostSessionMonitorAlive(cwd, session)) return true;
+		if (Date.now() >= deadline) return false;
+		await new Promise((done) => setTimeout(done, 200));
+	}
+	return false;
+}
+
 /** This session's completion monitor checked within MONITOR_ALIVE_MS. */
 export async function hostSessionMonitorAlive(
 	cwd: string,

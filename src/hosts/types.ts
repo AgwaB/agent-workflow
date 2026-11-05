@@ -17,9 +17,9 @@ export const MODULE = "src/hosts";
 export const HOST_API_VERSION = "1";
 
 /**
- * Upper bound of one `wait` call. MCP hosts have per-tool-call timeouts (Codex `tool_timeout_sec`
- * defaults to 60 s), so a single wait returns "still running + status" within 45 s and the host
- * calls again. The CLI loops over bounded waits.
+ * Upper bound of one `wait` call. MCP hosts have per-tool-call timeouts, so a single wait returns
+ * "still running + status" within 45 s and the host calls again. The CLI loops over bounded waits.
+ * 2026-11-05: the MCP server waits longer where it knows the host's limit (hostMcpWaitSliceMs).
  */
 export const HOST_WAIT_MAX_TIMEOUT_MS = 45_000;
 export const HOST_WAIT_MIN_TIMEOUT_MS = 1_000;

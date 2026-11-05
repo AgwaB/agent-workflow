@@ -27,6 +27,7 @@ import * as plugins from "../../tools/release/plugins.mjs";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const hostServer = await import("../../dist/mcp/host-server/index.js");
+const hostServerTools = await import("../../dist/mcp/host-server/tools.js");
 const hostApi = await import("../../dist/hosts/api.js");
 
 function readJson(path) {
@@ -77,6 +78,10 @@ test("each host registers the agent-workflow server through the pinned npx packa
 			"agent-workflow-mcp",
 			"--host",
 			host,
+			// 2026-11-05: Codex is told the tool_timeout_sec the plugin sets (one wait up to 30 min).
+			...(host === "codex"
+				? ["--tool-timeout-ms", String(server.tool_timeout_sec * 1000)]
+				: []),
 		]);
 		// The pin is an exact version, never a range or tag.
 		assert.match(pkg.version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/);
@@ -85,8 +90,9 @@ test("each host registers the agent-workflow server through the pinned npx packa
 		// The server starts in the session's working directory (its project root): no cwd.
 		assert.equal(server.cwd, undefined);
 	}
+	const launch = plugins.npxLaunch(pkg.version, "codex");
 	assert.deepEqual(
-		plugins.npxLaunch(pkg.version, "codex"),
+		{ ...launch, args: [...launch.args, "--tool-timeout-ms", "1920000"] },
 		(({ command, args }) => ({ command, args }))(
 			codex.mcpServers["agent-workflow"],
 		),
@@ -235,9 +241,22 @@ test("WP36: the hook command is silent and exits 0 without runs, and prints the 
 	}
 });
 
-test("Codex timeouts leave room for the 45 s wait cap and the first npx download", () => {
+test("Codex timeouts leave room for a 30 min wait and the first npx download", () => {
 	const server = codex.mcpServers["agent-workflow"];
-	assert.ok(server.tool_timeout_sec * 1000 > hostApi.HOST_WAIT_MAX_TIMEOUT_MS);
+	// 2026-11-05: the server sizes its waits from the limit it is told: 30 min, 2 min below it.
+	assert.equal(server.tool_timeout_sec, 1920);
+	const told = Number(
+		server.args[server.args.indexOf("--tool-timeout-ms") + 1],
+	);
+	assert.equal(told, server.tool_timeout_sec * 1000);
+	assert.equal(
+		hostServerTools.hostMcpWaitSliceMs({
+			host: "codex",
+			env: {},
+			toolTimeoutMs: told,
+		}),
+		30 * 60_000,
+	);
 	assert.ok(server.tool_timeout_sec >= 60);
 	assert.ok(server.startup_timeout_sec >= 60);
 	// Claude Code has no startup field; its per-server `timeout` (ms) stays unset (default).

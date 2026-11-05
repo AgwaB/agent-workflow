@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // New in agent-workflow (WP13): stdio entry of the `agent-workflow` host MCP server for agent hosts.
-//   agent-workflow-mcp --host <claude-code|codex|generic>
+//   agent-workflow-mcp --host <claude-code|codex|generic> [--tool-timeout-ms <ms>]
 //   node dist/mcp/host-server/server.js --host <claude-code|codex|generic>
+// --tool-timeout-ms: the host's per-call limit for this server when the plugin set one (Codex
+// tool_timeout_sec); workflow_wait then waits longer per call (hostMcpWaitSliceMs).
 // The project is the server's working directory. stdout carries only MCP protocol messages; every
 // diagnostic goes to stderr. docs/host-mcp.md.
 import { realpathSync } from "node:fs";
@@ -15,15 +17,21 @@ for (const method of ["log", "info", "debug", "warn"] as const)
 const log = (message: string) =>
 	process.stderr.write(`agent-workflow MCP server: ${message}\n`);
 
-const USAGE = "usage: agent-workflow-mcp --host <claude-code|codex|generic>";
+const USAGE =
+	"usage: agent-workflow-mcp --host <claude-code|codex|generic> [--tool-timeout-ms <ms>]";
 
 async function main(): Promise<void> {
-	const { HOST_MCP_HOSTS } = await import("./tools.js");
+	const { HOST_MCP_HOSTS, hostMcpWaitSliceMs } = await import("./tools.js");
 	let host: (typeof HOST_MCP_HOSTS)[number];
+	let toolTimeoutMs: number | undefined;
 	try {
 		const { values } = parseArgs({
 			args: process.argv.slice(2),
-			options: { host: { type: "string" }, help: { type: "boolean" } },
+			options: {
+				host: { type: "string" },
+				"tool-timeout-ms": { type: "string" },
+				help: { type: "boolean" },
+			},
 			strict: true,
 			allowPositionals: false,
 		});
@@ -38,6 +46,14 @@ async function main(): Promise<void> {
 				`unknown --host ${values.host} (expected ${HOST_MCP_HOSTS.join(", ")})`,
 			);
 		host = values.host as (typeof HOST_MCP_HOSTS)[number];
+		const timeout = values["tool-timeout-ms"];
+		if (timeout !== undefined) {
+			if (!/^\d{4,10}$/u.test(timeout))
+				throw new Error(
+					`--tool-timeout-ms takes whole milliseconds (1000 or more), got ${JSON.stringify(timeout)}`,
+				);
+			toolTimeoutMs = Number(timeout);
+		}
 	} catch (error) {
 		log(`${error instanceof Error ? error.message : String(error)}\n${USAGE}`);
 		process.exit(2);
@@ -69,6 +85,11 @@ async function main(): Promise<void> {
 		else process.stdout.write("", () => process.exit(code));
 	};
 	process.stdout.on("error", () => exit(0));
+	const waitSliceMs = hostMcpWaitSliceMs({
+		host,
+		env: process.env,
+		...(toolTimeoutMs === undefined ? {} : { toolTimeoutMs }),
+	});
 	const server = serveHostMcpStdio({
 		input: process.stdin,
 		output: process.stdout,
@@ -76,6 +97,7 @@ async function main(): Promise<void> {
 		root,
 		host,
 		env: process.env,
+		waitSliceMs,
 		serverVersion: packageVersion(),
 		onDrained: () => exit(0),
 	});

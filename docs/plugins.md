@@ -9,7 +9,8 @@ right `--host` for each host and ships three skills. The plugin is the main inst
 
 Ask for a workflow in the conversation ("run deep-review on the current diff", "deep-research X").
 The agent calls `workflow_list` if the name is unclear, `workflow_run` (returns a `runId` at once,
-the run is detached), then `workflow_wait` in calls of at most 45 s until the run is finished, and
+the run is detached), then `workflow_wait` (calls of up to 30 min in Claude Code and with the Codex plugin, else 45 s; an
+interactive session may instead be woken when the run ends, see host-mcp.md) until the run is finished, and
 finally quotes the result preview and report paths. Permission mode is `free` unless the user asks
 for `safe`; the executor is the workflow profile or the host default unless the user names one.
 `workflow_status`, `workflow_inspect`, `workflow_logs` and `workflow_stop` manage runs, `workflow_validate` checks a
@@ -136,9 +137,11 @@ With the package installed (`npm install -g @agwab/agent-workflow`), the command
 
 ## Timeouts
 
-- `workflow_wait` blocks at most 45 s per call, below Codex's default `tool_timeout_sec` (60 s).
-  The Codex manifest sets `tool_timeout_sec = 120` (launches can take longer than a wait) and
-  `startup_timeout_sec = 120` (first `npx` download). With `codex mcp add`, set both under
+- `workflow_wait` blocks up to 30 min per call where the server knows the host's limit, else 45 s
+  ([host-mcp.md](host-mcp.md#long-waits-2026-11-05)). The Codex manifest sets `tool_timeout_sec = 1920`
+  and passes it to the server (`--tool-timeout-ms 1920000`), and `startup_timeout_sec = 120` (first
+  `npx` download). With `codex mcp add`, waits stay 45 s unless you add the same
+  `tool_timeout_sec` and `--tool-timeout-ms`; set `startup_timeout_sec` under
   `[mcp_servers.agent-workflow]` in `~/.codex/config.toml` if the first start times out.
 - Claude Code: `MCP_TIMEOUT` (server start, ms) and `MCP_TOOL_TIMEOUT` (tool calls, ms), or a
   per-server `timeout` (ms) in an `.mcp.json`/`mcpServers` entry. The plugin sets none; if the first
@@ -217,9 +220,9 @@ context: at the user's next message, each run that finished since the last check
   Codex runs hooks in the session directory and adds plain stdout of `UserPromptSubmit` as developer
   context. Without a global install, use the `npx -y --package=@agwab/agent-workflow@<package version>
   agent-workflow` form.
-- Not live-verified yet (bundle 5, checks L1 and L5 in the investigation). Push into an idle
-  session (Claude Code plugin monitors with `notify-check --follow`, `asyncRewake` hooks, a
-  backgrounded long wait; `codex queue`) needs live checks first.
+- Push into an idle session (2026-11-05, verified live): the Claude Code plugin's monitor
+  (`notify-check --follow`), a long `workflow_wait` that Claude Code backgrounds, and `codex queue`
+  for interactive Codex sessions ([host-mcp.md](host-mcp.md#waiting-without-polling-the-claude-code-completion-monitor-2026-11-05)).
 
 ## Tool names
 
@@ -231,8 +234,8 @@ The skills use the short names (`workflow_run`, …). Hosts prefix them:
 | `claude mcp add agent-workflow` | `mcp__agent-workflow__workflow_run` |
 | Codex (plugin or `mcp add`) | `mcp__agent_workflow__workflow_run`: Codex turns the hyphen of the server name into an underscore (observed live 4b, codex-cli 0.159.2). In code mode, the 0.159.2 default, the model's only tools are `exec` (a JavaScript cell) and `wait`; the MCP tools are functions inside the cell, called as `tools.mcp__agent_workflow__workflow_run({…})`. The `codex exec --json` stream still reports server `agent-workflow`, tool `workflow_run`. |
 
-A `workflow_wait` call (up to 45 s) can outlast Codex's 30 s code-mode cell yield; the model then
-resumes the cell with `wait` ([live-acceptance-stage2.md](live-acceptance-stage2.md#case-2-codex-host--codex-workers)).
+A `workflow_wait` call can outlast Codex's 30 s code-mode cell yield; the model then resumes the cell
+with `wait` (2026-11-05: with a long wait the next steps ask for a `// @exec` `yield_time_ms` pragma) ([live-acceptance-stage2.md](live-acceptance-stage2.md#case-2-codex-host--codex-workers)).
 
 Codex lists plugin skills as `agent-workflow:agent-workflow`, `agent-workflow:workflow-guide`,
 `agent-workflow:execution-router`.
