@@ -74,6 +74,22 @@ export interface NotifyCheckData {
 	deferred: number;
 }
 
+/**
+ * 2026-11-05: the run's current settled state was already reported (by a check, a Monitor or
+ * `workflow_wait`): a follower of this one run has nothing left to wait for. False while it runs.
+ */
+export async function runSettledStateSeen(
+	cwd: string,
+	runId: string,
+): Promise<boolean> {
+	const run = await readRunRecord(cwd, runId).catch(() => undefined);
+	if (!run || !isSettledRun(run)) return false;
+	const dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, false);
+	if (!dir) return false;
+	const existing = new Set(await readdir(dir).catch(() => [] as string[]));
+	return existing.has(markerName(run));
+}
+
 /** Digest of a settled state: the run status and every task's status. */
 export function notifyEpoch(run: WorkflowRunRecord): string {
 	const state = {
@@ -303,6 +319,8 @@ export async function notifyCheck(
 		now?: number;
 		env?: NodeJS.ProcessEnv;
 		stamp?: string;
+		/** 2026-11-05: only this run (a Monitor started for one launch). */
+		runId?: string;
 	} = {},
 ): Promise<{ data: NotifyCheckData; text: string }> {
 	if (options.stamp !== undefined) assertNotifyStampName(options.stamp);
@@ -352,13 +370,20 @@ async function updateStamp(
 
 async function checkOnce(
 	cwd: string,
-	options: { host?: WorkflowHostId; now?: number; env?: NodeJS.ProcessEnv },
+	options: {
+		host?: WorkflowHostId;
+		now?: number;
+		env?: NodeJS.ProcessEnv;
+		runId?: string;
+	},
 ): Promise<{ data: NotifyCheckData; text: string }> {
 	const now = options.now ?? Date.now();
 	const host = options.host ?? "cli";
 	const empty = { data: { notifications: [], deferred: 0 }, text: "" };
 	const entries = (await readProjectRunEntries(cwd)).filter(
-		(entry) => !entry.parentRunId,
+		(entry) =>
+			!entry.parentRunId &&
+			(options.runId === undefined || entry.runId === options.runId),
 	);
 	if (entries.length === 0) return empty;
 	const dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, true);

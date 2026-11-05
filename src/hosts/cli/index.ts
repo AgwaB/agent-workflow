@@ -69,11 +69,16 @@ import {
 	workflowPreferenceAction,
 	workflowRolesAction,
 } from "../api.js";
-import { assertNotifyStampName, notifyCheck } from "../notify-check.js";
+import {
+	assertNotifyStampName,
+	notifyCheck,
+	runSettledStateSeen,
+} from "../notify-check.js";
 import { runWatch, WATCH_DEFAULT_INTERVAL_MS } from "../watch.js";
 import { runStatusLine } from "./statusline.js";
 import { findProjectRoot, runProject } from "../project-root.js";
 import { clearExecutorProbeCache } from "../../core/executor-default.js";
+import { readRunRecord } from "../../core/store.js";
 import {
 	agentsRequest,
 	CLI_SYNTAX,
@@ -1034,13 +1039,16 @@ async function dispatch(
 		case "notify-check": {
 			const parsed = parseCommandArgs(argv, {
 				flags: ["--json", "--follow"],
-				values: ["--host", "--interval", "--stamp"],
+				values: ["--host", "--interval", "--stamp", "--run"],
 			});
 			only(
 				parsed,
 				0,
-				"notify-check [--host cli|claude-code|codex|generic] [--json] [--stamp <name>] [--follow [--interval <seconds>]]",
+				"notify-check [--host cli|claude-code|codex|generic] [--json] [--stamp <name>] [--run <run-id>] [--follow [--interval <seconds>]]",
 			);
+			// 2026-11-05: one run only; with --follow, exit once it has settled (a Claude Code Monitor
+			// started for one launch: its line wakes the session, then the monitor ends).
+			const runFilter = parsed.values.get("--run");
 			// WP42: the prompt hook's idle stamp, written by the check itself (contained writer).
 			const stamp = parsed.values.get("--stamp");
 			if (stamp !== undefined) {
@@ -1076,7 +1084,14 @@ async function dispatch(
 					env: io.env,
 					...(io.now ? { now: io.now() } : {}),
 					...(stamp !== undefined ? { stamp } : {}),
+					...(runFilter !== undefined ? { runId: runFilter } : {}),
 				});
+			if (follow && runFilter !== undefined) {
+				const run = await readRunRecord(io.cwd, runFilter).catch(
+					() => undefined,
+				);
+				if (!run) throw new HostUsageError(`no run ${runFilter} in ${io.cwd}`);
+			}
 			if (follow) {
 				// WP36: a long-lived feed (for example a Claude Code plugin monitor, whose output lines
 				// reach the session as notifications): one line per newly settled run.
@@ -1097,6 +1112,12 @@ async function dispatch(
 				while (!io.signal?.aborted) {
 					const checked = await check().catch(() => undefined);
 					if (checked?.text) io.stdout(`${checked.text}\n`);
+					if (
+						runFilter !== undefined &&
+						(checked?.data.notifications.length ||
+							(await runSettledStateSeen(io.cwd, runFilter)))
+					)
+						return EXIT_OK;
 					await sleep(seconds * 1000, io.signal);
 				}
 				return EXIT_OK;

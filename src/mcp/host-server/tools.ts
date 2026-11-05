@@ -28,8 +28,10 @@
 // without elicitation gets the local routing-only shortlist and no call; declining the choice
 // returns the ranked list and starts nothing.
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
 import { basename, isAbsolute, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import * as hostApi from "../../hosts/api.js";
 import {
@@ -1376,11 +1378,29 @@ function profileSetFromArguments(params: Record<string, unknown>): {
 	};
 }
 
-function launchNext(data: LaunchData): string | undefined {
-	if (data.runId && data.status === "running")
+/**
+ * 2026-11-05 (owner: wait in code, wake the host once): the command a Claude Code Monitor runs for one
+ * launch. It checks the run's state in code and prints one line when the run has settled, which
+ * reaches the idle session as a Monitor event (live check: the agent reported unprompted 2 s after
+ * the run ended); no `workflow_wait` turns meanwhile. This package's own CLI, by absolute path.
+ */
+export function monitorCommand(cwd: string, runId: string): string | undefined {
+	const cli = fileURLToPath(
+		new URL("../../../src/hosts/cli/cli.mjs", import.meta.url),
+	);
+	if (!existsSync(cli)) return undefined;
+	return `cd ${shellWord(cwd)} && ${shellWord(process.execPath)} ${shellWord(cli)} notify-check --follow --run ${shellWord(runId)} --host claude-code`;
+}
+
+function launchNext(data: LaunchData, monitor?: string): string | undefined {
+	if (data.runId && data.status === "running") {
+		const wait = monitor
+			? `Then, if you have the Monitor tool (interactive Claude Code): start Monitor with the command ${JSON.stringify(monitor)} and its longest timeout, and end your turn without calling ${WORKFLOW_WAIT_TOOL}; when its line "agent-workflow: … finished — verdict …" arrives, tell the user the verdict, the run id and the link (if the monitor times out first, the result comes with the user's next message). Without the Monitor tool (print mode, SDK): call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`
+			: `Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
 		return data.dashboard
-			? `Now tell the user, in your own message (some apps fold tool results): run ${data.runId}, Dashboard: ${data.dashboard.url} — the link as is${data.dashboard.auth ? `; if it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL}` : ""}. Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`
-			: `Now tell the user the run id ${data.runId} in your own message; the dashboard is not running (${WORKFLOW_DASHBOARD_TOOL} opens it when they want it). Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`;
+			? `Now tell the user, in your own message (some apps fold tool results): run ${data.runId}, Dashboard: ${data.dashboard.url} — the link as is${data.dashboard.auth ? `; if it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL}` : ""}. ${wait}`
+			: `Now tell the user the run id ${data.runId} in your own message; the dashboard is not running (${WORKFLOW_DASHBOARD_TOOL} opens it when they want it). ${wait}`;
+	}
 	if (data.duplicateOf)
 		return `Next: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.duplicateOf}"} for the active run, or ${WORKFLOW_RUN_TOOL} with forceNew=true to really start another run.`;
 	return undefined;
@@ -1434,6 +1454,12 @@ export function createHostMcpService(
 	const api = options.api ?? hostApi;
 	const env = options.env ?? process.env;
 	const log = options.log ?? (() => undefined);
+
+	// 2026-11-05: Claude Code sessions wait through a Monitor (monitorCommand), not workflow_wait turns.
+	const claudeMonitor = (ctx: HostApiContext, data: LaunchData) =>
+		options.host === "claude-code" && data.runId && data.status === "running"
+			? monitorCommand(ctx.cwd, data.runId)
+			: undefined;
 
 	const context = async (
 		args: Record<string, unknown>,
@@ -1878,7 +1904,7 @@ export function createHostMcpService(
 				confirmNext(
 					`${WORKFLOW_RUN_TOOL} again with the same arguments`,
 					confirmation,
-				) ?? launchNext(launched.data),
+				) ?? launchNext(launched.data, claudeMonitor(ctx, launched.data)),
 			);
 		},
 		[WORKFLOW_DYNAMIC_TOOL]: async (args, call) => {
@@ -1900,7 +1926,7 @@ export function createHostMcpService(
 				confirmNext(
 					`${WORKFLOW_DYNAMIC_TOOL} again with the same arguments`,
 					confirmation,
-				) ?? launchNext(launched.data),
+				) ?? launchNext(launched.data, claudeMonitor(ctx, launched.data)),
 			);
 		},
 		[WORKFLOW_AUTO_TOOL]: async (args, call) => {
@@ -1975,7 +2001,7 @@ export function createHostMcpService(
 					confirmation,
 				);
 			else if (data.phase === "launched" && data.launch)
-				next = launchNext(data.launch);
+				next = launchNext(data.launch, claudeMonitor(ctx, data.launch));
 			else if (data.phase === "consent-unavailable")
 				next = `Next: show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}). Nothing was sent and nothing started.`;
 			else if (data.phase === "ranked" || data.phase === "cancelled")

@@ -54,7 +54,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `dashboard [--port N] [--readonly] [--open] [--project DIR]` | WP43: private localhost web dashboard: run/task state, logs, reports, Stop/Resume/Approve/Reject. |
 | `watch [run] [--follow] [--once] [--interval S] [--bell]` | WP36: live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
 | `statusline` | WP36: one line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
-| `notify-check [--host H] [--json] [--stamp N] [--follow [--interval S]]` | WP36: one line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
+| `notify-check [--host H] [--json] [--stamp N] [--run ID] [--follow [--interval S]]` | WP36: one line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
 | `doctor [--fix [--yes]] [--json]` | Check this machine without a model call: executors (installed, version vs verified, login), the default executor here and why, permission-mode default, Node, `AGENT_WORKFLOW_HOME`, Codex environment warnings, stale run-index entries. Exit 0 when at least one executor is usable. Below. |
 | `help [command]`, `<command> --help`, `--version` | Help and version. |
 
@@ -411,7 +411,9 @@ and needing the user), one line such as
 agent-workflow: workflow "deep-review" (run workflow_…) finished — verdict NEEDS_WORK, report .agent-workflow/workflows/workflow_…/final-report.md. Details: agent-workflow status workflow_…
 ```
 
-and nothing otherwise (exit 0). Blocked runs name the approval (`approve`) or the
+and nothing otherwise (exit 0). `--run <id>` looks at that run only; with `--follow` it exits once
+the run has settled (after printing its line, or at once when that state was already reported):
+the command a Claude Code Monitor runs for one launch (2026-11-05). Blocked runs name the approval (`approve`) or the
 inspect/resume commands; `--host claude-code|codex|generic` words the follow-ups as MCP tool calls.
 Receipts: `.agent-workflow/notify-check/` (created by the first check in a project that has runs,
 or by the first `wait` that returns a settled state)

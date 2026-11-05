@@ -218,6 +218,22 @@ confirmation is required, ask; otherwise skip"):
   tells the agent never to set it on its own. Verified with agy: the agent asked in chat, the user
   agreed, the second call started `workflow_mw1fr3yo_b1f2d6` (`confirmedVia: "chat"`).
 
+## Waiting without polling: Claude Code Monitor (2026-11-05)
+
+Owner: wait in code, wake the host once. For `--host claude-code` a launch's next step names a
+Monitor command, `cd <cwd> && <node> <package>/src/hosts/cli/cli.mjs notify-check --follow --run <runId>
+--host claude-code` (`monitorCommand`): the agent starts it with Claude Code's Monitor tool and ends
+its turn instead of calling `workflow_wait` every 45 s. The command reads the run state in code,
+prints one line when the run has settled (each state once, the same receipts as the prompt hook,
+so the line is not repeated at the next prompt) and exits. Live check (Claude Code 2.1.318,
+interactive, haiku; internal host-wake-20261105): the line arrived as a Monitor event in the idle
+session and the agent reported verdict, run id and link unprompted 2 s after the run ended, with no
+model call while waiting. Without the Monitor tool (print mode, the Agent SDK, the desktop app's Code
+tab) the agent waits with `workflow_wait` as before; a monitor that times out first leaves the
+result to the prompt hook. Other hosts are unchanged. Waking a closed session or a Codex session
+when its run ends (`claude --resume -p`, `codex exec resume`, `codex queue`) was checked live
+but is not built.
+
 ## Server started in the home directory (2026-11-04)
 
 The Claude desktop app starts the server in ~ (no project). Its `.agent-workflow` there is the
