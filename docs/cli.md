@@ -16,7 +16,11 @@ user-level `~/.agent-workflow`), else the current directory — like Codex's pro
 in its `.agent-workflow/`; workers run there, so paths in a task are read from the project root.
 When that is not the current directory the CLI says so on stderr ("agent-workflow: project <dir> (the
 current directory is inside it …)"). To make a subdirectory its own project, create
-`.agent-workflow/` in it. The MCP server and the Pi host use the directory their host gives them; a
+`.agent-workflow/` in it. The directory that holds the user-level `~/.agent-workflow` (usually ~) is
+never a project, in the CLI, the MCP server and the Pi host alike: runs started there are recorded in
+`~/.agent-workflow/home-runs` and their workers run in it (the CLI says so on stderr). Codex and
+Gemini CLI also never read their home directory's dot-directory as project state (2026-11-04). The
+MCP server and the Pi host otherwise use the directory their host gives them; a
 workflow name that only an enclosing project has then fails with "not found in <dir>; the project
 <ancestor> has it — … run from <ancestor> (or pass the spec path)".
 

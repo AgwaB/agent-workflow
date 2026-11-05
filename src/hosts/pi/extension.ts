@@ -20,6 +20,7 @@ import {
 } from "./parent-usage.js";
 import type { PiExtensionApi } from "./pi-types.js";
 import { registerAwTools } from "./tools.js";
+import { withProjectContext } from "./project-context.js";
 
 export type { PiHostApi, PiHostOptions } from "./host.js";
 
@@ -27,9 +28,11 @@ export type { PiHostApi, PiHostOptions } from "./host.js";
 export function createAgentWorkflowPiExtension(
 	options: PiHostOptions = {},
 ): (pi: PiExtensionApi) => void {
-	return (pi) => {
-		const deps = createPiHostDeps(pi, options);
-		feedbackByPi.set(pi, deps.feedback);
+	return (piApi) => {
+		const deps = createPiHostDeps(piApi, options);
+		feedbackByPi.set(piApi, deps.feedback);
+		// 2026-11-04: handlers see the run project as ctx.cwd (never ~ itself; project-context.ts).
+		const pi = withProjectContext(piApi, deps.env);
 		// Worker or disabled processes (AGENT_WORKFLOW_ROLE) get no agent tools and no notices, so a
 		// Pi worker that loads this package cannot start nested workflows; `/aw help` and
 		// `/aw validate` stay available (the host API enforces the role per action).
@@ -74,7 +77,7 @@ export function createAgentWorkflowPiExtension(
 				// WP33: keep counting the parent usage of this session's running runs.
 				if (current === session) await resumeRunParentUsage(ctx);
 			})();
-			noticeSettled.set(pi, () => lastNotice);
+			noticeSettled.set(piApi, () => lastNotice);
 		});
 		// WP19 round 4 (F1): the shutdown reason tells whether Pi keeps the session's queue
 		// (`reload`) or disposes it (`new`/`resume`/`fork`/`quit`).

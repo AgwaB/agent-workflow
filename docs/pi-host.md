@@ -46,6 +46,10 @@ module-resolution error. No other module of the package imports the Pi host (a u
 
 ## `/aw` command
 
+A Pi session started in ~ records its runs in `~/.agent-workflow/home-runs` (the home directory is
+never a project, see [cli.md](cli.md)); every `/aw` action, tool and session handler sees that
+directory as the project.
+
 `/aw help` lists the actions; `/aw help <action>` shows the shared help of one action (the CLI help
 with `/aw`). Output is the handler's `text`, shown as a Pi notification (stdout/stderr in print/JSON
 mode); errors are error notifications.

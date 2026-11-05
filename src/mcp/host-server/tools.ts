@@ -63,6 +63,7 @@ import {
 	mcpVersionHasToolTitle,
 } from "../artifact-server/protocol.js";
 import { asRecord, type McpToolCallContext } from "../stdio-server.js";
+import { runProject } from "../../hosts/project-root.js";
 
 export const HOST_MCP_SERVER_NAME = "agent-workflow";
 
@@ -162,7 +163,7 @@ const CWD_PROPERTY = {
 	cwd: {
 		type: "string",
 		description:
-			"Optional project directory for this call: the server's project root (default) or a directory below it. Paths outside the root are refused.",
+			"Optional project directory for this call: the server's project root (default) or a directory below it. Paths outside the root are refused. The home directory itself is no project: runs without a cwd there are recorded in ~/.agent-workflow/home-runs (pass the project directory to work on a repository).",
 	},
 } as const;
 
@@ -1437,7 +1438,12 @@ export function createHostMcpService(
 	const context = async (
 		args: Record<string, unknown>,
 	): Promise<HostApiContext> => ({
-		cwd: await resolveCallCwd(options.root, optionalString(args, "cwd")),
+		// 2026-11-04: the home directory (whose .agent-workflow is the user-level home) is never the
+		// project; the Claude desktop app starts this server in ~ (src/hosts/project-root.ts).
+		cwd: runProject(
+			await resolveCallCwd(options.root, optionalString(args, "cwd")),
+			env,
+		),
 		env,
 		host: options.host,
 	});

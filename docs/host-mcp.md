@@ -217,6 +217,15 @@ confirmation is required, ask; otherwise skip"):
   tells the agent never to set it on its own. Verified with agy: the agent asked in chat, the user
   agreed, the second call started `workflow_mw1fr3yo_b1f2d6` (`confirmedVia: "chat"`).
 
+## Server started in the home directory (2026-11-04)
+
+The Claude desktop app starts the server in ~ (no project). Its `.agent-workflow` there is the
+user-level home, so before this change three deep-research runs from the app were recorded in
+`~/.agent-workflow/workflows/`, the user-level workflow folder. A call whose project would be the
+directory holding the user-level home now uses `~/.agent-workflow/home-runs` (runs, run index,
+worker cwd); a `cwd` below ~ (a real project) is used as given, and the `cwd` property says so.
+Runs recorded before stay where they are; `status` from the app no longer lists them.
+
 ## Antigravity CLI (agy) as a host (2026-11-04)
 
 agy loads the converted plugin (`agy plugin install`; skills and reference) and the MCP server
