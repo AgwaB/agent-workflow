@@ -140,9 +140,11 @@ With the package installed (`npm install -g @agwab/agent-workflow`), the command
 - `workflow_wait` blocks up to 30 min per call where the server knows the host's limit, else 45 s
   ([host-mcp.md](host-mcp.md#long-waits-2026-11-05)). The Codex manifest sets `tool_timeout_sec = 1920`
   and passes it to the server (`--tool-timeout-ms 1920000`), and `startup_timeout_sec = 120` (first
-  `npx` download). With `codex mcp add`, waits stay 45 s unless you add the same
-  `tool_timeout_sec` and `--tool-timeout-ms`; set `startup_timeout_sec` under
-  `[mcp_servers.agent-workflow]` in `~/.codex/config.toml` if the first start times out.
+  `npx` download). With `codex mcp add`, waits stay 45 s. For 30 min waits, add
+  `--tool-timeout-ms 1920000` after `--host codex` **and** `tool_timeout_sec = 1920` under
+  `[mcp_servers.agent-workflow]` in `~/.codex/config.toml` (`codex mcp add` has no timeout option);
+  the flag alone would let a wait run past Codex's default limit (300 s in the 0.165 source). Set
+  `startup_timeout_sec` there too if the first start times out.
 - Claude Code: `MCP_TIMEOUT` (server start, ms) and `MCP_TOOL_TIMEOUT` (tool calls, ms), or a
   per-server `timeout` (ms) in an `.mcp.json`/`mcpServers` entry. The plugin sets none; if the first
   `npx` start is slow, start Claude Code once with `MCP_TIMEOUT=60000`.

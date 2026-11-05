@@ -309,7 +309,10 @@ the run's notify-check line (each settled state once: a result the agent already
 `workflow_wait` wakes nothing) and runs `codex queue --thread <id> --message <line>`. Live check
 (internal host-wake-20261105): a message queued into an idle TUI session appeared there and the
 session answered at once; a closed thread gets it when it is resumed. The supervisor runs `codex`
-from its PATH. `codex exec` launches still wait (a woken `exec` thread has nobody watching).
+from its PATH. `codex exec` launches still wait (a woken `exec` thread has nobody watching). The
+same holds for `codex mcp add … --host codex`: Codex sends the turn metadata with every tool call,
+however the server is registered (the probe server was registered through `-c mcp_servers…`); a
+server started with another `--host` is not woken.
 End to end (Codex 0.166.0 TUI with the plugin, a plain "run deep-review … and tell me the result"):
 the agent launched and ended its turn without `workflow_wait`; when the run completed the supervisor
 logged `host wake: codex queue <thread>: queued`, the line appeared in the TUI as a message, and the
