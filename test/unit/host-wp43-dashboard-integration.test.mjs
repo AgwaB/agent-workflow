@@ -379,7 +379,22 @@ test("dashboard HTTP observes, streams and stops a real multi-task workflow", {
 	);
 	sse.close();
 	const stoppingAt = Date.now();
-	const stopped = await http(server, `${path}/stop`, mutation(server));
+	// 2026-11-05 (first CI runs: one ubuntu/Node 26 job timed out on this request after 20 s, the
+	// test took 36 s against 9-13 s locally): record how long the stop took and where the run stood.
+	const stopped = await http(server, `${path}/stop`, mutation(server)).catch(
+		async (error) => {
+			const run = await record().catch(() => undefined);
+			t.diagnostic(
+				JSON.stringify({
+					stopMs: Date.now() - stoppingAt,
+					status: run?.status,
+					tasks: run?.tasks.map((task) => task.status),
+				}),
+			);
+			throw error;
+		},
+	);
+	t.diagnostic(JSON.stringify({ stopMs: Date.now() - stoppingAt }));
 	assert.equal(stopped.status, 200, stopped.text);
 	await poll(
 		record,
