@@ -237,9 +237,13 @@ export function claudeCompletionMonitor(cli) {
 	return {
 		name: "run-completion",
 		command: [
-			's="${CLAUDE_CODE_SESSION_ID:-}"',
+			// Plain $VAR: Claude Code expands ${...} in a monitor command itself, before the session's
+			// variables exist (live probe 2026-11-05: "${CLAUDE_CODE_SESSION_ID:-unset}" gave "unset",
+			// "$CLAUDE_CODE_SESSION_ID" the id), so the shell must do the expansion.
+			's="$CLAUDE_CODE_SESSION_ID"',
 			'[ -n "$s" ] || exit 0',
-			'd="${CLAUDE_PROJECT_DIR:-.}"',
+			'd="$CLAUDE_PROJECT_DIR"',
+			'[ -n "$d" ] || d=.',
 			'until [ -d "$d/.agent-workflow/workflows" ]; do sleep 5; done',
 			`cd "$d" && exec ${follow} "$s"`,
 		].join("; "),
