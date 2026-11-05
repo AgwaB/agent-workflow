@@ -300,3 +300,85 @@ test("a launch's next step: end the turn when this Claude Code session's monitor
 	);
 	assert.match(await text("codex", { CLAUDE_CODE_SESSION_ID: SESSION }), WAIT);
 });
+
+// 2026-11-05 (live: a Claude Code session killed with SIGKILL left its monitor running under launchd):
+// the monitor stops when the process that started it is gone, in the shell wait and in the CLI.
+test("the plugin's monitor command exits when the Claude Code process that started it is killed", async () => {
+	const monitor = plugins.claudeCompletionMonitor(
+		plugins.devCliLaunch(process.cwd()),
+	);
+	const alive = (pid) => {
+		try {
+			process.kill(pid, 0);
+			return true;
+		} catch {
+			return false;
+		}
+	};
+	for (const withRuns of [false, true]) {
+		const cwd = await project();
+		if (withRuns)
+			await mkdir(join(cwd, ".agent-workflow", "workflows"), {
+				recursive: true,
+			});
+		// A stand-in for Claude Code: starts the monitor through sh -c, prints its pid, waits.
+		const parent = spawn(
+			process.execPath,
+			[
+				"-e",
+				`const { spawn } = require("node:child_process");
+				const child = spawn("/bin/sh", ["-c", process.env.MONITOR_COMMAND], { stdio: "ignore" });
+				process.stdout.write(String(child.pid) + "\\n");
+				setInterval(() => {}, 1000);`,
+			],
+			{
+				cwd,
+				env: {
+					...process.env,
+					MONITOR_COMMAND: monitor.command,
+					CLAUDE_CODE_SESSION_ID: SESSION,
+					CLAUDE_PROJECT_DIR: cwd,
+				},
+				stdio: ["ignore", "pipe", "ignore"],
+			},
+		);
+		const child = Number(
+			await new Promise((done) =>
+				parent.stdout.once("data", (chunk) => done(String(chunk).trim())),
+			),
+		);
+		await new Promise((done) => setTimeout(done, 1_500));
+		assert.equal(alive(child), true, "monitor running while its parent lives");
+		parent.kill("SIGKILL");
+		const deadline = Date.now() + 15_000;
+		while (alive(child) && Date.now() < deadline)
+			await new Promise((done) => setTimeout(done, 250));
+		assert.equal(
+			alive(child),
+			false,
+			`orphaned monitor still running (${withRuns ? "CLI" : "shell wait"})`,
+		);
+	}
+});
+
+test("notify-check --follow stops once its parent is gone", async () => {
+	const cwd = await project();
+	let checks = 0;
+	const code = await cli.runAgentWorkflowCli(
+		["notify-check", "--follow", "--host", "claude-code"],
+		{
+			cwd,
+			env: process.env,
+			stdout: () => {},
+			stderr: () => {},
+			isTTY: false,
+			parentAlive: () => checks < 2,
+			sleep: async () => {
+				checks += 1;
+				if (checks > 10) throw new Error("did not stop");
+			},
+		},
+	);
+	assert.equal(code, 0);
+	assert.equal(checks, 2);
+});

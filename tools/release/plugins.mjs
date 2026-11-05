@@ -244,7 +244,9 @@ export function claudeCompletionMonitor(cli) {
 			'[ -n "$s" ] || exit 0',
 			'd="$CLAUDE_PROJECT_DIR"',
 			'[ -n "$d" ] || d=.',
-			'until [ -d "$d/.agent-workflow/workflows" ]; do sleep 5; done',
+			// Gone with the session even before the CLI starts: $PPID is the Claude Code process that
+			// started this shell; the CLI then stops itself when it is orphaned (notify-check --follow).
+			'until [ -d "$d/.agent-workflow/workflows" ]; do kill -0 "$PPID" 2>/dev/null || exit 0; sleep 5; done',
 			`cd "$d" && exec ${follow} "$s"`,
 		].join("; "),
 		description: "agent-workflow: a run this session started has finished",

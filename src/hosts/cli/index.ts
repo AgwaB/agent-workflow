@@ -128,6 +128,8 @@ export interface CliIo {
 	waitSliceMs?: number;
 	/** WP36: terminal height for `watch` (bounds the task rows). */
 	rows?: number;
+	/** 2026-11-05: `notify-check --follow` stops when this turns false (tests pass a fake). */
+	parentAlive?: () => boolean;
 	/** WP36: `watch` sleeps between frames (tests pass a fake). */
 	sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
 	/** WP36: clock of `watch`, `statusline` and `notify-check` (tests pass a fake). */
@@ -1117,7 +1119,13 @@ async function dispatch(
 								{ once: true },
 							);
 						}));
-				while (!io.signal?.aborted) {
+				// 2026-11-05 (live: a Claude Code session killed with SIGKILL left its completion monitor
+				// running under launchd, polling forever): stop when the process that started the
+				// follower is gone (the kernel reparents an orphan, so process.ppid changes).
+				const parent = process.ppid;
+				const parentAlive =
+					io.parentAlive ?? (() => parent <= 1 || process.ppid === parent);
+				while (!io.signal?.aborted && parentAlive()) {
 					const checked = await check().catch(() => undefined);
 					if (checked?.text) io.stdout(`${checked.text}\n`);
 					if (
