@@ -1,7 +1,7 @@
 // WP43: loopback-only HTTP host. No framework or engine/file-store access.
 // WP43d: no sign-in by default (loopback + Host/fetch-site/Origin/CSRF); `auth` opts into the
 // persistent-session cookie model for shared machines.
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import {
 	createServer,
@@ -10,6 +10,7 @@ import {
 } from "node:http";
 import { basename, resolve } from "node:path";
 import {
+	DASHBOARD_PROTOCOL,
 	writeDashboardDiscovery,
 	dashboardDiscoveryPath,
 	openInBrowser,
@@ -18,6 +19,7 @@ import {
 	writePreferredDashboardPort,
 	removeDashboardDiscovery,
 } from "./discovery.js";
+import { dashboardPortCandidates } from "./ports.js";
 import { HostUsageError } from "../args.js";
 import { hostTextRedactor } from "../redaction.js";
 import { boundReportText } from "../run-artifacts.js";
@@ -63,6 +65,7 @@ export interface DashboardServerOptions {
 	onIdleExit?: () => void;
 }
 export interface DashboardServer {
+	protocol: number;
 	url: string;
 	port: number;
 	/** Session token when `auth` is on; otherwise the server's private CSRF secret (not a URL credential). */
@@ -358,6 +361,30 @@ export async function startDashboardServer(
 			url = new URL(request.url ?? "/", origin);
 		} catch {
 			throw new HttpError(400, "invalid URL");
+		}
+		if (request.method === "GET" && url.pathname === "/api/identity") {
+			const nonce = url.searchParams.get("nonce") ?? "";
+			if (!/^[A-Za-z0-9_-]{16,128}$/.test(nonce))
+				throw new HttpError(400, "invalid nonce");
+			json(response, 200, {
+				protocol: DASHBOARD_PROTOCOL,
+				version,
+				proof: createHmac("sha256", launchKey).update(nonce).digest("hex"),
+			});
+			return;
+		}
+		if (request.method === "POST" && url.pathname === "/api/shutdown") {
+			if (!launchKeyOk(request)) throw new HttpError(401, "invalid launch key");
+			if (
+				request.headers.origin !== undefined &&
+				request.headers.origin !== origin
+			)
+				throw new HttpError(403, "invalid Origin");
+			json(response, 200, { stopping: true });
+			setImmediate(() => {
+				void dashboard.close().then(() => options.onIdleExit?.());
+			});
+			return;
 		}
 		// WP43b: the minter (CLI --open, Pi, the MCP tool) may ask whether its launch URL was used,
 		// so an MCP host can send `notifications/elicitation/complete` once the browser signed in.
@@ -754,21 +781,36 @@ export async function startDashboardServer(
 				ready();
 			});
 		});
-	try {
-		await listenOn(options.port ?? preferred ?? 0);
-	} catch (error) {
-		const code = (error as NodeJS.ErrnoException).code;
-		if (
-			options.port === undefined &&
-			preferred !== undefined &&
-			(code === "EADDRINUSE" || code === "EACCES")
-		) {
-			await listenOn(0);
-		} else if (code === "EADDRINUSE" || code === "EACCES") {
-			throw new HostUsageError(
-				"dashboard port is unavailable (in use or permission denied)",
-			);
-		} else throw error;
+	const explicit =
+		options.port ??
+		(env.AGENT_WORKFLOW_DASHBOARD_PORT === undefined
+			? undefined
+			: Number(env.AGENT_WORKFLOW_DASHBOARD_PORT));
+	if (
+		explicit !== undefined &&
+		(!Number.isInteger(explicit) || explicit < 1 || explicit > 65535)
+	)
+		throw new HostUsageError(
+			"dashboard port must be an integer from 1 to 65535",
+		);
+	for (const candidate of dashboardPortCandidates({
+		explicit,
+		customHome: Boolean(process.env.AGENT_WORKFLOW_HOME?.trim()),
+		lastPort: preferred,
+	})) {
+		try {
+			await listenOn(candidate);
+			break;
+		} catch (error) {
+			const code = (error as NodeJS.ErrnoException).code;
+			if (code === "EPERM" || code === "EACCES")
+				throw new HostUsageError(
+					"Dashboard cannot listen from a sandboxed shell; start it from a terminal, hook or MCP server.",
+				);
+			if (code !== "EADDRINUSE") throw error;
+			if (explicit !== undefined || candidate === 0)
+				throw new HostUsageError("dashboard port is unavailable (in use)");
+		}
 	}
 	const address = server.address();
 	if (!address || typeof address === "string")
@@ -784,6 +826,7 @@ export async function startDashboardServer(
 				launchKey,
 				startedAt,
 				auth,
+				version,
 				...(options.idleExitMs !== undefined
 					? {
 							detached: true,
@@ -802,6 +845,7 @@ export async function startDashboardServer(
 	let closing: Promise<void> | undefined;
 	let idleTimer: ReturnType<typeof setInterval> | undefined;
 	const dashboard: DashboardServer = {
+		protocol: DASHBOARD_PROTOCOL,
 		url: auth ? `${origin}/?token=${token}` : `${origin}/`,
 		port,
 		token,
@@ -855,6 +899,7 @@ export async function startDashboardServer(
 							launchKey,
 							startedAt,
 							auth,
+							version,
 							detached: true,
 							idleExitAt: new Date(
 								(clients.size || live ? now() : noClientsSince) + idleExitMs,
