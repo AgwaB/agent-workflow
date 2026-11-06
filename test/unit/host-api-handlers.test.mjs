@@ -417,6 +417,7 @@ test("run: refusals return `refused` without creating a run", async () => {
 		workflow: "wf.json",
 		task: "t",
 		executor: id,
+		permissionMode: "safe",
 	});
 	assertResult(refused, "run", "refused");
 	assert.equal(refused.data.refusal.code, "CAPABILITY_REFUSED");

@@ -95,7 +95,7 @@ export const FAKE_PERMISSION_MODE_SETTINGS = {
 	readOnly: ["--sandbox=read-only", "--approvals=policy"],
 } as const;
 
-/** Synthetic argv for a request (free + not readOnly ⇒ no sandbox, no approvals). */
+/** Synthetic argv for a request (free ⇒ no sandbox, no approvals). */
 export function fakeLaunchArgv(
 	req: Pick<SubmitRequest, "permissionMode" | "readOnly">,
 ): string[] {

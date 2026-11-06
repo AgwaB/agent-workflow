@@ -1,9 +1,6 @@
-// New in agent-workflow (WP12d-1, stage-1 review #1): a stage the spec declares `readOnly` stays
-// read-only in both permission modes. Compile filters non-read-only tools (warning) or refuses the
-// stage when nothing usable remains; negotiation, the approval policy and SubmitRequest.readOnly
-// keep the authored contract; the three adapters therefore never select their unrestricted modes.
-// Engine runs use the fixture executor; adapter settings come from their pure argv/plan builders.
-// No model or agent-CLI calls.
+// Authored readOnly intent still drives compilation, scheduling and records. Executor enforcement
+// and capability negotiation are safe-only (owner decision 2026-11-06).
+// Engine runs use a fixture; adapter settings use pure builders. No model/agent-CLI calls.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -127,7 +124,7 @@ function adapterRequest(submit) {
 }
 
 for (const mode of ["free", "safe"]) {
-	test(`#1 ${mode}: declared readOnly + bash compiles to read-only tools and every adapter stays restricted`, async () => {
+	test(`#1 ${mode}: declared readOnly + bash compiles to read-only tools and adapters enforce only in safe`, async () => {
 		const cwd = await project();
 		const compiled = await compileWorkflow(spec(["read", "bash"]), {
 			cwd,
@@ -159,8 +156,8 @@ for (const mode of ["free", "safe"]) {
 		const stage = started.capabilityNegotiation.stages[0];
 		assert.equal(
 			stage.report.entries.some((entry) => entry.key === "readOnly"),
-			true,
-			"readOnly is negotiated",
+			mode === "safe",
+			"readOnly is negotiated only in safe",
 		);
 		const run = await engine.waitForRun(cwd, started.runId, 60_000);
 		assert.equal(run.status, "completed", JSON.stringify(run.tasks));
@@ -179,17 +176,28 @@ for (const mode of ["free", "safe"]) {
 			claude.parseClaudeConfig({ stateDir: join(root, "claude-state") }),
 			{ mcpConfigPath: join(root, "mcp.json") },
 		);
-		assert.equal(invocation.permissionMode, "default");
-		assert.ok(!invocation.argv.includes("bypassPermissions"));
-		assert.ok(invocation.argv.includes("--disallowedTools"));
+		if (mode === "safe") {
+			assert.equal(invocation.permissionMode, "default");
+			assert.ok(!invocation.argv.includes("bypassPermissions"));
+			assert.ok(invocation.argv.includes("--disallowedTools"));
+		} else {
+			assert.equal(invocation.permissionMode, "bypassPermissions");
+			assert.ok(!invocation.argv.includes("--disallowedTools"));
+			assert.match(stage.report.notes.join(), /readOnly is not enforced/);
+		}
 		// Codex: read-only sandbox, on-request approvals (never danger-full-access/never).
 		const codexPlan = codex.planCodexTools(
 			req.tools,
 			req.readOnly,
 			req.permissionMode,
 		);
-		assert.equal(codexPlan.sandbox, "read-only");
-		assert.equal(codexPlan.approvalPolicy, "on-request");
+		if (mode === "safe") {
+			assert.equal(codexPlan.sandbox, "read-only");
+			assert.equal(codexPlan.approvalPolicy, "on-request");
+		} else {
+			assert.equal(codexPlan.sandbox, "danger-full-access");
+			assert.equal(codexPlan.approvalPolicy, "never");
+		}
 		// Pi: the allowlist is the enforcement; no mutating tool reaches --tools.
 		assert.deepEqual(pi.readOnlyTools(req.tools).dropped, []);
 	});
@@ -233,4 +241,14 @@ test("#1 the authored contract survives a mutation-capable classification (inher
 		safety: { ...compiled.tasks[0].safety, capability: "mutation-capable" },
 	};
 	assert.ok(!workflowTaskApprovalPolicy(legacy).allowKinds.includes("execute"));
+	assert.ok(
+		!workflowTaskApprovalPolicy(legacy, false, "safe").allowKinds.includes(
+			"execute",
+		),
+	);
+	assert.ok(
+		workflowTaskApprovalPolicy(legacy, false, "free").allowKinds.includes(
+			"execute",
+		),
+	);
 });

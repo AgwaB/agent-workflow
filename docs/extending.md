@@ -270,8 +270,10 @@ How `negotiateCapabilities` reads a row:
   stage runs with readOnly enforced, `forcedReadOnly`). The forced `readOnly` is then negotiated
   like an authored readOnly stage: `strict` readOnly refuses an emulated one, and an environment
   warning is recorded as `CAPABILITY_WARNING:readOnly` (without confirmation).
+  Free never forces a readOnly downgrade or negotiates a readOnly requirement (including explicit
+  overrides); authored readOnly instead gets a short informational note, not a warning/refusal.
 
-Stage requirements come from the spec (readOnly, required reads → `mcpInjection`, tools, web tools,
+Stage requirements come from the spec (readOnly only when enforced in safe mode, required reads → `mcpInjection`, tools, web tools,
 partial output, same-session repair, context inheritance). The run records the negotiation; the user sees
 it as the capability preview before launch.
 
@@ -283,7 +285,7 @@ Specs name tools with workflow names (`read`, `grep`, `find`, `ls`, `bash`, `edi
 injected server) or `none`. `mapTools(requested, mapping)` returns the native tools, the sandbox mode,
 unmapped names and whether anything mutates. `WORKFLOW_TOOL_NAMES` and `WorkflowToolName` define the vocabulary;
 `WORKFLOW_TOOL_KINDS` gives each tool's ACP kind; mutating
-kinds (`edit`, `delete`, `move`, `execute`) are denied on readOnly stages.
+kinds (`edit`, `delete`, `move`, `execute`) are denied on safe readOnly stages; free allows all kinds.
 
 ### Events and usage
 
@@ -367,28 +369,31 @@ A detached supervisor or a resumed run cannot receive adapter objects. The run r
 ### Permission modes
 
 Every request says `permissionMode: "free" | "safe"` (the engine always sets it; **absent means
-`safe`**, `effectivePermissionMode`). `isUnrestricted(req)` is true only for `free` on a request that
-is not `readOnly`. An adapter must:
+`safe`**, `effectivePermissionMode`). `isUnrestricted(req)` is true for every `free` request.
+`enforcesReadOnly(req)` is true only for readOnly in `safe` (including absent mode). An adapter must:
 
 1. `safe` (or absent): use no bypass or auto-accept setting; route approvals to `respond()`.
-2. `free` on a non-readOnly request: start the CLI without approval prompts and without sandbox
+2. Every `free` request: start the CLI without approval prompts and without sandbox
    restrictions, with the CLI's documented setting (prefer a documented mode value over a
    `--dangerously-*` alias). Keep the approval channel wired.
-3. readOnly: exactly the `safe` settings in both modes.
+3. Enforce readOnly only when `enforcesReadOnly(req)` is true. Free requests keep requested tools,
+   opted-in host tools and foreign injected MCP servers without readOnly filtering/refusals. Preserve
+   the authored flag in prompts/records and engine-side scheduling/worktree decisions.
 4. Keep context isolation (no user settings, instructions, hooks, skills unless `isolation.inherit`)
    independent of the mode.
 5. Document both mappings and register them with the conformance kit (`harness.permissionModes`,
    check `permission.mode_mapping`); a CLI without approvals or a sandbox declares `equivalent` with
    the reason.
 
-| Adapter | `free` (not readOnly) | `safe` / readOnly |
+| Adapter | `free` (including readOnly) | `safe` |
 |---|---|---|
 | Claude | `--permission-mode bypassPermissions` | `--permission-mode default` (+ `--disallowedTools` for readOnly) |
 | Codex | `sandbox: "danger-full-access"`, `approvalPolicy: "never"` | mapped sandbox (`workspace-write` / `read-only`), `approvalPolicy: "on-request"` |
-| Pi | same as `safe` (no approvals or sandbox) | readOnly drops mutating tools from `--tools` |
+| Pi | every requested tool, including opted-in host tools (no approvals or sandbox) | readOnly drops mutating tools from `--tools` and disables host-tool inheritance |
+| Gemini / Antigravity (ACP) | `yolo`, no readOnly tool filtering | readOnly: Gemini `plan`; Antigravity `default` + filtering and engine policy |
 
-Approvals that still arrive are answered by the engine (`decideApproval`): `free` allows everything
-except mutating kinds on a readOnly stage; `safe` allows the policy's `allowKinds`, asks an
+Approvals that still arrive are answered by the engine (`decideApproval`): `free` allows everything,
+including mutating kinds on a readOnly stage; `safe` allows the policy's `allowKinds`, asks an
 interactive host, and otherwise denies (fail closed, also on timeout). Details:
 [permissions](usage.md).
 
@@ -454,7 +459,7 @@ interface ConformanceHarness {
   runtime?(scenario, { workDir }): Promise<RuntimeStage>;
   permissionModes?: {
     free: string[]; safe: string[]; // substrings of argv.join("\n") + stdin lines
-    readOnly?: string[];           // required on free + readOnly; no free-only setting
+    readOnly?: string[];           // required on safe + readOnly; no free-only setting
     equivalent?: string;           // explanation if modes use identical settings
   };
 }
@@ -507,7 +512,7 @@ the stub CLI's invocation log, not adapter state. Probes must not count as launc
 | `events.partial_stream` | Declared partial streaming produces deltas |
 | `usage.cost_honesty` | Unknown cost is null/unknown, never zero; cost requires `usage.detail: cost` |
 | `approval.allow`, `approval.deny`, `approval.respond_unknown`, `approval.timeout_fail_closed` | Allow/deny, unknown request, too-late answer, timeout denial |
-| `permission.mode_mapping` | Documented free/safe settings and no free-only settings on readOnly; requires `permissionModes` and `launches` |
+| `permission.mode_mapping` | Documented free/safe settings; free readOnly is unrestricted, safe readOnly has no free-only settings; requires `permissionModes` and `launches` |
 | `cancel.active`, `cancel.declared_matches`, `cancel.inactive` | Bounded cancellation, honest unsupported/uncertain results, terminal and unknown refs |
 | `reconcile.found`, `reconcile.absent`, `reconcile.unknown` | Found launch after restart, proven absence, consume-crash never called absent |
 | `errors.failure_classes`, `errors.unknown_class` | Ordered error mapping and unknown fallback |

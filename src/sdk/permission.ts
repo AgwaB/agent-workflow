@@ -1,10 +1,9 @@
 /**
  * Permission mode (owner decision D2 revised, 2026-10-26; WP4e).
  *
- * - `free`: workers get no approval prompts and no sandbox restrictions, except on stages the spec
- *   declares `readOnly` (those stay read-only in both modes). Approval requests that still arrive are
- *   answered `allow` by engine policy (audited `engine-policy:free`); mutating kinds on a readOnly
- *   stage are still denied. B5 context isolation is unchanged.
+ * - `free`: workers get no approval prompts or sandbox/readOnly restrictions, even when the stage
+ *   declares `readOnly`. Approval requests are answered `allow` (audited `engine-policy:free`).
+ *   Authored readOnly intent and B5 context isolation are unchanged.
  * - `safe`: the original D2 behavior — no bypass/auto-accept flags, policy-based approvals that fail
  *   closed, and (engine side) a worktree for every write-capable stage.
  *
@@ -35,13 +34,18 @@ export function effectivePermissionMode(req: {
 		: SDK_DEFAULT_PERMISSION_MODE;
 }
 
-/**
- * True when the request runs unrestricted: `free` mode on a stage that is not readOnly. Adapters use
- * this to choose their bypass settings; a readOnly request gets the same settings in both modes.
- */
+/** True when the executor must enforce the stage's authored readOnly intent (safe only). */
+export function enforcesReadOnly(req: {
+	readonly permissionMode?: PermissionMode;
+	readonly readOnly: boolean;
+}): boolean {
+	return req.readOnly && effectivePermissionMode(req) === "safe";
+}
+
+/** True in free mode, regardless of the stage's authored readOnly intent. */
 export function isUnrestricted(req: {
 	readonly permissionMode?: PermissionMode;
 	readonly readOnly: boolean;
 }): boolean {
-	return effectivePermissionMode(req) === "free" && !req.readOnly;
+	return effectivePermissionMode(req) === "free";
 }

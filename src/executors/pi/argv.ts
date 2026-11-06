@@ -153,7 +153,7 @@ export function buildPiArgv(options: PiArgvOptions): [string, ...string[]] {
 	return argv;
 }
 
-/** Drop mutating tools for readOnly stages (Pi has no sandbox: the allowlist is the enforcement). */
+/** Drop mutating tools when readOnly is enforced (safe mode) (Pi has no sandbox: the allowlist is the enforcement). */
 export function readOnlyTools(tools: readonly string[]): {
 	kept: string[];
 	dropped: string[];

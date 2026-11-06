@@ -39,6 +39,7 @@ import { ARTIFACT_MCP_SERVER_NAME } from "../../core/artifact-access.js";
 import { acquireDirectoryLock } from "../../runtime/artifacts/dir-lock.js";
 import { SdkError } from "../../sdk/errors.js";
 import type { ExecEvent } from "../../sdk/events.js";
+import { enforcesReadOnly } from "../../sdk/permission.js";
 import { createSecretRedactor, requestSecrets } from "../redact.js";
 import { schedulePeriodicAdapterStatePrune } from "../state-retention.js";
 import { acpCapabilities } from "./capabilities.js";
@@ -609,7 +610,7 @@ export function createAcpExecutor(options: {
 		const foreign = req.mcpServers
 			.map((server) => server.name)
 			.filter((name) => name !== ARTIFACT_MCP_SERVER_NAME);
-		if (req.readOnly && foreign.length > 0)
+		if (enforcesReadOnly(req) && foreign.length > 0)
 			throw new SdkError(
 				"CAPABILITY_MISSING",
 				`readOnly request injects MCP servers whose tools may mutate (${foreign.join(", ")}); the ${preset.id} executor cannot enforce readOnly on them`,

@@ -88,7 +88,7 @@ test("transport and permission flags are always present; safe (explicit or absen
 	assert.ok(!argv.includes("--allowedTools"));
 });
 
-test("permission mode (WP4e): free → bypassPermissions; a readOnly stage gets the safe argv in free mode", () => {
+test("permission mode (WP4e): free → bypassPermissions; readOnly is intent only in free mode", () => {
 	const free = plan({
 		readOnly: false,
 		tools: ["bash", "edit"],
@@ -109,13 +109,15 @@ test("permission mode (WP4e): free → bypassPermissions; a readOnly stage gets 
 			tools: ["read", "bash", "edit"],
 			permissionMode: mode,
 		});
-	assert.deepEqual(readOnly("free").argv, readOnly("safe").argv);
+	assert.notDeepEqual(readOnly("free").argv, readOnly("safe").argv);
 	assert.equal(
 		flagValue(readOnly("free").argv, "--permission-mode"),
-		"default",
+		"bypassPermissions",
 	);
-	assert.equal(flagValue(readOnly("free").argv, "--tools"), "Read");
-	assert.ok(readOnly("free").argv.includes("--disallowedTools"));
+	assert.equal(flagValue(readOnly("free").argv, "--tools"), "Read,Bash,Edit");
+	assert.ok(!readOnly("free").argv.includes("--disallowedTools"));
+	assert.equal(flagValue(readOnly("safe").argv, "--tools"), "Read");
+	assert.ok(readOnly("safe").argv.includes("--disallowedTools"));
 	assert.equal(
 		flagValue(
 			plan({ readOnly: false, permissionMode: "safe" }).argv,
@@ -360,4 +362,15 @@ test("capability table is valid and honest", () => {
 					name,
 				);
 	}
+});
+
+test("foreign injected MCP is allowed on free readOnly but refused on safe readOnly", () => {
+	const mcpServers = [{ name: "other", command: "node", args: [] }];
+	const built = plan({ readOnly: true, permissionMode: "free", mcpServers });
+	assert.ok(built.allowedTools.includes("mcp__other"));
+	assert.ok(!built.argv.includes("--disallowedTools"));
+	for (const permissionMode of [undefined, "safe"])
+		assert.throws(() => plan({ readOnly: true, permissionMode, mcpServers }), {
+			code: "CAPABILITY_MISSING",
+		});
 });

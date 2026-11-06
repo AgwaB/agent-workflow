@@ -5,8 +5,8 @@
  * MCP servers including their env values — travels as `thread/start` parameters over stdin, so
  * argv carries no secret (prior-art §3 #8). Approval requests become `approval_request` events
  * answered through `respond()`; the adapter auto-approves nothing (D2). Permission mode (WP4e):
- * `free` on a non-readOnly stage starts the thread with `sandbox: "danger-full-access"` and
- * `approvalPolicy: "never"`; `safe` (or absent) and every readOnly stage keep the mapped sandbox and
+ * `free` on every stage starts the thread with `sandbox: "danger-full-access"` and
+ * `approvalPolicy: "never"`; `safe` (or absent) keep the mapped sandbox and
  * `approvalPolicy: "on-request"`. Threads are ephemeral unless the request asks to keep a session
  * (D3).
  */
@@ -32,6 +32,7 @@ import {
 import { SdkError } from "../../sdk/errors.js";
 import type { ExecEvent, OwnedSession, ToolKind } from "../../sdk/events.js";
 import type { JsonValue } from "../../sdk/json.js";
+import { enforcesReadOnly } from "../../sdk/permission.js";
 import {
 	ARTIFACT_MCP_SERVER_NAME,
 	WORKFLOW_ARTIFACT_TOOL_NAME,
@@ -312,7 +313,7 @@ function approvalResult(
 export function buildThreadConfig(input: {
 	readonly req: Pick<
 		SubmitRequest,
-		"isolation" | "mcpServers" | "tools" | "readOnly"
+		"isolation" | "mcpServers" | "tools" | "readOnly" | "permissionMode"
 	>;
 	readonly userMcpServers: readonly string[];
 	readonly toolOutputTokenLimit: number;
@@ -320,7 +321,7 @@ export function buildThreadConfig(input: {
 	readonly mcpStartupTimeoutSec: number;
 }): Record<string, JsonValue> {
 	const { req } = input;
-	const plan = planCodexTools(req.tools, req.readOnly);
+	const plan = planCodexTools(req.tools, req.readOnly, req.permissionMode);
 	const config: Record<string, JsonValue> = {
 		web_search: plan.webSearch,
 		tool_output_token_limit: input.toolOutputTokenLimit,
@@ -795,7 +796,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			const threadParams = {
 				cwd: req.cwd,
 				...(model === undefined ? {} : { model }),
-				// WP4e: "never" + danger-full-access only for free mode on a non-readOnly stage.
+				// WP4e: "never" + danger-full-access for every free-mode stage.
 				approvalPolicy: plan.approvalPolicy,
 				approvalsReviewer: "user",
 				sandbox: plan.sandbox,
@@ -1169,7 +1170,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		async submit(req: SubmitRequest): Promise<ExecRef> {
 			const problems = validateSubmitRequest(req);
 			const plan = Array.isArray(req.tools)
-				? planCodexTools(req.tools, req.readOnly === true)
+				? planCodexTools(req.tools, req.readOnly === true, req.permissionMode)
 				: undefined;
 			if (plan !== undefined && plan.unmapped.length > 0)
 				problems.push(
@@ -1187,7 +1188,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			const foreignServers = (req.mcpServers ?? [])
 				.map((server) => server.name)
 				.filter((name) => name !== ARTIFACT_MCP_SERVER_NAME);
-			if (req.readOnly === true && foreignServers.length > 0)
+			if (enforcesReadOnly(req) && foreignServers.length > 0)
 				throw new SdkError(
 					"CAPABILITY_MISSING",
 					`readOnly request injects MCP servers whose tools may mutate (${foreignServers.join(", ")}); the codex executor cannot enforce readOnly on them`,

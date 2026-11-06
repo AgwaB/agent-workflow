@@ -429,7 +429,7 @@ test("submit: argv/tools/readOnly, prompt on stdin, extension per run, secrets o
 	assert.match(extension, /"envKeys":\["ART_TOKEN"\]/u);
 });
 
-test("permission mode (WP4e): Pi has no approvals or sandbox, so free and safe launch the same argv; readOnly drops mutating tools in both", async () => {
+test("permission mode (WP4e): Pi has no approvals or sandbox, so free and safe launch the same argv; only safe readOnly drops mutating tools", async () => {
 	const launched = [];
 	for (const [permissionMode, readOnly] of [
 		["free", false],
@@ -452,7 +452,7 @@ test("permission mode (WP4e): Pi has no approvals or sandbox, so free and safe l
 		const argv = launch.argv.map((arg) =>
 			arg.startsWith(dir) ? "<attempt>" : arg,
 		);
-		launched.push({ readOnly, argv });
+		launched.push({ readOnly, permissionMode, argv });
 	}
 	const writable = launched.filter((entry) => !entry.readOnly);
 	for (const entry of writable) assert.deepEqual(entry.argv, writable[0].argv);
@@ -461,9 +461,9 @@ test("permission mode (WP4e): Pi has no approvals or sandbox, so free and safe l
 		"read,bash,edit",
 	);
 	const readOnly = launched.filter((entry) => entry.readOnly);
-	assert.deepEqual(readOnly[0].argv, readOnly[1].argv);
+	assert.deepEqual(readOnly[0].argv, writable[0].argv);
 	assert.equal(
-		readOnly[0].argv[readOnly[0].argv.indexOf("--tools") + 1],
+		readOnly[1].argv[readOnly[1].argv.indexOf("--tools") + 1],
 		"read",
 	);
 });
@@ -817,4 +817,32 @@ test("cancel: SIGTERMs the Pi process group, terminal failed/cancelled; second c
 	assert.equal(await executor.cancel(ref, "owned"), "too_late");
 	const [launch] = (await cli.invocations()).filter((entry) => entry.effect);
 	assert.deepEqual(launch.signals, ["SIGTERM"]);
+});
+
+test("free readOnly Pi retains mutating tools, host tools and injected foreign MCP", async () => {
+	const { executor, cli } = await stage(await completeSteps(), {
+		inheritHostTools: true,
+	});
+	const overrides = {
+		tools: ["read", "bash", "edit", "write"],
+		readOnly: true,
+		mcpServers: [{ name: "other", command: "node", args: [] }],
+	};
+	for (const permissionMode of [undefined, "safe"]) {
+		const { req, gate } = request({ ...overrides, permissionMode });
+		await assert.rejects(executor.submit(req), (error) =>
+			isSdkError(error, "CAPABILITY_MISSING"),
+		);
+		assert.equal(gate.state(), "pending");
+	}
+	const { req } = request({ ...overrides, permissionMode: "free" });
+	assert.equal(
+		(await drain(executor, await executor.submit(req))).at(-1).type,
+		"completed",
+	);
+	const [launch] = (await cli.invocations()).filter((entry) => entry.effect);
+	const tools = launch.argv[launch.argv.indexOf("--tools") + 1].split(",");
+	for (const tool of ["bash", "edit", "write", "codemode", "mcp__*"])
+		assert.ok(tools.includes(tool), tool);
+	assert.ok(launch.argv.includes("builtin:mcp"));
 });

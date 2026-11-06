@@ -449,7 +449,7 @@ async function approvalRun(kind, request) {
 	return { result, audit };
 }
 
-test("free: approvals that still arrive are allowed by engine policy and audited engine-policy:free; readOnly mutations stay denied", async () => {
+test("free: approvals that still arrive are allowed by engine policy and audited engine-policy:free; readOnly mutations are allowed in free", async () => {
 	const allowed = await approvalRun("execute", {
 		permissionMode: "free",
 		approvalPolicy: { allowKinds: [], interactive: false },
@@ -473,7 +473,14 @@ test("free: approvals that still arrive are allowed by engine policy and audited
 		readOnly: true,
 		approvalPolicy: { allowKinds: ["edit"] },
 	});
-	assert.equal(readOnly.result.metadata.executor.approvals[0].decision, "deny");
+	assert.equal(
+		readOnly.result.metadata.executor.approvals[0].decision,
+		"allow",
+	);
+	assert.match(
+		readOnly.audit.find((record) => record.phase === "decided").reason,
+		/free permission mode allows edit/,
+	);
 	assert.equal(
 		readOnly.result.metadata.executor.approvals[0].by,
 		"engine-policy:free",

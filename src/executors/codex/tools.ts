@@ -10,7 +10,11 @@ import {
 	WORKFLOW_ARTIFACT_TOOL_NAME,
 } from "../../core/artifact-access.js";
 import type { ToolKind } from "../../sdk/events.js";
-import { isUnrestricted, type PermissionMode } from "../../sdk/permission.js";
+import {
+	enforcesReadOnly,
+	isUnrestricted,
+	type PermissionMode,
+} from "../../sdk/permission.js";
 import {
 	mapTools,
 	type SandboxMode,
@@ -138,9 +142,9 @@ export interface CodexToolPlan {
 }
 
 /**
- * Sandbox, approval policy and web mode for a request. readOnly always wins (B4/D2) in both
- * permission modes: `read-only` sandbox, `on-request` approvals. `free` (D2 revised, WP4e) on a
- * stage that is not readOnly: `danger-full-access` + approvals `never` (the coarse tool list is
+ * Sandbox, approval policy and web mode for a request. Safe readOnly stages use the
+ * `read-only` sandbox and `on-request` approvals. Every `free` stage uses
+ * `danger-full-access` + approvals `never` (the coarse tool list is
  * accepted, not enforced). `safe` (default when absent): an empty tool list means "no explicit
  * restriction" = workspace-write; otherwise the mapped sandbox; approvals `on-request`;
  * `danger-full-access` is never selected.
@@ -160,7 +164,7 @@ export function planCodexTools(
 		...(permissionMode === undefined ? {} : { permissionMode }),
 	});
 	let sandbox: CodexSandboxMode;
-	if (readOnly) sandbox = "read-only";
+	if (enforcesReadOnly({ readOnly, permissionMode })) sandbox = "read-only";
 	else if (unrestricted) sandbox = "danger-full-access";
 	else if (tools.length === 0) sandbox = "workspace-write";
 	else sandbox = mapped.sandbox ?? "read-only";

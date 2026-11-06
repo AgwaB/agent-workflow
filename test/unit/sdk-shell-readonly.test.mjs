@@ -101,12 +101,12 @@ test("a readOnly stage judges a plain read-only shell request as search; others 
 	});
 	assert.equal(decideApproval(searchPolicy, read, ro), "allow");
 	assert.equal(decideApproval(defaultApprovalPolicy(), read, ro), "deny");
-	// free: allowed; a writing command stays denied on a readOnly stage in both modes.
+	// free: allowed; a writing command is denied only in safe mode.
 	const free = { readOnly: true, permissionMode: "free" };
 	assert.equal(decideApproval(defaultApprovalPolicy(), read, free), "allow");
 	const write = { kind: "execute", command: "echo OK > f.txt" };
 	assert.equal(decideApproval(searchPolicy, write, ro), "deny");
-	assert.equal(decideApproval(defaultApprovalPolicy(), write, free), "deny");
+	assert.equal(decideApproval(defaultApprovalPolicy(), write, free), "allow");
 	// The event carries the command as an optional string.
 	assert.deepEqual(
 		validateExecEvent({

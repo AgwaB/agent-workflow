@@ -27,6 +27,7 @@ import {
 import { delimiter, dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FailureClass } from "../../sdk/errors.js";
+import { enforcesReadOnly, type PermissionMode } from "../../sdk/permission.js";
 import type { ToolMapping } from "../../sdk/tools.js";
 import type { AgentToolResult, SummaryCall } from "./config.js";
 
@@ -337,7 +338,7 @@ export const ANTIGRAVITY_TOOL_MAPPING: ToolMapping = {
 /**
  * Session `_meta` for a request: `enabledTools` is an allowlist of built-ins (live 2026-11-02: only
  * the listed tools were offered; engine MCP tools are not affected). It holds the request's mapped
- * tools (readOnly: without the writing ones). Everything else is off, including run_workflow
+ * tools (safe readOnly: without the writing ones). Everything else is off, including run_workflow
  * (its startup SKILL.md write), schedule, invoke_subagent and ask_question (no one answers an
  * unattended worker). With no built-in left, every known tool is disabled instead (an empty
  * allowlist's meaning is unverified). `_meta.agy` is logged as legacy; `_meta.antigravity` is used.
@@ -360,13 +361,19 @@ export const ANTIGRAVITY_MCP_OUTPUT_LIMIT_CHARS =
 export function antigravitySessionMeta(req: {
 	readonly tools: readonly string[];
 	readonly readOnly: boolean;
+	readonly permissionMode?: PermissionMode;
 }): Record<string, unknown> {
 	const enabled = new Set<string>();
 	for (const tool of req.tools) {
 		const entry = ANTIGRAVITY_TOOL_MAPPING.entries[tool];
 		if (entry?.type !== "tool") continue;
 		for (const name of entry.names)
-			if (!(req.readOnly && (name === "edit_file" || name === "create_file")))
+			if (
+				!(
+					enforcesReadOnly(req) &&
+					(name === "edit_file" || name === "create_file")
+				)
+			)
 				enabled.add(name);
 	}
 	const mcpMaxOutputBytes = ANTIGRAVITY_MCP_MAX_OUTPUT_BYTES;

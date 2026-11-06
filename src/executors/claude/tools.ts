@@ -30,7 +30,7 @@ export const CLAUDE_TOOL_MAPPING: ToolMapping = {
 	},
 };
 
-/** Built-in Claude tools that change state; never offered to readOnly workers. */
+/** Built-in Claude tools that change state; never offered to safe readOnly workers. */
 export const CLAUDE_MUTATING_TOOLS = [
 	"Bash",
 	"Edit",

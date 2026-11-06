@@ -189,7 +189,7 @@ after(async () => {
 	});
 });
 let serial = 0;
-async function completed(steps) {
+async function completed(steps, permissionMode = "free") {
 	const id = `visible-blocks-${++serial}`;
 	const cwd = join(root, id);
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
@@ -219,6 +219,7 @@ async function completed(steps) {
 	const started = await runWorkflowSpec(path, cwd, {
 		task: "test",
 		executor: id,
+		permissionMode,
 	});
 	const run = await waitForRun(cwd, started.runId, 60_000);
 	assert.equal(run.status, "completed", JSON.stringify(run.tasks));
@@ -243,7 +244,11 @@ for (const source of ["provider", "engine"])
 			source === "provider"
 				? [event, event]
 				: [{ approval: approval(), ifAllowed: [], ifDenied: [event, event] }];
-		const { cwd, run, ctx } = await completed(steps);
+		// Engine denial is safe-only; keep every blocked-action projection assertion.
+		const { cwd, run, ctx } = await completed(
+			steps,
+			source === "engine" ? "safe" : "free",
+		);
 		const task = run.tasks.find((task) => task.blockedActions);
 		assert.equal(task.blockedActions.count, 2);
 		assert.equal(task.blockedActions[source], 2);

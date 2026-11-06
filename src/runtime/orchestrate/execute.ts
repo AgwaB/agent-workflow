@@ -615,10 +615,10 @@ function policyReason(
 	decision: ApprovalDecision | "ask",
 	free = false,
 ): string {
-	if (readOnly && isMutatingKind(kind))
-		return `readOnly stage denies mutating kind ${kind}`;
 	if (decision === "allow" && free)
 		return `free permission mode allows ${kind} (D2 revised)`;
+	if (readOnly && isMutatingKind(kind))
+		return `readOnly stage denies mutating kind ${kind}`;
 	if (decision === "allow") return `approvalPolicy.allowKinds includes ${kind}`;
 	if (decision === "ask") return "interactive policy";
 	return `${kind} is not in approvalPolicy.allowKinds and no interactive host (fail-closed, D2)`;
@@ -742,7 +742,7 @@ export async function observeAttempt(
 				decision = asked;
 				by = free ? "engine-policy:free" : "engine-policy";
 				const judgedAs = effectiveApprovalKind(valid, {
-					readOnly: options.readOnly,
+					readOnly: options.readOnly && !free,
 				});
 				reason = policyReason(judgedAs, options.readOnly, asked, free);
 				if (judgedAs !== valid.kind)

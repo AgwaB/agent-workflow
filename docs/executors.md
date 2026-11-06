@@ -7,8 +7,9 @@ below lives separately under `$AGENT_WORKFLOW_HOME/executors/`.
 Each executor runs one attempt through its CLI and normalizes output into SDK events. Keep secrets
 in `SubmitRequest.env` or `McpServerSpec.env`, not descriptor config. The engine decides retries
 from failure class (`unknown` is never automatically retried); adapters do not relaunch consumed
-attempts. ReadOnly requests may inject only the engine's read-only artifact server; other servers
-are refused before consume with `CAPABILITY_MISSING:readOnly`. Web safety policy is unknown.
+attempts. Safe readOnly requests may inject only the engine's read-only artifact server; other servers
+are refused before consume with `CAPABILITY_MISSING:readOnly`. Free requests permit foreign injected
+servers regardless of authored readOnly intent. Web safety policy is unknown.
 
 Workflow built-ins are `read`, `grep`, `find`, `ls`, `web_search`, `fetch_content`, `edit`, `write`,
 and `bash`; SDK constants are `WORKFLOW_TOOL_NAMES` / `WORKFLOW_TOOL_KINDS`. Codex mapping rows use
@@ -16,10 +17,10 @@ and `bash`; SDK constants are `WORKFLOW_TOOL_NAMES` / `WORKFLOW_TOOL_KINDS`. Cod
 
 | Executor | CLI and verified version | Invocation | Isolation | Permission modes | Web tools | Artifact MCP | Notable limits |
 |---|---|---|---|---|---|---|---|
-| Pi | Pi 1.1.0 | `pi --mode json --print` | Resource-disabling flags; auth retained | `free` = `safe`; readOnly allowlist | pi-web-access 0.44.0, search+fetch | `mcp__workflow_artifact__workflow_artifact`; 18,432 artifact output chars/bytes | No sandbox or approvals; fast tier live-unverified |
-| Codex | codex-cli 0.166.0 | `codex app-server` | Per-thread config; global instructions/rules remain | Safe: mapped sandbox + `on-request`; free/non-readOnly: `danger-full-access` + `never` | Hosted search; fetch mapping unverified | `mcp__workflow_artifact__workflow_artifact`; 30,400 artifact output chars/bytes | Coarse tools; global exec-policy allow rules |
-| Claude Code | claude-code 2.1.318 | `claude -p`, stream-json | Settings/MCP isolation; built-in agents/plugins remain | Safe/readOnly: `default`; free/non-readOnly: `bypassPermissions` | `WebSearch`, `WebFetch` | `mcp__workflow_artifact__workflow_artifact`; 21,375 artifact output chars/bytes | Read-tool auto-allow; MCP spill files |
-| Antigravity (ACP) | agy_acp_server 1.4.5 | No args on macOS; `--uid=` on Linux | Private `GEMINI_HOME`; workspace skills remain | Free/non-readOnly: `yolo`; otherwise `default`; emulated readOnly | `search_web`, `read_url_content` + `view_file` | `call_mcp_tool`; 131,072-byte MCP override | No resume or filesystem sandbox; declared capabilities |
+| Pi | Pi 1.1.0 | `pi --mode json --print` | Resource-disabling flags; auth retained | Free: requested tools; safe readOnly: read-only allowlist | pi-web-access 0.44.0, search+fetch | `mcp__workflow_artifact__workflow_artifact`; 18,432 artifact output chars/bytes | No sandbox or approvals; fast tier live-unverified |
+| Codex | codex-cli 0.166.0 | `codex app-server` | Per-thread config; global instructions/rules remain | Safe: mapped sandbox + `on-request`; free: `danger-full-access` + `never` | Hosted search; fetch mapping unverified | `mcp__workflow_artifact__workflow_artifact`; 30,400 artifact output chars/bytes | Coarse tools; global exec-policy allow rules |
+| Claude Code | claude-code 2.1.318 | `claude -p`, stream-json | Settings/MCP isolation; built-in agents/plugins remain | Safe: `default`; free: `bypassPermissions` | `WebSearch`, `WebFetch` | `mcp__workflow_artifact__workflow_artifact`; 21,375 artifact output chars/bytes | Read-tool auto-allow; MCP spill files |
+| Antigravity (ACP) | agy_acp_server 1.4.5 | No args on macOS; `--uid=` on Linux | Private `GEMINI_HOME`; workspace skills remain | Free: `yolo`; safe `default`; safe readOnly emulated | `search_web`, `read_url_content` + `view_file` | `call_mcp_tool`; 131,072-byte MCP override | No resume or filesystem sandbox; declared capabilities |
 
 ## Pi
 
@@ -123,7 +124,7 @@ sets `unavailableTools`, and reduces `webTools` to `search` or `none`. `agent-wo
 can re-enable a tool after asking. URL/IP/redaction safety controls are unaudited (`safetyPolicy: unknown`).
 
 `inheritHostTools` is a host-level, per-task descriptor opt-in, honored only for Pi tasks and ignored
-for readOnly requests. It adds `codemode`, `tool_search`, `mcp__*`, `list_mcp_resources`,
+for safe readOnly requests. It adds `codemode`, `tool_search`, `mcp__*`, `list_mcp_resources`,
 `list_mcp_resource_templates`, `read_mcp_resource`, and loads `builtin:mcp`, `builtin:codemode`,
 `builtin:tool-search` under isolation. This intentionally exposes the user's `mcp.json` servers.
 The capability preview records a host-tools notice. This path is verified offline, not live.
@@ -133,7 +134,7 @@ The capability preview records a host-tools notice. This path is verified offlin
 Pi 1.1 native MCP is configured per run without changing global settings. The generated extension
 calls `pi.registerMcpServer(name, { command, args, env, exposure: "direct" })` for each injected
 server. Server names must match `[A-Za-z0-9_-]+`. Writable requests declare
-`mcp__<server>__*`; readOnly artifact access declares only
+`mcp__<server>__*`; safe readOnly artifact access declares only
 `mcp__workflow_artifact__workflow_artifact`.
 
 Pi cuts MCP text above **20,480 UTF-8 bytes** (`MCP_OUTPUT_MAX_BYTES = 20 * 1024`, `truncateMiddle`),
@@ -155,7 +156,7 @@ live or offline coverage.
 | toolLoop / context | agent / agent | — | Pi owns the loop |
 | sessionBound | `true` | — | stdout owned by spawning process |
 | mcpInjection | native | probed | live, Pi 1.1.0 |
-| readOnly | emulated | probed | allowlist; live, Pi 1.1.0 |
+| readOnly | emulated | probed | safe-only allowlist; live, Pi 1.1.0 |
 | toolAllowlist | native / fine | probed | live, Pi 1.1.0 |
 | systemPrompt | native / replace | probed (offline) | `--system-prompt <file>`, Pi 1.1.0 |
 | modelSelect | native | probed | `--model`; live, Pi 1.1.0 |
@@ -265,7 +266,8 @@ Owned run directories are removed only through real-directory ancestors resolvin
 ### Permission mode
 
 Pi has no approval prompts in `--mode json --print` and no sandbox. `free` and `safe` produce the
-same argv with every requested tool; readOnly drops mutating tools in both modes.
+same argv with every requested tool except that safe readOnly drops mutating tools. Free readOnly
+keeps requested mutating tools and opted-in host tools without readOnly MCP restrictions.
 See [permissions](usage.md#permission-modes). `PI_PERMISSION_MODE_SETTINGS` describes this as `equivalent`.
 
 ## Codex
@@ -304,8 +306,8 @@ The adapter splits only on `\n`, preserving U+2028/U+2029 inside JSON strings.
 
 | Setting | Value / purpose |
 |---|---|
-| `sandbox` | Safe/default: `read-only` for readOnly or read-only tools; `workspace-write` for write/exec tools or an empty tool list on a writable stage. Free and non-readOnly: `danger-full-access` |
-| `approvalPolicy` | `on-request`; `never` only for free, non-readOnly stages |
+| `sandbox` | Safe/default: `read-only` for readOnly or read-only tools; `workspace-write` for write/exec tools or an empty tool list on a writable stage. Free (including readOnly): `danger-full-access` |
+| `approvalPolicy` | `on-request`; `never` for every free stage |
 | `approvalsReviewer` | `user`, preventing user config from routing decisions to auto-review |
 | `serviceTier` | `null` (standard); fast tier is not offered |
 | `ephemeral` | true unless `sessionId`/`resumeSessionId` is requested |
@@ -318,8 +320,8 @@ The adapter splits only on `\n`, preserving U+2028/U+2029 inside JSON strings.
 
 ### Permission mode
 
-`free` on a non-readOnly stage uses `danger-full-access` plus `never`. Safe/default uses the mapped
-sandbox plus `on-request`; readOnly uses `read-only` plus `on-request` in either mode.
+`free` on every stage uses `danger-full-access` plus `never`. Safe/default uses the mapped
+sandbox plus `on-request`; safe readOnly uses `read-only` plus `on-request`; free readOnly stays unrestricted (including shell network access).
 Free mode records coarse-tool and environment degradations without strict refusal or confirmation.
 See [permissions](usage.md#permission-modes); mapping: `CODEX_PERMISSION_MODE_SETTINGS`.
 
@@ -497,7 +499,7 @@ remote-control notifications are redacted. Messages sent to the CLI remain uncha
 | toolLoop / context | agent / agent | — | Codex owns the loop |
 | sessionBound | true | — | one stdio connection owns the thread |
 | mcpInjection | native | probed | live, 0.159.2; offline app-server |
-| readOnly | native | probed | live, 0.159.2; environment probe can lower it |
+| readOnly | native | probed | safe only; live, 0.159.2; environment probe can lower it |
 | toolAllowlist | native, coarse | probed | read-only sandbox; live, 0.159.2 |
 | systemPrompt | native, append | declared | `developerInstructions`; live, 0.159.2 |
 | modelSelect | native | probed | live, 0.159.2 |
@@ -591,14 +593,15 @@ requests to the engine instead of letting the CLI silently deny them.
 
 `--tools` restricts built-ins. `--allowedTools` pre-allows requested web tools and injected MCP tools;
 readOnly artifact access uses the exact `mcp__workflow_artifact__workflow_artifact` rule, not a
-server-wide rule. ReadOnly also adds `--disallowedTools Bash,Edit,Write,NotebookEdit`.
+server-wide rule. Safe readOnly also adds `--disallowedTools Bash,Edit,Write,NotebookEdit`.
 
 ### Permission mode
 
-Safe/default and every readOnly stage use `--permission-mode default`. Free, non-readOnly stages
+Safe/default stages use `--permission-mode default`. Every free stage, including readOnly,
 use `--permission-mode bypassPermissions`, not the `--dangerously-skip-permissions` alias.
 The stdio approval channel stays enabled; the engine allows requests that still arrive in free mode
-with audit reason `engine-policy:free`. ReadOnly argv is identical in both modes.
+with audit reason `engine-policy:free`. Free readOnly retains requested mutating tools and adds no `--disallowedTools`; safe readOnly keeps
+the read-only tool set and disallowed mutating tools.
 See [permissions](usage.md#permission-modes); mapping: `CLAUDE_PERMISSION_MODE_SETTINGS`.
 
 ### Managed-policy preflight
@@ -748,12 +751,12 @@ Without a result within `killGraceMs`, stdin closes, then SIGTERM/SIGKILL escala
 | toolLoop / context | agent / agent | declared | CLI owns both |
 | sessionBound | **true** | declared | spawning worker owns stdio/control |
 | mcpInjection | native | probed | live, 2.1.310 |
-| readOnly | native | probed | live conformance, 2.1.310 |
-| toolAllowlist | native, fine | probed | live conformance, 2.1.310 |
+| readOnly | native | probed | safe only; live conformance, 2.1.310 |
+| toolAllowlist | native, fine | probed | safe only; live conformance, 2.1.310 |
 | systemPrompt | native, `append` (or `replace` per config) | probed | live, 2.1.310 |
 | modelSelect | native | probed | `--model`; live, 2.1.310 |
 | effortLevels | low, medium, high, xhigh, max | declared | CLI help; minimal maps to low |
-| resume | native, native | probed | live conformance, 2.1.310 |
+| resume | native, native | probed | safe only; live conformance, 2.1.310 |
 | partialStream | native | probed | live, 2.1.310 |
 | usage | native, cost | probed | `total_cost_usd` |
 | toolTelemetry | native | probed | live, 2.1.310 |
@@ -796,7 +799,7 @@ records mean unknown, refuse resubmission with `AUTHORITY_ALREADY_CONSUMED`, and
 - **Session-bound:** another process reconciles from raw output: recorded result → `found`, otherwise
   `unknown`. Either needs a decision, never automatic adoption/relaunch. Cross-process observe
   replays raw output and ends `failed unknown` without a result.
-- **Auto-allow:** CLI read tools and read-only Bash can bypass engine approval; readOnly removes Bash.
+- **Auto-allow:** CLI read tools and read-only Bash can bypass engine approval; safe readOnly removes Bash.
 - **Spills:** files exist during the run and are removed after ephemeral CLI exit. The artifact
   server's actual default bound is 21,375 characters/bytes, below the 22,500 probe limit.
 - **Environment:** inherited `ANTHROPIC_API_KEY` switches to API-key billing. MCP env values are
@@ -869,7 +872,7 @@ gemini --acp [--model <m>] --allowed-mcp-server-names <engine servers> --approva
 
 ACP servers merge into user-configured servers. `--allowed-mcp-server-names` excludes ambient servers;
 with no engine servers it uses the sentinel `agent-workflow-none`.
-ReadOnly uses `--approval-mode plan`, free/non-readOnly uses `yolo`, and safe/default uses `default`.
+Safe readOnly uses `--approval-mode plan`; every free stage uses `yolo`; safe writable stages use `default`.
 Permission requests still pass through engine policy. GEMINI.md memory and user settings remain;
 `contextIsolation` is none and no fine tool allowlist is offered.
 
@@ -888,7 +891,7 @@ and Codex, but does not make it the installed default.
 Launch uses no arguments on macOS and `--uid=` on Linux. For symlinked executables, the adapter sets
 `ANTIGRAVITY_HARNESS_PATH` to `localharness_external` beside the real file.
 
-After `session/new`, the adapter sends `session/set_mode`: `yolo` for free/non-readOnly, otherwise
+After `session/new`, the adapter sends `session/set_mode`: `yolo` for every free stage (including readOnly), otherwise
 `default`. Antigravity has no read-only mode; enforcement relies on tool filtering and engine
 permission decisions, not a filesystem sandbox. `session/set_config_option` selects `model` and
 `thinking_level`. Models outside the offered list fail as config; non-Google provider names are
@@ -1006,7 +1009,7 @@ The Antigravity column includes its live-verified behavior without upgrading met
 | toolLoop / context | agent / agent | agent / agent | agent-owned loop |
 | sessionBound | true | true | process-owned ACP session |
 | mcpInjection | native | native | `session/new`; Antigravity live, 1.4.5 |
-| readOnly | emulated | emulated | plan/default mode plus engine policy |
+| readOnly | emulated | emulated | safe only: plan/default mode plus engine policy |
 | toolAllowlist | none | native, coarse | Antigravity `enabledTools`, live 1.4.5 |
 | systemPrompt | emulated, append | emulated, append | prompt prefix |
 | modelSelect | native | native | CLI flag / session config |
@@ -1044,7 +1047,7 @@ The failure-answer patterns are source-based and have not been observed live her
 
 - Gemini live MCP naming/delivery, approvals, cancellation and usage remain unverified.
 - Neither preset supports resume or session adoption after owner loss.
-- Antigravity has no filesystem sandbox or native read-only mode; readOnly is emulated.
+- Antigravity has no filesystem sandbox or native read-only mode; safe readOnly is emulated; free readOnly is not enforced.
 - Antigravity workspace skills remain visible under isolation; workspace-hook exclusion is unverified.
 - Antigravity unknown/new built-ins and empty-allowlist semantics need verification on newer servers.
 - Raw tool display summaries are not full evidence; result recovery is unavailable with inherited homes.

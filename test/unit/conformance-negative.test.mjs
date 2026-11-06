@@ -298,10 +298,12 @@ test("an adapter that ignores permissionMode fails permission.mode_mapping (WP4e
 		{
 			wrap: (fake) => ({
 				...fake,
-				// Bug: free mode also unlocks readOnly stages.
+				// Bug: safe mode also unlocks readOnly stages.
 				submit: (req) =>
 					fake.submit(
-						req.permissionMode === "free" ? { ...req, readOnly: false } : req,
+						req.permissionMode === "safe" && req.readOnly
+							? { ...req, permissionMode: "free" }
+							: req,
 					),
 			}),
 		},
@@ -309,6 +311,6 @@ test("an adapter that ignores permissionMode fails permission.mode_mapping (WP4e
 	);
 	assertFails(
 		bypassReadOnly["permission.mode_mapping"],
-		/free-readOnly launch has setting "--sandbox=off"/,
+		/safe-readOnly launch has setting "--sandbox=off"/,
 	);
 });

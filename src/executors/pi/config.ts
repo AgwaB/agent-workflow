@@ -25,7 +25,7 @@ export interface PiExecutorConfig {
 	/**
 	 * Pi-only (A2-4, core-port WP4b): the host asked to inherit its tools; adds codemode,
 	 * tool_search, `mcp__*` and the MCP resource tools and loads Pi's built-in MCP with the user's
-	 * `mcp.json`. Ignored for readOnly requests.
+	 * `mcp.json`. Ignored for safe readOnly requests.
 	 */
 	readonly inheritHostTools?: boolean;
 	/**
