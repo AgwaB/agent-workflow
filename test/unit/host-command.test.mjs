@@ -2,7 +2,15 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	mkdtemp,
+	readFile,
+	rm,
+	symlink,
+	writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 
@@ -624,9 +632,18 @@ test("plugin manifests ship aw skill, command hooks, native timeout fields, and 
 			"codex-rs protocol/hooks.rs serde rename = timeout",
 		);
 		assert.equal(hook.timeout_sec, undefined);
-		assert.match(hook.command, new RegExp(`--host ${host}`));
-		assert.match(hook.command, /grep -Eq/);
+		const body =
+			host === "codex" ? plugins.codexHostCommandHookScript(cli) : hook.command;
+		assert.match(body, new RegExp(`--host ${host}`));
+		assert.match(body, /grep -Eq/);
 	}
+	const codexHook = codex.hooks.hooks.UserPromptSubmit[0].hooks[0];
+	assert.equal(codexHook.command, plugins.CODEX_HOOK_COMMAND);
+	assert.doesNotMatch(
+		codexHook.command,
+		/npx|0\.1\.0|--package/,
+		"the declared Codex command is version-free (a changed declaration needs a restart to trust)",
+	);
 	assert.deepEqual(
 		Object.keys(codex.hooks),
 		["hooks"],
@@ -647,4 +664,36 @@ test("plugin manifests ship aw skill, command hooks, native timeout fields, and 
 		/open:true|open:false/,
 		"fallback only uses valid MCP arguments",
 	);
+});
+
+test("the declared Codex hook runs the plugin's script with stdin, and passes through without PLUGIN_ROOT", async () => {
+	const root = await mkdtemp(join(tmpdir(), "aw-codex-hook-script-"));
+	try {
+		const marker = join(root, "cli-started");
+		const cli = { command: "sh", args: ["-c", `cat > ${marker}; exit 0`, "x"] };
+		await mkdir(join(root, "scripts"), { recursive: true });
+		await writeFile(
+			join(root, plugins.CODEX_HOOK_SCRIPT),
+			plugins.codexHostCommandHookScript(cli),
+		);
+		const run = (prompt, env) =>
+			spawnSync("/bin/sh", ["-c", plugins.CODEX_HOOK_COMMAND], {
+				input: JSON.stringify({ prompt }),
+				env: { ...process.env, ...env },
+				encoding: "utf8",
+			});
+		assert.equal(run("aw stop x", { PLUGIN_ROOT: "" }).status, 0);
+		assert.equal(existsSync(marker), false, "no PLUGIN_ROOT: pass through");
+		assert.equal(run("hello there", { PLUGIN_ROOT: root }).status, 0);
+		assert.equal(existsSync(marker), false, "ordinary prompt: no CLI start");
+		assert.equal(run("$aw stop x", { PLUGIN_ROOT: root }).status, 0);
+		assert.equal(
+			existsSync(marker),
+			true,
+			"aw prompt: the script starts the CLI",
+		);
+		assert.match(await readFile(marker, "utf8"), /"\$aw stop x"/);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
 });
