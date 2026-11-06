@@ -111,7 +111,7 @@ const shimUses = [];
  * ENOTEMPTY crashed the runner). Retry like the in-process cleanup (unit-test-support.mjs); a home that
  * still cannot be removed is reported, not a test failure.
  */
-function removeTestHome(home) {
+function removeTestHome(home, file) {
 	try {
 		rmSync(home, {
 			recursive: true,
@@ -121,7 +121,7 @@ function removeTestHome(home) {
 		});
 	} catch (error) {
 		console.error(
-			`test home not removed (a detached test process may still write it): ${home}: ${error.code ?? error}`,
+			`test home not removed (a detached process from ${file} may still write it): ${home}: ${error.code ?? error}`,
 		);
 	}
 }
@@ -173,7 +173,7 @@ function runFile(file) {
 			if (existsSync(shimLog))
 				shimUses.push(`${file}:\n${readFileSync(shimLog, "utf8")}`);
 			if (keep) console.error(`test home kept: ${home}`);
-			else removeTestHome(home);
+			else removeTestHome(home, file);
 			resolveRun();
 		});
 	});
