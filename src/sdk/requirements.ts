@@ -438,7 +438,7 @@ export function negotiateCapabilities(
 	}
 
 	// WP12d-1 (review #7): a forced downgrade makes `readOnly` a requirement of this stage, so it is
-	// negotiated like an authored readOnly stage (strictness, environment warning, confirmation).
+	// negotiated like an authored readOnly stage (strictness and environment warning).
 	if (forcedReadOnly && !entries.some((entry) => entry.key === "readOnly"))
 		entries.push(negotiateKey("readOnly", DEFAULT_REQUIREMENTS.readOnly));
 

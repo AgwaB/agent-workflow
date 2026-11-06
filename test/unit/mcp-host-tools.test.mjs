@@ -192,7 +192,6 @@ test("initialize and tools/list: server name, instructions, every tool gated per
 			"workflow_profile",
 			"workflow_supervise",
 			// WP29: dynamic-controller approvals (mcp-host-wp29-approve.test.mjs).
-			"workflow_approve",
 			// WP32: auto workflow selection with consent (host-wp32-auto.test.mjs).
 			"workflow_auto",
 			"workflow_dashboard",
@@ -545,14 +544,8 @@ test("host identity, detach default true, launch options and cwd reach the host 
 	assert.equal(run.ctx.cwd, join(cwd, "sub"));
 	assert.equal(run.ctx.env, env);
 	const { confirmDegradations, interactive, ...request } = run.request;
-	// 2026-11-04: a client without dialogs is still asked, in the conversation: the launch is
-	// interactive and the hook answers "unasked" (the agent then asks the user).
-	assert.equal(interactive, true, "no elicitation capability");
-	assert.equal(typeof confirmDegradations, "function");
-	assert.equal(
-		await confirmDegradations({ needsOk: ["webTools"], prompt: "x" }),
-		"unasked",
-	);
+	assert.equal(interactive, undefined);
+	assert.equal(confirmDegradations, undefined);
 	assert.deepEqual(request, {
 		workflow: "deep-review",
 		task: "review this",
@@ -590,8 +583,8 @@ test("host identity, detach default true, launch options and cwd reach the host 
 		interactive: dynamicInteractive,
 		...dynamicRequest
 	} = dynamic.request;
-	assert.equal(dynamicInteractive, true);
-	assert.equal(typeof dynamicConfirm, "function");
+	assert.equal(dynamicInteractive, undefined);
+	assert.equal(dynamicConfirm, undefined);
 	assert.deepEqual(dynamicRequest, {
 		task: "explore",
 		launchOrigin: {

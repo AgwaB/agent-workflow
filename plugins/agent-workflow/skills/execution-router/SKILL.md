@@ -21,7 +21,7 @@ Return exactly these four short items:
 1. **Recommendation** — one of: handle directly, use an existing workflow, use a targeted verifier/subagent, use direct dynamic workflow, or separate authoring needed.
 2. **Reason** — one or two sentences based on scope, side-effect constraints, evidence/verification needs, and known available routes. State uncertainty plainly.
 3. **Cautions** — concise blockers or safety constraints; say `none known` when appropriate.
-4. **Next action** — a user-controlled follow-up only. It may suggest a direct response, an existing workflow (`workflow_run {workflow, task}` or `agent-workflow run <name> "<task>"`), a direct dynamic run (`workflow_dynamic {task}` or `agent-workflow dynamic "<task>"`), letting the user compare the existing workflows with `agent-workflow auto "<task>"` (or, as the user's own later request, the `workflow_auto` tool; it classifies once and starts the top recommendation without asking; it sends the user before sending the task to one classifier request and starts only the workflow the user picks), a targeted verifier, clarification, or a separate authoring request.
+4. **Next action** — a user-controlled follow-up only. It may suggest a direct response, an existing workflow (`workflow_run {workflow, task}` or `agent-workflow run <name> "<task>"`), a direct dynamic run (`workflow_dynamic {task}` or `agent-workflow dynamic "<task>"`), letting the user compare the existing workflows with `agent-workflow auto "<task>"` (or, as the user's own later request, the `workflow_auto` tool; it sends one classifier request and starts the top recommendation without asking), a targeted verifier, clarification, or a separate authoring request.
 
 End with: **No execution performed.**
 
@@ -34,7 +34,7 @@ Do not require a graph, schema, helper, storage layout, task packet, promotion c
 - Recommend a targeted verifier/subagent for one bounded independent check, not as a default escalation.
 - Recommend direct dynamic workflow only for adaptive coordinated work when the user is willing to launch it separately.
 - Recommend separate authoring when no existing route fits a repeatable process; do not design the workflow in this response.
-- When several existing workflows could fit and the user wants agent-workflow to choose, suggest `auto` as the user's own next step; it is consent-gated (no classifier request without the user's yes, none at all where it cannot ask) and never part of this recommendation.
+- When several existing workflows could fit and the user wants agent-workflow to choose, suggest `auto` as the user's own next step; it classifies once and starts the top recommendation without asking and never part of this recommendation.
 - When scope, side effects, privacy, or success criteria would change the route, ask for the smallest necessary clarification instead of guessing.
 
 For shared public workflow routing and launch behavior, use the compact guidance in `../../reference/docs/usage.md` (relative to this skill directory).

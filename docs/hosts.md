@@ -192,7 +192,7 @@ Permission mode defaults to `free`; use `safe` only on request ([permissions.md]
 - `content`: one text item, bounded to 50 000 characters, with next-step guidance for launches, waits and pending stops.
 - `structuredContent` (protocol `2025-06-18` onward): `{action, ok, outcome, data, text, next?}`. `data` matches host API and CLI `--json`, except the inspect projection.
 - `--host claude-code` receives text only for host API results; `codex` and `generic` retain structured content. Tools declare no `outputSchema`.
-- `isError: true` marks refused launches and handler errors. Structured errors are `{ok: false, outcome: kind, error: {kind, message}}`, with kind `usage`, `validation` or `error`. Exception: `CAPABILITY_CONFIRMATION_REQUIRED` is `isError: false`, still `outcome: "refused"`, because the user must answer a question.
+- `isError: true` marks refused launches and handler errors. Structured errors are `{ok: false, outcome: kind, error: {kind, message}}`, with kind `usage`, `validation` or `error`.
 - JSON-RPC errors: unknown tool/non-object arguments `-32602`, unknown method `-32601`, requests before initialization `-32600`.
 - Workers (`AGENT_WORKFLOW_ROLE=worker`) may call only `workflow_validate` and `workflow_check`.
 

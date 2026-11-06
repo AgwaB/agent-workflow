@@ -688,7 +688,7 @@ then role table and launch card.
 
 Refusals start no run: `EXECUTOR_PROBE_FAILED`, `EXECUTOR_NOT_INSTALLED`,
 `EXECUTOR_AUTH_NOT_READY`, `CAPABILITY_REFUSED`, `MODEL_UNKNOWN`,
-`CAPABILITY_CONFIRMATION_REQUIRED`, `CAPABILITY_DEGRADATION_DECLINED`, `EXECUTOR_UNAVAILABLE`,
+`EXECUTOR_UNAVAILABLE`,
 `DUPLICATE_LAUNCH_IN_PROGRESS`, `WORKFLOW_DEFINITION_CHANGED`. Missing role models are refused only
 when the probe's model list is complete; partial lists produce a note.
 

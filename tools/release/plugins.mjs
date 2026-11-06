@@ -589,8 +589,8 @@ export function adaptExecutionRouter(text) {
 			"Never invoke `workflow_run`, `workflow_dynamic`, `workflow_auto`, `workflow_wait`, `workflow_stop`, `workflow_validate`, `workflow_resume`, `workflow_supervise`, `workflow_prune`, `workflow_profile`, `workflow_notices`, `agent-workflow auto`, `agent-workflow resume`, or the matching `agent-workflow` CLI commands",
 		],
 		[
-			'`agent-workflow auto "<task>"` (in Pi: `/aw auto`; it classifies once and starts the top recommendation without asking; it sends',
-			'`agent-workflow auto "<task>"` (or, as the user\'s own later request, the `workflow_auto` tool; it classifies once and starts the top recommendation without asking; it sends',
+			'`agent-workflow auto "<task>"` (in Pi: `/aw auto`; it sends',
+			'`agent-workflow auto "<task>"` (or, as the user\'s own later request, the `workflow_auto` tool; it sends',
 		],
 		[
 			'an existing workflow (`agent-workflow run <name> "<task>"`), a direct dynamic run (`agent-workflow dynamic "<task>"`)',

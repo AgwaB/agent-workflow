@@ -4,8 +4,7 @@ import { projectId } from "../../core/state-location.js";
 // workflow_wait, workflow_stop, workflow_inspect, workflow_logs (WP18b), workflow_validate. Each is a thin call into one
 // host API handler (src/hosts/api.ts). Schemas and wording follow the Pi host's `aw_*` tools
 // (src/hosts/pi/tools.ts); differences: `detach` defaults to true (MCP calls are time-limited),
-// every tool takes an optional `cwd` below the server's root, and degradation confirmation goes
-// through MCP elicitation when the client supports it. docs/hosts.md#claude-code-and-codex.
+// every tool takes an optional `cwd` below the server's root. Launch degradations never prompt. docs/hosts.md#claude-code-and-codex.
 // WP28 (owner decision Q7): every CLI command is a tool: workflow_resume, workflow_show,
 // workflow_roles, workflow_agents, workflow_notices, workflow_doctor, workflow_prune,
 // workflow_profile and workflow_supervise (detached). Changing calls (prune without dry run,
@@ -1057,12 +1056,6 @@ function rejectUnknown(name: string, params: Record<string, unknown>) {
 }
 
 /** Tool arguments → LaunchRequestBase fields. */
-/**
- * WP32: unique option labels of the auto choice (the enum values of the elicitation form), in the
- * ranked order. WP39b (O4): no number prefix; Codex numbers enum options itself ("1. 1. …") and
- * Claude Code lists them in order. Equal labels get their scope (`review [user]`), then a counter.
- */
-
 export function launchRequestFromArguments(
 	params: Record<string, unknown>,
 ): LaunchRequestBase {
