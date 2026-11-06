@@ -19,7 +19,14 @@ export async function managementProject(t, options = {}) {
 	const probeLog = join(cwd, "probes.log");
 	const effects = join(cwd, "effects.jsonl");
 	resetExecutorProbeCacheForTests();
-	for (const id of ["pi", "claude", "codex", "antigravity", "management-fake"])
+	for (const id of [
+		"pi",
+		"claude",
+		"codex",
+		"antigravity",
+		"management-fake",
+		"management-offline",
+	])
 		project.dispose(
 			registerWorkflowExecutor({
 				id,
@@ -32,7 +39,11 @@ export async function managementProject(t, options = {}) {
 					id,
 					effectLog: effects,
 					probeLog,
-					probe: { installed: true, cliVersion: "1.2.3", auth: "ok" },
+					probe: {
+						installed: id !== "management-offline",
+						cliVersion: "1.2.3",
+						auth: "ok",
+					},
 				},
 			}),
 		);
@@ -49,6 +60,10 @@ export async function managementProject(t, options = {}) {
 			schemaVersion: 1,
 			name: "manage",
 			description: "Management fixture",
+			routing: {
+				useWhen: ["managing a test dashboard"],
+				outputs: ["a capability preview"],
+			},
 			defaults: { agent: "reader", readOnly: true, tools: ["read"] },
 			artifactGraph: {
 				stages: [{ id: "read", type: "single", prompt: "Read facts." }],

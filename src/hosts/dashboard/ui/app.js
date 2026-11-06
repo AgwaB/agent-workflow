@@ -5759,8 +5759,25 @@ async function renderWorkflows(page) {
 						const data = await managementApi(
 							projectRoute(`workflows/${encodeURIComponent(workflow.name)}`),
 						);
+						// Display authored stage/agent names, not a second compiler or execution plan.
+						const authored = JSON.parse(data.spec.data.spec);
+						const stages = Array.isArray(authored.artifactGraph?.stages)
+							? authored.artifactGraph.stages
+							: [];
 						const panel = managementPanel(
 							workflow.name,
+							element("h3", {}, "Stages and agents"),
+							element(
+								"ul",
+								{},
+								stages.map((stage) =>
+									element(
+										"li",
+										{},
+										`${stage.id} · ${stage.type || (stage.support ? "code" : "stage")} · ${stage.agent || authored.defaults?.agent || "executor default"}`,
+									),
+								),
+							),
 							managementResult(data.validation),
 							element(
 								"details",
@@ -5783,6 +5800,7 @@ async function renderWorkflows(page) {
 							"",
 							...new Set([
 								...profiles.map((p) => p.name),
+								...Object.keys(authored.executionProfiles || {}),
 								"pi",
 								"claude",
 								"codex",

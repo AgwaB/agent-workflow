@@ -23,6 +23,11 @@ test("management catalogs and check reuse host actions, never resolve request pa
 	assert.ok(
 		catalog.data.data.workflows.some((workflow) => workflow.name === "manage"),
 	);
+	const row = catalog.data.data.workflows.find(
+		(workflow) => workflow.name === "manage",
+	);
+	assert.equal(row.scope, "project-private");
+	assert.deepEqual(row.routing.useWhen, ["managing a test dashboard"]);
 	// A same-name file in cwd must not shadow the server-discovered workflow definition.
 	await writeFile(join(p.cwd, "manage"), "not a workflow");
 	const detail = await p.http(`${p.base}/workflows/manage`);
@@ -50,6 +55,15 @@ test("management catalogs and check reuse host actions, never resolve request pa
 		checked.data.data.capability.preview.startsWith("Capability check"),
 	);
 	assert.equal(checked.data.data.runId, undefined);
+	const refused = await p.http(
+		`${p.base}/workflows/manage/check`,
+		write("POST", {
+			executor: "management-offline",
+		}),
+	);
+	assert.equal(refused.status, 200);
+	assert.equal(refused.data.outcome, "refused");
+	assert.equal(refused.data.data.runId, undefined);
 	assert.equal(
 		existsSync(p.effects),
 		false,
@@ -249,8 +263,25 @@ test("executor models are descriptor-validated; doctor caches 60 seconds and exp
 		8,
 		"Refresh invalidates both report and adapter probe caches",
 	);
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "doctor-default",
+		values: { executor: "codex", permissionMode: "safe" },
+		makeDefault: true,
+	});
+	assert.equal(
+		(await p.http("/api/doctor")).data.data.permissionMode.mode,
+		"free",
+		"report remains cached before expiry",
+	);
 	p.advance(60_000);
-	assert.equal((await p.http("/api/doctor")).status, 200);
+	const expired = await p.http("/api/doctor");
+	assert.equal(expired.status, 200);
+	assert.equal(
+		expired.data.data.permissionMode.mode,
+		"safe",
+		"expired report sees updated saved defaults",
+	);
 	const models = await p.http("/api/executors/models?executor=management-fake");
 	assert.equal(models.status, 200);
 	assert.deepEqual(models.data.data.executors[0].models, ["fixture-model"]);
