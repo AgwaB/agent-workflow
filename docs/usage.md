@@ -1049,7 +1049,7 @@ run choice takes precedence over profiles and host defaults. See the generated
 |---|---|---|---|
 | `pi` | 0.1.0 | Pi 1.1.0 (minimum 1.1.0 for native MCP) | [Pi](executors.md#pi) |
 | `codex` | 0.1.0 | codex-cli 0.166.0 | [Codex](executors.md#codex) |
-| `claude` | 0.1.0 | claude-code 2.1.318 | [Claude](executors.md#claude-code) |
+| `claude` | 0.1.0 | claude-code 2.1.319 | [Claude](executors.md#claude-code) |
 | `antigravity` (experimental) | ACP adapter | `agy_acp_server` 1.4.5 | [ACP](executors.md#antigravity-acp) |
 
 These versions were checked on macOS. SDK contract: `0.1.0`. `probe()` notes a CLI version that
