@@ -25,7 +25,11 @@ import {
 	projectId,
 	type ProjectRegistration,
 } from "../../core/state-location.js";
-import { bindDashboardPort, dashboardPortCandidates } from "./ports.js";
+import {
+	bindDashboardPort,
+	dashboardPortCandidates,
+	listenDashboardPort,
+} from "./ports.js";
 import { HostUsageError } from "../args.js";
 import { createDashboardManagement, DashboardHttpError } from "./management.js";
 import { hostTextRedactor } from "../redaction.js";
@@ -857,13 +861,7 @@ export async function startDashboardServer(
 			? await readPreferredDashboardPort(cwd)
 			: undefined;
 	const listenOn = (candidate: number) =>
-		new Promise<void>((ready, reject) => {
-			server.once("error", reject);
-			server.listen(candidate, "127.0.0.1", () => {
-				server.removeListener("error", reject);
-				ready();
-			});
-		});
+		listenDashboardPort(server, candidate);
 	const explicit =
 		options.port ??
 		(env.AGENT_WORKFLOW_DASHBOARD_PORT === undefined

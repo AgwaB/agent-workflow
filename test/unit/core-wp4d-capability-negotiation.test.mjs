@@ -1,4 +1,5 @@
 import { stateDir } from "../helpers/state-dir.mjs";
+import { drainWorkflowProject } from "../helpers/workflow-fixture-lifecycle.mjs";
 // New in agent-workflow (WP4d): B4 capability negotiation in the engine before launch. Workflows run
 // through the real engine with the fixture executor (test/helpers/workflow-executor-fixture.mjs)
 // whose capability table and probe each test controls. No model or agent-CLI calls.
@@ -28,6 +29,7 @@ const { fakeCapabilities } = await import("../../dist/sdk/testing/index.js");
 
 let root;
 const unregister = [];
+const projects = new Set();
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp4d-")));
@@ -37,8 +39,9 @@ before(async () => {
 	});
 });
 after(async () => {
+	for (const cwd of projects) await drainWorkflowProject(cwd);
 	for (const undo of unregister.splice(0)) undo();
-	// A supervisor finishing its last write can still create a file meanwhile (ENOTEMPTY).
+	slots.setSubagentLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,
@@ -51,6 +54,7 @@ let counter = 0;
 async function project() {
 	counter += 1;
 	const cwd = join(root, `p${counter}`);
+	projects.add(cwd);
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
 	await writeFile(
 		join(cwd, ".agent-workflow", "agents", "reader.md"),

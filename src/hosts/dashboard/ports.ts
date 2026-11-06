@@ -1,3 +1,34 @@
+import type { Server } from "node:net";
+
+/** Settle both listeners on each attempt, including a failed bind before a retry. */
+export function listenDashboardPort(
+	server: Server,
+	port: number,
+): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const cleanup = () => {
+			server.off("listening", onListening);
+			server.off("error", onError);
+		};
+		const onListening = () => {
+			cleanup();
+			resolve();
+		};
+		const onError = (error: Error) => {
+			cleanup();
+			reject(error);
+		};
+		server.once("listening", onListening);
+		server.once("error", onError);
+		try {
+			server.listen(port, "127.0.0.1");
+		} catch (error) {
+			cleanup();
+			reject(error);
+		}
+	});
+}
+
 /** Ordered bind candidates; zero asks the OS for an ephemeral port. No I/O. */
 export function dashboardPortCandidates(options: {
 	explicit?: number;

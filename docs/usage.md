@@ -281,6 +281,18 @@ it: `stop` waits up to 15 s for that confirmation, and a run the supervisor has 
 as confirmed (exit 0). If no confirmation arrives in time, `stop` reports the stop as pending and
 exits 1; the intent stays durable and is applied when the supervisor next runs.
 
+### Provider rate-limit waits
+
+For rate-limit failures, retry scheduling honors a provider's `Retry-After` duration or HTTP date,
+absolute reset timestamp, or clock such as `resets 3:30pm (Asia/Seoul)`. A clock without a timezone
+uses the local timezone. Invalid or unrecognized hints use the normal exponential backoff.
+When several valid hints exist, the latest wins. Explicit reset times are minimum waits, not
+truncated to the default backoff ceiling; shared model cooldowns survive process restarts.
+
+A five-hour provider limit can therefore leave a task waiting for hours. Use `--detach` to avoid
+occupying the terminal, and `status` or the dashboard to see the scheduled retry. Existing run
+limits and stop controls still apply; the engine does not bypass the provider's limit.
+
 ## Executors
 
 | Executor | CLI | Notes |

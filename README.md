@@ -37,9 +37,10 @@ npx agent-workflow inspect "$id" --failures --results
 background supervisor. Run records and logs live in a private [per-project state directory](docs/usage.md#where-run-state-lives),
 not the repository. See the [CLI reference](docs/cli.md).
 
-**The default permission mode is `free`: workers run without approval prompts or a sandbox unless
-the stage declares `readOnly`.** Use `--permission-mode safe` for policy-based approvals that fail
-closed and a worktree for every write-capable stage. All four bundled workflows are read-only.
+**The default permission mode is `free`: workers run without approval prompts or a sandbox, even
+when the stage declares `readOnly`.** Use `--permission-mode safe` to enforce read-only intent,
+policy-based approvals that fail closed and a worktree for every write-capable stage. All four
+bundled workflows declare read-only intent; it is not a safety boundary in `free`.
 See [permission modes](docs/usage.md#permission-modes) for limits and executor mappings.
 
 Every launch prints a link to the loopback-only [dashboard](docs/hosts.md#dashboard), with live tasks,
@@ -106,6 +107,12 @@ See [workflow details](workflows/README.md) and [executor support](docs/usage.md
 Write your own with the bundled `workflow-guide` skill and the [usage guide](docs/usage.md).
 
 ## Documentation
+
+- **Connect a host:** [Pi, Claude Code or Codex setup](docs/hosts.md).
+- **Run and monitor:** [usage](docs/usage.md#running), [CLI commands](docs/cli.md),
+  [dashboard](docs/hosts.md#dashboard).
+- **Write a workflow:** [stages and DAGs](docs/usage.md#stage-model); **integrate a CLI:**
+  [executor behavior](docs/executors.md) and [adapter development](docs/extending.md).
 
 | Document | For |
 |---|---|

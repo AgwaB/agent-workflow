@@ -1,4 +1,5 @@
 import { stateDir } from "../helpers/state-dir.mjs";
+import { drainWorkflowProject } from "../helpers/workflow-fixture-lifecycle.mjs";
 // New in agent-workflow (WP12a, live bundle 3 open problem 3): the compiler's output protocol tells
 // the worker to validate its control against "the workflow-local control schema file:
 // ./schemas/…", a path relative to the workflow bundle that does not resolve from the worker's
@@ -38,9 +39,9 @@ before(async () => {
 	});
 });
 after(async () => {
+	await drainWorkflowProject(join(root, "project"));
 	for (const undo of unregister.splice(0)) undo();
 	slots.setSubagentLaunchControlsForTests({});
-	// Durable workers/finalizers may still be closing files: retry like host-cli.test.mjs.
 	await rm(root, {
 		recursive: true,
 		force: true,

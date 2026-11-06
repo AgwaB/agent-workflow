@@ -27,6 +27,7 @@ import { startDashboardServer } from "../helpers/dashboard-server.mjs";
 import {
 	bindDashboardPort,
 	dashboardPortCandidates,
+	listenDashboardPort,
 } from "../../dist/hosts/dashboard/ports.js";
 import {
 	DASHBOARD_PROTOCOL,
@@ -470,15 +471,21 @@ test("the entire default fallback sequence is exercised through injected occupie
 		server.close();
 	});
 	const attempted = [];
-	const listen = (port) =>
-		new Promise((resolve, reject) => {
-			attempted.push(port);
-			server.once("error", reject);
-			server.listen(port, "127.0.0.1", () => {
-				server.removeListener("error", reject);
-				resolve();
-			});
-		});
+	const builtinListeners = server.listeners("listening");
+	const listen = async (port) => {
+		attempted.push(port);
+		try {
+			await listenDashboardPort(server, port);
+		} finally {
+			assert.deepEqual(
+				server
+					.listeners("listening")
+					.filter((fn) => !builtinListeners.includes(fn)),
+				[],
+			);
+			assert.equal(server.listenerCount("error"), 0);
+		}
+	};
 	await bindDashboardPort(candidates, listen);
 	assert.deepEqual(attempted, candidates);
 	assert.ok(server.address().port > 7426);
@@ -501,6 +508,15 @@ test("the entire default fallback sequence is exercised through injected occupie
 		{ code: "EADDRINUSE" },
 	);
 	await assert.rejects(bindDashboardPort([], listen), /policy is empty/);
+	// A synchronous listen error also removes both handlers; no successful bind may be required.
+	await assert.rejects(listenDashboardPort(server, -1));
+	assert.deepEqual(
+		server
+			.listeners("listening")
+			.filter((fn) => !builtinListeners.includes(fn)),
+		[],
+	);
+	assert.equal(server.listenerCount("error"), 0);
 });
 
 test("an unknown identity answer keeps a live server's discovery; only a proven foreign listener removes it", async (t) => {

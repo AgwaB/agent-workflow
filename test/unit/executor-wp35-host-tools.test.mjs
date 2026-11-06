@@ -1,4 +1,5 @@
 import { stateDir } from "../helpers/state-dir.mjs";
+import { drainWorkflowProject } from "../helpers/workflow-fixture-lifecycle.mjs";
 // New in agent-workflow (WP35, feature-parity row 40): host-tool inheritance from a Pi host. A Pi 1.1
 // session with native codemode/MCP lends codemode, tool_search, `mcp__*` and the MCP resource tools
 // to Pi workers: the Pi host captures it (piNativeHostTools), the launch sets the run option
@@ -49,6 +50,7 @@ const { createStubCli } = await import("../../dist/sdk/conformance/index.js");
 
 let root;
 const unregister = [];
+const projects = new Set();
 let counter = 0;
 
 before(async () => {
@@ -60,7 +62,9 @@ before(async () => {
 	});
 });
 after(async () => {
+	for (const cwd of projects) await drainWorkflowProject(cwd);
 	for (const undo of unregister.splice(0)) undo();
+	slots.setSubagentLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,
@@ -97,6 +101,7 @@ const SPEC = {
 async function project() {
 	counter += 1;
 	const cwd = join(root, `p${counter}`);
+	projects.add(cwd);
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
 	await writeFile(
 		join(cwd, ".agent-workflow", "agents", "writer.md"),

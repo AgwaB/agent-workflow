@@ -3,7 +3,7 @@
 // Model calls: smoke+MCP 1, concurrency 3, web 1, system prompt 2, conformance live checks 6
 // (resume = 2 calls).
 // Every run happens in a fresh /tmp/aw-live-claude-run-* directory; evidence is summarized in
-// ROOT/summary.json for test/fixtures/executors/claude/live-calls.md.
+// ROOT/summary.json; retain it with the maintenance evidence.
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";

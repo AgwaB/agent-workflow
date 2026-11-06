@@ -1,4 +1,5 @@
 import { stateDir } from "../helpers/state-dir.mjs";
+import { drainWorkflowProject } from "../helpers/workflow-fixture-lifecycle.mjs";
 // The Pi host records owning-session assistant usage while a run is active and
 // counts the first settled wrap-up once. Persist numbers and hashes, never message
 // content; status and inspect show totals. Fixture executor only.
@@ -26,6 +27,7 @@ const slots = await import("../../dist/core/launch-slots.js");
 let root;
 let counter = 0;
 const unregister = [];
+const projects = new Set();
 const instances = [];
 
 const SPEC = {
@@ -49,13 +51,16 @@ after(async () => {
 	for (const { pi } of instances)
 		for (const handler of pi.handlers.get("session_shutdown") ?? [])
 			await handler({}, undefined);
+	for (const cwd of projects) await drainWorkflowProject(cwd);
 	for (const undo of unregister.splice(0)) undo();
+	slots.setSubagentLaunchControlsForTests({});
 	await rm(root, { recursive: true, force: true, maxRetries: 5 });
 });
 
 async function project(stepDelayMs = 1_500) {
 	counter += 1;
 	const cwd = join(root, `p${counter}`);
+	projects.add(cwd);
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
 	await writeFile(
 		join(cwd, ".agent-workflow", "agents", "reader.md"),

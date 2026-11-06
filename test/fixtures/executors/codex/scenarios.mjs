@@ -1,6 +1,6 @@
 // Conformance scenarios for the codex adapter as app-server transcripts. `complete`, `approval`,
 // `slow` (interrupt) and the error rows replay scrubbed live recordings from `recorded/` where one
-// exists (see live-calls.md); the rest are synthetic, built from the codex-cli 0.159.2 protocol
+// exists; the rest are synthetic, built from the codex-cli 0.159.2 protocol
 // (`codex app-server generate-ts`) with the same message shapes. Request ids follow the adapter's
 // fixed order: 1 initialize, 2 config/read (isolation on), 3 thread/start, 4 mcpServerStatus/list,
 // 5 turn/start, 6+ turn/interrupt.

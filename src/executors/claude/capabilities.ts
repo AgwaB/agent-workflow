@@ -1,7 +1,6 @@
 /**
  * Claude executor capability table (plan §2.2). `probed` rows were proven live with
- * claude-code 2.1.310 (`CLAUDE_VERIFIED_WITH`); evidence per row is in docs/executors.md#claude-code and
- * test/fixtures/executors/claude/live-calls.md.
+ * the version in `CLAUDE_VERIFIED_WITH`; evidence per row is in docs/executors.md#claude-code.
  */
 import {
 	type ExecutorCapabilities,
