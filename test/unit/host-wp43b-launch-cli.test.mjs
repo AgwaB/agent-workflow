@@ -214,14 +214,7 @@ test("env opt-in is suppressed in agents and on pipes; failures cannot fail the 
 	});
 	t.after(() => s.close());
 	let opens = 0;
-	const args = (task) => [
-		"run",
-		"wf.json",
-		task,
-		"--executor",
-		ctx.executor,
-		"--yes",
-	];
+	const args = (task) => ["run", "wf.json", task, "--executor", ctx.executor];
 	const suppressed = await invoke(ctx, args("agent suppression"), {
 		isTTY: true,
 		env: { ...ctx.env, CLAUDECODE: "1", AGENT_WORKFLOW_DASHBOARD_OPEN: "1" },
@@ -398,7 +391,7 @@ test("terminal env opt-in opens once outside agent environments", {
 	let opened = 0;
 	const result = await invoke(
 		ctx,
-		["run", "wf.json", "terminal opt-in", "--executor", ctx.executor, "--yes"],
+		["run", "wf.json", "terminal opt-in", "--executor", ctx.executor],
 		{
 			env,
 			isTTY: true,
