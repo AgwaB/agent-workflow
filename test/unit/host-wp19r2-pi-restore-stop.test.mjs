@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19 round 2, re-review N7): stopping the Pi run tracker while
 // `restore()` awaits the audience read must not resurrect polling. Before the fix the restore
 // went on to track the active run and schedule a timer after `stop()`, and later ticks (no ctx)
@@ -27,7 +28,7 @@ test("N7: stop() during restore()'s audience read leaves no polling timer and no
 	);
 	t.after(() => fs.rm(cwd, { recursive: true, force: true, maxRetries: 5 }));
 	const runId = "workflow_wp19r2_restore";
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await fs.mkdir(dir, { recursive: true });
 	const at = new Date().toISOString();
 	await fs.writeFile(

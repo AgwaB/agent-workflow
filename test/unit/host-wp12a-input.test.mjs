@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP12a, live bundle 3 open problem 1): `agent-workflow run|dynamic` and
 // Pi `/aw run|dynamic` set workflow inputs with `--input key=value` (repeatable). Values are typed
 // by the spec's declared `input` defaults (string / number / boolean / JSON); an undeclared key or
@@ -90,10 +91,13 @@ async function runCli(cwd, argv) {
 
 /** The workflow input as compiled into the first task prompt ("# Workflow Input"). */
 async function compiledInput(cwd, runId) {
-	const runDir = join(cwd, ".agent-workflow", "workflows", runId);
+	const runDir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	const run = JSON.parse(await readFile(join(runDir, "run.json"), "utf8"));
 	const task = run.tasks.find((item) => item.files?.taskPrompt);
-	const prompt = await readFile(join(cwd, task.files.taskPrompt), "utf8");
+	const prompt = await readFile(
+		join(stateDir(cwd), task.files.taskPrompt),
+		"utf8",
+	);
 	const match = /# Workflow Input\n\n([\s\S]*?)(?:\n\n#|$)/.exec(prompt);
 	assert.ok(match, prompt);
 	return JSON.parse(match[1]);
@@ -160,7 +164,10 @@ test("CLI --input usage errors: undeclared key, wrong type, missing '=', duplica
 	]);
 	assert.equal(duplicate.code, 2);
 	assert.match(duplicate.err, /depth.*more than once/);
-	assert.equal(existsSync(join(cwd, ".agent-workflow", "workflows")), false);
+	assert.equal(
+		existsSync(join(stateDir(cwd), ".agent-workflow", "workflows")),
+		false,
+	);
 });
 
 test("host API: string inputs are typed by the declared default; typed values pass through", async () => {

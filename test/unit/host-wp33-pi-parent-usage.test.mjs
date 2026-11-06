@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // The Pi host records owning-session assistant usage while a run is active and
 // counts the first settled wrap-up once. Persist numbers and hashes, never message
 // content; status and inspect show totals. Fixture executor only.
@@ -111,7 +112,13 @@ function assistant(input, output, cost) {
 }
 
 const usageFile = (cwd, runId) =>
-	join(cwd, ".agent-workflow", "workflows", runId, "parent-usage.json");
+	join(
+		stateDir(cwd),
+		".agent-workflow",
+		"workflows",
+		runId,
+		"parent-usage.json",
+	);
 
 test("records the owning session's assistant usage while the run is active, shown by status and inspect", async () => {
 	// Long enough that the messages below are counted while the run is still active.

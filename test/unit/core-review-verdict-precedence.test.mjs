@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // agent-workflow 2026-11-04 (owner decision, live run of every bundled workflow): confirmed findings
 // decide the verdict before unresolved or incomplete parts of a review. All six non-clean
 // verdicts that day had 2–6 grounded findings but read INCONCLUSIVE / PARTIAL_REVIEW because one or
@@ -175,7 +176,11 @@ test("deep-review end to end: an incomplete reviewer plus a grounded KEEP render
 				noIssueNotes: ["No API issue was found in what could be read."],
 			},
 		},
-		context: { cwd, sourceStatuses: statuses },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			sourceStatuses: statuses,
+		},
 		options: { mode: "dedup" },
 	});
 	const partition = await pipeline({
@@ -192,6 +197,7 @@ test("deep-review end to end: an incomplete reviewer plus a grounded KEEP render
 		},
 		context: {
 			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
 			sourceStatuses: [
 				...statuses,
 				{
@@ -249,7 +255,13 @@ test("spec-review end to end: a KEEP gap and a NEEDS_HUMAN verifier give GAPS_FO
 	);
 	const runId = "unit-verdict";
 	const save = async (taskId, file, value) => {
-		const dir = join(cwd, ".agent-workflow/workflows", runId, "tasks", taskId);
+		const dir = join(
+			stateDir(cwd),
+			".agent-workflow/workflows",
+			runId,
+			"tasks",
+			taskId,
+		);
 		await mkdir(dir, { recursive: true });
 		await writeFile(join(dir, file), JSON.stringify(value));
 	};
@@ -377,7 +389,12 @@ test("spec-review end to end: a KEEP gap and a NEEDS_HUMAN verifier give GAPS_FO
 			]),
 			"verify-findings.finding-002": verifier("finding-002", "NEEDS_HUMAN", []),
 		},
-		context: { cwd, runId, sourceStatuses: statuses },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			runId,
+			sourceStatuses: statuses,
+		},
 	});
 	assert.equal(p.finalFindings.length, 1);
 	assert.ok(p.needsHuman.some((row) => row.id === "finding-002"));
@@ -399,6 +416,7 @@ test("spec-review end to end: a KEEP gap and a NEEDS_HUMAN verifier give GAPS_FO
 		},
 		context: {
 			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
 			runId,
 			sourceStatuses: ["partition-findings", "report"].map((name) => ({
 				source: name,

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP42 review round 2, N1, major): a recorded worktree path spelled through
 // an alias of the project root (macOS `/tmp` → `/private/tmp`, a symlinked project parent) is mapped
 // onto the canonical project root and identified like any other managed worktree; an enabled record
@@ -144,7 +145,9 @@ test("N1: an enabled worktree record whose project root cannot be resolved keeps
 	assert.equal(done.runs[0]?.deleted, false, JSON.stringify(done));
 	assert.ok(done.runs[0]?.worktrees?.[0]?.error);
 	assert.ok(
-		existsSync(join(cwd, ".agent-workflow", "workflows", "workflow_probe")),
+		existsSync(
+			join(stateDir(cwd), ".agent-workflow", "workflows", "workflow_probe"),
+		),
 	);
 });
 

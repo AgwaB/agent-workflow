@@ -1,3 +1,4 @@
+import { ensureStateBase } from "./state-location.js";
 // New in agent-workflow (WP42, WP39b review findings 3/5): the identity of the auto classifier's
 // one-shot runtime runs (`.agent-workflow/workflows/auto-router-runs/run_*`), shared by the router
 // that launches them and the retention sweep that deletes them. Retention deletes a directory there
@@ -9,12 +10,11 @@ import {
 	mkdir,
 	readdir,
 	readFile,
-	realpath,
 	rename,
 	rm,
 	writeFile,
 } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { physicalDirectoryChain } from "./physical-paths.js";
@@ -79,7 +79,7 @@ export interface AutoRouterPin {
 export async function acquireAutoRouterPin(
 	cwd: string,
 ): Promise<AutoRouterPin | undefined> {
-	const base = await realpath(resolve(cwd));
+	const base = await ensureStateBase(cwd);
 	const segments = [
 		PROJECT_STATE_DIRECTORY,
 		"workflows",

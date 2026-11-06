@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP33 item 4, parity row 35): host-neutral launch capture. Every host API
 // launch (CLI, Pi `/aw` command and `aw_*` tools, host MCP server) records `run.launch` (schema
 // `agent-workflow-run-launch-v1`, with host-neutral `source` `cli`/`pi`/`mcp:<host>` and
@@ -102,12 +103,12 @@ async function settle(cwd, env, runId) {
 async function launchRecord(cwd, runId) {
 	const run = JSON.parse(
 		await readFile(
-			join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+			join(stateDir(cwd), ".agent-workflow", "workflows", runId, "run.json"),
 			"utf8",
 		),
 	);
 	const file = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflows",
 		runId,

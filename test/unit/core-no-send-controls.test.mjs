@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";
@@ -231,7 +232,7 @@ test("subagent launch durably consumes authority before releasing the general wo
 				const persisted = parseJson(
 					readFileSync(
 						join(
-							cwd,
+							stateDir(cwd),
 							".agent-workflow",
 							"workflows",
 							fixture.run.runId,
@@ -429,7 +430,13 @@ function cancellationBarrierApi(cwd, events, overrides = {}) {
 function persistedTask(cwd, fixture) {
 	return parseJson(
 		readFileSync(
-			join(cwd, ".agent-workflow", "workflows", fixture.run.runId, "run.json"),
+			join(
+				stateDir(cwd),
+				".agent-workflow",
+				"workflows",
+				fixture.run.runId,
+				"run.json",
+			),
 			"utf8",
 		),
 		"persisted workflow task",

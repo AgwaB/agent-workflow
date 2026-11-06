@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // 2026-11-05 (owner: wait in code, wake the host once; live checks internal host-wake-20261105):
 // the Claude Code plugin's completion monitor runs `notify-check --follow --session <id>` for its
 // session: it reports only the runs that session launched (the MCP server records the link) and keeps
@@ -29,7 +30,8 @@ after(async () => {
 async function project() {
 	counter += 1;
 	const cwd = join(root, `p${counter}`);
-	await mkdir(join(cwd, ".agent-workflow", "notify-check"), {
+	await mkdir(cwd, { recursive: true });
+	await mkdir(join(stateDir(cwd), ".agent-workflow", "notify-check"), {
 		recursive: true,
 	});
 	return cwd;
@@ -37,7 +39,7 @@ async function project() {
 
 /** A run record whose one task is running or completed. */
 async function writeRun(cwd, runId, status) {
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await mkdir(dir, { recursive: true });
 	await writeFile(
 		join(dir, "run.json"),
@@ -318,7 +320,7 @@ test("the plugin's monitor command exits when the Claude Code process that start
 	for (const withRuns of [false, true]) {
 		const cwd = await project();
 		if (withRuns)
-			await mkdir(join(cwd, ".agent-workflow", "workflows"), {
+			await mkdir(join(stateDir(cwd), ".agent-workflow", "workflows"), {
 				recursive: true,
 			});
 		// A stand-in for Claude Code: starts the monitor through sh -c, prints its pid, waits.

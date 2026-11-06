@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP4e, owner decision "D2 개정 — 권한 모드"): permission mode `free`
 // (default) and `safe`. Engine runs use the fixture executor (test/helpers/workflow-executor-
 // fixture.mjs); approvals run through the runtime with the SDK fake. No model or agent-CLI calls.
@@ -125,7 +126,7 @@ const submits = (effectLog) =>
 async function persisted(cwd, runId) {
 	return JSON.parse(
 		await readFile(
-			join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+			join(stateDir(cwd), ".agent-workflow", "workflows", runId, "run.json"),
 			"utf8",
 		),
 	);
@@ -263,7 +264,7 @@ test("invalid modes fail before any run record: run flag, saved profile, spec fi
 			/must be "free" or "safe"/.test(error.message) &&
 			/unknown execution profile "ghost"/.test(error.message),
 	);
-	const runs = join(cwd, ".agent-workflow", "workflows");
+	const runs = join(stateDir(cwd), ".agent-workflow", "workflows");
 	assert.equal(existsSync(runs) && readdirSync(runs).length > 0, false);
 	assert.deepEqual(submits(effectLog), []);
 });

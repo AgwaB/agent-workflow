@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import {
 	access,
@@ -133,7 +134,10 @@ test("beginning tracking for an unknown run does not create workflow storage", a
 	usage.beginParentUsageTracking(cwd, "workflow_unknown", owner);
 	await usage.flushParentUsageTracking(cwd, owner);
 	await usage.recordParentSessionUsage(cwd, message(777), owner);
-	await assert.rejects(access(join(cwd, ".agent-workflow", "workflows")), {
-		code: "ENOENT",
-	});
+	await assert.rejects(
+		access(join(stateDir(cwd), ".agent-workflow", "workflows")),
+		{
+			code: "ENOENT",
+		},
+	);
 });

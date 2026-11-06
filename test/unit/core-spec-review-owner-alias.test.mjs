@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // agent-workflow 2026-11-04 (live claude/haiku spec-review workflow_mw2hhe44_d3766c, frozen in
 // test/fixtures/support-replay): the report stage copied the first owner row with source
 // "verify-findings.finding-001" instead of its alias "verify-findings", and a correct GAPS_FOUND
@@ -17,7 +18,7 @@ async function finalWith(edit) {
 	try {
 		const report = run.tasks.find((task) => task.specId === "report.main");
 		const path = join(
-			cwd,
+			stateDir(cwd),
 			".agent-workflow",
 			"workflows",
 			run.runId,

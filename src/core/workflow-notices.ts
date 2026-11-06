@@ -1,3 +1,4 @@
+import { stateBase } from "./state-location.js";
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
@@ -70,7 +71,7 @@ function hash(bytes: string): string {
 
 // Canonicalize the caller-owned cwd, but never follow application-owned links.
 async function noticeRoot(cwd: string): Promise<string> {
-	const base = await realpath(cwd);
+	const base = stateBase(cwd);
 	const root = join(base, PROJECT_STATE_DIRECTORY, "workflows");
 	for (const path of [join(base, PROJECT_STATE_DIRECTORY), root]) {
 		const info = await lstat(path);

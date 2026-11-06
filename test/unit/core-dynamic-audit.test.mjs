@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import { createWorkflowRunRecord } from "../helpers/unit-test-support.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -398,7 +399,7 @@ async function completeGeneratedTask(cwd, task, control, refs) {
 		lastMessage: "completed",
 	});
 	await writeWorkflowTaskArtifactBundle({
-		taskDir: dirname(join(cwd, task.files.result)),
+		taskDir: dirname(join(stateDir(cwd), task.files.result)),
 		rawOutput: [
 			"<control>",
 			JSON.stringify({

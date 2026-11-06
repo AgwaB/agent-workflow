@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -14,6 +15,7 @@ import {
 function completeContext(cwd) {
 	return {
 		cwd,
+		stateCwd: cwd ? stateDir(cwd) : undefined,
 		runId: "workflow_spec_report_contract",
 		taskId: "task-final",
 		sourceStatuses: [
@@ -251,7 +253,7 @@ test("spec-review renderer preserves every legacy disposition but withholds ungr
 		assert.equal(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					context.runId,
@@ -266,7 +268,7 @@ test("spec-review renderer preserves every legacy disposition but withholds ungr
 		const specLedger = JSON.parse(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					context.runId,
@@ -433,6 +435,7 @@ test("spec-review renderer rejects contradictory, duplicate, and orphan final li
 function impactContext(cwd) {
 	return {
 		cwd,
+		stateCwd: cwd ? stateDir(cwd) : undefined,
 		runId: "workflow_impact_report_contract",
 		taskId: "task-impact-final",
 		sourceStatuses: impactSourceStatuses(),
@@ -520,7 +523,7 @@ test("impact-review renderer reconciles joins, preserves rows, and writes a safe
 		assert.equal(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					context.runId,
@@ -535,7 +538,7 @@ test("impact-review renderer reconciles joins, preserves rows, and writes a safe
 		const impactLedger = JSON.parse(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					context.runId,

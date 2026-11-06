@@ -1,3 +1,4 @@
+import { stateBase, ensureStateBase } from "./state-location.js";
 import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
 import { link, lstat, mkdir, open, realpath, unlink } from "node:fs/promises";
@@ -96,11 +97,12 @@ async function createNonce(file: string): Promise<boolean> {
 async function inspectStateRoot(
 	cwd: string,
 ): Promise<WorkflowStateRootIdentity> {
+	await ensureStateBase(cwd);
 	const lexical = resolve(workflowsRoot(cwd));
 	await mkdir(lexical, { recursive: true });
 	const canonicalPath = await realpath(lexical);
 	const expectedPath = resolve(
-		await realpath(cwd),
+		await realpath(stateBase(cwd)),
 		PROJECT_STATE_DIRECTORY,
 		"workflows",
 	);

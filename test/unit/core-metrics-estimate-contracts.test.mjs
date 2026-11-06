@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -97,7 +98,7 @@ test("stage rollups preserve first-seen groups, task order, nulls, usage and ret
 test("duration sampling reaches usable history beyond mock prefixes and rereads provenance", async () => {
 	const cwd = mkdtempSync(join(tmpdir(), "workflow-duration-contract-"));
 	try {
-		const root = join(cwd, ".agent-workflow", "workflows");
+		const root = join(stateDir(cwd), ".agent-workflow", "workflows");
 		mkdirSync(root, { recursive: true });
 		const now = Date.now();
 		const runs = Array.from({ length: 50 }, (_, i) => ({

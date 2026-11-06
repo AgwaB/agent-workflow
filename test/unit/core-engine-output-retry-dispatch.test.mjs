@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -109,7 +110,13 @@ const INVALID_OUTPUT = [
 ].join("\n");
 
 function writeSubagentArtifacts(cwd, runsDir, runId, attemptId, outputText) {
-	const artifactDir = join(cwd, runsDir, runId, "attempts", attemptId);
+	const artifactDir = join(
+		stateDir(cwd),
+		runsDir,
+		runId,
+		"attempts",
+		attemptId,
+	);
 	mkdirSync(artifactDir, { recursive: true });
 	writeFileSync(join(artifactDir, "output.log"), outputText);
 	writeFileSync(join(artifactDir, "stderr.log"), "");

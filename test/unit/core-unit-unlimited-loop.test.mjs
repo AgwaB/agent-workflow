@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -147,7 +148,7 @@ test("unlimited loop materializes round 100 from structured round 99 state with 
 		});
 		// Seed a durable later-round state without performing 99 unrelated worker runs.
 		const compiledPath = join(
-			cwd,
+			stateDir(cwd),
 			".agent-workflow",
 			"workflows",
 			run.runId,

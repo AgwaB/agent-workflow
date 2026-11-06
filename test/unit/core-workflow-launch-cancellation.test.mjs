@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Drive the engine launch fence directly; durable stop intent survives the stop budget
 // while a competing supervisor holds the lease.
 import assert from "node:assert/strict";
@@ -89,7 +90,7 @@ async function waitFor(predicate, message, attempts = 200) {
 
 /** The single run directory of the project (agent-workflow runs live directly under workflows/). */
 function onlyRunDirectory(cwd) {
-	const root = join(cwd, ".agent-workflow", "workflows");
+	const root = join(stateDir(cwd), ".agent-workflow", "workflows");
 	const runs = existsSync(root)
 		? readdirSync(root).filter((name) => name.startsWith("workflow_"))
 		: [];

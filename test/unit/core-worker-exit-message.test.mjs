@@ -79,7 +79,7 @@ test("a worker killed mid-run: the blocked task says the worker left no log line
 		if (task.backendTaskId?.startsWith("run_")) {
 			const status = await runtime
 				.getSubagentStatus({
-					cwd,
+					cwd: taskArtifacts.workflowTaskStateCwd(cwd, task),
 					runsDir: taskArtifacts.subagentRunsDir(run, task),
 					runId: task.backendTaskId,
 				})

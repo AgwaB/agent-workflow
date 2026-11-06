@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // 2026-10-31 edge cases: a stage a dynamic controller generates (`ctx.agent`) gets the model and
 // effort names of the executor that runs it, like a planned stage. The real engine runs a dynamic
 // workflow on a fixture executor registered as `codex`; the SubmitRequest shows what reached it.
@@ -109,7 +110,10 @@ async function generate(request, probe = {}) {
 	const controller = run.tasks.find(
 		(task) => task.specId === "adaptive.controller",
 	);
-	const output = readFileSync(join(cwd, controller.files.output), "utf8");
+	const output = readFileSync(
+		join(stateDir(cwd), controller.files.output),
+		"utf8",
+	);
 	const outcome = JSON.parse(
 		/<analysis>\s*([\s\S]*?)\s*<\/analysis>/u.exec(output)[1],
 	);

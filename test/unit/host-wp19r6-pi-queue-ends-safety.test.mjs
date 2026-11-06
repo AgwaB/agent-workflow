@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19 round 6, stage-2 re-review): the Pi queue-end tombstone directory
 // is written and pruned only when it is physically `<cwd>/.agent-workflow/pi-feedback-queue-ends`
 // (no symlinked ancestor), and pruning removes only positively identified tombstones and writer
@@ -25,7 +26,7 @@ async function temp(t, prefix = "aw-wp19r6-") {
 
 async function runAt(cwd, sessionId = "A") {
 	const runId = `workflow_r6_${process.pid}_${++counter}`;
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await fs.mkdir(dir, { recursive: true });
 	const at = new Date().toISOString();
 	await fs.writeFile(
@@ -66,7 +67,7 @@ test("a symlinked queue-ends directory: shutdown deletes nothing outside", async
 	await deliver(fakePi(), ctx, run);
 	await fs.symlink(
 		outside,
-		join(cwd, ".agent-workflow", "pi-feedback-queue-ends"),
+		join(stateDir(cwd), ".agent-workflow", "pi-feedback-queue-ends"),
 	);
 	await feedback.endFeedbackQueueLifetime(ctx, "quit");
 	assert.equal(
@@ -79,7 +80,7 @@ test("a symlinked queue-ends directory: shutdown deletes nothing outside", async
 test("a symlinked .agent-workflow ancestor: tombstones never prune outside JSON", async (t) => {
 	const cwd = await temp(t);
 	const outside = await temp(t, "aw-wp19r6-outside-state-");
-	await fs.symlink(outside, join(cwd, ".agent-workflow"));
+	await fs.symlink(outside, join(stateDir(cwd), ".agent-workflow"));
 	const dir = join(outside, "pi-feedback-queue-ends");
 	await fs.mkdir(dir);
 	const sentinel = join(dir, "unrelated.json");
@@ -93,7 +94,7 @@ test("a symlinked .agent-workflow ancestor: tombstones never prune outside JSON"
 
 test("pruning removes only positively identified tombstones, never other JSON", async (t) => {
 	const cwd = await temp(t);
-	const dir = join(cwd, ".agent-workflow", "pi-feedback-queue-ends");
+	const dir = join(stateDir(cwd), ".agent-workflow", "pi-feedback-queue-ends");
 	await fs.mkdir(dir, { recursive: true });
 	const longAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 	// Unrelated files a user (or another tool) put there, including an old, tombstone-named one

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP11a acceptance): the packed tarball installs into a project with no Pi
 // packages and its `agent-workflow` bin works: --help, list, validate of a bundled workflow, and a
 // foreground run plus a detached run + wait of a one-stage workflow against a test executor
@@ -167,7 +168,6 @@ test("packed install: agent-workflow bin runs Pi-free (help, list, validate, run
 
 		const env = {
 			...process.env,
-			AGENT_WORKFLOW_HOME: join(project, "home"),
 			AGENT_WORKFLOW_CONTAIN_DETACHED_SUPERVISOR: "1",
 		};
 		const aw = (args, extra = {}) =>
@@ -231,9 +231,10 @@ test("packed install: agent-workflow bin runs Pi-free (help, list, validate, run
 							lastMessage: task.lastMessage,
 							error: task.error,
 							stderr: task.files?.stderr
-								? readFileSync(join(project, task.files.stderr), "utf8").slice(
-										-2000,
-									)
+								? readFileSync(
+										join(stateDir(project), task.files.stderr),
+										"utf8",
+									).slice(-2000)
 								: undefined,
 						})),
 						null,

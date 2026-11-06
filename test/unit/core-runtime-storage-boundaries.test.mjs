@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import {
 	mkdtemp,
@@ -42,7 +43,12 @@ async function fixture(fn) {
 	}
 }
 async function runFixture(cwd, status = "failed") {
-	const dir = join(cwd, ".agent-workflow", "workflows", "workflow-fixture");
+	const dir = join(
+		stateDir(cwd),
+		".agent-workflow",
+		"workflows",
+		"workflow-fixture",
+	);
 	const run = {
 		schemaVersion: 1,
 		runId: "workflow-fixture",
@@ -188,12 +194,15 @@ for (const component of [
 					join(outside, "workflow-fixture", "marker"),
 					"preserve",
 				);
-				await symlink(outside, join(cwd, ".agent-workflow", component));
+				await symlink(
+					outside,
+					join(stateDir(cwd), ".agent-workflow", component),
+				);
 			} else {
 				const source =
 					component === ".agent-workflow"
-						? join(cwd, ".agent-workflow")
-						: join(cwd, ".agent-workflow", component);
+						? join(stateDir(cwd), ".agent-workflow")
+						: join(stateDir(cwd), ".agent-workflow", component);
 				const { rename } = await import("node:fs/promises");
 				await rm(outside, { recursive: true });
 				await rename(source, outside);
@@ -254,7 +263,7 @@ test("recursive prune cannot delete a new generation reusing the detached run na
 	fixture(async (cwd) => {
 		const { dir, run } = await runFixture(cwd);
 		const mirror = join(
-			cwd,
+			stateDir(cwd),
 			".agent-workflow",
 			"workflow-subagents",
 			run.runId,
@@ -277,8 +286,8 @@ test("recursive prune cannot delete a new generation reusing the detached run na
 		assert.equal(await readFile(join(dir, "new"), "utf8"), "new generation");
 		assert.equal(await readFile(join(mirror, "new"), "utf8"), "new mirror");
 		assert.equal(
-			(await readdir(join(cwd, ".agent-workflow", "workflows"))).some((name) =>
-				name.startsWith(".prune-"),
+			(await readdir(join(stateDir(cwd), ".agent-workflow", "workflows"))).some(
+				(name) => name.startsWith(".prune-"),
 			),
 			false,
 		);

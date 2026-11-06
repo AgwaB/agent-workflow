@@ -160,18 +160,9 @@ function shellWord(word) {
 export const NOTIFY_HOOK_TIMEOUT_SEC = 60;
 
 /**
- * WP36: the shell command of the completion hook: `agent-workflow notify-check` in the project
- * directory, only when the project has runs (otherwise a directory test and nothing else); its
- * output (one line per run that finished since the last check) is added to the conversation.
- * Always exits 0 and prints nothing on errors, so a prompt is never blocked or decorated.
- * The hook runs on every prompt, so the CLI (an `npx` start in the published plugin) is only
- * started when a `run.json` changed since the last successful check: a stamp file
- * (`.agent-workflow/notify-check/hook-<host>.stamp`) makes the idle case a `find`.
- * WP42 (review round 1, finding 4): the shell only reads (`find -newer` writes nothing, even
- * through a symlink); the stamp is written by `notify-check --stamp hook-<host>` itself, through
- * its contained writer, after a successful check and timed to the check's start (so a change during
- * it is seen next time). WP42 finding 5: a check that left runs for later (the cap of five) removes
- * the stamp, so the next prompt checks again until the backlog is drained.
+ * Completion hooks delegate state discovery and contained stamp publication to the CLI.
+ * Shell path tests cannot locate per-project user state and must not duplicate project IDs.
+ * Always exit 0 and print nothing on errors, so a prompt is never blocked or decorated.
  */
 export function notifyHookCommand(cli, host) {
 	const stamp = `hook-${host}`;
@@ -188,10 +179,6 @@ export function notifyHookCommand(cli, host) {
 		.join(" ");
 	return [
 		`d="\${CLAUDE_PROJECT_DIR:-.}"`,
-		`w="$d/.agent-workflow/workflows"`,
-		`[ -d "$w" ] || exit 0`,
-		`s="$d/.agent-workflow/notify-check/${stamp}.stamp"`,
-		`[ -f "$s" ] && [ -z "$(find "$w" -name run.json -newer "$s" 2>/dev/null | head -n 1)" ] && exit 0`,
 		`(cd "$d" && ${run} 2>/dev/null)`,
 		"exit 0",
 	].join("; ");
@@ -223,8 +210,7 @@ export function claudePluginHooks(cli) {
  * 2026-11-05 (owner: wait in code, wake the host once): the Claude Code plugin's completion monitor.
  * Claude Code starts a plugin monitor in the background for an interactive session (not with -p) and
  * hands each line it prints to Claude as a notification, which wakes an idle session. The command
- * waits in the shell until the project has runs (no CLI start before), then runs
- * `notify-check --follow --session <CLAUDE_CODE_SESSION_ID>`: one line per run this session launched
+ * calls `notify-check --follow --session <CLAUDE_CODE_SESSION_ID>` (the CLI owns state discovery): one line per run this session launched
  * once it has settled, and a stamp that tells the MCP server the monitor is alive, so the launch's
  * next step lets the agent end its turn instead of calling workflow_wait every 45 s. Without a
  * session id (an older Claude Code) it exits at once.
@@ -253,9 +239,7 @@ export function claudeCompletionMonitor(cli) {
 			'[ -n "$d" ] || d=.',
 			// Gone with the session even before the CLI starts: $PPID is the Claude Code process that
 			// started this shell; the CLI then stops itself when it is orphaned (notify-check --follow).
-			// Polls every 2 s: a launch from this session waits up to 5 s for the monitor of a project's
-			// first run (MONITOR_FIRST_RUN_WAIT_MS) instead of falling back to workflow_wait.
-			'until [ -d "$d/.agent-workflow/workflows" ]; do kill -0 "$PPID" 2>/dev/null || exit 0; sleep 2; done',
+			// The CLI handles the first-run wait and monitor readiness in the relocated state tree.
 			`cd "$d" && exec ${follow} "$s"`,
 		].join("; "),
 		description: "agent-workflow: a run this session started has finished",

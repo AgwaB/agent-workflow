@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -26,7 +27,14 @@ const implementationCitation = {
 };
 
 async function save(cwd, runId, taskId, file, value) {
-	const dir = join(cwd, ".agent-workflow", "workflows", runId, "tasks", taskId);
+	const dir = join(
+		stateDir(cwd),
+		".agent-workflow",
+		"workflows",
+		runId,
+		"tasks",
+		taskId,
+	);
 	await mkdir(dir, { recursive: true });
 	await writeFile(join(dir, file), JSON.stringify(value));
 }
@@ -105,7 +113,12 @@ async function positiveChain(cwd) {
 	];
 	const p = await partition({
 		sources: { "candidate-findings": candidate },
-		context: { cwd, runId, sourceStatuses: statuses },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			runId,
+			sourceStatuses: statuses,
+		},
 	});
 	const report = {
 		schema: "spec-review-report-v1",
@@ -123,6 +136,7 @@ async function positiveChain(cwd) {
 		sources: { "partition-findings": p, report },
 		context: {
 			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
 			runId,
 			taskId: "final-task",
 			sourceStatuses: [

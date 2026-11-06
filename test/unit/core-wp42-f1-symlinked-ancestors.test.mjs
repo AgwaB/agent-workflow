@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP42, WP39b review finding 1, major): auto-router pruning never follows a symlinked ancestor of
 // `.agent-workflow/workflows/auto-router-runs` (it fails closed) and rechecks the chain right before
 // deletion.
@@ -40,17 +41,20 @@ for (const ancestor of [".agent-workflow", "workflows", "auto-router-runs"])
 		const outside = await temp();
 		let router;
 		if (ancestor === ".agent-workflow") {
-			await symlink(outside, join(cwd, ".agent-workflow"));
+			await symlink(outside, join(stateDir(cwd), ".agent-workflow"));
 			router = join(outside, "workflows", "auto-router-runs");
 		} else if (ancestor === "workflows") {
-			await mkdir(join(cwd, ".agent-workflow"));
-			await symlink(outside, join(cwd, ".agent-workflow", "workflows"));
+			await mkdir(join(stateDir(cwd), ".agent-workflow"));
+			await symlink(
+				outside,
+				join(stateDir(cwd), ".agent-workflow", "workflows"),
+			);
 			router = join(outside, "auto-router-runs");
 		} else {
-			await mkdir(join(cwd, ".agent-workflow", "workflows"), {
+			await mkdir(join(stateDir(cwd), ".agent-workflow", "workflows"), {
 				recursive: true,
 			});
-			await symlink(outside, join(cwd, ROUTER_RUNS));
+			await symlink(outside, join(stateDir(cwd), ROUTER_RUNS));
 			router = outside;
 		}
 		const id = classifierId();
@@ -78,7 +82,7 @@ for (const ancestor of [".agent-workflow", "workflows", "auto-router-runs"])
 test("F1: a classifier directory swapped for a symlink after selection is not deleted (recheck before deletion)", async () => {
 	const cwd = await temp();
 	const outside = await temp();
-	const router = join(cwd, ROUTER_RUNS);
+	const router = join(stateDir(cwd), ROUTER_RUNS);
 	const id = classifierId();
 	await classifier(router, id);
 	retention.setWorkflowPruneBeforeClassifierDeleteForTests(async () => {

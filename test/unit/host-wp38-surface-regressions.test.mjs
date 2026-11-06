@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Session-start catch-up delivers at most five messages without starting a new turn.
 // A receipt alone is not proof of delivery; consult the owning session history.
 import assert from "node:assert/strict";
@@ -61,9 +62,9 @@ async function failedRun(cwd, owner) {
 			},
 		],
 	};
-	await mkdir(join(cwd, dir), { recursive: true });
+	await mkdir(join(stateDir(cwd), dir), { recursive: true });
 	await writeFile(
-		join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+		join(stateDir(cwd), ".agent-workflow", "workflows", runId, "run.json"),
 		`${JSON.stringify(run)}\n`,
 	);
 	assert.ok(await feedback.bindFeedbackAudience(cwd, runId, owner, "command"));

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // WP43 (UI v2): agent rows read a foreach item's title and a finished task's one-line outcome from
 // contained control.json files — bounded, cached, and never raw output.
 import assert from "node:assert/strict";
@@ -17,9 +18,9 @@ const RUN = ".agent-workflow/workflows/workflow_t";
 async function project() {
 	const cwd = await mkdtemp(join(tmpdir(), "aw-task-text-"));
 	const control = async (taskId, value) => {
-		await mkdir(join(cwd, RUN, "tasks", taskId), { recursive: true });
+		await mkdir(join(stateDir(cwd), RUN, "tasks", taskId), { recursive: true });
 		await writeFile(
-			join(cwd, RUN, "tasks", taskId, "control.json"),
+			join(stateDir(cwd), RUN, "tasks", taskId, "control.json"),
 			typeof value === "string" ? value : JSON.stringify(value),
 		);
 		return { result: `${RUN}/tasks/${taskId}/result.json` };
@@ -179,10 +180,12 @@ test("attachTaskTexts refuses paths outside the artifact root, symlinks out and 
 			join(outside, "control.json"),
 			JSON.stringify({ status: "verified", digest: "SECRET" }),
 		);
-		await mkdir(join(cwd, RUN, "tasks", "task-2"), { recursive: true });
+		await mkdir(join(stateDir(cwd), RUN, "tasks", "task-2"), {
+			recursive: true,
+		});
 		await symlink(
 			join(outside, "control.json"),
-			join(cwd, RUN, "tasks", "task-2", "control.json"),
+			join(stateDir(cwd), RUN, "tasks", "task-2", "control.json"),
 		);
 		const big = await control(
 			"task-3",
@@ -229,7 +232,7 @@ test("titles also come from the task's own itemRef or, failing that, the run spe
 			],
 		});
 		await writeFile(
-			join(cwd, RUN, "spec.json"),
+			join(stateDir(cwd), RUN, "spec.json"),
 			JSON.stringify({
 				artifactGraph: {
 					stages: [

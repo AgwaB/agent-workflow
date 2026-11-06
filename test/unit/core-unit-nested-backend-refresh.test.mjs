@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -170,7 +171,7 @@ test("refreshes a suspended nested child under its lease and advances sequential
 		}
 		// The callback has already entered before the parent scheduling tick.
 		const childRecordPath = join(
-			cwd,
+			stateDir(cwd),
 			".agent-workflow",
 			"workflows",
 			childRunId,

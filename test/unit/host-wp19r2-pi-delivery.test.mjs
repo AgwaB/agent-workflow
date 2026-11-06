@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19 round 2, re-review N2 and N3): Pi completion delivery.
 // N2: `pi.sendMessage()` returning is not durable: while Pi streams it only queues the message in
 // memory. A receipt is `sent` (enqueued by this process) until Pi's session history shows the
@@ -40,7 +41,7 @@ async function synthetic(t, status = "completed") {
 	t.after(() => fs.rm(cwd, { recursive: true, force: true, maxRetries: 5 }));
 	counter += 1;
 	const runId = `workflow_wp19r2_${counter}`;
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await fs.mkdir(dir, { recursive: true });
 	const at = new Date().toISOString();
 	const run = {
@@ -69,7 +70,7 @@ async function synthetic(t, status = "completed") {
 /** State of the run's only receipt (the store may normalize the record, so not by epoch). */
 async function receiptState(cwd, run) {
 	const dir = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflows",
 		run.runId,

@@ -2,7 +2,7 @@ import { dirname, join } from "node:path";
 
 import {
 	finalStageTasks,
-	fromProjectPath,
+	fromStatePath,
 	isTerminalWorkflowStatus,
 	readJson,
 	workflowRunDir,
@@ -55,7 +55,7 @@ async function readDynamicControllerControl(
 			task.statusDetail === "dynamic_completed",
 	);
 	if (!controller) return undefined;
-	const taskOutput = fromProjectPath(cwd, controller.files.output);
+	const taskOutput = fromStatePath(cwd, controller.files.output);
 	return await readJson<DynamicControllerControl>(
 		join(dirname(taskOutput), "control.json"),
 	).catch(() => undefined);

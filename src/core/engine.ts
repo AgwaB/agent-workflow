@@ -31,7 +31,7 @@ import {
 	createTaskRunRecord,
 	compiledWorkflowPath,
 	FAIL_FAST_CANCELLED_STATUS_DETAIL,
-	fromProjectPath,
+	fromStatePath,
 	initializeRunRecordDirectories,
 	isBlockedTaskResumableForResume,
 	invalidateTaskForDependencyResume,
@@ -48,7 +48,7 @@ import {
 	resetTaskForResume,
 	setTaskTerminal,
 	clearWorkflowStopIntent,
-	toProjectPath,
+	toStatePath,
 	updateIndex,
 	withRunLease,
 	workflowRunPath,
@@ -625,7 +625,7 @@ export async function runDynamicTask(
 			specPath: null,
 			userSelectedWorkflow: false,
 			generatedSpec: false,
-			runtimeBundle: toProjectPath(cwd, loaded.specPath),
+			runtimeBundle: toStatePath(cwd, loaded.specPath),
 			runtimeVersion: DIRECT_DYNAMIC_RUNTIME_VERSION,
 		},
 	);
@@ -2498,7 +2498,7 @@ async function quarantineDependencyInvalidationArtifacts(
 	if (leaseSignal) await assertRunLeaseOwnership(cwd, run.runId, leaseSignal);
 	const paths = await Promise.all(
 		dependencyInvalidationArtifactTasks(run, journal).map(async (task) => {
-			const taskDir = dirname(fromProjectPath(cwd, task.files.result));
+			const taskDir = dirname(fromStatePath(cwd, task.files.result));
 			return {
 				taskId: task.taskId,
 				taskDir,
@@ -5721,14 +5721,14 @@ async function extractPartialForeachItems(
 }> {
 	const partialPaths = task.artifactGraph?.output.partial?.paths ?? [];
 	if (!partialPaths.includes(path)) return { items: [] };
-	const taskDir = dirname(fromProjectPath(cwd, task.files.result));
+	const taskDir = dirname(fromStatePath(cwd, task.files.result));
 	let ledger = await readWorkflowPartialOutputLedger(taskDir).catch(
 		() => undefined,
 	);
 	if (!ledger) {
 		ledger = await writeWorkflowPartialOutputLedgerFromFile({
 			taskDir,
-			outputFile: fromProjectPath(cwd, task.files.output),
+			outputFile: fromStatePath(cwd, task.files.output),
 			allowedPaths: partialPaths,
 		}).catch(() => undefined);
 	}
@@ -6155,19 +6155,19 @@ async function executeDynamicControllerTask(
 			);
 		} else {
 			await throwIfWorkflowStopRequested(cwd, run.runId);
-			await mkdir(dirname(fromProjectPath(cwd, task.files.output)), {
+			await mkdir(dirname(fromStatePath(cwd, task.files.output)), {
 				recursive: true,
 			});
 			await throwIfWorkflowStopRequested(cwd, run.runId);
 			await writeFile(
-				fromProjectPath(cwd, task.files.output),
+				fromStatePath(cwd, task.files.output),
 				`${JSON.stringify(outputForOutcome, null, 2)}\n`,
 				"utf8",
 			);
 			await throwIfWorkflowStopRequested(cwd, run.runId);
-			await writeFile(fromProjectPath(cwd, task.files.stderr), "", "utf8");
+			await writeFile(fromStatePath(cwd, task.files.stderr), "", "utf8");
 			await throwIfWorkflowStopRequested(cwd, run.runId);
-			await writeJsonAtomic(fromProjectPath(cwd, task.files.result), {
+			await writeJsonAtomic(fromStatePath(cwd, task.files.result), {
 				status: outcome.lifecycleStatus,
 				structuredOutput: outputForOutcome,
 			});
@@ -7812,7 +7812,7 @@ async function auditDirectDynamicControllerRun(
 				specId: candidate.specId,
 				refs: await readJson(
 					join(
-						dirname(fromProjectPath(cwd, candidate.files.result)),
+						dirname(fromStatePath(cwd, candidate.files.result)),
 						"refs.json",
 					),
 				).catch(() => undefined),

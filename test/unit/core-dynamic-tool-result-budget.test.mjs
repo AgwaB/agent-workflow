@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -29,7 +30,7 @@ function dynamicMetadata(task, overrides = {}) {
 }
 
 function writeTerminalArtifacts(cwd, task, result, output = "done") {
-	const artifactDir = join(cwd, task.backendFiles.runsDir);
+	const artifactDir = join(stateDir(cwd), task.backendFiles.runsDir);
 	mkdirSync(artifactDir, { recursive: true });
 	writeFileSync(
 		join(artifactDir, "output.log"),
@@ -577,7 +578,7 @@ test("launch-abort correlation recovery binds the pre-ack effective configuratio
 		);
 		assert.equal(fixture.task.toolResultBudget.attempts.length, 0);
 
-		const runsRoot = join(cwd, fixture.task.backendFiles.runsDir);
+		const runsRoot = join(stateDir(cwd), fixture.task.backendFiles.runsDir);
 		const recoveredRunId = "run_budget_recovered";
 		const recoveredAttemptId = "attempt_budget_recovered";
 		const recoveredRunDir = join(runsRoot, recoveredRunId);

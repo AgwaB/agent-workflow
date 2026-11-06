@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19 round 5, review finding 2): queue termination is durable, not tied
 // to the bounded in-memory maps. Round 4 marked only the receipts still held in its 64/256-entry
 // maps at `session_shutdown`: with 257 published queued deliveries the evicted one stayed
@@ -158,7 +159,11 @@ for (const readable of [true, false]) {
 
 test("queue-end tombstones: one per ended lifetime, pruned by age; a lifetime with no deliveries writes none", async (t) => {
 	const cwd = await tempProject(t);
-	const dir = join(cwd, ".agent-workflow", feedback.FEEDBACK_QUEUE_ENDS_DIR);
+	const dir = join(
+		stateDir(cwd),
+		".agent-workflow",
+		feedback.FEEDBACK_QUEUE_ENDS_DIR,
+	);
 	const list = async () =>
 		(await fs.readdir(dir).catch(() => [])).filter((name) =>
 			name.endsWith(".json"),

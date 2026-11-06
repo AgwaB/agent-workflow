@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP42 review round 1, finding 4): the completion-check writers never write
 // through a workspace-controlled symlink. A symlinked `.agent-workflow` or `.agent-workflow/
 // notify-check` pointing outside the project leaves the outside directory unchanged, for the
@@ -89,15 +90,21 @@ async function layout() {
 async function symlinkedStateRoot() {
 	const { cwd, outside } = await layout();
 	await writeRun(join(outside, "workflows"), "workflow_outside1");
-	await symlink(outside, join(cwd, ".agent-workflow"));
+	await symlink(outside, join(stateDir(cwd), ".agent-workflow"));
 	return { cwd, outside };
 }
 
 /** A real `.agent-workflow` with a settled run; `notify-check` is a symlink to `outside`. */
 async function symlinkedNotifyDir() {
 	const { cwd, outside } = await layout();
-	await writeRun(join(cwd, ".agent-workflow", "workflows"), "workflow_inside1");
-	await symlink(outside, join(cwd, ".agent-workflow", "notify-check"));
+	await writeRun(
+		join(stateDir(cwd), ".agent-workflow", "workflows"),
+		"workflow_inside1",
+	);
+	await symlink(
+		outside,
+		join(stateDir(cwd), ".agent-workflow", "notify-check"),
+	);
 	return { cwd, outside };
 }
 
@@ -135,25 +142,34 @@ test("the prompt hook writes nothing outside through a symlinked notify-check di
 
 test("the prompt hook's shell only reads: a fake CLI sees no stamp written by the shell", async () => {
 	const { cwd } = await layout();
-	await writeRun(join(cwd, ".agent-workflow", "workflows"), "workflow_shell1");
+	await writeRun(
+		join(stateDir(cwd), ".agent-workflow", "workflows"),
+		"workflow_shell1",
+	);
 	const ran = hook(cwd, { command: "true", args: [] });
 	assert.equal(ran.status, 0);
 	assert.deepEqual(
-		(await readdir(join(cwd, ".agent-workflow"))).sort(),
+		(await readdir(join(stateDir(cwd), ".agent-workflow"))).sort(),
 		["workflows"],
 		"the shell creates neither notify-check/ nor a stamp",
 	);
 });
 
-test("the prompt hook stamps through notify-check --stamp and stays idle afterwards", async () => {
+test("the prompt hook stamps through notify-check --stamp and delegates idle discovery to the CLI", async () => {
 	const { cwd } = await layout();
-	await writeRun(join(cwd, ".agent-workflow", "workflows"), "workflow_stamp1");
+	await writeRun(
+		join(stateDir(cwd), ".agent-workflow", "workflows"),
+		"workflow_stamp1",
+	);
 	const first = hook(cwd);
 	assert.equal(first.status, 0, first.stderr);
 	assert.match(first.stdout, /workflow_stamp1/);
-	const names = await readdir(join(cwd, ".agent-workflow", "notify-check"));
+	const names = await readdir(
+		join(stateDir(cwd), ".agent-workflow", "notify-check"),
+	);
 	assert.ok(names.includes("hook-claude-code.stamp"), names.join(","));
 	assert.ok(!names.some((name) => name.endsWith(".tmp")), names.join(","));
+	assert.equal(hook(cwd).stdout, "");
 	const marker = join(root, `cli-started-${counter}`);
 	const idle = hook(cwd, {
 		command: "sh",
@@ -164,8 +180,8 @@ test("the prompt hook stamps through notify-check --stamp and stays idle afterwa
 		await readdir(dirname(marker)).then((all) =>
 			all.includes(`cli-started-${counter}`),
 		),
-		false,
-		"no CLI start without a change",
+		true,
+		"the CLI owns state discovery even without a change",
 	);
 });
 
@@ -203,8 +219,8 @@ test("containedProjectStateDir(create) still creates real directories in a fresh
 		"notify-check",
 		true,
 	);
-	assert.equal(dir, join(cwd, ".agent-workflow", "notify-check"));
-	assert.deepEqual(await readdir(join(cwd, ".agent-workflow")), [
+	assert.equal(dir, join(stateDir(cwd), ".agent-workflow", "notify-check"));
+	assert.deepEqual(await readdir(join(stateDir(cwd), ".agent-workflow")), [
 		"notify-check",
 	]);
 });

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import {
 	mkdirSync,
@@ -196,7 +197,13 @@ for (const [mode, name] of [
 			if (mode === "missing")
 				compiled.tasks[1].foreach.from.stage = "missing.container";
 			await writeJsonAtomic(
-				join(cwd, ".agent-workflow", "workflows", run.runId, "compiled.json"),
+				join(
+					stateDir(cwd),
+					".agent-workflow",
+					"workflows",
+					run.runId,
+					"compiled.json",
+				),
 				compiled,
 			);
 			setTaskRuntimeApiForTests({

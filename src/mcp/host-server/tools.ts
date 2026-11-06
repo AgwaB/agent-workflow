@@ -225,7 +225,7 @@ const CWD_PROPERTY = {
 	cwd: {
 		type: "string",
 		description:
-			"Optional project directory for this call: the server's project root (default) or a directory below it. Paths outside the root are refused. The home directory itself is no project: runs without a cwd there are recorded in ~/.agent-workflow/home-runs (pass the project directory to work on a repository).",
+			"Optional project directory for this call: the server's project root (default) or a directory below it. Paths outside the root are refused. The home directory itself is no project: workers without a cwd there execute in <AGENT_WORKFLOW_HOME>/home-runs; run state lives in the per-project user state base (pass the project directory to work on a repository).",
 	},
 } as const;
 

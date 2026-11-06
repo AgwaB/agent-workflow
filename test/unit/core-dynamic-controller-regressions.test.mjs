@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -180,12 +181,17 @@ test("invalid decision attempts retain immutable distinct event-linked raw and v
 	assert.equal(events.length, 3);
 	for (const [i, event] of events.entries()) {
 		assert.deepEqual(
-			JSON.parse(await readFile(join(cwd, event.payload.paths.raw), "utf8")),
+			JSON.parse(
+				await readFile(join(stateDir(cwd), event.payload.paths.raw), "utf8"),
+			),
 			attempts[i].rawDecision,
 		);
 		assert.equal(
 			JSON.parse(
-				await readFile(join(cwd, event.payload.paths.validation), "utf8"),
+				await readFile(
+					join(stateDir(cwd), event.payload.paths.validation),
+					"utf8",
+				),
 			).ok,
 			false,
 		);
@@ -312,7 +318,10 @@ test("later-round uppercase dependency chain and cross-round verification preser
 		.filter((e) => e.type === "state-index.persisted")
 		.at(-1);
 	const index = JSON.parse(
-		await readFile(join(f.dir, indexEvent.payload.paths.index), "utf8"),
+		await readFile(
+			join(stateDir(f.dir), indexEvent.payload.paths.index),
+			"utf8",
+		),
 	);
 	assert.equal(index.findings.length, 1);
 	assert.equal(index.findings[0].id, "F1");
@@ -323,7 +332,10 @@ test("later-round uppercase dependency chain and cross-round verification preser
 	]);
 	assert.ok(!index.blockers.some((b) => b.message.includes("unknown finding")));
 	const extracts = JSON.parse(
-		await readFile(join(f.dir, indexEvent.payload.paths.extracts), "utf8"),
+		await readFile(
+			join(stateDir(f.dir), indexEvent.payload.paths.extracts),
+			"utf8",
+		),
 	);
 	assert.match(JSON.stringify(extracts), /adaptive.research/);
 	assert.match(JSON.stringify(extracts), /source.ts:1/);

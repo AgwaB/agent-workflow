@@ -1,3 +1,4 @@
+import { stateDir } from "./state-dir.mjs";
 // Support-step regression net (2026-11-04, before refactoring the bundled helpers): recorded live
 // runs (real model outputs, every bundled workflow, four executors) are frozen under
 // test/fixtures/support-replay/; every support stage of each run is run again with the current
@@ -93,7 +94,7 @@ function supportTasksOf(compiled) {
 /** Freeze every run under `<projectDir>/.agent-workflow/workflows` that has a completed support task. */
 export function capture(projectDir, label = basename(projectDir)) {
 	const projectRoot = realpathSync(projectDir);
-	const runsDir = join(projectRoot, ".agent-workflow", "workflows");
+	const runsDir = join(stateDir(projectRoot), ".agent-workflow", "workflows");
 	const projectKey = treeHash(projectRoot);
 	const projectOut = join(FIXTURE_ROOT, "projects", projectKey);
 	if (!existsSync(projectOut)) copyProject(projectRoot, projectOut);
@@ -169,7 +170,7 @@ export function materialize(runLabel) {
 	cpSync(join(FIXTURE_ROOT, "projects", run.project), cwd, { recursive: true });
 	cpSync(
 		join(fixture, "tasks"),
-		join(cwd, ".agent-workflow", "workflows", run.runId, "tasks"),
+		join(stateDir(cwd), ".agent-workflow", "workflows", run.runId, "tasks"),
 		{
 			recursive: true,
 		},
@@ -192,7 +193,7 @@ function recordedEvidence(cwd, run) {
 	const path =
 		task &&
 		join(
-			cwd,
+			stateDir(cwd),
 			".agent-workflow",
 			"workflows",
 			run.runId,
@@ -252,7 +253,7 @@ function orderSupportTasks(supportTasks) {
 /** Run every recorded support task again with the current helpers; returns specId → control. */
 export async function replaySupport(cwd, run, { helperRoot = REPO } = {}) {
 	const bundle = join(helperRoot, "workflows", run.bundle);
-	const runDir = join(cwd, ".agent-workflow", "workflows", run.runId);
+	const runDir = join(stateDir(cwd), ".agent-workflow", "workflows", run.runId);
 	const outputs = {};
 	const evidence = recordedEvidence(cwd, run);
 	for (const support of orderSupportTasks(run.supportTasks)) {
@@ -283,6 +284,7 @@ export async function replaySupport(cwd, run, { helperRoot = REPO } = {}) {
 					taskId: task.taskId,
 					runId: run.runId,
 					cwd,
+					stateCwd: cwd ? stateDir(cwd) : undefined,
 					signal: new AbortController().signal,
 					evidence,
 					sourceStatuses: manifest.sources.map(statusRow),

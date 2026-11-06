@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { readFile, rm, stat, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
@@ -61,7 +62,7 @@ test("session creation is atomic and private; malformed sessions regenerate", as
 	);
 	assert.equal(new Set(tokens).size, 1);
 	const path = dashboardSessionPath(cwd);
-	assert.equal(path, join(cwd, ".agent-workflow/dashboard-session"));
+	assert.equal(path, join(stateDir(cwd), ".agent-workflow/dashboard-session"));
 	assert.equal((await stat(path)).mode & 0o777, 0o600);
 	for (const malformed of [
 		"",
@@ -333,7 +334,8 @@ for (const removed of ["project", "state"]) {
 					exited = true;
 				},
 			});
-			const path = removed === "project" ? cwd : join(cwd, ".agent-workflow");
+			const path =
+				removed === "project" ? cwd : join(stateDir(cwd), ".agent-workflow");
 			await rm(path, {
 				recursive: true,
 				force: true,

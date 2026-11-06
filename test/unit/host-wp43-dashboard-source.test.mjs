@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // WP43: real host-API source over isolated persisted records (no executors or models).
 import assert from "node:assert/strict";
 import {
@@ -36,7 +37,7 @@ async function project(t) {
 }
 async function writeRun(ctx, id, options = {}) {
 	const relativeDir = `.agent-workflow/workflows/${id}`;
-	const dir = join(ctx.cwd, relativeDir);
+	const dir = join(stateDir(ctx.cwd), relativeDir);
 	await mkdir(join(dir, "report"), { recursive: true });
 	const record = {
 		schemaVersion: 1,
@@ -120,7 +121,7 @@ test("host source projects top-level runs newest first, redacts all strings and 
 	});
 	await writeRun(ctx, "workflow_child", { parentRunId: "workflow_new" });
 	const before = await readFile(
-		join(ctx.cwd, ".agent-workflow/workflows/workflow_new/run.json"),
+		join(stateDir(ctx.cwd), ".agent-workflow/workflows/workflow_new/run.json"),
 		"utf8",
 	);
 	const listed = await source.listRuns();
@@ -150,19 +151,27 @@ test("host source projects top-level runs newest first, redacts all strings and 
 	assert.ok(Buffer.byteLength(report.text) < REPORT_MAX_BYTES + 100);
 	assert.equal(
 		await readFile(
-			join(ctx.cwd, ".agent-workflow/workflows/workflow_new/run.json"),
+			join(
+				stateDir(ctx.cwd),
+				".agent-workflow/workflows/workflow_new/run.json",
+			),
 			"utf8",
 		),
 		before,
 	);
 	assert.deepEqual(
 		(
-			await readdir(join(ctx.cwd, ".agent-workflow/workflows/workflow_new"))
+			await readdir(
+				join(stateDir(ctx.cwd), ".agent-workflow/workflows/workflow_new"),
+			)
 		).sort(),
 		["report", "run.json"],
 	);
 	await rm(
-		join(ctx.cwd, ".agent-workflow/workflows/workflow_new/report/output.log"),
+		join(
+			stateDir(ctx.cwd),
+			".agent-workflow/workflows/workflow_new/report/output.log",
+		),
 	);
 	assert.equal((await source.run("workflow_new")).tasks[0].hasLogs, false);
 });
@@ -206,14 +215,14 @@ test("host report reads refuse traversal, absolute paths, symlink escapes and bi
 	timeout: 5000,
 }, async (t) => {
 	const { ctx } = await project(t);
-	await mkdir(join(ctx.cwd, ".agent-workflow"));
+	await mkdir(join(stateDir(ctx.cwd), ".agent-workflow"));
 	await writeFile(join(ctx.cwd, "outside.txt"), SECRET);
 	await symlink(
 		join(ctx.cwd, "outside.txt"),
-		join(ctx.cwd, ".agent-workflow", "escape.md"),
+		join(stateDir(ctx.cwd), ".agent-workflow", "escape.md"),
 	);
 	await writeFile(
-		join(ctx.cwd, ".agent-workflow", "binary"),
+		join(stateDir(ctx.cwd), ".agent-workflow", "binary"),
 		Buffer.from([0, 1, 2]),
 	);
 	for (const path of [
@@ -226,13 +235,17 @@ test("host report reads refuse traversal, absolute paths, symlink escapes and bi
 	])
 		assert.equal(await readHostRunReport(ctx, path), undefined, path);
 	const text = "x".repeat(300000);
-	await writeFile(join(ctx.cwd, ".agent-workflow", "long.md"), text);
+	await writeFile(join(stateDir(ctx.cwd), ".agent-workflow", "long.md"), text);
 	const report = await readHostRunReport(ctx, ".agent-workflow/long.md");
 	assert.equal(report.truncated, true);
 	assert.match(report.text, /Report truncated/);
 	assert.equal(
-		(await readFile(join(ctx.cwd, ".agent-workflow", "long.md"), "utf8"))
-			.length,
+		(
+			await readFile(
+				join(stateDir(ctx.cwd), ".agent-workflow", "long.md"),
+				"utf8",
+			)
+		).length,
 		text.length,
 	);
 });

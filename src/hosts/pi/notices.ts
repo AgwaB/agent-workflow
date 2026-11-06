@@ -1,3 +1,4 @@
+import { stateBase } from "../../core/state-location.js";
 // Session-start notices use host API eligibility: top-level failed/interrupted runs
 // and resumable approval or executor-decision blocks, excluding mocks.
 // Valid acknowledgements suppress notices; malformed sidecars suppress none. Skip runs
@@ -115,7 +116,7 @@ export async function unfinishedRunNotice(
 	});
 	if (candidates.length === 0) return undefined;
 
-	const dir = join(ctx.cwd, ".agent-workflow", "workflows");
+	const dir = join(stateBase(ctx.cwd), ".agent-workflow", "workflows");
 	const file = join(dir, STATE_FILE);
 	const state = await readState(file);
 	const needing: ListedNotice[] = [];

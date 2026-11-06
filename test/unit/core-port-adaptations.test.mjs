@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Pin agent-workflow environment names and project state paths.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -102,7 +103,7 @@ test("direct dynamic runtime bundle lives under .agent-workflow/workflow-runtime
 	try {
 		const specPath = await ensureDirectDynamicRuntimeBundle(cwd);
 		const bundleDir = join(
-			cwd,
+			stateDir(cwd),
 			".agent-workflow",
 			"workflow-runtime",
 			DIRECT_DYNAMIC_RUNTIME_VERSION,

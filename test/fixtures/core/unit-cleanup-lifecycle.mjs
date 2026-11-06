@@ -56,13 +56,14 @@ fs.rmSync = function (path, options) {
 };
 syncBuiltinESMExports();
 
+const { stateDir } = await import("../../helpers/state-dir.mjs");
 const support = await import("../../helpers/unit-test-support.mjs");
 test(`root teardown drains ${mode} advisory index work`, {
 	timeout: 30000,
 }, async () => {
 	const cwd = support.makeProject();
 	root = dirname(cwd);
-	target = join(cwd, ".agent-workflow", "workflows");
+	target = join(stateDir(cwd), ".agent-workflow", "workflows");
 	support.writeAgent(cwd, "unit-scout", "read");
 	const { run } = await support.createLoopRun(cwd);
 	// Only the subsequent nonterminal write belongs to this control.

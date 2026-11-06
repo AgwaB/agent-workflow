@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19 round 3, review R2 and R3): Pi completion delivery is suppressed per
 // OS process, and readable session history is authoritative for every other attempt.
 // R2: a `confirmed` receipt must not overrule readable history that lacks the message. Pi 1.1's
@@ -46,7 +47,7 @@ async function synthetic(t, sessionId = "A") {
 	t.after(() => fs.rm(cwd, { recursive: true, force: true, maxRetries: 5 }));
 	counter += 1;
 	const runId = `workflow_wp19r3_${counter}`;
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await fs.mkdir(dir, { recursive: true });
 	const at = new Date().toISOString();
 	const run = {
@@ -130,7 +131,7 @@ test("R2: Pi 1.1 SessionManager — failed append → confirmed → restart with
 	// Re-bind the audience to the real session id.
 	await fs.rm(
 		join(
-			cwd,
+			stateDir(cwd),
 			".agent-workflow",
 			"workflows",
 			runId,

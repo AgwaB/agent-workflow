@@ -21,7 +21,7 @@ import {
 	normalizeWorkflowSourceManifest,
 } from "./workflow-artifact-tool.js";
 import { isModelTaskMaxRuntimeMs } from "./model-task-runtime.js";
-import { fromProjectPath, workflowRunDir } from "./store.js";
+import { fromStatePath, workflowRunDir } from "./store.js";
 import { workflowStateRootIdentity } from "./workflow-state-root.js";
 import {
 	assertWorkflowResourcePolicyMatchesTask,
@@ -748,7 +748,7 @@ async function artifactIdentity(
 		task.artifactGraph.artifactAccess === "none"
 	)
 		return undefined;
-	const directory = dirname(fromProjectPath(cwd, task.files.result));
+	const directory = dirname(fromStatePath(cwd, task.files.result));
 	const manifestPath = join(directory, "source-manifest.json");
 	let manifest: unknown;
 	try {

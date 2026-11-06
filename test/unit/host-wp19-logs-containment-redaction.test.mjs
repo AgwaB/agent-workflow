@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19, stage-2 reviews #4 and #7).
 // #4: `logs` (and `inspect --results`) read only files whose canonical path is inside the
 // project's artifact root. Tampered run metadata (an absolute output path, `..` traversal) and a
@@ -103,7 +104,13 @@ async function outsideSentinel(name) {
 }
 
 async function tamperTaskFiles(cwd, runId, files) {
-	const path = join(cwd, ".agent-workflow", "workflows", runId, "run.json");
+	const path = join(
+		stateDir(cwd),
+		".agent-workflow",
+		"workflows",
+		runId,
+		"run.json",
+	);
 	const record = JSON.parse(await readFile(path, "utf8"));
 	record.tasks[0].files = { ...record.tasks[0].files, ...files };
 	await writeFile(path, JSON.stringify(record, null, 2));
@@ -111,7 +118,7 @@ async function tamperTaskFiles(cwd, runId, files) {
 
 async function attemptDir(cwd, runId) {
 	const taskRoot = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflow-subagents",
 		runId,
@@ -214,15 +221,18 @@ test("review #7: logs, wait, status and inspect redact structured credentials in
 	);
 	const run = JSON.parse(
 		await readFile(
-			join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+			join(stateDir(cwd), ".agent-workflow", "workflows", runId, "run.json"),
 			"utf8",
 		),
 	);
 	await appendFile(
-		join(cwd, run.tasks[0].files.output),
+		join(stateDir(cwd), run.tasks[0].files.output),
 		`${CASES.join("\n")}\n`,
 	);
-	await writeFile(join(cwd, run.tasks[0].files.result), CASES.join("\n"));
+	await writeFile(
+		join(stateDir(cwd), run.tasks[0].files.result),
+		CASES.join("\n"),
+	);
 	const logs = await api.logsAction(ctx, { runId, lines: 50 });
 	const inspect = await api.inspectAction(ctx, { runId, results: true });
 	const waited = await api.waitAction(ctx, { runId, timeoutMs: 1_000 });
@@ -231,7 +241,7 @@ test("review #7: logs, wait, status and inspect redact structured credentials in
 		cwd,
 		JSON.parse(
 			await readFile(
-				join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+				join(stateDir(cwd), ".agent-workflow", "workflows", runId, "run.json"),
 				"utf8",
 			),
 		),

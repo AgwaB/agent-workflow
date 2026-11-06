@@ -1,3 +1,4 @@
+import { stateDir } from "./state-dir.mjs";
 // New in agent-workflow (WP42, WP39b review): fixtures for the retention-deleter regression tests
 // (core-wp42-*.test.mjs): temporary git repositories, synthetic classifier records as the runtime writes
 // them for the router's comparison call, and workflow runs that record a managed worktree.
@@ -73,7 +74,7 @@ export async function classifier(dir, id, extra = {}) {
 	await writeFile(join(dir, id, "valuable.txt"), "retained data\n");
 }
 export async function workflow(cwd, worktree, runId = "workflow_probe") {
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await json(join(dir, "run.json"), {
 		schemaVersion: 1,
 		runId,
@@ -95,7 +96,7 @@ export async function workflow(cwd, worktree, runId = "workflow_probe") {
 export const managedBranch = "agent-workflow/workflow_probe-task-1";
 export const managedPath = (cwd) =>
 	join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflows",
 		"workflow_probe",

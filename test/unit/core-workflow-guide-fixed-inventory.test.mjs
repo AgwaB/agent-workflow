@@ -25,7 +25,7 @@ import { buildForeachGeneratedTasks } from "../../dist/core/engine-run-graph.js"
 import { validateJsonSchema } from "../../dist/core/json-schema.js";
 import { loadWorkflowSpec } from "../../dist/core/schema.js";
 import {
-	fromProjectPath,
+	fromStatePath,
 	writeRunRecord,
 	writeStaticRunArtifacts,
 } from "../../dist/core/store.js";
@@ -412,7 +412,7 @@ for (const degraded of [false, true]) {
 		const emittedInventory = JSON.parse(
 			await readFile(
 				join(
-					dirname(fromProjectPath(cwd, inventoryTask.files.result)),
+					dirname(fromStatePath(cwd, inventoryTask.files.result)),
 					"control.json",
 				),
 				"utf8",
@@ -434,7 +434,7 @@ for (const degraded of [false, true]) {
 			};
 			await assertSchemaValid(control, bundleRoot, "item");
 			const written = await writeWorkflowTaskArtifactBundle({
-				taskDir: dirname(fromProjectPath(cwd, task.files.result)),
+				taskDir: dirname(fromStatePath(cwd, task.files.result)),
 				rawOutput: `<control>${JSON.stringify(control)}</control>\n<analysis>Editorial questions only.</analysis>\n<refs>[]</refs>`,
 				controlJsonSchema: await schema(bundleRoot, "item"),
 			});
@@ -454,9 +454,7 @@ for (const degraded of [false, true]) {
 		);
 		assert.equal(published, !degraded);
 		assert.equal(finalTask.status, degraded ? "failed" : "completed");
-		const finalDirectory = dirname(
-			fromProjectPath(cwd, finalTask.files.result),
-		);
+		const finalDirectory = dirname(fromStatePath(cwd, finalTask.files.result));
 		const control = JSON.parse(
 			await readFile(join(finalDirectory, "control.json"), "utf8"),
 		);

@@ -1,3 +1,4 @@
+import { stateDir } from "./state-dir.mjs";
 // New in agent-workflow (WP19 round 5): shared fixtures of the Pi completion-delivery tests:
 // synthetic settled runs, receipt paths, a fake Pi session runtime with Pi 1.1's queue semantics
 // and (opt-in) Pi 1.1's real `AgentSessionRuntime`/`AgentSession` queue/`SessionManager` without a
@@ -35,7 +36,7 @@ export async function tempProject(t, prefix = "aw-wp19r5-") {
 export async function syntheticRun(cwd, sessionId, launchedBy = "tool") {
 	counter += 1;
 	const runId = `workflow_wp19r5_${process.pid}_${counter}`;
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await fs.mkdir(dir, { recursive: true });
 	const at = new Date().toISOString();
 	const run = {

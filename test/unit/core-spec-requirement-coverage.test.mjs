@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -146,7 +147,7 @@ for (const mode of modes)
 				return current;
 			};
 			const path = (task) =>
-				join(dirname(join(cwd, task.files.result)), "control.json");
+				join(dirname(join(stateDir(cwd), task.files.result)), "control.json");
 			const read = async (task) =>
 				JSON.parse(await readFile(path(task), "utf8"));
 			const complete = async (task, control, malformed = false) => {
@@ -542,7 +543,7 @@ for (const mode of modes)
 				sidecarRoot = await mkdtemp(join(tmpdir(), "spec-sidecar-"));
 				// WP10: the sidecar root is .agent-workflow/ (was .pi/).
 				await writeFile(
-					join(sidecarRoot, ".agent-workflow"),
+					join(stateDir(sidecarRoot), ".agent-workflow"),
 					"not a directory",
 				);
 			}
@@ -550,6 +551,7 @@ for (const mode of modes)
 				sources: { "partition-findings": p, report },
 				context: {
 					cwd: sidecarRoot ?? cwd,
+					stateCwd: stateDir(sidecarRoot ?? cwd),
 					runId: run.runId,
 					taskId: directTaskId,
 					sourceStatuses: [
@@ -588,7 +590,7 @@ for (const mode of modes)
 				const destination = join(process.env.COVERAGE_FINAL_EVIDENCE_DIR, mode);
 				await mkdir(destination, { recursive: true });
 				await cp(
-					join(cwd, ".agent-workflow", "workflows", run.runId),
+					join(stateDir(cwd), ".agent-workflow", "workflows", run.runId),
 					join(destination, run.runId),
 					{ recursive: true },
 				);
@@ -666,7 +668,7 @@ for (const mode of modes)
 				assert.match(direct.markdown, /Risk 12/);
 				const ledger = await readFile(
 					join(
-						cwd,
+						stateDir(cwd),
 						".agent-workflow",
 						"workflows",
 						run.runId,

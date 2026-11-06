@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP39b, live bundle 5 O7): managed worktrees and the project's run/attempt
 // state. The dirty-checkout snapshot never copies `.agent-workflow/` (run and attempt state of this
 // and other tasks) into a worktree, even when the project does not git-ignore it. Real git in a
@@ -7,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { after, test } from "node:test";
 
 const { ensureManagedWorktree } = await import("../../dist/core/worktree.js");
@@ -47,7 +48,7 @@ async function repo() {
 test("the dirty snapshot never copies .agent-workflow/ state into a worktree, even when not git-ignored", async () => {
 	const cwd = await repo();
 	// Untracked, not ignored: another task's attempt state, notify receipts, a run dir, user work.
-	const state = join(cwd, ".agent-workflow");
+	const state = join(stateDir(cwd), ".agent-workflow");
 	mkdirSync(join(state, "workflow-subagents", "workflow_other", "task-9"), {
 		recursive: true,
 	});
@@ -100,7 +101,7 @@ const { pruneWorkflowRuns, formatWorkflowPruneSummary } = await import(
 
 /** A terminal run whose tasks ran in managed worktrees (created with the real helper). */
 async function runWithWorktrees(cwd, runId, taskIds) {
-	const runDir = join(cwd, ".agent-workflow", "workflows", runId);
+	const runDir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	mkdirSync(runDir, { recursive: true });
 	const tasks = [];
 	for (const taskId of taskIds) {
@@ -181,13 +182,13 @@ test("prune: managed worktrees are listed in the dry run and removed with --yes;
 		})),
 		[
 			{
-				path: ".agent-workflow/workflows/workflow_wtprune/worktrees/task-1",
+				path: relative(cwd, dirty.cwd),
 				branch: "agent-workflow/workflow_wtprune-task-1",
 				dirty: true,
 				commits: 0,
 			},
 			{
-				path: ".agent-workflow/workflows/workflow_wtprune/worktrees/task-2",
+				path: relative(cwd, committed.cwd),
 				branch: "agent-workflow/workflow_wtprune-task-2",
 				dirty: false,
 				commits: 1,
@@ -195,9 +196,11 @@ test("prune: managed worktrees are listed in the dry run and removed with --yes;
 		],
 	);
 	const text = formatWorkflowPruneSummary(preview);
-	assert.match(
+	assert.ok(
+		text.includes(
+			`Worktree: ${relative(cwd, dirty.cwd)} (branch agent-workflow/workflow_wtprune-task-1; uncommitted changes)`,
+		),
 		text,
-		/Worktree: \.agent-workflow\/workflows\/workflow_wtprune\/worktrees\/task-1 \(branch agent-workflow\/workflow_wtprune-task-1; uncommitted changes\)/,
 	);
 	assert.match(
 		text,
@@ -238,22 +241,24 @@ test("status, show and inspect name a worktree task's worktree path and branch",
 	const format = await import("../../dist/core/engine-format.js");
 	const store = await import("../../dist/core/store.js");
 	const run = await store.readRunRecord(cwd, "workflow_wtshow");
-	const expected =
-		/Worktree: \.agent-workflow\/workflows\/workflow_wtshow\/worktrees\/task-1 \(branch agent-workflow\/workflow_wtshow-task-1\)/;
+	const expected = `Worktree: ${run.tasks[0].worktree.path} (branch agent-workflow/workflow_wtshow-task-1)`;
 	for (const text of [
 		format.formatHumanRunStatus(run),
 		format.formatHumanRunDetails(run),
 		format.formatHumanRunOutcome(run),
 	])
-		assert.match(text, expected);
+		assert.ok(text.includes(expected), text);
 	const api = await import("../../dist/hosts/api.js");
 	const inspected = await api.inspectAction(
 		{ cwd, env: process.env, host: "cli" },
 		{ runId: "workflow_wtshow" },
 	);
-	assert.match(
+	assert.match(inspected.text, /- task-1: completed\//u);
+	assert.ok(
+		inspected.text.includes(
+			`    worktree: ${run.tasks[0].worktree.path} (branch agent-workflow/workflow_wtshow-task-1)`,
+		),
 		inspected.text,
-		/- task-1: completed\/.*\n {4}worktree: \.agent-workflow\/workflows\/workflow_wtshow\/worktrees\/task-1 \(branch agent-workflow\/workflow_wtshow-task-1\)/,
 	);
 });
 
@@ -364,7 +369,13 @@ test("a worktree task runs in its worktree; its attempt state is written under t
 		);
 		assert.ok(
 			submit.artifactsDir.startsWith(
-				join(cwd, ".agent-workflow", "workflow-subagents", runId, task.taskId),
+				join(
+					stateDir(cwd),
+					".agent-workflow",
+					"workflow-subagents",
+					runId,
+					task.taskId,
+				),
 			),
 			submit.artifactsDir,
 		);

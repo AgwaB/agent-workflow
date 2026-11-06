@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import { createWorkflowRunRecord } from "../helpers/unit-test-support.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -116,7 +117,11 @@ async function fixture(t) {
 
 async function control(cwd, run, specId) {
 	return readJson(
-		join(cwd, dirname(taskBySpec(run, specId).files.result), "control.json"),
+		join(
+			stateDir(cwd),
+			dirname(taskBySpec(run, specId).files.result),
+			"control.json",
+		),
 	);
 }
 
@@ -368,7 +373,11 @@ for (const mode of [
 		const sources = { "sanitize-claims": singleInventory, [source]: row };
 		const audit = await claimGate({
 			sources,
-			context: { cwd, sourceStatuses: statuses },
+			context: {
+				cwd,
+				stateCwd: cwd ? stateDir(cwd) : undefined,
+				sourceStatuses: statuses,
+			},
 		});
 		assert.equal(audit.gateSummary.validVerifierRows, 0);
 		assert.equal(audit.verdictCounts.verified, 0);
@@ -408,7 +417,7 @@ for (const mode of [
 					synthesis: { ...synthesis.synthesis, keyFindingIds: [ids[0]] },
 				},
 			},
-			context: { cwd },
+			context: { cwd, stateCwd: cwd ? stateDir(cwd) : undefined },
 		});
 		assert.equal(final.status, "failed");
 		assert.equal(final.gates.packetReconciliationPassed, false);

@@ -1,3 +1,4 @@
+import { fromStatePath } from "../core/state-location.js";
 // New in agent-workflow (WP17): `agent-workflow doctor`, a read-only environment check with no model
 // calls. For each built-in executor: installed, CLI version vs the version its capabilities were
 // verified with, auth state (non-secret, from the adapter's probe), and the fix command when it is
@@ -15,7 +16,7 @@ import {
 	piWebAccessConfigPath,
 } from "../executors/pi/web-tools.js";
 import { access, stat } from "node:fs/promises";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, isAbsolute } from "node:path";
 
 import {
 	type ExecutorReadiness,
@@ -200,7 +201,7 @@ async function runIndexReport(cwd: string): Promise<DoctorData["runIndex"]> {
 			if (typeof entry.runJson !== "string") return false;
 			const runJson = isAbsolute(entry.runJson)
 				? entry.runJson
-				: join(cwd, entry.runJson);
+				: fromStatePath(cwd, entry.runJson);
 			try {
 				await stat(runJson);
 				return false;

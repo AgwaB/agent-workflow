@@ -1,3 +1,4 @@
+import { stateDir } from "./state-dir.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -260,7 +261,13 @@ function makeProject() {
 }
 
 function supervisorLockPath(cwd, runId) {
-	return join(cwd, ".agent-workflow", "workflows", runId, "supervisor.lock");
+	return join(
+		stateDir(cwd),
+		".agent-workflow",
+		"workflows",
+		runId,
+		"supervisor.lock",
+	);
 }
 
 function writeSupervisorLock(
@@ -332,7 +339,7 @@ async function eventually(action, timeoutMs = 10_000) {
 function readWorkflowIndexFile(cwd) {
 	return JSON.parse(
 		readFileSync(
-			join(cwd, ".agent-workflow", "workflows", "index.json"),
+			join(stateDir(cwd), ".agent-workflow", "workflows", "index.json"),
 			"utf8",
 		),
 	);
@@ -611,7 +618,7 @@ async function completeTask(
 			...structuredOutput,
 		};
 		await writeWorkflowTaskArtifactBundle({
-			taskDir: dirname(join(cwd, task.files.result)),
+			taskDir: dirname(join(stateDir(cwd), task.files.result)),
 			rawOutput: [
 				"<control>",
 				JSON.stringify(control),
@@ -627,7 +634,7 @@ async function completeTask(
 		});
 		return;
 	}
-	await writeJsonAtomic(join(cwd, task.files.result), {
+	await writeJsonAtomic(join(stateDir(cwd), task.files.result), {
 		status,
 		completedAt: new Date().toISOString(),
 		exitCode: status === "completed" ? 0 : 1,
@@ -1254,8 +1261,10 @@ async function createRunningPartialProducerRun(cwd, spec, outputText) {
 	producer.status = "running";
 	producer.statusDetail = "running";
 	producer.startedAt = new Date().toISOString();
-	mkdirSync(dirname(join(cwd, producer.files.output)), { recursive: true });
-	writeFileSync(join(cwd, producer.files.output), outputText, "utf8");
+	mkdirSync(dirname(join(stateDir(cwd), producer.files.output)), {
+		recursive: true,
+	});
+	writeFileSync(join(stateDir(cwd), producer.files.output), outputText, "utf8");
 	await writeRunRecord(cwd, run);
 	return { compiled, run, producer };
 }
@@ -1400,7 +1409,7 @@ async function createPendingSingleTaskRun(cwd, options = {}) {
 
 function firstTransientModelFailureAttemptPath(cwd, refreshedTask) {
 	return join(
-		cwd,
+		stateDir(cwd),
 		dirname(refreshedTask.files.result),
 		"result.transient-model-failure-1.json",
 	);
@@ -1428,7 +1437,7 @@ function assertPermanentModelFailure(cwd, refreshedTask, messagePattern) {
 		false,
 	);
 	const result = JSON.parse(
-		readFileSync(join(cwd, refreshedTask.files.result), "utf8"),
+		readFileSync(join(stateDir(cwd), refreshedTask.files.result), "utf8"),
 	);
 	assert.equal(result.failureKind, "permanent_model_failure");
 }
@@ -1529,7 +1538,7 @@ function unfinishedNoticeTasks(run) {
 }
 
 function writeUnfinishedNoticeIndex(cwd, runs) {
-	const indexDir = join(cwd, ".agent-workflow", "workflows");
+	const indexDir = join(stateDir(cwd), ".agent-workflow", "workflows");
 	mkdirSync(indexDir, { recursive: true });
 	writeFileSync(
 		join(indexDir, "index.json"),
@@ -1558,13 +1567,18 @@ function writeUnfinishedNoticeIndex(cwd, runs) {
 }
 
 function writeUnfinishedNoticeRunRecord(cwd, runId, provenance) {
-	const indexPath = join(cwd, ".agent-workflow", "workflows", "index.json");
+	const indexPath = join(
+		stateDir(cwd),
+		".agent-workflow",
+		"workflows",
+		"index.json",
+	);
 	const indexedRun = existsSync(indexPath)
 		? JSON.parse(readFileSync(indexPath)).runs?.find(
 				(run) => run.runId === runId,
 			)
 		: undefined;
-	const runDir = join(cwd, ".agent-workflow", "workflows", runId);
+	const runDir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	mkdirSync(runDir, { recursive: true });
 	writeFileSync(
 		join(runDir, "run.json"),
@@ -1785,7 +1799,7 @@ async function stallFormatterFixture(cwd, runId, supervisor) {
 	const createdAt = new Date(Date.now() - 60 * 60_000).toISOString();
 	const run = stallProgressRun(cwd, runId, "running", createdAt);
 	await writeJsonAtomic(
-		join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+		join(stateDir(cwd), ".agent-workflow", "workflows", runId, "run.json"),
 		run,
 	);
 	await writeJsonAtomic(supervisorPath(cwd, runId), supervisor);

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import { reconstructSynthesisPages } from "../../workflows/deep-research/helpers/synthesis-pages.mjs";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -244,6 +245,7 @@ test("deep-research production research schema and packet preserve local evidenc
 		},
 		context: {
 			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
 			sourceStatuses: [
 				{
 					source: "research-questions.rq-2",
@@ -656,7 +658,7 @@ test("deep-research local url evidence is byte-gated rather than accepted as a w
 				],
 			},
 		},
-		context: { cwd },
+		context: { cwd, stateCwd: cwd ? stateDir(cwd) : undefined },
 		options: { requireFetchedEvidenceForVerified: true },
 	});
 	assert.equal(result.verdictCounts.verified, 0);
@@ -802,7 +804,12 @@ test("deep-research final packet bounds the required synthesis read and rejects 
 			"final-audit.main": cleanSynthesis,
 			"final-audit-packet.main": packet,
 		},
-		context: { cwd: "/dev/null", runId: "r", taskId: "t" },
+		context: {
+			cwd: "/dev/null",
+			stateCwd: "/dev/null",
+			runId: "r",
+			taskId: "t",
+		},
 	});
 	assert.equal(sidecarFailure.sidecarErrors.length, 1);
 	assert.equal(sidecarFailure.gates.sidecarWriteSucceeded, false);
@@ -900,7 +907,10 @@ test("deep-research contradictory local and remote evidence is conservatively do
 			],
 		},
 	};
-	const result = await claimGate({ sources, context: { cwd } });
+	const result = await claimGate({
+		sources,
+		context: { cwd, stateCwd: cwd ? stateDir(cwd) : undefined },
+	});
 	assert.equal(result.verdictCounts.verified, 0);
 	assert.equal(result.verdictCounts.partiallySupported, 1);
 	assert.equal(

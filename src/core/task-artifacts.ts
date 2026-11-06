@@ -1,3 +1,4 @@
+import { stateBase } from "./state-location.js";
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
 import {
 	copyFile,
@@ -281,15 +282,8 @@ export async function recoverSubagentHandle(
 		handle: SubagentBackendHandle;
 		updatedAtMs: number;
 	}> = [];
-	// WP39b: the project for a worktree task (its state cwd); before WP39b, inside the worktree.
-	const stateCwds = [
-		...new Set([
-			...(projectCwd === undefined
-				? []
-				: [workflowTaskStateCwd(projectCwd, task)]),
-			task.cwd,
-		]),
-	];
+	// Recovery uses the same storage namespace as launch; old project-local attempts are ignored.
+	const stateCwds = [workflowTaskStateCwd(projectCwd ?? run.cwd, task)];
 	for (const stateCwd of stateCwds) {
 		const absoluteRunsDir = resolve(stateCwd, runsDir);
 		const entries = await readdir(absoluteRunsDir, {
@@ -360,26 +354,18 @@ export function timestampMs(value: string | undefined): number | undefined {
 }
 
 /**
- * WP39b (live bundle 5, O7): where a task's runtime attempt state (`runsDir`) lives. A task in a
- * managed worktree runs there, but its attempt state stays in the project's own `.agent-workflow/`
- * (the runtime runs it with `cwd` = the project and the worktree as its execution directory);
- * every other task keeps it under its cwd.
+ * Runtime artifact/registry cwd is the project's private state base, independent of execution cwd.
+ * A worker still executes in task.cwd (the project, an authored cwd, or a managed worktree).
  */
 export function workflowTaskStateCwd(
 	projectCwd: string,
-	task: Pick<WorkflowTaskRunRecord, "cwd" | "worktree">,
+	_task: Pick<WorkflowTaskRunRecord, "cwd" | "worktree">,
 ): string {
-	const worktree = task.worktree;
-	return worktree?.enabled === true &&
-		typeof worktree.path === "string" &&
-		resolve(task.cwd) === resolve(worktree.path)
-		? resolve(projectCwd)
-		: task.cwd;
+	return stateBase(projectCwd);
 }
 
 /**
- * The state cwd of a launched task: the recorded handle's (attempts launched before WP39b kept a
- * worktree task's state inside the worktree), else `workflowTaskStateCwd`.
+ * The storage cwd of a launched task: the recorded handle's, else the project's state base.
  */
 export function recordedTaskStateCwd(
 	projectCwd: string,

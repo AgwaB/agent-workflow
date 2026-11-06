@@ -1,3 +1,4 @@
+import { stateBase } from "./state-location.js";
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -22,10 +23,10 @@ import {
 	readTaskControlJsonSchema,
 } from "./output-validation.js";
 import {
-	fromProjectPath,
+	fromStatePath,
 	nowIso,
 	setTaskTerminal,
-	toProjectPath,
+	toStatePath,
 	workflowRunDir,
 	writeJsonAtomic,
 	writeRunRecord,
@@ -124,8 +125,8 @@ async function persistTerminalForeachBatchEvidence(
 	const receivedAt = nowIso();
 	input.record.terminal = {
 		receivedAt,
-		rawPath: toProjectPath(input.cwd, rawFile),
-		receiptPath: toProjectPath(input.cwd, receiptFile),
+		rawPath: toStatePath(input.cwd, rawFile),
+		receiptPath: toStatePath(input.cwd, receiptFile),
 		rawSha256: sha256Text(input.rawOutput),
 		backendRunId: input.snapshot.runId,
 		backendAttemptId: input.snapshot.attemptId,
@@ -164,7 +165,7 @@ export async function fallbackForeachBatchAfterTerminal(
 	record.fallback = {
 		preparedAt: nowIso(),
 		reason,
-		diagnosticsPath: toProjectPath(cwd, diagnosticFile),
+		diagnosticsPath: toStatePath(cwd, diagnosticFile),
 	};
 	await writeRunRecord(cwd, run);
 	applyForeachBatchFallback(run, record, reason);
@@ -281,18 +282,18 @@ async function commitTerminalForeachBatch(
 	await Promise.all(
 		validated.map(async (candidate) => {
 			const taskDirectory = dirname(
-				fromProjectPath(cwd, candidate.task.files.result),
+				fromStatePath(cwd, candidate.task.files.result),
 			);
 			await mkdir(taskDirectory, { recursive: true });
 			const itemStderr =
 				candidate.task.foreachBatch?.role === "leader" ? stderr : "";
 			await Promise.all([
 				writeForeachBatchTextAtomic(
-					fromProjectPath(cwd, candidate.task.files.output),
+					fromStatePath(cwd, candidate.task.files.output),
 					candidate.rawOutput,
 				),
 				writeForeachBatchTextAtomic(
-					fromProjectPath(cwd, candidate.task.files.stderr),
+					fromStatePath(cwd, candidate.task.files.stderr),
 					itemStderr,
 				),
 			]);
@@ -301,6 +302,7 @@ async function commitTerminalForeachBatch(
 					taskDir: taskDirectory,
 					rawOutput: candidate.rawOutput,
 					rawIntegrityHost: candidate.task,
+					rawIntegrityStateCwd: stateBase(cwd),
 					startedAt,
 					completedAt,
 					exitCode,
@@ -392,7 +394,7 @@ export async function recoverForeachBatchRuntime(
 				continue;
 			}
 			const rawOutput = await readFile(
-				fromProjectPath(cwd, terminal.rawPath),
+				fromStatePath(cwd, terminal.rawPath),
 				"utf8",
 			);
 			if (sha256Text(rawOutput) !== terminal.rawSha256) {
@@ -402,7 +404,7 @@ export async function recoverForeachBatchRuntime(
 			}
 			const leader = foreachBatchLeaderTask(run, record);
 			const stderr = await readFile(
-				fromProjectPath(cwd, leader.files.stderr),
+				fromStatePath(cwd, leader.files.stderr),
 				"utf8",
 			).catch(() => "");
 			await commitTerminalForeachBatch({

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19, stage-2 review #10): a generic support failure is not presented as a
 // verdict gate. The reviewer's control record — the final support step declared `failed` with
 // "required evidence missing", no domain verdict, no report artifact — is presented as a failure
@@ -47,7 +48,7 @@ const helper = (
 ) => `import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 export default async function render({ context }) {
-	const dir = join(context.cwd, ".agent-workflow", "workflows", context.runId, "tasks", context.taskId);
+	const dir = join(context.stateCwd, ".agent-workflow", "workflows", context.runId, "tasks", context.taskId);
 	await mkdir(dir, { recursive: true });
 	${writeReport ? 'await writeFile(join(dir, "final-report.md"), "# Report\\n", "utf8");' : ""}
 	return ${JSON.stringify({ schema: "stage-control-v1", status: "failed", ...control })};
@@ -134,7 +135,7 @@ test("review #10: the control record (failed, required evidence missing, no verd
 	);
 	const run = JSON.parse(
 		await readFile(
-			join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+			join(stateDir(cwd), ".agent-workflow", "workflows", runId, "run.json"),
 			"utf8",
 		),
 	);

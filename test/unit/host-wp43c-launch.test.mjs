@@ -26,7 +26,6 @@ async function project(t, overrides = {}) {
 	const { cwd } = fixture;
 	const env = {
 		...process.env,
-		AGENT_WORKFLOW_HOME: join(cwd, "home"),
 		AGENT_WORKFLOW_ROLE: "supervisor",
 		AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "1",
 		BROWSER: "none",

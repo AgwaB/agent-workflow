@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve, relative } from "node:path";
 
 // Opt-in materialization for old API-only backend fixtures. Produce the same
 // bounded mirror/attempt names as the backend; never manufacture a raw anchor.
@@ -74,7 +74,19 @@ export function withMaterializedRawHost(setApi) {
 								: attempt,
 						) ?? [{ attemptId, status: status.status }],
 					});
-					return status;
+					const logs = [];
+					for (const log of status.logs ?? []) {
+						const destination = join(attemptDir, basename(log.path));
+						const source = resolve(log.artifactCwd ?? options.cwd, log.path);
+						if (source !== destination && log.type !== "result")
+							await put(destination, await readFile(source, "utf8"));
+						logs.push({
+							...log,
+							artifactCwd: options.cwd,
+							path: relative(options.cwd, destination),
+						});
+					}
+					return { ...status, logs };
 				},
 			},
 		);

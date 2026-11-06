@@ -1,3 +1,4 @@
+import { stateBase, ensureStateBase } from "../core/state-location.js";
 // New in agent-workflow (WP19, stage-2 review #4): canonical containment of file paths taken from
 // persisted run metadata (task `files.*`, attempt directories) before a host action reads them.
 // Run records live in the workspace and can be tampered with, so a path from them is trusted only
@@ -25,7 +26,7 @@ function inside(root: string, path: string): boolean {
 
 /** The project's artifact root (`<cwd>/.agent-workflow`). */
 export function projectArtifactRoot(cwd: string): string {
-	return join(resolve(cwd), PROJECT_STATE_DIRECTORY);
+	return join(stateBase(cwd), PROJECT_STATE_DIRECTORY);
 }
 
 /** WP42: `path` is a real directory (not a symlink); `create` makes it (one level) when missing. */
@@ -58,12 +59,13 @@ export async function containedProjectStateDir(
 	name: string,
 	create = false,
 ): Promise<string | undefined> {
+	if (create) await ensureStateBase(cwd);
 	const stateDir = projectArtifactRoot(cwd);
 	const dir = join(stateDir, name);
 	try {
 		if (create) {
 			if (!(await realDirectory(stateDir, true))) return undefined;
-			const cwdReal = await realpath(resolve(cwd));
+			const cwdReal = await realpath(stateBase(cwd));
 			if ((await realpath(stateDir)) !== join(cwdReal, PROJECT_STATE_DIRECTORY))
 				return undefined;
 			if (!(await realDirectory(dir, true))) return undefined;
@@ -73,7 +75,7 @@ export async function containedProjectStateDir(
 			if (info.isSymbolicLink() || !info.isDirectory()) return undefined;
 		}
 		const [cwdReal, dirReal] = await Promise.all([
-			realpath(resolve(cwd)),
+			realpath(stateBase(cwd)),
 			realpath(dir),
 		]);
 		return dirReal === join(cwdReal, PROJECT_STATE_DIRECTORY, name)
@@ -108,7 +110,7 @@ export async function resolveContainedRunFile(
 			reason: "path traversal (`..`) in the run metadata",
 		};
 	const root = projectArtifactRoot(cwd);
-	const lexical = resolve(cwd, candidate);
+	const lexical = resolve(stateBase(cwd), candidate);
 	if (!inside(root, lexical))
 		return {
 			kind: "refused",

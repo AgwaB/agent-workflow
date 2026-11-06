@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP42 review round 1, finding 5): the prompt hook's idle fast path never
 // strands the deferred backlog. notify-check delivers at most five runs per check; a check that
 // left runs for later does not keep a stamp, so the next prompt checks again (no `run.json` change
@@ -33,7 +34,7 @@ async function settledRuns(count) {
 	const at = new Date().toISOString();
 	for (let index = 0; index < count; index += 1) {
 		const runId = `workflow_backlog${index}`;
-		const dir = join(cwd, ".agent-workflow", "workflows", runId);
+		const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 		await mkdir(dir, { recursive: true });
 		await writeFile(
 			join(dir, "run.json"),
@@ -100,8 +101,11 @@ test("six settled runs and two prompts with no run.json change in between delive
 	assert.equal(new Set(all).size, 6, "every run delivered exactly once");
 	const pending = await notify.notifyCheck(cwd, { host: "claude-code" });
 	assert.deepEqual(pending.data.notifications, [], "nothing left behind");
-	// Drained: the stamp is kept now and the next prompt is idle again (no CLI start).
-	const names = await readdir(join(cwd, ".agent-workflow", "notify-check"));
+	// Drained: the stamp is kept; state checks (including idle checks) belong to the CLI.
+	assert.equal(hook().stdout, "");
+	const names = await readdir(
+		join(stateDir(cwd), ".agent-workflow", "notify-check"),
+	);
 	assert.ok(names.includes("hook-claude-code.stamp"), names.join(","));
 	const marker = join(cwd, "cli-started");
 	assert.equal(
@@ -111,8 +115,8 @@ test("six settled runs and two prompts with no run.json change in between delive
 	);
 	assert.equal(
 		(await readdir(cwd)).includes("cli-started"),
-		false,
-		"idle after the backlog drained",
+		true,
+		"idle discovery is delegated to the CLI, not shell state-path tests",
 	);
 });
 
@@ -128,7 +132,7 @@ test("notify-check --stamp keeps no stamp while runs are deferred", async () => 
 		} finally {
 			cwd = previous;
 		}
-		const dir = join(project, ".agent-workflow", "notify-check");
+		const dir = join(stateDir(project), ".agent-workflow", "notify-check");
 		const first = await notify.notifyCheck(project, {
 			stamp: "hook-claude-code",
 		});

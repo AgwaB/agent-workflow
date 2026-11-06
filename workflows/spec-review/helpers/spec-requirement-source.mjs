@@ -39,7 +39,7 @@ const taskPath = (context, taskId, file) => {
   return `.agent-workflow/workflows/${context.runId}/tasks/${taskId}/${file}`;
 };
 async function readManifest(context, taskId) {
-  const text = await readLocalText(context.cwd, taskPath(context, taskId, "source-manifest.json"), context.signal);
+  const text = await readLocalText(context.stateCwd ?? context.cwd, taskPath(context, taskId, "source-manifest.json"), context.signal);
   const manifest = JSON.parse(text);
   if (manifest.schema !== "workflow-source-manifest-v1" || manifest.runId !== context.runId || manifest.taskId !== taskId || !Array.isArray(manifest.sources)) throw new Error("invalid runtime source manifest");
   return { manifest, sha256: sha256(text) };
@@ -117,7 +117,7 @@ export async function recheckRows(context, rows) {
     if (row?.stageId !== RECHECK_STAGE || row.status !== "completed" || !safeId(row.taskId)) continue;
     let control;
     try {
-      control = JSON.parse(await readLocalText(context.cwd, taskPath(context, row.taskId, "control.json"), context.signal));
+      control = JSON.parse(await readLocalText(context.stateCwd ?? context.cwd, taskPath(context, row.taskId, "control.json"), context.signal));
     } catch (error) {
       context.signal?.throwIfAborted();
       ignore(row, `unreadable control (${error.code ?? error.message})`);
@@ -175,7 +175,7 @@ export async function candidateUpstreamFailures(context, owner) {
     for (const stage of ["extract-spec", "map-implementation", "inspect-tests"]) {
       try {
         const source = exactSource(manifest.sources, stage);
-        const text = await readLocalText(context.cwd, taskPath(context, source.taskId, "control.json"), context.signal);
+        const text = await readLocalText(context.stateCwd ?? context.cwd, taskPath(context, source.taskId, "control.json"), context.signal);
         const control = JSON.parse(text);
         const readProof = { source, control, sha256: sha256(text) };
         if (stage === "extract-spec") extracted = readProof;
@@ -186,7 +186,7 @@ export async function candidateUpstreamFailures(context, owner) {
         failures.push({ source: stage, status: "unverifiable_upstream_source", lastMessage: error.code ?? error.message });
       }
     }
-    const candidateText = await readLocalText(context.cwd, taskPath(context, owner.taskId, "control.json"), context.signal);
+    const candidateText = await readLocalText(context.stateCwd ?? context.cwd, taskPath(context, owner.taskId, "control.json"), context.signal);
     const candidate = JSON.parse(candidateText);
     const proof = { runId: context.runId, candidateTaskId: owner.taskId, candidateControlSha256: sha256(candidateText), candidateManifestSha256: manifestSha256, extractTaskId: extracted?.source?.taskId ?? "", extractControlSha256: extracted?.sha256 ?? "", mapTaskId: mapped?.source?.taskId ?? "", mapControlSha256: mapped?.sha256 ?? "", inspectTestsTaskId: inspected?.source?.taskId ?? "", inspectTestsControlSha256: inspected?.sha256 ?? "" };
     const runtimeCandidateUniverse = candidateUniverse(candidate, proof);

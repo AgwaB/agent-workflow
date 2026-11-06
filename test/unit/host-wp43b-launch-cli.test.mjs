@@ -53,7 +53,6 @@ async function project(t) {
 	const env = {
 		...process.env,
 		AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0",
-		AGENT_WORKFLOW_HOME: join(cwd, "home"),
 		AGENT_WORKFLOW_DASHBOARD_OPEN: "0",
 	};
 	return { cwd, executor, env, host: "cli" };

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // 2026-11-05 (owner: wait in code, wake the host once; live checks internal host-wake-20261105): an
 // interactive Codex session that launched a run gets the result queued into its thread when the
 // run has settled (`codex queue`), so the agent ends its turn instead of calling workflow_wait.
@@ -26,14 +27,15 @@ after(async () => {
 async function project() {
 	counter += 1;
 	const cwd = join(root, `p${counter}`);
-	await mkdir(join(cwd, ".agent-workflow", "notify-check"), {
+	await mkdir(cwd, { recursive: true });
+	await mkdir(join(stateDir(cwd), ".agent-workflow", "notify-check"), {
 		recursive: true,
 	});
 	return cwd;
 }
 
 async function writeRun(cwd, runId, status, source = "mcp:codex") {
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await mkdir(dir, { recursive: true });
 	const run = {
 		runId,

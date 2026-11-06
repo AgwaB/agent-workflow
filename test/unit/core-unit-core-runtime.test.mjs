@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import {
 	buildSynthesisPages,
 	reconstructSynthesisPages,
@@ -1457,7 +1458,7 @@ test("loop until unmet materializes round 2 with unique ids and carry-forward co
 		const compiledAfterRound2 = JSON.parse(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					current.runId,
@@ -1745,7 +1746,7 @@ test("loop onExhausted context includes bounded prior round check outputs", asyn
 		const compiledAfterExhaustion = JSON.parse(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					current.runId,
@@ -1796,7 +1797,7 @@ test("loop until evaluator supports equals notEquals lengthEquals all and any", 
 		const compiledAfterRound1 = JSON.parse(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					current.runId,
@@ -1938,14 +1939,14 @@ test("loop completed task with unreadable result records a warning", async () =>
 		const check = taskBySpec(current, "fix-loop.r01.check");
 		await completeTask(cwd, check, { status: "pass" });
 		writeFileSync(
-			join(dirname(join(cwd, check.files.result)), "control.json"),
+			join(dirname(join(stateDir(cwd), check.files.result)), "control.json"),
 			"{not-json",
 		);
 		await writeRunRecord(cwd, current);
 		const compiledAfterRound1 = JSON.parse(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					current.runId,
@@ -2874,7 +2875,12 @@ test("deep-research P3 final-audit replay fixture preserves guardrail floors", a
 				maxRecommendations: 3,
 				maxGaps: 2,
 			},
-			context: { cwd, runId: "workflow_p3_fixture", taskId: "task-final" },
+			context: {
+				cwd,
+				stateCwd: cwd ? stateDir(cwd) : undefined,
+				runId: "workflow_p3_fixture",
+				taskId: "task-final",
+			},
 		});
 		assert.equal(rendered.status, "passed");
 		assert.equal(rendered.gates.passed, true);
@@ -3051,7 +3057,12 @@ test("deep-research renderer emits evidence-backed report and sidecars", async (
 					},
 				},
 			},
-			context: { cwd, runId: "workflow_exec", taskId: "task-final" },
+			context: {
+				cwd,
+				stateCwd: cwd ? stateDir(cwd) : undefined,
+				runId: "workflow_exec",
+				taskId: "task-final",
+			},
 		});
 
 		assert.equal(result.schema, "deep-research-executive-render-v1");
@@ -3105,7 +3116,7 @@ test("deep-research renderer emits evidence-backed report and sidecars", async (
 		assert.equal(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					"workflow_exec",
@@ -3120,7 +3131,7 @@ test("deep-research renderer emits evidence-backed report and sidecars", async (
 		assert.equal(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					"workflow_exec",
@@ -3135,7 +3146,7 @@ test("deep-research renderer emits evidence-backed report and sidecars", async (
 		assert.equal(
 			existsSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					"workflow_exec",
@@ -3148,7 +3159,7 @@ test("deep-research renderer emits evidence-backed report and sidecars", async (
 		);
 		const auditMarkdown = readFileSync(
 			join(
-				cwd,
+				stateDir(cwd),
 				".agent-workflow",
 				"workflows",
 				"workflow_exec",
@@ -3462,7 +3473,12 @@ test("deep-research executive renderer preserves object gaps zeros and recommend
 				maxRecommendations: 2,
 				maxGaps: 2,
 			},
-			context: { cwd, runId: "workflow_exec", taskId: "task-final" },
+			context: {
+				cwd,
+				stateCwd: cwd ? stateDir(cwd) : undefined,
+				runId: "workflow_exec",
+				taskId: "task-final",
+			},
 		});
 
 		assert.equal(result.status, "passed");
@@ -3988,7 +4004,7 @@ test("refresh surfaces poll API errors after processing sibling tasks", async ()
 		assert.equal(taskBySpec(persisted, "main.sibling").status, "completed");
 		assert.equal(
 			readFileSync(
-				join(cwd, taskBySpec(persisted, "main.sibling").files.output),
+				join(stateDir(cwd), taskBySpec(persisted, "main.sibling").files.output),
 				"utf8",
 			),
 			"sibling output",
@@ -5026,7 +5042,7 @@ test("refresh does not retry deterministic boot or config failures", async () =>
 		assert.match(refreshedTask.lastMessage, /deterministic-boot failure/);
 		assert.match(refreshedTask.lastMessage, /Failed to load extension/);
 		const result = JSON.parse(
-			readFileSync(join(cwd, refreshedTask.files.result), "utf8"),
+			readFileSync(join(stateDir(cwd), refreshedTask.files.result), "utf8"),
 		);
 		assert.equal(result.failureKind, "deterministic_boot");
 	} finally {
@@ -5400,9 +5416,11 @@ test("run boundary requires runtime task", async () => {
 test("resolveFlowsCwd finds ancestor workflow state root", async () => {
 	const cwd = makeProject();
 	try {
-		mkdirSync(join(cwd, ".agent-workflow", "workflows"), { recursive: true });
+		mkdirSync(join(stateDir(cwd), ".agent-workflow", "workflows"), {
+			recursive: true,
+		});
 		writeFileSync(
-			join(cwd, ".agent-workflow", "workflows", "index.json"),
+			join(stateDir(cwd), ".agent-workflow", "workflows", "index.json"),
 			JSON.stringify({
 				schemaVersion: 1,
 				updatedAt: "2026-06-04T00:00:00.000Z",
@@ -8496,7 +8514,12 @@ test("deep-review render-review-report emits finding cards from partition ledger
 					recommendedNextAction: "Fix critical findings before launch.",
 				},
 			},
-			context: { cwd, runId: "workflow_review", taskId: "task-final" },
+			context: {
+				cwd,
+				stateCwd: cwd ? stateDir(cwd) : undefined,
+				runId: "workflow_review",
+				taskId: "task-final",
+			},
 		});
 
 		const renderSchema = JSON.parse(
@@ -8599,7 +8622,7 @@ test("deep-review render-review-report emits finding cards from partition ledger
 		assert.equal(result.gates.needsHumanEvidenceIncomplete, true);
 		const finalReport = readFileSync(
 			join(
-				cwd,
+				stateDir(cwd),
 				".agent-workflow",
 				"workflows",
 				"workflow_review",
@@ -8611,7 +8634,7 @@ test("deep-review render-review-report emits finding cards from partition ledger
 		);
 		const legacyReview = readFileSync(
 			join(
-				cwd,
+				stateDir(cwd),
 				".agent-workflow",
 				"workflows",
 				"workflow_review",
@@ -9133,7 +9156,7 @@ test("deep-research claim-evidence-gate enforces structured evidence, rejoins id
 			requireFetchedEvidenceForVerified: true,
 			downgradeExactQuantitativeWithoutSource: true,
 		},
-		context: { cwd },
+		context: { cwd, stateCwd: cwd ? stateDir(cwd) : undefined },
 	});
 	assert.deepEqual(out.statusPartitions.verified, ["claim-001", "claim-003"]);
 	assert.deepEqual(out.statusPartitions.partiallySupported, ["claim-002"]);

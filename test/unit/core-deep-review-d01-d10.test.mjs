@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Whitespace, line-ending, quote-character, and citation offsets of at most 10 lines
 // are accepted with recorded corrections; different words and invalid UTF-8 fail.
 import test from "node:test";
@@ -101,7 +102,11 @@ async function dedup(findings, options = {}, sourceCoverage, cwd) {
 	const lens = "runtime";
 	return pipeline({
 		sources: reviewerSources(findings, lens, sourceCoverage),
-		context: { cwd, sourceStatuses: [status("reviewers", lens)] },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			sourceStatuses: [status("reviewers", lens)],
+		},
 		options: { mode: "dedup", ...options },
 	});
 }
@@ -581,7 +586,7 @@ test("D09 exposes requested sidecar write failure", async (t) => {
 		}),
 	);
 	// WP10: the sidecar root is .agent-workflow/ (was .pi/), so block that one.
-	writeFileSync(join(cwd, ".agent-workflow"), "not a directory");
+	writeFileSync(join(stateDir(cwd), ".agent-workflow"), "not a directory");
 	const d = await dedup([], {}, undefined, cwd);
 	const p = await partition(d, []);
 	const r = await render({
@@ -594,7 +599,12 @@ test("D09 exposes requested sidecar write failure", async (t) => {
 				recommendedNextAction: "None",
 			},
 		},
-		context: { cwd, runId: "run", taskId: "task" },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			runId: "run",
+			taskId: "task",
+		},
 	});
 	assert.equal(r.gates.sidecarWriteFailed, true);
 	assert.equal(typeof r.sidecarError, "string");

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP37 item 1, stage-1 open problem 8): task prompts are rendered per executor
 // with the tool mapping the system prompt uses (M17). Claude gets its own tool names inline
 // (WebSearch, WebFetch, Read/Grep/Glob, the artifact tool's visible name); Codex keeps the logical
@@ -177,7 +178,7 @@ for (const id of ["pi", "claude", "codex"]) {
 			);
 			const task = run.tasks.find((item) => item.files?.taskPrompt);
 			const canonical = await readFile(
-				join(cwd, task.files.taskPrompt),
+				join(stateDir(cwd), task.files.taskPrompt),
 				"utf8",
 			);
 			assert.match(canonical, /Use read\/grep\/find\/ls on the repository/u);

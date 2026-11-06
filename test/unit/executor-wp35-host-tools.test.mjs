@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP35, feature-parity row 40): host-tool inheritance from a Pi host. A Pi 1.1
 // session with native codemode/MCP lends codemode, tool_search, `mcp__*` and the MCP resource tools
 // to Pi workers: the Pi host captures it (piNativeHostTools), the launch sets the run option
@@ -385,7 +386,7 @@ test("the Effective Tool Policy of a worker that inherits host tools lists them 
 	const prompt = async (specId) =>
 		readFile(
 			join(
-				cwd,
+				stateDir(cwd),
 				run.tasks.find((task) => task.taskId === specId).files.systemPrompt,
 			),
 			"utf8",

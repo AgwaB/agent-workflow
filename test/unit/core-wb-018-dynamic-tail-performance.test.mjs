@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import {
 	appendFile,
@@ -117,8 +118,8 @@ test("WB-018 bounded tail matches full UTF-8/CRLF visible output with fewer byte
 		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
 	);
 	const relative = "logs/output.log";
-	const absolute = join(cwd, relative);
-	await mkdir(join(cwd, "logs"), { recursive: true });
+	const absolute = join(stateDir(cwd), relative);
+	await mkdir(join(stateDir(cwd), "logs"), { recursive: true });
 	const allLines = Array.from(
 		{ length: 4_000 },
 		(_, index) =>
@@ -143,8 +144,8 @@ test("WB-018 bounded tail preserves short, trailing-newline, empty, and missing 
 	t.after(() =>
 		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
 	);
-	await writeFile(join(cwd, "short.log"), "alpha\nbeta\n");
-	await writeFile(join(cwd, "empty.log"), "");
+	await writeFile(join(stateDir(cwd), "short.log"), "alpha\nbeta\n");
+	await writeFile(join(stateDir(cwd), "empty.log"), "");
 	assert.deepEqual(await readFileLinesBounded(cwd, "short.log", 10), [
 		"alpha",
 		"beta",

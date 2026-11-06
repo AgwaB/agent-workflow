@@ -25,10 +25,10 @@ import {
 	writeDynamicStateIndexArtifacts,
 } from "./dynamic-state-index.js";
 import {
-	fromProjectPath,
+	fromStatePath,
 	isTerminalTaskStatus,
 	readJson,
-	toProjectPath,
+	toStatePath,
 } from "./store.js";
 import type {
 	CompiledTask,
@@ -96,10 +96,10 @@ export async function runDynamicDecisionPersistCall(input: {
 				decisionHash: validation.hash,
 				stateIndexDigest,
 				paths: {
-					raw: toProjectPath(input.cwd, written.rawPath),
-					validation: toProjectPath(input.cwd, written.validationPath),
+					raw: toStatePath(input.cwd, written.rawPath),
+					validation: toStatePath(input.cwd, written.validationPath),
 					...(written.acceptedPath
-						? { accepted: toProjectPath(input.cwd, written.acceptedPath) }
+						? { accepted: toStatePath(input.cwd, written.acceptedPath) }
 						: {}),
 				},
 			},
@@ -111,10 +111,10 @@ export async function runDynamicDecisionPersistCall(input: {
 		decisionHash: validation.hash,
 		stateIndexDigest,
 		artifacts: {
-			raw: toProjectPath(input.cwd, written.rawPath),
-			validation: toProjectPath(input.cwd, written.validationPath),
+			raw: toStatePath(input.cwd, written.rawPath),
+			validation: toStatePath(input.cwd, written.validationPath),
 			...(written.acceptedPath
-				? { accepted: toProjectPath(input.cwd, written.acceptedPath) }
+				? { accepted: toStatePath(input.cwd, written.acceptedPath) }
 				: {}),
 		},
 	};
@@ -257,8 +257,8 @@ export async function runDynamicStateIndexPersistCall(input: {
 				digest: index.digest,
 				tasks: request.tasks,
 				paths: {
-					extracts: toProjectPath(input.cwd, written.extractsPath),
-					index: toProjectPath(input.cwd, written.indexPath),
+					extracts: toStatePath(input.cwd, written.extractsPath),
+					index: toStatePath(input.cwd, written.indexPath),
 				},
 			},
 		});
@@ -266,8 +266,8 @@ export async function runDynamicStateIndexPersistCall(input: {
 		digest: index.digest,
 		index,
 		artifacts: {
-			extracts: toProjectPath(input.cwd, written.extractsPath),
-			index: toProjectPath(input.cwd, written.indexPath),
+			extracts: toStatePath(input.cwd, written.extractsPath),
+			index: toStatePath(input.cwd, written.indexPath),
 		},
 	};
 }
@@ -673,7 +673,7 @@ async function readTaskOutputArtifacts(
 	task: WorkflowTaskRunRecord,
 ): Promise<Record<string, unknown>> {
 	if (task.artifactGraph?.enabled) {
-		const taskDir = dirname(fromProjectPath(cwd, task.files.result));
+		const taskDir = dirname(fromStatePath(cwd, task.files.result));
 		return {
 			control: await readArtifactGraphControl(cwd, task).catch(() => undefined),
 			analysis: await readFile(join(taskDir, "analysis.md"), "utf8").catch(
@@ -683,7 +683,7 @@ async function readTaskOutputArtifacts(
 		};
 	}
 	return {
-		result: await readJson(fromProjectPath(cwd, task.files.result)).catch(
+		result: await readJson(fromStatePath(cwd, task.files.result)).catch(
 			() => undefined,
 		),
 	};
@@ -765,7 +765,7 @@ async function readScopedTaskOutput(
 			}),
 		};
 	}
-	const result = await readJson(fromProjectPath(cwd, task.files.result)).catch(
+	const result = await readJson(fromStatePath(cwd, task.files.result)).catch(
 		() => undefined,
 	);
 	const projection = projectArtifactGraphControl(result, {

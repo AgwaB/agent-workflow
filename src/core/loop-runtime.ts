@@ -10,7 +10,7 @@ import {
 } from "./engine-run-graph.js";
 import {
 	compiledWorkflowPath,
-	fromProjectPath,
+	fromStatePath,
 	isTerminalTaskStatus,
 	setTaskTerminal,
 	writeJsonAtomic,
@@ -676,7 +676,7 @@ async function readLoopStageStructuredOutput(
 			return await readArtifactGraphControl(cwd, entry.runTask);
 		}
 		const result = JSON.parse(
-			await readFile(fromProjectPath(cwd, entry.runTask.files.result), "utf8"),
+			await readFile(fromStatePath(cwd, entry.runTask.files.result), "utf8"),
 		);
 		return result?.structuredOutput;
 	} catch (error) {

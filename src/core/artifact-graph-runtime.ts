@@ -1,3 +1,4 @@
+import { stateBase } from "./state-location.js";
 // Artifact access binds workflow_artifact to the MCP server; tool policy uses the run permission mode.
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -40,7 +41,7 @@ import {
 } from "./workflow-source-context-runtime.js";
 import { isSimpleJsonPath, readSimpleJsonPath } from "./workflow-runtime.js";
 import {
-	fromProjectPath,
+	fromStatePath,
 	readJson,
 	setTaskTerminal,
 	workflowRunDir,
@@ -128,6 +129,7 @@ export async function executeSupportTask(
 				taskId: task.taskId,
 				runId: run.runId,
 				cwd,
+				stateCwd: stateBase(cwd),
 				signal: stop.signal,
 				evidence: supportEvidenceContext({
 					cwd,
@@ -181,16 +183,16 @@ export async function executeSupportTask(
 		}
 
 		await throwIfWorkflowStopRequested(cwd, run.runId);
-		await mkdir(dirname(fromProjectPath(cwd, task.files.output)), {
+		await mkdir(dirname(fromStatePath(cwd, task.files.output)), {
 			recursive: true,
 		});
 		await writeFile(
-			fromProjectPath(cwd, task.files.output),
+			fromStatePath(cwd, task.files.output),
 			`${JSON.stringify(structuredOutput, null, 2)}\n`,
 			"utf8",
 		);
-		await writeFile(fromProjectPath(cwd, task.files.stderr), "", "utf8");
-		await writeJsonAtomic(fromProjectPath(cwd, task.files.result), {
+		await writeFile(fromStatePath(cwd, task.files.stderr), "", "utf8");
+		await writeJsonAtomic(fromStatePath(cwd, task.files.result), {
 			status: "completed",
 			structuredOutput,
 		});
@@ -225,7 +227,7 @@ export async function readSupportSources(
 		const source = run.tasks.find((candidate) => candidate.specId === specId);
 		if (!source || source.status !== "completed") continue;
 		const result = await readJson<{ structuredOutput?: unknown }>(
-			fromProjectPath(cwd, source.files.result),
+			fromStatePath(cwd, source.files.result),
 		).catch(() => undefined);
 		if (result && Object.hasOwn(result, "structuredOutput")) {
 			sources[source.specId] = result.structuredOutput;
@@ -851,15 +853,16 @@ export async function writeArtifactGraphDynamicResult(
 		JSON.stringify(refs, null, 2),
 		"</refs>",
 	].join("\n");
-	await mkdir(dirname(fromProjectPath(cwd, task.files.output)), {
+	await mkdir(dirname(fromStatePath(cwd, task.files.output)), {
 		recursive: true,
 	});
-	await writeFile(fromProjectPath(cwd, task.files.output), rawOutput, "utf8");
-	await writeFile(fromProjectPath(cwd, task.files.stderr), "", "utf8");
+	await writeFile(fromStatePath(cwd, task.files.output), rawOutput, "utf8");
+	await writeFile(fromStatePath(cwd, task.files.stderr), "", "utf8");
 	const written = await writeWorkflowTaskArtifactBundle({
-		taskDir: dirname(fromProjectPath(cwd, task.files.result)),
+		taskDir: dirname(fromStatePath(cwd, task.files.result)),
 		rawOutput,
 		rawIntegrityHost: task,
+		rawIntegrityStateCwd: stateBase(cwd),
 		completedAt: new Date().toISOString(),
 		lifecycleStatus,
 		analysisRequired: task.artifactGraph?.output.analysisRequired ?? true,
@@ -918,15 +921,16 @@ export async function writeArtifactGraphSupportResult(
 		JSON.stringify(refs, null, 2),
 		"</refs>",
 	].join("\n");
-	await mkdir(dirname(fromProjectPath(cwd, task.files.output)), {
+	await mkdir(dirname(fromStatePath(cwd, task.files.output)), {
 		recursive: true,
 	});
-	await writeFile(fromProjectPath(cwd, task.files.output), rawOutput, "utf8");
-	await writeFile(fromProjectPath(cwd, task.files.stderr), "", "utf8");
+	await writeFile(fromStatePath(cwd, task.files.output), rawOutput, "utf8");
+	await writeFile(fromStatePath(cwd, task.files.stderr), "", "utf8");
 	const written = await writeWorkflowTaskArtifactBundle({
-		taskDir: dirname(fromProjectPath(cwd, task.files.result)),
+		taskDir: dirname(fromStatePath(cwd, task.files.result)),
 		rawOutput,
 		rawIntegrityHost: task,
+		rawIntegrityStateCwd: stateBase(cwd),
 		completedAt: new Date().toISOString(),
 		lifecycleStatus: options.lifecycleStatus,
 		exitCode: options.exitCode,
@@ -1217,7 +1221,7 @@ async function prepareArtifactGraphTask(
 		validationSnapshot,
 	);
 
-	const taskDir = dirname(fromProjectPath(cwd, task.files.result));
+	const taskDir = dirname(fromStatePath(cwd, task.files.result));
 	const manifestPath = join(taskDir, "source-manifest.json");
 	const ledgerPath = join(taskDir, "read-ledger.jsonl");
 	const perItemProjection = perItemLedgerProjectionForPreparation(
@@ -1592,12 +1596,12 @@ async function partialLedgerSourceProjection(
 			`per-item dispatch source ${sourceTask.specId} cannot authoritatively serve every projection path`,
 		);
 	}
-	const taskDir = dirname(fromProjectPath(cwd, sourceTask.files.result));
+	const taskDir = dirname(fromStatePath(cwd, sourceTask.files.result));
 	let ledger = await readWorkflowPartialOutputLedger(taskDir);
 	if (!ledger) {
 		ledger = await writeWorkflowPartialOutputLedgerFromFile({
 			taskDir,
-			outputFile: fromProjectPath(cwd, sourceTask.files.output),
+			outputFile: fromStatePath(cwd, sourceTask.files.output),
 			allowedPaths,
 		});
 	}
@@ -1742,7 +1746,7 @@ export async function artifactRefsForTask(
 	cwd: string,
 	task: WorkflowTaskRunRecord,
 ): Promise<WorkflowSourceManifestSource["artifacts"]> {
-	const taskDir = dirname(fromProjectPath(cwd, task.files.result));
+	const taskDir = dirname(fromStatePath(cwd, task.files.result));
 	const candidates = {
 		control: {
 			path: join(taskDir, "control.json"),
@@ -1975,7 +1979,7 @@ export async function readArtifactGraphControl(
 	cwd: string,
 	task: WorkflowTaskRunRecord,
 ): Promise<unknown> {
-	const taskDir = dirname(fromProjectPath(cwd, task.files.result));
+	const taskDir = dirname(fromStatePath(cwd, task.files.result));
 	return await readJson(join(taskDir, "control.json"));
 }
 
@@ -1985,8 +1989,8 @@ export async function prepareArtifactGraphRetryTask(
 	preparedTask: CompiledWorkflow["tasks"][number],
 ): Promise<CompiledWorkflow["tasks"][number]> {
 	const invalidAttempt = task.outputRetry?.attempts
-		? `${dirname(fromProjectPath(cwd, task.files.result))}/raw.invalid-attempt-${task.outputRetry.attempts}.md`
-		: fromProjectPath(cwd, task.files.output);
+		? `${dirname(fromStatePath(cwd, task.files.result))}/raw.invalid-attempt-${task.outputRetry.attempts}.md`
+		: fromStatePath(cwd, task.files.output);
 	const previousOutput = await readFile(invalidAttempt, "utf8").catch(() => "");
 	const issueText = task.outputRetry?.artifacts?.length
 		? [

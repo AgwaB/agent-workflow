@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Auto builds a local shortlist without model calls and asks consent before one
 // classifier call on the default executor. Only the final user choice launches;
 // capture records the selection. Fixture executors supply classifier answers.
@@ -336,7 +337,7 @@ test("the final choice launches the selected workflow and the launch capture rec
 	await settle(cwd, env, runId);
 	const run = JSON.parse(
 		await readFile(
-			join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+			join(stateDir(cwd), ".agent-workflow", "workflows", runId, "run.json"),
 			"utf8",
 		),
 	);
@@ -367,7 +368,13 @@ test("the final choice launches the selected workflow and the launch capture rec
 		"no task text in the selection",
 	);
 	const command = await readFile(
-		join(cwd, ".agent-workflow", "workflows", runId, "launch-command.txt"),
+		join(
+			stateDir(cwd),
+			".agent-workflow",
+			"workflows",
+			runId,
+			"launch-command.txt",
+		),
 		"utf8",
 	);
 	assert.match(command, /^workflow_auto /);
@@ -616,7 +623,13 @@ test("CLI on a terminal: consent, then the pick-list; Enter starts the recommend
 	assert.equal(record.launch.source, "cli");
 	assert.equal(record.launch.selection.consent, "prompt");
 	const command = await readFile(
-		join(cwd, ".agent-workflow", "workflows", runId, "launch-command.txt"),
+		join(
+			stateDir(cwd),
+			".agent-workflow",
+			"workflows",
+			runId,
+			"launch-command.txt",
+		),
 		"utf8",
 	);
 	assert.match(command, /^agent-workflow auto /);
@@ -731,7 +744,7 @@ test("Pi /aw auto: the task is the text after `auto`, without the action word or
 		const compiled = JSON.parse(
 			await readFile(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					runs[0].runId,

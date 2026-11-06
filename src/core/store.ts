@@ -1,3 +1,10 @@
+import {
+	stateBase,
+	ensureStateBase,
+	registerProject,
+	toStatePath,
+} from "./state-location.js";
+export { fromStatePath, toStatePath } from "./state-location.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { isDeepStrictEqual } from "node:util";
 import { assertHostContext, resolveHostContext } from "./host-context.js";
@@ -179,7 +186,7 @@ export function isSafeRunId(runId: unknown): runId is string {
 }
 
 export function workflowsRoot(cwd: string): string {
-	return join(cwd, PROJECT_STATE_DIRECTORY, "workflows");
+	return join(stateBase(cwd), PROJECT_STATE_DIRECTORY, "workflows");
 }
 
 export function workflowRunDir(cwd: string, runId: string): string {
@@ -324,7 +331,7 @@ async function openPhysicalWorkflowLaunchRunDirectory(
 	create: boolean,
 ): Promise<PhysicalWorkflowLaunchRunDirectory> {
 	assertSafeRunId(runId);
-	const physicalCwd = await realpath(resolve(cwd));
+	const physicalCwd = await realpath(await ensureStateBase(cwd));
 	const piPath = join(physicalCwd, PROJECT_STATE_DIRECTORY);
 	const rootPath = join(piPath, "workflows");
 	const runPath = join(rootPath, runId);
@@ -1018,7 +1025,7 @@ export function fromProjectPath(cwd: string, filePath: string): string {
 
 export async function ensureDir(dir: string): Promise<void> {
 	await assertLeaseContextOwnership();
-	await mkdir(dir, { recursive: true });
+	await mkdir(dir, { recursive: true, mode: 0o700 });
 }
 
 export async function readJson<T>(file: string): Promise<T | undefined> {
@@ -1277,6 +1284,7 @@ export async function acquireWorkflowTopologyLease(
 	waitMs = INDEX_LOCK_WAIT_MS,
 	acquireSignal?: AbortSignal,
 ): Promise<RunFileLease | undefined> {
+	await ensureStateBase(cwd);
 	const root = workflowsRoot(cwd);
 	await ensureDir(root);
 	for (const path of [resolve(root, ".."), root]) {
@@ -1466,6 +1474,7 @@ export async function withRunLease<T>(
 	action: (abortSignal: AbortSignal) => Promise<T>,
 ): Promise<T | undefined> {
 	assertSafeRunId(runId);
+	await ensureStateBase(cwd);
 	const dir = workflowRunDir(cwd, runId);
 	await ensureDir(dir);
 	const lockFile = join(dir, "supervisor.lock");
@@ -1527,7 +1536,7 @@ export async function withRunLease<T>(
 					ownerId,
 					pid: process.pid,
 					updatedAt: timestamp,
-					lockFile: toProjectPath(cwd, lockFile),
+					lockFile: toStatePath(cwd, lockFile),
 					...(lastTaskTransitionAt ? { lastTaskTransitionAt } : {}),
 					...(taskStatusCounts ? { taskStatusCounts } : {}),
 				},
@@ -1983,6 +1992,7 @@ export async function initializeRunRecordDirectories(
 	cwd: string,
 	run: WorkflowRunRecord,
 ): Promise<void> {
+	await ensureStateBase(cwd);
 	const runDir = workflowRunDir(cwd, run.runId);
 	await ensureDir(runDir);
 	await ensureDir(join(runDir, "tasks"));
@@ -2000,6 +2010,7 @@ export async function createRunRecord(
 		initialize?: boolean;
 	} = {},
 ): Promise<{ run: WorkflowRunRecord; runDir: string }> {
+	await registerProject(cwd);
 	const runId = options.runId ?? makeRunId();
 	assertSafeRunId(runId);
 	const runDir = workflowRunDir(cwd, runId);
@@ -2045,8 +2056,8 @@ export async function createRunRecord(
 		...(hasDynamicController
 			? {
 					dynamic: {
-						events: toProjectPath(cwd, join(runDir, "dynamic", "events.jsonl")),
-						state: toProjectPath(cwd, join(runDir, "dynamic", "state.json")),
+						events: toStatePath(cwd, join(runDir, "dynamic", "events.jsonl")),
+						state: toStatePath(cwd, join(runDir, "dynamic", "state.json")),
 					},
 				}
 			: {}),
@@ -3222,6 +3233,7 @@ export async function updateIndex(
 	assertLeaseNotAborted(abortSignal);
 	const lockFile = join(workflowsRoot(cwd), "index.lock");
 	const ownerId = `${process.pid}-${randomBytes(3).toString("hex")}`;
+	await ensureStateBase(cwd);
 	await ensureDir(workflowsRoot(cwd));
 	assertLeaseNotAborted(abortSignal);
 	await acquireLockWithWait(lockFile, ownerId);
@@ -3348,7 +3360,7 @@ function buildIndexEntry(
 		rootRunId: run.rootRunId,
 		round: run.round,
 		fanout: run.fanout,
-		runJson: toProjectPath(cwd, workflowRunPath(cwd, run.runId)),
+		runJson: toStatePath(cwd, workflowRunPath(cwd, run.runId)),
 	};
 }
 
@@ -3738,22 +3750,22 @@ export function createTaskRunRecord(
 	const taskId = `task-${index + 1}`;
 	const dir = taskDir(cwd, runId, taskId);
 	const files = {
-		systemPrompt: toProjectPath(cwd, join(dir, "system-prompt.md")),
-		taskPrompt: toProjectPath(cwd, join(dir, "task.md")),
-		output: toProjectPath(cwd, join(dir, "output.log")),
-		stderr: toProjectPath(cwd, join(dir, "stderr.log")),
-		result: toProjectPath(cwd, join(dir, "result.json")),
+		systemPrompt: toStatePath(cwd, join(dir, "system-prompt.md")),
+		taskPrompt: toStatePath(cwd, join(dir, "task.md")),
+		output: toStatePath(cwd, join(dir, "output.log")),
+		stderr: toStatePath(cwd, join(dir, "stderr.log")),
+		result: toStatePath(cwd, join(dir, "result.json")),
 	};
 	const blocked = task.safety.permission.status === "blocked";
 	const bundleDir = join(workflowRunDir(cwd, runId), "bundle");
 	const agentFile =
 		task.kind === "dynamic" && task.dynamic?.uses
-			? toProjectPath(
+			? toStatePath(
 					cwd,
 					join(bundleDir, stripBundleRefPrefix(task.dynamic.uses)),
 				)
 			: task.kind === "support" && task.support?.uses
-				? toProjectPath(
+				? toStatePath(
 						cwd,
 						join(bundleDir, stripBundleRefPrefix(task.support.uses)),
 					)

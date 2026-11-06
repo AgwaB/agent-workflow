@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP42, WP39b review finding 3, major): only positively identified classifier records (runtime
 // schema, the router's correlation id, its runs directory and a runtime-generated run id) are deleted;
 // anything else in auto-router-runs is kept and reported.
@@ -36,7 +37,7 @@ const { pruneWorkflowRuns, formatWorkflowPruneSummary } = retention;
 
 test("F3: unidentified records in auto-router-runs are kept and reported in the dry run", async () => {
 	const cwd = await temp();
-	const router = join(cwd, ROUTER_RUNS);
+	const router = join(stateDir(cwd), ROUTER_RUNS);
 	const foreign = classifierId();
 	await json(join(router, foreign, "run.json"), {
 		runId: foreign,

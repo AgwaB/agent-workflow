@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP42 review round 2, N3): a classifier request whose pin cannot be
 // established is refused (no classifier call), because an unpinned result could be pruned before it
 // is consumed. Only a proven non-prunable layout (the auto-router directory is not a chain of real
@@ -95,12 +96,12 @@ test("N3: a readable but unwritable .pins refuses the comparison before any clas
 	skip: process.getuid?.() === 0 ? "root ignores directory permissions" : false,
 }, async () => {
 	const { cwd, unregister, request } = await classifierProject();
-	const pinDir = join(cwd, ROUTER_RUNS, ".pins");
+	const pinDir = join(stateDir(cwd), ROUTER_RUNS, ".pins");
 	await mkdir(pinDir, { recursive: true });
 	await chmod(pinDir, 0o555);
 	const observed = { submits: 0 };
 	runtime.setTaskRuntimeApiForTests(
-		publishingRuntime(cwd, join(cwd, ROUTER_RUNS), observed),
+		publishingRuntime(cwd, join(stateDir(cwd), ROUTER_RUNS), observed),
 	);
 	try {
 		await assert.rejects(pins.acquireAutoRouterPin(cwd));
@@ -120,8 +121,10 @@ test("N3: a readable but unwritable .pins refuses the comparison before any clas
 test("N3: a symlinked auto-router-runs (never pruned) runs unpinned and its result is kept", async () => {
 	const { cwd, unregister, request } = await classifierProject();
 	const outside = await temp();
-	await mkdir(join(cwd, ".agent-workflow", "workflows"), { recursive: true });
-	await symlink(outside, join(cwd, ROUTER_RUNS));
+	await mkdir(join(stateDir(cwd), ".agent-workflow", "workflows"), {
+		recursive: true,
+	});
+	await symlink(outside, join(stateDir(cwd), ROUTER_RUNS));
 	assert.equal(await pins.acquireAutoRouterPin(cwd), undefined);
 	const observed = { submits: 0 };
 	runtime.setTaskRuntimeApiForTests(publishingRuntime(cwd, outside, observed));
@@ -152,7 +155,7 @@ test("N3 control: the normal layout pins the request, keeps its result during it
 	const { cwd, unregister, request } = await classifierProject();
 	const observed = { submits: 0 };
 	runtime.setTaskRuntimeApiForTests(
-		publishingRuntime(cwd, join(cwd, ROUTER_RUNS), observed),
+		publishingRuntime(cwd, join(stateDir(cwd), ROUTER_RUNS), observed),
 	);
 	try {
 		const result = await router.recommendWorkflowAuto(request);
@@ -166,7 +169,10 @@ test("N3 control: the normal layout pins the request, keeps its result during it
 			observed.prune.autoRouterRuns.some((run) => run.deleted),
 			false,
 		);
-		assert.deepEqual(await readdir(join(cwd, ROUTER_RUNS, ".pins")), []);
+		assert.deepEqual(
+			await readdir(join(stateDir(cwd), ROUTER_RUNS, ".pins")),
+			[],
+		);
 	} finally {
 		runtime.setTaskRuntimeApiForTests(undefined);
 		unregister();

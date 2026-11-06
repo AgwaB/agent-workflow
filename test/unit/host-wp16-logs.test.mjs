@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP16): the `logs` host action (`logsAction`, `agent-workflow logs`,
 // `/aw logs`): a bounded tail of task output, stderr and the latest attempt's executor events, with
 // shared redaction (credential assignments, bearer tokens, home paths, values of sensitive host env
@@ -96,7 +97,7 @@ async function completedRun() {
 
 async function attemptDir(cwd, runId) {
 	const taskRoot = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflow-subagents",
 		runId,

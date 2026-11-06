@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -41,7 +42,7 @@ function artifactManifest(runId, taskId, artifactPath, status) {
 async function artifactFixture(status = "completed") {
 	const cwd = await mkdtemp(join(tmpdir(), "piwf-wb017-artifact-"));
 	const runId = `workflow_wb017_${status}`;
-	const runDir = join(cwd, ".agent-workflow", "workflows", runId);
+	const runDir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	const producerDir = join(runDir, "tasks", "task-1");
 	const consumerDir = join(runDir, "tasks", "task-2");
 	await mkdir(producerDir, { recursive: true });
@@ -162,7 +163,7 @@ function runningRun(cwd, runId) {
 async function indexedRunIds(cwd) {
 	const index = JSON.parse(
 		await readFile(
-			join(cwd, ".agent-workflow", "workflows", "index.json"),
+			join(stateDir(cwd), ".agent-workflow", "workflows", "index.json"),
 			"utf8",
 		),
 	);

@@ -337,6 +337,12 @@ function main() {
 /** Copy the consumer's run records and effect log into the evidence directory. */
 function keepConsumerEvidence() {
 	const target = join(resultDir, "consumer");
+	try {
+		cpSync(process.env.AGENT_WORKFLOW_HOME, join(target, "state-home"), {
+			recursive: true,
+			dereference: false,
+		});
+	} catch {}
 	for (const name of [".agent-workflow", "e2e-effects.jsonl"]) {
 		try {
 			cpSync(join(consumer, name), join(target, name), {

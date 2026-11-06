@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import {
@@ -80,17 +81,21 @@ function taskRecord(runId, taskId, specId, overrides = {}) {
 }
 
 async function writeDynamicControl(cwd, run, control) {
-	const path = join(cwd, dirname(run.tasks[0].files.output), "control.json");
+	const path = join(
+		stateDir(cwd),
+		dirname(run.tasks[0].files.output),
+		"control.json",
+	);
 	await mkdir(dirname(path), { recursive: true });
 	await writeFile(path, `${JSON.stringify(control, null, 2)}\n`);
 }
 
 async function writeRunFixture(cwd, run, control = {}, artifacts = {}) {
-	const runPath = join(cwd, ...RUNS, run.runId, "run.json");
+	const runPath = join(stateDir(cwd), ...RUNS, run.runId, "run.json");
 	await mkdir(dirname(runPath), { recursive: true });
 	await writeFile(runPath, `${JSON.stringify(run, null, 2)}\n`);
 	await writeDynamicControl(cwd, run, control);
-	const taskDir = join(cwd, dirname(run.tasks[0].files.output));
+	const taskDir = join(stateDir(cwd), dirname(run.tasks[0].files.output));
 	for (const [fileName, content] of Object.entries(artifacts)) {
 		const artifactPath = join(taskDir, fileName);
 		await mkdir(dirname(artifactPath), { recursive: true });
@@ -109,7 +114,12 @@ async function writeFeedbackAudience(cwd, runId, sessionId) {
 }
 
 async function feedbackReceipts(cwd, runId) {
-	const dir = join(cwd, ...RUNS, runId, feedback.FEEDBACK_RECEIPTS_DIR);
+	const dir = join(
+		stateDir(cwd),
+		...RUNS,
+		runId,
+		feedback.FEEDBACK_RECEIPTS_DIR,
+	);
 	const files = await readdir(dir).catch((error) => {
 		if (error?.code === "ENOENT") return [];
 		throw error;
@@ -688,7 +698,11 @@ test("result-only completion is limited to successful semantic statuses with out
 			);
 			if (status === "exhausted")
 				await writeFile(
-					join(cwd, dirname(run.tasks[1].files.output), "analysis.md"),
+					join(
+						stateDir(cwd),
+						dirname(run.tasks[1].files.output),
+						"analysis.md",
+					),
 					`${preview}\n`,
 				);
 			await writeFeedbackAudience(cwd, runId, `session-${status}`);
@@ -787,7 +801,7 @@ test("completion report links reject display injection and symlink escapes", asy
 				completionSummaryMarkdown: "Safe authoritative summary.",
 				sidecarPath: item.candidate,
 			});
-			const taskDir = join(cwd, dirname(run.tasks[0].files.output));
+			const taskDir = join(stateDir(cwd), dirname(run.tasks[0].files.output));
 			await item.prepare(taskDir, item.candidate);
 			await writeFeedbackAudience(cwd, run.runId, `session-${run.runId}`);
 			const result = await awWait(cwd, run.runId, `session-${run.runId}`);
@@ -856,7 +870,7 @@ test("workflow preview rejects a control.json symlink escape", async () => {
 	try {
 		const run = runRecord(cwd, { runId: "workflow_control_link_escape" });
 		await writeRunFixture(cwd, run);
-		const taskDir = join(cwd, dirname(run.tasks[0].files.output));
+		const taskDir = join(stateDir(cwd), dirname(run.tasks[0].files.output));
 		await rm(join(taskDir, "control.json"));
 		const outside = join(cwd, "outside-control.json");
 		await writeFile(
@@ -889,7 +903,7 @@ test("direct dynamic synthesis rejects normalized raw protocol aliases", async (
 			status: "synthesized",
 			outputTasks: ["dynamic.synthesis"],
 		});
-		const taskDir = join(cwd, dirname(run.tasks[1].files.output));
+		const taskDir = join(stateDir(cwd), dirname(run.tasks[1].files.output));
 		await writeDynamicControl(
 			cwd,
 			{ tasks: [run.tasks[1]] },
@@ -921,7 +935,7 @@ test("direct dynamic synthesis previews validated analysis, never protocol wrapp
 			status: "synthesized",
 			outputTasks: ["dynamic.synthesis"],
 		});
-		const taskDir = join(cwd, dirname(run.tasks[1].files.output));
+		const taskDir = join(stateDir(cwd), dirname(run.tasks[1].files.output));
 		await writeDynamicControl(
 			cwd,
 			{ tasks: [run.tasks[1]] },

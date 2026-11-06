@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import {
 	buildSynthesisPages,
 	reconstructSynthesisPages,
@@ -160,6 +161,7 @@ test("spec-review batch fallback IDs preserve end-to-end candidate coverage", as
 		},
 		context: {
 			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
 			sourceStatuses: [
 				{
 					source: "verify-findings",

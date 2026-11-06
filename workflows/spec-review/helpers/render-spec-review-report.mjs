@@ -1088,7 +1088,7 @@ export default async function renderSpecReviewReport({
 	try {
 		if (context.cwd && context.runId && context.taskId) {
 			const taskDir = join(
-				context.cwd,
+				context.stateCwd ?? context.cwd,
 				".agent-workflow",
 				"workflows",
 				context.runId,

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19 round 6): pruning host launch claims never follows a symlinked
 // `.agent-workflow` or `host-launches` directory and removes only positively identified claim
 // files (`<sha256>.json` with the claim schema and matching fingerprint) and their writers' temp
@@ -25,8 +26,11 @@ async function oldFile(path, content) {
 test("a symlinked host-launches directory is never pruned", async (t) => {
 	const cwd = await temp(t);
 	const outside = await temp(t, "aw-wp19r6-claims-outside-");
-	await fs.mkdir(join(cwd, ".agent-workflow"), { recursive: true });
-	await fs.symlink(outside, join(cwd, ".agent-workflow", "host-launches"));
+	await fs.mkdir(join(stateDir(cwd), ".agent-workflow"), { recursive: true });
+	await fs.symlink(
+		outside,
+		join(stateDir(cwd), ".agent-workflow", "host-launches"),
+	);
 	await oldFile(join(outside, "valuable.json"), '{"keep":true}');
 	await oldFile(join(outside, `${"a".repeat(64)}.json`), "not a claim");
 	const summary = await guard.pruneHostLaunchClaims(cwd);
@@ -40,7 +44,7 @@ test("a symlinked host-launches directory is never pruned", async (t) => {
 test("a symlinked .agent-workflow ancestor: claims prune never deletes outside", async (t) => {
 	const cwd = await temp(t);
 	const outside = await temp(t, "aw-wp19r6-claims-outside-state-");
-	await fs.symlink(outside, join(cwd, ".agent-workflow"));
+	await fs.symlink(outside, join(stateDir(cwd), ".agent-workflow"));
 	await fs.mkdir(join(outside, "host-launches"));
 	await oldFile(join(outside, "host-launches", "valuable.json"), "{}");
 	await guard.pruneHostLaunchClaims(cwd);

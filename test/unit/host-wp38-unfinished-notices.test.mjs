@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import {
 	assert,
 	formatStatus,
@@ -27,7 +28,7 @@ test("notifyUnfinishedRuns reports recent failed root runs with resume hint", as
 	const cwd = makeProject();
 	try {
 		const nowMs = Date.parse("2026-06-12T12:00:00.000Z");
-		const indexDir = join(cwd, ".agent-workflow", "workflows");
+		const indexDir = join(stateDir(cwd), ".agent-workflow", "workflows");
 		mkdirSync(indexDir, { recursive: true });
 		const summary = {
 			pending: 0,
@@ -219,7 +220,7 @@ test("notifyUnfinishedRuns labels degraded failed runs as final rendered", async
 	const cwd = makeProject();
 	try {
 		const nowMs = Date.parse("2026-06-12T12:00:00.000Z");
-		const indexDir = join(cwd, ".agent-workflow", "workflows");
+		const indexDir = join(stateDir(cwd), ".agent-workflow", "workflows");
 		mkdirSync(indexDir, { recursive: true });
 		writeFileSync(
 			join(indexDir, "index.json"),
@@ -315,7 +316,12 @@ test("notifyUnfinishedRuns never notifies runs with mock provenance and formatSt
 
 		const state = JSON.parse(
 			readFileSync(
-				join(cwd, ".agent-workflow", "workflows", "unfinished-notices.json"),
+				join(
+					stateDir(cwd),
+					".agent-workflow",
+					"workflows",
+					"unfinished-notices.json",
+				),
 			),
 		);
 		assert.deepEqual(Object.keys(state.notices), ["workflow_realrun"]);

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -85,7 +86,7 @@ for (const analysisRequired of [true, false])
 				}),
 			);
 			const runDir = join(
-					root,
+					stateDir(root),
 					".agent-workflow",
 					"workflows",
 					"optional-support",

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import { createWorkflowRunRecord } from "../helpers/unit-test-support.mjs";
 import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -522,13 +523,25 @@ test("compiled and run-record serialization retain an explicit zero", async () =
 		await writeRunRecord(cwd, run);
 		const persisted = JSON.parse(
 			readFileSync(
-				join(cwd, ".agent-workflow", "workflows", run.runId, "run.json"),
+				join(
+					stateDir(cwd),
+					".agent-workflow",
+					"workflows",
+					run.runId,
+					"run.json",
+				),
 				"utf8",
 			),
 		);
 		const persistedCompiled = JSON.parse(
 			readFileSync(
-				join(cwd, ".agent-workflow", "workflows", run.runId, "compiled.json"),
+				join(
+					stateDir(cwd),
+					".agent-workflow",
+					"workflows",
+					run.runId,
+					"compiled.json",
+				),
 				"utf8",
 			),
 		);

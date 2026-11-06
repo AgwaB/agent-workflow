@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // agent-workflow 2026-11-01 (live finding): the web quote check is decided once, at launch, and
 // recorded as run.evidenceRefetch. In a live Claude run the stage ran in a process without the
 // launch environment (the waiting CLI had taken over supervision) and reported "off" although the
@@ -86,7 +87,7 @@ function probeOutput(cwd, run) {
 	return JSON.parse(
 		readFileSync(
 			join(
-				cwd,
+				stateDir(cwd),
 				".agent-workflow/workflows",
 				run.runId,
 				"tasks",

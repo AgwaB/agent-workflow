@@ -1,3 +1,4 @@
+import { stateBase } from "../../core/state-location.js";
 // Pi status and completion delivery are scoped to the launching session; first binder wins.
 // One message per terminal epoch is guarded by an exclusive, ownership-checked receipt.
 // At session start, catch up at most five completions from the last seven days without a
@@ -729,7 +730,7 @@ const MAX_QUEUE_END_TOMBSTONES = 1024;
 const SAFE_LIFETIME = /^[A-Za-z0-9_-]{1,128}$/u;
 
 function queueEndsDir(cwd: string): string {
-	return join(cwd, PROJECT_STATE_DIRECTORY, FEEDBACK_QUEUE_ENDS_DIR);
+	return join(stateBase(cwd), PROJECT_STATE_DIRECTORY, FEEDBACK_QUEUE_ENDS_DIR);
 }
 
 /** A tombstone file name, or a writer's temp file of one (`<lifetime>.json.<pid>.<hex>.tmp`). */

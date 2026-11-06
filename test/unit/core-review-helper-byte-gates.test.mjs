@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
 import fsPromises from "node:fs/promises";
@@ -99,7 +100,13 @@ export async function roundtrip(
 	// ownership is separately exercised by the real materialized scheduler tests.
 	const runId = "unit-byte-gate";
 	const save = async (taskId, file, value) => {
-		const dir = join(cwd, ".agent-workflow/workflows", runId, "tasks", taskId);
+		const dir = join(
+			stateDir(cwd),
+			".agent-workflow/workflows",
+			runId,
+			"tasks",
+			taskId,
+		);
 		await mkdir(dir, { recursive: true });
 		await writeFile(join(dir, file), JSON.stringify(value));
 	};
@@ -159,12 +166,18 @@ export async function roundtrip(
 			"candidate-findings": analysis,
 			"verify-findings": verifierControl(evidence, verdict, counterEvidence),
 		},
-		context: { cwd, runId, sourceStatuses: statuses },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			runId,
+			sourceStatuses: statuses,
+		},
 	});
 	const result = await render({
 		sources: { "partition-findings": p, report: reportControl(p) },
 		context: {
 			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
 			runId,
 			sourceStatuses: ["partition-findings", "report"].map((source) => ({
 				source,
@@ -219,7 +232,7 @@ async function fixture(fn) {
 }
 async function scaffold(cwd, file = "source.ts", quote = citation.quote) {
 	return scaffoldGate({
-		context: { cwd },
+		context: { cwd, stateCwd: cwd ? stateDir(cwd) : undefined },
 		sources: {
 			"partition-verdicts": {
 				value: {
@@ -574,6 +587,7 @@ test("renderer rechecks source bytes and refuses absent/fabricated gate metadata
 				sources: { "partition-findings": p, report: reportControl(p) },
 				context: {
 					cwd,
+					stateCwd: cwd ? stateDir(cwd) : undefined,
 					runId: "unit-byte-gate",
 					sourceStatuses: ["partition-findings", "report"].map((source) => ({
 						source,
@@ -620,7 +634,11 @@ test("candidate source status absent/failed cannot claim complete evidence", () 
 					"candidate-findings": candidates,
 					"verify-findings": verifierControl([citation]),
 				},
-				context: { cwd, sourceStatuses },
+				context: {
+					cwd,
+					stateCwd: cwd ? stateDir(cwd) : undefined,
+					sourceStatuses,
+				},
 			});
 			assert.equal(p.evidenceGate.complete, false);
 			assert.ok(p.sourceStatusSummary.nonCompleted > 0);

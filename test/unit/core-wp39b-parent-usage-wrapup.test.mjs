@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP39b, flaky `host-wp33-pi-parent-usage`): the parent-usage tracker
 // decided "the run has settled" from the run index, whose updates are debounced, so a parent
 // message right after the run completed was counted as a during-run message and the next one as
@@ -20,7 +21,7 @@ after(async () => {
 });
 
 function writeRun(cwd, runId, status) {
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	mkdirSync(dir, { recursive: true });
 	const at = new Date().toISOString();
 	writeFileSync(
@@ -77,7 +78,13 @@ test("the first parent message after the run record settled is the wrap-up, even
 	await usage.recordParentSessionUsage(cwd, assistant(40), "session-a");
 	const record = JSON.parse(
 		readFileSync(
-			join(cwd, ".agent-workflow", "workflows", runId, "parent-usage.json"),
+			join(
+				stateDir(cwd),
+				".agent-workflow",
+				"workflows",
+				runId,
+				"parent-usage.json",
+			),
 			"utf8",
 		),
 	);
