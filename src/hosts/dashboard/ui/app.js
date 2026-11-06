@@ -5338,6 +5338,11 @@ async function start() {
 							: "all";
 		}
 		if (state.project === "all") {
+			try {
+				localStorage.setItem(PROJECT_KEY, "all");
+			} catch {
+				/* Storage is optional. */
+			}
 			state.project = null;
 			state.run = null;
 			renderOverview();
