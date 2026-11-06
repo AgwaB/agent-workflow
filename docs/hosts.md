@@ -2,7 +2,7 @@
 
 Use agent-workflow from a conversation or a local browser:
 
-- **Claude Code and Codex:** install the plugin (or register MCP directly), then ask the agent to run and manage workflows.
+- **Claude Code and Codex:** install the plugin for in-host `aw` commands, or ask the agent to use the MCP tools (also available with MCP-only installation).
 - **Pi:** install the extension, then use `/aw` or ask the agent to use its `aw_*` tools.
 - **Dashboard:** open a project's local web view to inspect runs and answer approvals.
 - **Other MCP clients and Antigravity CLI (agy):** register the MCP server or converted plugin and call its tools.
@@ -44,6 +44,54 @@ enabled = true
 See [Codex approval](#codex-approval) for dialog behavior.
 
 Restart the session after installation. Claude Code lists the server as `plugin:agent-workflow:agent-workflow`; Codex lists it as `agent-workflow`.
+
+### In-host `aw` commands
+
+With the plugin installed, Claude Code accepts **`/aw`** and **`/agent-workflow:aw`**.
+Codex accepts **`$aw`** and **`aw …`**. On first start after installing or changing the Codex
+hook, accept the one-time **Hooks need review → Trust all and continue** prompt (or review it
+with `/hooks`). Untrusted or disabled hooks do not run: the `aw` skill then guides the model
+through the MCP tools instead, including any dialogs those tools require.
+
+Use the appropriate prefix with these six forms:
+
+| Command | Result |
+|---|---|
+| `aw` | Six-line usage, up to three recent top-level runs of this project, and the dashboard URL (ensured, not opened). |
+| `aw dashboard [run]` | Open the user-level dashboard with this project and optional run selected; accepts an unambiguous run prefix. Opens even in an agent environment. |
+| `aw run <workflow> <task…>` | Start a detached named workflow with profile defaults; print the run id, executor and dashboard link. |
+| `aw dynamic <task…>` | Start a detached dynamic workflow. |
+| `aw auto <task…>` | Send one classifier comparison and immediately start its top recommendation; show the pick, reason and other candidates. Typing the command is consent (`command` in launch metadata). Classifier failure starts nothing. |
+| `aw stop <run>` | Stop a run by id or unambiguous prefix. |
+
+There are **no options and no confirmation questions** in the hook commands. The task is the
+trimmed remainder after the action (and workflow for `run`); one matching surrounding quote pair
+is removed. Words such as `--executor` are task text, not flags. Use the dashboard for other
+management actions and configuration. Capability degradations are recorded non-interactively;
+hard refusals and the existing duplicate-run guard still apply.
+
+Hooks handle these requests in code (only `auto` invokes a classifier), returning a bounded,
+redacted plain-text block reason. Ordinary prompts pass through without starting the command CLI.
+Claude uses `UserPromptSubmit` and `UserPromptExpansion`; Codex uses `UserPromptSubmit`, each with
+a 300 s command timeout. Claude's existing notification hook and completion monitor remain.
+Commands resolve the hook's `cwd` to the project root, including the CLI's home-directory rule.
+Detached runs link to Claude's `session_id`; Codex's `session_id` is the thread id and is linked
+only when `AGENT_WORKFLOW_HOST_WAKE` is enabled. Completion uses the same monitor/queued-message
+paths as MCP launches; `AGENT_WORKFLOW_HOST_WAKE=0` disables Codex delivery.
+
+Claude has no common submission id on these two hooks, so a short-lived, task-hashed receipt in
+private project state pairs opposite events for the same session and arguments within 30 seconds.
+This blocks double handling; same-hook retries remain valid and use the normal duplicate guard.
+
+**Why not `/aw` in Codex?** Its composer rejects unknown slash commands before submitting a
+prompt. Only built-in/service-tier commands are registered there; plugins, skills and MCP cannot
+add slash commands, so the hook never receives `/aw`. Use `$aw` or `aw …` instead. Bare
+`aw draw a box` remains a normal model prompt; `$aw unknown` shows command usage. Claude's
+`/awesome` is not intercepted.
+
+Plugins containing hooks are **not eligible for OpenAI's public plugin directory**. This plugin
+is distributed through our own marketplace above. The generated commands use POSIX shell; Windows
+hook behavior has not been verified.
 
 ### Alternative: `mcp add`
 
@@ -258,7 +306,7 @@ Skills use short tool names; hosts prefix them:
 
 In Codex code mode, MCP functions are called inside JavaScript cells, for example `tools.mcp__agent_workflow__workflow_run({…})`. A long call can outlast the cell's 30 s yield; the model resumes it with `wait`. Long-wait guidance supplies a `// @exec` `yield_time_ms` pragma ([long waits](#long-waits)).
 
-Codex names plugin skills `agent-workflow:agent-workflow`, `agent-workflow:workflow-guide`, and `agent-workflow:execution-router`.
+Codex names plugin skills `agent-workflow:agent-workflow`, `agent-workflow:aw`, `agent-workflow:workflow-guide`, and `agent-workflow:execution-router`.
 
 ### Status line and watch
 
@@ -292,7 +340,7 @@ to the CLI. `notify-check --stamp hook-claude-code` writes the stamp through a c
 
 This example starts the CLI on every prompt; it does not test repository paths.
 
-The plugin ships no Codex lifecycle hook. To add next-prompt completion checks, put this in `~/.codex/hooks.json` or a trusted project's `.codex/hooks.json`, then trust it with `/hooks`:
+The plugin ships an `aw` command hook, not a next-prompt completion-check hook. To add next-prompt completion checks, put this in `~/.codex/hooks.json` or a trusted project's `.codex/hooks.json`, then trust it with `/hooks`:
 
 ```json
 {
@@ -332,8 +380,8 @@ Decline/cancel opens nothing. One-time URLs travel only through elicitation or t
 .claude-plugin/marketplace.json          Claude Code marketplace (repo root)
 .agents/plugins/marketplace.json         Codex marketplace (repo root)
 plugins/agent-workflow/
-  .claude-plugin/plugin.json             Claude Code server, prompt hook and monitor
-  .codex-plugin/plugin.json              Codex server, skills and timeouts
+  .claude-plugin/plugin.json             Claude Code server, command/notify hooks and monitor
+  .codex-plugin/plugin.json              Codex server, skills, inline command hook and timeouts
   skills/agent-workflow/
   skills/workflow-guide/
   skills/execution-router/

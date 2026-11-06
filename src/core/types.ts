@@ -1750,7 +1750,11 @@ export interface WorkflowRunLaunchMetadataHostV1 {
 }
 
 /** WP32: how the user consented to the auto classifier call. */
-export type WorkflowAutoConsentSource = "prompt" | "flag" | "elicitation";
+export type WorkflowAutoConsentSource =
+	| "prompt"
+	| "flag"
+	| "elicitation"
+	| "command";
 
 /** WP32: one candidate an auto launch offered (opaque id, kind, workflow label). */
 export interface WorkflowRunAutoCandidateRef {

@@ -1,3 +1,4 @@
+import { runHostCommandHook } from "../host-command.js";
 import { projectId, stateBase } from "../../core/state-location.js";
 // Thin host-neutral CLI: parse flags, call one host API handler, and print text or JSON.
 // Exit codes: 0 success/completed, 1 failed/blocked/interrupted/refused/timeout, 2 usage error.
@@ -1234,6 +1235,16 @@ export async function runAgentWorkflowCli(
 ): Promise<number> {
 	const [command, ...rest] = argv;
 	const json = rest.includes("--json");
+	if (command === "host-command") {
+		const host = rest[1];
+		if (
+			rest.length !== 2 ||
+			rest[0] !== "--host" ||
+			(host !== "claude-code" && host !== "codex")
+		)
+			return EXIT_OK;
+		return runHostCommandHook(host, io);
+	}
 	try {
 		if (
 			command === undefined ||

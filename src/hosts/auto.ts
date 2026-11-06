@@ -92,8 +92,9 @@ export interface AutoChoicePrompt {
 
 export type AutoConsent =
 	| { source: "flag" }
+	| { source: "command" }
 	| {
-			source: Exclude<WorkflowAutoConsentSource, "flag">;
+			source: Exclude<WorkflowAutoConsentSource, "flag" | "command">;
 			/**
 			 * true = consent; false = the user declined; undefined = no answer from the user: the
 			 * client cancelled the dialog or cannot ask here (e.g. Claude Code print mode). Nothing is
@@ -588,7 +589,10 @@ export async function autoAction(
 		);
 	};
 	if (!request.consent) return noCall("consent-unavailable");
-	if (request.consent.source !== "flag") {
+	if (
+		request.consent.source !== "flag" &&
+		request.consent.source !== "command"
+	) {
 		let agreed: boolean | undefined;
 		try {
 			agreed = await request.consent.confirm(

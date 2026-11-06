@@ -100,8 +100,11 @@ test("each host registers the agent-workflow server through the pinned npx packa
 	);
 });
 
-test("WP36: the Claude Code manifest ships the notify-check prompt hook; Codex ships none", () => {
-	assert.deepEqual(Object.keys(claude.hooks), ["UserPromptSubmit"]);
+test("WP36: Claude keeps the notify-check hook; Codex still ships no completion-check hook", () => {
+	assert.deepEqual(Object.keys(claude.hooks), [
+		"UserPromptSubmit",
+		"UserPromptExpansion",
+	]);
 	const [group] = claude.hooks.UserPromptSubmit;
 	assert.equal(group.matcher, undefined);
 	const [hook] = group.hooks;
@@ -124,7 +127,13 @@ test("WP36: the Claude Code manifest ships the notify-check prompt hook; Codex s
 		hook.command,
 	);
 	assert.equal(pkg.bin["agent-workflow"], "src/hosts/cli/cli.mjs");
-	assert.equal(codex.hooks, undefined);
+	// Phase 4 adds command handling, not next-prompt completion polling, to Codex.
+	assert.equal(
+		codex.hooks.hooks.UserPromptSubmit.flatMap((group) => group.hooks).find(
+			(hook) => hook.command.includes("notify-check"),
+		),
+		undefined,
+	);
 	assert.equal(existsSync(join(pluginDir, "hooks")), false);
 });
 

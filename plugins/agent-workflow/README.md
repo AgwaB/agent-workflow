@@ -5,12 +5,18 @@ conversation. Ask for a workflow ("run deep-review on the last commit") and the 
 through the `agent-workflow` MCP server, waits for it in calls of at most 45 seconds, and quotes the
 result and report paths when the run finishes.
 
+For direct commands use `/aw` or `/agent-workflow:aw` in Claude Code, `$aw` or `aw …` in
+Codex (trust its hook on first start). Six forms: help (`aw`), `dashboard [run]`,
+`run <workflow> <task…>`, `dynamic <task…>`, `auto <task…>`, `stop <run>`. No options
+or questions; launches detach and `auto` starts the top classifier recommendation with command
+consent. Hooks are not eligible for OpenAI’s public plugin directory; use our marketplace.
+
 Contents:
 
 - MCP server `agent-workflow`: `npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow-mcp --host <claude-code|codex>`
   (Node.js 22 or later; the first start downloads the package). Claude Code reads
   `.claude-plugin/plugin.json`, Codex reads `.codex-plugin/plugin.json`; each passes its own `--host`.
-- Skills: `agent-workflow` (tool call protocol), `workflow-guide` (authoring workflows),
+- Skills: `agent-workflow` (tool call protocol), `aw` (command fallback), `workflow-guide` (authoring workflows),
   `execution-router` (choosing a route without running anything).
 - `reference/`: copies of the agent-workflow usage guide and bundled workflow specs used by
   `workflow-guide`.
