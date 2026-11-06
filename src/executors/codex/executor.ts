@@ -49,6 +49,7 @@ import {
 	inspectCodexEnvironment,
 } from "./environment.js";
 import { classifyCodexFailure } from "./errors.js";
+import { CodexStderrParser } from "./stderr.js";
 import { CodexTurnNormalizer, failureEvent } from "./normalize.js";
 import { AppServerConnection, type RpcId, type RpcMessage } from "./rpc.js";
 import {
@@ -1014,16 +1015,21 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			envKeys: Object.keys(req.env).sort(),
 			pid: child.pid ?? null,
 		});
+		const stderrParser = new CodexStderrParser();
 		const onStderr = (text: string) => {
 			if (text === "") return;
 			run.stderr = (run.stderr + text).slice(-16_384);
 			raw(run, "stderr", text);
+			for (const event of stderrParser.push(text)) emit(run, event);
 		};
 		// A value split across stderr chunks is held back until it can be redacted (review #5).
 		child.stderr.on("data", (chunk: Buffer) =>
 			onStderr(run.stderrRedact.push(chunk.toString())),
 		);
-		child.stderr.on("end", () => onStderr(run.stderrRedact.flush()));
+		child.stderr.on("end", () => {
+			onStderr(run.stderrRedact.flush());
+			for (const event of stderrParser.finish()) emit(run, event);
+		});
 		run.conn = new AppServerConnection(child, {
 			onLine: (direction, message) => {
 				if (
