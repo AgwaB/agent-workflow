@@ -514,6 +514,10 @@ for (const hasUI of [true, false])
 		assert.equal(classifierSubmits(logs.pi).length, 1);
 		await pi.commands.get("aw").handler("approve r1", ctx);
 		if (hasUI) assert.match(ctx.notes.at(-1).message, /unknown.*approve/i);
+		else {
+			assert.equal(process.exitCode, 1);
+			process.exitCode = undefined;
+		}
 	});
 const { inProcessHostServer } = await import("../helpers/mcp-host-client.mjs");
 const mcpClients = [];
