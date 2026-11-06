@@ -74,7 +74,6 @@ export const AW_ACTIONS = [
 	"logs",
 	"wait",
 	"resume",
-	"approve",
 	"stop",
 	"prune",
 	"notices",
@@ -406,37 +405,6 @@ async function dispatch(
 				...(parsed.flags.has("--detach") ? { detach: true } : {}),
 			});
 		}
-		case "approve": {
-			const parsed = parseCommandArgs(rest, {
-				flags: ["--reject", "--yes", "--detach"],
-				values: ["--request"],
-			});
-			const [runId] = only(
-				parsed.positionals,
-				1,
-				"approve <run-id-or-prefix> [--request <id>] [--reject] [--detach] [--yes]",
-			);
-			const dialog = hasDialogUi(ctx) && !parsed.flags.has("--yes");
-			if (!dialog && !parsed.flags.has("--yes"))
-				throw new HostUsageError(
-					`/${AW_COMMAND} approve without a dialog UI needs --yes (review the approval first: /${AW_COMMAND} status ${runId})`,
-				);
-			return api.approveAction(host(), {
-				runId: runId!,
-				decision: parsed.flags.has("--reject") ? "reject" : "approve",
-				...(parsed.values.has("--request")
-					? { requestId: parsed.values.get("--request")! }
-					: {}),
-				...(parsed.flags.has("--detach") ? { detach: true } : {}),
-				// Yes records the chosen decision; no on the approval question rejects the run.
-				...(dialog
-					? {
-							confirm: async (title: string, message: string) =>
-								(await ctx.ui.confirm(title, message)) === true,
-						}
-					: {}),
-			});
-		}
 		case "stop": {
 			const request = stopRequest(rest, PI_SYNTAX);
 			return api.stopAction(host(), request);
@@ -598,19 +566,13 @@ export async function trackLaunched(
 	data: { runId?: unknown; status?: unknown } | undefined,
 	launchedBy: "command" | "tool",
 ): Promise<void> {
-	if (
-		action !== "run" &&
-		action !== "dynamic" &&
-		action !== "resume" &&
-		action !== "approve"
-	)
-		return;
+	if (action !== "run" && action !== "dynamic" && action !== "resume") return;
 	if (typeof data?.runId !== "string") return;
 	const active = data.status === "running" || data.status === "pending";
 	// WP39b (live bundle 5, O10): a run that settled inside the approve (or resume) call is
 	// tracked too, so its completion message is delivered (exactly once: the delivery receipts).
 	const settledHere =
-		(action === "approve" || action === "resume") &&
+		action === "resume" &&
 		(data.status === "completed" ||
 			data.status === "failed" ||
 			data.status === "interrupted" ||

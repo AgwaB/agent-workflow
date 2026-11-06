@@ -120,7 +120,6 @@ export const WORKFLOW_DOCTOR_TOOL = "workflow_doctor";
 export const WORKFLOW_PRUNE_TOOL = "workflow_prune";
 export const WORKFLOW_PROFILE_TOOL = "workflow_profile";
 export const WORKFLOW_SUPERVISE_TOOL = "workflow_supervise";
-export const WORKFLOW_APPROVE_TOOL = "workflow_approve";
 export const WORKFLOW_AUTO_TOOL = "workflow_auto";
 
 /** WP28: tool calls that change state only after the user confirms through MCP elicitation. */
@@ -128,7 +127,6 @@ export const CONFIRMED_CHANGES = [
 	`${WORKFLOW_PRUNE_TOOL} (dryRun=false)`,
 	`${WORKFLOW_PROFILE_TOOL} (set, delete, default, clear-default)`,
 	`${WORKFLOW_NOTICES_TOOL} (acknowledge, clear)`,
-	`${WORKFLOW_APPROVE_TOOL} (approve, reject)`,
 ] as const;
 
 /** WP32: tool calls that send a classifier request only after the user's elicitation consent. */
@@ -207,7 +205,6 @@ export function hostMcpInstructions(
 		'4. When it finished, quote the result preview and the report paths verbatim (do not re-summarize the report) and give the Dashboard link again. "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing verdict, not a failure.',
 		`5. There is no completion push. If you stop waiting while it runs (for example a rate-limit backoff, nextRetry), tell the user the runId, what it waits for, the Dashboard link, and that they can ask you again or run \`agent-workflow watch <runId>\`. A line containing "agent-workflow: workflow … finished — …" in a later turn (maybe prefixed by a hook) comes from the completion check: relay it with the report path.`,
 		`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a redacted tail of task output; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a spec. ${WORKFLOW_SHOW_TOOL}, ${WORKFLOW_ROLES_TOOL}, ${WORKFLOW_AGENTS_TOOL}, ${WORKFLOW_DOCTOR_TOOL} are read-only. ${WORKFLOW_RESUME_TOOL} continues a failed, interrupted or blocked run and ${WORKFLOW_SUPERVISE_TOOL} supervises a running one: both start model calls, so only when the user asks.`,
-		`Dynamic approvals: a run stopped with actionRequired=true and pendingApprovals (a question and requestId): show the question; only when the user decides, call ${WORKFLOW_APPROVE_TOOL} {runId, requestId, decision} (it confirms in a dialog; approving starts model calls).`,
 		`Choosing a workflow: only when the user asks you to pick one for a task, call ${WORKFLOW_AUTO_TOOL} {task}: it asks in a dialog before one classifier request, then lets the user choose; without dialogs it returns a local shortlist to show the user.`,
 		`Changes that need the user's confirmation in an MCP dialog (refused with the terminal command without dialogs): ${CONFIRMED_CHANGES.join("; ")}. ${WORKFLOW_PRUNE_TOOL} without dryRun=false only previews.`,
 		'Permission mode is "free" by default (workers run without approval prompts; read-only stages stay read-only); set permissionMode "safe", executor ("claude", "codex", "pi") or profile only when the user asks.',
@@ -825,41 +822,6 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 		},
 	},
 	{
-		name: WORKFLOW_APPROVE_TOOL,
-		title: "Approve agent-workflow dynamic controller",
-		description: `Answer a dynamic-controller approval a run is blocked on (pendingApprovals in ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}: the question and its requestId). Call it only after the user decided. The user confirms in a dialog (MCP elicitation) before anything is recorded; clients without dialogs are refused with the terminal command. decision "approve": accepting runs the controller and resumes the run (new model calls; detached by default, then call ${WORKFLOW_WAIT_TOOL}); declining the dialog rejects the controller for this run. decision "reject": accepting rejects it for this run (it is never asked again). Cancelling changes nothing.`,
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				...RUN_ID_PROPERTY,
-				requestId: {
-					type: "string",
-					description:
-						"requestId of the pending approval (from pendingApprovals in the wait/status result).",
-				},
-				decision: {
-					type: "string",
-					enum: ["approve", "reject"],
-					description: "The user's decision.",
-				},
-				detach: {
-					type: "boolean",
-					description:
-						"Optional, default true: after an approval, resume the run in a standalone supervisor so it keeps progressing between tool calls.",
-				},
-				...CWD_PROPERTY,
-			},
-			required: ["runId", "requestId", "decision"],
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: true,
-			idempotentHint: false,
-			openWorldHint: true,
-		},
-	},
-	{
 		name: WORKFLOW_AUTO_TOOL,
 		title: "Choose and run an agent-workflow workflow",
 		description: `Recommend an agent-workflow workflow for a task and start the one the user chooses. Call it only when the user asks you to pick a workflow for a concrete task (if the user names a workflow, use ${WORKFLOW_RUN_TOOL}). The user is asked in a dialog (MCP elicitation) before the task is sent to one classifier request on the run's default executor; a second dialog lets the user choose the workflow (or none), which then starts like ${WORKFLOW_RUN_TOOL} (detached by default; then call ${WORKFLOW_WAIT_TOOL}). Without dialog support nothing is sent: the result is a local shortlist with the ${WORKFLOW_RUN_TOOL} calls to start one; show it and let the user pick. If the user declines a dialog, nothing starts; do not retry unless the user asks.`,
@@ -1025,7 +987,6 @@ export type HostMcpApi = Pick<
 	| "profileAction"
 	| "workflowPreferenceAction"
 	| "superviseDetachedAction"
-	| "approveAction"
 	| "autoAction"
 >;
 
@@ -1518,19 +1479,8 @@ function launchNext(
 	return undefined;
 }
 
-/** WP29: the next step of a result that shows open approvals. */
-function approvalNext(
-	runId: string,
-	pending: hostApi.PendingDynamicApproval[] | undefined,
-): string | undefined {
-	if (!pending?.length) return undefined;
-	return `Next: the run waits for the user's approval of ${pending.map((approval) => `dynamic controller ${approval.controllerSpecId} (requestId ${approval.requestId})`).join(", ")}. Show the user the approval question above and ask them to approve or reject. Only after they decide, call ${WORKFLOW_APPROVE_TOOL} {"runId":"${runId}","requestId":"…","decision":"approve"|"reject"}; it asks them to confirm in a dialog.`;
-}
-
 function waitNext(data: WaitData, waitHint = ""): string {
 	const state = `[${WORKFLOW_WAIT_TOOL}] runId=${data.runId} status=${data.status} terminal=${data.terminal} actionRequired=${data.actionRequired} stillRunning=${data.stillRunning}`;
-	const approval = approvalNext(data.runId, data.pendingApprovals);
-	if (approval) return `${state}\n${approval}`;
 	if (data.stillRunning) {
 		const waitingFor = data.nextRetry
 			? `a scheduled retry at ${data.nextRetry.at}${data.nextRetry.reason ? ` (${data.nextRetry.reason})` : ""}`
@@ -2047,17 +1997,7 @@ export function createHostMcpService(
 				await context(args, call),
 				runId ? { runId } : {},
 			);
-			return finish(
-				call,
-				status,
-				status.data,
-				status.data.run
-					? approvalNext(
-							status.data.run.runId,
-							status.data.run.pendingApprovals,
-						)
-					: undefined,
-			);
+			return finish(call, status, status.data);
 		},
 		[WORKFLOW_WAIT_TOOL]: async (args, call) => {
 			const timeoutMs = args.timeoutMs;
@@ -2181,60 +2121,7 @@ export function createHostMcpService(
 					: undefined,
 			);
 		},
-		[WORKFLOW_APPROVE_TOOL]: async (args, call) => {
-			const runId = requiredString(args, "runId");
-			const requestId = requiredString(args, "requestId");
-			const decision = requiredString(args, "decision");
-			if (decision !== "approve" && decision !== "reject")
-				throw new UsageError('decision must be "approve" or "reject"');
-			const detach = optionalBoolean(args, "detach") ?? true;
-			const ctx = await context(args, call);
-			if (
-				!clientSupportsFormElicitation(
-					call.protocolVersion,
-					call.clientCapabilities,
-				)
-			) {
-				const terminal = `${ctx.cwd === options.root ? "" : `cd ${shellWord(ctx.cwd)} && `}agent-workflow approve ${shellWord(runId)} --request ${shellWord(requestId)}${decision === "reject" ? " --reject" : ""}`;
-				return refusedChange(
-					call,
-					"approve",
-					"unsupported",
-					terminal,
-					`Not changed: answering a dynamic-controller approval needs the user's confirmation, and this MCP client does not support confirmation dialogs (elicitation). The user can answer it in a terminal instead:\n  ${terminal}`,
-				);
-			}
-			const answered = await api.approveAction(ctx, {
-				runId,
-				requestId,
-				decision,
-				...(detach ? { detach: true } : {}),
-				confirm: async (title, message) => {
-					const answer = await elicitConfirmation(
-						call,
-						`${title}\n\n${message}`,
-						"approval confirmation",
-						log,
-					);
-					return answer === "accept"
-						? true
-						: answer === "decline"
-							? false
-							: undefined;
-				},
-			});
-			return finish(
-				call,
-				answered,
-				answered.data,
-				answered.data.decision === "approved" &&
-					answered.data.status === "running"
-					? `Next: call ${WORKFLOW_WAIT_TOOL} {"runId":"${answered.data.runId}"} and repeat while stillRunning is true.`
-					: answered.data.decision === "unanswered"
-						? "Nothing was recorded; do not retry unless the user asks."
-						: undefined,
-			);
-		},
+
 		[WORKFLOW_SHOW_TOOL]: async (args, call) => {
 			const ref = requiredString(args, "ref");
 			const raw = optionalBoolean(args, "raw");

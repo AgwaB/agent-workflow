@@ -230,7 +230,6 @@ export interface DynamicWorkflowBudgetSpec {
 }
 
 export interface DynamicWorkflowPermissionsSpec {
-	approval?: "auto" | "ask";
 	allowDynamicRoles?: boolean;
 	allowDynamicTools?: boolean;
 }
@@ -650,7 +649,6 @@ export interface CompiledDynamicWorkflowTask {
 	mode: "graph-splice";
 	budget: CompiledDynamicWorkflowBudget;
 	permissions: {
-		approval: "auto" | "ask";
 		allowDynamicRoles: boolean;
 		allowDynamicTools: boolean;
 	};

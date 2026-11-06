@@ -1,19 +1,13 @@
 import { stateBase } from "./state-location.js";
 import { readFile } from "node:fs/promises";
-import { persistedResumeHint } from "./command-hints.js";
-import { persistedApproveHint } from "./dynamic-approval.js";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import { readArtifactGraphControl } from "./artifact-graph-runtime.js";
 import {
 	DynamicControllerBudgetBlocked,
-	DynamicControllerNestedApprovalBlocked,
 	DynamicControllerSuspended,
 } from "./dynamic-controller-errors.js";
-import {
-	assertDynamicRuntimeBudgetAvailable,
-	type DynamicWorkflowUi,
-} from "./dynamic-controller-policy.js";
+import { assertDynamicRuntimeBudgetAvailable } from "./dynamic-controller-policy.js";
 import { hashDynamicRequest, readDynamicEvents } from "./dynamic-events.js";
 import { remainingDynamicNestedWorkflowDepth } from "./dynamic-nested-depth.js";
 import {
@@ -36,7 +30,6 @@ import {
 
 type DynamicNestedWorkflowRunOptions = {
 	task?: string;
-	dynamicUi?: DynamicWorkflowUi;
 	runId?: string;
 	parentRunId?: string;
 };
@@ -75,13 +68,11 @@ interface DynamicNestedWorkflowInput {
 export async function runDynamicNestedWorkflowCall(input: {
 	runWorkflowSpec: RunWorkflowSpecForDynamicCall;
 	refreshRun: RefreshRunForDynamicCall;
-	isResumableDynamicApprovalBlockedRun: (run: WorkflowRunRecord) => boolean;
 	cwd: string;
 	run: WorkflowRunRecord;
 	controllerTask: WorkflowTaskRunRecord;
 	helperSpecPath: string;
 	dynamic: CompiledDynamicWorkflowTask;
-	dynamicUi?: DynamicWorkflowUi;
 	workflowId: string;
 	callIndex: number;
 	workflowInput: unknown;
@@ -185,7 +176,6 @@ export async function runDynamicNestedWorkflowCall(input: {
 		await throwIfWorkflowStopRequested(input.cwd, input.run.runId);
 		nestedRun = await input.runWorkflowSpec(nestedSpecPath, input.cwd, {
 			task: normalizedInput.task,
-			dynamicUi: input.dynamicUi,
 			runId: nestedRunId,
 			parentRunId: input.run.runId,
 		});
@@ -240,15 +230,6 @@ export async function runDynamicNestedWorkflowCall(input: {
 			payload: { workflowId, runId: nestedRun.runId, result },
 		});
 		return result;
-	}
-	if (
-		input.isResumableDynamicApprovalBlockedRun(nestedRun) &&
-		normalizedInput.wait
-	) {
-		throw new DynamicControllerNestedApprovalBlocked(
-			`dynamic nested workflow ${workflowId} (${nestedRun.runId}) is blocked awaiting approval; approve it with ${persistedApproveHint(nestedRun.runId)}, then run ${persistedResumeHint(input.run.runId)} after the nested workflow completes to continue the parent workflow`,
-			nestedRun.runId,
-		);
 	}
 	if (nestedRun.status === "running" && normalizedInput.wait) {
 		throw new DynamicControllerSuspended(

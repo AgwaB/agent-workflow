@@ -1156,7 +1156,6 @@ async function launchClaimed(
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
 		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
 		// WP29: an attached launch may ask the user to approve a dynamic controller.
-		...(ctx.dynamicUi && !request.detach ? { dynamicUi: ctx.dynamicUi } : {}),
 		...(ctx.hostTools ? { inheritHostTools: true } : {}),
 		...(inputOverrides ? { inputOverrides } : {}),
 		// WP42: the engine's foreground fence (after the capability confirm, before publication and

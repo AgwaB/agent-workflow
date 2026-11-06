@@ -186,7 +186,6 @@ const DYNAMIC_BUDGET_KEYS = new Set([
 	"maxHelperRuns",
 ]);
 const DYNAMIC_PERMISSIONS_KEYS = new Set([
-	"approval",
 	"allowDynamicRoles",
 	"allowDynamicTools",
 ]);
@@ -238,7 +237,6 @@ const RESERVED_DYNAMIC_MAP_KEYS = new Set([
 	"prototype",
 	"constructor",
 ]);
-const DYNAMIC_APPROVAL_VALUES = ["auto", "ask"] as const;
 const EACH_KEYS = new Set([
 	"prompt",
 	"agent",
@@ -1815,13 +1813,13 @@ function validateDynamicPermissions(
 	if (value === undefined) return;
 	const permissions = recordAt(value, path, issues);
 	if (!permissions) return;
+	if (Object.hasOwn(permissions, "approval"))
+		issues.push({
+			path: `${path}.approval`,
+			message:
+				"workflow approvals were removed; delete dynamic.permissions.approval",
+		});
 	rejectUnknownKeys(permissions, DYNAMIC_PERMISSIONS_KEYS, path, issues);
-	optionalEnum(
-		permissions.approval,
-		DYNAMIC_APPROVAL_VALUES,
-		`${path}.approval`,
-		issues,
-	);
 	optionalBoolean(
 		permissions.allowDynamicRoles,
 		`${path}.allowDynamicRoles`,

@@ -3574,8 +3574,6 @@ const RESUMABLE_TASK_STATUSES = new Set<TaskRunStatus>([
 	"skipped",
 ]);
 const RESUMABLE_BLOCKED_STATUS_DETAILS = new Set([
-	"dynamic_ui_unavailable",
-	"dynamic_approval_timeout",
 	// WP4c (B3): an explicit resume is the owner decision for an executor attempt whose launch
 	// could not be proven either way; it relaunches with a new attempt key.
 	"executor_needs_decision",

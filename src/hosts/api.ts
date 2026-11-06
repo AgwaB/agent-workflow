@@ -5,16 +5,6 @@ import { showRunAction } from "./runs.js";
 import type { HostApiContext, HostResult } from "./types.js";
 
 export {
-	type ApproveData,
-	type ApproveRequest,
-	approveAction,
-	DYNAMIC_REJECT_TITLE,
-} from "./approve.js";
-export {
-	DYNAMIC_APPROVAL_TITLE,
-	type PendingDynamicApproval,
-} from "../core/dynamic-approval.js";
-export {
 	HostUsageError,
 	isThinkingLevel,
 	type ParsedSuperviseArgs,

@@ -40,11 +40,6 @@ export interface AwBoardSource {
 	taskLogs(runId: string, taskId: string): Promise<LogsTask | undefined>;
 	stop(runId: string): Promise<BoardActionResult>;
 	resume(runId: string): Promise<BoardActionResult>;
-	approve(
-		runId: string,
-		requestId: string,
-		decision: "approve" | "reject",
-	): Promise<BoardActionResult>;
 	copy(text: string): Promise<void>;
 }
 
@@ -118,15 +113,6 @@ export function piBoardSource(
 			const resumed = await deps.api.resumeAction(host(), { runId });
 			await onLaunched("resume", resumed.data);
 			return outcome(resumed);
-		},
-		async approve(runId, requestId, decision) {
-			const approved = await deps.api.approveAction(host(), {
-				runId,
-				requestId,
-				decision,
-			});
-			await onLaunched("approve", approved.data);
-			return outcome(approved);
 		},
 		copy,
 	};

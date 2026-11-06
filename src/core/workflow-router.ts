@@ -1544,8 +1544,6 @@ function deriveWorkflowFacts(
 		if (stage.dynamic) {
 			hasDynamic = true;
 			hasSupport = true;
-			if (stage.dynamic.permissions?.approval === "ask")
-				requiresApproval = true;
 			for (const profile of [
 				stage.dynamic.decisionLoop?.planner,
 				stage.dynamic.decisionLoop?.workerDefaults,

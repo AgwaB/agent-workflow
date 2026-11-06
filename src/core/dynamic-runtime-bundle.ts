@@ -103,7 +103,6 @@ export function directDynamicSpec(): ArtifactGraphWorkflowSpec {
 						uses: "./controller.mjs",
 						mode: "graph-splice",
 						permissions: {
-							approval: "auto",
 							allowDynamicRoles: false,
 							allowDynamicTools: false,
 						},

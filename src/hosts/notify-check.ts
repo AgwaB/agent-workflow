@@ -34,7 +34,6 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 
-import { pendingDynamicApprovals } from "../core/dynamic-approval.js";
 import { hasActiveSchedulerWork } from "../core/engine-wait.js";
 import {
 	isSafeRunId,
@@ -44,7 +43,7 @@ import {
 } from "../core/store.js";
 import type { WorkflowHostId, WorkflowRunRecord } from "../core/types.js";
 import { summarizeWorkflowTerminal } from "../core/workflow-terminal.js";
-import { hostApproveHint, hostCommandHints } from "./hints.js";
+import { hostCommandHints } from "./hints.js";
 import { hostTextRedactor } from "./redaction.js";
 import { readWorkflowResultPresentation } from "./result-presentation.js";
 import { containedProjectStateDir } from "./run-files.js";
@@ -66,7 +65,6 @@ export interface RunNotification {
 	verdict?: string;
 	verdictGate?: true;
 	reportPaths: string[];
-	pendingApprovals: number;
 	text: string;
 }
 
@@ -417,21 +415,16 @@ async function describe(
 			...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
 			...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
 			reportPaths,
-			pendingApprovals: 0,
 			text: `${label} finished — ${outcome}${failed}${report}. Details: ${hints.status(run.runId)}`,
 		};
 	}
-	const approvals = await pendingDynamicApprovals(cwd, run).catch(() => []);
-	const text = approvals.length
-		? `${label} is waiting for the user's approval of dynamic controller ${approvals.map((approval) => approval.controllerSpecId).join(", ")}. Show the question with ${hints.status(run.runId)}; answer only after the user decides: ${hostApproveHint(host, run.runId, approvals[0]!.requestId)}`
-		: `${label} is blocked and needs the user (${run.taskSummary.blocked} blocked tasks). Inspect: ${hints.inspectFailures(run.runId)}; resume after the cause is fixed: ${hints.resume(run.runId)}`;
+	const text = `${label} is blocked and needs the user (${run.taskSummary.blocked} blocked tasks). Inspect: ${hints.inspectFailures(run.runId)}; resume after the cause is fixed: ${hints.resume(run.runId)}`;
 	return {
 		runId: run.runId,
 		...(run.name ? { name: run.name } : {}),
 		status: run.status,
 		terminal: false,
 		reportPaths: [],
-		pendingApprovals: approvals.length,
 		text,
 	};
 }

@@ -2501,7 +2501,6 @@ function buildDynamicTask(
 					dynamic.budget?.maxHelperRuns ?? DEFAULT_DYNAMIC_MAX_HELPER_RUNS,
 			},
 			permissions: {
-				approval: dynamic.permissions?.approval ?? "auto",
 				allowDynamicRoles: dynamic.permissions?.allowDynamicRoles ?? true,
 				allowDynamicTools: dynamic.permissions?.allowDynamicTools ?? true,
 			},

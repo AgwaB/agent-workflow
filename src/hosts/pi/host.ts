@@ -42,7 +42,6 @@ export type PiHostApi = Pick<
 	| "inspectAction"
 	| "waitAction"
 	| "resumeAction"
-	| "approveAction"
 	| "autoAction"
 	| "stopAction"
 	| "pruneAction"
@@ -195,30 +194,12 @@ export function hostContext(
 		...(models ? { availableModels: models } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
 		...(hostTools ? { hostTools } : {}),
-		...(hasDialogUi(ctx) ? { dynamicUi: piDynamicUi(ctx) } : {}),
 	};
 }
 
 /** A dialog-capable Pi UI (TUI/RPC), not print/JSON mode. */
 export function hasDialogUi(ctx: PiExtensionContext): boolean {
 	return ctx.hasUI === true && !printMode(ctx);
-}
-
-/**
- * Dynamic controllers with approval ask use Pi confirmation with scope, a five-minute
- * timeout, and an abort signal. Yes runs; no permanently rejects this run; timeout
- * leaves it resumable. Only attached calls with dialog UI ask; print and JSON modes
- * retain dynamic_ui_unavailable.
- */
-export function piDynamicUi(
-	ctx: PiExtensionContext,
-): NonNullable<HostApiContext["dynamicUi"]> {
-	return {
-		hasUI: true,
-		host: "pi",
-		confirm: (title, message, options) =>
-			ctx.ui.confirm(title, message, options),
-	};
 }
 
 export const PROFILE_TEXT_FALLBACK_NOTE = "Execution profile (no dialog UI):";
