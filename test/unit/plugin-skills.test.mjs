@@ -36,6 +36,7 @@ function frontMatter(text) {
 test("the plugin ships the agent-workflow, workflow-guide and execution-router skills", () => {
 	assert.deepEqual([...plugins.PLUGIN_SKILLS].sort(), [
 		"agent-workflow",
+		"aw",
 		"execution-router",
 		"workflow-guide",
 	]);

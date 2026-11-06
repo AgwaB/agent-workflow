@@ -12,8 +12,8 @@ extra questions beyond what the tools require. No command options are supported;
 the remainder after the workflow/action is the task, with one matching quote pair removed.
 
 - aw: use `workflow_status` for up to three recent top-level runs, show these six command forms,
-  and `workflow_dashboard` with `open:false` for the dashboard URL.
-- aw dashboard [run]: `workflow_dashboard` (optional `run`, `open:true`).
+  and `workflow_dashboard` for the dashboard URL (follow its required dialog).
+- aw dashboard [run]: `workflow_dashboard` (optional full `run`; resolve a prefix with `workflow_status`).
 - aw run <workflow> <task…>: `workflow_run` with `workflow` and `task` (detached).
 - aw dynamic <task…>: `workflow_dynamic` with `task` (detached).
 - aw auto <task…>: `workflow_auto` with `task`; follow its consent/selection requirements
