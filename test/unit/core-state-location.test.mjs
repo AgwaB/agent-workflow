@@ -222,7 +222,8 @@ test("concurrent launches keep one private project identity", async (t) => {
 	await Promise.all(Array.from({ length: 8 }, () => registerProject(cwd)));
 	const file = join(stateBase(cwd), "project.json");
 	const first = JSON.parse(await readFile(file, "utf8"));
-	await Promise.all(Array.from({ length: 8 }, () => registerProject(cwd)));
+	for (let refresh = 0; refresh < 12; refresh++)
+		await Promise.all(Array.from({ length: 8 }, () => registerProject(cwd)));
 	const second = JSON.parse(await readFile(file, "utf8"));
 	assert.equal(second.path, canonicalProjectPath(cwd));
 	assert.equal(second.createdAt, first.createdAt);

@@ -1,3 +1,4 @@
+import { projectId } from "../../dist/core/state-location.js";
 import { stateDir } from "../helpers/state-dir.mjs";
 // WP43b: `/aw dashboard [<run>]` in the Pi host opens the local web dashboard through a one-time
 // launch URL handed to the browser only; the note the user sees never carries the session token or
@@ -18,7 +19,7 @@ import { after, before, test } from "node:test";
 const ext = await import("../../dist/hosts/pi/extension.js");
 const api = await import("../../dist/hosts/api.js");
 const { startDashboardServer } = await import(
-	"../../dist/hosts/dashboard/index.js"
+	"../helpers/dashboard-server.mjs"
 );
 
 let root;
@@ -69,6 +70,7 @@ test("/aw dashboard opens a launch URL in the browser (open mode: no credential;
 	const recorder = join(root, "browser.sh");
 	await writeFile(recorder, `#!/bin/sh\necho "$1" >> ${JSON.stringify(log)}\n`);
 	await chmod(recorder, 0o755);
+	process.env.AGENT_WORKFLOW_HOME = join(root, "home");
 	const env = {
 		...process.env,
 		AGENT_WORKFLOW_HOME: join(root, "home"),
@@ -76,6 +78,7 @@ test("/aw dashboard opens a launch URL in the browser (open mode: no credential;
 	};
 	// WP43d default (open): the opened URL carries only a launch id and sets no cookie.
 	const open = await startDashboardServer({ cwd, env, discovery: true });
+	t.after(() => open.close());
 	const pi = fakePi();
 	ext.createAgentWorkflowPiExtension({ api, env })(pi);
 	const command = pi.commands.get("aw");
@@ -89,7 +92,7 @@ test("/aw dashboard opens a launch URL in the browser (open mode: no credential;
 	assert.match(
 		openRecorded.trim(),
 		new RegExp(
-			`^http://127\\.0\\.0\\.1:${open.port}/\\?launch=[A-Za-z0-9_-]{24}$`,
+			`^http://127\\.0\\.0\\.1:${open.port}/\\?launch=[A-Za-z0-9_-]{24}&project=[a-z0-9-]+$`,
 		),
 	);
 	const landed = await fetch(openRecorded.trim(), { redirect: "manual" });
@@ -125,7 +128,7 @@ test("/aw dashboard opens a launch URL in the browser (open mode: no credential;
 	assert.match(
 		opened[0],
 		new RegExp(
-			`^http://127\\.0\\.0\\.1:${server.port}/\\?token=[A-Za-z0-9_-]{43}$`,
+			`^http://127\\.0\\.0\\.1:${server.port}/\\?token=[A-Za-z0-9_-]{43}&project=[a-z0-9-]+$`,
 		),
 	);
 	assert.notEqual(
@@ -135,7 +138,7 @@ test("/aw dashboard opens a launch URL in the browser (open mode: no credential;
 	);
 	const first = await fetch(opened[0], { redirect: "manual" });
 	assert.equal(first.status, 302);
-	assert.equal(first.headers.get("location"), "/");
+	assert.equal(first.headers.get("location"), `/?project=${projectId(cwd)}`);
 	assert.equal(
 		(await fetch(opened[0], { redirect: "manual" })).status,
 		401,

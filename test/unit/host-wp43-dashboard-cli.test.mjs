@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { runAgentWorkflowCli } from "../../dist/hosts/cli/index.js";
 import { COMMAND_HELP, GENERAL_HELP } from "../../dist/hosts/help.js";
-import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+import { startDashboardServer } from "../helpers/dashboard-server.mjs";
 
 async function invoke(args, extra = {}) {
 	const stdout = [],
@@ -87,14 +87,15 @@ test("dashboard prints one URL, supports project/read-only, and honors io.signal
 	assert.equal(lines.length, 1);
 	assert.match(
 		lines[0],
-		/^Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?token=[\w-]+ \(read-only\)\n$/,
+		/^Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?token=[\w-]+&project=[\w-]+ \(read-only\)\n$/,
 	);
 	const url = new URL(lines[0].split(" ")[1]);
 	const response = await fetch(new URL("/api/session", url), {
 		headers: { Cookie: `aw_session=${url.searchParams.get("token")}` },
 	});
 	const session = await response.json();
-	assert.equal(session.project.name, root.split("/").at(-1));
+	assert.equal(session.apiVersion, 2);
+	assert.ok(url.searchParams.get("project"));
 	assert.equal(session.mode, "read-only");
 	assert.equal(session.auth, true);
 	controller.abort();
@@ -124,7 +125,10 @@ test("dashboard (default, WP43d) prints a plain URL that opens without sign-in",
 	t.after(() => controller.abort());
 	await started;
 	assert.equal(lines.length, 1);
-	assert.match(lines[0], /^Dashboard: http:\/\/127\.0\.0\.1:\d+\/\n$/);
+	assert.match(
+		lines[0],
+		/^Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?project=[\w-]+\n$/,
+	);
 	const url = new URL(lines[0].split(" ")[1]);
 	const page = await fetch(url);
 	assert.equal(page.status, 200);
@@ -167,4 +171,33 @@ test("real CLI closes cleanly on SIGTERM and exits 0", {
 	});
 	child.kill("SIGTERM");
 	assert.deepEqual(await closed, { code: 0, signal: null });
+});
+
+test("dashboard CLI names the user directory when it cannot write it (sandboxed shell)", async () => {
+	// A missing home below a read-only parent: the owner-permission repair of an existing home
+	// cannot help, as in a sandboxed shell that may not write the user directory at all.
+	const root = await mkdtemp(join(tmpdir(), "aw-dashboard-eacces-"));
+	const locked = join(root, "locked");
+	const home = join(locked, "home");
+	const previous = process.env.AGENT_WORKFLOW_HOME;
+	try {
+		await mkdir(locked);
+		await chmod(locked, 0o500);
+		process.env.AGENT_WORKFLOW_HOME = home;
+		const result = await invoke(["dashboard", "--detached"], {
+			env: { AGENT_WORKFLOW_HOME: home },
+		});
+		assert.equal(result.code, 1, result.stderr);
+		assert.match(result.stderr, /E(ACCES|PERM)/);
+		assert.ok(
+			result.stderr.includes(`keeps runs and the dashboard in ${home}`),
+			result.stderr,
+		);
+		assert.match(result.stderr, /sandboxed shell/);
+	} finally {
+		if (previous === undefined) delete process.env.AGENT_WORKFLOW_HOME;
+		else process.env.AGENT_WORKFLOW_HOME = previous;
+		await chmod(locked, 0o700).catch(() => undefined);
+		await rm(root, { recursive: true, force: true });
+	}
 });

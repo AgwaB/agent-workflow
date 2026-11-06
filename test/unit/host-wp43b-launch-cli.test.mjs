@@ -1,3 +1,4 @@
+import { projectId } from "../../dist/core/state-location.js";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,7 +9,7 @@ import { registerWorkflowExecutor } from "../../dist/core/index.js";
 import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import { runWorkflowAction, waitAction } from "../../dist/hosts/api.js";
 import { runAgentWorkflowCli } from "../../dist/hosts/cli/index.js";
-import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+import { startDashboardServer } from "../helpers/dashboard-server.mjs";
 import {
 	dashboardDiscoveryPath,
 	ensureDashboard,
@@ -94,7 +95,7 @@ test("real host launch carries a token-free dashboard link only while discovery 
 		return out;
 	};
 	const first = await launch("With dashboard");
-	const url = `http://127.0.0.1:${s.port}/?run=${first.data.runId}`;
+	const url = `http://127.0.0.1:${s.port}/?project=${projectId(ctx.cwd)}&run=${first.data.runId}`;
 	assert.deepEqual(first.data.dashboard, { url, port: s.port });
 	assert.ok(first.text.includes(`Dashboard: ${url}`));
 	assert.ok(!JSON.stringify(first).includes(s.launchKey));
@@ -146,7 +147,10 @@ test("run --open overrides agent/non-TTY suppression, opens once and bootstraps 
 	const data = JSON.parse(out.stdout).data;
 	const response = await fetch(urls[0], { redirect: "manual" });
 	assert.equal(response.status, 302);
-	assert.equal(response.headers.get("location"), `/?run=${data.runId}`);
+	assert.equal(
+		response.headers.get("location"),
+		`/?project=${projectId(ctx.cwd)}&run=${data.runId}`,
+	);
 	// WP43d default: the opened URL carries a launch id, never a credential, and no cookie is set.
 	assert.equal(response.headers.get("set-cookie"), null);
 	const opened = new URL(urls[0]);
@@ -191,7 +195,10 @@ test("run --open against an --auth dashboard bootstraps once with a one-time tok
 	assert.equal(data.dashboard.auth, true);
 	const response = await fetch(urls[0], { redirect: "manual" });
 	assert.equal(response.status, 302);
-	assert.equal(response.headers.get("location"), `/?run=${data.runId}`);
+	assert.equal(
+		response.headers.get("location"),
+		`/?project=${projectId(ctx.cwd)}&run=${data.runId}`,
+	);
 	assert.match(response.headers.get("set-cookie"), /HttpOnly/);
 	assert.equal((await fetch(urls[0], { redirect: "manual" })).status, 401);
 	assert.ok(!out.stdout.includes(new URL(urls[0]).searchParams.get("token")));
@@ -234,7 +241,7 @@ test("env opt-in is suppressed in agents and on pipes; failures cannot fail the 
 	);
 	assert.match(
 		suppressed.stdout,
-		/Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?run=workflow_/,
+		/Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?project=[\w-]+&run=workflow_/,
 		"the token-free link stays in the launch text",
 	);
 	const piped = await invoke(ctx, args("pipe suppression"), {
@@ -285,6 +292,10 @@ test("ensure starts a real detached dashboard; status, reuse --open and stop rou
 		},
 	});
 	assert.equal(opened.code, 0, `${opened.stderr}\n${opened.stdout}`);
+	assert.equal(
+		opened.stdout,
+		`Dashboard: http://127.0.0.1:${discovery.port}/?project=${projectId(ctx.cwd)}\n`,
+	);
 	assert.equal(urls.length, 1);
 	assert.equal((await fetch(urls[0], { redirect: "manual" })).status, 302);
 	assert.equal((await readDashboardDiscovery(ctx.cwd)).pid, pid);
@@ -334,7 +345,7 @@ test("run --open starts a missing dashboard, while ordinary launches stay headle
 	const runId = JSON.parse(result.stdout).data.runId;
 	assert.equal(
 		(await fetch(urls[0], { redirect: "manual" })).headers.get("location"),
-		`/?run=${runId}`,
+		`/?project=${projectId(ctx.cwd)}&run=${runId}`,
 	);
 });
 test("dashboard --detached prints no token and io.signal removes discovery", {

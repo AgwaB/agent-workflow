@@ -13,10 +13,18 @@ export const injection = "<script>globalThis.dashboardInjected = true</script>";
 export async function createFixtureServer({
 	readonly = false,
 	snapshots,
+	extraProjects = [],
 } = {}) {
 	const readJson = async (name) =>
 		JSON.parse(await readFile(new URL(name, fixtures), "utf8"));
 	const session = await readJson("session.json");
+	const project = {
+		id: "payments-api-123456789abc",
+		name: "payments-api",
+		path: "~/work/payments-api",
+		pathMissing: false,
+		lastSeenAt: session.serverTime,
+	};
 	const listing = snapshots
 		? { ...(await readJson("runs.json")), runs: snapshots }
 		: await readJson("runs.json");
@@ -113,6 +121,34 @@ export async function createFixtureServer({
 					mode: readonly ? "read-only" : "read-write",
 					serverTime: serverTime(),
 				});
+			if (url.pathname === "/api/projects")
+				return json({
+					projects: [
+						{
+							...project,
+							counts: {
+								running: listing.runs.filter((run) =>
+									["running", "blocked"].includes(run.status),
+								).length,
+								needsAttention: listing.runs.filter(
+									(run) => run.needsYou.length,
+								).length,
+								lastActivity: session.serverTime,
+							},
+						},
+						...extraProjects,
+					],
+				});
+			if (url.pathname.startsWith(`/api/projects/${project.id}/`))
+				url.pathname = `/api/${url.pathname.split("/").slice(4).join("/")}`;
+			const emptyProject = extraProjects.find(
+				(project) =>
+					url.pathname.startsWith(`/api/projects/${project.id}/`) ||
+					(url.pathname === "/api/events" &&
+						url.searchParams.get("project") === project.id),
+			);
+			if (emptyProject && url.pathname.endsWith("/runs"))
+				return json({ serverTime: serverTime(), runs: [] });
 			if (url.pathname === "/api/runs") return json(summaries());
 			if (url.pathname === "/api/events") {
 				response.writeHead(200, {
@@ -122,7 +158,11 @@ export async function createFixtureServer({
 				response.flushHeaders();
 				const client = { response, runId: url.searchParams.get("run") };
 				clients.add(client);
-				send(client, "runs", summaries());
+				send(
+					client,
+					"runs",
+					emptyProject ? { serverTime: serverTime(), runs: [] } : summaries(),
+				);
 				if (runs.has(client.runId)) send(client, "run", runs.get(client.runId));
 				const timer = setInterval(() => {
 					if (!heartbeatPaused)

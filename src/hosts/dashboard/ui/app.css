@@ -2170,3 +2170,29 @@ main.signin code {
 	color: var(--muted);
 	text-align: left;
 }
+
+/* User dashboard: native keyboard-friendly project selection, no extra motion. */
+.project-switcher {
+	display: grid;
+	gap: 6px;
+	padding: 16px;
+}
+.project-switcher select {
+	width: 100%;
+	min-width: 0;
+	font: inherit;
+	color: inherit;
+	background: var(--bg);
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	padding: 8px;
+}
+.projects-overview {
+	padding: 24px;
+	max-width: 960px;
+}
+.project-card {
+	padding: 16px 0;
+	border-bottom: 1px solid var(--line);
+	overflow-wrap: anywhere;
+}

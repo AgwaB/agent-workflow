@@ -1,6 +1,6 @@
-import { stateDir } from "../helpers/state-dir.mjs";
+import { agentWorkflowHome } from "../../dist/core/home-dir.js";
 import assert from "node:assert/strict";
-import { readFile, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import test from "node:test";
 import { setImmediate as immediate } from "node:timers/promises";
@@ -62,7 +62,10 @@ test("session creation is atomic and private; malformed sessions regenerate", as
 	);
 	assert.equal(new Set(tokens).size, 1);
 	const path = dashboardSessionPath(cwd);
-	assert.equal(path, join(stateDir(cwd), ".agent-workflow/dashboard-session"));
+	assert.equal(path, join(agentWorkflowHome(), "dashboard-session"));
+	assert.equal((await stat(path)).mode & 0o777, 0o600);
+	await chmod(path, 0o644);
+	assert.equal(await readOrCreateDashboardSession(cwd), tokens[0]);
 	assert.equal((await stat(path)).mode & 0o777, 0o600);
 	for (const malformed of [
 		"",
@@ -241,7 +244,16 @@ for (const protection of ["none", "SSE", "live run", "source failure"]) {
 			listRuns: async () => {
 				calls++;
 				if (fails) throw new Error("unavailable");
-				return live ? [{ live: true }] : [];
+				return live
+					? [
+							{
+								live: true,
+								status: "running",
+								needsYou: [],
+								updatedAt: new Date(now).toISOString(),
+							},
+						]
+					: [];
 			},
 		};
 		const server = await start({
@@ -254,9 +266,12 @@ for (const protection of ["none", "SSE", "live run", "source failure"]) {
 		});
 		let stream;
 		if (protection === "SSE") {
-			stream = await fetch(`http://127.0.0.1:${server.port}/api/events`, {
-				headers: { Cookie: `aw_session=${server.token}` },
-			});
+			stream = await fetch(
+				`http://127.0.0.1:${server.port}/api/events?project=${server.projectId}`,
+				{
+					headers: { Cookie: `aw_session=${server.token}` },
+				},
+			);
 			t.after(() => stream.body.cancel().catch(() => {}));
 			assert.equal(stream.status, 200);
 		}
@@ -313,7 +328,7 @@ test("foreground servers do not idle out", async (t) => {
 	);
 });
 
-for (const removed of ["project", "state"]) {
+for (const removed of ["discovery", "user home"]) {
 	for (const protection of ["live run", "source failure"]) {
 		test(`detached dashboard exits after ${removed} deletion despite ${protection}`, async (t) => {
 			const { cwd, start } = await project(t);
@@ -335,7 +350,9 @@ for (const removed of ["project", "state"]) {
 				},
 			});
 			const path =
-				removed === "project" ? cwd : join(stateDir(cwd), ".agent-workflow");
+				removed === "discovery"
+					? dashboardDiscoveryPath(cwd)
+					: agentWorkflowHome();
 			await rm(path, {
 				recursive: true,
 				force: true,

@@ -154,7 +154,7 @@ test("host API: identical detached launches → one run (existing); different in
 		base({ inputOverrides: { depth: "quick" } }),
 	);
 	remember(ctx, otherInputs.data);
-	assert.equal(otherInputs.outcome, "running");
+	assert.equal(otherInputs.outcome, "running", otherInputs.text);
 	assert.notEqual(otherInputs.data.runId, first.data.runId);
 	for (const variant of [
 		{ task: "another task" },

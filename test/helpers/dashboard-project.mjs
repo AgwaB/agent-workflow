@@ -11,7 +11,7 @@ import {
 	ensureDashboard,
 	readDashboardDiscovery,
 } from "../../dist/hosts/dashboard/discovery.js";
-import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+import { startDashboardServer } from "./dashboard-server.mjs";
 import {
 	killTrackedProcess,
 	processCommand,
@@ -23,6 +23,8 @@ export async function dashboardProject(t, prefix) {
 	// No await between creating the directory and registering its owner hook: a timeout
 	// during asynchronous mkdtemp could otherwise finish the test before teardown exists.
 	const cwd = mkdtempSync(join(tmpdir(), prefix));
+	const previousHome = process.env.AGENT_WORKFLOW_HOME;
+	process.env.AGENT_WORKFLOW_HOME = join(cwd, "user-state");
 	const pending = new Set(),
 		servers = [],
 		runs = new Set(),
@@ -86,6 +88,8 @@ export async function dashboardProject(t, prefix) {
 				retryDelay: 100,
 			}),
 		);
+		if (previousHome === undefined) delete process.env.AGENT_WORKFLOW_HOME;
+		else process.env.AGENT_WORKFLOW_HOME = previousHome;
 		if (errors.length)
 			throw new AggregateError(errors, "dashboard project cleanup failed");
 	});

@@ -1,4 +1,5 @@
-import { stateDir } from "../helpers/state-dir.mjs";
+import { agentWorkflowHome } from "../../dist/core/home-dir.js";
+import { createHmac } from "node:crypto";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -14,7 +15,7 @@ import {
 	ensureDashboard,
 	openInBrowser,
 } from "../../dist/hosts/dashboard/discovery.js";
-import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+import { startDashboardServer } from "../helpers/dashboard-server.mjs";
 const key = "a".repeat(43);
 async function project(t) {
 	const cwd = await mkdtemp(join(tmpdir(), "aw-wp43b-discovery-"));
@@ -26,7 +27,7 @@ async function project(t) {
 test("discovery is private, atomic, correctly located and requires a valid schema and live pid", async (t) => {
 	const cwd = await project(t);
 	const path = dashboardDiscoveryPath(cwd);
-	assert.equal(path, join(stateDir(cwd), ".agent-workflow/dashboard.json"));
+	assert.equal(path, join(agentWorkflowHome(), "dashboard.json"));
 	await writeDashboardDiscovery(cwd, {
 		pid: process.pid,
 		port: 1234,
@@ -43,6 +44,10 @@ test("discovery is private, atomic, correctly located and requires a valid schem
 		pid: process.pid,
 		port: 1234,
 		launchKey: key,
+		protocol: raw.protocol,
+		version: raw.version,
+		home: raw.home,
+		url: raw.url,
 		startedAt: raw.startedAt,
 		auth: true,
 	});
@@ -102,12 +107,15 @@ test("probe rejects other services, malformed errors and redirects at once, and 
 }, async (t) => {
 	const cwd = await project(t);
 	let mode = "ok";
-	const server = createServer((_req, res) => {
+	const server = createServer((req, res) => {
 		if (mode === "hang") return;
 		res.writeHead(
 			mode === "redirect"
 				? 302
-				: mode === "ok" || mode === "open-auth" || mode === "open"
+				: mode === "ok" ||
+						mode === "open-auth" ||
+						mode === "open" ||
+						mode === "valid"
 					? 200
 					: 401,
 			{
@@ -117,13 +125,22 @@ test("probe rejects other services, malformed errors and redirects at once, and 
 		);
 		// "open-auth": a 200 that claims auth (not an open dashboard's answer); "open": the real one.
 		res.end(
-			mode === "bad"
-				? "{}"
-				: mode === "open-auth"
-					? '{"apiVersion":1,"auth":true}'
-					: mode === "open"
-						? '{"apiVersion":1,"auth":false}'
-						: '{"error":"use the printed dashboard URL"}',
+			mode === "valid"
+				? JSON.stringify({
+						protocol: 2,
+						proof: createHmac("sha256", key)
+							.update(
+								new URL(req.url, "http://localhost").searchParams.get("nonce"),
+							)
+							.digest("hex"),
+					})
+				: mode === "bad"
+					? "{}"
+					: mode === "open-auth"
+						? '{"apiVersion":1,"auth":true}'
+						: mode === "open"
+							? '{"apiVersion":1,"auth":false}'
+							: '{"error":"use the printed dashboard URL"}',
 		);
 	});
 	await new Promise((done) => server.listen(0, "127.0.0.1", done));
@@ -136,7 +153,12 @@ test("probe rejects other services, malformed errors and redirects at once, and 
 		port: server.address().port,
 		launchKey: key,
 	});
-	for (mode of ["ok", "open-auth", "bad", "redirect", "hang"]) {
+	for (mode of ["ok", "open-auth", "open", "bad", "redirect", "hang"]) {
+		await writeDashboardDiscovery(cwd, {
+			pid: process.pid,
+			port: server.address().port,
+			launchKey: key,
+		});
 		const start = Date.now();
 		assert.equal(await readDashboardDiscovery(cwd), undefined, mode);
 		const elapsed = Date.now() - start;
@@ -151,8 +173,13 @@ test("probe rejects other services, malformed errors and redirects at once, and 
 				`${mode} is rejected without waiting: ${elapsed} ms`,
 			);
 	}
-	for (mode of ["valid", "open"])
-		assert.ok(await readDashboardDiscovery(cwd), mode);
+	mode = "valid";
+	await writeDashboardDiscovery(cwd, {
+		pid: process.pid,
+		port: server.address().port,
+		launchKey: key,
+	});
+	assert.ok(await readDashboardDiscovery(cwd), mode);
 	const start = Date.now();
 	assert.equal(
 		await readDashboardDiscovery(cwd, { probe: () => new Promise(() => {}) }),

@@ -19,7 +19,7 @@ import {
 	REPORT_MAX_BYTES,
 } from "../../dist/hosts/run-artifacts.js";
 import { withRunLease } from "../../dist/core/store.js";
-import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+import { startDashboardServer } from "../helpers/dashboard-server.mjs";
 
 const AT = "2026-10-29T08:00:00.000Z";
 const SECRET = "dashboard-test-secret-0123456789";
@@ -186,12 +186,21 @@ test("HTTP never accepts a valid-looking run prefix as a full id", {
 	const headers = { Cookie: `aw_session=${s.token}` };
 	const origin = `http://127.0.0.1:${s.port}`;
 	assert.equal(
-		(await fetch(`${origin}/api/runs/workflow_unique_full`, { headers }))
-			.status,
+		(
+			await fetch(
+				`${origin}/api/projects/${s.projectId}/runs/workflow_unique_full`,
+				{ headers },
+			)
+		).status,
 		200,
 	);
 	assert.equal(
-		(await fetch(`${origin}/api/runs/workflow_unique`, { headers })).status,
+		(
+			await fetch(
+				`${origin}/api/projects/${s.projectId}/runs/workflow_unique`,
+				{ headers },
+			)
+		).status,
 		404,
 	);
 });

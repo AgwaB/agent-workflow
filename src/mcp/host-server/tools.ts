@@ -1,3 +1,4 @@
+import { projectId } from "../../core/state-location.js";
 // New in agent-workflow (WP13): the `agent-workflow` host MCP server's tools for agent hosts
 // (Claude Code, Codex): workflow_list, workflow_run, workflow_dynamic, workflow_status,
 // workflow_wait, workflow_stop, workflow_inspect, workflow_logs (WP18b), workflow_validate. Each is a thin call into one
@@ -2010,7 +2011,10 @@ export function createHostMcpService(
 				);
 			let url: string;
 			try {
-				url = await mintLaunchUrl(dashboard, run === undefined ? {} : { run });
+				url = await mintLaunchUrl(dashboard, {
+					project: projectId(ctx.cwd),
+					...(run === undefined ? {} : { run }),
+				});
 			} catch {
 				// Never echo transport errors: they can contain credentials or the launch URL.
 				throw new Error("Could not mint dashboard launch URL.");
@@ -2084,7 +2088,12 @@ export function createHostMcpService(
 						? `Opened the dashboard in your browser (127.0.0.1:${dashboard.port}).`
 						: `Dashboard is running on 127.0.0.1:${dashboard.port}; it was not opened (declined or no browser). Open it from a terminal with \`agent-workflow dashboard --open\`.`;
 			return {
-				content: [{ type: "text", text }],
+				content: [
+					{
+						type: "text",
+						text: `${text}${dashboard.portReason ? ` ${dashboard.portReason}` : ""}`,
+					},
+				],
 				...(mcpVersionHasStructuredContent(call.protocolVersion)
 					? {
 							structuredContent: {

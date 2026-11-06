@@ -29,7 +29,14 @@ export interface DashboardActionResult {
 	interruptedTaskIds?: string[];
 	resetTaskIds?: string[];
 }
+export interface DashboardProjectCounts {
+	running: number;
+	needsAttention: number;
+	lastActivity: string | null;
+}
 export interface DashboardSource {
+	/** Cheap overview/liveness without task logs or per-run detail. */
+	counts?(): Promise<DashboardProjectCounts>;
 	listRuns(): Promise<DashboardRunSummary[]>;
 	run(runId: string): Promise<DashboardRun | undefined>;
 	taskLogs(
@@ -93,6 +100,27 @@ export function hostApiDashboardSource(ctx: HostApiContext): DashboardSource {
 		return { run: status.data.run, shown: shown.data };
 	};
 	return {
+		async counts() {
+			const runs = (
+				(await statusAction(ctx, { snapshot: true })).data.runs ?? []
+			).filter((run) => !run.parentRunId);
+			return {
+				running: runs.filter(
+					(run) => run.status === "running" || run.status === "blocked",
+				).length,
+				needsAttention: runs.filter(
+					(run) =>
+						run.status === "blocked" ||
+						run.status === "failed" ||
+						run.taskSummary.failed > 0,
+				).length,
+				lastActivity:
+					runs
+						.map((run) => run.updatedAt)
+						.sort()
+						.at(-1) ?? null,
+			};
+		},
 		async listRuns() {
 			const summaries =
 				(await statusAction(ctx, { snapshot: true })).data.runs ?? [];

@@ -1,7 +1,7 @@
 // WP43: loopback-only HTTP host. No framework or engine/file-store access.
 // WP43d: no sign-in by default (loopback + Host/fetch-site/Origin/CSRF); `auth` opts into the
 // persistent-session cookie model for shared machines.
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import {
 	createServer,
@@ -10,6 +10,7 @@ import {
 } from "node:http";
 import { basename, resolve } from "node:path";
 import {
+	DASHBOARD_PROTOCOL,
 	writeDashboardDiscovery,
 	dashboardDiscoveryPath,
 	openInBrowser,
@@ -18,6 +19,13 @@ import {
 	writePreferredDashboardPort,
 	removeDashboardDiscovery,
 } from "./discovery.js";
+import {
+	listRegisteredProjects,
+	validProjectId,
+	projectId,
+	type ProjectRegistration,
+} from "../../core/state-location.js";
+import { bindDashboardPort, dashboardPortCandidates } from "./ports.js";
 import { HostUsageError } from "../args.js";
 import { hostTextRedactor } from "../redaction.js";
 import { boundReportText } from "../run-artifacts.js";
@@ -41,6 +49,8 @@ import {
 } from "./security.js";
 
 export interface DashboardServerOptions {
+	/** Advertised wire protocol (embedders/tests); normally the current protocol. */
+	protocol?: number;
 	cwd: string;
 	env?: NodeJS.ProcessEnv;
 	port?: number;
@@ -63,6 +73,8 @@ export interface DashboardServerOptions {
 	onIdleExit?: () => void;
 }
 export interface DashboardServer {
+	protocol: number;
+	portReason?: string;
 	url: string;
 	port: number;
 	/** Session token when `auth` is on; otherwise the server's private CSRF secret (not a URL credential). */
@@ -198,6 +210,9 @@ const SIGNIN_SCRIPT = `(() => {
 export async function startDashboardServer(
 	options: DashboardServerOptions,
 ): Promise<DashboardServer> {
+	const protocol = options.protocol ?? DASHBOARD_PROTOCOL;
+	if (!Number.isSafeInteger(protocol) || protocol < 1)
+		throw new HostUsageError("invalid dashboard protocol");
 	const cwd = resolve(options.cwd);
 	if (!(await stat(cwd).catch(() => undefined))?.isDirectory())
 		throw new HostUsageError("--project must be an existing directory");
@@ -210,8 +225,42 @@ export async function startDashboardServer(
 		throw new HostUsageError("--port must be an integer from 1 to 65535");
 	const env = options.env ?? process.env;
 	const redact = hostTextRedactor(env);
-	const source =
-		options.source ?? hostApiDashboardSource({ cwd, env, host: "cli" });
+	const sources = new Map<string, DashboardSource>();
+	const sourceFor = (project: ProjectRegistration) => {
+		let source = sources.get(project.id);
+		if (!source) {
+			source =
+				options.source && project.id === projectId(cwd)
+					? options.source
+					: hostApiDashboardSource({ cwd: project.path, env, host: "cli" });
+			sources.set(project.id, source);
+		}
+		return source;
+	};
+	const requireProject = async (id: string | null) => {
+		if (!id || !validProjectId(id))
+			throw new HttpError(400, "invalid project id");
+		const project = (await listRegisteredProjects()).find(
+			(project) => project.id === id,
+		);
+		if (!project) throw new HttpError(404, "project not found");
+		return sourceFor(project);
+	};
+	const countsFor = async (source: DashboardSource) => {
+		if (source.counts) return source.counts();
+		const runs = await source.listRuns();
+		return {
+			running: runs.filter(
+				(run) => run.live || ["running", "blocked"].includes(run.status),
+			).length,
+			needsAttention: runs.filter((run) => run.needsYou.length > 0).length,
+			lastActivity:
+				runs
+					.map((run) => run.updatedAt)
+					.sort()
+					.at(-1) ?? null,
+		};
+	};
 	const auth = options.auth ?? env.AGENT_WORKFLOW_DASHBOARD_AUTH === "1";
 	// Without auth the token is only the CSRF secret: never persisted, never printed or accepted in
 	// a URL; foreign pages cannot read `/api/session` (no CORS), so they cannot forge mutations.
@@ -264,23 +313,24 @@ export async function startDashboardServer(
 		/* Source and dist have the same module depth. */
 	}
 	const safe = <T>(value: T) => redactDashboardData(value, redact);
-	const getRun = async (runId: string) => {
+	const getRun = async (source: DashboardSource, runId: string) => {
 		const run = await source.run(runId);
 		if (!run || run.runId !== runId) throw new HttpError(404, "run not found");
 		return safe(run);
 	};
-	const runsPayload = async () => ({
+	const runsPayload = async (source: DashboardSource) => ({
 		serverTime: serverTime(),
 		runs: safe(await source.listRuns()),
 	});
 
 	async function events(
+		source: DashboardSource,
 		response: ServerResponse,
 		runId: string | null,
 	): Promise<void> {
 		// Resolve before committing SSE headers so unknown ids still return a JSON 404.
-		const firstRuns = await runsPayload();
-		const firstRun = runId ? await getRun(runId) : undefined;
+		const firstRuns = await runsPayload(source);
+		const firstRun = runId ? await getRun(source, runId) : undefined;
 		if (response.destroyed) return;
 		response.writeHead(200, {
 			"Content-Type": "text/event-stream; charset=utf-8",
@@ -309,9 +359,9 @@ export async function startDashboardServer(
 			if (busy || closed || response.writableNeedDrain) return;
 			busy = true;
 			void (async () => {
-				const runs = await runsPayload();
+				const runs = await runsPayload(source);
 				send("runs", runs, runs.runs);
-				if (runId) send("run", await getRun(runId));
+				if (runId) send("run", await getRun(source, runId));
 				if (now() - lastHeartbeat >= 15_000) heartbeat();
 			})()
 				.catch(() => cleanup())
@@ -359,6 +409,30 @@ export async function startDashboardServer(
 		} catch {
 			throw new HttpError(400, "invalid URL");
 		}
+		if (request.method === "GET" && url.pathname === "/api/identity") {
+			const nonce = url.searchParams.get("nonce") ?? "";
+			if (!/^[A-Za-z0-9_-]{16,128}$/.test(nonce))
+				throw new HttpError(400, "invalid nonce");
+			json(response, 200, {
+				protocol,
+				version,
+				proof: createHmac("sha256", launchKey).update(nonce).digest("hex"),
+			});
+			return;
+		}
+		if (request.method === "POST" && url.pathname === "/api/shutdown") {
+			if (!launchKeyOk(request)) throw new HttpError(401, "invalid launch key");
+			if (
+				request.headers.origin !== undefined &&
+				request.headers.origin !== origin
+			)
+				throw new HttpError(403, "invalid Origin");
+			json(response, 200, { stopping: true });
+			setImmediate(() => {
+				void dashboard.close().then(() => options.onIdleExit?.());
+			});
+			return;
+		}
 		// WP43b: the minter (CLI --open, Pi, the MCP tool) may ask whether its launch URL was used,
 		// so an MCP host can send `notifications/elicitation/complete` once the browser signed in.
 		const launchStatus = /^\/api\/launch\/([A-Za-z0-9_-]{16,64})$/.exec(
@@ -381,6 +455,11 @@ export async function startDashboardServer(
 				"application/json"
 			)
 				throw new HttpError(400, "Content-Type must be application/json");
+			if (
+				request.headers.origin !== undefined &&
+				request.headers.origin !== origin
+			)
+				throw new HttpError(403, "invalid Origin");
 			const body = await readBody(request);
 			const params = new URLSearchParams();
 			for (const [key, value] of Object.entries(body)) {
@@ -602,8 +681,7 @@ export async function startDashboardServer(
 		}
 		if (request.method === "GET" && url.pathname === "/api/session") {
 			json(response, 200, {
-				apiVersion: 1,
-				project: { path: redact(cwd), name: redact(basename(cwd)) },
+				apiVersion: 2,
 				mode: options.readonly ? "read-only" : "read-write",
 				auth,
 				csrf,
@@ -612,14 +690,31 @@ export async function startDashboardServer(
 			});
 			return;
 		}
-		if (request.method === "GET" && url.pathname === "/api/runs") {
-			json(response, 200, await runsPayload());
+		if (request.method === "GET" && url.pathname === "/api/projects") {
+			const projects = [];
+			for (const project of await listRegisteredProjects()) {
+				projects.push({
+					id: project.id,
+					name: redact(project.name),
+					path: redact(project.path),
+					pathMissing: !(
+						await stat(project.path).catch(() => undefined)
+					)?.isDirectory(),
+					lastSeenAt: project.lastSeenAt,
+					counts: await countsFor(sourceFor(project)),
+				});
+			}
+			json(response, 200, {
+				projects: safe(projects),
+				serverTime: serverTime(),
+			});
 			return;
 		}
 		if (request.method === "GET" && url.pathname === "/api/events") {
+			const source = await requireProject(url.searchParams.get("project"));
 			const id = url.searchParams.get("run");
 			if (id !== null) requireRunId(id);
-			await events(response, id);
+			await events(source, response, id);
 			return;
 		}
 		let parts: string[];
@@ -628,11 +723,20 @@ export async function startDashboardServer(
 		} catch {
 			throw new HttpError(400, "invalid path encoding");
 		}
-		if (parts[0] !== "api" || parts[1] !== "runs" || !parts[2])
+		if (parts[0] !== "api" || parts[1] !== "projects")
 			throw new HttpError(404, "not found");
+		const source = await requireProject(parts[2] ?? null);
+		// Keep the existing run route contract inside an explicitly validated project.
+		parts = ["api", ...parts.slice(3)];
+		if (parts[1] !== "runs") throw new HttpError(404, "not found");
+		if (request.method === "GET" && parts.length === 2) {
+			json(response, 200, await runsPayload(source));
+			return;
+		}
+		if (!parts[2]) throw new HttpError(404, "not found");
 		const runId = requireRunId(parts[2]);
 		if (request.method === "GET" && parts.length === 3) {
-			json(response, 200, await getRun(runId));
+			json(response, 200, await getRun(source, runId));
 			return;
 		}
 		if (
@@ -653,7 +757,7 @@ export async function startDashboardServer(
 				lines > 400
 			)
 				throw new HttpError(400, "invalid log stream or lines (1..400)");
-			await getRun(runId);
+			await getRun(source, runId);
 			const logs = await source.taskLogs(runId, taskId, {
 				stream: stream as "all" | "output" | "stderr" | "events",
 				lines,
@@ -670,7 +774,7 @@ export async function startDashboardServer(
 		) {
 			const taskId = parts[4]!;
 			if (!validTaskId(taskId)) throw new HttpError(400, "invalid task id");
-			const shownRun = await getRun(runId);
+			const shownRun = await getRun(source, runId);
 			if (!shownRun.tasks?.some((task) => task.taskId === taskId))
 				throw new HttpError(404, "task not found");
 			// A known task without result files (not finished, or none written) is an empty result,
@@ -684,7 +788,7 @@ export async function startDashboardServer(
 			parts.length === 4 &&
 			parts[3] === "report"
 		) {
-			await getRun(runId);
+			await getRun(source, runId);
 			const report = await source.report(runId);
 			if (!report) throw new HttpError(404, "report not found");
 			const redacted = safe(report);
@@ -702,7 +806,7 @@ export async function startDashboardServer(
 			["stop", "resume", "approve"].includes(parts[3]!)
 		) {
 			const body = await readBody(request);
-			await getRun(runId);
+			await getRun(source, runId);
 			let result;
 			if (parts[3] === "approve") {
 				if (
@@ -739,9 +843,8 @@ export async function startDashboardServer(
 	});
 	server.requestTimeout = 15_000;
 	server.headersTimeout = 10_000;
-	// WP43c: links in old chat messages must survive restarts, so a project's dashboard reuses its
-	// last port when nothing else holds it; an explicit --port is strict, an ephemeral one is the
-	// fallback.
+	// Port policy is pure: default home uses the fixed range; custom homes reuse their last
+	// port or ask the OS. Only an implicit occupied candidate may fall back.
 	const preferred =
 		options.port === undefined && options.discovery
 			? await readPreferredDashboardPort(cwd)
@@ -754,27 +857,48 @@ export async function startDashboardServer(
 				ready();
 			});
 		});
+	const explicit =
+		options.port ??
+		(env.AGENT_WORKFLOW_DASHBOARD_PORT === undefined
+			? undefined
+			: Number(env.AGENT_WORKFLOW_DASHBOARD_PORT));
+	if (
+		explicit !== undefined &&
+		(!Number.isInteger(explicit) || explicit < 1 || explicit > 65535)
+	)
+		throw new HostUsageError(
+			"dashboard port must be an integer from 1 to 65535",
+		);
 	try {
-		await listenOn(options.port ?? preferred ?? 0);
+		await bindDashboardPort(
+			dashboardPortCandidates({
+				explicit,
+				customHome: Boolean(process.env.AGENT_WORKFLOW_HOME?.trim()),
+				lastPort: preferred,
+			}),
+			listenOn,
+		);
 	} catch (error) {
 		const code = (error as NodeJS.ErrnoException).code;
-		if (
-			options.port === undefined &&
-			preferred !== undefined &&
-			(code === "EADDRINUSE" || code === "EACCES")
-		) {
-			await listenOn(0);
-		} else if (code === "EADDRINUSE" || code === "EACCES") {
+		if (code === "EPERM" || code === "EACCES")
 			throw new HostUsageError(
-				"dashboard port is unavailable (in use or permission denied)",
+				"Dashboard cannot listen from a sandboxed shell; start it from a terminal, hook or MCP server.",
 			);
-		} else throw error;
+		if (code === "EADDRINUSE")
+			throw new HostUsageError("dashboard port is unavailable (in use)");
+		throw error;
 	}
 	const address = server.address();
 	if (!address || typeof address === "string")
 		throw new Error("dashboard did not bind a TCP port");
 	port = address.port;
 	origin = `http://127.0.0.1:${port}`;
+	const portReason =
+		explicit === undefined &&
+		!process.env.AGENT_WORKFLOW_HOME?.trim() &&
+		port !== 7417
+			? "Port 7417 is occupied by another listener; using the next available dashboard port."
+			: undefined;
 	if (options.discovery) {
 		await writePreferredDashboardPort(cwd, port).catch(() => undefined);
 		try {
@@ -784,6 +908,9 @@ export async function startDashboardServer(
 				launchKey,
 				startedAt,
 				auth,
+				version,
+				protocol,
+				portReason,
 				...(options.idleExitMs !== undefined
 					? {
 							detached: true,
@@ -802,7 +929,11 @@ export async function startDashboardServer(
 	let closing: Promise<void> | undefined;
 	let idleTimer: ReturnType<typeof setInterval> | undefined;
 	const dashboard: DashboardServer = {
-		url: auth ? `${origin}/?token=${token}` : `${origin}/`,
+		protocol,
+		portReason,
+		url: auth
+			? `${origin}/?token=${token}&project=${projectId(cwd)}`
+			: `${origin}/?project=${projectId(cwd)}`,
 		port,
 		token,
 		launchKey,
@@ -843,7 +974,13 @@ export async function startDashboardServer(
 							return;
 						}
 					}
-					const live = (await source.listRuns()).some((run) => run.live);
+					let live = false;
+					for (const project of await listRegisteredProjects()) {
+						if ((await countsFor(sourceFor(project))).running > 0) {
+							live = true;
+							break;
+						}
+					}
 					if (closing) return;
 					if (!clients.size && !live && now() - noClientsSince >= idleExitMs) {
 						await dashboard.close();
@@ -855,6 +992,9 @@ export async function startDashboardServer(
 							launchKey,
 							startedAt,
 							auth,
+							protocol,
+							portReason,
+							version,
 							detached: true,
 							idleExitAt: new Date(
 								(clients.size || live ? now() : noClientsSince) + idleExitMs,

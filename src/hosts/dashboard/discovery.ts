@@ -1,11 +1,11 @@
 // WP43b: local dashboard discovery and opt-in browser launch. Never expose control secrets in text.
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { constants } from "node:fs";
+import { createHmac, randomBytes } from "node:crypto";
 import {
-	chmod,
 	link,
-	mkdir,
-	readFile,
+	lstat,
+	open,
 	rename,
 	rm,
 	stat,
@@ -15,12 +15,24 @@ import { request } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
-import { workflowsRoot } from "../../core/store.js";
+import { agentWorkflowHome } from "../../core/home-dir.js";
+import {
+	ensurePrivateDirectory,
+	readPrivateFileText,
+	writePrivateFileAtomic,
+} from "../../core/secure-atomic-write.js";
+import { secureEqual } from "./security.js";
 import { withStoreLock } from "../store-lock.js";
 
+export const DASHBOARD_PROTOCOL = 2;
 const SCHEMA = "agent-workflow-dashboard-v1";
 export interface DashboardDiscovery {
 	pid: number;
+	protocol: number;
+	version: string;
+	home: string;
+	url: string;
+	portReason?: string;
 	port: number;
 	launchKey: string;
 	startedAt: string;
@@ -30,19 +42,19 @@ export interface DashboardDiscovery {
 	idleExitAt?: string;
 }
 export type DashboardLaunchParams = Partial<
-	Record<"run" | "task" | "tab" | "view", string>
+	Record<"project" | "run" | "task" | "tab" | "view", string>
 >;
 
-export function dashboardDiscoveryPath(cwd: string): string {
-	return join(workflowsRoot(cwd), "..", "dashboard.json");
+export function dashboardDiscoveryPath(_cwd?: string): string {
+	return join(agentWorkflowHome(), "dashboard.json");
 }
-/** Stable project credential; only explicit reset signs existing browsers out. */
-export function dashboardSessionPath(cwd: string): string {
-	return join(workflowsRoot(cwd), "..", "dashboard-session");
+/** Stable user credential; only explicit reset signs existing browsers out. */
+export function dashboardSessionPath(_cwd?: string): string {
+	return join(agentWorkflowHome(), "dashboard-session");
 }
 async function publishSession(cwd: string, replace: boolean): Promise<string> {
 	const path = dashboardSessionPath(cwd);
-	await mkdir(dirname(path), { recursive: true });
+	await ensurePrivateDirectory(dirname(path));
 	const token = randomBytes(32).toString("base64url");
 	const temporary = `${path}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
 	try {
@@ -64,9 +76,25 @@ export async function readOrCreateDashboardSession(
 	return withStoreLock(path, async () => {
 		for (;;) {
 			try {
-				const token = (await readFile(path, "utf8")).trim();
+				const token = (await readPrivateFileText(path, 4096)).trim();
 				if (/^[A-Za-z0-9_-]{43}$/.test(token)) {
-					await chmod(path, 0o600);
+					const handle = await open(
+						path,
+						constants.O_RDONLY | constants.O_NOFOLLOW,
+					);
+					try {
+						const info = await handle.stat();
+						if (
+							!info.isFile() ||
+							info.nlink !== 1 ||
+							(typeof process.getuid === "function" &&
+								info.uid !== process.getuid())
+						)
+							throw new Error("Unsafe dashboard session file");
+						await handle.chmod(0o600);
+					} finally {
+						await handle.close();
+					}
 					return token;
 				}
 				await rm(path, { force: true });
@@ -81,18 +109,18 @@ export async function readOrCreateDashboardSession(
 		}
 	});
 }
-/** The port this project's dashboard used last (`.agent-workflow/dashboard-port`); reused when free. */
-export function dashboardPortPath(cwd: string): string {
-	return join(workflowsRoot(cwd), "..", "dashboard-port");
+/** Last user-server port; custom homes reuse it when free. */
+export function dashboardPortPath(_cwd?: string): string {
+	return join(agentWorkflowHome(), "dashboard-port");
 }
 export async function readPreferredDashboardPort(
 	cwd: string,
 ): Promise<number | undefined> {
 	try {
 		const value = Number(
-			(await readFile(dashboardPortPath(cwd), "utf8")).trim(),
+			(await readPrivateFileText(dashboardPortPath(cwd), 64)).trim(),
 		);
-		return Number.isInteger(value) && value >= 1024 && value <= 65535
+		return Number.isInteger(value) && value >= 1 && value <= 65535
 			? value
 			: undefined;
 	} catch {
@@ -104,8 +132,8 @@ export async function writePreferredDashboardPort(
 	port: number,
 ): Promise<void> {
 	const path = dashboardPortPath(cwd);
-	await mkdir(dirname(path), { recursive: true });
-	await writeFile(path, `${port}\n`, { mode: 0o600 });
+	await ensurePrivateDirectory(dirname(path));
+	await writePrivateFileAtomic(path, `${port}\n`);
 }
 /** Caller stops any running dashboard before rotating its session. */
 export function resetDashboardSession(cwd: string): Promise<string> {
@@ -119,21 +147,19 @@ export async function writeDashboardDiscovery(
 		DashboardDiscovery,
 		"pid" | "port" | "launchKey" | "detached" | "idleExitAt"
 	> &
-		Partial<Pick<DashboardDiscovery, "startedAt" | "auth">>,
+		Partial<
+			Pick<
+				DashboardDiscovery,
+				"startedAt" | "auth" | "protocol" | "version" | "portReason"
+			>
+		>,
 ): Promise<void> {
 	const path = dashboardDiscoveryPath(cwd);
-	await mkdir(dirname(path), { recursive: true });
-	const temporary = `${path}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
-	try {
-		await writeFile(
-			temporary,
-			`${JSON.stringify({ schema: SCHEMA, startedAt: new Date().toISOString(), ...data })}\n`,
-			{ mode: 0o600, flag: "wx" },
-		);
-		await rename(temporary, path);
-	} finally {
-		await rm(temporary, { force: true });
-	}
+	await ensurePrivateDirectory(dirname(path));
+	await writePrivateFileAtomic(
+		path,
+		`${JSON.stringify({ schema: SCHEMA, protocol: DASHBOARD_PROTOCOL, version: "unknown", home: agentWorkflowHome(), url: `http://127.0.0.1:${data.port}/`, startedAt: new Date().toISOString(), ...data })}\n`,
+	);
 }
 /** An owner key prevents an older server's close from removing a newer server's discovery. */
 export async function removeDashboardDiscovery(
@@ -151,10 +177,21 @@ async function loadDiscovery(
 ): Promise<DashboardDiscovery | undefined> {
 	try {
 		const path = dashboardDiscoveryPath(cwd);
-		if ((await stat(path)).size > 4096) return undefined;
-		const value = JSON.parse(await readFile(path, "utf8"));
+		const info = await lstat(path);
+		if (
+			!info.isFile() ||
+			info.isSymbolicLink() ||
+			(info.mode & 0o777) !== 0o600 ||
+			(typeof process.getuid === "function" && info.uid !== process.getuid())
+		)
+			return undefined;
+		const value = JSON.parse(await readPrivateFileText(path, 4096));
 		if (
 			value.schema !== SCHEMA ||
+			!Number.isSafeInteger(value.protocol) ||
+			value.protocol < 1 ||
+			value.home !== agentWorkflowHome() ||
+			typeof value.version !== "string" ||
 			!Number.isSafeInteger(value.pid) ||
 			value.pid <= 0 ||
 			!Number.isInteger(value.port) ||
@@ -168,11 +205,18 @@ async function loadDiscovery(
 		)
 			return undefined;
 		return {
+			protocol: value.protocol,
+			version: value.version,
+			home: value.home,
+			url: `http://127.0.0.1:${value.port}/`,
 			pid: value.pid,
 			port: value.port,
 			launchKey: value.launchKey,
 			startedAt: value.startedAt,
 			auth: value.auth !== false,
+			...(typeof value.portReason === "string" && value.portReason.length <= 300
+				? { portReason: value.portReason }
+				: {}),
 			...(value.detached === true ? { detached: true as const } : {}),
 			...(typeof value.idleExitAt === "string" &&
 			Number.isFinite(Date.parse(value.idleExitAt))
@@ -193,11 +237,15 @@ const DASHBOARD_LOCAL_REQUEST_MS = 3000;
 
 /**
  * Bounded identity probe without credentials; do not follow redirects or accept an arbitrary
- * listener. An auth server answers 401 `{ error }`; an open one answers 200 `{ apiVersion: 1 }`.
+ * listener. Only a fresh nonce HMAC made with our private launch key proves ownership.
  */
 export function probeDashboard(
-	discovery: DashboardDiscovery,
+	discovery: Pick<DashboardDiscovery, "port" | "launchKey" | "protocol">,
 ): Promise<boolean> {
+	const nonce = randomBytes(32).toString("base64url");
+	const expected = createHmac("sha256", discovery.launchKey)
+		.update(nonce)
+		.digest("hex");
 	return new Promise((done) => {
 		let settled = false;
 		const finish = (valid: boolean) => {
@@ -211,12 +259,12 @@ export function probeDashboard(
 			{
 				hostname: "127.0.0.1",
 				port: discovery.port,
-				path: "/api/session",
+				path: `/api/identity?nonce=${nonce}`,
 				method: "GET",
 			},
 			(res) => {
 				if (
-					(res.statusCode !== 401 && res.statusCode !== 200) ||
+					res.statusCode !== 200 ||
 					!res.headers["content-type"]?.startsWith("application/json")
 				) {
 					finish(false);
@@ -232,9 +280,8 @@ export function probeDashboard(
 					try {
 						const parsed = JSON.parse(body);
 						finish(
-							res.statusCode === 401
-								? typeof parsed.error === "string"
-								: parsed.apiVersion === 1 && parsed.auth === false,
+							parsed.protocol === discovery.protocol &&
+								secureEqual(parsed.proof, expected),
 						);
 					} catch {
 						finish(false);
@@ -270,6 +317,7 @@ export async function readDashboardDiscovery(
 				timer = setTimeout(() => done(false), DASHBOARD_LOCAL_REQUEST_MS);
 			}),
 		]);
+		if (!valid) await removeDashboardDiscovery(cwd, data.launchKey);
 		return valid ? data : undefined;
 	} catch {
 		return undefined;
@@ -295,9 +343,11 @@ export function detectAgentEnvironment(
 	return { detected: false };
 }
 export async function mintLaunchUrl(
-	discovery: Pick<DashboardDiscovery, "port" | "launchKey">,
+	discovery: Pick<DashboardDiscovery, "port" | "launchKey" | "protocol">,
 	params: DashboardLaunchParams = {},
 ): Promise<string> {
+	if (!(await probeDashboard(discovery)))
+		throw new Error("Dashboard identity verification failed");
 	const origin = `http://127.0.0.1:${discovery.port}`;
 	const response = await fetch(`${origin}/api/launch`, {
 		method: "POST",
@@ -339,12 +389,13 @@ const lastLaunchIds = new Map<string, string>();
  * was consumed). `undefined` when the dashboard cannot say (unknown launch, not reachable).
  */
 export async function launchConsumed(
-	discovery: Pick<DashboardDiscovery, "port" | "launchKey">,
+	discovery: Pick<DashboardDiscovery, "port" | "launchKey" | "protocol">,
 	launchUrl: string,
 ): Promise<boolean | undefined> {
 	const launchId = lastLaunchIds.get(launchUrl);
 	if (!launchId) return undefined;
 	try {
+		if (!(await probeDashboard(discovery))) return undefined;
 		const response = await fetch(
 			`http://127.0.0.1:${discovery.port}/api/launch/${launchId}`,
 			{
@@ -377,13 +428,131 @@ export function setDashboardStartBudgetForTests(ms: number | undefined): void {
 	dashboardStartBudget = ms ?? DASHBOARD_START_BUDGET_MS;
 }
 
+/** Serialize discovery, spawn and adoption across processes. Never hold this in the spawned server. */
 export async function ensureDashboard(
 	cwd: string,
 	env: NodeJS.ProcessEnv,
 	options: { start: boolean },
 ): Promise<DashboardDiscovery | undefined> {
+	if (!options.start) return readDashboardDiscovery(cwd);
+	return withDashboardStartLock((owner) =>
+		startEnsuredDashboard(
+			cwd,
+			{ ...env, AGENT_WORKFLOW_DASHBOARD_START_LOCK: owner },
+			options,
+		),
+	);
+}
+export async function withDashboardStartLock<T>(
+	body: (owner: string) => Promise<T>,
+): Promise<T> {
+	const lock = await acquireDashboardStartLock();
+	try {
+		return await body(lock.owner);
+	} finally {
+		await lock.release();
+	}
+}
+/** A spawned CLI may inherit its launcher's lock, but only an exact live-owner record authorizes it. */
+export async function acquireDashboardStartLock(
+	inheritedOwner?: string,
+): Promise<{ owner: string; release(): Promise<void> }> {
+	const path = join(agentWorkflowHome(), "dashboard.lock");
+	await ensurePrivateDirectory(dirname(path));
+	if (inheritedOwner) {
+		const lock = JSON.parse(
+			await readPrivateFileText(path, 4096).catch(() => "null"),
+		);
+		if (lock?.owner === inheritedOwner) {
+			try {
+				process.kill(lock.pid, 0);
+				return { owner: inheritedOwner, release: async () => {} };
+			} catch {
+				/* Reacquire a dead parent's lock. */
+			}
+		}
+	}
+	const owner = randomBytes(16).toString("hex");
+	const deadline = Date.now() + dashboardStartBudget * 2;
+	for (;;) {
+		try {
+			await writeFile(
+				path,
+				JSON.stringify({ pid: process.pid, startedAt: Date.now(), owner }),
+				{ mode: 0o600, flag: "wx" },
+			);
+			break;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+			// Serialize stale cleanup as well as checking the generation: two waiters must not
+			// unlink a fresh lock that replaced the stale one between their reads.
+			await withStoreLock(path, async () => {
+				try {
+					const info = await stat(path);
+					let stale = Date.now() - info.mtimeMs > dashboardStartBudget;
+					try {
+						const lock = JSON.parse(await readPrivateFileText(path, 4096));
+						try {
+							process.kill(lock.pid, 0);
+						} catch (error) {
+							stale ||= (error as NodeJS.ErrnoException).code === "ESRCH";
+						}
+						stale ||= Date.now() - lock.startedAt > dashboardStartBudget;
+					} catch {
+						/* An incomplete lock ages out, never immediately. */
+					}
+					if (stale) await rm(path, { force: true });
+				} catch (error) {
+					if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+				}
+			});
+			if (Date.now() >= deadline)
+				throw new Error("Dashboard start lock timed out");
+			await sleep(50);
+		}
+	}
+	return {
+		owner,
+		async release() {
+			const current = JSON.parse(
+				await readPrivateFileText(path, 4096).catch(() => "null"),
+			);
+			if (current?.owner === owner) await rm(path, { force: true });
+		},
+	};
+}
+export async function shutdownDashboard(
+	discovery: DashboardDiscovery,
+): Promise<void> {
+	if (!(await probeDashboard(discovery)))
+		throw new Error("Dashboard identity verification failed");
+	const response = await fetch(
+		`http://127.0.0.1:${discovery.port}/api/shutdown`,
+		{
+			method: "POST",
+			headers: { "X-AW-Launch-Key": discovery.launchKey },
+			redirect: "error",
+			signal: AbortSignal.timeout(DASHBOARD_LOCAL_REQUEST_MS),
+		},
+	);
+	if (!response.ok) throw new Error("Could not stop dashboard");
+}
+
+async function startEnsuredDashboard(
+	cwd: string,
+	env: NodeJS.ProcessEnv,
+	options: { start: boolean },
+): Promise<DashboardDiscovery | undefined> {
 	const deadline = Date.now() + dashboardStartBudget;
-	const existing = await readDashboardDiscovery(cwd);
+	let existing = await readDashboardDiscovery(cwd);
+	let takeoverPort: number | undefined;
+	if (existing && existing.protocol < DASHBOARD_PROTOCOL && options.start) {
+		takeoverPort = existing.port;
+		await shutdownDashboard(existing);
+		while (Date.now() < deadline && (await readDashboardDiscovery(cwd)))
+			await sleep(50);
+		existing = await readDashboardDiscovery(cwd);
+	}
 	if (existing || !options.start) return existing;
 	let child: ReturnType<typeof spawn> | undefined;
 	let adopted = false;
@@ -398,8 +567,9 @@ export async function ensureDashboard(
 				"--project",
 				resolve(cwd),
 				"--detached",
+				...(takeoverPort === undefined ? [] : ["--port", String(takeoverPort)]),
 			],
-			{ cwd, env, detached: true, stdio: "ignore" },
+			{ cwd, env: { ...process.env, ...env }, detached: true, stdio: "ignore" },
 		);
 		let failed = false;
 		child.once("error", () => {

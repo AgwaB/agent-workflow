@@ -1,3 +1,4 @@
+import { projectId } from "../core/state-location.js";
 // New in agent-workflow (2026-11-03): the dashboard link of a run, shared by launch and wait. A
 // launch gives it so the user can watch; a finished wait gives it again, opening the report view, so
 // the result can be read in the dashboard instead of only through report file paths.
@@ -13,6 +14,7 @@ import { type HostApiContext, hostEnv } from "./types.js";
 export interface RunDashboardLink {
 	url: string;
 	port: number;
+	portReason?: string;
 	started?: true;
 	auth?: true;
 }
@@ -46,11 +48,15 @@ export async function runDashboardLink(
 					started = Boolean(dashboard);
 				}
 				if (!dashboard) return undefined;
-				const query = new URLSearchParams({ run: runId });
+				const query = new URLSearchParams({
+					project: projectId(ctx.cwd),
+					run: runId,
+				});
 				if (options.view) query.set("view", options.view);
 				return {
 					url: `http://127.0.0.1:${dashboard.port}/?${query.toString()}`,
 					port: dashboard.port,
+					...(dashboard.portReason ? { portReason: dashboard.portReason } : {}),
 					...(started ? { started: true as const } : {}),
 					...(dashboard.auth ? { auth: true as const } : {}),
 				};

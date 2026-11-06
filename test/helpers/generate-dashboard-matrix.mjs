@@ -287,7 +287,7 @@ try {
 		if (reports && name === "foreach-18") {
 			server = await startDashboardServer({ cwd, env, source, readonly: true });
 			browser = await createBrowser(await findChrome());
-			await browser.open(`${server.url}?run=${runId}&stage=check-claims`);
+			await browser.open(`${server.url}&run=${runId}&stage=check-claims`);
 			await mkdir(join(reports, "live-8fps"), { recursive: true });
 		}
 		let frame = 0;
