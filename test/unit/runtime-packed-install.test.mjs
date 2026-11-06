@@ -115,18 +115,20 @@ test("packed tarball installs Pi-free and runs the runtime from dist", async (t)
 			"dist/runtime/workers/durable-worker.js",
 			"dist/runtime/workers/terminal-finalizer.js",
 			"dist/runtime/native/darwin-process-identity.manifest.json",
-			"src/runtime/native/darwin-process-identity.c",
 		])
 			assert.ok(files.has(path), `tarball must contain ${path}`);
-		for (const path of [`dist/${HELPER}`, `src/${HELPER}`]) {
-			const entry = files.get(path);
-			assert.ok(entry, `tarball must contain ${path}`);
-			assert.equal(
-				entry.mode & 0o755,
-				0o755,
-				`${path} must be executable in the tarball (mode ${entry.mode.toString(8)})`,
-			);
-		}
+		assert.deepEqual(
+			[...files.keys()].filter((path) => path.startsWith("src/")).sort(),
+			Object.values(pkg.bin).sort(),
+			"only bin launchers ship under src; native source stays in the source checkout",
+		);
+		const helper = files.get(`dist/${HELPER}`);
+		assert.ok(helper, `tarball must contain dist/${HELPER}`);
+		assert.equal(
+			helper.mode & 0o755,
+			0o755,
+			`dist/${HELPER} must be executable in the tarball (mode ${helper.mode.toString(8)})`,
+		);
 
 		const project = join(work, "project");
 		await mkdir(project);

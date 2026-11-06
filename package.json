@@ -7,7 +7,8 @@
   "license": "MIT",
   "files": [
     "dist",
-    "src",
+    "src/hosts/cli/cli.mjs",
+    "src/mcp/host-server/bin.mjs",
     "agents",
     "workflows",
     "skills",

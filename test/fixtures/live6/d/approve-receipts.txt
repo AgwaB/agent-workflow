@@ -1,8 +1,0 @@
-# pi-feedback-receipts of workflow_mvt1vuk5_31af6e (one per settled epoch)
-{"runId": "workflow_mvt1vuk5_31af6e", "epoch": "691797a68a68935752244cd2fb0f5879f8fd3d76e12915bff85958a9dcf225f1", "status": "completed", "state": "confirmed", "host": "<hostname>"}
-{"runId": "workflow_mvt1vuk5_31af6e", "epoch": "81bfef000608a84e53ee1ea4c4dd8671106f880d9f0897901f916de7affc10f5", "status": "blocked", "state": "confirmed", "host": "<hostname>"}
-# pane: occurrences
-"Workflow completed: live6-approval": 1
-"Workflow blocked; action required": 1
-# controller.log
-2026-10-29T04:36:25.564Z ran

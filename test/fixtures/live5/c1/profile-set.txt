@@ -1,9 +1,0 @@
-Saved profile:
-live5-mixed
-  roles:
-    default             claude:haiku:-
-    research-execution  codex:gpt-5.6-luna:low
-live5-mixed
-  roles:
-    default             claude:haiku:-
-    research-execution  codex:gpt-5.6-luna:low

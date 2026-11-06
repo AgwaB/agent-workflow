@@ -1,8 +1,0 @@
-│ Task digest: 8193742e931127af66acd7406c6e90315106667574f3dac109b588ce245a520c (length=39)                                                                                                          │
-│ Controller helper: ./helpers/controller.mjs                                                                                                                                                        │
-│ Mode: graph-splice                                                                                                                                                                                 │
-│                                                                                                                                                                                                    │
-│ y approve · x reject (never asked again) · Esc cancel                                                                                                                                              │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-[gpt-5.6-luna] | dir …/tmp/aw-live5/d-pi | git master · 2 untracked · wt: d-pi
-ctx [▏░░░░░░░░░] 0% | fast off | effort low | phase ready | session 01a1838a | last: 10/29 02:24
