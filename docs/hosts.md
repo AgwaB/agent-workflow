@@ -51,8 +51,11 @@ With the plugin installed, Claude Code accepts **`/aw`** and **`/agent-workflow:
 Codex accepts **`$aw`** and **`aw …`** (and `$agent-workflow:aw`, which Codex's skill picker inserts
 when you choose `$aw` from its list). On first start after installing or changing the Codex
 hook, accept the one-time **Hooks need review → Trust all and continue** prompt (or review it
-with `/hooks`). Untrusted or disabled hooks do not run: the `aw` skill then guides the model
-through the MCP tools instead, including any dialogs those tools require.
+with `/hooks`). Plugin updates change the plugin's contents, so Codex asks again once after each
+update. The declared hook command stays the same across releases (it runs the plugin's
+`scripts/codex-host-command.sh`), because Codex 0.166 applies a "Trust all" answer for a changed hook
+declaration only after a restart. Untrusted or disabled hooks do not run: the `aw` skill then guides
+the model through the MCP tools instead, including any dialogs those tools require.
 
 Use the appropriate prefix with these six forms:
 
