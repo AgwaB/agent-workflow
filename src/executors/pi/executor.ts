@@ -2,7 +2,6 @@
 // Consume authority immediately before spawn; attempts are idempotent by attemptKey
 // with durable launch evidence. Save raw streams under artifactsDir.
 // Cancellation sends SIGTERM, then SIGKILL.
-import { enforcesReadOnly } from "../../sdk/permission.js";
 import { type ChildProcess, execFile, spawn } from "node:child_process";
 import { createWriteStream, type WriteStream } from "node:fs";
 import {
@@ -42,6 +41,7 @@ import {
 import { SdkError } from "../../sdk/errors.js";
 import type { ExecEvent, OwnedSession } from "../../sdk/events.js";
 import type { JsonValue } from "../../sdk/json.js";
+import { enforcesReadOnly } from "../../sdk/permission.js";
 import { mapTools } from "../../sdk/tools.js";
 import {
 	ARTIFACT_SERVER,

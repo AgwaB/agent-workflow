@@ -10,7 +10,6 @@
  * `approvalPolicy: "on-request"`. Threads are ephemeral unless the request asks to keep a session
  * (D3).
  */
-import { enforcesReadOnly } from "../../sdk/permission.js";
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { mkdirSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
@@ -33,6 +32,7 @@ import {
 import { SdkError } from "../../sdk/errors.js";
 import type { ExecEvent, OwnedSession, ToolKind } from "../../sdk/events.js";
 import type { JsonValue } from "../../sdk/json.js";
+import { enforcesReadOnly } from "../../sdk/permission.js";
 import {
 	ARTIFACT_MCP_SERVER_NAME,
 	WORKFLOW_ARTIFACT_TOOL_NAME,
