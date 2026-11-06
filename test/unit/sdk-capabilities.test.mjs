@@ -143,7 +143,7 @@ test("degrade path: coarse allowlist runs as readOnly only when the spec allows 
 	});
 	assert.equal(degraded.accepted, true);
 	assert.equal(degraded.forcedReadOnly, true);
-	assert.equal(degraded.needsConfirmation, true);
+	assert.equal(degraded.needsConfirmation, undefined);
 	assert.deepEqual(degraded.degradations, [
 		"CAPABILITY_MISSING:toolAllowlist.fine",
 	]);
@@ -161,7 +161,7 @@ test("degrade path: coarse allowlist runs as readOnly only when the spec allows 
 	assert.equal(outcome(optional, "partialStream").outcome, "degraded");
 	assert.equal(
 		optional.needsConfirmation,
-		false,
+		undefined,
 		"non-interactive hosts only record",
 	);
 });

@@ -172,7 +172,7 @@ test("auto v2 command capture preserves the supplied slash arguments exactly onc
 	await settle(cwd, projectEnv, runId);
 	const record = await store.readRunRecord(cwd, runId);
 	assert.equal(record.launch.schema, "agent-workflow-run-launch-v2");
-	assert.equal(record.launch.routingMode, "auto-confirmed");
+	assert.equal(record.launch.routingMode, "auto");
 	const text = await readFile(
 		join(
 			stateDir(cwd),

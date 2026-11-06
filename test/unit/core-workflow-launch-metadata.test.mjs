@@ -161,7 +161,7 @@ test("pi-workflow's launch records are not accepted", () => {
 			schema: "pi-workflow-run-launch-v2",
 			source: { kind: "slash-command", action: "auto" },
 			requestKind: "named-workflow",
-			routingMode: "auto-confirmed",
+			routingMode: "auto",
 			profile: { kind: "base" },
 			task: { characters: 1, lines: 1 },
 			selection: {},

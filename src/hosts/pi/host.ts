@@ -206,7 +206,7 @@ export interface PiLaunchHooks {
 export const CUSTOM_PROFILE_OPTION = "Custom… (open the profile picker)";
 
 /**
- * WP4d confirmation and the declared-profile chooser through Pi's extension UI, when present
+ * The declared-profile chooser through Pi's extension UI, when present
  * (`ctx.ui.select`). Without a dialog UI (print/JSON mode) the chooser falls back to text: the
  * headless choice (the declared default, else the base spec) is made and the launch output lists
  * every choice with the `--profile` value that selects it. WP34: with `customProfile` the chooser

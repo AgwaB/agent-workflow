@@ -286,7 +286,7 @@ test("degradation (environment warning) is recorded with a preview; non-interact
 	});
 	assert.equal(calls, 0);
 	const negotiation = started.capabilityNegotiation;
-	assert.equal(negotiation.confirmation, "non-interactive");
+	assert.equal(negotiation.confirmation, undefined);
 	assert.deepEqual(negotiation.degradations, [
 		"a.main: CAPABILITY_WARNING:readOnly",
 	]);
@@ -321,64 +321,13 @@ test("no warning: an emulated capability passes silently, even on an interactive
 		executor: id,
 		interactive: true,
 	});
-	assert.equal(started.capabilityNegotiation.confirmation, "not-needed");
+	assert.equal(started.capabilityNegotiation.confirmation, undefined);
 	assert.deepEqual(started.capabilityNegotiation.degradations, []);
 	const entry = started.capabilityNegotiation.stages[0].report.entries.find(
 		(item) => item.key === "readOnly",
 	);
 	assert.equal(entry.outcome, "emulated");
 	await engine.waitForRun(cwd, started.runId, 60_000);
-});
-
-test("interactive confirmation: accepted proceeds, declined and missing hook fail before launch", async () => {
-	const cwd = await project();
-	const { id, effectLog } = fixture({
-		capabilities: { contextIsolation: warned("global AGENTS.md loaded") },
-	});
-	const specPath = await writeSpec(cwd, ONE_STAGE);
-	await assert.rejects(
-		engine.runWorkflowSpec(specPath, cwd, {
-			task: "t",
-			executor: id,
-			permissionMode: "safe",
-			interactive: true,
-			confirmDegradations: async () => false,
-		}),
-		capabilityError(
-			"CAPABILITY_DEGRADATION_DECLINED",
-			/a\.main: CAPABILITY_WARNING:contextIsolation/,
-		),
-	);
-	await assert.rejects(
-		engine.runWorkflowSpec(specPath, cwd, {
-			task: "t",
-			executor: id,
-			permissionMode: "safe",
-			interactive: true,
-		}),
-		capabilityError("CAPABILITY_CONFIRMATION_REQUIRED"),
-	);
-	assertNothingStarted(cwd, effectLog);
-
-	const seen = [];
-	const started = await engine.runWorkflowSpec(specPath, cwd, {
-		task: "t",
-		executor: id,
-		permissionMode: "safe",
-		interactive: true,
-		confirmDegradations: async (preview) => {
-			seen.push(preview);
-			return true;
-		},
-	});
-	assert.equal(seen.length, 1);
-	assert.equal(seen[0].needsConfirmation, true);
-	assert.match(seen[0].text, /global AGENTS\.md loaded/);
-	assert.equal(started.capabilityNegotiation.confirmation, "confirmed");
-	assert.equal(started.capabilityNegotiation.policy.interactive, true);
-	const run = await engine.waitForRun(cwd, started.runId, 60_000);
-	assert.equal(run.status, "completed");
-	assert.equal(submits(effectLog).length, 1);
 });
 
 test("forcedReadOnly: coarse allowlist + spec allowReadOnlyDowngrade launches readOnly; without the flag it refuses", async () => {
@@ -576,7 +525,7 @@ test("launch-time check: runtime-generated tasks are negotiated from the record;
 	assert.equal(run.capabilityNegotiation.stages.length, 1);
 	assert.equal(
 		run.capabilityNegotiation.stages[0].report.needsConfirmation,
-		false,
+		undefined,
 	);
 	assert.throws(
 		() => core.workflowTaskCapabilityLaunch(run, task("web", ["web_search"])),

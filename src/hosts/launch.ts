@@ -187,7 +187,7 @@ export interface LaunchData {
 	promptSchemaNotice?: string;
 	/** Duplicate-launch guard: the active run with the same workflow and task. */
 	duplicateOf?: string;
-	/** Not started: capability refusal, unavailable executor or declined confirmation. */
+	/** Not started: capability refusal, unavailable executor. */
 	refusal?: { code: string; executorId?: string; preview?: string };
 }
 
@@ -1155,7 +1155,6 @@ async function launchClaimed(
 		...(overrides ? { runtimeOverrides: overrides } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
 		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
-		// WP29: an attached launch may ask the user to approve a dynamic controller.
 		...(ctx.hostTools ? { inheritHostTools: true } : {}),
 		...(inputOverrides ? { inputOverrides } : {}),
 		// WP42: the engine's foreground fence (after the capability confirm, before publication and

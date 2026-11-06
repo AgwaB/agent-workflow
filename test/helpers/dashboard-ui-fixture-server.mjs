@@ -54,15 +54,7 @@ export async function createFixtureServer({
 		serverTime: serverTime(),
 		runs: listing.runs.map((summary) => {
 			const full = runs.get(summary.runId);
-			const {
-				tasks,
-				pendingApprovals,
-				task,
-				usage,
-				launch,
-				permissionMode,
-				...rest
-			} = full;
+			const { tasks, task, usage, launch, permissionMode, ...rest } = full;
 			return rest;
 		}),
 	});
@@ -212,10 +204,7 @@ export async function createFixtureServer({
 						`# Review report\n\n- A finding\n- ${injection}\n\n[not a link](https://example.invalid)\n![not an image](https://example.invalid/image.png)\n\n## Main findings\n\n### 1. Retries are bounded\n\nEvidence status: **verified**\nSources: [example.invalid](<https://example.invalid/a>)\n- Retry doc: quote "Retries stop after four attempts."\n\n| Area | Status |\n|---|---|\n| Retry | partially\\_supported |\n\n1. **Add a jitter test.**\n   - Evidence status: derived\n2. **Log the final failure.**\n\n- **Gap:** no load test\n\nRun cd sample &amp;&amp; npm test &lt;ok&gt;\nVerdict: **NEEDS_WORK**; **API** stays.\n\n\`\`\`ts\n\tif (a **b**) return \"ok\"; // 2\n  <x>\n\`\`\`\n\n- \\{\"item\":\"Ship it\",\"owner\":\"release\",\"blocking\":true\\}`,
 					truncated: false,
 				});
-			if (
-				request.method === "POST" &&
-				["/stop", "/resume", "/approve"].includes(suffix)
-			) {
+			if (request.method === "POST" && ["/stop", "/resume"].includes(suffix)) {
 				if (readonly) return json({ error: "read-only" }, 403);
 				if (
 					request.headers["x-aw-csrf"] !== session.csrf ||
@@ -243,35 +232,12 @@ export async function createFixtureServer({
 					});
 					return;
 				}
-				if (suffix === "/approve") {
-					if (
-						data.requestId !== run.pendingApprovals[0]?.requestId ||
-						!["approve", "reject"].includes(data.decision)
-					)
-						return json({ error: "invalid-approval" }, 400);
-					run.pendingApprovals = [];
-					if (data.decision === "reject") {
-						run.statusDetail = "dynamic_approval_rejected";
-						run.tasks.at(-1).statusDetail = "dynamic_approval_rejected";
-					} else {
-						run.status = "running";
-						run.tasks.at(-1).status = "running";
-						run.tasks.at(-1).statusDetail = "running";
-					}
-					run.needsYou = [];
-				} else {
-					run.status = "running";
-					run.needsYou = [];
-				}
+				run.status = "running";
+				run.needsYou = [];
 				json({
 					outcome: "ok",
 					status: run.status,
-					text:
-						suffix === "/resume"
-							? "Run resumed. Completed tasks were kept."
-							: data.decision === "reject"
-								? "Approval rejected. Run stays blocked."
-								: "Approval recorded.",
+					text: "Run resumed. Completed tasks were kept.",
 				});
 				publish();
 				return;

@@ -255,8 +255,8 @@ How `negotiateCapabilities` reads a row:
 - **`warning`.** An `emulated` row with a `warning` negotiates as a degradation
   (`CAPABILITY_WARNING:<key>`) instead of a silent pass. Use it for environment facts that weaken a
   capability (Codex: `~/.codex/rules` allow rules weaken `readOnly`; a global `AGENTS.md` weakens
-  `contextIsolation`). In `free` mode such warnings are recorded and never refused; in `safe` mode an
-  interactive host asks and a profile's `strictCapabilities` refuses.
+  `contextIsolation`). In `free` mode such warnings are recorded and never refused; in `safe` mode a
+  profile's `strictCapabilities` can refuse them. Neither mode asks.
 - **Details** are ranked (`toolAllowlist`: none < coarse < fine; `usage`: none < tokens < cost;
   `webTools`: none < search < search+fetch).
 - **`usage.cost`** below `cost` (an adapter that reports tokens only): the engine has no price table

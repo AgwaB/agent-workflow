@@ -2116,7 +2116,7 @@ test("dependency invalidation leaves pending and approval-blocked consumers to o
 				taskId: "task-approval",
 				specId: "approval.main",
 				status: "blocked",
-				statusDetail: "dynamic_approval_timeout",
+				statusDetail: "executor_needs_decision",
 				dependsOn: ["source.main"],
 				kind: "dynamic",
 				artifactGraph: {

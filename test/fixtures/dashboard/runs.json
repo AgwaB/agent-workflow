@@ -20,9 +20,8 @@
 			"reportAvailable": false,
 			"needsYou": [
 				{
-					"kind": "approval",
-					"title": "Run dynamic workflow controller?",
-					"requestId": "15527fe54bfe59ff5ed440c1aef315475ec6104d0f7ce18a872fdb7efb09a137",
+					"kind": "decision",
+					"title": "Controller needs a decision",
 					"taskId": "adaptive.controller",
 					"since": "2026-10-29T07:58:00.000Z"
 				}

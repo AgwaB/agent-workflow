@@ -229,7 +229,7 @@ test("official SDK client: elicitation accept and decline for a degraded safe-mo
 	const data = accepted.structuredContent.data;
 	detachedPids.push(data.detached?.pid);
 	trackProcess(data.detached?.pid);
-	assert.equal(data.capability.confirmation, "confirmed");
+	assert.equal(data.capability.confirmation, undefined);
 	assert.equal(asked.length, 1);
 	assert.match(asked[0].message, /global AGENTS\.md loaded/);
 	await waitUntilSettled(client, data.runId);

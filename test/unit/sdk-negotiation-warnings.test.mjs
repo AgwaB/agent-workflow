@@ -58,13 +58,13 @@ test("emulated + warning negotiates as a degradation with the warning as note", 
 	assert.equal(quiet.accepted, true);
 	assert.deepEqual(quiet.degradations, ["CAPABILITY_WARNING:readOnly"]);
 	// Non-interactive: recorded, no confirmation.
-	assert.equal(quiet.needsConfirmation, false);
+	assert.equal(quiet.needsConfirmation, undefined);
 	const interactive = sdk.negotiateCapabilities(executor, caps, {
 		readOnly: true,
 		hasRequiredReads: false,
 		interactive: true,
 	});
-	assert.equal(interactive.needsConfirmation, true);
+	assert.equal(interactive.needsConfirmation, undefined);
 });
 
 test("emulated without a warning stays a silent emulated pass", () => {
@@ -77,7 +77,7 @@ test("emulated without a warning stays a silent emulated pass", () => {
 	assert.equal(entry(report, "readOnly").outcome, "emulated");
 	assert.equal(entry(report, "readOnly").emulatedBy, "executor");
 	assert.deepEqual(report.degradations, []);
-	assert.equal(report.needsConfirmation, false);
+	assert.equal(report.needsConfirmation, undefined);
 });
 
 test("a warning on a native level does not degrade; an empty warning is ignored", () => {
@@ -207,7 +207,7 @@ test("buildCapabilityPreview aggregates stages with labels", () => {
 		{ executor, header: ["  probe: fake-cli 1.0.0, auth ok"] },
 	);
 	assert.equal(preview.accepted, true);
-	assert.equal(preview.needsConfirmation, true);
+	assert.equal(preview.needsConfirmation, undefined);
 	assert.deepEqual(preview.degradations, [
 		"review: CAPABILITY_WARNING:readOnly",
 		"write: CAPABILITY_MISSING:toolAllowlist.fine",
@@ -238,72 +238,7 @@ test("buildCapabilityPreview aggregates stages with labels", () => {
 		},
 	]);
 	assert.equal(refused.accepted, false);
-	assert.equal(refused.needsConfirmation, false);
+	assert.equal(refused.needsConfirmation, undefined);
 	assert.deepEqual(refused.refusals, ["x: CAPABILITY_MISSING:readOnly"]);
 	assert.match(refused.text, /REFUSED \(1\)/);
-});
-
-test("capability preview: the confirmation prompt says once what needs an OK and what is only recorded", () => {
-	// 2026-11-03 (owner, Codex desktop app: a 30+ line dialog repeating every stage's full report
-	// for one reason to ask): the dialog text names each limit once with the stages it covers;
-	// `text` stays the full per-stage report.
-	const caps = fakeCapabilities({
-		readOnly: warned("152 allow rules in R"),
-		contextIsolation: warned("global AGENTS.md loaded"),
-		usage: { level: "native", source: "probed", detail: "tokens" },
-		webTools: {
-			level: "native",
-			source: "probed",
-			detail: "search",
-			safetyPolicy: "unknown",
-		},
-	});
-	const negotiate = (permissionMode) =>
-		["plan.main", "verify-claims.item", "final-audit.main"].map((label) => ({
-			label,
-			report: sdk.negotiateCapabilities(executor, caps, {
-				readOnly: true,
-				hasRequiredReads: false,
-				webTools: true,
-				permissionMode,
-				interactive: true,
-			}),
-		}));
-	const free = sdk.buildCapabilityPreview(negotiate("free"), {
-		executor,
-		permissionMode: "free",
-	});
-	assert.equal(free.needsConfirmation, true, "web safety still asks");
-	assert.equal(
-		free.prompt,
-		[
-			"fake@0.1.0 · 3 stages · permission mode free",
-			"",
-			"Needs your OK:",
-			"• web search safety rules are not enforced by the engine (in all 3 stages)",
-			"",
-			"Recorded only, no OK needed:",
-			"• read-only is not strictly enforced; cost is recorded as unknown (tokens only); workers are not fully isolated from your own setup",
-			"",
-			"If you accept, the full per-stage report is saved with the run.",
-		].join("\n"),
-	);
-	assert.ok(
-		free.text.split("\n").length > (3 * free.prompt.split("\n").length) / 2,
-	);
-	assert.match(free.text, /CAPABILITY_WARNING:readOnly/);
-	// safe: an environment warning needs the OK and names what was found.
-	const safe = sdk.buildCapabilityPreview(negotiate("safe"), {
-		executor,
-		permissionMode: "safe",
-	});
-	assert.match(
-		safe.prompt,
-		/• read-only is not strictly enforced: 152 allow rules in R \(in all 3 stages\)/,
-	);
-	assert.match(
-		safe.prompt,
-		/• workers are not fully isolated from your own setup: global AGENTS\.md loaded \(in all 3 stages\)/,
-	);
-	assert.doesNotMatch(safe.prompt, /CAPABILITY_|plan §/);
 });

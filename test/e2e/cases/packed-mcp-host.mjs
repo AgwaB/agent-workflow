@@ -136,8 +136,7 @@ try {
 		"workflow_prune",
 		"workflow_profile",
 		"workflow_supervise",
-		"workflow_approve",
-		// WP32: auto workflow selection with consent.
+		// Auto starts the top recommendation without asking.
 		"workflow_auto",
 		// WP43b: open the local dashboard (URL elicitation or terminal instructions; never a token).
 		"workflow_dashboard",

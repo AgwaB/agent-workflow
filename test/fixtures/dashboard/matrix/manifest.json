@@ -70,20 +70,6 @@
 		"tasks": 5
 	},
 	{
-		"name": "approval",
-		"state": "running",
-		"file": "approval-running.json",
-		"status": "running",
-		"tasks": 2
-	},
-	{
-		"name": "approval",
-		"state": "blocked",
-		"file": "approval-blocked.json",
-		"status": "blocked",
-		"tasks": 2
-	},
-	{
 		"name": "support",
 		"state": "running",
 		"file": "support-running.json",

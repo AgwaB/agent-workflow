@@ -1056,7 +1056,7 @@ function rejectUnknown(name: string, params: Record<string, unknown>) {
 			throw new UsageError(`unknown parameter ${key}`);
 }
 
-/** Tool arguments → LaunchRequestBase fields (without the confirmation hooks). */
+/** Tool arguments → LaunchRequestBase fields. */
 /**
  * WP32: unique option labels of the auto choice (the enum values of the elicitation form), in the
  * ranked order. WP39b (O4): no number prefix; Codex numbers enum options itself ("1. 1. …") and
@@ -1244,7 +1244,7 @@ export function clientSupportsUrlElicitation(
 export type ElicitationAnswer = "accept" | "decline" | "cancel" | "error";
 
 /**
- * WP13 elicitation helper (WP28: shared by the degradation confirmation and the confirmed changes):
+ * Elicitation helper for confirmed destructive/settings changes:
  * one form-mode `elicitation/create` with an empty form. Only `accept` lets the caller go on.
  */
 export async function elicitConfirmation(

@@ -103,32 +103,12 @@ const shapes = [
 				dynamic: {
 					uses: "./controller.mjs",
 					permissions: {
-						approval: "auto",
 						allowDynamicRoles: true,
 						allowDynamicTools: true,
 					},
 				},
 			},
 			single("report", { after: ["adaptive"] }),
-		],
-	],
-	[
-		"approval",
-		[
-			single("prep"),
-			{
-				id: "adaptive",
-				type: "dynamic",
-				after: ["prep"],
-				dynamic: {
-					uses: "./controller.mjs",
-					permissions: {
-						approval: "ask",
-						allowDynamicRoles: true,
-						allowDynamicTools: true,
-					},
-				},
-			},
 		],
 	],
 	[

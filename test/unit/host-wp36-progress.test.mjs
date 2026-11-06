@@ -222,7 +222,7 @@ test("statusline: empty when idle; the newest active run with progress, state, e
 	);
 });
 
-test("statusline: blocked runs show as awaiting approval or needs action for a day, then drop out", async () => {
+test("statusline: blocked runs show as needs action for a day, then drop out", async () => {
 	const cwd = await project();
 	await writeRun(cwd, {
 		runId: "workflow_approval",
@@ -232,13 +232,13 @@ test("statusline: blocked runs show as awaiting approval or needs action for a d
 			{
 				specId: "adaptive.controller",
 				status: "blocked",
-				statusDetail: "dynamic_ui_unavailable",
+				statusDetail: "executor_needs_decision",
 			},
 		],
 	});
 	assert.equal(
 		await statusline.statusLineText([cwd], NOW),
-		"aw: dynamic 1/2 awaiting approval 12m",
+		"aw: dynamic 1/2 needs action 12m",
 	);
 	await rm(join(stateDir(cwd), ".agent-workflow"), { recursive: true });
 	await writeRun(cwd, {
@@ -472,60 +472,7 @@ test("watch: a failed run exits 1; --follow keeps watching until stopped; a term
 	assert.equal(bell.out.at(-1), "\u0007");
 });
 
-test("watch: pending approvals show the question and the approve/reject commands; usage errors", async () => {
-	const lines = watch
-		.renderRunView(
-			{
-				run: {
-					runId: "workflow_ask",
-					name: "dynamic",
-					status: "blocked",
-					createdAt: minutesAgo(5),
-					updatedAt: minutesAgo(1),
-					tasks: [],
-					taskSummary: {
-						total: 1,
-						completed: 0,
-						failed: 0,
-						interrupted: 0,
-						pending: 0,
-						running: 0,
-						blocked: 1,
-						skipped: 0,
-					},
-				},
-				live: false,
-				settled: true,
-				terminal: false,
-				reportPaths: [],
-				pendingApprovals: [
-					{
-						requestId: "abcdef0123456789",
-						controllerSpecId: "adaptive.controller",
-						taskId: "t",
-						title: "Run dynamic workflow controller?",
-						message: "Controller wants to run helpers/controller.mjs",
-						requestedAt: minutesAgo(1),
-					},
-				],
-			},
-			{ now: NOW },
-		)
-		.join("\n");
-	assert.match(
-		lines,
-		/Awaiting approval: dynamic controller adaptive\.controller/,
-	);
-	assert.match(lines, /Controller wants to run helpers\/controller\.mjs/);
-	assert.match(
-		lines,
-		/Approve: agent-workflow approve workflow_ask --request abcdef012345/,
-	);
-	assert.match(
-		lines,
-		/Reject: agent-workflow approve workflow_ask --request abcdef012345 --reject/,
-	);
-
+test("watch: usage errors", async () => {
 	const cwd = await project();
 	for (const argv of [
 		["watch", "--interval", "0.5"],
@@ -696,67 +643,6 @@ test("notify-check --follow: one line per newly settled run until stopped; usage
 		["notify-check", "extra"],
 	])
 		assert.equal((await runCli(cwd, argv)).code, 2, argv.join(" "));
-});
-
-test("approval run (fixture executor): statusline, watch and notify-check show the pending approval; wait marks a settled state seen", async () => {
-	counter += 1;
-	const p = await approvalProject(root, `approval${counter}`, (descriptor) =>
-		unregister.push(core.registerWorkflowExecutor(descriptor)),
-	);
-	// notify-check in use here (its receipts exist) before the run starts.
-	await mkdir(join(stateDir(p.cwd), ".agent-workflow", "notify-check"), {
-		recursive: true,
-	});
-	const run = await runCli(
-		p.cwd,
-		["run", "wf.json", "headless", "--executor", p.executor],
-		{ env: p.env, now: undefined, waitSliceMs: 2_000 },
-	);
-	assert.equal(run.code, 1, run.out + run.err);
-	const runId = /Run: (workflow_\S+)/.exec(run.out)?.[1];
-	assert.ok(runId);
-	assert.match(
-		await statusline.statusLineText([p.cwd]),
-		/^aw: wp29-dynamic-approval 1\/2 awaiting approval /,
-	);
-	const watched = await runCli(p.cwd, ["watch", runId], {
-		env: p.env,
-		now: undefined,
-	});
-	assert.equal(watched.code, 1);
-	assert.match(
-		watched.out,
-		/Awaiting approval: dynamic controller adaptive\.controller/,
-	);
-	assert.match(
-		watched.out,
-		new RegExp(`Approve: agent-workflow approve ${runId} --request`),
-	);
-	// The foreground run's wait returned this blocked state: notify-check does not repeat it …
-	const seen = await notify.notifyCheck(p.cwd, { host: "codex" });
-	assert.equal(seen.text, "");
-	// … but a project without the wait receipt gets the approval line with the MCP tool call.
-	await rm(join(stateDir(p.cwd), ".agent-workflow", "notify-check"), {
-		recursive: true,
-	});
-	const fresh = await notify.notifyCheck(p.cwd, { host: "codex" });
-	assert.equal(fresh.data.notifications.length, 1);
-	assert.match(
-		fresh.text,
-		/is waiting for the user's approval of dynamic controller adaptive\.controller\. .*workflow_approve \{"runId":"workflow_/,
-	);
-	const marker = (
-		await readdir(join(stateDir(p.cwd), ".agent-workflow", "notify-check"))
-	).find((name) => name.startsWith(runId));
-	assert.equal(
-		JSON.parse(
-			await readFile(
-				join(stateDir(p.cwd), ".agent-workflow", "notify-check", marker),
-				"utf8",
-			),
-		).via,
-		"notify-check",
-	);
 });
 
 test("progress helpers: elapsed formatting and name cutting", () => {

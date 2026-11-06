@@ -364,7 +364,6 @@ test("dynamic synthesis prompts require structured claim source refs", async () 
 					maxGraphMutations: 10,
 				},
 				permissions: {
-					approval: "auto",
 					allowDynamicRoles: true,
 					allowDynamicTools: true,
 				},

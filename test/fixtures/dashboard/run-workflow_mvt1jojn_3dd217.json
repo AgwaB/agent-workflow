@@ -45,7 +45,6 @@
 		},
 		"command": "agent-workflow run undefined \"undefined\""
 	},
-	"pendingApprovals": [],
 	"tasks": [
 		{
 			"taskId": "task-1",

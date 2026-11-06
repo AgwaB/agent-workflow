@@ -62,8 +62,7 @@ test("the plugin ships the agent-workflow, workflow-guide and execution-router s
 test("skill tool names are the host MCP server's tools", () => {
 	assert.deepEqual([...toolNames].sort(), [
 		"workflow_agents",
-		"workflow_approve",
-		// WP32: auto workflow selection with consent.
+		// Auto starts the top recommendation without asking.
 		"workflow_auto",
 		// 2026-10-30: the launch preflight without a run.
 		"workflow_check",

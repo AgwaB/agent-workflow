@@ -82,7 +82,6 @@ async function generate(request, probe = {}) {
 						dynamic: {
 							uses: "./helpers/controller.mjs",
 							permissions: {
-								approval: "auto",
 								allowDynamicRoles: true,
 								allowDynamicTools: true,
 							},

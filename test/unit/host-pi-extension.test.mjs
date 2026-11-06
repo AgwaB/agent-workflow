@@ -415,14 +415,13 @@ test("/aw run, status, show, inspect, wait, resume, stop: delegation with launch
 		permissionMode: "free",
 		effort: "low",
 		forceNew: true,
-		interactive: true,
 		// WP33: launch capture (the host API redacts it before writing).
 		launchOrigin: {
 			kind: "command",
 			text: `/aw run --executor ${HOOK_EXECUTOR} wf.json "collect the facts --literal" --permission-mode free --effort low --force-new`,
 		},
 	});
-	assert.equal(typeof confirmDegradations, "function");
+	assert.equal(confirmDegradations, undefined);
 	assert.equal(typeof selectProfile, "function");
 	// A non-pi executor does not inherit Pi's current model as a runtime default.
 	assert.equal(launch.args[0].runtimeDefaults, undefined);
@@ -533,7 +532,6 @@ test("tools: aw_list, aw_run, aw_wait (long wait, semantic fields, preview) and 
 		permissionMode: "free",
 		allowUnverifiedCapabilities: ["contextIsolation"],
 		model: "m-1",
-		interactive: true,
 		// WP33: launch capture: the tool call's arguments.
 		launchOrigin: {
 			kind: "tool",
@@ -627,15 +625,15 @@ test("tools: aw_list, aw_run, aw_wait (long wait, semantic fields, preview) and 
 	);
 });
 
-test("confirmation: Pi UI confirm when interactive (decline/accept); no UI = non-interactive", async () => {
+test("degraded Pi launches never invoke confirm, even with dialog UI", async () => {
 	const { cwd, env } = await project();
 	counter += 1;
-	const degraded = `test-pi-degraded-${counter}`;
+	const id = `test-pi-degraded-${counter}`;
 	unregister.push(
 		core.registerWorkflowExecutor(
 			workflowFixtureDescriptor({
-				id: degraded,
-				effectLog: join(root, `${degraded}.jsonl`),
+				id,
+				effectLog: join(root, `${id}.jsonl`),
 				capabilities: {
 					contextIsolation: {
 						level: "emulated",
@@ -646,73 +644,29 @@ test("confirmation: Pi UI confirm when interactive (decline/accept); no UI = non
 			}),
 		),
 	);
-	const { command, pi } = install({ env });
-	const args = (task) =>
-		`run wf.json "${task}" --executor ${degraded} --permission-mode safe`;
-
-	const declining = fakeCtx(cwd, { confirm: false });
-	await command.handler(args("declined"), declining);
-	assert.equal(declining.confirms.length, 1);
-	assert.equal(
-		declining.confirms[0].title,
-		"Proceed with these executor capability degradations?",
-	);
-	assert.match(declining.confirms[0].message, /global AGENTS\.md loaded/);
-	assert.equal(lastNote(declining).type, "warning");
-	assert.match(
-		lastNote(declining).message,
-		/CAPABILITY_DEGRADATION_DECLINED|declined/i,
-	);
-
-	const accepting = fakeCtx(cwd, { confirm: true });
-	const accepted = await pi.tools.get("aw_run").execute(
-		"r",
-		{
-			workflow: "wf.json",
-			task: "accepted",
-			executor: degraded,
-			permissionMode: "safe",
-		},
-		undefined,
-		undefined,
-		accepting,
-	);
-	assert.equal(accepting.confirms.length, 1);
-	assert.equal(accepted.details.capability.confirmation, "confirmed");
-	await waitUntilSettled(pi, accepting, accepted.details.runId);
-
-	// No dialog-capable UI (print/json mode): no confirm call, degradations recorded, run proceeds.
-	const headless = fakeCtx(cwd, { hasUI: false });
-	const writes = [];
-	const original = process.stdout.write;
-	process.stdout.write = (chunk, ...rest) => {
-		writes.push(String(chunk));
-		return typeof rest.at(-1) === "function" ? (rest.at(-1)(), true) : true;
-	};
-	try {
-		await command.handler(args("headless"), headless);
-	} finally {
-		process.stdout.write = original;
+	const { pi } = install({ env });
+	for (const hasUI of [true, false]) {
+		const ctx = fakeCtx(cwd, { hasUI, confirm: false });
+		const out = await pi.tools
+			.get("aw_run")
+			.execute(
+				"r",
+				{
+					workflow: "wf.json",
+					task: `degraded-${hasUI}`,
+					executor: id,
+					permissionMode: "safe",
+				},
+				undefined,
+				undefined,
+				ctx,
+			);
+		assert.deepEqual(ctx.confirms, []);
+		assert.equal(out.details.capability.degradations.length, 1);
+		assert.match(out.details.capability.preview, /global AGENTS.md loaded/);
+		assert.equal(out.details.capability.confirmation, undefined);
+		await waitUntilSettled(pi, ctx, out.details.runId);
 	}
-	assert.equal(headless.confirms.length, 0);
-	assert.equal(headless.notes.length, 0);
-	assert.match(writes.join(""), /Workflow started: pi-host-one-stage/);
-	const headlessRun = (await realApi.statusAction({ cwd, env })).data.runs.find(
-		(run) => run.status === "running",
-	);
-	if (headlessRun) await waitUntilSettled(pi, headless, headlessRun.runId);
-	const runs = (await realApi.statusAction({ cwd, env })).data.runs;
-	assert.equal(runs.length, 2, "declined launch created no run");
-	const records = await Promise.all(
-		runs.map((run) =>
-			realApi.showAction({ cwd, env }, { ref: run.runId, raw: true }),
-		),
-	);
-	const confirmations = records
-		.map((shown) => JSON.stringify(shown.data.run))
-		.join("\n");
-	assert.match(confirmations, /non-interactive/);
-	process.exitCode = undefined;
 });
 
 async function writeRun(cwd, runId, fields) {

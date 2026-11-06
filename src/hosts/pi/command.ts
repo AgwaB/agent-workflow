@@ -309,7 +309,7 @@ async function dispatch(
 					...hooks.hooks,
 					// Ending a session cancels its pending auto selection.
 					signal,
-					// Only an interactive session can authorize transmission.
+					// A dialog-capable session can show the cancellable comparison loader.
 					...(dialog
 						? {
 								// The TUI comparison loader aborts the request on Escape.

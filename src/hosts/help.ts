@@ -75,9 +75,7 @@ Start exactly the named workflow and wait in the foreground until it is terminal
 waiting, not the run; continue with \`agent-workflow wait <run-id>\`). With --detach, a background
 supervisor drives the run and the command returns the run id.
 
-In a terminal the capability preview is shown and, when an executor capability is degraded and
-the run needs confirmation, you are asked y/N. With --yes or without a terminal the degradations
-are recorded and the run proceeds.
+Capability degradations are recorded and shown without confirmation. Refusals still start nothing.
 
 Options:
 ${LAUNCH_FLAGS}`,

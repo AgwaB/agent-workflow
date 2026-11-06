@@ -66,13 +66,13 @@ test("forced readOnly records the readOnly environment warning and asks interact
 		"CAPABILITY_MISSING:toolAllowlist.fine",
 		"CAPABILITY_WARNING:readOnly",
 	]);
-	assert.equal(report.needsConfirmation, false);
+	assert.equal(report.needsConfirmation, undefined);
 	assert.equal(
 		sdk.negotiateCapabilities(executor, caps, {
 			...writable,
 			interactive: true,
 		}).needsConfirmation,
-		true,
+		undefined,
 	);
 });
 

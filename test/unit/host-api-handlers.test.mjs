@@ -278,7 +278,7 @@ test("run → wait → status/show/inspect: launch data, capability preview and 
 		mode: "free",
 		source: "default",
 	});
-	assert.equal(launched.data.capability.confirmation, "not-needed");
+	assert.equal(launched.data.capability.confirmation, undefined);
 	assert.match(
 		launched.text,
 		new RegExp(
@@ -453,7 +453,7 @@ test("run: refusals return `refused` without creating a run", async () => {
 	);
 });
 
-test("run: interactive confirmation (accept, decline, missing hook) and non-interactive degradations", async () => {
+test("run: capability degradations are recorded without a confirmation hook", async () => {
 	const { ctx } = await project();
 	const { id, effectLog } = fixture({
 		capabilities: {
@@ -464,41 +464,20 @@ test("run: interactive confirmation (accept, decline, missing hook) and non-inte
 			},
 		},
 	});
-	const base = { workflow: "wf.json", executor: id, permissionMode: "safe" };
-	const declined = await api.runWorkflowAction(ctx, {
-		...base,
-		task: "declined",
-		interactive: true,
-		confirmDegradations: async () => false,
+	const out = await api.runWorkflowAction(ctx, {
+		workflow: "wf.json",
+		executor: id,
+		permissionMode: "safe",
+		task: "degraded",
 	});
-	assertResult(declined, "run", "refused");
-	assert.equal(declined.data.refusal.code, "CAPABILITY_DEGRADATION_DECLINED");
-	await assert.rejects(
-		api.runWorkflowAction(ctx, { ...base, task: "no hook", interactive: true }),
-		api.HostUsageError,
-	);
-	assert.deepEqual(submits(effectLog), []);
-
-	const seen = [];
-	const confirmed = await api.runWorkflowAction(ctx, {
-		...base,
-		task: "confirmed",
-		interactive: true,
-		confirmDegradations: async (preview) => {
-			seen.push(preview.text);
-			return true;
-		},
-	});
-	assert.equal(seen.length, 1);
-	assert.match(seen[0], /global AGENTS\.md loaded/);
-	assert.equal(confirmed.data.capability.confirmation, "confirmed");
-	assert.deepEqual(confirmed.data.capability.degradations, [
+	assertResult(out, "run", "running");
+	assert.equal(out.data.capability.confirmation, undefined);
+	assert.deepEqual(out.data.capability.degradations, [
 		"a.main: CAPABILITY_WARNING:contextIsolation",
 	]);
-	const quiet = await api.runWorkflowAction(ctx, { ...base, task: "headless" });
-	assert.equal(quiet.data.capability.confirmation, "non-interactive");
-	for (const launched of [confirmed, quiet])
-		await settle(ctx, launched.data.runId);
+	assert.match(out.data.capability.preview, /global AGENTS.md loaded/);
+	await settle(ctx, out.data.runId);
+	assert.equal(submits(effectLog).length, 1);
 });
 
 test("run: duplicate-launch guard returns the identical active run (WP16 outcome existing) unless forceNew", async () => {

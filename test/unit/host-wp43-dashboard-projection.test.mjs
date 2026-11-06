@@ -160,34 +160,6 @@ test("projection preserves retry countdown, foreach/dynamic items, runtime and a
 	assert.equal("record" in result, false);
 });
 
-test("pending approval has its exact scope; blocked alert is not duplicated", () => {
-	const { run, shown } = data();
-	run.status = "blocked";
-	run.tasks = [];
-	run.pendingApprovals = [
-		{
-			requestId: "abc",
-			controllerSpecId: "adaptive.controller",
-			taskId: "task-3",
-			title: "Run dynamic workflow controller?",
-			message: "roles: allowed",
-			requestedAt: AT,
-		},
-	];
-	const projected = projectRun(run, shown);
-	assert.deepEqual(projected.pendingApprovals, run.pendingApprovals);
-	assert.deepEqual(projectNeedsYou(run), [
-		{
-			kind: "approval",
-			title: run.pendingApprovals[0].title,
-			requestId: "abc",
-			taskId: "task-3",
-			since: AT,
-		},
-	]);
-	assert.equal(projected.statusDetail, "executor_needs_decision");
-});
-
 test("failed/blocked runs need attention even without approvals; live is not inferred from status", () => {
 	const { run, shown } = data();
 	for (const status of ["failed", "blocked"]) {

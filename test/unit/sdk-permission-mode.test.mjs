@@ -134,7 +134,7 @@ test("negotiation: coarse allowlist refuses in safe, degrades (recorded, no forc
 	});
 	assert.equal(free.accepted, true);
 	assert.equal(free.forcedReadOnly, false);
-	assert.equal(free.needsConfirmation, false, "free never asks for these");
+	assert.equal(free.needsConfirmation, undefined, "free never asks for these");
 	assert.equal(free.permissionMode, "free");
 	const allowlist = entry(free, "toolAllowlist.fine");
 	assert.equal(allowlist.outcome, "degraded");
@@ -171,7 +171,7 @@ test("negotiation: environment warnings in free are recorded, never strict-refus
 		permissionMode: "free",
 	});
 	assert.equal(free.accepted, true);
-	assert.equal(free.needsConfirmation, false);
+	assert.equal(free.needsConfirmation, undefined);
 	assert.equal(entry(free, "readOnly").code, "CAPABILITY_WARNING:readOnly");
 	assert.equal(entry(free, "readOnly").acceptedByFreeMode, true);
 	// Other degradations still follow B4 in free (interactive confirmation).
@@ -186,7 +186,7 @@ test("negotiation: environment warnings in free are recorded, never strict-refus
 			permissionMode: "free",
 		},
 	);
-	assert.equal(partial.needsConfirmation, true);
+	assert.equal(partial.needsConfirmation, undefined);
 	// A missing readOnly capability is refused in free too.
 	const none = sdk.negotiateCapabilities(
 		executor,

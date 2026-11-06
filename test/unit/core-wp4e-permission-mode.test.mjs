@@ -299,7 +299,7 @@ test("free: coarse allowlist is a recorded degradation (no refusal, no forced re
 		"a.main: CAPABILITY_MISSING:toolAllowlist.fine",
 		"a.main: CAPABILITY_WARNING:contextIsolation",
 	]);
-	assert.equal(negotiation.confirmation, "not-needed");
+	assert.equal(negotiation.confirmation, undefined);
 	assert.match(
 		negotiation.preview,
 		/toolAllowlist\.fine: degraded \(accepted: free mode\)/,

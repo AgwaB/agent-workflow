@@ -40,7 +40,7 @@ test("resume is negotiated only when the run uses the experimental same-session 
 		off.entries.find((entry) => entry.key === "resume"),
 		undefined,
 	);
-	assert.equal(off.needsConfirmation, false);
+	assert.equal(off.needsConfirmation, undefined);
 
 	const on = sdk.negotiateCapabilities(
 		executor,
@@ -52,5 +52,5 @@ test("resume is negotiated only when the run uses the experimental same-session 
 	);
 	const resume = on.entries.find((entry) => entry.key === "resume");
 	assert.equal(resume?.outcome, "degraded");
-	assert.equal(on.needsConfirmation, true);
+	assert.equal(on.needsConfirmation, undefined);
 });
