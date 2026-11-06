@@ -178,12 +178,24 @@ export async function interruptSubagentTask(
 	while (terminalStatus === undefined && Date.now() < deadline) {
 		const remainingMs = Math.max(1, deadline - Date.now());
 		const snapshot = await awaitSubagentOperation(
-			() =>
-				api.getSubagentStatus({
+			async () => {
+				// A signalled worker can exit before publishing its result/finalizer.
+				// Like normal refresh, recover only after identity-checked ownership
+				// drains; a passive status read alone would stay running forever.
+				if (typeof api.reconcileSubagentRun === "function")
+					await api.reconcileSubagentRun({
+						cwd: handle.cwd,
+						runsDir: handle.runsDir,
+						runId: handle.runId,
+						expectedAttemptId: handle.attemptId,
+					});
+				return api.getSubagentStatus({
 					cwd: handle.cwd,
 					runsDir: handle.runsDir,
 					runId: handle.runId,
-				}),
+					attemptId: handle.attemptId,
+				});
+			},
 			{
 				operation: "cancellation acknowledgement status",
 				context,
