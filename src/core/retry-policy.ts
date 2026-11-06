@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { sleep } from "./launch-operations.js";
 import { shrinkAdaptiveLiveModelWorkersForBackoff } from "./launch-slots.js";
 import { agentWorkflowHome } from "./home-dir.js";
+import { providerRetryAfterMs } from "./provider-retry.js";
 import { nowIso } from "./store.js";
 import { type CompiledTask, type WorkflowTaskRunRecord } from "./types.js";
 
@@ -20,8 +21,6 @@ const RATE_LIMIT_TRANSIENT_RETRY_BACKOFF_BASE_MS = 60_000;
 const RATE_LIMIT_TRANSIENT_RETRY_BACKOFF_MAX_MS = 5 * 60_000;
 const OAUTH_RATE_LIMIT_TRANSIENT_RETRY_BACKOFF_BASE_MS = 15 * 60_000;
 const OAUTH_RATE_LIMIT_TRANSIENT_RETRY_BACKOFF_MAX_MS = 60 * 60_000;
-const MAX_PERSISTED_RATE_LIMIT_BACKOFF_MS =
-	OAUTH_RATE_LIMIT_TRANSIENT_RETRY_BACKOFF_MAX_MS;
 interface SharedModelRateLimitBackoffState {
 	nextEligibleAtMs: number;
 	retryAfterMs: number;
@@ -76,8 +75,8 @@ function validPersistedSharedBackoff(
 	)
 		return undefined;
 	if (nextEligibleAtMs <= nowMs) return undefined;
-	if (nextEligibleAtMs - nowMs > MAX_PERSISTED_RATE_LIMIT_BACKOFF_MS)
-		return undefined;
+	// Explicit provider reset times can exceed the default exponential-backoff ceiling.
+	if (!Number.isFinite(new Date(nextEligibleAtMs).getTime())) return undefined;
 	return {
 		nextEligibleAtMs,
 		retryAfterMs: Math.max(0, nextEligibleAtMs - nowMs),
@@ -410,58 +409,6 @@ function isRateLimitModelFailureText(text: string): boolean {
 	);
 }
 
-type RateLimitRetryAfterUnit = "millisecond" | "second" | "minute";
-
-function rateLimitRetryAfterUnit(
-	unit: string | undefined,
-): RateLimitRetryAfterUnit {
-	const lower = (unit ?? "").toLowerCase();
-	if (lower === "ms" || lower.startsWith("millisecond")) return "millisecond";
-	if (lower === "m" || lower.startsWith("min") || lower.startsWith("minute")) {
-		return "minute";
-	}
-	return "second";
-}
-
-function boundedRateLimitRetryAfterMs(
-	value: number,
-	unit: RateLimitRetryAfterUnit,
-	modelBackoffKey?: string,
-): number | undefined {
-	if (!Number.isFinite(value) || value <= 0) return undefined;
-	const multiplier =
-		unit === "millisecond" ? 1 : unit === "minute" ? 60_000 : 1000;
-	return Math.min(
-		rateLimitBackoffProfile(modelBackoffKey).maxMs,
-		Math.ceil(value * multiplier),
-	);
-}
-
-function retryAfterMsFromRateLimitText(
-	text: string,
-	modelBackoffKey?: string,
-): number | undefined {
-	const retryAfterHeaderMatch = text.match(
-		/\bretry[-_ ]?after\b\s*[:=]\s*(\d{1,6})(?:\s*(ms|milliseconds?|s|sec|secs|seconds?|m|min|mins|minutes?))?\b/i,
-	);
-	if (retryAfterHeaderMatch) {
-		return boundedRateLimitRetryAfterMs(
-			Number.parseInt(retryAfterHeaderMatch[1] ?? "", 10),
-			rateLimitRetryAfterUnit(retryAfterHeaderMatch[2]),
-			modelBackoffKey,
-		);
-	}
-	const tryAgainMatch = text.match(
-		/\btry again in\s+(\d{1,6})\s*(ms|milliseconds?|s|sec|secs|seconds?|m|min|mins|minutes?)\b/i,
-	);
-	if (!tryAgainMatch) return undefined;
-	return boundedRateLimitRetryAfterMs(
-		Number.parseInt(tryAgainMatch[1] ?? "", 10),
-		rateLimitRetryAfterUnit(tryAgainMatch[2]),
-		modelBackoffKey,
-	);
-}
-
 /**
  * Non-secret auth kind reported by an executor probe for provider backoff.
  * Subscription limits are account-level; API-key limits are per key.
@@ -538,15 +485,18 @@ export function transientModelRateLimitBackoffMs(options: {
 	].filter(
 		(value): value is string => typeof value === "string" && value.length > 0,
 	);
-	const matched = candidates.find(isRateLimitModelFailureText);
-	if (!matched)
-		return options.failureKind === "rate_limit"
-			? defaultRateLimitBackoffMs(options.attempt, options.modelBackoffKey)
-			: undefined;
-	return (
-		retryAfterMsFromRateLimitText(matched, options.modelBackoffKey) ??
-		defaultRateLimitBackoffMs(options.attempt, options.modelBackoffKey)
-	);
+	if (
+		options.failureKind !== "rate_limit" &&
+		!candidates.some(isRateLimitModelFailureText)
+	)
+		return undefined;
+	const nowMs = Date.now();
+	const hints = candidates
+		.map((text) => providerRetryAfterMs(text, nowMs))
+		.filter((delay): delay is number => delay !== undefined);
+	return hints.length
+		? Math.max(...hints)
+		: defaultRateLimitBackoffMs(options.attempt, options.modelBackoffKey);
 }
 
 export function launchRetryBackoffRemainingMs(
