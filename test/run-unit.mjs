@@ -98,6 +98,27 @@ const totals = Object.fromEntries(SUMMARY_KEYS.map((key) => [key, 0]));
 const failedFiles = [];
 const shimUses = [];
 
+/**
+ * 2026-11-06: run state now lives in the isolated AGENT_WORKFLOW_HOME, so a detached process a test left
+ * behind (supervisor, dashboard) can still be writing there when the file ends (CI macOS/Node 22:
+ * ENOTEMPTY crashed the runner). Retry like the in-process cleanup (unit-test-support.mjs); a home that
+ * still cannot be removed is reported, not a test failure.
+ */
+function removeTestHome(home) {
+	try {
+		rmSync(home, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	} catch (error) {
+		console.error(
+			`test home not removed (a detached test process may still write it): ${home}: ${error.code ?? error}`,
+		);
+	}
+}
+
 function runFile(file) {
 	return new Promise((resolveRun) => {
 		const home = mkdtempSync(join(tmpdir(), "aw-unit-home-"));
@@ -145,7 +166,7 @@ function runFile(file) {
 			if (existsSync(shimLog))
 				shimUses.push(`${file}:\n${readFileSync(shimLog, "utf8")}`);
 			if (keep) console.error(`test home kept: ${home}`);
-			else rmSync(home, { recursive: true, force: true, maxRetries: 5 });
+			else removeTestHome(home);
 			resolveRun();
 		});
 	});
