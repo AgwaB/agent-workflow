@@ -14,6 +14,7 @@
  * - reconcile: in-memory run, else the durable record (`found` when the raw log holds the prompt
  *   result, else `unknown`: the session belonged to the process that is gone).
  */
+import { enforcesReadOnly } from "../../sdk/permission.js";
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createWriteStream, type WriteStream } from "node:fs";
@@ -609,7 +610,7 @@ export function createAcpExecutor(options: {
 		const foreign = req.mcpServers
 			.map((server) => server.name)
 			.filter((name) => name !== ARTIFACT_MCP_SERVER_NAME);
-		if (req.readOnly && foreign.length > 0)
+		if (enforcesReadOnly(req) && foreign.length > 0)
 			throw new SdkError(
 				"CAPABILITY_MISSING",
 				`readOnly request injects MCP servers whose tools may mutate (${foreign.join(", ")}); the ${preset.id} executor cannot enforce readOnly on them`,

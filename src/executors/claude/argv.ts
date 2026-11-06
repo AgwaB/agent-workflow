@@ -16,10 +16,9 @@
  *
  * Permissions (D2 revised, WP4e). `safe` (and any request without `permissionMode`):
  * `--permission-mode default` (user settings may say `auto`); never a bypass/auto-accept mode;
- * mutating tools go through the approval channel. `free` on a stage that is not readOnly:
+ * mutating tools go through the approval channel. `free` on every stage:
  * `--permission-mode bypassPermissions` (the documented `--permission-mode` choice in 2.1.310; the
- * `--dangerously-skip-permissions` alias is not used). A readOnly stage gets the same argv in both
- * modes: `--permission-mode default`, mutating tools removed from `--tools` and listed in
+ * `--dangerously-skip-permissions` alias is not used). A safe readOnly stage uses `--permission-mode default`, mutating tools removed from `--tools` and listed in
  * `--disallowedTools`. Only web tools the stage asked for and tools of engine-injected MCP servers
  * are pre-allowed.
  */
@@ -27,7 +26,7 @@ import { createHash } from "node:crypto";
 import { executorModelId } from "../../core/executor-model-id.js";
 import type { McpServerSpec, SubmitRequest } from "../../sdk/contract.js";
 import { SdkError } from "../../sdk/errors.js";
-import { isUnrestricted } from "../../sdk/permission.js";
+import { enforcesReadOnly, isUnrestricted } from "../../sdk/permission.js";
 import { mapTools } from "../../sdk/tools.js";
 import type { ClaudeExecutorConfig } from "./config.js";
 import {
@@ -160,14 +159,14 @@ export interface ClaudeInvocationPlan {
 	readonly builtinTools: readonly string[];
 	readonly allowedTools: readonly string[];
 	readonly effort: string | null;
-	/** `--permission-mode` value: `bypassPermissions` (free, not readOnly) or `default`. */
+	/** `--permission-mode` value: `bypassPermissions` (free) or `default`. */
 	readonly permissionMode: ClaudePermissionMode;
 }
 
 /** `--permission-mode` values this adapter uses (D2 revised, WP4e). */
 export type ClaudePermissionMode = "default" | "bypassPermissions";
 
-/** `--permission-mode` for a request: bypass only for `free` on a stage that is not readOnly. */
+/** `--permission-mode` for a request: bypass for every `free` stage. */
 export function claudePermissionMode(
 	req: Pick<SubmitRequest, "permissionMode" | "readOnly">,
 ): ClaudePermissionMode {
@@ -215,7 +214,7 @@ export function buildClaudeInvocation(
 	const effort = resolveEffort(req.effort);
 	const mutating = new Set<string>(CLAUDE_MUTATING_TOOLS);
 	const builtinTools = mapped.executorTools.filter(
-		(name) => !(req.readOnly && mutating.has(name)),
+		(name) => !(enforcesReadOnly(req) && mutating.has(name)),
 	);
 	// Review #6: the engine's artifact server is pre-allowed by its one read-only tool name, never
 	// server-wide. Any other injected server may expose mutating tools the adapter cannot tell
@@ -227,7 +226,7 @@ export function buildClaudeInvocation(
 	const foreignServers = req.mcpServers
 		.map((server) => server.name)
 		.filter((name) => name !== ARTIFACT_MCP_SERVER);
-	if (req.readOnly && foreignServers.length > 0)
+	if (enforcesReadOnly(req) && foreignServers.length > 0)
 		throw new SdkError(
 			"CAPABILITY_MISSING",
 			`readOnly request injects MCP servers whose tools may mutate (${foreignServers.join(", ")}); the claude executor cannot enforce readOnly on them`,
@@ -241,7 +240,7 @@ export function buildClaudeInvocation(
 			...req.mcpServers.map((server) =>
 				server.name === ARTIFACT_MCP_SERVER
 					? artifactTool
-					: // non-readOnly only: the caller injected it into a mutation-capable stage.
+					: // Unenforced readOnly only: the caller injected it into a mutation-capable stage.
 						`mcp__${server.name}`,
 			),
 		]),
@@ -264,7 +263,7 @@ export function buildClaudeInvocation(
 	];
 	if (allowedTools.length > 0)
 		argv.push("--allowedTools", allowedTools.join(","));
-	if (req.readOnly)
+	if (enforcesReadOnly(req))
 		argv.push("--disallowedTools", [...CLAUDE_MUTATING_TOOLS].join(","));
 	if (!req.isolation.inherit)
 		argv.push(

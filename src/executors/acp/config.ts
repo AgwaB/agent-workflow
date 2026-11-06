@@ -9,7 +9,7 @@ import { join } from "node:path";
 import type { SubmitRequest } from "../../sdk/contract.js";
 import { type FailureClass, SdkError } from "../../sdk/errors.js";
 import type { JsonValue } from "../../sdk/json.js";
-import { isUnrestricted } from "../../sdk/permission.js";
+import { enforcesReadOnly, isUnrestricted } from "../../sdk/permission.js";
 import type { ToolMapping } from "../../sdk/tools.js";
 import {
 	ANTIGRAVITY_MCP_OUTPUT_LIMIT_CHARS,
@@ -119,7 +119,7 @@ export interface AcpPreset {
  *   into the user's settings servers, and the allow list is the exclusion (config.ts:379-384,
  *   1005-1015). Without engine servers the list is the sentinel name below, so no ambient server
  *   loads either.
- * - Approval mode: readOnly → `plan` (read-only); `free` on a writing stage → `yolo`; otherwise
+ * - Approval mode: safe readOnly → `plan` (read-only); every `free` stage → `yolo`; otherwise
  *   `default`, where permission requests reach respond() (config.ts:334-352).
  */
 export const NO_MCP_SERVERS_SENTINEL = "agent-workflow-none";
@@ -138,7 +138,7 @@ const GEMINI: AcpPreset = {
 			"--allowed-mcp-server-names",
 			names.length > 0 ? names.join(",") : NO_MCP_SERVERS_SENTINEL,
 		);
-		const mode = req.readOnly
+		const mode = enforcesReadOnly(req)
 			? "plan"
 			: isUnrestricted(req)
 				? "yolo"
@@ -188,7 +188,7 @@ const ANTIGRAVITY_THINKING: Readonly<Record<string, string>> = {
  * Google Antigravity's ACP server (`agy_acp_server`, ACP registry `antigravity-acp`; Google's
  * answer to Gemini CLI's free tier being refused, 2026-11-02). Reference: agent-orchestrator
  * `chatdriver/agyacp` (launch without args on macOS, `--uid=` on Linux; modes default / auto_edit /
- * yolo). There is no read-only mode and no MCP allow list: readOnly relies on permission requests
+ * yolo). There is no read-only mode and no MCP allow list: safe readOnly relies on permission requests
  * (mode `default`, the engine denies writing kinds), and isolation on an engine-owned `GEMINI_HOME`
  * (`isolatedEnv`). Model and effort are session config options (`model`, `thinking_level`).
  */

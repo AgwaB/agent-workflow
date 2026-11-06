@@ -29,6 +29,7 @@ import {
 	renderWorkerTaskPromptToolNames,
 	workflowArtifactToolGuidelinesSection,
 } from "./artifact-tool-names.js";
+import { enforcesReadOnly, type PermissionMode } from "../sdk/permission.js";
 import { DEFAULT_WORKER_TOOLS, workflowTaskReadOnly } from "./tool-policy.js";
 import { WORKFLOW_TASK_BACKEND_ID } from "./task-artifacts.js";
 import {
@@ -482,6 +483,7 @@ export async function launchSubagentTask(
 			approvalPolicy: workflowTaskApprovalPolicy(
 				compiledTask,
 				capabilityLaunch.forcedReadOnly,
+				workflowRunPermissionMode(run),
 			),
 			// WP4e: always explicit (records created before WP4e run as safe).
 			permissionMode: workflowRunPermissionMode(run),
@@ -1495,12 +1497,13 @@ export function workflowTaskIsolation(compiledTask: CompiledTask): {
 
 /**
  * Engine approval policy (D2, R#4): kinds the stage's own tools imply are answered `allow`;
- * mutating kinds are never allowed for a read-only task; everything else is denied (there is no
+ * mutating kinds are never allowed for a read-only task in safe mode; everything else is denied (there is no
  * interactive channel for workflow workers yet, WP2b).
  */
 export function workflowTaskApprovalPolicy(
 	compiledTask: CompiledTask,
 	forcedReadOnly = false,
+	permissionMode?: PermissionMode,
 ): {
 	allowKinds: ToolKind[];
 	interactive: false;
@@ -1513,7 +1516,10 @@ export function workflowTaskApprovalPolicy(
 		];
 		if (kind !== undefined) kinds.add(kind);
 	}
-	const readOnly = workflowTaskReadOnly(compiledTask) || forcedReadOnly;
+	const readOnly = enforcesReadOnly({
+		readOnly: workflowTaskReadOnly(compiledTask) || forcedReadOnly,
+		permissionMode,
+	});
 	const allowKinds = [...kinds]
 		.filter((kind) => !(readOnly && isMutatingKind(kind)))
 		.sort();
@@ -1630,7 +1636,7 @@ export async function runOneShotSubagentCall(
 		runFlag: executorId,
 	});
 	return (await api.runSubagent({
-		// WP4e: engine calls always set the mode (engine default free; readOnly either way).
+		// WP4e: engine calls always set the mode (engine default free; readOnly is intent only).
 		permissionMode: "free",
 		...rest,
 		executor: selection.descriptor,

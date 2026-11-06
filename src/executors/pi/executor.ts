@@ -2,6 +2,7 @@
 // Consume authority immediately before spawn; attempts are idempotent by attemptKey
 // with durable launch evidence. Save raw streams under artifactsDir.
 // Cancellation sends SIGTERM, then SIGKILL.
+import { enforcesReadOnly } from "../../sdk/permission.js";
 import { type ChildProcess, execFile, spawn } from "node:child_process";
 import { createWriteStream, type WriteStream } from "node:fs";
 import {
@@ -458,14 +459,15 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 					`MCP server name ${server.name} is not valid for Pi (letters, digits, _ and -)`,
 				);
 		let tools = [...mapped.executorTools];
-		if (req.readOnly) {
+		if (enforcesReadOnly(req)) {
 			const { kept, dropped } = readOnlyTools(tools);
 			tools = kept;
 			if (dropped.length > 0)
 				notes.push(`readOnly: dropped mutating tools ${dropped.join(", ")}`);
 		}
-		const inheritHost = config.inheritHostTools === true && !req.readOnly;
-		if (config.inheritHostTools === true && req.readOnly)
+		const inheritHost =
+			config.inheritHostTools === true && !enforcesReadOnly(req);
+		if (config.inheritHostTools === true && enforcesReadOnly(req))
 			notes.push("inheritHostTools ignored for a readOnly request");
 		// Review #6: the engine's artifact server is declared by its one read-only tool name, never
 		// server-wide. Pi has no approval gate, so a readOnly request that injects any other server
@@ -473,7 +475,7 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		const foreignServers = req.mcpServers
 			.map((server) => server.name)
 			.filter((name) => name !== ARTIFACT_SERVER);
-		if (req.readOnly && foreignServers.length > 0)
+		if (enforcesReadOnly(req) && foreignServers.length > 0)
 			throw new SdkError(
 				"CAPABILITY_MISSING",
 				`readOnly request injects MCP servers whose tools may mutate (${foreignServers.join(", ")}); the Pi executor cannot enforce readOnly on them`,

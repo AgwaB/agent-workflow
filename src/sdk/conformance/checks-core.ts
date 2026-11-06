@@ -829,7 +829,7 @@ export const CORE_CHECKS: readonly ConformanceCheck[] = [
 		tier: "offline",
 		area: "permission",
 		title:
-			"free and safe map to distinct documented launch settings; a readOnly stage gets no free-mode setting",
+			"free and safe map to documented settings; readOnly is enforced only in safe mode",
 		refs: ["D2 revised", "WP4e"],
 		scenarios: ["complete"],
 		async run(ctx) {
@@ -844,6 +844,7 @@ export const CORE_CHECKS: readonly ConformanceCheck[] = [
 				["free", { permissionMode: "free", readOnly: false }],
 				["safe", { permissionMode: "safe", readOnly: false }],
 				["free-readOnly", { permissionMode: "free", readOnly: true }],
+				["safe-readOnly", { permissionMode: "safe", readOnly: true }],
 			] as const) {
 				const run = await runScenario(ctx, "complete", {
 					request: { ...overrides, tools: ["read", "bash"] },
@@ -887,9 +888,11 @@ export const CORE_CHECKS: readonly ConformanceCheck[] = [
 			missing("safe", safe);
 			present("free", safeOnly);
 			present("safe", freeOnly);
-			// readOnly stays read-only in free mode: none of the free-only settings.
-			present("free-readOnly", freeOnly);
-			missing("free-readOnly", documented.readOnly ?? []);
+			// Authored readOnly does not restrict free mode; safe retains its enforcement.
+			missing("free-readOnly", free);
+			present("free-readOnly", safeOnly);
+			present("safe-readOnly", freeOnly);
+			missing("safe-readOnly", documented.readOnly ?? []);
 			return body(violations, {
 				free: [...free],
 				safe: [...safe],

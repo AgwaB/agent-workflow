@@ -12,7 +12,11 @@ import type {
 import { LEVEL_CAPABILITY_NAMES } from "./capabilities.js";
 import { EXECUTOR_CONTRACT_VERSION } from "./contract.js";
 import { SdkError } from "./errors.js";
-import type { PermissionMode } from "./permission.js";
+import {
+	enforcesReadOnly,
+	isUnrestricted,
+	type PermissionMode,
+} from "./permission.js";
 import { mapTools, type ToolMapping } from "./tools.js";
 
 export type Need = "required" | "preferred" | "optional";
@@ -43,7 +47,7 @@ export const DEFAULT_REQUIREMENTS = {
 
 /** What one stage needs. Built by the engine from the spec, the agent definition and run flags. */
 export interface StageRequirementContext {
-	/** readOnly stage → `readOnly` required/refuse. */
+	/** Enforced readOnly stage (safe mode) → `readOnly` required/refuse. */
 	readonly readOnly: boolean;
 	/** Stage has required reads → `mcpInjection` required/refuse. */
 	readonly hasRequiredReads: boolean;
@@ -118,6 +122,8 @@ export interface NegotiationReport {
 	readonly accepted: boolean;
 	/** B4 toolAllowlist/unmapped-tool degradation: the stage must run with readOnly enforced. */
 	readonly forcedReadOnly: boolean;
+	/** Informational mode notes; not capability gaps or warnings. */
+	readonly notes?: readonly string[];
 	readonly entries: readonly NegotiationEntry[];
 	readonly refusals: readonly string[];
 	readonly degradations: readonly string[];
@@ -185,7 +191,7 @@ export function stageRequirements(
 ): Map<string, Requirement> {
 	const set = new Map<string, Requirement>();
 	const tools = ctx.tools ?? [];
-	if (ctx.readOnly) set.set("readOnly", DEFAULT_REQUIREMENTS.readOnly);
+	if (enforcesReadOnly(ctx)) set.set("readOnly", DEFAULT_REQUIREMENTS.readOnly);
 	if (ctx.hasRequiredReads)
 		set.set("mcpInjection", DEFAULT_REQUIREMENTS.mcpInjection);
 	if (tools.length > 0)
@@ -212,7 +218,8 @@ export function stageRequirements(
 		set.set("webTools", DEFAULT_REQUIREMENTS.webTools);
 	for (const [key, requirement] of Object.entries(ctx.requirements ?? {})) {
 		if (requirement === undefined) continue;
-		splitKey(key);
+		const { name } = splitKey(key);
+		if (name === "readOnly" && isUnrestricted(ctx)) continue;
 		set.set(key, requirement);
 	}
 	return set;
@@ -236,7 +243,7 @@ export function negotiateCapabilities(
 		code: string,
 		note: string,
 	): NegotiationEntry | null => {
-		if (!(ctx.allowReadOnlyDowngrade ?? false)) return null;
+		if (free || !(ctx.allowReadOnlyDowngrade ?? false)) return null;
 		if (!isAvailable(caps.readOnly, unverifiedOptIn.has("readOnly")))
 			return null;
 		forcedReadOnly = true;
@@ -454,6 +461,9 @@ export function negotiateCapabilities(
 		executorVersion: executor.version,
 		accepted: refusals.length === 0,
 		forcedReadOnly,
+		...(free && ctx.readOnly
+			? { notes: ["free permission mode: authored readOnly is not enforced"] }
+			: {}),
 		entries,
 		refusals,
 		degradations,
@@ -489,7 +499,7 @@ export function formatNegotiationPreview(
 				: "accepted"
 			: "REFUSED"
 	}${report.forcedReadOnly ? " (forced readOnly)" : ""}`;
-	const lines = [head];
+	const lines = [head, ...(report.notes ?? []).map((note) => `  ${note}`)];
 	for (const entry of report.entries) {
 		const observed =
 			entry.observed === null

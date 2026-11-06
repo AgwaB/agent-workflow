@@ -79,14 +79,14 @@ export interface LaunchRecord {
  * Documented launch settings per permission mode (WP4e, `permission.mode_mapping`). Each entry is a
  * substring of the launch invocation text: argv joined by newlines, then stdin lines (e.g.
  * `"--permission-mode\nbypassPermissions"` or `"\"approvalPolicy\":\"never\""`). The check submits
- * `tools: ["read", "bash"]` in `free`, `safe`, and `free` + `readOnly`.
+ * `tools: ["read", "bash"]` in `free`, `safe`, and both modes + `readOnly`.
  */
 export interface PermissionModeSettings {
 	/** Settings a `free`, non-readOnly launch must carry. */
 	readonly free: readonly string[];
 	/** Settings a `safe`, non-readOnly launch must carry. */
 	readonly safe: readonly string[];
-	/** Settings a `free` + `readOnly` launch must carry (it must carry no free-only setting). */
+	/** Settings a `safe` + `readOnly` launch must carry (it must carry no free-only setting). */
 	readonly readOnly?: readonly string[];
 	/**
 	 * Documented reason when the adapter maps both modes to the same settings (e.g. a CLI with no
