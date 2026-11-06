@@ -280,9 +280,6 @@ async function dispatchCommand(
 	if (command.action === "auto") {
 		const result = await autoAction(ctx, {
 			...request,
-			consent: { source: "command" },
-			// No recommendation (including classifier failure): nothing starts, no local fallback.
-			choose: async (prompt) => prompt.recommendedId,
 		});
 		const data = result.data;
 		return [

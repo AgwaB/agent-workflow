@@ -139,7 +139,7 @@ export function hostLaunchCapture(
 					? { kind: "tool", name: origin.name }
 					: { kind: "command", action: "auto" },
 			requestKind: action === "run" ? "named-workflow" : "direct-dynamic",
-			routingMode: "auto-confirmed",
+			routingMode: "auto",
 			profile: action === "run" ? { kind: "base" } : { kind: "not-applicable" },
 			task: { characters: 0, lines: 0 },
 			selection: autoSelection,

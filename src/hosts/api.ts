@@ -35,10 +35,7 @@ export {
 } from "./args.js";
 export {
 	type AutoCandidateView,
-	type AutoChoicePrompt,
 	type AutoClassifierTarget,
-	type AutoConsent,
-	type AutoConsentPreview,
 	type AutoData,
 	type AutoPhase,
 	type AutoRequest,

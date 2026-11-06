@@ -6,7 +6,6 @@ import { projectId } from "../../core/state-location.js";
 // four hours. Auto requires consent, a ranked choice, and a final confirmation;
 // print and JSON modes transmit nothing.
 import {
-	type AutoChoicePrompt,
 	COMMAND_HELP,
 	HOST_LONG_WAIT_MAX_TIMEOUT_MS,
 	type HostResult,
@@ -317,11 +316,6 @@ async function dispatch(
 					// Only an interactive session can authorize transmission.
 					...(dialog
 						? {
-								consent: {
-									source: "prompt" as const,
-									confirm: async (title: string, message: string) =>
-										(await ctx.ui.confirm(title, message)) === true,
-								},
 								// The TUI comparison loader aborts the request on Escape.
 								compare: async <T>(
 									operation: (signal: AbortSignal | undefined) => Promise<T>,
@@ -338,7 +332,6 @@ async function dispatch(
 										? undefined
 										: compared;
 								},
-								choose: (prompt: AutoChoicePrompt) => piAutoChoice(ctx, prompt),
 							}
 						: {}),
 				},
@@ -489,37 +482,8 @@ async function dispatch(
 	}
 }
 
-export const AUTO_CANCEL_CHOICE = "Cancel (start nothing)";
 export const AUTO_COMPARE_LOADER_LABEL =
 	"Comparing workflow candidates… (Esc cancels; nothing starts)";
-export const AUTO_LAUNCH_CONFIRM_TITLE = "Confirm selected workflow launch";
-
-/**
- * Show ranked workflows, recommended first, plus Cancel in ctx.ui.select,
- * then ask for a separate final confirmation through ctx.ui.confirm.
- */
-async function piAutoChoice(
-	ctx: PiExtensionContext,
-	prompt: AutoChoicePrompt,
-): Promise<string | undefined> {
-	const labels = prompt.choices.map(
-		(choice, index) =>
-			`${index + 1}. ${choice.label}${choice.recommended ? " · recommended" : ""} — ${choice.reason ?? choice.description}`,
-	);
-	const picked = await ctx.ui.select(`${prompt.title}\n${prompt.message}`, [
-		...labels,
-		AUTO_CANCEL_CHOICE,
-	]);
-	const index = picked === undefined ? -1 : labels.indexOf(picked);
-	const choice = prompt.choices[index];
-	if (!choice) return undefined;
-	const confirmed = await ctx.ui.confirm(
-		AUTO_LAUNCH_CONFIRM_TITLE,
-		`Start ${choice.label}${choice.recommended ? " (recommended)" : " (not the recommendation)"} with this task now?`,
-	);
-	return confirmed === true ? choice.candidateId : undefined;
-}
-
 function launchRequest(parsed: {
 	task: string;
 	detach: boolean;

@@ -25,8 +25,6 @@ import { cliLaunchCommand } from "../launch-capture.js";
 import { createInterface } from "node:readline";
 
 import {
-	type AutoChoicePrompt,
-	type AutoConsent,
 	applyDoctorFix,
 	approveAction,
 	autoAction,
@@ -270,7 +268,7 @@ function only(parsed: ParsedArgs, count: number, usage: string): string[] {
 }
 
 const LAUNCH_SPEC: OptionSpec = {
-	flags: ["--detach", "--force-new", "--yes", "--json", "--open"],
+	flags: ["--detach", "--force-new", "--json", "--open"],
 	values: [
 		"--executor",
 		"--profile",
@@ -354,7 +352,7 @@ async function launchCommand(
 				? 'Missing task. Usage: agent-workflow run <workflow> "<task>"'
 				: 'Missing task. Usage: agent-workflow dynamic "<task>"',
 		);
-	const options = launchOptionsFromArgs(parsed, io);
+	const options = launchOptionsFromArgs(parsed);
 	const request = {
 		task,
 		...options.request,
@@ -377,15 +375,10 @@ interface CliLaunchOptions {
 	json: boolean;
 	detach: boolean;
 	totalTimeoutMs: number | undefined;
-	/** On a terminal without --yes. */
-	interactive: boolean;
 }
 
 /** The launch options shared by `run`, `dynamic` and `auto`. */
-function launchOptionsFromArgs(
-	parsed: ParsedArgs,
-	io: CliIo,
-): CliLaunchOptions {
+function launchOptionsFromArgs(parsed: ParsedArgs): CliLaunchOptions {
 	const json = parsed.flags.has("--json");
 	const detach = parsed.flags.has("--detach");
 	const timeout = parsed.values.get("--timeout");
@@ -393,7 +386,6 @@ function launchOptionsFromArgs(
 		timeout === undefined ? undefined : parseDuration(timeout);
 	if (detach && totalTimeoutMs !== undefined)
 		throw new HostUsageError("--timeout cannot be combined with --detach");
-	const interactive = io.isTTY && !parsed.flags.has("--yes");
 	const permission = parsed.values.get("--permission-mode");
 	const allow = parsed.values.get("--allow-unverified");
 	const effort = parsed.values.get("--effort");
@@ -431,7 +423,6 @@ function launchOptionsFromArgs(
 		json,
 		detach,
 		totalTimeoutMs,
-		interactive,
 		open: parsed.flags.has("--open"),
 	};
 }
@@ -532,48 +523,10 @@ async function autoCommand(
 		throw new HostUsageError(
 			'Missing task. Usage: agent-workflow auto "<task>"',
 		);
-	const options = launchOptionsFromArgs(parsed, io);
-	const prompt = io.prompt ?? defaultPrompt;
-	const yes = parsed.flags.has("--yes");
-	const consent: AutoConsent | undefined = yes
-		? { source: "flag" }
-		: io.isTTY
-			? {
-					source: "prompt",
-					confirm: async (title, message) => {
-						io.stderr(`\n${message}\n`);
-						const answer = await prompt(`${title} [y/N] `);
-						return /^y(es)?$/i.test(answer.trim());
-					},
-				}
-			: undefined;
-	const choose = io.isTTY
-		? async (shown: AutoChoicePrompt): Promise<string | undefined> => {
-				io.stderr(`\n${shown.message}\n`);
-				const count = shown.choices.length;
-				const recommended = shown.recommendedId
-					? shown.choices.findIndex(
-							(choice) => choice.candidateId === shown.recommendedId,
-						)
-					: -1;
-				const answer = (
-					await prompt(
-						`Start which workflow? [1-${count}${recommended >= 0 ? `, Enter = ${recommended + 1}` : ""}, n = cancel] `,
-					)
-				)
-					.trim()
-					.toLowerCase();
-				if (answer === "" && recommended >= 0)
-					return shown.choices[recommended]!.candidateId;
-				if (!/^\d+$/.test(answer)) return undefined;
-				return shown.choices[Number(answer) - 1]?.candidateId;
-			}
-		: undefined;
+	const options = launchOptionsFromArgs(parsed);
 	const out = await autoAction(ctx, {
 		task,
 		...options.request,
-		...(consent ? { consent } : {}),
-		...(choose ? { choose } : {}),
 		...(io.signal ? { signal: io.signal } : {}),
 		launchOrigin: {
 			kind: "command",
@@ -697,7 +650,7 @@ async function dispatch(
 				throw new HostUsageError(
 					"Usage: agent-workflow check <workflow> [<task...>] [--executor <id>] [options]",
 				);
-			const options = launchOptionsFromArgs(parsed, io);
+			const options = launchOptionsFromArgs(parsed);
 			const checked = await checkWorkflowAction(ctx, {
 				workflow,
 				...options.request,

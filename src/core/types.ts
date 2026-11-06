@@ -1742,11 +1742,7 @@ export interface WorkflowRunLaunchMetadataHostV1 {
 }
 
 /** WP32: how the user consented to the auto classifier call. */
-export type WorkflowAutoConsentSource =
-	| "prompt"
-	| "flag"
-	| "elicitation"
-	| "command";
+export type WorkflowAutoConsentSource = "command";
 
 /** WP32: one candidate an auto launch offered (opaque id, kind, workflow label). */
 export interface WorkflowRunAutoCandidateRef {
@@ -1773,7 +1769,6 @@ export interface WorkflowRunHostAutoSelectionMetadata {
 	classifier: { executor: string; model: string | null };
 	consent: WorkflowAutoConsentSource;
 	taskSha256: string;
-	confirmed: true;
 }
 
 /**
@@ -1786,7 +1781,7 @@ export interface WorkflowRunLaunchMetadataHostV2 {
 	source: WorkflowRunLaunchHostSource;
 	entry: WorkflowRunLaunchEntryAuto;
 	requestKind: "named-workflow" | "direct-dynamic";
-	routingMode: "auto-confirmed";
+	routingMode: "auto";
 	profile: WorkflowRunLaunchProfile;
 	task: { characters: number; lines: number };
 	selection: WorkflowRunHostAutoSelectionMetadata;

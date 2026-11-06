@@ -1117,21 +1117,6 @@ function rejectUnknown(name: string, params: Record<string, unknown>) {
  * ranked order. WP39b (O4): no number prefix; Codex numbers enum options itself ("1. 1. …") and
  * Claude Code lists them in order. Equal labels get their scope (`review [user]`), then a counter.
  */
-export function autoChoiceOptions(
-	choices: readonly hostApi.AutoCandidateView[],
-): string[] {
-	const counts = new Map<string, number>();
-	for (const choice of choices)
-		counts.set(choice.label, (counts.get(choice.label) ?? 0) + 1);
-	const seen = new Set<string>();
-	return choices.map((choice) => {
-		const base = `${choice.label}${(counts.get(choice.label) ?? 0) > 1 ? ` [${choice.scope}]` : ""}${choice.recommended ? " (recommended)" : ""}`;
-		let option = base;
-		for (let n = 2; seen.has(option); n += 1) option = `${base} #${n}`;
-		seen.add(option);
-		return option;
-	});
-}
 
 export function launchRequestFromArguments(
 	params: Record<string, unknown>,
@@ -1349,51 +1334,6 @@ export async function elicitConfirmation(
  * WP32: one form-mode elicitation with a single required enum field (the final choice of
  * workflow_auto). Resolves with the chosen index, or the answer when nothing was chosen.
  */
-export async function elicitChoice(
-	call: McpToolCallContext,
-	message: string,
-	field: { title: string; options: string[]; default?: string },
-	what: string,
-	log: (message: string) => void,
-): Promise<
-	{ index: number } | { answer: Exclude<ElicitationAnswer, "accept"> }
-> {
-	try {
-		const answer = asRecord(
-			await call.sendRequest(
-				"elicitation/create",
-				{
-					...(call.protocolVersion === "2025-06-18" ? {} : { mode: "form" }),
-					message,
-					requestedSchema: {
-						type: "object",
-						properties: {
-							workflow: {
-								type: "string",
-								title: field.title,
-								enum: field.options,
-								...(field.default ? { default: field.default } : {}),
-							},
-						},
-						required: ["workflow"],
-					},
-				},
-				call.signal,
-			),
-		);
-		if (answer?.action !== "accept")
-			return { answer: answer?.action === "decline" ? "decline" : "cancel" };
-		const chosen = asRecord(answer.content)?.workflow;
-		const index =
-			typeof chosen === "string" ? field.options.indexOf(chosen) : -1;
-		return index >= 0 ? { index } : { answer: "cancel" };
-	} catch (error) {
-		log(
-			`${what} failed (treated as cancelled): ${error instanceof Error ? error.message : String(error)}`,
-		);
-		return { answer: "error" };
-	}
-}
 
 /** One POSIX shell word (for the terminal command of a refused change). */
 export function shellWord(value: string): string {
@@ -2083,10 +2023,6 @@ export function createHostMcpService(
 		},
 		[WORKFLOW_AUTO_TOOL]: async (args, call) => {
 			const ctx = await context(args, call);
-			const elicitation = clientSupportsFormElicitation(
-				call.protocolVersion,
-				call.clientCapabilities,
-			);
 			const auto = await api.autoAction(ctx, {
 				...launchRequestFromArguments(args),
 				launchOrigin: {
@@ -2095,66 +2031,15 @@ export function createHostMcpService(
 					arguments: { ...args },
 				},
 				...(call.signal ? { signal: call.signal } : {}),
-				...(elicitation
-					? {
-							consent: {
-								source: "elicitation" as const,
-								// WP39b O1: only `decline` is the user's no; `cancel`/an error is the
-								// client's (e.g. Claude Code print mode auto-cancels).
-								confirm: async (title: string, message: string) => {
-									const answer = await elicitConfirmation(
-										call,
-										`${title}\n\n${message}`,
-										"auto consent",
-										log,
-									);
-									return answer === "accept"
-										? true
-										: answer === "decline"
-											? false
-											: undefined;
-								},
-							},
-							choose: async (prompt: hostApi.AutoChoicePrompt) => {
-								const options = autoChoiceOptions(prompt.choices);
-								const recommended = prompt.choices.findIndex(
-									(choice) => choice.candidateId === prompt.recommendedId,
-								);
-								const chosen = await elicitChoice(
-									call,
-									`${prompt.title}\n\n${prompt.message}\n\nDecline to start nothing.`,
-									{
-										title: "Workflow to start",
-										options,
-										...(recommended >= 0
-											? { default: options[recommended] }
-											: {}),
-									},
-									"auto choice",
-									log,
-								);
-								return "index" in chosen
-									? prompt.choices[chosen.index]?.candidateId
-									: undefined;
-							},
-						}
-					: {}),
 			});
 			const data = auto.data;
-			let next: string | undefined;
-			let how: Delivery = "wait";
-			if (data.phase === "launched" && data.launch) {
-				how = await delivery(ctx, data.launch, call);
-				next = launchNext(data.launch, how, waitHint);
-			} else if (data.phase === "consent-unavailable")
-				next = `Next: show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}). Nothing was sent and nothing started.`;
-			else if (data.phase === "ranked" || data.phase === "cancelled")
-				next = `Nothing started. If the user then names a workflow, call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"}; do not call ${WORKFLOW_AUTO_TOOL} again unless the user asks.`;
-			else if (data.phase === "consent-declined")
-				next = `The user declined: nothing was sent and nothing started. Do not retry unless the user asks.`;
-			else if (data.phase === "consent-cancelled")
-				next = `The client cancelled the confirmation dialog or cannot ask the user here (no answer was given): nothing was sent and nothing started. Show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}).`;
-			return finish(call, withoutWaitLine(auto, how), data, next);
+			const how = data.launch ? await delivery(ctx, data.launch, call) : "wait";
+			return finish(
+				call,
+				withoutWaitLine(auto, how),
+				data,
+				data.launch ? launchNext(data.launch, how, waitHint) : undefined,
+			);
 		},
 		[WORKFLOW_STATUS_TOOL]: async (args, call) => {
 			const runId = optionalString(args, "runId");

@@ -718,7 +718,7 @@ function isWorkflowRunLaunchMetadataHost(
 		value.requestKind !== "direct-dynamic"
 	)
 		return false;
-	if (value.routingMode !== (auto ? "auto-confirmed" : "off")) return false;
+	if (value.routingMode !== (auto ? "auto" : "off")) return false;
 	if (auto && !isWorkflowHostAutoSelection(value.selection, value.requestKind))
 		return false;
 	if (
@@ -767,7 +767,6 @@ function isWorkflowHostAutoSelection(
 			"classifier",
 			"consent",
 			"taskSha256",
-			"confirmed",
 		])
 	)
 		return false;
@@ -818,17 +817,10 @@ function isWorkflowHostAutoSelection(
 				!AUTO_SAFE_ID_PATTERN.test(classifier.model)))
 	)
 		return false;
-	if (
-		value.consent !== "prompt" &&
-		value.consent !== "flag" &&
-		value.consent !== "elicitation" &&
-		value.consent !== "command"
-	)
-		return false;
+	if (value.consent !== "command") return false;
 	return (
 		typeof value.taskSha256 === "string" &&
-		/^[0-9a-f]{64}$/.test(value.taskSha256) &&
-		value.confirmed === true
+		/^[0-9a-f]{64}$/.test(value.taskSha256)
 	);
 }
 
