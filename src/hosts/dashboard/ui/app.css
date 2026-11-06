@@ -512,13 +512,7 @@ progress::-moz-progress-bar {
 	white-space: nowrap;
 	border: 0;
 }
-.approval-banner {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	margin: 0 24px 12px;
-	font-size: 14px;
-}
+
 .canvas {
 	flex: 1;
 	min-height: 0;
