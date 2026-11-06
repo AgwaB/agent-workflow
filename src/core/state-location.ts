@@ -120,9 +120,14 @@ async function readRegistration(
 	const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
 	try {
 		const info = await handle.stat();
-		// Exclusive first publication briefly links the private temp inode twice. Never
-		// accept a multi-link registry, but allow the publishing process to unlink its temp.
-		if (info.isFile() && info.nlink === 2 && attempt < 10) {
+		// Publication briefly links the temp inode twice; a concurrent atomic refresh can
+		// also unlink an inode after open but before stat. Reopen the current generation,
+		// never accept either a multi-link or detached registry as authoritative.
+		if (
+			info.isFile() &&
+			(info.nlink === 0 || info.nlink === 2) &&
+			attempt < 10
+		) {
 			await new Promise((done) => setTimeout(done, 5));
 			return await readRegistration(file, path, id, attempt + 1);
 		}
