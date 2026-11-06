@@ -1,3 +1,9 @@
+import {
+	blockedActionsLabel,
+	runBlockedActions,
+	projectBlockedActions,
+	type BlockedActions,
+} from "../core/blocked-actions.js";
 // Wait calls are bounded to 45 seconds and return terminal=false for an unsettled run.
 // A returned settled state is marked seen for notification checks.
 import { readFile } from "node:fs/promises";
@@ -120,6 +126,7 @@ function requireRunRef(value: unknown, action: string): string {
 }
 
 export interface RunSummary {
+	blockedActions?: BlockedActions;
 	runId: string;
 	name?: string;
 	status: WorkflowRunRecord["status"];
@@ -135,7 +142,9 @@ export interface RunSummary {
 }
 
 export function summarizeRun(run: WorkflowRunRecord): RunSummary {
+	const blockedActions = runBlockedActions(run);
 	return {
+		...(blockedActions ? { blockedActions } : {}),
 		runId: run.runId,
 		...(run.name ? { name: run.name } : {}),
 		status: run.status,
@@ -163,6 +172,7 @@ export interface StatusData {
 		/** WP18b: report artifacts of a terminal run. */
 		reportArtifacts: WorkflowResultArtifact[];
 		tasks: Array<{
+			blockedActions?: BlockedActions;
 			taskId: string;
 			specId: string;
 			status: string;
@@ -274,6 +284,9 @@ export async function statusAction(
 				...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
 				reportArtifacts: presentation?.artifacts ?? [],
 				tasks: run.tasks.map((task) => ({
+					...(projectBlockedActions(task.blockedActions)
+						? { blockedActions: projectBlockedActions(task.blockedActions) }
+						: {}),
 					taskId: task.taskId,
 					specId: task.specId,
 					status: task.status,
@@ -425,6 +438,7 @@ function hasContextLimitFailure(value: Record<string, unknown>): boolean {
 }
 
 export interface InspectData {
+	blockedActions?: BlockedActions;
 	run: WorkflowRunRecord;
 	reliability: {
 		health: "clean" | "repaired" | "incomplete";
@@ -505,6 +519,7 @@ export async function inspectAction(
 		failuresOnly && request.results === true && failures.length === 0;
 	const selected = failuresOnly && !showAllResults ? failures : tasks;
 	const reliability = summarizeReliability(tasks);
+	const blockedActions = runBlockedActions(run);
 	const lines = [
 		`runId: ${run.runId}`,
 		`name: ${run.name ?? "(unnamed)"}`,
@@ -514,6 +529,8 @@ export async function inspectAction(
 		`completion: ${reliability.health}`,
 		`retries: output=${reliability.outputRetries}, launch=${reliability.launchRetries}, resumes=${reliability.resumeEvents}, contextLimitFailures=${reliability.contextLimitFailures}`,
 	];
+	if (blockedActions)
+		lines.push(`blocked actions: ${blockedActionsLabel(blockedActions)}`);
 	const parentUsage = await parentUsageSummary(ctx.cwd, run.runId);
 	if (parentUsage) lines.push(formatParentUsage(parentUsage));
 	const launch = await launchSummary(ctx.cwd, run);
@@ -527,6 +544,17 @@ export async function inspectAction(
 		lines.push(
 			`- ${task.taskId}${runtime}: ${task.status}/${task.statusDetail}${task.lastMessage ? ` — ${task.lastMessage}` : ""}`,
 		);
+		const blocked = projectBlockedActions(task.blockedActions);
+		if (blocked) {
+			lines.push(`    ${blockedActionsLabel(blocked)}`);
+			for (const sample of blocked.samples)
+				lines.push(
+					`    - ${sample.tool}${sample.command ? `: ${sample.command}` : ""} — ${sample.reason}${sample.source ? ` (${sample.source})` : ""}`,
+				);
+			lines.push(
+				`    see agent-workflow logs ${run.runId} --task ${task.taskId} --stream events`,
+			);
+		}
 		// WP39b (O7): a worktree task's result is in its worktree (kept after the run).
 		const worktree = formatTaskWorktreeLocation(task);
 		if (worktree) lines.push(`    worktree: ${worktree}`);
@@ -557,6 +585,7 @@ export async function inspectAction(
 		"success",
 		{
 			run,
+			...(blockedActions ? { blockedActions } : {}),
 			reliability,
 			listed: selected.map((task) => task.taskId),
 			...(parentUsage ? { parentUsage } : {}),
@@ -581,6 +610,7 @@ export interface WaitRequest {
 }
 
 export interface WaitData {
+	blockedActions?: BlockedActions;
 	runId: string;
 	status: WorkflowRunRecord["status"];
 	semanticStatus: string;
@@ -713,7 +743,9 @@ export async function waitAction(
 		.map((task) => task.specId);
 	const actionRequired = !terminal.terminal && !stillRunning;
 	const nextRetry = stillRunning ? scheduledRetryWait(run) : undefined;
+	const blockedActions = runBlockedActions(run);
 	const data: WaitData = {
+		...(blockedActions ? { blockedActions } : {}),
 		runId: run.runId,
 		status: run.status,
 		semanticStatus: terminal.semanticStatus,
@@ -778,6 +810,11 @@ export async function waitAction(
 					: "Final result preview: unavailable"
 				: `Blocked tasks: ${blockedTaskIds.join(", ") || "unknown"}; inspect with: ${hints.inspectFailures(run.runId)}; resume with: ${hints.resume(run.runId)}`,
 		].join("\n");
+	}
+	if (blockedActions) {
+		const lines = text.split("\n");
+		lines[0] += blockedActionsLabel(blockedActions, true);
+		text = lines.join("\n");
 	}
 	if (data.dashboard)
 		text += `\nDashboard: ${data.dashboard.url}${data.dashboard.portReason ? ` · ${data.dashboard.portReason}` : ""}${data.dashboard.auth ? " (sign-in required)" : ""}`;

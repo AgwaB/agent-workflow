@@ -2289,3 +2289,10 @@ main.signin code {
 		flex-direction: column;
 	}
 }
+
+.node-kind.blocked-actions-chip text {
+	fill: var(--warn);
+}
+.blocked-actions-chip {
+	display: inline-block;
+}

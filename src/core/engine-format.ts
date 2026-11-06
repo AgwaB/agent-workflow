@@ -1,3 +1,4 @@
+import { blockedActionsLabel, runBlockedActions } from "./blocked-actions.js";
 // Unreported run cost is unknown, never zero; scheduled retries are not no-progress stalls.
 // Task lines name each task's executor in mixed runs.
 import { lstat } from "node:fs/promises";
@@ -483,6 +484,16 @@ function formatHumanRunCard(
 		}
 	}
 	lines.push(...taskSections(run));
+	const affected = run.tasks.filter((task) => task.blockedActions?.count);
+	if (affected.length)
+		lines.push(
+			"",
+			"Blocked actions:",
+			...affected.map(
+				(task) =>
+					`  • ${formatTaskHuman(task, true)} · ${blockedActionsLabel(task.blockedActions)}`,
+			),
+		);
 	lines.push(...formatRunWorktreeLines(run));
 	lines.push("", `Open: ${hints.status(run.runId)}`);
 	if (["failed", "blocked", "interrupted"].includes(run.status))
@@ -733,6 +744,8 @@ function formatHumanProgress(run: WorkflowRunRecord): string {
 	if (summary.blocked > 0) parts.push(`${summary.blocked} blocked`);
 	if (summary.failed > 0) parts.push(`${summary.failed} failed`);
 	if (summary.interrupted > 0) parts.push(`${summary.interrupted} interrupted`);
+	const blocked = runBlockedActions(run);
+	if (blocked) parts.push(blockedActionsLabel(blocked));
 	return parts.join(" · ");
 }
 
