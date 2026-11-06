@@ -1,9 +1,11 @@
 // WP43b: local dashboard discovery and opt-in browser launch. Never expose control secrets in text.
 import { spawn } from "node:child_process";
+import { constants } from "node:fs";
 import { createHmac, randomBytes } from "node:crypto";
 import {
 	link,
 	lstat,
+	open,
 	readFile,
 	rename,
 	rm,
@@ -47,7 +49,7 @@ export type DashboardLaunchParams = Partial<
 export function dashboardDiscoveryPath(_cwd?: string): string {
 	return join(agentWorkflowHome(), "dashboard.json");
 }
-/** Stable project credential; only explicit reset signs existing browsers out. */
+/** Stable user credential; only explicit reset signs existing browsers out. */
 export function dashboardSessionPath(_cwd?: string): string {
 	return join(agentWorkflowHome(), "dashboard-session");
 }
@@ -77,6 +79,23 @@ export async function readOrCreateDashboardSession(
 			try {
 				const token = (await readPrivateFileText(path, 4096)).trim();
 				if (/^[A-Za-z0-9_-]{43}$/.test(token)) {
+					const handle = await open(
+						path,
+						constants.O_RDONLY | constants.O_NOFOLLOW,
+					);
+					try {
+						const info = await handle.stat();
+						if (
+							!info.isFile() ||
+							info.nlink !== 1 ||
+							(typeof process.getuid === "function" &&
+								info.uid !== process.getuid())
+						)
+							throw new Error("Unsafe dashboard session file");
+						await handle.chmod(0o600);
+					} finally {
+						await handle.close();
+					}
 					return token;
 				}
 				await rm(path, { force: true });
@@ -91,7 +110,7 @@ export async function readOrCreateDashboardSession(
 		}
 	});
 }
-/** The port this project's dashboard used last (`.agent-workflow/dashboard-port`); reused when free. */
+/** Last user-server port; custom homes reuse it when free. */
 export function dashboardPortPath(_cwd?: string): string {
 	return join(agentWorkflowHome(), "dashboard-port");
 }
@@ -219,7 +238,7 @@ const DASHBOARD_LOCAL_REQUEST_MS = 3000;
 
 /**
  * Bounded identity probe without credentials; do not follow redirects or accept an arbitrary
- * listener. An auth server answers 401 `{ error }`; an open one answers 200 `{ apiVersion: 1 }`.
+ * listener. Only a fresh nonce HMAC made with our private launch key proves ownership.
  */
 export function probeDashboard(
 	discovery: Pick<DashboardDiscovery, "port" | "launchKey" | "protocol">,
@@ -527,7 +546,9 @@ async function startEnsuredDashboard(
 ): Promise<DashboardDiscovery | undefined> {
 	const deadline = Date.now() + dashboardStartBudget;
 	let existing = await readDashboardDiscovery(cwd);
+	let takeoverPort: number | undefined;
 	if (existing && existing.protocol < DASHBOARD_PROTOCOL && options.start) {
+		takeoverPort = existing.port;
 		await shutdownDashboard(existing);
 		while (Date.now() < deadline && (await readDashboardDiscovery(cwd)))
 			await sleep(50);
@@ -547,6 +568,7 @@ async function startEnsuredDashboard(
 				"--project",
 				resolve(cwd),
 				"--detached",
+				...(takeoverPort === undefined ? [] : ["--port", String(takeoverPort)]),
 			],
 			{ cwd, env: { ...process.env, ...env }, detached: true, stdio: "ignore" },
 		);

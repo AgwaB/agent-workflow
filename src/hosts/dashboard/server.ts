@@ -843,9 +843,8 @@ export async function startDashboardServer(
 	});
 	server.requestTimeout = 15_000;
 	server.headersTimeout = 10_000;
-	// WP43c: links in old chat messages must survive restarts, so a project's dashboard reuses its
-	// last port when nothing else holds it; an explicit --port is strict, an ephemeral one is the
-	// fallback.
+	// Port policy is pure: default home uses the fixed range; custom homes reuse their last
+	// port or ask the OS. Only an implicit occupied candidate may fall back.
 	const preferred =
 		options.port === undefined && options.discovery
 			? await readPreferredDashboardPort(cwd)

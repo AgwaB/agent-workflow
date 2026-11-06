@@ -1,6 +1,6 @@
 import { agentWorkflowHome } from "../../dist/core/home-dir.js";
 import assert from "node:assert/strict";
-import { readFile, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import test from "node:test";
 import { setImmediate as immediate } from "node:timers/promises";
@@ -63,6 +63,9 @@ test("session creation is atomic and private; malformed sessions regenerate", as
 	assert.equal(new Set(tokens).size, 1);
 	const path = dashboardSessionPath(cwd);
 	assert.equal(path, join(agentWorkflowHome(), "dashboard-session"));
+	assert.equal((await stat(path)).mode & 0o777, 0o600);
+	await chmod(path, 0o644);
+	assert.equal(await readOrCreateDashboardSession(cwd), tokens[0]);
 	assert.equal((await stat(path)).mode & 0o777, 0o600);
 	for (const malformed of [
 		"",

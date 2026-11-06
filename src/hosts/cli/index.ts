@@ -878,6 +878,7 @@ async function dispatch(
 			);
 			try {
 				let existing = await readDashboardDiscovery(cwd);
+				let takeoverPort: number | undefined;
 				if (
 					!status &&
 					!stopping &&
@@ -885,6 +886,7 @@ async function dispatch(
 					existing &&
 					existing.protocol < DASHBOARD_PROTOCOL
 				) {
+					takeoverPort = existing.port;
 					await shutdownDashboard(existing);
 					const deadline = Date.now() + 5000;
 					while (Date.now() < deadline && (await readDashboardDiscovery(cwd)))
@@ -974,7 +976,8 @@ async function dispatch(
 					throw new HostUsageError(
 						"A dashboard is already running; use --open, --status or --stop",
 					);
-				const port = intValue(parsed.values.get("--port"), "--port");
+				const port =
+					intValue(parsed.values.get("--port"), "--port") ?? takeoverPort;
 				const idleExitMs = parsed.flags.has("--detached")
 					? Number(io.env.AGENT_WORKFLOW_DASHBOARD_IDLE_MS ?? 7_200_000)
 					: undefined;
