@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -171,4 +171,33 @@ test("real CLI closes cleanly on SIGTERM and exits 0", {
 	});
 	child.kill("SIGTERM");
 	assert.deepEqual(await closed, { code: 0, signal: null });
+});
+
+test("dashboard CLI names the user directory when it cannot write it (sandboxed shell)", async () => {
+	// A missing home below a read-only parent: the owner-permission repair of an existing home
+	// cannot help, as in a sandboxed shell that may not write the user directory at all.
+	const root = await mkdtemp(join(tmpdir(), "aw-dashboard-eacces-"));
+	const locked = join(root, "locked");
+	const home = join(locked, "home");
+	const previous = process.env.AGENT_WORKFLOW_HOME;
+	try {
+		await mkdir(locked);
+		await chmod(locked, 0o500);
+		process.env.AGENT_WORKFLOW_HOME = home;
+		const result = await invoke(["dashboard", "--detached"], {
+			env: { AGENT_WORKFLOW_HOME: home },
+		});
+		assert.equal(result.code, 1, result.stderr);
+		assert.match(result.stderr, /E(ACCES|PERM)/);
+		assert.ok(
+			result.stderr.includes(`keeps runs and the dashboard in ${home}`),
+			result.stderr,
+		);
+		assert.match(result.stderr, /sandboxed shell/);
+	} finally {
+		if (previous === undefined) delete process.env.AGENT_WORKFLOW_HOME;
+		else process.env.AGENT_WORKFLOW_HOME = previous;
+		await chmod(locked, 0o700).catch(() => undefined);
+		await rm(root, { recursive: true, force: true });
+	}
 });

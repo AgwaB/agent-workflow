@@ -17,6 +17,7 @@ import {
 	openInBrowser,
 } from "../dashboard/discovery.js";
 import { resolve } from "node:path";
+import { agentWorkflowHome } from "../../core/home-dir.js";
 import { startDashboardServer } from "../dashboard/server.js";
 import { addWorkflowInputAssignment } from "../args.js";
 import { cliLaunchCommand } from "../launch-capture.js";
@@ -1216,6 +1217,17 @@ async function dispatch(
 }
 
 /** Run one CLI invocation; resolves with the process exit code. */
+/**
+ * 2026-11-06: run state and the dashboard live in the user directory, which a sandboxed shell (a
+ * Codex model shell: workspace-write, no network) can neither write nor reach on 127.0.0.1. The raw
+ * error (`EPERM: operation not permitted, fchmod`) names no path, so say where and what to do.
+ */
+function permissionHint(error: unknown): string {
+	const code = (error as NodeJS.ErrnoException | undefined)?.code;
+	if (code !== "EPERM" && code !== "EACCES" && code !== "EROFS") return "";
+	return `\nagent-workflow keeps runs and the dashboard in ${agentWorkflowHome()}. If this runs in a sandboxed shell (for example a Codex model shell), run agent-workflow from a terminal, a hook or its MCP server instead, or allow writes to that directory.`;
+}
+
 export async function runAgentWorkflowCli(
 	argv: readonly string[],
 	io: CliIo = processCliIo(),
@@ -1289,7 +1301,7 @@ export async function runAgentWorkflowCli(
 	} catch (error) {
 		const usage =
 			error instanceof HostUsageError || error instanceof TestExecutorHookError;
-		const message = formatHostError(error);
+		const message = `${formatHostError(error)}${permissionHint(error)}`;
 		if (json)
 			io.stdout(
 				`${JSON.stringify(
