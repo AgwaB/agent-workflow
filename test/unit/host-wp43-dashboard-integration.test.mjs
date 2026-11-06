@@ -16,7 +16,10 @@ import {
 	projectApi,
 } from "../helpers/dashboard-server.mjs";
 import { hostApiDashboardSource } from "../../dist/hosts/dashboard/source.js";
-import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
+import {
+	readFixtureLog,
+	workflowFixtureDescriptor,
+} from "../helpers/workflow-executor-fixture.mjs";
 import { runDiagnostics } from "../helpers/run-diagnostics.mjs";
 
 // The stock fixture emits control/analysis/refs, not foreach items or scripted output.
@@ -409,6 +412,7 @@ test("dashboard HTTP observes, streams and stops a real multi-task workflow", {
 		throw error;
 	});
 	t.diagnostic(JSON.stringify({ stopMs: Date.now() - stoppingAt }));
+	if (stopped.status !== 200) t.diagnostic(await runDiagnostics(cwd, runId));
 	assert.equal(stopped.status, 200, stopped.text);
 	await poll(
 		record,
@@ -429,4 +433,93 @@ test("dashboard HTTP observes, streams and stops a real multi-task workflow", {
 	// Resume intentionally omitted: hostApiDashboardSource unconditionally calls
 	// resumeAction({ detach: true }), spawning an unmanaged supervisor. This test
 	// owns only an attached fixture run and must not leave detached processes behind.
+});
+
+test("dashboard stop recovers an escalated worker without a terminal finalizer", {
+	timeout: 70_000,
+}, async (t) => {
+	const cwd = await realpath(
+		await mkdtemp(join(tmpdir(), "aw-dashboard-stop-")),
+	);
+	const ctx = {
+		cwd,
+		host: "cli",
+		env: {
+			...process.env,
+			AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0",
+			AGENT_WORKFLOW_HOME: join(cwd, "home"),
+		},
+	};
+	const cleanups = [];
+	let runId;
+	let unregister;
+	t.after(async () => {
+		try {
+			for (const cleanup of cleanups.reverse()) await cleanup();
+			if (runId && (await readRunRecord(cwd, runId)).status === "running")
+				await api.stopAction(ctx, { runId });
+		} finally {
+			unregister?.();
+			setSubagentLaunchControlsForTests({});
+			await rm(cwd, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
+		}
+	});
+	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
+	await writeFile(
+		join(cwd, ".agent-workflow", "agents", "reader.md"),
+		"---\nname: reader\ndescription: reads and reports\ntools: read\n---\nYou read and report.\n",
+	);
+	await writeFile(
+		join(cwd, "wf.json"),
+		JSON.stringify({
+			...TWO_STAGES,
+			artifactGraph: { stages: [TWO_STAGES.artifactGraph.stages[0]] },
+		}),
+	);
+	const executor = "test-dashboard-stop";
+	const effectLog = join(cwd, "effects.jsonl");
+	unregister = registerWorkflowExecutor(
+		workflowFixtureDescriptor({
+			id: executor,
+			effectLog,
+			// Cancellation cannot emit a terminal event before the 3 s SIGKILL escalation.
+			stepDelayMs: 30_000,
+		}),
+	);
+	const launched = await api.runWorkflowAction(ctx, {
+		workflow: "wf.json",
+		task: "Stop an executing worker.",
+		executor,
+	});
+	assert.equal(launched.outcome, "running", launched.text);
+	runId = launched.data.runId;
+	await poll(
+		() => readFixtureLog(effectLog),
+		(entries) => entries.some((entry) => entry.type === "effect"),
+		15_000,
+		"executor effect before stop",
+	);
+	const server = await dashboard(cleanups, ctx);
+	const startedAt = Date.now();
+	const stopped = await http(server, `/api/runs/${runId}/stop`, {
+		...mutation(server),
+		timeoutMs: 30_000,
+	});
+	if (stopped.status !== 200) t.diagnostic(await runDiagnostics(cwd, runId));
+	assert.equal(stopped.status, 200, stopped.text);
+	assert.ok(Date.now() - startedAt < 20_000);
+	const run = await readRunRecord(cwd, runId);
+	assert.equal(run.status, "interrupted");
+	assert.equal(run.tasks[0].status, "interrupted");
+	assert.equal(
+		run.tasks[0].durableLaunchBarrier.records.at(-1).phase,
+		"cancellation_acknowledged",
+	);
+	assert.ok(readFixtureLog(effectLog).some((entry) => entry.type === "cancel"));
 });

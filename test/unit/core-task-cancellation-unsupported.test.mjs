@@ -18,9 +18,10 @@ const handle = {
 };
 const task = { taskId: "task-1", specId: "s1", backendHandle: handle };
 
-function fakeApi({ interrupt, statuses }) {
+function fakeApi({ interrupt, statuses, reconcile }) {
 	let polls = 0;
 	return {
+		...(reconcile ? { reconcileSubagentRun: reconcile } : {}),
 		async interruptSubagent() {
 			return interrupt;
 		},
@@ -36,6 +37,57 @@ function fakeApi({ interrupt, statuses }) {
 }
 
 afterEach(() => setTaskRuntimeApiForTests(undefined));
+
+test("stop reconciles only the exact attempt before reading its status", async () => {
+	const statuses = ["running"];
+	let reconciles = 0;
+	setTaskRuntimeApiForTests(
+		fakeApi({
+			interrupt: {
+				status: "interrupt-requested",
+				runId: handle.runId,
+				interruptedAttempts: [handle.attemptId],
+				unsupportedAttempts: [],
+			},
+			statuses,
+			async reconcile(options) {
+				assert.deepEqual(options, {
+					cwd: handle.cwd,
+					runsDir: handle.runsDir,
+					runId: handle.runId,
+					expectedAttemptId: handle.attemptId,
+				});
+				reconciles += 1;
+				statuses[0] = "cancelled";
+				return { status: "committed-result" };
+			},
+		}),
+	);
+	const ack = await interruptSubagentTask(task, "workflow stopped");
+	assert.equal(ack.status, "cancelled");
+	assert.equal(reconciles, 1);
+});
+
+test("stop does not ignore reconciliation failure", async () => {
+	setTaskRuntimeApiForTests(
+		fakeApi({
+			interrupt: {
+				status: "interrupt-requested",
+				runId: handle.runId,
+				interruptedAttempts: [handle.attemptId],
+				unsupportedAttempts: [],
+			},
+			statuses: ["running"],
+			async reconcile() {
+				throw new Error("ownership inspection failed");
+			},
+		}),
+	);
+	await assert.rejects(
+		interruptSubagentTask(task, "workflow stopped"),
+		/ownership inspection failed/u,
+	);
+});
 
 test("unsupported interrupt is acknowledged once the exact attempt is terminal", async () => {
 	setTaskRuntimeApiForTests(
@@ -82,6 +134,13 @@ test("unsupported interrupt whose attempt never terminates still fails", async (
 				unsupportedAttempts: [handle.attemptId],
 			},
 			statuses: ["running"],
+			// Neither a reconcile label nor a different terminal attempt proves this stop.
+			reconcile: async () => ({
+				status: "committed-result",
+				record: {
+					attempts: [{ attemptId: "attempt_other", status: "cancelled" }],
+				},
+			}),
 		}),
 	);
 	await assert.rejects(
