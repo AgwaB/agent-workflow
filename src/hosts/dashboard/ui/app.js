@@ -5353,6 +5353,13 @@ async function start() {
 							? projects[0].id
 							: "all";
 		}
+		if (
+			state.project !== "all" &&
+			!projects.some((project) => project.id === state.project)
+		) {
+			notice("This project is not registered. Showing all projects.");
+			state.project = "all";
+		}
 		if (state.project === "all") {
 			try {
 				localStorage.setItem(PROJECT_KEY, "all");
@@ -5364,8 +5371,6 @@ async function start() {
 			renderOverview();
 			return;
 		}
-		if (!projects.some((project) => project.id === state.project))
-			throw new Error("Project not found");
 		try {
 			localStorage.setItem(PROJECT_KEY, state.project);
 		} catch {

@@ -1857,6 +1857,13 @@ test("dashboard Chrome: project overview, explicit selection, keyboard-labelled 
 				.textContent.includes("No runs in this project"),
 		),
 	);
+	await open(`${fixture.origin}/?project=unregistered-0123456789ab`);
+	await browser.waitFor(() => document.querySelector(".projects-overview"));
+	assert.ok(
+		await browser.evaluate(() =>
+			document.querySelector("#notice").textContent.includes("not registered"),
+		),
+	);
 	await open(`${fixture.origin}/?project=all`);
 	await browser.waitFor(() => document.querySelector(".projects-overview"));
 	await open(`${fixture.origin}/`);
