@@ -1950,6 +1950,8 @@ export interface WorkflowIndexRecord {
 	schemaVersion: 1;
 	updatedAt: string;
 	runs: Array<{
+		/** Cached derivation of task blockedActions, never an independent counter. */
+		blockedActions?: BlockedActions;
 		runId: string;
 		name?: string;
 		type: WorkflowRunType;

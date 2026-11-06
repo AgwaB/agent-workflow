@@ -855,7 +855,7 @@ function appendRunGroup(
 	lines.push("", label);
 	for (const run of runs) {
 		lines.push(
-			`  • ${run.name ?? run.type} — ${run.status}${mockTags.get(run.runId) ?? ""} · ${formatSummaryProgress(run.taskSummary)}`,
+			`  • ${run.name ?? run.type} — ${run.status}${mockTags.get(run.runId) ?? ""} · ${formatSummaryProgress(run.taskSummary)}${run.blockedActions ? ` · ${blockedActionsLabel(run.blockedActions)}` : ""}`,
 		);
 		lines.push(`    ${hints.status(run.runId)}`);
 	}

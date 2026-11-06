@@ -124,8 +124,7 @@ test("command comes from the same call's running input; redaction precedes 300-c
 				status: "running",
 				callId: "c",
 				input: {
-					command:
-						"curl https://example.com/?token=hidden-secret /Users/alice/private",
+					command: `curl https://example.com/?token=hidden-secret ${["", "Users", "alice", "private"].join("/")}`,
 				},
 			}),
 			denied({
@@ -351,4 +350,67 @@ test("zero-block run and old records add no fields or text on any projection", a
 	const notice = await notifyCheck(cwd);
 	assert.doesNotMatch(notice.text, /actions? (?:was|were) blocked/);
 	assert.equal("blockedActions" in notice.data.notifications[0], false);
+});
+
+test("MCP status, inspect and wait keep counts in text and structured content", async (t) => {
+	const { cwd, run, ctx } = await completed([denied()]);
+	const { inProcessHostServer } = await import(
+		"../helpers/mcp-host-client.mjs"
+	);
+	const client = await inProcessHostServer({ root: cwd, env: ctx.env });
+	t.after(() => client.close());
+	await client.initialize("2025-06-18");
+	const status = await client.call("workflow_status", { runId: run.runId });
+	assert.equal(status.isError, false);
+	assert.equal(status.structuredContent.data.run.blockedActions.count, 1);
+	assert.match(status.content[0].text, /1 action blocked by provider policy/);
+	const inspect = await client.call("workflow_inspect", { runId: run.runId });
+	assert.equal(inspect.structuredContent.data.run.blockedActions.count, 1);
+	assert.equal(
+		inspect.structuredContent.data.run.tasks.find((task) => task.blockedActions)
+			.blockedActions.count,
+		1,
+	);
+	const wait = await client.call("workflow_wait", { runId: run.runId });
+	assert.equal(wait.structuredContent.data.blockedActions.count, 1);
+	assert.match(
+		wait.content[0].text,
+		/; 1 action was blocked \(provider policy\)/,
+	);
+	assert.match(
+		wait.structuredContent.next,
+		/; 1 action was blocked \(provider policy\)/,
+	);
+	const listing = await statusAction(ctx);
+	assert.match(listing.text, /1 action blocked by provider policy/);
+});
+
+test("task result includes the summary; a later result without denials clears it", async () => {
+	const { cwd, run } = await completed([denied()]);
+	const task = run.tasks.find((task) => task.blockedActions);
+	const { fromStatePath } = await import("../../dist/core/store.js");
+	const initial = JSON.parse(
+		await readFile(fromStatePath(cwd, task.files.result), "utf8"),
+	);
+	assert.equal(initial.blockedActions.count, 1);
+	const { materializeTerminalSubagentResult } = await import(
+		"../../dist/core/terminal-result.js"
+	);
+	// A newer failed attempt with no output still replaces the previous attempt's summary.
+	await materializeTerminalSubagentResult(cwd, run, task, {
+		runId: "replacement",
+		attemptId: "attempt-2",
+		backend: "fixture",
+		status: "failed",
+		failureKind: "executor_permanent",
+		logs: [],
+		metadata: {},
+		completedAt: new Date().toISOString(),
+	});
+	assert.equal("blockedActions" in task, false);
+	assert.equal(runBlockedActions(run), undefined);
+	const latest = JSON.parse(
+		await readFile(fromStatePath(cwd, task.files.result), "utf8"),
+	);
+	assert.equal("blockedActions" in latest, false);
 });

@@ -226,7 +226,13 @@ export async function statusAction(
 			"status",
 			"success",
 			{ runs },
-			text ?? runs.map((run) => `${run.runId}: ${run.status}`).join("\n"),
+			text ??
+				runs
+					.map(
+						(run) =>
+							`${run.runId}: ${run.status}${run.blockedActions ? ` · ${blockedActionsLabel(run.blockedActions)}` : ""}`,
+					)
+					.join("\n"),
 		);
 	}
 	const ref = requireRunRef(request.runId, "status");

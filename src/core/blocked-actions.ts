@@ -1,5 +1,4 @@
 import type { ExecEvent, ToolCallEvent } from "../sdk/events.js";
-import { createSecretRedactor } from "../executors/redact.js";
 import { activityPlainText } from "./task-activity.js";
 import {
 	isSensitiveWorkflowQueryKey,
@@ -39,12 +38,15 @@ function sampleRedactor(env: NodeJS.ProcessEnv): (text: string) => string {
 				? [[value, key]]
 				: [],
 	);
-	const redact = createSecretRedactor(secrets, {
-		minLength: 8,
-		replacement: (label) => `[REDACTED:${label}]`,
-	});
-	return (text) =>
-		activityPlainText(redactSensitiveWorkflowText(redact.text(text)));
+	const longestFirst = secrets
+		.filter(([value]) => value.length >= 8)
+		.sort((a, b) => b[0].length - a[0].length);
+	return (input) => {
+		let text = input;
+		for (const [value, label] of longestFirst)
+			text = text.split(value).join(`[REDACTED:${label}]`);
+		return activityPlainText(redactSensitiveWorkflowText(text));
+	};
 }
 
 /**
@@ -82,7 +84,7 @@ export function summarizeBlockedActions(
 								item.callId === event.callId &&
 								item.input !== undefined,
 						) as ToolCallEvent | undefined);
-		const cmd = command(event.input ?? running?.input);
+		const cmd = command(event.input) ?? command(running?.input);
 		const candidates = prior.filter(
 			(item) =>
 				item.type === "approval_request" &&
