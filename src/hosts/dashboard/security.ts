@@ -66,9 +66,7 @@ export function bootstrapSession(
 	response.end();
 }
 export function allowedHost(host: string | undefined, port: number): boolean {
-	return [`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`].includes(
-		host ?? "",
-	);
+	return [`127.0.0.1:${port}`, `localhost:${port}`].includes(host ?? "");
 }
 export function allowedFetchSite(site: string | string[] | undefined): boolean {
 	return site === undefined || site === "same-origin" || site === "none";

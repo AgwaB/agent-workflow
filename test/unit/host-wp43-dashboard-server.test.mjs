@@ -322,12 +322,13 @@ test("Host and fetch-site reject rebinding and cross-origin requests before auth
 		"evil.example",
 		`evil.example:${s.port}`,
 		`127.0.0.1:${s.port + 1}`,
+		`[::1]:${s.port}`,
 	])
 		assert.equal(
 			(await http(s, "/api/session", { headers: { Host: host } })).status,
 			421,
 		);
-	for (const host of [`localhost:${s.port}`, `[::1]:${s.port}`])
+	for (const host of [`127.0.0.1:${s.port}`, `localhost:${s.port}`])
 		assert.equal(
 			(await http(s, "/api/session", { headers: { Host: host } })).status,
 			200,

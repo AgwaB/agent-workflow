@@ -6,7 +6,6 @@ import {
 	link,
 	lstat,
 	open,
-	readFile,
 	rename,
 	rm,
 	stat,
@@ -119,9 +118,9 @@ export async function readPreferredDashboardPort(
 ): Promise<number | undefined> {
 	try {
 		const value = Number(
-			(await readFile(dashboardPortPath(cwd), "utf8")).trim(),
+			(await readPrivateFileText(dashboardPortPath(cwd), 64)).trim(),
 		);
-		return Number.isInteger(value) && value >= 1024 && value <= 65535
+		return Number.isInteger(value) && value >= 1 && value <= 65535
 			? value
 			: undefined;
 	} catch {

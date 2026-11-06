@@ -659,7 +659,7 @@ Auto-start never opens a browser. Opening is opt-in through CLI `--open`, `AGENT
 
 Set `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` to disable auto-start. It is also disabled for worker roles and read-only contexts. Browser-opening host behavior is documented in [MCP dashboard opening](#dashboard-opening) and [Pi dashboard command](#aw-dashboard).
 
-The last port is stored in `<home>/dashboard-port`. Reusing it keeps older links usable after restarts when the port is available; with auth, persistent cookies also survive restarts.
+The last port is stored in `<home>/dashboard-port`. Custom homes reuse it when free; default homes try the fixed range again. With auth, persistent cookies survive restarts.
 
 ### Dashboard environment variables
 
@@ -695,6 +695,8 @@ JSON responses use `Content-Type: application/json; charset=utf-8`. Errors are `
 | `POST /api/projects/:projectId/runs/:runId/stop` | `{outcome, status, pending, interruptedTaskIds, text}` |
 | `POST /api/projects/:projectId/runs/:runId/resume` | Detached resume: `{outcome, status, resetTaskIds, text}` |
 | `POST /api/projects/:projectId/runs/:runId/approve` | Body `{requestId, decision: "approve"\|"reject"}`; result `{outcome, status, text}` |
+
+Overview counts use status summaries: `running` includes running/blocked runs, `needsAttention` counts blocked/failed runs or runs with failed tasks, and `lastActivity` is the latest update (or `null`). No task logs or reports are read for overview polling.
 
 #### Dashboard projection
 
