@@ -122,7 +122,8 @@ export function recognizeHostCommand(
 	const match = (
 		host === "claude-code"
 			? /^(?:\/aw|\/agent-workflow:aw)(?=\s|$)/
-			: /^\$aw(?=\s|$)/
+			: // Codex's skill picker turns `$aw` into the mention `$agent-workflow:aw` (live 2026-11-06).
+				/^\$(?:agent-workflow:)?aw(?=\s|$)/
 	).exec(prompt);
 	if (match)
 		return { args: prompt.slice(match[0].length).trim(), event: "submit" };

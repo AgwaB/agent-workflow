@@ -46,6 +46,8 @@ for (const [host, forms, passing] of [
 		"codex",
 		[
 			"$aw",
+			"$agent-workflow:aw",
+			"$agent-workflow:aw stop abc",
 			"aw",
 			" \t$aw",
 			"aw dashboard",
@@ -60,6 +62,8 @@ for (const [host, forms, passing] of [
 			"/aw",
 			"awesome",
 			"$awesome",
+			"$agent-workflow:awesome",
+			"$other:aw",
 			"aw draw a box",
 			"aw help",
 			"please aw run wf t",
@@ -559,7 +563,7 @@ for (const host of ["claude-code", "codex"]) {
 		}
 		for (const prefix of host === "claude-code"
 			? ["/aw", "/agent-workflow:aw"]
-			: ["$aw", "aw"]) {
+			: ["$aw", "$agent-workflow:aw", "aw"]) {
 			for (const action of [
 				"",
 				"dashboard",

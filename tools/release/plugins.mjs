@@ -232,7 +232,7 @@ export function hostCommandHookCommand(cli, host, expansion = false) {
 	const prefix =
 		host === HOST_IDS.claude
 			? String.raw`(/aw|/agent-workflow:aw)${boundary}`
-			: String.raw`(\$aw${boundary}|aw("|${space}+("|(dashboard|run|dynamic|auto|stop)${boundary})))`;
+			: String.raw`(\$(agent-workflow:)?aw${boundary}|aw("|${space}+("|(dashboard|run|dynamic|auto|stop)${boundary})))`;
 	const pattern = expansion
 		? String.raw`"command_name"[[:space:]]*:[[:space:]]*"(aw|agent-workflow:aw)"`
 		: String.raw`"prompt"[[:space:]]*:[[:space:]]*"${space}*${prefix}`;
