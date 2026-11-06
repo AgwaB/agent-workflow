@@ -403,6 +403,7 @@ function readState() {
 	const choice = (key, values) =>
 		values.includes(params.get(key)) ? params.get(key) : null;
 	return {
+		project: params.get("project"),
 		run: params.get("run"),
 		task: params.get("task"),
 		stage: params.get("stage"),
@@ -413,6 +414,7 @@ function readState() {
 	};
 }
 let state = readState();
+let projects = [];
 let session,
 	runs = [],
 	run = null,
@@ -457,6 +459,8 @@ function urlState(replace = false) {
 	);
 }
 async function api(path, options = {}) {
+	if (path.startsWith("/api/runs"))
+		path = `/api/projects/${encodeURIComponent(state.project)}/${path.slice(5)}`;
 	const response = await fetch(path, {
 		credentials: "same-origin",
 		...options,
@@ -521,7 +525,12 @@ function renderTop() {
 			element("span", { class: "brand-name" }, "agent-workflow"),
 		),
 		element("span", { class: "muted", "aria-hidden": "true" }, "/"),
-		element("span", { class: "project", id: "project" }, session.project.name),
+		element(
+			"span",
+			{ class: "project", id: "project" },
+			projects.find((project) => project.id === state.project)?.name ||
+				"All projects",
+		),
 		button(
 			[
 				element("span", { class: "search-icon", "aria-hidden": "true" }, "⌕"),
@@ -682,6 +691,27 @@ function renderRail() {
 		(need) => !needs.some((shown) => shown.key === need.key),
 	);
 	rail.replaceChildren();
+	const switcher = element(
+		"select",
+		{
+			id: "project-switcher",
+			"aria-label": "Project",
+			onchange: (event) => selectProject(event.target.value),
+		},
+		element("option", { value: "all" }, "All projects"),
+		projects.map((project) =>
+			element("option", { value: project.id }, project.name),
+		),
+	);
+	switcher.value = state.project || "all";
+	rail.append(
+		element(
+			"div",
+			{ class: "project-switcher" },
+			element("label", { for: "project-switcher" }, "Project"),
+			switcher,
+		),
+	);
 	if (needs.length || hidden.length)
 		rail.append(element("h2", { class: "rail-heading" }, "Needs you"));
 	for (const need of needs)
@@ -4955,7 +4985,7 @@ function connectEvents() {
 	const id = state.run,
 		generation = loadGeneration;
 	const source = new EventSource(
-		`/api/events${id ? `?run=${encodeURIComponent(id)}` : ""}`,
+		`/api/events?project=${encodeURIComponent(state.project)}${id ? `&run=${encodeURIComponent(id)}` : ""}`,
 	);
 	eventSource = source;
 	const receive = (handler) => (event) => {
@@ -5096,6 +5126,10 @@ $("dialog").addEventListener("click", (event) => {
 	}
 });
 window.addEventListener("popstate", () => {
+	if (readState().project !== state.project) {
+		location.reload();
+		return;
+	}
 	const previous = state.run;
 	state = readState();
 	if (modalKey) dismissDialog(false);
@@ -5215,12 +5249,108 @@ window.addEventListener("pagehide", () => {
 	logController?.abort();
 });
 window.addEventListener("pageshow", (event) => {
-	if (event.persisted && session) loadRun();
+	if (event.persisted && session && state.project) loadRun();
 });
+const PROJECT_KEY = "agent-workflow:project";
+function selectProject(id) {
+	try {
+		localStorage.setItem(PROJECT_KEY, id);
+	} catch {
+		/* Storage is optional. */
+	}
+	location.assign(`/?project=${encodeURIComponent(id)}`);
+}
+function renderOverview() {
+	renderTop();
+	renderRail();
+	$("center").replaceChildren(
+		element(
+			"section",
+			{ class: "projects-overview" },
+			element("h1", {}, "All projects"),
+			element(
+				"p",
+				{ class: "muted" },
+				`${projects.length} projects · ${projects.reduce((n, p) => n + p.counts.running, 0)} active runs · ${projects.reduce((n, p) => n + p.counts.needsAttention, 0)} need attention`,
+			),
+			projects.length
+				? projects.map((project) =>
+						element(
+							"article",
+							{ class: "project-card" },
+							button(project.name, () => selectProject(project.id)),
+							element(
+								"p",
+								{ class: "muted" },
+								project.path,
+								project.pathMissing ? " · path missing" : "",
+							),
+							element(
+								"p",
+								{},
+								`${project.counts.running} active · ${project.counts.needsAttention} need attention`,
+							),
+							project.counts.lastActivity
+								? element(
+										"small",
+										{ class: "muted" },
+										`Last activity ${ago(project.counts.lastActivity)}`,
+									)
+								: null,
+						),
+					)
+				: element(
+						"p",
+						{},
+						"No projects yet. Start a workflow from your terminal.",
+					),
+		),
+	);
+}
+setInterval(async () => {
+	if (!session || state.project || document.hidden) return;
+	try {
+		projects = (await api("/api/projects")).projects;
+		renderOverview();
+	} catch {
+		notice("Could not refresh projects. Try reloading the dashboard.");
+	}
+}, 5000);
 async function start() {
 	try {
 		session = await api("/api/session");
 		syncClock(session.serverTime);
+		projects = (await api("/api/projects")).projects;
+		if (!state.project) {
+			let remembered;
+			try {
+				remembered = localStorage.getItem(PROJECT_KEY);
+			} catch {
+				/* Storage is optional. */
+			}
+			state.project =
+				remembered === "all"
+					? "all"
+					: projects.some((p) => p.id === remembered)
+						? remembered
+						: projects.length === 1
+							? projects[0].id
+							: "all";
+		}
+		if (state.project === "all") {
+			state.project = null;
+			state.run = null;
+			renderOverview();
+			return;
+		}
+		if (!projects.some((project) => project.id === state.project))
+			throw new Error("Project not found");
+		try {
+			localStorage.setItem(PROJECT_KEY, state.project);
+		} catch {
+			/* Storage is optional. */
+		}
+		urlState(true);
 		await refreshRuns();
 		if (!state.run) {
 			state.run =
