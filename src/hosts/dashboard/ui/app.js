@@ -408,7 +408,14 @@ function readState() {
 		task: params.get("task"),
 		stage: params.get("stage"),
 		tab: choice("tab", ["result", "output", "stderr", "events"]),
-		view: choice("view", ["report", "details"]),
+		view: choice("view", [
+			"report",
+			"details",
+			"workflows",
+			"profiles",
+			"maintenance",
+			"executors",
+		]),
 		dialog: choice("dialog", ["stop", "resume", "approve", "reject"]),
 		layout: choice("layout", ["td", "lr"]) || "td",
 	};
@@ -468,7 +475,10 @@ async function api(path, options = {}) {
 	});
 	const data = await response.json();
 	if (!response.ok)
-		throw new Error(data.error || `Request failed (${response.status})`);
+		throw Object.assign(
+			new Error(data.error || `Request failed (${response.status})`),
+			{ status: response.status, data },
+		);
 	return data;
 }
 function notice(text) {
@@ -713,6 +723,33 @@ function renderRail() {
 			switcher,
 		),
 	);
+	rail.append(
+		element(
+			"nav",
+			{ class: "management-nav", "aria-label": "Dashboard views" },
+			["Runs", "Workflows", "Profiles", "Maintenance", "Executors"].map(
+				(title) => {
+					const view = title.toLowerCase();
+					const params = new URLSearchParams();
+					if (state.project) params.set("project", state.project);
+					if (view !== "runs") params.set("view", view);
+					return element(
+						"a",
+						{
+							href: `/?${params}`,
+							"aria-current":
+								(state.view || "runs") === view ||
+								(view === "runs" && !managementView())
+									? "page"
+									: null,
+						},
+						title,
+					);
+				},
+			),
+		),
+	);
+	if (managementView()) return;
 	if (needs.length || hidden.length)
 		rail.append(element("h2", { class: "rail-heading" }, "Needs you"));
 	for (const need of needs)
@@ -5128,6 +5165,15 @@ $("dialog").addEventListener("click", (event) => {
 	}
 });
 window.addEventListener("popstate", () => {
+	if (
+		managementView() ||
+		["workflows", "profiles", "maintenance", "executors"].includes(
+			readState().view,
+		)
+	) {
+		location.reload();
+		return;
+	}
 	if (readState().project !== state.project) {
 		location.reload();
 		return;
@@ -5260,7 +5306,9 @@ function selectProject(id) {
 	} catch {
 		/* Storage is optional. */
 	}
-	location.assign(`/?project=${encodeURIComponent(id)}`);
+	location.assign(
+		`/?project=${encodeURIComponent(id)}${managementView() ? `&view=${state.view}` : ""}`,
+	);
 }
 function renderOverview() {
 	lastEvent = Date.now();
@@ -5317,7 +5365,13 @@ function renderOverview() {
 }
 let overviewRefreshing = false;
 setInterval(async () => {
-	if (!session || state.project || document.hidden || overviewRefreshing)
+	if (
+		!session ||
+		state.project ||
+		managementView() ||
+		document.hidden ||
+		overviewRefreshing
+	)
 		return;
 	overviewRefreshing = true;
 	try {
@@ -5372,7 +5426,8 @@ async function start() {
 			}
 			state.project = null;
 			state.run = null;
-			renderOverview();
+			if (managementView()) await renderManagement();
+			else renderOverview();
 			return;
 		}
 		try {
@@ -5381,6 +5436,10 @@ async function start() {
 			/* Storage is optional. */
 		}
 		urlState(true);
+		if (managementView()) {
+			await renderManagement();
+			return;
+		}
 		await refreshRuns();
 		if (!state.run) {
 			state.run =
@@ -5415,6 +5474,922 @@ async function start() {
 		);
 	}
 }
+// Management pages use the same text-only components as run views. No launch endpoint or form.
+function managementView() {
+	return ["workflows", "profiles", "maintenance", "executors"].includes(
+		state.view,
+	);
+}
+const managementApi = (path, options = {}) =>
+	api(path, { signal: AbortSignal.timeout(150000), ...options });
+const projectRoute = (path) =>
+	`/api/projects/${encodeURIComponent(state.project)}/${path}`;
+function managementWrite(path, method, body = {}) {
+	return managementApi(path, {
+		method,
+		headers: { "Content-Type": "application/json", "X-AW-CSRF": session.csrf },
+		body: JSON.stringify(body),
+	});
+}
+function field(label, control) {
+	return element(
+		"label",
+		{ class: "management-field" },
+		element("span", {}, label),
+		control,
+	);
+}
+function input(label, value = "", attrs = {}) {
+	const control = element("input", { "aria-label": label, ...attrs });
+	control.value = value;
+	return control;
+}
+function choices(label, values, value = "") {
+	const control = element(
+		"select",
+		{ "aria-label": label },
+		values.map((entry) => {
+			const [id, text] = Array.isArray(entry)
+				? entry
+				: [entry, entry || "Automatic"];
+			return element("option", { value: id }, text);
+		}),
+	);
+	control.value = value;
+	return control;
+}
+function managementResult(value) {
+	return element(
+		"div",
+		{ class: "management-result", role: "status" },
+		element("pre", {}, value.text || JSON.stringify(value, null, 2)),
+		element(
+			"details",
+			{},
+			element("summary", {}, "Structured details"),
+			element("pre", {}, JSON.stringify(value.data || value, null, 2)),
+		),
+	);
+}
+function managementPanel(title, ...children) {
+	return element(
+		"section",
+		{ class: "management-card" },
+		element("h2", {}, title),
+		children,
+	);
+}
+// The actor is the dashboard user: no MCP confirmation dialogs. Errors stay beside their form.
+function managementControl(
+	label,
+	action,
+	output,
+	{ write = true, ...attrs } = {},
+) {
+	const control = button(
+		label,
+		async () => {
+			control.disabled = true;
+			const working = element(
+				"p",
+				{ role: "status", class: "muted" },
+				"Working…",
+			);
+			output.replaceChildren(working);
+			try {
+				await action();
+			} catch (error) {
+				output.replaceChildren(
+					element(
+						"p",
+						{ role: "alert", class: "management-error" },
+						error.message,
+					),
+				);
+				if (error.data?.preview)
+					output.append(managementResult(error.data.preview));
+			} finally {
+				working.remove();
+				control.disabled = write && readonly();
+			}
+		},
+		{
+			disabled: write && readonly(),
+			title: write && readonly() ? "Read-only mode" : null,
+			...attrs,
+		},
+	);
+	return control;
+}
+function commandHint(command) {
+	return element(
+		"div",
+		{ class: "command" },
+		element("pre", {}, command),
+		button("Copy", () => copy(command)),
+	);
+}
+async function modelControls(saved = {}, prefix = "") {
+	const data = (await managementApi("/api/executors/models")).data;
+	const ids = data.executors.map((entry) => entry.id);
+	if (saved.executor && !ids.includes(saved.executor)) ids.push(saved.executor);
+	const exec = choices(`${prefix}Executor`, ["", ...ids], saved.executor || "");
+	const model = input(`${prefix}Model`, saved.model || "", {
+		placeholder: "Executor default",
+	});
+	const effort = choices(
+		`${prefix}Effort`,
+		["", "off", "minimal", "low", "medium", "high", "xhigh"],
+		saved.effort || "",
+	);
+	const list = element("datalist", { id: `models-${++modelControlId}` });
+	model.setAttribute("list", list.id);
+	const note = element("small", { class: "muted" });
+	const update = () => {
+		const entry = data.executors.find((entry) => entry.id === exec.value);
+		list.replaceChildren(
+			...(entry?.models || []).map((id) => element("option", { value: id })),
+		);
+		note.textContent =
+			entry?.note || "Choose an executor for its model suggestions.";
+	};
+	exec.addEventListener("change", update);
+	update();
+	return {
+		node: element(
+			"div",
+			{ class: "management-fields" },
+			field("Executor", exec),
+			field("Model", model),
+			field("Effort", effort),
+			list,
+			note,
+		),
+		values: () =>
+			Object.fromEntries(
+				[
+					["executor", exec.value],
+					["model", model.value],
+					["effort", effort.value],
+				].filter(([, value]) => value),
+			),
+	};
+}
+let modelControlId = 0;
+async function roleEditor(roles = {}) {
+	const rows = element("div", { class: "management-role-rows" });
+	const entries = [];
+	async function add(key = "", value = {}) {
+		const role = input("Role name", key, {
+			placeholder: "default, verification, agent:reader…",
+		});
+		const model = await modelControls(value, `Role ${key || "new"} `);
+		const row = element(
+			"div",
+			{ class: "management-role" },
+			field("Role", role),
+			model.node,
+		);
+		const entry = { role, model, row };
+		entries.push(entry);
+		row.append(
+			button(
+				"Remove role",
+				() => {
+					entries.splice(entries.indexOf(entry), 1);
+					row.remove();
+				},
+				{ disabled: readonly() },
+			),
+		);
+		rows.append(row);
+	}
+	for (const [key, value] of Object.entries(roles)) await add(key, value);
+	const errors = element("div");
+	return {
+		node: element(
+			"div",
+			{},
+			rows,
+			managementControl(
+				"Add role",
+				async () => {
+					await add();
+					errors.replaceChildren();
+				},
+				errors,
+			),
+			errors,
+		),
+		values: () =>
+			Object.fromEntries(
+				entries.map(({ role, model }) => {
+					if (!role.value.trim())
+						throw new Error("Enter a name for each role.");
+					return [role.value.trim(), model.values()];
+				}),
+			),
+	};
+}
+async function renderManagement() {
+	connection = "Live";
+	lastEvent = Date.now();
+	renderTop();
+	renderRail();
+	const title = humanize(state.view);
+	const page = element(
+		"div",
+		{ class: "management-page", "data-management": state.view },
+		element("h1", {}, title),
+		element(
+			"p",
+			{ class: "muted" },
+			["profiles", "executors"].includes(state.view)
+				? "User level · shared by every project and host"
+				: "Selected project · shared host actions",
+		),
+	);
+	$("center").replaceChildren(page);
+	try {
+		if (["workflows", "maintenance"].includes(state.view) && !state.project) {
+			page.append(
+				element(
+					"p",
+					{ class: "empty" },
+					"Choose a project in the sidebar to manage its workflows and history.",
+				),
+			);
+			return;
+		}
+		if (state.view === "workflows") await renderWorkflows(page);
+		if (state.view === "profiles") await renderProfiles(page);
+		if (state.view === "maintenance") await renderMaintenance(page);
+		if (state.view === "executors") await renderExecutors(page);
+	} catch (error) {
+		page.append(
+			element("p", { role: "alert", class: "management-error" }, error.message),
+			button("Try again", renderManagement),
+		);
+	}
+}
+async function renderWorkflows(page) {
+	const [catalog, agents] = await Promise.all([
+		managementApi(projectRoute("workflows")),
+		managementApi(projectRoute("agents")),
+	]);
+	const list = managementPanel("Available workflows");
+	const detail = element("div", { "aria-live": "polite" });
+	page.append(list, detail);
+	if (!catalog.data.workflows.length)
+		list.append(
+			element(
+				"p",
+				{},
+				"No workflows yet. Add a workflow definition to .agent-workflow/workflows, or install a workflow bundle. Run agent-workflow list to discover it.",
+			),
+		);
+	for (const workflow of catalog.data.workflows) {
+		list.append(
+			element(
+				"article",
+				{ class: "management-list-row" },
+				managementControl(
+					workflow.name,
+					async () => {
+						const data = await managementApi(
+							projectRoute(`workflows/${encodeURIComponent(workflow.name)}`),
+						);
+						// Display authored stage/agent names, not a second compiler or execution plan.
+						const authored = JSON.parse(data.spec.data.spec);
+						const stages = Array.isArray(authored.artifactGraph?.stages)
+							? authored.artifactGraph.stages
+							: [];
+						const panel = managementPanel(
+							workflow.name,
+							element("h3", {}, "Stages and agents"),
+							element(
+								"ul",
+								{},
+								stages.map((stage) =>
+									element(
+										"li",
+										{},
+										`${stage.id} · ${stage.type || (stage.support ? "code" : "stage")} · ${stage.agent || authored.defaults?.agent || "executor default"}`,
+									),
+								),
+							),
+							managementResult(data.validation),
+							element(
+								"details",
+								{},
+								element("summary", {}, "Stages and agents · resolved spec"),
+								element("pre", {}, data.spec.data.spec),
+							),
+							element(
+								"details",
+								{},
+								element("summary", {}, "Compiled roles"),
+								managementResult(data.roles),
+							),
+						);
+						detail.replaceChildren(panel);
+						const options = await modelControls();
+						const profiles =
+							(await managementApi("/api/profiles")).data.profiles || [];
+						const profile = choices("Check profile", [
+							"",
+							...new Set([
+								...profiles.map((p) => p.name),
+								...Object.keys(authored.executionProfiles || {}),
+								"pi",
+								"claude",
+								"codex",
+								"mixed",
+							]),
+						]);
+						const permission = choices("Check permission mode", [
+							"",
+							"free",
+							"safe",
+						]);
+						const output = element("div");
+						const command = element("div");
+						const selected = () => ({
+							...options.values(),
+							...(profile.value ? { profile: profile.value } : {}),
+							...(permission.value ? { permissionMode: permission.value } : {}),
+						});
+						const awCommand = `aw run ${shellArg(workflow.name)} "<task>"`;
+						const update = () => {
+							const flags = Object.entries(selected())
+								.map(
+									([key, value]) =>
+										` --${key === "permissionMode" ? "permission-mode" : key} ${shellArg(value)}`,
+								)
+								.join("");
+							command.replaceChildren(commandHint(awCommand));
+							if (flags)
+								command.append(
+									element(
+										"p",
+										{ class: "muted" },
+										"aw uses saved defaults; for these explicit Check overrides use the CLI:",
+									),
+									commandHint(
+										`agent-workflow run ${shellArg(workflow.name)} "<task>"${flags}`,
+									),
+								);
+						};
+						const form = element(
+							"div",
+							{ class: "management-fields", onchange: update, oninput: update },
+							options.node,
+							field("Profile (optional)", profile),
+							field("Permission mode", permission),
+						);
+						panel.append(
+							element("h3", {}, "Check · no run or model call"),
+							form,
+							managementControl(
+								"Check",
+								async () => {
+									output.replaceChildren(
+										managementResult(
+											await managementWrite(
+												projectRoute(
+													`workflows/${encodeURIComponent(workflow.name)}/check`,
+												),
+												"POST",
+												selected(),
+											),
+										),
+									);
+								},
+								output,
+								{ "data-management-action": "check" },
+							),
+							output,
+							command,
+						);
+						update();
+					},
+					detail,
+					{ write: false },
+				),
+				element("p", {}, workflow.description || "No description."),
+				element(
+					"small",
+					{ class: "muted" },
+					`Source: ${workflow.scope || "catalog"} · ${workflow.specPath} · aliases: ${workflow.aliases.join(", ") || "none"}${workflow.agent ? ` · agent: ${workflow.agent}` : ""}${workflow.readOnly !== undefined ? ` · read-only: ${workflow.readOnly}` : ""}`,
+				),
+				workflow.routing
+					? element(
+							"p",
+							{ class: "muted" },
+							Object.entries(workflow.routing)
+								.map(([key, hints]) => `${humanize(key)}: ${hints.join("; ")}`)
+								.join(" · "),
+						)
+					: null,
+			),
+		);
+	}
+	page.append(
+		managementPanel(
+			"Agents",
+			agents.data.agents.length
+				? agents.data.agents.map((agent) =>
+						element(
+							"article",
+							{ class: "management-list-row" },
+							element("h3", {}, agent.displayName),
+							element("p", {}, agent.description || "No description."),
+							element(
+								"small",
+								{ class: "muted" },
+								`${agent.scope} · ${agent.sourcePath}${agent.model ? ` · ${agent.model}` : ""}`,
+							),
+						),
+					)
+				: element(
+						"p",
+						{},
+						"No agents yet. Add an agent to .agent-workflow/agents.",
+					),
+		),
+	);
+}
+async function renderProfiles(page) {
+	const [result, presets, preferences] = await Promise.all([
+		managementApi("/api/profiles"),
+		managementApi("/api/profiles/presets"),
+		managementApi("/api/workflow-preferences"),
+	]);
+	const data = result.data;
+	const list = managementPanel("Saved profiles");
+	const editor = element("div");
+	const errors = element("div");
+	page.append(list, errors, editor);
+	if (!data.profiles.length)
+		list.append(
+			element(
+				"p",
+				{},
+				"No profiles yet. Choose New profile below, or run agent-workflow profile set <name> --executor <id>.",
+			),
+		);
+	list.append(
+		element("p", { class: "muted" }, `Default: ${data.default || "none"}`),
+	);
+	for (const profile of data.profiles)
+		list.append(
+			element(
+				"div",
+				{ class: "management-list-row" },
+				managementControl(
+					profile.name,
+					async () => {
+						await edit(profile);
+					},
+					errors,
+					{ write: false },
+				),
+				element(
+					"small",
+					{ class: "muted" },
+					[profile.executor, profile.model, profile.permissionMode]
+						.filter(Boolean)
+						.join(" · "),
+				),
+				managementControl(
+					`Use ${profile.name} by default`,
+					async () => {
+						await managementWrite("/api/profiles-default", "PUT", {
+							name: profile.name,
+						});
+						await renderManagement();
+					},
+					errors,
+				),
+				managementControl(
+					`Delete ${profile.name}`,
+					async () => {
+						await managementWrite(
+							`/api/profiles/${encodeURIComponent(profile.name)}`,
+							"DELETE",
+						);
+						await renderManagement();
+					},
+					errors,
+				),
+			),
+		);
+	list.append(
+		managementControl(
+			"Clear default",
+			async () => {
+				await managementWrite("/api/profiles-default", "PUT", { name: null });
+				await renderManagement();
+			},
+			errors,
+		),
+		managementControl(
+			"New profile",
+			async () => {
+				await edit({});
+			},
+			errors,
+			{ write: false },
+		),
+	);
+	async function edit(profile) {
+		const id = input("Profile name", profile.name || "", {
+			maxlength: 64,
+			readonly: !!profile.name,
+		});
+		const models = await modelControls(profile);
+		const roles = await roleEditor(profile.roles);
+		const permission = choices(
+			"Profile permission mode",
+			["", "free", "safe"],
+			profile.permissionMode || "",
+		);
+		const preset = choices("Profile preset", [
+			["", "None (keep current)"],
+			...presets.data.presets.map((p) => [p.id, `${p.id} — ${p.description}`]),
+		]);
+		const strict = input(
+			"Strict capabilities (comma separated)",
+			(profile.strictCapabilities || []).join(", "),
+		);
+		const output = element("div");
+		editor.replaceChildren(
+			managementPanel(
+				profile.name ? `Edit ${profile.name}` : "New profile",
+				field("Name", id),
+				field("Start from preset", preset),
+				models.node,
+				field("Permission mode", permission),
+				field("Strict capabilities (comma separated)", strict),
+				element("h3", {}, "Role assignments"),
+				roles.node,
+				managementControl(
+					"Save profile",
+					async () => {
+						const values = {
+							...models.values(),
+							...(permission.value ? { permissionMode: permission.value } : {}),
+							...(strict.value.trim()
+								? {
+										strictCapabilities: strict.value
+											.split(",")
+											.map((s) => s.trim())
+											.filter(Boolean),
+									}
+								: {}),
+							roles: roles.values(),
+						};
+						const unset = [
+							"executor",
+							"model",
+							"effort",
+							"permissionMode",
+							"strictCapabilities",
+						].filter((key) => values[key] === undefined);
+						// Removing a role is explicit: the host API deliberately merges role maps.
+						unset.push(
+							...Object.keys(profile.roles || {})
+								.filter((key) => !Object.hasOwn(values.roles, key))
+								.map((key) => `roles.${key}`),
+						);
+						const saved = await managementWrite(
+							`/api/profiles/${encodeURIComponent(id.value)}`,
+							"PUT",
+							{
+								values,
+								unset,
+								...(preset.value ? { preset: preset.value } : {}),
+							},
+						);
+						await renderManagement();
+						$("center")
+							.querySelector(".management-page")
+							.append(managementResult(saved));
+					},
+					output,
+					{ "data-management-action": "save-profile" },
+				),
+				output,
+				commandHint(
+					`agent-workflow profile set ${shellArg(profile.name || "<name>")} --executor <id>`,
+				),
+			),
+		);
+	}
+	page.append(
+		managementPanel(
+			"Presets",
+			presets.data.presets.map((preset) =>
+				element(
+					"details",
+					{},
+					element("summary", {}, `${preset.id} — ${preset.description}`),
+					element("pre", {}, JSON.stringify(preset.roles, null, 2)),
+				),
+			),
+		),
+	);
+	const prefPanel = managementPanel(
+		"Per-workflow preferences",
+		element(
+			"p",
+			{ class: "muted" },
+			"Stored at user level; workflow definitions and declared profiles are resolved in the selected project.",
+		),
+	);
+	page.append(prefPanel);
+	if (!state.project) {
+		prefPanel.append(
+			element("p", {}, "Choose a project to edit workflow preferences."),
+		);
+		return;
+	}
+	const workflows = (await managementApi(projectRoute("workflows"))).data
+		.workflows;
+	const prefOutput = element("div");
+	const prefEditor = element("div");
+	for (const workflow of workflows) {
+		const saved = preferences.data.preferences.find(
+			(pref) => pref.workflow === workflow.name,
+		);
+		prefPanel.append(
+			managementControl(
+				`${workflow.name}${saved?.profile ? ` · ${saved.profile}` : ""}`,
+				async () => {
+					const path = `/api/workflow-preferences/${encodeURIComponent(workflow.name)}?project=${encodeURIComponent(state.project)}`;
+					const current = (await managementApi(path)).data.preference || {};
+					const profile = input(
+						"Workflow preferred profile",
+						current.profile || "",
+						{ placeholder: "Declared profile, saved profile or preset" },
+					);
+					const roles = await roleEditor(current.roles);
+					prefEditor.replaceChildren(
+						element("h3", {}, workflow.name),
+						field("Profile", profile),
+						roles.node,
+						managementControl(
+							"Save workflow preference",
+							async () => {
+								const values = roles.values();
+								const unset = [
+									...(!profile.value ? ["profile"] : []),
+									...Object.keys(current.roles || {})
+										.filter((key) => !Object.hasOwn(values, key))
+										.map((key) => `roles.${key}`),
+								];
+								prefOutput.replaceChildren(
+									managementResult(
+										await managementWrite(path, "PUT", {
+											...(profile.value ? { profile: profile.value } : {}),
+											roles: values,
+											unset,
+										}),
+									),
+								);
+							},
+							prefOutput,
+						),
+						managementControl(
+							"Clear workflow preference",
+							async () => {
+								prefOutput.replaceChildren(
+									managementResult(await managementWrite(path, "DELETE")),
+								);
+							},
+							prefOutput,
+						),
+						commandHint(
+							`agent-workflow profile workflow show ${shellArg(workflow.name)}`,
+						),
+					);
+					prefOutput.replaceChildren();
+				},
+				prefOutput,
+				{ write: false },
+			),
+		);
+	}
+	if (!workflows.length)
+		prefPanel.append(
+			element(
+				"p",
+				{},
+				"Add a workflow to .agent-workflow/workflows to save preferences for it.",
+			),
+		);
+	prefPanel.append(prefEditor, prefOutput);
+}
+async function renderMaintenance(page) {
+	const keep = input("Keep newest terminal runs", "50", {
+		type: "number",
+		min: 0,
+		max: 100000,
+	});
+	const older = input("Older than days (optional)", "", {
+		type: "number",
+		min: 0,
+		max: 36500,
+	});
+	const output = element("div");
+	let preview;
+	const params = () => ({
+		keep: Number(keep.value),
+		...(older.value !== "" ? { olderThanDays: Number(older.value) } : {}),
+	});
+	const remove = managementControl(
+		"Delete previewed data",
+		async () => {
+			const shown = preview;
+			preview = null;
+			remove.hidden = true;
+			try {
+				output.replaceChildren(
+					managementResult(
+						await managementWrite(projectRoute("prune"), "POST", {
+							...shown.params,
+							digest: shown.result.digest,
+						}),
+					),
+				);
+			} catch (error) {
+				// Mismatch never deletes. The new preview is displayed; a fresh Preview is required.
+				throw error;
+			}
+		},
+		output,
+		{ "data-management-action": "prune-delete" },
+	);
+	remove.hidden = true;
+	const invalidate = () => {
+		preview = null;
+		remove.hidden = true;
+	};
+	keep.addEventListener("input", invalidate);
+	older.addEventListener("input", invalidate);
+	const panel = managementPanel(
+		"Prune history",
+		element(
+			"p",
+			{},
+			"Preview exactly what will be deleted, including executor attempt state and stale launch claims. Active runs and protected evidence stay. Delete is refused if the preview changes.",
+		),
+		element(
+			"div",
+			{ class: "management-fields" },
+			field("Keep newest terminal runs", keep),
+			field("Older than days (optional)", older),
+		),
+		managementControl(
+			"Preview prune",
+			async () => {
+				invalidate();
+				const selected = params();
+				const result = await managementWrite(
+					projectRoute("prune/preview"),
+					"POST",
+					selected,
+				);
+				preview = { params: selected, result };
+				output.replaceChildren(
+					managementResult(result),
+					element("h3", {}, "Run selection and protections"),
+				);
+				for (const run of result.data.runs)
+					output.append(
+						element(
+							"p",
+							{},
+							`${run.runId}: ${run.protected ? "Protected" : run.selected ? "Would delete" : "Kept"} · ${run.status} · ${run.bytes} bytes`,
+						),
+					);
+				remove.hidden = !result.ok;
+			},
+			output,
+			{ "data-management-action": "prune-preview" },
+		),
+		remove,
+		output,
+		commandHint(
+			"agent-workflow prune --keep <N> [--older-than <days>] [--yes]",
+		),
+	);
+	page.append(panel);
+	const notices = await managementApi(projectRoute("notices"));
+	const noticeOutput = element("div");
+	const noticePanel = managementPanel(
+		"Notices",
+		element(
+			"p",
+			{ class: "muted" },
+			"Acknowledgements only hide notifications; history and resume authority are unchanged.",
+		),
+	);
+	page.append(noticePanel);
+	for (const entry of notices.data.notices || []) {
+		const reason = input(`Reason for ${entry.runId}`);
+		noticePanel.append(
+			element(
+				"article",
+				{ class: "management-list-row" },
+				element("h3", {}, entry.runId),
+				element("p", {}, `${entry.status} · ${entry.updatedAt}`),
+				field("Reason", reason),
+				managementControl(
+					"Acknowledge",
+					async () => {
+						noticeOutput.replaceChildren(
+							managementResult(
+								await managementWrite(
+									projectRoute(
+										`notices/${encodeURIComponent(entry.runId)}/acknowledge`,
+									),
+									"POST",
+									{ state: entry.sha256, reason: reason.value },
+								),
+							),
+						);
+					},
+					noticeOutput,
+				),
+			),
+		);
+	}
+	for (const entry of notices.data.acknowledgements || [])
+		noticePanel.append(
+			element(
+				"article",
+				{ class: "management-list-row" },
+				element(
+					"p",
+					{},
+					`${entry.runId} · ${entry.active ? "Acknowledged" : "State changed"} · ${entry.reason}`,
+				),
+				managementControl(
+					"Clear acknowledgement",
+					async () => {
+						noticeOutput.replaceChildren(
+							managementResult(
+								await managementWrite(
+									projectRoute(
+										`notices/${encodeURIComponent(entry.runId)}/clear`,
+									),
+									"POST",
+								),
+							),
+						);
+					},
+					noticeOutput,
+				),
+			),
+		);
+	if (!(notices.data.notices?.length || notices.data.acknowledgements?.length))
+		noticePanel.append(element("p", {}, "No notices or acknowledgements."));
+	if (notices.data.warnings?.length)
+		noticePanel.append(element("pre", {}, notices.data.warnings.join("\n")));
+	noticePanel.append(noticeOutput, commandHint("agent-workflow notices list"));
+}
+async function renderExecutors(page) {
+	const output = element("div");
+	const show = async (refresh = false) => {
+		const result = await managementApi(
+			`/api/doctor${refresh ? "?refresh=1" : ""}`,
+		);
+		output.replaceChildren(managementResult(result));
+	};
+	page.append(
+		managementPanel(
+			"Executor health",
+			element(
+				"p",
+				{ class: "muted" },
+				"Cached for 60 seconds. Refresh runs bounded executor probes; it never calls a model.",
+			),
+			managementControl(
+				"Refresh",
+				async () => {
+					await show(true);
+				},
+				output,
+				{ write: false },
+			),
+			output,
+			commandHint("agent-workflow doctor"),
+		),
+	);
+	await show();
+}
+
 start();
 
 /** "1 project · 2 active runs · 1 needs attention" (singular forms for one). */

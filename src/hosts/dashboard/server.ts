@@ -27,6 +27,7 @@ import {
 } from "../../core/state-location.js";
 import { bindDashboardPort, dashboardPortCandidates } from "./ports.js";
 import { HostUsageError } from "../args.js";
+import { createDashboardManagement, DashboardHttpError } from "./management.js";
 import { hostTextRedactor } from "../redaction.js";
 import { boundReportText } from "../run-artifacts.js";
 import {
@@ -150,7 +151,8 @@ function readBody(request: IncomingMessage): Promise<Record<string, unknown>> {
 	});
 }
 function errorStatus(error: unknown): number {
-	if (error instanceof HttpError) return error.status;
+	if (error instanceof HttpError || error instanceof DashboardHttpError)
+		return error.status;
 	const message = error instanceof Error ? error.message : String(error);
 	if (
 		(error as NodeJS.ErrnoException)?.code === "ENOENT" ||
@@ -237,15 +239,17 @@ export async function startDashboardServer(
 		}
 		return source;
 	};
-	const requireProject = async (id: string | null) => {
+	const projectRegistration = async (id: string | null) => {
 		if (!id || !validProjectId(id))
 			throw new HttpError(400, "invalid project id");
 		const project = (await listRegisteredProjects()).find(
 			(project) => project.id === id,
 		);
 		if (!project) throw new HttpError(404, "project not found");
-		return sourceFor(project);
+		return project;
 	};
+	const requireProject = async (id: string | null) =>
+		sourceFor(await projectRegistration(id));
 	const countsFor = async (source: DashboardSource) => {
 		if (source.counts) return source.counts();
 		const runs = await source.listRuns();
@@ -321,6 +325,18 @@ export async function startDashboardServer(
 	const runsPayload = async (source: DashboardSource) => ({
 		serverTime: serverTime(),
 		runs: safe(await source.listRuns()),
+	});
+
+	const management = createDashboardManagement({
+		context: { cwd, env, host: "cli", readonly: options.readonly },
+		project: async (id) => ({
+			cwd: (await projectRegistration(id)).path,
+			env,
+			host: "cli",
+			readonly: options.readonly,
+		}),
+		body: readBody,
+		now,
 	});
 
 	async function events(
@@ -600,7 +616,7 @@ export async function startDashboardServer(
 			}
 			throw new HttpError(401, "use the printed dashboard URL");
 		}
-		if (request.method === "POST") {
+		if (["POST", "PUT", "DELETE"].includes(request.method ?? "")) {
 			if (options.readonly) throw new HttpError(403, "read-only");
 			// Without a cookie, same-origin fetch metadata is required (browsers send it; the general
 			// fetch-site check above also admits navigations and non-browser callers).
@@ -722,6 +738,11 @@ export async function startDashboardServer(
 			parts = url.pathname.split("/").slice(1).map(decodeURIComponent);
 		} catch {
 			throw new HttpError(400, "invalid path encoding");
+		}
+		const managed = await management(request, url, parts);
+		if (managed) {
+			json(response, managed.status, safe(managed.value));
+			return;
 		}
 		if (parts[0] !== "api" || parts[1] !== "projects")
 			throw new HttpError(404, "not found");

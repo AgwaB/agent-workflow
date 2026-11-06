@@ -114,6 +114,7 @@ export interface ResolvedWorkflowSpecRef {
 }
 
 export interface WorkflowSpecRecord {
+	scope?: WorkflowRoutingScope;
 	name: string;
 	fileName: string;
 	aliases: string[];
@@ -275,6 +276,7 @@ export async function listWorkflows(
 				return [
 					{
 						name: aliases[1] ?? aliases[0]!,
+						scope: root.scope,
 						fileName: basename(file),
 						aliases,
 						specPath: file,
@@ -850,7 +852,7 @@ function isPathLike(ref: string): boolean {
 	);
 }
 
-function isValidWorkflowName(name: string): boolean {
+export function isValidWorkflowName(name: string): boolean {
 	return !name.startsWith(".") && /^[A-Za-z0-9_.-]+$/.test(name);
 }
 

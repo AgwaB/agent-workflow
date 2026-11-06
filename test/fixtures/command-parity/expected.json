@@ -372,6 +372,19 @@
       "aliases": [
        "impact-review"
       ],
+      "scope": "package",
+      "routing": {
+       "useWhen": [
+        "A proposed or applied change needs an impact map across contracts, validation, release, and risk surfaces.",
+        "The requested output is a change-risk or readiness report."
+       ],
+       "avoidWhen": [
+        "The task is direct implementation or general source research."
+       ],
+       "outputs": [
+        "Impact, risk, and action-plan report."
+       ]
+      },
       "specPath": "@@REPO@@/workflows/impact-review/spec.json",
       "description": "Read-only DAG impact review: map a proposed or applied change, analyze contract, state/data, validation, docs/release, and security/performance impact in parallel, then join those lenses into ship-risk and action-plan synthesis without editing files.",
       "agent": "scout",
@@ -382,6 +395,19 @@
       "aliases": [
        "spec-review"
       ],
+      "scope": "package",
+      "routing": {
+       "useWhen": [
+        "A named specification, API contract, or acceptance criteria must be mapped to implementation and tests.",
+        "The requested output is a conformance or gap report."
+       ],
+       "avoidWhen": [
+        "The task is open-ended research, ordinary review, or implementation."
+       ],
+       "outputs": [
+        "Requirements-to-evidence conformance report."
+       ]
+      },
       "specPath": "@@REPO@@/workflows/spec-review/spec.json",
       "description": "Read-only spec conformance review: extract requirements from a referenced spec, map implementation and tests in parallel, verify candidate gaps, and produce an evidence-backed report without editing files.",
       "agent": "scout",

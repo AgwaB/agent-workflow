@@ -47,7 +47,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `prune [--keep N] [--older-than DAYS] [--yes]` | Preview deletion of old terminal runs (default: keep newest 50), classifier requests, managed worktrees, terminal executor attempts older than 7 days (or `--older-than`), and host launch claims older than 1 h. `--yes` applies it. See [retention](usage.md#run-records) for protections and cleanup rules. |
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
-| `dashboard [--port N] [--readonly] [--auth] [--open] [--project DIR]` | One user-level localhost dashboard for all projects: run/task state, logs, reports, Stop/Resume/Approve/Reject. |
+| `dashboard [--port N] [--readonly] [--auth] [--open] [--project DIR]` | One user-level localhost dashboard for all projects: Runs, Workflows/Check, Profiles/preferences, Maintenance/prune/notices and Executors; Stop/Resume/Approve/Reject. |
 | `watch [run] [--follow] [--once] [--interval S] [--bell]` | Live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
 | `statusline` | One line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
 | `notify-check [--host H] [--json] [--stamp N] [--run ID] [--follow [--interval S]]` | One line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
@@ -332,7 +332,7 @@ browser session; the session persists across restarts in `<home>/dashboard-sessi
 stops a running dashboard first, rotates that token and exits; every browser must sign in again. It
 also works when no dashboard is running. `--readonly` adds a read-only badge and rejects all mutations on the server.
 `--open` opens the dashboard in the browser (under `--auth` via a one-time sign-in URL: 60-second expiry, single use), including on pipes when explicitly requested; it reuses an existing dashboard. `--project` selects the opened view (an existing directory, default cwd), not the server scope.
-The sidebar offers a project switcher and All projects overview; the last view is remembered. Ctrl-C/SIGTERM stops the dashboard, never the runs; exit 0.
+The sidebar offers a project switcher and All projects overview; the last view is remembered. Its Runs · Workflows · Profiles · Maintenance · Executors views are deep-linkable with `?project=<id>&view=workflows|profiles|maintenance|executors`. Profiles/preferences and executor health are user-level; workflows, run history and notices use the selected project. Check starts no run and makes no model call. Prune Delete requires the same parameters and the digest of a fresh server preview; a changed preview returns 409 without deletion. See [Dashboard management](hosts.md#what-it-shows). Ctrl-C/SIGTERM stops the dashboard, never the runs; exit 0.
 Invalid ports, occupied ports and non-directories exit 2. No `--json` mode.
 
 `--detached` is the background-process mode: prints only `Dashboard listening on 127.0.0.1:<port>`,

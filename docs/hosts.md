@@ -637,6 +637,20 @@ With `AGENT_WORKFLOW_ROLE=worker` or `disabled`, tools and notices are not regis
 
 The sidebar project switcher selects a project or **All projects**. The overview shows project paths (including missing paths), active runs, needs-attention counts and last activity from status summaries. `?project=<id>` selects a project; the last choice is remembered in this browser. Only the selected project is polled in detail. Inside a project, the sidebar lists runs with task previews, timing, progress and reports. **Needs you** collects approvals, executor decisions and failed/blocked runs. Failures can be dismissed in this browser; approvals and decisions cannot. A stopped run offers Resume rather than appearing as a new need.
 
+The sidebar has **Runs · Workflows · Profiles · Maintenance · Executors**. Management views are deep-linkable with `?project=<id>&view=workflows|profiles|maintenance|executors`; switching projects keeps the management view. There is no launch form: start runs with `aw run`, `aw dynamic`, `aw auto`, the CLI, MCP or Pi.
+
+| View | Scope | Management |
+|---|---|---|
+| Runs | Selected project (or All projects overview) | Existing run, task, report and approval views |
+| Workflows | Selected project | Discover workflows and agents, source/scope and routing hints; inspect stages, compiled roles and validation; **Check** executor/profile/model/effort/permission mode without starting a run or calling a model |
+| Profiles | User level, shared by every project and host | List/show/create/edit/delete profiles, apply presets, set/clear the default, and edit role assignments using probed executor/model choices. Per-workflow preferences are also user-level; the selected project supplies the workflow definition and declared profiles. |
+| Maintenance | Selected project's runs/notices | Prune preview/delete and notice acknowledgement/clear. The shared prune action also previews user-level executor attempt state and stale project launch claims. |
+| Executors | User level | Installed CLI/version vs verified version, login state, default executor and why, permission-mode default and warnings. Reports are cached for 60 seconds; **Refresh** invalidates report and probe caches. |
+
+Empty states explain how to add definitions or profiles. Action errors appear inline. Command hints use `agent-workflow` CLI commands or the minimal `aw run <workflow> "<task>"`; `aw` uses saved defaults and does not parse launch flags. To reproduce explicit Check overrides, use the displayed CLI command.
+
+**Prune confirmation rule:** Preview calls the shared `pruneAction` in dry-run mode with bounded keep/older-than parameters. It shows run selections, protections, adapter paths and stale launch claims. The server hashes the complete unredacted preview, project identity and parameters into a SHA-256 digest. Delete sends those same parameters and digest; the server serializes management pruning, recomputes the dry run and only calls `pruneAction` with `yes: true` when the digest matches. A changed preview returns **409**, includes the new preview and deletes nothing. The UI requires a fresh Preview after a mismatch or parameter edit. Shared prune protections (active runs/leases, retained references, owned sessions, worktrees and evidence) remain authoritative at deletion time, including changes made by another host. Notice acknowledgement requires the listed run-state hash and a reason; it changes notifications, never run history or resume authority. Dashboard users are the actors for these confirmed host actions; there are no extra MCP confirmation dialogs.
+
 The run view separates process status from the workflow's verdict: a workflow may finish its work and still report “Needs work”. The graph shows stages, dependencies and agent progress. Code steps are hidden by default; Show/Hide remembers your choice. Failed, running, attention-required or selected code steps remain visible. Fit, Focus and direction controls help navigate larger graphs.
 
 Select a stage or agent to see activity, results, output, stderr or events. Finished agents expand in place; **Open agent** shows full detail and log tabs. Run details show the task, redacted launch command, permission mode, host and usage. Unreported cost is `null`/“Not collected”, not zero.
@@ -647,7 +661,7 @@ Stop explains its impact and records a durable request for the supervisor. Resum
 
 `Live`, `Reconnecting` and `Stale (updated …)` describe the connection, not run status. Stale appears after 30 s without a heartbeat. Reduced-motion preferences disable animations. Keyboard controls include ↑/↓ navigation, Enter, Escape, `⌘K` search, and `j`/`k` between agents. Clicking empty canvas closes the inspector; dragging pans instead.
 
-Deep-link state includes `project`, `run`, `stage`, `task`, `tab=result|output|stderr|events`, `view=report|details`, and `dialog=stop|resume|approve|reject`.
+Deep-link state includes `project`, `run`, `stage`, `task`, `tab=result|output|stderr|events`, `view=report|details|workflows|profiles|maintenance|executors`, and `dialog=stop|resume|approve|reject`.
 
 ### Start, stop and options
 
@@ -668,14 +682,14 @@ agent-workflow dashboard --reset-session [--project <dir>]
 
 ### Security model
 
-**Default: no sign-in.** Any local OS user or process able to reach the port can view runs and use Stop/Resume/Approve/Reject. Use `--auth` on shared machines and `--readonly` when mutations are unwanted. Loopback binding does not isolate users on the same machine.
+**Default: no sign-in.** Any local OS user or process able to reach the port can view runs, edit shared profiles/preferences, prune history and use Stop/Resume/Approve/Reject. Use `--auth` on shared machines and `--readonly` when mutations are unwanted. Loopback binding does not isolate users on the same machine.
 
 | Threat | Control |
 |---|---|
 | Local access (`--auth`) | 256-bit random user-level session token; required except for bootstrap/sign-in routes |
 | Token exposure (`--auth`) | `?token=…` sets `HttpOnly; SameSite=Strict; Path=/` cookie, then 302 redirects to a token-free URL; `Referrer-Policy: no-referrer` |
 | DNS rebinding / foreign pages | `Host` must be `127.0.0.1:<port>` or `localhost:<port>` (else 421); no CORS headers |
-| CSRF | Mutations require POST, JSON content type, matching `Origin` and `X-AW-CSRF` from same-origin `GET /api/session`. Default mode requires `Sec-Fetch-Site: same-origin`; otherwise, when present, it must be `same-origin` or `none`. With auth, CSRF is tied to the token by HMAC. |
+| CSRF | Mutations require POST/PUT/DELETE, JSON content type, matching `Origin` and `X-AW-CSRF` from same-origin `GET /api/session`. Default mode requires `Sec-Fetch-Site: same-origin`; otherwise, when present, it must be `same-origin` or `none`. With auth, CSRF is tied to the token by HMAC. |
 | Untrusted output | Text DOM nodes, no `innerHTML`; reports cannot execute HTML or load content resources |
 | Browser execution | CSP: `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`; no inline scripts/styles or external resources |
 | Response leakage | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cache-Control: no-store`, no-referrer |
@@ -684,6 +698,27 @@ agent-workflow dashboard --reset-session [--project <dir>]
 | Read-only mutation | Server-side 403 `{ "error": "read-only" }`; UI controls also disabled |
 
 The UI receives a projection, not raw run records. Task activity labels describe tool intent, never tool output; URLs omit query/fragment, paths are relative or reduced to basenames, and secret-like values are redacted.
+
+### Management HTTP API
+
+Responses use the shared host action's `{action, ok, outcome, data, text}` envelope (workflow detail combines `spec`, `roles`, `validation`). All payloads and errors pass through dashboard redaction. Every write below requires JSON, exact Origin, fetch metadata and the session CSRF token; `--readonly` returns 403, including for Check and prune preview. Reads use the existing optional session-cookie authentication. Workflow references must be names present in the catalog; only a server-discovered spec path is passed to an action, never a request path. Project ids must be valid registry entries. Bad input is 400, unknown projects/workflows/profiles are 404; stale prune/notice state is 409. Doctor, models, Check and pruning use a bounded serialized server queue; executor probes retain their existing time budgets.
+
+| Method | Path | Shared action |
+|---|---|---|
+| GET | `/api/projects/<id>/workflows` | `listWorkflowsAction` |
+| GET | `/api/projects/<id>/workflows/<name>` | `showWorkflowSpecAction`, `workflowRolesAction`, `validateWorkflowAction` |
+| POST | `/api/projects/<id>/workflows/<name>/check` | `checkWorkflowAction` (optional executor/profile/model/effort/permissionMode) |
+| GET | `/api/projects/<id>/agents` | `listAgentsAction` |
+| GET | `/api/profiles`, `/api/profiles/<name>`, `/api/profiles/presets` | `profileAction` list/show/presets |
+| PUT / DELETE | `/api/profiles/<name>` | `profileAction` set/delete; PUT accepts values/unset/preset/makeDefault |
+| PUT | `/api/profiles-default` | `profileAction` default (`{name}` or `{name:null}`) |
+| GET | `/api/workflow-preferences` | `workflowPreferenceAction` list |
+| GET / PUT / DELETE | `/api/workflow-preferences/<workflow>[?project=<id>]` | `workflowPreferenceAction` show/set/clear; project defaults to the server's initial directory when omitted |
+| GET | `/api/executors/models[?executor=<id>]` | `executorModelsAction` |
+| GET | `/api/doctor[?refresh=1]` | `doctorAction` |
+| POST | `/api/projects/<id>/prune/preview`, `/api/projects/<id>/prune` | `pruneAction` dry-run / confirmed; keep 0–100000, olderThanDays 0–36500 integer days; Delete requires digest |
+| GET | `/api/projects/<id>/notices` | `noticesAction` list |
+| POST | `/api/projects/<id>/notices/<run>/acknowledge`, `/api/projects/<id>/notices/<run>/clear` | `noticesAction` acknowledge (`{state,reason}`) / clear |
 
 ### Authentication
 
