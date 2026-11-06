@@ -111,7 +111,7 @@ test("--auth: one-time bootstrap sets the session cookie, forwards only valid UI
 			(
 				await fetch(`${s.url}&run=workflow_manual`, { redirect: "manual" })
 			).headers.get("location"),
-			"/?run=workflow_manual",
+			`/?project=${s.projectId}&run=workflow_manual`,
 		);
 	const result = await (
 		await launch(
