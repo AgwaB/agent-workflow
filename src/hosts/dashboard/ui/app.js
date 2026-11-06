@@ -683,6 +683,7 @@ function setNeedDismissed(keys, dismissed) {
 }
 
 function renderRail() {
+	const focusedProject = document.activeElement === $("project-switcher");
 	const focusedRun = document.activeElement?.closest(".run-row")?.dataset.run;
 	const rail = $("rail"),
 		scroll = rail.scrollTop;
@@ -893,6 +894,7 @@ function renderRail() {
 		rail.append(row);
 	}
 	rail.scrollTop = scroll;
+	if (focusedProject) switcher.focus({ preventScroll: true });
 	if (focusedRun)
 		rail
 			.querySelector(`[data-run="${CSS.escape(focusedRun)}"]`)
@@ -5261,6 +5263,8 @@ function selectProject(id) {
 	location.assign(`/?project=${encodeURIComponent(id)}`);
 }
 function renderOverview() {
+	lastEvent = Date.now();
+	connection = "Live";
 	renderTop();
 	renderRail();
 	$("center").replaceChildren(
@@ -5307,13 +5311,25 @@ function renderOverview() {
 		),
 	);
 }
+let overviewRefreshing = false;
 setInterval(async () => {
-	if (!session || state.project || document.hidden) return;
+	if (!session || state.project || document.hidden || overviewRefreshing)
+		return;
+	overviewRefreshing = true;
 	try {
-		projects = (await api("/api/projects")).projects;
-		renderOverview();
+		const next = (await api("/api/projects")).projects;
+		lastEvent = Date.now();
+		connection = "Live";
+		if (JSON.stringify(next) !== JSON.stringify(projects)) {
+			projects = next;
+			renderOverview();
+		} else updateConnection();
 	} catch {
+		connection = "Reconnecting";
+		updateConnection();
 		notice("Could not refresh projects. Try reloading the dashboard.");
+	} finally {
+		overviewRefreshing = false;
 	}
 }, 5000);
 async function start() {
