@@ -293,7 +293,11 @@ test("check/run capability negotiation records provider warnings in free mode wi
 			},
 		);
 		assert.equal(report.accepted, true);
-		assert.equal(report.needsConfirmation, false);
+		assert.equal(
+			"needsConfirmation" in report,
+			false,
+			"workflow launches never ask (approvals removed)",
+		);
 		assert.deepEqual(report.refusals, []);
 		assert.ok(
 			report.degradations.includes("CAPABILITY_WARNING:contextIsolation"),
