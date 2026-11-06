@@ -1745,11 +1745,7 @@ function renderGraph() {
 			: humanize(stage.short || stage.name || stage.id);
 		// Who did the work, at the card's right (owner's pick, 2026-11-03): "✦ agent" / "✦ 3 agents",
 		// "</> code". With no code step in view every card is an agent's, so a lone "agent" goes.
-		const blockedCount = (
-			group
-				? stage.members.flatMap((member) => member.tasks)
-				: stage.tasks || []
-		).reduce((sum, task) => sum + (task.blockedActions?.count || 0), 0);
+		const blockedCount = stageBlockedCount(stage);
 		const tag = blockedCount
 			? `⚠ ${blockedCount} blocked`
 			: group || stage.ghost
@@ -1772,7 +1768,7 @@ function renderGraph() {
 			...(group
 				? { "data-members": stage.members.map((s) => s.id).join(",") }
 				: {}),
-			"aria-label": `${group ? title : stage.name || stage.id}, ${labels[stage.status] || "Waiting"}`,
+			"aria-label": `${group ? title : stage.name || stage.id}, ${labels[stage.status] || "Waiting"}${blockedCount ? `, ${blockedCount} actions blocked` : ""}`,
 		});
 		node.append(
 			svg("rect", { class: "outline", width: p.w, height: p.h, rx: 10 }),
@@ -1800,7 +1796,7 @@ function renderGraph() {
 				? svg(
 						"g",
 						{
-							class: `node-kind ${blockedCount ? "blocked-actions-chip" : ""} ${stage.kind === "support" ? "code" : "agent"}`,
+							class: `node-kind${blockedCount ? " blocked-actions-chip" : ""} ${stage.kind === "support" ? "code" : "agent"}`,
 						},
 						blockedCount
 							? null
@@ -2727,6 +2723,8 @@ function graphGeometry() {
 	return { nodes, edges, links, view };
 }
 function agentState(task) {
+	if (task.blockedActions?.count)
+		return `⚠ ${task.blockedActions.count} blocked`;
 	return taskState(task) === "retry"
 		? task.retry?.nextRetryAt
 			? `retry in ${countdown(task.retry.nextRetryAt)}`
@@ -2763,6 +2761,13 @@ function changeLayout(layout) {
  * state. While it is unchanged, a run update keeps the drawn graph (its flow animation keeps
  * its phase, hover/focus survive) and only the header and the live texts change.
  */
+function stageBlockedCount(stage) {
+	return (
+		stage.kind === "group"
+			? stage.members.flatMap((member) => member.tasks)
+			: stage.tasks || []
+	).reduce((sum, task) => sum + (task.blockedActions?.count || 0), 0);
+}
 function graphSignature(model, layout) {
 	return JSON.stringify([
 		layout,
@@ -2774,6 +2779,7 @@ function graphSignature(model, layout) {
 			nodeHeight(node),
 			node.done,
 			node.items[0]?.outcome?.tone,
+			stageBlockedCount(node),
 			node.kind === "group"
 				? node.members.map((m) => [m.id, m.status])
 				: node.items.map((t) => [
