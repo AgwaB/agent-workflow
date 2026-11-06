@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
@@ -23,9 +24,11 @@ async function project(t) {
 	return cwd;
 }
 async function index(cwd, runs) {
-	await mkdir(join(cwd, ".agent-workflow/workflows"), { recursive: true });
+	await mkdir(join(stateDir(cwd), ".agent-workflow/workflows"), {
+		recursive: true,
+	});
 	await writeFile(
-		join(cwd, ".agent-workflow/workflows/index.json"),
+		join(stateDir(cwd), ".agent-workflow/workflows/index.json"),
 		JSON.stringify({
 			schemaVersion: 1,
 			updatedAt: new Date().toISOString(),
@@ -89,7 +92,7 @@ test("owner-less historical sidecars are readable but never claimed by a new ses
 
 test("8MiB single-line preview has a hard IO and returned-text bound", async (t) => {
 	const cwd = await project(t);
-	await writeFile(join(cwd, "big.log"), "X".repeat(8 * 1024 * 1024));
+	await writeFile(join(stateDir(cwd), "big.log"), "X".repeat(8 * 1024 * 1024));
 	let bytes = 0;
 	const started = performance.now();
 	const lines = await readFileLinesBounded(cwd, "big.log", 1000, {
@@ -107,7 +110,7 @@ test("8MiB single-line preview has a hard IO and returned-text bound", async (t)
 	assert.ok(Buffer.byteLength(lines.join("\n")) <= 256 * 1024);
 	assert.match(lines.join("\n"), /truncat|omitted/i);
 	await writeFile(
-		join(cwd, "invalid-utf8.log"),
+		join(stateDir(cwd), "invalid-utf8.log"),
 		Buffer.concat(
 			Array.from({ length: 900 }, () =>
 				Buffer.concat([Buffer.alloc(200, 255), Buffer.from("\n")]),
@@ -181,9 +184,9 @@ test("formatLogs uses bounded tail IO for huge single-line output", async (t) =>
 		runId = "workflow_huge_log",
 		dir = `.agent-workflow/workflows/${runId}/tasks/task-1`;
 	const now = new Date().toISOString();
-	await mkdir(join(cwd, dir), { recursive: true });
+	await mkdir(join(stateDir(cwd), dir), { recursive: true });
 	await writeFile(
-		join(cwd, ".agent-workflow/workflows", runId, "run.json"),
+		join(stateDir(cwd), ".agent-workflow/workflows", runId, "run.json"),
 		JSON.stringify({
 			schemaVersion: 1,
 			runId,
@@ -223,7 +226,10 @@ test("formatLogs uses bounded tail IO for huge single-line output", async (t) =>
 			],
 		}),
 	);
-	await writeFile(join(cwd, dir, "output.log"), "X".repeat(8 * 1024 * 1024));
+	await writeFile(
+		join(stateDir(cwd), dir, "output.log"),
+		"X".repeat(8 * 1024 * 1024),
+	);
 	const text = await formatLogs(cwd, runId, "task-1");
 	assert.ok(Buffer.byteLength(text) < 256 * 1024);
 	assert.match(text, /truncated/i);

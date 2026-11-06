@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
@@ -127,7 +128,7 @@ test("formatStatus does not create workflow state in a project without runs", as
 	try {
 		assert.equal(await formatStatus(cwd), "No workflow runs found.");
 		assert.equal(
-			existsSync(join(cwd, ".agent-workflow", "workflows")),
+			existsSync(join(stateDir(cwd), ".agent-workflow", "workflows")),
 			false,
 			"empty status does not create workflow state",
 		);
@@ -146,7 +147,7 @@ for (const state of ["corrupt", "orphaned", "directory"]) {
 	test(`empty formatStatus preserves existing ${state} index maintenance`, async () => {
 		const cwd = await mkdtemp(join(tmpdir(), "piwf-status-repair-"));
 		try {
-			await mkdir(join(cwd, ".agent-workflow", "workflows"), {
+			await mkdir(join(stateDir(cwd), ".agent-workflow", "workflows"), {
 				recursive: true,
 			});
 			if (state === "corrupt") {
@@ -215,7 +216,7 @@ test("resumeSupervisors does not create workflow state in a project without runs
 	try {
 		await resumeSupervisors(cwd);
 		assert.equal(
-			existsSync(join(cwd, ".agent-workflow", "workflows")),
+			existsSync(join(stateDir(cwd), ".agent-workflow", "workflows")),
 			false,
 			"no .agent-workflow/workflows directory is created",
 		);

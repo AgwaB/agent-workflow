@@ -1,3 +1,4 @@
+import { ensureStateBase } from "./state-location.js";
 import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -18,7 +19,7 @@ export async function ensureDirectDynamicRuntimeBundle(
 	cwd: string,
 ): Promise<string> {
 	const bundleDir = join(
-		cwd,
+		await ensureStateBase(cwd),
 		".agent-workflow",
 		"workflow-runtime",
 		DIRECT_DYNAMIC_RUNTIME_VERSION,

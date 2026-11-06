@@ -36,8 +36,8 @@ export const HOME_RUNS_DIRECTORY = "home-runs";
 /**
  * agent-workflow 2026-11-04 (Claude desktop app: its MCP server starts in ~, so three deep-research
  * runs were recorded in ~/.agent-workflow/workflows, the user-level workflow folder). A directory
- * whose `.agent-workflow` is the user-level home is never used as a project; runs, the run index and
- * workers go to `<home>/home-runs` instead (created on first use). Codex does not load ~/.codex as a
+ * whose `.agent-workflow` is the user-level home is never used as a project; workers execute in
+ * `<home>/home-runs` instead (created on first use), an ordinary project for state-location purposes. Codex does not load ~/.codex as a
  * project layer when started in ~ (codex-rs/core/src/config/config_loader_tests.rs
  * codex_home_is_not_loaded_as_project_layer_from_home_dir); Gemini CLI skips workspace settings in
  * the home (storage.ts isWorkspaceHomeDir) and keeps per-project data under its global directory.

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import {
 	buildSynthesisPages,
 	reconstructSynthesisPages,
@@ -138,7 +139,7 @@ test("live research correction reconciles canonical slots and preserves blocked/
 				],
 			},
 		},
-		context: { cwd },
+		context: { cwd, stateCwd: cwd ? stateDir(cwd) : undefined },
 	});
 
 	for (const row of result.claimDigests) row.verifierOwner = owner(row.id);

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -142,7 +143,7 @@ test("deep-review verifies exact read/OCR coverage and fails partial rendering c
 		}),
 	);
 	mkdirSync(join(coverageRoot, "src"), { recursive: true });
-	mkdirSync(join(coverageRoot, ".agent-workflow", "ocr-artifacts"), {
+	mkdirSync(join(stateDir(coverageRoot), ".agent-workflow", "ocr-artifacts"), {
 		recursive: true,
 	});
 	writeFileSync(
@@ -154,7 +155,7 @@ test("deep-review verifies exact read/OCR coverage and fails partial rendering c
 	writeFileSync(join(coverageRoot, "image-only.pdf"), sourceBytes);
 	writeFileSync(
 		join(
-			coverageRoot,
+			stateDir(coverageRoot),
 			".agent-workflow",
 			"ocr-artifacts",
 			"image-only.ocr.txt",
@@ -162,7 +163,12 @@ test("deep-review verifies exact read/OCR coverage and fails partial rendering c
 		artifactBytes,
 	);
 	writeFileSync(
-		join(coverageRoot, ".agent-workflow", "ocr-artifacts", "unbound.ocr.txt"),
+		join(
+			stateDir(coverageRoot),
+			".agent-workflow",
+			"ocr-artifacts",
+			"unbound.ocr.txt",
+		),
 		artifactBytes,
 	);
 	mkdirSync(join(coverageRoot, "outside-ocr"), { recursive: true });
@@ -172,12 +178,12 @@ test("deep-review verifies exact read/OCR coverage and fails partial rendering c
 	);
 	symlinkSync(
 		join(coverageRoot, "outside-ocr"),
-		join(coverageRoot, ".agent-workflow", "ocr-artifacts", "linked"),
+		join(stateDir(coverageRoot), ".agent-workflow", "ocr-artifacts", "linked"),
 		"dir",
 	);
 	writeFileSync(
 		join(
-			coverageRoot,
+			stateDir(coverageRoot),
 			".agent-workflow",
 			"ocr-artifacts",
 			"image-only.ocr.txt.binding.json",
@@ -209,7 +215,11 @@ test("deep-review verifies exact read/OCR coverage and fails partial rendering c
 			status: "completed",
 		},
 	];
-	const context = { cwd: coverageRoot, sourceStatuses: statuses };
+	const context = {
+		cwd: coverageRoot,
+		stateCwd: stateDir(coverageRoot),
+		sourceStatuses: statuses,
+	};
 	const triage = {
 		reviewLenses: [
 			{
@@ -538,7 +548,11 @@ test("deep-review duplicate merge remains incomplete in either reviewer order", 
 		const result = await pipeline({
 			sources: { triage, ...reviewerSources },
 			options: { mode: "dedup" },
-			context: { cwd: coverageRoot, sourceStatuses: statuses },
+			context: {
+				cwd: coverageRoot,
+				stateCwd: stateDir(coverageRoot),
+				sourceStatuses: statuses,
+			},
 		});
 		assert.equal(result.findings.length, 1, incompleteLens);
 		assert.equal(
@@ -623,7 +637,11 @@ test("deep-review grounds structured singleton verifier evidence", async (t) => 
 				noIssueNotes: [],
 			},
 		},
-		context: { cwd, sourceStatuses: statuses.slice(0, 2) },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			sourceStatuses: statuses.slice(0, 2),
+		},
 		options: { mode: "dedup" },
 	});
 	const partitionFor = (quote) =>
@@ -639,7 +657,11 @@ test("deep-review grounds structured singleton verifier evidence", async (t) => 
 					recommendedAction: "Disable danger.",
 				},
 			},
-			context: { cwd, sourceStatuses: statuses },
+			context: {
+				cwd,
+				stateCwd: cwd ? stateDir(cwd) : undefined,
+				sourceStatuses: statuses,
+			},
 			options: { mode: "partition", dedupStage: "dedup-findings" },
 		});
 	const valid = await partitionFor("const danger = true;");
@@ -770,7 +792,11 @@ test("deep-review carries 26 mixed legacy recommendations through schema-valid p
 	const dedup = await pipeline({
 		sources: dedupSources,
 		options: { mode: "dedup" },
-		context: { cwd: coverageRoot, sourceStatuses: dedupStatuses },
+		context: {
+			cwd: coverageRoot,
+			stateCwd: stateDir(coverageRoot),
+			sourceStatuses: dedupStatuses,
+		},
 	});
 	assert.equal(dedup.findings.length, 26);
 	assert.equal(dedup.reviewerLedger.complete, true);

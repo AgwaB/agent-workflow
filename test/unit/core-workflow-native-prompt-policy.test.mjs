@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Host-tool inheritance is recorded separately from the effective tool list.
 // Read-only stages and empty tool lists never inherit; the Pi executor expands host tools.
 // Runtime prompts use executor-visible tool names; system-prompt.md keeps canonical text.
@@ -135,7 +136,7 @@ for (const native of [false, true]) {
 						);
 						assert.equal(launched.kind, "launched", JSON.stringify(launched));
 						const canonical = await readFile(
-							join(cwd, task.files.systemPrompt),
+							join(stateDir(cwd), task.files.systemPrompt),
 							"utf8",
 						);
 						const policyLine = canonical

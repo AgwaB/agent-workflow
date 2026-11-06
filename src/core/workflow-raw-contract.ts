@@ -1,3 +1,4 @@
+import { stateBase } from "./state-location.js";
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import { createHash } from "node:crypto";
 import { constants, type Stats } from "node:fs";
@@ -50,6 +51,7 @@ export function rawFileVersion(info: RawFileVersion): RawFileVersion {
 	return { dev, ino, size, nlink, mtimeMs, ctimeMs };
 }
 export interface RawOwner {
+	stateCwd: string;
 	runDir: string;
 	taskDir: string;
 	raw: string;
@@ -145,11 +147,17 @@ async function assertRawSourceAlias(
 			"tasks",
 			current.taskId,
 		);
-		const lexicalRunDir = resolve(expected.runDir);
-		const lexicalProject = dirname(dirname(dirname(lexicalRunDir)));
 		if (
-			resolve(lexicalProject, current.files.result) !==
-			join(lexicalRunDir, "tasks", current.taskId, "result.json")
+			resolve(project, current.files.result) !==
+			join(
+				project,
+				PROJECT_STATE_DIRECTORY,
+				"workflows",
+				run.runId,
+				"tasks",
+				current.taskId,
+				"result.json",
+			)
 		)
 			fail();
 		await directoryChain(project, controllerDir, directories);
@@ -341,12 +349,11 @@ async function backendMirrorRoot(options: {
 	provenance: LaunchBootstrapProvenanceRecord;
 	backendRunId: string;
 }): Promise<string> {
-	const { project, lexicalProject, run, task, provenance, backendRunId } =
-		options;
+	const { project, lexicalProject, run, task, provenance } = options;
 	assertLaunchWorkspaceProvenance(task, provenance);
 	const worktree = task.worktree;
 	if (!worktree.enabled) {
-		if ((await realpath(task.cwd)) !== project) fail();
+		if (typeof run.cwd !== "string" || stateBase(run.cwd) !== project) fail();
 		return project;
 	}
 	if (
@@ -406,26 +413,8 @@ async function backendMirrorRoot(options: {
 		basename(canonicalExpectedWorktree) !== leaf
 	)
 		fail();
-	// WP39b (O7): a worktree task launched since WP39b keeps its attempt state in the project's
-	// own mirror; earlier attempts kept it inside the validated worktree. Either root is then
-	// checked component by component (directoryChain) like before.
-	const projectMirrorRun = join(
-		project,
-		PROJECT_STATE_DIRECTORY,
-		"workflow-subagents",
-		run.runId,
-		task.taskId,
-		backendRunId,
-	);
-	const projectMirror = await lstat(projectMirrorRun).catch(() => undefined);
-	if (projectMirror?.isDirectory() && !projectMirror.isSymbolicLink()) {
-		// The worktree itself must still be the real managed directory, not a link elsewhere.
-		await directoryChain(project, expectedWorktree, new Map());
-		return project;
-	}
-	// Keep the canonical-project lexical path so directoryChain observes a
-	// worktree symlink or junction instead of validating only its realpath target.
-	return expectedWorktree;
+	await directoryChain(project, expectedWorktree, new Map());
+	return project;
 }
 
 export async function assertSafeRawTaskDirectory(
@@ -467,13 +456,27 @@ export function setRawOwnerEstablishmentHookForTests(
 export async function establishRawOwner(
 	taskDirectory: string,
 	expected?: RawSelection,
+	stateCwd?: string,
 ): Promise<RawOwner> {
 	const taskDir = resolve(taskDirectory);
 	await rawOwnerEstablishmentHookForTests?.(taskDir);
 	const taskId = basename(taskDir);
 	const runDir = dirname(dirname(taskDir));
 	const runId = basename(runDir);
-	const lexicalProject = dirname(dirname(dirname(runDir)));
+	const snapshots = new Map<string, Stats>();
+	// Host publication supplies its storage cwd. Readers supply a trusted run directory;
+	// bind that directory to the recorded project's state namespace, never infer a project
+	// by counting parents of an artifact path.
+	let lexicalProject = stateCwd;
+	if (lexicalProject === undefined && expected) {
+		const selectedRun = await metadata(
+			join(expected.runDir, "run.json"),
+			snapshots,
+		);
+		if (typeof selectedRun.cwd !== "string") fail();
+		lexicalProject = stateBase(selectedRun.cwd);
+	}
+	if (!lexicalProject) fail();
 	const project = await realpath(lexicalProject);
 	if (
 		!safeId(taskId) ||
@@ -505,7 +508,6 @@ export async function establishRawOwner(
 		taskId,
 	);
 	const directories = new Map<string, Stats>();
-	const snapshots = new Map<string, Stats>();
 	await directoryChain(project, canonicalTask, directories);
 	// SAFETY: only the fields checked below are consumed here; the launch-authority
 	// validator checks the full recorded grant/provenance before mirror ownership.
@@ -703,6 +705,7 @@ export async function establishRawOwner(
 		}),
 	);
 	return {
+		stateCwd: project,
 		runDir,
 		taskDir,
 		raw: join(canonicalTask, "raw.md"),
@@ -738,7 +741,11 @@ export async function recheckRawOwner(owner: RawOwner): Promise<void> {
 		),
 	);
 	if (unchanged.every(Boolean)) return;
-	const current = await establishRawOwner(owner.taskDir, owner.selection);
+	const current = await establishRawOwner(
+		owner.taskDir,
+		owner.selection,
+		owner.stateCwd,
+	);
 	if (
 		current.identity !== owner.identity ||
 		JSON.stringify(current.integrity) !== JSON.stringify(owner.integrity) ||

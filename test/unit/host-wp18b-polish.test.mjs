@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Host-aware next-step hints use CLI commands, Pi /aw commands, or MCP tool calls.
 // The fixture executor makes no model or agent CLI calls.
 import assert from "node:assert/strict";
@@ -270,7 +271,13 @@ test("stall warning: a run whose only open task waits for a scheduled retry says
 
 test("wait: a run waiting on a retry backoff returns the retry time and reason (data, text, MCP next)", async () => {
 	const { cwd, env, runId } = await interruptedRun();
-	const runPath = join(cwd, ".agent-workflow", "workflows", runId, "run.json");
+	const runPath = join(
+		stateDir(cwd),
+		".agent-workflow",
+		"workflows",
+		runId,
+		"run.json",
+	);
 	const record = JSON.parse(await readFile(runPath, "utf8"));
 	const nextEligibleAt = new Date(Date.now() + 15 * 60_000).toISOString();
 	record.status = "running";
@@ -338,7 +345,7 @@ const cli = await import("../../dist/hosts/cli/index.js");
 const RENDER_HELPER = `import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 export default async function render({ options, context }) {
-	const dir = join(context.cwd, ".agent-workflow", "workflows", context.runId, "tasks", context.taskId);
+	const dir = join(context.stateCwd, ".agent-workflow", "workflows", context.runId, "tasks", context.taskId);
 	await mkdir(dir, { recursive: true });
 	const markdown = "# Review\\n\\nVerdict: " + options.verdict + "\\n\\nOne finding kept.";
 	await writeFile(join(dir, "final-report.md"), markdown + "\\n", "utf8");
@@ -400,7 +407,7 @@ test("Pi completion message: the domain verdict, with the run status on its own 
 	assert.equal(waited.data.verdict, "NEEDS_WORK");
 	const run = JSON.parse(
 		await readFile(
-			join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+			join(stateDir(cwd), ".agent-workflow", "workflows", runId, "run.json"),
 			"utf8",
 		),
 	);
@@ -480,7 +487,7 @@ test("verdict gate: a run whose only failure is the final verdict is presented a
 
 	const run = JSON.parse(
 		await readFile(
-			join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+			join(stateDir(cwd), ".agent-workflow", "workflows", runId, "run.json"),
 			"utf8",
 		),
 	);

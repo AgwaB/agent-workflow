@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP36, owner decisions E1/E2): host UX for Claude Code and Codex without a
 // model call: `agent-workflow statusline` (Claude Code statusLine command), `agent-workflow watch`
 // (terminal live view) and `agent-workflow notify-check` (runs that finished since the last check,
@@ -70,7 +71,7 @@ async function writeRun(cwd, options) {
 		parentRunId,
 		report,
 	} = options;
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await mkdir(dir, { recursive: true });
 	const records = tasks.map((task, index) => {
 		const specId = task.specId ?? `task-${index}`;
@@ -239,7 +240,7 @@ test("statusline: blocked runs show as awaiting approval or needs action for a d
 		await statusline.statusLineText([cwd], NOW),
 		"aw: dynamic 1/2 awaiting approval 12m",
 	);
-	await rm(join(cwd, ".agent-workflow"), { recursive: true });
+	await rm(join(stateDir(cwd), ".agent-workflow"), { recursive: true });
 	await writeRun(cwd, {
 		runId: "workflow_blocked",
 		tasks: [
@@ -288,9 +289,11 @@ test("statusline: reads Claude Code's stdin JSON (project_dir, current_dir, cwd)
 	assert.equal(code, 0);
 	assert.equal(out.text(), "aw: deep-review 1/3 running (no supervisor) 12m\n");
 	// A run index entry is the candidate list (the run record is read for fresh state).
-	await mkdir(join(cwd, ".agent-workflow", "workflows"), { recursive: true });
+	await mkdir(join(stateDir(cwd), ".agent-workflow", "workflows"), {
+		recursive: true,
+	});
 	await writeFile(
-		join(cwd, ".agent-workflow", "workflows", "index.json"),
+		join(stateDir(cwd), ".agent-workflow", "workflows", "index.json"),
 		JSON.stringify({
 			schemaVersion: 1,
 			updatedAt: minutesAgo(0),
@@ -331,7 +334,13 @@ test("statusline bin: fast path with stdin JSON, silent and exit 0 on idle, bad 
 	assert.equal(garbage.code, 0);
 	assert.equal(garbage.err, "");
 	await writeFile(
-		join(cwd, ".agent-workflow", "workflows", "workflow_bin", "run.json"),
+		join(
+			stateDir(cwd),
+			".agent-workflow",
+			"workflows",
+			"workflow_bin",
+			"run.json",
+		),
 		"{ torn",
 	);
 	const torn = await runBin(cwd, ["statusline"], "");
@@ -538,7 +547,7 @@ test("notify-check: nothing (and nothing written) without runs; each settled sta
 	const cwd = await project();
 	const none = await runCli(cwd, ["notify-check"]);
 	assert.deepEqual([none.code, none.out], [0, ""]);
-	assert.equal(existsSync(join(cwd, ".agent-workflow")), false);
+	assert.equal(existsSync(join(stateDir(cwd), ".agent-workflow")), false);
 
 	await writeRun(cwd, {
 		runId: "workflow_report",
@@ -595,11 +604,16 @@ test("notify-check: nothing (and nothing written) without runs; each settled sta
 		/workflow_running\) finished — status completed/,
 	);
 	// A pruned run's marker is removed.
-	await rm(join(cwd, ".agent-workflow", "workflows", "workflow_report"), {
-		recursive: true,
-	});
+	await rm(
+		join(stateDir(cwd), ".agent-workflow", "workflows", "workflow_report"),
+		{
+			recursive: true,
+		},
+	);
 	await runCli(cwd, ["notify-check"]);
-	const markers = await readdir(join(cwd, ".agent-workflow", "notify-check"));
+	const markers = await readdir(
+		join(stateDir(cwd), ".agent-workflow", "notify-check"),
+	);
 	assert.ok(markers.includes("baseline.json"));
 	assert.ok(!markers.some((name) => name.startsWith("workflow_report.")));
 	assert.ok(markers.some((name) => name.startsWith("workflow_running.")));
@@ -690,7 +704,7 @@ test("approval run (fixture executor): statusline, watch and notify-check show t
 		unregister.push(core.registerWorkflowExecutor(descriptor)),
 	);
 	// notify-check in use here (its receipts exist) before the run starts.
-	await mkdir(join(p.cwd, ".agent-workflow", "notify-check"), {
+	await mkdir(join(stateDir(p.cwd), ".agent-workflow", "notify-check"), {
 		recursive: true,
 	});
 	const run = await runCli(
@@ -722,7 +736,9 @@ test("approval run (fixture executor): statusline, watch and notify-check show t
 	const seen = await notify.notifyCheck(p.cwd, { host: "codex" });
 	assert.equal(seen.text, "");
 	// … but a project without the wait receipt gets the approval line with the MCP tool call.
-	await rm(join(p.cwd, ".agent-workflow", "notify-check"), { recursive: true });
+	await rm(join(stateDir(p.cwd), ".agent-workflow", "notify-check"), {
+		recursive: true,
+	});
 	const fresh = await notify.notifyCheck(p.cwd, { host: "codex" });
 	assert.equal(fresh.data.notifications.length, 1);
 	assert.match(
@@ -730,12 +746,12 @@ test("approval run (fixture executor): statusline, watch and notify-check show t
 		/is waiting for the user's approval of dynamic controller adaptive\.controller\. .*workflow_approve \{"runId":"workflow_/,
 	);
 	const marker = (
-		await readdir(join(p.cwd, ".agent-workflow", "notify-check"))
+		await readdir(join(stateDir(p.cwd), ".agent-workflow", "notify-check"))
 	).find((name) => name.startsWith(runId));
 	assert.equal(
 		JSON.parse(
 			await readFile(
-				join(p.cwd, ".agent-workflow", "notify-check", marker),
+				join(stateDir(p.cwd), ".agent-workflow", "notify-check", marker),
 				"utf8",
 			),
 		).via,
@@ -766,7 +782,7 @@ test("wait marks a returned settled state seen in a fresh project; notify-check 
 		report: { specId: "render", verdict: "NEEDS_WORK" },
 	});
 	const runFile = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflows",
 		"workflow_fresh",
@@ -775,7 +791,10 @@ test("wait marks a returned settled state seen in a fresh project; notify-check 
 	const record = JSON.parse(await readFile(runFile, "utf8"));
 	record.backend = { type: "local", mode: "headless" };
 	await writeFile(runFile, JSON.stringify(record));
-	assert.equal(existsSync(join(cwd, ".agent-workflow", "notify-check")), false);
+	assert.equal(
+		existsSync(join(stateDir(cwd), ".agent-workflow", "notify-check")),
+		false,
+	);
 	const waited = await runCli(cwd, ["wait", "workflow_fresh", "--json"], {
 		now: undefined,
 	});
@@ -784,7 +803,9 @@ test("wait marks a returned settled state seen in a fresh project; notify-check 
 		true,
 		waited.out + waited.err,
 	);
-	const receipts = await readdir(join(cwd, ".agent-workflow", "notify-check"));
+	const receipts = await readdir(
+		join(stateDir(cwd), ".agent-workflow", "notify-check"),
+	);
 	assert.ok(receipts.includes("baseline.json"));
 	assert.ok(receipts.some((name) => name.startsWith("workflow_fresh.")));
 	assert.equal(

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP14/WP15): the committed Claude Code / Codex plugin
 // (`plugins/agent-workflow/`) and the repo marketplaces. Checks that they equal the generator
 // output (tools/release/plugins.mjs), JSON shape and required fields, version sync with
@@ -144,8 +145,9 @@ test("WP36: the hook command is silent and exits 0 without runs, and prints the 
 		const empty = run(temp, { CLAUDE_PROJECT_DIR: temp });
 		assert.deepEqual([empty.status, empty.stdout, empty.stderr], [0, "", ""]);
 		const project = join(temp, "p");
+		mkdirSync(project);
 		const runDir = join(
-			project,
+			stateDir(project),
 			".agent-workflow",
 			"workflows",
 			"workflow_hook",
@@ -189,7 +191,7 @@ test("WP36: the hook command is silent and exits 0 without runs, and prints the 
 		);
 		// Idle prompts never start the CLI: nothing changed since the last successful check.
 		const stamp = join(
-			project,
+			stateDir(project),
 			".agent-workflow",
 			"notify-check",
 			"hook-claude-code.stamp",

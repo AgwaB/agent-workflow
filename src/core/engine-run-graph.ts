@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import {
 	createTaskRunRecord,
 	FAIL_FAST_CANCELLED_STATUS_DETAIL,
-	fromProjectPath,
+	fromStatePath,
 	isTerminalTaskStatus,
 	setTaskTerminal,
 } from "./store.js";
@@ -495,7 +495,7 @@ function assertPristinePendingForeachPlaceholder(
 		task.files?.result,
 	]
 		.filter((path): path is string => typeof path === "string")
-		.some((path) => existsSync(fromProjectPath(cwd, path)));
+		.some((path) => existsSync(fromStatePath(cwd, path)));
 	const hasPriorSideEffectEvidence =
 		task.launchToken !== undefined ||
 		task.backendHandle !== undefined ||

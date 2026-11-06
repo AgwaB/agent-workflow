@@ -788,10 +788,16 @@ async function isRunnableSpecFile(file: string): Promise<boolean> {
 
 // Run-state directories under .agent-workflow/workflows/ contain a spec.json snapshot of
 // the workflow that produced them; they are records, not registrable bundles.
-// Older dogfood/eval run ids used descriptive workflow_* names, so prefer the
-// run.json marker over run-id shape when filtering registry candidates.
+// Ignore old project-private workflow_* trees even when an interrupted write left no run.json.
+// The same name remains available to authored bundles in the public project workflows/ directory.
 async function isWorkflowRunStateDirectory(path: string): Promise<boolean> {
-	return await isFile(join(path, "run.json"));
+	const privateRoot =
+		basename(dirname(path)) === "workflows" &&
+		basename(dirname(dirname(path))) === PROJECT_STATE_DIRECTORY;
+	return (
+		(privateRoot && basename(path).startsWith("workflow_")) ||
+		(await isFile(join(path, "run.json")))
+	);
 }
 
 function isBundleSpec(file: string, searchRoot: string): boolean {

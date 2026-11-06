@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19 round 4, review F1 residual, F3, F4): Pi completion delivery.
 // F1 residual: a `sent` receipt of another *live* Pi process is not unconditional proof. With
 //   readable history lacking the message it is left to its owner only while the owner's queue
@@ -42,7 +43,7 @@ async function project(t) {
 async function synthetic(cwd, sessionId = "A", launchedBy = "command") {
 	counter += 1;
 	const runId = `workflow_wp19r4d_${counter}`;
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await fs.mkdir(dir, { recursive: true });
 	const at = new Date().toISOString();
 	const run = {

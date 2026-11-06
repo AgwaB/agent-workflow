@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -25,7 +26,7 @@ async function project(t) {
 test("discovery is private, atomic, correctly located and requires a valid schema and live pid", async (t) => {
 	const cwd = await project(t);
 	const path = dashboardDiscoveryPath(cwd);
-	assert.equal(path, join(cwd, ".agent-workflow/dashboard.json"));
+	assert.equal(path, join(stateDir(cwd), ".agent-workflow/dashboard.json"));
 	await writeDashboardDiscovery(cwd, {
 		pid: process.pid,
 		port: 1234,

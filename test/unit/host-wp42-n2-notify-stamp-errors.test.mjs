@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP42 review round 2, N2): the prompt hook's stamp is best-effort
 // bookkeeping. When it cannot be replaced or removed (here: a directory at the stamp path), the
 // notifications the check already claimed are still printed, the obstruction is never removed
@@ -37,7 +38,7 @@ async function settledRuns(cwd, count) {
 	const at = new Date().toISOString();
 	for (let index = 0; index < count; index += 1) {
 		const runId = `workflow_stamp${index}`;
-		const dir = join(cwd, ".agent-workflow", "workflows", runId);
+		const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 		await mkdir(dir, { recursive: true });
 		await writeFile(
 			join(dir, "run.json"),
@@ -94,7 +95,7 @@ for (const count of [1, 6])
 		const cwd = await project();
 		await settledRuns(cwd, count);
 		const stamp = join(
-			cwd,
+			stateDir(cwd),
 			".agent-workflow",
 			"notify-check",
 			"hook-claude-code.stamp",
@@ -121,7 +122,12 @@ for (const count of [1, 6])
 test("N2: in process, a failed stamp update returns the claimed text and warns on stderr", async () => {
 	const cwd = await project();
 	await settledRuns(cwd, 1);
-	const stamp = join(cwd, ".agent-workflow", "notify-check", "x.stamp");
+	const stamp = join(
+		stateDir(cwd),
+		".agent-workflow",
+		"notify-check",
+		"x.stamp",
+	);
 	await mkdir(join(stamp, "inside"), { recursive: true });
 	const writes = [];
 	const original = process.stderr.write;
@@ -148,7 +154,12 @@ test("N2 control: a writable stamp path still gets a stamp and the idle fast pat
 	assert.equal(delivered(first.stdout), 1);
 	assert.ok(
 		existsSync(
-			join(cwd, ".agent-workflow", "notify-check", "hook-claude-code.stamp"),
+			join(
+				stateDir(cwd),
+				".agent-workflow",
+				"notify-check",
+				"hook-claude-code.stamp",
+			),
 		),
 	);
 	assert.equal(hook(cwd).stdout, "");

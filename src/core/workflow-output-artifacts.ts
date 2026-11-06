@@ -169,6 +169,8 @@ export interface WorkflowTaskArtifactBundleOptions
 	rawOutput: string;
 	/** Host task updated by its normal run-record commit. Without this, raw is independent. */
 	rawIntegrityHost?: { rawArtifactIntegrity?: RawIntegrity };
+	/** Trusted storage cwd of the publishing host. Required with rawIntegrityHost. */
+	rawIntegrityStateCwd?: string;
 	attempt?: number;
 	startedAt?: string;
 	completedAt?: string;
@@ -2633,7 +2635,7 @@ async function writeValidWorkflowOutputBundle(
 	// Explicit host publication must never downgrade an establishment failure to
 	// the intentionally unowned low-level writer path (or clear an old anchor).
 	const owner = options.rawIntegrityHost
-		? await establishRawOwner(taskDir)
+		? await establishRawOwner(taskDir, undefined, options.rawIntegrityStateCwd)
 		: undefined;
 	if (!owner) await assertSafeRawTaskDirectory(taskDir);
 	const files = artifactFileMap(taskDir, options);

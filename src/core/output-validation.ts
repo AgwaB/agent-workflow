@@ -1,3 +1,4 @@
+import { stateBase } from "./state-location.js";
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -22,7 +23,7 @@ import {
 	resultCompletedAfterTimeout,
 } from "./result.js";
 import { retryOrFailArtifactGraphTask } from "./retry-policy.js";
-import { fromProjectPath, isTerminalTaskStatus, nowIso } from "./store.js";
+import { fromStatePath, isTerminalTaskStatus, nowIso } from "./store.js";
 import { type SubagentArtifactRef, writeJson } from "./task-artifacts.js";
 import {
 	elapsedSince,
@@ -311,6 +312,7 @@ async function materializeTerminalArtifactGraphResultInner(
 			taskDir: dirname(options.resultFile),
 			rawOutput,
 			rawIntegrityHost: task,
+			rawIntegrityStateCwd: stateBase(cwd),
 			startedAt: options.startedAt,
 			completedAt: options.completedAt,
 			exitCode: options.exitCode,
@@ -456,7 +458,7 @@ async function readTaskRefsLocators(
 ): Promise<string[]> {
 	try {
 		const refsPath = join(
-			dirname(fromProjectPath(cwd, task.files.result)),
+			dirname(fromStatePath(cwd, task.files.result)),
 			"refs.json",
 		);
 		const parsed = JSON.parse(await readFile(refsPath, "utf8"));
@@ -479,7 +481,7 @@ async function readTaskPositiveClaimSupportLocators(
 	}
 	try {
 		const controlPath = join(
-			dirname(fromProjectPath(cwd, task.files.result)),
+			dirname(fromStatePath(cwd, task.files.result)),
 			"control.json",
 		);
 		const parsed = JSON.parse(await readFile(controlPath, "utf8"));

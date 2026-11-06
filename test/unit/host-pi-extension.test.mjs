@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP11b): the minimal Pi host (src/hosts/pi). A fake Pi ExtensionAPI captures
 // the registrations; a recording wrapper around the real host API checks that every `/aw` action
 // and `aw_*` tool delegates to the right handler with the right arguments. Runs use the WP11a
@@ -715,7 +716,7 @@ test("confirmation: Pi UI confirm when interactive (decline/accept); no UI = non
 });
 
 async function writeRun(cwd, runId, fields) {
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await mkdir(dir, { recursive: true });
 	const run = {
 		runId,
@@ -829,7 +830,12 @@ test("session start: unfinished-run notice through the host API notices handler,
 
 	const state = JSON.parse(
 		await readFile(
-			join(cwd, ".agent-workflow", "workflows", "unfinished-notices.json"),
+			join(
+				stateDir(cwd),
+				".agent-workflow",
+				"workflows",
+				"unfinished-notices.json",
+			),
 			"utf8",
 		),
 	);

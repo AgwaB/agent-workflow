@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP12c): the Pi agent tools `aw_run` / `aw_dynamic` take an `inputs` object,
 // the tool form of `--input key=value` (WP12a). The host API types it by the spec's declared `input`
 // defaults (`typedWorkflowInputOverrides`): strings are parsed for number/boolean/JSON inputs, other
@@ -123,10 +124,13 @@ function fakeCtx(cwd) {
 
 /** The workflow input as compiled into the first task prompt ("# Workflow Input"). */
 async function compiledInput(cwd, runId) {
-	const runDir = join(cwd, ".agent-workflow", "workflows", runId);
+	const runDir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	const run = JSON.parse(await readFile(join(runDir, "run.json"), "utf8"));
 	const task = run.tasks.find((item) => item.files?.taskPrompt);
-	const prompt = await readFile(join(cwd, task.files.taskPrompt), "utf8");
+	const prompt = await readFile(
+		join(stateDir(cwd), task.files.taskPrompt),
+		"utf8",
+	);
 	const match = /# Workflow Input\n\n([\s\S]*?)(?:\n\n#|$)/.exec(prompt);
 	assert.ok(match, prompt);
 	return JSON.parse(match[1]);
@@ -203,7 +207,10 @@ test("aw_run inputs usage errors: not an object, undeclared key, wrong type (not
 			JSON.stringify(inputs),
 		);
 	}
-	assert.equal(existsSync(join(cwd, ".agent-workflow", "workflows")), false);
+	assert.equal(
+		existsSync(join(stateDir(cwd), ".agent-workflow", "workflows")),
+		false,
+	);
 });
 
 test("aw_run with empty inputs uses the spec defaults; aw_dynamic refuses undeclared inputs", async () => {

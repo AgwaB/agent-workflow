@@ -1,3 +1,4 @@
+import { stateDir } from "./state-dir.mjs";
 // New in agent-workflow (WP29): a project whose workflow runs one executor-fixture stage (`prep`) and
 // then a dynamic controller with `dynamic.permissions.approval: "ask"` (`adaptive`). The controller
 // is a local helper module (no model call) that appends one line to `controller.log` per run, so
@@ -54,7 +55,7 @@ export async function approvalProject(root, name, register) {
 	const executor = `test-wp29-${name}`;
 	const effectLog = join(cwd, "effects.jsonl");
 	register(workflowFixtureDescriptor({ id: executor, effectLog }));
-	const env = { ...process.env, AGENT_WORKFLOW_HOME: join(cwd, "home") };
+	const env = { ...process.env };
 	return {
 		cwd,
 		env,
@@ -79,7 +80,14 @@ export function controllerTask(run) {
 /** The run's `approval.*` dynamic events. */
 export async function approvalEvents(cwd, runId) {
 	const text = await readFile(
-		join(cwd, ".agent-workflow", "workflows", runId, "dynamic", "events.jsonl"),
+		join(
+			stateDir(cwd),
+			".agent-workflow",
+			"workflows",
+			runId,
+			"dynamic",
+			"events.jsonl",
+		),
 		"utf8",
 	).catch(() => "");
 	return text

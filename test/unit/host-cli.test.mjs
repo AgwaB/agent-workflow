@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP11a): the `agent-workflow` CLI (src/hosts/cli). In-process tests drive
 // runAgentWorkflowCli with a captured io (argv parsing, exit codes, TTY vs non-TTY confirmation,
 // the bounded wait loop, profiles); spawned tests run the real bin in fresh processes with the
@@ -236,7 +237,7 @@ test("run: foreground run waits until terminal; task words join; --json combines
 	const compiled = JSON.parse(
 		readFileSync(
 			join(
-				cwd,
+				stateDir(cwd),
 				".agent-workflow",
 				"workflows",
 				parsed.data.runId,

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Pin workflow discovery roots, safe-mode worktree rules, and artifact provenance digests.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -164,9 +165,12 @@ test("store records the launching host context, not Pi-native tools", async (t) 
 	assert.deepEqual(run.hostContext, context);
 	assert.equal(Object.hasOwn(run, "nativeHost"), false);
 	assert.equal(Object.hasOwn(run, "inheritHostTools"), false);
-	assert.equal(workflowsRoot(cwd), join(cwd, ".agent-workflow", "workflows"));
 	assert.equal(
-		existsSync(join(cwd, ".agent-workflow", "workflows", run.runId)),
+		workflowsRoot(cwd),
+		join(stateDir(cwd), ".agent-workflow", "workflows"),
+	);
+	assert.equal(
+		existsSync(join(stateDir(cwd), ".agent-workflow", "workflows", run.runId)),
 		true,
 	);
 	assert.equal(existsSync(join(cwd, ".pi")), false);
@@ -408,7 +412,7 @@ test("artifact access: canonical config, MCP server spec, and provenance digests
 	const { run } = await createRunRecord(cwd, compiled, join(cwd, "spec.json"));
 	const task = run.tasks[1];
 	const prepared = await prepareDagTask(cwd, run, compiled, 1);
-	const taskDir = join(cwd, task.files.result, "..");
+	const taskDir = join(stateDir(cwd), task.files.result, "..");
 	assert.equal(
 		existsSync(join(taskDir, "workflow-artifact-extension.ts")),
 		false,

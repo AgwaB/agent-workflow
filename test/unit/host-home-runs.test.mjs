@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // agent-workflow 2026-11-04 (Claude desktop app: its MCP server starts in ~, and three runs were
 // recorded in ~/.agent-workflow/workflows, the user-level workflow folder): a directory whose
 // .agent-workflow is the user-level home is never a project. The CLI, the MCP server and the Pi host
@@ -143,10 +144,10 @@ test("CLI in ~: the run is recorded in home-runs (not in the user-level workflow
 	assert.equal(code, 0, out.join("") + err.join(""));
 	assert.match(
 		err.join(""),
-		/holds the user-level agent-workflow home, so it is not a project; runs started here are recorded in .*home-runs/,
+		/holds the user-level agent-workflow home, so it is not a project; workers run in .*home-runs; run state is stored under .*projects/,
 	);
 	const recorded = readdirSync(
-		join(homeRuns, ".agent-workflow", "workflows"),
+		join(stateDir(homeRuns), ".agent-workflow", "workflows"),
 	).filter((name) => name.startsWith("workflow_"));
 	assert.equal(recorded.length, 1);
 	const userWorkflows = join(userHome, "workflows");

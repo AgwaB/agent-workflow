@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import { createWorkflowRunRecord } from "../helpers/unit-test-support.mjs";
 import {
 	drainWorkflowFixture,
@@ -234,7 +235,7 @@ function writeSubagentArtifacts(
 	output,
 	correlationId,
 ) {
-	const dir = join(cwd, runsDir, runId, "attempts", attemptId);
+	const dir = join(stateDir(cwd), runsDir, runId, "attempts", attemptId);
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, "output.log"), output);
 	writeFileSync(join(dir, "stderr.log"), "");
@@ -250,7 +251,7 @@ function writeSubagentArtifacts(
 		}),
 	);
 	writeFileSync(
-		join(cwd, runsDir, runId, "run.json"),
+		join(stateDir(cwd), runsDir, runId, "run.json"),
 		JSON.stringify({
 			runId,
 			correlationId,
@@ -573,8 +574,8 @@ async function persistTerminalBatchBoundary(cwd, runId, fake) {
 	record.phase = "terminal_received";
 	record.terminal = {
 		receivedAt: new Date().toISOString(),
-		rawPath: relative(cwd, rawFile),
-		receiptPath: relative(cwd, receiptFile),
+		rawPath: relative(stateDir(cwd), rawFile),
+		receiptPath: relative(stateDir(cwd), receiptFile),
 		rawSha256: createHash("sha256").update(rawOutput).digest("hex"),
 		status: "completed",
 		completedAt: new Date().toISOString(),
@@ -883,7 +884,7 @@ test("profile-only batching uses one physical launch, preserves per-item artifac
 		const downstream = persisted.tasks.find(
 			(task) => task.stageId === "downstream",
 		);
-		const consumer = dirname(join(cwd, downstream.files.result));
+		const consumer = dirname(join(stateDir(cwd), downstream.files.result));
 		const manifestPath = join(consumer, "source-manifest.json");
 		const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 		assert.deepEqual(
@@ -894,7 +895,10 @@ test("profile-only batching uses one physical launch, preserves per-item artifac
 			const task = persisted.tasks.find(
 				(task) => task.taskId === source.taskId,
 			);
-			const path = join(dirname(join(cwd, task.files.result)), "raw.md");
+			const path = join(
+				dirname(join(stateDir(cwd), task.files.result)),
+				"raw.md",
+			);
 			const raw = readFileSync(path, "utf8");
 			assert.ok(task.rawArtifactIntegrity, `host anchor for ${task.taskId}`);
 			assert.equal(statSync(path).nlink, task.foreachBatch ? 2 : 3);
@@ -978,11 +982,11 @@ test("profile-only batching uses one physical launch, preserves per-item artifac
 		for (const task of fanTasks) {
 			assert.equal(task.status, "completed");
 			const control = JSON.parse(
-				readFileSync(join(cwd, task.files.result), "utf8"),
+				readFileSync(join(stateDir(cwd), task.files.result), "utf8"),
 			);
 			assert.equal(control.status, "completed");
 			assert.ok(
-				readFileSync(join(cwd, task.files.output), "utf8").includes(
+				readFileSync(join(stateDir(cwd), task.files.output), "utf8").includes(
 					"<control>",
 				),
 			);
@@ -1050,7 +1054,7 @@ test("scheduler persisted dynamic export manifest reads exact full/truncated raw
 		const run = await readRunRecord(cwd, started.runId),
 			runDir = workflowRunDir(cwd, run.runId);
 		const consumerTask = run.tasks.find((task) => task.stageId === "consumer");
-		const consumer = dirname(join(cwd, consumerTask.files.result)),
+		const consumer = dirname(join(stateDir(cwd), consumerTask.files.result)),
 			manifestPath = join(consumer, "source-manifest.json");
 		const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 		assert.deepEqual(
@@ -1069,7 +1073,7 @@ test("scheduler persisted dynamic export manifest reads exact full/truncated raw
 				raw = readFileSync(source.artifacts.raw.path, "utf8");
 			assert.ok(task.rawArtifactIntegrity);
 			assert.deepEqual(
-				JSON.parse(readFileSync(join(cwd, task.files.result), "utf8"))
+				JSON.parse(readFileSync(join(stateDir(cwd), task.files.result), "utf8"))
 					.rawIntegrity,
 				task.rawArtifactIntegrity,
 			);
@@ -1165,7 +1169,7 @@ test("scheduler persisted dynamic export manifest reads exact full/truncated raw
 		}
 		const controller = run.tasks.find((task) => task.kind === "dynamic");
 		const controlPath = join(
-			dirname(join(cwd, controller.files.result)),
+			dirname(join(stateDir(cwd), controller.files.result)),
 			"control.json",
 		);
 		const controlText = readFileSync(controlPath, "utf8");
@@ -1285,7 +1289,8 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 					const runPath = join(dirname(dirname(taskDir)), "run.json"),
 						run = JSON.parse(readFileSync(runPath, "utf8"));
 					const task = run.tasks.find(
-						(task) => dirname(join(cwd, task.files.result)) === taskDir,
+						(task) =>
+							dirname(join(stateDir(cwd), task.files.result)) === taskDir,
 					);
 					if (kind === "batch" && !task.foreachBatch) return;
 					hits++;
@@ -1308,7 +1313,7 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 							: task;
 						const state = leader.launchAuthority.records.at(-1).state;
 						const mirrorDir = join(
-							cwd,
+							stateDir(cwd),
 							".agent-workflow",
 							"workflow-subagents",
 							run.runId,
@@ -1397,7 +1402,8 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 						assert.notEqual(
 							persisted.tasks.find(
 								(task) =>
-									dirname(join(cwd, task.files.result)) === rejectedTaskDir,
+									dirname(join(stateDir(cwd), task.files.result)) ===
+									rejectedTaskDir,
 							)?.status,
 							"completed",
 						);
@@ -1766,7 +1772,7 @@ test("restart recovers terminal and partial-demux boundaries from durable batch 
 		)) {
 			assert.equal(task.status, "completed");
 			assert.ok(
-				readFileSync(join(cwd, task.files.result), "utf8").includes(
+				readFileSync(join(stateDir(cwd), task.files.result), "utf8").includes(
 					'"status": "completed"',
 				),
 			);
@@ -1904,7 +1910,7 @@ test("one invalid batched member falls back both items to singleton without outp
 			assert.equal(task.foreachBatch?.batchingDisabled, true);
 			assert.equal(task.foreachBatch?.physicalAttempt, 2);
 			assert.match(
-				readFileSync(join(cwd, task.files.output), "utf8"),
+				readFileSync(join(stateDir(cwd), task.files.output), "utf8"),
 				/singleton/,
 			);
 			assert.ok(
@@ -2025,7 +2031,9 @@ test("legacy completed member keeps its authority while pending leader migrates 
 		assert.ok(completedMember);
 		assert.equal(completedMember.status, "completed");
 		assert.equal(completedMember.foreachBatch?.physicalAttempt, undefined);
-		const memberTaskDir = dirname(join(cwd, completedMember.files.result));
+		const memberTaskDir = dirname(
+			join(stateDir(cwd), completedMember.files.result),
+		);
 		const memberRawBefore = readFileSync(join(memberTaskDir, "raw.md"));
 		const memberOutputBefore = readFileSync(join(memberTaskDir, "output.log"));
 		const memberResultBefore = readFileSync(join(memberTaskDir, "result.json"));
@@ -2048,7 +2056,7 @@ test("legacy completed member keeps its authority while pending leader migrates 
 			),
 			true,
 		);
-		assert.ok(await establishRawOwner(memberTaskDir));
+		assert.ok(await establishRawOwner(memberTaskDir, undefined, stateDir(cwd)));
 		const downstream = fixture.tasks.find(
 			(task) => task.stageId === "downstream",
 		);
@@ -2575,7 +2583,7 @@ test("multiple groups accept reversed batch rows and preserve exact per-item own
 				);
 				assert.ok(task);
 				assert.match(
-					readFileSync(join(cwd, task.files.output), "utf8"),
+					readFileSync(join(stateDir(cwd), task.files.output), "utf8"),
 					new RegExp(`batch-${member.taskId}`),
 				);
 			}

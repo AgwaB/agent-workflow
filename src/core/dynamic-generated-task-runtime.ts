@@ -11,7 +11,7 @@ import {
 	resolveWorkflowResourcePolicy,
 	resourceInheritanceWarnings,
 } from "./resource-inheritance.js";
-import { fromProjectPath, isTerminalTaskStatus, readJson } from "./store.js";
+import { fromStatePath, isTerminalTaskStatus, readJson } from "./store.js";
 import {
 	classifyToolCapability,
 	effectiveToolClassification,
@@ -791,7 +791,7 @@ export async function readDynamicGeneratedTaskResult(
 		};
 	}
 	const result = await readJson<Record<string, unknown>>(
-		fromProjectPath(cwd, task.files.result),
+		fromStatePath(cwd, task.files.result),
 	);
 	return {
 		status: "completed",

@@ -1,3 +1,4 @@
+import { stateBase } from "./state-location.js";
 import { readFile } from "node:fs/promises";
 import { persistedResumeHint } from "./command-hints.js";
 import { persistedApproveHint } from "./dynamic-approval.js";
@@ -469,6 +470,7 @@ export async function runDynamicHelperCall(input: {
 					taskId: input.controllerTask.taskId,
 					runId: input.run.runId,
 					cwd: input.cwd,
+					stateCwd: stateBase(input.cwd),
 				},
 			},
 			timeoutMs: Math.min(

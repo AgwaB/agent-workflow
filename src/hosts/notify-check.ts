@@ -1,3 +1,4 @@
+import { stateBase } from "../core/state-location.js";
 // New in agent-workflow (WP36, owner decision E2: the common completion mechanism): `agent-workflow
 // notify-check` prints one short line per run of this project that finished (or now needs the
 // user) since the last check — "workflow X finished — verdict Y, report Z" — and prints each
@@ -296,7 +297,7 @@ export async function monitorStartsWithRun(
 	runId: string,
 ): Promise<boolean> {
 	const entries = await readdir(
-		join(projectDir, ".agent-workflow", "workflows"),
+		join(stateBase(projectDir), ".agent-workflow", "workflows"),
 		{
 			withFileTypes: true,
 		},

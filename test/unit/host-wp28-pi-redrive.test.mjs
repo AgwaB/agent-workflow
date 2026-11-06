@@ -114,7 +114,7 @@ async function project(config = {}) {
 	unregister.push(
 		core.registerWorkflowExecutor(workflowFixtureDescriptor(fixtureConfig)),
 	);
-	const env = { ...process.env, AGENT_WORKFLOW_HOME: join(cwd, "home") };
+	const env = { ...process.env };
 	return { cwd, env, ctx: { cwd, env }, fixtureConfig };
 }
 

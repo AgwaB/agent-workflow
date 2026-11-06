@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP10): worker prompts name the artifact tool by the executor's visible
 // name (src/core/artifact-tool-names.ts) and carry the artifact tool guidelines; the prompt files
 // keep the engine's canonical text.
@@ -177,10 +178,13 @@ test("the task backend sends rendered prompts with the artifact guidelines and k
 		assert.ok(launchedTask, String(options.runsDir));
 		const files = launchedTask.files;
 		const systemPromptFile = readFileSync(
-			join(cwd, files.systemPrompt),
+			join(stateDir(cwd), files.systemPrompt),
 			"utf8",
 		);
-		const taskFile = readFileSync(join(cwd, files.taskPrompt), "utf8");
+		const taskFile = readFileSync(
+			join(stateDir(cwd), files.taskPrompt),
+			"utf8",
+		);
 		assert.ok(
 			systemPromptFile.includes(
 				"- Use workflow_artifact to inspect upstream workflow artifacts",

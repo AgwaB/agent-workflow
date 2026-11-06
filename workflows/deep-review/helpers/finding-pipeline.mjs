@@ -959,11 +959,11 @@ function trustedOcrFileIssue(file) {
 	return "";
 }
 
-function ocrBindingIssue(row, path, source, artifact, repoRoot) {
+function ocrBindingIssue(row, path, source, artifact, stateRoot) {
 	const bindingPath = `${row.artifact}.binding.json`;
 	const bindingFile = readRepoText(
 		bindingPath,
-		repoRoot,
+		stateRoot,
 		MAX_OCR_BINDING_FILE_BYTES,
 	);
 	if (!bindingFile.exists || bindingFile.tooLarge) {
@@ -1026,11 +1026,12 @@ function exactSourceQuoteIssue(row, path, context, corrections = null) {
 		if (!row.artifact) return "OCR artifact missing";
 		if (row.artifact !== row.artifact.trim())
 			return "OCR artifact path is invalid";
-		const artifactPathIssue = trustedOcrArtifactPathIssue(row.artifact, repoRoot);
+		const stateRoot = context.stateCwd ?? repoRoot;
+		const artifactPathIssue = trustedOcrArtifactPathIssue(row.artifact, stateRoot);
 		if (artifactPathIssue) return artifactPathIssue;
 		const artifact = readRepoText(
 			row.artifact,
-			repoRoot,
+			stateRoot,
 			MAX_SOURCE_COVERAGE_FILE_BYTES,
 		);
 		if (!artifact.exists || artifact.tooLarge) {
@@ -1038,7 +1039,7 @@ function exactSourceQuoteIssue(row, path, context, corrections = null) {
 		}
 		const artifactTrustIssue = trustedOcrFileIssue(artifact);
 		if (artifactTrustIssue) return artifactTrustIssue;
-		const bindingIssue = ocrBindingIssue(row, path, source, artifact, repoRoot);
+		const bindingIssue = ocrBindingIssue(row, path, source, artifact, stateRoot);
 		if (bindingIssue) return bindingIssue;
 		let scopedArtifact = artifact.text;
 		if (pointer.line !== undefined) {

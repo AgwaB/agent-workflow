@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // `agent-workflow check` (2026-10-30, owner): the launch preflight without the launch, and the short
 // preflight text a launch prints. Fixture executor only; no model or agent-CLI calls.
 import assert from "node:assert/strict";
@@ -69,7 +70,7 @@ test("check: the launch preflight passes without creating a run, claiming a laun
 	);
 	assert.equal(checked.data.runId, undefined);
 	assert.ok(checked.data.capability.preview.startsWith("Capability check"));
-	const state = join(ctx.cwd, ".agent-workflow", "workflows");
+	const state = join(stateDir(ctx.cwd), ".agent-workflow", "workflows");
 	assert.equal(
 		existsSync(state) &&
 			readdirSync(state).some((name) => name.startsWith("workflow_")),
@@ -169,7 +170,7 @@ test("check edge cases: its own action name; no dashboard even when auto-start i
 	assert.equal(checked.ok, true, checked.text);
 	assert.equal(checked.data.dashboard, undefined);
 	assert.equal(
-		existsSync(join(ctx.cwd, ".agent-workflow", "dashboard.json")),
+		existsSync(join(stateDir(ctx.cwd), ".agent-workflow", "dashboard.json")),
 		false,
 		"a preflight starts no dashboard",
 	);
@@ -208,9 +209,9 @@ test("check edge cases: its own action name; no dashboard even when auto-start i
 	assert.equal(worker.ok, true, worker.text);
 	assert.equal(existsSync(effects), false, "the executor was never asked");
 	assert.equal(
-		existsSync(join(ctx.cwd, ".agent-workflow", "workflows")) &&
-			readdirSync(join(ctx.cwd, ".agent-workflow", "workflows")).some((name) =>
-				name.startsWith("workflow_"),
+		existsSync(join(stateDir(ctx.cwd), ".agent-workflow", "workflows")) &&
+			readdirSync(join(stateDir(ctx.cwd), ".agent-workflow", "workflows")).some(
+				(name) => name.startsWith("workflow_"),
 			),
 		false,
 	);

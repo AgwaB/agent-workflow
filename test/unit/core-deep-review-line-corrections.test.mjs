@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // agent-workflow 2026-11-01 (owner decision): deep-review accepts evidence that differs from the
 // file only in trivial ways and records the correction instead of failing. Models often read files
 // without line numbers (Codex `sed -n`, Pi `read`) and retype quotes; in recorded Codex runs this
@@ -106,7 +107,11 @@ function dedup(cwd, planned, quote) {
 				noIssueNotes: [],
 			},
 		},
-		context: { cwd, sourceStatuses: statuses.slice(0, 2) },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			sourceStatuses: statuses.slice(0, 2),
+		},
 		options: { mode: "dedup" },
 	});
 }
@@ -124,7 +129,11 @@ function partition(cwd, dedupOutput, evidence) {
 				recommendedAction: "Turn it off",
 			},
 		},
-		context: { cwd, sourceStatuses: statuses },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			sourceStatuses: statuses,
+		},
 		options: { mode: "partition", dedupStage: "dedup-findings" },
 	});
 }
@@ -363,7 +372,11 @@ test("a quote joining a wrapped line, and a metadata-only row for blank planned 
 					noIssueNotes: [],
 				},
 			},
-			context: { cwd, sourceStatuses: statuses.slice(0, 2) },
+			context: {
+				cwd,
+				stateCwd: cwd ? stateDir(cwd) : undefined,
+				sourceStatuses: statuses.slice(0, 2),
+			},
 			options: { mode: "dedup" },
 		});
 	const blank = await blankReview("SPEC.md:5-6");
@@ -423,7 +436,11 @@ test("normalization notes name the finding by its reader title", async (t) => {
 				readerTitle: "위험 플래그가 켜진 채로 남음",
 			},
 		},
-		context: { cwd, sourceStatuses: statuses },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			sourceStatuses: statuses,
+		},
 		options: { mode: "partition", dedupStage: "dedup-findings" },
 	});
 	assert.ok(

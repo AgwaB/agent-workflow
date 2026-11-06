@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19 round 4, review F1): completion suppression follows Pi's queue
 // lifetime, not the OS process lifetime. Round 3 suppressed an epoch for the whole process once it
 // was enqueued, so an ordinary `/new` → `/resume` (Pi 1.1's `AgentSessionRuntime.teardownCurrent`
@@ -80,7 +81,7 @@ async function tempProject(t) {
 async function syntheticRun(cwd, sessionId, launchedBy = "tool") {
 	counter += 1;
 	const runId = `workflow_wp19r4_${counter}`;
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await fs.mkdir(dir, { recursive: true });
 	const at = new Date().toISOString();
 	const run = {

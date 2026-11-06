@@ -127,11 +127,11 @@ import {
 	sharedModelRateLimitBackoffWaitingMessage,
 } from "./retry-policy.js";
 import {
-	fromProjectPath,
+	fromStatePath,
 	isTerminalTaskStatus,
 	nowIso,
 	setTaskTerminal,
-	toProjectPath,
+	toStatePath,
 	writeRunRecord,
 } from "./store.js";
 import {
@@ -140,7 +140,6 @@ import {
 	findLog,
 	getSubagentHandle,
 	makeSubagentHandle,
-	recordedTaskStateCwd,
 	recoverSubagentHandle,
 	subagentRunsDir,
 	workflowTaskStateCwd,
@@ -278,11 +277,11 @@ export async function launchSubagentTask(
 		};
 	}
 
-	const systemPromptFile = fromProjectPath(cwd, task.files.systemPrompt);
-	const taskPromptFile = fromProjectPath(cwd, task.files.taskPrompt);
-	const outputFile = fromProjectPath(cwd, task.files.output);
-	const stderrFile = fromProjectPath(cwd, task.files.stderr);
-	const resultFile = fromProjectPath(cwd, task.files.result);
+	const systemPromptFile = fromStatePath(cwd, task.files.systemPrompt);
+	const taskPromptFile = fromStatePath(cwd, task.files.taskPrompt);
+	const outputFile = fromStatePath(cwd, task.files.output);
+	const stderrFile = fromStatePath(cwd, task.files.stderr);
+	const resultFile = fromStatePath(cwd, task.files.result);
 	const runsDir = subagentRunsDir(run, task);
 	// WP39b (O7): a worktree task's attempt state stays in the project (the worker runs in the
 	// worktree as the runtime's execution directory).
@@ -417,7 +416,7 @@ export async function launchSubagentTask(
 		task.statusDetail = "launching";
 		task.startedAt = nowIso();
 		task.backendFiles = {
-			runsDir: toProjectPath(stateCwd, resolve(stateCwd, runsDir)),
+			runsDir: toStatePath(cwd, resolve(stateCwd, runsDir)),
 			correlationId,
 			...(sessionId === undefined ? {} : { sessionId }),
 		};
@@ -702,7 +701,7 @@ export async function launchSubagentTask(
 		});
 	}
 	task.backendFiles = {
-		runsDir: toProjectPath(stateCwd, resolve(stateCwd, runsDir)),
+		runsDir: toStatePath(cwd, resolve(stateCwd, runsDir)),
 		correlationId,
 		...(sessionId === undefined ? {} : { sessionId }),
 	};
@@ -761,10 +760,7 @@ export async function refreshRunFromSubagentArtifacts(
 				task.backendHandle = handle;
 				task.backendTaskId = handle.runId;
 				task.backendFiles = {
-					runsDir: toProjectPath(
-						handle.cwd,
-						resolve(handle.cwd, handle.runsDir),
-					),
+					runsDir: toStatePath(cwd, resolve(handle.cwd, handle.runsDir)),
 					correlationId: `${run.runId}:${task.taskId}`,
 					...(handle.sessionId === undefined
 						? {}
@@ -1104,16 +1100,13 @@ async function refreshRunningArtifactGraphPartialOutput(
 	const partial = task.artifactGraph?.output.partial;
 	if (!partial || partial.paths.length === 0) return;
 	const outputRef = findLog(snapshot, "output");
-	const outputFile = fromProjectPath(cwd, task.files.output);
+	const outputFile = fromStatePath(cwd, task.files.output);
 	const artifactRoot = task.backendFiles?.runsDir
-		? fromProjectPath(
-				recordedTaskStateCwd(cwd, task),
-				task.backendFiles.runsDir,
-			)
+		? fromStatePath(cwd, task.backendFiles.runsDir)
 		: undefined;
 	await copyLogOrEmpty(snapshot, outputRef, outputFile, artifactRoot);
 	await writeWorkflowPartialOutputLedgerFromFile({
-		taskDir: dirname(fromProjectPath(cwd, task.files.result)),
+		taskDir: dirname(fromStatePath(cwd, task.files.result)),
 		outputFile,
 		allowedPaths: partial.paths,
 	});
@@ -1224,7 +1217,7 @@ export async function prepareSubagentTaskLaunch(
 ): Promise<PreparedWorkflowTaskLaunch> {
 	const resourcePolicy = resolveWorkflowResourcePolicy(compiledTask);
 	const toolProviders = compiledTask.runtime.toolProviders;
-	const taskDir = dirname(fromProjectPath(cwd, task.files.result));
+	const taskDir = dirname(fromStatePath(cwd, task.files.result));
 	const artifactBinding = await sealArtifactBinding(
 		task,
 		taskDir,

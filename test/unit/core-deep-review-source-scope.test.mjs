@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Quotes at most 10 lines outside a planned range are accepted with a recorded correction.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -61,6 +62,7 @@ test("source coverage distinguishes unsupported scope and ranges without weakeni
 				},
 				context: {
 					cwd: root,
+					stateCwd: stateDir(root),
 					sourceStatuses: [
 						{
 							source: "reviewers.runtime",

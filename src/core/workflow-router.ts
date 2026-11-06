@@ -1,3 +1,4 @@
+import { stateBase, registerProject } from "./state-location.js";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
@@ -1709,8 +1710,9 @@ async function runPinnedWorkflowAutoComparison(
 ): Promise<string> {
 	if (request.executor === undefined)
 		throw new Error("workflow auto comparison requires an explicit executor");
+	await registerProject(request.cwd);
 	const envelope = await runOneShotSubagentCall({
-		cwd: request.cwd,
+		cwd: stateBase(request.cwd),
 		executor: request.executor,
 		task: packet,
 		systemPrompt: AUTO_ROUTER_SYSTEM_PROMPT,
@@ -1729,7 +1731,7 @@ async function runPinnedWorkflowAutoComparison(
 				}
 			: {}),
 		tools: [],
-		workspace: "shared",
+		workspace: { mode: "shared", path: request.cwd },
 		worktreePolicy: "never",
 		timeoutMs: WORKFLOW_AUTO_COMPARE_TIMEOUT_MS,
 		runsDir: AUTO_ROUTER_RUNS_DIR,
@@ -1766,7 +1768,7 @@ async function readOneShotOutput(
 	// A one-shot runtime result has one canonical output artifact. Never use
 	// adapter-provided cwd values as a filesystem authority: they are envelope
 	// data, not a capability to read elsewhere on disk.
-	const runsRoot = resolve(cwd, AUTO_ROUTER_RUNS_DIR);
+	const runsRoot = resolve(stateBase(cwd), AUTO_ROUTER_RUNS_DIR);
 	const attemptDir = join(
 		runsRoot,
 		envelope.runId,
@@ -1776,7 +1778,7 @@ async function readOneShotOutput(
 	const expectedPath = join(attemptDir, "output.log");
 	const declaredPath = isAbsolute(artifact.path)
 		? resolve(artifact.path)
-		: resolve(cwd, artifact.path);
+		: resolve(stateBase(cwd), artifact.path);
 	if (declaredPath !== expectedPath)
 		throw new Error(
 			"auto comparison output is outside its canonical artifact path",

@@ -13,6 +13,8 @@ export interface WorkflowHelperContext {
 	taskId?: string;
 	runId?: string;
 	cwd: string;
+	/** Private storage base; source and worker paths still resolve against cwd. */
+	stateCwd?: string;
 	/**
 	 * Cooperative cancellation signal for durable workflow stop requests.
 	 * Async helpers should observe this signal and throw/return promptly when it

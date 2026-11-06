@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import {
 	mkdtemp,
@@ -55,7 +56,10 @@ async function withStaticArtifacts(
 			{},
 			originalSpec,
 		);
-		await fn(join(root, ".agent-workflow", "workflows", runId), originalSpec);
+		await fn(
+			join(stateDir(root), ".agent-workflow", "workflows", runId),
+			originalSpec,
+		);
 	} finally {
 		setStaticArtifactLinkForTests(undefined);
 		await rm(root, {
@@ -196,7 +200,7 @@ function terminalRun(runId, updatedAt, options = {}) {
 }
 
 async function writeRun(cwd, run) {
-	const dir = join(cwd, ".agent-workflow", "workflows", run.runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", run.runId);
 	await mkdir(dir, { recursive: true });
 	await writeFile(join(dir, "run.json"), `${JSON.stringify(run)}\n`);
 	await writeFile(join(dir, "artifact.bin"), "artifact");
@@ -226,7 +230,13 @@ test("prune dry run is non-destructive and selects only beyond-keep terminal run
 		);
 		assert.equal(summary.dryRun, true);
 		await stat(
-			join(cwd, ".agent-workflow", "workflows", "workflow-old", "run.json"),
+			join(
+				stateDir(cwd),
+				".agent-workflow",
+				"workflows",
+				"workflow-old",
+				"run.json",
+			),
 		);
 	} finally {
 		await rm(cwd, {
@@ -250,12 +260,17 @@ test("prune yes removes workflow and subagent mirrors and rewrites the index", a
 			terminalRun("workflow-delete", "2026-08-01T00:00:00.000Z"),
 		);
 		await mkdir(
-			join(cwd, ".agent-workflow", "workflow-subagents", "workflow-delete"),
+			join(
+				stateDir(cwd),
+				".agent-workflow",
+				"workflow-subagents",
+				"workflow-delete",
+			),
 			{ recursive: true },
 		);
 		await writeFile(
 			join(
-				cwd,
+				stateDir(cwd),
 				".agent-workflow",
 				"workflow-subagents",
 				"workflow-delete",
@@ -267,16 +282,23 @@ test("prune yes removes workflow and subagent mirrors and rewrites the index", a
 		const summary = await pruneWorkflowRuns(cwd, { keep: 1, yes: true });
 		assert.equal(summary.deletedBytes > 0, true);
 		await assert.rejects(
-			stat(join(cwd, ".agent-workflow", "workflows", "workflow-delete")),
+			stat(
+				join(stateDir(cwd), ".agent-workflow", "workflows", "workflow-delete"),
+			),
 		);
 		await assert.rejects(
 			stat(
-				join(cwd, ".agent-workflow", "workflow-subagents", "workflow-delete"),
+				join(
+					stateDir(cwd),
+					".agent-workflow",
+					"workflow-subagents",
+					"workflow-delete",
+				),
 			),
 		);
 		const index = JSON.parse(
 			await readFile(
-				join(cwd, ".agent-workflow", "workflows", "index.json"),
+				join(stateDir(cwd), ".agent-workflow", "workflows", "index.json"),
 				"utf8",
 			),
 		);
@@ -331,7 +353,13 @@ test("prune protects running, blocked, and live-lease runs", async () => {
 			false,
 		);
 		await stat(
-			join(cwd, ".agent-workflow", "workflows", "workflow-live", "run.json"),
+			join(
+				stateDir(cwd),
+				".agent-workflow",
+				"workflows",
+				"workflow-live",
+				"run.json",
+			),
 		);
 	} finally {
 		await rm(cwd, {
@@ -387,20 +415,27 @@ test("prune skips symlinked run directories outside the workflow root", async ()
 	const cwd = await mkdtemp(join(tmpdir(), "agent-workflow-prune-"));
 	const outside = await mkdtemp(join(tmpdir(), "agent-workflow-outside-"));
 	try {
-		await mkdir(join(cwd, ".agent-workflow", "workflows"), { recursive: true });
+		await mkdir(join(stateDir(cwd), ".agent-workflow", "workflows"), {
+			recursive: true,
+		});
 		await writeRun(
 			outside,
 			terminalRun("workflow-outside", "2020-01-01T00:00:00.000Z"),
 		);
 		await symlink(
-			join(outside, ".agent-workflow", "workflows", "workflow-outside"),
-			join(cwd, ".agent-workflow", "workflows", "workflow-link"),
+			join(
+				stateDir(outside),
+				".agent-workflow",
+				"workflows",
+				"workflow-outside",
+			),
+			join(stateDir(cwd), ".agent-workflow", "workflows", "workflow-link"),
 		);
 		const summary = await pruneWorkflowRuns(cwd, { keep: 0, yes: true });
 		assert.equal(summary.runs.length, 0);
 		await stat(
 			join(
-				outside,
+				stateDir(outside),
 				".agent-workflow",
 				"workflows",
 				"workflow-outside",

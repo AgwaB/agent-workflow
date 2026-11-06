@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // WP43b: `/aw dashboard [<run>]` in the Pi host opens the local web dashboard through a one-time
 // launch URL handed to the browser only; the note the user sees never carries the session token or
 // the launch key. Uses a real dashboard server (discovery on) and a recorder in place of a browser.
@@ -62,7 +63,8 @@ test("/aw dashboard opens a launch URL in the browser (open mode: no credential;
 	timeout: 20_000,
 }, async (t) => {
 	const cwd = join(root, "p1");
-	await mkdir(join(cwd, ".agent-workflow"), { recursive: true });
+	await mkdir(cwd, { recursive: true });
+	await mkdir(join(stateDir(cwd), ".agent-workflow"), { recursive: true });
 	const log = join(root, "opened.log");
 	const recorder = join(root, "browser.sh");
 	await writeFile(recorder, `#!/bin/sh\necho "$1" >> ${JSON.stringify(log)}\n`);

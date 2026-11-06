@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // agent-workflow 2026-11-01: engine-side web quote check. Each cited page is fetched once (then
 // cached by content hash), turned into text views by content type, and each quote is looked up.
 // What cannot be checked gets a reason instead of a verdict.
@@ -307,7 +308,7 @@ test("support helpers get the check; enabled is the run's launch-time decision",
 // Receipts: what the worker's own web tools returned (normalized exec-events of its attempts).
 function writeAttempt(cwd, runId, taskId, attempt, events) {
 	const dir = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflow-subagents",
 		runId,

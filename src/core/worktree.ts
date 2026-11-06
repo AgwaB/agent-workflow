@@ -24,7 +24,7 @@ import {
 	resolve,
 } from "node:path";
 
-import { workflowRunDir, managedWorktreePath, toProjectPath } from "./store.js";
+import { workflowRunDir, managedWorktreePath, toStatePath } from "./store.js";
 import type {
 	CompiledTask,
 	WorkflowRunRecord,
@@ -200,7 +200,7 @@ async function captureDirtyWorktreeSnapshot(
 		baseHead,
 		dirty: trackedFiles.length > 0 || untrackedFiles.length > 0,
 		trackedPatch: trackedPatchPath
-			? toProjectPath(projectCwd, trackedPatchPath)
+			? toStatePath(projectCwd, trackedPatchPath)
 			: null,
 		trackedPatchSha256: trackedPatchPath ? sha256Text(trackedPatch) : null,
 		trackedFileCount: trackedFiles.length,

@@ -2,7 +2,7 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
 
 import { hashDynamicRequest } from "./dynamic-events.js";
-import { fromProjectPath, readJson, workflowRunDir } from "./store.js";
+import { fromStatePath, readJson, workflowRunDir } from "./store.js";
 import type {
 	CompiledTask,
 	WorkflowRunRecord,
@@ -128,7 +128,7 @@ export async function buildRunSourceContext(
 		sourceTasks.map(async (task) => {
 			const [result, output] = await Promise.all([
 				readJson<{ structuredOutput?: unknown }>(
-					fromProjectPath(cwd, task.files.result),
+					fromStatePath(cwd, task.files.result),
 				).catch(() => undefined),
 				readOutputText(cwd, task.files.output),
 			]);
@@ -161,7 +161,7 @@ export async function readOutputText(
 	projectPath: string,
 ): Promise<{ text: string; bytes: number }> {
 	try {
-		const text = await readFile(fromProjectPath(cwd, projectPath), "utf8");
+		const text = await readFile(fromStatePath(cwd, projectPath), "utf8");
 		return { text, bytes: Buffer.byteLength(text, "utf8") };
 	} catch {
 		return { text: "", bytes: 0 };

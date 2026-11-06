@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { cp, mkdir, readdir, readFile, realpath } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 
 const [packageRootArg, consumerArg] = process.argv.slice(2);
 if (!packageRootArg || !consumerArg)
@@ -22,6 +22,10 @@ const fixtures = join(
 	"fixtures",
 );
 const bin = join(consumer, "node_modules", ".bin", "agent-workflow");
+const { stateBase } = await import(
+	pathToFileURL(join(packageRoot, "dist/core/state-location.js"))
+);
+const state = stateBase(consumer);
 const effectLog = join(consumer, "e2e-effects.jsonl");
 
 // The executor module and the workflow bundle live in the consumer project, so the executor
@@ -85,7 +89,7 @@ async function effects() {
 async function runRecord(runId) {
 	return JSON.parse(
 		await readFile(
-			join(consumer, ".agent-workflow", "workflows", runId, "run.json"),
+			join(state, ".agent-workflow", "workflows", runId, "run.json"),
 			"utf8",
 		),
 	);
@@ -136,7 +140,7 @@ assert.equal(
 for (const task of run.tasks)
 	assert.equal(task.status, "completed", `${task.specId}: ${task.status}`);
 const taskDir = (task) =>
-	join(consumer, ".agent-workflow", "workflows", runId, "tasks", task.taskId);
+	join(state, ".agent-workflow", "workflows", runId, "tasks", task.taskId);
 const [merge] = byStage("merge");
 const mergeControl = JSON.parse(
 	await readFile(join(taskDir(merge), "control.json"), "utf8"),
@@ -305,7 +309,14 @@ assert.ok(
 await waitForSupervisorDone(slowRun.detached.logPath, slowRun.runId);
 
 // Nothing was written outside the project and the isolated home.
-const projectState = await readdir(join(consumer, ".agent-workflow"));
+const projectDefinitions = await readdir(
+	join(consumer, ".agent-workflow", "workflows"),
+);
+assert.deepEqual(projectDefinitions, ["e2e-review"]);
+assert.deepEqual(await readdir(join(consumer, ".agent-workflow")), [
+	"workflows",
+]);
+const projectState = await readdir(join(state, ".agent-workflow"));
 assert.ok(projectState.includes("workflows"));
 assert.ok(projectState.includes("workflow-subagents"));
 

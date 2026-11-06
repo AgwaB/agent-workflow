@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -32,7 +33,7 @@ const candidate = {
 const readControl = async (cwd, task) =>
 	JSON.parse(
 		await readFile(
-			join(dirname(join(cwd, task.files.result)), "control.json"),
+			join(dirname(join(stateDir(cwd), task.files.result)), "control.json"),
 			"utf8",
 		),
 	);
@@ -110,7 +111,7 @@ async function withRun(bundlePath, name, fn) {
 			const destination = join(evidenceRoot, name);
 			await mkdir(destination, { recursive: true });
 			await cp(
-				join(cwd, ".agent-workflow", "workflows", run.runId),
+				join(stateDir(cwd), ".agent-workflow", "workflows", run.runId),
 				join(destination, run.runId),
 				{ recursive: true },
 			);
@@ -313,7 +314,10 @@ for (const mode of [
 				assert.equal(launches.length, 6);
 				const sidecar = JSON.parse(
 					await readFile(
-						join(dirname(join(cwd, final.files.result)), "source-ledger.json"),
+						join(
+							dirname(join(stateDir(cwd), final.files.result)),
+							"source-ledger.json",
+						),
 						"utf8",
 					),
 				);

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP4c-1): the engine on the runtime API. Workflows run through the real
 // engine → core task backend → runtime durable worker → executor descriptor (the SDK fake executor
 // wrapped by test/helpers/workflow-executor-fixture.mjs). No model or agent-CLI calls.
@@ -130,7 +131,7 @@ test("two-stage workflow runs end to end: engine → task backend → durable wo
 
 	// The completed run record lives under .agent-workflow/workflows/.
 	const runJson = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflows",
 		run.runId,
@@ -217,7 +218,7 @@ test("two-stage workflow runs end to end: engine → task backend → durable wo
 	// is terminal and can refresh its lease heartbeat. Prune correctly refuses a run whose
 	// supervisor looks alive, so wait for the supervisor lock to clear, age the lease records,
 	// and retry while the supervisor's last heartbeat races the ageing (test-only race).
-	const runDir = join(cwd, ".agent-workflow", "workflows", run.runId);
+	const runDir = join(stateDir(cwd), ".agent-workflow", "workflows", run.runId);
 	let summary;
 	let pruned;
 	for (let attempt = 0; attempt < 200; attempt += 1) {
@@ -347,7 +348,7 @@ test("runtime needs_decision blocks the task and the run with a notice; nothing 
 	// The worker itself recorded the decision (it did not exit without a result): no worker line.
 	assert.doesNotMatch(task.lastMessage, /; worker: /);
 	const result = JSON.parse(
-		await readFile(join(cwd, task.files.result), "utf8"),
+		await readFile(join(stateDir(cwd), task.files.result), "utf8"),
 	);
 	assert.equal(result.failureKind, "needs_decision");
 
@@ -469,14 +470,14 @@ test("an unknown or unavailable executor fails the run before any launch", async
 	// All built-in adapters (pi, codex, claude) exist since WP6–WP8; the unknown-id refusal above
 	// is the remaining no-substitution case reachable from a run flag.
 	assert.equal(
-		existsSync(join(cwd, ".agent-workflow", "workflows")) &&
+		existsSync(join(stateDir(cwd), ".agent-workflow", "workflows")) &&
 			(await import("node:fs")).readdirSync(
-				join(cwd, ".agent-workflow", "workflows"),
+				join(stateDir(cwd), ".agent-workflow", "workflows"),
 			).length > 0,
 		false,
 	);
 	assert.equal(
-		existsSync(join(cwd, ".agent-workflow", "workflow-subagents")),
+		existsSync(join(stateDir(cwd), ".agent-workflow", "workflow-subagents")),
 		false,
 	);
 });

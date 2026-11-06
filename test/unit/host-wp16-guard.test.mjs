@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP16): the duplicate-launch guard for detached (and attached) launches,
 // through every caller of the host API: the handlers, the `agent-workflow` CLI, the Pi `aw_run`
 // tool and the host MCP server's `workflow_run`. An identical launch while the first run is active
@@ -106,9 +107,9 @@ function remember(ctx, data) {
 }
 
 function runDirs(cwd) {
-	return readdirSync(join(cwd, ".agent-workflow", "workflows")).filter((name) =>
-		name.startsWith("workflow_"),
-	);
+	return readdirSync(
+		join(stateDir(cwd), ".agent-workflow", "workflows"),
+	).filter((name) => name.startsWith("workflow_"));
 }
 
 async function settle(ctx, runId) {

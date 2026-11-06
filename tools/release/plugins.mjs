@@ -160,13 +160,31 @@ function shellWord(word) {
 export const NOTIFY_HOOK_TIMEOUT_SEC = 60;
 
 /**
+ * Shell lines that find the project's state base without starting the CLI (2026-11-06: run state
+ * lives in `<home>/projects/<project-id>/`). The id ends in the first 12 hex digits of the sha256 of
+ * the canonical project path (`projectId` in src/core/state-location.ts); `realpath` gives the same
+ * canonical path as Node's realpath.native (letter case on macOS, /tmp -> /private/tmp), so a glob on
+ * `*-<hash>` finds the directory. Sets P (the user directory) and h (the hash; empty when realpath or
+ * a sha256 tool is missing, and the caller then leaves discovery to the CLI). No `${…}`: Claude Code
+ * expands those in monitor commands itself.
+ */
+const SHELL_STATE_HASH = [
+	'P="$AGENT_WORKFLOW_HOME"',
+	'[ -n "$P" ] || P="$HOME/.agent-workflow"',
+	'p=$(realpath "$d" 2>/dev/null) || p=""',
+	'h=""',
+	'[ -z "$p" ] || h=$(printf %s "$p" | (shasum -a 256 || sha256sum) 2>/dev/null | cut -c1-12)',
+	'case "$h" in ????????????) ;; *) h="" ;; esac',
+];
+
+/**
  * WP36: the shell command of the completion hook: `agent-workflow notify-check` in the project
  * directory, only when the project has runs (otherwise a directory test and nothing else); its
  * output (one line per run that finished since the last check) is added to the conversation.
  * Always exits 0 and prints nothing on errors, so a prompt is never blocked or decorated.
  * The hook runs on every prompt, so the CLI (an `npx` start in the published plugin) is only
  * started when a `run.json` changed since the last successful check: a stamp file
- * (`.agent-workflow/notify-check/hook-<host>.stamp`) makes the idle case a `find`.
+ * (`<state base>/.agent-workflow/notify-check/hook-<host>.stamp`) makes the idle case a `find`.
  * WP42 (review round 1, finding 4): the shell only reads (`find -newer` writes nothing, even
  * through a symlink); the stamp is written by `notify-check --stamp hook-<host>` itself, through
  * its contained writer, after a successful check and timed to the check's start (so a change during
@@ -187,11 +205,17 @@ export function notifyHookCommand(cli, host) {
 		.map(shellWord)
 		.join(" ");
 	return [
-		`d="\${CLAUDE_PROJECT_DIR:-.}"`,
-		`w="$d/.agent-workflow/workflows"`,
-		`[ -d "$w" ] || exit 0`,
-		`s="$d/.agent-workflow/notify-check/${stamp}.stamp"`,
-		`[ -f "$s" ] && [ -z "$(find "$w" -name run.json -newer "$s" 2>/dev/null | head -n 1)" ] && exit 0`,
+		'd="$CLAUDE_PROJECT_DIR"',
+		'[ -n "$d" ] || d=.',
+		...SHELL_STATE_HASH,
+		[
+			'if [ -n "$h" ]; then set -- "$P"/projects/*-"$h"',
+			'w="$1/.agent-workflow/workflows"',
+			'[ -d "$w" ] || exit 0',
+			`s="$1/.agent-workflow/notify-check/${stamp}.stamp"`,
+			'[ -f "$s" ] && [ -z "$(find "$w" -name run.json -newer "$s" 2>/dev/null | head -n 1)" ] && exit 0',
+			"fi",
+		].join("; "),
 		`(cd "$d" && ${run} 2>/dev/null)`,
 		"exit 0",
 	].join("; ");
@@ -251,11 +275,13 @@ export function claudeCompletionMonitor(cli) {
 			'[ -n "$s" ] || exit 0',
 			'd="$CLAUDE_PROJECT_DIR"',
 			'[ -n "$d" ] || d=.',
+			...SHELL_STATE_HASH,
 			// Gone with the session even before the CLI starts: $PPID is the Claude Code process that
 			// started this shell; the CLI then stops itself when it is orphaned (notify-check --follow).
 			// Polls every 2 s: a launch from this session waits up to 5 s for the monitor of a project's
-			// first run (MONITOR_FIRST_RUN_WAIT_MS) instead of falling back to workflow_wait.
-			'until [ -d "$d/.agent-workflow/workflows" ]; do kill -0 "$PPID" 2>/dev/null || exit 0; sleep 2; done',
+			// first run (MONITOR_FIRST_RUN_WAIT_MS) instead of falling back to workflow_wait. Without a
+			// hash (no realpath/sha256 tool) the CLI waits instead.
+			'until [ -z "$h" ] || { set -- "$P"/projects/*-"$h"; [ -d "$1/.agent-workflow/workflows" ]; }; do kill -0 "$PPID" 2>/dev/null || exit 0; sleep 2; done',
 			`cd "$d" && exec ${follow} "$s"`,
 		].join("; "),
 		description: "agent-workflow: a run this session started has finished",

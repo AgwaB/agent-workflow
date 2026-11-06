@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -367,7 +368,7 @@ test("scaffold evidence gate verifies quotes against cited file ranges and demot
 		const result = await gate({
 			sources,
 			options: { partitionStage: "partition-verdicts" },
-			context: { cwd },
+			context: { cwd, stateCwd: cwd ? stateDir(cwd) : undefined },
 		});
 		const value = result.value;
 		assert.deepEqual(
@@ -441,7 +442,7 @@ test("scaffold evidence gate verifies quotes against cited file ranges and demot
 				},
 			},
 			options: {},
-			context: { cwd },
+			context: { cwd, stateCwd: cwd ? stateDir(cwd) : undefined },
 		});
 		assert.equal(clean.value.evidenceGate.integrity, "complete");
 		assert.equal(clean.value.partitions.keep[0].evidenceGate, "verified");

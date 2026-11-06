@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP28, owner decision Q7): every CLI command is a host MCP tool. Through the
 // fake MCP client against an in-process server (runs on the workflow executor fixture; no model or
 // agent-CLI calls): the nine new tools (resume, show, roles, agents, notices, doctor, prune, profile,
@@ -137,7 +138,7 @@ const text = (result) => result.content[0].text;
 
 /** Make the run's supervisor heartbeat stale (as if its last lease holder had exited). */
 async function staleSupervisor(cwd, runId) {
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	await rm(join(dir, "supervisor-lease.json"), { force: true });
 	await writeFile(
 		join(dir, "supervisor.json"),

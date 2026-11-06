@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { drainWorkflowFixture } from "../helpers/workflow-fixture-lifecycle.mjs";
 import {
@@ -62,7 +63,7 @@ function writeAgent(
 
 function writeAutoOutput(cwd, runId, attemptId, output) {
 	const dir = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflows",
 		"auto-router-runs",

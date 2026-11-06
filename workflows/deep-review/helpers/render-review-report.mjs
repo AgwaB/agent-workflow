@@ -2170,7 +2170,7 @@ export default async function renderReviewReport({ sources, context = {} }) {
 	try {
 		if (sidecarsRequested) {
 			const taskDir = join(
-				context.cwd,
+				context.stateCwd ?? context.cwd,
 				".agent-workflow",
 				"workflows",
 				context.runId,

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
@@ -388,7 +389,12 @@ test("launch precedence is explicit, then the declared selector", async () => {
 
 test("inspect --failures --results falls back to every task result on a clean run", async () => {
 	const cwd = scratch("inspect-flags");
-	const runDir = join(cwd, ".agent-workflow", "workflows", "workflow_gate");
+	const runDir = join(
+		stateDir(cwd),
+		".agent-workflow",
+		"workflows",
+		"workflow_gate",
+	);
 	await mkdir(join(runDir, "tasks", "task-1"), { recursive: true });
 	await writeFile(
 		join(runDir, "tasks", "task-1", "result.md"),
@@ -431,7 +437,12 @@ test("inspect --failures --results falls back to every task result on a clean ru
 
 test("inspect --failures --results keeps failure-only listing when a task failed", async () => {
 	const cwd = scratch("inspect-failures");
-	const runDir = join(cwd, ".agent-workflow", "workflows", "workflow_fail");
+	const runDir = join(
+		stateDir(cwd),
+		".agent-workflow",
+		"workflows",
+		"workflow_fail",
+	);
 	await mkdir(join(runDir, "tasks", "task-2"), { recursive: true });
 	await writeFile(
 		join(runDir, "tasks", "task-2", "result.md"),
@@ -483,7 +494,7 @@ test("RR-02 actual CLI rejects mirror validation failure and preserves primary a
 	const cwd = scratch("rr02");
 	const parent = "workflow_parent";
 	const timestamp = "2026-01-01T00:00:00.000Z";
-	const dir = join(cwd, ".agent-workflow", "workflows", parent);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", parent);
 	await mkdir(join(dir, "dynamic"), { recursive: true });
 	await writeFile(
 		join(dir, "run.json"),
@@ -504,7 +515,12 @@ test("RR-02 actual CLI rejects mirror validation failure and preserves primary a
 	const outside = join(cwd, "mirror-evidence");
 	await mkdir(outside);
 	await writeFile(join(outside, "evidence"), "recover me");
-	const mirror = join(cwd, ".agent-workflow", "workflow-subagents", parent);
+	const mirror = join(
+		stateDir(cwd),
+		".agent-workflow",
+		"workflow-subagents",
+		parent,
+	);
 	await mkdir(join(mirror, ".."), { recursive: true });
 	await symlink(outside, mirror);
 	await store.updateIndex(cwd);

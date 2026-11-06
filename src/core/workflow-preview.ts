@@ -1,5 +1,5 @@
 import { open } from "node:fs/promises";
-import { fromProjectPath } from "./store.js";
+import { fromStatePath } from "./store.js";
 
 export const PREVIEW_MAX_BYTES = 256 * 1024;
 const MAX_LINE_BYTES = 8 * 1024;
@@ -14,7 +14,7 @@ export async function readFileLinesBounded(
 	if (!projectPath || !Number.isFinite(maxLines) || maxLines <= 0) return [];
 	maxLines = Math.floor(maxLines);
 	if (maxLines === 0) return [];
-	const file = await open(fromProjectPath(cwd, projectPath), "r").catch(
+	const file = await open(fromStatePath(cwd, projectPath), "r").catch(
 		(error) => {
 			if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
 			throw error;

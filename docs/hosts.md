@@ -120,7 +120,7 @@ Launch options: `executor`, `profile`, `permissionMode` (`free`/`safe`), `allowU
 
 An identical active launch returns `outcome: "existing"` and the existing run. A retry while launch is still starting is refused as `DUPLICATE_LAUNCH_IN_PROGRESS`, even after its lease expires. Changed saved profiles count as new launches; `forceNew: true` always starts a new run.
 
-Logs accept only files inside `.agent-workflow/`; tampered or symlinked paths are refused with a reason. Text, previews and logs redact credentials and Linux/Windows/macOS home paths. Credential headers (`Authorization`, `x-api-key`, `Cookie`, `*-token`, …) are redacted regardless of value length. CLI `logs` and Pi `/aw logs` use the same handler.
+Logs accept only files inside the [state directory](usage.md#where-run-state-lives)'s `.agent-workflow/`; tampered or symlinked paths are refused with a reason. Text, previews and logs redact credentials and Linux/Windows/macOS home paths. Credential headers (`Authorization`, `x-api-key`, `Cookie`, `*-token`, …) are redacted regardless of value length. CLI `logs` and Pi `/aw logs` use the same handler.
 
 MCP annotations: list/status/inspect/logs/validate/show/roles/agents/doctor are read-only; run/dynamic/auto/stop/resume/prune/profile/approve are destructive; wait/notices/supervise/dashboard are neither. Dashboard changes local process state, not runs, and uses the stop role gate. `title` requires protocol `2025-06-18`; annotations require `2025-03-26`.
 
@@ -197,9 +197,12 @@ Launch metadata records offered candidates, recommendation, choice, classifier e
 
 The Claude Code plugin declares `experimental.monitors` → `run-completion` for interactive sessions, not `-p`. It runs `agent-workflow notify-check --follow --host claude-code --session $CLAUDE_CODE_SESSION_ID`; each output line wakes the idle session. Verified with Claude Code 2.1.318.
 
-Session links in `.agent-workflow/notify-check/session-<id>.<run>.link` scope delivery to the launching session. A monitor stamp younger than 20 s makes launch guidance say to end the turn without `workflow_wait`. Otherwise use a long wait below.
+Session links in `.agent-workflow/notify-check/session-<id>.<run>.link` in the
+[state directory](usage.md#where-run-state-lives) scope delivery to the launching session. A monitor stamp younger than 20 s makes launch guidance say to end the turn without `workflow_wait`. Otherwise use a long wait below.
 
-Before the project has runs, the monitor checks every 2 s for `$CLAUDE_PROJECT_DIR/.agent-workflow/workflows`. For the first run, launch waits up to 5 s for the monitor stamp, except in SDK/print entrypoints (`CLAUDE_CODE_ENTRYPOINT` `sdk-cli`/`sdk-ts`/`sdk-py`) or when the monitor watches another directory. Settled states are reported once through completion-check receipts. The monitor stops when its parent exits. Scripts can use `notify-check --run <id> --follow` to exit when one run settles.
+The monitor resolves the project path with `realpath` and a SHA-256 tool, finds its state directory
+via `$AGENT_WORKFLOW_HOME/projects/*-<hash>` (default home `~/.agent-workflow`), and checks every
+2 s for its `.agent-workflow/workflows/`. Without either tool, it leaves discovery to the CLI. For the first run, launch waits up to 5 s for the monitor stamp, except in SDK/print entrypoints (`CLAUDE_CODE_ENTRYPOINT` `sdk-cli`/`sdk-ts`/`sdk-py`) or when the monitor watches another directory. Settled states are reported once through completion-check receipts. The monitor stops when its parent exits. Scripts can use `notify-check --run <id> --follow` to exit when one run settles.
 
 ### Timeouts
 
@@ -231,7 +234,7 @@ A call without `cwd` uses the client's single file root when the client declares
 
 ### `cwd`
 
-Optional on every tool. Relative paths resolve against the server root. After resolving symlinks, the target must be an existing directory within the server root or a declared client root; missing paths, files and escaping symlinks are usage errors. Runs live in `<cwd>/.agent-workflow/`; subsequent calls must use the same project directory.
+Optional on every tool. Relative paths resolve against the server root. After resolving symlinks, the target must be an existing directory within the server root or a declared client root; missing paths, files and escaping symlinks are usage errors. Runs live in the project's [state directory](usage.md#where-run-state-lives); subsequent calls must use the same project directory.
 
 ### Login-shell PATH
 
@@ -271,7 +274,7 @@ For either host, run `agent-workflow watch [runId]` in another terminal pane to 
 
 ### Completion check hook
 
-`agent-workflow notify-check` announces newly settled run states once. A state returned by `workflow_wait` is marked seen; receipts live in `.agent-workflow/notify-check/`. A `UserPromptSubmit` hook adds its output to the host's context at the user's next message. Interactive session wake mechanisms work without waiting for another prompt; see [completion delivery](#completion-check-hook).
+`agent-workflow notify-check` announces newly settled run states once. A state returned by `workflow_wait` is marked seen; receipts live in `.agent-workflow/notify-check/` in the [state directory](usage.md#where-run-state-lives). A `UserPromptSubmit` hook adds its output to the host's context at the user's next message. Interactive session wake mechanisms work without waiting for another prompt; see [completion delivery](#completion-check-hook).
 
 #### Claude Code hook
 
@@ -281,9 +284,13 @@ The plugin includes a `UserPromptSubmit` command hook with a 60 s timeout. It ru
 npx -y --package=@agwab/agent-workflow@<package version> agent-workflow notify-check --host claude-code
 ```
 
-The generated hook skips CLI startup when there are no runs or no `run.json` changes since `.agent-workflow/notify-check/hook-claude-code.stamp`. Its shell only reads workspace paths; `notify-check --stamp hook-claude-code` writes the stamp through a contained writer after success. Failed checks or changes during a check are retried at the next prompt. At most 5 runs are announced per check; deferred runs prevent stamping so the next prompt drains the backlog. Errors print nothing and do not fail the prompt.
+The generated hook skips CLI startup when there are no runs or no `run.json` changes since `.agent-workflow/notify-check/hook-claude-code.stamp`. Its shell finds the state directory using `realpath`, a SHA-256 tool and the
+`projects/*-<hash>` glob, and only reads state paths; without either tool it leaves the decision
+to the CLI. `notify-check --stamp hook-claude-code` writes the stamp through a contained writer after success. Failed checks or changes during a check are retried at the next prompt. At most 5 runs are announced per check; deferred runs prevent stamping so the next prompt drains the backlog. Errors print nothing and do not fail the prompt.
 
 #### Codex hook
+
+This example starts the CLI on every prompt; it does not test repository paths.
 
 The plugin ships no Codex lifecycle hook. To add next-prompt completion checks, put this in `~/.codex/hooks.json` or a trusted project's `.codex/hooks.json`, then trust it with `/hooks`:
 
@@ -295,7 +302,7 @@ The plugin ships no Codex lifecycle hook. To add next-prompt completion checks, 
         "hooks": [
           {
             "type": "command",
-            "command": "[ -d .agent-workflow/workflows ] || exit 0; agent-workflow notify-check --host codex 2>/dev/null; exit 0",
+            "command": "agent-workflow notify-check --host codex 2>/dev/null; exit 0",
             "timeout": 60
           }
         ]
@@ -414,7 +421,7 @@ Run options may lead or trail the task; quoted text is literal:
 
 `/aw run` returns after launch; the in-process watcher drives the run while Pi lives. Use `/aw wait`, `/aw status` or `aw_wait` for progress. `--detach` starts a standalone supervisor that outlives the session. `supervise` itself is CLI-only (MCP: `workflow_supervise`).
 
-Run output names `/aw` follow-up commands. Logs are contained to `.agent-workflow/` and redact credentials; completion messages use the same redaction.
+Run output names `/aw` follow-up commands. Logs are contained to the [state directory](usage.md#where-run-state-lives)'s `.agent-workflow/` and redact credentials; completion messages use the same redaction.
 
 ### Pi tools
 
@@ -526,7 +533,8 @@ Re-driving does not take over completion delivery: the original audience session
 
 The host then warns about unfinished top-level failed/interrupted runs and blocked runs needing approval or executor decisions. It excludes mock runs, active acknowledgements and runs not updated for 7 days; at most 5 appear. Rendered degraded finals are labeled `failed (final rendered — degraded)`. Malformed acknowledgement sidecars suppress nothing.
 
-Notices repeat after status/update changes, stale acknowledgement or 6 hours. State lives in `.agent-workflow/workflows/unfinished-notices.json`. Silence a state with `/aw notices acknowledge <run> --state <sha256> --reason <text>`.
+Notices repeat after status/update changes, stale acknowledgement or 6 hours. State lives in `.agent-workflow/workflows/unfinished-notices.json` in the
+[project state directory](usage.md#where-run-state-lives). Silence a state with `/aw notices acknowledge <run> --state <sha256> --reason <text>`.
 
 ### Status line and completion delivery
 
@@ -538,7 +546,7 @@ With UI (TUI/RPC), launches, resumes and duplicate-existing results bind a run e
 
 Delivery is once per session/run/settled state in normal operation. Resuming and settling again creates a new state. Receipts under `<run dir>/pi-feedback-receipts/<epoch>.json` reconcile with session history: messages queued in a live runtime are not resent; history confirmation prevents duplication after restart. `/reload` keeps the queue, while `/new`, `/resume`, `/fork` and quit dispose it. A missing history entry can cause redelivery after a crash or queue disposal. A module upgrade across receipt process-state schemas may produce at most one duplicate.
 
-Another live process's unconfirmed delivery is deferred for at most 10 min while its queue lifetime remains alive. With unreadable history, recovery allows at most 2 enqueue attempts per epoch, including orphaned pending reservations; two crashes before sending can exhaust this budget without delivery. Throwing sends retry at most 4 times before an error notification. Queue-end tombstones live in `.agent-workflow/pi-feedback-queue-ends`, expire after 20 min and are capped at 1024 files. Symlinked directories are not written or pruned; recovery then waits for the 10 min window.
+Another live process's unconfirmed delivery is deferred for at most 10 min while its queue lifetime remains alive. With unreadable history, recovery allows at most 2 enqueue attempts per epoch, including orphaned pending reservations; two crashes before sending can exhaust this budget without delivery. Throwing sends retry at most 4 times before an error notification. Queue-end tombstones live in the state directory's `.agent-workflow/pi-feedback-queue-ends`, expire after 20 min and are capped at 1024 files. Symlinked directories are not written or pruned; recovery then waits for the 10 min window.
 
 #### Session-owned waits
 
@@ -599,7 +607,7 @@ agent-workflow dashboard --reset-session [--project <dir>]
 ```
 
 - Binds **127.0.0.1 only**, never `0.0.0.0` or IPv6-any. Reuses the project's last port when free, otherwise chooses an ephemeral port. Explicit `--port` is strict.
-- `--project` defaults to cwd. One server serves one project's `.agent-workflow/`.
+- `--project` defaults to cwd. One server serves one project's [state directory](usage.md#where-run-state-lives).
 - Foreground mode prints the URL and runs until SIGINT/SIGTERM (exit 0). Usage errors, including unavailable/invalid ports or a non-directory project, exit 2.
 - `--open` opens the browser. Default URLs need no sign-in; with `--auth`, the printed foreground URL includes a session token.
 - `--readonly` disables controls and rejects every mutation with 403.
@@ -629,7 +637,7 @@ The UI receives a projection, not raw run records. Task activity labels describe
 
 Enable with `--auth` or `AGENT_WORKFLOW_DASHBOARD_AUTH=1` (also applies to auto-started servers).
 
-The session token is stored in `<project>/.agent-workflow/dashboard-session` (0600, 32 random bytes base64url) and reused across restarts, so signed-in browser cookies remain valid. `--reset-session` stops a running dashboard and rotates the token, requiring browsers to sign in again.
+The session token is stored in `.agent-workflow/dashboard-session` in the [state directory](usage.md#where-run-state-lives) (0600, 32 random bytes base64url) and reused across restarts, so signed-in browser cookies remain valid. `--reset-session` stops a running dashboard and rotates the token, requiring browsers to sign in again.
 
 Unauthenticated UI requests receive a 401 sign-in page (`/app.css` remains public). **Sign in on this computer** calls `POST /api/signin-local`; matching Origin and `Sec-Fetch-Site: same-origin` are required, with one call per 3 s. The server opens a one-time URL through the OS browser opener; it never returns that URL to the page. Alternatively, use `agent-workflow dashboard --open` or ask the host to open it.
 
@@ -651,7 +659,7 @@ Auto-start never opens a browser. Opening is opt-in through CLI `--open`, `AGENT
 
 Set `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` to disable auto-start. It is also disabled for worker roles and read-only contexts. Browser-opening host behavior is documented in [MCP dashboard opening](#dashboard-opening) and [Pi dashboard command](#aw-dashboard).
 
-The last port is stored in `<project>/.agent-workflow/dashboard-port`. Reusing it keeps older links usable after restarts when the port is available; with auth, persistent cookies also survive restarts.
+The last port is stored in `.agent-workflow/dashboard-port` in the [state directory](usage.md#where-run-state-lives). Reusing it keeps older links usable after restarts when the port is available; with auth, persistent cookies also survive restarts.
 
 ### Dashboard environment variables
 
@@ -694,7 +702,7 @@ Agent counts exclude foreach placeholders, support helpers and controllers. Pend
 
 ### Discovery file
 
-`<project>/.agent-workflow/dashboard.json` is written with mode 0600 after listening and removed on clean shutdown:
+`.agent-workflow/dashboard.json` in the [state directory](usage.md#where-run-state-lives) is written with mode 0600 after listening and removed on clean shutdown:
 
 ```json
 {"schema":"agent-workflow-dashboard-v1","pid":12345,"port":47318,"startedAt":"…","launchKey":"<32 random bytes, base64url>","auth":false}

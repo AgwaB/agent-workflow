@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -62,7 +63,7 @@ async function fixture() {
 	return mkdtemp(join(tmpdir(), "piwf-review-fixes-"));
 }
 async function run(cwd, id, status = "completed", extra = {}) {
-	const dir = join(cwd, ".agent-workflow", "workflows", id);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", id);
 	await mkdir(join(dir, "dynamic"), { recursive: true });
 	const record = {
 		schemaVersion: 1,
@@ -134,11 +135,13 @@ test("RR-01 selected child purges before newer parent; dry run has no writes", a
 			updatedAt: "2026-01-03T00:00:00.000Z",
 		});
 		await run(cwd, child, "failed", { parentRunId: parent });
-		const before = await readdir(join(cwd, ".agent-workflow", "workflows"));
+		const before = await readdir(
+			join(stateDir(cwd), ".agent-workflow", "workflows"),
+		);
 		const dry = await pruneWorkflowRuns(cwd, { keep: 0 });
 		assert.equal(dry.indexUpdated, false);
 		assert.deepEqual(
-			await readdir(join(cwd, ".agent-workflow", "workflows")),
+			await readdir(join(stateDir(cwd), ".agent-workflow", "workflows")),
 			before,
 		);
 		const result = await pruneWorkflowRuns(cwd, { keep: 0, yes: true });
@@ -177,7 +180,12 @@ test("RR-02 post-detach failure reports recovery paths, repairs index and frees 
 	const cwd = await fixture();
 	try {
 		await run(cwd, parent);
-		const mirror = join(cwd, ".agent-workflow", "workflow-subagents", parent);
+		const mirror = join(
+			stateDir(cwd),
+			".agent-workflow",
+			"workflow-subagents",
+			parent,
+		);
 		await mkdir(mirror, { recursive: true });
 		await writeFile(join(mirror, "evidence"), "recover me");
 		await updateIndex(cwd);
@@ -224,7 +232,7 @@ test("RR-02 retained child quarantine protects its parent", async () => {
 		const result = await pruneWorkflowRuns(cwd, { keep: 0, yes: true });
 		assert.equal(result.runs.find((r) => r.runId === parent).protected, true);
 		assert.equal(
-			await exists(join(cwd, ".agent-workflow", "workflows", parent)),
+			await exists(join(stateDir(cwd), ".agent-workflow", "workflows", parent)),
 			true,
 		);
 	} finally {
@@ -243,7 +251,12 @@ test("RR-02 pre-primary-detach failure preserves canonical run and recoverable m
 	const cwd = await fixture();
 	try {
 		const p = await run(cwd, parent);
-		const mirror = join(cwd, ".agent-workflow", "workflow-subagents", parent);
+		const mirror = join(
+			stateDir(cwd),
+			".agent-workflow",
+			"workflow-subagents",
+			parent,
+		);
 		await mkdir(mirror, { recursive: true });
 		await writeFile(join(mirror, "evidence"), "recover me");
 		await updateIndex(cwd);
@@ -286,7 +299,7 @@ test("RR-01 retained quarantine continues to protect ancestry in a later prune p
 		const second = await pruneWorkflowRuns(cwd, { keep: 0, yes: true });
 		assert.equal(second.runs.find((r) => r.runId === parent).protected, true);
 		assert.equal(
-			await exists(join(cwd, ".agent-workflow", "workflows", parent)),
+			await exists(join(stateDir(cwd), ".agent-workflow", "workflows", parent)),
 			true,
 		);
 	} finally {
@@ -341,7 +354,13 @@ test("RR-01 cross-process child publication cannot race a prune into an orphan",
 			await new Promise((r) => setTimeout(r, 30));
 			assert.equal(
 				await exists(
-					join(cwd, ".agent-workflow", "workflows", child, "run.json"),
+					join(
+						stateDir(cwd),
+						".agent-workflow",
+						"workflows",
+						child,
+						"run.json",
+					),
 				),
 				false,
 			);
@@ -352,7 +371,7 @@ test("RR-01 cross-process child publication cannot race a prune into an orphan",
 		assert.equal(result.status, 3, result.stdout + result.stderr);
 		assert.equal(
 			await exists(
-				join(cwd, ".agent-workflow", "workflows", child, "run.json"),
+				join(stateDir(cwd), ".agent-workflow", "workflows", child, "run.json"),
 			),
 			false,
 		);
@@ -403,7 +422,12 @@ test("RR-02 post-detach fault never removes a new same-ID run or mirror and inde
 	const cwd = await fixture();
 	try {
 		await run(cwd, parent);
-		const mirror = join(cwd, ".agent-workflow", "workflow-subagents", parent);
+		const mirror = join(
+			stateDir(cwd),
+			".agent-workflow",
+			"workflow-subagents",
+			parent,
+		);
 		await mkdir(mirror, { recursive: true });
 		await writeFile(join(mirror, "old"), "old");
 		setWorkflowPruneAfterQuarantineForTests(async () => {
@@ -459,12 +483,18 @@ test("RR-01 first child publication fences topology ownership at atomic commit",
 	const cwd = await fixture();
 	try {
 		await run(cwd, parent);
-		const file = join(cwd, ".agent-workflow", "workflows", child, "run.json");
+		const file = join(
+			stateDir(cwd),
+			".agent-workflow",
+			"workflows",
+			child,
+			"run.json",
+		);
 		setRunLeaseTestHooksForTests({
 			onBeforeAtomicRename: async ({ file: target }) => {
 				if (target !== file) return;
 				await writeFile(
-					join(cwd, ".agent-workflow", "workflows", "retention.lock"),
+					join(stateDir(cwd), ".agent-workflow", "workflows", "retention.lock"),
 					`replacement-owner\n${process.pid}\n${new Date().toISOString()}\n`,
 				);
 			},

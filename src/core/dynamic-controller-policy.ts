@@ -1,4 +1,4 @@
-import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
+import { workflowRunDir } from "./store.js";
 import { basename, relative } from "node:path";
 
 import { hashDynamicRequest, readDynamicEvents } from "./dynamic-events.js";
@@ -286,7 +286,7 @@ async function dynamicApprovalPromptMessage(
 	).catch(() => undefined);
 	const bundleSpec = resolvedBundleSpec
 		? relative(input.cwd, resolvedBundleSpec).replaceAll("\\", "/")
-		: `${PROJECT_STATE_DIRECTORY}/workflows/${input.run.runId}/bundle/${basename(input.run.specPath)}`;
+		: `${workflowRunDir(input.run.cwd, input.run.runId)}/bundle/${basename(input.run.specPath)}`;
 	return [
 		`Workflow run ${input.run.runId} (${input.run.name ?? "unnamed workflow"}) requests approval to run dynamic controller ${input.task.specId}.`,
 		`Original spec: ${input.run.specPath}`,

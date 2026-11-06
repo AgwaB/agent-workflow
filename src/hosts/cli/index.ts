@@ -1,3 +1,4 @@
+import { stateBase } from "../../core/state-location.js";
 // Thin host-neutral CLI: parse flags, call one host API handler, and print text or JSON.
 // Exit codes: 0 success/completed, 1 failed/blocked/interrupted/refused/timeout, 2 usage error.
 // Terminal dialogs handle controller approvals and consent-gated auto comparison.
@@ -1188,7 +1189,7 @@ export async function runAgentWorkflowCli(
 				io.stderr(
 					project === projectRoot
 						? `agent-workflow: project ${projectRoot} (the current directory is inside it; paths in a task are read from there)\n`
-						: `agent-workflow: ${projectRoot} holds the user-level agent-workflow home, so it is not a project; runs started here are recorded in ${project} (workers run there too)\n`,
+						: `agent-workflow: ${projectRoot} holds the user-level agent-workflow home, so it is not a project; workers run in ${project}; run state is stored under ${stateBase(project)}\n`,
 				);
 			io = { ...io, cwd: project };
 		}

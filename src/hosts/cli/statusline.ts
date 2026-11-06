@@ -1,3 +1,4 @@
+import { stateBase } from "../../core/state-location.js";
 // New in agent-workflow (WP36, owner decision E1): `agent-workflow statusline`, a fast read-only
 // one-liner of the project's active runs for Claude Code's `statusLine.command` (or any prompt or
 // tmux status bar): `aw: deep-review 5/13 running 12m · +1 more`, empty when idle. Claude Code
@@ -58,7 +59,7 @@ export function statusLineDirectories(
 async function hasRuns(dir: string): Promise<boolean> {
 	try {
 		return (
-			await stat(join(dir, PROJECT_STATE_DIRECTORY, "workflows"))
+			await stat(join(stateBase(dir), PROJECT_STATE_DIRECTORY, "workflows"))
 		).isDirectory();
 	} catch {
 		return false;

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP42, WP39b review finding 5, minor): a classifier request is pinned from launch until its
 // output is consumed; prune honors the pin and rechecks terminal status and identity right before
 // deleting.
@@ -68,7 +69,7 @@ test("F5: prune keeps a terminal classifier result until its active caller has c
 		},
 	});
 	const runId = classifierId();
-	const router = join(cwd, ROUTER_RUNS);
+	const router = join(stateDir(cwd), ROUTER_RUNS);
 	let during;
 	setTaskRuntimeApiForTests({
 		async runSubagent(options) {
@@ -123,7 +124,7 @@ test("F5: prune keeps a terminal classifier result until its active caller has c
 
 test("F5: a classifier record that is no longer terminal at deletion time is kept (recheck)", async () => {
 	const cwd = await temp();
-	const router = join(cwd, ROUTER_RUNS);
+	const router = join(stateDir(cwd), ROUTER_RUNS);
 	const id = classifierId();
 	await classifier(router, id);
 	retention.setWorkflowPruneBeforeClassifierDeleteForTests(async () => {
@@ -147,7 +148,7 @@ test("F5: a classifier record that is no longer terminal at deletion time is kep
 
 test("F5: a pin left by a dead process does not keep classifier results forever (control)", async () => {
 	const cwd = await temp();
-	const router = join(cwd, ROUTER_RUNS);
+	const router = join(stateDir(cwd), ROUTER_RUNS);
 	const id = classifierId();
 	await classifier(router, id);
 	const dead = spawnSync(process.execPath, ["-e", ""]).pid;

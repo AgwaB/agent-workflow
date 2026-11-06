@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -525,13 +526,19 @@ test("source reorder is deterministic and sidecar retains all original controls"
 	const cwd = await mkdtemp(join(tmpdir(), "impact-sidecar-"));
 	const sidecar = await renderImpactReport({
 		sources: source,
-		context: { ...contextFor(), cwd, runId: "run", taskId: "final" },
+		context: {
+			...contextFor(),
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			runId: "run",
+			taskId: "final",
+		},
 	});
 	assert.equal(sidecar.gates.sidecarPublished, true);
 	const ledger = JSON.parse(
 		await readFile(
 			join(
-				cwd,
+				stateDir(cwd),
 				".agent-workflow",
 				"workflows",
 				"run",
@@ -628,14 +635,26 @@ test("required projected reads distinguish default truncation from explicit capa
 
 test("sidecar failure is visible and cannot claim passed", async () => {
 	const cwd = await mkdtemp(join(tmpdir(), "impact-sidecar-fail-"));
-	const runDir = join(cwd, ".agent-workflow", "workflows", "run", "tasks");
+	const runDir = join(
+		stateDir(cwd),
+		".agent-workflow",
+		"workflows",
+		"run",
+		"tasks",
+	);
 	await import("node:fs/promises").then(({ mkdir }) =>
 		mkdir(runDir, { recursive: true }),
 	);
 	await writeFile(join(runDir, "task"), "not a directory");
 	const result = await renderImpactReport({
 		sources: controls(),
-		context: { ...contextFor(), cwd, runId: "run", taskId: "task" },
+		context: {
+			...contextFor(),
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			runId: "run",
+			taskId: "task",
+		},
 	});
 	assert.equal(result.status, "failed");
 	assert.equal(result.gates.sidecarPublished, false);

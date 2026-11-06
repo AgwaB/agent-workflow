@@ -1,3 +1,4 @@
+import { stateDir } from "./state-dir.mjs";
 // Why did a run not complete? Rare load-dependent failures (a task `blocked` or `launch_failed`
 // once in many full-suite runs) cannot be reproduced on demand, so a failing assertion should
 // carry the evidence: every task's state and reason, and the tails of the worker logs, task
@@ -36,7 +37,7 @@ export async function runDiagnostics(cwd, runId, { tailChars = 1200 } = {}) {
 	} catch (error) {
 		lines.push(`run ${runId}: unreadable (${error?.message ?? error})`);
 	}
-	const files = logFiles(join(cwd, ".agent-workflow"))
+	const files = logFiles(join(stateDir(cwd), ".agent-workflow"))
 		.filter((path) => {
 			try {
 				return statSync(path).size > 0;

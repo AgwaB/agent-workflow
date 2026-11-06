@@ -7,7 +7,7 @@ import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { refreshRun } from "../core/engine.js";
-import { readRunRecord, toProjectPath, workflowsRoot } from "../core/store.js";
+import { readRunRecord, toStatePath, workflowsRoot } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
 import { readFileLinesBounded } from "../core/workflow-preview.js";
 import { HostUsageError } from "./args.js";
@@ -181,7 +181,7 @@ async function taskStreams(
 ): Promise<LogStream[]> {
 	const attempt = await latestAttemptDir(cwd, run.runId, task.taskId);
 	const attemptPath = (file: string) =>
-		attempt ? toProjectPath(cwd, join(attempt, file)) : undefined;
+		attempt ? toStatePath(cwd, join(attempt, file)) : undefined;
 	const streams: LogStream[] = [];
 	for (const kind of kinds) {
 		// The task's own stderr is usually empty; the attempt's stderr is the executor's.

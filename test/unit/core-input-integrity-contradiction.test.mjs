@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // 2026-11-01: deep-research's final audit (Codex, gpt-6.1-terra) withheld its synthesis as "packet
 // truncated" although every required read was delivered complete. A worker's
 // control.inputIntegrity = {status: "blocked", reason: "truncated_read" | "missing_read"} after the
@@ -133,7 +134,7 @@ async function runWith(name, sequence) {
 	const run = await engine.waitForRun(cwd, started.runId, 90_000);
 	const b = run.tasks.find((task) => task.stageId === "b");
 	const taskDir = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflows",
 		run.runId,

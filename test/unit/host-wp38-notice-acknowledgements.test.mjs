@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
@@ -27,10 +28,12 @@ async function project(t) {
 	t.after(() =>
 		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
 	);
-	await mkdir(join(cwd, ".agent-workflow", "workflows"), { recursive: true });
+	await mkdir(join(stateDir(cwd), ".agent-workflow", "workflows"), {
+		recursive: true,
+	});
 	return cwd;
 }
-const root = (cwd) => join(cwd, ".agent-workflow", "workflows");
+const root = (cwd) => join(stateDir(cwd), ".agent-workflow", "workflows");
 const sidecar = (cwd) => join(root(cwd), sidecarName);
 const runFile = (cwd, id) => join(root(cwd), id, "run.json");
 async function fixture(cwd, id, overrides = {}) {

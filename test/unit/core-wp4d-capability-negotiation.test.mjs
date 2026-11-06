@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP4d): B4 capability negotiation in the engine before launch. Workflows run
 // through the real engine with the fixture executor (test/helpers/workflow-executor-fixture.mjs)
 // whose capability table and probe each test controls. No model or agent-CLI calls.
@@ -111,14 +112,14 @@ function submits(effectLog) {
 }
 
 function assertNothingStarted(cwd, effectLog) {
-	const runs = join(cwd, ".agent-workflow", "workflows");
+	const runs = join(stateDir(cwd), ".agent-workflow", "workflows");
 	assert.equal(
 		existsSync(runs) && readdirSync(runs).length > 0,
 		false,
 		"no run record may exist",
 	);
 	assert.equal(
-		existsSync(join(cwd, ".agent-workflow", "workflow-subagents")),
+		existsSync(join(stateDir(cwd), ".agent-workflow", "workflow-subagents")),
 		false,
 	);
 	if (effectLog !== undefined) assert.deepEqual(submits(effectLog), []);
@@ -127,7 +128,7 @@ function assertNothingStarted(cwd, effectLog) {
 async function persisted(cwd, runId) {
 	return JSON.parse(
 		await readFile(
-			join(cwd, ".agent-workflow", "workflows", runId, "run.json"),
+			join(stateDir(cwd), ".agent-workflow", "workflows", runId, "run.json"),
 			"utf8",
 		),
 	);

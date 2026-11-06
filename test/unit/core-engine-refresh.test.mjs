@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import {
 	existsSync,
@@ -1620,7 +1621,7 @@ test("resumeRun rejects a prepared legacy foreach invalidation journal before an
 			status: "prepared",
 		};
 		await writeStaticRunArtifacts(cwd, run, compiled, spec);
-		const outputFile = join(cwd, generatedRunTask.files.output);
+		const outputFile = join(stateDir(cwd), generatedRunTask.files.output);
 		mkdirSync(join(outputFile, ".."), { recursive: true });
 		writeFileSync(outputFile, "stale legacy prompt output");
 		await writeRunRecord(cwd, run);
@@ -3085,7 +3086,7 @@ test("run leases release first-heartbeat failures and abort an owner after stale
 			/Lost supervisor lease/,
 		);
 		const lockFile = join(
-			cwd,
+			stateDir(cwd),
 			".agent-workflow",
 			"workflows",
 			takeoverRunId,

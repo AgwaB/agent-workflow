@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Auto routing and launch capture in a fake Pi session. Show a consent dialog with
 // classifier identity and task, then ranked choices and a separate final confirmation.
 // The comparison loader is cancellable. Host launch capture records selection without
@@ -173,7 +174,13 @@ test("auto v2 command capture preserves the supplied slash arguments exactly onc
 	assert.equal(record.launch.schema, "agent-workflow-run-launch-v2");
 	assert.equal(record.launch.routingMode, "auto-confirmed");
 	const text = await readFile(
-		join(cwd, ".agent-workflow", "workflows", runId, "launch-command.txt"),
+		join(
+			stateDir(cwd),
+			".agent-workflow",
+			"workflows",
+			runId,
+			"launch-command.txt",
+		),
 		"utf8",
 	);
 	assert.equal(text, '/aw auto "review"');

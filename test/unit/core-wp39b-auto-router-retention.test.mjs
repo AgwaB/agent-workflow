@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP39b, live bundle 5 O16): the auto classifier's one-shot requests leave
 // `.agent-workflow/workflows/auto-router-runs/run_*`. They are pruned with the run rules (terminal
 // only, `--keep`, `--older-than`, dry run without `--yes`), the directory never makes prune
@@ -25,7 +26,7 @@ const daysAgo = (days) =>
 	new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
 function workflowRun(cwd, runId, updatedAt) {
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(
 		join(dir, "run.json"),
@@ -58,7 +59,7 @@ function workflowRun(cwd, runId, updatedAt) {
 
 function classifierRun(cwd, runId, status, updatedAt) {
 	const dir = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflows",
 		"auto-router-runs",
@@ -97,7 +98,7 @@ test("prune: classifier request runs follow the run rules and never block workfl
 	roots.push(cwd);
 	workflowRun(cwd, "workflow_old", daysAgo(10));
 	const routerRoot = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflows",
 		"auto-router-runs",

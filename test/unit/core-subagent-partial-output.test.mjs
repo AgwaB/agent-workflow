@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import { withMaterializedRawHost } from "../helpers/raw-host-fixture.mjs";
 import {
 	assert,
@@ -179,18 +180,21 @@ for (const scenario of cases) {
 			);
 			const current = refreshed.tasks[0];
 			const result = JSON.parse(
-				readFileSync(join(cwd, current.files.result), "utf8"),
+				readFileSync(join(stateDir(cwd), current.files.result), "utf8"),
 			);
 			assert.equal(current.status, scenario.expected ?? "failed");
 			assert.equal(result.status, scenario.expected ?? "failed");
 			assert.equal(result.subagent.metadata.outputPartial, true);
 			assert.equal(
-				readFileSync(join(cwd, current.files.output), "utf8"),
+				readFileSync(join(stateDir(cwd), current.files.output), "utf8"),
 				output,
 			);
 			assert.equal(
 				existsSync(
-					join(dirname(join(cwd, current.files.result)), "control.json"),
+					join(
+						dirname(join(stateDir(cwd), current.files.result)),
+						"control.json",
+					),
 				),
 				false,
 			);

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import {
 	chmod,
@@ -181,8 +182,13 @@ test("launch artifact rejects symlinked workflow roots, run directories, and art
 	);
 	const outside = await mkdtemp(join(tmpdir(), "piwf-launch-outside-"));
 	try {
-		await mkdir(join(rootCwd, ".agent-workflow"), { recursive: true });
-		await symlink(outside, join(rootCwd, ".agent-workflow", "workflows"));
+		await mkdir(join(stateDir(rootCwd), ".agent-workflow"), {
+			recursive: true,
+		});
+		await symlink(
+			outside,
+			join(stateDir(rootCwd), ".agent-workflow", "workflows"),
+		);
 		await assert.rejects(
 			() =>
 				writeWorkflowLaunchCommandArtifact(
@@ -193,7 +199,7 @@ test("launch artifact rejects symlinked workflow roots, run directories, and art
 			/Unsafe workflow launch artifact path/,
 		);
 
-		await mkdir(join(runCwd, ".agent-workflow", "workflows"), {
+		await mkdir(join(stateDir(runCwd), ".agent-workflow", "workflows"), {
 			recursive: true,
 		});
 		await symlink(outside, workflowRunDir(runCwd, "workflow_run_link"));

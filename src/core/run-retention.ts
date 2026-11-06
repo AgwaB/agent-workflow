@@ -1,3 +1,4 @@
+import { stateBase } from "./state-location.js";
 // Delete owned sessions through the executor that reported them; keep the run if deletion fails.
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import {
@@ -535,7 +536,7 @@ async function findRetentionPlan(cwd: string): Promise<RetentionPlan> {
 			)
 				continue;
 			const mirrorDir = join(
-				cwd,
+				stateBase(cwd),
 				PROJECT_STATE_DIRECTORY,
 				"workflow-subagents",
 				entry.name,
@@ -725,7 +726,7 @@ async function deleteCandidate(
 		await lease.assertOwner();
 		// No irreversible removal until BOTH generations are safely detached.
 		mirror = await quarantineContainedDirectory(
-			join(cwd, PROJECT_STATE_DIRECTORY, "workflow-subagents"),
+			join(stateBase(cwd), PROJECT_STATE_DIRECTORY, "workflow-subagents"),
 			candidate.mirrorDir,
 		);
 		outcome.retainedMirrorPath = mirror?.directory;
@@ -867,7 +868,11 @@ async function containedDirectoryBytes(
 	cwd: string,
 	directory: string,
 ): Promise<number> {
-	const root = join(cwd, PROJECT_STATE_DIRECTORY, "workflow-subagents");
+	const root = join(
+		stateBase(cwd),
+		PROJECT_STATE_DIRECTORY,
+		"workflow-subagents",
+	);
 	try {
 		if (
 			!(await isContainedDirectory(
@@ -1135,49 +1140,21 @@ async function canonicalRecordedWorktree(
 	recorded: string,
 ): Promise<{ absolutePath: string; name: string; error?: string }> {
 	const root = join(workflowsRoot(cwd), runId, "worktrees");
-	const lexical = resolve(cwd, recorded);
-	const single = (rel: string) =>
-		rel !== "" &&
-		!rel.startsWith("..") &&
-		!isAbsolute(rel) &&
-		!rel.includes("/");
-	const direct = relative(root, lexical);
-	if (single(direct)) return { absolutePath: lexical, name: direct };
-	const name = basename(lexical);
-	const projectRoot = resolve(lexical, "..", "..", "..", "..", "..");
+	const lexical = resolve(stateBase(cwd), recorded);
+	const name = relative(root, lexical);
 	if (
-		!single(name) ||
-		join(
-			projectRoot,
-			PROJECT_STATE_DIRECTORY,
-			"workflows",
-			runId,
-			"worktrees",
-			name,
-		) !== lexical
+		!name ||
+		name.startsWith("..") ||
+		isAbsolute(name) ||
+		name.includes("/") ||
+		name.includes("\\")
 	)
 		return {
 			absolutePath: lexical,
-			name,
+			name: basename(lexical),
 			error: "recorded worktree is not in this run's worktrees directory; kept",
 		};
-	let real: string;
-	try {
-		real = await realpath(projectRoot);
-	} catch (error) {
-		return {
-			absolutePath: lexical,
-			name,
-			error: `recorded project root cannot be resolved (${(error as NodeJS.ErrnoException).code ?? errorMessage(error)}); kept`,
-		};
-	}
-	if (real !== cwd)
-		return {
-			absolutePath: lexical,
-			name,
-			error: "recorded worktree belongs to another project root; kept",
-		};
-	return { absolutePath: join(root, name), name };
+	return { absolutePath: lexical, name };
 }
 
 /** `path` with its longest existing prefix canonicalized (git may list a non-canonical path). */
@@ -1273,7 +1250,7 @@ async function identifyRunWorktree(
 	}
 	let chain;
 	try {
-		chain = await physicalDirectoryChain(cwd, [
+		chain = await physicalDirectoryChain(stateBase(cwd), [
 			PROJECT_STATE_DIRECTORY,
 			"workflows",
 			runId,
@@ -1489,7 +1466,7 @@ interface ClassifierCandidate extends WorkflowPruneClassifierRun {
 
 /** The auto-router directory's physical path; throws unless the whole chain is real directories. */
 async function physicalAutoRouterRoot(cwd: string): Promise<string> {
-	const chain = await physicalDirectoryChain(cwd, [
+	const chain = await physicalDirectoryChain(stateBase(cwd), [
 		PROJECT_STATE_DIRECTORY,
 		"workflows",
 		AUTO_ROUTER_RUNS_DIR_NAME,

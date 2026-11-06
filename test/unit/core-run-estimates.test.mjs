@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -62,7 +63,7 @@ function indexRun(runId, overrides = {}) {
 }
 
 function writeIndex(cwd, runs) {
-	const dir = join(cwd, ".agent-workflow", "workflows");
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows");
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(
 		join(dir, "index.json"),
@@ -75,7 +76,7 @@ function writeIndex(cwd, runs) {
 }
 
 function writeRunFiles(cwd, runId, { run, compiled } = {}) {
-	const dir = join(cwd, ".agent-workflow", "workflows", runId);
+	const dir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
 	mkdirSync(dir, { recursive: true });
 	if (run !== undefined)
 		writeFileSync(join(dir, "run.json"), JSON.stringify(run));

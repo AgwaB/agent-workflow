@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import {
 	existsSync,
@@ -79,7 +80,7 @@ test("frozen bundles collect dynamic helpers and TypeScript import closure", asy
 		await writeStaticRunArtifacts(cwd, run, compiled, spec);
 
 		const bundleDir = join(
-			cwd,
+			stateDir(cwd),
 			".agent-workflow",
 			"workflows",
 			runId,
@@ -98,7 +99,13 @@ test("frozen bundles collect dynamic helpers and TypeScript import closure", asy
 		}
 		const persisted = JSON.parse(
 			readFileSync(
-				join(cwd, ".agent-workflow", "workflows", runId, "compiled.json"),
+				join(
+					stateDir(cwd),
+					".agent-workflow",
+					"workflows",
+					runId,
+					"compiled.json",
+				),
 				"utf8",
 			),
 		);
@@ -247,7 +254,12 @@ test("debounced index writes outlive the run lease that scheduled them", async (
 			await writeRunRecord(cwd, run);
 		});
 
-		const indexPath = join(cwd, ".agent-workflow", "workflows", "index.json");
+		const indexPath = join(
+			stateDir(cwd),
+			".agent-workflow",
+			"workflows",
+			"index.json",
+		);
 		let indexed;
 		for (let attempt = 0; attempt < 50; attempt += 1) {
 			indexed = JSON.parse(readFileSync(indexPath, "utf8")).runs.find(

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import {
 	existsSync,
@@ -416,7 +417,7 @@ test("stop intent during support helper preparation prevents helper invocation a
 		const finalRun = await readRunRecord(cwd, run.runId);
 		const support = taskBySpec(finalRun, "support.main");
 		assert.equal(existsSync(join(cwd, "helper-invoked")), false);
-		assert.equal(existsSync(join(cwd, support.files.result)), false);
+		assert.equal(existsSync(join(stateDir(cwd), support.files.result)), false);
 		assert.equal(support.status, "interrupted");
 		assert.equal(support.statusDetail, "workflow_stopped");
 	} finally {
@@ -548,7 +549,7 @@ test("stop during support prevents later independent backend launches and record
 		assert.equal(launches, 0);
 		assert.equal(support.status, "interrupted");
 		assert.equal(support.statusDetail, "workflow_stopped");
-		assert.equal(existsSync(join(cwd, support.files.output)), false);
+		assert.equal(existsSync(join(stateDir(cwd), support.files.output)), false);
 		assert.equal(taskBySpec(finalRun, "later.main").status, "interrupted");
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
@@ -714,7 +715,10 @@ test("stop intent during dynamic pre-worker preparation prevents controller work
 		const controller = taskBySpec(finalRun, "adaptive.controller");
 		assert.equal(existsSync(join(cwd, "dynamic-preworker-hook")), true);
 		assert.equal(existsSync(join(cwd, "controller-worker-started")), false);
-		assert.equal(existsSync(join(cwd, controller.files.result)), false);
+		assert.equal(
+			existsSync(join(stateDir(cwd), controller.files.result)),
+			false,
+		);
 		assert.equal(finalRun.status, "interrupted");
 		assert.equal(controller.status, "interrupted");
 		assert.equal(controller.statusDetail, "workflow_stopped");
@@ -752,8 +756,14 @@ test("stop intent immediately before dynamic result commit prevents completed ar
 		const controller = taskBySpec(finalRun, "adaptive.controller");
 		assert.equal(hookCalls, 1);
 		assert.equal(existsSync(join(cwd, "controller-worker-started")), true);
-		assert.equal(existsSync(join(cwd, controller.files.output)), false);
-		assert.equal(existsSync(join(cwd, controller.files.result)), false);
+		assert.equal(
+			existsSync(join(stateDir(cwd), controller.files.output)),
+			false,
+		);
+		assert.equal(
+			existsSync(join(stateDir(cwd), controller.files.result)),
+			false,
+		);
 		assert.equal(finalRun.status, "interrupted");
 		assert.equal(controller.status, "interrupted");
 		assert.equal(controller.statusDetail, "workflow_stopped");
@@ -1157,7 +1167,7 @@ test("terminal child stop intent is cleared after lease-held cascade race", asyn
 			assert.equal(
 				existsSync(
 					join(
-						cwd,
+						stateDir(cwd),
 						".agent-workflow",
 						"workflows",
 						child.runId,
@@ -1388,7 +1398,7 @@ test("foreach recovery repairs stale placeholder context before manifest launch"
 		});
 		await writeRunRecord(cwd, materialized);
 		const compiledPath = join(
-			cwd,
+			stateDir(cwd),
 			".agent-workflow",
 			"workflows",
 			run.runId,
@@ -1414,7 +1424,7 @@ test("foreach recovery repairs stale placeholder context before manifest launch"
 		const manifest = JSON.parse(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					run.runId,
@@ -1499,7 +1509,13 @@ test("foreach materialization updates context dependencies for from plus after c
 		]);
 		const materializedCompiled = JSON.parse(
 			readFileSync(
-				join(cwd, ".agent-workflow", "workflows", run.runId, "compiled.json"),
+				join(
+					stateDir(cwd),
+					".agent-workflow",
+					"workflows",
+					run.runId,
+					"compiled.json",
+				),
 				"utf8",
 			),
 		);
@@ -1522,7 +1538,7 @@ test("foreach materialization updates context dependencies for from plus after c
 		const manifest = JSON.parse(
 			readFileSync(
 				join(
-					cwd,
+					stateDir(cwd),
 					".agent-workflow",
 					"workflows",
 					run.runId,

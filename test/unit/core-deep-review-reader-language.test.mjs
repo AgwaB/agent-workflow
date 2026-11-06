@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // agent-workflow 2026-11-03 (owner decision): deep-review reports read in the task's language.
 // The report stage writes its summary, risks and next action in that language; each devil-advocate
 // verifier writes its own prose there and adds readerTitle / readerRationale — the finding's title
@@ -98,7 +99,11 @@ async function run(t, verifierExtra) {
 				noIssueNotes: [],
 			},
 		},
-		context: { cwd, sourceStatuses: statuses.slice(0, 2) },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			sourceStatuses: statuses.slice(0, 2),
+		},
 		options: { mode: "dedup" },
 	});
 	const partition = await pipeline({
@@ -114,7 +119,11 @@ async function run(t, verifierExtra) {
 				...verifierExtra,
 			},
 		},
-		context: { cwd, sourceStatuses: statuses },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			sourceStatuses: statuses,
+		},
 		options: { mode: "partition", dedupStage: "dedup-findings" },
 	});
 	const out = await render({

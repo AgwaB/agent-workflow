@@ -1,3 +1,4 @@
+import { stateBase } from "./state-location.js";
 // agent-workflow 2026-11-01: content-addressed cache of pages fetched for evidence checks.
 // Like kimi-code's image originals (SHA-256 file names, one total cap): bodies are stored once per
 // content hash under `.agent-workflow/evidence-cache/`, URL entries point at them, runs record only
@@ -34,7 +35,7 @@ export interface EvidencePageCacheOptions {
 }
 
 export function evidenceCacheDir(cwd: string): string {
-	return join(cwd, ".agent-workflow", "evidence-cache");
+	return join(stateBase(cwd), ".agent-workflow", "evidence-cache");
 }
 
 const sha256 = (data: string | Buffer): string =>

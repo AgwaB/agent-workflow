@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP17): the default executor is the host's own CLI (owner decision
 // "기본 실행기", 2026-10-27). Explicit selections keep B2 precedence and are never probed; the
 // Claude Code / Codex / Pi hosts default to claude / codex / pi; the terminal CLI takes the first
@@ -347,9 +348,12 @@ test("nothing usable: the run fails before any record, naming each CLI's state a
 	);
 	assert.match(message, /--executor <id>/);
 	assert.deepEqual(probeLog(log), ["pi", "claude", "codex"]);
-	assert.equal(existsSync(join(cwd, ".agent-workflow", "workflows")), false);
 	assert.equal(
-		existsSync(join(cwd, ".agent-workflow", "workflow-subagents")),
+		existsSync(join(stateDir(cwd), ".agent-workflow", "workflows")),
+		false,
+	);
+	assert.equal(
+		existsSync(join(stateDir(cwd), ".agent-workflow", "workflow-subagents")),
 		false,
 	);
 	// The Pi login hint is "run pi, then /login".
@@ -369,7 +373,10 @@ test("the chosen host CLI not installed: negotiation names the install command (
 				error.message,
 			),
 	);
-	assert.equal(existsSync(join(cwd, ".agent-workflow", "workflows")), false);
+	assert.equal(
+		existsSync(join(stateDir(cwd), ".agent-workflow", "workflows")),
+		false,
+	);
 });
 
 test("engine records the rule and host; nested runs keep the parent's executor", async () => {

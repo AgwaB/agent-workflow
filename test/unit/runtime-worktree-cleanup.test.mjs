@@ -100,6 +100,17 @@ test("worktree-cleanup", async () => {
 			runId: "run_check_worktree_removed",
 			taskIndex: 0,
 		});
+		assert.equal(
+			completedWorkspace.worktreePath,
+			join(
+				repo,
+				".agent-workflow",
+				"runs",
+				"run_check_worktree_removed",
+				"worktrees",
+				"slot-1",
+			),
+		);
 		await writeFile(
 			join(completedWorkspace.cwd, "README.md"),
 			"base\nstaged change\n",
@@ -330,7 +341,7 @@ test("worktree-cleanup", async () => {
 		// The caller-provided root must be passed through all finalize stores.
 		const customRootWorkspace = await resolveWorkspace({
 			cwd: repo,
-			input: { worktree: true },
+			input: { worktree: true, runsDir: customRunsDir },
 			mode: "single",
 			runId: "run_check_worktree_custom_root",
 			taskIndex: 2,

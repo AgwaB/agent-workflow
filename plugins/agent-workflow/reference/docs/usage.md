@@ -40,10 +40,10 @@ Agents (`agent:` in a spec) resolve the same way: `<cwd>/.agent-workflow/agents/
 a copy in `$AGENT_WORKFLOW_HOME/agents/` or `.agent-workflow/agents/`. `agent-workflow agents` lists
 what resolves and from where.
 
-Workflow and agent discovery do not use Pi's directories; runs and settings live under
-`.agent-workflow/` and `$AGENT_WORKFLOW_HOME`. Pi web-tool diagnostics read Pi's web-search config;
+Workflow and agent discovery do not use Pi's directories. See [run records](#run-records) for
+run-state paths; user settings live under `$AGENT_WORKFLOW_HOME`. Pi web-tool diagnostics read Pi's web-search config;
 `doctor --fix` changes it only with confirmation (or `--yes`). `logs`/`inspect` read only files inside
-`.agent-workflow/`; a file outside it shows as `(not read: path is outside the project's artifact
+the state directory's `.agent-workflow/`; a file outside it shows as `(not read: path is outside the project's artifact
 root …)`.
 
 ## Bundled workflows
@@ -769,7 +769,7 @@ later supervisor or resume follows it; runs started before the check existed hav
 the task's own web tools returned for that URL, otherwise fetches the cited page itself (no model
 call). It reaches public addresses only, caps pages at 5 MB (PDF 10 MB, through
 the system `pdftotext` when installed), caches pages by content hash in
-`.agent-workflow/evidence-cache/` (1 GiB, 24 h), and returns per quote `verified-captured`,
+`.agent-workflow/evidence-cache/` in the [state directory](#where-run-state-lives) (1 GiB, 24 h), and returns per quote `verified-captured`,
 `verified-refetched` or `unverified` with a reason. deep-research uses it in its `check-web-quotes` stage: the final report's
 audit summary gets a "Quote check" line and `audit.md` lists every quote that could not be checked.
 Verdicts are not changed.
@@ -812,7 +812,8 @@ executor has one), not filesystem isolation.
 **Write-capable stages.** A stage that is not `readOnly` and keeps a mutating tool (`edit`, `write`,
 `bash`; the agent's frontmatter must declare it) can change files. Where it writes is the stage's (or
 `defaults`') `worktreePolicy`: `"auto"` (default) and `"on"` give each write-capable task its own
-managed git worktree (`.agent-workflow/workflows/<run>/worktrees/<task>`, branch
+managed git worktree (`.agent-workflow/workflows/<run>/worktrees/<task>` in the
+[state directory](#where-run-state-lives), branch
 `agent-workflow/<run>-<task>`); `"off"` writes in the shared checkout in `free` mode only — `safe`
 still uses a worktree unless the run sets `allowSharedCheckoutWrites` ([permission modes](#permission-modes)). There is
 no auto-merge: the user reviews and merges the branch (see "Worktrees" under Retention). A worktree
@@ -893,7 +894,31 @@ re-read with a narrower `path`/`maxItems`/`maxChars`.
 
 ## Run records
 
-Everything a run writes is under the project's `.agent-workflow/`:
+### Where run state lives
+
+Each project has a private state directory at `$AGENT_WORKFLOW_HOME/projects/<project-id>/`
+(default `~/.agent-workflow/projects/<project-id>/`), with mode `0700`. The project id is a
+lowercased folder-name slug plus the first 12 hex digits of the SHA-256 of the canonical
+(realpath) project path, for example `my-app-2292b65412f1`. A renamed or relocated project,
+or a second clone, is a separate project. `project.json` (mode `0600`) records `schema`, `id`,
+`path`, `name`, `createdAt` and `lastSeenAt`; a different registered path is refused.
+
+Paths shown as `.agent-workflow/…` in run output, records and logs are relative to this state
+directory, not the repository. It holds run records and worker artifacts (below), plus
+`.agent-workflow/notify-check/`, `.agent-workflow/host-launches/`, `.agent-workflow/evidence-cache/`,
+the dashboard's `.agent-workflow/{dashboard-port,dashboard-session,dashboard.json}` and
+`.agent-workflow/workflows/unfinished-notices.json`. Auto-router runs and managed worktrees
+also live here. Workers still run in the project directory or its managed worktree. Each
+project has its own dashboard server.
+
+Definitions stay in the repository: `<project>/workflows/`,
+`<project>/.agent-workflow/workflows/` (specs) and `<project>/.agent-workflow/agents/`.
+Old `<project>/.agent-workflow/workflows/workflow_*` run directories are ignored: they are
+not listed, resumed or migrated, and you may delete them. A launch from the directory holding
+the user-level `~/.agent-workflow` uses `~/.agent-workflow/home-runs` as its project and worker
+cwd; that project has its own state directory by the same rule.
+
+Run files, relative to the project's state directory:
 
 ```text
 .agent-workflow/workflows/<run-id>/
@@ -945,7 +970,7 @@ and never hold back the pruning of runs.
 What prune removes and what it keeps:
 
 - Nothing is listed or deleted when `.agent-workflow` or `.agent-workflow/workflows` is a symlink
-  or otherwise not a real directory inside the project; prune reports `unsafe retention root`.
+  or otherwise not a real directory inside the project's state directory; prune reports `unsafe retention root`.
 - A classifier request is removed only when its directory is reached through real directories
   (no symlinked `.agent-workflow`, `workflows` or `auto-router-runs`) and its `run.json` is the
   runtime's run record of the router's comparison call: schema 2, correlation id
@@ -974,8 +999,8 @@ What prune removes and what it keeps:
 (`.agent-workflow/workflows/<run>/worktrees/<task>`, branch `agent-workflow/<run>-<task>`) leaves it
 in place after the run: there is no auto-merge, the worktree and its branch
 hold the result for you to review and merge (`show`/`inspect`/`status` name the path and branch).
-The run's attempt state stays in the project's own `.agent-workflow/`, and the project's
-`.agent-workflow/` is never copied into a worktree. To remove one yourself:
+The run's attempt state stays in the project's state directory; run state is not copied
+into a worktree. To remove one yourself:
 `git worktree remove <path>` (add `--force` to discard uncommitted changes) and
 `git branch -D agent-workflow/<run>-<task>`. `agent-workflow prune` includes them: the dry run lists
 each worktree of a run it would delete with its branch, `uncommitted changes` and the number of
@@ -1129,7 +1154,7 @@ otherwise.
 | `AGENT_WORKFLOW_HOST_WAKE` | `0` disables completion messages queued into the interactive Codex session that launched a run through MCP. Already reported states do not wake the session. | on |
 | `AGENT_WORKFLOW_LOGIN_SHELL_PATH` | `0` disables importing missing absolute PATH entries from the user's login shell for the MCP server. Existing PATH entries keep priority. On non-Windows systems, tries login and interactive-login shells, each with a 10 s timeout; unavailable output leaves PATH unchanged. | on |
 | `AGENT_WORKFLOW_EVIDENCE_REFETCH` | `0` disables the engine-side web quote check for new runs. The run records the setting for later supervisors and resumes. See [support helpers](https://github.com/AgwaB/agent-workflow/blob/main/docs/usage.md#support-helpers). | on |
-| `AGENT_WORKFLOW_HOME` | Per-user directory: user workflows (`workflows/`), user agents (`agents/`), saved user profiles (`user-profiles/v1/profiles.json`), per-workflow profile preferences, executor state (`executors/<id>/`). | `~/.agent-workflow` |
+| `AGENT_WORKFLOW_HOME` | Per-user directory: user workflows (`workflows/`), user agents (`agents/`), saved user profiles (`user-profiles/v1/profiles.json`), per-workflow profile preferences, executor state (`executors/<id>/`), [project run state](#where-run-state-lives) (`projects/<project-id>/`). | `~/.agent-workflow` |
 | `AGENT_WORKFLOW_RUN_INDEX_DIR` | Directory of the runtime's run locator index (lets `status`/`wait` find a run by id from another process). | `~/.agent-workflow/run-index` |
 | `AGENT_WORKFLOW_RUN_LOCATOR_PRUNE_AFTER_MS` | Age after which stale run locators are pruned from the index. | 30 days |
 | `AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA` | `1`: reject a named workflow before launch when its prompt/schema diagnostics are strict-blocking (direct dynamic runs are excluded). Ordinary validation applies either way. | off |

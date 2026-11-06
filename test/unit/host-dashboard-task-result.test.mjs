@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (2026-11-03): the dashboard's task result reader — digest, analysis, refs and
 // control JSON from tasks/<task>/, contained to the project's artifact root and bounded.
 import assert from "node:assert/strict";
@@ -19,8 +20,13 @@ async function project(t) {
 	const cwd = await realpath(await mkdtemp(join(tmpdir(), "aw-task-result-")));
 	t.after(() => rm(cwd, { recursive: true, force: true }));
 	const rel = ".agent-workflow/workflows/workflow_abc123_def456/tasks/task-1";
-	await mkdir(join(cwd, rel), { recursive: true });
-	return { cwd, rel, dir: join(cwd, rel), result: `${rel}/result.json` };
+	await mkdir(join(stateDir(cwd), rel), { recursive: true });
+	return {
+		cwd,
+		rel,
+		dir: join(stateDir(cwd), rel),
+		result: `${rel}/result.json`,
+	};
 }
 
 test("a finished task's digest, analysis, refs (object and string forms) and pretty control", async (t) => {
@@ -90,7 +96,7 @@ test("bounded analysis, missing files, and paths outside the artifact root", asy
 	await writeFile(join(outside, "analysis.md"), "secret");
 	const linked =
 		".agent-workflow/workflows/workflow_abc123_def456/tasks/task-2";
-	await symlink(outside, join(cwd, linked));
+	await symlink(outside, join(stateDir(cwd), linked));
 	assert.equal(
 		await readTaskResult(cwd, { files: { result: `${linked}/result.json` } }),
 		undefined,

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs, { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -29,9 +30,11 @@ async function setupUsage(t) {
 	const cwd = await project(t),
 		runId = "workflow_retry",
 		owner = "owner";
-	await mkdir(join(cwd, ".agent-workflow/workflows"), { recursive: true });
+	await mkdir(join(stateDir(cwd), ".agent-workflow/workflows"), {
+		recursive: true,
+	});
 	await writeFile(
-		join(cwd, ".agent-workflow/workflows/index.json"),
+		join(stateDir(cwd), ".agent-workflow/workflows/index.json"),
 		JSON.stringify({ schemaVersion: 1, runs: [{ runId, status: "running" }] }),
 	);
 	usage.beginParentUsageTracking(cwd, runId, owner);
@@ -194,7 +197,7 @@ test("IR1-03 message_end surfaces sanitized deferral and the next turn recovers 
 	);
 	assert.equal((await usage.readParentUsage(cwd, runId)).assistantMessages, 0);
 	await writeFile(
-		join(cwd, ".agent-workflow/workflows/index.json"),
+		join(stateDir(cwd), ".agent-workflow/workflows/index.json"),
 		JSON.stringify({
 			schemaVersion: 1,
 			runs: [{ runId, status: "completed" }],

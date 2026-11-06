@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Tool-provider extensions stay in the sealed prepared launch; the Pi executor loads them.
 import assert from "node:assert/strict";
 import {
@@ -65,7 +66,13 @@ function makeProject() {
 }
 
 function writeSubagentArtifacts(cwd, runsDir, runId, attemptId, outputText) {
-	const artifactDir = join(cwd, runsDir, runId, "attempts", attemptId);
+	const artifactDir = join(
+		stateDir(cwd),
+		runsDir,
+		runId,
+		"attempts",
+		attemptId,
+	);
 	mkdirSync(artifactDir, { recursive: true });
 	writeFileSync(join(artifactDir, "output.log"), outputText);
 	writeFileSync(join(artifactDir, "stderr.log"), "");
@@ -262,7 +269,7 @@ test("built engine copies and cold-loads workflow-local seed before deterministi
 			const control = JSON.parse(
 				readFileSync(
 					join(
-						dirname(join(cwd, completed.tasks[0].files.result)),
+						dirname(join(stateDir(cwd), completed.tasks[0].files.result)),
 						"control.json",
 					),
 					"utf8",

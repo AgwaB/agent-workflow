@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -73,11 +74,15 @@ async function scaffold(
 	);
 	const p = await partition({
 		sources: { "collect-candidates": plan, ...Object.fromEntries(rows) },
-		context: { cwd, sourceStatuses: statuses },
+		context: {
+			cwd,
+			stateCwd: cwd ? stateDir(cwd) : undefined,
+			sourceStatuses: statuses,
+		},
 	});
 	const g = await evidenceGate({
 		sources: { "partition-verdicts": p },
-		context: { cwd },
+		context: { cwd, stateCwd: cwd ? stateDir(cwd) : undefined },
 	});
 	const contract = await schema(
 		"skills/workflow-guide/scaffolds/support-partition/schemas/partition-control.schema.json",
@@ -169,7 +174,7 @@ test("scaffold evidence gate never upgrades missing identity accounting", async 
 	delete p.value.partitionSummary.integrity;
 	const g = await evidenceGate({
 		sources: { "partition-verdicts": p },
-		context: { cwd },
+		context: { cwd, stateCwd: cwd ? stateDir(cwd) : undefined },
 	});
 	assert.equal(g.value.evidenceGate.integrity, "partial");
 });
@@ -258,7 +263,11 @@ for (const mode of [
 		);
 		const result = await claimGate({
 			sources: { "sanitize-claims": plan, "verify-claims": v },
-			context: { cwd, sourceStatuses: [owner("verify-claims", c.id)] },
+			context: {
+				cwd,
+				stateCwd: cwd ? stateDir(cwd) : undefined,
+				sourceStatuses: [owner("verify-claims", c.id)],
+			},
 		});
 		const row = result.auditedClaims[0];
 		if (["exact", "remote"].includes(mode))
@@ -347,6 +356,7 @@ for (const [label, evidence, usable] of [
 			options: { mode: "partition" },
 			context: {
 				cwd,
+				stateCwd: cwd ? stateDir(cwd) : undefined,
 				sourceStatuses: [
 					{
 						source: "candidate-findings",
@@ -373,6 +383,7 @@ for (const [label, evidence, usable] of [
 			sources: { "partition-findings": p, report },
 			context: {
 				cwd,
+				stateCwd: cwd ? stateDir(cwd) : undefined,
 				sourceStatuses: ["partition-findings", "report"].map((source) => ({
 					source,
 					stageId: source,

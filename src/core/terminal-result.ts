@@ -4,7 +4,6 @@ import { setTaskTerminal } from "./store.js";
 import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { recordedTaskStateCwd } from "./task-artifacts.js";
 import { activeForeachBatchRecordForTask } from "./foreach-batch-runtime.js";
 import {
 	materializeTerminalForeachBatchResult,
@@ -31,7 +30,7 @@ import {
 	transientFailureAttemptPath,
 	transientModelRateLimitBackoffMs,
 } from "./retry-policy.js";
-import { fromProjectPath, isTerminalTaskStatus, nowIso } from "./store.js";
+import { fromStatePath, isTerminalTaskStatus, nowIso } from "./store.js";
 import {
 	copyLogOrEmptyMeasured,
 	findLog,
@@ -56,14 +55,11 @@ export async function materializeTerminalSubagentResult(
 	const outputRef = findLog(snapshot, "output");
 	const stderrRef = findLog(snapshot, "stderr");
 	const resultRef = findLog(snapshot, "result");
-	const outputFile = fromProjectPath(cwd, task.files.output);
-	const stderrFile = fromProjectPath(cwd, task.files.stderr);
-	const resultFile = fromProjectPath(cwd, task.files.result);
+	const outputFile = fromStatePath(cwd, task.files.output);
+	const stderrFile = fromStatePath(cwd, task.files.stderr);
+	const resultFile = fromStatePath(cwd, task.files.result);
 	const artifactRoot = task.backendFiles?.runsDir
-		? fromProjectPath(
-				recordedTaskStateCwd(cwd, task),
-				task.backendFiles.runsDir,
-			)
+		? fromStatePath(cwd, task.backendFiles.runsDir)
 		: undefined;
 
 	await mkdir(dirname(outputFile), { recursive: true });

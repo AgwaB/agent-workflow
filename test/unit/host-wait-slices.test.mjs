@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // 2026-11-05 (owner: fewer host model turns while waiting). One workflow_wait call waits up to 30 min
 // where the host's per-call limit allows it (Claude Code; the Codex plugin's tool_timeout_sec), else
 // 45 s; Codex is told how to keep its code-mode cell from yielding. A Claude Code launch that starts
@@ -294,7 +295,7 @@ test("a project's first run from a Claude Code session waits for the session's m
 		const cwd = await project();
 		if (otherRun)
 			await mkdir(
-				join(cwd, ".agent-workflow", "workflows", "workflow_earlier"),
+				join(stateDir(cwd), ".agent-workflow", "workflows", "workflow_earlier"),
 				{ recursive: true },
 			);
 		const env = {
@@ -304,9 +305,12 @@ test("a project's first run from a Claude Code session waits for the session's m
 		};
 		const api = fakeApi({
 			onRun: async (ctx, runId) => {
-				await mkdir(join(ctx.cwd, ".agent-workflow", "workflows", runId), {
-					recursive: true,
-				});
+				await mkdir(
+					join(stateDir(ctx.cwd), ".agent-workflow", "workflows", runId),
+					{
+						recursive: true,
+					},
+				);
 				// The monitor's shell sees the directory and its CLI writes the session stamp.
 				if (monitorAfterMs !== undefined)
 					setTimeout(

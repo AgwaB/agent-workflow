@@ -7,7 +7,7 @@ import {
 	unlink,
 	writeFile,
 } from "node:fs/promises";
-import { homedir } from "node:os";
+import { agentWorkflowHome } from "../../core/home-dir.js";
 import { dirname, join, resolve } from "node:path";
 import { DEFAULT_RUNS_DIR } from "../core/constants.js";
 import { assertSafeId, isInsideOrEqual } from "../core/paths.js";
@@ -65,7 +65,7 @@ function runIndexDir(): string {
 	return resolve(
 		override && override.length > 0
 			? override
-			: join(homedir(), ...DEFAULT_RUN_INDEX_DIR_SEGMENTS),
+			: join(agentWorkflowHome(), "run-index"),
 	);
 }
 

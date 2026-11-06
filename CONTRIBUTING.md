@@ -35,7 +35,9 @@ Install the locked dependencies:
 npm ci --legacy-peer-deps
 ```
 
-Follow the surrounding code and documentation style. Keep generated workflow runs (`.agent-workflow/`), session data, and local investigation files out of commits.
+Follow the surrounding code and documentation style. Keep generated workflow runs (in the [project state directory](docs/usage.md#where-run-state-lives)),
+session data, and local investigation files out of commits. Repository `.agent-workflow/`
+workflow specs and agent definitions are source files, not run state.
 
 ## Verify your change
 

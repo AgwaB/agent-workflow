@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP11a): per-action tests of the host API handlers (src/hosts/api.ts). Each
 // handler returns structured data plus a text rendering. Runs use the workflow executor fixture (no
 // model or agent-CLI calls); the default executor is never reached.
@@ -422,7 +423,7 @@ test("run: refusals return `refused` without creating a run", async () => {
 	assert.equal(refused.data.refusal.executorId, id);
 	assert.match(refused.data.refusal.preview, /Capability check/);
 	assert.deepEqual(submits(effectLog), []);
-	const runs = join(cwd, ".agent-workflow", "workflows");
+	const runs = join(stateDir(cwd), ".agent-workflow", "workflows");
 	assert.equal(
 		existsSync(runs) &&
 			readdirSync(runs).some((name) => name.startsWith("workflow_")),

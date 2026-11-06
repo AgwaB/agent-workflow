@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // The child harness drains the advisory index writer before removing its isolated root.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -25,7 +26,7 @@ for (const mode of ["pending", "inflight"]) {
 						PATH: process.env.PATH,
 						HOME: evidence,
 						USERPROFILE: evidence,
-						AGENT_WORKFLOW_HOME: join(evidence, ".agent-workflow"),
+						AGENT_WORKFLOW_HOME: join(stateDir(evidence), ".agent-workflow"),
 						PI_CODING_AGENT_DIR: join(evidence, ".pi", "agent"),
 						PI_OFFLINE: "1",
 						CLEANUP_CONTROL_MODE: mode,

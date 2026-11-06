@@ -10,7 +10,7 @@ import {
 	win32,
 } from "node:path";
 
-import { fromProjectPath, workflowRunDir } from "../core/store.js";
+import { fromStatePath, toStatePath, workflowRunDir } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
 import { projectArtifactRoot } from "./run-files.js";
 
@@ -199,7 +199,7 @@ function safeWorkflowArtifactDisplayPath(
 	cwd: string,
 	artifactPath: string,
 ): string | undefined {
-	const displayPath = relative(resolvePath(cwd), resolvePath(artifactPath));
+	const displayPath = toStatePath(cwd, resolvePath(artifactPath));
 	if (
 		!displayPath ||
 		/[\u0000-\u001f\u007f`\\]/u.test(displayPath) ||
@@ -306,7 +306,7 @@ export async function readWorkflowResultPresentation(
 	// WP19 (review #4): the task dir comes from persisted metadata; it must resolve inside the
 	// project's artifact root (`.agent-workflow/`), not merely inside the project.
 	const projectDir = projectArtifactRoot(cwd);
-	const taskDir = dirname(fromProjectPath(cwd, task.files.output));
+	const taskDir = dirname(fromStatePath(cwd, task.files.output));
 	const lexicalEscape = relative(projectDir, resolvePath(taskDir));
 	if (
 		lexicalEscape === ".." ||

@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP12a, live bundle 3 open problem 3): the compiler's output protocol tells
 // the worker to validate its control against "the workflow-local control schema file:
 // ./schemas/…", a path relative to the workflow bundle that does not resolve from the worker's
@@ -116,7 +117,10 @@ test("the executor prompt names the control schema by a path that resolves from 
 
 	// The canonical prompt file keeps the compiled (bundle-relative) text.
 	const task = run.tasks.find((item) => item.files?.taskPrompt);
-	const canonical = await readFile(join(cwd, task.files.taskPrompt), "utf8");
+	const canonical = await readFile(
+		join(stateDir(cwd), task.files.taskPrompt),
+		"utf8",
+	);
 	assert.match(
 		canonical,
 		/workflow-local control schema file: \.\/schemas\/a-control\.schema\.json/,

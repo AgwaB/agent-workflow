@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // Completion belongs to the owning session. Its awaited tool result prevents a
 // duplicate completion message; other sessions cannot take that presentation.
 // Tool-result receipts are confirmed by session history; missing history after a
@@ -98,7 +99,7 @@ const completionMessages = (pi, runId) =>
 
 async function receipts(cwd, runId) {
 	const dir = join(
-		cwd,
+		stateDir(cwd),
 		".agent-workflow",
 		"workflows",
 		runId,

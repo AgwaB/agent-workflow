@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import {
 	mkdtemp,
@@ -38,7 +39,11 @@ async function writeWorkflowTaskArtifactBundle(options) {
 	const task = run.tasks.find(
 		(task) => task.taskId === basename(options.taskDir),
 	);
-	const bundle = await writeBundle({ ...options, rawIntegrityHost: task });
+	const bundle = await writeBundle({
+		...options,
+		rawIntegrityHost: task,
+		rawIntegrityStateCwd: stateDir(run.cwd ?? run.tasks[0].cwd),
+	});
 	await writeFile(path, JSON.stringify(run));
 	return bundle;
 }
@@ -57,7 +62,7 @@ async function fixture(t, legacy = false) {
 	});
 	const runId = "owned",
 		taskId = "task-1",
-		runDir = join(root, ".agent-workflow", "workflows", runId),
+		runDir = join(stateDir(root), ".agent-workflow", "workflows", runId),
 		taskDir = join(runDir, "tasks", taskId),
 		consumer = join(runDir, "tasks", "task-2");
 	await mkdir(taskDir, { recursive: true });
@@ -65,6 +70,7 @@ async function fixture(t, legacy = false) {
 	const output = join(taskDir, "output.log"),
 		artifact = join(taskDir, "raw.md");
 	const run = {
+		cwd: root,
 		schemaVersion: 1,
 		runId,
 		createdAt: "2026-09-05T00:00:00.000Z",
@@ -233,8 +239,14 @@ for (const legacy of [true, false])
 				});
 			if (kind === "root-symlink") {
 				const moved = join(f.root, "moved");
-				await rename(join(f.root, ".agent-workflow", "workflows"), moved);
-				await symlink(moved, join(f.root, ".agent-workflow", "workflows"));
+				await rename(
+					join(stateDir(f.root), ".agent-workflow", "workflows"),
+					moved,
+				);
+				await symlink(
+					moved,
+					join(stateDir(f.root), ".agent-workflow", "workflows"),
+				);
 			}
 			if (kind === "task-symlink") {
 				const moved = join(f.root, "moved");
@@ -266,7 +278,7 @@ test("legacy result sidecar cannot self-upgrade to host-verified evidence", asyn
 	const { establishRawOwner, rawDigest } = await import(
 		"../../dist/core/workflow-raw-contract.js"
 	);
-	const owner = await establishRawOwner(f.taskDir),
+	const owner = await establishRawOwner(f.taskDir, undefined, stateDir(f.root)),
 		path = join(f.taskDir, "result.json");
 	const result = JSON.parse(await readFile(path, "utf8"));
 	result.rawIntegrity = {
@@ -426,7 +438,10 @@ test("actual support execution publishes a host anchor with the normal run updat
 	const run = await store.readRunRecord(root, started.runId),
 		task = run.tasks[0],
 		runDir = store.workflowRunDir(root, run.runId);
-	const artifact = join(dirname(join(root, task.files.result)), "raw.md");
+	const artifact = join(
+		dirname(join(stateDir(root), task.files.result)),
+		"raw.md",
+	);
 	assert.ok(task.rawArtifactIntegrity);
 	assert.equal((await stat(artifact)).nlink, 2);
 	const manifest = {
@@ -450,7 +465,7 @@ test("actual support execution publishes a host anchor with the normal run updat
 	});
 	assert.equal(full.content, await readFile(artifact, "utf8"));
 	assert.equal(full.rawAssurance.kind, "host_digest_verified");
-	const path = join(root, task.files.result),
+	const path = join(stateDir(root), task.files.result),
 		result = JSON.parse(await readFile(path, "utf8"));
 	delete result.rawIntegrity;
 	await writeFile(path, JSON.stringify(result));
@@ -488,10 +503,16 @@ test("explicit support publication rejects pre-establishment host drift from the
 	runtime.setSupportHelperPreparedHookForTests(async () => {
 		calls++;
 		const ids = (
-			await readdir(join(root, ".agent-workflow", "workflows"))
+			await readdir(join(stateDir(root), ".agent-workflow", "workflows"))
 		).filter((id) => id.startsWith("workflow_"));
 		assert.equal(ids.length, 1);
-		const path = join(root, ".agent-workflow", "workflows", ids[0], "run.json");
+		const path = join(
+			stateDir(root),
+			".agent-workflow",
+			"workflows",
+			ids[0],
+			"run.json",
+		);
 		const run = JSON.parse(await readFile(path, "utf8"));
 		assert.equal(run.tasks[0].status, "running");
 		run.tasks[0].status = "blocked";
@@ -507,11 +528,14 @@ test("explicit support publication rejects pre-establishment host drift from the
 		task = run.tasks[0];
 	assert.notEqual(task.status, "completed");
 	const result = JSON.parse(
-		await readFile(join(root, task.files.result), "utf8").catch(() => "{}"),
+		await readFile(join(stateDir(root), task.files.result), "utf8").catch(
+			() => "{}",
+		),
 	);
 	assert.notEqual(result.outputValidation?.valid, true);
 	await assert.rejects(
-		() => stat(join(dirname(join(root, task.files.result)), "raw.md")),
+		() =>
+			stat(join(dirname(join(stateDir(root), task.files.result)), "raw.md")),
 		{ code: "ENOENT" },
 	);
 });
@@ -529,6 +553,7 @@ test("explicit host establishment failure preserves the previous real anchor and
 				taskDir: f.taskDir,
 				rawOutput: raw,
 				rawIntegrityHost: host,
+				rawIntegrityStateCwd: stateDir(f.root),
 			}),
 		/ownership/,
 	);

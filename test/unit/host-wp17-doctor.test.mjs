@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP17): `agent-workflow doctor` (host API `doctorAction` and the CLI) and the
 // host identity plumbing (CLI → "cli", Pi host → "pi"). Fakes only: probes come from injected
 // probers or fixture descriptors registered in-process under the built-in ids; the unit runner's
@@ -191,7 +192,10 @@ test("doctorAction: executors, default and why, verified versions, fix commands 
 	assert.match(result.text, /OK: 1 of 4 executors usable\./);
 	// Nothing was written by the check.
 	assert.equal(existsSync(join(cwd, "home")), false);
-	assert.equal(existsSync(join(cwd, ".agent-workflow", "workflows")), false);
+	assert.equal(
+		existsSync(join(stateDir(cwd), ".agent-workflow", "workflows")),
+		false,
+	);
 });
 
 test("doctorAction: host default, saved default profile, unsupported Node, unusable result", async () => {
@@ -281,7 +285,7 @@ test("doctorAction: Codex environment warnings are counts only; stale run-index 
 		join(codexHome, "AGENTS.md"),
 		"private global instructions\n",
 	);
-	const runsRoot = join(cwd, ".agent-workflow", "workflows");
+	const runsRoot = join(stateDir(cwd), ".agent-workflow", "workflows");
 	await mkdir(join(runsRoot, "workflow_present"), { recursive: true });
 	await writeFile(join(runsRoot, "workflow_present", "run.json"), "{}\n");
 	const entry = (runId, status) => ({
@@ -412,7 +416,10 @@ test("CLI run without an executor: nothing usable is refused before any run reco
 		result.out(),
 		/- codex: not installed; install: `npm i -g @openai\/codex`/,
 	);
-	assert.equal(existsSync(join(cwd, ".agent-workflow", "workflows")), false);
+	assert.equal(
+		existsSync(join(stateDir(cwd), ".agent-workflow", "workflows")),
+		false,
+	);
 });
 
 test("CLI run without an executor uses the first usable one and records installed-default with host cli", async () => {

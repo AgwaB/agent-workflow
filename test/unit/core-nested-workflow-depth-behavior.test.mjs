@@ -1,3 +1,4 @@
+import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import {
 	mkdtemp,
@@ -93,7 +94,7 @@ async function control(cwd, runId) {
 	const task = await controller(cwd, runId);
 	return JSON.parse(
 		await readFile(
-			join(dirname(join(cwd, task.files.result)), "control.json"),
+			join(dirname(join(stateDir(cwd), task.files.result)), "control.json"),
 			"utf8",
 		),
 	);
