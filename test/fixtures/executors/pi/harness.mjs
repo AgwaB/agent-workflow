@@ -220,7 +220,7 @@ export const PI_PERMISSION_MODE_SETTINGS = {
 	safe: ["--tools\nread,bash\n"],
 	readOnly: ["--tools\nread\n"],
 	equivalent:
-		"Pi has no approval prompts and no sandbox: both modes run every requested tool; readOnly drops mutating tools from --tools",
+		"Pi has no approval prompts and no sandbox: both modes run every requested tool; safe readOnly drops mutating tools from --tools",
 };
 
 export function createPiStubHarness() {

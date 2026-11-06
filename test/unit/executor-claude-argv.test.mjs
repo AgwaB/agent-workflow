@@ -363,3 +363,14 @@ test("capability table is valid and honest", () => {
 				);
 	}
 });
+
+test("foreign injected MCP is allowed on free readOnly but refused on safe readOnly", () => {
+	const mcpServers = [{ name: "other", command: "node", args: [] }];
+	const built = plan({ readOnly: true, permissionMode: "free", mcpServers });
+	assert.ok(built.allowedTools.includes("mcp__other"));
+	assert.ok(!built.argv.includes("--disallowedTools"));
+	for (const permissionMode of [undefined, "safe"])
+		assert.throws(() => plan({ readOnly: true, permissionMode, mcpServers }), {
+			code: "CAPABILITY_MISSING",
+		});
+});

@@ -75,7 +75,13 @@ test("effective sandbox, approval and optional profile must match for every requ
 
 async function run(
 	t,
-	{ resume = false, effective = response, stderr = [] } = {},
+	{
+		resume = false,
+		effective = response,
+		stderr = [],
+		readOnly = false,
+		mcpServers = [],
+	} = {},
 ) {
 	const dir = await mkdtemp(join(tmpdir(), "aw-effective-"));
 	t.after(() => rm(dir, { recursive: true, force: true }));
@@ -138,9 +144,9 @@ async function run(
 		cwd: dir,
 		prompt: "p",
 		tools: ["bash"],
-		readOnly: false,
+		readOnly,
 		permissionMode: "free",
-		mcpServers: [],
+		mcpServers,
 		deadlineMs: Date.now() + 5000,
 		env: { TEST_SECRET: "hidden-secret-value" },
 		isolation: { inherit: false },
@@ -216,4 +222,18 @@ test("provider requirements refusals classify as config rather than unknown or r
 		"Configured value for sandbox_mode is disallowed by requirements",
 	])
 		assert.equal(classifyCodexFailure({ message }), "config");
+});
+
+test("free readOnly starts Codex danger-full-access/never and accepts foreign MCP", async (t) => {
+	const { events, stdin } = await run(t, {
+		readOnly: true,
+		mcpServers: [{ name: "other", command: "node", args: [] }],
+	});
+	assert.equal(events.at(-1).type, "completed");
+	const start = stdin
+		.map((line) => JSON.parse(line))
+		.find((message) => message.method === "thread/start");
+	assert.equal(start.params.sandbox, "danger-full-access");
+	assert.equal(start.params.approvalPolicy, "never");
+	assert.equal(start.params.config["mcp_servers.other.enabled"], true);
 });

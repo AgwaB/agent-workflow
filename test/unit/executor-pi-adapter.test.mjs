@@ -818,3 +818,31 @@ test("cancel: SIGTERMs the Pi process group, terminal failed/cancelled; second c
 	const [launch] = (await cli.invocations()).filter((entry) => entry.effect);
 	assert.deepEqual(launch.signals, ["SIGTERM"]);
 });
+
+test("free readOnly Pi retains mutating tools, host tools and injected foreign MCP", async () => {
+	const { executor, cli } = await stage(await completeSteps(), {
+		inheritHostTools: true,
+	});
+	const overrides = {
+		tools: ["read", "bash", "edit", "write"],
+		readOnly: true,
+		mcpServers: [{ name: "other", command: "node", args: [] }],
+	};
+	for (const permissionMode of [undefined, "safe"]) {
+		const { req, gate } = request({ ...overrides, permissionMode });
+		await assert.rejects(executor.submit(req), (error) =>
+			isSdkError(error, "CAPABILITY_MISSING"),
+		);
+		assert.equal(gate.state(), "pending");
+	}
+	const { req } = request({ ...overrides, permissionMode: "free" });
+	assert.equal(
+		(await drain(executor, await executor.submit(req))).at(-1).type,
+		"completed",
+	);
+	const [launch] = (await cli.invocations()).filter((entry) => entry.effect);
+	const tools = launch.argv[launch.argv.indexOf("--tools") + 1].split(",");
+	for (const tool of ["bash", "edit", "write", "codemode", "mcp__*"])
+		assert.ok(tools.includes(tool), tool);
+	assert.ok(launch.argv.includes("builtin:mcp"));
+});
