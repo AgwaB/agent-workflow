@@ -16,7 +16,7 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, before, test } from "node:test";
 
@@ -155,7 +155,7 @@ test("the prompt hook's shell only reads: a fake CLI sees no stamp written by th
 	);
 });
 
-test("the prompt hook stamps through notify-check --stamp and delegates idle discovery to the CLI", async () => {
+test("the prompt hook stamps through notify-check --stamp and stays idle afterwards", async () => {
 	const { cwd } = await layout();
 	await writeRun(
 		join(stateDir(cwd), ".agent-workflow", "workflows"),
@@ -180,9 +180,80 @@ test("the prompt hook stamps through notify-check --stamp and delegates idle dis
 		await readdir(dirname(marker)).then((all) =>
 			all.includes(`cli-started-${counter}`),
 		),
-		true,
-		"the CLI owns state discovery even without a change",
+		false,
+		"no CLI start without a change",
 	);
+});
+
+function markerCli(name) {
+	const marker = join(root, name);
+	return {
+		marker,
+		cli: { command: "sh", args: ["-c", `touch ${marker}; exit 0`, "x"] },
+	};
+}
+
+async function exists(path) {
+	return readdir(dirname(path)).then((all) => all.includes(basename(path)));
+}
+
+test("the prompt hook's shell finds the state base of a symlinked project path with spaces", async () => {
+	counter += 1;
+	const real = join(root, `real project ${counter}`);
+	const link = join(root, `link ${counter}`);
+	await mkdir(real, { recursive: true });
+	await symlink(real, link);
+	const fresh = markerCli(`cli-fresh-${counter}`);
+	assert.equal(hook(link, fresh.cli).status, 0);
+	assert.equal(await exists(fresh.marker), false, "no state: no CLI start");
+	await writeRun(
+		join(stateDir(real), ".agent-workflow", "workflows"),
+		"workflow_link1",
+	);
+	const changed = markerCli(`cli-changed-${counter}`);
+	assert.equal(hook(link, changed.cli).status, 0);
+	assert.equal(
+		await exists(changed.marker),
+		true,
+		"a run without a stamp starts the CLI (the shell found the state base)",
+	);
+	assert.match(hook(link).stdout, /workflow_link1/);
+	const idle = markerCli(`cli-idle-${counter}`);
+	assert.equal(hook(link, idle.cli).status, 0);
+	assert.equal(await exists(idle.marker), false, "stamped and unchanged: idle");
+});
+
+test("without realpath on PATH the prompt hook leaves discovery to the CLI", async () => {
+	const { cwd } = await layout();
+	const bin = join(root, `bin-${counter}`);
+	await mkdir(bin);
+	for (const tool of [
+		"sh",
+		"cut",
+		"find",
+		"head",
+		"shasum",
+		"sha256sum",
+		"touch",
+	]) {
+		const found = spawnSync("sh", ["-c", `command -v ${tool}`], {
+			encoding: "utf8",
+		}).stdout.trim();
+		if (found) await symlink(found, join(bin, tool));
+	}
+	const { marker, cli } = markerCli(`cli-norealpath-${counter}`);
+	const ran = spawnSync(
+		"/bin/sh",
+		["-c", plugins.notifyHookCommand(cli, "claude-code")],
+		{
+			cwd,
+			env: { ...process.env, PATH: bin, CLAUDE_PROJECT_DIR: cwd },
+			input: '{"prompt":"hi"}',
+			encoding: "utf8",
+		},
+	);
+	assert.equal(ran.status, 0, ran.stderr);
+	assert.equal(await exists(marker), true, "no hash: the CLI decides");
 });
 
 test("notify-check (and --stamp) creates nothing outside through a symlinked .agent-workflow", async () => {

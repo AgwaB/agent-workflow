@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "d=\"${CLAUDE_PROJECT_DIR:-.}\"; (cd \"$d\" && npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow notify-check --host claude-code --stamp hook-claude-code 2>/dev/null); exit 0",
+            "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -n \"$d\" ] || d=.; P=\"$AGENT_WORKFLOW_HOME\"; [ -n \"$P\" ] || P=\"$HOME/.agent-workflow\"; p=$(realpath \"$d\" 2>/dev/null) || p=\"\"; h=\"\"; [ -z \"$p\" ] || h=$(printf %s \"$p\" | (shasum -a 256 || sha256sum) 2>/dev/null | cut -c1-12); case \"$h\" in ????????????) ;; *) h=\"\" ;; esac; if [ -n \"$h\" ]; then set -- \"$P\"/projects/*-\"$h\"; w=\"$1/.agent-workflow/workflows\"; [ -d \"$w\" ] || exit 0; s=\"$1/.agent-workflow/notify-check/hook-claude-code.stamp\"; [ -f \"$s\" ] && [ -z \"$(find \"$w\" -name run.json -newer \"$s\" 2>/dev/null | head -n 1)\" ] && exit 0; fi; (cd \"$d\" && npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow notify-check --host claude-code --stamp hook-claude-code 2>/dev/null); exit 0",
             "timeout": 60
           }
         ]
@@ -46,7 +46,7 @@
     "monitors": [
       {
         "name": "run-completion",
-        "command": "s=\"$CLAUDE_CODE_SESSION_ID\"; [ -n \"$s\" ] || exit 0; d=\"$CLAUDE_PROJECT_DIR\"; [ -n \"$d\" ] || d=.; cd \"$d\" && exec npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow notify-check --follow --host claude-code --session \"$s\"",
+        "command": "s=\"$CLAUDE_CODE_SESSION_ID\"; [ -n \"$s\" ] || exit 0; d=\"$CLAUDE_PROJECT_DIR\"; [ -n \"$d\" ] || d=.; P=\"$AGENT_WORKFLOW_HOME\"; [ -n \"$P\" ] || P=\"$HOME/.agent-workflow\"; p=$(realpath \"$d\" 2>/dev/null) || p=\"\"; h=\"\"; [ -z \"$p\" ] || h=$(printf %s \"$p\" | (shasum -a 256 || sha256sum) 2>/dev/null | cut -c1-12); case \"$h\" in ????????????) ;; *) h=\"\" ;; esac; until [ -z \"$h\" ] || { set -- \"$P\"/projects/*-\"$h\"; [ -d \"$1/.agent-workflow/workflows\" ]; }; do kill -0 \"$PPID\" 2>/dev/null || exit 0; sleep 2; done; cd \"$d\" && exec npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow notify-check --follow --host claude-code --session \"$s\"",
         "description": "agent-workflow: a run this session started has finished"
       }
     ]

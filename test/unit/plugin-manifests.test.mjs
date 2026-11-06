@@ -189,8 +189,7 @@ test("WP36: the hook command is silent and exits 0 without runs, and prints the 
 			shown.stdout,
 			/^agent-workflow: workflow "deep-review" \(run workflow_hook\) finished — status completed\. Details: workflow_status \{"runId":"workflow_hook"\}\n$/,
 		);
-		// Idle state discovery is delegated to the CLI; the shell never probes state paths.
-		assert.equal(run(temp, { CLAUDE_PROJECT_DIR: project }).stdout, "");
+		// Idle prompts never start the CLI: nothing changed since the last successful check.
 		const stamp = join(
 			stateDir(project),
 			".agent-workflow",
@@ -210,7 +209,7 @@ test("WP36: the hook command is silent and exits 0 without runs, and prints the 
 				encoding: "utf8",
 			});
 		assert.equal(runWith(counting).status, 0);
-		assert.equal(existsSync(marker), true, "idle discovery belongs to the CLI");
+		assert.equal(existsSync(marker), false, "CLI started without a change");
 		// A changed run.json starts it again.
 		const later = new Date(Date.now() + 5_000);
 		utimesSync(join(runDir, "run.json"), later, later);

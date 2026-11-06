@@ -101,8 +101,7 @@ test("six settled runs and two prompts with no run.json change in between delive
 	assert.equal(new Set(all).size, 6, "every run delivered exactly once");
 	const pending = await notify.notifyCheck(cwd, { host: "claude-code" });
 	assert.deepEqual(pending.data.notifications, [], "nothing left behind");
-	// Drained: the stamp is kept; state checks (including idle checks) belong to the CLI.
-	assert.equal(hook().stdout, "");
+	// Drained: the stamp is kept now and the next prompt is idle again (no CLI start).
 	const names = await readdir(
 		join(stateDir(cwd), ".agent-workflow", "notify-check"),
 	);
@@ -115,8 +114,8 @@ test("six settled runs and two prompts with no run.json change in between delive
 	);
 	assert.equal(
 		(await readdir(cwd)).includes("cli-started"),
-		true,
-		"idle discovery is delegated to the CLI, not shell state-path tests",
+		false,
+		"idle after the backlog drained",
 	);
 });
 
