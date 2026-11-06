@@ -850,7 +850,7 @@ function isPathLike(ref: string): boolean {
 	);
 }
 
-function isValidWorkflowName(name: string): boolean {
+export function isValidWorkflowName(name: string): boolean {
 	return !name.startsWith(".") && /^[A-Za-z0-9_.-]+$/.test(name);
 }
 
