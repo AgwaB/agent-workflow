@@ -1785,7 +1785,15 @@ test("dashboard Chrome: project overview, explicit selection, keyboard-labelled 
 	t.after(() => fixture.close());
 	const browser = await createBrowser(chrome);
 	t.after(() => browser.close());
-	await browser.open(`${fixture.origin}/`);
+	const open = async (url) => {
+		await browser.send("Page.navigate", { url });
+		await browser.waitFor(
+			() =>
+				document.readyState === "complete" &&
+				document.querySelector("#project-switcher"),
+		);
+	};
+	await open(`${fixture.origin}/`);
 	await browser.waitFor(() => document.querySelector(".projects-overview"));
 	assert.equal(
 		await browser.evaluate(
@@ -1830,7 +1838,7 @@ test("dashboard Chrome: project overview, explicit selection, keyboard-labelled 
 		),
 		"payments-api-123456789abc",
 	);
-	await browser.open(`${fixture.origin}/`);
+	await open(`${fixture.origin}/`);
 	await browser.waitFor(() => document.querySelector(".run-header"));
 	assert.equal(
 		await browser.evaluate(() =>
@@ -1838,7 +1846,7 @@ test("dashboard Chrome: project overview, explicit selection, keyboard-labelled 
 		),
 		"Project",
 	);
-	await browser.open(`${fixture.origin}/?project=${second.id}`);
+	await open(`${fixture.origin}/?project=${second.id}`);
 	await browser.waitFor(
 		() => document.querySelector("#project")?.textContent === "Other project",
 	);
@@ -1849,8 +1857,8 @@ test("dashboard Chrome: project overview, explicit selection, keyboard-labelled 
 				.textContent.includes("No runs in this project"),
 		),
 	);
-	await browser.open(`${fixture.origin}/?project=all`);
+	await open(`${fixture.origin}/?project=all`);
 	await browser.waitFor(() => document.querySelector(".projects-overview"));
-	await browser.open(`${fixture.origin}/`);
+	await open(`${fixture.origin}/`);
 	await browser.waitFor(() => document.querySelector(".projects-overview"));
 });
