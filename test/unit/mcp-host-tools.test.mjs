@@ -191,8 +191,7 @@ test("initialize and tools/list: server name, instructions, every tool gated per
 			"workflow_prune",
 			"workflow_profile",
 			"workflow_supervise",
-			// WP29: dynamic-controller approvals (mcp-host-wp29-approve.test.mjs).
-			// WP32: auto workflow selection with consent (host-wp32-auto.test.mjs).
+			// WP32: automatic workflow selection (host-wp32-auto.test.mjs).
 			"workflow_auto",
 			"workflow_dashboard",
 			// 2026-10-30: the launch preflight without the launch (host-check-preflight.test.mjs).

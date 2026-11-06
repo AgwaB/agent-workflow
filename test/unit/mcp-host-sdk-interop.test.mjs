@@ -2,7 +2,7 @@
 // against the official MCP TypeScript SDK client (@modelcontextprotocol/sdk, devDependency) over a
 // real stdio transport, with the guarded WP11a test-executor hook (registers `test-fixture`; no model
 // or agent-CLI calls): list → run (detached by default) → wait loop → inspect/status → stop, and
-// degradation confirmation through the SDK's elicitation handler (accept and decline). WP28: the
+// approval-free degraded launches through the official SDK. WP28: the
 // confirmed changes through the SDK's elicitation handler (accept, decline, no elicitation) and
 // workflow_supervise picking up a run whose attached server process died.
 import assert from "node:assert/strict";

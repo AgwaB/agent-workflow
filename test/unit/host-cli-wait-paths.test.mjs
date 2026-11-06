@@ -1,5 +1,5 @@
 // 2026-11-04 (coverage after the CLI//aw refactor): CLI paths no test reached — `doctor --fix`
-// (no terminal, declined, agreed, --yes) and the attached `resume` / `approve` that wait for the
+// (no terminal, declined, agreed, --yes) and the attached `resume` that wait for the
 // resumed run to settle. Executor fixtures and a scratch pi-web-access config only: no model or
 // agent-CLI calls.
 import assert from "node:assert/strict";
@@ -15,11 +15,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, afterEach, before, test } from "node:test";
 
-import {
-	APPROVAL_SPEC,
-	approvalProject,
-	controllerTask,
-} from "../helpers/dynamic-approval-fixture.mjs";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 
 const cli = await import("../../dist/hosts/cli/index.js");

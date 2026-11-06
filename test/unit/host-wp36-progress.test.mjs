@@ -3,7 +3,7 @@ import { stateDir } from "../helpers/state-dir.mjs";
 // model call: `agent-workflow statusline` (Claude Code statusLine command), `agent-workflow watch`
 // (terminal live view) and `agent-workflow notify-check` (runs that finished since the last check,
 // each settled state once). Synthetic run records in temporary projects, plus one real
-// dynamic-approval run on the workflow executor fixture; no model or agent-CLI calls.
+// workflow run on the workflow executor fixture; no model or agent-CLI calls.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -20,8 +20,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
-
-import { approvalProject } from "../helpers/dynamic-approval-fixture.mjs";
 
 const cli = await import("../../dist/hosts/cli/index.js");
 const statusline = await import("../../dist/hosts/cli/statusline.js");
