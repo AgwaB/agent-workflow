@@ -1,3 +1,4 @@
+import { projectId } from "../../core/state-location.js";
 import { stateBase } from "../../core/state-location.js";
 // Thin host-neutral CLI: parse flags, call one host API handler, and print text or JSON.
 // Exit codes: 0 success/completed, 1 failed/blocked/interrupted/refused/timeout, 2 usage error.
@@ -7,6 +8,7 @@ import { setTimeout as dashboardSleep } from "node:timers/promises";
 import {
 	dashboardDiscoveryPath,
 	readDashboardDiscovery,
+	shutdownDashboard,
 	resetDashboardSession,
 	detectAgentEnvironment,
 	ensureDashboard,
@@ -480,14 +482,17 @@ async function followLaunch(
 					start: true,
 				});
 				if (!dashboard) throw new Error("dashboard unavailable");
-				const url = await mintLaunchUrl(dashboard, { run: data.runId });
+				const url = await mintLaunchUrl(dashboard, {
+					project: projectId(ctx.cwd),
+					run: data.runId,
+				});
 				if (!(await (io.open ? io.open(url) : openInBrowser(url, io.env))))
 					throw new Error("opener unavailable");
 				// The launch text had no link when the dashboard was started just now; print the
 				// token-free one so the terminal has it too.
 				if (!data.dashboard && !json)
 					io.stdout(
-						`Dashboard: http://127.0.0.1:${dashboard.port}/?run=${data.runId}\n`,
+						`Dashboard: http://127.0.0.1:${dashboard.port}/?project=${projectId(ctx.cwd)}&run=${data.runId}\n`,
 					);
 			} catch {
 				io.stderr(
@@ -887,7 +892,7 @@ async function dispatch(
 					return EXIT_OK;
 				}
 				try {
-					process.kill(existing.pid, "SIGTERM");
+					await shutdownDashboard(existing);
 				} catch {
 					io.stderr("Could not stop the dashboard.\n");
 					return EXIT_FAILED;
@@ -916,7 +921,9 @@ async function dispatch(
 				!parsed.values.has("--port")
 			) {
 				try {
-					const url = await mintLaunchUrl(existing);
+					const url = await mintLaunchUrl(existing, {
+						project: projectId(cwd),
+					});
 					if (!(await (io.open ? io.open(url) : openInBrowser(url, io.env))))
 						throw new Error("opener unavailable");
 				} catch {
@@ -977,7 +984,9 @@ async function dispatch(
 				);
 				if (parsed.flags.has("--open")) {
 					try {
-						const url = await mintLaunchUrl(dashboard);
+						const url = await mintLaunchUrl(dashboard, {
+							project: projectId(cwd),
+						});
 						if (!(await (io.open ? io.open(url) : openInBrowser(url, io.env))))
 							throw new Error("opener unavailable");
 					} catch {

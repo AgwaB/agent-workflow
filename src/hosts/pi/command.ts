@@ -1,3 +1,4 @@
+import { projectId } from "../../core/state-location.js";
 // The /aw command parses each action and calls one host API handler.
 // Track launches and resumes for status and completion delivery into this session.
 // Without dialog UI, show profile choices as text. The TUI opens the board for /aw
@@ -470,7 +471,10 @@ async function dispatch(
 				throw new HostUsageError(
 					"The dashboard could not be started; run `agent-workflow dashboard --open` from a terminal.",
 				);
-			const url = await mintLaunchUrl(dashboard, runId ? { run: runId } : {});
+			const url = await mintLaunchUrl(dashboard, {
+				project: projectId(ctx.cwd),
+				...(runId ? { run: runId } : {}),
+			});
 			const opened = await openInBrowser(url, env);
 			return {
 				text: opened

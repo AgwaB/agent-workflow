@@ -34,6 +34,7 @@ export function hasSessionCookie(
 }
 /** UI state a printed deep link may carry past the bootstrap (`?token=…&run=…`); nothing else survives. */
 export const BOOTSTRAP_FORWARDED_PARAMS = [
+	"project",
 	"run",
 	"task",
 	"tab",

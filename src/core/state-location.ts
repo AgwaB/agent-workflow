@@ -18,6 +18,10 @@ import {
 	relative,
 	resolve,
 } from "node:path";
+import {
+	readPrivateDirectoryNames,
+	readPrivateFileText,
+} from "./secure-atomic-write.js";
 import { agentWorkflowHome } from "./home-dir.js";
 
 export function canonicalProjectPath(cwd: string): string {
@@ -204,4 +208,48 @@ export async function registerProject(cwd: string): Promise<void> {
 	} finally {
 		await unlink(temp).catch(() => undefined);
 	}
+}
+
+/** Registry ids, never request paths, select a project's private state. */
+export function validProjectId(id: string): boolean {
+	return /^[a-z0-9-]{1,32}-[0-9a-f]{12}$/.test(id);
+}
+
+export async function listRegisteredProjects(): Promise<ProjectRegistration[]> {
+	const root = join(agentWorkflowHome(), "projects");
+	let names: string[];
+	try {
+		names = await readPrivateDirectoryNames(root);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+		throw error;
+	}
+	const projects: ProjectRegistration[] = [];
+	for (const id of names.sort()) {
+		if (!validProjectId(id)) continue;
+		try {
+			const value: unknown = JSON.parse(
+				await readPrivateFileText(join(root, id, "project.json"), 16384),
+			);
+			if (!value || typeof value !== "object") continue;
+			const record = value as Partial<ProjectRegistration>;
+			if (
+				record.schema !== "agent-workflow-project-v1" ||
+				record.id !== id ||
+				typeof record.path !== "string" ||
+				!isAbsolute(record.path) ||
+				projectId(record.path) !== id ||
+				typeof record.name !== "string" ||
+				typeof record.createdAt !== "string" ||
+				!Number.isFinite(Date.parse(record.createdAt)) ||
+				typeof record.lastSeenAt !== "string" ||
+				!Number.isFinite(Date.parse(record.lastSeenAt))
+			)
+				continue;
+			projects.push(record as ProjectRegistration);
+		} catch {
+			/* Untrusted or concurrently removed registry entries are not projects. */
+		}
+	}
+	return projects;
 }
