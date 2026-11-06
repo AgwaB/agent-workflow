@@ -142,10 +142,24 @@ export async function createBrowser(executable) {
 			throw new Error(JSON.stringify(result.exceptionDetails));
 		return result.result.value;
 	};
+	// 2026-11-06 (CI ubuntu/Node 26): a poll that overlaps a navigation the page makes itself (deep link,
+	// launch redirect) fails with "Inspected target navigated or closed". Only these transient
+	// navigation errors mean "not yet"; any other error still fails the test.
+	const NAVIGATION_ERRORS = [
+		"Inspected target navigated or closed",
+		"Execution context was destroyed",
+		"Cannot find context with specified id",
+	];
+	const isNavigationError = (error) =>
+		NAVIGATION_ERRORS.some((text) => String(error?.message).includes(text));
 	const waitFor = async (fn, timeout = 20_000) => {
 		const until = Date.now() + timeout;
 		while (Date.now() < until) {
-			if (await evaluate(fn)) return;
+			try {
+				if (await evaluate(fn)) return;
+			} catch (error) {
+				if (!isNavigationError(error)) throw error;
+			}
 			await new Promise((resolve) => setTimeout(resolve, 25));
 		}
 		throw new Error(`Browser condition timed out: ${fn}`);
@@ -234,7 +248,14 @@ export async function createBrowser(executable) {
 			button: "left",
 			clickCount: 1,
 		});
-		await settle();
+		// A plain link (the dashboard's view navigation) reloads the page while settle() polls;
+		// then wait for the new document instead (2026-11-06, CI ubuntu/Node 26).
+		try {
+			await settle();
+		} catch (error) {
+			if (!isNavigationError(error)) throw error;
+			await waitFor(() => document.readyState === "complete");
+		}
 	};
 	const key = async (key, modifiers = 0) => {
 		const windowsVirtualKeyCode =
