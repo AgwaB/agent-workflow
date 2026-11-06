@@ -21,7 +21,7 @@
 //   manifest starts the server in the session directory. So no root portable manifest is written.
 // Neither manifest set uses a `.mcp.json` file (Claude Code would load it as a second server).
 // WP36: the Claude Code manifest also declares an inline `UserPromptSubmit` hook running
-// `agent-workflow notify-check` (no `hooks/hooks.json`, which Claude Code would load by default).
+// `agent-workflow notify-check` and `host-command` (no duplicate `hooks/hooks.json`).
 import { existsSync } from "node:fs";
 import {
 	mkdir,
@@ -58,6 +58,7 @@ export const CODEX_STARTUP_TIMEOUT_SEC = 120;
 export const CODEX_TOOL_TIMEOUT_SEC = 1920;
 export const PLUGIN_SKILLS = Object.freeze([
 	"agent-workflow",
+	"aw",
 	"execution-router",
 	"workflow-guide",
 ]);
@@ -221,14 +222,67 @@ export function notifyHookCommand(cli, host) {
 	].join("; ");
 }
 
-/**
- * WP36: Claude Code plugin hooks (inline event map): `UserPromptSubmit` adds its plain stdout to
- * the model's context (host UX investigation record). Codex gets no plugin hook: plugin hooks need
- * a trust review there and make a plugin ineligible for the public directory, so the Codex hook is
- * documented as user configuration instead (docs/hosts.md#claude-code-and-codex).
+/** Hook commands only start Node/npx for a possible aw invocation. JSON stays on stdin;
+ * it is never evaluated, used as a path, or interpolated into the CLI's argv.
+ * The TypeScript recognizer is authoritative after this inexpensive shell prefilter.
  */
-export function claudePluginHooks(cli) {
+export function hostCommandHookCommand(cli, host, expansion = false) {
+	const space = String.raw`([[:space:]]|\\[nrt])`;
+	const boundary = `(${space}|")`;
+	const prefix =
+		host === HOST_IDS.claude
+			? String.raw`(/aw|/agent-workflow:aw)${boundary}`
+			: String.raw`(\$aw${boundary}|aw("|${space}+("|(dashboard|run|dynamic|auto|stop)${boundary})))`;
+	const pattern = expansion
+		? String.raw`"command_name"[[:space:]]*:[[:space:]]*"(aw|agent-workflow:aw)"`
+		: String.raw`"prompt"[[:space:]]*:[[:space:]]*"${space}*${prefix}`;
+	const run = [cli.command, ...cli.args, "host-command", "--host", host]
+		.map(shellWord)
+		.join(" ");
+	return [
+		"input=$(cat)",
+		`printf '%s' "$input" | grep -Eq ${shellWord(pattern)} || exit 0`,
+		`printf '%s' "$input" | ${run} 2>/dev/null`,
+		"exit 0",
+	].join("; ");
+}
+
+export function hostCommandHooks(cli, host) {
 	return {
+		UserPromptSubmit: [
+			{
+				hooks: [
+					{
+						type: "command",
+						command: hostCommandHookCommand(cli, host),
+						timeout: 300,
+					},
+				],
+			},
+		],
+		...(host === HOST_IDS.claude
+			? {
+					UserPromptExpansion: [
+						{
+							hooks: [
+								{
+									type: "command",
+									command: hostCommandHookCommand(cli, host, true),
+									timeout: 300,
+								},
+							],
+						},
+					],
+				}
+			: {}),
+	};
+}
+
+/** Claude keeps its completion prompt hook alongside the command hooks. */
+export function claudePluginHooks(cli) {
+	const commands = hostCommandHooks(cli, HOST_IDS.claude);
+	return {
+		...commands,
 		UserPromptSubmit: [
 			{
 				hooks: [
@@ -237,6 +291,7 @@ export function claudePluginHooks(cli) {
 						command: notifyHookCommand(cli, HOST_IDS.claude),
 						timeout: NOTIFY_HOOK_TIMEOUT_SEC,
 					},
+					...commands.UserPromptSubmit[0].hooks,
 				],
 			},
 		],
@@ -288,6 +343,36 @@ export function claudeCompletionMonitor(cli) {
 	};
 }
 
+/** Both hosts share the fallback when their command hook is disabled or untrusted. */
+export function awSkill() {
+	return `---
+name: aw
+description: Run agent-workflow commands and manage detached workflows in this host session.
+---
+
+# aw
+
+Normally the plugin hook handles this command directly, without a model call.
+If you are reading this, the hook did not run (for example it is disabled or untrusted).
+Fulfil the user's aw request with the agent-workflow MCP tools below. Do not ask
+extra questions beyond what the tools require. No command options are supported;
+the remainder after the workflow/action is the task, with one matching quote pair removed.
+
+- aw: use \`workflow_status\` for up to three recent top-level runs, show these six command forms,
+  and \`workflow_dashboard\` with \`open:false\` for the dashboard URL.
+- aw dashboard [run]: \`workflow_dashboard\` (optional \`run\`, \`open:true\`).
+- aw run <workflow> <task…>: \`workflow_run\` with \`workflow\` and \`task\` (detached).
+- aw dynamic <task…>: \`workflow_dynamic\` with \`task\` (detached).
+- aw auto <task…>: \`workflow_auto\` with \`task\`; follow its consent/selection requirements
+  and choose the top recommendation when the tool permits it. Classifier failure starts nothing.
+- aw stop <run>: \`workflow_stop\` with \`runId\` (full id or unambiguous prefix).
+
+For missing arguments or an unknown action, show usage, do not start anything.
+Report the run id and dashboard link. Follow the tool's completion-delivery instructions.
+In Codex use $aw or bare aw; custom slash commands cannot be added there.
+`;
+}
+
 export async function readPackageVersion(root = REPO_ROOT) {
 	const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
 	if (pkg.name !== PACKAGE_NAME)
@@ -322,7 +407,11 @@ export function claudePluginManifest(
 	};
 }
 
-export function codexPluginManifest(version, launch) {
+export function codexPluginManifest(
+	version,
+	launch,
+	cli = npxCliLaunch(version),
+) {
 	return {
 		name: PLUGIN_NAME,
 		version,
@@ -333,6 +422,7 @@ export function codexPluginManifest(version, launch) {
 		license: "MIT",
 		keywords: [...KEYWORDS],
 		skills: "./skills/",
+		hooks: hostCommandHooks(cli, HOST_IDS.codex),
 		mcpServers: {
 			[MCP_SERVER_NAME]: {
 				...withToolTimeout(
@@ -554,9 +644,10 @@ export async function renderPluginFiles({
 	);
 	files.set(
 		".codex-plugin/plugin.json",
-		json(codexPluginManifest(version, launch)),
+		json(codexPluginManifest(version, launch, cli)),
 	);
 	files.set("README.md", pluginReadme(version));
+	files.set("skills/aw/SKILL.md", awSkill());
 
 	const read = (path) => readFile(join(root, path), "utf8");
 	files.set(

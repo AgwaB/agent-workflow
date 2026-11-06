@@ -37,6 +37,22 @@
             "type": "command",
             "command": "d=\"$CLAUDE_PROJECT_DIR\"; [ -n \"$d\" ] || d=.; P=\"$AGENT_WORKFLOW_HOME\"; [ -n \"$P\" ] || P=\"$HOME/.agent-workflow\"; p=$(realpath \"$d\" 2>/dev/null) || p=\"\"; h=\"\"; [ -z \"$p\" ] || h=$(printf %s \"$p\" | (shasum -a 256 || sha256sum) 2>/dev/null | cut -c1-12); case \"$h\" in ????????????) ;; *) h=\"\" ;; esac; if [ -n \"$h\" ]; then set -- \"$P\"/projects/*-\"$h\"; w=\"$1/.agent-workflow/workflows\"; [ -d \"$w\" ] || exit 0; s=\"$1/.agent-workflow/notify-check/hook-claude-code.stamp\"; [ -f \"$s\" ] && [ -z \"$(find \"$w\" -name run.json -newer \"$s\" 2>/dev/null | head -n 1)\" ] && exit 0; fi; (cd \"$d\" && npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow notify-check --host claude-code --stamp hook-claude-code 2>/dev/null); exit 0",
             "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "input=$(cat); printf '%s' \"$input\" | grep -Eq '\"prompt\"[[:space:]]*:[[:space:]]*\"([[:space:]]|\\\\[nrt])*(/aw|/agent-workflow:aw)(([[:space:]]|\\\\[nrt])|\")' || exit 0; printf '%s' \"$input\" | npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow host-command --host claude-code 2>/dev/null; exit 0",
+            "timeout": 300
+          }
+        ]
+      }
+    ],
+    "UserPromptExpansion": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); printf '%s' \"$input\" | grep -Eq '\"command_name\"[[:space:]]*:[[:space:]]*\"(aw|agent-workflow:aw)\"' || exit 0; printf '%s' \"$input\" | npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow host-command --host claude-code 2>/dev/null; exit 0",
+            "timeout": 300
           }
         ]
       }
