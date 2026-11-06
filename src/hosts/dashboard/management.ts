@@ -1,6 +1,7 @@
 // Dashboard transport only: shared host actions own all catalog, profile and retention policy.
 import { createHash } from "node:crypto";
 import { clearExecutorProbeCache } from "../../core/executor-default.js";
+import { resolve } from "node:path";
 import type { IncomingMessage } from "node:http";
 import { isValidWorkflowName } from "../../core/workflow-specs.js";
 import { workflowExecutorRegistration } from "../../core/executor-registry.js";
@@ -137,9 +138,10 @@ export function createDashboardManagement(options: Options) {
 	async function workflow(ctx: HostApiContext, ref: string): Promise<string> {
 		name(ref);
 		const catalog = await listWorkflowsAction(ctx);
-		if (!catalog.data.workflows.some((entry) => entry.name === ref))
-			throw new DashboardHttpError(404, "workflow not found");
-		return ref;
+		const entry = catalog.data.workflows.find((entry) => entry.name === ref);
+		if (!entry) throw new DashboardHttpError(404, "workflow not found");
+		// Resolve only the server-discovered path, not a request-controlled file reference.
+		return resolve(ctx.cwd, entry.specPath);
 	}
 	return async (
 		request: IncomingMessage,

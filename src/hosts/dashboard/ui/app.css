@@ -2196,3 +2196,102 @@ main.signin code {
 	border-bottom: 1px solid var(--line);
 	overflow-wrap: anywhere;
 }
+
+/* Management pages share the run rail, surface tokens and text-only result components. */
+.management-nav {
+	display: grid;
+	gap: 4px;
+	margin: 8px 0 20px;
+}
+.management-nav a {
+	padding: 7px 10px;
+	border-radius: 6px;
+	color: var(--muted);
+	text-decoration: none;
+}
+.management-nav a[aria-current="page"] {
+	background: var(--surface);
+	color: var(--text);
+}
+.management-page {
+	width: min(100%, 1080px);
+	margin: 0 auto;
+	padding: 24px;
+	overflow: auto;
+}
+.management-page h1 {
+	margin-bottom: 8px;
+}
+.management-card {
+	padding: 20px;
+	margin: 20px 0;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+}
+.management-card h2 {
+	margin: 0 0 12px;
+	font-size: 17px;
+}
+.management-card h3 {
+	margin: 12px 0 8px;
+	font-size: 14px;
+}
+.management-card p {
+	margin: 8px 0;
+}
+.management-card button {
+	margin: 4px 8px 4px 0;
+}
+.management-fields {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin: 12px 0;
+}
+.management-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 8px 0;
+	min-width: 0;
+}
+.management-field input,
+.management-field select {
+	font: inherit;
+	color: var(--text);
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	padding: 8px;
+	max-width: 100%;
+}
+.management-list-row,
+.management-role {
+	padding: 12px 0;
+	border-bottom: 1px solid var(--line);
+}
+.management-result pre,
+.management-card pre {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	font-size: 12px;
+	line-height: 1.6;
+}
+.management-result {
+	margin: 12px 0;
+}
+.management-error {
+	color: var(--err);
+}
+.management-card summary {
+	cursor: pointer;
+	margin: 8px 0;
+}
+@media (max-width: 800px) {
+	.management-page {
+		padding: 16px;
+	}
+	.management-fields {
+		flex-direction: column;
+	}
+}
