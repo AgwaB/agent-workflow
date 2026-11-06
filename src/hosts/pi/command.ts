@@ -478,7 +478,7 @@ async function dispatch(
 			const opened = await openInBrowser(url, env);
 			return {
 				text: opened
-					? `Opened the dashboard in your browser (127.0.0.1:${dashboard.port}${runId ? `, run ${runId}` : ""}).`
+					? `Opened the dashboard in your browser (127.0.0.1:${dashboard.port}${runId ? `, run ${runId}` : ""}).${dashboard.portReason ? ` ${dashboard.portReason}` : ""}`
 					: `Dashboard is running on 127.0.0.1:${dashboard.port}; open it with \`agent-workflow dashboard --open\` from a terminal.`,
 			};
 		}

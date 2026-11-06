@@ -316,7 +316,7 @@ Codex runs hooks in the session directory and adds stdout as developer context. 
 
 ### Dashboard opening
 
-`workflow_dashboard {run?}` ensures the project's dashboard is running, then opens it according to client support:
+`workflow_dashboard {run?}` ensures the user-level dashboard is running, selecting the current project, then opens it according to client support:
 
 | Client capability | Behavior | `method` |
 |---|---|---|
@@ -399,7 +399,7 @@ A Pi session started in the home directory uses `~/.agent-workflow/home-runs` fo
 | `run <workflow> <task> [options]` | Launch a named workflow |
 | `dynamic <task> [options]` | Launch a dynamic workflow |
 | `auto <task> [options]` | Classify with consent, then launch the user's choice; print/JSON sends nothing |
-| `dashboard [<run-id-or-prefix>]` | Open the project's [web dashboard](#dashboard) |
+| `dashboard [<run-id-or-prefix>]` | Open this project's view in the user-level [web dashboard](#dashboard) |
 | `status [run]` | Run status |
 | `show <workflow>` / `show <run> [--raw]` | Workflow or run details |
 | `inspect <run> [--failures] [--results]` | Reliability and results |
@@ -513,7 +513,7 @@ Answer later with `/aw approve <run> --request <id>` (or `--reject`), including 
 
 ### `/aw dashboard`
 
-`/aw dashboard [<run-id-or-prefix>]` opens the project's local dashboard in the browser, starting it detached if necessary. A one-time launch URL keeps session tokens and launch keys out of chat. The board remains the in-terminal view. See [Dashboard](#dashboard) for authentication and lifecycle options.
+`/aw dashboard [<run-id-or-prefix>]` opens the user-level dashboard with the current project selected in the browser, starting it detached if necessary. A one-time launch URL keeps session tokens and launch keys out of chat. The board remains the in-terminal view. See [Dashboard](#dashboard) for authentication and lifecycle options.
 
 ### Host tools for Pi workers
 
@@ -579,11 +579,11 @@ With `AGENT_WORKFLOW_ROLE=worker` or `disabled`, tools and notices are not regis
 
 ## Dashboard
 
-`agent-workflow dashboard` serves a localhost-only view of one project's runs: progress, stages, agent activity, logs, results and items needing attention. Stop, Resume, Approve and Reject use the shared [host API](extending.md#host-api). The dashboard takes no run lease and makes no model calls itself; resuming or approving can continue model work.
+`agent-workflow dashboard` serves one localhost-only dashboard for all registered projects: progress, stages, agent activity, logs, results and items needing attention. Stop, Resume, Approve and Reject use the shared [host API](extending.md#host-api). The dashboard takes no run lease and makes no model calls itself; resuming or approving can continue model work.
 
 ### What it shows
 
-The sidebar lists runs with task previews, timing, progress and reports. **Needs you** collects approvals, executor decisions and failed/blocked runs. Failures can be dismissed in this browser; approvals and decisions cannot. A stopped run offers Resume rather than appearing as a new need.
+The sidebar project switcher selects a project or **All projects**. The overview shows project paths (including missing paths), active runs, needs-attention counts and last activity from status summaries. `?project=<id>` selects a project; the last choice is remembered in this browser. Only the selected project is polled in detail. Inside a project, the sidebar lists runs with task previews, timing, progress and reports. **Needs you** collects approvals, executor decisions and failed/blocked runs. Failures can be dismissed in this browser; approvals and decisions cannot. A stopped run offers Resume rather than appearing as a new need.
 
 The run view separates process status from the workflow's verdict: a workflow may finish its work and still report “Needs work”. The graph shows stages, dependencies and agent progress. Code steps are hidden by default; Show/Hide remembers your choice. Failed, running, attention-required or selected code steps remain visible. Fit, Focus and direction controls help navigate larger graphs.
 
@@ -595,7 +595,7 @@ Stop explains its impact and records a durable request for the supervisor. Resum
 
 `Live`, `Reconnecting` and `Stale (updated …)` describe the connection, not run status. Stale appears after 30 s without a heartbeat. Reduced-motion preferences disable animations. Keyboard controls include ↑/↓ navigation, Enter, Escape, `⌘K` search, and `j`/`k` between agents. Clicking empty canvas closes the inspector; dragging pans instead.
 
-Deep-link state includes `run`, `stage`, `task`, `tab=result|output|stderr|events`, `view=report|details`, and `dialog=stop|resume|approve|reject`.
+Deep-link state includes `project`, `run`, `stage`, `task`, `tab=result|output|stderr|events`, `view=report|details`, and `dialog=stop|resume|approve|reject`.
 
 ### Start, stop and options
 
@@ -606,13 +606,13 @@ agent-workflow dashboard --stop [--project <dir>]
 agent-workflow dashboard --reset-session [--project <dir>]
 ```
 
-- Binds **127.0.0.1 only**, never `0.0.0.0` or IPv6-any. Reuses the project's last port when free, otherwise chooses an ephemeral port. Explicit `--port` is strict.
-- `--project` defaults to cwd. One server serves one project's [state directory](usage.md#where-run-state-lives).
+- Binds **127.0.0.1 only**, never `0.0.0.0` or IPv6-any. Defaults to **7417**, then 7418–7426, then an ephemeral port if other listeners occupy them. Explicit `--port` / `AGENT_WORKFLOW_DASHBOARD_PORT` is strict. With `AGENT_WORKFLOW_HOME` set, reuse `<home>/dashboard-port` if free, else use an ephemeral port; custom homes never take the default range automatically.
+- `--project` defaults to cwd and chooses the opened project view only. The server always covers the user registry at `<home>/projects/*/project.json` (`<home>` = `AGENT_WORKFLOW_HOME` or `~/.agent-workflow`).
 - Foreground mode prints the URL and runs until SIGINT/SIGTERM (exit 0). Usage errors, including unavailable/invalid ports or a non-directory project, exit 2.
 - `--open` opens the browser. Default URLs need no sign-in; with `--auth`, the printed foreground URL includes a session token.
 - `--readonly` disables controls and rejects every mutation with 403.
-- `--status` reports discovery state, pid, port, start time, auth mode and detached idle-exit timing. `--stop` sends SIGTERM and waits for discovery removal.
-- `--detached` runs in the background without printing a session URL. Detached servers exit after 2 h with no SSE client and no live running/blocked run; foreground servers never idle out.
+- `--status` reports discovery state, pid, port, start time, auth mode and detached idle-exit timing. `--stop` sends authenticated `POST /api/shutdown` and waits for discovery removal. These management options act on the user-level server, regardless of `--project`.
+- `--detached` runs in the background without printing a session URL. Detached servers exit after 2 h with no SSE client and no running/blocked run in any project; foreground servers never idle out.
 
 ### Security model
 
@@ -620,7 +620,7 @@ agent-workflow dashboard --reset-session [--project <dir>]
 
 | Threat | Control |
 |---|---|
-| Local access (`--auth`) | 256-bit random per-project session token; required except for bootstrap/sign-in routes |
+| Local access (`--auth`) | 256-bit random user-level session token; required except for bootstrap/sign-in routes |
 | Token exposure (`--auth`) | `?token=…` sets `HttpOnly; SameSite=Strict; Path=/` cookie, then 302 redirects to a token-free URL; `Referrer-Policy: no-referrer` |
 | DNS rebinding / foreign pages | `Host` must be `127.0.0.1:<port>` or `localhost:<port>` (else 421); no CORS headers |
 | CSRF | Mutations require POST, JSON content type, matching `Origin` and `X-AW-CSRF` from same-origin `GET /api/session`. Default mode requires `Sec-Fetch-Site: same-origin`; otherwise, when present, it must be `same-origin` or `none`. With auth, CSRF is tied to the token by HMAC. |
@@ -637,7 +637,7 @@ The UI receives a projection, not raw run records. Task activity labels describe
 
 Enable with `--auth` or `AGENT_WORKFLOW_DASHBOARD_AUTH=1` (also applies to auto-started servers).
 
-The session token is stored in `.agent-workflow/dashboard-session` in the [state directory](usage.md#where-run-state-lives) (0600, 32 random bytes base64url) and reused across restarts, so signed-in browser cookies remain valid. `--reset-session` stops a running dashboard and rotates the token, requiring browsers to sign in again.
+The session token is stored in `<home>/dashboard-session` (0600, 32 random bytes base64url) and reused across restarts, so signed-in browser cookies remain valid. `--reset-session` stops a running dashboard and rotates the token, requiring browsers to sign in again.
 
 Unauthenticated UI requests receive a 401 sign-in page (`/app.css` remains public). **Sign in on this computer** calls `POST /api/signin-local`; matching Origin and `Sec-Fetch-Site: same-origin` are required, with one call per 3 s. The server opens a one-time URL through the OS browser opener; it never returns that URL to the page. Alternatively, use `agent-workflow dashboard --open` or ask the host to open it.
 
@@ -648,7 +648,7 @@ One-time auth launch tokens contain 32 random bytes, expire after 60 s and are s
 `run`, `dynamic` and launched `auto` operations auto-start a detached dashboard if needed and print a token-free link:
 
 ```text
-Dashboard: http://127.0.0.1:<port>/?run=<id>
+Dashboard: http://127.0.0.1:<port>/?project=<project-id>&run=<id>
 ```
 
 Launch data includes `dashboard: {url, port, started?: true, auth?: true}`. Startup waits at most 3 s. Dashboard failure never fails the workflow launch; the fallback is `Dashboard: not running · agent-workflow dashboard --open`.
@@ -659,12 +659,13 @@ Auto-start never opens a browser. Opening is opt-in through CLI `--open`, `AGENT
 
 Set `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` to disable auto-start. It is also disabled for worker roles and read-only contexts. Browser-opening host behavior is documented in [MCP dashboard opening](#dashboard-opening) and [Pi dashboard command](#aw-dashboard).
 
-The last port is stored in `.agent-workflow/dashboard-port` in the [state directory](usage.md#where-run-state-lives). Reusing it keeps older links usable after restarts when the port is available; with auth, persistent cookies also survive restarts.
+The last port is stored in `<home>/dashboard-port`. Reusing it keeps older links usable after restarts when the port is available; with auth, persistent cookies also survive restarts.
 
 ### Dashboard environment variables
 
 | Variable | Meaning |
 |---|---|
+| `AGENT_WORKFLOW_DASHBOARD_PORT` | Strict port override (1–65535) |
 | `AGENT_WORKFLOW_DASHBOARD_AUTH=1` | Require sign-in, including auto-started servers |
 | `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` | Disable automatic dashboard startup |
 | `AGENT_WORKFLOW_DASHBOARD_OPEN=1` | Open after launch, subject to agent suppression |
@@ -674,23 +675,26 @@ The last port is stored in `.agent-workflow/dashboard-port` in the [state direct
 
 ### Dashboard HTTP API
 
-JSON responses use `Content-Type: application/json; charset=utf-8`. Errors are `{ "error": string }` with 400/401/403/404/409/421/500 as appropriate. Auth mode requires a session except on bootstrap/sign-in routes; mutations require the controls above. Run ids must match `^workflow_[A-Za-z0-9_-]+$`; prefixes are not accepted over HTTP.
+JSON responses use `Content-Type: application/json; charset=utf-8`. Errors are `{ "error": string }` with 400/401/403/404/409/421/500 as appropriate. Auth mode requires a session except on bootstrap/sign-in routes; mutations require the controls above. Project ids must match `^[a-z0-9-]{1,32}-[0-9a-f]{12}$` and exist in the private registry before any project-state access; request paths never choose directories. Unknown ids return 404, malformed ids 400. Run ids must match `^workflow_[A-Za-z0-9_-]+$`; prefixes are not accepted over HTTP.
 
 | Method & path | Result |
 |---|---|
-| `GET /?launch=…` | Mark launch consumed; 302 to `/`, forwarding valid `run`, `task`, `tab`, `view`; unknown ids ignored and stray tokens dropped in default mode |
+| `GET /?launch=…` | Mark launch consumed; 302 to `/`, forwarding valid `project`, `run`, `task`, `tab`, `view`; unknown ids ignored and stray tokens dropped in default mode |
 | `GET /?token=…` (`--auth`) | Set cookie and redirect, forwarding valid UI parameters without token |
 | `GET /`, `/app.js`, `/app.css` | UI assets |
-| `GET /api/session` | `{apiVersion: 1, project: {path, name}, mode: "read-write" \| "read-only", auth, csrf, serverTime, version}` |
-| `GET /api/runs` | `{serverTime, runs}`; top-level run summaries, newest first |
-| `GET /api/runs/:runId` | Full dashboard projection |
-| `GET /api/runs/:runId/tasks/:taskId/logs?stream=output\|stderr\|events\|all&lines=1..400` | Host API task log data, including truncation/refusal information |
-| `GET /api/runs/:runId/tasks/:taskId/result` | `{digest?, analysis?, refs?: [{title?, url?, note?}], control?, *Truncated?}`; `{}` if known task has no results; 404 if unknown |
-| `GET /api/runs/:runId/report` | `{path, text, truncated}` for first report artifact, or 404 |
-| `GET /api/events?run=<runId>` | SSE `runs`, selected `run`, and 15 s `heartbeat`; initial payload immediately, later payloads only when content changes |
-| `POST /api/runs/:runId/stop` | `{outcome, status, pending, interruptedTaskIds, text}` |
-| `POST /api/runs/:runId/resume` | Detached resume: `{outcome, status, resetTaskIds, text}` |
-| `POST /api/runs/:runId/approve` | Body `{requestId, decision: "approve"\|"reject"}`; result `{outcome, status, text}` |
+| `GET /api/session` | `{apiVersion: 2, mode: "read-write" \| "read-only", auth, csrf, serverTime, version}` |
+| `GET /api/projects` | `{serverTime, projects: [{id, name, path, pathMissing, lastSeenAt, counts: {running, needsAttention, lastActivity}}]}`; cheap status summaries |
+| `GET /api/identity?nonce=<random>` | `{protocol, version, proof}`; HMAC-SHA256(launchKey, nonce), no credentials sent |
+| `POST /api/shutdown` | Launch-key-authenticated user server shutdown |
+| `GET /api/projects/:projectId/runs` | `{serverTime, runs}`; top-level run summaries, newest first |
+| `GET /api/projects/:projectId/runs/:runId` | Full dashboard projection |
+| `GET /api/projects/:projectId/runs/:runId/tasks/:taskId/logs?stream=output\|stderr\|events\|all&lines=1..400` | Host API task log data, including truncation/refusal information |
+| `GET /api/projects/:projectId/runs/:runId/tasks/:taskId/result` | `{digest?, analysis?, refs?: [{title?, url?, note?}], control?, *Truncated?}`; `{}` if known task has no results; 404 if unknown |
+| `GET /api/projects/:projectId/runs/:runId/report` | `{path, text, truncated}` for first report artifact, or 404 |
+| `GET /api/events?project=<projectId>[&run=<runId>]` | SSE `runs`, selected `run`, and 15 s `heartbeat`; initial payload immediately, later payloads only when content changes |
+| `POST /api/projects/:projectId/runs/:runId/stop` | `{outcome, status, pending, interruptedTaskIds, text}` |
+| `POST /api/projects/:projectId/runs/:runId/resume` | Detached resume: `{outcome, status, resetTaskIds, text}` |
+| `POST /api/projects/:projectId/runs/:runId/approve` | Body `{requestId, decision: "approve"\|"reject"}`; result `{outcome, status, text}` |
 
 #### Dashboard projection
 
@@ -702,23 +706,27 @@ Agent counts exclude foreach placeholders, support helpers and controllers. Pend
 
 ### Discovery file
 
-`.agent-workflow/dashboard.json` in the [state directory](usage.md#where-run-state-lives) is written with mode 0600 after listening and removed on clean shutdown:
+`<home>/dashboard.json` is written with mode 0600 after listening and removed on clean shutdown:
 
 ```json
-{"schema":"agent-workflow-dashboard-v1","pid":12345,"port":47318,"startedAt":"…","launchKey":"<32 random bytes, base64url>","auth":false}
+{"schema":"agent-workflow-dashboard-v1","pid":12345,"port":7417,"url":"http://127.0.0.1:7417/","home":"/home/user/.agent-workflow","protocol":2,"version":"0.1.0","startedAt":"…","launchKey":"<32 random bytes, base64url>","auth":false}
 ```
 
-`launchKey` is a local control secret, never printed and distinct from the session token. Missing `auth` means the server requires sign-in. Readers require a live pid and a matching `/api/session` response: 401 with the dashboard JSON error under auth, or 200 with `apiVersion: 1, auth: false`. Local discovery/launch requests time out after 3 s. Dead-pid discovery files are removed.
+`launchKey` is a local control secret, never printed and distinct from the session token. Missing `auth` means the server requires sign-in. Readers require a live pid and verify `GET /api/identity?nonce=<random>` against HMAC-SHA256(launchKey, nonce), never sending the key or session token before identity is proven. A foreign listener is not adopted. A private O_EXCL `<home>/dashboard.lock` serializes discovery → spawn → adoption; dead or expired holders are reclaimed. A newer protocol launcher authenticates shutdown of an older server and restarts on its port; older launchers reuse newer servers. Local discovery/launch requests time out after 3 s. Dead-pid discovery files are removed.
 
 #### One-time launch URLs
 
-`POST /api/launch` requires loopback/Host checks and `X-AW-Launch-Key` (timing-safe comparison), not cookie/CSRF. JSON accepts optional validated `run`, `task`, `tab`, `view`; response is `{url, launchId}`. A bad key returns 401; more than 16 outstanding launches returns 429.
+`POST /api/launch` requires loopback/Host checks and `X-AW-Launch-Key` (timing-safe comparison), not cookie/CSRF. JSON accepts optional validated `project`, `run`, `task`, `tab`, `view`; response is `{url, launchId}`. A bad key returns 401; more than 16 outstanding launches returns 429.
 
 Default URLs use `?launch=<id>` only to signal browser arrival; auth URLs use one-time `?token=<token>`. `GET /api/launch/:id`, protected by the launch key, reports consumption so MCP URL elicitation can complete. Session tokens and launch keys never appear in host tool results.
 
 ### Dashboard limits
 
-The dashboard does not support multiple projects per server, remote access, HTTPS, authentication beyond the local token, workflow editing or launching runs from the browser.
+Per-project dashboard files are no longer read or written. The registry is validated for schema, id, private permissions and owner; missing project paths remain visible.
+
+If port 7417 is occupied, output prints the real URL and explains the fallback. A bookmark to 7417 can break after idle exit if another listener takes that port. Bind permission failures (EPERM/EACCES) do not retry: start the dashboard from a terminal, hook or MCP server instead of a sandboxed model shell. Workflow launches still succeed without it.
+
+The dashboard does not support remote access, HTTPS, authentication beyond the local token, workflow editing or launching runs from the browser.
 
 ## Other hosts
 

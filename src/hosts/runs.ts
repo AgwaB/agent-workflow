@@ -813,7 +813,7 @@ export async function waitAction(
 		].join("\n");
 	}
 	if (data.dashboard)
-		text += `\nDashboard: ${data.dashboard.url}${data.dashboard.auth ? " (sign-in required)" : ""}`;
+		text += `\nDashboard: ${data.dashboard.url}${data.dashboard.portReason ? ` · ${data.dashboard.portReason}` : ""}${data.dashboard.auth ? " (sign-in required)" : ""}`;
 	return result(
 		"wait",
 		stillRunning ? "running" : outcomeForRunStatus(run.status),

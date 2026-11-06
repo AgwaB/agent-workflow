@@ -2088,7 +2088,12 @@ export function createHostMcpService(
 						? `Opened the dashboard in your browser (127.0.0.1:${dashboard.port}).`
 						: `Dashboard is running on 127.0.0.1:${dashboard.port}; it was not opened (declined or no browser). Open it from a terminal with \`agent-workflow dashboard --open\`.`;
 			return {
-				content: [{ type: "text", text }],
+				content: [
+					{
+						type: "text",
+						text: `${text}${dashboard.portReason ? ` ${dashboard.portReason}` : ""}`,
+					},
+				],
 				...(mcpVersionHasStructuredContent(call.protocolVersion)
 					? {
 							structuredContent: {

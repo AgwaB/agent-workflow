@@ -14,6 +14,7 @@ import { type HostApiContext, hostEnv } from "./types.js";
 export interface RunDashboardLink {
 	url: string;
 	port: number;
+	portReason?: string;
 	started?: true;
 	auth?: true;
 }
@@ -55,6 +56,7 @@ export async function runDashboardLink(
 				return {
 					url: `http://127.0.0.1:${dashboard.port}/?${query.toString()}`,
 					port: dashboard.port,
+					...(dashboard.portReason ? { portReason: dashboard.portReason } : {}),
 					...(started ? { started: true as const } : {}),
 					...(dashboard.auth ? { auth: true as const } : {}),
 				};

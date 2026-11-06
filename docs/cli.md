@@ -47,7 +47,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `prune [--keep N] [--older-than DAYS] [--yes]` | Preview deletion of old terminal runs (default: keep newest 50), classifier requests, managed worktrees, terminal executor attempts older than 7 days (or `--older-than`), and host launch claims older than 1 h. `--yes` applies it. See [retention](usage.md#run-records) for protections and cleanup rules. |
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
-| `dashboard [--port N] [--readonly] [--open] [--project DIR]` | Private localhost web dashboard: run/task state, logs, reports, Stop/Resume/Approve/Reject. |
+| `dashboard [--port N] [--readonly] [--auth] [--open] [--project DIR]` | One user-level localhost dashboard for all projects: run/task state, logs, reports, Stop/Resume/Approve/Reject. |
 | `watch [run] [--follow] [--once] [--interval S] [--bell]` | Live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
 | `statusline` | One line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
 | `notify-check [--host H] [--json] [--stamp N] [--run ID] [--follow [--interval S]]` | One line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
@@ -316,30 +316,35 @@ It re-runs the check afterwards.
 agent-workflow dashboard [--port <n>] [--readonly] [--auth] [--open] [--detached | --status | --stop | --reset-session] [--project <dir>]
 ```
 
-Serves one project's runs on **127.0.0.1 only**, at the project's last port when free, else a free
-ephemeral port (or `--port` 1–65535). Prints `Dashboard: http://127.0.0.1:<port>/` once. **No
+Serves all registered projects on **127.0.0.1 only**. Default port **7417**, then 7418–7426, then
+an ephemeral port when occupied; output always gives the real URL and explains default-port fallback.
+Explicit `--port` / `AGENT_WORKFLOW_DASHBOARD_PORT` (1–65535) is strict. With `AGENT_WORKFLOW_HOME` set,
+reuse `<home>/dashboard-port` if free, else use an ephemeral port (never the default range automatically).
+Prints `Dashboard: http://127.0.0.1:<port>/?project=<id>` once. **No
 sign-in by default:** any browser on this computer opens it directly (loopback bind, `Host`
 allowlist, same-origin/CSRF checks on every action; another local user or process could see runs
 and press the controls — see [docs/hosts.md#dashboard](hosts.md#dashboard)). `--auth` (or
 `AGENT_WORKFLOW_DASHBOARD_AUTH=1`, which auto-started dashboards inherit) turns sign-in on for
 shared machines: the printed URL then carries a session token (`/?token=…`) that establishes the
-browser session; the session persists across restarts in `.agent-workflow/dashboard-session` in the [state directory](usage.md#where-run-state-lives)
+browser session; the session persists across restarts in `<home>/dashboard-session` (`<home>` = `AGENT_WORKFLOW_HOME` or `~/.agent-workflow`)
 (mode 0600), and browsers without it see a sign-in page with a one-click button. `--reset-session`
 stops a running dashboard first, rotates that token and exits; every browser must sign in again. It
 also works when no dashboard is running. `--readonly` adds a read-only badge and rejects all mutations on the server.
-`--open` opens the dashboard in the browser (under `--auth` via a one-time sign-in URL: 60-second expiry, single use), including on pipes when explicitly requested; it reuses an existing dashboard. `--project` selects an existing
-project directory (default cwd). Ctrl-C/SIGTERM stops the dashboard, never the runs; exit 0.
+`--open` opens the dashboard in the browser (under `--auth` via a one-time sign-in URL: 60-second expiry, single use), including on pipes when explicitly requested; it reuses an existing dashboard. `--project` selects the opened view (an existing directory, default cwd), not the server scope.
+The sidebar offers a project switcher and All projects overview; the last view is remembered. Ctrl-C/SIGTERM stops the dashboard, never the runs; exit 0.
 Invalid ports, occupied ports and non-directories exit 2. No `--json` mode.
 
 `--detached` is the background-process mode: prints only `Dashboard listening on 127.0.0.1:<port>`,
-never a session token, and exits after 2 hours without SSE clients when no live run remains
-(running/blocked with a live lease). `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` sets the interval in
+never a session token, and exits after 2 hours without SSE clients when no running/blocked run remains in any project. `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` sets the interval in
 milliseconds (minimum 60000; invalid values exit 2). Foreground servers never idle out. Discovery is written privately (0600) to
-`.agent-workflow/dashboard.json` in the [state directory](usage.md#where-run-state-lives) and removed on close, SIGINT or SIGTERM.
-`--status` prints pid, port, start time and `auth on|off`, plus `idle exit in <m>m` for detached servers; `--stop` sends SIGTERM and waits up to 5 seconds for
-cleanup. Both accept `--project` and exit 1 if no dashboard is running.
+`<home>/dashboard.json` and removed on close, SIGINT or SIGTERM.
+`--status` prints pid, port, start time and `auth on|off`, plus `idle exit in <m>m` for detached servers; `--stop` sends authenticated shutdown and waits up to 5 seconds for
+cleanup. Both accept `--project` but manage the same user-level server, and exit 1 if none is running.
+Discovery uses nonce HMAC identity before any credentials are sent, a private start lock and protocol-version takeover.
+Per-project dashboard files are ignored. EPERM/EACCES bind errors do not retry; start from a terminal, hook or MCP server.
+Bookmarks to 7417 may break if another program takes the port after idle exit.
 
-`run`, `dynamic` and `auto` print a token-free `Dashboard: http://127.0.0.1:<port>/?run=<id>`
+`run`, `dynamic` and `auto` print a token-free `Dashboard: http://127.0.0.1:<port>/?project=<project-id>&run=<id>`
 on every successful launch, starting a detached loopback server if needed (at most 3 seconds); the
 link opens directly. A newly started server sets launch data `dashboard.started: true`; under
 `AGENT_WORKFLOW_DASHBOARD_AUTH=1` the data also carries `dashboard.auth: true` and a newly started

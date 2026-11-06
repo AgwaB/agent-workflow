@@ -74,6 +74,7 @@ export interface DashboardServerOptions {
 }
 export interface DashboardServer {
 	protocol: number;
+	portReason?: string;
 	url: string;
 	port: number;
 	/** Session token when `auth` is on; otherwise the server's private CSRF secret (not a URL credential). */
@@ -454,6 +455,11 @@ export async function startDashboardServer(
 				"application/json"
 			)
 				throw new HttpError(400, "Content-Type must be application/json");
+			if (
+				request.headers.origin !== undefined &&
+				request.headers.origin !== origin
+			)
+				throw new HttpError(403, "invalid Origin");
 			const body = await readBody(request);
 			const params = new URLSearchParams();
 			for (const [key, value] of Object.entries(body)) {
@@ -888,6 +894,12 @@ export async function startDashboardServer(
 		throw new Error("dashboard did not bind a TCP port");
 	port = address.port;
 	origin = `http://127.0.0.1:${port}`;
+	const portReason =
+		explicit === undefined &&
+		!process.env.AGENT_WORKFLOW_HOME?.trim() &&
+		port !== 7417
+			? "Port 7417 is occupied by another listener; using the next available dashboard port."
+			: undefined;
 	if (options.discovery) {
 		await writePreferredDashboardPort(cwd, port).catch(() => undefined);
 		try {
@@ -899,6 +911,7 @@ export async function startDashboardServer(
 				auth,
 				version,
 				protocol,
+				portReason,
 				...(options.idleExitMs !== undefined
 					? {
 							detached: true,
@@ -918,6 +931,7 @@ export async function startDashboardServer(
 	let idleTimer: ReturnType<typeof setInterval> | undefined;
 	const dashboard: DashboardServer = {
 		protocol,
+		portReason,
 		url: auth
 			? `${origin}/?token=${token}&project=${projectId(cwd)}`
 			: `${origin}/?project=${projectId(cwd)}`,
@@ -980,6 +994,7 @@ export async function startDashboardServer(
 							startedAt,
 							auth,
 							protocol,
+							portReason,
 							version,
 							detached: true,
 							idleExitAt: new Date(

@@ -906,10 +906,14 @@ or a second clone, is a separate project. `project.json` (mode `0600`) records `
 Paths shown as `.agent-workflow/…` in run output, records and logs are relative to this state
 directory, not the repository. It holds run records and worker artifacts (below), plus
 `.agent-workflow/notify-check/`, `.agent-workflow/host-launches/`, `.agent-workflow/evidence-cache/`,
-the dashboard's `.agent-workflow/{dashboard-port,dashboard-session,dashboard.json}` and
 `.agent-workflow/workflows/unfinished-notices.json`. Auto-router runs and managed worktrees
-also live here. Workers still run in the project directory or its managed worktree. Each
-project has its own dashboard server.
+also live here. Workers still run in the project directory or its managed worktree. One user-level dashboard serves all registered projects. Its private files are
+`<home>/dashboard.json`, `<home>/dashboard-session`, `<home>/dashboard-port` and the start lock
+`<home>/dashboard.lock`, not per-project state (`<home>` = `AGENT_WORKFLOW_HOME` or `~/.agent-workflow`).
+It defaults to port 7417, then 7418–7426, then ephemeral; explicit `--port` /
+`AGENT_WORKFLOW_DASHBOARD_PORT` is strict. Custom homes reuse the last port or use an ephemeral one.
+`dashboard --project DIR` chooses only the opened view. The sidebar offers All projects and a
+remembered project choice. See [Dashboard](hosts.md#dashboard) for identity, security and lifecycle.
 
 Definitions stay in the repository: `<project>/workflows/`,
 `<project>/.agent-workflow/workflows/` (specs) and `<project>/.agent-workflow/agents/`.
@@ -1144,9 +1148,10 @@ otherwise.
 
 | Variable | What it does | Default |
 |---|---|---|
+| `AGENT_WORKFLOW_DASHBOARD_PORT` | Strict user-dashboard port override (1–65535). Custom homes otherwise reuse the last port or select an ephemeral port. | `7417` (default home; fallback 7418–7426, then ephemeral) |
 | `AGENT_WORKFLOW_DASHBOARD_AUTH` | Exactly `1`: dashboards started without `--auth` (including auto-started detached ones) require the browser sign-in session instead of the default open loopback mode. | off |
 | `AGENT_WORKFLOW_DASHBOARD_AUTOSTART` | Exactly `0` disables detached dashboard auto-start after successful run/dynamic/auto launches; worker roles and read-only contexts never auto-start. Does not open a browser. | on |
-| `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` | Detached dashboard idle exit interval (milliseconds); no SSE clients and no live run. Minimum 60000; invalid values are usage errors. Foreground dashboards never idle out. | `7200000` (2 h) |
+| `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` | Detached dashboard idle exit interval (milliseconds); no SSE clients and no running/blocked run in any project. Minimum 60000; invalid values are usage errors. Foreground dashboards never idle out. | `7200000` (2 h) |
 | `AGENT_WORKFLOW_DASHBOARD_POLL_MS` | Dashboard polling interval; accepts 500–10000 ms with a 1000 ms minimum effective interval. | `1000` |
 | `AGENT_WORKFLOW_DASHBOARD_OPEN` | Exactly `1`: open a dashboard after CLI run/dynamic/auto launches on a terminal; suppressed in agent environments. Explicit `--open` overrides suppression and non-TTY checks. | off |
 | `BROWSER`, `BROWSER_ARGS` | Program (and extra arguments) used to open dashboard URLs instead of the platform opener (`open` / `xdg-open` / `rundll32`); `BROWSER=none` opens nothing. Vite/Jupyter convention. | platform opener |

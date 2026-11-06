@@ -1304,7 +1304,7 @@ async function launchClaimed(
 	// WP43b: the dashboard link is the first thing a person wants after a launch; when none runs,
 	// say so in one short line instead of silently omitting it.
 	const dashboardLine = data.dashboard
-		? `Dashboard: ${data.dashboard.url}${data.dashboard.started && data.dashboard.auth ? " · first time in this browser? agent-workflow dashboard --open" : ""}`
+		? `Dashboard: ${data.dashboard.url}${data.dashboard.portReason ? ` · ${data.dashboard.portReason}` : ""}${data.dashboard.started && data.dashboard.auth ? " · first time in this browser? agent-workflow dashboard --open" : ""}`
 		: `Dashboard: not running · agent-workflow dashboard --open`;
 	const text = [
 		promptSchemaNotice || undefined,

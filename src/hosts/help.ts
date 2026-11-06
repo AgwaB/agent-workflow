@@ -177,13 +177,16 @@ rules, global AGENTS.md; counts only); tools an executor cannot provide here (st
 are refused before a run); stale run-index entries. Exit 0 when at least one executor is usable, 1
 otherwise. --fix offers the fixable changes (today: a Pi web tool turned off in pi-web-access's
 config), one question each on a terminal; --yes applies them without asking.`,
-	dashboard: `Usage: agent-workflow dashboard [--port <n>] [--readonly] [--open] [--detached | --status | --stop] [--project <dir>]
+	dashboard: `Usage: agent-workflow dashboard [--port <n>] [--readonly] [--auth] [--open] [--detached | --status | --stop | --reset-session] [--project <dir>]
 
-Serve the local web dashboard on 127.0.0.1 only. Prints a private session URL; Ctrl-C stops
-the server, not the runs. --readonly rejects mutations. --open opens a one-time sign-in URL.
---detached prints only the listening address, not a session URL. --status shows pid/port/since;
---stop sends SIGTERM and waits up to 5 seconds for discovery cleanup.
-Port defaults to an available ephemeral port. One server serves one project (default cwd).`,
+Serve one user-level dashboard for all registered projects on 127.0.0.1 only.
+--project chooses the opened view (default cwd), not the server's scope.
+--readonly rejects mutations; --auth requires browser sign-in; --open opens the browser.
+--detached exits after 2 h with no SSE clients and no running/blocked run in any project.
+--status, --stop and --reset-session act on the user server. Ctrl-C stops only the server.
+Default port: 7417, then 7418–7426, then ephemeral. Explicit --port or
+AGENT_WORKFLOW_DASHBOARD_PORT is strict. With AGENT_WORKFLOW_HOME set, reuse the last port
+or choose an ephemeral one. Files: <user home>/dashboard.json, dashboard-session, dashboard-port.`,
 	watch: `Usage: agent-workflow watch [<run-id-or-prefix>] [--follow] [--once] [--interval <seconds>]
                               [--bell]
 

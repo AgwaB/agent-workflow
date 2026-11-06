@@ -953,6 +953,7 @@ async function dispatch(
 						);
 						return EXIT_FAILED;
 					}
+					if (existing.portReason) io.stderr(`${existing.portReason}\n`);
 					io.stdout(`Dashboard listening on 127.0.0.1:${existing.port}\n`);
 					return EXIT_OK;
 				}
@@ -991,6 +992,7 @@ async function dispatch(
 					...(io.now ? { now: io.now } : {}),
 				});
 				await startLock.release();
+				if (dashboard.portReason) io.stderr(`${dashboard.portReason}\n`);
 				if (io.signal) {
 					io.signal.addEventListener("abort", stop, { once: true });
 					if (io.signal.aborted) stop();

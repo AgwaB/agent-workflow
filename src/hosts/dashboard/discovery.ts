@@ -31,6 +31,7 @@ export interface DashboardDiscovery {
 	version: string;
 	home: string;
 	url: string;
+	portReason?: string;
 	port: number;
 	launchKey: string;
 	startedAt: string;
@@ -129,7 +130,10 @@ export async function writeDashboardDiscovery(
 		"pid" | "port" | "launchKey" | "detached" | "idleExitAt"
 	> &
 		Partial<
-			Pick<DashboardDiscovery, "startedAt" | "auth" | "protocol" | "version">
+			Pick<
+				DashboardDiscovery,
+				"startedAt" | "auth" | "protocol" | "version" | "portReason"
+			>
 		>,
 ): Promise<void> {
 	const path = dashboardDiscoveryPath(cwd);
@@ -192,6 +196,9 @@ async function loadDiscovery(
 			launchKey: value.launchKey,
 			startedAt: value.startedAt,
 			auth: value.auth !== false,
+			...(typeof value.portReason === "string" && value.portReason.length <= 300
+				? { portReason: value.portReason }
+				: {}),
 			...(value.detached === true ? { detached: true as const } : {}),
 			...(typeof value.idleExitAt === "string" &&
 			Number.isFinite(Date.parse(value.idleExitAt))
