@@ -144,23 +144,10 @@ export function shortRunName(run: { name?: string; runId: string }, max = 24) {
 		: label.join("");
 }
 
-/** Pending dynamic-controller approvals are blocked tasks with these details (WP29). */
-const APPROVAL_DETAILS = new Set([
-	"dynamic_ui_unavailable",
-	"dynamic_approval_timeout",
-]);
-
-/** The one-word state of an active run: running, unsupervised, approval, blocked. */
+/** The one-word state of an active run: running, unsupervised, blocked. */
 export function activeRunState(item: ActiveRun): string {
 	const { run } = item;
-	if (run.status === "blocked")
-		return run.tasks.some(
-			(task) =>
-				task.status === "blocked" &&
-				APPROVAL_DETAILS.has(String(task.statusDetail)),
-		)
-			? "awaiting approval"
-			: "needs action";
+	if (run.status === "blocked") return "needs action";
 	return item.live ? "running" : "running (no supervisor)";
 }
 

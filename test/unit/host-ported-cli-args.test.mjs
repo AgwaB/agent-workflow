@@ -619,7 +619,6 @@ async function localRun(
 							type: "dynamic",
 							dynamic: {
 								uses: "./helper.mjs",
-								permissions: { approval: "ask" },
 							},
 						}
 					: { id: "fixture", support: { uses: "./helper.mjs" } },
@@ -650,7 +649,7 @@ test("actual scheduler blocked supervise --all is nonzero; mixed failure takes p
 	const cwd = scratch("supervise-blocked");
 	const run = await localRun(
 		cwd,
-		'throw new Error("must not run without approval")',
+		'return {status: "blocked", blockers: ["external access unavailable"]}',
 		true,
 	);
 	const result = cli(cwd, ["supervise", "--all", "--max-runtime-ms", "5000"]);
@@ -660,7 +659,7 @@ test("actual scheduler blocked supervise --all is nonzero; mixed failure takes p
 	const blockedAgain = scratch("supervise-blocked-api");
 	await localRun(
 		blockedAgain,
-		'throw new Error("must not run without approval")',
+		'return {status: "blocked", blockers: ["external access unavailable"]}',
 		true,
 	);
 	assert.equal(
@@ -675,7 +674,7 @@ test("actual scheduler blocked supervise --all is nonzero; mixed failure takes p
 	const mixed = scratch("supervise-mixed");
 	await localRun(
 		mixed,
-		'throw new Error("must not run without approval")',
+		'return {status: "blocked", blockers: ["external access unavailable"]}',
 		true,
 	);
 	await localRun(mixed);
@@ -686,7 +685,7 @@ test("actual scheduler blocked supervise --all is nonzero; mixed failure takes p
 	const mixedApi = scratch("supervise-mixed-api");
 	await localRun(
 		mixedApi,
-		'throw new Error("must not run without approval")',
+		'return {status: "blocked", blockers: ["external access unavailable"]}',
 		true,
 	);
 	await localRun(mixedApi);

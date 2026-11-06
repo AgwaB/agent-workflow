@@ -16,7 +16,7 @@ the remainder after the workflow/action is the task, with one matching quote pai
 - aw dashboard [run]: `workflow_dashboard` (optional full `run`; resolve a prefix with `workflow_status`).
 - aw run <workflow> <task…>: `workflow_run` with `workflow` and `task` (detached).
 - aw dynamic <task…>: `workflow_dynamic` with `task` (detached).
-- aw auto <task…>: `workflow_auto` with `task`; follow its consent/selection requirements
+- aw auto <task…>: `workflow_auto` with `task`; it classifies once and starts the top recommendation without asking
   and choose the top recommendation when the tool permits it. Classifier failure starts nothing.
 - aw stop <run>: `workflow_stop` with `runId` (full id or unambiguous prefix).
 

@@ -163,9 +163,7 @@ function errorStatus(error: unknown): number {
 		return 404;
 	if (
 		error instanceof HostUsageError ||
-		/requires a non-terminal run|no pending approval|not resumable|approval.*(?:stale|resolved)/i.test(
-			message,
-		)
+		/requires a non-terminal run|not resumable/i.test(message)
 	)
 		return 409;
 	return 500;
@@ -824,27 +822,15 @@ export async function startDashboardServer(
 		if (
 			request.method === "POST" &&
 			parts.length === 4 &&
-			["stop", "resume", "approve"].includes(parts[3]!)
+			["stop", "resume"].includes(parts[3]!)
 		) {
-			const body = await readBody(request);
+			await readBody(request);
 			await getRun(source, runId);
-			let result;
-			if (parts[3] === "approve") {
-				if (
-					typeof body.requestId !== "string" ||
-					!/^[A-Za-z0-9_-]{1,256}$/.test(body.requestId) ||
-					(body.decision !== "approve" && body.decision !== "reject")
-				)
-					throw new HttpError(
-						400,
-						"approve needs requestId and decision approve|reject",
-					);
-				result = await source.approve(runId, body.requestId, body.decision);
-			} else
-				result =
-					parts[3] === "stop"
-						? await source.stop(runId)
-						: await source.resume(runId);
+
+			const result =
+				parts[3] === "stop"
+					? await source.stop(runId)
+					: await source.resume(runId);
 			json(response, 200, safe(result));
 			return;
 		}

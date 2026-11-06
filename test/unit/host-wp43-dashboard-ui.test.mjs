@@ -14,7 +14,6 @@ import {
 } from "../helpers/dashboard-ui-fixture-server.mjs";
 
 const running = "workflow_mvt9k2qa_7c41e0";
-const approval = "workflow_mvt9n8dd_19b2f4";
 const failed = "workflow_mvt8x01c_aa3e91";
 const complete = "workflow_mvt23704_e8e6d7";
 const root = new URL("../../src/hosts/dashboard/ui/", import.meta.url);
@@ -45,7 +44,6 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	timeout: 180_000,
 }, async (t) => {
 	const fixture = await createFixtureServer();
-	const approvalSnapshot = structuredClone(fixture.runs.get(approval));
 	t.after(() => fixture.close());
 	const browser = await createBrowser(chrome);
 	t.after(() => browser.close());
@@ -412,30 +410,6 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		),
 	);
 
-	await open(`run=${approval}&dialog=approve`);
-	await browser.waitFor(() => document.querySelector("#dialog")?.open);
-	assert.match(
-		await text("#status-sentence"),
-		/Waiting for you\. The controller needs approval before it can add stages\./,
-	);
-	assert.match(await text("#dialog"), /Run dynamic workflow controller\?/);
-	assert.match(await text("#dialog"), /maxAgents=40, maxConcurrency=4/);
-	assert.match(await text("#dialog"), /Completed tasks are not relaunched/);
-	await browser.evaluate(() =>
-		[...document.querySelectorAll("#dialog button")]
-			.find((el) => el.textContent === "Reject…")
-			.click(),
-	);
-	assert.match(await text("#dialog"), /STAYS BLOCKED/);
-	await browser.click("#confirm-action");
-	await browser.waitFor(() =>
-		document
-			.querySelector("#status-sentence")
-			?.textContent.includes("controller was rejected"),
-	);
-	assert.equal(fixture.mutations.at(-1).body.decision, "reject");
-	assert.equal(fixture.runs.get(approval).status, "blocked");
-
 	await open(`run=${failed}&dialog=resume`);
 	await browser.waitFor(() => document.querySelector("#dialog")?.open);
 	assert.match(
@@ -477,22 +451,6 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		document.querySelector("#notice")?.textContent.includes("Run resumed"),
 	);
 	assert.equal(fixture.mutations.at(-1).action, "resume");
-
-	fixture.runs.set(approval, structuredClone(approvalSnapshot));
-	await open(`run=${approval}&dialog=approve`);
-	await browser.waitFor(
-		() => document.querySelector("#confirm-action")?.textContent === "Approve",
-	);
-	await browser.click("#confirm-action");
-	await browser.waitFor(
-		() =>
-			document.querySelector("#notice")?.textContent === "Approval recorded.",
-	);
-	assert.equal(fixture.mutations.at(-1).body.decision, "approve");
-	assert.equal(
-		fixture.mutations.at(-1).body.requestId,
-		approvalSnapshot.pendingApprovals[0].requestId,
-	);
 
 	await open(`run=${complete}&view=report`);
 	await browser.waitFor(() =>

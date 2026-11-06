@@ -1,5 +1,5 @@
 // The TUI-only /aw board navigates runs, stages, tasks, details, and launch commands.
-// Every read and action goes through the host API. Stop, resume, and approval decisions
+// Every read and action goes through the host API. Stop and resume decisions
 // require confirmation. Refresh every two seconds; other modes use text commands.
 import type { LogsTask, RunSummary } from "../api.js";
 import {
@@ -60,15 +60,7 @@ const LAUNCH_VIEW_LINES = 18;
 const LOG_STREAMS = ["output", "stderr", "events"] as const;
 type LogStreamKind = (typeof LOG_STREAMS)[number];
 type ViewMode = "runs" | "stages" | "tasks" | "task";
-type Prompt =
-	| { kind: "stop" | "resume"; runId: string; label: string }
-	| {
-			kind: "approve";
-			runId: string;
-			requestId: string;
-			label: string;
-			message: string;
-	  };
+type Prompt = { kind: "stop" | "resume"; runId: string; label: string };
 
 const RESUMABLE = new Set(["failed", "interrupted", "blocked"]);
 
@@ -181,7 +173,6 @@ export class AwBoard implements Component {
 		}
 		if (isKey(data, "s")) return this.ask("stop");
 		if (isKey(data, "u")) return this.ask("resume");
-		if (isKey(data, "a")) return this.ask("approve");
 		if (this.mode === "task") this.handleTaskInput(data);
 		else this.handleBoardInput(data);
 	}
@@ -249,15 +240,10 @@ export class AwBoard implements Component {
 		}
 		if (isKey(data, "y")) {
 			this.prompt = undefined;
-			void this.perform(prompt, "approve");
+			void this.perform(prompt);
 			return;
 		}
-		if (prompt.kind === "approve" && isKey(data, "x")) {
-			this.prompt = undefined;
-			void this.perform(prompt, "reject");
-			return;
-		}
-		if (prompt.kind !== "approve" && isKey(data, "n")) {
+		if (isKey(data, "n")) {
 			this.prompt = undefined;
 			this.message = "cancelled";
 			this.render_();
@@ -508,35 +494,19 @@ export class AwBoard implements Component {
 			if (RESUMABLE.has(run.status))
 				this.prompt = { kind, runId: run.runId, label };
 			else this.message = `resume: run is ${run.status}`;
-		} else {
-			const approval = run.pendingApprovals?.[0];
-			if (approval)
-				this.prompt = {
-					kind,
-					runId: run.runId,
-					requestId: approval.requestId,
-					label: approval.controllerSpecId,
-					message: approval.message,
-				};
-			else this.message = "approve: no pending approval";
 		}
 		this.render_();
 	}
 
-	private async perform(
-		prompt: Prompt,
-		decision: "approve" | "reject",
-	): Promise<void> {
+	private async perform(prompt: Prompt): Promise<void> {
 		this.busy = true;
-		this.message = `${prompt.kind === "approve" ? (decision === "approve" ? "approving" : "rejecting") : prompt.kind === "stop" ? "stopping" : "resuming"}…`;
+		this.message = `${prompt.kind === "stop" ? "stopping" : "resuming"}…`;
 		this.render_();
 		try {
 			const outcome =
-				prompt.kind === "approve"
-					? await this.source.approve(prompt.runId, prompt.requestId, decision)
-					: prompt.kind === "stop"
-						? await this.source.stop(prompt.runId)
-						: await this.source.resume(prompt.runId);
+				prompt.kind === "stop"
+					? await this.source.stop(prompt.runId)
+					: await this.source.resume(prompt.runId);
 			this.message = safeLine(outcome.text.split("\n")[0] ?? "");
 		} catch (error) {
 			this.message = safeLine(
@@ -570,22 +540,6 @@ export class AwBoard implements Component {
 	private renderPrompt(width: number): string[] {
 		const prompt = this.prompt!;
 		const t = this.theme;
-		if (prompt.kind === "approve")
-			return boxed(
-				t,
-				"Run dynamic workflow controller?",
-				width,
-				[
-					kvRow(t, "controller", safeLine(prompt.label)),
-					...prompt.message
-						.split("\n")
-						.slice(0, 8)
-						.map((line) => safeLine(line)),
-					"",
-					navHint(t, "y approve · x reject (never asked again) · Esc cancel"),
-				],
-				"warning",
-			);
 		return boxed(
 			t,
 			prompt.kind === "stop" ? "Stop run?" : "Resume run?",
@@ -642,7 +596,7 @@ export class AwBoard implements Component {
 	private footer(width: number): string {
 		const launch =
 			this.launchText() !== undefined ? " · v launch · c copy" : "";
-		const actions = " · s stop · u resume · a approve";
+		const actions = " · s stop · u resume";
 		const text =
 			this.mode === "task"
 				? `←/→ output/stderr/events · ↑/↓ scroll · [/] task · b/Esc back · r refresh${actions} · q close`
@@ -801,18 +755,6 @@ export class AwBoard implements Component {
 		for (const artifact of status.reportArtifacts)
 			lines.push(
 				kvRow(t, artifact.label.toLowerCase(), safeLine(artifact.path)),
-			);
-		if (status.pendingApprovals?.length)
-			lines.push(
-				"",
-				warning(
-					t,
-					`Pending approval${status.pendingApprovals.length > 1 ? "s" : ""} · a`,
-				),
-				...status.pendingApprovals.map(
-					(approval) =>
-						`  ${safeLine(approval.controllerSpecId)} ${muted(t, approval.requestId.slice(0, 12))}`,
-				),
 			);
 		if (full && status.parentUsage) {
 			const total = formatTokenCount(status.parentUsage.totalTokens);

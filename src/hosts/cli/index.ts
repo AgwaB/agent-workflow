@@ -2,7 +2,6 @@ import { runHostCommandHook } from "../host-command.js";
 import { projectId, stateBase } from "../../core/state-location.js";
 // Thin host-neutral CLI: parse flags, call one host API handler, and print text or JSON.
 // Exit codes: 0 success/completed, 1 failed/blocked/interrupted/refused/timeout, 2 usage error.
-// Terminal dialogs handle controller approvals and consent-gated auto comparison.
 import { existsSync, readFileSync } from "node:fs";
 import { setTimeout as dashboardSleep } from "node:timers/promises";
 import {
@@ -25,10 +24,7 @@ import { cliLaunchCommand } from "../launch-capture.js";
 import { createInterface } from "node:readline";
 
 import {
-	type AutoChoicePrompt,
-	type AutoConsent,
 	applyDoctorFix,
-	approveAction,
 	autoAction,
 	doctorAction,
 	doctorFixes,
@@ -142,7 +138,7 @@ export const EXIT_USAGE = 2;
  * One terminal question on `input`/`output` (the CLI passes stdin/stderr). Resolves with the typed
  * line, or "" at end of input or when `signal` aborts. Live bundle 5 (WP39): the answer is settled
  * before `rl.close()`, whose synchronous `close` event used to resolve "" first, so every y/N
- * typed on a real terminal (auto consent, degradation confirmation, dynamic approval, `approve`)
+ * typed on a real terminal
  * was read as no answer.
  */
 export function readlinePrompt(
@@ -174,30 +170,8 @@ export function readlinePrompt(
  * progress output pauses (it was printed on the question's line); the newest progress line is
  * printed once the question is answered.
  */
-const openPrompts = new WeakMap<CliIo, { count: number; held?: string }>();
-
-async function withOpenPrompt<T>(io: CliIo, ask: () => Promise<T>): Promise<T> {
-	const state = openPrompts.get(io) ?? { count: 0 };
-	state.count += 1;
-	openPrompts.set(io, state);
-	try {
-		return await ask();
-	} finally {
-		state.count -= 1;
-		if (state.count === 0) {
-			openPrompts.delete(io);
-			if (state.held !== undefined) io.stderr(state.held);
-		}
-	}
-}
-
-/** Progress output: held (newest line only) while a question is open on this io. */
+/** Progress output to stderr. */
 function progressOutput(io: CliIo, text: string): void {
-	const state = openPrompts.get(io);
-	if (state && state.count > 0) {
-		state.held = text;
-		return;
-	}
 	io.stderr(text);
 }
 
@@ -206,38 +180,6 @@ function defaultPrompt(
 	options: { signal?: AbortSignal } = {},
 ): Promise<string> {
 	return readlinePrompt(process.stdin, process.stderr)(question, options);
-}
-
-/**
- * Terminal dynamic-controller approval shows scope on stderr and asks y/n.
- * Yes runs the controller; no rejects it permanently for this run; no answer or the
- * five-minute timeout leaves it blocked and resumable. Non-terminal or detached
- * calls leave the run blocked with an approve command.
- */
-export function cliDynamicUi(
-	io: CliIo,
-): NonNullable<HostApiContext["dynamicUi"]> {
-	const prompt = io.prompt ?? defaultPrompt;
-	return {
-		hasUI: true,
-		host: "cli",
-		confirm: async (title, message, options) => {
-			const answer = (
-				await withOpenPrompt(io, async () => {
-					io.stderr(`\n${message}\n`);
-					return prompt(
-						`${title} [y/n] `,
-						options?.signal ? { signal: options.signal } : {},
-					);
-				})
-			)
-				.trim()
-				.toLowerCase();
-			if (answer === "y" || answer === "yes") return true;
-			if (answer === "n" || answer === "no") return false;
-			throw new Error("dynamic controller approval was not answered");
-		},
-	};
 }
 
 export function processCliIo(): CliIo {
@@ -270,7 +212,7 @@ function only(parsed: ParsedArgs, count: number, usage: string): string[] {
 }
 
 const LAUNCH_SPEC: OptionSpec = {
-	flags: ["--detach", "--force-new", "--yes", "--json", "--open"],
+	flags: ["--detach", "--force-new", "--json", "--open"],
 	values: [
 		"--executor",
 		"--profile",
@@ -354,7 +296,7 @@ async function launchCommand(
 				? 'Missing task. Usage: agent-workflow run <workflow> "<task>"'
 				: 'Missing task. Usage: agent-workflow dynamic "<task>"',
 		);
-	const options = launchOptionsFromArgs(parsed, io);
+	const options = launchOptionsFromArgs(parsed);
 	const request = {
 		task,
 		...options.request,
@@ -377,15 +319,10 @@ interface CliLaunchOptions {
 	json: boolean;
 	detach: boolean;
 	totalTimeoutMs: number | undefined;
-	/** On a terminal without --yes. */
-	interactive: boolean;
 }
 
 /** The launch options shared by `run`, `dynamic` and `auto`. */
-function launchOptionsFromArgs(
-	parsed: ParsedArgs,
-	io: CliIo,
-): CliLaunchOptions {
+function launchOptionsFromArgs(parsed: ParsedArgs): CliLaunchOptions {
 	const json = parsed.flags.has("--json");
 	const detach = parsed.flags.has("--detach");
 	const timeout = parsed.values.get("--timeout");
@@ -393,8 +330,6 @@ function launchOptionsFromArgs(
 		timeout === undefined ? undefined : parseDuration(timeout);
 	if (detach && totalTimeoutMs !== undefined)
 		throw new HostUsageError("--timeout cannot be combined with --detach");
-	const interactive = io.isTTY && !parsed.flags.has("--yes");
-	const prompt = io.prompt ?? defaultPrompt;
 	const permission = parsed.values.get("--permission-mode");
 	const allow = parsed.values.get("--allow-unverified");
 	const effort = parsed.values.get("--effort");
@@ -426,25 +361,12 @@ function launchOptionsFromArgs(
 		...(effort ? { effort: parseThinkingLevel(effort) } : {}),
 		...(detach ? { detach: true } : {}),
 		...(parsed.flags.has("--force-new") ? { forceNew: true } : {}),
-		...(interactive
-			? {
-					interactive: true,
-					confirmDegradations: async (preview: { text: string }) => {
-						io.stderr(`${preview.text}\n`);
-						const answer = await prompt(
-							"Proceed with these capability degradations? [y/N] ",
-						);
-						return /^y(es)?$/i.test(answer.trim());
-					},
-				}
-			: {}),
 	};
 	return {
 		request,
 		json,
 		detach,
 		totalTimeoutMs,
-		interactive,
 		open: parsed.flags.has("--open"),
 	};
 }
@@ -527,12 +449,7 @@ async function followLaunch(
 	return exitCodeFor(waited);
 }
 
-/**
- * WP32: `auto <task...> [--yes] [launch options]`. On a terminal: the consent question (the task,
- * the candidates and the classifier executor/model; y/N), then a numbered pick-list of the ranked
- * candidates (Enter = the recommendation, n = cancel). Without a terminal nothing is sent unless
- * --yes (the user's explicit consent); then the ranking is printed and nothing starts.
- */
+/** Classify once and launch the top recommendation without prompting. */
 async function autoCommand(
 	argv: readonly string[],
 	ctx: HostApiContext,
@@ -545,48 +462,10 @@ async function autoCommand(
 		throw new HostUsageError(
 			'Missing task. Usage: agent-workflow auto "<task>"',
 		);
-	const options = launchOptionsFromArgs(parsed, io);
-	const prompt = io.prompt ?? defaultPrompt;
-	const yes = parsed.flags.has("--yes");
-	const consent: AutoConsent | undefined = yes
-		? { source: "flag" }
-		: io.isTTY
-			? {
-					source: "prompt",
-					confirm: async (title, message) => {
-						io.stderr(`\n${message}\n`);
-						const answer = await prompt(`${title} [y/N] `);
-						return /^y(es)?$/i.test(answer.trim());
-					},
-				}
-			: undefined;
-	const choose = io.isTTY
-		? async (shown: AutoChoicePrompt): Promise<string | undefined> => {
-				io.stderr(`\n${shown.message}\n`);
-				const count = shown.choices.length;
-				const recommended = shown.recommendedId
-					? shown.choices.findIndex(
-							(choice) => choice.candidateId === shown.recommendedId,
-						)
-					: -1;
-				const answer = (
-					await prompt(
-						`Start which workflow? [1-${count}${recommended >= 0 ? `, Enter = ${recommended + 1}` : ""}, n = cancel] `,
-					)
-				)
-					.trim()
-					.toLowerCase();
-				if (answer === "" && recommended >= 0)
-					return shown.choices[recommended]!.candidateId;
-				if (!/^\d+$/.test(answer)) return undefined;
-				return shown.choices[Number(answer) - 1]?.candidateId;
-			}
-		: undefined;
+	const options = launchOptionsFromArgs(parsed);
 	const out = await autoAction(ctx, {
 		task,
 		...options.request,
-		...(consent ? { consent } : {}),
-		...(choose ? { choose } : {}),
 		...(io.signal ? { signal: io.signal } : {}),
 		launchOrigin: {
 			kind: "command",
@@ -594,76 +473,6 @@ async function autoCommand(
 		},
 	});
 	return followLaunch("auto", out, out.data.launch, options, ctx, io, emit);
-}
-
-/**
- * WP29: `approve <run> [--request <id>] [--reject] [--yes] [--detach] [--timeout <d>] [--json]`.
- * On a terminal the approval question is asked y/n (n rejects, no answer records nothing); without
- * one, --yes is the explicit decision. An approval resumes the run in the foreground (as `resume`)
- * or, with --detach, in a background supervisor.
- */
-async function approveCommand(
-	argv: readonly string[],
-	ctx: HostApiContext,
-	io: CliIo,
-	emit: Emit,
-): Promise<number> {
-	const parsed = parseCommandArgs(argv, {
-		flags: ["--json", "--reject", "--yes", "--detach"],
-		values: ["--request", "--timeout"],
-	});
-	const usage =
-		"approve <run-id-or-prefix> [--request <id>] [--reject] [--yes] [--detach] [--timeout <duration>]";
-	const [runId] = only(parsed, 1, usage);
-	const detach = parsed.flags.has("--detach");
-	const timeout = parsed.values.get("--timeout");
-	if (detach && timeout !== undefined)
-		throw new HostUsageError("--timeout cannot be combined with --detach");
-	const yes = parsed.flags.has("--yes");
-	if (!yes && !io.isTTY)
-		throw new HostUsageError(
-			`approve without a terminal needs --yes (review the approval first: agent-workflow status ${runId})`,
-		);
-	const prompt = io.prompt ?? defaultPrompt;
-	const answered = await approveAction(ctx, {
-		runId: runId!,
-		decision: parsed.flags.has("--reject") ? "reject" : "approve",
-		...(parsed.values.has("--request")
-			? { requestId: parsed.values.get("--request")! }
-			: {}),
-		...(detach ? { detach: true } : {}),
-		...(yes
-			? {}
-			: {
-					confirm: async (title: string, message: string) => {
-						io.stderr(`\n${message}\n`);
-						const answer = (await prompt(`${title} [y/n] `))
-							.trim()
-							.toLowerCase();
-						if (answer === "y" || answer === "yes") return true;
-						if (answer === "n" || answer === "no") return false;
-						return undefined;
-					},
-				}),
-	});
-	const resumed = answered.data.resumed;
-	if (detach || !resumed || resumed.status !== "running") return emit(answered);
-	if (!parsed.flags.has("--json")) io.stdout(`${answered.text}\n`);
-	const waited = await waitUntilSettled(
-		ctx,
-		io,
-		answered.data.runId,
-		timeout === undefined ? undefined : parseDuration(timeout),
-		parsed.flags.has("--json"),
-	);
-	return emit(
-		{
-			...waited,
-			action: "approve",
-			data: { ...answered.data, status: waited.data.status, wait: waited.data },
-		},
-		exitCodeFor(waited),
-	);
 }
 
 async function profileCommand(
@@ -710,7 +519,7 @@ async function dispatch(
 				throw new HostUsageError(
 					"Usage: agent-workflow check <workflow> [<task...>] [--executor <id>] [options]",
 				);
-			const options = launchOptionsFromArgs(parsed, io);
+			const options = launchOptionsFromArgs(parsed);
 			const checked = await checkWorkflowAction(ctx, {
 				workflow,
 				...options.request,
@@ -789,8 +598,6 @@ async function dispatch(
 				exitCodeFor(waited),
 			);
 		}
-		case "approve":
-			return approveCommand(argv, ctx, io, emit);
 		case "stop":
 			return emit(await stopAction(ctx, stopRequest(argv, CLI_SYNTAX)));
 		case "prune":
@@ -1288,7 +1095,6 @@ export async function runAgentWorkflowCli(
 			env: io.env,
 			host: "cli",
 			// WP29: only a terminal can answer; detached launches/resumes never ask (host API).
-			...(io.isTTY ? { dynamicUi: cliDynamicUi(io) } : {}),
 		};
 		// notices prints its own JSON form (`notices list --json`).
 		const emit: Emit = (result, exitCode) => {

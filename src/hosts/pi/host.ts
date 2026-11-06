@@ -1,14 +1,4 @@
-// New in agent-workflow (WP11b): shared plumbing of the Pi host. Every `/aw` action and `aw_*` tool
-// calls one host API handler (../api.ts) with a HostApiContext built from the Pi context: the
-// project cwd, the Pi model registry (`availableModels`, so per-workflow Pi profile preferences are
-// consulted) and Pi's current model/thinking level as the lowest-precedence runtime defaults.
-// Interactive launches use Pi's extension UI (`ctx.ui.confirm` / `ctx.ui.select`) when the session
-// has a dialog-capable UI (TUI or RPC); otherwise launches are non-interactive (degradations are
-// recorded and the run proceeds, as in the CLI with --yes). WP16: without a dialog UI, a declared
-// profile choice falls back to text (the headless choice is made and the choices are listed with
-// `--profile`), and `deps.feedback` carries the status line and completion delivery (feedback.ts).
-// WP35: a native codemode/MCP Pi session lends its host tools to Pi workers (piNativeHostTools).
-// WP29: with a dialog UI, dynamic-controller approvals are asked through `ctx.ui.confirm` (piDynamicUi).
+// Shared Pi host context and profile chooser. Capability degradations never prompt.
 import * as hostApi from "../api.js";
 import type { HostApiContext, HostOutcome, LaunchRequestBase } from "../api.js";
 import { toWorkflowModelInfo } from "../../core/workflow-runtime.js";
@@ -42,7 +32,6 @@ export type PiHostApi = Pick<
 	| "inspectAction"
 	| "waitAction"
 	| "resumeAction"
-	| "approveAction"
 	| "autoAction"
 	| "stopAction"
 	| "pruneAction"
@@ -195,7 +184,6 @@ export function hostContext(
 		...(models ? { availableModels: models } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
 		...(hostTools ? { hostTools } : {}),
-		...(hasDialogUi(ctx) ? { dynamicUi: piDynamicUi(ctx) } : {}),
 	};
 }
 
@@ -204,33 +192,10 @@ export function hasDialogUi(ctx: PiExtensionContext): boolean {
 	return ctx.hasUI === true && !printMode(ctx);
 }
 
-/**
- * Dynamic controllers with approval ask use Pi confirmation with scope, a five-minute
- * timeout, and an abort signal. Yes runs; no permanently rejects this run; timeout
- * leaves it resumable. Only attached calls with dialog UI ask; print and JSON modes
- * retain dynamic_ui_unavailable.
- */
-export function piDynamicUi(
-	ctx: PiExtensionContext,
-): NonNullable<HostApiContext["dynamicUi"]> {
-	return {
-		hasUI: true,
-		host: "pi",
-		confirm: (title, message, options) =>
-			ctx.ui.confirm(title, message, options),
-	};
-}
-
-export const DEGRADATION_CONFIRM_TITLE =
-	"Proceed with these executor capability degradations?";
-
 export const PROFILE_TEXT_FALLBACK_NOTE = "Execution profile (no dialog UI):";
 
 export interface PiLaunchHooks {
-	hooks: Pick<
-		LaunchRequestBase,
-		"interactive" | "confirmDegradations" | "selectProfile"
-	>;
+	hooks: Pick<LaunchRequestBase, "selectProfile">;
 	/** Text-fallback note after a launch without a dialog UI that offered a profile choice. */
 	note(): string | undefined;
 	/** WP34: the user chose "Custom…" in the declared-profile chooser (the launch was cancelled). */
@@ -241,7 +206,7 @@ export interface PiLaunchHooks {
 export const CUSTOM_PROFILE_OPTION = "Custom… (open the profile picker)";
 
 /**
- * WP4d confirmation and the declared-profile chooser through Pi's extension UI, when present
+ * The declared-profile chooser through Pi's extension UI, when present
  * (`ctx.ui.select`). Without a dialog UI (print/JSON mode) the chooser falls back to text: the
  * headless choice (the declared default, else the base spec) is made and the launch output lists
  * every choice with the `--profile` value that selects it. WP34: with `customProfile` the chooser
@@ -256,10 +221,6 @@ export function launchHooks(
 	if (ctx.hasUI)
 		return {
 			hooks: {
-				interactive: true,
-				confirmDegradations: async (preview) =>
-					(await ctx.ui.confirm(DEGRADATION_CONFIRM_TITLE, preview.prompt)) ===
-					true,
 				selectProfile: async (title, choices) => {
 					const offered = options.customProfile
 						? [...choices, CUSTOM_PROFILE_OPTION]

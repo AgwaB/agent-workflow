@@ -22,9 +22,7 @@ export type DynamicWorkflowEventType =
 	| "decision.persisted"
 	| "state-index.persisted"
 	| "result.read"
-	| "budget.used"
-	| "approval.pending"
-	| "approval.resolved";
+	| "budget.used";
 
 export interface DynamicWorkflowEvent {
 	schema: typeof DYNAMIC_EVENT_SCHEMA;
@@ -256,9 +254,7 @@ function isDynamicWorkflowEventType(
 		value === "decision.persisted" ||
 		value === "state-index.persisted" ||
 		value === "result.read" ||
-		value === "budget.used" ||
-		value === "approval.pending" ||
-		value === "approval.resolved"
+		value === "budget.used"
 	);
 }
 

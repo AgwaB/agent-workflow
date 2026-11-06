@@ -1,6 +1,5 @@
 // WP43: a dashboard is a host, not a second run store or scheduler.
 import {
-	approveAction,
 	logsAction,
 	resumeAction,
 	showAction,
@@ -52,11 +51,6 @@ export interface DashboardSource {
 	): Promise<DashboardTaskResult | undefined>;
 	stop(runId: string): Promise<DashboardActionResult>;
 	resume(runId: string): Promise<DashboardActionResult>;
-	approve(
-		runId: string,
-		requestId: string,
-		decision: "approve" | "reject",
-	): Promise<DashboardActionResult>;
 }
 
 /** Apply host redaction to string values, not JSON syntax (messages can contain quotes/newlines). */
@@ -191,19 +185,6 @@ export function hostApiDashboardSource(ctx: HostApiContext): DashboardSource {
 				outcome: result.outcome,
 				status: result.data.status,
 				resetTaskIds: result.data.resetTaskIds,
-				text: result.text,
-			});
-		},
-		async approve(runId, requestId, decision) {
-			const result = await approveAction(ctx, {
-				runId,
-				requestId,
-				decision,
-				detach: true,
-			});
-			return safe({
-				outcome: result.outcome,
-				status: result.data.status,
 				text: result.text,
 			});
 		},

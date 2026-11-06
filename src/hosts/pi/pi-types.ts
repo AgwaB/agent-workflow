@@ -7,7 +7,7 @@ export type PiNotifyLevel = "info" | "warning" | "error";
 
 export interface PiUiContext {
 	notify(message: string, type?: PiNotifyLevel): void;
-	/** Pi dialog options, including timeout and signal for dynamic approvals. */
+	/** Pi dialog options, including timeout and signal. */
 	confirm(
 		title: string,
 		message: string,

@@ -5,16 +5,6 @@ export class DynamicControllerSuspended extends Error {
 	}
 }
 
-export class DynamicControllerNestedApprovalBlocked extends Error {
-	constructor(
-		message: string,
-		public readonly nestedRunId: string,
-	) {
-		super(message);
-		this.name = "DynamicControllerNestedApprovalBlocked";
-	}
-}
-
 export class DynamicControllerBudgetBlocked extends Error {
 	constructor(message: string) {
 		super(message);

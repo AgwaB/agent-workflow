@@ -6,12 +6,11 @@ real agent CLI is called. `manifest.json` records each capture's shape and state
 
 Covered: single, four-stage chain, parallel fan-out/join, foreach 3/18/60,
 mixed success/permanent failure/transient retry, dynamic `ctx.agent` children,
-graph-splice approval, loop, support helper, stop/resume, needs-decision after a
+loop, support helper, stop/resume, needs-decision after a
 consume crash, failure, and long Korean/unbroken labels.
 
 Sanitization replaces run IDs with deterministic IDs, disposable project/repository
 paths with neutral paths, and timestamps with a fixed clock (relative timings kept).
-Approval hashes are local fixture request digests, not authentication credentials.
 The two `long-text` snapshots derive from the real single-stage snapshots: only the
 workflow name, result summary, and activity label are replaced with boundary-length
 text. Agent counts exclude foreach placeholders, support helpers, dynamic

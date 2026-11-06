@@ -4,8 +4,7 @@ import { projectId } from "../../core/state-location.js";
 // workflow_wait, workflow_stop, workflow_inspect, workflow_logs (WP18b), workflow_validate. Each is a thin call into one
 // host API handler (src/hosts/api.ts). Schemas and wording follow the Pi host's `aw_*` tools
 // (src/hosts/pi/tools.ts); differences: `detach` defaults to true (MCP calls are time-limited),
-// every tool takes an optional `cwd` below the server's root, and degradation confirmation goes
-// through MCP elicitation when the client supports it. docs/hosts.md#claude-code-and-codex.
+// every tool takes an optional `cwd` below the server's root. Launch degradations never prompt. docs/hosts.md#claude-code-and-codex.
 // WP28 (owner decision Q7): every CLI command is a tool: workflow_resume, workflow_show,
 // workflow_roles, workflow_agents, workflow_notices, workflow_doctor, workflow_prune,
 // workflow_profile and workflow_supervise (detached). Changing calls (prune without dry run,
@@ -16,18 +15,7 @@ import { projectId } from "../../core/state-location.js";
 // Code status line and the notify-check completion line.
 // WP31: workflow_profile set takes `preset` and `roles` (role → executor/model/effort), op `presets`
 // lists the built-in executor presets.
-// WP29 (parity row 43): workflow_approve answers a dynamic-controller approval a run is blocked on.
-// The server can ask its user only during a tool call, so it never approves while it drives a run:
-// workflow_status/workflow_wait show the open approval (question + request id) and the agent calls
-// workflow_approve after the user decided; the tool asks the user again through elicitation before
-// anything is recorded (accept = as decided; declining the approval question rejects it for the run;
-// cancel/failure changes nothing) and refuses clients without elicitation.
-// WP32 (owner decision Q5): workflow_auto recommends a workflow for a task. Before its one
-// classifier call it asks the user's consent through elicitation (showing the task, the candidates
-// and the classifier executor/model); a second elicitation (a form with one enum field) is the
-// final choice among the ranked workflows, which then start through the normal launch path. A client
-// without elicitation gets the local routing-only shortlist and no call; declining the choice
-// returns the ranked list and starts nothing.
+// Auto classifies once and starts its top recommendation without asking.
 import { randomUUID } from "node:crypto";
 import { realpath, stat } from "node:fs/promises";
 import { basename, isAbsolute, relative, resolve, sep } from "node:path";
@@ -67,7 +55,6 @@ import {
 } from "../../core/role-profiles.js";
 import { THINKING_LEVELS, WorkflowValidationError } from "../../core/types.js";
 import { parseWorkflowNoticesArgs } from "../../core/workflow-notices.js";
-import type { CapabilityPreview } from "../../sdk/requirements.js";
 import {
 	mcpVersionHasToolAnnotations,
 	mcpVersionHasToolTitle,
@@ -121,7 +108,6 @@ export const WORKFLOW_DOCTOR_TOOL = "workflow_doctor";
 export const WORKFLOW_PRUNE_TOOL = "workflow_prune";
 export const WORKFLOW_PROFILE_TOOL = "workflow_profile";
 export const WORKFLOW_SUPERVISE_TOOL = "workflow_supervise";
-export const WORKFLOW_APPROVE_TOOL = "workflow_approve";
 export const WORKFLOW_AUTO_TOOL = "workflow_auto";
 
 /** WP28: tool calls that change state only after the user confirms through MCP elicitation. */
@@ -129,19 +115,10 @@ export const CONFIRMED_CHANGES = [
 	`${WORKFLOW_PRUNE_TOOL} (dryRun=false)`,
 	`${WORKFLOW_PROFILE_TOOL} (set, delete, default, clear-default)`,
 	`${WORKFLOW_NOTICES_TOOL} (acknowledge, clear)`,
-	`${WORKFLOW_APPROVE_TOOL} (approve, reject)`,
-] as const;
-
-/** WP32: tool calls that send a classifier request only after the user's elicitation consent. */
-export const CONSENTED_CALLS = [
-	`${WORKFLOW_AUTO_TOOL} (one classifier request with the task)`,
 ] as const;
 
 /** Bound of one tool result's text (the list action bounds itself the same way). */
 export const HOST_MCP_MAX_TEXT_CHARS = 50_000;
-
-export const DEGRADATION_ELICITATION_TITLE =
-	"Proceed with these executor capability degradations?";
 
 /** Claude Code's MCP tool-call limit when neither MCP_TOOL_TIMEOUT nor a per-server timeout is set (2.1.318). */
 export const CLAUDE_CODE_DEFAULT_TOOL_TIMEOUT_MS = 100_000_000;
@@ -211,9 +188,7 @@ export function hostMcpInstructions(
 		'4. When it finished, quote the result preview and the report paths verbatim (do not re-summarize the report) and give the Dashboard link again. "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing verdict, not a failure.',
 		`5. There is no completion push. If you stop waiting while it runs (for example a rate-limit backoff, nextRetry), tell the user the runId, what it waits for, the Dashboard link, and that they can ask you again or run \`agent-workflow watch <runId>\`. A line containing "agent-workflow: workflow … finished — …" in a later turn (maybe prefixed by a hook) comes from the completion check: relay it with the report path.`,
 		`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a redacted tail of task output; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a spec. ${WORKFLOW_SHOW_TOOL}, ${WORKFLOW_ROLES_TOOL}, ${WORKFLOW_AGENTS_TOOL}, ${WORKFLOW_DOCTOR_TOOL} are read-only. ${WORKFLOW_RESUME_TOOL} continues a failed, interrupted or blocked run and ${WORKFLOW_SUPERVISE_TOOL} supervises a running one: both start model calls, so only when the user asks.`,
-		`A launch that needs the user's OK and could not ask them in a dialog starts nothing and says which limits to show; ask the user, and only if they agree call again with acceptDegradations as it says.`,
-		`Dynamic approvals: a run stopped with actionRequired=true and pendingApprovals (a question and requestId): show the question; only when the user decides, call ${WORKFLOW_APPROVE_TOOL} {runId, requestId, decision} (it confirms in a dialog; approving starts model calls).`,
-		`Choosing a workflow: only when the user asks you to pick one for a task, call ${WORKFLOW_AUTO_TOOL} {task}: it asks in a dialog before one classifier request, then lets the user choose; without dialogs it returns a local shortlist to show the user.`,
+		`Choosing a workflow: when the user asks you to pick one for a task, call ${WORKFLOW_AUTO_TOOL} {task}: it classifies once and starts the top recommendation without asking.`,
 		`Changes that need the user's confirmation in an MCP dialog (refused with the terminal command without dialogs): ${CONFIRMED_CHANGES.join("; ")}. ${WORKFLOW_PRUNE_TOOL} without dryRun=false only previews.`,
 		'Permission mode is "free" by default (workers run without approval prompts; read-only stages stay read-only); set permissionMode "safe", executor ("claude", "codex", "pi") or profile only when the user asks.',
 		`${WORKFLOW_DASHBOARD_TOOL} opens the dashboard in the user's browser after a dialog; it never returns a sign-in URL. Every tool takes an optional cwd inside the project root.`,
@@ -252,12 +227,6 @@ const LAUNCH_OPTION_PROPERTIES = {
 		items: { type: "string" },
 		description:
 			"Optional executor capability keys to accept although unverified (same as --allow-unverified).",
-	},
-	acceptDegradations: {
-		type: "array",
-		items: { type: "string" },
-		description:
-			"Only after a launch was not started because it needs the user's OK and the client could not ask them in a dialog: the capability keys the refusal listed (for example webTools) that the user accepted in this conversation after you showed them the limits. Never set it on your own.",
 	},
 	model: {
 		type: "string",
@@ -836,44 +805,9 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 		},
 	},
 	{
-		name: WORKFLOW_APPROVE_TOOL,
-		title: "Approve agent-workflow dynamic controller",
-		description: `Answer a dynamic-controller approval a run is blocked on (pendingApprovals in ${WORKFLOW_WAIT_TOOL}/${WORKFLOW_STATUS_TOOL}: the question and its requestId). Call it only after the user decided. The user confirms in a dialog (MCP elicitation) before anything is recorded; clients without dialogs are refused with the terminal command. decision "approve": accepting runs the controller and resumes the run (new model calls; detached by default, then call ${WORKFLOW_WAIT_TOOL}); declining the dialog rejects the controller for this run. decision "reject": accepting rejects it for this run (it is never asked again). Cancelling changes nothing.`,
-		inputSchema: {
-			type: "object",
-			additionalProperties: false,
-			properties: {
-				...RUN_ID_PROPERTY,
-				requestId: {
-					type: "string",
-					description:
-						"requestId of the pending approval (from pendingApprovals in the wait/status result).",
-				},
-				decision: {
-					type: "string",
-					enum: ["approve", "reject"],
-					description: "The user's decision.",
-				},
-				detach: {
-					type: "boolean",
-					description:
-						"Optional, default true: after an approval, resume the run in a standalone supervisor so it keeps progressing between tool calls.",
-				},
-				...CWD_PROPERTY,
-			},
-			required: ["runId", "requestId", "decision"],
-		},
-		annotations: {
-			readOnlyHint: false,
-			destructiveHint: true,
-			idempotentHint: false,
-			openWorldHint: true,
-		},
-	},
-	{
 		name: WORKFLOW_AUTO_TOOL,
 		title: "Choose and run an agent-workflow workflow",
-		description: `Recommend an agent-workflow workflow for a task and start the one the user chooses. Call it only when the user asks you to pick a workflow for a concrete task (if the user names a workflow, use ${WORKFLOW_RUN_TOOL}). The user is asked in a dialog (MCP elicitation) before the task is sent to one classifier request on the run's default executor; a second dialog lets the user choose the workflow (or none), which then starts like ${WORKFLOW_RUN_TOOL} (detached by default; then call ${WORKFLOW_WAIT_TOOL}). Without dialog support nothing is sent: the result is a local shortlist with the ${WORKFLOW_RUN_TOOL} calls to start one; show it and let the user pick. If the user declines a dialog, nothing starts; do not retry unless the user asks.`,
+		description: `Classify a task once and start the top recommendation without consent or choice dialogs. Use only when the user asks you to choose a workflow; if they name one, use ${WORKFLOW_RUN_TOOL}. Classifier failure starts nothing. Launches are detached by default; then use ${WORKFLOW_WAIT_TOOL}.`,
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,
@@ -1036,7 +970,6 @@ export type HostMcpApi = Pick<
 	| "profileAction"
 	| "workflowPreferenceAction"
 	| "superviseDetachedAction"
-	| "approveAction"
 	| "autoAction"
 >;
 
@@ -1122,28 +1055,7 @@ function rejectUnknown(name: string, params: Record<string, unknown>) {
 			throw new UsageError(`unknown parameter ${key}`);
 }
 
-/** Tool arguments → LaunchRequestBase fields (without the confirmation hooks). */
-/**
- * WP32: unique option labels of the auto choice (the enum values of the elicitation form), in the
- * ranked order. WP39b (O4): no number prefix; Codex numbers enum options itself ("1. 1. …") and
- * Claude Code lists them in order. Equal labels get their scope (`review [user]`), then a counter.
- */
-export function autoChoiceOptions(
-	choices: readonly hostApi.AutoCandidateView[],
-): string[] {
-	const counts = new Map<string, number>();
-	for (const choice of choices)
-		counts.set(choice.label, (counts.get(choice.label) ?? 0) + 1);
-	const seen = new Set<string>();
-	return choices.map((choice) => {
-		const base = `${choice.label}${(counts.get(choice.label) ?? 0) > 1 ? ` [${choice.scope}]` : ""}${choice.recommended ? " (recommended)" : ""}`;
-		let option = base;
-		for (let n = 2; seen.has(option); n += 1) option = `${base} #${n}`;
-		seen.add(option);
-		return option;
-	});
-}
-
+/** Tool arguments → LaunchRequestBase fields. */
 export function launchRequestFromArguments(
 	params: Record<string, unknown>,
 ): LaunchRequestBase {
@@ -1325,7 +1237,7 @@ export function clientSupportsUrlElicitation(
 export type ElicitationAnswer = "accept" | "decline" | "cancel" | "error";
 
 /**
- * WP13 elicitation helper (WP28: shared by the degradation confirmation and the confirmed changes):
+ * Elicitation helper for confirmed destructive/settings changes:
  * one form-mode `elicitation/create` with an empty form. Only `accept` lets the caller go on.
  */
 export async function elicitConfirmation(
@@ -1360,51 +1272,6 @@ export async function elicitConfirmation(
  * WP32: one form-mode elicitation with a single required enum field (the final choice of
  * workflow_auto). Resolves with the chosen index, or the answer when nothing was chosen.
  */
-export async function elicitChoice(
-	call: McpToolCallContext,
-	message: string,
-	field: { title: string; options: string[]; default?: string },
-	what: string,
-	log: (message: string) => void,
-): Promise<
-	{ index: number } | { answer: Exclude<ElicitationAnswer, "accept"> }
-> {
-	try {
-		const answer = asRecord(
-			await call.sendRequest(
-				"elicitation/create",
-				{
-					...(call.protocolVersion === "2025-06-18" ? {} : { mode: "form" }),
-					message,
-					requestedSchema: {
-						type: "object",
-						properties: {
-							workflow: {
-								type: "string",
-								title: field.title,
-								enum: field.options,
-								...(field.default ? { default: field.default } : {}),
-							},
-						},
-						required: ["workflow"],
-					},
-				},
-				call.signal,
-			),
-		);
-		if (answer?.action !== "accept")
-			return { answer: answer?.action === "decline" ? "decline" : "cancel" };
-		const chosen = asRecord(answer.content)?.workflow;
-		const index =
-			typeof chosen === "string" ? field.options.indexOf(chosen) : -1;
-		return index >= 0 ? { index } : { answer: "cancel" };
-	} catch (error) {
-		log(
-			`${what} failed (treated as cancelled): ${error instanceof Error ? error.message : String(error)}`,
-		);
-		return { answer: "error" };
-	}
-}
 
 /** One POSIX shell word (for the terminal command of a refused change). */
 export function shellWord(value: string): string {
@@ -1589,19 +1456,8 @@ function launchNext(
 	return undefined;
 }
 
-/** WP29: the next step of a result that shows open approvals. */
-function approvalNext(
-	runId: string,
-	pending: hostApi.PendingDynamicApproval[] | undefined,
-): string | undefined {
-	if (!pending?.length) return undefined;
-	return `Next: the run waits for the user's approval of ${pending.map((approval) => `dynamic controller ${approval.controllerSpecId} (requestId ${approval.requestId})`).join(", ")}. Show the user the approval question above and ask them to approve or reject. Only after they decide, call ${WORKFLOW_APPROVE_TOOL} {"runId":"${runId}","requestId":"…","decision":"approve"|"reject"}; it asks them to confirm in a dialog.`;
-}
-
 function waitNext(data: WaitData, waitHint = ""): string {
 	const state = `[${WORKFLOW_WAIT_TOOL}] runId=${data.runId} status=${data.status} terminal=${data.terminal} actionRequired=${data.actionRequired} stillRunning=${data.stillRunning}`;
-	const approval = approvalNext(data.runId, data.pendingApprovals);
-	if (approval) return `${state}\n${approval}`;
 	if (data.stillRunning) {
 		const waitingFor = data.nextRetry
 			? `a scheduled retry at ${data.nextRetry.at}${data.nextRetry.reason ? ` (${data.nextRetry.reason})` : ""}`
@@ -1702,76 +1558,6 @@ export function createHostMcpService(
 		env,
 		host: options.host,
 	});
-
-	/**
-	 * Degradation confirmation (WP4d). Only a run whose limits need the user's OK asks; one whose
-	 * limits are only recorded (free mode, unknown cost) starts without a question. A client that
-	 * shows dialogs asks in one (elicitation); its `decline` is the user's no. 2026-11-04 (owner:
-	 * "if confirmation is required, ask; otherwise skip"): where the user cannot be asked in a
-	 * dialog — the client has none (the Claude desktop app's chat), or answers it without the user
-	 * (`cancel` at once: Claude Code print mode, e.g. the app's Code tab, and agy) — nothing starts;
-	 * the result (`confirmNext`) tells the agent to show the user the limits and, when they agree in
-	 * the conversation, call again with `acceptDegradations` naming the keys (`confirmedVia: "chat"`).
-	 * Before 2026-11-04 a client without dialogs started such runs unasked ("non-interactive").
-	 */
-	const confirmHooks = (
-		call: McpToolCallContext,
-		args: Record<string, unknown>,
-		state: { unanswered?: CapabilityPreview } = {},
-	): Pick<LaunchRequestBase, "interactive" | "confirmDegradations"> => {
-		const accepted = args.acceptDegradations;
-		if (
-			accepted !== undefined &&
-			(!Array.isArray(accepted) ||
-				accepted.some((key) => typeof key !== "string"))
-		)
-			throw new UsageError("acceptDegradations must be an array of strings");
-		if (Array.isArray(accepted) && accepted.length > 0)
-			return {
-				interactive: true,
-				confirmDegradations: async (preview: CapabilityPreview) =>
-					preview.needsOk.every((key) => accepted.includes(key))
-						? "chat"
-						: false,
-			};
-		if (
-			!clientSupportsFormElicitation(
-				call.protocolVersion,
-				call.clientCapabilities,
-			)
-		)
-			return {
-				interactive: true,
-				confirmDegradations: async (preview: CapabilityPreview) => {
-					state.unanswered = preview;
-					return "unasked";
-				},
-			};
-		return {
-			interactive: true,
-			confirmDegradations: async (preview: CapabilityPreview) => {
-				const answer = await elicitConfirmation(
-					call,
-					`${DEGRADATION_ELICITATION_TITLE}\n\n${preview.prompt}`,
-					"degradation confirmation",
-					log,
-				);
-				if (answer === "accept") return true;
-				if (answer === "decline") return false;
-				state.unanswered = preview;
-				return "unasked";
-			},
-		};
-	};
-	/** The next step of a launch whose limits need the user's OK and nobody could ask (above). */
-	const confirmNext = (
-		retry: string,
-		state: { unanswered?: CapabilityPreview },
-	): string | undefined => {
-		const preview = state.unanswered;
-		if (!preview) return undefined;
-		return `Nothing started: this run needs the user's OK, and this client could not ask them in a dialog (it has none, or answered it without the user). Ask the user in your reply — show these limits and ask whether to proceed:\n\n${preview.prompt}\n\nOnly if they agree, call ${retry} plus acceptDegradations: ${JSON.stringify(preview.needsOk)}. If they do not, start nothing.`;
-	};
 
 	/**
 	 * WP28: gate of a changing call. Undefined = the user accepted, go on; otherwise the refusal
@@ -2125,7 +1911,6 @@ export function createHostMcpService(
 		},
 		[WORKFLOW_RUN_TOOL]: async (args, call) => {
 			const ctx = await context(args, call);
-			const confirmation: { unanswered?: CapabilityPreview } = {};
 			const workflow = requiredString(args, "workflow");
 			const launched = await api.runWorkflowAction(ctx, {
 				workflow,
@@ -2136,27 +1921,17 @@ export function createHostMcpService(
 					name: WORKFLOW_RUN_TOOL,
 					arguments: { ...args },
 				},
-				...confirmHooks(call, args, confirmation),
 			});
-			const confirm = confirmNext(
-				`${WORKFLOW_RUN_TOOL} again with the same arguments`,
-				confirmation,
-			);
-			const how =
-				confirm === undefined
-					? await delivery(ctx, launched.data, call)
-					: "wait";
+			const how = await delivery(ctx, launched.data, call);
 			return finish(
 				call,
 				withoutWaitLine(launched, how),
 				launched.data,
-				confirm ?? launchNext(launched.data, how, waitHint),
-				confirm !== undefined,
+				launchNext(launched.data, how, waitHint),
 			);
 		},
 		[WORKFLOW_DYNAMIC_TOOL]: async (args, call) => {
 			const ctx = await context(args, call);
-			const confirmation: { unanswered?: CapabilityPreview } = {};
 			const launched = await api.runDynamicAction(ctx, {
 				...launchRequestFromArguments(args),
 				launchOrigin: {
@@ -2164,31 +1939,17 @@ export function createHostMcpService(
 					name: WORKFLOW_DYNAMIC_TOOL,
 					arguments: { ...args },
 				},
-				...confirmHooks(call, args, confirmation),
 			});
-			const confirm = confirmNext(
-				`${WORKFLOW_DYNAMIC_TOOL} again with the same arguments`,
-				confirmation,
-			);
-			const how =
-				confirm === undefined
-					? await delivery(ctx, launched.data, call)
-					: "wait";
+			const how = await delivery(ctx, launched.data, call);
 			return finish(
 				call,
 				withoutWaitLine(launched, how),
 				launched.data,
-				confirm ?? launchNext(launched.data, how, waitHint),
-				confirm !== undefined,
+				launchNext(launched.data, how, waitHint),
 			);
 		},
 		[WORKFLOW_AUTO_TOOL]: async (args, call) => {
 			const ctx = await context(args, call);
-			const elicitation = clientSupportsFormElicitation(
-				call.protocolVersion,
-				call.clientCapabilities,
-			);
-			const confirmation: { unanswered?: CapabilityPreview } = {};
 			const auto = await api.autoAction(ctx, {
 				...launchRequestFromArguments(args),
 				launchOrigin: {
@@ -2196,81 +1957,15 @@ export function createHostMcpService(
 					name: WORKFLOW_AUTO_TOOL,
 					arguments: { ...args },
 				},
-				...confirmHooks(call, args, confirmation),
 				...(call.signal ? { signal: call.signal } : {}),
-				...(elicitation
-					? {
-							consent: {
-								source: "elicitation" as const,
-								// WP39b O1: only `decline` is the user's no; `cancel`/an error is the
-								// client's (e.g. Claude Code print mode auto-cancels).
-								confirm: async (title: string, message: string) => {
-									const answer = await elicitConfirmation(
-										call,
-										`${title}\n\n${message}`,
-										"auto consent",
-										log,
-									);
-									return answer === "accept"
-										? true
-										: answer === "decline"
-											? false
-											: undefined;
-								},
-							},
-							choose: async (prompt: hostApi.AutoChoicePrompt) => {
-								const options = autoChoiceOptions(prompt.choices);
-								const recommended = prompt.choices.findIndex(
-									(choice) => choice.candidateId === prompt.recommendedId,
-								);
-								const chosen = await elicitChoice(
-									call,
-									`${prompt.title}\n\n${prompt.message}\n\nDecline to start nothing.`,
-									{
-										title: "Workflow to start",
-										options,
-										...(recommended >= 0
-											? { default: options[recommended] }
-											: {}),
-									},
-									"auto choice",
-									log,
-								);
-								return "index" in chosen
-									? prompt.choices[chosen.index]?.candidateId
-									: undefined;
-							},
-						}
-					: {}),
 			});
 			const data = auto.data;
-			let next: string | undefined;
-			let how: Delivery = "wait";
-			if (data.phase === "launched" && confirmation.unanswered)
-				// Not again through workflow_auto: that would compare (and ask) once more.
-				next = confirmNext(
-					data.selected?.kind === "direct-dynamic"
-						? `${WORKFLOW_DYNAMIC_TOOL} with the same task`
-						: `${WORKFLOW_RUN_TOOL} with the selected workflow and the same task`,
-					confirmation,
-				);
-			else if (data.phase === "launched" && data.launch) {
-				how = await delivery(ctx, data.launch, call);
-				next = launchNext(data.launch, how, waitHint);
-			} else if (data.phase === "consent-unavailable")
-				next = `Next: show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}). Nothing was sent and nothing started.`;
-			else if (data.phase === "ranked" || data.phase === "cancelled")
-				next = `Nothing started. If the user then names a workflow, call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"}; do not call ${WORKFLOW_AUTO_TOOL} again unless the user asks.`;
-			else if (data.phase === "consent-declined")
-				next = `The user declined: nothing was sent and nothing started. Do not retry unless the user asks.`;
-			else if (data.phase === "consent-cancelled")
-				next = `The client cancelled the confirmation dialog or cannot ask the user here (no answer was given): nothing was sent and nothing started. Show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}).`;
+			const how = data.launch ? await delivery(ctx, data.launch, call) : "wait";
 			return finish(
 				call,
 				withoutWaitLine(auto, how),
 				data,
-				next,
-				data.phase === "launched" && confirmation.unanswered !== undefined,
+				data.launch ? launchNext(data.launch, how, waitHint) : undefined,
 			);
 		},
 		[WORKFLOW_STATUS_TOOL]: async (args, call) => {
@@ -2279,17 +1974,7 @@ export function createHostMcpService(
 				await context(args, call),
 				runId ? { runId } : {},
 			);
-			return finish(
-				call,
-				status,
-				status.data,
-				status.data.run
-					? approvalNext(
-							status.data.run.runId,
-							status.data.run.pendingApprovals,
-						)
-					: undefined,
-			);
+			return finish(call, status, status.data);
 		},
 		[WORKFLOW_WAIT_TOOL]: async (args, call) => {
 			const timeoutMs = args.timeoutMs;
@@ -2413,60 +2098,7 @@ export function createHostMcpService(
 					: undefined,
 			);
 		},
-		[WORKFLOW_APPROVE_TOOL]: async (args, call) => {
-			const runId = requiredString(args, "runId");
-			const requestId = requiredString(args, "requestId");
-			const decision = requiredString(args, "decision");
-			if (decision !== "approve" && decision !== "reject")
-				throw new UsageError('decision must be "approve" or "reject"');
-			const detach = optionalBoolean(args, "detach") ?? true;
-			const ctx = await context(args, call);
-			if (
-				!clientSupportsFormElicitation(
-					call.protocolVersion,
-					call.clientCapabilities,
-				)
-			) {
-				const terminal = `${ctx.cwd === options.root ? "" : `cd ${shellWord(ctx.cwd)} && `}agent-workflow approve ${shellWord(runId)} --request ${shellWord(requestId)}${decision === "reject" ? " --reject" : ""}`;
-				return refusedChange(
-					call,
-					"approve",
-					"unsupported",
-					terminal,
-					`Not changed: answering a dynamic-controller approval needs the user's confirmation, and this MCP client does not support confirmation dialogs (elicitation). The user can answer it in a terminal instead:\n  ${terminal}`,
-				);
-			}
-			const answered = await api.approveAction(ctx, {
-				runId,
-				requestId,
-				decision,
-				...(detach ? { detach: true } : {}),
-				confirm: async (title, message) => {
-					const answer = await elicitConfirmation(
-						call,
-						`${title}\n\n${message}`,
-						"approval confirmation",
-						log,
-					);
-					return answer === "accept"
-						? true
-						: answer === "decline"
-							? false
-							: undefined;
-				},
-			});
-			return finish(
-				call,
-				answered,
-				answered.data,
-				answered.data.decision === "approved" &&
-					answered.data.status === "running"
-					? `Next: call ${WORKFLOW_WAIT_TOOL} {"runId":"${answered.data.runId}"} and repeat while stillRunning is true.`
-					: answered.data.decision === "unanswered"
-						? "Nothing was recorded; do not retry unless the user asks."
-						: undefined,
-			);
-		},
+
 		[WORKFLOW_SHOW_TOOL]: async (args, call) => {
 			const ref = requiredString(args, "ref");
 			const raw = optionalBoolean(args, "raw");

@@ -75,46 +75,6 @@ function session(cwd, env, options) {
 	return created;
 }
 
-const FINAL = "Confirm selected workflow launch";
-
-for (const selectedKind of ["named-workflow", "direct-dynamic"]) {
-	for (const cancellation of ["Escape", "session invalidation"]) {
-		test(`auto ${selectedKind} ${cancellation} before publication reaches the engine dispatch boundary`, async () => {
-			const { cwd, env, log } = await setup(selectedKind);
-			const pi = session(cwd, env, {
-				async confirm(title, _message, current) {
-					if (title !== FINAL) return true;
-					if (cancellation === "Escape") return false;
-					// The session ends while the final confirmation is open; the stale dialog
-					// then answers yes. The ended session's selection must start nothing.
-					await current.shutdown();
-					return true;
-				},
-			});
-			await pi.command(`auto "Cancel ${selectedKind} before dispatch."`);
-			assert.deepEqual(
-				pi.confirms.map(({ title }) => title),
-				["Send this task to pi to compare workflows?", FINAL],
-			);
-			const [shown] = pi.ctx.selects;
-			assert.match(
-				shown.options[0],
-				new RegExp(`^1\\. ${LABEL[selectedKind]} · recommended`),
-			);
-			const calls = submits(log);
-			assert.equal(calls.classifier.length, 1);
-			assert.equal(calls.workflow.length, 0);
-			assert.equal(await runCount(cwd), 0);
-			const notes = pi.ctx.notes.map(({ message }) => message).join("\n");
-			assert.match(
-				notes,
-				/Auto selection cancelled\. No workflow has been started\./,
-			);
-			assert.doesNotMatch(notes, /Selected:|Workflow started|Run: workflow_/);
-		});
-	}
-}
-
 test("uncancelled auto named launch still executes its first support action", async () => {
 	const { cwd, env, log } = await setup("named-workflow");
 	const pi = session(cwd, env);
@@ -151,7 +111,7 @@ for (const selectedKind of ["named-workflow", "direct-dynamic"]) {
 		const runId = (await runIds(cwd)).find((id) => id !== other);
 		assert.ok(runId, JSON.stringify(pi.ctx.notes));
 		const created = await store.readRunRecord(cwd, runId);
-		assert.equal(created.launch.routingMode, "auto-confirmed");
+		assert.equal(created.launch.routingMode, "auto");
 		assert.equal(created.launch.requestKind, selectedKind);
 		await pi.command(`stop ${runId}`);
 		await eventually(
@@ -223,7 +183,7 @@ for (const selectedKind of ["named-workflow", "direct-dynamic"]) {
 		);
 		assert.deepEqual(
 			pi.confirms.map(({ title }) => title),
-			["Send this task to pi to compare workflows?"],
+			[],
 		);
 		assert.equal(submits(log).workflow.length, 0);
 		assert.equal(await runCount(cwd), 0);

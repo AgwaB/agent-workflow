@@ -1,4 +1,4 @@
-// 2026-11-01: a failure in "Needs you" can be dismissed (this browser); approvals cannot; the top
+// 2026-11-01: a failure in "Needs you" can be dismissed (this browser); executor decisions cannot; the top
 // count follows; "Show N dismissed" restores; a new failure of the same run shows again.
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -23,7 +23,7 @@ const rail = (browser) =>
 			.trim(),
 	}));
 
-test("Needs you: dismiss a failure, keep approvals, restore, and see a new failure again", {
+test("Needs you: dismiss a failure, keep executor decisions, restore, and see a new failure again", {
 	skip: chrome
 		? false
 		: "Chrome is not installed (set CHROME to a local executable)",
@@ -47,7 +47,7 @@ test("Needs you: dismiss a failure, keep approvals, restore, and see a new failu
 
 	await browser.click("#rail .need-dismiss");
 	now = await rail(browser);
-	assert.deepEqual(now.needs, ["Approve the controller?"]);
+	assert.deepEqual(now.needs, ["Controller needs a decision"]);
 	assert.equal(now.restore, "Show 1 dismissed");
 	assert.equal(now.top, "Needs you 1");
 	assert.equal(
@@ -62,7 +62,7 @@ test("Needs you: dismiss a failure, keep approvals, restore, and see a new failu
 	await browser.waitFor(() => document.querySelector("#rail .need-restore"));
 	assert.deepEqual(
 		(await rail(browser)).needs,
-		["Approve the controller?"],
+		["Controller needs a decision"],
 		"kept on reload",
 	);
 

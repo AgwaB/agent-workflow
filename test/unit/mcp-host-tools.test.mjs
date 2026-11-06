@@ -191,9 +191,7 @@ test("initialize and tools/list: server name, instructions, every tool gated per
 			"workflow_prune",
 			"workflow_profile",
 			"workflow_supervise",
-			// WP29: dynamic-controller approvals (mcp-host-wp29-approve.test.mjs).
-			"workflow_approve",
-			// WP32: auto workflow selection with consent (host-wp32-auto.test.mjs).
+			// WP32: automatic workflow selection (host-wp32-auto.test.mjs).
 			"workflow_auto",
 			"workflow_dashboard",
 			// 2026-10-30: the launch preflight without the launch (host-check-preflight.test.mjs).
@@ -545,14 +543,8 @@ test("host identity, detach default true, launch options and cwd reach the host 
 	assert.equal(run.ctx.cwd, join(cwd, "sub"));
 	assert.equal(run.ctx.env, env);
 	const { confirmDegradations, interactive, ...request } = run.request;
-	// 2026-11-04: a client without dialogs is still asked, in the conversation: the launch is
-	// interactive and the hook answers "unasked" (the agent then asks the user).
-	assert.equal(interactive, true, "no elicitation capability");
-	assert.equal(typeof confirmDegradations, "function");
-	assert.equal(
-		await confirmDegradations({ needsOk: ["webTools"], prompt: "x" }),
-		"unasked",
-	);
+	assert.equal(interactive, undefined);
+	assert.equal(confirmDegradations, undefined);
 	assert.deepEqual(request, {
 		workflow: "deep-review",
 		task: "review this",
@@ -590,8 +582,8 @@ test("host identity, detach default true, launch options and cwd reach the host 
 		interactive: dynamicInteractive,
 		...dynamicRequest
 	} = dynamic.request;
-	assert.equal(dynamicInteractive, true);
-	assert.equal(typeof dynamicConfirm, "function");
+	assert.equal(dynamicInteractive, undefined);
+	assert.equal(dynamicConfirm, undefined);
 	assert.deepEqual(dynamicRequest, {
 		task: "explore",
 		launchOrigin: {
@@ -675,217 +667,52 @@ test("wait: bounded per call (cap 45 s), stillRunning until the loop reaches ter
 	);
 });
 
-test("degradation confirmation: a dialog where the client shows one; otherwise the agent asks in the conversation; no question when nothing needs an OK", async () => {
+test("degraded MCP launches never elicit or ask in chat on any client", async () => {
 	const { cwd, env } = await project();
 	const executor = fixture({ capabilities: DEGRADED });
-	const base = {
-		workflow: "wf.json",
-		executor,
-		permissionMode: "safe",
-		detach: false,
-	};
-	const elicitations = [];
-	let answer = { action: "accept", content: {} };
-	const client = await connect(
-		{
-			root: cwd,
-			env,
-			onRequest: async (message) => {
-				elicitations.push(message);
-				return answer;
-			},
-		},
-		"2025-06-18",
-		{ elicitation: {} },
-	);
-
-	const accepted = await client.call("workflow_run", {
-		...base,
-		task: "accepted",
-	});
-	assert.equal(accepted.isError, false, text(accepted));
-	assert.equal(
-		accepted.structuredContent.data.capability.confirmation,
-		"confirmed",
-	);
-	assert.equal(elicitations.length, 1);
-	const request = elicitations[0];
-	assert.equal(request.method, "elicitation/create");
-	assert.equal(request.params.mode, undefined, "2025-06-18 has no mode");
-	assert.match(
-		request.params.message,
-		/^Proceed with these executor capability degradations\?\n\n/,
-	);
-	assert.match(request.params.message, /global AGENTS\.md loaded/);
-	// The short dialog text (preview.prompt), not the full per-stage report.
-	assert.match(request.params.message, /\nNeeds your OK:\n/);
-	assert.doesNotMatch(request.params.message, /CAPABILITY_/);
-	assert.deepEqual(request.params.requestedSchema, {
-		type: "object",
-		properties: {},
-	});
-
-	for (const reply of [
-		{ action: "decline" },
-		{ action: "cancel" },
-		{ error: { code: -32603, message: "no UI" } },
-	]) {
-		answer = reply;
-		const declined = await client.call("workflow_run", {
-			...base,
-			task: `declined ${JSON.stringify(reply)}`,
-		});
-		// 2026-11-05: a user's no is an error result; "ask the user" (cancel, no UI) is not.
-		assert.equal(declined.isError, reply.action === "decline");
-		assert.equal(declined.structuredContent.outcome, "refused");
-		// decline is the user's no; cancel or an error means nobody asked the user.
-		assert.equal(
-			declined.structuredContent.data.refusal.code,
-			reply.action === "decline"
-				? "CAPABILITY_DEGRADATION_DECLINED"
-				: "CAPABILITY_CONFIRMATION_REQUIRED",
-		);
-	}
-	assert.equal(elicitations.length, 4);
-	assert.ok(client.logs.some((line) => /treated as declined/.test(line)));
-
-	// 2026-11-03 (the Claude desktop app's Code tab = Claude Code print mode answers every dialog with
-	// cancel): a cancelled or failed dialog tells the agent to ask the user in the conversation; with
-	// the user's yes the agent calls again with acceptDegradations and the run starts, recorded as
-	// confirmed in chat. A decline stays a plain no.
-	answer = { action: "cancel" };
-	const unasked = await client.call("workflow_run", {
-		...base,
-		task: "unasked",
-	});
-	// 2026-11-05: a question to the user, not a failed call (the desktop chat showed it as failed).
-	assert.equal(unasked.isError, false);
-	assert.match(
-		text(unasked),
-		/Nothing started: this run needs the user's OK, and this client could not ask them in a dialog/,
-	);
-	assert.match(text(unasked), /the user was not asked yet/);
-	assert.doesNotMatch(text(unasked), /were declined/);
-	assert.match(text(unasked), /acceptDegradations: \["contextIsolation"\]/);
-	assert.match(text(unasked), /Needs your OK:/);
-	answer = { action: "decline" };
-	const refusedNo = await client.call("workflow_run", {
-		...base,
-		task: "said no",
-	});
-	assert.doesNotMatch(text(refusedNo), /acceptDegradations/);
-	const asked = elicitations.length;
-	const wrongKey = await client.call("workflow_run", {
-		...base,
-		task: "unasked",
-		acceptDegradations: ["webTools"],
-	});
-	assert.equal(wrongKey.isError, true, "the keys must cover what needs an OK");
-	const inChat = await client.call("workflow_run", {
-		...base,
-		task: "unasked",
-		acceptDegradations: ["contextIsolation"],
-	});
-	assert.equal(inChat.isError, false, text(inChat));
-	assert.equal(
-		elicitations.length,
-		asked,
-		"no dialog when the user agreed in chat",
-	);
-	assert.deepEqual(
-		[
-			inChat.structuredContent.data.capability.confirmation,
-			inChat.structuredContent.data.capability.confirmedVia,
-		],
-		["confirmed", "chat"],
-	);
-	await waitLoop(client, inChat.structuredContent.data.runId);
-	await waitLoop(client, accepted.structuredContent.data.runId);
-
-	// 2025-11-25 form mode carries mode: "form".
-	const formRequests = [];
-	const modern = await connect(
-		{
-			root: cwd,
-			env,
-			onRequest: async (message) => {
-				formRequests.push(message);
-				return { action: "accept" };
-			},
-		},
-		"2025-11-25",
-		{ elicitation: { form: {} } },
-	);
-	const modernRun = await modern.call("workflow_run", {
-		...base,
-		task: "modern",
-	});
-	assert.equal(formRequests[0].params.mode, "form");
-	assert.equal(
-		modernRun.structuredContent.data.capability.confirmation,
-		"confirmed",
-	);
-	await waitLoop(modern, modernRun.structuredContent.data.runId);
-
-	// No elicitation capability, URL-only elicitation, or a pre-2025-06-18 revision (2026-11-04,
-	// owner: "if confirmation is required, ask; otherwise skip"): a run that needs an OK starts nothing
-	// and the agent asks in the conversation; with the user's yes (acceptDegradations) it starts. No
-	// dialog is ever sent to such a client.
 	for (const [version, capabilities] of [
-		["2025-06-18", {}],
+		["2025-06-18", { elicitation: {} }],
+		["2025-11-25", { elicitation: { form: {} } }],
 		["2025-11-25", { elicitation: { url: {} } }],
-		["2025-03-26", { elicitation: {} }],
+		["2025-03-26", {}],
+		["2025-06-18", {}],
 	]) {
 		const asked = [];
-		const headless = await connect(
+		const client = await connect(
 			{
 				root: cwd,
 				env,
 				onRequest: async (message) => {
 					asked.push(message);
-					return { action: "decline" };
+					throw new Error("launch must not ask");
 				},
 			},
 			version,
 			capabilities,
 		);
-		const task = `headless ${version} ${JSON.stringify(capabilities)}`;
-		const unaskedHere = await headless.call("workflow_run", { ...base, task });
-		assert.equal(unaskedHere.isError, false, text(unaskedHere));
-		assert.match(text(unaskedHere), /could not ask them in a dialog/);
-		assert.match(
-			text(unaskedHere),
-			/acceptDegradations: \["contextIsolation"\]/,
-		);
-		const quiet = await headless.call("workflow_run", {
-			...base,
-			task,
-			acceptDegradations: ["contextIsolation"],
+		const out = await client.call("workflow_run", {
+			workflow: "wf.json",
+			executor,
+			permissionMode: "safe",
+			detach: false,
+			task: `degraded ${version} ${JSON.stringify(capabilities)}`,
 		});
-		assert.equal(quiet.isError, false, text(quiet));
+		assert.equal(out.isError, false, text(out));
 		assert.deepEqual(asked, []);
-		const data =
-			quiet.structuredContent?.data ??
-			// 2025-03-26 has no structuredContent: the text carries the capability preview.
-			undefined;
-		if (data)
-			assert.deepEqual(
-				[data.capability.confirmation, data.capability.confirmedVia],
-				["confirmed", "chat"],
-			);
-		else assert.match(text(quiet), /Capability check/);
-		const runId = data?.runId ?? /Run: (workflow_\S+)/.exec(text(quiet))?.[1];
+		assert.doesNotMatch(
+			text(out),
+			/Needs your OK|acceptDegradations|ask the user/,
+		);
+		assert.match(text(out), /global AGENTS.md loaded/);
+		const data = out.structuredContent?.data;
+		if (data) {
+			assert.equal(data.capability.confirmation, undefined);
+			assert.equal(data.capability.degradations.length, 1);
+		}
+		const runId = data?.runId ?? /Run: (workflow_\S+)/.exec(text(out))?.[1];
 		assert.ok(runId);
-		let waited;
-		do waited = await headless.call("workflow_wait", { runId });
-		while (/stillRunning=true/.test(text(waited)));
+		await waitLoop(client, runId);
 	}
-	assert.equal(
-		hostServer.clientSupportsFormElicitation("2025-06-18", {
-			elicitation: {},
-		}),
-		true,
-	);
 });
 
 test("cwd: the root or a directory below it; outside, symlink escapes, missing and files are refused", async () => {

@@ -237,13 +237,8 @@
    "hostRead": false
   },
   "approve r1 --request req-1 --reject --yes": {
-   "name": "approveAction",
-   "request": {
-    "runId": "r1",
-    "decision": "reject",
-    "requestId": "req-1"
-   },
-   "hostRead": true
+   "error": "Unknown /aw action \"approve\". Try /aw help.",
+   "hostRead": false
   },
   "prune --keep 3": {
    "name": "pruneAction",
@@ -344,7 +339,7 @@
   },
   "approve": {
    "code": 2,
-   "error": "Usage: approve <run-id-or-prefix> [--request <id>] [--reject] [--yes] [--detach] [--timeout <duration>]"
+   "error": "Unknown command \"approve\". Run agent-workflow help."
   },
   "bogus": {
    "code": 2,

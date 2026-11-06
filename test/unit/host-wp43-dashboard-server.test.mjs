@@ -54,11 +54,6 @@ function fake() {
 			resetTaskIds: ["task-10"],
 			text: "Resumed",
 		}),
-		approve: async (_id, requestId, decision) => ({
-			outcome: "success",
-			status: "blocked",
-			text: `${requestId}: ${decision}`,
-		}),
 	};
 }
 async function server(t, options = {}) {
@@ -382,7 +377,7 @@ test("fixture JSON routes and session shape", async (t) => {
 	);
 });
 
-test("mutations require Origin, CSRF and JSON; valid Stop, Resume, Approve and Reject use source", async (t) => {
+test("mutations require Origin, CSRF and JSON; valid Stop and Resume use source", async (t) => {
 	const s = await server(t, { auth: true });
 	for (const headers of [
 		{},
@@ -419,17 +414,9 @@ test("mutations require Origin, CSRF and JSON; valid Stop, Resume, Approve and R
 		(await http(s, `/api/runs/${ID}/resume`, mutation(s))).json(),
 		await fake().resume(),
 	);
-	for (const decision of ["approve", "reject"]) {
-		const res = await http(s, `/api/runs/${ID}/approve`, {
-			...mutation(s),
-			body: JSON.stringify({ requestId: "request-123", decision }),
-		});
-		assert.equal(res.status, 200);
-		assert.equal(res.json().text, `request-123: ${decision}`);
-	}
 	assert.equal(
 		(await http(s, `/api/runs/${ID}/approve`, mutation(s))).status,
-		400,
+		404,
 	);
 	for (const body of ["not json", "null", "[]"])
 		assert.equal(

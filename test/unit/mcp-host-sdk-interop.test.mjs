@@ -2,7 +2,7 @@
 // against the official MCP TypeScript SDK client (@modelcontextprotocol/sdk, devDependency) over a
 // real stdio transport, with the guarded WP11a test-executor hook (registers `test-fixture`; no model
 // or agent-CLI calls): list → run (detached by default) → wait loop → inspect/status → stop, and
-// degradation confirmation through the SDK's elicitation handler (accept and decline). WP28: the
+// approval-free degraded launches through the official SDK. WP28: the
 // confirmed changes through the SDK's elicitation handler (accept, decline, no elicitation) and
 // workflow_supervise picking up a run whose attached server process died.
 import assert from "node:assert/strict";
@@ -229,76 +229,22 @@ test("official SDK client: elicitation accept and decline for a degraded safe-mo
 	const data = accepted.structuredContent.data;
 	detachedPids.push(data.detached?.pid);
 	trackProcess(data.detached?.pid);
-	assert.equal(data.capability.confirmation, "confirmed");
-	assert.equal(asked.length, 1);
-	assert.match(asked[0].message, /global AGENTS\.md loaded/);
+	assert.equal(data.capability.confirmation, undefined);
+	assert.deepEqual(asked, []);
 	await waitUntilSettled(client, data.runId);
-
-	action = "decline";
-	const declined = await call(client, "workflow_run", {
-		workflow: "wf.json",
-		task: "declined",
-		executor: "test-fixture",
-		permissionMode: "safe",
-	});
-	assert.equal(declined.isError, true);
-	assert.equal(
-		declined.structuredContent.data.refusal.code,
-		"CAPABILITY_DEGRADATION_DECLINED",
-	);
-	assert.equal(asked.length, 2);
-
-	// Same launch from a client without elicitation (2026-11-04): nothing starts until the user
-	// agrees in the conversation; then it starts, confirmed in chat. In free mode nothing needs an
-	// OK, so nothing is asked.
 	const headless = await sdkClient(t, { cwd, config });
-	const unasked = await call(headless.client, "workflow_run", {
-		workflow: "wf.json",
-		task: "headless",
-		executor: "test-fixture",
-		permissionMode: "safe",
-	});
-	// 2026-11-05: waiting for the user's OK in the chat is no error result.
-	assert.equal(unasked.isError, false);
-	assert.equal(
-		unasked.structuredContent.data.refusal.code,
-		"CAPABILITY_CONFIRMATION_REQUIRED",
-	);
-	const keys = JSON.parse(
-		/acceptDegradations: (\[[^\]]*\])/.exec(unasked.content[0].text)[1],
-	);
 	const quiet = await call(headless.client, "workflow_run", {
 		workflow: "wf.json",
 		task: "headless",
 		executor: "test-fixture",
 		permissionMode: "safe",
-		acceptDegradations: keys,
 	});
+	assert.equal(quiet.isError, false, quiet.content[0].text);
 	detachedPids.push(quiet.structuredContent.data.detached?.pid);
 	trackProcess(quiet.structuredContent.data.detached?.pid);
-	assert.deepEqual(
-		[
-			quiet.structuredContent.data.capability.confirmation,
-			quiet.structuredContent.data.capability.confirmedVia,
-		],
-		["confirmed", "chat"],
-	);
+	assert.equal(quiet.structuredContent.data.capability.confirmation, undefined);
+	assert.deepEqual(asked, []);
 	await waitUntilSettled(headless.client, quiet.structuredContent.data.runId);
-	const free = await call(headless.client, "workflow_run", {
-		workflow: "wf.json",
-		task: "headless free",
-		executor: "test-fixture",
-		permissionMode: "free",
-	});
-	assert.equal(free.isError, false, free.content[0].text);
-	detachedPids.push(free.structuredContent.data.detached?.pid);
-	trackProcess(free.structuredContent.data.detached?.pid);
-	assert.equal(
-		free.structuredContent.data.capability.confirmation,
-		"not-needed",
-	);
-	await waitUntilSettled(headless.client, free.structuredContent.data.runId);
-	assert.equal(asked.length, 2, "a client without dialogs is never sent one");
 });
 
 test("WP28 official SDK client: confirmed profile changes (accept, decline, no elicitation), dry-run prune asks nothing", async (t) => {

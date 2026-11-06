@@ -1,13 +1,9 @@
 // New in agent-workflow (WP36, owner decision E1: the "watch" of Codex, usable next to any host): a
 // terminal live view of the project's active runs or of one run, refreshed every 1–2 s: tasks,
-// status, elapsed time, pending dynamic-controller approvals (WP29) and, when the run is done, the
+// status, elapsed time, blockers and, when the run is done, the
 // verdict and the report paths. Plain ANSI (clear screen + redraw on a terminal; on a pipe a new
 // frame only when something changed). Read-only: it never drives a run (a missing supervisor is
 // reported with the `supervise` command), takes no lease and calls no model.
-import {
-	type PendingDynamicApproval,
-	pendingDynamicApprovals,
-} from "../core/dynamic-approval.js";
 import {
 	isTerminalWorkflowStatus,
 	isWorkflowRunLeaseLive,
@@ -15,7 +11,7 @@ import {
 } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
 import { summarizeWorkflowTerminal } from "../core/workflow-terminal.js";
-import { CLI_COMMAND_HINTS, pendingApprovalLines } from "./hints.js";
+import { CLI_COMMAND_HINTS } from "./hints.js";
 import { isSettledRun } from "./notify-check.js";
 import { hostTextRedactor } from "./redaction.js";
 import { readWorkflowResultPresentation } from "./result-presentation.js";
@@ -41,7 +37,6 @@ export interface WatchRunView {
 	verdict?: string;
 	verdictGate?: true;
 	reportPaths: string[];
-	pendingApprovals: PendingDynamicApproval[];
 }
 
 /** One run as the watch shows it (fresh from `run.json`). */
@@ -62,7 +57,6 @@ export async function readWatchRun(
 		settled,
 		terminal,
 		reportPaths: [],
-		pendingApprovals: [],
 	};
 	if (terminal) {
 		const summary = await summarizeWorkflowTerminal(cwd, run);
@@ -76,10 +70,6 @@ export async function readWatchRun(
 		if (presentation?.verdictGate) view.verdictGate = true;
 		view.reportPaths = (presentation?.artifacts ?? []).map(
 			(artifact) => `${artifact.label}: ${artifact.path}`,
-		);
-	} else if (run.status === "blocked") {
-		view.pendingApprovals = await pendingDynamicApprovals(cwd, run).catch(
-			() => [],
 		);
 	}
 	return view;
@@ -232,17 +222,12 @@ export function renderRunView(
 		if (!view.reportPaths.length)
 			lines.push(`Details: ${CLI_COMMAND_HINTS.status(run.runId)}`);
 	} else if (view.settled) {
-		if (view.pendingApprovals.length)
-			lines.push(
-				...pendingApprovalLines("cli", run.runId, view.pendingApprovals),
-			);
-		else
-			lines.push(
-				"",
-				s.red(
-					`Needs action: ${summary.blocked} blocked task(s). Inspect: ${CLI_COMMAND_HINTS.inspectFailures(run.runId)} · Resume: ${CLI_COMMAND_HINTS.resume(run.runId)}`,
-				),
-			);
+		lines.push(
+			"",
+			s.red(
+				`Needs action: ${summary.blocked} blocked task(s). Inspect: ${CLI_COMMAND_HINTS.inspectFailures(run.runId)} · Resume: ${CLI_COMMAND_HINTS.resume(run.runId)}`,
+			),
+		);
 	}
 	return lines;
 }
@@ -268,7 +253,7 @@ export function renderRunLine(
 	}
 	if (view.settled)
 		return [
-			`${s.red("■")} ${head} ${view.pendingApprovals.length ? `awaiting approval: agent-workflow approve ${run.runId}` : `needs action: ${CLI_COMMAND_HINTS.inspectFailures(run.runId)}`}`,
+			`${s.red("■")} ${head} needs action: ${CLI_COMMAND_HINTS.inspectFailures(run.runId)}`,
 		];
 	const running = run.tasks
 		.filter((task) => task.status === "running")
@@ -285,7 +270,6 @@ function signature(views: readonly WatchRunView[]): string {
 			view.run.status,
 			view.live,
 			view.run.tasks.map((task) => task.status),
-			view.pendingApprovals.length,
 			view.reportPaths,
 		]),
 	);

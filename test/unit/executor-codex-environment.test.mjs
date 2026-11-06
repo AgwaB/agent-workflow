@@ -228,7 +228,7 @@ test("probe() reports the environment rows and B4 negotiation degrades (or refus
 		"CAPABILITY_MISSING:usage.cost",
 		"CAPABILITY_WARNING:contextIsolation",
 	]);
-	assert.equal(report.needsConfirmation, true);
+	assert.equal(report.needsConfirmation, undefined);
 	const strict = sdk.negotiateCapabilities(
 		{ id: "codex", version: "0.1.0" },
 		merged,

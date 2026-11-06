@@ -23,9 +23,7 @@ export type DynamicControllerStatus =
 	| "blocked"
 	| "policy_blocked"
 	| "budget_blocked"
-	| "failed"
-	| "awaiting_ui"
-	| "awaiting_ui_unavailable";
+	| "failed";
 
 export interface DynamicBudgetCounters {
 	agents: number;
@@ -42,14 +40,6 @@ export interface DynamicBudgetCounters {
 export interface DynamicDecisionLoopState {
 	stallCount: number;
 	replanCount: number;
-}
-
-export interface DynamicPendingUiApproval {
-	opId: string;
-	requestHash: string;
-	message?: string;
-	options?: unknown[];
-	requestedAt: string;
 }
 
 export type DynamicBranchStatus =
@@ -89,7 +79,6 @@ export interface DynamicControllerState {
 	budget?: CompiledDynamicWorkflowTask["budget"];
 	permissions?: CompiledDynamicWorkflowTask["permissions"];
 	helperRefs?: string[];
-	pendingUiApproval?: DynamicPendingUiApproval;
 	lastEventSeq: number;
 	lastError?: string;
 	updatedAt: string;
@@ -413,13 +402,9 @@ function applyDynamicEvent(
 		else if (
 			status === "running" ||
 			status === "pending" ||
-			status === "complete" ||
-			status === "awaiting_ui"
+			status === "complete"
 		) {
 			controller.lastError = undefined;
-		}
-		if (status !== "awaiting_ui" && status !== "awaiting_ui_unavailable") {
-			controller.pendingUiApproval = undefined;
 		}
 		return;
 	}
@@ -523,29 +508,6 @@ function applyDynamicEvent(
 
 	if (event.type === "budget.used") {
 		mergeCounters(controller.counters, event.payload.counters);
-		return;
-	}
-
-	if (event.type === "approval.pending") {
-		controller.status = "awaiting_ui";
-		controller.pendingUiApproval = {
-			opId: event.opId,
-			requestHash: event.requestHash,
-			message: optionalString(event.payload.message),
-			options: Array.isArray(event.payload.options)
-				? event.payload.options
-				: undefined,
-			requestedAt: event.timestamp,
-		};
-		return;
-	}
-
-	if (event.type === "approval.resolved") {
-		controller.pendingUiApproval = undefined;
-		if (event.payload.approved === false) {
-			controller.status = "policy_blocked";
-			controller.lastError = "dynamic controller approval was rejected";
-		}
 		return;
 	}
 }
@@ -727,9 +689,7 @@ function asControllerStatus(
 		value === "blocked" ||
 		value === "policy_blocked" ||
 		value === "budget_blocked" ||
-		value === "failed" ||
-		value === "awaiting_ui" ||
-		value === "awaiting_ui_unavailable"
+		value === "failed"
 	)
 		return value;
 	return undefined;

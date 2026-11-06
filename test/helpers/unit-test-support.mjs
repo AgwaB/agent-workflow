@@ -892,7 +892,6 @@ async function buildDynamicGeneratedTaskWithTools(cwd, tools) {
 			mode: "graph-splice",
 			budget: { maxAgents: 10, maxConcurrency: 2, maxRuntimeMs: 1000 },
 			permissions: {
-				approval: "auto",
 				allowDynamicRoles: true,
 				allowDynamicTools: true,
 			},

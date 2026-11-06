@@ -1,4 +1,4 @@
-// Track usage for runs this Pi session launches, resumes, or approves.
+// Track usage for runs this Pi session launches or resumes.
 // Count each parent assistant message while running and the first settled wrap-up once.
 // Resume tracking at session start; flush and detach at shutdown. The sidecar contains
 // only numbers, timestamps, session id, and hashes, never message content.

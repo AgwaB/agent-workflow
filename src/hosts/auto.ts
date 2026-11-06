@@ -1,11 +1,5 @@
-// Host-neutral auto selection: build a local shortlist and an immutable comparison packet.
-// Obtain explicit consent showing the task, candidates, classifier executor, and model before
-// one tool-less classifier call. Without a consent hook, return only the local shortlist.
-// The classifier uses normal executor precedence. Launch only the user-selected startable
-// workflow through the normal guarded launch path; stale named definitions are refused.
-// Capture the selection, classifier identity, consent source, and task hash, never secrets
-// or classifier prose. Cancellation, including session end, starts nothing; abort an
-// in-flight comparison when its loader is cancelled. There is no hidden fallback.
+// Classify one immutable comparison packet, then launch the top recommendation through normal
+// guards. Classifier failure, transmission restrictions and cancellation start nothing.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
@@ -43,7 +37,7 @@ import {
 } from "./types.js";
 import { readUserProfiles, userProfileFromFile } from "./user-profiles.js";
 
-/** The executor and model the classifier call runs on (shown before consent). */
+/** The executor and model the classifier call runs on . */
 export interface AutoClassifierTarget {
 	executor: string;
 	/** How the executor was chosen (`run-flag`, `user-profile`, `host-default`, …). */
@@ -64,48 +58,13 @@ export interface AutoCandidateView {
 	launchable: boolean;
 	/** Why it cannot start (when not launchable). */
 	blockers?: string[];
-	/** The classifier's fit and reason (after consent). */
+	/** The classifier's fit and reason (after comparison). */
 	fit?: "complete" | "partial" | "not-fit";
 	reason?: string;
 	recommended?: boolean;
 	/** How to start it directly on this host (the task as a placeholder). */
 	command?: string;
 }
-
-/** What the consent dialog shows: exactly what would be sent. */
-export interface AutoConsentPreview {
-	title: string;
-	message: string;
-	classifier: AutoClassifierTarget;
-	candidates: Array<Pick<AutoCandidateView, "label" | "kind">>;
-	taskCharacters: number;
-}
-
-/** The final-choice dialog: the ranked launchable candidates, recommended first. */
-export interface AutoChoicePrompt {
-	title: string;
-	message: string;
-	choices: AutoCandidateView[];
-	/** The recommended candidate when the classifier gave a usable one. */
-	recommendedId?: string;
-}
-
-export type AutoConsent =
-	| { source: "flag" }
-	| { source: "command" }
-	| {
-			source: Exclude<WorkflowAutoConsentSource, "flag" | "command">;
-			/**
-			 * true = consent; false = the user declined; undefined = no answer from the user: the
-			 * client cancelled the dialog or cannot ask here (e.g. Claude Code print mode). Nothing is
-			 * sent unless true.
-			 */
-			confirm: (
-				title: string,
-				message: string,
-				preview: AutoConsentPreview,
-			) => Promise<boolean | undefined>;
-	  };
 
 export interface AutoRequest
 	extends Omit<LaunchRequestBase, "autoSelection" | "task" | "profile"> {
@@ -116,10 +75,6 @@ export interface AutoRequest
 	 * launch uses it like `run --profile`.
 	 */
 	profile?: string;
-	/** How the user consents to the one classifier call; absent = no call. */
-	consent?: AutoConsent;
-	/** The final choice; resolves with a candidateId or undefined (start nothing). */
-	choose?: (prompt: AutoChoicePrompt) => Promise<string | undefined>;
 	/**
 	 * WP38b: the host's foreground wrapper of the one classifier call (Pi: a cancellable loader).
 	 * It runs `operation`, whose signal aborts the in-flight request (the executor's cancel), and
@@ -130,27 +85,14 @@ export interface AutoRequest
 	) => Promise<WorkflowAutoResult | undefined>;
 	/**
 	 * Cancels the whole action (Pi: the session ended); checked at every step before the launch and
-	 * (WP42) carried into the launch itself (profile chooser, capability confirm, engine fence).
+	 * (WP42) carried into the launch itself (profile chooser and engine fence).
 	 */
 	signal?: AbortSignal;
 }
 
 export type AutoPhase =
-	/** No consent hook (no dialog, no terminal, no elicitation, no flag): nothing was sent. */
-	| "consent-unavailable"
-	/** The user declined the consent dialog: nothing was sent. */
-	| "consent-declined"
-	/**
-	 * WP39b: the consent dialog got no answer from the user (the client cancelled it or cannot ask
-	 * here, e.g. Claude Code print mode auto-cancels elicitations): nothing was sent.
-	 */
-	| "consent-cancelled"
 	/** The classifier executor could not be resolved: nothing was sent. */
 	| "classifier-unavailable"
-	/** Ranked after consent; no choice hook, so nothing started. */
-	| "ranked"
-	/** The user cancelled the final choice: nothing started. */
-	| "cancelled"
 	/** The chosen workflow changed since the comparison: nothing started. */
 	| "stale"
 	/** The chosen workflow went through the launch path (see `launch`). */
@@ -164,7 +106,7 @@ export interface AutoData {
 	consent?: WorkflowAutoConsentSource;
 	/** The local, routing-only shortlist (always; no model call). */
 	shortlist: AutoCandidateView[];
-	/** After consent: the classifier status (`recommendation`, `no-fit`, `routing-unavailable`, …). */
+	/** After comparison: the classifier status (`recommendation`, `no-fit`, `routing-unavailable`, …). */
 	status?: WorkflowAutoResult["status"];
 	reason?: string;
 	recommendation?: {
@@ -173,15 +115,14 @@ export interface AutoData {
 		confidence: "high" | "medium" | "low";
 		reason: string;
 	};
-	/** After consent: the launchable candidates, recommended first. */
+	/** After comparison: the launchable candidates, recommended first. */
 	ranked?: AutoCandidateView[];
 	selected?: AutoCandidateView;
 	launch?: LaunchData;
-	/** How to run a workflow directly / to consent explicitly on this host. */
+	/** How to run a workflow directly on this host. */
 	next?: string[];
 }
 
-const DISPLAY_TASK_MAX = 2_000;
 const REASON_MAX = 480;
 
 function displayText(value: string, max: number): string {
@@ -328,60 +269,11 @@ function describeClassifier(target: AutoClassifierTarget): string {
 	return `${target.executor} (${target.source}), model ${target.model ?? "executor default"}${target.effort ? `, effort ${target.effort}` : ""}`;
 }
 
-function consentPreview(
-	task: string,
-	target: AutoClassifierTarget,
-	shortlist: readonly AutoCandidateView[],
-): AutoConsentPreview {
-	const characters = Array.from(task).length;
-	const shown = displayText(task, DISPLAY_TASK_MAX);
-	const message = [
-		"To recommend a workflow, agent-workflow sends one request to a classifier model. Nothing is sent and nothing starts unless you agree.",
-		`Classifier: ${describeClassifier(target)}`,
-		`Sent: your task (${characters} characters) and the bounded descriptions of ${shortlist.length} candidate workflow${shortlist.length === 1 ? "" : "s"}: ${shortlist.map((candidate) => candidate.label).join(", ")}.`,
-		"Task:",
-		...shown.split("\n").map((line) => `  ${line}`),
-		...(characters > DISPLAY_TASK_MAX
-			? [`  (showing ${DISPLAY_TASK_MAX} of ${characters} characters)`]
-			: []),
-		"After the comparison you choose the workflow (or nothing) before anything starts.",
-	].join("\n");
-	return {
-		title: `Send this task to ${target.executor} to compare workflows?`,
-		message,
-		classifier: target,
-		candidates: shortlist.map(({ label, kind }) => ({ label, kind })),
-		taskCharacters: characters,
-	};
-}
-
 function shortlistLines(shortlist: readonly AutoCandidateView[]): string[] {
 	return shortlist.map(
 		(candidate, index) =>
 			`  ${index + 1}. ${candidate.label} [${candidate.kind}, ${candidate.scope}]${candidate.launchable ? "" : ` (not launchable${candidate.blockers?.length ? `: ${candidate.blockers.join(" ")}` : ""})`}${candidate.command ? `\n     ${candidate.command}` : ""}`,
 	);
-}
-
-function consentNext(
-	ctx: HostApiContext,
-	phase: "consent-unavailable" | "consent-declined" | "consent-cancelled",
-): string[] {
-	const kind = hostKind(ctx);
-	if (phase === "consent-cancelled" && kind !== "cli" && kind !== "pi")
-		return [
-			'The client cancelled the confirmation dialog without an answer from the user (or cannot ask in this mode, e.g. Claude Code print mode), so no comparison was sent. Start a workflow directly with the tool calls above, or run `agent-workflow auto "<task>"` in a terminal.',
-		];
-	if (kind === "cli")
-		return [
-			'Ask again on a terminal (agent-workflow auto "<task>"), or consent explicitly with --yes (agent-workflow auto "<task>" --yes) to send the one comparison request.',
-		];
-	if (kind === "pi")
-		return [
-			'Run /aw auto "<task>" in an interactive Pi session to be asked, or start a workflow directly with the commands above.',
-		];
-	return [
-		'This MCP client cannot show confirmation dialogs (elicitation), so no comparison was sent. Start a workflow directly with the tool calls above, or run `agent-workflow auto "<task>"` in a terminal.',
-	];
 }
 
 function sha256(text: string): string {
@@ -486,8 +378,7 @@ function rankedLines(data: AutoData): string[] {
 }
 
 /**
- * `auto "<task>"`: compare workflows for a task (one classifier call, only after consent) and start
- * the one the user chooses. See the module header.
+ * `auto "<task>"`: classify once and start the top recommendation without asking. See the module header.
  */
 export async function autoAction(
 	ctx: HostApiContext,
@@ -541,10 +432,7 @@ export async function autoAction(
 					...(target.effort ? { thinking: target.effort } : {}),
 				}
 			: undefined;
-	// 2. WP42 (review round 1, finding 2): the classifier request is built once, locally, before
-	// consent (catalog scan, bounded descriptions, the packet). The preview shows its candidates
-	// and the task; after consent exactly this frozen packet is sent (no rescan: a workflow added
-	// or a description changed while the dialog is open is not transmitted).
+	// 2. WP42 (review round 1, finding 2): the classifier request is built once, locally, once (catalog scan, bounded descriptions, the packet).
 	const prepared: PreparedWorkflowAutoComparison =
 		await prepareWorkflowAutoComparison({
 			cwd: ctx.cwd,
@@ -558,60 +446,8 @@ export async function autoAction(
 	const shortlist = prepared.shortlist.map((candidate) =>
 		candidateView(ctx, candidate, candidate.readiness.startAllowed),
 	);
-	const preview = consentPreview(task, target, shortlist);
-	// 3. Consent (to exactly the prepared packet).
-	const noCall = (
-		phase: "consent-unavailable" | "consent-declined" | "consent-cancelled",
-	): HostResult<AutoData> => {
-		const next = consentNext(ctx, phase);
-		return result(
-			"auto",
-			"refused",
-			{
-				phase,
-				classifierCalled: false,
-				classifier: target,
-				shortlist,
-				next,
-			},
-			[
-				header,
-				phase === "consent-declined"
-					? "Not sent: you did not agree to the comparison request. No task was sent and no workflow has been started."
-					: phase === "consent-cancelled"
-						? "Not sent: the consent dialog was cancelled without an answer (the client cancelled it or cannot ask here), so no task was sent to a classifier and no workflow has been started."
-						: "Not sent: agent-workflow could not ask for your consent here, so no task was sent to a classifier and no workflow has been started.",
-				`The comparison would run on ${describeClassifier(target)}.`,
-				"Local shortlist (ranked by the workflows' routing hints, no model call):",
-				...shortlistLines(shortlist),
-				...next,
-			].join("\n"),
-		);
-	};
-	if (!request.consent) return noCall("consent-unavailable");
-	if (
-		request.consent.source !== "flag" &&
-		request.consent.source !== "command"
-	) {
-		let agreed: boolean | undefined;
-		try {
-			agreed = await request.consent.confirm(
-				preview.title,
-				preview.message,
-				preview,
-			);
-		} catch {
-			agreed = undefined;
-		}
-		if (agreed !== true || request.signal?.aborted)
-			return noCall(
-				agreed === false && !request.signal?.aborted
-					? "consent-declined"
-					: "consent-cancelled",
-			);
-	}
-	const consent: WorkflowAutoConsentSource = request.consent.source;
-	// 4. Exactly one classifier call on the resolved executor (behind the host's loader, if any).
+	const consent: WorkflowAutoConsentSource = "command";
+	// Exactly one classifier call on the resolved executor (behind the host's loader, if any).
 	let pending: Promise<WorkflowAutoResult> | undefined;
 	const compareOnce = (
 		signal: AbortSignal | undefined,
@@ -662,7 +498,7 @@ export async function autoAction(
 			"auto",
 			"refused",
 			{
-				phase: "cancelled",
+				phase: "classifier-unavailable",
 				classifierCalled: sent,
 				classifier: target,
 				consent,
@@ -685,7 +521,7 @@ export async function autoAction(
 		);
 	const { ranked, recommendation } = rankCandidates(ctx, compared);
 	const data: AutoData = {
-		phase: "ranked",
+		phase: "classifier-unavailable",
 		classifierCalled,
 		classifier: target,
 		consent,
@@ -702,43 +538,19 @@ export async function autoAction(
 		`Compared on ${describeClassifier(target)} (consent: ${consent}).`,
 		...rankedLines(data),
 	];
-	// 5. The final choice.
-	if (!request.choose || ranked.length === 0)
-		return result(
-			"auto",
-			"success",
-			{
-				...data,
-				next: ranked.flatMap((candidate) =>
-					candidate.command ? [candidate.command] : [],
-				),
-			},
-			[...rankedText, "No workflow has been started."].join("\n"),
-		);
-	let chosenId: string | undefined;
-	try {
-		chosenId = await request.choose({
-			title: "Choose the workflow to start",
-			message: rankedText.slice(1).join("\n"),
-			choices: ranked,
-			...(recommendation ? { recommendedId: recommendation.candidateId } : {}),
-		});
-	} catch {
-		chosenId = undefined;
-	}
-	const chosen = ranked.find((candidate) => candidate.candidateId === chosenId);
+	// Only a usable classifier recommendation may launch; never fall back on classifier failure.
+	const chosen = ranked.find(
+		(candidate) => candidate.candidateId === recommendation?.candidateId,
+	);
 	const source = compared.shortlist.find(
-		(candidate) => candidate.candidateId === chosenId,
+		(candidate) => candidate.candidateId === chosen?.candidateId,
 	);
 	if (!chosen || !source || request.signal?.aborted)
 		return result(
 			"auto",
 			"refused",
-			{ ...data, phase: "cancelled" },
-			[
-				...rankedText,
-				"Auto selection cancelled. No workflow has been started.",
-			].join("\n"),
+			data,
+			[...rankedText, "No workflow has been started."].join("\n"),
 		);
 	// A named workflow must be the exact spec that was compared.
 	if (source.kind === "named-workflow") {
@@ -783,16 +595,10 @@ export async function autoAction(
 		classifier: { executor: target.executor, model: target.model },
 		consent,
 		taskSha256: sha256(task),
-		confirmed: true,
 	};
-	const {
-		consent: _consent,
-		choose: _choose,
-		compare: _compare,
-		...launchOptions
-	} = request;
+	const { compare: _compare, ...launchOptions } = request;
 	// WP42 (review round 1, finding 1): the session signal stays on the launch request: the launch
-	// path re-checks it after its own dialogs (profile chooser, capability confirm) and the engine
+	// path re-checks it after its profile chooser and the engine
 	// fences publication and the first dispatch with it.
 	const launchRequest: LaunchRequestBase = {
 		...launchOptions,
@@ -810,7 +616,12 @@ export async function autoAction(
 		return result(
 			"auto",
 			"refused",
-			{ ...data, phase: "cancelled", selected: chosen, launch: launched.data },
+			{
+				...data,
+				phase: "classifier-unavailable",
+				selected: chosen,
+				launch: launched.data,
+			},
 			[
 				...rankedText,
 				`Selected: ${chosen.label}`,

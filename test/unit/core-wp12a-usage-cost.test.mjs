@@ -251,7 +251,7 @@ test("negotiation: a tokens-only executor records usage.cost as unknown, never e
 	assert.doesNotMatch(cost.note, /price table/);
 	assert.ok(report.accepted);
 	// Recording an unknown cost changes nothing about the worker: no confirmation for it alone.
-	assert.equal(report.needsConfirmation, false);
+	assert.equal(report.needsConfirmation, undefined);
 	const preview = sdk.formatNegotiationPreview(report).join("\n");
 	assert.doesNotMatch(preview, /emulated by engine|price table/);
 	assert.match(preview, /usage\.cost: degraded/);

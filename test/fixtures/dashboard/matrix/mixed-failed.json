@@ -54,7 +54,6 @@
 		},
 		"command": "agent-workflow run wf.json '검증 UI matrix — local test only' --executor test-matrix --detach"
 	},
-	"pendingApprovals": [],
 	"tasks": [
 		{
 			"taskId": "task-1",

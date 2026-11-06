@@ -1,5 +1,5 @@
 // The board reads and acts only through host API handlers: status, show, logs, stop,
-// resume, and approve. Logs are bounded and redacted; copying uses Pi copyToClipboard.
+// and resume. Logs are bounded and redacted; copying uses Pi copyToClipboard.
 import type {
 	LogsTask,
 	RunSummary,
@@ -20,7 +20,7 @@ export type BoardLaunch = Awaited<
 >["data"]["launch"];
 
 export interface BoardRunDetail {
-	/** `statusAction` data: summary, per-task runtime, verdict, reports, pending approvals. */
+	/** `statusAction` data: summary, per-task runtime, verdict, reports. */
 	run: BoardRun;
 	/** `showAction` data: the run record (stages, task names, agents, timestamps). */
 	record?: BoardRunRecord;
@@ -40,11 +40,6 @@ export interface AwBoardSource {
 	taskLogs(runId: string, taskId: string): Promise<LogsTask | undefined>;
 	stop(runId: string): Promise<BoardActionResult>;
 	resume(runId: string): Promise<BoardActionResult>;
-	approve(
-		runId: string,
-		requestId: string,
-		decision: "approve" | "reject",
-	): Promise<BoardActionResult>;
 	copy(text: string): Promise<void>;
 }
 
@@ -62,8 +57,8 @@ export async function piCopyToClipboard(text: string): Promise<void> {
 }
 
 /**
- * The host API source of one board. `onLaunched` tracks a resumed or approved run for the WP16
- * status line and completion delivery, like `/aw resume` and `/aw approve` do.
+ * The host API source of one board. `onLaunched` tracks a resumed run for the WP16
+ * status line and completion delivery, like `/aw resume` does.
  */
 export function piBoardSource(
 	deps: PiHostDeps,
@@ -118,15 +113,6 @@ export function piBoardSource(
 			const resumed = await deps.api.resumeAction(host(), { runId });
 			await onLaunched("resume", resumed.data);
 			return outcome(resumed);
-		},
-		async approve(runId, requestId, decision) {
-			const approved = await deps.api.approveAction(host(), {
-				runId,
-				requestId,
-				decision,
-			});
-			await onLaunched("approve", approved.data);
-			return outcome(approved);
 		},
 		copy,
 	};

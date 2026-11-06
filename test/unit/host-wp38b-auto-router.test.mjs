@@ -48,9 +48,6 @@ after(async () => {
 	await rm(root, { recursive: true, force: true, maxRetries: 10 });
 });
 
-const CONSENT = "Send this task to pi to compare workflows?";
-const FINAL = "Confirm selected workflow launch";
-
 async function project(workflows, executorOptions = {}) {
 	counter += 1;
 	const cwd = join(root, `p${counter}`);
@@ -98,9 +95,8 @@ function selectionFor(kind, recommendation) {
 			recommendation?.candidateId === "a".repeat(64) &&
 			kind === "direct-dynamic",
 		classifier: { executor: "pi", model: null },
-		consent: "prompt",
+		consent: "command",
 		taskSha256: "b".repeat(64),
-		confirmed: true,
 	};
 }
 
@@ -172,7 +168,7 @@ test("auto v2 command capture preserves the supplied slash arguments exactly onc
 	await settle(cwd, projectEnv, runId);
 	const record = await store.readRunRecord(cwd, runId);
 	assert.equal(record.launch.schema, "agent-workflow-run-launch-v2");
-	assert.equal(record.launch.routingMode, "auto-confirmed");
+	assert.equal(record.launch.routingMode, "auto");
 	const text = await readFile(
 		join(
 			stateDir(cwd),
@@ -186,143 +182,72 @@ test("auto v2 command capture preserves the supplied slash arguments exactly onc
 	assert.equal(text, '/aw auto "review"');
 });
 
-test("headless /workflow auto fails closed without structured transmission authorization", async () => {
-	const { cwd, env, log } = await project([
-		["review-headless", "Use review-headless for a bounded review."],
-	]);
-	const handler = bareHandler(env);
-	// An RPC session whose UI has no confirmation dialog: nothing can authorize the request.
-	const messages = [];
-	await handler('  auto "SECRET ORIGINAL TASK"', {
-		cwd,
-		mode: "rpc",
-		hasUI: true,
-		ui: {
-			notify(message, level) {
-				messages.push({ message, level });
-			},
-		},
-	});
-	assert.equal(submits(log).classifier.length, 0);
-	const text = messages.map(({ message }) => message).join("\n");
-	// WP39b (O1): a dialog that cannot be shown is no answer from the user, not a decline.
-	assert.match(
-		text,
-		/Not sent: the consent dialog was cancelled without an answer \(the client cancelled it or cannot ask here\)/,
+test("headless Pi auto launches without transmission authorization dialogs; misplaced options still fail", async () => {
+	const { cwd, env, log } = await project(
+		[["review-headless", "Use review-headless for a bounded review."]],
+		{ recommend: "review-headless" },
 	);
-	assert.doesNotMatch(text, /did not agree/);
-	assert.match(text, /no workflow has been started\./);
+	const pi = session(cwd, env, { ctx: { mode: "rpc" } });
+	await pi.command('auto "SECRET ORIGINAL TASK"');
+	assert.equal(submits(log).classifier.length, 1);
+	assert.deepEqual(pi.confirms, []);
+	assert.deepEqual(pi.ctx.selects, []);
+	const [runId] = await runIds(cwd);
+	assert.ok(runId);
+	await settle(cwd, env, runId);
+	const text = pi.ctx.notes.map(({ message }) => message).join("\n");
 	assert.equal(text.includes("SECRET ORIGINAL TASK"), false);
-	const optionMessages = [];
-	// Live bundle 5 (WP39): `/aw auto` now strips its action word, so a leading option is a valid
-	// launch option (as for `/aw run|dynamic`); an option inside the task is still refused.
-	await handler('auto "SECRET ORIGINAL" --detach "TASK"', {
-		cwd,
-		mode: "rpc",
-		hasUI: true,
-		ui: {
-			notify(message, level) {
-				optionMessages.push({ message, level });
-			},
-		},
-	});
-	assert.equal(
-		optionMessages.some(({ message }) =>
+	await pi.command('auto "SECRET ORIGINAL" --detach "TASK"');
+	assert.ok(
+		pi.ctx.notes.some(({ message }) =>
 			/Misplaced workflow option --detach/.test(message),
 		),
-		true,
 	);
-	assert.equal(submits(log).classifier.length, 0);
-	assert.equal(await runCount(cwd), 0);
+	assert.equal(
+		submits(log).classifier.length,
+		1,
+		"invalid options send no extra classifier request",
+	);
 });
 
-test("TUI cancellation keeps a Korean no-transmit task out of the classifier", async () => {
+test("Korean no-transmit tasks never reach the classifier or launch", async () => {
 	const { cwd, env, log } = await project([]);
-	const handler = bareHandler(env);
-	const confirmations = [];
-	const notices = [];
-	await handler('auto "이 작업을 외부 모델로 보내지 마세요."', {
-		cwd,
-		mode: "tui",
-		hasUI: true,
-		ui: {
-			confirm(title) {
-				confirmations.push(title);
-				return false;
-			},
-			custom() {
-				throw new Error(
-					"cancelled transmission must not open a classifier loader",
-				);
-			},
-			notify(message, level) {
-				notices.push({ message, level });
-			},
-		},
+	const loaders = fakeLoaders();
+	const pi = session(cwd, env, {
+		ctx: { mode: "tui", custom: true },
+		foregroundLoader: loaders.factory,
 	});
-	assert.deepEqual(confirmations, [CONSENT]);
+	await pi.command('auto "이 작업을 외부 모델로 보내지 마세요."');
+	assert.deepEqual(pi.confirms, []);
+	assert.deepEqual(pi.ctx.selects, []);
 	assert.equal(submits(log).classifier.length, 0);
-	assert.ok(
-		notices.some(({ message }) =>
-			/Not sent: you did not agree .* No task was sent/.test(message),
-		),
-		JSON.stringify(notices),
+	assert.equal(submits(log).workflow.length, 0);
+	assert.equal(await runCount(cwd), 0);
+	assert.match(
+		pi.ctx.notes.map(({ message }) => message).join("\n"),
+		/No workflow has been started/,
 	);
 });
 
-test("TUI keeps safe choices after no-fit without metadata noise or routing jargon", async () => {
+test("TUI no-fit starts nothing and never offers a manual fallback", async () => {
 	const { cwd, env, log } = await project(
-		[
-			[
-				"manual-fallback-review",
-				"Use manual-fallback-review for bounded review.",
-			],
-		],
+		[["manual-fallback-review", "Use for bounded review."]],
 		{ autoStatus: "no-fit" },
 	);
 	const loaders = fakeLoaders();
 	const pi = session(cwd, env, {
 		ctx: { mode: "tui", custom: true },
 		foregroundLoader: loaders.factory,
-		// Selecting a workflow still requires confirmation; rejecting it must not launch.
-		confirm: (title) => title === CONSENT,
-		select: (options) =>
-			options.find((option) => option.includes("manual-fallback-review")),
 	});
 	await pi.command('auto "Use a safe local fallback."');
-	assert.equal(
-		loaders.created.length,
-		1,
-		"the comparison ran behind the loader",
-	);
+	assert.equal(loaders.created.length, 1);
 	assert.equal(submits(log).classifier.length, 1);
-	const [picker] = pi.ctx.selects;
-	assert.ok(picker, JSON.stringify(pi.ctx.notes));
-	const pickerText = `${picker.title}\n${picker.options.join("\n")}`;
-	assert.match(pickerText, /Choose the workflow to start/);
-	assert.match(pickerText, /No recommendation \(no-fit/);
-	assert.match(pickerText, /manual-fallback-review/);
-	assert.equal(picker.options.at(-1), "Cancel (start nothing)");
-	// The ranked list tags each candidate with kind and scope, as CLI and MCP lists do.
-	assert.doesNotMatch(
-		pickerText,
-		/Current conversation|current conversation|Manual local fallback|unranked|classifier|candidateId|schemas=|verification=/,
-	);
-	assert.doesNotMatch(
-		pi.ctx.notes.map(({ message }) => message).join("\n"),
-		/Auto route:|candidateId|schemas=|verification=/,
-	);
-	assert.deepEqual(
-		pi.confirms.map(({ title }) => title),
-		[CONSENT, FINAL],
-	);
-	// /aw auto never writes the editor.
+	assert.deepEqual(pi.ctx.selects, []);
+	assert.deepEqual(pi.confirms, []);
+	const text = pi.ctx.notes.map(({ message }) => message).join("\n");
+	assert.doesNotMatch(text, /Auto route:|candidateId|schemas=|verification=/);
 	assert.equal(await runCount(cwd), 0);
-	assert.ok(
-		pi.ctx.notes.some(({ message }) =>
-			/No workflow has been started/i.test(message),
-		),
-	);
+	assert.match(text, /No workflow has been started/i);
 });
 
 for (const task of [
@@ -353,44 +278,3 @@ for (const task of [
 		assert.equal(await runCount(cwd), 0);
 	});
 }
-
-test("TUI confirms an unranked named manual fallback with null v2 provenance", async () => {
-	const workflows = [
-		[
-			"manual-provenance-review",
-			"Use manual-provenance-review for bounded review.",
-		],
-	];
-	for (let index = 0; index < 10; index += 1)
-		workflows.push([
-			`manual-provenance-extra-${index}`,
-			`Use manual-provenance-extra-${index} for bounded review.`,
-		]);
-	const { cwd, env, log } = await project(workflows, { autoStatus: "no-fit" });
-	const loaders = fakeLoaders();
-	const pi = session(cwd, env, {
-		ctx: { mode: "tui", custom: true },
-		foregroundLoader: loaders.factory,
-		select: (options) =>
-			options.find((option) =>
-				/^\d+\. manual-provenance-review — /.test(option),
-			),
-	});
-	await pi.command('auto "Confirm the unranked named route."');
-	assert.deepEqual(
-		pi.confirms.map(({ title }) => title),
-		[CONSENT, FINAL],
-	);
-	const [runId] = await runIds(cwd);
-	assert.ok(
-		runId,
-		`confirmed named fallback launches only after selection: ${pi.ctx.notes.map(({ message }) => message).join(" | ")}`,
-	);
-	await settle(cwd, env, runId);
-	assert.ok(submits(log).workflow.length > 0);
-	const persisted = await store.readRunRecord(cwd, runId);
-	assert.equal(persisted.name, "manual-provenance-review");
-	assert.equal(persisted.launch?.selection.recommendation, null);
-	assert.equal(persisted.launch?.selection.selected.kind, "named-workflow");
-	assert.equal(persisted.launch?.selection.choseRecommendation, false);
-});

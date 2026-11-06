@@ -156,10 +156,10 @@ test("workflow-guide owns authoring detail while execution-router permits bounde
 	assert.match(router, /bounded read-only discovery/i);
 	// WP12c: agent-workflow's own names (Pi `aw_list`, `/aw …`). Was: `workflow_list`.
 	assert.match(router, /`aw_list`/);
-	// Router hints name host-appropriate commands and consent-gated /aw auto.
+	// Router hints name host-appropriate commands and automatic /aw auto.
 	assert.match(
 		router,
-		/Never invoke `aw_run`, `aw_dynamic`, `\/aw run`, `\/aw dynamic`, `\/aw auto`, `\/aw resume`, `\/aw approve`, or the matching `agent-workflow` CLI commands/,
+		/Never invoke `aw_run`, `aw_dynamic`, `\/aw run`, `\/aw dynamic`, `\/aw auto`, `\/aw resume`, or the matching `agent-workflow` CLI commands/,
 	);
 	assert.doesNotMatch(router, /\/workflow\b|workflow_(list|run|dynamic)/);
 	assert.match(router, /separate authoring needed/i);

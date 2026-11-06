@@ -75,8 +75,6 @@ export interface StageRequirementContext {
 	 * also covers its qualified keys (`toolAllowlist` covers `toolAllowlist.fine`).
 	 */
 	readonly strict?: readonly RequirementKey[];
-	/** Interactive host: degradations need user confirmation (B4). Non-interactive: record only. */
-	readonly interactive?: boolean;
 	/**
 	 * D2 revised (WP4e). `free`: a missing precise tool allowlist (`toolAllowlist.fine`, e.g. Codex
 	 * `coarse`) and environment warnings (`CAPABILITY_WARNING`) are recorded degradations that are
@@ -120,8 +118,6 @@ export interface NegotiationReport {
 	readonly accepted: boolean;
 	/** B4 toolAllowlist/unmapped-tool degradation: the stage must run with readOnly enforced. */
 	readonly forcedReadOnly: boolean;
-	/** Interactive host and at least one degradation: ask the user before start. */
-	readonly needsConfirmation: boolean;
 	readonly entries: readonly NegotiationEntry[];
 	readonly refusals: readonly string[];
 	readonly degradations: readonly string[];
@@ -442,7 +438,7 @@ export function negotiateCapabilities(
 	}
 
 	// WP12d-1 (review #7): a forced downgrade makes `readOnly` a requirement of this stage, so it is
-	// negotiated like an authored readOnly stage (strictness, environment warning, confirmation).
+	// negotiated like an authored readOnly stage (strictness and environment warning).
 	if (forcedReadOnly && !entries.some((entry) => entry.key === "readOnly"))
 		entries.push(negotiateKey("readOnly", DEFAULT_REQUIREMENTS.readOnly));
 
@@ -452,20 +448,12 @@ export function negotiateCapabilities(
 	const degradations = entries
 		.filter((entry) => entry.outcome === "degraded")
 		.map((entry) => entry.code ?? entry.key);
-	const confirmable = entries.filter(
-		(entry) =>
-			entry.outcome === "degraded" &&
-			entry.acceptedByFreeMode !== true &&
-			entry.recordOnly !== true,
-	).length;
 	return {
 		contractVersion: EXECUTOR_CONTRACT_VERSION,
 		executorId: executor.id,
 		executorVersion: executor.version,
 		accepted: refusals.length === 0,
 		forcedReadOnly,
-		needsConfirmation:
-			refusals.length === 0 && confirmable > 0 && (ctx.interactive ?? false),
 		entries,
 		refusals,
 		degradations,
@@ -528,8 +516,6 @@ export interface StageNegotiation {
 export interface CapabilityPreview {
 	/** Every stage accepted (no refusal). */
 	readonly accepted: boolean;
-	/** At least one stage needs interactive confirmation (B4). */
-	readonly needsConfirmation: boolean;
 	/** `<label>: <code>` for every refused entry. */
 	readonly refusals: readonly string[];
 	/** `<label>: <code>` for every degraded entry. */
@@ -538,89 +524,6 @@ export interface CapabilityPreview {
 	readonly forcedReadOnly: readonly string[];
 	/** Human-readable pre-start preview (design §8.3). */
 	readonly text: string;
-	/**
-	 * The same check, short, for a confirmation dialog (2026-11-03, owner: the dialog showed every
-	 * stage's full report — 30+ lines for one reason to ask): what needs the user's OK, once across
-	 * stages, and in one line what is only recorded. `text` stays the full report (terminal, record).
-	 */
-	readonly prompt: string;
-	/** Capability keys (e.g. `webTools`) whose degradation needs the user's OK, once each. */
-	readonly needsOk: readonly string[];
-}
-
-/** Plain words for a capability limit in a confirmation dialog; unknown keys show their name. */
-const LIMIT_WORDS: Readonly<Record<string, string>> = {
-	readOnly: "read-only is not strictly enforced",
-	mcpInjection: "required reads cannot be injected",
-	toolAllowlist: "the stage's tool list is not enforced",
-	"toolAllowlist.fine": "the stage's tool list is enforced only coarsely",
-	"usage.cost": "cost is recorded as unknown (tokens only)",
-	partialStream: "results arrive only when a worker finishes",
-	resume: "a repair starts a new session",
-	contextIsolation: "workers are not fully isolated from your own setup",
-	contextIsolationInherit: "workers inherit your context",
-	toolResultBudget: "no overall budget for tool output",
-	fastTier: "runs without the fast tier",
-	webTools: "web search safety rules are not enforced by the engine",
-};
-
-/** Stages a limit applies to: "all 4 stages", or up to three names. */
-function stageList(labels: readonly string[], total: number): string {
-	const names = [
-		...new Set(labels.map((label) => label.replace(/\.(main|item)$/u, ""))),
-	];
-	if (total > 1 && labels.length === total) return `all ${total} stages`;
-	return names.length <= 3
-		? names.join(", ")
-		: `${names.slice(0, 3).join(", ")} +${names.length - 3} more`;
-}
-
-/** The dialog text of {@link CapabilityPreview.prompt}. */
-function confirmationPrompt(
-	stages: readonly StageNegotiation[],
-	heading: string,
-): string {
-	const ask = new Map<string, { words: string; labels: string[] }>();
-	const asked = new Set<string>();
-	const recorded = new Map<string, string>();
-	for (const { label, report } of stages)
-		for (const entry of report.entries) {
-			if (entry.outcome !== "degraded") continue;
-			const words = LIMIT_WORDS[entry.key] ?? entry.key;
-			if (entry.acceptedByFreeMode === true || entry.recordOnly === true) {
-				recorded.set(entry.key, words);
-				continue;
-			}
-			// An environment warning names what was found (a rules file, a global AGENTS.md).
-			const found =
-				entry.code?.startsWith("CAPABILITY_WARNING:") === true &&
-				entry.note !== undefined
-					? `${words}: ${entry.note}`
-					: words;
-			const group = ask.get(found) ?? { words: found, labels: [] };
-			group.labels.push(label);
-			ask.set(found, group);
-			asked.add(entry.key);
-		}
-	const lines = [heading];
-	if (ask.size > 0) {
-		lines.push("", "Needs your OK:");
-		// 2026-11-04 (live Claude Code host, haiku): "a repair starts a new session (all 4 stages)" was
-		// relayed as "all 4 stages run again"; "in" says where the limit applies.
-		for (const { words, labels } of ask.values())
-			lines.push(`• ${words} (in ${stageList(labels, stages.length)})`);
-	}
-	// A limit that some stage asks about is not repeated as recorded-only for the others.
-	const quiet = [...recorded.entries()]
-		.filter(([key]) => !asked.has(key))
-		.map(([, words]) => words);
-	if (quiet.length > 0)
-		lines.push("", "Recorded only, no OK needed:", `• ${quiet.join("; ")}`);
-	lines.push(
-		"",
-		"If you accept, the full per-stage report is saved with the run.",
-	);
-	return lines.join("\n");
 }
 
 /**
@@ -645,13 +548,11 @@ export function buildCapabilityPreview(
 	const refusals: string[] = [];
 	const degradations: string[] = [];
 	const forcedReadOnly: string[] = [];
-	let needsConfirmation = false;
 	for (const { label, report } of stages) {
 		for (const code of report.refusals) refusals.push(`${label}: ${code}`);
 		for (const code of report.degradations)
 			degradations.push(`${label}: ${code}`);
 		if (report.forcedReadOnly) forcedReadOnly.push(label);
-		if (report.needsConfirmation) needsConfirmation = true;
 	}
 	const accepted = refusals.length === 0;
 	const executor =
@@ -680,28 +581,9 @@ export function buildCapabilityPreview(
 	}
 	return {
 		accepted,
-		needsConfirmation: accepted && needsConfirmation,
 		refusals,
 		degradations,
 		forcedReadOnly,
 		text: lines.join("\n"),
-		needsOk: [
-			...new Set(
-				stages.flatMap(({ report }) =>
-					report.entries
-						.filter(
-							(entry) =>
-								entry.outcome === "degraded" &&
-								entry.acceptedByFreeMode !== true &&
-								entry.recordOnly !== true,
-						)
-						.map((entry) => entry.key),
-				),
-			),
-		],
-		prompt: confirmationPrompt(
-			stages,
-			`${executor} · ${stagesText}${options.permissionMode === undefined ? "" : ` · permission mode ${options.permissionMode}`}${forcedReadOnly.length > 0 ? ` · runs read-only: ${stageList(forcedReadOnly, stages.length)}` : ""}`,
-		),
 	};
 }

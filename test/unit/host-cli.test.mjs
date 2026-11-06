@@ -263,7 +263,7 @@ test("run: foreground run waits until terminal; task words join; --json combines
 	assert.match(text.err(), /Waiting for workflow_/);
 });
 
-test("confirmation: TTY asks y/N when degradations need it; --yes and non-TTY proceed non-interactively", async () => {
+test("degraded launches never prompt on terminal or non-terminal CLI hosts", async () => {
 	const cwd = await project();
 	const id = fixture({
 		capabilities: {
@@ -274,74 +274,28 @@ test("confirmation: TTY asks y/N when degradations need it; --yes and non-TTY pr
 			},
 		},
 	});
-	const argv = (task, ...extra) => [
-		"run",
-		"wf.json",
-		task,
-		"--executor",
-		id,
-		"--permission-mode",
-		"safe",
-		"--json",
-		...extra,
-	];
-	const declined = await runCli(cwd, argv("declined"), {
-		isTTY: true,
-		answer: "n",
-	});
-	assert.equal(declined.code, 1);
-	assert.equal(declined.prompts.length, 1);
-	assert.match(declined.prompts[0], /\[y\/N\]/);
-	assert.match(declined.err(), /global AGENTS\.md loaded/);
-	const declinedJson = JSON.parse(declined.out());
-	assert.equal(declinedJson.outcome, "refused");
-	assert.equal(
-		declinedJson.data.refusal.code,
-		"CAPABILITY_DEGRADATION_DECLINED",
-	);
-
-	const accepted = await runCli(cwd, argv("accepted"), {
-		isTTY: true,
-		answer: "y",
-	});
-	assert.equal(accepted.code, 0, accepted.err());
-	assert.equal(accepted.prompts.length, 1);
-	assert.equal(
-		JSON.parse(accepted.out()).data.capability.confirmation,
-		"confirmed",
-	);
-
-	const yes = await runCli(cwd, argv("yes", "--yes"), {
-		isTTY: true,
-		answer: "n",
-	});
-	assert.equal(yes.code, 0, yes.err());
-	assert.equal(yes.prompts.length, 0);
-	assert.equal(
-		JSON.parse(yes.out()).data.capability.confirmation,
-		"non-interactive",
-	);
-
-	const piped = await runCli(cwd, argv("piped"), { isTTY: false, answer: "n" });
-	assert.equal(piped.code, 0, piped.err());
-	assert.equal(piped.prompts.length, 0);
-	assert.equal(
-		JSON.parse(piped.out()).data.capability.confirmation,
-		"non-interactive",
-	);
-
-	const clean = fixture();
-	const quiet = await runCli(
-		cwd,
-		["run", "wf.json", "clean", "--executor", clean],
-		{
-			isTTY: true,
-			answer: "n",
-		},
-	);
-	assert.equal(quiet.code, 0, quiet.err());
-	assert.equal(quiet.prompts.length, 0, "nothing to confirm");
-	assert.match(quiet.out(), /^Capability check/);
+	for (const isTTY of [true, false]) {
+		const out = await runCli(
+			cwd,
+			[
+				"run",
+				"wf.json",
+				`task-${isTTY}`,
+				"--executor",
+				id,
+				"--permission-mode",
+				"safe",
+				"--json",
+			],
+			{ isTTY, answer: "n" },
+		);
+		assert.equal(out.code, 0, out.err());
+		assert.deepEqual(out.prompts, []);
+		const capability = JSON.parse(out.out()).data.capability;
+		assert.match(capability.preview, /global AGENTS.md loaded/);
+		assert.equal(capability.confirmation, undefined);
+		assert.equal(capability.degradations.length, 1);
+	}
 });
 
 test("wait: --timeout returns still running (exit 1); without it the CLI loops bounded waits until terminal", async () => {

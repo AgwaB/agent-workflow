@@ -4,7 +4,7 @@ Use agent-workflow from a conversation or a local browser:
 
 - **Claude Code and Codex:** install the plugin for in-host `aw` commands, or ask the agent to use the MCP tools (also available with MCP-only installation).
 - **Pi:** install the extension, then use `/aw` or ask the agent to use its `aw_*` tools.
-- **Dashboard:** open a project's local web view to inspect runs and answer approvals.
+- **Dashboard:** open a project's local web view to inspect and manage runs.
 - **Other MCP clients and Antigravity CLI (agy):** register the MCP server or converted plugin and call its tools.
 
 ## Claude Code and Codex
@@ -161,12 +161,11 @@ Every tool accepts optional `cwd`. Unknown parameters are refused. Handler data 
 | `workflow_prune` | `keep?`, `olderThanDays?`, `dryRun?` (default true) | Prune summary; `dryRun: false` confirms after showing the dry run |
 | `workflow_profile` | `op?` (see below), `name?`, profile fields | `ProfileData` / `WorkflowPreferenceData`; changes confirm |
 | `workflow_supervise` | `runId` | Starts a detached supervisor for a running run without a live driver; `{runId, status, started, reason?: not-running \| live-supervisor, detached?}` |
-| `workflow_approve` | `runId`, `requestId`, `decision` (`approve`/`reject`), `detach?` (default true) | `ApproveData`; always confirms |
 | `workflow_auto` | `task`, launch options | `AutoData`: phase, consent, classifier, shortlist, recommendation, selection and launch |
 
 Profile operations: `list` (default), `show`, `set`, `delete`, `default`, `clear-default`, `presets`, `workflow-list`, `workflow-show`, `workflow-set`, `workflow-clear`. Set fields: `executor?`, `model?`, `effort?`, `permissionMode?`, `strictCapabilities?`, `preset?`, `roles?` (role → `{executor?, model?, effort?}`), `unset?` (including `roles.<role>`), `makeDefault?`. Workflow operations take `workflow`; `workflow-set` accepts `profile?`, `roles?`, `unset?`.
 
-Launch options: `executor`, `profile`, `permissionMode` (`free`/`safe`), `allowUnverified` (capability keys), `model`, `effort`, `inputs` (declared workflow inputs), `forceNew`, `detach`, and `acceptDegradations` (only after user consent; see below).
+Launch options: `executor`, `profile`, `permissionMode` (`free`/`safe`), `allowUnverified` (capability keys), `model`, `effort`, `inputs` (declared workflow inputs), `forceNew`, `detach`.
 
 `detach` defaults to **true**: a standalone `agent-workflow supervise` process (log: `<run dir>/supervise.log`) continues between calls and after the server exits. `detach: false` keeps execution in the server process.
 
@@ -174,7 +173,7 @@ An identical active launch returns `outcome: "existing"` and the existing run. A
 
 Logs accept only files inside the [state directory](usage.md#where-run-state-lives)'s `.agent-workflow/`; tampered or symlinked paths are refused with a reason. Text, previews and logs redact credentials and Linux/Windows/macOS home paths. Credential headers (`Authorization`, `x-api-key`, `Cookie`, `*-token`, …) are redacted regardless of value length. CLI `logs` and Pi `/aw logs` use the same handler.
 
-MCP annotations: list/status/inspect/logs/validate/show/roles/agents/doctor are read-only; run/dynamic/auto/stop/resume/prune/profile/approve are destructive; wait/notices/supervise/dashboard are neither. Dashboard changes local process state, not runs, and uses the stop role gate. `title` requires protocol `2025-06-18`; annotations require `2025-03-26`.
+MCP annotations: list/status/inspect/logs/validate/show/roles/agents/doctor are read-only; run/dynamic/auto/stop/resume/prune/profile are destructive; wait/notices/supervise/dashboard are neither. Dashboard changes local process state, not runs, and uses the stop role gate. `title` requires protocol `2025-06-18`; annotations require `2025-03-26`.
 
 ### Call protocol (server `instructions`)
 
@@ -183,8 +182,8 @@ MCP annotations: list/status/inspect/logs/validate/show/roles/agents/doctor are 
 3. Follow the launch result's next step. Interactive Claude Code and Codex sessions can receive completion automatically. Otherwise call `workflow_wait {runId}`; leave `timeoutMs` out to use the host's maximum wait. Repeat while `stillRunning` is true. `terminal: true` means finished; `actionRequired: true` means blocked: report it and use `workflow_inspect`.
 4. Quote the authoritative result preview and report paths. A result headed `Workflow finished — verdict: X (report ready)` (`verdictGate: true`, footer `verdict=X`) is a non-passing domain verdict with a report, not a workflow failure. Other failed runs are reported as failures.
 5. If you stop waiting, give the run id, what it is waiting for, and any `nextRetry` time/reason. The user can ask again or use `agent-workflow watch <runId>` or Claude Code's `agent-workflow statusline`.
-6. `workflow_resume` and `workflow_supervise` start model calls and incur cost; use them only on request. Show pending dynamic-approval questions to the user and call `workflow_approve` only after they decide.
-7. When asked to choose a workflow, use `workflow_auto`. It requests consent before classification and lets the user choose. Without dialogs, show the local shortlist and launch only the user's pick.
+6. `workflow_resume` and `workflow_supervise` start model calls and incur cost; use them only on request.
+7. When asked to choose a workflow, use `workflow_auto`. It classifies once and starts the top recommendation without asking. Classifier failure starts nothing.
 
 Permission mode defaults to `free`; use `safe` only on request ([permissions.md](usage.md#permission-modes)). Omit `executor` and `profile` to use the workflow profile or host default unless the user asks otherwise.
 
@@ -193,21 +192,13 @@ Permission mode defaults to `free`; use `safe` only on request ([permissions.md]
 - `content`: one text item, bounded to 50 000 characters, with next-step guidance for launches, waits and pending stops.
 - `structuredContent` (protocol `2025-06-18` onward): `{action, ok, outcome, data, text, next?}`. `data` matches host API and CLI `--json`, except the inspect projection.
 - `--host claude-code` receives text only for host API results; `codex` and `generic` retain structured content. Tools declare no `outputSchema`.
-- `isError: true` marks refused launches and handler errors. Structured errors are `{ok: false, outcome: kind, error: {kind, message}}`, with kind `usage`, `validation` or `error`. Exception: `CAPABILITY_CONFIRMATION_REQUIRED` is `isError: false`, still `outcome: "refused"`, because the user must answer a question.
+- `isError: true` marks refused launches and handler errors. Structured errors are `{ok: false, outcome: kind, error: {kind, message}}`, with kind `usage`, `validation` or `error`.
 - JSON-RPC errors: unknown tool/non-object arguments `-32602`, unknown method `-32601`, requests before initialization `-32600`.
 - Workers (`AGENT_WORKFLOW_ROLE=worker`) may call only `workflow_validate` and `workflow_check`.
 
-### Degradation confirmation (elicitation)
+### Capability degradations
 
-Capability limits needing confirmation ask the user; record-only limits start without a question (`confirmation: "not-needed"`).
-
-With form elicitation (`{}` or `{form: …}`) and protocol `2025-06-18` onward, the server sends `elicitation/create`: `Proceed with these executor capability degradations?`, the short preview prompt, and an empty object form. Protocol `2025-11-25` uses `mode: "form"`. The prompt lists executor, stages, permission mode and limits; the full report is saved as `capabilityNegotiation`.
-
-- `accept`: launch with `capability.confirmation: "confirmed"`, `confirmedVia: "dialog"`.
-- `decline`: refuse with `CAPABILITY_DEGRADATION_DECLINED`.
-- `cancel`, client error, unavailable form elicitation or older protocol: nothing starts; return `CAPABILITY_CONFIRMATION_REQUIRED`. Claude Code print mode, the Agent SDK without `onElicitation`, and headless clients may cancel dialogs automatically; this is not the user's refusal.
-
-The agent must ask in the conversation. Only after the user agrees may it retry with `acceptDegradations` covering all keys in `preview.needsOk` (for example `["webTools"]`). Complete keys launch with `confirmedVia: "chat"`; incomplete keys refuse. The agent must never supply consent on its own.
+Degradations are recorded and shown without dialogs or chat confirmation. Refusals still start nothing.
 
 ### Confirmed changes
 
@@ -219,31 +210,16 @@ Without form elicitation (including URL-only clients or protocols before `2025-0
 
 #### Codex approval
 
-Codex with `approval_policy = "never"` automatically accepts empty confirmation forms without showing a dialog. The server treats that as consent for auto classification, capability degradations, dynamic approvals, and profile/prune/notice changes. Required-field forms, including the auto workflow choice, are cancelled: auto starts nothing without a choice.
+Codex with `approval_policy = "never"` automatically accepts empty confirmation forms without showing a dialog. This affects confirmations for profile/prune/notice changes, not workflow launches or auto classification (which never ask).
 
 To see dialogs, use `-c approval_policy="on-request"` or set it in `~/.codex/config.toml`.
 
-### MCP dynamic-controller approval
+### MCP auto
 
-A controller declaring `dynamic.permissions.approval: "ask"` blocks as `dynamic_ui_unavailable` because the MCP driver has no interactive UI ([usage.md](usage.md#dynamic-approval)).
-
-1. `workflow_wait` (`actionRequired: true`) and `workflow_status` expose `pendingApprovals: [{requestId, controllerSpecId, taskId, title, message, requestedAt}]`. Show the user the question.
-2. After their decision, call `workflow_approve {runId, requestId, decision}`. It asks `Run dynamic workflow controller?` or `Reject dynamic workflow controller?`, including the scope.
-3. For `approve`, accept records approval and resumes (detached by default; completed tasks are not relaunched); decline rejects permanently for this run (`dynamic_approval_rejected`). For `reject`, accept rejects and decline changes nothing. Cancel/errors leave `decision: "unanswered"`, `isError: true`, `outcome: "refused"`.
-4. Without form elicitation, nothing is recorded (`confirmation: "unsupported"`); use `agent-workflow approve <run> --request <requestId>` or add `--reject`.
-
-A request id is a digest of the approval scope, so a stale id cannot approve a changed scope. Decisions record `decidedBy: {host: "<--host>", via: "approve"}`.
-
-### Auto workflow selection
-
-`workflow_auto {task, …launch options}` implements `agent-workflow auto`:
-
-1. Rank the dynamic workflow and at most 24 discoverable workflows locally using task words and `routing` hints. No model call.
-2. Ask `Send this task to <executor> to compare workflows?`, showing task, candidates and classifier executor/model. Executor selection: explicit executor, saved user profile, then host CLI (`claude-code` → `claude`, `codex` → `codex`, `generic` → first installed and logged-in of pi, claude, codex). Model/effort use explicit options or executor defaults. Only accept sends one tool-less classifier request (up to 120 s). Decline returns `phase: "consent-declined"`; client cancel/error returns `consent-cancelled`.
-3. Ask the user to choose a ranked launchable workflow in a required enum form, defaulting to the recommendation. Equal names include their scope. Accept launches normally; decline/cancel starts nothing and returns the ranking (`phase: "cancelled"`).
-4. Without form elicitation, send nothing and return the local shortlist with launch calls (`phase: "consent-unavailable"`, `outcome: "refused"`). The host may launch after the user names a workflow.
-
-Launch metadata records offered candidates, recommendation, choice, classifier executor/model and consent `elicitation`, never task text.
+`workflow_auto {task, …launch options}` sends one tool-less classifier request and immediately
+starts its top recommendation, even without elicitation support. The classifier follows the run's
+executor/profile precedence. Failure or no recommendation starts nothing. Metadata records consent
+`command`, candidates, recommendation, selection and classifier executor/model, never task text.
 
 ### Waiting without polling: the Claude Code completion monitor
 
@@ -322,7 +298,7 @@ A Claude Code plugin cannot set the main status line. Add this to `~/.claude/set
 
 Without a global install, use `npx -y --package=@agwab/agent-workflow@<package version> agent-workflow statusline` as the command. It shows active workflow progress and nothing when idle.
 
-For either host, run `agent-workflow watch [runId]` in another terminal pane to see tasks, elapsed time, pending approvals, and final verdict/report. `--bell` rings when the run ends. Codex's `tui.status_line` accepts only built-in items, not commands. See [CLI feedback commands](cli.md#statusline-watch-notify-check).
+For either host, run `agent-workflow watch [runId]` in another terminal pane to see tasks, elapsed time, blockers, and final verdict/report. `--bell` rings when the run ends. Codex's `tui.status_line` accepts only built-in items, not commands. See [CLI feedback commands](cli.md#statusline-watch-notify-check).
 
 ### Completion check hook
 
@@ -450,7 +426,7 @@ A Pi session started in the home directory uses `~/.agent-workflow/home-runs` fo
 | `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | Per-workflow preferences applied by every host |
 | `run <workflow> <task> [options]` | Launch a named workflow |
 | `dynamic <task> [options]` | Launch a dynamic workflow |
-| `auto <task> [options]` | Classify with consent, then launch the user's choice; print/JSON sends nothing |
+| `auto <task> [options]` | Classify once and launch the top recommendation without asking, including print/JSON |
 | `dashboard [<run-id-or-prefix>]` | Open this project's view in the user-level [web dashboard](#dashboard) |
 | `status [run]` | Run status |
 | `show <workflow>` / `show <run> [--raw]` | Workflow or run details |
@@ -458,7 +434,6 @@ A Pi session started in the home directory uses `~/.agent-workflow/home-runs` fo
 | `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded, redacted log tails |
 | `wait <run> [timeout \| --timeout D]` | Wait until settled/action required or timeout; default 60 s, max 4 h; bare number means milliseconds |
 | `resume <run> [--detach]` | Continue a run |
-| `approve <run> [--request <id>] [--reject] [--detach] [--yes]` | Answer a dynamic approval; no dialog UI requires `--yes` |
 | `stop <run>` | Stop a run |
 | `prune [--keep N] [--older-than DAYS] [--yes]` | Prune stored runs |
 | `notices list \| acknowledge <run> --state <sha256> --reason <text> \| clear <run>` | Manage unfinished-run notices |
@@ -500,7 +475,7 @@ An identical active launch returns `details.outcome: "existing"`, its `runId`/`d
 
 `/aw` opens the run list; `/aw <run-id-or-prefix>` opens that run's stages, pinning a child run otherwise omitted from the list. This requires TUI mode and `ctx.ui.custom`; RPC/print/JSON keep text behavior. The command returns when the board closes.
 
-Navigate runs → stages → tasks → task detail. The list includes all top-level project runs, with progress and executors. The side pane shows id, timing, verdict, report paths, approvals, parent-session usage and launch details. Problem tasks appear first. Task details include executor/model/effort, status reason, last message and up to 400 lines each of output, stderr and events.
+Navigate runs → stages → tasks → task detail. The list includes all top-level project runs, with progress and executors. The side pane shows id, timing, verdict, report paths, parent-session usage and launch details. Problem tasks appear first. Task details include executor/model/effort, status reason, last message and up to 400 lines each of output, stderr and events.
 
 | Key | Where | Action |
 |---|---|---|
@@ -517,7 +492,6 @@ Navigate runs → stages → tasks → task detail. The list includes all top-le
 | `[`/`]`, `p`/`n` | Task detail | Previous/next task in stage |
 | `s` | Anywhere | Stop selected run after `y` |
 | `u` | Anywhere | Resume failed/interrupted/blocked run, attached, after `y` |
-| `a` | Anywhere | First pending approval: `y` approves/resumes, `x` rejects, Esc cancels |
 | `y` / `n` / Esc | Confirmation | Yes / no / cancel |
 
 Reads and actions use only the host API. Resumed runs are tracked for completion. Task details show logs, not task prompts.
@@ -536,32 +510,21 @@ Back/cancel writes nothing. Workflow-declared execution profiles remain in the l
 
 ### `/aw auto`
 
-`/aw auto <task> [options]` recommends a workflow and launches only the user's choice:
+`/aw auto <task> [options]` sends one tool-less classifier request and launches its top
+recommendation without consent or choice dialogs, including in print/JSON mode. Failure starts
+nothing. The TUI comparison loader can still cancel the operation; session shutdown also cancels
+it. Launch metadata records consent `command`. Stop a published run with `/aw stop <run>`.
+There is no `aw_auto` tool.
 
-1. Build a local shortlist from the dynamic workflow and discoverable workflows using `routing` hints; no model call.
-2. With dialog UI, ask `Send this task to <executor> to compare workflows?`, showing task, candidates and classifier executor/model. Executor precedence is explicit option, saved user profile, then `pi` with Pi's current model/thinking. No means nothing is sent or started.
-3. Yes sends one tool-less classifier request. TUI shows `Comparing workflow candidates… (Esc cancels; nothing starts)`; Escape aborts the request. RPC shows a notification. Choose a ranked workflow, then confirm `Confirm selected workflow launch`. Normal profile/degradation dialogs still apply; the run is tracked for completion.
-4. Print/JSON sends nothing and prints shortlist launch commands (exit code 1).
+### Profile choice
 
-Session shutdown during comparison or questions cancels the operation. Once launched, the command returns like `/aw run`; stop it with `/aw stop <run>`. Metadata records candidates, recommendation, selection, classifier executor/model and consent `prompt`. There is no `aw_auto` tool: agents cannot initiate classification on their own.
-
-### Confirmation and profile choice
-
-With a dialog UI (`ctx.hasUI`, TUI or RPC), capability limits needing consent ask `ctx.ui.confirm("Proceed with these executor capability degradations?", <preview.prompt>)`. The short prompt lists each limit once with its stages; the full report is saved with the run. Decline refuses with `CAPABILITY_DEGRADATION_DECLINED`. Without UI, degradations are recorded as `non-interactive` and the run proceeds.
+Capability degradations are recorded and shown without confirmation. Refusals remain enforced.
 
 Workflow-declared execution profiles are offered through `ctx.ui.select` when none is named. Without UI, the declared default or base spec is used; output names the selected profile and available alternatives. Explicit profiles or saved per-workflow preferences skip the chooser.
 
 In the TUI, `/aw run` also offers `Custom… (open the profile picker)`. This cancels the launch attempt and opens the [picker](#profile-picker) for that workflow. Saving a per-workflow preference retries the launch with that preference; closing without saving starts nothing. RPC and agent tools keep the plain chooser.
 
 Each call uses Pi's cwd and model registry. Pi's current model and thinking level supply runtime defaults when no executor or `pi` is explicitly selected; explicit `--executor codex` does not inherit them. Saved per-workflow preferences and stage overrides are resolved once for both launch and duplicate identity, so changing them starts a new run.
-
-### Pi dynamic-controller approval
-
-With dialog UI, an attached run whose controller declares `dynamic.permissions.approval: "ask"` asks while this session drives it: attached launches, awaited tools, waits, resume and session-start re-drive.
-
-The dialog is `ctx.ui.confirm("Run dynamic workflow controller?", <scope>, {timeout: 300000, signal})`. Yes runs the controller (`decidedBy: {host: "pi", via: "prompt"}`); no rejects for this run (`dynamic_approval_rejected`, never asked again); timeout leaves it blocked and resumable (`dynamic_approval_timeout`). Detached launches/resumes have no UI; print/JSON blocks as `dynamic_ui_unavailable`.
-
-Answer later with `/aw approve <run> --request <id>` (or `--reject`), including approvals left by other hosts. Yes approves and resumes without relaunching completed tasks; no rejects. No dialog UI requires `--yes`, with flags supplying the decision. There is no `aw_approve` tool: approval belongs to the user.
 
 ### `/aw dashboard`
 
@@ -583,7 +546,7 @@ Startup work is asynchronous and does not delay Pi. In supervisor role, the host
 
 Re-driving does not take over completion delivery: the original audience session still owns it. Attached runs continue only while Pi runs; use `--detach` to outlive sessions.
 
-The host then warns about unfinished top-level failed/interrupted runs and blocked runs needing approval or executor decisions. It excludes mock runs, active acknowledgements and runs not updated for 7 days; at most 5 appear. Rendered degraded finals are labeled `failed (final rendered — degraded)`. Malformed acknowledgement sidecars suppress nothing.
+The host then warns about unfinished top-level failed/interrupted runs and blocked runs needing executor decisions. It excludes mock runs, active acknowledgements and runs not updated for 7 days; at most 5 appear. Rendered degraded finals are labeled `failed (final rendered — degraded)`. Malformed acknowledgement sidecars suppress nothing.
 
 Notices repeat after status/update changes, stale acknowledgement or 6 hours. State lives in `.agent-workflow/workflows/unfinished-notices.json` in the
 [project state directory](usage.md#where-run-state-lives). Silence a state with `/aw notices acknowledge <run> --state <sha256> --reason <text>`.
@@ -610,11 +573,11 @@ While the owning session waits through `aw_wait` or an awaited launch, completio
 
 With UI, the `agent-workflow-active` widget below the editor lists active runs tracked by this session, newest first, at most 5 plus an overflow count. It clears when no tracked run is active and at shutdown.
 
-In TUI, `/aw wait` uses a cancellable loader: `Waiting for <run> (Esc stops waiting; the run continues)…`. Escape cancels only the wait. RPC waits without a custom loader; agent tools use Pi's normal tool progress and turn cancellation. Launch/resume/approve commands return after startup and need no loader.
+In TUI, `/aw wait` uses a cancellable loader: `Waiting for <run> (Esc stops waiting; the run continues)…`. Escape cancels only the wait. RPC waits without a custom loader; agent tools use Pi's normal tool progress and turn cancellation. Launch/resume commands return after startup and need no loader.
 
 ### Parent-session usage
 
-Runs launched, resumed, approved or returned as existing in this session track parent assistant usage in `<run dir>/parent-usage.json`, including print mode. Assistant messages while active contribute usage; the first after settlement counts once as wrap-up. Session start resumes counting owned active runs; shutdown flushes it.
+Runs launched, resumed or returned as existing in this session track parent assistant usage in `<run dir>/parent-usage.json`, including print mode. Assistant messages while active contribute usage; the first after settlement counts once as wrap-up. Session start resumes counting owned active runs; shutdown flushes it.
 
 The sidecar contains numbers, timestamps, session id and message hashes, never message content. Other sessions' runs are not written. Status and inspect expose totals as `parentUsage` and show whether counting is ongoing. MCP hosts cannot collect parent usage because the server cannot observe it.
 
@@ -624,7 +587,6 @@ With `AGENT_WORKFLOW_ROLE=worker` or `disabled`, tools and notices are not regis
 
 ### Pi limits
 
-- The board lists all top-level project runs, not just the current session's. A dynamic approval dialog replaces an open board or wait loader. The wait continues after the answer without its loader; start another `/aw wait` and press Escape to cancel waiting, or let it finish.
 - The profile picker edits role profiles, not workflow-declared execution profiles.
 - Runtime defaults follow the explicit executor option: a profile selecting a non-Pi executor can still receive Pi's current model as its lowest-precedence default.
 - Completion recovery with unreadable history has the bounded retry limits described above, not an unconditional delivery guarantee.
@@ -635,13 +597,13 @@ With `AGENT_WORKFLOW_ROLE=worker` or `disabled`, tools and notices are not regis
 
 ### What it shows
 
-The sidebar project switcher selects a project or **All projects**. The overview shows project paths (including missing paths), active runs, needs-attention counts and last activity from status summaries. `?project=<id>` selects a project; the last choice is remembered in this browser. Only the selected project is polled in detail. Inside a project, the sidebar lists runs with task previews, timing, progress and reports. **Needs you** collects approvals, executor decisions and failed/blocked runs. Failures can be dismissed in this browser; approvals and decisions cannot. A stopped run offers Resume rather than appearing as a new need.
+The sidebar project switcher selects a project or **All projects**. The overview shows project paths (including missing paths), active runs, needs-attention counts and last activity from status summaries. `?project=<id>` selects a project; the last choice is remembered in this browser. Only the selected project is polled in detail. Inside a project, the sidebar lists runs with task previews, timing, progress and reports. **Needs you** collects executor decisions and failed/blocked runs. Failures can be dismissed in this browser; decisions cannot. A stopped run offers Resume rather than appearing as a new need.
 
 The sidebar has **Runs · Workflows · Profiles · Maintenance · Executors**. Management views are deep-linkable with `?project=<id>&view=workflows|profiles|maintenance|executors`; switching projects keeps the management view. There is no launch form: start runs with `aw run`, `aw dynamic`, `aw auto`, the CLI, MCP or Pi.
 
 | View | Scope | Management |
 |---|---|---|
-| Runs | Selected project (or All projects overview) | Existing run, task, report and approval views |
+| Runs | Selected project (or All projects overview) | Existing run, task and report views |
 | Workflows | Selected project | Discover workflows and agents, source/scope and routing hints; inspect stages, compiled roles and validation; **Check** executor/profile/model/effort/permission mode without starting a run or calling a model |
 | Profiles | User level, shared by every project and host | List/show/create/edit/delete profiles, apply presets, set/clear the default, and edit role assignments using probed executor/model choices. Per-workflow preferences are also user-level; the selected project supplies the workflow definition and declared profiles. |
 | Maintenance | Selected project's runs/notices | Prune preview/delete and notice acknowledgement/clear. The shared prune action also previews user-level executor attempt state and stale project launch claims. |
@@ -661,7 +623,7 @@ Stop explains its impact and records a durable request for the supervisor. Resum
 
 `Live`, `Reconnecting` and `Stale (updated …)` describe the connection, not run status. Stale appears after 30 s without a heartbeat. Reduced-motion preferences disable animations. Keyboard controls include ↑/↓ navigation, Enter, Escape, `⌘K` search, and `j`/`k` between agents. Clicking empty canvas closes the inspector; dragging pans instead.
 
-Deep-link state includes `project`, `run`, `stage`, `task`, `tab=result|output|stderr|events`, `view=report|details|workflows|profiles|maintenance|executors`, and `dialog=stop|resume|approve|reject`.
+Deep-link state includes `project`, `run`, `stage`, `task`, `tab=result|output|stderr|events`, `view=report|details|workflows|profiles|maintenance|executors`, and `dialog=stop|resume`.
 
 ### Start, stop and options
 
@@ -781,7 +743,6 @@ JSON responses use `Content-Type: application/json; charset=utf-8`. Errors are `
 | `GET /api/events?project=<projectId>[&run=<runId>]` | SSE `runs`, selected `run`, and 15 s `heartbeat`; initial payload immediately, later payloads only when content changes |
 | `POST /api/projects/:projectId/runs/:runId/stop` | `{outcome, status, pending, interruptedTaskIds, text}` |
 | `POST /api/projects/:projectId/runs/:runId/resume` | Detached resume: `{outcome, status, resetTaskIds, text}` |
-| `POST /api/projects/:projectId/runs/:runId/approve` | Body `{requestId, decision: "approve"\|"reject"}`; result `{outcome, status, text}` |
 
 Overview counts use status summaries: `running` includes running/blocked runs, `needsAttention` counts blocked/failed runs or runs with failed tasks, and `lastActivity` is the latest update (or `null`). No task logs or reports are read for overview polling.
 
@@ -789,9 +750,9 @@ Overview counts use status summaries: `running` includes running/blocked runs, `
 
 Run summaries include `runId`, `name`, `status`, `statusDetail?`, timestamps, redacted `taskPreview?` (≤140 characters), executor(s), host, task/agent counts, verdict, report availability, `needsYou` and `live` (a supervisor holds the lease).
 
-Full runs add the redacted runtime task, permission mode, usage (or `null`), redacted launch details, pending approvals and tasks. Tasks include ids, kind, agent, state/reason, dependencies, executor/model/effort, timing, retry information, last message, usage, worktree, log availability, item title, outcome and current activity.
+Full runs add the redacted runtime task, permission mode, usage (or `null`), redacted launch details and tasks. Tasks include ids, kind, agent, state/reason, dependencies, executor/model/effort, timing, retry information, last message, usage, worktree, log availability, item title, outcome and current activity.
 
-Agent counts exclude foreach placeholders, support helpers and controllers. Pending approvals expose request id, controller spec id, task id, title, message and request time. `needsYou` contains approvals, `executor_needs_decision` tasks, and failed/blocked runs. Cost is `null` unless reported by the executor.
+Agent counts exclude foreach placeholders, support helpers and controllers. `needsYou` contains `executor_needs_decision` tasks, and failed/blocked runs. Cost is `null` unless reported by the executor.
 
 ### Discovery file
 

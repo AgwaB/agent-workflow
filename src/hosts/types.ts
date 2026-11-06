@@ -3,7 +3,6 @@
 // the same structured result plus a plain-text rendering.
 import { relative } from "node:path";
 
-import type { DynamicWorkflowUi } from "../core/dynamic-controller-policy.js";
 import { assertWorkflowActionAllowedForRole } from "../core/process-role.js";
 import { type WorkflowHostId, WorkflowValidationError } from "../core/types.js";
 import type {
@@ -52,13 +51,12 @@ export type HostAction =
 	| "supervise"
 	| "doctor"
 	| "logs"
-	| "approve"
 	| "auto";
 
 /**
  * `success`: a query/mutation completed. Run states: `running` (launched or still running after a
  * bounded wait), `completed`, `failed`, `blocked` (action required), `interrupted`. `refused`: a
- * launch was not started (capability refusal, unavailable executor, declined confirmation, an
+ * launch was not started (capability refusal, unavailable executor, an
  * identical launch still starting). `existing` (WP16): the duplicate-launch guard returned the
  * active run of an identical launch instead of starting another one. `timeout`: supervise gave up
  * at its deadline.
@@ -117,14 +115,6 @@ export interface HostApiContext {
 	 * decision; the engine honors it only when the run's executor is pi.
 	 */
 	hostTools?: { projectTrusted: boolean };
-	/**
-	 * WP29 (parity row 43): the host can ask its user to approve a dynamic controller
-	 * (`dynamic.permissions.approval: "ask"`) while this call drives the run: Pi's `ctx.ui.confirm`
-	 * with a dialog UI, the CLI's y/n prompt on a terminal. Used by attached launches, waits, resumes
-	 * and re-drives; never by detached launches/resumes (their supervisor has no UI). Absent: such a
-	 * controller blocks as `dynamic_ui_unavailable` until `approve`.
-	 */
-	dynamicUi?: DynamicWorkflowUi;
 }
 
 export function hostEnv(ctx: HostApiContext): NodeJS.ProcessEnv {

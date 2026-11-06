@@ -199,10 +199,7 @@ async function observe(root: string, runId: string): Promise<ObservedNotice> {
 					(task) =>
 						object(task) &&
 						task.status === "blocked" &&
-						(task.statusDetail === "dynamic_ui_unavailable" ||
-							task.statusDetail === "dynamic_approval_timeout" ||
-							// WP4c (B3): an executor attempt that needs an owner decision.
-							task.statusDetail === "executor_needs_decision"),
+						task.statusDetail === "executor_needs_decision",
 				)
 			: !run.parentRunId;
 	if (!eligible) throw new Error("Run is not an eligible unfinished notice.");

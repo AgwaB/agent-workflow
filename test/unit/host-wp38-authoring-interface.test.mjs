@@ -27,7 +27,6 @@ test("workflow command completions and run arg parsing preserve task text", () =
 			"logs",
 			"wait",
 			"resume",
-			"approve",
 			"stop",
 			"prune",
 			"notices",

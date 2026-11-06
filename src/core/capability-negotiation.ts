@@ -1,13 +1,13 @@
 // New in agent-workflow (WP4d): B4 capability negotiation before launch (design §8.2/§8.3, owner
 // decisions B4/B5, plan §2.2). Once per run, after executor selection: probe the executor (no model
 // turn, bounded), merge the probed rows over its declared table, negotiate every compiled stage, fail
-// before any launch on a refusal, ask an interactive host to confirm degradations, and record the
+// before any launch on a refusal, record the
 // probe summary, effective capabilities, per-stage reports and the preview on the run record.
 // At launch the task backend re-derives the same decision from the recorded capabilities, so a
 // runtime-generated task (foreach item, loop child, dynamic worker) is checked the same way and
 // `forcedReadOnly` reaches the SubmitRequest.
 // WP4e: the run permission mode reaches every stage context (free: coarse allowlist and environment
-// warnings are recorded degradations, never refusals or confirmations) and the preview's first line.
+// warnings are recorded degradations, never refusals) and the preview's first line.
 // WP5b: the probe summary keeps the executor's declared MCP output limit (mcpOutputLimitChars,
 // mcpOutputNoticeChars) so the artifact server is launched with a measured limit.
 // WP17: install/login hints come from executor-default.ts (first-run guidance names the install command).
@@ -34,7 +34,6 @@ import {
 } from "./executor-model-id.js";
 import {
 	buildCapabilityPreview,
-	type CapabilityPreview,
 	DEFAULT_REQUIREMENTS,
 	type NegotiationReport,
 	negotiateCapabilities,
@@ -76,9 +75,7 @@ export type WorkflowCapabilityErrorCode =
 	| "EXECUTOR_NOT_INSTALLED"
 	| "EXECUTOR_AUTH_NOT_READY"
 	| "CAPABILITY_REFUSED"
-	| "MODEL_UNKNOWN"
-	| "CAPABILITY_CONFIRMATION_REQUIRED"
-	| "CAPABILITY_DEGRADATION_DECLINED";
+	| "MODEL_UNKNOWN";
 
 /** Raised before any run record or launch exists (and by the launch-time check for one task). */
 export class WorkflowCapabilityError extends Error {
@@ -303,13 +300,12 @@ export function workflowProfileStrictCapabilities(
 
 /** Run-level inputs to every stage's requirement context. */
 export interface WorkflowCapabilityPolicy {
-	interactive: boolean;
 	allowUnverified: string[];
 	strict: string[];
 	allowReadOnlyDowngrade: boolean;
 	/**
 	 * WP4e (D2 revised). `free`: coarse tool allowlists and environment
-	 * warnings are recorded degradations, never refusals or confirmations.
+	 * warnings are recorded degradations, never refusals.
 	 * Absent (records created before WP4e) = `safe`.
 	 */
 	permissionMode?: "free" | "safe";
@@ -373,7 +369,6 @@ export function workflowTaskRequirementContext(
 			: {}),
 		allowUnverified: policy.allowUnverified as RequirementKey[],
 		strict: policy.strict as RequirementKey[],
-		interactive: policy.interactive,
 		permissionMode: policy.permissionMode ?? "safe",
 	};
 }
@@ -562,10 +557,6 @@ export interface NegotiateWorkflowRunInput {
 	recordedFromRunId?: string;
 	prober?: WorkflowExecutorProber;
 	probeTimeoutMs?: number;
-	/** B4 confirmation hook; called only when interactive and a stage needs confirmation. */
-	confirmDegradations?: (
-		preview: CapabilityPreview,
-	) => Promise<boolean | "chat" | "unasked">;
 	/**
 	 * WP31 (Q4): descriptors of every other executor of a mixed run. A task runs on
 	 * `task.runtime.executor` (absent: `descriptor`).
@@ -838,7 +829,7 @@ function notReadyError(
 
 /**
  * Pre-launch negotiation for a whole run. Throws `WorkflowCapabilityError` (nothing launched,
- * no run record) on probe failure, any refusal, or declined/impossible confirmation.
+ * no run record) on probe failure, any refusal.
  */
 export async function negotiateWorkflowRun(
 	input: NegotiateWorkflowRunInput,
@@ -1019,43 +1010,6 @@ export async function negotiateWorkflowRun(
 			executor.id,
 			preview.text,
 		);
-	let confirmation: WorkflowRunCapabilityNegotiation["confirmation"] =
-		"not-needed";
-	let confirmedVia: WorkflowRunCapabilityNegotiation["confirmedVia"];
-	if (preview.degradations.length > 0)
-		confirmation = preview.needsConfirmation
-			? "confirmed"
-			: policy.interactive
-				? // WP4e: only free-mode-accepted degradations; nothing to confirm.
-					"not-needed"
-				: "non-interactive";
-	if (preview.needsConfirmation) {
-		if (input.confirmDegradations === undefined)
-			throw new WorkflowCapabilityError(
-				"CAPABILITY_CONFIRMATION_REQUIRED",
-				`interactive run needs confirmation of capability degradations but the host provided no confirmDegradations hook; the run was not started.\n${preview.text}`,
-				executor.id,
-				preview.text,
-			);
-		const accepted = await input.confirmDegradations(preview);
-		if (accepted === "chat") confirmedVia = "chat";
-		else if (accepted === true) confirmedVia = "dialog";
-		// The host could not ask the user (no dialog, or one answered without them): not a "no".
-		if (accepted === "unasked")
-			throw new WorkflowCapabilityError(
-				"CAPABILITY_CONFIRMATION_REQUIRED",
-				`capability degradations need the user's OK (${preview.needsOk.join(", ")}); the user was not asked yet, so the run was not started.`,
-				executor.id,
-				preview.text,
-			);
-		if (accepted !== true && accepted !== "chat")
-			throw new WorkflowCapabilityError(
-				"CAPABILITY_DEGRADATION_DECLINED",
-				`capability degradations were declined (${preview.degradations.join(", ")}); the run was not started.`,
-				executor.id,
-				preview.text,
-			);
-	}
 	// Accepted: the run is created from the compiled tasks, with each model/effort in its executor's
 	// own form.
 	names.apply();
@@ -1068,15 +1022,12 @@ export async function negotiateWorkflowRun(
 		probe: probed.summary,
 		capabilities: probed.capabilities,
 		policy: {
-			interactive: policy.interactive,
 			allowUnverified: [...policy.allowUnverified],
 			strict: [...policy.strict],
 			allowReadOnlyDowngrade: policy.allowReadOnlyDowngrade,
 			permissionMode: policy.permissionMode ?? "safe",
 			...(policy.sameSessionRepair === true ? { sameSessionRepair: true } : {}),
 		},
-		confirmation,
-		...(confirmedVia ? { confirmedVia } : {}),
 		stages,
 		degradations: [...preview.degradations],
 		forcedReadOnly: [...preview.forcedReadOnly],
@@ -1209,7 +1160,7 @@ export function resolveGeneratedTaskNames(
  * Launch-time decision for one task (task backend, before any effect). Re-derives the report from
  * the recorded effective capabilities and policy; a task generated at runtime whose template was
  * not negotiated before launch is appended to the record (`negotiatedAt: "launch"`, never asks for
- * confirmation). Runs recorded before WP4d (no negotiation) are not checked.
+ * prompting). Runs recorded before WP4d (no negotiation) are not checked.
  */
 export function workflowTaskCapabilityLaunch(
 	run: Pick<WorkflowRunRecord, "capabilityNegotiation">,
@@ -1220,7 +1171,6 @@ export function workflowTaskCapabilityLaunch(
 		return { forcedReadOnly: false };
 	const policy: WorkflowCapabilityPolicy = {
 		...negotiation.policy,
-		interactive: false,
 	};
 	// WP31 (Q4): the task's own executor in a mixed run.
 	const executorId = task.runtime.executor ?? negotiation.executorId;

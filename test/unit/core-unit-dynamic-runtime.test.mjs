@@ -265,7 +265,6 @@ test("artifact graph schema accepts dynamic stages and validates helper refs", (
 								maxNestedWorkflowDepth: 3,
 							},
 							permissions: {
-								approval: "auto",
 								allowDynamicRoles: true,
 								allowDynamicTools: true,
 							},
@@ -363,7 +362,7 @@ test("artifact graph schema accepts dynamic stages and validates helper refs", (
 	assertIssue(
 		badApproval,
 		"$.artifactGraph.stages[0].dynamic.permissions.approval",
-		"must be one of: auto, ask",
+		"workflow approvals were removed",
 	);
 
 	const badHelperSchema = assertThrowsFlow(() =>
@@ -425,6 +424,24 @@ test("artifact graph schema accepts dynamic stages and validates helper refs", (
 	);
 });
 
+test("dynamic.permissions.approval is rejected because workflow approvals were removed", () => {
+	for (const approval of ["ask", "auto", null]) {
+		const spec = {
+			schemaVersion: 1,
+			artifactGraph: {
+				stages: [
+					{
+						id: "adaptive",
+						type: "dynamic",
+						dynamic: { uses: "./controller.mjs", permissions: { approval } },
+					},
+				],
+			},
+		};
+		assert.throws(() => parseWorkflow(spec), /workflow approvals were removed/);
+	}
+});
+
 test("compiler lowers dynamic stages to controller placeholders", async () => {
 	const cwd = makeProject();
 	try {
@@ -465,7 +482,7 @@ test("compiler lowers dynamic stages to controller placeholders", async () => {
 		assert.equal(controller.dynamic.budget.maxConcurrency, 16);
 		assert.equal(controller.dynamic.budget.maxRuntimeMs, 14_400_000);
 		assert.equal(controller.dynamic.budget.maxNestedWorkflowDepth, 3);
-		assert.equal(controller.dynamic.permissions.approval, "auto");
+		assert.equal(controller.dynamic.permissions.approval, undefined);
 		assert.match(
 			controller.compiledPrompt,
 			/# Runtime Task\n\nReview dynamically\./,
@@ -727,7 +744,6 @@ test("dynamic generated tasks apply runtime overrides above profile pins and res
 				],
 				budget: { maxAgents: 10, maxConcurrency: 2, maxRuntimeMs: 1000 },
 				permissions: {
-					approval: "auto",
 					allowDynamicRoles: true,
 					allowDynamicTools: true,
 				},
@@ -6736,235 +6752,6 @@ test("artifactGraph downstream reduce sees exported dynamic output source", asyn
 		assert.deepEqual(manifest.sources[1].controlProjection, undefined);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		rmSync(cwd, {
-			recursive: true,
-			force: true,
-			maxRetries: 5,
-			retryDelay: 10,
-		});
-	}
-});
-
-test("artifactGraph dynamic approval ask uses interactive UI decisions", async () => {
-	const cwd = makeProject();
-	try {
-		writeAgent(cwd, "unit-scout", "read");
-		const workflowDir = join(cwd, "workflows", "bundle");
-		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
-		const specPath = join(workflowDir, "spec.json");
-		writeFileSync(
-			join(workflowDir, "helpers", "controller.mjs"),
-			"export default async function controller() { return { control: { schema: 'dynamic-controller-result-v1', summary: 'approved' }, analysis: 'approved', refs: [] }; }\n",
-		);
-		const spec = artifactGraphWorkflowSpec({
-			artifactGraph: {
-				stages: [
-					{
-						id: "adaptive",
-						type: "dynamic",
-						dynamic: {
-							uses: "./helpers/controller.mjs",
-							permissions: { approval: "ask" },
-						},
-					},
-				],
-			},
-		});
-		writeFileSync(specPath, JSON.stringify(spec));
-		const prompts = [];
-		const approvedRun = await runWorkflowSpec(specPath, cwd, {
-			task: "Review dynamically.",
-			dynamicUi: {
-				hasUI: true,
-				confirm: async (title, message) => {
-					prompts.push({ title, message });
-					return true;
-				},
-			},
-		});
-		assert.equal(approvedRun.status, "completed");
-		assert.equal(prompts.length, 1);
-		assert.match(prompts[0].message, /adaptive\.controller/);
-		assert.match(prompts[0].message, /Task digest:/);
-		assert.match(prompts[0].message, /Approval request digest:/);
-		assert.match(prompts[0].message, /without later approval prompts/);
-		const approvalEvents = await readDynamicEvents(cwd, approvedRun.runId);
-		const pendingApproval = approvalEvents.find(
-			(event) => event.type === "approval.pending",
-		);
-		const resolvedApproval = approvalEvents.find(
-			(event) => event.type === "approval.resolved",
-		);
-		assert.equal(
-			pendingApproval.payload.approvalScope.taskText.hash,
-			resolvedApproval.payload.approvalScope.taskText.hash,
-		);
-		assert.equal(
-			resolvedApproval.payload.approvalScope.controllerSpecId,
-			"adaptive.controller",
-		);
-		assert.equal(
-			resolvedApproval.payload.approvalScope.bundle.files[0].hash.length,
-			64,
-		);
-		const approvedController = taskBySpec(approvedRun, "adaptive.controller");
-		const approvedControl = JSON.parse(
-			readFileSync(
-				join(
-					dirname(join(stateDir(cwd), approvedController.files.result)),
-					"control.json",
-				),
-				"utf8",
-			),
-		);
-		assert.equal(approvedControl.digest, "approved");
-
-		const confirmOnlyRun = await runWorkflowSpec(specPath, cwd, {
-			task: "Review dynamically.",
-			dynamicUi: { confirm: async () => true },
-		});
-		assert.equal(confirmOnlyRun.status, "completed");
-
-		const rejectedRun = await runWorkflowSpec(specPath, cwd, {
-			task: "Review dynamically.",
-			dynamicUi: { hasUI: true, confirm: async () => false },
-		});
-		assert.equal(rejectedRun.status, "blocked");
-		assert.equal(
-			taskBySpec(rejectedRun, "adaptive.controller").statusDetail,
-			"dynamic_approval_rejected",
-		);
-	} finally {
-		rmSync(cwd, {
-			recursive: true,
-			force: true,
-			maxRetries: 5,
-			retryDelay: 10,
-		});
-	}
-});
-
-test("artifactGraph dynamic approval ask blocks when no UI is available", async () => {
-	const cwd = makeProject();
-	try {
-		writeAgent(cwd, "unit-scout", "read");
-		const workflowDir = join(cwd, "workflows", "bundle");
-		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
-		const specPath = join(workflowDir, "spec.json");
-		writeFileSync(
-			join(workflowDir, "helpers", "controller.mjs"),
-			"export default async function controller() { return { control: { schema: 'dynamic-controller-result-v1', summary: 'approved-after-resume' }, analysis: 'approved', refs: [] }; }\n",
-		);
-		const spec = artifactGraphWorkflowSpec({
-			artifactGraph: {
-				stages: [
-					{
-						id: "adaptive",
-						type: "dynamic",
-						dynamic: {
-							uses: "./helpers/controller.mjs",
-							permissions: { approval: "ask" },
-						},
-					},
-				],
-			},
-		});
-		writeFileSync(specPath, JSON.stringify(spec));
-		const compiled = await compileWorkflow(spec, {
-			cwd,
-			task: "Review dynamically.",
-			specPath,
-		});
-		const { run } = await createWorkflowRunRecord(cwd, compiled, specPath);
-		await writeStaticRunArtifacts(cwd, run, compiled, spec);
-		await writeRunRecord(cwd, run);
-
-		await scheduleRun(cwd, run.runId);
-		const updated = await readRunRecord(cwd, run.runId);
-		const controller = taskBySpec(updated, "adaptive.controller");
-		assert.equal(controller.status, "blocked");
-		assert.equal(controller.statusDetail, "dynamic_ui_unavailable");
-		const state = await readOrRebuildDynamicState(cwd, run.runId);
-		assert.equal(
-			state.controllers["adaptive.controller"].status,
-			"awaiting_ui_unavailable",
-		);
-		assert.ok(state.controllers["adaptive.controller"].pendingUiApproval);
-		assert.match(
-			readFileSync(dynamicEventsPath(cwd, run.runId), "utf8"),
-			/approval\.pending/,
-		);
-
-		const resumed = await resumeRun(cwd, run.runId, {
-			dynamicUi: { hasUI: true, confirm: async () => true },
-		});
-		assert.equal(resumed.run.status, "completed");
-		assert.equal(resumed.resetTaskIds.length, 1);
-		assert.equal(
-			taskBySpec(resumed.run, "adaptive.controller").statusDetail,
-			"dynamic_completed",
-		);
-	} finally {
-		rmSync(cwd, {
-			recursive: true,
-			force: true,
-			maxRetries: 5,
-			retryDelay: 10,
-		});
-	}
-});
-
-test("artifactGraph dynamic approval detects changed pending approval request", async () => {
-	const cwd = makeProject();
-	try {
-		writeAgent(cwd, "unit-scout", "read");
-		const workflowDir = join(cwd, "workflows", "bundle");
-		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
-		const specPath = join(workflowDir, "spec.json");
-		writeFileSync(
-			join(workflowDir, "helpers", "controller.mjs"),
-			"export default async function controller() { return { control: { schema: 'dynamic-controller-result-v1', summary: 'approved' }, analysis: 'approved', refs: [] }; }\n",
-		);
-		const spec = artifactGraphWorkflowSpec({
-			artifactGraph: {
-				stages: [
-					{
-						id: "adaptive",
-						type: "dynamic",
-						dynamic: {
-							uses: "./helpers/controller.mjs",
-							permissions: { approval: "ask" },
-						},
-					},
-				],
-			},
-		});
-		writeFileSync(specPath, JSON.stringify(spec));
-		const compiled = await compileWorkflow(spec, {
-			cwd,
-			task: "Review dynamically.",
-			specPath,
-		});
-		const { run } = await createWorkflowRunRecord(cwd, compiled, specPath);
-		await writeStaticRunArtifacts(cwd, run, compiled, spec);
-		await appendDynamicEvent(cwd, run.runId, {
-			controllerSpecId: "adaptive.controller",
-			type: "approval.pending",
-			opId: "adaptive.controller:approval:controller",
-			requestHash: "old-approval-hash",
-			payload: { message: "old prompt" },
-		});
-		await writeRunRecord(cwd, run);
-
-		await scheduleRun(cwd, run.runId, undefined, {
-			dynamicUi: { hasUI: true, confirm: async () => true },
-		});
-		const updated = await readRunRecord(cwd, run.runId);
-		assert.equal(
-			taskBySpec(updated, "adaptive.controller").statusDetail,
-			"dynamic_approval_changed",
-		);
-	} finally {
 		rmSync(cwd, {
 			recursive: true,
 			force: true,

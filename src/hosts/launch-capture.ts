@@ -113,8 +113,8 @@ export function redactLaunchCommand(
 
 /**
  * The engine's launch capture of one host API launch (schema `agent-workflow-run-launch-v1`).
- * WP32: a confirmed `auto` launch passes its selection facts and gets `agent-workflow-run-launch-v2`
- * (entry `command auto` or the tool, routing mode `auto-confirmed`, `selection`).
+ * WP32: a `auto` launch passes its selection facts and gets `agent-workflow-run-launch-v2`
+ * (entry `command auto` or the tool, routing mode `auto`, `selection`).
  */
 export function hostLaunchCapture(
 	host: WorkflowHostId | undefined,
@@ -139,7 +139,7 @@ export function hostLaunchCapture(
 					? { kind: "tool", name: origin.name }
 					: { kind: "command", action: "auto" },
 			requestKind: action === "run" ? "named-workflow" : "direct-dynamic",
-			routingMode: "auto-confirmed",
+			routingMode: "auto",
 			profile: action === "run" ? { kind: "base" } : { kind: "not-applicable" },
 			task: { characters: 0, lines: 0 },
 			selection: autoSelection,

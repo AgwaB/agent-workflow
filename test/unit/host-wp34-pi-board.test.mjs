@@ -97,16 +97,6 @@ function mixedRun() {
 		reportArtifacts: [
 			{ kind: "final-report", label: "Final report", path: "reports/final.md" },
 		],
-		pendingApprovals: [
-			{
-				requestId: "req-abcdef0123456789",
-				controllerSpecId: "dyn.controller",
-				taskId: "worker-2",
-				title: "Run dynamic workflow controller?",
-				message: "Scope: plan the follow-up review.",
-				requestedAt: T0,
-			},
-		],
 		tasks: tasks.map((entry) => ({
 			taskId: entry.taskId,
 			specId: entry.specId,
@@ -201,13 +191,6 @@ function fakeSource({ launch = true } = {}) {
 			calls.push(["resume", runId]);
 			return { text: `Resumed ${runId}.`, level: "info" };
 		},
-		async approve(runId, requestId, decision) {
-			calls.push(["approve", runId, requestId, decision]);
-			return {
-				text: `${decision === "approve" ? "approved" : "rejected"} ${requestId}`,
-				level: "info",
-			};
-		},
 		async copy(text) {
 			if (source.copyFails) throw new Error("clipboard failure");
 			copied.push(text);
@@ -251,7 +234,6 @@ test("board lists runs and drills runs → stages → tasks → task detail and 
 	assert.match(text, /claude\+codex/, "mixed executors of the run");
 	assert.match(text, /✓ other/);
 	assert.match(text, /verdict: NEEDS_WORK/);
-	assert.match(text, /Pending approval/);
 	// Every rendered line fits the width.
 	for (const width of [60, 100, 140])
 		for (const line of b.view.render(width))
@@ -264,7 +246,6 @@ test("board lists runs and drills runs → stages → tasks → task detail and 
 	assert.match(text, /plan/);
 	assert.match(text, /work/);
 	assert.match(text, /final report: reports\/final\.md/);
-	assert.match(text, /dyn\.controller/);
 	assert.match(text, /source: pi · command run/);
 
 	b.view.handleInput("j"); // stage "work"
@@ -372,7 +353,7 @@ test("a run without launch capture says so for v and c", async () => {
 	assert.deepEqual(b.source.copied, []);
 });
 
-test("s, u and a ask in the board before stop, resume and approve/reject", async () => {
+test("s and u ask in the board before stop and resume", async () => {
 	const b = await board();
 	b.view.handleInput("s");
 	assert.equal(b.view.prompt.kind, "stop");
@@ -407,26 +388,7 @@ test("s, u and a ask in the board before stop, resume and approve/reject", async
 	b.view.handleInput("y");
 	await eventually(() => /^Resumed/.test(b.view.message), "resume");
 
-	b.view.handleInput("a");
-	assert.equal(b.view.prompt.kind, "approve");
-	const prompt = b.text();
-	assert.match(prompt, /Run dynamic workflow controller\?/);
-	assert.match(prompt, /Scope: plan the follow-up review\./);
-	assert.match(prompt, /y approve · x reject/);
-	b.view.handleInput("y");
-	await eventually(() => /^approved/.test(b.view.message), "approve");
-	b.view.handleInput("a");
-	b.view.handleInput("x");
-	await eventually(() => /^rejected/.test(b.view.message), "reject");
-	assert.deepEqual(
-		b.source.calls.filter(([name]) => name === "approve"),
-		[
-			["approve", "workflow_mixed_1", "req-abcdef0123456789", "approve"],
-			["approve", "workflow_mixed_1", "req-abcdef0123456789", "reject"],
-		],
-	);
-
-	// The completed run: nothing to stop, resume or approve.
+	// The completed run: nothing to stop or resume.
 	b.view.handleInput(DOWN);
 	await eventually(
 		() => b.view.detail?.run.runId === "workflow_other_2",
@@ -436,8 +398,6 @@ test("s, u and a ask in the board before stop, resume and approve/reject", async
 	assert.equal(b.view.message, "stop: run is completed");
 	b.view.handleInput("u");
 	assert.equal(b.view.message, "resume: run is completed");
-	b.view.handleInput("a");
-	assert.equal(b.view.message, "approve: no pending approval");
 	assert.equal(b.view.prompt, undefined);
 });
 

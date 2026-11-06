@@ -1,5 +1,5 @@
 // 2026-11-04 (coverage after the CLI//aw refactor): CLI paths no test reached — `doctor --fix`
-// (no terminal, declined, agreed, --yes) and the attached `resume` / `approve` that wait for the
+// (no terminal, declined, agreed, --yes) and the attached `resume` that wait for the
 // resumed run to settle. Executor fixtures and a scratch pi-web-access config only: no model or
 // agent-CLI calls.
 import assert from "node:assert/strict";
@@ -15,11 +15,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, afterEach, before, test } from "node:test";
 
-import {
-	APPROVAL_SPEC,
-	approvalProject,
-	controllerTask,
-} from "../helpers/dynamic-approval-fixture.mjs";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 
 const cli = await import("../../dist/hosts/cli/index.js");
@@ -229,62 +224,4 @@ test("CLI resume (attached) of a stopped run waits until the run settles; --json
 			assert.match(resumed.out, /completed/);
 		}
 	}
-});
-
-test("CLI approve --yes of a blocked run with work after the controller waits until the run settles", async () => {
-	counter += 1;
-	const p = await approvalProject(root, `approve-${counter}`, register);
-	// A worker stage after the controller: the approved run is still running when approve returns.
-	await writeFile(
-		join(p.cwd, "wf.json"),
-		`${JSON.stringify({
-			...APPROVAL_SPEC,
-			artifactGraph: {
-				stages: [
-					...APPROVAL_SPEC.artifactGraph.stages,
-					{
-						id: "finish",
-						type: "single",
-						after: ["adaptive"],
-						prompt: "Finish.",
-					},
-				],
-			},
-		})}\n`,
-	);
-	for (const json of [false, true]) {
-		const launched = await runCli(p.cwd, p.env, [
-			"run",
-			"wf.json",
-			`blocked ${json}`,
-			"--executor",
-			p.executor,
-		]);
-		const runId = /Run: (workflow_\S+)/.exec(launched.out)?.[1];
-		assert.ok(runId, launched.out + launched.err);
-		assert.equal(
-			controllerTask(await store.readRunRecord(p.cwd, runId)).statusDetail,
-			"dynamic_ui_unavailable",
-		);
-		const approved = await runCli(p.cwd, p.env, [
-			"approve",
-			runId,
-			"--yes",
-			...(json ? ["--json"] : []),
-		]);
-		assert.equal(approved.code, 0, approved.out + approved.err);
-		const run = await store.readRunRecord(p.cwd, runId);
-		assert.equal(run.status, "completed");
-		assert.equal(
-			run.tasks.find((task) => task.specId === "finish.main")?.status,
-			"completed",
-		);
-		if (json) {
-			const parsed = JSON.parse(approved.out);
-			assert.equal(parsed.action, "approve");
-			assert.equal(parsed.data.status, "completed");
-			assert.equal(parsed.data.wait.status, "completed");
-		} else assert.match(approved.out, /completed/);
-	}
-	assert.equal(await p.controllerRuns(), 2);
 });

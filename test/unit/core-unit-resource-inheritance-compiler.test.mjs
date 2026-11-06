@@ -121,7 +121,6 @@ function dynamicDefinition() {
 		mode: "graph-splice",
 		budget: { maxAgents: 10, maxConcurrency: 2, maxRuntimeMs: 1_000 },
 		permissions: {
-			approval: "auto",
 			allowDynamicRoles: true,
 			allowDynamicTools: true,
 		},

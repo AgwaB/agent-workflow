@@ -303,19 +303,11 @@ export function taskState(task) {
 		? "retry"
 		: task.status;
 }
-const rejected = (run) =>
-	run.statusDetail === "dynamic_approval_rejected" ||
-	run.tasks?.some((t) => t.statusDetail === "dynamic_approval_rejected");
 // A verdict-gated "failed" run finished its work: Resume would relaunch nothing useful.
 const needsResume = (run) =>
-	!rejected(run) &&
 	!(run.status === "failed" && run.verdictGate) &&
 	(["failed", "interrupted"].includes(run.status) ||
-		run.tasks?.some((t) =>
-			["executor_needs_decision", "dynamic_approval_approved"].includes(
-				t.statusDetail,
-			),
-		));
+		run.tasks?.some((t) => t.statusDetail === "executor_needs_decision"));
 // Human wording from F v9-O. Never display an unknown engine status/detail as prose.
 export function statusSentence(run, time = now(), stopping = false) {
 	const tasks = (run.tasks || []).filter((t) => !t.placeholder);
@@ -329,13 +321,6 @@ export function statusSentence(run, time = now(), stopping = false) {
 	if (stopping) return "Stopping. Waiting for the supervisor to confirm.";
 	if (run.status === "interrupted")
 		return "Stopped by you. Completed work is kept. Resume when ready.";
-	if (rejected(run))
-		return "Stopped by you. The controller was rejected; the run stays blocked until you stop it.";
-	if (
-		run.pendingApprovals?.length ||
-		run.needsYou?.some((n) => n.kind === "approval")
-	)
-		return `Waiting for you. The controller needs approval before it can ${/mode:\s*graph-splice/.test(run.pendingApprovals?.[0]?.message || "") ? "add stages" : "continue"}.`;
 	if (
 		tasks.some((t) => t.statusDetail === "executor_needs_decision") ||
 		run.needsYou?.some((n) => n.kind === "decision")
@@ -349,8 +334,6 @@ export function statusSentence(run, time = now(), stopping = false) {
 			: "A task failed. Inspect and resume when ready.";
 	if (run.status === "completed")
 		return `Finished ${ago(run.updatedAt, time).replace(/(\d)([mhd])/, "$1 $2")}.${run.reportAvailable ? " Report is ready." : ""}`;
-	if (tasks.some((t) => t.statusDetail === "dynamic_approval_approved"))
-		return "Approved by you. Resume separately to run the controller.";
 	if (run.status === "blocked")
 		return "Work is paused. Review the run details before continuing.";
 	let text = reviewing
@@ -416,7 +399,7 @@ function readState() {
 			"maintenance",
 			"executors",
 		]),
-		dialog: choice("dialog", ["stop", "resume", "approve", "reject"]),
+		dialog: choice("dialog", ["stop", "resume"]),
 		layout: choice("layout", ["td", "lr"]) || "td",
 	};
 }
@@ -624,9 +607,6 @@ function railLine(summary) {
 	}
 	if (summary.status === "failed")
 		return summary.needsYou?.[0]?.title || "A task failed";
-	if (rejected(summary)) return "Controller rejected";
-	if (summary.needsYou?.some((n) => n.kind === "approval"))
-		return "Approval required";
 	if (summary.status === "blocked") return "Decision required";
 	if (summary.status === "interrupted") return "Stopped";
 	return summary.status === "running"
@@ -763,20 +743,8 @@ function renderRail() {
 						element(
 							"span",
 							{ class: "grow" },
-							element(
-								"b",
-								{ class: "need-title" },
-								need.kind === "approval"
-									? "Approve the controller?"
-									: need.title,
-							),
-							element(
-								"span",
-								{ class: "need-action" },
-								need.kind === "approval"
-									? "Review approval"
-									: "Inspect & resume",
-							),
+							element("b", { class: "need-title" }, need.title),
+							element("span", { class: "need-action" }, "Inspect & resume"),
 							element("small", {}, `${need.run.name} ${ago(need.since)}`),
 						),
 					],
@@ -790,7 +758,7 @@ function renderRail() {
 						go({
 							run: need.run.runId,
 							task: target || null,
-							dialog: need.kind === "approval" ? "approve" : "resume",
+							dialog: "resume",
 						});
 					},
 					{ class: "need" },
@@ -1091,8 +1059,6 @@ function renderBadge(status) {
 function renderHeader() {
 	const [status, title] = heroState(run);
 	const actions = element("div", { class: "actions" });
-	if (run.pendingApprovals?.length)
-		actions.append(actionButton("Review approval…", "approve"));
 	if (liveRun(run))
 		actions.append(
 			actionButton(stoppingRuns.has(run.runId) ? "Stopping…" : "Stop…", "stop"),
@@ -1238,33 +1204,8 @@ export function deriveGraph(
 				: "completed"
 			: priority.find((s) => states.includes(s)) || "pending";
 		stage.done = stage.items.filter((t) => t.status === "completed").length;
-		stage.approval = projection.pendingApprovals?.find((a) =>
-			stage.tasks.some(
-				(t) =>
-					[a.controllerSpecId, a.taskId].includes(t.specId) ||
-					a.taskId === t.taskId,
-			),
-		);
 		for (const dep of stage.deps) stages.get(dep).kids.add(stage.id);
 	}
-	for (const stage of [...stages.values()])
-		if (stage.kind === "dynamic" && stage.approval && !stage.kids.size) {
-			const id = `__after_${stage.id}`;
-			stages.set(id, {
-				id,
-				name: "Generated stages",
-				kind: "ghost",
-				ghost: true,
-				tasks: [],
-				items: [],
-				status: "pending",
-				done: 0,
-				deps: new Set([stage.id]),
-				kids: new Set(),
-				parent: stage,
-			});
-			stage.kids.add(id);
-		}
 	// A dotted prefix every stage shares (`impact-analysis.` in a 13-stage review) says nothing
 	// on a card: cards show the part that differs; titles, labels and the inspector keep the
 	// full name.
@@ -1279,7 +1220,6 @@ export function deriveGraph(
 	const hidden = (stage) =>
 		hideCode &&
 		stage.kind === "support" &&
-		!stage.approval &&
 		stage.id !== keep &&
 		["completed", "skipped", "pending"].includes(stage.status);
 	const across = (ids, key, seen = new Set()) => {
@@ -1339,7 +1279,7 @@ export function deriveGraph(
 	for (const stage of shown.values()) level(stage.id);
 	// Stages that share the same inputs and the same outputs are parallel siblings: one stacked
 	// card with a row per stage (GitHub Actions stacks such jobs the same way), so a fan-out/join
-	// is one card and one edge instead of n×m crossing lines. Foreach, approval and ghost stages
+	// is one card and one edge instead of n×m crossing lines. Foreach and ghost stages
 	// keep their own card.
 	const nodes = new Map(),
 		groups = new Map(),
@@ -1347,7 +1287,7 @@ export function deriveGraph(
 		buckets = new Map();
 	for (const stage of shown.values()) {
 		const key =
-			stage.kind === "foreach" || stage.approval || stage.ghost
+			stage.kind === "foreach" || stage.ghost
 				? null
 				: `${levels.get(stage.id)}|${[...stage.deps].sort().join(",")}|${[...stage.kids].sort().join(",")}`;
 		if (key === null) continue;
@@ -1481,7 +1421,6 @@ const activeAgents = (stage) =>
 function nodeHeight(stage) {
 	if (stage.kind === "group") return 55 + stage.members.length * 25;
 	if (stage.ghost) return 58;
-	if (stage.approval) return 94;
 	if (activeAgents(stage))
 		return stage.items.length <= 6 ? 55 + stage.items.length * 25 : 76;
 	// 2026-11-03 (owner's pick of the graph mock-ups): every stage is a full card with a second
@@ -1489,8 +1428,6 @@ function nodeHeight(stage) {
 	return stage.kind === "foreach" && stage.items.length ? 76 : 58;
 }
 function stageLine(stage) {
-	if (stage.ghost) return "After approval";
-	if (stage.approval) return "Awaiting your approval";
 	if (stage.kind === "dynamic" && stage.items.length > 1)
 		return `${stage.done} of ${stage.items.length} agents done`;
 	// 2026-11-03 (owner: "where did it fail?" — every node of a NEEDS_WORK review read "Done"): a
@@ -1808,7 +1745,7 @@ function renderGraph() {
 		// Who did the work, at the card's right (owner's pick, 2026-11-03): "✦ agent" / "✦ 3 agents",
 		// "</> code". With no code step in view every card is an agent's, so a lone "agent" goes.
 		const tag =
-			group || stage.ghost || stage.approval
+			group || stage.ghost
 				? null
 				: stage.kind === "support"
 					? "code"
@@ -2139,22 +2076,6 @@ function renderGraph() {
 						class: "running-marker",
 					}),
 				);
-		}
-		if (stage.approval) {
-			node.append(
-				svg("line", { x1: 1, x2: 1, y1: 9, y2: p.h - 9, class: "gate-edge" }),
-			);
-			const foreign = svg("foreignObject", {
-				x: 30,
-				y: 54,
-				width: p.w - 40,
-				height: 32,
-			});
-			const action = actionButton("Review approval…", "approve");
-			action.addEventListener("click", (event) => event.stopPropagation());
-			action.addEventListener("keydown", (event) => event.stopPropagation());
-			foreign.append(action);
-			node.append(foreign);
 		}
 		nodes.append(node);
 	}
@@ -2844,7 +2765,6 @@ function graphSignature(model, layout) {
 			nodeHeight(node),
 			node.done,
 			node.items[0]?.outcome?.tone,
-			node.approval?.requestId ?? null,
 			node.kind === "group"
 				? node.members.map((m) => [m.id, m.status])
 				: node.items.map((t) => [
@@ -2878,27 +2798,18 @@ function renderRun() {
 		canvas &&
 		graphControl?.signature === signature &&
 		graphControl.runId === run.runId;
-	const banner = run.pendingApprovals?.length
-		? element(
-				"div",
-				{ class: "approval-banner" },
-				glyph("blocked"),
-				`${run.pendingApprovals.length} approval${run.pendingApprovals.length === 1 ? " is" : "s are"} required before this run can continue`,
-				actionButton("Review approval…", "approve"),
-			)
-		: null;
 	if (keepGraph) {
 		// The canvas stays in place (removing and re-adding it would restart its animations).
 		for (const child of [...$("center").children])
 			if (child !== canvas) child.remove();
-		$("center").prepend(renderHeader(), ...(banner ? [banner] : []));
+		$("center").prepend(renderHeader());
 		refreshGraphTexts();
 	} else {
 		// A status change that reshapes the graph (a card collapses, rows appear) moves the cards
 		// from where they were instead of jumping: remember the drawn boxes before replacing them.
 		const previous =
 			canvas && graphControl?.runId === run.runId ? graphGeometry() : null;
-		$("center").replaceChildren(renderHeader(), ...(banner ? [banner] : []));
+		$("center").replaceChildren(renderHeader());
 		$("center").append(renderGraph());
 		graphControl.signature = signature;
 		graphControl.runId = run.runId;
@@ -3104,10 +3015,6 @@ function renderSelection() {
 		const reasons = {
 			executor_needs_decision:
 				"The executor could not confirm whether the earlier attempt ran; review before resuming.",
-			dynamic_approval_rejected:
-				"The controller will not run or be asked again. This run stays blocked; you can stop it.",
-			dynamic_approval_approved:
-				"Approval recorded. Resume separately to run the controller and continue.",
 		};
 		const reason =
 			task.retry?.reason ||
@@ -3136,28 +3043,12 @@ function renderSelection() {
 				),
 			]),
 		);
-		const approval = run.pendingApprovals?.find(
-			(a) =>
-				[a.controllerSpecId, a.taskId].includes(task.specId) ||
-				a.taskId === task.taskId,
-		);
-		if (approval)
+		if (reasons[task.statusDetail])
 			inspector.append(
 				element(
 					"div",
 					{ class: "details-section" },
-					actionButton("Review approval…", "approve"),
-				),
-			);
-		else if (reasons[task.statusDetail])
-			inspector.append(
-				element(
-					"div",
-					{ class: "details-section" },
-					actionButton(
-						rejected(run) ? "Stop run…" : "Review & resume…",
-						rejected(run) ? "stop" : "resume",
-					),
+					actionButton("Review & resume…", "resume"),
 				),
 			);
 		const tab = state.tab || defaultTaskTab(task);
@@ -3988,15 +3879,9 @@ function renderModal() {
 			dismissDialog(false);
 		return;
 	}
-	const kind = state.dialog,
-		approval =
-			run.pendingApprovals?.find(
-				(a) =>
-					[a.controllerSpecId, a.taskId].includes(selectedTask()?.specId) ||
-					a.taskId === selectedTask()?.taskId,
-			) || run.pendingApprovals?.[0];
+	const kind = state.dialog;
 	if (
-		((kind === "approve" || kind === "reject") && !approval) ||
+		!["stop", "resume"].includes(kind) ||
 		(kind === "stop" && !liveRun(run)) ||
 		(kind === "resume" && !needsResume(run))
 	) {
@@ -4005,7 +3890,7 @@ function renderModal() {
 		if (modalKey) dismissDialog(false);
 		return;
 	}
-	const key = `${run.runId}:${kind}:${approval?.requestId || ""}`;
+	const key = `${run.runId}:${kind}`;
 	if (modalKey === key) {
 		for (const confirm of $("dialog").querySelectorAll("[data-mutation]"))
 			confirm.disabled = readonly() || busy;
@@ -4070,33 +3955,6 @@ function renderModal() {
 					"The executor could not confirm whether the earlier attempt ran; relaunching may repeat its side effects.",
 				),
 			);
-	} else {
-		title =
-			kind === "approve"
-				? approval.title || "Run dynamic workflow controller?"
-				: "Reject dynamic controller?";
-		confirm = kind === "approve" ? "Approve" : "Reject";
-		content = [
-			element(
-				"p",
-				{ class: "muted" },
-				`${approval.controllerSpecId} in ${run.name}`,
-			),
-			element("pre", { class: "scope" }, approval.message),
-			element(
-				"p",
-				{},
-				kind === "reject"
-					? "The controller will not run for this run and will not be asked again. The run STAYS BLOCKED. You can stop it; nothing resumes automatically. Completed work is kept."
-					: run.tasks.some(
-								(t) =>
-									["failed", "interrupted"].includes(t.status) ||
-									t.statusDetail === "executor_needs_decision",
-							)
-						? "Only the approval decision is recorded. Resume separately: this run also has failed, interrupted or needs-decision tasks. Completed tasks are not relaunched."
-						: "Approving runs the controller and then resumes the run. Completed tasks are not relaunched.",
-			),
-		];
 	}
 	const runId = run.runId;
 	openDialog(key, [
@@ -4110,14 +3968,8 @@ function renderModal() {
 				{ class: "muted" },
 				readonly() ? "Read-only — action disabled" : "Esc to cancel",
 			),
-			kind === "approve"
-				? button("Reject…", () => go({ dialog: "reject" }), {
-						disabled: readonly() || busy,
-						"data-mutation": "true",
-					})
-				: null,
 			button("Cancel", () => dismissDialog(), { "data-cancel": "true" }),
-			button(confirm, () => mutate(runId, kind, approval), {
+			button(confirm, () => mutate(runId, kind), {
 				id: "confirm-action",
 				class: "primary",
 				disabled: readonly() || busy,
@@ -4126,12 +3978,12 @@ function renderModal() {
 		),
 	]);
 }
-async function mutate(runId, kind, approval) {
+async function mutate(runId, kind) {
 	if (readonly() || busy) return;
 	busy = true;
 	const actionModal = modalKey;
 	renderModal();
-	const action = kind === "reject" ? "approve" : kind;
+	const action = kind;
 	try {
 		const result = await api(
 			`/api/runs/${encodeURIComponent(runId)}/${action}`,
@@ -4141,11 +3993,7 @@ async function mutate(runId, kind, approval) {
 					"Content-Type": "application/json",
 					"X-AW-CSRF": session.csrf,
 				},
-				body: JSON.stringify(
-					action === "approve"
-						? { requestId: approval.requestId, decision: kind }
-						: {},
-				),
+				body: JSON.stringify({}),
 			},
 		);
 		if (kind === "stop" && result.pending) stoppingRuns.add(runId);
@@ -4806,7 +4654,7 @@ function openStatusKey() {
 		element(
 			"p",
 			{ class: "muted" },
-			"Amber marks approvals and executor decisions. Red marks failures.",
+			"Amber marks executor decisions. Red marks failures.",
 		),
 		element(
 			"p",

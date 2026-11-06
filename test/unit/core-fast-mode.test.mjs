@@ -322,7 +322,6 @@ test("dynamic generated tasks inherit and validate Fast runtime settings", async
 			mode: "graph-splice",
 			budget: { maxAgents: 10, maxConcurrency: 2, maxRuntimeMs: 1000 },
 			permissions: {
-				approval: "auto",
 				allowDynamicRoles: true,
 				allowDynamicTools: true,
 			},

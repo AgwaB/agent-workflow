@@ -657,7 +657,7 @@ export function isWorkflowRunLaunchMetadata(
 /**
  * WP33: the host-neutral launch metadata (`agent-workflow-run-launch-v1`); WP32: its confirmed
  * `auto` variant (`agent-workflow-run-launch-v2`: entry action `auto`, routing mode
- * `auto-confirmed`, the `selection` facts).
+ * `auto`, the `selection` facts).
  */
 function isWorkflowRunLaunchMetadataHostV1(value: unknown): boolean {
 	return isWorkflowRunLaunchMetadataHost(value, false);
@@ -718,7 +718,7 @@ function isWorkflowRunLaunchMetadataHost(
 		value.requestKind !== "direct-dynamic"
 	)
 		return false;
-	if (value.routingMode !== (auto ? "auto-confirmed" : "off")) return false;
+	if (value.routingMode !== (auto ? "auto" : "off")) return false;
 	if (auto && !isWorkflowHostAutoSelection(value.selection, value.requestKind))
 		return false;
 	if (
@@ -753,7 +753,7 @@ function isWorkflowAutoCandidateRef(value: unknown): boolean {
 	);
 }
 
-/** WP32: the selection facts of a confirmed host `auto` launch (no task text, no paths). */
+/** WP32: the selection facts of a host `auto` launch (no task text, no paths). */
 function isWorkflowHostAutoSelection(
 	value: unknown,
 	requestKind: unknown,
@@ -767,7 +767,6 @@ function isWorkflowHostAutoSelection(
 			"classifier",
 			"consent",
 			"taskSha256",
-			"confirmed",
 		])
 	)
 		return false;
@@ -818,17 +817,10 @@ function isWorkflowHostAutoSelection(
 				!AUTO_SAFE_ID_PATTERN.test(classifier.model)))
 	)
 		return false;
-	if (
-		value.consent !== "prompt" &&
-		value.consent !== "flag" &&
-		value.consent !== "elicitation" &&
-		value.consent !== "command"
-	)
-		return false;
+	if (value.consent !== "command") return false;
 	return (
 		typeof value.taskSha256 === "string" &&
-		/^[0-9a-f]{64}$/.test(value.taskSha256) &&
-		value.confirmed === true
+		/^[0-9a-f]{64}$/.test(value.taskSha256)
 	);
 }
 
@@ -1428,7 +1420,7 @@ async function acquireFileLeaseInDirectory(
 
 /**
  * How long a lease taker waits for the supervisor of a run that already reached a state its
- * supervisor stops in (blocked on an approval): it holds the lease while it shuts down, seconds on
+ * supervisor stops in: it holds the lease while it shuts down, seconds on
  * a busy machine.
  */
 const SUPERVISOR_EXIT_LEASE_WAIT_MS = 10_000;
@@ -3582,8 +3574,6 @@ const RESUMABLE_TASK_STATUSES = new Set<TaskRunStatus>([
 	"skipped",
 ]);
 const RESUMABLE_BLOCKED_STATUS_DETAILS = new Set([
-	"dynamic_ui_unavailable",
-	"dynamic_approval_timeout",
 	// WP4c (B3): an explicit resume is the owner decision for an executor attempt whose launch
 	// could not be proven either way; it relaunches with a new attempt key.
 	"executor_needs_decision",

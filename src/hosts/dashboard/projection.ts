@@ -3,12 +3,7 @@ import {
 	type TaskActivity,
 } from "../../core/task-activity.js";
 // WP43: pure, allowlisted browser projections of host API data. Never expose a raw run record.
-import type {
-	PendingDynamicApproval,
-	RunSummary,
-	StatusData,
-	showRunAction,
-} from "../api.js";
+import type { RunSummary, StatusData, showRunAction } from "../api.js";
 import type { WorkflowTaskUsageValues } from "../../core/types.js";
 import { EXECUTOR_NEEDS_DECISION_STATUS_DETAIL } from "../../core/terminal-result.js";
 import type { TaskOutcome } from "./task-text.js";
@@ -18,7 +13,7 @@ export type DashboardShownRun = Awaited<
 	ReturnType<typeof showRunAction>
 >["data"];
 export interface DashboardNeed {
-	kind: "approval" | "failed" | "decision";
+	kind: "failed" | "decision";
 	title: string;
 	requestId?: string;
 	taskId?: string;
@@ -98,7 +93,6 @@ export interface DashboardRun extends DashboardRunSummary {
 		  })
 		| null;
 	launch?: { host: string; entry: unknown; command: string };
-	pendingApprovals: PendingDynamicApproval[];
 	tasks: DashboardTask[];
 }
 
@@ -106,15 +100,7 @@ export function projectNeedsYou(
 	run: DashboardStatusRun,
 	shown?: DashboardShownRun,
 ): DashboardNeed[] {
-	const needs: DashboardNeed[] = (run.pendingApprovals ?? []).map(
-		(approval) => ({
-			kind: "approval",
-			title: approval.title,
-			requestId: approval.requestId,
-			taskId: approval.taskId,
-			since: approval.requestedAt,
-		}),
-	);
+	const needs: DashboardNeed[] = [];
 	for (const task of run.tasks) {
 		if (task.statusDetail !== EXECUTOR_NEEDS_DECISION_STATUS_DETAIL) continue;
 		const record = shown?.run.tasks.find((item) => item.taskId === task.taskId);
@@ -125,7 +111,7 @@ export function projectNeedsYou(
 			since: record?.completedAt ?? run.updatedAt,
 		});
 	}
-	// An approval/decision already explains a blocked run; don't show a duplicate generic alert.
+	// An executor decision already explains a blocked run; don't show a duplicate generic alert.
 	// A run whose only failure is the final verdict gate finished its work and wrote its report —
 	// the verdict is the outcome, not something to inspect and resume.
 	if (
@@ -367,7 +353,6 @@ export function projectRun(
 					},
 				}
 			: {}),
-		pendingApprovals: run.pendingApprovals ?? [],
 		tasks,
 	};
 }

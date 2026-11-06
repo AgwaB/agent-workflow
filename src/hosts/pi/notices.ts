@@ -1,6 +1,6 @@
 import { stateBase } from "../../core/state-location.js";
 // Session-start notices use host API eligibility: top-level failed/interrupted runs
-// and resumable approval or executor-decision blocks, excluding mocks.
+// and resumable executor-decision blocks, excluding mocks.
 // Valid acknowledgements suppress notices; malformed sidecars suppress none. Skip runs
 // older than seven days and list at most five. Re-notify on status/update changes,
 // stale acknowledgements, or after six hours; prune notice state on write.

@@ -4,17 +4,13 @@ export const MODULE = "src/mcp/host-server";
 
 export { type HostMcpStdioOptions, serveHostMcpStdio } from "./serve.js";
 export {
-	autoChoiceOptions,
 	CONFIRMED_CHANGES,
-	CONSENTED_CALLS,
 	clientSupportsFormElicitation,
 	clientSupportsUrlElicitation,
 	createHostMcpService,
 	type ElicitationAnswer,
-	elicitChoice,
 	elicitConfirmation,
 	shellWord,
-	DEGRADATION_ELICITATION_TITLE,
 	HOST_MCP_HOSTS,
 	HOST_MCP_INSTRUCTIONS,
 	HOST_MCP_MAX_TEXT_CHARS,
@@ -33,7 +29,6 @@ export {
 	mcpVersionHasStructuredContent,
 	resolveCallCwd,
 	WORKFLOW_AGENTS_TOOL,
-	WORKFLOW_APPROVE_TOOL,
 	WORKFLOW_AUTO_TOOL,
 	WORKFLOW_DASHBOARD_TOOL,
 	WORKFLOW_DOCTOR_TOOL,

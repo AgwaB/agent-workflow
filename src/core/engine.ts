@@ -100,18 +100,14 @@ import {
 	type DynamicControllerStatus,
 } from "./dynamic-state.js";
 import { remainingDynamicNestedWorkflowDepth } from "./dynamic-nested-depth.js";
-import { runBlockedOnDynamicApproval } from "./dynamic-approval.js";
 import {
 	DynamicControllerBudgetBlocked,
-	DynamicControllerNestedApprovalBlocked,
 	DynamicControllerSuspended,
 } from "./dynamic-controller-errors.js";
 import {
 	assertDynamicRuntimeBudgetAvailable,
 	dynamicRuntimeBudgetExceededMessageForController,
-	ensureDynamicControllerApproval,
 	recordDynamicRuntimeUsage,
-	type DynamicWorkflowUi,
 } from "./dynamic-controller-policy.js";
 import {
 	assertDynamicGeneratedMetadataMatches,
@@ -244,7 +240,6 @@ import {
 	workflowNegotiationTargets,
 	workflowProfileStrictCapabilities,
 } from "./capability-negotiation.js";
-import type { CapabilityPreview } from "../sdk/requirements.js";
 import {
 	applyWorkflowExecutionProfile,
 	workflowDefinitionFingerprint,
@@ -292,7 +287,6 @@ import {
 
 export { buildRunSourceContext } from "./workflow-source-context-runtime.js";
 export { evaluateLoopUntilCondition } from "./loop-runtime.js";
-export type { DynamicWorkflowUi } from "./dynamic-controller-policy.js";
 export { refreshRun } from "./engine-wait.js";
 export {
 	detectRunStall,
@@ -425,7 +419,6 @@ export interface WorkflowRunOptions {
 	runtimeOverrides?: WorkflowRuntimeDefaults;
 	runtimeDefaults?: WorkflowRuntimeDefaults;
 	availableModels?: WorkflowModelInfo[];
-	dynamicUi?: DynamicWorkflowUi;
 	runId?: string;
 	parentRunId?: string;
 	/** Optional routing audit record persisted on the run record. */
@@ -493,18 +486,6 @@ export interface WorkflowRunOptions {
 	 * the parent run's recorded mode.
 	 */
 	permissionMode?: "free" | "safe";
-	/**
-	 * B4 (WP4d): the host can ask the user. Degradations then need
-	 * `confirmDegradations`; non-interactive runs (default) record and proceed.
-	 */
-	interactive?: boolean;
-	/**
-	 * B4 (WP4d): called before launch only when `interactive` and a stage
-	 * degrades. Resolving anything but `true` fails the run before launch.
-	 */
-	confirmDegradations?: (
-		preview: CapabilityPreview,
-	) => Promise<boolean | "chat" | "unasked">;
 	/** B4 (WP4d) user opt-in: treat these `unverified` capabilities as available. */
 	allowUnverifiedCapabilities?: string[];
 	/** WP4d test/host seam: replaces `loadExecutor(descriptor)` + `probe()`. */
@@ -514,7 +495,6 @@ export interface WorkflowRunOptions {
 }
 
 interface WorkflowScheduleOptions {
-	dynamicUi?: DynamicWorkflowUi;
 	availableModels?: WorkflowModelInfo[];
 }
 
@@ -847,7 +827,6 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		descriptor: executor.descriptor,
 		compiled,
 		policy: {
-			interactive: parentRun ? false : options.interactive === true,
 			allowUnverified: parentRun
 				? [...(parentRun.capabilityNegotiation?.policy.allowUnverified ?? [])]
 				: [...(options.allowUnverifiedCapabilities ?? [])],
@@ -879,9 +858,6 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		...(options.executorProbeTimeoutMs === undefined
 			? {}
 			: { probeTimeoutMs: options.executorProbeTimeoutMs }),
-		...(options.confirmDegradations === undefined
-			? {}
-			: { confirmDegradations: options.confirmDegradations }),
 		...(rolePlan && rolePlan.otherExecutors.length > 0
 			? {
 					executors: Object.fromEntries(
@@ -903,7 +879,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			workflowNegotiationTargets(compiled).length,
 		);
 	// Diagnostics are an explicit named-workflow policy. Direct-dynamic uses its
-	// approved runtime bundle and intentionally does not adopt named-spec warnings.
+	// runtime bundle and intentionally does not adopt named-spec warnings.
 	if (promptSchemaDiagnosticsApply(diagnosticsPolicy)) {
 		const diagnostics = workflowPromptSchemaDiagnostics(compiled);
 		assertPromptSchemaDiagnosticsAllowRun(diagnostics);
@@ -1010,7 +986,6 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	}
 
 	const scheduleOptions = {
-		dynamicUi: options.dynamicUi,
 		availableModels: options.availableModels,
 	};
 	const unbindLaunchSignal = bindWorkflowLaunchSignal(
@@ -1288,7 +1263,7 @@ function assertBlockedRunResumable(run: WorkflowRunRecord): void {
 		.map((task) => `${task.specId} statusDetail=${task.statusDetail}`)
 		.join(", ");
 	throw new Error(
-		`Cannot resume blocked run ${run.runId}: non-resumable blocked task(s): ${details}. Resolve the attention/approval blocker before resuming.`,
+		`Cannot resume blocked run ${run.runId}: non-resumable blocked task(s): ${details}. Resolve the attention blocker before resuming.`,
 	);
 }
 
@@ -1653,7 +1628,7 @@ function markRunStopped(run: WorkflowRunRecord): string[] {
 		) {
 			interruptedTaskIds.push(task.taskId);
 		} else if (task.status === "blocked") {
-			// Stopping the run abandons blocked tasks, including decisions and approvals.
+			// Stopping the run abandons blocked tasks, including decisions.
 			// They become interrupted and resume like any stopped task.
 			delete task.activity;
 			task.status = "interrupted";
@@ -2881,8 +2856,7 @@ export function setResumeAfterStopLeaseWaitForTests(
 
 /**
  * The run's supervisor has stopped driving it, so a held lease is that supervisor shutting down
- * rather than another live supervisor: the run is blocked on a dynamic-controller approval, or it
- * is terminal (interrupted) because a stop was applied (a durable stop intent is still recorded,
+ * rather than another live supervisor: it is terminal (interrupted) because a stop was applied (a durable stop intent is still recorded,
  * or the stop marked its tasks `workflow_stopped`).
  */
 async function runStopRecordedForResume(
@@ -2890,9 +2864,6 @@ async function runStopRecordedForResume(
 	runId: string,
 ): Promise<boolean> {
 	const run = await readRunRecord(cwd, runId).catch(() => undefined);
-	// Blocked on a dynamic-controller approval (asked, or answered and not yet resumed): its
-	// supervisor stopped there, and hosts answer and resume right after the block notice.
-	if (run !== undefined && runBlockedOnDynamicApproval(run)) return true;
 	if (run === undefined || run.status !== "interrupted") return false;
 	if (workflowStoppedTaskIds(run).length > 0) return true;
 	return (await readWorkflowStopIntent(cwd, runId)) !== undefined;
@@ -4186,18 +4157,6 @@ async function applyFailFastCancellation(
 	return true;
 }
 
-function isResumableDynamicApprovalBlockedRun(run: WorkflowRunRecord): boolean {
-	return (
-		run.status === "blocked" &&
-		run.tasks.some(
-			(task) =>
-				task.status === "blocked" &&
-				(task.statusDetail === "dynamic_ui_unavailable" ||
-					task.statusDetail === "dynamic_approval_timeout"),
-		)
-	);
-}
-
 async function suspendedDynamicControllerStillWaiting(
 	cwd: string,
 	run: WorkflowRunRecord,
@@ -4248,9 +4207,6 @@ async function suspendedDynamicControllerStillWaiting(
 			} catch (error) {
 				if (!isRefreshPollAggregateError(error)) throw error;
 			}
-		}
-		if (nestedRun && isResumableDynamicApprovalBlockedRun(nestedRun)) {
-			return false;
 		}
 		if (nestedRun && !isTerminalWorkflowStatus(nestedRun.status)) {
 			waiting = true;
@@ -6004,24 +5960,6 @@ async function executeDynamicControllerTask(
 		await writeRunRecord(cwd, run);
 		return false;
 	}
-	if (compiledTask.dynamic.permissions.approval === "ask") {
-		const approval = await ensureDynamicControllerApproval({
-			cwd,
-			run,
-			task,
-			dynamic: compiledTask.dynamic,
-			taskText: compiledFlow.task,
-			ui: options.dynamicUi,
-		});
-		await throwIfWorkflowStopRequested(cwd, run.runId);
-		if (!approval.allowed) {
-			setTaskTerminal(task, "blocked", approval.statusDetail, {
-				lastMessage: approval.message,
-			});
-			await writeRunRecord(cwd, run);
-			return false;
-		}
-	}
 	const runtimeBudgetMessage =
 		await dynamicRuntimeBudgetExceededMessageForController(
 			cwd,
@@ -6087,7 +6025,6 @@ async function executeDynamicControllerTask(
 			helperSpecPath,
 			sources,
 			dynamic: compiledTask.dynamic,
-			dynamicUi: options.dynamicUi,
 			availableModels: options.availableModels,
 			stopSignal: stop.signal,
 		});
@@ -6233,18 +6170,6 @@ async function executeDynamicControllerTask(
 			await writeRunRecord(cwd, run);
 			return false;
 		}
-		if (error instanceof DynamicControllerNestedApprovalBlocked) {
-			await recordDynamicControllerStatus(cwd, run.runId, {
-				controllerSpecId: task.specId,
-				status: "awaiting_ui_unavailable",
-				message: error.message,
-			}).catch(() => undefined);
-			setTaskTerminal(task, "blocked", "dynamic_ui_unavailable", {
-				lastMessage: error.message,
-			});
-			await writeRunRecord(cwd, run);
-			return false;
-		}
 		if (error instanceof DynamicControllerBudgetBlocked) {
 			await recordDynamicControllerStatus(cwd, run.runId, {
 				controllerSpecId: task.specId,
@@ -6294,7 +6219,6 @@ async function runDynamicControllerWorker(input: {
 	helperSpecPath: string;
 	sources: Record<string, unknown>;
 	dynamic: CompiledDynamicWorkflowTask;
-	dynamicUi?: DynamicWorkflowUi;
 	availableModels?: WorkflowModelInfo[];
 	stopSignal?: AbortSignal;
 }): Promise<unknown> {
@@ -6520,7 +6444,6 @@ async function handleDynamicWorkerMessage(
 		controllerCompiledTask: CompiledTask;
 		helperSpecPath: string;
 		dynamic: CompiledDynamicWorkflowTask;
-		dynamicUi?: DynamicWorkflowUi;
 		stopSignal?: AbortSignal;
 	},
 	message: any,
@@ -6739,13 +6662,11 @@ async function handleDynamicWorkerMessage(
 			value = await runDynamicNestedWorkflowCall({
 				runWorkflowSpec,
 				refreshRun,
-				isResumableDynamicApprovalBlockedRun,
 				cwd: input.cwd,
 				run: input.run,
 				controllerTask: input.controllerTask,
 				helperSpecPath: input.helperSpecPath,
 				dynamic: input.dynamic,
-				dynamicUi: input.dynamicUi,
 				workflowId,
 				callIndex: count,
 				workflowInput: message.input,
@@ -6777,7 +6698,6 @@ async function handleDynamicWorkerMessage(
 		// post and record all sibling generation ops in one scheduling pass before
 		// the worker's final suspended error stops the controller.
 		if (
-			error instanceof DynamicControllerNestedApprovalBlocked ||
 			error instanceof DynamicControllerBudgetBlocked ||
 			isDynamicReplayInvariantError(error)
 		) {
@@ -6920,11 +6840,7 @@ async function assertPriorDynamicOpsReplayed(
 		const nestedRun = await readRunRecord(input.cwd, nestedRunId).catch(
 			() => undefined,
 		);
-		if (
-			nestedRun &&
-			(!isTerminalWorkflowStatus(nestedRun.status) ||
-				isResumableDynamicApprovalBlockedRun(nestedRun))
-		) {
+		if (nestedRun && !isTerminalWorkflowStatus(nestedRun.status)) {
 			throw new DynamicControllerSuspended(
 				`waiting for dynamic nested workflow ${nestedRunId} (${nestedRun.status})`,
 			);
@@ -6935,7 +6851,7 @@ async function assertPriorDynamicOpsReplayed(
 function isDynamicReplayInvariantError(error: unknown): boolean {
 	if (!(error instanceof Error)) return false;
 	return (
-		/dynamic (agent|helper|workflow|nested workflow|approval) request changed/.test(
+		/dynamic (agent|helper|workflow|nested workflow) request changed/.test(
 			error.message,
 		) ||
 		error.message.startsWith("dynamic decision persist request changed") ||

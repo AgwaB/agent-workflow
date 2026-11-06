@@ -108,7 +108,7 @@ test("only exact acknowledged failures, interruptions and eligible approval bloc
 				taskId: "task-1",
 				specId: "task-1",
 				status: "blocked",
-				statusDetail: "dynamic_ui_unavailable",
+				statusDetail: "executor_needs_decision",
 				files: {},
 			},
 		],
