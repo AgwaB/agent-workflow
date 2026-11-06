@@ -5,6 +5,8 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import {
 	createAttemptArtifactStore,
+	createRunId,
+	runPaths,
 	type ArtifactRef,
 	type ResultEnvelope,
 } from "../artifacts/index.js";
@@ -63,21 +65,15 @@ async function gitRoot(cwd: string): Promise<string> {
 	}
 }
 
-function defaultWorktreePath(
-	root: string,
-	runId: string | undefined,
-	taskIndex: number | undefined,
-): string {
-	const safeRunId = (runId ?? `run-${Date.now().toString(36)}`).replace(
-		/[^A-Za-z0-9._-]/g,
-		"-",
-	);
-	const safeSlot = `slot-${(taskIndex ?? 0) + 1}`;
-	return join(
-		dirname(root),
-		".agent-workflow-worktrees",
-		`${root.split(/[\\/]/).pop() ?? "repo"}-${safeRunId}-${safeSlot}`,
-	);
+function defaultWorktreePath(options: WorkspaceResolutionInput): string {
+	// State cwd is independent of the git/execution workspace. Keep owned worktrees
+	// under this run, so retention and cleanup share the artifact store's boundary.
+	const { runDir } = runPaths({
+		cwd: options.cwd,
+		runId: options.runId ?? createRunId(),
+		runsDir: options.input.runsDir,
+	});
+	return join(runDir, "worktrees", `slot-${(options.taskIndex ?? 0) + 1}`);
 }
 
 export async function resolveWorkspace(
@@ -107,8 +103,7 @@ export async function resolveWorkspace(
 	const worktreePath = resolve(
 		requestedPath && !isAbsolute(requestedPath)
 			? join(baseCwd, requestedPath)
-			: (requestedPath ??
-					defaultWorktreePath(root, options.runId, options.taskIndex)),
+			: (requestedPath ?? defaultWorktreePath(options)),
 	);
 	await mkdir(dirname(worktreePath), { recursive: true });
 	await execFileAsync("git", [
