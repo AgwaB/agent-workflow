@@ -821,7 +821,8 @@ function isWorkflowHostAutoSelection(
 	if (
 		value.consent !== "prompt" &&
 		value.consent !== "flag" &&
-		value.consent !== "elicitation"
+		value.consent !== "elicitation" &&
+		value.consent !== "command"
 	)
 		return false;
 	return (
