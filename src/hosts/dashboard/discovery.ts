@@ -1,7 +1,15 @@
 // WP43b: local dashboard discovery and opt-in browser launch. Never expose control secrets in text.
 import { spawn } from "node:child_process";
 import { createHmac, randomBytes } from "node:crypto";
-import { link, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import {
+	link,
+	lstat,
+	readFile,
+	rename,
+	rm,
+	stat,
+	writeFile,
+} from "node:fs/promises";
 import { request } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -147,6 +155,14 @@ async function loadDiscovery(
 ): Promise<DashboardDiscovery | undefined> {
 	try {
 		const path = dashboardDiscoveryPath(cwd);
+		const info = await lstat(path);
+		if (
+			!info.isFile() ||
+			info.isSymbolicLink() ||
+			(info.mode & 0o777) !== 0o600 ||
+			(typeof process.getuid === "function" && info.uid !== process.getuid())
+		)
+			return undefined;
 		const value = JSON.parse(await readPrivateFileText(path, 4096));
 		if (
 			value.schema !== SCHEMA ||

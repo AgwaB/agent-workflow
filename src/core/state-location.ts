@@ -246,7 +246,9 @@ export async function listRegisteredProjects(): Promise<ProjectRegistration[]> {
 				!Number.isFinite(Date.parse(record.lastSeenAt))
 			)
 				continue;
-			projects.push(record as ProjectRegistration);
+			projects.push(
+				await readRegistration(join(root, id, "project.json"), record.path, id),
+			);
 		} catch {
 			/* Untrusted or concurrently removed registry entries are not projects. */
 		}
