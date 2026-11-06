@@ -44,7 +44,7 @@ after(async () => {
 	});
 });
 
-const READY = { installed: true, cliVersion: "2.1.318", auth: "ok" };
+const READY = { installed: true, cliVersion: "2.1.319", auth: "ok" };
 const UNKNOWN = { installed: true, cliVersion: "1.1.0", auth: "unknown" };
 const LOGGED_OUT = { installed: true, cliVersion: "0.150.0", auth: "missing" };
 const NOT_INSTALLED = { installed: false, cliVersion: null, auth: "unknown" };
@@ -146,7 +146,7 @@ test("doctorAction: executors, default and why, verified versions, fix commands 
 		/^install: see docs\/usage\.md#executors, check with `pi --version`$/,
 	);
 	assert.equal(byId.claude.usable, true);
-	assert.equal(byId.claude.verifiedVersion, "2.1.318");
+	assert.equal(byId.claude.verifiedVersion, "2.1.319");
 	assert.equal(byId.claude.versionMatchesVerified, true);
 	assert.equal(byId.codex.state, "logged-out");
 	assert.equal(byId.codex.fix, "log in: run `codex login`");
@@ -180,7 +180,7 @@ test("doctorAction: executors, default and why, verified versions, fix commands 
 	assert.match(result.text, /pi\s+not usable\s+not installed/);
 	assert.match(
 		result.text,
-		/claude\s+usable\s+installed 2\.1\.318 \(verified 2\.1\.318\), logged in/,
+		/claude\s+usable\s+installed 2\.1\.319 \(verified 2\.1\.319\), logged in/,
 	);
 	assert.match(result.text, /fix: log in: run `codex login`/);
 	assert.match(

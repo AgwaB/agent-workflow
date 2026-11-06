@@ -121,3 +121,20 @@ Sonnet 5.5 deep-research runs completed on 2.1.314. Totals now 36 calls.
 
 `CLAUDE_VERIFIED_CLI_VERSION` is now 2.1.318. The same day 2.1.318 also ran the live run of every
 bundled workflow (spec-review, impact-review, deep-review; haiku). Totals now 49 calls.
+
+## Re-verification on 2.1.319 (2026-11-06)
+
+Claude Code auto-updated; `agent-workflow doctor` reported `installed 2.1.319 (verified 2.1.318, differs)`.
+Same login, `AGENT_WORKFLOW_LIVE=1 node --test test/unit/executor-claude-live.test.mjs` (real HOME), model
+alias `haiku`, on main `ee0d719` (free mode no longer enforces readOnly; the smoke run is a readOnly stage).
+
+| # | Purpose | Calls | Outcome |
+|---|---|---|---|
+| 50 | Smoke: read-only run with the real artifact MCP server | 1 | pass (9.9 s) |
+| 51–53 | Concurrency: three parallel `claude -p` runs | 3 | pass (14.3 s) |
+| 54 | Native WebSearch + WebFetch | 1 | pass (26.1 s) |
+| 55–56 | System prompt append and replace | 2 | pass (7.0 s) |
+| 57–62 | Kit live tier (resume = 2 calls) | 6 | pass (29.8 s) |
+
+`CLAUDE_VERIFIED_CLI_VERSION` is now 2.1.319. Host-side checks (plugin `/aw`, completion monitor) were last run on
+2.1.318 and are not repeated here. Totals now 62 calls.

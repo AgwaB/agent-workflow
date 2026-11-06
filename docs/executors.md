@@ -19,7 +19,7 @@ and `bash`; SDK constants are `WORKFLOW_TOOL_NAMES` / `WORKFLOW_TOOL_KINDS`. Cod
 |---|---|---|---|---|---|---|---|
 | Pi | Pi 1.1.0 | `pi --mode json --print` | Resource-disabling flags; auth retained | Free: requested tools; safe readOnly: read-only allowlist | pi-web-access 0.44.0, search+fetch | `mcp__workflow_artifact__workflow_artifact`; 18,432 artifact output chars/bytes | No sandbox or approvals; fast tier live-unverified |
 | Codex | codex-cli 0.166.0 | `codex app-server` | Per-thread config; global instructions/rules remain | Safe: mapped sandbox + `on-request`; free: `danger-full-access` + `never` | Hosted search; fetch mapping unverified | `mcp__workflow_artifact__workflow_artifact`; 30,400 artifact output chars/bytes | Coarse tools; global exec-policy allow rules |
-| Claude Code | claude-code 2.1.318 | `claude -p`, stream-json | Settings/MCP isolation; built-in agents/plugins remain | Safe: `default`; free: `bypassPermissions` | `WebSearch`, `WebFetch` | `mcp__workflow_artifact__workflow_artifact`; 21,375 artifact output chars/bytes | Read-tool auto-allow; MCP spill files |
+| Claude Code | claude-code 2.1.319 | `claude -p`, stream-json | Settings/MCP isolation; built-in agents/plugins remain | Safe: `default`; free: `bypassPermissions` | `WebSearch`, `WebFetch` | `mcp__workflow_artifact__workflow_artifact`; 21,375 artifact output chars/bytes | Read-tool auto-allow; MCP spill files |
 | Antigravity (ACP) | agy_acp_server 1.4.5 | No args on macOS; `--uid=` on Linux | Private `GEMINI_HOME`; workspace skills remain | Free: `yolo`; safe `default`; safe readOnly emulated | `search_web`, `read_url_content` + `view_file` | `call_mcp_tool`; 131,072-byte MCP override | No resume or filesystem sandbox; declared capabilities |
 
 ## Pi
@@ -556,8 +556,8 @@ Entry point: `@agwab/agent-workflow/executors/claude`; source: `src/executors/cl
 Use `createExecutor(config)`; the typed factory is `createClaudeExecutor({ config, faults })`.
 Adapter and SDK contract version: `0.1.0`.
 
-Verified with **claude-code 2.1.318** using claude.ai subscription login. Live coverage also exists
-for **2.1.310** and **2.1.314**; protocol and output-limit details were established on 2.1.310.
+Verified with **claude-code 2.1.319** using claude.ai subscription login. Live coverage also exists
+for **2.1.310**, **2.1.314** and **2.1.318**; protocol and output-limit details were established on 2.1.310.
 
 ### Config (descriptor `config`, JSON, no secrets)
 
@@ -767,7 +767,7 @@ Without a result within `killGraceMs`, stdin closes, then SIGTERM/SIGKILL escala
 | toolResultBudget | none | declared | source: capability declaration |
 | webTools | native, search+fetch, **safetyPolicy `unknown`** | probed | live, 2.1.310; safety controls undocumented |
 
-Capability metadata retains the original 2.1.310 baseline; latest verified CLI is 2.1.318.
+Capability metadata retains the original 2.1.310 baseline; latest verified CLI is 2.1.319.
 The probe notes version differences. Unsupported efforts are refused; Workflow `minimal` maps to `low`.
 
 `probe()` makes no model call and reads no credentials. It reports installation, `claude --version`,
