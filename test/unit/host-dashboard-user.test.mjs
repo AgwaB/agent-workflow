@@ -24,7 +24,10 @@ import {
 } from "../../dist/core/state-location.js";
 import { dashboardProject } from "../helpers/dashboard-project.mjs";
 import { startDashboardServer } from "../helpers/dashboard-server.mjs";
-import { dashboardPortCandidates } from "../../dist/hosts/dashboard/ports.js";
+import {
+	bindDashboardPort,
+	dashboardPortCandidates,
+} from "../../dist/hosts/dashboard/ports.js";
 import {
 	DASHBOARD_PROTOCOL,
 	dashboardDiscoveryPath,
@@ -451,3 +454,51 @@ for (const code of ["EPERM", "EACCES"])
 		await assert.rejects(p.start(), /sandboxed shell.*terminal, hook or MCP/);
 		assert.equal(attempts, 1);
 	});
+
+test("the entire default fallback sequence is exercised through injected occupied ephemeral ports", async (t) => {
+	const occupied = [
+		await listener(t, (_req, res) => res.end()),
+		await listener(t, (_req, res) => res.end()),
+	];
+	const policy = dashboardPortCandidates({ customHome: false });
+	const candidates = policy.map((port, index) =>
+		port === 0 ? 0 : occupied[index % 2],
+	);
+	const server = createServer();
+	t.after(() => {
+		server.closeAllConnections();
+		server.close();
+	});
+	const attempted = [];
+	const listen = (port) =>
+		new Promise((resolve, reject) => {
+			attempted.push(port);
+			server.once("error", reject);
+			server.listen(port, "127.0.0.1", () => {
+				server.removeListener("error", reject);
+				resolve();
+			});
+		});
+	await bindDashboardPort(candidates, listen);
+	assert.deepEqual(attempted, candidates);
+	assert.ok(server.address().port > 7426);
+	let calls = 0;
+	for (const code of ["EPERM", "EACCES", "EUNKNOWN"]) {
+		calls = 0;
+		await assert.rejects(
+			bindDashboardPort([occupied[0], 0], async () => {
+				calls++;
+				throw Object.assign(new Error(code), { code });
+			}),
+			{ code },
+		);
+		assert.equal(calls, 1, "permission and unexpected errors never retry");
+	}
+	await assert.rejects(
+		bindDashboardPort([occupied[0]], async () => {
+			throw Object.assign(new Error("occupied"), { code: "EADDRINUSE" });
+		}),
+		{ code: "EADDRINUSE" },
+	);
+	await assert.rejects(bindDashboardPort([], listen), /policy is empty/);
+});

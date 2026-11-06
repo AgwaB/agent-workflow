@@ -25,7 +25,7 @@ import {
 	projectId,
 	type ProjectRegistration,
 } from "../../core/state-location.js";
-import { dashboardPortCandidates } from "./ports.js";
+import { bindDashboardPort, dashboardPortCandidates } from "./ports.js";
 import { HostUsageError } from "../args.js";
 import { hostTextRedactor } from "../redaction.js";
 import { boundReportText } from "../run-artifacts.js";
@@ -869,24 +869,24 @@ export async function startDashboardServer(
 		throw new HostUsageError(
 			"dashboard port must be an integer from 1 to 65535",
 		);
-	for (const candidate of dashboardPortCandidates({
-		explicit,
-		customHome: Boolean(process.env.AGENT_WORKFLOW_HOME?.trim()),
-		lastPort: preferred,
-	})) {
-		try {
-			await listenOn(candidate);
-			break;
-		} catch (error) {
-			const code = (error as NodeJS.ErrnoException).code;
-			if (code === "EPERM" || code === "EACCES")
-				throw new HostUsageError(
-					"Dashboard cannot listen from a sandboxed shell; start it from a terminal, hook or MCP server.",
-				);
-			if (code !== "EADDRINUSE") throw error;
-			if (explicit !== undefined || candidate === 0)
-				throw new HostUsageError("dashboard port is unavailable (in use)");
-		}
+	try {
+		await bindDashboardPort(
+			dashboardPortCandidates({
+				explicit,
+				customHome: Boolean(process.env.AGENT_WORKFLOW_HOME?.trim()),
+				lastPort: preferred,
+			}),
+			listenOn,
+		);
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		if (code === "EPERM" || code === "EACCES")
+			throw new HostUsageError(
+				"Dashboard cannot listen from a sandboxed shell; start it from a terminal, hook or MCP server.",
+			);
+		if (code === "EADDRINUSE")
+			throw new HostUsageError("dashboard port is unavailable (in use)");
+		throw error;
 	}
 	const address = server.address();
 	if (!address || typeof address === "string")

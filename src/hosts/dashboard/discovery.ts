@@ -489,7 +489,7 @@ export async function acquireDashboardStartLock(
 			await withStoreLock(path, async () => {
 				try {
 					const info = await stat(path);
-					let stale = Date.now() - info.mtimeMs > dashboardStartBudget * 2;
+					let stale = Date.now() - info.mtimeMs > dashboardStartBudget;
 					try {
 						const lock = JSON.parse(await readPrivateFileText(path, 4096));
 						try {
@@ -497,7 +497,7 @@ export async function acquireDashboardStartLock(
 						} catch (error) {
 							stale ||= (error as NodeJS.ErrnoException).code === "ESRCH";
 						}
-						stale ||= Date.now() - lock.startedAt > dashboardStartBudget * 2;
+						stale ||= Date.now() - lock.startedAt > dashboardStartBudget;
 					} catch {
 						/* An incomplete lock ages out, never immediately. */
 					}
