@@ -358,8 +358,10 @@ async function openPrivateDirectory(
 				}
 			}
 			const next = await open(nextPath, READ_DIRECTORY);
-			await assertDirectoryHandleMatchesPath(next, nextPath);
+			// Track the handle before checking it, so a failed check closes it too (2026-11-06, CI
+			// Node 26: a handle left to garbage collection is an error there).
 			opened.push({ handle: next, path: nextPath });
+			await assertDirectoryHandleMatchesPath(next, nextPath);
 			currentPath = nextPath;
 		}
 		for (const ancestor of opened) {
