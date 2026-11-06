@@ -84,7 +84,11 @@ async function run(
 	} = {},
 ) {
 	const dir = await mkdtemp(join(tmpdir(), "aw-effective-"));
-	t.after(() => rm(dir, { recursive: true, force: true }));
+	// The stub app-server can still be finishing its writes when the test ends (CI macOS/Node 26:
+	// ENOTEMPTY); retry like the shared test cleanup.
+	t.after(() =>
+		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
+	);
 	const warning = {
 		method: "configWarning",
 		params: {
