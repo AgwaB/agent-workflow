@@ -1,3 +1,4 @@
+import { projectId } from "../../dist/core/state-location.js";
 // WP43c "always a link": the dashboard session token persists per project (sign in once per
 // browser), `--reset-session` rotates it, unsigned browsers get a sign-in page, launches auto-start
 // a detached dashboard so the result always carries a token-free link, and detached dashboards
@@ -63,7 +64,8 @@ async function project(t) {
 	return { ...fixture, executor, env, host: "cli" };
 }
 
-const cookieOf = (url) => `aw_session=${url.split("token=")[1]}`;
+const cookieOf = (url) =>
+	`aw_session=${new URL(url).searchParams.get("token")}`;
 async function get(origin, path, headers = {}) {
 	const response = await fetch(origin + path, { headers, redirect: "manual" });
 	const text = await response.text();
@@ -200,12 +202,12 @@ test("a launch auto-starts a detached dashboard and always carries a token-free 
 	assert.equal(started.data.dashboard.port, discovery.port);
 	assert.equal(
 		started.data.dashboard.url,
-		`http://127.0.0.1:${discovery.port}/?run=${started.data.runId}`,
+		`http://127.0.0.1:${discovery.port}/?project=${projectId(p.cwd)}&run=${started.data.runId}`,
 	);
 	assert.equal(started.data.dashboard.auth, undefined);
 	assert.match(
 		started.text,
-		/Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?run=workflow_[\w-]+\n/,
+		/Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?project=[\w-]+&run=workflow_[\w-]+\n/,
 	);
 	assert.doesNotMatch(started.text, /first time in this browser|token=/);
 	// A second launch reuses it: plain link, no hint, same port.
@@ -218,14 +220,14 @@ test("a launch auto-starts a detached dashboard and always carries a token-free 
 	assert.equal(reused.data.dashboard.port, discovery.port);
 	assert.match(
 		reused.text,
-		/Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?run=workflow_[\w-]+\n/,
+		/Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?project=[\w-]+&run=workflow_[\w-]+\n/,
 	);
 	assert.doesNotMatch(reused.text, /first time in this browser/);
 	// The detached server is open: the link and the API work without any cookie, and no session
 	// file was created.
 	const run = await get(
 		`http://127.0.0.1:${discovery.port}`,
-		`/api/runs/${reused.data.runId}`,
+		`/api/projects/${projectId(p.cwd)}/runs/${reused.data.runId}`,
 	);
 	assert.equal(run.status, 200);
 	assert.equal(run.headers.get("set-cookie"), null);
@@ -266,9 +268,12 @@ test("a detached dashboard idles out only with no SSE client and no live run", {
 	// A connected SSE client keeps it alive past the idle window.
 	const controller = new AbortController();
 	t.after(() => controller.abort());
-	const stream = fetch(`http://127.0.0.1:${s.port}/api/events`, {
-		signal: controller.signal,
-	});
+	const stream = fetch(
+		`http://127.0.0.1:${s.port}/api/events?project=${s.projectId}`,
+		{
+			signal: controller.signal,
+		},
+	);
 	await new Promise((resolve) => setTimeout(resolve, 3000));
 	assert.equal(idled, 0, "not idle while a client is connected");
 	assert.ok(await readDashboardDiscovery(p.cwd));
@@ -354,7 +359,7 @@ test("--auth: one-click local sign-in: the page's own script may ask the server 
 		new RegExp(`^${origin}/\\?token=[A-Za-z0-9_-]{43}&run=workflow_abc$`),
 	);
 	assert.notEqual(
-		url.split("token=")[1].split("&")[0],
+		new URL(url).searchParams.get("token").split("&")[0],
 		s.token,
 		"a one-time token, not the session",
 	);

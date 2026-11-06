@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { request } from "node:http";
 import test from "node:test";
-import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+import {
+	startDashboardServer,
+	projectApi,
+} from "../helpers/dashboard-server.mjs";
 import {
 	dashboardCsrf,
 	DASHBOARD_CSP,
@@ -74,6 +77,7 @@ function http(
 	path,
 	{ method = "GET", headers = {}, body, auth = true } = {},
 ) {
+	path = projectApi(server, path);
 	return new Promise((resolve, reject) => {
 		const req = request(
 			{
@@ -124,7 +128,7 @@ test("WP43d default: no sign-in — loopback requests read the UI/API without a 
 }, async (t) => {
 	const s = await server(t, { launchKey: LAUNCH_KEY });
 	assert.equal(s.auth, false);
-	assert.equal(s.url, `http://127.0.0.1:${s.port}/`);
+	assert.equal(s.url, `http://127.0.0.1:${s.port}/?project=${s.projectId}`);
 	const home = await http(s, "/", { auth: false });
 	assert.equal(home.status, 200);
 	assert.equal(home.headers["set-cookie"], undefined);
@@ -247,7 +251,10 @@ test("--auth: bind is IPv4 loopback; token bootstrap redirects and sets strict c
 }, async (t) => {
 	const s = await server(t, { auth: true });
 	assert.equal(s.auth, true);
-	assert.match(s.url, /^http:\/\/127\.0\.0\.1:\d+\/\?token=[\w-]{43}$/);
+	assert.match(
+		s.url,
+		/^http:\/\/127\.0\.0\.1:\d+\/\?token=[\w-]{43}&project=[\w-]+$/,
+	);
 	assert.equal(Buffer.from(s.token, "base64url").length, 32);
 	const boot = await http(s, `/?token=${s.token}`, { auth: false });
 	assert.equal(boot.address, "127.0.0.1");
@@ -358,11 +365,10 @@ test("fixture JSON routes and session shape", async (t) => {
 		"auth",
 		"csrf",
 		"mode",
-		"project",
 		"serverTime",
 		"version",
 	]);
-	assert.equal(session.apiVersion, 1);
+	assert.equal(session.apiVersion, 2);
 	assert.equal(session.auth, false);
 	assert.equal(session.mode, "read-write");
 	assert.equal(session.csrf, dashboardCsrf(s.token));
@@ -545,7 +551,7 @@ test("SSE sends immediate snapshots, only changes, heartbeats, and closes active
 	const abort = new AbortController();
 	t.after(() => abort.abort());
 	const response = await fetch(
-		`http://127.0.0.1:${s.port}/api/events?run=${ID}`,
+		`http://127.0.0.1:${s.port}/api/events?project=${s.projectId}&run=${ID}`,
 		{ headers: { Cookie: `aw_session=${s.token}` }, signal: abort.signal },
 	);
 	assert.match(response.headers.get("content-type"), /text\/event-stream/);

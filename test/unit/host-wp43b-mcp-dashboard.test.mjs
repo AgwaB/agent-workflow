@@ -1,3 +1,4 @@
+import { projectId } from "../../dist/core/state-location.js";
 // WP43b: MCP URL consent keeps dashboard credentials out of model-visible tool results.
 import assert from "node:assert/strict";
 import {
@@ -14,7 +15,7 @@ import { basename, join } from "node:path";
 import { after, test } from "node:test";
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
 import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
-import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+import { startDashboardServer } from "../helpers/dashboard-server.mjs";
 import {
 	mintLaunchUrl,
 	readDashboardDiscovery,
@@ -52,6 +53,7 @@ after(async () => {
 async function project({ start = true, auth = false } = {}) {
 	const cwd = await realpath(await mkdtemp(join(tmpdir(), "aw-wp43b-mcp-")));
 	roots.push(cwd);
+	process.env.AGENT_WORKFLOW_HOME = join(cwd, "home");
 	const env = {
 		...process.env,
 		AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0",
@@ -152,7 +154,10 @@ test("WP43d open mode: URL accept carries a launch id (no credential, no cookie)
 	assert.equal(opened.searchParams.has("token"), false);
 	assert.match(opened.searchParams.get("launch"), /^[A-Za-z0-9_-]{24}$/);
 	assert.equal(response.status, 302);
-	assert.equal(response.headers.get("location"), `/?run=${run}`);
+	assert.equal(
+		response.headers.get("location"),
+		`/?project=${projectId(p.cwd)}&run=${run}`,
+	);
 	assert.equal(response.headers.get("set-cookie"), null);
 	noSecrets(result, p.dashboard, url);
 	const complete = client.messages.find(
@@ -209,7 +214,10 @@ test("--auth: URL accept: client bootstraps the real server once to the selected
 		`Open the agent-workflow dashboard for ${basename(p.cwd)}?`,
 	);
 	assert.equal(response.status, 302);
-	assert.equal(response.headers.get("location"), `/?run=${run}`);
+	assert.equal(
+		response.headers.get("location"),
+		`/?project=${projectId(p.cwd)}&run=${run}`,
+	);
 	assert.match(response.headers.get("set-cookie"), /HttpOnly/);
 	const replay = await fetch(url, {
 		redirect: "manual",
@@ -266,7 +274,10 @@ for (const action of ["decline", "cancel", "error"]) {
 			signal: AbortSignal.timeout(2000),
 		});
 		assert.equal(response.status, 302);
-		assert.equal(response.headers.get("location"), "/");
+		assert.equal(
+			response.headers.get("location"),
+			`/?project=${projectId(p.cwd)}`,
+		);
 		await response.arrayBuffer();
 	});
 }
@@ -344,7 +355,7 @@ for (const config of [
 		assert.match(
 			url,
 			new RegExp(
-				`^http://127\\.0\\.0\\.1:${p.dashboard.port}/\\?token=[A-Za-z0-9_-]{43}$`,
+				`^http://127\\.0\\.0\\.1:${p.dashboard.port}/\\?token=[A-Za-z0-9_-]{43}&project=[a-z0-9-]+$`,
 			),
 		);
 		noSecrets(result, p.dashboard, url);
@@ -461,7 +472,7 @@ test("real workflow_run preserves the token-free dashboard link only while a das
 		assert.ok(
 			result.content[0].text.includes(
 				running
-					? `Now tell the user, in your own message (some apps fold tool results): run ${runId}, Dashboard: http://127.0.0.1:${p.dashboard.port}/?run=${runId} — the link as is. Then call workflow_wait {"runId":"${runId}"} and repeat while stillRunning is true.`
+					? `Now tell the user, in your own message (some apps fold tool results): run ${runId}, Dashboard: http://127.0.0.1:${p.dashboard.port}/?project=${projectId(p.cwd)}&run=${runId} — the link as is. Then call workflow_wait {"runId":"${runId}"} and repeat while stillRunning is true.`
 					: `Now tell the user the run id ${runId} in your own message; the dashboard is not running (workflow_dashboard opens it when they want it). Then call workflow_wait {"runId":"${runId}"} and repeat while stillRunning is true.`,
 			),
 			result.content[0].text,
@@ -469,7 +480,7 @@ test("real workflow_run preserves the token-free dashboard link only while a das
 		assert.doesNotMatch(result.content[0].text, /sign in/);
 		assert.doesNotMatch(result.content[0].text, /already signed in/);
 		if (running) {
-			const url = `http://127.0.0.1:${p.dashboard.port}/?run=${runId}`;
+			const url = `http://127.0.0.1:${p.dashboard.port}/?project=${projectId(p.cwd)}&run=${runId}`;
 			assert.ok(result.content[0].text.includes(`Dashboard: ${url}`));
 			assert.deepEqual(dashboard, { url, port: p.dashboard.port });
 		} else {

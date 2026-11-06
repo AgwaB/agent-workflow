@@ -488,7 +488,7 @@ async function startEnsuredDashboard(
 				resolve(cwd),
 				"--detached",
 			],
-			{ cwd, env, detached: true, stdio: "ignore" },
+			{ cwd, env: { ...process.env, ...env }, detached: true, stdio: "ignore" },
 		);
 		let failed = false;
 		child.once("error", () => {

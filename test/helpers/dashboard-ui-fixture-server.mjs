@@ -17,6 +17,13 @@ export async function createFixtureServer({
 	const readJson = async (name) =>
 		JSON.parse(await readFile(new URL(name, fixtures), "utf8"));
 	const session = await readJson("session.json");
+	const project = {
+		id: "payments-api-123456789abc",
+		name: "payments-api",
+		path: "~/work/payments-api",
+		pathMissing: false,
+		lastSeenAt: session.serverTime,
+	};
 	const listing = snapshots
 		? { ...(await readJson("runs.json")), runs: snapshots }
 		: await readJson("runs.json");
@@ -113,6 +120,25 @@ export async function createFixtureServer({
 					mode: readonly ? "read-only" : "read-write",
 					serverTime: serverTime(),
 				});
+			if (url.pathname === "/api/projects")
+				return json({
+					projects: [
+						{
+							...project,
+							counts: {
+								running: listing.runs.filter((run) =>
+									["running", "blocked"].includes(run.status),
+								).length,
+								needsAttention: listing.runs.filter(
+									(run) => run.needsYou.length,
+								).length,
+								lastActivity: session.serverTime,
+							},
+						},
+					],
+				});
+			if (url.pathname.startsWith(`/api/projects/${project.id}/`))
+				url.pathname = `/api/${url.pathname.split("/").slice(4).join("/")}`;
 			if (url.pathname === "/api/runs") return json(summaries());
 			if (url.pathname === "/api/events") {
 				response.writeHead(200, {

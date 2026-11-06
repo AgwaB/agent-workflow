@@ -1,9 +1,5 @@
 {
-	"apiVersion": 1,
-	"project": {
-		"path": "~/work/payments-api",
-		"name": "payments-api"
-	},
+	"apiVersion": 2,
 	"mode": "read-write",
 	"csrf": "fixture-csrf",
 	"serverTime": "2026-10-29T08:10:00.000Z",

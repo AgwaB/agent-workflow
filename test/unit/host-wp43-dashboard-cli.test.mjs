@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { runAgentWorkflowCli } from "../../dist/hosts/cli/index.js";
 import { COMMAND_HELP, GENERAL_HELP } from "../../dist/hosts/help.js";
-import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+import { startDashboardServer } from "../helpers/dashboard-server.mjs";
 
 async function invoke(args, extra = {}) {
 	const stdout = [],
@@ -87,14 +87,15 @@ test("dashboard prints one URL, supports project/read-only, and honors io.signal
 	assert.equal(lines.length, 1);
 	assert.match(
 		lines[0],
-		/^Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?token=[\w-]+ \(read-only\)\n$/,
+		/^Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?token=[\w-]+&project=[\w-]+ \(read-only\)\n$/,
 	);
 	const url = new URL(lines[0].split(" ")[1]);
 	const response = await fetch(new URL("/api/session", url), {
 		headers: { Cookie: `aw_session=${url.searchParams.get("token")}` },
 	});
 	const session = await response.json();
-	assert.equal(session.project.name, root.split("/").at(-1));
+	assert.equal(session.apiVersion, 2);
+	assert.ok(url.searchParams.get("project"));
 	assert.equal(session.mode, "read-only");
 	assert.equal(session.auth, true);
 	controller.abort();
@@ -124,7 +125,10 @@ test("dashboard (default, WP43d) prints a plain URL that opens without sign-in",
 	t.after(() => controller.abort());
 	await started;
 	assert.equal(lines.length, 1);
-	assert.match(lines[0], /^Dashboard: http:\/\/127\.0\.0\.1:\d+\/\n$/);
+	assert.match(
+		lines[0],
+		/^Dashboard: http:\/\/127\.0\.0\.1:\d+\/\?project=[\w-]+\n$/,
+	);
 	const url = new URL(lines[0].split(" ")[1]);
 	const page = await fetch(url);
 	assert.equal(page.status, 200);

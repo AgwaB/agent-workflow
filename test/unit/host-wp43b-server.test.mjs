@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { request } from "node:http";
-import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+import { startDashboardServer } from "../helpers/dashboard-server.mjs";
 import { mintLaunchUrl } from "../../dist/hosts/dashboard/discovery.js";
 async function server(t, options = {}) {
 	const s = await startDashboardServer({

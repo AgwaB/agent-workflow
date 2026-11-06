@@ -11,7 +11,10 @@ import { registerWorkflowExecutor } from "../../dist/core/index.js";
 import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import { readRunRecord } from "../../dist/core/store.js";
 import * as api from "../../dist/hosts/api.js";
-import { startDashboardServer } from "../../dist/hosts/dashboard/server.js";
+import {
+	startDashboardServer,
+	projectApi,
+} from "../helpers/dashboard-server.mjs";
 import { hostApiDashboardSource } from "../../dist/hosts/dashboard/source.js";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 import { runDiagnostics } from "../helpers/run-diagnostics.mjs";
@@ -37,6 +40,7 @@ function http(
 	path,
 	{ method = "GET", headers = {}, body, timeoutMs = 20_000 } = {},
 ) {
+	path = projectApi(server, path);
 	return new Promise((resolve, reject) => {
 		const req = request(
 			{
@@ -98,7 +102,10 @@ async function dashboard(cleanups, ctx, readonly = false) {
 	});
 	cleanups.push(() => server.close());
 	assert.equal(server.auth, false);
-	assert.equal(server.url, `http://127.0.0.1:${server.port}/`);
+	assert.equal(
+		server.url,
+		`http://127.0.0.1:${server.port}/?project=${server.projectId}`,
+	);
 	const session = await json(server, "/api/session");
 	assert.equal(session.auth, false);
 	server.csrf = session.csrf;
@@ -133,7 +140,7 @@ function events(cleanups, server, runId) {
 		{
 			hostname: "127.0.0.1",
 			port: server.port,
-			path: `/api/events?run=${runId}`,
+			path: `/api/events?project=${server.projectId}&run=${runId}`,
 			headers: server.cookie ? { Cookie: server.cookie } : {},
 		},
 		(res) => {

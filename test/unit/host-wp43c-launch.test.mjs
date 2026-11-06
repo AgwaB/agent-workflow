@@ -1,3 +1,4 @@
+import { projectId } from "../../dist/core/state-location.js";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdir, stat, writeFile } from "node:fs/promises";
@@ -81,7 +82,7 @@ test("real fixture launch auto-starts a real detached dashboard and always print
 	assert.ok(discovery);
 	assert.notEqual(discovery.pid, process.pid);
 	assert.equal(discovery.detached, true);
-	const url = `http://127.0.0.1:${discovery.port}/?run=${first.data.runId}`;
+	const url = `http://127.0.0.1:${discovery.port}/?project=${projectId(ctx.cwd)}&run=${first.data.runId}`;
 	// WP43d default: the auto-started dashboard needs no sign-in, so no "first time" hint.
 	assert.equal(discovery.auth, false);
 	assert.deepEqual(first.data.dashboard, {
@@ -117,7 +118,7 @@ test("real fixture launch auto-starts a real detached dashboard and always print
 		second.text
 			.split("\n")
 			.includes(
-				`Dashboard: http://127.0.0.1:${discovery.port}/?run=${second.data.runId}`,
+				`Dashboard: http://127.0.0.1:${discovery.port}/?project=${projectId(ctx.cwd)}&run=${second.data.runId}`,
 			),
 	);
 	assert.doesNotMatch(second.text, /first time in this browser/);
@@ -131,7 +132,7 @@ test("real fixture launch auto-starts a real detached dashboard and always print
 		});
 	while (waited.data.stillRunning);
 	const view = waited.data.reportArtifacts.length > 0 ? "&view=report" : "";
-	const finished = `http://127.0.0.1:${discovery.port}/?run=${first.data.runId}${view}`;
+	const finished = `http://127.0.0.1:${discovery.port}/?project=${projectId(ctx.cwd)}&run=${first.data.runId}${view}`;
 	assert.equal(waited.data.dashboard?.url, finished);
 	assert.ok(
 		waited.text.split("\n").includes(`Dashboard: ${finished}`),
@@ -151,7 +152,7 @@ test("AGENT_WORKFLOW_DASHBOARD_AUTH=1: the auto-started dashboard requires sign-
 	const discovery = await readDashboardDiscovery(ctx.cwd);
 	assert.ok(discovery);
 	assert.equal(discovery.auth, true);
-	const url = `http://127.0.0.1:${discovery.port}/?run=${first.data.runId}`;
+	const url = `http://127.0.0.1:${discovery.port}/?project=${projectId(ctx.cwd)}&run=${first.data.runId}`;
 	assert.deepEqual(first.data.dashboard, {
 		url,
 		port: discovery.port,
