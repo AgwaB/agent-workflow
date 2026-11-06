@@ -21,6 +21,9 @@ export {
 	codexEnvironmentCapabilities,
 	codexEnvironmentNotes,
 	codexHomeDir,
+	codexRequirementsPath,
+	codexPolicyWarnings,
+	countCodexRules,
 	countCodexAllowRules,
 	inspectCodexEnvironment,
 } from "./environment.js";

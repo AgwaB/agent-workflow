@@ -68,6 +68,13 @@ function isolatedEnv(home) {
 		PI_CODING_AGENT_DIR: join(home, ".pi", "agent"),
 	};
 	if (live) return env;
+	env.CODEX_HOME = join(home, ".codex");
+	env.CLAUDE_CONFIG_DIR = join(home, ".claude");
+	env.AGENT_WORKFLOW_CODEX_REQUIREMENTS_PATH = join(home, "requirements.toml");
+	env.AGENT_WORKFLOW_CLAUDE_MANAGED_SETTINGS_PATH = join(
+		home,
+		"managed-settings.json",
+	);
 	const shimLog = join(home, "agent-cli-shims.log");
 	const bin = join(home, "bin");
 	mkdirSync(bin, { recursive: true });
