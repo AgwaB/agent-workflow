@@ -140,8 +140,7 @@ with no changed negotiated row. Generator: `test/helpers/bundled-support-table.m
 - **accept**: no degradation. **degrade**: accepted and recorded. **refuse**: nothing starts.
 - `webTools.safetyPolicy:unknown`: CLI browsing policy is not engine-enforced.
 - `CAPABILITY_MISSING:toolAllowlist.fine`: Codex cannot enforce precise tool lists. `free` records
-  this; `safe` uses `forcedReadOnly` because these specs opt in. Bundled stages remain readOnly in
-  both modes.
+  this; `safe` uses `forcedReadOnly` because these specs opt in. Bundled stages keep their authored readOnly intent; only `safe` enforces it.
 - `CAPABILITY_MISSING:usage.cost`: token-only usage; unknown cost is `null`.
 - `CAPABILITY_UNVERIFIED:webTools`: Pi's declared table cannot confirm `pi-web-access`; the probe
   must find it. Without it, research is refused with `CAPABILITY_MISSING:webTools`.
@@ -483,17 +482,18 @@ Workers run in `free` mode by default. Choose `safe` for conservative approvals 
 | | `free` (default) | `safe` |
 |---|---|---|
 | Approval prompts | none: the worker CLI is started without them. A request that still arrives is answered `allow` by the engine and audited `engine-policy:free` | policy-based: kinds the stage's tools imply are allowed, everything else is denied (fail-closed) unless an interactive host answers |
-| Sandbox | none for stages that are not `readOnly` | the adapter's narrowest mapping (no bypass flags) |
+| Sandbox | none, including authored `readOnly` stages | the adapter's narrowest mapping (no bypass flags) |
 | Write-capable stage with spec `worktreePolicy: "off"` | runs in the shared checkout as written | still gets a worktree unless the run option `allowSharedCheckoutWrites` waives it |
 | `worktreePolicy: "auto"` / `"on"` | a worktree for write-capable stages | same |
 | Coarse tool allowlist (Codex) | accepted for every stage; recorded as a degradation `CAPABILITY_MISSING:toolAllowlist.fine` | refused, or run as readOnly when the spec sets `allowReadOnlyDowngrade` |
+| `readOnly` | authored intent only; not enforced or negotiated; a short informational note is recorded | enforced and negotiated as required; mutating approvals denied |
 | Environment warnings (Codex `~/.codex/rules` allow rules, global `AGENTS.md`) | recorded degradations; never refused (not even by a profile's `strictCapabilities`), no confirmation prompt | recorded degradations; never ask; `strictCapabilities` refuses |
 
 **Kept in both modes:**
 
-- A stage the spec declares `readOnly` stays read-only: Claude read-only tool set with
-  `--permission-mode default`, Codex `read-only` sandbox with approvals `on-request`, Pi read-only tool
-  list. Approval requests for mutating kinds on a readOnly stage are denied.
+- Authored `readOnly` intent remains in prompts, records and engine-side compilation, worktree and
+  scheduling decisions. **It is not a safety boundary in `free`**: unrestricted executors may mutate
+  the shared checkout or access the network. Choose `safe` to enforce readOnly.
 - Context isolation: workers do not load the user's settings, instructions, hooks or skills unless the
   stage sets `inherit` (`inheritProjectContext` / `inheritSkills`).
 - Capability checks for missing or unverified capabilities, MCP injection and web tools.
@@ -532,35 +532,38 @@ follow the parent run's recorded mode. Older runs without a recorded mode run as
 
 `SubmitRequest.permissionMode?: "free" | "safe"` is additive and validated (`validateSubmitRequest`).
 **Absent means `safe`** (`effectivePermissionMode`), so a third-party caller that omits it gets the
-conservative behavior. The engine always sets it. `isUnrestricted(req)` is true only for `free` on a
-request that is not `readOnly`.
+conservative behavior. The engine always sets it. `isUnrestricted(req)` is true for every `free` request.
+`enforcesReadOnly(req)` is true only for a readOnly request in `safe` (including absent mode).
 
 An adapter must:
 
 1. For `safe` (or absent): use no bypass/auto-accept setting; route approvals to `respond()`.
-2. For `free` on a non-readOnly request: start the CLI without approval prompts and without sandbox
+2. For every `free` request: start the CLI without approval prompts and without sandbox
    restrictions, using the CLI's documented setting (prefer a documented mode value over a
    `--dangerously-*` alias). Keep the approval channel wired, so a request that still arrives reaches
    the engine.
-3. For a readOnly request: use exactly the `safe` settings in both modes.
+3. Enforce readOnly only when `enforcesReadOnly(req)` is true; do not strip mutating tools or
+   refuse foreign injected MCP servers just because a free request declares readOnly.
 4. Keep context isolation independent of the mode.
 5. Document both mappings and register them with the conformance kit (`harness.permissionModes`,
    offline check `permission.mode_mapping`). An adapter whose CLI has no approval or sandbox concept sets
    `equivalent` with the reason.
 
-| Adapter | `free` (not readOnly) | `safe` / readOnly |
+| Adapter | `free` (including readOnly) | `safe` |
 |---|---|---|
 | Claude (2.1.310) | `--permission-mode bypassPermissions` | `--permission-mode default` (+ `--disallowedTools` for readOnly) |
 | Codex (0.159.2) | `thread/start` `sandbox: "danger-full-access"`, `approvalPolicy: "never"` | mapped sandbox (`workspace-write` / `read-only`), `approvalPolicy: "on-request"` |
-| Pi (1.1.0) | same argv as `safe`: every requested tool (Pi has no approvals or sandbox) | readOnly drops mutating tools from `--tools` |
+| Pi (1.1.0) | every requested tool, including mutating/opted-in host tools (no approvals or sandbox) | readOnly drops mutating tools from `--tools` and disables host-tool inheritance |
+| Gemini / Antigravity (ACP) | `yolo`; no readOnly tool filtering | Gemini readOnly: `plan`; Antigravity: `default` + readOnly tool filtering and engine policy |
 
 The engine's approval decision (`decideApproval(policy, request, {readOnly, permissionMode})`): `free`
-allows everything except mutating kinds on a readOnly stage; `safe` uses the stage's approval policy.
+allows everything, including mutating kinds on a readOnly stage; `safe` uses the stage's approval policy
+and always denies readOnly mutations.
 
 ### Read-only shell commands
 
 An agent with no list, grep or find tool (Antigravity) runs
-`ls` or `rg` through its shell tool, which reports every command as `execute`. On a readOnly
+`ls` or `rg` through its shell tool, which reports every command as `execute`. On a safe readOnly
 stage, an `execute` request whose `command` (the exact command line, when the adapter can see
 it) is one plain inspection command is judged as `search`. A plain command has no shell
 operators, `$`, backticks, unquoted globs or braces, word-initial `~`, backslashes or newlines.
@@ -601,8 +604,8 @@ The same check runs alone with `agent-workflow check <workflow> [--executor …]
 affects:
 
 ```text
-Capability check (codex@0.1.0, 12 stages, permission mode: free): accepted with 48 degradations
-  ⚠ readOnly — 152 allow rules in ~/.codex/rules let matching commands run without approval (all 12 stages)
+Capability check (codex@0.1.0, 12 stages, permission mode: free): accepted with 36 degradations
+  free permission mode: authored readOnly is not enforced
   ⚠ toolAllowlist.fine — free permission mode: precise tool allowlist unavailable … (all 12 stages)
 ```
 
@@ -614,7 +617,7 @@ Each need is `native`, `emulated`, **degraded** (runs, recorded in `run.capabili
 | Entry | Meaning | What you can do |
 |---|---|---|
 | `CAPABILITY_MISSING:toolAllowlist.fine` | The executor cannot enforce the stage's precise `tools` list (Codex). | Accepted in `free`. In `safe`: the stage runs readOnly when the spec sets `allowReadOnlyDowngrade` (`forcedReadOnly`), else refused. |
-| `CAPABILITY_WARNING:readOnly` / `:contextIsolation` | Something on this machine weakens the capability (Codex allow rules in `~/.codex/rules`, a global `~/.codex/AGENTS.md`). | Recorded in `free`. In `safe` an interactive host asks; `strictCapabilities` refuses. Remove the rules/file for a clean result. |
+| `CAPABILITY_WARNING:readOnly` / `:contextIsolation` | Something on this machine weakens the capability (Codex allow rules in `~/.codex/rules`, a global `~/.codex/AGENTS.md`). | ReadOnly is not negotiated in `free`; isolation warnings are recorded. In `safe` warnings are recorded; `strictCapabilities` refuses. Remove the rules/file for a clean result. |
 | `webTools.safetyPolicy: unknown` | The stage uses the CLI's own web tools; URL, private-network and redaction controls are the CLI's, not the engine's. | Always recorded, never silent. |
 | `CAPABILITY_UNVERIFIED:<cap>` | Nobody has verified the capability for this executor; refused by default. | `--allow-unverified <cap>` if you accept it. |
 | `CAPABILITY_MISSING:<cap>` (refused) | The executor lacks something the stage requires (for example `mcpInjection` for required reads, `webTools`). | Choose another executor (or install the missing extension). |
@@ -798,8 +801,9 @@ built-in tools: `read`, `grep`, `find`, `ls`, `web_search`, `fetch_content`, `ed
 the engine tells the worker the mapping in its system prompt. The agent's frontmatter `tools` are the
 ceiling: a spec cannot grant a tool the agent did not declare. Object entries
 (`{name, classification, optional, fallbackTools}`) describe custom tools; unclassified custom tools
-are blocked. `readOnly: true` is a safety declaration (read-only tools, read-only sandbox where the
-executor has one), not filesystem isolation.
+are blocked. `readOnly: true` is authored intent used by compilation, scheduling and worktree policy, not
+filesystem isolation. Only `safe` enforces it at the executor (read-only tools/sandbox where available);
+`free` executors remain unrestricted even when the compiled tool list contains only reads.
 
 **Write-capable stages.** A stage that is not `readOnly` and keeps a mutating tool (`edit`, `write`,
 `bash`; the agent's frontmatter must declare it) can change files. Where it writes is the stage's (or
@@ -1088,7 +1092,7 @@ Full adapter limits: [Pi](https://github.com/AgwaB/agent-workflow/blob/main/docs
 
 | Executor | Limits |
 |---|---|
-| Pi | No approvals or sandbox: both modes use the same argv; readOnly removes mutating tools. `sessionBound`: cannot re-attach after the owning process dies. Deep-research needs `pi install npm:pi-web-access`. Cost is a catalog estimate, including on subscriptions. Fast tier remains unverified and requires `allowUnverifiedCapabilities: ["fastTier"]`; guard failure is `config`, degradation is `payload-only`, recorded in `pi-fast-tier.json`. |
+| Pi | No approvals or sandbox: both modes keep requested tools except safe readOnly removes mutating tools. `sessionBound`: cannot re-attach after the owning process dies. Deep-research needs `pi install npm:pi-web-access`. Cost is a catalog estimate, including on subscriptions. Fast tier remains unverified and requires `allowUnverifiedCapabilities: ["fastTier"]`; guard failure is `config`, degradation is `payload-only`, recorded in `pi-fast-tier.json`. |
 | Codex | Only a coarse tool allowlist. `free` records precise-list degradation; `safe` forces readOnly if the spec permits, otherwise refuses. Global `$CODEX_HOME/AGENTS.md` and rules cannot be disabled per run; the probe warns about weakened isolation/readOnly. Tokens only: cost is `null`, never `0`. Hosted `web_search` has no separate fetch. `fetch_content`, `grep`, `find`, `ls` mappings and token-refresh contention are unverified. See [run records](#run-records) for attempt-record retention. |
 | Claude | `sessionBound`: lost stdio requires a reconcile decision. The CLI auto-allows reads inside cwd and read-only Bash commands. The full environment is inherited; `ANTHROPIC_API_KEY` selects API-key billing. Cost is `total_cost_usd`, notional on subscriptions. The runtime, not the adapter, enforces timeouts. |
 | Antigravity | Experimental; capabilities remain `declared`. Workspace `AGENTS.md` / `GEMINI.md` are not isolated. No session ownership or resume. |
@@ -1097,8 +1101,8 @@ Full adapter limits: [Pi](https://github.com/AgwaB/agent-workflow/blob/main/docs
 
 - CLI browsing safety limits are described in [capability preflight](#preflight-capability-tools-models-and-effort).
 - See [run records](#run-records) for normalized usage, cost and worker-session retention.
-- Non-readOnly Pi workers may inherit native host codemode/MCP tools from a trusted Pi host;
-  readOnly workers never do. Project `.pi/mcp.json` servers do not reach workers. Other executors'
+- Pi executors may inherit opted-in native host codemode/MCP tools even for free readOnly requests;
+  safe readOnly requests never do. The engine still uses authored intent when preparing host-tool policy. Project `.pi/mcp.json` servers do not reach workers. Other executors'
   user-MCP inheritance is a separate opt-in.
 - See [roles, presets and mixed runs](#roles-presets-and-mixed-runs) for per-stage negotiation
   and model availability. A run-level `--model` is not checked against the probe's model list.
