@@ -8,7 +8,7 @@ import {
 } from "../core/executor-presets.js";
 import { compileWorkflow } from "../core/compiler.js";
 import { loadWorkflowSpec } from "../core/schema.js";
-import type { CompiledWorkflow } from "../core/types.js";
+import type { WorkflowRoutingHints, CompiledWorkflow } from "../core/types.js";
 import { listWorkflows, resolveWorkflowRef } from "../core/workflow-specs.js";
 import { HostUsageError } from "./args.js";
 import {
@@ -47,6 +47,8 @@ export interface WorkflowListSummary {
 	description?: string;
 	agent?: string;
 	readOnly?: boolean;
+	scope?: string;
+	routing?: WorkflowRoutingHints;
 }
 
 export interface ListRequest {
@@ -86,12 +88,14 @@ async function listWorkflowSummaries(
 					let description: string | undefined;
 					let agent: string | undefined;
 					let readOnly: boolean | undefined;
+					let routing: WorkflowRoutingHints | undefined;
 					try {
 						const loaded = await loadWorkflowSpec(workflow.specPath, cwd);
 						description = loaded.spec.description;
 						agent = (loaded.spec.defaults as { agent?: string } | undefined)
 							?.agent;
 						readOnly = loaded.spec.defaults?.readOnly;
+						routing = loaded.spec.routing;
 					} catch {
 						// listWorkflows already filters runnable specs; omit optional metadata if a
 						// workflow disappears between discovery and summary formatting.
@@ -99,6 +103,8 @@ async function listWorkflowSummaries(
 					return {
 						name: workflow.name,
 						aliases: workflow.aliases,
+						...(workflow.scope ? { scope: workflow.scope } : {}),
+						...(routing ? { routing } : {}),
 						specPath: toDisplayPath(workflow.specPath, cwd),
 						...(description
 							? { description: clipWorkflowMetadata(description, 512) }

@@ -5550,9 +5550,12 @@ function managementControl(
 		label,
 		async () => {
 			control.disabled = true;
-			output.replaceChildren(
-				element("p", { role: "status", class: "muted" }, "Working…"),
+			const working = element(
+				"p",
+				{ role: "status", class: "muted" },
+				"Working…",
 			);
+			output.replaceChildren(working);
 			try {
 				await action();
 			} catch (error) {
@@ -5566,6 +5569,7 @@ function managementControl(
 				if (error.data?.preview)
 					output.append(managementResult(error.data.preview));
 			} finally {
+				working.remove();
 				control.disabled = write && readonly();
 			}
 		},
@@ -5637,7 +5641,7 @@ async function roleEditor(roles = {}) {
 	const entries = [];
 	async function add(key = "", value = {}) {
 		const role = input("Role name", key, {
-			placeholder: "default, reviewer, agent:reader…",
+			placeholder: "default, verification, agent:reader…",
 		});
 		const model = await modelControls(value, `Role ${key || "new"} `);
 		const row = element(
@@ -5797,17 +5801,27 @@ async function renderWorkflows(page) {
 							...(profile.value ? { profile: profile.value } : {}),
 							...(permission.value ? { permissionMode: permission.value } : {}),
 						});
-						const commandText = () =>
-							`aw run ${shellArg(workflow.name)} "<task>"${Object.entries(
-								selected(),
-							)
+						const awCommand = `aw run ${shellArg(workflow.name)} "<task>"`;
+						const update = () => {
+							const flags = Object.entries(selected())
 								.map(
 									([key, value]) =>
 										` --${key === "permissionMode" ? "permission-mode" : key} ${shellArg(value)}`,
 								)
-								.join("")}`;
-						const update = () =>
-							command.replaceChildren(commandHint(commandText()));
+								.join("");
+							command.replaceChildren(commandHint(awCommand));
+							if (flags)
+								command.append(
+									element(
+										"p",
+										{ class: "muted" },
+										"aw uses saved defaults; for these explicit Check overrides use the CLI:",
+									),
+									commandHint(
+										`agent-workflow run ${shellArg(workflow.name)} "<task>"${flags}`,
+									),
+								);
+						};
 						const form = element(
 							"div",
 							{ class: "management-fields", onchange: update, oninput: update },
@@ -5848,8 +5862,17 @@ async function renderWorkflows(page) {
 				element(
 					"small",
 					{ class: "muted" },
-					`Source: ${workflow.specPath} · aliases: ${workflow.aliases.join(", ") || "none"}${workflow.agent ? ` · agent: ${workflow.agent}` : ""}${workflow.readOnly !== undefined ? ` · read-only: ${workflow.readOnly}` : ""}`,
+					`Source: ${workflow.scope || "catalog"} · ${workflow.specPath} · aliases: ${workflow.aliases.join(", ") || "none"}${workflow.agent ? ` · agent: ${workflow.agent}` : ""}${workflow.readOnly !== undefined ? ` · read-only: ${workflow.readOnly}` : ""}`,
 				),
+				workflow.routing
+					? element(
+							"p",
+							{ class: "muted" },
+							Object.entries(workflow.routing)
+								.map(([key, hints]) => `${humanize(key)}: ${hints.join("; ")}`)
+								.join(" · "),
+						)
+					: null,
 			),
 		);
 	}
