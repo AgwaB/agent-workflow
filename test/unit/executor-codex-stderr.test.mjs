@@ -44,6 +44,7 @@ test("unknown, unrelated, model-quoted, incomplete and malformed rejection lines
 		line(prompt).replace("exec_command", "other_tool"),
 		line(prompt).replace("ERROR", "WARN"),
 		`model says ${line(prompt)}`,
+		line(prompt).replace("2026-11-06T03:47:04.836808Z", "model-quoted"),
 		line(prompt).slice(0, -2),
 		line(prompt).replace("Rejected", "NotRejected"),
 		"ERROR codex_core::tools::router: error=exec_command failed: CreateProcess { message: bad }",

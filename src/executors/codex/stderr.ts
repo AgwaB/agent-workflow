@@ -9,7 +9,7 @@ export function codexStderrDenial(
 ): ToolCallEvent | undefined {
 	const clean = stripVTControlCharacters(line).trim();
 	const match =
-		/^(?:\S+\s+)?ERROR codex_core::tools::router:\s+error=exec_command failed: CreateProcess \{ message: ("(?:\\.|[^"\\])*") \}$/u.exec(
+		/^(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s+)?ERROR codex_core::tools::router:\s+error=exec_command failed: CreateProcess \{ message: ("(?:\\.|[^"\\])*") \}$/u.exec(
 			clean,
 		);
 	if (match?.[1] === undefined) return undefined;
