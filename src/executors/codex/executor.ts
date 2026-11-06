@@ -1040,7 +1040,9 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			envKeys: Object.keys(req.env).sort(),
 			pid: child.pid ?? null,
 		});
-		const stderrParser = new CodexStderrParser();
+		// Decode before the second redaction pass: JSON/Rust escaping can hide raw secret bytes.
+		// Redact before bounding so the limit cannot expose a partial secret.
+		const stderrParser = new CodexStderrParser(run.redact.text);
 		const onStderr = (text: string) => {
 			if (text === "") return;
 			run.stderr = (run.stderr + text).slice(-16_384);

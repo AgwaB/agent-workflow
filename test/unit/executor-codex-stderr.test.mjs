@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createSecretRedactor } from "../../dist/executors/redact.js";
 import {
 	CodexStderrParser,
 	codexStderrDenial,
@@ -76,4 +77,21 @@ test("oversized stderr lines are dropped and reasons/commands are bounded", () =
 	);
 	assert.equal(event.output.length, 16_384);
 	assert.equal(event.input.command.length, 16_384);
+});
+
+test("decoded stderr secrets are redacted before reason/command truncation", () => {
+	const secret = 'hidden-"quoted"-secret';
+	const redact = createSecretRedactor([[secret, "TOKEN"]], {
+		minLength: 8,
+		replacement: () => "<redacted>",
+	});
+	const command = "x".repeat(16_380) + secret;
+	const parser = new CodexStderrParser(redact.text);
+	const [event] = parser.push(
+		`${line(`\`${command}\` rejected: policy forbids commands starting with \`x\``)}\n`,
+	);
+	assert.equal(event.output.length, 16_384);
+	assert.equal(event.input.command.length, 16_384);
+	assert.equal(JSON.stringify(event).includes("hidden"), false);
+	assert.equal(JSON.stringify(event).includes("quoted"), false);
 });

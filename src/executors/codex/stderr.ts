@@ -3,7 +3,10 @@ import type { ToolCallEvent } from "../../sdk/events.js";
 import { TOOL_OUTPUT_EVENT_LIMIT } from "./normalize.js";
 
 /** Only the two execpolicy rejection shapes verified against codex-cli 0.166.0. */
-export function codexStderrDenial(line: string): ToolCallEvent | undefined {
+export function codexStderrDenial(
+	line: string,
+	redact: (text: string) => string = (text) => text,
+): ToolCallEvent | undefined {
 	const clean = stripVTControlCharacters(line).trim();
 	const match =
 		/^(?:\S+\s+)?ERROR codex_core::tools::router:\s+error=exec_command failed: CreateProcess \{ message: ("(?:\\.|[^"\\])*") \}$/u.exec(
@@ -40,8 +43,10 @@ export function codexStderrDenial(line: string): ToolCallEvent | undefined {
 		status: "denied",
 		...(command === undefined
 			? {}
-			: { input: { command: command.slice(0, TOOL_OUTPUT_EVENT_LIMIT) } }),
-		output: reason.slice(0, TOOL_OUTPUT_EVENT_LIMIT),
+			: {
+					input: { command: redact(command).slice(0, TOOL_OUTPUT_EVENT_LIMIT) },
+				}),
+		output: redact(reason).slice(0, TOOL_OUTPUT_EVENT_LIMIT),
 	};
 }
 
@@ -49,6 +54,9 @@ export function codexStderrDenial(line: string): ToolCallEvent | undefined {
 export class CodexStderrParser {
 	private buffer = "";
 	private dropping = false;
+	constructor(
+		private readonly redact: (text: string) => string = (text) => text,
+	) {}
 	push(text: string): ToolCallEvent[] {
 		const events: ToolCallEvent[] = [];
 		for (const part of text.split(/(?<=\n)/u)) {
@@ -62,7 +70,7 @@ export class CodexStderrParser {
 			if (part.endsWith("\n")) {
 				const event = this.dropping
 					? undefined
-					: codexStderrDenial(this.buffer);
+					: codexStderrDenial(this.buffer, this.redact);
 				if (event !== undefined) events.push(event);
 				this.buffer = "";
 				this.dropping = false;
