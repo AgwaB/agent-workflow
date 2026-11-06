@@ -711,7 +711,7 @@ Agent counts exclude foreach placeholders, support helpers and controllers. Pend
 `<home>/dashboard.json` is written with mode 0600 after listening and removed on clean shutdown:
 
 ```json
-{"schema":"agent-workflow-dashboard-v1","pid":12345,"port":7417,"url":"http://127.0.0.1:7417/","home":"/home/user/.agent-workflow","protocol":2,"version":"0.1.0","startedAt":"…","launchKey":"<32 random bytes, base64url>","auth":false}
+{"schema":"agent-workflow-dashboard-v1","pid":12345,"port":7417,"url":"http://127.0.0.1:7417/","home":"<home>","protocol":2,"version":"0.1.0","startedAt":"…","launchKey":"<32 random bytes, base64url>","auth":false}
 ```
 
 `launchKey` is a local control secret, never printed and distinct from the session token. Missing `auth` means the server requires sign-in. Readers require a live pid and verify `GET /api/identity?nonce=<random>` against HMAC-SHA256(launchKey, nonce), never sending the key or session token before identity is proven. A foreign listener is not adopted. A private O_EXCL `<home>/dashboard.lock` serializes discovery → spawn → adoption; dead or expired holders are reclaimed. A newer protocol launcher authenticates shutdown of an older server and restarts on its port; older launchers reuse newer servers. Local discovery/launch requests time out after 3 s. Dead-pid discovery files are removed.
