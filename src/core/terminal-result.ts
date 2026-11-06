@@ -1,3 +1,4 @@
+import { projectBlockedActions } from "./blocked-actions.js";
 // An executor decision blocks the task without retry or relaunch; batches stop instead of falling back.
 import { markForeachBatchStopped } from "./foreach-batch-runtime.js";
 import { setTaskTerminal } from "./store.js";
@@ -169,6 +170,12 @@ export async function materializeTerminalSubagentResult(
 		completedAt,
 	});
 	recordTaskOwnedSession(task, snapshot, subagentResult);
+	const blockedActions = projectBlockedActions(
+		(snapshot.metadata?.executor as { blockedActions?: unknown } | undefined)
+			?.blockedActions,
+	);
+	if (blockedActions) task.blockedActions = blockedActions;
+	else delete task.blockedActions;
 	const activeForeachBatch = activeForeachBatchRecordForTask(run, task);
 	// B3: the runtime could not prove whether the attempt launched (reconcile `unknown`). Stop
 	// in a state that needs an owner decision; never retry, relaunch or fall back (a batch is
@@ -294,6 +301,7 @@ export async function materializeTerminalSubagentResult(
 		return changed;
 	}
 	const workflowResult = {
+		...(blockedActions ? { blockedActions } : {}),
 		status: statusInfo.status,
 		failureKind: statusInfo.failureKind,
 		exitCode,
