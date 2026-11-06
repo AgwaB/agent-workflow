@@ -1,5 +1,9 @@
 # Executors
 
+Worker artifacts live in the [project state directory](usage.md#where-run-state-lives);
+workers execute in the project directory or its managed worktree. Adapter state described
+below lives separately under `$AGENT_WORKFLOW_HOME/executors/`.
+
 Each executor runs one attempt through its CLI and normalizes output into SDK events. Keep secrets
 in `SubmitRequest.env` or `McpServerSpec.env`, not descriptor config. The engine decides retries
 from failure class (`unknown` is never automatically retried); adapters do not relaunch consumed

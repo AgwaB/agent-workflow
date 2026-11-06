@@ -10,8 +10,8 @@ npx agent-workflow --help
 
 **Project directory.** The CLI works on the nearest enclosing project: walking up from the current
 directory, the first directory with a `.agent-workflow/` or a `.git` (never the one that holds the
-user-level `~/.agent-workflow`), else the current directory. Its `workflows/` and `.agent-workflow/workflows/` are searched and runs are recorded
-in its `.agent-workflow/`; workers run there, so paths in a task are read from the project root.
+user-level `~/.agent-workflow`), else the current directory. Its `workflows/` and `.agent-workflow/workflows/` are searched; runs are recorded
+in its [state directory](usage.md#where-run-state-lives). Workers run in the project, so paths in a task are read from the project root.
 When that is not the current directory the CLI says so on stderr ("agent-workflow: project <dir> (the
 current directory is inside it …)"). To make a subdirectory its own project, create
 `.agent-workflow/` in it. The directory that holds the user-level `~/.agent-workflow` (usually ~) is
@@ -38,7 +38,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `auto <task…> [--yes]` | Recommend a workflow for the task (one classifier request, only with your consent) and start the one you choose; same options as `run`. Below. |
 | `status [run]` | All top-level runs, or one run. |
 | `inspect <run> [--failures] [--results]` | Reliability summary and task listing. `--failures` lists failed/blocked/interrupted tasks; `--results` prints task results (with `--failures` on a clean run: every result). |
-| `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded tail of task output, stderr and executor events (the latest attempt's `exec-events.jsonl`); every started task by default (at most 6). Lines per stream 1-400 (default 20), lines cut at 400 characters, the text at 48 000. Credentials (including quoted structured fields such as `"Authorization":"Basic …"` and `"refresh_token":"…"`), bearer tokens, URL secrets, macOS/Linux/Windows home paths and values of sensitive environment variables are redacted, here and in `status`/`show`/`inspect`/`wait` text. Only files inside the project's `.agent-workflow/` are read; a tampered absolute, `..` or symlink-escaping path is refused and the reason shown. |
+| `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded tail of task output, stderr and executor events (the latest attempt's `exec-events.jsonl`); every started task by default (at most 6). Lines per stream 1-400 (default 20), lines cut at 400 characters, the text at 48 000. Credentials (including quoted structured fields such as `"Authorization":"Basic …"` and `"refresh_token":"…"`), bearer tokens, URL secrets, macOS/Linux/Windows home paths and values of sensitive environment variables are redacted, here and in `status`/`show`/`inspect`/`wait` text. Only files inside the [state directory](usage.md#where-run-state-lives)'s `.agent-workflow/` are read; a tampered absolute, `..` or symlink-escaping path is refused and the reason shown. |
 | `wait <run> [--timeout D]` | Drive and wait until the run is terminal or needs action. |
 | `resume <run> [--detach] [--timeout D]` | Reset failed, interrupted and resumable blocked tasks, then continue in the foreground or detached. |
 | `approve <run> [--request <id>] [--reject] [--yes] [--detach] [--timeout D]` | Answer a dynamic-controller approval the run is blocked on (below). |
@@ -323,7 +323,7 @@ allowlist, same-origin/CSRF checks on every action; another local user or proces
 and press the controls — see [docs/hosts.md#dashboard](hosts.md#dashboard)). `--auth` (or
 `AGENT_WORKFLOW_DASHBOARD_AUTH=1`, which auto-started dashboards inherit) turns sign-in on for
 shared machines: the printed URL then carries a session token (`/?token=…`) that establishes the
-browser session; the session persists across restarts in `<project>/.agent-workflow/dashboard-session`
+browser session; the session persists across restarts in `.agent-workflow/dashboard-session` in the [state directory](usage.md#where-run-state-lives)
 (mode 0600), and browsers without it see a sign-in page with a one-click button. `--reset-session`
 stops a running dashboard first, rotates that token and exits; every browser must sign in again. It
 also works when no dashboard is running. `--readonly` adds a read-only badge and rejects all mutations on the server.
@@ -335,7 +335,7 @@ Invalid ports, occupied ports and non-directories exit 2. No `--json` mode.
 never a session token, and exits after 2 hours without SSE clients when no live run remains
 (running/blocked with a live lease). `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` sets the interval in
 milliseconds (minimum 60000; invalid values exit 2). Foreground servers never idle out. Discovery is written privately (0600) to
-`<project>/.agent-workflow/dashboard.json` and removed on close, SIGINT or SIGTERM.
+`.agent-workflow/dashboard.json` in the [state directory](usage.md#where-run-state-lives) and removed on close, SIGINT or SIGTERM.
 `--status` prints pid, port, start time and `auth on|off`, plus `idle exit in <m>m` for detached servers; `--stop` sends SIGTERM and waits up to 5 seconds for
 cleanup. Both accept `--project` and exit 1 if no dashboard is running.
 
@@ -411,7 +411,7 @@ the run has settled (after printing its line, or at once when that state was alr
 `--session <id>` reports only the runs that Claude Code session launched and keeps
 its monitor stamp fresh: the Claude Code plugin's completion monitor ([host-mcp.md](hosts.md#claude-code-and-codex)). Blocked runs name the approval (`approve`) or the
 inspect/resume commands; `--host claude-code|codex|generic` words the follow-ups as MCP tool calls.
-Receipts: `.agent-workflow/notify-check/` (created by the first check in a project that has runs,
+Receipts: `.agent-workflow/notify-check/` in the [state directory](usage.md#where-run-state-lives) (created by the first check in a project that has runs,
 or by the first `wait` that returns a settled state)
 holds `baseline.json` (the first check also reports runs that settled in the hour before it) and one
 marker per reported state, created exclusively so concurrent checks print a state once. A resumed
@@ -423,7 +423,7 @@ next time); markers of pruned runs are removed. `--json` prints `{action, ok, ou
 they appear (a long-lived feed, for example a Claude Code plugin monitor). `--stamp <name>` writes `.agent-workflow/notify-check/<name>.stamp` after a successful
 check, with the check's start time as its mtime (a check that deferred runs removes it instead, so
 the hook checks again until the backlog is drained); the receipts directory is created only as a real
-directory inside a real `.agent-workflow` (a symlinked one is refused and nothing is written). Hook
+directory inside the state directory's real `.agent-workflow` (a symlinked one is refused and nothing is written). Hook
 setup: [plugins.md](hosts.md#completion-check-hook).
 
 ## Exit codes

@@ -34,7 +34,8 @@ npx agent-workflow inspect "$id" --failures --results
 ```
 
 `run` prints a capability preview and waits in the foreground. `--detach` hands the run to a
-background supervisor. See the [CLI reference](docs/cli.md).
+background supervisor. Run records and logs live in a private [per-project state directory](docs/usage.md#where-run-state-lives),
+not the repository. See the [CLI reference](docs/cli.md).
 
 **The default permission mode is `free`: workers run without approval prompts or a sandbox unless
 the stage declares `readOnly`.** Use `--permission-mode safe` for policy-based approvals that fail

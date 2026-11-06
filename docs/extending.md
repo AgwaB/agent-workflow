@@ -120,7 +120,8 @@ termination evidence. Partial streamed output remains marked `outputPartial: tru
 
 ### Data layout
 
-Project (`<cwd>/.agent-workflow/`, created on first run):
+Run state (paths below are relative to `.agent-workflow/` inside the
+[project state directory](usage.md#where-run-state-lives), created on first run):
 
 | Path | Content |
 |---|---|
@@ -130,13 +131,15 @@ Project (`<cwd>/.agent-workflow/`, created on first run):
 | `workflows/<run-id>/supervise.log` | Detached supervisor log (`--detach` only) |
 | `workflows/index.json` | Run index of the project |
 | `workflow-subagents/<run-id>/<task-id>/<runtime-run-id>/` | Runtime run of one task: `run.json`, `events.jsonl`, `attempts/<attempt-id>/` with `worker.json`, `executor.json`, `authority.json`, `control/`, `exec-events.jsonl`, raw CLI logs, `result.json` |
-| `workflows/<name>.json`, `workflows/<name>/spec.json` | Project-private workflow specs (next to the run directories) |
-| `agents/` | Project agents |
 | `ocr-artifacts/` | deep-review OCR artifacts (trusted root) |
+
+Repository definitions stay in `<cwd>/workflows/`, `<cwd>/.agent-workflow/workflows/` (specs)
+and `<cwd>/.agent-workflow/agents/`; they are separate from run state.
 
 User (`$AGENT_WORKFLOW_HOME`, default `~/.agent-workflow/`): `workflows/`, `agents/`,
 `user-profiles/v1/profiles.json`, `workflow-preferences/v1/`, `run-index/` (run locators),
-`executors/<id>/` (adapter state; session records only for sessions the engine asked to keep).
+`executors/<id>/` (adapter state; session records only for sessions the engine asked to keep),
+`projects/<project-id>/` (project run state).
 
 Workflow lookup order is project-shared `<cwd>/workflows/`, project-private
 `<cwd>/.agent-workflow/workflows/`, user `workflows/`, then bundled workflows. Pi configuration
@@ -588,7 +591,7 @@ while (waited.data.stillRunning);
 
 | Field | Meaning |
 |---|---|
-| `cwd` | Project directory; runs live under `.agent-workflow/` |
+| `cwd` | Project directory; runs live in its [state directory](usage.md#where-run-state-lives) |
 | `env?` | Role checks and user home; defaults to `process.env` |
 | `host?` | `claude-code`, `codex`, `pi`, `cli`, `generic`; selects host-aware hints and default executor |
 | `defaultExecutor?` | Explicit host default, below the saved user profile |
@@ -700,7 +703,8 @@ CLI/generic installed-default login changes within the guard window are not dete
 
 An identical non-terminal run (`running`, `pending`, `blocked`) created within 10 minutes returns
 `existing`, with `duplicateOf`, and starts no supervisor. Terminal/pruned/older runs or `forceNew`
-start a new run. Claims live at `.agent-workflow/host-launches/<sha256>.json`; concurrent callers
+start a new run. Claims live at `.agent-workflow/host-launches/<sha256>.json` in the
+[state directory](usage.md#where-run-state-lives); concurrent callers
 wait up to 15 s for the first run id. Claims use owner tokens, per-identity locks and a 60 s lease
 renewed every 15 s. Dead same-host owners allow takeover; live or unverifiable owners retain claims
 until 1 hour after lease expiry. An ownership check immediately before start prevents stale owners
@@ -730,7 +734,8 @@ or events. `task` accepts task/spec id; unknown throws. Without task, return at 
 recently started tasks. Lines per stream: 1–400, default 20; each line capped at 400 characters;
 text and data stop at 48,000 characters. The run is refreshed first.
 
-Read paths must be project-relative, without `..`, and resolve inside `.agent-workflow/`; absolute,
+Read paths must be relative to the [state directory](usage.md#where-run-state-lives), without
+`..`, and resolve inside its `.agent-workflow/`; absolute,
 traversal and symlink escapes are not read and get `refused` reasons. Inspect results and result
 presentation enforce the same artifact boundary. Credential assignments, structured/escaped JSON
 secrets, authorization/cookie/API-key headers, bearer tokens, URL secrets, sensitive environment
