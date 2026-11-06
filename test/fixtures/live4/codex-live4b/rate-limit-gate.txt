@@ -1,4 +1,0 @@
-c2 {"at":"2026-10-28T00:56:32.030Z","ordinaryUsageAllowed":true,"rateLimitReachedType":null,"primaryUsedPercent":12,"primaryWindowMins":10080,"primaryResetsAt":"2026-11-03T15:43:04.000Z","spendControlReached":false}
-c4b {"at":"2026-10-28T01:00:17.620Z","ordinaryUsageAllowed":true,"rateLimitReachedType":null,"primaryUsedPercent":12,"primaryWindowMins":10080,"primaryResetsAt":"2026-11-03T15:43:04.000Z","spendControlReached":false}
-c5 {"at":"2026-10-28T01:04:05.198Z","ordinaryUsageAllowed":true,"rateLimitReachedType":null,"primaryUsedPercent":12,"primaryWindowMins":10080,"primaryResetsAt":"2026-11-03T15:43:04.000Z","spendControlReached":false}
-after-runs {"at":"2026-10-28T01:09:35.300Z","ordinaryUsageAllowed":true,"rateLimitReachedType":null,"primaryUsedPercent":12,"primaryWindowMins":10080,"primaryResetsAt":"2026-11-03T15:43:04.000Z","spendControlReached":false}

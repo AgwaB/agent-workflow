@@ -1,9 +1,0 @@
-# c5 process samples (3 s); started 61 s after launch because the first sampler's pattern did not match the adapter's 'codex -c log_dir=… app-server' command line
-01:05:14 workers=6 appservers=3
-01:05:17 workers=5 appservers=2
-01:05:21 workers=4 appservers=1
-c5-1 exit=1 wall=79
-c5-2 exit=1 wall=71
-c5-3 exit=1 wall=76
-start 2026-10-28T01:04:05Z end 2026-10-28T01:05:25Z
-peak concurrent Codex worker attempts across the three runs (from attempt result.json startedAt/finishedAt, 23 attempts): 9
