@@ -1,6 +1,6 @@
 // Live tier for the codex adapter (WP7). Skipped unless AGENT_WORKFLOW_LIVE=1. Each run costs
 // model calls (one smoke + six for the kit's live checks), so run it deliberately and record the
-// result in docs/executors.md#codex and test/fixtures/executors/codex/live-calls.md.
+// verified behavior in docs/executors.md#codex; retain raw results with maintenance evidence.
 //
 // Must run with the real environment (the user's codex login): `AGENT_WORKFLOW_LIVE=1 node --test
 // test/unit/executor-codex-live.test.mjs` after `npm run build`. Under test/run-unit.mjs the home

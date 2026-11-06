@@ -97,7 +97,7 @@ export const PI_MCP_OUTPUT_LIMIT_CHARS = 20 * 1024;
  * (≈ 220 chars measured, plus the temp path length).
  */
 export const PI_MCP_OUTPUT_NOTICE_CHARS = 1024;
-/** Evidence string for capability rows proven against a live Pi (live-calls.md). */
+/** Evidence string for capability rows proven against a live Pi (docs/executors.md#pi). */
 export const PI_VERIFIED_WITH = "pi 1.1.0, WP6 live runs 2026-10-26";
 /** Rows proven offline with the real Pi CLI and a scripted (faux) provider: no model turn. */
 export const PI_VERIFIED_OFFLINE =

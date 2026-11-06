@@ -10,11 +10,7 @@ import type { JsonValue } from "../../sdk/json.js";
 import { CLAUDE_ADAPTER_VERSION, CLAUDE_EXECUTOR_ID } from "./version.js";
 
 export { CLAUDE_ADAPTER_VERSION, CLAUDE_EXECUTOR_ID };
-/** CLI version every `probed` capability row was verified with (live, 2026-10-26). */
-// 2026-11-01: the live tier (smoke with the artifact MCP server, concurrency, web, system prompt,
-// conformance live checks) re-passed on 2.1.314 (test/fixtures/executors/claude/live-calls.md
-// "Re-verification on 2.1.314"); again on 2.1.318 on 2026-11-04 ("Re-verification on 2.1.318") and on 2.1.319 on 2026-11-06
-// ("Re-verification on 2.1.319").
+/** CLI version every `probed` capability row was verified with; see docs/executors.md#claude-code. */
 export const CLAUDE_VERIFIED_CLI_VERSION = "2.1.319";
 export const CLAUDE_VERIFIED_WITH = `claude-code ${CLAUDE_VERIFIED_CLI_VERSION}, WP8 live 2026-10-26, re-verified 2026-11-06`;
 
