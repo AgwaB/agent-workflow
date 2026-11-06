@@ -1,4 +1,5 @@
 import { stateDir } from "../helpers/state-dir.mjs";
+import { drainWorkflowProject } from "../helpers/workflow-fixture-lifecycle.mjs";
 // New in agent-workflow (WP17): the default executor is the host's own CLI (owner decision
 // "기본 실행기", 2026-10-27). Explicit selections keep B2 precedence and are never probed; the
 // Claude Code / Codex / Pi hosts default to claude / codex / pi; the terminal CLI takes the first
@@ -21,6 +22,7 @@ const slots = await import("../../dist/core/launch-slots.js");
 let root;
 let countingModule;
 const unregister = [];
+const projects = new Set();
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp17-")));
@@ -48,12 +50,14 @@ before(async () => {
 		retryJitterMs: 0,
 	});
 });
-afterEach(() => {
+afterEach(async () => {
+	for (const cwd of projects) await drainWorkflowProject(cwd);
+	projects.clear();
 	for (const undo of unregister.splice(0).reverse()) undo();
 	core.resetExecutorProbeCacheForTests();
 });
 after(async () => {
-	// Detached finalizers of completed runs may still be releasing files.
+	slots.setSubagentLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,
@@ -92,6 +96,7 @@ function probeLog(log) {
 
 async function project(name) {
 	const cwd = join(root, name);
+	projects.add(cwd);
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
 	await writeFile(
 		join(cwd, ".agent-workflow", "agents", "reader.md"),

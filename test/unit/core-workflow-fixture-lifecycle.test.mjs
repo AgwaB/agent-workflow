@@ -3,9 +3,18 @@ import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
+import { runWorkflowSpec } from "../../dist/core/engine.js";
+import { registerWorkflowExecutor } from "../../dist/core/index.js";
+import {
+	readFixtureLog,
+	workflowFixtureDescriptor,
+} from "../helpers/workflow-executor-fixture.mjs";
+import { readRunEvents } from "../../dist/runtime/artifacts/index.js";
 import * as h from "../helpers/unit-test-support.mjs";
 import {
 	drainWorkflowFixture,
+	drainWorkflowProject,
 	withWorkflowFixtureLease,
 } from "../helpers/workflow-fixture-lifecycle.mjs";
 
@@ -83,6 +92,82 @@ test("fixture lease waits for ownership instead of silently skipping a manual mu
 		release();
 		await holder;
 		await h.flushPendingIndexUpdatesForTests();
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
+test("project teardown stops active fixture workers and waits for finalizer publication", {
+	timeout: 60_000,
+}, async () => {
+	const { cwd } = await completedFixture();
+	const undo = registerWorkflowExecutor(
+		workflowFixtureDescriptor({
+			id: "fixture-drain-active",
+			effectLog: join(cwd, "effects.jsonl"),
+			// Fake stream sleeps are not abortable; stay within the runtime's 3 s kill grace.
+			stepDelayMs: 500,
+		}),
+	);
+	try {
+		const specPath = join(cwd, "active.json");
+		await writeFile(
+			specPath,
+			JSON.stringify({
+				schemaVersion: 1,
+				name: "fixture-drain-active",
+				defaults: { agent: "unit-scout" },
+				artifactGraph: {
+					stages: [{ id: "work", type: "single", prompt: "wait" }],
+				},
+			}),
+		);
+		const started = await runWorkflowSpec(specPath, cwd, {
+			task: "teardown while running",
+			executor: "fixture-drain-active",
+		});
+		let ref;
+		const deadline = performance.now() + 30_000;
+		while (!ref) {
+			const run = await h.readRunRecord(cwd, started.runId);
+			if (
+				readFixtureLog(join(cwd, "effects.jsonl")).some(
+					(event) => event.type === "submit",
+				)
+			)
+				ref = run.tasks.find(
+					(task) => task.status === "running",
+				)?.backendHandle;
+			assert.ok(performance.now() < deadline, "fixture worker did not start");
+			if (!ref) await sleep(25);
+		}
+		await drainWorkflowProject(cwd);
+		assert.equal(
+			(await h.readRunRecord(cwd, started.runId)).status,
+			"interrupted",
+		);
+		const events = await readRunEvents(ref, Infinity);
+		// Stop acknowledges a terminal worker, including a fixture stream that fails on abort.
+		assert.ok(
+			events.some(
+				(event) =>
+					event.attemptId === ref.attemptId &&
+					["attempt.cancelled", "attempt.failed"].includes(event.type),
+			),
+			JSON.stringify(events),
+		);
+		assert.ok(events.some((event) => event.type === "run.interrupt_requested"));
+		assert.equal(
+			events.some((event) => event.type === "attempt.completed"),
+			false,
+		);
+	} finally {
+		await drainWorkflowProject(cwd);
+		undo();
 		await rm(cwd, {
 			recursive: true,
 			force: true,

@@ -1,4 +1,5 @@
 import { stateDir } from "../helpers/state-dir.mjs";
+import { drainWorkflowProject } from "../helpers/workflow-fixture-lifecycle.mjs";
 // New in agent-workflow (WP37 item 1, stage-1 open problem 8): task prompts are rendered per executor
 // with the tool mapping the system prompt uses (M17). Claude gets its own tool names inline
 // (WebSearch, WebFetch, Read/Grep/Glob, the artifact tool's visible name); Codex keeps the logical
@@ -110,7 +111,6 @@ test("Codex task prompts keep the logical names and carry the M17 mapping note",
 });
 
 let root;
-const unregister = [];
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp37-prompts-")));
@@ -120,7 +120,6 @@ before(async () => {
 	});
 });
 after(async () => {
-	for (const undo of unregister.splice(0)) undo();
 	slots.setSubagentLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
@@ -165,7 +164,6 @@ for (const id of ["pi", "claude", "codex"]) {
 		const undo = core.registerWorkflowExecutor(
 			workflowFixtureDescriptor({ id, effectLog, logPrompt: true }),
 		);
-		unregister.push(undo);
 		try {
 			const started = await engine.runWorkflowSpec(specPath, cwd, {
 				task: "per-executor prompt",
@@ -209,6 +207,7 @@ for (const id of ["pi", "claude", "codex"]) {
 				);
 			}
 		} finally {
+			await drainWorkflowProject(cwd);
 			undo();
 		}
 	});
