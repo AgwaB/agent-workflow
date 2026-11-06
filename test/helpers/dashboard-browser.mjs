@@ -76,6 +76,16 @@ export async function createBrowser(executable) {
 		}
 		pending.clear();
 	});
+	// 2026-11-06: a Chrome that dies mid-test fails its pending commands at once instead of after the
+	// 60 s command bound each (two such waits exceeded the 120 s test timeout and hid the cause).
+	chrome.on("exit", (code, signal) => {
+		const error = new Error(`Chrome exited (code ${code}, signal ${signal})`);
+		for (const p of pending.values()) {
+			clearTimeout(p.timer);
+			p.reject(error);
+		}
+		pending.clear();
+	});
 	chrome.stdio[4].on("data", (chunk) => {
 		buffer += chunk.toString();
 		let at;
@@ -115,14 +125,19 @@ export async function createBrowser(executable) {
 	// Chrome under the parallel unit suite can take well over 15 s for its first navigation; the
 	// per-command bound is generous so contention becomes slowness, not a flaky failure.
 	const CDP_TIMEOUT_MS = Number(process.env.AW_TEST_CDP_TIMEOUT_MS) || 60_000;
-	const send = (method, params = {}, target = session) =>
+	const send = (
+		method,
+		params = {},
+		target = session,
+		timeoutMs = CDP_TIMEOUT_MS,
+	) =>
 		new Promise((resolve, reject) => {
 			if (startupError) return reject(startupError);
 			const id = ++sequence;
 			const timer = setTimeout(() => {
 				pending.delete(id);
 				reject(new Error(`CDP timeout: ${method}`));
-			}, CDP_TIMEOUT_MS);
+			}, timeoutMs);
 			pending.set(id, { resolve, reject, timer });
 			chrome.stdio[3].write(
 				`${JSON.stringify({ id, method, params, ...(target ? { sessionId: target } : {}) })}\0`,
@@ -277,7 +292,8 @@ export async function createBrowser(executable) {
 	};
 	const close = async () => {
 		try {
-			await send("Browser.close", {}, null);
+			// Bounded: an unresponsive Chrome is killed below rather than awaited for 60 s.
+			await send("Browser.close", {}, null, 3000);
 		} catch {}
 		if (chrome.exitCode === null && !startupError)
 			await new Promise((resolve) => {
