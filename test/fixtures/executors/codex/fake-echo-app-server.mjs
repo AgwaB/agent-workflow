@@ -102,6 +102,14 @@ createInterface({ input: process.stdin }).on("line", (line) => {
 			return reply({
 				thread: { id: threadId, turns: [] },
 				model: "fake-model",
+				sandbox: {
+					type: {
+						"read-only": "readOnly",
+						"workspace-write": "workspaceWrite",
+						"danger-full-access": "dangerFullAccess",
+					}[message.params.sandbox],
+				},
+				approvalPolicy: message.params.approvalPolicy,
 			});
 		case "mcpServerStatus/list":
 			return reply({ data: [], nextCursor: null });

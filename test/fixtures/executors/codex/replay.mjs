@@ -39,6 +39,46 @@ export function stepsFromTranscript(entries, start = 0) {
 		else if (entry.dir === "stderr")
 			steps.push({ stderr: String(entry.msg).trimEnd() });
 		else if (entry.dir === "out") {
+			// Replayed recordings used read-only. Conformance also launches workspace/free workers:
+			// echo the requested permissions, as a compliant server would, without editing recordings.
+			if (["thread/start", "thread/resume"].includes(entry.msg.method)) {
+				steps.push({
+					awaitStdin: {
+						branches: Object.entries({
+							"read-only": "readOnly",
+							"workspace-write": "workspaceWrite",
+							"danger-full-access": "dangerFullAccess",
+						}).map(([mode, type]) => ({
+							match: `"sandbox":"${mode}"`,
+							steps: stepsFromTranscript(
+								entries.slice(index + 1).map((next) =>
+									next.dir === "in" &&
+									next.msg.id === entry.msg.id &&
+									next.msg.result?.thread
+										? {
+												...next,
+												msg: {
+													...next.msg,
+													result: {
+														...next.msg.result,
+														sandbox: { type },
+														approvalPolicy:
+															mode === "danger-full-access"
+																? "never"
+																: "on-request",
+														activePermissionProfile: null,
+													},
+												},
+											}
+										: next,
+								),
+							),
+						})),
+						otherwise: UNEXPECTED,
+					},
+				});
+				return steps;
+			}
 			steps.push({
 				awaitStdin: {
 					branches: [

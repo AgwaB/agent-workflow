@@ -87,7 +87,14 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
 			reply({
 				thread: { id: THREAD, ephemeral: true, turns: [] },
 				instructionSources: [],
-				sandbox: { type: "readOnly", networkAccess: false },
+				sandbox: {
+					type: {
+						"read-only": "readOnly",
+						"workspace-write": "workspaceWrite",
+						"danger-full-access": "dangerFullAccess",
+					}[message.params.sandbox],
+				},
+				approvalPolicy: message.params.approvalPolicy,
 			});
 			return send({
 				method: "thread/started",

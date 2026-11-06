@@ -50,6 +50,7 @@ import {
 } from "./environment.js";
 import { classifyCodexFailure } from "./errors.js";
 import { CodexStderrParser } from "./stderr.js";
+import { codexPermissionMismatch } from "./permissions.js";
 import { CodexTurnNormalizer, failureEvent } from "./normalize.js";
 import { AppServerConnection, type RpcId, type RpcMessage } from "./rpc.js";
 import {
@@ -853,6 +854,30 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				});
 			}
 			emit(run, { type: "started", sessionId: threadId ?? null });
+			const mismatch = codexPermissionMismatch(plan, started);
+			if (mismatch !== undefined) {
+				emit(
+					run,
+					failureEvent(
+						mismatch,
+						"config",
+						{
+							requested: {
+								sandbox: plan.sandbox,
+								approvalPolicy: plan.approvalPolicy,
+							},
+							effective: {
+								sandbox: (started.sandbox ?? null) as JsonValue,
+								approvalPolicy: (started.approvalPolicy ?? null) as JsonValue,
+								activePermissionProfile: (started.activePermissionProfile ??
+									null) as JsonValue,
+							},
+						},
+						run.ownedSession,
+					),
+				);
+				return;
+			}
 			if (!req.isolation.inherit && threadId !== undefined) {
 				const status = await conn.request("mcpServerStatus/list", {
 					threadId,
