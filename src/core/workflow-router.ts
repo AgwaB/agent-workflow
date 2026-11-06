@@ -309,7 +309,7 @@ export async function recommendWorkflowAuto(
 }
 
 /**
- * WP42 (review round 1, finding 2): a classifier request frozen before consent. `packet` is the
+ * WP42 (review round 1, finding 2): an immutable classifier request. `packet` is the
  * exact text the one comparison call transmits (task, candidate cards with their bounded
  * descriptions); `outcome` is set instead when no call may happen (empty/too-large task, a task
  * that forbids transmission, an oversized packet). Opaque: hand it to
@@ -327,7 +327,7 @@ export interface PreparedWorkflowAutoComparison {
 
 /**
  * WP42: build the comparison packet locally (catalog scan, bounded metadata, packet) without any
- * transmission, so a host can show it for consent and later send exactly it. Recognized task
+ * transmission, so the host later sends exactly it. Recognized task
  * restrictions still fail closed here (no packet).
  */
 export async function prepareWorkflowAutoComparison(
@@ -1625,7 +1625,7 @@ function inspectTaskConstraints(task: string): TaskConstraints {
 	const explicitNoExternalModel =
 		/\b(?:do not send|don't send|never send|do not transmit|don't transmit|never transmit|do not share|don't share|do not upload|don't upload|no external (?:models?|services?|providers?|transmission)|no model transmission|do not use (?:an )?external (?:model|service)|keep (?:this|the task|my data) local|local[- ]only|air[- ]gapped)\b/.test(
 			text,
-		);
+		) || /외부\s*모델(?:로|에)[^.!?\n]{0,80}보내지\s*마/.test(text);
 	const noNetwork =
 		/\b(?:no network|offline|without network|no internet|without internet)\b/.test(
 			text,

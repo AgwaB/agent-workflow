@@ -326,6 +326,15 @@ test("/aw catalog actions delegate to the host API and show the handler text", a
 		["workflowRolesAction", { workflow: "wf.json" }],
 	);
 	// /aw check: the launch preflight (run options, task optional).
+	unregister.push(
+		core.registerWorkflowExecutor(
+			workflowFixtureDescriptor({
+				id: "codex",
+				effectLog: join(root, "codex-check.jsonl"),
+				probe: { installed: true, cliVersion: "1.0.0", auth: "ok" },
+			}),
+		),
+	);
 	const check = await run("check wf.json --executor codex --model gpt-6.1-sol");
 	assert.deepEqual(
 		[check.name, check.args[1]],
