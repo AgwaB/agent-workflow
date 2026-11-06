@@ -1,13 +1,14 @@
 /**
  * Codex environment probe (WP4d, owner decisions "Codex allow 규칙" and "Codex 전역 AGENTS.md").
  * Reads only policy/instruction files under `$CODEX_HOME` (default `~/.codex`): `rules/*.rules`
- * (counted, never recorded) and `AGENTS.md` (presence/emptiness only). Credential files such as
+ * (counted, never recorded), `AGENTS.md` (presence/emptiness only), and system requirements
+ * (free-mode restrictions only). Credential files such as
  * `auth.json` are never opened (D1).
  *
  * - `allow` rules let matching commands run without an approval request, outside the sandbox, so
  *   the readOnly guarantee drops to `emulated` with a warning (run, but warn; strict profiles refuse).
  * - A non-empty global `AGENTS.md` is loaded into every worker and cannot be switched off per run:
- *   `contextIsolation` is `emulated` with a warning; without it isolation is `native`.
+ *   `contextIsolation` is `emulated` with a warning. Policy that survives isolation also warns.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
@@ -81,8 +82,8 @@ function tokenize(text: string): Token[] {
 }
 
 /**
- * Count `decision = "allow"` keyword arguments in one `.rules` file. Comments and string contents
- * (e.g. a pattern that mentions `decision="allow"`) are not counted. Returns a count only.
+ * Count allow/forbidden/prompt decision arguments in one `.rules` file. Comments and string
+ * contents (e.g. a pattern that mentions `decision="allow"`) are not counted. Counts only.
  */
 export function countCodexRules(text: string): {
 	allow: number;
@@ -147,7 +148,7 @@ function requiredModes(text: string): {
 			break; // table: no more root keys
 		if (
 			depth === 0 &&
-			token?.kind === "ident" &&
+			(token?.kind === "ident" || token?.kind === "string") &&
 			["allowed_sandbox_modes", "allowed_approval_policies"].includes(
 				token.value,
 			)

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { codexPermissionMismatch } from "../../dist/executors/codex/permissions.js";
+import { classifyCodexFailure } from "../../dist/executors/codex/errors.js";
 import { createExecutor } from "../../dist/executors/codex/index.js";
 import {
 	createAuthorityGate,
@@ -207,4 +208,12 @@ test("matching permissions start a turn; stderr denials are emitted and redacted
 	assert.equal(transcript.includes("hidden-secret-value"), false);
 	assert.match(denied[0].output, /redacted/);
 	assert.match(transcript, /exec_command failed/);
+});
+
+test("provider requirements refusals classify as config rather than unknown or retryable", () => {
+	for (const message of [
+		'`approval_policy = "never"` cannot be used because requirements do not allow `sandbox_mode = "danger-full-access"`',
+		"Configured value for sandbox_mode is disallowed by requirements",
+	])
+		assert.equal(classifyCodexFailure({ message }), "config");
 });
