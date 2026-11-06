@@ -48,7 +48,8 @@ Restart the session after installation. Claude Code lists the server as `plugin:
 ### In-host `aw` commands
 
 With the plugin installed, Claude Code accepts **`/aw`** and **`/agent-workflow:aw`**.
-Codex accepts **`$aw`** and **`aw …`**. On first start after installing or changing the Codex
+Codex accepts **`$aw`** and **`aw …`** (and `$agent-workflow:aw`, which Codex's skill picker inserts
+when you choose `$aw` from its list). On first start after installing or changing the Codex
 hook, accept the one-time **Hooks need review → Trust all and continue** prompt (or review it
 with `/hooks`). Untrusted or disabled hooks do not run: the `aw` skill then guides the model
 through the MCP tools instead, including any dialogs those tools require.
