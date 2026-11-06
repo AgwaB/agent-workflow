@@ -138,7 +138,7 @@ export const EXIT_USAGE = 2;
  * One terminal question on `input`/`output` (the CLI passes stdin/stderr). Resolves with the typed
  * line, or "" at end of input or when `signal` aborts. Live bundle 5 (WP39): the answer is settled
  * before `rl.close()`, whose synchronous `close` event used to resolve "" first, so every y/N
- * typed on a real terminal (auto consent, degradation confirmation, dynamic approval, `approve`)
+ * typed on a real terminal
  * was read as no answer.
  */
 export function readlinePrompt(
@@ -170,15 +170,8 @@ export function readlinePrompt(
  * progress output pauses (it was printed on the question's line); the newest progress line is
  * printed once the question is answered.
  */
-const openPrompts = new WeakMap<CliIo, { count: number; held?: string }>();
-
-/** Progress output: held (newest line only) while a question is open on this io. */
+/** Progress output to stderr. */
 function progressOutput(io: CliIo, text: string): void {
-	const state = openPrompts.get(io);
-	if (state && state.count > 0) {
-		state.held = text;
-		return;
-	}
 	io.stderr(text);
 }
 

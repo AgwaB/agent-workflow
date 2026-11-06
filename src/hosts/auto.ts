@@ -37,7 +37,7 @@ import {
 } from "./types.js";
 import { readUserProfiles, userProfileFromFile } from "./user-profiles.js";
 
-/** The executor and model the classifier call runs on (shown before consent). */
+/** The executor and model the classifier call runs on . */
 export interface AutoClassifierTarget {
 	executor: string;
 	/** How the executor was chosen (`run-flag`, `user-profile`, `host-default`, …). */
@@ -58,7 +58,7 @@ export interface AutoCandidateView {
 	launchable: boolean;
 	/** Why it cannot start (when not launchable). */
 	blockers?: string[];
-	/** The classifier's fit and reason (after consent). */
+	/** The classifier's fit and reason (after comparison). */
 	fit?: "complete" | "partial" | "not-fit";
 	reason?: string;
 	recommended?: boolean;
@@ -119,7 +119,7 @@ export interface AutoData {
 	ranked?: AutoCandidateView[];
 	selected?: AutoCandidateView;
 	launch?: LaunchData;
-	/** How to run a workflow directly / to consent explicitly on this host. */
+	/** How to run a workflow directly on this host. */
 	next?: string[];
 }
 

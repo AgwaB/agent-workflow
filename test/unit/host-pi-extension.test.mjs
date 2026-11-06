@@ -647,20 +647,18 @@ test("degraded Pi launches never invoke confirm, even with dialog UI", async () 
 	const { pi } = install({ env });
 	for (const hasUI of [true, false]) {
 		const ctx = fakeCtx(cwd, { hasUI, confirm: false });
-		const out = await pi.tools
-			.get("aw_run")
-			.execute(
-				"r",
-				{
-					workflow: "wf.json",
-					task: `degraded-${hasUI}`,
-					executor: id,
-					permissionMode: "safe",
-				},
-				undefined,
-				undefined,
-				ctx,
-			);
+		const out = await pi.tools.get("aw_run").execute(
+			"r",
+			{
+				workflow: "wf.json",
+				task: `degraded-${hasUI}`,
+				executor: id,
+				permissionMode: "safe",
+			},
+			undefined,
+			undefined,
+			ctx,
+		);
 		assert.deepEqual(ctx.confirms, []);
 		assert.equal(out.details.capability.degradations.length, 1);
 		assert.match(out.details.capability.preview, /global AGENTS.md loaded/);

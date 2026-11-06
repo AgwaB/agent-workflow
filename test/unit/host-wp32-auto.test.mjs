@@ -506,7 +506,10 @@ for (const hasUI of [true, false])
 		await settle(cwd, env, run.runId);
 		const record = await store.readRunRecord(cwd, run.runId);
 		assert.equal(record.name, "wp32-alpha");
-		assert.equal(record.task, task);
+		const compiled = JSON.parse(
+			await readFile(store.compiledWorkflowPath(cwd, run.runId), "utf8"),
+		);
+		assert.equal(compiled.task, task);
 		assert.equal(record.launch.selection.consent, "command");
 		assert.equal(classifierSubmits(logs.pi).length, 1);
 		await pi.commands.get("aw").handler("approve r1", ctx);

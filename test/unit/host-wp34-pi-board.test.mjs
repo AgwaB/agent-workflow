@@ -246,7 +246,6 @@ test("board lists runs and drills runs → stages → tasks → task detail and 
 	assert.match(text, /plan/);
 	assert.match(text, /work/);
 	assert.match(text, /final report: reports\/final\.md/);
-	assert.match(text, /dyn\.controller/);
 	assert.match(text, /source: pi · command run/);
 
 	b.view.handleInput("j"); // stage "work"

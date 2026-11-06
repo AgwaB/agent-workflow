@@ -19,7 +19,6 @@ const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, 
   --open                       open the dashboard for this run (even in an agent environment)
   --force-new                  start a new run even if an identical launch is still active
                                (otherwise the active run is returned)
-  --yes                        do not ask: record capability degradations and proceed
   --timeout <duration>         stop waiting after this long (30000, 30s, 5m, 1h); the run continues
   --json                       print one JSON result object`;
 

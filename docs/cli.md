@@ -47,7 +47,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
 | `dashboard [--port N] [--readonly] [--auth] [--open] [--project DIR]` | One user-level localhost dashboard for all projects: Runs, Workflows/Check, Profiles/preferences, Maintenance/prune/notices and Executors; Stop/Resume/Approve/Reject. |
-| `watch [run] [--follow] [--once] [--interval S] [--bell]` | Live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
+| `watch [run] [--follow] [--once] [--interval S] [--bell]` | Live terminal view of the project's active runs or one run (tasks, status, elapsed, blockers, verdict and report at the end). Read-only. Below. |
 | `statusline` | One line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
 | `notify-check [--host H] [--json] [--stamp N] [--run ID] [--follow [--interval S]]` | One line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
 | `host-command --host claude-code\|codex` | Hook entry: read JSON on stdin, handle the six in-host `aw` forms; block JSON or empty stdout, always exit 0. Not an interactive CLI. |
