@@ -49,6 +49,8 @@ import {
 } from "./security.js";
 
 export interface DashboardServerOptions {
+	/** Advertised wire protocol (embedders/tests); normally the current protocol. */
+	protocol?: number;
 	cwd: string;
 	env?: NodeJS.ProcessEnv;
 	port?: number;
@@ -207,6 +209,9 @@ const SIGNIN_SCRIPT = `(() => {
 export async function startDashboardServer(
 	options: DashboardServerOptions,
 ): Promise<DashboardServer> {
+	const protocol = options.protocol ?? DASHBOARD_PROTOCOL;
+	if (!Number.isSafeInteger(protocol) || protocol < 1)
+		throw new HostUsageError("invalid dashboard protocol");
 	const cwd = resolve(options.cwd);
 	if (!(await stat(cwd).catch(() => undefined))?.isDirectory())
 		throw new HostUsageError("--project must be an existing directory");
@@ -408,7 +413,7 @@ export async function startDashboardServer(
 			if (!/^[A-Za-z0-9_-]{16,128}$/.test(nonce))
 				throw new HttpError(400, "invalid nonce");
 			json(response, 200, {
-				protocol: DASHBOARD_PROTOCOL,
+				protocol,
 				version,
 				proof: createHmac("sha256", launchKey).update(nonce).digest("hex"),
 			});
@@ -893,6 +898,7 @@ export async function startDashboardServer(
 				startedAt,
 				auth,
 				version,
+				protocol,
 				...(options.idleExitMs !== undefined
 					? {
 							detached: true,
@@ -911,7 +917,7 @@ export async function startDashboardServer(
 	let closing: Promise<void> | undefined;
 	let idleTimer: ReturnType<typeof setInterval> | undefined;
 	const dashboard: DashboardServer = {
-		protocol: DASHBOARD_PROTOCOL,
+		protocol,
 		url: auth
 			? `${origin}/?token=${token}&project=${projectId(cwd)}`
 			: `${origin}/?project=${projectId(cwd)}`,
@@ -973,6 +979,7 @@ export async function startDashboardServer(
 							launchKey,
 							startedAt,
 							auth,
+							protocol,
 							version,
 							detached: true,
 							idleExitAt: new Date(

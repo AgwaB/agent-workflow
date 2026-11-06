@@ -1,5 +1,4 @@
-import { projectId } from "../../core/state-location.js";
-import { stateBase } from "../../core/state-location.js";
+import { projectId, stateBase } from "../../core/state-location.js";
 // Thin host-neutral CLI: parse flags, call one host API handler, and print text or JSON.
 // Exit codes: 0 success/completed, 1 failed/blocked/interrupted/refused/timeout, 2 usage error.
 // Terminal dialogs handle controller approvals and consent-gated auto comparison.
@@ -7,6 +6,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { setTimeout as dashboardSleep } from "node:timers/promises";
 import {
 	dashboardDiscoveryPath,
+	acquireDashboardStartLock,
+	DASHBOARD_PROTOCOL,
 	readDashboardDiscovery,
 	shutdownDashboard,
 	resetDashboardSession,
@@ -872,119 +873,76 @@ async function dispatch(
 				throw new HostUsageError(
 					"--status/--stop/--reset-session only accept --project",
 				);
-			const existing = await readDashboardDiscovery(cwd);
-			if (status || stopping || resetting) {
-				if (!existing && resetting) {
-					await resetDashboardSession(cwd);
-					io.stdout(
-						"Dashboard session reset; --auth dashboards sign in again with agent-workflow dashboard --open.\n",
-					);
-					return EXIT_OK;
-				}
-				if (!existing) {
-					io.stderr("No dashboard running.\n");
-					return EXIT_FAILED;
-				}
-				if (status) {
-					io.stdout(
-						`Dashboard listening on 127.0.0.1:${existing.port} (pid ${existing.pid}, since ${existing.startedAt}, auth ${existing.auth ? "on" : "off"}${existing.detached && existing.idleExitAt ? `, idle exit in ${Math.max(0, Math.ceil((Date.parse(existing.idleExitAt) - (io.now?.() ?? Date.now())) / 60_000))}m` : ""})\n`,
-					);
-					return EXIT_OK;
-				}
-				try {
-					await shutdownDashboard(existing);
-				} catch {
-					io.stderr("Could not stop the dashboard.\n");
-					return EXIT_FAILED;
-				}
-				const deadline = Date.now() + 5000;
-				while (existsSync(dashboardDiscoveryPath(cwd)) && Date.now() < deadline)
-					await dashboardSleep(50);
-				if (existsSync(dashboardDiscoveryPath(cwd))) {
-					io.stderr("Dashboard did not stop within 5 seconds.\n");
-					return EXIT_FAILED;
-				}
-				if (resetting) {
-					await resetDashboardSession(cwd);
-					io.stdout(
-						"Dashboard session reset; --auth dashboards sign in again with agent-workflow dashboard --open.\n",
-					);
-				} else io.stdout("Dashboard stopped.\n");
-				return EXIT_OK;
-			}
-			if (
-				existing &&
-				parsed.flags.has("--open") &&
-				!parsed.flags.has("--readonly") &&
-				!parsed.flags.has("--auth") &&
-				!parsed.flags.has("--detached") &&
-				!parsed.values.has("--port")
-			) {
-				try {
-					const url = await mintLaunchUrl(existing, {
-						project: projectId(cwd),
-					});
-					if (!(await (io.open ? io.open(url) : openInBrowser(url, io.env))))
-						throw new Error("opener unavailable");
-				} catch {
-					io.stderr(
-						"Could not open the browser; use the printed dashboard URL.\n",
-					);
-					return EXIT_FAILED;
-				}
-				io.stdout(`Dashboard listening on 127.0.0.1:${existing.port}\n`);
-				return EXIT_OK;
-			}
-			if (existing)
-				throw new HostUsageError(
-					"A dashboard is already running; use --open, --status or --stop",
-				);
-			const port = intValue(parsed.values.get("--port"), "--port");
-			const idleExitMs = parsed.flags.has("--detached")
-				? Number(io.env.AGENT_WORKFLOW_DASHBOARD_IDLE_MS ?? 7_200_000)
-				: undefined;
-			if (
-				idleExitMs !== undefined &&
-				(!Number.isSafeInteger(idleExitMs) || idleExitMs < 60_000)
-			)
-				throw new HostUsageError(
-					"AGENT_WORKFLOW_DASHBOARD_IDLE_MS must be an integer of at least 60000",
-				);
-			let stop!: () => void;
-			const stopped = new Promise<void>((done) => {
-				stop = done;
-			});
-			// WP43d: sign-in is opt-in (`--auth`, or AGENT_WORKFLOW_DASHBOARD_AUTH=1 so that auto-started
-			// dashboards inherit it).
-			const dashboard = await startDashboardServer({
-				cwd,
-				idleExitMs,
-				onIdleExit: stop,
-				discovery: true,
-				env: io.env,
-				...(port === undefined ? {} : { port }),
-				readonly: parsed.flags.has("--readonly"),
-				auth:
-					parsed.flags.has("--auth") ||
-					io.env.AGENT_WORKFLOW_DASHBOARD_AUTH === "1",
-				...(io.now ? { now: io.now } : {}),
-			});
-			if (io.signal) {
-				io.signal.addEventListener("abort", stop, { once: true });
-				if (io.signal.aborted) stop();
-			} else {
-				process.once("SIGINT", stop);
-				process.once("SIGTERM", stop);
-			}
+			const startLock = await acquireDashboardStartLock(
+				io.env.AGENT_WORKFLOW_DASHBOARD_START_LOCK,
+			);
 			try {
-				io.stdout(
-					parsed.flags.has("--detached")
-						? `Dashboard listening on 127.0.0.1:${dashboard.port}\n`
-						: `Dashboard: ${dashboard.url}${parsed.flags.has("--readonly") ? " (read-only)" : ""}\n`,
-				);
-				if (parsed.flags.has("--open")) {
+				let existing = await readDashboardDiscovery(cwd);
+				if (
+					!status &&
+					!stopping &&
+					!resetting &&
+					existing &&
+					existing.protocol < DASHBOARD_PROTOCOL
+				) {
+					await shutdownDashboard(existing);
+					const deadline = Date.now() + 5000;
+					while (Date.now() < deadline && (await readDashboardDiscovery(cwd)))
+						await dashboardSleep(50);
+					existing = await readDashboardDiscovery(cwd);
+				}
+				if (status || stopping || resetting) {
+					if (!existing && resetting) {
+						await resetDashboardSession(cwd);
+						io.stdout(
+							"Dashboard session reset; --auth dashboards sign in again with agent-workflow dashboard --open.\n",
+						);
+						return EXIT_OK;
+					}
+					if (!existing) {
+						io.stderr("No dashboard running.\n");
+						return EXIT_FAILED;
+					}
+					if (status) {
+						io.stdout(
+							`Dashboard listening on 127.0.0.1:${existing.port} (pid ${existing.pid}, since ${existing.startedAt}, auth ${existing.auth ? "on" : "off"}${existing.detached && existing.idleExitAt ? `, idle exit in ${Math.max(0, Math.ceil((Date.parse(existing.idleExitAt) - (io.now?.() ?? Date.now())) / 60_000))}m` : ""})\n`,
+						);
+						return EXIT_OK;
+					}
 					try {
-						const url = await mintLaunchUrl(dashboard, {
+						await shutdownDashboard(existing);
+					} catch {
+						io.stderr("Could not stop the dashboard.\n");
+						return EXIT_FAILED;
+					}
+					const deadline = Date.now() + 5000;
+					while (
+						existsSync(dashboardDiscoveryPath(cwd)) &&
+						Date.now() < deadline
+					)
+						await dashboardSleep(50);
+					if (existsSync(dashboardDiscoveryPath(cwd))) {
+						io.stderr("Dashboard did not stop within 5 seconds.\n");
+						return EXIT_FAILED;
+					}
+					if (resetting) {
+						await resetDashboardSession(cwd);
+						io.stdout(
+							"Dashboard session reset; --auth dashboards sign in again with agent-workflow dashboard --open.\n",
+						);
+					} else io.stdout("Dashboard stopped.\n");
+					return EXIT_OK;
+				}
+				if (
+					existing &&
+					parsed.flags.has("--open") &&
+					!parsed.flags.has("--readonly") &&
+					!parsed.flags.has("--auth") &&
+					!parsed.flags.has("--detached") &&
+					!parsed.values.has("--port")
+				) {
+					try {
+						const url = await mintLaunchUrl(existing, {
 							project: projectId(cwd),
 						});
 						if (!(await (io.open ? io.open(url) : openInBrowser(url, io.env))))
@@ -993,15 +951,84 @@ async function dispatch(
 						io.stderr(
 							"Could not open the browser; use the printed dashboard URL.\n",
 						);
+						return EXIT_FAILED;
 					}
+					io.stdout(`Dashboard listening on 127.0.0.1:${existing.port}\n`);
+					return EXIT_OK;
 				}
-				await stopped;
-				return EXIT_OK;
+				if (existing)
+					throw new HostUsageError(
+						"A dashboard is already running; use --open, --status or --stop",
+					);
+				const port = intValue(parsed.values.get("--port"), "--port");
+				const idleExitMs = parsed.flags.has("--detached")
+					? Number(io.env.AGENT_WORKFLOW_DASHBOARD_IDLE_MS ?? 7_200_000)
+					: undefined;
+				if (
+					idleExitMs !== undefined &&
+					(!Number.isSafeInteger(idleExitMs) || idleExitMs < 60_000)
+				)
+					throw new HostUsageError(
+						"AGENT_WORKFLOW_DASHBOARD_IDLE_MS must be an integer of at least 60000",
+					);
+				let stop!: () => void;
+				const stopped = new Promise<void>((done) => {
+					stop = done;
+				});
+				// WP43d: sign-in is opt-in (`--auth`, or AGENT_WORKFLOW_DASHBOARD_AUTH=1 so that auto-started
+				// dashboards inherit it).
+				const dashboard = await startDashboardServer({
+					cwd,
+					idleExitMs,
+					onIdleExit: stop,
+					discovery: true,
+					env: io.env,
+					...(port === undefined ? {} : { port }),
+					readonly: parsed.flags.has("--readonly"),
+					auth:
+						parsed.flags.has("--auth") ||
+						io.env.AGENT_WORKFLOW_DASHBOARD_AUTH === "1",
+					...(io.now ? { now: io.now } : {}),
+				});
+				await startLock.release();
+				if (io.signal) {
+					io.signal.addEventListener("abort", stop, { once: true });
+					if (io.signal.aborted) stop();
+				} else {
+					process.once("SIGINT", stop);
+					process.once("SIGTERM", stop);
+				}
+				try {
+					io.stdout(
+						parsed.flags.has("--detached")
+							? `Dashboard listening on 127.0.0.1:${dashboard.port}\n`
+							: `Dashboard: ${dashboard.url}${parsed.flags.has("--readonly") ? " (read-only)" : ""}\n`,
+					);
+					if (parsed.flags.has("--open")) {
+						try {
+							const url = await mintLaunchUrl(dashboard, {
+								project: projectId(cwd),
+							});
+							if (
+								!(await (io.open ? io.open(url) : openInBrowser(url, io.env)))
+							)
+								throw new Error("opener unavailable");
+						} catch {
+							io.stderr(
+								"Could not open the browser; use the printed dashboard URL.\n",
+							);
+						}
+					}
+					await stopped;
+					return EXIT_OK;
+				} finally {
+					io.signal?.removeEventListener("abort", stop);
+					process.removeListener("SIGINT", stop);
+					process.removeListener("SIGTERM", stop);
+					await dashboard.close();
+				}
 			} finally {
-				io.signal?.removeEventListener("abort", stop);
-				process.removeListener("SIGINT", stop);
-				process.removeListener("SIGTERM", stop);
-				await dashboard.close();
+				await startLock.release();
 			}
 		}
 		case "watch": {

@@ -1,7 +1,7 @@
 // WP43b: local dashboard discovery and opt-in browser launch. Never expose control secrets in text.
 import { spawn } from "node:child_process";
 import { createHmac, randomBytes } from "node:crypto";
-import { link, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { link, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { request } from "node:http";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -199,7 +199,7 @@ const DASHBOARD_LOCAL_REQUEST_MS = 3000;
  * listener. An auth server answers 401 `{ error }`; an open one answers 200 `{ apiVersion: 1 }`.
  */
 export function probeDashboard(
-	discovery: DashboardDiscovery,
+	discovery: Pick<DashboardDiscovery, "port" | "launchKey" | "protocol">,
 ): Promise<boolean> {
 	const nonce = randomBytes(32).toString("base64url");
 	const expected = createHmac("sha256", discovery.launchKey)
@@ -305,7 +305,7 @@ export async function mintLaunchUrl(
 	discovery: Pick<DashboardDiscovery, "port" | "launchKey" | "protocol">,
 	params: DashboardLaunchParams = {},
 ): Promise<string> {
-	if (!(await probeDashboard(discovery as DashboardDiscovery)))
+	if (!(await probeDashboard(discovery)))
 		throw new Error("Dashboard identity verification failed");
 	const origin = `http://127.0.0.1:${discovery.port}`;
 	const response = await fetch(`${origin}/api/launch`, {
@@ -354,8 +354,7 @@ export async function launchConsumed(
 	const launchId = lastLaunchIds.get(launchUrl);
 	if (!launchId) return undefined;
 	try {
-		if (!(await probeDashboard(discovery as DashboardDiscovery)))
-			return undefined;
+		if (!(await probeDashboard(discovery))) return undefined;
 		const response = await fetch(
 			`http://127.0.0.1:${discovery.port}/api/launch/${launchId}`,
 			{
@@ -395,13 +394,43 @@ export async function ensureDashboard(
 	options: { start: boolean },
 ): Promise<DashboardDiscovery | undefined> {
 	if (!options.start) return readDashboardDiscovery(cwd);
-	return withDashboardStartLock(() => startEnsuredDashboard(cwd, env, options));
+	return withDashboardStartLock((owner) =>
+		startEnsuredDashboard(
+			cwd,
+			{ ...env, AGENT_WORKFLOW_DASHBOARD_START_LOCK: owner },
+			options,
+		),
+	);
 }
 export async function withDashboardStartLock<T>(
-	body: () => Promise<T>,
+	body: (owner: string) => Promise<T>,
 ): Promise<T> {
+	const lock = await acquireDashboardStartLock();
+	try {
+		return await body(lock.owner);
+	} finally {
+		await lock.release();
+	}
+}
+/** A spawned CLI may inherit its launcher's lock, but only an exact live-owner record authorizes it. */
+export async function acquireDashboardStartLock(
+	inheritedOwner?: string,
+): Promise<{ owner: string; release(): Promise<void> }> {
 	const path = join(agentWorkflowHome(), "dashboard.lock");
 	await ensurePrivateDirectory(dirname(path));
+	if (inheritedOwner) {
+		const lock = JSON.parse(
+			await readPrivateFileText(path, 4096).catch(() => "null"),
+		);
+		if (lock?.owner === inheritedOwner) {
+			try {
+				process.kill(lock.pid, 0);
+				return { owner: inheritedOwner, release: async () => {} };
+			} catch {
+				/* Reacquire a dead parent's lock. */
+			}
+		}
+	}
 	const owner = randomBytes(16).toString("hex");
 	const deadline = Date.now() + dashboardStartBudget * 2;
 	for (;;) {
@@ -414,34 +443,42 @@ export async function withDashboardStartLock<T>(
 			break;
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-			try {
-				const lock = JSON.parse(await readPrivateFileText(path, 4096));
-				let dead = false;
+			// Serialize stale cleanup as well as checking the generation: two waiters must not
+			// unlink a fresh lock that replaced the stale one between their reads.
+			await withStoreLock(path, async () => {
 				try {
-					process.kill(lock.pid, 0);
+					const info = await stat(path);
+					let stale = Date.now() - info.mtimeMs > dashboardStartBudget * 2;
+					try {
+						const lock = JSON.parse(await readPrivateFileText(path, 4096));
+						try {
+							process.kill(lock.pid, 0);
+						} catch (error) {
+							stale ||= (error as NodeJS.ErrnoException).code === "ESRCH";
+						}
+						stale ||= Date.now() - lock.startedAt > dashboardStartBudget * 2;
+					} catch {
+						/* An incomplete lock ages out, never immediately. */
+					}
+					if (stale) await rm(path, { force: true });
 				} catch (error) {
-					dead = (error as NodeJS.ErrnoException).code === "ESRCH";
+					if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
 				}
-				if (dead || Date.now() - lock.startedAt > dashboardStartBudget * 2) {
-					await rm(path, { force: true });
-					continue;
-				}
-			} catch {
-				/* A concurrent writer may not have finished its lock record. */
-			}
+			});
 			if (Date.now() >= deadline)
 				throw new Error("Dashboard start lock timed out");
 			await sleep(50);
 		}
 	}
-	try {
-		return await body();
-	} finally {
-		const current = JSON.parse(
-			await readPrivateFileText(path, 4096).catch(() => "null"),
-		);
-		if (current?.owner === owner) await rm(path, { force: true });
-	}
+	return {
+		owner,
+		async release() {
+			const current = JSON.parse(
+				await readPrivateFileText(path, 4096).catch(() => "null"),
+			);
+			if (current?.owner === owner) await rm(path, { force: true });
+		},
+	};
 }
 export async function shutdownDashboard(
 	discovery: DashboardDiscovery,
