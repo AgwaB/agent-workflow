@@ -1,13 +1,13 @@
 // New in agent-workflow (WP4d): B4 capability negotiation before launch (design §8.2/§8.3, owner
 // decisions B4/B5, plan §2.2). Once per run, after executor selection: probe the executor (no model
 // turn, bounded), merge the probed rows over its declared table, negotiate every compiled stage, fail
-// before any launch on a refusal, ask an interactive host to confirm degradations, and record the
+// before any launch on a refusal, record the
 // probe summary, effective capabilities, per-stage reports and the preview on the run record.
 // At launch the task backend re-derives the same decision from the recorded capabilities, so a
 // runtime-generated task (foreach item, loop child, dynamic worker) is checked the same way and
 // `forcedReadOnly` reaches the SubmitRequest.
 // WP4e: the run permission mode reaches every stage context (free: coarse allowlist and environment
-// warnings are recorded degradations, never refusals or confirmations) and the preview's first line.
+// warnings are recorded degradations, never refusals) and the preview's first line.
 // WP5b: the probe summary keeps the executor's declared MCP output limit (mcpOutputLimitChars,
 // mcpOutputNoticeChars) so the artifact server is launched with a measured limit.
 // WP17: install/login hints come from executor-default.ts (first-run guidance names the install command).
@@ -305,7 +305,7 @@ export interface WorkflowCapabilityPolicy {
 	allowReadOnlyDowngrade: boolean;
 	/**
 	 * WP4e (D2 revised). `free`: coarse tool allowlists and environment
-	 * warnings are recorded degradations, never refusals or confirmations.
+	 * warnings are recorded degradations, never refusals.
 	 * Absent (records created before WP4e) = `safe`.
 	 */
 	permissionMode?: "free" | "safe";
@@ -829,7 +829,7 @@ function notReadyError(
 
 /**
  * Pre-launch negotiation for a whole run. Throws `WorkflowCapabilityError` (nothing launched,
- * no run record) on probe failure, any refusal, or declined/impossible confirmation.
+ * no run record) on probe failure, any refusal.
  */
 export async function negotiateWorkflowRun(
 	input: NegotiateWorkflowRunInput,
@@ -1160,7 +1160,7 @@ export function resolveGeneratedTaskNames(
  * Launch-time decision for one task (task backend, before any effect). Re-derives the report from
  * the recorded effective capabilities and policy; a task generated at runtime whose template was
  * not negotiated before launch is appended to the record (`negotiatedAt: "launch"`, never asks for
- * confirmation). Runs recorded before WP4d (no negotiation) are not checked.
+ * prompting). Runs recorded before WP4d (no negotiation) are not checked.
  */
 export function workflowTaskCapabilityLaunch(
 	run: Pick<WorkflowRunRecord, "capabilityNegotiation">,

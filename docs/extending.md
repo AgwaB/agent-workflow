@@ -46,7 +46,7 @@ into tasks (`compiler.ts`), schedules them (`engine.ts`, launch slots, retries),
 worker's `<control>/<analysis>/<refs>` output, enforces required reads through the read ledger, runs
 support helpers in process, and stores the run record. Before any launch it probes the selected
 executor and negotiates every stage's requirements against the executor's capability table:
-`accept`, `degrade` (recorded, maybe confirmed) or `refuse` (nothing starts). The permission mode
+`accept`, `degrade` (recorded without confirmation) or `refuse` (nothing starts). The permission mode
 (`free`/`safe`, [permissions](usage.md)) is part of that policy and of every submit request.
 
 For host API launches, executor selection and permission mode follow one precedence: run flag > workflow-declared profile >
@@ -269,7 +269,7 @@ How `negotiateCapabilities` reads a row:
   (`acceptedByFreeMode`); `safe` mode refuses unless the spec sets `allowReadOnlyDowngrade` (then the
   stage runs with readOnly enforced, `forcedReadOnly`). The forced `readOnly` is then negotiated
   like an authored readOnly stage: `strict` readOnly refuses an emulated one, and an environment
-  warning is recorded as `CAPABILITY_WARNING:readOnly` (and needs confirmation when interactive).
+  warning is recorded as `CAPABILITY_WARNING:readOnly` (without confirmation).
 
 Stage requirements come from the spec (readOnly, required reads → `mcpInjection`, tools, web tools,
 partial output, same-session repair, context inheritance). The run records the negotiation; the user sees
@@ -599,7 +599,6 @@ while (waited.data.stillRunning);
 | `availableModels?` | Host model registry; enables per-workflow Pi profile preferences |
 | `hostTools?` | `{projectTrusted: boolean}` for Pi native codemode/MCP inheritance |
 | `readonly?` | Prevent automatic dashboard process startup |
-| `dynamicUi?` | `{hasUI, host, confirm(title, message, {timeout, signal})}` for attached dynamic-controller approvals; detached launches/resumes never use it |
 
 Host defaults: Claude Code → `claude`, Codex → `codex`, Pi → `pi`; CLI/generic/absent → first
 installed and logged-in of pi → claude → codex.
@@ -637,7 +636,6 @@ allow `worker` / `disabled` processes only `validate` and `help`.
 | `waitAction` | `{runId, timeoutMs?, longWait?, signal?, onProgress?}` | `WaitData` |
 | `resumeAction` | `{runId, detach?}` | `{runId, status, resetTaskIds, taskSummary, detached?}` |
 | `autoAction` | Consent, choice and launch options (below) | `AutoData` |
-| `approveAction` | `{runId, requestId?, decision, confirm?, detach?}` | `ApproveData` |
 | `stopAction` | `{runId, timeoutMs?}` | `{runId, status, interruptedTaskIds, pending}` |
 | `pruneAction` | `{keep?, olderThanDays?, yes?}` or `{argv}` | `WorkflowPruneSummary` |
 | `noticesAction` | `{argv}`: list, acknowledge, clear | List: `{notices, acknowledgements, warnings}`; mutation: `{action, runId, notificationOnly}` |
@@ -647,7 +645,7 @@ allow `worker` / `disabled` processes only `validate` and `help`.
 | `redriveRunsAction` | — | `{redriven, skipped: [{runId, reason: "live-supervisor"}], errors}` |
 | `superviseDetachedAction` | `{runId}` | `{runId, status, started, reason?: "not-running" \| "live-supervisor", detached?: {pid, logPath}}` |
 
-Queries and ordinary mutations return `success`; launch/wait/resume/approve return the applicable
+Queries and ordinary mutations return `success`; launch/wait/resume return the applicable
 run outcome. Prune fails on `summary.error`; doctor fails when no executor is usable. Pending stop
 returns `running`. An identical active launch returns `existing`.
 
@@ -671,7 +669,6 @@ executors?, permissionMode?, taskSummary. Mixed-run task summaries include execu
 | `inputOverrides` | Typed values for declared inputs |
 | `detach` | Spawn detached `agent-workflow supervise`; return `{pid, logPath}`, log at `<run dir>/supervise.log` |
 | `forceNew` | Bypass duplicate guard |
-| `interactive`, `confirmDegradations` | Interactive requires callback; anything except true refuses with `CAPABILITY_DEGRADATION_DECLINED`; non-interactive records degradations |
 | `selectProfile(title, options, meta?)` | Declared-profile chooser; `meta.headlessOption` is the default profile, otherwise Base |
 | `launchOrigin` | Host command/tool provenance |
 
@@ -683,7 +680,7 @@ options and strict capabilities refuse.
 
 `LaunchData` includes mode, runId?, status?, name?, specPath?, executor? `{id, source, profile?,
 host?}`, permissionMode? `{mode, source, profile?}`, profile? `{name, kind, source}`, roles?
-`{mixed, executors, stages, warnings?}`, capability? `{preview, confirmation, degradations,
+`{mixed, executors, stages, warnings?}`, capability? `{preview, degradations,
 forcedReadOnly}`, taskSummary?, detached?, promptSchemaNotice?, duplicateOf?, refusal? `{code,
 executorId?, preview?}`. Profile kinds: declared/user/workflow-preference/preset; sources:
 request/workflow-default/user-default/workflow-preference. Text starts with capability preview,
@@ -721,9 +718,9 @@ command/tool call is stored as `<run dir>/launch-command.txt` (0600). Sources: c
 `mcp:<host>`; entries: command/action or tool/name. Missing origin synthesizes a CLI command.
 `show` and `inspect` return launch metadata and command text.
 
-Confirmed auto launches use `agent-workflow-run-launch-v2`, `routingMode: "auto-confirmed"`, and
+Auto launches use `agent-workflow-run-launch-v2`, `routingMode: "auto"`, and
 selection: offered candidates, recommendation or null, selected candidate, choseRecommendation,
-classifier executor/model, consent source, taskSha256, confirmed true. The selected candidate must
+classifier executor/model, consent source `command`, taskSha256. The selected candidate must
 match requestKind. Classifier reasons are not persisted.
 
 #### `logs`
@@ -771,45 +768,18 @@ failed (CLI exit 1). Generic support failures do not qualify. Terminal `statusAc
 presentation. `nextRetry` is `{at, retryAfterMs, reason?, message?, taskIds}` when the only remaining
 work is in retry backoff.
 
-#### `approve`
-
-Dynamic controllers with `dynamic.permissions.approval: "ask"` use `ctx.dynamicUi` while attached;
-without UI they block as `dynamic_ui_unavailable`, or `dynamic_approval_timeout` after an unanswered
-prompt. Status/wait expose `pendingApprovals`: requestId, controllerSpecId, taskId, title, message,
-requestedAt.
-
-`decision` is approve/reject. `requestId` accepts a unique prefix of at least eight characters and
-is optional with one open approval. Optional `confirm(title, message)` is bounded to five minutes:
-true applies; false rejects an approval question but does nothing on a rejection question;
-undefined/cancel/error/timeout records nothing and returns refused. Without confirm the decision
-is final. Decisions are appended under the run lease with host/via provenance. Rejection marks
-`dynamic_approval_rejected`. Approval resumes unless other failed/interrupted/blocked tasks remain;
-then it records the approval and returns blocked.
-
-`ApproveData`: runId, requestId, controllerSpecId, decision (approved/rejected/unanswered), status,
-decidedBy?, resumed?, otherBlockers?.
-
 #### `auto`
 
-`AutoRequest` takes launch options without workflow, plus `consent`, `choose`, `compare?`, `signal?`.
-No consent means no classifier call. Consent is `{source: "flag"}` or prompt/elicitation with
-`confirm(title, message, preview)`. The preview includes task text capped at 2,000 characters,
-candidate names and classifier executor/model. False declines; undefined/error cancels.
+`AutoRequest` takes launch options without workflow, plus optional `compare` and `signal`.
+It sends one classifier request and starts the top recommendation without consent or choice hooks.
+The classifier follows request > saved profile > host executor precedence. Task transmission
+restrictions, size bounds and cancellation still start nothing. The selected named spec is
+rehashed before launch; changed specs return `stale`. There is no classifier-failure fallback.
 
-The classifier target follows request > named/default saved profile (`executor` or roles.default) >
-host default override > host executor. Model/effort follow request > profile > matching host runtime
-defaults > executor default. Exactly one classifier call ranks a local shortlist; tasks forbidding
-external models or exceeding 24 KB are refused. `choose` receives title, message, choices and
-recommendedId?, returning a candidateId or undefined. Without choose, ranking is returned and
-nothing starts. The selected workflow is rehashed before launch; changed specs return stale.
-
-`compare(operation)` wraps the classifier call, passing a cancel signal; undefined means cancelled.
-The action signal is checked after consent, classification and choice; late output is discarded.
-`AutoData` includes phase, classifierCalled, classifier?, consent?, shortlist, status?, reason?,
-recommendation?, ranked?, selected?, launch?, next?. Phases: consent-unavailable, consent-declined,
-consent-cancelled, classifier-unavailable, ranked, cancelled, stale, launched. Candidate views carry
-candidateId, kind, label, scope, description, launchable, blockers?, fit?, reason?, recommended?,
-command?. Reasons are bounded and control characters replaced; commands use `<task>` placeholders.
+`compare(operation)` wraps the classifier call with cancellation (Pi loader); late output is
+discarded when the action signal aborts. `AutoData` includes phase, classifierCalled, classifier?,
+consent? (`command`), shortlist, status?, reason?, recommendation?, ranked?, selected?, launch?, next?.
+Phases: `classifier-unavailable`, `stale`, `launched`.
 
 #### `stop`
 

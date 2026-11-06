@@ -399,7 +399,7 @@ function readState() {
 			"maintenance",
 			"executors",
 		]),
-		dialog: choice("dialog", ["stop", "resume", "approve", "reject"]),
+		dialog: choice("dialog", ["stop", "resume"]),
 		layout: choice("layout", ["td", "lr"]) || "td",
 	};
 }

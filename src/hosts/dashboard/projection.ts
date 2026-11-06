@@ -111,7 +111,7 @@ export function projectNeedsYou(
 			since: record?.completedAt ?? run.updatedAt,
 		});
 	}
-	// An approval/decision already explains a blocked run; don't show a duplicate generic alert.
+	// An executor decision already explains a blocked run; don't show a duplicate generic alert.
 	// A run whose only failure is the final verdict gate finished its work and wrote its report —
 	// the verdict is the outcome, not something to inspect and resume.
 	if (

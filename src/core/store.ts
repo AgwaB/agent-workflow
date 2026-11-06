@@ -657,7 +657,7 @@ export function isWorkflowRunLaunchMetadata(
 /**
  * WP33: the host-neutral launch metadata (`agent-workflow-run-launch-v1`); WP32: its confirmed
  * `auto` variant (`agent-workflow-run-launch-v2`: entry action `auto`, routing mode
- * `auto-confirmed`, the `selection` facts).
+ * `auto`, the `selection` facts).
  */
 function isWorkflowRunLaunchMetadataHostV1(value: unknown): boolean {
 	return isWorkflowRunLaunchMetadataHost(value, false);
@@ -753,7 +753,7 @@ function isWorkflowAutoCandidateRef(value: unknown): boolean {
 	);
 }
 
-/** WP32: the selection facts of a confirmed host `auto` launch (no task text, no paths). */
+/** WP32: the selection facts of a host `auto` launch (no task text, no paths). */
 function isWorkflowHostAutoSelection(
 	value: unknown,
 	requestKind: unknown,
@@ -1420,7 +1420,7 @@ async function acquireFileLeaseInDirectory(
 
 /**
  * How long a lease taker waits for the supervisor of a run that already reached a state its
- * supervisor stops in (blocked on an approval): it holds the lease while it shuts down, seconds on
+ * supervisor stops in: it holds the lease while it shuts down, seconds on
  * a busy machine.
  */
 const SUPERVISOR_EXIT_LEASE_WAIT_MS = 10_000;

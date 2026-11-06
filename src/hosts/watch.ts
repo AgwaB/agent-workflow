@@ -1,6 +1,6 @@
 // New in agent-workflow (WP36, owner decision E1: the "watch" of Codex, usable next to any host): a
 // terminal live view of the project's active runs or of one run, refreshed every 1–2 s: tasks,
-// status, elapsed time, pending dynamic-controller approvals (WP29) and, when the run is done, the
+// status, elapsed time, blockers and, when the run is done, the
 // verdict and the report paths. Plain ANSI (clear screen + redraw on a terminal; on a pipe a new
 // frame only when something changed). Read-only: it never drives a run (a missing supervisor is
 // reported with the `supervise` command), takes no lease and calls no model.

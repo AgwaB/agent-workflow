@@ -3,7 +3,7 @@ import { projectId } from "../../core/state-location.js";
 // Track launches and resumes for status and completion delivery into this session.
 // Without dialog UI, show profile choices as text. The TUI opens the board for /aw
 // and /aw <run>; other modes keep text behavior. Waits default to 60 seconds, up to
-// four hours. Auto requires consent, a ranked choice, and a final confirmation;
+// four hours. Auto classifies once and starts the top recommendation;
 // print and JSON modes transmit nothing.
 import {
 	COMMAND_HELP,
@@ -100,25 +100,22 @@ Workflows:
   /aw profile workflow list|show|set|clear …           saved per-workflow preferences
 
 Runs:
-  /aw [<run>]                           open the run board (TUI only; r refresh, v launch, c copy, s stop, u resume, a approve, q close)
+  /aw [<run>]                           open the run board (TUI only; r refresh, v launch, c copy, s stop, u resume, q close)
   /aw run <workflow> <task> [options]   start a workflow; returns once it is launched
   /aw dynamic <task> [options]          start a spec-less dynamic workflow
-  /aw auto <task> [options]             recommend a workflow and start the one you choose (asks
-                                        before one classifier call; nothing is sent without a UI)
+  /aw auto <task> [options]             classify once and start the top recommendation without asking
   /aw status [run]                      show runs
   /aw show <run> [--raw]                show run details
   /aw inspect <run> [--failures] [--results]
   /aw logs <run> [--task <id>] [--lines N] [--stream output|stderr|events|all]
   /aw wait <run> [timeout]             wait until finished or the timeout (default 60s, max 4h)
   /aw resume <run> [--detach]           resume a failed, interrupted or blocked run
-  /aw approve <run> [--request <id>] [--reject] [--detach] [--yes]
-                                        approve or reject a dynamic controller the run waits on
   /aw stop <run>                        stop a run
   /aw prune [--keep N] [--older-than DAYS] [--yes]
   /aw notices list | acknowledge <run> --state <sha256> --reason <text> | clear <run>
 
 Run options: ${RUN_OPTIONS}
-With a Pi UI, dynamic controllers that need approval are asked ("Run dynamic workflow controller?": yes runs it, no rejects it for the run) while this session drives the run; detached runs wait for /aw approve. With a Pi UI, capability degradations that need confirmation are asked and a declared execution profile is chosen in a dialog; without one degradations are recorded, the default profile is used and the choices are listed. Runs launched here show their progress in the status line and report back into this session when they finish or need action.
+Capability degradations are recorded without questions. With a Pi UI, a declared execution profile is chosen in a dialog; without one the default is used and choices are listed. Runs launched here show their progress in the status line and report back into this session when they finish or need action.
 Agent tools: ${AW_TOOL_NAMES.join(", ")}. /aw help <action> shows the agent-workflow help of one action.
 
 Dashboard:
@@ -145,7 +142,7 @@ function helpText(deps: PiHostDeps, topic: string | undefined): string {
 		throw new HostUsageError(
 			`Unknown /${AW_COMMAND} action "${topic}". Try /${AW_COMMAND} help.`,
 		);
-	return `${deps.api.helpAction(topic).text.replaceAll("agent-workflow ", `/${AW_COMMAND} `)}\n\nIn Pi: --json, --yes and --timeout on run/resume are CLI-only; /${AW_COMMAND} run returns once the run is launched and /${AW_COMMAND} wait <run> [timeout] waits until the run finishes or the timeout passes (default 60s, max 4h).`;
+	return `${deps.api.helpAction(topic).text.replaceAll("agent-workflow ", `/${AW_COMMAND} `)}\n\nIn Pi: --json and --timeout on run/resume are CLI-only; /${AW_COMMAND} run returns once the run is launched and /${AW_COMMAND} wait <run> [timeout] waits until the run finishes or the timeout passes (default 60s, max 4h).`;
 }
 
 type Dispatched =
@@ -569,7 +566,7 @@ export async function trackLaunched(
 	if (action !== "run" && action !== "dynamic" && action !== "resume") return;
 	if (typeof data?.runId !== "string") return;
 	const active = data.status === "running" || data.status === "pending";
-	// WP39b (live bundle 5, O10): a run that settled inside the approve (or resume) call is
+	// WP39b (live bundle 5, O10): a run that settled inside the resume call is
 	// tracked too, so its completion message is delivered (exactly once: the delivery receipts).
 	const settledHere =
 		action === "resume" &&

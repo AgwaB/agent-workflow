@@ -1739,7 +1739,7 @@ export interface WorkflowRunLaunchMetadataHostV1 {
 	command: WorkflowRunLaunchCommandMetadata;
 }
 
-/** WP32: how the user consented to the auto classifier call. */
+/** WP32: the command authorizes the auto classifier call. */
 export type WorkflowAutoConsentSource = "command";
 
 /** WP32: one candidate an auto launch offered (opaque id, kind, workflow label). */
@@ -1750,9 +1750,9 @@ export interface WorkflowRunAutoCandidateRef {
 }
 
 /**
- * WP32 (owner decision Q5): the selection facts of a confirmed host `auto` launch. No task text
+ * WP32 (owner decision Q5): the selection facts of a host `auto` launch. No task text
  * (its SHA-256 only), no paths, no classifier prose: the offered candidates, the classifier's
- * recommendation, the user's choice, the classifier executor/model and how consent was given.
+ * recommendation, the selection, the classifier executor/model and how consent was given.
  */
 export interface WorkflowRunHostAutoSelectionMetadata {
 	candidates: WorkflowRunAutoCandidateRef[];
@@ -1762,7 +1762,7 @@ export interface WorkflowRunHostAutoSelectionMetadata {
 		confidence: "high" | "medium" | "low";
 	} | null;
 	selected: WorkflowRunAutoCandidateRef;
-	/** True when the user chose the recommended candidate. */
+	/** True when the recommendation was selected. */
 	choseRecommendation: boolean;
 	classifier: { executor: string; model: string | null };
 	consent: WorkflowAutoConsentSource;
@@ -1770,7 +1770,7 @@ export interface WorkflowRunHostAutoSelectionMetadata {
 }
 
 /**
- * WP32: host-neutral launch provenance of a confirmed `auto` launch (CLI `agent-workflow auto`,
+ * WP32: host-neutral launch provenance of a `auto` launch (CLI `agent-workflow auto`,
  * Pi `/aw auto`, MCP `workflow_auto`). Distinct from `agent-workflow-run-launch-v1` rather than
  * widening its strict `routingMode: "off"`.
  */
@@ -1803,7 +1803,7 @@ export type WorkflowRunLaunchCaptureHostV1 = Omit<
 	command: { state: "captured"; text: string };
 };
 
-/** WP32: the host API's capture of a confirmed `auto` launch. */
+/** WP32: the host API's capture of a `auto` launch. */
 export type WorkflowRunLaunchCaptureHostV2 = Omit<
 	WorkflowRunLaunchMetadataHostV2,
 	"command"

@@ -16,18 +16,7 @@ import { projectId } from "../../core/state-location.js";
 // Code status line and the notify-check completion line.
 // WP31: workflow_profile set takes `preset` and `roles` (role → executor/model/effort), op `presets`
 // lists the built-in executor presets.
-// WP29 (parity row 43): workflow_approve answers a dynamic-controller approval a run is blocked on.
-// The server can ask its user only during a tool call, so it never approves while it drives a run:
-// workflow_status/workflow_wait show the open approval (question + request id) and the agent calls
-// workflow_approve after the user decided; the tool asks the user again through elicitation before
-// anything is recorded (accept = as decided; declining the approval question rejects it for the run;
-// cancel/failure changes nothing) and refuses clients without elicitation.
-// WP32 (owner decision Q5): workflow_auto recommends a workflow for a task. Before its one
-// classifier call it asks the user's consent through elicitation (showing the task, the candidates
-// and the classifier executor/model); a second elicitation (a form with one enum field) is the
-// final choice among the ranked workflows, which then start through the normal launch path. A client
-// without elicitation gets the local routing-only shortlist and no call; declining the choice
-// returns the ranked list and starts nothing.
+// Auto classifies once and starts its top recommendation without asking.
 import { randomUUID } from "node:crypto";
 import { realpath, stat } from "node:fs/promises";
 import { basename, isAbsolute, relative, resolve, sep } from "node:path";
@@ -129,11 +118,6 @@ export const CONFIRMED_CHANGES = [
 	`${WORKFLOW_NOTICES_TOOL} (acknowledge, clear)`,
 ] as const;
 
-/** WP32: tool calls that send a classifier request only after the user's elicitation consent. */
-export const CONSENTED_CALLS = [
-	`${WORKFLOW_AUTO_TOOL} (one classifier request with the task)`,
-] as const;
-
 /** Bound of one tool result's text (the list action bounds itself the same way). */
 export const HOST_MCP_MAX_TEXT_CHARS = 50_000;
 
@@ -205,7 +189,7 @@ export function hostMcpInstructions(
 		'4. When it finished, quote the result preview and the report paths verbatim (do not re-summarize the report) and give the Dashboard link again. "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing verdict, not a failure.',
 		`5. There is no completion push. If you stop waiting while it runs (for example a rate-limit backoff, nextRetry), tell the user the runId, what it waits for, the Dashboard link, and that they can ask you again or run \`agent-workflow watch <runId>\`. A line containing "agent-workflow: workflow … finished — …" in a later turn (maybe prefixed by a hook) comes from the completion check: relay it with the report path.`,
 		`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a redacted tail of task output; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a spec. ${WORKFLOW_SHOW_TOOL}, ${WORKFLOW_ROLES_TOOL}, ${WORKFLOW_AGENTS_TOOL}, ${WORKFLOW_DOCTOR_TOOL} are read-only. ${WORKFLOW_RESUME_TOOL} continues a failed, interrupted or blocked run and ${WORKFLOW_SUPERVISE_TOOL} supervises a running one: both start model calls, so only when the user asks.`,
-		`Choosing a workflow: only when the user asks you to pick one for a task, call ${WORKFLOW_AUTO_TOOL} {task}: it asks in a dialog before one classifier request, then lets the user choose; without dialogs it returns a local shortlist to show the user.`,
+		`Choosing a workflow: when the user asks you to pick one for a task, call ${WORKFLOW_AUTO_TOOL} {task}: it classifies once and starts the top recommendation without asking.`,
 		`Changes that need the user's confirmation in an MCP dialog (refused with the terminal command without dialogs): ${CONFIRMED_CHANGES.join("; ")}. ${WORKFLOW_PRUNE_TOOL} without dryRun=false only previews.`,
 		'Permission mode is "free" by default (workers run without approval prompts; read-only stages stay read-only); set permissionMode "safe", executor ("claude", "codex", "pi") or profile only when the user asks.',
 		`${WORKFLOW_DASHBOARD_TOOL} opens the dashboard in the user's browser after a dialog; it never returns a sign-in URL. Every tool takes an optional cwd inside the project root.`,
@@ -824,7 +808,7 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 	{
 		name: WORKFLOW_AUTO_TOOL,
 		title: "Choose and run an agent-workflow workflow",
-		description: `Recommend an agent-workflow workflow for a task and start the one the user chooses. Call it only when the user asks you to pick a workflow for a concrete task (if the user names a workflow, use ${WORKFLOW_RUN_TOOL}). The user is asked in a dialog (MCP elicitation) before the task is sent to one classifier request on the run's default executor; a second dialog lets the user choose the workflow (or none), which then starts like ${WORKFLOW_RUN_TOOL} (detached by default; then call ${WORKFLOW_WAIT_TOOL}). Without dialog support nothing is sent: the result is a local shortlist with the ${WORKFLOW_RUN_TOOL} calls to start one; show it and let the user pick. If the user declines a dialog, nothing starts; do not retry unless the user asks.`,
+		description: `Classify a task once and start the top recommendation without consent or choice dialogs. Use only when the user asks you to choose a workflow; if they name one, use ${WORKFLOW_RUN_TOOL}. Classifier failure starts nothing. Launches are detached by default; then use ${WORKFLOW_WAIT_TOOL}.`,
 		inputSchema: {
 			type: "object",
 			additionalProperties: false,

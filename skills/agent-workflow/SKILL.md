@@ -17,7 +17,7 @@ say the same.
 | `workflow_list` | Find workflow names (`query?`, `offset?`, `limit?`). Never guess a name. |
 | `workflow_run` | Launch a named workflow: `{workflow, task}` plus launch options. Returns the `runId` at once. |
 | `workflow_dynamic` | Launch a spec-less dynamic workflow: `{task}` plus launch options. |
-| `workflow_auto` | Let the user pick a workflow for a task: `{task}` plus launch options. Asks the user in a dialog before it sends the task to one classifier request, then lets the user choose the workflow (or none) in a second dialog and starts it. Only when the user asks you to choose a workflow. |
+| `workflow_auto` | Classify the task once and immediately start the top recommendation without asking. Failure starts nothing. Use only when the user asks you to choose a workflow. |
 | `workflow_wait` | Wait for a run (`runId`). **Leave `timeoutMs` out**: one call waits as long as this host allows (up to 30 min under Claude Code and the Codex plugin, else at most 45 s per call; the tool's description names the bound and, in Codex code mode, the `yield_time_ms` to give the cell). |
 | `workflow_status` | List runs, or one run with `runId`. |
 | `workflow_inspect` | Details of a run: `failures: true` for failed tasks, `results: true` for task results. |
@@ -35,10 +35,9 @@ say the same.
 | `workflow_notices` | Unfinished-run notices: `list` (default); `acknowledge` (`runId`, `state`, `reason`) and `clear` (`runId`) need the user's confirmation. |
 | `workflow_prune` | Remove finished runs (`keep?`, `olderThanDays?`). A dry run unless `dryRun: false`, which needs the user's confirmation. |
 | `workflow_profile` | Saved user profiles: `op` `list` (default) or `show`; `set`, `delete`, `default`, `clear-default` need the user's confirmation. |
-| `workflow_approve` | Answer a dynamic-controller approval a blocked run waits on (`runId`, `requestId`, `decision`: `approve` or `reject`, `detach?` default true). Only after the user decided; the user confirms in a dialog. An approval continues the run (**model calls**). |
 
 **Confirmed changes.** `workflow_prune` with `dryRun: false`, `workflow_profile` `set`/`delete`/
-`default`/`clear-default`, `workflow_notices` `acknowledge`/`clear` and `workflow_approve` show the
+`default`/`clear-default`, `workflow_notices` `acknowledge`/`clear` show the
 user a confirmation dialog first (MCP elicitation). Call them only when the user asked for that change. If the user
 declines, nothing changes: do not retry. If the host cannot show the dialog, the tool refuses and
 names the terminal command; give that command to the user instead of trying another way.
@@ -53,11 +52,9 @@ Use whichever form your tool list shows.
 
 1. If the workflow name is not certain, call `workflow_list` (with a `query` such as `review`) and
    pick from the result. If nothing fits, say so and offer `workflow_dynamic`. If the user asks
-   agent-workflow to choose the workflow, call `workflow_auto {task}` instead: the user consents to
-   the one classifier request and picks the workflow in dialogs (declined = nothing sent or started;
-   do not retry). Without dialog support it sends nothing and returns a local shortlist: show it,
-   let the user pick, then call `workflow_run`. A launched `workflow_auto` result continues with
-   step 3 (its `launch.runId`).
+   agent-workflow to choose the workflow, call `workflow_auto {task}`: it classifies once and starts
+   the top recommendation without asking. Classifier failure starts nothing. A launched result
+   continues with step 3 (its `launch.runId`).
 2. Call `workflow_run {workflow, task}` (or `workflow_dynamic {task}`). Write a self-contained `task`:
    scope, paths, exclusions and the expected output, in the user's words where possible. Pass
    declared workflow `inputs` only when the user asked for them (for example `{"depth": "quick"}`).
@@ -96,13 +93,7 @@ Use whichever form your tool list shows.
    with a non-passing domain verdict, for example `PARTIAL_REVIEW`: report the verdict, quote the
    preview and give the report path. Its status says `failed` only because the verdict did not pass
    the final gate; do not call it a workflow failure.
-8. `actionRequired: true` with `pendingApprovals`: a dynamic controller of the workflow needs the
-   user's approval before it runs (its helper code and budget). Show the user the approval question
-   (the `message` of each pending approval) and ask them to approve or reject. Only after they
-   decide, call `workflow_approve {runId, requestId, decision}`; the user confirms again in a dialog.
-   If they decline the approval dialog the controller is rejected for this run (it never asks
-   again); if they cancel, nothing changes. After an approval, continue with step 4.
-9. A failed or partial run otherwise: report status and the failed tasks from `workflow_inspect`; do
+8. A failed or partial run otherwise: report status and the failed tasks from `workflow_inspect`; do
    not invent results for missing parts.
 
 Runs are detached by default (`detach: true`): they keep running between calls and after the host
@@ -130,16 +121,15 @@ the user asks).
 ## Errors
 
 - `isError` with `outcome: "refused"`: the launch did not start (unavailable executor, capability
-  refusal, declined confirmation, duplicate run), or a confirmed change was declined or cannot be
+  refusal, duplicate run), or a confirmed change was declined or cannot be
   confirmed here (nothing changed). Explain the reason; do not retry with different options unless
   the user agrees.
 - `Usage error:` text: fix the arguments (unknown workflow, bad input, bad `cwd`) and call again.
-- The server may ask the user to confirm executor capability degradations before a launch; that is
-  the host's confirmation dialog, not something to answer yourself.
+- Capability degradations are recorded and shown without confirmation. Security checks and refusals still apply.
 
 ## Without the MCP tools
 
 The same operations exist in the CLI (`agent-workflow list|run|dynamic|auto|wait|status|inspect|logs|stop|
-validate|resume|approve|show|roles|agents|notices|doctor|prune|profile|supervise`). If the CLI is not
+validate|resume|show|roles|agents|notices|doctor|prune|profile|supervise`). If the CLI is not
 installed, run it through npx:
 `npx -y --package=@agwab/agent-workflow agent-workflow <command>`.

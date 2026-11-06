@@ -1,11 +1,5 @@
-// Host-neutral auto selection: build a local shortlist and an immutable comparison packet.
-// Obtain explicit consent showing the task, candidates, classifier executor, and model before
-// one tool-less classifier call. Without a consent hook, return only the local shortlist.
-// The classifier uses normal executor precedence. Launch only the user-selected startable
-// workflow through the normal guarded launch path; stale named definitions are refused.
-// Capture the selection, classifier identity, consent source, and task hash, never secrets
-// or classifier prose. Cancellation, including session end, starts nothing; abort an
-// in-flight comparison when its loader is cancelled. There is no hidden fallback.
+// Classify one immutable comparison packet, then launch the top recommendation through normal
+// guards. Classifier failure, transmission restrictions and cancellation start nothing.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
@@ -91,7 +85,7 @@ export interface AutoRequest
 	) => Promise<WorkflowAutoResult | undefined>;
 	/**
 	 * Cancels the whole action (Pi: the session ended); checked at every step before the launch and
-	 * (WP42) carried into the launch itself (profile chooser, capability confirm, engine fence).
+	 * (WP42) carried into the launch itself (profile chooser and engine fence).
 	 */
 	signal?: AbortSignal;
 }
@@ -384,8 +378,7 @@ function rankedLines(data: AutoData): string[] {
 }
 
 /**
- * `auto "<task>"`: compare workflows for a task (one classifier call, only after consent) and start
- * the one the user chooses. See the module header.
+ * `auto "<task>"`: classify once and start the top recommendation without asking. See the module header.
  */
 export async function autoAction(
 	ctx: HostApiContext,
@@ -439,10 +432,7 @@ export async function autoAction(
 					...(target.effort ? { thinking: target.effort } : {}),
 				}
 			: undefined;
-	// 2. WP42 (review round 1, finding 2): the classifier request is built once, locally, before
-	// consent (catalog scan, bounded descriptions, the packet). The preview shows its candidates
-	// and the task; after consent exactly this frozen packet is sent (no rescan: a workflow added
-	// or a description changed while the dialog is open is not transmitted).
+	// 2. WP42 (review round 1, finding 2): the classifier request is built once, locally, once (catalog scan, bounded descriptions, the packet).
 	const prepared: PreparedWorkflowAutoComparison =
 		await prepareWorkflowAutoComparison({
 			cwd: ctx.cwd,
@@ -608,7 +598,7 @@ export async function autoAction(
 	};
 	const { compare: _compare, ...launchOptions } = request;
 	// WP42 (review round 1, finding 1): the session signal stays on the launch request: the launch
-	// path re-checks it after its own dialogs (profile chooser, capability confirm) and the engine
+	// path re-checks it after its profile chooser and the engine
 	// fences publication and the first dispatch with it.
 	const launchRequest: LaunchRequestBase = {
 		...launchOptions,

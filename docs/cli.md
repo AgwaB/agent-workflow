@@ -35,13 +35,12 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | Saved per-workflow preferences (below). |
 | `run <workflow> <task…>` | Start exactly the named workflow and wait in the foreground until it is terminal. |
 | `dynamic <task…>` | Start a spec-less direct dynamic run; same options as `run`. |
-| `auto <task…> [--yes]` | Recommend a workflow for the task (one classifier request, only with your consent) and start the one you choose; same options as `run`. Below. |
+| `auto <task…>` | Classify the task once and start the top recommendation without asking; same options as `run`. Below. |
 | `status [run]` | All top-level runs, or one run. |
 | `inspect <run> [--failures] [--results]` | Reliability summary and task listing. `--failures` lists failed/blocked/interrupted tasks; `--results` prints task results (with `--failures` on a clean run: every result). |
 | `logs <run> [--task <id>] [--lines N] [--stream output\|stderr\|events\|all]` | Bounded tail of task output, stderr and executor events (the latest attempt's `exec-events.jsonl`); every started task by default (at most 6). Lines per stream 1-400 (default 20), lines cut at 400 characters, the text at 48 000. Credentials (including quoted structured fields such as `"Authorization":"Basic …"` and `"refresh_token":"…"`), bearer tokens, URL secrets, macOS/Linux/Windows home paths and values of sensitive environment variables are redacted, here and in `status`/`show`/`inspect`/`wait` text. Only files inside the [state directory](usage.md#where-run-state-lives)'s `.agent-workflow/` are read; a tampered absolute, `..` or symlink-escaping path is refused and the reason shown. |
 | `wait <run> [--timeout D]` | Drive and wait until the run is terminal or needs action. |
 | `resume <run> [--detach] [--timeout D]` | Reset failed, interrupted and resumable blocked tasks, then continue in the foreground or detached. |
-| `approve <run> [--request <id>] [--reject] [--yes] [--detach] [--timeout D]` | Answer a dynamic-controller approval the run is blocked on (below). |
 | `stop <run>` | Stop a non-terminal run (durable stop intent; workers are cancelled). Waits up to 15 s for confirmation (below). |
 | `prune --run <run-id>… [--yes]` | Delete exactly the named terminal runs (exact ids, repeatable; not combinable with `--keep`/`--older-than`). Any id that is not a terminal run in the project fails the call and deletes nothing; the run protections (live lease, retained children, worktree rules, owned sessions) apply as below; the age-based sweeps (executor attempt records, host launch claims, `auto` requests) are skipped. A dry run without `--yes`. |
 | `prune [--keep N] [--older-than DAYS] [--yes]` | Preview deletion of old terminal runs (default: keep newest 50), classifier requests, managed worktrees, terminal executor attempts older than 7 days (or `--older-than`), and host launch claims older than 1 h. `--yes` applies it. See [retention](usage.md#run-records) for protections and cleanup rules. |
@@ -60,8 +59,7 @@ A run argument accepts the run id or an unambiguous prefix.
 Every command except `help`/`--version`, the hook entry `host-command` (below), and the terminal views `watch`, `dashboard`, `statusline`,
 `notify-check`, whose data the `workflow_status`/`workflow_wait` tools already return, is also a host MCP tool (`workflow_<command>`,
 [host-mcp.md](hosts.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default`, `profile workflow set|clear` and
-`notices acknowledge|clear` ask the user to confirm through MCP elicitation (as does
-`workflow_approve`, the MCP form of `approve`), and a client that
+`notices acknowledge|clear` ask the user to confirm through MCP elicitation, and a client that
 cannot ask is refused with the CLI command line to run here instead. `supervise` on MCP starts the
 detached supervisor and returns at once.
 
@@ -93,7 +91,6 @@ These options also apply to `auto`.
 | `--input <key=value>` | Set a workflow input the spec declares (repeatable; `--input=key=value` also works). Typed like the declared default: string as is, number, `true`/`false`, JSON for arrays, objects and `null`. An undeclared key, a wrong type, a repeated key or a missing `=` is a usage error (exit 2, nothing starts). Example: `--input depth=quick`. |
 | `--detach` | Start a background supervisor (`agent-workflow supervise <id>`, log in `<run dir>/supervise.log`) and return the run id at once. |
 | `--force-new` | Start a new run although an identical launch (same workflow, task, inputs and options) is still active; without it, the guard prints that run (`outcome: "existing"`, exit 0) and, in the foreground, waits for it. Applies to `--detach` too. |
-| `--yes` | Never ask: record capability degradations and proceed. For `auto` it is also your explicit consent to the one classifier request. |
 | `--timeout <d>` | Stop waiting after `d` (`30000`, `30s`, `5m`, `1h`). The run continues. Not with `--detach`. |
 | `--json` | Print one JSON object `{action, ok, outcome, data}` (for `run`/`resume` without `--detach`, `data.wait` holds the final wait result). |
 
@@ -139,7 +136,7 @@ A run that mixes executors (roles) probes all of them first and names every one 
 with the stages that use it, in one refusal; nothing starts.
 Probe results that are usable are reused within one process for 60 s.
 
-### Capability preview and confirmation
+### Capability preview
 
 Every launch prints the short preflight (`Capability check (<executor>@<version>, <n> stages,
 permission mode: …): …`, then each warning once with the stages it affects; the full per-stage
@@ -147,13 +144,7 @@ preview is in the run record and `--json`). Tools, models and effort the executo
 are refused before anything starts; model and effort names are rewritten to the executor's form
 (see `check` above). A refusal starts nothing: the command prints `Not started: …` and exits 1.
 
-- **In a terminal** (stdin and stdout are TTYs) without `--yes`: when a stage degrades in a way that
-  needs confirmation (for example a capability warning under `--permission-mode safe`), the preview
-  is printed to stderr and the CLI asks `Proceed with these capability degradations? [y/N]`.
-  Anything but `y`/`yes` declines; nothing is launched and the command exits 1. An accepted run
-  records `confirmation: "confirmed"`.
-- **With `--yes`, or without a terminal** (pipes, CI): the run is non-interactive. Degradations are
-  recorded (`confirmation: "non-interactive"`) and the run proceeds.
+Degradations are always recorded and shown, never confirmed. Refusals still start nothing.
 
 ### Foreground, detach, wait
 
@@ -167,59 +158,19 @@ when the time is up; a run still running then exits 1 with `data.stillRunning: t
 
 ### `auto`
 
-`agent-workflow auto "<task>"` recommends a workflow for a task in the terminal. It compares the
-trusted dynamic workflow and the discoverable workflows (at most 24) and starts the one you choose:
+`agent-workflow auto "<task>"` builds a local shortlist (at most 24), sends one tool-less
+classifier request with your task and bounded candidate descriptions, and starts the top
+recommendation without consent or choice prompts. There is no `--yes` launch option.
+Classifier failure or no usable recommendation starts nothing; there is no local fallback.
 
-1. **Local shortlist, no model call.** The candidates are ranked by the task's words against each
-   spec's `routing` hints (`useWhen`, `outputs`) and name.
-2. **Consent.** Comparing them sends one request to a classifier model: your task and the bounded
-   descriptions of the candidates, without tools. It runs on the run's default executor: `--executor`, else the executor of the saved user profile (`--profile <name>` or
-   the default one), else the first installed and logged-in of `pi`, `claude`, `codex`; with
-   `--model`/`--effort` or the profile's model, else the executor's default model. On a terminal
-   you see the task, the candidate names and the executor/model and are asked
-   `Send this task to <executor> to compare workflows? [y/N]`; anything but `y` sends nothing.
-   `--yes` is your explicit consent instead of the question. Without a terminal and without
-   `--yes` nothing is sent: the local shortlist is printed with the `run`/`dynamic` command of each
-   candidate and how to consent (exit 1).
-3. **Choice.** The ranked candidates (recommended first, with the classifier's fit and reason)
-   are printed and you pick one: `Start which workflow? [1-N, Enter = 1, n = cancel]` (Enter takes
-   the recommendation; without one Enter cancels). Without a terminal (`--yes` only) the ranking
-   and the commands are printed and nothing starts (exit 0).
-4. **Launch.** The chosen workflow starts like `run`/`dynamic` (duplicate guard, profiles,
-   capability preview, approvals; foreground, or `--detach`). A named workflow that changed since
-   the comparison is refused (`stale`); run `auto` again.
+The classifier uses `--executor`, else the saved user profile, else the first installed and
+logged-in executor of Pi, Claude, Codex. Model/effort follow explicit options, the profile,
+then executor defaults. Launches use normal profiles, duplicate guards, capability refusals
+and foreground/detach behavior. Changed named specs return `stale`.
 
-Cancelling at any step starts nothing. The run's launch metadata (`agent-workflow-run-launch-v2`)
-records the offered candidates, the recommendation, your choice, the classifier executor/model and
-the consent source (`prompt` or `flag`); the task only as its SHA-256. `show <run>` prints an
-`Auto selection:` line. With `--json`, `data.phase` is `consent-unavailable`, `consent-declined`,
-`consent-cancelled` (MCP/API only: no answer from the user),
-`classifier-unavailable`, `ranked`, `cancelled`, `stale` or `launched` (`data.launch` then holds
-the launch result).
-
-### Dynamic-controller approval
-
-A dynamic stage that declares `dynamic.permissions.approval: "ask"` needs the user's approval before
-its controller runs ([usage.md](usage.md#dynamic-approval)).
-
-- **In a terminal**, foreground `run`, `dynamic`, `wait` and `resume` print the approval scope to
-  stderr and ask `Run dynamic workflow controller? [y/n]`. `y` runs the controller; `n` rejects it
-  for this run (`dynamic_approval_rejected`, never asked again); an empty answer, end of input or 5
-  minutes without one leave it open (`dynamic_approval_timeout`, resumable). `--yes` does not approve
-  controllers; it only skips the degradation question.
-- **Without a terminal, and for `--detach`** (the background supervisor has no terminal), the run
-  blocks as `dynamic_ui_unavailable`. `status <run>` and `wait <run>` print the question, its request
-  id and the commands `Approve: agent-workflow approve <run> --request <id>` /
-  `Reject: … --reject`; `--json` has `data.pendingApprovals` (status: `data.run.pendingApprovals`).
-
-`approve <run>` answers it later, from any process: in a terminal it shows the question and asks
-`y/n` (`n` rejects, no answer records nothing and exits 1); without a terminal `--yes` is required
-(exit 2 otherwise) and the flags are the decision (`--reject` rejects). `--request <id>` (or a unique
-prefix of 8+ characters) picks one of several open approvals. The decision is recorded on the run
-with `decidedBy: {host: "cli", via: "approve"}`. An approval resumes the run like `resume` (in the
-foreground, `--detach` in a background supervisor; completed tasks are not relaunched); when the run
-also holds failed, interrupted or undecided-executor tasks it is not resumed (exit 1) and `resume` is
-named. A rejection exits 0 and leaves the run blocked.
+Launch metadata records candidates, recommendation, selection, classifier executor/model,
+consent source `command`, and only the task's SHA-256. JSON phases are `classifier-unavailable`,
+`stale` and `launched` (with `data.launch`).
 
 ### Stop confirmation
 
@@ -378,7 +329,7 @@ records (the run index names the candidates), never drive a run, take no lease a
 **`statusline`** prints `aw: deep-review 5/13 running 12m · +1 more` for the newest active
 top-level run (and how many others), or nothing when idle. States: `running`, `running (no
 supervisor)` (no live process holds the run lease: start `agent-workflow supervise <run>`),
-`awaiting approval`, `needs action` (blocked; shown for a day after its last update). It reads
+`needs action` (blocked; shown for a day after its last update). It reads
 the JSON Claude Code pipes on stdin (`workspace.project_dir`, `workspace.current_dir`, `cwd`; at most
 150 ms) and shows the runs of those directories, else of the working directory. Any error prints
 nothing; the exit code is always 0. The bin loads only this command's module.
@@ -396,7 +347,7 @@ prints a single line or nothing.
 
 **`watch [run]`** redraws every 2 s (`--interval` 1-10 s): with a run, its header (status, progress,
 elapsed), one row per task (icon, name, status, elapsed, executor/model or the failure message),
-pending approvals with the `approve` commands, and at the end `Finished: <status> — verdict X` plus
+blockers, and at the end `Finished: <status> — verdict X` plus
 the report paths; without a run, one line per active run of the project and, once a run ended, its
 result. It exits when the run (or every watched run) is finished or needs the user (`--follow` keeps
 going until Ctrl-C; `--once` draws one frame). Exit code with a run: 0 when it completed, 1
@@ -415,7 +366,7 @@ agent-workflow: workflow "deep-review" (run workflow_…) finished — verdict N
 and nothing otherwise (exit 0). `--run <id>` looks at that run only; with `--follow` it exits once
 the run has settled (after printing its line, or at once when that state was already reported).
 `--session <id>` reports only the runs that Claude Code session launched and keeps
-its monitor stamp fresh: the Claude Code plugin's completion monitor ([host-mcp.md](hosts.md#claude-code-and-codex)). Blocked runs name the approval (`approve`) or the
+its monitor stamp fresh: the Claude Code plugin's completion monitor ([host-mcp.md](hosts.md#claude-code-and-codex)). Blocked runs name the
 inspect/resume commands; `--host claude-code|codex|generic` words the follow-ups as MCP tool calls.
 Receipts: `.agent-workflow/notify-check/` in the [state directory](usage.md#where-run-state-lives) (created by the first check in a project that has runs,
 or by the first `wait` that returns a settled state)
@@ -480,7 +431,7 @@ name it with `--executor`. Each command that registers it prints a warning to st
 agent-workflow list
 agent-workflow validate deep-review
 agent-workflow run deep-review "review src/hosts for error handling" --executor claude
-agent-workflow run spec-review "check docs/spec.md" --executor codex --permission-mode safe --yes
+agent-workflow run spec-review "check docs/spec.md" --executor codex --permission-mode safe
 agent-workflow run deep-research "state of X" --input depth=quick
 id=$(agent-workflow run deep-research "state of X" --detach --json | jq -r .data.runId)
 agent-workflow wait "$id" --timeout 30m

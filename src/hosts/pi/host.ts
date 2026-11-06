@@ -1,14 +1,4 @@
-// New in agent-workflow (WP11b): shared plumbing of the Pi host. Every `/aw` action and `aw_*` tool
-// calls one host API handler (../api.ts) with a HostApiContext built from the Pi context: the
-// project cwd, the Pi model registry (`availableModels`, so per-workflow Pi profile preferences are
-// consulted) and Pi's current model/thinking level as the lowest-precedence runtime defaults.
-// Interactive launches use Pi's extension UI (`ctx.ui.confirm` / `ctx.ui.select`) when the session
-// has a dialog-capable UI (TUI or RPC); otherwise launches are non-interactive (degradations are
-// recorded and the run proceeds, as in the CLI with --yes). WP16: without a dialog UI, a declared
-// profile choice falls back to text (the headless choice is made and the choices are listed with
-// `--profile`), and `deps.feedback` carries the status line and completion delivery (feedback.ts).
-// WP35: a native codemode/MCP Pi session lends its host tools to Pi workers (piNativeHostTools).
-// WP29: with a dialog UI, dynamic-controller approvals are asked through `ctx.ui.confirm` (piDynamicUi).
+// Shared Pi host context and profile chooser. Capability degradations never prompt.
 import * as hostApi from "../api.js";
 import type { HostApiContext, HostOutcome, LaunchRequestBase } from "../api.js";
 import { toWorkflowModelInfo } from "../../core/workflow-runtime.js";

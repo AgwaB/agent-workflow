@@ -144,7 +144,7 @@ export function shortRunName(run: { name?: string; runId: string }, max = 24) {
 		: label.join("");
 }
 
-/** The one-word state of an active run: running, unsupervised, approval, blocked. */
+/** The one-word state of an active run: running, unsupervised, blocked. */
 export function activeRunState(item: ActiveRun): string {
 	const { run } = item;
 	if (run.status === "blocked") return "needs action";

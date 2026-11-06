@@ -2,7 +2,6 @@ import { runHostCommandHook } from "../host-command.js";
 import { projectId, stateBase } from "../../core/state-location.js";
 // Thin host-neutral CLI: parse flags, call one host API handler, and print text or JSON.
 // Exit codes: 0 success/completed, 1 failed/blocked/interrupted/refused/timeout, 2 usage error.
-// Terminal dialogs handle controller approvals and consent-gated auto comparison.
 import { existsSync, readFileSync } from "node:fs";
 import { setTimeout as dashboardSleep } from "node:timers/promises";
 import {
@@ -457,12 +456,7 @@ async function followLaunch(
 	return exitCodeFor(waited);
 }
 
-/**
- * WP32: `auto <task...> [--yes] [launch options]`. On a terminal: the consent question (the task,
- * the candidates and the classifier executor/model; y/N), then a numbered pick-list of the ranked
- * candidates (Enter = the recommendation, n = cancel). Without a terminal nothing is sent unless
- * --yes (the user's explicit consent); then the ranking is printed and nothing starts.
- */
+/** Classify once and launch the top recommendation without prompting. */
 async function autoCommand(
 	argv: readonly string[],
 	ctx: HostApiContext,

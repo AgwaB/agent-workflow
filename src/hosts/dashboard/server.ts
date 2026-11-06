@@ -163,9 +163,7 @@ function errorStatus(error: unknown): number {
 		return 404;
 	if (
 		error instanceof HostUsageError ||
-		/requires a non-terminal run|no pending approval|not resumable|approval.*(?:stale|resolved)/i.test(
-			message,
-		)
+		/requires a non-terminal run|not resumable/i.test(message)
 	)
 		return 409;
 	return 500;

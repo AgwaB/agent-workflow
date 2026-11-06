@@ -879,7 +879,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			workflowNegotiationTargets(compiled).length,
 		);
 	// Diagnostics are an explicit named-workflow policy. Direct-dynamic uses its
-	// approved runtime bundle and intentionally does not adopt named-spec warnings.
+	// runtime bundle and intentionally does not adopt named-spec warnings.
 	if (promptSchemaDiagnosticsApply(diagnosticsPolicy)) {
 		const diagnostics = workflowPromptSchemaDiagnostics(compiled);
 		assertPromptSchemaDiagnosticsAllowRun(diagnostics);
@@ -1263,7 +1263,7 @@ function assertBlockedRunResumable(run: WorkflowRunRecord): void {
 		.map((task) => `${task.specId} statusDetail=${task.statusDetail}`)
 		.join(", ");
 	throw new Error(
-		`Cannot resume blocked run ${run.runId}: non-resumable blocked task(s): ${details}. Resolve the attention/approval blocker before resuming.`,
+		`Cannot resume blocked run ${run.runId}: non-resumable blocked task(s): ${details}. Resolve the attention blocker before resuming.`,
 	);
 }
 
@@ -1628,7 +1628,7 @@ function markRunStopped(run: WorkflowRunRecord): string[] {
 		) {
 			interruptedTaskIds.push(task.taskId);
 		} else if (task.status === "blocked") {
-			// Stopping the run abandons blocked tasks, including decisions and approvals.
+			// Stopping the run abandons blocked tasks, including decisions.
 			// They become interrupted and resume like any stopped task.
 			delete task.activity;
 			task.status = "interrupted";
@@ -2856,8 +2856,7 @@ export function setResumeAfterStopLeaseWaitForTests(
 
 /**
  * The run's supervisor has stopped driving it, so a held lease is that supervisor shutting down
- * rather than another live supervisor: the run is blocked on a dynamic-controller approval, or it
- * is terminal (interrupted) because a stop was applied (a durable stop intent is still recorded,
+ * rather than another live supervisor: it is terminal (interrupted) because a stop was applied (a durable stop intent is still recorded,
  * or the stop marked its tasks `workflow_stopped`).
  */
 async function runStopRecordedForResume(

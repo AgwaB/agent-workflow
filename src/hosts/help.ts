@@ -87,23 +87,11 @@ Start a spec-less direct dynamic workflow run. Same options and behavior as \`ru
 
 Options:
 ${LAUNCH_FLAGS}`,
-	auto: `Usage: agent-workflow auto <task...> [--yes] [options]
+	auto: `Usage: agent-workflow auto <task...> [options]
 
-Recommend a workflow for a task and start the one you choose. First a local shortlist is made
-without any model call (the dynamic workflow and the discoverable workflows, ranked by their
-routing hints). Comparing them needs one classifier request: it sends your task and the bounded
-descriptions of the candidates to the run's default executor (--executor, else the saved user
-profile, else the first installed and logged-in of pi, claude, codex) with --model/--effort or the
-executor's default model, without tools. Nothing is sent without your consent:
-  - in a terminal you are shown the task, the candidates and the executor/model and asked y/N;
-    then you pick the workflow from the ranked list (Enter takes the recommendation, n cancels),
-    and it starts like \`run\` (foreground; --detach for background);
-  - without a terminal no request is sent: the local shortlist and the commands to start a
-    workflow directly are printed (exit 1);
-  - --yes is your explicit consent to the one request (no question). Without a terminal the
-    ranked recommendation and the commands are printed and nothing starts.
-Declining or cancelling starts nothing. The started run records the selection (candidates,
-recommendation, your choice, classifier executor/model, consent) in its launch metadata.
+Send one tool-less classifier request with the task and bounded candidate descriptions, then
+start its top recommendation without asking. Classifier failure starts nothing. The run records
+consent source command. Normal launch guards, profiles, permission modes and refusals apply.
 
 Options:
 ${LAUNCH_FLAGS}`,
@@ -135,18 +123,6 @@ failed, was interrupted, is blocked, or is still running at --timeout.`,
 
 Reset failed, interrupted and resumable blocked tasks and continue the run (in the foreground,
 or with --detach in a background supervisor).`,
-	approve: `Usage: agent-workflow approve <run-id-or-prefix> [--request <id>] [--reject] [--yes]
-                                [--detach] [--timeout <duration>] [--json]
-
-Answer a dynamic-controller approval (a workflow whose dynamic stage declares
-permissions.approval "ask") that a run is blocked on. \`status <run>\` shows the question and its
-request id; --request picks one when several are open (a unique prefix of 8+ characters is enough).
-In a terminal the question is asked y/n: y approves, n rejects the controller for this run (it is
-never asked again), no answer records nothing. Without a terminal --yes is required and the
-decision is final. An approval resumes the run (in the foreground, or with --detach in a background
-supervisor); completed tasks are not relaunched. The decision is recorded on the run with the host
-that made it. Foreground run, wait and resume ask the same question in a terminal while they drive
-the run.`,
 	stop: `Usage: agent-workflow stop <run-id-or-prefix> [--json]
 
 Stop a non-terminal run; running tasks are interrupted. Resume later with \`resume\`.`,
@@ -191,7 +167,7 @@ or choose an ephemeral one. Files: <user home>/dashboard.json, dashboard-session
                               [--bell]
 
 Live view of this project's active runs, or of one run, in a terminal (for example a pane next to
-Codex or Claude Code): tasks, status, elapsed time, pending approvals and, when the run is done, the
+Codex or Claude Code): tasks, status, elapsed time, blockers and, when the run is done, the
 verdict and report paths. Redraws every 2 s (--interval 1-10). Read-only: it never drives a run; a
 run without a live supervisor is flagged with the \`supervise\` command. Exits when the run (or every
 watched run) finished or needs action; --follow keeps watching, --once prints one frame, --bell
@@ -202,7 +178,7 @@ One line about this project's active runs, for a status bar such as Claude Code'
 \`statusLine.command\`: "aw: deep-review 5/13 running 12m · +1 more"; nothing when idle. Reads the
 JSON Claude Code passes on stdin (workspace.project_dir, workspace.current_dir, cwd) to find the
 project, else the working directory. Read-only, no model call, never fails loudly (always exit 0).
-Blocked runs show for a day as "needs action" or "awaiting approval".`,
+Blocked runs show for a day as "needs action".`,
 	"notify-check": `Usage: agent-workflow notify-check [--host cli|claude-code|codex|generic] [--json] [--stamp <name>]
        agent-workflow notify-check --follow [--interval <seconds>] [--host …]
 
@@ -242,7 +218,6 @@ Runs:
   logs <run>                 bounded, redacted tail of task output, stderr and events
   wait <run>                 wait until a run is terminal or needs action
   resume <run>               resume a failed, interrupted or blocked run
-  approve <run>              approve or reject a dynamic controller a run waits on
   stop <run>                 stop a run
   prune                      delete old terminal runs (dry run without --yes)
   notices ...                acknowledge unfinished-run notices

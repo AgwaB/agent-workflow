@@ -1,5 +1,5 @@
 // The TUI-only /aw board navigates runs, stages, tasks, details, and launch commands.
-// Every read and action goes through the host API. Stop, resume, and approval decisions
+// Every read and action goes through the host API. Stop and resume decisions
 // require confirmation. Refresh every two seconds; other modes use text commands.
 import type { LogsTask, RunSummary } from "../api.js";
 import {

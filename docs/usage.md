@@ -228,19 +228,15 @@ silently.
 agent-workflow auto "Review the current diff for reliability and test coverage."
 ```
 
-`auto` shortlists the dynamic workflow and discoverable workflows (at most 24), then asks consent
-for one tool-free classifier request containing your task and bounded candidate descriptions.
-You choose from the ranking; cancelling starts nothing. A workflow changed since comparison is
-refused. The chosen workflow uses the normal launch preflight, profiles and approvals.
+`auto` shortlists the dynamic workflow and discoverable workflows (at most 24), sends one
+tool-free classifier request containing your task and bounded candidate descriptions, and starts
+the top recommendation without asking. Classifier failure starts nothing; a workflow changed
+since comparison is refused. All hosts, including Pi print/JSON and MCP clients without dialogs,
+use the same behavior. The launch records consent source `command`.
 
 The classifier uses the run's default executor and `--model`/`--effort` or profile settings;
 otherwise it uses Pi's current host model or the executor's default. See [executor selection](#executors)
-and [CLI `auto`](cli.md#auto) for selection, consent, launch metadata and JSON outcomes.
-
-Pi asks through a confirm dialog, then a select and final confirmation; MCP hosts use elicitation
-and a one-choice form. Pi print/JSON mode and MCP clients without elicitation send no request:
-they return the local shortlist and direct launch commands. Only explicit consent sends the task;
-CLI `--yes` supplies that consent in advance. Host details: [Pi](hosts.md#pi), [MCP](hosts.md#claude-code-and-codex).
+and [CLI `auto`](cli.md#auto) for selection, launch metadata and JSON outcomes.
 
 The `execution-router` skill stays recommendation-only: it may suggest `auto`, but never runs it.
 
@@ -253,7 +249,6 @@ agent-workflow wait <run> --timeout 30m       # drive and wait (exit 1 if still 
 agent-workflow inspect <run> --failures --results
 agent-workflow show <run> --raw               # the run record
 agent-workflow resume <run> [--detach]        # reset failed/interrupted/resumable blocked tasks, continue
-agent-workflow approve <run> [--reject]       # answer a dynamic-controller approval the run waits on
 agent-workflow stop <run>                     # durable stop intent; workers are cancelled
 agent-workflow watch [<run>]                  # live terminal view (read-only), e.g. next to Codex
 agent-workflow statusline                     # one-line status, e.g. Claude Code's statusLine.command
@@ -268,45 +263,16 @@ the run settles or their timeout passes, up to 4 h).
 
 Run states: `running`, `completed`, `failed`, `interrupted` (stopped, or a worker was revoked) and
 `blocked` (needs a person: an unprovable executor state, an exhausted required-read or output repair,
-a dynamic approval). `resume` resets failed, interrupted and resumable blocked tasks and keeps
+or an access blocker). `resume` resets failed, interrupted and resumable blocked tasks and keeps
 completed task artifacts. A run executes the copied `bundle/` in its run directory, so a newer
 package version does not change a running workflow's schemas or helpers; start a fresh run to pick
 up changed workflow code. Loop workflows cannot be resumed; start a fresh run. Right after `stop`,
 `resume` waits up to 10 s for the stopped supervisor to let go of the run; if it has not by then,
 `resume` changes nothing and says to try again in a few seconds.
 
-### Dynamic approval
-
-A dynamic stage whose controller declares `dynamic.permissions.approval: "ask"` runs its trusted
-helper code only after the user approved it. The question is "Run dynamic workflow controller?" with
-the scope: the run and controller, the bundle spec, an approval digest, the task preview and digest,
-the controller helper, whether generated agents may request dynamic roles/tools, the budget and the
-declared helpers and nested workflows. Yes runs the controller (its generated agents do not ask
-again); **no rejects it for this run**: the task stays blocked as `dynamic_approval_rejected` and is
-never asked again (start a new run to approve later). An unanswered question (5 minutes, or no
-answer) leaves the run blocked as `dynamic_approval_timeout`, still open.
-
-Who asks:
-
-- **Pi with a dialog UI** asks through Pi's confirm dialog while the session drives the run (attached
-  `/aw run|dynamic`, `aw_run`/`aw_dynamic` with `awaitTerminal`, `/aw wait`, `aw_wait`, `/aw resume`).
-- **The CLI on a terminal** asks `y/n` for foreground `run`, `dynamic`, `wait` and `resume` (`y`
-  approves, `n` rejects, an empty answer leaves it open).
-- **Nothing asks** in Pi print/JSON mode, without a terminal, for `--detach` runs and resumes (their
-  supervisor has no UI) and over MCP (the server can ask only inside a tool call). The run blocks as
-  `dynamic_ui_unavailable`; `status`/`wait` show the open approval (question and request id) and the
-  approve command.
-
-Answer an open approval later from any host: `agent-workflow approve <run>` (asks `y/n` on a
-terminal; `--yes` without one, `--reject` to reject, `--request <id>` when several are open), Pi
-`/aw approve <run>` (confirm dialog), or the MCP tool `workflow_approve {runId, requestId, decision}`
-(asks the user through an MCP dialog; refused on clients without dialogs). An approval resumes the
-run; completed tasks are not relaunched. A run that also has failed, interrupted or
-undecided-executor tasks is not resumed automatically: the decision is recorded and `resume` is
-named. Every decision is recorded on the run (`dynamic/events.jsonl`, `approval.resolved` with
-`decidedBy: {host, via}`, for example `{"host": "cli", "via": "approve"}`), never with secrets. A
-nested workflow that waits for its own approval is approved with its own run id, then the parent run
-is resumed.
+Workflow-level approvals were removed. Delete `dynamic.permissions.approval` from old specs;
+validation rejects it. Capability degradations are recorded and shown without a question.
+Security checks, capability refusals and worker permission modes still apply.
 
 `stop` records a durable stop intent. A worker that had not started yet never starts (its launch is
 revoked); a running worker is cancelled. If another supervisor owns the run, the stop is applied by
@@ -492,7 +458,7 @@ Workers run in `free` mode by default. Choose `safe` for conservative approvals 
 | Write-capable stage with spec `worktreePolicy: "off"` | runs in the shared checkout as written | still gets a worktree unless the run option `allowSharedCheckoutWrites` waives it |
 | `worktreePolicy: "auto"` / `"on"` | a worktree for write-capable stages | same |
 | Coarse tool allowlist (Codex) | accepted for every stage; recorded as a degradation `CAPABILITY_MISSING:toolAllowlist.fine` | refused, or run as readOnly when the spec sets `allowReadOnlyDowngrade` |
-| Environment warnings (Codex `~/.codex/rules` allow rules, global `AGENTS.md`) | recorded degradations; never refused (not even by a profile's `strictCapabilities`), no confirmation prompt | recorded degradations; interactive hosts confirm; `strictCapabilities` refuses |
+| Environment warnings (Codex `~/.codex/rules` allow rules, global `AGENTS.md`) | recorded degradations; never refused (not even by a profile's `strictCapabilities`), no confirmation prompt | recorded degradations; never ask; `strictCapabilities` refuses |
 
 **Kept in both modes:**
 
@@ -625,10 +591,7 @@ Each need is `native`, `emulated`, **degraded** (runs, recorded in `run.capabili
 | `CAPABILITY_MISSING:<cap>` (refused) | The executor lacks something the stage requires (for example `mcpInjection` for required reads, `webTools`). | Choose another executor (or install the missing extension). |
 | `CAPABILITY_STRICT:<cap>` | Your profile's `strictCapabilities` requires `native`. | Use another profile or executor. |
 
-In a terminal (stdin and stdout are TTYs) a degradation that needs confirmation asks `Proceed with
-these capability degradations? [y/N]`. With `--yes`, or without a terminal, degradations are
-recorded (`confirmation: "non-interactive"`) and the run proceeds. In Pi with a UI the host asks
-through a dialog.
+Capability degradations are recorded and shown on every host, without confirmation.
 
 ## Stage model
 

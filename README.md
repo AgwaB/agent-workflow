@@ -88,7 +88,7 @@ codex plugin marketplace add AgwaB/agent-workflow && codex plugin add agent-work
 Use `/aw` (or `/agent-workflow:aw`) in Claude Code; `$aw` or `aw …` in Codex (trust the plugin hook on first start).
 The six forms are help (`aw`), `dashboard [run]`, `run <workflow> <task…>`, `dynamic <task…>`,
 `auto <task…>` and `stop <run>`: no options or questions; launches detach. `auto` immediately starts
-the classifier’s top pick, with consent from the command. Or ask for a workflow in the conversation.
+the classifier’s top pick, without approval questions (launch consent source `command`). Or ask for a workflow in the conversation.
 Codex cannot add `/aw` slash commands; plugins with hooks use our marketplace, not OpenAI’s public directory.
 For server-only installation, local development and
 timeouts, see [plugins](docs/hosts.md#claude-code-and-codex) and the [host MCP server](docs/hosts.md#claude-code-and-codex).

@@ -56,7 +56,7 @@ export type HostAction =
 /**
  * `success`: a query/mutation completed. Run states: `running` (launched or still running after a
  * bounded wait), `completed`, `failed`, `blocked` (action required), `interrupted`. `refused`: a
- * launch was not started (capability refusal, unavailable executor, declined confirmation, an
+ * launch was not started (capability refusal, unavailable executor, an
  * identical launch still starting). `existing` (WP16): the duplicate-launch guard returned the
  * active run of an identical launch instead of starting another one. `timeout`: supervise gave up
  * at its deadline.
