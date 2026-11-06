@@ -5275,7 +5275,11 @@ function renderOverview() {
 			element(
 				"p",
 				{ class: "muted" },
-				`${projects.length} projects · ${projects.reduce((n, p) => n + p.counts.running, 0)} active runs · ${projects.reduce((n, p) => n + p.counts.needsAttention, 0)} need attention`,
+				overviewSummary(
+					projects.length,
+					projects.reduce((n, p) => n + p.counts.running, 0),
+					projects.reduce((n, p) => n + p.counts.needsAttention, 0),
+				),
 			),
 			projects.length
 				? projects.map((project) =>
@@ -5412,3 +5416,8 @@ async function start() {
 	}
 }
 start();
+
+/** "1 project · 2 active runs · 1 needs attention" (singular forms for one). */
+function overviewSummary(projectCount, running, attention) {
+	return `${projectCount} ${projectCount === 1 ? "project" : "projects"} · ${running} active ${running === 1 ? "run" : "runs"} · ${attention} ${attention === 1 ? "needs" : "need"} attention`;
+}
