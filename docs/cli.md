@@ -51,13 +51,14 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `watch [run] [--follow] [--once] [--interval S] [--bell]` | Live terminal view of the project's active runs or one run (tasks, status, elapsed, pending approvals, verdict and report at the end). Read-only. Below. |
 | `statusline` | One line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
 | `notify-check [--host H] [--json] [--stamp N] [--run ID] [--follow [--interval S]]` | One line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
+| `host-command --host claude-code\|codex` | Hook entry: read JSON on stdin, handle the six in-host `aw` forms; block JSON or empty stdout, always exit 0. Not an interactive CLI. |
 | `doctor [--fix [--yes]] [--json]` | Check this machine without a model call: executors (installed, version vs verified, login), the default executor here and why, permission-mode default, Node, `AGENT_WORKFLOW_HOME`, Codex environment warnings, stale run-index entries. Exit 0 when at least one executor is usable. Below. |
 | `help [command]`, `<command> --help`, `--version` | Help and version. |
 
 A run argument accepts the run id or an unambiguous prefix.
 
-Every command except `help`/`--version` (and the terminal views `watch`, `dashboard`, `statusline`,
-`notify-check`, whose data the `workflow_status`/`workflow_wait` tools already return) is also a host MCP tool (`workflow_<command>`,
+Every command except `help`/`--version`, the hook entry `host-command` (below), and the terminal views `watch`, `dashboard`, `statusline`,
+`notify-check`, whose data the `workflow_status`/`workflow_wait` tools already return, is also a host MCP tool (`workflow_<command>`,
 [host-mcp.md](hosts.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default`, `profile workflow set|clear` and
 `notices acknowledge|clear` ask the user to confirm through MCP elicitation (as does
 `workflow_approve`, the MCP form of `approve`), and a client that
@@ -487,3 +488,19 @@ agent-workflow inspect "$id" --failures --results
 agent-workflow stop "$id" && agent-workflow resume "$id" --detach
 agent-workflow prune --keep 20 --yes
 ```
+
+## `host-command` hook entry
+
+Like `notify-check`, `agent-workflow host-command --host claude-code|codex` is a host-hook entry,
+not a user-facing interactive command. The generated plugin shell prefilters the JSON before
+starting Node/npx; ordinary prompts do not start this CLI. Input is read only from stdin JSON
+(`prompt`, `cwd`, `session_id`, or Claude's slash-command expansion fields), never shell arguments
+constructed from prompt text.
+
+Recognized requests print `{"decision":"block","reason":"agent-workflow: …"}`; unrelated or
+malformed input prints nothing. The handler always exits 0, contains errors, redacts output and
+bounds the reason to 1,200 characters. Launches use the shared host API, detach, preserve profile
+defaults and link the host session for completion delivery. `aw auto` records consent source
+`command`, compares once and starts the top recommendation without a dialog; classifier failure
+starts nothing. Other CLI options are not available through this hook. See
+[in-host commands](hosts.md#in-host-aw-commands) for recognition and the six forms.
