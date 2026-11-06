@@ -221,6 +221,17 @@ starts its top recommendation, even without elicitation support. The classifier 
 executor/profile precedence. Failure or no recommendation starts nothing. Metadata records consent
 `command`, candidates, recommendation, selection and classifier executor/model, never task text.
 
+### Blocked-action notices
+
+Completion-check lines (including the Claude monitor and Codex queued message) append a short
+warning when worker actions were denied, for example:
+`agent-workflow: workflow "review" (run <id>) finished — status completed; 2 actions were blocked (provider policy). Details: workflow_status ...`.
+Engine-only blocks say `(engine policy)`; mixed or unknown sources carry their counts. MCP
+status/wait text and structured data carry the same warning/counts. A denied action does not
+itself change completion status or ask for user approval. Inspect the run or open dashboard run
+details for bounded redacted samples and the task's events-log command. Zero blocks add nothing.
+See [blocked actions](usage.md#blocked-actions) for the counting and attribution rules.
+
 ### Waiting without polling: the Claude Code completion monitor
 
 The Claude Code plugin declares `experimental.monitors` → `run-completion` for interactive sessions, not `-p`. It runs `agent-workflow notify-check --follow --host claude-code --session $CLAUDE_CODE_SESSION_ID`; each output line wakes the idle session. Verified with Claude Code 2.1.318.

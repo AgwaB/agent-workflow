@@ -16,6 +16,7 @@
 //                 sessions regardless, to test the engine's release)
 //   logPrompt     true: the submit log entry carries the task prompt sent to the executor
 //   deleteResult  deleteOwnedSession result (default "deleted"); "missing": no deleteOwnedSession
+//   beforeOutputSteps normalized events / fake approval steps after started (blocked-action tests)
 //   stepDelayMs   delay between script steps
 //   capabilities  partial capability table over the SDK fake's (WP4d negotiation tests)
 //   probe         probe() result (default: installed, auth ok)
@@ -175,6 +176,7 @@ function scriptFor(req, config) {
 				: workflowFinalText(label);
 	return [
 		{ type: "started", sessionId: null },
+		...(config.beforeOutputSteps ?? []),
 		{ type: "message_delta", text: finalText },
 		{
 			type: "usage",

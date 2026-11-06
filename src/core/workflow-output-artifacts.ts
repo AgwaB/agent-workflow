@@ -1,3 +1,4 @@
+import type { BlockedActions } from "./blocked-actions.js";
 import { randomBytes } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { request as httpRequest } from "node:http";
@@ -165,6 +166,7 @@ export interface WorkflowTaskFailedToolCallSummary {
 
 export interface WorkflowTaskArtifactBundleOptions
 	extends ParseWorkflowOutputOptions {
+	blockedActions?: BlockedActions;
 	taskDir: string;
 	rawOutput: string;
 	/** Host task updated by its normal run-record commit. Without this, raw is independent. */
@@ -190,6 +192,7 @@ export interface WorkflowTaskArtifactBundleOptions
 }
 
 export interface WorkflowTaskResultEnvelope {
+	blockedActions?: BlockedActions;
 	schema: typeof VNEXT_TASK_RESULT_SCHEMA;
 	protocol: typeof VNEXT_OUTPUT_PROTOCOL;
 	status: "completed" | "failed";
@@ -2836,6 +2839,9 @@ function validResultEnvelope(
 ): WorkflowTaskResultEnvelope {
 	const status = options.lifecycleStatus ?? "completed";
 	const result: WorkflowTaskResultEnvelope = {
+		...(options.blockedActions
+			? { blockedActions: options.blockedActions }
+			: {}),
 		schema: VNEXT_TASK_RESULT_SCHEMA,
 		protocol: VNEXT_OUTPUT_PROTOCOL,
 		status,

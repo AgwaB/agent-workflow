@@ -207,6 +207,7 @@ async function materializeTerminalArtifactGraphResultInner(
 	if (!parsed.valid) {
 		await measureTerminalArtifactBundleWrite(task, () =>
 			writeWorkflowTaskArtifactBundle({
+				...(task.blockedActions ? { blockedActions: task.blockedActions } : {}),
 				taskDir: dirname(options.resultFile),
 				rawOutput,
 				attempt,
@@ -309,6 +310,7 @@ async function materializeTerminalArtifactGraphResultInner(
 	const stderr = await readFile(options.stderrFile, "utf8").catch(() => "");
 	const written = await measureTerminalArtifactBundleWrite(task, () =>
 		writeWorkflowTaskArtifactBundle({
+			...(task.blockedActions ? { blockedActions: task.blockedActions } : {}),
 			taskDir: dirname(options.resultFile),
 			rawOutput,
 			rawIntegrityHost: task,

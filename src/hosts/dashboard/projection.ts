@@ -1,4 +1,9 @@
 import {
+	projectBlockedActions,
+	runBlockedActions,
+	type BlockedActions,
+} from "../../core/blocked-actions.js";
+import {
 	projectTaskActivity,
 	type TaskActivity,
 } from "../../core/task-activity.js";
@@ -20,6 +25,7 @@ export interface DashboardNeed {
 	since: string;
 }
 export interface DashboardRunSummary {
+	blockedActions?: BlockedActions;
 	runId: string;
 	name: string;
 	status: RunSummary["status"];
@@ -48,6 +54,7 @@ export interface DashboardUsage {
 	costUsd: number | null;
 }
 export interface DashboardTask {
+	blockedActions?: BlockedActions;
 	taskId: string;
 	specId: string;
 	stageId: string;
@@ -171,8 +178,12 @@ export function projectRunSummary(
 			),
 	);
 	const preview = taskPreview(shown?.runtimeTask);
+	const blockedActions = shown
+		? runBlockedActions(shown.run)
+		: projectBlockedActions(run.blockedActions);
 	return {
 		runId: run.runId,
+		...(blockedActions ? { blockedActions } : {}),
 		name: run.name ?? "workflow",
 		status: run.status,
 		...(run.status === "blocked" && statusDetail ? { statusDetail } : {}),
@@ -236,12 +247,14 @@ export function projectRun(
 		// 2026-11-03: a task launched with the executor's default model shows the model it reported.
 		const model = runtime?.model ?? task.runtime?.model ?? task.usage?.model;
 		const effort = runtime?.effort ?? task.runtime?.thinking;
+		const blockedActions = projectBlockedActions(task.blockedActions);
 		const activity =
 			task.status === "running"
 				? projectTaskActivity(task.activity)
 				: undefined;
 		return {
 			taskId: task.taskId,
+			...(blockedActions ? { blockedActions } : {}),
 			specId: task.specId,
 			stageId: task.stageId ?? task.specId.split(".")[0]!,
 			kind: task.kind ?? "single",

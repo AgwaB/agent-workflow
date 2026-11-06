@@ -1101,6 +1101,7 @@ function renderHeader() {
 				{ class: "hero-copy grow" },
 				element("h1", {}, title),
 				element("p", { class: "hero-sub", id: "hero-sub" }, heroSubline()),
+				blockedChip(run.blockedActions),
 			),
 			actions,
 		),
@@ -1744,8 +1745,10 @@ function renderGraph() {
 			: humanize(stage.short || stage.name || stage.id);
 		// Who did the work, at the card's right (owner's pick, 2026-11-03): "✦ agent" / "✦ 3 agents",
 		// "</> code". With no code step in view every card is an agent's, so a lone "agent" goes.
-		const tag =
-			group || stage.ghost
+		const blockedCount = stageBlockedCount(stage);
+		const tag = blockedCount
+			? `⚠ ${blockedCount} blocked`
+			: group || stage.ghost
 				? null
 				: stage.kind === "support"
 					? "code"
@@ -1765,7 +1768,7 @@ function renderGraph() {
 			...(group
 				? { "data-members": stage.members.map((s) => s.id).join(",") }
 				: {}),
-			"aria-label": `${group ? title : stage.name || stage.id}, ${labels[stage.status] || "Waiting"}`,
+			"aria-label": `${group ? title : stage.name || stage.id}, ${labels[stage.status] || "Waiting"}${blockedCount ? `, ${blockedCount} actions blocked` : ""}`,
 		});
 		node.append(
 			svg("rect", { class: "outline", width: p.w, height: p.h, rx: 10 }),
@@ -1793,13 +1796,15 @@ function renderGraph() {
 				? svg(
 						"g",
 						{
-							class: `node-kind ${stage.kind === "support" ? "code" : "agent"}`,
+							class: `node-kind${blockedCount ? " blocked-actions-chip" : ""} ${stage.kind === "support" ? "code" : "agent"}`,
 						},
-						kindIcon(
-							stage.kind === "support" ? "code" : "agent",
-							p.w - 14 - tag.length * 7 - 20,
-							13,
-						),
+						blockedCount
+							? null
+							: kindIcon(
+									stage.kind === "support" ? "code" : "agent",
+									p.w - 14 - tag.length * 7 - 20,
+									13,
+								),
 						svg("text", { x: p.w - 14, y: 24, "text-anchor": "end" }, tag),
 					)
 				: null,
@@ -2718,6 +2723,8 @@ function graphGeometry() {
 	return { nodes, edges, links, view };
 }
 function agentState(task) {
+	if (task.blockedActions?.count)
+		return `⚠ ${task.blockedActions.count} blocked`;
 	return taskState(task) === "retry"
 		? task.retry?.nextRetryAt
 			? `retry in ${countdown(task.retry.nextRetryAt)}`
@@ -2754,6 +2761,13 @@ function changeLayout(layout) {
  * state. While it is unchanged, a run update keeps the drawn graph (its flow animation keeps
  * its phase, hover/focus survive) and only the header and the live texts change.
  */
+function stageBlockedCount(stage) {
+	return (
+		stage.kind === "group"
+			? stage.members.flatMap((member) => member.tasks)
+			: stage.tasks || []
+	).reduce((sum, task) => sum + (task.blockedActions?.count || 0), 0);
+}
 function graphSignature(model, layout) {
 	return JSON.stringify([
 		layout,
@@ -2765,6 +2779,7 @@ function graphSignature(model, layout) {
 			nodeHeight(node),
 			node.done,
 			node.items[0]?.outcome?.tone,
+			stageBlockedCount(node),
 			node.kind === "group"
 				? node.members.map((m) => [m.id, m.status])
 				: node.items.map((t) => [
@@ -2923,6 +2938,34 @@ function stopTaskLoads() {
 	resultKey = "";
 	resultLoading = false;
 }
+function blockedChip(blocked) {
+	return blocked?.count
+		? element(
+				"span",
+				{ class: "incomplete blocked-actions-chip" },
+				`⚠ ${blocked.count} action${blocked.count === 1 ? "" : "s"} blocked`,
+			)
+		: null;
+}
+function blockedSamples(task) {
+	if (!task.blockedActions?.count) return null;
+	return element(
+		"div",
+		{ class: "details-section blocked-actions" },
+		element("h3", {}, `${task.specId}: blocked actions`),
+		blockedChip(task.blockedActions),
+		(task.blockedActions.samples || []).map((sample) =>
+			element(
+				"p",
+				{},
+				`${sample.tool}${sample.command ? `: ${sample.command}` : ""} — ${sample.reason}${sample.source ? ` (${sample.source} policy)` : " (source unknown)"}`,
+			),
+		),
+		commandBlock(
+			`agent-workflow logs ${shellArg(run.runId)} --task ${shellArg(task.taskId)} --stream events`,
+		),
+	);
+}
 function renderSelection() {
 	// The first drawing of a page puts the panels in place; only later changes move.
 	if (!document.body.dataset.ready)
@@ -3006,6 +3049,10 @@ function renderSelection() {
 				]),
 			),
 		);
+		for (const affected of run.tasks.filter(
+			(task) => task.blockedActions?.count,
+		))
+			inspector.append(blockedSamples(affected));
 	} else if (task) {
 		const status = taskState(task);
 		const name =
@@ -3026,6 +3073,7 @@ function renderSelection() {
 			...[siblingNav(task)].filter(Boolean),
 			inspectorHeader(task.title || name, status, [
 				taskAnnotation(task),
+				blockedChip(task.blockedActions),
 				element(
 					"p",
 					{ class: "task-status", id: "task-status" },
@@ -3051,6 +3099,7 @@ function renderSelection() {
 					actionButton("Review & resume…", "resume"),
 				),
 			);
+		if (task.blockedActions?.count) inspector.append(blockedSamples(task));
 		const tab = state.tab || defaultTaskTab(task);
 		// Another tab of the same task: its panel fades in (live updates of a tab do not).
 		const tabSwapped =
@@ -3418,6 +3467,7 @@ function renderSingle(inspector, stage) {
 		// Running: what it is doing; failed: why. A finished agent's outcome is its result below.
 		inspectorHeader(humanize(stage.short || stage.id), taskState(task), [
 			task.status === "completed" ? null : taskAnnotation(task),
+			blockedChip(task.blockedActions),
 		]),
 		element(
 			"p",
@@ -3525,6 +3575,7 @@ function renderItems(inspector, stage, previous = new Map()) {
 				const content = element(
 					"span",
 					{ class: "agent-content" },
+					blockedChip(task.blockedActions),
 					element(
 						"span",
 						{ class: `agent-icon tone-${tone}`, "aria-hidden": "true" },

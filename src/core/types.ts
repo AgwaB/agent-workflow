@@ -1,3 +1,4 @@
+import type { BlockedActions } from "./blocked-actions.js";
 import type { TaskActivity } from "./task-activity.js";
 import type { ExecutorCapabilities } from "../sdk/capabilities.js";
 import type { AuthStatus } from "../sdk/contract.js";
@@ -1265,6 +1266,8 @@ export interface WorkflowTaskOwnedSessionRecord {
 }
 
 export interface WorkflowTaskRunRecord {
+	/** Denied normalized events in the latest result-producing attempt (not retry history). */
+	blockedActions?: BlockedActions;
 	activity?: TaskActivity;
 	/** Engine-owned worker sessions reported by the executor (R#10). */
 	ownedSessions?: WorkflowTaskOwnedSessionRecord[];
@@ -1947,6 +1950,8 @@ export interface WorkflowIndexRecord {
 	schemaVersion: 1;
 	updatedAt: string;
 	runs: Array<{
+		/** Cached derivation of task blockedActions, never an independent counter. */
+		blockedActions?: BlockedActions;
 		runId: string;
 		name?: string;
 		type: WorkflowRunType;

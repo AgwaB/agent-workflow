@@ -1,3 +1,7 @@
+import {
+	blockedActionsLabel,
+	projectBlockedActions,
+} from "../../core/blocked-actions.js";
 import { projectId } from "../../core/state-location.js";
 // New in agent-workflow (WP13): the `agent-workflow` host MCP server's tools for agent hosts
 // (Claude Code, Codex): workflow_list, workflow_run, workflow_dynamic, workflow_status,
@@ -1296,6 +1300,9 @@ function runProjection(run: InspectData["run"]): Record<string, unknown> {
 			status: task.status,
 			statusDetail: String(task.statusDetail),
 			...(task.lastMessage ? { lastMessage: task.lastMessage } : {}),
+			...(projectBlockedActions(task.blockedActions)
+				? { blockedActions: projectBlockedActions(task.blockedActions) }
+				: {}),
 		})),
 	};
 }
@@ -1457,7 +1464,7 @@ function launchNext(
 }
 
 function waitNext(data: WaitData, waitHint = ""): string {
-	const state = `[${WORKFLOW_WAIT_TOOL}] runId=${data.runId} status=${data.status} terminal=${data.terminal} actionRequired=${data.actionRequired} stillRunning=${data.stillRunning}`;
+	const state = `[${WORKFLOW_WAIT_TOOL}] runId=${data.runId} status=${data.status} terminal=${data.terminal} actionRequired=${data.actionRequired} stillRunning=${data.stillRunning}${blockedActionsLabel(data.blockedActions, true)}`;
 	if (data.stillRunning) {
 		const waitingFor = data.nextRetry
 			? `a scheduled retry at ${data.nextRetry.at}${data.nextRetry.reason ? ` (${data.nextRetry.reason})` : ""}`

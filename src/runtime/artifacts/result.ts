@@ -1,3 +1,4 @@
+import type { BlockedActions } from "../../core/blocked-actions.js";
 import type {
 	FailureKind,
 	ResolvedBackend,
@@ -142,6 +143,7 @@ export interface ResultMetadata {
 
 /** What the runtime recorded about the SDK executor that ran (or refused) the attempt. */
 export interface ResultExecutorMetadata {
+	blockedActions?: BlockedActions;
 	id: string;
 	version?: string;
 	/** `ExecRef` returned by `submit`, when one was returned. */

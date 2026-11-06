@@ -1,3 +1,8 @@
+import {
+	blockedActionsLabel,
+	runBlockedActions,
+	type BlockedActions,
+} from "../core/blocked-actions.js";
 import { stateBase } from "../core/state-location.js";
 // New in agent-workflow (WP36, owner decision E2: the common completion mechanism): `agent-workflow
 // notify-check` prints one short line per run of this project that finished (or now needs the
@@ -57,6 +62,7 @@ export const NOTIFY_CHECK_FIRST_LOOKBACK_MS = 60 * 60 * 1000;
 export const NOTIFY_CHECK_MAX_RUNS = 5;
 
 export interface RunNotification {
+	blockedActions?: BlockedActions;
 	runId: string;
 	name?: string;
 	status: WorkflowRunRecord["status"];
@@ -387,6 +393,7 @@ async function describe(
 ): Promise<RunNotification> {
 	const hints = hostCommandHints(host);
 	const summary = await summarizeWorkflowTerminal(cwd, run);
+	const blockedActions = runBlockedActions(run);
 	const label = `agent-workflow: workflow ${quote(run.name)}(run ${run.runId})`;
 	if (summary.terminal) {
 		const presentation = await readWorkflowResultPresentation(
@@ -412,10 +419,11 @@ async function describe(
 			...(run.name ? { name: run.name } : {}),
 			status: run.status,
 			terminal: true,
+			...(blockedActions ? { blockedActions } : {}),
 			...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
 			...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
 			reportPaths,
-			text: `${label} finished — ${outcome}${failed}${report}. Details: ${hints.status(run.runId)}`,
+			text: `${label} finished — ${outcome}${failed}${report}${blockedActionsLabel(blockedActions, true)}. Details: ${hints.status(run.runId)}`,
 		};
 	}
 	const text = `${label} is blocked and needs the user (${run.taskSummary.blocked} blocked tasks). Inspect: ${hints.inspectFailures(run.runId)}; resume after the cause is fixed: ${hints.resume(run.runId)}`;
@@ -424,8 +432,9 @@ async function describe(
 		...(run.name ? { name: run.name } : {}),
 		status: run.status,
 		terminal: false,
+		...(blockedActions ? { blockedActions } : {}),
 		reportPaths: [],
-		text,
+		text: text + blockedActionsLabel(blockedActions, true),
 	};
 }
 

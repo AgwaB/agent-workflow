@@ -1,3 +1,7 @@
+import {
+	summarizeBlockedActions,
+	type BlockedActionDecision,
+} from "../../core/blocked-actions.js";
 // Drive one executor attempt under a runtime fence and normalize events into artifacts.
 // Interactive approvals wait through the control mailbox until policy timeout, then deny.
 // Audit every decision with its deciding host. Owned cancellation stops the attempt;
@@ -627,6 +631,7 @@ export async function observeAttempt(
 	const { executor, ref, store, stopSignal, grace, meta } = options;
 	const events: ExecEvent[] = [];
 	const approvals = new Set<string>();
+	const blockedDecisions: BlockedActionDecision[] = [];
 	let deltas = "";
 	let sessionId: string | undefined;
 	let terminal: CompletedEvent | FailedEvent | undefined;
@@ -760,6 +765,12 @@ export async function observeAttempt(
 				.respond(ref, valid.requestId, decision)
 				.catch((error: unknown) => `error: ${errorMessage(error)}`);
 			options.control?.settleApproval(valid.requestId, response);
+			blockedDecisions.push({
+				requestId: valid.requestId,
+				decision,
+				response,
+				reason,
+			});
 			await appendApprovalAudit(store.attemptDir, {
 				phase: "decided",
 				requestId: valid.requestId,
@@ -797,6 +808,9 @@ export async function observeAttempt(
 	if (violation === undefined && exhausted && terminal === undefined)
 		violation = "invalid event sequence: stream ended without a terminal event";
 
+	const blockedActions = summarizeBlockedActions(events, blockedDecisions);
+	if (blockedActions) meta.blockedActions = blockedActions;
+	else delete meta.blockedActions;
 	const usage = summarizeUsage(events);
 	const extra = {
 		...(usage === undefined ? {} : { usage }),

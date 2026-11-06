@@ -445,6 +445,35 @@ use each task's own executor. `status`, `inspect` and `show --raw` show the exec
 Host model defaults (Pi's current model) and the Pi model registry apply only to stages on their
 executor.
 
+## Blocked actions
+
+A worker can finish successfully even when a tool action was denied. Status and task lines
+then say, for example, `2 actions blocked by provider policy`. This is a warning about work
+that could not run, **not** a request for approval, a new run state, or a dashboard “Needs you” item.
+Provider policy includes executor/provider restrictions (Claude permissions, Codex execpolicy,
+and ACP permissions); engine policy includes the engine's readOnly and tool-kind decisions.
+
+Use `agent-workflow inspect <run>` for each affected task's count and up to three redacted
+samples (tool, optional command, reason; at most 300 characters per sample). For the normalized
+events use `agent-workflow logs <run> --task <id> --stream events`. The dashboard shows warning
+chips on the run and affected task nodes, with samples in run details and task logs. Completion
+notices and waits also name the count; JSON/MCP data carry `blockedActions`.
+
+Counting is deliberately literal: each normalized `tool_call` event with `status: "denied"`
+counts once, including repeated denied updates for the same call. Approval requests alone,
+failed calls, and text mentioning a denial do not count. A task records only the latest attempt
+that produced its result, replacing rather than accumulating retry history. Run totals are
+computed from task records (a shared foreach batch is counted on its physical leader only).
+No denied events means no field or extra output; old records without the field mean none.
+
+The record is `{count, provider, engine, samples: [{tool, command?, reason, source?}]}`.
+An accepted engine denial is attributed only when a preceding same-kind approval request has
+an exact request/call-id or command match (the command can come from that call's running event).
+A preceding same-kind accepted denial without a reliable link leaves the source unknown; otherwise
+the executor denial is attributed to provider policy. `count - provider - engine` is the unknown
+count. Samples never claim a source when the link is ambiguous. Raw event/approval artifacts
+remain the detailed audit; no old transcripts are reparsed or backfilled.
+
 ## Permission modes
 
 Workers run in `free` mode by default. Choose `safe` for conservative approvals and sandbox settings.

@@ -1,3 +1,4 @@
+import { runBlockedActions } from "./blocked-actions.js";
 import {
 	stateBase,
 	ensureStateBase,
@@ -3339,7 +3340,9 @@ function buildIndexEntry(
 	cwd: string,
 	run: WorkflowRunRecord,
 ): WorkflowIndexRunEntry {
+	const blockedActions = runBlockedActions(run);
 	return {
+		...(blockedActions ? { blockedActions } : {}),
 		runId: run.runId,
 		name: run.name,
 		type: run.type,
