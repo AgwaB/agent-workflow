@@ -1547,7 +1547,6 @@ export interface WorkflowRunCapabilityNegotiation {
 	/** Declared capabilities merged with the probe's rows (`mergeProbedCapabilities`). */
 	capabilities: ExecutorCapabilities;
 	policy: {
-		interactive: boolean;
 		allowUnverified: string[];
 		strict: string[];
 		allowReadOnlyDowngrade: boolean;
@@ -1556,13 +1555,6 @@ export interface WorkflowRunCapabilityNegotiation {
 		/** 2026-11-04: the run's experimental same-session repair is on (absent = off). */
 		sameSessionRepair?: boolean;
 	};
-	/** `confirmed`: an interactive host accepted the degradations before launch. */
-	confirmation: "not-needed" | "confirmed" | "non-interactive";
-	/**
-	 * How a `confirmed` run was confirmed: the host's dialog, or (2026-11-03) the user's answer in
-	 * the conversation relayed by the agent (`acceptDegradations`) where the client cannot show one.
-	 */
-	confirmedVia?: "dialog" | "chat";
 	stages: WorkflowStageCapabilityNegotiation[];
 	/** `<stage>: <code>` for every degraded entry. */
 	degradations: string[];

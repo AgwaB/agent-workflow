@@ -14,7 +14,6 @@ export {
 	elicitChoice,
 	elicitConfirmation,
 	shellWord,
-	DEGRADATION_ELICITATION_TITLE,
 	HOST_MCP_HOSTS,
 	HOST_MCP_INSTRUCTIONS,
 	HOST_MCP_MAX_TEXT_CHARS,

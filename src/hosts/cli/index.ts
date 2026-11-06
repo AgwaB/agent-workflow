@@ -394,7 +394,6 @@ function launchOptionsFromArgs(
 	if (detach && totalTimeoutMs !== undefined)
 		throw new HostUsageError("--timeout cannot be combined with --detach");
 	const interactive = io.isTTY && !parsed.flags.has("--yes");
-	const prompt = io.prompt ?? defaultPrompt;
 	const permission = parsed.values.get("--permission-mode");
 	const allow = parsed.values.get("--allow-unverified");
 	const effort = parsed.values.get("--effort");
@@ -426,18 +425,6 @@ function launchOptionsFromArgs(
 		...(effort ? { effort: parseThinkingLevel(effort) } : {}),
 		...(detach ? { detach: true } : {}),
 		...(parsed.flags.has("--force-new") ? { forceNew: true } : {}),
-		...(interactive
-			? {
-					interactive: true,
-					confirmDegradations: async (preview: { text: string }) => {
-						io.stderr(`${preview.text}\n`);
-						const answer = await prompt(
-							"Proceed with these capability degradations? [y/N] ",
-						);
-						return /^y(es)?$/i.test(answer.trim());
-					},
-				}
-			: {}),
 	};
 	return {
 		request,

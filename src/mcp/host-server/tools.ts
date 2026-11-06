@@ -67,7 +67,6 @@ import {
 } from "../../core/role-profiles.js";
 import { THINKING_LEVELS, WorkflowValidationError } from "../../core/types.js";
 import { parseWorkflowNoticesArgs } from "../../core/workflow-notices.js";
-import type { CapabilityPreview } from "../../sdk/requirements.js";
 import {
 	mcpVersionHasToolAnnotations,
 	mcpVersionHasToolTitle,
@@ -140,9 +139,6 @@ export const CONSENTED_CALLS = [
 /** Bound of one tool result's text (the list action bounds itself the same way). */
 export const HOST_MCP_MAX_TEXT_CHARS = 50_000;
 
-export const DEGRADATION_ELICITATION_TITLE =
-	"Proceed with these executor capability degradations?";
-
 /** Claude Code's MCP tool-call limit when neither MCP_TOOL_TIMEOUT nor a per-server timeout is set (2.1.318). */
 export const CLAUDE_CODE_DEFAULT_TOOL_TIMEOUT_MS = 100_000_000;
 /** Room left between one wait and the host's per-call limit. */
@@ -211,7 +207,6 @@ export function hostMcpInstructions(
 		'4. When it finished, quote the result preview and the report paths verbatim (do not re-summarize the report) and give the Dashboard link again. "Workflow finished — verdict: X (report ready)" (verdictGate=true) is the workflow\'s result with a non-passing verdict, not a failure.',
 		`5. There is no completion push. If you stop waiting while it runs (for example a rate-limit backoff, nextRetry), tell the user the runId, what it waits for, the Dashboard link, and that they can ask you again or run \`agent-workflow watch <runId>\`. A line containing "agent-workflow: workflow … finished — …" in a later turn (maybe prefixed by a hook) comes from the completion check: relay it with the report path.`,
 		`${WORKFLOW_STATUS_TOOL} lists runs or shows one; ${WORKFLOW_LOGS_TOOL} shows a redacted tail of task output; ${WORKFLOW_STOP_TOOL} interrupts a run (cancelling ${WORKFLOW_WAIT_TOOL} only stops waiting); ${WORKFLOW_VALIDATE_TOOL} checks a spec. ${WORKFLOW_SHOW_TOOL}, ${WORKFLOW_ROLES_TOOL}, ${WORKFLOW_AGENTS_TOOL}, ${WORKFLOW_DOCTOR_TOOL} are read-only. ${WORKFLOW_RESUME_TOOL} continues a failed, interrupted or blocked run and ${WORKFLOW_SUPERVISE_TOOL} supervises a running one: both start model calls, so only when the user asks.`,
-		`A launch that needs the user's OK and could not ask them in a dialog starts nothing and says which limits to show; ask the user, and only if they agree call again with acceptDegradations as it says.`,
 		`Dynamic approvals: a run stopped with actionRequired=true and pendingApprovals (a question and requestId): show the question; only when the user decides, call ${WORKFLOW_APPROVE_TOOL} {runId, requestId, decision} (it confirms in a dialog; approving starts model calls).`,
 		`Choosing a workflow: only when the user asks you to pick one for a task, call ${WORKFLOW_AUTO_TOOL} {task}: it asks in a dialog before one classifier request, then lets the user choose; without dialogs it returns a local shortlist to show the user.`,
 		`Changes that need the user's confirmation in an MCP dialog (refused with the terminal command without dialogs): ${CONFIRMED_CHANGES.join("; ")}. ${WORKFLOW_PRUNE_TOOL} without dryRun=false only previews.`,
@@ -252,12 +247,6 @@ const LAUNCH_OPTION_PROPERTIES = {
 		items: { type: "string" },
 		description:
 			"Optional executor capability keys to accept although unverified (same as --allow-unverified).",
-	},
-	acceptDegradations: {
-		type: "array",
-		items: { type: "string" },
-		description:
-			"Only after a launch was not started because it needs the user's OK and the client could not ask them in a dialog: the capability keys the refusal listed (for example webTools) that the user accepted in this conversation after you showed them the limits. Never set it on your own.",
 	},
 	model: {
 		type: "string",
@@ -1704,76 +1693,6 @@ export function createHostMcpService(
 	});
 
 	/**
-	 * Degradation confirmation (WP4d). Only a run whose limits need the user's OK asks; one whose
-	 * limits are only recorded (free mode, unknown cost) starts without a question. A client that
-	 * shows dialogs asks in one (elicitation); its `decline` is the user's no. 2026-11-04 (owner:
-	 * "if confirmation is required, ask; otherwise skip"): where the user cannot be asked in a
-	 * dialog — the client has none (the Claude desktop app's chat), or answers it without the user
-	 * (`cancel` at once: Claude Code print mode, e.g. the app's Code tab, and agy) — nothing starts;
-	 * the result (`confirmNext`) tells the agent to show the user the limits and, when they agree in
-	 * the conversation, call again with `acceptDegradations` naming the keys (`confirmedVia: "chat"`).
-	 * Before 2026-11-04 a client without dialogs started such runs unasked ("non-interactive").
-	 */
-	const confirmHooks = (
-		call: McpToolCallContext,
-		args: Record<string, unknown>,
-		state: { unanswered?: CapabilityPreview } = {},
-	): Pick<LaunchRequestBase, "interactive" | "confirmDegradations"> => {
-		const accepted = args.acceptDegradations;
-		if (
-			accepted !== undefined &&
-			(!Array.isArray(accepted) ||
-				accepted.some((key) => typeof key !== "string"))
-		)
-			throw new UsageError("acceptDegradations must be an array of strings");
-		if (Array.isArray(accepted) && accepted.length > 0)
-			return {
-				interactive: true,
-				confirmDegradations: async (preview: CapabilityPreview) =>
-					preview.needsOk.every((key) => accepted.includes(key))
-						? "chat"
-						: false,
-			};
-		if (
-			!clientSupportsFormElicitation(
-				call.protocolVersion,
-				call.clientCapabilities,
-			)
-		)
-			return {
-				interactive: true,
-				confirmDegradations: async (preview: CapabilityPreview) => {
-					state.unanswered = preview;
-					return "unasked";
-				},
-			};
-		return {
-			interactive: true,
-			confirmDegradations: async (preview: CapabilityPreview) => {
-				const answer = await elicitConfirmation(
-					call,
-					`${DEGRADATION_ELICITATION_TITLE}\n\n${preview.prompt}`,
-					"degradation confirmation",
-					log,
-				);
-				if (answer === "accept") return true;
-				if (answer === "decline") return false;
-				state.unanswered = preview;
-				return "unasked";
-			},
-		};
-	};
-	/** The next step of a launch whose limits need the user's OK and nobody could ask (above). */
-	const confirmNext = (
-		retry: string,
-		state: { unanswered?: CapabilityPreview },
-	): string | undefined => {
-		const preview = state.unanswered;
-		if (!preview) return undefined;
-		return `Nothing started: this run needs the user's OK, and this client could not ask them in a dialog (it has none, or answered it without the user). Ask the user in your reply — show these limits and ask whether to proceed:\n\n${preview.prompt}\n\nOnly if they agree, call ${retry} plus acceptDegradations: ${JSON.stringify(preview.needsOk)}. If they do not, start nothing.`;
-	};
-
-	/**
 	 * WP28: gate of a changing call. Undefined = the user accepted, go on; otherwise the refusal
 	 * result (no elicitation support → the terminal command; declined, cancelled or failed → nothing
 	 * changed).
@@ -2125,7 +2044,6 @@ export function createHostMcpService(
 		},
 		[WORKFLOW_RUN_TOOL]: async (args, call) => {
 			const ctx = await context(args, call);
-			const confirmation: { unanswered?: CapabilityPreview } = {};
 			const workflow = requiredString(args, "workflow");
 			const launched = await api.runWorkflowAction(ctx, {
 				workflow,
@@ -2136,27 +2054,17 @@ export function createHostMcpService(
 					name: WORKFLOW_RUN_TOOL,
 					arguments: { ...args },
 				},
-				...confirmHooks(call, args, confirmation),
 			});
-			const confirm = confirmNext(
-				`${WORKFLOW_RUN_TOOL} again with the same arguments`,
-				confirmation,
-			);
-			const how =
-				confirm === undefined
-					? await delivery(ctx, launched.data, call)
-					: "wait";
+			const how = await delivery(ctx, launched.data, call);
 			return finish(
 				call,
 				withoutWaitLine(launched, how),
 				launched.data,
-				confirm ?? launchNext(launched.data, how, waitHint),
-				confirm !== undefined,
+				launchNext(launched.data, how, waitHint),
 			);
 		},
 		[WORKFLOW_DYNAMIC_TOOL]: async (args, call) => {
 			const ctx = await context(args, call);
-			const confirmation: { unanswered?: CapabilityPreview } = {};
 			const launched = await api.runDynamicAction(ctx, {
 				...launchRequestFromArguments(args),
 				launchOrigin: {
@@ -2164,22 +2072,13 @@ export function createHostMcpService(
 					name: WORKFLOW_DYNAMIC_TOOL,
 					arguments: { ...args },
 				},
-				...confirmHooks(call, args, confirmation),
 			});
-			const confirm = confirmNext(
-				`${WORKFLOW_DYNAMIC_TOOL} again with the same arguments`,
-				confirmation,
-			);
-			const how =
-				confirm === undefined
-					? await delivery(ctx, launched.data, call)
-					: "wait";
+			const how = await delivery(ctx, launched.data, call);
 			return finish(
 				call,
 				withoutWaitLine(launched, how),
 				launched.data,
-				confirm ?? launchNext(launched.data, how, waitHint),
-				confirm !== undefined,
+				launchNext(launched.data, how, waitHint),
 			);
 		},
 		[WORKFLOW_AUTO_TOOL]: async (args, call) => {
@@ -2188,7 +2087,6 @@ export function createHostMcpService(
 				call.protocolVersion,
 				call.clientCapabilities,
 			);
-			const confirmation: { unanswered?: CapabilityPreview } = {};
 			const auto = await api.autoAction(ctx, {
 				...launchRequestFromArguments(args),
 				launchOrigin: {
@@ -2196,7 +2094,6 @@ export function createHostMcpService(
 					name: WORKFLOW_AUTO_TOOL,
 					arguments: { ...args },
 				},
-				...confirmHooks(call, args, confirmation),
 				...(call.signal ? { signal: call.signal } : {}),
 				...(elicitation
 					? {
@@ -2246,15 +2143,7 @@ export function createHostMcpService(
 			const data = auto.data;
 			let next: string | undefined;
 			let how: Delivery = "wait";
-			if (data.phase === "launched" && confirmation.unanswered)
-				// Not again through workflow_auto: that would compare (and ask) once more.
-				next = confirmNext(
-					data.selected?.kind === "direct-dynamic"
-						? `${WORKFLOW_DYNAMIC_TOOL} with the same task`
-						: `${WORKFLOW_RUN_TOOL} with the selected workflow and the same task`,
-					confirmation,
-				);
-			else if (data.phase === "launched" && data.launch) {
+			if (data.phase === "launched" && data.launch) {
 				how = await delivery(ctx, data.launch, call);
 				next = launchNext(data.launch, how, waitHint);
 			} else if (data.phase === "consent-unavailable")
@@ -2265,13 +2154,7 @@ export function createHostMcpService(
 				next = `The user declined: nothing was sent and nothing started. Do not retry unless the user asks.`;
 			else if (data.phase === "consent-cancelled")
 				next = `The client cancelled the confirmation dialog or cannot ask the user here (no answer was given): nothing was sent and nothing started. Show the user the shortlist and ask which workflow to run; then call ${WORKFLOW_RUN_TOOL} {"workflow":"…","task":"…"} (or ${WORKFLOW_DYNAMIC_TOOL}).`;
-			return finish(
-				call,
-				withoutWaitLine(auto, how),
-				data,
-				next,
-				data.phase === "launched" && confirmation.unanswered !== undefined,
-			);
+			return finish(call, withoutWaitLine(auto, how), data, next);
 		},
 		[WORKFLOW_STATUS_TOOL]: async (args, call) => {
 			const runId = optionalString(args, "runId");

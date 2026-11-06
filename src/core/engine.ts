@@ -244,7 +244,6 @@ import {
 	workflowNegotiationTargets,
 	workflowProfileStrictCapabilities,
 } from "./capability-negotiation.js";
-import type { CapabilityPreview } from "../sdk/requirements.js";
 import {
 	applyWorkflowExecutionProfile,
 	workflowDefinitionFingerprint,
@@ -493,18 +492,6 @@ export interface WorkflowRunOptions {
 	 * the parent run's recorded mode.
 	 */
 	permissionMode?: "free" | "safe";
-	/**
-	 * B4 (WP4d): the host can ask the user. Degradations then need
-	 * `confirmDegradations`; non-interactive runs (default) record and proceed.
-	 */
-	interactive?: boolean;
-	/**
-	 * B4 (WP4d): called before launch only when `interactive` and a stage
-	 * degrades. Resolving anything but `true` fails the run before launch.
-	 */
-	confirmDegradations?: (
-		preview: CapabilityPreview,
-	) => Promise<boolean | "chat" | "unasked">;
 	/** B4 (WP4d) user opt-in: treat these `unverified` capabilities as available. */
 	allowUnverifiedCapabilities?: string[];
 	/** WP4d test/host seam: replaces `loadExecutor(descriptor)` + `probe()`. */
@@ -847,7 +834,6 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		descriptor: executor.descriptor,
 		compiled,
 		policy: {
-			interactive: parentRun ? false : options.interactive === true,
 			allowUnverified: parentRun
 				? [...(parentRun.capabilityNegotiation?.policy.allowUnverified ?? [])]
 				: [...(options.allowUnverifiedCapabilities ?? [])],
@@ -879,9 +865,6 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		...(options.executorProbeTimeoutMs === undefined
 			? {}
 			: { probeTimeoutMs: options.executorProbeTimeoutMs }),
-		...(options.confirmDegradations === undefined
-			? {}
-			: { confirmDegradations: options.confirmDegradations }),
 		...(rolePlan && rolePlan.otherExecutors.length > 0
 			? {
 					executors: Object.fromEntries(

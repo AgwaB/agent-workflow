@@ -221,16 +221,10 @@ export function piDynamicUi(
 	};
 }
 
-export const DEGRADATION_CONFIRM_TITLE =
-	"Proceed with these executor capability degradations?";
-
 export const PROFILE_TEXT_FALLBACK_NOTE = "Execution profile (no dialog UI):";
 
 export interface PiLaunchHooks {
-	hooks: Pick<
-		LaunchRequestBase,
-		"interactive" | "confirmDegradations" | "selectProfile"
-	>;
+	hooks: Pick<LaunchRequestBase, "selectProfile">;
 	/** Text-fallback note after a launch without a dialog UI that offered a profile choice. */
 	note(): string | undefined;
 	/** WP34: the user chose "Custom…" in the declared-profile chooser (the launch was cancelled). */
@@ -256,10 +250,6 @@ export function launchHooks(
 	if (ctx.hasUI)
 		return {
 			hooks: {
-				interactive: true,
-				confirmDegradations: async (preview) =>
-					(await ctx.ui.confirm(DEGRADATION_CONFIRM_TITLE, preview.prompt)) ===
-					true,
 				selectProfile: async (title, choices) => {
 					const offered = options.customProfile
 						? [...choices, CUSTOM_PROFILE_OPTION]

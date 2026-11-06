@@ -43,7 +43,6 @@ import type {
 	WorkflowRunRecord,
 } from "../core/types.js";
 import type { WorkflowRuntimeDefaults } from "../core/workflow-runtime.js";
-import type { CapabilityPreview } from "../sdk/requirements.js";
 import { hostCommandHints, type WorkflowCommandHints } from "./hints.js";
 import {
 	HostUsageError,
@@ -108,11 +107,6 @@ export interface LaunchRequestBase {
 	forceNew?: boolean;
 	/** `check`: run the preflight only (no run, no guard claim, no model call). */
 	preflightOnly?: boolean;
-	/** B4 (WP4d): the host can ask the user; degradations then need confirmDegradations. */
-	interactive?: boolean;
-	confirmDegradations?: (
-		preview: CapabilityPreview,
-	) => Promise<boolean | "chat" | "unasked">;
 	/** Interactive chooser between declared profiles when none is named (Pi host). */
 	selectProfile?: WorkflowProfileSelector;
 	/** Overrides for inputs the spec declares (for example depth). */
@@ -183,9 +177,6 @@ export interface LaunchData {
 	profile?: LaunchProfileInfo;
 	capability?: {
 		preview: string;
-		confirmation: string;
-		/** `chat`: the user agreed in the conversation (`acceptDegradations`), not in a dialog. */
-		confirmedVia?: "dialog" | "chat";
 		degradations: string[];
 		forcedReadOnly: string[];
 		/** One-line launch diagnostics. */
@@ -615,13 +606,9 @@ function validateLaunchRequest(
 			"allowUnverifiedCapabilities",
 		);
 	}
-	for (const key of ["detach", "forceNew", "interactive"] as const)
+	for (const key of ["detach", "forceNew"] as const)
 		if (request[key] !== undefined && typeof request[key] !== "boolean")
 			throw new HostUsageError(`${action} ${key} must be a boolean`);
-	if (request.interactive && typeof request.confirmDegradations !== "function")
-		throw new HostUsageError(
-			`${action}: an interactive launch needs a confirmDegradations callback`,
-		);
 }
 
 function existingRunText(
@@ -880,10 +867,6 @@ function launchData(
 			? {
 					capability: {
 						preview: negotiation.preview,
-						confirmation: negotiation.confirmation,
-						...(negotiation.confirmedVia
-							? { confirmedVia: negotiation.confirmedVia }
-							: {}),
 						degradations: [...negotiation.degradations],
 						forcedReadOnly: [...negotiation.forcedReadOnly],
 						...(negotiation.notices
@@ -1169,10 +1152,6 @@ async function launchClaimed(
 					allowUnverifiedCapabilities: [...request.allowUnverifiedCapabilities],
 				}
 			: {}),
-		...(request.interactive ? { interactive: true } : {}),
-		...(request.confirmDegradations
-			? { confirmDegradations: request.confirmDegradations }
-			: {}),
 		...(overrides ? { runtimeOverrides: overrides } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
 		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
@@ -1230,7 +1209,6 @@ async function launchClaimed(
 					...(profile.info ? { profile: profile.info } : {}),
 					capability: {
 						preview: error.negotiation.preview,
-						confirmation: error.negotiation.confirmation,
 						degradations: [...error.negotiation.degradations],
 						forcedReadOnly: [...error.negotiation.forcedReadOnly],
 						...(error.negotiation.notices
