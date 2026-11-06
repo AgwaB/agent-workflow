@@ -422,7 +422,8 @@ export function codexPluginManifest(
 		license: "MIT",
 		keywords: [...KEYWORDS],
 		skills: "./skills/",
-		hooks: hostCommandHooks(cli, HOST_IDS.codex),
+		// codex-config HooksFile wraps the event map in its own `hooks` field.
+		hooks: { hooks: hostCommandHooks(cli, HOST_IDS.codex) },
 		mcpServers: {
 			[MCP_SERVER_NAME]: {
 				...withToolTimeout(

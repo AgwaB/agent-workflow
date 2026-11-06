@@ -610,9 +610,8 @@ test("plugin manifests ship aw skill, command hooks, native timeout fields, and 
 		[claude, "claude-code"],
 		[codex, "codex"],
 	]) {
-		const hooks = manifest.hooks.UserPromptSubmit.flatMap(
-			(group) => group.hooks,
-		);
+		const events = host === "codex" ? manifest.hooks.hooks : manifest.hooks;
+		const hooks = events.UserPromptSubmit.flatMap((group) => group.hooks);
 		const hook = hooks.find((h) => h.command.includes("host-command"));
 		assert.equal(hook.type, "command");
 		assert.equal(
@@ -624,6 +623,11 @@ test("plugin manifests ship aw skill, command hooks, native timeout fields, and 
 		assert.match(hook.command, new RegExp(`--host ${host}`));
 		assert.match(hook.command, /grep -Eq/);
 	}
+	assert.deepEqual(
+		Object.keys(codex.hooks),
+		["hooks"],
+		"codex-config HooksFile denies unknown fields; the event map must be nested",
+	);
 	assert.equal(claude.hooks.UserPromptExpansion[0].hooks[0].timeout, 300);
 	assert.ok(
 		claude.hooks.UserPromptSubmit[0].hooks.some((h) =>

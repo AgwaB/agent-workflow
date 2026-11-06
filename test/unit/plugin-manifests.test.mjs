@@ -129,8 +129,8 @@ test("WP36: Claude keeps the notify-check hook; Codex still ships no completion-
 	assert.equal(pkg.bin["agent-workflow"], "src/hosts/cli/cli.mjs");
 	// Phase 4 adds command handling, not next-prompt completion polling, to Codex.
 	assert.equal(
-		codex.hooks.UserPromptSubmit.flatMap((group) => group.hooks).find((hook) =>
-			hook.command.includes("notify-check"),
+		codex.hooks.hooks.UserPromptSubmit.flatMap((group) => group.hooks).find(
+			(hook) => hook.command.includes("notify-check"),
 		),
 		undefined,
 	);

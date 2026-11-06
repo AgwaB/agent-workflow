@@ -81,8 +81,8 @@ test("dev output: manifests launch the checkout's server per host; everything el
 	);
 	// Phase 4 adds command handling, not next-prompt completion polling, to Codex.
 	assert.equal(
-		codex.hooks.UserPromptSubmit.flatMap((group) => group.hooks).find((hook) =>
-			hook.command.includes("notify-check"),
+		codex.hooks.hooks.UserPromptSubmit.flatMap((group) => group.hooks).find(
+			(hook) => hook.command.includes("notify-check"),
 		),
 		undefined,
 	);

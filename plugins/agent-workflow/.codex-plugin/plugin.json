@@ -18,17 +18,19 @@
   ],
   "skills": "./skills/",
   "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "input=$(cat); printf '%s' \"$input\" | grep -Eq '\"prompt\"[[:space:]]*:[[:space:]]*\"([[:space:]]|\\\\[nrt])*(\\$aw(([[:space:]]|\\\\[nrt])|\")|aw(\"|([[:space:]]|\\\\[nrt])+(\"|(dashboard|run|dynamic|auto|stop)(([[:space:]]|\\\\[nrt])|\"))))' || exit 0; printf '%s' \"$input\" | npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow host-command --host codex 2>/dev/null; exit 0",
-            "timeout": 300
-          }
-        ]
-      }
-    ]
+    "hooks": {
+      "UserPromptSubmit": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "input=$(cat); printf '%s' \"$input\" | grep -Eq '\"prompt\"[[:space:]]*:[[:space:]]*\"([[:space:]]|\\\\[nrt])*(\\$aw(([[:space:]]|\\\\[nrt])|\")|aw(\"|([[:space:]]|\\\\[nrt])+(\"|(dashboard|run|dynamic|auto|stop)(([[:space:]]|\\\\[nrt])|\"))))' || exit 0; printf '%s' \"$input\" | npx -y --package=@agwab/agent-workflow@0.1.0 agent-workflow host-command --host codex 2>/dev/null; exit 0",
+              "timeout": 300
+            }
+          ]
+        }
+      ]
+    }
   },
   "mcpServers": {
     "agent-workflow": {
