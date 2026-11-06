@@ -935,6 +935,19 @@ async function dispatch(
 				}
 				if (
 					existing &&
+					!parsed.flags.has("--open") &&
+					!parsed.flags.has("--readonly") &&
+					!parsed.flags.has("--auth") &&
+					!parsed.values.has("--port")
+				) {
+					if (existing.portReason) io.stderr(`${existing.portReason}\n`);
+					io.stdout(
+						`Dashboard: http://127.0.0.1:${existing.port}/?project=${projectId(cwd)}\n`,
+					);
+					return EXIT_OK;
+				}
+				if (
+					existing &&
 					parsed.flags.has("--open") &&
 					!parsed.flags.has("--readonly") &&
 					!parsed.flags.has("--auth") &&

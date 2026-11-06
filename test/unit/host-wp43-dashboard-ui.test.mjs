@@ -1766,3 +1766,91 @@ test("dashboard Chrome: a click on the empty canvas closes the inspector; a drag
 	await browser.waitFor(() => !document.getElementById("inspector").hidden);
 	assert.deepEqual(await state(), [false, "triage"]);
 });
+
+test("dashboard Chrome: project overview, explicit selection, keyboard-labelled switcher and remembered choice", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 30_000,
+}, async (t) => {
+	const second = {
+		id: "other-abcdef012345",
+		name: "Other project",
+		path: "~/work/other",
+		pathMissing: true,
+		lastSeenAt: "2026-11-06T00:00:00.000Z",
+		counts: { running: 0, needsAttention: 0, lastActivity: null },
+	};
+	const fixture = await createFixtureServer({ extraProjects: [second] });
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.open(`${fixture.origin}/`);
+	await browser.waitFor(() => document.querySelector(".projects-overview"));
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector(".projects-overview h1").textContent,
+		),
+		"All projects",
+	);
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelectorAll(".project-card").length,
+		),
+		2,
+	);
+	assert.ok(
+		await browser.evaluate(() =>
+			document
+				.querySelector(".projects-overview")
+				.textContent.includes("path missing"),
+		),
+	);
+	assert.equal(
+		fixture.requests.some(
+			(request) =>
+				request.path.includes("/runs") || request.path === "/api/events",
+		),
+		false,
+		"overview never polls per-run details",
+	);
+	await browser.evaluate(() => {
+		const select = document.querySelector("#project-switcher");
+		select.value = "payments-api-123456789abc";
+		select.dispatchEvent(new Event("change", { bubbles: true }));
+	});
+	await browser.waitFor(
+		() =>
+			document.querySelector("#project")?.textContent === "payments-api" &&
+			document.querySelector(".run-header"),
+	);
+	assert.equal(
+		await browser.evaluate(() =>
+			new URLSearchParams(location.search).get("project"),
+		),
+		"payments-api-123456789abc",
+	);
+	await browser.open(`${fixture.origin}/`);
+	await browser.waitFor(() => document.querySelector(".run-header"));
+	assert.equal(
+		await browser.evaluate(() =>
+			document.querySelector("#project-switcher").getAttribute("aria-label"),
+		),
+		"Project",
+	);
+	await browser.open(`${fixture.origin}/?project=${second.id}`);
+	await browser.waitFor(
+		() => document.querySelector("#project")?.textContent === "Other project",
+	);
+	assert.ok(
+		await browser.evaluate(() =>
+			document
+				.querySelector("#center")
+				.textContent.includes("No runs in this project"),
+		),
+	);
+	await browser.open(`${fixture.origin}/?project=all`);
+	await browser.waitFor(() => document.querySelector(".projects-overview"));
+	await browser.open(`${fixture.origin}/`);
+	await browser.waitFor(() => document.querySelector(".projects-overview"));
+});
