@@ -40,7 +40,15 @@ import {
 } from "../core/store.js";
 import { BUILTIN_EXECUTOR_IDS } from "../core/executor-registry.js";
 import type { WorkflowHostId } from "../core/types.js";
-import { inspectCodexEnvironment } from "../executors/codex/environment.js";
+import {
+	inspectCodexEnvironment,
+	codexPolicyWarnings,
+} from "../executors/codex/environment.js";
+import {
+	inspectClaudeEnvironment,
+	claudeEnvironmentWarnings,
+	type ClaudeEnvironmentOptions,
+} from "../executors/claude/environment.js";
 import { readUserProfiles, userProfileFromFile } from "./user-profiles.js";
 import {
 	assertActionAllowed,
@@ -61,6 +69,8 @@ export interface DoctorRequest {
 	probeTimeoutMs?: number;
 	/** Node version to report (tests); default process.versions.node. */
 	nodeVersion?: string;
+	/** Managed-policy/root probe seams; paths are injectable so tests never read system policy. */
+	claudeEnvironment?: ClaudeEnvironmentOptions;
 }
 
 export interface DoctorExecutorReport {
@@ -267,7 +277,8 @@ function codexWarnings(env: NodeJS.ProcessEnv): string[] {
 		warnings.push(
 			`codex: global instructions ${findings.agentsPath} (1 file) are loaded into every Codex worker (context isolation is emulated)`,
 		);
-	for (const problem of findings.problems) warnings.push(`codex: ${problem}`);
+	for (const warning of codexPolicyWarnings(findings))
+		warnings.push(`codex: ${warning}`);
 	return warnings;
 }
 
@@ -416,7 +427,12 @@ export async function doctorAction(
 	const executors = readiness.map((entry) =>
 		executorReport(entry, verified[entry.id] ?? null),
 	);
-	const warnings = codexWarnings(env);
+	const warnings = [
+		...codexWarnings(env),
+		...claudeEnvironmentWarnings(
+			inspectClaudeEnvironment(env, request.claudeEnvironment),
+		).map((warning) => `claude: ${warning}`),
+	];
 	// WP35 (row 57): an installed executor whose web tools are missing (Pi without pi-web-access).
 	for (const entry of executors)
 		if (entry.installed)

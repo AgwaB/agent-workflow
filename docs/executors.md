@@ -349,19 +349,54 @@ An exec-policy `allow` rule can run a matching command outside the sandbox witho
 
 ### Environment probe
 
-`probe()` inspects only `rules/*.rules` and `AGENTS.md` under `$CODEX_HOME` (default `~/.codex`),
-never `auth.json`. Source: `src/executors/codex/environment.ts`.
+`probe()` inspects `rules/*.rules` and `AGENTS.md` under `$CODEX_HOME` (default `~/.codex`),
+plus `/etc/codex/requirements.toml` on Unix (Windows: `%ProgramData%/OpenAI/Codex/requirements.toml`).
+It never reads `auth.json` or makes a model call. Source: `src/executors/codex/environment.ts`.
 
 | Finding | Probe capability row | Negotiation |
 |---|---|---|
 | N > 0 `decision = "allow"` rules | `readOnly: emulated`, warning with count and path | readOnly degradation (`CAPABILITY_WARNING:readOnly`); interactive confirmation; strict refusal |
 | No allow rules | Declared `readOnly: native` remains | native |
 | Non-empty global `AGENTS.md` | `contextIsolation: emulated`, warning with path | non-inherit degradation (`CAPABILITY_WARNING:contextIsolation`); strict refusal |
-| Absent or whitespace-only global `AGENTS.md` | `contextIsolation: native` | native |
+| Absent/empty global `AGENTS.md`, no policy warnings | `contextIsolation: native` | native |
+| `forbidden` / `prompt` rules or restrictive managed requirements | `contextIsolation: emulated`, count/path warning: policy survives isolation | `CAPABILITY_WARNING:contextIsolation`; free mode records it without confirmation or strict refusal |
 
 The rule tokenizer counts keyword arguments (`"allow"`, `'allow'`, `r"allow"`), not comments or strings
 containing similar text. Only counts and paths are recorded, not patterns or file contents.
-Unreadable paths are noted. Free-mode behavior is described above.
+Unreadable paths are warned about. These warnings appear in `check` previews and `doctor` too.
+
+**Auto-approve is not a policy override.** `forbidden` rules still deny matching commands under
+`danger-full-access` + `never`; `prompt` rules become denials rather than questions under `never`.
+The probe checks root `allowed_sandbox_modes` / `allowed_approval_policies` string arrays in managed
+requirements and warns when they exclude `danger-full-access` / `never`. It is not a full TOML,
+execpolicy, named-profile or enterprise-policy evaluator; unsupported array syntax produces a warning.
+Dangerous-command heuristics, hooks and inherited OS restrictions can still block work.
+
+After **both `thread/start` and `thread/resume`**, before `turn/start`, the adapter compares:
+
+- Requested `sandbox` (`read-only`, `workspace-write`, `danger-full-access`) to effective
+  `sandbox.type` (`readOnly`, `workspaceWrite`, `dangerFullAccess`).
+- Requested `approvalPolicy` to the effective `approvalPolicy`.
+- If returned, `activePermissionProfile.id` to the corresponding built-in id (`:read-only`,
+  `:workspace`, `:danger-full-access`), with no unexpected `extends`. Null/absent provenance is
+  accepted for older/non-experimental servers; missing sandbox/approval fields are not.
+
+A mismatch fails the attempt as `executor_config` **without starting a model turn**, naming requested
+and effective values and suggesting `requirements.toml` / managed configuration as the likely cause.
+Startup `configWarning` / `warning` notifications remain in `codex-app-server.jsonl`, including on failure.
+
+Some execpolicy rejections produce no item notification. The adapter also recognizes the two verified
+0.166.0 `ERROR codex_core::tools::router: error=exec_command failed: CreateProcess { message:
+"Rejected(...)" }` stderr forms: a backtick-delimited command followed by `rejected: policy forbids
+commands starting with` a backtick-delimited prefix, or exactly `approval required by policy, but
+AskForApproval is set to Never`. ANSI is stripped for parsing only. Each becomes a `tool_call` with
+`name: shell`, `kind: execute`, `status: denied`, `input.command` when present, and the reason in
+`output` (command/reason bounded to 16,384 characters and request secrets redacted). Unknown/malformed
+formats and lines over 65,536 characters emit nothing. Raw stderr remains in the transcript as before;
+a denied command does not by itself fail a subsequently completed turn.
+
+For hermetic diagnostics, `AGENT_WORKFLOW_CODEX_REQUIREMENTS_PATH` overrides only the probe's policy
+file path, not Codex's own requirements loading or the effective-mode check.
 
 Models come from `codex debug models`: visible slugs and per-model `supported_reasoning_levels` become
 `modelEfforts`. Stage effort maps to the nearest supported level, lower on a tie.
@@ -565,6 +600,33 @@ use `--permission-mode bypassPermissions`, not the `--dangerously-skip-permissio
 The stdio approval channel stays enabled; the engine allows requests that still arrive in free mode
 with audit reason `engine-policy:free`. ReadOnly argv is identical in both modes.
 See [permissions](usage.md#permission-modes); mapping: `CLAUDE_PERMISSION_MODE_SETTINGS`.
+
+### Managed-policy preflight
+
+Without a model call, `probe()` reads endpoint-managed settings at
+`/Library/Application Support/ClaudeCode/managed-settings.json` (macOS),
+`/etc/claude-code/managed-settings.json` (Linux), or
+`C:\Program Files\ClaudeCode\managed-settings.json` (Windows). These paths follow the
+[Claude settings documentation](https://code.claude.com/docs/en/settings). Credentials and ordinary
+`~/.claude` settings are not read by this probe.
+
+It warns for `permissions.disableBypassPermissionsMode: "disable"`, counts `permissions.deny` and
+`permissions.ask` rules without recording patterns, and warns for root execution on Unix. Managed
+settings survive `--setting-sources ""`; deny rules still deny matching tools in `bypassPermissions`.
+Ask rules can still request approval: supported requests are answered automatically by the workflow
+in free mode, but provider-only interaction may be denied. Disabled bypass can prevent free-mode
+startup. Claude refuses bypass under root/sudo unless it recognizes a sandbox; use a non-root account.
+
+Warnings reuse `CAPABILITY_WARNING:contextIsolation` (policy survives isolation), appear in `check`
+previews and the `doctor` warning list, and are recorded without confirmation or strict refusal in
+free mode. Invalid/unreadable policy warns rather than claiming it is absent. This is a file-based
+advisory probe, not effective-settings resolution: server-managed policy, MDM, managed-settings
+fragments, hooks and sandbox restrictions may add blocks. Claude has no Codex-style effective-mode
+response check here. Its existing `system/permission_denied` stream handling emits denied tool calls;
+a later normal completion can still follow a denial.
+
+`AGENT_WORKFLOW_CLAUDE_MANAGED_SETTINGS_PATH` overrides only the diagnostics file path (tests use
+fixtures); it cannot override Claude's actual managed policy.
 
 ### Isolation
 

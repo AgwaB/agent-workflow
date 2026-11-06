@@ -59,6 +59,8 @@ export const CODEX_ERROR_RULES: readonly ErrorClassificationRule[] = [
 	{ class: "rate_limit", match: "rate limit" },
 	{ class: "rate_limit", match: "usage limit" },
 	{ class: "config", match: "failed to load configuration" },
+	{ class: "config", match: /requirements (?:do not allow|disallow)/i },
+	{ class: "config", match: /disallowed by requirements/i },
 	{ class: "config", match: "invalid transport" },
 	{ class: "config", match: "is not supported for stdio" },
 	{ class: "config", match: "codex cli not found" },

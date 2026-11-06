@@ -49,6 +49,8 @@ import {
 	inspectCodexEnvironment,
 } from "./environment.js";
 import { classifyCodexFailure } from "./errors.js";
+import { CodexStderrParser } from "./stderr.js";
+import { codexPermissionMismatch } from "./permissions.js";
 import { CodexTurnNormalizer, failureEvent } from "./normalize.js";
 import { AppServerConnection, type RpcId, type RpcMessage } from "./rpc.js";
 import {
@@ -852,6 +854,30 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				});
 			}
 			emit(run, { type: "started", sessionId: threadId ?? null });
+			const mismatch = codexPermissionMismatch(plan, started);
+			if (mismatch !== undefined) {
+				emit(
+					run,
+					failureEvent(
+						mismatch,
+						"config",
+						{
+							requested: {
+								sandbox: plan.sandbox,
+								approvalPolicy: plan.approvalPolicy,
+							},
+							effective: {
+								sandbox: (started.sandbox ?? null) as JsonValue,
+								approvalPolicy: (started.approvalPolicy ?? null) as JsonValue,
+								activePermissionProfile: (started.activePermissionProfile ??
+									null) as JsonValue,
+							},
+						},
+						run.ownedSession,
+					),
+				);
+				return;
+			}
 			if (!req.isolation.inherit && threadId !== undefined) {
 				const status = await conn.request("mcpServerStatus/list", {
 					threadId,
@@ -1014,16 +1040,23 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			envKeys: Object.keys(req.env).sort(),
 			pid: child.pid ?? null,
 		});
+		// Decode before the second redaction pass: JSON/Rust escaping can hide raw secret bytes.
+		// Redact before bounding so the limit cannot expose a partial secret.
+		const stderrParser = new CodexStderrParser(run.redact.text);
 		const onStderr = (text: string) => {
 			if (text === "") return;
 			run.stderr = (run.stderr + text).slice(-16_384);
 			raw(run, "stderr", text);
+			for (const event of stderrParser.push(text)) emit(run, event);
 		};
 		// A value split across stderr chunks is held back until it can be redacted (review #5).
 		child.stderr.on("data", (chunk: Buffer) =>
 			onStderr(run.stderrRedact.push(chunk.toString())),
 		);
-		child.stderr.on("end", () => onStderr(run.stderrRedact.flush()));
+		child.stderr.on("end", () => {
+			onStderr(run.stderrRedact.flush());
+			for (const event of stderrParser.finish()) emit(run, event);
+		});
 		run.conn = new AppServerConnection(child, {
 			onLine: (direction, message) => {
 				if (

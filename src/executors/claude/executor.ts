@@ -38,6 +38,11 @@ import { SdkError } from "../../sdk/errors.js";
 import type { ExecEvent, OwnedSession } from "../../sdk/events.js";
 import { buildClaudeInvocation, isUuid, userMessageLine } from "./argv.js";
 import { claudeCapabilities } from "./capabilities.js";
+import {
+	inspectClaudeEnvironment,
+	claudeEnvironmentWarnings,
+	claudeEnvironmentCapabilities,
+} from "./environment.js";
 import { CLAUDE_TOOL_MAPPING } from "./tools.js";
 import {
 	CLAUDE_ADAPTER_VERSION,
@@ -623,6 +628,8 @@ export function createClaudeExecutor(options: {
 						: `models: ${models.join(", ")}`,
 				);
 			}
+			const environment = inspectClaudeEnvironment();
+			notes.push(...claudeEnvironmentWarnings(environment));
 			notes.push(
 				`MAX_MCP_OUTPUT_TOKENS=${config.mcpOutputTokens} (set by the adapter)`,
 			);
@@ -634,6 +641,7 @@ export function createClaudeExecutor(options: {
 				// WP31 follow-up: `initialize` lists aliases (default, haiku, sonnet, opus) only; the CLI
 				// also accepts full model ids (`claude-haiku-5-5`), so the list is not exhaustive.
 				modelListComplete: false,
+				capabilities: claudeEnvironmentCapabilities(environment),
 				notes,
 			};
 		},

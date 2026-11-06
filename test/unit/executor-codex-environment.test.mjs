@@ -87,7 +87,10 @@ test("allow rules > 0 → readOnly emulated with a count-only warning; global AG
 		},
 		agents: "# Global instructions\nAlways answer in French.\n",
 	});
-	const findings = inspectCodexEnvironment({ CODEX_HOME: home });
+	const findings = inspectCodexEnvironment({
+		...process.env,
+		CODEX_HOME: home,
+	});
 	assert.deepEqual(
 		{ ...findings, problems: [...findings.problems] },
 		{
@@ -95,6 +98,10 @@ test("allow rules > 0 → readOnly emulated with a count-only warning; global AG
 			rulesPath: join(home, "rules"),
 			rulesFiles: 2,
 			allowRules: 3,
+			forbiddenRules: 0,
+			promptRules: 0,
+			requirementsPath: process.env.AGENT_WORKFLOW_CODEX_REQUIREMENTS_PATH,
+			disallowedFreeModes: [],
 			agentsPath: join(home, "AGENTS.md"),
 			globalAgentsMd: "present",
 			problems: [],
@@ -117,6 +124,7 @@ test("allow rules > 0 → readOnly emulated with a count-only warning; global AG
 
 test("no allow rules, AGENTS.md absent or empty → readOnly untouched, isolation native", async () => {
 	const absent = inspectCodexEnvironment({
+		...process.env,
 		CODEX_HOME: await codexHome({
 			rules: {
 				"default.rules": 'prefix_rule(pattern=["rm"], decision="forbidden")\n',
@@ -126,9 +134,15 @@ test("no allow rules, AGENTS.md absent or empty → readOnly untouched, isolatio
 	assert.equal(absent.allowRules, 0);
 	assert.equal(absent.globalAgentsMd, "absent");
 	assert.deepEqual(codexEnvironmentCapabilities(absent), {
-		contextIsolation: { level: "native", source: "probed" },
+		contextIsolation: {
+			level: "emulated",
+			source: "probed",
+			warning: `1 forbidden exec-policy rule(s) in ${absent.rulesPath} will deny matching commands even in free mode; review the rules with your administrator or use a compatible executor`,
+		},
 	});
+	assert.equal(codexEnvironmentCapabilities(absent).readOnly, undefined);
 	const empty = inspectCodexEnvironment({
+		...process.env,
 		CODEX_HOME: await codexHome({ agents: "  \n" }),
 	});
 	assert.equal(empty.globalAgentsMd, "empty");
@@ -138,6 +152,7 @@ test("no allow rules, AGENTS.md absent or empty → readOnly untouched, isolatio
 	});
 	// A missing CODEX_HOME entirely is the same as "nothing found".
 	const missing = inspectCodexEnvironment({
+		...process.env,
 		CODEX_HOME: join(root, "does-not-exist"),
 	});
 	assert.equal(missing.allowRules, 0);
