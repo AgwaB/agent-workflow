@@ -502,3 +502,57 @@ test("the entire default fallback sequence is exercised through injected occupie
 	);
 	await assert.rejects(bindDashboardPort([], listen), /policy is empty/);
 });
+
+test("an unknown identity answer keeps a live server's discovery; only a proven foreign listener removes it", async (t) => {
+	const p = await dashboardProject(t, "aw-user-identity-unknown-");
+	const cases = [
+		["reset connection", (req) => req.socket.destroy(), true],
+		[
+			"busy (503)",
+			(_req, res) => {
+				res.writeHead(503, { "Content-Type": "text/plain" });
+				res.end("busy");
+			},
+			true,
+		],
+		[
+			"foreign proof",
+			(_req, res) => {
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(
+					JSON.stringify({
+						protocol: DASHBOARD_PROTOCOL,
+						proof: "0".repeat(64),
+					}),
+				);
+			},
+			false,
+		],
+	];
+	for (const [label, handler, kept] of cases) {
+		let requests = 0;
+		const port = await listener(t, (req, res) => {
+			requests++;
+			handler(req, res);
+		});
+		await writeDashboardDiscovery(p.cwd, {
+			pid: process.pid,
+			port,
+			launchKey: "b".repeat(43),
+		});
+		assert.equal(await readDashboardDiscovery(p.cwd), undefined, label);
+		assert.equal(
+			await readFile(dashboardDiscoveryPath(p.cwd), "utf8").then(
+				() => true,
+				() => false,
+			),
+			kept,
+			`${label}: discovery ${kept ? "kept" : "removed"}`,
+		);
+		assert.equal(
+			requests,
+			kept ? 2 : 1,
+			`${label}: unknown answers are retried once`,
+		);
+	}
+});

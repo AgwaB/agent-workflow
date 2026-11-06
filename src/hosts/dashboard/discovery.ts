@@ -239,16 +239,22 @@ const DASHBOARD_LOCAL_REQUEST_MS = 3000;
  * Bounded identity probe without credentials; do not follow redirects or accept an arbitrary
  * listener. Only a fresh nonce HMAC made with our private launch key proves ownership.
  */
-export function probeDashboard(
+/**
+ * Identity of the listener at the discovery's port: `valid` (it proved the launch key), `foreign` (a JSON
+ * answer with a wrong proof or protocol: another server holds the port), `unknown` (error, timeout or
+ * another status: a busy or restarting server cannot be told apart from a dead one), `timeout` (no
+ * answer within the local request bound).
+ */
+export function probeDashboardIdentity(
 	discovery: Pick<DashboardDiscovery, "port" | "launchKey" | "protocol">,
-): Promise<boolean> {
+): Promise<"valid" | "foreign" | "unknown" | "timeout"> {
 	const nonce = randomBytes(32).toString("base64url");
 	const expected = createHmac("sha256", discovery.launchKey)
 		.update(nonce)
 		.digest("hex");
 	return new Promise((done) => {
 		let settled = false;
-		const finish = (valid: boolean) => {
+		const finish = (valid: "valid" | "foreign" | "unknown" | "timeout") => {
 			if (settled) return;
 			settled = true;
 			clearTimeout(timer);
@@ -267,32 +273,42 @@ export function probeDashboard(
 					res.statusCode !== 200 ||
 					!res.headers["content-type"]?.startsWith("application/json")
 				) {
-					finish(false);
+					finish("unknown");
 					return;
 				}
 				let body = "";
 				res.on("data", (chunk: Buffer) => {
 					body += chunk.toString();
-					if (body.length > 4096) finish(false);
+					if (body.length > 4096) finish("foreign");
 				});
-				res.on("error", () => finish(false));
+				res.on("error", () => finish("unknown"));
 				res.on("end", () => {
 					try {
 						const parsed = JSON.parse(body);
 						finish(
 							parsed.protocol === discovery.protocol &&
-								secureEqual(parsed.proof, expected),
+								secureEqual(parsed.proof, expected)
+								? "valid"
+								: "foreign",
 						);
 					} catch {
-						finish(false);
+						finish("foreign");
 					}
 				});
 			},
 		);
-		const timer = setTimeout(() => finish(false), DASHBOARD_LOCAL_REQUEST_MS);
-		req.on("error", () => finish(false));
+		const timer = setTimeout(
+			() => finish("timeout"),
+			DASHBOARD_LOCAL_REQUEST_MS,
+		);
+		req.on("error", () => finish("unknown"));
 		req.end();
 	});
+}
+export async function probeDashboard(
+	discovery: Pick<DashboardDiscovery, "port" | "launchKey" | "protocol">,
+): Promise<boolean> {
+	return (await probeDashboardIdentity(discovery)) === "valid";
 }
 export async function readDashboardDiscovery(
 	cwd: string,
@@ -309,20 +325,43 @@ export async function readDashboardDiscovery(
 			);
 		return undefined;
 	}
-	let timer: ReturnType<typeof setTimeout> | undefined;
+	// 2026-11-06 (CI ubuntu/Node 24): a live server whose identity answer failed once (busy, reset
+	// connection) lost its discovery and a second server could take the next port. Remove the
+	// discovery only for a dead pid or a proven foreign listener; an unknown answer is retried once
+	// and then reported as unavailable, keeping the file for the server that may still own it.
+	const identity = async (): Promise<
+		"valid" | "foreign" | "unknown" | "timeout"
+	> => {
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		try {
+			return await Promise.race([
+				options.probe
+					? options
+							.probe(data)
+							.then((valid): "valid" | "foreign" =>
+								valid ? "valid" : "foreign",
+							)
+					: probeDashboardIdentity(data),
+				new Promise<"timeout">((done) => {
+					timer = setTimeout(() => done("timeout"), DASHBOARD_LOCAL_REQUEST_MS);
+				}),
+			]);
+		} finally {
+			clearTimeout(timer);
+		}
+	};
 	try {
-		const valid = await Promise.race([
-			(options.probe ?? probeDashboard)(data),
-			new Promise<boolean>((done) => {
-				timer = setTimeout(() => done(false), DASHBOARD_LOCAL_REQUEST_MS);
-			}),
-		]);
-		if (!valid) await removeDashboardDiscovery(cwd, data.launchKey);
-		return valid ? data : undefined;
+		let result = await identity();
+		// A fast failure (reset connection, busy status) is retried once; a timeout already waited.
+		if (result === "unknown") {
+			await sleep(100);
+			result = await identity();
+		}
+		if (result === "foreign")
+			await removeDashboardDiscovery(cwd, data.launchKey);
+		return result === "valid" ? data : undefined;
 	} catch {
 		return undefined;
-	} finally {
-		clearTimeout(timer);
 	}
 }
 export function detectAgentEnvironment(
