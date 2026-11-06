@@ -16,7 +16,6 @@
  * - Inherited environment that would switch the account, project or harness (Orca
  *   `antigravity-acp-environment.ts:10-28`).
  */
-import { enforcesReadOnly, type PermissionMode } from "../../sdk/permission.js";
 import {
 	access,
 	copyFile,
@@ -28,6 +27,7 @@ import {
 import { delimiter, dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FailureClass } from "../../sdk/errors.js";
+import { enforcesReadOnly, type PermissionMode } from "../../sdk/permission.js";
 import type { ToolMapping } from "../../sdk/tools.js";
 import type { AgentToolResult, SummaryCall } from "./config.js";
 

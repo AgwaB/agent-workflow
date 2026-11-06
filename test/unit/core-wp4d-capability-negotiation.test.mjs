@@ -155,7 +155,11 @@ test("refusal before launch: missing required capability names stage, capability
 	});
 	const specPath = await writeSpec(cwd, ONE_STAGE);
 	await assert.rejects(
-		engine.runWorkflowSpec(specPath, cwd, { task: "t", executor: id }),
+		engine.runWorkflowSpec(specPath, cwd, {
+			task: "t",
+			executor: id,
+			permissionMode: "safe",
+		}),
 		capabilityError(
 			"CAPABILITY_REFUSED",
 			/stage "a.main": readOnly — CAPABILITY_MISSING:readOnly \(executor has none\/declared\); no opt-in exists/,
@@ -213,6 +217,7 @@ test("refusal before launch: strict profile + emulated (declared profile and sav
 		engine.runWorkflowSpec(specPath, cwd, {
 			task: "t",
 			executor: id,
+			permissionMode: "safe",
 			executionProfile: "strict",
 		}),
 		capabilityError(
@@ -224,6 +229,7 @@ test("refusal before launch: strict profile + emulated (declared profile and sav
 		engine.runWorkflowSpec(specPath, cwd, {
 			task: "t",
 			executor: id,
+			permissionMode: "safe",
 			executionProfileOverride: {
 				name: "mine",
 				strictCapabilities: ["readOnly"],
@@ -237,6 +243,7 @@ test("refusal before launch: strict profile + emulated (declared profile and sav
 		engine.runWorkflowSpec(specPath, cwd, {
 			task: "t",
 			executor: id,
+			permissionMode: "safe",
 			executionProfileOverride: {
 				name: "mine",
 				strictCapabilities: ["warpDrive"],
@@ -319,6 +326,7 @@ test("no warning: an emulated capability passes silently, even on an interactive
 	const started = await engine.runWorkflowSpec(specPath, cwd, {
 		task: "t",
 		executor: id,
+		permissionMode: "safe",
 		interactive: true,
 	});
 	assert.equal(started.capabilityNegotiation.confirmation, undefined);
@@ -469,6 +477,7 @@ test("probed rows are merged over the declared table and recorded as probed", as
 	const started = await engine.runWorkflowSpec(specPath, cwd, {
 		task: "t",
 		executor: id,
+		permissionMode: "safe",
 	});
 	const negotiation = started.capabilityNegotiation;
 	assert.deepEqual(negotiation.capabilities.readOnly, {

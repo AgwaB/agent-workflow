@@ -18,7 +18,8 @@
  * `--permission-mode default` (user settings may say `auto`); never a bypass/auto-accept mode;
  * mutating tools go through the approval channel. `free` on every stage:
  * `--permission-mode bypassPermissions` (the documented `--permission-mode` choice in 2.1.310; the
- * `--dangerously-skip-permissions` alias is not used). A safe readOnly stage uses `--permission-mode default`, mutating tools removed from `--tools` and listed in
+ * `--dangerously-skip-permissions` alias is not used). A safe readOnly stage uses `--permission-mode default`,
+ * mutating tools removed from `--tools` and listed in
  * `--disallowedTools`. Only web tools the stage asked for and tools of engine-injected MCP servers
  * are pre-allowed.
  */
@@ -240,7 +241,7 @@ export function buildClaudeInvocation(
 			...req.mcpServers.map((server) =>
 				server.name === ARTIFACT_MCP_SERVER
 					? artifactTool
-					: // Unenforced readOnly only: the caller injected it into a mutation-capable stage.
+					: // No readOnly enforcement: the caller explicitly injected this server.
 						`mcp__${server.name}`,
 			),
 		]),

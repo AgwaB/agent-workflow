@@ -7,6 +7,7 @@ import { INHERITED_HOST_TOOL_NAMES } from "./tool-policy.js";
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
 import type { NegotiationReport } from "../sdk/requirements.js";
 import { isPlainObject, type JsonValue } from "../sdk/json.js";
+import { enforcesReadOnly, type PermissionMode } from "../sdk/permission.js";
 import type { ToolKind } from "../sdk/events.js";
 import { isMutatingKind, WORKFLOW_TOOL_KINDS } from "../sdk/tools.js";
 import { AGENT_WORKFLOW_ROLE_ENV } from "./process-role.js";
@@ -29,7 +30,6 @@ import {
 	renderWorkerTaskPromptToolNames,
 	workflowArtifactToolGuidelinesSection,
 } from "./artifact-tool-names.js";
-import { enforcesReadOnly, type PermissionMode } from "../sdk/permission.js";
 import { DEFAULT_WORKER_TOOLS, workflowTaskReadOnly } from "./tool-policy.js";
 import { WORKFLOW_TASK_BACKEND_ID } from "./task-artifacts.js";
 import {
@@ -1497,8 +1497,8 @@ export function workflowTaskIsolation(compiledTask: CompiledTask): {
 
 /**
  * Engine approval policy (D2, R#4): kinds the stage's own tools imply are answered `allow`;
- * mutating kinds are never allowed for a read-only task in safe mode; everything else is denied (there is no
- * interactive channel for workflow workers yet, WP2b).
+ * mutating kinds are never allowed for a read-only task in safe mode. Free mode is allowed before
+ * tool-kind checks by decideApproval; safe denies other kinds without an interactive host (WP2b).
  */
 export function workflowTaskApprovalPolicy(
 	compiledTask: CompiledTask,

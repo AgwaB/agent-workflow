@@ -8,6 +8,8 @@
 // `forcedReadOnly` reaches the SubmitRequest.
 // WP4e: the run permission mode reaches every stage context (free: coarse allowlist and environment
 // warnings are recorded degradations, never refusals) and the preview's first line.
+// Authored readOnly intent remains in each context; the SDK negotiates it only in safe mode.
+// Free records a short informational note instead of requiring/warning about readOnly.
 // WP5b: the probe summary keeps the executor's declared MCP output limit (mcpOutputLimitChars,
 // mcpOutputNoticeChars) so the artifact server is launched with a measured limit.
 // WP17: install/login hints come from executor-default.ts (first-run guidance names the install command).

@@ -487,7 +487,7 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				tools.push(
 					server.name === ARTIFACT_SERVER
 						? piMcpToolName(ARTIFACT_SERVER, "workflow_artifact")
-						: // non-readOnly only: the caller injected it into a mutation-capable stage.
+						: // No readOnly enforcement: the caller explicitly injected this server.
 							piMcpServerPattern(server.name),
 				);
 		const extensionsBefore: string[] = [];

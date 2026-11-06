@@ -143,7 +143,8 @@ export interface CodexToolPlan {
 
 /**
  * Sandbox, approval policy and web mode for a request. Safe readOnly stages use the
- * `read-only` sandbox and `on-request` approvals. Every `free` stage uses `danger-full-access` + approvals `never` (the coarse tool list is
+ * `read-only` sandbox and `on-request` approvals. Every `free` stage uses
+ * `danger-full-access` + approvals `never` (the coarse tool list is
  * accepted, not enforced). `safe` (default when absent): an empty tool list means "no explicit
  * restriction" = workspace-write; otherwise the mapped sandbox; approvals `on-request`;
  * `danger-full-access` is never selected.

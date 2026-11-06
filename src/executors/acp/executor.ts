@@ -14,7 +14,6 @@
  * - reconcile: in-memory run, else the durable record (`found` when the raw log holds the prompt
  *   result, else `unknown`: the session belonged to the process that is gone).
  */
-import { enforcesReadOnly } from "../../sdk/permission.js";
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createWriteStream, type WriteStream } from "node:fs";
@@ -40,6 +39,7 @@ import { ARTIFACT_MCP_SERVER_NAME } from "../../core/artifact-access.js";
 import { acquireDirectoryLock } from "../../runtime/artifacts/dir-lock.js";
 import { SdkError } from "../../sdk/errors.js";
 import type { ExecEvent } from "../../sdk/events.js";
+import { enforcesReadOnly } from "../../sdk/permission.js";
 import { createSecretRedactor, requestSecrets } from "../redact.js";
 import { schedulePeriodicAdapterStatePrune } from "../state-retention.js";
 import { acpCapabilities } from "./capabilities.js";
