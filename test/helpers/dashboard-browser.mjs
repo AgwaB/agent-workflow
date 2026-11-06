@@ -150,18 +150,15 @@ export async function createBrowser(executable) {
 		"Execution context was destroyed",
 		"Cannot find context with specified id",
 	];
+	const isNavigationError = (error) =>
+		NAVIGATION_ERRORS.some((text) => String(error?.message).includes(text));
 	const waitFor = async (fn, timeout = 20_000) => {
 		const until = Date.now() + timeout;
 		while (Date.now() < until) {
 			try {
 				if (await evaluate(fn)) return;
 			} catch (error) {
-				if (
-					!NAVIGATION_ERRORS.some((text) =>
-						String(error?.message).includes(text),
-					)
-				)
-					throw error;
+				if (!isNavigationError(error)) throw error;
 			}
 			await new Promise((resolve) => setTimeout(resolve, 25));
 		}
@@ -251,7 +248,14 @@ export async function createBrowser(executable) {
 			button: "left",
 			clickCount: 1,
 		});
-		await settle();
+		// A plain link (the dashboard's view navigation) reloads the page while settle() polls;
+		// then wait for the new document instead (2026-11-06, CI ubuntu/Node 26).
+		try {
+			await settle();
+		} catch (error) {
+			if (!isNavigationError(error)) throw error;
+			await waitFor(() => document.readyState === "complete");
+		}
 	};
 	const key = async (key, modifiers = 0) => {
 		const windowsVirtualKeyCode =
