@@ -429,7 +429,7 @@ test("submit: argv/tools/readOnly, prompt on stdin, extension per run, secrets o
 	assert.match(extension, /"envKeys":\["ART_TOKEN"\]/u);
 });
 
-test("permission mode (WP4e): Pi has no approvals or sandbox, so free and safe launch the same argv; readOnly drops mutating tools in both", async () => {
+test("permission mode (WP4e): Pi has no approvals or sandbox, so free and safe launch the same argv; only safe readOnly drops mutating tools", async () => {
 	const launched = [];
 	for (const [permissionMode, readOnly] of [
 		["free", false],
@@ -452,7 +452,7 @@ test("permission mode (WP4e): Pi has no approvals or sandbox, so free and safe l
 		const argv = launch.argv.map((arg) =>
 			arg.startsWith(dir) ? "<attempt>" : arg,
 		);
-		launched.push({ readOnly, argv });
+		launched.push({ readOnly, permissionMode, argv });
 	}
 	const writable = launched.filter((entry) => !entry.readOnly);
 	for (const entry of writable) assert.deepEqual(entry.argv, writable[0].argv);
@@ -461,9 +461,9 @@ test("permission mode (WP4e): Pi has no approvals or sandbox, so free and safe l
 		"read,bash,edit",
 	);
 	const readOnly = launched.filter((entry) => entry.readOnly);
-	assert.deepEqual(readOnly[0].argv, readOnly[1].argv);
+	assert.deepEqual(readOnly[0].argv, writable[0].argv);
 	assert.equal(
-		readOnly[0].argv[readOnly[0].argv.indexOf("--tools") + 1],
+		readOnly[1].argv[readOnly[1].argv.indexOf("--tools") + 1],
 		"read",
 	);
 });

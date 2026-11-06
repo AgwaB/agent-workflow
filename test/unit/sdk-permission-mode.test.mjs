@@ -53,14 +53,14 @@ test("SubmitRequest.permissionMode: optional, validated, absent means safe", () 
 		sdk.validateSubmitRequest(request({ permissionMode: "yolo" })).join(),
 		/permissionMode must be "free" or "safe"/,
 	);
-	// Unrestricted only for free on a stage that is not readOnly.
+	// Every free stage is unrestricted, including authored readOnly.
 	assert.equal(
 		sdk.isUnrestricted({ permissionMode: "free", readOnly: false }),
 		true,
 	);
 	assert.equal(
 		sdk.isUnrestricted({ permissionMode: "free", readOnly: true }),
-		false,
+		true,
 	);
 	assert.equal(
 		sdk.isUnrestricted({ permissionMode: "safe", readOnly: false }),
@@ -69,7 +69,7 @@ test("SubmitRequest.permissionMode: optional, validated, absent means safe", () 
 	assert.equal(sdk.isUnrestricted({ readOnly: false }), false);
 });
 
-test("decideApproval: free allows everything except mutating kinds on a readOnly stage; safe/absent unchanged", () => {
+test("decideApproval: free allows everything including mutating kinds on a readOnly stage; safe/absent unchanged", () => {
 	const policy = sdk.defaultApprovalPolicy();
 	for (const kind of ["read", "execute", "edit", "fetch", "other"])
 		assert.equal(
@@ -87,7 +87,7 @@ test("decideApproval: free allows everything except mutating kinds on a readOnly
 			{ kind: "edit" },
 			{ readOnly: true, permissionMode: "free" },
 		),
-		"deny",
+		"allow",
 	);
 	assert.equal(
 		sdk.decideApproval(
@@ -153,7 +153,7 @@ test("negotiation: coarse allowlist refuses in safe, degrades (recorded, no forc
 	assert.equal(downgraded.forcedReadOnly, true);
 });
 
-test("negotiation: environment warnings in free are recorded, never strict-refused or confirmed; readOnly stays required", () => {
+test("negotiation: environment warnings in free are recorded, never strict-refused or confirmed; readOnly is not negotiated", () => {
 	const caps = fakeCapabilities({ readOnly: warned("151 allow rules") });
 	const ctx = {
 		readOnly: true,
@@ -172,8 +172,9 @@ test("negotiation: environment warnings in free are recorded, never strict-refus
 	});
 	assert.equal(free.accepted, true);
 	assert.equal(free.needsConfirmation, undefined);
-	assert.equal(entry(free, "readOnly").code, "CAPABILITY_WARNING:readOnly");
-	assert.equal(entry(free, "readOnly").acceptedByFreeMode, true);
+	assert.equal(entry(free, "readOnly"), undefined);
+	assert.deepEqual(free.degradations, []);
+	assert.match(free.notes.join(), /readOnly is not enforced/);
 	// Other degradations still follow B4 in free (interactive confirmation).
 	const partial = sdk.negotiateCapabilities(
 		executor,
@@ -187,13 +188,14 @@ test("negotiation: environment warnings in free are recorded, never strict-refus
 		},
 	);
 	assert.equal(partial.needsConfirmation, undefined);
-	// A missing readOnly capability is refused in free too.
+	// Missing readOnly is irrelevant in free, even with an explicit requirement.
 	const none = sdk.negotiateCapabilities(
 		executor,
 		fakeCapabilities({ readOnly: { level: "none", source: "declared" } }),
 		{ readOnly: true, hasRequiredReads: false, permissionMode: "free" },
 	);
-	assert.deepEqual(none.refusals, ["CAPABILITY_MISSING:readOnly"]);
+	assert.deepEqual(none.refusals, []);
+	assert.equal(entry(none, "readOnly"), undefined);
 });
 
 test("buildCapabilityPreview shows the permission mode on the first line", () => {
@@ -236,6 +238,36 @@ test("fake executor maps both modes to distinct synthetic launch settings", () =
 	]);
 	assert.deepEqual(
 		fakeLaunchArgv({ permissionMode: "free", readOnly: true }).slice(1),
-		[...FAKE_PERMISSION_MODE_SETTINGS.readOnly],
+		[...FAKE_PERMISSION_MODE_SETTINGS.free],
+	);
+});
+
+test("readOnly enforcement and requirements are safe-only, including explicit overrides", () => {
+	for (const permissionMode of [undefined, "safe", "free"]) {
+		const ctx = {
+			readOnly: true,
+			hasRequiredReads: false,
+			permissionMode,
+			requirements: { readOnly: { need: "required", onMissing: "refuse" } },
+		};
+		assert.equal(sdk.enforcesReadOnly(ctx), permissionMode !== "free");
+		assert.equal(
+			sdk.stageRequirements(ctx).has("readOnly"),
+			permissionMode !== "free",
+		);
+		for (const kind of ["edit", "delete", "move", "execute"]) {
+			assert.equal(
+				sdk.decideApproval(
+					sdk.defaultApprovalPolicy({ allowKinds: [kind], interactive: true }),
+					{ kind },
+					ctx,
+				),
+				permissionMode === "free" ? "allow" : "deny",
+			);
+		}
+	}
+	assert.equal(
+		sdk.enforcesReadOnly({ readOnly: false, permissionMode: "safe" }),
+		false,
 	);
 });

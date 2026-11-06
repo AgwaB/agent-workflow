@@ -143,7 +143,7 @@ test("tool mapping: coarse sandbox, readOnly always wins, web → live web_searc
 			}
 });
 
-test("permission mode (WP4e): free → danger-full-access + approvals never; readOnly stays read-only/on-request", () => {
+test("permission mode (WP4e): free → danger-full-access + approvals never; readOnly is unrestricted in free", () => {
 	for (const tools of [
 		[],
 		["read"],
@@ -154,9 +154,14 @@ test("permission mode (WP4e): free → danger-full-access + approvals never; rea
 		assert.equal(free.sandbox, "danger-full-access", tools.join());
 		assert.equal(free.approvalPolicy, "never");
 		const readOnly = planCodexTools(tools, true, "free");
-		assert.equal(readOnly.sandbox, "read-only");
-		assert.equal(readOnly.approvalPolicy, "on-request");
-		assert.deepEqual(readOnly, planCodexTools(tools, true, "safe"));
+		assert.equal(readOnly.sandbox, "danger-full-access");
+		assert.equal(readOnly.approvalPolicy, "never");
+		assert.deepEqual(readOnly, free);
+		assert.equal(planCodexTools(tools, true, "safe").sandbox, "read-only");
+		assert.equal(
+			planCodexTools(tools, true, "safe").approvalPolicy,
+			"on-request",
+		);
 	}
 	assert.equal(planCodexTools(["web_search"], false, "free").webSearch, "live");
 });

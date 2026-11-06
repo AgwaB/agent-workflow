@@ -149,7 +149,7 @@ test("acp: a prompt streams text, tool reports and usage, then completes", async
 		"--allowed-mcp-server-names",
 		"workflow_artifact",
 		"--approval-mode",
-		"plan",
+		"yolo",
 	]);
 	// The request env reaches the agent (on top of the inherited environment).
 	assert.ok(
@@ -405,7 +405,7 @@ test("acp: a readOnly request that injects a server other than the artifact serv
 	const gate = createAuthorityGate({ attemptKey: "acp-foreign-1" });
 	await assert.rejects(
 		executor.submit({
-			...request(dir, "acp-foreign-1"),
+			...request(dir, "acp-foreign-1", { permissionMode: "safe" }),
 			authority: gate.authority,
 			mcpServers: [{ name: "other", command: "/bin/echo", args: [] }],
 		}),
@@ -473,7 +473,7 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 			)
 			.map((entry) => [entry.method, entry.params]),
 		[
-			["session/set_mode", { sessionId: "fake-session-1", modeId: "default" }],
+			["session/set_mode", { sessionId: "fake-session-1", modeId: "yolo" }],
 			[
 				"session/set_config_option",
 				{
@@ -980,4 +980,54 @@ test("acp antigravity: web tools get their names, a fetch kind for search, and t
 			mcpMaxOutputBytes: 131_072,
 		},
 	});
+});
+
+test("acp: free readOnly uses yolo without mutating-tool filtering; safe keeps plan", async (t) => {
+	const { dir, executor, agentLog } = await setup(t, "complete");
+	for (const permissionMode of ["free", "safe"]) {
+		const ref = await executor.submit(
+			request(dir, `mode-${permissionMode}`, {
+				permissionMode,
+				tools: ["read", "edit", "write"],
+			}),
+		);
+		assert.equal(
+			(await drain(executor, ref, { timeoutMs: DRAIN_MS })).terminal.type,
+			"completed",
+		);
+	}
+	const argvs = (await agentLog())
+		.filter((entry) => entry.argv)
+		.map((entry) => entry.argv);
+	assert.equal(argvs[0][argvs[0].indexOf("--approval-mode") + 1], "yolo");
+	assert.equal(argvs[1][argvs[1].indexOf("--approval-mode") + 1], "plan");
+	const tools = ["read", "edit", "write"];
+	assert.deepEqual(
+		antigravitySessionMeta({ tools, readOnly: true, permissionMode: "free" })
+			.antigravity.enabledTools,
+		["create_file", "edit_file", "view_file"],
+	);
+	assert.deepEqual(
+		antigravitySessionMeta({ tools, readOnly: true, permissionMode: "safe" })
+			.antigravity.enabledTools,
+		["view_file"],
+	);
+});
+
+test("acp: free readOnly permits foreign injected MCP servers", async (t) => {
+	const { dir, executor, agentLog } = await setup(t, "complete");
+	const ref = await executor.submit(
+		request(dir, "free-foreign", {
+			mcpServers: [{ name: "other", command: "/bin/echo", args: [] }],
+		}),
+	);
+	assert.equal(
+		(await drain(executor, ref, { timeoutMs: DRAIN_MS })).terminal.type,
+		"completed",
+	);
+	assert.equal(
+		(await agentLog()).find((entry) => entry.method === "session/new")
+			.mcpServers[0].name,
+		"other",
+	);
 });
