@@ -292,6 +292,10 @@ test("ensure starts a real detached dashboard; status, reuse --open and stop rou
 		},
 	});
 	assert.equal(opened.code, 0, `${opened.stderr}\n${opened.stdout}`);
+	assert.equal(
+		opened.stdout,
+		`Dashboard: http://127.0.0.1:${discovery.port}/?project=${projectId(ctx.cwd)}\n`,
+	);
 	assert.equal(urls.length, 1);
 	assert.equal((await fetch(urls[0], { redirect: "manual" })).status, 302);
 	assert.equal((await readDashboardDiscovery(ctx.cwd)).pid, pid);

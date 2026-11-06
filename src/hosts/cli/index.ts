@@ -969,7 +969,9 @@ async function dispatch(
 						return EXIT_FAILED;
 					}
 					if (existing.portReason) io.stderr(`${existing.portReason}\n`);
-					io.stdout(`Dashboard listening on 127.0.0.1:${existing.port}\n`);
+					io.stdout(
+						`Dashboard: http://127.0.0.1:${existing.port}/?project=${projectId(cwd)}\n`,
+					);
 					return EXIT_OK;
 				}
 				if (existing)
