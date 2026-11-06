@@ -92,7 +92,7 @@ export async function stillRunningAfterWaitMessage(
 	const elapsed = formatApproxDuration(
 		Number.isFinite(createdAtMs) ? Date.now() - createdAtMs : timeoutMs,
 	);
-	return `Flow run ${run.runId} still running (${elapsed} elapsed) after ${timeoutMs}ms wait — will keep supervising; check agent-workflow status ${run.runId} (Pi: /aw status ${run.runId})`;
+	return `Workflow run ${run.runId} still running (${elapsed} elapsed) after ${timeoutMs}ms wait — will keep supervising; check agent-workflow status ${run.runId} (Pi: /aw status ${run.runId})`;
 }
 
 export async function recordSupervisorError(

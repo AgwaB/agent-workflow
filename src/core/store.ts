@@ -3105,7 +3105,7 @@ export async function readRunRecord(
 	runIdOrPrefix: string,
 ): Promise<WorkflowRunRecord> {
 	const file = await findRunRecordPath(cwd, runIdOrPrefix);
-	if (!file) throw new Error(`Flow run not found: ${runIdOrPrefix}`);
+	if (!file) throw new Error(`Workflow run not found: ${runIdOrPrefix}`);
 
 	const containingRunId = basename(dirname(file));
 	assertSafeRunId(containingRunId);

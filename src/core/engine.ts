@@ -1191,7 +1191,7 @@ export async function waitForRun(
 	const deadline = Number.isFinite(waitDeadlineMs)
 		? Math.min(timeoutDeadline, waitDeadlineMs as number)
 		: timeoutDeadline;
-	const initialTimeoutMessage = `Flow run ${runIdOrPrefix} still running after ${timeout}ms wait`;
+	const initialTimeoutMessage = `Workflow run ${runIdOrPrefix} still running after ${timeout}ms wait`;
 	if (waitSignal?.aborted) throw workflowWaitAbortError(waitSignal);
 	const initialRemaining = deadline - Date.now();
 	if (initialRemaining <= 0) throw new Error(initialTimeoutMessage);
@@ -3124,7 +3124,7 @@ function isEnoentError(error: unknown): boolean {
 function isMissingRunError(error: unknown): boolean {
 	return (
 		isEnoentError(error) ||
-		(error instanceof Error && /^Flow run not found: /.test(error.message))
+		(error instanceof Error && /^Workflow run not found: /.test(error.message))
 	);
 }
 

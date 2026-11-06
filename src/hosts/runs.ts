@@ -716,7 +716,7 @@ export async function waitAction(
 				: {}),
 		});
 	} catch (error) {
-		// Only the wait bound ("Flow run … still running … after …ms wait") becomes a result;
+		// Only the wait bound ("Workflow run … still running … after …ms wait") becomes a result;
 		// the run may also have settled right at the boundary.
 		const timedOut =
 			!request.signal?.aborted &&
