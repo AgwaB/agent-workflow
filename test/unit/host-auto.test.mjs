@@ -187,9 +187,9 @@ test("a run flag and a saved user profile select the classifier executor (Q5: th
 		{ executor: "codex" },
 	);
 	assert.deepEqual(
-		[flagged.executor, flagged.source, flagged.model],
-		["codex", "run-flag", null],
-		"the Pi model belongs to pi only",
+		[flagged.executor, flagged.source, flagged.model, flagged.effort],
+		["codex", "run-flag", "gpt-5.6-luna", "medium"],
+		"the Pi model belongs to pi only; codex uses its default profile",
 	);
 	const pi = await api.resolveAutoClassifier(
 		{
@@ -201,6 +201,37 @@ test("a run flag and a saved user profile select the classifier executor (Q5: th
 		{},
 	);
 	assert.deepEqual([pi.executor, pi.model, pi.effort], ["pi", "p/m", "low"]);
+	// Saved executor profiles: their default role, over the host's values (pi) or the built-in one.
+	await api.profileAction(
+		{ cwd, env },
+		{ op: "set", name: "pi", values: { effort: "high" } },
+	);
+	await api.profileAction(
+		{ cwd, env },
+		{ op: "set", name: "codex", values: { model: "gpt-edit" } },
+	);
+	const piEdited = await api.resolveAutoClassifier(
+		{
+			cwd,
+			env,
+			host: "pi",
+			runtimeDefaults: { model: "p/m", effort: "low", executor: "pi" },
+		},
+		{},
+	);
+	assert.deepEqual(
+		[piEdited.executor, piEdited.model, piEdited.effort],
+		["pi", "p/m", "high"],
+	);
+	const codexEdited = await api.resolveAutoClassifier(
+		{ cwd, env, host: "pi" },
+		{ executor: "codex", effort: "low" },
+	);
+	assert.deepEqual(
+		[codexEdited.model, codexEdited.effort],
+		["gpt-edit", "low"],
+		"run flags win field by field",
+	);
 	await api.profileAction(
 		{ cwd, env },
 		{
@@ -264,7 +295,10 @@ test("the top recommendation launches and the launch capture records the selecti
 		).label,
 		"wp32-alpha",
 	);
-	assert.deepEqual(selection.classifier, { executor: "claude", model: null });
+	assert.deepEqual(selection.classifier, {
+		executor: "claude",
+		model: "sonnet",
+	});
 	assert.equal(selection.consent, "command");
 	assert.match(selection.taskSha256, /^[0-9a-f]{64}$/);
 	assert.ok(store.isWorkflowRunLaunchMetadata(launch));
@@ -292,7 +326,7 @@ test("the top recommendation launches and the launch capture records the selecti
 	);
 	assert.match(
 		shown.text,
-		/Auto selection: wp32-alpha \(recommended; \d+ candidates; classifier claude; consent command\)/,
+		/Auto selection: wp32-alpha \(recommended; \d+ candidates; classifier claude sonnet; consent command\)/,
 	);
 });
 

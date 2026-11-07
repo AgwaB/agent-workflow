@@ -485,3 +485,72 @@ test('Pi host passes host "pi" (the CLI passes "cli": see the run and doctor tes
 	assert.equal(ctx.host, "pi");
 	assert.equal(ctx.cwd, "/tmp/project");
 });
+
+test("doctor reports each executor's default profile: built-in, user-settings fallback, saved changes", async () => {
+	const { fakeCapabilities } = await import("../../dist/sdk/testing/index.js");
+	const { cwd, env, codexHome } = await project();
+	await writeFile(
+		join(codexHome, "config.toml"),
+		'model = "gpt-6.1-sol"\nmodel_reasoning_effort = "high"\n',
+	);
+	const prober = async (descriptor) => ({
+		probe: {
+			...READY,
+			notes:
+				descriptor.id === "codex"
+					? ["models: gpt-6.1-sol"]
+					: descriptor.id === "claude"
+						? ["models: default, sonnet, opus"]
+						: [],
+		},
+		capabilities: fakeCapabilities(),
+	});
+	const ctx = { cwd, env, host: "cli" };
+	const first = await api.doctorAction(ctx, { prober, probeTimeoutMs: 2_000 });
+	const byId = Object.fromEntries(
+		first.data.executorDefaults.map((entry) => [entry.executor, entry]),
+	);
+	assert.deepEqual(Object.keys(byId), ["codex", "claude", "pi"]);
+	assert.equal(byId.codex.base, "user-settings");
+	assert.deepEqual(byId.codex.roles, {
+		default: { model: "gpt-6.1-sol", effort: "high" },
+	});
+	assert.match(byId.codex.notice, /gpt-5\.6-luna" is not offered here/);
+	assert.equal(byId.claude.base, "built-in");
+	assert.deepEqual(byId.claude.roles.planning, {
+		model: "sonnet",
+		effort: "high",
+	});
+	assert.equal(byId.pi.base, "none");
+	assert.deepEqual(byId.pi.roles, {});
+	assert.match(
+		first.text,
+		/codex {3}your codex settings \(built-in model not offered here\): gpt-6\.1-sol\/high/,
+	);
+	assert.match(
+		first.text,
+		/claude {2}built-in: sonnet\/medium; planning, verification, final-judgment: sonnet\/high/,
+	);
+	assert.match(first.text, /pi {6}pi's own model and effort/);
+	await api.profileAction(ctx, {
+		op: "set",
+		name: "claude",
+		values: { roles: { verification: { executor: "claude", model: "opus" } } },
+	});
+	const second = await api.doctorAction(ctx, {
+		prober,
+		probeTimeoutMs: 2_000,
+	});
+	const claude = second.data.executorDefaults.find(
+		(entry) => entry.executor === "claude",
+	);
+	assert.equal(claude.saved, true);
+	assert.deepEqual(claude.roles.verification, {
+		model: "opus",
+		effort: "high",
+	});
+	assert.match(
+		second.text,
+		/claude {2}built-in with your changes: sonnet\/medium; planning, final-judgment: sonnet\/high; verification: opus\/high/,
+	);
+});

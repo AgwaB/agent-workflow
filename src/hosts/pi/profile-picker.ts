@@ -15,6 +15,7 @@ import type {
 	ProfileRequest,
 	WorkflowPreferenceRequest,
 } from "../api.js";
+import { isExecutorProfileName } from "../user-profiles.js";
 import type { PiHostApi } from "./host.js";
 
 export type PreviewAction = "save" | "edit" | "back";
@@ -223,7 +224,7 @@ class Picker {
 			...(listedProfiles.profiles ?? []).map((profile) => ({
 				kind: "saved" as const,
 				id: profile.name,
-				label: `Saved: ${profile.name}`,
+				label: `Saved: ${profile.name}${isExecutorProfileName(profile.name) ? ` (default profile of ${profile.name} stages)` : ""}`,
 				roles: clone({
 					...(profile.executor || profile.model || profile.effort
 						? {
@@ -410,6 +411,15 @@ class Picker {
 			if (!typed) return undefined;
 			name = typed;
 		}
+		// A profile named after an executor is that executor's default profile: say so before saving.
+		if (
+			isExecutorProfileName(name) &&
+			!(await this.ui.confirm(
+				`"${name}" is the default profile of ${name} stages`,
+				`Saving it changes the model and effort ${name} stages use where the workflow, the launch and the chosen profile set none. profile delete ${name} restores the built-in one.`,
+			))
+		)
+			return undefined;
 		const makeDefault = await this.ui.confirm(
 			`Make "${name}" the default profile?`,
 			"Launches that name no profile (and have no per-workflow preference) use the default profile.",

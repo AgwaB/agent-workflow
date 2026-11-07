@@ -9,14 +9,17 @@ import { fromStatePath } from "../core/state-location.js";
 // when at least one executor is usable. WP35: the executor's web-tools probe note (Pi: whether
 // pi-web-access is installed, with the install command when it is not) is shown and warned about.
 import { constants } from "node:fs";
+import { probeWorkflowExecutor } from "../core/capability-negotiation.js";
 import {
 	type ExecutorDoctorFixResult,
 	executorPolicy,
+	resolveExecutorDefaultProfile,
 } from "../core/executor-policy.js";
 import { access, stat } from "node:fs/promises";
 import { dirname, isAbsolute } from "node:path";
 
 import {
+	cachedExecutorProber,
 	type ExecutorReadiness,
 	type ExecutorReadinessProber,
 	executorSetupHints,
@@ -36,8 +39,11 @@ import {
 	TERMINAL_INDEX_LIMIT,
 	workflowIndexPath,
 } from "../core/store.js";
-import { BUILTIN_EXECUTOR_IDS } from "../core/executor-registry.js";
-import type { WorkflowHostId } from "../core/types.js";
+import {
+	BUILTIN_EXECUTOR_IDS,
+	workflowExecutorRegistration,
+} from "../core/executor-registry.js";
+import type { WorkflowHostId, WorkflowRoleMap } from "../core/types.js";
 import {
 	inspectCodexEnvironment,
 	codexPolicyWarnings,
@@ -47,7 +53,13 @@ import {
 	claudeEnvironmentWarnings,
 	type ClaudeEnvironmentOptions,
 } from "../executors/claude/environment.js";
-import { readUserProfiles, userProfileFromFile } from "./user-profiles.js";
+import {
+	isExecutorProfileName,
+	readUserProfiles,
+	type UserProfile,
+	type UserProfilesFile,
+	userProfileFromFile,
+} from "./user-profiles.js";
 import {
 	assertActionAllowed,
 	type HostApiContext,
@@ -114,6 +126,8 @@ export interface DoctorData {
 		writable: boolean;
 	};
 	warnings: string[];
+	/** Each executor's default profile on this machine (probe model lists; no model call). */
+	executorDefaults: DoctorExecutorDefault[];
 	runIndex: {
 		path: string;
 		entries: number;
@@ -126,6 +140,98 @@ export interface DoctorData {
 		error?: string;
 	};
 	usable: boolean;
+}
+
+export interface DoctorExecutorDefault {
+	executor: string;
+	/**
+	 * built-in: the preset applies; user-settings: its model is not offered here, so the user's own
+	 * CLI settings apply; cli-default: neither, the CLI's own defaults; none: no built-in profile (pi).
+	 */
+	base: "built-in" | "user-settings" | "cli-default" | "none";
+	/** A saved profile named after the executor holds changes. */
+	saved: boolean;
+	/** Role → model/effort of its stages where nothing else sets them. */
+	roles: WorkflowRoleMap;
+	notice?: string;
+}
+
+/** `model/effort` groups of a role map: the default first, then the roles that differ. */
+function roleSummary(roles: WorkflowRoleMap): string {
+	const text = (entry: { model?: string; effort?: string } | undefined) =>
+		`${entry?.model ?? "own model"}/${entry?.effort ?? "own effort"}`;
+	const base = text(roles.default);
+	const groups = new Map<string, string[]>();
+	for (const [role, entry] of Object.entries(roles)) {
+		if (role === "default") continue;
+		const merged = text({ ...roles.default, ...entry });
+		if (merged === base) continue;
+		groups.set(merged, [...(groups.get(merged) ?? []), role]);
+	}
+	return [
+		base,
+		...[...groups].map(([value, list]) => `${list.join(", ")}: ${value}`),
+	].join("; ");
+}
+
+async function executorDefaultReports(
+	executors: readonly DoctorExecutorReport[],
+	file: UserProfilesFile | undefined,
+	env: NodeJS.ProcessEnv,
+	request: DoctorRequest,
+): Promise<DoctorExecutorDefault[]> {
+	const ids = [
+		...["codex", "claude", "pi"],
+		...Object.keys(file?.profiles ?? {})
+			.filter(
+				(name) =>
+					isExecutorProfileName(name) &&
+					!["codex", "claude", "pi"].includes(name),
+			)
+			.sort((a, b) => a.localeCompare(b)),
+	];
+	return Promise.all(
+		ids.map(async (id) => {
+			const saved: UserProfile | undefined =
+				file === undefined ? undefined : userProfileFromFile(file, id);
+			const builtIn = executorPolicy(id).defaultPreset !== undefined;
+			const descriptor = workflowExecutorRegistration(id)?.descriptor;
+			let listed: string[] | null = null;
+			if (
+				builtIn &&
+				descriptor !== undefined &&
+				executors.find((entry) => entry.id === id)?.usable === true
+			)
+				try {
+					listed = (
+						await probeWorkflowExecutor(descriptor, {
+							prober: request.prober ?? cachedExecutorProber,
+							...(request.probeTimeoutMs === undefined
+								? {}
+								: { timeoutMs: request.probeTimeoutMs }),
+						})
+					).models;
+				} catch {
+					listed = null;
+				}
+			const unsaved = resolveExecutorDefaultProfile(id, listed, env);
+			const resolved = resolveExecutorDefaultProfile(id, listed, env, saved);
+			const base: DoctorExecutorDefault["base"] = !builtIn
+				? "none"
+				: unsaved?.notice === undefined
+					? "built-in"
+					: Object.keys(unsaved.roles).length > 0
+						? "user-settings"
+						: "cli-default";
+			return {
+				executor: id,
+				base,
+				saved: saved !== undefined,
+				roles: resolved?.roles ?? {},
+				...(resolved?.notice === undefined ? {} : { notice: resolved.notice }),
+			};
+		}),
+	);
 }
 
 async function verifiedVersions(): Promise<Record<string, string | null>> {
@@ -337,6 +443,26 @@ function formatDoctor(data: DoctorData, cwd: string): string {
 		}`,
 	);
 	if (data.runIndex.hint) lines.push(`  ${data.runIndex.hint}`);
+	const defaultsWidth = Math.max(
+		...data.executorDefaults.map((entry) => entry.executor.length),
+		6,
+	);
+	lines.push(
+		"",
+		"Executor default profiles (model/effort where the workflow, the launch and the chosen profile set none):",
+		...data.executorDefaults.map((entry) => {
+			const what =
+				entry.base === "none"
+					? entry.saved
+						? `your changes on top of ${entry.executor}'s own model/effort (in Pi: its current ones): ${roleSummary(entry.roles)}`
+						: `${entry.executor}'s own model and effort (in Pi: its current ones)`
+					: entry.base === "cli-default" && !entry.saved
+						? `${entry.executor}'s own defaults (built-in model not offered here, no ${entry.executor} model/effort configured)`
+						: `${entry.base === "built-in" ? "built-in" : `your ${entry.executor} settings (built-in model not offered here)`}${entry.saved ? " with your changes" : ""}: ${roleSummary(entry.roles)}`;
+			return `  ${entry.executor.padEnd(defaultsWidth)}  ${what}`;
+		}),
+		"  Change one with: agent-workflow profile set <executor> …; profile show <executor> shows it.",
+	);
 	lines.push(
 		"",
 		data.warnings.length === 0 ? "Warnings: none" : "Warnings:",
@@ -447,8 +573,10 @@ export async function doctorAction(
 		mode: "free",
 		source: "default",
 	};
+	let profileFile: UserProfilesFile | undefined;
 	try {
 		const profiles = await readUserProfiles(env);
+		profileFile = profiles;
 		const saved = profiles.default
 			? userProfileFromFile(profiles, profiles.default)
 			: undefined;
@@ -522,6 +650,12 @@ export async function doctorAction(
 			`AGENT_WORKFLOW_HOME ${home.path} is not writable: saved profiles and executor state cannot be stored`,
 		);
 	const usable = usableIds.size > 0;
+	const executorDefaults = await executorDefaultReports(
+		executors,
+		profileFile,
+		env,
+		request,
+	);
 	const data: DoctorData = {
 		host,
 		executors,
@@ -534,6 +668,7 @@ export async function doctorAction(
 		},
 		home,
 		warnings,
+		executorDefaults,
 		runIndex,
 		usable,
 	};

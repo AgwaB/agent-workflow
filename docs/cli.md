@@ -217,6 +217,20 @@ the preset's (other fields stay; `--executor`/`--role` given with it still win).
 executor id is refused when the profile is saved (exit 2); role models are checked against the
 executor's probe when a run starts.
 
+### Executor default profiles
+
+```sh
+agent-workflow profile list                     # also lists the codex, claude and pi default profiles
+agent-workflow profile show codex               # built-in, or built-in with your changes
+agent-workflow profile set codex --role planning=codex::xhigh
+agent-workflow profile delete codex             # back to the built-in one
+```
+
+A profile named after an executor holds your changes to that executor's default profile: the
+model/effort of its stages where the workflow, the launch and the chosen profile set none. Rules,
+the built-in profiles and their fallback: [usage](usage.md#executors). The dashboard's Profiles view
+shows and edits them; `doctor` reports what each one resolves to on this machine.
+
 ### Per-workflow preferences
 
 ```sh
@@ -244,6 +258,9 @@ and above the selected profile. Stored in
 - the executor a run here uses when no `--executor` or workflow-declared profile selects one, and
   why (saved default profile, host default, or the installed-default order);
 - the permission-mode default (`free`, or the default saved profile's mode);
+- each executor's default profile (codex, claude, pi, and any other with a saved profile): the
+  built-in one, your own CLI settings when its model is not offered here (from the probe's model
+  list), your saved changes, or the CLI's own defaults, as `model/effort` per role;
 - the Node version (requires `>=22`); `AGENT_WORKFLOW_HOME` and whether it is writable;
 - Pi's web tools: whether `pi-web-access` is installed in the user's Pi (`pi list`), shown under
   `pi`; when it is missing, the install command `pi install npm:pi-web-access` (it is not bundled);

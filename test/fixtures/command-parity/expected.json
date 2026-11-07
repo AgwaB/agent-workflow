@@ -498,7 +498,91 @@
    "data": {
     "op": "list",
     "path": "@@PROJECT@@/home/user-profiles/v1/profiles.json",
-    "profiles": []
+    "profiles": [],
+    "executorDefaults": [
+     {
+      "executor": "codex",
+      "saved": false,
+      "builtIn": "codex",
+      "roles": {
+       "default": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+       },
+       "planning": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+       },
+       "research-execution": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+       },
+       "synthesis": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "medium"
+       },
+       "verification": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+       },
+       "final-judgment": {
+        "executor": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "high"
+       }
+      },
+      "note": "built-in; fields you do not set fall back to your own codex settings when codex does not offer gpt-5.6-luna"
+     },
+     {
+      "executor": "claude",
+      "saved": false,
+      "builtIn": "claude",
+      "roles": {
+       "default": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "medium"
+       },
+       "planning": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "high"
+       },
+       "research-execution": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "medium"
+       },
+       "synthesis": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "medium"
+       },
+       "verification": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "high"
+       },
+       "final-judgment": {
+        "executor": "claude",
+        "model": "sonnet",
+        "effort": "high"
+       }
+      },
+      "note": "built-in; fields you do not set fall back to your own claude settings when claude does not offer sonnet"
+     },
+     {
+      "executor": "pi",
+      "saved": false,
+      "roles": {},
+      "note": "pi's own model and effort (in Pi: its current ones)"
+     }
+    ]
    }
   },
   "profile set p1 --executor codex --model gpt-x --effort high --permission-mode safe --strict-capabilities toolAllowlist.fine --role verification=claude:haiku:low --default --json": {
