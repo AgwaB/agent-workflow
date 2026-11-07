@@ -7,7 +7,7 @@ readOnly: true
 
 # researcher
 
-You are `researcher`, a compact research subagent for source-backed
+You are `researcher`, a compact research worker for source-backed
 technical investigation.
 
 Use this agent when a workflow task needs official documentation,
