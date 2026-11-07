@@ -12,9 +12,9 @@
 // stage it has no role entry for. A role entry's model/effort apply only when the stage runs on the
 // entry's executor (or the entry names none): a model id belongs to its executor.
 import {
-	THINKING_LEVELS,
+	EFFORT_LEVELS,
 	WORKFLOW_PROFILE_ROLES,
-	type ThinkingLevel,
+	type EffortLevel,
 	type WorkflowProfileRole,
 	type WorkflowRoleAssignment,
 	type WorkflowRoleMap,
@@ -75,12 +75,12 @@ export function parseRoleAssignment(
 	if (effort !== undefined) {
 		if (
 			typeof effort !== "string" ||
-			!(THINKING_LEVELS as readonly string[]).includes(effort)
+			!(EFFORT_LEVELS as readonly string[]).includes(effort)
 		)
 			throw new Error(
-				`${where}: effort must be one of ${THINKING_LEVELS.join(", ")}`,
+				`${where}: effort must be one of ${EFFORT_LEVELS.join(", ")}`,
 			);
-		out.effort = effort as ThinkingLevel;
+		out.effort = effort as EffortLevel;
 	}
 	if (Object.keys(out).length === 0)
 		throw new Error(`${where} sets none of executor, model, effort`);
@@ -202,7 +202,7 @@ export interface WorkflowRoleLayer {
 	executor?: string;
 	roles?: WorkflowRoleMap;
 	/** Declared profile only: its stage overrides win over its own and lower role entries. */
-	stageOverrides?: Record<string, { model?: string; thinking?: ThinkingLevel }>;
+	stageOverrides?: Record<string, { model?: string; effort?: EffortLevel }>;
 }
 
 /** The layer's executor for every stage it has no role entry for (flat, else `default`). */
@@ -227,8 +227,8 @@ export interface ResolveStageRoleAssignmentsInput {
 
 export interface ResolvedStageRoleAssignments {
 	stages: Record<string, WorkflowStageRoleAssignment>;
-	/** Model/thinking overlays per slot id (applied like a saved profile's stage overrides). */
-	overrides: Record<string, { model?: string; thinking?: ThinkingLevel }>;
+	/** Model/effort overlays per slot id (applied like a saved profile's stage overrides). */
+	overrides: Record<string, { model?: string; effort?: EffortLevel }>;
 	/** Executor id per stage slot (dynamic-profile slots omitted: they follow their stage). */
 	executorBySlot: Record<string, string>;
 	executors: string[];
@@ -297,7 +297,7 @@ export function resolveStageRoleAssignments(
 		const field = (
 			name: "model" | "effort",
 		): { value: string; role: string } | undefined => {
-			const overrideKey = name === "model" ? "model" : "thinking";
+			const overrideKey = name === "model" ? "model" : "effort";
 			for (const layer of input.layers) {
 				if (layer.stageOverrides?.[slot.id]?.[overrideKey] !== undefined)
 					return undefined;
@@ -320,16 +320,14 @@ export function resolveStageRoleAssignments(
 			...(chosen.profile === undefined ? {} : { profile: chosen.profile }),
 			...(chosen.role === undefined ? {} : { role: chosen.role }),
 			...(model === undefined ? {} : { model: model.value }),
-			...(effort === undefined
-				? {}
-				: { effort: effort.value as ThinkingLevel }),
+			...(effort === undefined ? {} : { effort: effort.value as EffortLevel }),
 		};
 		if (model !== undefined || effort !== undefined)
 			overrides[slot.id] = {
 				...(model === undefined ? {} : { model: model.value }),
 				...(effort === undefined
 					? {}
-					: { thinking: effort.value as ThinkingLevel }),
+					: { effort: effort.value as EffortLevel }),
 			};
 	}
 	const executors = [

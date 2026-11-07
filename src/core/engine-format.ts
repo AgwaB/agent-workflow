@@ -607,12 +607,12 @@ function formatWaitingReason(task: WorkflowTaskRunRecord): string {
 function taskRuntime(task: WorkflowTaskRunRecord): string {
 	if (task.kind === "support") return "local support";
 	const model = task.runtime.model ?? "model unknown";
-	const thinking = task.runtime.thinking
-		? `${task.runtime.thinking} reasoning`
-		: "reasoning unknown";
+	const effort = task.runtime.effort
+		? `${task.runtime.effort} effort`
+		: "effort unknown";
 	// WP31: a role-profile run records each task's executor.
 	const executor = task.runtime.executor ? `${task.runtime.executor} · ` : "";
-	return `${executor}${model} · ${thinking}`;
+	return `${executor}${model} · ${effort}`;
 }
 
 function formatWarnings(
@@ -1018,7 +1018,7 @@ function formatTaskRuntime(task: WorkflowTaskRunRecord): string {
 	const executor = task.runtime.executor
 		? `executor=${task.runtime.executor} `
 		: "";
-	return `${executor}model=${task.runtime.model ?? "(not recorded)"} thinking=${task.runtime.thinking ?? "(not recorded)"}`;
+	return `${executor}model=${task.runtime.model ?? "(not recorded)"} effort=${task.runtime.effort ?? "(not recorded)"}`;
 }
 
 function formatTaskDetail(

@@ -12,7 +12,7 @@ import {
 	HostUsageError,
 	formatHostError,
 	parseDuration,
-	parseThinkingLevel,
+	parseEffortLevel,
 	parseWorkflowAutoArgs,
 	parseWorkflowDynamicArgs,
 	parseWorkflowRunArgs,
@@ -454,7 +454,7 @@ function launchRequest(parsed: {
 	detach: boolean;
 	forceNew?: boolean;
 	model?: string;
-	thinking?: ReturnType<typeof parseThinkingLevel>;
+	effort?: ReturnType<typeof parseEffortLevel>;
 	profile?: string;
 	executor?: string;
 	permissionMode?: "free" | "safe";
@@ -471,7 +471,7 @@ function launchRequest(parsed: {
 			? { allowUnverifiedCapabilities: parsed.allowUnverifiedCapabilities }
 			: {}),
 		...(parsed.model ? { model: parsed.model } : {}),
-		...(parsed.thinking ? { effort: parsed.thinking } : {}),
+		...(parsed.effort ? { effort: parsed.effort } : {}),
 		...(parsed.detach ? { detach: true } : {}),
 		...(parsed.forceNew ? { forceNew: true } : {}),
 	};

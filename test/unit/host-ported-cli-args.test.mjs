@@ -66,7 +66,7 @@ test("slash options fail closed and command whitespace is consistent", () => {
 	for (const option of [
 		"--model",
 		"--profile",
-		"--thinking",
+		"--effort",
 		"--reasoning",
 		"--model=",
 		"--profile=",
@@ -109,7 +109,7 @@ test("slash options fail closed and command whitespace is consistent", () => {
 const conflicts = [
 	"--model A --model B",
 	"--profile low --profile high",
-	"--thinking low --reasoning high",
+	"--effort low --effort high",
 	"--route --no-route",
 ];
 
@@ -196,8 +196,8 @@ function profileSpec(overrides = {}) {
 		defaults: { agent: "unit-scout", readOnly: true, tools: ["read"] },
 		executionProfiles: {
 			"cost conscious": {
-				one: { model: "profile/model", thinking: "low" },
-				two: { thinking: "high" },
+				one: { model: "profile/model", effort: "low" },
+				two: { effort: "high" },
 			},
 			identity: {},
 		},
@@ -206,14 +206,14 @@ function profileSpec(overrides = {}) {
 				{
 					id: "one",
 					type: "single",
-					thinking: "high",
+					effort: "high",
 					output: output(),
 					prompt: "Step one.",
 				},
 				{
 					id: "two",
 					type: "single",
-					thinking: "xhigh",
+					effort: "xhigh",
 					output: output(),
 					prompt: "Step two.",
 				},

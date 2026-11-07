@@ -9,7 +9,7 @@ import {
 	type LogsRequest,
 	parseCapabilityList,
 	parsePermissionMode,
-	parseThinkingLevel,
+	parseEffortLevel,
 	type ProfileRequest,
 	type WorkflowPreferenceRequest,
 } from "./api.js";
@@ -386,7 +386,6 @@ export function profileRequest(
 				"--preset",
 			],
 			repeatable: ["--role"],
-			aliases: { "--thinking": "--effort" },
 		});
 		const [name] = onlyPositionals(
 			parsed,
@@ -398,8 +397,7 @@ export function profileRequest(
 		const values: Record<string, unknown> = {};
 		if (v.has("--executor")) values.executor = v.get("--executor");
 		if (v.has("--model")) values.model = v.get("--model");
-		if (v.has("--effort"))
-			values.effort = parseThinkingLevel(v.get("--effort")!);
+		if (v.has("--effort")) values.effort = parseEffortLevel(v.get("--effort")!);
 		if (v.has("--permission-mode"))
 			values.permissionMode = parsePermissionMode(v.get("--permission-mode")!);
 		if (v.has("--strict-capabilities"))

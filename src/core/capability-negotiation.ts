@@ -698,7 +698,7 @@ function unavailableToolRefusals(
 
 /**
  * Model and effort names are the executor's (2026-10-30): resolve every stage's `model` and
- * `thinking` for the executor that runs it (executor-model-id.ts) — rewrite a name to that tool's
+ * `effort` for the executor that runs it (executor-model-id.ts) — rewrite a name to that tool's
  * form, refuse what it cannot run, note what its probe cannot confirm. `apply()` writes the resolved
  * names into the compiled tasks the run record is created from.
  */
@@ -742,7 +742,7 @@ function resolveTaskNames(
 					});
 			}
 		}
-		const effort = task.runtime.thinking;
+		const effort = task.runtime.effort;
 		if (effort !== undefined) {
 			const resolved = resolveExecutorEffort(
 				id,
@@ -759,8 +759,7 @@ function resolveTaskNames(
 					group(notices, resolved.notice, task.id);
 				if (resolved.changed)
 					writes.push(() => {
-						task.runtime.thinking =
-							resolved.value as typeof task.runtime.thinking;
+						task.runtime.effort = resolved.value as typeof task.runtime.effort;
 					});
 			}
 		}

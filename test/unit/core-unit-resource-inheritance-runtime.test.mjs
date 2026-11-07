@@ -65,7 +65,7 @@ async function fixture(name, options = {}) {
 		statusDetail: "pending",
 		runtime: {
 			model: "unit-model",
-			thinking: "high",
+			effort: "high",
 			approvalMode: "non-interactive",
 		},
 		cwd,
@@ -132,7 +132,7 @@ async function fixture(name, options = {}) {
 		explicitWorktreePolicy: false,
 		runtime: {
 			model: "unit-model",
-			thinking: "high",
+			effort: "high",
 			fast: "off",
 			approvalMode: "non-interactive",
 			tools: ["read", "grep"],
@@ -314,7 +314,7 @@ test("sealed launch applies skills only for current false and preserves tools an
 	];
 	for (const item of cases) {
 		const launched = await launchCapture(item.name, item);
-		// WP4c-1: the runtime gets an explicit tool list, model and effort (was `thinking`);
+		// WP4c-1: the runtime gets an explicit tool list, model and effort;
 		// Extension options belong to the adapter, not the generic launch request.
 		assert.equal(Object.hasOwn(launched.options, "extensions"), false);
 		assert.deepEqual(launched.options.tools, ["read", "grep"]);

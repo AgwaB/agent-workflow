@@ -413,7 +413,7 @@ export async function listAgentsAction(
 		...(agent.description ? { description: agent.description } : {}),
 		scope: agent.scope,
 		...(agent.model ? { model: agent.model } : {}),
-		...(agent.thinking ? { effort: agent.thinking } : {}),
+		...(agent.effort ? { effort: agent.effort } : {}),
 		...(agent.tools ? { tools: [...agent.tools] } : {}),
 		...(agent.readOnly === undefined ? {} : { readOnly: agent.readOnly }),
 		sourcePath: agent.sourcePath,

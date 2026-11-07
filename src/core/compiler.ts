@@ -43,7 +43,7 @@ import {
 	type RequiredWorkflowArtifactReadPolicy,
 	WORKFLOW_RUN_TYPE,
 	type TaskCapability,
-	type ThinkingLevel,
+	type EffortLevel,
 	type ValidationIssue,
 	type WorkflowFailurePolicy,
 	type WorkflowToolObjectSpec,
@@ -1483,15 +1483,15 @@ function runtimeSettings(value: unknown): WorkflowRuntimeDefaults | undefined {
 		typeof value.model === "string" && value.model.trim()
 			? value.model.trim()
 			: undefined;
-	const thinking =
-		typeof value.thinking === "string" && value.thinking.trim()
-			? (value.thinking.trim() as ThinkingLevel)
+	const effort =
+		typeof value.effort === "string" && value.effort.trim()
+			? (value.effort.trim() as EffortLevel)
 			: undefined;
 	const fast =
 		value.fast === "inherit" || value.fast === "off" || value.fast === "on"
 			? value.fast
 			: undefined;
-	return model || thinking || fast ? { model, thinking, fast } : undefined;
+	return model || effort || fast ? { model, effort, fast } : undefined;
 }
 
 function formatRoleText(

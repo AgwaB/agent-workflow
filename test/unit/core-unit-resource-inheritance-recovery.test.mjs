@@ -87,7 +87,7 @@ for (const path of ["resume repair", "repeated request"]) {
 				const spec = {
 					schemaVersion: 1,
 					name: "warning-recovery",
-					defaults: { model: "fixture/model", thinking: "high" },
+					defaults: { model: "fixture/model", effort: "high" },
 					artifactGraph: {
 						stages: [
 							{

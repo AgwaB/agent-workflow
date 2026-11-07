@@ -6,7 +6,7 @@ import type { HostApiContext, HostResult } from "./types.js";
 
 export {
 	HostUsageError,
-	isThinkingLevel,
+	isEffortLevel,
 	type ParsedSuperviseArgs,
 	type ParsedWorkflowDynamicArgs,
 	type ParsedWorkflowPruneArgs,
@@ -15,7 +15,7 @@ export {
 	parseDuration,
 	parsePermissionMode,
 	parseSuperviseArgs,
-	parseThinkingLevel,
+	parseEffortLevel,
 	parseWorkflowAutoArgs,
 	parseWorkflowDynamicArgs,
 	parseWorkflowPruneArgs,

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-	THINKING_LEVELS,
 	createResultEnvelope,
 	validateResolveInput,
 } from "../../dist/runtime/index.js";
@@ -51,9 +50,6 @@ test("schema-sync (validation half)", () => {
 		runsDir: ".agent-workflow/runs",
 		correlationId: "corr",
 		captureToolCalls: true,
-		thinking: "low",
-		thinkingLevel: "low",
-		reasoningLevel: "low",
 	};
 	for (const key of Object.keys(probeValues)) {
 		const single =
@@ -80,39 +76,6 @@ test("schema-sync (validation half)", () => {
 	assert.equal(taskLevel.ok, true);
 	assert.equal(taskLevel.input.tasks[0].captureToolCalls, true);
 	assert.equal(taskLevel.input.tasks[0].noExtensions, true);
-});
-
-test("thinking-levels (constants + validation half)", () => {
-	assert.deepEqual(THINKING_LEVELS, [
-		"off",
-		"minimal",
-		"low",
-		"medium",
-		"high",
-		"xhigh",
-		"max",
-	]);
-	for (const key of ["thinking", "thinkingLevel", "reasoningLevel"]) {
-		const validation = validateResolveInput({
-			agent: "scout",
-			task: "t",
-			[key]: "max",
-		});
-		assert.equal(validation.ok, true, key);
-		assert.equal(validation.input.thinking, "max", key);
-	}
-	const perTask = validateResolveInput({
-		tasks: [{ agent: "scout", task: "t", thinking: "max" }],
-	});
-	assert.equal(perTask.ok, true);
-	assert.equal(perTask.input.tasks[0].thinking, "max");
-	const rejected = validateResolveInput({
-		agent: "scout",
-		task: "t",
-		thinking: "ultra",
-	});
-	assert.equal(rejected.ok, false);
-	assert.match(rejected.failure.error, /"xhigh", "max"\./);
 });
 
 test("tool-result-budget (validation passthrough half)", () => {

@@ -24,7 +24,7 @@ import {
 	type AgentDefinition,
 	FAST_MODES,
 	WorkflowValidationError,
-	THINKING_LEVELS,
+	EFFORT_LEVELS,
 	type ValidationIssue,
 } from "./types.js";
 
@@ -201,6 +201,13 @@ export function parseAgentMarkdown(
 	rootPath?: string,
 ): AgentDefinition {
 	const { frontmatter, body } = splitFrontmatter(markdown);
+	if (frontmatter.thinking !== undefined)
+		throw new WorkflowValidationError([
+			{
+				path: "$agent.thinking",
+				message: `unknown field; use "effort": ${sourcePath}`,
+			},
+		]);
 	const fileBaseName = basename(sourcePath, ".md");
 	const relativeName = rootPath
 		? toDottedName(relative(rootPath, sourcePath).replace(/\.md$/, ""))
@@ -231,7 +238,7 @@ export function parseAgentMarkdown(
 		frontmatter,
 		body,
 		model: stringValue(frontmatter.model),
-		thinking: enumValue(frontmatter.thinking, THINKING_LEVELS),
+		effort: enumValue(frontmatter.effort, EFFORT_LEVELS),
 		fast: enumValue(frontmatter.fast, FAST_MODES),
 		tools: toolsValue(frontmatter.tools),
 		readOnly: booleanValue(frontmatter.readOnly),

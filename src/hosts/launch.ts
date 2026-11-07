@@ -35,7 +35,7 @@ import { formatApproxDuration } from "../core/run-estimates.js";
 import { type LoadedWorkflowSpec, loadWorkflowSpec } from "../core/schema.js";
 import { workflowRunDir } from "../core/store.js";
 import type {
-	ThinkingLevel,
+	EffortLevel,
 	WorkflowCapturedExecutionProfile,
 	WorkflowExecutionProfileSelection,
 	WorkflowRunHostAutoSelectionMetadata,
@@ -44,11 +44,7 @@ import type {
 } from "../core/types.js";
 import type { WorkflowRuntimeDefaults } from "../core/workflow-runtime.js";
 import { hostCommandHints, type WorkflowCommandHints } from "./hints.js";
-import {
-	HostUsageError,
-	isThinkingLevel,
-	parseCapabilityList,
-} from "./args.js";
+import { HostUsageError, isEffortLevel, parseCapabilityList } from "./args.js";
 import {
 	type RunDashboardLink,
 	runDashboardLink,
@@ -99,8 +95,8 @@ export interface LaunchRequestBase {
 	allowUnverifiedCapabilities?: string[];
 	/** Run override of the model of every stage. */
 	model?: string;
-	/** Run override of the effort (thinking level) of every stage. */
-	effort?: ThinkingLevel;
+	/** Run override of the effort of every stage. */
+	effort?: EffortLevel;
 	/** Spawn a standalone supervisor so the run progresses after this process exits. */
 	detach?: boolean;
 	/** Skip the duplicate-launch guard. */
@@ -312,7 +308,7 @@ function applyUserProfile(
 	const runtimeDefaults: WorkflowRuntimeDefaults = {
 		...(ctx.runtimeDefaults ?? {}),
 		...(profile.model ? { model: profile.model } : {}),
-		...(profile.effort ? { thinking: profile.effort } : {}),
+		...(profile.effort ? { effort: profile.effort } : {}),
 	};
 	const info: LaunchProfileInfo = { name: profile.name, kind: "user", source };
 	const isGraph = Array.isArray(
@@ -562,7 +558,7 @@ function runtimeOverrides(
 	return request.model || request.effort
 		? {
 				...(request.model ? { model: request.model } : {}),
-				...(request.effort ? { thinking: request.effort } : {}),
+				...(request.effort ? { effort: request.effort } : {}),
 			}
 		: undefined;
 }
@@ -591,7 +587,7 @@ function validateLaunchRequest(
 		throw new HostUsageError(
 			`${action} permissionMode must be "free" or "safe"`,
 		);
-	if (request.effort !== undefined && !isThinkingLevel(request.effort))
+	if (request.effort !== undefined && !isEffortLevel(request.effort))
 		throw new HostUsageError(`${action} effort is not a known effort level`);
 	if (request.allowUnverifiedCapabilities !== undefined) {
 		if (

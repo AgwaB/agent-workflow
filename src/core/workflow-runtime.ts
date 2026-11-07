@@ -1,7 +1,7 @@
-import { THINKING_LEVELS, type FastMode, type ThinkingLevel } from "./types.js";
+import { EFFORT_LEVELS, type FastMode, type EffortLevel } from "./types.js";
 
 export type WorkflowModelThinkingLevelMap = Partial<
-	Record<ThinkingLevel, string | null>
+	Record<EffortLevel, string | null>
 >;
 
 export interface WorkflowModelInfo {
@@ -15,37 +15,37 @@ export interface WorkflowModelInfo {
 
 export interface WorkflowRuntimeDefaults {
 	model?: string;
-	thinking?: ThinkingLevel;
+	effort?: EffortLevel;
 	fast?: FastMode;
 	/**
 	 * Executor these defaults belong to (e.g. a Pi host passes Pi's current model as `pi`). When the
-	 * run selects a different executor, `model` and `thinking` are not applied to its workers.
+	 * run selects a different executor, `model` and `effort` are not applied to its workers.
 	 */
 	executor?: string;
 }
 
-/** Drop host model/thinking defaults that belong to a different executor than the run's. */
+/** Drop host model/effort defaults that belong to a different executor than the run's. */
 export function runtimeDefaultsForExecutor(
 	defaults: WorkflowRuntimeDefaults | undefined,
 	executorId: string,
 ): WorkflowRuntimeDefaults | undefined {
 	if (defaults?.executor === undefined || defaults.executor === executorId)
 		return defaults;
-	const { model: _model, thinking: _thinking, ...rest } = defaults;
+	const { model: _model, effort: _effort, ...rest } = defaults;
 	return Object.keys(rest).length > 0 ? rest : undefined;
 }
 
-export interface WorkflowRuntimeThinkingResolution {
-	requested?: ThinkingLevel;
-	resolved?: ThinkingLevel;
+export interface WorkflowRuntimeEffortResolution {
+	requested?: EffortLevel;
+	resolved?: EffortLevel;
 	reason?: string;
 }
 
 export interface WorkflowRuntimeResolutionInput {
 	model?: string;
 	api?: string;
-	thinking?: ThinkingLevel;
-	thinkingResolution?: WorkflowRuntimeThinkingResolution;
+	effort?: EffortLevel;
+	effortResolution?: WorkflowRuntimeEffortResolution;
 	fast?: FastMode;
 }
 
@@ -73,26 +73,26 @@ export function selectWorkflowRuntime(
 ): WorkflowRuntimeResolutionInput {
 	const modelLayer = layers.find((layer) => modelOf(layer));
 	const model = modelOf(modelLayer);
-	let thinking: ThinkingLevel | undefined;
+	let effort: EffortLevel | undefined;
 	for (const layer of layers) {
 		if (!layer) continue;
-		if (layer.thinking) {
-			thinking = layer.thinking;
+		if (layer.effort) {
+			effort = layer.effort;
 			break;
 		}
 		const layerModel = modelOf(layer);
-		const modelThinking = layerModel
-			? splitKnownThinkingSuffix(layerModel).thinking
+		const modelEffort = layerModel
+			? splitKnownEffortSuffix(layerModel).effort
 			: undefined;
-		if (modelThinking) {
-			thinking = modelThinking;
+		if (modelEffort) {
+			effort = modelEffort;
 			break;
 		}
 	}
 	const fast = layers.map(fastOf).find((value) => value !== undefined);
 	return {
 		...(model ? { model } : {}),
-		...(thinking ? { thinking } : {}),
+		...(effort ? { effort } : {}),
 		...(fast ? { fast } : {}),
 	};
 }
@@ -132,13 +132,12 @@ export async function resolveWorkflowRuntime(
 	options: ResolveWorkflowRuntimeOptions,
 ): Promise<WorkflowRuntimeResolutionInput> {
 	const requested = runtime.model ?? options.defaults?.model;
-	const { baseModel, thinking } = requested
-		? splitKnownThinkingSuffix(requested)
-		: { baseModel: undefined, thinking: undefined };
+	const { baseModel, effort } = requested
+		? splitKnownEffortSuffix(requested)
+		: { baseModel: undefined, effort: undefined };
 	const model = await resolveModel(baseModel, context, options);
-	const effectiveThinking =
-		runtime.thinking ?? thinking ?? options.defaults?.thinking;
-	const thinkingResolution = resolveThinking(model, effectiveThinking, options);
+	const effectiveEffort = runtime.effort ?? effort ?? options.defaults?.effort;
+	const effortResolution = resolveEffort(model, effectiveEffort, options);
 	const fast = fastOf(runtime) ?? fastOf(options.defaults);
 	const api =
 		fast === "on" && model
@@ -149,39 +148,39 @@ export async function resolveWorkflowRuntime(
 	return {
 		...(model ? { model } : {}),
 		...(api ? { api } : {}),
-		...(thinkingResolution?.resolved
-			? { thinking: thinkingResolution.resolved }
+		...(effortResolution?.resolved
+			? { effort: effortResolution.resolved }
 			: {}),
-		...(thinkingResolution ? { thinkingResolution } : {}),
+		...(effortResolution ? { effortResolution } : {}),
 		...(fast ? { fast } : {}),
 	};
 }
 
-export function splitKnownThinkingSuffix(model: string): {
+export function splitKnownEffortSuffix(model: string): {
 	baseModel: string;
-	thinking?: ThinkingLevel;
+	effort?: EffortLevel;
 } {
 	const colonIdx = model.lastIndexOf(":");
 	if (colonIdx === -1) return { baseModel: model };
 	const suffix = model.slice(colonIdx + 1);
-	if (!isThinkingLevel(suffix)) return { baseModel: model };
+	if (!isEffortLevel(suffix)) return { baseModel: model };
 	return {
 		baseModel: model.slice(0, colonIdx),
-		thinking: suffix,
+		effort: suffix,
 	};
 }
 
-// Mirrors pi-ai getSupportedThinkingLevels: a non-reasoning model only
+// Mirrors pi-ai getSupportedEffortLevels: a non-reasoning model only
 // supports "off", and "xhigh" and "max" are opt-in via an explicit
 // thinkingLevelMap entry. When no model info is available (model not in the registry), defer
 // to the child pi CLI clamp by allowing every level.
-export function getSupportedThinkingLevels(
+export function getSupportedEffortLevels(
 	model: WorkflowModelInfo | undefined,
-): ThinkingLevel[] {
-	if (!model) return [...THINKING_LEVELS];
+): EffortLevel[] {
+	if (!model) return [...EFFORT_LEVELS];
 	if (!model.reasoning) return ["off"];
 
-	return THINKING_LEVELS.filter((level) => {
+	return EFFORT_LEVELS.filter((level) => {
 		const mapped = model.thinkingLevelMap?.[level];
 		if (mapped === null) return false;
 		if (level === "xhigh" || level === "max" || level === "ultra")
@@ -192,19 +191,19 @@ export function getSupportedThinkingLevels(
 
 // Mirrors pi-ai clampThinkingLevel: nearest supported level scanning up
 // from the request first, then down; never throws and never prompts.
-export function clampSupportedThinkingLevel(
-	supported: ThinkingLevel[],
-	requested: ThinkingLevel,
-): ThinkingLevel {
+export function clampSupportedEffortLevel(
+	supported: EffortLevel[],
+	requested: EffortLevel,
+): EffortLevel {
 	if (supported.includes(requested)) return requested;
-	const requestedIndex = THINKING_LEVELS.indexOf(requested);
+	const requestedIndex = EFFORT_LEVELS.indexOf(requested);
 	if (requestedIndex === -1) return supported[0] ?? "off";
-	for (let i = requestedIndex; i < THINKING_LEVELS.length; i += 1) {
-		const candidate = THINKING_LEVELS[i]!;
+	for (let i = requestedIndex; i < EFFORT_LEVELS.length; i += 1) {
+		const candidate = EFFORT_LEVELS[i]!;
 		if (supported.includes(candidate)) return candidate;
 	}
 	for (let i = requestedIndex - 1; i >= 0; i -= 1) {
-		const candidate = THINKING_LEVELS[i]!;
+		const candidate = EFFORT_LEVELS[i]!;
 		if (supported.includes(candidate)) return candidate;
 	}
 	return supported[0] ?? "off";
@@ -306,21 +305,21 @@ async function chooseAvailableModelForMissing(
 	return selected;
 }
 
-// Follows the pi SDK: unsupported thinking requests are deterministically
+// Follows the pi SDK: unsupported effort requests are deterministically
 // clamped (up first, then down) instead of prompting or throwing, and the
-// adjustment is recorded in thinkingResolution.reason.
-function resolveThinking(
+// adjustment is recorded in effortResolution.reason.
+function resolveEffort(
 	modelId: string | undefined,
-	requested: ThinkingLevel | undefined,
+	requested: EffortLevel | undefined,
 	options: ResolveWorkflowRuntimeOptions,
-): WorkflowRuntimeThinkingResolution | undefined {
+): WorkflowRuntimeEffortResolution | undefined {
 	if (!requested) return undefined;
 	const model = findModelInfo(modelId, options.availableModels ?? []);
-	const supported = getSupportedThinkingLevels(model);
+	const supported = getSupportedEffortLevels(model);
 	if (supported.includes(requested)) {
 		return { requested, resolved: requested };
 	}
-	const resolved = clampSupportedThinkingLevel(supported, requested);
+	const resolved = clampSupportedEffortLevel(supported, requested);
 	return {
 		requested,
 		resolved,
@@ -333,12 +332,12 @@ function findModelInfo(
 	available: WorkflowModelInfo[],
 ): WorkflowModelInfo | undefined {
 	if (!modelId) return undefined;
-	const { baseModel } = splitKnownThinkingSuffix(modelId);
+	const { baseModel } = splitKnownEffortSuffix(modelId);
 	return available.find((model) => model.fullId === baseModel);
 }
 
-function isThinkingLevel(value: string): value is ThinkingLevel {
-	return (THINKING_LEVELS as readonly string[]).includes(value);
+function isEffortLevel(value: string): value is EffortLevel {
+	return (EFFORT_LEVELS as readonly string[]).includes(value);
 }
 
 export function shouldScheduleAfterStageFailure(stage: {

@@ -71,37 +71,37 @@ test("workflow command completions and run arg parsing preserve task text", () =
 	);
 	assert.deepEqual(
 		parseWorkflowRunArgs(
-			'run --model kimi-coding/kimi-for-coding --thinking low review "Fix the thing" --detach',
+			'run --model kimi-coding/kimi-for-coding --effort low review "Fix the thing" --detach',
 		),
 		{
 			specPath: "review",
 			task: "Fix the thing",
 			detach: true,
 			model: "kimi-coding/kimi-for-coding",
-			thinking: "low",
+			effort: "low",
 		},
 	);
 	assert.deepEqual(
 		parseWorkflowRunArgs(
-			'run review "Fix the thing" --model=openai-codex/gpt-5.5 --reasoning=xhigh',
+			'run review "Fix the thing" --model=openai-codex/gpt-5.5 --effort=xhigh',
 		),
 		{
 			specPath: "review",
 			task: "Fix the thing",
 			detach: false,
 			model: "openai-codex/gpt-5.5",
-			thinking: "xhigh",
+			effort: "xhigh",
 		},
 	);
 	assert.deepEqual(
 		parseWorkflowDynamicArgs(
-			'dynamic --model openai-codex/gpt-5.5 --thinking low "Research adaptive workflows" --detach',
+			'dynamic --model openai-codex/gpt-5.5 --effort low "Research adaptive workflows" --detach',
 		),
 		{
 			task: "Research adaptive workflows",
 			detach: true,
 			model: "openai-codex/gpt-5.5",
-			thinking: "low",
+			effort: "low",
 		},
 	);
 	assert.deepEqual(
@@ -114,7 +114,7 @@ test("workflow command completions and run arg parsing preserve task text", () =
 		},
 	);
 	assert.throws(
-		() => parseWorkflowRunArgs("run --thinking turbo review Fix"),
+		() => parseWorkflowRunArgs("run --effort turbo review Fix"),
 		/Invalid effort level/,
 	);
 });

@@ -196,7 +196,7 @@ test("a run flag and a saved user profile select the classifier executor (Q5: th
 			cwd,
 			env,
 			host: "pi",
-			runtimeDefaults: { model: "p/m", thinking: "low", executor: "pi" },
+			runtimeDefaults: { model: "p/m", effort: "low", executor: "pi" },
 		},
 		{},
 	);

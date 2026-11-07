@@ -87,8 +87,8 @@ test("profileRole validates independently from agent-context role", () => {
 		...roleSpec(),
 		executionProfiles: {
 			dynamic: {
-				adaptive: { model: "worker/model", thinking: "medium" },
-				"adaptive.$planner": { model: "planner/model", thinking: "high" },
+				adaptive: { model: "worker/model", effort: "medium" },
+				"adaptive.$planner": { model: "planner/model", effort: "high" },
 			},
 		},
 		artifactGraph: {
@@ -181,7 +181,7 @@ test("canonical profile slots cover nested dag, loop exhaustion, foreach runtime
 	const mapping = Object.fromEntries(
 		collectWorkflowProfileStageSlots(spec).map(({ id }, index) => [
 			id,
-			{ model: `model/${index}`, thinking: "high" },
+			{ model: `model/${index}`, effort: "high" },
 		]),
 	);
 	const applied = applyExecutionProfileStageOverrides(spec, mapping, {

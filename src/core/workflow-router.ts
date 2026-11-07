@@ -1720,12 +1720,10 @@ async function runPinnedWorkflowAutoComparison(
 						request.runtimeOverrides?.model ?? request.runtimeDefaults?.model,
 				}
 			: {}),
-		...((request.runtimeOverrides?.thinking ??
-		request.runtimeDefaults?.thinking)
+		...((request.runtimeOverrides?.effort ?? request.runtimeDefaults?.effort)
 			? {
-					thinking:
-						request.runtimeOverrides?.thinking ??
-						request.runtimeDefaults?.thinking,
+					effort:
+						request.runtimeOverrides?.effort ?? request.runtimeDefaults?.effort,
 				}
 			: {}),
 		tools: [],

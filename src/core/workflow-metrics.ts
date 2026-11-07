@@ -112,7 +112,7 @@ export interface WorkflowTaskMetrics {
 	kind: string | null;
 	provider: string | null;
 	model: string | null;
-	thinking: string | null;
+	effort: string | null;
 	usage: WorkflowUsageMetrics;
 	launchTiming: WorkflowLaunchTimingMetrics;
 	retries: WorkflowRetryMetrics;
@@ -668,7 +668,7 @@ function taskMetrics(task: WorkflowTaskRunRecord): WorkflowTaskMetrics {
 		kind: task.kind ?? null,
 		provider: metricString(task.usage?.provider),
 		model: metricString(task.usage?.model ?? task.runtime.model),
-		thinking: metricString(task.usage?.thinking ?? task.runtime.thinking),
+		effort: metricString(task.usage?.effort ?? task.runtime.effort),
 		usage: taskUsageMetrics(task),
 		launchTiming: taskLaunchTimingMetrics(task),
 		retries: taskRetryMetrics(task),

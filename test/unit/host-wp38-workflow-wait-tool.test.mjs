@@ -68,7 +68,7 @@ function taskRecord(runId, taskId, specId, overrides = {}) {
 		specId,
 		status: "completed",
 		statusDetail: "completed",
-		runtime: { model: "test-model", thinking: "none" },
+		runtime: { model: "test-model", effort: "none" },
 		files: {
 			systemPrompt: `${dir}/system.md`,
 			taskPrompt: `${dir}/task.md`,

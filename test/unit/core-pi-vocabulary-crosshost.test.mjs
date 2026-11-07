@@ -292,12 +292,12 @@ test("model names are the executor's: rewritten to its form, refused when it can
 		cwd,
 		spec(
 			{ tools: ["read"] },
-			{ model: "openai-codex/gpt-6.1-sol", thinking: "minimal" },
+			{ model: "openai-codex/gpt-6.1-sol", effort: "minimal" },
 		),
 	);
 	await negotiate(openai, "codex");
 	assert.equal(openai.tasks[0].runtime.model, "gpt-6.1-sol");
-	assert.equal(openai.tasks[0].runtime.thinking, "low");
+	assert.equal(openai.tasks[0].runtime.effort, "low");
 	await assert.rejects(
 		() => negotiate(compileSync(openai), "claude"),
 		(error) => {
@@ -400,12 +400,12 @@ test("stages generated during a run (dynamic/auto) get the same tool, model and 
 	// is sealed); the launch-time check then only refuses, it never rewrites a sealed task.
 	const ok = generated({
 		model: "openai-codex/gpt-6.1-sol",
-		thinking: "minimal",
+		effort: "minimal",
 	});
 	const unconverted = structuredClone(ok);
 	resolveGeneratedTaskNames(negotiation, ok, { apply: true });
 	assert.equal(ok.runtime.model, "gpt-6.1-sol");
-	assert.equal(ok.runtime.thinking, "low");
+	assert.equal(ok.runtime.effort, "low");
 	workflowTaskCapabilityLaunch(run, ok);
 	assert.ok(negotiation.stages.some((stage) => stage.label === "generated.w1"));
 	workflowTaskCapabilityLaunch(run, unconverted);

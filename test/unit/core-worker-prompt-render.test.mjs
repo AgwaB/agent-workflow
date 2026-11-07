@@ -155,7 +155,7 @@ test("the task backend sends rendered prompts with the artifact guidelines and k
 		});
 		const run = await runDynamicTask(cwd, {
 			task: "Research dynamic workflow evaluation methods.",
-			runtimeOverrides: { model: "openai-codex/gpt-5.5", thinking: "low" },
+			runtimeOverrides: { model: "openai-codex/gpt-5.5", effort: "low" },
 		});
 		assert.equal(launched.length, 1);
 		const [options] = launched;

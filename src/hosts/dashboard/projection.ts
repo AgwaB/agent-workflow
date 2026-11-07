@@ -246,7 +246,7 @@ export function projectRun(
 			runtime?.executor ?? task.runtime?.executor ?? run.executor;
 		// 2026-11-03: a task launched with the executor's default model shows the model it reported.
 		const model = runtime?.model ?? task.runtime?.model ?? task.usage?.model;
-		const effort = runtime?.effort ?? task.runtime?.thinking;
+		const effort = runtime?.effort ?? task.runtime?.effort;
 		const blockedActions = projectBlockedActions(task.blockedActions);
 		const activity =
 			task.status === "running"

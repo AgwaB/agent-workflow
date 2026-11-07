@@ -16,10 +16,10 @@ import {
 	type WaitData,
 	parseCapabilityList,
 	parsePermissionMode,
-	parseThinkingLevel,
+	parseEffortLevel,
 } from "../api.js";
 import { readRunRecord } from "../../core/store.js";
-import { THINKING_LEVELS } from "../../core/types.js";
+import { EFFORT_LEVELS } from "../../core/types.js";
 import { trackLaunched } from "./command.js";
 import {
 	piSessionId,
@@ -87,8 +87,8 @@ const LAUNCH_OPTION_PROPERTIES = {
 	},
 	effort: {
 		type: "string",
-		enum: [...THINKING_LEVELS],
-		description: "Optional effort (thinking/reasoning level) override.",
+		enum: [...EFFORT_LEVELS],
+		description: "Optional effort level override.",
 	},
 	detach: {
 		type: "boolean",
@@ -494,7 +494,7 @@ export function launchRequestFromToolParams(params: Record<string, unknown>) {
 			? { allowUnverifiedCapabilities: allowUnverified }
 			: {}),
 		...(model ? { model } : {}),
-		...(effort ? { effort: parseThinkingLevel(effort) } : {}),
+		...(effort ? { effort: parseEffortLevel(effort) } : {}),
 		...(optionalBoolean(params, "detach") ? { detach: true } : {}),
 		...(optionalBoolean(params, "forceNew") ? { forceNew: true } : {}),
 		...(inputOverrides ? { inputOverrides } : {}),

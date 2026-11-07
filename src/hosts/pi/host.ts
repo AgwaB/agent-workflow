@@ -113,14 +113,12 @@ function currentRuntimeDefaults(
 ): HostApiContext["runtimeDefaults"] {
 	const model = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined;
 	const rawThinking = pi.getThinkingLevel?.();
-	const thinking = hostApi.isThinkingLevel(rawThinking)
-		? rawThinking
-		: undefined;
-	if (!model && !thinking) return undefined;
+	const effort = hostApi.isEffortLevel(rawThinking) ? rawThinking : undefined;
+	if (!model && !effort) return undefined;
 	// Tagged so the engine applies them only when the run's executor is pi (profiles may pick another).
 	return {
 		...(model ? { model } : {}),
-		...(thinking ? { thinking } : {}),
+		...(effort ? { effort } : {}),
 		executor: "pi",
 	};
 }

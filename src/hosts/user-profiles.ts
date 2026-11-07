@@ -25,8 +25,8 @@ import {
 	sortedRoleKeys,
 } from "../core/role-profiles.js";
 import {
-	THINKING_LEVELS,
-	type ThinkingLevel,
+	EFFORT_LEVELS,
+	type EffortLevel,
 	type WorkflowRoleMap,
 } from "../core/types.js";
 import { HostUsageError } from "./args.js";
@@ -38,7 +38,7 @@ export const USER_PROFILES_SCHEMA = "agent-workflow-user-profiles-v1" as const;
 export interface UserProfileValues {
 	executor?: string;
 	model?: string;
-	effort?: ThinkingLevel;
+	effort?: EffortLevel;
 	permissionMode?: "free" | "safe";
 	strictCapabilities?: string[];
 	/** WP31: role → executor/model/effort (keys: a profileRole, `agent:<name>`, `default`). */
@@ -112,12 +112,12 @@ export function validateUserProfileValues(
 	if (effort !== undefined) {
 		if (
 			typeof effort !== "string" ||
-			!(THINKING_LEVELS as readonly string[]).includes(effort)
+			!(EFFORT_LEVELS as readonly string[]).includes(effort)
 		)
 			throw new HostUsageError(
-				`${where}: effort must be one of ${THINKING_LEVELS.join(", ")}`,
+				`${where}: effort must be one of ${EFFORT_LEVELS.join(", ")}`,
 			);
-		out.effort = effort as ThinkingLevel;
+		out.effort = effort as EffortLevel;
 	}
 	if (permissionMode !== undefined) {
 		if (permissionMode !== "free" && permissionMode !== "safe")

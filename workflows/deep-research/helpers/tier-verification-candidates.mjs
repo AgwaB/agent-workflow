@@ -1,10 +1,10 @@
 // Deterministic verification tier planner for deep-research.
 //
 // This helper is intentionally planning-only: it partitions sanitized
-// verification candidates into a core tier (verified at high thinking) and a
-// tail tier (verified at medium thinking) without changing verifier semantics,
+// verification candidates into a core tier (verified at high effort) and a
+// tail tier (verified at medium effort) without changing verifier semantics,
 // per-claim identity, evidence requirements, or the audit gate contract. The
-// per-item spec schema pins thinking per stage, so tiering is expressed as two
+// per-item spec schema pins effort per stage, so tiering is expressed as two
 // downstream foreach stages fed by the two arrays this helper emits.
 //
 // Tier assignment uses the existing normalizer/sanitizer priority signal:

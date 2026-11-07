@@ -1679,7 +1679,7 @@ test("prepared batch execution-surface drift falls back before a physical batch 
 		);
 		compiled.tasks[leaderIndex].runtime = {
 			...compiled.tasks[leaderIndex].runtime,
-			thinkingLevel: "high",
+			effort: "high",
 		};
 		writeFileSync(compiledPath, JSON.stringify(compiled));
 		// agent-workflow load margin: a pass may skip while the run's in-process supervisor holds

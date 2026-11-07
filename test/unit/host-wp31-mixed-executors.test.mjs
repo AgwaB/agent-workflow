@@ -267,7 +267,7 @@ test("a mixed run sends every task to its role's executor with its model and eff
 	});
 	assert.match(
 		shown.text,
-		/spec=check\.main .*executor=codex model=gpt-5\.6-luna thinking=medium/,
+		/spec=check\.main .*executor=codex model=gpt-5\.6-luna effort=medium/,
 	);
 });
 

@@ -155,8 +155,14 @@ test("argv parsing and exit codes: help/version 0, usage errors 2, failures 1", 
 		],
 		[["run", "wf.json", "t", "--effort", "turbo"], /Invalid effort level/],
 		[
-			["run", "wf.json", "t", "--thinking", "low", "--effort", "high"],
+			["run", "wf.json", "t", "--effort", "low", "--effort", "high"],
 			/Duplicate option --effort/,
+		],
+		// The old --thinking / --reasoning spellings are not aliases.
+		[["run", "wf.json", "t", "--thinking", "low"], /Unknown option --thinking/],
+		[
+			["run", "wf.json", "t", "--reasoning", "low"],
+			/Unknown option --reasoning/,
 		],
 		[
 			["run", "wf.json", "t", "--allow-unverified", "a b"],

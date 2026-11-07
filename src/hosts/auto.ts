@@ -6,7 +6,7 @@ import { readFile } from "node:fs/promises";
 import { discoverAgents } from "../core/agents.js";
 import { resolveRunExecutorForHost } from "../core/executor-default.js";
 import type {
-	ThinkingLevel,
+	EffortLevel,
 	WorkflowAutoConsentSource,
 	WorkflowRunAutoCandidateRef,
 	WorkflowRunHostAutoSelectionMetadata,
@@ -20,7 +20,7 @@ import {
 	type WorkflowAutoResult,
 } from "../core/workflow-router.js";
 import type { WorkflowRuntimeDefaults } from "../core/workflow-runtime.js";
-import { HostUsageError, isThinkingLevel } from "./args.js";
+import { HostUsageError, isEffortLevel } from "./args.js";
 import {
 	LAUNCH_CANCELLED,
 	type LaunchData,
@@ -44,7 +44,7 @@ export interface AutoClassifierTarget {
 	source: string;
 	/** Null: the executor's own default model. */
 	model: string | null;
-	effort: ThinkingLevel | null;
+	effort: EffortLevel | null;
 }
 
 /** One candidate as hosts show it (no paths). */
@@ -215,7 +215,7 @@ export async function resolveAutoClassifier(
 				name: string;
 				executor?: string;
 				model?: string;
-				effort?: ThinkingLevel;
+				effort?: EffortLevel;
 		  }
 		| undefined;
 	try {
@@ -256,12 +256,12 @@ export async function resolveAutoClassifier(
 	const model =
 		request.model ?? fromProfile?.model ?? hostDefaults?.model ?? null;
 	const effort =
-		request.effort ?? fromProfile?.effort ?? hostDefaults?.thinking ?? null;
+		request.effort ?? fromProfile?.effort ?? hostDefaults?.effort ?? null;
 	return {
 		executor: selection.id,
 		source: selection.source,
 		model,
-		effort: effort && isThinkingLevel(effort) ? effort : null,
+		effort: effort && isEffortLevel(effort) ? effort : null,
 	};
 }
 
@@ -388,7 +388,7 @@ export async function autoAction(
 	const task = typeof request.task === "string" ? request.task.trim() : "";
 	if (!task)
 		throw new HostUsageError('auto needs a task: agent-workflow auto "<task>"');
-	if (request.effort !== undefined && !isThinkingLevel(request.effort))
+	if (request.effort !== undefined && !isEffortLevel(request.effort))
 		throw new HostUsageError("auto effort is not a known effort level");
 	const agents = await availableAgentNames(ctx.cwd);
 	const header = "Workflow auto selection";
@@ -429,7 +429,7 @@ export async function autoAction(
 		target.model || target.effort
 			? {
 					...(target.model ? { model: target.model } : {}),
-					...(target.effort ? { thinking: target.effort } : {}),
+					...(target.effort ? { effort: target.effort } : {}),
 				}
 			: undefined;
 	// 2. WP42 (review round 1, finding 2): the classifier request is built once, locally, once (catalog scan, bounded descriptions, the packet).

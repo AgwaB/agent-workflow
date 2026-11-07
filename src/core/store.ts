@@ -3791,8 +3791,8 @@ export function createTaskRunRecord(
 		runtime: {
 			model: task.runtime.model,
 			...(task.runtime.api === undefined ? {} : { api: task.runtime.api }),
-			thinking: task.runtime.thinking,
-			thinkingResolution: task.runtime.thinkingResolution,
+			effort: task.runtime.effort,
+			effortResolution: task.runtime.effortResolution,
 			...(task.runtime.fast === undefined ? {} : { fast: task.runtime.fast }),
 			approvalMode: task.runtime.approvalMode,
 			maxRuntimeMs: task.runtime.maxRuntimeMs,

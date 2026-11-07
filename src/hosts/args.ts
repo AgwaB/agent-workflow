@@ -1,5 +1,5 @@
 // Every host shares these host-neutral argument parsers and HostUsageError failures.
-import { THINKING_LEVELS, type ThinkingLevel } from "../core/types.js";
+import { EFFORT_LEVELS, type EffortLevel } from "../core/types.js";
 
 /** A caller mistake (bad flag, missing argument). CLI exit code 2; MCP hosts map it to invalid params. */
 export class HostUsageError extends Error {
@@ -20,7 +20,7 @@ export interface WorkflowRunParsedOptions {
 	detach: boolean;
 	forceNew?: boolean;
 	model?: string;
-	thinking?: ThinkingLevel;
+	effort?: EffortLevel;
 	profile?: string;
 	executor?: string;
 	permissionMode?: "free" | "safe";
@@ -47,17 +47,17 @@ export interface ParsedWorkflowPruneArgs {
 	json?: boolean;
 }
 
-export function isThinkingLevel(value: unknown): value is ThinkingLevel {
+export function isEffortLevel(value: unknown): value is EffortLevel {
 	return (
 		typeof value === "string" &&
-		(THINKING_LEVELS as readonly string[]).includes(value)
+		(EFFORT_LEVELS as readonly string[]).includes(value)
 	);
 }
 
-export function parseThinkingLevel(value: string): ThinkingLevel {
-	if (isThinkingLevel(value)) return value;
+export function parseEffortLevel(value: string): EffortLevel {
+	if (isEffortLevel(value)) return value;
 	throw new HostUsageError(
-		`Invalid effort level "${value}". Supported: ${THINKING_LEVELS.join(", ")}`,
+		`Invalid effort level "${value}". Supported: ${EFFORT_LEVELS.join(", ")}`,
 	);
 }
 
@@ -163,7 +163,7 @@ const RUN_SCALAR_OPTIONS: Readonly<
 		string,
 		| "model"
 		| "profile"
-		| "thinking"
+		| "effort"
 		| "executor"
 		| "permissionMode"
 		| "allowUnverifiedCapabilities"
@@ -171,9 +171,7 @@ const RUN_SCALAR_OPTIONS: Readonly<
 > = {
 	"--model": "model",
 	"--profile": "profile",
-	"--thinking": "thinking",
-	"--reasoning": "thinking",
-	"--effort": "thinking",
+	"--effort": "effort",
 	"--executor": "executor",
 	"--permission-mode": "permissionMode",
 	"--allow-unverified": "allowUnverifiedCapabilities",
@@ -219,7 +217,7 @@ function consumeLeadingRunOptionTokens(
 		const key = RUN_SCALAR_OPTIONS[option]!;
 		if (parsed[key] !== undefined)
 			throw new HostUsageError(`Duplicate workflow option ${option}`);
-		if (key === "thinking") parsed.thinking = parseThinkingLevel(value);
+		if (key === "effort") parsed.effort = parseEffortLevel(value);
 		else if (key === "permissionMode")
 			parsed.permissionMode = parsePermissionMode(value);
 		else if (key === "allowUnverifiedCapabilities")

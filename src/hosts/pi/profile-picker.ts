@@ -4,7 +4,7 @@
 // profile or a workflow preference. The UI interface is scriptable for tests.
 import { roleKeyProblem, sortedRoleKeys } from "../../core/role-profiles.js";
 import {
-	THINKING_LEVELS,
+	EFFORT_LEVELS,
 	WORKFLOW_PROFILE_ROLES,
 	type WorkflowRoleAssignment,
 	type WorkflowRoleMap,
@@ -534,7 +534,7 @@ class Picker {
 			} else if (field.startsWith("Effort:")) {
 				const choice = await this.ui.select(`Effort for ${key}`, [
 					DEFAULT_EFFORT,
-					...THINKING_LEVELS,
+					...EFFORT_LEVELS,
 				]);
 				if (choice === undefined) continue;
 				if (choice === DEFAULT_EFFORT) delete next.effort;

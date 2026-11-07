@@ -265,7 +265,7 @@ import {
 	type WorkflowRoleMap,
 	type WorkflowRunRouting,
 	type WorkflowTaskRunRecord,
-	type ThinkingLevel,
+	type EffortLevel,
 } from "./types.js";
 import {
 	clampTimeout,
@@ -381,7 +381,7 @@ export interface WorkflowSavedUserProfileLayer {
 	permissionMode?: "free" | "safe";
 	strictCapabilities?: string[];
 	model?: string;
-	effort?: ThinkingLevel;
+	effort?: EffortLevel;
 }
 
 /**
@@ -404,7 +404,7 @@ function runtimeDefaultsWithSavedProfile(
 	return {
 		...(host ?? {}),
 		...(saved.model === undefined ? {} : { model: saved.model }),
-		...(saved.effort === undefined ? {} : { thinking: saved.effort }),
+		...(saved.effort === undefined ? {} : { effort: saved.effort }),
 	};
 }
 
@@ -434,7 +434,7 @@ export interface WorkflowRunOptions {
 	inputOverrides?: Record<string, unknown>;
 	/**
 	 * Named execution profile declared in the spec's executionProfiles map.
-	 * Applied as per-stage model/thinking/batch metadata at compile time and
+	 * Applied as per-stage model/effort/batch metadata at compile time and
 	 * recorded on the run record. Unknown names fail closed.
 	 */
 	executionProfile?: string;
@@ -796,7 +796,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		...(allowSharedCheckoutWrites ? { allowSharedCheckoutWrites: true } : {}),
 		permissionMode: permissionMode.mode,
 		runtimeOverrides: options.runtimeOverrides,
-		// Host model/thinking defaults apply only to the executor they belong to; WP37: the saved
+		// Host model/effort defaults apply only to the executor they belong to; WP37: the saved
 		// profile under a declared one adds its model/effort for its own executor. WP31: in a mixed
 		// run the remaining defaults belong to the run's executor and reach only its stages.
 		runtimeDefaults:

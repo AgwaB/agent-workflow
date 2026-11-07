@@ -18,14 +18,14 @@ import {
 	providersForSelectedTools,
 } from "./tool-metadata.js";
 import { resolveGeneratedTaskNames } from "./capability-negotiation.js";
-import { THINKING_LEVELS } from "./types.js";
+import { EFFORT_LEVELS } from "./types.js";
 import type {
 	CompiledDynamicWorkflowTask,
 	CompiledTask,
 	CompiledToolProvider,
 	CompiledWorkflow,
 	TaskCapability,
-	ThinkingLevel,
+	EffortLevel,
 	WorkflowRunRecord,
 	WorkflowTaskRunRecord,
 } from "./types.js";
@@ -76,7 +76,7 @@ export interface DynamicAgentRequest {
 	branchId?: string;
 	readOnly?: boolean;
 	model?: string;
-	thinking?: ThinkingLevel;
+	effort?: EffortLevel;
 	maxRuntimeMs?: number;
 	inputs: DynamicArtifactInput[];
 	requiredReads: string[];
@@ -460,13 +460,9 @@ function assertDynamicExecutionProfileRequest(
 	if (request.model && profile?.model && request.model !== profile.model) {
 		throw new Error("dynamic execution profile requests cannot override model");
 	}
-	if (
-		request.thinking &&
-		profile?.thinking &&
-		request.thinking !== profile.thinking
-	) {
+	if (request.effort && profile?.effort && request.effort !== profile.effort) {
 		throw new Error(
-			"dynamic execution profile requests cannot override thinking",
+			"dynamic execution profile requests cannot override effort",
 		);
 	}
 	if (
@@ -808,6 +804,8 @@ export function normalizeDynamicAgentRequest(
 		throw new Error("ctx.agent() request must be an object");
 	}
 	const record = value as Record<string, unknown>;
+	if (record.thinking !== undefined)
+		throw new Error('ctx.agent() thinking is not supported; use "effort"');
 	const id = sanitizeTaskId(requiredDynamicString(record.id, "id"));
 	if (!id) throw new Error("ctx.agent() id must contain letters or numbers");
 	if (id === "controller") {
@@ -824,7 +822,7 @@ export function normalizeDynamicAgentRequest(
 		branchId: optionalDynamicString(record.branchId, "branchId"),
 		readOnly: optionalDynamicBoolean(record.readOnly, "readOnly"),
 		model: optionalDynamicString(record.model, "model"),
-		thinking: optionalDynamicThinking(record.thinking),
+		effort: optionalDynamicEffort(record.effort),
 		maxRuntimeMs: optionalDynamicModelTaskMaxRuntimeMs(
 			record.maxRuntimeMs,
 			"maxRuntimeMs",
@@ -851,15 +849,15 @@ function runtimeSettings(value: unknown): WorkflowRuntimeDefaults | undefined {
 		typeof record.model === "string" && record.model.trim()
 			? record.model.trim()
 			: undefined;
-	const thinking =
-		typeof record.thinking === "string" && record.thinking.trim()
-			? (record.thinking.trim() as ThinkingLevel)
+	const effort =
+		typeof record.effort === "string" && record.effort.trim()
+			? (record.effort.trim() as EffortLevel)
 			: undefined;
 	const fast =
 		record.fast === "inherit" || record.fast === "off" || record.fast === "on"
 			? record.fast
 			: undefined;
-	return model || thinking || fast ? { model, thinking, fast } : undefined;
+	return model || effort || fast ? { model, effort, fast } : undefined;
 }
 
 function normalizeDynamicArtifactInputs(
@@ -927,17 +925,17 @@ function optionalDynamicModelTaskMaxRuntimeMs(
 	return value;
 }
 
-function optionalDynamicThinking(value: unknown): ThinkingLevel | undefined {
+function optionalDynamicEffort(value: unknown): EffortLevel | undefined {
 	if (value === undefined) return undefined;
 	// The workflow vocabulary (specs, agents, --effort): each executor/model gets its nearest level
 	// before launch, like a planned stage.
 	if (
 		typeof value === "string" &&
-		(THINKING_LEVELS as readonly string[]).includes(value)
+		(EFFORT_LEVELS as readonly string[]).includes(value)
 	)
-		return value as ThinkingLevel;
+		return value as EffortLevel;
 	throw new Error(
-		`ctx.agent() thinking has an unsupported value (use one of: ${THINKING_LEVELS.join(", ")})`,
+		`ctx.agent() effort has an unsupported value (use one of: ${EFFORT_LEVELS.join(", ")})`,
 	);
 }
 

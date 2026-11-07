@@ -94,7 +94,7 @@ test("inside one layer the most specific role key wins; unlisted roles use defau
 	assert.deepEqual(resolved.executors.sort(), ["claude", "codex", "pi"]);
 	assert.deepEqual(resolved.overrides.verify, {
 		model: "gpt-5.6-luna",
-		thinking: "high",
+		effort: "high",
 	});
 });
 

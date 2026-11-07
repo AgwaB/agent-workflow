@@ -68,15 +68,6 @@ export const AGENT_SCOPES = ["auto", "global", "project"] as const;
 export const WORKSPACE_MODES = ["shared", "worktree", "auto"] as const;
 export const WORKTREE_POLICIES = ["auto", "required", "never"] as const;
 export const ON_COMPLETE_ACTIONS = ["return", "notify", "detach"] as const;
-export const THINKING_LEVELS = [
-	"off",
-	"minimal",
-	"low",
-	"medium",
-	"high",
-	"xhigh",
-	"max",
-] as const;
 
 /** Executor id, or `"auto"` when the resolver still has to choose. */
 export type Backend = string;
@@ -124,7 +115,6 @@ export type AgentScope = (typeof AGENT_SCOPES)[number];
 export type WorkspaceMode = (typeof WORKSPACE_MODES)[number];
 export type WorktreePolicy = (typeof WORKTREE_POLICIES)[number];
 export type OnCompleteAction = (typeof ON_COMPLETE_ACTIONS)[number];
-export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
 
 export interface SandboxOptionsInput {
 	/**
@@ -164,7 +154,6 @@ export interface SubagentTaskInput {
 	timeoutMs?: number;
 	model?: string;
 	sessionId?: string;
-	thinking?: ThinkingLevel;
 	tools?: string[];
 	systemPrompt?: string;
 	skills?: string[];
@@ -201,7 +190,6 @@ export interface ResolveInput {
 	onComplete?: OnCompleteAction;
 	timeoutMs?: number;
 	model?: string;
-	thinking?: ThinkingLevel;
 	tools?: string[];
 	systemPrompt?: string;
 	skills?: string[];
@@ -278,8 +266,4 @@ export function isWorktreePolicy(value: unknown): value is WorktreePolicy {
 
 export function isOnCompleteAction(value: unknown): value is OnCompleteAction {
 	return isOneOf(ON_COMPLETE_ACTIONS, value);
-}
-
-export function isThinkingLevel(value: unknown): value is ThinkingLevel {
-	return isOneOf(THINKING_LEVELS, value);
 }

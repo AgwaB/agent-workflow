@@ -151,9 +151,9 @@ export async function createLaunchBootstrapProvenance(
 				? {}
 				: { model: preparedTask.runtime.model }),
 			...(preparedRuntimeApi === undefined ? {} : { api: preparedRuntimeApi }),
-			...(preparedTask.runtime.thinking === undefined
+			...(preparedTask.runtime.effort === undefined
 				? {}
-				: { thinking: preparedTask.runtime.thinking }),
+				: { effort: preparedTask.runtime.effort }),
 			...(preparedTask.runtime.fast === undefined
 				? {}
 				: { fast: preparedTask.runtime.fast }),
@@ -601,7 +601,7 @@ function isEffectivePolicy(value: unknown): boolean {
 			"externalLaunchGrantSha256",
 			"model",
 			"api",
-			"thinking",
+			"effort",
 			"fast",
 			"approvalMode",
 			"maxRuntimeMs",
@@ -616,7 +616,7 @@ function isEffectivePolicy(value: unknown): boolean {
 		!optionalSha256(value.externalLaunchGrantSha256) ||
 		!optionalString(value.model) ||
 		!optionalString(value.api) ||
-		!optionalString(value.thinking) ||
+		!optionalString(value.effort) ||
 		!optionalString(value.fast) ||
 		!nonEmptyString(value.approvalMode) ||
 		(value.maxRuntimeMs !== undefined &&

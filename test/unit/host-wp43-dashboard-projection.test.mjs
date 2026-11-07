@@ -33,7 +33,7 @@ function data() {
 			statusDetail: "retry_backoff",
 			dependsOn: ["plan.main"],
 			foreachGenerated: { placeholderSpecId: "review.item" },
-			runtime: { executor: "codex", model: "gpt-test", thinking: "low" },
+			runtime: { executor: "codex", model: "gpt-test", effort: "low" },
 			startedAt: AT,
 			files: { output: "task/output.log" },
 			launchRetry: {

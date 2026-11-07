@@ -54,7 +54,6 @@ test("contracts", async () => {
 		captureToolCalls: true,
 		runsDir: ".pi/custom-runs",
 		correlationId: "corr_contracts",
-		reasoningLevel: "xhigh",
 	};
 
 	const validation = validateResolveInput(plannedInput);
@@ -68,7 +67,6 @@ test("contracts", async () => {
 	assert.equal(validation.input.workspace.mode, "auto");
 	assert.equal(validation.input.model, "kimi-coding/kimi-for-coding");
 	assert.deepEqual(validation.input.tools, ["read", "grep"]);
-	assert.equal(validation.input.thinking, "xhigh");
 	assert.equal(validation.input.systemPrompt, "Compiled system prompt");
 	assert.deepEqual(validation.input.skills, ["/tmp/skill"]);
 	assert.deepEqual(validation.input.extensions, ["/tmp/extension.ts"]);
@@ -158,7 +156,6 @@ test("contracts", async () => {
 				agent: "scout",
 				task: "audit",
 				model: "kimi-coding/kimi-for-coding",
-				thinking: "high",
 				tools: [],
 				captureToolCalls: true,
 			},
@@ -169,7 +166,6 @@ test("contracts", async () => {
 		taskModelValidation.input.tasks[0].model,
 		"kimi-coding/kimi-for-coding",
 	);
-	assert.equal(taskModelValidation.input.tasks[0].thinking, "high");
 	assert.deepEqual(taskModelValidation.input.tasks[0].tools, []);
 	assert.equal(taskModelValidation.input.tasks[0].captureToolCalls, true);
 
