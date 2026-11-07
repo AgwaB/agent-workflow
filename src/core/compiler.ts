@@ -44,6 +44,7 @@ import {
 	type TaskCapability,
 	type EffortLevel,
 	type ValidationIssue,
+	type WorkflowRoleMap,
 	type WorkflowFailurePolicy,
 	type WorkflowToolObjectSpec,
 	type WorkflowToolSpec,
@@ -58,6 +59,7 @@ import {
 	type WorkflowRuntimeResolutionInput,
 } from "./workflow-runtime.js";
 import {
+	executorDefaultRuntime,
 	executorInheritsHostTools,
 	validateExecutorFastMode,
 } from "./executor-policy.js";
@@ -120,6 +122,11 @@ export interface CompileOptions {
 	 * stage on another executor resolves its model without the registry.
 	 */
 	modelRegistryExecutor?: string;
+	/**
+	 * Built-in executor default profiles (executor id → role map; executor-policy.ts): the lowest
+	 * model/effort layer of a stage on that executor, below its stage, agent and run defaults.
+	 */
+	executorDefaults?: Readonly<Record<string, WorkflowRoleMap>>;
 	/** Bounded routing preflight injects frontmatter-only agent metadata. */
 	agentLoader?: (
 		name: string,
@@ -1684,11 +1691,18 @@ async function compileArtifactGraphPlan(
 				dynamicToolSelection.toolProviders,
 				stageToolPolicyOptions,
 			);
+			const dynamicExecutorDefault = executorDefaultRuntime(
+				stageEffectiveExecutor === undefined
+					? undefined
+					: options.executorDefaults?.[stageEffectiveExecutor],
+				{ profileRole: stage.profileRole },
+			);
 			const requestedRuntime = selectWorkflowRuntime(
 				runtimeOverrides,
 				runtimeSettings(stage),
 				stageRuntimeDefaults,
 				specRuntimeDefaults,
+				dynamicExecutorDefault,
 			);
 			const resolvedDynamicRuntime = await resolveWorkflowRuntime(
 				requestedRuntime,
@@ -1721,6 +1735,9 @@ async function compileArtifactGraphPlan(
 					runtimeDefaults: stageRuntimeDefaults,
 					specRuntimeDefaults,
 					stageRuntime: runtimeSettings(stage),
+					...(dynamicExecutorDefault === undefined
+						? {}
+						: { executorDefault: dynamicExecutorDefault }),
 				},
 				overrides,
 			);
@@ -1865,6 +1882,12 @@ async function compileArtifactGraphPlan(
 			stageRuntimeDefaults,
 			specRuntimeDefaults,
 			runtimeSettings(stageAgent),
+			executorDefaultRuntime(
+				stageEffectiveExecutor === undefined
+					? undefined
+					: options.executorDefaults?.[stageEffectiveExecutor],
+				{ agent: stageAgentName, profileRole: stage.profileRole },
+			),
 		);
 		const resolvedRuntime = await resolveWorkflowRuntime(
 			requestedRuntime,
@@ -2386,6 +2409,7 @@ function buildDynamicTask(
 		runtimeDefaults?: WorkflowRuntimeDefaults;
 		specRuntimeDefaults?: WorkflowRuntimeDefaults;
 		stageRuntime?: WorkflowRuntimeDefaults;
+		executorDefault?: WorkflowRuntimeDefaults;
 	},
 	overrides: Partial<CompiledTask> & Record<string, unknown>,
 ): any {
@@ -2528,6 +2552,7 @@ function compileDynamicDecisionLoop(
 		runtimeDefaults?: WorkflowRuntimeDefaults;
 		specRuntimeDefaults?: WorkflowRuntimeDefaults;
 		stageRuntime?: WorkflowRuntimeDefaults;
+		executorDefault?: WorkflowRuntimeDefaults;
 	},
 ): any | undefined {
 	if (!isPlainRecord(value)) return undefined;
@@ -2615,6 +2640,7 @@ function compileDynamicDecisionLoopProfile(
 		runtimeDefaults?: WorkflowRuntimeDefaults;
 		specRuntimeDefaults?: WorkflowRuntimeDefaults;
 		stageRuntime?: WorkflowRuntimeDefaults;
+		executorDefault?: WorkflowRuntimeDefaults;
 	},
 ): any | undefined {
 	if (!isPlainRecord(value)) return undefined;
@@ -2630,6 +2656,7 @@ function compileDynamicDecisionLoopProfile(
 		runtimePriority.stageRuntime,
 		runtimePriority.runtimeDefaults,
 		runtimePriority.specRuntimeDefaults,
+		runtimePriority.executorDefault,
 	);
 	const maxRuntimeMs = isModelTaskMaxRuntimeMs(value.maxRuntimeMs)
 		? value.maxRuntimeMs

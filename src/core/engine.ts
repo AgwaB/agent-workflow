@@ -228,7 +228,11 @@ import {
 	resolveRunExecutorForHost,
 } from "./executor-default.js";
 import { resolveHostContext, withHostContext } from "./host-context.js";
-import { executorInheritsHostTools } from "./executor-policy.js";
+import {
+	executorInheritsHostTools,
+	executorPolicy,
+	resolveExecutorDefaultProfile,
+} from "./executor-policy.js";
 import {
 	resolveRunPermissionMode,
 	workflowDeclaredProfilePermissionMode,
@@ -236,6 +240,7 @@ import {
 } from "./permission-mode.js";
 import {
 	negotiateWorkflowRun,
+	probeWorkflowExecutor,
 	type WorkflowExecutorProber,
 	workflowNegotiationTargets,
 	workflowProfileStrictCapabilities,
@@ -788,10 +793,63 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 				executorInheritsHostTools(selection.id),
 			) ??
 				false));
+	// Built-in executor default profiles (codex/claude): the lowest model/effort layer, below every
+	// authored and chosen setting; a preset model this machine does not offer falls back to the
+	// user's own CLI settings (executor-policy.ts). Pi keeps its own defaults.
+	// One probe per executor for this launch: the default profiles read its model list and the
+	// capability negotiation below reuses the same result (and reports a failure).
+	const launchProbes = new WeakMap<
+		object,
+		ReturnType<WorkflowExecutorProber>
+	>();
+	const launchProber: WorkflowExecutorProber = (descriptor) => {
+		let probed = launchProbes.get(descriptor);
+		if (probed === undefined) {
+			probed = executorProber(descriptor);
+			launchProbes.set(descriptor, probed);
+		}
+		return probed;
+	};
+	const executorDefaults: Record<string, WorkflowRoleMap> = {};
+	const executorDefaultNotices: string[] = [];
+	for (const selection of [executor, ...(rolePlan?.otherExecutors ?? [])]) {
+		if (
+			executorPolicy(selection.id).defaultPreset === undefined ||
+			Object.hasOwn(executorDefaults, selection.id)
+		)
+			continue;
+		// A nested run keeps its parent's executor and reuses its recorded probe.
+		let listed: string[] | null = parentRun
+			? (parentRun.capabilityNegotiation?.names?.models ?? null)
+			: null;
+		if (!parentRun)
+			try {
+				listed = (
+					await probeWorkflowExecutor(selection.descriptor, {
+						prober: launchProber,
+						...(options.executorProbeTimeoutMs === undefined
+							? {}
+							: { timeoutMs: options.executorProbeTimeoutMs }),
+					})
+				).models;
+			} catch (error) {
+				// The negotiation reports this failure without waiting on the probe again.
+				const failed = Promise.reject(error);
+				failed.catch(() => undefined);
+				launchProbes.set(selection.descriptor, failed);
+				listed = null;
+			}
+		const profile = resolveExecutorDefaultProfile(selection.id, listed);
+		if (profile === undefined) continue;
+		executorDefaults[selection.id] = profile.roles;
+		if (profile.notice !== undefined)
+			executorDefaultNotices.push(profile.notice);
+	}
 	const compiled = await compileWorkflow(spec, {
 		cwd,
 		specPath,
 		task: options.task,
+		executorDefaults,
 		// The run's executor also decides executor-specific checks (e.g. the fast tier) at compile.
 		runExecutor: executor.id,
 		...(inheritsHostTools ? { inheritHostTools: true } : {}),
@@ -828,6 +886,9 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	const capabilityNegotiation = await negotiateWorkflowRun({
 		descriptor: executor.descriptor,
 		compiled,
+		...(executorDefaultNotices.length === 0
+			? {}
+			: { notices: executorDefaultNotices }),
 		policy: {
 			allowUnverified: parentRun
 				? [...(parentRun.capabilityNegotiation?.policy.allowUnverified ?? [])]
@@ -856,7 +917,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					recorded: parentRun.capabilityNegotiation,
 					recordedFromRunId: parentRun.runId,
 				}),
-		prober: executorProber,
+		prober: launchProber,
 		...(options.executorProbeTimeoutMs === undefined
 			? {}
 			: { probeTimeoutMs: options.executorProbeTimeoutMs }),
