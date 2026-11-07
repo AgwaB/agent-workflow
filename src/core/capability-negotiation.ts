@@ -566,6 +566,8 @@ export interface NegotiateWorkflowRunInput {
 	executors?: Record<string, ExecutorDescriptor>;
 	/** WP31: role-assigned models, checked against their executor's probe model list. */
 	modelChecks?: Array<{ slot: string; executor: string; model: string }>;
+	/** One-line notices decided before compile (e.g. an executor default profile fallback). */
+	notices?: readonly string[];
 }
 
 interface ProbedExecutor {
@@ -921,7 +923,11 @@ export async function negotiateWorkflowRun(
 		...unavailableToolRefusals(targets0, executor.id, probes),
 		...names.refusals,
 	];
-	const notices = [...modelCheck.notices, ...names.notices];
+	const notices = [
+		...(input.notices ?? []),
+		...modelCheck.notices,
+		...names.notices,
+	];
 	// WP35: host-tool inheritance notice. WP31×WP35: per stage (each stage's preview block and
 	// record say whether it inherits; in a mixed run only pi stages do).
 	const targets = workflowNegotiationTargets(input.compiled);

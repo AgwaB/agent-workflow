@@ -291,8 +291,10 @@ test("--executor puts every stage on one executor; a role model of another execu
 	const byLabel = Object.fromEntries(
 		codex.map((entry, index) => [stages[index], entry]),
 	);
-	// plan's role entry (default) belongs to claude: neither its model nor its effort applies.
-	assert.equal(byLabel.plan.model, null);
+	// plan's role entry (default) belongs to claude: its model does not apply; the codex default
+	// profile (preset `codex`, planning: high) fills the stage instead.
+	assert.equal(byLabel.plan.model, "gpt-5.6-luna");
+	assert.equal(byLabel.plan.effort, "high");
 	assert.equal(byLabel.check.model, "gpt-5.6-luna");
 });
 

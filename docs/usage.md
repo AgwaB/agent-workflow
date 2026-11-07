@@ -405,7 +405,7 @@ agent-workflow profile workflow set deep-research --profile team --role synthesi
 | Per-workflow preference `roles` | its matching role entry | its matching role entry |
 | Workflow-declared profile | role entry, else `executionProfileExecutors` | its stage overrides, else role entry |
 | Saved user profile (or preset) | role entry, else `executor` | role entry; flat `model`/`effort` stay run defaults |
-| Default | host default / installed default | stage, agent, host defaults, executor's own |
+| Default | host default / installed default | stage, agent, host defaults, the executor's default profile, executor's own |
 
 The highest layer that has a value for a stage wins that field. A role entry's model and effort
 apply only when the stage runs on that entry's executor (or the entry names none): a model id belongs
@@ -440,6 +440,22 @@ Efforts in every preset: `high` for planning, verification and final judgment, `
 In `mixed`, verification runs on a different model family from the codex workers whose findings it
 checks. Preset models are names the CLIs accept today; if your account lacks
 one, override the role (`--role research-execution=codex:<model>`) or use `--model`.
+
+**Executor default profiles.** A stage on codex or claude that no layer above gives a model or
+effort takes it from the executor's preset (`codex` or `claude` above): the lowest layer, below
+the stage, its agent, workflow defaults, host defaults, every profile and `--model`. When the
+executor's probe lists models but not the preset's, every such stage instead uses your own CLI
+settings and the preview says so (`Notice: codex default profile: model "gpt-5.6-luna" is not
+offered here; …`):
+
+| Executor | Read from | Fields |
+|---|---|---|
+| codex | `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`); the active `profile` table wins | `model`, `model_reasoning_effort` |
+| claude | `$CLAUDE_CONFIG_DIR/settings.json` (default `~/.claude/settings.json`) | `model`, `effortLevel` |
+
+Claude workers run with user settings switched off, so these values are passed explicitly. When
+neither is configured, the CLI's own defaults apply. Pi has no default profile: its stages keep
+Pi's current model and effort.
 
 **Per-workflow preferences** (`agent-workflow profile workflow set <workflow> [--profile <name>]
 [--role …]`, MCP `workflow_profile` `workflow-set`, Pi `/aw profile workflow set …`). Keyed by the
