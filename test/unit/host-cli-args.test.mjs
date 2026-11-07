@@ -38,7 +38,7 @@ import {
 const CLI = fileURLToPath(
 	new URL("../../src/hosts/cli/cli.mjs", import.meta.url),
 );
-const ROOT = mkdtempSync(join(tmpdir(), "aw-host-ported-"));
+const ROOT = mkdtempSync(join(tmpdir(), "aw-host-cli-args-"));
 const previousHome = process.env.AGENT_WORKFLOW_HOME;
 after(() => {
 	if (previousHome === undefined) delete process.env.AGENT_WORKFLOW_HOME;

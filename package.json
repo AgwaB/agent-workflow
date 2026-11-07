@@ -101,7 +101,7 @@
     "validate": "npm run check:scripts && npm run check:release-workflow && npm run check:public-surface && npm run check:format && npm run typecheck && npm run test:unit",
     "test": "npm run test:unit",
     "test:unit": "npm run build && node test/run-unit.mjs",
-    "test:ui-motion": "npm run build && AGENT_WORKFLOW_UI_MOTION=1 node test/run-unit.mjs test/unit/host-wp43-dashboard-ui.test.mjs test/unit/host-wp43-dashboard-redesign.test.mjs test/unit/host-wp43-dashboard-morph.test.mjs",
+    "test:ui-motion": "npm run build && AGENT_WORKFLOW_UI_MOTION=1 node test/run-unit.mjs test/unit/host-dashboard-ui.test.mjs test/unit/host-dashboard-redesign.test.mjs test/unit/host-dashboard-morph.test.mjs",
     "e2e": "node test/e2e/run.mjs",
     "pack:dry": "npm pack --dry-run --json --ignore-scripts",
     "prepack": "npm run build",

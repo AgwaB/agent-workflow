@@ -207,9 +207,9 @@ function validComparison(
 	});
 }
 
-// Moved (WP38b, `/aw auto` (WP32)): test("auto v2 command capture preserves the supplied slash arguments exactly once") → test/unit/host-wp38b-auto-router.test.mjs.
+// Moved (WP38b, `/aw auto` (WP32)): test("auto v2 command capture preserves the supplied slash arguments exactly once") → test/unit/host-auto-router.test.mjs.
 
-// Moved (WP11a, host API parsers): test("explicit run and dynamic reject retired routing flags while preserving quoted task text") → test/unit/host-ported-cli-args.test.mjs.
+// Moved (WP11a, host API parsers): test("explicit run and dynamic reject retired routing flags while preserving quoted task text") → test/unit/host-cli-args.test.mjs.
 
 test("routing hints are schema-validated, bounded, and author-controlled", () => {
 	const base = {
@@ -989,20 +989,20 @@ test("auto comparison accepts a valid multibyte UTF-8 artifact", async () => {
 	assert.equal(result.status, "recommendation");
 });
 
-// Moved (WP38b, `/aw auto` (WP32)): test("headless /workflow auto fails closed without structured transmission authorization") → test/unit/host-wp38b-auto-router.test.mjs.
+// Moved (WP38b, `/aw auto` (WP32)): test("headless /workflow auto fails closed without structured transmission authorization") → test/unit/host-auto-router.test.mjs.
 
-// Moved (WP38b, `/aw auto` (WP32)): test("TUI cancellation keeps a Korean no-transmit task out of the classifier") → test/unit/host-wp38b-auto-router.test.mjs.
+// Moved (WP38b, `/aw auto` (WP32)): test("TUI cancellation keeps a Korean no-transmit task out of the classifier") → test/unit/host-auto-router.test.mjs.
 
-// Moved (WP38b, `/aw auto` (WP32)): test("TUI keeps safe choices after no-fit without metadata noise or routing jargon") → test/unit/host-wp38b-auto-router.test.mjs.
+// Moved (WP38b, `/aw auto` (WP32)): test("TUI keeps safe choices after no-fit without metadata noise or routing jargon") → test/unit/host-auto-router.test.mjs.
 
 for (const task of [
 	"Do not send this to any external model.",
 	"Do not write to disk; do not use the network.",
 ]) {
-	// Moved (WP38b, `/aw auto` (WP32)): test("TUI offers only cancellation under a transmission restriction: ${task}") → test/unit/host-wp38b-auto-router.test.mjs.
+	// Moved (WP38b, `/aw auto` (WP32)): test("TUI offers only cancellation under a transmission restriction: ${task}") → test/unit/host-auto-router.test.mjs.
 }
 
-// Moved (WP38b, `/aw auto` (WP32)): test("TUI confirms an unranked named manual fallback with null v2 provenance") → test/unit/host-wp38b-auto-router.test.mjs.
+// Moved (WP38b, `/aw auto` (WP32)): test("TUI confirms an unranked named manual fallback with null v2 provenance") → test/unit/host-auto-router.test.mjs.
 
 test("structured transmission policy fails closed across languages and preserves detected denials", async () => {
 	const cwd = project();

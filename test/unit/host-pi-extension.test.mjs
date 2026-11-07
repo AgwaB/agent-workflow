@@ -820,7 +820,7 @@ test("./hosts/pi entry: clear error without Pi; nothing else imports the Pi host
 		piAvailable = false;
 	}
 	const pkg = JSON.parse(readFileSync(join(repo, "package.json"), "utf8"));
-	// WP33: plus the aw- named Pi skills (host-wp33-pi-skills.test.mjs).
+	// WP33: plus the aw- named Pi skills (host-pi-skills.test.mjs).
 	assert.deepEqual(pkg.pi, {
 		extensions: ["./dist/hosts/pi/index.js"],
 		skills: [
