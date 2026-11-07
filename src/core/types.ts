@@ -1870,6 +1870,11 @@ export interface WorkflowRunRecord {
 	 */
 	experimentalFlags?: string[];
 	/**
+	 * Executor default profiles applied at launch (executor id → role → model/effort; the lowest
+	 * layer, executor-policy.ts). Nested runs reuse them.
+	 */
+	executorDefaults?: Record<string, WorkflowRoleMap>;
+	/**
 	 * WP4e (D2 revised): effective permission mode and where it came from.
 	 * Absent on records created before WP4e; those run as `safe`.
 	 */

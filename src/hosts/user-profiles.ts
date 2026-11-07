@@ -17,6 +17,7 @@ import {
 	readPrivateFileText,
 	writePrivateFileAtomic,
 } from "../core/secure-atomic-write.js";
+import { executorPolicy } from "../core/executor-policy.js";
 import { executorPreset } from "../core/executor-presets.js";
 import { workflowExecutorRegistration } from "../core/executor-registry.js";
 import {
@@ -165,6 +166,48 @@ export function assertKnownProfileExecutors(
 	check(values.executor, "executor");
 	for (const [role, assignment] of Object.entries(values.roles ?? {}))
 		check(assignment.executor, `roles.${role}.executor`);
+}
+
+/**
+ * A saved profile named after an executor (pi, codex, claude, …) holds the user's changes to that
+ * executor's default profile (executor-policy.ts): the lowest model/effort layer of its stages.
+ */
+export function isExecutorProfileName(name: string): boolean {
+	return workflowExecutorRegistration(name)?.descriptor !== undefined;
+}
+
+/**
+ * A saved executor profile on top of the executor's built-in default profile (codex, claude): its
+ * flat model/effort replace the built-in ones in every role and its role entries win field by field
+ * (an entry for another executor replaces the role). Other profiles are returned unchanged. Used
+ * when the profile is chosen by name, so it runs what the default profile runs.
+ */
+export function withBuiltInExecutorProfile(profile: UserProfile): UserProfile {
+	const presetId = isExecutorProfileName(profile.name)
+		? executorPolicy(profile.name).defaultPreset
+		: undefined;
+	if (presetId === undefined) return profile;
+	const preset = executorPreset(presetId);
+	const executor = profile.executor ?? preset.executor;
+	const flat = {
+		...(profile.model === undefined ? {} : { model: profile.model }),
+		...(profile.effort === undefined ? {} : { effort: profile.effort }),
+	};
+	const roles: WorkflowRoleMap = {};
+	for (const [role, entry] of Object.entries(preset.roles))
+		roles[role] =
+			(entry.executor ?? preset.executor) === executor
+				? { ...entry, ...flat }
+				: entry;
+	for (const [role, entry] of Object.entries(profile.roles ?? {})) {
+		const base = roles[role];
+		roles[role] =
+			base !== undefined &&
+			(entry.executor ?? executor) === (base.executor ?? executor)
+				? { ...base, ...entry }
+				: entry;
+	}
+	return { ...profile, executor, roles };
 }
 
 function emptyFile(): UserProfilesFile {
@@ -384,8 +427,14 @@ export function formatUserProfile(
 			`  ${field}: ${Array.isArray(value) ? value.join(",") : String(value)}`,
 		];
 	});
+	const marks = [
+		...(isDefault ? ["default"] : []),
+		...(isExecutorProfileName(profile.name)
+			? [`default profile of ${profile.name} stages`]
+			: []),
+	];
 	return [
-		`${profile.name}${isDefault ? " (default)" : ""}`,
+		`${profile.name}${marks.length === 0 ? "" : ` (${marks.join("; ")})`}`,
 		...(fields.length > 0 ? fields : ["  (no fields set)"]),
 	].join("\n");
 }

@@ -7,6 +7,7 @@ import {
 	executorPreset,
 } from "../core/executor-presets.js";
 import { compileWorkflow } from "../core/compiler.js";
+import { executorPolicy } from "../core/executor-policy.js";
 import { loadWorkflowSpec } from "../core/schema.js";
 import type { WorkflowRoutingHints, CompiledWorkflow } from "../core/types.js";
 import { listWorkflows, resolveWorkflowRef } from "../core/workflow-specs.js";
@@ -20,6 +21,7 @@ import {
 	toDisplayPath,
 } from "./types.js";
 import {
+	isExecutorProfileName,
 	deleteUserProfile,
 	formatRoleMapLines,
 	formatUserProfile,
@@ -29,6 +31,7 @@ import {
 	type UserProfile,
 	userProfileFromFile,
 	userProfilesPath,
+	withBuiltInExecutorProfile,
 } from "./user-profiles.js";
 import {
 	clearWorkflowPreference,
@@ -490,6 +493,52 @@ export interface ProfileData {
 	deleted?: boolean;
 	/** WP31: op presets. */
 	presets?: ExecutorPreset[];
+	/** op show of an executor without a saved profile: its built-in default profile. */
+	builtIn?: true;
+	/** op show of a saved executor profile: what it runs (built-in default profile + changes). */
+	effective?: UserProfile;
+}
+
+/** `profile show <executor>` without a saved one: the executor's built-in default profile. */
+function builtInExecutorProfile(
+	id: string,
+	path: string,
+	defaultName: string | undefined,
+): HostResult<ProfileData> {
+	const preset = executorPolicy(id).defaultPreset;
+	const edit = `Change it with: agent-workflow profile set ${id} [--model <model>] [--effort <level>] [--role <role>=${id}:<model>:<effort>]${preset === undefined ? "" : " (your changes apply on top of this one)"}; profile delete ${id} goes back.`;
+	const data: ProfileData = {
+		op: "show",
+		path,
+		...(defaultName ? { default: defaultName } : {}),
+		builtIn: true,
+		...(preset === undefined
+			? {}
+			: {
+					profile: {
+						name: id,
+						executor: id,
+						roles: executorPreset(preset).roles,
+						updatedAt: "",
+					},
+				}),
+	};
+	const text =
+		preset === undefined
+			? [
+					`${id} (no saved profile): ${id} stages use ${id}'s own model and effort${id === "pi" ? " (in Pi: its current model and effort)" : ""}.`,
+					edit,
+				]
+			: [
+					`${id} (built-in default profile of ${id} stages; not saved)`,
+					"  roles:",
+					...formatRoleMapLines(executorPreset(preset).roles).map(
+						(line) => `    ${line}`,
+					),
+					`When ${id} does not offer this model, every ${id} stage uses your own ${id} model and effort instead.`,
+					edit,
+				];
+	return result("profile", "success", data, text.join("\n"));
 }
 
 /** `profile list|show|set|delete|default`: saved user profiles (B2 "saved user profile" tier). */
@@ -534,7 +583,10 @@ export async function profileAction(
 				"No default profile is set.",
 			);
 		const profile = userProfileFromFile(file, name);
+		if (!profile && isExecutorProfileName(name))
+			return builtInExecutorProfile(name, path, file.default);
 		if (!profile) throw new HostUsageError(`no saved profile named "${name}"`);
+		const effective = withBuiltInExecutorProfile(profile);
 		return result(
 			"profile",
 			"success",
@@ -543,8 +595,19 @@ export async function profileAction(
 				path,
 				...(file.default ? { default: file.default } : {}),
 				profile,
+				...(effective === profile ? {} : { effective }),
 			},
-			formatUserProfile(profile, name === file.default),
+			[
+				formatUserProfile(profile, name === file.default),
+				...(effective === profile
+					? []
+					: [
+							`Runs as (built-in ${name} default profile with these changes; profile delete ${name} goes back):`,
+							...formatRoleMapLines(effective.roles ?? {}).map(
+								(line) => `  ${line}`,
+							),
+						]),
+			].join("\n"),
 		);
 	}
 	if (request.op === "set") {

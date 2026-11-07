@@ -126,21 +126,84 @@ export interface ExecutorDefaultProfile {
 	notice?: string;
 }
 
+/** The fields of a saved user profile an executor default profile reads. */
+export interface ExecutorProfileValues {
+	executor?: string;
+	model?: string;
+	effort?: EffortLevel;
+	roles?: WorkflowRoleMap;
+}
+
 function isEffortLevel(value: string | undefined): value is EffortLevel {
 	return (
 		value !== undefined && (EFFORT_LEVELS as readonly string[]).includes(value)
 	);
 }
 
+function modelEffort(entry: { model?: string; effort?: EffortLevel }): {
+	model?: string;
+	effort?: EffortLevel;
+} {
+	return {
+		...(entry.model === undefined ? {} : { model: entry.model }),
+		...(entry.effort === undefined ? {} : { effort: entry.effort }),
+	};
+}
+
 /**
- * The built-in default profile of an executor for this machine: its preset when the preset's model
- * is offered (or the probe lists no models), else the user's own CLI model/effort for every stage
- * (none configured: the CLI's own defaults). `listedModels` is the executor's probe list.
+ * A saved profile named after `executorId` (the user's changes) on top of `base` (the built-in
+ * default profile, role → model/effort): its flat model/effort replace the base ones in every role,
+ * its role entries win field by field. Entries for another executor are skipped (a model belongs to
+ * its executor); so are the flat values when the profile's executor is another one.
+ */
+export function overlayExecutorProfile(
+	executorId: string,
+	base: WorkflowRoleMap,
+	saved: ExecutorProfileValues,
+): WorkflowRoleMap {
+	const flatExecutor = saved.executor ?? executorId;
+	const flat = flatExecutor === executorId ? modelEffort(saved) : {};
+	const roles: WorkflowRoleMap = {};
+	for (const [role, entry] of Object.entries(base))
+		roles[role] = { ...modelEffort(entry), ...flat };
+	if (roles.default === undefined && Object.keys(flat).length > 0)
+		roles.default = { ...flat };
+	for (const [role, entry] of Object.entries(saved.roles ?? {})) {
+		if ((entry.executor ?? flatExecutor) !== executorId) continue;
+		roles[role] = { ...(roles[role] ?? {}), ...modelEffort(entry) };
+	}
+	for (const [role, entry] of Object.entries(roles))
+		if (Object.keys(entry).length === 0) delete roles[role];
+	return roles;
+}
+
+/**
+ * The default profile of an executor for this machine. Built in (codex, claude): the preset when
+ * its model is offered (or the probe lists no models), else the user's own CLI model/effort for every
+ * stage (none configured: the CLI's own defaults). A saved profile named after the executor (`saved`)
+ * applies on top (overlayExecutorProfile); pi has only that. `listedModels` is the probe list.
  */
 export function resolveExecutorDefaultProfile(
 	executorId: string,
 	listedModels: readonly string[] | null,
 	env: NodeJS.ProcessEnv = process.env,
+	saved?: ExecutorProfileValues,
+): ExecutorDefaultProfile | undefined {
+	const builtIn = builtInExecutorDefaultProfile(executorId, listedModels, env);
+	if (saved === undefined) return builtIn;
+	const roles = overlayExecutorProfile(executorId, builtIn?.roles ?? {}, saved);
+	if (Object.keys(roles).length === 0 && builtIn?.notice === undefined)
+		return undefined;
+	return {
+		roles,
+		...(builtIn?.notice === undefined ? {} : { notice: builtIn.notice }),
+	};
+}
+
+function builtInExecutorDefaultProfile(
+	executorId: string,
+	listedModels: readonly string[] | null,
+	env: NodeJS.ProcessEnv,
 ): ExecutorDefaultProfile | undefined {
 	const policy = executorPolicy(executorId);
 	if (policy.defaultPreset === undefined) return undefined;
@@ -148,10 +211,7 @@ export function resolveExecutorDefaultProfile(
 	for (const [role, assignment] of Object.entries(
 		executorPreset(policy.defaultPreset).roles,
 	))
-		roles[role] = {
-			...(assignment.model === undefined ? {} : { model: assignment.model }),
-			...(assignment.effort === undefined ? {} : { effort: assignment.effort }),
-		};
+		roles[role] = modelEffort(assignment);
 	const model = roles.default?.model;
 	if (
 		model === undefined ||
@@ -175,24 +235,25 @@ export function resolveExecutorDefaultProfile(
 	};
 }
 
-/** Model/effort of a stage from an executor default profile (agent > profileRole > default). */
+/**
+ * Model/effort of a stage from an executor default profile, field by field: the most specific
+ * entry that sets a field wins it (agent > profileRole > default).
+ */
 export function executorDefaultRuntime(
 	roles: WorkflowRoleMap | undefined,
 	slot: { agent?: string; profileRole?: string },
 ): { model?: string; effort?: EffortLevel } | undefined {
 	if (roles === undefined) return undefined;
-	const keys = [
+	const entries = [
 		...(slot.agent ? [`agent:${slot.agent}`] : []),
 		...(slot.profileRole ? [slot.profileRole] : []),
 		"default",
-	];
-	for (const key of keys) {
-		const entry = roles[key];
-		if (entry && (entry.model !== undefined || entry.effort !== undefined))
-			return {
-				...(entry.model === undefined ? {} : { model: entry.model }),
-				...(entry.effort === undefined ? {} : { effort: entry.effort }),
-			};
-	}
-	return undefined;
+	].flatMap((key) => (roles[key] ? [roles[key]!] : []));
+	const model = entries.find((entry) => entry.model !== undefined)?.model;
+	const effort = entries.find((entry) => entry.effort !== undefined)?.effort;
+	if (model === undefined && effort === undefined) return undefined;
+	return {
+		...(model === undefined ? {} : { model }),
+		...(effort === undefined ? {} : { effort }),
+	};
 }

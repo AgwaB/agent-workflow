@@ -67,7 +67,9 @@ per-workflow preferences in $AGENT_WORKFLOW_HOME/workflow-preferences/v1/prefere
 (default ~/.agent-workflow). A launch uses: --profile <name>, else the workflow's saved preference
 profile, else the workflow's declared default profile, else the default saved profile. Precedence
 per field (executor, model, effort, also per role): run flag > per-workflow preference roles >
-workflow-declared profile > saved user profile > default.`,
+workflow-declared profile > saved user profile > default. A saved profile named after an executor
+(codex, claude, pi) changes that executor's default profile, the lowest model/effort layer of its
+stages; \`profile show <executor>\` shows it, \`profile delete <executor>\` restores the built-in one.`,
 	run: `Usage: agent-workflow run <workflow-name-or-path> <task...> [options]
 
 Start exactly the named workflow and wait in the foreground until it is terminal (Ctrl-C stops
