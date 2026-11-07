@@ -229,6 +229,7 @@ import {
 } from "./executor-default.js";
 import { resolveHostContext, withHostContext } from "./host-context.js";
 import {
+	type ExecutorProfileValues,
 	executorInheritsHostTools,
 	executorPolicy,
 	resolveExecutorDefaultProfile,
@@ -499,6 +500,11 @@ export interface WorkflowRunOptions {
 	executorProber?: WorkflowExecutorProber;
 	/** Bound for the executor probe (default 30 s). */
 	executorProbeTimeoutMs?: number;
+	/**
+	 * Saved user profiles named after an executor (executor id → profile): that executor's default
+	 * profile, used as written instead of its built-in one.
+	 */
+	executorProfiles?: Readonly<Record<string, ExecutorProfileValues>>;
 }
 
 interface WorkflowScheduleOptions {
@@ -793,9 +799,10 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 				executorInheritsHostTools(selection.id),
 			) ??
 				false));
-	// Built-in executor default profiles (codex/claude): the lowest model/effort layer, below every
-	// authored and chosen setting; a preset model this machine does not offer falls back to the
-	// user's own CLI settings (executor-policy.ts). Pi keeps its own defaults.
+	// Executor default profiles: the lowest model/effort layer, below every authored and chosen
+	// setting. A saved profile named after the executor is used as written; otherwise codex/claude
+	// use their built-in preset, falling back to the user's own CLI settings when this machine does
+	// not offer its model (executor-policy.ts). Pi without a saved `pi` profile keeps its defaults.
 	// One probe per executor for this launch: the default profiles read its model list and the
 	// capability negotiation below reuses the same result (and reports a failure).
 	const launchProbes = new WeakMap<
@@ -813,16 +820,23 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	const executorDefaults: Record<string, WorkflowRoleMap> = {};
 	const executorDefaultNotices: string[] = [];
 	for (const selection of [executor, ...(rolePlan?.otherExecutors ?? [])]) {
+		if (Object.hasOwn(executorDefaults, selection.id)) continue;
+		// A nested run keeps its parent's executor and the default profiles it recorded.
+		if (parentRun?.executorDefaults !== undefined) {
+			const recorded = parentRun.executorDefaults[selection.id];
+			if (recorded !== undefined) executorDefaults[selection.id] = recorded;
+			continue;
+		}
+		const saved = options.executorProfiles?.[selection.id];
 		if (
-			executorPolicy(selection.id).defaultPreset === undefined ||
-			Object.hasOwn(executorDefaults, selection.id)
+			saved === undefined &&
+			executorPolicy(selection.id).defaultPreset === undefined
 		)
 			continue;
-		// A nested run keeps its parent's executor and reuses its recorded probe.
 		let listed: string[] | null = parentRun
 			? (parentRun.capabilityNegotiation?.names?.models ?? null)
 			: null;
-		if (!parentRun)
+		if (!parentRun && executorPolicy(selection.id).defaultPreset !== undefined)
 			try {
 				listed = (
 					await probeWorkflowExecutor(selection.descriptor, {
@@ -839,7 +853,12 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 				launchProbes.set(selection.descriptor, failed);
 				listed = null;
 			}
-		const profile = resolveExecutorDefaultProfile(selection.id, listed);
+		const profile = resolveExecutorDefaultProfile(
+			selection.id,
+			listed,
+			process.env,
+			saved,
+		);
 		if (profile === undefined) continue;
 		executorDefaults[selection.id] = profile.roles;
 		if (profile.notice !== undefined)
@@ -992,6 +1011,8 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	run.experimentalFlags = Array.isArray(parentRun?.experimentalFlags)
 		? [...parentRun.experimentalFlags]
 		: runScopedExperimentalFlagsAtLaunch();
+	if (Object.keys(executorDefaults).length > 0)
+		run.executorDefaults = executorDefaults;
 	run.capabilityNegotiation = capabilityNegotiation;
 	let initialized: WorkflowRunRecord | undefined;
 	try {

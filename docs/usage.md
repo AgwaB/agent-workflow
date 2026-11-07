@@ -454,8 +454,29 @@ offered here; …`):
 | claude | `$CLAUDE_CONFIG_DIR/settings.json` (default `~/.claude/settings.json`) | `model`, `effortLevel` |
 
 Claude workers run with user settings switched off, so these values are passed explicitly. When
-neither is configured, the CLI's own defaults apply. Pi has no default profile: its stages keep
-Pi's current model and effort.
+neither is configured, the CLI's own defaults apply. Pi has no built-in default profile: its stages
+keep Pi's current model and effort.
+
+**Changing a default profile.** A saved profile named after an executor (`codex`, `claude`, `pi`,
+…) holds your changes to that executor's default profile; edit it with the usual profile commands
+(CLI `profile set`, MCP `workflow_profile` `set`, the dashboard, Pi `/aw profile set`):
+
+```bash
+agent-workflow profile show codex                                # built-in, or built-in + your changes
+agent-workflow profile set codex --role planning=codex:gpt-6.1-sol:xhigh
+agent-workflow profile set claude --model opus                   # every role: opus, efforts unchanged
+agent-workflow profile set pi --effort high
+agent-workflow profile delete codex                              # back to the built-in one
+```
+
+Its flat `model`/`effort` replace the built-in ones in every role; its role entries win field by
+field (`--role planning=codex::xhigh` changes only the effort). Entries for another executor and,
+when the profile's `executor` is another one, its flat values do not reach this executor's stages.
+Your values are used as written: a model the probe does not list is noted, not replaced. Fields you
+leave unset keep the built-in behavior, including the fallback above. In Pi, a saved `pi` profile
+that sets a model (or an effort) anywhere replaces Pi's current model (or effort) for pi stages.
+Choosing the profile by name (`--profile codex`) runs the same built-in profile with your changes,
+on the profile tier; as the default profile it stays the lowest layer.
 
 **Per-workflow preferences** (`agent-workflow profile workflow set <workflow> [--profile <name>]
 [--role …]`, MCP `workflow_profile` `workflow-set`, Pi `/aw profile workflow set …`). Keyed by the

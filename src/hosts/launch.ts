@@ -25,6 +25,7 @@ import {
 	INSTALLED_DEFAULT_ORDER,
 	unverifiedDefaultGuidance,
 } from "../core/executor-default.js";
+import { overlayExecutorProfile } from "../core/executor-policy.js";
 import { WorkflowExecutorUnavailableError } from "../core/executor-registry.js";
 import {
 	EXECUTOR_PRESET_IDS,
@@ -65,9 +66,11 @@ import {
 	recordForcedLaunch,
 } from "./launch-guard.js";
 import {
+	isExecutorProfileName,
 	readUserProfiles,
 	type UserProfile,
 	userProfileFromFile,
+	withBuiltInExecutorProfile,
 } from "./user-profiles.js";
 import {
 	readWorkflowPreferences,
@@ -267,13 +270,78 @@ interface LaunchProfile {
 	info?: LaunchProfileInfo;
 }
 
+/**
+ * The host's model/effort defaults without the fields a saved profile named after their executor
+ * sets (that profile is the executor's default profile; the engine applies it).
+ */
+function withExecutorProfileHostDefaults(
+	ctx: HostApiContext,
+	executorProfiles: Readonly<Record<string, UserProfile>>,
+): HostApiContext {
+	const defaults = ctx.runtimeDefaults;
+	const saved =
+		defaults?.executor === undefined
+			? undefined
+			: executorProfiles[defaults.executor];
+	if (defaults === undefined || saved === undefined) return ctx;
+	const roles = Object.values(
+		overlayExecutorProfile(defaults.executor!, {}, saved),
+	);
+	const { model, effort, ...rest } = defaults;
+	const kept = {
+		...rest,
+		...(model !== undefined && !roles.some((entry) => entry.model)
+			? { model }
+			: {}),
+		...(effort !== undefined && !roles.some((entry) => entry.effort)
+			? { effort }
+			: {}),
+	};
+	const { runtimeDefaults: _dropped, ...without } = ctx;
+	return kept.model === undefined &&
+		kept.effort === undefined &&
+		kept.fast === undefined
+		? without
+		: { ...ctx, runtimeDefaults: kept };
+}
+
+/** A saved executor profile chosen by name runs on top of the executor's built-in one. */
+function withBuiltInProfile(
+	profile: UserProfile | undefined,
+): UserProfile | undefined {
+	return profile === undefined
+		? undefined
+		: withBuiltInExecutorProfile(profile);
+}
+
+/**
+ * Saved profiles named after an executor (executor id → profile); none when the file is unreadable
+ * (the launch paths that need the saved profiles report that themselves).
+ */
+async function savedExecutorProfilesQuietly(
+	env: NodeJS.ProcessEnv,
+): Promise<Record<string, UserProfile>> {
+	try {
+		const file = await readUserProfiles(env);
+		return Object.fromEntries(
+			Object.keys(file.profiles)
+				.filter(isExecutorProfileName)
+				.map((name) => [name, userProfileFromFile(file, name)!]),
+		);
+	} catch {
+		return {};
+	}
+}
+
 /** WP37: the default saved user profile, or none when there is none or the file is unreadable. */
 async function defaultUserProfileQuietly(
 	env: NodeJS.ProcessEnv,
 ): Promise<UserProfile | undefined> {
 	try {
 		const file = await readUserProfiles(env);
-		return file.default ? userProfileFromFile(file, file.default) : undefined;
+		return file.default
+			? withBuiltInProfile(userProfileFromFile(file, file.default))
+			: undefined;
 	} catch {
 		// Declared profiles never needed the saved profiles; an unreadable file does not block them.
 		return undefined;
@@ -388,6 +456,8 @@ interface LaunchProfileSnapshot {
 	declaredChoice?: { userDefault?: UserProfile; userProfilesError?: unknown };
 	/** WP31: the saved per-workflow preference of this workflow (profile and role overrides). */
 	preference?: WorkflowPreference;
+	/** Saved profiles named after an executor: that executor's default profile. */
+	executorProfiles?: Record<string, UserProfile>;
 }
 
 /** WP31: the saved preference of the launched workflow (keyed by `spec.name`), if any. */
@@ -449,7 +519,7 @@ async function snapshotProfileSelection(
 			};
 		}
 		const file = await readUserProfiles(env);
-		const user = userProfileFromFile(file, named.name);
+		const user = withBuiltInProfile(userProfileFromFile(file, named.name));
 		if (user)
 			return { resolved: applyUserProfile(ctx, loaded, user, named.source) };
 		// WP31: a built-in executor preset when no declared or saved profile has the name.
@@ -469,7 +539,7 @@ async function snapshotProfileSelection(
 		try {
 			const file = await readUserProfiles(env);
 			const userDefault = file.default
-				? userProfileFromFile(file, file.default)
+				? withBuiltInProfile(userProfileFromFile(file, file.default))
 				: undefined;
 			return { declaredChoice: userDefault ? { userDefault } : {} };
 		} catch (error) {
@@ -478,7 +548,7 @@ async function snapshotProfileSelection(
 	}
 	const file = await readUserProfiles(env);
 	const userDefault = file.default
-		? userProfileFromFile(file, file.default)
+		? withBuiltInProfile(userProfileFromFile(file, file.default))
 		: undefined;
 	if (userDefault)
 		return {
@@ -524,6 +594,23 @@ async function finishLaunchProfile(
 
 /** What the snapshot means for the fingerprint (timestamps dropped). */
 function snapshotIdentity(
+	snapshot: LaunchProfileSnapshot,
+): Record<string, unknown> {
+	const identity = profileSnapshotIdentity(snapshot);
+	return snapshot.executorProfiles === undefined
+		? identity
+		: {
+				...identity,
+				executorProfiles: Object.fromEntries(
+					Object.entries(snapshot.executorProfiles).map(([id, profile]) => [
+						id,
+						{ ...profile, updatedAt: undefined },
+					]),
+				),
+			};
+}
+
+function profileSnapshotIdentity(
 	snapshot: LaunchProfileSnapshot,
 ): Record<string, unknown> {
 	if (snapshot.resolved) {
@@ -1000,11 +1087,28 @@ async function launch(
 	);
 	// WP16: one guard for attached and detached launches (see launch-guard.ts).
 	// WP19 (review #8): the identity is the resolved execution identity, not only the request.
-	// WP19 round 2 (N5): resolved once; the launch below runs from the same snapshot.
-	const snapshot = await snapshotLaunchProfile(ctx, loaded, request);
+	// WP19 round 2 (N5): resolved once; the launch below runs from the same snapshot. Saved
+	// executor profiles are read with it; a saved profile of the host's executor replaces the host's
+	// model/effort defaults (Pi's current model) for the fields it sets.
+	const executorProfiles = await savedExecutorProfilesQuietly(hostEnv(ctx));
+	const launchCtx = withExecutorProfileHostDefaults(ctx, executorProfiles);
+	const profileSnapshot = await snapshotLaunchProfile(
+		launchCtx,
+		loaded,
+		request,
+	);
+	const snapshot: LaunchProfileSnapshot =
+		Object.keys(executorProfiles).length === 0
+			? profileSnapshot
+			: { ...profileSnapshot, executorProfiles };
 	if (request.signal?.aborted)
 		return cancelledLaunchResult(action, mode, undefined);
-	const execution = launchExecutionIdentity(ctx, loaded, request, snapshot);
+	const execution = launchExecutionIdentity(
+		launchCtx,
+		loaded,
+		request,
+		snapshot,
+	);
 	const fingerprint = launchFingerprint({
 		execution,
 		kind: action,
@@ -1056,7 +1160,7 @@ async function launch(
 		guard = decision;
 	}
 	try {
-		return await launchClaimed(ctx, action, request, loaded, start, {
+		return await launchClaimed(launchCtx, action, request, loaded, start, {
 			mode,
 			task,
 			snapshot,
@@ -1150,6 +1254,9 @@ async function launchClaimed(
 			: {}),
 		...(overrides ? { runtimeOverrides: overrides } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
+		...(launch.snapshot.executorProfiles
+			? { executorProfiles: launch.snapshot.executorProfiles }
+			: {}),
 		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
 		...(ctx.modelRegistryExecutor
 			? { modelRegistryExecutor: ctx.modelRegistryExecutor }

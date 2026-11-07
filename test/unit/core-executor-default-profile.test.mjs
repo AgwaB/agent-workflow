@@ -167,7 +167,7 @@ test("no user settings: no default for the stages and the notice says the CLI's 
 	}
 });
 
-test("executorDefaultRuntime picks agent > profileRole > default", () => {
+test("executorDefaultRuntime picks agent > profileRole > default, field by field", () => {
 	const roles = {
 		default: { model: "d", effort: "medium" },
 		planning: { effort: "high" },
@@ -179,17 +179,105 @@ test("executorDefaultRuntime picks agent > profileRole > default", () => {
 	});
 	assert.deepEqual(
 		policy.executorDefaultRuntime(roles, { profileRole: "planning" }),
-		{ effort: "high" },
+		{ model: "d", effort: "high" },
 	);
 	assert.deepEqual(
 		policy.executorDefaultRuntime(roles, {
 			agent: "scout",
 			profileRole: "planning",
 		}),
-		{ model: "s" },
+		{ model: "s", effort: "high" },
 	);
 	assert.equal(policy.executorDefaultRuntime(undefined, {}), undefined);
 	assert.equal(policy.executorDefaultRuntime({}, {}), undefined);
+});
+
+test("a saved executor profile overlays the built-in one: flat values in every role, entries field by field", async () => {
+	const builtIn = presetRoles("preset-model");
+	assert.deepEqual(
+		policy.overlayExecutorProfile("codex", builtIn, {
+			effort: "low",
+			roles: {
+				planning: { executor: "codex", model: "plan-model" },
+				verification: { effort: "max" },
+				synthesis: { executor: "claude", model: "opus" },
+				"agent:scout": { executor: "codex", model: "scout-model" },
+			},
+		}),
+		{
+			default: { model: "preset-model", effort: "low" },
+			planning: { model: "plan-model", effort: "low" },
+			"research-execution": { model: "preset-model", effort: "low" },
+			synthesis: { model: "preset-model", effort: "low" },
+			verification: { model: "preset-model", effort: "max" },
+			"final-judgment": { model: "preset-model", effort: "low" },
+			"agent:scout": { model: "scout-model" },
+		},
+	);
+	// A profile whose executor is another one keeps its flat values off this executor.
+	assert.deepEqual(
+		policy.overlayExecutorProfile("codex", builtIn, {
+			executor: "claude",
+			model: "opus",
+			roles: { planning: { executor: "codex", effort: "xhigh" } },
+		}),
+		{ ...builtIn, planning: { model: "preset-model", effort: "xhigh" } },
+	);
+	// No built-in profile (pi): only the saved values.
+	assert.deepEqual(
+		policy.overlayExecutorProfile(
+			"pi",
+			{},
+			{
+				effort: "high",
+				roles: { planning: { effort: "xhigh" } },
+			},
+		),
+		{ default: { effort: "high" }, planning: { effort: "xhigh" } },
+	);
+	assert.deepEqual(policy.overlayExecutorProfile("pi", {}, {}), {});
+});
+
+test("resolve with a saved profile: overlay on the preset or on the fallback (notice kept); pi only with one", async () => {
+	const env = await codexHome(
+		'model = "gpt-6.1-sol"\nmodel_reasoning_effort = "high"\n',
+	);
+	const saved = { roles: { planning: { executor: "codex", effort: "xhigh" } } };
+	assert.deepEqual(
+		policy.resolveExecutorDefaultProfile(
+			"codex",
+			[presets.PRESET_CODEX_MODEL],
+			env,
+			saved,
+		).roles.planning,
+		{ model: presets.PRESET_CODEX_MODEL, effort: "xhigh" },
+	);
+	const fallback = policy.resolveExecutorDefaultProfile(
+		"codex",
+		["gpt-6.1-sol"],
+		env,
+		saved,
+	);
+	assert.deepEqual(fallback.roles, {
+		default: { model: "gpt-6.1-sol", effort: "high" },
+		planning: { effort: "xhigh" },
+	});
+	assert.match(fallback.notice, /is not offered here/);
+	// The user's own model is used as written (no fallback for it).
+	assert.deepEqual(
+		policy.resolveExecutorDefaultProfile("codex", ["gpt-6.1-sol"], env, {
+			model: "unlisted",
+		}).roles.default,
+		{ model: "unlisted", effort: "high" },
+	);
+	assert.deepEqual(
+		policy.resolveExecutorDefaultProfile("pi", ["x"], {}, { effort: "high" }),
+		{ roles: { default: { effort: "high" } } },
+	);
+	assert.equal(
+		policy.resolveExecutorDefaultProfile("pi", ["x"], {}, {}),
+		undefined,
+	);
 });
 
 async function project() {
