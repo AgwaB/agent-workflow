@@ -40,6 +40,7 @@ import {
 } from "../../dist/core/engine.js";
 import {
 	compiledWorkflowPath,
+	flushPendingIndexUpdatesForTests,
 	readRunRecord,
 	withRunLease,
 	workflowRunDir,
@@ -1411,7 +1412,22 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 			} finally {
 				setRawOwnerEstablishmentHookForTests(undefined);
 				setSubagentApiForTests(undefined);
-				removeProject(cwd);
+				// Settle this test's debounced index update before leaving. Its state survives
+				// removeProject; a later test's drain flushes every pending update and would
+				// otherwise report this deliberate run drift (Ubuntu CI, faster than 500 ms).
+				try {
+					await flushPendingIndexUpdatesForTests().catch((flushError) => {
+						if (
+							drift !== "run" ||
+							!/identity does not match containing directory/u.test(
+								flushError?.message,
+							)
+						)
+							throw flushError;
+					});
+				} finally {
+					removeProject(cwd);
+				}
 			}
 		});
 
