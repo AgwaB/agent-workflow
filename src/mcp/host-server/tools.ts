@@ -2295,7 +2295,7 @@ export function createHostMcpService(
 						...(set.preset ? { preset: set.preset } : {}),
 					};
 					change = {
-						summary: `Save the agent-workflow user profile "${name}"${set.makeDefault ? " and make it the default" : ""}`,
+						summary: `Save the agent-workflow user profile "${name}"${hostApi.isExecutorProfileName(name!) ? ` (the default profile of ${name} stages)` : ""}${set.makeDefault ? " and make it the default" : ""}`,
 						detail: set.describe.join("\n") || "(no field changes)",
 						command: cli(["set", name!, ...set.flags]),
 					};

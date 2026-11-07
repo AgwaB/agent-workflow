@@ -474,9 +474,12 @@ field (`--role planning=codex::xhigh` changes only the effort). Entries for anot
 when the profile's `executor` is another one, its flat values do not reach this executor's stages.
 Your values are used as written: a model the probe does not list is noted, not replaced. Fields you
 leave unset keep the built-in behavior, including the fallback above. In Pi, a saved `pi` profile
-that sets a model (or an effort) anywhere replaces Pi's current model (or effort) for pi stages.
-Choosing the profile by name (`--profile codex`) runs the same built-in profile with your changes,
-on the profile tier; as the default profile it stays the lowest layer.
+starts from Pi's current model and effort and stays at their layer (above workflow defaults): pi
+stages it does not change keep Pi's current values. Applied on its own (no profile chosen) a
+default profile is the lowest layer of its executor's stages (the Pi one: the host-defaults layer).
+Choosing it by name (`--profile codex`) or making it the default saved profile applies the built-in
+profile with your changes like any saved profile: on the profile tier, and it sets the run's
+executor.
 
 **Per-workflow preferences** (`agent-workflow profile workflow set <workflow> [--profile <name>]
 [--role …]`, MCP `workflow_profile` `workflow-set`, Pi `/aw profile workflow set …`). Keyed by the

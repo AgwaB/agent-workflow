@@ -41,6 +41,7 @@ import type {
 	WorkflowExecutionProfileSelection,
 	WorkflowRunHostAutoSelectionMetadata,
 	WorkflowRunCapabilityNegotiation,
+	WorkflowRoleMap,
 	WorkflowRunRecord,
 } from "../core/types.js";
 import type { WorkflowRuntimeDefaults } from "../core/workflow-runtime.js";
@@ -271,38 +272,39 @@ interface LaunchProfile {
 }
 
 /**
- * The host's model/effort defaults without the fields a saved profile named after their executor
- * sets (that profile is the executor's default profile; the engine applies it).
+ * A saved profile named after the executor whose current model/effort the host passes (Pi's): that
+ * executor's edited default profile with the host's values as its base, kept at the host-defaults
+ * layer (compiler.ts `hostExecutorDefaults`). The context then carries no host model/effort, so a
+ * chosen profile's flat values still win over it; stages it does not change keep the host's values.
  */
-function withExecutorProfileHostDefaults(
+function hostExecutorProfile(
 	ctx: HostApiContext,
 	executorProfiles: Readonly<Record<string, UserProfile>>,
-): HostApiContext {
+): {
+	ctx: HostApiContext;
+	hostExecutorDefaults?: { executor: string; roles: WorkflowRoleMap };
+} {
 	const defaults = ctx.runtimeDefaults;
-	const saved =
-		defaults?.executor === undefined
-			? undefined
-			: executorProfiles[defaults.executor];
-	if (defaults === undefined || saved === undefined) return ctx;
-	const roles = Object.values(
-		overlayExecutorProfile(defaults.executor!, {}, saved),
-	);
+	const executor = defaults?.executor;
+	const saved = executor === undefined ? undefined : executorProfiles[executor];
+	if (defaults === undefined || executor === undefined || saved === undefined)
+		return { ctx };
 	const { model, effort, ...rest } = defaults;
-	const kept = {
-		...rest,
-		...(model !== undefined && !roles.some((entry) => entry.model)
-			? { model }
-			: {}),
-		...(effort !== undefined && !roles.some((entry) => entry.effort)
-			? { effort }
-			: {}),
+	const base: WorkflowRoleMap =
+		model === undefined && effort === undefined
+			? {}
+			: {
+					default: {
+						...(model === undefined ? {} : { model }),
+						...(effort === undefined ? {} : { effort }),
+					},
+				};
+	const roles = overlayExecutorProfile(executor, base, saved);
+	const { runtimeDefaults: _host, ...without } = ctx;
+	return {
+		ctx: rest.fast === undefined ? without : { ...ctx, runtimeDefaults: rest },
+		hostExecutorDefaults: { executor, roles },
 	};
-	const { runtimeDefaults: _dropped, ...without } = ctx;
-	return kept.model === undefined &&
-		kept.effort === undefined &&
-		kept.fast === undefined
-		? without
-		: { ...ctx, runtimeDefaults: kept };
 }
 
 /** A saved executor profile chosen by name runs on top of the executor's built-in one. */
@@ -458,6 +460,8 @@ interface LaunchProfileSnapshot {
 	preference?: WorkflowPreference;
 	/** Saved profiles named after an executor: that executor's default profile. */
 	executorProfiles?: Record<string, UserProfile>;
+	/** The host executor's edited default profile (hostExecutorProfile). */
+	hostExecutorDefaults?: { executor: string; roles: WorkflowRoleMap };
 }
 
 /** WP31: the saved preference of the launched workflow (keyed by `spec.name`), if any. */
@@ -597,17 +601,23 @@ function snapshotIdentity(
 	snapshot: LaunchProfileSnapshot,
 ): Record<string, unknown> {
 	const identity = profileSnapshotIdentity(snapshot);
-	return snapshot.executorProfiles === undefined
-		? identity
-		: {
-				...identity,
-				executorProfiles: Object.fromEntries(
-					Object.entries(snapshot.executorProfiles).map(([id, profile]) => [
-						id,
-						{ ...profile, updatedAt: undefined },
-					]),
-				),
-			};
+	return {
+		...identity,
+		...(snapshot.executorProfiles === undefined
+			? {}
+			: {
+					executorProfiles: Object.fromEntries(
+						Object.entries(snapshot.executorProfiles).map(([id, profile]) => [
+							id,
+							{ ...profile, updatedAt: undefined },
+						]),
+					),
+				}),
+		// Holds the host's current model/effort the context no longer carries.
+		...(snapshot.hostExecutorDefaults === undefined
+			? {}
+			: { hostExecutorDefaults: snapshot.hostExecutorDefaults }),
+	};
 }
 
 function profileSnapshotIdentity(
@@ -1091,16 +1101,20 @@ async function launch(
 	// executor profiles are read with it; a saved profile of the host's executor replaces the host's
 	// model/effort defaults (Pi's current model) for the fields it sets.
 	const executorProfiles = await savedExecutorProfilesQuietly(hostEnv(ctx));
-	const launchCtx = withExecutorProfileHostDefaults(ctx, executorProfiles);
+	const host = hostExecutorProfile(ctx, executorProfiles);
+	const launchCtx = host.ctx;
 	const profileSnapshot = await snapshotLaunchProfile(
 		launchCtx,
 		loaded,
 		request,
 	);
-	const snapshot: LaunchProfileSnapshot =
-		Object.keys(executorProfiles).length === 0
-			? profileSnapshot
-			: { ...profileSnapshot, executorProfiles };
+	const snapshot: LaunchProfileSnapshot = {
+		...profileSnapshot,
+		...(Object.keys(executorProfiles).length === 0 ? {} : { executorProfiles }),
+		...(host.hostExecutorDefaults === undefined
+			? {}
+			: { hostExecutorDefaults: host.hostExecutorDefaults }),
+	};
 	if (request.signal?.aborted)
 		return cancelledLaunchResult(action, mode, undefined);
 	const execution = launchExecutionIdentity(
@@ -1254,8 +1268,18 @@ async function launchClaimed(
 			: {}),
 		...(overrides ? { runtimeOverrides: overrides } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
+		// The host executor's saved profile reaches the engine at the host-defaults layer only.
 		...(launch.snapshot.executorProfiles
-			? { executorProfiles: launch.snapshot.executorProfiles }
+			? {
+					executorProfiles: Object.fromEntries(
+						Object.entries(launch.snapshot.executorProfiles).filter(
+							([id]) => id !== launch.snapshot.hostExecutorDefaults?.executor,
+						),
+					),
+				}
+			: {}),
+		...(launch.snapshot.hostExecutorDefaults
+			? { hostExecutorDefaults: launch.snapshot.hostExecutorDefaults }
 			: {}),
 		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
 		...(ctx.modelRegistryExecutor

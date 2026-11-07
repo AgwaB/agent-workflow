@@ -267,30 +267,86 @@ test("profile show reports the built-in profile, then the built-in one with the 
 	assert.equal(back.data.builtIn, true);
 });
 
-test("a saved pi profile replaces the Pi host's current model/effort for the fields it sets", async () => {
+test("a saved pi profile changes only what it sets; other stages keep the Pi host's current model/effort", async () => {
 	const host = { model: "host/current", effort: "low", executor: "pi" };
 	const logs = executors();
 	const { ctx, cwd } = await project();
+	// The same stages under workflow defaults: the Pi host's values outrank them, and so do the
+	// pi profile's (it sits at the host-defaults layer, not the lowest one).
+	await writeFile(
+		join(cwd, "wf-defaults.json"),
+		`${JSON.stringify(
+			{
+				schemaVersion: 1,
+				name: `exec-profiles-defaults-${counter}`,
+				defaults: {
+					agent: "reader",
+					readOnly: true,
+					tools: ["read"],
+					model: "spec/model",
+					effort: "medium",
+				},
+				artifactGraph: { stages: STAGES },
+			},
+			null,
+			2,
+		)}\n`,
+	);
 	const piCtx = { ...ctx, host: "pi", runtimeDefaults: host };
-	const unchanged = await runOn(piCtx, { executor: "pi" });
-	assert.deepEqual(await sent(cwd, unchanged, logs.pi), {
-		plan: { model: "host/current", effort: "low" },
-		check: { model: "host/current", effort: "low" },
-		note: { model: "host/current", effort: "low" },
+	const all = (model, effort) => ({
+		plan: { model, effort },
+		check: { model, effort },
+		note: { model, effort },
 	});
+	const unchanged = await runOn(piCtx, { executor: "pi" });
+	assert.deepEqual(
+		await sent(cwd, unchanged, logs.pi),
+		all("host/current", "low"),
+	);
 	assert.equal(
 		(await store.readRunRecord(cwd, unchanged)).executorDefaults,
 		undefined,
 	);
 	await setProfile(ctx, "pi", {
-		effort: "high",
-		roles: { planning: { executor: "pi", effort: "xhigh" } },
+		roles: {
+			planning: { executor: "pi", effort: "xhigh" },
+			verification: { executor: "pi", model: "other/model" },
+		},
 	});
-	const logs2 = executors();
-	const edited = await runOn(piCtx, { executor: "pi" });
-	assert.deepEqual(await sent(cwd, edited, logs2.pi), {
+	const expected = {
 		plan: { model: "host/current", effort: "xhigh" },
-		check: { model: "host/current", effort: "high" },
+		check: { model: "other/model", effort: "low" },
+		note: { model: "host/current", effort: "low" },
+	};
+	for (const workflow of ["wf.json", "wf-defaults.json"]) {
+		const logsN = executors();
+		const runId = await runOn(piCtx, { executor: "pi", workflow });
+		assert.deepEqual(await sent(cwd, runId, logsN.pi), expected, workflow);
+		assert.deepEqual(
+			(await store.readRunRecord(cwd, runId)).executorDefaults.pi,
+			{
+				default: { model: "host/current", effort: "low" },
+				planning: { effort: "xhigh" },
+				verification: { model: "other/model" },
+			},
+		);
+	}
+	// Flat values replace the host's in every role; role entries still win.
+	await setProfile(ctx, "pi", { effort: "high" });
+	const logs3 = executors();
+	const flat = await runOn(piCtx, { executor: "pi" });
+	assert.deepEqual(await sent(cwd, flat, logs3.pi), {
+		plan: { model: "host/current", effort: "xhigh" },
+		check: { model: "other/model", effort: "high" },
 		note: { model: "host/current", effort: "high" },
+	});
+	// A chosen profile's flat effort outranks the pi default profile.
+	await setProfile(ctx, "mine", { executor: "pi", effort: "minimal" });
+	const logs4 = executors();
+	const chosen = await runOn(piCtx, { profile: "mine" });
+	assert.deepEqual(await sent(cwd, chosen, logs4.pi), {
+		plan: { model: "host/current", effort: "minimal" },
+		check: { model: "other/model", effort: "minimal" },
+		note: { model: "host/current", effort: "minimal" },
 	});
 });
