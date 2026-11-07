@@ -505,6 +505,11 @@ export interface WorkflowRunOptions {
 	 * profile, used as written instead of its built-in one.
 	 */
 	executorProfiles?: Readonly<Record<string, ExecutorProfileValues>>;
+	/**
+	 * The host executor's edited default profile with the host's current model/effort as its base
+	 * (compiler.ts `hostExecutorDefaults`); `runtimeDefaults` then carries no host model/effort.
+	 */
+	hostExecutorDefaults?: { executor: string; roles: WorkflowRoleMap };
 }
 
 interface WorkflowScheduleOptions {
@@ -869,6 +874,9 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		specPath,
 		task: options.task,
 		executorDefaults,
+		...(options.hostExecutorDefaults === undefined || parentRun !== undefined
+			? {}
+			: { hostExecutorDefaults: options.hostExecutorDefaults }),
 		// The run's executor also decides executor-specific checks (e.g. the fast tier) at compile.
 		runExecutor: executor.id,
 		...(inheritsHostTools ? { inheritHostTools: true } : {}),
@@ -1011,8 +1019,19 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	run.experimentalFlags = Array.isArray(parentRun?.experimentalFlags)
 		? [...parentRun.experimentalFlags]
 		: runScopedExperimentalFlagsAtLaunch();
-	if (Object.keys(executorDefaults).length > 0)
-		run.executorDefaults = executorDefaults;
+	// Recorded for nested runs (they reuse it as their lowest layer), with the host executor's
+	// edited default profile.
+	const recordedDefaults = {
+		...executorDefaults,
+		...(options.hostExecutorDefaults === undefined || parentRun !== undefined
+			? {}
+			: {
+					[options.hostExecutorDefaults.executor]:
+						options.hostExecutorDefaults.roles,
+				}),
+	};
+	if (Object.keys(recordedDefaults).length > 0)
+		run.executorDefaults = recordedDefaults;
 	run.capabilityNegotiation = capabilityNegotiation;
 	let initialized: WorkflowRunRecord | undefined;
 	try {

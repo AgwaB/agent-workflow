@@ -127,6 +127,13 @@ export interface CompileOptions {
 	 * model/effort layer of a stage on that executor, below its stage, agent and run defaults.
 	 */
 	executorDefaults?: Readonly<Record<string, WorkflowRoleMap>>;
+	/**
+	 * The host executor's edited default profile (a saved profile named after the executor whose
+	 * current model/effort the host passes, e.g. Pi's): role → model/effort with the host's values as
+	 * its base. It sits at the host-defaults layer of that executor's stages (field by field below
+	 * `runtimeDefaults`, which then carries no host model/effort), not at the lowest layer.
+	 */
+	hostExecutorDefaults?: { executor: string; roles: WorkflowRoleMap };
 	/** Bounded routing preflight injects frontmatter-only agent metadata. */
 	agentLoader?: (
 		name: string,
@@ -1611,6 +1618,27 @@ async function compileArtifactGraphPlan(
 	let previousStageTaskKeys: string[] = [];
 	const stageTaskKeys = new Map<string, string[]>();
 
+	// The host executor's edited default profile fills the host-defaults layer of its stages.
+	const withHostExecutorDefault = (
+		defaults: WorkflowRuntimeDefaults | undefined,
+		stageExecutor: string | undefined,
+		slot: { agent?: string; profileRole?: string },
+	): WorkflowRuntimeDefaults | undefined => {
+		const host = options.hostExecutorDefaults;
+		if (host === undefined || stageExecutor !== host.executor) return defaults;
+		const role = executorDefaultRuntime(host.roles, slot);
+		if (role === undefined) return defaults;
+		return {
+			...(defaults ?? {}),
+			...(defaults?.model === undefined && role.model !== undefined
+				? { model: role.model }
+				: {}),
+			...(defaults?.effort === undefined && role.effort !== undefined
+				? { effort: role.effort }
+				: {}),
+		};
+	};
+
 	const buildTask = async (
 		stage: any,
 		taskId: string,
@@ -1697,10 +1725,15 @@ async function compileArtifactGraphPlan(
 					: options.executorDefaults?.[stageEffectiveExecutor],
 				{ profileRole: stage.profileRole },
 			);
+			const dynamicRuntimeDefaults = withHostExecutorDefault(
+				stageRuntimeDefaults,
+				stageEffectiveExecutor,
+				{ profileRole: stage.profileRole },
+			);
 			const requestedRuntime = selectWorkflowRuntime(
 				runtimeOverrides,
 				runtimeSettings(stage),
-				stageRuntimeDefaults,
+				dynamicRuntimeDefaults,
 				specRuntimeDefaults,
 				dynamicExecutorDefault,
 			);
@@ -1732,7 +1765,7 @@ async function compileArtifactGraphPlan(
 				resolvedDynamicRuntime,
 				{
 					runtimeOverrides,
-					runtimeDefaults: stageRuntimeDefaults,
+					runtimeDefaults: dynamicRuntimeDefaults,
 					specRuntimeDefaults,
 					stageRuntime: runtimeSettings(stage),
 					...(dynamicExecutorDefault === undefined
@@ -1879,7 +1912,10 @@ async function compileArtifactGraphPlan(
 			runtimeOverrides,
 			runtimeSettings(each),
 			runtimeSettings(stage),
-			stageRuntimeDefaults,
+			withHostExecutorDefault(stageRuntimeDefaults, stageEffectiveExecutor, {
+				agent: stageAgentName,
+				profileRole: stage.profileRole,
+			}),
 			specRuntimeDefaults,
 			runtimeSettings(stageAgent),
 			executorDefaultRuntime(

@@ -150,6 +150,7 @@ export {
 	outcomeForRunStatus,
 } from "./types.js";
 export {
+	isExecutorProfileName,
 	type UserProfile,
 	type UserProfileValues,
 	USER_PROFILE_FIELDS,
