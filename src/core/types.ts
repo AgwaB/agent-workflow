@@ -46,7 +46,7 @@ export type WorktreePolicy = (typeof WORKTREE_POLICIES)[number];
 export type ToolClassification = (typeof TOOL_CLASSIFICATIONS)[number];
 export type WorkflowRunType = typeof WORKFLOW_RUN_TYPE;
 
-export interface WorkflowBackendHandle {
+export interface WorkflowWorkerHandle {
 	display?: string;
 	[key: string]: unknown;
 }
@@ -806,8 +806,8 @@ export interface WorkflowTaskUsageAttemptRecord
 	provider?: string;
 	model?: string;
 	effort?: EffortLevel | string;
-	backendRunId?: string;
-	backendAttemptId?: string;
+	workerRunId?: string;
+	workerAttemptId?: string;
 	unavailable?: true;
 	raw?: unknown;
 }
@@ -838,8 +838,8 @@ export interface WorkflowTaskToolResultBudgetAttemptRecord {
 	source: string;
 	capturedAt: string;
 	configuredAt?: string;
-	backendRunId?: string;
-	backendAttemptId?: string;
+	workerRunId?: string;
+	workerAttemptId?: string;
 	configured?: boolean;
 	configurationSource?: WorkflowToolResultBudgetConfigurationSource;
 	configuredMaxTotalChars?: number;
@@ -875,8 +875,8 @@ export interface WorkflowTaskToolResultBudgetAggregateRecord {
 	unavailableAttempts: number;
 	configuredAttempts: number;
 	disabledConfigurationAttempts: number;
-	backendEnabledAttempts: number;
-	backendDisabledAttempts: number;
+	workerEnabledAttempts: number;
+	workerDisabledAttempts: number;
 	evictionCounterExpectedAttempts: number;
 	evictionCounterReportingAttempts: number;
 	observedEvictedCount: number;
@@ -889,7 +889,7 @@ export interface WorkflowTaskToolResultBudgetAggregateRecord {
 	contextOverflowRecoveredAttempts: number;
 	contextLengthExceededAttempts: number;
 	configuredMaxTotalChars?: number | null;
-	backendMaxTotalChars?: number | null;
+	workerMaxTotalChars?: number | null;
 	maxToolResults?: number;
 	maxRetainedChars?: number;
 	maxEvictableCount?: number;
@@ -909,8 +909,8 @@ export interface WorkflowTaskToolResultBudgetRecord {
 export interface WorkflowTaskTimingAttemptRecord {
 	source: string;
 	capturedAt: string;
-	backendRunId?: string;
-	backendAttemptId?: string;
+	workerRunId?: string;
+	workerAttemptId?: string;
 	launchQueuedAt?: string;
 	launchStartedAt?: string;
 	launchCompletedAt?: string;
@@ -946,7 +946,6 @@ export interface LaunchBootstrapProvenanceRecordBase {
 		physicalAttempt?: number;
 	};
 	sessionId?: string;
-	backend: { id: string; type: "local"; mode: "headless" };
 	prompt: { sha256: string; bytes: number };
 	/**
 	 * Artifact access binding. `configSha256` covers the canonical JSON of the
@@ -1030,7 +1029,6 @@ export interface WorkflowLaunchAuthorityGrant {
 	runId: string;
 	task: { taskId: string; specId: string; generation?: number };
 	attemptKey: string;
-	backendId: string;
 	launchBootstrapSha256: string;
 }
 
@@ -1041,8 +1039,8 @@ export interface WorkflowLaunchAuthorityRecord {
 		| { phase: "registered" }
 		| {
 				phase: "consumed";
-				backendRunId: string;
-				backendAttemptId: string;
+				workerRunId: string;
+				workerAttemptId: string;
 		  };
 }
 
@@ -1099,8 +1097,8 @@ export interface WorkflowDurableLaunchBarrierRecord {
 	executionPlanSha256?: string;
 	decisionSha256?: string;
 	ackSha256?: string;
-	backendRunId?: string;
-	backendAttemptId?: string;
+	workerRunId?: string;
+	workerAttemptId?: string;
 	releasePayloadSha256?: string;
 	releaseWinner?: boolean;
 	cancellation?: WorkflowDurableLaunchBarrierCancellationRecord;
@@ -1220,8 +1218,8 @@ export interface WorkflowForeachBatchRecord {
 		rawPath: string;
 		receiptPath: string;
 		rawSha256: string;
-		backendRunId?: string;
-		backendAttemptId?: string;
+		workerRunId?: string;
+		workerAttemptId?: string;
 		status: "completed" | "failed" | "interrupted";
 		completedAt?: string;
 		startedAt?: string;
@@ -1250,8 +1248,8 @@ export interface WorkflowTaskOwnedSessionRecord {
 	executorId: string;
 	kind: string;
 	locator: string;
-	backendRunId: string;
-	backendAttemptId: string;
+	workerRunId: string;
+	workerAttemptId: string;
 	recordedAt: string;
 	/**
 	 * WP12a (D3): the engine released this session once no attempt could use it again (task
@@ -1301,10 +1299,10 @@ export interface WorkflowTaskRunRecord {
 		warning: string | null;
 		snapshot?: WorktreeSnapshotRecord;
 	};
-	backendTaskId: string;
+	workerTaskId: string;
 	pid?: number;
 	launchToken?: string;
-	backendHandle?: WorkflowBackendHandle;
+	workerHandle?: WorkflowWorkerHandle;
 	kind?: string;
 	stageId?: string;
 	dependsOn?: string[];
@@ -1357,7 +1355,7 @@ export interface WorkflowTaskRunRecord {
 		stderr: string;
 		result: string;
 	};
-	backendFiles?: Record<string, string>;
+	workerFiles?: Record<string, string>;
 	/** Host-owned raw byte integrity for the current materialized generation. */
 	rawArtifactIntegrity?: import("./workflow-raw-contract.js").RawIntegrity;
 	lastMessage?: string;
@@ -1441,8 +1439,8 @@ export interface WorkflowTaskResumeEvent {
 	outputRetryRepairMode?: "same_session" | "new_session";
 	launchRetryAttempts?: number;
 	launchRetryReason?: string;
-	backendRunId?: string;
-	backendAttemptId?: string;
+	workerRunId?: string;
+	workerAttemptId?: string;
 }
 
 export type WorkflowRouteDecision = "direct" | "dynamic" | "workflow";
@@ -1497,7 +1495,7 @@ export interface WorkflowExecutorProbeSummary {
 	notes?: string[];
 	/**
 	 * WP5b: the probe's declared MCP output limit (R#9), present only when the probe reports one.
-	 * The task backend derives the artifact server's `--max-output-chars` from it.
+	 * The task runner derives the artifact server's `--max-output-chars` from it.
 	 */
 	mcpOutputLimitChars?: number;
 	/** WP5b: what the CLI adds around a result it cut, present only when the probe reports it. */
@@ -1885,7 +1883,6 @@ export interface WorkflowRunRecord {
 	degradation?: WorkflowRunDegradation;
 	taskSummary: TaskSummary;
 	cwd: string;
-	backend: { type: "local"; mode: "headless" };
 	failurePolicy?: Required<WorkflowFailurePolicy>;
 	parentRunId?: string;
 	rootRunId?: string;
@@ -1978,7 +1975,7 @@ export interface WorkflowIndexRecord {
 			lastMessage?: string;
 			kind?: string;
 			stageId?: string;
-			backendHandle?: WorkflowBackendHandle;
+			workerHandle?: WorkflowWorkerHandle;
 		}>;
 	}>;
 }
@@ -1996,7 +1993,6 @@ export interface CompiledWorkflow {
 	type: WorkflowRunType;
 	task?: string;
 	cwd: string;
-	backend: { type: "local"; mode: "headless" };
 	maxConcurrency: number;
 	failurePolicy?: Required<WorkflowFailurePolicy>;
 	roles: CompiledRole[];

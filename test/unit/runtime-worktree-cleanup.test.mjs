@@ -72,7 +72,7 @@ test("worktree-cleanup", async () => {
 			await store.writeTextArtifact("output", "synthetic\n"),
 		];
 		return await store.writeResult({
-			backend: "headless",
+			executorId: "headless",
 			status,
 			failureKind: status === "completed" ? null : "model",
 			cwd,

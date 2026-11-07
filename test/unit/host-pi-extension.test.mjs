@@ -43,7 +43,7 @@ const slots = await import("../../dist/core/launch-slots.js");
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-host-pi-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

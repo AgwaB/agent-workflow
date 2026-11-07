@@ -25,8 +25,8 @@ import {
 	readRunEvents,
 	requestCancel,
 	respondApproval,
-	runSubagent,
-	waitForSubagent,
+	runWorker,
+	waitForWorker,
 } from "../../dist/runtime/index.js";
 import {
 	fixtureDescriptor,
@@ -106,7 +106,7 @@ async function waitFor(predicate, timeoutMs = 20_000, label = "condition") {
 }
 
 async function waitTerminal(cwd, run) {
-	const waited = await waitForSubagent({
+	const waited = await waitForWorker({
 		cwd,
 		runId: run.runId,
 		attemptId: run.attemptId,
@@ -135,7 +135,7 @@ async function result(cwd, run) {
 async function startApprovalRun(label, policy) {
 	const { cwd, effectLog } = fresh(label);
 	await mkdir(cwd, { recursive: true });
-	const run = await runSubagent({
+	const run = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({ effectLog, script: APPROVAL_SCRIPT }),
 		task: "needs approval",
@@ -258,8 +258,8 @@ test("an answer from a fresh process after the launching process exited", async 
 		[
 			"--input-type=module",
 			"-e",
-			`const { runSubagent } = await import(${JSON.stringify(runtimeUrl)});
-const run = await runSubagent(${JSON.stringify({
+			`const { runWorker } = await import(${JSON.stringify(runtimeUrl)});
+const run = await runWorker(${JSON.stringify({
 				cwd,
 				executor: fixtureDescriptor({ effectLog, script: APPROVAL_SCRIPT }),
 				task: "needs approval after the launcher is gone",
@@ -337,7 +337,7 @@ process.stdout.write(JSON.stringify({ pending, answer, pid: process.pid }));`,
 async function startSlowRun(label) {
 	const { cwd, effectLog } = fresh(label);
 	await mkdir(cwd, { recursive: true });
-	const run = await runSubagent({
+	const run = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({
 			effectLog,
@@ -511,7 +511,7 @@ test("mailbox ordering: applied once in seq order; out-of-order, duplicate, unkn
 test("requests to an attempt that never served its mailbox are answered once it is terminal", async () => {
 	const { cwd, effectLog } = fresh("never-served");
 	await mkdir(cwd, { recursive: true });
-	const run = await runSubagent({
+	const run = await runWorker({
 		cwd,
 		executor: fixtureDescriptor(
 			{ effectLog },
@@ -538,7 +538,7 @@ test("SIGTERM fallback: a worker that does not ack in time is interrupted", asyn
 	process.env.AGENT_WORKFLOW_DURABLE_WORKER_START_DELAY_MS = "30000";
 	let run;
 	try {
-		run = await runSubagent({
+		run = await runWorker({
 			cwd,
 			executor: fixtureDescriptor({ effectLog }),
 			task: "slow start",

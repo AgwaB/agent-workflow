@@ -294,7 +294,7 @@ export const ANTIGRAVITY_FILTER_TOOLS: readonly string[] = [
 	"find_file",
 	"finish",
 	"generate_image",
-	"invoke_subagent",
+	"invoke_worker",
 	"list_directory",
 	"read_url_content",
 	"run_command",
@@ -339,7 +339,7 @@ export const ANTIGRAVITY_TOOL_MAPPING: ToolMapping = {
  * Session `_meta` for a request: `enabledTools` is an allowlist of built-ins (live 2026-11-02: only
  * the listed tools were offered; engine MCP tools are not affected). It holds the request's mapped
  * tools (safe readOnly: without the writing ones). Everything else is off, including run_workflow
- * (its startup SKILL.md write), schedule, invoke_subagent and ask_question (no one answers an
+ * (its startup SKILL.md write), schedule, invoke_worker and ask_question (no one answers an
  * unattended worker). With no built-in left, every known tool is disabled instead (an empty
  * allowlist's meaning is unverified). `_meta.agy` is logged as legacy; `_meta.antigravity` is used.
  */

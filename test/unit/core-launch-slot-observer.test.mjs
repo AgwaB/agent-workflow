@@ -4,16 +4,16 @@ import {
 	assert,
 	existsSync,
 	flushPendingIndexUpdatesForTests,
-	launchSubagentTask,
+	launchWorkerTask,
 	makeProject,
-	makeSubagentLaunchFixture,
+	makeWorkerLaunchFixture,
 	rmSync,
 	setTaskRuntimeApiForTests as setRawApi,
-	setSubagentLaunchControlsForTests,
+	setWorkerLaunchControlsForTests,
 	test,
 	writeAgent,
 } from "../helpers/unit-test-support.mjs";
-import { subagentLaunchSlotStateForTests } from "../../dist/core/task-observability.js";
+import { workerLaunchSlotStateForTests } from "../../dist/core/task-observability.js";
 
 const setTaskRuntimeApiForTests = withMaterializedRawHost(setRawApi);
 
@@ -63,9 +63,9 @@ for (const abortBeforeThrow of [false, true]) {
 				return promise;
 			};
 			const launch = (suffix, signal) => {
-				const fixture = makeSubagentLaunchFixture(cwd, suffix);
+				const fixture = makeWorkerLaunchFixture(cwd, suffix);
 				return track(
-					launchSubagentTask(
+					launchWorkerTask(
 						cwd,
 						fixture.run,
 						fixture.task,
@@ -81,15 +81,15 @@ for (const abortBeforeThrow of [false, true]) {
 			let observations = 0;
 			let actions = 0;
 			let launches = 0;
-			setSubagentLaunchControlsForTests({
+			setWorkerLaunchControlsForTests({
 				releaseDelayMs: 0,
 				retryJitterMs: 0,
-				beforeRunSubagent: () => {
+				beforeRunWorker: () => {
 					actions += 1;
 				},
 				onLaunchSlotQueued: () => {
 					observations += 1;
-					assert.deepEqual(subagentLaunchSlotStateForTests(), {
+					assert.deepEqual(workerLaunchSlotStateForTests(), {
 						active: 1,
 						queued: 1,
 					});
@@ -99,13 +99,13 @@ for (const abortBeforeThrow of [false, true]) {
 				},
 			});
 			try {
-				assert.deepEqual(subagentLaunchSlotStateForTests(), {
+				assert.deepEqual(workerLaunchSlotStateForTests(), {
 					active: 0,
 					queued: 0,
 				});
 				writeAgent(cwd, "unit-scout", "read");
 				setTaskRuntimeApiForTests({
-					runSubagent() {
+					runWorker() {
 						return track(
 							(async () => {
 								const id = ++launches;
@@ -132,12 +132,12 @@ for (const abortBeforeThrow of [false, true]) {
 					assert.rejects(rejected, (error) => error === observerError),
 				);
 				assert.equal(observations, 1);
-				const heldState = subagentLaunchSlotStateForTests();
+				const heldState = workerLaunchSlotStateForTests();
 				assert.equal(launches, 1);
 				assert.equal(actions, 1);
 				releaseOwner.resolve();
 				assert.deepEqual(await wait(owner), { kind: "launched" });
-				const joinedState = subagentLaunchSlotStateForTests();
+				const joinedState = workerLaunchSlotStateForTests();
 				t.diagnostic(
 					`held=${JSON.stringify(heldState)} owner-joined=${JSON.stringify(joinedState)}`,
 				);
@@ -152,7 +152,7 @@ for (const abortBeforeThrow of [false, true]) {
 				assert.equal(launches, 2);
 				assert.equal(actions, 2);
 				assert.equal(observations, 1);
-				assert.deepEqual(subagentLaunchSlotStateForTests(), {
+				assert.deepEqual(workerLaunchSlotStateForTests(), {
 					active: 0,
 					queued: 0,
 				});
@@ -167,7 +167,7 @@ for (const abortBeforeThrow of [false, true]) {
 				assert.ok(existsSync(cwd));
 				console.log(`DRAIN_BEFORE_DELETE ${settled}/${pending.length}`);
 				setTaskRuntimeApiForTests(undefined);
-				setSubagentLaunchControlsForTests({
+				setWorkerLaunchControlsForTests({
 					releaseDelayMs: 0,
 					retryJitterMs: 0,
 				});

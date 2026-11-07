@@ -60,7 +60,7 @@ const loop = {
 async function fixture(t, controller, dynamic, helpers = {}) {
 	const dir = await mkdtemp(join(tmpdir(), "piwf-dynamic-regression-"));
 	t.after(() => rm(dir, { recursive: true, force: true, maxRetries: 10 }));
-	h.captureSubagentPrompts([]);
+	h.captureWorkerPrompts([]);
 	h.writeAgent(dir, "unit-scout", "read");
 	const bundle = join(dir, "bundle");
 	await mkdir(bundle);

@@ -248,18 +248,15 @@ export type {
 	WorkflowTaskRunRecord,
 } from "./types.js";
 export {
-	ensureWorkflowTaskBackendRegistered,
+	ensureRuntimeTaskRunnerRegistered,
+	runtimeTaskRunner,
 	workflowExecutorAttemptKey,
-	workflowTaskBackend,
-} from "./task-backend.js";
-export {
-	registerWorkflowBackend,
-	resolveWorkflowBackend,
-} from "./task-launch.js";
+} from "./task-runner.js";
+export { setWorkflowTaskRunner, workflowTaskRunner } from "./task-launch.js";
 export type {
-	BackendLaunchResult,
 	PreparedWorkflowTaskLaunch,
-	WorkflowBackend,
+	TaskLaunchResult,
+	WorkflowTaskRunner,
 } from "./task-launch.js";
 export { setTaskRuntimeApiForTests } from "./runtime-port.js";
 export {

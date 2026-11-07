@@ -74,7 +74,7 @@ Artifact-graph workflows use `from` for data edges, `after` for order-only edges
 
 ## Support helpers and web tools
 
-Support nodes run bundle-local `.mjs` helper code inline instead of launching a subagent (deep-research uses them to compact normalize inputs and preserve audited verdict ledgers).
+Support nodes run bundle-local `.mjs` helper code inline instead of launching a worker (deep-research uses them to compact normalize inputs and preserve audited verdict ledgers).
 
 Web research uses the executor CLI's own web tools, requested by their Pi-vocabulary names `web_search` and `fetch_content` (the adapters map them: Claude `WebSearch`/`WebFetch`, Codex hosted `web_search`, Pi `pi-web-access`). After verification, deep-research's `check-web-quotes` stage has the engine look for every verifier quote in the page text the worker's own tool returned for that URL, otherwise on the cited page fetched by the engine (public addresses only, no model call; on by default, `AGENT_WORKFLOW_EVIDENCE_REFETCH=0` at launch turns it off). The report counts the quotes found, lists every quote that could not be checked with its reason, and its source-verification statement says what was checked; verdicts are not changed. Without the check the statement is "Source verification: model-reported (byte-level source verification is not performed)." Local file quotes are still checked against the current file bytes. The CLI web tools' URL, private-network and redaction controls are the CLI's (`webTools.safetyPolicy` is recorded as `unknown`).
 

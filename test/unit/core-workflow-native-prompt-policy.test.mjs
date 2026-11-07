@@ -8,7 +8,7 @@ import {
 	artifactGraphWorkflowSpec,
 	compileWorkflow,
 	join,
-	launchSubagentTask,
+	launchWorkerTask,
 	makeProject,
 	setTaskRuntimeApiForTests,
 	test,
@@ -19,7 +19,7 @@ import {
 	prepareArtifactGraphRetryTask,
 	prepareDagTask,
 } from "../../dist/core/artifact-graph-runtime.js";
-import { prepareSubagentTaskLaunch } from "../../dist/core/task-backend.js";
+import { prepareWorkerTaskLaunch } from "../../dist/core/task-runner.js";
 import { createLaunchBootstrapProvenance } from "../../dist/core/launch-bootstrap-provenance.js";
 import {
 	createHostContext,
@@ -75,7 +75,7 @@ for (const native of [false, true]) {
 							/Workflow Output Retry Instructions/,
 						);
 					}
-					const prepared = await prepareSubagentTaskLaunch(
+					const prepared = await prepareWorkerTaskLaunch(
 						cwd,
 						run,
 						task,
@@ -88,7 +88,6 @@ for (const native of [false, true]) {
 						{ ...run, executor: { ...(run.executor ?? {}), id: "pi" } },
 						task,
 						preparedTask,
-						"agent-workflow/runtime",
 						prepared,
 					);
 					const expected = [
@@ -106,7 +105,7 @@ for (const native of [false, true]) {
 					assert.equal(Object.hasOwn(prepared, "generatedExtensions"), false);
 					let captured;
 					setTaskRuntimeApiForTests({
-						async runSubagent(options) {
+						async runWorker(options) {
 							captured = options;
 							return {
 								runId: "run_prompt_fixture",
@@ -114,18 +113,18 @@ for (const native of [false, true]) {
 								status: "running",
 							};
 						},
-						async getSubagentStatus() {
+						async getWorkerStatus() {
 							return null;
 						},
-						async reconcileSubagentRun() {
+						async reconcileWorkerRun() {
 							return {};
 						},
-						async interruptSubagent() {
+						async interruptWorker() {
 							return {};
 						},
 					});
 					try {
-						const launched = await launchSubagentTask(
+						const launched = await launchWorkerTask(
 							cwd,
 							run,
 							task,

@@ -114,13 +114,13 @@ let root;
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp37-prompts-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
 });
 after(async () => {
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,
@@ -130,7 +130,7 @@ after(async () => {
 });
 
 for (const id of ["pi", "claude", "codex"]) {
-	test(`the task backend sends the ${id} rendering of the task prompt; task.md stays canonical`, async () => {
+	test(`the task runner sends the ${id} rendering of the task prompt; task.md stays canonical`, async () => {
 		const cwd = join(root, id);
 		await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
 		await writeFile(

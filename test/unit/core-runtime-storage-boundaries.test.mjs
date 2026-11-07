@@ -19,7 +19,7 @@ import {
 	writeJsonAtomic,
 	writeJsonExclusive,
 } from "../../dist/core/store.js";
-import { awaitSubagentOperation } from "../../dist/core/launch-operations.js";
+import { awaitWorkerOperation } from "../../dist/core/launch-operations.js";
 import {
 	pruneWorkflowRuns,
 	setWorkflowPruneBeforeDeleteForTests,
@@ -106,11 +106,11 @@ test("two Node processes serialize updates under the supervisor lease and publis
 		assert.equal(JSON.parse(await readFile(counter, "utf8")).count, 24);
 		assert.ok(reads > 0);
 	}));
-test("cancelled queued backend operation never starts its local effect", async () =>
+test("cancelled queued worker operation never starts its local effect", async () =>
 	fixture(async (cwd) => {
 		const abort = new AbortController();
 		let started = false;
-		const pending = awaitSubagentOperation(
+		const pending = awaitWorkerOperation(
 			async () => {
 				started = true;
 				await writeFile(join(cwd, "late-effect"), "must not execute");
@@ -178,17 +178,13 @@ test("supervisor heartbeat cannot publish after losing the owner at the atomic c
 			"replacement-owner",
 		);
 	}));
-for (const component of [
-	".agent-workflow",
-	"workflows",
-	"workflow-subagents",
-]) {
+for (const component of [".agent-workflow", "workflows", "worker-runs"]) {
 	test(`prune does not traverse a symlinked ${component} retention ancestor`, async () =>
 		fixture(async (cwd) => {
 			const outside = join(cwd, "disposable-outside");
 			await mkdir(outside);
 			const { dir } = await runFixture(cwd);
-			if (component === "workflow-subagents") {
+			if (component === "worker-runs") {
 				await mkdir(join(outside, "workflow-fixture"));
 				await writeFile(
 					join(outside, "workflow-fixture", "marker"),
@@ -209,7 +205,7 @@ for (const component of [
 				await symlink(outside, source);
 			}
 			const summary = await pruneWorkflowRuns(cwd, { keep: 0, yes: true });
-			if (component === "workflow-subagents")
+			if (component === "worker-runs")
 				assert.equal(
 					await readFile(join(outside, "workflow-fixture", "marker"), "utf8"),
 					"preserve",
@@ -265,7 +261,7 @@ test("recursive prune cannot delete a new generation reusing the detached run na
 		const mirror = join(
 			stateDir(cwd),
 			".agent-workflow",
-			"workflow-subagents",
+			"worker-runs",
 			run.runId,
 		);
 		await mkdir(mirror, { recursive: true });

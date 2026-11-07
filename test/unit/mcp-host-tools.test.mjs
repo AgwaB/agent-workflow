@@ -50,7 +50,7 @@ const clients = [];
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-mcp-host-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

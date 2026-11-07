@@ -28,14 +28,14 @@ let undo = [];
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp31-mixed-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
 });
 after(async () => {
 	for (const restore of undo.splice(0)) restore();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,

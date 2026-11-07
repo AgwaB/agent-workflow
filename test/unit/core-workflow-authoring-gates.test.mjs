@@ -257,7 +257,6 @@ test("status and details show loop rounds and outcome", () => {
 			interrupted: 0,
 		},
 		cwd: "/tmp/x",
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-09-02T05:15:47.320Z",
 		updatedAt: "2026-09-02T05:20:35.457Z",
 		tasks: [],

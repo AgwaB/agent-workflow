@@ -41,7 +41,7 @@ const unregister = [];
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp36-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -673,7 +673,6 @@ test("wait marks a returned settled state seen in a fresh project; notify-check 
 		"run.json",
 	);
 	const record = JSON.parse(await readFile(runFile, "utf8"));
-	record.backend = { type: "local", mode: "headless" };
 	await writeFile(runFile, JSON.stringify(record));
 	assert.equal(
 		existsSync(join(stateDir(cwd), ".agent-workflow", "notify-check")),

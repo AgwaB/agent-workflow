@@ -59,7 +59,7 @@ function runRecord(cwd, runId, createdAt = new Date().toISOString()) {
 			blocked: 0,
 		},
 		cwd,
-		backend: { mode: "headless" },
+		executorId: { mode: "headless" },
 		createdAt,
 		updatedAt: createdAt,
 		specPath: "/tmp/spec.json",

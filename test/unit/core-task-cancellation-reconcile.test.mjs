@@ -6,7 +6,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { interruptSubagentTask } from "../../dist/core/task-cancellation.js";
+import { interruptWorkerTask } from "../../dist/core/task-cancellation.js";
 import {
 	beginRunRecord,
 	captureProcessIdentity,
@@ -53,7 +53,7 @@ for (const ignoresTerm of [false, true]) {
 			cwd,
 			runId,
 			mode: "single",
-			backend: "fake",
+			executorId: "fake",
 			activeAttemptId: attemptId,
 			attempts: [
 				{
@@ -67,13 +67,11 @@ for (const ignoresTerm of [false, true]) {
 				},
 			],
 		});
-		const ack = await interruptSubagentTask(
+		const ack = await interruptWorkerTask(
 			{
 				taskId: "task-stop",
 				specId: "stop",
-				backendHandle: {
-					engine: "agent-workflow",
-					backend: "runtime",
+				workerHandle: {
 					cwd,
 					runId,
 					attemptId,

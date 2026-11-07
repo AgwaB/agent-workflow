@@ -9,7 +9,7 @@ import {
 	sharedModelRateLimitBackoffs,
 } from "./retry-policy.js";
 import { isTerminalTaskStatus } from "./store.js";
-import { getSubagentHandle } from "./task-artifacts.js";
+import { getWorkerHandle } from "./task-artifacts.js";
 import {
 	type CompiledTask,
 	type WorkflowRunRecord,
@@ -36,7 +36,7 @@ let launchSlotReleaseDelayMsForTests: number | undefined;
 let transientRetryJitterForTests: (() => number) | undefined;
 let launchSlotQueuedHookForTests: (() => void) | undefined;
 let launchSlotAcquiredHookForTests: (() => void) | undefined;
-export let beforeRunSubagentHookForTests:
+export let beforeRunWorkerHookForTests:
 	| (() => void | Promise<void>)
 	| undefined;
 export let afterLaunchAuthorityRegisteredHookForTests:
@@ -307,7 +307,7 @@ function liveModelWorkerKeysForRun(run: WorkflowRunRecord): Set<string> {
 	const keys = new Set<string>();
 	for (const task of run.tasks) {
 		if (isTerminalTaskStatus(task.status)) continue;
-		if (!getSubagentHandle(task)) continue;
+		if (!getWorkerHandle(task)) continue;
 		keys.add(liveModelWorkerKey(run, task));
 	}
 	return keys;
@@ -506,16 +506,16 @@ export function transientRetryJitterMs(): number {
 }
 
 /** Read-only snapshot of held live-worker reservations; does not reconcile/reset. */
-export function subagentLiveModelWorkerSlotCountForTests(): number {
+export function workerLiveModelWorkerSlotCountForTests(): number {
 	return activeLiveModelWorkerKeys.size;
 }
 
-export function setSubagentLaunchControlsForTests(options?: {
+export function setWorkerLaunchControlsForTests(options?: {
 	releaseDelayMs?: number;
 	retryJitterMs?: number | (() => number);
 	onLaunchSlotQueued?: () => void;
 	onLaunchSlotAcquired?: () => void;
-	beforeRunSubagent?: () => void | Promise<void>;
+	beforeRunWorker?: () => void | Promise<void>;
 	afterLaunchAuthorityRegistered?: () => void | Promise<void>;
 	beforeDurableBarrierRelease?: () => void | Promise<void>;
 	beforeDurableBarrierAckWait?: () => void | Promise<void>;
@@ -532,7 +532,7 @@ export function setSubagentLaunchControlsForTests(options?: {
 				: () => Math.max(0, Math.floor(options.retryJitterMs as number));
 	launchSlotQueuedHookForTests = options?.onLaunchSlotQueued;
 	launchSlotAcquiredHookForTests = options?.onLaunchSlotAcquired;
-	beforeRunSubagentHookForTests = options?.beforeRunSubagent;
+	beforeRunWorkerHookForTests = options?.beforeRunWorker;
 	afterLaunchAuthorityRegisteredHookForTests =
 		options?.afterLaunchAuthorityRegistered;
 	beforeDurableBarrierReleaseHookForTests =

@@ -2,17 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { markFailFastCancellations } from "../../dist/core/engine-run-graph.js";
-import { awaitSubagentOperation } from "../../dist/core/launch-operations.js";
+import { awaitWorkerOperation } from "../../dist/core/launch-operations.js";
 import {
-	cleanupSubagentRun,
-	interruptSubagentTask,
+	cleanupWorkerRun,
+	interruptWorkerTask,
 } from "../../dist/core/task-cancellation.js";
 import { setTaskRuntimeApiForTests } from "../../dist/core/runtime-port.js";
 
-function backendHandle() {
+function workerHandle() {
 	return {
-		engine: "agent-workflow",
-		backend: "runtime",
 		runId: "child-run",
 		attemptId: "child-attempt",
 		cwd: "/tmp/project",
@@ -27,15 +25,15 @@ function runningTask(overrides = {}) {
 		specId: "running",
 		status: "running",
 		statusDetail: "running",
-		backendHandle: backendHandle(),
+		workerHandle: workerHandle(),
 		...overrides,
 	};
 }
 
-test("WB-004 bounds a never-settling backend operation with context", async () => {
+test("WB-004 bounds a never-settling worker operation with context", async () => {
 	const startedAt = Date.now();
 	await assert.rejects(
-		awaitSubagentOperation(() => new Promise(() => {}), {
+		awaitWorkerOperation(() => new Promise(() => {}), {
 			operation: "test-poll",
 			context: "workflow run-a task task-a",
 			timeoutMs: 25,
@@ -49,23 +47,23 @@ test("WB-004 surfaces interrupt rejection and preserves recoverable worker state
 	t.after(() => setTaskRuntimeApiForTests(undefined));
 	const task = runningTask();
 	setTaskRuntimeApiForTests({
-		interruptSubagent: async () => {
+		interruptWorker: async () => {
 			throw new Error("interrupt unavailable");
 		},
 	});
 	await assert.rejects(
-		interruptSubagentTask(task, "unit cancellation"),
+		interruptWorkerTask(task, "unit cancellation"),
 		/interrupt unavailable/,
 	);
 	assert.equal(task.status, "running");
-	assert.equal(task.backendHandle.runId, "child-run");
+	assert.equal(task.workerHandle.runId, "child-run");
 });
 
 test("WB-004 rejects unsupported and mismatched exact-attempt interruption results", async (t) => {
 	t.after(() => setTaskRuntimeApiForTests(undefined));
 	const task = runningTask();
 	setTaskRuntimeApiForTests({
-		interruptSubagent: async () => ({
+		interruptWorker: async () => ({
 			status: "unsupported",
 			runId: "child-run",
 			interruptedAttempts: [],
@@ -74,14 +72,14 @@ test("WB-004 rejects unsupported and mismatched exact-attempt interruption resul
 		}),
 	});
 	await assert.rejects(
-		interruptSubagentTask(task, "unsupported cancellation"),
+		interruptWorkerTask(task, "unsupported cancellation"),
 		/not acknowledged.*unsupported/,
 	);
 	assert.equal(task.status, "running");
-	assert.equal(task.backendHandle.attemptId, "child-attempt");
+	assert.equal(task.workerHandle.attemptId, "child-attempt");
 
 	setTaskRuntimeApiForTests({
-		interruptSubagent: async () => ({
+		interruptWorker: async () => ({
 			status: "interrupt-requested",
 			runId: "child-run",
 			interruptedAttempts: ["other-attempt"],
@@ -90,12 +88,12 @@ test("WB-004 rejects unsupported and mismatched exact-attempt interruption resul
 		}),
 	});
 	await assert.rejects(
-		interruptSubagentTask(task, "mismatched cancellation"),
+		interruptWorkerTask(task, "mismatched cancellation"),
 		/acknowledged a different attempt/,
 	);
 
 	setTaskRuntimeApiForTests({
-		interruptSubagent: async () => ({
+		interruptWorker: async () => ({
 			status: "already-terminal",
 			runId: "other-run",
 			interruptedAttempts: [],
@@ -106,7 +104,7 @@ test("WB-004 rejects unsupported and mismatched exact-attempt interruption resul
 		}),
 	});
 	await assert.rejects(
-		interruptSubagentTask(task, "wrong run cancellation"),
+		interruptWorkerTask(task, "wrong run cancellation"),
 		/result run other-run does not match child-run/,
 	);
 });
@@ -116,7 +114,7 @@ test("WB-004 waits for the exact interrupted attempt to become terminal", async 
 	const task = runningTask();
 	let statusCalls = 0;
 	setTaskRuntimeApiForTests({
-		interruptSubagent: async () => ({
+		interruptWorker: async () => ({
 			status: "interrupt-requested",
 			runId: "child-run",
 			interruptedAttempts: ["child-attempt"],
@@ -125,12 +123,12 @@ test("WB-004 waits for the exact interrupted attempt to become terminal", async 
 				attempts: [{ attemptId: "child-attempt", status: "running" }],
 			},
 		}),
-		getSubagentStatus: async () => {
+		getWorkerStatus: async () => {
 			statusCalls += 1;
 			return {
 				runId: "child-run",
 				attemptId: "child-attempt",
-				backend: "headless",
+				executorId: "headless",
 				status: statusCalls < 2 ? "running" : "cancelled",
 				failureKind: statusCalls < 2 ? null : "user_cancelled",
 				startedAt: new Date().toISOString(),
@@ -145,7 +143,7 @@ test("WB-004 waits for the exact interrupted attempt to become terminal", async 
 			};
 		},
 	});
-	const acknowledgement = await interruptSubagentTask(
+	const acknowledgement = await interruptWorkerTask(
 		task,
 		"delayed exact cancellation",
 	);
@@ -159,21 +157,21 @@ test("WB-004 cleanup records cancellation failure and later acknowledgement", as
 	const task = runningTask();
 	const run = { runId: "workflow-run", tasks: [task] };
 	setTaskRuntimeApiForTests({
-		interruptSubagent: async () => {
+		interruptWorker: async () => {
 			throw new Error("worker still alive");
 		},
 	});
 	await assert.rejects(
-		cleanupSubagentRun("/tmp/project", run),
+		cleanupWorkerRun("/tmp/project", run),
 		/cancellations failed/,
 	);
 	assert.equal(task.status, "running");
 	assert.equal(task.statusDetail, "cancellation_failed");
 	assert.match(task.lastMessage, /worker still alive/);
-	assert.equal(task.backendHandle.runId, "child-run");
+	assert.equal(task.workerHandle.runId, "child-run");
 
 	setTaskRuntimeApiForTests({
-		interruptSubagent: async () => ({
+		interruptWorker: async () => ({
 			status: "already-terminal",
 			runId: "child-run",
 			interruptedAttempts: [],
@@ -183,7 +181,7 @@ test("WB-004 cleanup records cancellation failure and later acknowledgement", as
 			},
 		}),
 	});
-	await cleanupSubagentRun("/tmp/project", run);
+	await cleanupWorkerRun("/tmp/project", run);
 	assert.equal(task.status, "running");
 	assert.equal(task.statusDetail, "cancellation_acknowledged");
 });
@@ -215,7 +213,7 @@ test("WB-004 fail-fast keeps running workers nonterminal until cancellation ackn
 	assert.deepEqual(summary.interruptedTaskIds, ["task-running"]);
 	assert.equal(running.status, "running");
 	assert.equal(running.statusDetail, "cancellation_pending");
-	assert.equal(running.backendHandle.runId, "child-run");
+	assert.equal(running.workerHandle.runId, "child-run");
 	assert.equal(pending.status, "interrupted");
 	assert.equal(pending.statusDetail, "fail_fast_cancelled");
 });

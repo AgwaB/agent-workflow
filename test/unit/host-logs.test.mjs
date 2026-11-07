@@ -45,7 +45,7 @@ const HOME_PREFIX = ["", "Users", "someone"].join("/");
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp16-logs-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -99,14 +99,14 @@ async function attemptDir(cwd, runId) {
 	const taskRoot = join(
 		stateDir(cwd),
 		".agent-workflow",
-		"workflow-subagents",
+		"worker-runs",
 		runId,
 		"task-1",
 	);
-	const [backendRun] = (await readdir(taskRoot)).filter((name) =>
+	const [workerRun] = (await readdir(taskRoot)).filter((name) =>
 		name.startsWith("run_"),
 	);
-	const attempts = join(taskRoot, backendRun, "attempts");
+	const attempts = join(taskRoot, workerRun, "attempts");
 	const [attempt] = (await readdir(attempts)).filter((name) =>
 		name.startsWith("attempt_"),
 	);

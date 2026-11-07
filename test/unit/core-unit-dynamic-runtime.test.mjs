@@ -41,10 +41,10 @@ import {
 	canStageProceedAfterPreviousFailure,
 	canonicalDynamicDecision,
 	canonicalPackageVerificationStatus,
-	captureParentSubagentEnv,
-	captureSubagentPrompts,
+	captureParentWorkerEnv,
+	captureWorkerPrompts,
 	checkRequiredArtifactReads,
-	cleanupSubagentRun,
+	cleanupWorkerRun,
 	closeSync,
 	compactStrings,
 	compileWorkflow,
@@ -99,7 +99,7 @@ import {
 	isTestWideCodePoint,
 	isWorkflowSupervisorEnabled,
 	join,
-	launchSubagentTask,
+	launchWorkerTask,
 	listWorkflowArtifactSources,
 	listWorkflows,
 	loadAgentByName,
@@ -110,7 +110,7 @@ import {
 	loopWorkflowSpec,
 	makeDynamicDecisionLoopCtx,
 	makeProject,
-	makeSubagentLaunchFixture,
+	makeWorkerLaunchFixture,
 	makeValidatingDynamicDecisionLoopCtx,
 	markDagDependentsSkipped,
 	mkdirSync,
@@ -121,7 +121,7 @@ import {
 	observeLiveModelWorkerCompletion,
 	openSync,
 	packageVerificationStatusBucket,
-	parentSubagentEnvKeys,
+	parentWorkerEnvKeys,
 	parseAgentMarkdown,
 	parsePublicWorkflow,
 	parseWorkflow,
@@ -143,7 +143,7 @@ import {
 	rebuildDynamicState,
 	recordDynamicControllerPhase,
 	recordSharedModelRateLimitBackoffForTests,
-	refreshRunFromSubagentArtifacts,
+	refreshRunFromWorkerArtifacts,
 	refreshZeroOutputModelFailure,
 	resetTaskForResume,
 	resolveFlowsCwd,
@@ -151,7 +151,7 @@ import {
 	resolveWorkflowHelperRef,
 	resolveWorkflowRef,
 	resolveWorkflowRuntime,
-	restoreParentSubagentEnv,
+	restoreParentWorkerEnv,
 	resumeRun,
 	rmSync,
 	runDynamicControllerEngineIntegrityCheckForTests,
@@ -161,10 +161,10 @@ import {
 	runWorkflowSpec,
 	scheduleRun,
 	setIndexUpdateDebounceMsForTests,
-	setParentSubagentEnv,
+	setParentWorkerEnv,
 	setRunLeaseTestHooksForTests,
 	setTaskRuntimeApiForTests,
-	setSubagentLaunchControlsForTests,
+	setWorkerLaunchControlsForTests,
 	setTaskTerminal,
 	setWorkflowOutputArtifactWriteHookForTests,
 	shouldScheduleAfterStageFailure,
@@ -3483,7 +3483,7 @@ test("artifactGraph dynamic decision-loop failOnInvalidDecision surfaces blocker
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		const prompts = captureSubagentPrompts([]);
+		const prompts = captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -3636,7 +3636,7 @@ test("artifactGraph dynamic decision-loop failOnInvalidDecision surfaces blocker
 
 test("artifactGraph dynamic decision-loop plans fanout once and dedupes partial replay", async () => {
 	const cwd = makeProject();
-	const prompts = captureSubagentPrompts([]);
+	const prompts = captureWorkerPrompts([]);
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const workflowDir = join(cwd, "workflows", "bundle");
@@ -3877,7 +3877,7 @@ test("artifactGraph dynamic decision-loop plans fanout once and dedupes partial 
 
 test("artifactGraph dynamic decision-loop status replay does not append duplicate status events", async () => {
 	const cwd = makeProject();
-	const prompts = captureSubagentPrompts([]);
+	const prompts = captureWorkerPrompts([]);
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const workflowDir = join(cwd, "workflows", "bundle");
@@ -4034,7 +4034,7 @@ test("artifactGraph dynamic decision-loop status replay does not append duplicat
 
 test("artifactGraph dynamic replay fails closed when a reused branchId changes request", async () => {
 	const cwd = makeProject();
-	const launched = captureSubagentPrompts([]);
+	const launched = captureWorkerPrompts([]);
 	try {
 		const { run } = await createDynamicControllerRun(
 			cwd,
@@ -4259,7 +4259,7 @@ test("artifactGraph runtime dynamic does not let controllers catch suspension an
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts([]);
+		captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -4318,7 +4318,7 @@ test("artifactGraph runtime dynamic agent splices official task and replays resu
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(String(options.task ?? ""));
 				return {
 					runId: `run_dynamic_${launched.length}`,
@@ -4326,13 +4326,13 @@ test("artifactGraph runtime dynamic agent splices official task and replays resu
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -4443,7 +4443,7 @@ test("artifactGraph dynamic decision and state-index bridge persists replayable 
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(String(options.task ?? ""));
 				return {
 					runId: `run_bridge_${launched.length}`,
@@ -4451,13 +4451,13 @@ test("artifactGraph dynamic decision and state-index bridge persists replayable 
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -4650,7 +4650,7 @@ test("artifactGraph dynamic ctx.result returns scoped content-bound fields", asy
 	const largeBlob = `RESULT-LARGE-${"z".repeat(6000)}-END`;
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts([]);
+		captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -4781,7 +4781,7 @@ test("artifactGraph dynamic rejects generated sibling dependency cycles", async 
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts([]);
+		captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -4862,7 +4862,7 @@ test("artifactGraph dynamic replay rejects new operations before omitted prior o
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(String(options.task ?? ""));
 				return {
 					runId: `run_replay_prefix_${launched.length}`,
@@ -4870,13 +4870,13 @@ test("artifactGraph dynamic replay rejects new operations before omitted prior o
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -4973,7 +4973,7 @@ test("artifactGraph dynamic agent repairs graph projection from existing event",
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(String(options.task ?? ""));
 				return {
 					runId: `run_repaired_${launched.length}`,
@@ -4981,13 +4981,13 @@ test("artifactGraph dynamic agent repairs graph projection from existing event",
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -5094,7 +5094,7 @@ test("artifactGraph runtime dynamic parallel splices multiple tasks before suspe
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		const launched = captureSubagentPrompts([]);
+		const launched = captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -5182,7 +5182,7 @@ test("artifactGraph dynamic budget API reflects running generated agents and cap
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts([]);
+		captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -5270,7 +5270,7 @@ test("artifactGraph dynamic helper API uses declared helpers and replays cached 
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		const launched = captureSubagentPrompts([]);
+		const launched = captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -5474,7 +5474,7 @@ test("artifactGraph dynamic helper replay detects schema changes", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts([]);
+		captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		mkdirSync(join(workflowDir, "schemas"), { recursive: true });
@@ -5877,17 +5877,17 @@ test("artifactGraph mutation-capable agents publish from managed and shared loop
 			assert.equal(result.status, 0, result.stderr);
 		}
 
-		const backendRunId = "run_managed_worktree";
-		const backendAttemptId = "attempt_managed_worktree";
+		const workerRunId = "run_managed_worktree";
+		const workerAttemptId = "attempt_managed_worktree";
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launchOptions = options;
 				const artifactDir = join(
 					options.cwd,
 					options.runsDir,
-					backendRunId,
+					workerRunId,
 					"attempts",
-					backendAttemptId,
+					workerAttemptId,
 				);
 				mkdirSync(artifactDir, { recursive: true });
 				writeFileSync(
@@ -5911,20 +5911,20 @@ test("artifactGraph mutation-capable agents publish from managed and shared loop
 				);
 				writeFileSync(join(artifactDir, "stderr.log"), "");
 				writeFileSync(
-					join(options.cwd, options.runsDir, backendRunId, "run.json"),
+					join(options.cwd, options.runsDir, workerRunId, "run.json"),
 					JSON.stringify({
-						runId: backendRunId,
+						runId: workerRunId,
 						correlationId: options.correlationId,
 						status: "completed",
-						latestAttemptId: backendAttemptId,
-						attempts: [{ attemptId: backendAttemptId, status: "completed" }],
+						latestAttemptId: workerAttemptId,
+						attempts: [{ attemptId: workerAttemptId, status: "completed" }],
 					}),
 				);
 				writeFileSync(
 					join(artifactDir, "result.json"),
 					JSON.stringify({
-						runId: backendRunId,
-						attemptId: backendAttemptId,
+						runId: workerRunId,
+						attemptId: workerAttemptId,
 						status: "completed",
 						startedAt: new Date().toISOString(),
 						completedAt: new Date().toISOString(),
@@ -5933,24 +5933,24 @@ test("artifactGraph mutation-capable agents publish from managed and shared loop
 					}),
 				);
 				return {
-					runId: backendRunId,
-					attemptId: backendAttemptId,
+					runId: workerRunId,
+					attemptId: workerAttemptId,
 					status: "running",
 				};
 			},
-			async getSubagentStatus(options) {
+			async getWorkerStatus(options) {
 				assert.equal(options.cwd, launchOptions.cwd);
 				const artifactDir = join(
 					options.cwd,
 					options.runsDir,
-					backendRunId,
+					workerRunId,
 					"attempts",
-					backendAttemptId,
+					workerAttemptId,
 				);
 				return {
-					runId: backendRunId,
-					attemptId: backendAttemptId,
-					backend: "headless",
+					runId: workerRunId,
+					attemptId: workerAttemptId,
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt: new Date().toISOString(),
@@ -5961,13 +5961,13 @@ test("artifactGraph mutation-capable agents publish from managed and shared loop
 						{ type: "result", path: "result.json", artifactCwd: artifactDir },
 					],
 					metadata: { contextLengthExceeded: false },
-					attempts: [{ attemptId: backendAttemptId, status: "completed" }],
+					attempts: [{ attemptId: workerAttemptId, status: "completed" }],
 				};
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -5996,7 +5996,7 @@ test("artifactGraph mutation-capable agents publish from managed and shared loop
 		});
 		assert.equal(
 			launchOptions.runsDir,
-			`.agent-workflow/workflow-subagents/${run.runId}/${generated.taskId}`,
+			`.agent-workflow/worker-runs/${run.runId}/${generated.taskId}`,
 		);
 
 		await scheduleRun(cwd, run.runId);
@@ -6210,15 +6210,11 @@ test("artifactGraph mutation-capable agents publish from managed and shared loop
 		// WP39b (O7): the attempt mirror of a worktree task is the project's own.
 		assert.equal(
 			existsSync(
-				join(stateDir(generated.cwd), ".agent-workflow", "workflow-subagents"),
+				join(stateDir(generated.cwd), ".agent-workflow", "worker-runs"),
 			),
 			false,
 		);
-		const mirrorRoot = join(
-			stateDir(cwd),
-			".agent-workflow",
-			"workflow-subagents",
-		);
+		const mirrorRoot = join(stateDir(cwd), ".agent-workflow", "worker-runs");
 		const movedMirrorRoot = `${mirrorRoot}-moved`;
 		renameSync(mirrorRoot, movedMirrorRoot);
 		try {
@@ -6260,7 +6256,7 @@ test("artifactGraph dynamic ctx.parallel fails closed on non-suspension errors",
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts([]);
+		captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -6326,7 +6322,7 @@ test("artifactGraph dynamic agent budget blocks additional generated tasks", asy
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		const launched = captureSubagentPrompts([]);
+		const launched = captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -6494,7 +6490,7 @@ test("artifactGraph dynamic agent inputs build source manifest and required read
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		const launched = captureSubagentPrompts([]);
+		const launched = captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -6586,7 +6582,7 @@ test("artifactGraph dynamic generated input sources use generated spec ids", asy
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts([]);
+		captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -6680,7 +6676,7 @@ test("artifactGraph downstream reduce sees exported dynamic output source", asyn
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts([]);
+		captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -6822,7 +6818,7 @@ test("artifactGraph dynamic runtime budget excludes suspended child wait time", 
 	const runtimeBudgetMs = 1_000;
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts([]);
+		captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -6957,7 +6953,7 @@ test("artifactGraph dynamic optional missing artifact input is skipped", async (
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(String(options.task ?? ""));
 				return {
 					runId: "run_optional",
@@ -6965,13 +6961,13 @@ test("artifactGraph dynamic optional missing artifact input is skipped", async (
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -7137,7 +7133,7 @@ test("artifactGraph dynamic nested workflow wait false replays first snapshot", 
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(String(options.task ?? ""));
 				return {
 					runId: `run_nested_wait_false_${launched.length}`,
@@ -7145,13 +7141,13 @@ test("artifactGraph dynamic nested workflow wait false replays first snapshot", 
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -7292,7 +7288,7 @@ test("non-dynamic artifact graph compile/run golden preserves static structure",
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(String(options.task ?? ""));
 				return {
 					runId: `run_static_${launched.length}`,
@@ -7300,13 +7296,13 @@ test("non-dynamic artifact graph compile/run golden preserves static structure",
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -7702,7 +7698,7 @@ test("dynamic generated tasks propagate toolProviders and enforce tool ceilings"
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read, custom_external_tool");
-		captureSubagentPrompts([]);
+		captureWorkerPrompts([]);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
 		const specPath = join(workflowDir, "spec.json");
@@ -7901,13 +7897,13 @@ test("dynamic generated tasks reject delegation tools on target agents", async (
 
 test("dynamic generated tasks ignore unsupported agent frontmatter", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts([]);
+	captureWorkerPrompts([]);
 	try {
 		const agentDir = join(cwd, ".agent-workflow", "agents");
 		mkdirSync(agentDir, { recursive: true });
 		writeFileSync(
 			join(agentDir, "nested-agent.md"),
-			'---\ndescription: nested-agent\ntools: ["read"]\nmaxSubagentDepth: 1\nreadOnly: true\n---\n# nested-agent\n',
+			'---\ndescription: nested-agent\ntools: ["read"]\nmaxWorkerDepth: 1\nreadOnly: true\n---\n# nested-agent\n',
 		);
 		const workflowDir = join(cwd, "workflows", "bundle");
 		mkdirSync(join(workflowDir, "helpers"), { recursive: true });
@@ -7946,7 +7942,7 @@ test("dynamic generated tasks ignore unsupported agent frontmatter", async () =>
 		const updated = await readRunRecord(cwd, run.runId);
 		const generated = taskBySpec(updated, "adaptive.bad");
 		assert.equal(generated.status, "running");
-		assert.doesNotMatch(generated.lastMessage ?? "", /maxSubagentDepth/);
+		assert.doesNotMatch(generated.lastMessage ?? "", /maxWorkerDepth/);
 		const persisted = JSON.parse(
 			readFileSync(
 				join(
@@ -7963,7 +7959,7 @@ test("dynamic generated tasks ignore unsupported agent frontmatter", async () =>
 			(task) => task.id === "adaptive.bad",
 		);
 		assert.ok(compiledGenerated);
-		assert.equal(Object.hasOwn(compiledGenerated, "maxSubagentDepth"), false);
+		assert.equal(Object.hasOwn(compiledGenerated, "maxWorkerDepth"), false);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
 		rmSync(cwd, {
@@ -7979,7 +7975,7 @@ test("artifactGraph runtime foreach materializes and launches generated tasks in
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		const prompts = captureSubagentPrompts();
+		const prompts = captureWorkerPrompts();
 		const spec = workflowSpec("unit-scout", {
 			artifactGraph: {
 				stages: [
@@ -8124,7 +8120,7 @@ test("streaming foreach waits for unresolved non-source dependencies", () => {
 
 test("streaming foreach appends items before all upstream siblings finish", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const spec = workflowSpec("unit-scout", {
@@ -8233,7 +8229,7 @@ test("streaming foreach appends items before all upstream siblings finish", asyn
 
 test("streaming foreach minChunk holds small batches until enough items arrive", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const spec = workflowSpec("unit-scout", {
@@ -8335,7 +8331,7 @@ test("partial output sections are parsed separately from final workflow output",
 
 test("streaming foreach consumes producer partial output before terminal completion", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const spec = workflowSpec("unit-scout", {
@@ -8444,7 +8440,7 @@ test("streaming foreach consumes producer partial output before terminal complet
 
 test("streaming foreach keeps producer dependency for partial children that need source context", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const spec = workflowSpec("unit-scout", {
@@ -8514,7 +8510,7 @@ test("streaming foreach keeps producer dependency for partial children that need
 test("per-item dispatch flag leaves non-streaming foreach scheduling identical", async () => {
 	async function runScenario(flagOn) {
 		const cwd = makeProject();
-		const prompts = captureSubagentPrompts();
+		const prompts = captureWorkerPrompts();
 		const previousFlag = process.env.AGENT_WORKFLOW_PER_ITEM_DISPATCH;
 		if (flagOn) process.env.AGENT_WORKFLOW_PER_ITEM_DISPATCH = "1";
 		else delete process.env.AGENT_WORKFLOW_PER_ITEM_DISPATCH;
@@ -8580,7 +8576,7 @@ test("per-item dispatch flag leaves non-streaming foreach scheduling identical",
 
 test("per-item dispatch launches projection-dependent partial children before producer completion", async () => {
 	const cwd = makeProject();
-	const prompts = captureSubagentPrompts();
+	const prompts = captureWorkerPrompts();
 	const previousFlag = process.env.AGENT_WORKFLOW_PER_ITEM_DISPATCH;
 	process.env.AGENT_WORKFLOW_PER_ITEM_DISPATCH = "1";
 	try {
@@ -8623,7 +8619,7 @@ test("per-item dispatch launches projection-dependent partial children before pr
 
 test("per-item dispatch defers projection-dependent children until projection paths are published", async () => {
 	const cwd = makeProject();
-	const prompts = captureSubagentPrompts();
+	const prompts = captureWorkerPrompts();
 	const previousFlag = process.env.AGENT_WORKFLOW_PER_ITEM_DISPATCH;
 	process.env.AGENT_WORKFLOW_PER_ITEM_DISPATCH = "1";
 	try {
@@ -8653,8 +8649,8 @@ test("per-item dispatch defers projection-dependent children until projection pa
 			].join("\n"),
 			"utf8",
 		);
-		// The live backend refreshes the ledger from the streamed output; unit
-		// tests bypass the backend, so force a re-parse of the updated output.
+		// The live worker refreshes the ledger from the streamed output; unit
+		// tests bypass the worker, so force a re-parse of the updated output.
 		rmSync(join(producerDir, "partial-control.json"), { force: true });
 
 		await scheduleRun(cwd, run.runId);
@@ -8685,7 +8681,7 @@ test("per-item dispatch defers projection-dependent children until projection pa
 
 test("per-item dispatch keeps launched items and applies sourcePolicy after producer failure", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	const previousFlag = process.env.AGENT_WORKFLOW_PER_ITEM_DISPATCH;
 	process.env.AGENT_WORKFLOW_PER_ITEM_DISPATCH = "1";
 	try {
@@ -8733,7 +8729,7 @@ test("per-item dispatch keeps launched items and applies sourcePolicy after prod
 
 test("per-item dispatch requires the env flag even when projection paths are published", async () => {
 	const cwd = makeProject();
-	const prompts = captureSubagentPrompts();
+	const prompts = captureWorkerPrompts();
 	const previousFlag = process.env.AGENT_WORKFLOW_PER_ITEM_DISPATCH;
 	delete process.env.AGENT_WORKFLOW_PER_ITEM_DISPATCH;
 	try {
@@ -8768,7 +8764,7 @@ test("per-item dispatch requires the env flag even when projection paths are pub
 
 test("streaming foreach blocks if a producer changes a published partial item", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const spec = workflowSpec("unit-scout", {
@@ -8848,7 +8844,7 @@ test("streaming foreach blocks if a producer changes a published partial item", 
 
 test("streaming foreach blocks if a producer withdraws a published partial item", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const spec = workflowSpec("unit-scout", {
@@ -9041,7 +9037,7 @@ const {
 } = await import(distUrl("store.js"));
 let launchCount = 0;
 setTaskRuntimeApiForTests({
-	async runSubagent() {
+	async runWorker() {
 		launchCount += 1;
 		return {
 			runId: "dist_stub_" + launchCount,
@@ -9049,13 +9045,13 @@ setTaskRuntimeApiForTests({
 			status: "running",
 		};
 	},
-	async getSubagentStatus() {
+	async getWorkerStatus() {
 		return null;
 	},
-	async reconcileSubagentRun() {
+	async reconcileWorkerRun() {
 		return {};
 	},
-	async interruptSubagent() {
+	async interruptWorker() {
 		return {};
 	},
 });
@@ -9197,7 +9193,7 @@ test("dynamic generated tasks launch with a tool-result budget and static tasks 
 	try {
 		const captured = [];
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				captured.push(options);
 				return {
 					runId: `run_budget_${captured.length}`,
@@ -9205,13 +9201,13 @@ test("dynamic generated tasks launch with a tool-result budget and static tasks 
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -9220,7 +9216,7 @@ test("dynamic generated tasks launch with a tool-result budget and static tasks 
 			model: "openai-codex/gpt-5.5",
 			specName: "budget-static",
 		});
-		await launchSubagentTask(
+		await launchWorkerTask(
 			cwd,
 			staticRun.run,
 			staticRun.task,
@@ -9238,7 +9234,7 @@ test("dynamic generated tasks launch with a tool-result budget and static tasks 
 			opId: "op-1",
 			requestHash: "hash-1",
 		};
-		await launchSubagentTask(
+		await launchWorkerTask(
 			cwd,
 			dynamicRun.run,
 			dynamicRun.task,
@@ -9309,7 +9305,7 @@ test("spec-less direct dynamic run records provenance and launches planner", asy
 	try {
 		const launched = [];
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(options);
 				return {
 					runId: "run_dynamic_planner",
@@ -9317,13 +9313,13 @@ test("spec-less direct dynamic run records provenance and launches planner", asy
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});

@@ -26,7 +26,7 @@ const ext = await import("../../dist/hosts/pi/extension.js");
 const core = await import("../../dist/core/index.js");
 const slots = await import("../../dist/core/launch-slots.js");
 
-slots.setSubagentLaunchControlsForTests({
+slots.setWorkerLaunchControlsForTests({
 	releaseDelayMs: 0,
 	retryJitterMs: 0,
 });

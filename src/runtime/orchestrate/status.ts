@@ -20,12 +20,12 @@ import {
 } from "../artifacts/index.js";
 import {
 	DEFAULT_RUNS_DIR,
-	isResolvedBackend,
+	isExecutorId,
 	STATUSES,
 	type AsyncDependency,
 	type ExecutionMode,
 	type FailureKind,
-	type ResolvedBackend,
+	type ExecutorId,
 	type Status,
 } from "../core/constants.js";
 import { resolveRunRef } from "./run-ref.js";
@@ -33,8 +33,8 @@ import { assertSafeId, isInsideOrEqual } from "../core/paths.js";
 import { isTerminalStatus } from "../core/constants.js";
 export { isTerminalStatus } from "../core/constants.js";
 
-/** Backend reported when a record stores none. */
-export const UNKNOWN_BACKEND = "unknown";
+/** Worker reported when a record stores none. */
+export const UNKNOWN_EXECUTOR_ID = "unknown";
 const EVENT_TAIL_LIMIT = 20;
 const CHILD_EVENT_SCAN_LIMIT = Number.POSITIVE_INFINITY;
 
@@ -55,7 +55,7 @@ export interface RunLogRef extends ArtifactRef {
 export interface RunAttemptStatusSnapshot {
 	attemptId: string;
 	status: Status;
-	backend: ResolvedBackend | null;
+	executorId: ExecutorId | null;
 	failureKind: FailureKind | null;
 	startedAt: string;
 	completedAt: string | null;
@@ -105,7 +105,7 @@ export interface RunStatusSnapshot {
 	/** @deprecated v1 compatibility only. */
 	taskId?: string;
 	correlationId?: string;
-	backend: ResolvedBackend;
+	executorId: ExecutorId;
 	status: Status;
 	failureKind: FailureKind | null;
 	startedAt: string;
@@ -190,7 +190,7 @@ function attemptSnapshot(attempt: RunAttemptRecord): RunAttemptStatusSnapshot {
 	return {
 		attemptId: attempt.attemptId,
 		status: attempt.status,
-		backend: attempt.backend ?? null,
+		executorId: attempt.executorId ?? null,
 		failureKind: attempt.failureKind,
 		startedAt: attempt.startedAt,
 		completedAt: attempt.completedAt,
@@ -406,7 +406,7 @@ export function createRunStatusSnapshot(
 		...(result.correlationId === undefined
 			? {}
 			: { correlationId: result.correlationId }),
-		backend: result.backend,
+		executorId: result.executorId,
 		status: result.status,
 		failureKind: result.failureKind,
 		startedAt: result.startedAt,
@@ -441,7 +441,7 @@ function coerceResultEnvelope(value: unknown): ResultEnvelope | null {
 	const raw = value as Partial<ResultEnvelope> & { taskId?: string };
 	if (
 		typeof raw.runId !== "string" ||
-		!isResolvedBackend(raw.backend) ||
+		!isExecutorId(raw.executorId) ||
 		!isStatus(raw.status) ||
 		typeof raw.cwd !== "string"
 	)
@@ -460,7 +460,7 @@ function coerceResultEnvelope(value: unknown): ResultEnvelope | null {
 		...(raw.correlationId === undefined
 			? {}
 			: { correlationId: raw.correlationId }),
-		backend: raw.backend,
+		executorId: raw.executorId,
 		status: raw.status,
 		failureKind: raw.failureKind ?? null,
 		cwd: raw.cwd,
@@ -566,7 +566,7 @@ function snapshotFromRecord(
 			record.latestAttemptId ??
 			"unknown",
 		correlationId: record.correlationId,
-		backend: attempt?.backend ?? record.backend ?? UNKNOWN_BACKEND,
+		executorId: attempt?.executorId ?? record.executorId ?? UNKNOWN_EXECUTOR_ID,
 		status: record.status,
 		failureKind: record.failureKind,
 		startedAt,

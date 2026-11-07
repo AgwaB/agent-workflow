@@ -93,7 +93,7 @@ function taskUsage(summary) {
 		aggregate: { attempts: 1, ...values },
 		attempts: [
 			{
-				source: "subagent-result-metadata",
+				source: "worker-result-metadata",
 				capturedAt: "2026-10-27T00:00:00.000Z",
 				raw: summary,
 				...values,
@@ -122,7 +122,7 @@ function task(taskId, kind, usage) {
 			baseCwd: null,
 			warning: null,
 		},
-		backendTaskId: taskId,
+		workerTaskId: taskId,
 		files: {
 			output: "",
 			stderr: "",
@@ -152,7 +152,6 @@ function run(runId, tasks) {
 			interrupted: 0,
 		},
 		cwd: "/tmp/usage",
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-10-27T00:00:00.000Z",
 		updatedAt: "2026-10-27T00:00:00.000Z",
 		specPath: "spec.json",

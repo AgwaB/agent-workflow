@@ -20,7 +20,7 @@ import { runWorkflowSpec, waitForRun } from "../../dist/core/engine.js";
 import "../helpers/register-default-executor.mjs";
 import { withMaterializedRawHost } from "../helpers/raw-host-fixture.mjs";
 import { setTaskRuntimeApiForTests as setRawApi } from "../../dist/core/runtime-port.js";
-const setSubagentApiForTests = withMaterializedRawHost(setRawApi);
+const setWorkerApiForTests = withMaterializedRawHost(setRawApi);
 import { workflowRunDir } from "../../dist/core/store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -65,7 +65,7 @@ function makeProject() {
 	return cwd;
 }
 
-function writeSubagentArtifacts(cwd, runsDir, runId, attemptId, outputText) {
+function writeWorkerArtifacts(cwd, runsDir, runId, attemptId, outputText) {
 	const artifactDir = join(
 		stateDir(cwd),
 		runsDir,
@@ -148,10 +148,10 @@ async function coldLoadGuardReceipt(
 	return guard.validateFrozenBundleGuard();
 }
 
-function makeFakeSubagentApi({ cwd, counters, omitCopiedSeed }) {
+function makeFakeWorkerApi({ cwd, counters, omitCopiedSeed }) {
 	const runs = new Map();
 	return {
-		async runSubagent(options) {
+		async runWorker(options) {
 			counters.launches += 1;
 			const workflowRunId = omitCopiedSeed
 				? "run_frozen_bundle_missing_seed"
@@ -159,7 +159,7 @@ function makeFakeSubagentApi({ cwd, counters, omitCopiedSeed }) {
 			assert.match(
 				String(options.correlationId),
 				new RegExp(`^${workflowRunId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`),
-				"subagent launch correlation binds the workflow run id",
+				"worker launch correlation binds the workflow run id",
 			);
 			assert.deepEqual(
 				options.tools,
@@ -187,7 +187,7 @@ function makeFakeSubagentApi({ cwd, counters, omitCopiedSeed }) {
 			const runId = `run_frozen_bundle_${counters.launches}`;
 			const attemptId = `attempt_frozen_bundle_${counters.launches}`;
 			const runsDir = String(options.runsDir ?? ".agent-workflow/agent/runs");
-			const artifactDir = writeSubagentArtifacts(
+			const artifactDir = writeWorkerArtifacts(
 				cwd,
 				runsDir,
 				runId,
@@ -197,16 +197,16 @@ function makeFakeSubagentApi({ cwd, counters, omitCopiedSeed }) {
 			runs.set(runId, { runId, attemptId, artifactDir });
 			return { runId, attemptId, status: "running" };
 		},
-		async reconcileSubagentRun() {
+		async reconcileWorkerRun() {
 			return {};
 		},
-		async getSubagentStatus({ runId }) {
+		async getWorkerStatus({ runId }) {
 			const run = runs.get(runId);
-			assert.ok(run, `missing subagent run ${runId}`);
+			assert.ok(run, `missing worker run ${runId}`);
 			return {
 				runId,
 				attemptId: run.attemptId,
-				backend: "headless",
+				executorId: "headless",
 				status: "completed",
 				failureKind: null,
 				startedAt: new Date(Date.now() - 1000).toISOString(),
@@ -220,7 +220,7 @@ function makeFakeSubagentApi({ cwd, counters, omitCopiedSeed }) {
 				attempts: [{ attemptId: run.attemptId, status: "completed" }],
 			};
 		},
-		async interruptSubagent() {
+		async interruptWorker() {
 			return {};
 		},
 	};
@@ -245,7 +245,7 @@ test("built engine copies and cold-loads workflow-local seed before deterministi
 	const counters = { launches: 0, providerLikeSends: 0 };
 	try {
 		await withNetworkAttemptCounter(async (networkAttempts) => {
-			setSubagentApiForTests(makeFakeSubagentApi({ cwd, counters }));
+			setWorkerApiForTests(makeFakeWorkerApi({ cwd, counters }));
 
 			const started = await runWorkflowSpec(SPEC_PATH, cwd, {
 				task: "Exercise the frozen bundle seed guard.",
@@ -284,7 +284,7 @@ test("built engine copies and cold-loads workflow-local seed before deterministi
 			});
 		});
 	} finally {
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		rmSync(cwd, {
 			recursive: true,
 			force: true,
@@ -299,8 +299,8 @@ test("built engine fails terminally before provider-like send when copied seed c
 	const counters = { launches: 0, providerLikeSends: 0 };
 	try {
 		await withNetworkAttemptCounter(async (networkAttempts) => {
-			setSubagentApiForTests(
-				makeFakeSubagentApi({ cwd, counters, omitCopiedSeed: true }),
+			setWorkerApiForTests(
+				makeFakeWorkerApi({ cwd, counters, omitCopiedSeed: true }),
 			);
 
 			const started = await runWorkflowSpec(SPEC_PATH, cwd, {
@@ -328,7 +328,7 @@ test("built engine fails terminally before provider-like send when copied seed c
 			);
 		});
 	} finally {
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		rmSync(cwd, {
 			recursive: true,
 			force: true,

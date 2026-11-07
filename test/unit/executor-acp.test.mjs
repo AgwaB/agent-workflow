@@ -446,7 +446,7 @@ test("acp antigravity preset: no launch flags; mode, model and effort are set on
 		process.platform === "linux" ? [["--uid="], ["--uid="]] : [[], []],
 	);
 	// The built-in allowlist follows the stage's tools (read → view_file); run_workflow, schedule,
-	// invoke_subagent and ask_question stay off (no startup SKILL.md write, nothing outside the engine).
+	// invoke_worker and ask_question stay off (no startup SKILL.md write, nothing outside the engine).
 	assert.deepEqual(
 		log
 			.filter((entry) => entry.method === "session/new")

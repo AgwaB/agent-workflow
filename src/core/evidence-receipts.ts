@@ -100,14 +100,14 @@ export async function readTaskWebReceipts(
 ): Promise<WebReceipt[]> {
 	const taskRoot = join(
 		dirname(workflowsRoot(cwd)),
-		"workflow-subagents",
+		"worker-runs",
 		runId,
 		taskId,
 	);
 	const receipts: WebReceipt[] = [];
 	let total = 0;
-	for (const backendRun of await readdir(taskRoot).catch(() => [])) {
-		const attemptsRoot = join(taskRoot, backendRun, "attempts");
+	for (const workerRun of await readdir(taskRoot).catch(() => [])) {
+		const attemptsRoot = join(taskRoot, workerRun, "attempts");
 		for (const attempt of await readdir(attemptsRoot).catch(() => [])) {
 			const raw = await readFile(
 				join(attemptsRoot, attempt, "exec-events.jsonl"),

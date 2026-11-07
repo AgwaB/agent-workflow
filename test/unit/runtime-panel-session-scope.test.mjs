@@ -42,14 +42,14 @@ test("panel-session-scope", async () => {
 				cwd,
 				runId,
 				mode: "single",
-				backend: "headless",
+				executorId: "headless",
 				...(parentSessionId ? { parentSessionId } : {}),
 				activeAttemptId: "a1",
 				attempts: [
 					{
 						attemptId: "a1",
 						status: "running",
-						backend: "headless",
+						executorId: "headless",
 						startedAt: new Date().toISOString(),
 					},
 				],

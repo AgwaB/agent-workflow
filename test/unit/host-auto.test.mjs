@@ -34,7 +34,7 @@ const NOT_INSTALLED = { installed: false, cliVersion: null, auth: "unknown" };
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp32-auto-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

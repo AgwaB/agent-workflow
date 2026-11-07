@@ -19,7 +19,7 @@ import { isPermissionMode } from "../../sdk/permission.js";
 import {
 	type ResolveInput,
 	type ResolveValidationFailure,
-	type SubagentTaskInput,
+	type WorkerTaskInput,
 } from "../core/constants.js";
 import { validateResolveInput } from "../core/validation.js";
 import { durableLaunchBarrierDigest } from "../durable-launch-barrier.js";
@@ -59,31 +59,10 @@ export interface ExecutorRequestFields {
 	attemptKey?: string;
 }
 
-/** Unsupported request fields that the runtime API refuses. */
-export const UNSUPPORTED_REQUEST_FIELDS = [
-	"agent",
-	"backend",
-	"extensions",
-	"noExtensions",
-	"thinking",
-	"thinkingLevel",
-	"reasoningLevel",
-	"agentScope",
-	"confirmProjectAgents",
-	"roleContext",
-	"skills",
-	"toolResultBudget",
-	"visible",
-] as const;
-
-type UnsupportedRequestField = (typeof UNSUPPORTED_REQUEST_FIELDS)[number];
-type GenericTaskFields = Omit<
-	SubagentTaskInput,
-	UnsupportedRequestField | keyof ExecutorRequestFields
->;
+type GenericTaskFields = Omit<WorkerTaskInput, keyof ExecutorRequestFields>;
 type GenericRunFields = Omit<
 	ResolveInput,
-	UnsupportedRequestField | "tasks" | keyof ExecutorRequestFields
+	"tasks" | keyof ExecutorRequestFields
 >;
 
 export interface RuntimeTaskInput
@@ -110,11 +89,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function fail(error: string, backend?: string): RuntimeValidationResult {
+function fail(error: string, executorId?: string): RuntimeValidationResult {
 	return {
 		ok: false,
 		failure: {
-			...(backend === undefined ? {} : { backend }),
+			...(executorId === undefined ? {} : { executorId }),
 			status: "failed",
 			failureKind: "validation",
 			error,
@@ -127,9 +106,6 @@ function validateRequestFields(
 	value: Record<string, unknown>,
 	label: string,
 ): string | null {
-	for (const key of UNSUPPORTED_REQUEST_FIELDS)
-		if (value[key] !== undefined)
-			return `unsupported request field ${label}${key}`;
 	if (
 		value.effort !== undefined &&
 		(typeof value.effort !== "string" || value.effort.length === 0)
@@ -251,9 +227,9 @@ function withoutRequestFields(
 }
 
 /**
- * Validate a runtime run input. Generic fields go through the ported `validateResolveInput`
- * (with `backend` set to the executor id); executor fields are validated here. Unsupported request
- * fields are refused with a validation failure that names the field.
+ * Validate a runtime run input. Generic fields go through `validateResolveInput` (failures name
+ * the executor); executor fields are validated here. Any other field is
+ * refused with a validation failure that names it.
  */
 export function validateRuntimeRunInput(raw: unknown): RuntimeValidationResult {
 	if (!isRecord(raw)) return fail("runtime run input must be an object.");
@@ -263,9 +239,9 @@ export function validateRuntimeRunInput(raw: unknown): RuntimeValidationResult {
 	if (descriptorProblems.length > 0)
 		return fail(`executor is invalid: ${descriptorProblems.join("; ")}`);
 	const executor = raw.executor as ExecutorDescriptor;
-	const backend = executor.id;
+	const executorId = executor.id;
 	const topProblem = validateRequestFields(raw, "");
-	if (topProblem !== null) return fail(topProblem, backend);
+	if (topProblem !== null) return fail(topProblem, executorId);
 	if (
 		raw.parentSessionId !== undefined &&
 		(typeof raw.parentSessionId !== "string" ||
@@ -273,7 +249,7 @@ export function validateRuntimeRunInput(raw: unknown): RuntimeValidationResult {
 	)
 		return fail(
 			"parentSessionId must be a non-empty string when provided.",
-			backend,
+			executorId,
 		);
 	let taskExtras: Record<string, unknown>[] | undefined;
 	let genericTasks: unknown;
@@ -287,19 +263,21 @@ export function validateRuntimeRunInput(raw: unknown): RuntimeValidationResult {
 				continue;
 			}
 			const problem = validateRequestFields(task, `tasks[${index}].`);
-			if (problem !== null) return fail(problem, backend);
+			if (problem !== null) return fail(problem, executorId);
 			taskExtras.push(pickRequestFields(task));
 			tasks.push(withoutRequestFields(task));
 		}
 		genericTasks = tasks;
 	} else genericTasks = raw.tasks;
-	const generic = validateResolveInput({
-		...withoutRequestFields(raw),
-		...(genericTasks === undefined ? {} : { tasks: genericTasks }),
-		backend,
-	});
+	const generic = validateResolveInput(
+		{
+			...withoutRequestFields(raw),
+			...(genericTasks === undefined ? {} : { tasks: genericTasks }),
+		},
+		executorId,
+	);
 	if (!generic.ok) return { ok: false, failure: generic.failure };
-	const { backend: _backend, ...rest } = generic.input;
+	const rest = generic.input;
 	const input: RuntimeRunInput = {
 		...(rest as GenericRunFields & ExecutorRequestFields),
 		...(pickRequestFields(raw) as Partial<RuntimeRunInput>),
@@ -395,7 +373,7 @@ export const EXECUTION_PLAN_SCHEMA = "agent-workflow-durable-execution-plan-v1";
 export interface ExecutionPlan {
 	schema: typeof EXECUTION_PLAN_SCHEMA;
 	/** Executor id, equal to executor.id. */
-	backend: string;
+	executorId: string;
 	/** Env values appear as `sha256:<hex>` (see buildExecutionPlan). */
 	executor: ExecutorDescriptor;
 	runId: string;
@@ -428,7 +406,7 @@ export function buildExecutionPlan(options: {
 }): ExecutionPlan {
 	return {
 		schema: EXECUTION_PLAN_SCHEMA,
-		backend: options.executor.id,
+		executorId: options.executor.id,
 		executor: options.executor,
 		runId: options.runId,
 		attemptId: options.attemptId,

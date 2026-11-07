@@ -36,7 +36,7 @@ test("artifacts", async () => {
 		);
 
 		const result = await store.writeResult({
-			backend: "headless",
+			executorId: "headless",
 			status: "completed",
 			cwd,
 			startedAt: "2026-06-07T00:00:00.000Z",
@@ -58,7 +58,7 @@ test("artifacts", async () => {
 		assert.equal(result.runId, "run_check_001");
 		assert.equal(result.attemptId, "attempt_check_001");
 		assert.equal(result.correlationId, "corr_check");
-		assert.equal(result.backend, "headless");
+		assert.equal(result.executorId, "headless");
 		assert.equal(result.status, "completed");
 		assert.equal(result.failureKind, null);
 		assert.equal(result.cwd, cwd);

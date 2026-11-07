@@ -1,6 +1,6 @@
 // New in agent-workflow (WP5b): the artifact MCP server is launched with the executor's measured
 // MCP output limit. The run's recorded probe (run.capabilityNegotiation.probe, WP4d) carries
-// mcpOutputLimitChars / mcpOutputNoticeChars; the task backend appends
+// mcpOutputLimitChars / mcpOutputNoticeChars; the task runner appends
 // `--max-output-chars <limit − notice − max(256, 5 % of limit)>` to the workflow_artifact server,
 // and launch provenance digests exactly that spec.
 import assert from "node:assert/strict";
@@ -23,7 +23,7 @@ import { HOST_CONTEXT_ENV } from "../../dist/core/host-context.js";
 import { createLaunchBootstrapProvenance } from "../../dist/core/launch-bootstrap-provenance.js";
 import { resolveWorkflowResourcePolicy } from "../../dist/core/resource-inheritance.js";
 import { createRunRecord } from "../../dist/core/store.js";
-import { preparedMcpServers } from "../../dist/core/task-backend.js";
+import { preparedMcpServers } from "../../dist/core/task-runner.js";
 import {
 	DEFAULT_MCP_OUTPUT_TOKENS,
 	mcpOutputLimitChars,
@@ -99,7 +99,7 @@ test("declared limits of pi, claude and codex map to the documented server limit
 	);
 });
 
-test("the recorded probe carries the limit and the task backend launches the server with it", async () => {
+test("the recorded probe carries the limit and the task runner launches the server with it", async () => {
 	const capabilities = createFakeExecutor().capabilities();
 	const server = artifactMcpServerSpec({
 		version: 1,
@@ -220,16 +220,8 @@ test("launch provenance digests the server spec with the limit actually launched
 		resourcePolicy: resolveWorkflowResourcePolicy(prepared),
 	};
 	const digest = async () =>
-		(
-			await createLaunchBootstrapProvenance(
-				cwd,
-				run,
-				task,
-				prepared,
-				"unit",
-				launch,
-			)
-		).artifacts.serverSpecSha256;
+		(await createLaunchBootstrapProvenance(cwd, run, task, prepared, launch))
+			.artifacts.serverSpecSha256;
 	const launched = () =>
 		preparedMcpServers(
 			{

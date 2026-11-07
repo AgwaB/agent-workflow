@@ -424,7 +424,7 @@ test("direct dynamic run records dynamicAudit after synthesis completes", async 
 		writeAgent(cwd, "unit-scout");
 		let launchCount = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launchCount += 1;
 				return {
 					runId: `run_audit_${launchCount}`,
@@ -432,13 +432,13 @@ test("direct dynamic run records dynamicAudit after synthesis completes", async 
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});

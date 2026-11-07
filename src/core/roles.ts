@@ -13,7 +13,7 @@ const ALWAYS_EXCLUDED_SECTIONS = [
 	"Output Format",
 	"Direct Response Format",
 	"Exit Criteria",
-	"Subagent Delegation Instructions",
+	"Worker Delegation Instructions",
 	"Delegation Instructions",
 	"Workflow Orchestration Instructions",
 	"Stage Orchestration Instructions",

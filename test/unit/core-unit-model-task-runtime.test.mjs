@@ -17,7 +17,7 @@ import {
 	resultCompletedAfterTimeout,
 } from "../../dist/core/result.js";
 import { parseWorkflow } from "../../dist/core/schema.js";
-import { launchSubagentTask } from "../../dist/core/task-backend.js";
+import { launchWorkerTask } from "../../dist/core/task-runner.js";
 import { setTaskRuntimeApiForTests } from "../../dist/core/runtime-port.js";
 import { classifyWorkflowTaskDuration } from "../../dist/core/workflow-progress-health.js";
 import {
@@ -27,7 +27,7 @@ import {
 } from "../../dist/core/store.js";
 import {
 	makeProject,
-	makeSubagentLaunchFixture,
+	makeWorkerLaunchFixture,
 	writeAgent,
 } from "../helpers/unit-test-support.mjs";
 
@@ -347,27 +347,27 @@ test("dynamic decision profiles and ctx.agent requests preserve zero with reques
 	}
 });
 
-test("unlimited launches omit backend timeout, persist zero provenance, and remain manually cancellable", async () => {
+test("unlimited launches omit worker timeout, persist zero provenance, and remain manually cancellable", async () => {
 	const cwd = makeProject();
 	const launches = [];
 	const interrupts = [];
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launches.push(options);
 				return {
-					runId: `backend-run-${launches.length}`,
-					attemptId: `backend-attempt-${launches.length}`,
+					runId: `worker-run-${launches.length}`,
+					attemptId: `worker-attempt-${launches.length}`,
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent(options) {
+			async interruptWorker(options) {
 				interrupts.push(options);
 				return {
 					status: "already-terminal",
@@ -381,11 +381,11 @@ test("unlimited launches omit backend timeout, persist zero provenance, and rema
 			},
 		});
 
-		const unlimited = makeSubagentLaunchFixture(cwd, "unlimited-runtime");
+		const unlimited = makeWorkerLaunchFixture(cwd, "unlimited-runtime");
 		unlimited.task.runtime.maxRuntimeMs = 0;
 		unlimited.compiledTask.runtime.maxRuntimeMs = 0;
 		assert.deepEqual(
-			await launchSubagentTask(
+			await launchWorkerTask(
 				cwd,
 				unlimited.run,
 				unlimited.task,
@@ -409,10 +409,10 @@ test("unlimited launches omit backend timeout, persist zero provenance, and rema
 		assert.equal(stoppedUnlimited.run.tasks[0].status, "interrupted");
 		assert.equal(interrupts.length, 1);
 
-		const finite = makeSubagentLaunchFixture(cwd, "finite-runtime");
+		const finite = makeWorkerLaunchFixture(cwd, "finite-runtime");
 		finite.task.runtime.maxRuntimeMs = 2_500;
 		finite.compiledTask.runtime.maxRuntimeMs = 2_500;
-		await launchSubagentTask(cwd, finite.run, finite.task, finite.compiledTask);
+		await launchWorkerTask(cwd, finite.run, finite.task, finite.compiledTask);
 		assert.equal(launches[1].timeoutMs, 2_500);
 		await stopRun(cwd, finite.run.runId);
 		assert.equal(interrupts.length, 2);
@@ -432,7 +432,7 @@ test("zero disables active and late-result deadlines while finite timeout reject
 	try {
 		const startedAt = new Date(Date.now() - 181_000).toISOString();
 		const completedAt = new Date(Date.parse(startedAt) + 180_001).toISOString();
-		const unlimited = makeSubagentLaunchFixture(cwd, "late-unlimited").task;
+		const unlimited = makeWorkerLaunchFixture(cwd, "late-unlimited").task;
 		unlimited.status = "running";
 		unlimited.statusDetail = "running";
 		unlimited.startedAt = startedAt;
@@ -452,7 +452,7 @@ test("zero disables active and late-result deadlines while finite timeout reject
 		});
 		assert.equal(unlimited.status, "completed");
 
-		const finite = makeSubagentLaunchFixture(cwd, "late-finite").task;
+		const finite = makeWorkerLaunchFixture(cwd, "late-finite").task;
 		finite.status = "running";
 		finite.statusDetail = "running";
 		finite.startedAt = startedAt;
@@ -478,7 +478,7 @@ test("zero disables active and late-result deadlines while finite timeout reject
 			Number.POSITIVE_INFINITY,
 			Number.MAX_SAFE_INTEGER + 1,
 		]) {
-			const malformed = makeSubagentLaunchFixture(
+			const malformed = makeWorkerLaunchFixture(
 				cwd,
 				`malformed-${String(value)}`,
 			).task;

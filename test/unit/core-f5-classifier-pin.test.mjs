@@ -72,7 +72,7 @@ test("F5: prune keeps a terminal classifier result until its active caller has c
 	const router = join(stateDir(cwd), ROUTER_RUNS);
 	let during;
 	setTaskRuntimeApiForTests({
-		async runSubagent(options) {
+		async runWorker(options) {
 			const attemptId = "attempt_consuming";
 			const now = new Date().toISOString();
 			await classifier(router, runId, {

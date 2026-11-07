@@ -22,7 +22,7 @@ import {
 import { createExecutor } from "../../dist/executors/pi/index.js";
 import { classifyPiFailure } from "../../dist/executors/pi/errors.js";
 import { piCapabilities } from "../../dist/executors/pi/executor.js";
-import { workflowTaskExecutorDescriptor } from "../../dist/core/task-backend.js";
+import { workflowTaskExecutorDescriptor } from "../../dist/core/task-runner.js";
 import { createStubCli } from "../../dist/sdk/conformance/index.js";
 import {
 	createAuthorityGate,

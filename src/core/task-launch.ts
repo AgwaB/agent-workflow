@@ -10,7 +10,7 @@ import type {
 	WorkflowToolResultBudgetConfigurationSource,
 } from "./types.js";
 
-export type BackendLaunchResult =
+export type TaskLaunchResult =
 	| { kind: "launched" }
 	| { kind: "capacity"; message: string; retryAfterMs?: number }
 	| { kind: "fatal"; message: string };
@@ -39,8 +39,7 @@ export interface PreparedWorkflowTaskLaunch {
 	authority?: WorkflowLaunchAuthorityGrant;
 }
 
-export interface WorkflowBackend {
-	readonly id: string;
+export interface WorkflowTaskRunner {
 	refreshRun(cwd: string, run: WorkflowRunRecord): Promise<WorkflowRunRecord>;
 	prepareTaskLaunch(
 		cwd: string,
@@ -56,39 +55,27 @@ export interface WorkflowBackend {
 		leaseSignal?: AbortSignal,
 		workflowStopSignal?: AbortSignal,
 		preparedLaunch?: PreparedWorkflowTaskLaunch,
-	): Promise<BackendLaunchResult>;
+	): Promise<TaskLaunchResult>;
 	cleanupRun(cwd: string, run: WorkflowRunRecord): Promise<void>;
 }
 
-type WorkflowBackendKey =
-	`${WorkflowRunRecord["backend"]["type"]}/${WorkflowRunRecord["backend"]["mode"]}`;
-
-const backends = new Map<WorkflowBackendKey, WorkflowBackend>();
+let activeRunner: WorkflowTaskRunner | undefined;
 
 /**
- * Register the backend that serves `run.backend` records of this type/mode.
- * The runtime-API backend registers `local/headless` here. Returns an unregister function.
+ * Install the task runner the engine launches, refreshes and cleans up tasks through (the runtime
+ * API runner registers itself; tests may swap in a fake). Returns a function that restores the
+ * previous runner.
  */
-export function registerWorkflowBackend(
-	backend: {
-		type: WorkflowRunRecord["backend"]["type"];
-		mode: WorkflowRunRecord["backend"]["mode"];
-	},
-	implementation: WorkflowBackend,
-): () => void {
-	const key: WorkflowBackendKey = `${backend.type}/${backend.mode}`;
-	backends.set(key, implementation);
+export function setWorkflowTaskRunner(runner: WorkflowTaskRunner): () => void {
+	const previous = activeRunner;
+	activeRunner = runner;
 	return () => {
-		if (backends.get(key) === implementation) backends.delete(key);
+		if (activeRunner === runner) activeRunner = previous;
 	};
 }
 
-export function resolveWorkflowBackend(
-	run: WorkflowRunRecord,
-): WorkflowBackend {
-	const backend = backends.get(`${run.backend.type}/${run.backend.mode}`);
-	if (backend !== undefined) return backend;
-	throw new Error(
-		`Unsupported workflow backend: ${run.backend.type}/${run.backend.mode}`,
-	);
+export function workflowTaskRunner(): WorkflowTaskRunner {
+	if (activeRunner === undefined)
+		throw new Error("no workflow task runner is registered");
+	return activeRunner;
 }

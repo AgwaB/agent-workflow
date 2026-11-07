@@ -75,7 +75,7 @@ test("the renderer leaves evidence locators, longer identifiers and rendered nam
 // tool by those names and reported SPEC.md "unavailable" without running a command.
 test("the renderer maps the enabled logical tool names for Codex and Claude, not for Pi", () => {
 	const systemPrompt = [
-		"You are workflow subagent 'scout'.",
+		"You are workflow worker 'scout'.",
 		"# Effective Tool Policy",
 		"Only these tools are enabled for this workflow task: read, grep, find, ls, workflow_artifact.",
 		"If the agent definition below mentions tools that are not in this enabled list, ignore those mentions; unavailable tools cannot be called in this workflow run.",
@@ -130,12 +130,12 @@ test("the renderer maps the enabled logical tool names for Codex and Claude, not
 	);
 });
 
-test("the task backend sends rendered prompts with the artifact guidelines and keeps canonical prompt files", async () => {
+test("the task runner sends rendered prompts with the artifact guidelines and keeps canonical prompt files", async () => {
 	const cwd = makeProject();
 	try {
 		const launched = [];
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(options);
 				return {
 					runId: "run_prompt_render",
@@ -143,13 +143,13 @@ test("the task backend sends rendered prompts with the artifact guidelines and k
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});

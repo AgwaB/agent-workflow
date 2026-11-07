@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import test from "node:test";
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
 import { waitAction } from "../../dist/hosts/api.js";
-import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
+import { setWorkerLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import { dashboardProject } from "../helpers/dashboard-project.mjs";
 import {
 	dashboardDiscoveryPath,
@@ -21,7 +21,7 @@ import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.
 setDashboardStartBudgetForTests(15_000);
 
 let counter = 0;
-setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 async function project(t, overrides = {}) {
 	const fixture = await dashboardProject(t, "aw-wp43c-launch-");
 	const { cwd } = fixture;

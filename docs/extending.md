@@ -132,7 +132,7 @@ Run state (paths below are relative to `.agent-workflow/` inside the
 | `workflows/<run-id>/tasks/<task-id>/` | `task.md`, `system-prompt.md`, `control.json`, `analysis.md`, `refs.json`, `raw.md`, `read-ledger.jsonl`, `source-manifest.json`, `artifact-access.json`, `result.json`, logs, the task's launch-barrier directory |
 | `workflows/<run-id>/supervise.log` | Detached supervisor log (`--detach` only) |
 | `workflows/index.json` | Run index of the project |
-| `workflow-subagents/<run-id>/<task-id>/<runtime-run-id>/` | Runtime run of one task: `run.json`, `events.jsonl`, `attempts/<attempt-id>/` with `worker.json`, `executor.json`, `authority.json`, `control/`, `exec-events.jsonl`, raw CLI logs, `result.json` |
+| `worker-runs/<run-id>/<task-id>/<runtime-run-id>/` | Runtime run of one task: `run.json`, `events.jsonl`, `attempts/<attempt-id>/` with `worker.json`, `executor.json`, `authority.json`, `control/`, `exec-events.jsonl`, raw CLI logs, `result.json` |
 | `ocr-artifacts/` | deep-review OCR artifacts (trusted root) |
 
 Repository definitions stay in `<cwd>/workflows/`, `<cwd>/.agent-workflow/workflows/` (specs)

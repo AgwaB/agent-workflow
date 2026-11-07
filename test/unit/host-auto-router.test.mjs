@@ -34,7 +34,7 @@ const sessions = [];
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp38b-auto-router-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

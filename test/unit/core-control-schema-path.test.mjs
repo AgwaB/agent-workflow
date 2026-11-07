@@ -33,7 +33,7 @@ const unregister = [];
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp12a-schema-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -41,7 +41,7 @@ before(async () => {
 after(async () => {
 	await drainWorkflowProject(join(root, "project"));
 	for (const undo of unregister.splice(0)) undo();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,

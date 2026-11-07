@@ -101,7 +101,7 @@ export function recoverStaleRunningDynamicControllers(
 		task.lastMessage =
 			"recovered stale in-process dynamic controller after scheduler restart";
 		task.pid = undefined;
-		task.backendHandle = undefined;
+		task.workerHandle = undefined;
 		changed = true;
 	}
 	return changed;
@@ -122,7 +122,7 @@ export function recoverStaleRunningSupportTasks(
 				"failed closed: recovered stale in-process support helper after scheduler restart; helper side effects were not replayed",
 		});
 		task.pid = undefined;
-		task.backendHandle = undefined;
+		task.workerHandle = undefined;
 		changed = true;
 	}
 	return changed;
@@ -498,7 +498,7 @@ function assertPristinePendingForeachPlaceholder(
 		.some((path) => existsSync(fromStatePath(cwd, path)));
 	const hasPriorSideEffectEvidence =
 		task.launchToken !== undefined ||
-		task.backendHandle !== undefined ||
+		task.workerHandle !== undefined ||
 		task.pid !== undefined ||
 		task.startedAt !== undefined ||
 		task.completedAt !== undefined ||
@@ -508,7 +508,7 @@ function assertPristinePendingForeachPlaceholder(
 		task.toolResultBudget !== undefined ||
 		task.timing !== undefined ||
 		task.promptMetadata !== undefined ||
-		task.backendFiles !== undefined ||
+		task.workerFiles !== undefined ||
 		task.outputRetry !== undefined ||
 		task.launchRetry !== undefined ||
 		(task.resumeEvents?.length ?? 0) > 0 ||
@@ -1680,7 +1680,7 @@ export function markFailFastCancellations(
 		if (wasRunning) {
 			task.statusDetail = "cancellation_pending";
 			task.lastMessage =
-				"awaiting backend fail-fast cancellation acknowledgement";
+				"awaiting worker fail-fast cancellation acknowledgement";
 			cancelledTaskIds.push(task.taskId);
 			interruptedTaskIds.push(task.taskId);
 			continue;

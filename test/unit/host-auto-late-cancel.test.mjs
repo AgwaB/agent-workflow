@@ -30,7 +30,7 @@ before(async () => {
 	root = await realpath(
 		await mkdtemp(join(tmpdir(), "aw-wp42-auto-late-cancel-")),
 	);
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

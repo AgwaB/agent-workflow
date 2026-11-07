@@ -24,7 +24,7 @@ import { defaultAttemptKey, type RuntimeRunInput } from "./request.js";
 import {
 	MAX_PARALLEL_TASKS,
 	mergeTaskInput,
-	SubagentToolAuthorityError,
+	WorkerToolAuthorityError,
 	type ParallelRunResult,
 } from "./run.js";
 import { executionMode, parallelConcurrency } from "./run-options.js";
@@ -32,7 +32,7 @@ import { writeRunLocator } from "./run-ref.js";
 import { readRunResult, waitForRun } from "./status.js";
 import { DURABLE_WORKER_REQUEST_ENV, splitEnvValues } from "./env-values.js";
 
-export interface StartAsyncSubagentRunOptions {
+export interface StartAsyncWorkerRunOptions {
 	input: RuntimeRunInput;
 	cwd: string;
 	signal?: AbortSignal;
@@ -49,7 +49,7 @@ function sandboxEnabled(input: RuntimeRunInput): boolean {
 }
 
 function armCompletionMonitor(
-	options: StartAsyncSubagentRunOptions & {
+	options: StartAsyncWorkerRunOptions & {
 		runId: string;
 		attemptId: string;
 		mode: ExecutionMode;
@@ -96,23 +96,23 @@ export function durableWorkerPath(): string {
 	);
 }
 
-export async function startAsyncParallelSubagentRuns(
+export async function startAsyncParallelWorkerRuns(
 	input: RuntimeRunInput,
 	cwd: string,
 	signal?: AbortSignal,
-	onComplete?: StartAsyncSubagentRunOptions["onComplete"],
+	onComplete?: StartAsyncWorkerRunOptions["onComplete"],
 ): Promise<ParallelRunResult> {
 	if (!input.tasks || input.tasks.length === 0)
-		throw new SubagentToolAuthorityError(
+		throw new WorkerToolAuthorityError(
 			"parallel mode requires a non-empty tasks array.",
 		);
 	if (input.tasks.length > MAX_PARALLEL_TASKS)
-		throw new SubagentToolAuthorityError(
+		throw new WorkerToolAuthorityError(
 			`too many parallel tasks (${input.tasks.length}); max is ${MAX_PARALLEL_TASKS}.`,
 		);
 	for (const [index, task] of input.tasks.entries()) {
 		if (task.task === undefined)
-			throw new SubagentToolAuthorityError(
+			throw new WorkerToolAuthorityError(
 				`parallel tasks[${index}] requires a non-empty task.`,
 			);
 	}
@@ -124,7 +124,7 @@ export async function startAsyncParallelSubagentRuns(
 		};
 		const problems = validateExecutorDescriptor(taskInput.executor);
 		if (problems.length > 0)
-			throw new SubagentToolAuthorityError(
+			throw new WorkerToolAuthorityError(
 				`parallel tasks[${index}] executor is invalid: ${problems.join("; ")}`,
 			);
 		return { index, taskInput };
@@ -139,7 +139,7 @@ export async function startAsyncParallelSubagentRuns(
 			nextIndex += 1;
 			const plan = taskPlans[index];
 			if (plan === undefined) return;
-			results[plan.index] = await startAsyncSubagentRun({
+			results[plan.index] = await startAsyncWorkerRun({
 				input: plan.taskInput,
 				cwd: plan.taskInput.cwd ?? cwd,
 				signal,
@@ -186,18 +186,18 @@ export async function startAsyncParallelSubagentRuns(
 	};
 }
 
-export async function startAsyncSubagentRun(
-	options: StartAsyncSubagentRunOptions,
+export async function startAsyncWorkerRun(
+	options: StartAsyncWorkerRunOptions,
 ): Promise<ResultEnvelope> {
 	const input = options.input;
-	const backend = input.executor.id;
+	const executorId = input.executor.id;
 	const startedAt = new Date();
 	const runId = options.runId ?? createRunId(startedAt);
 	const attemptId = options.attemptId ?? createAttemptId(startedAt);
 	const mode = executionMode(input);
 	if (mode === "parallel") {
-		throw new SubagentToolAuthorityError(
-			"startAsyncSubagentRun handles one run; use startAsyncParallelSubagentRuns for parallel inputs.",
+		throw new WorkerToolAuthorityError(
+			"startAsyncWorkerRun handles one run; use startAsyncParallelWorkerRuns for parallel inputs.",
 		);
 	}
 	const dependency = input.asyncDependency ?? "unclassified";
@@ -221,7 +221,7 @@ export async function startAsyncSubagentRun(
 			attemptKey: input.attemptKey ?? defaultAttemptKey(runId, attemptId),
 		},
 		cwd: options.cwd,
-		backend,
+		executorId,
 		executor,
 		runId,
 		attemptId,
@@ -230,7 +230,7 @@ export async function startAsyncSubagentRun(
 	const workerRef = store.refFor("worker", payload.bytes);
 
 	const running = await store.writeResult({
-		backend,
+		executorId,
 		status: "running",
 		failureKind: null,
 		cwd: options.cwd,
@@ -251,7 +251,7 @@ export async function startAsyncSubagentRun(
 		runId,
 		attemptId,
 		status: "running",
-		backend,
+		executorId,
 		startedAt,
 		artifactCwd: options.cwd,
 		resultPath: running.artifacts.find((artifact) => artifact.type === "result")
@@ -265,7 +265,7 @@ export async function startAsyncSubagentRun(
 		runsDir: input.runsDir,
 		runId,
 		mode,
-		backend,
+		executorId,
 		startedAt,
 		dependency,
 		correlationId: input.correlationId,

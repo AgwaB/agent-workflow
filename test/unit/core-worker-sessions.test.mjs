@@ -26,14 +26,14 @@ const unregister = [];
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp12a-sessions-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
 });
 after(async () => {
 	for (const undo of unregister.splice(0)) undo();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	// Durable workers/finalizers may still be closing files: retry like host-cli.test.mjs.
 	await rm(root, {
 		recursive: true,
@@ -192,8 +192,8 @@ function syntheticRun(descriptor, statuses) {
 					executorId: descriptor.id,
 					kind: "wf-fake-session",
 					locator: `session-${index + 1}`,
-					backendRunId: `sa-${index + 1}`,
-					backendAttemptId: "attempt-1",
+					workerRunId: `sa-${index + 1}`,
+					workerAttemptId: "attempt-1",
 					recordedAt: new Date(0).toISOString(),
 				},
 			],
@@ -294,7 +294,7 @@ test("resume still works: an interrupted run resumes with a fresh attempt and re
 	register({ id: "wf-s-resume", effectLog, ownSessions: "always" });
 	const runId = "wp12a-resume-run";
 	let stopRequested = false;
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 		beforeDurableBarrierRelease: async () => {
@@ -315,7 +315,7 @@ test("resume still works: an interrupted run resumes with a fresh attempt and re
 		assert.equal(stopRequested, true);
 		assert.notEqual(stopped.status, "completed");
 	} finally {
-		slots.setSubagentLaunchControlsForTests({
+		slots.setWorkerLaunchControlsForTests({
 			releaseDelayMs: 0,
 			retryJitterMs: 0,
 		});

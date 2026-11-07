@@ -20,14 +20,14 @@ const unregister = [];
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp12a-stop-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
 });
 after(async () => {
 	for (const undo of unregister.splice(0)) undo();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	// Durable workers/finalizers may still be closing files: retry like host-cli.test.mjs.
 	await rm(root, {
 		recursive: true,

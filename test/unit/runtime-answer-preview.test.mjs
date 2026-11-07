@@ -20,7 +20,7 @@ test("answer-preview", async () => {
 		);
 		const result = await store.writeResult({
 			cwd,
-			backend: "headless",
+			executorId: "headless",
 			status: "completed",
 			artifacts: [output],
 		});

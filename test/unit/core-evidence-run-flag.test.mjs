@@ -32,7 +32,7 @@ const unregister = [];
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-evidence-flag-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -48,7 +48,7 @@ before(async () => {
 });
 after(async () => {
 	for (const undo of unregister.splice(0)) undo();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	delete process.env[EVIDENCE_REFETCH_ENV];
 	await rm(root, {
 		recursive: true,

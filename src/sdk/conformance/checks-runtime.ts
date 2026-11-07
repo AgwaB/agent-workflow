@@ -101,7 +101,7 @@ async function execEvents(run: RunHandle): Promise<ExecEvent[]> {
 	}
 }
 
-type RunOptions = Parameters<Runtime["runSubagent"]>[0];
+type RunOptions = Parameters<Runtime["runWorker"]>[0];
 
 function runInput(
 	stage: RuntimeStage,
@@ -130,7 +130,7 @@ async function startRun(
 ): Promise<RunHandle> {
 	const cwd = await ctx.dir(label);
 	const attemptKey = ctx.key(label);
-	const started = (await rt.runSubagent(
+	const started = (await rt.runWorker(
 		runInput(stage, cwd, attemptKey, extra),
 	)) as { runId: string; attemptId: string };
 	return {
@@ -156,8 +156,8 @@ async function launchFromExitedProcess(
 		[
 			"--input-type=module",
 			"-e",
-			`const { runSubagent } = await import(${JSON.stringify(runtimeUrl)});
-const run = await runSubagent(${JSON.stringify(input)});
+			`const { runWorker } = await import(${JSON.stringify(runtimeUrl)});
+const run = await runWorker(${JSON.stringify(input)});
 process.stdout.write(JSON.stringify({ runId: run.runId, attemptId: run.attemptId, pid: process.pid }));`,
 		],
 		{ stdio: ["ignore", "pipe", "pipe"], env: process.env },
@@ -216,7 +216,7 @@ async function settle(
 	ctx: CheckContext,
 	run: RunHandle,
 ): Promise<Settled | undefined> {
-	const waited = await rt.waitForSubagent({
+	const waited = await rt.waitForWorker({
 		cwd: run.cwd,
 		runId: run.runId,
 		attemptId: run.attemptId,
@@ -369,7 +369,7 @@ async function durableAuthority(ctx: CheckContext) {
 				(await slow.effectCount(killed.attemptKey)) === 0
 			)
 				await sleep(20);
-			const status = await rt.getSubagentStatus({
+			const status = await rt.getWorkerStatus({
 				cwd: killed.cwd,
 				runId: killed.runId,
 			});
@@ -393,7 +393,7 @@ async function durableAuthority(ctx: CheckContext) {
 				const goneBy = Date.now() + ctx.timeouts.callMs;
 				while (Date.now() < goneBy && !processGone(attempt?.workerPid ?? group))
 					await sleep(20);
-				const reconciled = await rt.reconcileSubagentRun({
+				const reconciled = await rt.reconcileWorkerRun({
 					cwd: killed.cwd,
 					runId: killed.runId,
 					staleAfterMs: 1,
@@ -413,7 +413,7 @@ async function durableAuthority(ctx: CheckContext) {
 					violations.push(
 						`kill: reconcile ${reconciled.status}, expected marked-needs-decision (adoption off)`,
 					);
-				const again = await rt.reconcileSubagentRun({
+				const again = await rt.reconcileWorkerRun({
 					cwd: killed.cwd,
 					runId: killed.runId,
 					staleAfterMs: 1,

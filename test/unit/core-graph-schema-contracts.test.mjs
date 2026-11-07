@@ -87,7 +87,7 @@ for (const depth of [1, 2]) {
 			await writeRunRecord(cwd, run);
 			const launches = [];
 			setTaskRuntimeApiForTests({
-				async runSubagent(options) {
+				async runWorker(options) {
 					launches.push(options);
 					return {
 						runId: `run_graph_${depth}_${launches.length}`,
@@ -95,13 +95,13 @@ for (const depth of [1, 2]) {
 						status: "running",
 					};
 				},
-				async getSubagentStatus() {
+				async getWorkerStatus() {
 					return null;
 				},
-				async reconcileSubagentRun() {
+				async reconcileWorkerRun() {
 					return {};
 				},
-				async interruptSubagent() {
+				async interruptWorker() {
 					return {};
 				},
 			});
@@ -207,16 +207,16 @@ for (const [mode, name] of [
 				compiled,
 			);
 			setTaskRuntimeApiForTests({
-				async runSubagent() {
+				async runWorker() {
 					assert.fail("must not launch");
 				},
-				async getSubagentStatus() {
+				async getWorkerStatus() {
 					return null;
 				},
-				async reconcileSubagentRun() {
+				async reconcileWorkerRun() {
 					return {};
 				},
-				async interruptSubagent() {
+				async interruptWorker() {
 					return {};
 				},
 			});

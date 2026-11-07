@@ -5,13 +5,13 @@ import {
 	type WorkflowLaunchAuthorityGrant,
 } from "./types.js";
 import {
-	type SubagentApi,
-	type SubagentRunStatusSnapshot,
+	type WorkerApi,
+	type WorkerRunStatusSnapshot,
 } from "./runtime-port.js";
-import { type SubagentBackendHandle } from "./task-artifacts.js";
+import { type WorkerRunHandle } from "./task-artifacts.js";
 import {
 	abortSignalError,
-	awaitSubagentOperation,
+	awaitWorkerOperation,
 	combineAbortSignals,
 	throwIfLaunchStopped,
 } from "./launch-operations.js";
@@ -35,22 +35,21 @@ import {
 	type DurableLaunchBarrierReady,
 	type DurableLaunchBarrierResolution,
 	hasDurableLaunchBarrierApi,
-	loadSubagentApi,
+	loadWorkerApi,
 } from "./runtime-port.js";
 import { consumeRegisteredWorkflowLaunchAuthority } from "./launch-authority.js";
 import { workflowTaskSessionId } from "./launch-session.js";
 import { nowIso, writeRunRecordDurable } from "./store.js";
 import {
 	findLog,
-	getSubagentHandle,
+	getWorkerHandle,
 	safeArtifactPath,
-	makeSubagentHandle,
-	subagentRunsDir,
+	makeWorkerHandle,
+	workerRunsDir,
 	workflowTaskStateCwd,
 	timestampMs,
 } from "./task-artifacts.js";
-import { WORKFLOW_TASK_BACKEND_ID } from "./task-artifacts.js";
-import { acknowledgeSubagentTaskInterrupted } from "./task-cancellation.js";
+import { acknowledgeWorkerTaskInterrupted } from "./task-cancellation.js";
 import {
 	type WorkflowDurableLaunchBarrierRecord,
 	type WorkflowRunRecord,
@@ -65,10 +64,10 @@ function durableBarrierRecordForTask(
 	task: WorkflowTaskRunRecord,
 ): WorkflowDurableLaunchBarrierRecord | undefined {
 	const records = task.durableLaunchBarrier?.records ?? [];
-	const handle = getSubagentHandle(task);
+	const handle = getWorkerHandle(task);
 	return (
 		(handle
-			? records.find((record) => record.backendAttemptId === handle.attemptId)
+			? records.find((record) => record.workerAttemptId === handle.attemptId)
 			: undefined) ?? records.at(-1)
 	);
 }
@@ -153,7 +152,7 @@ export async function decideDurableBarrierCancellation(
 ): Promise<WorkflowDurableLaunchBarrierRecord | undefined> {
 	const record = durableBarrierRecordForTask(task);
 	if (!record || record.phase === "cancellation_acknowledged") return record;
-	const api = await loadSubagentApi();
+	const api = await loadWorkerApi();
 	if (!hasDurableLaunchBarrierApi(api))
 		throw new Error(
 			"the runtime API does not support durable launch barrier v2 cancellation",
@@ -183,13 +182,13 @@ export async function decideDurableBarrierCancellation(
 	} else {
 		if (
 			resolution.decision.kind !== "released" ||
-			(record.backendRunId !== undefined &&
-				resolution.decision.runId !== record.backendRunId) ||
-			(record.backendAttemptId !== undefined &&
-				resolution.decision.attemptId !== record.backendAttemptId)
+			(record.workerRunId !== undefined &&
+				resolution.decision.runId !== record.workerRunId) ||
+			(record.workerAttemptId !== undefined &&
+				resolution.decision.attemptId !== record.workerAttemptId)
 		)
 			throw new Error(
-				"durable launch barrier release winner does not match the persisted backend attempt",
+				"durable launch barrier release winner does not match the persisted worker attempt",
 			);
 		record.phase = "release_won_cancellation_pending";
 		record.releaseWinner = true;
@@ -228,14 +227,14 @@ export async function reconcileDurableLaunchBarrierTask(
 ): Promise<boolean> {
 	const record = durableBarrierRecordForTask(task);
 	if (!record) return false;
-	const api = await loadSubagentApi();
+	const api = await loadWorkerApi();
 	if (!hasDurableLaunchBarrierApi(api))
 		throw new Error(
 			"the runtime API cannot reconcile durable launch barrier v2",
 		);
 	const state = await api.readDurableLaunchBarrierV2State(record.descriptor);
 	let changed = false;
-	let handle = getSubagentHandle(task);
+	let handle = getWorkerHandle(task);
 	if (state.ready) {
 		const ready = state.ready;
 		if (
@@ -264,13 +263,13 @@ export async function reconcileDurableLaunchBarrierTask(
 			ready.executionPlanSha256,
 		);
 		assertRecoveredBarrierField(
-			"backend run id",
-			record.backendRunId,
+			"worker run id",
+			record.workerRunId,
 			ready.runId,
 		);
 		assertRecoveredBarrierField(
-			"backend attempt id",
-			record.backendAttemptId,
+			"worker attempt id",
+			record.workerAttemptId,
 			ready.attemptId,
 		);
 		if (
@@ -281,29 +280,28 @@ export async function reconcileDurableLaunchBarrierTask(
 				"durable launch barrier recovered handle does not match READY",
 			);
 		if (!handle) {
-			handle = makeSubagentHandle(
+			handle = makeWorkerHandle(
 				task,
 				ready.runId,
 				ready.attemptId,
-				subagentRunsDir(run, task),
+				workerRunsDir(run, task),
 				workflowTaskSessionId(run, task),
 				workflowTaskStateCwd(cwd, task),
 			);
-			task.backendHandle = handle;
-			task.backendTaskId = ready.runId;
+			task.workerHandle = handle;
+			task.workerTaskId = ready.runId;
 			changed = true;
 		}
 		record.readySha256 = ready.readySha256;
 		record.launchPayloadSha256 = ready.launchPayloadSha256;
 		record.executionPlanSha256 = ready.executionPlanSha256;
-		record.backendRunId = ready.runId;
-		record.backendAttemptId = ready.attemptId;
+		record.workerRunId = ready.runId;
+		record.workerAttemptId = ready.attemptId;
 		if (record.phase === "created") record.phase = "ready";
 		if (
 			consumeRegisteredWorkflowLaunchAuthority(
 				run,
 				task,
-				WORKFLOW_TASK_BACKEND_ID,
 				ready.runId,
 				ready.attemptId,
 			)
@@ -398,7 +396,7 @@ export async function reconcileDurableLaunchBarrierTask(
 		cancellationPending ||
 		(state.ack === undefined && barrierRecoveryIsStale(task, record.descriptor))
 	) {
-		await acknowledgeSubagentTaskInterrupted(
+		await acknowledgeWorkerTaskInterrupted(
 			cwd,
 			run,
 			task,
@@ -418,7 +416,7 @@ export async function reconcileDurableLaunchBarrierTaskForTests(
 }
 
 /**
- * Engine side of the durable launch barrier V2, step 1 (subagent-backend.ts 3087-3144): create
+ * Engine side of the durable launch barrier V2, step 1 (worker-worker.ts 3087-3144): create
  * the barrier for this launch authority, or resume the persisted one after a restart, and record
  * it durably before the worker is spawned.
  */
@@ -533,8 +531,8 @@ function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
 }
 
 async function attemptStderrExcerpt(
-	snapshot: SubagentRunStatusSnapshot,
-	handle: SubagentBackendHandle,
+	snapshot: WorkerRunStatusSnapshot,
+	handle: WorkerRunHandle,
 ): Promise<string> {
 	const log = findLog(snapshot, "stderr");
 	if (log === undefined) return "";
@@ -557,9 +555,9 @@ async function attemptStderrExcerpt(
  * refusal has no effects and produces a terminal not-started result, not a barrier timeout.
  */
 async function waitForReadyUnlessWorkerEnded(
-	launchApi: SubagentApi & DurableLaunchBarrierApi,
+	launchApi: WorkerApi & DurableLaunchBarrierApi,
 	descriptor: DurableLaunchBarrierDescriptor,
-	handle: SubagentBackendHandle,
+	handle: WorkerRunHandle,
 	launched: { runId: string; attemptId: string },
 ): Promise<DurableLaunchBarrierReady> {
 	const stop = new AbortController();
@@ -573,7 +571,7 @@ async function waitForReadyUnlessWorkerEnded(
 			await abortableSleep(PRE_READY_WORKER_POLL_MS, stop.signal);
 			if (stop.signal.aborted) return;
 			const snapshot = await launchApi
-				.getSubagentStatus({
+				.getWorkerStatus({
 					cwd: handle.cwd,
 					runsDir: handle.runsDir,
 					runId: launched.runId,
@@ -607,7 +605,7 @@ async function waitForReadyUnlessWorkerEnded(
 }
 
 /**
- * Engine side of the durable launch barrier V2, step 2 (subagent-backend.ts 3322-3573): after the
+ * Engine side of the durable launch barrier V2, step 2 (worker-worker.ts 3322-3573): after the
  * runtime returned the provisional worker handle, wait for READY, validate it against the
  * authorized launch, consume the launch authority, then release (or revoke on stop / lease loss)
  * with one decision, and wait for the worker ACK. Any failure revokes/interrupts the provisional
@@ -617,9 +615,9 @@ export async function settleDurableLaunchBarrier(options: {
 	cwd: string;
 	run: WorkflowRunRecord;
 	task: WorkflowTaskRunRecord;
-	handle: SubagentBackendHandle;
+	handle: WorkerRunHandle;
 	launched: { runId: string; attemptId: string };
-	launchApi: SubagentApi | undefined;
+	launchApi: WorkerApi | undefined;
 	descriptor: DurableLaunchBarrierDescriptor;
 	record: WorkflowDurableLaunchBarrierRecord | undefined;
 	launchAuthority: WorkflowLaunchAuthorityGrant;
@@ -643,10 +641,10 @@ export async function settleDurableLaunchBarrier(options: {
 	} = options;
 	const durableBarrierDescriptor = options.descriptor;
 	const durableBarrierRecord = options.record;
-	task.backendHandle = handle;
-	task.backendTaskId = launched.runId;
+	task.workerHandle = handle;
+	task.workerTaskId = launched.runId;
 	task.statusDetail = "launch_barrier_pending";
-	task.lastMessage = "backend handle recorded; awaiting durable launch barrier";
+	task.lastMessage = "worker handle recorded; awaiting durable launch barrier";
 	const launchAbortSignal = combineAbortSignals(
 		leaseSignal,
 		workflowStopSignal,
@@ -656,7 +654,7 @@ export async function settleDurableLaunchBarrier(options: {
 		if (launchApi === undefined || !hasDurableLaunchBarrierApi(launchApi)) {
 			throw new Error("durable launch barrier API became unavailable");
 		}
-		const ready = await awaitSubagentOperation(
+		const ready = await awaitWorkerOperation(
 			() =>
 				waitForReadyUnlessWorkerEnded(
 					launchApi,
@@ -694,8 +692,8 @@ export async function settleDurableLaunchBarrier(options: {
 		durableBarrierRecord.readySha256 = ready.readySha256;
 		durableBarrierRecord.launchPayloadSha256 = ready.launchPayloadSha256;
 		durableBarrierRecord.executionPlanSha256 = ready.executionPlanSha256;
-		durableBarrierRecord.backendRunId = launched.runId;
-		durableBarrierRecord.backendAttemptId = launched.attemptId;
+		durableBarrierRecord.workerRunId = launched.runId;
+		durableBarrierRecord.workerAttemptId = launched.attemptId;
 		consumeWorkflowLaunchAuthority(
 			task,
 			launchAuthority,
@@ -709,8 +707,8 @@ export async function settleDurableLaunchBarrier(options: {
 			attemptKey: launchAuthority.attemptKey,
 			launchAuthoritySha256: launchAuthority.identitySha256,
 			launchBootstrapSha256: launchAuthority.launchBootstrapSha256,
-			backendRunId: launched.runId,
-			backendAttemptId: launched.attemptId,
+			workerRunId: launched.runId,
+			workerAttemptId: launched.attemptId,
 			readySha256: ready.readySha256,
 			launchPayloadSha256: ready.launchPayloadSha256,
 			executionPlanSha256: ready.executionPlanSha256,
@@ -840,7 +838,7 @@ export async function settleDurableLaunchBarrier(options: {
 		if (launchAbortSignal?.aborted) throw abortSignalError(launchAbortSignal);
 		await beforeDurableBarrierAckWaitHookForTests?.();
 		await throwIfLaunchStopped(cwd, run.runId, leaseSignal, workflowStopSignal);
-		const ack = await awaitSubagentOperation(
+		const ack = await awaitWorkerOperation(
 			() =>
 				launchApi.waitForDurableLaunchBarrierV2Ack(
 					durableBarrierDescriptor,
@@ -885,7 +883,7 @@ export async function settleDurableLaunchBarrier(options: {
 		await writeRunRecordDurable(cwd, run).catch(() => undefined);
 		let interruptionError: unknown;
 		try {
-			await acknowledgeSubagentTaskInterrupted(
+			await acknowledgeWorkerTaskInterrupted(
 				cwd,
 				run,
 				task,

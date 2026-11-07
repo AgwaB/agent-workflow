@@ -1,7 +1,7 @@
 // New in agent-workflow (WP5, R#9): launch spec with the client's MCP output limit. The core spec
 // (`artifactMcpServerSpec`) stays `[entry, "--config", path]`; the limit travels as a flag because
 // the config file is digested byte-for-byte by launch provenance and admits no extra keys.
-// WP5b: the flag logic moved to core (`withArtifactMcpOutputLimit`), which the task backend uses.
+// WP5b: the flag logic moved to core (`withArtifactMcpOutputLimit`), which the task runner uses.
 import {
 	ARTIFACT_MCP_OUTPUT_LIMIT_FLAG,
 	type ArtifactAccessConfig,

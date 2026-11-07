@@ -73,7 +73,7 @@ function writeNamedSupportWorkflow(cwd, markerPath) {
 /** The fake runtime API: any provider action is a cancellation-fence violation. */
 function installRuntimeApi(calls) {
 	setTaskRuntimeApiForTests({
-		async runSubagent() {
+		async runWorker() {
 			calls.execution += 1;
 			throw new Error("a cancelled launch must not create a provider action");
 		},

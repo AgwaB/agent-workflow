@@ -17,12 +17,12 @@ import { after, before, test } from "node:test";
 import { promisify } from "node:util";
 import {
 	createDurableLaunchBarrierV2,
-	getSubagentStatus,
+	getWorkerStatus,
 	readRunEvents,
 	readRunRecord,
 	revokeDurableLaunchBarrierV2,
-	runSubagent,
-	waitForSubagent,
+	runWorker,
+	waitForWorker,
 } from "../../dist/runtime/index.js";
 import {
 	fixtureDescriptor,
@@ -117,7 +117,7 @@ async function waitForTerminalEvents(cwd, run, status, timeoutMs = 15_000) {
 }
 
 async function assertTerminal(cwd, run, status, failureKind) {
-	const waited = await waitForSubagent({
+	const waited = await waitForWorker({
 		cwd,
 		runId: run.runId,
 		attemptId: run.attemptId,
@@ -143,7 +143,7 @@ async function assertTerminal(cwd, run, status, failureKind) {
 	);
 	assert.equal(attempt.status, status);
 	assert.equal(attempt.failureKind, failureKind);
-	const snapshot = await getSubagentStatus({ cwd, runId: run.runId });
+	const snapshot = await getWorkerStatus({ cwd, runId: run.runId });
 	assert.equal(snapshot.status, status);
 	assert.equal(snapshot.failureKind, failureKind);
 	return result;
@@ -158,7 +158,7 @@ test("pre-release guard failure (barrier timeout) → failed/guard_failure, term
 		timeoutMs: 2_000,
 		pollIntervalMs: 5,
 	});
-	const run = await runSubagent({
+	const run = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({ effectLog }),
 		task: "must never run",
@@ -205,7 +205,7 @@ test("pre-release engine revoke → cancelled/revoked, terminal result, inactive
 		reasonSha256: sha256("workflow stopped"),
 	});
 	assert.equal(revoked.outcome, "revoked");
-	const run = await runSubagent({
+	const run = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({ effectLog }),
 		task: "must never run",

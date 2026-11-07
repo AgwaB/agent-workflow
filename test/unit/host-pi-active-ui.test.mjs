@@ -32,7 +32,7 @@ const SPEC = {
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp33-active-ui-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

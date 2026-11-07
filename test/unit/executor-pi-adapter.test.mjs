@@ -110,7 +110,7 @@ test("buildPiArgv: isolation flags, sessions, system prompt, model/thinking, too
 		"--print",
 		"--no-session",
 		"--exclude-tools",
-		"subagent",
+		"worker",
 		"--no-context-files",
 		"--no-extensions",
 		"--no-skills",
@@ -145,7 +145,7 @@ test("buildPiArgv: isolation flags, sessions, system prompt, model/thinking, too
 		"--session-id",
 		"x",
 		"--exclude-tools",
-		"subagent",
+		"worker",
 		"--no-tools",
 	]);
 	const resume = buildPiArgv({
@@ -578,13 +578,13 @@ test("durable binding env: agent-workflow name always, no pi-subagent alias even
 		isolated.envKeys.includes("AGENT_WORKFLOW_DURABLE_WORKER_BINDING_JSON"),
 	);
 	assert.ok(
-		!isolated.envKeys.includes("PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON"),
+		!isolated.envKeys.includes("PI_WORKER_DURABLE_WORKER_BINDING_JSON"),
 	);
 	assert.ok(
 		inherited.envKeys.includes("AGENT_WORKFLOW_DURABLE_WORKER_BINDING_JSON"),
 	);
 	assert.ok(
-		!inherited.envKeys.includes("PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON"),
+		!inherited.envKeys.includes("PI_WORKER_DURABLE_WORKER_BINDING_JSON"),
 	);
 	assert.ok(
 		!inherited.argv.includes("--no-extensions") &&

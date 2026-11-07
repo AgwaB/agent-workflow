@@ -4,7 +4,7 @@ import { stateBase, ensureStateBase } from "../core/state-location.js";
 // Run records live in the workspace and can be tampered with, so a path from them is trusted only
 // when it is a relative path without traversal and its canonical (symlink-resolved) target is
 // inside the project's canonical artifact root, `<cwd>/.agent-workflow` (run dirs and the
-// `workflow-subagents/` attempt dirs live there). Absolute paths, `..` segments and symlink
+// `worker-runs/` attempt dirs live there). Absolute paths, `..` segments and symlink
 // escapes (a symlinked attempt dir or log file pointing elsewhere) are refused with a reason.
 import { lstat, mkdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep, win32 } from "node:path";

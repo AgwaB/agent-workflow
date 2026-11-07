@@ -9,7 +9,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
-import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
+import { setWorkerLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import { dashboardProject } from "../helpers/dashboard-project.mjs";
 import { runAgentWorkflowCli } from "../../dist/hosts/cli/index.js";
 import {
@@ -23,7 +23,7 @@ import { setDashboardStartBudgetForTests } from "../../dist/hosts/dashboard/disc
 // and the link, not how fast a loaded machine (the whole suite in parallel) boots Node.
 setDashboardStartBudgetForTests(15_000);
 
-setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 let counter = 0;
 
 async function project(t) {

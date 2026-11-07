@@ -43,8 +43,8 @@ import {
 	writeRunRecord,
 } from "../../dist/core/store.js";
 import {
-	registerWorkflowBackend,
-	resolveWorkflowBackend,
+	setWorkflowTaskRunner,
+	workflowTaskRunner,
 } from "../../dist/core/task-launch.js";
 import {
 	applyWorkflowToolPolicy,
@@ -455,24 +455,16 @@ test("artifact access: canonical config, MCP server spec, and provenance digests
 		run,
 		task,
 		prepared,
-		"unit",
 		launch,
 	);
-	assert.deepEqual(record.backend, {
-		id: "unit",
-		type: "local",
-		mode: "headless",
-	});
-	const { identitySha256: _identity, ...retiredRecord } = record;
-	retiredRecord.backend = {
-		...record.backend,
-		type: ["local", "pi"].join("-"),
-	};
+	// The provenance names no launcher identity; an unknown key makes a record malformed.
+	const { identitySha256: _identity, ...base } = record;
+	const extended = { ...base, launcher: "unit" };
 	assert.throws(
 		() =>
 			recordLaunchBootstrapProvenance(
 				{},
-				{ ...retiredRecord, identitySha256: sha256Canonical(retiredRecord) },
+				{ ...extended, identitySha256: sha256Canonical(extended) },
 			),
 		/launch-bootstrap provenance is malformed/,
 	);
@@ -497,25 +489,23 @@ test("artifact access: canonical config, MCP server spec, and provenance digests
 		),
 	);
 	await assert.rejects(
-		createLaunchBootstrapProvenance(cwd, run, task, prepared, "unit", launch),
+		createLaunchBootstrapProvenance(cwd, run, task, prepared, launch),
 		/artifact access binding is invalid/,
 	);
 });
 
-test("task-launch: backends are registered by WP4c, not hard-wired to pi-subagent", () => {
-	const run = { backend: { type: "local", mode: "headless" } };
-	assert.throws(
-		() => resolveWorkflowBackend(run),
-		/Unsupported workflow backend: local\/headless/,
+test("task-launch: the engine launches through the installed task runner", async () => {
+	const { ensureRuntimeTaskRunnerRegistered, runtimeTaskRunner } = await import(
+		"../../dist/core/task-runner.js"
 	);
-	const backend = { id: "unit" };
-	const unregister = registerWorkflowBackend(run.backend, backend);
-	assert.equal(resolveWorkflowBackend(run), backend);
-	unregister();
-	assert.throws(
-		() => resolveWorkflowBackend(run),
-		/Unsupported workflow backend/,
-	);
+	ensureRuntimeTaskRunnerRegistered();
+	const runtimeRunner = workflowTaskRunner();
+	assert.equal(runtimeRunner, runtimeTaskRunner);
+	const fake = { refreshRun: async (_cwd, run) => run };
+	const restore = setWorkflowTaskRunner(fake);
+	assert.equal(workflowTaskRunner(), fake);
+	restore();
+	assert.equal(workflowTaskRunner(), runtimeRunner);
 });
 
 test("fast-tier: pure config resolution for capability fastTier", () => {

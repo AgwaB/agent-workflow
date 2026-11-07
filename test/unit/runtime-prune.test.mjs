@@ -23,7 +23,7 @@ test("prune", async () => {
 	const { readRunLocator, writeRunLocator } = await import(
 		"../../dist/runtime/orchestrate/run-ref.js"
 	);
-	const { formatPruneSubagentRunsSummary, pruneSubagentRuns } = await import(
+	const { formatPruneWorkerRunsSummary, pruneWorkerRuns } = await import(
 		"../../dist/runtime/orchestrate/prune.js"
 	);
 	const runtime = await import("../../dist/runtime/index.js");
@@ -46,7 +46,7 @@ test("prune", async () => {
 			cwd,
 			runId,
 			mode: "single",
-			backend: "headless",
+			executorId: "headless",
 			startedAt,
 			attempts: [],
 		});
@@ -55,7 +55,7 @@ test("prune", async () => {
 			runId,
 			attemptId: "attempt-1",
 			status: activeAttempt ? "running" : status,
-			backend: "headless",
+			executorId: "headless",
 			failureKind: status === "failed" ? "model" : null,
 			startedAt,
 			completedAt: activeAttempt ? null : completedAt,
@@ -107,7 +107,7 @@ test("prune", async () => {
 		});
 
 		// 1. Dry run with keep=2 selects the five oldest terminal runs and deletes nothing.
-		const dry = await pruneSubagentRuns({ cwd, keep: 2, now });
+		const dry = await pruneWorkerRuns({ cwd, keep: 2, now });
 		assert.equal(dry.status, "dry-run");
 		assert.equal(dry.scanned, 9);
 		assert.equal(dry.terminal, 7);
@@ -128,12 +128,12 @@ test("prune", async () => {
 			9,
 			"dry run deletes nothing",
 		);
-		const text = formatPruneSubagentRunsSummary(dry);
+		const text = formatPruneWorkerRunsSummary(dry);
 		assert.match(text, /dry run/u);
 		assert.match(text, /Re-run with yes: true/u);
 
 		// 2. olderThanDays narrows the selection within the beyond-keep set.
-		const aged = await pruneSubagentRuns({
+		const aged = await pruneWorkerRuns({
 			cwd,
 			keep: 2,
 			olderThanDays: 30,
@@ -146,24 +146,24 @@ test("prune", async () => {
 
 		// 3. Validation.
 		await assert.rejects(
-			pruneSubagentRuns({ cwd, keep: -1 }),
+			pruneWorkerRuns({ cwd, keep: -1 }),
 			/keep must be a non-negative integer/u,
 		);
 		await assert.rejects(
-			pruneSubagentRuns({ cwd, keep: 1.5 }),
+			pruneWorkerRuns({ cwd, keep: 1.5 }),
 			/keep must be a non-negative integer/u,
 		);
 		await assert.rejects(
-			pruneSubagentRuns({ cwd, olderThanDays: -1 }),
+			pruneWorkerRuns({ cwd, olderThanDays: -1 }),
 			/olderThanDays must be a non-negative number/u,
 		);
 		await assert.rejects(
-			pruneSubagentRuns({ cwd, runsDir: "../outside" }),
+			pruneWorkerRuns({ cwd, runsDir: "../outside" }),
 			/runsDir must be inside cwd/u,
 		);
 
 		// 4. Deletion removes the run directories and only locators owned by this cwd/runsDir.
-		const pruned = await pruneSubagentRuns({
+		const pruned = await pruneWorkerRuns({
 			cwd,
 			keep: 2,
 			olderThanDays: 30,
@@ -204,12 +204,12 @@ test("prune", async () => {
 		await stat(join(cwd, ".agent-workflow/runs", "run_active"));
 		await stat(join(cwd, ".agent-workflow/runs", "run_unreadable"));
 		assert.match(
-			formatPruneSubagentRunsSummary(pruned),
+			formatPruneWorkerRunsSummary(pruned),
 			/Deleted: 3 run\(s\), \d+ bytes/u,
 		);
 
 		// Assert runtime selections directly: keep 0 dry run, then keep 0 with yes.
-		const toolDry = await pruneSubagentRuns({ cwd, keep: 0 });
+		const toolDry = await pruneWorkerRuns({ cwd, keep: 0 });
 		assert.equal(toolDry.status, "dry-run");
 		assert.deepEqual(toolDry.selected.map((run) => run.runId).sort(), [
 			"run_t0",
@@ -223,10 +223,10 @@ test("prune", async () => {
 			"dry run deletes nothing",
 		);
 		await assert.rejects(
-			pruneSubagentRuns({ cwd, keep: -1 }),
+			pruneWorkerRuns({ cwd, keep: -1 }),
 			/keep must be a non-negative integer/u,
 		);
-		const toolYes = await pruneSubagentRuns({ cwd, keep: 0, yes: true });
+		const toolYes = await pruneWorkerRuns({ cwd, keep: 0, yes: true });
 		assert.equal(toolYes.status, "pruned");
 		assert.deepEqual(toolYes.deletedRunIds.sort(), [
 			"run_t0",
@@ -239,7 +239,7 @@ test("prune", async () => {
 			"run_active,run_unreadable",
 		);
 
-		// 6. [dropped] /subagent prune slash-command parsing and handler live in the
+		// 6. [dropped] /worker prune slash-command parsing and handler live in the
 		// Pi extension entry point (src/index.ts), which is not ported.
 
 		// 7. Symlinked runs roots are refused; symlinked run entries are skipped.
@@ -253,7 +253,7 @@ test("prune", async () => {
 				schemaVersion: 2,
 				runId: "run_victim",
 				mode: "single",
-				backend: "headless",
+				executorId: "headless",
 				status: "completed",
 				startedAt: "2026-01-01T00:00:00.000Z",
 				updatedAt: "2026-01-01T00:00:00.000Z",
@@ -268,7 +268,7 @@ test("prune", async () => {
 		await mkdir(join(linkedCwd, ".agent-workflow"), { recursive: true });
 		await symlink(outside, join(linkedCwd, ".agent-workflow", "runs"));
 		await assert.rejects(
-			pruneSubagentRuns({ cwd: linkedCwd, keep: 0, yes: true }),
+			pruneWorkerRuns({ cwd: linkedCwd, keep: 0, yes: true }),
 			/refusing to prune through a symlink/u,
 			"a symlinked runs root must not be followed",
 		);
@@ -283,7 +283,7 @@ test("prune", async () => {
 			join(outside, "run_victim"),
 			join(linkedEntryCwd, ".agent-workflow", "runs", "run_link"),
 		);
-		const linkedEntry = await pruneSubagentRuns({
+		const linkedEntry = await pruneWorkerRuns({
 			cwd: linkedEntryCwd,
 			keep: 0,
 			yes: true,
@@ -296,7 +296,7 @@ test("prune", async () => {
 		await stat(join(outside, "run_victim", "run.json"));
 		assert.equal(
 			(
-				await pruneSubagentRuns({
+				await pruneWorkerRuns({
 					cwd: await mkdtemp(join(tmpdir(), "agent-workflow-prune-none-")),
 					yes: true,
 				})
@@ -317,7 +317,7 @@ test("prune", async () => {
 				status: "completed",
 			}),
 		);
-		const malformed = await pruneSubagentRuns({ cwd, keep: 0, yes: true, now });
+		const malformed = await pruneWorkerRuns({ cwd, keep: 0, yes: true, now });
 		assert.ok(malformed.skippedUnreadable.includes("run_bad_shape"));
 		await stat(join(cwd, ".agent-workflow/runs", "run_bad_shape", "run.json"));
 
@@ -362,7 +362,7 @@ test("prune", async () => {
 				join(cwd, ".agent-workflow/runs", runId, "run.json"),
 				JSON.stringify({
 					mode: "single",
-					backend: "headless",
+					executorId: "headless",
 					startedAt: "2026-01-01T00:00:00.000Z",
 					updatedAt: "2026-01-01T00:00:00.000Z",
 					completedAt: "2026-01-01T00:00:00.000Z",
@@ -370,7 +370,7 @@ test("prune", async () => {
 				}),
 			);
 		}
-		const malformedAll = await pruneSubagentRuns({
+		const malformedAll = await pruneWorkerRuns({
 			cwd,
 			keep: 0,
 			yes: true,
@@ -401,7 +401,7 @@ test("prune", async () => {
 			record.updatedAt = new Date(now - 1 * DAY).toISOString(); // touched recently (e.g. mark-background)
 			await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`);
 		}
-		const touched = await pruneSubagentRuns({
+		const touched = await pruneWorkerRuns({
 			cwd,
 			keep: 0,
 			olderThanDays: 30,
@@ -413,7 +413,7 @@ test("prune", async () => {
 			"recently updated run is not older than 30 days",
 		);
 		await seedRun("run_stale_completed", { status: "completed", ageDays: 90 });
-		const staleSel = await pruneSubagentRuns({
+		const staleSel = await pruneWorkerRuns({
 			cwd,
 			keep: 0,
 			olderThanDays: 30,
@@ -441,7 +441,7 @@ test("prune", async () => {
 					runId: "run_stale_completed",
 					attemptId: "attempt-2",
 					status: "running",
-					backend: "headless",
+					executorId: "headless",
 					failureKind: null,
 					startedAt: new Date(),
 					completedAt: null,
@@ -538,7 +538,7 @@ test("prune", async () => {
 				attemptId: "attempt-1",
 			});
 			const lateResult = await lateStore.writeResult({
-				backend: "headless",
+				executorId: "headless",
 				status: "completed",
 				failureKind: null,
 				cwd,
@@ -596,8 +596,8 @@ test("prune", async () => {
 		}
 
 		// Default keep is 50; the runtime entry point exports the same function.
-		assert.equal(runtime.pruneSubagentRuns, pruneSubagentRuns);
-		const viaApi = await runtime.pruneSubagentRuns({ cwd });
+		assert.equal(runtime.pruneWorkerRuns, pruneWorkerRuns);
+		const viaApi = await runtime.pruneWorkerRuns({ cwd });
 		assert.equal(viaApi.keep, 50);
 		assert.equal(viaApi.status, "dry-run");
 		assert.deepEqual(viaApi.selected, []);

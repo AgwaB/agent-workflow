@@ -16,7 +16,7 @@ const engine = await import("../../dist/core/engine.js");
 const slots = await import("../../dist/core/launch-slots.js");
 const { compileWorkflow } = await import("../../dist/core/compiler.js");
 const { workflowTaskApprovalPolicy } = await import(
-	"../../dist/core/task-backend.js"
+	"../../dist/core/task-runner.js"
 );
 const { workflowTaskRequirementContext } = await import(
 	"../../dist/core/capability-negotiation.js"
@@ -35,7 +35,7 @@ const unregister = [];
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp12d1-ro-")));
 	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR ??= join(root, "run-index");
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

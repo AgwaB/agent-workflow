@@ -285,7 +285,7 @@ export async function finalizeWorktreeResult(
 	);
 
 	return await store.writeResult({
-		backend: result.backend,
+		executorId: result.executorId,
 		status: result.status,
 		failureKind: result.failureKind,
 		cwd: result.cwd,

@@ -5,7 +5,7 @@ description: Give a short, recommendation-only execution-path recommendation. Us
 
 # Execution Router
 
-Use this skill only to recommend an execution path. It does not execute, validate, resume, create, or modify workflows or subagents. It may use bounded read-only discovery only to identify available routes; it does not use discovery to perform the task, inspect private source content, or author a workflow.
+Use this skill only to recommend an execution path. It does not execute, validate, resume, create, or modify workflows or workers. It may use bounded read-only discovery only to identify available routes; it does not use discovery to perform the task, inspect private source content, or author a workflow.
 
 ## Authority boundary
 
@@ -18,7 +18,7 @@ Use this skill only to recommend an execution path. It does not execute, validat
 
 Return exactly these four short items:
 
-1. **Recommendation** — one of: handle directly, use an existing workflow, use a targeted verifier/subagent, use direct dynamic workflow, or separate authoring needed.
+1. **Recommendation** — one of: handle directly, use an existing workflow, use a targeted verifier/worker, use direct dynamic workflow, or separate authoring needed.
 2. **Reason** — one or two sentences based on scope, side-effect constraints, evidence/verification needs, and known available routes. State uncertainty plainly.
 3. **Cautions** — concise blockers or safety constraints; say `none known` when appropriate.
 4. **Next action** — a user-controlled follow-up only. It may suggest a direct response, an existing workflow (`workflow_run {workflow, task}` or `agent-workflow run <name> "<task>"`), a direct dynamic run (`workflow_dynamic {task}` or `agent-workflow dynamic "<task>"`), letting the user compare the existing workflows with `agent-workflow auto "<task>"` (or, as the user's own later request, the `workflow_auto` tool; it sends one classifier request and starts the top recommendation without asking), a targeted verifier, clarification, or a separate authoring request.
@@ -31,7 +31,7 @@ Do not require a graph, schema, helper, storage layout, task packet, promotion c
 
 - Prefer direct handling for small, coherent work with one owner.
 - Recommend an existing workflow only when a known workflow plainly fits and its constraints appear compatible.
-- Recommend a targeted verifier/subagent for one bounded independent check, not as a default escalation.
+- Recommend a targeted verifier/worker for one bounded independent check, not as a default escalation.
 - Recommend direct dynamic workflow only for adaptive coordinated work when the user is willing to launch it separately.
 - Recommend separate authoring when no existing route fits a repeatable process; do not design the workflow in this response.
 - When several existing workflows could fit and the user wants agent-workflow to choose, suggest `auto` as the user's own next step; it classifies once and starts the top recommendation without asking and never part of this recommendation.

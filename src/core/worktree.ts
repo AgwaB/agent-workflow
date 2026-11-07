@@ -150,7 +150,7 @@ async function captureDirtyWorktreeSnapshot(
 
 	const baseHead = git(gitRoot, ["rev-parse", "HEAD"]).trim();
 	// WP39b (live bundle 5, O7): the whole project state directory, not only its `workflows/`: the
-	// attempt state of other tasks (`workflow-subagents/`), notify receipts and runtime bundles
+	// attempt state of other tasks (`worker-runs/`), notify receipts and runtime bundles
 	// were copied into the worktree when `.agent-workflow/` was not git-ignored.
 	const excludedFlowState =
 		gitRelativePrefix(gitRoot, join(projectCwd, PROJECT_STATE_DIRECTORY)) ??

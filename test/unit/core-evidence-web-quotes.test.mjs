@@ -310,7 +310,7 @@ function writeAttempt(cwd, runId, taskId, attempt, events) {
 	const dir = join(
 		stateDir(cwd),
 		".agent-workflow",
-		"workflow-subagents",
+		"worker-runs",
 		runId,
 		taskId,
 		"run_1",

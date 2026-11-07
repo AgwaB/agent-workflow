@@ -49,11 +49,11 @@ test("the dirty snapshot never copies .agent-workflow/ state into a worktree, ev
 	const cwd = await repo();
 	// Untracked, not ignored: another task's attempt state, notify receipts, a run dir, user work.
 	const state = join(stateDir(cwd), ".agent-workflow");
-	mkdirSync(join(state, "workflow-subagents", "workflow_other", "task-9"), {
+	mkdirSync(join(state, "worker-runs", "workflow_other", "task-9"), {
 		recursive: true,
 	});
 	writeFileSync(
-		join(state, "workflow-subagents", "workflow_other", "task-9", "run.json"),
+		join(state, "worker-runs", "workflow_other", "task-9", "run.json"),
 		"{}\n",
 	);
 	mkdirSync(join(state, "notify-check"), { recursive: true });
@@ -298,7 +298,7 @@ test("a worktree task runs in its worktree; its attempt state is written under t
 	const core = await import("../../dist/core/index.js");
 	const api = await import("../../dist/hosts/api.js");
 	const slots = await import("../../dist/core/launch-slots.js");
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -372,7 +372,7 @@ test("a worktree task runs in its worktree; its attempt state is written under t
 				join(
 					stateDir(cwd),
 					".agent-workflow",
-					"workflow-subagents",
+					"worker-runs",
 					runId,
 					task.taskId,
 				),
@@ -381,9 +381,7 @@ test("a worktree task runs in its worktree; its attempt state is written under t
 		);
 		// (The committed agent file under .agent-workflow/agents/ is part of HEAD.)
 		assert.equal(
-			existsSync(
-				join(task.worktree.path, ".agent-workflow", "workflow-subagents"),
-			),
+			existsSync(join(task.worktree.path, ".agent-workflow", "worker-runs")),
 			false,
 			"no attempt state inside the worktree",
 		);

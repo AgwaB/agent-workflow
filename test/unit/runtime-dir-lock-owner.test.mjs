@@ -13,7 +13,7 @@ import { acquireDirectoryLock } from "../../dist/runtime/artifacts/dir-lock.js";
 import {
 	beginRunRecord,
 	readRunRecord,
-	reconcileSubagentRun,
+	reconcileWorkerRun,
 	runPaths,
 } from "../../dist/runtime/index.js";
 
@@ -123,20 +123,20 @@ test("a lock left by a SIGKILLed holder is stolen: a later reconcile acquires it
 		cwd,
 		runId,
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		activeAttemptId: attemptId,
 		attempts: [
 			{
 				attemptId,
 				status: "running",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: new Date(Date.now() - 60_000).toISOString(),
 			},
 		],
 	});
 	const { lockPath } = runPaths({ cwd, runId });
 	await staleLockFromKilledHolder(lockPath);
-	const reconciled = await reconcileSubagentRun({
+	const reconciled = await reconcileWorkerRun({
 		cwd,
 		runId,
 		staleAfterMs: 1,

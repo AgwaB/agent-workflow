@@ -2036,7 +2036,6 @@ export async function createRunRecord(
 		status: "running",
 		taskSummary: emptySummary(),
 		cwd: compiled.cwd,
-		backend: compiled.backend,
 		...(hostContext === undefined ? {} : { hostContext }),
 		...(inheritHostTools ? { inheritHostTools: true as const } : {}),
 		...(compiled.allowSharedCheckoutWrites === true
@@ -3633,8 +3632,8 @@ function resetTaskRuntimeState(task: WorkflowTaskRunRecord): void {
 	task.exitCode = undefined;
 	task.pid = undefined;
 	task.launchToken = undefined;
-	task.backendHandle = undefined;
-	task.backendFiles = undefined;
+	task.workerHandle = undefined;
+	task.workerFiles = undefined;
 	task.lastMessage = undefined;
 	task.outputRetry = undefined;
 	task.promptMetadata = undefined;
@@ -3648,8 +3647,8 @@ function recordTaskResumeEvent(task: WorkflowTaskRunRecord): void {
 function buildTaskResumeEvent(
 	task: WorkflowTaskRunRecord,
 ): WorkflowTaskResumeEvent {
-	const backendRunId = taskBackendHandleString(task, "runId");
-	const backendAttemptId = taskBackendHandleString(task, "attemptId");
+	const workerRunId = taskWorkerHandleString(task, "runId");
+	const workerAttemptId = taskWorkerHandleString(task, "attemptId");
 	return {
 		at: nowIso(),
 		fromStatus: task.status,
@@ -3672,16 +3671,16 @@ function buildTaskResumeEvent(
 		...(task.launchRetry?.reason === undefined
 			? {}
 			: { launchRetryReason: task.launchRetry.reason }),
-		...(backendRunId === undefined ? {} : { backendRunId }),
-		...(backendAttemptId === undefined ? {} : { backendAttemptId }),
+		...(workerRunId === undefined ? {} : { workerRunId }),
+		...(workerAttemptId === undefined ? {} : { workerAttemptId }),
 	};
 }
 
-function taskBackendHandleString(
+function taskWorkerHandleString(
 	task: WorkflowTaskRunRecord,
 	key: string,
 ): string | undefined {
-	const handle = task.backendHandle;
+	const handle = task.workerHandle;
 	if (!handle || typeof handle !== "object" || Array.isArray(handle)) {
 		return undefined;
 	}
@@ -3821,7 +3820,7 @@ export function createTaskRunRecord(
 			baseCwd: null,
 			warning: null,
 		},
-		backendTaskId: taskId,
+		workerTaskId: taskId,
 		kind: task.kind,
 		stageId: task.stageId,
 		dependsOn: task.dependsOn,

@@ -136,7 +136,7 @@ test("bundled deep-research carries materialized claim owners through runtime au
 	t.after(() => assert.equal(fetch.mock.callCount(), 0));
 	const launches = [];
 	setTaskRuntimeApiForTests({
-		async runSubagent(options) {
+		async runWorker(options) {
 			launches.push(options);
 			return {
 				runId: `run_identity_${launches.length}`,
@@ -144,13 +144,13 @@ test("bundled deep-research carries materialized claim owners through runtime au
 				status: "running",
 			};
 		},
-		async getSubagentStatus() {
+		async getWorkerStatus() {
 			return null;
 		},
-		async reconcileSubagentRun() {
+		async reconcileWorkerRun() {
 			return {};
 		},
-		async interruptSubagent() {
+		async interruptWorker() {
 			return {};
 		},
 	});

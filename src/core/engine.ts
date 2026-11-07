@@ -58,8 +58,8 @@ import {
 	writeStaticRunArtifacts,
 	writeWorkflowLaunchCommandArtifact,
 } from "./store.js";
-import { resolveWorkflowBackend } from "./task-launch.js";
-import { ensureWorkflowTaskBackendRegistered } from "./task-backend.js";
+import { workflowTaskRunner } from "./task-launch.js";
+import { ensureRuntimeTaskRunnerRegistered } from "./task-runner.js";
 import {
 	createLaunchBootstrapProvenance,
 	recordLaunchBootstrapProvenance,
@@ -158,7 +158,7 @@ import {
 	reconcileLoopTaskMaterialization,
 	scheduleLoop,
 } from "./loop-runtime.js";
-import { acknowledgeSubagentTaskInterrupted } from "./task-cancellation.js";
+import { acknowledgeWorkerTaskInterrupted } from "./task-cancellation.js";
 import {
 	bindWorkflowLaunchSignal,
 	createWorkflowStopPendingError,
@@ -310,8 +310,8 @@ export type {
 	WorkflowScheduledRetryWait,
 } from "./engine-format.js";
 
-// The core task backend registers itself.
-ensureWorkflowTaskBackendRegistered();
+// The task runner registers itself.
+ensureRuntimeTaskRunnerRegistered();
 
 const MAX_SAME_LEASE_SCHEDULE_RESCANS = 8;
 const MAX_CONCURRENCY = 16;
@@ -1551,12 +1551,12 @@ async function finalizeStopRunWithLease(
 		for (const task of run.tasks) {
 			if (task.status !== "running") continue;
 			task.statusDetail = "cancellation_pending";
-			task.lastMessage = "awaiting backend stop cancellation acknowledgement";
+			task.lastMessage = "awaiting worker stop cancellation acknowledgement";
 		}
 		await writeRunRecord(cwd, run);
 		let cleanupError: unknown;
 		try {
-			await resolveWorkflowBackend(run).cleanupRun(cwd, run);
+			await workflowTaskRunner().cleanupRun(cwd, run);
 		} catch (error) {
 			cleanupError = error;
 		}
@@ -1583,7 +1583,7 @@ async function finalizeStopIntentIfRequested(
 	for (const task of run.tasks) {
 		if (task.status !== "running") continue;
 		task.statusDetail = "cancellation_pending";
-		task.lastMessage = "awaiting backend stop cancellation acknowledgement";
+		task.lastMessage = "awaiting worker stop cancellation acknowledgement";
 	}
 	if (
 		descendantStop.pendingRunIds.length > 0 ||
@@ -1593,7 +1593,7 @@ async function finalizeStopIntentIfRequested(
 		return true;
 	}
 	await writeRunRecord(cwd, run);
-	await resolveWorkflowBackend(run).cleanupRun(cwd, run);
+	await workflowTaskRunner().cleanupRun(cwd, run);
 	const interruptedTaskIds = markRunStopped(run);
 	if (interruptedTaskIds.length > 0) await writeRunRecord(cwd, run);
 	await clearWorkflowStopIntent(cwd, run.runId);
@@ -2910,7 +2910,7 @@ export async function resumeRun(
 			);
 		}
 		await resumeLeaseMutation(cwd, run.runId, leaseSignal, () =>
-			resolveWorkflowBackend(run).cleanupRun(cwd, run),
+			workflowTaskRunner().cleanupRun(cwd, run),
 		);
 		if (!planned) {
 			await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
@@ -3151,7 +3151,7 @@ export async function scheduleRun(
 		assertScheduleLeaseActive(leaseSignal);
 		let run = await readRunRecord(cwd, runId);
 		try {
-			run = await resolveWorkflowBackend(run).refreshRun(cwd, run);
+			run = await workflowTaskRunner().refreshRun(cwd, run);
 		} catch (error) {
 			if (!isRefreshPollAggregateError(error)) throw error;
 			await recordSupervisorError(cwd, run.runId, error);
@@ -3272,7 +3272,7 @@ function eligibleForeachBatchChild(
 	}).safety;
 	return Boolean(
 		task.status === "pending" &&
-			!task.backendHandle &&
+			!task.workerHandle &&
 			!task.pid &&
 			!task.outputRetry &&
 			!task.foreachBatch?.batchingDisabled &&
@@ -3606,7 +3606,7 @@ async function launchForeachBatchAt(
 			// A prepared record is a replay boundary. Rebuild both singleton
 			// preparation surfaces immediately before launch rather than trusting
 			// the currently loaded compiled task or adjacency. Any drift disables
-			// the batch before a physical backend launch can occur.
+			// the batch before a physical worker launch can occur.
 			const preparedLeader = await revalidatePreparedForeachBatch(
 				cwd,
 				run,
@@ -3761,11 +3761,11 @@ async function launchForeachBatchAt(
 	memberTask.lastMessage = `awaiting foreach batch leader ${leaderTask.taskId}`;
 	await writeRunRecord(cwd, run);
 
-	const backend = resolveWorkflowBackend(run);
+	const runner = workflowTaskRunner();
 	const stop = createWorkflowStopSignal(cwd, run.runId);
 	try {
 		await throwIfWorkflowStopRequested(cwd, run.runId);
-		const preparedLaunch = await backend.prepareTaskLaunch(
+		const preparedLaunch = await runner.prepareTaskLaunch(
 			cwd,
 			run,
 			leaderTask,
@@ -3776,19 +3776,17 @@ async function launchForeachBatchAt(
 			run,
 			leaderTask,
 			leaderLaunchTask,
-			backend.id,
 			preparedLaunch,
 		);
 		recordLaunchBootstrapProvenance(leaderTask, provenance);
 		const authority = createWorkflowLaunchAuthority(
 			run,
 			leaderTask,
-			backend.id,
 			provenance,
 		);
 		issueWorkflowLaunchAuthority(leaderTask, authority);
 		await writeRunRecord(cwd, run);
-		const launch = await backend.launchTask(
+		const launch = await runner.launchTask(
 			cwd,
 			run,
 			leaderTask,
@@ -3825,9 +3823,9 @@ async function launchForeachBatchAt(
 			memberTask.statusDetail =
 				launch.kind === "launched" ? "batch_running" : "batch_launching";
 			memberTask.startedAt ??= leaderTask.startedAt ?? new Date().toISOString();
-			memberTask.backendHandle = undefined;
-			memberTask.backendFiles = undefined;
-			memberTask.backendTaskId = memberTask.taskId;
+			memberTask.workerHandle = undefined;
+			memberTask.workerFiles = undefined;
+			memberTask.workerTaskId = memberTask.taskId;
 			memberTask.lastMessage = `owned by foreach batch leader ${leaderTask.taskId}`;
 			await writeRunRecord(cwd, run);
 			return "launched";
@@ -4109,7 +4107,7 @@ async function applyFailFastCancellation(
 			if (!task) return undefined;
 			const batch = activeForeachBatchRecordForTask(run, task);
 			try {
-				await acknowledgeSubagentTaskInterrupted(
+				await acknowledgeWorkerTaskInterrupted(
 					cwd,
 					run,
 					task,
@@ -4139,7 +4137,7 @@ async function applyFailFastCancellation(
 					);
 				}
 			} catch (error) {
-				const message = `fail-fast cancellation failed; backend handle preserved: ${error instanceof Error ? error.message : String(error)}`;
+				const message = `fail-fast cancellation failed; worker handle preserved: ${error instanceof Error ? error.message : String(error)}`;
 				for (const member of batch ? foreachBatchTasks(run, batch) : [task]) {
 					member.statusDetail = "cancellation_failed";
 					member.lastMessage = message;
@@ -4153,7 +4151,7 @@ async function applyFailFastCancellation(
 	if (cancellationErrors.length > 0) {
 		throw new AggregateError(
 			cancellationErrors,
-			"one or more fail-fast backend cancellations failed",
+			"one or more fail-fast worker cancellations failed",
 		);
 	}
 	return true;
@@ -4200,8 +4198,8 @@ async function suspendedDynamicControllerStillWaiting(
 		let nestedRun = await readRunRecord(cwd, nestedRunId).catch(
 			() => undefined,
 		);
-		// Reconcile a nested backend before deciding that a suspended controller
-		// is still waiting; the child backend may complete without updating this
+		// Reconcile a nested worker before deciding that a suspended controller
+		// is still waiting; the child worker may complete without updating this
 		// parent run record.
 		if (nestedRun && !isTerminalWorkflowStatus(nestedRun.status)) {
 			try {
@@ -5732,7 +5730,7 @@ async function launchPendingTaskAt(
 ): Promise<boolean> {
 	const task = run.tasks[index];
 	if (!task || task.status !== "pending") return false;
-	if (task.backendHandle || task.pid) return false;
+	if (task.workerHandle || task.pid) return false;
 
 	const compiledTask = compiledFlow.tasks[index];
 	if (!compiledTask) {
@@ -5806,13 +5804,13 @@ async function launchPendingTaskAt(
 		await throwIfWorkflowStopRequested(cwd, run.runId);
 		recordCreatedLoopWorktree(run, task, worktreeLaunchTask);
 		await writeRunRecord(cwd, run);
-		const backend = resolveWorkflowBackend(run);
+		const runner = workflowTaskRunner();
 		const stop = createWorkflowStopSignal(cwd, run.runId);
 		let launch;
 		try {
 			await throwIfWorkflowStopRequested(cwd, run.runId);
 			await persistFinalPromptMetadata(cwd, run, task, worktreeLaunchTask);
-			const preparedLaunch = await backend.prepareTaskLaunch(
+			const preparedLaunch = await runner.prepareTaskLaunch(
 				cwd,
 				run,
 				task,
@@ -5823,21 +5821,15 @@ async function launchPendingTaskAt(
 				run,
 				task,
 				worktreeLaunchTask,
-				backend.id,
 				preparedLaunch,
 			);
 			recordLaunchBootstrapProvenance(task, provenance);
-			const authority = createWorkflowLaunchAuthority(
-				run,
-				task,
-				backend.id,
-				provenance,
-			);
+			const authority = createWorkflowLaunchAuthority(run, task, provenance);
 			issueWorkflowLaunchAuthority(task, authority);
 			const authorizedLaunch = { ...preparedLaunch, authority };
 			await writeRunRecord(cwd, run);
 			await throwIfWorkflowStopRequested(cwd, run.runId);
-			launch = await backend.launchTask(
+			launch = await runner.launchTask(
 				cwd,
 				run,
 				task,
@@ -5856,7 +5848,7 @@ async function launchPendingTaskAt(
 		if (leaseSignal?.aborted) throw error;
 		const durableBarrierRecord = task.durableLaunchBarrier?.records.at(-1);
 		if (
-			task.backendHandle &&
+			task.workerHandle &&
 			durableBarrierRecord &&
 			durableBarrierRecord.phase !== "cancellation_acknowledged" &&
 			task.statusDetail === "cancellation_failed"
@@ -5867,14 +5859,14 @@ async function launchPendingTaskAt(
 		}
 		if (isWorkflowStopRequestedError(error)) {
 			if (
-				task.backendHandle &&
+				task.workerHandle &&
 				durableBarrierRecord &&
 				durableBarrierRecord.phase !== "cancellation_acknowledged"
 			) {
 				task.status = "running";
 				task.statusDetail = "cancellation_pending";
 				task.lastMessage =
-					"workflow stop is waiting for exact backend cancellation acknowledgement";
+					"workflow stop is waiting for exact worker cancellation acknowledgement";
 				await writeRunRecord(cwd, run).catch(() => undefined);
 				return false;
 			}
@@ -6167,7 +6159,7 @@ async function executeDynamicControllerTask(
 			task.status = "pending";
 			task.statusDetail = "suspended_waiting_children";
 			task.lastMessage = message;
-			task.backendHandle = undefined;
+			task.workerHandle = undefined;
 			task.pid = undefined;
 			await writeRunRecord(cwd, run);
 			return false;

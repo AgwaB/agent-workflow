@@ -21,7 +21,12 @@ test("run-lock", async () => {
 		const cwd = join(tempRoot, "concurrent");
 		await mkdir(cwd, { recursive: true });
 		const runId = "run_lock_check";
-		await beginRunRecord({ cwd, runId, mode: "single", backend: "headless" });
+		await beginRunRecord({
+			cwd,
+			runId,
+			mode: "single",
+			executorId: "headless",
+		});
 		const attempts = Array.from(
 			{ length: 12 },
 			(_, index) => `attempt-${String(index + 1).padStart(2, "0")}`,
@@ -33,7 +38,7 @@ test("run-lock", async () => {
 					runId,
 					attemptId,
 					status: "running",
-					backend: "headless",
+					executorId: "headless",
 					activate: false,
 				}),
 			),
@@ -62,7 +67,7 @@ test("run-lock", async () => {
 			runId,
 			attemptId: successorAttemptId,
 			status: "running",
-			backend: "headless",
+			executorId: "headless",
 		});
 		await updateAttemptProcess({
 			cwd,
@@ -89,7 +94,7 @@ test("run-lock", async () => {
 			attemptId: staleAttemptId,
 		});
 		const staleResult = await staleStore.writeResult({
-			backend: "headless",
+			executorId: "headless",
 			status: "completed",
 			failureKind: null,
 			cwd,
@@ -119,7 +124,7 @@ test("run-lock", async () => {
 			cwd,
 			runId: duplicateRunId,
 			mode: "single",
-			backend: "headless",
+			executorId: "headless",
 		});
 		const duplicateReservations = await Promise.allSettled([
 			upsertRunAttempt({
@@ -127,7 +132,7 @@ test("run-lock", async () => {
 				runId: duplicateRunId,
 				attemptId: "attempt_same",
 				status: "pending",
-				backend: "headless",
+				executorId: "headless",
 				createOnly: true,
 			}),
 			upsertRunAttempt({
@@ -135,7 +140,7 @@ test("run-lock", async () => {
 				runId: duplicateRunId,
 				attemptId: "attempt_same",
 				status: "pending",
-				backend: "headless",
+				executorId: "headless",
 				createOnly: true,
 			}),
 		]);
@@ -169,7 +174,7 @@ test("run-lock", async () => {
 				cwd: staleCwd,
 				runId: staleRunId,
 				mode: "single",
-				backend: "headless",
+				executorId: "headless",
 			}),
 			/Lock file is already being held/,
 			"an old lock must fail closed instead of stealing from a possibly paused writer",
@@ -184,7 +189,7 @@ test("run-lock", async () => {
 			cwd: staleCwd,
 			runId: staleRunId,
 			mode: "single",
-			backend: "headless",
+			executorId: "headless",
 		});
 		assert.ok(
 			await readRunRecord({ cwd: staleCwd, runId: staleRunId }),
@@ -207,7 +212,7 @@ test("run-lock", async () => {
 					cwd: liveCwd,
 					runId: liveRunId,
 					mode: "single",
-					backend: "headless",
+					executorId: "headless",
 				}),
 				/Lock file is already being held/,
 				"live-holder lock must not be stolen",

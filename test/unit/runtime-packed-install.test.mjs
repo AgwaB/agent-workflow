@@ -189,7 +189,7 @@ for (let i = 0; i < 6 && identity.state !== \"alive\"; i += 1) {
 console.log(JSON.stringify({
   module: runtime.MODULE,
   runsDir: runtime.DEFAULT_RUNS_DIR,
-  validate: runtime.validateResolveInput({ backend: "codex", task: "t" }).ok,
+  validate: runtime.validateResolveInput({ task: "t" }, "codex").ok,
   identity: identity.state,
   identityReason: identity.reason ?? null,
   gate: runtime.runtimeWorkerPath("process-gate"),
@@ -266,8 +266,8 @@ try { m.prepareDurableWorkerBinding({ payload: {} }); } catch (error) {
 				`const runtime = await import("@agwab/agent-workflow/runtime");
 const { fixtureDescriptor, readEffectLog } = await import(${JSON.stringify(new URL(`file://${fixture}`).href)});
 const effectLog = ${JSON.stringify(join(project, "effects.jsonl"))};
-const run = await runtime.runSubagent({ cwd: process.cwd(), executor: fixtureDescriptor({ effectLog }), task: "packed", async: true });
-const waited = await runtime.waitForSubagent({ cwd: process.cwd(), runId: run.runId, attemptId: run.attemptId, timeoutMs: 20000, pollIntervalMs: 50 });
+const run = await runtime.runWorker({ cwd: process.cwd(), executor: fixtureDescriptor({ effectLog }), task: "packed", async: true });
+const waited = await runtime.waitForWorker({ cwd: process.cwd(), runId: run.runId, attemptId: run.attemptId, timeoutMs: 20000, pollIntervalMs: 50 });
 // WP2b: the detached finalizer still publishes after the registry turns terminal; the fixture is
 // removed right after this script, so wait for its run event (it raced rm with ENOTEMPTY).
 for (let i = 0; i < 400 && !(await runtime.readRunEvents({ cwd: process.cwd(), runId: run.runId }, Infinity)).some((event) => event.type === "run." + waited.snapshot?.status); i += 1) await new Promise((r) => setTimeout(r, 50));

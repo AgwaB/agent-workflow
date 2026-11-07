@@ -248,7 +248,7 @@ test("prune dry run is non-destructive and selects only beyond-keep terminal run
 	}
 });
 
-test("prune yes removes workflow and subagent mirrors and rewrites the index", async () => {
+test("prune yes removes workflow and worker mirrors and rewrites the index", async () => {
 	const cwd = await mkdtemp(join(tmpdir(), "agent-workflow-prune-"));
 	try {
 		await writeRun(
@@ -260,19 +260,14 @@ test("prune yes removes workflow and subagent mirrors and rewrites the index", a
 			terminalRun("workflow-delete", "2026-08-01T00:00:00.000Z"),
 		);
 		await mkdir(
-			join(
-				stateDir(cwd),
-				".agent-workflow",
-				"workflow-subagents",
-				"workflow-delete",
-			),
+			join(stateDir(cwd), ".agent-workflow", "worker-runs", "workflow-delete"),
 			{ recursive: true },
 		);
 		await writeFile(
 			join(
 				stateDir(cwd),
 				".agent-workflow",
-				"workflow-subagents",
+				"worker-runs",
 				"workflow-delete",
 				"output.log",
 			),
@@ -291,7 +286,7 @@ test("prune yes removes workflow and subagent mirrors and rewrites the index", a
 				join(
 					stateDir(cwd),
 					".agent-workflow",
-					"workflow-subagents",
+					"worker-runs",
 					"workflow-delete",
 				),
 			),

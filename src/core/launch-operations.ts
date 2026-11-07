@@ -1,8 +1,8 @@
 import { throwIfWorkflowStopRequested } from "./workflow-stop.js";
 
-export const SUBAGENT_LAUNCH_ACK_TIMEOUT_MS = 30_000;
-export const SUBAGENT_REFRESH_OPERATION_TIMEOUT_MS = 10_000;
-export const SUBAGENT_INTERRUPT_TIMEOUT_MS = 10_000;
+export const WORKER_LAUNCH_ACK_TIMEOUT_MS = 30_000;
+export const WORKER_REFRESH_OPERATION_TIMEOUT_MS = 10_000;
+export const WORKER_INTERRUPT_TIMEOUT_MS = 10_000;
 export function abortSignalError(signal: AbortSignal): Error {
 	const reason = (signal as AbortSignal & { reason?: unknown }).reason;
 	if (reason instanceof Error) return reason;
@@ -39,14 +39,14 @@ export function combineAbortSignals(
 	return AbortSignal.any([left, right]);
 }
 
-export class SubagentOperationTimeoutError extends Error {
+export class WorkerOperationTimeoutError extends Error {
 	constructor(message: string) {
 		super(message);
-		this.name = "SubagentOperationTimeoutError";
+		this.name = "WorkerOperationTimeoutError";
 	}
 }
 
-export async function awaitSubagentOperation<T>(
+export async function awaitWorkerOperation<T>(
 	operation: () => Promise<T>,
 	options: {
 		operation: string;
@@ -72,8 +72,8 @@ export async function awaitSubagentOperation<T>(
 		const timer = setTimeout(() => {
 			finish(() =>
 				rejectOperation(
-					new SubagentOperationTimeoutError(
-						`subagent ${options.operation} timed out after ${timeoutMs}ms (${options.context})`,
+					new WorkerOperationTimeoutError(
+						`worker ${options.operation} timed out after ${timeoutMs}ms (${options.context})`,
 					),
 				),
 			);

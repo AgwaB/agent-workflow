@@ -63,7 +63,7 @@ async function classifierProject() {
 /** A runtime stub that publishes a terminal classifier result into `dir`, then prunes. */
 function publishingRuntime(cwd, dir, observed) {
 	return {
-		async runSubagent(options) {
+		async runWorker(options) {
 			observed.submits += 1;
 			const runId = classifierId();
 			const now = new Date().toISOString();

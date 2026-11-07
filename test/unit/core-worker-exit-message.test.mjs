@@ -21,14 +21,14 @@ const unregister = [];
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-worker-exit-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
 });
 after(async () => {
 	for (const undo of unregister.splice(0)) undo();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,
@@ -76,12 +76,12 @@ test("a worker killed mid-run: the blocked task says the worker left no log line
 	while (workerPid === undefined && Date.now() < deadline) {
 		const run = await store.readRunRecord(cwd, started.runId);
 		const task = run.tasks[0];
-		if (task.backendTaskId?.startsWith("run_")) {
+		if (task.workerTaskId?.startsWith("run_")) {
 			const status = await runtime
-				.getSubagentStatus({
+				.getWorkerStatus({
 					cwd: taskArtifacts.workflowTaskStateCwd(cwd, task),
-					runsDir: taskArtifacts.subagentRunsDir(run, task),
-					runId: task.backendTaskId,
+					runsDir: taskArtifacts.workerRunsDir(run, task),
+					runId: task.workerTaskId,
 				})
 				.catch(() => undefined);
 			workerPid = status?.attempts?.[0]?.workerPid;

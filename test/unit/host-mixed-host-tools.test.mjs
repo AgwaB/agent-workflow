@@ -39,14 +39,14 @@ const undo = [];
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp31-wp35-")));
 	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR ??= join(root, "run-index");
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
 });
 after(async () => {
 	for (const restore of undo.splice(0)) restore();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,
@@ -286,7 +286,6 @@ test("launch provenance checks the task's executor, not the run's", async () => 
 					...(taskExecutor === undefined ? {} : { executor: taskExecutor }),
 				},
 			},
-			"unit",
 			launch,
 		);
 	// A pi task of a claude-run (mixed) inherits; a claude task of a pi run fails closed.

@@ -30,7 +30,7 @@ let counter = 0;
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-host-api-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -136,7 +136,7 @@ test("validate, roles, agents and show <workflow>: data and text", async () => {
 		valid.text,
 		/^Workflow spec valid: host-one-stage\nSpec: wf\.json/,
 	);
-	assert.doesNotMatch(valid.text, /backend=/);
+	assert.doesNotMatch(valid.text, /worker=/);
 
 	await writeFile(
 		join(ctx.cwd, "bad.json"),

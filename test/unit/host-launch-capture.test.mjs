@@ -50,7 +50,7 @@ const SECRET = "supersecretvalue123";
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp33-launch-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

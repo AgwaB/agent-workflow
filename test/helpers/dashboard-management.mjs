@@ -134,7 +134,6 @@ export async function persistManagementRun(
 		createdAt: at,
 		updatedAt: at,
 		specPath: "fixture.json",
-		backend: { type: "local", mode: "headless" },
 		tasks: [
 			{
 				taskId: "task-1",
@@ -146,7 +145,7 @@ export async function persistManagementRun(
 				roles: [],
 				status,
 				statusDetail: status,
-				backendTaskId: "",
+				workerTaskId: "",
 				runtime: { approvalMode: "never" },
 				agentFile: "",
 				agentDescription: "reader",

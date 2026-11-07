@@ -254,7 +254,7 @@ export function activityFromExecEvent(
 		const first = Array.isArray(event.input) ? record(event.input[0]) : {};
 		label = `${name === "write" ? "Writing" : "Editing"} ${safePath(path || string(first.path), cwd) || "files"}`;
 	} else if (
-		/^(?:task|agent|subagent)$/.test(name) ||
+		/^(?:task|agent|worker)$/.test(name) ||
 		name.startsWith("collab_")
 	) {
 		kind = "agent";

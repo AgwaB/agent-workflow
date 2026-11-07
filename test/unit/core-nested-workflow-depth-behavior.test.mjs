@@ -45,7 +45,7 @@ async function fixture(files, options = {}) {
 	h.writeAgent(cwd, "unit-scout", "read");
 	// No provider or fake provider execution is allowed in these fixtures.
 	h.setTaskRuntimeApiForTests({
-		async runSubagent() {
+		async runWorker() {
 			throw new Error("unexpected provider agent");
 		},
 	});

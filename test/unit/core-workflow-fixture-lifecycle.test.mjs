@@ -139,9 +139,7 @@ test("project teardown stops active fixture workers and waits for finalizer publ
 					(event) => event.type === "submit",
 				)
 			)
-				ref = run.tasks.find(
-					(task) => task.status === "running",
-				)?.backendHandle;
+				ref = run.tasks.find((task) => task.status === "running")?.workerHandle;
 			assert.ok(performance.now() < deadline, "fixture worker did not start");
 			if (!ref) await sleep(25);
 		}

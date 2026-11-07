@@ -65,7 +65,7 @@ async function withRun(bundlePath, name, fn) {
 		await h.writeRunRecord(cwd, run);
 		const launches = [];
 		h.setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launches.push(options);
 				return {
 					runId: `fake-${launches.length}`,
@@ -73,13 +73,13 @@ async function withRun(bundlePath, name, fn) {
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});

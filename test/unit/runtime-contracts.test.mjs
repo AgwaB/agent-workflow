@@ -12,31 +12,16 @@ import { test } from "node:test";
 
 test("contracts", async () => {
 	const plannedInput = {
-		backend: "auto",
-		agent: "typescript-expert",
 		task: "inspect public contracts",
-		roleContext: "read-only reviewer",
-		agentScope: "project",
-		confirmProjectAgents: true,
 		mode: "parallel",
 		tasks: [
-			{
-				agent: "typescript-expert",
-				task: "review schemas",
-				roleContext: "contract checker",
-			},
-			{
-				agent: "contract-reader",
-				task: "review schemas",
-				timeoutMs: 1000,
-				noExtensions: false,
-			},
+			{ task: "review schemas" },
+			{ task: "review schemas", timeoutMs: 1000 },
 		],
 		concurrency: 2,
 		failFast: true,
 		cancelSiblingsOnFailure: true,
 		asyncDependency: "needed-before-final",
-		visible: false,
 		sandbox: true,
 		workspace: { mode: "auto", path: "." },
 		worktree: true,
@@ -48,17 +33,14 @@ test("contracts", async () => {
 		model: "kimi-coding/kimi-for-coding",
 		tools: ["read", "grep"],
 		systemPrompt: "Compiled system prompt",
-		skills: ["/tmp/skill"],
-		extensions: ["/tmp/extension.ts"],
-		noExtensions: true,
 		captureToolCalls: true,
-		runsDir: ".pi/custom-runs",
+		runsDir: ".agent-workflow/custom-runs",
 		correlationId: "corr_contracts",
 	};
 
 	const validation = validateResolveInput(plannedInput);
 	assert.equal(validation.ok, true);
-	assert.equal(validation.input.agent, plannedInput.agent);
+	assert.equal(validation.input.task, plannedInput.task);
 	assert.equal(validation.input.tasks.length, 2);
 	assert.equal(validation.input.concurrency, 2);
 	assert.equal(validation.input.failFast, true);
@@ -68,16 +50,11 @@ test("contracts", async () => {
 	assert.equal(validation.input.model, "kimi-coding/kimi-for-coding");
 	assert.deepEqual(validation.input.tools, ["read", "grep"]);
 	assert.equal(validation.input.systemPrompt, "Compiled system prompt");
-	assert.deepEqual(validation.input.skills, ["/tmp/skill"]);
-	assert.deepEqual(validation.input.extensions, ["/tmp/extension.ts"]);
-	assert.equal(validation.input.noExtensions, true);
-	assert.equal(validation.input.tasks[1].noExtensions, false);
 	assert.equal(validation.input.captureToolCalls, true);
-	assert.equal(validation.input.runsDir, ".pi/custom-runs");
+	assert.equal(validation.input.runsDir, ".agent-workflow/custom-runs");
 	assert.equal(validation.input.correlationId, "corr_contracts");
 
 	const sessionIdValidation = validateResolveInput({
-		agent: "worker",
 		task: "inspect",
 		sessionId: "abc-123_ok",
 	});
@@ -85,7 +62,6 @@ test("contracts", async () => {
 	assert.equal(sessionIdValidation.input.sessionId, "abc-123_ok");
 
 	const emptySessionIdValidation = validateResolveInput({
-		agent: "worker",
 		task: "inspect",
 		sessionId: "",
 	});
@@ -96,7 +72,6 @@ test("contracts", async () => {
 	);
 
 	const badSessionIdValidation = validateResolveInput({
-		agent: "worker",
 		task: "inspect",
 		sessionId: "bad id",
 	});
@@ -109,8 +84,8 @@ test("contracts", async () => {
 	const taskSessionValidation = validateResolveInput({
 		mode: "parallel",
 		tasks: [
-			{ agent: "worker", task: "a", sessionId: "child-a" },
-			{ agent: "worker", task: "b", sessionId: "child-b" },
+			{ task: "a", sessionId: "child-a" },
+			{ task: "b", sessionId: "child-b" },
 		],
 	});
 	assert.equal(taskSessionValidation.ok, true);
@@ -120,7 +95,7 @@ test("contracts", async () => {
 	const sharedParallelSessionValidation = validateResolveInput({
 		mode: "parallel",
 		sessionId: "shared-session",
-		tasks: [{ agent: "worker", task: "a" }],
+		tasks: [{ task: "a" }],
 	});
 	assert.equal(sharedParallelSessionValidation.ok, false);
 	assert.match(
@@ -130,7 +105,7 @@ test("contracts", async () => {
 
 	const badTaskSessionValidation = validateResolveInput({
 		mode: "parallel",
-		tasks: [{ agent: "worker", task: "a", sessionId: "bad id" }],
+		tasks: [{ task: "a", sessionId: "bad id" }],
 	});
 	assert.equal(badTaskSessionValidation.ok, false);
 	assert.match(
@@ -139,7 +114,6 @@ test("contracts", async () => {
 	);
 
 	const badFailFastValidation = validateResolveInput({
-		agent: "worker",
 		task: "inspect",
 		failFast: "yes",
 	});
@@ -153,7 +127,6 @@ test("contracts", async () => {
 		mode: "parallel",
 		tasks: [
 			{
-				agent: "scout",
 				task: "audit",
 				model: "kimi-coding/kimi-for-coding",
 				tools: [],
@@ -168,26 +141,6 @@ test("contracts", async () => {
 	);
 	assert.deepEqual(taskModelValidation.input.tasks[0].tools, []);
 	assert.equal(taskModelValidation.input.tasks[0].captureToolCalls, true);
-
-	for (const [input, pattern] of [
-		[
-			{ agent: "worker", task: "inspect", noExtensions: "yes" },
-			/noExtensions must be a boolean/,
-		],
-		[
-			{
-				mode: "parallel",
-				tasks: [{ agent: "worker", task: "inspect", noExtensions: 1 }],
-			},
-			/tasks\[0\]\.noExtensions must be a boolean/,
-		],
-	]) {
-		const invalidNoExtensions = validateResolveInput(input);
-		assert.equal(invalidNoExtensions.ok, false);
-		assert.match(invalidNoExtensions.failure.error, pattern);
-	}
-
-	// [dropped: parsePiJsonLines / detectContextLengthExceeded assertions -> deferred-WP6 (runners/headless-model.ts)]
 
 	const childSummary = summarizeChildEvents([
 		{
@@ -216,7 +169,6 @@ test("contracts", async () => {
 		sandbox: {
 			allowedDomains: ["api.anthropic.com", "*.npmjs.org", "localhost"],
 		},
-		agent: "worker",
 		task: "inspect",
 	});
 	assert.equal(sandboxObject.ok, true);
@@ -226,7 +178,6 @@ test("contracts", async () => {
 
 	const sandboxEmptyObject = validateResolveInput({
 		sandbox: {},
-		agent: "worker",
 		task: "inspect",
 	});
 	assert.equal(sandboxEmptyObject.ok, true);
@@ -236,7 +187,6 @@ test("contracts", async () => {
 		mode: "parallel",
 		tasks: [
 			{
-				agent: "scout",
 				task: "audit",
 				sandbox: { allowedDomains: ["api.openai.com"] },
 			},
@@ -249,7 +199,6 @@ test("contracts", async () => {
 
 	const sandboxBadDomain = validateResolveInput({
 		sandbox: { allowedDomains: ["https://api.anthropic.com"] },
-		agent: "worker",
 		task: "inspect",
 	});
 	assert.equal(sandboxBadDomain.ok, false);
@@ -257,7 +206,6 @@ test("contracts", async () => {
 
 	const sandboxBroadWildcard = validateResolveInput({
 		sandbox: { allowedDomains: ["*.com"] },
-		agent: "worker",
 		task: "inspect",
 	});
 	assert.equal(sandboxBroadWildcard.ok, false);
@@ -265,19 +213,16 @@ test("contracts", async () => {
 
 	const sandboxUnknownKey = validateResolveInput({
 		sandbox: { domains: ["api.anthropic.com"] },
-		agent: "worker",
 		task: "inspect",
 	});
 	assert.equal(sandboxUnknownKey.ok, false);
 	assert.match(sandboxUnknownKey.failure.error, /unsupported sandbox option/);
 
-	// [dropped: "inline backend cannot provide" assertion; the inline-sandbox rule was removed with the inline backend]
-
 	// Result envelope records the sandbox network policy.
 	const sandboxedResult = createResultEnvelope({
 		runId: "run_contracts_002",
 		attemptId: "attempt-contracts-002",
-		backend: "headless",
+		executorId: "fixture",
 		status: "completed",
 		failureKind: null,
 		cwd: process.cwd(),
@@ -324,12 +269,12 @@ test("contracts", async () => {
 	});
 	assert.equal(chain.ok, false);
 	assert.equal(chain.failure.failureKind, "validation");
-	assert.match(chain.failure.error, /chain mode is not supported/);
+	assert.equal(chain.failure.error, "unsupported request field chain");
 
 	const result = createResultEnvelope({
 		runId: "run_contracts_001",
 		attemptId: "attempt-contracts-001",
-		backend: "headless",
+		executorId: "fixture",
 		status: "failed",
 		failureKind: "validation",
 		cwd: process.cwd(),

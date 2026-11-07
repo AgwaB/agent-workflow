@@ -119,7 +119,7 @@ for (const mode of modes)
 			await h.writeRunRecord(cwd, run);
 			const launches = [];
 			h.setTaskRuntimeApiForTests({
-				async runSubagent(options) {
+				async runWorker(options) {
 					launches.push({
 						agent: options.agent,
 						model: options.model,
@@ -131,13 +131,13 @@ for (const mode of modes)
 						status: "running",
 					};
 				},
-				async getSubagentStatus() {
+				async getWorkerStatus() {
 					return null;
 				},
-				async reconcileSubagentRun() {
+				async reconcileWorkerRun() {
 					return {};
 				},
-				async interruptSubagent() {
+				async interruptWorker() {
 					return {};
 				},
 			});

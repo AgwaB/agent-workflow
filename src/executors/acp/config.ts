@@ -206,10 +206,10 @@ const ANTIGRAVITY: AcpPreset = {
 	// session/new, and cuts ~2.6k input tokens per request (live 2026-11-02: 13,619 → 11,032).
 	// Documented since ACP server 1.2.1 as `_meta.agy.disabledTools`; 1.4.5 logs "Reading enabledTools
 	// from legacy _meta.agy", and `_meta.antigravity` works the same (live no-model check), so that key.
-	// `invoke_subagent` would also start agents outside the engine; disabling it cut another ~2.5k
+	// `invoke_worker` would also start agents outside the engine; disabling it cut another ~2.5k
 	// input tokens (live: 8,531 vs 11,032). The filter knows only the SDK BuiltinTools names
-	// (no-model probe: it warns "Unknown tool name" for define_subagent, send_message,
-	// manage_subagents), so the list holds only names it knows.
+	// (no-model probe: it warns "Unknown tool name" for define_worker, send_message,
+	// manage_workers), so the list holds only names it knows.
 	sessionMeta: antigravitySessionMeta,
 	toolName: antigravityToolName,
 	permissionKind: antigravityPermissionKind,

@@ -13,7 +13,7 @@ import {
 	beginRunRecord,
 	captureProcessIdentity,
 	createAttemptArtifactStore,
-	reconcileSubagentRun,
+	reconcileWorkerRun,
 	writeAttemptExecutorRecord,
 } from "../../dist/runtime/index.js";
 import { setProcessIdentityInspectorForTests } from "../../dist/runtime/process-identity.js";
@@ -60,7 +60,7 @@ async function runningAttemptOwnedBy(
 	const store = await createAttemptArtifactStore({ cwd, runId, attemptId });
 	const startedAt = new Date(Date.now() - 60_000).toISOString();
 	const result = await store.writeResult({
-		backend: "fixture",
+		executorId: "fixture",
 		status: "running",
 		failureKind: null,
 		cwd,
@@ -77,14 +77,14 @@ async function runningAttemptOwnedBy(
 		cwd,
 		runId,
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		startedAt,
 		activeAttemptId: attemptId,
 		attempts: [
 			{
 				attemptId,
 				status: "running",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt,
 				artifactCwd: cwd,
 				resultPath: result.artifacts.find((a) => a.type === "result")?.path,
@@ -132,7 +132,7 @@ test("a transient unknown owner identity keeps a live worker running; it is neve
 		return inspect(pid);
 	});
 	try {
-		const result = await reconcileSubagentRun({
+		const result = await reconcileWorkerRun({
 			cwd,
 			runId: "run_wp12a_transient",
 			staleAfterMs: 1,
@@ -167,7 +167,7 @@ test("a persistently unknown owner is kept running (unknown is not dead); a dead
 			: inspect(pid),
 	);
 	try {
-		const result = await reconcileSubagentRun({
+		const result = await reconcileWorkerRun({
 			cwd,
 			runId: "run_wp12a_persistent",
 			staleAfterMs: 1,
@@ -180,7 +180,7 @@ test("a persistently unknown owner is kept running (unknown is not dead); a dead
 
 	process.kill(-worker.pid, "SIGKILL");
 	await new Promise((resolveExit) => worker.once("exit", resolveExit));
-	const reconciled = await reconcileSubagentRun({
+	const reconciled = await reconcileWorkerRun({
 		cwd,
 		runId: "run_wp12a_persistent",
 		staleAfterMs: 1,

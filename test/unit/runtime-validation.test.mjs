@@ -5,31 +5,31 @@ import {
 	validateResolveInput,
 } from "../../dist/runtime/index.js";
 
-test("no-chain", () => {
+test("unknown run and task fields are refused by name; mode is checked", () => {
 	const modeRejected = validateResolveInput({ mode: "chain" });
 	assert.equal(modeRejected.ok, false);
 	assert.match(modeRejected.failure.error, /unsupported mode/);
-
-	const fieldRejected = validateResolveInput({
-		chain: [{ task: "do not run" }],
-	});
-	assert.equal(fieldRejected.ok, false);
-	assert.match(fieldRejected.failure.error, /chain mode is not supported/);
+	for (const [input, field] of [
+		[{ task: "t", unknownField: 1 }, "unknownField"],
+		[{ tasks: [{ task: "t", extra: true }] }, "tasks[0].extra"],
+	]) {
+		const rejected = validateResolveInput(input, "fixture");
+		assert.equal(rejected.ok, false, field);
+		assert.equal(rejected.failure.error, `unsupported request field ${field}`);
+		assert.equal(rejected.failure.executorId, "fixture");
+	}
+	const untagged = validateResolveInput({ timeoutMs: -1 });
+	assert.equal(untagged.ok, false);
+	assert.equal("executorId" in untagged.failure, false);
 });
 
 test("schema-sync (validation half)", () => {
 	// Every key in the probe table must be accepted by validateResolveInput.
 	const probeValues = {
-		backend: "auto",
-		visible: true,
 		sandbox: true,
-		agent: "worker",
 		task: "inspect",
-		roleContext: "role",
-		agentScope: "auto",
-		confirmProjectAgents: true,
 		mode: "single",
-		tasks: [{ agent: "worker", task: "inspect" }],
+		tasks: [{ task: "inspect" }],
 		concurrency: 2,
 		failFast: true,
 		cancelSiblingsOnFailure: true,
@@ -44,9 +44,6 @@ test("schema-sync (validation half)", () => {
 		model: "provider/model",
 		tools: ["read"],
 		systemPrompt: "prompt",
-		skills: ["skill"],
-		extensions: ["ext"],
-		noExtensions: true,
 		runsDir: ".agent-workflow/runs",
 		correlationId: "corr",
 		captureToolCalls: true,
@@ -55,7 +52,7 @@ test("schema-sync (validation half)", () => {
 		const single =
 			key === "tasks" || key === "concurrency"
 				? { [key]: probeValues[key], tasks: probeValues.tasks }
-				: { agent: "worker", task: "inspect", [key]: probeValues[key] };
+				: { task: "inspect", [key]: probeValues[key] };
 		const validation = validateResolveInput(single);
 		assert.equal(
 			validation.ok,
@@ -64,60 +61,17 @@ test("schema-sync (validation half)", () => {
 		);
 	}
 	const taskLevel = validateResolveInput({
-		tasks: [
-			{
-				agent: "worker",
-				task: "inspect",
-				captureToolCalls: true,
-				noExtensions: true,
-			},
-		],
+		tasks: [{ task: "inspect", captureToolCalls: true }],
 	});
 	assert.equal(taskLevel.ok, true);
 	assert.equal(taskLevel.input.tasks[0].captureToolCalls, true);
-	assert.equal(taskLevel.input.tasks[0].noExtensions, true);
-});
-
-test("tool-result-budget (validation passthrough half)", () => {
-	const validBudgetInput = validateResolveInput({
-		agent: "worker",
-		task: "inspect",
-		toolResultBudget: { maxTotalChars: 4096 },
-	});
-	assert.equal(validBudgetInput.ok, true);
-	assert.deepEqual(validBudgetInput.input.toolResultBudget, {
-		maxTotalChars: 4096,
-	});
-	const invalidBudgetInput = validateResolveInput({
-		agent: "worker",
-		task: "inspect",
-		toolResultBudget: { maxTotalChars: "junk" },
-	});
-	assert.equal(
-		invalidBudgetInput.ok,
-		true,
-		"invalid budget must not fail validation",
-	);
-	const taskBudgetInput = validateResolveInput({
-		tasks: [
-			{
-				agent: "worker",
-				task: "inspect",
-				toolResultBudget: { maxTotalChars: 512 },
-			},
-		],
-	});
-	assert.equal(taskBudgetInput.ok, true);
-	assert.deepEqual(taskBudgetInput.input.tasks[0].toolResultBudget, {
-		maxTotalChars: 512,
-	});
 });
 
 test("output-recovery (result envelope half)", () => {
 	const envelope = createResultEnvelope({
 		runId: "test",
 		attemptId: "one",
-		backend: "headless",
+		executorId: "headless",
 		status: "failed",
 		cwd: "/tmp",
 		metadata: { outputPartial: true },
@@ -127,40 +81,4 @@ test("output-recovery (result envelope half)", () => {
 		true,
 		"partial marker survives result serialization",
 	);
-});
-
-test("generic backends (agent-workflow adaptation)", () => {
-	// Executor ids replace the inline/headless/tmux enum; "auto" stays the
-	// unresolved marker and is not reported as a failure backend.
-	for (const backend of [
-		"auto",
-		"codex",
-		"claude",
-		"pi",
-		"headless",
-		"x.y_z:1-2",
-	])
-		assert.equal(validateResolveInput({ backend }).ok, true, backend);
-	for (const backend of ["", "has space", "-leading", 7]) {
-		const rejected = validateResolveInput({ backend });
-		assert.equal(rejected.ok, false, String(backend));
-		assert.match(rejected.failure.error, /unsupported backend/);
-		assert.equal("backend" in rejected.failure, false);
-	}
-	const knownBackendFailure = validateResolveInput({
-		backend: "codex",
-		timeoutMs: -1,
-	});
-	assert.equal(knownBackendFailure.ok, false);
-	assert.equal(knownBackendFailure.failure.backend, "codex");
-	// The tmux-only `visible` rule and the inline-sandbox rule are gone.
-	assert.equal(
-		validateResolveInput({ backend: "codex", visible: true }).ok,
-		true,
-	);
-	assert.equal(
-		validateResolveInput({ backend: "inline", sandbox: true }).ok,
-		true,
-	);
-	assert.equal(validateResolveInput({ visible: "yes" }).ok, false);
 });

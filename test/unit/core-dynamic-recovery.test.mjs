@@ -7,7 +7,7 @@ import {
 } from "../../dist/core/engine-run-graph.js";
 
 function handle(runId) {
-	return { engine: "agent-workflow", runId };
+	return { runId };
 }
 
 const compiled = {
@@ -25,7 +25,7 @@ test("WB-007 misalignment throws before stale dynamic recovery mutates any task"
 				specId: "worker",
 				status: "running",
 				statusDetail: "running",
-				backendHandle: handle("worker-child"),
+				workerHandle: handle("worker-child"),
 			},
 			{
 				taskId: "controller-task",
@@ -52,7 +52,7 @@ test("WB-007 stale running support recovery fails closed without replay", () => 
 				status: "running",
 				statusDetail: "running",
 				pid: 100,
-				backendHandle: handle("unexpected-support-child"),
+				workerHandle: handle("unexpected-support-child"),
 			},
 			{
 				taskId: "worker-task",
@@ -60,7 +60,7 @@ test("WB-007 stale running support recovery fails closed without replay", () => 
 				status: "running",
 				statusDetail: "running",
 				pid: 200,
-				backendHandle: handle("worker-child"),
+				workerHandle: handle("worker-child"),
 			},
 		],
 	};
@@ -74,7 +74,7 @@ test("WB-007 stale running support recovery fails closed without replay", () => 
 	assert.equal(run.tasks[0].status, "failed");
 	assert.equal(run.tasks[0].statusDetail, "recovered_stale_support_task");
 	assert.match(run.tasks[0].lastMessage, /failed closed/);
-	assert.equal(run.tasks[0].backendHandle, undefined);
+	assert.equal(run.tasks[0].workerHandle, undefined);
 	assert.equal(run.tasks[0].pid, undefined);
 	assert.equal(run.tasks[1].status, "running");
 	assert.equal(run.tasks[1].pid, 200);
@@ -90,7 +90,7 @@ test("WB-007 aligned recovery resets only the dynamic controller", () => {
 				status: "running",
 				statusDetail: "running",
 				pid: 100,
-				backendHandle: handle("unexpected-controller-child"),
+				workerHandle: handle("unexpected-controller-child"),
 			},
 			{
 				taskId: "worker-task",
@@ -98,16 +98,16 @@ test("WB-007 aligned recovery resets only the dynamic controller", () => {
 				status: "running",
 				statusDetail: "running",
 				pid: 200,
-				backendHandle: workerHandle,
+				workerHandle: workerHandle,
 			},
 		],
 	};
 	assert.equal(recoverStaleRunningDynamicControllers(run, compiled), true);
 	assert.equal(run.tasks[0].status, "pending");
 	assert.equal(run.tasks[0].statusDetail, "recovered_stale_dynamic_controller");
-	assert.equal(run.tasks[0].backendHandle, undefined);
+	assert.equal(run.tasks[0].workerHandle, undefined);
 	assert.equal(run.tasks[0].pid, undefined);
 	assert.equal(run.tasks[1].status, "running");
-	assert.equal(run.tasks[1].backendHandle, workerHandle);
+	assert.equal(run.tasks[1].workerHandle, workerHandle);
 	assert.equal(run.tasks[1].pid, 200);
 });

@@ -18,14 +18,14 @@ import { after, before, test } from "node:test";
 import { promisify } from "node:util";
 import {
 	createDurableLaunchBarrierV2,
-	interruptSubagent,
+	interruptWorker,
 	readRunEvents,
 	requestCancel,
 	resolveDurableLaunchBarrierV2Release,
 	revokeDurableLaunchBarrierV2,
-	runSubagent,
+	runWorker,
 	waitForDurableLaunchBarrierV2Ready,
-	waitForSubagent,
+	waitForWorker,
 } from "../../dist/runtime/index.js";
 import {
 	fixtureDescriptor,
@@ -218,7 +218,7 @@ const SCENARIOS = {
 	async completed() {
 		const { cwd, effectLog } = fresh("completed");
 		await mkdir(cwd, { recursive: true });
-		const run = await runSubagent({
+		const run = await runWorker({
 			cwd,
 			executor: fixtureDescriptor({ effectLog }),
 			task: "complete",
@@ -230,7 +230,7 @@ const SCENARIOS = {
 		const { cwd, effectLog, barrierDir } = fresh("released");
 		await mkdir(cwd, { recursive: true });
 		const descriptor = await barrier(barrierDir);
-		const run = await runSubagent({
+		const run = await runWorker({
 			cwd,
 			executor: fixtureDescriptor({ effectLog }),
 			task: "complete after release",
@@ -253,7 +253,7 @@ const SCENARIOS = {
 			cancellationId: "stop-before-launch",
 			reasonSha256: sha256("stop"),
 		});
-		const run = await runSubagent({
+		const run = await runWorker({
 			cwd,
 			executor: fixtureDescriptor({ effectLog }),
 			task: "never",
@@ -266,7 +266,7 @@ const SCENARIOS = {
 		const { cwd, effectLog, barrierDir } = fresh("barrier-timeout");
 		await mkdir(cwd, { recursive: true });
 		const descriptor = await barrier(barrierDir, 300);
-		const run = await runSubagent({
+		const run = await runWorker({
 			cwd,
 			executor: fixtureDescriptor({ effectLog }),
 			task: "never released",
@@ -278,7 +278,7 @@ const SCENARIOS = {
 	async refused() {
 		const { cwd, effectLog } = fresh("refused");
 		await mkdir(cwd, { recursive: true });
-		const run = await runSubagent({
+		const run = await runWorker({
 			cwd,
 			executor: fixtureDescriptor({ effectLog }, { version: "9.0.0" }),
 			task: "never",
@@ -289,7 +289,7 @@ const SCENARIOS = {
 	async fenceViolation() {
 		const { cwd, effectLog } = fresh("fence");
 		await mkdir(cwd, { recursive: true });
-		const run = await runSubagent({
+		const run = await runWorker({
 			cwd,
 			executor: fixtureDescriptor({ effectLog, mode: "skip-consume" }),
 			task: "misbehave",
@@ -300,7 +300,7 @@ const SCENARIOS = {
 	async sigterm() {
 		const { cwd, effectLog } = fresh("sigterm");
 		await mkdir(cwd, { recursive: true });
-		const run = await runSubagent({
+		const run = await runWorker({
 			cwd,
 			executor: fixtureDescriptor({ effectLog, stepDelayMs: 300 }),
 			task: "slow",
@@ -313,7 +313,7 @@ const SCENARIOS = {
 			expect: "cancelled",
 			async act() {
 				await waitForEvent(attemptDir(cwd, run), "started");
-				await interruptSubagent({
+				await interruptWorker({
 					cwd,
 					runId: run.runId,
 					attemptId: run.attemptId,
@@ -327,7 +327,7 @@ const SCENARIOS = {
 	async mailboxCancel() {
 		const { cwd, effectLog } = fresh("mailbox-cancel");
 		await mkdir(cwd, { recursive: true });
-		const run = await runSubagent({
+		const run = await runWorker({
 			cwd,
 			executor: fixtureDescriptor({ effectLog, stepDelayMs: 300 }),
 			task: "slow",
@@ -351,7 +351,7 @@ const SCENARIOS = {
 	async worktree() {
 		const { cwd, effectLog } = fresh("worktree");
 		await createRepo(cwd);
-		const run = await runSubagent({
+		const run = await runWorker({
 			cwd,
 			executor: fixtureDescriptor({ effectLog }),
 			task: "complete in a worktree",
@@ -380,7 +380,7 @@ test("terminal-last-write: every artifact is present the moment result.json is t
 				for (const problem of problems)
 					misses.push(`${name}#${round}: ${problem}`);
 				// Let the finalizer commit and publish before the next round (and before cleanup).
-				const waited = await waitForSubagent({
+				const waited = await waitForWorker({
 					cwd: staged.cwd,
 					runId: staged.run.runId,
 					attemptId: staged.run.attemptId,

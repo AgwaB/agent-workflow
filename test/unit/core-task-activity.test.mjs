@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as h from "../helpers/unit-test-support.mjs";
-import { refreshRunFromSubagentArtifacts } from "../../dist/core/task-backend.js";
+import { refreshRunFromWorkerArtifacts } from "../../dist/core/task-runner.js";
 import { setTaskRuntimeApiForTests } from "../../dist/core/runtime-port.js";
 import { setTaskTerminal } from "../../dist/core/store.js";
 
@@ -34,9 +34,7 @@ test("supervisor refresh copies the exact attempt's activity, preserves heartbea
 	task.status = "running";
 	task.statusDetail = "running";
 	task.startedAt = new Date().toISOString();
-	task.backendHandle = {
-		engine: "agent-workflow",
-		backend: "runtime",
+	task.workerHandle = {
 		cwd,
 		runsDir: ".agent-workflow/runs",
 		runId: "child-run",
@@ -46,11 +44,11 @@ test("supervisor refresh copies the exact attempt's activity, preserves heartbea
 	let status = "running";
 	let activity = { ...ACTIVITY, extra: "not allowlisted" };
 	setTaskRuntimeApiForTests({
-		reconcileSubagentRun: async () => ({}),
-		getSubagentStatus: async () => ({
+		reconcileWorkerRun: async () => ({}),
+		getWorkerStatus: async () => ({
 			runId: "child-run",
 			attemptId: "exact-attempt",
-			backend: "fixture",
+			executorId: "fixture",
 			status,
 			failureKind: status === "running" ? null : "user_cancelled",
 			startedAt: task.startedAt,
@@ -67,7 +65,7 @@ test("supervisor refresh copies the exact attempt's activity, preserves heartbea
 		}),
 	});
 	await h.writeRunRecord(cwd, run);
-	await refreshRunFromSubagentArtifacts(cwd, run);
+	await refreshRunFromWorkerArtifacts(cwd, run);
 	assert.deepEqual(task.activity, ACTIVITY);
 	assert.equal(task.lastMessage, `executor heartbeat ${AT}`);
 	assert.deepEqual(
@@ -75,13 +73,13 @@ test("supervisor refresh copies the exact attempt's activity, preserves heartbea
 		ACTIVITY,
 	);
 	activity = { ...ACTIVITY, kind: "invalid" };
-	await refreshRunFromSubagentArtifacts(cwd, run);
+	await refreshRunFromWorkerArtifacts(cwd, run);
 	assert.equal(task.activity, undefined);
 	activity = ACTIVITY;
-	await refreshRunFromSubagentArtifacts(cwd, run);
+	await refreshRunFromWorkerArtifacts(cwd, run);
 	assert.deepEqual(task.activity, ACTIVITY);
 	status = "cancelled";
-	await refreshRunFromSubagentArtifacts(cwd, run);
+	await refreshRunFromWorkerArtifacts(cwd, run);
 	assert.equal(task.status, "interrupted");
 	assert.equal("activity" in task, false);
 	assert.equal(

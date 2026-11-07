@@ -303,7 +303,7 @@ export function migrateForeachBatchFallbackTasks(
 		if (
 			marker === undefined &&
 			task.status === "running" &&
-			(!task.foreachBatch.batchingDisabled || task.backendHandle === undefined)
+			(!task.foreachBatch.batchingDisabled || task.workerHandle === undefined)
 		)
 			throw new Error(
 				`foreach batch ${record.batchId} has an active unmarked fallback member`,
@@ -344,7 +344,7 @@ function isRetainedLegacyFallbackOwnership(
 		missing.length === 1 &&
 		(isHistoricalFallbackOwnership(missing[0]!) ||
 			(missing[0]?.status === "running" &&
-				missing[0].backendHandle !== undefined)) &&
+				missing[0].workerHandle !== undefined)) &&
 		tasks.some((task) => task.foreachBatch?.physicalAttempt === expected)
 	);
 }
@@ -441,9 +441,9 @@ export function applyForeachBatchFallback(
 		task.exitCode = undefined;
 		task.pid = undefined;
 		task.launchToken = undefined;
-		task.backendTaskId = task.taskId;
-		task.backendHandle = undefined;
-		task.backendFiles = undefined;
+		task.workerTaskId = task.taskId;
+		task.workerHandle = undefined;
+		task.workerFiles = undefined;
 		// Retain the batch's consumed bootstrap/authority history. The fallback
 		// singleton gets a new physical attempt identity below, so this history
 		// remains auditable without authorizing reuse of the old launch.
@@ -541,7 +541,7 @@ export function canonicalJson(value: unknown): string | undefined {
 
 /**
  * The execution surface excludes item prompt/data but includes every setting
- * that can alter a physical subagent launch or output contract.
+ * that can alter a physical worker launch or output contract.
  */
 export function foreachBatchExecutionSurfaceSha256(task: CompiledTask): string {
 	// Keep this legacy surface byte-for-byte stable: absent marker means a

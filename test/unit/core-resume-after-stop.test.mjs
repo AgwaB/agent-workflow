@@ -21,7 +21,7 @@ let counter = 0;
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp37-resume-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -29,7 +29,7 @@ before(async () => {
 after(async () => {
 	engine.setResumeAfterStopLeaseWaitForTests(undefined);
 	for (const undo of unregister.splice(0)) undo();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,

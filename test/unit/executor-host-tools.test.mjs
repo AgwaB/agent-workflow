@@ -56,7 +56,7 @@ let counter = 0;
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp35-host-tools-")));
 	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR ??= join(root, "run-index");
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -64,7 +64,7 @@ before(async () => {
 after(async () => {
 	for (const cwd of projects) await drainWorkflowProject(cwd);
 	for (const undo of unregister.splice(0)) undo();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,
@@ -365,7 +365,6 @@ test("launch provenance: inheriting host tools needs the run's pi executor (fail
 			{ ...run, executor: { ...(run.executor ?? {}), id: executorId } },
 			run.tasks[0],
 			prepared,
-			"unit",
 			launch,
 		);
 	const record = await provenance("pi");

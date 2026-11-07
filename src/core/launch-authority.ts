@@ -37,10 +37,9 @@ export class WorkflowLaunchAuthorityConsumedError extends Error {
 export function createWorkflowLaunchAuthority(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
-	backendId: string,
 	provenance: LaunchBootstrapProvenanceRecord,
 ): WorkflowLaunchAuthorityGrant {
-	assertCurrentProvenanceOwner(run, task, backendId, provenance);
+	assertCurrentProvenanceOwner(run, task, provenance);
 	const grant: Omit<WorkflowLaunchAuthorityGrant, "identitySha256"> = {
 		schema: WORKFLOW_LAUNCH_AUTHORITY_SCHEMA,
 		issuer: "agent-workflow-engine",
@@ -52,7 +51,6 @@ export function createWorkflowLaunchAuthority(
 			...(task.generation === undefined ? {} : { generation: task.generation }),
 		},
 		attemptKey: provenance.attempt.key,
-		backendId,
 		launchBootstrapSha256: provenance.identitySha256,
 	};
 	return { ...grant, identitySha256: sha256Canonical(grant) };
@@ -88,9 +86,8 @@ export function assertCurrentWorkflowLaunchAuthority(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
 	grant: WorkflowLaunchAuthorityGrant,
-	backendId: string,
 ): void {
-	assertCurrentGrantOwner(run, task, grant, backendId);
+	assertCurrentGrantOwner(run, task, grant);
 	const { record } = authorityRecord(task, grant);
 	if (record.state.phase === "consumed")
 		throw new WorkflowLaunchAuthorityConsumedError();
@@ -100,9 +97,8 @@ export function registerWorkflowLaunchAuthority(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
 	grant: WorkflowLaunchAuthorityGrant,
-	backendId: string,
 ): void {
-	assertCurrentWorkflowLaunchAuthority(run, task, grant, backendId);
+	assertCurrentWorkflowLaunchAuthority(run, task, grant);
 	const { history, record } = authorityRecord(task, grant);
 	if (record.state.phase === "registered")
 		throw new WorkflowLaunchAuthorityRegisteredError();
@@ -113,26 +109,26 @@ export function registerWorkflowLaunchAuthority(
 export function consumeWorkflowLaunchAuthority(
 	task: WorkflowTaskRunRecord,
 	grant: WorkflowLaunchAuthorityGrant,
-	backendRunId: string,
-	backendAttemptId: string,
+	workerRunId: string,
+	workerAttemptId: string,
 ): void {
-	if (!nonEmptyString(backendRunId) || !nonEmptyString(backendAttemptId))
-		throw new Error("workflow launch authority backend identity is invalid");
+	if (!nonEmptyString(workerRunId) || !nonEmptyString(workerAttemptId))
+		throw new Error("workflow launch authority worker identity is invalid");
 	const { history, record } = authorityRecord(task, grant);
 	if (record.state.phase === "issued")
 		throw new Error("workflow launch authority is not registered");
 	if (record.state.phase === "consumed") {
 		if (
-			record.state.backendRunId !== backendRunId ||
-			record.state.backendAttemptId !== backendAttemptId
+			record.state.workerRunId !== workerRunId ||
+			record.state.workerAttemptId !== workerAttemptId
 		)
-			throw new Error("workflow launch authority backend identity mismatch");
+			throw new Error("workflow launch authority worker identity mismatch");
 		return;
 	}
 	record.state = {
 		phase: "consumed",
-		backendRunId,
-		backendAttemptId,
+		workerRunId,
+		workerAttemptId,
 	};
 	task.launchAuthority = history;
 }
@@ -140,9 +136,8 @@ export function consumeWorkflowLaunchAuthority(
 export function consumeRegisteredWorkflowLaunchAuthority(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
-	backendId: string,
-	backendRunId: string,
-	backendAttemptId: string,
+	workerRunId: string,
+	workerAttemptId: string,
 ): boolean {
 	const history = task.launchAuthority;
 	if (history === undefined) return false;
@@ -159,15 +154,15 @@ export function consumeRegisteredWorkflowLaunchAuthority(
 		if (candidate.grant.attemptKey === attemptKey) current = candidate;
 	}
 	if (!current) return false;
-	assertCurrentGrantOwner(run, task, current.grant, backendId);
+	assertCurrentGrantOwner(run, task, current.grant);
 	assertAuthorityHistory(task, history, current.grant);
 	if (current.state.phase === "issued") return false;
 	const previous = current.state.phase;
 	consumeWorkflowLaunchAuthority(
 		task,
 		current.grant,
-		backendRunId,
-		backendAttemptId,
+		workerRunId,
+		workerAttemptId,
 	);
 	return previous === "registered";
 }
@@ -175,7 +170,6 @@ export function consumeRegisteredWorkflowLaunchAuthority(
 export function hasNonSpawnableWorkflowLaunchAuthority(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
-	backendId: string,
 ): boolean {
 	const history = task.launchAuthority;
 	if (history === undefined) return false;
@@ -192,7 +186,7 @@ export function hasNonSpawnableWorkflowLaunchAuthority(
 		if (record.grant.attemptKey === attemptKey) current = record;
 	}
 	if (!current) return false;
-	assertCurrentGrantOwner(run, task, current.grant, backendId);
+	assertCurrentGrantOwner(run, task, current.grant);
 	assertAuthorityHistory(task, history, current.grant);
 	return (
 		current.state.phase === "registered" || current.state.phase === "consumed"
@@ -257,8 +251,7 @@ function assertGrantProvenance(
 		provenance.task.taskId !== grant.task.taskId ||
 		provenance.task.specId !== grant.task.specId ||
 		provenance.task.generation !== grant.task.generation ||
-		provenance.attempt.key !== grant.attemptKey ||
-		provenance.backend.id !== grant.backendId
+		provenance.attempt.key !== grant.attemptKey
 	)
 		throw new Error("workflow launch authority provenance mismatch");
 	return provenance;
@@ -267,7 +260,6 @@ function assertGrantProvenance(
 function assertCurrentProvenanceOwner(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
-	backendId: string,
 	provenance: LaunchBootstrapProvenanceRecord,
 ): void {
 	const recorded = assertRecordedLaunchBootstrapProvenance(
@@ -281,10 +273,7 @@ function assertCurrentProvenanceOwner(
 		provenance.task.specId !== task.specId ||
 		provenance.task.generation !== task.generation ||
 		provenance.attempt.key !==
-			workflowTaskAttemptIdentity(task, workflowTaskSessionId(run, task)) ||
-		provenance.backend.id !== backendId ||
-		provenance.backend.type !== run.backend.type ||
-		provenance.backend.mode !== run.backend.mode
+			workflowTaskAttemptIdentity(task, workflowTaskSessionId(run, task))
 	)
 		throw new Error("workflow launch authority provenance owner mismatch");
 }
@@ -293,20 +282,15 @@ function assertCurrentGrantOwner(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
 	grant: WorkflowLaunchAuthorityGrant,
-	backendId: string,
 ): void {
-	const provenance = assertGrantProvenance(task, grant);
+	assertGrantProvenance(task, grant);
 	if (
 		grant.runId !== run.runId ||
 		grant.task.taskId !== task.taskId ||
 		grant.task.specId !== task.specId ||
 		grant.task.generation !== task.generation ||
 		grant.attemptKey !==
-			workflowTaskAttemptIdentity(task, workflowTaskSessionId(run, task)) ||
-		grant.backendId !== backendId ||
-		provenance.backend.id !== backendId ||
-		provenance.backend.type !== run.backend.type ||
-		provenance.backend.mode !== run.backend.mode
+			workflowTaskAttemptIdentity(task, workflowTaskSessionId(run, task))
 	)
 		throw new Error("workflow launch authority owner mismatch");
 }
@@ -319,8 +303,7 @@ function hasSameAuthorityOwner(
 		candidate.runId === current.runId &&
 		candidate.task.taskId === current.task.taskId &&
 		candidate.task.specId === current.task.specId &&
-		candidate.task.generation === current.task.generation &&
-		candidate.backendId === current.backendId
+		candidate.task.generation === current.task.generation
 	);
 }
 
@@ -359,7 +342,6 @@ function isWorkflowLaunchAuthorityGrant(
 			"runId",
 			"task",
 			"attemptKey",
-			"backendId",
 			"launchBootstrapSha256",
 		]) ||
 		value.schema !== WORKFLOW_LAUNCH_AUTHORITY_SCHEMA ||
@@ -367,7 +349,6 @@ function isWorkflowLaunchAuthorityGrant(
 		value.operation !== "launch-task" ||
 		!nonEmptyString(value.runId) ||
 		!nonEmptyString(value.attemptKey) ||
-		!nonEmptyString(value.backendId) ||
 		!isSha256(value.launchBootstrapSha256) ||
 		!isSha256(value.identitySha256) ||
 		!isAuthorityTask(value.task)
@@ -398,9 +379,9 @@ function isAuthorityState(
 		return hasExactKeys(value, ["phase"]);
 	return (
 		value.phase === "consumed" &&
-		hasExactKeys(value, ["phase", "backendRunId", "backendAttemptId"]) &&
-		nonEmptyString(value.backendRunId) &&
-		nonEmptyString(value.backendAttemptId)
+		hasExactKeys(value, ["phase", "workerRunId", "workerAttemptId"]) &&
+		nonEmptyString(value.workerRunId) &&
+		nonEmptyString(value.workerAttemptId)
 	);
 }
 

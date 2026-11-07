@@ -16,10 +16,10 @@ import {
 	type RunEvent,
 	runPaths,
 } from "./artifacts/index.js";
-import type { FailureKind, ResolvedBackend, Status } from "./core/constants.js";
+import type { FailureKind, ExecutorId, Status } from "./core/constants.js";
 import {
-	startAsyncParallelSubagentRuns,
-	startAsyncSubagentRun,
+	startAsyncParallelWorkerRuns,
+	startAsyncWorkerRun,
 } from "./orchestrate/async.js";
 import { executionMode } from "./orchestrate/run-options.js";
 import {
@@ -40,8 +40,8 @@ import {
 } from "./orchestrate/request.js";
 import { resolveRunRef } from "./orchestrate/run-ref.js";
 import {
-	runParallelSubagentTasks,
-	runSubagentTask,
+	runParallelWorkerTasks,
+	runWorkerTask,
 	type ParallelRunResult,
 } from "./orchestrate/run.js";
 import {
@@ -57,16 +57,16 @@ import {
 } from "./orchestrate/status.js";
 
 export {
-	reconcileSubagentRun,
-	type ReconcileSubagentRunOptions as ReconcileSubagentOptions,
+	reconcileWorkerRun,
+	type ReconcileWorkerRunOptions as ReconcileWorkerOptions,
 } from "./orchestrate/reconcile.js";
 
 export {
-	formatPruneSubagentRunsSummary,
-	pruneSubagentRuns,
-	type PruneSubagentRunCandidate,
-	type PruneSubagentRunsOptions,
-	type PruneSubagentRunsSummary,
+	formatPruneWorkerRunsSummary,
+	pruneWorkerRuns,
+	type PruneWorkerRunCandidate,
+	type PruneWorkerRunsOptions,
+	type PruneWorkerRunsSummary,
 } from "./orchestrate/prune.js";
 
 export {
@@ -92,20 +92,20 @@ export {
 	type DurableLaunchBarrierV2State,
 } from "./durable-launch-barrier.js";
 
-export interface RunSubagentOptions extends RuntimeRunInput {
+export interface RunWorkerOptions extends RuntimeRunInput {
 	signal?: AbortSignal;
 	/** In-process executor modules (sync runs only; a durable worker imports `executor.module`). */
 	registry?: ExecutorRegistry;
 }
 
-export type RunSubagentResult = ResultEnvelope | ParallelRunResult;
+export type RunWorkerResult = ResultEnvelope | ParallelRunResult;
 
-export type GetSubagentStatusOptions = RunStatusRef;
-export type GetSubagentLogsOptions = RunStatusRef;
-export type WaitForSubagentOptions = WaitForRunOptions;
-export type InterruptSubagentOptions = InterruptRunOptions;
+export type GetWorkerStatusOptions = RunStatusRef;
+export type GetWorkerLogsOptions = RunStatusRef;
+export type WaitForWorkerOptions = WaitForRunOptions;
+export type InterruptWorkerOptions = InterruptRunOptions;
 
-export interface RecordSubagentChildEventOptions extends RunStatusRef {
+export interface RecordWorkerChildEventOptions extends RunStatusRef {
 	event: "started" | "updated" | "completed" | "failed" | "cancelled";
 	childRunId: string;
 	workflowRunId?: string;
@@ -117,40 +117,40 @@ export interface RecordSubagentChildEventOptions extends RunStatusRef {
 	usage?: Record<string, unknown>;
 }
 
-export class SubagentValidationError extends Error {
+export class WorkerValidationError extends Error {
 	readonly failureKind = "validation" as const;
-	readonly backend?: ResolvedBackend;
+	readonly executorId?: ExecutorId;
 
-	constructor(message: string, backend?: ResolvedBackend) {
+	constructor(message: string, executorId?: ExecutorId) {
 		super(message);
-		this.name = "SubagentValidationError";
-		this.backend = backend;
+		this.name = "WorkerValidationError";
+		this.executorId = executorId;
 	}
 }
 
 function validateRunnableInput(
 	input: RuntimeRunInput,
-	backend: ResolvedBackend,
+	executorId: ExecutorId,
 ): void {
 	const mode = executionMode(input);
 	if (mode === "parallel") {
 		if (input.tasks === undefined || input.tasks.length === 0) {
-			throw new SubagentValidationError(
+			throw new WorkerValidationError(
 				"parallel mode requires a non-empty tasks array.",
-				backend,
+				executorId,
 			);
 		}
 		return;
 	}
 	if (input.task === undefined) {
-		throw new SubagentValidationError(
-			`${backend} execution requires a non-empty task.`,
-			backend,
+		throw new WorkerValidationError(
+			`${executorId} execution requires a non-empty task.`,
+			executorId,
 		);
 	}
 }
 
-function validateRunOptions(options: RunSubagentOptions): {
+function validateRunOptions(options: RunWorkerOptions): {
 	input: RuntimeRunInput;
 	cwd: string;
 	signal?: AbortSignal;
@@ -159,9 +159,9 @@ function validateRunOptions(options: RunSubagentOptions): {
 	const { signal, registry, ...rawInput } = options;
 	const validation = validateRuntimeRunInput(rawInput);
 	if (!validation.ok) {
-		throw new SubagentValidationError(
+		throw new WorkerValidationError(
 			validation.failure.error,
-			validation.failure.backend,
+			validation.failure.executorId,
 		);
 	}
 	validateRunnableInput(validation.input, validation.input.executor.id);
@@ -169,9 +169,9 @@ function validateRunOptions(options: RunSubagentOptions): {
 	return { input: validation.input, cwd, signal, registry };
 }
 
-export async function runSubagent(
-	options: RunSubagentOptions,
-): Promise<RunSubagentResult> {
+export async function runWorker(
+	options: RunWorkerOptions,
+): Promise<RunWorkerResult> {
 	const { input, cwd, signal, registry } = validateRunOptions(options);
 	try {
 		const mode = executionMode(input);
@@ -181,22 +181,22 @@ export async function runSubagent(
 			input.onComplete === "notify";
 		if (mode === "parallel") {
 			return asyncRequested
-				? await startAsyncParallelSubagentRuns(input, cwd, signal)
-				: await runParallelSubagentTasks(input, cwd, signal, { registry });
+				? await startAsyncParallelWorkerRuns(input, cwd, signal)
+				: await runParallelWorkerTasks(input, cwd, signal, { registry });
 		}
 
 		if (asyncRequested) {
-			return await startAsyncSubagentRun({ input, cwd, signal });
+			return await startAsyncWorkerRun({ input, cwd, signal });
 		}
 
-		return await runSubagentTask({ input, cwd, signal, registry });
+		return await runWorkerTask({ input, cwd, signal, registry });
 	} catch (error) {
 		if (
 			typeof error === "object" &&
 			error !== null &&
 			(error as { failureKind?: unknown }).failureKind === "validation"
 		) {
-			throw new SubagentValidationError(
+			throw new WorkerValidationError(
 				error instanceof Error ? error.message : String(error),
 			);
 		}
@@ -204,32 +204,32 @@ export async function runSubagent(
 	}
 }
 
-export async function getSubagentStatus(
-	options: GetSubagentStatusOptions,
+export async function getWorkerStatus(
+	options: GetWorkerStatusOptions,
 ): Promise<RunStatusSnapshot | null> {
 	return await getRunStatus(options);
 }
 
-export async function getSubagentLogs(
-	options: GetSubagentLogsOptions,
+export async function getWorkerLogs(
+	options: GetWorkerLogsOptions,
 ): Promise<RunLogsSnapshot | null> {
 	return await getRunLogs(options);
 }
 
-export async function waitForSubagent(
-	options: WaitForSubagentOptions,
+export async function waitForWorker(
+	options: WaitForWorkerOptions,
 ): Promise<WaitForRunResult> {
 	return await waitForRun(options);
 }
 
-export async function interruptSubagent(
-	options: InterruptSubagentOptions,
+export async function interruptWorker(
+	options: InterruptWorkerOptions,
 ): Promise<InterruptRunResult> {
 	return await interruptRun(options);
 }
 
 function defaultChildStatus(
-	event: RecordSubagentChildEventOptions["event"],
+	event: RecordWorkerChildEventOptions["event"],
 ): Status {
 	if (event === "started" || event === "updated") return "running";
 	if (event === "completed") return "completed";
@@ -237,8 +237,8 @@ function defaultChildStatus(
 	return "failed";
 }
 
-export async function recordSubagentChildEvent(
-	options: RecordSubagentChildEventOptions,
+export async function recordWorkerChildEvent(
+	options: RecordWorkerChildEventOptions,
 ): Promise<RunEvent> {
 	const {
 		event,
@@ -282,7 +282,7 @@ async function locateAttempt(ref: ControlTargetRef): Promise<AttemptLocation> {
 	const resolved = await resolveRunRef(ref);
 	const record = await readRunRecord(resolved);
 	if (record === null)
-		throw new SubagentValidationError(`run ${ref.runId} was not found`);
+		throw new WorkerValidationError(`run ${ref.runId} was not found`);
 	const attemptId =
 		ref.attemptId ??
 		ref.taskId ??
@@ -293,7 +293,7 @@ async function locateAttempt(ref: ControlTargetRef): Promise<AttemptLocation> {
 		(candidate) => candidate.attemptId === attemptId,
 	);
 	if (attemptId === undefined || attempt === undefined)
-		throw new SubagentValidationError(
+		throw new WorkerValidationError(
 			`run ${ref.runId} has no attempt ${attemptId ?? "(none)"}`,
 		);
 	const cwd = attempt.artifactCwd ?? record.cwd ?? resolved.cwd;
@@ -391,9 +391,9 @@ export async function respondApproval(
 	options: ControlRequestOptions = {},
 ): Promise<RespondApprovalResult> {
 	if (typeof requestId !== "string" || requestId === "")
-		throw new SubagentValidationError("requestId must be a non-empty string");
+		throw new WorkerValidationError("requestId must be a non-empty string");
 	if (decision !== "allow" && decision !== "deny")
-		throw new SubagentValidationError('decision must be "allow" or "deny"');
+		throw new WorkerValidationError('decision must be "allow" or "deny"');
 	const { attemptDir } = await locateAttempt(ref);
 	const { seq, file } = await writeControlRequest(attemptDir, {
 		type: "approval_response",
@@ -427,7 +427,7 @@ export async function respondApproval(
 export interface RequestCancelOptions extends ControlRequestOptions {
 	/**
 	 * scope "owned" only: when the executing process does not ack within `ackTimeoutMs`, fall back
-	 * to the SIGTERM interrupt of the identity-verified worker (`interruptSubagent`). Default true.
+	 * to the SIGTERM interrupt of the identity-verified worker (`interruptWorker`). Default true.
 	 */
 	signalFallback?: boolean;
 	reason?: string;
@@ -458,7 +458,7 @@ export async function requestCancel(
 	options: RequestCancelOptions = {},
 ): Promise<RequestCancelResult> {
 	if (scope !== "turn" && scope !== "owned")
-		throw new SubagentValidationError('scope must be "turn" or "owned"');
+		throw new WorkerValidationError('scope must be "turn" or "owned"');
 	const { attemptId, attemptDir } = await locateAttempt(ref);
 	const { seq, file } = await writeControlRequest(attemptDir, {
 		type: "cancel",

@@ -16,7 +16,7 @@ import {
 	type AsyncDependency,
 	type ExecutionMode,
 	type FailureKind,
-	type ResolvedBackend,
+	type ExecutorId,
 	type Status,
 } from "../core/constants.js";
 import { acquireDirectoryLock } from "./dir-lock.js";
@@ -93,7 +93,7 @@ export interface WorkerProcessMetadata {
 export interface RunAttemptRecord {
 	attemptId: string;
 	status: Status;
-	backend?: ResolvedBackend;
+	executorId?: ExecutorId;
 	failureKind: FailureKind | null;
 	startedAt: string;
 	updatedAt: string;
@@ -120,7 +120,7 @@ export interface RunRecord {
 	status: Status;
 	failureKind: FailureKind | null;
 	dependency: AsyncDependency | null;
-	backend?: ResolvedBackend;
+	executorId?: ExecutorId;
 	cwd: string;
 	runsDir: string;
 	startedAt: string;
@@ -172,7 +172,7 @@ export interface RunPaths {
 
 export interface BeginRunOptions extends RunRef {
 	mode: ExecutionMode;
-	backend?: ResolvedBackend;
+	executorId?: ExecutorId;
 	startedAt?: Date | string;
 	dependency?: AsyncDependency | null;
 	correlationId?: string;
@@ -190,7 +190,7 @@ export interface BeginRunOptions extends RunRef {
 export interface UpsertAttemptOptions extends RunRef {
 	attemptId: string;
 	status: Status;
-	backend?: ResolvedBackend;
+	executorId?: ExecutorId;
 	failureKind?: FailureKind | null;
 	startedAt?: Date | string;
 	completedAt?: Date | string | null;
@@ -309,7 +309,7 @@ function coerceV1Record(value: unknown, paths: RunPaths): RunRecord | null {
 		status?: Status;
 		failureKind?: FailureKind | null;
 		dependency?: AsyncDependency | null;
-		backend?: ResolvedBackend;
+		executorId?: ExecutorId;
 		cwd?: string;
 		startedAt?: string;
 		updatedAt?: string;
@@ -323,7 +323,7 @@ function coerceV1Record(value: unknown, paths: RunPaths): RunRecord | null {
 		return {
 			attemptId: taskId,
 			status: (task.status as Status | undefined) ?? "pending",
-			backend: task.backend as ResolvedBackend | undefined,
+			executorId: task.executorId as ExecutorId | undefined,
 			failureKind: (task.failureKind as FailureKind | null | undefined) ?? null,
 			startedAt:
 				typeof task.startedAt === "string"
@@ -370,7 +370,7 @@ function coerceV1Record(value: unknown, paths: RunPaths): RunRecord | null {
 		failureKind:
 			raw.failureKind ?? aggregateStatus(attempts, latest).failureKind,
 		dependency: raw.dependency ?? null,
-		...(raw.backend === undefined ? {} : { backend: raw.backend }),
+		...(raw.executorId === undefined ? {} : { executorId: raw.executorId }),
 		cwd: raw.cwd ?? paths.cwd,
 		runsDir: toSafeRelativePath(paths.cwd, paths.runsDir),
 		startedAt: raw.startedAt ?? new Date().toISOString(),
@@ -537,12 +537,12 @@ export async function readRunRecord(ref: RunRef): Promise<RunRecord | null> {
 function normalizeAttemptSeed(
 	task: Pick<RunAttemptRecord, "attemptId"> & Partial<RunAttemptRecord>,
 	now: string,
-	backend?: ResolvedBackend,
+	executorId?: ExecutorId,
 ): RunAttemptRecord {
 	return {
 		attemptId: task.attemptId,
 		status: task.status ?? "pending",
-		backend: task.backend ?? backend,
+		executorId: task.executorId ?? executorId,
 		failureKind: task.failureKind ?? null,
 		startedAt: task.startedAt ?? now,
 		updatedAt: task.updatedAt ?? now,
@@ -563,10 +563,10 @@ function normalizeAttemptSeed(
 function v1TasksToAttempts(
 	tasks: BeginRunOptions["tasks"],
 	now: string,
-	backend?: ResolvedBackend,
+	executorId?: ExecutorId,
 ): RunAttemptRecord[] {
 	return (tasks ?? []).map((task) =>
-		normalizeAttemptSeed({ ...task, attemptId: task.taskId }, now, backend),
+		normalizeAttemptSeed({ ...task, attemptId: task.taskId }, now, executorId),
 	);
 }
 
@@ -577,7 +577,7 @@ export async function beginRunRecord(
 	return await withRunMutation(options, async (existing, paths) => {
 		const nextAttempts = [
 			...(options.attempts ?? []),
-			...v1TasksToAttempts(options.tasks, now, options.backend),
+			...v1TasksToAttempts(options.tasks, now, options.executorId),
 		];
 		const attempts = [...(existing?.attempts ?? [])];
 		for (const attempt of nextAttempts) {
@@ -585,7 +585,7 @@ export async function beginRunRecord(
 				attempts.some((candidate) => candidate.attemptId === attempt.attemptId)
 			)
 				continue;
-			attempts.push(normalizeAttemptSeed(attempt, now, options.backend));
+			attempts.push(normalizeAttemptSeed(attempt, now, options.executorId));
 		}
 		const latestAttemptId =
 			options.activeAttemptId ??
@@ -618,9 +618,9 @@ export async function beginRunRecord(
 						status: attempts.length > 0 ? aggregate.status : "pending",
 						failureKind: attempts.length > 0 ? aggregate.failureKind : null,
 						dependency: options.dependency ?? null,
-						...(options.backend === undefined
+						...(options.executorId === undefined
 							? {}
-							: { backend: options.backend }),
+							: { executorId: options.executorId }),
 						cwd: paths.cwd,
 						runsDir: toSafeRelativePath(paths.cwd, paths.runsDir),
 						startedAt: now,
@@ -640,7 +640,7 @@ export async function beginRunRecord(
 							? { parentSessionId: options.parentSessionId }
 							: {}),
 						mode: existing.mode ?? options.mode,
-						backend: existing.backend ?? options.backend,
+						executorId: existing.executorId ?? options.executorId,
 						dependency: existing.dependency ?? options.dependency ?? null,
 						cwd: paths.cwd,
 						runsDir: toSafeRelativePath(paths.cwd, paths.runsDir),
@@ -678,7 +678,7 @@ export async function upsertRunAttempt(
 					: toIso(options.completedAt);
 		const attemptPatch: Partial<RunAttemptRecord> = {
 			status: options.status,
-			backend: options.backend,
+			executorId: options.executorId,
 			failureKind: options.failureKind ?? null,
 			updatedAt: now,
 			completedAt,
@@ -703,7 +703,7 @@ export async function upsertRunAttempt(
 			status: "pending",
 			failureKind: null,
 			dependency: null,
-			backend: options.backend,
+			executorId: options.executorId,
 			cwd: paths.cwd,
 			runsDir: toSafeRelativePath(paths.cwd, paths.runsDir),
 			startedAt,
@@ -755,7 +755,7 @@ export async function upsertRunAttempt(
 					{
 						attemptId: options.attemptId,
 						status: options.status,
-						backend: options.backend,
+						executorId: options.executorId,
 						failureKind: options.failureKind ?? null,
 						startedAt,
 						updatedAt: now,
@@ -780,7 +780,7 @@ export async function upsertRunAttempt(
 		const aggregate = aggregateStatus(attempts, latestAttemptId);
 		const record: RunRecord = {
 			...baseRecord,
-			backend: baseRecord.backend ?? options.backend,
+			executorId: baseRecord.executorId ?? options.executorId,
 			cwd: paths.cwd,
 			runsDir: toSafeRelativePath(paths.cwd, paths.runsDir),
 			status: aggregate.status,
@@ -887,7 +887,7 @@ export async function finishAttemptFromResult(
 		...baseRef,
 		attemptId: result.attemptId,
 		status: result.status,
-		backend: result.backend,
+		executorId: result.executorId,
 		failureKind: result.failureKind,
 		startedAt: result.startedAt,
 		completedAt: result.completedAt,
@@ -1003,7 +1003,7 @@ async function finishAttemptFromResultUnlocked(
 					failureKind: result.failureKind,
 				}),
 		status: result.status,
-		backend: result.backend,
+		executorId: result.executorId,
 		failureKind: result.failureKind,
 		startedAt: result.startedAt,
 		updatedAt: now,
@@ -1022,7 +1022,7 @@ async function finishAttemptFromResultUnlocked(
 		...existing,
 		cwd: paths.cwd,
 		runsDir: toSafeRelativePath(paths.cwd, paths.runsDir),
-		backend: existing.backend ?? result.backend,
+		executorId: existing.executorId ?? result.executorId,
 		status: result.status,
 		failureKind: result.failureKind,
 		updatedAt: now,

@@ -39,7 +39,7 @@ const SPEC = {
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp16-feedback-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

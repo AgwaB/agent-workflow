@@ -14,17 +14,17 @@ import { after, before, test } from "node:test";
 import {
 	createDurableLaunchBarrierV2,
 	durableWorkerPath,
-	getSubagentStatus,
+	getWorkerStatus,
 	readRunEvents,
 	readRunRecord,
-	reconcileSubagentRun,
+	reconcileWorkerRun,
 	resolveDurableLaunchBarrierV2Release,
 	revokeDurableLaunchBarrierV2,
-	runSubagent,
+	runWorker,
 	runtimeWorkerPath,
 	waitForDurableLaunchBarrierV2Ack,
 	waitForDurableLaunchBarrierV2Ready,
-	waitForSubagent,
+	waitForWorker,
 } from "../../dist/runtime/index.js";
 import {
 	fixtureDescriptor,
@@ -74,7 +74,7 @@ function attemptDir(cwd, run) {
 }
 
 async function waitTerminal(cwd, run, timeoutMs = 20_000) {
-	const waited = await waitForSubagent({
+	const waited = await waitForWorker({
 		cwd,
 		runId: run.runId,
 		attemptId: run.attemptId,
@@ -153,7 +153,7 @@ test("happy path: barrier release → events → completed result with usage (co
 	const { cwd, effectLog, barrierDir } = fresh("happy");
 	await mkdirp(cwd);
 	const descriptor = await barrier(barrierDir);
-	const run = await runSubagent({
+	const run = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({ effectLog }),
 		task: "Do the fixture thing.",
@@ -166,7 +166,7 @@ test("happy path: barrier release → events → completed result with usage (co
 		durableLaunchBarrier: descriptor,
 	});
 	assert.equal(run.status, "running");
-	assert.equal(run.backend, "fixture");
+	assert.equal(run.executorId, "fixture");
 	const { ready, ack } = await release(descriptor);
 	const executorRecord = JSON.parse(
 		await readFile(join(attemptDir(cwd, run), "executor.json"), "utf8"),
@@ -289,7 +289,7 @@ test("fencing (a): engine revokes before consume → no effect, terminal cancell
 		reasonSha256: sha256("workflow stopped"),
 	});
 	assert.equal(revoked.outcome, "revoked");
-	const run = await runSubagent({
+	const run = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({ effectLog }),
 		task: "must never run",
@@ -328,7 +328,7 @@ test("fencing (b): worker killed after consume → reconcile asks the executor �
 	process.env.AGENT_WORKFLOW_HEARTBEAT_MS = "600000";
 	let run;
 	try {
-		run = await runSubagent({
+		run = await runWorker({
 			cwd,
 			executor: fixtureDescriptor({ effectLog, mode: "hang-after-effect" }),
 			task: "effect then hang",
@@ -342,7 +342,7 @@ test("fencing (b): worker killed after consume → reconcile asks the executor �
 	await waitFor(() =>
 		readEffectLog(effectLog).some((entry) => entry.type === "effect"),
 	);
-	const status = await getSubagentStatus({ cwd, runId: run.runId });
+	const status = await getWorkerStatus({ cwd, runId: run.runId });
 	const workerPid = status.attempts[0].workerPid;
 	assert.equal(typeof workerPid, "number");
 	process.kill(
@@ -357,7 +357,7 @@ test("fencing (b): worker killed after consume → reconcile asks the executor �
 			return true;
 		}
 	});
-	const reconciled = await reconcileSubagentRun({
+	const reconciled = await reconcileWorkerRun({
 		cwd,
 		runId: run.runId,
 		staleAfterMs: 1,
@@ -387,7 +387,7 @@ test("fencing (b): worker killed after consume → reconcile asks the executor �
 		events.some((event) => event.type === "reconcile.executor_outcome"),
 	);
 	// Reconciling again is stable and never relaunches.
-	const second = await reconcileSubagentRun({
+	const second = await reconcileWorkerRun({
 		cwd,
 		runId: run.runId,
 		staleAfterMs: 1,
@@ -406,7 +406,7 @@ test("fencing (b): worker killed after consume → reconcile asks the executor �
 test("fencing (c): an adapter that launches without consuming → guard_failure, cancel(owned), effect logged unauthorized", async () => {
 	const { cwd, effectLog } = fresh("unfenced");
 	await mkdirp(cwd);
-	const run = await runSubagent({
+	const run = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({
 			effectLog,
@@ -476,7 +476,7 @@ for (const [label, overrides, config, pattern] of [
 		);
 		await mkdirp(cwd);
 		const descriptor = fixtureDescriptor({ effectLog, ...config }, overrides);
-		const run = await runSubagent({
+		const run = await runWorker({
 			cwd,
 			executor: descriptor,
 			task: "never",
@@ -501,8 +501,8 @@ for (const [label, overrides, config, pattern] of [
 test("interrupt: SIGTERM mid-run → cancel(owned) → terminal cancelled/user_cancelled with partial output", async () => {
 	const { cwd, effectLog } = fresh("interrupt");
 	await mkdirp(cwd);
-	const { interruptSubagent } = await import("../../dist/runtime/index.js");
-	const run = await runSubagent({
+	const { interruptWorker } = await import("../../dist/runtime/index.js");
+	const run = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({ effectLog, stepDelayMs: 1000 }),
 		task: "slow",
@@ -517,7 +517,7 @@ test("interrupt: SIGTERM mid-run → cancel(owned) → terminal cancelled/user_c
 			return false;
 		}
 	});
-	const interrupted = await interruptSubagent({
+	const interrupted = await interruptWorker({
 		cwd,
 		runId: run.runId,
 		attemptId: run.attemptId,

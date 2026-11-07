@@ -1,4 +1,4 @@
-// New in agent-workflow (WP4c-1): an executor module the engine's task backend selects through the
+// New in agent-workflow (WP4c-1): an executor module the engine's task runner selects through the
 // executor registry and that a durable worker reloads from its descriptor in a fresh process. It
 // wraps the SDK fake executor (no model or CLI calls) and appends every submit, authority decision,
 // effect, artifact read, reconcile and owned-session deletion to a JSONL effect log, so a test

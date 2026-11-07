@@ -16,7 +16,7 @@ const SAFE_RUN_ID = /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/;
 const TERMINAL = new Set<string>(["completed", "failed", "cancelled"]);
 const KNOWN_STATUS = new Set<string>(STATUSES);
 
-export interface PruneSubagentRunsOptions {
+export interface PruneWorkerRunsOptions {
 	cwd?: string;
 	runsDir?: string;
 	/** Newest terminal runs to keep regardless of age. Default 50. */
@@ -28,7 +28,7 @@ export interface PruneSubagentRunsOptions {
 	now?: number;
 }
 
-export interface PruneSubagentRunCandidate {
+export interface PruneWorkerRunCandidate {
 	runId: string;
 	status: RunRecord["status"];
 	/** Last update of the run record; ordering and `olderThanDays` use this. */
@@ -36,7 +36,7 @@ export interface PruneSubagentRunCandidate {
 	bytes: number;
 }
 
-export interface PruneSubagentRunsSummary {
+export interface PruneWorkerRunsSummary {
 	status: "dry-run" | "pruned";
 	cwd: string;
 	runsDir: string;
@@ -44,7 +44,7 @@ export interface PruneSubagentRunsSummary {
 	olderThanDays?: number;
 	scanned: number;
 	terminal: number;
-	selected: PruneSubagentRunCandidate[];
+	selected: PruneWorkerRunCandidate[];
 	deletedRunIds: string[];
 	deletedBytes: number;
 	/** Non-terminal runs; never deleted. Use `reconcile` on stale ones first. */
@@ -205,7 +205,7 @@ async function resolvePhysicalRunsDir(
 }
 
 /**
- * Delete terminal subagent runs under `<cwd>/<runsDir>` that fall outside the
+ * Delete terminal worker runs under `<cwd>/<runsDir>` that fall outside the
  * newest `keep` and, when given, are older than `olderThanDays`. Runs that are
  * not terminal are never touched, so a run still owned by a worker survives
  * even when it is stale; reconcile it first. Dry run unless `yes` is true.
@@ -213,9 +213,9 @@ async function resolvePhysicalRunsDir(
  * directory before removing it, so a concurrent mutation cannot reactivate a
  * run that is being deleted.
  */
-export async function pruneSubagentRuns(
-	options: PruneSubagentRunsOptions = {},
-): Promise<PruneSubagentRunsSummary> {
+export async function pruneWorkerRuns(
+	options: PruneWorkerRunsOptions = {},
+): Promise<PruneWorkerRunsSummary> {
 	const keep = normalizeKeep(options.keep);
 	const olderThanDays = normalizeOlderThanDays(options.olderThanDays);
 	const now = options.now ?? Date.now();
@@ -256,7 +256,7 @@ export async function pruneSubagentRuns(
 	const entries = await readdir(runsDir, { withFileTypes: true }).catch(
 		() => [],
 	);
-	const terminal: Array<PruneSubagentRunCandidate & { updatedMs: number }> = [];
+	const terminal: Array<PruneWorkerRunCandidate & { updatedMs: number }> = [];
 	const skippedActive: string[] = [];
 	const skippedUnreadable: string[] = [];
 	let scanned = 0;
@@ -292,7 +292,7 @@ export async function pruneSubagentRuns(
 		(a, b) => b.updatedMs - a.updatedMs || a.runId.localeCompare(b.runId),
 	);
 
-	const selected: PruneSubagentRunCandidate[] = [];
+	const selected: PruneWorkerRunCandidate[] = [];
 	for (const [index, candidate] of terminal.entries()) {
 		if (index < keep) continue;
 		if (cutoff !== undefined && candidate.updatedMs > cutoff) continue;
@@ -375,13 +375,13 @@ export async function pruneSubagentRuns(
 	};
 }
 
-export function formatPruneSubagentRunsSummary(
-	summary: PruneSubagentRunsSummary,
+export function formatPruneWorkerRunsSummary(
+	summary: PruneWorkerRunsSummary,
 ): string {
 	const lines = [
 		summary.status === "dry-run"
-			? "Subagent run prune (dry run)"
-			: "Subagent run prune",
+			? "Worker run prune (dry run)"
+			: "Worker run prune",
 		`Runs dir: ${summary.runsDir}`,
 		`Scanned: ${summary.scanned}; terminal: ${summary.terminal}; keep newest: ${summary.keep}${
 			summary.olderThanDays === undefined

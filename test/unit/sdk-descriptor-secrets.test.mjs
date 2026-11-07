@@ -10,7 +10,7 @@ import {
 	findSecretLikeConfigValues,
 	validateExecutorDescriptor,
 } from "../../dist/sdk/index.js";
-import { runSubagent } from "../../dist/runtime/index.js";
+import { runWorker } from "../../dist/runtime/index.js";
 
 const descriptor = (config) => ({
 	id: "external",
@@ -97,18 +97,18 @@ test("ordinary config is accepted (paths, ids, short or low-entropy values, hex 
 		);
 });
 
-test("runSubagent refuses a run whose executor config carries a token, before anything is written", async () => {
+test("runWorker refuses a run whose executor config carries a token, before anything is written", async () => {
 	const cwd = await mkdtemp(join(tmpdir(), "aw-descriptor-secret-"));
 	try {
 		await assert.rejects(
-			runSubagent({
+			runWorker({
 				cwd,
 				executor: descriptor({ apiKey: fake.openai }),
 				task: "never",
 				async: true,
 			}),
 			(error) =>
-				error.name === "SubagentValidationError" &&
+				error.name === "WorkerValidationError" &&
 				/config\.apiKey looks like a secret/u.test(error.message) &&
 				!error.message.includes(fake.openai),
 		);

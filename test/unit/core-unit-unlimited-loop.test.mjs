@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { parseWorkflow } from "../../dist/core/schema.js";
 import { setTaskTerminal, writeJsonAtomic } from "../../dist/core/store.js";
 import {
-	captureSubagentPrompts,
+	captureWorkerPrompts,
 	completeTask,
 	compileWorkflow,
 	createLoopRun,
@@ -66,7 +66,7 @@ async function finishRound(cwd, runId, round, done = false) {
 
 test("unlimited loop continues past finite defaults with unchanged progress and completes only on until", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const { run } = await createLoopRun(
@@ -104,7 +104,7 @@ test("unlimited loop continues past finite defaults with unchanged progress and 
 
 test("explicit progressPath still opts unlimited loops into no-progress stopping", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const { run } = await createLoopRun(
@@ -129,7 +129,7 @@ test("explicit progressPath still opts unlimited loops into no-progress stopping
 
 test("unlimited loop materializes round 100 from structured round 99 state with unique identities", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const { run } = await createLoopRun(
@@ -190,7 +190,7 @@ test("unlimited loop materializes round 100 from structured round 99 state with 
 
 test("unlimited loop stops on execution failure and allows downstream partial cleanup", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		mkdirSync(join(cwd, "workflows"), { recursive: true });

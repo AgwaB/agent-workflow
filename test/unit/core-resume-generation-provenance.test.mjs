@@ -25,13 +25,11 @@ import {
 	applyDependencyResumeInvalidationForTests,
 	dependencyResumeInvalidationPlanForTests,
 } from "../../dist/core/engine.js";
-import { makeSubagentLaunchFixture } from "../helpers/unit-test-support.mjs";
-
-const BACKEND = "agent-workflow/runtime";
+import { makeWorkerLaunchFixture } from "../helpers/unit-test-support.mjs";
 
 /** The fixture's launched task plus a downstream task that invalidates on dependency resume. */
 function stoppedRun(cwd) {
-	const fixture = makeSubagentLaunchFixture(cwd, "wp39-generation");
+	const fixture = makeWorkerLaunchFixture(cwd, "wp39-generation");
 	const upstream = fixture.task;
 	const downstreamSpecId = "dedup.main";
 	const downstream = {
@@ -71,12 +69,11 @@ test("a task launched before stop relaunches after a generation-bumping resume (
 			run,
 			upstream,
 			compiledTask,
-			BACKEND,
 		);
 		recordLaunchBootstrapProvenance(upstream, first);
 		issueWorkflowLaunchAuthority(
 			upstream,
-			createWorkflowLaunchAuthority(run, upstream, BACKEND, first),
+			createWorkflowLaunchAuthority(run, upstream, first),
 		);
 		assert.equal(first.task.generation, undefined);
 		// `stop` interrupted it.
@@ -98,7 +95,6 @@ test("a task launched before stop relaunches after a generation-bumping resume (
 			run,
 			upstream,
 			compiledTask,
-			BACKEND,
 		);
 		assert.equal(relaunch.task.generation, plan.generation);
 		assert.doesNotThrow(() =>
@@ -110,12 +106,7 @@ test("a task launched before stop relaunches after a generation-bumping resume (
 		);
 		// …and its launch authority (before the fix, once the provenance part was fixed: "workflow
 		// launch authority history is malformed").
-		const grant = createWorkflowLaunchAuthority(
-			run,
-			upstream,
-			BACKEND,
-			relaunch,
-		);
+		const grant = createWorkflowLaunchAuthority(run, upstream, relaunch);
 		assert.equal(grant.task.generation, plan.generation);
 		assert.doesNotThrow(() => issueWorkflowLaunchAuthority(upstream, grant));
 		assert.deepEqual(
@@ -144,12 +135,11 @@ test("a resume that keeps the generation keeps the launch-bootstrap history", as
 			run,
 			upstream,
 			compiledTask,
-			BACKEND,
 		);
 		recordLaunchBootstrapProvenance(upstream, first);
 		issueWorkflowLaunchAuthority(
 			upstream,
-			createWorkflowLaunchAuthority(run, upstream, BACKEND, first),
+			createWorkflowLaunchAuthority(run, upstream, first),
 		);
 		upstream.status = "interrupted";
 		const plan = dependencyResumeInvalidationPlanForTests(run, compiled);
@@ -184,7 +174,7 @@ test("stop during a running task, then resume with a dependency invalidation: th
 		"../helpers/workflow-executor-fixture.mjs"
 	);
 	const { mkdir, realpath, writeFile, rm } = await import("node:fs/promises");
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -256,7 +246,7 @@ test("stop during a running task, then resume with a dependency invalidation: th
 		assert.ok(submits.length >= 3, `submits: ${submits.length}`);
 	} finally {
 		engine.setResumeAfterStopLeaseWaitForTests(undefined);
-		slots.setSubagentLaunchControlsForTests({});
+		slots.setWorkerLaunchControlsForTests({});
 		undo();
 		await rm(cwd, {
 			recursive: true,

@@ -1,5 +1,5 @@
 import { stateBase } from "./state-location.js";
-import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
+import { type WorkerRunStatusSnapshot } from "./runtime-port.js";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
@@ -24,7 +24,7 @@ import {
 } from "./result.js";
 import { retryOrFailArtifactGraphTask } from "./retry-policy.js";
 import { fromStatePath, isTerminalTaskStatus, nowIso } from "./store.js";
-import { type SubagentArtifactRef, writeJson } from "./task-artifacts.js";
+import { type WorkerArtifactRef, writeJson } from "./task-artifacts.js";
 import {
 	elapsedSince,
 	recordTaskTimingTelemetry,
@@ -45,7 +45,7 @@ import {
 function artifactGraphRetrySession(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
-	subagentResult: Record<string, unknown> | undefined,
+	workerResult: Record<string, unknown> | undefined,
 	attempt: number,
 ): { repairMode: "same_session" | "new_session"; sessionId: string } {
 	if (task.outputRetry?.repairMode === "same_session") {
@@ -55,7 +55,7 @@ function artifactGraphRetrySession(
 		};
 	}
 	const expectedSessionId = workflowTaskSessionId(run, task);
-	const metadata = subagentResult?.metadata;
+	const metadata = workerResult?.metadata;
 	const metadataRecord =
 		metadata && typeof metadata === "object" && !Array.isArray(metadata)
 			? (metadata as Record<string, unknown>)
@@ -110,16 +110,16 @@ export async function materializeTerminalArtifactGraphResult(
 		completedAt: string;
 		startedAt?: string;
 		exitCode: number;
-		subagentResult?: Record<string, unknown>;
-		subagentToolCalls?: {
-			ref: SubagentArtifactRef;
+		workerResult?: Record<string, unknown>;
+		workerToolCalls?: {
+			ref: WorkerArtifactRef;
 			records: WorkflowTaskFailedToolCallSummary[];
 		};
-		subagentToolCallsSummary?: { ref: SubagentArtifactRef; summary: unknown };
+		workerToolCallsSummary?: { ref: WorkerArtifactRef; summary: unknown };
 		salvage?: {
 			failureKind: string;
-			subagentStatus: string;
-			subagentFailureKind: string | null;
+			workerStatus: string;
+			workerFailureKind: string | null;
 		};
 	},
 ): Promise<boolean> {
@@ -149,16 +149,16 @@ async function materializeTerminalArtifactGraphResultInner(
 		completedAt: string;
 		startedAt?: string;
 		exitCode: number;
-		subagentResult?: Record<string, unknown>;
-		subagentToolCalls?: {
-			ref: SubagentArtifactRef;
+		workerResult?: Record<string, unknown>;
+		workerToolCalls?: {
+			ref: WorkerArtifactRef;
 			records: WorkflowTaskFailedToolCallSummary[];
 		};
-		subagentToolCallsSummary?: { ref: SubagentArtifactRef; summary: unknown };
+		workerToolCallsSummary?: { ref: WorkerArtifactRef; summary: unknown };
 		salvage?: {
 			failureKind: string;
-			subagentStatus: string;
-			subagentFailureKind: string | null;
+			workerStatus: string;
+			workerFailureKind: string | null;
 		};
 	},
 ): Promise<boolean> {
@@ -201,7 +201,7 @@ async function materializeTerminalArtifactGraphResultInner(
 	const retrySession = artifactGraphRetrySession(
 		run,
 		task,
-		options.subagentResult,
+		options.workerResult,
 		attempt,
 	);
 	if (!parsed.valid) {
@@ -319,19 +319,19 @@ async function materializeTerminalArtifactGraphResultInner(
 			completedAt: options.completedAt,
 			exitCode: options.exitCode,
 			stderr,
-			subagentToolCallsPath: options.subagentToolCalls?.ref.path,
-			subagentToolCallsSummaryPath: options.subagentToolCallsSummary?.ref.path,
-			subagentToolCallsArtifactCwd:
-				options.subagentToolCalls?.ref.artifactCwd ??
-				options.subagentToolCallsSummary?.ref.artifactCwd,
-			subagentFailedToolCalls: options.subagentToolCalls?.records,
+			workerToolCallsPath: options.workerToolCalls?.ref.path,
+			workerToolCallsSummaryPath: options.workerToolCallsSummary?.ref.path,
+			workerToolCallsArtifactCwd:
+				options.workerToolCalls?.ref.artifactCwd ??
+				options.workerToolCallsSummary?.ref.artifactCwd,
+			workerFailedToolCalls: options.workerToolCalls?.records,
 			...(options.salvage
 				? {
 						salvagedFromFailureKind: options.salvage.failureKind,
-						subagentWarning:
+						workerWarning:
 							"executor reported failure before a valid final workflow output was salvaged",
-						subagentStatus: options.salvage.subagentStatus,
-						subagentFailureKind: options.salvage.subagentFailureKind,
+						workerStatus: options.salvage.workerStatus,
+						workerFailureKind: options.salvage.workerFailureKind,
 					}
 				: {}),
 			...parseOptions,
@@ -365,8 +365,8 @@ async function materializeTerminalArtifactGraphResultInner(
 		completedAfterTimeout,
 	});
 	if (isTerminalTaskStatus(task.status)) {
-		delete task.backendHandle;
-		delete task.backendFiles;
+		delete task.workerHandle;
+		delete task.workerFiles;
 	}
 	return changed;
 }
@@ -614,8 +614,8 @@ function failArtifactGraphTask(
 	task: WorkflowTaskRunRecord,
 	options: { statusDetail: string; message: string },
 ): boolean {
-	delete task.backendHandle;
-	delete task.backendFiles;
+	delete task.workerHandle;
+	delete task.workerFiles;
 	task.pid = undefined;
 	task.status = "failed";
 	task.statusDetail = options.statusDetail;
@@ -625,8 +625,8 @@ function failArtifactGraphTask(
 	return true;
 }
 
-export function hasPartialSubagentOutput(
-	snapshot: SubagentRunStatusSnapshot,
+export function hasPartialWorkerOutput(
+	snapshot: WorkerRunStatusSnapshot,
 	result: Record<string, unknown> | undefined,
 ): boolean {
 	return (
@@ -647,12 +647,12 @@ export function shouldAttemptArtifactGraphSalvage(options: {
 	outputText: string;
 	exitCode: number;
 	contextLengthExceeded: boolean;
-	subagentResult: Record<string, unknown> | undefined;
-	snapshot: SubagentRunStatusSnapshot;
+	workerResult: Record<string, unknown> | undefined;
+	snapshot: WorkerRunStatusSnapshot;
 }): boolean {
 	if (!options.task.artifactGraph?.enabled) return false;
 	if (options.statusInfo.status !== "failed") return false;
-	if (hasPartialSubagentOutput(options.snapshot, options.subagentResult))
+	if (hasPartialWorkerOutput(options.snapshot, options.workerResult))
 		return false;
 	const failureKind =
 		options.statusInfo.failureKind ?? options.snapshot.failureKind;
@@ -668,7 +668,7 @@ export function shouldAttemptArtifactGraphSalvage(options: {
 	}
 	if (options.exitCode !== 0) return false;
 	const stopReason =
-		(options.subagentResult?.metadata as Record<string, unknown> | undefined)
+		(options.workerResult?.metadata as Record<string, unknown> | undefined)
 			?.stopReason ?? options.snapshot.metadata?.stopReason;
 	return stopReason === "stop" || stopReason === "end";
 }

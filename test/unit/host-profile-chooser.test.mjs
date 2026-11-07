@@ -19,7 +19,7 @@ const slots = await import("../../dist/core/launch-slots.js");
 const store = await import("../../dist/core/store.js");
 
 before(() => {
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

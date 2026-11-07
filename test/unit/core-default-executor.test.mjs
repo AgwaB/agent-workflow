@@ -45,7 +45,7 @@ before(async () => {
 			"",
 		].join("\n"),
 	);
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -57,7 +57,7 @@ afterEach(async () => {
 	core.resetExecutorProbeCacheForTests();
 });
 after(async () => {
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,
@@ -358,7 +358,7 @@ test("nothing usable: the run fails before any record, naming each CLI's state a
 		false,
 	);
 	assert.equal(
-		existsSync(join(stateDir(cwd), ".agent-workflow", "workflow-subagents")),
+		existsSync(join(stateDir(cwd), ".agent-workflow", "worker-runs")),
 		false,
 	);
 	// The Pi login hint is "run pi, then /login".

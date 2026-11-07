@@ -358,7 +358,7 @@ function sourceErrorType(task: WorkflowTaskRunRecord): string {
 		/schema|validation|invalid/.test(message)
 	)
 		return "schema_violation";
-	if (/model|subagent/.test(detail) || /model|subagent/.test(message))
+	if (/model|worker/.test(detail) || /model|worker/.test(message))
 		return "model_failure";
 	if (/skip|skipped/.test(task.status) || /skip|skipped/.test(detail))
 		return "skipped";

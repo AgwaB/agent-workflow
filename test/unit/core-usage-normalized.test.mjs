@@ -173,7 +173,7 @@ function modelTask(taskId, status = "completed") {
 			baseCwd: null,
 			warning: null,
 		},
-		backendTaskId: taskId,
+		workerTaskId: taskId,
 		files: {
 			output: "",
 			stderr: "",
@@ -192,7 +192,7 @@ function observe(task, summary, index) {
 			attemptId: `attempt_${index}`,
 			status: "completed",
 		},
-		subagentResult: {
+		workerResult: {
 			status: "completed",
 			// The request alias stays in runtime metadata; the usage names the resolved model.
 			metadata: { usage: summary, model: "haiku" },
@@ -250,7 +250,6 @@ test("run rollup: totalTokens is the sum (not 0); a blocked run carries the usag
 			interrupted: 0,
 		},
 		cwd: "/tmp/usage",
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-10-27T00:00:00.000Z",
 		updatedAt: "2026-10-27T00:00:00.000Z",
 		specPath: "spec.json",

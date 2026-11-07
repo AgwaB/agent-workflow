@@ -538,7 +538,7 @@ async function findRetentionPlan(cwd: string): Promise<RetentionPlan> {
 			const mirrorDir = join(
 				stateBase(cwd),
 				PROJECT_STATE_DIRECTORY,
-				"workflow-subagents",
+				"worker-runs",
 				entry.name,
 			);
 			const bytes =
@@ -726,7 +726,7 @@ async function deleteCandidate(
 		await lease.assertOwner();
 		// No irreversible removal until BOTH generations are safely detached.
 		mirror = await quarantineContainedDirectory(
-			join(stateBase(cwd), PROJECT_STATE_DIRECTORY, "workflow-subagents"),
+			join(stateBase(cwd), PROJECT_STATE_DIRECTORY, "worker-runs"),
 			candidate.mirrorDir,
 		);
 		outcome.retainedMirrorPath = mirror?.directory;
@@ -868,11 +868,7 @@ async function containedDirectoryBytes(
 	cwd: string,
 	directory: string,
 ): Promise<number> {
-	const root = join(
-		stateBase(cwd),
-		PROJECT_STATE_DIRECTORY,
-		"workflow-subagents",
-	);
+	const root = join(stateBase(cwd), PROJECT_STATE_DIRECTORY, "worker-runs");
 	try {
 		if (
 			!(await isContainedDirectory(
