@@ -1167,10 +1167,8 @@ export function workflowTaskExecutorDescriptor(
 }
 
 /**
- * Prepare the sealed launch inputs for one task (worker-worker.ts 6406-6639). Pi-only parts
- * (provider extension resolution, fetch-cache/web-source/native-host/fast-mode wrappers, the
- * extension isolation probe) are not ported: they belong to the Pi executor (WP6) or were dropped
- * with the workflow web tools (C2).
+ * Prepare the sealed launch inputs for one task. Executor-specific launch parts (Pi extensions, fast
+ * tier) belong to the executor and its policy, not to this sealed launch.
  */
 export async function prepareWorkerTaskLaunch(
 	cwd: string,

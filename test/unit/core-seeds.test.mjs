@@ -347,7 +347,7 @@ test("R#5: the executing user's allowSharedCheckoutWrites option waives it and i
 	);
 });
 
-test("Pi's directories are not read (2026-10-30, replaces F5): only agent-workflow locations and bundled", async (t) => {
+test("Pi's directories are not read: only agent-workflow locations and bundled", async (t) => {
 	const { root, cwd } = await scratch(t, "legacy");
 	const specBody = JSON.stringify(
 		spec({}, { readOnly: true, tools: ["read"] }),

@@ -110,7 +110,7 @@ test("buildPiArgv: isolation flags, sessions, system prompt, model/thinking, too
 		"--print",
 		"--no-session",
 		"--exclude-tools",
-		"worker",
+		"subagent",
 		"--no-context-files",
 		"--no-extensions",
 		"--no-skills",
@@ -145,7 +145,7 @@ test("buildPiArgv: isolation flags, sessions, system prompt, model/thinking, too
 		"--session-id",
 		"x",
 		"--exclude-tools",
-		"worker",
+		"subagent",
 		"--no-tools",
 	]);
 	const resume = buildPiArgv({
@@ -555,7 +555,7 @@ test("Pi-only options: fast tier, tool-result budget, inheritHostTools go into t
 	assert.ok(!second.argv.includes("builtin:mcp"));
 });
 
-test("durable binding env: agent-workflow name always, no pi-subagent alias even when the worker inherits extensions", async () => {
+test("durable binding env uses the agent-workflow name with or without inherited extensions", async () => {
 	const { executor, cli } = await stage(await completeSteps());
 	const withBinding = (isolation) => {
 		const { req } = request({ isolation });
@@ -578,13 +578,7 @@ test("durable binding env: agent-workflow name always, no pi-subagent alias even
 		isolated.envKeys.includes("AGENT_WORKFLOW_DURABLE_WORKER_BINDING_JSON"),
 	);
 	assert.ok(
-		!isolated.envKeys.includes("PI_WORKER_DURABLE_WORKER_BINDING_JSON"),
-	);
-	assert.ok(
 		inherited.envKeys.includes("AGENT_WORKFLOW_DURABLE_WORKER_BINDING_JSON"),
-	);
-	assert.ok(
-		!inherited.envKeys.includes("PI_WORKER_DURABLE_WORKER_BINDING_JSON"),
 	);
 	assert.ok(
 		!inherited.argv.includes("--no-extensions") &&

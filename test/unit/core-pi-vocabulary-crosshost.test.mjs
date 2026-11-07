@@ -107,7 +107,7 @@ function negotiate(compiled, id, { mapping = true, models = null } = {}) {
 	});
 }
 
-test("an agent listing pi-workflow's web tools does not authorise the CLI web tools", async () => {
+test("a stage cannot add web tools its agent does not list", async () => {
 	const cwd = await project();
 	await assert.rejects(
 		() =>

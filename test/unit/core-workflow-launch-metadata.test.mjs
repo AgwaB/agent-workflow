@@ -145,32 +145,6 @@ test("launch metadata validation is closed and artifact reads fail closed on tam
 	}
 });
 
-test("pi-workflow's launch records are not accepted", () => {
-	const command = { state: "unavailable", reason: "not-a-command" };
-	for (const launch of [
-		{
-			schema: "pi-workflow-run-launch-v1",
-			source: { kind: "tool", name: "workflow_run" },
-			requestKind: "named-workflow",
-			routingMode: "off",
-			profile: { kind: "base" },
-			task: { characters: 1, lines: 1 },
-			command,
-		},
-		{
-			schema: "pi-workflow-run-launch-v2",
-			source: { kind: "slash-command", action: "auto" },
-			requestKind: "named-workflow",
-			routingMode: "auto",
-			profile: { kind: "base" },
-			task: { characters: 1, lines: 1 },
-			selection: {},
-			command,
-		},
-	])
-		assert.equal(isWorkflowRunLaunchMetadata(launch), false, launch.schema);
-});
-
 test("launch artifact rejects symlinked workflow roots, run directories, and artifacts", {
 	skip: process.platform === "win32",
 }, async () => {

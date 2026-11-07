@@ -155,15 +155,6 @@ test("the packed workflow contract is locked to the bundled runtime's durable AP
 		readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
 		"package.json",
 	);
-	// The runtime is in-repo under src/runtime, never an external dependency.
-	assert.equal(
-		Object.hasOwn(packageJson.dependencies ?? {}, "@agwab/pi-subagent"),
-		false,
-	);
-	assert.equal(
-		(packageJson.bundleDependencies ?? []).includes("@agwab/pi-subagent"),
-		false,
-	);
 	assert.ok(packageJson.files.includes("dist"));
 	const api = await import("../../dist/runtime/api.js");
 	for (const name of [

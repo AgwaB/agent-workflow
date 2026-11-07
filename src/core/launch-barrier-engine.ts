@@ -416,7 +416,7 @@ export async function reconcileDurableLaunchBarrierTaskForTests(
 }
 
 /**
- * Engine side of the durable launch barrier V2, step 1 (worker-worker.ts 3087-3144): create
+ * Engine side of the durable launch barrier V2, step 1: create
  * the barrier for this launch authority, or resume the persisted one after a restart, and record
  * it durably before the worker is spawned.
  */
@@ -605,7 +605,7 @@ async function waitForReadyUnlessWorkerEnded(
 }
 
 /**
- * Engine side of the durable launch barrier V2, step 2 (worker-worker.ts 3322-3573): after the
+ * Engine side of the durable launch barrier V2, step 2: after the
  * runtime returned the provisional worker handle, wait for READY, validate it against the
  * authorized launch, consume the launch authority, then release (or revoke on stop / lease loss)
  * with one decision, and wait for the worker ACK. Any failure revokes/interrupts the provisional

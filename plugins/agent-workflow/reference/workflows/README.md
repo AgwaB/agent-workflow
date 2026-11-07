@@ -64,7 +64,7 @@ workflows/name/
     support-helper.mjs
 ```
 
-Bundle names resolve from the directory name (`agent-workflow run name ...`, `/aw run name ...`). Name priority is project-shared `<cwd>/workflows/`, then project-private `<cwd>/.agent-workflow/workflows/`, then user/global `~/.agent-workflow/workflows/` (`$AGENT_WORKFLOW_HOME`), then the legacy pi-workflow locations (read-only), then this bundled package root. A higher-priority match shadows lower roots. Multiple matching forms at the winning priority fail closed as ambiguous.
+Bundle names resolve from the directory name (`agent-workflow run name ...`, `/aw run name ...`). Name priority is project-shared `<cwd>/workflows/`, then project-private `<cwd>/.agent-workflow/workflows/`, then user/global `~/.agent-workflow/workflows/` (`$AGENT_WORKFLOW_HOME`), then this bundled package root. A higher-priority match shadows lower roots. Multiple matching forms at the winning priority fail closed as ambiguous.
 
 `output.controlSchema` in a bundle is resolved relative to the workflow spec file, for example `./schemas/final-control.schema.json`.
 

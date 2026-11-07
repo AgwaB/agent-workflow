@@ -1262,7 +1262,7 @@ Not read by the package.
 |---|---|
 | `AGENT_WORKFLOW_TEST_CONCURRENCY`, `AGENT_WORKFLOW_KEEP_TEST_HOME` | `test/run-unit.mjs`: parallel test files; keep the per-file test homes. |
 | `AGENT_WORKFLOW_LIVE`, `AGENT_WORKFLOW_LIVE_PI_MODEL`, `AGENT_WORKFLOW_LIVE_CLAUDE_MODEL`, `AGENT_WORKFLOW_LIVE_REPORT`, `AGENT_WORKFLOW_CODEX_LIVE_MODEL`, `AGENT_WORKFLOW_CODEX_LIVE_REPORT` | Live executor tiers (real CLIs and models; cost money). Off unless `AGENT_WORKFLOW_LIVE=1`. |
-| `AGENT_WORKFLOW_PI_BIN`, `AGENT_WORKFLOW_PI_RPC_RECORD`, `AGENT_WORKFLOW_PI_WORKFLOW_EXTENSION` | Live Pi host RPC check ([`hosts.md`](https://github.com/AgwaB/agent-workflow/blob/main/docs/hosts.md#pi)). |
+| `AGENT_WORKFLOW_PI_BIN`, `AGENT_WORKFLOW_PI_RPC_RECORD` | Live Pi host RPC check ([`hosts.md`](https://github.com/AgwaB/agent-workflow/blob/main/docs/hosts.md#pi)). |
 | `AGENT_WORKFLOW_ROOT` | Replay fixture builder. |
 | `AGENT_WORKFLOW_E2E_NO_EXTERNAL_ACTIONS`, `AGENT_WORKFLOW_E2E_PROCESS_LOG`, `AGENT_WORKFLOW_E2E_REAL_NPM` | `npm run e2e`: the no-external-actions guard and its command shims (set by `test/e2e/run.mjs`). |
 | `AGENT_WORKFLOW_ALLOW_PUBLISHED_VERSION` | `tools/release/release-check.mjs`: allow a validation-only rerun of an already published version. |

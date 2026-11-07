@@ -318,7 +318,7 @@ assert.deepEqual(await readdir(join(consumer, ".agent-workflow")), [
 ]);
 const projectState = await readdir(join(state, ".agent-workflow"));
 assert.ok(projectState.includes("workflows"));
-assert.ok(projectState.includes("workflow-subagents"));
+assert.ok(projectState.includes("worker-runs"));
 
 /** The detached supervisor logs `done: <run>` when it exits after a terminal run. */
 async function waitForSupervisorDone(logPath, id) {

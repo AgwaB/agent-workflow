@@ -133,7 +133,7 @@ export function buildPiArgv(options: PiArgvOptions): [string, ...string[]] {
 			options.session.id,
 		);
 	else argv.push("--no-session");
-	argv.push("--exclude-tools", "worker");
+	argv.push("--exclude-tools", "subagent");
 	if (options.isolated)
 		argv.push(
 			"--no-context-files",

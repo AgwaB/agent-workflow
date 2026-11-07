@@ -55,24 +55,20 @@ test("experimental speed flags read AGENT_WORKFLOW_* env names only", () => {
 	);
 	assert.deepEqual(
 		enabledWorkflowExperimentalSpeedFlags({
-			PI_WORKFLOW_EXPERIMENTAL_TOOL_DEDUP: "1",
 			AGENT_WORKFLOW_PER_ITEM_DISPATCH: "true",
 		}),
 		["AGENT_WORKFLOW_PER_ITEM_DISPATCH"],
 	);
 });
 
-test("process role reads AGENT_WORKFLOW_ROLE and ignores the old Pi name", () => {
+test("process role reads AGENT_WORKFLOW_ROLE", () => {
 	assert.equal(AGENT_WORKFLOW_ROLE_ENV, "AGENT_WORKFLOW_ROLE");
 	assert.equal(workflowWorkerEnvPrefix(), "AGENT_WORKFLOW_ROLE=worker");
 	assert.equal(
 		getWorkflowProcessRole({ AGENT_WORKFLOW_ROLE: "worker" }),
 		"worker",
 	);
-	assert.equal(
-		getWorkflowProcessRole({ PI_WORKFLOW_ROLE: "worker" }),
-		"supervisor",
-	);
+	assert.equal(getWorkflowProcessRole({}), "supervisor");
 	assert.throws(
 		() => assertWorkflowToolAllowedForRole({ AGENT_WORKFLOW_ROLE: "disabled" }),
 		/AGENT_WORKFLOW_ROLE=disabled/,
@@ -85,9 +81,7 @@ test("strict prompt-schema gate reads AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA", () =
 		{ code: "x", message: "blocking", strictBlocking: true },
 	];
 	assert.doesNotThrow(() =>
-		assertPromptSchemaDiagnosticsAllowRun(diagnostics, {
-			PI_WORKFLOW_STRICT_PROMPT_SCHEMA: "1",
-		}),
+		assertPromptSchemaDiagnosticsAllowRun(diagnostics, {}),
 	);
 	assert.throws(
 		() =>

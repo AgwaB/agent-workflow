@@ -356,7 +356,7 @@ test("compile: R#5 forced worktree applies only in safe; free honors worktreePol
 	assert.equal(
 		freeAuto.tasks[0].safety.requiresWorktree,
 		true,
-		"auto: pi-workflow behavior",
+		"auto: free mode keeps the worktree requirement",
 	);
 	const freeOn = await compileWorkflow(
 		{ ...READ_ONLY, defaults: { ...READ_ONLY.defaults, worktreePolicy: "on" } },

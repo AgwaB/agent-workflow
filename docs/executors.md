@@ -54,7 +54,7 @@ presence, not whether a request will succeed; credentials are never read by the 
 ```text
 pi --mode json --print
    (--no-session | --session-dir <state>/sessions/<id> (--session-id <id> | --session <kept file>))
-   --exclude-tools worker
+   --exclude-tools subagent
    [isolation] --no-context-files --no-extensions --no-skills --no-prompt-templates --no-themes --no-approve
    [--system-prompt <attempt>/pi-system-prompt.md] [--model <model>] [--thinking <effort>]
    (--tools <allowlist> | --no-tools)
@@ -71,7 +71,7 @@ The isolation flags shown above apply only when `isolation.inherit` is false.
 | `--no-session` | Default: no kept session |
 | `--session-dir` + `--session-id` | Requested sessions live under adapter state |
 | `--session <file>` | Resume an owned session file, independent of cwd |
-| `--exclude-tools worker` | Excludes recursive workers even with inherited extensions |
+| `--exclude-tools subagent` | Excludes recursive subagents even with inherited extensions |
 | `--system-prompt <file>` | Replaces the system prompt without argv length limits |
 | `--thinking` | `off minimal low medium high xhigh max`; Pi clamps to the model |
 | `--tools` / `--no-tools` | Fine allowlist replacing defaults; injected MCP tools are included explicitly |
@@ -184,7 +184,7 @@ becomes `null`/`unknown`, since Pi cannot distinguish free from unpriced.
 ### Fast tier
 
 `fast: "on"` requests `service_tier: priority` for eligible OpenAI models
-(`src/executors/pi/fast-tier.ts`, reached through the Pi executor policy). The task backend passes per-task `fast` and `fastApi` only when recorded
+(`src/executors/pi/fast-tier.ts`, reached through the Pi executor policy). The task runner passes per-task `fast` and `fastApi` only when recorded
 negotiation accepted `fastTier`. This requires `allowUnverifiedCapabilities: ["fastTier"]`;
 otherwise the preview records degradation and the worker runs without fast tier.
 
@@ -316,7 +316,7 @@ The adapter splits only on `\n`, preserving U+2028/U+2029 inside JSON strings.
 | `developerInstructions` | Appends `systemPrompt`; does not replace Codex's base prompt |
 | config `web_search` | `live` for `web_search`/`fetch_content`, otherwise `disabled` |
 | config `tool_output_token_limit` | 10000 by adapter default, independent of model catalog |
-| config `features.multi_agent` | false, preventing worker workers outside engine slots |
+| config `features.multi_agent` | false, preventing worker subagents outside engine slots |
 | config `mcp_servers.<name>.{command,args,env,enabled,tool_timeout_sec,startup_timeout_sec}` | Injected over stdin; default timeouts 300 s / 30 s |
 | `effort` | Request value when set; otherwise the user's `model_reasoning_effort` applies |
 
@@ -920,7 +920,7 @@ ReadOnly drops `edit_file` and `create_file`. Shell access remains coarse and pe
 `find_file` are not offered even if enabled. The model may expose write tools as `write_to_file`
 and `replace_file_content`; the table uses the server's filter names.
 
-Every unlisted built-in is disabled, including `run_workflow`, `schedule`, `invoke_worker`,
+Every unlisted built-in is disabled, including `run_workflow`, `schedule`, `invoke_subagent`,
 `ask_question`, `generate_image`. This prevents out-of-engine agents/timers and unattended questions;
 disabling `run_workflow` also prevents its startup `skills/system/run-workflow/SKILL.md` write in cwd.
 When nothing maps, `disabledTools` lists all **15** known filter names instead; empty-allowlist

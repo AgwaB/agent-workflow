@@ -551,7 +551,7 @@ test("required reads: ledger rows marked deliveryUnverified never satisfy a read
 	const taskDir = join(root, "ledger-task");
 	await mkdir(taskDir, { recursive: true });
 	const row = {
-		schema: "pi-workflow-artifact-read-v1",
+		schema: "placeholder",
 		runId: "run-x",
 		taskId: "task-2",
 		source: "a",

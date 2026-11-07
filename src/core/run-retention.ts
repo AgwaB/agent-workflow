@@ -1539,7 +1539,7 @@ async function pruneAutoRouterRuns(
 	const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
 	const candidates: ClassifierCandidate[] = [];
 	for (const entry of entries) {
-		// The runtime's run locks; WP42 F5 classifier pins.
+		// The runtime's run locks; classifier pins.
 		if (entry.name === RUN_LOCKS_DIR || entry.name === AUTO_ROUTER_PINS_DIR)
 			continue;
 		const keepEntry = (reason: string) =>

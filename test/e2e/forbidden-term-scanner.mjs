@@ -47,11 +47,11 @@ export const PI_ONLY_CODE_RULES = Object.freeze([
 	},
 	{
 		id: "pi-env-name",
-		pattern: /["'`]PI_(?:WORKFLOW|WORKER)_[A-Z0-9_]+["'`]/u,
+		pattern: /["'`]PI_(?:WORKFLOW|SUBAGENT)_[A-Z0-9_]+["'`]/u,
 		allow: [
 			{
 				path: "dist/runtime/orchestrate/request.js",
-				text: '"PI_WORKER_DURABLE_WORKER_BINDING_JSON"',
+				text: '"PI_SUBAGENT_DURABLE_WORKER_BINDING_JSON"',
 			},
 		],
 	},

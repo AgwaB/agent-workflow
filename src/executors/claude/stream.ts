@@ -253,7 +253,7 @@ export class ClaudeStreamParser {
 			if (id !== null) this.streamedMessages.add(id);
 			return;
 		}
-		if (message.parent_tool_use_id) return; // worker stream
+		if (message.parent_tool_use_id) return; // subagent stream
 		if (
 			event.type === "content_block_delta" &&
 			isObject(event.delta) &&
