@@ -233,3 +233,46 @@ test("WB-017 keeps cwd batches separate and terminal cancellation preserves sibl
 	]);
 	assert.deepEqual(await indexedRunIds(secondCwd), ["workflow_separate"]);
 });
+
+test("a flush scoped to one project leaves another project's broken pending update alone", async (t) => {
+	setIndexUpdateDebounceMsForTests(60_000);
+	await flushPendingIndexUpdatesForTests();
+	const ownCwd = await mkdtemp(join(tmpdir(), "piwf-wb017-scope-own-"));
+	const otherCwd = await mkdtemp(join(tmpdir(), "piwf-wb017-scope-other-"));
+	t.after(async () => {
+		setIndexUpdateDebounceMsForTests(undefined);
+		await flushPendingIndexUpdatesForTests(otherCwd).catch(() => undefined);
+		await Promise.all(
+			[ownCwd, otherCwd].map((cwd) =>
+				rm(cwd, {
+					recursive: true,
+					force: true,
+					maxRetries: 10,
+					retryDelay: 100,
+				}),
+			),
+		);
+	});
+	const own = runningRun(ownCwd, "workflow_own");
+	const other = runningRun(otherCwd, "workflow_other");
+	for (const run of [own, other]) {
+		await writeRunRecord(run.cwd, run);
+		await writeRunRecord(run.cwd, run);
+	}
+	const otherFile = join(
+		stateDir(otherCwd),
+		".agent-workflow",
+		"workflows",
+		"workflow_other",
+		"run.json",
+	);
+	const broken = JSON.parse(await readFile(otherFile, "utf8"));
+	await writeFile(otherFile, JSON.stringify({ ...broken, runId: "foreign" }));
+	assert.equal(await flushPendingIndexUpdatesForTests(ownCwd), 1);
+	assert.deepEqual(await indexedRunIds(ownCwd), ["workflow_own"]);
+	await assert.rejects(
+		flushPendingIndexUpdatesForTests(otherCwd),
+		/identity does not match containing directory/,
+	);
+	assert.equal(await flushPendingIndexUpdatesForTests(otherCwd), 0);
+});

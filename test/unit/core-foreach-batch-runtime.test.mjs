@@ -1412,11 +1412,11 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 			} finally {
 				setRawOwnerEstablishmentHookForTests(undefined);
 				setSubagentApiForTests(undefined);
-				// Settle this test's debounced index update before leaving. Its state survives
-				// removeProject; a later test's drain flushes every pending update and would
-				// otherwise report this deliberate run drift (Ubuntu CI, faster than 500 ms).
+				// Settle this test's debounced index update before leaving: its state survives
+				// removeProject, and an unscoped flush (the suite's after hook) would otherwise
+				// report this deliberate run drift.
 				try {
-					await flushPendingIndexUpdatesForTests().catch((flushError) => {
+					await flushPendingIndexUpdatesForTests(cwd).catch((flushError) => {
 						if (
 							drift !== "run" ||
 							!/identity does not match containing directory/u.test(

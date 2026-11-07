@@ -2237,12 +2237,24 @@ export async function writeRunRecordDurable(
 	await syncFileAndDirectory(workflowRunPath(cwd, run.runId));
 }
 
-export async function flushPendingIndexUpdatesForTests(): Promise<number> {
+/**
+ * Run debounced index updates now. With `cwd`, only that project's pending update runs: a test
+ * draining its own fixture must not rebuild another project's index (possibly deliberately broken
+ * state). Timer-started updates already in flight are awaited either way; they never reject.
+ */
+export async function flushPendingIndexUpdatesForTests(
+	cwd?: string,
+): Promise<number> {
+	const scope = cwd === undefined ? undefined : indexUpdateKey(cwd);
 	let flushed = 0;
 	while (true) {
-		const pending = [...pendingIndexUpdates.values()];
-		pendingIndexUpdates.clear();
-		for (const item of pending) clearTimeout(item.timer);
+		const pending = [...pendingIndexUpdates.entries()]
+			.filter(([key]) => scope === undefined || key === scope)
+			.map(([key, item]) => {
+				pendingIndexUpdates.delete(key);
+				clearTimeout(item.timer);
+				return item;
+			});
 		const scheduled = pending.map((item) =>
 			updateIndex(item.cwd, [...item.runIds]),
 		);
