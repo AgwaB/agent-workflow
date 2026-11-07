@@ -3,7 +3,7 @@ import { stateDir } from "../helpers/state-dir.mjs";
 // (default) and `safe`. Engine runs use the fixture executor (test/helpers/workflow-executor-
 // fixture.mjs); approvals run through the runtime with the SDK fake. No model or agent-CLI calls.
 // Safe-mode behavior (R#5, B4 refusal, fail-closed approvals) keeps its own tests, which now set
-// `permissionMode: "safe"` explicitly (core-wp4b-seeds, core-wp4d-capability-negotiation,
+// `permissionMode: "safe"` explicitly (core-seeds, core-capability-negotiation,
 // runtime-execute, runtime-control-channel).
 import assert from "node:assert/strict";
 import { existsSync, readdirSync } from "node:fs";

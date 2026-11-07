@@ -429,9 +429,9 @@ test("bundled specs load, validate, and compile; deep-research profiles preserve
 	}
 });
 
-// Moved (WP11a, host API parseWorkflowRunArgs): test("--profile parses from leading, trailing, and equals forms; quoted stays literal") → test/unit/host-ported-cli-args.test.mjs.
+// Moved (WP11a, host API parseWorkflowRunArgs): test("--profile parses from leading, trailing, and equals forms; quoted stays literal") → test/unit/host-cli-args.test.mjs.
 
-// Moved (WP11a, host API selectWorkflowExecutionProfile): test("profile selection is explicit-first, default-aware, and supports base selection") → test/unit/host-ported-cli-args.test.mjs.
+// Moved (WP11a, host API selectWorkflowExecutionProfile): test("profile selection is explicit-first, default-aware, and supports base selection") → test/unit/host-cli-args.test.mjs.
 
 test("selected profile overlays model and effort, records complete overrides, and keeps CLI runtime overrides highest", async () => {
 	const cwd = makeProject();

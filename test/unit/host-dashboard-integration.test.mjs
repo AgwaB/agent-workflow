@@ -35,7 +35,7 @@ const TWO_STAGES = {
 	},
 };
 
-// Adapted from host-wp43-dashboard-server.test.mjs; the default (WP43d open) mode: no cookie,
+// Adapted from host-dashboard-server.test.mjs; the default (WP43d open) mode: no cookie,
 // mutations carry same-origin fetch metadata, the server Origin and the CSRF value that
 // /api/session hands out.
 function http(

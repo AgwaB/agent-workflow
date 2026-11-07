@@ -33,7 +33,7 @@ export async function drainWorkflowFixture(cwd, runId) {
 	if (!isTerminalWorkflowStatus(run.status)) await stopRun(cwd, runId);
 	// Terminal task status can be persisted before the scheduling lease unwinds.
 	await withWorkflowFixtureLease(cwd, runId, async () => {});
-	await flushPendingIndexUpdatesForTests();
+	await flushPendingIndexUpdatesForTests(cwd);
 }
 
 // For real fixture executors: terminal status precedes the finalizer's event append and lock

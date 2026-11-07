@@ -181,7 +181,7 @@ test("initialize and tools/list: server name, instructions, every tool gated per
 			"workflow_inspect",
 			"workflow_logs",
 			"workflow_validate",
-			// WP28: the CLI commands (mcp-host-wp28-tools.test.mjs).
+			// WP28: the CLI commands (mcp-host-command-tools.test.mjs).
 			"workflow_resume",
 			"workflow_show",
 			"workflow_roles",
@@ -191,7 +191,7 @@ test("initialize and tools/list: server name, instructions, every tool gated per
 			"workflow_prune",
 			"workflow_profile",
 			"workflow_supervise",
-			// WP32: automatic workflow selection (host-wp32-auto.test.mjs).
+			// WP32: automatic workflow selection (host-auto.test.mjs).
 			"workflow_auto",
 			"workflow_dashboard",
 			// 2026-10-30: the launch preflight without the launch (host-check-preflight.test.mjs).

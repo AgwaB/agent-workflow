@@ -35,7 +35,7 @@ import {
 	type WorkflowModelInfo,
 	type WorkflowRuntimeDefaults,
 } from "./workflow-runtime.js";
-import { resolveWorkflowFastModeConfig } from "./fast-tier.js";
+import { validateExecutorFastMode } from "./executor-policy.js";
 import {
 	applyWorkflowToolPolicy,
 	INHERITED_HOST_TOOLS_CLASSIFICATION,
@@ -253,7 +253,11 @@ export async function buildDynamicGeneratedCompiledTask(input: {
 		},
 		{ availableModels },
 	);
-	resolveWorkflowFastModeConfig(resolvedRuntime, availableModels);
+	validateExecutorFastMode(
+		controllerExecutor ?? input.run.executor?.id,
+		resolvedRuntime,
+		availableModels,
+	);
 	const unknownTools = (tools ?? []).filter(
 		(tool) => effectiveToolClassification(tool, toolProviders) === undefined,
 	);

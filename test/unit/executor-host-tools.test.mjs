@@ -370,7 +370,10 @@ test("launch provenance: inheriting host tools needs the run's pi executor (fail
 		);
 	const record = await provenance("pi");
 	assert.equal(record.effectivePolicy.inheritHostTools, true);
-	await assert.rejects(provenance("codex"), /needs the pi executor/u);
+	await assert.rejects(
+		provenance("codex"),
+		/needs an executor that inherits host tools \(pi\)/u,
+	);
 });
 
 // WP39b (live bundle 5, O8): a worker that inherits the host tools was told "Only these tools are

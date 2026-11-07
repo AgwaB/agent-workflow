@@ -2,7 +2,7 @@ import { stateDir } from "./state-dir.mjs";
 // New in agent-workflow (WP19 round 5): shared fixtures of the Pi completion-delivery tests:
 // synthetic settled runs, receipt paths, a fake Pi session runtime with Pi 1.1's queue semantics
 // and (opt-in) Pi 1.1's real `AgentSessionRuntime`/`AgentSession` queue/`SessionManager` without a
-// model. Extracted from test/unit/host-wp19r4-pi-queue-lifetime.test.mjs.
+// model. Extracted from test/unit/host-pi-queue-lifetime.test.mjs.
 import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";

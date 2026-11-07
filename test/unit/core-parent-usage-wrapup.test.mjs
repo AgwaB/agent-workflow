@@ -1,5 +1,5 @@
 import { stateDir } from "../helpers/state-dir.mjs";
-// New in agent-workflow (WP39b, flaky `host-wp33-pi-parent-usage`): the parent-usage tracker
+// New in agent-workflow (WP39b, flaky `host-pi-parent-usage`): the parent-usage tracker
 // decided "the run has settled" from the run index, whose updates are debounced, so a parent
 // message right after the run completed was counted as a during-run message and the next one as
 // the wrap-up (4 messages instead of 3 under load). It now reads the run record first. Synthetic

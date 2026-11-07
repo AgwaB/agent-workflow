@@ -42,7 +42,7 @@ import {
 	type RequirementKey,
 	type StageRequirementContext,
 } from "../sdk/requirements.js";
-import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
+import { executorInheritsHostTools } from "./executor-policy.js";
 import { strictCapabilityKeysProblem } from "./artifact-graph-schema.js";
 import { executorSetupHints, installText } from "./executor-default.js";
 import { modelListed, probeModelList } from "./role-profiles.js";
@@ -485,7 +485,7 @@ function stageHostTools(
 		return workflowTaskReadOnly(task) ? "readOnly" : "no-tools";
 	if (!offered) return undefined;
 	const executorId = task.runtime.executor ?? runExecutorId;
-	return executorId === PI_EXECUTOR_ID ? undefined : "executor";
+	return executorInheritsHostTools(executorId) ? undefined : "executor";
 }
 
 function stageHostToolsLine(
@@ -527,7 +527,7 @@ export function hostToolInheritanceNotice(
 	for (const task of tasks) {
 		if (task.runtime.inheritHostTools !== undefined) continue;
 		const executorId = task.runtime.executor ?? runExecutorId;
-		if (executorId === PI_EXECUTOR_ID) continue;
+		if (executorInheritsHostTools(executorId)) continue;
 		byExecutor.set(executorId, [
 			...(byExecutor.get(executorId) ?? []),
 			task.id,

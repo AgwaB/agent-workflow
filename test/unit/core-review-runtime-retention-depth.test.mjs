@@ -246,7 +246,7 @@ test("RR-02 retained child quarantine protects its parent", async () => {
 	}
 });
 // Moved (WP11a): 'RR-02 actual CLI rejects mirror validation failure and preserves primary and
-// mirror evidence' runs the agent-workflow CLI: test/unit/host-ported-cli-args.test.mjs.
+// mirror evidence' runs the agent-workflow CLI: test/unit/host-cli-args.test.mjs.
 test("RR-02 pre-primary-detach failure preserves canonical run and recoverable mirror", async () => {
 	const cwd = await fixture();
 	try {

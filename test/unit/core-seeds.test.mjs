@@ -20,7 +20,7 @@ import { compileWorkflow } from "../../dist/core/compiler.js";
 import {
 	resolveWorkflowFastModeConfig,
 	WORKFLOW_FAST_SERVICE_TIER,
-} from "../../dist/core/fast-tier.js";
+} from "../../dist/executors/pi/fast-tier.js";
 import {
 	AGENT_WORKFLOW_HOME_ENV,
 	agentWorkflowHome,

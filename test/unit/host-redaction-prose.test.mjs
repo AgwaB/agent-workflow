@@ -2,7 +2,7 @@
 // assignments and header values from report prose. Before the fix `Exit code: 1`, `HTTP status
 // code: 403` and a security finding `Authorization: missing on the delete endpoint; …` were
 // redacted (the last one lost the finding's explanation). Real header values and tokens are still
-// redacted; the round-1 redaction cases stay in host-wp19-logs-containment-redaction.test.mjs.
+// redacted; the round-1 redaction cases stay in host-logs-containment-redaction.test.mjs.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 

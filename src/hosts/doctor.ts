@@ -10,11 +10,9 @@ import { fromStatePath } from "../core/state-location.js";
 // pi-web-access is installed, with the install command when it is not) is shown and warned about.
 import { constants } from "node:fs";
 import {
-	enablePiWebTool,
-	PI_WEB_TOOL_CONFIG_KEYS,
-	type PiWebToolFixResult,
-	piWebAccessConfigPath,
-} from "../executors/pi/web-tools.js";
+	type ExecutorDoctorFixResult,
+	executorPolicy,
+} from "../core/executor-policy.js";
 import { access, stat } from "node:fs/promises";
 import { dirname, isAbsolute } from "node:path";
 
@@ -360,8 +358,8 @@ export interface DoctorFix {
 }
 
 /**
- * Fixes for tools an executor cannot provide here. Only Pi's web tools turned off in pi-web-access's
- * own config are fixable (one key flips to true); everything else stays guidance.
+ * Fixes for tools an executor cannot provide here, from the executor's policy (Pi: a web tool turned
+ * off in pi-web-access's own config, one key flips to true); everything else stays guidance.
  */
 export function doctorFixes(
 	data: DoctorData,
@@ -369,16 +367,10 @@ export function doctorFixes(
 ): DoctorFix[] {
 	const fixes: DoctorFix[] = [];
 	for (const entry of data.executors) {
-		if (entry.id !== "pi") continue;
-		for (const tool of Object.keys(entry.unavailableTools ?? {})) {
-			const key = PI_WEB_TOOL_CONFIG_KEYS[tool];
-			if (key === undefined) continue;
-			fixes.push({
-				executor: entry.id,
-				tool,
-				description: `Turn on ${tool} in pi-web-access (set tools.${key}.enabled to true in ${piWebAccessConfigPath(env)})`,
-			});
-		}
+		const policy = executorPolicy(entry.id);
+		if (policy.doctorFixes === undefined) continue;
+		for (const fix of policy.doctorFixes(entry.unavailableTools ?? {}, env))
+			fixes.push({ executor: entry.id, ...fix });
 	}
 	return fixes;
 }
@@ -386,8 +378,13 @@ export function doctorFixes(
 export function applyDoctorFix(
 	fix: DoctorFix,
 	env: NodeJS.ProcessEnv = process.env,
-): Promise<PiWebToolFixResult> {
-	return enablePiWebTool(fix.tool, env);
+): Promise<ExecutorDoctorFixResult> {
+	const apply = executorPolicy(fix.executor).applyDoctorFix;
+	if (apply === undefined)
+		throw new Error(
+			`executor ${fix.executor} has no doctor fix for ${fix.tool}`,
+		);
+	return apply(fix.tool, env);
 }
 
 /**

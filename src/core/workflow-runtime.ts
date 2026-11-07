@@ -73,22 +73,7 @@ export function selectWorkflowRuntime(
 ): WorkflowRuntimeResolutionInput {
 	const modelLayer = layers.find((layer) => modelOf(layer));
 	const model = modelOf(modelLayer);
-	let effort: EffortLevel | undefined;
-	for (const layer of layers) {
-		if (!layer) continue;
-		if (layer.effort) {
-			effort = layer.effort;
-			break;
-		}
-		const layerModel = modelOf(layer);
-		const modelEffort = layerModel
-			? splitKnownEffortSuffix(layerModel).effort
-			: undefined;
-		if (modelEffort) {
-			effort = modelEffort;
-			break;
-		}
-	}
+	const effort = layers.find((layer) => layer?.effort)?.effort;
 	const fast = layers.map(fastOf).find((value) => value !== undefined);
 	return {
 		...(model ? { model } : {}),
@@ -132,11 +117,8 @@ export async function resolveWorkflowRuntime(
 	options: ResolveWorkflowRuntimeOptions,
 ): Promise<WorkflowRuntimeResolutionInput> {
 	const requested = runtime.model ?? options.defaults?.model;
-	const { baseModel, effort } = requested
-		? splitKnownEffortSuffix(requested)
-		: { baseModel: undefined, effort: undefined };
-	const model = await resolveModel(baseModel, context, options);
-	const effectiveEffort = runtime.effort ?? effort ?? options.defaults?.effort;
+	const model = await resolveModel(requested, context, options);
+	const effectiveEffort = runtime.effort ?? options.defaults?.effort;
 	const effortResolution = resolveEffort(model, effectiveEffort, options);
 	const fast = fastOf(runtime) ?? fastOf(options.defaults);
 	const api =
@@ -153,20 +135,6 @@ export async function resolveWorkflowRuntime(
 			: {}),
 		...(effortResolution ? { effortResolution } : {}),
 		...(fast ? { fast } : {}),
-	};
-}
-
-export function splitKnownEffortSuffix(model: string): {
-	baseModel: string;
-	effort?: EffortLevel;
-} {
-	const colonIdx = model.lastIndexOf(":");
-	if (colonIdx === -1) return { baseModel: model };
-	const suffix = model.slice(colonIdx + 1);
-	if (!isEffortLevel(suffix)) return { baseModel: model };
-	return {
-		baseModel: model.slice(0, colonIdx),
-		effort: suffix,
 	};
 }
 
@@ -332,12 +300,7 @@ function findModelInfo(
 	available: WorkflowModelInfo[],
 ): WorkflowModelInfo | undefined {
 	if (!modelId) return undefined;
-	const { baseModel } = splitKnownEffortSuffix(modelId);
-	return available.find((model) => model.fullId === baseModel);
-}
-
-function isEffortLevel(value: string): value is EffortLevel {
-	return (EFFORT_LEVELS as readonly string[]).includes(value);
+	return available.find((model) => model.fullId === modelId);
 }
 
 export function shouldScheduleAfterStageFailure(stage: {

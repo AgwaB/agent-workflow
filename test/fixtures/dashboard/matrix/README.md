@@ -40,7 +40,7 @@ counters and sanitation rather than expecting byte-identical snapshots.
 ## Browser regression
 
 ```sh
-node test/run-unit.mjs test/unit/host-wp43-dashboard-matrix.test.mjs
+node test/run-unit.mjs test/unit/host-dashboard-matrix.test.mjs
 ```
 
 Uses the local Chrome/CDP helper and fixture HTTP/SSE server, not an executor. Every

@@ -1,25 +1,12 @@
-// Only Pi tasks may inherit host tools; declared read-only stages never do.
-// Host-tool inheritance remains conservatively mutation-capable in safe mode.
-import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
+// Only tasks on an executor that inherits host tools (Pi) may inherit them; declared read-only
+// stages never do. Host-tool inheritance remains conservatively mutation-capable in safe mode.
+import { executorInheritsHostTools } from "./executor-policy.js";
 import type {
 	CompiledTask,
 	CompiledTaskSafety,
 	CompiledToolProvider,
 	ToolClassification,
 } from "./types.js";
-
-/**
- * Tools inheritHostTools adds to Pi workers. The Pi executor passes them to
- * the worker, and the worker prompt names them.
- */
-export const INHERITED_HOST_TOOL_NAMES = [
-	"codemode",
-	"tool_search",
-	"mcp__*",
-	"list_mcp_resources",
-	"list_mcp_resource_templates",
-	"read_mcp_resource",
-] as const;
 
 /**
  * Pi tool-name vocabulary a worker gets when its tool list is unspecified and
@@ -56,8 +43,8 @@ export interface WorkflowToolPolicy {
 
 /**
  * WP31×WP35: whether the run's host-tool decision applies to one task. Host tools are inherited
- * per task, only by tasks whose executor is pi: the task's own executor (`runtime.executor`, mixed
- * role-profile runs), else the run's. A missing executor never implies Pi.
+ * per task, only by tasks whose executor inherits host tools (executor-policy.ts): the task's own
+ * executor (`runtime.executor`, mixed role-profile runs), else the run's. A missing executor cannot.
  */
 export function runInheritsHostToolsForTask(
 	run: { inheritHostTools?: boolean; executor?: { id: string } },
@@ -65,7 +52,7 @@ export function runInheritsHostToolsForTask(
 ): boolean {
 	if (run.inheritHostTools !== true) return false;
 	const executorId = task.runtime.executor ?? run.executor?.id;
-	return executorId === PI_EXECUTOR_ID;
+	return executorInheritsHostTools(executorId);
 }
 
 /**

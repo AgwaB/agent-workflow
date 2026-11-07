@@ -15,7 +15,7 @@ import {
 } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { resolveWorkflowFastModeConfig } from "../../core/fast-tier.js";
+import { resolveWorkflowFastModeConfig } from "./fast-tier.js";
 import { agentWorkflowHome } from "../../core/home-dir.js";
 import { durableWorkerBindingEnv } from "../../runtime/durable-authority.js";
 import {
