@@ -4,10 +4,21 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 import { discoverAgents } from "../core/agents.js";
-import { resolveRunExecutorForHost } from "../core/executor-default.js";
+import { probeWorkflowExecutor } from "../core/capability-negotiation.js";
+import {
+	cachedExecutorProber,
+	resolveRunExecutorForHost,
+} from "../core/executor-default.js";
+import {
+	executorDefaultRuntime,
+	executorPolicy,
+	overlayExecutorProfile,
+	resolveExecutorDefaultProfile,
+} from "../core/executor-policy.js";
 import type {
 	EffortLevel,
 	WorkflowAutoConsentSource,
+	WorkflowRoleMap,
 	WorkflowRunAutoCandidateRef,
 	WorkflowRunHostAutoSelectionMetadata,
 } from "../core/types.js";
@@ -35,7 +46,12 @@ import {
 	hostEnv,
 	result,
 } from "./types.js";
-import { readUserProfiles, userProfileFromFile } from "./user-profiles.js";
+import {
+	readUserProfiles,
+	type UserProfile,
+	type UserProfilesFile,
+	userProfileFromFile,
+} from "./user-profiles.js";
 
 /** The executor and model the classifier call runs on . */
 export interface AutoClassifierTarget {
@@ -203,13 +219,15 @@ function candidateView(
 /**
  * Q5: the classifier runs on the run's default executor: run flag > saved user profile (named, else
  * the default one) > host override > host default (probed on the terminal CLI). Model/effort: the
- * run flags, else the profile's, else the host's current model when it belongs to that executor
- * (Pi), else the executor's default.
+ * run flags, else the profile's, else the `default` role of that executor's default profile (the
+ * host's current model with the saved executor profile's changes for the host's executor, Pi; the
+ * built-in or edited one for codex/claude, with its fallback), else the executor's own.
  */
 export async function resolveAutoClassifier(
 	ctx: HostApiContext,
 	request: Pick<AutoRequest, "executor" | "profile" | "model" | "effort">,
 ): Promise<AutoClassifierTarget> {
+	let file: UserProfilesFile | undefined;
 	let profile:
 		| {
 				name: string;
@@ -219,7 +237,7 @@ export async function resolveAutoClassifier(
 		  }
 		| undefined;
 	try {
-		const file = await readUserProfiles(hostEnv(ctx));
+		file = await readUserProfiles(hostEnv(ctx));
 		const name = request.profile ?? file.default;
 		const saved = name ? userProfileFromFile(file, name) : undefined;
 		if (saved)
@@ -247,22 +265,67 @@ export async function resolveAutoClassifier(
 		...(ctx.host ? { host: ctx.host } : {}),
 	});
 	const fromProfile = profile?.executor === selection.id ? profile : undefined;
-	const hostDefaults: WorkflowRuntimeDefaults | undefined =
-		ctx.runtimeDefaults &&
-		(ctx.runtimeDefaults.executor === undefined ||
-			ctx.runtimeDefaults.executor === selection.id)
-			? ctx.runtimeDefaults
-			: undefined;
+	const executorDefault = await classifierExecutorDefault(
+		ctx,
+		selection,
+		file === undefined ? undefined : userProfileFromFile(file, selection.id),
+	);
 	const model =
-		request.model ?? fromProfile?.model ?? hostDefaults?.model ?? null;
+		request.model ?? fromProfile?.model ?? executorDefault?.model ?? null;
 	const effort =
-		request.effort ?? fromProfile?.effort ?? hostDefaults?.effort ?? null;
+		request.effort ?? fromProfile?.effort ?? executorDefault?.effort ?? null;
 	return {
 		executor: selection.id,
 		source: selection.source,
 		model,
 		effort: effort && isEffortLevel(effort) ? effort : null,
 	};
+}
+
+/** The `default` role of the classifier executor's default profile (see resolveAutoClassifier). */
+async function classifierExecutorDefault(
+	ctx: HostApiContext,
+	selection: Awaited<ReturnType<typeof resolveRunExecutorForHost>>,
+	saved: UserProfile | undefined,
+): Promise<{ model?: string; effort?: EffortLevel } | undefined> {
+	const host = ctx.runtimeDefaults;
+	if (
+		host &&
+		(host.executor === undefined || host.executor === selection.id) &&
+		(host.model !== undefined || host.effort !== undefined)
+	) {
+		const base: WorkflowRoleMap = {
+			default: {
+				...(host.model === undefined ? {} : { model: host.model }),
+				...(host.effort === undefined ? {} : { effort: host.effort }),
+			},
+		};
+		return executorDefaultRuntime(
+			saved === undefined
+				? base
+				: overlayExecutorProfile(selection.id, base, saved),
+			{},
+		);
+	}
+	let listed: string[] | null = null;
+	if (
+		executorPolicy(selection.id).defaultPreset !== undefined &&
+		selection.descriptor !== undefined
+	)
+		try {
+			listed = (
+				await probeWorkflowExecutor(selection.descriptor, {
+					prober: cachedExecutorProber,
+				})
+			).models;
+		} catch {
+			// The comparison call reports an executor it cannot use.
+		}
+	return executorDefaultRuntime(
+		resolveExecutorDefaultProfile(selection.id, listed, process.env, saved)
+			?.roles,
+		{},
+	);
 }
 
 function describeClassifier(target: AutoClassifierTarget): string {

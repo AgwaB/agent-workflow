@@ -238,7 +238,9 @@ since comparison is refused. All hosts, including Pi print/JSON and MCP clients 
 use the same behavior. The launch records consent source `command`.
 
 The classifier uses the run's default executor and `--model`/`--effort` or profile settings;
-otherwise it uses Pi's current host model or the executor's default. See [executor selection](#executors)
+otherwise the `default` role of that executor's [default profile](#executors) (Pi's current host
+model with your saved `pi` changes; codex/claude: the built-in or edited one, with its fallback),
+else the executor's own default. See [executor selection](#executors)
 and [CLI `auto`](https://github.com/AgwaB/agent-workflow/blob/main/docs/cli.md#auto) for selection, launch metadata and JSON outcomes.
 
 The `execution-router` skill stays recommendation-only: it may suggest `auto`, but never runs it.
@@ -459,7 +461,8 @@ keep Pi's current model and effort.
 
 **Changing a default profile.** A saved profile named after an executor (`codex`, `claude`, `pi`,
 …) holds your changes to that executor's default profile; edit it with the usual profile commands
-(CLI `profile set`, MCP `workflow_profile` `set`, the dashboard, Pi `/aw profile set`):
+(CLI `profile set`, MCP `workflow_profile` `set`, the dashboard's Executor default profiles, Pi
+`/aw profile set` or the picker, which says so before saving under an executor's name):
 
 ```bash
 agent-workflow profile show codex                                # built-in, or built-in + your changes

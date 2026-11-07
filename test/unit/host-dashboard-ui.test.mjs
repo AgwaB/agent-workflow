@@ -1827,3 +1827,14 @@ test("dashboard Chrome: project overview, explicit selection, keyboard-labelled 
 	await open(`${fixture.origin}/`);
 	await browser.waitFor(() => document.querySelector(".projects-overview"));
 });
+
+test("the dashboard's effort choices are the engine's effort vocabulary", async () => {
+	const js = await readFile(new URL("app.js", root), "utf8");
+	const { EFFORT_LEVELS } = await import("../../dist/core/types.js");
+	const listed = /const EFFORT_LEVELS = \[([^\]]*)\]/.exec(js)?.[1];
+	assert.ok(listed, "app.js declares EFFORT_LEVELS");
+	assert.deepEqual(
+		[...listed.matchAll(/"([^"]+)"/g)].map((match) => match[1]),
+		[...EFFORT_LEVELS],
+	);
+});

@@ -616,7 +616,7 @@ The sidebar has **Runs · Workflows · Profiles · Maintenance · Executors**. M
 |---|---|---|
 | Runs | Selected project (or All projects overview) | Existing run, task and report views |
 | Workflows | Selected project | Discover workflows and agents, source/scope and routing hints; inspect stages, compiled roles and validation; **Check** executor/profile/model/effort/permission mode without starting a run or calling a model |
-| Profiles | User level, shared by every project and host | List/show/create/edit/delete profiles, apply presets, set/clear the default, and edit role assignments using probed executor/model choices. Per-workflow preferences are also user-level; the selected project supplies the workflow definition and declared profiles. |
+| Profiles | User level, shared by every project and host | List/show/create/edit/delete profiles, apply presets, set/clear the default, and edit role assignments using probed executor/model choices. Executor default profiles (codex, claude, pi) are listed with what their stages get; Edit saves only your changes, Restore built-in deletes them. Per-workflow preferences are also user-level; the selected project supplies the workflow definition and declared profiles. |
 | Maintenance | Selected project's runs/notices | Prune preview/delete and notice acknowledgement/clear. The shared prune action also previews user-level executor attempt state and stale project launch claims. |
 | Executors | User level | Installed CLI/version vs verified version, login state, default executor and why, permission-mode default and warnings. Reports are cached for 60 seconds; **Refresh** invalidates report and probe caches. |
 

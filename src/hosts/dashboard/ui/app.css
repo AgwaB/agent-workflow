@@ -2264,6 +2264,15 @@ main.signin code {
 	padding: 12px 0;
 	border-bottom: 1px solid var(--line);
 }
+.management-executor-default strong {
+	margin-right: 12px;
+}
+.management-executor-default p {
+	margin: 6px 0 0;
+}
+.management-role-table {
+	margin: 8px 0 16px;
+}
 .management-result pre,
 .management-card pre {
 	white-space: pre-wrap;

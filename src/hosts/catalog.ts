@@ -7,9 +7,16 @@ import {
 	executorPreset,
 } from "../core/executor-presets.js";
 import { compileWorkflow } from "../core/compiler.js";
-import { executorPolicy } from "../core/executor-policy.js";
+import {
+	executorPolicy,
+	overlayExecutorProfile,
+} from "../core/executor-policy.js";
 import { loadWorkflowSpec } from "../core/schema.js";
-import type { WorkflowRoutingHints, CompiledWorkflow } from "../core/types.js";
+import type {
+	CompiledWorkflow,
+	WorkflowRoleMap,
+	WorkflowRoutingHints,
+} from "../core/types.js";
 import { listWorkflows, resolveWorkflowRef } from "../core/workflow-specs.js";
 import { HostUsageError } from "./args.js";
 import {
@@ -493,10 +500,74 @@ export interface ProfileData {
 	deleted?: boolean;
 	/** WP31: op presets. */
 	presets?: ExecutorPreset[];
+	/** op list: the default profile of each executor (built-in, or built-in with saved changes). */
+	executorDefaults?: ExecutorDefaultProfileInfo[];
 	/** op show of an executor without a saved profile: its built-in default profile. */
 	builtIn?: true;
 	/** op show of a saved executor profile: what it runs (built-in default profile + changes). */
 	effective?: UserProfile;
+}
+
+/** One executor's default profile as `profile list` reports it (no probe; the fallback is a note). */
+export interface ExecutorDefaultProfileInfo {
+	executor: string;
+	/** A saved profile named after the executor holds changes to it. */
+	saved: boolean;
+	/** Built-in preset the profile starts from (codex, claude); absent: none (pi). */
+	builtIn?: string;
+	/** Role → executor/model/effort its stages get where nothing else sets them. */
+	roles: WorkflowRoleMap;
+	note: string;
+}
+
+/** Executors `profile list` always reports, plus any with a saved profile. */
+const LISTED_EXECUTOR_PROFILES = ["codex", "claude", "pi"] as const;
+
+export function executorDefaultProfileInfo(
+	id: string,
+	saved: UserProfile | undefined,
+): ExecutorDefaultProfileInfo {
+	const preset = executorPolicy(id).defaultPreset;
+	const roles: WorkflowRoleMap = Object.fromEntries(
+		Object.entries(
+			overlayExecutorProfile(
+				id,
+				preset === undefined ? {} : executorPreset(preset).roles,
+				saved ?? {},
+			),
+		).map(([role, entry]) => [role, { executor: id, ...entry }]),
+	);
+	const note =
+		preset === undefined
+			? saved
+				? `your changes on top of ${id}'s own model and effort${id === "pi" ? " (in Pi: its current ones)" : ""}; profile delete ${id} restores them`
+				: `${id}'s own model and effort${id === "pi" ? " (in Pi: its current ones)" : ""}`
+			: `${saved ? `built-in with your changes; profile delete ${id} restores the built-in one` : "built-in"}; fields you do not set fall back to your own ${id} settings when ${id} does not offer ${executorPreset(preset).roles.default?.model ?? "the preset model"}`;
+	return {
+		executor: id,
+		saved: saved !== undefined,
+		...(preset === undefined ? {} : { builtIn: preset }),
+		roles,
+		note,
+	};
+}
+
+function executorDefaultProfiles(
+	file: Awaited<ReturnType<typeof readUserProfiles>>,
+): ExecutorDefaultProfileInfo[] {
+	const ids = [
+		...LISTED_EXECUTOR_PROFILES,
+		...Object.keys(file.profiles)
+			.filter(
+				(name) =>
+					isExecutorProfileName(name) &&
+					!(LISTED_EXECUTOR_PROFILES as readonly string[]).includes(name),
+			)
+			.sort((a, b) => a.localeCompare(b)),
+	];
+	return ids.map((id) =>
+		executorDefaultProfileInfo(id, userProfileFromFile(file, id)),
+	);
 }
 
 /** `profile show <executor>` without a saved one: the executor's built-in default profile. */
@@ -554,6 +625,7 @@ export async function profileAction(
 		const profiles = Object.keys(file.profiles)
 			.sort((a, b) => a.localeCompare(b))
 			.map((name) => userProfileFromFile(file, name)!);
+		const executorDefaults = executorDefaultProfiles(file);
 		return result(
 			"profile",
 			"success",
@@ -562,14 +634,23 @@ export async function profileAction(
 				path,
 				...(file.default ? { default: file.default } : {}),
 				profiles,
+				executorDefaults,
 			},
-			profiles.length === 0
-				? "No saved profiles. Create one with: agent-workflow profile set <name> --executor <id>"
-				: profiles
-						.map((profile) =>
-							formatUserProfile(profile, profile.name === file.default),
-						)
-						.join("\n\n"),
+			[
+				profiles.length === 0
+					? "No saved profiles. Create one with: agent-workflow profile set <name> --executor <id>"
+					: profiles
+							.map((profile) =>
+								formatUserProfile(profile, profile.name === file.default),
+							)
+							.join("\n\n"),
+				[
+					"Executor default profiles (model/effort of each executor's stages where nothing else sets them; profile show <executor>):",
+					...executorDefaults.map(
+						(entry) => `  ${entry.executor}: ${entry.note}`,
+					),
+				].join("\n"),
+			].join("\n\n"),
 		);
 	}
 	if (request.op === "show") {

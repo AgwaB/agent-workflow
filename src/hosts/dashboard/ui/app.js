@@ -5498,7 +5498,7 @@ async function modelControls(saved = {}, prefix = "") {
 	});
 	const effort = choices(
 		`${prefix}Effort`,
-		["", "off", "minimal", "low", "medium", "high", "xhigh"],
+		["", ...EFFORT_LEVELS],
 		saved.effort || "",
 	);
 	const list = element("datalist", { id: `models-${++modelControlId}` });
@@ -5535,6 +5535,17 @@ async function modelControls(saved = {}, prefix = "") {
 	};
 }
 let modelControlId = 0;
+// The engine's effort vocabulary (core/types.ts EFFORT_LEVELS); executors map it to their own levels.
+const EFFORT_LEVELS = [
+	"off",
+	"minimal",
+	"low",
+	"medium",
+	"high",
+	"xhigh",
+	"max",
+	"ultra",
+];
 async function roleEditor(roles = {}) {
 	const rows = element("div", { class: "management-role-rows" });
 	const entries = [];
@@ -5818,6 +5829,36 @@ async function renderWorkflows(page) {
 		),
 	);
 }
+/** `role  executor:model:effort` lines of a role map, as the CLI shows them. */
+function roleTable(roles = {}) {
+	const order = [
+		"default",
+		"planning",
+		"research-execution",
+		"synthesis",
+		"verification",
+		"final-judgment",
+	];
+	const keys = Object.keys(roles).sort(
+		(a, b) =>
+			(order.includes(a) ? order.indexOf(a) : order.length) -
+				(order.includes(b) ? order.indexOf(b) : order.length) ||
+			a.localeCompare(b),
+	);
+	if (!keys.length)
+		return element("p", { class: "muted" }, "No model or effort set.");
+	const width = Math.max(...keys.map((key) => key.length));
+	return element(
+		"pre",
+		{ class: "management-role-table" },
+		keys
+			.map((key) => {
+				const entry = roles[key];
+				return `${key.padEnd(width)}  ${entry.executor || "-"}:${entry.model || "-"}:${entry.effort || "-"}`;
+			})
+			.join("\n"),
+	);
+}
 async function renderProfiles(page) {
 	const [result, presets, preferences] = await Promise.all([
 		managementApi("/api/profiles"),
@@ -5840,6 +5881,10 @@ async function renderProfiles(page) {
 	list.append(
 		element("p", { class: "muted" }, `Default: ${data.default || "none"}`),
 	);
+	const executorDefaults = data.executorDefaults || [];
+	const executorProfileNames = new Set(
+		executorDefaults.map((entry) => entry.executor),
+	);
 	for (const profile of data.profiles)
 		list.append(
 			element(
@@ -5856,7 +5901,14 @@ async function renderProfiles(page) {
 				element(
 					"small",
 					{ class: "muted" },
-					[profile.executor, profile.model, profile.permissionMode]
+					[
+						executorProfileNames.has(profile.name)
+							? `default profile of ${profile.name} stages`
+							: "",
+						profile.executor,
+						profile.model,
+						profile.permissionMode,
+					]
 						.filter(Boolean)
 						.join(" · "),
 				),
@@ -5901,7 +5953,58 @@ async function renderProfiles(page) {
 			{ write: false },
 		),
 	);
-	async function edit(profile) {
+	// Executor default profiles: the model/effort of each executor's stages where nothing else sets
+	// them. Editing one saves a profile named after the executor that holds only the changes.
+	const executorPanel = managementPanel(
+		"Executor default profiles",
+		element(
+			"p",
+			{ class: "muted" },
+			"Model and effort of each executor's stages where the workflow, the launch and the chosen profile set none. Your changes apply on top of the built-in profile.",
+		),
+	);
+	for (const entry of executorDefaults) {
+		const saved = data.profiles.find(
+			(profile) => profile.name === entry.executor,
+		);
+		executorPanel.append(
+			element(
+				"div",
+				{
+					class: "management-list-row management-executor-default",
+					"data-executor-default": entry.executor,
+				},
+				element("strong", {}, entry.executor),
+				managementControl(
+					`Edit ${entry.executor} default`,
+					async () => {
+						await edit(saved || { name: entry.executor }, entry);
+					},
+					errors,
+					{ write: false },
+				),
+				...(saved
+					? [
+							managementControl(
+								`Restore built-in ${entry.executor}`,
+								async () => {
+									await managementWrite(
+										`/api/profiles/${encodeURIComponent(entry.executor)}`,
+										"DELETE",
+									);
+									await renderManagement();
+								},
+								errors,
+							),
+						]
+					: []),
+				element("p", { class: "muted" }, entry.note),
+			),
+			roleTable(entry.roles),
+		);
+	}
+	list.after(executorPanel);
+	async function edit(profile, executorDefault) {
 		const id = input("Profile name", profile.name || "", {
 			maxlength: 64,
 			readonly: !!profile.name,
@@ -5925,6 +6028,16 @@ async function renderProfiles(page) {
 		editor.replaceChildren(
 			managementPanel(
 				profile.name ? `Edit ${profile.name}` : "New profile",
+				...(executorDefault
+					? [
+							element(
+								"p",
+								{ class: "muted" },
+								`Changes to the default profile of ${executorDefault.executor} stages. Leave a field empty to keep what it runs now:`,
+							),
+							roleTable(executorDefault.roles),
+						]
+					: []),
 				field("Name", id),
 				field("Start from preset", preset),
 				models.node,

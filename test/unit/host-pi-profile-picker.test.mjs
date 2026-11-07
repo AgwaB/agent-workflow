@@ -390,6 +390,86 @@ test("a preset saved as a new default user profile", async () => {
 	);
 });
 
+test("saving under an executor's name says it is that executor's default profile; declining saves nothing", async () => {
+	const { ctx } = await project();
+	const { api } = fakeModelsApi();
+	let warned;
+	const declined = scripted([
+		["select", pick(picker.SCOPE_USER)],
+		["select", pick("Codex —")],
+		["preview", answer("save")],
+		["select", pick(picker.NEW_PROFILE)],
+		[
+			"input",
+			({ placeholder }) => {
+				assert.equal(placeholder, "codex");
+				return "codex";
+			},
+		],
+		[
+			"confirm",
+			({ title, message }) => {
+				warned = { title, message };
+				return false;
+			},
+		],
+	]);
+	const first = await picker.runProfilePicker(declined.ui, api, ctx);
+	assert.equal(first.status, "cancelled");
+	assert.equal(warned.title, '"codex" is the default profile of codex stages');
+	assert.match(
+		warned.message,
+		/profile delete codex restores the built-in one/,
+	);
+	assert.equal(
+		(await realApi.profileAction(ctx, { op: "show", name: "codex" })).data
+			.builtIn,
+		true,
+	);
+	const accepted = scripted([
+		["select", pick(picker.SCOPE_USER)],
+		["select", pick("Codex —")],
+		["preview", answer("save")],
+		["select", pick(picker.NEW_PROFILE)],
+		["input", answer("codex")],
+		["confirm", answer(true)],
+		["confirm", answer(false)],
+	]);
+	const second = await picker.runProfilePicker(accepted.ui, api, ctx);
+	assert.equal(second.status, "saved");
+	assert.match(second.text, /codex \(default profile of codex stages\)/);
+	const listed = scripted([
+		["select", pick(picker.SCOPE_USER)],
+		[
+			"select",
+			({ options }) => {
+				assert.ok(
+					options.includes("Saved: codex (default profile of codex stages)"),
+					options.join(" | "),
+				);
+				return undefined;
+			},
+		],
+	]);
+	assert.equal(
+		(await picker.runProfilePicker(listed.ui, api, ctx)).status,
+		"cancelled",
+	);
+	// Other names are saved without the extra question.
+	const team = scripted([
+		["select", pick(picker.SCOPE_USER)],
+		["select", pick("Codex —")],
+		["preview", answer("save")],
+		["select", pick(picker.NEW_PROFILE)],
+		["input", answer("team")],
+		["confirm", answer(false)],
+	]);
+	assert.equal(
+		(await picker.runProfilePicker(team.ui, api, ctx)).status,
+		"saved",
+	);
+});
+
 test("Custom: per-role executor, model from the probe list and effort; saved as a user profile", async () => {
 	const { ctx } = await project();
 	const { api } = fakeModelsApi();
