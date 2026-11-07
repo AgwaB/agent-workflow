@@ -22,6 +22,8 @@ and `bash`; SDK constants are `WORKFLOW_TOOL_NAMES` / `WORKFLOW_TOOL_KINDS`. Cod
 | Claude Code | claude-code 2.1.319 | `claude -p`, stream-json | Settings/MCP isolation; built-in agents/plugins remain | Safe: `default`; free: `bypassPermissions` | `WebSearch`, `WebFetch` | `mcp__workflow_artifact__workflow_artifact`; 21,375 artifact output chars/bytes | Read-tool auto-allow; MCP spill files |
 | Antigravity (ACP) | agy_acp_server 1.4.5 | No args on macOS; `--uid=` on Linux | Private `GEMINI_HOME`; workspace skills remain | Free: `yolo`; safe `default`; safe readOnly emulated | `search_web`, `read_url_content` + `view_file` | `call_mcp_tool`; 131,072-byte MCP override | No resume or filesystem sandbox; declared capabilities |
 
+**Contents:** [Pi](#pi) · [Codex](#codex) · [Claude Code](#claude-code) · [Antigravity (ACP)](#antigravity-acp)
+
 ## Pi
 
 `@agwab/agent-workflow/executors/pi` runs one workflow attempt as one Pi process.

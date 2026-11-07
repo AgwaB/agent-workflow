@@ -2,6 +2,8 @@
 
 For developers writing executor adapters, building hosts, or working on the engine and durable runtime.
 
+**Contents:** [Architecture](#architecture) · [Writing an executor adapter](#writing-an-executor-adapter) · [Conformance kit](#conformance-kit) · [Host API](#host-api) · [Workflow artifact MCP server](#workflow-artifact-mcp-server)
+
 ## Architecture
 
 agent-workflow is one npm package with layered entry points. The engine never depends on a single

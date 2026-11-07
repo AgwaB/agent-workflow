@@ -2,10 +2,10 @@
 
 Use agent-workflow from a conversation or a local browser:
 
-- **Claude Code and Codex:** install the plugin for in-host `aw` commands, or ask the agent to use the MCP tools (also available with MCP-only installation).
-- **Pi:** install the extension, then use `/aw` or ask the agent to use its `aw_*` tools.
-- **Dashboard:** open a project's local web view to inspect and manage runs.
-- **Other MCP clients and Antigravity CLI (agy):** register the MCP server or converted plugin and call its tools.
+- **[Claude Code and Codex](#claude-code-and-codex):** install the plugin for in-host `aw` commands, or ask the agent to use the MCP tools (also available with MCP-only installation).
+- **[Pi](#pi):** install the extension, then use `/aw` or ask the agent to use its `aw_*` tools.
+- **[Dashboard](#dashboard):** open a project's local web view to inspect and manage runs.
+- **[Other MCP clients and Antigravity CLI (agy)](#other-hosts):** register the MCP server or converted plugin and call its tools.
 
 ## Claude Code and Codex
 

@@ -2,11 +2,13 @@
 
 How to find, write, run, wait for, resume and stop workflows, how executors, profiles and permission
 modes are chosen, what a run leaves on disk, and what to do when something goes wrong. Command
-reference: [`cli.md`](https://github.com/AgwaB/agent-workflow/blob/main/docs/cli.md) (CLI) and [`pi-host.md`](https://github.com/AgwaB/agent-workflow/blob/main/docs/hosts.md#pi) (Pi `/aw`). Install and quick
+reference: [`cli.md`](https://github.com/AgwaB/agent-workflow/blob/main/docs/cli.md) (CLI) and [`hosts.md`](https://github.com/AgwaB/agent-workflow/blob/main/docs/hosts.md#pi) (Pi `/aw`). Install and quick
 start: [`../README.md`](https://github.com/AgwaB/agent-workflow/blob/main/README.md).
 
 Examples use the CLI. In Pi, the same actions are `/aw <action> …` (and the `aw_list`, `aw_run`,
 `aw_dynamic`, `aw_wait` tools).
+
+**Contents:** [Workflows and specs](#workflows-and-specs) · [Bundled workflows](#bundled-workflows) · [Running](#running) · [Waiting, inspecting, resuming, stopping](#waiting-inspecting-resuming-stopping) · [Executors](#executors) · [Blocked actions](#blocked-actions) · [Permission modes](#permission-modes) · [Preflight: capability, tools, models and effort](#preflight-capability-tools-models-and-effort) · [Stage model](#stage-model) · [Artifacts and required reads](#artifacts-and-required-reads) · [Run records](#run-records) · [Support matrix](#support-matrix) · [Troubleshooting](#troubleshooting) · [Environment variables](#environment-variables)
 
 ## Workflows and specs
 
@@ -1260,7 +1262,7 @@ Not read by the package.
 |---|---|
 | `AGENT_WORKFLOW_TEST_CONCURRENCY`, `AGENT_WORKFLOW_KEEP_TEST_HOME` | `test/run-unit.mjs`: parallel test files; keep the per-file test homes. |
 | `AGENT_WORKFLOW_LIVE`, `AGENT_WORKFLOW_LIVE_PI_MODEL`, `AGENT_WORKFLOW_LIVE_CLAUDE_MODEL`, `AGENT_WORKFLOW_LIVE_REPORT`, `AGENT_WORKFLOW_CODEX_LIVE_MODEL`, `AGENT_WORKFLOW_CODEX_LIVE_REPORT` | Live executor tiers (real CLIs and models; cost money). Off unless `AGENT_WORKFLOW_LIVE=1`. |
-| `AGENT_WORKFLOW_PI_BIN`, `AGENT_WORKFLOW_PI_RPC_RECORD`, `AGENT_WORKFLOW_PI_WORKFLOW_EXTENSION` | Live Pi host RPC check ([`pi-host.md`](https://github.com/AgwaB/agent-workflow/blob/main/docs/hosts.md#pi)). |
+| `AGENT_WORKFLOW_PI_BIN`, `AGENT_WORKFLOW_PI_RPC_RECORD`, `AGENT_WORKFLOW_PI_WORKFLOW_EXTENSION` | Live Pi host RPC check ([`hosts.md`](https://github.com/AgwaB/agent-workflow/blob/main/docs/hosts.md#pi)). |
 | `AGENT_WORKFLOW_ROOT` | Replay fixture builder. |
 | `AGENT_WORKFLOW_E2E_NO_EXTERNAL_ACTIONS`, `AGENT_WORKFLOW_E2E_PROCESS_LOG`, `AGENT_WORKFLOW_E2E_REAL_NPM` | `npm run e2e`: the no-external-actions guard and its command shims (set by `test/e2e/run.mjs`). |
 | `AGENT_WORKFLOW_ALLOW_PUBLISHED_VERSION` | `tools/release/release-check.mjs`: allow a validation-only rerun of an already published version. |

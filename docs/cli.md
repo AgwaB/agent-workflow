@@ -20,6 +20,8 @@ never a project, in the CLI, the MCP server and the Pi host alike: runs started 
 workflow name that only an enclosing project has then fails with "not found in <dir>; the project
 <ancestor> has it — … run from <ancestor> (or pass the spec path)".
 
+**Contents:** [Commands](#commands) · [`check`](#check) · [Launch options (`run`, `dynamic`)](#launch-options-run-dynamic) · [Saved user profiles](#saved-user-profiles) · [`doctor`](#doctor) · [`dashboard`](#dashboard) · [`statusline`, `watch`, `notify-check`](#statusline-watch-notify-check) · [Exit codes](#exit-codes) · [Environment](#environment) · [Examples](#examples) · [`host-command` hook entry](#host-command-hook-entry)
+
 ## Commands
 
 | Command | What it does |
