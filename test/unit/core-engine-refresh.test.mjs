@@ -159,7 +159,7 @@ function writeWorkflow(cwd) {
 	);
 }
 
-function writeCompletedSubagentArtifacts(cwd, runsDir, runId, attemptId) {
+function writeCompletedWorkerArtifacts(cwd, runsDir, runId, attemptId) {
 	const artifactDir = join(cwd, runsDir, runId, "attempts", attemptId);
 	mkdirSync(artifactDir, { recursive: true });
 	writeFileSync(
@@ -198,12 +198,12 @@ test("waitForRun records transient refresh poll failures and continues", async (
 		writeAgent(cwd, "unit-scout", "read");
 		writeWorkflow(cwd);
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launchCount += 1;
 				const runId = `run_wait_refresh_${launchCount}`;
 				const attemptId = `attempt_wait_refresh_${launchCount}`;
 				const runsDir = String(options.runsDir ?? ".agent-workflow/runs");
-				const artifactDir = writeCompletedSubagentArtifacts(
+				const artifactDir = writeCompletedWorkerArtifacts(
 					cwd,
 					runsDir,
 					runId,
@@ -212,19 +212,19 @@ test("waitForRun records transient refresh poll failures and continues", async (
 				runs.set(runId, { runId, attemptId, artifactDir });
 				return { runId, attemptId, status: "running" };
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				reconcileCalls += 1;
 				if (reconcileCalls === 1)
 					throw new Error("transient provider refresh blip");
 				return {};
 			},
-			async getSubagentStatus({ runId }) {
+			async getWorkerStatus({ runId }) {
 				const run = runs.get(runId);
-				assert.ok(run, `missing subagent run ${runId}`);
+				assert.ok(run, `missing worker run ${runId}`);
 				return {
 					runId,
 					attemptId: run.attemptId,
-					backend: "headless",
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt: new Date(Date.now() - 1000).toISOString(),
@@ -250,7 +250,7 @@ test("waitForRun records transient refresh poll failures and continues", async (
 					attempts: [{ attemptId: run.attemptId, status: "completed" }],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -1665,7 +1665,7 @@ test("scheduler materializes stable foreach children from completed control arti
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(options);
 				return {
 					runId: `run_materialized_${launched.length}`,
@@ -1673,13 +1673,13 @@ test("scheduler materializes stable foreach children from completed control arti
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -2004,7 +2004,7 @@ test("scheduler validates valid and invalid 256-child dispatch maps once per pas
 			for (const child of children) {
 				child.status = "pending";
 				child.statusDetail = "pending";
-				child.backendHandle = { runId: "already-claimed" };
+				child.workerHandle = { runId: "already-claimed" };
 			}
 			run.status = "running";
 			await writeStaticRunArtifacts(cwd, run, compiled, spec);
@@ -2036,14 +2036,14 @@ test("scheduler validates valid and invalid 256-child dispatch maps once per pas
 			assert.equal(
 				child.status,
 				"blocked",
-				"invalid dispatch metadata blocks the child before backend launch",
+				"invalid dispatch metadata blocks the child before worker launch",
 			);
 			assert.equal(child.statusDetail, "foreach_generation_stale");
 			assert.match(
 				child.lastMessage ?? "",
 				/dispatch map digest does not match its current entries/,
 			);
-			assert.deepEqual(child.backendHandle, { runId: "already-claimed" });
+			assert.deepEqual(child.workerHandle, { runId: "already-claimed" });
 		}
 	} finally {
 		rmSync(cwd, {
@@ -2577,20 +2577,20 @@ test("resume replays exact foreach invalidation journals across compiled-only an
 
 		setRunLeaseTestHooksForTests(undefined);
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				return {
 					runId: "resume-foreach-worker",
 					attemptId: "resume-foreach-attempt",
 					status: "running",
 				};
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -2913,7 +2913,7 @@ test("resume revalidates status after acquiring the lease before cleanup", async
 	}
 });
 
-test("strict named diagnostics reject before any run, provenance, authority, or backend side effect", async () => {
+test("strict named diagnostics reject before any run, provenance, authority, or worker side effect", async () => {
 	const cwd = makeProject();
 	let backendInvocations = 0;
 	const previousStrict = process.env.AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA;
@@ -2947,9 +2947,9 @@ test("strict named diagnostics reject before any run, provenance, authority, or 
 		};
 		writeFileSync(specPath, JSON.stringify(spec));
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				backendInvocations += 1;
-				throw new Error("backend must not be invoked");
+				throw new Error("worker must not be invoked");
 			},
 		});
 		const before = projectTreeSnapshot(cwd);

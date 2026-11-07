@@ -538,7 +538,7 @@ async function findRetentionPlan(cwd: string): Promise<RetentionPlan> {
 			const mirrorDir = join(
 				stateBase(cwd),
 				PROJECT_STATE_DIRECTORY,
-				"workflow-subagents",
+				"worker-runs",
 				entry.name,
 			);
 			const bytes =
@@ -726,7 +726,7 @@ async function deleteCandidate(
 		await lease.assertOwner();
 		// No irreversible removal until BOTH generations are safely detached.
 		mirror = await quarantineContainedDirectory(
-			join(stateBase(cwd), PROJECT_STATE_DIRECTORY, "workflow-subagents"),
+			join(stateBase(cwd), PROJECT_STATE_DIRECTORY, "worker-runs"),
 			candidate.mirrorDir,
 		);
 		outcome.retainedMirrorPath = mirror?.directory;
@@ -868,11 +868,7 @@ async function containedDirectoryBytes(
 	cwd: string,
 	directory: string,
 ): Promise<number> {
-	const root = join(
-		stateBase(cwd),
-		PROJECT_STATE_DIRECTORY,
-		"workflow-subagents",
-	);
+	const root = join(stateBase(cwd), PROJECT_STATE_DIRECTORY, "worker-runs");
 	try {
 		if (
 			!(await isContainedDirectory(
@@ -1543,7 +1539,7 @@ async function pruneAutoRouterRuns(
 	const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
 	const candidates: ClassifierCandidate[] = [];
 	for (const entry of entries) {
-		// The runtime's run locks; WP42 F5 classifier pins.
+		// The runtime's run locks; classifier pins.
 		if (entry.name === RUN_LOCKS_DIR || entry.name === AUTO_ROUTER_PINS_DIR)
 			continue;
 		const keepEntry = (reason: string) =>

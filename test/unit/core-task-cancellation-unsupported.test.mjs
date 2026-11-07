@@ -6,26 +6,24 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 
 import { setTaskRuntimeApiForTests } from "../../dist/core/runtime-port.js";
-import { interruptSubagentTask } from "../../dist/core/task-cancellation.js";
+import { interruptWorkerTask } from "../../dist/core/task-cancellation.js";
 
 const handle = {
-	engine: "agent-workflow",
-	backend: "runtime",
 	runId: "run_test_1",
 	attemptId: "attempt_test_1",
 	cwd: "/tmp/aw-cancel-test",
 	runsDir: ".agent-workflow/runs",
 };
-const task = { taskId: "task-1", specId: "s1", backendHandle: handle };
+const task = { taskId: "task-1", specId: "s1", workerHandle: handle };
 
 function fakeApi({ interrupt, statuses, reconcile }) {
 	let polls = 0;
 	return {
-		...(reconcile ? { reconcileSubagentRun: reconcile } : {}),
-		async interruptSubagent() {
+		...(reconcile ? { reconcileWorkerRun: reconcile } : {}),
+		async interruptWorker() {
 			return interrupt;
 		},
-		async getSubagentStatus() {
+		async getWorkerStatus() {
 			const status = statuses[Math.min(polls, statuses.length - 1)];
 			polls += 1;
 			return {
@@ -63,7 +61,7 @@ test("stop reconciles only the exact attempt before reading its status", async (
 			},
 		}),
 	);
-	const ack = await interruptSubagentTask(task, "workflow stopped");
+	const ack = await interruptWorkerTask(task, "workflow stopped");
 	assert.equal(ack.status, "cancelled");
 	assert.equal(reconciles, 1);
 });
@@ -84,7 +82,7 @@ test("stop does not ignore reconciliation failure", async () => {
 		}),
 	);
 	await assert.rejects(
-		interruptSubagentTask(task, "workflow stopped"),
+		interruptWorkerTask(task, "workflow stopped"),
 		/ownership inspection failed/u,
 	);
 });
@@ -101,7 +99,7 @@ test("unsupported interrupt is acknowledged once the exact attempt is terminal",
 			statuses: ["running", "cancelled"],
 		}),
 	);
-	const ack = await interruptSubagentTask(task, "workflow stopped");
+	const ack = await interruptWorkerTask(task, "workflow stopped");
 	assert.equal(ack.status, "cancelled");
 	assert.equal(ack.interruptStatus, "unsupported");
 });
@@ -119,7 +117,7 @@ test("unsupported interrupt for a different attempt is rejected", async () => {
 		}),
 	);
 	await assert.rejects(
-		interruptSubagentTask(task, "workflow stopped"),
+		interruptWorkerTask(task, "workflow stopped"),
 		/different attempt/u,
 	);
 });
@@ -144,7 +142,7 @@ test("unsupported interrupt whose attempt never terminates still fails", async (
 		}),
 	);
 	await assert.rejects(
-		interruptSubagentTask(task, "workflow stopped"),
+		interruptWorkerTask(task, "workflow stopped"),
 		/not acknowledged.*unsupported/u,
 	);
 });

@@ -106,11 +106,11 @@ function writeSpec(cwd, name, overrides = {}) {
 	return join(dir, "spec.json");
 }
 
-function installBlockingDynamicSubagentApi(cwd, statusGate) {
+function installBlockingDynamicWorkerApi(cwd, statusGate) {
 	const calls = { launches: 0, interrupts: 0 };
 	const launches = new Map();
 	setTaskRuntimeApiForTests({
-		async runSubagent(options) {
+		async runWorker(options) {
 			calls.launches += 1;
 			const runId = `run_dynamic_${calls.launches}`;
 			const attemptId = `attempt_dynamic_${calls.launches}`;
@@ -131,17 +131,17 @@ function installBlockingDynamicSubagentApi(cwd, statusGate) {
 			launches.set(runId, { runId, attemptId, artifactDir });
 			return { runId, attemptId, status: "running" };
 		},
-		async reconcileSubagentRun() {
+		async reconcileWorkerRun() {
 			return {};
 		},
-		async getSubagentStatus({ runId }) {
+		async getWorkerStatus({ runId }) {
 			const launch = launches.get(runId);
-			assert.ok(launch, `missing dynamic subagent run ${runId}`);
+			assert.ok(launch, `missing dynamic worker run ${runId}`);
 			await statusGate;
 			return {
 				runId,
 				attemptId: launch.attemptId,
-				backend: "headless",
+				executorId: "headless",
 				status: "running",
 				failureKind: null,
 				startedAt: new Date(Date.now() - 1_000).toISOString(),
@@ -167,7 +167,7 @@ function installBlockingDynamicSubagentApi(cwd, statusGate) {
 				attempts: [{ attemptId: launch.attemptId, status: "running" }],
 			};
 		},
-		async interruptSubagent({ runId, attemptId }) {
+		async interruptWorker({ runId, attemptId }) {
 			calls.interrupts += 1;
 			return {
 				status: "already-terminal",
@@ -461,7 +461,7 @@ test("candidate construction offers workflows only and blocks unsafe or unresolv
 		catalog,
 		{
 			noWorkflow: false,
-			noSubagent: false,
+			noWorker: false,
 			noNetwork: false,
 			explicitNoExternalModel: false,
 			ambiguousTransmission: false,
@@ -496,7 +496,7 @@ test("auto comparison sends bounded metadata once, has no tools, and never launc
 	let calls = 0;
 	let packet;
 	setTaskRuntimeApiForTests({
-		async runSubagent(options) {
+		async runWorker(options) {
 			assert.equal(options.correlationId, WORKFLOW_AUTO_COMPARE_CORRELATION_ID);
 			assert.deepEqual(options.tools, []);
 			calls += 1;
@@ -554,7 +554,7 @@ test("auto derives mutation-capable bash facts despite an authored readOnly decl
 	});
 	let calls = 0;
 	setTaskRuntimeApiForTests({
-		async runSubagent() {
+		async runWorker() {
 			calls += 1;
 			throw new Error("offline candidate gating must not invoke a classifier");
 		},
@@ -597,7 +597,7 @@ test("auto derives inherited bash and unknown custom tools before local safety-b
 	});
 	let calls = 0;
 	setTaskRuntimeApiForTests({
-		async runSubagent() {
+		async runWorker() {
 			calls += 1;
 			throw new Error(
 				"explicit local safety constraints must not invoke a classifier",
@@ -710,7 +710,7 @@ test("auto comparison does not traverse helper import closures before a path is 
 	mkdirSync(join(root, "source-closure.mjs"));
 	let packetText = "";
 	setTaskRuntimeApiForTests({
-		async runSubagent(options) {
+		async runWorker(options) {
 			packetText = options.task;
 			const packet = JSON.parse(options.task);
 			const runId = "metadata-only-auto";
@@ -897,7 +897,7 @@ test("auto comparison reads only its bounded canonical output artifact", {
 	const cases = ["escaped", "oversized", "symlink", "invalid-utf8"];
 	let index = 0;
 	setTaskRuntimeApiForTests({
-		async runSubagent(options) {
+		async runWorker(options) {
 			const packet = JSON.parse(options.task);
 			const kind = cases[index++];
 			assert.ok(kind);
@@ -957,7 +957,7 @@ test("auto comparison accepts a valid multibyte UTF-8 artifact", async () => {
 	writeAgent(cwd);
 	writeSpec(cwd, "utf8-output");
 	setTaskRuntimeApiForTests({
-		async runSubagent(options) {
+		async runWorker(options) {
 			const packet = JSON.parse(options.task);
 			const response = JSON.parse(validComparison(packet.candidateCards));
 			response.recommendation.reason = "Résumé verified 🚀";
@@ -1010,7 +1010,7 @@ test("structured transmission policy fails closed across languages and preserves
 	writeSpec(cwd, "review-c");
 	let calls = 0;
 	setTaskRuntimeApiForTests({
-		async runSubagent(options) {
+		async runWorker(options) {
 			calls += 1;
 			const packet = JSON.parse(options.task);
 			const output = JSON.stringify({

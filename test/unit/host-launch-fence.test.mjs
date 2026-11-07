@@ -38,7 +38,7 @@ const SPEC = {
 };
 
 before(() => {
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

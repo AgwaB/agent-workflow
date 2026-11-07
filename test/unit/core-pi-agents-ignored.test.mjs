@@ -19,14 +19,14 @@ const legacyAgentsDir = join(process.env.PI_CODING_AGENT_DIR, "agents");
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp12a-shadow-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
 });
 after(async () => {
 	for (const undo of unregister.splice(0)) undo();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(join(legacyAgentsDir, "scout.md"), { force: true });
 	await rm(join(legacyAgentsDir, "wp12a-only-in-pi.md"), { force: true });
 	// Durable workers/finalizers may still be closing files: retry like host-cli.test.mjs.

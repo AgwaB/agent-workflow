@@ -51,7 +51,7 @@ import {
 
 const DYNAMIC_OUTPUT_MAX_DIGEST_CHARS = 1000;
 const DYNAMIC_DELEGATION_TOOLS = new Set([
-	"skill_test_subagent",
+	"skill_test_worker",
 	"workflow",
 	"/workflow",
 ]);

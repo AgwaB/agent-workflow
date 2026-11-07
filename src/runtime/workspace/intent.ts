@@ -25,7 +25,7 @@ function worktreePolicy(input: ResolveInput): WorktreePolicy {
 
 /**
  * Whether the input asks for an isolated managed worktree. Pure: no
- * filesystem access, safe to consult from backend resolution.
+ * filesystem access, safe to consult from executor resolution.
  */
 export function resolveWorktreeIntent(
 	input: ResolveInput,

@@ -398,14 +398,14 @@ test("task result includes the summary; a later result without denials clears it
 		await readFile(fromStatePath(cwd, task.files.result), "utf8"),
 	);
 	assert.equal(initial.blockedActions.count, 1);
-	const { materializeTerminalSubagentResult } = await import(
+	const { materializeTerminalWorkerResult } = await import(
 		"../../dist/core/terminal-result.js"
 	);
 	// A newer failed attempt with no output still replaces the previous attempt's summary.
-	await materializeTerminalSubagentResult(cwd, run, task, {
+	await materializeTerminalWorkerResult(cwd, run, task, {
 		runId: "replacement",
 		attemptId: "attempt-2",
-		backend: "fixture",
+		executorId: "fixture",
 		status: "failed",
 		failureKind: "executor_permanent",
 		logs: [],

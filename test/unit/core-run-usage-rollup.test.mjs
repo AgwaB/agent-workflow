@@ -24,7 +24,7 @@ function taskRecord(taskId, usageValues) {
 			baseCwd: null,
 			warning: null,
 		},
-		backendTaskId: taskId,
+		workerTaskId: taskId,
 		files: {
 			output: "",
 			stderr: "",
@@ -64,7 +64,6 @@ function runRecord(runId, tasks) {
 			interrupted: 0,
 		},
 		cwd: "/tmp/rollup",
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-07-07T00:00:00.000Z",
 		updatedAt: "2026-07-07T00:00:00.000Z",
 		specPath: "spec.json",

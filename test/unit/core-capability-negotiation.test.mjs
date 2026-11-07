@@ -33,7 +33,7 @@ const projects = new Set();
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp4d-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -41,7 +41,7 @@ before(async () => {
 after(async () => {
 	for (const cwd of projects) await drainWorkflowProject(cwd);
 	for (const undo of unregister.splice(0)) undo();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,
@@ -123,7 +123,7 @@ function assertNothingStarted(cwd, effectLog) {
 		"no run record may exist",
 	);
 	assert.equal(
-		existsSync(join(stateDir(cwd), ".agent-workflow", "workflow-subagents")),
+		existsSync(join(stateDir(cwd), ".agent-workflow", "worker-runs")),
 		false,
 	);
 	if (effectLog !== undefined) assert.deepEqual(submits(effectLog), []);

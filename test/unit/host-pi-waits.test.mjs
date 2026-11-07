@@ -31,7 +31,7 @@ const SPEC = {
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp28-pi-waits-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -238,7 +238,7 @@ test("cancelling aw_wait or an awaited launch cancels only the wait", async () =
 	);
 });
 
-test("aw_dynamic awaitTerminal waits for the launched run; parameter rules follow pi-workflow", async () => {
+test("aw_dynamic awaitTerminal waits for the launched run and validates its parameters", async () => {
 	const { cwd, env, executor, ctx: apiCtx } = await project(100);
 	const finished = await api.runWorkflowAction(apiCtx, {
 		workflow: "wf.json",

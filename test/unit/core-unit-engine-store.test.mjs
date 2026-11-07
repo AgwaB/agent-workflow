@@ -4,8 +4,8 @@ import { withMaterializedRawHost } from "../helpers/raw-host-fixture.mjs";
 const setTaskRuntimeApiForTests = withMaterializedRawHost(setRawApi);
 import { createHash } from "node:crypto";
 import { resolveRunExecutorSelection } from "../../dist/core/executor-registry.js";
-import { subagentLaunchSlotStateForTests } from "../../dist/core/task-observability.js";
-import { subagentLiveModelWorkerSlotCountForTests } from "../../dist/core/launch-slots.js";
+import { workerLaunchSlotStateForTests } from "../../dist/core/task-observability.js";
+import { workerLiveModelWorkerSlotCountForTests } from "../../dist/core/launch-slots.js";
 import {
 	CACHE_SHAPE_METRICS_ENV,
 	DYNAMIC_WEB_SEARCH_BUDGET,
@@ -45,10 +45,10 @@ import {
 	canStageProceedAfterPreviousFailure,
 	canonicalDynamicDecision,
 	canonicalPackageVerificationStatus,
-	captureParentSubagentEnv,
-	captureSubagentPrompts,
+	captureParentWorkerEnv,
+	captureWorkerPrompts,
 	checkRequiredArtifactReads,
-	cleanupSubagentRun,
+	cleanupWorkerRun,
 	closeSync,
 	compactStrings,
 	compileWorkflow,
@@ -102,7 +102,7 @@ import {
 	isTestWideCodePoint,
 	isWorkflowSupervisorEnabled,
 	join,
-	launchSubagentTask,
+	launchWorkerTask,
 	listWorkflowArtifactSources,
 	listWorkflows,
 	loadAgentByName,
@@ -113,7 +113,7 @@ import {
 	loopWorkflowSpec,
 	makeDynamicDecisionLoopCtx,
 	makeProject,
-	makeSubagentLaunchFixture,
+	makeWorkerLaunchFixture,
 	makeValidatingDynamicDecisionLoopCtx,
 	markDagDependentsSkipped,
 	mkdirSync,
@@ -124,7 +124,7 @@ import {
 	observeLiveModelWorkerCompletion,
 	openSync,
 	packageVerificationStatusBucket,
-	parentSubagentEnvKeys,
+	parentWorkerEnvKeys,
 	parseAgentMarkdown,
 	parsePublicWorkflow,
 	parseWorkflow,
@@ -146,7 +146,7 @@ import {
 	rebuildDynamicState,
 	recordDynamicControllerPhase,
 	recordSharedModelRateLimitBackoffForTests,
-	refreshRunFromSubagentArtifacts,
+	refreshRunFromWorkerArtifacts,
 	refreshZeroOutputModelFailure,
 	resetTaskForResume,
 	resolveFlowsCwd,
@@ -154,7 +154,7 @@ import {
 	resolveWorkflowHelperRef,
 	resolveWorkflowRef,
 	resolveWorkflowRuntime,
-	restoreParentSubagentEnv,
+	restoreParentWorkerEnv,
 	resumeRun,
 	rmSync,
 	runDynamicControllerEngineIntegrityCheckForTests,
@@ -164,10 +164,10 @@ import {
 	runWorkflowSpec,
 	scheduleRun,
 	setIndexUpdateDebounceMsForTests,
-	setParentSubagentEnv,
+	setParentWorkerEnv,
 	setRunLeaseTestHooksForTests,
 	setTaskRuntimeApiForTests as setRawApi,
-	setSubagentLaunchControlsForTests,
+	setWorkerLaunchControlsForTests,
 	setTaskTerminal,
 	setWorkflowOutputArtifactWriteHookForTests,
 	shouldScheduleAfterStageFailure,
@@ -236,23 +236,23 @@ import {
 	issueWorkflowLaunchAuthority,
 	registerWorkflowLaunchAuthority,
 } from "../../dist/core/launch-authority.js";
-import { prepareSubagentTaskLaunch } from "../../dist/core/task-backend.js";
+import { prepareWorkerTaskLaunch } from "../../dist/core/task-runner.js";
 
 test("fail-fast flags off preserve failed-run scheduling without sibling cancellation", async () => {
 	const cwd = makeProject();
 	const interrupts = [];
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("unexpected launch");
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent(options) {
+			async interruptWorker(options) {
 				interrupts.push(options);
 				return {};
 			},
@@ -609,7 +609,7 @@ test("experimental launch ramp shortens default release delay telemetry", () => 
 	const previousReleaseDelay =
 		process.env.AGENT_WORKFLOW_LAUNCH_SLOT_RELEASE_DELAY_MS;
 	const previousLiveWorkers = process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS;
-	setSubagentLaunchControlsForTests({ retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ retryJitterMs: 0 });
 	process.env[EXPERIMENTAL_LAUNCH_RAMP_ENV] = "true";
 	delete process.env.AGENT_WORKFLOW_LAUNCH_SLOT_RELEASE_DELAY_MS;
 	process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS = "3";
@@ -632,7 +632,7 @@ test("experimental launch ramp shortens default release delay telemetry", () => 
 			delete process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS;
 		else
 			process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS = previousLiveWorkers;
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	}
 });
 
@@ -679,7 +679,7 @@ test("loop round 1 materializes and launches ready child tasks in one scheduleRu
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		const prompts = captureSubagentPrompts();
+		const prompts = captureWorkerPrompts();
 		const { run } = await createLoopRun(cwd);
 
 		await scheduleRun(cwd, run.runId);
@@ -764,7 +764,7 @@ test("loop resume reconciliation backfills missing run records for compiled roun
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts();
+		captureWorkerPrompts();
 		const loopStage = loopWorkflowSpec().artifactGraph.stages[0];
 		const spec = workflowSpec("unit-scout", {
 			artifactGraph: {
@@ -859,9 +859,8 @@ test("workflow resume reset preserves retry accounting metadata", () => {
 			baseCwd: null,
 			warning: null,
 		},
-		backendTaskId: "run_backend",
-		backendHandle: {
-			engine: "agent-workflow",
+		workerTaskId: "run_backend",
+		workerHandle: {
 			runId: "run_backend",
 			attemptId: "attempt_backend",
 		},
@@ -881,11 +880,11 @@ test("workflow resume reset preserves retry accounting metadata", () => {
 	assert.equal(task.resumeEvents[0].fromStatus, "failed");
 	assert.equal(task.resumeEvents[0].outputRetryAttempts, 1);
 	assert.equal(task.resumeEvents[0].outputRetryRepairMode, "new_session");
-	assert.equal(task.resumeEvents[0].backendRunId, "run_backend");
-	assert.equal(task.resumeEvents[0].backendAttemptId, "attempt_backend");
+	assert.equal(task.resumeEvents[0].workerRunId, "run_backend");
+	assert.equal(task.resumeEvents[0].workerAttemptId, "attempt_backend");
 });
 
-test("compiler uses local/headless without an authored backend selector", async () => {
+test("compiler defaults: no launcher selector, concurrency 16, fast flags", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -894,26 +893,9 @@ test("compiler uses local/headless without an authored backend selector", async 
 			cwd,
 			task: "Review",
 		});
-		assert.deepEqual(defaultCompiled.backend, {
-			type: "local",
-			mode: "headless",
-		});
+		assert.equal(Object.hasOwn(defaultCompiled, "worker"), false);
 		assert.equal(defaultCompiled.maxConcurrency, 16);
 
-		const headlessSpec = workflowSpec("unit-scout", {
-			defaults: { backend: { mode: "headless" } },
-		});
-		assertIssue(
-			assertThrowsFlow(() => parseWorkflow(headlessSpec)),
-			"$.defaults.backend",
-			"unknown field",
-		);
-
-		assertThrowsFlow(() =>
-			parseWorkflow(
-				workflowSpec("unit-scout", { defaults: { backend: { mode: "tmux" } } }),
-			),
-		);
 		assert.equal(
 			parseWorkflow(workflowSpec("unit-scout", { defaults: { fast: "on" } }))
 				.defaults.fast,
@@ -946,7 +928,7 @@ test("resumeRun resets failed dag container children and relaunches roots", asyn
 	const prompts = [];
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts(prompts);
+		captureWorkerPrompts(prompts);
 		const spec = dagContainerRuntimeSpec();
 		const compiled = await compileWorkflow(spec, {
 			cwd,
@@ -1010,32 +992,32 @@ test("resumeRun resets failed dag container children and relaunches roots", asyn
 	}
 });
 
-test("subagent backend records parent child lifecycle events when parent env is set", async () => {
+test("worker worker records parent child lifecycle events when parent env is set", async () => {
 	const cwd = makeProject();
-	const previousEnv = captureParentSubagentEnv();
+	const previousEnv = captureParentWorkerEnv();
 	const childEvents = [];
 	let statusSnapshot = null;
 	try {
-		setParentSubagentEnv(cwd);
+		setParentWorkerEnv(cwd);
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				return {
 					runId: "run_child_lifecycle",
 					attemptId: "attempt_child_lifecycle",
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return statusSnapshot;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
-			async recordSubagentChildEvent(options) {
+			async recordWorkerChildEvent(options) {
 				childEvents.push(options);
 				return { type: `child.${options.event}` };
 			},
@@ -1072,7 +1054,7 @@ test("subagent backend records parent child lifecycle events when parent env is 
 
 		const running = await readRunRecord(cwd, run.runId);
 		const task = running.tasks[0];
-		const artifactDir = join(stateDir(cwd), task.backendFiles.runsDir);
+		const artifactDir = join(stateDir(cwd), task.workerFiles.runsDir);
 		mkdirSync(artifactDir, { recursive: true });
 		writeFileSync(
 			join(artifactDir, "output.log"),
@@ -1102,7 +1084,7 @@ test("subagent backend records parent child lifecycle events when parent env is 
 		statusSnapshot = {
 			runId: "run_child_lifecycle",
 			attemptId: "attempt_child_lifecycle",
-			backend: "headless",
+			executorId: "headless",
 			status: "completed",
 			failureKind: null,
 			startedAt: task.startedAt,
@@ -1115,7 +1097,7 @@ test("subagent backend records parent child lifecycle events when parent env is 
 			attempts: [{ attemptId: "attempt_child_lifecycle", status: "completed" }],
 		};
 
-		const refreshed = await refreshRunFromSubagentArtifacts(cwd, running);
+		const refreshed = await refreshRunFromWorkerArtifacts(cwd, running);
 		assert.equal(refreshed.tasks[0].status, "completed");
 		assert.equal(childEvents.length, 2);
 		assert.deepEqual(childEvents[1], {
@@ -1130,7 +1112,7 @@ test("subagent backend records parent child lifecycle events when parent env is 
 			message: "completed",
 		});
 	} finally {
-		restoreParentSubagentEnv(previousEnv);
+		restoreParentWorkerEnv(previousEnv);
 		setTaskRuntimeApiForTests(undefined);
 		rmSync(cwd, {
 			recursive: true,
@@ -1141,12 +1123,12 @@ test("subagent backend records parent child lifecycle events when parent env is 
 	}
 });
 
-test("subagent terminal failure records parent child failed when parent env is set", async () => {
+test("worker terminal failure records parent child failed when parent env is set", async () => {
 	const cwd = makeProject();
-	const previousEnv = captureParentSubagentEnv();
+	const previousEnv = captureParentWorkerEnv();
 	const childEvents = [];
 	try {
-		setParentSubagentEnv(cwd);
+		setParentWorkerEnv(cwd);
 		writeAgent(cwd, "unit-scout", "read");
 		const spec = workflowSpec("unit-scout", {
 			artifactGraph: {
@@ -1164,17 +1146,15 @@ test("subagent terminal failure records parent child failed when parent env is s
 		task.status = "running";
 		task.statusDetail = "running";
 		task.startedAt = new Date().toISOString();
-		task.backendHandle = {
-			engine: "agent-workflow",
-			backend: "runtime",
+		task.workerHandle = {
 			runId: "run_child_failed",
 			attemptId: "attempt_child_failed",
 			cwd,
-			runsDir: ".agent-workflow/workflow-subagents/failed",
-			display: "agent-workflow/runtime run_child_failed/attempt_child_failed",
+			runsDir: ".agent-workflow/worker-runs/failed",
+			display: "worker run run_child_failed/attempt_child_failed",
 		};
 
-		const artifactDir = join(cwd, ".fake-parent-child-failed-subagent");
+		const artifactDir = join(cwd, ".fake-parent-child-failed-worker");
 		mkdirSync(artifactDir, { recursive: true });
 		writeFileSync(join(artifactDir, "output.log"), "");
 		writeFileSync(join(artifactDir, "stderr.log"), "guard failed\n");
@@ -1190,17 +1170,17 @@ test("subagent terminal failure records parent child failed when parent env is s
 			}),
 		);
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return {
 					runId: "run_child_failed",
 					attemptId: "attempt_child_failed",
-					backend: "headless",
+					executorId: "headless",
 					status: "failed",
 					failureKind: "guard_failure",
 					startedAt: task.startedAt,
@@ -1213,17 +1193,17 @@ test("subagent terminal failure records parent child failed when parent env is s
 					attempts: [{ attemptId: "attempt_child_failed", status: "failed" }],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
-			async recordSubagentChildEvent(options) {
+			async recordWorkerChildEvent(options) {
 				childEvents.push(options);
 				return { type: `child.${options.event}` };
 			},
 		});
 
 		await writeRunRecord(cwd, run);
-		const refreshed = await refreshRunFromSubagentArtifacts(
+		const refreshed = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
@@ -1243,7 +1223,7 @@ test("subagent terminal failure records parent child failed when parent env is s
 			message: "executor run failed: guard_failure",
 		});
 	} finally {
-		restoreParentSubagentEnv(previousEnv);
+		restoreParentWorkerEnv(previousEnv);
 		setTaskRuntimeApiForTests(undefined);
 		rmSync(cwd, {
 			recursive: true,
@@ -1254,26 +1234,26 @@ test("subagent terminal failure records parent child failed when parent env is s
 	}
 });
 
-test("subagent terminal observability captures usage and separates launch timing", async () => {
+test("worker terminal observability captures usage and separates launch timing", async () => {
 	const cwd = makeProject();
 	let statusSnapshot = null;
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				return {
 					runId: "run_usage_observable",
 					attemptId: "attempt_usage_observable",
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return statusSnapshot;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -1291,12 +1271,12 @@ test("subagent terminal observability captures usage and separates launch timing
 		await writeStaticRunArtifacts(cwd, run, compiled, spec);
 		await prepareDagTask(cwd, run, compiled, 0);
 		await writeRunRecord(cwd, run);
-		await launchSubagentTask(cwd, run, run.tasks[0], compiled.tasks[0]);
+		await launchWorkerTask(cwd, run, run.tasks[0], compiled.tasks[0]);
 
 		const task = run.tasks[0];
 		const startedAt = task.startedAt;
 		const completedAt = new Date(Date.parse(startedAt) + 1250).toISOString();
-		const artifactDir = join(stateDir(cwd), task.backendFiles.runsDir);
+		const artifactDir = join(stateDir(cwd), task.workerFiles.runsDir);
 		mkdirSync(artifactDir, { recursive: true });
 		writeFileSync(
 			join(artifactDir, "output.log"),
@@ -1342,7 +1322,7 @@ test("subagent terminal observability captures usage and separates launch timing
 		statusSnapshot = {
 			runId: "run_usage_observable",
 			attemptId: "attempt_usage_observable",
-			backend: "headless",
+			executorId: "headless",
 			status: "completed",
 			failureKind: null,
 			startedAt,
@@ -1363,7 +1343,7 @@ test("subagent terminal observability captures usage and separates launch timing
 			],
 		};
 
-		const refreshed = await refreshRunFromSubagentArtifacts(cwd, run);
+		const refreshed = await refreshRunFromWorkerArtifacts(cwd, run);
 		const refreshedTask = refreshed.tasks[0];
 		assert.equal(refreshedTask.status, "completed");
 		assert.equal(refreshedTask.usage.provider, "unit-provider");
@@ -1394,7 +1374,7 @@ test("subagent terminal observability captures usage and separates launch timing
 		assert.equal(typeof refreshedTask.timing.launchDurationMs, "number");
 		assert.equal(refreshedTask.timing.attempts.length, 1);
 		assert.equal(
-			refreshedTask.timing.attempts[0].backendRunId,
+			refreshedTask.timing.attempts[0].workerRunId,
 			"run_usage_observable",
 		);
 	} finally {
@@ -1408,7 +1388,7 @@ test("subagent terminal observability captures usage and separates launch timing
 	}
 });
 
-test("refresh polls subagent status in a bounded pool and records latency telemetry", async () => {
+test("refresh polls worker status in a bounded pool and records latency telemetry", async () => {
 	const cwd = makeProject();
 	let activeStatusCalls = 0;
 	let maxActiveStatusCalls = 0;
@@ -1429,7 +1409,7 @@ test("refresh polls subagent status in a bounded pool and records latency teleme
 		secondTask.taskId = "task-2";
 		secondTask.specId = "main.task-2";
 		secondTask.displayName = "Task 2";
-		secondTask.backendTaskId = "run_pool_b";
+		secondTask.workerTaskId = "run_pool_b";
 		secondTask.files = {
 			output: join(
 				".agent-workflow",
@@ -1485,14 +1465,12 @@ test("refresh polls subagent status in a bounded pool and records latency teleme
 			task.statusDetail = "running";
 			task.startedAt = startedAt;
 			task.artifactGraph = undefined;
-			task.backendHandle = {
-				engine: "agent-workflow",
-				backend: "runtime",
+			task.workerHandle = {
 				runId,
 				attemptId,
 				cwd,
-				runsDir: `.agent-workflow/workflow-subagents/${runId}`,
-				display: `agent-workflow/runtime ${runId}/${attemptId}`,
+				runsDir: `.agent-workflow/worker-runs/${runId}`,
+				display: `worker run ${runId}/${attemptId}`,
 			};
 			const artifactDir = join(cwd, `.fake-refresh-pool-${runId}`);
 			mkdirSync(artifactDir, { recursive: true });
@@ -1512,7 +1490,7 @@ test("refresh polls subagent status in a bounded pool and records latency teleme
 			snapshots.set(runId, {
 				runId,
 				attemptId,
-				backend: "headless",
+				executorId: "headless",
 				status: "completed",
 				failureKind: null,
 				startedAt,
@@ -1528,15 +1506,15 @@ test("refresh polls subagent status in a bounded pool and records latency teleme
 		}
 
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun(options) {
+			async reconcileWorkerRun(options) {
 				reconcileCalls.push(options.runId);
 				await sleep(5);
 				return {};
 			},
-			async getSubagentStatus(options) {
+			async getWorkerStatus(options) {
 				activeStatusCalls += 1;
 				maxActiveStatusCalls = Math.max(
 					maxActiveStatusCalls,
@@ -1550,13 +1528,13 @@ test("refresh polls subagent status in a bounded pool and records latency teleme
 					activeStatusCalls -= 1;
 				}
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
 		await writeRunRecord(cwd, run);
-		const refreshed = await refreshRunFromSubagentArtifacts(
+		const refreshed = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
@@ -1598,26 +1576,26 @@ test("refresh polls subagent status in a bounded pool and records latency teleme
 	}
 });
 
-test("subagent terminal observability aggregates distinct retry attempts", async () => {
+test("worker terminal observability aggregates distinct retry attempts", async () => {
 	const cwd = makeProject();
 	let statusSnapshot = null;
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				return {
 					runId: "run_usage_retry_current",
 					attemptId: "attempt_usage_retry_current",
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return statusSnapshot;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -1632,7 +1610,7 @@ test("subagent terminal observability aggregates distinct retry attempts", async
 		await writeStaticRunArtifacts(cwd, run, compiled, spec);
 		await prepareDagTask(cwd, run, compiled, 0);
 		await writeRunRecord(cwd, run);
-		await launchSubagentTask(cwd, run, run.tasks[0], compiled.tasks[0]);
+		await launchWorkerTask(cwd, run, run.tasks[0], compiled.tasks[0]);
 
 		const task = run.tasks[0];
 		assert.equal(task.timing.source, "agent-workflow");
@@ -1665,8 +1643,8 @@ test("subagent terminal observability aggregates distinct retry attempts", async
 				{
 					source: "seed",
 					capturedAt: firstCapturedAt,
-					backendRunId: "run_usage_retry_previous",
-					backendAttemptId: "attempt_usage_retry_previous",
+					workerRunId: "run_usage_retry_previous",
+					workerAttemptId: "attempt_usage_retry_previous",
 					inputTokens: 4,
 					outputTokens: 5,
 					totalTokens: 9,
@@ -1687,8 +1665,8 @@ test("subagent terminal observability aggregates distinct retry attempts", async
 				{
 					source: "seed",
 					capturedAt: firstCapturedAt,
-					backendRunId: "run_usage_retry_previous",
-					backendAttemptId: "attempt_usage_retry_previous",
+					workerRunId: "run_usage_retry_previous",
+					workerAttemptId: "attempt_usage_retry_previous",
 					launchWaitMs: 2,
 					launchDurationMs: 3,
 					executionStartedAt: firstCapturedAt,
@@ -1703,7 +1681,7 @@ test("subagent terminal observability aggregates distinct retry attempts", async
 
 		const startedAt = task.startedAt;
 		const completedAt = new Date(Date.parse(startedAt) + 50).toISOString();
-		const artifactDir = join(stateDir(cwd), task.backendFiles.runsDir);
+		const artifactDir = join(stateDir(cwd), task.workerFiles.runsDir);
 		mkdirSync(artifactDir, { recursive: true });
 		writeFileSync(
 			join(artifactDir, "output.log"),
@@ -1741,7 +1719,7 @@ test("subagent terminal observability aggregates distinct retry attempts", async
 		statusSnapshot = {
 			runId: "run_usage_retry_current",
 			attemptId: "attempt_usage_retry_current",
-			backend: "headless",
+			executorId: "headless",
 			status: "completed",
 			failureKind: null,
 			startedAt,
@@ -1757,7 +1735,7 @@ test("subagent terminal observability aggregates distinct retry attempts", async
 			],
 		};
 
-		const refreshed = await refreshRunFromSubagentArtifacts(cwd, run);
+		const refreshed = await refreshRunFromWorkerArtifacts(cwd, run);
 		const refreshedTask = refreshed.tasks[0];
 		assert.equal(refreshedTask.launchRetry.attempts, 2);
 		assert.equal(refreshedTask.outputRetry.attempts, 1);
@@ -1774,7 +1752,7 @@ test("subagent terminal observability aggregates distinct retry attempts", async
 		assert.equal(refreshedTask.usage.aggregate.costUsd.toFixed(1), "0.3");
 		assert.equal(refreshedTask.usage.attempts.length, 2);
 		assert.deepEqual(
-			refreshedTask.usage.attempts.map((attempt) => attempt.backendAttemptId),
+			refreshedTask.usage.attempts.map((attempt) => attempt.workerAttemptId),
 			["attempt_usage_retry_previous", "attempt_usage_retry_current"],
 		);
 		assert.equal(refreshedTask.timing.executionMs, 50);
@@ -1793,14 +1771,14 @@ test("subagent terminal observability aggregates distinct retry attempts", async
 	}
 });
 
-test("subagent launch forwards tool-call capture only when env is enabled", async () => {
+test("worker launch forwards tool-call capture only when env is enabled", async () => {
 	const cwd = makeProject();
 	const previous = process.env.AGENT_WORKFLOW_CAPTURE_TOOL_CALLS;
 	const captured = [];
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				captured.push(options);
 				return {
 					runId: `run_stub_${captured.length}`,
@@ -1808,13 +1786,13 @@ test("subagent launch forwards tool-call capture only when env is enabled", asyn
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -1861,7 +1839,7 @@ test("subagent launch forwards tool-call capture only when env is enabled", asyn
 	}
 });
 
-test("completed subagent with contextLengthExceeded and valid output remains completed", async () => {
+test("completed worker with contextLengthExceeded and valid output remains completed", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -1894,17 +1872,15 @@ test("completed subagent with contextLengthExceeded and valid output remains com
 		task.status = "running";
 		task.statusDetail = "running";
 		task.startedAt = new Date().toISOString();
-		task.backendHandle = {
-			engine: "agent-workflow",
-			backend: "runtime",
+		task.workerHandle = {
 			runId: "run_context",
 			attemptId: "attempt_context",
 			cwd,
-			runsDir: ".agent-workflow/workflow-subagents/context",
-			display: "agent-workflow/runtime run_context/attempt_context",
+			runsDir: ".agent-workflow/worker-runs/context",
+			display: "worker run run_context/attempt_context",
 		};
 
-		const artifactDir = join(cwd, ".fake-context-subagent");
+		const artifactDir = join(cwd, ".fake-context-worker");
 		mkdirSync(artifactDir, { recursive: true });
 		writeFileSync(
 			join(artifactDir, "output.log"),
@@ -1986,28 +1962,28 @@ test("completed subagent with contextLengthExceeded and valid output remains com
 				artifacts: [
 					{
 						type: "tool-calls",
-						path: ".fake-context-subagent/tool-calls.jsonl",
+						path: ".fake-context-worker/tool-calls.jsonl",
 					},
 					{
 						type: "tool-calls-summary",
-						path: ".fake-context-subagent/tool-calls-summary.json",
+						path: ".fake-context-worker/tool-calls-summary.json",
 					},
 				],
 			}),
 		);
 
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return {
 					runId: "run_context",
 					attemptId: "attempt_context",
-					backend: "headless",
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt: task.startedAt,
@@ -2015,17 +1991,17 @@ test("completed subagent with contextLengthExceeded and valid output remains com
 					logs: [
 						{
 							type: "output",
-							path: ".fake-context-subagent/output.log",
+							path: ".fake-context-worker/output.log",
 							artifactCwd: cwd,
 						},
 						{
 							type: "stderr",
-							path: ".fake-context-subagent/stderr.log",
+							path: ".fake-context-worker/stderr.log",
 							artifactCwd: cwd,
 						},
 						{
 							type: "result",
-							path: ".fake-context-subagent/result.json",
+							path: ".fake-context-worker/result.json",
 							artifactCwd: cwd,
 						},
 					],
@@ -2039,13 +2015,13 @@ test("completed subagent with contextLengthExceeded and valid output remains com
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
 		await writeRunRecord(cwd, run);
-		const refreshed = await refreshRunFromSubagentArtifacts(
+		const refreshed = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
@@ -2057,21 +2033,21 @@ test("completed subagent with contextLengthExceeded and valid output remains com
 		assert.equal(workflowResult.outputValidation.valid, true);
 		assert.equal(workflowResult.failureKind, undefined);
 		assert.equal(
-			workflowResult.subagentToolCallsPath,
-			".fake-context-subagent/tool-calls.jsonl",
+			workflowResult.workerToolCallsPath,
+			".fake-context-worker/tool-calls.jsonl",
 		);
 		assert.equal(
-			workflowResult.subagentToolCallsSummaryPath,
-			".fake-context-subagent/tool-calls-summary.json",
+			workflowResult.workerToolCallsSummaryPath,
+			".fake-context-worker/tool-calls-summary.json",
 		);
-		assert.deepEqual(workflowResult.subagentFailedToolCalls, [
+		assert.deepEqual(workflowResult.workerFailedToolCalls, [
 			{
 				toolCallId: "call_read_failed",
 				toolName: "read",
 				category: "filesystem",
 				status: "failed",
 				startedAt: task.startedAt,
-				completedAt: workflowResult.subagentFailedToolCalls[0].completedAt,
+				completedAt: workflowResult.workerFailedToolCalls[0].completedAt,
 				durationMs: 2,
 				isError: true,
 				argsSummary: {
@@ -2123,7 +2099,7 @@ test("completed subagent with contextLengthExceeded and valid output remains com
 	}
 });
 
-test("refresh retries zero-output transient subagent model failures", async () => {
+test("refresh retries zero-output transient worker model failures", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -2150,17 +2126,15 @@ test("refresh retries zero-output transient subagent model failures", async () =
 		task.status = "running";
 		task.statusDetail = "running";
 		task.startedAt = new Date().toISOString();
-		task.backendHandle = {
-			engine: "agent-workflow",
-			backend: "runtime",
+		task.workerHandle = {
 			runId: "run_model_flake",
 			attemptId: "attempt_model_flake",
 			cwd,
-			runsDir: ".agent-workflow/workflow-subagents/model-flake",
-			display: "agent-workflow/runtime run_model_flake/attempt_model_flake",
+			runsDir: ".agent-workflow/worker-runs/model-flake",
+			display: "worker run run_model_flake/attempt_model_flake",
 		};
 
-		const artifactDir = join(cwd, ".fake-model-subagent");
+		const artifactDir = join(cwd, ".fake-model-worker");
 		mkdirSync(artifactDir, { recursive: true });
 		writeFileSync(join(artifactDir, "output.log"), "");
 		writeFileSync(
@@ -2181,17 +2155,17 @@ test("refresh retries zero-output transient subagent model failures", async () =
 		);
 
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return {
 					runId: "run_model_flake",
 					attemptId: "attempt_model_flake",
-					backend: "headless",
+					executorId: "headless",
 					status: "failed",
 					failureKind: "model",
 					startedAt: task.startedAt,
@@ -2199,17 +2173,17 @@ test("refresh retries zero-output transient subagent model failures", async () =
 					logs: [
 						{
 							type: "output",
-							path: ".fake-model-subagent/output.log",
+							path: ".fake-model-worker/output.log",
 							artifactCwd: cwd,
 						},
 						{
 							type: "stderr",
-							path: ".fake-model-subagent/stderr.log",
+							path: ".fake-model-worker/stderr.log",
 							artifactCwd: cwd,
 						},
 						{
 							type: "result",
-							path: ".fake-model-subagent/result.json",
+							path: ".fake-model-worker/result.json",
 							artifactCwd: cwd,
 						},
 					],
@@ -2223,13 +2197,13 @@ test("refresh retries zero-output transient subagent model failures", async () =
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
 		await writeRunRecord(cwd, run);
-		const refreshed = await refreshRunFromSubagentArtifacts(
+		const refreshed = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
@@ -2239,7 +2213,7 @@ test("refresh retries zero-output transient subagent model failures", async () =
 		assert.equal(refreshedTask.launchRetry?.attempts, 1);
 		assert.equal(refreshedTask.launchRetry?.reason, "model");
 		assert.equal(refreshedTask.launchRetry?.nextEligibleAt, undefined);
-		assert.equal(refreshedTask.backendHandle, undefined);
+		assert.equal(refreshedTask.workerHandle, undefined);
 		assert.equal(typeof refreshedTask.timing.refreshStatusPollMs, "number");
 		assert.ok(refreshedTask.timing.terminalStderrBytes > 0);
 		assert.equal(
@@ -2275,7 +2249,7 @@ test("oauth provider rate-limit without retry hint uses subscription-window back
 		const { refreshedTask } = await refreshZeroOutputModelFailure(cwd, {
 			runId: "run_oauth_rate_limit_backoff",
 			attemptId: "attempt_oauth_rate_limit_backoff",
-			artifactDirName: ".fake-oauth-rate-limit-subagent",
+			artifactDirName: ".fake-oauth-rate-limit-worker",
 			model: "anthropic/claude-sonnet-4-6",
 			streamErrors: [providerError],
 		});
@@ -2319,7 +2293,7 @@ test("refresh escalates and exhausts rate-limit backoff attempts", async () => {
 		const { refreshedTask } = await refreshZeroOutputModelFailure(cwd, {
 			runId: "run_rate_limit_escalate",
 			attemptId: "attempt_rate_limit_escalate",
-			artifactDirName: ".fake-rate-limit-escalate-subagent",
+			artifactDirName: ".fake-rate-limit-escalate-worker",
 			streamErrors: [providerError],
 			launchRetry: { attempts: 2, maxAttempts: 5, reason: "model_rate_limit" },
 		});
@@ -2345,7 +2319,7 @@ test("refresh escalates and exhausts rate-limit backoff attempts", async () => {
 			{
 				runId: "run_rate_limit_exhausted",
 				attemptId: "attempt_rate_limit_exhausted",
-				artifactDirName: ".fake-rate-limit-exhausted-subagent",
+				artifactDirName: ".fake-rate-limit-exhausted-worker",
 				streamErrors: [providerError],
 				launchRetry: {
 					attempts: 5,
@@ -2381,12 +2355,12 @@ test("launch skips rate-limited retry until nextEligibleAt", async () => {
 			await refreshZeroOutputModelFailure(cwd, {
 				runId: "run_rate_limit_gate",
 				attemptId: "attempt_rate_limit_gate",
-				artifactDirName: ".fake-rate-limit-gate-subagent",
+				artifactDirName: ".fake-rate-limit-gate-worker",
 				streamErrors: [providerError],
 			});
 		let launches = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: "run_after_rate_limit",
@@ -2394,18 +2368,18 @@ test("launch skips rate-limited retry until nextEligibleAt", async () => {
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
-		const deferred = await launchSubagentTask(
+		const deferred = await launchWorkerTask(
 			cwd,
 			run,
 			refreshedTask,
@@ -2419,7 +2393,7 @@ test("launch skips rate-limited retry until nextEligibleAt", async () => {
 			Date.now() - 1_000,
 		).toISOString();
 		await writeRunRecord(cwd, run);
-		const launched = await launchSubagentTask(
+		const launched = await launchWorkerTask(
 			cwd,
 			run,
 			refreshedTask,
@@ -2449,14 +2423,14 @@ test("shared rate-limit backoff defers same-provider launches only", async () =>
 		await refreshZeroOutputModelFailure(cwd, {
 			runId: "run_shared_rate_limit_seed",
 			attemptId: "attempt_shared_rate_limit_seed",
-			artifactDirName: ".fake-shared-rate-limit-seed-subagent",
+			artifactDirName: ".fake-shared-rate-limit-seed-worker",
 			model: "anthropic/claude-opus-4-7",
 			streamErrors: [providerError],
 		});
 
 		let launches = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: `run_shared_rate_limit_${launches}`,
@@ -2464,13 +2438,13 @@ test("shared rate-limit backoff defers same-provider launches only", async () =>
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -2479,7 +2453,7 @@ test("shared rate-limit backoff defers same-provider launches only", async () =>
 			model: "anthropic/claude-sonnet-4-5",
 			specName: "same-provider",
 		});
-		const deferred = await launchSubagentTask(
+		const deferred = await launchWorkerTask(
 			cwd,
 			sameProvider.run,
 			sameProvider.task,
@@ -2497,7 +2471,7 @@ test("shared rate-limit backoff defers same-provider launches only", async () =>
 			model: "openai-codex/gpt-5.5",
 			specName: "other-provider",
 		});
-		const launched = await launchSubagentTask(
+		const launched = await launchWorkerTask(
 			cwd,
 			otherProvider.run,
 			otherProvider.task,
@@ -2524,7 +2498,7 @@ test("shared rate-limit backoff survives process restarts via persisted state", 
 		await refreshZeroOutputModelFailure(cwd, {
 			runId: "run_persisted_rate_limit_seed",
 			attemptId: "attempt_persisted_rate_limit_seed",
-			artifactDirName: ".fake-persisted-rate-limit-seed-subagent",
+			artifactDirName: ".fake-persisted-rate-limit-seed-worker",
 			model: "anthropic/claude-opus-4-7",
 			streamErrors: [providerError],
 		});
@@ -2546,11 +2520,11 @@ test("shared rate-limit backoff survives process restarts via persisted state", 
 
 		// Simulate a fresh process: clear in-memory shared state; only the
 		// persisted file remains to carry the cooldown across processes.
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 
 		let launches = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: `run_persisted_rate_limit_${launches}`,
@@ -2558,13 +2532,13 @@ test("shared rate-limit backoff survives process restarts via persisted state", 
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -2573,7 +2547,7 @@ test("shared rate-limit backoff survives process restarts via persisted state", 
 			model: "anthropic/claude-sonnet-4-5",
 			specName: "restart-same-provider",
 		});
-		const deferred = await launchSubagentTask(
+		const deferred = await launchWorkerTask(
 			cwd,
 			sameProvider.run,
 			sameProvider.task,
@@ -2597,8 +2571,8 @@ test("shared rate-limit backoff survives process restarts via persisted state", 
 				},
 			}),
 		);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
-		const launched = await launchSubagentTask(
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		const launched = await launchWorkerTask(
 			cwd,
 			sameProvider.run,
 			sameProvider.task,
@@ -2608,7 +2582,7 @@ test("shared rate-limit backoff survives process restarts via persisted state", 
 		assert.equal(launches, 1);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		rmSync(cwd, {
 			recursive: true,
 			force: true,
@@ -2618,7 +2592,7 @@ test("shared rate-limit backoff survives process restarts via persisted state", 
 	}
 });
 
-test("refresh adopts handle-less running subagent from deterministic runsDir", async () => {
+test("refresh adopts handle-less running worker from deterministic runsDir", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -2643,7 +2617,7 @@ test("refresh adopts handle-less running subagent from deterministic runsDir", a
 		);
 		const task = run.tasks[0];
 		const preparedTask = await prepareDagTask(cwd, run, compiled, 0);
-		const preparedLaunch = await prepareSubagentTaskLaunch(
+		const preparedLaunch = await prepareWorkerTaskLaunch(
 			cwd,
 			run,
 			task,
@@ -2654,34 +2628,23 @@ test("refresh adopts handle-less running subagent from deterministic runsDir", a
 			run,
 			task,
 			preparedTask,
-			"agent-workflow/runtime",
 			preparedLaunch,
 		);
 		recordLaunchBootstrapProvenance(task, provenance);
-		const authority = createWorkflowLaunchAuthority(
-			run,
-			task,
-			"agent-workflow/runtime",
-			provenance,
-		);
+		const authority = createWorkflowLaunchAuthority(run, task, provenance);
 		issueWorkflowLaunchAuthority(task, authority);
-		registerWorkflowLaunchAuthority(
-			run,
-			task,
-			authority,
-			"agent-workflow/runtime",
-		);
+		registerWorkflowLaunchAuthority(run, task, authority);
 		task.status = "running";
 		task.statusDetail = "launching";
 		task.startedAt = new Date().toISOString();
-		delete task.backendHandle;
+		delete task.workerHandle;
 
 		const subRunId = "run_recovered";
 		const subAttemptId = "attempt_recovered";
 		const runsDir = join(
 			stateDir(cwd),
 			".agent-workflow",
-			"workflow-subagents",
+			"worker-runs",
 			run.runId,
 			task.taskId,
 		);
@@ -2693,7 +2656,7 @@ test("refresh adopts handle-less running subagent from deterministic runsDir", a
 				runId: subRunId,
 				correlationId: `${run.runId}:${task.taskId}`,
 				status: "completed",
-				backend: "headless",
+				executorId: "headless",
 				startedAt: task.startedAt,
 				updatedAt: new Date().toISOString(),
 				latestAttemptId: subAttemptId,
@@ -2701,7 +2664,7 @@ test("refresh adopts handle-less running subagent from deterministic runsDir", a
 					{
 						attemptId: subAttemptId,
 						status: "completed",
-						backend: "headless",
+						executorId: "headless",
 						startedAt: task.startedAt,
 						updatedAt: new Date().toISOString(),
 					},
@@ -2736,17 +2699,17 @@ test("refresh adopts handle-less running subagent from deterministic runsDir", a
 		);
 
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return {
 					runId: subRunId,
 					attemptId: subAttemptId,
-					backend: "headless",
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt: task.startedAt,
@@ -2774,22 +2737,22 @@ test("refresh adopts handle-less running subagent from deterministic runsDir", a
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
 		await writeRunRecord(cwd, run);
-		const refreshed = await refreshRunFromSubagentArtifacts(
+		const refreshed = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
 		assert.equal(refreshed.tasks[0].status, "completed");
-		assert.equal(refreshed.tasks[0].backendHandle, undefined);
+		assert.equal(refreshed.tasks[0].workerHandle, undefined);
 		assert.deepEqual(refreshed.tasks[0].launchAuthority.records[0].state, {
 			phase: "consumed",
-			backendRunId: subRunId,
-			backendAttemptId: subAttemptId,
+			workerRunId: subRunId,
+			workerAttemptId: subAttemptId,
 		});
 		const workflowResult = JSON.parse(
 			readFileSync(
@@ -2816,7 +2779,7 @@ test("refresh adopts handle-less running subagent from deterministic runsDir", a
 	}
 });
 
-test("refresh ignores pre-claim subagent records during handle recovery", async () => {
+test("refresh ignores pre-claim worker records during handle recovery", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -2844,12 +2807,12 @@ test("refresh ignores pre-claim subagent records during handle recovery", async 
 		task.status = "running";
 		task.statusDetail = "launching";
 		task.startedAt = new Date().toISOString();
-		delete task.backendHandle;
+		delete task.workerHandle;
 
 		const runsDir = join(
 			stateDir(cwd),
 			".agent-workflow",
-			"workflow-subagents",
+			"worker-runs",
 			run.runId,
 			task.taskId,
 		);
@@ -2861,7 +2824,7 @@ test("refresh ignores pre-claim subagent records during handle recovery", async 
 				runId: "run_old_attempt",
 				correlationId: `${run.runId}:${task.taskId}`,
 				status: "completed",
-				backend: "headless",
+				executorId: "headless",
 				startedAt: oldStartedAt,
 				updatedAt: oldStartedAt,
 				latestAttemptId: "attempt_old_attempt",
@@ -2876,28 +2839,28 @@ test("refresh ignores pre-claim subagent records during handle recovery", async 
 			}),
 		);
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				throw new Error("old run should not be adopted");
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				throw new Error("old run should not be adopted");
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 		await writeRunRecord(cwd, run);
 
-		const refreshed = await refreshRunFromSubagentArtifacts(
+		const refreshed = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
 
 		assert.equal(refreshed.tasks[0].status, "running");
-		assert.equal(refreshed.tasks[0].backendHandle, undefined);
+		assert.equal(refreshed.tasks[0].workerHandle, undefined);
 		assert.equal(refreshed.tasks[0].lastMessage, undefined);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
@@ -2910,7 +2873,7 @@ test("refresh ignores pre-claim subagent records during handle recovery", async 
 	}
 });
 
-test("refresh resets stale launch claims without backend runs", async () => {
+test("refresh resets stale launch claims without worker runs", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -2933,29 +2896,29 @@ test("refresh resets stale launch claims without backend runs", async () => {
 		task.status = "running";
 		task.statusDetail = "launching";
 		task.startedAt = new Date(Date.now() - 60_000).toISOString();
-		task.backendTaskId = "run_missing_claim";
-		task.backendFiles = {
-			runsDir: ".agent-workflow/workflow-subagents/missing-claim",
+		task.workerTaskId = "run_missing_claim";
+		task.workerFiles = {
+			runsDir: ".agent-workflow/worker-runs/missing-claim",
 			correlationId: `${run.runId}:${task.taskId}`,
 		};
-		delete task.backendHandle;
+		delete task.workerHandle;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				throw new Error("missing run should not be reconciled");
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				throw new Error("missing run should not be queried");
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 		await writeRunRecord(cwd, run);
 
-		const refreshed = await refreshRunFromSubagentArtifacts(
+		const refreshed = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
@@ -2964,8 +2927,8 @@ test("refresh resets stale launch claims without backend runs", async () => {
 		assert.equal(refreshedTask.status, "pending");
 		assert.equal(refreshedTask.statusDetail, "pending");
 		assert.equal(refreshedTask.startedAt, undefined);
-		assert.equal(refreshedTask.backendFiles, undefined);
-		assert.equal(refreshedTask.backendTaskId, refreshedTask.taskId);
+		assert.equal(refreshedTask.workerFiles, undefined);
+		assert.equal(refreshedTask.workerTaskId, refreshedTask.taskId);
 		assert.equal(
 			refreshedTask.lastMessage,
 			"stale executor launch claim reset",
@@ -2981,7 +2944,7 @@ test("refresh resets stale launch claims without backend runs", async () => {
 	}
 });
 
-test("refresh interrupts timed-out running subagents and clears stale handles", async () => {
+test("refresh interrupts timed-out running workers and clears stale handles", async () => {
 	const cwd = makeProject();
 	const interrupts = [];
 	try {
@@ -3006,29 +2969,27 @@ test("refresh interrupts timed-out running subagents and clears stale handles", 
 		task.statusDetail = "running";
 		task.startedAt = new Date(Date.now() - 10_000).toISOString();
 		task.runtime.maxRuntimeMs = 1;
-		task.backendTaskId = "run_timeout";
+		task.workerTaskId = "run_timeout";
 		task.pid = 12345;
-		task.backendHandle = {
-			engine: "agent-workflow",
-			backend: "runtime",
+		task.workerHandle = {
 			runId: "run_timeout",
 			attemptId: "attempt_timeout",
 			cwd,
-			runsDir: ".agent-workflow/workflow-subagents/timeout",
-			display: "agent-workflow/runtime run_timeout/attempt_timeout",
+			runsDir: ".agent-workflow/worker-runs/timeout",
+			display: "worker run run_timeout/attempt_timeout",
 		};
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return {
 					runId: "run_timeout",
 					attemptId: "attempt_timeout",
-					backend: "headless",
+					executorId: "headless",
 					status: "running",
 					startedAt: task.startedAt,
 					logs: [],
@@ -3042,7 +3003,7 @@ test("refresh interrupts timed-out running subagents and clears stale handles", 
 					],
 				};
 			},
-			async interruptSubagent(options) {
+			async interruptWorker(options) {
 				interrupts.push(options);
 				return {
 					status: "already-terminal",
@@ -3057,7 +3018,7 @@ test("refresh interrupts timed-out running subagents and clears stale handles", 
 		});
 		await writeRunRecord(cwd, run);
 
-		const refreshed = await refreshRunFromSubagentArtifacts(
+		const refreshed = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
@@ -3065,8 +3026,8 @@ test("refresh interrupts timed-out running subagents and clears stale handles", 
 		const refreshedTask = refreshed.tasks[0];
 		assert.equal(refreshedTask.status, "failed");
 		assert.equal(refreshedTask.statusDetail, "timeout");
-		assert.equal(refreshedTask.backendHandle, undefined);
-		assert.equal(refreshedTask.backendTaskId, refreshedTask.taskId);
+		assert.equal(refreshedTask.workerHandle, undefined);
+		assert.equal(refreshedTask.workerTaskId, refreshedTask.taskId);
 		assert.equal(refreshedTask.pid, undefined);
 		assert.equal(typeof refreshedTask.timing.refreshStatusPollMs, "number");
 		assert.equal(interrupts.length, 1);
@@ -3083,7 +3044,7 @@ test("refresh interrupts timed-out running subagents and clears stale handles", 
 	}
 });
 
-test("workflow run runtime overrides reach launched subagents", async () => {
+test("workflow run runtime overrides reach launched workers", async () => {
 	const cwd = makeProject();
 	const captured = [];
 	try {
@@ -3093,7 +3054,7 @@ test("workflow run runtime overrides reach launched subagents", async () => {
 			JSON.stringify(workflowSpec("unit-scout")),
 		);
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				captured.push(options);
 				return {
 					runId: "run_runtime_defaults",
@@ -3101,13 +3062,13 @@ test("workflow run runtime overrides reach launched subagents", async () => {
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -3525,7 +3486,7 @@ test("scheduleRun aborts after heartbeat observes supervisor lease loss", async 
 
 		let launchCount = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launchCount += 1;
 				unlinkSync(supervisorLockPath(cwd, run.runId));
 				await sleep(120);
@@ -3535,13 +3496,13 @@ test("scheduleRun aborts after heartbeat observes supervisor lease loss", async 
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -3606,14 +3567,12 @@ test("resumeRun resets failed and skipped tasks, preserves completed work, and r
 			exitCode: 1,
 			lastMessage: "boom",
 		});
-		taskBySpec(run, "two.main").backendHandle = {
-			engine: "agent-workflow",
-			backend: "runtime",
+		taskBySpec(run, "two.main").workerHandle = {
 			runId: "run_resume_stale",
 			attemptId: "attempt_resume_stale",
 			cwd,
-			runsDir: ".agent-workflow/workflow-subagents",
-			display: "agent-workflow/runtime run_resume_stale/attempt_resume_stale",
+			runsDir: ".agent-workflow/worker-runs",
+			display: "worker run run_resume_stale/attempt_resume_stale",
 		};
 		setTaskTerminal(
 			taskBySpec(run, "three.main"),
@@ -3628,7 +3587,7 @@ test("resumeRun resets failed and skipped tasks, preserves completed work, and r
 		const launchOptions = [];
 		const interrupted = [];
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launchedTasks.push(String(options.task ?? "").slice(0, 40));
 				launchOptions.push(options);
 				return {
@@ -3637,13 +3596,13 @@ test("resumeRun resets failed and skipped tasks, preserves completed work, and r
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent(options) {
+			async interruptWorker(options) {
 				interrupted.push(options);
 				return { acknowledged: true };
 			},
@@ -3661,7 +3620,7 @@ test("resumeRun resets failed and skipped tasks, preserves completed work, and r
 			assert.equal(launchedTasks.length, 1);
 			// WP12a (D3): the resume attempt identity rotates; no CLI session is requested.
 			assert.equal(launchOptions[0].sessionId, undefined);
-			const resumedSessionId = taskBySpec(resumed, "two.main").backendFiles
+			const resumedSessionId = taskBySpec(resumed, "two.main").workerFiles
 				?.sessionId;
 			assert.match(resumedSessionId, /\.resume-1$/);
 			assert.ok(resumedSessionId.length <= 64);
@@ -3743,7 +3702,7 @@ test("resumeRun rejects non-resumable blocked runs without resetting skipped dep
 	}
 });
 
-test("stopRun interrupts non-terminal tasks and best-effort cleans up backend handles", async () => {
+test("stopRun interrupts non-terminal tasks and best-effort cleans up worker handles", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout");
@@ -3766,28 +3725,26 @@ test("stopRun interrupts non-terminal tasks and best-effort cleans up backend ha
 		runningTask.status = "running";
 		runningTask.statusDetail = "running";
 		runningTask.startedAt = new Date().toISOString();
-		runningTask.backendHandle = {
-			engine: "agent-workflow",
-			backend: "runtime",
+		runningTask.workerHandle = {
 			runId: "run_stop",
 			attemptId: "attempt_stop",
 			cwd,
-			runsDir: ".agent-workflow/workflow-subagents",
+			runsDir: ".agent-workflow/worker-runs",
 		};
 		await writeRunRecord(cwd, run);
 
 		const interrupts = [];
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("stopRun should not launch tasks");
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent(options) {
+			async interruptWorker(options) {
 				interrupts.push(options);
 				return {
 					status: "already-terminal",
@@ -3940,32 +3897,31 @@ test("deep-review batch partition rejects stale batch control schema labels", as
 	);
 });
 
-test("subagent launch gate honors env override and recovers slots after throw", async () => {
+test("worker launch gate honors env override and recovers slots after throw", async () => {
 	const cwd = makeProject();
 	const originalLimit = process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
 	const originalReleaseDelay =
 		process.env.AGENT_WORKFLOW_LAUNCH_SLOT_RELEASE_DELAY_MS;
 	process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES = "2";
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	const cleanupController = new AbortController();
-	const releaseRunSubagent = [];
+	const releaseRunWorker = [];
 	const trackedLaunches = new Set();
-	const makeRunSubagentEntrySignal = () => {
+	const makeRunWorkerEntrySignal = () => {
 		let resolve;
 		const promise = new Promise((done) => {
 			resolve = done;
 		});
 		return { promise, resolve };
 	};
-	let runSubagentEntrySignal = makeRunSubagentEntrySignal();
-	const notifyRunSubagentEntry = () => {
-		const signal = runSubagentEntrySignal;
-		runSubagentEntrySignal = makeRunSubagentEntrySignal();
+	let runWorkerEntrySignal = makeRunWorkerEntrySignal();
+	const notifyRunWorkerEntry = () => {
+		const signal = runWorkerEntrySignal;
+		runWorkerEntrySignal = makeRunWorkerEntrySignal();
 		signal.resolve();
 	};
-	const waitForRunSubagentEntries = async (count) => {
-		while (releaseRunSubagent.length < count)
-			await runSubagentEntrySignal.promise;
+	const waitForRunWorkerEntries = async (count) => {
+		while (releaseRunWorker.length < count) await runWorkerEntrySignal.promise;
 	};
 	const trackLaunch = (launch) => {
 		trackedLaunches.add(launch);
@@ -3997,7 +3953,7 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 					baseCwd: null,
 					warning: null,
 				},
-				backendTaskId: "",
+				workerTaskId: "",
 				files: {
 					systemPrompt: `.agent-workflow/workflows/workflow_launch_${suffix}/tasks/task-1/system.md`,
 					taskPrompt: `.agent-workflow/workflows/workflow_launch_${suffix}/tasks/task-1/task.md`,
@@ -4023,7 +3979,6 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 					total: 1,
 				},
 				cwd,
-				backend: { type: "local", mode: "headless" },
 				createdAt: now,
 				updatedAt: now,
 				specPath: "workflow.json",
@@ -4051,7 +4006,7 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 		};
 		const launchFixture = (fixture) =>
 			trackLaunch(
-				launchSubagentTask(
+				launchWorkerTask(
 					cwd,
 					fixture.run,
 					fixture.task,
@@ -4064,12 +4019,12 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 		let maxActive = 0;
 		let sequence = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				active += 1;
 				maxActive = Math.max(maxActive, active);
 				await new Promise((resolve) => {
-					releaseRunSubagent.push(resolve);
-					notifyRunSubagentEntry();
+					releaseRunWorker.push(resolve);
+					notifyRunWorkerEntry();
 				});
 				active -= 1;
 				sequence += 1;
@@ -4085,7 +4040,7 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 		for (const fixture of fixtures) await writeRunRecord(cwd, fixture.run);
 		await flushPendingIndexUpdatesForTests();
 		const launches = fixtures.map(launchFixture);
-		await waitForRunSubagentEntries(2);
+		await waitForRunWorkerEntries(2);
 		assert.equal(maxActive, 2);
 		let queuedFixture;
 		await eventually(() => {
@@ -4098,14 +4053,14 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 		});
 		assert.ok(queuedFixture.task.timing.launchQueuedAt);
 		assert.equal(queuedFixture.task.timing.launchCompletedAt, undefined);
-		releaseRunSubagent.shift()();
-		await waitForRunSubagentEntries(2);
+		releaseRunWorker.shift()();
+		await waitForRunWorkerEntries(2);
 		assert.equal(maxActive, 2);
 		assert.ok(queuedFixture.task.timing.launchStartedAt);
 		assert.equal(typeof queuedFixture.task.timing.launchWaitMs, "number");
 		assert.equal(queuedFixture.task.timing.launchCompletedAt, undefined);
 		assert.equal(queuedFixture.task.timing.launchDurationMs, undefined);
-		while (releaseRunSubagent.length > 0) releaseRunSubagent.shift()();
+		while (releaseRunWorker.length > 0) releaseRunWorker.shift()();
 		await Promise.all(launches);
 		assert.equal(maxActive, 2);
 		assert.ok(queuedFixture.task.timing.launchCompletedAt);
@@ -4114,10 +4069,10 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 
 		process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES = "1";
 		process.env.AGENT_WORKFLOW_LAUNCH_SLOT_RELEASE_DELAY_MS = "25";
-		setSubagentLaunchControlsForTests({ retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ retryJitterMs: 0 });
 		let delayedLaunches = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				delayedLaunches += 1;
 				return {
 					runId: `run_delayed_${delayedLaunches}`,
@@ -4138,9 +4093,9 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 		]);
 		assert.equal(delayedLaunches, 2);
 
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("boom");
 			},
 		});
@@ -4148,7 +4103,7 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 		await assert.rejects(() => launchFixture(failing), /boom/);
 
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				return {
 					runId: "run_after_throw",
 					attemptId: "attempt_after_throw",
@@ -4164,14 +4119,14 @@ test("subagent launch gate honors env override and recovers slots after throw", 
 			}),
 		]);
 	} finally {
-		cleanupController.abort(new Error("subagent launch gate test cleanup"));
-		while (releaseRunSubagent.length > 0) releaseRunSubagent.shift()();
+		cleanupController.abort(new Error("worker launch gate test cleanup"));
+		while (releaseRunWorker.length > 0) releaseRunWorker.shift()();
 		try {
 			await Promise.allSettled([...trackedLaunches]);
 			await flushPendingIndexUpdatesForTests();
 		} finally {
 			setTaskRuntimeApiForTests(undefined);
-			setSubagentLaunchControlsForTests({
+			setWorkerLaunchControlsForTests({
 				releaseDelayMs: 0,
 				retryJitterMs: 0,
 			});
@@ -4230,7 +4185,7 @@ function launchSlotTestScope(cwd) {
 		},
 		launch(fixture, signal) {
 			return track(
-				launchSubagentTask(
+				launchWorkerTask(
 					cwd,
 					fixture.run,
 					fixture.task,
@@ -4251,7 +4206,7 @@ function launchSlotTestScope(cwd) {
 	};
 }
 
-test("subagent launch slot wait abort removes queued waiter", async () => {
+test("worker launch slot wait abort removes queued waiter", async () => {
 	const cwd = makeProject();
 	const originalLaunchLimit =
 		process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
@@ -4264,23 +4219,23 @@ test("subagent launch slot wait abort removes queued waiter", async () => {
 	const releaseFirst = scope.gate();
 	const controller = new AbortController();
 	let actions = 0;
-	setSubagentLaunchControlsForTests({
+	setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 		onLaunchSlotQueued: () => queued.resolve(),
-		beforeRunSubagent: () => {
+		beforeRunWorker: () => {
 			actions += 1;
 		},
 	});
 	try {
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 0,
 			queued: 0,
 		});
 		writeAgent(cwd, "unit-scout", "read");
 		let launches = 0;
 		setTaskRuntimeApiForTests({
-			runSubagent() {
+			runWorker() {
 				return scope.track(
 					(async () => {
 						launches += 1;
@@ -4297,13 +4252,13 @@ test("subagent launch slot wait abort removes queued waiter", async () => {
 				);
 			},
 		});
-		const first = makeSubagentLaunchFixture(cwd, "abort_queued_first");
-		const second = makeSubagentLaunchFixture(cwd, "abort_queued_second");
+		const first = makeWorkerLaunchFixture(cwd, "abort_queued_first");
+		const second = makeWorkerLaunchFixture(cwd, "abort_queued_second");
 		const firstLaunch = scope.launch(first);
 		await scope.wait(Promise.race([firstReady.promise, firstLaunch]));
 		assert.equal(launches, 1);
 		assert.equal(actions, 1);
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 1,
 			queued: 0,
 		});
@@ -4312,13 +4267,13 @@ test("subagent launch slot wait abort removes queued waiter", async () => {
 		await scope.wait(Promise.race([queued.promise, secondLaunch]));
 		assert.ok(second.task.timing?.launchQueuedAt);
 		assert.equal(second.task.timing?.launchStartedAt, undefined);
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 1,
 			queued: 1,
 		});
 		controller.abort(new Error("lease lost while queued"));
 		// Abort dispatch must remove the waiter synchronously, while the owner holds.
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 1,
 			queued: 0,
 		});
@@ -4327,18 +4282,18 @@ test("subagent launch slot wait abort removes queued waiter", async () => {
 		assert.equal(actions, 1);
 		releaseFirst.resolve();
 		assert.deepEqual(await scope.wait(firstLaunch), { kind: "launched" });
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 0,
 			queued: 0,
 		});
 
-		const third = makeSubagentLaunchFixture(cwd, "abort_queued_third");
+		const third = makeWorkerLaunchFixture(cwd, "abort_queued_third");
 		assert.deepEqual(await scope.wait(scope.launch(third)), {
 			kind: "launched",
 		});
 		assert.equal(launches, 2);
 		assert.equal(actions, 2);
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 0,
 			queued: 0,
 		});
@@ -4346,7 +4301,7 @@ test("subagent launch slot wait abort removes queued waiter", async () => {
 		controller.abort(new Error("launch test cleanup"));
 		await scope.drain();
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		if (originalLaunchLimit === undefined)
 			delete process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
 		else
@@ -4363,7 +4318,7 @@ test("subagent launch slot wait abort removes queued waiter", async () => {
 	}
 });
 
-test("subagent launch slot abort after acquisition releases slot before action", async () => {
+test("worker launch slot abort after acquisition releases slot before action", async () => {
 	const cwd = makeProject();
 	const originalLaunchLimit =
 		process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
@@ -4386,7 +4341,7 @@ test("subagent launch slot abort after acquisition releases slot before action",
 	};
 	let slotAcquisitions = 0;
 	const actionAcquisitions = [];
-	setSubagentLaunchControlsForTests({
+	setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 		onLaunchSlotQueued: () => queued.resolve(),
@@ -4396,7 +4351,7 @@ test("subagent launch slot abort after acquisition releases slot before action",
 				controller.abort(new Error("lease lost after acquire"));
 			}
 		},
-		beforeRunSubagent: async () => {
+		beforeRunWorker: async () => {
 			actionAcquisitions.push(slotAcquisitions);
 			if (slotAcquisitions === 3) {
 				thirdReady.resolve();
@@ -4405,14 +4360,14 @@ test("subagent launch slot abort after acquisition releases slot before action",
 		},
 	});
 	try {
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 0,
 			queued: 0,
 		});
 		writeAgent(cwd, "unit-scout", "read");
 		let launches = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				if (launches === 1) {
 					firstReady.resolve();
@@ -4425,10 +4380,10 @@ test("subagent launch slot abort after acquisition releases slot before action",
 				};
 			},
 		});
-		const first = makeSubagentLaunchFixture(cwd, "abort_acquired_first");
-		const second = makeSubagentLaunchFixture(cwd, "abort_acquired_second");
+		const first = makeWorkerLaunchFixture(cwd, "abort_acquired_first");
+		const second = makeWorkerLaunchFixture(cwd, "abort_acquired_second");
 		const firstLaunch = track(
-			launchSubagentTask(
+			launchWorkerTask(
 				cwd,
 				first.run,
 				first.task,
@@ -4438,12 +4393,12 @@ test("subagent launch slot abort after acquisition releases slot before action",
 			),
 		);
 		await Promise.race([firstReady.promise, firstLaunch]);
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 1,
 			queued: 0,
 		});
 		const secondLaunch = track(
-			launchSubagentTask(
+			launchWorkerTask(
 				cwd,
 				second.run,
 				second.task,
@@ -4453,7 +4408,7 @@ test("subagent launch slot abort after acquisition releases slot before action",
 			),
 		);
 		await Promise.race([queued.promise, secondLaunch]);
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 1,
 			queued: 1,
 		});
@@ -4465,14 +4420,14 @@ test("subagent launch slot abort after acquisition releases slot before action",
 		assert.equal(launches, 1);
 		assert.deepEqual(actionAcquisitions, [1]);
 		// Inspect release itself, not preparation or post-launch filesystem latency.
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 0,
 			queued: 0,
 		});
 
-		const third = makeSubagentLaunchFixture(cwd, "abort_acquired_third");
+		const third = makeWorkerLaunchFixture(cwd, "abort_acquired_third");
 		const thirdLaunch = track(
-			launchSubagentTask(
+			launchWorkerTask(
 				cwd,
 				third.run,
 				third.task,
@@ -4484,7 +4439,7 @@ test("subagent launch slot abort after acquisition releases slot before action",
 		await Promise.race([thirdReady.promise, thirdLaunch]);
 		assert.equal(slotAcquisitions, 3);
 		assert.deepEqual(actionAcquisitions, [1, 3]);
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 1,
 			queued: 0,
 		});
@@ -4492,7 +4447,7 @@ test("subagent launch slot abort after acquisition releases slot before action",
 		releaseThird.resolve();
 		assert.deepEqual(await thirdLaunch, { kind: "launched" });
 		assert.equal(launches, 2);
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 0,
 			queued: 0,
 		});
@@ -4503,7 +4458,7 @@ test("subagent launch slot abort after acquisition releases slot before action",
 		controller.abort(new Error("test cleanup"));
 		await Promise.allSettled(pending);
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		if (originalLaunchLimit === undefined)
 			delete process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
 		else
@@ -4527,7 +4482,7 @@ test("global live model worker cap unset does not gate launches", async () => {
 	const originalLiveLimit = process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS;
 	process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES = "2";
 	delete process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS;
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	const scope = launchSlotTestScope(cwd);
 	const bothEntered = Promise.withResolvers();
 	const release = scope.gate();
@@ -4537,7 +4492,7 @@ test("global live model worker cap unset does not gate launches", async () => {
 		let maxActive = 0;
 		let calls = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				const call = ++calls;
 				active += 1;
 				maxActive = Math.max(maxActive, active);
@@ -4551,8 +4506,8 @@ test("global live model worker cap unset does not gate launches", async () => {
 				};
 			},
 		});
-		const first = makeSubagentLaunchFixture(cwd, "cap_unset_first");
-		const second = makeSubagentLaunchFixture(cwd, "cap_unset_second");
+		const first = makeWorkerLaunchFixture(cwd, "cap_unset_first");
+		const second = makeWorkerLaunchFixture(cwd, "cap_unset_second");
 		const launches = [scope.launch(first), scope.launch(second)];
 		await scope.wait(
 			Promise.race([
@@ -4564,7 +4519,7 @@ test("global live model worker cap unset does not gate launches", async () => {
 		);
 		assert.equal(maxActive, 2);
 		assert.equal(calls, 2);
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 2,
 			queued: 0,
 		});
@@ -4576,7 +4531,7 @@ test("global live model worker cap unset does not gate launches", async () => {
 	} finally {
 		await scope.drain();
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		if (originalLaunchLimit === undefined)
 			delete process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
 		else
@@ -4600,14 +4555,14 @@ test("global live model worker cap defers saturated launches without waiting", a
 	const originalLiveLimit = process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS;
 	process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES = "2";
 	process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS = "1";
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	const scope = launchSlotTestScope(cwd);
 	try {
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 0);
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 0);
 		writeAgent(cwd, "unit-scout", "read");
 		let launches = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: `run_cap_set_${launches}`,
@@ -4616,11 +4571,11 @@ test("global live model worker cap defers saturated launches without waiting", a
 				};
 			},
 		});
-		const first = makeSubagentLaunchFixture(cwd, "cap_set_first");
-		const second = makeSubagentLaunchFixture(cwd, "cap_set_second");
+		const first = makeWorkerLaunchFixture(cwd, "cap_set_first");
+		const second = makeWorkerLaunchFixture(cwd, "cap_set_second");
 		assert.equal((await scope.wait(scope.launch(first))).kind, "launched");
 		assert.equal(launches, 1);
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 1);
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 1);
 		const secondLaunch = await scope.wait(scope.launch(second));
 		assert.equal(secondLaunch.kind, "capacity");
 		assert.equal(launches, 1);
@@ -4628,29 +4583,29 @@ test("global live model worker cap defers saturated launches without waiting", a
 		assert.match(second.task.lastMessage, /global executor worker slot/);
 		assert.equal(second.task.timing.waiting_for_global_worker_slot, true);
 
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 1);
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 1);
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 0,
 			queued: 0,
 		});
 
 		first.task.status = "completed";
 		first.task.statusDetail = "completed";
-		await refreshRunFromSubagentArtifacts(cwd, first.run);
+		await refreshRunFromWorkerArtifacts(cwd, first.run);
 		// Observe release before retry preparation can obscure (or repair) a leak.
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 0);
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 0);
 		const retryLaunch = await scope.wait(scope.launch(second));
 		assert.equal(retryLaunch.kind, "launched");
 		assert.equal(launches, 2);
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 1);
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 1);
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 0,
 			queued: 0,
 		});
 	} finally {
 		await scope.drain();
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		if (originalLaunchLimit === undefined)
 			delete process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
 		else
@@ -4667,20 +4622,20 @@ test("global live model worker cap defers saturated launches without waiting", a
 	}
 });
 
-test("cleanupSubagentRun releases global live model worker cap keys", async () => {
+test("cleanupWorkerRun releases global live model worker cap keys", async () => {
 	const cwd = makeProject();
 	const originalLaunchLimit =
 		process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
 	const originalLiveLimit = process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS;
 	process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES = "2";
 	process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS = "1";
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		let launches = 0;
 		let interrupts = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: `run_cap_cleanup_${launches}`,
@@ -4688,7 +4643,7 @@ test("cleanupSubagentRun releases global live model worker cap keys", async () =
 					status: "running",
 				};
 			},
-			async interruptSubagent(options) {
+			async interruptWorker(options) {
 				interrupts += 1;
 				return {
 					status: "already-terminal",
@@ -4701,14 +4656,14 @@ test("cleanupSubagentRun releases global live model worker cap keys", async () =
 				};
 			},
 		});
-		const first = makeSubagentLaunchFixture(cwd, "cap_cleanup_first");
-		const second = makeSubagentLaunchFixture(cwd, "cap_cleanup_second");
-		await launchSubagentTask(cwd, first.run, first.task, first.compiledTask);
+		const first = makeWorkerLaunchFixture(cwd, "cap_cleanup_first");
+		const second = makeWorkerLaunchFixture(cwd, "cap_cleanup_second");
+		await launchWorkerTask(cwd, first.run, first.task, first.compiledTask);
 		assert.equal(launches, 1);
-		await cleanupSubagentRun(cwd, first.run);
+		await cleanupWorkerRun(cwd, first.run);
 		assert.equal(interrupts, 1);
 		const secondLaunch = await Promise.race([
-			launchSubagentTask(cwd, second.run, second.task, second.compiledTask),
+			launchWorkerTask(cwd, second.run, second.task, second.compiledTask),
 			sleep(2_000).then(() => {
 				throw new Error("cleanup did not release global worker slot");
 			}),
@@ -4717,7 +4672,7 @@ test("cleanupSubagentRun releases global live model worker cap keys", async () =
 		assert.equal(launches, 2);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		if (originalLaunchLimit === undefined)
 			delete process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
 		else
@@ -4746,15 +4701,15 @@ test("fail-fast cleanup releases the global live model worker cap slot for other
 	const originalLiveLimit = process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS;
 	process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES = "2";
 	process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS = "1";
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	const interrupts = [];
 	const scope = launchSlotTestScope(cwd);
 	try {
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 0);
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 0);
 		writeAgent(cwd, "unit-scout", "read");
 		let launches = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: `run_ff_cap_${launches}`,
@@ -4762,13 +4717,13 @@ test("fail-fast cleanup releases the global live model worker cap slot for other
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent(options) {
+			async interruptWorker(options) {
 				interrupts.push(options);
 				return {
 					status: "already-terminal",
@@ -4783,32 +4738,32 @@ test("fail-fast cleanup releases the global live model worker cap slot for other
 		});
 
 		// First run occupies the single global worker-cap slot.
-		const occupying = makeSubagentLaunchFixture(cwd, "ff_cap_occupying");
+		const occupying = makeWorkerLaunchFixture(cwd, "ff_cap_occupying");
 		assert.equal((await scope.wait(scope.launch(occupying))).kind, "launched");
 		assert.equal(launches, 1);
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 1);
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 1);
 
-		// A fail-fast run with a running child that holds a backend handle; cleanup
+		// A fail-fast run with a running child that holds a worker handle; cleanup
 		// must interrupt it and release its worker-cap slot.
 		const { run: failFastRun } = await createFailFastPolicyRun(cwd, {
 			failFast: true,
 			cancelSiblingsOnFailure: true,
 			cancelDescendantsOnParentFailure: true,
 		});
-		await cleanupSubagentRun(cwd, failFastRun);
+		await cleanupWorkerRun(cwd, failFastRun);
 		assert.ok(
 			interrupts.some((entry) => entry.runId === "child-running"),
 			"fail-fast cleanup did not interrupt the running child",
 		);
 
 		// Cleaning an unrelated run must not free the occupying run's reservation.
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 1);
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 1);
 
 		// Release the occupying run's slot as well, then a fresh run must be able to
 		// launch without being blocked by a leaked slot.
-		await cleanupSubagentRun(cwd, occupying.run);
-		const third = makeSubagentLaunchFixture(cwd, "ff_cap_third");
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 0);
+		await cleanupWorkerRun(cwd, occupying.run);
+		const third = makeWorkerLaunchFixture(cwd, "ff_cap_third");
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 0);
 		assert.ok(
 			interrupts.some((entry) => entry.runId === "run_ff_cap_1"),
 			"cleanup did not interrupt the slot owner",
@@ -4816,15 +4771,15 @@ test("fail-fast cleanup releases the global live model worker cap slot for other
 		const thirdLaunch = await scope.wait(scope.launch(third));
 		assert.equal(thirdLaunch.kind, "launched");
 		assert.equal(launches, 2);
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 1);
-		assert.deepEqual(subagentLaunchSlotStateForTests(), {
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 1);
+		assert.deepEqual(workerLaunchSlotStateForTests(), {
 			active: 0,
 			queued: 0,
 		});
 	} finally {
 		await scope.drain();
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		if (originalLaunchLimit === undefined)
 			delete process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
 		else
@@ -4848,12 +4803,12 @@ test("global live model worker cap defers in leased scheduler without hanging", 
 	const originalLiveLimit = process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS;
 	process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES = "2";
 	process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS = "1";
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		let launches = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: `run_cap_scheduler_${launches}`,
@@ -4861,13 +4816,13 @@ test("global live model worker cap defers in leased scheduler without hanging", 
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -4921,7 +4876,7 @@ test("global live model worker cap defers in leased scheduler without hanging", 
 		assert.equal(taskBySpec(updated, "b.main").status, "running");
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		if (originalLaunchLimit === undefined)
 			delete process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
 		else
@@ -4938,7 +4893,7 @@ test("global live model worker cap defers in leased scheduler without hanging", 
 	}
 });
 
-test("workflow progress health flags stale running task without backend signal", () => {
+test("workflow progress health flags stale running task without worker signal", () => {
 	const nowMs = Date.parse("2026-07-01T13:00:00.000Z");
 	const health = diagnoseWorkflowTaskHealth(
 		workflowViewTask({
@@ -4956,7 +4911,7 @@ test("workflow progress health flags stale running task without backend signal",
 	assert.equal(health.suggestion, "resume");
 });
 
-test("workflow progress health ignores stale backend handles without fresh heartbeat", () => {
+test("workflow progress health ignores stale worker handles without fresh heartbeat", () => {
 	const nowMs = Date.parse("2026-07-01T13:00:00.000Z");
 	const health = diagnoseWorkflowTaskHealth(
 		workflowViewTask({
@@ -4965,7 +4920,7 @@ test("workflow progress health ignores stale backend handles without fresh heart
 			stageId: "final-audit",
 			startedAt: "2026-07-01T11:00:00.000Z",
 			lastMessage: undefined,
-			backendHandle: { engine: "agent-workflow" },
+			workerHandle: { display: "incomplete" },
 		}),
 		{ updatedAt: "2026-07-01T11:30:00.000Z" },
 		{ nowMs },
@@ -5151,20 +5106,18 @@ test("formatRun surfaces supervisor heartbeat lost while run says running", asyn
 test("launch-bootstrap provenance is deterministic, attempt-scoped, and bounded on mismatch", async () => {
 	const cwd = makeProject();
 	try {
-		const fixture = makeSubagentLaunchFixture(cwd, "bootstrap");
+		const fixture = makeWorkerLaunchFixture(cwd, "bootstrap");
 		const first = await createLaunchBootstrapProvenance(
 			cwd,
 			fixture.run,
 			fixture.task,
 			fixture.compiledTask,
-			"agent-workflow/runtime",
 		);
 		const repeat = await createLaunchBootstrapProvenance(
 			cwd,
 			fixture.run,
 			fixture.task,
 			fixture.compiledTask,
-			"agent-workflow/runtime",
 		);
 		assert.deepEqual(
 			canonicalLaunchBootstrapBytes(first),
@@ -5185,7 +5138,6 @@ test("launch-bootstrap provenance is deterministic, attempt-scoped, and bounded 
 					orderOnly.run,
 					orderOnly.task,
 					orderOnly.compiledTask,
-					"agent-workflow/runtime",
 				)
 			).sourceDependencies.contextDependsOn,
 			[],
@@ -5263,7 +5215,6 @@ test("launch-bootstrap provenance is deterministic, attempt-scoped, and bounded 
 				candidate.run,
 				candidate.task,
 				candidate.compiledTask,
-				"agent-workflow/runtime",
 			);
 		};
 		assert.notEqual(
@@ -5355,7 +5306,6 @@ test("launch-bootstrap provenance is deterministic, attempt-scoped, and bounded 
 			fixture.run,
 			mismatchedTask,
 			mismatchedCompiledTask,
-			"agent-workflow/runtime",
 		);
 		assert.throws(
 			() => recordLaunchBootstrapProvenance(fixture.task, mismatched),
@@ -5400,7 +5350,7 @@ test("launch-bootstrap provenance persists before launch and rejects same-attemp
 		);
 		await writeStaticRunArtifacts(cwd, run, compiled, spec);
 		const prepared = await prepareDagTask(cwd, run, compiled, 0);
-		const preparedLaunch = await prepareSubagentTaskLaunch(
+		const preparedLaunch = await prepareWorkerTaskLaunch(
 			cwd,
 			run,
 			run.tasks[0],
@@ -5411,7 +5361,6 @@ test("launch-bootstrap provenance persists before launch and rejects same-attemp
 			run,
 			run.tasks[0],
 			prepared,
-			"agent-workflow/runtime",
 			preparedLaunch,
 		);
 		const forgedPrepared = structuredClone(prepared);
@@ -5421,7 +5370,6 @@ test("launch-bootstrap provenance persists before launch and rejects same-attemp
 			run,
 			run.tasks[0],
 			forgedPrepared,
-			"agent-workflow/runtime",
 			preparedLaunch,
 		);
 		assert.notEqual(provenance.identitySha256, forged.identitySha256);
@@ -5430,7 +5378,7 @@ test("launch-bootstrap provenance persists before launch and rejects same-attemp
 
 		let launches = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: "unexpected",
@@ -5438,13 +5386,13 @@ test("launch-bootstrap provenance persists before launch and rejects same-attemp
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -5475,7 +5423,7 @@ test("launch-bootstrap provenance persists before launch and rejects same-attemp
 	}
 });
 
-test("launch-bootstrap provenance reloads with the prepared artifact manifest before backend spawn", async () => {
+test("launch-bootstrap provenance reloads with the prepared artifact manifest before worker spawn", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -5497,20 +5445,20 @@ test("launch-bootstrap provenance reloads with the prepared artifact manifest be
 			),
 		);
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				return {
 					runId: "bootstrap-run",
 					attemptId: "bootstrap-attempt",
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -5522,15 +5470,14 @@ test("launch-bootstrap provenance reloads with the prepared artifact manifest be
 			const record = reloaded.tasks[0].launchBootstrap.records[0];
 			const authority = reloaded.tasks[0].launchAuthority.records[0];
 			assert.equal(reloaded.tasks[0].status, "running");
-			assert.equal(record.backend.id, "agent-workflow/runtime");
 			assert.equal(
 				authority.grant.launchBootstrapSha256,
 				record.identitySha256,
 			);
 			assert.deepEqual(authority.state, {
 				phase: "consumed",
-				backendRunId: "bootstrap-run",
-				backendAttemptId: "bootstrap-attempt",
+				workerRunId: "bootstrap-run",
+				workerAttemptId: "bootstrap-attempt",
 			});
 			assert.ok(record.artifacts.manifestSha256);
 			assert.ok(record.artifacts.configSha256);
@@ -5564,8 +5511,8 @@ test("launch-bootstrap provenance reloads with the prepared artifact manifest be
 test("workflow launch authority is deterministic and enforces its lifecycle", async () => {
 	const cwd = makeProject();
 	try {
-		const fixture = makeSubagentLaunchFixture(cwd, "authority-lifecycle");
-		const prepared = await prepareSubagentTaskLaunch(
+		const fixture = makeWorkerLaunchFixture(cwd, "authority-lifecycle");
+		const prepared = await prepareWorkerTaskLaunch(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -5576,20 +5523,17 @@ test("workflow launch authority is deterministic and enforces its lifecycle", as
 			fixture.run,
 			fixture.task,
 			fixture.compiledTask,
-			"agent-workflow/runtime",
 			prepared,
 		);
 		recordLaunchBootstrapProvenance(fixture.task, provenance);
 		const first = createWorkflowLaunchAuthority(
 			fixture.run,
 			fixture.task,
-			"agent-workflow/runtime",
 			provenance,
 		);
 		const repeat = createWorkflowLaunchAuthority(
 			fixture.run,
 			fixture.task,
-			"agent-workflow/runtime",
 			provenance,
 		);
 		assert.deepEqual(
@@ -5601,12 +5545,7 @@ test("workflow launch authority is deterministic and enforces its lifecycle", as
 		issueWorkflowLaunchAuthority(fixture.task, repeat);
 		assert.equal(fixture.task.launchAuthority.records.length, 1);
 		assert.equal(fixture.task.launchAuthority.records[0].state.phase, "issued");
-		registerWorkflowLaunchAuthority(
-			fixture.run,
-			fixture.task,
-			first,
-			"agent-workflow/runtime",
-		);
+		registerWorkflowLaunchAuthority(fixture.run, fixture.task, first);
 		assert.equal(
 			fixture.task.launchAuthority.records[0].state.phase,
 			"registered",
@@ -5614,28 +5553,22 @@ test("workflow launch authority is deterministic and enforces its lifecycle", as
 		consumeWorkflowLaunchAuthority(
 			fixture.task,
 			first,
-			"backend-run",
-			"backend-attempt",
+			"worker-run",
+			"worker-attempt",
 		);
 		consumeWorkflowLaunchAuthority(
 			fixture.task,
 			first,
-			"backend-run",
-			"backend-attempt",
+			"worker-run",
+			"worker-attempt",
 		);
 		assert.deepEqual(fixture.task.launchAuthority.records[0].state, {
 			phase: "consumed",
-			backendRunId: "backend-run",
-			backendAttemptId: "backend-attempt",
+			workerRunId: "worker-run",
+			workerAttemptId: "worker-attempt",
 		});
 		assert.throws(
-			() =>
-				registerWorkflowLaunchAuthority(
-					fixture.run,
-					fixture.task,
-					first,
-					"agent-workflow/runtime",
-				),
+			() => registerWorkflowLaunchAuthority(fixture.run, fixture.task, first),
 			/already consumed/,
 		);
 		assert.throws(
@@ -5644,9 +5577,9 @@ test("workflow launch authority is deterministic and enforces its lifecycle", as
 					fixture.task,
 					first,
 					"different-run",
-					"backend-attempt",
+					"worker-attempt",
 				),
-			/backend identity mismatch/,
+			/worker identity mismatch/,
 		);
 
 		const foreign = structuredClone(first);
@@ -5671,12 +5604,12 @@ test("workflow launch authority is deterministic and enforces its lifecycle", as
 	}
 });
 
-test("subagent launch self-bootstraps authority and refuses a consumed duplicate", async () => {
+test("worker launch self-bootstraps authority and refuses a consumed duplicate", async () => {
 	const cwd = makeProject();
 	let launches = 0;
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: "authority-run",
@@ -5684,18 +5617,18 @@ test("subagent launch self-bootstraps authority and refuses a consumed duplicate
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
-		const fixture = makeSubagentLaunchFixture(cwd, "authority-direct");
-		await launchSubagentTask(
+		const fixture = makeWorkerLaunchFixture(cwd, "authority-direct");
+		await launchWorkerTask(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -5703,8 +5636,8 @@ test("subagent launch self-bootstraps authority and refuses a consumed duplicate
 		);
 		const record = fixture.task.launchAuthority.records[0];
 		assert.equal(record.state.phase, "consumed");
-		assert.equal(record.state.backendRunId, "authority-run");
-		assert.equal(record.state.backendAttemptId, "authority-attempt");
+		assert.equal(record.state.workerRunId, "authority-run");
+		assert.equal(record.state.workerAttemptId, "authority-attempt");
 		assert.equal(
 			record.grant.launchBootstrapSha256,
 			fixture.task.launchBootstrap.records[0].identitySha256,
@@ -5717,10 +5650,10 @@ test("subagent launch self-bootstraps authority and refuses a consumed duplicate
 
 		fixture.task.status = "pending";
 		fixture.task.statusDetail = "pending";
-		fixture.task.backendHandle = undefined;
-		fixture.task.backendTaskId = "";
+		fixture.task.workerHandle = undefined;
+		fixture.task.workerTaskId = "";
 		fixture.task.pid = undefined;
-		const duplicate = await launchSubagentTask(
+		const duplicate = await launchWorkerTask(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -5731,7 +5664,7 @@ test("subagent launch self-bootstraps authority and refuses a consumed duplicate
 		assert.equal(launches, 1);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		rmSync(cwd, {
 			recursive: true,
 			force: true,
@@ -5741,7 +5674,7 @@ test("subagent launch self-bootstraps authority and refuses a consumed duplicate
 	}
 });
 
-test("concurrent same-attempt launch calls invoke runSubagent once", async () => {
+test("concurrent same-attempt launch calls invoke runWorker once", async () => {
 	const cwd = makeProject();
 	let launches = 0;
 	let releaseAcknowledgement;
@@ -5750,7 +5683,7 @@ test("concurrent same-attempt launch calls invoke runSubagent once", async () =>
 	});
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				await acknowledgement;
 				return {
@@ -5759,24 +5692,24 @@ test("concurrent same-attempt launch calls invoke runSubagent once", async () =>
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
-		const fixture = makeSubagentLaunchFixture(cwd, "authority-concurrent");
-		const first = launchSubagentTask(
+		const fixture = makeWorkerLaunchFixture(cwd, "authority-concurrent");
+		const first = launchWorkerTask(
 			cwd,
 			fixture.run,
 			fixture.task,
 			fixture.compiledTask,
 		);
-		const second = launchSubagentTask(
+		const second = launchWorkerTask(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -5794,7 +5727,7 @@ test("concurrent same-attempt launch calls invoke runSubagent once", async () =>
 	} finally {
 		releaseAcknowledgement?.();
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		rmSync(cwd, {
 			recursive: true,
 			force: true,
@@ -5804,12 +5737,12 @@ test("concurrent same-attempt launch calls invoke runSubagent once", async () =>
 	}
 });
 
-test("subagent launch rejects hook-mutated authority before runSubagent", async () => {
+test("worker launch rejects hook-mutated authority before runWorker", async () => {
 	const cwd = makeProject();
 	let launches = 0;
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: "unexpected",
@@ -5817,18 +5750,18 @@ test("subagent launch rejects hook-mutated authority before runSubagent", async 
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
-		const fixture = makeSubagentLaunchFixture(cwd, "authority-drift");
-		const prepared = await prepareSubagentTaskLaunch(
+		const fixture = makeWorkerLaunchFixture(cwd, "authority-drift");
+		const prepared = await prepareWorkerTaskLaunch(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -5839,25 +5772,23 @@ test("subagent launch rejects hook-mutated authority before runSubagent", async 
 			fixture.run,
 			fixture.task,
 			fixture.compiledTask,
-			"agent-workflow/runtime",
 			prepared,
 		);
 		recordLaunchBootstrapProvenance(fixture.task, provenance);
 		const authority = createWorkflowLaunchAuthority(
 			fixture.run,
 			fixture.task,
-			"agent-workflow/runtime",
 			provenance,
 		);
 		issueWorkflowLaunchAuthority(fixture.task, authority);
 		const authorized = { ...prepared, authority };
-		setSubagentLaunchControlsForTests({
-			beforeRunSubagent() {
+		setWorkerLaunchControlsForTests({
+			beforeRunWorker() {
 				authorized.authority.identitySha256 = "0".repeat(64);
 			},
 		});
 		await assert.rejects(
-			launchSubagentTask(
+			launchWorkerTask(
 				cwd,
 				fixture.run,
 				fixture.task,
@@ -5871,7 +5802,7 @@ test("subagent launch rejects hook-mutated authority before runSubagent", async 
 		assert.equal(launches, 0);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		rmSync(cwd, {
 			recursive: true,
 			force: true,
@@ -5884,12 +5815,12 @@ test("subagent launch rejects hook-mutated authority before runSubagent", async 
 // WP38: ported with the runtime launch request's fields. Pi extensions and the tool-result budget
 // are not runtime options (the Pi executor owns them), so the late mutation targets the tools, the
 // tool-call capture flag and the compiled tool list; the request must keep the validated values.
-test("subagent launch detaches validated options from post-registration mutation", async () => {
+test("worker launch detaches validated options from post-registration mutation", async () => {
 	const cwd = makeProject();
 	let launches = 0;
 	try {
-		const fixture = makeSubagentLaunchFixture(cwd, "authority-detached");
-		const prepared = await prepareSubagentTaskLaunch(
+		const fixture = makeWorkerLaunchFixture(cwd, "authority-detached");
+		const prepared = await prepareWorkerTaskLaunch(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -5900,20 +5831,18 @@ test("subagent launch detaches validated options from post-registration mutation
 			fixture.run,
 			fixture.task,
 			fixture.compiledTask,
-			"agent-workflow/runtime",
 			prepared,
 		);
 		recordLaunchBootstrapProvenance(fixture.task, provenance);
 		const authority = createWorkflowLaunchAuthority(
 			fixture.run,
 			fixture.task,
-			"agent-workflow/runtime",
 			provenance,
 		);
 		issueWorkflowLaunchAuthority(fixture.task, authority);
 		const authorized = { ...prepared, authority };
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launches += 1;
 				assert.deepEqual(options.tools, ["read"]);
 				assert.equal(options.captureToolCalls, undefined);
@@ -5924,23 +5853,23 @@ test("subagent launch detaches validated options from post-registration mutation
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
-		setSubagentLaunchControlsForTests({
+		setWorkerLaunchControlsForTests({
 			afterLaunchAuthorityRegistered() {
 				authorized.captureToolCalls = true;
 				fixture.compiledTask.runtime.tools.push("grep");
 			},
 		});
-		const result = await launchSubagentTask(
+		const result = await launchWorkerTask(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -5953,7 +5882,7 @@ test("subagent launch detaches validated options from post-registration mutation
 		assert.equal(launches, 1);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		rmSync(cwd, {
 			recursive: true,
 			force: true,
@@ -5963,12 +5892,12 @@ test("subagent launch detaches validated options from post-registration mutation
 	}
 });
 
-test("subagent launch rejects authority owned by a foreign current run", async () => {
+test("worker launch rejects authority owned by a foreign current run", async () => {
 	const cwd = makeProject();
 	let launches = 0;
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: "unexpected",
@@ -5976,18 +5905,18 @@ test("subagent launch rejects authority owned by a foreign current run", async (
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
-		const fixture = makeSubagentLaunchFixture(cwd, "authority-foreign-run");
-		const prepared = await prepareSubagentTaskLaunch(
+		const fixture = makeWorkerLaunchFixture(cwd, "authority-foreign-run");
+		const prepared = await prepareWorkerTaskLaunch(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -5998,14 +5927,12 @@ test("subagent launch rejects authority owned by a foreign current run", async (
 			fixture.run,
 			fixture.task,
 			fixture.compiledTask,
-			"agent-workflow/runtime",
 			prepared,
 		);
 		recordLaunchBootstrapProvenance(fixture.task, provenance);
 		const authority = createWorkflowLaunchAuthority(
 			fixture.run,
 			fixture.task,
-			"agent-workflow/runtime",
 			provenance,
 		);
 		issueWorkflowLaunchAuthority(fixture.task, authority);
@@ -6015,7 +5942,7 @@ test("subagent launch rejects authority owned by a foreign current run", async (
 			tasks: [fixture.task],
 		};
 		await assert.rejects(
-			launchSubagentTask(
+			launchWorkerTask(
 				cwd,
 				invokedRun,
 				fixture.task,
@@ -6029,7 +5956,7 @@ test("subagent launch rejects authority owned by a foreign current run", async (
 		assert.equal(launches, 0);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		rmSync(cwd, {
 			recursive: true,
 			force: true,
@@ -6044,7 +5971,7 @@ test("registered launch authority defers replay and fails closed when recovery i
 	let launches = 0;
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: "unexpected",
@@ -6052,18 +5979,18 @@ test("registered launch authority defers replay and fails closed when recovery i
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
-		const fixture = makeSubagentLaunchFixture(cwd, "authority-registered");
-		const prepared = await prepareSubagentTaskLaunch(
+		const fixture = makeWorkerLaunchFixture(cwd, "authority-registered");
+		const prepared = await prepareWorkerTaskLaunch(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -6074,24 +6001,17 @@ test("registered launch authority defers replay and fails closed when recovery i
 			fixture.run,
 			fixture.task,
 			fixture.compiledTask,
-			"agent-workflow/runtime",
 			prepared,
 		);
 		recordLaunchBootstrapProvenance(fixture.task, provenance);
 		const authority = createWorkflowLaunchAuthority(
 			fixture.run,
 			fixture.task,
-			"agent-workflow/runtime",
 			provenance,
 		);
 		issueWorkflowLaunchAuthority(fixture.task, authority);
-		registerWorkflowLaunchAuthority(
-			fixture.run,
-			fixture.task,
-			authority,
-			"agent-workflow/runtime",
-		);
-		const replay = await launchSubagentTask(
+		registerWorkflowLaunchAuthority(fixture.run, fixture.task, authority);
+		const replay = await launchWorkerTask(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -6109,7 +6029,7 @@ test("registered launch authority defers replay and fails closed when recovery i
 		);
 
 		fixture.task.startedAt = new Date(Date.now() - 120_000).toISOString();
-		const refreshed = await refreshRunFromSubagentArtifacts(cwd, fixture.run);
+		const refreshed = await refreshRunFromWorkerArtifacts(cwd, fixture.run);
 		assert.equal(refreshed.tasks[0].status, "failed");
 		assert.equal(
 			refreshed.tasks[0].statusDetail,
@@ -6119,7 +6039,7 @@ test("registered launch authority defers replay and fails closed when recovery i
 		assert.equal(launches, 0);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		rmSync(cwd, {
 			recursive: true,
 			force: true,

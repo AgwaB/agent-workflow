@@ -6,7 +6,7 @@ import {
 	appendDynamicEvent,
 	artifactGraphWorkflowSpec,
 	assert,
-	captureSubagentPrompts,
+	captureWorkerPrompts,
 	completeTask,
 	compileWorkflow,
 	createWorkflowRunRecord,
@@ -114,7 +114,7 @@ function opIdHashMap(events) {
 
 test("artifactGraph dynamic decision-loop replay keeps identical requestHash for every task.generated op across coordination-bearing rounds (AC5a)", async () => {
 	const cwd = makeProject();
-	const prompts = captureSubagentPrompts([]);
+	const prompts = captureWorkerPrompts([]);
 	try {
 		const { run } = await buildCoordinationDecisionLoopRun(cwd);
 
@@ -252,7 +252,7 @@ test("artifactGraph dynamic decision-loop replay keeps identical requestHash for
 
 test("artifactGraph dynamic decision-loop replay fails closed when a digest-only-era recorded planner request diverges from the coordination-bearing regeneration (AC5b)", async () => {
 	const cwd = makeProject();
-	const prompts = captureSubagentPrompts([]);
+	const prompts = captureWorkerPrompts([]);
 	try {
 		const { run } = await buildCoordinationDecisionLoopRun(cwd);
 

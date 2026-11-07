@@ -8,7 +8,7 @@ import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { isDeepStrictEqual } from "node:util";
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
-import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
+import { setWorkerLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import { readRunRecord } from "../../dist/core/store.js";
 import * as api from "../../dist/hosts/api.js";
 import {
@@ -246,7 +246,7 @@ test("dashboard HTTP observes, streams and stops a real multi-task workflow", {
 				await api.stopAction(ctx, { runId });
 		} finally {
 			unregister?.();
-			setSubagentLaunchControlsForTests({});
+			setWorkerLaunchControlsForTests({});
 			await rm(cwd, {
 				recursive: true,
 				force: true,
@@ -255,7 +255,7 @@ test("dashboard HTTP observes, streams and stops a real multi-task workflow", {
 			});
 		}
 	});
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
 	await writeFile(
 		join(cwd, ".agent-workflow", "agents", "reader.md"),
@@ -460,7 +460,7 @@ test("dashboard stop recovers an escalated worker without a terminal finalizer",
 				await api.stopAction(ctx, { runId });
 		} finally {
 			unregister?.();
-			setSubagentLaunchControlsForTests({});
+			setWorkerLaunchControlsForTests({});
 			await rm(cwd, {
 				recursive: true,
 				force: true,
@@ -469,7 +469,7 @@ test("dashboard stop recovers an escalated worker without a terminal finalizer",
 			});
 		}
 	});
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
 	await writeFile(
 		join(cwd, ".agent-workflow", "agents", "reader.md"),

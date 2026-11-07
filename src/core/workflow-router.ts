@@ -12,9 +12,9 @@ import {
 	WORKFLOW_AUTO_COMPARE_CORRELATION_ID,
 } from "./auto-router-runs.js";
 import {
-	runOneShotSubagentCall,
-	type OneShotSubagentEnvelope,
-} from "./task-backend.js";
+	runOneShotWorkerCall,
+	type OneShotWorkerEnvelope,
+} from "./task-runner.js";
 import {
 	listWorkflowRoutingSpecs,
 	WORKFLOW_ROUTING_CATALOG_BOUNDS,
@@ -289,7 +289,7 @@ export interface WorkflowAutoRequest {
 
 interface TaskConstraints {
 	noWorkflow: boolean;
-	noSubagent: boolean;
+	noWorker: boolean;
 	noNetwork: boolean;
 	explicitNoExternalModel: boolean;
 	ambiguousTransmission: boolean;
@@ -569,7 +569,7 @@ async function sendPreparedWorkflowAuto(
 			localChoiceScope: "all-safe",
 		};
 	} catch {
-		// Backend/provider errors can contain provider-controlled or local details.
+		// Worker/provider errors can contain provider-controlled or local details.
 		// Do not surface them in generic recommendation output.
 		return unavailable(
 			catalog,
@@ -1401,8 +1401,8 @@ function applyCandidateGates(
 	};
 	if (candidate.kind !== "direct" && constraints.noWorkflow)
 		block("The task explicitly forbids workflow execution.");
-	if (candidate.kind !== "direct" && constraints.noSubagent)
-		block("The task explicitly forbids subagents.");
+	if (candidate.kind !== "direct" && constraints.noWorker)
+		block("The task explicitly forbids workers.");
 	if (
 		candidate.kind !== "direct" &&
 		(constraints.noNetwork ||
@@ -1460,7 +1460,7 @@ function applyCandidateGates(
 		constraints.noNetwork ||
 		constraints.readOnlyOnly ||
 		constraints.noWorkflow ||
-		constraints.noSubagent;
+		constraints.noWorker;
 	if (
 		explicitSafetyBoundary &&
 		(candidate.facts.hasSupport || candidate.facts.hasDynamic)
@@ -1635,10 +1635,9 @@ function inspectTaskConstraints(task: string): TaskConstraints {
 		);
 	return {
 		noWorkflow: /\b(?:no workflows?|without workflows?)\b/.test(text),
-		noSubagent:
-			/\b(?:no subagents?|without subagents?|single[- ]agent only)\b/.test(
-				text,
-			),
+		noWorker: /\b(?:no workers?|without workers?|single[- ]agent only)\b/.test(
+			text,
+		),
 		noNetwork,
 		explicitNoExternalModel,
 		ambiguousTransmission: noNetwork && !explicitNoExternalModel,
@@ -1709,7 +1708,7 @@ async function runPinnedWorkflowAutoComparison(
 	if (request.executor === undefined)
 		throw new Error("workflow auto comparison requires an explicit executor");
 	await registerProject(request.cwd);
-	const envelope = await runOneShotSubagentCall({
+	const envelope = await runOneShotWorkerCall({
 		cwd: stateBase(request.cwd),
 		executor: request.executor,
 		task: packet,
@@ -1743,7 +1742,7 @@ async function runPinnedWorkflowAutoComparison(
 
 async function readOneShotOutput(
 	cwd: string,
-	envelope: OneShotSubagentEnvelope,
+	envelope: OneShotWorkerEnvelope,
 ): Promise<string> {
 	if (
 		!isSafeAutoRouterId(envelope.runId) ||

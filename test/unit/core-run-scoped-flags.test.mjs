@@ -106,7 +106,7 @@ let root;
 const unregister = [];
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-run-flags-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -122,7 +122,7 @@ before(async () => {
 });
 after(async () => {
 	for (const undo of unregister.splice(0)) undo();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	delete process.env[EXPERIMENTAL_TOOL_DEDUP_ENV];
 	await rm(root, {
 		recursive: true,

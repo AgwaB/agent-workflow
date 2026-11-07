@@ -15,9 +15,9 @@ import {
 	executionPlanDigest,
 	isExecutionNotStartedError,
 	NO_DEADLINE_MS,
-	runSubagent,
+	runWorker,
 	statusForFailureClass,
-	SubagentValidationError,
+	WorkerValidationError,
 	summarizeUsage,
 	validateRuntimeRunInput,
 } from "../../dist/runtime/index.js";
@@ -111,7 +111,7 @@ function scriptedExecutor({
 
 async function runWith(executor, input = {}) {
 	const module = `inline:${executor.id}`;
-	return await runSubagent({
+	return await runWorker({
 		cwd: await cwd(),
 		executor: descriptorFor(module, executor.id),
 		task: "test task",
@@ -340,7 +340,7 @@ test("post-release submit failure asks executor.reconcile: unknown → needs_dec
 		module,
 		createFakeExecutorModule({ faults: { crashAfterConsume: true } }),
 	);
-	const result = await runSubagent({
+	const result = await runWorker({
 		cwd: await cwd(),
 		executor: descriptorFor(module),
 		task: "crash after consume",
@@ -381,7 +381,7 @@ test("timeout after release cancels (owned) and records timeout with partial out
 			],
 		}),
 	);
-	const result = await runSubagent({
+	const result = await runWorker({
 		cwd: await cwd(),
 		executor: descriptorFor(module),
 		task: "slow",
@@ -435,7 +435,7 @@ test("approval requests are answered by policy: readOnly + mutating kind → den
 			],
 		}),
 	);
-	const result = await runSubagent({
+	const result = await runWorker({
 		cwd: await cwd(),
 		executor: descriptorFor(module),
 		task: "try an edit",
@@ -565,25 +565,11 @@ test("resubmitting the same attempt from a fresh executor instance produces no s
 test("runtime input validation refuses unsupported request fields and requires an executor", async () => {
 	const executor = fixtureDescriptor({ effectLog: join(root, "unused.jsonl") });
 	assert.equal(validateRuntimeRunInput({ task: "x" }).ok, false);
-	for (const key of [
-		"agent",
-		"backend",
-		"extensions",
-		"noExtensions",
-		"thinking",
-		"thinkingLevel",
-		"reasoningLevel",
-		"agentScope",
-		"confirmProjectAgents",
-		"roleContext",
-		"skills",
-		"toolResultBudget",
-		"visible",
-	]) {
+	for (const key of ["unknownField", "executorId"]) {
 		const validation = validateRuntimeRunInput({
 			executor,
 			task: "x",
-			[key]: key === "noExtensions" ? true : "v",
+			[key]: "v",
 		});
 		assert.equal(validation.ok, false, key);
 		assert.equal(
@@ -593,9 +579,9 @@ test("runtime input validation refuses unsupported request fields and requires a
 		);
 	}
 	assert.match(
-		validateRuntimeRunInput({ executor, tasks: [{ task: "x", agent: "a" }] })
+		validateRuntimeRunInput({ executor, tasks: [{ task: "x", extra: "a" }] })
 			.failure.error,
-		/unsupported request field tasks\[0\]\.agent/u,
+		/unsupported request field tasks\[0\]\.extra/u,
 	);
 	assert.equal(
 		validateRuntimeRunInput({ executor, task: "x", readOnly: "yes" }).ok,
@@ -623,17 +609,16 @@ test("runtime input validation refuses unsupported request fields and requires a
 	});
 	assert.equal(ok.ok, true);
 	assert.equal(ok.input.parentSessionId, "parent-1");
-	assert.equal(ok.input.backend, undefined, "no Pi backend field");
 	await assert.rejects(
-		runSubagent({ executor, backend: "headless", task: "x" }),
+		runWorker({ executor, unknownField: "x", task: "x" }),
 		(error) =>
-			error instanceof SubagentValidationError &&
+			error instanceof WorkerValidationError &&
 			error.failureKind === "validation",
 	);
 	await assert.rejects(
-		runSubagent({ executor }),
+		runWorker({ executor }),
 		(error) =>
-			error instanceof SubagentValidationError &&
+			error instanceof WorkerValidationError &&
 			/requires a non-empty task/u.test(error.message),
 	);
 });
@@ -738,7 +723,7 @@ test("captureToolCalls: normalized tool_call events produce the ported telemetry
 			],
 		}),
 	);
-	const result = await runSubagent({
+	const result = await runWorker({
 		cwd: await cwd(),
 		executor: descriptorFor(module),
 		task: "use tools",
@@ -768,7 +753,7 @@ test("captureToolCalls: normalized tool_call events produce the ported telemetry
 		failed: 1,
 		incomplete: 0,
 	});
-	const plain = await runSubagent({
+	const plain = await runWorker({
 		cwd: await cwd(),
 		executor: descriptorFor(module),
 		task: "no capture",

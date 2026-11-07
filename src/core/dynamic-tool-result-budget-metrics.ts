@@ -56,8 +56,8 @@ export interface DynamicToolResultBudgetRollup {
 	unavailableAttempts: number;
 	configuredAttempts: number;
 	disabledConfigurationAttempts: number;
-	backendEnabledAttempts: number;
-	backendDisabledAttempts: number;
+	workerEnabledAttempts: number;
+	workerDisabledAttempts: number;
 	evictionCounterExpectedAttempts: number;
 	evictionCounterReportingAttempts: number;
 	observedEvictedCount: number;
@@ -75,7 +75,7 @@ export interface DynamicToolResultBudgetRollup {
 	maxUtilization: number | null;
 	utilizationSamples: number[];
 	configuredCapValues: number[];
-	backendCapValues: number[];
+	workerCapValues: number[];
 	incomplete: boolean;
 }
 
@@ -199,7 +199,7 @@ export function summarizeToolResultBudgetAttempts(
 			return value === undefined ? [] : [value];
 		}),
 	);
-	const backendMaxTotalChars = consistentValue(
+	const workerMaxTotalChars = consistentValue(
 		attempts.flatMap((attempt) => {
 			const value = positive(attempt.maxTotalChars);
 			return value === undefined ? [] : [value];
@@ -223,10 +223,10 @@ export function summarizeToolResultBudgetAttempts(
 		disabledConfigurationAttempts: attempts.filter(
 			(attempt) => attempt.configured === false,
 		).length,
-		backendEnabledAttempts: attempts.filter(
+		workerEnabledAttempts: attempts.filter(
 			(attempt) => attempt.enabled === true,
 		).length,
-		backendDisabledAttempts: attempts.filter(
+		workerDisabledAttempts: attempts.filter(
 			(attempt) => attempt.enabled === false,
 		).length,
 		evictionCounterExpectedAttempts,
@@ -271,7 +271,7 @@ export function summarizeToolResultBudgetAttempts(
 		...(configuredMaxTotalChars === undefined
 			? {}
 			: { configuredMaxTotalChars }),
-		...(backendMaxTotalChars === undefined ? {} : { backendMaxTotalChars }),
+		...(workerMaxTotalChars === undefined ? {} : { workerMaxTotalChars }),
 		...optionalMaximum(
 			"maxToolResults",
 			attempts.map((attempt) => finiteNonNegative(attempt.toolResults)),
@@ -341,8 +341,8 @@ function buildRollup(
 		unavailableAttempts: summary.unavailableAttempts,
 		configuredAttempts: summary.configuredAttempts,
 		disabledConfigurationAttempts: summary.disabledConfigurationAttempts,
-		backendEnabledAttempts: summary.backendEnabledAttempts,
-		backendDisabledAttempts: summary.backendDisabledAttempts,
+		workerEnabledAttempts: summary.workerEnabledAttempts,
+		workerDisabledAttempts: summary.workerDisabledAttempts,
 		evictionCounterExpectedAttempts: summary.evictionCounterExpectedAttempts,
 		evictionCounterReportingAttempts: summary.evictionCounterReportingAttempts,
 		observedEvictedCount: summary.observedEvictedCount,
@@ -365,7 +365,7 @@ function buildRollup(
 				return value === undefined ? [] : [value];
 			}),
 		),
-		backendCapValues: sortedUnique(
+		workerCapValues: sortedUnique(
 			attempts.flatMap((attempt) => {
 				const value = positive(attempt.maxTotalChars);
 				return value === undefined ? [] : [value];

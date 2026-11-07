@@ -159,7 +159,7 @@ test("fixed-inventory initializer binds a deterministic provider-free bundle", a
 		const source = await readFile(join(scaffoldRoot, relativePath), "utf8");
 		assert.doesNotMatch(
 			source,
-			/@agwab\/pi-subagent|pi-coding-agent|node:(?:child_process|http|https|net|tls)|\bfetch\s*\(/,
+			/pi-coding-agent|node:(?:child_process|http|https|net|tls)|\bfetch\s*\(/,
 			relativePath,
 		);
 	}

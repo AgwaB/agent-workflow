@@ -405,7 +405,7 @@ The Pi extension provides `/aw`, four agent tools, a run board, a profile picker
 
 ### Pi install
 
-Requires Pi 1.1 or newer. Pi supplies the optional `@earendil-works/pi-coding-agent`, `pi-ai` and `pi-tui` peer dependencies.
+Requires Pi 1.1 or newer. Pi supplies the optional `@earendil-works/pi-coding-agent` and `pi-ai` peer dependencies.
 
 ```sh
 # One invocation, without changing Pi settings:

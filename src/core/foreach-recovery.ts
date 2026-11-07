@@ -1,5 +1,5 @@
 import { stateBase } from "./state-location.js";
-import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
+import { type WorkerRunStatusSnapshot } from "./runtime-port.js";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -49,7 +49,7 @@ type TerminalForeachBatchMaterializationInput = {
 	record: WorkflowForeachBatchRecord;
 	rawOutput: string;
 	stderr: string;
-	snapshot: SubagentRunStatusSnapshot;
+	snapshot: WorkerRunStatusSnapshot;
 	status: "completed" | "failed" | "interrupted";
 	completedAt: string;
 	startedAt?: string;
@@ -114,10 +114,10 @@ async function persistTerminalForeachBatchEvidence(
 		completedAt: input.completedAt,
 		startedAt: input.startedAt,
 		exitCode: input.exitCode,
-		backend: {
+		worker: {
 			runId: input.snapshot.runId,
 			attemptId: input.snapshot.attemptId,
-			backend: input.snapshot.backend,
+			executorId: input.snapshot.executorId,
 			failureKind: input.snapshot.failureKind,
 		},
 		rawSha256: sha256Text(input.rawOutput),
@@ -128,8 +128,8 @@ async function persistTerminalForeachBatchEvidence(
 		rawPath: toStatePath(input.cwd, rawFile),
 		receiptPath: toStatePath(input.cwd, receiptFile),
 		rawSha256: sha256Text(input.rawOutput),
-		backendRunId: input.snapshot.runId,
-		backendAttemptId: input.snapshot.attemptId,
+		workerRunId: input.snapshot.runId,
+		workerAttemptId: input.snapshot.attemptId,
 		status: input.status,
 		completedAt: input.completedAt,
 		...(input.startedAt === undefined ? {} : { startedAt: input.startedAt }),
@@ -329,9 +329,9 @@ async function commitTerminalForeachBatch(
 			exitCode,
 			lastMessage: "completed from foreach batch demux",
 		});
-		delete task.backendHandle;
-		delete task.backendFiles;
-		if (task.foreachBatch?.role === "member") task.backendTaskId = task.taskId;
+		delete task.workerHandle;
+		delete task.workerFiles;
+		if (task.foreachBatch?.role === "member") task.workerTaskId = task.taskId;
 	}
 	await writeRunRecord(cwd, run);
 	return true;
@@ -346,7 +346,7 @@ export async function materializeTerminalForeachBatchResult(
 			input.cwd,
 			input.run,
 			input.record,
-			`batch backend terminal ${input.status}`,
+			`batch worker terminal ${input.status}`,
 		);
 		return true;
 	}
@@ -387,8 +387,7 @@ export async function recoverForeachBatchRuntime(
 					cwd,
 					run,
 					record,
-					record.fallback?.reason ??
-						`batch backend terminal ${terminal.status}`,
+					record.fallback?.reason ?? `batch worker terminal ${terminal.status}`,
 				);
 				changed = true;
 				continue;
@@ -423,7 +422,7 @@ export async function recoverForeachBatchRuntime(
 		}
 		if (record.phase !== "launching") continue;
 		const [leader, member] = foreachBatchTasks(run, record);
-		if (leader.status === "pending" && !leader.backendHandle) {
+		if (leader.status === "pending" && !leader.workerHandle) {
 			if (record.dispatch?.state === "reserved") {
 				const reason =
 					"dispatch reservation has no durable terminal receipt; refusing reuse";

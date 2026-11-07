@@ -69,7 +69,6 @@ export async function createLaunchBootstrapProvenance(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
 	preparedTask: CompiledTask,
-	backendId: string,
 	preparedLaunch: PreparedWorkflowTaskLaunch = {
 		captureToolCalls: false,
 	},
@@ -132,7 +131,6 @@ export async function createLaunchBootstrapProvenance(
 				: { physicalAttempt: task.foreachBatch.physicalAttempt }),
 		},
 		...(sessionId === undefined ? {} : { sessionId }),
-		backend: { id: backendId, type: run.backend.type, mode: run.backend.mode },
 		prompt: {
 			sha256: sha256Text(preparedTask.compiledPrompt),
 			bytes: Buffer.byteLength(preparedTask.compiledPrompt, "utf8"),
@@ -281,7 +279,6 @@ export async function assertPreparedLaunchMatchesRecordedProvenance(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
 	preparedTask: CompiledTask,
-	backendId: string,
 	preparedLaunch: PreparedWorkflowTaskLaunch,
 	identitySha256: string,
 ): Promise<void> {
@@ -294,7 +291,6 @@ export async function assertPreparedLaunchMatchesRecordedProvenance(
 		run,
 		task,
 		preparedTask,
-		backendId,
 		preparedLaunch,
 	);
 	if (canonicalJson(recorded) !== canonicalJson(current))
@@ -401,7 +397,6 @@ function isValidLaunchBootstrapRecord(
 		!isTask(value.task) ||
 		!isAttempt(value.attempt) ||
 		(value.sessionId !== undefined && !isSessionId(value.sessionId)) ||
-		!isBackend(value.backend) ||
 		!isPrompt(value.prompt) ||
 		(value.artifacts !== undefined && !isArtifacts(value.artifacts)) ||
 		!isEffectiveLaunch(value.effectiveLaunch) ||
@@ -450,7 +445,6 @@ function hasSameHistoryOwner(
 		candidate.runId === current.runId &&
 		canonicalJson(candidate.workflow) === canonicalJson(current.workflow) &&
 		canonicalJson(candidate.task) === canonicalJson(current.task) &&
-		canonicalJson(candidate.backend) === canonicalJson(current.backend) &&
 		(candidate.sessionId === undefined) === (current.sessionId === undefined)
 	);
 }
@@ -463,7 +457,6 @@ const recordKeys = [
 	"task",
 	"attempt",
 	"sessionId",
-	"backend",
 	"prompt",
 	"artifacts",
 	"effectiveLaunch",
@@ -478,7 +471,6 @@ const requiredRecordKeys = [
 	"runId",
 	"task",
 	"attempt",
-	"backend",
 	"prompt",
 	"effectiveLaunch",
 	"effectivePolicy",
@@ -523,16 +515,6 @@ function isAttempt(value: unknown): boolean {
 			(typeof value.physicalAttempt === "number" &&
 				Number.isSafeInteger(value.physicalAttempt) &&
 				value.physicalAttempt >= 1))
-	);
-}
-
-function isBackend(value: unknown): boolean {
-	return (
-		isRecord(value) &&
-		hasExactKeys(value, ["id", "type", "mode"]) &&
-		nonEmptyString(value.id) &&
-		value.type === "local" &&
-		value.mode === "headless"
 	);
 }
 
@@ -788,7 +770,7 @@ async function artifactIdentity(
 		manifestSha256: sha256Canonical(manifest),
 		configSha256: sha256Canonical(config),
 		// WP5b: the spec as launched, including the --max-output-chars limit derived from the
-		// run's recorded probe (task-backend preparedMcpServers uses the same derivation).
+		// run's recorded probe (task-worker preparedMcpServers uses the same derivation).
 		serverSpecSha256: sha256Canonical(
 			withArtifactMcpOutputLimit(
 				artifactMcpServerSpec(config),

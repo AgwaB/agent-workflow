@@ -115,14 +115,14 @@ async function latestAttemptDir(
 ): Promise<string | undefined> {
 	const taskRoot = join(
 		dirname(workflowsRoot(cwd)),
-		"workflow-subagents",
+		"worker-runs",
 		runId,
 		taskId,
 	);
 	let best: { dir: string; mtimeMs: number } | undefined;
-	const backendRuns = await readdir(taskRoot).catch(() => [] as string[]);
-	for (const backendRun of backendRuns) {
-		const attemptsRoot = join(taskRoot, backendRun, "attempts");
+	const workerRuns = await readdir(taskRoot).catch(() => [] as string[]);
+	for (const workerRun of workerRuns) {
+		const attemptsRoot = join(taskRoot, workerRun, "attempts");
 		const attempts = await readdir(attemptsRoot).catch(() => [] as string[]);
 		for (const attempt of attempts) {
 			const dir = join(attemptsRoot, attempt);

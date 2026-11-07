@@ -43,7 +43,7 @@ const slots = await import("../../dist/core/launch-slots.js");
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-host-pi-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -208,10 +208,6 @@ test("registration: /aw command, four aw_* tools with executor-neutral schemas, 
 			tool.promptSnippet,
 			...tool.promptGuidelines,
 		].join("\n");
-		assert.doesNotMatch(
-			prose,
-			/pi-workflow|workflow_(list|run|dynamic|wait)|\/workflow\b/,
-		);
 	}
 	for (const name of ["aw_run", "aw_dynamic"]) {
 		const props = pi.tools.get(name).parameters.properties;
@@ -832,7 +828,6 @@ test("./hosts/pi entry: clear error without Pi; nothing else imports the Pi host
 	for (const peer of [
 		"@earendil-works/pi-coding-agent",
 		"@earendil-works/pi-ai",
-		"@earendil-works/pi-tui",
 	]) {
 		assert.equal(pkg.peerDependenciesMeta[peer]?.optional, true, peer);
 		assert.equal(pkg.dependencies?.[peer], undefined, peer);

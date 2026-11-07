@@ -55,8 +55,8 @@ For host API launches, executor selection and permission mode follow one precede
 saved user profile > default (executor: the host's own CLI, in the terminal CLI the first installed
 and logged-in of pi → claude → codex; mode `free`). The run record keeps the executor descriptor, so a
 detached supervisor or a resumed run reloads the same adapter. A record without an executor fails
-closed; it does not select a fallback. One-shot calls require an explicit executor. The task backend
-identity is `local/headless`; workflow specs do not accept `defaults.backend`.
+closed; it does not select a fallback. One-shot calls require an explicit executor. Every task runs through one
+task runner on the runtime API.
 
 ### Durable worker, launch barrier, control mailbox
 
@@ -132,7 +132,7 @@ Run state (paths below are relative to `.agent-workflow/` inside the
 | `workflows/<run-id>/tasks/<task-id>/` | `task.md`, `system-prompt.md`, `control.json`, `analysis.md`, `refs.json`, `raw.md`, `read-ledger.jsonl`, `source-manifest.json`, `artifact-access.json`, `result.json`, logs, the task's launch-barrier directory |
 | `workflows/<run-id>/supervise.log` | Detached supervisor log (`--detach` only) |
 | `workflows/index.json` | Run index of the project |
-| `workflow-subagents/<run-id>/<task-id>/<runtime-run-id>/` | Runtime run of one task: `run.json`, `events.jsonl`, `attempts/<attempt-id>/` with `worker.json`, `executor.json`, `authority.json`, `control/`, `exec-events.jsonl`, raw CLI logs, `result.json` |
+| `worker-runs/<run-id>/<task-id>/<runtime-run-id>/` | Runtime run of one task: `run.json`, `events.jsonl`, `attempts/<attempt-id>/` with `worker.json`, `executor.json`, `authority.json`, `control/`, `exec-events.jsonl`, raw CLI logs, `result.json` |
 | `ocr-artifacts/` | deep-review OCR artifacts (trusted root) |
 
 Repository definitions stay in `<cwd>/workflows/`, `<cwd>/.agent-workflow/workflows/` (specs)
@@ -636,7 +636,7 @@ allow `worker` / `disabled` processes only `validate` and `help`.
 | `listWorkflowsAction` | `{query?, offset?, limit?}` | `{workflows, total, nextOffset?, omitted}`; entries include name, aliases, specPath, description?, agent?, readOnly? |
 | `validateWorkflowAction` | `{workflow}` | `{valid, name?, specPath, workflowName?, type, tasks, roles, maxConcurrency, blockedPermissionPreviews, warnings}` |
 | `workflowRolesAction` | `{workflow}` | `{specPath, roles}` |
-| `listAgentsAction` | — | `{agents}` with name, displayName, description?, scope, legacySource?, model?, effort?, tools?, readOnly?, sourcePath |
+| `listAgentsAction` | — | `{agents}` with name, displayName, description?, scope, model?, effort?, tools?, readOnly?, sourcePath |
 | `showAction` | `{ref, raw?, snapshot?, includeTaskLogs?, includeReport?, includeTask?}` | Run: `{kind: "run", run, launch?, taskLogIds?, report?, runtimeTask?}`; workflow: `{kind: "workflow", specPath, spec}` |
 | `profileAction` | list/show/set/delete/default/presets (below) | `{op, path, default?, profiles?, profile?, deleted?, presets?}` |
 | `workflowPreferenceAction` | `{op: "list"}` / `{op: "show", workflow}` / `{op: "set", workflow, profile?, roles?, unset?}` / `{op: "clear", workflow}` | `{op, path, workflow?, preference?, preferences?, cleared?}` |
@@ -922,7 +922,7 @@ node dist/mcp/artifact-server/server.js --config <task>/artifact-access.json [--
   - `offset`: integer ≥ 0, a character offset for a paged whole-artifact read. It cannot be
     combined with `path`, `maxItems` or `maxChars` (tool error). See [Paged reads](#paged-reads).
 - `annotations`: `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: false` (each read appends a ledger row), `openWorldHint: false`.
-- **Guidelines:** `WORKFLOW_ARTIFACT_TOOL_GUIDELINES` are sent as the server `instructions`, one `-` bullet per line. Not every client puts server instructions into the model context (Pi 1.1 does not), so the task backend also puts the guidelines into the worker system prompt.
+- **Guidelines:** `WORKFLOW_ARTIFACT_TOOL_GUIDELINES` are sent as the server `instructions`, one `-` bullet per line. Not every client puts server instructions into the model context (Pi 1.1 does not), so the task runner also puts the guidelines into the worker system prompt.
 - **Results:**
   - The result is a single `content` text item. Its text is identical to the core tool's text whenever it fits the delivery bound.
   - Tool-level failures return `isError: true` and the core failure payload (`status: "blocked"`, `code: "artifact_read_failed"`, …).
@@ -1025,7 +1025,7 @@ Whole-artifact reads can span pages while preserving required-read assurance.
   | Codex | 32,000 chars (`tool_output_token_limit` 10,000 pinned) | 0 | 1,600 | **30,400** |
   | unknown | — | — | — | none (server default 8,192) |
 
-- `preparedMcpServers(launch, {artifactOutputLimitChars})` (task backend) appends the flag to the
+- `preparedMcpServers(launch, {artifactOutputLimitChars})` (task runner) appends the flag to the
   `workflow_artifact` server, with `artifactServerOutputLimitForRun(run)`. Other servers are not
   touched.
 - **Provenance.** `launch-bootstrap-provenance` digests `artifacts.serverSpecSha256` over the spec
@@ -1086,5 +1086,5 @@ A CLI may cut an MCP result again after the server returns it. The server theref
 | `pi` | `mcp__workflow_artifact__workflow_artifact` | Non-alphanumeric/underscore characters become `_`; collision gets a hash suffix |
 | other | `mcp__workflow_artifact__workflow_artifact` | Fallback convention |
 
-The task backend renders worker prompts with this name and includes the tool guidelines in each
+The task runner renders worker prompts with this name and includes the tool guidelines in each
 worker system prompt that has the artifact server.

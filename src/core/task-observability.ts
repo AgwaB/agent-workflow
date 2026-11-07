@@ -1,5 +1,5 @@
 // Usage summaries report the attempt's model.
-import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
+import { type WorkerRunStatusSnapshot } from "./runtime-port.js";
 import {
 	normalizedToolResultBudgetValues,
 	summarizeToolResultBudgetAttempts,
@@ -200,13 +200,13 @@ export function metadataRecord(
 }
 
 function usageObservation(
-	subagentResult: Record<string, unknown> | undefined,
-	snapshot: SubagentRunStatusSnapshot,
+	workerResult: Record<string, unknown> | undefined,
+	snapshot: WorkerRunStatusSnapshot,
 ): { source: string; raw: unknown; present: true } | undefined {
-	const resultMetadata = metadataRecord(subagentResult);
+	const resultMetadata = metadataRecord(workerResult);
 	if (resultMetadata && hasOwnValue(resultMetadata, "usage")) {
 		return {
-			source: "subagent-result-metadata",
+			source: "worker-result-metadata",
 			raw: resultMetadata.usage,
 			present: true,
 		};
@@ -216,22 +216,22 @@ function usageObservation(
 		: undefined;
 	if (snapshotMetadata && hasOwnValue(snapshotMetadata, "usage")) {
 		return {
-			source: "subagent-snapshot-metadata",
+			source: "worker-snapshot-metadata",
 			raw: snapshotMetadata.usage,
 			present: true,
 		};
 	}
-	if (subagentResult && hasOwnValue(subagentResult, "usage")) {
+	if (workerResult && hasOwnValue(workerResult, "usage")) {
 		return {
-			source: "subagent-result",
-			raw: subagentResult.usage,
+			source: "worker-result",
+			raw: workerResult.usage,
 			present: true,
 		};
 	}
 	const snapshotRecord = snapshot;
 	if (hasOwnValue(snapshotRecord, "usage")) {
 		return {
-			source: "subagent-snapshot",
+			source: "worker-snapshot",
 			raw: snapshotRecord.usage,
 			present: true,
 		};
@@ -241,15 +241,15 @@ function usageObservation(
 
 function buildTaskUsageAttempt(options: {
 	task: WorkflowTaskRunRecord;
-	snapshot: SubagentRunStatusSnapshot;
-	subagentResult?: Record<string, unknown>;
+	snapshot: WorkerRunStatusSnapshot;
+	workerResult?: Record<string, unknown>;
 	capturedAt: string;
 }): WorkflowTaskUsageAttemptRecord {
-	const resultMetadata = metadataRecord(options.subagentResult);
+	const resultMetadata = metadataRecord(options.workerResult);
 	const snapshotMetadata = isPlainRecord(options.snapshot.metadata)
 		? options.snapshot.metadata
 		: undefined;
-	const resultRecord = options.subagentResult;
+	const resultRecord = options.workerResult;
 	const snapshotRecord = options.snapshot;
 	const records = [
 		resultMetadata,
@@ -257,7 +257,7 @@ function buildTaskUsageAttempt(options: {
 		resultRecord,
 		snapshotRecord,
 	];
-	const observed = usageObservation(options.subagentResult, options.snapshot);
+	const observed = usageObservation(options.workerResult, options.snapshot);
 	const raw = observed?.raw;
 	const unavailable = !observed || raw === null || raw === undefined;
 	const provider = firstStringValue(records, ["provider"]);
@@ -272,10 +272,10 @@ function buildTaskUsageAttempt(options: {
 		options.task.runtime.effortResolution?.resolved ??
 		options.task.runtime.effort;
 	return {
-		source: observed?.source ?? "subagent-usage-unavailable",
+		source: observed?.source ?? "worker-usage-unavailable",
 		capturedAt: options.capturedAt,
-		backendRunId: options.snapshot.runId,
-		backendAttemptId: options.snapshot.attemptId,
+		workerRunId: options.snapshot.runId,
+		workerAttemptId: options.snapshot.attemptId,
 		...(provider === undefined ? {} : { provider }),
 		...(model === undefined ? {} : { model }),
 		...(effort === undefined ? {} : { effort }),
@@ -286,7 +286,7 @@ function buildTaskUsageAttempt(options: {
 }
 
 function usageAttemptKey(attempt: WorkflowTaskUsageAttemptRecord): string {
-	return `${attempt.backendRunId ?? ""}\0${attempt.backendAttemptId ?? ""}`;
+	return `${attempt.workerRunId ?? ""}\0${attempt.workerAttemptId ?? ""}`;
 }
 
 function upsertUsageAttempt(
@@ -345,8 +345,8 @@ function latestUsageString(
 
 function recordTaskUsageObservation(options: {
 	task: WorkflowTaskRunRecord;
-	snapshot: SubagentRunStatusSnapshot;
-	subagentResult?: Record<string, unknown>;
+	snapshot: WorkerRunStatusSnapshot;
+	workerResult?: Record<string, unknown>;
 	capturedAt: string;
 }): void {
 	const attempt = buildTaskUsageAttempt(options);
@@ -386,13 +386,13 @@ interface DynamicTaskToolResultBudgetConfiguration {
 }
 
 function toolResultBudgetObservation(
-	subagentResult: Record<string, unknown> | undefined,
-	snapshot: SubagentRunStatusSnapshot,
+	workerResult: Record<string, unknown> | undefined,
+	snapshot: WorkerRunStatusSnapshot,
 ): { source: string; raw: unknown } | undefined {
-	const resultMetadata = metadataRecord(subagentResult);
+	const resultMetadata = metadataRecord(workerResult);
 	if (resultMetadata && hasOwnValue(resultMetadata, "toolResultBudget")) {
 		return {
-			source: "subagent-result-metadata",
+			source: "worker-result-metadata",
 			raw: resultMetadata.toolResultBudget,
 		};
 	}
@@ -401,20 +401,20 @@ function toolResultBudgetObservation(
 		: undefined;
 	if (snapshotMetadata && hasOwnValue(snapshotMetadata, "toolResultBudget")) {
 		return {
-			source: "subagent-snapshot-metadata",
+			source: "worker-snapshot-metadata",
 			raw: snapshotMetadata.toolResultBudget,
 		};
 	}
-	if (subagentResult && hasOwnValue(subagentResult, "toolResultBudget")) {
+	if (workerResult && hasOwnValue(workerResult, "toolResultBudget")) {
 		return {
-			source: "subagent-result",
-			raw: subagentResult.toolResultBudget,
+			source: "worker-result",
+			raw: workerResult.toolResultBudget,
 		};
 	}
 	const snapshotRecord = snapshot;
 	if (hasOwnValue(snapshotRecord, "toolResultBudget")) {
 		return {
-			source: "subagent-snapshot",
+			source: "worker-snapshot",
 			raw: snapshotRecord.toolResultBudget,
 		};
 	}
@@ -435,15 +435,15 @@ function firstBooleanValue(
 
 function buildTaskToolResultBudgetAttempt(options: {
 	task: WorkflowTaskRunRecord;
-	snapshot: SubagentRunStatusSnapshot;
-	subagentResult?: Record<string, unknown>;
+	snapshot: WorkerRunStatusSnapshot;
+	workerResult?: Record<string, unknown>;
 	capturedAt: string;
 }): WorkflowTaskToolResultBudgetAttemptRecord {
-	const resultMetadata = metadataRecord(options.subagentResult);
+	const resultMetadata = metadataRecord(options.workerResult);
 	const snapshotMetadata = isPlainRecord(options.snapshot.metadata)
 		? options.snapshot.metadata
 		: undefined;
-	const resultRecord = options.subagentResult;
+	const resultRecord = options.workerResult;
 	const snapshotRecord = options.snapshot;
 	const metadataRecords = [
 		resultMetadata,
@@ -452,7 +452,7 @@ function buildTaskToolResultBudgetAttempt(options: {
 		snapshotRecord,
 	];
 	const observed = toolResultBudgetObservation(
-		options.subagentResult,
+		options.workerResult,
 		options.snapshot,
 	);
 	const reported = observed !== undefined && isPlainRecord(observed.raw);
@@ -469,10 +469,10 @@ function buildTaskToolResultBudgetAttempt(options: {
 		"contextRecovered",
 	);
 	return {
-		source: observed?.source ?? "subagent-tool-result-budget-unavailable",
+		source: observed?.source ?? "worker-tool-result-budget-unavailable",
 		capturedAt: options.capturedAt,
-		backendRunId: options.snapshot.runId,
-		backendAttemptId: options.snapshot.attemptId,
+		workerRunId: options.snapshot.runId,
+		workerAttemptId: options.snapshot.attemptId,
 		terminal: true,
 		...(reported
 			? { reported: true as const }
@@ -489,7 +489,7 @@ function buildTaskToolResultBudgetAttempt(options: {
 function toolResultBudgetAttemptKey(
 	attempt: WorkflowTaskToolResultBudgetAttemptRecord,
 ): string {
-	return `${attempt.backendRunId ?? ""}\0${attempt.backendAttemptId ?? ""}`;
+	return `${attempt.workerRunId ?? ""}\0${attempt.workerAttemptId ?? ""}`;
 }
 
 function configuredAttemptFields(
@@ -630,8 +630,8 @@ export function recordTaskToolResultBudgetPendingConfiguration(options: {
 
 export function bindTaskToolResultBudgetPendingConfiguration(options: {
 	task: WorkflowTaskRunRecord;
-	backendRunId: string;
-	backendAttemptId: string;
+	workerRunId: string;
+	workerAttemptId: string;
 	capturedAt: string;
 }): void {
 	const pendingConfiguration =
@@ -642,8 +642,8 @@ export function bindTaskToolResultBudgetPendingConfiguration(options: {
 		attempt: {
 			source: "agent-workflow-launch",
 			capturedAt: options.capturedAt,
-			backendRunId: options.backendRunId,
-			backendAttemptId: options.backendAttemptId,
+			workerRunId: options.workerRunId,
+			workerAttemptId: options.workerAttemptId,
 			...configuredAttemptFields(pendingConfiguration),
 		},
 		clearPendingConfiguration: true,
@@ -668,12 +668,12 @@ export function clearTaskToolResultBudgetPendingConfiguration(
 
 function recordTaskToolResultBudgetObservation(options: {
 	task: WorkflowTaskRunRecord;
-	snapshot: SubagentRunStatusSnapshot;
-	subagentResult?: Record<string, unknown>;
+	snapshot: WorkerRunStatusSnapshot;
+	workerResult?: Record<string, unknown>;
 	capturedAt: string;
 }): void {
 	const observed = toolResultBudgetObservation(
-		options.subagentResult,
+		options.workerResult,
 		options.snapshot,
 	);
 	if (
@@ -853,13 +853,13 @@ export function recordTaskLaunchTiming(
 
 function buildTaskTimingAttempt(options: {
 	task: WorkflowTaskRunRecord;
-	snapshot: SubagentRunStatusSnapshot;
-	subagentResult?: Record<string, unknown>;
+	snapshot: WorkerRunStatusSnapshot;
+	workerResult?: Record<string, unknown>;
 	startedAt?: string;
 	completedAt?: string;
 	capturedAt: string;
 }): WorkflowTaskTimingAttemptRecord {
-	const resultDuration = options.subagentResult?.durationMs;
+	const resultDuration = options.workerResult?.durationMs;
 	let executionMs = durationNumber(
 		resultDuration === undefined ? options.snapshot.durationMs : resultDuration,
 	);
@@ -874,8 +874,8 @@ function buildTaskTimingAttempt(options: {
 	return {
 		source: "executor",
 		capturedAt: options.capturedAt,
-		backendRunId: options.snapshot.runId,
-		backendAttemptId: options.snapshot.attemptId,
+		workerRunId: options.snapshot.runId,
+		workerAttemptId: options.snapshot.attemptId,
 		...(options.task.timing?.launchQueuedAt === undefined
 			? {}
 			: { launchQueuedAt: options.task.timing.launchQueuedAt }),
@@ -909,7 +909,7 @@ function buildTaskTimingAttempt(options: {
 }
 
 function timingAttemptKey(attempt: WorkflowTaskTimingAttemptRecord): string {
-	return `${attempt.backendRunId ?? ""}\0${attempt.backendAttemptId ?? ""}`;
+	return `${attempt.workerRunId ?? ""}\0${attempt.workerAttemptId ?? ""}`;
 }
 
 function upsertTimingAttempt(
@@ -959,8 +959,8 @@ function aggregateTimingAttempts(
 
 function recordTaskTerminalTiming(options: {
 	task: WorkflowTaskRunRecord;
-	snapshot: SubagentRunStatusSnapshot;
-	subagentResult?: Record<string, unknown>;
+	snapshot: WorkerRunStatusSnapshot;
+	workerResult?: Record<string, unknown>;
 	startedAt?: string;
 	completedAt?: string;
 	capturedAt: string;
@@ -1030,8 +1030,8 @@ function recordTaskTerminalTiming(options: {
 
 export function recordTerminalTaskObservability(options: {
 	task: WorkflowTaskRunRecord;
-	snapshot: SubagentRunStatusSnapshot;
-	subagentResult?: Record<string, unknown>;
+	snapshot: WorkerRunStatusSnapshot;
+	workerResult?: Record<string, unknown>;
 	startedAt?: string;
 	completedAt?: string;
 }): void {
@@ -1042,7 +1042,7 @@ export function recordTerminalTaskObservability(options: {
 }
 
 /** Read-only snapshot: no slot reset, waiter wake-up, or mutable queue handles. */
-export function subagentLaunchSlotStateForTests(): {
+export function workerLaunchSlotStateForTests(): {
 	active: number;
 	queued: number;
 } {

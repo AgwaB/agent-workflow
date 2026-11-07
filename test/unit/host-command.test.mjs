@@ -21,7 +21,7 @@ import {
 	writeRunRecord,
 } from "../../dist/core/store.js";
 import { projectId } from "../../dist/core/state-location.js";
-import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
+import { setWorkerLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import {
 	handleHostCommand,
 	parseHostCommand,
@@ -39,7 +39,7 @@ import {
 import { stateDir } from "../helpers/state-dir.mjs";
 import * as plugins from "../../tools/release/plugins.mjs";
 
-setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 const repo = resolve(import.meta.dirname, "../..");
 const session = "aabbccdd-1122-3344-5566-aabbccddeeff";
 let counter = 0;

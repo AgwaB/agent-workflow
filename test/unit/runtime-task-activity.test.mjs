@@ -18,12 +18,12 @@ import {
 	ActivityHeartbeat,
 } from "../../dist/runtime/telemetry/task-activity.js";
 import {
-	runSubagent,
-	getSubagentStatus,
-	waitForSubagent,
+	runWorker,
+	getWorkerStatus,
+	waitForWorker,
 	readRunRecord,
 } from "../../dist/runtime/index.js";
-import { runSubagentTask } from "../../dist/runtime/orchestrate/run.js";
+import { runWorkerTask } from "../../dist/runtime/orchestrate/run.js";
 import { fixtureDescriptor } from "../fixtures/runtime/fake-executor-module.mjs";
 
 const AT = "2026-11-01T10:00:00.000Z";
@@ -381,8 +381,8 @@ for (const async of [false, true]) {
 			};
 			// Foreground's run id is supplied so its live registry can also be polled.
 			const running = async
-				? await runSubagent(request)
-				: runSubagentTask({
+				? await runWorker(request)
+				: runWorkerTask({
 						input: request,
 						cwd,
 						runId: "activity-foreground",
@@ -391,7 +391,7 @@ for (const async of [false, true]) {
 			let seen;
 			const deadline = Date.now() + 20_000;
 			while (Date.now() < deadline) {
-				const snapshot = await getSubagentStatus({ cwd, runId });
+				const snapshot = await getWorkerStatus({ cwd, runId });
 				seen = snapshot?.attempts?.find(
 					(attempt) => attempt.activity,
 				)?.activity;
@@ -402,7 +402,7 @@ for (const async of [false, true]) {
 			assert.equal(seen?.kind, "read");
 			assert.ok(Number.isFinite(Date.parse(seen.at)));
 			if (!async) await running;
-			const terminal = await waitForSubagent({
+			const terminal = await waitForWorker({
 				cwd,
 				runId,
 				timeoutMs: 20_000,

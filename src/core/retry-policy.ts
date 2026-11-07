@@ -302,7 +302,7 @@ export function classifyPermanentModelFailure(options: {
 	stderrText: string;
 	outputBytes: number;
 	contextLengthExceeded: boolean;
-	subagentResult?: Record<string, unknown>;
+	workerResult?: Record<string, unknown>;
 	snapshotMetadata?: Record<string, unknown> | null;
 }): string | undefined {
 	if (
@@ -317,7 +317,7 @@ export function classifyPermanentModelFailure(options: {
 		options.statusInfo.errorMessage,
 		options.errorMessage,
 		options.stderrText,
-		...metadataTextValues(options.subagentResult?.metadata),
+		...metadataTextValues(options.workerResult?.metadata),
 		...metadataTextValues(options.snapshotMetadata),
 	].filter(
 		(value): value is string => typeof value === "string" && value.length > 0,
@@ -474,13 +474,13 @@ export function transientModelRateLimitBackoffMs(options: {
 	modelBackoffKey?: string;
 	errorMessage?: string;
 	stderrText: string;
-	subagentResult?: Record<string, unknown>;
+	workerResult?: Record<string, unknown>;
 	snapshotMetadata?: Record<string, unknown> | null;
 }): number | undefined {
 	const candidates = [
 		options.errorMessage,
 		options.stderrText,
-		...metadataTextValues(options.subagentResult?.metadata),
+		...metadataTextValues(options.workerResult?.metadata),
 		...metadataTextValues(options.snapshotMetadata),
 	].filter(
 		(value): value is string => typeof value === "string" && value.length > 0,
@@ -553,7 +553,7 @@ export function resolveWorkflowRetryLimit(
 	return value;
 }
 
-export function retryOrFailTransientSubagentFailure(
+export function retryOrFailTransientWorkerFailure(
 	task: WorkflowTaskRunRecord,
 	options: { reason: string; message: string; backoffMs?: number },
 ): boolean {
@@ -582,8 +582,8 @@ export function retryOrFailTransientSubagentFailure(
 			? {}
 			: { nextEligibleAt, retryAfterMs: backoffMs }),
 	};
-	delete task.backendHandle;
-	delete task.backendFiles;
+	delete task.workerHandle;
+	delete task.workerFiles;
 	task.pid = undefined;
 	task.startedAt = undefined;
 	task.completedAt = undefined;
@@ -637,8 +637,8 @@ export function retryOrFailArtifactGraphTask(
 			: { sessionId: options.sessionId }),
 	};
 	task.outputRetry = outputRetry;
-	delete task.backendHandle;
-	delete task.backendFiles;
+	delete task.workerHandle;
+	delete task.workerFiles;
 	task.pid = undefined;
 	task.startedAt = undefined;
 	task.completedAt = undefined;

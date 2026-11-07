@@ -233,7 +233,7 @@ type JsonRecord = Record<string, unknown>;
 
 const WORKFLOW_ARTIFACT_KIND_SET = new Set<string>(WORKFLOW_ARTIFACT_KINDS);
 // This cache is intentionally process-local: workflow workers load this tool
-// inside the subagent task process, so duplicate-read suppression cannot carry
+// inside the worker task process, so duplicate-read suppression cannot carry
 // across attempts unless the tool host is deliberately hoisted in the future.
 const workflowArtifactReadDedupCache = new Map<
 	string,

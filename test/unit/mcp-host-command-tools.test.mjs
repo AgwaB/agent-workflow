@@ -49,7 +49,7 @@ const clients = [];
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-mcp-wp28-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

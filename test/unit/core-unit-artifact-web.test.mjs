@@ -43,10 +43,10 @@ import {
 	canStageProceedAfterPreviousFailure,
 	canonicalDynamicDecision,
 	canonicalPackageVerificationStatus,
-	captureParentSubagentEnv,
-	captureSubagentPrompts,
+	captureParentWorkerEnv,
+	captureWorkerPrompts,
 	checkRequiredArtifactReads,
-	cleanupSubagentRun,
+	cleanupWorkerRun,
 	closeSync,
 	compactStrings,
 	compileWorkflow,
@@ -100,7 +100,7 @@ import {
 	isTestWideCodePoint,
 	isWorkflowSupervisorEnabled,
 	join,
-	launchSubagentTask,
+	launchWorkerTask,
 	listWorkflowArtifactSources,
 	listWorkflows,
 	loadAgentByName,
@@ -111,7 +111,7 @@ import {
 	loopWorkflowSpec,
 	makeDynamicDecisionLoopCtx,
 	makeProject,
-	makeSubagentLaunchFixture,
+	makeWorkerLaunchFixture,
 	makeValidatingDynamicDecisionLoopCtx,
 	markDagDependentsSkipped,
 	mkdirSync,
@@ -122,7 +122,7 @@ import {
 	observeLiveModelWorkerCompletion,
 	openSync,
 	packageVerificationStatusBucket,
-	parentSubagentEnvKeys,
+	parentWorkerEnvKeys,
 	parseAgentMarkdown,
 	parsePublicWorkflow,
 	parseWorkflow,
@@ -144,7 +144,7 @@ import {
 	rebuildDynamicState,
 	recordDynamicControllerPhase,
 	recordSharedModelRateLimitBackoffForTests,
-	refreshRunFromSubagentArtifacts,
+	refreshRunFromWorkerArtifacts,
 	refreshZeroOutputModelFailure,
 	resetTaskForResume,
 	resolveFlowsCwd,
@@ -152,7 +152,7 @@ import {
 	resolveWorkflowHelperRef,
 	resolveWorkflowRef,
 	resolveWorkflowRuntime,
-	restoreParentSubagentEnv,
+	restoreParentWorkerEnv,
 	resumeRun,
 	rmSync,
 	runDynamicControllerEngineIntegrityCheckForTests,
@@ -162,10 +162,10 @@ import {
 	runWorkflowSpec,
 	scheduleRun,
 	setIndexUpdateDebounceMsForTests,
-	setParentSubagentEnv,
+	setParentWorkerEnv,
 	setRunLeaseTestHooksForTests,
 	setTaskRuntimeApiForTests as setRawApi,
-	setSubagentLaunchControlsForTests,
+	setWorkerLaunchControlsForTests,
 	setTaskTerminal,
 	setWorkflowOutputArtifactWriteHookForTests,
 	shouldScheduleAfterStageFailure,
@@ -223,7 +223,7 @@ import {
 	writeWorkflowTaskArtifactBundle,
 } from "../helpers/unit-test-support.mjs";
 import { setForeachMaterializationPersistenceHookForTests } from "../../dist/core/engine.js";
-import { prepareSubagentTaskLaunch } from "../../dist/core/task-backend.js";
+import { prepareWorkerTaskLaunch } from "../../dist/core/task-runner.js";
 
 test("public schemaVersion 1 parser accepts artifact graph and rejects non-artifactGraph top-level shapes", () => {
 	const parsed = parsePublicWorkflow(
@@ -905,11 +905,11 @@ test("artifact graph schema enforces launch-time invariants", () => {
 	const backendAuto = assertThrowsFlow(() =>
 		parsePublicWorkflow(
 			artifactGraphWorkflowSpec({
-				defaults: { agent: "unit-scout", backend: { mode: "auto" } },
+				defaults: { agent: "unit-scout", executorId: { mode: "auto" } },
 			}),
 		),
 	);
-	assertIssue(backendAuto, "$.defaults.backend", "unknown field");
+	assertIssue(backendAuto, "$.defaults.executorId", "unknown field");
 
 	assert.doesNotThrow(() =>
 		parsePublicWorkflow(
@@ -1390,7 +1390,7 @@ test("artifactGraph runtime foreach repairs compiled/run mismatch after material
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launched += 1;
 				return {
 					runId: `run_foreach_repair_${launched}`,
@@ -1398,13 +1398,13 @@ test("artifactGraph runtime foreach repairs compiled/run mismatch after material
 					status: "running",
 				};
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -3159,7 +3159,7 @@ test("artifactGraph scheduler does not consume concurrency for synchronous suppo
 			"export default async function helper() { return { analysis: 'Support helper summary.' }; }\n",
 		);
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				prompts.push(String(options.task ?? ""));
 				return {
 					runId: `run_stub_${prompts.length}`,
@@ -3167,13 +3167,13 @@ test("artifactGraph scheduler does not consume concurrency for synchronous suppo
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -3223,7 +3223,7 @@ test("artifactGraph runtime scheduler launches empty-after roots in parallel", a
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				prompts.push(String(options.task ?? ""));
 				return {
 					runId: `run_stub_${prompts.length}`,
@@ -3231,13 +3231,13 @@ test("artifactGraph runtime scheduler launches empty-after roots in parallel", a
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -3289,7 +3289,7 @@ test("artifactGraph runtime after dependencies do not inject order-only source c
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				prompts.push(String(options.task ?? ""));
 				return {
 					runId: `run_stub_${prompts.length}`,
@@ -3297,13 +3297,13 @@ test("artifactGraph runtime after dependencies do not inject order-only source c
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -3402,7 +3402,7 @@ test("artifactGraph runtime diamond fan-out launches branches in parallel and jo
 	const prompts = [];
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts(prompts);
+		captureWorkerPrompts(prompts);
 		const spec = workflowSpec("unit-scout", {
 			artifactGraph: {
 				stages: [
@@ -3502,7 +3502,7 @@ test("artifactGraph runtime dag container waits for outer sources and skips stri
 	const prompts = [];
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts(prompts);
+		captureWorkerPrompts(prompts);
 		const spec = dagContainerRuntimeSpec();
 		const compiled = await compileWorkflow(spec, {
 			cwd,
@@ -3571,7 +3571,7 @@ test("artifactGraph runtime partial dag join proceeds and exposes outputFrom dow
 	const prompts = [];
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts(prompts);
+		captureWorkerPrompts(prompts);
 		const spec = dagContainerRuntimeSpec({
 			finalSourcePolicy: "partial",
 			reportSourcePolicy: "partial",
@@ -3645,7 +3645,7 @@ test("artifactGraph runtime partial dag join proceeds and exposes outputFrom dow
 	}
 });
 
-test("failed context-window subagent with valid artifactGraph output is salvaged", async () => {
+test("failed context-window worker with valid artifactGraph output is salvaged", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -3678,18 +3678,15 @@ test("failed context-window subagent with valid artifactGraph output is salvaged
 		task.status = "running";
 		task.statusDetail = "running";
 		task.startedAt = new Date().toISOString();
-		task.backendHandle = {
-			engine: "agent-workflow",
-			backend: "runtime",
+		task.workerHandle = {
 			runId: "run_context_failed",
 			attemptId: "attempt_context_failed",
 			cwd,
-			runsDir: ".agent-workflow/workflow-subagents/context-failed",
-			display:
-				"agent-workflow/runtime run_context_failed/attempt_context_failed",
+			runsDir: ".agent-workflow/worker-runs/context-failed",
+			display: "worker run run_context_failed/attempt_context_failed",
 		};
 
-		const artifactDir = join(cwd, ".fake-context-failed-subagent");
+		const artifactDir = join(cwd, ".fake-context-failed-worker");
 		mkdirSync(artifactDir, { recursive: true });
 		writeFileSync(
 			join(artifactDir, "output.log"),
@@ -3720,17 +3717,17 @@ test("failed context-window subagent with valid artifactGraph output is salvaged
 		);
 
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return {
 					runId: "run_context_failed",
 					attemptId: "attempt_context_failed",
-					backend: "headless",
+					executorId: "headless",
 					status: "failed",
 					failureKind: "model",
 					startedAt: task.startedAt,
@@ -3738,17 +3735,17 @@ test("failed context-window subagent with valid artifactGraph output is salvaged
 					logs: [
 						{
 							type: "output",
-							path: ".fake-context-failed-subagent/output.log",
+							path: ".fake-context-failed-worker/output.log",
 							artifactCwd: cwd,
 						},
 						{
 							type: "stderr",
-							path: ".fake-context-failed-subagent/stderr.log",
+							path: ".fake-context-failed-worker/stderr.log",
 							artifactCwd: cwd,
 						},
 						{
 							type: "result",
-							path: ".fake-context-failed-subagent/result.json",
+							path: ".fake-context-failed-worker/result.json",
 							artifactCwd: cwd,
 						},
 					],
@@ -3762,13 +3759,13 @@ test("failed context-window subagent with valid artifactGraph output is salvaged
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
 		await writeRunRecord(cwd, run);
-		const refreshed = await refreshRunFromSubagentArtifacts(
+		const refreshed = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
@@ -3794,7 +3791,7 @@ test("failed context-window subagent with valid artifactGraph output is salvaged
 	}
 });
 
-test("failed model subagent with valid artifactGraph output is salvaged", async () => {
+test("failed model worker with valid artifactGraph output is salvaged", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -3827,17 +3824,15 @@ test("failed model subagent with valid artifactGraph output is salvaged", async 
 		task.status = "running";
 		task.statusDetail = "running";
 		task.startedAt = new Date().toISOString();
-		task.backendHandle = {
-			engine: "agent-workflow",
-			backend: "runtime",
+		task.workerHandle = {
 			runId: "run_salvage",
 			attemptId: "attempt_salvage",
 			cwd,
-			runsDir: ".agent-workflow/workflow-subagents/salvage",
-			display: "agent-workflow/runtime run_salvage/attempt_salvage",
+			runsDir: ".agent-workflow/worker-runs/salvage",
+			display: "worker run run_salvage/attempt_salvage",
 		};
 
-		const artifactDir = join(cwd, ".fake-salvage-subagent");
+		const artifactDir = join(cwd, ".fake-salvage-worker");
 		mkdirSync(artifactDir, { recursive: true });
 		writeFileSync(
 			join(artifactDir, "output.log"),
@@ -3868,17 +3863,17 @@ test("failed model subagent with valid artifactGraph output is salvaged", async 
 		);
 
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return {
 					runId: "run_salvage",
 					attemptId: "attempt_salvage",
-					backend: "headless",
+					executorId: "headless",
 					status: "failed",
 					failureKind: "model",
 					startedAt: task.startedAt,
@@ -3886,17 +3881,17 @@ test("failed model subagent with valid artifactGraph output is salvaged", async 
 					logs: [
 						{
 							type: "output",
-							path: ".fake-salvage-subagent/output.log",
+							path: ".fake-salvage-worker/output.log",
 							artifactCwd: cwd,
 						},
 						{
 							type: "stderr",
-							path: ".fake-salvage-subagent/stderr.log",
+							path: ".fake-salvage-worker/stderr.log",
 							artifactCwd: cwd,
 						},
 						{
 							type: "result",
-							path: ".fake-salvage-subagent/result.json",
+							path: ".fake-salvage-worker/result.json",
 							artifactCwd: cwd,
 						},
 					],
@@ -3910,13 +3905,13 @@ test("failed model subagent with valid artifactGraph output is salvaged", async 
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
 		await writeRunRecord(cwd, run);
-		const refreshed = await refreshRunFromSubagentArtifacts(
+		const refreshed = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
@@ -3947,7 +3942,7 @@ test("failed model subagent with valid artifactGraph output is salvaged", async 
 	}
 });
 
-test("subagent launch retries rotate artifact-graph session ids", async () => {
+test("worker launch retries rotate artifact-graph session ids", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -3968,7 +3963,7 @@ test("subagent launch retries rotate artifact-graph session ids", async () => {
 		task.launchRetry = { attempts: 1, maxAttempts: 5, reason: "model" };
 		const launches = [];
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launches.push(options);
 				return {
 					runId: "run_retry_session",
@@ -3976,28 +3971,28 @@ test("subagent launch retries rotate artifact-graph session ids", async () => {
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 		try {
 			await writeRunRecord(cwd, run);
-			await launchSubagentTask(cwd, run, task, compiled.tasks[0]);
+			await launchWorkerTask(cwd, run, task, compiled.tasks[0]);
 			assert.equal(launches.length, 1);
 			// WP12a (D3): the rotated engine session id is the attempt identity; no CLI session is
 			// requested without experimental same-session repair.
 			assert.equal(launches[0].sessionId, undefined);
-			const sessionId = task.backendHandle.sessionId;
+			const sessionId = task.workerHandle.sessionId;
 			assert.match(sessionId, /\.launch-retry-1$/);
 			assert.ok(sessionId.length <= 64);
 			assert.match(sessionId, /^[A-Za-z0-9._-]+$/);
-			assert.equal(task.backendFiles.sessionId, sessionId);
+			assert.equal(task.workerFiles.sessionId, sessionId);
 		} finally {
 			setTaskRuntimeApiForTests(undefined);
 		}
@@ -5524,7 +5519,7 @@ test("artifact graph workflow runs workflow artifacts and enforces required read
 		let launchCount = 0;
 		const runs = new Map();
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launchCount += 1;
 				const runId = `run_artifact_${launchCount}`;
 				const attemptId = `attempt_artifact_${launchCount}`;
@@ -5632,15 +5627,15 @@ test("artifact graph workflow runs workflow artifacts and enforces required read
 				runs.set(runId, { runId, attemptId, artifactDir });
 				return { runId, attemptId, status: "running" };
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus({ runId }) {
+			async getWorkerStatus({ runId }) {
 				const run = runs.get(runId);
 				return {
 					runId,
 					attemptId: run.attemptId,
-					backend: "headless",
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt: new Date().toISOString(),
@@ -5668,7 +5663,7 @@ test("artifact graph workflow runs workflow artifacts and enforces required read
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -5720,7 +5715,7 @@ test("artifact graph workflow runs workflow artifacts and enforces required read
 	}
 });
 
-test("artifact graph output retry reuses confirmed subagent session", async () => {
+test("artifact graph output retry reuses confirmed worker session", async () => {
 	const cwd = makeProject();
 	const previousSameSessionRepair =
 		process.env[EXPERIMENTAL_SAME_SESSION_REPAIR_ENV];
@@ -5742,7 +5737,7 @@ test("artifact graph output retry reuses confirmed subagent session", async () =
 		const launched = [];
 		const runs = new Map();
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(options);
 				const runId = `run_session_${launched.length}`;
 				const attemptId = `attempt_session_${launched.length}`;
@@ -5791,15 +5786,15 @@ test("artifact graph output retry reuses confirmed subagent session", async () =
 				runs.set(runId, { runId, attemptId, artifactDir });
 				return { runId, attemptId, status: "running" };
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus({ runId }) {
+			async getWorkerStatus({ runId }) {
 				const run = runs.get(runId);
 				return {
 					runId,
 					attemptId: run.attemptId,
-					backend: "headless",
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt: new Date().toISOString(),
@@ -5827,7 +5822,7 @@ test("artifact graph output retry reuses confirmed subagent session", async () =
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -5883,7 +5878,7 @@ test("artifact graph output retry defaults to new session when same-session flag
 		const launched = [];
 		const runs = new Map();
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(options);
 				const runId = `run_default_off_${launched.length}`;
 				const attemptId = `attempt_default_off_${launched.length}`;
@@ -5932,15 +5927,15 @@ test("artifact graph output retry defaults to new session when same-session flag
 				runs.set(runId, { runId, attemptId, artifactDir });
 				return { runId, attemptId, status: "running" };
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus({ runId }) {
+			async getWorkerStatus({ runId }) {
 				const run = runs.get(runId);
 				return {
 					runId,
 					attemptId: run.attemptId,
-					backend: "headless",
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt: new Date().toISOString(),
@@ -5968,7 +5963,7 @@ test("artifact graph output retry defaults to new session when same-session flag
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -6027,7 +6022,7 @@ test("artifact graph output retry falls back to new session after same-session r
 		const launched = [];
 		const runs = new Map();
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(options);
 				const runId = `run_session_fallback_${launched.length}`;
 				const attemptId = `attempt_session_fallback_${launched.length}`;
@@ -6076,15 +6071,15 @@ test("artifact graph output retry falls back to new session after same-session r
 				runs.set(runId, { runId, attemptId, artifactDir });
 				return { runId, attemptId, status: "running" };
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus({ runId }) {
+			async getWorkerStatus({ runId }) {
 				const run = runs.get(runId);
 				return {
 					runId,
 					attemptId: run.attemptId,
-					backend: "headless",
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt: new Date().toISOString(),
@@ -6112,7 +6107,7 @@ test("artifact graph output retry falls back to new session after same-session r
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -6156,7 +6151,7 @@ test("artifact graph output retry falls back to new session after same-session r
 	}
 });
 
-test("artifact graph output retry starts new session when subagent session is unconfirmed", async () => {
+test("artifact graph output retry starts new session when worker session is unconfirmed", async () => {
 	const cwd = makeProject();
 	const previousSameSessionRepair =
 		process.env[EXPERIMENTAL_SAME_SESSION_REPAIR_ENV];
@@ -6178,7 +6173,7 @@ test("artifact graph output retry starts new session when subagent session is un
 		const launched = [];
 		const runs = new Map();
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(options);
 				const runId = `run_fallback_${launched.length}`;
 				const attemptId = `attempt_fallback_${launched.length}`;
@@ -6229,15 +6224,15 @@ test("artifact graph output retry starts new session when subagent session is un
 				runs.set(runId, { runId, attemptId, artifactDir });
 				return { runId, attemptId, status: "running" };
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus({ runId }) {
+			async getWorkerStatus({ runId }) {
 				const run = runs.get(runId);
 				return {
 					runId,
 					attemptId: run.attemptId,
-					backend: "headless",
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt: new Date().toISOString(),
@@ -6265,7 +6260,7 @@ test("artifact graph output retry starts new session when subagent session is un
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -6300,7 +6295,7 @@ test("artifact graph output retry starts new session when subagent session is un
 	}
 });
 
-test("recovered artifact graph subagent handle preserves same-session retry", async () => {
+test("recovered artifact graph worker handle preserves same-session retry", async () => {
 	const cwd = makeProject();
 	const previousSameSessionRepair =
 		process.env[EXPERIMENTAL_SAME_SESSION_REPAIR_ENV];
@@ -6311,7 +6306,7 @@ test("recovered artifact graph subagent handle preserves same-session retry", as
 		const artifactDir = join(
 			stateDir(cwd),
 			".agent-workflow",
-			"workflow-subagents",
+			"worker-runs",
 			"workflow_recovery",
 			"task-1",
 			"run_recovered",
@@ -6343,7 +6338,7 @@ test("recovered artifact graph subagent handle preserves same-session retry", as
 			join(
 				stateDir(cwd),
 				".agent-workflow",
-				"workflow-subagents",
+				"worker-runs",
 				"workflow_recovery",
 				"task-1",
 				"run_recovered",
@@ -6375,7 +6370,7 @@ test("recovered artifact graph subagent handle preserves same-session retry", as
 
 		let relaunched;
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				relaunched = options;
 				return {
 					runId: "run_relaunched",
@@ -6383,14 +6378,14 @@ test("recovered artifact graph subagent handle preserves same-session retry", as
 					status: "running",
 				};
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return {
 					runId: "run_recovered",
 					attemptId: "attempt_recovered",
-					backend: "headless",
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt: now,
@@ -6406,7 +6401,7 @@ test("recovered artifact graph subagent handle preserves same-session retry", as
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -6434,7 +6429,7 @@ test("recovered artifact graph subagent handle preserves same-session retry", as
 				baseCwd: null,
 				warning: null,
 			},
-			backendTaskId: "run_recovered",
+			workerTaskId: "run_recovered",
 			artifactGraph,
 			files: {
 				systemPrompt:
@@ -6467,14 +6462,13 @@ test("recovered artifact graph subagent handle preserves same-session retry", as
 				total: 1,
 			},
 			cwd,
-			backend: { type: "local", mode: "headless" },
 			createdAt: now,
 			updatedAt: now,
 			specPath: "workflow.json",
 			tasks: [task],
 		};
 
-		const refreshed = await refreshRunFromSubagentArtifacts(cwd, run);
+		const refreshed = await refreshRunFromWorkerArtifacts(cwd, run);
 		assert.equal(refreshed.tasks[0].status, "pending");
 		assert.equal(refreshed.tasks[0].outputRetry.repairMode, "same_session");
 		assert.equal(refreshed.tasks[0].outputRetry.sessionId, expectedSessionId);
@@ -6504,7 +6498,7 @@ test("recovered artifact graph subagent handle preserves same-session retry", as
 			{ tasks: [compiledTask] },
 			0,
 		);
-		await launchSubagentTask(cwd, refreshed, refreshed.tasks[0], preparedTask);
+		await launchWorkerTask(cwd, refreshed, refreshed.tasks[0], preparedTask);
 		assert.equal(relaunched.sessionId, expectedSessionId);
 	} finally {
 		if (previousSameSessionRepair === undefined)
@@ -6522,12 +6516,12 @@ test("recovered artifact graph subagent handle preserves same-session retry", as
 	}
 });
 
-test("non artifact graph subagent launches do not request child sessions", async () => {
+test("non artifact graph worker launches do not request child sessions", async () => {
 	const cwd = makeProject();
 	try {
 		let captured;
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				captured = options;
 				return {
 					runId: "run_plain",
@@ -6555,7 +6549,7 @@ test("non artifact graph subagent launches do not request child sessions", async
 				baseCwd: null,
 				warning: null,
 			},
-			backendTaskId: "",
+			workerTaskId: "",
 			files: {
 				systemPrompt:
 					".agent-workflow/workflows/workflow_plain/tasks/task-1/system.md",
@@ -6586,7 +6580,6 @@ test("non artifact graph subagent launches do not request child sessions", async
 				total: 1,
 			},
 			cwd,
-			backend: { type: "local", mode: "headless" },
 			createdAt: now,
 			updatedAt: now,
 			specPath: "workflow.json",
@@ -6610,7 +6603,7 @@ test("non artifact graph subagent launches do not request child sessions", async
 			safety: { capability: "read-only", reason: "test" },
 			compiledPrompt: "Plain prompt.",
 		};
-		await launchSubagentTask(cwd, run, task, compiledTask);
+		await launchWorkerTask(cwd, run, task, compiledTask);
 		assert.equal(captured.sessionId, undefined);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);

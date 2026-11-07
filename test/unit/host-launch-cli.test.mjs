@@ -6,7 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
-import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
+import { setWorkerLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import { runWorkflowAction, waitAction } from "../../dist/hosts/api.js";
 import { runAgentWorkflowCli } from "../../dist/hosts/cli/index.js";
 import { startDashboardServer } from "../helpers/dashboard-server.mjs";
@@ -20,7 +20,7 @@ import {
 	trackProcess,
 } from "../helpers/process-cleanup.mjs";
 let counter = 0;
-setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 async function project(t) {
 	const cwd = await mkdtemp(join(tmpdir(), "aw-wp43b-launch-"));
 	t.after(() =>

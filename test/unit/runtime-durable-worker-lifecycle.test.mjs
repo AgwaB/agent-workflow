@@ -20,20 +20,20 @@ import {
 	commitAttemptResultIfActive,
 	createAttemptArtifactStore,
 	DURABLE_WORKER_TASK_FILE,
-	discardSubagentExecution,
+	discardWorkerExecution,
 	finishAttemptFromResult,
-	getSubagentStatus,
-	interruptSubagent,
-	prepareSubagentExecution,
+	getWorkerStatus,
+	interruptWorker,
+	prepareWorkerExecution,
 	readRunEvents,
 	readRunRecord,
 	recordAttemptHeartbeat,
 	runtimeWorkerPath,
-	startAsyncSubagentRun,
+	startAsyncWorkerRun,
 	updateAttemptProcess,
 	upsertRunAttempt,
 	verifyProcessIdentity,
-	waitForSubagent,
+	waitForWorker,
 	writeDurableWorkerPayload,
 } from "../../dist/runtime/index.js";
 import {
@@ -76,9 +76,9 @@ function pidAlive(pid) {
 }
 
 async function waitForPayloadWorker(options) {
-	const result = await waitForSubagent(options);
+	const result = await waitForWorker(options);
 	assert.equal(result.status, "completed", JSON.stringify(result));
-	// waitForSubagent promises a terminal result, not completion of the
+	// waitForWorker promises a terminal result, not completion of the
 	// detached finalizer's event writes. Do not remove its fixture early.
 	const status = result.snapshot.status;
 	const deadline = Date.now() + (options.timeoutMs ?? 60_000);
@@ -102,7 +102,7 @@ async function waitForPayloadWorker(options) {
 	);
 }
 
-/** The launcher's record sequence (startAsyncSubagentRun) without spawning the worker. */
+/** The launcher's record sequence (startAsyncWorkerRun) without spawning the worker. */
 async function stageRunningAttempt({
 	runId,
 	attemptId,
@@ -123,7 +123,7 @@ async function stageRunningAttempt({
 				payloadPath,
 				input,
 				cwd,
-				backend: payloadExecutor.id,
+				executorId: payloadExecutor.id,
 				executor: payloadExecutor,
 				runId,
 				attemptId,
@@ -132,7 +132,7 @@ async function stageRunningAttempt({
 		).bytes;
 	}
 	const running = await store.writeResult({
-		backend: "fixture",
+		executorId: "fixture",
 		status: "running",
 		failureKind: null,
 		cwd,
@@ -150,7 +150,7 @@ async function stageRunningAttempt({
 		runId,
 		attemptId,
 		status: "running",
-		backend: "fixture",
+		executorId: "fixture",
 		startedAt,
 		artifactCwd: cwd,
 		resultPath: running.artifacts.find((artifact) => artifact.type === "result")
@@ -163,7 +163,7 @@ async function stageRunningAttempt({
 		cwd,
 		runId,
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		startedAt,
 		dependency: "unclassified",
 		activeAttemptId: attemptId,
@@ -194,7 +194,7 @@ test("5b: a terminal result alone does not permit cleanup; the finalizer publish
 	const store = await createAttemptArtifactStore(ref);
 	const startedAt = new Date();
 	const result = await store.writeResult({
-		backend: "fixture",
+		executorId: "fixture",
 		status: "failed",
 		failureKind: "executor_permanent",
 		cwd: ref.cwd,
@@ -210,13 +210,13 @@ test("5b: a terminal result alone does not permit cleanup; the finalizer publish
 	await beginRunRecord({
 		...ref,
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		startedAt,
 		attempts: [
 			{
 				attemptId: ref.attemptId,
 				status: "failed",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: startedAt.toISOString(),
 				completedAt: new Date().toISOString(),
 				artifactCwd: ref.cwd,
@@ -227,7 +227,7 @@ test("5b: a terminal result alone does not permit cleanup; the finalizer publish
 		],
 	});
 	assert.equal(
-		(await waitForSubagent({ ...ref, timeoutMs: 5000 })).status,
+		(await waitForWorker({ ...ref, timeoutMs: 5000 })).status,
 		"completed",
 	);
 	assert.equal((await readRunEvents(ref)).length, 0);
@@ -347,7 +347,7 @@ test("5d: non-envelopes, mislocated or redirected payloads, and executor problem
 		JSON.stringify({
 			input: { task: "x" },
 			cwd,
-			backend: "fixture",
+			executorId: "fixture",
 			executor,
 			runId,
 			attemptId,
@@ -362,7 +362,7 @@ test("5d: non-envelopes, mislocated or redirected payloads, and executor problem
 			JSON.stringify({
 				input: { task: "x" },
 				cwd: "",
-				backend: "bogus value",
+				executorId: "bogus value",
 				runId: "",
 				attemptId: "",
 				startedAt: "yesterday",
@@ -393,8 +393,8 @@ test("5d: non-envelopes, mislocated or redirected payloads, and executor problem
 			(runId, attemptId) => envelope(runId, attemptId, { executor: undefined }),
 		],
 		[
-			"executor-backend-mismatch",
-			(runId, attemptId) => envelope(runId, attemptId, { backend: "other" }),
+			"executor-worker-mismatch",
+			(runId, attemptId) => envelope(runId, attemptId, { executorId: "other" }),
 		],
 		[
 			"relative-executor-module",
@@ -457,14 +457,14 @@ test("5e: a worker for an already-terminal attempt exits without touching its ar
 		payloadPath,
 		input: { task: "never runs", onComplete: "detach", sandbox: false },
 		cwd,
-		backend: "fixture",
+		executorId: "fixture",
 		executor,
 		runId,
 		attemptId,
 		startedAt: startedAt.toISOString(),
 	});
 	const staleResult = await store.writeResult({
-		backend: "fixture",
+		executorId: "fixture",
 		status: "cancelled",
 		failureKind: "user_cancelled",
 		cwd,
@@ -481,7 +481,7 @@ test("5e: a worker for an already-terminal attempt exits without touching its ar
 		cwd,
 		runId,
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		startedAt,
 		attempts: [],
 	});
@@ -490,7 +490,7 @@ test("5e: a worker for an already-terminal attempt exits without touching its ar
 		runId,
 		attemptId,
 		status: "cancelled",
-		backend: "fixture",
+		executorId: "fixture",
 		failureKind: "user_cancelled",
 		startedAt,
 		completedAt: new Date(),
@@ -524,7 +524,7 @@ test("5e: a worker for an already-terminal attempt exits without touching its ar
 });
 
 test("6–7: a detached worker launches from the reference payload and from a legacy inline payload", async () => {
-	const launched = await startAsyncSubagentRun({
+	const launched = await startAsyncWorkerRun({
 		cwd,
 		input: {
 			executor,
@@ -573,7 +573,7 @@ test("6–7: a detached worker launches from the reference payload and from a le
 				sandbox: false,
 			},
 			cwd,
-			backend: "fixture",
+			executorId: "fixture",
 			executor,
 			runId,
 			attemptId,
@@ -630,7 +630,7 @@ test("lifecycle: late heartbeat/process updates and late results never mutate a 
 	const attemptId = "attempt_lifecycle_terminal";
 	const store = await createAttemptArtifactStore({ cwd, runId, attemptId });
 	const result = await store.writeResult({
-		backend: "fixture",
+		executorId: "fixture",
 		status: "completed",
 		failureKind: null,
 		cwd,
@@ -671,14 +671,14 @@ test("lifecycle: late heartbeat/process updates and late results never mutate a 
 
 test("lifecycle: a successor cannot reserve while another attempt is active; a stale discard spares it", async () => {
 	const runId = "run_stale_prepared";
-	const a = await prepareSubagentExecution({
+	const a = await prepareWorkerExecution({
 		cwd,
 		runId,
 		attemptId: "attempt_prepared_a",
 		input: { executor, task: "must not execute" },
 	});
 	await assert.rejects(
-		prepareSubagentExecution({
+		prepareWorkerExecution({
 			cwd,
 			runId,
 			attemptId: "attempt_prepared_b",
@@ -691,24 +691,24 @@ test("lifecycle: a successor cannot reserve while another attempt is active; a s
 		runId,
 		attemptId: a.attemptId,
 		status: "cancelled",
-		backend: "fixture",
+		executorId: "fixture",
 		failureKind: "user_cancelled",
 		completedAt: new Date(),
 		activate: true,
 		onlyIfActive: true,
 	});
-	const b = await prepareSubagentExecution({
+	const b = await prepareWorkerExecution({
 		cwd,
 		runId,
 		attemptId: "attempt_prepared_b",
 		input: { executor, task: "successor" },
 	});
-	await discardSubagentExecution(a);
+	await discardWorkerExecution(a);
 	assert.equal(
 		(await readRunRecord({ cwd, runId }))?.activeAttemptId,
 		b.attemptId,
 	);
-	await discardSubagentExecution(b);
+	await discardWorkerExecution(b);
 });
 
 test("lifecycle: the terminal finalizer publishes once and never against a successor", async () => {
@@ -740,7 +740,7 @@ test("lifecycle: the terminal finalizer publishes once and never against a succe
 		const attemptId = `attempt_finalizer_${terminalCase.status}`;
 		const store = await createAttemptArtifactStore({ cwd, runId, attemptId });
 		const finalizerResult = await store.writeResult({
-			backend: "fixture",
+			executorId: "fixture",
 			status: terminalCase.status,
 			failureKind: terminalCase.failureKind,
 			cwd,
@@ -757,13 +757,13 @@ test("lifecycle: the terminal finalizer publishes once and never against a succe
 			cwd,
 			runId,
 			mode: "single",
-			backend: "fixture",
+			executorId: "fixture",
 			activeAttemptId: attemptId,
 			attempts: [
 				{
 					attemptId,
 					status: "running",
-					backend: "fixture",
+					executorId: "fixture",
 					startedAt: new Date().toISOString(),
 					artifactCwd: cwd,
 					resultPath: finalizerResult.artifacts.find(
@@ -803,12 +803,12 @@ test("lifecycle: the terminal finalizer publishes once and never against a succe
 		cwd,
 		runId: delayedRunId,
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		attempts: [
 			{
 				attemptId: "attempt_successor",
 				status: "completed",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: new Date().toISOString(),
 				completedAt: new Date().toISOString(),
 			},
@@ -839,13 +839,13 @@ test("lifecycle: the terminal finalizer publishes once and never against a succe
 		cwd,
 		runId: activeRunId,
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		activeAttemptId: "attempt_active_successor",
 		attempts: [
 			{
 				attemptId: "attempt_active_successor",
 				status: "running",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: new Date().toISOString(),
 			},
 		],
@@ -870,7 +870,7 @@ test("lifecycle: child event summary survives a torn line; event cache is copy-o
 	const attemptId = "attempt_lifecycle_events";
 	const store = await createAttemptArtifactStore({ cwd, runId, attemptId });
 	const result = await store.writeResult({
-		backend: "fixture",
+		executorId: "fixture",
 		status: "completed",
 		failureKind: null,
 		cwd,
@@ -906,7 +906,7 @@ test("lifecycle: child event summary survives a torn line; event cache is copy-o
 			data: { childRunId: "run_child" },
 		},
 	);
-	const status = await getSubagentStatus({ cwd, runId, attemptId });
+	const status = await getWorkerStatus({ cwd, runId, attemptId });
 	assert.equal(status?.childSummary?.total, 1);
 	assert.equal(status?.childSummary?.failed, 0);
 	assert.equal(status?.childSummary?.completed, 1);
@@ -920,7 +920,7 @@ test("lifecycle: child event summary survives a torn line; event cache is copy-o
 		(await readRunEvents({ cwd, runId }, Infinity))[0]?.type,
 		"run.failed",
 	);
-	const waited = await waitForSubagent({
+	const waited = await waitForWorker({
 		cwd,
 		runId,
 		attemptId,
@@ -936,10 +936,10 @@ test("lifecycle: child event summary survives a torn line; event cache is copy-o
 	await mkdir(bogusDir, { recursive: true });
 	await writeFile(
 		join(bogusDir, "result.json"),
-		`${JSON.stringify({ runId: "run_bogus_status", attemptId: "attempt_bogus", backend: "fixture", status: "done", cwd })}\n`,
+		`${JSON.stringify({ runId: "run_bogus_status", attemptId: "attempt_bogus", executorId: "fixture", status: "done", cwd })}\n`,
 	);
 	assert.equal(
-		await getSubagentStatus({
+		await getWorkerStatus({
 			cwd,
 			runId: "run_bogus_status",
 			attemptId: "attempt_bogus",
@@ -949,7 +949,7 @@ test("lifecycle: child event summary survives a torn line; event cache is copy-o
 });
 
 test("lifecycle: terminal publication waits for the worker to exit; a delayed worker is interruptible", async () => {
-	const asyncFalse = await startAsyncSubagentRun({
+	const asyncFalse = await startAsyncWorkerRun({
 		cwd,
 		input: { executor, task: "quick", sandbox: false, onComplete: "detach" },
 	});
@@ -982,7 +982,7 @@ test("lifecycle: terminal publication waits for the worker to exit; a delayed wo
 	process.env.AGENT_WORKFLOW_HEARTBEAT_MS = "50";
 	try {
 		const before = readEffectLog(effectLog).length;
-		const interruptible = await startAsyncSubagentRun({
+		const interruptible = await startAsyncWorkerRun({
 			cwd,
 			input: {
 				executor,
@@ -1003,7 +1003,7 @@ test("lifecycle: terminal publication waits for the worker to exit; a delayed wo
 				?.heartbeatAt === launched
 		)
 			await new Promise((resolve) => setTimeout(resolve, 20));
-		const interrupted = await interruptSubagent({
+		const interrupted = await interruptWorker({
 			cwd,
 			runId: interruptible.runId,
 			attemptId: interruptible.attemptId,
@@ -1013,7 +1013,7 @@ test("lifecycle: terminal publication waits for the worker to exit; a delayed wo
 		});
 		assert.equal(interrupted.status, "interrupt-requested");
 		assert.equal(interrupted.signal, "SIGTERM");
-		const wait = await waitForSubagent({
+		const wait = await waitForWorker({
 			cwd,
 			runId: interruptible.runId,
 			attemptId: interruptible.attemptId,
@@ -1063,13 +1063,13 @@ test("lifecycle: interrupt reports unsupported on EPERM and never signals a dead
 		cwd,
 		runId: epermRunId,
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		activeAttemptId: epermAttemptId,
 		attempts: [
 			{
 				attemptId: epermAttemptId,
 				status: "running",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: new Date().toISOString(),
 				process: {
 					pid: epermIdentity.pid,
@@ -1096,7 +1096,7 @@ test("lifecycle: interrupt reports unsupported on EPERM and never signals a dead
 	};
 	let epermInterrupt;
 	try {
-		epermInterrupt = await interruptSubagent({
+		epermInterrupt = await interruptWorker({
 			cwd,
 			runId: epermRunId,
 			reason: "eperm",
@@ -1124,13 +1124,13 @@ test("lifecycle: interrupt reports unsupported on EPERM and never signals a dead
 		cwd,
 		runId: shortRunId,
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		activeAttemptId: shortAttemptId,
 		attempts: [
 			{
 				attemptId: shortAttemptId,
 				status: "running",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: new Date().toISOString(),
 				process: {
 					pid: shortIdentity.pid,
@@ -1142,7 +1142,7 @@ test("lifecycle: interrupt reports unsupported on EPERM and never signals a dead
 	});
 	const postExitSignals = [];
 	try {
-		const interrupted = await interruptSubagent({
+		const interrupted = await interruptWorker({
 			cwd,
 			runId: shortRunId,
 			attemptId: shortAttemptId,

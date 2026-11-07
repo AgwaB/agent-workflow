@@ -60,20 +60,17 @@ test("WB-016 scheduler retains fixed poll for absent, expired, or non-pending de
 });
 
 test("WB-016 wait loop uses deadline selector while refresh remains single-write coalesced", async () => {
-	const [engine, backend] = await Promise.all([
+	const [engine, worker] = await Promise.all([
 		readFile(new URL("../../src/core/engine.ts", import.meta.url), "utf8"),
-		readFile(
-			new URL("../../src/core/task-backend.ts", import.meta.url),
-			"utf8",
-		),
+		readFile(new URL("../../src/core/task-runner.ts", import.meta.url), "utf8"),
 	]);
 	assert.match(
 		engine,
 		/await awaitWithinWorkflowWaitBoundary\(\s*sleep\(schedulerPollDelayMs\(run, remaining\)\)/,
 	);
-	const refreshBody = backend.slice(
-		backend.indexOf("export async function refreshRunFromSubagentArtifacts"),
-		backend.indexOf("async function pollSubagentForRefresh"),
+	const refreshBody = worker.slice(
+		worker.indexOf("export async function refreshRunFromWorkerArtifacts"),
+		worker.indexOf("async function pollWorkerForRefresh"),
 	);
 	// Ordinary refresh remains coalesced. A newly consumed recovery owner is
 	// the one required exception: raw publication cannot precede durable authority.

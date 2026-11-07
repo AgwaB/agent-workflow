@@ -109,7 +109,7 @@ const INVALID_OUTPUT = [
 	"</refs>",
 ].join("\n");
 
-function writeSubagentArtifacts(cwd, runsDir, runId, attemptId, outputText) {
+function writeWorkerArtifacts(cwd, runsDir, runId, attemptId, outputText) {
 	const artifactDir = join(
 		stateDir(cwd),
 		runsDir,
@@ -132,9 +132,9 @@ function writeSubagentArtifacts(cwd, runsDir, runId, attemptId, outputText) {
 	return artifactDir;
 }
 
-function makeFakeSubagentApi({ cwd, runs, outputsByLaunch, onLaunch }) {
+function makeFakeWorkerApi({ cwd, runs, outputsByLaunch, onLaunch }) {
 	return {
-		async runSubagent(options) {
+		async runWorker(options) {
 			const launchIndex = onLaunch();
 			const runId = `run_retry_dispatch_${launchIndex}`;
 			const attemptId = `attempt_retry_dispatch_${launchIndex}`;
@@ -142,7 +142,7 @@ function makeFakeSubagentApi({ cwd, runs, outputsByLaunch, onLaunch }) {
 			const outputText =
 				outputsByLaunch[launchIndex - 1] ??
 				outputsByLaunch[outputsByLaunch.length - 1];
-			const artifactDir = writeSubagentArtifacts(
+			const artifactDir = writeWorkerArtifacts(
 				cwd,
 				runsDir,
 				runId,
@@ -152,16 +152,16 @@ function makeFakeSubagentApi({ cwd, runs, outputsByLaunch, onLaunch }) {
 			runs.set(runId, { runId, attemptId, artifactDir });
 			return { runId, attemptId, status: "running" };
 		},
-		async reconcileSubagentRun() {
+		async reconcileWorkerRun() {
 			return {};
 		},
-		async getSubagentStatus({ runId }) {
+		async getWorkerStatus({ runId }) {
 			const run = runs.get(runId);
-			assert.ok(run, `missing subagent run ${runId}`);
+			assert.ok(run, `missing worker run ${runId}`);
 			return {
 				runId,
 				attemptId: run.attemptId,
-				backend: "headless",
+				executorId: "headless",
 				status: "completed",
 				failureKind: null,
 				startedAt: new Date(Date.now() - 1000).toISOString(),
@@ -175,7 +175,7 @@ function makeFakeSubagentApi({ cwd, runs, outputsByLaunch, onLaunch }) {
 				attempts: [{ attemptId: run.attemptId, status: "completed" }],
 			};
 		},
-		async interruptSubagent() {
+		async interruptWorker() {
 			return {};
 		},
 	};
@@ -189,7 +189,7 @@ test("a task whose attempt passed output validation is never re-dispatched by la
 		writeAgent(cwd, "unit-scout");
 		writeWorkflow(cwd, "valid-once");
 		setTaskRuntimeApiForTests(
-			makeFakeSubagentApi({
+			makeFakeWorkerApi({
 				cwd,
 				runs,
 				outputsByLaunch: [VALID_OUTPUT],
@@ -210,7 +210,7 @@ test("a task whose attempt passed output validation is never re-dispatched by la
 		assert.equal(launchCount, 1);
 
 		// Invariant under test: refresh/reconcile after completion must never
-		// launch another subagent run for a task with a valid completed attempt.
+		// launch another worker run for a task with a valid completed attempt.
 		for (let i = 0; i < 3; i += 1) {
 			const refreshed = await refreshRun(cwd, started.runId);
 			assert.equal(refreshed.status, "completed");
@@ -236,7 +236,7 @@ test("a completed upstream task is not re-dispatched while downstream stages sti
 		writeAgent(cwd, "unit-scout");
 		writeWorkflow(cwd, "two-stage", TWO_STAGE_SPEC);
 		setTaskRuntimeApiForTests(
-			makeFakeSubagentApi({
+			makeFakeWorkerApi({
 				cwd,
 				runs,
 				outputsByLaunch: [VALID_OUTPUT, VALID_OUTPUT],
@@ -280,7 +280,7 @@ test("zero output retry override fails the first invalid workflow output", async
 		writeAgent(cwd, "unit-scout");
 		writeWorkflow(cwd, "invalid-no-retry");
 		setTaskRuntimeApiForTests(
-			makeFakeSubagentApi({
+			makeFakeWorkerApi({
 				cwd,
 				runs,
 				outputsByLaunch: [INVALID_OUTPUT],
@@ -321,7 +321,7 @@ test("workflow-invalid output triggers exactly one bounded repair launch, then n
 		writeAgent(cwd, "unit-scout");
 		writeWorkflow(cwd, "invalid-then-valid");
 		setTaskRuntimeApiForTests(
-			makeFakeSubagentApi({
+			makeFakeWorkerApi({
 				cwd,
 				runs,
 				outputsByLaunch: [INVALID_OUTPUT, VALID_OUTPUT],
@@ -342,7 +342,7 @@ test("workflow-invalid output triggers exactly one bounded repair launch, then n
 
 		// The July-4 evidence signature: the first process-level success failed
 		// workflow output validation and was retried as a bounded repair, recorded
-		// in outputRetry. This fake subagent does not confirm a resumable session,
+		// in outputRetry. This fake worker does not confirm a resumable session,
 		// so it exercises the new-session fallback path.
 		assert.equal(launchCount, 2);
 		assert.ok(task.outputRetry, "outputRetry record must be preserved");

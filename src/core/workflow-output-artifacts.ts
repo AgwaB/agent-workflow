@@ -182,13 +182,13 @@ export interface WorkflowTaskArtifactBundleOptions
 	systemPrompt?: string;
 	stderr?: string;
 	salvagedFromFailureKind?: string;
-	subagentWarning?: string;
-	subagentStatus?: string;
-	subagentFailureKind?: string | null;
-	subagentToolCallsPath?: string;
-	subagentToolCallsSummaryPath?: string;
-	subagentToolCallsArtifactCwd?: string;
-	subagentFailedToolCalls?: WorkflowTaskFailedToolCallSummary[];
+	workerWarning?: string;
+	workerStatus?: string;
+	workerFailureKind?: string | null;
+	workerToolCallsPath?: string;
+	workerToolCallsSummaryPath?: string;
+	workerToolCallsArtifactCwd?: string;
+	workerFailedToolCalls?: WorkflowTaskFailedToolCallSummary[];
 }
 
 export interface WorkflowTaskResultEnvelope {
@@ -210,13 +210,13 @@ export interface WorkflowTaskResultEnvelope {
 		repairs?: WorkflowOutputRepair[];
 	};
 	salvagedFromFailureKind?: string;
-	subagentWarning?: string;
-	subagentStatus?: string;
-	subagentFailureKind?: string | null;
-	subagentToolCallsPath?: string;
-	subagentToolCallsSummaryPath?: string;
-	subagentToolCallsArtifactCwd?: string;
-	subagentFailedToolCalls?: WorkflowTaskFailedToolCallSummary[];
+	workerWarning?: string;
+	workerStatus?: string;
+	workerFailureKind?: string | null;
+	workerToolCallsPath?: string;
+	workerToolCallsSummaryPath?: string;
+	workerToolCallsArtifactCwd?: string;
+	workerFailedToolCalls?: WorkflowTaskFailedToolCallSummary[];
 }
 
 export type ValidParsedWorkflowOutput = ParsedWorkflowOutput & {
@@ -2854,23 +2854,23 @@ function validResultEnvelope(
 	};
 	if (options.salvagedFromFailureKind !== undefined)
 		result.salvagedFromFailureKind = options.salvagedFromFailureKind;
-	if (options.subagentWarning !== undefined)
-		result.subagentWarning = options.subagentWarning;
-	if (options.subagentStatus !== undefined)
-		result.subagentStatus = options.subagentStatus;
-	if (options.subagentFailureKind !== undefined)
-		result.subagentFailureKind = options.subagentFailureKind;
-	if (options.subagentToolCallsPath !== undefined)
-		result.subagentToolCallsPath = options.subagentToolCallsPath;
-	if (options.subagentToolCallsSummaryPath !== undefined)
-		result.subagentToolCallsSummaryPath = options.subagentToolCallsSummaryPath;
-	if (options.subagentToolCallsArtifactCwd !== undefined)
-		result.subagentToolCallsArtifactCwd = options.subagentToolCallsArtifactCwd;
+	if (options.workerWarning !== undefined)
+		result.workerWarning = options.workerWarning;
+	if (options.workerStatus !== undefined)
+		result.workerStatus = options.workerStatus;
+	if (options.workerFailureKind !== undefined)
+		result.workerFailureKind = options.workerFailureKind;
+	if (options.workerToolCallsPath !== undefined)
+		result.workerToolCallsPath = options.workerToolCallsPath;
+	if (options.workerToolCallsSummaryPath !== undefined)
+		result.workerToolCallsSummaryPath = options.workerToolCallsSummaryPath;
+	if (options.workerToolCallsArtifactCwd !== undefined)
+		result.workerToolCallsArtifactCwd = options.workerToolCallsArtifactCwd;
 	if (
-		options.subagentFailedToolCalls !== undefined &&
-		options.subagentFailedToolCalls.length > 0
+		options.workerFailedToolCalls !== undefined &&
+		options.workerFailedToolCalls.length > 0
 	) {
-		result.subagentFailedToolCalls = options.subagentFailedToolCalls;
+		result.workerFailedToolCalls = options.workerFailedToolCalls;
 	}
 	if (result.startedAt === undefined) delete result.startedAt;
 	return result;

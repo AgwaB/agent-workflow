@@ -18,12 +18,12 @@ import {
 	executionPlanDigest,
 	readRunEvents,
 	resolveDurableLaunchBarrierV2Release,
-	runSubagent,
+	runWorker,
 	runtimeWorkerPath,
 	upsertRunAttempt,
 	waitForDurableLaunchBarrierV2Ack,
 	waitForDurableLaunchBarrierV2Ready,
-	waitForSubagent,
+	waitForWorker,
 	writeDurableWorkerPayload,
 } from "../../dist/runtime/index.js";
 import {
@@ -93,7 +93,7 @@ function secrets() {
 }
 
 async function waitTerminal(cwd, run) {
-	const waited = await waitForSubagent({
+	const waited = await waitForWorker({
 		cwd,
 		runId: run.runId,
 		attemptId: run.attemptId,
@@ -123,7 +123,7 @@ test("async run with a barrier: no env value anywhere on disk; the executor stil
 		timeoutMs: 20_000,
 		pollIntervalMs: 5,
 	});
-	const run = await runSubagent({
+	const run = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({ effectLog }),
 		task: "use the token",
@@ -195,7 +195,7 @@ test("sync run: no env value on disk either", async () => {
 	const { cwd, effectLog } = fresh("sync");
 	await mkdir(cwd, { recursive: true });
 	const secret = secrets();
-	const result = await runSubagent({
+	const result = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({ effectLog }),
 		task: "sync token",
@@ -289,14 +289,14 @@ test("a worker started without the env channel fails closed with guard_failure, 
 			attemptKey: `${runId}:${attemptId}`,
 		},
 		cwd,
-		backend: executor.id,
+		executorId: executor.id,
 		executor,
 		runId,
 		attemptId,
 		startedAt: startedAt.toISOString(),
 	});
 	const running = await store.writeResult({
-		backend: executor.id,
+		executorId: executor.id,
 		status: "running",
 		failureKind: null,
 		cwd,
@@ -314,7 +314,7 @@ test("a worker started without the env channel fails closed with guard_failure, 
 		runId,
 		attemptId,
 		status: "running",
-		backend: executor.id,
+		executorId: executor.id,
 		startedAt,
 		artifactCwd: cwd,
 		resultPath: running.artifacts.find((artifact) => artifact.type === "result")
@@ -327,7 +327,7 @@ test("a worker started without the env channel fails closed with guard_failure, 
 		cwd,
 		runId,
 		mode: "single",
-		backend: executor.id,
+		executorId: executor.id,
 		startedAt,
 		activeAttemptId: attemptId,
 		attempts: [],

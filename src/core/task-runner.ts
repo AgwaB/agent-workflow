@@ -29,13 +29,12 @@ import {
 	workflowArtifactToolGuidelinesSection,
 } from "./artifact-tool-names.js";
 import { DEFAULT_WORKER_TOOLS, workflowTaskReadOnly } from "./tool-policy.js";
-import { WORKFLOW_TASK_BACKEND_ID } from "./task-artifacts.js";
 import {
-	type WorkflowBackend,
-	registerWorkflowBackend,
+	type WorkflowTaskRunner,
+	setWorkflowTaskRunner,
 } from "./task-launch.js";
 import { type WorkflowLaunchAuthorityGrant } from "./types.js";
-import { cleanupSubagentRun } from "./task-cancellation.js";
+import { cleanupWorkerRun } from "./task-cancellation.js";
 import { createHash } from "node:crypto";
 import {
 	createOrResumeDurableLaunchBarrier,
@@ -49,11 +48,11 @@ import {
 } from "./executor-registry.js";
 import {
 	type DurableLaunchBarrierDescriptor,
-	type SubagentApi,
-	type SubagentResultEnvelope,
-	type SubagentRunStatusSnapshot,
+	type WorkerApi,
+	type WorkerResultEnvelope,
+	type WorkerRunStatusSnapshot,
 	hasDurableLaunchBarrierApi,
-	loadSubagentApi,
+	loadWorkerApi,
 } from "./runtime-port.js";
 
 import { existsSync } from "node:fs";
@@ -87,10 +86,10 @@ import {
 	recordLaunchBootstrapProvenance,
 } from "./launch-bootstrap-provenance.js";
 import {
-	SUBAGENT_LAUNCH_ACK_TIMEOUT_MS,
-	SUBAGENT_REFRESH_OPERATION_TIMEOUT_MS,
-	SubagentOperationTimeoutError,
-	awaitSubagentOperation,
+	WORKER_LAUNCH_ACK_TIMEOUT_MS,
+	WORKER_REFRESH_OPERATION_TIMEOUT_MS,
+	WorkerOperationTimeoutError,
+	awaitWorkerOperation,
 	combineAbortSignals,
 	sleep,
 	throwIfAborted,
@@ -103,7 +102,7 @@ import {
 } from "./owned-session-release.js";
 import {
 	afterLaunchAuthorityRegisteredHookForTests,
-	beforeRunSubagentHookForTests,
+	beforeRunWorkerHookForTests,
 	isLaunchGateSaturated,
 	reconcileLiveModelWorkerSlots,
 	releaseLiveModelWorkerSlotForTask,
@@ -113,7 +112,7 @@ import {
 	tryAcquireLiveModelWorkerSlot,
 } from "./launch-slots.js";
 import { modelTaskRuntimeDeadlineMs } from "./model-task-runtime.js";
-import { recordParentSubagentChildEvent } from "./parent-child-events.js";
+import { recordParentWorkerChildEvent } from "./parent-child-events.js";
 import {
 	assertWorkflowResourcePolicyMatchesTask,
 	resolveWorkflowResourcePolicy,
@@ -134,18 +133,18 @@ import {
 	writeRunRecord,
 } from "./store.js";
 import {
-	type SubagentBackendHandle,
+	type WorkerRunHandle,
 	copyLogOrEmpty,
 	findLog,
-	getSubagentHandle,
-	makeSubagentHandle,
-	recoverSubagentHandle,
-	subagentRunsDir,
+	getWorkerHandle,
+	makeWorkerHandle,
+	recoverWorkerHandle,
+	workerRunsDir,
 	workflowTaskStateCwd,
 } from "./task-artifacts.js";
-import { acknowledgeSubagentTaskInterrupted } from "./task-cancellation.js";
+import { acknowledgeWorkerTaskInterrupted } from "./task-cancellation.js";
 import {
-	type BackendLaunchResult,
+	type TaskLaunchResult,
 	type PreparedWorkflowTaskLaunch,
 } from "./task-launch.js";
 import {
@@ -157,7 +156,7 @@ import {
 	recordTaskTimingTelemetry,
 	recordTaskToolResultBudgetPendingConfiguration,
 } from "./task-observability.js";
-import { materializeTerminalSubagentResult } from "./terminal-result.js";
+import { materializeTerminalWorkerResult } from "./terminal-result.js";
 import {
 	type CompiledTask,
 	type CompiledToolProvider,
@@ -173,7 +172,7 @@ import {
 
 const STALE_LAUNCH_CLAIM_GRACE_MS = 30_000;
 const REFRESH_STATUS_RECONCILE_CONCURRENCY = 8;
-export async function launchSubagentTask(
+export async function launchWorkerTask(
 	cwd: string,
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
@@ -181,9 +180,9 @@ export async function launchSubagentTask(
 	leaseSignal?: AbortSignal,
 	workflowStopSignal?: AbortSignal,
 	preparedLaunch?: PreparedWorkflowTaskLaunch,
-): Promise<BackendLaunchResult> {
+): Promise<TaskLaunchResult> {
 	if (task.status !== "pending") return { kind: "launched" };
-	if (task.backendHandle || task.pid) return { kind: "launched" };
+	if (task.workerHandle || task.pid) return { kind: "launched" };
 
 	await throwIfLaunchStopped(cwd, run.runId, leaseSignal, workflowStopSignal);
 	// B2: the executor recorded at run creation; a missing or invalid one is fatal before any
@@ -281,17 +280,17 @@ export async function launchSubagentTask(
 	const outputFile = fromStatePath(cwd, task.files.output);
 	const stderrFile = fromStatePath(cwd, task.files.stderr);
 	const resultFile = fromStatePath(cwd, task.files.result);
-	const runsDir = subagentRunsDir(run, task);
+	const runsDir = workerRunsDir(run, task);
 	// WP39b (O7): a worktree task's attempt state stays in the project (the worker runs in the
 	// worktree as the runtime's execution directory).
 	const stateCwd = workflowTaskStateCwd(cwd, task);
 	const correlationId = `${run.runId}:${task.taskId}`;
 	const sessionId = workflowTaskSessionId(run, task);
 
-	let launched: SubagentResultEnvelope;
+	let launched: WorkerResultEnvelope;
 	const basePreparedLaunch =
 		preparedLaunch ??
-		(await prepareSubagentTaskLaunch(cwd, run, task, compiledTask));
+		(await prepareWorkerTaskLaunch(cwd, run, task, compiledTask));
 	assertWorkflowResourcePolicyMatchesTask(
 		compiledTask,
 		basePreparedLaunch.resourcePolicy,
@@ -303,16 +302,10 @@ export async function launchSubagentTask(
 			run,
 			task,
 			compiledTask,
-			WORKFLOW_TASK_BACKEND_ID,
 			basePreparedLaunch,
 		);
 		recordLaunchBootstrapProvenance(task, provenance);
-		const authority = createWorkflowLaunchAuthority(
-			run,
-			task,
-			WORKFLOW_TASK_BACKEND_ID,
-			provenance,
-		);
+		const authority = createWorkflowLaunchAuthority(run, task, provenance);
 		issueWorkflowLaunchAuthority(task, authority);
 		sealedLaunch = { ...basePreparedLaunch, authority };
 		await writeRunRecord(cwd, run);
@@ -354,7 +347,7 @@ export async function launchSubagentTask(
 		task,
 	);
 	let releaseLiveModelWorkerSlot: (() => void) | undefined;
-	let launchApi: SubagentApi | undefined;
+	let launchApi: WorkerApi | undefined;
 	let durableBarrierDescriptor: DurableLaunchBarrierDescriptor | undefined;
 	let durableBarrierRecord: WorkflowDurableLaunchBarrierRecord | undefined;
 	const hardenedBatchRecord =
@@ -416,7 +409,7 @@ export async function launchSubagentTask(
 		task.status = "running";
 		task.statusDetail = "launching";
 		task.startedAt = nowIso();
-		task.backendFiles = {
+		task.workerFiles = {
 			runsDir: toStatePath(cwd, resolve(stateCwd, runsDir)),
 			correlationId,
 			...(sessionId === undefined ? {} : { sessionId }),
@@ -425,7 +418,7 @@ export async function launchSubagentTask(
 		await writeRunRecord(cwd, run);
 		await throwIfLaunchStopped(cwd, run.runId, leaseSignal, workflowStopSignal);
 
-		const api = await loadSubagentApi();
+		const api = await loadWorkerApi();
 		launchApi = api;
 		await throwIfLaunchStopped(cwd, run.runId, leaseSignal, workflowStopSignal);
 		const durableBarrierAvailable = hasDurableLaunchBarrierApi(api);
@@ -460,7 +453,7 @@ export async function launchSubagentTask(
 		const taskTimeoutMs = modelTaskRuntimeDeadlineMs(
 			compiledTask.runtime.maxRuntimeMs,
 		);
-		const subagentOptions: Record<string, unknown> = {
+		const workerOptions: Record<string, unknown> = {
 			cwd: stateCwd,
 			executor: workflowTaskExecutorDescriptor(
 				executor,
@@ -497,7 +490,7 @@ export async function launchSubagentTask(
 			...(taskTimeoutMs === undefined ? {} : { timeoutMs: taskTimeoutMs }),
 			runsDir,
 			correlationId,
-			// D3 (WP12a): the engine session id stays the attempt identity (backendFiles, launch
+			// D3 (WP12a): the engine session id stays the attempt identity (workerFiles, launch
 			// provenance); the executor is asked to keep a CLI session only when a same-session
 			// repair may continue it. Otherwise adapters run without session persistence.
 			...(sessionId === undefined ||
@@ -523,8 +516,8 @@ export async function launchSubagentTask(
 		}
 		launched = await runWithLaunchSlot(
 			async () => {
-				await beforeRunSubagentHookForTests?.();
-				await assertPreparedSubagentTaskLaunch(sealedLaunch);
+				await beforeRunWorkerHookForTests?.();
+				await assertPreparedWorkerTaskLaunch(sealedLaunch);
 				assertWorkflowResourcePolicyMatchesTask(
 					compiledTask,
 					sealedLaunch.resourcePolicy,
@@ -532,18 +525,12 @@ export async function launchSubagentTask(
 				await throwIfWorkflowStopRequested(cwd, run.runId);
 				throwIfAborted(leaseSignal);
 				throwIfAborted(workflowStopSignal);
-				assertCurrentWorkflowLaunchAuthority(
-					run,
-					task,
-					launchAuthority,
-					WORKFLOW_TASK_BACKEND_ID,
-				);
+				assertCurrentWorkflowLaunchAuthority(run, task, launchAuthority);
 				await assertPreparedLaunchMatchesRecordedProvenance(
 					cwd,
 					run,
 					task,
 					compiledTask,
-					WORKFLOW_TASK_BACKEND_ID,
 					sealedLaunch,
 					launchAuthority.launchBootstrapSha256,
 				);
@@ -555,42 +542,37 @@ export async function launchSubagentTask(
 				);
 				// `undefined` tools meant "the host's default tool selection" for Pi; the
 				// runtime requires an explicit list, so use the same default worker tools.
-				subagentOptions.tools =
+				workerOptions.tools =
 					effectiveLaunchTools === undefined
 						? [...DEFAULT_WORKER_TOOLS]
 						: [...effectiveLaunchTools];
-				subagentOptions.mcpServers = preparedMcpServers(sealedLaunch, {
+				workerOptions.mcpServers = preparedMcpServers(sealedLaunch, {
 					artifactOutputLimitChars: artifactServerOutputLimitForRun(
 						run,
 						task.runtime.executor,
 					),
 				});
 				if (sealedLaunch.captureToolCalls)
-					subagentOptions.captureToolCalls = true;
+					workerOptions.captureToolCalls = true;
 				// Tool-result budgets are enforced by the Pi executor only (C1, WP6); the
 				// configuration stays sealed in the prepared launch and provenance.
-				registerWorkflowLaunchAuthority(
-					run,
-					task,
-					launchAuthority,
-					WORKFLOW_TASK_BACKEND_ID,
-				);
+				registerWorkflowLaunchAuthority(run, task, launchAuthority);
 				await writeRunRecord(cwd, run);
 				await afterLaunchAuthorityRegisteredHookForTests?.();
 				await throwIfWorkflowStopRequested(cwd, run.runId);
 				throwIfAborted(leaseSignal);
 				throwIfAborted(workflowStopSignal);
-				return awaitSubagentOperation(
+				return awaitWorkerOperation(
 					async () => {
 						await throwIfWorkflowStopRequested(cwd, run.runId);
 						throwIfAborted(leaseSignal);
 						throwIfAborted(workflowStopSignal);
-						return api.runSubagent(subagentOptions);
+						return api.runWorker(workerOptions);
 					},
 					{
 						operation: "launch acknowledgement",
 						context: `workflow run ${run.runId} task ${task.taskId} (${task.specId})`,
-						timeoutMs: SUBAGENT_LAUNCH_ACK_TIMEOUT_MS,
+						timeoutMs: WORKER_LAUNCH_ACK_TIMEOUT_MS,
 						signal: leaseSignal,
 					},
 				);
@@ -638,7 +620,7 @@ export async function launchSubagentTask(
 			await writeRunRecord(cwd, run).catch(() => undefined);
 			throw error;
 		}
-		if (error instanceof SubagentOperationTimeoutError) {
+		if (error instanceof WorkerOperationTimeoutError) {
 			task.status = "running";
 			task.statusDetail = "launch_ack_timeout";
 			task.lastMessage = `${error.message}; retaining launch claim for correlation-based recovery`;
@@ -655,12 +637,12 @@ export async function launchSubagentTask(
 		task.statusDetail = "pending";
 		task.startedAt = undefined;
 		task.lastMessage =
-			"executor launch failed before backend handle was recorded";
+			"executor launch failed before worker handle was recorded";
 		await writeRunRecord(cwd, run).catch(() => undefined);
 		throw error;
 	}
 
-	const handle = makeSubagentHandle(
+	const handle = makeWorkerHandle(
 		task,
 		launched.runId,
 		launched.attemptId,
@@ -692,17 +674,17 @@ export async function launchSubagentTask(
 			launched.attemptId,
 		);
 	}
-	task.backendHandle = handle;
-	task.backendTaskId = launched.runId;
+	task.workerHandle = handle;
+	task.workerTaskId = launched.runId;
 	if (toolResultBudgetConfiguration) {
 		bindTaskToolResultBudgetPendingConfiguration({
 			task,
-			backendRunId: launched.runId,
-			backendAttemptId: launched.attemptId,
+			workerRunId: launched.runId,
+			workerAttemptId: launched.attemptId,
 			capturedAt: nowIso(),
 		});
 	}
-	task.backendFiles = {
+	task.workerFiles = {
 		runsDir: toStatePath(cwd, resolve(stateCwd, runsDir)),
 		correlationId,
 		...(sessionId === undefined ? {} : { sessionId }),
@@ -710,7 +692,7 @@ export async function launchSubagentTask(
 	task.statusDetail = "running";
 	task.lastMessage = `launched via the ${executor.id} executor`;
 	await writeRunRecord(cwd, run).catch(() => undefined);
-	await recordParentSubagentChildEvent({
+	await recordParentWorkerChildEvent({
 		event: "started",
 		childRunId: launched.runId,
 		run,
@@ -724,18 +706,18 @@ interface RefreshPollItem {
 	order: number;
 	workflowRunId: string;
 	task: WorkflowTaskRunRecord;
-	handle: SubagentBackendHandle;
+	handle: WorkerRunHandle;
 }
 
 interface RefreshPollResult extends RefreshPollItem {
-	snapshot: SubagentRunStatusSnapshot | null;
+	snapshot: WorkerRunStatusSnapshot | null;
 	reconcileMs: number;
 	statusPollMs: number;
 }
 
 type RefreshPollOperation = "reconcile" | "status";
 
-export async function refreshRunFromSubagentArtifacts(
+export async function refreshRunFromWorkerArtifacts(
 	cwd: string,
 	run: WorkflowRunRecord,
 ): Promise<WorkflowRunRecord> {
@@ -755,13 +737,13 @@ export async function refreshRunFromSubagentArtifacts(
 			activeBatch.phase !== "running"
 		)
 			continue;
-		let handle = getSubagentHandle(task);
+		let handle = getWorkerHandle(task);
 		if (!handle) {
-			handle = await recoverSubagentHandle(run, task, cwd);
+			handle = await recoverWorkerHandle(run, task, cwd);
 			if (handle) {
-				task.backendHandle = handle;
-				task.backendTaskId = handle.runId;
-				task.backendFiles = {
+				task.workerHandle = handle;
+				task.workerTaskId = handle.runId;
+				task.workerFiles = {
 					runsDir: toStatePath(cwd, resolve(handle.cwd, handle.runsDir)),
 					correlationId: `${run.runId}:${task.taskId}`,
 					...(handle.sessionId === undefined
@@ -776,7 +758,7 @@ export async function refreshRunFromSubagentArtifacts(
 		if (task.durableLaunchBarrier) {
 			if (await reconcileDurableLaunchBarrierTask(cwd, run, task))
 				changed = true;
-			handle = getSubagentHandle(task);
+			handle = getWorkerHandle(task);
 		}
 		if (
 			handle &&
@@ -784,7 +766,6 @@ export async function refreshRunFromSubagentArtifacts(
 			consumeRegisteredWorkflowLaunchAuthority(
 				run,
 				task,
-				WORKFLOW_TASK_BACKEND_ID,
 				handle.runId,
 				handle.attemptId,
 			)
@@ -798,21 +779,15 @@ export async function refreshRunFromSubagentArtifacts(
 		if (handle && task.toolResultBudget?.pendingConfiguration) {
 			bindTaskToolResultBudgetPendingConfiguration({
 				task,
-				backendRunId: handle.runId,
-				backendAttemptId: handle.attemptId,
+				workerRunId: handle.runId,
+				workerAttemptId: handle.attemptId,
 				capturedAt: nowIso(),
 			});
 			changed = true;
 		}
 		if (!handle) {
 			if (isStaleLaunchClaim(task)) {
-				if (
-					hasNonSpawnableWorkflowLaunchAuthority(
-						run,
-						task,
-						WORKFLOW_TASK_BACKEND_ID,
-					)
-				) {
+				if (hasNonSpawnableWorkflowLaunchAuthority(run, task)) {
 					if (activeBatch) {
 						await fallbackForeachBatchAfterTerminal(
 							cwd,
@@ -849,14 +824,14 @@ export async function refreshRunFromSubagentArtifacts(
 				continue;
 			}
 			if (isTaskTimedOut(task)) {
-				markSubagentTaskTimedOut(task);
+				markWorkerTaskTimedOut(task);
 				releaseLiveModelWorkerSlotForTask(run, task);
 				if (activeBatch)
 					await fallbackForeachBatchAfterTerminal(
 						cwd,
 						run,
 						activeBatch,
-						"batch leader timed out before a backend handle was recovered",
+						"batch leader timed out before a worker handle was recovered",
 					);
 				changed = true;
 			}
@@ -865,12 +840,12 @@ export async function refreshRunFromSubagentArtifacts(
 		pollItems.push({ order, workflowRunId: run.runId, task, handle });
 	}
 
-	const api = pollItems.length > 0 ? await loadSubagentApi() : undefined;
+	const api = pollItems.length > 0 ? await loadWorkerApi() : undefined;
 	const pollResults = api
 		? await allSettledBounded(
 				pollItems,
 				REFRESH_STATUS_RECONCILE_CONCURRENCY,
-				(item) => pollSubagentForRefresh(api, item),
+				(item) => pollWorkerForRefresh(api, item),
 			)
 		: [];
 	const refreshErrors: unknown[] = [];
@@ -881,8 +856,8 @@ export async function refreshRunFromSubagentArtifacts(
 			const item = pollItems[pollIndex];
 			if (item && isTaskTimedOut(item.task)) {
 				try {
-					await interruptTimedOutSubagent(cwd, run, item.task);
-					markSubagentTaskTimedOut(item.task);
+					await interruptTimedOutWorker(cwd, run, item.task);
+					markWorkerTaskTimedOut(item.task);
 					releaseLiveModelWorkerSlotForTask(run, item.task);
 					const batch = activeForeachBatchRecordForTask(run, item.task);
 					if (batch) {
@@ -890,7 +865,7 @@ export async function refreshRunFromSubagentArtifacts(
 							cwd,
 							run,
 							batch,
-							"batch leader timed out after backend refresh failure",
+							"batch leader timed out after worker refresh failure",
 						);
 					}
 				} catch (error) {
@@ -912,8 +887,8 @@ export async function refreshRunFromSubagentArtifacts(
 		if (snapshot === null) {
 			if (isTaskTimedOut(task)) {
 				try {
-					await interruptTimedOutSubagent(cwd, run, task);
-					markSubagentTaskTimedOut(task);
+					await interruptTimedOutWorker(cwd, run, task);
+					markWorkerTaskTimedOut(task);
 					releaseLiveModelWorkerSlotForTask(run, task);
 					const batch = activeForeachBatchRecordForTask(run, task);
 					if (batch)
@@ -921,7 +896,7 @@ export async function refreshRunFromSubagentArtifacts(
 							cwd,
 							run,
 							batch,
-							"batch leader timed out while backend status was unavailable",
+							"batch leader timed out while worker status was unavailable",
 						);
 				} catch (error) {
 					markCancellationFailed(task, "timeout", error);
@@ -964,8 +939,8 @@ export async function refreshRunFromSubagentArtifacts(
 			}
 			if (isTaskTimedOut(task)) {
 				try {
-					await interruptTimedOutSubagent(cwd, run, task);
-					markSubagentTaskTimedOut(task);
+					await interruptTimedOutWorker(cwd, run, task);
+					markWorkerTaskTimedOut(task);
 					releaseLiveModelWorkerSlotForTask(run, task);
 					const batch = activeForeachBatchRecordForTask(run, task);
 					if (batch)
@@ -988,7 +963,7 @@ export async function refreshRunFromSubagentArtifacts(
 			delete task.activity;
 			changed = true;
 		}
-		if (await materializeTerminalSubagentResult(cwd, run, task, snapshot)) {
+		if (await materializeTerminalWorkerResult(cwd, run, task, snapshot)) {
 			releaseLiveModelWorkerSlotForTask(run, task);
 			changed = true;
 		}
@@ -1000,30 +975,30 @@ export async function refreshRunFromSubagentArtifacts(
 	if (refreshErrors.length > 0) {
 		throw new AggregateError(
 			refreshErrors,
-			"one or more subagent refresh polls failed",
+			"one or more worker refresh polls failed",
 		);
 	}
 	return run;
 }
 
-async function pollSubagentForRefresh(
-	api: SubagentApi,
+async function pollWorkerForRefresh(
+	api: WorkerApi,
 	item: RefreshPollItem,
 ): Promise<RefreshPollResult> {
 	const { handle } = item;
 	const reconcileStartedAtMs = Date.now();
 	try {
-		await awaitSubagentOperation(
+		await awaitWorkerOperation(
 			() =>
-				api.reconcileSubagentRun({
+				api.reconcileWorkerRun({
 					cwd: handle.cwd,
 					runsDir: handle.runsDir,
 					runId: handle.runId,
 				}),
 			{
 				operation: "reconcile",
-				context: `workflow run ${item.workflowRunId} task ${item.task.taskId} subagent run ${handle.runId}/${handle.attemptId}`,
-				timeoutMs: SUBAGENT_REFRESH_OPERATION_TIMEOUT_MS,
+				context: `workflow run ${item.workflowRunId} task ${item.task.taskId} worker run ${handle.runId}/${handle.attemptId}`,
+				timeoutMs: WORKER_REFRESH_OPERATION_TIMEOUT_MS,
 			},
 		);
 	} catch (error) {
@@ -1031,11 +1006,11 @@ async function pollSubagentForRefresh(
 	}
 	const reconcileMs = elapsedSince(reconcileStartedAtMs);
 	const statusPollStartedAtMs = Date.now();
-	let snapshot: SubagentRunStatusSnapshot | null;
+	let snapshot: WorkerRunStatusSnapshot | null;
 	try {
-		snapshot = await awaitSubagentOperation(
+		snapshot = await awaitWorkerOperation(
 			() =>
-				api.getSubagentStatus({
+				api.getWorkerStatus({
 					cwd: handle.cwd,
 					runsDir: handle.runsDir,
 					runId: handle.runId,
@@ -1043,8 +1018,8 @@ async function pollSubagentForRefresh(
 				}),
 			{
 				operation: "status",
-				context: `workflow run ${item.workflowRunId} task ${item.task.taskId} subagent run ${handle.runId}/${handle.attemptId}`,
-				timeoutMs: SUBAGENT_REFRESH_OPERATION_TIMEOUT_MS,
+				context: `workflow run ${item.workflowRunId} task ${item.task.taskId} worker run ${handle.runId}/${handle.attemptId}`,
+				timeoutMs: WORKER_REFRESH_OPERATION_TIMEOUT_MS,
 			},
 		);
 	} catch (error) {
@@ -1061,7 +1036,7 @@ function refreshPollError(
 ): Error {
 	const { task, handle } = item;
 	return new Error(
-		`subagent refresh ${operation} failed for workflow run ${item.workflowRunId} task ${task.taskId} (${task.specId}) subagent run ${handle.runId}/${handle.attemptId}`,
+		`worker refresh ${operation} failed for workflow run ${item.workflowRunId} task ${task.taskId} (${task.specId}) worker run ${handle.runId}/${handle.attemptId}`,
 		{ cause: error },
 	);
 }
@@ -1097,14 +1072,14 @@ async function allSettledBounded<T, R>(
 async function refreshRunningArtifactGraphPartialOutput(
 	cwd: string,
 	task: WorkflowTaskRunRecord,
-	snapshot: SubagentRunStatusSnapshot,
+	snapshot: WorkerRunStatusSnapshot,
 ): Promise<void> {
 	const partial = task.artifactGraph?.output.partial;
 	if (!partial || partial.paths.length === 0) return;
 	const outputRef = findLog(snapshot, "output");
 	const outputFile = fromStatePath(cwd, task.files.output);
-	const artifactRoot = task.backendFiles?.runsDir
-		? fromStatePath(cwd, task.backendFiles.runsDir)
+	const artifactRoot = task.workerFiles?.runsDir
+		? fromStatePath(cwd, task.workerFiles.runsDir)
 		: undefined;
 	await copyLogOrEmpty(snapshot, outputRef, outputFile, artifactRoot);
 	await writeWorkflowPartialOutputLedgerFromFile({
@@ -1114,12 +1089,12 @@ async function refreshRunningArtifactGraphPartialOutput(
 	});
 }
 
-async function interruptTimedOutSubagent(
+async function interruptTimedOutWorker(
 	cwd: string,
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
 ): Promise<void> {
-	await acknowledgeSubagentTaskInterrupted(cwd, run, task, "workflow timeout");
+	await acknowledgeWorkerTaskInterrupted(cwd, run, task, "workflow timeout");
 }
 
 function markCancellationFailed(
@@ -1128,13 +1103,13 @@ function markCancellationFailed(
 	error: unknown,
 ): void {
 	task.statusDetail = "cancellation_failed";
-	task.lastMessage = `${reason} cancellation failed; backend handle preserved: ${error instanceof Error ? error.message : String(error)}`;
+	task.lastMessage = `${reason} cancellation failed; worker handle preserved: ${error instanceof Error ? error.message : String(error)}`;
 }
 
-function markSubagentTaskTimedOut(task: WorkflowTaskRunRecord): void {
+function markWorkerTaskTimedOut(task: WorkflowTaskRunRecord): void {
 	markTaskTimedOut(task);
-	task.backendHandle = undefined;
-	task.backendTaskId = task.taskId;
+	task.workerHandle = undefined;
+	task.workerTaskId = task.taskId;
 	task.pid = undefined;
 }
 
@@ -1159,9 +1134,9 @@ function resetStaleLaunchClaim(task: WorkflowTaskRunRecord): void {
 	task.status = "pending";
 	task.statusDetail = "pending";
 	task.startedAt = undefined;
-	task.backendHandle = undefined;
-	task.backendFiles = undefined;
-	task.backendTaskId = task.taskId;
+	task.workerHandle = undefined;
+	task.workerFiles = undefined;
+	task.workerTaskId = task.taskId;
 	task.pid = undefined;
 	task.lastMessage = "stale executor launch claim reset";
 }
@@ -1192,12 +1167,10 @@ export function workflowTaskExecutorDescriptor(
 }
 
 /**
- * Prepare the sealed launch inputs for one task (subagent-backend.ts 6406-6639). Pi-only parts
- * (provider extension resolution, fetch-cache/web-source/native-host/fast-mode wrappers, the
- * extension isolation probe) are not ported: they belong to the Pi executor (WP6) or were dropped
- * with the workflow web tools (C2).
+ * Prepare the sealed launch inputs for one task. Executor-specific launch parts (Pi extensions, fast
+ * tier) belong to the executor and its policy, not to this sealed launch.
  */
-export async function prepareSubagentTaskLaunch(
+export async function prepareWorkerTaskLaunch(
 	cwd: string,
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
@@ -1267,7 +1240,7 @@ async function sealArtifactBinding(
 	}
 }
 
-async function assertPreparedSubagentTaskLaunch(
+async function assertPreparedWorkerTaskLaunch(
 	preparedLaunch: PreparedWorkflowTaskLaunch,
 ): Promise<void> {
 	if (preparedLaunch.artifactBinding) {
@@ -1419,7 +1392,7 @@ function buildSystemPrompt(
 			: undefined,
 	].filter((line): line is string => typeof line === "string");
 	return [
-		`You are workflow subagent '${task.agent}'.`,
+		`You are workflow worker '${task.agent}'.`,
 		"You were launched by agent-workflow from a deterministic workflow spec.",
 		"Do not assume parent conversation history.",
 		"Do not launch other agents or orchestration workflows unless explicitly instructed.",
@@ -1582,7 +1555,7 @@ export function preparedMcpServers(
 }
 
 /**
- * R#5 (D2) backend gate: a task whose compiled safety requires a worktree launches only inside
+ * R#5 (D2) worker gate: a task whose compiled safety requires a worktree launches only inside
  * the managed worktree recorded on the task. Throws before any executor effect.
  */
 export function assertWorktreeEnforced(
@@ -1597,7 +1570,7 @@ export function assertWorktreeEnforced(
 		);
 }
 
-export interface OneShotSubagentEnvelope {
+export interface OneShotWorkerEnvelope {
 	runId: string;
 	attemptId: string;
 	status: string;
@@ -1607,20 +1580,20 @@ export interface OneShotSubagentEnvelope {
 
 /**
  * Shared entry point for one-off synchronous executor calls (workflow router comparison).
- * Honors setTaskRuntimeApiForTests. `backend` is replaced by the executor selected with `executor` (B2: the call's executor id,
- * required explicitly), and an unavailable executor throws before any launch.
+ * Honors setTaskRuntimeApiForTests. The call names its executor explicitly; an unavailable executor
+ * throws before any launch.
  */
-export async function runOneShotSubagentCall(
+export async function runOneShotWorkerCall(
 	options: Record<string, unknown> & { executor: string },
-): Promise<OneShotSubagentEnvelope> {
+): Promise<OneShotWorkerEnvelope> {
 	if (typeof options.executor !== "string" || options.executor.trim() === "")
 		throw new Error("one-shot calls require an explicit executor");
-	const api = await loadSubagentApi();
-	const { backend: _backend, executor: executorId, ...rest } = options;
+	const api = await loadWorkerApi();
+	const { executor: executorId, ...rest } = options;
 	const selection = resolveRunExecutorSelection({
 		runFlag: executorId,
 	});
-	return (await api.runSubagent({
+	return (await api.runWorker({
 		// WP4e: engine calls always set the mode (engine default free; readOnly is intent only).
 		permissionMode: "free",
 		...rest,
@@ -1628,16 +1601,15 @@ export async function runOneShotSubagentCall(
 		readOnly: true,
 		isolation: { inherit: false },
 		env: { [AGENT_WORKFLOW_ROLE_ENV]: "worker" },
-	})) as OneShotSubagentEnvelope;
+	})) as OneShotWorkerEnvelope;
 }
 
-/** The core task backend. */
-export const workflowTaskBackend: WorkflowBackend = {
-	id: WORKFLOW_TASK_BACKEND_ID,
-	refreshRun: refreshRunFromSubagentArtifacts,
-	cleanupRun: cleanupSubagentRun,
+/** The task runner on the agent-workflow runtime API (durable worker runs). */
+export const runtimeTaskRunner: WorkflowTaskRunner = {
+	refreshRun: refreshRunFromWorkerArtifacts,
+	cleanupRun: cleanupWorkerRun,
 	async prepareTaskLaunch(cwd, run, task, compiledTask) {
-		return prepareSubagentTaskLaunch(cwd, run, task, compiledTask, true);
+		return prepareWorkerTaskLaunch(cwd, run, task, compiledTask, true);
 	},
 	async launchTask(
 		cwd,
@@ -1649,7 +1621,7 @@ export const workflowTaskBackend: WorkflowBackend = {
 		preparedLaunch,
 	) {
 		try {
-			return await launchSubagentTask(
+			return await launchWorkerTask(
 				cwd,
 				run,
 				task,
@@ -1674,22 +1646,11 @@ export const workflowTaskBackend: WorkflowBackend = {
 	},
 };
 
-/**
- * Run records use `backend: {type: "local", mode: "headless"}` for the runtime-API backend.
- */
-export const WORKFLOW_TASK_BACKEND_KEY = {
-	type: "local",
-	mode: "headless",
-} as const;
+let restoreRuntimeTaskRunner: (() => void) | undefined;
 
-let unregisterWorkflowTaskBackend: (() => void) | undefined;
-
-/** Idempotently register the core task backend for `local/headless` run records. */
-export function ensureWorkflowTaskBackendRegistered(): void {
-	unregisterWorkflowTaskBackend ??= registerWorkflowBackend(
-		WORKFLOW_TASK_BACKEND_KEY,
-		workflowTaskBackend,
-	);
+/** Idempotently install the runtime task runner. */
+export function ensureRuntimeTaskRunnerRegistered(): void {
+	restoreRuntimeTaskRunner ??= setWorkflowTaskRunner(runtimeTaskRunner);
 }
 
-ensureWorkflowTaskBackendRegistered();
+ensureRuntimeTaskRunnerRegistered();

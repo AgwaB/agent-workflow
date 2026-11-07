@@ -709,7 +709,7 @@ function formatHumanToolResultBudgetSignal(
 		);
 	}
 	if (totals.warningAttempts > 0) {
-		parts.push(`${totals.warningAttempts} backend warnings`);
+		parts.push(`${totals.warningAttempts} worker warnings`);
 	}
 	const telemetryDenominator =
 		totals.fullyReportingTasks +
@@ -892,7 +892,7 @@ export function formatRun(
 	const telemetry = summarizeWorkflowTelemetry(run);
 	const failureClasses = summarizeTaskFailureClasses(run.tasks);
 	const lines = [
-		`${run.runId} [${run.status}] type=${run.type} backend=${run.backend.type}/${run.backend.mode}${run.degradation ? ` — degraded: ${run.degradation.summary}` : ""}`,
+		`${run.runId} [${run.status}] type=${run.type}${run.degradation ? ` — degraded: ${run.degradation.summary}` : ""}`,
 		`created=${run.createdAt} updated=${run.updatedAt}`,
 		`tasks=${run.taskSummary.completed}/${run.taskSummary.total} completed, running=${run.taskSummary.running}, pending=${run.taskSummary.pending}, blocked=${run.taskSummary.blocked}, failed=${run.taskSummary.failed}, interrupted=${run.taskSummary.interrupted}`,
 	];
@@ -1074,6 +1074,6 @@ function formatTaskDependencies(task: WorkflowTaskRunRecord): string {
 }
 
 function formatTaskTools(task: WorkflowTaskRunRecord): string {
-	if (task.kind === "support") return "(support helper; not subagent tools)";
+	if (task.kind === "support") return "(support helper; not worker tools)";
 	return task.tools?.join(",") ?? "(Pi default)";
 }

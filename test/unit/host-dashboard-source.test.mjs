@@ -73,7 +73,7 @@ async function writeRun(ctx, id, options = {}) {
 					warning: null,
 				},
 				cwd: ctx.cwd,
-				backendTaskId: "",
+				workerTaskId: "",
 				files: {
 					output: `${relativeDir}/report/output.log`,
 					stderr: `${relativeDir}/report/stderr.log`,

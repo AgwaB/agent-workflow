@@ -14,8 +14,8 @@ const backendModuleUrl = new URL(
 
 async function recordInChild(home, model, backoffMs) {
 	const script = `
-		const backend = await import(process.argv[1]);
-		await backend.recordSharedModelRateLimitBackoffForTests(process.argv[2], Number(process.argv[3]));
+		const worker = await import(process.argv[1]);
+		await worker.recordSharedModelRateLimitBackoffForTests(process.argv[2], Number(process.argv[3]));
 	`;
 	await execFileAsync(
 		process.execPath,

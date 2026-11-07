@@ -24,7 +24,7 @@ import {
 	isFailureKind,
 	type FailureKind,
 	type ResolveInput,
-	type ResolvedBackend,
+	type ExecutorId,
 	userCancelledAbortReason,
 } from "../core/constants.js";
 import { createDurableLaunchAuthority } from "../durable-authority.js";
@@ -67,7 +67,7 @@ export {
 	MAX_PARALLEL_CONCURRENCY,
 } from "./run-options.js";
 
-export interface RunSubagentTaskOptions {
+export interface RunWorkerTaskOptions {
 	input: RuntimeRunInput;
 	cwd: string;
 	/** Internal durable-worker continuation of the already-created active attempt. */
@@ -82,13 +82,13 @@ export interface RunSubagentTaskOptions {
 	registry?: ExecutorRegistry;
 }
 
-export interface PreparedSubagentExecution {
+export interface PreparedWorkerExecution {
 	input: RuntimeRunInput & { task: string };
 	ownership: {
 		state: "prepared" | "execution-owned" | "finalized";
 		cleanupStatus?: "not-needed" | "removed" | "kept" | "failed";
 	};
-	backend: ResolvedBackend;
+	executorId: ExecutorId;
 	runId: string;
 	attemptId: string;
 	baseCwd: string;
@@ -131,7 +131,7 @@ export interface ParallelRunResult {
 	failFastTriggered: boolean;
 }
 
-export class SubagentToolAuthorityError extends Error {
+export class WorkerToolAuthorityError extends Error {
 	readonly failureKind = "validation" as const;
 }
 
@@ -198,7 +198,7 @@ async function writeParallelErrorResult(options: {
 		options.error instanceof Error
 			? options.error.message
 			: String(options.error);
-	const backend: ResolvedBackend = options.taskInput.executor.id;
+	const executorId: ExecutorId = options.taskInput.executor.id;
 	const startedAt = new Date();
 	const completedAt = new Date();
 	const runRef = {
@@ -209,7 +209,7 @@ async function writeParallelErrorResult(options: {
 	await beginRunRecord({
 		...runRef,
 		mode: "single",
-		backend,
+		executorId,
 		startedAt,
 		dependency: options.taskInput.asyncDependency ?? null,
 		correlationId: options.taskInput.correlationId,
@@ -219,7 +219,7 @@ async function writeParallelErrorResult(options: {
 			{
 				attemptId: options.attemptId,
 				status: "running",
-				backend,
+				executorId,
 				startedAt: startedAt.toISOString(),
 			},
 		],
@@ -244,7 +244,7 @@ async function writeParallelErrorResult(options: {
 	const stderr = await store.writeTextArtifact("stderr", `${message}\n`);
 	const output = await store.writeTextArtifact("output", "");
 	const result = await store.writeResult({
-		backend,
+		executorId,
 		status: options.cancelled ? "cancelled" : "failed",
 		failureKind: options.cancelled
 			? (options.cancelFailureKind ?? "cancelled")
@@ -279,16 +279,16 @@ async function writeParallelErrorResult(options: {
 	return result;
 }
 
-export async function prepareSubagentExecution(
-	options: RunSubagentTaskOptions,
-): Promise<PreparedSubagentExecution> {
+export async function prepareWorkerExecution(
+	options: RunWorkerTaskOptions,
+): Promise<PreparedWorkerExecution> {
 	const input = Object.freeze({ ...options.input });
-	const backend = input.executor.id;
+	const executorId = input.executor.id;
 	const runId = options.runId ?? createRunId();
 	const attemptId = options.attemptId ?? createAttemptId();
 	const baseCwd = resolve(input.cwd ?? options.cwd);
 	if (input.task === undefined)
-		throw new Error(`${backend} execution requires a task (prompt).`);
+		throw new Error(`${executorId} execution requires a task (prompt).`);
 	const preparedInput: RuntimeRunInput & { task: string } = Object.freeze({
 		...input,
 		task: input.task,
@@ -331,7 +331,7 @@ export async function prepareSubagentExecution(
 			runsDir: input.runsDir,
 			attemptId,
 			status: "pending",
-			backend,
+			executorId,
 			failureKind: null,
 			workspace: {
 				...workspaceResult,
@@ -398,7 +398,7 @@ export async function prepareSubagentExecution(
 	return {
 		input: preparedInput,
 		ownership: { state: "prepared" as const },
-		backend,
+		executorId,
 		runId,
 		attemptId,
 		baseCwd,
@@ -418,7 +418,7 @@ export async function prepareSubagentExecution(
  * worker writes result.json and hands the commit to the terminal finalizer).
  */
 export async function discardPreparedExecutionWorkspace(
-	prepared: PreparedSubagentExecution,
+	prepared: PreparedWorkerExecution,
 ): Promise<boolean> {
 	if (prepared.ownership.state !== "prepared") return false;
 	await discardPreparedWorkspace(prepared.workspace);
@@ -428,8 +428,8 @@ export async function discardPreparedExecutionWorkspace(
 	return true;
 }
 
-export async function discardSubagentExecution(
-	prepared: PreparedSubagentExecution,
+export async function discardWorkerExecution(
+	prepared: PreparedWorkerExecution,
 ): Promise<void> {
 	if (!(await discardPreparedExecutionWorkspace(prepared))) return;
 	await upsertRunAttempt({
@@ -438,7 +438,7 @@ export async function discardSubagentExecution(
 		runsDir: prepared.input.runsDir,
 		attemptId: prepared.attemptId,
 		status: "cancelled",
-		backend: prepared.backend,
+		executorId: prepared.executorId,
 		failureKind: "user_cancelled",
 		completedAt: new Date(),
 		workspace: {
@@ -454,10 +454,10 @@ export async function discardSubagentExecution(
 }
 
 async function writeOwnedExecutionFailure(
-	prepared: PreparedSubagentExecution,
+	prepared: PreparedWorkerExecution,
 	error: unknown,
 ): Promise<ResultEnvelope> {
-	const { input, backend, runId, attemptId, baseCwd, workspace } = prepared;
+	const { input, executorId, runId, attemptId, baseCwd, workspace } = prepared;
 	const runRef = { cwd: baseCwd, runId, runsDir: input.runsDir };
 	const existing = await readRunRecord(runRef);
 	const existingAttempt = existing?.attempts.find(
@@ -496,7 +496,7 @@ async function writeOwnedExecutionFailure(
 	const stderr = await store.writeTextArtifact("stderr", `${message}\n`);
 	const output = await store.writeTextArtifact("output", "");
 	const result = await store.writeResult({
-		backend,
+		executorId,
 		status,
 		failureKind,
 		cwd: baseCwd,
@@ -517,7 +517,7 @@ async function writeOwnedExecutionFailure(
 				? {}
 				: {
 						executor: {
-							id: backend,
+							id: executorId,
 							attemptKey: prepared.request.attemptKey,
 							authority: notStarted.authority,
 						},
@@ -594,13 +594,13 @@ function linkedStop(
 	};
 }
 
-export async function runPreparedSubagentExecution(
-	prepared: PreparedSubagentExecution,
+export async function runPreparedWorkerExecution(
+	prepared: PreparedWorkerExecution,
 	options: RunPreparedOptions = {},
 ): Promise<ResultEnvelope> {
 	const {
 		input,
-		backend,
+		executorId,
 		runId,
 		attemptId,
 		baseCwd,
@@ -613,7 +613,7 @@ export async function runPreparedSubagentExecution(
 	await beginRunRecord({
 		...runRef,
 		mode: "single",
-		backend,
+		executorId,
 		startedAt,
 		dependency: input.asyncDependency ?? null,
 		correlationId: input.correlationId,
@@ -624,7 +624,7 @@ export async function runPreparedSubagentExecution(
 		...runRef,
 		attemptId,
 		status: "running",
-		backend,
+		executorId,
 		failureKind: null,
 		startedAt,
 		completedAt: null,
@@ -736,7 +736,7 @@ export async function runPreparedSubagentExecution(
 		);
 		const output = await store.writeTextArtifact("output", report.outputText);
 		const resultInput: StoreResultEnvelopeInput = {
-			backend,
+			executorId,
 			status: report.status,
 			failureKind: report.failureKind,
 			cwd: baseCwd,
@@ -839,12 +839,12 @@ export async function runPreparedSubagentExecution(
 	}
 }
 
-export async function runSubagentTask(
-	options: RunSubagentTaskOptions,
+export async function runWorkerTask(
+	options: RunWorkerTaskOptions,
 ): Promise<ResultEnvelope> {
-	const prepared = await prepareSubagentExecution(options);
+	const prepared = await prepareWorkerExecution(options);
 	try {
-		return await runPreparedSubagentExecution(prepared, {
+		return await runPreparedWorkerExecution(prepared, {
 			signal: options.signal,
 			registry: options.registry,
 		});
@@ -855,28 +855,28 @@ export async function runSubagentTask(
 			isExecutionNotStartedError(error)
 		)
 			return await writeOwnedExecutionFailure(prepared, error);
-		await discardSubagentExecution(prepared).catch(() => undefined);
+		await discardWorkerExecution(prepared).catch(() => undefined);
 		throw error;
 	}
 }
 
-export async function runParallelSubagentTasks(
+export async function runParallelWorkerTasks(
 	input: RuntimeRunInput,
 	cwd: string,
 	signal?: AbortSignal,
 	options: MultiRunOptions = {},
 ): Promise<ParallelRunResult> {
 	if (!input.tasks || input.tasks.length === 0)
-		throw new SubagentToolAuthorityError(
+		throw new WorkerToolAuthorityError(
 			"parallel mode requires a non-empty tasks array.",
 		);
 	if (input.tasks.length > MAX_PARALLEL_TASKS)
-		throw new SubagentToolAuthorityError(
+		throw new WorkerToolAuthorityError(
 			`too many parallel tasks (${input.tasks.length}); max is ${MAX_PARALLEL_TASKS}.`,
 		);
 	for (const [index, task] of input.tasks.entries()) {
 		if (task.task === undefined)
-			throw new SubagentToolAuthorityError(
+			throw new WorkerToolAuthorityError(
 				`parallel tasks[${index}] requires a non-empty task.`,
 			);
 	}
@@ -949,7 +949,7 @@ export async function runParallelSubagentTasks(
 				return;
 			}
 			try {
-				const result = await runSubagentTask({
+				const result = await runWorkerTask({
 					input: taskInput,
 					cwd: runCwd,
 					signal: childSignal,

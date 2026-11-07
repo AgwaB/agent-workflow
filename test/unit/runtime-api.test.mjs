@@ -15,18 +15,18 @@ import { fixtureDescriptor } from "../fixtures/runtime/fake-executor-module.mjs"
 
 const {
 	createAttemptArtifactStore,
-	getSubagentLogs,
-	getSubagentStatus,
-	interruptSubagent,
+	getWorkerLogs,
+	getWorkerStatus,
+	interruptWorker,
 	readAnswerPreview,
-	reconcileSubagentRun,
-	recordSubagentChildEvent,
-	runParallelSubagentTasks,
-	runSubagent,
-	startAsyncParallelSubagentRuns,
-	startAsyncSubagentRun,
-	SubagentValidationError,
-	waitForSubagent,
+	reconcileWorkerRun,
+	recordWorkerChildEvent,
+	runParallelWorkerTasks,
+	runWorker,
+	startAsyncParallelWorkerRuns,
+	startAsyncWorkerRun,
+	WorkerValidationError,
+	waitForWorker,
 } = runtime;
 
 let root;
@@ -65,17 +65,17 @@ const failing = (effectLog) =>
 		],
 	});
 
-test("runtime API surface: the SubagentApi names WP4 calls, plus the barrier functions", () => {
+test("runtime API surface: the WorkerApi names WP4 calls, plus the barrier functions", () => {
 	for (const name of [
-		"runSubagent",
-		"getSubagentStatus",
-		"getSubagentLogs",
-		"waitForSubagent",
-		"interruptSubagent",
-		"reconcileSubagentRun",
-		"recordSubagentChildEvent",
-		"pruneSubagentRuns",
-		"formatPruneSubagentRunsSummary",
+		"runWorker",
+		"getWorkerStatus",
+		"getWorkerLogs",
+		"waitForWorker",
+		"interruptWorker",
+		"reconcileWorkerRun",
+		"recordWorkerChildEvent",
+		"pruneWorkerRuns",
+		"formatPruneWorkerRunsSummary",
 		"createDurableLaunchBarrierV2",
 		"durableLaunchBarrierDigest",
 		"resolveDurableLaunchBarrierV2Release",
@@ -103,17 +103,16 @@ test("runtime API surface: the SubagentApi names WP4 calls, plus the barrier fun
 test("api: validation, status, logs, wait, child events, legacy status, interrupt/reconcile on missing runs", async () => {
 	const effectLog = join(root, "api.jsonl");
 	await assert.rejects(
-		() => runSubagent({ executor: fixtureDescriptor({ effectLog }) }),
+		() => runWorker({ executor: fixtureDescriptor({ effectLog }) }),
 		(error) =>
-			error instanceof SubagentValidationError &&
+			error instanceof WorkerValidationError &&
 			error.failureKind === "validation" &&
 			/requires a non-empty task/u.test(error.message),
 	);
 	await assert.rejects(
-		() => runSubagent({ task: "x" }),
+		() => runWorker({ task: "x" }),
 		(error) =>
-			error instanceof SubagentValidationError &&
-			/executor/u.test(error.message),
+			error instanceof WorkerValidationError && /executor/u.test(error.message),
 	);
 	const cwd = await makeCwd();
 	const runId = "run_api_check";
@@ -121,7 +120,7 @@ test("api: validation, status, logs, wait, child events, legacy status, interrup
 	const store = await createAttemptArtifactStore({ cwd, runId, attemptId });
 	const output = await store.writeTextArtifact("output", "api-ok\n");
 	const result = await store.writeResult({
-		backend: "fixture",
+		executorId: "fixture",
 		status: "completed",
 		failureKind: null,
 		cwd,
@@ -134,7 +133,7 @@ test("api: validation, status, logs, wait, child events, legacy status, interrup
 		artifacts: [output],
 		metadata: { contextLengthExceeded: false },
 	});
-	await recordSubagentChildEvent({
+	await recordWorkerChildEvent({
 		cwd,
 		runId,
 		event: "failed",
@@ -143,7 +142,7 @@ test("api: validation, status, logs, wait, child events, legacy status, interrup
 		failureKind: "executor_permanent",
 		message: "child failed",
 	});
-	const usageEvent = await recordSubagentChildEvent({
+	const usageEvent = await recordWorkerChildEvent({
 		cwd,
 		runId,
 		event: "completed",
@@ -155,7 +154,7 @@ test("api: validation, status, logs, wait, child events, legacy status, interrup
 		totalTokens: 1234,
 		costUsd: 0.05,
 	});
-	const status = await getSubagentStatus({ cwd, runId, attemptId });
+	const status = await getWorkerStatus({ cwd, runId, attemptId });
 	assert.equal(status?.status, "completed");
 	assert.equal(
 		status?.resultPath,
@@ -167,10 +166,10 @@ test("api: validation, status, logs, wait, child events, legacy status, interrup
 		"run_child_api",
 	);
 	assert.equal(
-		(await getSubagentLogs({ cwd, runId, attemptId }))?.logText.output,
+		(await getWorkerLogs({ cwd, runId, attemptId }))?.logText.output,
 		"api-ok\n",
 	);
-	const waited = await waitForSubagent({
+	const waited = await waitForWorker({
 		cwd,
 		runId,
 		attemptId,
@@ -179,12 +178,11 @@ test("api: validation, status, logs, wait, child events, legacy status, interrup
 	});
 	assert.equal(waited.snapshot?.status, "completed");
 	assert.equal(
-		(await interruptSubagent({ cwd, runId: "run_missing_api_check" })).status,
+		(await interruptWorker({ cwd, runId: "run_missing_api_check" })).status,
 		"not-found",
 	);
 	assert.equal(
-		(await reconcileSubagentRun({ cwd, runId: "run_missing_api_check" }))
-			.status,
+		(await reconcileWorkerRun({ cwd, runId: "run_missing_api_check" })).status,
 		"not-found",
 	);
 
@@ -199,7 +197,7 @@ test("api: validation, status, logs, wait, child events, legacy status, interrup
 			schemaVersion: 1,
 			runId: "run_api_legacy",
 			taskId: "task-1",
-			backend: "fixture",
+			executorId: "fixture",
 			status: "completed",
 			failureKind: null,
 			cwd,
@@ -216,7 +214,7 @@ test("api: validation, status, logs, wait, child events, legacy status, interrup
 			],
 		})}\n`,
 	);
-	const legacyStatus = await getSubagentStatus({
+	const legacyStatus = await getWorkerStatus({
 		cwd,
 		runId: "run_api_legacy",
 		taskId: "task-1",
@@ -229,7 +227,7 @@ test("api: onComplete notify fires once for a failed async run; async parallel r
 	const cwd = await makeCwd();
 	const effectLog = join(root, "notify.jsonl");
 	let completionCalls = 0;
-	const failedStart = await startAsyncSubagentRun({
+	const failedStart = await startAsyncWorkerRun({
 		cwd,
 		input: { executor: failing(effectLog), task: "fail", onComplete: "notify" },
 		onComplete(result, mode) {
@@ -239,7 +237,7 @@ test("api: onComplete notify fires once for a failed async run; async parallel r
 			return 1;
 		},
 	});
-	const failedWait = await waitForSubagent({
+	const failedWait = await waitForWorker({
 		cwd,
 		runId: failedStart.runId,
 		attemptId: failedStart.attemptId,
@@ -250,7 +248,7 @@ test("api: onComplete notify fires once for a failed async run; async parallel r
 	assert.equal(failedWait.snapshot?.failureKind, "executor_permanent");
 	let failedStatus;
 	for (let index = 0; index < 60; index += 1) {
-		failedStatus = await getSubagentStatus({
+		failedStatus = await getWorkerStatus({
 			cwd,
 			runId: failedStart.runId,
 			attemptId: failedStart.attemptId,
@@ -262,7 +260,7 @@ test("api: onComplete notify fires once for a failed async run; async parallel r
 	assert.equal(failedStatus?.completion?.updatesSent, 1);
 	assert.equal(completionCalls, 1);
 
-	const asyncParallel = await runSubagent({
+	const asyncParallel = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({ effectLog: join(root, "parallel.jsonl") }),
 		async: true,
@@ -277,7 +275,7 @@ test("api: onComplete notify fires once for a failed async run; async parallel r
 		["running", "running"],
 	);
 	for (const item of asyncParallel.results) {
-		const waitedParallel = await waitForSubagent({
+		const waitedParallel = await waitForWorker({
 			cwd,
 			runId: item.runId,
 			attemptId: item.attemptId,
@@ -290,7 +288,7 @@ test("api: onComplete notify fires once for a failed async run; async parallel r
 
 test("answer preview reads the executor output: completed is final, failed is partial", async () => {
 	const cwd = await makeCwd();
-	const completed = await runSubagent({
+	const completed = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({ effectLog: join(root, "preview.jsonl") }),
 		task: "short",
@@ -300,7 +298,7 @@ test("answer preview reads the executor output: completed is final, failed is pa
 		partial: false,
 		truncated: false,
 	});
-	const failed = await runSubagent({
+	const failed = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({
 			effectLog: join(root, "preview-failed.jsonl"),
@@ -331,7 +329,7 @@ test("fail-fast: parallel failures, fail-fast skipping, sibling cancel, parent a
 		parentSessionId: "session-fail-fast",
 		correlationId: "corr-fail-fast",
 	};
-	const noFailFast = await runParallelSubagentTasks(
+	const noFailFast = await runParallelWorkerTasks(
 		{
 			...common,
 			concurrency: 2,
@@ -373,7 +371,7 @@ test("fail-fast: parallel failures, fail-fast skipping, sibling cancel, parent a
 	assert.equal(locator.parentSessionId, "session-fail-fast");
 	assert.equal(locator.correlationId, "corr-fail-fast");
 
-	const failFast = await runParallelSubagentTasks(
+	const failFast = await runParallelWorkerTasks(
 		{
 			...common,
 			concurrency: 1,
@@ -388,7 +386,7 @@ test("fail-fast: parallel failures, fail-fast skipping, sibling cancel, parent a
 	assert.equal(failFast.results.length, 1);
 	assert.equal(failFast.results[0]?.status, "failed");
 
-	const cancelSiblings = await runParallelSubagentTasks(
+	const cancelSiblings = await runParallelWorkerTasks(
 		{
 			...common,
 			concurrency: 1,
@@ -402,7 +400,7 @@ test("fail-fast: parallel failures, fail-fast skipping, sibling cancel, parent a
 
 	const aborted = new AbortController();
 	aborted.abort();
-	const parentAbort = await runParallelSubagentTasks(
+	const parentAbort = await runParallelWorkerTasks(
 		{
 			executor: failing(effectLog),
 			failFast: true,
@@ -423,7 +421,7 @@ test("fail-fast: async parallel prevalidates every executor and accounts for spa
 	});
 	await assert.rejects(
 		() =>
-			startAsyncParallelSubagentRuns(
+			startAsyncParallelWorkerRuns(
 				{
 					executor,
 					async: true,
@@ -452,7 +450,7 @@ test("fail-fast: async parallel prevalidates every executor and accounts for spa
 	await writeFile(badCwd, "file blocks cwd directory creation");
 	let partialError;
 	try {
-		await startAsyncParallelSubagentRuns(
+		await startAsyncParallelWorkerRuns(
 			{
 				executor,
 				async: true,
@@ -484,7 +482,7 @@ test("fail-fast: async parallel prevalidates every executor and accounts for spa
 		partialError.startedRunIds?.length,
 	);
 	for (const runId of partialError.startedRunIds)
-		await waitForSubagent({
+		await waitForWorker({
 			cwd: asyncCwd,
 			runId,
 			timeoutMs: 20_000,
@@ -494,7 +492,7 @@ test("fail-fast: async parallel prevalidates every executor and accounts for spa
 
 test("parent session id reaches run.json for a sync run", async () => {
 	const cwd = await makeCwd();
-	const result = await runSubagent({
+	const result = await runWorker({
 		cwd,
 		executor: fixtureDescriptor({ effectLog: join(root, "parent.jsonl") }),
 		task: "Reply exactly: parent-session-ok",

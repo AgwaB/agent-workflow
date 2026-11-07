@@ -83,7 +83,7 @@ before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp28-redrive-")));
 	launcher = join(root, "launcher.mjs");
 	await writeFile(launcher, LAUNCHER);
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

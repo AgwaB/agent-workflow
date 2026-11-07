@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { WorkflowRunRecord, WorkflowTaskRunRecord } from "./types.js";
 
-const MAX_SUBAGENT_SESSION_ID_LENGTH = 64;
+const MAX_WORKER_SESSION_ID_LENGTH = 64;
 
 /**
  * Derives the task session from the authoritative retry/resume fields shared
@@ -87,14 +87,14 @@ function workflowTaskBaseSessionId(runId: string, taskId: string): string {
 
 function boundedWorkflowSessionId(value: string): string {
 	const sanitized = value.replace(/[^A-Za-z0-9._-]/g, "-");
-	if (sanitized.length <= MAX_SUBAGENT_SESSION_ID_LENGTH) return sanitized;
+	if (sanitized.length <= MAX_WORKER_SESSION_ID_LENGTH) return sanitized;
 	const digest = createHash("sha256")
 		.update(sanitized)
 		.digest("hex")
 		.slice(0, 16);
 	const suffix = sanitized.split(".").at(-1) || "session";
 	const prefix = `awf.${digest}`;
-	const maxSuffixLength = MAX_SUBAGENT_SESSION_ID_LENGTH - prefix.length - 1;
+	const maxSuffixLength = MAX_WORKER_SESSION_ID_LENGTH - prefix.length - 1;
 	const boundedSuffix = suffix.slice(-Math.max(1, maxSuffixLength));
 	return `${prefix}.${boundedSuffix}`;
 }

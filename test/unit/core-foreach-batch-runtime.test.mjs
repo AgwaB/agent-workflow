@@ -48,10 +48,10 @@ import {
 	writeStaticRunArtifacts,
 } from "../../dist/core/store.js";
 import "../helpers/register-default-executor.mjs";
-import { launchSubagentTask } from "../../dist/core/task-backend.js";
+import { launchWorkerTask } from "../../dist/core/task-runner.js";
 import { recoverForeachBatchRuntimeForTests } from "../../dist/core/foreach-recovery.js";
-import { setTaskRuntimeApiForTests as setSubagentApiForTests } from "../../dist/core/runtime-port.js";
-import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
+import { setTaskRuntimeApiForTests as setWorkerApiForTests } from "../../dist/core/runtime-port.js";
+import { setWorkerLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import {
 	readWorkflowArtifact,
 	handleWorkflowArtifactToolCall,
@@ -73,7 +73,7 @@ process.env.USERPROFILE = UNIT_TEST_HOME;
 // leaves a supervisor watcher alive while it rewrites a launch boundary; the
 // production default delay can otherwise let that watcher hold the lease until
 // the assertion runs under the full concurrent suite.
-setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 
 /**
  * Write a run record the test rewrote, under the run lease. `withRunLease` returns undefined
@@ -228,7 +228,7 @@ function writeWorkflow(
 	}));
 }
 
-function writeSubagentArtifacts(
+function writeWorkerArtifacts(
 	cwd,
 	runsDir,
 	runId,
@@ -435,7 +435,7 @@ function fakeApi({
 						},
 					}
 				: {}),
-			async runSubagent(options) {
+			async runWorker(options) {
 				const index = launches.length + 1;
 				const prompt = String(options.task);
 				const runId = `run_foreach_batch_${index}`;
@@ -473,7 +473,7 @@ function fakeApi({
 					const taskId = prompt.match(/item=(task-\d+)/)?.[1] ?? "singleton";
 					output = normalOutput({ schema: "stage-control-v1", digest: taskId });
 				}
-				const artifactDir = writeSubagentArtifacts(
+				const artifactDir = writeWorkerArtifacts(
 					cwd,
 					runsDir,
 					runId,
@@ -485,10 +485,10 @@ function fakeApi({
 				runs.set(runId, { runId, attemptId, kind, artifactDir });
 				return { runId, attemptId, status: "running" };
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus({ runId }) {
+			async getWorkerStatus({ runId }) {
 				const run = runs.get(runId);
 				assert.ok(run, `unknown fake run ${runId}`);
 				if (run.kind === "batch") {
@@ -498,7 +498,7 @@ function fakeApi({
 						return {
 							runId,
 							attemptId: run.attemptId,
-							backend: "headless",
+							executorId: "headless",
 							status: "running",
 							failureKind: null,
 							startedAt: new Date(Date.now() - 100).toISOString(),
@@ -511,7 +511,7 @@ function fakeApi({
 				return {
 					runId,
 					attemptId: run.attemptId,
-					backend: "headless",
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt: new Date(Date.now() - 100).toISOString(),
@@ -536,7 +536,7 @@ function fakeApi({
 					attempts: [{ attemptId: run.attemptId, status: "completed" }],
 				};
 			},
-			async interruptSubagent(options) {
+			async interruptWorker(options) {
 				interrupts.push(options);
 				return {
 					status: "already-terminal",
@@ -762,7 +762,7 @@ test("groupBy separates adjacent keys and a missing key is singleton-only", asyn
 				throw new Error("different or missing group keys must not be paired");
 			},
 		});
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		const started = await runWorkflow("batch-grouping", cwd, {
 			task: "Keep groups separate.",
 			executionProfile: "batched",
@@ -774,7 +774,7 @@ test("groupBy separates adjacent keys and a missing key is singleton-only", asyn
 			["source", "singleton", "singleton", "singleton", "downstream"],
 		);
 	} finally {
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		removeProject(cwd);
 	}
 });
@@ -804,7 +804,7 @@ test("profile-only batching uses one physical launch, preserves per-item artifac
 				refs: [],
 			}),
 		});
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		started = await runWorkflow("batch-valid", cwd, {
 			task: "Run batched items.",
 			executionProfile: "batched",
@@ -837,9 +837,9 @@ test("profile-only batching uses one physical launch, preserves per-item artifac
 		);
 		assert.equal(
 			active.tasks.find((task) => task.foreachBatch?.role === "member")
-				?.backendHandle,
+				?.workerHandle,
 			undefined,
-			"member must never own a backend handle",
+			"member must never own a worker handle",
 		);
 		// A refresh while the run's in-process supervisor holds the lease returns the record
 		// unchanged (no poll), so refresh until one poll happened; it must be the leader's only.
@@ -1002,7 +1002,7 @@ test("profile-only batching uses one physical launch, preserves per-item artifac
 			if (started) await drainWorkflowFixture(cwd, started.runId);
 			drained = true;
 		} finally {
-			setSubagentApiForTests(undefined);
+			setWorkerApiForTests(undefined);
 			// A failed drain must retain the fixture rather than delete under a writer.
 			if (drained) removeProject(cwd);
 		}
@@ -1046,7 +1046,7 @@ test("scheduler persisted dynamic export manifest reads exact full/truncated raw
 			}),
 		);
 		const fake = fakeApi({ cwd, items: [], durableBarrier: true });
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		const started = await runWorkflow("raw-dynamic-export", cwd, {
 			task: "Local dynamic export",
 		});
@@ -1200,12 +1200,12 @@ test("scheduler persisted dynamic export manifest reads exact full/truncated raw
 		writeFileSync(controlPath, controlText);
 	} finally {
 		setArtifactReadHookForTests(undefined);
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		removeProject(cwd);
 	}
 });
 
-for (const kind of ["backend", "salvage", "batch", "dynamic"])
+for (const kind of ["worker", "salvage", "batch", "dynamic"])
 	for (const drift of kind === "dynamic"
 		? ["run", "task"]
 		: ["run", "task", "mirror", "attempt"])
@@ -1264,8 +1264,8 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 					}),
 				});
 				if (kind === "salvage") {
-					const get = fake.api.getSubagentStatus;
-					fake.api.getSubagentStatus = async (options) => {
+					const get = fake.api.getWorkerStatus;
+					fake.api.getWorkerStatus = async (options) => {
 						const status = await get(options),
 							attemptDir = status.logs[0].artifactCwd,
 							mirrorPath = join(dirname(dirname(attemptDir)), "run.json");
@@ -1285,7 +1285,7 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 						};
 					};
 				}
-				setSubagentApiForTests(fake.api);
+				setWorkerApiForTests(fake.api);
 				setRawOwnerEstablishmentHookForTests(async (taskDir) => {
 					const runPath = join(dirname(dirname(taskDir)), "run.json"),
 						run = JSON.parse(readFileSync(runPath, "utf8"));
@@ -1316,10 +1316,10 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 						const mirrorDir = join(
 							stateDir(cwd),
 							".agent-workflow",
-							"workflow-subagents",
+							"worker-runs",
 							run.runId,
 							leader.taskId,
-							state.backendRunId,
+							state.workerRunId,
 						);
 						const path =
 							drift === "mirror"
@@ -1327,7 +1327,7 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 								: join(
 										mirrorDir,
 										"attempts",
-										state.backendAttemptId,
+										state.workerAttemptId,
 										"result.json",
 									);
 						const record = JSON.parse(readFileSync(path, "utf8"));
@@ -1380,7 +1380,7 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 				);
 				assert.ok(
 					error || kind === "dynamic",
-					"backend publication must propagate the ownership rejection",
+					"worker publication must propagate the ownership rejection",
 				);
 				const result = JSON.parse(
 					(() => {
@@ -1411,7 +1411,7 @@ for (const kind of ["backend", "salvage", "batch", "dynamic"])
 				}
 			} finally {
 				setRawOwnerEstablishmentHookForTests(undefined);
-				setSubagentApiForTests(undefined);
+				setWorkerApiForTests(undefined);
 				// Settle this test's debounced index update before leaving: its state survives
 				// removeProject, and an unscoped flush (the suite's after hook) would otherwise
 				// report this deliberate run drift.
@@ -1447,7 +1447,7 @@ test("stop and resume clear an active group as a unit and resume as singletons",
 				refs: [],
 			}),
 		});
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		const started = await runWorkflow("batch-stop-resume", cwd, {
 			task: "Stop active batch.",
 			executionProfile: "batched",
@@ -1486,7 +1486,7 @@ test("stop and resume clear an active group as a unit and resume as singletons",
 			2,
 		);
 	} finally {
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		removeProject(cwd);
 	}
 });
@@ -1528,9 +1528,9 @@ test("restart recovers a prepared exact pair without inferring adjacency", async
 				refs: [],
 			}),
 		});
-		const runSubagent = fake.api.runSubagent;
-		fake.api.runSubagent = async (...args) => {
-			const result = await runSubagent(...args);
+		const runWorker = fake.api.runWorker;
+		fake.api.runWorker = async (...args) => {
+			const result = await runWorker(...args);
 			const count = fake.launches.filter(
 				(launch) => launch.kind === "batch",
 			).length;
@@ -1538,7 +1538,7 @@ test("restart recovers a prepared exact pair without inferring adjacency", async
 			if (count >= 2) replacementBatch.resolve();
 			return result;
 		};
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		started = await runWorkflow("batch-prepared-recovery", cwd, {
 			task: "Recover prepared pair.",
 			executionProfile: "batched",
@@ -1563,8 +1563,8 @@ test("restart recovers a prepared exact pair without inferring adjacency", async
 			record.phase = "launching";
 			leader.status = "pending";
 			leader.statusDetail = "pending";
-			leader.backendHandle = undefined;
-			leader.backendFiles = undefined;
+			leader.workerHandle = undefined;
+			leader.workerFiles = undefined;
 			leader.launchBootstrap = undefined;
 			leader.launchAuthority = undefined;
 			member.status = "running";
@@ -1619,7 +1619,7 @@ test("restart recovers a prepared exact pair without inferring adjacency", async
 		assert.equal(completed.status, "completed");
 	} finally {
 		if (started) await drainWorkflowFixture(cwd, started.runId);
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		removeProject(cwd);
 	}
 });
@@ -1640,7 +1640,7 @@ test("prepared batch execution-surface drift falls back before a physical batch 
 				refs: [],
 			}),
 		});
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		const started = await runWorkflow("batch-surface-drift", cwd, {
 			task: "Reject prepared surface drift.",
 			executionProfile: "batched",
@@ -1661,8 +1661,8 @@ test("prepared batch execution-surface drift falls back before a physical batch 
 		for (const task of [leader, member]) {
 			task.status = "pending";
 			task.statusDetail = "pending";
-			task.backendHandle = undefined;
-			task.backendFiles = undefined;
+			task.workerHandle = undefined;
+			task.workerFiles = undefined;
 			task.launchBootstrap = undefined;
 			task.launchAuthority = undefined;
 			task.foreachBatch = {
@@ -1696,7 +1696,7 @@ test("prepared batch execution-surface drift falls back before a physical batch 
 		);
 		assert.equal(singletons(), 2);
 	} finally {
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		removeProject(cwd);
 	}
 });
@@ -1716,7 +1716,7 @@ test("restart recovers terminal and partial-demux boundaries from durable batch 
 				refs: [],
 			}),
 		});
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		// Model a restart without a live supervisor: otherwise the old watcher
 		// can consume the one-shot write failure before this test's refresh.
 		const loaded = await loadWorkflowSpec("batch-recovery", cwd);
@@ -1797,12 +1797,12 @@ test("restart recovers terminal and partial-demux boundaries from durable batch 
 		assert.equal(completed.status, "completed");
 	} finally {
 		setWorkflowOutputArtifactWriteHookForTests(undefined);
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		removeProject(cwd);
 	}
 });
 
-test("an expired leader falls back the exact pair after backend refresh errors", async () => {
+test("an expired leader falls back the exact pair after worker refresh errors", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd);
@@ -1819,7 +1819,7 @@ test("an expired leader falls back the exact pair after backend refresh errors",
 				refs: [],
 			}),
 		});
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		// Own refresh explicitly: runWorkflow attaches a watcher that can consume
 		// the polling error and apply fallback before our rejection assertion.
 		const loaded = await loadWorkflowSpec("batch-refresh-error", cwd);
@@ -1861,7 +1861,7 @@ test("an expired leader falls back the exact pair after backend refresh errors",
 
 		await assert.rejects(
 			() => refreshRun(cwd, started.runId),
-			/one or more subagent refresh polls failed/,
+			/one or more worker refresh polls failed/,
 		);
 		const fallenBack = await readRunRecord(cwd, started.runId);
 		assert.equal(fallenBack.foreachBatches?.[0]?.phase, "fallback_applied");
@@ -1879,7 +1879,7 @@ test("an expired leader falls back the exact pair after backend refresh errors",
 			2,
 		);
 	} finally {
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		removeProject(cwd);
 	}
 });
@@ -1900,7 +1900,7 @@ test("one invalid batched member falls back both items to singleton without outp
 				refs: [],
 			}),
 		});
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		const started = await runWorkflow("batch-invalid", cwd, {
 			task: "Run invalid batch fallback.",
 			executionProfile: "batched",
@@ -1968,7 +1968,7 @@ test("one invalid batched member falls back both items to singleton without outp
 			"the fallback singleton barrier is independently acknowledged",
 		);
 	} finally {
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		removeProject(cwd);
 	}
 });
@@ -1993,7 +1993,7 @@ test("legacy completed member keeps its authority while pending leader migrates 
 				refs: [],
 			}),
 		});
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		started = await runWorkflow("legacy-fallback-authority", cwd, {
 			task: "Create a legacy fallback authority fixture.",
 			executionProfile: "batched",
@@ -2020,8 +2020,8 @@ test("legacy completed member keeps its authority while pending leader migrates 
 			task.launchBootstrap = undefined;
 			task.launchAuthority = undefined;
 			task.durableLaunchBarrier = undefined;
-			task.backendHandle = undefined;
-			task.backendFiles = undefined;
+			task.workerHandle = undefined;
+			task.workerFiles = undefined;
 		}
 		leader.status = "completed";
 		leader.statusDetail = "completed";
@@ -2033,7 +2033,7 @@ test("legacy completed member keeps its authority while pending leader migrates 
 			const compiled = JSON.parse(
 				readFileSync(compiledWorkflowPath(cwd, started.runId), "utf8"),
 			);
-			await launchSubagentTask(
+			await launchWorkerTask(
 				cwd,
 				fixture,
 				member,
@@ -2065,11 +2065,7 @@ test("legacy completed member keeps its authority while pending leader migrates 
 			"completed member must have a genuine legacy-key authority record",
 		);
 		assert.equal(
-			hasNonSpawnableWorkflowLaunchAuthority(
-				fixture,
-				completedMember,
-				"agent-workflow/runtime",
-			),
+			hasNonSpawnableWorkflowLaunchAuthority(fixture, completedMember),
 			true,
 		);
 		assert.ok(await establishRawOwner(memberTaskDir, undefined, stateDir(cwd)));
@@ -2189,8 +2185,8 @@ test("legacy completed member keeps its authority while pending leader migrates 
 				resumed.statusDetail = "pending";
 				resumed.startedAt = undefined;
 				resumed.completedAt = undefined;
-				resumed.backendHandle = undefined;
-				resumed.backendFiles = undefined;
+				resumed.workerHandle = undefined;
+				resumed.workerFiles = undefined;
 				delete resumed.foreachBatch.physicalAttempt;
 				await writeRunRecord(cwd, fixture);
 				assert.equal(
@@ -2217,11 +2213,7 @@ test("legacy completed member keeps its authority while pending leader migrates 
 					[leader.taskId, member.taskId],
 				);
 				assert.equal(
-					hasNonSpawnableWorkflowLaunchAuthority(
-						recovered,
-						recoveredMember,
-						"agent-workflow/runtime",
-					),
+					hasNonSpawnableWorkflowLaunchAuthority(recovered, recoveredMember),
 					true,
 				);
 				assert.deepEqual(
@@ -2320,7 +2312,7 @@ test("legacy completed member keeps its authority while pending leader migrates 
 			if (started) await drainWorkflowFixture(cwd, started.runId);
 			drained = true;
 		} finally {
-			setSubagentApiForTests(undefined);
+			setWorkerApiForTests(undefined);
 			if (drained) removeProject(cwd);
 		}
 	}
@@ -2448,7 +2440,7 @@ test("zero and one foreach items remain valid without creating batch ownership",
 					throw new Error("cardinality below two must not launch a batch");
 				},
 			});
-			setSubagentApiForTests(fake.api);
+			setWorkerApiForTests(fake.api);
 			const started = await runWorkflow(name, cwd, {
 				task: `Run ${itemCount} foreach items.`,
 				executionProfile: "batched",
@@ -2463,7 +2455,7 @@ test("zero and one foreach items remain valid without creating batch ownership",
 					: ["source", "singleton", "downstream"],
 			);
 		} finally {
-			setSubagentApiForTests(undefined);
+			setWorkerApiForTests(undefined);
 			removeProject(cwd);
 		}
 	}
@@ -2492,7 +2484,7 @@ test("logical concurrency below two degrades an eligible pair to ordered singlet
 					);
 				},
 			});
-			setSubagentApiForTests(fake.api);
+			setWorkerApiForTests(fake.api);
 			const started = await runWorkflow(name, cwd, {
 				task: "Respect one logical slot.",
 				executionProfile: "batched",
@@ -2505,7 +2497,7 @@ test("logical concurrency below two degrades an eligible pair to ordered singlet
 				["source", "singleton", "singleton", "downstream"],
 			);
 		} finally {
-			setSubagentApiForTests(undefined);
+			setWorkerApiForTests(undefined);
 			removeProject(cwd);
 		}
 	}
@@ -2575,7 +2567,7 @@ test("multiple groups accept reversed batch rows and preserve exact per-item own
 				refs: [],
 			}),
 		});
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		const started = await runWorkflow("batch-reversed-groups", cwd, {
 			task: "Accept exact ids regardless of row order.",
 			executionProfile: "batched",
@@ -2605,7 +2597,7 @@ test("multiple groups accept reversed batch rows and preserve exact per-item own
 			}
 		}
 	} finally {
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		removeProject(cwd);
 	}
 });
@@ -2626,7 +2618,7 @@ test("a physical batch launch failure durably falls back the exact pair to singl
 				refs: [],
 			}),
 		});
-		setSubagentApiForTests(fake.api);
+		setWorkerApiForTests(fake.api);
 		const started = await runWorkflow("batch-launch-failure", cwd, {
 			task: "Recover a failed physical pair launch.",
 			executionProfile: "batched",
@@ -2651,7 +2643,7 @@ test("a physical batch launch failure durably falls back the exact pair to singl
 			assert.equal(task.foreachBatch?.batchingDisabled, true);
 		}
 	} finally {
-		setSubagentApiForTests(undefined);
+		setWorkerApiForTests(undefined);
 		removeProject(cwd);
 	}
 });

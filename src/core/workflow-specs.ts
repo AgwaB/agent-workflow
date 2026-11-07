@@ -674,7 +674,7 @@ function dedupeWorkflowRecords(
 /**
  * Search order (lower priority wins): the agent-workflow locations, then the package's bundled
  * workflows. Pi's directories (`~/.pi/agent/workflows`, a project's `.pi/workflows`) are Pi
- * configuration and are not read (2026-10-30 owner decision; replaces the F5 legacy roots).
+ * configuration and are not read.
  */
 function workflowRoots(cwd: string): WorkflowRoot[] {
 	return uniqueWorkflowRoots([

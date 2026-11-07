@@ -1,9 +1,5 @@
 import type { BlockedActions } from "../../core/blocked-actions.js";
-import type {
-	FailureKind,
-	ResolvedBackend,
-	Status,
-} from "../core/constants.js";
+import type { FailureKind, ExecutorId, Status } from "../core/constants.js";
 
 export const RESULT_SCHEMA_VERSION = 2 as const;
 export const ARTIFACT_TYPES = [
@@ -192,7 +188,7 @@ export interface ResultEnvelopeInput {
 	runId: string;
 	attemptId: string;
 	correlationId?: string;
-	backend: ResolvedBackend;
+	executorId: ExecutorId;
 	status: Status;
 	failureKind?: FailureKind | null;
 	cwd: string;
@@ -216,7 +212,7 @@ export interface ResultEnvelope {
 	runId: string;
 	attemptId: string;
 	correlationId?: string;
-	backend: ResolvedBackend;
+	executorId: ExecutorId;
 	status: Status;
 	failureKind: FailureKind | null;
 	cwd: string;
@@ -384,7 +380,7 @@ export function createResultEnvelope(
 		...(input.correlationId === undefined
 			? {}
 			: { correlationId: input.correlationId }),
-		backend: input.backend,
+		executorId: input.executorId,
 		status: input.status,
 		failureKind: input.failureKind ?? null,
 		cwd: input.cwd,

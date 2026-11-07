@@ -341,13 +341,13 @@ function assertLaunchWorkspaceProvenance(
 		fail();
 }
 
-async function backendMirrorRoot(options: {
+async function workerMirrorRoot(options: {
 	project: string;
 	lexicalProject: string;
 	run: WorkflowRunRecord;
 	task: WorkflowTaskRunRecord;
 	provenance: LaunchBootstrapProvenanceRecord;
-	backendRunId: string;
+	workerRunId: string;
 }): Promise<string> {
 	const { project, lexicalProject, run, task, provenance } = options;
 	assertLaunchWorkspaceProvenance(task, provenance);
@@ -574,7 +574,7 @@ export async function establishRawOwner(
 		workflowTaskSessionId(run, executionTask),
 	);
 	let attempt: string | undefined;
-	let backend: unknown;
+	let launch: unknown;
 	let terminalIdentity: Record<string, unknown> | undefined;
 	if (executionTask.launchAuthority !== undefined) {
 		const records = executionTask.launchAuthority.records?.filter(
@@ -583,38 +583,34 @@ export async function establishRawOwner(
 		if (records?.length !== 1) fail();
 		const record = records[0]!;
 		if (
-			!hasNonSpawnableWorkflowLaunchAuthority(
-				run,
-				executionTask,
-				record.grant.backendId,
-			) ||
+			!hasNonSpawnableWorkflowLaunchAuthority(run, executionTask) ||
 			record.state.phase !== "consumed"
 		)
 			fail();
 		const state = record.state;
-		if (!safeId(state.backendRunId) || !safeId(state.backendAttemptId)) fail();
+		if (!safeId(state.workerRunId) || !safeId(state.workerAttemptId)) fail();
 		const provenance = executionTask.launchBootstrap?.records.find(
 			(candidate) =>
 				candidate.identitySha256 === record.grant.launchBootstrapSha256,
 		);
 		if (!provenance) fail();
-		const mirrorRoot = await backendMirrorRoot({
+		const mirrorRoot = await workerMirrorRoot({
 			project,
 			lexicalProject,
 			run,
 			task: executionTask,
 			provenance,
-			backendRunId: state.backendRunId,
+			workerRunId: state.workerRunId,
 		});
 		const mirrorRun = join(
 			mirrorRoot,
 			PROJECT_STATE_DIRECTORY,
-			"workflow-subagents",
+			"worker-runs",
 			runId,
 			executionTask.taskId,
-			state.backendRunId,
+			state.workerRunId,
 		);
-		const attemptDir = join(mirrorRun, "attempts", state.backendAttemptId);
+		const attemptDir = join(mirrorRun, "attempts", state.workerAttemptId);
 		await directoryChain(project, attemptDir, directories);
 		const mirror = await metadata(join(mirrorRun, "run.json"), snapshots);
 		// Only a HOST anchor can supply this bounded identity. A result-sidecar
@@ -634,20 +630,20 @@ export async function establishRawOwner(
 		// at every fence. A changed version must be read and validated in full.
 		if (!snapshots.has(terminalPath)) snapshots.set(terminalPath, terminalStat);
 		if (
-			mirror.runId !== state.backendRunId ||
+			mirror.runId !== state.workerRunId ||
 			mirror.correlationId !== `${runId}:${executionTask.taskId}` ||
-			mirror.latestAttemptId !== state.backendAttemptId ||
+			mirror.latestAttemptId !== state.workerAttemptId ||
 			(mirror.activeAttemptId != null &&
-				mirror.activeAttemptId !== state.backendAttemptId) ||
+				mirror.activeAttemptId !== state.workerAttemptId) ||
 			!Array.isArray(mirror.attempts) ||
 			mirror.attempts.filter(
 				(item: unknown) =>
-					isRecord(item) && item.attemptId === state.backendAttemptId,
+					isRecord(item) && item.attemptId === state.workerAttemptId,
 			).length !== 1
 		)
 			fail();
 		const mirrorAttempt = (mirror.attempts as unknown[]).find(
-			(item) => isRecord(item) && item.attemptId === state.backendAttemptId,
+			(item) => isRecord(item) && item.attemptId === state.workerAttemptId,
 		);
 		if (
 			mirror.activeAttemptId != null ||
@@ -659,8 +655,8 @@ export async function establishRawOwner(
 		)
 			fail();
 		if (
-			terminal.runId !== state.backendRunId ||
-			terminal.attemptId !== state.backendAttemptId ||
+			terminal.runId !== state.workerRunId ||
+			terminal.attemptId !== state.workerAttemptId ||
 			typeof terminal.status !== "string" ||
 			!["completed", "failed"].includes(terminal.status)
 		)
@@ -676,7 +672,7 @@ export async function establishRawOwner(
 			completedAt: terminal.completedAt,
 			exitCode: terminal.exitCode,
 		};
-		backend = {
+		launch = {
 			grant: record.grant,
 			state,
 			mirror: {
@@ -686,7 +682,7 @@ export async function establishRawOwner(
 			},
 			terminal: terminalIdentity,
 		};
-	} else if (task.backendTaskId && task.backendTaskId !== taskId) {
+	} else if (task.workerTaskId && task.workerTaskId !== taskId) {
 		// Old records missing launch identity cannot authorize a mirrored inode.
 		fail();
 	}
@@ -700,7 +696,7 @@ export async function establishRawOwner(
 			sourceGeneration: task.sourceGeneration,
 			attemptKey,
 			files: task.files,
-			backend,
+			launch,
 			...(batchIdentity ? { batch: batchIdentity } : {}),
 		}),
 	);

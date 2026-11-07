@@ -110,7 +110,7 @@ async function project(name) {
 }
 
 async function runWith(name, sequence) {
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

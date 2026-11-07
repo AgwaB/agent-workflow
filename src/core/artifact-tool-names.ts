@@ -355,7 +355,7 @@ export function renderWorkerTaskPromptToolNames(
 
 /**
  * Worker-prompt section with the artifact tool guidelines. MCP clients do not all show server
- * `instructions` to the model (Pi 1.1 does not), so the task backend puts them in the system
+ * `instructions` to the model (Pi 1.1 does not), so the task runner puts them in the system
  * prompt of every task that has the artifact server. Uses the logical name; render it with
  * `renderWorkerPromptToolNames`.
  */

@@ -183,7 +183,7 @@ test("RR-02 post-detach failure reports recovery paths, repairs index and frees 
 		const mirror = join(
 			stateDir(cwd),
 			".agent-workflow",
-			"workflow-subagents",
+			"worker-runs",
 			parent,
 		);
 		await mkdir(mirror, { recursive: true });
@@ -254,7 +254,7 @@ test("RR-02 pre-primary-detach failure preserves canonical run and recoverable m
 		const mirror = join(
 			stateDir(cwd),
 			".agent-workflow",
-			"workflow-subagents",
+			"worker-runs",
 			parent,
 		);
 		await mkdir(mirror, { recursive: true });
@@ -425,7 +425,7 @@ test("RR-02 post-detach fault never removes a new same-ID run or mirror and inde
 		const mirror = join(
 			stateDir(cwd),
 			".agent-workflow",
-			"workflow-subagents",
+			"worker-runs",
 			parent,
 		);
 		await mkdir(mirror, { recursive: true });

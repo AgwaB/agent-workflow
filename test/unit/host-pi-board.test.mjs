@@ -419,7 +419,7 @@ const SPEC = {
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp34-board-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

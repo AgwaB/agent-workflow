@@ -1,6 +1,6 @@
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP4c-1): the engine on the runtime API. Workflows run through the real
-// engine → core task backend → runtime durable worker → executor descriptor (the SDK fake executor
+// engine → task runner → runtime durable worker → executor descriptor (the SDK fake executor
 // wrapped by test/helpers/workflow-executor-fixture.mjs). No model or agent-CLI calls.
 import assert from "node:assert/strict";
 import { existsSync, readdirSync } from "node:fs";
@@ -27,7 +27,7 @@ const slots = await import("../../dist/core/launch-slots.js");
 const retention = await import("../../dist/core/run-retention.js");
 const requiredReads = await import("../../dist/core/required-reads.js");
 const artifactTool = await import("../../dist/core/workflow-artifact-tool.js");
-const taskBackend = await import("../../dist/core/task-backend.js");
+const taskBackend = await import("../../dist/core/task-runner.js");
 const notices = await import("../../dist/core/workflow-notices.js");
 const runtimeApi = await import("../../dist/runtime/api.js");
 
@@ -96,7 +96,7 @@ function register(config) {
 }
 
 function fastLaunchControls(extra = {}) {
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 		...extra,
@@ -111,7 +111,7 @@ function taskBySpec(run, specId) {
 	return task;
 }
 
-test("two-stage workflow runs end to end: engine → task backend → durable worker → fake executor", async () => {
+test("two-stage workflow runs end to end: engine → task runner → durable worker → fake executor", async () => {
 	fastLaunchControls();
 	const cwd = await project("e2e");
 	const effectLog = join(root, "e2e-effects.jsonl");
@@ -148,7 +148,7 @@ test("two-stage workflow runs end to end: engine → task backend → durable wo
 	const b = taskBySpec(persisted, "b");
 	assert.equal(a.status, "completed");
 	assert.equal(b.status, "completed");
-	// Runtime runs live under .agent-workflow/workflow-subagents/<run>/<task>.
+	// Runtime runs live under .agent-workflow/worker-runs/<run>/<task>.
 	assert.equal(
 		b.durableLaunchBarrier.records.at(-1).phase,
 		"acknowledged",
@@ -315,7 +315,7 @@ test("stop during stage 1 revokes the durable barrier before consume: no effect"
 			JSON.stringify(entries),
 		);
 		assert.equal(entries.filter((entry) => entry.type === "submit").length, 1);
-		assert.equal(b.backendHandle, undefined);
+		assert.equal(b.workerHandle, undefined);
 	} finally {
 		fastLaunchControls();
 	}
@@ -395,7 +395,7 @@ test("runtime not_started is eligible for the normal retry policy with a new att
 	const fakeRunId = "run_notstarted_fake";
 	const calls = [];
 	const injected = {
-		async runSubagent(options) {
+		async runWorker(options) {
 			calls.push(options);
 			if (calls.length === 1)
 				return {
@@ -404,16 +404,16 @@ test("runtime not_started is eligible for the normal retry policy with a new att
 					status: "running",
 					artifacts: [],
 				};
-			return runtimeApi.runSubagent(options);
+			return runtimeApi.runWorker(options);
 		},
-		async getSubagentStatus(options) {
+		async getWorkerStatus(options) {
 			if (options.runId !== fakeRunId)
-				return runtimeApi.getSubagentStatus(options);
+				return runtimeApi.getWorkerStatus(options);
 			const now = new Date().toISOString();
 			return {
 				runId: fakeRunId,
 				attemptId: "attempt_1",
-				backend: "wf-retry",
+				executorId: "wf-retry",
 				status: "failed",
 				failureKind: "not_started",
 				startedAt: now,
@@ -422,12 +422,12 @@ test("runtime not_started is eligible for the normal retry policy with a new att
 				metadata: {},
 			};
 		},
-		async reconcileSubagentRun(options) {
+		async reconcileWorkerRun(options) {
 			if (options.runId !== fakeRunId)
-				return runtimeApi.reconcileSubagentRun(options);
+				return runtimeApi.reconcileWorkerRun(options);
 			return { status: "marked-not-started", runId: fakeRunId, record: null };
 		},
-		interruptSubagent: (options) => runtimeApi.interruptSubagent(options),
+		interruptWorker: (options) => runtimeApi.interruptWorker(options),
 	};
 	core.setTaskRuntimeApiForTests(injected);
 	try {
@@ -444,7 +444,7 @@ test("runtime not_started is eligible for the normal retry policy with a new att
 		assert.notEqual(calls[0].attemptKey, calls[1].attemptKey);
 		assert.equal(calls[0].executor.id, "wf-retry");
 		assert.equal(calls[0].thinking, undefined);
-		assert.equal(calls[0].backend, undefined);
+		assert.equal(calls[0].executorId, undefined);
 		const submits = readFixtureLog(effectLog).filter(
 			(entry) => entry.type === "submit",
 		);
@@ -477,7 +477,7 @@ test("an unknown or unavailable executor fails the run before any launch", async
 		false,
 	);
 	assert.equal(
-		existsSync(join(stateDir(cwd), ".agent-workflow", "workflow-subagents")),
+		existsSync(join(stateDir(cwd), ".agent-workflow", "worker-runs")),
 		false,
 	);
 });
@@ -551,7 +551,7 @@ test("required reads: ledger rows marked deliveryUnverified never satisfy a read
 	const taskDir = join(root, "ledger-task");
 	await mkdir(taskDir, { recursive: true });
 	const row = {
-		schema: "pi-workflow-artifact-read-v1",
+		schema: "placeholder",
 		runId: "run-x",
 		taskId: "task-2",
 		source: "a",

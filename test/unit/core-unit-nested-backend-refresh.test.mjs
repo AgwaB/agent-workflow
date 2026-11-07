@@ -15,9 +15,9 @@ test("refreshes a suspended nested child under its lease and advances sequential
 	try {
 		h.writeAgent(cwd, "unit-scout", "read");
 		setApi({
-			async runSubagent(options) {
+			async runWorker(options) {
 				const n = launched.length + 1;
-				const runId = `backend-child-${n}`;
+				const runId = `worker-child-${n}`;
 				const attemptId = `attempt-${n}`;
 				const runsDir = String(options.runsDir ?? ".agent-workflow/runs");
 				const runDir = runsDir.startsWith("/")
@@ -41,10 +41,10 @@ test("refreshes a suspended nested child under its lease and advances sequential
 				launched.push({ runId, attemptId, artifactDir, stage: n, polls: 0 });
 				return { runId, attemptId, status: "running" };
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus({ runId, attemptId }) {
+			async getWorkerStatus({ runId, attemptId }) {
 				statusPolls.push(runId);
 				const item = launched.find((x) => x.runId === runId);
 				assert.ok(item);
@@ -54,7 +54,7 @@ test("refreshes a suspended nested child under its lease and advances sequential
 				return {
 					runId,
 					attemptId,
-					backend: "headless",
+					executorId: "headless",
 					status,
 					failureKind: null,
 					startedAt: new Date(Date.now() - 10).toISOString(),
@@ -80,7 +80,7 @@ test("refreshes a suspended nested child under its lease and advances sequential
 					attempts: [{ attemptId, status: "completed" }],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -140,14 +140,14 @@ test("refreshes a suspended nested child under its lease and advances sequential
 			h.taskBySpec(current, "adaptive.controller").lastMessage,
 		);
 		assert.equal(launched.length, 1, "first child stage starts once");
-		// The child remains recorded RUNNING; only backend refresh may make it terminal.
+		// The child remains recorded RUNNING; only worker refresh may make it terminal.
 		const childRunId = (await h.readDynamicEvents(cwd, run.runId)).find(
 			(e) => e.type === "workflow.started",
 		)?.payload.runId;
 		assert.ok(childRunId);
 		assert.equal((await h.readRunRecord(cwd, childRunId)).status, "running");
 		// A concurrent child supervisor owns the child lease. The parent poll must
-		// defer without invoking the backend or mutating the child run record.
+		// defer without invoking the worker or mutating the child run record.
 		let releaseChildLease;
 		// Take the child lease; a supervisor tick still finishing can hold it for a moment (then
 		// withRunLease returns without running the callback, which hung this test), so retry.
@@ -184,7 +184,7 @@ test("refreshes a suspended nested child under its lease and advances sequential
 			assert.equal(
 				statusPolls.length,
 				pollsBeforeLease,
-				"busy child lease defers backend poll",
+				"busy child lease defers worker poll",
 			);
 			assert.equal(
 				readFileSync(childRecordPath, "utf8"),
@@ -220,7 +220,7 @@ test("refreshes a suspended nested child under its lease and advances sequential
 			2,
 			"second sequential stage dispatched exactly once",
 		);
-		assert.ok(statusPolls.length >= 2, "refresh polled backend status");
+		assert.ok(statusPolls.length >= 2, "refresh polled worker status");
 	} finally {
 		setApi(undefined);
 	}

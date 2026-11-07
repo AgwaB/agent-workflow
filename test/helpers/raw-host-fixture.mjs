@@ -1,19 +1,19 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve, relative } from "node:path";
 
-// Opt-in materialization for old API-only backend fixtures. Produce the same
-// bounded mirror/attempt names as the backend; never manufacture a raw anchor.
+// Opt-in materialization for old API-only worker fixtures. Produce the same
+// bounded mirror/attempt names as the worker; never manufacture a raw anchor.
 export function withMaterializedRawHost(setApi) {
 	return (api) =>
 		setApi(
 			api && {
 				...api,
-				async getSubagentStatus(options) {
-					const status = await api.getSubagentStatus(options);
+				async getWorkerStatus(options) {
+					const status = await api.getWorkerStatus(options);
 					if (!status || !["completed", "failed"].includes(status.status))
 						return status;
 					const runsRoot = resolve(options.cwd, options.runsDir);
-					if (basename(dirname(dirname(runsRoot))) !== "workflow-subagents")
+					if (basename(dirname(dirname(runsRoot))) !== "worker-runs")
 						return status;
 					const runId = status.runId,
 						attemptId = status.attemptId;

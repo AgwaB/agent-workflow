@@ -73,7 +73,7 @@ for (const task of [
 		put(cwd, "workflows/write-to-disk.json", spec("write-to-disk", false));
 		let calls = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				calls += 1;
 				throw new Error("forbidden transport");
 			},
@@ -114,7 +114,7 @@ for (const task of [
 		);
 		let calls = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				calls += 1;
 				throw new Error("offline classifier failure");
 			},
@@ -158,7 +158,7 @@ test("positive mutation request remains positive, not a read-only permission", a
 	);
 	const readPath = put(cwd, "workflows/review.json", spec("review"));
 	setTaskRuntimeApiForTests({
-		async runSubagent() {
+		async runWorker() {
 			throw new Error("offline");
 		},
 	});

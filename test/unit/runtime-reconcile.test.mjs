@@ -17,14 +17,14 @@ import {
 	beginRunRecord,
 	captureProcessIdentity,
 	createAttemptArtifactStore,
-	getSubagentStatus,
+	getWorkerStatus,
 	readRunRecord,
 	recordInterruptRequest,
-	reconcileSubagentRun,
+	reconcileWorkerRun,
 	runPaths,
 	updateAttemptWorkerProcess,
 	verifyProcessIdentity,
-	waitForSubagent,
+	waitForWorker,
 	writeAttemptExecutorRecord,
 } from "../../dist/runtime/index.js";
 import { defaultApprovalPolicy } from "../../dist/sdk/index.js";
@@ -102,7 +102,7 @@ async function createRunningAttempt(cwd, runId, attemptId, options = {}) {
 	let resultPath = options.resultPath;
 	if (resultPath === undefined) {
 		const result = await store.writeResult({
-			backend: options.backend ?? "fixture",
+			executorId: options.executorId ?? "fixture",
 			status: "running",
 			failureKind: null,
 			cwd,
@@ -123,14 +123,14 @@ async function createRunningAttempt(cwd, runId, attemptId, options = {}) {
 		cwd,
 		runId,
 		mode: "single",
-		backend: options.backend ?? "fixture",
+		executorId: options.executorId ?? "fixture",
 		startedAt,
 		activeAttemptId: attemptId,
 		attempts: [
 			{
 				attemptId,
 				status: "running",
-				backend: options.backend ?? "fixture",
+				executorId: options.executorId ?? "fixture",
 				startedAt,
 				artifactCwd: cwd,
 				resultPath,
@@ -177,9 +177,9 @@ test("a detached durable worker finalizes after its launcher exits; cwd-less loo
 	const parentDeathCwd = join(tempRoot, "parent-death");
 	await mkdir(parentDeathCwd, { recursive: true });
 	const launcher = `
-		const { runSubagent } = await import(process.env.RUNTIME_URL);
+		const { runWorker } = await import(process.env.RUNTIME_URL);
 		const { fixtureDescriptor } = await import(process.env.FIXTURE_URL);
-		const run = await runSubagent({ cwd: process.env.RUN_CWD, executor: fixtureDescriptor({ effectLog: process.env.EFFECT_LOG }), task: "Provider-free parent-death check.", async: true });
+		const run = await runWorker({ cwd: process.env.RUN_CWD, executor: fixtureDescriptor({ effectLog: process.env.EFFECT_LOG }), task: "Provider-free parent-death check.", async: true });
 		console.log(JSON.stringify({ runId: run.runId, attemptId: run.attemptId }));
 	`;
 	const launched = await execFileAsync(
@@ -198,7 +198,7 @@ test("a detached durable worker finalizes after its launcher exits; cwd-less loo
 		},
 	);
 	const ref = JSON.parse(launched.stdout.trim());
-	const waited = await waitForSubagent({
+	const waited = await waitForWorker({
 		cwd: parentDeathCwd,
 		...ref,
 		timeoutMs: 15_000,
@@ -206,16 +206,16 @@ test("a detached durable worker finalizes after its launcher exits; cwd-less loo
 	});
 	assert.equal(waited.status, "completed");
 	assert.equal(waited.snapshot?.status, "completed");
-	const locatorWaited = await waitForSubagent({
+	const locatorWaited = await waitForWorker({
 		...ref,
 		timeoutMs: 1_000,
 		pollIntervalMs: 50,
 	});
 	assert.equal(locatorWaited.status, "completed");
 	assert.equal(locatorWaited.snapshot?.runId, ref.runId);
-	const status = await getSubagentStatus({ cwd: parentDeathCwd, ...ref });
+	const status = await getWorkerStatus({ cwd: parentDeathCwd, ...ref });
 	assert.equal(typeof status?.attempts?.[0]?.workerPid, "number");
-	assert.equal((await getSubagentStatus(ref))?.runId, ref.runId);
+	assert.equal((await getWorkerStatus(ref))?.runId, ref.runId);
 	await access(
 		join(
 			parentDeathCwd,
@@ -233,7 +233,7 @@ test("stale attempts without an executor record are marked stale (worktree kept)
 	await createRunningAttempt(staleCwd, "run_reconcile_stale", "attempt_stale", {
 		heartbeatAt: stale(),
 	});
-	const reconciled = await reconcileSubagentRun({
+	const reconciled = await reconcileWorkerRun({
 		cwd: staleCwd,
 		runId: "run_reconcile_stale",
 		staleAfterMs: 1,
@@ -262,7 +262,7 @@ test("stale attempts without an executor record are marked stale (worktree kept)
 			},
 		},
 	);
-	const worktree = await reconcileSubagentRun({
+	const worktree = await reconcileWorkerRun({
 		cwd: worktreeCwd,
 		runId: "run_reconcile_worktree",
 		staleAfterMs: 1,
@@ -287,7 +287,7 @@ test("executor outcomes: absent → not_started; unknown → needs_decision; unl
 			executor: fixtureDescriptor({ effectLog: absentLog }),
 		},
 	);
-	const absent = await reconcileSubagentRun({
+	const absent = await reconcileWorkerRun({
 		cwd: absentCwd,
 		runId: "run_exec_absent",
 		staleAfterMs: 1,
@@ -328,7 +328,7 @@ test("executor outcomes: absent → not_started; unknown → needs_decision; unl
 		join(unknownStore.attemptDir, "worker.log"),
 		"Error: inactive attempt ownership could not be drained\n    at commitOwnedTerminalResult (run.js:1:1)\n    at async main (worker.js:2:2)\n",
 	);
-	const unknown = await reconcileSubagentRun({
+	const unknown = await reconcileWorkerRun({
 		cwd: unknownCwd,
 		runId: "run_exec_unknown",
 		staleAfterMs: 1,
@@ -360,7 +360,7 @@ test("executor outcomes: absent → not_started; unknown → needs_decision; unl
 			),
 		},
 	);
-	const missing = await reconcileSubagentRun({
+	const missing = await reconcileWorkerRun({
 		cwd: missingCwd,
 		runId: "run_exec_missing",
 		staleAfterMs: 1,
@@ -400,7 +400,7 @@ test("executor outcome found: adopt and observe when not sessionBound; otherwise
 			attemptKey: "k-adopt",
 		},
 	);
-	const adopted = await reconcileSubagentRun({
+	const adopted = await reconcileWorkerRun({
 		cwd: adoptCwd,
 		runId: "run_exec_adopt",
 		staleAfterMs: 1,
@@ -436,7 +436,7 @@ test("executor outcome found: adopt and observe when not sessionBound; otherwise
 		}),
 		attemptKey: "k-bound",
 	});
-	const bound = await reconcileSubagentRun({
+	const bound = await reconcileWorkerRun({
 		cwd: boundCwd,
 		runId: "run_exec_bound",
 		staleAfterMs: 1,
@@ -468,7 +468,7 @@ test("interrupted attempts are marked cancelled; live workers and fresh heartbea
 		"SIGINT",
 		"test cancellation",
 	);
-	const interrupted = await reconcileSubagentRun({
+	const interrupted = await reconcileWorkerRun({
 		cwd: interruptedCwd,
 		runId: "run_reconcile_interrupted",
 		staleAfterMs: 1,
@@ -497,7 +497,7 @@ test("interrupted attempts are marked cancelled; live workers and fresh heartbea
 	});
 	assert.equal(
 		(
-			await reconcileSubagentRun({
+			await reconcileWorkerRun({
 				cwd: liveCwd,
 				runId: "run_reconcile_live",
 				staleAfterMs: 1,
@@ -515,7 +515,7 @@ test("interrupted attempts are marked cancelled; live workers and fresh heartbea
 	);
 	assert.equal(
 		(
-			await reconcileSubagentRun({
+			await reconcileWorkerRun({
 				cwd: heartbeatCwd,
 				runId: "run_reconcile_heartbeat",
 				staleAfterMs: 30_000,
@@ -531,7 +531,7 @@ test("interrupted attempts are marked cancelled; live workers and fresh heartbea
 		attemptId: "attempt_foreign_result",
 	});
 	const foreign = await foreignStore.writeResult({
-		backend: "fixture",
+		executorId: "fixture",
 		status: "completed",
 		failureKind: null,
 		cwd: foreignCwd,
@@ -566,7 +566,7 @@ test("interrupted attempts are marked cancelled; live workers and fresh heartbea
 	);
 	assert.equal(
 		(
-			await reconcileSubagentRun({
+			await reconcileWorkerRun({
 				cwd: foreignCwd,
 				runId: "run_reconcile_foreign_result",
 				staleAfterMs: 1,
@@ -624,13 +624,13 @@ test("inconsistent records and unverifiable ownership block terminal reconciliat
 	await beginRunRecord({
 		...danglingRef,
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		activeAttemptId: "attempt_present",
 		attempts: [
 			{
 				attemptId: "attempt_present",
 				status: "running",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: new Date().toISOString(),
 			},
 		],
@@ -641,7 +641,7 @@ test("inconsistent records and unverifiable ownership block terminal reconciliat
 		`${JSON.stringify({ ...dangling, activeAttemptId: "attempt_missing" })}\n`,
 	);
 	assert.deepEqual(
-		(await reconcileSubagentRun({ ...danglingRef, staleAfterMs: 1 }))
+		(await reconcileWorkerRun({ ...danglingRef, staleAfterMs: 1 }))
 			.cleanupBlocked,
 		{
 			reason: "missing-active-attempt",
@@ -656,13 +656,13 @@ test("inconsistent records and unverifiable ownership block terminal reconciliat
 	await beginRunRecord({
 		...terminalActiveRef,
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		activeAttemptId: "attempt_terminal_active",
 		attempts: [
 			{
 				attemptId: "attempt_terminal_active",
 				status: "running",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: new Date().toISOString(),
 				heartbeatAt: new Date().toISOString(),
 				process: { pid: process.pid },
@@ -675,7 +675,7 @@ test("inconsistent records and unverifiable ownership block terminal reconciliat
 		`${JSON.stringify({ ...terminalActive, status: "completed" })}\n`,
 	);
 	assert.deepEqual(
-		(await reconcileSubagentRun({ ...terminalActiveRef, staleAfterMs: 30_000 }))
+		(await reconcileWorkerRun({ ...terminalActiveRef, staleAfterMs: 30_000 }))
 			.cleanupBlocked,
 		{
 			reason: "terminal-record-active-attempt",
@@ -688,12 +688,12 @@ test("inconsistent records and unverifiable ownership block terminal reconciliat
 		cwd: terminalOwnershipCwd,
 		runId: "run_terminal_ownership_unsafe",
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		attempts: [
 			{
 				attemptId: "attempt_terminal_ownership",
 				status: "completed",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: new Date().toISOString(),
 				completedAt: new Date().toISOString(),
 				process: { pid: process.pid },
@@ -702,7 +702,7 @@ test("inconsistent records and unverifiable ownership block terminal reconciliat
 	});
 	assert.deepEqual(
 		(
-			await reconcileSubagentRun({
+			await reconcileWorkerRun({
 				cwd: terminalOwnershipCwd,
 				runId: "run_terminal_ownership_unsafe",
 				staleAfterMs: 1,
@@ -720,20 +720,20 @@ test("inconsistent records and unverifiable ownership block terminal reconciliat
 		cwd: inactiveCwd,
 		runId: "run_inactive_ownership_unsafe",
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		activeAttemptId: "attempt_active_safe",
 		attempts: [
 			{
 				attemptId: "attempt_inactive_unsafe",
 				status: "running",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: new Date(Date.now() - 1_000).toISOString(),
 				process: { pid: process.pid },
 			},
 			{
 				attemptId: "attempt_active_safe",
 				status: "running",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: new Date().toISOString(),
 				process: {
 					pid: liveIdentity.pid,
@@ -745,7 +745,7 @@ test("inconsistent records and unverifiable ownership block terminal reconciliat
 	});
 	assert.deepEqual(
 		(
-			await reconcileSubagentRun({
+			await reconcileWorkerRun({
 				cwd: inactiveCwd,
 				runId: "run_inactive_ownership_unsafe",
 				staleAfterMs: 1,
@@ -764,7 +764,7 @@ test("inconsistent records and unverifiable ownership block terminal reconciliat
 		attemptId: "attempt_terminal_result_unsafe",
 	});
 	const terminalEnvelope = await terminalStore.writeResult({
-		backend: "fixture",
+		executorId: "fixture",
 		status: "completed",
 		failureKind: null,
 		cwd: terminalResultCwd,
@@ -790,7 +790,7 @@ test("inconsistent records and unverifiable ownership block terminal reconciliat
 	);
 	assert.deepEqual(
 		(
-			await reconcileSubagentRun({
+			await reconcileWorkerRun({
 				cwd: terminalResultCwd,
 				runId: "run_terminal_result_unsafe",
 				staleAfterMs: 1,
@@ -818,7 +818,7 @@ test("inconsistent records and unverifiable ownership block terminal reconciliat
 			},
 		},
 	);
-	const unrelatedReconcile = await reconcileSubagentRun({
+	const unrelatedReconcile = await reconcileWorkerRun({
 		cwd: unrelatedCwd,
 		runId: "run_reconcile_unrelated",
 		staleAfterMs: 1,
@@ -866,7 +866,7 @@ test("cleanup terminates verified owned processes, never unverified ones", async
 	);
 	assert.equal(
 		(
-			await reconcileSubagentRun({
+			await reconcileWorkerRun({
 				cwd: partialCwd,
 				runId: "run_reconcile_partial_cleanup",
 				staleAfterMs: 1,
@@ -910,7 +910,7 @@ test("cleanup terminates verified owned processes, never unverified ones", async
 	);
 	assert.equal(
 		(
-			await reconcileSubagentRun({
+			await reconcileWorkerRun({
 				cwd: incompleteCwd,
 				runId: "run_reconcile_incomplete_cleanup",
 				staleAfterMs: 1,
@@ -930,12 +930,12 @@ test("cleanup terminates verified owned processes, never unverified ones", async
 		cwd: terminalAllCwd,
 		runId: "run_terminal_all_attempts",
 		mode: "single",
-		backend: "fixture",
+		executorId: "fixture",
 		attempts: [
 			{
 				attemptId: "attempt_older_running",
 				status: "running",
-				backend: "fixture",
+				executorId: "fixture",
 				startedAt: "2026-01-01T00:00:00.000Z",
 				process: {
 					pid: olderIdentity.pid,
@@ -946,7 +946,7 @@ test("cleanup terminates verified owned processes, never unverified ones", async
 			{
 				attemptId: "attempt_latest_terminal",
 				status: "completed",
-				backend: "fixture",
+				executorId: "fixture",
 				failureKind: null,
 				startedAt: "2026-01-01T00:00:01.000Z",
 				completedAt: "2026-01-01T00:00:02.000Z",
@@ -955,7 +955,7 @@ test("cleanup terminates verified owned processes, never unverified ones", async
 	});
 	assert.equal(
 		(
-			await reconcileSubagentRun({
+			await reconcileWorkerRun({
 				cwd: terminalAllCwd,
 				runId: "run_terminal_all_attempts",
 				staleAfterMs: 1,
@@ -1008,7 +1008,7 @@ test("a dead group leader with a live group blocks; EPERM on a live group surfac
 	process.kill(leader.pid, "SIGKILL");
 	for (let index = 0; index < 100 && pidAlive(leader.pid); index += 1)
 		await sleep(10);
-	const deadLeader = await reconcileSubagentRun({
+	const deadLeader = await reconcileWorkerRun({
 		cwd: deadLeaderCwd,
 		runId: "run_reconcile_dead_group_leader",
 		staleAfterMs: 1,
@@ -1031,7 +1031,7 @@ test("a dead group leader with a live group blocks; EPERM on a live group surfac
 		attemptId: "attempt_eperm",
 	});
 	const epermEnvelope = await epermStore.writeResult({
-		backend: "fixture",
+		executorId: "fixture",
 		status: "completed",
 		failureKind: null,
 		cwd: epermCwd,
@@ -1084,7 +1084,7 @@ test("a dead group leader with a live group blocks; EPERM on a live group surfac
 	};
 	let eperm;
 	try {
-		eperm = await reconcileSubagentRun({
+		eperm = await reconcileWorkerRun({
 			cwd: epermCwd,
 			runId: "run_reconcile_eperm",
 			staleAfterMs: 1,
@@ -1098,7 +1098,7 @@ test("a dead group leader with a live group blocks; EPERM on a live group surfac
 	realKill.call(process, epermProcess.pid, "SIGKILL");
 	for (let index = 0; index < 100 && pidAlive(epermProcess.pid); index += 1)
 		await sleep(10);
-	const epermAfter = await reconcileSubagentRun({
+	const epermAfter = await reconcileWorkerRun({
 		cwd: epermCwd,
 		runId: "run_reconcile_eperm",
 		staleAfterMs: 1,
@@ -1161,7 +1161,7 @@ for (const status of ["completed", "failed", "cancelled"]) {
 			}
 			return inspect(pid);
 		});
-		const reconciled = await reconcileSubagentRun({ cwd, runId });
+		const reconciled = await reconcileWorkerRun({ cwd, runId });
 		assert.equal(injected, true);
 		assert.equal(reconciled.status, "committed-result");
 		assert.equal(reconciled.record.status, status);

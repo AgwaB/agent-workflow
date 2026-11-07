@@ -45,10 +45,10 @@ import {
 	canStageProceedAfterPreviousFailure,
 	canonicalDynamicDecision,
 	canonicalPackageVerificationStatus,
-	captureParentSubagentEnv,
-	captureSubagentPrompts,
+	captureParentWorkerEnv,
+	captureWorkerPrompts,
 	checkRequiredArtifactReads,
-	cleanupSubagentRun,
+	cleanupWorkerRun,
 	closeSync,
 	compactStrings,
 	compileWorkflow,
@@ -102,7 +102,7 @@ import {
 	isTestWideCodePoint,
 	isWorkflowSupervisorEnabled,
 	join,
-	launchSubagentTask,
+	launchWorkerTask,
 	listWorkflowArtifactSources,
 	listWorkflows,
 	loadAgentByName,
@@ -113,7 +113,7 @@ import {
 	loopWorkflowSpec,
 	makeDynamicDecisionLoopCtx,
 	makeProject,
-	makeSubagentLaunchFixture,
+	makeWorkerLaunchFixture,
 	makeValidatingDynamicDecisionLoopCtx,
 	markDagDependentsSkipped,
 	mkdirSync,
@@ -124,7 +124,7 @@ import {
 	observeLiveModelWorkerCompletion,
 	openSync,
 	packageVerificationStatusBucket,
-	parentSubagentEnvKeys,
+	parentWorkerEnvKeys,
 	parseAgentMarkdown,
 	parsePublicWorkflow,
 	parseWorkflow,
@@ -146,7 +146,7 @@ import {
 	rebuildDynamicState,
 	recordDynamicControllerPhase,
 	recordSharedModelRateLimitBackoffForTests,
-	refreshRunFromSubagentArtifacts,
+	refreshRunFromWorkerArtifacts,
 	refreshZeroOutputModelFailure,
 	resetTaskForResume,
 	resolveFlowsCwd,
@@ -155,7 +155,7 @@ import {
 	resolveWorkflowRetryLimit,
 	resolveWorkflowRef,
 	resolveWorkflowRuntime,
-	restoreParentSubagentEnv,
+	restoreParentWorkerEnv,
 	resumeRun,
 	rmSync,
 	runDynamicControllerEngineIntegrityCheckForTests,
@@ -165,10 +165,10 @@ import {
 	runWorkflowSpec,
 	scheduleRun,
 	setIndexUpdateDebounceMsForTests,
-	setParentSubagentEnv,
+	setParentWorkerEnv,
 	setRunLeaseTestHooksForTests,
 	setTaskRuntimeApiForTests,
-	setSubagentLaunchControlsForTests,
+	setWorkerLaunchControlsForTests,
 	setTaskTerminal,
 	setWorkflowOutputArtifactWriteHookForTests,
 	shouldScheduleAfterStageFailure,
@@ -314,16 +314,16 @@ test("fail-fast flags on cancel pending siblings and interrupt running siblings 
 	const interrupts = [];
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("unexpected launch");
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent(options) {
+			async interruptWorker(options) {
 				interrupts.push(options);
 				return {
 					status: "already-terminal",
@@ -1280,7 +1280,7 @@ test("adaptive live workers cap growth at configured live-worker limit", () => {
 test("successive foreach materialization keeps task ids unique", async () => {
 	const cwd = makeProject();
 	try {
-		captureSubagentPrompts();
+		captureWorkerPrompts();
 		writeAgent(cwd, "unit-scout", "read");
 		const spec = workflowSpec("unit-scout", {
 			artifactGraph: {
@@ -1385,7 +1385,7 @@ test("loop until satisfied after a round marks loop completed and stops material
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
-		captureSubagentPrompts();
+		captureWorkerPrompts();
 		const { run } = await createLoopRun(cwd);
 		await scheduleRun(cwd, run.runId);
 		let current = await readRunRecord(cwd, run.runId);
@@ -1428,7 +1428,7 @@ test("loop until satisfied after a round marks loop completed and stops material
 
 test("loop until unmet materializes round 2 with unique ids and carry-forward context", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const { run } = await createLoopRun(cwd);
@@ -1491,7 +1491,7 @@ test("loop until unmet materializes round 2 with unique ids and carry-forward co
 
 test("loop no-progress stops early with stopped_no_progress", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const { run } = await createLoopRun(cwd);
@@ -1544,7 +1544,7 @@ test("loop no-progress stops early with stopped_no_progress", async () => {
 
 test("loop invalid progressPath value records a warning", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const { run } = await createLoopRun(
@@ -1598,7 +1598,7 @@ test("loop invalid progressPath value records a warning", async () => {
 
 test("loop explicit missing progressPath records a warning", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const { run } = await createLoopRun(
@@ -1648,7 +1648,7 @@ test("loop explicit missing progressPath records a warning", async () => {
 
 test("loop maxRounds exhaustion materializes and waits for onExhausted", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const spec = loopWorkflowSpec({
@@ -1698,7 +1698,7 @@ test("loop maxRounds exhaustion materializes and waits for onExhausted", async (
 
 test("loop onExhausted context includes bounded prior round check outputs", async () => {
 	const cwd = makeProject();
-	captureSubagentPrompts();
+	captureWorkerPrompts();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		const spec = loopWorkflowSpec({
@@ -3889,15 +3889,13 @@ test("refresh surfaces poll API errors after processing sibling tasks", async ()
 					"prompt.md",
 				),
 			};
-			task.backendTaskId = runId;
-			task.backendHandle = {
-				engine: "agent-workflow",
-				backend: "runtime",
+			task.workerTaskId = runId;
+			task.workerHandle = {
 				runId,
 				attemptId,
 				cwd,
-				runsDir: `.agent-workflow/workflow-subagents/${runId}`,
-				display: `agent-workflow/runtime ${runId}/${attemptId}`,
+				runsDir: `.agent-workflow/worker-runs/${runId}`,
+				display: `worker run ${runId}/${attemptId}`,
 			};
 			return task;
 		};
@@ -3939,23 +3937,23 @@ test("refresh surfaces poll API errors after processing sibling tasks", async ()
 		);
 
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun(options) {
+			async reconcileWorkerRun(options) {
 				if (options.runId === "run_reconcile_fail") {
 					throw new Error("reconcile boom");
 				}
 				return {};
 			},
-			async getSubagentStatus(options) {
+			async getWorkerStatus(options) {
 				if (options.runId === "run_status_fail") {
 					throw new Error("status boom");
 				}
 				return {
 					runId: "run_refresh_sibling",
 					attemptId: "attempt_refresh_sibling",
-					backend: "headless",
+					executorId: "headless",
 					status: "completed",
 					failureKind: null,
 					startedAt,
@@ -3971,13 +3969,13 @@ test("refresh surfaces poll API errors after processing sibling tasks", async ()
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
 		await writeRunRecord(cwd, run);
-		const error = await refreshRunFromSubagentArtifacts(
+		const error = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		).then(
@@ -4042,37 +4040,34 @@ test("refresh persists telemetry-only null status polls", async () => {
 		task.statusDetail = "running";
 		task.startedAt = new Date().toISOString();
 		task.timing = undefined;
-		task.backendTaskId = "run_telemetry_only";
-		task.backendHandle = {
-			engine: "agent-workflow",
-			backend: "runtime",
+		task.workerTaskId = "run_telemetry_only";
+		task.workerHandle = {
 			runId: "run_telemetry_only",
 			attemptId: "attempt_telemetry_only",
 			cwd,
-			runsDir: ".agent-workflow/workflow-subagents/run_telemetry_only",
-			display:
-				"agent-workflow/runtime run_telemetry_only/attempt_telemetry_only",
+			runsDir: ".agent-workflow/worker-runs/run_telemetry_only",
+			display: "worker run run_telemetry_only/attempt_telemetry_only",
 		};
 
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				await sleep(1);
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				await sleep(1);
 				return null;
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
 		await writeRunRecord(cwd, run);
-		await refreshRunFromSubagentArtifacts(
+		await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
@@ -4112,7 +4107,6 @@ test("workflow run metrics roll up provider-reported usage without mutation", ()
 			total: 3,
 		},
 		cwd: "/tmp/metrics",
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-06-08T00:00:00.000Z",
 		updatedAt: "2026-06-08T00:03:00.000Z",
 		specPath: "/tmp/metrics/workflow.json",
@@ -4137,7 +4131,7 @@ test("workflow run metrics roll up provider-reported usage without mutation", ()
 					baseCwd: null,
 					warning: null,
 				},
-				backendTaskId: "backend-a",
+				workerTaskId: "worker-a",
 				files: {
 					output: "",
 					stderr: "",
@@ -4206,7 +4200,7 @@ test("workflow run metrics roll up provider-reported usage without mutation", ()
 					baseCwd: null,
 					warning: null,
 				},
-				backendTaskId: "backend-b",
+				workerTaskId: "worker-b",
 				files: {
 					output: "",
 					stderr: "",
@@ -4264,7 +4258,7 @@ test("workflow run metrics roll up provider-reported usage without mutation", ()
 					baseCwd: null,
 					warning: null,
 				},
-				backendTaskId: "backend-c",
+				workerTaskId: "worker-c",
 				files: {
 					output: "",
 					stderr: "",
@@ -4392,7 +4386,7 @@ test("workflow run metrics treat local support tasks as zero provider usage", ()
 			baseCwd: null,
 			warning: null,
 		},
-		backendTaskId: null,
+		workerTaskId: null,
 		files: {
 			output: "",
 			stderr: "",
@@ -4417,7 +4411,6 @@ test("workflow run metrics treat local support tasks as zero provider usage", ()
 			total: 2,
 		},
 		cwd: "/tmp/metrics",
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-06-08T00:00:00.000Z",
 		updatedAt: "2026-06-08T00:01:00.000Z",
 		specPath: "/tmp/metrics/workflow.json",
@@ -4441,7 +4434,7 @@ test("workflow run metrics treat local support tasks as zero provider usage", ()
 					baseCwd: null,
 					warning: null,
 				},
-				backendTaskId: "backend-model",
+				workerTaskId: "worker-model",
 				files: {
 					output: "",
 					stderr: "",
@@ -4507,7 +4500,6 @@ test("workflow run metrics reject negative provider values and keep partial obse
 			total: 2,
 		},
 		cwd: "/tmp/metrics",
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-06-08T00:00:00.000Z",
 		updatedAt: "2026-06-08T00:01:00.000Z",
 		specPath: "/tmp/metrics/workflow.json",
@@ -4530,7 +4522,7 @@ test("workflow run metrics reject negative provider values and keep partial obse
 					baseCwd: null,
 					warning: null,
 				},
-				backendTaskId: "backend-good",
+				workerTaskId: "worker-good",
 				files: {
 					output: "",
 					stderr: "",
@@ -4572,7 +4564,7 @@ test("workflow run metrics reject negative provider values and keep partial obse
 					baseCwd: null,
 					warning: null,
 				},
-				backendTaskId: "backend-negative",
+				workerTaskId: "worker-negative",
 				files: {
 					output: "",
 					stderr: "",
@@ -4632,7 +4624,6 @@ test("workflow run metrics do not infer missing prices from token counts", () =>
 			total: 1,
 		},
 		cwd: "/tmp/metrics",
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-06-08T00:00:00.000Z",
 		updatedAt: "2026-06-08T00:01:00.000Z",
 		specPath: "/tmp/metrics/workflow.json",
@@ -4655,7 +4646,7 @@ test("workflow run metrics do not infer missing prices from token counts", () =>
 					baseCwd: null,
 					warning: null,
 				},
-				backendTaskId: "backend-price",
+				workerTaskId: "worker-price",
 				files: {
 					output: "",
 					stderr: "",
@@ -4710,7 +4701,7 @@ test("refresh fails fast on permanent provider input-validation model failures",
 		const { refreshedTask } = await refreshZeroOutputModelFailure(cwd, {
 			runId: "run_provider_invalid",
 			attemptId: "attempt_provider_invalid",
-			artifactDirName: ".fake-provider-invalid-subagent",
+			artifactDirName: ".fake-provider-invalid-worker",
 			streamErrors: [providerError],
 		});
 		assertPermanentModelFailure(cwd, refreshedTask, /prompt_cache_key/);
@@ -4733,7 +4724,7 @@ test("refresh fails fast on maximum-length provider validation with 5xx-sized li
 		const { refreshedTask } = await refreshZeroOutputModelFailure(cwd, {
 			runId: "run_provider_length_512",
 			attemptId: "attempt_provider_length_512",
-			artifactDirName: ".fake-provider-length-512-subagent",
+			artifactDirName: ".fake-provider-length-512-worker",
 			streamErrors: [providerError],
 		});
 		assertPermanentModelFailure(cwd, refreshedTask, /maximum length 512/);
@@ -4754,7 +4745,7 @@ test("refresh retries truncated-stream model failures", async () => {
 		const { refreshedTask } = await refreshZeroOutputModelFailure(cwd, {
 			runId: "run_truncated_stream",
 			attemptId: "attempt_truncated_stream",
-			artifactDirName: ".fake-truncated-stream-subagent",
+			artifactDirName: ".fake-truncated-stream-worker",
 			stderrText: "Unexpected end of JSON input\n",
 			streamErrors: [
 				"Unexpected end of JSON input",
@@ -4781,7 +4772,7 @@ test("zero transient retry override fails the first transient model failure", as
 		const { refreshedTask } = await refreshZeroOutputModelFailure(cwd, {
 			runId: "run_transient_retry_disabled",
 			attemptId: "attempt_transient_retry_disabled",
-			artifactDirName: ".fake-transient-retry-disabled-subagent",
+			artifactDirName: ".fake-transient-retry-disabled-worker",
 			stderrText: "Unexpected end of JSON input\n",
 			streamErrors: ["Unexpected end of JSON input"],
 		});
@@ -4811,7 +4802,7 @@ test("refresh backs off zero-output rate-limit model failures", async () => {
 		const { refreshedTask } = await refreshZeroOutputModelFailure(cwd, {
 			runId: "run_rate_limit_backoff",
 			attemptId: "attempt_rate_limit_backoff",
-			artifactDirName: ".fake-rate-limit-subagent",
+			artifactDirName: ".fake-rate-limit-worker",
 			streamErrors: [providerError],
 		});
 		assert.equal(refreshedTask.status, "pending");
@@ -4910,7 +4901,7 @@ test("refresh detects rate-limit text from stderr", async () => {
 		const { refreshedTask } = await refreshZeroOutputModelFailure(cwd, {
 			runId: "run_rate_limit_stderr",
 			attemptId: "attempt_rate_limit_stderr",
-			artifactDirName: ".fake-rate-limit-stderr-subagent",
+			artifactDirName: ".fake-rate-limit-stderr-worker",
 			stderrText: "HTTP 429 rate_limit_error. Retry-After: 30\n",
 		});
 		assert.equal(refreshedTask.launchRetry?.reason, "model_rate_limit");
@@ -4953,17 +4944,15 @@ test("refresh does not retry deterministic boot or config failures", async () =>
 		task.status = "running";
 		task.statusDetail = "running";
 		task.startedAt = new Date().toISOString();
-		task.backendHandle = {
-			engine: "agent-workflow",
-			backend: "runtime",
+		task.workerHandle = {
 			runId: "run_boot_failure",
 			attemptId: "attempt_boot_failure",
 			cwd,
-			runsDir: ".agent-workflow/workflow-subagents/boot-failure",
-			display: "agent-workflow/runtime run_boot_failure/attempt_boot_failure",
+			runsDir: ".agent-workflow/worker-runs/boot-failure",
+			display: "worker run run_boot_failure/attempt_boot_failure",
 		};
 
-		const artifactDir = join(cwd, ".fake-boot-subagent");
+		const artifactDir = join(cwd, ".fake-boot-worker");
 		mkdirSync(artifactDir, { recursive: true });
 		writeFileSync(join(artifactDir, "output.log"), "");
 		writeFileSync(
@@ -4984,17 +4973,17 @@ test("refresh does not retry deterministic boot or config failures", async () =>
 		);
 
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return {
 					runId: "run_boot_failure",
 					attemptId: "attempt_boot_failure",
-					backend: "headless",
+					executorId: "headless",
 					status: "failed",
 					failureKind: "model",
 					startedAt: task.startedAt,
@@ -5002,17 +4991,17 @@ test("refresh does not retry deterministic boot or config failures", async () =>
 					logs: [
 						{
 							type: "output",
-							path: ".fake-boot-subagent/output.log",
+							path: ".fake-boot-worker/output.log",
 							artifactCwd: cwd,
 						},
 						{
 							type: "stderr",
-							path: ".fake-boot-subagent/stderr.log",
+							path: ".fake-boot-worker/stderr.log",
 							artifactCwd: cwd,
 						},
 						{
 							type: "result",
-							path: ".fake-boot-subagent/result.json",
+							path: ".fake-boot-worker/result.json",
 							artifactCwd: cwd,
 						},
 					],
@@ -5026,13 +5015,13 @@ test("refresh does not retry deterministic boot or config failures", async () =>
 					],
 				};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
 		await writeRunRecord(cwd, run);
-		const refreshed = await refreshRunFromSubagentArtifacts(
+		const refreshed = await refreshRunFromWorkerArtifacts(
 			cwd,
 			await readRunRecord(cwd, run.runId),
 		);
@@ -10763,7 +10752,7 @@ test("workflow progress health classifies fresh long-running audit as long-tail 
 		stageId: "final-audit",
 		startedAt: "2026-07-01T12:00:00.000Z",
 		lastMessage: "worker heartbeat 2026-07-01T12:19:30.000Z",
-		backendHandle: { engine: "agent-workflow" },
+		workerHandle: { display: "incomplete" },
 	});
 	const run = workflowViewRun([task]);
 	run.updatedAt = "2026-07-01T12:19:30.000Z";
@@ -10784,7 +10773,7 @@ test("workflow progress health classifies reviewer fanout as long running", () =
 			stageId: "reviewers",
 			startedAt: "2026-07-01T12:00:00.000Z",
 			lastMessage: "worker heartbeat 2026-07-01T12:11:50.000Z",
-			backendHandle: { engine: "agent-workflow" },
+			workerHandle: { display: "incomplete" },
 		}),
 		{ updatedAt: "2026-07-01T12:11:50.000Z" },
 		{ nowMs },

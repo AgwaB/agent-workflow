@@ -37,7 +37,7 @@ test("durable-worker-payload", async () => {
 				async: true,
 			},
 			cwd: root,
-			backend: "headless",
+			executorId: "headless",
 			runId: "run_payload_1",
 			attemptId: "attempt-1",
 			startedAt: "2026-09-02T00:00:00.000Z",
@@ -110,7 +110,7 @@ test("durable-worker-payload", async () => {
 				tools: ["read"],
 			},
 			cwd: root,
-			backend: "headless",
+			executorId: "headless",
 			runId: "run_legacy",
 			attemptId: "attempt-legacy",
 			startedAt: "2026-09-02T00:00:00.000Z",
@@ -134,7 +134,7 @@ test("durable-worker-payload", async () => {
 			payloadPath: join(taskOnlyDir, "worker.json"),
 			input: { task: "only task" },
 			cwd: root,
-			backend: "inline",
+			executorId: "inline",
 			runId: "run_payload_2",
 			attemptId: "attempt-2",
 			startedAt: "2026-09-02T00:00:00.000Z",
@@ -200,7 +200,7 @@ test("durable-worker-payload", async () => {
 					taskRef: { path: "task.md", bytes: 1, sha256: "0".repeat(64) },
 				},
 				cwd: root,
-				backend: "inline",
+				executorId: "inline",
 				runId: "run_payload_3",
 				attemptId: "attempt-3",
 				startedAt: "2026-09-02T00:00:00.000Z",
@@ -219,16 +219,15 @@ test("durable-worker-payload", async () => {
 		const shape = {
 			input: {},
 			cwd: root,
-			backend: "codex",
+			executorId: "codex",
 			runId: "run_shape",
 			attemptId: "attempt-shape",
 			startedAt: "2026-09-02T00:00:00.000Z",
 		};
 		assertDurableWorkerPayloadShape(shape);
-		assertDurableWorkerPayloadShape({ ...shape, backend: "headless" });
+		assertDurableWorkerPayloadShape({ ...shape, executorId: "fixture.1" });
 		for (const [patch, pattern] of [
-			[{ backend: "auto" }, /backend "auto" is unknown/u],
-			[{ backend: "bad id" }, /backend "bad id" is unknown/u],
+			[{ executorId: "bad id" }, /executorId "bad id" is unknown/u],
 			[{ runId: "../x" }, /runId "\.\.\/x" is not a safe id/u],
 			[{ cwd: "relative" }, /cwd must be absolute/u],
 			[{ startedAt: "never" }, /is not a timestamp/u],

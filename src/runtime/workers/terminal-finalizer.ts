@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { appendTerminalEventsIfCurrent } from "../artifacts/index.js";
 import type { Status } from "../core/constants.js";
-import { reconcileSubagentRun } from "../orchestrate/reconcile.js";
+import { reconcileWorkerRun } from "../orchestrate/reconcile.js";
 import {
 	inspectProcessGroup,
 	type ProcessIdentity,
@@ -37,7 +37,7 @@ for (let index = 0; index < 600; index += 1) {
 	await sleep(100);
 }
 for (let index = 0; index < 100; index += 1) {
-	const reconciled = await reconcileSubagentRun({
+	const reconciled = await reconcileWorkerRun({
 		...payload.ref,
 		staleAfterMs: 0,
 		expectedAttemptId: payload.attemptId,

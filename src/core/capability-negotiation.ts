@@ -3,7 +3,7 @@
 // turn, bounded), merge the probed rows over its declared table, negotiate every compiled stage, fail
 // before any launch on a refusal, record the
 // probe summary, effective capabilities, per-stage reports and the preview on the run record.
-// At launch the task backend re-derives the same decision from the recorded capabilities, so a
+// At launch the task runner re-derives the same decision from the recorded capabilities, so a
 // runtime-generated task (foreach item, loop child, dynamic worker) is checked the same way and
 // `forcedReadOnly` reaches the SubmitRequest.
 // WP4e: the run permission mode reaches every stage context (free: coarse allowlist and environment
@@ -339,7 +339,7 @@ function isExecutorTask(task: CompiledTask): boolean {
 }
 
 /**
- * StageRequirementContext of one compiled task (B4/B5, plan §6.5). Mirrors what the task backend
+ * StageRequirementContext of one compiled task (B4/B5, plan §6.5). Mirrors what the task runner
  * puts on the SubmitRequest: readOnly from the task's safety capability or its authored readOnly (WP12d-1), the Pi tool list, B5
  * `inherit` (same rule as `workflowTaskIsolation`), MCP injection for required reads, artifact access or an
  * MCP tool provider, same-session repair for artifact-graph tasks, fast tier when on.
@@ -1158,7 +1158,7 @@ export function resolveGeneratedTaskNames(
 }
 
 /**
- * Launch-time decision for one task (task backend, before any effect). Re-derives the report from
+ * Launch-time decision for one task (task runner, before any effect). Re-derives the report from
  * the recorded effective capabilities and policy; a task generated at runtime whose template was
  * not negotiated before launch is appended to the record (`negotiatedAt: "launch"`, never asks for
  * prompting). Runs recorded before WP4d (no negotiation) are not checked.

@@ -1,6 +1,6 @@
 import {
-	type SubagentResultArtifactRef,
-	type SubagentRunLogRef,
+	type WorkerResultArtifactRef,
+	type WorkerRunLogRef,
 } from "./task-artifacts.js";
 import * as runtimeApi from "../runtime/api.js";
 import {
@@ -8,7 +8,7 @@ import {
 	sharedModelRateLimitBackoffs,
 } from "./retry-policy.js";
 
-export interface SubagentAttemptSnapshot {
+export interface WorkerAttemptSnapshot {
 	attemptId: string;
 	status: string;
 	heartbeatAt?: string;
@@ -18,29 +18,29 @@ export interface SubagentAttemptSnapshot {
 	workerPid?: number;
 }
 
-export interface SubagentRunStatusSnapshot {
+export interface WorkerRunStatusSnapshot {
 	runId: string;
 	attemptId: string;
-	backend: string;
+	executorId: string;
 	status: string;
 	failureKind: string | null;
 	startedAt: string;
 	completedAt: string | null;
 	durationMs?: number | null;
-	logs: SubagentRunLogRef[];
+	logs: WorkerRunLogRef[];
 	metadata?: { contextLengthExceeded?: boolean; [key: string]: unknown };
 	completion?: unknown;
-	attempts?: SubagentAttemptSnapshot[];
-	// Older and newer subagent APIs may expose observability fields at the
+	attempts?: WorkerAttemptSnapshot[];
+	// Older and newer worker APIs may expose observability fields at the
 	// snapshot root; preserve access to those own extension fields as unknown.
 	[key: string]: unknown;
 }
 
-export interface SubagentResultEnvelope {
+export interface WorkerResultEnvelope {
 	runId: string;
 	attemptId: string;
 	status: string;
-	artifacts?: SubagentResultArtifactRef[];
+	artifacts?: WorkerResultArtifactRef[];
 	cwd?: string;
 }
 
@@ -131,7 +131,7 @@ export interface DurableLaunchBarrierState {
 	ack?: DurableLaunchBarrierAck;
 }
 
-export interface SubagentInterruptResult {
+export interface WorkerInterruptResult {
 	status:
 		| "interrupt-requested"
 		| "not-found"
@@ -146,10 +146,8 @@ export interface SubagentInterruptResult {
 	} | null;
 }
 
-export interface SubagentApi {
-	runSubagent(
-		options: Record<string, unknown>,
-	): Promise<SubagentResultEnvelope>;
+export interface WorkerApi {
+	runWorker(options: Record<string, unknown>): Promise<WorkerResultEnvelope>;
 	createDurableLaunchBarrierV2?(options: {
 		directory: string;
 		subjectSha256: string;
@@ -178,43 +176,43 @@ export interface SubagentApi {
 		descriptor: DurableLaunchBarrierDescriptor,
 		decision: DurableLaunchBarrierReleaseDecision,
 	): Promise<DurableLaunchBarrierAck>;
-	getSubagentStatus(
+	getWorkerStatus(
 		options: Record<string, unknown>,
-	): Promise<SubagentRunStatusSnapshot | null>;
-	interruptSubagent(
+	): Promise<WorkerRunStatusSnapshot | null>;
+	interruptWorker(
 		options: Record<string, unknown>,
-	): Promise<SubagentInterruptResult>;
-	reconcileSubagentRun(options: Record<string, unknown>): Promise<unknown>;
-	recordSubagentChildEvent?(options: Record<string, unknown>): Promise<unknown>;
+	): Promise<WorkerInterruptResult>;
+	reconcileWorkerRun(options: Record<string, unknown>): Promise<unknown>;
+	recordWorkerChildEvent?(options: Record<string, unknown>): Promise<unknown>;
 }
 
-let injectedSubagentApi: SubagentApi | undefined;
+let injectedWorkerApi: WorkerApi | undefined;
 
 /** True while a test has replaced the runtime API (barrier may be absent then). */
 export function isTaskRuntimeApiInjected(): boolean {
-	return injectedSubagentApi !== undefined;
+	return injectedWorkerApi !== undefined;
 }
 
 /**
- * Test seam for the runtime API called by the task backend.
+ * Test seam for the runtime API called by the task runner.
  * Undefined restores the real runtime and clears shared rate-limit backoff state.
  */
 export function setTaskRuntimeApiForTests(api: unknown | undefined): void {
-	injectedSubagentApi = api === undefined ? undefined : (api as SubagentApi);
+	injectedWorkerApi = api === undefined ? undefined : (api as WorkerApi);
 	if (api === undefined) {
 		sharedModelRateLimitBackoffs.clear();
 		removePersistedSharedModelRateLimitBackoffsForTests();
 	}
 }
 
-export async function loadSubagentApi(): Promise<SubagentApi> {
-	if (injectedSubagentApi) return injectedSubagentApi;
-	return runtimeApi as unknown as SubagentApi;
+export async function loadWorkerApi(): Promise<WorkerApi> {
+	if (injectedWorkerApi) return injectedWorkerApi;
+	return runtimeApi as unknown as WorkerApi;
 }
 
 export type DurableLaunchBarrierApi = Required<
 	Pick<
-		SubagentApi,
+		WorkerApi,
 		| "createDurableLaunchBarrierV2"
 		| "durableLaunchBarrierDigest"
 		| "waitForDurableLaunchBarrierV2Ready"
@@ -226,8 +224,8 @@ export type DurableLaunchBarrierApi = Required<
 >;
 
 export function hasDurableLaunchBarrierApi(
-	api: SubagentApi,
-): api is SubagentApi & DurableLaunchBarrierApi {
+	api: WorkerApi,
+): api is WorkerApi & DurableLaunchBarrierApi {
 	return (
 		typeof api.createDurableLaunchBarrierV2 === "function" &&
 		typeof api.durableLaunchBarrierDigest === "function" &&

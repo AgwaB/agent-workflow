@@ -1,26 +1,19 @@
 import {
-	AGENT_SCOPES,
 	ASYNC_DEPENDENCIES,
-	AUTO_BACKEND,
 	EXECUTION_MODES,
 	ON_COMPLETE_ACTIONS,
 	WORKSPACE_MODES,
 	WORKTREE_POLICIES,
-	isAgentScope,
 	isAsyncDependency,
-	isBackend,
 	isExecutionMode,
 	isOnCompleteAction,
 	isWorktreePolicy,
 	isWorkspaceMode,
-	type Backend,
 	type ResolveInput,
 	type ResolveValidationFailure,
-	type ResolvedBackend,
 	type SandboxInput,
 	type SandboxOptionsInput,
-	type SubagentTaskInput,
-	type ToolResultBudgetInput,
+	type WorkerTaskInput,
 	type WorkspaceInput,
 } from "./constants.js";
 import { assertDurableLaunchBarrierV2Descriptor } from "../durable-launch-barrier.js";
@@ -33,26 +26,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function failure(
-	error: string,
-	backend?: ResolvedBackend,
-): ResolveValidationResult {
+function failure(error: string, executorId?: string): ResolveValidationResult {
 	return {
 		ok: false,
 		failure: {
-			...(backend ? { backend } : {}),
+			...(executorId ? { executorId } : {}),
 			status: "failed",
 			failureKind: "validation",
 			error,
 		},
 	};
-}
-
-function failureBackend(
-	backend: Backend | undefined,
-): ResolvedBackend | undefined {
-	const requested = backend ?? AUTO_BACKEND;
-	return requested === AUTO_BACKEND ? undefined : requested;
 }
 
 function formatValue(value: unknown): string {
@@ -67,12 +50,12 @@ function formatOptions(values: readonly string[]): string {
 function validateString(
 	value: unknown,
 	fieldName: string,
-	backend: ResolvedBackend | undefined,
+	executorId: string | undefined,
 ): string | ResolveValidationResult {
 	if (typeof value !== "string" || value.length === 0) {
 		return failure(
 			`${fieldName} must be a non-empty string when provided.`,
-			backend,
+			executorId,
 		);
 	}
 	return value;
@@ -83,14 +66,14 @@ const SESSION_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 function validateSessionId(
 	value: unknown,
 	fieldName: string,
-	backend: ResolvedBackend | undefined,
+	executorId: string | undefined,
 ): string | ResolveValidationResult {
-	const sessionId = validateString(value, fieldName, backend);
+	const sessionId = validateString(value, fieldName, executorId);
 	if (typeof sessionId !== "string") return sessionId;
 	if (!SESSION_ID_PATTERN.test(sessionId)) {
 		return failure(
 			`${fieldName} must contain only letters, numbers, dots, underscores, or dashes.`,
-			backend,
+			executorId,
 		);
 	}
 	return sessionId;
@@ -99,22 +82,22 @@ function validateSessionId(
 function validateBoolean(
 	value: unknown,
 	fieldName: string,
-	backend: ResolvedBackend | undefined,
+	executorId: string | undefined,
 ): boolean | ResolveValidationResult {
 	if (typeof value !== "boolean") {
-		return failure(`${fieldName} must be a boolean when provided.`, backend);
+		return failure(`${fieldName} must be a boolean when provided.`, executorId);
 	}
 	return value;
 }
 
 function validateTimeoutMs(
 	value: unknown,
-	backend: ResolvedBackend | undefined,
+	executorId: string | undefined,
 ): number | ResolveValidationResult {
 	if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
 		return failure(
 			"timeoutMs must be a positive finite number when provided.",
-			backend,
+			executorId,
 		);
 	}
 	return value;
@@ -122,12 +105,12 @@ function validateTimeoutMs(
 
 function validateConcurrency(
 	value: unknown,
-	backend: ResolvedBackend | undefined,
+	executorId: string | undefined,
 ): number | ResolveValidationResult {
 	if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
 		return failure(
 			"concurrency must be a positive integer when provided.",
-			backend,
+			executorId,
 		);
 	}
 	return value;
@@ -136,12 +119,12 @@ function validateConcurrency(
 function validateStringArray(
 	value: unknown,
 	fieldName: string,
-	backend: ResolvedBackend | undefined,
+	executorId: string | undefined,
 ): string[] | ResolveValidationResult {
 	if (!Array.isArray(value)) {
 		return failure(
 			`${fieldName} must be an array of non-empty strings when provided.`,
-			backend,
+			executorId,
 		);
 	}
 
@@ -150,7 +133,7 @@ function validateStringArray(
 		if (typeof entry !== "string" || entry.length === 0) {
 			return failure(
 				`${fieldName}[${index}] must be a non-empty string.`,
-				backend,
+				executorId,
 			);
 		}
 		items.push(entry);
@@ -161,9 +144,9 @@ function validateStringArray(
 function validateTools(
 	value: unknown,
 	fieldName: string,
-	backend: ResolvedBackend | undefined,
+	executorId: string | undefined,
 ): string[] | ResolveValidationResult {
-	return validateStringArray(value, fieldName, backend);
+	return validateStringArray(value, fieldName, executorId);
 }
 
 const DOMAIN_PATTERN =
@@ -180,7 +163,7 @@ function isAllowedDomainPattern(value: string): boolean {
 function validateSandbox(
 	value: unknown,
 	fieldName: string,
-	backend: ResolvedBackend | undefined,
+	executorId: string | undefined,
 ): SandboxInput | null | ResolveValidationResult {
 	if (value === null || value === false) return null;
 	if (value === true) return true;
@@ -192,21 +175,21 @@ function validateSandbox(
 		if (unknownKeys.length > 0) {
 			return failure(
 				`unsupported ${fieldName} option(s): ${unknownKeys.map((key) => `"${key}"`).join(", ")}; supported options are "allowedDomains".`,
-				backend,
+				executorId,
 			);
 		}
 		if (value.allowedDomains !== undefined) {
 			const allowedDomains = validateStringArray(
 				value.allowedDomains,
 				`${fieldName}.allowedDomains`,
-				backend,
+				executorId,
 			);
 			if (!Array.isArray(allowedDomains)) return allowedDomains;
 			for (const domain of allowedDomains) {
 				if (!isAllowedDomainPattern(domain)) {
 					return failure(
 						`${fieldName}.allowedDomains entry ${formatValue(domain)} must be a bare domain or *.example.com-style wildcard without protocol, path, or port.`,
-						backend,
+						executorId,
 					);
 				}
 			}
@@ -216,97 +199,103 @@ function validateSandbox(
 	}
 	return failure(
 		`${fieldName} must be a boolean or an options object when provided. Use true for an offline sandbox, { allowedDomains: [...] } to allow network egress, or false/null to disable sandboxing.`,
-		backend,
+		executorId,
 	);
 }
+
+/** Fields one task of a parallel run may set; anything else is refused by name. */
+const TASK_INPUT_KEYS: ReadonlySet<string> = new Set([
+	"task",
+	"sandbox",
+	"cwd",
+	"timeoutMs",
+	"model",
+	"sessionId",
+	"tools",
+	"systemPrompt",
+	"captureToolCalls",
+]);
+
+/** Fields a run input may set; anything else is refused by name. */
+const RUN_INPUT_KEYS: ReadonlySet<string> = new Set([
+	"sandbox",
+	"task",
+	"mode",
+	"tasks",
+	"concurrency",
+	"failFast",
+	"cancelSiblingsOnFailure",
+	"asyncDependency",
+	"workspace",
+	"worktree",
+	"worktreePolicy",
+	"cwd",
+	"async",
+	"onComplete",
+	"timeoutMs",
+	"model",
+	"tools",
+	"systemPrompt",
+	"captureToolCalls",
+	"runsDir",
+	"correlationId",
+	"sessionId",
+	"parentSessionId",
+	"durableLaunchBarrier",
+]);
 
 function validateTaskItem(
 	value: unknown,
 	fieldName: string,
-	backend: ResolvedBackend | undefined,
-): SubagentTaskInput | ResolveValidationResult {
+	executorId: string | undefined,
+): WorkerTaskInput | ResolveValidationResult {
 	if (!isRecord(value)) {
-		return failure(`${fieldName} must be an object.`, backend);
+		return failure(`${fieldName} must be an object.`, executorId);
 	}
 
-	const task: SubagentTaskInput = {};
+	for (const key of Object.keys(value))
+		if (!TASK_INPUT_KEYS.has(key))
+			return failure(
+				`unsupported request field ${fieldName}.${key}`,
+				executorId,
+			);
 
-	if (value.agent !== undefined) {
-		const agent = validateString(value.agent, `${fieldName}.agent`, backend);
-		if (typeof agent !== "string") return agent;
-		task.agent = agent;
-	}
+	const task: WorkerTaskInput = {};
 
 	if (value.task !== undefined) {
-		const taskText = validateString(value.task, `${fieldName}.task`, backend);
+		const taskText = validateString(
+			value.task,
+			`${fieldName}.task`,
+			executorId,
+		);
 		if (typeof taskText !== "string") return taskText;
 		task.task = taskText;
-	}
-
-	if (value.roleContext !== undefined) {
-		const roleContext = validateString(
-			value.roleContext,
-			`${fieldName}.roleContext`,
-			backend,
-		);
-		if (typeof roleContext !== "string") return roleContext;
-		task.roleContext = roleContext;
-	}
-
-	if (value.agentScope !== undefined) {
-		if (!isAgentScope(value.agentScope)) {
-			return failure(
-				`unsupported ${fieldName}.agentScope ${formatValue(value.agentScope)}; supported agent scopes are ${formatOptions(AGENT_SCOPES)}.`,
-				backend,
-			);
-		}
-		task.agentScope = value.agentScope;
-	}
-
-	if (value.confirmProjectAgents !== undefined) {
-		const confirm = validateBoolean(
-			value.confirmProjectAgents,
-			`${fieldName}.confirmProjectAgents`,
-			backend,
-		);
-		if (typeof confirm !== "boolean") return confirm;
-		task.confirmProjectAgents = confirm;
 	}
 
 	if (value.sandbox !== undefined) {
 		const sandbox = validateSandbox(
 			value.sandbox,
 			`${fieldName}.sandbox`,
-			backend,
+			executorId,
 		);
 		if (sandbox !== null && sandbox !== true && "ok" in sandbox) return sandbox;
 		task.sandbox = sandbox;
 	}
 
-	if (value.visible !== undefined) {
-		const visible = validateBoolean(
-			value.visible,
-			`${fieldName}.visible`,
-			backend,
-		);
-		if (typeof visible !== "boolean") return visible;
-		task.visible = visible;
-	}
-
 	if (value.cwd !== undefined) {
-		const cwd = validateString(value.cwd, `${fieldName}.cwd`, backend);
+		const cwd = validateString(value.cwd, `${fieldName}.cwd`, executorId);
 		if (typeof cwd !== "string") return cwd;
 		task.cwd = cwd;
 	}
 
 	if (value.timeoutMs !== undefined) {
-		const timeoutMs = validateTimeoutMs(value.timeoutMs, backend);
+		const timeoutMs = validateTimeoutMs(value.timeoutMs, executorId);
 		if (typeof timeoutMs !== "number") return timeoutMs;
 		task.timeoutMs = timeoutMs;
 	}
 
 	if (value.model !== undefined) {
-		const model = validateString(value.model, `${fieldName}.model`, backend);
+		const model = validateString(value.model, `${fieldName}.model`, executorId);
 		if (typeof model !== "string") return model;
 		task.model = model;
 	}
@@ -315,14 +304,14 @@ function validateTaskItem(
 		const sessionId = validateSessionId(
 			value.sessionId,
 			`${fieldName}.sessionId`,
-			backend,
+			executorId,
 		);
 		if (typeof sessionId !== "string") return sessionId;
 		task.sessionId = sessionId;
 	}
 
 	if (value.tools !== undefined) {
-		const tools = validateTools(value.tools, `${fieldName}.tools`, backend);
+		const tools = validateTools(value.tools, `${fieldName}.tools`, executorId);
 		if (!Array.isArray(tools)) return tools;
 		task.tools = tools;
 	}
@@ -331,56 +320,20 @@ function validateTaskItem(
 		const systemPrompt = validateString(
 			value.systemPrompt,
 			`${fieldName}.systemPrompt`,
-			backend,
+			executorId,
 		);
 		if (typeof systemPrompt !== "string") return systemPrompt;
 		task.systemPrompt = systemPrompt;
-	}
-
-	if (value.skills !== undefined) {
-		const skills = validateStringArray(
-			value.skills,
-			`${fieldName}.skills`,
-			backend,
-		);
-		if (!Array.isArray(skills)) return skills;
-		task.skills = skills;
-	}
-
-	if (value.extensions !== undefined) {
-		const extensions = validateStringArray(
-			value.extensions,
-			`${fieldName}.extensions`,
-			backend,
-		);
-		if (!Array.isArray(extensions)) return extensions;
-		task.extensions = extensions;
-	}
-
-	if (value.noExtensions !== undefined) {
-		const noExtensions = validateBoolean(
-			value.noExtensions,
-			`${fieldName}.noExtensions`,
-			backend,
-		);
-		if (typeof noExtensions !== "boolean") return noExtensions;
-		task.noExtensions = noExtensions;
 	}
 
 	if (value.captureToolCalls !== undefined) {
 		const captureToolCalls = validateBoolean(
 			value.captureToolCalls,
 			`${fieldName}.captureToolCalls`,
-			backend,
+			executorId,
 		);
 		if (typeof captureToolCalls !== "boolean") return captureToolCalls;
 		task.captureToolCalls = captureToolCalls;
-	}
-
-	if (value.toolResultBudget !== undefined) {
-		// Deliberately lenient: invalid budgets never fail validation. The
-		// executor ignores them and records a warning in run metadata.
-		task.toolResultBudget = value.toolResultBudget as ToolResultBudgetInput;
 	}
 
 	return task;
@@ -389,18 +342,18 @@ function validateTaskItem(
 function validateTaskList(
 	value: unknown,
 	fieldName: string,
-	backend: ResolvedBackend | undefined,
-): SubagentTaskInput[] | ResolveValidationResult {
+	executorId: string | undefined,
+): WorkerTaskInput[] | ResolveValidationResult {
 	if (!Array.isArray(value) || value.length === 0) {
 		return failure(
 			`${fieldName} must be a non-empty array of task objects when provided.`,
-			backend,
+			executorId,
 		);
 	}
 
-	const tasks: SubagentTaskInput[] = [];
+	const tasks: WorkerTaskInput[] = [];
 	for (const [index, entry] of value.entries()) {
-		const task = validateTaskItem(entry, `${fieldName}[${index}]`, backend);
+		const task = validateTaskItem(entry, `${fieldName}[${index}]`, executorId);
 		if ("ok" in task) return task;
 		tasks.push(task);
 	}
@@ -409,13 +362,13 @@ function validateTaskList(
 
 function validateWorkspace(
 	value: unknown,
-	backend: ResolvedBackend | undefined,
+	executorId: string | undefined,
 ): WorkspaceInput | ResolveInput["workspace"] | ResolveValidationResult {
 	if (isWorkspaceMode(value)) return value;
 	if (!isRecord(value)) {
 		return failure(
 			`workspace must be one of ${formatOptions(WORKSPACE_MODES)} or an object when provided.`,
-			backend,
+			executorId,
 		);
 	}
 
@@ -424,14 +377,18 @@ function validateWorkspace(
 		if (!isWorkspaceMode(value.mode)) {
 			return failure(
 				`unsupported workspace.mode ${formatValue(value.mode)}; supported workspace modes are ${formatOptions(WORKSPACE_MODES)}.`,
-				backend,
+				executorId,
 			);
 		}
 		workspace.mode = value.mode;
 	}
 
 	if (value.path !== undefined) {
-		const workspacePath = validateString(value.path, "workspace.path", backend);
+		const workspacePath = validateString(
+			value.path,
+			"workspace.path",
+			executorId,
+		);
 		if (typeof workspacePath !== "string") return workspacePath;
 		workspace.path = workspacePath;
 	}
@@ -439,113 +396,57 @@ function validateWorkspace(
 	return workspace;
 }
 
+/**
+ * Validate the generic part of a runtime run input. `executorId` (the run's executor) tags a
+ * validation failure; any field outside the known set is refused by name.
+ */
 export function validateResolveInput(
 	raw: unknown = {},
+	executorId?: string,
 ): ResolveValidationResult {
 	if (raw === undefined) raw = {};
 
 	if (!isRecord(raw)) {
-		return failure("subagent input must be an object.");
+		return failure("worker input must be an object.");
 	}
 
 	const input: ResolveInput = {};
-	let backend: Backend | undefined;
+	const failureExecutorId = executorId;
 
-	if (raw.backend !== undefined) {
-		if (!isBackend(raw.backend)) {
-			return failure(
-				`unsupported backend ${formatValue(raw.backend)}; backend must be "auto" or an executor id (letters, digits, ".", "_", ":", "-").`,
-			);
-		}
-		backend = raw.backend;
-		input.backend = backend;
-	}
-
-	const backendForKnownFailure = failureBackend(backend);
-
-	if (raw.visible !== undefined) {
-		if (typeof raw.visible !== "boolean") {
-			return failure(
-				"visible must be a boolean when provided.",
-				backendForKnownFailure,
-			);
-		}
-		input.visible = raw.visible;
-	}
+	for (const key of Object.keys(raw))
+		if (!RUN_INPUT_KEYS.has(key))
+			return failure(`unsupported request field ${key}`, failureExecutorId);
 
 	if (raw.sandbox !== undefined) {
-		const sandbox = validateSandbox(
-			raw.sandbox,
-			"sandbox",
-			backendForKnownFailure,
-		);
+		const sandbox = validateSandbox(raw.sandbox, "sandbox", failureExecutorId);
 		if (sandbox !== null && sandbox !== true && "ok" in sandbox) return sandbox;
 		input.sandbox = sandbox;
 	}
 
-	if (raw.agent !== undefined) {
-		const agent = validateString(raw.agent, "agent", backendForKnownFailure);
-		if (typeof agent !== "string") return agent;
-		input.agent = agent;
-	}
-
 	if (raw.task !== undefined) {
-		const task = validateString(raw.task, "task", backendForKnownFailure);
+		const task = validateString(raw.task, "task", failureExecutorId);
 		if (typeof task !== "string") return task;
 		input.task = task;
-	}
-
-	if (raw.roleContext !== undefined) {
-		const roleContext = validateString(
-			raw.roleContext,
-			"roleContext",
-			backendForKnownFailure,
-		);
-		if (typeof roleContext !== "string") return roleContext;
-		input.roleContext = roleContext;
-	}
-
-	if (raw.agentScope !== undefined) {
-		if (!isAgentScope(raw.agentScope)) {
-			return failure(
-				`unsupported agentScope ${formatValue(raw.agentScope)}; supported agent scopes are ${formatOptions(AGENT_SCOPES)}.`,
-				backendForKnownFailure,
-			);
-		}
-		input.agentScope = raw.agentScope;
-	}
-
-	if (raw.confirmProjectAgents !== undefined) {
-		const confirmProjectAgents = validateBoolean(
-			raw.confirmProjectAgents,
-			"confirmProjectAgents",
-			backendForKnownFailure,
-		);
-		if (typeof confirmProjectAgents !== "boolean") return confirmProjectAgents;
-		input.confirmProjectAgents = confirmProjectAgents;
 	}
 
 	if (raw.mode !== undefined) {
 		if (!isExecutionMode(raw.mode)) {
 			return failure(
 				`unsupported mode ${formatValue(raw.mode)}; supported modes are ${formatOptions(EXECUTION_MODES)}.`,
-				backendForKnownFailure,
+				failureExecutorId,
 			);
 		}
 		input.mode = raw.mode;
 	}
 
 	if (raw.tasks !== undefined) {
-		const tasks = validateTaskList(raw.tasks, "tasks", backendForKnownFailure);
+		const tasks = validateTaskList(raw.tasks, "tasks", failureExecutorId);
 		if ("ok" in tasks) return tasks;
 		input.tasks = tasks;
 	}
 
 	if (raw.concurrency !== undefined) {
-		const concurrency = validateConcurrency(
-			raw.concurrency,
-			backendForKnownFailure,
-		);
+		const concurrency = validateConcurrency(raw.concurrency, failureExecutorId);
 		if (typeof concurrency !== "number") return concurrency;
 		input.concurrency = concurrency;
 	}
@@ -554,7 +455,7 @@ export function validateResolveInput(
 		const failFast = validateBoolean(
 			raw.failFast,
 			"failFast",
-			backendForKnownFailure,
+			failureExecutorId,
 		);
 		if (typeof failFast !== "boolean") return failFast;
 		input.failFast = failFast;
@@ -564,22 +465,15 @@ export function validateResolveInput(
 		const cancelSiblingsOnFailure = validateBoolean(
 			raw.cancelSiblingsOnFailure,
 			"cancelSiblingsOnFailure",
-			backendForKnownFailure,
+			failureExecutorId,
 		);
 		if (typeof cancelSiblingsOnFailure !== "boolean")
 			return cancelSiblingsOnFailure;
 		input.cancelSiblingsOnFailure = cancelSiblingsOnFailure;
 	}
 
-	if (raw.chain !== undefined) {
-		return failure(
-			'chain mode is not supported; use mode:"parallel" for fanout or have the parent orchestrate sequencing.',
-			backendForKnownFailure,
-		);
-	}
-
 	if (raw.workspace !== undefined) {
-		const workspace = validateWorkspace(raw.workspace, backendForKnownFailure);
+		const workspace = validateWorkspace(raw.workspace, failureExecutorId);
 		if (
 			typeof workspace === "object" &&
 			workspace !== null &&
@@ -596,7 +490,7 @@ export function validateResolveInput(
 		) {
 			return failure(
 				"worktree must be a boolean or non-empty string path when provided.",
-				backendForKnownFailure,
+				failureExecutorId,
 			);
 		}
 		input.worktree = raw.worktree;
@@ -606,24 +500,20 @@ export function validateResolveInput(
 		if (!isWorktreePolicy(raw.worktreePolicy)) {
 			return failure(
 				`unsupported worktreePolicy ${formatValue(raw.worktreePolicy)}; supported worktree policies are ${formatOptions(WORKTREE_POLICIES)}.`,
-				backendForKnownFailure,
+				failureExecutorId,
 			);
 		}
 		input.worktreePolicy = raw.worktreePolicy;
 	}
 
 	if (raw.cwd !== undefined) {
-		const cwd = validateString(raw.cwd, "cwd", backendForKnownFailure);
+		const cwd = validateString(raw.cwd, "cwd", failureExecutorId);
 		if (typeof cwd !== "string") return cwd;
 		input.cwd = cwd;
 	}
 
 	if (raw.runsDir !== undefined) {
-		const runsDir = validateString(
-			raw.runsDir,
-			"runsDir",
-			backendForKnownFailure,
-		);
+		const runsDir = validateString(raw.runsDir, "runsDir", failureExecutorId);
 		if (typeof runsDir !== "string") return runsDir;
 		input.runsDir = runsDir;
 	}
@@ -632,7 +522,7 @@ export function validateResolveInput(
 		const correlationId = validateString(
 			raw.correlationId,
 			"correlationId",
-			backendForKnownFailure,
+			failureExecutorId,
 		);
 		if (typeof correlationId !== "string") return correlationId;
 		input.correlationId = correlationId;
@@ -642,25 +532,21 @@ export function validateResolveInput(
 		if (raw.tasks !== undefined || raw.mode === "parallel") {
 			return failure(
 				"top-level sessionId is not supported with parallel tasks; set tasks[i].sessionId instead.",
-				backendForKnownFailure,
+				failureExecutorId,
 			);
 		}
 
 		const sessionId = validateSessionId(
 			raw.sessionId,
 			"sessionId",
-			backendForKnownFailure,
+			failureExecutorId,
 		);
 		if (typeof sessionId !== "string") return sessionId;
 		input.sessionId = sessionId;
 	}
 
 	if (raw.async !== undefined) {
-		const asyncValue = validateBoolean(
-			raw.async,
-			"async",
-			backendForKnownFailure,
-		);
+		const asyncValue = validateBoolean(raw.async, "async", failureExecutorId);
 		if (typeof asyncValue !== "boolean") return asyncValue;
 		input.async = asyncValue;
 	}
@@ -671,7 +557,7 @@ export function validateResolveInput(
 		} catch (error) {
 			return failure(
 				error instanceof Error ? error.message : String(error),
-				backendForKnownFailure,
+				failureExecutorId,
 			);
 		}
 		input.durableLaunchBarrier = raw.durableLaunchBarrier;
@@ -681,7 +567,7 @@ export function validateResolveInput(
 		if (!isOnCompleteAction(raw.onComplete)) {
 			return failure(
 				`unsupported onComplete ${formatValue(raw.onComplete)}; supported onComplete actions are ${formatOptions(ON_COMPLETE_ACTIONS)}.`,
-				backendForKnownFailure,
+				failureExecutorId,
 			);
 		}
 		input.onComplete = raw.onComplete;
@@ -691,26 +577,26 @@ export function validateResolveInput(
 		if (!isAsyncDependency(raw.asyncDependency)) {
 			return failure(
 				`unsupported asyncDependency ${formatValue(raw.asyncDependency)}; supported async dependencies are ${formatOptions(ASYNC_DEPENDENCIES)}.`,
-				backendForKnownFailure,
+				failureExecutorId,
 			);
 		}
 		input.asyncDependency = raw.asyncDependency;
 	}
 
 	if (raw.timeoutMs !== undefined) {
-		const timeoutMs = validateTimeoutMs(raw.timeoutMs, backendForKnownFailure);
+		const timeoutMs = validateTimeoutMs(raw.timeoutMs, failureExecutorId);
 		if (typeof timeoutMs !== "number") return timeoutMs;
 		input.timeoutMs = timeoutMs;
 	}
 
 	if (raw.model !== undefined) {
-		const model = validateString(raw.model, "model", backendForKnownFailure);
+		const model = validateString(raw.model, "model", failureExecutorId);
 		if (typeof model !== "string") return model;
 		input.model = model;
 	}
 
 	if (raw.tools !== undefined) {
-		const tools = validateTools(raw.tools, "tools", backendForKnownFailure);
+		const tools = validateTools(raw.tools, "tools", failureExecutorId);
 		if (!Array.isArray(tools)) return tools;
 		input.tools = tools;
 	}
@@ -719,63 +605,27 @@ export function validateResolveInput(
 		const systemPrompt = validateString(
 			raw.systemPrompt,
 			"systemPrompt",
-			backendForKnownFailure,
+			failureExecutorId,
 		);
 		if (typeof systemPrompt !== "string") return systemPrompt;
 		input.systemPrompt = systemPrompt;
-	}
-
-	if (raw.skills !== undefined) {
-		const skills = validateStringArray(
-			raw.skills,
-			"skills",
-			backendForKnownFailure,
-		);
-		if (!Array.isArray(skills)) return skills;
-		input.skills = skills;
-	}
-
-	if (raw.extensions !== undefined) {
-		const extensions = validateStringArray(
-			raw.extensions,
-			"extensions",
-			backendForKnownFailure,
-		);
-		if (!Array.isArray(extensions)) return extensions;
-		input.extensions = extensions;
-	}
-
-	if (raw.noExtensions !== undefined) {
-		const noExtensions = validateBoolean(
-			raw.noExtensions,
-			"noExtensions",
-			backendForKnownFailure,
-		);
-		if (typeof noExtensions !== "boolean") return noExtensions;
-		input.noExtensions = noExtensions;
 	}
 
 	if (raw.captureToolCalls !== undefined) {
 		const captureToolCalls = validateBoolean(
 			raw.captureToolCalls,
 			"captureToolCalls",
-			backendForKnownFailure,
+			failureExecutorId,
 		);
 		if (typeof captureToolCalls !== "boolean") return captureToolCalls;
 		input.captureToolCalls = captureToolCalls;
-	}
-
-	if (raw.toolResultBudget !== undefined) {
-		// Deliberately lenient: invalid budgets never fail validation. The
-		// executor ignores them and records a warning in run metadata.
-		input.toolResultBudget = raw.toolResultBudget as ToolResultBudgetInput;
 	}
 
 	if (input.durableLaunchBarrier !== undefined) {
 		if (input.mode === "parallel" || input.tasks !== undefined) {
 			return failure(
 				"durableLaunchBarrier supports one durable run only; parallel tasks need distinct barriers.",
-				backendForKnownFailure,
+				failureExecutorId,
 			);
 		}
 		if (
@@ -785,7 +635,7 @@ export function validateResolveInput(
 		) {
 			return failure(
 				"durableLaunchBarrier requires durable async execution.",
-				backendForKnownFailure,
+				failureExecutorId,
 			);
 		}
 	}

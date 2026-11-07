@@ -352,7 +352,7 @@ function categorizeTool(toolName: string): ToolCategory {
 		return "shell";
 	if (/^(git|gh)$/.test(lower) || /(?:git|github)/.test(lower)) return "vcs";
 	if (/(?:browser|playwright|chromium)/.test(lower)) return "browser";
-	if (/(?:agent|subagent)/.test(lower)) return "agent";
+	if (/(?:agent|worker)/.test(lower)) return "agent";
 	return "unknown";
 }
 

@@ -944,7 +944,7 @@ Run files, relative to the project's state directory:
   tasks/<task-id>/     task.md, system-prompt.md, control.json, analysis.md, refs.json, raw.md,
                        read-ledger.jsonl, source-manifest.json, artifact-access.json, result.json,
                        output.log, stderr.log
-.agent-workflow/workflow-subagents/<run-id>/<task-id>/<runtime-run>/attempts/<attempt>/
+.agent-workflow/worker-runs/<run-id>/<task-id>/<runtime-run>/attempts/<attempt>/
                        worker.json, executor.json, authority.json, control/, exec-events.jsonl,
                        raw CLI logs, result.json
 ```
@@ -1236,7 +1236,7 @@ Defined but inactive (they enable no behavior): `AGENT_WORKFLOW_CACHE_SHAPE_METR
 |---|---|
 | `AGENT_WORKFLOW_ROLE` | Process role: `supervisor` (default), `worker`, `disabled`. Workers get `worker`; `worker`/`disabled` processes may only `help`/`validate` and the Pi host registers no tools. |
 | `AGENT_WORKFLOW_HOST_CONTEXT` | JSON host context (`version`, `cwd`, `homeDir`, `projectTrusted`) passed to headless children. |
-| `AGENT_WORKFLOW_PARENT_SUBAGENT_CWD`, `AGENT_WORKFLOW_PARENT_SUBAGENT_RUNS_DIR`, `AGENT_WORKFLOW_PARENT_SUBAGENT_RUN_ID`, `AGENT_WORKFLOW_PARENT_SUBAGENT_ATTEMPT_ID` | Identify the parent runtime attempt of a nested workflow so child events and usage are recorded on it. |
+| `AGENT_WORKFLOW_PARENT_WORKER_CWD`, `AGENT_WORKFLOW_PARENT_WORKER_RUNS_DIR`, `AGENT_WORKFLOW_PARENT_WORKER_RUN_ID`, `AGENT_WORKFLOW_PARENT_WORKER_ATTEMPT_ID` | Identify the parent runtime attempt of a nested workflow so child events and usage are recorded on it. |
 | `AGENT_WORKFLOW_DURABLE_WORKER_BINDING_JSON` | Barrier binding handed to a durable worker. |
 | `AGENT_WORKFLOW_DURABLE_WORKER_REQUEST_ENV_JSON` | Env values (`SubmitRequest.env`, MCP server env) for a durable worker; removed from the worker's `process.env` at startup, never written to disk. |
 | `AGENT_WORKFLOW_PI_RUN_SECRETS_JSON` | Secret part of the Pi executor's per-run config; deleted as soon as the in-Pi extension loads. |
@@ -1262,7 +1262,7 @@ Not read by the package.
 |---|---|
 | `AGENT_WORKFLOW_TEST_CONCURRENCY`, `AGENT_WORKFLOW_KEEP_TEST_HOME` | `test/run-unit.mjs`: parallel test files; keep the per-file test homes. |
 | `AGENT_WORKFLOW_LIVE`, `AGENT_WORKFLOW_LIVE_PI_MODEL`, `AGENT_WORKFLOW_LIVE_CLAUDE_MODEL`, `AGENT_WORKFLOW_LIVE_REPORT`, `AGENT_WORKFLOW_CODEX_LIVE_MODEL`, `AGENT_WORKFLOW_CODEX_LIVE_REPORT` | Live executor tiers (real CLIs and models; cost money). Off unless `AGENT_WORKFLOW_LIVE=1`. |
-| `AGENT_WORKFLOW_PI_BIN`, `AGENT_WORKFLOW_PI_RPC_RECORD`, `AGENT_WORKFLOW_PI_WORKFLOW_EXTENSION` | Live Pi host RPC check ([`hosts.md`](hosts.md#pi)). |
+| `AGENT_WORKFLOW_PI_BIN`, `AGENT_WORKFLOW_PI_RPC_RECORD` | Live Pi host RPC check ([`hosts.md`](hosts.md#pi)). |
 | `AGENT_WORKFLOW_ROOT` | Replay fixture builder. |
 | `AGENT_WORKFLOW_E2E_NO_EXTERNAL_ACTIONS`, `AGENT_WORKFLOW_E2E_PROCESS_LOG`, `AGENT_WORKFLOW_E2E_REAL_NPM` | `npm run e2e`: the no-external-actions guard and its command shims (set by `test/e2e/run.mjs`). |
 | `AGENT_WORKFLOW_ALLOW_PUBLISHED_VERSION` | `tools/release/release-check.mjs`: allow a validation-only rerun of an already published version. |

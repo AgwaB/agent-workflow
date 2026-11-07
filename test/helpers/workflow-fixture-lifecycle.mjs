@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
 import { stopRun } from "../../dist/core/engine.js";
-import { getSubagentHandle } from "../../dist/core/task-artifacts.js";
+import { getWorkerHandle } from "../../dist/core/task-artifacts.js";
 import { readRunEvents, runPaths } from "../../dist/runtime/artifacts/index.js";
 import { acquireDirectoryLock } from "../../dist/runtime/artifacts/dir-lock.js";
 import {
@@ -27,7 +27,7 @@ export async function withWorkflowFixtureLease(cwd, runId, action) {
 	}
 }
 
-// Call before resetting fake backends or deleting a fixture, including failure paths.
+// Call before resetting fake workers or deleting a fixture, including failure paths.
 export async function drainWorkflowFixture(cwd, runId) {
 	const run = await readRunRecord(cwd, runId);
 	if (!isTerminalWorkflowStatus(run.status)) await stopRun(cwd, runId);
@@ -45,7 +45,7 @@ export async function drainWorkflowProject(cwd) {
 		// stopRun can clear a task's handle after acknowledging cancellation; retain its owner.
 		const refs = new Map();
 		for (const task of [...run.tasks, ...settled.tasks]) {
-			const ref = getSubagentHandle(task);
+			const ref = getWorkerHandle(task);
 			if (ref) refs.set(`${ref.cwd}/${ref.runId}/${ref.attemptId}`, ref);
 		}
 		for (const ref of refs.values()) {

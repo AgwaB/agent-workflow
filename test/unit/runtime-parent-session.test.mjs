@@ -1,6 +1,6 @@
 // Verifies parentSessionId is persisted into run.json by beginRunRecord and
 // preserved across subsequent attempt upserts. This is the session-ownership
-// signal pi-panel uses to scope footer subagent rows to the launching session.
+// signal pi-panel uses to scope footer worker rows to the launching session.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -29,7 +29,7 @@ test("parent-session", async () => {
 			cwd,
 			runId,
 			mode: "single",
-			backend: "headless",
+			executorId: "headless",
 			startedAt: "2026-06-15T00:00:00.000Z",
 			dependency: null,
 			parentSessionId,
@@ -38,7 +38,7 @@ test("parent-session", async () => {
 				{
 					attemptId,
 					status: "running",
-					backend: "headless",
+					executorId: "headless",
 					startedAt: "2026-06-15T00:00:00.000Z",
 				},
 			],
@@ -58,7 +58,7 @@ test("parent-session", async () => {
 			runId,
 			attemptId,
 			status: "completed",
-			backend: "headless",
+			executorId: "headless",
 			completedAt: "2026-06-15T00:00:05.000Z",
 		});
 
@@ -77,7 +77,7 @@ test("parent-session", async () => {
 			cwd,
 			runId: runId2,
 			mode: "single",
-			backend: "headless",
+			executorId: "headless",
 			startedAt: "2026-06-15T00:00:00.000Z",
 			dependency: null,
 			activeAttemptId: "attempt_x",
@@ -85,7 +85,7 @@ test("parent-session", async () => {
 				{
 					attemptId: "attempt_x",
 					status: "running",
-					backend: "headless",
+					executorId: "headless",
 					startedAt: "2026-06-15T00:00:00.000Z",
 				},
 			],

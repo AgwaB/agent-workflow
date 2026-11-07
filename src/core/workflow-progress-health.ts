@@ -58,7 +58,7 @@ type TaskHealthInput = Pick<
 	| "startedAt"
 	| "lastMessage"
 	| "runtime"
-	| "backendHandle"
+	| "workerHandle"
 	| "pid"
 >;
 
@@ -78,7 +78,7 @@ type RunningTaskContext = {
 	lastActivityAgeMs?: number;
 	heartbeatAt?: string;
 	heartbeatAgeMs?: number;
-	hasBackendSignal: boolean;
+	hasWorkerSignal: boolean;
 	staleMs: number;
 };
 
@@ -297,15 +297,15 @@ function staleRunningHealth(
 ): WorkflowProgressHealth | undefined {
 	if (
 		context.staleMs >= STUCK_BY_DURATION[context.durationClass] &&
-		!context.hasBackendSignal
+		!context.hasWorkerSignal
 	) {
 		return runningHealth(context, {
 			state: "likely-stuck",
 			label: "likely stuck",
-			summary: "no fresh backend or activity signal",
+			summary: "no fresh worker or activity signal",
 			tone: "error",
 			suggestion: "resume",
-			reason: "running task has no backend signal and activity is stale",
+			reason: "running task has no worker signal and activity is stale",
 		});
 	}
 	if (context.staleMs < STALL_BY_DURATION[context.durationClass])
@@ -316,8 +316,8 @@ function staleRunningHealth(
 		summary: "no recent visible progress",
 		tone: "warning",
 		suggestion: "inspect",
-		reason: context.hasBackendSignal
-			? "backend signal exists, but activity is stale"
+		reason: context.hasWorkerSignal
+			? "worker signal exists, but activity is stale"
 			: "activity is stale",
 	});
 }
@@ -383,7 +383,7 @@ function runningContext(
 		lastActivityAgeMs,
 		heartbeatAt,
 		heartbeatAgeMs,
-		hasBackendSignal: Boolean(task.pid || hasFreshHeartbeat),
+		hasWorkerSignal: Boolean(task.pid || hasFreshHeartbeat),
 		staleMs: lastActivityAgeMs ?? Number.POSITIVE_INFINITY,
 	};
 }

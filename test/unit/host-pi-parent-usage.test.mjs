@@ -42,7 +42,7 @@ const SECRET = "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH";
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp33-usage-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -53,7 +53,7 @@ after(async () => {
 			await handler({}, undefined);
 	for (const cwd of projects) await drainWorkflowProject(cwd);
 	for (const undo of unregister.splice(0)) undo();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(root, { recursive: true, force: true, maxRetries: 5 });
 });
 

@@ -11,7 +11,7 @@ import {
 	mkdirSync,
 	readFileSync,
 	readRunRecord,
-	refreshRunFromSubagentArtifacts,
+	refreshRunFromWorkerArtifacts,
 	rmSync,
 	setTaskRuntimeApiForTests as setRawApi,
 	test,
@@ -22,7 +22,7 @@ import {
 	writeStaticRunArtifacts,
 } from "../helpers/unit-test-support.mjs";
 
-const setSubagentApiForTests = withMaterializedRawHost(setRawApi);
+const setWorkerApiForTests = withMaterializedRawHost(setRawApi);
 const cases = [
 	{ name: "snapshot partial flag", snapshotPartial: true },
 	{ name: "persisted partial flag", resultPartial: true },
@@ -86,16 +86,14 @@ for (const scenario of cases) {
 			task.status = "running";
 			task.statusDetail = "running";
 			task.startedAt = new Date().toISOString();
-			task.backendHandle = {
-				engine: "agent-workflow",
-				backend: "runtime",
+			task.workerHandle = {
 				runId: "run_partial",
 				attemptId: "attempt_partial",
 				cwd,
-				runsDir: ".agent-workflow/workflow-subagents/partial",
-				display: "agent-workflow/runtime run_partial/attempt_partial",
+				runsDir: ".agent-workflow/worker-runs/partial",
+				display: "worker run run_partial/attempt_partial",
 			};
-			const relative = ".fake-partial-subagent";
+			const relative = ".fake-partial-worker";
 			const artifactDir = join(cwd, relative);
 			mkdirSync(artifactDir, { recursive: true });
 			const output =
@@ -127,21 +125,21 @@ for (const scenario of cases) {
 					},
 				}),
 			);
-			setSubagentApiForTests({
-				async runSubagent() {
+			setWorkerApiForTests({
+				async runWorker() {
 					throw new Error("No retry or provider launch permitted");
 				},
-				async reconcileSubagentRun() {
+				async reconcileWorkerRun() {
 					return {};
 				},
-				async interruptSubagent() {
+				async interruptWorker() {
 					return {};
 				},
-				async getSubagentStatus() {
+				async getWorkerStatus() {
 					return {
 						runId: "run_partial",
 						attemptId: "attempt_partial",
-						backend: "headless",
+						executorId: "headless",
 						status,
 						failureKind,
 						startedAt: task.startedAt,
@@ -174,7 +172,7 @@ for (const scenario of cases) {
 				},
 			});
 			await writeRunRecord(cwd, run);
-			const refreshed = await refreshRunFromSubagentArtifacts(
+			const refreshed = await refreshRunFromWorkerArtifacts(
 				cwd,
 				await readRunRecord(cwd, run.runId),
 			);
@@ -184,7 +182,7 @@ for (const scenario of cases) {
 			);
 			assert.equal(current.status, scenario.expected ?? "failed");
 			assert.equal(result.status, scenario.expected ?? "failed");
-			assert.equal(result.subagent.metadata.outputPartial, true);
+			assert.equal(result.worker.metadata.outputPartial, true);
 			assert.equal(
 				readFileSync(join(stateDir(cwd), current.files.output), "utf8"),
 				output,
@@ -201,7 +199,7 @@ for (const scenario of cases) {
 			assert.equal(result.outputValidation?.valid, undefined);
 			assert.equal(current.launchRetry?.attempts ?? 0, 0);
 		} finally {
-			setSubagentApiForTests(undefined);
+			setWorkerApiForTests(undefined);
 			rmSync(cwd, {
 				recursive: true,
 				force: true,

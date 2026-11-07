@@ -100,7 +100,7 @@ async function persistRun(cwd, status) {
 						warning: null,
 					},
 					cwd,
-					backendTaskId: "",
+					workerTaskId: "",
 					files: {
 						output: "",
 						stderr: "",

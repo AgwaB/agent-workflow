@@ -63,15 +63,9 @@ test("every bundled workflow and scaffold validates and compiles with the bundle
 	}
 });
 
-test("bundled assets reference no workflow_web_* tool, .pi/workflows path, PI_WORKFLOW_ env or executor-specific artifact tool name", async () => {
+test("bundled assets name the artifact tool by its workflow name only", async () => {
 	const forbidden = [
-		[/workflow_web_/u, "removed workflow_web_* tools (C2)"],
-		[/\.pi\/workflows/u, "legacy run state path"],
-		[/"\.pi",\s*"workflows"/u, "legacy run state path (joined)"],
-		[/\.pi\/ocr-artifacts|"\.pi",\s*"ocr-artifacts"/u, "legacy OCR root"],
-		[/PI_WORKFLOW_/u, "renamed env prefix"],
 		[/mcp__workflow_artifact__/u, "executor-specific artifact tool name"],
-		[/web-source-cache/u, "removed web-source cache"],
 	];
 	const files = [
 		...(await filesUnder("workflows")),

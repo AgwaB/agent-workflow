@@ -3,7 +3,7 @@
 // READY as soon as the provisional worker's attempt is terminal and report the executor's refusal,
 // instead of waiting for the durable launch barrier timeout (30-120 s) and reporting "durable launch
 // barrier timed out". Found by the WP1b replay (spec-review: a replay miss is such a refusal).
-// Real engine → core task backend → runtime durable worker → refusing fixture executor.
+// Real engine → task runner → runtime durable worker → refusing fixture executor.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -32,7 +32,7 @@ after(async () => {
 });
 
 test("an executor refusal before consume fails the launch promptly with the refusal, not a barrier timeout", async () => {
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

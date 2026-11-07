@@ -28,7 +28,7 @@ const logs = {};
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp31-prefs-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -49,7 +49,7 @@ after(async () => {
 	for (const client of clients.splice(0))
 		await client.close().catch(() => undefined);
 	for (const restore of undo.splice(0)) restore();
-	slots.setSubagentLaunchControlsForTests({});
+	slots.setWorkerLaunchControlsForTests({});
 	await rm(root, {
 		recursive: true,
 		force: true,

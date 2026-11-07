@@ -340,7 +340,6 @@ test("durable-launch-barrier", async () => {
 
 		assert.equal(
 			validateResolveInput({
-				backend: "headless",
 				task: "fixture",
 				async: true,
 				durableLaunchBarrier: descriptor,
@@ -348,7 +347,6 @@ test("durable-launch-barrier", async () => {
 			true,
 		);
 		const synchronous = validateResolveInput({
-			backend: "headless",
 			task: "fixture",
 			durableLaunchBarrier: descriptor,
 		});
@@ -356,7 +354,6 @@ test("durable-launch-barrier", async () => {
 		if (!synchronous.ok)
 			assert.match(synchronous.failure.error, /durable async execution/);
 		const mutated = validateResolveInput({
-			backend: "headless",
 			task: "fixture",
 			async: true,
 			durableLaunchBarrier: { ...descriptor, challenge: "b".repeat(64) },
@@ -519,7 +516,6 @@ test("durable-launch-barrier", async () => {
 		});
 		assert.equal(
 			validateResolveInput({
-				backend: "headless",
 				task: "fixture-v2",
 				async: true,
 				durableLaunchBarrier: descriptorV2,

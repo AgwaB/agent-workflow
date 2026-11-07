@@ -15,7 +15,7 @@ export function agentWorkflowHome(
 	return override ? resolve(override) : join(homedir(), ".agent-workflow");
 }
 
-/** Project-local state directory (was `<project>/.pi`). */
+/** Project-local state directory. */
 export const PROJECT_STATE_DIRECTORY = ".agent-workflow";
 
 /** Pi's own project state; excluded from runtime artifact scans (Pi is a supported host). */

@@ -515,12 +515,7 @@ test("RR-02 actual CLI rejects mirror validation failure and preserves primary a
 	const outside = join(cwd, "mirror-evidence");
 	await mkdir(outside);
 	await writeFile(join(outside, "evidence"), "recover me");
-	const mirror = join(
-		stateDir(cwd),
-		".agent-workflow",
-		"workflow-subagents",
-		parent,
-	);
+	const mirror = join(stateDir(cwd), ".agent-workflow", "worker-runs", parent);
 	await mkdir(join(mirror, ".."), { recursive: true });
 	await symlink(outside, mirror);
 	await store.updateIndex(cwd);

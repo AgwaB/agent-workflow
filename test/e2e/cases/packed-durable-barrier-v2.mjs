@@ -30,8 +30,8 @@ for (const name of [
 	"revokeDurableLaunchBarrierV2",
 	"waitForDurableLaunchBarrierV2Ready",
 	"waitForDurableLaunchBarrierV2Ack",
-	"runSubagent",
-	"waitForSubagent",
+	"runWorker",
+	"waitForWorker",
 ])
 	assert.equal(typeof api[name], "function", `missing ${name}`);
 
@@ -66,7 +66,7 @@ async function effects(path) {
 }
 
 async function launch(barrier, effectLog, suffix) {
-	return api.runSubagent({
+	return api.runWorker({
 		cwd,
 		executor: e2eExecutorDescriptor({ id: "test-e2e", effectLog }),
 		task: `durable barrier ${suffix}`,
@@ -79,7 +79,7 @@ async function launch(barrier, effectLog, suffix) {
 }
 
 async function terminal(run) {
-	const waited = await api.waitForSubagent({
+	const waited = await api.waitForWorker({
 		cwd,
 		runId: run.runId,
 		attemptId: run.attemptId,

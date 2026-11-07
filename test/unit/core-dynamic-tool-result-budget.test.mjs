@@ -11,9 +11,9 @@ import {
 import { formatRun } from "../../dist/core/engine.js";
 import {
 	createPendingSingleTaskRun,
-	launchSubagentTask,
+	launchWorkerTask,
 	makeProject,
-	refreshRunFromSubagentArtifacts,
+	refreshRunFromWorkerArtifacts,
 	setTaskRuntimeApiForTests as setRawApi,
 } from "../helpers/unit-test-support.mjs";
 
@@ -30,7 +30,7 @@ function dynamicMetadata(task, overrides = {}) {
 }
 
 function writeTerminalArtifacts(cwd, task, result, output = "done") {
-	const artifactDir = join(stateDir(cwd), task.backendFiles.runsDir);
+	const artifactDir = join(stateDir(cwd), task.workerFiles.runsDir);
 	mkdirSync(artifactDir, { recursive: true });
 	writeFileSync(
 		join(artifactDir, "output.log"),
@@ -64,7 +64,7 @@ function statusSnapshot({
 	return {
 		runId,
 		attemptId,
-		backend: "headless",
+		executorId: "headless",
 		status,
 		failureKind,
 		startedAt,
@@ -104,7 +104,7 @@ function syntheticTask({
 			baseCwd: null,
 			warning: null,
 		},
-		backendTaskId: `backend-${taskId}`,
+		workerTaskId: `worker-${taskId}`,
 		files: {
 			output: "",
 			stderr: "",
@@ -150,7 +150,6 @@ function syntheticRun(tasks, overrides = {}) {
 		status: overrides.status ?? "completed",
 		taskSummary: statusCounts,
 		cwd: "/tmp/dynamic-budget",
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-07-10T00:00:00.000Z",
 		updatedAt: "2026-07-10T00:00:02.000Z",
 		specPath: "/tmp/dynamic-budget/spec.json",
@@ -164,20 +163,20 @@ test("dynamic child telemetry preserves launch config, result precedence, retrie
 	let snapshot = null;
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				return {
 					runId: "run_budget_current",
 					attemptId: "attempt_budget_current",
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return snapshot;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -193,8 +192,8 @@ test("dynamic child telemetry preserves launch config, result precedence, retrie
 				{
 					source: "seed",
 					capturedAt: "2026-07-09T23:59:59.000Z",
-					backendRunId: "run_budget_previous",
-					backendAttemptId: "attempt_budget_previous",
+					workerRunId: "run_budget_previous",
+					workerAttemptId: "attempt_budget_previous",
 					configured: true,
 					configuredMaxTotalChars: 320_000,
 					terminal: true,
@@ -210,7 +209,7 @@ test("dynamic child telemetry preserves launch config, result precedence, retrie
 			],
 		};
 
-		await launchSubagentTask(
+		await launchWorkerTask(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -222,7 +221,7 @@ test("dynamic child telemetry preserves launch config, result precedence, retrie
 		assert.equal(launchedAttempt.configurationSource, "default");
 		assert.equal(launchedAttempt.configuredMaxTotalChars, 320_000);
 		assert.equal(launchedAttempt.terminal, undefined);
-		const backendHandle = structuredClone(fixture.task.backendHandle);
+		const workerHandle = structuredClone(fixture.task.workerHandle);
 
 		const startedAt = fixture.task.startedAt;
 		const completedAt = new Date(Date.parse(startedAt) + 250).toISOString();
@@ -264,12 +263,12 @@ test("dynamic child telemetry preserves launch config, result precedence, retrie
 			},
 		});
 
-		let refreshed = await refreshRunFromSubagentArtifacts(cwd, fixture.run);
+		let refreshed = await refreshRunFromWorkerArtifacts(cwd, fixture.run);
 		let task = refreshed.tasks[0];
 		assert.equal(task.status, "completed");
 		assert.equal(task.toolResultBudget.attempts.length, 2);
 		const terminalAttempt = task.toolResultBudget.attempts.at(-1);
-		assert.equal(terminalAttempt.source, "subagent-result-metadata");
+		assert.equal(terminalAttempt.source, "worker-result-metadata");
 		assert.equal(terminalAttempt.configurationSource, "default");
 		assert.equal(terminalAttempt.maxTotalChars, 320_000);
 		assert.equal(terminalAttempt.retainedChars, 160_000);
@@ -283,16 +282,16 @@ test("dynamic child telemetry preserves launch config, result precedence, retrie
 		assert.equal(task.toolResultBudget.aggregate.maxRetainedChars, 160_000);
 		assert.equal(task.toolResultBudget.aggregate.maxUtilization, 0.5);
 
-		// Reprocessing the same backend identity must replace, not append, its row.
+		// Reprocessing the same worker identity must replace, not append, its row.
 		task.status = "running";
 		task.statusDetail = "running";
-		task.backendHandle = backendHandle;
-		task.backendTaskId = backendHandle.runId;
-		refreshed = await refreshRunFromSubagentArtifacts(cwd, refreshed);
+		task.workerHandle = workerHandle;
+		task.workerTaskId = workerHandle.runId;
+		refreshed = await refreshRunFromWorkerArtifacts(cwd, refreshed);
 		task = refreshed.tasks[0];
 		assert.equal(task.toolResultBudget.attempts.length, 2);
 		assert.deepEqual(
-			task.toolResultBudget.attempts.map((attempt) => attempt.backendAttemptId),
+			task.toolResultBudget.attempts.map((attempt) => attempt.workerAttemptId),
 			["attempt_budget_previous", "attempt_budget_current"],
 		);
 	} finally {
@@ -311,20 +310,20 @@ test("same-attempt terminal observations replace stale availability and snapshot
 	let snapshot = null;
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				return {
 					runId: "run_budget_reconcile",
 					attemptId: "attempt_budget_reconcile",
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return snapshot;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -332,14 +331,14 @@ test("same-attempt terminal observations replace stale availability and snapshot
 			specName: "dynamic-budget-reconcile",
 		});
 		dynamicMetadata(fixture.task);
-		await launchSubagentTask(
+		await launchWorkerTask(
 			cwd,
 			fixture.run,
 			fixture.task,
 			fixture.compiled.tasks[0],
 		);
 		const startedAt = fixture.task.startedAt;
-		const backendHandle = structuredClone(fixture.task.backendHandle);
+		const workerHandle = structuredClone(fixture.task.workerHandle);
 		const completedAt = new Date(Date.parse(startedAt) + 100).toISOString();
 		const artifactDir = writeTerminalArtifacts(cwd, fixture.task, {
 			status: "completed",
@@ -356,7 +355,7 @@ test("same-attempt terminal observations replace stale availability and snapshot
 			completedAt,
 		});
 
-		let refreshed = await refreshRunFromSubagentArtifacts(cwd, fixture.run);
+		let refreshed = await refreshRunFromWorkerArtifacts(cwd, fixture.run);
 		let attempt = refreshed.tasks[0].toolResultBudget.attempts[0];
 		assert.equal(attempt.unavailable, true);
 		assert.equal(attempt.reported, undefined);
@@ -374,9 +373,9 @@ test("same-attempt terminal observations replace stale availability and snapshot
 		};
 		refreshed.tasks[0].status = "running";
 		refreshed.tasks[0].statusDetail = "running";
-		refreshed.tasks[0].backendHandle = backendHandle;
-		refreshed.tasks[0].backendTaskId = backendHandle.runId;
-		refreshed = await refreshRunFromSubagentArtifacts(cwd, refreshed);
+		refreshed.tasks[0].workerHandle = workerHandle;
+		refreshed.tasks[0].workerTaskId = workerHandle.runId;
+		refreshed = await refreshRunFromWorkerArtifacts(cwd, refreshed);
 		attempt = refreshed.tasks[0].toolResultBudget.attempts[0];
 		assert.equal(attempt.reported, true);
 		assert.equal(attempt.unavailable, undefined);
@@ -400,11 +399,11 @@ test("same-attempt terminal observations replace stale availability and snapshot
 		);
 		refreshed.tasks[0].status = "running";
 		refreshed.tasks[0].statusDetail = "running";
-		refreshed.tasks[0].backendHandle = backendHandle;
-		refreshed.tasks[0].backendTaskId = backendHandle.runId;
-		refreshed = await refreshRunFromSubagentArtifacts(cwd, refreshed);
+		refreshed.tasks[0].workerHandle = workerHandle;
+		refreshed.tasks[0].workerTaskId = workerHandle.runId;
+		refreshed = await refreshRunFromWorkerArtifacts(cwd, refreshed);
 		attempt = refreshed.tasks[0].toolResultBudget.attempts[0];
-		assert.equal(attempt.source, "subagent-result-metadata");
+		assert.equal(attempt.source, "worker-result-metadata");
 		assert.equal(attempt.evictedCount, undefined);
 		assert.equal(attempt.retainedChars, undefined);
 		assert.equal(attempt.unavailable, undefined);
@@ -439,20 +438,20 @@ test("failed dynamic children retain snapshot telemetry and missing metadata is 
 	let snapshot = null;
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				return {
 					runId: "run_budget_failed",
 					attemptId: "attempt_budget_failed",
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return snapshot;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -460,7 +459,7 @@ test("failed dynamic children retain snapshot telemetry and missing metadata is 
 			specName: "dynamic-budget-failed",
 		});
 		dynamicMetadata(fixture.task);
-		await launchSubagentTask(
+		await launchWorkerTask(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -504,12 +503,12 @@ test("failed dynamic children retain snapshot telemetry and missing metadata is 
 				},
 			},
 		});
-		const refreshed = await refreshRunFromSubagentArtifacts(cwd, fixture.run);
+		const refreshed = await refreshRunFromWorkerArtifacts(cwd, fixture.run);
 		const task = refreshed.tasks[0];
 		assert.equal(task.status, "failed");
 		assert.equal(
 			task.toolResultBudget.attempts[0].source,
-			"subagent-snapshot-metadata",
+			"worker-snapshot-metadata",
 		);
 		assert.equal(task.toolResultBudget.attempts[0].contextLengthExceeded, true);
 		assert.equal(
@@ -542,17 +541,17 @@ test("launch-abort correlation recovery binds the pre-ack effective configuratio
 	const controller = new AbortController();
 	try {
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				controller.abort(new Error("unit launch lease lost"));
 				return new Promise(() => {});
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -561,7 +560,7 @@ test("launch-abort correlation recovery binds the pre-ack effective configuratio
 		});
 		dynamicMetadata(fixture.task);
 		await assert.rejects(
-			launchSubagentTask(
+			launchWorkerTask(
 				cwd,
 				fixture.run,
 				fixture.task,
@@ -578,7 +577,7 @@ test("launch-abort correlation recovery binds the pre-ack effective configuratio
 		);
 		assert.equal(fixture.task.toolResultBudget.attempts.length, 0);
 
-		const runsRoot = join(stateDir(cwd), fixture.task.backendFiles.runsDir);
+		const runsRoot = join(stateDir(cwd), fixture.task.workerFiles.runsDir);
 		const recoveredRunId = "run_budget_recovered";
 		const recoveredAttemptId = "attempt_budget_recovered";
 		const recoveredRunDir = join(runsRoot, recoveredRunId);
@@ -641,29 +640,29 @@ test("launch-abort correlation recovery binds the pre-ack effective configuratio
 			completedAt,
 		});
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				throw new Error("not expected");
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return recoveredSnapshot;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
-		const refreshed = await refreshRunFromSubagentArtifacts(cwd, fixture.run);
+		const refreshed = await refreshRunFromWorkerArtifacts(cwd, fixture.run);
 		const attempt = refreshed.tasks[0].toolResultBudget.attempts[0];
 		assert.equal(refreshed.tasks[0].status, "completed");
 		assert.ok(
 			refreshed.tasks[0].rawArtifactIntegrity,
 			"recovered publication must retain host integrity",
 		);
-		assert.equal(attempt.backendRunId, recoveredRunId);
-		assert.equal(attempt.backendAttemptId, recoveredAttemptId);
+		assert.equal(attempt.workerRunId, recoveredRunId);
+		assert.equal(attempt.workerAttemptId, recoveredAttemptId);
 		assert.equal(attempt.configurationSource, "default");
 		assert.equal(attempt.configuredMaxTotalChars, 320_000);
 		assert.equal(
@@ -688,7 +687,7 @@ test("disabled dynamic budget configuration remains distinct from unavailable te
 	try {
 		process.env.AGENT_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS = "100oops";
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				captured.push(options);
 				return {
 					runId: `run_budget_disabled_${captured.length}`,
@@ -696,13 +695,13 @@ test("disabled dynamic budget configuration remains distinct from unavailable te
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -710,7 +709,7 @@ test("disabled dynamic budget configuration remains distinct from unavailable te
 			specName: "dynamic-budget-disabled",
 		});
 		dynamicMetadata(dynamicFixture.task);
-		await launchSubagentTask(
+		await launchWorkerTask(
 			cwd,
 			dynamicFixture.run,
 			dynamicFixture.task,
@@ -733,7 +732,7 @@ test("disabled dynamic budget configuration remains distinct from unavailable te
 		const staticFixture = await createPendingSingleTaskRun(cwd, {
 			specName: "static-budget-disabled",
 		});
-		await launchSubagentTask(
+		await launchWorkerTask(
 			cwd,
 			staticFixture.run,
 			staticFixture.task,
@@ -762,8 +761,8 @@ test("budget metrics keep retries separate, group controllers, and use max retai
 		{
 			source: "result",
 			capturedAt: "2026-07-10T00:00:01.000Z",
-			backendRunId: "run-1",
-			backendAttemptId: "attempt-1",
+			workerRunId: "run-1",
+			workerAttemptId: "attempt-1",
 			configured: true,
 			configuredMaxTotalChars: 100,
 			terminal: true,
@@ -779,8 +778,8 @@ test("budget metrics keep retries separate, group controllers, and use max retai
 		{
 			source: "result",
 			capturedAt: "2026-07-10T00:00:02.000Z",
-			backendRunId: "run-2",
-			backendAttemptId: "attempt-2",
+			workerRunId: "run-2",
+			workerAttemptId: "attempt-2",
 			configured: true,
 			configuredMaxTotalChars: 100,
 			terminal: true,
@@ -800,8 +799,8 @@ test("budget metrics keep retries separate, group controllers, and use max retai
 		{
 			source: "disabled-recovery",
 			capturedAt: "2026-07-10T00:00:02.000Z",
-			backendRunId: "run-disabled",
-			backendAttemptId: "attempt-disabled",
+			workerRunId: "run-disabled",
+			workerAttemptId: "attempt-disabled",
 			configured: false,
 			configurationSource: "disabled",
 			terminal: true,
@@ -847,10 +846,10 @@ test("budget metrics keep retries separate, group controllers, and use max retai
 			attempts: [
 				firstAttempts[0],
 				{
-					source: "subagent-tool-result-budget-unavailable",
+					source: "worker-tool-result-budget-unavailable",
 					capturedAt: "2026-07-10T00:00:03.000Z",
-					backendRunId: "run-missing",
-					backendAttemptId: "attempt-missing",
+					workerRunId: "run-missing",
+					workerAttemptId: "attempt-missing",
 					configured: true,
 					configuredMaxTotalChars: 100,
 					terminal: true,

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import {
-	UNKNOWN_BACKEND,
+	UNKNOWN_EXECUTOR_ID,
 	beginRunRecord,
 	captureProcessIdentity,
 	createAttemptArtifactStore,
@@ -34,7 +34,7 @@ test("status: record-only snapshot, result snapshot, wait", async () => {
 		});
 		const running = await getRunStatus({ cwd, runId: "run_status" });
 		assert.equal(running.status, "running");
-		assert.equal(running.backend, UNKNOWN_BACKEND, "no backend recorded");
+		assert.equal(running.executorId, UNKNOWN_EXECUTOR_ID, "no worker recorded");
 		assert.equal(
 			running.registryPath,
 			".agent-workflow/runs/run_status/run.json",
@@ -54,7 +54,7 @@ test("status: record-only snapshot, result snapshot, wait", async () => {
 		});
 		const output = await store.writeTextArtifact("output", "done\n");
 		const result = await store.writeResult({
-			backend: "codex",
+			executorId: "codex",
 			status: "completed",
 			cwd,
 			artifacts: [output],
@@ -67,7 +67,7 @@ test("status: record-only snapshot, result snapshot, wait", async () => {
 			pollIntervalMs: 10,
 		});
 		assert.equal(waited.outcome, "terminal");
-		assert.equal(waited.snapshot.backend, "codex");
+		assert.equal(waited.snapshot.executorId, "codex");
 		assert.equal(waited.snapshot.status, "completed");
 		assert.equal(
 			waited.snapshot.resultPath,
@@ -105,7 +105,7 @@ test("interrupt: signals only an identity-verified process", {
 			cwd,
 			runId: "run_interrupt",
 			mode: "single",
-			backend: "codex",
+			executorId: "codex",
 			activeAttemptId: "a1",
 			attempts: [
 				{

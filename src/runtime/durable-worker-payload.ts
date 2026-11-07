@@ -5,7 +5,7 @@ import {
 	type ExecutorDescriptor,
 	validateExecutorDescriptor,
 } from "../sdk/descriptor.js";
-import { isResolvedBackend } from "./core/constants.js";
+import { isExecutorId } from "./core/constants.js";
 
 /**
  * Durable worker launch payload (`worker.json`).
@@ -40,7 +40,7 @@ export interface DurableWorkerPayload {
 	input: object;
 	cwd: string;
 	/** Executor id; equals `executor.id` when an executor descriptor is present. */
-	backend: string;
+	executorId: string;
 	runId: string;
 	attemptId: string;
 	startedAt: string;
@@ -152,7 +152,7 @@ const SAFE_ID = /^[A-Za-z0-9._-]+$/u;
 /**
  * Structural validation of a launch payload before anything in the worker
  * relies on its fields: plain-field presence and shape, safe ids, a resolved
- * executor id as backend (not "auto"), a parseable start time, and an
+ * executor id as executorId (not "auto"), a parseable start time, and an
  * absolute cwd.
  */
 export function assertDurableWorkerPayloadShape(
@@ -164,7 +164,7 @@ export function assertDurableWorkerPayloadShape(
 		"cwd",
 		"runId",
 		"attemptId",
-		"backend",
+		"executorId",
 		"startedAt",
 	] as const) {
 		if (
@@ -177,7 +177,7 @@ export function assertDurableWorkerPayloadShape(
 	}
 	if (!isRecord(payload.input))
 		throw new Error("durable worker payload input must be an object");
-	const { cwd, runId, attemptId, backend, startedAt } =
+	const { cwd, runId, attemptId, executorId, startedAt } =
 		payload as unknown as DurableWorkerPayload;
 	if (!SAFE_ID.test(runId))
 		throw new Error(
@@ -187,9 +187,9 @@ export function assertDurableWorkerPayloadShape(
 		throw new Error(
 			`durable worker payload attemptId ${JSON.stringify(attemptId)} is not a safe id`,
 		);
-	if (!isResolvedBackend(backend))
+	if (!isExecutorId(executorId))
 		throw new Error(
-			`durable worker payload backend ${JSON.stringify(backend)} is unknown`,
+			`durable worker payload executorId ${JSON.stringify(executorId)} is unknown`,
 		);
 	if (!Number.isFinite(Date.parse(startedAt)))
 		throw new Error(
@@ -203,9 +203,9 @@ export function assertDurableWorkerPayloadShape(
 			throw new Error(
 				`durable worker payload executor is invalid: ${problems.join("; ")}`,
 			);
-		if ((payload.executor as ExecutorDescriptor).id !== backend)
+		if ((payload.executor as ExecutorDescriptor).id !== executorId)
 			throw new Error(
-				`durable worker payload backend ${JSON.stringify(backend)} does not match executor id ${JSON.stringify((payload.executor as ExecutorDescriptor).id)}`,
+				`durable worker payload executorId ${JSON.stringify(executorId)} does not match executor id ${JSON.stringify((payload.executor as ExecutorDescriptor).id)}`,
 			);
 	}
 }

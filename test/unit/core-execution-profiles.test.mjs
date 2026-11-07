@@ -150,7 +150,7 @@ function writeSpec(cwd, spec) {
 	writeFileSync(join(dir, "spec.json"), JSON.stringify(spec));
 }
 
-function writeCompletedSubagentArtifacts(cwd, runsDir, runId, attemptId) {
+function writeCompletedWorkerArtifacts(cwd, runsDir, runId, attemptId) {
 	const artifactDir = join(cwd, runsDir, runId, "attempts", attemptId);
 	mkdirSync(artifactDir, { recursive: true });
 	writeFileSync(
@@ -180,18 +180,18 @@ function writeCompletedSubagentArtifacts(cwd, runsDir, runId, attemptId) {
 	return artifactDir;
 }
 
-function installFakeSubagentApi(cwd) {
+function installFakeWorkerApi(cwd) {
 	const calls = { launches: [] };
 	const launches = new Map();
 	setTaskRuntimeApiForTests({
-		async runSubagent(options) {
+		async runWorker(options) {
 			// The runtime receives the selected effort.
 			calls.launches.push({ model: options.model, effort: options.effort });
 			const seq = calls.launches.length;
 			const runId = `run_task_${seq}`;
 			const attemptId = `attempt_task_${seq}`;
 			const runsDir = String(options.runsDir ?? ".agent-workflow/runs");
-			const artifactDir = writeCompletedSubagentArtifacts(
+			const artifactDir = writeCompletedWorkerArtifacts(
 				cwd,
 				runsDir,
 				runId,
@@ -200,16 +200,16 @@ function installFakeSubagentApi(cwd) {
 			launches.set(runId, { runId, attemptId, artifactDir });
 			return { runId, attemptId, status: "running" };
 		},
-		async reconcileSubagentRun() {
+		async reconcileWorkerRun() {
 			return {};
 		},
-		async getSubagentStatus({ runId }) {
+		async getWorkerStatus({ runId }) {
 			const run = launches.get(runId);
-			assert.ok(run, `missing subagent run ${runId}`);
+			assert.ok(run, `missing worker run ${runId}`);
 			return {
 				runId,
 				attemptId: run.attemptId,
-				backend: "headless",
+				executorId: "headless",
 				status: "completed",
 				failureKind: null,
 				startedAt: new Date(Date.now() - 1000).toISOString(),
@@ -223,7 +223,7 @@ function installFakeSubagentApi(cwd) {
 				attempts: [{ attemptId: run.attemptId, status: "completed" }],
 			};
 		},
-		async interruptSubagent() {
+		async interruptWorker() {
 			return {};
 		},
 	});
@@ -438,7 +438,7 @@ test("selected profile overlays model and effort, records complete overrides, an
 	try {
 		writeAgent(cwd, "unit-scout");
 		writeSpec(cwd, profileSpec());
-		const calls = installFakeSubagentApi(cwd);
+		const calls = installFakeWorkerApi(cwd);
 
 		const started = await runWorkflow("profile-target", cwd, {
 			task: "Profile run.",
@@ -508,7 +508,7 @@ test("pre-resolved user profiles are frozen on the run and declared profiles rem
 		writeAgent(cwd, "unit-scout");
 		const authored = profileSpec();
 		writeSpec(cwd, authored);
-		const calls = installFakeSubagentApi(cwd);
+		const calls = installFakeWorkerApi(cwd);
 		const captured = {
 			name: "Custom",
 			definitionFingerprint: workflowDefinitionFingerprint(authored),
@@ -591,7 +591,7 @@ test("empty profile is identity and selected foreach batches lower to compiled t
 	try {
 		writeAgent(cwd, "unit-scout");
 		writeSpec(cwd, profileSpec());
-		installFakeSubagentApi(cwd);
+		installFakeWorkerApi(cwd);
 		const base = await runWorkflow("profile-target", cwd, {
 			task: "Identity check.",
 		});
@@ -659,7 +659,7 @@ test("unknown profile name fails closed before any launch", async () => {
 	try {
 		writeAgent(cwd, "unit-scout");
 		writeSpec(cwd, profileSpec());
-		const calls = installFakeSubagentApi(cwd);
+		const calls = installFakeWorkerApi(cwd);
 		await assert.rejects(
 			() =>
 				runWorkflow("profile-target", cwd, {

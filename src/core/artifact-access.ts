@@ -266,7 +266,7 @@ export function withArtifactMcpOutputLimit(
 /**
  * WP5b: the artifact server's output limit for a run, derived only from the probe recorded in
  * `run.capabilityNegotiation` (WP4d) — `artifactServerOutputLimit` (sdk/mcp-delivery.ts). `null`
- * for runs without a recorded limit (server default). The task backend launches the server with
+ * for runs without a recorded limit (server default). The task runner launches the server with
  * this value and launch provenance digests the same spec, so the digest binds the limit used.
  */
 export function artifactServerOutputLimitForRun(

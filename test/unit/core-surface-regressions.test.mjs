@@ -178,8 +178,8 @@ test("foreign feedback-audience sidecars do not claim current parent usage owner
 test("formatLogs uses bounded tail IO for huge single-line output", async (t) => {
 	const { formatLogs } = await import("../../dist/core/engine-format.js");
 	(
-		await import("../../dist/core/task-backend.js")
-	).ensureWorkflowTaskBackendRegistered();
+		await import("../../dist/core/task-runner.js")
+	).ensureRuntimeTaskRunnerRegistered();
 	const cwd = await project(t),
 		runId = "workflow_huge_log",
 		dir = `.agent-workflow/workflows/${runId}/tasks/task-1`;
@@ -204,7 +204,6 @@ test("formatLogs uses bounded tail IO for huge single-line output", async (t) =>
 				interrupted: 0,
 			},
 			cwd,
-			backend: { type: "local", mode: "headless" },
 			createdAt: now,
 			updatedAt: now,
 			specPath: "spec.json",

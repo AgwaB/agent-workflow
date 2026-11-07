@@ -40,10 +40,10 @@ import {
 	canStageProceedAfterPreviousFailure,
 	canonicalDynamicDecision,
 	canonicalPackageVerificationStatus,
-	captureParentSubagentEnv,
-	captureSubagentPrompts,
+	captureParentWorkerEnv,
+	captureWorkerPrompts,
 	checkRequiredArtifactReads,
-	cleanupSubagentRun,
+	cleanupWorkerRun,
 	closeSync,
 	compactStrings,
 	compileWorkflow,
@@ -97,7 +97,7 @@ import {
 	isTestWideCodePoint,
 	isWorkflowSupervisorEnabled,
 	join,
-	launchSubagentTask,
+	launchWorkerTask,
 	listWorkflowArtifactSources,
 	listWorkflows,
 	loadAgentByName,
@@ -108,7 +108,7 @@ import {
 	loopWorkflowSpec,
 	makeDynamicDecisionLoopCtx,
 	makeProject,
-	makeSubagentLaunchFixture,
+	makeWorkerLaunchFixture,
 	makeValidatingDynamicDecisionLoopCtx,
 	markDagDependentsSkipped,
 	mkdirSync,
@@ -119,7 +119,7 @@ import {
 	observeLiveModelWorkerCompletion,
 	openSync,
 	packageVerificationStatusBucket,
-	parentSubagentEnvKeys,
+	parentWorkerEnvKeys,
 	parseAgentMarkdown,
 	parsePublicWorkflow,
 	parseWorkflow,
@@ -141,7 +141,7 @@ import {
 	rebuildDynamicState,
 	recordDynamicControllerPhase,
 	recordSharedModelRateLimitBackoffForTests,
-	refreshRunFromSubagentArtifacts,
+	refreshRunFromWorkerArtifacts,
 	refreshZeroOutputModelFailure,
 	resetTaskForResume,
 	resolveFlowsCwd,
@@ -149,7 +149,7 @@ import {
 	resolveWorkflowHelperRef,
 	resolveWorkflowRef,
 	resolveWorkflowRuntime,
-	restoreParentSubagentEnv,
+	restoreParentWorkerEnv,
 	resumeRun,
 	rmSync,
 	runDynamicControllerEngineIntegrityCheckForTests,
@@ -159,10 +159,10 @@ import {
 	runWorkflowSpec,
 	scheduleRun,
 	setIndexUpdateDebounceMsForTests,
-	setParentSubagentEnv,
+	setParentWorkerEnv,
 	setRunLeaseTestHooksForTests,
 	setTaskRuntimeApiForTests,
-	setSubagentLaunchControlsForTests,
+	setWorkerLaunchControlsForTests,
 	setTaskTerminal,
 	setWorkflowOutputArtifactWriteHookForTests,
 	shouldScheduleAfterStageFailure,
@@ -307,7 +307,6 @@ test("formatRun stays byte-identical when fail-fast policy is unset", () => {
 			skipped: 0,
 		},
 		cwd: "/tmp/agent-workflow-unit",
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-01-02T03:04:05.000Z",
 		updatedAt: "2026-01-02T03:04:06.000Z",
 		specPath: "workflows/unit.json",
@@ -333,7 +332,7 @@ test("formatRun stays byte-identical when fail-fast policy is unset", () => {
 
 	assert.equal(
 		formatRun(run),
-		`run-fixed [completed] type=artifact-graph backend=local/headless
+		`run-fixed [completed] type=artifact-graph
 created=2026-01-02T03:04:05.000Z updated=2026-01-02T03:04:06.000Z
 tasks=1/1 completed, running=0, pending=0, blocked=0, failed=0, interrupted=0
 completion=clean, outputRetries=0, launchRetries=0, resumeEvents=0, contextLimitFailures=0
@@ -3078,7 +3077,7 @@ test("bundled spec-review workflow materializes verifier and partitions verified
 			"The implementation must match the required behavior.\n",
 		);
 		writeAgent(cwd, "scout", "read, grep, find, ls");
-		captureSubagentPrompts([]);
+		captureWorkerPrompts([]);
 		const specPath = join(
 			process.cwd(),
 			"workflows",
@@ -3415,7 +3414,6 @@ test("formatRun surfaces terminal capture lag separately from execution time", (
 			total: 1,
 		},
 		cwd: "/tmp/capture-lag",
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-06-08T00:00:00.000Z",
 		updatedAt: "2026-06-08T00:05:00.000Z",
 		tasks: [

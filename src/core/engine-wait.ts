@@ -1,4 +1,4 @@
-import { resolveWorkflowBackend } from "./task-launch.js";
+import { workflowTaskRunner } from "./task-launch.js";
 import { formatApproxDuration } from "./run-estimates.js";
 import {
 	indexSupervisorErrorPath,
@@ -20,7 +20,7 @@ export async function refreshRun(
 	const current = await readRunRecord(cwd, runIdOrPrefix);
 	const refreshed = await withRunLease(cwd, current.runId, async () => {
 		const run = await readRunRecord(cwd, current.runId);
-		return resolveWorkflowBackend(run).refreshRun(cwd, run);
+		return workflowTaskRunner().refreshRun(cwd, run);
 	});
 	return refreshed ?? current;
 }

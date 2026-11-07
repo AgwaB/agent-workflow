@@ -25,7 +25,7 @@ function task(index, stageId) {
 			"pending",
 		][index % 7],
 		statusDetail: "retained detail",
-		kind: index % 3 === 0 ? "support" : "subagent",
+		kind: index % 3 === 0 ? "support" : "worker",
 		...(index % 2 === 0
 			? {}
 			: {

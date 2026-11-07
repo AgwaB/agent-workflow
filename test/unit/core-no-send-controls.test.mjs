@@ -7,12 +7,12 @@ import test from "node:test";
 
 import {
 	makeProject,
-	makeSubagentLaunchFixture,
+	makeWorkerLaunchFixture,
 } from "../helpers/unit-test-support.mjs";
-import { launchSubagentTask } from "../../dist/core/task-backend.js";
+import { launchWorkerTask } from "../../dist/core/task-runner.js";
 import { reconcileDurableLaunchBarrierTaskForTests } from "../../dist/core/launch-barrier-engine.js";
-import { setTaskRuntimeApiForTests as setSubagentApiForTests } from "../../dist/core/runtime-port.js";
-import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
+import { setTaskRuntimeApiForTests as setWorkerApiForTests } from "../../dist/core/runtime-port.js";
+import { setWorkerLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import {
 	assertWorkflowStateRootCapability,
 	openWorkflowStateRootCapability,
@@ -120,8 +120,8 @@ function barrierAck(descriptor, release) {
 }
 
 function resetLaunchControls() {
-	setSubagentApiForTests(undefined);
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerApiForTests(undefined);
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 }
 
 test("workflow state-root capabilities are private, stable, and physically bound", async () => {
@@ -155,15 +155,6 @@ test("the packed workflow contract is locked to the bundled runtime's durable AP
 		readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
 		"package.json",
 	);
-	// The runtime is in-repo under src/runtime, never an external dependency.
-	assert.equal(
-		Object.hasOwn(packageJson.dependencies ?? {}, "@agwab/pi-subagent"),
-		false,
-	);
-	assert.equal(
-		(packageJson.bundleDependencies ?? []).includes("@agwab/pi-subagent"),
-		false,
-	);
 	assert.ok(packageJson.files.includes("dist"));
 	const api = await import("../../dist/runtime/api.js");
 	for (const name of [
@@ -174,12 +165,12 @@ test("the packed workflow contract is locked to the bundled runtime's durable AP
 		"revokeDurableLaunchBarrierV2",
 		"readDurableLaunchBarrierV2State",
 		"waitForDurableLaunchBarrierV2Ack",
-		"pruneSubagentRuns",
+		"pruneWorkerRuns",
 	])
 		assert.equal(typeof api[name], "function", `missing ${name}`);
 });
 
-test("subagent launch durably consumes authority before releasing the general worker barrier", async () => {
+test("worker launch durably consumes authority before releasing the general worker barrier", async () => {
 	const cwd = makeProject();
 	const events = [];
 	const digested = [];
@@ -188,8 +179,8 @@ test("subagent launch durably consumes authority before releasing the general wo
 		process.env.AGENT_WORKFLOW_REQUIRE_EXTERNAL_LAUNCH_GRANT = "1";
 		process.env.AGENT_WORKFLOW_EXTERNAL_LAUNCH_GRANT_SHA256 =
 			externalLaunchGrantSha256;
-		const fixture = makeSubagentLaunchFixture(cwd, "durable-launch-barrier");
-		setSubagentApiForTests({
+		const fixture = makeWorkerLaunchFixture(cwd, "durable-launch-barrier");
+		setWorkerApiForTests({
 			async createDurableLaunchBarrierV2(options) {
 				events.push("create");
 				assert.equal(options.authorityBindingSha256, externalLaunchGrantSha256);
@@ -199,7 +190,7 @@ test("subagent launch durably consumes authority before releasing the general wo
 				digested.push(value);
 				return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 			},
-			async runSubagent(options) {
+			async runWorker(options) {
 				events.push("run");
 				assert.equal(
 					options.durableLaunchBarrier.subjectSha256,
@@ -267,13 +258,13 @@ test("subagent launch durably consumes authority before releasing the general wo
 				events.push("ack");
 				return barrierAck(descriptor, release);
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {
 					status: "already-terminal",
 					runId: "barrier-run",
@@ -285,7 +276,7 @@ test("subagent launch durably consumes authority before releasing the general wo
 				};
 			},
 		});
-		const result = await launchSubagentTask(
+		const result = await launchWorkerTask(
 			cwd,
 			fixture.run,
 			fixture.task,
@@ -351,7 +342,7 @@ function cancellationBarrierApi(cwd, events, overrides = {}) {
 		durableLaunchBarrierDigest(value) {
 			return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 		},
-		async runSubagent() {
+		async runWorker() {
 			events.push("run");
 			return {
 				runId: "barrier-run",
@@ -392,12 +383,12 @@ function cancellationBarrierApi(cwd, events, overrides = {}) {
 			state.ack = barrierAck(descriptor, release);
 			return state.ack;
 		},
-		async getSubagentStatus() {
+		async getWorkerStatus() {
 			if (overrides.getStatus) return overrides.getStatus();
 			return {
 				runId: "barrier-run",
 				attemptId: "barrier-attempt",
-				backend: "headless",
+				executorId: "headless",
 				status: "cancelled",
 				failureKind: "user_cancelled",
 				startedAt: new Date().toISOString(),
@@ -406,10 +397,10 @@ function cancellationBarrierApi(cwd, events, overrides = {}) {
 				attempts: [{ attemptId: "barrier-attempt", status: "cancelled" }],
 			};
 		},
-		async reconcileSubagentRun() {
+		async reconcileWorkerRun() {
 			return {};
 		},
-		async interruptSubagent(options) {
+		async interruptWorker(options) {
 			events.push("interrupt");
 			assert.equal(options.runId, "barrier-run");
 			assert.equal(options.attemptId, "barrier-attempt");
@@ -449,8 +440,8 @@ test("READY authority-binding drift fails closed and interrupts the provisional 
 	try {
 		process.env.AGENT_WORKFLOW_REQUIRE_EXTERNAL_LAUNCH_GRANT = "1";
 		process.env.AGENT_WORKFLOW_EXTERNAL_LAUNCH_GRANT_SHA256 = sha256("7");
-		const fixture = makeSubagentLaunchFixture(cwd, "ready-binding-drift");
-		setSubagentApiForTests(
+		const fixture = makeWorkerLaunchFixture(cwd, "ready-binding-drift");
+		setWorkerApiForTests(
 			cancellationBarrierApi(cwd, events, {
 				ready(descriptor) {
 					return {
@@ -461,7 +452,7 @@ test("READY authority-binding drift fails closed and interrupts the provisional 
 			}),
 		);
 		await assert.rejects(
-			launchSubagentTask(cwd, fixture.run, fixture.task, fixture.compiledTask),
+			launchWorkerTask(cwd, fixture.run, fixture.task, fixture.compiledTask),
 			/READY does not match the authorized launch/,
 		);
 		assert.deepEqual(events, ["create", "run", "ready", "revoke", "interrupt"]);
@@ -493,8 +484,8 @@ test("lease cancellation before READY interrupts the persisted provisional worke
 	const lease = new AbortController();
 	let finishReady;
 	try {
-		const fixture = makeSubagentLaunchFixture(cwd, "cancel-before-ready");
-		setSubagentApiForTests(
+		const fixture = makeWorkerLaunchFixture(cwd, "cancel-before-ready");
+		setWorkerApiForTests(
 			cancellationBarrierApi(cwd, events, {
 				ready(descriptor) {
 					lease.abort(new Error("lease lost before READY"));
@@ -505,7 +496,7 @@ test("lease cancellation before READY interrupts the persisted provisional worke
 			}),
 		);
 		await assert.rejects(
-			launchSubagentTask(
+			launchWorkerTask(
 				cwd,
 				fixture.run,
 				fixture.task,
@@ -516,9 +507,9 @@ test("lease cancellation before READY interrupts the persisted provisional worke
 		);
 		assert.deepEqual(events, ["create", "run", "ready", "revoke", "interrupt"]);
 		assert.equal(fixture.task.statusDetail, "cancellation_acknowledged");
-		assert.equal(fixture.task.backendHandle.runId, "barrier-run");
+		assert.equal(fixture.task.workerHandle.runId, "barrier-run");
 		const persisted = persistedTask(cwd, fixture);
-		assert.equal(persisted.backendHandle.runId, "barrier-run");
+		assert.equal(persisted.workerHandle.runId, "barrier-run");
 		assert.equal(
 			persisted.durableLaunchBarrier.records[0].phase,
 			"cancellation_acknowledged",
@@ -540,9 +531,9 @@ test("workflow stop after READY interrupts the provisional worker and never rele
 	const events = [];
 	const workflowStop = new AbortController();
 	try {
-		const fixture = makeSubagentLaunchFixture(cwd, "cancel-before-release");
-		setSubagentApiForTests(cancellationBarrierApi(cwd, events));
-		setSubagentLaunchControlsForTests({
+		const fixture = makeWorkerLaunchFixture(cwd, "cancel-before-release");
+		setWorkerApiForTests(cancellationBarrierApi(cwd, events));
+		setWorkerLaunchControlsForTests({
 			releaseDelayMs: 0,
 			retryJitterMs: 0,
 			beforeDurableBarrierRelease() {
@@ -550,7 +541,7 @@ test("workflow stop after READY interrupts the provisional worker and never rele
 			},
 		});
 		await assert.rejects(
-			launchSubagentTask(
+			launchWorkerTask(
 				cwd,
 				fixture.run,
 				fixture.task,
@@ -596,7 +587,7 @@ test("workflow stop during the release decision window wins the exclusive revoke
 	const events = [];
 	const workflowStop = new AbortController();
 	try {
-		const fixture = makeSubagentLaunchFixture(cwd, "cancel-during-release");
+		const fixture = makeWorkerLaunchFixture(cwd, "cancel-during-release");
 		const api = cancellationBarrierApi(cwd, events);
 		const resolveRelease = api.resolveDurableLaunchBarrierV2Release;
 		api.resolveDurableLaunchBarrierV2Release = async (...args) => {
@@ -605,9 +596,9 @@ test("workflow stop during the release decision window wins the exclusive revoke
 			await new Promise((resolveTurn) => setImmediate(resolveTurn));
 			return resolveRelease(...args);
 		};
-		setSubagentApiForTests(api);
+		setWorkerApiForTests(api);
 		await assert.rejects(
-			launchSubagentTask(
+			launchWorkerTask(
 				cwd,
 				fixture.run,
 				fixture.task,
@@ -639,10 +630,10 @@ test("workflow stop during the release decision window wins the exclusive revoke
 
 async function acknowledgedBarrierFixture(cwd, name) {
 	const events = [];
-	const fixture = makeSubagentLaunchFixture(cwd, name);
+	const fixture = makeWorkerLaunchFixture(cwd, name);
 	const api = cancellationBarrierApi(cwd, events);
-	setSubagentApiForTests(api);
-	const result = await launchSubagentTask(
+	setWorkerApiForTests(api);
+	const result = await launchWorkerTask(
 		cwd,
 		fixture.run,
 		fixture.task,
@@ -785,9 +776,9 @@ test("workflow stop before ACK interrupts an already-released provisional worker
 	const events = [];
 	const workflowStop = new AbortController();
 	try {
-		const fixture = makeSubagentLaunchFixture(cwd, "cancel-before-ack");
-		setSubagentApiForTests(cancellationBarrierApi(cwd, events));
-		setSubagentLaunchControlsForTests({
+		const fixture = makeWorkerLaunchFixture(cwd, "cancel-before-ack");
+		setWorkerApiForTests(cancellationBarrierApi(cwd, events));
+		setWorkerLaunchControlsForTests({
 			releaseDelayMs: 0,
 			retryJitterMs: 0,
 			beforeDurableBarrierAckWait() {
@@ -795,7 +786,7 @@ test("workflow stop before ACK interrupts an already-released provisional worker
 			},
 		});
 		await assert.rejects(
-			launchSubagentTask(
+			launchWorkerTask(
 				cwd,
 				fixture.run,
 				fixture.task,

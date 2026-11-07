@@ -50,7 +50,7 @@ const SECRET = "supersecretvalue123";
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp33-launch-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -298,8 +298,8 @@ test("host API without an origin: a synthesized agent-workflow command; strict l
 	// Launch records with unrecognized schemas are not accepted.
 	assert.equal(
 		store.isWorkflowRunLaunchMetadata({
-			schema: "pi-workflow-run-launch-v1",
-			source: { kind: "tool", name: "workflow_run" },
+			schema: "unknown-run-launch-v1",
+			source: { kind: "tool", name: "aw_run" },
 			requestKind: "named-workflow",
 			routingMode: "off",
 			profile: { kind: "base" },

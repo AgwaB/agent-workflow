@@ -28,7 +28,7 @@ const spec = (prompt) => ({
 
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp19-identity-")));
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});

@@ -1,22 +1,14 @@
-import {
-	type SubagentRunStatusSnapshot,
-	loadSubagentApi,
-} from "./runtime-port.js";
+import { type WorkerRunStatusSnapshot, loadWorkerApi } from "./runtime-port.js";
 import { USAGE_METRIC_KEYS } from "./task-observability.js";
 import { type WorkflowRunRecord, type WorkflowTaskRunRecord } from "./types.js";
 
-const PARENT_SUBAGENT_CWD_ENV = "AGENT_WORKFLOW_PARENT_SUBAGENT_CWD";
-const PARENT_SUBAGENT_RUNS_DIR_ENV = "AGENT_WORKFLOW_PARENT_SUBAGENT_RUNS_DIR";
-const PARENT_SUBAGENT_RUN_ID_ENV = "AGENT_WORKFLOW_PARENT_SUBAGENT_RUN_ID";
-const PARENT_SUBAGENT_ATTEMPT_ID_ENV =
-	"AGENT_WORKFLOW_PARENT_SUBAGENT_ATTEMPT_ID";
-type ParentSubagentChildEvent =
-	| "started"
-	| "completed"
-	| "failed"
-	| "cancelled";
+const PARENT_WORKER_CWD_ENV = "AGENT_WORKFLOW_PARENT_WORKER_CWD";
+const PARENT_WORKER_RUNS_DIR_ENV = "AGENT_WORKFLOW_PARENT_WORKER_RUNS_DIR";
+const PARENT_WORKER_RUN_ID_ENV = "AGENT_WORKFLOW_PARENT_WORKER_RUN_ID";
+const PARENT_WORKER_ATTEMPT_ID_ENV = "AGENT_WORKFLOW_PARENT_WORKER_ATTEMPT_ID";
+type ParentWorkerChildEvent = "started" | "completed" | "failed" | "cancelled";
 
-interface ParentSubagentRef {
+interface ParentWorkerRef {
 	cwd: string;
 	runsDir: string;
 	runId: string;
@@ -38,20 +30,20 @@ function nonEmptyEnv(
 	return value ? value : undefined;
 }
 
-function parentSubagentRefFromEnv(
+function parentWorkerRefFromEnv(
 	env: Record<string, string | undefined> = process.env,
-): ParentSubagentRef | undefined {
-	const cwd = nonEmptyEnv(env, PARENT_SUBAGENT_CWD_ENV);
-	const runsDir = nonEmptyEnv(env, PARENT_SUBAGENT_RUNS_DIR_ENV);
-	const runId = nonEmptyEnv(env, PARENT_SUBAGENT_RUN_ID_ENV);
+): ParentWorkerRef | undefined {
+	const cwd = nonEmptyEnv(env, PARENT_WORKER_CWD_ENV);
+	const runsDir = nonEmptyEnv(env, PARENT_WORKER_RUNS_DIR_ENV);
+	const runId = nonEmptyEnv(env, PARENT_WORKER_RUN_ID_ENV);
 	if (!cwd || !runsDir || !runId) return undefined;
-	const attemptId = nonEmptyEnv(env, PARENT_SUBAGENT_ATTEMPT_ID_ENV);
+	const attemptId = nonEmptyEnv(env, PARENT_WORKER_ATTEMPT_ID_ENV);
 	return { cwd, runsDir, runId, ...(attemptId ? { attemptId } : {}) };
 }
 
 function terminalChildEventForTaskStatus(
 	status: WorkflowTaskRunRecord["status"],
-): ParentSubagentChildEvent | undefined {
+): ParentWorkerChildEvent | undefined {
 	if (status === "completed") return "completed";
 	if (status === "failed") return "failed";
 	if (status === "interrupted") return "cancelled";
@@ -71,26 +63,26 @@ function childEventUsageSummary(
 	return Object.keys(summary).length > 0 ? summary : undefined;
 }
 
-export async function recordParentSubagentChildEvent(options: {
-	event: ParentSubagentChildEvent;
+export async function recordParentWorkerChildEvent(options: {
+	event: ParentWorkerChildEvent;
 	childRunId: string;
 	run: WorkflowRunRecord;
 	task: WorkflowTaskRunRecord;
 	failureKind?: string | null;
 	message?: string;
 }): Promise<void> {
-	const parent = parentSubagentRefFromEnv();
+	const parent = parentWorkerRefFromEnv();
 	if (!parent) return;
-	const api = await loadSubagentApi().catch(() => undefined);
-	if (!api?.recordSubagentChildEvent) return;
-	// Usage rides along on terminal events so a parent subagent can aggregate
+	const api = await loadWorkerApi().catch(() => undefined);
+	if (!api?.recordWorkerChildEvent) return;
+	// Usage rides along on terminal events so a parent worker can aggregate
 	// nested workflow spend. Engines older than 0.4.8 ignore the extra field.
 	const usage =
 		options.event === "started"
 			? undefined
 			: childEventUsageSummary(options.task);
 	await api
-		.recordSubagentChildEvent({
+		.recordWorkerChildEvent({
 			...parent,
 			event: options.event,
 			childRunId: options.childRunId,
@@ -105,10 +97,10 @@ export async function recordParentSubagentChildEvent(options: {
 		.catch(() => undefined);
 }
 
-export async function recordTerminalParentSubagentChildEvent(
+export async function recordTerminalParentWorkerChildEvent(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
-	snapshot: SubagentRunStatusSnapshot,
+	snapshot: WorkerRunStatusSnapshot,
 ): Promise<void> {
 	const event = terminalChildEventForTaskStatus(task.status);
 	if (!event) return;
@@ -116,7 +108,7 @@ export async function recordTerminalParentSubagentChildEvent(
 		task.statusDetail && !GENERIC_TASK_STATUS_DETAILS.has(task.statusDetail)
 			? task.statusDetail
 			: undefined;
-	await recordParentSubagentChildEvent({
+	await recordParentWorkerChildEvent({
 		event,
 		childRunId: snapshot.runId,
 		run,

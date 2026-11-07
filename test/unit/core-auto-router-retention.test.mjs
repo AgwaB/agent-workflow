@@ -73,7 +73,7 @@ function classifierRun(cwd, runId, status, updatedAt) {
 			runId,
 			mode: "single",
 			status,
-			backend: "codex",
+			executorId: "codex",
 			cwd,
 			runsDir: ".agent-workflow/workflows/auto-router-runs",
 			startedAt: updatedAt,

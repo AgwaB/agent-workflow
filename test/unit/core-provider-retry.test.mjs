@@ -93,7 +93,7 @@ test("classified rate limits read all error surfaces and never cap explicit wait
 		assert.equal(
 			transientModelRateLimitBackoffMs({
 				...base,
-				subagentResult: {
+				workerResult: {
 					metadata: { streamErrors: ["Try again in 5 hours."] },
 				},
 			}),

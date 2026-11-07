@@ -17,10 +17,10 @@ import { setDynamicControllerHooksForTests } from "../../dist/core/engine.js";
 import { markFailFastCancellations } from "../../dist/core/engine-run-graph.js";
 import { checkRequiredArtifactReads } from "../../dist/core/required-reads.js";
 import {
-	launchSubagentTask,
-	refreshRunFromSubagentArtifacts,
-} from "../../dist/core/task-backend.js";
-import { subagentLiveModelWorkerSlotCountForTests } from "../../dist/core/launch-slots.js";
+	launchWorkerTask,
+	refreshRunFromWorkerArtifacts,
+} from "../../dist/core/task-runner.js";
+import { workerLiveModelWorkerSlotCountForTests } from "../../dist/core/launch-slots.js";
 import {
 	listRunRecords,
 	readRunRecord,
@@ -36,12 +36,12 @@ import {
 	createWorkflowRunRecord,
 	eventually,
 	makeProject,
-	makeSubagentLaunchFixture,
+	makeWorkerLaunchFixture,
 	prepareDagTask,
 	runWorkflowSpec,
 	scheduleRun,
 	setTaskRuntimeApiForTests,
-	setSubagentLaunchControlsForTests,
+	setWorkerLaunchControlsForTests,
 	sleep,
 	stopRun,
 	taskBySpec,
@@ -201,7 +201,7 @@ test("two-level nested dag requiredReads and requiredReadPolicy are namespaced l
 	}
 });
 
-test("requiredReads targeting after-only sources fail before backend launch", async () => {
+test("requiredReads targeting after-only sources fail before worker launch", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -239,17 +239,17 @@ test("requiredReads targeting after-only sources fail before backend launch", as
 		await writeRunRecord(cwd, run);
 		let launched = false;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launched = true;
 				throw new Error("must not launch");
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -427,32 +427,32 @@ test("stop intent during support helper preparation prevents helper invocation a
 	}
 });
 
-test("stop intent during backend launch preparation prevents runSubagent side effects", async () => {
+test("stop intent during worker launch preparation prevents runWorker side effects", async () => {
 	const cwd = makeProject();
 	const releasePreparation = deferred();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		let launches = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
-				throw new Error("runSubagent must not be invoked after stop intent");
+				throw new Error("runWorker must not be invoked after stop intent");
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
-		setSubagentLaunchControlsForTests({
+		setWorkerLaunchControlsForTests({
 			releaseDelayMs: 0,
 			retryJitterMs: 0,
-			beforeRunSubagent: async () => {
-				writeFileSync(join(cwd, "backend-prepared"), "prepared", "utf8");
+			beforeRunWorker: async () => {
+				writeFileSync(join(cwd, "worker-prepared"), "prepared", "utf8");
 				await releasePreparation.promise;
 			},
 		});
@@ -461,7 +461,7 @@ test("stop intent during backend launch preparation prevents runSubagent side ef
 				stages: [{ id: "worker", type: "single", prompt: "Worker." }],
 			},
 		});
-		const compiled = await compileWorkflow(spec, { cwd, task: "Stop backend" });
+		const compiled = await compileWorkflow(spec, { cwd, task: "Stop worker" });
 		const { run } = await createWorkflowRunRecord(
 			cwd,
 			compiled,
@@ -471,7 +471,7 @@ test("stop intent during backend launch preparation prevents runSubagent side ef
 		await writeRunRecord(cwd, run);
 		const scheduling = scheduleRun(cwd, run.runId);
 		await eventually(
-			() => assert.equal(existsSync(join(cwd, "backend-prepared")), true),
+			() => assert.equal(existsSync(join(cwd, "worker-prepared")), true),
 			10_000,
 		);
 		await requestWorkflowStop(cwd, run.runId);
@@ -480,18 +480,18 @@ test("stop intent during backend launch preparation prevents runSubagent side ef
 		const finalRun = await readRunRecord(cwd, run.runId);
 		const worker = taskBySpec(finalRun, "worker.main");
 		assert.equal(launches, 0);
-		assert.equal(worker.backendHandle, undefined);
+		assert.equal(worker.workerHandle, undefined);
 		assert.equal(worker.status, "interrupted");
 		assert.equal(worker.statusDetail, "workflow_stopped");
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		releasePreparation.resolve();
 		cleanup(cwd);
 	}
 });
 
-test("stop during support prevents later independent backend launches and records interrupted support", async () => {
+test("stop during support prevents later independent worker launches and records interrupted support", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -521,17 +521,17 @@ test("stop during support prevents later independent backend launches and record
 		await writeRunRecord(cwd, run);
 		let launches = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				throw new Error("later task must not launch after stop intent");
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -1015,7 +1015,7 @@ test("stopping parent cascades to active nested dynamic child before parent fina
 		let launches = 0;
 		let interrupts = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: `run_nested_active_${launches}`,
@@ -1023,13 +1023,13 @@ test("stopping parent cascades to active nested dynamic child before parent fina
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent(options) {
+			async interruptWorker(options) {
 				interrupts += 1;
 				return {
 					status: "already-terminal",
@@ -1231,13 +1231,13 @@ test("successful fail-fast interruption releases the live model worker slot imme
 	const originalLiveLimit = process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS;
 	process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES = "2";
 	process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS = "1";
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	try {
 		writeAgent(cwd, "unit-scout", "read");
 		let launches = 0;
 		let interrupts = 0;
 		setTaskRuntimeApiForTests({
-			async runSubagent() {
+			async runWorker() {
 				launches += 1;
 				return {
 					runId: `run_ff_release_${launches}`,
@@ -1245,13 +1245,13 @@ test("successful fail-fast interruption releases the live model worker slot imme
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent(options) {
+			async interruptWorker(options) {
 				interrupts += 1;
 				return {
 					status: "already-terminal",
@@ -1291,7 +1291,7 @@ test("successful fail-fast interruption releases the live model worker slot imme
 			compiled,
 			runningIndex,
 		);
-		await launchSubagentTask(
+		await launchWorkerTask(
 			cwd,
 			run,
 			taskBySpec(run, "running.main"),
@@ -1304,10 +1304,10 @@ test("successful fail-fast interruption releases the live model worker slot imme
 		assert.equal(taskBySpec(cancelled, "running.main").status, "interrupted");
 		assert.equal(interrupts, 1);
 		// Release is a state invariant, not a deadline for a new filesystem launch.
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 0);
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 0);
 
-		const next = makeSubagentLaunchFixture(cwd, "after_fail_fast_release");
-		const nextLaunch = await launchSubagentTask(
+		const next = makeWorkerLaunchFixture(cwd, "after_fail_fast_release");
+		const nextLaunch = await launchWorkerTask(
 			cwd,
 			next.run,
 			next.task,
@@ -1316,11 +1316,11 @@ test("successful fail-fast interruption releases the live model worker slot imme
 		assert.equal(nextLaunch.kind, "launched");
 		next.task.status = "completed";
 		next.task.statusDetail = "completed";
-		await refreshRunFromSubagentArtifacts(cwd, next.run);
-		assert.equal(subagentLiveModelWorkerSlotCountForTests(), 0);
+		await refreshRunFromWorkerArtifacts(cwd, next.run);
+		assert.equal(workerLiveModelWorkerSlotCountForTests(), 0);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 		if (originalLaunchLimit === undefined)
 			delete process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES;
 		else
@@ -1338,7 +1338,7 @@ test("foreach recovery repairs stale placeholder context before manifest launch"
 		writeAgent(cwd, "unit-scout", "read");
 		const launched = [];
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(options);
 				return {
 					runId: `run_foreach_recovery_${launched.length}`,
@@ -1346,13 +1346,13 @@ test("foreach recovery repairs stale placeholder context before manifest launch"
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
@@ -1451,7 +1451,7 @@ test("foreach materialization updates context dependencies for from plus after c
 		writeAgent(cwd, "unit-scout", "read");
 		const launched = [];
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				launched.push(options);
 				return {
 					runId: `run_foreach_context_${launched.length}`,
@@ -1459,13 +1459,13 @@ test("foreach materialization updates context dependencies for from plus after c
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});

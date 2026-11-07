@@ -35,7 +35,7 @@ import {
 const retention = await import("../../dist/core/run-retention.js");
 const { pruneWorkflowRuns, formatWorkflowPruneSummary } = retention;
 
-test("F5: prune keeps a terminal classifier result until its active caller has consumed it", async () => {
+test("prune keeps a terminal classifier result until its active caller has consumed it", async () => {
 	const { setTaskRuntimeApiForTests } = await import(
 		"../../dist/core/runtime-port.js"
 	);
@@ -72,7 +72,7 @@ test("F5: prune keeps a terminal classifier result until its active caller has c
 	const router = join(stateDir(cwd), ROUTER_RUNS);
 	let during;
 	setTaskRuntimeApiForTests({
-		async runSubagent(options) {
+		async runWorker(options) {
 			const attemptId = "attempt_consuming";
 			const now = new Date().toISOString();
 			await classifier(router, runId, {
@@ -122,7 +122,7 @@ test("F5: prune keeps a terminal classifier result until its active caller has c
 	assert.equal(existsSync(join(router, runId)), false);
 });
 
-test("F5: a classifier record that is no longer terminal at deletion time is kept (recheck)", async () => {
+test("a classifier record that is no longer terminal at deletion time is kept (recheck)", async () => {
 	const cwd = await temp();
 	const router = join(stateDir(cwd), ROUTER_RUNS);
 	const id = classifierId();
@@ -146,7 +146,7 @@ test("F5: a classifier record that is no longer terminal at deletion time is kep
 	}
 });
 
-test("F5: a pin left by a dead process does not keep classifier results forever (control)", async () => {
+test("a pin left by a dead process does not keep classifier results forever (control)", async () => {
 	const cwd = await temp();
 	const router = join(stateDir(cwd), ROUTER_RUNS);
 	const id = classifierId();

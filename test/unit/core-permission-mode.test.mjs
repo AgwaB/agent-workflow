@@ -31,7 +31,7 @@ const { compileWorkflow } = await import("../../dist/core/compiler.js");
 const { prepareWorkflowTaskToolPolicy } = await import(
 	"../../dist/core/tool-policy.js"
 );
-const { runSubagent } = await import("../../dist/runtime/index.js");
+const { runWorker } = await import("../../dist/runtime/index.js");
 const sdk = await import("../../dist/sdk/index.js");
 const { createFakeExecutorModule } = await import(
 	"../../dist/sdk/testing/index.js"
@@ -43,7 +43,7 @@ const unregister = [];
 before(async () => {
 	root = await realpath(await mkdtemp(join(tmpdir(), "aw-wp4e-")));
 	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR ??= join(root, "run-index");
-	slots.setSubagentLaunchControlsForTests({
+	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
@@ -356,7 +356,7 @@ test("compile: R#5 forced worktree applies only in safe; free honors worktreePol
 	assert.equal(
 		freeAuto.tasks[0].safety.requiresWorktree,
 		true,
-		"auto: pi-workflow behavior",
+		"auto: free mode keeps the worktree requirement",
 	);
 	const freeOn = await compileWorkflow(
 		{ ...READ_ONLY, defaults: { ...READ_ONLY.defaults, worktreePolicy: "on" } },
@@ -423,7 +423,7 @@ async function approvalRun(kind, request) {
 	);
 	const dir = join(root, `approval-${counter}`);
 	await mkdir(dir, { recursive: true });
-	const result = await runSubagent({
+	const result = await runWorker({
 		cwd: dir,
 		executor: {
 			id: "fake",

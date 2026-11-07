@@ -7,12 +7,12 @@ import { join } from "node:path";
 import test from "node:test";
 
 import "../helpers/register-default-executor.mjs";
-import { launchSubagentTask } from "../../dist/core/task-backend.js";
+import { launchWorkerTask } from "../../dist/core/task-runner.js";
 import { setTaskRuntimeApiForTests } from "../../dist/core/runtime-port.js";
-import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
+import { setWorkerLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import { WORKFLOW_RUN_TYPE } from "../../dist/core/types.js";
 
-setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 
 function makeLaunchFixture(cwd, suffix) {
 	const now = new Date().toISOString();
@@ -36,7 +36,7 @@ function makeLaunchFixture(cwd, suffix) {
 			baseCwd: null,
 			warning: null,
 		},
-		backendTaskId: "",
+		workerTaskId: "",
 		files: {
 			systemPrompt: `${dir}/system.md`,
 			taskPrompt: `${dir}/task.md`,
@@ -62,7 +62,6 @@ function makeLaunchFixture(cwd, suffix) {
 			total: 1,
 		},
 		cwd,
-		backend: { type: "local", mode: "headless" },
 		createdAt: now,
 		updatedAt: now,
 		specPath: "workflow.json",
@@ -89,14 +88,14 @@ function makeLaunchFixture(cwd, suffix) {
 	return { run, task, compiledTask };
 }
 
-test("workflow child subagent launches inherit worker role and restore the parent role", async () => {
+test("workflow child worker launches inherit worker role and restore the parent role", async () => {
 	const cwd = mkdtempSync(join(tmpdir(), "workflow-worker-role-"));
 	const originalRole = process.env.AGENT_WORKFLOW_ROLE;
 	const observed = [];
 	try {
 		process.env.AGENT_WORKFLOW_ROLE = "supervisor";
 		setTaskRuntimeApiForTests({
-			async runSubagent(options) {
+			async runWorker(options) {
 				observed.push({ role: process.env.AGENT_WORKFLOW_ROLE, options });
 				return {
 					runId: "run_worker_role_child",
@@ -104,19 +103,19 @@ test("workflow child subagent launches inherit worker role and restore the paren
 					status: "running",
 				};
 			},
-			async getSubagentStatus() {
+			async getWorkerStatus() {
 				return null;
 			},
-			async reconcileSubagentRun() {
+			async reconcileWorkerRun() {
 				return {};
 			},
-			async interruptSubagent() {
+			async interruptWorker() {
 				return {};
 			},
 		});
 
 		const { run, task, compiledTask } = makeLaunchFixture(cwd, "launch");
-		const result = await launchSubagentTask(cwd, run, task, compiledTask);
+		const result = await launchWorkerTask(cwd, run, task, compiledTask);
 
 		assert.equal(result.kind, "launched");
 		assert.equal(observed.length, 1);

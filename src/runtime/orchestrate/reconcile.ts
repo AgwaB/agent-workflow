@@ -21,7 +21,7 @@ import {
 	type ProcessIdentity,
 	verifyProcessIdentity,
 } from "../process-identity.js";
-import { isTerminalStatus, UNKNOWN_BACKEND } from "./status.js";
+import { isTerminalStatus, UNKNOWN_EXECUTOR_ID } from "./status.js";
 import type { ExecRef } from "../../sdk/contract.js";
 import { type ExecutorRegistry, loadExecutor } from "../../sdk/descriptor.js";
 import type { ResultExecutorMetadata } from "../artifacts/result.js";
@@ -33,7 +33,7 @@ import {
 import { closeControlMailbox } from "./control.js";
 import { readAttemptExecutorRecord } from "./executor-record.js";
 
-export interface ReconcileSubagentRunOptions extends RunRef {
+export interface ReconcileWorkerRunOptions extends RunRef {
 	staleAfterMs?: number;
 	/** In-process executor modules checked before importing a persisted descriptor's module. */
 	registry?: ExecutorRegistry;
@@ -47,7 +47,7 @@ export interface ReconcileSubagentRunOptions extends RunRef {
 	expectedAttemptId?: string;
 }
 
-export interface ReconcileSubagentRunResult {
+export interface ReconcileWorkerRunResult {
 	status:
 		| "not-found"
 		| "already-terminal"
@@ -91,9 +91,9 @@ export interface ReconcileSubagentRunResult {
 function cleanupBlockedResult(
 	runId: string,
 	record: RunRecord,
-	reason: NonNullable<ReconcileSubagentRunResult["cleanupBlocked"]>["reason"],
+	reason: NonNullable<ReconcileWorkerRunResult["cleanupBlocked"]>["reason"],
 	attemptIds: readonly string[],
-): ReconcileSubagentRunResult {
+): ReconcileWorkerRunResult {
 	return {
 		status: "cleanup-blocked",
 		runId,
@@ -106,7 +106,7 @@ function cleanupBlockedResult(
 }
 
 export async function cleanupInactiveAttemptOwnership(
-	options: ReconcileSubagentRunOptions,
+	options: ReconcileWorkerRunOptions,
 	activeAttemptId: string,
 ): Promise<boolean> {
 	const ref = await resolveRunRef(options);
@@ -148,7 +148,7 @@ async function readAttemptResult(
 			result.runId !== runId ||
 			result.attemptId !== attempt.attemptId ||
 			typeof result.cwd !== "string" ||
-			typeof result.backend !== "string" ||
+			typeof result.executorId !== "string" ||
 			typeof result.status !== "string" ||
 			typeof result.startedAt !== "string"
 		)
@@ -409,7 +409,7 @@ async function commitDrainedAttemptResult(
 	ref: RunRef,
 	attempt: RunAttemptRecord,
 	result: ResultEnvelope,
-): Promise<ReconcileSubagentRunResult> {
+): Promise<ReconcileWorkerRunResult> {
 	const committed = await commitAttemptResultIfActive(ref, result);
 	await appendRunEvent(ref, {
 		type: "reconcile.completed",
@@ -426,9 +426,9 @@ async function commitDrainedAttemptResult(
 	};
 }
 
-export async function reconcileSubagentRun(
-	options: ReconcileSubagentRunOptions,
-): Promise<ReconcileSubagentRunResult> {
+export async function reconcileWorkerRun(
+	options: ReconcileWorkerRunOptions,
+): Promise<ReconcileWorkerRunResult> {
 	const staleAfterMs = options.staleAfterMs ?? 30_000;
 	const ref = await resolveRunRef(options);
 	const record = await readRunRecord(ref);
@@ -592,7 +592,7 @@ export async function reconcileSubagentRun(
 	const output = await store.ensureTextArtifact("output");
 	await closeControlMailbox(store.attemptDir).catch(() => undefined);
 	const terminalResult = await store.writeResult({
-		backend: attempt.backend ?? record.backend ?? UNKNOWN_BACKEND,
+		executorId: attempt.executorId ?? record.executorId ?? UNKNOWN_EXECUTOR_ID,
 		status: interrupted ? "cancelled" : "failed",
 		failureKind: interrupted ? "user_cancelled" : "stale",
 		cwd: artifactCwd,
@@ -671,7 +671,7 @@ async function workerExitLine(attemptDir: string): Promise<string> {
  * The runtime never relaunches. Returns undefined for attempts without a descriptor.
  */
 async function reconcileThroughExecutor(context: {
-	options: ReconcileSubagentRunOptions;
+	options: ReconcileWorkerRunOptions;
 	ref: RunRef;
 	record: RunRecord;
 	attempt: RunAttemptRecord;
@@ -680,7 +680,7 @@ async function reconcileThroughExecutor(context: {
 	cleanupStatus: "kept" | "not-needed";
 	/** How the owner was found (gone, another process, never recorded): shown with the decision. */
 	ownerState?: string;
-}): Promise<ReconcileSubagentRunResult | undefined> {
+}): Promise<ReconcileWorkerRunResult | undefined> {
 	const { options, ref, record, attempt, artifactCwd, result } = context;
 	const attemptDir = join(
 		runPaths({ ...ref, cwd: artifactCwd }).runDir,
@@ -693,7 +693,7 @@ async function reconcileThroughExecutor(context: {
 		attempt.attemptId,
 	);
 	if (persisted === undefined) return undefined;
-	let outcome: NonNullable<ReconcileSubagentRunResult["executorReconcile"]>;
+	let outcome: NonNullable<ReconcileWorkerRunResult["executorReconcile"]>;
 	let executor: Awaited<ReturnType<typeof loadExecutor>> | undefined;
 	if ("invalid" in persisted)
 		outcome = { outcome: "error", reason: persisted.invalid };
@@ -734,7 +734,7 @@ async function reconcileThroughExecutor(context: {
 		id:
 			persisted && !("invalid" in persisted)
 				? persisted.descriptor.id
-				: (attempt.backend ?? UNKNOWN_BACKEND),
+				: (attempt.executorId ?? UNKNOWN_EXECUTOR_ID),
 		...(executor === undefined ? {} : { version: executor.version }),
 		...(persisted && !("invalid" in persisted)
 			? { attemptKey: persisted.attemptKey }
@@ -801,7 +801,7 @@ async function reconcileThroughExecutor(context: {
 		const output = await store.writeTextArtifact("output", report.outputText);
 		await closeControlMailbox(store.attemptDir).catch(() => undefined);
 		const adoptedResult = await store.writeResult({
-			backend: attempt.backend ?? record.backend ?? meta.id,
+			executorId: attempt.executorId ?? record.executorId ?? meta.id,
 			status: report.status,
 			failureKind: report.failureKind,
 			cwd: artifactCwd,
@@ -864,7 +864,7 @@ async function reconcileThroughExecutor(context: {
 	const output = await store.ensureTextArtifact("output");
 	await closeControlMailbox(store.attemptDir).catch(() => undefined);
 	const terminalResult = await store.writeResult({
-		backend: attempt.backend ?? record.backend ?? meta.id,
+		executorId: attempt.executorId ?? record.executorId ?? meta.id,
 		status: "failed",
 		failureKind,
 		cwd: artifactCwd,

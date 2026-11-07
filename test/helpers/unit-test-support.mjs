@@ -203,15 +203,15 @@ import {
 	resolveWorkflowRetryLimit,
 } from "../../dist/core/retry-policy.js";
 import { checkRequiredArtifactReads } from "../../dist/core/required-reads.js";
-import { cleanupSubagentRun } from "../../dist/core/task-cancellation.js";
+import { cleanupWorkerRun } from "../../dist/core/task-cancellation.js";
 import {
-	launchSubagentTask,
-	refreshRunFromSubagentArtifacts,
-} from "../../dist/core/task-backend.js";
+	launchWorkerTask,
+	refreshRunFromWorkerArtifacts,
+} from "../../dist/core/task-runner.js";
 import {
 	observeLiveModelWorkerCompletion,
 	resolveLaunchControlTelemetryForTests,
-	setSubagentLaunchControlsForTests,
+	setWorkerLaunchControlsForTests,
 } from "../../dist/core/launch-slots.js";
 import { setTaskRuntimeApiForTests } from "../../dist/core/runtime-port.js";
 
@@ -254,7 +254,7 @@ after(async () => {
 });
 process.on("exit", cleanupUnitTestRoot);
 
-setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 
 function makeProject() {
 	return mkdtempSync(join(UNIT_TEST_ROOT, "workflow-unit-"));
@@ -290,31 +290,31 @@ function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const parentSubagentEnvKeys = [
-	"AGENT_WORKFLOW_PARENT_SUBAGENT_CWD",
-	"AGENT_WORKFLOW_PARENT_SUBAGENT_RUNS_DIR",
-	"AGENT_WORKFLOW_PARENT_SUBAGENT_RUN_ID",
-	"AGENT_WORKFLOW_PARENT_SUBAGENT_ATTEMPT_ID",
+const parentWorkerEnvKeys = [
+	"AGENT_WORKFLOW_PARENT_WORKER_CWD",
+	"AGENT_WORKFLOW_PARENT_WORKER_RUNS_DIR",
+	"AGENT_WORKFLOW_PARENT_WORKER_RUN_ID",
+	"AGENT_WORKFLOW_PARENT_WORKER_ATTEMPT_ID",
 ];
 
-function captureParentSubagentEnv() {
+function captureParentWorkerEnv() {
 	return Object.fromEntries(
-		parentSubagentEnvKeys.map((key) => [key, process.env[key]]),
+		parentWorkerEnvKeys.map((key) => [key, process.env[key]]),
 	);
 }
 
-function restoreParentSubagentEnv(previous) {
-	for (const key of parentSubagentEnvKeys) {
+function restoreParentWorkerEnv(previous) {
+	for (const key of parentWorkerEnvKeys) {
 		if (previous[key] === undefined) delete process.env[key];
 		else process.env[key] = previous[key];
 	}
 }
 
-function setParentSubagentEnv(cwd) {
-	process.env.AGENT_WORKFLOW_PARENT_SUBAGENT_CWD = cwd;
-	process.env.AGENT_WORKFLOW_PARENT_SUBAGENT_RUNS_DIR = ".agent-workflow/runs";
-	process.env.AGENT_WORKFLOW_PARENT_SUBAGENT_RUN_ID = "parent_run";
-	process.env.AGENT_WORKFLOW_PARENT_SUBAGENT_ATTEMPT_ID = "parent_attempt";
+function setParentWorkerEnv(cwd) {
+	process.env.AGENT_WORKFLOW_PARENT_WORKER_CWD = cwd;
+	process.env.AGENT_WORKFLOW_PARENT_WORKER_RUNS_DIR = ".agent-workflow/runs";
+	process.env.AGENT_WORKFLOW_PARENT_WORKER_RUN_ID = "parent_run";
+	process.env.AGENT_WORKFLOW_PARENT_WORKER_ATTEMPT_ID = "parent_attempt";
 }
 
 /**
@@ -588,15 +588,13 @@ async function createFailFastPolicyRun(cwd, policy = {}) {
 	running.status = "running";
 	running.statusDetail = "running";
 	running.startedAt = new Date().toISOString();
-	running.backendHandle = {
-		engine: "agent-workflow",
-		backend: "runtime",
+	running.workerHandle = {
 		runId: "child-running",
 		attemptId: "attempt-running",
 		cwd,
 		runsDir: ".agent-workflow/runs/fail-fast",
 	};
-	running.backendTaskId = "child-running";
+	running.workerTaskId = "child-running";
 	await writeRunRecord(cwd, run);
 	return { compiled, run, spec };
 }
@@ -680,7 +678,7 @@ async function createDynamicControllerRun(cwd, controllerSource) {
 	return { compiled, run, spec, specPath, workflowDir };
 }
 
-function makeSubagentLaunchFixture(cwd, suffix) {
+function makeWorkerLaunchFixture(cwd, suffix) {
 	const now = new Date().toISOString();
 	const task = {
 		taskId: "task-1",
@@ -700,7 +698,7 @@ function makeSubagentLaunchFixture(cwd, suffix) {
 			baseCwd: null,
 			warning: null,
 		},
-		backendTaskId: "",
+		workerTaskId: "",
 		files: {
 			systemPrompt: `.agent-workflow/workflows/workflow_launch_${suffix}/tasks/task-1/system.md`,
 			taskPrompt: `.agent-workflow/workflows/workflow_launch_${suffix}/tasks/task-1/task.md`,
@@ -726,7 +724,6 @@ function makeSubagentLaunchFixture(cwd, suffix) {
 			total: 1,
 		},
 		cwd,
-		backend: { type: "local", mode: "headless" },
 		createdAt: now,
 		updatedAt: now,
 		specPath: "workflow.json",
@@ -753,10 +750,10 @@ function makeSubagentLaunchFixture(cwd, suffix) {
 	return { run, task, compiledTask };
 }
 
-function captureSubagentPrompts(prompts = []) {
+function captureWorkerPrompts(prompts = []) {
 	let launchCount = 0;
 	setTaskRuntimeApiForTests({
-		async runSubagent(options) {
+		async runWorker(options) {
 			launchCount += 1;
 			prompts.push(String(options.task ?? ""));
 			return {
@@ -765,13 +762,13 @@ function captureSubagentPrompts(prompts = []) {
 				status: "running",
 			};
 		},
-		async getSubagentStatus() {
+		async getWorkerStatus() {
 			return null;
 		},
-		async reconcileSubagentRun() {
+		async reconcileWorkerRun() {
 			return {};
 		},
-		async interruptSubagent() {
+		async interruptWorker() {
 			return {};
 		},
 	});
@@ -1202,7 +1199,7 @@ function withAdaptiveLiveWorkerEnv(overrides, run) {
 	else
 		process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS =
 			overrides.maxLiveWorkers;
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	const restore = () => {
 		if (previousAdaptive === undefined)
 			delete process.env.AGENT_WORKFLOW_ADAPTIVE_LIVE_WORKERS;
@@ -1211,7 +1208,7 @@ function withAdaptiveLiveWorkerEnv(overrides, run) {
 			delete process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS;
 		else
 			process.env.AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS = previousLiveWorkers;
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	};
 	const result = run();
 	if (result && typeof result.finally === "function") {
@@ -1296,14 +1293,12 @@ async function refreshZeroOutputModelFailure(cwd, options) {
 	task.statusDetail = "running";
 	task.startedAt = new Date().toISOString();
 	if (options.launchRetry) task.launchRetry = options.launchRetry;
-	task.backendHandle = {
-		engine: "agent-workflow",
-		backend: "runtime",
+	task.workerHandle = {
 		runId,
 		attemptId,
 		cwd,
-		runsDir: `.agent-workflow/workflow-subagents/${runId}`,
-		display: `agent-workflow/runtime ${runId}/${attemptId}`,
+		runsDir: `.agent-workflow/worker-runs/${runId}`,
+		display: `worker run ${runId}/${attemptId}`,
 	};
 
 	const artifactDirName = options.artifactDirName;
@@ -1332,17 +1327,17 @@ async function refreshZeroOutputModelFailure(cwd, options) {
 	);
 
 	setTaskRuntimeApiForTests({
-		async runSubagent() {
+		async runWorker() {
 			throw new Error("not expected");
 		},
-		async reconcileSubagentRun() {
+		async reconcileWorkerRun() {
 			return {};
 		},
-		async getSubagentStatus() {
+		async getWorkerStatus() {
 			return {
 				runId,
 				attemptId,
-				backend: "headless",
+				executorId: "headless",
 				status: "failed",
 				failureKind: "model",
 				startedAt: task.startedAt,
@@ -1374,13 +1369,13 @@ async function refreshZeroOutputModelFailure(cwd, options) {
 				],
 			};
 		},
-		async interruptSubagent() {
+		async interruptWorker() {
 			return {};
 		},
 	});
 
 	await writeRunRecord(cwd, run);
-	const refreshed = await refreshRunFromSubagentArtifacts(
+	const refreshed = await refreshRunFromWorkerArtifacts(
 		cwd,
 		await readRunRecord(cwd, run.runId),
 	);
@@ -1419,7 +1414,7 @@ function assertFirstTransientModelRetry(cwd, refreshedTask) {
 	assert.equal(refreshedTask.statusDetail, "retry_model_failure");
 	assert.equal(refreshedTask.launchRetry?.attempts, 1);
 	assert.equal(refreshedTask.launchRetry?.reason, "model");
-	assert.equal(refreshedTask.backendHandle, undefined);
+	assert.equal(refreshedTask.workerHandle, undefined);
 	assert.equal(
 		existsSync(firstTransientModelFailureAttemptPath(cwd, refreshedTask)),
 		true,
@@ -1508,7 +1503,7 @@ function unfinishedNoticeTasks(run) {
 				agent: "scout",
 				status,
 				statusDetail: status,
-				backendTaskId: "",
+				workerTaskId: "",
 				files: {},
 			});
 		}
@@ -1521,7 +1516,7 @@ function unfinishedNoticeTasks(run) {
 			agent: "scout",
 			status: run.status,
 			statusDetail: run.status,
-			backendTaskId: "",
+			workerTaskId: "",
 			files: {},
 		});
 	}
@@ -1556,7 +1551,6 @@ function writeUnfinishedNoticeIndex(cwd, runs) {
 				...run,
 				schemaVersion: 1,
 				cwd,
-				backend: { type: "local", mode: "headless" },
 				specPath: run.specPath ?? "x",
 				tasks: run.tasks?.length > 0 ? run.tasks : unfinishedNoticeTasks(run),
 			}),
@@ -1589,7 +1583,6 @@ function writeUnfinishedNoticeRunRecord(cwd, runId, provenance) {
 			...(indexedRun?.name ? { name: indexedRun.name } : {}),
 			taskSummary: UNFINISHED_NOTICE_TEST_SUMMARY,
 			cwd,
-			backend: { type: "local", mode: "headless" },
 			createdAt: "2026-06-11T00:00:00.000Z",
 			updatedAt: "2026-06-11T00:00:00.000Z",
 			specPath: "x",
@@ -1652,7 +1645,7 @@ function workflowViewTask(overrides = {}) {
 			baseCwd: null,
 			warning: null,
 		},
-		backendTaskId: `backend-${taskId}`,
+		workerTaskId: `worker-${taskId}`,
 		kind: overrides.kind ?? "task",
 		stageId: overrides.stageId ?? "verify",
 		startedAt: overrides.startedAt ?? "2026-06-17T06:00:00.000Z",
@@ -1662,7 +1655,7 @@ function workflowViewTask(overrides = {}) {
 		elapsedMs: Object.hasOwn(overrides, "elapsedMs")
 			? overrides.elapsedMs
 			: 60_000,
-		backendHandle: overrides.backendHandle,
+		workerHandle: overrides.workerHandle,
 		pid: overrides.pid,
 		files: {
 			systemPrompt: `.agent-workflow/workflows/workflow_ui/tasks/${taskId}/system.md`,
@@ -1686,7 +1679,6 @@ function workflowViewRun(tasks) {
 		status: deriveWorkflowStatus(summarizeTasks(tasks)),
 		taskSummary: summarizeTasks(tasks),
 		cwd: process.cwd(),
-		backend: { type: "local", mode: "headless" },
 		createdAt: "2026-06-17T06:00:00.000Z",
 		updatedAt: "2026-06-17T06:02:00.000Z",
 		specPath: "workflows/ui.json",
@@ -1786,7 +1778,6 @@ function stallProgressRun(cwd, runId, status, createdAt) {
 		status: deriveWorkflowStatus(summarizeTasks(tasks)),
 		taskSummary: summarizeTasks(tasks),
 		cwd,
-		backend: { type: "local", mode: "headless" },
 		createdAt,
 		updatedAt: createdAt,
 		specPath: "workflows/stall-unit.json",
@@ -1850,10 +1841,10 @@ export {
 	canStageProceedAfterPreviousFailure,
 	canonicalDynamicDecision,
 	canonicalPackageVerificationStatus,
-	captureParentSubagentEnv,
-	captureSubagentPrompts,
+	captureParentWorkerEnv,
+	captureWorkerPrompts,
 	checkRequiredArtifactReads,
-	cleanupSubagentRun,
+	cleanupWorkerRun,
 	closeSync,
 	compactStrings,
 	compileWorkflow,
@@ -1908,7 +1899,7 @@ export {
 	isTestWideCodePoint,
 	isWorkflowSupervisorEnabled,
 	join,
-	launchSubagentTask,
+	launchWorkerTask,
 	listWorkflowArtifactSources,
 	listWorkflows,
 	loadAgentByName,
@@ -1919,7 +1910,7 @@ export {
 	loopWorkflowSpec,
 	makeDynamicDecisionLoopCtx,
 	makeProject,
-	makeSubagentLaunchFixture,
+	makeWorkerLaunchFixture,
 	makeValidatingDynamicDecisionLoopCtx,
 	markDagDependentsSkipped,
 	mkdirSync,
@@ -1930,7 +1921,7 @@ export {
 	observeLiveModelWorkerCompletion,
 	openSync,
 	packageVerificationStatusBucket,
-	parentSubagentEnvKeys,
+	parentWorkerEnvKeys,
 	parseAgentMarkdown,
 	parsePublicWorkflow,
 	parseWorkflow,
@@ -1952,7 +1943,7 @@ export {
 	rebuildDynamicState,
 	recordDynamicControllerPhase,
 	recordSharedModelRateLimitBackoffForTests,
-	refreshRunFromSubagentArtifacts,
+	refreshRunFromWorkerArtifacts,
 	refreshZeroOutputModelFailure,
 	resetTaskForResume,
 	resolveFlowsCwd,
@@ -1961,7 +1952,7 @@ export {
 	resolveWorkflowRetryLimit,
 	resolveWorkflowRef,
 	resolveWorkflowRuntime,
-	restoreParentSubagentEnv,
+	restoreParentWorkerEnv,
 	resumeRun,
 	rmSync,
 	runDynamicControllerEngineIntegrityCheckForTests,
@@ -1971,10 +1962,10 @@ export {
 	runWorkflowSpec,
 	scheduleRun,
 	setIndexUpdateDebounceMsForTests,
-	setParentSubagentEnv,
+	setParentWorkerEnv,
 	setRunLeaseTestHooksForTests,
 	setTaskRuntimeApiForTests,
-	setSubagentLaunchControlsForTests,
+	setWorkerLaunchControlsForTests,
 	setTaskTerminal,
 	setWorkflowOutputArtifactWriteHookForTests,
 	shouldScheduleAfterStageFailure,

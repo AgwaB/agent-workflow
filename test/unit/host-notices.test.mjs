@@ -64,7 +64,6 @@ async function fixture(cwd, id, overrides = {}) {
 		createdAt: updatedAt,
 		updatedAt,
 		specPath: "fixture.json",
-		backend: { type: "local", mode: "headless" },
 		tasks: [
 			{
 				taskId: "task-1",
@@ -73,7 +72,7 @@ async function fixture(cwd, id, overrides = {}) {
 				agent: "scout",
 				status,
 				statusDetail: status,
-				backendTaskId: "",
+				workerTaskId: "",
 				files: {},
 			},
 		],

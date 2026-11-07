@@ -135,7 +135,7 @@ export function prepareDurableWorkerBinding({
 		(payload.input?.runsDir as string | undefined) ?? DEFAULT_RUNS_DIR,
 	);
 	const correlationId = optionalText(
-		"subagent correlation id",
+		"worker correlation id",
 		payload.input?.correlationId,
 	);
 	const authorityBindingSha256 = descriptor.authorityBindingSha256;
@@ -145,8 +145,8 @@ export function prepareDurableWorkerBinding({
 		throw new DurableWorkerGuardError("durable launch barrier v2 is required");
 	return Object.freeze({
 		schema: "agent-workflow-durable-worker-binding-preflight-v2",
-		runId: requireText("subagent run id", payload.runId),
-		attemptId: requireText("subagent attempt id", payload.attemptId),
+		runId: requireText("worker run id", payload.runId),
+		attemptId: requireText("worker attempt id", payload.attemptId),
 		...(correlationId === undefined ? {} : { correlationId }),
 		cwdSha256: sha256Text(resolvedExecutionCwd),
 		runsDirSha256: sha256Text(runsDir),

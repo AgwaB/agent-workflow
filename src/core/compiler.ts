@@ -67,7 +67,7 @@ import {
 } from "./tool-policy.js";
 
 const DELEGATION_TOOLS = new Set([
-	"skill_test_subagent",
+	"skill_test_worker",
 	"workflow",
 	"/workflow",
 ]);
@@ -2251,7 +2251,6 @@ async function compileArtifactGraphPlan(
 		type: WORKFLOW_RUN_TYPE,
 		task: options.task,
 		cwd: options.cwd,
-		backend: { type: "local", mode: "headless" },
 		maxConcurrency: spec.defaults?.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
 		...(failurePolicy ? { failurePolicy } : {}),
 		roles,

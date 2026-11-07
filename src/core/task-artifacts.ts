@@ -1,5 +1,5 @@
 import { stateBase } from "./state-location.js";
-import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
+import { type WorkerRunStatusSnapshot } from "./runtime-port.js";
 import {
 	copyFile,
 	link,
@@ -17,17 +17,10 @@ import { type WorkflowRunRecord, type WorkflowTaskRunRecord } from "./types.js";
 import { type WorkflowTaskFailedToolCallSummary } from "./workflow-output-artifacts.js";
 import { isInsidePath } from "./physical-paths.js";
 
-/** Runtime runs directory root for workflow tasks (was `.pi/workflow-subagents`). */
-export const DEFAULT_SUBAGENT_RUNS_ROOT = ".agent-workflow/workflow-subagents";
-/**
- * Backend id recorded in launch authorities and launch-bootstrap provenance
- * for the core task backend on the agent-workflow runtime API.
- */
-export const WORKFLOW_TASK_BACKEND_ID = "agent-workflow/runtime";
+/** Runtime runs directory root for workflow tasks. */
+export const DEFAULT_WORKER_RUNS_ROOT = ".agent-workflow/worker-runs";
 const MAX_FAILED_TOOL_CALL_RECORDS = 20;
-export interface SubagentBackendHandle extends Record<string, unknown> {
-	engine: "agent-workflow";
-	backend: "runtime";
+export interface WorkerRunHandle extends Record<string, unknown> {
 	runId: string;
 	attemptId: string;
 	cwd: string;
@@ -36,32 +29,32 @@ export interface SubagentBackendHandle extends Record<string, unknown> {
 	sessionId?: string;
 }
 
-export interface SubagentArtifactRef {
+export interface WorkerArtifactRef {
 	type: string;
 	path: string;
 	artifactCwd?: string;
 }
 
-export type SubagentRunLogRef = SubagentArtifactRef & {
+export type WorkerRunLogRef = WorkerArtifactRef & {
 	type: "stdout" | "stderr" | "output" | "result";
 };
-export type SubagentResultArtifactRef = SubagentArtifactRef & {
-	type: "tool-calls" | "tool-calls-summary" | SubagentRunLogRef["type"];
+export type WorkerResultArtifactRef = WorkerArtifactRef & {
+	type: "tool-calls" | "tool-calls-summary" | WorkerRunLogRef["type"];
 };
 
 export function findLog(
-	snapshot: SubagentRunStatusSnapshot,
-	type: SubagentRunLogRef["type"],
-): SubagentRunLogRef | undefined {
+	snapshot: WorkerRunStatusSnapshot,
+	type: WorkerRunLogRef["type"],
+): WorkerRunLogRef | undefined {
 	return snapshot.logs.find((log) => log.type === type);
 }
 
 export async function readToolCallsSummary(
-	snapshot: SubagentRunStatusSnapshot,
-	subagentResult: Record<string, unknown> | undefined,
+	snapshot: WorkerRunStatusSnapshot,
+	workerResult: Record<string, unknown> | undefined,
 	artifactRoot: string | undefined,
-): Promise<{ ref: SubagentArtifactRef; summary: unknown } | undefined> {
-	const artifactRef = toolCallArtifactRef(subagentResult, "tool-calls-summary");
+): Promise<{ ref: WorkerArtifactRef; summary: unknown } | undefined> {
+	const artifactRef = toolCallArtifactRef(workerResult, "tool-calls-summary");
 	if (!artifactRef) return undefined;
 	const summary = await readJsonLoose<unknown>(
 		safeArtifactPath(snapshot, artifactRef, artifactRoot),
@@ -70,14 +63,14 @@ export async function readToolCallsSummary(
 }
 
 export async function readFailedToolCalls(
-	snapshot: SubagentRunStatusSnapshot,
-	subagentResult: Record<string, unknown> | undefined,
+	snapshot: WorkerRunStatusSnapshot,
+	workerResult: Record<string, unknown> | undefined,
 	artifactRoot: string | undefined,
 ): Promise<
-	| { ref: SubagentArtifactRef; records: WorkflowTaskFailedToolCallSummary[] }
+	| { ref: WorkerArtifactRef; records: WorkflowTaskFailedToolCallSummary[] }
 	| undefined
 > {
-	const artifactRef = toolCallArtifactRef(subagentResult, "tool-calls");
+	const artifactRef = toolCallArtifactRef(workerResult, "tool-calls");
 	if (!artifactRef) return undefined;
 	const text = await readFile(
 		safeArtifactPath(snapshot, artifactRef, artifactRoot),
@@ -100,20 +93,20 @@ export async function readFailedToolCalls(
 }
 
 function toolCallArtifactRef(
-	subagentResult: Record<string, unknown> | undefined,
+	workerResult: Record<string, unknown> | undefined,
 	type: "tool-calls" | "tool-calls-summary",
-): SubagentArtifactRef | undefined {
-	const artifacts = Array.isArray(subagentResult?.artifacts)
-		? subagentResult.artifacts
+): WorkerArtifactRef | undefined {
+	const artifacts = Array.isArray(workerResult?.artifacts)
+		? workerResult.artifacts
 		: [];
 	const resultCwd =
-		typeof subagentResult?.cwd === "string" ? subagentResult.cwd : undefined;
-	const ref = artifacts.find((artifact): artifact is SubagentArtifactRef => {
+		typeof workerResult?.cwd === "string" ? workerResult.cwd : undefined;
+	const ref = artifacts.find((artifact): artifact is WorkerArtifactRef => {
 		return (
 			typeof artifact === "object" &&
 			artifact !== null &&
-			(artifact as SubagentArtifactRef).type === type &&
-			typeof (artifact as SubagentArtifactRef).path === "string"
+			(artifact as WorkerArtifactRef).type === type &&
+			typeof (artifact as WorkerArtifactRef).path === "string"
 		);
 	});
 	return ref
@@ -181,8 +174,8 @@ async function unlinkExistingTaskArtifact(target: string): Promise<void> {
 }
 
 export async function copyLogOrEmpty(
-	snapshot: SubagentRunStatusSnapshot,
-	ref: SubagentRunLogRef | undefined,
+	snapshot: WorkerRunStatusSnapshot,
+	ref: WorkerRunLogRef | undefined,
 	target: string,
 	artifactRoot: string | undefined,
 ): Promise<number> {
@@ -214,8 +207,8 @@ export async function copyLogOrEmpty(
 }
 
 export async function copyLogOrEmptyMeasured(
-	snapshot: SubagentRunStatusSnapshot,
-	ref: SubagentRunLogRef | undefined,
+	snapshot: WorkerRunStatusSnapshot,
+	ref: WorkerRunLogRef | undefined,
 	target: string,
 	artifactRoot: string | undefined,
 ): Promise<{ durationMs: number; bytes: number }> {
@@ -225,12 +218,12 @@ export async function copyLogOrEmptyMeasured(
 }
 
 export function safeArtifactPath(
-	snapshot: SubagentRunStatusSnapshot,
-	artifact: Pick<SubagentRunLogRef, "path" | "artifactCwd">,
+	snapshot: WorkerRunStatusSnapshot,
+	artifact: Pick<WorkerRunLogRef, "path" | "artifactCwd">,
 	artifactRoot: string | undefined,
 ): string {
 	if (isAbsolute(artifact.path) || artifact.path.split("/").includes(".."))
-		throw new Error("subagent artifact path must be relative and safe");
+		throw new Error("worker artifact path must be relative and safe");
 	const artifactCwd = resolve(
 		artifact.artifactCwd ??
 			snapshot.logs.find((log) => log.artifactCwd)?.artifactCwd ??
@@ -238,7 +231,7 @@ export function safeArtifactPath(
 	);
 	const artifactPath = resolve(artifactCwd, artifact.path.split("/").join(sep));
 	if (artifactRoot && !isInsidePath(resolve(artifactRoot), artifactPath)) {
-		throw new Error("subagent artifact path must stay inside the task runsDir");
+		throw new Error("worker artifact path must stay inside the task runsDir");
 	}
 	return artifactPath;
 }
@@ -256,7 +249,7 @@ export async function writeJson(file: string, value: unknown): Promise<void> {
 	await writeFile(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-interface SubagentRunRecordLike {
+interface WorkerRunRecordLike {
 	runId?: string;
 	correlationId?: string;
 	activeAttemptId?: string | null;
@@ -270,16 +263,16 @@ interface SubagentRunRecordLike {
 	}>;
 }
 
-export async function recoverSubagentHandle(
+export async function recoverWorkerHandle(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
 	projectCwd?: string,
-): Promise<SubagentBackendHandle | undefined> {
-	const runsDir = subagentRunsDir(run, task);
+): Promise<WorkerRunHandle | undefined> {
+	const runsDir = workerRunsDir(run, task);
 	const expectedCorrelationId = `${run.runId}:${task.taskId}`;
 	const claimStartedAtMs = timestampMs(task.startedAt);
 	const candidates: Array<{
-		handle: SubagentBackendHandle;
+		handle: WorkerRunHandle;
 		updatedAtMs: number;
 	}> = [];
 	// Recovery uses the same storage namespace as launch; old project-local attempts are ignored.
@@ -300,18 +293,18 @@ export async function recoverSubagentHandle(
 	): Promise<void> {
 		for (const entry of entries) {
 			if (!entry.isDirectory() || !entry.name.startsWith("run_")) continue;
-			const record = await readJsonLoose<SubagentRunRecordLike>(
+			const record = await readJsonLoose<WorkerRunRecordLike>(
 				join(absoluteRunsDir, entry.name, "run.json"),
 			);
 			if (!record || record.correlationId !== expectedCorrelationId) continue;
-			if (isPreClaimSubagentRecord(record, claimStartedAtMs)) continue;
+			if (isPreClaimWorkerRecord(record, claimStartedAtMs)) continue;
 			const attemptId =
 				record.activeAttemptId ??
 				record.latestAttemptId ??
 				record.attempts?.at(-1)?.attemptId;
 			if (typeof attemptId !== "string" || attemptId.length === 0) continue;
 			candidates.push({
-				handle: makeSubagentHandle(
+				handle: makeWorkerHandle(
 					task,
 					record.runId ?? entry.name,
 					attemptId,
@@ -333,8 +326,8 @@ export async function recoverSubagentHandle(
 	return candidates[0]?.handle;
 }
 
-function isPreClaimSubagentRecord(
-	record: SubagentRunRecordLike,
+function isPreClaimWorkerRecord(
+	record: WorkerRunRecordLike,
 	claimStartedAtMs: number | undefined,
 ): boolean {
 	if (claimStartedAtMs === undefined) return false;
@@ -371,37 +364,33 @@ export function recordedTaskStateCwd(
 	projectCwd: string,
 	task: WorkflowTaskRunRecord,
 ): string {
-	return getSubagentHandle(task)?.cwd ?? workflowTaskStateCwd(projectCwd, task);
+	return getWorkerHandle(task)?.cwd ?? workflowTaskStateCwd(projectCwd, task);
 }
 
-export function makeSubagentHandle(
+export function makeWorkerHandle(
 	task: WorkflowTaskRunRecord,
 	runId: string,
 	attemptId: string,
 	runsDir: string,
 	sessionId?: string,
 	stateCwd: string = task.cwd,
-): SubagentBackendHandle {
+): WorkerRunHandle {
 	return {
-		engine: "agent-workflow",
-		backend: "runtime",
 		runId,
 		attemptId,
 		cwd: stateCwd,
 		runsDir,
-		display: `agent-workflow/runtime ${runId}/${attemptId}`,
+		display: `worker run ${runId}/${attemptId}`,
 		...(sessionId === undefined ? {} : { sessionId }),
 	};
 }
 
-export function getSubagentHandle(
+export function getWorkerHandle(
 	task: WorkflowTaskRunRecord,
-): SubagentBackendHandle | undefined {
-	const handle = task.backendHandle;
+): WorkerRunHandle | undefined {
+	const handle = task.workerHandle;
 	if (!handle || typeof handle !== "object") return undefined;
-	const candidate = handle as Partial<SubagentBackendHandle>;
-	if (candidate.engine !== "agent-workflow" || candidate.backend !== "runtime")
-		return undefined;
+	const candidate = handle as Partial<WorkerRunHandle>;
 	if (
 		typeof candidate.runId !== "string" ||
 		typeof candidate.attemptId !== "string" ||
@@ -410,16 +399,16 @@ export function getSubagentHandle(
 	)
 		return undefined;
 	return {
-		...(candidate as SubagentBackendHandle),
+		...(candidate as WorkerRunHandle),
 		...(typeof candidate.sessionId === "string"
 			? { sessionId: candidate.sessionId }
 			: {}),
 	};
 }
 
-export function subagentRunsDir(
+export function workerRunsDir(
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
 ): string {
-	return `${DEFAULT_SUBAGENT_RUNS_ROOT}/${run.runId}/${task.taskId}`;
+	return `${DEFAULT_WORKER_RUNS_ROOT}/${run.runId}/${task.taskId}`;
 }

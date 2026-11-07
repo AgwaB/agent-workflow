@@ -2,7 +2,7 @@ import { projectBlockedActions } from "./blocked-actions.js";
 // An executor decision blocks the task without retry or relaunch; batches stop instead of falling back.
 import { markForeachBatchStopped } from "./foreach-batch-runtime.js";
 import { setTaskTerminal } from "./store.js";
-import { type SubagentRunStatusSnapshot } from "./runtime-port.js";
+import { type WorkerRunStatusSnapshot } from "./runtime-port.js";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { activeForeachBatchRecordForTask } from "./foreach-batch-runtime.js";
@@ -12,11 +12,11 @@ import {
 } from "./foreach-recovery.js";
 import { observeLiveModelWorkerCompletion } from "./launch-slots.js";
 import {
-	hasPartialSubagentOutput,
+	hasPartialWorkerOutput,
 	materializeTerminalArtifactGraphResult,
 	shouldAttemptArtifactGraphSalvage,
 } from "./output-validation.js";
-import { recordTerminalParentSubagentChildEvent } from "./parent-child-events.js";
+import { recordTerminalParentWorkerChildEvent } from "./parent-child-events.js";
 import {
 	applyTaskResultArtifact,
 	resultCompletedAfterTimeout,
@@ -26,7 +26,7 @@ import {
 	classifyPermanentModelFailure,
 	modelRateLimitBackoffKey,
 	recordSharedModelRateLimitBackoff,
-	retryOrFailTransientSubagentFailure,
+	retryOrFailTransientWorkerFailure,
 	shouldRetryTransientModelFailure,
 	transientFailureAttemptPath,
 	transientModelRateLimitBackoffMs,
@@ -47,11 +47,11 @@ import {
 } from "./task-observability.js";
 import { type WorkflowRunRecord, type WorkflowTaskRunRecord } from "./types.js";
 
-export async function materializeTerminalSubagentResult(
+export async function materializeTerminalWorkerResult(
 	cwd: string,
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
-	snapshot: SubagentRunStatusSnapshot,
+	snapshot: WorkerRunStatusSnapshot,
 ): Promise<boolean> {
 	const outputRef = findLog(snapshot, "output");
 	const stderrRef = findLog(snapshot, "stderr");
@@ -59,8 +59,8 @@ export async function materializeTerminalSubagentResult(
 	const outputFile = fromStatePath(cwd, task.files.output);
 	const stderrFile = fromStatePath(cwd, task.files.stderr);
 	const resultFile = fromStatePath(cwd, task.files.result);
-	const artifactRoot = task.backendFiles?.runsDir
-		? fromStatePath(cwd, task.backendFiles.runsDir)
+	const artifactRoot = task.workerFiles?.runsDir
+		? fromStatePath(cwd, task.workerFiles.runsDir)
 		: undefined;
 
 	await mkdir(dirname(outputFile), { recursive: true });
@@ -75,19 +75,19 @@ export async function materializeTerminalSubagentResult(
 		terminalStderrBytes: stderrCopy.bytes,
 	});
 
-	const subagentResult = resultRef
+	const workerResult = resultRef
 		? await readJsonLoose<Record<string, unknown>>(
 				safeArtifactPath(snapshot, resultRef, artifactRoot),
 			)
 		: undefined;
 	const toolCalls = await readToolCallsSummary(
 		snapshot,
-		subagentResult,
+		workerResult,
 		artifactRoot,
 	);
 	const failedToolCalls = await readFailedToolCalls(
 		snapshot,
-		subagentResult,
+		workerResult,
 		artifactRoot,
 	);
 	const [outputText, stderrText] = await Promise.all([
@@ -95,9 +95,9 @@ export async function materializeTerminalSubagentResult(
 		readFile(stderrFile, "utf8").catch(() => ""),
 	]);
 	const outputBytes = Buffer.byteLength(outputText, "utf8");
-	let statusInfo = workflowStatusFromSubagent(
+	let statusInfo = workflowStatusFromWorker(
 		snapshot,
-		subagentResult,
+		workerResult,
 		outputBytes,
 	);
 	const deterministicBootFailure = classifyDeterministicBootFailure({
@@ -105,7 +105,7 @@ export async function materializeTerminalSubagentResult(
 		stderrText,
 		outputBytes,
 		contextLengthExceeded: Boolean(
-			(subagentResult?.metadata as any)?.contextLengthExceeded ??
+			(workerResult?.metadata as any)?.contextLengthExceeded ??
 				snapshot.metadata?.contextLengthExceeded,
 		),
 	});
@@ -117,23 +117,23 @@ export async function materializeTerminalSubagentResult(
 		};
 	}
 	const completedAt =
-		typeof subagentResult?.completedAt === "string"
-			? subagentResult.completedAt
+		typeof workerResult?.completedAt === "string"
+			? workerResult.completedAt
 			: (snapshot.completedAt ?? nowIso());
 	const startedAt =
-		typeof subagentResult?.startedAt === "string"
-			? subagentResult.startedAt
+		typeof workerResult?.startedAt === "string"
+			? workerResult.startedAt
 			: snapshot.startedAt;
 	const exitCode =
-		typeof subagentResult?.exitCode === "number"
-			? subagentResult.exitCode
+		typeof workerResult?.exitCode === "number"
+			? workerResult.exitCode
 			: statusInfo.status === "completed"
 				? 0
 				: 1;
 	let errorMessage =
 		statusInfo.errorMessage ??
-		(typeof subagentResult?.errorMessage === "string"
-			? subagentResult.errorMessage
+		(typeof workerResult?.errorMessage === "string"
+			? workerResult.errorMessage
 			: undefined);
 	// "executor run failed: executor_config" alone sends the owner to the logs; name the CLI's
 	// own error line when it printed one (e.g. Pi: `Error: Model "x" is ambiguous …`).
@@ -142,7 +142,7 @@ export async function materializeTerminalSubagentResult(
 	if (errorMessage !== statusInfo.errorMessage && statusInfo.errorMessage)
 		statusInfo = { ...statusInfo, errorMessage };
 	const contextLengthExceeded = Boolean(
-		(subagentResult?.metadata as any)?.contextLengthExceeded ??
+		(workerResult?.metadata as any)?.contextLengthExceeded ??
 			snapshot.metadata?.contextLengthExceeded,
 	);
 	const permanentModelFailure = classifyPermanentModelFailure({
@@ -151,7 +151,7 @@ export async function materializeTerminalSubagentResult(
 		stderrText,
 		outputBytes,
 		contextLengthExceeded,
-		subagentResult,
+		workerResult,
 		snapshotMetadata: snapshot.metadata,
 	});
 	if (permanentModelFailure) {
@@ -165,11 +165,11 @@ export async function materializeTerminalSubagentResult(
 	recordTerminalTaskObservability({
 		task,
 		snapshot,
-		subagentResult,
+		workerResult,
 		startedAt,
 		completedAt,
 	});
-	recordTaskOwnedSession(task, snapshot, subagentResult);
+	recordTaskOwnedSession(task, snapshot, workerResult);
 	const blockedActions = projectBlockedActions(
 		(snapshot.metadata?.executor as { blockedActions?: unknown } | undefined)
 			?.blockedActions,
@@ -192,10 +192,10 @@ export async function materializeTerminalSubagentResult(
 			completedAt,
 			startedAt,
 			errorMessage: message,
-			subagent: {
+			worker: {
 				runId: snapshot.runId,
 				attemptId: snapshot.attemptId,
-				backend: snapshot.backend,
+				executorId: snapshot.executorId,
 				failureKind: snapshot.failureKind,
 				resultPath: resultRef?.path,
 				artifactCwd: resultRef?.artifactCwd,
@@ -209,10 +209,10 @@ export async function materializeTerminalSubagentResult(
 				EXECUTOR_NEEDS_DECISION_STATUS_DETAIL,
 				{ completedAt, exitCode: 1, lastMessage: message },
 			);
-			delete blockedTask.backendHandle;
-			delete blockedTask.backendFiles;
+			delete blockedTask.workerHandle;
+			delete blockedTask.workerFiles;
 		}
-		await recordTerminalParentSubagentChildEvent(run, task, snapshot);
+		await recordTerminalParentWorkerChildEvent(run, task, snapshot);
 		return true;
 	}
 	if (activeForeachBatch && task.foreachBatch?.role === "leader") {
@@ -234,7 +234,7 @@ export async function materializeTerminalSubagentResult(
 			startedAt,
 			exitCode,
 		});
-		await recordTerminalParentSubagentChildEvent(run, task, snapshot);
+		await recordTerminalParentWorkerChildEvent(run, task, snapshot);
 		return changed;
 	}
 	if (statusInfo.status === "completed") {
@@ -255,12 +255,12 @@ export async function materializeTerminalSubagentResult(
 				completedAt,
 				startedAt,
 				exitCode,
-				subagentResult,
-				subagentToolCalls: failedToolCalls,
-				subagentToolCallsSummary: toolCalls,
+				workerResult,
+				workerToolCalls: failedToolCalls,
+				workerToolCallsSummary: toolCalls,
 			},
 		);
-		await recordTerminalParentSubagentChildEvent(run, task, snapshot);
+		await recordTerminalParentWorkerChildEvent(run, task, snapshot);
 		return changed;
 	}
 	if (
@@ -271,7 +271,7 @@ export async function materializeTerminalSubagentResult(
 			outputText,
 			exitCode,
 			contextLengthExceeded,
-			subagentResult,
+			workerResult,
 			snapshot,
 		})
 	) {
@@ -286,18 +286,18 @@ export async function materializeTerminalSubagentResult(
 				completedAt,
 				startedAt,
 				exitCode,
-				subagentResult,
-				subagentToolCalls: failedToolCalls,
-				subagentToolCallsSummary: toolCalls,
+				workerResult,
+				workerToolCalls: failedToolCalls,
+				workerToolCallsSummary: toolCalls,
 				salvage: {
 					failureKind:
 						statusInfo.failureKind ?? snapshot.failureKind ?? "model",
-					subagentStatus: snapshot.status,
-					subagentFailureKind: snapshot.failureKind,
+					workerStatus: snapshot.status,
+					workerFailureKind: snapshot.failureKind,
 				},
 			},
 		);
-		await recordTerminalParentSubagentChildEvent(run, task, snapshot);
+		await recordTerminalParentWorkerChildEvent(run, task, snapshot);
 		return changed;
 	}
 	const workflowResult = {
@@ -310,14 +310,14 @@ export async function materializeTerminalSubagentResult(
 		errorMessage,
 		noFinalOutput: outputBytes === 0,
 		contextLengthExceeded,
-		subagent: {
+		worker: {
 			runId: snapshot.runId,
 			attemptId: snapshot.attemptId,
-			backend: snapshot.backend,
+			executorId: snapshot.executorId,
 			failureKind: snapshot.failureKind,
 			resultPath: resultRef?.path,
 			artifactCwd: resultRef?.artifactCwd,
-			metadata: hasPartialSubagentOutput(snapshot, subagentResult)
+			metadata: hasPartialWorkerOutput(snapshot, workerResult)
 				? { ...snapshot.metadata, outputPartial: true }
 				: snapshot.metadata,
 			completion: snapshot.completion,
@@ -340,7 +340,7 @@ export async function materializeTerminalSubagentResult(
 			modelBackoffKey: modelRateLimitBackoffKey(task),
 			errorMessage,
 			stderrText,
-			subagentResult,
+			workerResult,
 			snapshotMetadata: snapshot.metadata,
 		});
 		await recordSharedModelRateLimitBackoff(task, rateLimitBackoffMs);
@@ -348,7 +348,7 @@ export async function materializeTerminalSubagentResult(
 			transientFailureAttemptPath(resultFile, retryAttempt),
 			workflowResult,
 		);
-		const changed = retryOrFailTransientSubagentFailure(task, {
+		const changed = retryOrFailTransientWorkerFailure(task, {
 			reason:
 				rateLimitBackoffMs === undefined
 					? (statusInfo.failureKind ?? "model")
@@ -356,7 +356,7 @@ export async function materializeTerminalSubagentResult(
 			message: errorMessage ?? "executor run failed before producing output",
 			backoffMs: rateLimitBackoffMs,
 		});
-		await recordTerminalParentSubagentChildEvent(run, task, snapshot);
+		await recordTerminalParentWorkerChildEvent(run, task, snapshot);
 		return changed;
 	}
 	await writeJson(resultFile, workflowResult);
@@ -369,15 +369,15 @@ export async function materializeTerminalSubagentResult(
 		completedAfterTimeout,
 	});
 	if (isTerminalTaskStatus(task.status)) {
-		delete task.backendHandle;
-		delete task.backendFiles;
+		delete task.workerHandle;
+		delete task.workerFiles;
 	}
-	await recordTerminalParentSubagentChildEvent(run, task, snapshot);
+	await recordTerminalParentWorkerChildEvent(run, task, snapshot);
 	return changed;
 }
 
-function workflowStatusFromSubagent(
-	snapshot: SubagentRunStatusSnapshot,
+function workflowStatusFromWorker(
+	snapshot: WorkerRunStatusSnapshot,
 	result: Record<string, unknown> | undefined,
 	outputBytes: number,
 ): {
@@ -389,7 +389,7 @@ function workflowStatusFromSubagent(
 		(result?.metadata as any)?.contextLengthExceeded ??
 			snapshot.metadata?.contextLengthExceeded,
 	);
-	const outputPartial = hasPartialSubagentOutput(snapshot, result);
+	const outputPartial = hasPartialWorkerOutput(snapshot, result);
 	if (snapshot.failureKind === EXECUTOR_NEEDS_DECISION_FAILURE_KIND) {
 		const workerExit = (
 			snapshot.metadata?.executor as { workerExit?: unknown } | undefined
@@ -484,10 +484,10 @@ export const EXECUTOR_NEEDS_DECISION_STATUS_DETAIL = "executor_needs_decision";
  */
 export function recordTaskOwnedSession(
 	task: WorkflowTaskRunRecord,
-	snapshot: SubagentRunStatusSnapshot,
-	subagentResult: Record<string, unknown> | undefined,
+	snapshot: WorkerRunStatusSnapshot,
+	workerResult: Record<string, unknown> | undefined,
 ): void {
-	const metadata = (subagentResult?.metadata ?? snapshot.metadata) as
+	const metadata = (workerResult?.metadata ?? snapshot.metadata) as
 		| Record<string, unknown>
 		| undefined;
 	const executor = metadata?.executor as Record<string, unknown> | undefined;
@@ -504,8 +504,8 @@ export function recordTaskOwnedSession(
 		executorId: executor.id,
 		kind: owned.kind,
 		locator: owned.locator,
-		backendRunId: snapshot.runId,
-		backendAttemptId: snapshot.attemptId,
+		workerRunId: snapshot.runId,
+		workerAttemptId: snapshot.attemptId,
 		recordedAt: nowIso(),
 	};
 	task.ownedSessions ??= [];

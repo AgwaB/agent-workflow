@@ -23,7 +23,7 @@ import type { FailureKind, Status } from "../core/constants.js";
 import type { DurableWorkerPayload } from "../durable-worker-payload.js";
 import { takeEnvChannel } from "../orchestrate/env-values.js";
 import type { RuntimeRunInput } from "../orchestrate/request.js";
-import type { PreparedSubagentExecution } from "../orchestrate/run.js";
+import type { PreparedWorkerExecution } from "../orchestrate/run.js";
 import type { ProcessIdentity } from "../process-identity.js";
 import type { DurableWorkerBindingPayload } from "./durable-worker-binding.js";
 
@@ -61,7 +61,7 @@ const [
 		refreshTerminalAttemptResultIfCurrent,
 		updateAttemptWorkerProcess,
 	},
-	{ DEFAULT_RUNS_DIR, isFailureKind, isResolvedBackend },
+	{ DEFAULT_RUNS_DIR, isFailureKind, isExecutorId },
 	{ createDurableLaunchAuthority },
 	{ isDurableLaunchBarrierError, isDurableLaunchBarrierRevokedError },
 	payloadModule,
@@ -70,10 +70,10 @@ const [
 	{ isExecutionNotStartedError },
 	{
 		discardPreparedExecutionWorkspace,
-		prepareSubagentExecution,
-		runPreparedSubagentExecution,
+		prepareWorkerExecution,
+		runPreparedWorkerExecution,
 	},
-	{ UNKNOWN_BACKEND },
+	{ UNKNOWN_EXECUTOR_ID },
 	{ captureProcessIdentity },
 	{
 		executionInputAfterDurableLaunch,
@@ -280,16 +280,16 @@ async function failUnresolvedPayload(
 		const output = await store.ensureTextArtifact("output");
 		await closeControlMailbox(store.attemptDir).catch(() => undefined);
 		const status = executionAbort.signal.aborted ? "cancelled" : "failed";
-		const backend = isResolvedBackend(rawFields.backend)
-			? rawFields.backend
-			: UNKNOWN_BACKEND;
+		const executorId = isExecutorId(rawFields.executorId)
+			? rawFields.executorId
+			: UNKNOWN_EXECUTOR_ID;
 		const startedAt =
 			typeof rawFields.startedAt === "string" &&
 			Number.isFinite(Date.parse(rawFields.startedAt))
 				? rawFields.startedAt
 				: new Date().toISOString();
 		await store.writeResult({
-			backend,
+			executorId,
 			status,
 			failureKind: executionAbort.signal.aborted
 				? "user_cancelled"
@@ -428,7 +428,7 @@ const workerProcessGroupId =
 	process.platform === "win32" ? undefined : process.pid;
 let terminalWritePromise: Promise<ResultEnvelope | undefined> | undefined;
 let heartbeat: ReturnType<typeof setInterval> | undefined;
-let preparedExecution: PreparedSubagentExecution | undefined;
+let preparedExecution: PreparedWorkerExecution | undefined;
 let terminalResult: ResultEnvelope | undefined;
 
 function sleep(ms: number): Promise<void> {
@@ -493,7 +493,7 @@ async function writeTerminalResultOnce(options: {
 					}
 				: (preparedWorkspace ?? { mode: "shared" as const, cwd });
 		const result = await store.writeResult({
-			backend: payload!.backend,
+			executorId: payload!.executorId,
 			status,
 			failureKind,
 			cwd,
@@ -655,7 +655,7 @@ try {
 	const executionInput = barrier
 		? executionInputAfterDurableLaunch(input)
 		: { ...input, async: false, onComplete: undefined };
-	preparedExecution = await prepareSubagentExecution({
+	preparedExecution = await prepareWorkerExecution({
 		input: {
 			...(executionInput as Omit<RuntimeRunInput, "executor">),
 			executor: executorDescriptor,
@@ -679,7 +679,7 @@ try {
 			executionPlanSha256: prepared.executionPlanSha256,
 			executionCwd: prepared.workspace.cwd,
 		});
-	terminalResult = await runPreparedSubagentExecution(prepared, {
+	terminalResult = await runPreparedWorkerExecution(prepared, {
 		onActivity: (activity) => activityHeartbeat.update(activity),
 		signal: executionAbort.signal,
 		deferTerminalCommit: true,

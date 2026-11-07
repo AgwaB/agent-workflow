@@ -25,17 +25,17 @@ import { flushPendingIndexUpdatesForTests } from "../../dist/core/store.js";
 import "../helpers/register-default-executor.mjs";
 import { resolveRunExecutorSelection } from "../../dist/core/executor-registry.js";
 import {
-	launchSubagentTask,
-	prepareSubagentTaskLaunch,
-} from "../../dist/core/task-backend.js";
-import { setTaskRuntimeApiForTests as setSubagentApiForTests } from "../../dist/core/runtime-port.js";
-import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
+	launchWorkerTask,
+	prepareWorkerTaskLaunch,
+} from "../../dist/core/task-runner.js";
+import { setTaskRuntimeApiForTests as setWorkerApiForTests } from "../../dist/core/runtime-port.js";
+import { setWorkerLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 
 const ROOT = await mkdtemp(join(tmpdir(), "piwf-resource-inheritance-"));
 
 after(async () => {
-	setSubagentApiForTests(undefined);
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerApiForTests(undefined);
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	await flushPendingIndexUpdatesForTests();
 	await rm(ROOT, {
 		recursive: true,
@@ -76,7 +76,7 @@ async function fixture(name, options = {}) {
 			baseCwd: null,
 			warning: null,
 		},
-		backendTaskId: "",
+		workerTaskId: "",
 		artifactGraph: structuredClone(artifactGraph),
 		files: {
 			systemPrompt: `.agent-workflow/workflows/workflow_${name}/tasks/task-1/system.md`,
@@ -103,7 +103,6 @@ async function fixture(name, options = {}) {
 			total: 1,
 		},
 		cwd,
-		backend: { type: "local", mode: "headless" },
 		createdAt: now,
 		updatedAt: now,
 		specPath: "workflow.json",
@@ -152,9 +151,9 @@ async function fixture(name, options = {}) {
 }
 
 function installFakeApi(captured) {
-	setSubagentApiForTests({
+	setWorkerApiForTests({
 		supportsExplicitExtensionIsolation: () => true,
-		async runSubagent(options) {
+		async runWorker(options) {
 			captured.push(structuredClone(options));
 			return {
 				runId: `fake-run-${captured.length}`,
@@ -162,24 +161,24 @@ function installFakeApi(captured) {
 				status: "running",
 			};
 		},
-		async getSubagentStatus() {
+		async getWorkerStatus() {
 			return null;
 		},
-		async reconcileSubagentRun() {
+		async reconcileWorkerRun() {
 			return {};
 		},
-		async interruptSubagent() {
+		async interruptWorker() {
 			return {};
 		},
 	});
-	setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 }
 
 async function launchCapture(name, options) {
 	const value = await fixture(name, options);
 	const captured = [];
 	try {
-		const prepared = await prepareSubagentTaskLaunch(
+		const prepared = await prepareWorkerTaskLaunch(
 			value.cwd,
 			value.run,
 			value.task,
@@ -187,7 +186,7 @@ async function launchCapture(name, options) {
 		);
 		const expectedSessionId = workflowTaskSessionId(value.run, value.task);
 		installFakeApi(captured);
-		const result = await launchSubagentTask(
+		const result = await launchWorkerTask(
 			value.cwd,
 			value.run,
 			value.task,
@@ -200,8 +199,8 @@ async function launchCapture(name, options) {
 		assert.equal(captured.length, 1);
 		return { ...value, prepared, expectedSessionId, options: captured[0] };
 	} finally {
-		setSubagentApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerApiForTests(undefined);
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	}
 }
 
@@ -324,7 +323,7 @@ test("sealed launch applies skills only for current false and preserves tools an
 		// D3 (WP12a): the engine session id stays the attempt identity, but no CLI session is kept.
 		assert.equal(Object.hasOwn(launched.options, "sessionId"), false);
 		assert.equal(
-			launched.task.backendHandle?.sessionId ?? launched.expectedSessionId,
+			launched.task.workerHandle?.sessionId ?? launched.expectedSessionId,
 			launched.expectedSessionId,
 		);
 		assert.equal(Object.hasOwn(launched.options, "noContextFiles"), false);
@@ -351,7 +350,7 @@ test("prepared policy omission, toggles, and unsupported versions fail before a 
 	});
 	const captured = [];
 	try {
-		const prepared = await prepareSubagentTaskLaunch(
+		const prepared = await prepareWorkerTaskLaunch(
 			value.cwd,
 			value.run,
 			value.task,
@@ -359,7 +358,7 @@ test("prepared policy omission, toggles, and unsupported versions fail before a 
 		);
 		installFakeApi(captured);
 		await assert.rejects(
-			launchSubagentTask(
+			launchWorkerTask(
 				value.cwd,
 				value.run,
 				value.task,
@@ -373,9 +372,9 @@ test("prepared policy omission, toggles, and unsupported versions fail before a 
 		assert.equal(captured.length, 0);
 
 		value.task.status = "pending";
-		value.task.backendHandle = undefined;
+		value.task.workerHandle = undefined;
 		await assert.rejects(
-			launchSubagentTask(
+			launchWorkerTask(
 				value.cwd,
 				value.run,
 				value.task,
@@ -399,7 +398,7 @@ test("prepared policy omission, toggles, and unsupported versions fail before a 
 			resourcePolicyVersion: 2,
 		});
 		await assert.rejects(
-			prepareSubagentTaskLaunch(
+			prepareWorkerTaskLaunch(
 				invalid.cwd,
 				invalid.run,
 				invalid.task,
@@ -408,8 +407,8 @@ test("prepared policy omission, toggles, and unsupported versions fail before a 
 			/unsupported/,
 		);
 	} finally {
-		setSubagentApiForTests(undefined);
-		setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+		setWorkerApiForTests(undefined);
+		setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 	}
 });
 
@@ -420,14 +419,12 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 		legacy.run,
 		legacy.task,
 		legacy.compiledTask,
-		"agent-workflow/runtime",
 	);
 	const legacyExplicit = await createLaunchBootstrapProvenance(
 		legacy.cwd,
 		legacy.run,
 		legacy.task,
 		legacy.compiledTask,
-		"agent-workflow/runtime",
 		{ captureToolCalls: false },
 	);
 	assert.equal(
@@ -446,7 +443,6 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 		legacy.run,
 		legacy.task,
 		legacy.compiledTask,
-		"agent-workflow/runtime",
 	);
 	assert.equal(
 		legacyRetry.schema,
@@ -480,7 +476,7 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 		resourcePolicyVersion: 1,
 		inheritSkills: false,
 	});
-	const prepared = await prepareSubagentTaskLaunch(
+	const prepared = await prepareWorkerTaskLaunch(
 		current.cwd,
 		current.run,
 		current.task,
@@ -491,7 +487,6 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 		current.run,
 		current.task,
 		current.compiledTask,
-		"agent-workflow/runtime",
 		prepared,
 	);
 	assert.equal(

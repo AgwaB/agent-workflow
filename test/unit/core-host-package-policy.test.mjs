@@ -20,7 +20,6 @@ const hostPackages = [
 const peerPackages = [
 	"@earendil-works/pi-ai",
 	"@earendil-works/pi-coding-agent",
-	"@earendil-works/pi-tui",
 ];
 
 test("host-provided packages are wildcard peers, never runtime dependencies or bundles", () => {

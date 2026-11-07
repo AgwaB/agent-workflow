@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { after, test } from "node:test";
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
-import { setSubagentLaunchControlsForTests } from "../../dist/core/launch-slots.js";
+import { setWorkerLaunchControlsForTests } from "../../dist/core/launch-slots.js";
 import { startDashboardServer } from "../helpers/dashboard-server.mjs";
 import {
 	mintLaunchUrl,
@@ -37,7 +37,7 @@ const clients = [],
 	dashboards = [],
 	roots = [],
 	unregister = [];
-setSubagentLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
 after(async () => {
 	for (const client of clients) await client.close();
 	for (const dashboard of dashboards) await dashboard.close();
