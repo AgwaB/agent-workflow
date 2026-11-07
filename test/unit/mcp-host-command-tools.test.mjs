@@ -14,6 +14,7 @@ import { after, before, test } from "node:test";
 
 import { inProcessHostServer, waitLoop } from "../helpers/mcp-host-client.mjs";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
+import { drainWorkflowProject } from "../helpers/workflow-fixture-lifecycle.mjs";
 
 const api = await import("../../dist/hosts/api.js");
 const cli = await import("../../dist/hosts/cli/index.js");
@@ -215,6 +216,9 @@ test("tools/list: the nine CLI-command tools follow the original nine; schemas, 
 test("read-only tools equal the host API and CLI --json; no elicitation is sent", async () => {
 	const { cwd, env, ctx } = await project();
 	const { runId } = await interruptedRun(ctx);
+	// The stopped worker's finalizer appends its last event after the status turns interrupted; the
+	// byte counts the prune calls compare below change until it has.
+	await drainWorkflowProject(cwd);
 	const prober = async (descriptor) => ({
 		probe:
 			descriptor.id === "claude"
