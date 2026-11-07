@@ -363,6 +363,11 @@ A detached supervisor or a resumed run cannot receive adapter objects. The run r
   (`src/executors/<id>/version.ts` exports `<ID>_EXECUTOR_ID` and the adapter version). The core
   registry imports only that file to build the built-in descriptor, so the core never pulls an
   adapter (or its CLI-specific code) into its import graph.
+- **Executor policy.** Rules the engine must apply before launch for one built-in executor live in
+  that adapter's `policy.ts` (Pi: host tools its workers inherit, `provider/model` naming, the fast
+  tier, per-task descriptor config, the pi-web-access doctor fix), reached through
+  `src/core/executor-policy.ts`. The engine asks what an executor supports instead of testing its id;
+  a registered third-party executor has no policy (no host tools, no fast tier).
 - Register a third-party adapter in process with `registerWorkflowExecutor(descriptor)` (from
   `@agwab/agent-workflow`); a run then selects it with `executor: "<id>"` (CLI `--executor <id>`).
 

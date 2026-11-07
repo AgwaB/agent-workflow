@@ -1151,6 +1151,9 @@ async function launchClaimed(
 		...(overrides ? { runtimeOverrides: overrides } : {}),
 		...(runtimeDefaults ? { runtimeDefaults } : {}),
 		...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+		...(ctx.modelRegistryExecutor
+			? { modelRegistryExecutor: ctx.modelRegistryExecutor }
+			: {}),
 		...(ctx.hostTools ? { inheritHostTools: true } : {}),
 		...(inputOverrides ? { inputOverrides } : {}),
 		// WP42: the engine's foreground fence (after the capability confirm, before publication and

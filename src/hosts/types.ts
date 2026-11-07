@@ -109,6 +109,8 @@ export interface HostApiContext {
 	 * (`/workflow profile`) are consulted at launch; hosts without a registry (CLI, MCP) skip them.
 	 */
 	availableModels?: WorkflowModelInfo[];
+	/** Executor whose model registry `availableModels` is (Pi host: `pi`); other executors skip it. */
+	modelRegistryExecutor?: string;
 	/**
 	 * WP35 (Pi host only): the host session has Pi's native codemode/MCP, so Pi workers may inherit
 	 * them (`inheritHostTools`). Launches record the run's host context with this project-trust

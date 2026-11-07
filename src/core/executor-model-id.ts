@@ -14,6 +14,8 @@
  * would fail the stage mid-run. Probe model lists (no model call) settle ambiguous cases.
  */
 
+import { executorPolicy } from "./executor-policy.js";
+
 /** Who makes a model, from its name: `openai`, `anthropic`, a Pi provider id, or undefined. */
 export function modelVendor(model: string): string | undefined {
 	// Provider prefixes are matched without case ("OpenAI/gpt-…" is an OpenAI model).
@@ -45,11 +47,6 @@ const VENDOR_EXECUTOR: Readonly<Record<string, string>> = {
 	openai: "codex",
 	anthropic: "claude",
 	google: "antigravity",
-};
-/** Pi providers preferred for a bare id of a vendor (ChatGPT login first, as Pi users have it). */
-const PI_PROVIDER_PREFERENCE: Readonly<Record<string, readonly string[]>> = {
-	openai: ["openai-codex", "openai"],
-	anthropic: ["anthropic"],
 };
 
 export type ExecutorNameResolution =
@@ -115,46 +112,9 @@ function resolveTrimmedModel(
 			notice: `model "${value}" is not in ${executorId}'s model list (${listed.join(", ") || "none"}); it runs only if ${executorId} accepts that name`,
 		};
 	}
-	if (executorId === "pi") {
-		if (/^[a-z0-9][a-z0-9-]*\//u.test(model)) {
-			if (listed === null || listComplete === false)
-				return {
-					value: model,
-					changed: false,
-					...(listed === null
-						? {}
-						: {
-								notice: `model "${model}" is not in Pi's model list (providers with configured auth); it runs only if Pi can resolve it`,
-							}),
-				};
-			return {
-				refused: `model "${model}" is not offered by pi (its models: ${listed.join(", ")})`,
-			};
-		}
-		// A bare id (codex/claude form): find the Pi provider that offers it.
-		if (listed === null)
-			return {
-				value: model,
-				changed: false,
-				notice: `model "${model}" has no provider prefix and Pi's model list is not available; Pi resolves it itself`,
-			};
-		const matches = listed.filter((entry) => bare(entry) === model);
-		if (matches.length === 1) return { value: matches[0]!, changed: true };
-		const preferred = (PI_PROVIDER_PREFERENCE[vendor ?? ""] ?? [])
-			.map((provider) => `${provider}/${model}`)
-			.find((candidate) => matches.includes(candidate));
-		if (preferred !== undefined) return { value: preferred, changed: true };
-		if (matches.length > 1)
-			return {
-				refused: `model "${model}" is offered by several Pi providers (${matches.join(", ")}); name one`,
-			};
-		// Pi's --model also resolves patterns ("sonnet", "opus"); it reports one it cannot resolve.
-		return {
-			value: model,
-			changed: false,
-			notice: `model "${model}" is not an exact Pi model id; Pi resolves it as a pattern when the stage starts (exact ids look like "anthropic/claude-opus-5-5")`,
-		};
-	}
+	// A multi-provider CLI (Pi) names models `provider/model`; its policy resolves them.
+	const policy = executorPolicy(executorId).resolveModel;
+	if (policy !== undefined) return policy(model, vendor, listed, listComplete);
 	return { value: model, changed: false };
 }
 

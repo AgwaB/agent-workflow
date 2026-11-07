@@ -1,6 +1,7 @@
-// Fast-tier configuration is executor-neutral; provider-stream guards belong to the Pi executor.
-import type { FastMode } from "./types.js";
-import type { WorkflowModelInfo } from "./workflow-runtime.js";
+// Pi fast tier (OpenAI priority service tier): which models and APIs support it. The engine reaches
+// it through the Pi executor policy (policy.ts); the run extension enforces it in the worker.
+import type { FastMode } from "../../core/types.js";
+import type { WorkflowModelInfo } from "../../core/workflow-runtime.js";
 
 export const WORKFLOW_FAST_SERVICE_TIER = "priority" as const;
 

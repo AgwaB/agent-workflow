@@ -2,11 +2,9 @@ import { projectTaskActivity } from "./task-activity.js";
 // Apply worktree and capability gates before launch; capability refusal has no effects.
 // Each task uses its recorded executor and the run permission mode (safe when absent).
 // Host-tool inheritance and accepted fast-tier options apply only to Pi tasks.
-import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
-import { INHERITED_HOST_TOOL_NAMES } from "./tool-policy.js";
+import { executorPolicy } from "./executor-policy.js";
 import type { ExecutorDescriptor } from "../sdk/descriptor.js";
 import type { NegotiationReport } from "../sdk/requirements.js";
-import { isPlainObject, type JsonValue } from "../sdk/json.js";
 import { enforcesReadOnly, type PermissionMode } from "../sdk/permission.js";
 import type { ToolKind } from "../sdk/events.js";
 import { isMutatingKind, WORKFLOW_TOOL_KINDS } from "../sdk/tools.js";
@@ -341,9 +339,11 @@ export async function launchSubagentTask(
 	// the executor's own tools, see renderWorkerTaskPromptToolNames).
 	const systemPrompt = buildSystemPrompt(compiledTask, effectiveLaunchTools, {
 		artifactTool: launchHasArtifactTool(sealedLaunch, effectiveLaunchTools),
-		// WP39b (O8): the Pi worker gets the host tools exactly when the sealed launch carries the
-		// run's host context (piWorkerDescriptorConfig); its prompt must name them as available.
-		inheritHostTools: sealedLaunch.hostContext !== undefined,
+		// WP39b (O8): the worker gets the host tools exactly when the sealed launch carries the run's
+		// host context (the executor policy's task descriptor); its prompt must name them.
+		...(sealedLaunch.hostContext === undefined
+			? {}
+			: { inheritedHostTools: executorPolicy(executor.id).inheritedHostTools }),
 	});
 	const renderedSystemPrompt = renderWorkerPromptToolNames(
 		systemPrompt,
@@ -1172,13 +1172,8 @@ function captureToolCallsEnabled(): boolean {
 }
 
 /**
- * WP35: the executor descriptor for one task. Pi-only per-task options travel as descriptor config
- * (docs/executors.md#pi): `inheritHostTools` exactly when the sealed launch carries the run's host
- * context (the task inherits host tools); `fast: "on"` (+ `fastApi`, the API the compiler bound)
- * when the task asks for the fast tier and the recorded negotiation accepted `fastTier` (an
- * `unverified` fastTier needs the run's opt-in; without it the preview said "runs without fast
- * tier", so the worker runs without it). Runs recorded before negotiation get no fast tier. Other
- * executors get the recorded descriptor unchanged.
+ * WP35: the executor descriptor for one task: the executor policy adds its per-task config (Pi:
+ * `inheritHostTools`, fast tier); other executors get the recorded descriptor unchanged.
  */
 export function workflowTaskExecutorDescriptor(
 	descriptor: ExecutorDescriptor,
@@ -1186,22 +1181,14 @@ export function workflowTaskExecutorDescriptor(
 	launch: Pick<PreparedWorkflowTaskLaunch, "hostContext">,
 	capability: { report?: NegotiationReport } = {},
 ): ExecutorDescriptor {
-	if (descriptor.id !== PI_EXECUTOR_ID) return descriptor;
-	const extra: Record<string, JsonValue> = {};
-	if (launch.hostContext !== undefined) extra.inheritHostTools = true;
-	const fastAccepted = capability.report?.entries.some(
-		(entry) =>
-			entry.key === "fastTier" &&
-			(entry.outcome === "native" || entry.outcome === "emulated"),
+	return (
+		executorPolicy(descriptor.id).taskDescriptor?.(
+			descriptor,
+			compiledTask,
+			launch,
+			capability,
+		) ?? descriptor
 	);
-	if (compiledTask.runtime.fast === "on" && fastAccepted === true) {
-		extra.fast = "on";
-		const api = (compiledTask.runtime as { api?: unknown }).api;
-		if (typeof api === "string" && api !== "") extra.fastApi = api;
-	}
-	if (Object.keys(extra).length === 0) return descriptor;
-	const base = isPlainObject(descriptor.config) ? descriptor.config : {};
-	return { ...descriptor, config: { ...base, ...extra } };
 }
 
 /**
@@ -1358,7 +1345,10 @@ function webToolsHint(enabledTools: readonly string[]): string | undefined {
 function buildSystemPrompt(
 	task: CompiledTask,
 	effectiveLaunchTools: readonly string[] | undefined,
-	options: { artifactTool?: boolean; inheritHostTools?: boolean } = {},
+	options: {
+		artifactTool?: boolean;
+		inheritedHostTools?: readonly string[];
+	} = {},
 ): string {
 	const workflowMaxDigestChars = task.artifactGraph?.output.maxDigestChars;
 	const workflowRefsMinItems = task.artifactGraph?.output.refsMinItems;
@@ -1399,7 +1389,8 @@ function buildSystemPrompt(
 						"When complete, provide a concise final report with findings, changed files if any, and blockers.",
 					];
 	const enabledTools = effectiveLaunchTools ?? [];
-	const hostTools = options.inheritHostTools === true;
+	const inheritedHostTools = options.inheritedHostTools ?? [];
+	const hostTools = inheritedHostTools.length > 0;
 	const toolPolicy = [
 		"# Effective Tool Policy",
 		effectiveLaunchTools === undefined
@@ -1409,7 +1400,7 @@ function buildSystemPrompt(
 				: `No ${hostTools ? "workflow tools" : "tools"} are enabled for this workflow task.`,
 		// WP39b (live bundle 5, O8): inherited host tools (Pi executor only, never readOnly stages).
 		hostTools
-			? `Host tools inherited from the Pi session are also available: ${INHERITED_HOST_TOOL_NAMES.map((name) => (name === "mcp__*" ? "mcp__* (matching MCP tools)" : name)).join(", ")}; use them when the task needs them. Discover MCP tools through tool_search or codemode; trust, exposure and permission checks still apply.`
+			? `Host tools inherited from the Pi session are also available: ${inheritedHostTools.map((name) => (name === "mcp__*" ? "mcp__* (matching MCP tools)" : name)).join(", ")}; use them when the task needs them. Discover MCP tools through tool_search or codemode; trust, exposure and permission checks still apply.`
 			: undefined,
 		effectiveLaunchTools === undefined
 			? "Use only tools actually available from the host."

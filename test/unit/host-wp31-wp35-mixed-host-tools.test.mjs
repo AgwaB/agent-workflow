@@ -294,6 +294,6 @@ test("launch provenance checks the task's executor, not the run's", async () => 
 	assert.equal(record.effectivePolicy.inheritHostTools, true);
 	await assert.rejects(
 		provenance("pi", "claude"),
-		/needs the pi executor; task task-1 uses claude/u,
+		/needs an executor that inherits host tools \(pi\); task task-1 uses claude/u,
 	);
 });

@@ -13,7 +13,6 @@ import {
 	resourceInheritanceWarnings,
 	WORKFLOW_RESOURCE_POLICY_VERSION,
 } from "./resource-inheritance.js";
-import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
 import {
 	EXECUTION_PROFILE_EXECUTOR,
 	EXECUTION_PROFILE_FOREACH_BATCH,
@@ -58,7 +57,10 @@ import {
 	type WorkflowRuntimeDefaults,
 	type WorkflowRuntimeResolutionInput,
 } from "./workflow-runtime.js";
-import { resolveWorkflowFastModeConfig } from "./fast-tier.js";
+import {
+	executorInheritsHostTools,
+	validateExecutorFastMode,
+} from "./executor-policy.js";
 import {
 	applyWorkflowToolPolicy,
 	INHERITED_HOST_TOOLS_CLASSIFICATION,
@@ -1635,7 +1637,7 @@ async function compileArtifactGraphPlan(
 			inheritHostTools:
 				toolPolicyOptions.inheritHostTools &&
 				(stageHostToolsExecutor === undefined ||
-					stageHostToolsExecutor === PI_EXECUTOR_ID),
+					executorInheritsHostTools(stageHostToolsExecutor)),
 		};
 		const runtimeStageKind = runtimeStageKindFor(stage) ?? "single";
 		const each =
@@ -1698,7 +1700,8 @@ async function compileArtifactGraphPlan(
 				},
 				{ availableModels: stageAvailableModels },
 			);
-			resolveWorkflowFastModeConfig(
+			validateExecutorFastMode(
+				stageEffectiveExecutor,
 				resolvedDynamicRuntime,
 				stageAvailableModels,
 			);
@@ -1875,7 +1878,11 @@ async function compileArtifactGraphPlan(
 				availableModels: stageAvailableModels,
 			},
 		);
-		resolveWorkflowFastModeConfig(resolvedRuntime, stageAvailableModels);
+		validateExecutorFastMode(
+			stageEffectiveExecutor,
+			resolvedRuntime,
+			stageAvailableModels,
+		);
 		const runtime = {
 			approvalMode:
 				stage.approvalMode ?? spec.defaults?.approvalMode ?? "non-interactive",

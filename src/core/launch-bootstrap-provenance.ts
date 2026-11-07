@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
+import { executorInheritsHostTools } from "./executor-policy.js";
 
 import {
 	type ArtifactAccessConfig,
@@ -96,9 +96,12 @@ export async function createLaunchBootstrapProvenance(
 		throw new Error("workflow host context does not match the run");
 	}
 	const taskExecutorId = preparedTask.runtime.executor ?? run.executor?.id;
-	if (expectedHostContext !== undefined && taskExecutorId !== PI_EXECUTOR_ID)
+	if (
+		expectedHostContext !== undefined &&
+		!executorInheritsHostTools(taskExecutorId)
+	)
 		throw new Error(
-			`workflow host-tool inheritance needs the pi executor; task ${task.taskId} uses ${taskExecutorId ?? "no recorded executor"}`,
+			`workflow host-tool inheritance needs an executor that inherits host tools (pi); task ${task.taskId} uses ${taskExecutorId ?? "no recorded executor"}`,
 		);
 	const sessionId = workflowTaskSessionId(run, task);
 	const artifactIdentities = await artifactIdentity(cwd, run, task);

@@ -228,7 +228,7 @@ import {
 	resolveRunExecutorForHost,
 } from "./executor-default.js";
 import { resolveHostContext, withHostContext } from "./host-context.js";
-import { PI_EXECUTOR_ID } from "../executors/pi/version.js";
+import { executorInheritsHostTools } from "./executor-policy.js";
 import {
 	resolveRunPermissionMode,
 	workflowDeclaredProfilePermissionMode,
@@ -419,6 +419,8 @@ export interface WorkflowRunOptions {
 	runtimeOverrides?: WorkflowRuntimeDefaults;
 	runtimeDefaults?: WorkflowRuntimeDefaults;
 	availableModels?: WorkflowModelInfo[];
+	/** Executor whose model registry `availableModels` is (the Pi host's: pi). */
+	modelRegistryExecutor?: string;
 	runId?: string;
 	parentRunId?: string;
 	/** Optional routing audit record persisted on the run record. */
@@ -768,7 +770,7 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	}
 	const mixedRun = rolePlan?.roleExecution.mixed === true;
 	const modelRegistryExecutor =
-		options.host === "pi" ? "pi" : options.runtimeDefaults?.executor;
+		options.modelRegistryExecutor ?? options.runtimeDefaults?.executor;
 	const compileRuntimeDefaults = runtimeDefaultsWithSavedProfile(
 		options.runtimeDefaults,
 		options.executionProfile ? options.savedUserProfile : undefined,
@@ -781,18 +783,18 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 	const inheritsHostTools =
 		inheritHostTools &&
 		(parentRun !== undefined ||
-			executor.id === PI_EXECUTOR_ID ||
-			(rolePlan?.otherExecutors.some(
-				(selection) => selection.id === PI_EXECUTOR_ID,
+			executorInheritsHostTools(executor.id) ||
+			(rolePlan?.otherExecutors.some((selection) =>
+				executorInheritsHostTools(selection.id),
 			) ??
 				false));
 	const compiled = await compileWorkflow(spec, {
 		cwd,
 		specPath,
 		task: options.task,
-		...(inheritsHostTools
-			? { inheritHostTools: true, runExecutor: executor.id }
-			: {}),
+		// The run's executor also decides executor-specific checks (e.g. the fast tier) at compile.
+		runExecutor: executor.id,
+		...(inheritsHostTools ? { inheritHostTools: true } : {}),
 		...(allowSharedCheckoutWrites ? { allowSharedCheckoutWrites: true } : {}),
 		permissionMode: permissionMode.mode,
 		runtimeOverrides: options.runtimeOverrides,

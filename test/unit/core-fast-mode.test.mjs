@@ -18,7 +18,7 @@ import { createTaskRunRecord } from "../../dist/core/store.js";
 import {
 	resolveWorkflowFastModeConfig,
 	workflowFastEligibleModelIds,
-} from "../../dist/core/fast-tier.js";
+} from "../../dist/executors/pi/fast-tier.js";
 import { selectWorkflowRuntime } from "../../dist/core/workflow-runtime.js";
 
 const ROOT = mkdtempSync(join(tmpdir(), "agent-workflow-fast-mode-"));
@@ -231,10 +231,20 @@ test("compiler accepts an eligible Fast model and rejects unresolved or unsuppor
 	);
 
 	const unsupported = model("anthropic/claude-opus-4-6", "anthropic-messages");
+	// Only an executor with a fast tier checks the model; elsewhere negotiation reports no fast tier.
+	await assert.doesNotReject(
+		compileWorkflow(workflow({ model: unsupported.fullId, fast: "on" }), {
+			cwd,
+			task: "Codex has no fast tier to validate",
+			availableModels: [unsupported],
+			runExecutor: "codex",
+		}),
+	);
 	await assert.rejects(
 		compileWorkflow(workflow({ model: unsupported.fullId, fast: "on" }), {
 			cwd,
 			task: "Reject unsupported provider",
+			runExecutor: "pi",
 			availableModels: [unsupported],
 		}),
 		/fast:on is not supported for model "anthropic\/claude-opus-4-6"/,
@@ -243,6 +253,7 @@ test("compiler accepts an eligible Fast model and rejects unresolved or unsuppor
 		compileWorkflow(workflow({ fast: "on" }), {
 			cwd,
 			task: "Reject unresolved model",
+			runExecutor: "pi",
 		}),
 		/requires a resolved OpenAI model/,
 	);
@@ -250,6 +261,7 @@ test("compiler accepts an eligible Fast model and rejects unresolved or unsuppor
 		compileWorkflow(workflow({ model: CODEX_FAST_MODEL.fullId, fast: "on" }), {
 			cwd,
 			task: "Reject API mismatch",
+			runExecutor: "pi",
 			availableModels: [{ ...CODEX_FAST_MODEL, api: "openai-responses" }],
 		}),
 		/requires openai-codex-responses.*registered openai-responses/,

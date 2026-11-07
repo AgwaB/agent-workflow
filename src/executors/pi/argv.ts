@@ -1,6 +1,6 @@
 // Send prompts on stdin, not argv; system prompts use a file path.
 // Keep sessions under adapter state and carry MCP servers and Pi options in a per-run extension.
-import { INHERITED_HOST_TOOL_NAMES } from "../../core/tool-policy.js";
+import { INHERITED_HOST_TOOL_NAMES } from "./policy.js";
 import type { ToolKind } from "../../sdk/events.js";
 import {
 	isMutatingKind,
@@ -67,7 +67,7 @@ export const PI_EXECUTOR_TOOL_MAPPING: ToolMapping = {
 	},
 };
 
-/** Tools inheritHostTools adds; the shared list lives in core. */
+/** Tools inheritHostTools adds (the list lives in the Pi executor policy). */
 export const INHERITED_HOST_TOOLS = INHERITED_HOST_TOOL_NAMES;
 
 /** `mcp__<server>__<tool>` with chars outside `[A-Za-z0-9_]` → `_` (Pi 1.1 `docs/extending.md#workflow-artifact-mcp-server`). */

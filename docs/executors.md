@@ -182,7 +182,7 @@ becomes `null`/`unknown`, since Pi cannot distinguish free from unpriced.
 ### Fast tier
 
 `fast: "on"` requests `service_tier: priority` for eligible OpenAI models
-(`src/core/fast-tier.ts`). The task backend passes per-task `fast` and `fastApi` only when recorded
+(`src/executors/pi/fast-tier.ts`, reached through the Pi executor policy). The task backend passes per-task `fast` and `fastApi` only when recorded
 negotiation accepted `fastTier`. This requires `allowUnverifiedCapabilities: ["fastTier"]`;
 otherwise the preview records degradation and the worker runs without fast tier.
 

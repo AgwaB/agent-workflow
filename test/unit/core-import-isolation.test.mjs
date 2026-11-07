@@ -37,6 +37,42 @@ test("dist/core has exactly one module per src/core/*.ts and no type bridge", ()
 	assert.equal(existsSync(join(root, "src", "core", "types-bridge.ts")), false);
 });
 
+const IMPORT_PATTERN =
+	/(?:^|\n)\s*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)/g;
+
+function importsOf(file) {
+	return [...readFileSync(file, "utf8").matchAll(IMPORT_PATTERN)].map(
+		(match) => match[1] ?? match[2],
+	);
+}
+
+test("executor policy modules core imports never pull an adapter in", () => {
+	const executors = join(root, "dist", "executors");
+	const policies = readdirSync(executors).filter((id) =>
+		existsSync(join(executors, id, "policy.js")),
+	);
+	assert.ok(policies.includes("pi"));
+	for (const id of policies) {
+		const seen = new Set();
+		const visit = (file) => {
+			if (seen.has(file)) return;
+			seen.add(file);
+			for (const specifier of importsOf(file)) {
+				if (specifier.startsWith("node:")) continue;
+				if (/^\.\.\/\.\.\/(sdk|core)\/[a-z0-9/-]+\.js$/.test(specifier))
+					continue;
+				assert.match(
+					specifier,
+					/^\.\/(?:fast-tier|web-tools|version)\.js$/,
+					`${id}/${file.split("/").pop()} imports ${specifier}`,
+				);
+				visit(join(dirname(file), specifier));
+			}
+		};
+		visit(join(executors, id, "policy.js"));
+	}
+});
+
 test("dist/core modules import only node builtins and sibling core modules", () => {
 	for (const name of coreModules()) {
 		const text = readFileSync(join(distCore, name), "utf8");
@@ -55,8 +91,10 @@ test("dist/core modules import only node builtins and sibling core modules", () 
 				specifier.startsWith("node:") ||
 					/^\.\/[a-z0-9-]+\.js$/.test(specifier) ||
 					/^\.\.\/(sdk|runtime)\/[a-z0-9/-]+\.js$/.test(specifier) ||
-					// Built-in executor identity only (never the adapter itself).
-					/^\.\.\/executors\/[a-z0-9-]+\/version\.js$/.test(specifier),
+					// Built-in executor identity and pre-launch policy only (never the adapter itself).
+					/^\.\.\/executors\/[a-z0-9-]+\/(?:version|policy)\.js$/.test(
+						specifier,
+					),
 				`${name} imports ${specifier}`,
 			);
 		}
