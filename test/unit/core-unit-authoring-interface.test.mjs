@@ -318,7 +318,7 @@ test("formatRun stays byte-identical when fail-fast policy is unset", () => {
 				agent: "unit-scout",
 				status: "completed",
 				statusDetail: "completed",
-				runtime: { model: "test-model", thinking: "none" },
+				runtime: { model: "test-model", effort: "none" },
 				worktree: { enabled: false },
 				files: {
 					output: ".agent-workflow/workflows/run-fixed/tasks/task-1/output.md",
@@ -337,7 +337,7 @@ test("formatRun stays byte-identical when fail-fast policy is unset", () => {
 created=2026-01-02T03:04:05.000Z updated=2026-01-02T03:04:06.000Z
 tasks=1/1 completed, running=0, pending=0, blocked=0, failed=0, interrupted=0
 completion=clean, outputRetries=0, launchRetries=0, resumeEvents=0, contextLimitFailures=0
-- task-1 spec=main.main agent=unit-scout [completed/completed] model=test-model thinking=none output=.agent-workflow/workflows/run-fixed/tasks/task-1/output.md`,
+- task-1 spec=main.main agent=unit-scout [completed/completed] model=test-model effort=none output=.agent-workflow/workflows/run-fixed/tasks/task-1/output.md`,
 	);
 });
 
@@ -422,7 +422,7 @@ test("bundled deep-research compacts audit packets before executive final", asyn
 		specPath,
 	});
 	const byStage = new Map(compiled.tasks.map((task) => [task.stageId, task]));
-	assert.equal(byStage.get("plan")?.runtime.thinking, "high");
+	assert.equal(byStage.get("plan")?.runtime.effort, "high");
 	assert.deepEqual(byStage.get("plan")?.runtime.tools, []);
 	assert.deepEqual(byStage.get("plan")?.artifactGraph.output.partial, {
 		paths: ["$.researchQuestions"],
@@ -431,7 +431,7 @@ test("bundled deep-research compacts audit packets before executive final", asyn
 		byStage.get("plan")?.compiledPrompt ?? "",
 		/Workflow Partial Output Protocol/,
 	);
-	assert.equal(byStage.get("research-questions")?.runtime.thinking, "medium");
+	assert.equal(byStage.get("research-questions")?.runtime.effort, "medium");
 	assert.deepEqual(byStage.get("research-questions")?.foreach?.from, {
 		stage: "plan",
 		path: "$.researchQuestions",
@@ -448,8 +448,8 @@ test("bundled deep-research compacts audit packets before executive final", asyn
 		byStage.get("research-questions")?.compiledPrompt ?? "",
 		/searchBudget=3/,
 	);
-	assert.equal(byStage.get("normalize-claims")?.runtime.thinking, "high");
-	assert.equal(byStage.get("verify-claims")?.runtime.thinking, "high");
+	assert.equal(byStage.get("normalize-claims")?.runtime.effort, "high");
+	assert.equal(byStage.get("verify-claims")?.runtime.effort, "high");
 	assert.equal(
 		byStage.get("verify-claims")?.artifactGraph.artifactAccess,
 		"none",
@@ -479,7 +479,7 @@ test("bundled deep-research compacts audit packets before executive final", asyn
 		byStage.get("verify-claims")?.compiledPrompt ?? "",
 		/verified requires structured source evidence plus quote/,
 	);
-	assert.equal(byStage.get("final-audit")?.runtime.thinking, "xhigh");
+	assert.equal(byStage.get("final-audit")?.runtime.effort, "xhigh");
 	const normalizeInputPacket = byStage.get("normalize-input-packet");
 	const normalizeClaims = byStage.get("normalize-claims");
 	const sanitizeClaims = byStage.get("sanitize-claims");
@@ -656,7 +656,7 @@ test("bundled deep-research compacts audit packets before executive final", asyn
 	);
 });
 
-test("ambient runtime defaults do not override bundled stage thinking pins", async () => {
+test("ambient runtime defaults do not override bundled stage effort pins", async () => {
 	const specPath = join(
 		process.cwd(),
 		"workflows",
@@ -670,16 +670,16 @@ test("ambient runtime defaults do not override bundled stage thinking pins", asy
 		cwd: process.cwd(),
 		task: "Research the deep-research artifact contract.",
 		specPath,
-		runtimeDefaults: { thinking: "low" },
+		runtimeDefaults: { effort: "low" },
 	});
 	const byStage = new Map(compiled.tasks.map((task) => [task.stageId, task]));
-	assert.equal(byStage.get("plan")?.runtime.thinking, "high");
-	assert.equal(byStage.get("normalize-claims")?.runtime.thinking, "high");
-	assert.equal(byStage.get("verify-claims")?.runtime.thinking, "high");
-	assert.equal(byStage.get("final-audit")?.runtime.thinking, "xhigh");
+	assert.equal(byStage.get("plan")?.runtime.effort, "high");
+	assert.equal(byStage.get("normalize-claims")?.runtime.effort, "high");
+	assert.equal(byStage.get("verify-claims")?.runtime.effort, "high");
+	assert.equal(byStage.get("final-audit")?.runtime.effort, "xhigh");
 });
 
-test("explicit runtime thinking overrides bundled stage thinking pins", async () => {
+test("explicit runtime effort overrides bundled stage effort pins", async () => {
 	const specPath = join(
 		process.cwd(),
 		"workflows",
@@ -693,7 +693,7 @@ test("explicit runtime thinking overrides bundled stage thinking pins", async ()
 		cwd: process.cwd(),
 		task: "Research the deep-research artifact contract.",
 		specPath,
-		runtimeOverrides: { thinking: "low" },
+		runtimeOverrides: { effort: "low" },
 	});
 	const byStage = new Map(compiled.tasks.map((task) => [task.stageId, task]));
 	for (const stageId of [
@@ -703,7 +703,7 @@ test("explicit runtime thinking overrides bundled stage thinking pins", async ()
 		"verify-claims",
 		"final-audit",
 	]) {
-		assert.equal(byStage.get(stageId)?.runtime.thinking, "low");
+		assert.equal(byStage.get(stageId)?.runtime.effort, "low");
 	}
 });
 
@@ -1931,7 +1931,7 @@ test("compiler applies explicit stage from dependencies and stage runtime defaul
 		const compiled = await compileWorkflow(
 			workflowSpec("unit-scout", {
 				model: "kimi-coding/kimi-for-coding",
-				thinking: "high",
+				effort: "high",
 				tools: ["read", "grep"],
 				defaults: { maxRuntimeMs: 12345 },
 				artifactGraph: {
@@ -1967,7 +1967,7 @@ test("compiler applies explicit stage from dependencies and stage runtime defaul
 			byKey["final.main"].runtime.model,
 			"kimi-coding/kimi-for-coding",
 		);
-		assert.equal(byKey["final.main"].runtime.thinking, "high");
+		assert.equal(byKey["final.main"].runtime.effort, "high");
 		assert.deepEqual(byKey["final.main"].runtime.tools, ["read", "grep"]);
 		assert.equal(byKey["final.main"].runtime.maxRuntimeMs, 12345);
 	} finally {
@@ -3489,12 +3489,12 @@ test("compiler applies runtime defaults before budget estimates", async () => {
 			{
 				cwd,
 				task: "Summarize",
-				runtimeDefaults: { model: "openai-codex/gpt-5.5", thinking: "high" },
+				runtimeDefaults: { model: "openai-codex/gpt-5.5", effort: "high" },
 			},
 		);
 
 		assert.equal(compiled.tasks[0].runtime.model, "openai-codex/gpt-5.5");
-		assert.equal(compiled.tasks[0].runtime.thinking, "high");
+		assert.equal(compiled.tasks[0].runtime.effort, "high");
 		assert.equal(compiled.budget.models[0].model, "openai-codex/gpt-5.5");
 		assert.equal(compiled.budget.unratedModels.length, 0);
 	} finally {

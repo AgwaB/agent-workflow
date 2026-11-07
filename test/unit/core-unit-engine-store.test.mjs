@@ -1280,7 +1280,7 @@ test("subagent terminal observability captures usage and separates launch timing
 
 		const spec = workflowSpec("unit-scout", {
 			model: "unit-provider/requested-model",
-			thinking: "low",
+			effort: "low",
 		});
 		const compiled = await compileWorkflow(spec, { cwd, task: "Review topic" });
 		const { run } = await createWorkflowRunRecord(
@@ -1325,7 +1325,7 @@ test("subagent terminal observability captures usage and separates launch timing
 				metadata: {
 					provider: "unit-provider",
 					model: "unit-provider/actual-model",
-					thinking: "low",
+					effort: "low",
 					usage: {
 						input: 0,
 						output: null,
@@ -1368,7 +1368,7 @@ test("subagent terminal observability captures usage and separates launch timing
 		assert.equal(refreshedTask.status, "completed");
 		assert.equal(refreshedTask.usage.provider, "unit-provider");
 		assert.equal(refreshedTask.usage.model, "unit-provider/actual-model");
-		assert.equal(refreshedTask.usage.thinking, "low");
+		assert.equal(refreshedTask.usage.effort, "low");
 		assert.equal(refreshedTask.usage.inputTokens, 0);
 		assert.equal(refreshedTask.usage.outputTokens, null);
 		assert.equal(refreshedTask.usage.totalTokens, 0);
@@ -1622,7 +1622,7 @@ test("subagent terminal observability aggregates distinct retry attempts", async
 			},
 		});
 
-		const spec = workflowSpec("unit-scout", { thinking: "low" });
+		const spec = workflowSpec("unit-scout", { effort: "low" });
 		const compiled = await compileWorkflow(spec, { cwd, task: "Review topic" });
 		const { run } = await createWorkflowRunRecord(
 			cwd,
@@ -3116,12 +3116,12 @@ test("workflow run runtime overrides reach launched subagents", async () => {
 			task: "Review the diff",
 			runtimeOverrides: {
 				model: "kimi-coding/kimi-for-coding",
-				thinking: "low",
+				effort: "low",
 			},
 		});
 
 		assert.equal(run.tasks[0].runtime.model, "kimi-coding/kimi-for-coding");
-		assert.equal(run.tasks[0].runtime.thinking, "low");
+		assert.equal(run.tasks[0].runtime.effort, "low");
 		assert.equal(captured[0].model, "kimi-coding/kimi-for-coding");
 		// The runtime receives the selected effort.
 		assert.equal(captured[0].effort, "low");
@@ -5294,7 +5294,7 @@ test("launch-bootstrap provenance is deterministic, attempt-scoped, and bounded 
 			first.identitySha256,
 			(
 				await divergence(({ compiledTask }) => {
-					compiledTask.runtime.thinking = "high";
+					compiledTask.runtime.effort = "high";
 				})
 			).identitySha256,
 		);

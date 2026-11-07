@@ -219,7 +219,7 @@ export function taskRuntime(
 		executor:
 			status?.executor ?? task.runtime?.executor ?? run.executor ?? "(default)",
 		model: status?.model ?? task.runtime?.model ?? "(executor default)",
-		effort: status?.effort ?? task.runtime?.thinking ?? "(default)",
+		effort: status?.effort ?? task.runtime?.effort ?? "(default)",
 	};
 }
 

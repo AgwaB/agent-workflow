@@ -806,9 +806,9 @@ holds the lease/has a live-pid heartbeat younger than 30 s.
 
 String-based hosts can use `parseWorkflowRunArgs`, `parseWorkflowDynamicArgs`,
 `parseWorkflowPruneArgs`, `parseSuperviseArgs`, `tokenizeWorkflowArgs`, `parseDuration`,
-`parsePermissionMode`, `parseThinkingLevel`, `parseCapabilityList`. Run/dynamic accept leading or
+`parsePermissionMode`, `parseEffortLevel`, `parseCapabilityList`. Run/dynamic accept leading or
 trailing options; quoted text is literal. Duplicate options and `--route` / `--no-route` are
-rejected. Options include model, profile, effort (thinking/reasoning aliases), executor,
+rejected. Options include model, profile, effort, executor,
 permission-mode, allow-unverified, detach and force-new.
 
 Also exported: `selectWorkflowExecutionProfile`, `resolveWorkflowExecutionProfileForLaunch`,

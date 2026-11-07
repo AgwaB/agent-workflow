@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import type { IncomingMessage } from "node:http";
 import { isValidWorkflowName } from "../../core/workflow-specs.js";
 import { workflowExecutorRegistration } from "../../core/executor-registry.js";
-import { THINKING_LEVELS, WorkflowValidationError } from "../../core/types.js";
+import { EFFORT_LEVELS, WorkflowValidationError } from "../../core/types.js";
 import { HostUsageError } from "../args.js";
 import {
 	listWorkflowsAction,
@@ -314,10 +314,7 @@ export function createDashboardManagement(options: Options) {
 					const id = text(body, "executor");
 					if (id) executor(id);
 					const effort = text(body, "effort");
-					if (
-						effort &&
-						!(THINKING_LEVELS as readonly string[]).includes(effort)
-					)
+					if (effort && !(EFFORT_LEVELS as readonly string[]).includes(effort))
 						bad("invalid effort");
 					const permissionMode = text(body, "permissionMode");
 					if (
@@ -335,7 +332,7 @@ export function createDashboardManagement(options: Options) {
 								executor: id,
 								profile,
 								model: text(body, "model"),
-								effort: effort as (typeof THINKING_LEVELS)[number] | undefined,
+								effort: effort as (typeof EFFORT_LEVELS)[number] | undefined,
 								permissionMode: permissionMode as "free" | "safe" | undefined,
 							}),
 						),

@@ -166,7 +166,7 @@ function vendorLabel(vendor: string): string {
 			: `${/^[aeiou]/u.test(vendor) ? "an" : "a"} ${vendor}`;
 }
 
-/** Effort/thinking levels each built-in executor accepts. */
+/** Effort levels each built-in executor accepts. */
 const EFFORT_LEVELS: Readonly<Record<string, readonly string[]>> = {
 	codex: ["low", "medium", "high", "xhigh", "max", "ultra"],
 	claude: ["low", "medium", "high", "xhigh", "max"],

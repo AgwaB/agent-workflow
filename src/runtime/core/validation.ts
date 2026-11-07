@@ -4,7 +4,6 @@ import {
 	AUTO_BACKEND,
 	EXECUTION_MODES,
 	ON_COMPLETE_ACTIONS,
-	THINKING_LEVELS,
 	WORKSPACE_MODES,
 	WORKTREE_POLICIES,
 	isAgentScope,
@@ -12,7 +11,6 @@ import {
 	isBackend,
 	isExecutionMode,
 	isOnCompleteAction,
-	isThinkingLevel,
 	isWorktreePolicy,
 	isWorkspaceMode,
 	type Backend,
@@ -133,38 +131,6 @@ function validateConcurrency(
 		);
 	}
 	return value;
-}
-
-function validateThinkingAliases(
-	value: Record<string, unknown>,
-	fieldName: string,
-	backend: ResolvedBackend | undefined,
-): ResolveInput["thinking"] | ResolveValidationResult {
-	const entries = [
-		["thinking", value.thinking],
-		["thinkingLevel", value.thinkingLevel],
-		["reasoningLevel", value.reasoningLevel],
-	].filter((entry): entry is [string, unknown] => entry[1] !== undefined);
-	if (entries.length === 0) return undefined;
-
-	for (const [key, raw] of entries) {
-		if (!isThinkingLevel(raw)) {
-			return failure(
-				`unsupported ${fieldName}.${key} ${formatValue(raw)}; supported thinking levels are ${formatOptions(THINKING_LEVELS)}.`,
-				backend,
-			);
-		}
-	}
-
-	const first = entries[0]![1];
-	if (!isThinkingLevel(first)) return undefined;
-	if (entries.some((entry) => entry[1] !== first)) {
-		return failure(
-			`${fieldName} thinking aliases must agree when more than one is provided.`,
-			backend,
-		);
-	}
-	return first;
 }
 
 function validateStringArray(
@@ -416,10 +382,6 @@ function validateTaskItem(
 		// executor ignores them and records a warning in run metadata.
 		task.toolResultBudget = value.toolResultBudget as ToolResultBudgetInput;
 	}
-
-	const thinking = validateThinkingAliases(value, fieldName, backend);
-	if (thinking && typeof thinking !== "string") return thinking;
-	if (thinking !== undefined) task.thinking = thinking;
 
 	return task;
 }
@@ -808,14 +770,6 @@ export function validateResolveInput(
 		// executor ignores them and records a warning in run metadata.
 		input.toolResultBudget = raw.toolResultBudget as ToolResultBudgetInput;
 	}
-
-	const thinking = validateThinkingAliases(
-		raw,
-		"input",
-		backendForKnownFailure,
-	);
-	if (thinking && typeof thinking !== "string") return thinking;
-	if (thinking !== undefined) input.thinking = thinking;
 
 	if (input.durableLaunchBarrier !== undefined) {
 		if (input.mode === "parallel" || input.tasks !== undefined) {

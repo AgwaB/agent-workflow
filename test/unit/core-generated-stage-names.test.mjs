@@ -129,7 +129,7 @@ const LUNA = {
 
 test("a generated stage's Pi-qualified model and ultra reach codex as its id and the model's top level", async () => {
 	const { run, outcome, generatedSubmits } = await generate(
-		{ model: "openai-codex/gpt-6-luna", thinking: "ultra" },
+		{ model: "openai-codex/gpt-6-luna", effort: "ultra" },
 		LUNA,
 	);
 	assert.deepEqual(outcome, { ok: true });
@@ -162,17 +162,17 @@ test("a generated stage with only a model to rewrite launches (no sealed-launch 
 });
 
 test("ctx.agent accepts ultra (the workflow vocabulary) and refuses an unknown level with the list", async () => {
-	const ultra = await generate({ thinking: "ultra" });
+	const ultra = await generate({ effort: "ultra" });
 	assert.deepEqual(ultra.outcome, { ok: true });
 	assert.deepEqual(
 		ultra.generatedSubmits.map((submit) => submit.effort),
 		["ultra"],
 	);
-	const unknown = await generate({ thinking: "extreme" });
+	const unknown = await generate({ effort: "extreme" });
 	assert.equal(unknown.outcome.ok, false);
 	assert.match(
 		unknown.outcome.error,
-		/thinking has an unsupported value \(use one of: off, minimal, low, medium, high, xhigh, max, ultra\)/,
+		/effort has an unsupported value \(use one of: off, minimal, low, medium, high, xhigh, max, ultra\)/,
 	);
 	assert.deepEqual(unknown.generatedSubmits, []);
 });

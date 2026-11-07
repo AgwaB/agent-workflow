@@ -74,8 +74,8 @@ function profileSpec(overrides = {}) {
 		defaults: { agent: "unit-scout", readOnly: true, tools: ["read"] },
 		executionProfiles: {
 			"cost conscious": {
-				one: { model: "profile/model", thinking: "low" },
-				two: { thinking: "high" },
+				one: { model: "profile/model", effort: "low" },
+				two: { effort: "high" },
 			},
 			identity: {},
 		},
@@ -84,14 +84,14 @@ function profileSpec(overrides = {}) {
 				{
 					id: "one",
 					type: "single",
-					thinking: "high",
+					effort: "high",
 					output: output(),
 					prompt: "Step one.",
 				},
 				{
 					id: "two",
 					type: "single",
-					thinking: "xhigh",
+					effort: "xhigh",
 					output: output(),
 					prompt: "Step two.",
 				},
@@ -186,7 +186,7 @@ function installFakeSubagentApi(cwd) {
 	setTaskRuntimeApiForTests({
 		async runSubagent(options) {
 			// The runtime receives the selected effort.
-			calls.launches.push({ model: options.model, thinking: options.effort });
+			calls.launches.push({ model: options.model, effort: options.effort });
 			const seq = calls.launches.length;
 			const runId = `run_task_${seq}`;
 			const attemptId = `attempt_task_${seq}`;
@@ -258,7 +258,7 @@ test("execution profiles accept custom names and validate default, override, and
 		],
 		[
 			profileSpec({
-				executionProfiles: { custom: { missing: { thinking: "low" } } },
+				executionProfiles: { custom: { missing: { effort: "low" } } },
 			}),
 			/unknown stage id "missing"/,
 		],
@@ -268,7 +268,7 @@ test("execution profiles accept custom names and validate default, override, and
 		],
 		[
 			profileSpec({
-				executionProfiles: { custom: { one: { thinking: "turbo" } } },
+				executionProfiles: { custom: { one: { effort: "turbo" } } },
 			}),
 			/must be one of/,
 		],
@@ -342,7 +342,7 @@ test("execution profiles accept custom names and validate default, override, and
 			/artifactAccess.*explicitly "none"/,
 		],
 		[
-			nestedProfileSpec({ child: { thinking: "low" } }),
+			nestedProfileSpec({ child: { effort: "low" } }),
 			/must use canonical id "container.child"/,
 		],
 	]) {
@@ -350,7 +350,7 @@ test("execution profiles accept custom names and validate default, override, and
 	}
 
 	const duplicateChildren = profileSpec({
-		executionProfiles: { custom: { child: { thinking: "low" } } },
+		executionProfiles: { custom: { child: { effort: "low" } } },
 		artifactGraph: {
 			stages: ["left", "right"].map((id) => ({
 				id,
@@ -398,17 +398,17 @@ test("bundled specs load, validate, and compile; deep-research profiles preserve
 	assert.equal(deepResearch.defaultExecutionProfile, "medium");
 	assert.deepEqual(deepResearch.executionProfiles, {
 		low: {
-			"research-questions": { thinking: "low" },
-			"normalize-claims": { thinking: "medium" },
-			"verify-claims": { thinking: "low", foreachBatch: batch },
-			"final-audit": { thinking: "high" },
+			"research-questions": { effort: "low" },
+			"normalize-claims": { effort: "medium" },
+			"verify-claims": { effort: "low", foreachBatch: batch },
+			"final-audit": { effort: "high" },
 		},
 		medium: {
 			"verify-claims": { foreachBatch: batch },
 		},
 		high: {
-			"research-questions": { thinking: "high" },
-			"verify-claims": { thinking: "xhigh" },
+			"research-questions": { effort: "high" },
+			"verify-claims": { effort: "xhigh" },
 		},
 	});
 	assert.deepEqual(
@@ -433,7 +433,7 @@ test("bundled specs load, validate, and compile; deep-research profiles preserve
 
 // Moved (WP11a, host API selectWorkflowExecutionProfile): test("profile selection is explicit-first, default-aware, and supports base selection") → test/unit/host-ported-cli-args.test.mjs.
 
-test("selected profile overlays model and thinking, records complete overrides, and keeps CLI runtime overrides highest", async () => {
+test("selected profile overlays model and effort, records complete overrides, and keeps CLI runtime overrides highest", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout");
@@ -449,8 +449,8 @@ test("selected profile overlays model and thinking, records complete overrides, 
 		assert.deepEqual(run.executionProfile, {
 			name: "cost conscious",
 			stageOverrides: {
-				one: { model: "profile/model", thinking: "low" },
-				two: { thinking: "high" },
+				one: { model: "profile/model", effort: "low" },
+				two: { effort: "high" },
 			},
 		});
 		assert.deepEqual(
@@ -460,27 +460,27 @@ test("selected profile overlays model and thinking, records complete overrides, 
 			run.executionProfile,
 		);
 		assert.deepEqual(calls.launches, [
-			{ model: "profile/model", thinking: "low" },
-			{ model: undefined, thinking: "high" },
+			{ model: "profile/model", effort: "low" },
+			{ model: undefined, effort: "high" },
 		]);
 
 		calls.launches.length = 0;
 		const cliStarted = await runWorkflow("profile-target", cwd, {
 			task: "CLI wins.",
 			executionProfile: "cost conscious",
-			runtimeOverrides: { model: "cli/model", thinking: "xhigh" },
+			runtimeOverrides: { model: "cli/model", effort: "xhigh" },
 		});
 		await waitForRun(cwd, cliStarted.runId, 30_000);
 		assert.deepEqual(calls.launches, [
-			{ model: "cli/model", thinking: "xhigh" },
-			{ model: "cli/model", thinking: "xhigh" },
+			{ model: "cli/model", effort: "xhigh" },
+			{ model: "cli/model", effort: "xhigh" },
 		]);
 
 		calls.launches.length = 0;
 		writeSpec(
 			cwd,
 			nestedProfileSpec({
-				"container.child": { model: "nested/model", thinking: "minimal" },
+				"container.child": { model: "nested/model", effort: "minimal" },
 			}),
 		);
 		const nestedStarted = await runWorkflow("profile-target", cwd, {
@@ -489,7 +489,7 @@ test("selected profile overlays model and thinking, records complete overrides, 
 		});
 		await waitForRun(cwd, nestedStarted.runId, 30_000);
 		assert.deepEqual(calls.launches, [
-			{ model: "nested/model", thinking: "minimal" },
+			{ model: "nested/model", effort: "minimal" },
 		]);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
@@ -513,8 +513,8 @@ test("pre-resolved user profiles are frozen on the run and declared profiles rem
 			name: "Custom",
 			definitionFingerprint: workflowDefinitionFingerprint(authored),
 			stageOverrides: {
-				one: { model: "saved/model", thinking: "medium" },
-				two: { model: "saved/other", thinking: "high" },
+				one: { model: "saved/model", effort: "medium" },
+				two: { model: "saved/other", effort: "high" },
 			},
 		};
 		await assert.rejects(
@@ -539,13 +539,13 @@ test("pre-resolved user profiles are frozen on the run and declared profiles rem
 			name: "Custom",
 			definitionFingerprint: workflowDefinitionFingerprint(authored),
 			stageOverrides: {
-				one: { model: "saved/model", thinking: "medium" },
-				two: { model: "saved/other", thinking: "high" },
+				one: { model: "saved/model", effort: "medium" },
+				two: { model: "saved/other", effort: "high" },
 			},
 		});
 		assert.deepEqual(calls.launches, [
-			{ model: "saved/model", thinking: "medium" },
-			{ model: "saved/other", thinking: "high" },
+			{ model: "saved/model", effort: "medium" },
+			{ model: "saved/other", effort: "high" },
 		]);
 		assert.match(
 			readFileSync(compiledWorkflowPath(cwd, started.runId), "utf8"),
@@ -561,8 +561,8 @@ test("pre-resolved user profiles are frozen on the run and declared profiles rem
 		});
 		await waitForRun(cwd, explicit.runId, 30_000);
 		assert.deepEqual(calls.launches, [
-			{ model: "profile/model", thinking: "low" },
-			{ model: undefined, thinking: "high" },
+			{ model: "profile/model", effort: "low" },
+			{ model: undefined, effort: "high" },
 		]);
 
 		calls.launches.length = 0;
@@ -610,8 +610,8 @@ test("empty profile is identity and selected foreach batches lower to compiled t
 		assert.equal(identityCompiled, baseCompiled);
 
 		const foreachSpec = foreachProfileSpec();
-		foreachSpec.executionProfiles.batched.items.thinking = "low";
-		foreachSpec.artifactGraph.stages[1].each.thinking = "xhigh";
+		foreachSpec.executionProfiles.batched.items.effort = "low";
+		foreachSpec.artifactGraph.stages[1].each.effort = "xhigh";
 		writeSpec(cwd, foreachSpec);
 		const batched = await runWorkflow("profile-target", cwd, {
 			task: "Batch metadata.",
@@ -625,14 +625,14 @@ test("empty profile is identity and selected foreach batches lower to compiled t
 			maxItems: 2,
 			groupBy: ["$.repository", "$.kind"],
 		});
-		assert.equal(task.runtime.thinking, "xhigh");
+		assert.equal(task.runtime.effort, "xhigh");
 
 		const userProfile = await runWorkflow("profile-target", cwd, {
 			task: "User foreach runtime.",
 			executionProfileOverride: {
 				name: "Custom",
 				definitionFingerprint: workflowDefinitionFingerprint(foreachSpec),
-				stageOverrides: { items: { thinking: "medium" } },
+				stageOverrides: { items: { effort: "medium" } },
 			},
 		});
 		const userCompiled = JSON.parse(
@@ -640,7 +640,7 @@ test("empty profile is identity and selected foreach batches lower to compiled t
 		);
 		assert.equal(
 			userCompiled.tasks.find((item) => item.stageId === "items").runtime
-				.thinking,
+				.effort,
 			"medium",
 		);
 	} finally {

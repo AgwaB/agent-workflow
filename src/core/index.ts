@@ -109,7 +109,7 @@ export type {
 	WorkflowArtifactKind,
 	RoleSpec,
 	TaskCapability,
-	ThinkingLevel,
+	EffortLevel,
 	WorktreePolicy,
 } from "./types.js";
 export { WORKFLOW_PROFILE_ROLES, WorkflowValidationError } from "./types.js";

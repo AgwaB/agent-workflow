@@ -71,7 +71,7 @@ test("compiler applies foreach agent, role, tools, runtime, safety, and cwd over
 								role: "item",
 								tools: ["read"],
 								model: "test-model",
-								thinking: "low",
+								effort: "low",
 								maxRuntimeMs: 1234,
 								readOnly: true,
 								worktreePolicy: "off",
@@ -96,7 +96,7 @@ test("compiler applies foreach agent, role, tools, runtime, safety, and cwd over
 		assert.doesNotMatch(template.compiledPrompt, /Ordinary role context/);
 		assert.deepEqual(template.runtime.tools, ["read"]);
 		assert.equal(template.runtime.model, "test-model");
-		assert.equal(template.runtime.thinking, "low");
+		assert.equal(template.runtime.effort, "low");
 		assert.equal(template.runtime.maxRuntimeMs, 1234);
 		assert.equal(template.safety.readOnlyDeclared, true);
 		assert.equal(template.safety.worktreePolicy, "off");
@@ -137,7 +137,7 @@ test("schema rejects invalid foreach runtime/safety values instead of accepting 
 							type: "foreach",
 							each: {
 								prompt: "Inspect.",
-								thinking: "turbo",
+								effort: "turbo",
 								worktreePolicy: "maybe",
 							},
 						},
@@ -146,7 +146,7 @@ test("schema rejects invalid foreach runtime/safety values instead of accepting 
 			}),
 		(error) => {
 			assert.ok(error instanceof WorkflowValidationError);
-			assert.match(error.message, /each\.thinking: must be one of/);
+			assert.match(error.message, /each\.effort: must be one of/);
 			assert.match(error.message, /each\.worktreePolicy: must be one of/);
 			return true;
 		},

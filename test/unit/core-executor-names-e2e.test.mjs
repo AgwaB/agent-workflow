@@ -42,8 +42,8 @@ after(async () => {
 
 const LUNA_LEVELS = ["low", "medium", "high", "xhigh", "max"];
 
-/** A project whose one stage asks for `model`/`thinking`, run by fixture `id` with `probe`. */
-async function project(id, { model, thinking, probe = {}, mode } = {}) {
+/** A project whose one stage asks for `model`/`effort`, run by fixture `id` with `probe`. */
+async function project(id, { model, effort, probe = {}, mode } = {}) {
 	counter += 1;
 	const cwd = join(root, `p${counter}`);
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
@@ -61,7 +61,7 @@ async function project(id, { model, thinking, probe = {}, mode } = {}) {
 				readOnly: true,
 				tools: ["read"],
 				...(model ? { model } : {}),
-				...(thinking ? { thinking } : {}),
+				...(effort ? { effort } : {}),
 			},
 			artifactGraph: {
 				stages: [{ id: "a", type: "single", prompt: "Collect facts." }],
@@ -87,7 +87,7 @@ async function project(id, { model, thinking, probe = {}, mode } = {}) {
 test("codex: a Pi-qualified model and ultra reach the executor as its model id and the model's top level", async () => {
 	const p = await project("codex", {
 		model: "openai-codex/gpt-6-luna",
-		thinking: "ultra",
+		effort: "ultra",
 		probe: {
 			models: ["gpt-6.1-sol", "gpt-6-luna"],
 			modelEfforts: {
@@ -116,7 +116,7 @@ test("codex: a Pi-qualified model and ultra reach the executor as its model id a
 test("codex: ultra stays ultra on a model that has it", async () => {
 	const p = await project("codex", {
 		model: "gpt-6.1-sol",
-		thinking: "ultra",
+		effort: "ultra",
 		probe: {
 			models: ["gpt-6.1-sol"],
 			modelEfforts: { "gpt-6.1-sol": [...LUNA_LEVELS, "ultra"] },
@@ -137,7 +137,7 @@ test("codex: ultra stays ultra on a model that has it", async () => {
 test("claude: anthropic/… and ultra reach the CLI as its model id and max", async () => {
 	const p = await project("claude", {
 		model: "anthropic/claude-opus-5-5",
-		thinking: "ultra",
+		effort: "ultra",
 	});
 	const started = await engine.runWorkflowSpec(p.specPath, p.cwd, {
 		task: "names",
@@ -152,7 +152,7 @@ test("claude: anthropic/… and ultra reach the CLI as its model id and max", as
 });
 
 test("pi: ultra reaches Pi as max (Pi has no ultra)", async () => {
-	const p = await project("pi", { thinking: "ultra" });
+	const p = await project("pi", { effort: "ultra" });
 	const started = await engine.runWorkflowSpec(p.specPath, p.cwd, {
 		task: "names",
 		executor: "pi",
@@ -170,7 +170,7 @@ test("a launch-time --model/--effort override is converted too", async () => {
 	const started = await engine.runWorkflowSpec(p.specPath, p.cwd, {
 		task: "names",
 		executor: "claude",
-		runtimeOverrides: { model: "anthropic/claude-opus-5-5", thinking: "ultra" },
+		runtimeOverrides: { model: "anthropic/claude-opus-5-5", effort: "ultra" },
 	});
 	const run = await engine.waitForRun(p.cwd, started.runId, 60_000);
 	assert.equal(run.status, "completed", JSON.stringify(run.tasks));
@@ -183,7 +183,7 @@ test("a launch-time --model/--effort override is converted too", async () => {
 test("resume relaunches a blocked attempt with the converted names, not the spec's", async () => {
 	const p = await project("claude", {
 		model: "anthropic/claude-opus-5-5",
-		thinking: "ultra",
+		effort: "ultra",
 		mode: "crash-after-consume",
 	});
 	const started = await engine.runWorkflowSpec(p.specPath, p.cwd, {

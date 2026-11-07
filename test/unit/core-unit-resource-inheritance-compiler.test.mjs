@@ -63,7 +63,7 @@ function workflowSpec(agent, stages) {
 			readOnly: true,
 			tools: ["read"],
 			model: "fixture/model",
-			thinking: "high",
+			effort: "high",
 		},
 		artifactGraph: { stages },
 	};
@@ -148,7 +148,7 @@ function dynamicController(cwd, resourcePolicyVersion, inheritSkills) {
 		runtime: {
 			approvalMode: "non-interactive",
 			model: "fixture/model",
-			thinking: "high",
+			effort: "high",
 		},
 		safety: {
 			readOnlyDeclared: false,
@@ -454,7 +454,7 @@ test("compiler carries the marker through nested, foreach, loop, and dynamic top
 	}
 });
 
-test("explicit false preserves model, thinking, tools, and prompt compilation", async () => {
+test("explicit false preserves model, effort, tools, and prompt compilation", async () => {
 	const cwd = makeProject();
 	try {
 		const name = "stable-agent";

@@ -7,10 +7,10 @@ import type { NegotiationReport } from "../sdk/requirements.js";
 import type {
 	WorkflowModelInfo,
 	WorkflowRuntimeDefaults,
-	WorkflowRuntimeThinkingResolution,
+	WorkflowRuntimeEffortResolution,
 } from "./workflow-runtime.js";
 
-export const THINKING_LEVELS = [
+export const EFFORT_LEVELS = [
 	"off",
 	"minimal",
 	"low",
@@ -38,7 +38,7 @@ export const TOOL_CLASSIFICATIONS = [
 ] as const;
 export const WORKFLOW_RUN_TYPE = "artifact-graph" as const;
 
-export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
+export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 export type FastMode = (typeof FAST_MODES)[number];
 export type WorkflowProfileRole = (typeof WORKFLOW_PROFILE_ROLES)[number];
 export type ApprovalMode = (typeof APPROVAL_MODES)[number];
@@ -76,7 +76,7 @@ export interface WorkflowDefaults {
 	cwd?: string;
 	agent?: string;
 	model?: string;
-	thinking?: ThinkingLevel;
+	effort?: EffortLevel;
 	fast?: FastMode;
 	approvalMode?: ApprovalMode;
 	tools?: WorkflowToolSpec[];
@@ -149,7 +149,7 @@ export interface WorkflowForeachBatchGrouping {
 export interface WorkflowRoleAssignment {
 	executor?: string;
 	model?: string;
-	effort?: ThinkingLevel;
+	effort?: EffortLevel;
 }
 
 /**
@@ -160,7 +160,7 @@ export type WorkflowRoleMap = Record<string, WorkflowRoleAssignment>;
 
 export interface ExecutionProfileStageOverride {
 	model?: string;
-	thinking?: ThinkingLevel;
+	effort?: EffortLevel;
 	fast?: FastMode;
 	foreachBatch?: ExecutionProfileForeachBatch;
 }
@@ -251,7 +251,7 @@ export interface DynamicDecisionLoopExecutionProfileSpec {
 	/** Model-purpose metadata used only by workflow execution-profile presets. */
 	profileRole?: WorkflowProfileRole;
 	model?: string;
-	thinking?: ThinkingLevel;
+	effort?: EffortLevel;
 	fast?: FastMode;
 	tools?: WorkflowToolSpec[];
 	outputProfile?: string;
@@ -324,7 +324,7 @@ export interface ArtifactGraphForeachSpec {
 	tools?: WorkflowToolSpec[];
 	readOnly?: boolean;
 	model?: string;
-	thinking?: ThinkingLevel;
+	effort?: EffortLevel;
 	fast?: FastMode;
 	maxRuntimeMs?: number;
 	worktreePolicy?: WorktreePolicy;
@@ -343,7 +343,7 @@ export interface ArtifactGraphStageSpec {
 	profileRole?: WorkflowProfileRole;
 	cwd?: string;
 	model?: string;
-	thinking?: ThinkingLevel;
+	effort?: EffortLevel;
 	fast?: FastMode;
 	approvalMode?: ApprovalMode;
 	tools?: WorkflowToolSpec[];
@@ -420,7 +420,7 @@ export interface AgentDefinition {
 	frontmatter: Record<string, unknown>;
 	body: string;
 	model?: string;
-	thinking?: ThinkingLevel;
+	effort?: EffortLevel;
 	fast?: FastMode;
 	tools?: string[];
 	readOnly?: boolean;
@@ -450,8 +450,8 @@ export interface PermissionPreview {
 export interface CompiledTaskRuntime {
 	model?: string;
 	api?: string;
-	thinking?: ThinkingLevel;
-	thinkingResolution?: WorkflowRuntimeThinkingResolution;
+	effort?: EffortLevel;
+	effortResolution?: WorkflowRuntimeEffortResolution;
 	fast?: FastMode;
 	approvalMode: ApprovalMode;
 	tools?: string[];
@@ -596,7 +596,7 @@ export interface CompiledDynamicNestedWorkflow {
 export interface CompiledDynamicDecisionLoopExecutionProfile {
 	agent?: string;
 	model?: string;
-	thinking?: ThinkingLevel;
+	effort?: EffortLevel;
 	fast?: FastMode;
 	tools?: string[];
 	toolProviders?: Record<string, CompiledToolProvider>;
@@ -805,7 +805,7 @@ export interface WorkflowTaskUsageAttemptRecord
 	capturedAt: string;
 	provider?: string;
 	model?: string;
-	thinking?: ThinkingLevel | string;
+	effort?: EffortLevel | string;
 	backendRunId?: string;
 	backendAttemptId?: string;
 	unavailable?: true;
@@ -823,7 +823,7 @@ export interface WorkflowTaskUsageRecord extends WorkflowTaskUsageValues {
 	capturedAt: string;
 	provider?: string;
 	model?: string;
-	thinking?: ThinkingLevel | string;
+	effort?: EffortLevel | string;
 	incomplete?: boolean;
 	aggregate?: WorkflowTaskUsageAggregateRecord;
 	attempts?: WorkflowTaskUsageAttemptRecord[];
@@ -978,7 +978,7 @@ export interface LaunchBootstrapProvenanceRecordBase {
 		externalLaunchGrantSha256?: string;
 		model?: string;
 		api?: string;
-		thinking?: string;
+		effort?: string;
 		fast?: string;
 		approvalMode: string;
 		maxRuntimeMs?: number;
@@ -1283,8 +1283,8 @@ export interface WorkflowTaskRunRecord {
 	runtime: {
 		model?: string;
 		api?: string;
-		thinking?: ThinkingLevel;
-		thinkingResolution?: WorkflowRuntimeThinkingResolution;
+		effort?: EffortLevel;
+		effortResolution?: WorkflowRuntimeEffortResolution;
 		fast?: FastMode;
 		approvalMode: ApprovalMode;
 		maxRuntimeMs?: number;
@@ -1612,7 +1612,7 @@ export interface WorkflowStageRoleAssignment {
 	role?: string;
 	/** Model / effort a role entry set (absent: stage, agent, run defaults or the executor's own). */
 	model?: string;
-	effort?: ThinkingLevel;
+	effort?: EffortLevel;
 }
 
 /** WP31: role-profile resolution frozen at run creation (absent when no role profile applies). */
@@ -1675,7 +1675,6 @@ export interface WorkflowRunRouting {
 	/** Wall-clock duration of the opt-in router classifier pass in milliseconds. */
 	routerElapsedMs?: number;
 	routerModel?: string;
-	routerThinking?: string;
 }
 
 export interface WorkflowRunProvenance {

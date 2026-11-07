@@ -97,7 +97,7 @@ async function project() {
 const EFFORTS = {
 	codex: CODEX_EFFORT_LEVELS,
 	claude: CLAUDE_EFFORT_LEVELS,
-	pi: types.THINKING_LEVELS,
+	pi: types.EFFORT_LEVELS,
 };
 
 test("every preset is a valid role profile with conservative, executor-valid values", () => {
@@ -350,7 +350,7 @@ test("in the Pi host a preset on another executor resolves models without Pi's m
 		],
 		runtimeDefaults: {
 			model: "anthropic/claude-test",
-			thinking: "low",
+			effort: "low",
 			executor: "pi",
 		},
 	};
@@ -402,7 +402,7 @@ test("in the Pi host a plain --executor codex --model <id> launch (no profile) a
 		],
 		runtimeDefaults: {
 			model: "anthropic/claude-test",
-			thinking: "low",
+			effort: "low",
 			executor: "pi",
 		},
 	};

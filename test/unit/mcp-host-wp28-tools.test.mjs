@@ -651,11 +651,7 @@ test("usage errors are refused before any confirmation is asked", async () => {
 		],
 		["workflow_profile", { op: "clear-default", name: "x" }, /not valid/],
 		["workflow_profile", { op: "bogus" }, /op must be one of/],
-		[
-			"workflow_profile",
-			{ op: "set", name: "x", effort: "huge" },
-			/effort|thinking/i,
-		],
+		["workflow_profile", { op: "set", name: "x", effort: "huge" }, /effort/i],
 		[
 			"workflow_notices",
 			{ action: "acknowledge", runId: "workflow_x" },

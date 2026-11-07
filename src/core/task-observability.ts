@@ -268,14 +268,9 @@ function buildTaskUsageAttempt(options: {
 			[isPlainRecord(raw) ? raw : undefined, ...records],
 			["model"],
 		) ?? options.task.runtime.model;
-	const thinking =
-		firstStringValue(records, [
-			"thinking",
-			"thinkingLevel",
-			"reasoningLevel",
-		]) ??
-		options.task.runtime.thinkingResolution?.resolved ??
-		options.task.runtime.thinking;
+	const effort =
+		options.task.runtime.effortResolution?.resolved ??
+		options.task.runtime.effort;
 	return {
 		source: observed?.source ?? "subagent-usage-unavailable",
 		capturedAt: options.capturedAt,
@@ -283,7 +278,7 @@ function buildTaskUsageAttempt(options: {
 		backendAttemptId: options.snapshot.attemptId,
 		...(provider === undefined ? {} : { provider }),
 		...(model === undefined ? {} : { model }),
-		...(thinking === undefined ? {} : { thinking }),
+		...(effort === undefined ? {} : { effort }),
 		...(unavailable ? { unavailable: true as const } : {}),
 		...(observed?.present && raw !== undefined ? { raw } : {}),
 		...normalizedUsageValues(raw),
@@ -339,7 +334,7 @@ function aggregateUsageAttempts(attempts: WorkflowTaskUsageAttemptRecord[]): {
 
 function latestUsageString(
 	attempts: WorkflowTaskUsageAttemptRecord[],
-	key: "provider" | "model" | "thinking",
+	key: "provider" | "model" | "effort",
 ): string | undefined {
 	for (let index = attempts.length - 1; index >= 0; index -= 1) {
 		const value = attempts[index]?.[key];
@@ -369,9 +364,9 @@ function recordTaskUsageObservation(options: {
 		...(latestUsageString(attempts, "model") === undefined
 			? {}
 			: { model: latestUsageString(attempts, "model") }),
-		...(latestUsageString(attempts, "thinking") === undefined
+		...(latestUsageString(attempts, "effort") === undefined
 			? {}
-			: { thinking: latestUsageString(attempts, "thinking") }),
+			: { effort: latestUsageString(attempts, "effort") }),
 		...(aggregate.incomplete ? { incomplete: true } : {}),
 		...aggregate.values,
 		aggregate: {

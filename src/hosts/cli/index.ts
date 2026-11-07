@@ -44,7 +44,7 @@ import {
 	parseDuration,
 	parsePermissionMode,
 	parseSuperviseArgs,
-	parseThinkingLevel,
+	parseEffortLevel,
 	profileAction,
 	pruneAction,
 	registerTestExecutorFromEnv,
@@ -223,7 +223,6 @@ const LAUNCH_SPEC: OptionSpec = {
 		"--timeout",
 	],
 	repeatable: ["--input"],
-	aliases: { "--thinking": "--effort", "--reasoning": "--effort" },
 };
 
 type Emit = (result: HostResult<unknown>, exitCode?: number) => number;
@@ -358,7 +357,7 @@ function launchOptionsFromArgs(parsed: ParsedArgs): CliLaunchOptions {
 		...(parsed.values.has("--model")
 			? { model: parsed.values.get("--model")! }
 			: {}),
-		...(effort ? { effort: parseThinkingLevel(effort) } : {}),
+		...(effort ? { effort: parseEffortLevel(effort) } : {}),
 		...(detach ? { detach: true } : {}),
 		...(parsed.flags.has("--force-new") ? { forceNew: true } : {}),
 	};

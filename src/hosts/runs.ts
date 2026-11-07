@@ -301,9 +301,7 @@ export async function statusAction(
 						? {
 								executor: task.runtime.executor,
 								...(task.runtime.model ? { model: task.runtime.model } : {}),
-								...(task.runtime.thinking
-									? { effort: task.runtime.thinking }
-									: {}),
+								...(task.runtime.effort ? { effort: task.runtime.effort } : {}),
 							}
 						: {}),
 				})),
@@ -545,7 +543,7 @@ export async function inspectAction(
 	for (const task of selected) {
 		// WP31: a role-profile run shows each task's executor/model/effort.
 		const runtime = task.runtime?.executor
-			? ` [${task.runtime.executor}${task.runtime.model ? ` ${task.runtime.model}` : ""}${task.runtime.thinking ? ` ${task.runtime.thinking}` : ""}]`
+			? ` [${task.runtime.executor}${task.runtime.model ? ` ${task.runtime.model}` : ""}${task.runtime.effort ? ` ${task.runtime.effort}` : ""}]`
 			: "";
 		lines.push(
 			`- ${task.taskId}${runtime}: ${task.status}/${task.statusDetail}${task.lastMessage ? ` — ${task.lastMessage}` : ""}`,

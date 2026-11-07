@@ -408,7 +408,7 @@ test("deep-research tiered verification variant is path-ref opt-in", async () =>
 		"./helpers/tier-verification-candidates.mjs",
 	);
 	assert.deepEqual(verificationTiers.support.options, { coreTierSize: 8 });
-	for (const [stage, path, thinking] of [
+	for (const [stage, path, effort] of [
 		[verifyCore, "$.coreCandidates", "high"],
 		[verifyTail, "$.tailCandidates", "medium"],
 	]) {
@@ -417,7 +417,7 @@ test("deep-research tiered verification variant is path-ref opt-in", async () =>
 			stage: "verification-tiers",
 			path,
 		});
-		assert.equal(stage?.runtime.thinking, thinking);
+		assert.equal(stage?.runtime.effort, effort);
 		assert.ok(
 			stage?.artifactGraph.output.controlSchemaPath.endsWith(
 				join(
@@ -4160,7 +4160,7 @@ test("workflow run metrics roll up provider-reported usage without mutation", ()
 					capturedAt: "2026-06-08T00:01:30.000Z",
 					provider: "provider-a",
 					model: "actual-model-a",
-					thinking: "low",
+					effort: "low",
 					aggregate: {
 						attempts: 1,
 						inputTokens: 0,
@@ -5056,7 +5056,7 @@ test("refresh does not retry deterministic boot or config failures", async () =>
 	}
 });
 
-test("runtime model resolver defaults to current model and thinking", async () => {
+test("runtime model resolver defaults to current model and effort", async () => {
 	const resolved = await resolveWorkflowRuntime(
 		{},
 		{
@@ -5066,7 +5066,7 @@ test("runtime model resolver defaults to current model and thinking", async () =
 			agent: "unit-scout",
 		},
 		{
-			defaults: { model: "openai-codex/gpt-5.5", thinking: "high" },
+			defaults: { model: "openai-codex/gpt-5.5", effort: "high" },
 			availableModels: [
 				{
 					provider: "openai-codex",
@@ -5080,8 +5080,8 @@ test("runtime model resolver defaults to current model and thinking", async () =
 
 	assert.deepEqual(resolved, {
 		model: "openai-codex/gpt-5.5",
-		thinking: "high",
-		thinkingResolution: { requested: "high", resolved: "high" },
+		effort: "high",
+		effortResolution: { requested: "high", resolved: "high" },
 	});
 });
 
@@ -5096,7 +5096,7 @@ test("runtime model resolver asks before choosing ambiguous enabled models", asy
 			agent: "unit-scout",
 		},
 		{
-			defaults: { thinking: "medium" },
+			defaults: { effort: "medium" },
 			availableModels: [
 				{
 					provider: "openai-codex",
@@ -5125,8 +5125,8 @@ test("runtime model resolver asks before choosing ambiguous enabled models", asy
 	]);
 	assert.deepEqual(resolved, {
 		model: "github-copilot/gpt-5.5",
-		thinking: "medium",
-		thinkingResolution: { requested: "medium", resolved: "medium" },
+		effort: "medium",
+		effortResolution: { requested: "medium", resolved: "medium" },
 	});
 });
 
@@ -5170,9 +5170,9 @@ test("runtime model resolver asks before choosing an available model when reques
 	assert.deepEqual(resolved, { model: "kimi-coding/kimi-for-coding" });
 });
 
-test("runtime model resolver falls back unsupported thinking without UI", async () => {
+test("runtime model resolver falls back unsupported effort without UI", async () => {
 	const resolved = await resolveWorkflowRuntime(
-		{ model: "gpt-5.5", thinking: "xhigh" },
+		{ model: "gpt-5.5", effort: "xhigh" },
 		{
 			taskKey: "main.main",
 			stageId: "main",
@@ -5200,8 +5200,8 @@ test("runtime model resolver falls back unsupported thinking without UI", async 
 
 	assert.deepEqual(resolved, {
 		model: "openai-codex/gpt-5.5",
-		thinking: "high",
-		thinkingResolution: {
+		effort: "high",
+		effortResolution: {
 			requested: "xhigh",
 			resolved: "high",
 			reason:
@@ -5212,7 +5212,7 @@ test("runtime model resolver falls back unsupported thinking without UI", async 
 
 test("runtime model resolver clamps up like pi when only higher levels are supported", async () => {
 	const resolved = await resolveWorkflowRuntime(
-		{ model: "gpt-5.5", thinking: "low" },
+		{ model: "gpt-5.5", effort: "low" },
 		{
 			taskKey: "main.main",
 			stageId: "main",
@@ -5240,8 +5240,8 @@ test("runtime model resolver clamps up like pi when only higher levels are suppo
 
 	assert.deepEqual(resolved, {
 		model: "openai-codex/gpt-5.5",
-		thinking: "medium",
-		thinkingResolution: {
+		effort: "medium",
+		effortResolution: {
 			requested: "low",
 			resolved: "medium",
 			reason:
@@ -5250,9 +5250,9 @@ test("runtime model resolver clamps up like pi when only higher levels are suppo
 	});
 });
 
-test("runtime model resolver clamps unsupported thinking deterministically without prompting", async () => {
+test("runtime model resolver clamps unsupported effort deterministically without prompting", async () => {
 	const resolved = await resolveWorkflowRuntime(
-		{ model: "gpt-5.5", thinking: "xhigh" },
+		{ model: "gpt-5.5", effort: "xhigh" },
 		{
 			taskKey: "main.main",
 			stageId: "main",
@@ -5278,7 +5278,7 @@ test("runtime model resolver clamps unsupported thinking deterministically witho
 			prompt: {
 				async select() {
 					throw new Error(
-						"thinking clamp must not prompt; pi clamps deterministically",
+						"effort clamp must not prompt; pi clamps deterministically",
 					);
 				},
 			},
@@ -5287,8 +5287,8 @@ test("runtime model resolver clamps unsupported thinking deterministically witho
 
 	assert.deepEqual(resolved, {
 		model: "openai-codex/gpt-5.5",
-		thinking: "high",
-		thinkingResolution: {
+		effort: "high",
+		effortResolution: {
 			requested: "xhigh",
 			resolved: "high",
 			reason:
@@ -5299,7 +5299,7 @@ test("runtime model resolver clamps unsupported thinking deterministically witho
 
 test("runtime model resolver treats missing thinkingLevelMap as xhigh opt-out like pi", async () => {
 	const resolved = await resolveWorkflowRuntime(
-		{ model: "openai-codex/gpt-5.5", thinking: "xhigh" },
+		{ model: "openai-codex/gpt-5.5", effort: "xhigh" },
 		{
 			taskKey: "main.main",
 			stageId: "main",
@@ -5320,8 +5320,8 @@ test("runtime model resolver treats missing thinkingLevelMap as xhigh opt-out li
 
 	assert.deepEqual(resolved, {
 		model: "openai-codex/gpt-5.5",
-		thinking: "high",
-		thinkingResolution: {
+		effort: "high",
+		effortResolution: {
 			requested: "xhigh",
 			resolved: "high",
 			reason:
@@ -5330,7 +5330,7 @@ test("runtime model resolver treats missing thinkingLevelMap as xhigh opt-out li
 	});
 });
 
-test("runtime model resolver refuses ambiguity or missing model and falls back unsupported thinking without UI", async () => {
+test("runtime model resolver refuses ambiguity or missing model and falls back unsupported effort without UI", async () => {
 	const context = {
 		taskKey: "main.main",
 		stageId: "main",
@@ -5361,7 +5361,7 @@ test("runtime model resolver refuses ambiguity or missing model and falls back u
 	);
 	assert.deepEqual(
 		await resolveWorkflowRuntime(
-			{ model: "openai-codex/gpt-5.5", thinking: "xhigh" },
+			{ model: "openai-codex/gpt-5.5", effort: "xhigh" },
 			context,
 			{
 				availableModels: [
@@ -5376,8 +5376,8 @@ test("runtime model resolver refuses ambiguity or missing model and falls back u
 		),
 		{
 			model: "openai-codex/gpt-5.5",
-			thinking: "off",
-			thinkingResolution: {
+			effort: "off",
+			effortResolution: {
 				requested: "xhigh",
 				resolved: "off",
 				reason:

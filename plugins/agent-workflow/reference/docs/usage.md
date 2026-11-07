@@ -327,7 +327,7 @@ the command to fix it. `agent-workflow doctor` shows the same check without star
 Two layers:
 
 1. **Workflow-declared execution profiles.** A spec may declare `executionProfiles` (stage overrides
-   of `model`, `thinking`/effort and `foreachBatch`; plus an executor and permission mode per profile
+   of `model`, `effort` and `foreachBatch`; plus an executor and permission mode per profile
    via `executionProfileExecutors` / `executionProfilePermissionModes`) and a
    `defaultExecutionProfile`. Select one with `--profile <name>`. A declared profile sits on top of
    your default saved user profile, field by field: whatever the declared profile does not set

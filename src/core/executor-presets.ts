@@ -12,7 +12,7 @@
 //          model family from the codex workers whose findings it checks (E4).
 // `agent-workflow profile set <name> --preset <id>` saves one as a user profile; `--profile <id>`
 // selects one directly when no declared or saved profile has that name.
-import type { ThinkingLevel, WorkflowRoleMap } from "./types.js";
+import type { EffortLevel, WorkflowRoleMap } from "./types.js";
 
 export const EXECUTOR_PRESET_IDS = ["codex", "claude", "pi", "mixed"] as const;
 export type ExecutorPresetId = (typeof EXECUTOR_PRESET_IDS)[number];
@@ -28,7 +28,7 @@ export interface ExecutorPreset {
 	roles: WorkflowRoleMap;
 }
 
-const EFFORT: Record<string, ThinkingLevel> = {
+const EFFORT: Record<string, EffortLevel> = {
 	default: "medium",
 	planning: "high",
 	"research-execution": "medium",

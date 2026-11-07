@@ -108,7 +108,7 @@ function recordingApi() {
 }
 
 /** Fake ExtensionAPI: captures commands, tools and event handlers; duplicate names throw. */
-function fakePi({ thinking = "medium" } = {}) {
+function fakePi({ effort = "medium" } = {}) {
 	const commands = new Map();
 	const tools = new Map();
 	const handlers = new Map();
@@ -130,7 +130,7 @@ function fakePi({ thinking = "medium" } = {}) {
 			handlers.set(event, list);
 			return () => undefined;
 		},
-		getThinkingLevel: () => thinking,
+		getThinkingLevel: () => effort,
 	};
 }
 
@@ -298,7 +298,7 @@ test("/aw catalog actions delegate to the host API and show the handler text", a
 	// Tagged as Pi defaults: the engine applies them only when the run's executor is pi.
 	assert.deepEqual(list.args[0].runtimeDefaults, {
 		model: "anthropic/claude-test",
-		thinking: "medium",
+		effort: "medium",
 		executor: "pi",
 	});
 	assert.deepEqual(list.args[1], { query: "deep", limit: 2 });

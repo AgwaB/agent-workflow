@@ -150,7 +150,7 @@ function runningRun(cwd, runId) {
 				specId: "main",
 				displayName: "main",
 				agent: "scout",
-				runtime: { model: "test-model", thinking: "none" },
+				runtime: { model: "test-model", effort: "none" },
 				status: "pending",
 				statusDetail: "pending",
 				backendTaskId: "",

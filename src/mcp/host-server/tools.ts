@@ -57,7 +57,7 @@ import {
 	formatRoleAssignment,
 	parseWorkflowRoleMap,
 } from "../../core/role-profiles.js";
-import { THINKING_LEVELS, WorkflowValidationError } from "../../core/types.js";
+import { EFFORT_LEVELS, WorkflowValidationError } from "../../core/types.js";
 import { parseWorkflowNoticesArgs } from "../../core/workflow-notices.js";
 import {
 	mcpVersionHasToolAnnotations,
@@ -238,8 +238,8 @@ const LAUNCH_OPTION_PROPERTIES = {
 	},
 	effort: {
 		type: "string",
-		enum: [...THINKING_LEVELS],
-		description: "Optional effort (thinking/reasoning level) override.",
+		enum: [...EFFORT_LEVELS],
+		description: "Optional effort level override.",
 	},
 	detach: {
 		type: "boolean",
@@ -729,8 +729,8 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 				model: { type: "string", description: "set: model id." },
 				effort: {
 					type: "string",
-					enum: [...THINKING_LEVELS],
-					description: "set: effort (thinking/reasoning level).",
+					enum: [...EFFORT_LEVELS],
+					description: "set: effort level.",
 				},
 				permissionMode: {
 					type: "string",
@@ -768,7 +768,7 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 						properties: {
 							executor: { type: "string" },
 							model: { type: "string" },
-							effort: { type: "string", enum: [...THINKING_LEVELS] },
+							effort: { type: "string", enum: [...EFFORT_LEVELS] },
 						},
 					},
 				},
@@ -1106,7 +1106,7 @@ export function launchRequestFromArguments(
 			? { allowUnverifiedCapabilities: allowUnverified }
 			: {}),
 		...(model ? { model } : {}),
-		...(effort ? { effort: hostApi.parseThinkingLevel(effort) } : {}),
+		...(effort ? { effort: hostApi.parseEffortLevel(effort) } : {}),
 		...(detach ? { detach: true } : {}),
 		...(optionalBoolean(params, "forceNew") ? { forceNew: true } : {}),
 		...(inputOverrides ? { inputOverrides } : {}),
@@ -1353,7 +1353,7 @@ function profileSetFromArguments(params: Record<string, unknown>): {
 		flags.push("--model", model);
 	}
 	if (effort) {
-		values.effort = hostApi.parseThinkingLevel(effort);
+		values.effort = hostApi.parseEffortLevel(effort);
 		flags.push("--effort", effort);
 	}
 	if (permission) {

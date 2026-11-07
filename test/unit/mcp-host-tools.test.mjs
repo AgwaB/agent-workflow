@@ -798,7 +798,7 @@ test("usage and handler errors are isError tool results; protocol errors are JSO
 		[
 			"workflow_run",
 			{ workflow: "wf.json", task: "t", effort: "max!" },
-			/effort|thinking/i,
+			/effort/i,
 		],
 		[
 			"workflow_run",

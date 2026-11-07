@@ -568,13 +568,13 @@ test("compiler keeps dynamic stage and decision-loop pins above runtime defaults
 							id: "adaptive",
 							type: "dynamic",
 							model: "stage/model",
-							thinking: "high",
+							effort: "high",
 							dynamic: {
 								uses: "./helpers/controller.mjs",
 								decisionLoop: {
 									planner: {},
 									workerDefaults: { model: "profile/model" },
-									verifier: { thinking: "medium" },
+									verifier: { effort: "medium" },
 									synthesis: {},
 								},
 							},
@@ -585,22 +585,22 @@ test("compiler keeps dynamic stage and decision-loop pins above runtime defaults
 			{
 				cwd,
 				task: "Review dynamically.",
-				runtimeDefaults: { model: "runtime/model", thinking: "low" },
+				runtimeDefaults: { model: "runtime/model", effort: "low" },
 			},
 		);
 
 		const controller = compiled.tasks[0];
 		assert.equal(controller.runtime.model, "stage/model");
-		assert.equal(controller.runtime.thinking, "high");
+		assert.equal(controller.runtime.effort, "high");
 		const loop = controller.dynamic.decisionLoop;
 		assert.equal(loop.planner.model, "stage/model");
-		assert.equal(loop.planner.thinking, "high");
+		assert.equal(loop.planner.effort, "high");
 		assert.equal(loop.workerDefaults.model, "profile/model");
-		assert.equal(loop.workerDefaults.thinking, "high");
+		assert.equal(loop.workerDefaults.effort, "high");
 		assert.equal(loop.verifier.model, "stage/model");
-		assert.equal(loop.verifier.thinking, "medium");
+		assert.equal(loop.verifier.effort, "medium");
 		assert.equal(loop.synthesis.model, "stage/model");
-		assert.equal(loop.synthesis.thinking, "high");
+		assert.equal(loop.synthesis.effort, "high");
 	} finally {
 		rmSync(cwd, {
 			recursive: true,
@@ -622,13 +622,13 @@ test("compiler applies runtime overrides above dynamic stage and decision-loop p
 							id: "adaptive",
 							type: "dynamic",
 							model: "stage/model",
-							thinking: "high",
+							effort: "high",
 							dynamic: {
 								uses: "./helpers/controller.mjs",
 								decisionLoop: {
 									planner: { model: "planner/model" },
-									workerDefaults: { thinking: "medium" },
-									verifier: { model: "verifier/model", thinking: "xhigh" },
+									workerDefaults: { effort: "medium" },
+									verifier: { model: "verifier/model", effort: "xhigh" },
 									synthesis: {},
 								},
 							},
@@ -639,14 +639,14 @@ test("compiler applies runtime overrides above dynamic stage and decision-loop p
 			{
 				cwd,
 				task: "Review dynamically.",
-				runtimeOverrides: { model: "override/model", thinking: "low" },
-				runtimeDefaults: { model: "runtime/model", thinking: "minimal" },
+				runtimeOverrides: { model: "override/model", effort: "low" },
+				runtimeDefaults: { model: "runtime/model", effort: "minimal" },
 			},
 		);
 
 		const controller = compiled.tasks[0];
 		assert.equal(controller.runtime.model, "override/model");
-		assert.equal(controller.runtime.thinking, "low");
+		assert.equal(controller.runtime.effort, "low");
 		const loop = controller.dynamic.decisionLoop;
 		for (const profile of [
 			loop.planner,
@@ -655,7 +655,7 @@ test("compiler applies runtime overrides above dynamic stage and decision-loop p
 			loop.synthesis,
 		]) {
 			assert.equal(profile.model, "override/model");
-			assert.equal(profile.thinking, "low");
+			assert.equal(profile.effort, "low");
 		}
 	} finally {
 		rmSync(cwd, {
@@ -667,7 +667,7 @@ test("compiler applies runtime overrides above dynamic stage and decision-loop p
 	}
 });
 
-test("dynamic generated tasks apply runtime overrides above profile pins and resolve thinking", async () => {
+test("dynamic generated tasks apply runtime overrides above profile pins and resolve effort", async () => {
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");
@@ -688,7 +688,7 @@ test("dynamic generated tasks apply runtime overrides above profile pins and res
 			runtime: {
 				approvalMode: "non-interactive",
 				model: "controller/model",
-				thinking: "high",
+				effort: "high",
 			},
 			safety: {
 				readOnlyDeclared: false,
@@ -732,7 +732,7 @@ test("dynamic generated tasks apply runtime overrides above profile pins and res
 			dynamic: {
 				uses: "./helpers/controller.mjs",
 				mode: "graph-splice",
-				runtimeOverrides: { model: "override/model", thinking: "xhigh" },
+				runtimeOverrides: { model: "override/model", effort: "xhigh" },
 				availableModels: [
 					{
 						provider: "override",
@@ -752,7 +752,7 @@ test("dynamic generated tasks apply runtime overrides above profile pins and res
 				decisionLoop: {
 					workerDefaults: {
 						model: "profile/model",
-						thinking: "medium",
+						effort: "medium",
 						tools: ["read"],
 					},
 					allowedAgents: [],
@@ -762,9 +762,9 @@ test("dynamic generated tasks apply runtime overrides above profile pins and res
 		});
 
 		assert.equal(generated.runtime.model, "override/model");
-		assert.equal(generated.runtime.thinking, "high");
-		assert.equal(generated.runtime.thinkingResolution?.requested, "xhigh");
-		assert.equal(generated.runtime.thinkingResolution?.resolved, "high");
+		assert.equal(generated.runtime.effort, "high");
+		assert.equal(generated.runtime.effortResolution?.requested, "xhigh");
+		assert.equal(generated.runtime.effortResolution?.resolved, "high");
 	} finally {
 		rmSync(cwd, {
 			recursive: true,
@@ -9330,7 +9330,7 @@ test("spec-less direct dynamic run records provenance and launches planner", asy
 
 		const run = await runDynamicTask(cwd, {
 			task: "Research dynamic workflow evaluation methods.",
-			runtimeOverrides: { model: "openai-codex/gpt-5.5", thinking: "low" },
+			runtimeOverrides: { model: "openai-codex/gpt-5.5", effort: "low" },
 		});
 		assert.equal(run.status, "running");
 		assert.equal(run.name, "dynamic");

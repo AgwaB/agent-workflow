@@ -60,17 +60,17 @@ function mixedRun() {
 		task("plan", "plan", "completed", {
 			executor: "claude",
 			model: "sonnet",
-			thinking: "high",
+			effort: "high",
 		}),
 		task("worker-1", "work", "completed", {
 			executor: "codex",
 			model: "gpt-5.6-luna",
-			thinking: "medium",
+			effort: "medium",
 		}),
 		task("worker-2", "work", "failed", {
 			executor: "codex",
 			model: "gpt-5.6-luna",
-			thinking: "medium",
+			effort: "medium",
 		}),
 	];
 	const record = {
@@ -104,7 +104,7 @@ function mixedRun() {
 			statusDetail: entry.status,
 			executor: entry.runtime.executor,
 			model: entry.runtime.model,
-			effort: entry.runtime.thinking,
+			effort: entry.runtime.effort,
 		})),
 	};
 	return { run, record };

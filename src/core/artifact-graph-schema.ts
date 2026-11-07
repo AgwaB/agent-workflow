@@ -9,7 +9,7 @@ import { isSimpleJsonPath } from "./workflow-runtime.js";
 import {
 	APPROVAL_MODES,
 	FAST_MODES,
-	THINKING_LEVELS,
+	EFFORT_LEVELS,
 	TOOL_CLASSIFICATIONS,
 	WORKFLOW_PROFILE_ROLES,
 	WORKTREE_POLICIES,
@@ -58,7 +58,7 @@ export const WORKFLOW_ROUTING_HINT_MAX_ITEMS = 12;
 export const WORKFLOW_ROUTING_HINT_MAX_UTF8_BYTES = 480;
 const EXECUTION_PROFILE_OVERRIDE_KEYS = new Set([
 	"model",
-	"thinking",
+	"effort",
 	"fast",
 	"foreachBatch",
 ]);
@@ -88,7 +88,7 @@ const STAGE_KEYS = new Set([
 	"profileRole",
 	"cwd",
 	"model",
-	"thinking",
+	"effort",
 	"fast",
 	"approvalMode",
 	"tools",
@@ -158,7 +158,7 @@ const DYNAMIC_STAGE_FORBIDDEN_KEYS = new Set([
 	"role",
 	"cwd",
 	"model",
-	"thinking",
+	"effort",
 	"fast",
 	"approvalMode",
 	"tools",
@@ -214,7 +214,7 @@ const DYNAMIC_DECISION_LOOP_PROFILE_KEYS = new Set([
 	"agent",
 	"profileRole",
 	"model",
-	"thinking",
+	"effort",
 	"fast",
 	"tools",
 	"outputProfile",
@@ -244,7 +244,7 @@ const EACH_KEYS = new Set([
 	"tools",
 	"readOnly",
 	"model",
-	"thinking",
+	"effort",
 	"fast",
 	"maxRuntimeMs",
 	"worktreePolicy",
@@ -292,7 +292,7 @@ const DEFAULTS_KEYS = new Set([
 	"cwd",
 	"agent",
 	"model",
-	"thinking",
+	"effort",
 	"fast",
 	"approvalMode",
 	"tools",
@@ -677,7 +677,7 @@ function validateExecutionProfileStageOverride(
 	if (!override) return;
 	rejectUnknownKeys(override, EXECUTION_PROFILE_OVERRIDE_KEYS, path, issues);
 	optionalString(override.model, `${path}.model`, issues);
-	optionalEnum(override.thinking, THINKING_LEVELS, `${path}.thinking`, issues);
+	optionalEnum(override.effort, EFFORT_LEVELS, `${path}.effort`, issues);
 	optionalEnum(override.fast, FAST_MODES, `${path}.fast`, issues);
 	validateExecutionProfileForeachBatch(
 		override.foreachBatch,
@@ -1024,7 +1024,7 @@ function validateStage(
 	optionalString(stage.agent, `${path}.agent`, issues);
 	optionalString(stage.cwd, `${path}.cwd`, issues);
 	optionalString(stage.model, `${path}.model`, issues);
-	optionalEnum(stage.thinking, THINKING_LEVELS, `${path}.thinking`, issues);
+	optionalEnum(stage.effort, EFFORT_LEVELS, `${path}.effort`, issues);
 	optionalEnum(stage.fast, FAST_MODES, `${path}.fast`, issues);
 	optionalEnum(
 		stage.approvalMode,
@@ -2000,7 +2000,7 @@ function validateDynamicDecisionLoopProfile(
 		issues,
 	);
 	optionalString(profile.model, `${path}.model`, issues);
-	optionalEnum(profile.thinking, THINKING_LEVELS, `${path}.thinking`, issues);
+	optionalEnum(profile.effort, EFFORT_LEVELS, `${path}.effort`, issues);
 	optionalEnum(profile.fast, FAST_MODES, `${path}.fast`, issues);
 	validateWorkflowToolArray(profile.tools, `${path}.tools`, issues);
 	optionalEnum(
@@ -2132,7 +2132,7 @@ function validateForeachStage(
 	validateWorkflowToolArray(each.tools, `${path}.each.tools`, issues);
 	optionalBoolean(each.readOnly, `${path}.each.readOnly`, issues);
 	optionalString(each.model, `${path}.each.model`, issues);
-	optionalEnum(each.thinking, THINKING_LEVELS, `${path}.each.thinking`, issues);
+	optionalEnum(each.effort, EFFORT_LEVELS, `${path}.each.effort`, issues);
 	optionalEnum(each.fast, FAST_MODES, `${path}.each.fast`, issues);
 	optionalModelTaskMaxRuntimeMs(
 		each.maxRuntimeMs,
@@ -2444,7 +2444,7 @@ function validateDefaults(
 	optionalString(defaults.cwd, `${path}.cwd`, issues);
 	optionalString(defaults.agent, `${path}.agent`, issues);
 	optionalString(defaults.model, `${path}.model`, issues);
-	optionalEnum(defaults.thinking, THINKING_LEVELS, `${path}.thinking`, issues);
+	optionalEnum(defaults.effort, EFFORT_LEVELS, `${path}.effort`, issues);
 	optionalEnum(defaults.fast, FAST_MODES, `${path}.fast`, issues);
 	optionalEnum(
 		defaults.approvalMode,
@@ -2770,7 +2770,10 @@ function rejectUnknownKeys(
 		if (!allowed.has(key))
 			issues.push({
 				path: `${path}.${jsonKey(key)}`,
-				message: "unknown field",
+				message:
+					key === "thinking" && allowed.has("effort")
+						? 'unknown field; use "effort"'
+						: "unknown field",
 			});
 	}
 }

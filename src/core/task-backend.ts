@@ -474,9 +474,9 @@ export async function launchSubagentTask(
 			...(compiledTask.runtime.model === undefined
 				? {}
 				: { model: compiledTask.runtime.model }),
-			...(compiledTask.runtime.thinking === undefined
+			...(compiledTask.runtime.effort === undefined
 				? {}
-				: { effort: compiledTask.runtime.thinking }),
+				: { effort: compiledTask.runtime.effort }),
 			readOnly:
 				workflowTaskReadOnly(compiledTask) || capabilityLaunch.forcedReadOnly,
 			isolation: workflowTaskIsolation(compiledTask),
@@ -1616,8 +1616,7 @@ export interface OneShotSubagentEnvelope {
 
 /**
  * Shared entry point for one-off synchronous executor calls (workflow router comparison).
- * Honors setTaskRuntimeApiForTests. Pi option names are translated (`thinking` → `effort`);
- * `backend` is replaced by the executor selected with `executor` (B2: the call's executor id,
+ * Honors setTaskRuntimeApiForTests. `backend` is replaced by the executor selected with `executor` (B2: the call's executor id,
  * required explicitly), and an unavailable executor throws before any launch.
  */
 export async function runOneShotSubagentCall(
@@ -1626,12 +1625,7 @@ export async function runOneShotSubagentCall(
 	if (typeof options.executor !== "string" || options.executor.trim() === "")
 		throw new Error("one-shot calls require an explicit executor");
 	const api = await loadSubagentApi();
-	const {
-		backend: _backend,
-		thinking,
-		executor: executorId,
-		...rest
-	} = options;
+	const { backend: _backend, executor: executorId, ...rest } = options;
 	const selection = resolveRunExecutorSelection({
 		runFlag: executorId,
 	});
@@ -1640,7 +1634,6 @@ export async function runOneShotSubagentCall(
 		permissionMode: "free",
 		...rest,
 		executor: selection.descriptor,
-		...(typeof thinking === "string" ? { effort: thinking } : {}),
 		readOnly: true,
 		isolation: { inherit: false },
 		env: { [AGENT_WORKFLOW_ROLE_ENV]: "worker" },

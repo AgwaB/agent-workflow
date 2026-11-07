@@ -997,8 +997,8 @@ test("default task records omit generation while opted-in records retain it", ()
 		roleNames: [],
 		runtime: {
 			model: "unit",
-			thinking: "low",
-			thinkingResolution: "explicit",
+			effort: "low",
+			effortResolution: "explicit",
 			approvalMode: "default",
 		},
 		safety: { permission: { status: "allowed" } },
@@ -1693,7 +1693,7 @@ test("scheduler materializes stable foreach children from completed control arti
 				readOnly: true,
 				tools: ["read"],
 				model: "openai-codex/gpt-5.5",
-				thinking: "low",
+				effort: "low",
 			},
 			artifactGraph: {
 				maxConcurrency: 2,
