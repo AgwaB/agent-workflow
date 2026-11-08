@@ -257,7 +257,8 @@
           "normalize-claims",
           "sanitize-claims",
           "verify-core-claims",
-          "verify-tail-claims"
+          "verify-tail-claims",
+          "check-web-quotes"
         ],
         "sourcePolicy": "partial",
         "inputPolicy": {

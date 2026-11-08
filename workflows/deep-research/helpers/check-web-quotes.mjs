@@ -3,8 +3,9 @@
 // verifier evidence row with an http(s) URL and a quote is checked by the engine itself
 // (`context.evidence.checkWebQuotes`: the page text the verifier's own tool returned, else the
 // cited page fetched by the engine). No model calls.
-// The result is shown in the report (counts in final-report.md, unchecked quotes in audit.md);
-// it does not change any claim verdict.
+// The result is shown in the report (counts in final-report.md, unchecked quotes in audit.md).
+// 2026-11-08 (context-quality P2): audit-claims also reads it: a verified claim whose web quotes
+// were all looked for on a fetched, readable page and not found is downgraded there.
 
 const VERIFIER_STAGE_IDS = ["verify-claims", "verify-core-claims", "verify-tail-claims"];
 const MAX_QUOTE_CHARS = 400;

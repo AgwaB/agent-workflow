@@ -253,7 +253,7 @@ test("the report shows the counts and lists unchecked quotes with reasons; verdi
 	assert.equal(checked.quoteCheck.verified, 1);
 	// The source-verification statement says what the engine checked instead of "model-reported".
 	const statement =
-		"Source verification: the engine found 1 of 3 quoted web passages on the cited pages (see Quote check in the audit); whether they support each claim is the verifiers' judgment.";
+		"Source verification: the engine found 1 of 3 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.";
 	for (const markdown of [
 		checked.completionSummaryMarkdown,
 		checked.reportMarkdown,

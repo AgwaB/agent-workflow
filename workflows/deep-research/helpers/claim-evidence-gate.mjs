@@ -670,6 +670,44 @@ function evaluateSourceCompatibility({
 	};
 }
 
+// P2: check-web-quotes results grouped by claim id. `enabled` is false when the stage was off,
+// failed, absent (older runs, specs that do not feed it) or produced no checkable rows.
+function webQuoteResultsByClaim(stage) {
+	const byClaim = new Map();
+	if (
+		!stage ||
+		typeof stage !== "object" ||
+		stage.enabled !== true ||
+		typeof stage.error === "string" ||
+		!Array.isArray(stage.results)
+	)
+		return { enabled: false, byClaim };
+	for (const row of stage.results) {
+		const claimId = typeof row?.claimId === "string" ? row.claimId.trim() : "";
+		if (!claimId) continue;
+		const rows = byClaim.get(claimId) ?? [];
+		rows.push(row);
+		byClaim.set(claimId, rows);
+	}
+	return { enabled: true, byClaim };
+}
+
+function webQuoteOutcomeForClaim(check, claimId) {
+	const rows = (claimId && check.byClaim.get(claimId)) || [];
+	const verified = rows.filter((row) =>
+		String(row.grade ?? "").startsWith("verified"),
+	).length;
+	const notOnPage = rows.filter(
+		(row) => row.grade === "unverified" && row.reason === "quote-not-on-page",
+	).length;
+	return {
+		checked: rows.length,
+		verified,
+		notOnPage,
+		unchecked: rows.length - verified - notOnPage,
+	};
+}
+
 // Structured evidence check: at least one evidence row carrying both a source
 // reference (HTTP URL or local repository file path) and a quote/excerpt. Unlike
 // a keyword scan over the serialized claim, this cannot be satisfied by merely
@@ -1410,6 +1448,9 @@ export default async function claimEvidenceGate({
 	const batchInfoByClaimId = buildBatchInfoByClaimId(verificationBatches);
 	const batchIdBySourceName = buildBatchIdBySourceName(context.sourceStatuses);
 	const normalizeInputPacket = findSource(sources, "normalize-input-packet");
+	const webQuoteCheck = webQuoteResultsByClaim(
+		findSource(sources, "check-web-quotes"),
+	);
 	const urlToSourceRef = await buildUrlSourceRefLookup(
 		normalizeInputPacket,
 		context,
@@ -1499,6 +1540,8 @@ export default async function claimEvidenceGate({
 		verifierOwnerIssues: 0,
 		additionalEvidenceSourceDowngrades: 0,
 		zeroCandidateFloorBlockers: 0,
+		webQuoteCheck: webQuoteCheck.enabled ? "applied" : "unavailable",
+		webQuoteNotOnPageDowngrades: 0,
 	};
 	if (
 		candidateRecords.length === 0 &&
@@ -1866,6 +1909,30 @@ export default async function claimEvidenceGate({
 						...compatibility,
 						...(batchInfo ? { batchInfo } : {}),
 					},
+				};
+			}
+		}
+
+		// 2026-11-08 (P2): the engine looked for the verifier's web quotes on the cited pages
+		// (check-web-quotes). A page that was fetched and readable but does not contain any of the
+		// claim's quotes contradicts the verifier; a page that could not be checked proves nothing.
+		if (verdictOf(next) === VERIFICATION_STATUS.VERIFIED && webQuoteCheck.enabled) {
+			const outcome = webQuoteOutcomeForClaim(webQuoteCheck, next.id ?? claimId);
+			if (outcome.notOnPage > 0 && outcome.verified === 0) {
+				gateSummary.webQuoteNotOnPageDowngrades += 1;
+				next = withVerdict(
+					next,
+					VERIFICATION_STATUS.PARTIALLY_SUPPORTED,
+					"the engine fetched the cited page and did not find the verifier's quote on it",
+					{
+						reasonCode: "web_quote_not_on_page",
+						webQuoteCheck: outcome,
+					},
+				);
+			} else if (outcome.checked > 0) {
+				next.verdictDigest = {
+					...(next.verdictDigest ?? {}),
+					webQuoteCheck: outcome,
 				};
 			}
 		}

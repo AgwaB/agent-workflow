@@ -2017,7 +2017,7 @@ export const SOURCE_VERIFICATION_STATEMENT =
 export function sourceVerificationStatement(quoteCheck) {
 	if (!quoteCheck) return SOURCE_VERIFICATION_STATEMENT;
 	const summary = quoteCheck.summary;
-	return `Source verification: the engine found ${summary.verified} of ${summary.quotes} quoted web passages on the cited pages (see Quote check in the audit); whether they support each claim is the verifiers' judgment.`;
+	return `Source verification: the engine found ${summary.verified} of ${summary.quotes} quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.`;
 }
 
 function renderCompletionSummary(report, claimSummary, slots, fallback, quoteCheck = null) {
@@ -2300,8 +2300,9 @@ function renderAuditSummary(report, claimSummary, slots, quoteCheck = null) {
 	];
 }
 
-// 2026-11-01: engine-side web quote check (check-web-quotes stage). Shown, never
-// used to change a verdict.
+// 2026-11-01: engine-side web quote check (check-web-quotes stage), shown here. 2026-11-08 (P2):
+// audit-claims also reads it and downgrades a verified claim whose quotes were all absent from
+// their fetched page; the renderer still only reports.
 const QUOTE_CHECK_REASONS = {
 	"quote-not-on-page": "not found on the page",
 	"little-page-text": "page had little text (script-rendered or blocked)",

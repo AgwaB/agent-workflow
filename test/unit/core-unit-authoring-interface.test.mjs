@@ -550,6 +550,8 @@ test("bundled deep-research compacts audit packets before executive final", asyn
 		"normalize-claims.main",
 		"sanitize-claims.main",
 		"verify-claims.item",
+		// P2 (2026-11-08): the engine's web quote check is an audit input.
+		"check-web-quotes.main",
 	]);
 	assert.equal(finalAuditPacket?.kind, "support");
 	assert.deepEqual(finalAuditPacket.dependsOn, [
