@@ -1810,13 +1810,13 @@ test("scheduler materializes stable foreach children from completed control arti
 		);
 		assert.equal(
 			compiledChildren[0].task.startsWith(
-				'Check {"title":"Alpha","score":1}.\n\n# Workflow Output Protocol',
+				'Check <workflow-item-data>{"title":"Alpha","score":1}</workflow-item-data>.\n\n# Workflow Output Protocol',
 			),
 			true,
 		);
 		assert.equal(
 			compiledChildren[1].task.startsWith(
-				'Check {"title":"Beta","score":2}.\n\n# Workflow Output Protocol',
+				'Check <workflow-item-data>{"title":"Beta","score":2}</workflow-item-data>.\n\n# Workflow Output Protocol',
 			),
 			true,
 		);
