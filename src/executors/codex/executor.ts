@@ -44,9 +44,11 @@ import {
 	CODEX_VERIFIED_CLI_VERSION,
 	codexCapabilities,
 } from "./capabilities.js";
+import { prepareCodexWorkerHome, removeCodexWorkerHome } from "./home.js";
 import {
 	codexEnvironmentCapabilities,
 	codexEnvironmentNotes,
+	codexHomeDir,
 	inspectCodexEnvironment,
 } from "./environment.js";
 import { classifyCodexFailure } from "./errors.js";
@@ -989,16 +991,27 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		} catch {
 			rawPath = undefined;
 		}
+		// C1 (2026-11-08): isolated workers get a private CODEX_HOME (linked auth/config/rules, no
+		// global AGENTS.md) under the attempt's log directory; see home.ts for when it stays shared.
+		const env = { ...process.env, ...req.env };
+		const workerHome = prepareCodexWorkerHome({
+			userHome: codexHomeDir(env),
+			dir: logDir,
+			env,
+			inherit: req.isolation.inherit,
+		});
+		if (workerHome.relocated) env.CODEX_HOME = workerHome.path;
 		// argv: no prompt, no env value. `log_dir` keeps CLI logs per attempt (and marks the launch).
 		const child = spawn(
 			codexPath,
 			["-c", `log_dir=${JSON.stringify(logDir)}`, "app-server"],
 			{
 				cwd: req.cwd,
-				env: { ...process.env, ...req.env },
+				env,
 				stdio: ["pipe", "pipe", "pipe"],
 			},
 		);
+		child.once("close", () => removeCodexWorkerHome(workerHome));
 		const digest = attemptDigest(req.attemptKey);
 		const redact = createSecretRedactor(requestSecrets(req), {
 			minLength: 8,
@@ -1040,6 +1053,9 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			cwd: req.cwd,
 			envKeys: Object.keys(req.env).sort(),
 			pid: child.pid ?? null,
+			codexHome: workerHome.relocated
+				? { relocated: true, linked: [...workerHome.linked] }
+				: { relocated: false, reason: workerHome.reason ?? null },
 		});
 		// Decode before the second redaction pass: JSON/Rust escaping can hide raw secret bytes.
 		// Redact before bounding so the limit cannot expose a partial secret.

@@ -49,6 +49,12 @@ export {
 	TOOL_OUTPUT_EVENT_LIMIT,
 	toolCallFromItem,
 } from "./normalize.js";
+export {
+	codexCredentialsStore,
+	decideCodexWorkerHome,
+	prepareCodexWorkerHome,
+	removeCodexWorkerHome,
+} from "./home.js";
 export { AttemptStore, attemptDigest, defaultStateDir } from "./state.js";
 export {
 	CODEX_TOOL_MAPPING,

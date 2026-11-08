@@ -14,6 +14,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import type { ExecutorCapabilities } from "../../sdk/capabilities.js";
+import { type CodexWorkerHomeDecision, decideCodexWorkerHome } from "./home.js";
 
 export function codexHomeDir(
 	env: Readonly<Record<string, string | undefined>> = process.env,
@@ -192,6 +193,8 @@ export interface CodexEnvironmentFindings {
 	readonly disallowedFreeModes: readonly ("danger-full-access" | "never")[];
 	readonly agentsPath: string;
 	readonly globalAgentsMd: "absent" | "empty" | "present";
+	/** C1: whether isolated workers get a private CODEX_HOME (no global AGENTS.md). */
+	readonly workerHome: CodexWorkerHomeDecision;
 	/** Unreadable files etc. (paths only). */
 	readonly problems: readonly string[];
 }
@@ -265,6 +268,7 @@ export function inspectCodexEnvironment(
 		disallowedFreeModes,
 		agentsPath,
 		globalAgentsMd,
+		workerHome: decideCodexWorkerHome({ userHome: codexHome, env }),
 		problems,
 	};
 }
@@ -274,8 +278,10 @@ export function codexEnvironmentCapabilities(
 	findings: CodexEnvironmentFindings,
 ): Partial<ExecutorCapabilities> {
 	const isolationWarnings = [
-		...(findings.globalAgentsMd === "present"
-			? [`global ${findings.agentsPath} is loaded into every Codex worker`]
+		...(findings.globalAgentsMd === "present" && !findings.workerHome.relocate
+			? [
+					`global ${findings.agentsPath} is loaded into every Codex worker (private worker home not used: ${findings.workerHome.reason})`,
+				]
 			: []),
 		...codexPolicyWarnings(findings),
 	];
@@ -307,6 +313,9 @@ export function codexEnvironmentNotes(
 	return [
 		`exec-policy rules: ${findings.allowRules} allow rule${findings.allowRules === 1 ? "" : "s"} in ${findings.rulesFiles} file${findings.rulesFiles === 1 ? "" : "s"} under ${findings.rulesPath}`,
 		`global instructions: ${findings.agentsPath} ${findings.globalAgentsMd}`,
+		findings.workerHome.relocate
+			? `worker home: private CODEX_HOME per attempt (auth.json, config.toml and rules linked from ${findings.codexHome}; global AGENTS.md not loaded)`
+			: `worker home: ${findings.codexHome} shared (${findings.workerHome.reason})`,
 		...codexPolicyWarnings(findings),
 	];
 }

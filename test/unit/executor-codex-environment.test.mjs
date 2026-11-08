@@ -12,6 +12,7 @@ import * as sdk from "../../dist/sdk/index.js";
 import {
 	codexCapabilities,
 	codexEnvironmentCapabilities,
+	codexEnvironmentNotes,
 	codexHomeDir,
 	countCodexAllowRules,
 	createExecutor,
@@ -34,13 +35,14 @@ after(async () => {
 });
 
 let counter = 0;
-async function codexHome({ rules = {}, agents, auth = true } = {}) {
+async function codexHome({ rules = {}, agents, auth = true, config } = {}) {
 	counter += 1;
 	const home = join(root, `home-${counter}`);
 	await mkdir(join(home, "rules"), { recursive: true });
 	for (const [name, text] of Object.entries(rules))
 		await writeFile(join(home, "rules", name), text);
 	if (agents !== undefined) await writeFile(join(home, "AGENTS.md"), agents);
+	if (config !== undefined) await writeFile(join(home, "config.toml"), config);
 	if (auth) {
 		// Credentials are never read: an unreadable auth.json must not matter.
 		await writeFile(join(home, "auth.json"), '{"secret":"do-not-read"}');
@@ -77,7 +79,9 @@ test("CODEX_HOME defaults to ~/.codex and honors the environment", () => {
 	assert.match(codexHomeDir({ CODEX_HOME: "" }), /\.codex$/);
 });
 
-test("allow rules > 0 → readOnly emulated with a count-only warning; global AGENTS.md present → isolation emulated", async () => {
+// C1 (2026-11-08): with a file-store login the workers get a private home without the global
+// AGENTS.md, so its presence no longer weakens isolation; the rules warning is unchanged.
+test("allow rules > 0 → readOnly emulated with a count-only warning; global AGENTS.md present → native when workers get a private home", async () => {
 	const home = await codexHome({
 		rules: {
 			"default.rules":
@@ -104,6 +108,11 @@ test("allow rules > 0 → readOnly emulated with a count-only warning; global AG
 			disallowedFreeModes: [],
 			agentsPath: join(home, "AGENTS.md"),
 			globalAgentsMd: "present",
+			workerHome: {
+				relocate: true,
+				credentialsStore: "file",
+				authFile: "present",
+			},
 			problems: [],
 		},
 	);
@@ -114,12 +123,46 @@ test("allow rules > 0 → readOnly emulated with a count-only warning; global AG
 		warning: `3 allow rules in ${join(home, "rules")} let matching commands run without approval`,
 	});
 	assert.deepEqual(caps.contextIsolation, {
-		level: "emulated",
+		level: "native",
 		source: "probed",
-		warning: `global ${join(home, "AGENTS.md")} is loaded into every Codex worker`,
 	});
+	assert.ok(
+		codexEnvironmentNotes(findings).some((note) =>
+			note.startsWith("worker home: private CODEX_HOME per attempt"),
+		),
+	);
 	assert.equal(JSON.stringify(caps).includes("secret-cmd"), false);
 	assert.equal(JSON.stringify(caps).includes("French"), false);
+
+	// Without a file-store login the home stays shared and the global AGENTS.md still weakens isolation.
+	const keyring = inspectCodexEnvironment({
+		...process.env,
+		CODEX_HOME: await codexHome({
+			agents: "# Global instructions\nAlways answer in French.\n",
+			config: 'cli_auth_credentials_store = "keyring"\n',
+		}),
+	});
+	assert.deepEqual(keyring.workerHome, {
+		relocate: false,
+		reason:
+			'cli_auth_credentials_store="keyring" keys credentials by the home path',
+		credentialsStore: "keyring",
+		authFile: "present",
+	});
+	assert.deepEqual(codexEnvironmentCapabilities(keyring).contextIsolation, {
+		level: "emulated",
+		source: "probed",
+		warning: `global ${keyring.agentsPath} is loaded into every Codex worker (private worker home not used: cli_auth_credentials_store="keyring" keys credentials by the home path)`,
+	});
+	const noAuth = inspectCodexEnvironment({
+		...process.env,
+		CODEX_HOME: await codexHome({ agents: "# Global\nrule\n", auth: false }),
+	});
+	assert.equal(noAuth.workerHome.relocate, false);
+	assert.equal(
+		codexEnvironmentCapabilities(noAuth).contextIsolation.level,
+		"emulated",
+	);
 });
 
 test("no allow rules, AGENTS.md absent or empty → readOnly untouched, isolation native", async () => {
@@ -192,6 +235,7 @@ async function stubCodex() {
 }
 
 test("probe() reports the environment rows and B4 negotiation degrades (or refuses under strict)", async () => {
+	// C1: a keyring login keeps the shared home, so the global AGENTS.md still weakens isolation.
 	const home = await codexHome({
 		rules: {
 			"default.rules": 'prefix_rule(pattern=["a"], decision="allow")\n'.repeat(
@@ -199,6 +243,7 @@ test("probe() reports the environment rows and B4 negotiation degrades (or refus
 			),
 		},
 		agents: "global\n",
+		config: 'cli_auth_credentials_store = "keyring"\n',
 	});
 	const { cli, dir } = await stubCodex();
 	const previous = process.env.CODEX_HOME;
