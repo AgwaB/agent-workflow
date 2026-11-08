@@ -29,6 +29,7 @@ import {
 } from "./resource-inheritance.js";
 import {
 	isWorkflowTaskSessionIdentity,
+	rematerializedGeneration,
 	workflowTaskAttemptIdentity,
 	workflowTaskSessionId,
 } from "./launch-session.js";
@@ -129,6 +130,9 @@ export async function createLaunchBootstrapProvenance(
 			...(task.foreachBatch?.physicalAttempt === undefined
 				? {}
 				: { physicalAttempt: task.foreachBatch.physicalAttempt }),
+			...(rematerializedGeneration(task) > 0
+				? { sourceGeneration: rematerializedGeneration(task) }
+				: {}),
 		},
 		...(sessionId === undefined ? {} : { sessionId }),
 		prompt: {
@@ -410,6 +414,7 @@ function isValidLaunchBootstrapRecord(
 		outputRetry: number;
 		resume: number;
 		physicalAttempt?: number;
+		sourceGeneration?: number;
 	};
 	const expectedAttemptKey = [
 		`launch-retry:${attempt.launchRetry}`,
@@ -418,6 +423,9 @@ function isValidLaunchBootstrapRecord(
 		...(attempt.physicalAttempt === undefined
 			? []
 			: [`physical:${attempt.physicalAttempt}`]),
+		...(attempt.sourceGeneration === undefined
+			? []
+			: [`generation:${attempt.sourceGeneration}`]),
 		`session:${value.sessionId ?? "none"}`,
 	].join(";");
 	if (
@@ -429,6 +437,9 @@ function isValidLaunchBootstrapRecord(
 				launchRetry: attempt.launchRetry,
 				outputRetry: attempt.outputRetry,
 				resume: attempt.resume,
+				...(attempt.sourceGeneration === undefined
+					? {}
+					: { sourceGeneration: attempt.sourceGeneration }),
 				sessionId: value.sessionId as string,
 			}))
 	)
@@ -505,6 +516,7 @@ function isAttempt(value: unknown): boolean {
 			"outputRetry",
 			"resume",
 			"physicalAttempt",
+			"sourceGeneration",
 		]) &&
 		hasRequiredKeys(value, ["key", "launchRetry", "outputRetry", "resume"]) &&
 		nonEmptyString(value.key) &&
@@ -514,7 +526,11 @@ function isAttempt(value: unknown): boolean {
 		(value.physicalAttempt === undefined ||
 			(typeof value.physicalAttempt === "number" &&
 				Number.isSafeInteger(value.physicalAttempt) &&
-				value.physicalAttempt >= 1))
+				value.physicalAttempt >= 1)) &&
+		(value.sourceGeneration === undefined ||
+			(typeof value.sourceGeneration === "number" &&
+				Number.isSafeInteger(value.sourceGeneration) &&
+				value.sourceGeneration >= 1))
 	);
 }
 
