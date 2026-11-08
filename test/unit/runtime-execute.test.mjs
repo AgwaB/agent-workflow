@@ -249,6 +249,8 @@ test("usage: summed across events; null stays null (never 0); source preserved",
 			cost: 0.0303,
 			source: "reported",
 			events: 2,
+			// R1: the larger prompt of the two events (1000 + 900 + 0), not the sum.
+			peakContext: 1900,
 		},
 	);
 	assert.deepEqual(
@@ -279,6 +281,7 @@ test("usage: summed across events; null stays null (never 0); source preserved",
 			cost: 0.75,
 			source: "estimated",
 			events: 2,
+			peakContext: null,
 		},
 	);
 	assert.deepEqual(
@@ -309,6 +312,7 @@ test("usage: summed across events; null stays null (never 0); source preserved",
 			cost: null,
 			source: "unknown",
 			events: 2,
+			peakContext: 5,
 		},
 		"one unknown cost makes the total unknown, not 0.5",
 	);

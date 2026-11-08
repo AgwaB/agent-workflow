@@ -196,6 +196,7 @@ test("happy path: barrier release → events → completed result with usage (co
 		cost: null,
 		source: "unknown",
 		events: 2,
+		peakContext: null,
 	});
 	assert.equal(final.metadata.model, "fixture-model");
 	assert.equal(final.metadata.sessionId, "fixture-session");

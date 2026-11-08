@@ -810,12 +810,21 @@ export interface WorkflowTaskUsageAttemptRecord
 	workerAttemptId?: string;
 	unavailable?: true;
 	raw?: unknown;
+	/**
+	 * 2026-11-08 (R1): largest prompt one usage event of this attempt reported (input + cache read +
+	 * cache write tokens); null when unknown. `usageEvents` says how many events the attempt had: one
+	 * (Claude) means the value is the attempt's whole input side, not a per-turn peak.
+	 */
+	peakContextTokens?: number | null;
+	usageEvents?: number;
 }
 
 export interface WorkflowTaskUsageAggregateRecord
 	extends WorkflowTaskUsageValues {
 	attempts: number;
 	incomplete?: boolean;
+	/** Largest `peakContextTokens` over the attempts that reported one. */
+	peakContextTokens?: number | null;
 }
 
 export interface WorkflowTaskUsageRecord extends WorkflowTaskUsageValues {

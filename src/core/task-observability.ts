@@ -18,6 +18,7 @@ import {
 	type WorkflowTaskToolResultBudgetConfigurationRecord,
 	type WorkflowTaskToolResultBudgetRecord,
 	type WorkflowTaskUsageAttemptRecord,
+	type WorkflowTaskUsageAggregateRecord,
 	type WorkflowTaskUsageRecord,
 	type WorkflowTaskUsageValues,
 	type WorkflowToolResultBudgetConfigurationSource,
@@ -282,6 +283,37 @@ function buildTaskUsageAttempt(options: {
 		...(unavailable ? { unavailable: true as const } : {}),
 		...(observed?.present && raw !== undefined ? { raw } : {}),
 		...normalizedUsageValues(raw),
+		...peakContextValues(raw),
+	};
+}
+
+/** Runtime UsageSummary `peakContext` / `events` → attempt fields (not summed anywhere). */
+function peakContextValues(
+	raw: unknown,
+): Pick<WorkflowTaskUsageAttemptRecord, "peakContextTokens" | "usageEvents"> {
+	if (!isPlainRecord(raw) || !hasOwnValue(raw, "peakContext")) return {};
+	const peak = usageNumberOrNull(raw.peakContext);
+	const events = raw.events;
+	return {
+		...(peak === undefined ? {} : { peakContextTokens: peak }),
+		...(typeof events === "number" && Number.isInteger(events) && events >= 0
+			? { usageEvents: events }
+			: {}),
+	};
+}
+
+function peakContextAggregate(
+	attempts: WorkflowTaskUsageAttemptRecord[],
+): Partial<Pick<WorkflowTaskUsageAggregateRecord, "peakContextTokens">> {
+	const reported = attempts.filter((attempt) =>
+		hasOwnValue(attempt, "peakContextTokens"),
+	);
+	if (reported.length === 0) return {};
+	const values = reported.map((attempt) => attempt.peakContextTokens);
+	return {
+		peakContextTokens: values.some((value) => value === null)
+			? null
+			: Math.max(...values.map((value) => value as number)),
 	};
 }
 
@@ -373,6 +405,7 @@ function recordTaskUsageObservation(options: {
 			attempts: attempts.length,
 			...(aggregate.incomplete ? { incomplete: true } : {}),
 			...aggregate.values,
+			...peakContextAggregate(attempts),
 		},
 		attempts,
 	};
