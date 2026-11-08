@@ -90,6 +90,7 @@
         ],
         "sourcePolicy": "partial",
         "inputPolicy": {
+          "invalidateOnDependencyResume": true,
           "requiredReads": [
             {
               "source": "extract-spec",
@@ -822,6 +823,9 @@
           "recheck-requirements"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "output": {
           "controlSchema": "./schemas/spec-review-partition-control.schema.json"
         },
@@ -1009,7 +1013,8 @@
         ],
         "sourcePolicy": "partial",
         "inputPolicy": {
-          "terminalBarrier": "all-sources"
+          "terminalBarrier": "all-sources",
+          "invalidateOnDependencyResume": true
         },
         "output": {
           "controlSchema": "./schemas/spec-review-render-control.schema.json"

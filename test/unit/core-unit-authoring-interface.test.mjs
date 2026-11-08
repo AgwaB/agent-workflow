@@ -2859,6 +2859,7 @@ test("bundled spec-review workflow compiles flat analysis and verification fanou
 		]);
 		assert.deepEqual(final.artifactGraph.inputPolicy, {
 			terminalBarrier: "all-sources",
+			invalidateOnDependencyResume: true,
 		});
 		assert.equal(final.support.uses, "./helpers/render-spec-review-report.mjs");
 		assert.ok(

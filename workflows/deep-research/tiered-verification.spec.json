@@ -88,6 +88,9 @@
           "research-questions"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "support": {
           "uses": "./helpers/normalize-input-packet.mjs"
         }
@@ -102,6 +105,9 @@
           "normalize-input-packet"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "output": {
           "analysis": {
             "required": true
@@ -122,6 +128,9 @@
           "normalize-input-packet"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "support": {
           "uses": "./helpers/sanitize-verification-candidates.mjs",
           "options": {
@@ -156,6 +165,9 @@
           "sanitize-claims"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "support": {
           "uses": "./helpers/tier-verification-candidates.mjs",
           "options": {
@@ -230,6 +242,9 @@
           "verify-tail-claims"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "support": {
           "uses": "./helpers/check-web-quotes.mjs"
         }
@@ -245,6 +260,9 @@
           "verify-tail-claims"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "support": {
           "uses": "./helpers/claim-evidence-gate.mjs",
           "options": {
@@ -264,6 +282,9 @@
           "audit-claims"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "support": {
           "uses": "./helpers/final-audit-packet.mjs"
         }
@@ -277,6 +298,7 @@
         ],
         "sourcePolicy": "partial",
         "inputPolicy": {
+          "invalidateOnDependencyResume": true,
           "requiredReads": [
             {
               "source": "final-audit-packet",
@@ -421,6 +443,9 @@
           "check-web-quotes"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "output": {
           "analysis": {
             "required": true
