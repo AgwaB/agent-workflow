@@ -128,6 +128,7 @@ export default async function checkWebQuotes({ sources, context = {} }) {
 							contentType: result.page.contentType,
 							bodySha256: result.page.bodySha256,
 							fromCache: result.page.fromCache,
+							...(result.page.stored === true ? { stored: true } : {}),
 						},
 					}
 				: {}),

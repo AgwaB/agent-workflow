@@ -2339,6 +2339,7 @@ const QUOTE_CHECK_REASONS = {
 	"credentials-in-url": "URL carries credentials",
 	"no-quote": "no quote given",
 	aborted: "stopped",
+	"not-stored": "page body not kept by the run",
 };
 
 function quoteCheckOf(source) {
