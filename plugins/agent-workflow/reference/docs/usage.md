@@ -1315,6 +1315,7 @@ Flags. No general speed or quality claim is implied by any of them.
 | `AGENT_WORKFLOW_EXPERIMENTAL_CACHE_STABLE_FOREACH` | Foreach prompts keep the item payload out of the instruction text (cache-stable prefix). |
 | `AGENT_WORKFLOW_EXPERIMENTAL_LAUNCH_RAMP` | Shorter launch-slot release delay. |
 | `AGENT_WORKFLOW_EXPERIMENTAL_SAME_SESSION_REPAIR` | Output repair retries continue the worker's kept session instead of a fresh attempt. The only setting that makes the engine request kept worker sessions; without it no attempt keeps one. Kept sessions are released at task/run end ([`usage.md`](https://github.com/AgwaB/agent-workflow/blob/main/docs/usage.md#run-records) "Worker sessions"). |
+| `AGENT_WORKFLOW_EXPERIMENTAL_REPAIR_WITHOUT_PREVIEW` | Output repair retries omit the failed attempt's preview; the validation error, its JSON excerpt and the retry instructions stay. |
 | `AGENT_WORKFLOW_PER_ITEM_DISPATCH` | Streaming foreach children whose projection is satisfiable from published partial output start per item. |
 | `AGENT_WORKFLOW_ADAPTIVE_LIVE_WORKERS` | Adaptive live-worker limit (floor 4, ceiling `AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS` or 16). |
 
