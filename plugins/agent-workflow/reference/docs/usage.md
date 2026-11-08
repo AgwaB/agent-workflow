@@ -1012,7 +1012,11 @@ of all four. Support helpers make no model call and report nothing (not zeros). 
 reported, estimated or **unknown**: an unknown cost is `null` in the records and `cost unknown` in the
 host text (`cost=unknown` in the detailed run view), never `0` or `$0`; the run roll-up's `costUsd` is `null` when no
 task reported a cost. Codex reports no cost; Pi's is an estimate; Claude's is notional on a
-subscription: see [support matrix](#support-matrix).
+subscription: see [support matrix](#support-matrix). Each attempt also records `peakContextTokens`,
+the largest prompt one of its usage events reported (input + cache-read + cache-write tokens: how much
+context one model call saw), with `usageEvents`; the task aggregate keeps the largest. Pi reports one
+event per assistant message and Codex one per turn, so there it is a per-call peak; Claude reports one
+event per attempt, so there it equals the attempt's whole input side. Not summed into any total.
 
 **Code revisions.** Each run records, at launch, `run.codeRevisions`: the engine `version` (plus its
 `checkout` state when it runs from a git checkout of itself, read once per process) and the `target`

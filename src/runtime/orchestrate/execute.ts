@@ -87,6 +87,13 @@ export interface UsageSummary {
 	cost: number | null;
 	source: UsageSource;
 	events: number;
+	/**
+	 * 2026-11-08 (context-quality R1): the largest prompt one usage event reported
+	 * (input + cached + cacheWrite), i.e. the most context a model call of this attempt saw. Null when
+	 * an event's parts are unknown. Per usage event: one per assistant message on Pi, per turn on
+	 * Codex, one for the whole attempt on Claude (then equal to the attempt's input side).
+	 */
+	peakContext: number | null;
 }
 
 export function summarizeUsage(
@@ -122,6 +129,19 @@ export function summarizeUsage(
 		.map((event) => event.model)
 		.filter((name): name is string => typeof name === "string" && name !== "")
 		.at(-1);
+	const peakContext = usage.some(
+		(event) =>
+			event.input === null ||
+			event.cached === null ||
+			event.cacheWrite === null,
+	)
+		? null
+		: Math.max(
+				...usage.map(
+					(event) =>
+						(event.input ?? 0) + (event.cached ?? 0) + (event.cacheWrite ?? 0),
+				),
+			);
 	return {
 		input,
 		output,
@@ -133,6 +153,7 @@ export function summarizeUsage(
 		cost: cost === null ? null : Math.round(cost * 1e12) / 1e12,
 		source,
 		events: usage.length,
+		peakContext,
 	};
 }
 
