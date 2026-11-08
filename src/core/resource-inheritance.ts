@@ -109,7 +109,7 @@ export function resourceInheritanceWarnings(agent: AgentDefinition): string[] {
 	}
 	if (frontmatter.inheritProjectContext === true) {
 		warnings.push(
-			`agent "${agent.displayName}" requests inheritProjectContext: true, but project context discovery remains disabled`,
+			`agent "${agent.displayName}" requests inheritProjectContext: true: its workers load the user's and project's instruction files (Pi loads only those; Claude and Codex inherit all user context)`,
 		);
 	}
 	return warnings;

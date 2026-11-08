@@ -136,6 +136,17 @@ function validateRequestFields(
 			typeof value.isolation.inherit !== "boolean"
 		)
 			return `${label}isolation must be { inherit: boolean }.`;
+		const scope = value.isolation.scope;
+		if (
+			scope !== undefined &&
+			(value.isolation.inherit !== true ||
+				!isRecord(scope) ||
+				typeof scope.contextFiles !== "boolean" ||
+				typeof scope.skills !== "boolean" ||
+				Object.keys(scope).length !== 2 ||
+				(!scope.contextFiles && !scope.skills))
+		)
+			return `${label}isolation.scope must be { contextFiles: boolean, skills: boolean } with at least one true, and only with inherit: true.`;
 	}
 	if (
 		value.permissionMode !== undefined &&
@@ -357,7 +368,18 @@ export function buildSubmitRequestFields(options: {
 			: { resumeSessionId: input.resumeSessionId }),
 		deadlineMs,
 		env: sanitizedEnv(input.env),
-		isolation: { inherit: input.isolation?.inherit ?? false },
+		isolation: {
+			inherit: input.isolation?.inherit ?? false,
+			...(input.isolation?.inherit === true &&
+			input.isolation.scope !== undefined
+				? {
+						scope: {
+							contextFiles: input.isolation.scope.contextFiles,
+							skills: input.isolation.scope.skills,
+						},
+					}
+				: {}),
+		},
 		approvalPolicy: defaultApprovalPolicy(input.approvalPolicy ?? {}),
 		...(input.permissionMode === undefined
 			? {}

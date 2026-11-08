@@ -92,6 +92,9 @@ export interface PiArgvOptions {
 	readonly piCommand: string;
 	/** B5: workers ignore the user's extensions, skills, prompt templates, themes, context files and project settings. */
 	readonly isolated: boolean;
+	/** C2: with `isolated`, still load the user's context files (AGENTS.md…) / skills — the rest stays off. */
+	readonly inheritContextFiles?: boolean;
+	readonly inheritSkills?: boolean;
 	/**
 	 * Keep the session (D3) under `dir` with this id; absent = `--no-session`. `resumePath` opens a
 	 * kept session file directly (`--session <path>` is not scoped to the cwd, `--session-id` is).
@@ -136,9 +139,9 @@ export function buildPiArgv(options: PiArgvOptions): [string, ...string[]] {
 	argv.push("--exclude-tools", "subagent");
 	if (options.isolated)
 		argv.push(
-			"--no-context-files",
+			...(options.inheritContextFiles === true ? [] : ["--no-context-files"]),
 			"--no-extensions",
-			"--no-skills",
+			...(options.inheritSkills === true ? [] : ["--no-skills"]),
 			"--no-prompt-templates",
 			"--no-themes",
 			"--no-approve",

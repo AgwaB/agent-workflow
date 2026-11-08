@@ -276,7 +276,7 @@ test("compiler stamps omitted/true/false skills across all context-field values"
 					assert.equal(warnings.length, 1, name);
 					assert.match(
 						warnings[0],
-						/project context discovery remains disabled/,
+						/requests inheritProjectContext: true: its workers load the user.s and project.s instruction files/,
 					);
 				} else {
 					assert.deepEqual(warnings, [], name);
@@ -797,7 +797,7 @@ test("dynamic children use selected-agent flags, preserve legacy absence, and pe
 		assert.match(dynamicWarnings.join("\n"), /non-boolean inheritSkills/);
 		assert.match(
 			dynamicWarnings.join("\n"),
-			/project context discovery remains disabled/,
+			/requests inheritProjectContext: true: its workers load the user.s and project.s instruction files/,
 		);
 		await writeCompiledRunArtifact(
 			cwd,

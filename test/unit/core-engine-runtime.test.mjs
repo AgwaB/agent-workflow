@@ -645,7 +645,8 @@ test("SubmitRequest mapping: approvals, isolation, MCP servers, worktree gate (R
 	});
 	assert.deepEqual(
 		taskBackend.workflowTaskIsolation({ ...readOnlyTask, inheritSkills: true }),
-		{ inherit: true },
+		// C2: the inheriting stage names the part it inherits.
+		{ inherit: true, scope: { contextFiles: false, skills: true } },
 	);
 	const server = {
 		name: "workflow_artifact",
