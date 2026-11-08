@@ -270,3 +270,29 @@ test("deep-research v2 output repair applies comparison row and supporting-id ca
 		/comparisonRows\.supportingClaimIds:-16/,
 	);
 });
+
+// K3 (2026-11-08): a synthesis that declared its own packet intake blocked is not a report.
+test("deep-research refuses to render a synthesis whose inputIntegrity is blocked", async () => {
+	const packet = await finalPacket({
+		sources: structuredClone(fixture.sources),
+	});
+	const overlay = synthesis(comparisonRows);
+	overlay.inputIntegrity = {
+		status: "blocked",
+		reason: "inconsistent_input",
+		detail:
+			"header.fields[claimVerdictLedger].count=19 but 18 entries were received",
+	};
+	assert.equal(validateJsonSchema(overlay, synthesisSchema).valid, true);
+	const result = await render({
+		sources: { "final-audit-packet": packet, "final-audit": overlay },
+	});
+	assert.equal(result.status, "blocked");
+	assert.equal(result.gates.passed, false);
+	assert.match(
+		result.blockers[0],
+		/inputIntegrity\.status="blocked" with reason="inconsistent_input" \(header\.fields\[claimVerdictLedger\]\.count=19 but 18 entries were received\)/,
+	);
+	assert.equal(result.completionSummaryMarkdown, "");
+	assert.equal(result.reportMarkdown, "");
+});

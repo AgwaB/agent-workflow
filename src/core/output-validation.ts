@@ -16,6 +16,7 @@ import {
 	formatRequiredArtifactRead,
 	formatRequiredReadFailureMessage,
 	formatRequiredReadPolicyName,
+	acceptedInputIntegrityBlock,
 	inputIntegrityContradiction,
 } from "./required-reads.js";
 import {
@@ -304,6 +305,29 @@ async function materializeTerminalArtifactGraphResultInner(
 			attempt,
 			message: contradiction,
 			...retrySession,
+		});
+	}
+
+	// K3 (2026-11-08): a block the ledger cannot disprove (inconsistent_input, budget_block) is the
+	// worker's blocked handoff: fail the task visibly (resumable) instead of completing on it.
+	const integrityBlock = acceptedInputIntegrityBlock(parsed.control);
+	if (integrityBlock) {
+		await measureTerminalArtifactBundleWrite(task, () =>
+			writeArtifactGraphMissingReadsAttempt(
+				dirname(options.resultFile),
+				rawOutput,
+				attempt,
+				[],
+				options.completedAt,
+				{
+					failureKind: "input_integrity_blocked",
+					errorMessage: integrityBlock.message,
+				},
+			),
+		);
+		return failArtifactGraphTask(task, {
+			statusDetail: "input_integrity_blocked",
+			message: integrityBlock.message,
 		});
 	}
 
