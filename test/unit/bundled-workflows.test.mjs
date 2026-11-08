@@ -63,6 +63,44 @@ test("every bundled workflow and scaffold validates and compiles with the bundle
 	}
 });
 
+// agent-workflow 2026-11-08: a stage that reads its sources with sourcePolicy "partial" can finish
+// while a source failed; resume reruns that source, so the stage must rerun too (deep-research and
+// spec-review had no declaration and kept results built from the old inputs).
+test("every bundled non-foreach partial consumer invalidates on dependency resume", async () => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-bundled-resume-"));
+	try {
+		for (const file of BUNDLED_SPEC_FILES) {
+			const specPath = join(root, file);
+			const raw = JSON.parse(await readFile(specPath, "utf8"));
+			const partial = (raw.artifactGraph?.stages ?? []).filter(
+				(stage) => stage.sourcePolicy === "partial" && stage.type !== "foreach",
+			);
+			const compiled = await compileWorkflow(parseWorkflow(raw), {
+				cwd,
+				specPath,
+				task: "resume invalidation check",
+			});
+			for (const stage of partial) {
+				const task = compiled.tasks.find(
+					(row) => row.id === `${stage.id}.main`,
+				);
+				assert.equal(
+					task?.artifactGraph?.inputPolicy?.invalidateOnDependencyResume,
+					true,
+					`${file}: ${stage.id}`,
+				);
+			}
+		}
+	} finally {
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
 test("bundled assets name the artifact tool by its workflow name only", async () => {
 	const forbidden = [
 		[/mcp__workflow_artifact__/u, "executor-specific artifact tool name"],
