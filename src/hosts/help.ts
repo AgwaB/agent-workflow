@@ -31,9 +31,7 @@ List discoverable workflows (project workflows/, .agent-workflow/workflows,
 
 Load and compile a workflow spec without running it. Exit 1 when the spec is invalid.`,
 	check: `Usage: agent-workflow check <workflow-name-or-path> [<task...>] [--executor <id>] [--profile <name>]
-                           [--preset codex|claude|pi|mixed] [--model <id>] [--effort <level>]
-                           [--role <role>=<executor>[:<model>[:<effort>]]]... [--permission-mode free|safe]
-                           [--json]
+                           [--model <id>] [--effort <level>] [--permission-mode free|safe] [--json]
 
 The launch preflight without the launch: picks the executor, compiles the spec and checks what a run
 needs — executor installed and logged in, every stage's tools, model and effort available on the
