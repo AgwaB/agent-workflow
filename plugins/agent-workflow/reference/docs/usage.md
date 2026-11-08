@@ -986,7 +986,8 @@ Run files, relative to the project's state directory:
 
 ```text
 .agent-workflow/workflows/<run-id>/
-  run.json             run record: status, tasks, executor, permission mode, capability negotiation, usage
+  run.json             run record: status, tasks, executor, permission mode, capability negotiation,
+                       code revisions, usage
   spec.json, compiled.json, bundle/   what the run executes
   supervise.log        detached supervisor log (--detach)
   tasks/<task-id>/     task.md, system-prompt.md, control.json, analysis.md, refs.json, raw.md,
@@ -1009,6 +1010,17 @@ reported, estimated or **unknown**: an unknown cost is `null` in the records and
 host text (`cost=unknown` in the detailed run view), never `0` or `$0`; the run roll-up's `costUsd` is `null` when no
 task reported a cost. Codex reports no cost; Pi's is an estimate; Claude's is notional on a
 subscription: see [support matrix](#support-matrix).
+
+**Code revisions.** Each run records, at launch, `run.codeRevisions`: the engine `version` (plus its
+`checkout` state when it runs from a git checkout of itself, read once per process) and the `target`
+state of the run's repository: `head`, `branch` (absent when detached), `dirty`, `statusSha256`
+(SHA-256 of `git status --porcelain=v1 -z`: changed, deleted and untracked paths) and `diffSha256`
+(SHA-256 of a canonical `git diff HEAD --binary`, independent of your diff settings: tracked
+content changes; untracked file contents are not included). Outside a repository it is
+`{"repository": false}` and no git command runs. Only hashes are stored, never file content or
+remote URLs. Git runs with fsmonitor off, without optional locks, external diff or textconv
+commands, and with a 5 s limit per command; a failure or timeout is listed under `issues` and never
+blocks the launch. Nested runs keep their parent's record; runs created before this have none.
 
 **Worker sessions.** By default no worker keeps a CLI session: workers run without session
 persistence (Claude `--no-session-persistence`, Codex ephemeral threads, Pi `--no-session`), and output

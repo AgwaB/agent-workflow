@@ -103,6 +103,8 @@ export type {
 	WorkflowRunLaunchProfile,
 	WorkflowAutoRoute,
 	WorkflowRunProvenance,
+	WorkflowRunCodeRevisions,
+	WorkflowRunGitState,
 	ArtifactGraphWorkflowSpec,
 	ArtifactGraphStageSpec,
 	ArtifactGraphStageType,
