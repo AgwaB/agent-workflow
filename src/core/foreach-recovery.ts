@@ -361,6 +361,9 @@ export async function recoverForeachBatchRuntime(
 	let changed = false;
 	for (const record of run.foreachBatches ?? []) {
 		assertForeachBatchRecord(record);
+		// An invalidated record belongs to a rematerialized foreach generation: its member tasks
+		// were removed with that generation, so there is nothing to recover or to resolve.
+		if (record.phase === "invalidated") continue;
 		if (record.stateRootSha256 || record.capabilitySubjectSha256) {
 			const capability = await issueForeachBatchCapability(cwd, record);
 			await assertForeachBatchCapability(cwd, record, capability);

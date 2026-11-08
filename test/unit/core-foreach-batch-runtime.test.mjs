@@ -2647,3 +2647,123 @@ test("a physical batch launch failure durably falls back the exact pair to singl
 		removeProject(cwd);
 	}
 });
+
+// 2026-11-08 (found by the L4 live check on deep-research): when a flagged consumer between the
+// reset source and a batched foreach is invalidated, the closure rematerializes the foreach (its
+// children are removed), but the completed batch record kept pointing at the removed member tasks
+// and `recoverForeachBatchRuntime` failed the resume with "cannot recover exact member". The record
+// must be marked invalidated and left alone; the rebuilt foreach gets its own record.
+test("resume after a dependency reset rematerializes a completed batched foreach and keeps its old batch record inert", async () => {
+	const cwd = makeProject();
+	try {
+		writeAgent(cwd);
+		const items = writeWorkflow(cwd, "batch-invalidate");
+		const specPath = join(cwd, "workflows", "batch-invalidate", "spec.json");
+		const spec = JSON.parse(readFileSync(specPath, "utf8"));
+		// source → mid (invalidates on dependency resume; the fake answers "Produce items." prompts
+		// with the item list) → fan (batched) → downstream.
+		spec.artifactGraph.stages.splice(1, 0, {
+			id: "mid",
+			type: "single",
+			from: "source",
+			inputPolicy: { invalidateOnDependencyResume: true },
+			prompt: "Relay the list. Produce items.",
+			output: { analysis: { required: true }, refs: { required: true } },
+		});
+		spec.artifactGraph.stages[2].from = { source: "mid", path: "$.items" };
+		spec.artifactGraph.stages[2].each.itemIdentityPath = "$.id";
+		spec.artifactGraph.stages[3].from = "fan";
+		writeFileSync(specPath, JSON.stringify(spec));
+		const fake = fakeApi({
+			cwd,
+			items,
+			batchItemFactory: (id) => ({
+				id,
+				control: { schema: "stage-control-v1", digest: `batch-${id}` },
+				analysis: `analysis for ${id}`,
+				refs: [],
+			}),
+		});
+		setWorkerApiForTests(fake.api);
+		const started = await runWorkflow("batch-invalidate", cwd, {
+			task: "Run batched items.",
+			executionProfile: "batched",
+		});
+		const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
+		assert.equal(completed.status, "completed");
+		assert.deepEqual(
+			fake.launches.map((launch) => launch.kind),
+			["source", "source", "batch", "singleton", "downstream"],
+		);
+		assert.equal(completed.foreachBatches?.length, 1);
+		assert.equal(completed.foreachBatches[0].phase, "completed");
+		const oldBatchId = completed.foreachBatches[0].batchId;
+		const oldChildren = completed.tasks
+			.filter((task) => task.foreachGenerated)
+			.map((task) => task.taskId);
+
+		// The source failed later (as an operator or a repair would record it): resume reruns it,
+		// mid invalidates, the foreach is rebuilt from mid's new items, downstream reruns.
+		const failed = await readRunRecord(cwd, started.runId);
+		const source = failed.tasks.find((task) => task.stageId === "source");
+		source.status = "failed";
+		source.statusDetail = "test_reset";
+		source.exitCode = 1;
+		failed.status = "failed";
+		failed.taskSummary = {
+			...failed.taskSummary,
+			completed: failed.taskSummary.completed - 1,
+			failed: 1,
+		};
+		await writeRunRecordUnderLease(cwd, started.runId, failed);
+		const launchesBefore = fake.launches.length;
+		const resumed = await resumeRun(cwd, started.runId);
+		assert.ok(resumed.resetTaskIds.includes(source.taskId));
+		const again = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
+		assert.equal(
+			again.status,
+			"completed",
+			JSON.stringify(
+				again.tasks.map((t) => [t.specId, t.status, t.statusDetail]),
+			),
+		);
+		assert.deepEqual(
+			fake.launches.slice(launchesBefore).map((launch) => launch.kind),
+			["source", "source", "batch", "singleton", "downstream"],
+		);
+		const old = again.foreachBatches.find(
+			(record) => record.batchId === oldBatchId,
+		);
+		assert.equal(old?.phase, "invalidated");
+		// Rematerialized children may reuse task ids; they belong to the new generation and to the
+		// fresh batch record, never to the invalidated one.
+		const fresh = again.foreachBatches.filter(
+			(record) => record.batchId !== oldBatchId,
+		);
+		assert.equal(fresh.length, 1);
+		assert.equal(fresh[0].phase, "completed");
+		assert.notEqual(fresh[0].batchId, oldBatchId);
+		const children = again.tasks.filter((task) => task.foreachGenerated);
+		assert.equal(children.length, oldChildren.length);
+		assert.equal(again.invalidationJournal?.generation, 1);
+		for (const child of children) {
+			if (child.foreachBatch)
+				assert.equal(child.foreachBatch.batchId, fresh[0].batchId);
+		}
+		assert.deepEqual(
+			fresh[0].members.map((member) => member.taskId).sort(),
+			children
+				.filter((task) => task.foreachBatch)
+				.map((task) => task.taskId)
+				.sort(),
+		);
+		// Recovery over the persisted record stays clean.
+		await recoverForeachBatchRuntimeForTests(
+			cwd,
+			await readRunRecord(cwd, started.runId),
+		);
+	} finally {
+		setWorkerApiForTests(undefined);
+		removeProject(cwd);
+	}
+});
