@@ -95,6 +95,13 @@ Deep-research uses the CLI's `web_search` and `fetch_content` mappings and the
 [web quote check](#support-helpers). The check accepts exact and formatting-folded quotes, with
 symbol-spacing tolerance only for math; without it, source verification is model-reported.
 
+Deep-research compares structured research observations by code: when workers report different dates
+or numbers for the same fact slot and entity, the slot is contested (`slotConflicts` in the
+normalizer's input packet). The normalizer must route it to verification; the final packet keeps the
+slot `conflicting` until a verified claim states one of the values, and the report lists the
+competing values, their sources and the settling claim under "Contested values". Prose values are
+not compared.
+
 Research synthesis requires a header and all sixteen indexed pages at `maxChars: 16000`, including
 empty tails, exactly once. Pages are bounded in UTF-16 units and UTF-8 bytes, with 256,000 aggregate
 page units plus a bounded header. Oversized rows or bank exhaustion block explicitly; larger/root

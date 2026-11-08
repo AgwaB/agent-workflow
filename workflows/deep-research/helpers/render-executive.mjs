@@ -2020,7 +2020,21 @@ export function sourceVerificationStatement(quoteCheck) {
 	return `Source verification: the engine found ${summary.verified} of ${summary.quotes} quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.`;
 }
 
-function renderCompletionSummary(report, claimSummary, slots, fallback, quoteCheck = null) {
+// K1: a reader-facing line per contested value that no verified claim settled.
+function readerContestedLimits(contestedSlots, korean) {
+	return asArray(contestedSlots)
+		.filter((row) => row?.resolution?.status === "unresolved")
+		.slice(0, 4)
+		.map((row) => {
+			const values = asArray(row.values).map((entry) => entry?.value).filter(Boolean).join(" / ");
+			const subject = row.entity || row.slotId || "";
+			return korean
+				? `${subject}에 대해 출처마다 다른 값(${values})이 나왔고, 검증된 근거로 어느 값이 맞는지 가리지 못했습니다.`
+				: `Sources gave different values for ${subject} (${values}); no verified evidence settled which is right.`;
+		});
+}
+
+function renderCompletionSummary(report, claimSummary, slots, fallback, quoteCheck = null, contestedSlots = []) {
 	const summary = summaryText(report, fallback);
 	// Fixed presentation labels follow Korean prose when present; other prose is
 	// retained verbatim and the parent may translate fixed labels as before.
@@ -2054,7 +2068,7 @@ function renderCompletionSummary(report, claimSummary, slots, fallback, quoteChe
 	// Older controls have no readerNote: deterministic evidence limits still
 	// disclose incomplete/unknown coverage without exposing bookkeeping jargon.
 	const readerNotes = uniqueStrings(asArray(report.caveatedFindings).map(item => item?.readerNote), 4);
-	const limits = uniqueStrings([...readerEvidenceLimits(report, claimSummary, slots, korean), ...readerNotes]);
+	const limits = uniqueStrings([...readerEvidenceLimits(report, claimSummary, slots, korean), ...readerContestedLimits(contestedSlots, korean), ...readerNotes]);
 	if (limits.length) {
 		out.push("## Limits to keep in mind", "", ...limits.map(text => `- ${completionText(text)}`), "");
 	}
@@ -2509,6 +2523,7 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 		slots,
 		control.digest,
 		options.quoteCheck,
+		asArray(packetSource?.packet?.contestedSlots),
 	);
 	const reportExecutiveSummary = completionSummaryMarkdown.replace(
 		/^## /gm,
@@ -2570,6 +2585,41 @@ function synthesisClaimRows(control, rows) {
 		...asArray(synthesis.parentDecisionNotes).flatMap(supportingClaimIds),
 	]);
 	return ids.map((id) => rowById.get(id)).filter(Boolean);
+}
+
+// K1 (2026-11-08): structured values that research observations disagreed on, and whether a
+// verified claim settled them. Unresolved rows are already `conflicting` in the slot table.
+function renderContestedSlotsAudit(contestedSlots) {
+	if (contestedSlots.length === 0) return [];
+	const out = [
+		"",
+		"## Contested values (engine)",
+		"",
+		"Research observations of the same entity disagreed on these values (dates and numbers compared by code; prose is not compared). A value is settled only by a verified claim that states it.",
+		"",
+		"| Slot | Entity | Aspect | Values (sources) | Resolution |",
+		"|---|---|---|---|---|",
+	];
+	for (const row of contestedSlots) {
+		const values = asArray(row.values)
+			.map((entry) => {
+				const sources = [
+					...asArray(entry.sourceUrls),
+					...asArray(entry.files),
+					...asArray(entry.sourceRefs),
+				].slice(0, 3);
+				return `${entry.value ?? "—"}${sources.length ? ` (${sources.join(", ")})` : ""}`;
+			})
+			.join(" vs ");
+		const resolution =
+			row.resolution?.status === "resolved_by_verified_claim"
+				? `${asArray(row.resolution.values).join(", ")} by ${asArray(row.resolution.claimIds).join(", ")}`
+				: "unresolved; slot is conflicting";
+		out.push(
+			`| ${escapeTableCell(row.slotId ?? "—")} | ${escapeTableCell(row.entity || "—")} | ${escapeTableCell(row.aspect ?? "—")} | ${escapeTableCell(values)} | ${escapeTableCell(resolution)} |`,
+		);
+	}
+	return out;
 }
 
 function renderAuditMarkdown(control, packetSource, rendered, quoteCheck = null) {
@@ -2646,6 +2696,7 @@ function renderAuditMarkdown(control, packetSource, rendered, quoteCheck = null)
 	} else {
 		out.push("No remaining gaps were reported.");
 	}
+	out.push(...renderContestedSlotsAudit(asArray(packet.contestedSlots)));
 	if (claims.length > 0 && ledger.length > 0) {
 		out.push("", "## Claims used in executive synthesis", "");
 		for (const claim of claims) {
