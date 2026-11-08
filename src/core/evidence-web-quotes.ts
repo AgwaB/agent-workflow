@@ -12,6 +12,17 @@
 // — images 4, PDF table 1).
 import { createHash } from "node:crypto";
 import {
+	mkdir,
+	mkdtemp,
+	readFile,
+	rename,
+	rm,
+	writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { workflowRunDir } from "./store.js";
+import {
 	EvidencePageCache,
 	evidenceCacheDir,
 	type CachedPage,
@@ -76,6 +87,51 @@ export interface WebQuotePage {
 	readonly bytes: number;
 	readonly fetchedAt: string;
 	readonly fromCache: boolean;
+	/** The body is kept in the run's page store (`evidence/pages/<bodySha256>`). */
+	readonly stored?: boolean;
+}
+
+/** Run-local page store: `<run>/evidence/pages`. */
+export function runPageStoreDir(cwd: string, runId: string): string {
+	return join(workflowRunDir(cwd, runId), "evidence", "pages");
+}
+
+const SHA256_RE = /^[a-f0-9]{64}$/u;
+
+/** Write a page body once, under its own SHA-256; false when it cannot be kept. */
+async function storePageBody(
+	dir: string,
+	body: Buffer,
+): Promise<string | undefined> {
+	const sha256 = createHash("sha256").update(body).digest("hex");
+	const path = join(dir, sha256);
+	try {
+		await mkdir(dir, { recursive: true, mode: 0o700 });
+		const existing = await readFile(path).catch(() => undefined);
+		if (existing !== undefined)
+			return createHash("sha256").update(existing).digest("hex") === sha256
+				? sha256
+				: undefined;
+		const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
+		await writeFile(temp, body, { mode: 0o600, flag: "wx" });
+		await rename(temp, path);
+		return sha256;
+	} catch {
+		return undefined;
+	}
+}
+
+/** A stored page body by its SHA-256, or undefined (missing, or bytes that do not hash to it). */
+export async function readStoredPageBody(
+	dir: string,
+	sha256: string,
+): Promise<Buffer | undefined> {
+	if (!SHA256_RE.test(sha256)) return undefined;
+	const body = await readFile(join(dir, sha256)).catch(() => undefined);
+	if (body === undefined) return undefined;
+	return createHash("sha256").update(body).digest("hex") === sha256
+		? body
+		: undefined;
 }
 
 export type WebQuoteGrade =
@@ -133,6 +189,11 @@ export interface CheckWebQuotesOptions {
 		options: { signal?: AbortSignal },
 	) => Promise<SafeFetchResult>;
 	readonly pdfToText?: typeof pdfToText;
+	/**
+	 * X2 (2026-11-08): keep each page body the check used under this directory, named by its
+	 * SHA-256 (write-once), so the check can be repeated later against exactly what it read.
+	 */
+	readonly pageStoreDir?: string;
 }
 
 type PageOutcome =
@@ -265,15 +326,20 @@ async function loadPage(
 		fromCache = false;
 	}
 	const { page: entry, body } = cached;
+	const storedSha256 =
+		options.pageStoreDir === undefined
+			? undefined
+			: await storePageBody(options.pageStoreDir, body);
 	const page: WebQuotePage = {
 		url,
 		finalUrl: entry.finalUrl,
 		status: entry.status,
 		contentType: entry.contentType,
-		bodySha256: entry.bodySha256,
+		bodySha256: storedSha256 ?? entry.bodySha256,
 		bytes: entry.bytes,
 		fetchedAt: entry.fetchedAt,
 		fromCache,
+		...(storedSha256 === undefined ? {} : { stored: true }),
 	};
 	const views = await pageTextViews(entry.contentType, body, options);
 	if ("reason" in views)
@@ -447,6 +513,66 @@ export interface SupportWebQuoteInput {
 	readonly taskId?: string;
 }
 
+/** A recorded result as the check-web-quotes stage keeps it: its URL and (when fetched) its page. */
+export interface RecordedWebQuotePage {
+	readonly url: string;
+	readonly page?: {
+		readonly finalUrl?: string;
+		readonly status?: number;
+		readonly contentType?: string;
+		readonly bodySha256?: string;
+		readonly stored?: boolean;
+	};
+}
+
+/**
+ * X2 (2026-11-08): repeat a recorded check against the page bodies the run kept, without the network
+ * or the shared cache. A URL without a stored body (or with a body that no longer hashes to its
+ * name) is reported `not-stored`.
+ */
+export async function recheckWebQuotesFromStore(
+	rows: readonly WebQuoteInput[],
+	recorded: readonly RecordedWebQuotePage[],
+	options: { readonly cwd: string; readonly pageStoreDir: string },
+): Promise<{ results: WebQuoteResult[]; summary: WebQuoteSummary }> {
+	const byUrl = new Map<string, NonNullable<RecordedWebQuotePage["page"]>>();
+	for (const row of recorded)
+		if (row.page?.stored === true && row.page.bodySha256)
+			byUrl.set(fetchKey(row.url), row.page);
+	const cacheDir = await mkdtemp(join(tmpdir(), "aw-recheck-cache-"));
+	try {
+		return await checkWebQuotes(rows, {
+			cwd: options.cwd,
+			cache: new EvidencePageCache(cacheDir),
+			fetch: async (url) => {
+				const page = byUrl.get(fetchKey(url));
+				const body =
+					page?.bodySha256 === undefined
+						? undefined
+						: await readStoredPageBody(options.pageStoreDir, page.bodySha256);
+				if (page === undefined || body === undefined)
+					return {
+						ok: false,
+						url,
+						reason: "not-stored",
+						detail: "no stored page body for this URL",
+					};
+				return {
+					ok: true,
+					url,
+					finalUrl: page.finalUrl ?? url,
+					status: page.status ?? 200,
+					contentType: page.contentType ?? "text/html",
+					body,
+					redirects: [],
+				};
+			},
+		});
+	} finally {
+		await rm(cacheDir, { recursive: true, force: true });
+	}
+}
+
 /** What support helpers receive as `context.evidence`. */
 export interface SupportEvidenceContext {
 	/**
@@ -483,7 +609,13 @@ export function supportEvidenceContext(options: {
 						? { receipts: receipts.get(taskId) }
 						: {}),
 				})),
-				{ cwd, signal },
+				{
+					cwd,
+					signal,
+					...(runId === undefined
+						? {}
+						: { pageStoreDir: runPageStoreDir(cwd, runId) }),
+				},
 			);
 		},
 	};

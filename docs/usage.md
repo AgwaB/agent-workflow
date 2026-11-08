@@ -850,7 +850,9 @@ audit summary gets a "Quote check" line and `audit.md` lists every quote that co
 `audit-claims` reads it too: a verified claim whose web quotes were all looked for on a fetched,
 readable page and not found there is downgraded to `partially_supported` (`web_quote_not_on_page`);
 a quote the engine could not check (fetch failed, unsupported media, too little text) changes no
-verdict.
+verdict. Each page body the check read is kept with the run (`evidence/pages/<sha256>`, write-once) and
+listed in the results (`page.stored`), so the check can be repeated later against exactly that text
+(`recheckWebQuotesFromStore`; a URL without a kept body reports `not-stored`).
 
 ### Loop behavior
 

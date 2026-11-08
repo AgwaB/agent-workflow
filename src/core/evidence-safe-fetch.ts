@@ -31,7 +31,9 @@ export type SafeFetchFailure =
 	| "too-large"
 	| "timeout"
 	| "network-error"
-	| "aborted";
+	| "aborted"
+	// X2: a re-check from a run's page store found no stored body for the URL.
+	| "not-stored";
 
 export type SafeFetchResult =
 	| {
