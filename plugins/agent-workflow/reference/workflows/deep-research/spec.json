@@ -264,7 +264,8 @@
           "normalize-input-packet",
           "normalize-claims",
           "sanitize-claims",
-          "verify-claims"
+          "verify-claims",
+          "check-web-quotes"
         ],
         "sourcePolicy": "partial",
         "inputPolicy": {

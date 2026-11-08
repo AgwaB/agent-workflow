@@ -444,6 +444,7 @@ test("deep-research tiered verification variant is path-ref opt-in", async () =>
 		"sanitize-claims.main",
 		"verify-core-claims.item",
 		"verify-tail-claims.item",
+		"check-web-quotes.main",
 	]);
 	assert.equal(byStage.has("verify-claims"), false);
 	assert.equal(byStage.has("verification-batches"), false);

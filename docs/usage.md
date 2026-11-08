@@ -831,7 +831,10 @@ the system `pdftotext` when installed), caches pages by content hash in
 `.agent-workflow/evidence-cache/` in the [state directory](#where-run-state-lives) (1 GiB, 24 h), and returns per quote `verified-captured`,
 `verified-refetched` or `unverified` with a reason. deep-research uses it in its `check-web-quotes` stage: the final report's
 audit summary gets a "Quote check" line and `audit.md` lists every quote that could not be checked.
-Verdicts are not changed.
+`audit-claims` reads it too: a verified claim whose web quotes were all looked for on a fetched,
+readable page and not found there is downgraded to `partially_supported` (`web_quote_not_on_page`);
+a quote the engine could not check (fetch failed, unsupported media, too little text) changes no
+verdict.
 
 ### Loop behavior
 
