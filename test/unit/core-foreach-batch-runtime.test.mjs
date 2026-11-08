@@ -282,9 +282,13 @@ function fakeApi({
 	failBatchLaunchOnce = false,
 	throwBatchPoll = false,
 	durableBarrier = false,
+	// Reject a reused executor attempt key, as Codex's durable attempt store does (returns the old
+	// attempt instead of launching). Off where a test deliberately relaunches a legacy key.
+	strictAttemptKeys = false,
 }) {
 	const runs = new Map();
 	const launches = [];
+	const attemptKeys = new Set();
 	const interrupts = [];
 	let batchCompleted = !delayedBatch;
 	let batchLaunchFailed = false;
@@ -438,6 +442,13 @@ function fakeApi({
 			async runWorker(options) {
 				const index = launches.length + 1;
 				const prompt = String(options.task);
+				// Executors keep durable evidence per attempt key (Codex returns the old attempt for a
+				// reused key); a reused key is a launch-identity collision, never a fresh launch.
+				if (strictAttemptKeys && options.attemptKey !== undefined) {
+					if (attemptKeys.has(options.attemptKey))
+						throw new Error(`attempt key reused: ${options.attemptKey}`);
+					attemptKeys.add(options.attemptKey);
+				}
 				const runId = `run_foreach_batch_${index}`;
 				const attemptId = `attempt_foreach_batch_${index}`;
 				const runsDir = String(options.runsDir);
@@ -2677,6 +2688,7 @@ test("resume after a dependency reset rematerializes a completed batched foreach
 		const fake = fakeApi({
 			cwd,
 			items,
+			strictAttemptKeys: true,
 			batchItemFactory: (id) => ({
 				id,
 				control: { schema: "stage-control-v1", digest: `batch-${id}` },
@@ -2805,7 +2817,7 @@ for (const declared of [false, true]) {
 				invalidateOnDependencyResume: true,
 			};
 			writeFileSync(specPath, JSON.stringify(spec));
-			const fake = fakeApi({ cwd, items });
+			const fake = fakeApi({ cwd, items, strictAttemptKeys: true });
 			setWorkerApiForTests(fake.api);
 			const started = await runWorkflow(`fan-resume-${declared}`, cwd, {
 				task: "Run items.",
@@ -2835,7 +2847,13 @@ for (const declared of [false, true]) {
 					again.status,
 					"completed",
 					JSON.stringify(
-						again.tasks.map((t) => [t.specId, t.status, t.statusDetail]),
+						again.tasks.map((t) => [
+							t.specId,
+							t.status,
+							t.statusDetail,
+							t.sourceGeneration,
+							(t.lastMessage ?? "").slice(0, 240),
+						]),
 					),
 				);
 				assert.deepEqual(

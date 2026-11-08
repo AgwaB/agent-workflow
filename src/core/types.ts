@@ -953,6 +953,8 @@ export interface LaunchBootstrapProvenanceRecordBase {
 		resume: number;
 		/** Physical batch/fallback attempt; absent for legacy/non-batch records. */
 		physicalAttempt?: number;
+		/** Set (≥ 1) for a foreach child rebuilt by a resume invalidation. */
+		sourceGeneration?: number;
 	};
 	sessionId?: string;
 	prompt: { sha256: string; bytes: number };

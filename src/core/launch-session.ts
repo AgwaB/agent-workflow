@@ -23,7 +23,25 @@ export function workflowTaskSessionId(
 	const resumeAttempt = task.resumeEvents?.length ?? 0;
 	if (resumeAttempt > 0)
 		return boundedWorkflowSessionId(`${baseSessionId}.resume-${resumeAttempt}`);
+	const generation = rematerializedGeneration(task);
+	if (generation > 0)
+		return boundedWorkflowSessionId(`${baseSessionId}.gen-${generation}`);
 	return baseSessionId;
+}
+
+/**
+ * 2026-11-08: a foreach child rebuilt by a resume invalidation is a new task record that may reuse its
+ * task id (ids are stable per item) with fresh retry/resume counters, so without its source
+ * generation it would repeat the previous generation's attempt identity and session id — the
+ * executor then returned the old attempt (Codex: fence violation, every rebuilt child failed).
+ * Generation 0 (and tasks without one) keep their identities unchanged.
+ */
+export function rematerializedGeneration(task: WorkflowTaskRunRecord): number {
+	const generation =
+		task.foreachGenerated !== undefined ? task.sourceGeneration : undefined;
+	return typeof generation === "number" && Number.isSafeInteger(generation)
+		? Math.max(0, generation)
+		: 0;
 }
 
 export function workflowTaskAttemptIdentity(
@@ -37,6 +55,9 @@ export function workflowTaskAttemptIdentity(
 		...(task.foreachBatch?.physicalAttempt === undefined
 			? []
 			: [`physical:${task.foreachBatch.physicalAttempt}`]),
+		...(rematerializedGeneration(task) > 0
+			? [`generation:${rematerializedGeneration(task)}`]
+			: []),
 		`session:${sessionId ?? "none"}`,
 	].join(";");
 }
@@ -57,15 +78,20 @@ export function isWorkflowTaskSessionIdentity(input: {
 	launchRetry: number;
 	outputRetry: number;
 	resume: number;
+	sourceGeneration?: number;
 	sessionId: string;
 }): boolean {
 	const base = workflowTaskBaseSessionId(input.runId, input.taskId);
+	const generation = input.sourceGeneration ?? 0;
 	if (input.outputRetry > 0) {
 		return new Set([
 			base,
 			boundedWorkflowSessionId(`${base}.launch-retry-${input.launchRetry}`),
 			boundedWorkflowSessionId(`${base}.resume-${input.resume}`),
 			boundedWorkflowSessionId(`${base}.retry-${input.outputRetry}`),
+			...(generation > 0
+				? [boundedWorkflowSessionId(`${base}.gen-${generation}`)]
+				: []),
 		]).has(input.sessionId);
 	}
 	if (input.launchRetry > 0)
@@ -77,6 +103,10 @@ export function isWorkflowTaskSessionIdentity(input: {
 		return (
 			input.sessionId ===
 			boundedWorkflowSessionId(`${base}.resume-${input.resume}`)
+		);
+	if (generation > 0)
+		return (
+			input.sessionId === boundedWorkflowSessionId(`${base}.gen-${generation}`)
 		);
 	return input.sessionId === base;
 }
