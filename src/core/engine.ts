@@ -34,6 +34,7 @@ import {
 	FAIL_FAST_CANCELLED_STATUS_DETAIL,
 	fromStatePath,
 	initializeRunRecordDirectories,
+	dependencyResumableSupportBlockIds,
 	isBlockedTaskResumableForResume,
 	invalidateTaskForDependencyResume,
 	isTerminalWorkflowStatus,
@@ -1361,9 +1362,12 @@ export interface StopRunSummary {
 
 function assertBlockedRunResumable(run: WorkflowRunRecord): void {
 	if (run.status !== "blocked") return;
+	const dependencyResumable = dependencyResumableSupportBlockIds(run);
 	const blockers = run.tasks.filter(
 		(task) =>
-			task.status === "blocked" && !isBlockedTaskResumableForResume(task),
+			task.status === "blocked" &&
+			!isBlockedTaskResumableForResume(task) &&
+			!dependencyResumable.has(task.taskId),
 	);
 	if (blockers.length === 0) return;
 	const details = blockers
@@ -2203,6 +2207,7 @@ function dependencyResumeInvalidationPlan(
 	run: WorkflowRunRecord,
 	compiledFlow: CompiledWorkflow,
 ): ResumeDependencyInvalidationPlan | undefined {
+	const dependencyResumable = dependencyResumableSupportBlockIds(run);
 	const resumableSourceSpecIds = new Set(
 		run.tasks
 			.filter(
@@ -2210,7 +2215,8 @@ function dependencyResumeInvalidationPlan(
 					task.status === "failed" ||
 					task.status === "interrupted" ||
 					task.status === "skipped" ||
-					isBlockedTaskResumableForResume(task),
+					isBlockedTaskResumableForResume(task) ||
+					dependencyResumable.has(task.taskId),
 			)
 			.map((task) => task.specId),
 	);
@@ -2648,6 +2654,9 @@ function applyDependencyResumeInvalidation(
 	run: WorkflowRunRecord,
 	compiledFlow: CompiledWorkflow,
 	journal: ResumeDependencyInvalidationPlan,
+	dependencyResumable: ReadonlySet<string> = dependencyResumableSupportBlockIds(
+		run,
+	),
 ): string[] {
 	const sourceTaskIds = new Set(journal.sourceTaskIds);
 	const invalidatedTaskIds = new Set(journal.invalidatedTaskIds);
@@ -2689,7 +2698,7 @@ function applyDependencyResumeInvalidation(
 	for (const task of run.tasks) {
 		if (!affectedTaskIds.has(task.taskId)) continue;
 		const reset = sourceTaskIds.has(task.taskId)
-			? resetTaskForResume(task)
+			? resetTaskForResume(task, dependencyResumable)
 			: invalidatedTaskIds.has(task.taskId)
 				? invalidateTaskForDependencyResume(task)
 				: false;
@@ -2723,11 +2732,13 @@ export function applyDependencyResumeInvalidationForTests(
 function resetRemainingTasksForResume(
 	run: WorkflowRunRecord,
 	alreadyResetTaskIds: ReadonlySet<string>,
+	dependencyResumable: ReadonlySet<string>,
 ): string[] {
 	const resetTaskIds: string[] = [];
 	for (const task of run.tasks) {
 		if (alreadyResetTaskIds.has(task.taskId)) continue;
-		if (resetTaskForResume(task)) resetTaskIds.push(task.taskId);
+		if (resetTaskForResume(task, dependencyResumable))
+			resetTaskIds.push(task.taskId);
 	}
 	return resetTaskIds;
 }
@@ -3024,8 +3035,10 @@ export async function resumeRun(
 		);
 		if (!planned) {
 			await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
+				const dependencyResumable = dependencyResumableSupportBlockIds(run);
 				for (const task of run.tasks) {
-					if (resetTaskForResume(task)) resetTaskIds.push(task.taskId);
+					if (resetTaskForResume(task, dependencyResumable))
+						resetTaskIds.push(task.taskId);
 				}
 				if (resetTaskIds.length > 0)
 					await writeRunRecord(cwd, run, leaseSignal);
@@ -3071,10 +3084,13 @@ export async function resumeRun(
 			});
 		}
 		await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
+			// Before any reset: resetting a failed dependency makes it pending.
+			const dependencyResumable = dependencyResumableSupportBlockIds(run);
 			const invalidatedTaskIds = applyDependencyResumeInvalidation(
 				run,
 				activeCompiledFlow,
 				planned,
+				dependencyResumable,
 			);
 			const invalidatedTaskIdSet = new Set([
 				...planned.sourceTaskIds,
@@ -3082,7 +3098,11 @@ export async function resumeRun(
 			]);
 			resetTaskIds.push(
 				...invalidatedTaskIds,
-				...resetRemainingTasksForResume(run, invalidatedTaskIdSet),
+				...resetRemainingTasksForResume(
+					run,
+					invalidatedTaskIdSet,
+					dependencyResumable,
+				),
 			);
 			await writeJsonAtomic(
 				compiledWorkflowPath(cwd, run.runId),

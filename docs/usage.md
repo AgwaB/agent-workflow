@@ -275,7 +275,9 @@ the run settles or their timeout passes, up to 4 h).
 
 Run states: `running`, `completed`, `failed`, `interrupted` (stopped, or a worker was revoked) and
 `blocked` (needs a person: an unprovable executor state, an exhausted required-read or output repair,
-or an access blocker). `resume` resets failed, interrupted and resumable blocked tasks and keeps
+or an access blocker). A support stage that declared itself blocked counts as resumable when one of
+its sources is resumable (a renderer blocked by a failed audit reruns after the audit); with every
+source completed it stays a blocker. `resume` resets failed, interrupted and resumable blocked tasks and keeps
 completed task artifacts, except stages that declare `inputPolicy.invalidateOnDependencyResume`
 (the bundled deep-review, deep-research and spec-review consumers do): those rerun, with everything after them,
 when a source they read is reset, so a result never mixes old and new inputs. A run executes the copied `bundle/` in its run directory, so a newer
