@@ -276,10 +276,49 @@ function reconcileContestedSlots(factSlots, claimDigests, slotConflicts) {
 		rows.push(contested);
 		unresolvedBySlot.set(contested.slotId, rows);
 	}
+	const resolvedBySlot = new Map();
+	for (const contested of contestedSlots) {
+		if (contested.resolution.status !== "resolved_by_verified_claim") continue;
+		const rows = resolvedBySlot.get(contested.slotId) ?? [];
+		rows.push(contested);
+		resolvedBySlot.set(contested.slotId, rows);
+	}
+	const slotClaimStatuses = new Map();
+	for (const claim of claimDigests)
+		for (const slotId of compactStrings(claim.factSlotIds, 12)) {
+			const statuses = slotClaimStatuses.get(slotId) ?? new Set();
+			statuses.add(stringOf(claim.status));
+			slotClaimStatuses.set(slotId, statuses);
+		}
 	return {
 		contestedSlots,
 		factSlots: factSlots.map((slot) => {
 			const unresolved = unresolvedBySlot.get(slot.slotId);
+			// 2026-11-08 (L4 live): the normalizer marks a contested slot conflicting as instructed; when
+			// every contest on it was settled by a verified claim and no audited claim on the slot is
+			// conflicting, the slot is filled with the settled value(s) instead of staying conflicting.
+			const resolved = resolvedBySlot.get(slot.slotId);
+			if (
+				!unresolved &&
+				resolved &&
+				slot.status === "conflicting" &&
+				!slotClaimStatuses.get(slot.slotId)?.has("conflicting")
+			) {
+				const note = `contested ${resolved
+					.map(
+						(row) =>
+							`${row.aspect} for ${row.entity || "the slot entity"} settled to ${row.resolution.values.join(", ")} by ${row.resolution.claimIds.join(", ")} (${row.id}; other value(s): ${row.values
+								.map((entry) => entry.value)
+								.filter((value) => !row.resolution.values.includes(value))
+								.join(", ")})`,
+					)
+					.join("; ")}`;
+				return {
+					...slot,
+					status: "filled",
+					gapReason: slot.gapReason ? `${slot.gapReason}; ${note}` : note,
+				};
+			}
 			if (!unresolved) return slot;
 			const reason = `contested ${unresolved
 				.map(

@@ -406,6 +406,35 @@ test("the final packet keeps a contested slot conflicting until a verified claim
 		["slot-001"],
 	);
 
+	// L4 live (2026-11-08): the normalizer marked the slot conflicting as instructed, the verifier settled
+	// it — the slot is filled with the settled value, the other value named in the note.
+	const settled = await finalPacketFor({
+		normalizedStatus: "conflicting",
+		verifierStatus: "verified",
+		claimText: "RFC 9000 was published in May 2021.",
+	});
+	const settledSlot = settled.packet.factSlotCoverage.find(
+		(row) => row.slotId === "slot-001",
+	);
+	assert.equal(settledSlot.status, "filled");
+	assert.match(
+		settledSlot.gapReason,
+		/contested date for RFC 9000 settled to 2021-05 by claim-001 \(conflict-001; other value\(s\): 2022-05\)/,
+	);
+	assert.equal(validateJsonSchema(settled, packetSchema).valid, true);
+	// …but not when the slot's own audited claim is conflicting.
+	const stillConflicting = await finalPacketFor({
+		normalizedStatus: "conflicting",
+		verifierStatus: "conflicting",
+		claimText: "RFC 9000 was published in May 2021.",
+	});
+	assert.equal(
+		stillConflicting.packet.factSlotCoverage.find(
+			(row) => row.slotId === "slot-001",
+		).status,
+		"conflicting",
+	);
+
 	// A verified claim stating "May 2021" settles it; the normalizer's status stands.
 	const resolved = await finalPacketFor({
 		normalizedStatus: "filled",
