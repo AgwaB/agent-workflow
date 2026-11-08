@@ -1,3 +1,4 @@
+import { detectSlotConflicts } from "./slot-conflicts.mjs";
 import { findSource, asArray, asObject, stringOf } from "./source-access.mjs";
 // Deterministic compact input packet for deep-research normalize-claims.
 //
@@ -694,6 +695,8 @@ export default async function normalizeInputPacket({ sources, context } = {}) {
 	}
 	const precisionGuard = buildPrecisionGuard({ claims, planSlots });
 	const slotPreservation = buildSlotPreservation({ planSlots, extractedFacts });
+	// K1 (2026-11-08): same slot and entity, different structured values ⇒ contested.
+	const slotConflicts = detectSlotConflicts({ planSlots, extractedFacts });
 
 	return {
 		schema: SCHEMA,
@@ -720,6 +723,7 @@ export default async function normalizeInputPacket({ sources, context } = {}) {
 			researchQuestionCoverage,
 			slotPreservation,
 			precisionGuard,
+			slotConflicts,
 			ledgers: {
 				overflow,
 				overflowBySlot: overflowBySlot({
@@ -754,6 +758,8 @@ export default async function normalizeInputPacket({ sources, context } = {}) {
 				// 2026-11-03: Korean claims against English quotes failed the sanitizer's word check (all
 				// 18 demoted). The prompt is at its length ceiling, so the rule rides in the packet the
 				// prompt already tells the normalizer to follow.
+				slotConflicts:
+					"slotConflicts lists slots where research observations of the same entity disagree on a date or number (code-compared; free text is not compared). For each entry, set that slot's factSlotCoverage status to conflicting, quote the competing values and their sources in gapReason, and create at least one verificationCandidate with verificationNeed core whose claim states one value exactly and whose sourceUrls/sourceRefs include both sides' sources, naming the competing value in reasonToVerify; the verifier adjudicates. Do not pick a value silently. The final packet keeps the slot conflicting until a verified claim states one of the values.",
 				claimLanguage:
 					"Write each claim's text (verificationCandidates[].claim, preservedClaims[].claim) in the language of its source evidence, normally that of the quoted passage, even when the runtime task uses another language, so it can be checked word for word against its source; the final synthesis translates what the reader sees. whyItMatters and reasonToVerify may follow the task's language.",
 			},

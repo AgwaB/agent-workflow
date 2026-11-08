@@ -176,13 +176,39 @@
             "source": { "type": "string" },
             "addedReverseBindings": { "type": "array", "items": { "type": "object" } },
             "preservedReverseBindings": { "type": "array", "items": { "type": "object" } },
-            "invalidCanonicalMemberships": { "type": "array", "items": { "type": "object" } }
+            "invalidCanonicalMemberships": { "type": "array", "items": { "type": "object" } },
+            "contestedSlotIds": { "type": "array", "items": { "type": "string" } },
+            "unresolvedContestedSlotIds": { "type": "array", "items": { "type": "string" } }
           }
         },
         "factSlotStatusCounts": { "type": "object" },
         "coverageGaps": { "type": "array", "items": { "type": "object" } },
         "remainingGaps": { "type": "array", "items": { "type": "object" } },
         "sourceRefJoinFailures": { "type": "array", "items": { "type": "object" } },
+        "contestedSlots": {
+          "type": "array",
+          "description": "K1: slots whose research observations disagreed on a structured value (date or number) for the same entity; resolution names the verified claim that states one value, else the slot is conflicting.",
+          "items": {
+            "type": "object",
+            "required": ["id", "slotId", "aspect", "values", "resolution"],
+            "properties": {
+              "id": { "type": "string" },
+              "slotId": { "type": "string" },
+              "entity": { "type": "string" },
+              "aspect": { "type": "string", "enum": ["date", "number"] },
+              "values": { "type": "array", "items": { "type": "object" } },
+              "resolution": {
+                "type": "object",
+                "required": ["status", "claimIds", "values"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["resolved_by_verified_claim", "unresolved"] },
+                  "claimIds": { "type": "array", "items": { "type": "string" } },
+                  "values": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        },
         "claimVerdictLedger": {
           "type": "array",
           "items": {

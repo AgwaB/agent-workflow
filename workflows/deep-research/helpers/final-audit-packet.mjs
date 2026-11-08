@@ -1,3 +1,4 @@
+import { valuesStatedBy } from "./slot-conflicts.mjs";
 import { buildSynthesisPages } from "./synthesis-pages.mjs";
 import { findSource, asArray, asObject, stringOf } from "./source-access.mjs";
 
@@ -224,6 +225,79 @@ function reconcileFactSlotCoverageWithAudit(
 	};
 }
 
+// K1 (2026-11-08): a slot the input packet found contested (same entity, different date or number
+// across research observations) stays `conflicting` unless a verified audited claim on that slot
+// states one of the competing values; that claim resolves it. A normalizer that marked the slot
+// filled, or a verifier that verified a claim about another aspect of the slot, does not.
+function reconcileContestedSlots(factSlots, claimDigests, slotConflicts) {
+	const conflicts = asArray(slotConflicts?.conflicts).filter(
+		(conflict) => stringOf(conflict?.slotId) && Array.isArray(conflict?.values),
+	);
+	if (conflicts.length === 0) return { factSlots, contestedSlots: [] };
+	const contestedSlots = conflicts.map((conflict) => {
+		const resolvers = claimDigests
+			.filter(
+				(claim) =>
+					stringOf(claim.status) === "verified" &&
+					compactStrings(claim.factSlotIds, 12).includes(conflict.slotId),
+			)
+			.map((claim) => ({
+				claimId: idOf(claim),
+				stated: valuesStatedBy(conflict, claim.claim),
+			}))
+			.filter((row) => row.claimId && row.stated.length > 0);
+		return {
+			id: stringOf(conflict.id),
+			slotId: conflict.slotId,
+			entity: stringOf(conflict.entity),
+			aspect: stringOf(conflict.aspect),
+			values: conflict.values.map((entry) => ({
+				value: stringOf(entry.normalized),
+				raw: compactStrings(entry.raw, 4),
+				sourceTypes: compactStrings(entry.sourceTypes, 4),
+				sourceUrls: compactStrings(entry.sourceUrls, 4),
+				sourceRefs: compactStrings(entry.sourceRefs, 4),
+				files: compactStrings(entry.files, 4),
+			})),
+			resolution:
+				resolvers.length > 0
+					? {
+							status: "resolved_by_verified_claim",
+							claimIds: resolvers.map((row) => row.claimId),
+							values: [...new Set(resolvers.flatMap((row) => row.stated))],
+						}
+					: { status: "unresolved", claimIds: [], values: [] },
+		};
+	});
+	const unresolvedBySlot = new Map();
+	for (const contested of contestedSlots) {
+		if (contested.resolution.status !== "unresolved") continue;
+		const rows = unresolvedBySlot.get(contested.slotId) ?? [];
+		rows.push(contested);
+		unresolvedBySlot.set(contested.slotId, rows);
+	}
+	return {
+		contestedSlots,
+		factSlots: factSlots.map((slot) => {
+			const unresolved = unresolvedBySlot.get(slot.slotId);
+			if (!unresolved) return slot;
+			const reason = `contested ${unresolved
+				.map(
+					(row) =>
+						`${row.aspect} for ${row.entity || "the slot entity"}: ${row.values
+							.map((entry) => entry.value)
+							.join(" vs ")} (${row.id})`,
+				)
+				.join("; ")} not resolved by a verified claim`;
+			return {
+				...slot,
+				status: "conflicting",
+				gapReason: slot.gapReason ? `${slot.gapReason}; ${reason}` : reason,
+			};
+		}),
+	};
+}
+
 function compactGap(gap) {
 	const item = asObject(gap);
 	return {
@@ -423,7 +497,13 @@ export default async function finalAuditPacket({ sources }) {
 		claimDigests,
 		candidateIds,
 	);
-	const factSlotCoverage = factSlotReconciliation.factSlots;
+	const contestedReconciliation = reconcileContestedSlots(
+		factSlotReconciliation.factSlots,
+		claimDigests,
+		inputPacket.packet?.slotConflicts,
+	);
+	const factSlotCoverage = contestedReconciliation.factSlots;
+	const contestedSlots = contestedReconciliation.contestedSlots;
 	const coverageGaps = withGeneratedIds(
 		asArray(normalized.coverageGaps).map(compactGap),
 		"gap-coverage",
@@ -510,6 +590,7 @@ export default async function finalAuditPacket({ sources }) {
 			coverageGaps,
 			remainingGaps,
 			sourceRefJoinFailures,
+			contestedSlots,
 			claimVerdictLedger: claimDigests,
 			verifierIntegrity: {
 				gateSummary,
@@ -538,7 +619,17 @@ export default async function finalAuditPacket({ sources }) {
 			})),
 			researchScopeCoverage: asArray(normalized.researchScopeCoverage),
 			researchQuestionCoverage: asArray(researchQuestionCoverage?.rows),
-			factSlotReconciliation: factSlotReconciliation.reconciliation,
+			factSlotReconciliation: {
+				...factSlotReconciliation.reconciliation,
+				contestedSlotIds: [...new Set(contestedSlots.map((row) => row.slotId))],
+				unresolvedContestedSlotIds: [
+					...new Set(
+						contestedSlots
+							.filter((row) => row.resolution.status === "unresolved")
+							.map((row) => row.slotId),
+					),
+				],
+			},
 			invariantChecks: {
 				candidateCount: verificationCandidates.length,
 				factSlotReconciliation: factSlotReconciliation.reconciliation,

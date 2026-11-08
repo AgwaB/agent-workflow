@@ -2510,6 +2510,15 @@
      "derivedRecommendation": "Claims flagged derived_recommendation should split source-stated atoms into verificationCandidates and keep the product/design recommendation caveated in preservedClaims or final recommendations."
     }
    },
+   "slotConflicts": {
+    "schema": "deep-research-slot-conflicts-v1",
+    "summary": {
+     "comparedGroups": 3,
+     "conflictCount": 0,
+     "contestedSlotIds": []
+    },
+    "conflicts": []
+   },
    "ledgers": {
     "overflow": {},
     "overflowBySlot": {
@@ -2591,6 +2600,7 @@
     "selectionBoundary": "Use this packet for mechanical lookup/coverage context only; semantic claim selection and verification priority remain the normalizer responsibility.",
     "noSilentLoss": "If ledgers.overflow has non-zero counts, summarize omitted material in normalizationNotes instead of implying full coverage.",
     "precisionGuard": "Use precisionGuard to split or demote broad, normative, bundled, source-weak, retrieval-gap, or derived-recommendation claims before verification; use slotPreservation so required/critical slot evidence is selected, preserved, or marked as an explicit gap.",
+    "slotConflicts": "slotConflicts lists slots where research observations of the same entity disagree on a date or number (code-compared; free text is not compared). For each entry, set that slot's factSlotCoverage status to conflicting, quote the competing values and their sources in gapReason, and create at least one verificationCandidate with verificationNeed core whose claim states one value exactly and whose sourceUrls/sourceRefs include both sides' sources, naming the competing value in reasonToVerify; the verifier adjudicates. Do not pick a value silently. The final packet keeps the slot conflicting until a verified claim states one of the values.",
     "claimLanguage": "Write each claim's text (verificationCandidates[].claim, preservedClaims[].claim) in the language of its source evidence, normally that of the quoted passage, even when the runtime task uses another language, so it can be checked word for word against its source; the final synthesis translates what the reader sees. whyItMatters and reasonToVerify may follow the task's language."
    }
   }
@@ -8807,6 +8817,7 @@
     }
    ],
    "sourceRefJoinFailures": [],
+   "contestedSlots": [],
    "claimVerdictLedger": [
     {
      "id": "claim-001",
@@ -10318,7 +10329,9 @@
     "source": "canonical normalized claim factSlotIds",
     "addedReverseBindings": [],
     "preservedReverseBindings": [],
-    "invalidCanonicalMemberships": []
+    "invalidCanonicalMemberships": [],
+    "contestedSlotIds": [],
+    "unresolvedContestedSlotIds": []
    },
    "invariantChecks": {
     "candidateCount": 18,
@@ -10607,6 +10620,11 @@
       },
       {
        "field": "sourceRefJoinFailures",
+       "kind": "array",
+       "count": 0
+      },
+      {
+       "field": "contestedSlots",
        "kind": "array",
        "count": 0
       },
@@ -12892,7 +12910,9 @@
          "source": "canonical normalized claim factSlotIds",
          "addedReverseBindings": [],
          "preservedReverseBindings": [],
-         "invalidCanonicalMemberships": []
+         "invalidCanonicalMemberships": [],
+         "contestedSlotIds": [],
+         "unresolvedContestedSlotIds": []
         }
        },
        {
