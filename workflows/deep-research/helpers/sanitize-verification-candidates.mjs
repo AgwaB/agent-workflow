@@ -283,6 +283,7 @@ function buildEvidenceHintRows(normalizeInputPacket) {
 			),
 			sourceQuality: sourceQuality || undefined,
 			relevance: notes || supportedValue || undefined,
+			entity: stringOf(fact?.entity) || undefined,
 			_tokens: tokenSet(`${supportedValue} ${quote}`),
 		});
 	}
@@ -375,6 +376,7 @@ function evidenceHintsForCandidate(candidate, hintRows) {
 		factSlotIds: row.factSlotIds,
 		sourceQuality: row.sourceQuality,
 		relevance: row.relevance,
+		entity: row.entity,
 	}));
 }
 
@@ -663,6 +665,64 @@ function rewriteShouldPreferQuote(reasons) {
 	);
 }
 
+/**
+ * 2026-11-08 (context-quality E2): a candidate copied from a heading, field label or JSON line
+ * ("Published: May 2021", "Added in: v20.3.0, v18.17.0", "\"edge\": \"mirror\"") is verified
+ * without saying what it is about — and the rewrite below produced such text itself, by replacing a
+ * mismatched claim with the hint's raw quote. Such a fragment gets its entity prepended when the
+ * entity is unambiguous: the slot's single planned entity, or the evidence fact's entity when it is
+ * one of the slot's planned entities (or the slot plans none). The words are unchanged after the
+ * prefix, so quote matching still works; the superseded text is preserved like any rewrite.
+ */
+const FRAGMENT_HEADING_RE = /^#{1,6}\s+/u;
+const FRAGMENT_LABEL_RE = /^[\p{L}\p{N} ._()/-]{1,32}:\s/u;
+const FRAGMENT_JSON_RE = /^["'{[]/u;
+
+function isFragmentClaim(text) {
+	const value = stringOf(text).trim();
+	if (!value) return false;
+	return (
+		FRAGMENT_HEADING_RE.test(value) ||
+		FRAGMENT_LABEL_RE.test(value) ||
+		FRAGMENT_JSON_RE.test(value) ||
+		tokenSet(value).size <= 3
+	);
+}
+
+function sameEntity(left, right) {
+	const norm = (value) =>
+		stringOf(value).normalize("NFKC").toLocaleLowerCase().trim();
+	return norm(left) !== "" && norm(left) === norm(right);
+}
+
+function fragmentEntity(candidate, hint, slotEntities) {
+	const planned = [
+		...new Set(
+			compactStrings(candidate?.factSlotIds, 12).flatMap(
+				(slotId) => slotEntities.get(slotId) ?? [],
+			),
+		),
+	];
+	if (planned.length === 1) return planned[0];
+	const hinted = stringOf(hint?.entity);
+	if (!hinted) return undefined;
+	if (planned.length === 0) return hinted;
+	return planned.find((entity) => sameEntity(entity, hinted));
+}
+
+function namedFragment(text, entity) {
+	const value = stringOf(text).trim();
+	if (!entity || !isFragmentClaim(value)) return undefined;
+	// "RFC 9204 / QPACK header compression": any named part already in the text is enough.
+	const parts = [
+		entity,
+		...entity.split(/\s*[/|,;()]\s*|\s+[—-]\s+/u).map((part) => part.trim()),
+	].filter((part) => [...part].length >= 3);
+	if (parts.some((part) => includesLiteralPhrase(value, part))) return undefined;
+	const body = value.replace(FRAGMENT_HEADING_RE, "").trim();
+	return body ? `${entity} — ${body}` : undefined;
+}
+
 function rewriteReplacementFromHint(hint, reasons) {
 	if (rewriteShouldPreferQuote(reasons))
 		return stringOf(hint?.quote) || stringOf(hint?.value);
@@ -692,7 +752,13 @@ function selectRewriteHint(candidate, hints, reasons) {
 	return usableHints[0] ?? null;
 }
 
-function rewrittenCandidate(candidate, reasons, hints, urlToSourceRef) {
+function rewrittenCandidate(
+	candidate,
+	reasons,
+	hints,
+	urlToSourceRef,
+	slotEntities = new Map(),
+) {
 	const rewriteReasons = reasons.filter((reason) =>
 		REWRITEABLE_REASONS.has(reason),
 	);
@@ -700,7 +766,9 @@ function rewrittenCandidate(candidate, reasons, hints, urlToSourceRef) {
 		return null;
 	const hint = selectRewriteHint(candidate, hints, reasons);
 	if (!hint) return null;
-	const replacement = rewriteReplacementFromHint(hint, reasons);
+	const raw = rewriteReplacementFromHint(hint, reasons);
+	const replacement =
+		namedFragment(raw, fragmentEntity(candidate, hint, slotEntities)) ?? raw;
 	if (!replacement || replacement === claimText(candidate)) return null;
 	const refs = backfillSourceRefs(candidate, [hint], urlToSourceRef);
 	if (refs.length === 0 && localEvidenceRefs(candidate).length === 0)
@@ -768,6 +836,13 @@ export default async function sanitizeVerificationCandidates({
 		findSource(sources, "normalize-input-packet"),
 	);
 	const evidenceHintRows = buildEvidenceHintRows(normalizeInputPacket);
+	const slotEntities = new Map(
+		asArray(normalizeInputPacket?.packet?.plan?.factSlots).map((slot) => [
+			stringOf(slot?.id ?? slot?.slotId),
+			compactStrings(slot?.entities, 8),
+		]),
+	);
+	const entityNamedCandidateIds = [];
 	const urlToSourceRef = await buildUrlSourceRefLookup(
 		normalizeInputPacket,
 		context,
@@ -798,10 +873,44 @@ export default async function sanitizeVerificationCandidates({
 			crossScriptCandidateIds.push(id || `index-${index}`);
 		if (id) seenIds.add(id);
 		if (reasons.length === 0) {
+			const named = namedFragment(
+				claimText(candidate),
+				fragmentEntity(candidate, hints[0], slotEntities),
+			);
+			if (named) {
+				entityNamedCandidateIds.push(id || `index-${index}`);
+				rewriteReasonCounts.fragment_named_entity =
+					(rewriteReasonCounts.fragment_named_entity ?? 0) + 1;
+				rewrittenCandidateIds.push(id || `index-${index}`);
+				preservedClaims.push({
+					...preservedClaim(candidate, ["fragment_named_entity"], index),
+					id: `preserved-${id}`,
+					status: "preserved_rewritten_before_verification",
+				});
+				keptCandidates.push(
+					sanitizedCandidate(
+						{
+							...candidate,
+							originalClaim: claimText(candidate),
+							claim: named,
+							sanitizerRewriteReasons: ["fragment_named_entity"],
+						},
+						hints,
+						urlToSourceRef,
+					),
+				);
+				continue;
+			}
 			keptCandidates.push(sanitizedCandidate(candidate, hints, urlToSourceRef));
 			continue;
 		}
-		const rewrite = rewrittenCandidate(candidate, reasons, hints, urlToSourceRef);
+		const rewrite = rewrittenCandidate(
+			candidate,
+			reasons,
+			hints,
+			urlToSourceRef,
+			slotEntities,
+		);
 		if (rewrite) {
 			for (const reason of rewrite.sanitizerRewriteReasons) {
 				rewriteReasonCounts[reason] = (rewriteReasonCounts[reason] ?? 0) + 1;
@@ -918,6 +1027,7 @@ export default async function sanitizeVerificationCandidates({
 			webUrlOnlyDemotedIds,
 			promotedCandidateIds,
 			rewrittenCandidateIds,
+			entityNamedCandidateIds,
 			verifierInputPolicy: VERIFIER_INPUT_POLICY,
 			sourceEvidenceHintRows: evidenceHintRows.length,
 			schemaCaps,

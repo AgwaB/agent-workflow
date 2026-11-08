@@ -760,6 +760,8 @@ export default async function normalizeInputPacket({ sources, context } = {}) {
 				// prompt already tells the normalizer to follow.
 				slotConflicts:
 					"slotConflicts lists slots where research observations of the same entity disagree on a date or number (code-compared; free text is not compared). For each entry, set that slot's factSlotCoverage status to conflicting, quote the competing values and their sources in gapReason, and create at least one verificationCandidate with verificationNeed core whose claim states one value exactly and whose sourceUrls/sourceRefs include both sides' sources, naming the competing value in reasonToVerify; the verifier adjudicates. Do not pick a value silently. The final packet keeps the slot conflicting until a verified claim states one of the values.",
+				claimForm:
+					"Each verificationCandidates[].claim is a statement that names its subject (\"RFC 9000 was published in May 2021.\"), never a copied heading, field label or JSON line (\"# RFC 9000\", \"Published: May 2021\", \"\\\"edge\\\": \\\"mirror\\\"\"); keep the source's exact words for the value.",
 				claimLanguage:
 					"Write each claim's text (verificationCandidates[].claim, preservedClaims[].claim) in the language of its source evidence, normally that of the quoted passage, even when the runtime task uses another language, so it can be checked word for word against its source; the final synthesis translates what the reader sees. whyItMatters and reasonToVerify may follow the task's language.",
 			},
