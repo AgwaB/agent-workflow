@@ -953,8 +953,11 @@ with `truncated_read`, `missing_read`, `inconsistent_input` or `budget_block`. O
 reads passed, the ledger proves every one was delivered complete, so a `truncated_read` or
 `missing_read` block is a misjudgment: the engine repeats the attempt with that evidence and fails
 the stage if the claim persists (`input_integrity_contradicted_exhausted`). `inconsistent_input` and
-`budget_block` are about content and are accepted as reported. deep-research's final audit requires
-the field.
+`budget_block` are about content, which the engine cannot judge: such a block is accepted as the
+worker's blocked handoff and the stage fails with `input_integrity_blocked` (the output is kept as
+`raw.invalid-attempt-N.md`), so a run never completes on a result its author declared unusable;
+`resume` reruns the stage, and a repeated block points at the stage's input. deep-research's final
+audit requires the field, and its renderer refuses a blocked synthesis for the same reason.
 
 **Paging.** Each executor's CLI cuts long MCP results (Pi 1.1 at about 20 KB, Claude at 22,500
 chars, Codex at about 32,000 chars). The engine starts the artifact server with a limit below the

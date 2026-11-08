@@ -2835,6 +2835,18 @@ export default async function renderExecutive({
 		};
 	}
 
+	// K3 (2026-11-08): a synthesis that declared its own input blocked is not rendered as a report.
+	// The engine fails such a stage before it reaches here; this guards replays and older bundles.
+	const integrity = control?.inputIntegrity;
+	if (isRecord(integrity) && integrity.status === "blocked") {
+		const detail = boundedString(integrity.detail, 1, 600)
+			? ` (${integrity.detail})`
+			: "";
+		return blockedSourceResult(
+			`final-audit reported inputIntegrity.status="blocked" with reason="${typeof integrity.reason === "string" && integrity.reason ? integrity.reason : "unspecified"}"${detail}; the synthesis was produced on input its author declared unusable`,
+		);
+	}
+
 	const packet = packetOf(auditPacket);
 	const duplicates = packetDuplicateIds(packet, control);
 	if (duplicates.claimIds.length > 0 || duplicates.gapIds.length > 0)

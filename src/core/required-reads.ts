@@ -448,3 +448,37 @@ export function inputIntegrityContradiction(
 		'Only if the content itself is inconsistent (for example a header count that does not match the entries on the pages), report inputIntegrity.status="blocked" with reason="inconsistent_input" and name the exact field and the two counts in detail.',
 	].join(" ");
 }
+
+export interface AcceptedInputIntegrityBlock {
+	reason: string;
+	detail?: string;
+	message: string;
+}
+
+/**
+ * 2026-11-08 (K3): a worker that reports `inputIntegrity.status="blocked"` with a reason the read
+ * ledger cannot disprove (`inconsistent_input`, `budget_block`, or one the ledger did not judge)
+ * has withheld its result: the stage must not complete on that output. Call after
+ * `inputIntegrityContradiction` returned undefined. Returns the block, or undefined when the
+ * control reports no block.
+ */
+export function acceptedInputIntegrityBlock(
+	control: Record<string, unknown> | undefined,
+): AcceptedInputIntegrityBlock | undefined {
+	const integrity = control?.inputIntegrity;
+	if (!integrity || typeof integrity !== "object" || Array.isArray(integrity))
+		return undefined;
+	const { status, reason, detail } = integrity as Record<string, unknown>;
+	if (status !== "blocked") return undefined;
+	const reasonText =
+		typeof reason === "string" && reason.trim() ? reason.trim() : "unspecified";
+	const detailText =
+		typeof detail === "string" && detail.trim()
+			? detail.trim().slice(0, 600)
+			: undefined;
+	return {
+		reason: reasonText,
+		...(detailText === undefined ? {} : { detail: detailText }),
+		message: `worker reported inputIntegrity.status="blocked" with reason="${reasonText}"${detailText ? ` (${JSON.stringify(detailText)})` : ""}; the engine cannot disprove a content claim, so the stage is not completed on this output. Resume reruns the stage; a repeated block points at the stage's input.`,
+	};
+}
