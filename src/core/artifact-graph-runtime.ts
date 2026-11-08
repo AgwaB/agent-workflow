@@ -1987,6 +1987,7 @@ export async function prepareArtifactGraphRetryTask(
 	cwd: string,
 	task: WorkflowTaskRunRecord,
 	preparedTask: CompiledWorkflow["tasks"][number],
+	options: { readonly withoutPreview?: boolean } = {},
 ): Promise<CompiledWorkflow["tasks"][number]> {
 	const invalidAttempt = task.outputRetry?.attempts
 		? `${dirname(fromStatePath(cwd, task.files.result))}/raw.invalid-attempt-${task.outputRetry.attempts}.md`
@@ -2014,7 +2015,8 @@ export async function prepareArtifactGraphRetryTask(
 		jsonExcerpt,
 		"Return the final answer again using exactly <control>, <analysis>, and <refs> sections. The first byte must be '<' in <control>; do not include apologies, status text, Markdown headings, or prose outside the required sections.",
 		readRetryHint,
-		"# Previous Attempt Preview",
+		// K2: the experimental switch drops the failed attempt (its JSON error excerpt above stays).
+		options.withoutPreview === true ? undefined : "# Previous Attempt Preview",
 	].filter(Boolean) as string[];
 	const prefix = retrySections.join("\n\n");
 	const previewLimit = remainingPromptChars(
@@ -2036,7 +2038,10 @@ export async function prepareArtifactGraphRetryTask(
 			task.worktree?.enabled && task.worktree.baseCwd
 				? task.worktree.baseCwd
 				: task.cwd,
-		compiledPrompt: [...retrySections, preview].join("\n\n"),
+		compiledPrompt: [
+			...retrySections,
+			...(options.withoutPreview === true ? [] : [preview]),
+		].join("\n\n"),
 	};
 	assertFinalCompiledPromptWithinCap(retryTask);
 	return retryTask;

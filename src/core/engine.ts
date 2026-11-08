@@ -196,6 +196,7 @@ import {
 } from "./workflow-partial-output.js";
 import {
 	EXPERIMENTAL_CACHE_STABLE_FOREACH_ENV,
+	EXPERIMENTAL_REPAIR_WITHOUT_PREVIEW_ENV,
 	EXPERIMENTAL_SAME_SESSION_REPAIR_ENV,
 	PER_ITEM_DISPATCH_ENV,
 	runExperimentalFlagEnabled,
@@ -5899,7 +5900,12 @@ async function launchPendingTaskAt(
 			return false;
 		}
 		if (task.outputRetry) {
-			launchTask = await prepareArtifactGraphRetryTask(cwd, task, launchTask);
+			launchTask = await prepareArtifactGraphRetryTask(cwd, task, launchTask, {
+				withoutPreview: runExperimentalFlagEnabled(
+					run,
+					EXPERIMENTAL_REPAIR_WITHOUT_PREVIEW_ENV,
+				),
+			});
 			await throwIfWorkflowStopRequested(cwd, run.runId);
 		}
 		assertFinalCompiledPromptWithinCap(launchTask);
