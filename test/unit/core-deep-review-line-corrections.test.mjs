@@ -389,12 +389,17 @@ test("a quote joining a wrapped line, and a metadata-only row for blank planned 
 			path: "SPEC.md:5-6",
 		},
 	]);
-	for (const planned of ["SPEC.md:4-5", "SPEC.md", "SPEC.md:40"])
+	// Still coverage failures. The finding itself is in src/a.ts, outside the failed file, so the
+	// failure is checked on the reviewer's coverage record rather than on the finding.
+	for (const planned of ["SPEC.md:4-5", "SPEC.md", "SPEC.md:40"]) {
+		const failed = await blankReview(planned);
+		assert.equal(failed.sourceStatusSummary.nonCompleted, 1, planned);
 		assert.equal(
-			(await blankReview(planned)).findings[0].sourceCoverageComplete,
-			false,
+			failed.sourceStatusSummary.partialFailures[0].sourcePath,
 			planned,
 		);
+		assert.equal(failed.findings[0].sourceCoverageComplete, true, planned);
+	}
 	const out = await render({
 		sources: {
 			"partition-verdicts.main": await partition(cwd, blank, [

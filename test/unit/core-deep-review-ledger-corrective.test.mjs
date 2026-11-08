@@ -228,7 +228,8 @@ test("deep-review verifies exact read/OCR coverage and fails partial rendering c
 			},
 		],
 	};
-	const coverageFinding = finding("runtime-coverage", "src/runtime.ts");
+	// The finding is in the unreadable required source, so it stays held back for a human.
+	const coverageFinding = finding("runtime-coverage", "image-only.pdf");
 	const reviewer = {
 		lens: "runtime",
 		findings: [coverageFinding],

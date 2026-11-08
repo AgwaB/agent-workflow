@@ -911,7 +911,10 @@ Requirements the candidate stage leaves `unclear` (at most 8) get one more look 
 `covered`; any other answer stays `unclear` and is shown beside it in the coverage table.
 `needsHuman` rows are not rechecked. The renderer rereads the source chain and rechecks citations before `passed`. `deep-review` applies the
 same idea to reviewer `sourceCoverage` (`read`, `ocr-extracted`, `metadata-only`, `unreadable`):
-unverifiable required sources force `PARTIAL_REVIEW`.
+a required source the reviewer could not verify sends that reviewer's findings in that file to
+`needsHuman` (a failure that names no planned file holds back all of its findings); its findings in
+verified files keep their verdict. The gap is listed in the report, and a review left without
+kept or weakened findings is `PARTIAL_REVIEW`.
 
 ## Artifacts and required reads
 

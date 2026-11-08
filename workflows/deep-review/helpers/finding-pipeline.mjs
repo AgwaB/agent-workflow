@@ -911,6 +911,52 @@ function parseSourceCoveragePointer(value) {
 	return { file, line, lineEnd };
 }
 
+// A repository-relative file for comparing coverage pointers with finding locations; "" when the
+// value cannot be compared safely (blank, absolute or outside the repository).
+function comparableCoverageFile(value) {
+	const file = canonicalFilePath(value);
+	if (!file || path.posix.isAbsolute(file) || /^[A-Za-z]:\//u.test(file))
+		return "";
+	const normalized = path.posix.normalize(file);
+	return normalized === ".." || normalized.startsWith("../") ? "" : normalized;
+}
+
+// agent-workflow 2026-11-08 (owner decision, live deep-review: one reviewer misquoted
+// src/auth.js:2 and all eight of its verified findings, in four files, went to NEEDS_HUMAN):
+// a failed coverage row for a planned file holds back only findings in that file. A failure
+// that names no planned file keeps the whole reviewer's findings for a human.
+function sourceCoverageScope(issues, plannedValue) {
+	const planned = new Set(
+		(Array.isArray(plannedValue) ? plannedValue : []).filter(
+			(value) => typeof value === "string",
+		),
+	);
+	const files = new Set();
+	for (const issue of issues) {
+		const raw = String(issue?.path ?? "");
+		const file = planned.has(raw)
+			? comparableCoverageFile(parseSourceCoveragePointer(raw)?.file)
+			: "";
+		if (!file) return { reviewerWide: true, files };
+		files.add(file);
+	}
+	return { reviewerWide: false, files };
+}
+
+// A finding without a comparable file stays held back.
+function findingInFailedCoverage(finding, scope) {
+	if (!scope || scope.reviewerWide) return true;
+	const files = [
+		finding.file,
+		...asObjects(finding.locations).map((location) => location.file),
+	].filter((value) => typeof value === "string" && value.trim());
+	if (files.length === 0) return true;
+	return files.some((value) => {
+		const file = comparableCoverageFile(value);
+		return !file || scope.files.has(file);
+	});
+}
+
 function trustedOcrArtifactPathIssue(artifactPath, repoRoot) {
 	const relative = safeRepoRelativePath(artifactPath, repoRoot);
 	if (!relative || !relative.startsWith(TRUSTED_OCR_ARTIFACT_ROOT)) {
@@ -1425,6 +1471,7 @@ function reviewerCoverageLedger(sources, context, coverageIssues) {
 	const validAttestationSourceIds = [];
 	const ownerMap = [];
 	const sourceCoverageFailures = [];
+	const sourceCoverageScopes = new Map();
 	const plannedRangeCorrections = [];
 	let ownerBindingValid = true;
 	for (const [sourceId, source] of reviewerEntries) {
@@ -1473,6 +1520,13 @@ function reviewerCoverageLedger(sources, context, coverageIssues) {
 		if (sourceCoverage.issues.length > 0) {
 			sourceCoverageFailures.push(
 				sourceCoverageFailure(sourceId, lensId, sourceCoverage),
+			);
+			sourceCoverageScopes.set(
+				sourceId,
+				sourceCoverageScope(
+					sourceCoverage.issues,
+					lensById.get(lensId)?.evidenceToInspect,
+				),
 			);
 		}
 		for (const correction of sourceCoverage.corrections ?? [])
@@ -1584,6 +1638,7 @@ function reviewerCoverageLedger(sources, context, coverageIssues) {
 			sameSet(plannedLensIds, attestedLensIds),
 		sourceStatuses: statuses,
 		sourceCoverageFailures,
+		sourceCoverageScopes,
 		...(plannedRangeCorrections.length > 0 ? { plannedRangeCorrections } : {}),
 	};
 }
@@ -1614,7 +1669,8 @@ function dedupFindings(sources, context = {}) {
 			);
 		}
 	}
-	const reviewerCoverage = reviewerCoverageLedger(
+	// The scopes are an internal decision input, not part of the persisted reviewer ledger.
+	const { sourceCoverageScopes, ...reviewerCoverage } = reviewerCoverageLedger(
 		sources,
 		context,
 		coverageIssues,
@@ -1627,10 +1683,16 @@ function dedupFindings(sources, context = {}) {
 	}
 	for (const finding of normalized) {
 		const failures = sourceCoverageFailuresBySource.get(finding.source) ?? [];
-		finding.sourceCoverageComplete = failures.length === 0;
-		finding.sourceCoverageIssuePaths = dedupeStrings(
-			failures.map((failure) => failure.sourcePath),
-		);
+		const heldBack =
+			failures.length > 0 &&
+			findingInFailedCoverage(
+				finding,
+				sourceCoverageScopes.get(finding.source),
+			);
+		finding.sourceCoverageComplete = !heldBack;
+		finding.sourceCoverageIssuePaths = heldBack
+			? dedupeStrings(failures.map((failure) => failure.sourcePath))
+			: [];
 	}
 	// Allocate occurrence-safe IDs before any deduplication. This makes raw IDs a
 	// lossless multiset rather than allowing duplicate reviewer echoes to cancel.
