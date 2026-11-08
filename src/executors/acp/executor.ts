@@ -277,6 +277,12 @@ export async function authenticateAcpAgent(
 		for (const line of chunk.toString("utf8").split("\n"))
 			if (line.trim() !== "") onLine(line);
 	});
+	// The response arrives on stdout; stderr written just before or after it is a separate pipe and may still be
+	// unread when the agent is stopped. Wait (bounded) for the agent to close so those lines reach onLine.
+	const closed = new Promise<void>((resolve) => {
+		child.once("close", () => resolve());
+		child.once("error", () => resolve());
+	});
 	try {
 		if (child.stdout === null || child.stdin === null)
 			throw new Error("no stdio");
@@ -300,6 +306,10 @@ export async function authenticateAcpAgent(
 	} finally {
 		child.stdin?.end();
 		child.kill("SIGTERM");
+		await Promise.race([
+			closed,
+			new Promise((resolve) => setTimeout(resolve, 2_000).unref()),
+		]);
 	}
 }
 

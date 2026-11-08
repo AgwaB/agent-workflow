@@ -1031,3 +1031,27 @@ test("acp: free readOnly permits foreign injected MCP servers", async (t) => {
 		"other",
 	);
 });
+
+test("acp authenticate: stderr the agent wrote before exiting reaches onLine, even after its response", async (t) => {
+	// CI 42511727473 (ubuntu, Node 22): the login line was missing because the helper returned on the stdout
+	// response and killed the agent before its stderr chunk was read.
+	const { dir, command } = await setup(t, "auth_late_stderr");
+	const config = parseAcpConfig({
+		preset: "antigravity",
+		command,
+		stateDir: join(dir, "agy-state"),
+		killGraceMs: 200,
+		handshakeTimeoutMs: HANDSHAKE_MS,
+	});
+	const lines = [];
+	await authenticateAcpAgent(
+		config,
+		"oauth-personal",
+		(line) => lines.push(line),
+		10_000,
+	);
+	assert.ok(
+		lines.some((line) => line.includes("https://example.invalid/done")),
+		JSON.stringify(lines),
+	);
+});
