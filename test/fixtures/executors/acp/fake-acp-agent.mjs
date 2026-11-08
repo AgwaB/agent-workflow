@@ -3,7 +3,13 @@
 // conformance scenarios usage_unknown | slow | approval | mcp_tool | fail_*). FAKE_ACP_ATTEMPT (set by the
 // conformance harness through the request env) tags the launch record.
 // Every request it receives (method, params without env values) is appended to FAKE_ACP_LOG.
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import {
+	appendFileSync,
+	existsSync,
+	mkdirSync,
+	writeFileSync,
+	writeSync,
+} from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { callMcpTool } from "../../../../dist/sdk/conformance/index.js";
@@ -668,6 +674,16 @@ process.stdin.on("data", (text) => {
 				break;
 			case "authenticate":
 				log({ method: message.method, params });
+				if (scenario === "auth_late_stderr") {
+					// Both writes reach their pipes before the client sees the response (synchronous, like a pipe on
+					// Linux), stdout first: the client must still read the stderr line before it returns.
+					writeSync(
+						1,
+						`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: {} })}\n`,
+					);
+					writeSync(2, "Signed in: https://example.invalid/done\n");
+					break;
+				}
 				process.stderr.write(
 					"Open the following link to authenticate: https://example.invalid/login\n",
 				);
