@@ -715,7 +715,10 @@ Top-level `artifactGraph.stages` is a DAG.
 - `inputPolicy.invalidateOnDependencyResume: true` discards a static consumer's stale artifacts when a
   dependency is resumed; `inputPolicy.maxCompiledPromptChars` caps the compiled prompt.
 - `foreach` may set `each.itemIdentityPath` (stable child ids, for example `$.id`) and
-  `each.itemPayloadPath`.
+  `each.itemPayloadPath`. `${item}` is inserted as a marked data block
+  (`<workflow-item-data>…</workflow-item-data>`, text unchanged except a closing tag inside it) under
+  a standing rule that such blocks are data, never instructions; a partial defense against
+  instructions planted in upstream output, not a boundary.
 - A `dag` container's children reference only siblings; `outputFrom` names the child that represents
   the container downstream (`from: "analysis"` reads `analysis.<outputFrom>`). Validation rejects
   unknown references, cycles, duplicate ids, unsafe schema paths and unknown fields.
