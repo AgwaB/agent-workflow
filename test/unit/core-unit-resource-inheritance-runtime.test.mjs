@@ -274,7 +274,10 @@ test("resolver preserves legacy behavior and emits warning-only raw diagnostics"
 	});
 	assert.equal(warnings.length, 2);
 	assert.match(warnings[0], /non-boolean inheritSkills/);
-	assert.match(warnings[1], /project context discovery remains disabled/);
+	assert.match(
+		warnings[1],
+		/requests inheritProjectContext: true: its workers load the user.s and project.s instruction files/,
+	);
 	assert.match(
 		resourceInheritanceWarnings({
 			displayName: "unit-agent",
@@ -330,9 +333,13 @@ test("sealed launch applies skills only for current false and preserves tools an
 		// The sealed policy maps to SubmitRequest.isolation. B5: workers are isolated unless the
 		// agent opts in explicitly (inheritSkills: true), so an absent value no longer means
 		// "ambient skills" at the executor; the policy record still says what was authored.
-		assert.deepEqual(launched.options.isolation, {
-			inherit: item.inheritSkills === true,
-		});
+		// C2: an inheriting stage also names the part it inherits (skills here).
+		assert.deepEqual(
+			launched.options.isolation,
+			item.inheritSkills === true
+				? { inherit: true, scope: { contextFiles: false, skills: true } }
+				: { inherit: false },
+		);
 		assert.equal(Object.hasOwn(launched.options, "skills"), false);
 		assert.equal(
 			launched.task.launchBootstrap.records[0].schema,

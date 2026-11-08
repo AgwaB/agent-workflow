@@ -1456,8 +1456,17 @@ export function renderControlSchemaPath(
 
 export function workflowTaskIsolation(compiledTask: CompiledTask): {
 	inherit: boolean;
+	scope?: { contextFiles: boolean; skills: boolean };
 } {
-	return { inherit: workflowTaskInheritsContext(compiledTask) };
+	if (!workflowTaskInheritsContext(compiledTask)) return { inherit: false };
+	// C2 (2026-11-08): say which part was asked for, so an adapter that can (Pi) keeps the rest isolated.
+	return {
+		inherit: true,
+		scope: {
+			contextFiles: compiledTask.inheritProjectContext === true,
+			skills: compiledTask.inheritSkills === true,
+		},
+	};
 }
 
 /**

@@ -199,7 +199,7 @@ every method).
 `systemPrompt`, `model`, `effort`, `tools` (workflow tool names), `readOnly`, `mcpServers`, optional
 `sessionId` / `resumeSessionId` (only when the engine wants a kept session, below), `deadlineMs`
 (absolute epoch ms), `env` (secrets; never persisted),
-`isolation: {inherit}`, `approvalPolicy`, `permissionMode`, and `artifactsDir` (absolute directory
+`isolation: {inherit, scope?: {contextFiles, skills}}` (an adapter that cannot load the scoped parts separately inherits all user context), `approvalPolicy`, `permissionMode`, and `artifactsDir` (absolute directory
 owned by the runtime, where the adapter may keep raw CLI logs; may be absent). The engine validates
 it with `validateSubmitRequest` (for example: an MCP server env value that also appears on its argv
 is rejected).

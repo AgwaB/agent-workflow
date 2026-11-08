@@ -490,7 +490,11 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 
 	async function plan(req: SubmitRequest): Promise<LaunchPlan> {
 		const notes: string[] = [];
-		const isolated = req.isolation?.inherit !== true;
+		// C2: a scoped inheritance (context files and/or skills) keeps every other isolation flag and
+		// the private MCP config; a bare `inherit: true` drops them all as before.
+		const scope =
+			req.isolation?.inherit === true ? req.isolation.scope : undefined;
+		const isolated = req.isolation?.inherit !== true || scope !== undefined;
 		if (
 			req.effort !== undefined &&
 			!(PI_EFFORT_LEVELS as readonly string[]).includes(req.effort)
@@ -612,6 +616,8 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		const argv = buildPiArgv({
 			piCommand: config.piCommand,
 			isolated,
+			...(scope?.contextFiles === true ? { inheritContextFiles: true } : {}),
+			...(scope?.skills === true ? { inheritSkills: true } : {}),
 			...(session === undefined ? {} : { session }),
 			...(req.systemPrompt === undefined
 				? {}

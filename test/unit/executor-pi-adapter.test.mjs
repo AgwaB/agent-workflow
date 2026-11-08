@@ -840,3 +840,42 @@ test("free readOnly Pi retains mutating tools, host tools and injected foreign M
 		assert.ok(tools.includes(tool), tool);
 	assert.ok(launch.argv.includes("builtin:mcp"));
 });
+
+// C2 (2026-11-08): `inheritSkills` alone used to switch off every Pi isolation flag (and the private MCP config).
+// A scoped inheritance now drops only the asked-for flag.
+test("scoped inheritance keeps every other Pi isolation flag", () => {
+	const flags = (options) =>
+		buildPiArgv({
+			piCommand: "pi",
+			tools: [],
+			extensions: [],
+			...options,
+		}).filter(
+			(arg) =>
+				arg.startsWith("--no-") &&
+				arg !== "--no-session" &&
+				arg !== "--no-tools",
+		);
+	const all = [
+		"--no-context-files",
+		"--no-extensions",
+		"--no-skills",
+		"--no-prompt-templates",
+		"--no-themes",
+		"--no-approve",
+	];
+	assert.deepEqual(flags({ isolated: true }), all);
+	assert.deepEqual(
+		flags({ isolated: true, inheritSkills: true }),
+		all.filter((flag) => flag !== "--no-skills"),
+	);
+	assert.deepEqual(
+		flags({ isolated: true, inheritContextFiles: true }),
+		all.filter((flag) => flag !== "--no-context-files"),
+	);
+	assert.deepEqual(
+		flags({ isolated: true, inheritContextFiles: true, inheritSkills: true }),
+		["--no-extensions", "--no-prompt-templates", "--no-themes", "--no-approve"],
+	);
+	assert.deepEqual(flags({ isolated: false }), []);
+});

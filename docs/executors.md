@@ -93,7 +93,10 @@ Authentication stays in Pi's own `auth.json` or environment; no credential file 
 
 The run extension starts native MCP through `createMcpExtension` with
 `loadConfig: () => ({ servers: [] })`, connects only injected servers, and disables `/mcp` config writes.
-With `inherit: true`, Pi loads user extensions, skills, context files and `mcp.json`; injected
+A stage that inherits only part of the user's context (`isolation.scope`: its agent's
+`inheritProjectContext` → context files, `inheritSkills` → skills) keeps every other flag above and the
+private MCP config; only `--no-context-files` and/or `--no-skills` are dropped. A bare
+`inherit: true` (no scope) loads user extensions, skills, context files and `mcp.json`; injected
 servers register on the built-in MCP implementation.
 
 User `settings.json` values not overridden by flags still apply, including retry, compaction,

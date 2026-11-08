@@ -42,6 +42,18 @@ export interface McpServerSpec {
 /** B5: workers do not read the user's AGENTS.md/CLAUDE.md/skills/hooks/personal MCP unless `inherit`. */
 export interface IsolationPolicy {
 	readonly inherit: boolean;
+	/**
+	 * With `inherit: true`: which parts of the user's context the stage asked for (its agent's
+	 * `inheritProjectContext` → `contextFiles`, `inheritSkills` → `skills`; at least one is true).
+	 * An adapter that can load them separately keeps everything else isolated (Pi); one that cannot
+	 * inherits all user context, as for a bare `inherit: true`. Absent with `inherit: true` = everything.
+	 */
+	readonly scope?: IsolationScope;
+}
+
+export interface IsolationScope {
+	readonly contextFiles: boolean;
+	readonly skills: boolean;
 }
 
 export interface SubmitRequest {

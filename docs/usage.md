@@ -565,7 +565,9 @@ Workers run in `free` mode by default. Choose `safe` for conservative approvals 
   scheduling decisions. **It is not a safety boundary in `free`**: unrestricted executors may mutate
   the shared checkout or access the network. Choose `safe` to enforce readOnly.
 - Context isolation: workers do not load the user's settings, instructions, hooks or skills unless the
-  stage sets `inherit` (`inheritProjectContext` / `inheritSkills`).
+  agent opts in. `inheritProjectContext: true` loads instruction files (AGENTS.md…), `inheritSkills:
+  true` loads skills; Pi loads only what was asked for and keeps everything else isolated, Claude and
+  Codex inherit all user context when either is set.
 - Capability checks for missing or unverified capabilities, MCP injection and web tools.
 
 ### Choosing a mode
