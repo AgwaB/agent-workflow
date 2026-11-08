@@ -600,10 +600,11 @@ function demotionGap(candidate, reasons) {
 function preservedClaim(candidate, reasons, fallbackIndex) {
 	const id =
 		candidateId(candidate) ||
-		`candidate-${String(fallbackIndex + 1).padStart(3, "0")}`;
+		`preserved-candidate-${String(fallbackIndex + 1).padStart(3, "0")}`;
+	// Demotion changes verification eligibility, not the claim's identity.
 	return {
 		...candidate,
-		id: `preserved-${id}`,
+		id,
 		originalCandidateId: candidateId(candidate) || undefined,
 		claim: claimText(candidate) || undefined,
 		status: "preserved_not_sent_to_verifier",
@@ -781,6 +782,8 @@ export default async function sanitizeVerificationCandidates({
 			rewrittenCandidateIds.push(id || `index-${index}`);
 			preservedClaims.push({
 				...preservedClaim(candidate, reasons, index),
+				// The replacement retains id; its superseded text needs a separate ID.
+				id: `preserved-${id}`,
 				status: "preserved_rewritten_before_verification",
 			});
 			keptCandidates.push(sanitizedCandidate(rewrite, hints, urlToSourceRef));

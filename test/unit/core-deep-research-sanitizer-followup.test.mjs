@@ -110,6 +110,10 @@ test("deep-research sanitizer rewrites configured unquoted obligations without s
 		unquoted_named_mitigation: 1,
 	});
 	assert.equal(result.sanitizerDiagnostics.rewrittenCandidateCount, 2);
+	assert.deepEqual(
+		result.claimInventory.preservedClaims.map((claim) => claim.id),
+		["preserved-claim-ci", "preserved-claim-owasp"],
+	);
 });
 
 test("deep-research sanitizer: claims in another script than their source quotes reach the verifiers", async () => {
