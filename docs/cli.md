@@ -68,8 +68,8 @@ detached supervisor and returns at once.
 ## `check`
 
 ```sh
-agent-workflow check <workflow> [<task...>] [--executor <id>] [--profile <name>] [--preset <id>]
-                     [--model <id>] [--effort <level>] [--role …]... [--permission-mode free|safe] [--json]
+agent-workflow check <workflow> [<task...>] [--executor <id>] [--profile <name>]
+                     [--model <id>] [--effort <level>] [--permission-mode free|safe] [--json]
 ```
 
 The launch preflight without the launch: the same executor selection, compile and

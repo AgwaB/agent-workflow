@@ -216,3 +216,38 @@ test("check edge cases: its own action name; no dashboard even when auto-start i
 		false,
 	);
 });
+
+test("check: every option its help lists is accepted (help named --preset/--role, which no launch command parses)", async (t) => {
+	const { ctx, executor } = await project(t);
+	const { COMMAND_HELP } = await import("../../dist/hosts/help.js");
+	const usage = COMMAND_HELP.check.slice(0, COMMAND_HELP.check.indexOf("\n\n"));
+	const options = [...usage.matchAll(/\[(--[a-z-]+)(?: ([^\]]+))?\]/g)].map(
+		([, flag, value]) => ({ flag, value }),
+	);
+	assert.ok(options.length >= 5, usage);
+	const sample = {
+		"--executor": executor,
+		"--profile": "codex",
+		"--model": "fixture-model",
+		"--effort": "medium",
+		"--permission-mode": "free",
+	};
+	let err = "";
+	const io = {
+		cwd: ctx.cwd,
+		env: ctx.env,
+		isTTY: false,
+		stdout: () => {},
+		stderr: (text) => {
+			err += text;
+		},
+	};
+	for (const { flag, value } of options) {
+		err = "";
+		const args = ["check", "wf.json", "--executor", executor];
+		if (flag !== "--executor")
+			args.push(flag, ...(value ? [sample[flag] ?? "x"] : []));
+		await runAgentWorkflowCli(args, io);
+		assert.doesNotMatch(err, /Unknown option/, `${flag}: ${err}`);
+	}
+});
