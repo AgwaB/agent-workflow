@@ -3602,10 +3602,56 @@ export function isBlockedTaskResumableForResume(
 	);
 }
 
-export function resetTaskForResume(task: WorkflowTaskRunRecord): boolean {
+/**
+ * 2026-11-08 (L4 live): a support stage that declared itself blocked because an upstream model stage
+ * failed (deep-research's renderer blocks on a failed final audit) made the whole run non-resumable,
+ * although rerunning the failed stage is exactly what unblocks it. Such a task is resumable when one
+ * of its direct dependencies is resumable (failed, interrupted, skipped, a resumable blocked task, or
+ * — transitively — another such support block): resume then reruns the dependency and the support
+ * stage after it, as a workflow engine reruns a failed node and everything after it. A support block
+ * whose sources all completed stays an attention blocker (rerunning it would block again).
+ * Computed once from the run before any reset, since resetting a dependency makes it pending.
+ */
+export function dependencyResumableSupportBlockIds(
+	run: Pick<WorkflowRunRecord, "tasks">,
+): Set<string> {
+	const bySpecId = new Map(run.tasks.map((task) => [task.specId, task]));
+	const resumable = new Set<string>();
+	const isResumable = (task: WorkflowTaskRunRecord): boolean =>
+		RESUMABLE_TASK_STATUSES.has(task.status) ||
+		isBlockedTaskResumableForResume(task) ||
+		resumable.has(task.taskId);
+	let changed = true;
+	while (changed) {
+		changed = false;
+		for (const task of run.tasks) {
+			if (
+				resumable.has(task.taskId) ||
+				task.status !== "blocked" ||
+				task.statusDetail !== "support_declared_blocked"
+			)
+				continue;
+			const dependsOnResumable = (task.dependsOn ?? []).some((specId) => {
+				const dependency = bySpecId.get(specId);
+				return dependency !== undefined && isResumable(dependency);
+			});
+			if (dependsOnResumable) {
+				resumable.add(task.taskId);
+				changed = true;
+			}
+		}
+	}
+	return resumable;
+}
+
+export function resetTaskForResume(
+	task: WorkflowTaskRunRecord,
+	dependencyResumableBlocks?: ReadonlySet<string>,
+): boolean {
 	if (
 		!RESUMABLE_TASK_STATUSES.has(task.status) &&
-		!isBlockedTaskResumableForResume(task)
+		!isBlockedTaskResumableForResume(task) &&
+		!dependencyResumableBlocks?.has(task.taskId)
 	) {
 		return false;
 	}
