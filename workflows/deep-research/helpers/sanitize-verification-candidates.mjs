@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseStructuredDate, structuredDatesIn } from "./slot-conflicts.mjs";
 import { findSource, asArray, asObject } from "./source-access.mjs";
 
 // Deterministic sanitizer between normalize-claims and verify-claims.
@@ -412,7 +413,33 @@ function hintSupportsCandidate(candidate, hint) {
 	const candidateTokens = tokenSet(claimText(candidate));
 	if (candidateTokens.size === 0 || evidenceTokens.size === 0) return false;
 	const hits = setIntersectionCount(candidateTokens, evidenceTokens);
-	return hits >= 4 && hits / candidateTokens.size >= 0.18;
+	if (hits >= 4 && hits / candidateTokens.size >= 0.18) return true;
+	return hintDatesSupportCandidate(candidate, hint, candidateTokens, hits);
+}
+
+/**
+ * 2026-11-08: a short dated claim ("RFC 9369 was published in May 2023.") shares only three words
+ * with its evidence ("Published: May 2023") and was demoted as source_hint_claim_mismatch — 18 of
+ * 27 demotions on 19 recorded research runs, including the four claims behind E1 and the candidate
+ * that would have settled an L4 date conflict. It is supported when every year-month it states
+ * appears in the hint (quote, value or dateOrYear) and it shares two more words; a bare fragment
+ * (fewer than four words, no subject) is not.
+ */
+function hintDatesSupportCandidate(candidate, hint, candidateTokens, hits) {
+	if (candidateTokens.size < 4 || hits < 2) return false;
+	const claimDates = structuredDatesIn(claimText(candidate));
+	if (claimDates.length === 0) return false;
+	const hintDates = [
+		...structuredDatesIn(hintEvidenceText(hint)),
+		...[parseStructuredDate(hint?.dateOrYear)].filter(
+			(date) => date?.month !== undefined,
+		),
+	];
+	return claimDates.every((date) =>
+		hintDates.some(
+			(other) => other.year === date.year && other.month === date.month,
+		),
+	);
 }
 
 function isPlaceholderHint(hint) {
