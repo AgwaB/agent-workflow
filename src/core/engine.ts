@@ -2667,9 +2667,13 @@ function applyDependencyResumeInvalidation(
 	const foreachPlaceholderSpecIds = new Set(
 		journal.foreachGroups.map((group) => group.placeholderSpecId),
 	);
+	// 2026-11-08: every batch record of a rematerialized group — completed ones included — loses
+	// its member tasks below, so it is marked invalidated (recovery skips those); only active
+	// records were marked before, and a completed record then failed the resume with "cannot
+	// recover exact member" (found by a live deep-research resume with batched verifiers).
 	for (const record of run.foreachBatches ?? []) {
 		if (
-			isActiveForeachBatchPhase(record.phase) &&
+			record.phase !== "invalidated" &&
 			foreachPlaceholderSpecIds.has(record.placeholderSpecId)
 		) {
 			markForeachBatchInvalidated(record);
