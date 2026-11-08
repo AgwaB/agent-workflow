@@ -110,6 +110,9 @@
           "verify-endpoint-claims"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "sourceProjection": {
           "include": [
             "$.endpoints",

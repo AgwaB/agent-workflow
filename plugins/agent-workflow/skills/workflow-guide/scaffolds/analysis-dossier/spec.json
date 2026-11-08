@@ -74,6 +74,9 @@
           "analyze-shard"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "sourceProjection": {
           "include": [
             "$.sources",

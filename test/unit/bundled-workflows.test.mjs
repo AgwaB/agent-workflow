@@ -66,10 +66,13 @@ test("every bundled workflow and scaffold validates and compiles with the bundle
 // agent-workflow 2026-11-08: a stage that reads its sources with sourcePolicy "partial" can finish
 // while a source failed; resume reruns that source, so the stage must rerun too (deep-research and
 // spec-review had no declaration and kept results built from the old inputs).
-test("every bundled non-foreach partial consumer invalidates on dependency resume", async () => {
+test("every bundled and scaffold non-foreach partial consumer invalidates on dependency resume", async () => {
 	const cwd = await mkdtemp(join(tmpdir(), "aw-bundled-resume-"));
 	try {
-		for (const file of BUNDLED_SPEC_FILES) {
+		for (const file of [
+			...BUNDLED_SPEC_FILES,
+			...(await scaffoldSpecFiles()),
+		]) {
 			const specPath = join(root, file);
 			const raw = JSON.parse(await readFile(specPath, "utf8"));
 			const partial = (raw.artifactGraph?.stages ?? []).filter(

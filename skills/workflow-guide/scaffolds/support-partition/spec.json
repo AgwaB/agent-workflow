@@ -61,6 +61,9 @@
           "verify-candidates"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "output": {
           "analysis": {
             "required": true
@@ -83,6 +86,9 @@
         "id": "gate-evidence",
         "from": "partition-verdicts",
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "output": {
           "analysis": {
             "required": true
@@ -125,7 +131,8 @@
           "requiredReads": [
             "gate-evidence.control"
           ],
-          "enforcement": "fail"
+          "enforcement": "fail",
+          "invalidateOnDependencyResume": true
         },
         "output": {
           "analysis": {
