@@ -269,7 +269,9 @@ the run settles or their timeout passes, up to 4 h).
 Run states: `running`, `completed`, `failed`, `interrupted` (stopped, or a worker was revoked) and
 `blocked` (needs a person: an unprovable executor state, an exhausted required-read or output repair,
 or an access blocker). `resume` resets failed, interrupted and resumable blocked tasks and keeps
-completed task artifacts. A run executes the copied `bundle/` in its run directory, so a newer
+completed task artifacts, except stages that declare `inputPolicy.invalidateOnDependencyResume`
+(the bundled deep-review and deep-research consumers do): those rerun, with everything after them,
+when a source they read is reset, so a result never mixes old and new inputs. A run executes the copied `bundle/` in its run directory, so a newer
 package version does not change a running workflow's schemas or helpers; start a fresh run to pick
 up changed workflow code. Loop workflows cannot be resumed; start a fresh run. Right after `stop`,
 `resume` waits up to 10 s for the stopped supervisor to let go of the run; if it has not by then,

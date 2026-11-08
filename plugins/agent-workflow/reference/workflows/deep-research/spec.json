@@ -143,6 +143,9 @@
           "research-questions"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "support": {
           "uses": "./helpers/normalize-input-packet.mjs"
         }
@@ -157,6 +160,9 @@
           "normalize-input-packet"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "output": {
           "analysis": {
             "required": true
@@ -177,6 +183,9 @@
           "normalize-input-packet"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "support": {
           "uses": "./helpers/sanitize-verification-candidates.mjs",
           "options": {
@@ -241,6 +250,9 @@
           "verify-claims"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "support": {
           "uses": "./helpers/check-web-quotes.mjs"
         }
@@ -255,6 +267,9 @@
           "verify-claims"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "support": {
           "uses": "./helpers/claim-evidence-gate.mjs",
           "options": {
@@ -274,6 +289,9 @@
           "audit-claims"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "output": {
           "controlSchema": "./schemas/deep-research-final-audit-packet-control.schema.json"
         },
@@ -291,6 +309,7 @@
         "sourcePolicy": "partial",
         "injectRuntimeTask": true,
         "inputPolicy": {
+          "invalidateOnDependencyResume": true,
           "requiredReads": [
             {
               "source": "final-audit-packet",
@@ -435,6 +454,9 @@
           "check-web-quotes"
         ],
         "sourcePolicy": "partial",
+        "inputPolicy": {
+          "invalidateOnDependencyResume": true
+        },
         "output": {
           "analysis": {
             "required": true
