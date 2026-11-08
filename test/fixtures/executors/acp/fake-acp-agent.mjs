@@ -675,14 +675,16 @@ process.stdin.on("data", (text) => {
 			case "authenticate":
 				log({ method: message.method, params });
 				if (scenario === "auth_late_stderr") {
-					// Both writes reach their pipes before the client sees the response (synchronous, like a pipe on
-					// Linux), stdout first: the client must still read the stderr line before it returns.
+					// The client reads the response first and the stderr line after it; the agent ignores the client's
+					// stop signal and exits by itself, so the line always exists and only the client's draining is
+					// under test (a killed agent could otherwise die between the two writes).
+					process.on("SIGTERM", () => {});
 					writeSync(
 						1,
 						`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: {} })}\n`,
 					);
 					writeSync(2, "Signed in: https://example.invalid/done\n");
-					break;
+					process.exit(0);
 				}
 				process.stderr.write(
 					"Open the following link to authenticate: https://example.invalid/login\n",
