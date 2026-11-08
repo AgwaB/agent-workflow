@@ -39,7 +39,11 @@ import {
 	type WorkflowExecutor,
 } from "../../sdk/contract.js";
 import { SdkError } from "../../sdk/errors.js";
-import type { ExecEvent, OwnedSession } from "../../sdk/events.js";
+import type {
+	ExecEvent,
+	OwnedSession,
+	ToolResultBudgetReport,
+} from "../../sdk/events.js";
 import type { JsonValue } from "../../sdk/json.js";
 import { enforcesReadOnly } from "../../sdk/permission.js";
 import { mapTools } from "../../sdk/tools.js";
@@ -73,7 +77,10 @@ import {
 	classifyPiAttemptRecord,
 } from "./state.js";
 import { schedulePeriodicAdapterStatePrune } from "../state-retention.js";
-import { TOOL_RESULT_BUDGET_STATE_FILENAME } from "./tool-result-budget.js";
+import {
+	TOOL_RESULT_BUDGET_STATE_FILENAME,
+	type ToolResultBudgetState,
+} from "./tool-result-budget.js";
 import {
 	createSecretRedactor,
 	requestSecrets,
@@ -311,6 +318,59 @@ export async function readPiFastTierState(
 	} catch {
 		return undefined;
 	}
+}
+
+/** The context hook's budget state (`tool-result-budget.json`), reported on the terminal event. */
+export async function readPiToolResultBudgetReport(
+	runDir: string,
+): Promise<ToolResultBudgetReport | undefined> {
+	try {
+		const value = JSON.parse(
+			await readFile(join(runDir, TOOL_RESULT_BUDGET_STATE_FILENAME), "utf8"),
+		) as Partial<ToolResultBudgetState> & { schemaVersion?: unknown };
+		if (value?.schemaVersion !== 1) return undefined;
+		const number = (input: unknown) =>
+			typeof input === "number" && Number.isFinite(input) && input >= 0
+				? input
+				: undefined;
+		const report: ToolResultBudgetReport = {
+			enabled: true,
+			...(number(value.maxTotalChars) === undefined
+				? {}
+				: { maxTotalChars: number(value.maxTotalChars) }),
+			...(number(value.toolResults) === undefined
+				? {}
+				: { toolResults: number(value.toolResults) }),
+			...(number(value.retainedChars) === undefined
+				? {}
+				: { retainedChars: number(value.retainedChars) }),
+			...(number(value.evictedCount) === undefined
+				? {}
+				: { evictedCount: number(value.evictedCount) }),
+			...(number(value.evictedChars) === undefined
+				? {}
+				: { evictedChars: number(value.evictedChars) }),
+			...(number(value.evictableCount) === undefined
+				? {}
+				: { evictableCount: number(value.evictableCount) }),
+			...(typeof value.forcedEvictionApplied === "boolean"
+				? { forcedEvictionApplied: value.forcedEvictionApplied }
+				: {}),
+		};
+		return report;
+	} catch {
+		return undefined;
+	}
+}
+
+/** Attach the budget report to a terminal event; other events pass through. */
+export function withToolResultBudget(
+	event: ExecEvent,
+	report: ToolResultBudgetReport | undefined,
+): ExecEvent {
+	if (report === undefined) return event;
+	if (event.type !== "completed" && event.type !== "failed") return event;
+	return { ...event, toolResultBudget: report };
 }
 
 /**
@@ -844,9 +904,19 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 					runConfig.fastTier === undefined
 						? undefined
 						: await readPiFastTierState(runDir);
+				const budgetReport =
+					runConfig.toolResultBudget === undefined
+						? undefined
+						: await readPiToolResultBudgetReport(runDir);
 				emit(
 					run,
-					piFastTierOutcome(normalizer.finish({ ...exit, stderr }), fastState),
+					withToolResultBudget(
+						piFastTierOutcome(
+							normalizer.finish({ ...exit, stderr }),
+							fastState,
+						),
+						budgetReport,
+					),
 				);
 			})();
 		});
@@ -882,16 +952,19 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			() => "",
 		);
 		events.push(
-			piFastTierOutcome(
-				normalizer.finish({
-					...(record.exit ?? {
-						exitCode: null,
-						signal: null,
-						cancelled: false,
+			withToolResultBudget(
+				piFastTierOutcome(
+					normalizer.finish({
+						...(record.exit ?? {
+							exitCode: null,
+							signal: null,
+							cancelled: false,
+						}),
+						stderr,
 					}),
-					stderr,
-				}),
-				await readPiFastTierState(runDir),
+					await readPiFastTierState(runDir),
+				),
+				await readPiToolResultBudgetReport(runDir),
 			),
 		);
 		return events;

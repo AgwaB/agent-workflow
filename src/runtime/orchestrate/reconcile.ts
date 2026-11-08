@@ -816,6 +816,9 @@ async function reconcileThroughExecutor(context: {
 				contextLengthExceeded: false,
 				...(report.outputPartial ? { outputPartial: true } : {}),
 				...(report.usage === undefined ? {} : { usage: report.usage }),
+				...(report.toolResultBudget === undefined
+					? {}
+					: { toolResultBudget: report.toolResultBudget }),
 				...(report.sessionId === undefined
 					? {}
 					: { sessionId: report.sessionId }),

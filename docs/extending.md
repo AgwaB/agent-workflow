@@ -300,8 +300,16 @@ kinds (`edit`, `delete`, `move`, `execute`) are denied on safe readOnly stages; 
 | `tool_call` | `name`, `kind` (ACP kind), `status` (`pending`, `approval_pending`, `running`, `completed`, `failed`, `denied`, `timed_out`), optional `callId`, `input`, `output` |
 | `usage` | `input`, `output`, `cached` (integers or `null`), optional `cacheWrite` (integer or `null`) and `model` (string), `cost` (number or `null`), `source` (`reported`, `estimated`, `unknown`) |
 | `approval_request` | `requestId` (unique per stream), `kind`, `detail` |
-| `completed` | `finalText`, optional `ownedSession` |
-| `failed` | `class` (below), `message`, `raw` (JSON or `null`), optional `ownedSession` |
+| `completed` | `finalText`, optional `ownedSession`, optional `toolResultBudget` |
+| `failed` | `class` (below), `message`, `raw` (JSON or `null`), optional `ownedSession`, optional `toolResultBudget` |
+
+`toolResultBudget` (optional on either terminal event; additive, 2026-11-08): what the adapter's own
+tool-result eviction did during the attempt — `enabled` (boolean, required), and optional
+`maxTotalChars`, `toolResults`, `retainedChars`, `evictedCount`, `evictedChars`, `evictableCount`,
+`forcedEvictionApplied`, `warning`. Pi reports its context-hook state; adapters without eviction omit
+it. The runtime copies it into the attempt result's `metadata.toolResultBudget`, where the engine's
+per-task telemetry (`tasks[].toolResultBudget`) reads it; without it the engine records the attempt as
+`unavailable`.
 
 Usage shape (the same for every adapter): `input` = input tokens
 **excluding** cache reads and cache writes (subtract them when the CLI counts them inside its input),
