@@ -759,6 +759,9 @@ export async function runPreparedWorkerExecution(
 					? {}
 					: { model: prepared.request.model }),
 				...(report.usage === undefined ? {} : { usage: report.usage }),
+				...(report.toolResultBudget === undefined
+					? {}
+					: { toolResultBudget: report.toolResultBudget }),
 				...(report.sessionId === undefined
 					? {}
 					: { sessionId: report.sessionId }),

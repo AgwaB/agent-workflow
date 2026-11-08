@@ -27,6 +27,7 @@ import {
 	type ExecEvent,
 	type FailedEvent,
 	isTerminalEvent,
+	type ToolResultBudgetReport,
 	type UsageSource,
 	validateEventSequence,
 	validateExecEvent,
@@ -240,6 +241,8 @@ export interface ExecutionReport {
 	outputPartial: boolean;
 	usage?: UsageSummary;
 	sessionId?: string;
+	/** The executor's tool-result budget report from its terminal event (Pi), when given. */
+	toolResultBudget?: ToolResultBudgetReport;
 	executor: ResultExecutorMetadata;
 	artifacts: ArtifactRef[];
 }
@@ -601,6 +604,7 @@ export interface AttemptOutcome {
 	deltas?: string;
 	finalText?: string;
 	ownedSession?: { kind: string; locator: string };
+	toolResultBudget?: ToolResultBudgetReport;
 	/** Observation stopped without a terminal event and without cancelling (adoption window). */
 	abandoned?: boolean;
 }
@@ -843,6 +847,9 @@ export async function observeAttempt(
 		...(terminal?.ownedSession === undefined
 			? {}
 			: { ownedSession: terminal.ownedSession }),
+		...(terminal?.toolResultBudget === undefined
+			? {}
+			: { toolResultBudget: terminal.toolResultBudget }),
 	};
 
 	if (violation !== undefined) {
@@ -933,6 +940,9 @@ export async function buildExecutionReport(
 		outputText,
 		outputPartial: !completed && outputText.length > 0,
 		...(outcome.usage === undefined ? {} : { usage: outcome.usage }),
+		...(outcome.toolResultBudget === undefined
+			? {}
+			: { toolResultBudget: outcome.toolResultBudget }),
 		...(outcome.sessionId !== undefined
 			? { sessionId: outcome.sessionId }
 			: outcome.ownedSession !== undefined

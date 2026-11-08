@@ -93,10 +93,27 @@ export interface ApprovalRequestEvent {
 	 */
 	readonly command?: string;
 }
+/**
+ * 2026-11-08: what an executor's own tool-result budget did during the attempt (optional, on the
+ * terminal event). Pi reports its context-hook state; executors without eviction omit it. The
+ * runtime copies it into the attempt result's metadata, where the engine's task telemetry reads it.
+ */
+export interface ToolResultBudgetReport {
+	readonly enabled: boolean;
+	readonly maxTotalChars?: number;
+	readonly toolResults?: number;
+	readonly retainedChars?: number;
+	readonly evictedCount?: number;
+	readonly evictedChars?: number;
+	readonly evictableCount?: number;
+	readonly forcedEvictionApplied?: boolean;
+	readonly warning?: string;
+}
 export interface CompletedEvent {
 	readonly type: "completed";
 	readonly finalText: string;
 	readonly ownedSession?: OwnedSession;
+	readonly toolResultBudget?: ToolResultBudgetReport;
 }
 export interface FailedEvent {
 	readonly type: "failed";
@@ -104,6 +121,7 @@ export interface FailedEvent {
 	readonly message: string;
 	readonly raw: JsonValue;
 	readonly ownedSession?: OwnedSession;
+	readonly toolResultBudget?: ToolResultBudgetReport;
 }
 
 export type ExecEvent =
@@ -146,6 +164,46 @@ function isCount(value: unknown): boolean {
 		value === null ||
 		(typeof value === "number" && Number.isInteger(value) && value >= 0)
 	);
+}
+
+function checkToolResultBudget(value: unknown, problems: string[]): void {
+	if (value === undefined) return;
+	if (!isPlainObject(value)) {
+		problems.push("toolResultBudget must be an object when present");
+		return;
+	}
+	if (typeof value.enabled !== "boolean")
+		problems.push("toolResultBudget.enabled must be a boolean");
+	if (
+		value.maxTotalChars !== undefined &&
+		!(
+			typeof value.maxTotalChars === "number" &&
+			Number.isInteger(value.maxTotalChars) &&
+			value.maxTotalChars > 0
+		)
+	)
+		problems.push("toolResultBudget.maxTotalChars must be a positive integer");
+	for (const key of [
+		"toolResults",
+		"retainedChars",
+		"evictedCount",
+		"evictedChars",
+		"evictableCount",
+	] as const) {
+		const count = value[key];
+		if (
+			count !== undefined &&
+			!(typeof count === "number" && Number.isFinite(count) && count >= 0)
+		)
+			problems.push(`toolResultBudget.${key} must be a non-negative number`);
+	}
+	if (
+		value.forcedEvictionApplied !== undefined &&
+		typeof value.forcedEvictionApplied !== "boolean"
+	)
+		problems.push("toolResultBudget.forcedEvictionApplied must be a boolean");
+	if (value.warning !== undefined && typeof value.warning !== "string")
+		problems.push("toolResultBudget.warning must be a string");
 }
 
 function checkOwnedSession(value: unknown, problems: string[]): void {
@@ -232,6 +290,7 @@ export function validateExecEvent(value: unknown): string[] {
 			if (typeof value.finalText !== "string")
 				problems.push("completed.finalText must be a string");
 			checkOwnedSession(value.ownedSession, problems);
+			checkToolResultBudget(value.toolResultBudget, problems);
 			break;
 		case "failed":
 			if (!includes(FAILURE_CLASSES, value.class))
@@ -241,6 +300,7 @@ export function validateExecEvent(value: unknown): string[] {
 			if (!("raw" in value) || !isJsonValue(value.raw))
 				problems.push("failed.raw must be JSON (use null when absent)");
 			checkOwnedSession(value.ownedSession, problems);
+			checkToolResultBudget(value.toolResultBudget, problems);
 			break;
 		default:
 			problems.push(`unknown event type: ${String(value.type)}`);
