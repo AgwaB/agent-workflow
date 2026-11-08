@@ -104,6 +104,63 @@ test("every bundled and scaffold non-foreach partial consumer invalidates on dep
 	}
 });
 
+// 2026-11-08 (found by the L4 live check on deep-review): a foreach that reads a stage which reruns on
+// resume must rematerialize too; without its own declaration it kept the old children (dispatch map of
+// the old generation) and the next stage failed "dispatch map generation is stale". The engine
+// rematerializes a declared foreach transactionally; that needs an item identity.
+test("every bundled and scaffold foreach fed by a rerunning stage invalidates on dependency resume", async () => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-bundled-foreach-resume-"));
+	try {
+		for (const file of [
+			...BUNDLED_SPEC_FILES,
+			...(await scaffoldSpecFiles()),
+		]) {
+			const specPath = join(root, file);
+			const raw = JSON.parse(await readFile(specPath, "utf8"));
+			const stages = raw.artifactGraph?.stages ?? [];
+			const rerunning = new Set(
+				stages
+					.filter(
+						(stage) => stage.inputPolicy?.invalidateOnDependencyResume === true,
+					)
+					.map((stage) => stage.id),
+			);
+			const fed = stages.filter((stage) => {
+				if (stage.type !== "foreach") return false;
+				const source =
+					typeof stage.from === "string" ? stage.from : stage.from?.source;
+				return rerunning.has(source);
+			});
+			const compiled = await compileWorkflow(parseWorkflow(raw), {
+				cwd,
+				specPath,
+				task: "foreach resume invalidation check",
+			});
+			for (const stage of fed) {
+				assert.ok(
+					stage.each?.itemIdentityPath,
+					`${file}: ${stage.id} needs each.itemIdentityPath`,
+				);
+				const task = compiled.tasks.find(
+					(row) => row.id === `${stage.id}.item`,
+				);
+				assert.equal(
+					task?.artifactGraph?.inputPolicy?.invalidateOnDependencyResume,
+					true,
+					`${file}: ${stage.id}`,
+				);
+			}
+		}
+	} finally {
+		await rm(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
 test("bundled assets name the artifact tool by its workflow name only", async () => {
 	const forbidden = [
 		[/mcp__workflow_artifact__/u, "executor-specific artifact tool name"],

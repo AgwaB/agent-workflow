@@ -196,7 +196,8 @@
           "controlSchema": "./schemas/deep-research-verify-claims-control.schema.json"
         },
         "inputPolicy": {
-          "artifactAccess": "none"
+          "artifactAccess": "none",
+          "invalidateOnDependencyResume": true
         },
         "each": {
           "itemIdentityPath": "$.id",
@@ -226,7 +227,8 @@
           "controlSchema": "./schemas/deep-research-verify-claims-control.schema.json"
         },
         "inputPolicy": {
-          "artifactAccess": "none"
+          "artifactAccess": "none",
+          "invalidateOnDependencyResume": true
         },
         "each": {
           "itemIdentityPath": "$.id",
