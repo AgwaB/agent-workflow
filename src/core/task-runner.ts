@@ -1148,12 +1148,13 @@ function captureToolCallsEnabled(): boolean {
 
 /**
  * WP35: the executor descriptor for one task: the executor policy adds its per-task config (Pi:
- * `inheritHostTools`, fast tier); other executors get the recorded descriptor unchanged.
+ * `inheritHostTools`, fast tier, the sealed tool-result budget); other executors get the recorded
+ * descriptor unchanged.
  */
 export function workflowTaskExecutorDescriptor(
 	descriptor: ExecutorDescriptor,
 	compiledTask: Pick<CompiledTask, "runtime">,
-	launch: Pick<PreparedWorkflowTaskLaunch, "hostContext">,
+	launch: Pick<PreparedWorkflowTaskLaunch, "hostContext" | "toolResultBudget">,
 	capability: { report?: NegotiationReport } = {},
 ): ExecutorDescriptor {
 	return (

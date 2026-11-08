@@ -89,7 +89,8 @@ export const PI_EXECUTOR_POLICY: ExecutorPolicy = {
 	resolveFastMode: resolveWorkflowFastModeConfig,
 	/**
 	 * WP35: Pi per-task options travel as descriptor config (docs/executors.md#pi): `inheritHostTools`
-	 * exactly when the sealed launch carries the run's host context; `fast: "on"` (+ `fastApi`, the
+	 * exactly when the sealed launch carries the run's host context; `toolResultBudget` from the sealed
+	 * launch unless the executor config sets one; `fast: "on"` (+ `fastApi`, the
 	 * API the compiler bound) when the task asks for the fast tier and the recorded negotiation
 	 * accepted `fastTier` (an `unverified` fastTier needs the run's opt-in; without it the preview
 	 * said "runs without fast tier"). Runs recorded before negotiation get no fast tier.
@@ -107,8 +108,18 @@ export const PI_EXECUTOR_POLICY: ExecutorPolicy = {
 			const api = (compiledTask.runtime as { api?: unknown }).api;
 			if (typeof api === "string" && api !== "") extra.fastApi = api;
 		}
-		if (Object.keys(extra).length === 0) return descriptor;
 		const base = isPlainObject(descriptor.config) ? descriptor.config : {};
+		// 2026-11-08 (context-quality backlog R2): the sealed tool-result budget of a dynamic task
+		// (default 320,000 characters) was recorded but never reached Pi, so nothing was evicted.
+		// A budget the user set in the executor config is kept.
+		const budget = launch.toolResultBudget;
+		if (
+			budget?.configured === true &&
+			typeof budget.maxTotalChars === "number" &&
+			base.toolResultBudget === undefined
+		)
+			extra.toolResultBudget = { maxTotalChars: budget.maxTotalChars };
+		if (Object.keys(extra).length === 0) return descriptor;
 		return { ...descriptor, config: { ...base, ...extra } };
 	},
 	/** Only web tools turned off in pi-web-access's own config are fixable (one key flips to true). */
