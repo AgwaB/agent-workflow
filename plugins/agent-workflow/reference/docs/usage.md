@@ -100,7 +100,9 @@ or numbers for the same fact slot and entity, the slot is contested (`slotConfli
 normalizer's input packet). The normalizer must route it to verification; the final packet keeps the
 slot `conflicting` until a verified claim states one of the values (then the slot is `filled`, the
 other value named), and the report lists the competing values, their sources and the settling claim
-under "Contested values". Prose values are not compared.
+under "Contested values". Prose values are not compared. The audit also lists reader-facing
+sentences that tell the reader a local file is wrong while citing numbers or dates of a kind the file
+does not contain ("Source attribution check"); they are warnings, not blockers.
 
 Research synthesis requires a header and all sixteen indexed pages at `maxChars: 16000`, including
 empty tails, exactly once. Pages are bounded in UTF-16 units and UTF-8 bytes, with 256,000 aggregate

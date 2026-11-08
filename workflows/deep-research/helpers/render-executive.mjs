@@ -8,8 +8,9 @@ import { validateSynthesisPages } from "./synthesis-pages.mjs";
 // This intentionally treats final-audit.control.json as the source of truth and
 // renders a bounded view. It does not re-verify or invent evidence.
 
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { join, relative, resolve, sep } from "node:path";
+import { structuredDatesIn } from "./slot-conflicts.mjs";
 import { canonicalVerificationStatus } from "./verification-ontology.mjs";
 import { findSource, asArray } from "./source-access.mjs";
 
@@ -2622,7 +2623,103 @@ function renderContestedSlotsAudit(contestedSlots) {
 	return out;
 }
 
-function renderAuditMarkdown(control, packetSource, rendered, quoteCheck = null) {
+// 2026-11-08 (context-quality E8): the final synthesis once told the reader that notes.md had a wrong
+// QUIC v2 RFC number and should be corrected — notes.md had no RFC numbers at all; the wrong number came
+// from the plan. A reader-facing sentence that names a local file, says it is wrong or must be
+// corrected, and cites numbers or year-months although the file contains no value of that kind is
+// listed as a source-attribution warning in the audit (not a blocker). Comparing a note with an RFC, or
+// correcting a value the file does contain, is not flagged (40 recorded reports: 1 warning, the real
+// case). Only files inside the run's cwd are read.
+const LOCAL_FILE_RE =
+	/(?<![\w/.-])((?:[\w.-]+\/)*[\w.-]+\.(?:md|markdown|txt|json|ya?ml|csv|tsv|js|mjs|ts|py))(?![\w/-])/gu;
+const VALUE_NUMBER_RE = /(?<![\w.])\d{4,5}(?![\w.])/gu;
+const CORRECTION_RE =
+	/(수정|고치|고쳐|교정|정정|잘못|틀린|틀렸|오류|오기)|\b(?:incorrect|wrong|mistaken|erroneous|misstat\w*|fix(?:es|ed)?)\b/iu;
+
+function attributionSentences(text) {
+	return String(text ?? "")
+		.split(/\n+/u)
+		.flatMap((line) => line.split(/(?<=[.!?。])\s+/u))
+		.map((sentence) => sentence.trim())
+		.filter(Boolean);
+}
+
+async function readLocalFile(cwd, file, cache) {
+	if (cache.has(file)) return cache.get(file);
+	let text = null;
+	try {
+		const root = await realpath(cwd);
+		const path = await realpath(resolve(root, file));
+		const inside = relative(root, path);
+		if (inside && !inside.startsWith("..") && !inside.startsWith(sep))
+			text = (await readFile(path, "utf8")).slice(0, 1_000_000);
+	} catch {
+		text = null;
+	}
+	cache.set(file, text);
+	return text;
+}
+
+export async function sourceAttributionWarnings(texts, cwd) {
+	if (!cwd) return [];
+	const cache = new Map();
+	const warnings = [];
+	const seen = new Set();
+	for (const sentence of texts.flatMap(attributionSentences)) {
+		const files = [...new Set([...sentence.matchAll(LOCAL_FILE_RE)].map((m) => m[1]))];
+		if (files.length === 0) continue;
+		const numbers = [...new Set([...sentence.matchAll(VALUE_NUMBER_RE)].map((m) => m[0]))];
+		const dates = structuredDatesIn(sentence).filter((date) => date.month !== undefined);
+		if (numbers.length === 0 && dates.length === 0) continue;
+		if (!CORRECTION_RE.test(sentence)) continue;
+		for (const file of files) {
+			const content = await readLocalFile(cwd, file, cache);
+			if (content === null) continue;
+			// The file states values of the kind the sentence corrects: a correction may be right.
+			const fileHasNumbers = /(?<![\w.])\d{4,5}(?![\w.])/u.test(content);
+			const fileHasDates = structuredDatesIn(content).some(
+				(date) => date.month !== undefined,
+			);
+			if ((numbers.length > 0 && fileHasNumbers) || (dates.length > 0 && fileHasDates))
+				continue;
+			const key = `${file}\u0000${sentence}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			warnings.push({
+				file,
+				sentence: sentence.slice(0, 300),
+				values: [
+					...numbers,
+					...dates.map((date) => `${date.year}-${String(date.month).padStart(2, "0")}`),
+				],
+			});
+		}
+	}
+	return warnings;
+}
+
+function renderSourceAttributionAudit(warnings) {
+	if (!warnings?.length) return [];
+	return [
+		"",
+		"## Source attribution check (engine)",
+		"",
+		"These reader-facing sentences name a local file together with values that the file does not contain. Check that the report does not blame the file for a value that came from elsewhere (for example the research plan).",
+		"",
+		...warnings.map(
+			(warning) =>
+				`- \`${escapeMarkdownText(warning.file)}\` — values not in the file: ${warning.values.map(escapeMarkdownText).join(", ")} — “${escapeMarkdownText(warning.sentence)}”`,
+		),
+	];
+}
+
+function renderAuditMarkdown(
+	control,
+	packetSource,
+	rendered,
+	quoteCheck = null,
+	attributionWarnings = [],
+) {
 	const packet = packetSource?.packet ?? {};
 	const report = control?.finalReport ?? {};
 	const ledger = asArray(packet.claimVerdictLedger);
@@ -2713,6 +2810,7 @@ function renderAuditMarkdown(control, packetSource, rendered, quoteCheck = null)
 			);
 	}
 	out.push(...renderQuoteCheckAudit(quoteCheck));
+	out.push(...renderSourceAttributionAudit(attributionWarnings));
 	out.push(
 		"",
 		"## Renderer diagnostics",
@@ -2871,11 +2969,16 @@ export default async function renderExecutive({
 		truncated = true;
 		markdown = truncateWords(markdown, opts.maxWords);
 	}
+	const attributionWarnings = await sourceAttributionWarnings(
+		[rendered.completionSummaryMarkdown, markdown],
+		context.cwd,
+	);
 	const auditMarkdown = renderAuditMarkdown(
 		control,
 		auditPacket,
 		rendered,
 		quoteCheck,
+		attributionWarnings,
 	);
 	const serializationArtifact =
 		hasObjectSerializationArtifact(markdown) ||
@@ -2950,6 +3053,7 @@ export default async function renderExecutive({
 		...(quoteCheck ? { quoteCheck: quoteCheck.summary } : {}),
 		sectionCounts: rendered.sectionCounts,
 		renderWarnings: rendered.renderWarnings,
+		sourceAttributionWarnings: attributionWarnings,
 		sidecarErrors,
 		packetReconciliation,
 		gates: {
