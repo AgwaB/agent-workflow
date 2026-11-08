@@ -347,11 +347,19 @@ notify = []
 mcp_servers.<user server>.enabled = false
 ```
 
-`CODEX_HOME` is not relocated and credential files are not read. Project `AGENTS.md`, skills, plugins,
+Isolated attempts run with a **private `CODEX_HOME`** under the attempt's log directory that links
+(never copies) the user's `auth.json`, `config.toml` and `rules/` and carries no `AGENTS.md`, skills,
+plugins, memories or history; it is removed when the app-server exits. Codex writes refreshed tokens
+in place, so the linked `auth.json` stays the one credential file every Codex process shares. The user's
+home is kept instead (and the probe says why) when the stage inherits user context, when
+`cli_auth_credentials_store` is not `file` (the keyring store keys credentials by the home path), when
+there is neither an `auth.json` nor an `OPENAI_API_KEY`/`CODEX_API_KEY` variable, or when links cannot
+be created. Credential files are never read by agent-workflow. Project `AGENTS.md`, skills, plugins,
 apps and personal MCP tools are disabled. MCP disabling uses thread config: per-server argv overrides
 fail validation on 0.159.2, while `-c mcp_servers={}` merges rather than replacing.
 
-Global `$CODEX_HOME/AGENTS.md`, `~/.codex/rules/*.rules` and built-in collaboration role blocks remain.
+`~/.codex/rules/*.rules` (linked into the private home) and built-in collaboration role blocks remain;
+the global `$CODEX_HOME/AGENTS.md` reaches a worker only when the home is not relocated.
 An exec-policy `allow` rule can run a matching command outside the sandbox without engine approval.
 
 ### Environment probe
@@ -364,8 +372,8 @@ It never reads `auth.json` or makes a model call. Source: `src/executors/codex/e
 |---|---|---|
 | N > 0 `decision = "allow"` rules | `readOnly: emulated`, warning with count and path | readOnly degradation (`CAPABILITY_WARNING:readOnly`); interactive confirmation; strict refusal |
 | No allow rules | Declared `readOnly: native` remains | native |
-| Non-empty global `AGENTS.md` | `contextIsolation: emulated`, warning with path | non-inherit degradation (`CAPABILITY_WARNING:contextIsolation`); strict refusal |
-| Absent/empty global `AGENTS.md`, no policy warnings | `contextIsolation: native` | native |
+| Non-empty global `AGENTS.md` **and** the worker home stays shared (keyring/auto store, no credentials) | `contextIsolation: emulated`, warning with path and the reason | non-inherit degradation (`CAPABILITY_WARNING:contextIsolation`); strict refusal |
+| Global `AGENTS.md` absent/empty, or workers get a private home; no policy warnings | `contextIsolation: native` | native |
 | `forbidden` / `prompt` rules or restrictive managed requirements | `contextIsolation: emulated`, count/path warning: policy survives isolation | `CAPABILITY_WARNING:contextIsolation`; free mode records it without confirmation or strict refusal |
 
 The rule tokenizer counts keyword arguments (`"allow"`, `'allow'`, `r"allow"`), not comments or strings
