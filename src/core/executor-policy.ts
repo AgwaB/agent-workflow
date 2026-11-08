@@ -70,7 +70,10 @@ export interface ExecutorPolicy {
 	taskDescriptor?(
 		descriptor: ExecutorDescriptor,
 		compiledTask: Pick<CompiledTask, "runtime">,
-		launch: Pick<PreparedWorkflowTaskLaunch, "hostContext">,
+		launch: Pick<
+			PreparedWorkflowTaskLaunch,
+			"hostContext" | "toolResultBudget"
+		>,
 		capability: { report?: NegotiationReport },
 	): ExecutorDescriptor;
 	/** `doctor --fix` candidates for tools this executor cannot provide here. */

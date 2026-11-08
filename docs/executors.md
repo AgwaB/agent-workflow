@@ -175,7 +175,10 @@ live or offline coverage.
 | webTools | native / search+fetch, safetyPolicy **unknown** | unverified (static) / probed via `pi list` | pi-web-access 0.44.0; search live, Pi 1.1.0 |
 
 Set `config.toolResultBudget: { maxTotalChars: N }` to enforce a cumulative tool-result character
-budget through the per-run `context` hook; old results are evicted from model context.
+budget through the per-run `context` hook; old results are evicted from model context. Dynamic
+generated tasks on Pi get the run's budget (`AGENT_WORKFLOW_DYNAMIC_TOOL_RESULT_BUDGET_CHARS`,
+default 320,000; `0` disables) unless the executor config sets one; other executors have no
+eviction (`toolResultBudget: none`), the budget is only recorded.
 
 Usage is per assistant request. `cached = cacheRead`, `cacheWrite = cacheWrite`, and `model` comes
 from the assistant message. Cost is Pi's catalog estimate (`source: estimated`); a reported zero
