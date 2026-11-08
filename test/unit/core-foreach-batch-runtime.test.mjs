@@ -2767,3 +2767,92 @@ test("resume after a dependency reset rematerializes a completed batched foreach
 		removeProject(cwd);
 	}
 });
+
+// 2026-11-08 (found by the L4 live check on deep-review, where dedup-findings was the reset source of
+// devil-advocate): a foreach whose direct source is reset on resume keeps its old children unless it
+// declares invalidateOnDependencyResume itself (the invalidation closure only expands from flagged
+// tasks); the next stage then fails "dispatch map generation is stale". Declared, it rematerializes.
+for (const declared of [false, true]) {
+	test(`resume through a rerunning foreach source ${declared ? "rematerializes a declared foreach" : "leaves an undeclared foreach stale"}`, async () => {
+		const cwd = makeProject();
+		try {
+			writeAgent(cwd);
+			const items = writeWorkflow(cwd, `fan-resume-${declared}`);
+			const specPath = join(
+				cwd,
+				"workflows",
+				`fan-resume-${declared}`,
+				"spec.json",
+			);
+			const spec = JSON.parse(readFileSync(specPath, "utf8"));
+			spec.artifactGraph.stages.splice(1, 0, {
+				id: "mid",
+				type: "single",
+				from: "source",
+				sourcePolicy: "partial",
+				inputPolicy: { invalidateOnDependencyResume: true },
+				prompt: "Relay the list. Produce items.",
+				output: { analysis: { required: true }, refs: { required: true } },
+			});
+			const fan = spec.artifactGraph.stages[2];
+			fan.from = { source: "mid", path: "$.items" };
+			fan.each.itemIdentityPath = "$.id";
+			if (declared) fan.inputPolicy.invalidateOnDependencyResume = true;
+			// Like deep-review's partition-verdicts (dedup-findings + devil-advocate): downstream reads the
+			// foreach and its source.
+			spec.artifactGraph.stages[3].from = ["fan", "mid"];
+			spec.artifactGraph.stages[3].inputPolicy = {
+				invalidateOnDependencyResume: true,
+			};
+			writeFileSync(specPath, JSON.stringify(spec));
+			const fake = fakeApi({ cwd, items });
+			setWorkerApiForTests(fake.api);
+			const started = await runWorkflow(`fan-resume-${declared}`, cwd, {
+				task: "Run items.",
+			});
+			const completed = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
+			assert.equal(completed.status, "completed");
+			const failed = await readRunRecord(cwd, started.runId);
+			const source = failed.tasks.find((task) => task.stageId === "mid");
+			source.status = "failed";
+			source.statusDetail = "test_reset";
+			source.exitCode = 1;
+			failed.status = "failed";
+			failed.taskSummary = {
+				...failed.taskSummary,
+				completed: failed.taskSummary.completed - 1,
+				failed: 1,
+			};
+			await writeRunRecordUnderLease(cwd, started.runId, failed);
+			const before = fake.launches.length;
+			await resumeRun(cwd, started.runId);
+			const again = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
+			const downstream = again.tasks.find(
+				(task) => task.stageId === "downstream",
+			);
+			if (declared) {
+				assert.equal(
+					again.status,
+					"completed",
+					JSON.stringify(
+						again.tasks.map((t) => [t.specId, t.status, t.statusDetail]),
+					),
+				);
+				assert.deepEqual(
+					fake.launches.slice(before).map((launch) => launch.kind),
+					["source", "singleton", "singleton", "singleton", "downstream"],
+				);
+			} else {
+				assert.notEqual(again.status, "completed");
+				assert.equal(downstream.status, "failed");
+				assert.match(
+					downstream.lastMessage,
+					/dispatch map generation is stale/,
+				);
+			}
+		} finally {
+			setWorkerApiForTests(undefined);
+			removeProject(cwd);
+		}
+	});
+}

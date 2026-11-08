@@ -720,7 +720,10 @@ Top-level `artifactGraph.stages` is a DAG.
 - `sourcePolicy` (`require-success`, `partial`) decides whether a failed source blocks the stage;
   `inputPolicy.terminalBarrier: "all-sources"` waits for every source to be terminal first.
 - `inputPolicy.invalidateOnDependencyResume: true` discards a static consumer's stale artifacts when a
-  dependency is resumed; `inputPolicy.maxCompiledPromptChars` caps the compiled prompt.
+  dependency is resumed; on a `foreach` (with `each.itemIdentityPath`) it rebuilds the children from
+  the source's new items. A `foreach` that reads a stage which reruns on resume needs it too: without
+  it the old children stay and the next stage fails with "dispatch map generation is stale".
+  `inputPolicy.maxCompiledPromptChars` caps the compiled prompt.
 - `foreach` may set `each.itemIdentityPath` (stable child ids, for example `$.id`) and
   `each.itemPayloadPath`. `${item}` is inserted as a marked data block
   (`<workflow-item-data>…</workflow-item-data>`, text unchanged except a closing tag inside it) under

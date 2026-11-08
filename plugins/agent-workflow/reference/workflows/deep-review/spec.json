@@ -106,7 +106,8 @@
         "profileRole": "verification",
         "injectRuntimeTask": true,
         "inputPolicy": {
-          "artifactAccess": "none"
+          "artifactAccess": "none",
+          "invalidateOnDependencyResume": true
         },
         "from": {
           "source": "dedup-findings",
