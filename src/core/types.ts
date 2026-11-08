@@ -1686,6 +1686,36 @@ export interface WorkflowRunProvenance {
 	[key: string]: unknown;
 }
 
+/** Git state at launch (code-revisions.ts). Hashes only, never file content. */
+export interface WorkflowRunGitState {
+	/** Commit of HEAD; absent when HEAD has no commit yet. */
+	head?: string;
+	/** Absent when HEAD is detached. */
+	branch?: string;
+	/** Tracked changes or untracked files present (porcelain status not empty). */
+	dirty?: boolean;
+	/** SHA-256 of `git status --porcelain=v1 -z`: changed, deleted and untracked paths. */
+	statusSha256?: string;
+	/** SHA-256 of a canonical `git diff HEAD --binary`: tracked content changes. */
+	diffSha256?: string;
+	/** Git commands that failed or timed out (5 s each); recorded, never blocking. */
+	issues?: string[];
+}
+
+/**
+ * 2026-11-08: which engine and which state of the run's repository a run used, captured once at
+ * launch; nested runs reuse their parent's. Absent on runs created before.
+ */
+export interface WorkflowRunCodeRevisions {
+	capturedAt: string;
+	engine: {
+		version: string;
+		/** Only when the engine runs from a git checkout of itself (read once per process). */
+		checkout?: WorkflowRunGitState;
+	};
+	target: { repository: false } | ({ repository: true } & WorkflowRunGitState);
+}
+
 export type WorkflowRunLaunchProfile =
 	| { kind: "named"; name: string }
 	| { kind: "base" }
@@ -1914,6 +1944,7 @@ export interface WorkflowRunRecord {
 	updatedAt: string;
 	specPath: string;
 	provenance?: WorkflowRunProvenance;
+	codeRevisions?: WorkflowRunCodeRevisions;
 	routing?: WorkflowRunRouting;
 	executionProfile?: WorkflowRunExecutionProfile;
 	/** Executor selection frozen at creation; absent on records created directly through the store. */

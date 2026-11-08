@@ -2,6 +2,7 @@
 // Nested runs inherit the parent executor and permission decisions.
 // Mixed runs negotiate each stage against its own executor; only Pi tasks inherit host tools.
 import { releaseUnneededOwnedSessions } from "./owned-session-release.js";
+import { captureCodeRevisions } from "./code-revisions.js";
 import {
 	appendFile,
 	mkdir,
@@ -1004,6 +1005,10 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		initialize: false,
 	});
 	if (provenance) run.provenance = provenance;
+	// Code revisions: captured once at launch; nested runs keep the launch's view.
+	run.codeRevisions =
+		parentRun?.codeRevisions ?? (await captureCodeRevisions(run.cwd));
+	options.launchSignal?.throwIfAborted();
 	if (options.routing) run.routing = options.routing;
 	if (appliedProfile.record) run.executionProfile = appliedProfile.record;
 	run.executor = executor;
