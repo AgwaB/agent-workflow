@@ -2601,6 +2601,7 @@
     "noSilentLoss": "If ledgers.overflow has non-zero counts, summarize omitted material in normalizationNotes instead of implying full coverage.",
     "precisionGuard": "Use precisionGuard to split or demote broad, normative, bundled, source-weak, retrieval-gap, or derived-recommendation claims before verification; use slotPreservation so required/critical slot evidence is selected, preserved, or marked as an explicit gap.",
     "slotConflicts": "slotConflicts lists slots where research observations of the same entity disagree on a date or number (code-compared; free text is not compared). For each entry, set that slot's factSlotCoverage status to conflicting, quote the competing values and their sources in gapReason, and create at least one verificationCandidate with verificationNeed core whose claim states one value exactly and whose sourceUrls/sourceRefs include both sides' sources, naming the competing value in reasonToVerify; the verifier adjudicates. Do not pick a value silently. The final packet keeps the slot conflicting until a verified claim states one of the values.",
+    "claimForm": "Each verificationCandidates[].claim is a statement that names its subject (\"RFC 9000 was published in May 2021.\"), never a copied heading, field label or JSON line (\"# RFC 9000\", \"Published: May 2021\", \"\\\"edge\\\": \\\"mirror\\\"\"); keep the source's exact words for the value.",
     "claimLanguage": "Write each claim's text (verificationCandidates[].claim, preservedClaims[].claim) in the language of its source evidence, normally that of the quoted passage, even when the runtime task uses another language, so it can be checked word for word against its source; the final synthesis translates what the reader sees. whyItMatters and reasonToVerify may follow the task's language."
    }
   }
@@ -2642,7 +2643,8 @@
         "slot-001"
        ],
        "sourceQuality": "primary_official",
-       "relevance": "v20.3.0이 최초 도입 라인이고 v18.17.0은 지원 라인으로 추가된 backport 버전이다."
+       "relevance": "v20.3.0이 최초 도입 라인이고 v18.17.0은 지원 라인으로 추가된 backport 버전이다.",
+       "entity": "Node.js AbortSignal.any()"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -2680,7 +2682,8 @@
         "slot-002"
        ],
        "sourceQuality": "primary_official",
-       "relevance": "해당 문구는 Global objects 섹션의 안정성 표기이며 AbortSignal.any() 메서드 바로 아래의 개별 표기는 아니다."
+       "relevance": "해당 문구는 Global objects 섹션의 안정성 표기이며 AbortSignal.any() 메서드 바로 아래의 개별 표기는 아니다.",
+       "entity": "Node.js AbortSignal.any()"
       },
       {
        "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
@@ -2691,7 +2694,8 @@
         "slot-004"
        ],
        "sourceQuality": "primary",
-       "relevance": "문서상 Global objects 섹션이 Stable이다. AbortSignal.timeout() 항목 자체에는 별도 Experimental 표기가 보이지 않는다."
+       "relevance": "문서상 Global objects 섹션이 Stable이다. AbortSignal.timeout() 항목 자체에는 별도 Experimental 표기가 보이지 않는다.",
+       "entity": "Node.js Global objects"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -2730,7 +2734,8 @@
         "slot-003"
        ],
        "sourceQuality": "primary",
-       "relevance": "v17.3.0에서 도입되었고 v16.14.0으로 백포트되었다."
+       "relevance": "v17.3.0에서 도입되었고 v16.14.0으로 백포트되었다.",
+       "entity": "Node.js AbortSignal.timeout()"
       },
       {
        "url": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md",
@@ -2741,7 +2746,8 @@
         "slot-003"
        ],
        "sourceQuality": "primary",
-       "relevance": "공식 릴리스 변경 로그의 기능 추가 항목이다."
+       "relevance": "공식 릴리스 변경 로그의 기능 추가 항목이다.",
+       "entity": "Node.js AbortSignal.timeout()"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -2779,7 +2785,8 @@
         "slot-004"
        ],
        "sourceQuality": "primary",
-       "relevance": "문서상 Global objects 섹션이 Stable이다. AbortSignal.timeout() 항목 자체에는 별도 Experimental 표기가 보이지 않는다."
+       "relevance": "문서상 Global objects 섹션이 Stable이다. AbortSignal.timeout() 항목 자체에는 별도 Experimental 표기가 보이지 않는다.",
+       "entity": "Node.js Global objects"
       },
       {
        "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
@@ -2790,7 +2797,8 @@
         "slot-002"
        ],
        "sourceQuality": "primary_official",
-       "relevance": "해당 문구는 Global objects 섹션의 안정성 표기이며 AbortSignal.any() 메서드 바로 아래의 개별 표기는 아니다."
+       "relevance": "해당 문구는 Global objects 섹션의 안정성 표기이며 AbortSignal.any() 메서드 바로 아래의 개별 표기는 아니다.",
+       "entity": "Node.js AbortSignal.any()"
       },
       {
        "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
@@ -2801,7 +2809,8 @@
         "slot-004"
        ],
        "sourceQuality": "primary",
-       "relevance": "메서드별 Stability 라벨은 없으므로 Global objects의 Stable 표기와 Experimental 부재를 근거로 한 문서 해석이다."
+       "relevance": "메서드별 Stability 라벨은 없으므로 Global objects의 Stable 표기와 Experimental 부재를 근거로 한 문서 해석이다.",
+       "entity": "Node.js AbortSignal.timeout()"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -2839,7 +2848,8 @@
         "slot-005"
        ],
        "sourceQuality": "primary_preferred",
-       "relevance": "Chromium 공식 Intent to Ship도 데스크톱·Android·WebView의 shipping milestone을 116으로 기록한다."
+       "relevance": "Chromium 공식 Intent to Ship도 데스크톱·Android·WebView의 shipping milestone을 116으로 기록한다.",
+       "entity": "Chrome"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -2877,7 +2887,8 @@
         "slot-006"
        ],
        "sourceQuality": "primary_preferred",
-       "relevance": "BCD는 Edge를 Chromium upstream의 mirror로 표시하며, 호환성 표에서 Edge 115 이하 미지원·116부터 지원으로 확인된다."
+       "relevance": "BCD는 Edge를 Chromium upstream의 mirror로 표시하며, 호환성 표에서 Edge 115 이하 미지원·116부터 지원으로 확인된다.",
+       "entity": "Edge"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -2916,7 +2927,8 @@
         "slot-007"
        ],
        "sourceQuality": "primary_preferred",
-       "relevance": "Firefox 124 릴리스 노트가 AbortSignal.any() 지원을 명시한다."
+       "relevance": "Firefox 124 릴리스 노트가 AbortSignal.any() 지원을 명시한다.",
+       "entity": "Firefox"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -2955,14 +2967,15 @@
         "slot-008"
        ],
        "sourceQuality": "primary_preferred",
-       "relevance": "WebKit 공식 Safari 17.4 기능 문서가 AbortSignal.any() 추가를 명시한다."
+       "relevance": "WebKit 공식 Safari 17.4 기능 문서가 AbortSignal.any() 추가를 명시한다.",
+       "entity": "Safari"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
     },
     {
      "id": "claim-009",
-     "claim": "\"version_added\": \"124\"",
+     "claim": "Chrome — \"version_added\": \"124\"",
      "sourceUrls": [
       "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
      ],
@@ -2993,7 +3006,8 @@
         "slot-009"
        ],
        "sourceQuality": "primary compatibility data",
-       "relevance": "BCD는 Chrome 103–123을 partial_implementation으로 기록하며, 해당 구간은 TimeoutError가 아니라 AbortError를 사용한다고 명시한다."
+       "relevance": "BCD는 Chrome 103–123을 partial_implementation으로 기록하며, 해당 구간은 TimeoutError가 아니라 AbortError를 사용한다고 명시한다.",
+       "entity": "Chrome"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -3031,14 +3045,15 @@
         "slot-010"
        ],
        "sourceQuality": "primary compatibility data",
-       "relevance": "BCD가 Edge를 Chrome 데이터의 mirror로 표시하므로 Chrome의 완전 지원 시작 버전 124를 Edge에도 적용한다."
+       "relevance": "BCD가 Edge를 Chrome 데이터의 mirror로 표시하므로 Chrome의 완전 지원 시작 버전 124를 Edge에도 적용한다.",
+       "entity": "Edge"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
     },
     {
      "id": "claim-011",
-     "claim": "\"version_added\": \"100\"",
+     "claim": "Firefox — \"version_added\": \"100\"",
      "sourceUrls": [
       "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
       "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100"
@@ -3070,14 +3085,15 @@
         "slot-011"
        ],
        "sourceQuality": "primary compatibility data and official release notes",
-       "relevance": "Firefox 100 릴리스 노트도 AbortSignal.timeout() 사용 가능 및 TimeoutError 동작을 확인한다."
+       "relevance": "Firefox 100 릴리스 노트도 AbortSignal.timeout() 사용 가능 및 TimeoutError 동작을 확인한다.",
+       "entity": "Firefox"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
     },
     {
      "id": "claim-012",
-     "claim": "\"version_added\": \"16\"",
+     "claim": "Safari — \"version_added\": \"16\"",
      "sourceUrls": [
       "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
      ],
@@ -3108,14 +3124,15 @@
         "slot-012"
        ],
        "sourceQuality": "primary compatibility data",
-       "relevance": "Safari iOS는 BCD에서 Safari 데이터를 mirror한다."
+       "relevance": "Safari iOS는 BCD에서 Safari 데이터를 mirror한다.",
+       "entity": "Safari"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
     },
     {
      "id": "claim-013",
-     "claim": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+     "claim": "AbortSignal.any() — For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
      "sourceUrls": [
       "https://dom.spec.whatwg.org/"
      ],
@@ -3146,7 +3163,8 @@
         "slot-013"
        ],
        "sourceQuality": "primary/authoritative",
-       "relevance": "표준 알고리즘은 iterable 순회 중 첫 번째 이미 취소된 신호에서 반환한다."
+       "relevance": "표준 알고리즘은 iterable 순회 중 첫 번째 이미 취소된 신호에서 반환한다.",
+       "entity": "AbortSignal.any()"
       },
       {
        "url": "https://dom.spec.whatwg.org/",
@@ -3157,7 +3175,8 @@
         "slot-013"
        ],
        "sourceQuality": "primary/authoritative",
-       "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다."
+       "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다.",
+       "entity": "AbortSignal.any()"
       },
       {
        "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
@@ -3168,7 +3187,8 @@
         "slot-013"
        ],
        "sourceQuality": "authoritative/credible-reference",
-       "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다."
+       "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다.",
+       "entity": "AbortSignal.any()"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -3202,7 +3222,8 @@
         "slot-013"
        ],
        "sourceQuality": "credible-reference",
-       "relevance": "결합 신호는 입력으로 향하는 취소 제어기가 아니라 입력 취소를 관찰하는 dependent signal이다."
+       "relevance": "결합 신호는 입력으로 향하는 취소 제어기가 아니라 입력 취소를 관찰하는 dependent signal이다.",
+       "entity": "AbortSignal.any()"
       },
       {
        "url": "https://dom.spec.whatwg.org/",
@@ -3213,7 +3234,8 @@
         "slot-013"
        ],
        "sourceQuality": "primary/authoritative",
-       "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다."
+       "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다.",
+       "entity": "AbortSignal.any()"
       },
       {
        "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
@@ -3224,7 +3246,8 @@
         "slot-013"
        ],
        "sourceQuality": "authoritative/credible-reference",
-       "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다."
+       "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다.",
+       "entity": "AbortSignal.any()"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -3258,7 +3281,8 @@
         "slot-014"
        ],
        "sourceQuality": "primary",
-       "relevance": "실제 API가 Promise를 reject하는 형태는 관찰 API에 따라 달라질 수 있지만, signal 자체의 reason은 표준상 TimeoutError DOMException이다."
+       "relevance": "실제 API가 Promise를 reject하는 형태는 관찰 API에 따라 달라질 수 있지만, signal 자체의 reason은 표준상 TimeoutError DOMException이다.",
+       "entity": "WHATWG DOM"
       },
       {
        "url": "https://dom.spec.whatwg.org/",
@@ -3269,7 +3293,8 @@
         "slot-014"
        ],
        "sourceQuality": "primary",
-       "relevance": "표준 알고리즘은 HTML의 ‘run steps after a timeout’과 timer task source를 사용한다."
+       "relevance": "표준 알고리즘은 HTML의 ‘run steps after a timeout’과 timer task source를 사용한다.",
+       "entity": "WHATWG DOM"
       },
       {
        "url": "https://dom.spec.whatwg.org/",
@@ -3280,7 +3305,8 @@
         "slot-013"
        ],
        "sourceQuality": "primary/authoritative",
-       "relevance": "표준 알고리즘은 iterable 순회 중 첫 번째 이미 취소된 신호에서 반환한다."
+       "relevance": "표준 알고리즘은 iterable 순회 중 첫 번째 이미 취소된 신호에서 반환한다.",
+       "entity": "AbortSignal.any()"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -3314,7 +3340,8 @@
         "slot-014"
        ],
        "sourceQuality": "primary_preferred",
-       "relevance": "브라우저 표준 동작을 일반적인 wall-clock setTimeout과 동일하게 해석하면 안 된다."
+       "relevance": "브라우저 표준 동작을 일반적인 wall-clock setTimeout과 동일하게 해석하면 안 된다.",
+       "entity": "MDN"
       },
       {
        "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
@@ -3325,7 +3352,8 @@
         "slot-014"
        ],
        "sourceQuality": "primary_preferred",
-       "relevance": "조기 취소가 확실히 필요하면 AbortController와 setTimeout()/clearTimeout() 조합을 사용한다."
+       "relevance": "조기 취소가 확실히 필요하면 AbortController와 setTimeout()/clearTimeout() 조합을 사용한다.",
+       "entity": "MDN"
       },
       {
        "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
@@ -3336,7 +3364,8 @@
         "slot-014"
        ],
        "sourceQuality": "primary_preferred",
-       "relevance": "직접 추가한 리스너는 작업 종료 시 제거해야 한다."
+       "relevance": "직접 추가한 리스너는 작업 종료 시 제거해야 한다.",
+       "entity": "MDN"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -3370,7 +3399,8 @@
         "slot-013"
        ],
        "sourceQuality": "authoritative/credible-reference",
-       "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다."
+       "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다.",
+       "entity": "AbortSignal.any()"
       },
       {
        "url": "https://dom.spec.whatwg.org/",
@@ -3381,7 +3411,8 @@
         "slot-013"
        ],
        "sourceQuality": "primary/authoritative",
-       "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다."
+       "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다.",
+       "entity": "AbortSignal.any()"
       },
       {
        "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
@@ -3392,7 +3423,8 @@
         "slot-013"
        ],
        "sourceQuality": "credible-reference",
-       "relevance": "결합 신호는 입력으로 향하는 취소 제어기가 아니라 입력 취소를 관찰하는 dependent signal이다."
+       "relevance": "결합 신호는 입력으로 향하는 취소 제어기가 아니라 입력 취소를 관찰하는 dependent signal이다.",
+       "entity": "AbortSignal.any()"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -3426,7 +3458,8 @@
         "slot-014"
        ],
        "sourceQuality": "primary_preferred",
-       "relevance": "조기 취소가 확실히 필요하면 AbortController와 setTimeout()/clearTimeout() 조합을 사용한다."
+       "relevance": "조기 취소가 확실히 필요하면 AbortController와 setTimeout()/clearTimeout() 조합을 사용한다.",
+       "entity": "MDN"
       },
       {
        "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
@@ -3437,7 +3470,8 @@
         "slot-014"
        ],
        "sourceQuality": "primary_preferred",
-       "relevance": "리소스 제약 상황에서 명시적 조기 취소가 필요하면 AbortController와 clearTimeout()을 사용한다."
+       "relevance": "리소스 제약 상황에서 명시적 조기 취소가 필요하면 AbortController와 clearTimeout()을 사용한다.",
+       "entity": "MDN"
       },
       {
        "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
@@ -3448,7 +3482,8 @@
         "slot-014"
        ],
        "sourceQuality": "primary_preferred",
-       "relevance": "브라우저 표준 동작을 일반적인 wall-clock setTimeout과 동일하게 해석하면 안 된다."
+       "relevance": "브라우저 표준 동작을 일반적인 wall-clock setTimeout과 동일하게 해석하면 안 된다.",
+       "entity": "MDN"
       }
      ],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact"
@@ -4385,6 +4420,7 @@
     "claim-012",
     "claim-013"
    ],
+   "entityNamedCandidateIds": [],
    "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
    "sourceEvidenceHintRows": 28,
    "schemaCaps": {
@@ -4444,7 +4480,8 @@
        "slot-001"
       ],
       "sourceQuality": "primary_official",
-      "relevance": "v20.3.0이 최초 도입 라인이고 v18.17.0은 지원 라인으로 추가된 backport 버전이다."
+      "relevance": "v20.3.0이 최초 도입 라인이고 v18.17.0은 지원 라인으로 추가된 backport 버전이다.",
+      "entity": "Node.js AbortSignal.any()"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4483,7 +4520,8 @@
        "slot-002"
       ],
       "sourceQuality": "primary_official",
-      "relevance": "해당 문구는 Global objects 섹션의 안정성 표기이며 AbortSignal.any() 메서드 바로 아래의 개별 표기는 아니다."
+      "relevance": "해당 문구는 Global objects 섹션의 안정성 표기이며 AbortSignal.any() 메서드 바로 아래의 개별 표기는 아니다.",
+      "entity": "Node.js AbortSignal.any()"
      },
      {
       "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
@@ -4494,7 +4532,8 @@
        "slot-004"
       ],
       "sourceQuality": "primary",
-      "relevance": "문서상 Global objects 섹션이 Stable이다. AbortSignal.timeout() 항목 자체에는 별도 Experimental 표기가 보이지 않는다."
+      "relevance": "문서상 Global objects 섹션이 Stable이다. AbortSignal.timeout() 항목 자체에는 별도 Experimental 표기가 보이지 않는다.",
+      "entity": "Node.js Global objects"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4534,7 +4573,8 @@
        "slot-003"
       ],
       "sourceQuality": "primary",
-      "relevance": "v17.3.0에서 도입되었고 v16.14.0으로 백포트되었다."
+      "relevance": "v17.3.0에서 도입되었고 v16.14.0으로 백포트되었다.",
+      "entity": "Node.js AbortSignal.timeout()"
      },
      {
       "url": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md",
@@ -4545,7 +4585,8 @@
        "slot-003"
       ],
       "sourceQuality": "primary",
-      "relevance": "공식 릴리스 변경 로그의 기능 추가 항목이다."
+      "relevance": "공식 릴리스 변경 로그의 기능 추가 항목이다.",
+      "entity": "Node.js AbortSignal.timeout()"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4584,7 +4625,8 @@
        "slot-004"
       ],
       "sourceQuality": "primary",
-      "relevance": "문서상 Global objects 섹션이 Stable이다. AbortSignal.timeout() 항목 자체에는 별도 Experimental 표기가 보이지 않는다."
+      "relevance": "문서상 Global objects 섹션이 Stable이다. AbortSignal.timeout() 항목 자체에는 별도 Experimental 표기가 보이지 않는다.",
+      "entity": "Node.js Global objects"
      },
      {
       "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
@@ -4595,7 +4637,8 @@
        "slot-002"
       ],
       "sourceQuality": "primary_official",
-      "relevance": "해당 문구는 Global objects 섹션의 안정성 표기이며 AbortSignal.any() 메서드 바로 아래의 개별 표기는 아니다."
+      "relevance": "해당 문구는 Global objects 섹션의 안정성 표기이며 AbortSignal.any() 메서드 바로 아래의 개별 표기는 아니다.",
+      "entity": "Node.js AbortSignal.any()"
      },
      {
       "url": "https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html",
@@ -4606,7 +4649,8 @@
        "slot-004"
       ],
       "sourceQuality": "primary",
-      "relevance": "메서드별 Stability 라벨은 없으므로 Global objects의 Stable 표기와 Experimental 부재를 근거로 한 문서 해석이다."
+      "relevance": "메서드별 Stability 라벨은 없으므로 Global objects의 Stable 표기와 Experimental 부재를 근거로 한 문서 해석이다.",
+      "entity": "Node.js AbortSignal.timeout()"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4645,7 +4689,8 @@
        "slot-005"
       ],
       "sourceQuality": "primary_preferred",
-      "relevance": "Chromium 공식 Intent to Ship도 데스크톱·Android·WebView의 shipping milestone을 116으로 기록한다."
+      "relevance": "Chromium 공식 Intent to Ship도 데스크톱·Android·WebView의 shipping milestone을 116으로 기록한다.",
+      "entity": "Chrome"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4684,7 +4729,8 @@
        "slot-006"
       ],
       "sourceQuality": "primary_preferred",
-      "relevance": "BCD는 Edge를 Chromium upstream의 mirror로 표시하며, 호환성 표에서 Edge 115 이하 미지원·116부터 지원으로 확인된다."
+      "relevance": "BCD는 Edge를 Chromium upstream의 mirror로 표시하며, 호환성 표에서 Edge 115 이하 미지원·116부터 지원으로 확인된다.",
+      "entity": "Edge"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4724,7 +4770,8 @@
        "slot-007"
       ],
       "sourceQuality": "primary_preferred",
-      "relevance": "Firefox 124 릴리스 노트가 AbortSignal.any() 지원을 명시한다."
+      "relevance": "Firefox 124 릴리스 노트가 AbortSignal.any() 지원을 명시한다.",
+      "entity": "Firefox"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4764,7 +4811,8 @@
        "slot-008"
       ],
       "sourceQuality": "primary_preferred",
-      "relevance": "WebKit 공식 Safari 17.4 기능 문서가 AbortSignal.any() 추가를 명시한다."
+      "relevance": "WebKit 공식 Safari 17.4 기능 문서가 AbortSignal.any() 추가를 명시한다.",
+      "entity": "Safari"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4772,7 +4820,7 @@
    },
    {
     "id": "claim-009",
-    "claim": "\"version_added\": \"124\"",
+    "claim": "Chrome — \"version_added\": \"124\"",
     "sourceUrls": [
      "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
     ],
@@ -4803,7 +4851,8 @@
        "slot-009"
       ],
       "sourceQuality": "primary compatibility data",
-      "relevance": "BCD는 Chrome 103–123을 partial_implementation으로 기록하며, 해당 구간은 TimeoutError가 아니라 AbortError를 사용한다고 명시한다."
+      "relevance": "BCD는 Chrome 103–123을 partial_implementation으로 기록하며, 해당 구간은 TimeoutError가 아니라 AbortError를 사용한다고 명시한다.",
+      "entity": "Chrome"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4842,7 +4891,8 @@
        "slot-010"
       ],
       "sourceQuality": "primary compatibility data",
-      "relevance": "BCD가 Edge를 Chrome 데이터의 mirror로 표시하므로 Chrome의 완전 지원 시작 버전 124를 Edge에도 적용한다."
+      "relevance": "BCD가 Edge를 Chrome 데이터의 mirror로 표시하므로 Chrome의 완전 지원 시작 버전 124를 Edge에도 적용한다.",
+      "entity": "Edge"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4850,7 +4900,7 @@
    },
    {
     "id": "claim-011",
-    "claim": "\"version_added\": \"100\"",
+    "claim": "Firefox — \"version_added\": \"100\"",
     "sourceUrls": [
      "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json",
      "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100"
@@ -4882,7 +4932,8 @@
        "slot-011"
       ],
       "sourceQuality": "primary compatibility data and official release notes",
-      "relevance": "Firefox 100 릴리스 노트도 AbortSignal.timeout() 사용 가능 및 TimeoutError 동작을 확인한다."
+      "relevance": "Firefox 100 릴리스 노트도 AbortSignal.timeout() 사용 가능 및 TimeoutError 동작을 확인한다.",
+      "entity": "Firefox"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4890,7 +4941,7 @@
    },
    {
     "id": "claim-012",
-    "claim": "\"version_added\": \"16\"",
+    "claim": "Safari — \"version_added\": \"16\"",
     "sourceUrls": [
      "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
     ],
@@ -4921,7 +4972,8 @@
        "slot-012"
       ],
       "sourceQuality": "primary compatibility data",
-      "relevance": "Safari iOS는 BCD에서 Safari 데이터를 mirror한다."
+      "relevance": "Safari iOS는 BCD에서 Safari 데이터를 mirror한다.",
+      "entity": "Safari"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -4929,7 +4981,7 @@
    },
    {
     "id": "claim-013",
-    "claim": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+    "claim": "AbortSignal.any() — For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
     "sourceUrls": [
      "https://dom.spec.whatwg.org/"
     ],
@@ -4960,7 +5012,8 @@
        "slot-013"
       ],
       "sourceQuality": "primary/authoritative",
-      "relevance": "표준 알고리즘은 iterable 순회 중 첫 번째 이미 취소된 신호에서 반환한다."
+      "relevance": "표준 알고리즘은 iterable 순회 중 첫 번째 이미 취소된 신호에서 반환한다.",
+      "entity": "AbortSignal.any()"
      },
      {
       "url": "https://dom.spec.whatwg.org/",
@@ -4971,7 +5024,8 @@
        "slot-013"
       ],
       "sourceQuality": "primary/authoritative",
-      "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다."
+      "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다.",
+      "entity": "AbortSignal.any()"
      },
      {
       "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
@@ -4982,7 +5036,8 @@
        "slot-013"
       ],
       "sourceQuality": "authoritative/credible-reference",
-      "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다."
+      "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다.",
+      "entity": "AbortSignal.any()"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -5017,7 +5072,8 @@
        "slot-013"
       ],
       "sourceQuality": "credible-reference",
-      "relevance": "결합 신호는 입력으로 향하는 취소 제어기가 아니라 입력 취소를 관찰하는 dependent signal이다."
+      "relevance": "결합 신호는 입력으로 향하는 취소 제어기가 아니라 입력 취소를 관찰하는 dependent signal이다.",
+      "entity": "AbortSignal.any()"
      },
      {
       "url": "https://dom.spec.whatwg.org/",
@@ -5028,7 +5084,8 @@
        "slot-013"
       ],
       "sourceQuality": "primary/authoritative",
-      "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다."
+      "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다.",
+      "entity": "AbortSignal.any()"
      },
      {
       "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
@@ -5039,7 +5096,8 @@
        "slot-013"
       ],
       "sourceQuality": "authoritative/credible-reference",
-      "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다."
+      "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다.",
+      "entity": "AbortSignal.any()"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -5074,7 +5132,8 @@
        "slot-014"
       ],
       "sourceQuality": "primary",
-      "relevance": "실제 API가 Promise를 reject하는 형태는 관찰 API에 따라 달라질 수 있지만, signal 자체의 reason은 표준상 TimeoutError DOMException이다."
+      "relevance": "실제 API가 Promise를 reject하는 형태는 관찰 API에 따라 달라질 수 있지만, signal 자체의 reason은 표준상 TimeoutError DOMException이다.",
+      "entity": "WHATWG DOM"
      },
      {
       "url": "https://dom.spec.whatwg.org/",
@@ -5085,7 +5144,8 @@
        "slot-014"
       ],
       "sourceQuality": "primary",
-      "relevance": "표준 알고리즘은 HTML의 ‘run steps after a timeout’과 timer task source를 사용한다."
+      "relevance": "표준 알고리즘은 HTML의 ‘run steps after a timeout’과 timer task source를 사용한다.",
+      "entity": "WHATWG DOM"
      },
      {
       "url": "https://dom.spec.whatwg.org/",
@@ -5096,7 +5156,8 @@
        "slot-013"
       ],
       "sourceQuality": "primary/authoritative",
-      "relevance": "표준 알고리즘은 iterable 순회 중 첫 번째 이미 취소된 신호에서 반환한다."
+      "relevance": "표준 알고리즘은 iterable 순회 중 첫 번째 이미 취소된 신호에서 반환한다.",
+      "entity": "AbortSignal.any()"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -5131,7 +5192,8 @@
        "slot-014"
       ],
       "sourceQuality": "primary_preferred",
-      "relevance": "브라우저 표준 동작을 일반적인 wall-clock setTimeout과 동일하게 해석하면 안 된다."
+      "relevance": "브라우저 표준 동작을 일반적인 wall-clock setTimeout과 동일하게 해석하면 안 된다.",
+      "entity": "MDN"
      },
      {
       "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
@@ -5142,7 +5204,8 @@
        "slot-014"
       ],
       "sourceQuality": "primary_preferred",
-      "relevance": "조기 취소가 확실히 필요하면 AbortController와 setTimeout()/clearTimeout() 조합을 사용한다."
+      "relevance": "조기 취소가 확실히 필요하면 AbortController와 setTimeout()/clearTimeout() 조합을 사용한다.",
+      "entity": "MDN"
      },
      {
       "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
@@ -5153,7 +5216,8 @@
        "slot-014"
       ],
       "sourceQuality": "primary_preferred",
-      "relevance": "직접 추가한 리스너는 작업 종료 시 제거해야 한다."
+      "relevance": "직접 추가한 리스너는 작업 종료 시 제거해야 한다.",
+      "entity": "MDN"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -5190,7 +5254,8 @@
        "slot-013"
       ],
       "sourceQuality": "authoritative/credible-reference",
-      "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다."
+      "relevance": "표준은 source signals와 listener/abort algorithm이 있는 비취소 dependent signal의 GC 보존 조건도 정의한다.",
+      "entity": "AbortSignal.any()"
      },
      {
       "url": "https://dom.spec.whatwg.org/",
@@ -5201,7 +5266,8 @@
        "slot-013"
       ],
       "sourceQuality": "primary/authoritative",
-      "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다."
+      "relevance": "따라서 배열 순서가 이미 취소된 입력들의 reason 선택에 영향을 준다.",
+      "entity": "AbortSignal.any()"
      },
      {
       "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static",
@@ -5212,7 +5278,8 @@
        "slot-013"
       ],
       "sourceQuality": "credible-reference",
-      "relevance": "결합 신호는 입력으로 향하는 취소 제어기가 아니라 입력 취소를 관찰하는 dependent signal이다."
+      "relevance": "결합 신호는 입력으로 향하는 취소 제어기가 아니라 입력 취소를 관찰하는 dependent signal이다.",
+      "entity": "AbortSignal.any()"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -5247,7 +5314,8 @@
        "slot-014"
       ],
       "sourceQuality": "primary_preferred",
-      "relevance": "조기 취소가 확실히 필요하면 AbortController와 setTimeout()/clearTimeout() 조합을 사용한다."
+      "relevance": "조기 취소가 확실히 필요하면 AbortController와 setTimeout()/clearTimeout() 조합을 사용한다.",
+      "entity": "MDN"
      },
      {
       "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
@@ -5258,7 +5326,8 @@
        "slot-014"
       ],
       "sourceQuality": "primary_preferred",
-      "relevance": "리소스 제약 상황에서 명시적 조기 취소가 필요하면 AbortController와 clearTimeout()을 사용한다."
+      "relevance": "리소스 제약 상황에서 명시적 조기 취소가 필요하면 AbortController와 clearTimeout()을 사용한다.",
+      "entity": "MDN"
      },
      {
       "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static",
@@ -5269,7 +5338,8 @@
        "slot-014"
       ],
       "sourceQuality": "primary_preferred",
-      "relevance": "브라우저 표준 동작을 일반적인 wall-clock setTimeout과 동일하게 해석하면 안 된다."
+      "relevance": "브라우저 표준 동작을 일반적인 wall-clock setTimeout과 동일하게 해석하면 안 된다.",
+      "entity": "MDN"
      }
     ],
     "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
@@ -6480,7 +6550,7 @@
     "evidenceRefs": [
      "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
     ],
-    "claim": "\"version_added\": \"124\"",
+    "claim": "Chrome — \"version_added\": \"124\"",
     "factSlotIds": [
      "slot-009"
     ],
@@ -6791,7 +6861,7 @@
      "https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100",
      "Mozilla/MDN Firefox 100 release notes"
     ],
-    "claim": "\"version_added\": \"100\"",
+    "claim": "Firefox — \"version_added\": \"100\"",
     "factSlotIds": [
      "slot-011"
     ],
@@ -6860,7 +6930,7 @@
      "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json.",
      "https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json"
     ],
-    "claim": "\"version_added\": \"16\"",
+    "claim": "Safari — \"version_added\": \"16\"",
     "factSlotIds": [
      "slot-012"
     ],
@@ -6914,7 +6984,7 @@
      "https://dom.spec.whatwg.org/",
      "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static"
     ],
-    "claim": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+    "claim": "AbortSignal.any() — For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
     "factSlotIds": [
      "slot-013"
     ],
@@ -7646,7 +7716,7 @@
    },
    {
     "id": "claim-009",
-    "claim": "\"version_added\": \"124\"",
+    "claim": "Chrome — \"version_added\": \"124\"",
     "factSlotIds": [
      "slot-009"
     ],
@@ -7700,7 +7770,7 @@
    },
    {
     "id": "claim-011",
-    "claim": "\"version_added\": \"100\"",
+    "claim": "Firefox — \"version_added\": \"100\"",
     "factSlotIds": [
      "slot-011"
     ],
@@ -7939,7 +8009,7 @@
    },
    {
     "id": "claim-012",
-    "claim": "\"version_added\": \"16\"",
+    "claim": "Safari — \"version_added\": \"16\"",
     "factSlotIds": [
      "slot-012"
     ],
@@ -7967,7 +8037,7 @@
    },
    {
     "id": "claim-013",
-    "claim": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+    "claim": "AbortSignal.any() — For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
     "factSlotIds": [
      "slot-013"
     ],
@@ -9146,7 +9216,7 @@
     },
     {
      "id": "claim-009",
-     "claim": "\"version_added\": \"124\"",
+     "claim": "Chrome — \"version_added\": \"124\"",
      "status": "verified",
      "factSlotIds": [
       "slot-009"
@@ -9216,7 +9286,7 @@
     },
     {
      "id": "claim-011",
-     "claim": "\"version_added\": \"100\"",
+     "claim": "Firefox — \"version_added\": \"100\"",
      "status": "partially_supported",
      "factSlotIds": [
       "slot-011"
@@ -9259,7 +9329,7 @@
     },
     {
      "id": "claim-012",
-     "claim": "\"version_added\": \"16\"",
+     "claim": "Safari — \"version_added\": \"16\"",
      "status": "verified",
      "confidence": "high",
      "factSlotIds": [
@@ -9296,7 +9366,7 @@
     },
     {
      "id": "claim-013",
-     "claim": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+     "claim": "AbortSignal.any() — For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
      "status": "verified",
      "factSlotIds": [
       "slot-013"
@@ -9872,6 +9942,7 @@
       "claim-012",
       "claim-013"
      ],
+     "entityNamedCandidateIds": [],
      "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
      "sourceEvidenceHintRows": 28,
      "schemaCaps": {
@@ -11547,7 +11618,7 @@
         "index": 8,
         "value": {
          "id": "claim-009",
-         "claim": "\"version_added\": \"124\"",
+         "claim": "Chrome — \"version_added\": \"124\"",
          "status": "verified",
          "factSlotIds": [
           "slot-009"
@@ -11625,7 +11696,7 @@
         "index": 10,
         "value": {
          "id": "claim-011",
-         "claim": "\"version_added\": \"100\"",
+         "claim": "Firefox — \"version_added\": \"100\"",
          "status": "partially_supported",
          "factSlotIds": [
           "slot-011"
@@ -11672,7 +11743,7 @@
         "index": 11,
         "value": {
          "id": "claim-012",
-         "claim": "\"version_added\": \"16\"",
+         "claim": "Safari — \"version_added\": \"16\"",
          "status": "verified",
          "confidence": "high",
          "factSlotIds": [
@@ -11713,7 +11784,7 @@
         "index": 12,
         "value": {
          "id": "claim-013",
-         "claim": "For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
+         "claim": "AbortSignal.any() — For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.",
          "status": "verified",
          "factSlotIds": [
           "slot-013"
@@ -12319,6 +12390,7 @@
            "claim-012",
            "claim-013"
           ],
+          "entityNamedCandidateIds": [],
           "verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
           "sourceEvidenceHintRows": 28,
           "schemaCaps": {
@@ -13225,10 +13297,10 @@
   "status": "passed",
   "renderMode": "evidence-backed-report",
   "completionSummaryMarkdown": "## Core conclusion\n\nAbortSignal.any()와 AbortSignal.timeout()은 주요 런타임에서 사용할 수 있지만 환경별 기준이 다르다. Node.js any는 v20.3.0/v18.17.0, timeout은 v17.3.0/v16.14.0부터 문서화되어 있다. any는 Chrome·Edge 116과 Safari 17.4에서 확인되었고, timeout은 Chrome 전체 지원 124와 Safari 16에서 확인되었다. Firefox 기준과 Edge timeout 124는 추가 확인이 필요하다. any는 먼저 관찰한 abort reason을 보존하고 입력 신호를 취소하지 않으며, 브라우저 timeout은 active time·TimeoutError·무취소 API semantics를 따르므로 Node.js와 구분해야 한다.\n\n## Main recommendations\n\n아래 권고는 조사 결과를 바탕으로 한 제안입니다.\n\n- Node.js 배포 기준은 any를 18.17\\+/20.3\\+, timeout을 16.14\\+/17.3\\+로 설정하되 메서드별 안정화 이력은 별도로 확인한다. (일부 근거만 확인됨)\n- 브라우저 any의 기준은 Chrome·Edge 116 및 Safari 17.4로 삼고 Firefox 124는 잠정값으로 취급한다. (일부 근거만 확인됨)\n- timeout은 Chrome 124 이상과 Safari 16을 확인된 기준으로 사용하고, Edge 124와 Firefox 100은 독립 확인 전까지 feature detection 또는 fallback을 적용한다. (일부 근거만 확인됨)\n- abort reason 전달과 신호 비연쇄성을 전제로 설계하고, 브라우저 timeout semantics를 Node.js에 그대로 적용하지 않는다.\n\n## Limits to keep in mind\n\n- 일부 근거를 충분히 확인하지 못했습니다. 해당 내용을 확정된 사실로 받아들이지 마세요.\n- 추가로 확인할 질문이 남아 있습니다. 확인된 일부 사실만으로 전체 결론이 입증된 것은 아닙니다.\n- Stable이라는 문구만으로 메서드별 안정화 시점을 확정할 수 없으므로 버전 기준과 안정성 기준을 분리해 관리해야 한다.\n- Firefox 기준은 검증된 호환성 약속이 아니므로 최소 브라우저 버전으로 확정하기 전에 직접 확인해야 한다.\n- Edge timeout을 하드 baseline으로 삼기 전에 독립적인 Edge 확인이 필요하다.\n- 브라우저에서 관찰한 timeout 수명이나 프로세스 동작이 Node.js에서도 같다고 가정하지 말고 런타임별 테스트를 수행해야 한다.\n\nSource verification: the engine found 23 of 29 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.",
-  "executiveMarkdown": "# Research report\n\n## Executive summary\n\n### Core conclusion\n\nAbortSignal.any()와 AbortSignal.timeout()은 주요 런타임에서 사용할 수 있지만 환경별 기준이 다르다. Node.js any는 v20.3.0/v18.17.0, timeout은 v17.3.0/v16.14.0부터 문서화되어 있다. any는 Chrome·Edge 116과 Safari 17.4에서 확인되었고, timeout은 Chrome 전체 지원 124와 Safari 16에서 확인되었다. Firefox 기준과 Edge timeout 124는 추가 확인이 필요하다. any는 먼저 관찰한 abort reason을 보존하고 입력 신호를 취소하지 않으며, 브라우저 timeout은 active time·TimeoutError·무취소 API semantics를 따르므로 Node.js와 구분해야 한다.\n\n### Main recommendations\n\n아래 권고는 조사 결과를 바탕으로 한 제안입니다.\n\n- Node.js 배포 기준은 any를 18.17\\+/20.3\\+, timeout을 16.14\\+/17.3\\+로 설정하되 메서드별 안정화 이력은 별도로 확인한다. (일부 근거만 확인됨)\n- 브라우저 any의 기준은 Chrome·Edge 116 및 Safari 17.4로 삼고 Firefox 124는 잠정값으로 취급한다. (일부 근거만 확인됨)\n- timeout은 Chrome 124 이상과 Safari 16을 확인된 기준으로 사용하고, Edge 124와 Firefox 100은 독립 확인 전까지 feature detection 또는 fallback을 적용한다. (일부 근거만 확인됨)\n- abort reason 전달과 신호 비연쇄성을 전제로 설계하고, 브라우저 timeout semantics를 Node.js에 그대로 적용하지 않는다.\n\n### Limits to keep in mind\n\n- 일부 근거를 충분히 확인하지 못했습니다. 해당 내용을 확정된 사실로 받아들이지 마세요.\n- 추가로 확인할 질문이 남아 있습니다. 확인된 일부 사실만으로 전체 결론이 입증된 것은 아닙니다.\n- Stable이라는 문구만으로 메서드별 안정화 시점을 확정할 수 없으므로 버전 기준과 안정성 기준을 분리해 관리해야 한다.\n- Firefox 기준은 검증된 호환성 약속이 아니므로 최소 브라우저 버전으로 확정하기 전에 직접 확인해야 한다.\n- Edge timeout을 하드 baseline으로 삼기 전에 독립적인 Edge 확인이 필요하다.\n- 브라우저에서 관찰한 timeout 수명이나 프로세스 동작이 Node.js에서도 같다고 가정하지 말고 런타임별 테스트를 수행해야 한다.\n\nSource verification: the engine found 23 of 29 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Research scope and method\n\n- Task type: api\\_reference.\n- Research depth: standard.\n- Research questions: 6.\n- Planned fact slots: 14.\n- Expected output shape: research\\_brief.\n- Scope coverage: partial 4, covered 2.\n- Method: plan research questions, collect source evidence, normalize claims, verify selected claims, apply deterministic audit gates, and synthesize the report.\n\n## Main findings\n\n### 1. Added in: v20.3.0, v18.17.0\n\nEvidence status: **verified**\nSources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>)\nEvidence citations:\n- Node.js Global objects documentation: quote \"Added in: v20.3.0, v18.17.0\"\n\nNode.js 공식 문서가 AbortSignal.any()의 추가 버전을 v20.3.0 및 v18.17.0으로 명시한다. sourceUrls: https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html caveat: 별도의 안정화 전환 버전은 명시하지 않는다.\n\n### 2. Added in: v17.3.0, v16.14.0\n\nEvidence status: **verified**\nSources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\nEvidence citations:\n- Node.js v24 API documentation: quote \"Added in: v17.3.0, v16.14.0\"\n- Node.js v17 CHANGELOG: quote \"**(SEMVER-MINOR)** **lib**: add AbortSignal.timeout\"\n\n### 3. \"chrome\": \\{ \"version\\_added\": \"116\" \\}\n\nEvidence status: **verified**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"chrome\\\": {\\n                \\\"version_added\\\": \\\"116\\\"\\n              }\"\n\nVerified: MDN Browser Compatibility Data lists AbortSignal.any() Chrome version\\_added as 116. Source: https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json\n\n### 4. \"edge\": \"mirror\"\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"edge\\\": \\\"mirror\\\",\"\n- Can I use: quote \"#### Edge\\n\\n  1. ❌ 12 - 115: Not supported\\n  2. ✅ 116 - 154: Supported\"\n\nVerified: MDN BCD records Edge as a Chromium mirror for AbortSignal.any(), while Can I Use specifies Edge 116–154 as supported.\n\n### 5. \"safari\": \\{ \"version\\_added\": \"17.4\" \\}\n\nEvidence status: **verified**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"safari\\\": {\\n                \\\"version_added\\\": \\\"17.4\\\"\\n              }\"\n- WebKit: quote \"Lastly, WebKit for Safari 17.4 adds support for the 【92†`AbortSignal.any()`†developer.mozilla.org】\"\n\nSafari 17.4의 AbortSignal.any() 지원이 MDN BCD의 정확한 version\\_added 값과 WebKit 공식 릴리스 문서로 직접 확인된다.\n\n### 6. \"version\\_added\": \"124\"\n\nEvidence status: **verified**\nSources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"chrome\\\": [\\n{\\n\\\"version_added\\\": \\\"124\\\"\\n},\\n{\\n\\\"version_added\\\": \\\"103\\\",\\n\\\"version_removed\\\": \\\"124\\\",\\n\\\"partial_implementation\\\": true,\\n\\\"notes\\\": \\\"Always aborts with an `AbortError` on timeout, not a `TimeoutError`.\\\"\\n}\\n\\]\"\n\nMDN BCD는 Chrome의 AbortSignal.timeout()을 124부터 지원하고, 103–123은 AbortError를 사용하는 부분 구현으로 기록한다. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json\n\n### 7. \"version\\_added\": \"16\"\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"safari\\\": {\\n  \\\"version_added\\\": \\\"16\\\"\\n},\"\n\nThe cited MDN Browser Compatibility Data entry for timeout\\_static lists Safari version\\_added as 16. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json. Caveat: this verifies timeout(), not any().\n\n### 8. For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.\n\nEvidence status: **verified**\nSources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- WHATWG DOM Standard: quote \"For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.\"\n- MDN: quote \"The returned AbortSignal's reason will be already set to the reason of the first abort signal that was already aborted.\"\n\nThe normative algorithm exactly supports reason propagation and early return; MDN independently confirms that the first already-aborted input determines the returned signal’s reason.\n\n### 9. MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- MDN: quote \"Aborting the returned signal does not abort the other input signals or cancel their timeouts.\"\n\nMDN directly states that aborting AbortSignal.any()'s returned signal neither aborts input signals nor cancels their timeouts.\n\n### 10. WHATWG sets timeout()’s abort reason to a TimeoutError DOMException.\n\nEvidence status: **verified**\nSources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>)\nEvidence citations:\n- WHATWG DOM Standard: quote \"Returns an AbortSignal instance which will be aborted in milliseconds milliseconds. Its abort reason will be set to a “TimeoutError” DOMException.\"\n- WHATWG DOM Standard: quote \"Queue a global task on the timer task source given global to signal abort given signal and a new “TimeoutError” DOMException.\"\n\nThe WHATWG DOM Standard directly specifies TimeoutError DOMException as timeout()’s abort reason, both descriptively and in the normative algorithm. Source: https://dom.spec.whatwg.org/\n\n### 11. MDN defines browser timeout() in active time; suspended workers or bfcache can pause it.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\nEvidence citations:\n- MDN: quote \"The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (\\\"bfcache\\\").\"\n\nMDN은 AbortSignal.timeout()이 경과 시간이 아닌 active time을 기준으로 하며, suspended worker 또는 bfcache에서 사실상 일시정지된다고 명시한다. 출처: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout\\_static\n\n### 12. MDN advises removing application-added abort listeners when the combined operation finishes.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- MDN: quote \"If your code adds `abort` listeners to the combined signal, remove them when the operation finishes, just as you would for any other `AbortSignal`.\"\n\nMDN directly supports the lifecycle cleanup advice for listeners added to AbortSignal.any()'s combined signal. Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any\\_static\n\n## Recommendations\n\n1. **Node.js 배포 기준은 any를 18.17\\+/20.3\\+, timeout을 16.14\\+/17.3\\+로 설정하되 메서드별 안정화 이력은 별도로 확인한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\n\n2. **브라우저 any의 기준은 Chrome·Edge 116 및 Safari 17.4로 삼고 Firefox 124는 잠정값으로 취급한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>)\n\n3. **timeout은 Chrome 124 이상과 Safari 16을 확인된 기준으로 사용하고, Edge 124와 Firefox 100은 독립 확인 전까지 feature detection 또는 fallback을 적용한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>)\n\n4. **abort reason 전달과 신호 비연쇄성을 전제로 설계하고, 브라우저 timeout semantics를 Node.js에 그대로 적용하지 않는다.**\n   - Evidence status: derived\n   - Sources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n\n## Action plan\n\n1. Firefox any/timeout 및 Edge timeout 버전을 별도 검증 항목으로 남기고 확인 전 fallback을 적용한다.\n   - Evidence: partially\\_supported\n   - Sources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\n\n2. Node.js에서 timeout 지연, active-time mapping, timer lifecycle과 process-exit 동작을 직접 테스트한다.\n   - Evidence: derived\n   - Sources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n\n3. Node.js 메서드별 안정화 전환 버전이 필요하면 별도의 공식 이력 자료를 확보한다.\n   - Evidence: partially\\_supported\n   - Sources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>)\n\n4. 이미 중단된 입력, 이후 abort reason 전달, returned signal의 비연쇄성을 회귀 테스트에 포함한다.\n   - Evidence: derived\n   - Sources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\n\n## Evidence strength\n\n| Area | Status | Evidence | Why it matters |\n|---|---|---|---|\n| Node.js AbortSignal.any() 안정성 상태 | partial | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Limits how strongly method-level Stable can be stated. |\n| Node.js AbortSignal.timeout() 안정성 상태 | partial | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Stability conclusion must remain documentation-scoped. |\n| AbortSignal.any() Firefox 지원 버전 | partial | [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() Edge 지원 버전 | partial | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Edge threshold needs explicit verification before firm recommendation. |\n| AbortSignal.timeout() Firefox 지원 버전 | partial | [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() 알려진 동작 주의점 | partial | [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>) | Runtime-specific timeout guidance must distinguish browser and Node.js behavior. |\n| Node.js AbortSignal.any() 최초 지원 버전 | filled | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Critical Node.js compatibility baseline. |\n| Node.js AbortSignal.timeout() 최초 지원 버전 | filled | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>) | Critical Node.js compatibility baseline. |\n| AbortSignal.any() Chrome 지원 버전 | filled | [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.any() Edge 지원 버전 | filled | [caniuse.com](<https://caniuse.com/wf-abortsignal-any>) | Browser compatibility matrix entry. |\n| AbortSignal.any() Safari 지원 버전 | filled | [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() Chrome 지원 버전 | filled | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Exact support threshold and exception behavior matter. |\n| AbortSignal.timeout() Safari 지원 버전 | filled | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.any() 알려진 동작 주의점 | filled | [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>) | Controls reason handling and listener/resource cleanup. |\n\n## Caveats and remaining gaps\n\n- **Gap:** evidence row declared both a local file identity and a remote URL without a known coherent mapping ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>))\n- **Gap:** evidence row declared both a local file identity and a remote URL without a known coherent mapping ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Gap:** Latest docs provide section-level Stable wording but no method-level stability transition record.\n- **Gap:** No method-specific Stability 2 promotion record was retrieved.\n- **Gap:** Edge 124 is inferred through the BCD Chrome mirror; direct Edge wording was not extracted.\n- **Gap:** Direct Chrome and Safari official release documents were not retrieved; BCD remains the primary compatibility evidence.\n- **Gap:** Node.js active-time mapping and internal timer ref/unref behavior remain unverified.\n- **Caveat:** Node.js 최신 Global objects 문서의 \"Stable\" 표시는 섹션 수준이며 any와 timeout 각각의 안정화 전환 버전은 제시하지 않는다. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Caveat:** Firefox 124(any)와 Firefox 100(timeout)은 감사에서 로컬 파일과 원격 URL의 증거 식별자 충돌이 확인되어 partially\\_supported로 남아 있다. ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Caveat:** Edge timeout 124는 Chrome 호환성 미러에서 추론되었고 직접적인 Edge 문구가 추출되지 않았다. Chrome·Safari 공식 릴리스 문서의 직접 대조도 남아 있다. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Caveat:** WHATWG와 MDN의 브라우저 timeout semantics는 확인되지만 Node.js의 active-time 대응과 내부 timer ref/unref 정책은 해결되지 않았다. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>))\n- **Caveat:** 감사 인계 상태에서는 연구 질문과 검증 후보의 대응이 완료되었지만 verifier batch adoption은 blocked로 남아 있다.\n- **Unverified lead:** Node.js v20.3.0 release notes were found, but an exact AbortSignal.any() quote was not captured. ([nodejs.org](<https://nodejs.org/en/blog/release/v20.3.0>))\n- **Unverified lead:** The latest Node.js docs do not show a method-specific Stability transition row for AbortSignal.any(). ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** No method-specific Stability 2 promotion record was found for AbortSignal.timeout(). ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** MDN BCD marks Chrome 103–123 timeout() as partial and notes AbortError instead of TimeoutError. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** Node.js docs describe timeout() as aborting after delay milliseconds, not browser active-time or bfcache semantics. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** The exact ref/unref policy of Node.js AbortSignal.timeout()’s internal timer remains unverified. ([nodejs.org](<https://nodejs.org/api/timers.html>), [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** WHATWG requires abortable promise APIs to reject immediately when given an already-aborted signal. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>))\n- **Unverified lead:** An unreachable timeout signal is not guaranteed to cancel its timeout. ([developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>))\n- **Unverified lead:** Node.js docs list AbortSignal.any() as added in v20.3.0 and v18.17.0. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** Node.js Global objects documentation displays “Stability: 2 - Stable”. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** Node.js docs list AbortSignal.timeout() as added in v17.3.0 and v16.14.0. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>))\n- **Unverified lead:** Node.js Global objects documentation displays “Stability: 2 - Stable”. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** MDN BCD lists Chrome version\\_added as 116 for AbortSignal.any(). ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>))\n- **Unverified lead:** The compatibility table lists Edge 116–154 as supported for AbortSignal.any(). ([caniuse.com](<https://caniuse.com/wf-abortsignal-any>))\n- **Unverified lead:** Firefox 124 release notes state that AbortSignal.any() is now supported. ([developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>))\n- **Unverified lead:** WebKit states Safari 17.4 adds support for AbortSignal.any(). ([webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>))\n- **Unverified lead:** MDN BCD lists Chrome version\\_added as 124 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** MDN BCD marks Edge’s timeout() entry as a mirror of Chrome compatibility data. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** MDN BCD lists Firefox version\\_added as 100 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Unverified lead:** MDN BCD lists Safari version\\_added as 16 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** WHATWG sets the result signal’s reason to an already-aborted input’s reason and returns it. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>))\n- **Decision note:** Node.js 도입 버전은 명확하지만 메서드별 안정화 이력은 별도 확인이 필요하다. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>))\n- **Decision note:** AbortSignal.any()의 브라우저 지원은 Chrome·Edge·Safari에서 확인되지만 Firefox 기준은 미확정이다. ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>))\n- **Decision note:** AbortSignal.timeout()의 Chrome·Safari 기준은 확인되지만 Edge와 Firefox는 추가 검증이 필요하다. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Decision note:** 감사 패킷의 verifier batch adoption이 blocked 상태다.\n\n## Source index\n\n- **nodejs.org**: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [nodejs.org](<https://nodejs.org/en/blog/release/v20.3.0>), [nodejs.org](<https://nodejs.org/api/timers.html>)\n- **github.com**: [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>)\n- **raw.githubusercontent.com**: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\n- **caniuse.com**: [caniuse.com](<https://caniuse.com/wf-abortsignal-any>)\n- **developer.mozilla.org**: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n- **webkit.org**: [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>)\n- **chromium.googlesource.com**: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\n- **dom.spec.whatwg.org**: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>)\n\n## Audit summary\n\n- Claims: 14 verified, 4 partially supported, 0 unsupported, 0 conflicting, 0 verification blocked.\n- Fact slots: 8 filled, 6 partial, 0 missing/conflicting, 14 total.\n- Research questions: 6.\n- Quote check (engine): 23 of 29 quotes found on the cited page; 6 not checked (not found on the page 6) — listed in [audit](audit.md).\n\n## Related artifacts\n\n- [Evidence audit](audit.md) — claim verdicts, fact-slot coverage, gaps, and renderer diagnostics.\n- [Structured source references](refs.json) — machine-readable source pointers used by the final task.\n- [Machine-readable report](control.json) — the structured final report and completion-summary contract.",
-  "reportMarkdown": "# Research report\n\n## Executive summary\n\n### Core conclusion\n\nAbortSignal.any()와 AbortSignal.timeout()은 주요 런타임에서 사용할 수 있지만 환경별 기준이 다르다. Node.js any는 v20.3.0/v18.17.0, timeout은 v17.3.0/v16.14.0부터 문서화되어 있다. any는 Chrome·Edge 116과 Safari 17.4에서 확인되었고, timeout은 Chrome 전체 지원 124와 Safari 16에서 확인되었다. Firefox 기준과 Edge timeout 124는 추가 확인이 필요하다. any는 먼저 관찰한 abort reason을 보존하고 입력 신호를 취소하지 않으며, 브라우저 timeout은 active time·TimeoutError·무취소 API semantics를 따르므로 Node.js와 구분해야 한다.\n\n### Main recommendations\n\n아래 권고는 조사 결과를 바탕으로 한 제안입니다.\n\n- Node.js 배포 기준은 any를 18.17\\+/20.3\\+, timeout을 16.14\\+/17.3\\+로 설정하되 메서드별 안정화 이력은 별도로 확인한다. (일부 근거만 확인됨)\n- 브라우저 any의 기준은 Chrome·Edge 116 및 Safari 17.4로 삼고 Firefox 124는 잠정값으로 취급한다. (일부 근거만 확인됨)\n- timeout은 Chrome 124 이상과 Safari 16을 확인된 기준으로 사용하고, Edge 124와 Firefox 100은 독립 확인 전까지 feature detection 또는 fallback을 적용한다. (일부 근거만 확인됨)\n- abort reason 전달과 신호 비연쇄성을 전제로 설계하고, 브라우저 timeout semantics를 Node.js에 그대로 적용하지 않는다.\n\n### Limits to keep in mind\n\n- 일부 근거를 충분히 확인하지 못했습니다. 해당 내용을 확정된 사실로 받아들이지 마세요.\n- 추가로 확인할 질문이 남아 있습니다. 확인된 일부 사실만으로 전체 결론이 입증된 것은 아닙니다.\n- Stable이라는 문구만으로 메서드별 안정화 시점을 확정할 수 없으므로 버전 기준과 안정성 기준을 분리해 관리해야 한다.\n- Firefox 기준은 검증된 호환성 약속이 아니므로 최소 브라우저 버전으로 확정하기 전에 직접 확인해야 한다.\n- Edge timeout을 하드 baseline으로 삼기 전에 독립적인 Edge 확인이 필요하다.\n- 브라우저에서 관찰한 timeout 수명이나 프로세스 동작이 Node.js에서도 같다고 가정하지 말고 런타임별 테스트를 수행해야 한다.\n\nSource verification: the engine found 23 of 29 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Research scope and method\n\n- Task type: api\\_reference.\n- Research depth: standard.\n- Research questions: 6.\n- Planned fact slots: 14.\n- Expected output shape: research\\_brief.\n- Scope coverage: partial 4, covered 2.\n- Method: plan research questions, collect source evidence, normalize claims, verify selected claims, apply deterministic audit gates, and synthesize the report.\n\n## Main findings\n\n### 1. Added in: v20.3.0, v18.17.0\n\nEvidence status: **verified**\nSources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>)\nEvidence citations:\n- Node.js Global objects documentation: quote \"Added in: v20.3.0, v18.17.0\"\n\nNode.js 공식 문서가 AbortSignal.any()의 추가 버전을 v20.3.0 및 v18.17.0으로 명시한다. sourceUrls: https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html caveat: 별도의 안정화 전환 버전은 명시하지 않는다.\n\n### 2. Added in: v17.3.0, v16.14.0\n\nEvidence status: **verified**\nSources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\nEvidence citations:\n- Node.js v24 API documentation: quote \"Added in: v17.3.0, v16.14.0\"\n- Node.js v17 CHANGELOG: quote \"**(SEMVER-MINOR)** **lib**: add AbortSignal.timeout\"\n\n### 3. \"chrome\": \\{ \"version\\_added\": \"116\" \\}\n\nEvidence status: **verified**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"chrome\\\": {\\n                \\\"version_added\\\": \\\"116\\\"\\n              }\"\n\nVerified: MDN Browser Compatibility Data lists AbortSignal.any() Chrome version\\_added as 116. Source: https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json\n\n### 4. \"edge\": \"mirror\"\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"edge\\\": \\\"mirror\\\",\"\n- Can I use: quote \"#### Edge\\n\\n  1. ❌ 12 - 115: Not supported\\n  2. ✅ 116 - 154: Supported\"\n\nVerified: MDN BCD records Edge as a Chromium mirror for AbortSignal.any(), while Can I Use specifies Edge 116–154 as supported.\n\n### 5. \"safari\": \\{ \"version\\_added\": \"17.4\" \\}\n\nEvidence status: **verified**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"safari\\\": {\\n                \\\"version_added\\\": \\\"17.4\\\"\\n              }\"\n- WebKit: quote \"Lastly, WebKit for Safari 17.4 adds support for the 【92†`AbortSignal.any()`†developer.mozilla.org】\"\n\nSafari 17.4의 AbortSignal.any() 지원이 MDN BCD의 정확한 version\\_added 값과 WebKit 공식 릴리스 문서로 직접 확인된다.\n\n### 6. \"version\\_added\": \"124\"\n\nEvidence status: **verified**\nSources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"chrome\\\": [\\n{\\n\\\"version_added\\\": \\\"124\\\"\\n},\\n{\\n\\\"version_added\\\": \\\"103\\\",\\n\\\"version_removed\\\": \\\"124\\\",\\n\\\"partial_implementation\\\": true,\\n\\\"notes\\\": \\\"Always aborts with an `AbortError` on timeout, not a `TimeoutError`.\\\"\\n}\\n\\]\"\n\nMDN BCD는 Chrome의 AbortSignal.timeout()을 124부터 지원하고, 103–123은 AbortError를 사용하는 부분 구현으로 기록한다. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json\n\n### 7. \"version\\_added\": \"16\"\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"safari\\\": {\\n  \\\"version_added\\\": \\\"16\\\"\\n},\"\n\nThe cited MDN Browser Compatibility Data entry for timeout\\_static lists Safari version\\_added as 16. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json. Caveat: this verifies timeout(), not any().\n\n### 8. For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.\n\nEvidence status: **verified**\nSources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- WHATWG DOM Standard: quote \"For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.\"\n- MDN: quote \"The returned AbortSignal's reason will be already set to the reason of the first abort signal that was already aborted.\"\n\nThe normative algorithm exactly supports reason propagation and early return; MDN independently confirms that the first already-aborted input determines the returned signal’s reason.\n\n### 9. MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- MDN: quote \"Aborting the returned signal does not abort the other input signals or cancel their timeouts.\"\n\nMDN directly states that aborting AbortSignal.any()'s returned signal neither aborts input signals nor cancels their timeouts.\n\n### 10. WHATWG sets timeout()’s abort reason to a TimeoutError DOMException.\n\nEvidence status: **verified**\nSources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>)\nEvidence citations:\n- WHATWG DOM Standard: quote \"Returns an AbortSignal instance which will be aborted in milliseconds milliseconds. Its abort reason will be set to a “TimeoutError” DOMException.\"\n- WHATWG DOM Standard: quote \"Queue a global task on the timer task source given global to signal abort given signal and a new “TimeoutError” DOMException.\"\n\nThe WHATWG DOM Standard directly specifies TimeoutError DOMException as timeout()’s abort reason, both descriptively and in the normative algorithm. Source: https://dom.spec.whatwg.org/\n\n### 11. MDN defines browser timeout() in active time; suspended workers or bfcache can pause it.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\nEvidence citations:\n- MDN: quote \"The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (\\\"bfcache\\\").\"\n\nMDN은 AbortSignal.timeout()이 경과 시간이 아닌 active time을 기준으로 하며, suspended worker 또는 bfcache에서 사실상 일시정지된다고 명시한다. 출처: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout\\_static\n\n### 12. MDN advises removing application-added abort listeners when the combined operation finishes.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- MDN: quote \"If your code adds `abort` listeners to the combined signal, remove them when the operation finishes, just as you would for any other `AbortSignal`.\"\n\nMDN directly supports the lifecycle cleanup advice for listeners added to AbortSignal.any()'s combined signal. Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any\\_static\n\n## Recommendations\n\n1. **Node.js 배포 기준은 any를 18.17\\+/20.3\\+, timeout을 16.14\\+/17.3\\+로 설정하되 메서드별 안정화 이력은 별도로 확인한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\n\n2. **브라우저 any의 기준은 Chrome·Edge 116 및 Safari 17.4로 삼고 Firefox 124는 잠정값으로 취급한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>)\n\n3. **timeout은 Chrome 124 이상과 Safari 16을 확인된 기준으로 사용하고, Edge 124와 Firefox 100은 독립 확인 전까지 feature detection 또는 fallback을 적용한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>)\n\n4. **abort reason 전달과 신호 비연쇄성을 전제로 설계하고, 브라우저 timeout semantics를 Node.js에 그대로 적용하지 않는다.**\n   - Evidence status: derived\n   - Sources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n\n## Action plan\n\n1. Firefox any/timeout 및 Edge timeout 버전을 별도 검증 항목으로 남기고 확인 전 fallback을 적용한다.\n   - Evidence: partially\\_supported\n   - Sources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\n\n2. Node.js에서 timeout 지연, active-time mapping, timer lifecycle과 process-exit 동작을 직접 테스트한다.\n   - Evidence: derived\n   - Sources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n\n3. Node.js 메서드별 안정화 전환 버전이 필요하면 별도의 공식 이력 자료를 확보한다.\n   - Evidence: partially\\_supported\n   - Sources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>)\n\n4. 이미 중단된 입력, 이후 abort reason 전달, returned signal의 비연쇄성을 회귀 테스트에 포함한다.\n   - Evidence: derived\n   - Sources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\n\n## Evidence strength\n\n| Area | Status | Evidence | Why it matters |\n|---|---|---|---|\n| Node.js AbortSignal.any() 안정성 상태 | partial | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Limits how strongly method-level Stable can be stated. |\n| Node.js AbortSignal.timeout() 안정성 상태 | partial | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Stability conclusion must remain documentation-scoped. |\n| AbortSignal.any() Firefox 지원 버전 | partial | [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() Edge 지원 버전 | partial | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Edge threshold needs explicit verification before firm recommendation. |\n| AbortSignal.timeout() Firefox 지원 버전 | partial | [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() 알려진 동작 주의점 | partial | [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>) | Runtime-specific timeout guidance must distinguish browser and Node.js behavior. |\n| Node.js AbortSignal.any() 최초 지원 버전 | filled | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Critical Node.js compatibility baseline. |\n| Node.js AbortSignal.timeout() 최초 지원 버전 | filled | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>) | Critical Node.js compatibility baseline. |\n| AbortSignal.any() Chrome 지원 버전 | filled | [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.any() Edge 지원 버전 | filled | [caniuse.com](<https://caniuse.com/wf-abortsignal-any>) | Browser compatibility matrix entry. |\n| AbortSignal.any() Safari 지원 버전 | filled | [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() Chrome 지원 버전 | filled | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Exact support threshold and exception behavior matter. |\n| AbortSignal.timeout() Safari 지원 버전 | filled | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.any() 알려진 동작 주의점 | filled | [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>) | Controls reason handling and listener/resource cleanup. |\n\n## Caveats and remaining gaps\n\n- **Gap:** evidence row declared both a local file identity and a remote URL without a known coherent mapping ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>))\n- **Gap:** evidence row declared both a local file identity and a remote URL without a known coherent mapping ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Gap:** Latest docs provide section-level Stable wording but no method-level stability transition record.\n- **Gap:** No method-specific Stability 2 promotion record was retrieved.\n- **Gap:** Edge 124 is inferred through the BCD Chrome mirror; direct Edge wording was not extracted.\n- **Gap:** Direct Chrome and Safari official release documents were not retrieved; BCD remains the primary compatibility evidence.\n- **Gap:** Node.js active-time mapping and internal timer ref/unref behavior remain unverified.\n- **Caveat:** Node.js 최신 Global objects 문서의 \"Stable\" 표시는 섹션 수준이며 any와 timeout 각각의 안정화 전환 버전은 제시하지 않는다. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Caveat:** Firefox 124(any)와 Firefox 100(timeout)은 감사에서 로컬 파일과 원격 URL의 증거 식별자 충돌이 확인되어 partially\\_supported로 남아 있다. ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Caveat:** Edge timeout 124는 Chrome 호환성 미러에서 추론되었고 직접적인 Edge 문구가 추출되지 않았다. Chrome·Safari 공식 릴리스 문서의 직접 대조도 남아 있다. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Caveat:** WHATWG와 MDN의 브라우저 timeout semantics는 확인되지만 Node.js의 active-time 대응과 내부 timer ref/unref 정책은 해결되지 않았다. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>))\n- **Caveat:** 감사 인계 상태에서는 연구 질문과 검증 후보의 대응이 완료되었지만 verifier batch adoption은 blocked로 남아 있다.\n- **Unverified lead:** Node.js v20.3.0 release notes were found, but an exact AbortSignal.any() quote was not captured. ([nodejs.org](<https://nodejs.org/en/blog/release/v20.3.0>))\n- **Unverified lead:** The latest Node.js docs do not show a method-specific Stability transition row for AbortSignal.any(). ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** No method-specific Stability 2 promotion record was found for AbortSignal.timeout(). ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** MDN BCD marks Chrome 103–123 timeout() as partial and notes AbortError instead of TimeoutError. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** Node.js docs describe timeout() as aborting after delay milliseconds, not browser active-time or bfcache semantics. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** The exact ref/unref policy of Node.js AbortSignal.timeout()’s internal timer remains unverified. ([nodejs.org](<https://nodejs.org/api/timers.html>), [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** WHATWG requires abortable promise APIs to reject immediately when given an already-aborted signal. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>))\n- **Unverified lead:** An unreachable timeout signal is not guaranteed to cancel its timeout. ([developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>))\n- **Unverified lead:** Node.js docs list AbortSignal.any() as added in v20.3.0 and v18.17.0. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** Node.js Global objects documentation displays “Stability: 2 - Stable”. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** Node.js docs list AbortSignal.timeout() as added in v17.3.0 and v16.14.0. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>))\n- **Unverified lead:** Node.js Global objects documentation displays “Stability: 2 - Stable”. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** MDN BCD lists Chrome version\\_added as 116 for AbortSignal.any(). ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>))\n- **Unverified lead:** The compatibility table lists Edge 116–154 as supported for AbortSignal.any(). ([caniuse.com](<https://caniuse.com/wf-abortsignal-any>))\n- **Unverified lead:** Firefox 124 release notes state that AbortSignal.any() is now supported. ([developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>))\n- **Unverified lead:** WebKit states Safari 17.4 adds support for AbortSignal.any(). ([webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>))\n- **Unverified lead:** MDN BCD lists Chrome version\\_added as 124 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** MDN BCD marks Edge’s timeout() entry as a mirror of Chrome compatibility data. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** MDN BCD lists Firefox version\\_added as 100 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Unverified lead:** MDN BCD lists Safari version\\_added as 16 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** WHATWG sets the result signal’s reason to an already-aborted input’s reason and returns it. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>))\n- **Decision note:** Node.js 도입 버전은 명확하지만 메서드별 안정화 이력은 별도 확인이 필요하다. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>))\n- **Decision note:** AbortSignal.any()의 브라우저 지원은 Chrome·Edge·Safari에서 확인되지만 Firefox 기준은 미확정이다. ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>))\n- **Decision note:** AbortSignal.timeout()의 Chrome·Safari 기준은 확인되지만 Edge와 Firefox는 추가 검증이 필요하다. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Decision note:** 감사 패킷의 verifier batch adoption이 blocked 상태다.\n\n## Source index\n\n- **nodejs.org**: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [nodejs.org](<https://nodejs.org/en/blog/release/v20.3.0>), [nodejs.org](<https://nodejs.org/api/timers.html>)\n- **github.com**: [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>)\n- **raw.githubusercontent.com**: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\n- **caniuse.com**: [caniuse.com](<https://caniuse.com/wf-abortsignal-any>)\n- **developer.mozilla.org**: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n- **webkit.org**: [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>)\n- **chromium.googlesource.com**: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\n- **dom.spec.whatwg.org**: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>)\n\n## Audit summary\n\n- Claims: 14 verified, 4 partially supported, 0 unsupported, 0 conflicting, 0 verification blocked.\n- Fact slots: 8 filled, 6 partial, 0 missing/conflicting, 14 total.\n- Research questions: 6.\n- Quote check (engine): 23 of 29 quotes found on the cited page; 6 not checked (not found on the page 6) — listed in [audit](audit.md).\n\n## Related artifacts\n\n- [Evidence audit](audit.md) — claim verdicts, fact-slot coverage, gaps, and renderer diagnostics.\n- [Structured source references](refs.json) — machine-readable source pointers used by the final task.\n- [Machine-readable report](control.json) — the structured final report and completion-summary contract.",
-  "auditMarkdown": "# Research audit\n\nThis artifact preserves the detailed claim/gap/source ledger behind `final-report.md`.\n\nSource verification: the engine found 23 of 29 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Evidence level\n\n- Audited claims (18 total): 14 verified, 4 partially supported, 0 unsupported, 0 conflicting, 0 verification blocked.\n- Fact slots: 8 filled, 6 partial, 0 missing/conflicting, 14 total.\n- Outside the audited-claim denominator: 21 preserved unverified leads available to synthesis, 0 additional leads omitted by a schema cap, 5 coverage gaps.\n- The zero unsupported/conflicting/blocked counts apply only to the 18 audited claims; preserved leads and gaps remain separate.\n\n## Synthesis caveats\n\n- Node.js 최신 Global objects 문서의 \"Stable\" 표시는 섹션 수준이며 any와 timeout 각각의 안정화 전환 버전은 제시하지 않는다.\n- Firefox 124(any)와 Firefox 100(timeout)은 감사에서 로컬 파일과 원격 URL의 증거 식별자 충돌이 확인되어 partially\\_supported로 남아 있다.\n- Edge timeout 124는 Chrome 호환성 미러에서 추론되었고 직접적인 Edge 문구가 추출되지 않았다. Chrome·Safari 공식 릴리스 문서의 직접 대조도 남아 있다.\n- WHATWG와 MDN의 브라우저 timeout semantics는 확인되지만 Node.js의 active-time 대응과 내부 timer ref/unref 정책은 해결되지 않았다.\n- 감사 인계 상태에서는 연구 질문과 검증 후보의 대응이 완료되었지만 verifier batch adoption은 blocked로 남아 있다.\n\n## Claim verdict ledger\n\n| ID | Status | Claim/support | Caveat/source |\n|---|---|---|---|\n| claim-001 | verified | Added in: v20.3.0, v18.17.0 | — |\n| claim-002 | partially\\_supported | Stability: 2 - Stable | 문서가 직접 뒷받침하는 값은 AbortSignal.any()의 도입 버전 v20.3.0 및 v18.17.0이며, 개별 안정화 버전은 명시되지 않는다. |\n| claim-003 | verified | Added in: v17.3.0, v16.14.0 | — |\n| claim-004 | partially\\_supported | Stability: 2 - Stable | The source supports that AbortSignal.timeout() was added in Node.js v17.3.0 and v16.14.0, but does not verify a specific stable-transition version. |\n| claim-005 | verified | \"chrome\": \\{ \"version\\_added\": \"116\" \\} | — |\n| claim-006 | verified | \"edge\": \"mirror\" | — |\n| claim-007 | partially\\_supported | \"firefox\": \\{ \"version\\_added\": \"124\" \\} | \\[raw.githubusercontent.com\\](\\<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json\\>), \\[developer.mozilla.org\\](\\<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124\\>) |\n| claim-008 | verified | \"safari\": \\{ \"version\\_added\": \"17.4\" \\} | — |\n| claim-009 | verified | \"version\\_added\": \"124\" | Chrome 103–123은 부분 구현이며, TimeoutError를 사용하는 지원 항목은 Chrome 124부터다. |\n| claim-010 | verified | \"edge\": \"mirror\" | Edge의 구체적인 지원 버전은 이 항목에 직접 기재되지 않으며 Chrome 데이터의 mirror 관계로 해석된다. |\n| claim-011 | partially\\_supported | \"version\\_added\": \"100\" | — |\n| claim-012 | verified | \"version\\_added\": \"16\" | — |\n| claim-013 | verified | For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal. | — |\n| claim-014 | verified | MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts. | — |\n| claim-015 | verified | WHATWG sets timeout()’s abort reason to a TimeoutError DOMException. | — |\n| claim-016 | verified | MDN defines browser timeout() in active time; suspended workers or bfcache can pause it. | — |\n| claim-017 | verified | MDN advises removing application-added abort listeners when the combined operation finishes. | — |\n| claim-018 | verified | MDN says timeout() provides no way to cancel its timeout. | — |\n\n## Fact slot coverage\n\n| Slot | Status | Best value | Gap/impact |\n|---|---|---|---|\n| slot-001 | filled | Added in v20.3.0 and v18.17.0. | Critical Node.js compatibility baseline. |\n| slot-002 | partial | Global objects documentation is Stability 2 - Stable; method-specific stability history is not shown. | No method-level stability transition record was retrieved. |\n| slot-003 | filled | Added in v17.3.0 and backported to v16.14.0. | Critical Node.js compatibility baseline. |\n| slot-004 | partial | Global objects documentation is Stability 2 - Stable; method-specific promotion history is not shown. | No method-level Stability 2 promotion record was retrieved. |\n| slot-005 | filled | Chrome 116. | Browser compatibility matrix entry. |\n| slot-006 | filled | Edge 116 is listed as supported in the compatibility table. | Browser compatibility matrix entry. |\n| slot-007 | partial | Firefox 124. | no audited verified claim (claim-007) |\n| slot-008 | filled | Safari 17.4. | Browser compatibility matrix entry. |\n| slot-009 | filled | Full support at Chrome 124; Chrome 103–123 is partial. | Exact support threshold and exception behavior matter. |\n| slot-010 | partial | Edge is a mirror of Chrome compatibility data; 124 is inferred from that mirror. | Direct Edge version wording was not extracted. |\n| slot-011 | partial | Firefox 100. | no audited verified claim (claim-011) |\n| slot-012 | filled | Safari 16. | Browser compatibility matrix entry. |\n| slot-013 | filled | Already-aborted inputs determine the result reason during iteration; later aborts propagate their reason, but returned-signal abort does not cascade. | Controls reason handling and listener/resource cleanup. |\n| slot-014 | partial | WHATWG gives TimeoutError; browser MDN uses active time and has no cancellation API; Node docs state delay milliseconds. | Node-specific active-time mapping and internal timer ref/unref policy remain unresolved. |\n\n## Remaining gaps\n\n- evidence row declared both a local file identity and a remote URL without a known coherent mapping\n- evidence row declared both a local file identity and a remote URL without a known coherent mapping\n\n## Claims used in executive synthesis\n\n- **claim-001** (verified): Added in: v20.3.0, v18.17.0\n- **claim-003** (verified): Added in: v17.3.0, v16.14.0\n- **claim-005** (verified): \"chrome\": \\{ \"version\\_added\": \"116\" \\}\n- **claim-006** (verified): \"edge\": \"mirror\"\n- **claim-008** (verified): \"safari\": \\{ \"version\\_added\": \"17.4\" \\}\n- **claim-009** (verified): \"version\\_added\": \"124\"\n- **claim-012** (verified): \"version\\_added\": \"16\"\n- **claim-013** (verified): For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.\n- **claim-014** (verified): MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts.\n- **claim-015** (verified): WHATWG sets timeout()’s abort reason to a TimeoutError DOMException.\n- **claim-016** (verified): MDN defines browser timeout() in active time; suspended workers or bfcache can pause it.\n- **claim-017** (verified): MDN advises removing application-added abort listeners when the combined operation finishes.\n- **claim-002** (partially\\_supported): Stability: 2 - Stable\n- **claim-004** (partially\\_supported): Stability: 2 - Stable\n- **claim-007** (partially\\_supported): \"firefox\": \\{ \"version\\_added\": \"124\" \\}\n- **claim-010** (verified): \"edge\": \"mirror\"\n- **claim-011** (partially\\_supported): \"version\\_added\": \"100\"\n- **claim-018** (verified): MDN says timeout() provides no way to cancel its timeout.\n\n## Quote check (engine)\n\nThe engine looked for each verifier quote in the page text the verifier's own tool returned for that URL, otherwise on the cited page fetched by the engine itself. No model was involved; verdicts above are unchanged.\n\n- Quotes: 29; found 23 (exact 14, after normalization 9, math notation 0); pages fetched 11; not checked 6.\n\n| Claim | Source | Quote | Why not checked |\n| --- | --- | --- | --- |\n| claim-006 | https://caniuse.com/wf-abortsignal-any | \\#\\#\\#\\# Edge 1. ❌ 12 - 115: Not supported 2. ✅ 116 - 154: Supported | not found on the page |\n| claim-008 | https://webkit.org/blog/15063/webkit-features-in-safari-17-4/ | Lastly, WebKit for Safari 17.4 adds support for the 【92†\\`AbortSignal.any()\\`†developer.mozilla.org】 | not found on the page |\n| claim-009 | https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json | \"chrome\": \\[ \\{ \"version\\_added\": \"124\" \\}, \\{ \"version\\_added\": \"103\", \"version\\_removed\": \"124\", \"partial\\_implementation\": true, \"notes\": \"Always aborts with an \\`AbortError\\` on timeout, not a \\`TimeoutError\\`.\"… | not found on the page |\n| claim-010 | https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json | \"edge\": \"mirror\", | not found on the page |\n| claim-011 | https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json | \"version\\_added\": \"100\" | not found on the page |\n| claim-012 | https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json | \"safari\": \\{ \"version\\_added\": \"16\" \\}, | not found on the page |\n\n## Renderer diagnostics\n\n- Executive word count: 2213.\n- Rendered source URLs: 14/14.\n- Render warnings: 0.",
-  "wordCount": 2213,
+  "executiveMarkdown": "# Research report\n\n## Executive summary\n\n### Core conclusion\n\nAbortSignal.any()와 AbortSignal.timeout()은 주요 런타임에서 사용할 수 있지만 환경별 기준이 다르다. Node.js any는 v20.3.0/v18.17.0, timeout은 v17.3.0/v16.14.0부터 문서화되어 있다. any는 Chrome·Edge 116과 Safari 17.4에서 확인되었고, timeout은 Chrome 전체 지원 124와 Safari 16에서 확인되었다. Firefox 기준과 Edge timeout 124는 추가 확인이 필요하다. any는 먼저 관찰한 abort reason을 보존하고 입력 신호를 취소하지 않으며, 브라우저 timeout은 active time·TimeoutError·무취소 API semantics를 따르므로 Node.js와 구분해야 한다.\n\n### Main recommendations\n\n아래 권고는 조사 결과를 바탕으로 한 제안입니다.\n\n- Node.js 배포 기준은 any를 18.17\\+/20.3\\+, timeout을 16.14\\+/17.3\\+로 설정하되 메서드별 안정화 이력은 별도로 확인한다. (일부 근거만 확인됨)\n- 브라우저 any의 기준은 Chrome·Edge 116 및 Safari 17.4로 삼고 Firefox 124는 잠정값으로 취급한다. (일부 근거만 확인됨)\n- timeout은 Chrome 124 이상과 Safari 16을 확인된 기준으로 사용하고, Edge 124와 Firefox 100은 독립 확인 전까지 feature detection 또는 fallback을 적용한다. (일부 근거만 확인됨)\n- abort reason 전달과 신호 비연쇄성을 전제로 설계하고, 브라우저 timeout semantics를 Node.js에 그대로 적용하지 않는다.\n\n### Limits to keep in mind\n\n- 일부 근거를 충분히 확인하지 못했습니다. 해당 내용을 확정된 사실로 받아들이지 마세요.\n- 추가로 확인할 질문이 남아 있습니다. 확인된 일부 사실만으로 전체 결론이 입증된 것은 아닙니다.\n- Stable이라는 문구만으로 메서드별 안정화 시점을 확정할 수 없으므로 버전 기준과 안정성 기준을 분리해 관리해야 한다.\n- Firefox 기준은 검증된 호환성 약속이 아니므로 최소 브라우저 버전으로 확정하기 전에 직접 확인해야 한다.\n- Edge timeout을 하드 baseline으로 삼기 전에 독립적인 Edge 확인이 필요하다.\n- 브라우저에서 관찰한 timeout 수명이나 프로세스 동작이 Node.js에서도 같다고 가정하지 말고 런타임별 테스트를 수행해야 한다.\n\nSource verification: the engine found 23 of 29 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Research scope and method\n\n- Task type: api\\_reference.\n- Research depth: standard.\n- Research questions: 6.\n- Planned fact slots: 14.\n- Expected output shape: research\\_brief.\n- Scope coverage: partial 4, covered 2.\n- Method: plan research questions, collect source evidence, normalize claims, verify selected claims, apply deterministic audit gates, and synthesize the report.\n\n## Main findings\n\n### 1. Added in: v20.3.0, v18.17.0\n\nEvidence status: **verified**\nSources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>)\nEvidence citations:\n- Node.js Global objects documentation: quote \"Added in: v20.3.0, v18.17.0\"\n\nNode.js 공식 문서가 AbortSignal.any()의 추가 버전을 v20.3.0 및 v18.17.0으로 명시한다. sourceUrls: https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html caveat: 별도의 안정화 전환 버전은 명시하지 않는다.\n\n### 2. Added in: v17.3.0, v16.14.0\n\nEvidence status: **verified**\nSources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\nEvidence citations:\n- Node.js v24 API documentation: quote \"Added in: v17.3.0, v16.14.0\"\n- Node.js v17 CHANGELOG: quote \"**(SEMVER-MINOR)** **lib**: add AbortSignal.timeout\"\n\n### 3. \"chrome\": \\{ \"version\\_added\": \"116\" \\}\n\nEvidence status: **verified**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"chrome\\\": {\\n                \\\"version_added\\\": \\\"116\\\"\\n              }\"\n\nVerified: MDN Browser Compatibility Data lists AbortSignal.any() Chrome version\\_added as 116. Source: https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json\n\n### 4. \"edge\": \"mirror\"\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"edge\\\": \\\"mirror\\\",\"\n- Can I use: quote \"#### Edge\\n\\n  1. ❌ 12 - 115: Not supported\\n  2. ✅ 116 - 154: Supported\"\n\nVerified: MDN BCD records Edge as a Chromium mirror for AbortSignal.any(), while Can I Use specifies Edge 116–154 as supported.\n\n### 5. \"safari\": \\{ \"version\\_added\": \"17.4\" \\}\n\nEvidence status: **verified**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"safari\\\": {\\n                \\\"version_added\\\": \\\"17.4\\\"\\n              }\"\n- WebKit: quote \"Lastly, WebKit for Safari 17.4 adds support for the 【92†`AbortSignal.any()`†developer.mozilla.org】\"\n\nSafari 17.4의 AbortSignal.any() 지원이 MDN BCD의 정확한 version\\_added 값과 WebKit 공식 릴리스 문서로 직접 확인된다.\n\n### 6. Chrome — \"version\\_added\": \"124\"\n\nEvidence status: **verified**\nSources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"chrome\\\": [\\n{\\n\\\"version_added\\\": \\\"124\\\"\\n},\\n{\\n\\\"version_added\\\": \\\"103\\\",\\n\\\"version_removed\\\": \\\"124\\\",\\n\\\"partial_implementation\\\": true,\\n\\\"notes\\\": \\\"Always aborts with an `AbortError` on timeout, not a `TimeoutError`.\\\"\\n}\\n\\]\"\n\nMDN BCD는 Chrome의 AbortSignal.timeout()을 124부터 지원하고, 103–123은 AbortError를 사용하는 부분 구현으로 기록한다. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json\n\n### 7. Safari — \"version\\_added\": \"16\"\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"safari\\\": {\\n  \\\"version_added\\\": \\\"16\\\"\\n},\"\n\nThe cited MDN Browser Compatibility Data entry for timeout\\_static lists Safari version\\_added as 16. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json. Caveat: this verifies timeout(), not any().\n\n### 8. AbortSignal.any() — For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.\n\nEvidence status: **verified**\nSources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- WHATWG DOM Standard: quote \"For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.\"\n- MDN: quote \"The returned AbortSignal's reason will be already set to the reason of the first abort signal that was already aborted.\"\n\nThe normative algorithm exactly supports reason propagation and early return; MDN independently confirms that the first already-aborted input determines the returned signal’s reason.\n\n### 9. MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- MDN: quote \"Aborting the returned signal does not abort the other input signals or cancel their timeouts.\"\n\nMDN directly states that aborting AbortSignal.any()'s returned signal neither aborts input signals nor cancels their timeouts.\n\n### 10. WHATWG sets timeout()’s abort reason to a TimeoutError DOMException.\n\nEvidence status: **verified**\nSources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>)\nEvidence citations:\n- WHATWG DOM Standard: quote \"Returns an AbortSignal instance which will be aborted in milliseconds milliseconds. Its abort reason will be set to a “TimeoutError” DOMException.\"\n- WHATWG DOM Standard: quote \"Queue a global task on the timer task source given global to signal abort given signal and a new “TimeoutError” DOMException.\"\n\nThe WHATWG DOM Standard directly specifies TimeoutError DOMException as timeout()’s abort reason, both descriptively and in the normative algorithm. Source: https://dom.spec.whatwg.org/\n\n### 11. MDN defines browser timeout() in active time; suspended workers or bfcache can pause it.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\nEvidence citations:\n- MDN: quote \"The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (\\\"bfcache\\\").\"\n\nMDN은 AbortSignal.timeout()이 경과 시간이 아닌 active time을 기준으로 하며, suspended worker 또는 bfcache에서 사실상 일시정지된다고 명시한다. 출처: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout\\_static\n\n### 12. MDN advises removing application-added abort listeners when the combined operation finishes.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- MDN: quote \"If your code adds `abort` listeners to the combined signal, remove them when the operation finishes, just as you would for any other `AbortSignal`.\"\n\nMDN directly supports the lifecycle cleanup advice for listeners added to AbortSignal.any()'s combined signal. Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any\\_static\n\n## Recommendations\n\n1. **Node.js 배포 기준은 any를 18.17\\+/20.3\\+, timeout을 16.14\\+/17.3\\+로 설정하되 메서드별 안정화 이력은 별도로 확인한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\n\n2. **브라우저 any의 기준은 Chrome·Edge 116 및 Safari 17.4로 삼고 Firefox 124는 잠정값으로 취급한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>)\n\n3. **timeout은 Chrome 124 이상과 Safari 16을 확인된 기준으로 사용하고, Edge 124와 Firefox 100은 독립 확인 전까지 feature detection 또는 fallback을 적용한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>)\n\n4. **abort reason 전달과 신호 비연쇄성을 전제로 설계하고, 브라우저 timeout semantics를 Node.js에 그대로 적용하지 않는다.**\n   - Evidence status: derived\n   - Sources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n\n## Action plan\n\n1. Firefox any/timeout 및 Edge timeout 버전을 별도 검증 항목으로 남기고 확인 전 fallback을 적용한다.\n   - Evidence: partially\\_supported\n   - Sources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\n\n2. Node.js에서 timeout 지연, active-time mapping, timer lifecycle과 process-exit 동작을 직접 테스트한다.\n   - Evidence: derived\n   - Sources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n\n3. Node.js 메서드별 안정화 전환 버전이 필요하면 별도의 공식 이력 자료를 확보한다.\n   - Evidence: partially\\_supported\n   - Sources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>)\n\n4. 이미 중단된 입력, 이후 abort reason 전달, returned signal의 비연쇄성을 회귀 테스트에 포함한다.\n   - Evidence: derived\n   - Sources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\n\n## Evidence strength\n\n| Area | Status | Evidence | Why it matters |\n|---|---|---|---|\n| Node.js AbortSignal.any() 안정성 상태 | partial | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Limits how strongly method-level Stable can be stated. |\n| Node.js AbortSignal.timeout() 안정성 상태 | partial | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Stability conclusion must remain documentation-scoped. |\n| AbortSignal.any() Firefox 지원 버전 | partial | [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() Edge 지원 버전 | partial | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Edge threshold needs explicit verification before firm recommendation. |\n| AbortSignal.timeout() Firefox 지원 버전 | partial | [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() 알려진 동작 주의점 | partial | [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>) | Runtime-specific timeout guidance must distinguish browser and Node.js behavior. |\n| Node.js AbortSignal.any() 최초 지원 버전 | filled | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Critical Node.js compatibility baseline. |\n| Node.js AbortSignal.timeout() 최초 지원 버전 | filled | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>) | Critical Node.js compatibility baseline. |\n| AbortSignal.any() Chrome 지원 버전 | filled | [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.any() Edge 지원 버전 | filled | [caniuse.com](<https://caniuse.com/wf-abortsignal-any>) | Browser compatibility matrix entry. |\n| AbortSignal.any() Safari 지원 버전 | filled | [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() Chrome 지원 버전 | filled | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Exact support threshold and exception behavior matter. |\n| AbortSignal.timeout() Safari 지원 버전 | filled | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.any() 알려진 동작 주의점 | filled | [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>) | Controls reason handling and listener/resource cleanup. |\n\n## Caveats and remaining gaps\n\n- **Gap:** evidence row declared both a local file identity and a remote URL without a known coherent mapping ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>))\n- **Gap:** evidence row declared both a local file identity and a remote URL without a known coherent mapping ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Gap:** Latest docs provide section-level Stable wording but no method-level stability transition record.\n- **Gap:** No method-specific Stability 2 promotion record was retrieved.\n- **Gap:** Edge 124 is inferred through the BCD Chrome mirror; direct Edge wording was not extracted.\n- **Gap:** Direct Chrome and Safari official release documents were not retrieved; BCD remains the primary compatibility evidence.\n- **Gap:** Node.js active-time mapping and internal timer ref/unref behavior remain unverified.\n- **Caveat:** Node.js 최신 Global objects 문서의 \"Stable\" 표시는 섹션 수준이며 any와 timeout 각각의 안정화 전환 버전은 제시하지 않는다. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Caveat:** Firefox 124(any)와 Firefox 100(timeout)은 감사에서 로컬 파일과 원격 URL의 증거 식별자 충돌이 확인되어 partially\\_supported로 남아 있다. ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Caveat:** Edge timeout 124는 Chrome 호환성 미러에서 추론되었고 직접적인 Edge 문구가 추출되지 않았다. Chrome·Safari 공식 릴리스 문서의 직접 대조도 남아 있다. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Caveat:** WHATWG와 MDN의 브라우저 timeout semantics는 확인되지만 Node.js의 active-time 대응과 내부 timer ref/unref 정책은 해결되지 않았다. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>))\n- **Caveat:** 감사 인계 상태에서는 연구 질문과 검증 후보의 대응이 완료되었지만 verifier batch adoption은 blocked로 남아 있다.\n- **Unverified lead:** Node.js v20.3.0 release notes were found, but an exact AbortSignal.any() quote was not captured. ([nodejs.org](<https://nodejs.org/en/blog/release/v20.3.0>))\n- **Unverified lead:** The latest Node.js docs do not show a method-specific Stability transition row for AbortSignal.any(). ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** No method-specific Stability 2 promotion record was found for AbortSignal.timeout(). ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** MDN BCD marks Chrome 103–123 timeout() as partial and notes AbortError instead of TimeoutError. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** Node.js docs describe timeout() as aborting after delay milliseconds, not browser active-time or bfcache semantics. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** The exact ref/unref policy of Node.js AbortSignal.timeout()’s internal timer remains unverified. ([nodejs.org](<https://nodejs.org/api/timers.html>), [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** WHATWG requires abortable promise APIs to reject immediately when given an already-aborted signal. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>))\n- **Unverified lead:** An unreachable timeout signal is not guaranteed to cancel its timeout. ([developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>))\n- **Unverified lead:** Node.js docs list AbortSignal.any() as added in v20.3.0 and v18.17.0. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** Node.js Global objects documentation displays “Stability: 2 - Stable”. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** Node.js docs list AbortSignal.timeout() as added in v17.3.0 and v16.14.0. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>))\n- **Unverified lead:** Node.js Global objects documentation displays “Stability: 2 - Stable”. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** MDN BCD lists Chrome version\\_added as 116 for AbortSignal.any(). ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>))\n- **Unverified lead:** The compatibility table lists Edge 116–154 as supported for AbortSignal.any(). ([caniuse.com](<https://caniuse.com/wf-abortsignal-any>))\n- **Unverified lead:** Firefox 124 release notes state that AbortSignal.any() is now supported. ([developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>))\n- **Unverified lead:** WebKit states Safari 17.4 adds support for AbortSignal.any(). ([webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>))\n- **Unverified lead:** MDN BCD lists Chrome version\\_added as 124 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** MDN BCD marks Edge’s timeout() entry as a mirror of Chrome compatibility data. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** MDN BCD lists Firefox version\\_added as 100 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Unverified lead:** MDN BCD lists Safari version\\_added as 16 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** WHATWG sets the result signal’s reason to an already-aborted input’s reason and returns it. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>))\n- **Decision note:** Node.js 도입 버전은 명확하지만 메서드별 안정화 이력은 별도 확인이 필요하다. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>))\n- **Decision note:** AbortSignal.any()의 브라우저 지원은 Chrome·Edge·Safari에서 확인되지만 Firefox 기준은 미확정이다. ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>))\n- **Decision note:** AbortSignal.timeout()의 Chrome·Safari 기준은 확인되지만 Edge와 Firefox는 추가 검증이 필요하다. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Decision note:** 감사 패킷의 verifier batch adoption이 blocked 상태다.\n\n## Source index\n\n- **nodejs.org**: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [nodejs.org](<https://nodejs.org/en/blog/release/v20.3.0>), [nodejs.org](<https://nodejs.org/api/timers.html>)\n- **github.com**: [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>)\n- **raw.githubusercontent.com**: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\n- **caniuse.com**: [caniuse.com](<https://caniuse.com/wf-abortsignal-any>)\n- **developer.mozilla.org**: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n- **webkit.org**: [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>)\n- **chromium.googlesource.com**: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\n- **dom.spec.whatwg.org**: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>)\n\n## Audit summary\n\n- Claims: 14 verified, 4 partially supported, 0 unsupported, 0 conflicting, 0 verification blocked.\n- Fact slots: 8 filled, 6 partial, 0 missing/conflicting, 14 total.\n- Research questions: 6.\n- Quote check (engine): 23 of 29 quotes found on the cited page; 6 not checked (not found on the page 6) — listed in [audit](audit.md).\n\n## Related artifacts\n\n- [Evidence audit](audit.md) — claim verdicts, fact-slot coverage, gaps, and renderer diagnostics.\n- [Structured source references](refs.json) — machine-readable source pointers used by the final task.\n- [Machine-readable report](control.json) — the structured final report and completion-summary contract.",
+  "reportMarkdown": "# Research report\n\n## Executive summary\n\n### Core conclusion\n\nAbortSignal.any()와 AbortSignal.timeout()은 주요 런타임에서 사용할 수 있지만 환경별 기준이 다르다. Node.js any는 v20.3.0/v18.17.0, timeout은 v17.3.0/v16.14.0부터 문서화되어 있다. any는 Chrome·Edge 116과 Safari 17.4에서 확인되었고, timeout은 Chrome 전체 지원 124와 Safari 16에서 확인되었다. Firefox 기준과 Edge timeout 124는 추가 확인이 필요하다. any는 먼저 관찰한 abort reason을 보존하고 입력 신호를 취소하지 않으며, 브라우저 timeout은 active time·TimeoutError·무취소 API semantics를 따르므로 Node.js와 구분해야 한다.\n\n### Main recommendations\n\n아래 권고는 조사 결과를 바탕으로 한 제안입니다.\n\n- Node.js 배포 기준은 any를 18.17\\+/20.3\\+, timeout을 16.14\\+/17.3\\+로 설정하되 메서드별 안정화 이력은 별도로 확인한다. (일부 근거만 확인됨)\n- 브라우저 any의 기준은 Chrome·Edge 116 및 Safari 17.4로 삼고 Firefox 124는 잠정값으로 취급한다. (일부 근거만 확인됨)\n- timeout은 Chrome 124 이상과 Safari 16을 확인된 기준으로 사용하고, Edge 124와 Firefox 100은 독립 확인 전까지 feature detection 또는 fallback을 적용한다. (일부 근거만 확인됨)\n- abort reason 전달과 신호 비연쇄성을 전제로 설계하고, 브라우저 timeout semantics를 Node.js에 그대로 적용하지 않는다.\n\n### Limits to keep in mind\n\n- 일부 근거를 충분히 확인하지 못했습니다. 해당 내용을 확정된 사실로 받아들이지 마세요.\n- 추가로 확인할 질문이 남아 있습니다. 확인된 일부 사실만으로 전체 결론이 입증된 것은 아닙니다.\n- Stable이라는 문구만으로 메서드별 안정화 시점을 확정할 수 없으므로 버전 기준과 안정성 기준을 분리해 관리해야 한다.\n- Firefox 기준은 검증된 호환성 약속이 아니므로 최소 브라우저 버전으로 확정하기 전에 직접 확인해야 한다.\n- Edge timeout을 하드 baseline으로 삼기 전에 독립적인 Edge 확인이 필요하다.\n- 브라우저에서 관찰한 timeout 수명이나 프로세스 동작이 Node.js에서도 같다고 가정하지 말고 런타임별 테스트를 수행해야 한다.\n\nSource verification: the engine found 23 of 29 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Research scope and method\n\n- Task type: api\\_reference.\n- Research depth: standard.\n- Research questions: 6.\n- Planned fact slots: 14.\n- Expected output shape: research\\_brief.\n- Scope coverage: partial 4, covered 2.\n- Method: plan research questions, collect source evidence, normalize claims, verify selected claims, apply deterministic audit gates, and synthesize the report.\n\n## Main findings\n\n### 1. Added in: v20.3.0, v18.17.0\n\nEvidence status: **verified**\nSources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>)\nEvidence citations:\n- Node.js Global objects documentation: quote \"Added in: v20.3.0, v18.17.0\"\n\nNode.js 공식 문서가 AbortSignal.any()의 추가 버전을 v20.3.0 및 v18.17.0으로 명시한다. sourceUrls: https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html caveat: 별도의 안정화 전환 버전은 명시하지 않는다.\n\n### 2. Added in: v17.3.0, v16.14.0\n\nEvidence status: **verified**\nSources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\nEvidence citations:\n- Node.js v24 API documentation: quote \"Added in: v17.3.0, v16.14.0\"\n- Node.js v17 CHANGELOG: quote \"**(SEMVER-MINOR)** **lib**: add AbortSignal.timeout\"\n\n### 3. \"chrome\": \\{ \"version\\_added\": \"116\" \\}\n\nEvidence status: **verified**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"chrome\\\": {\\n                \\\"version_added\\\": \\\"116\\\"\\n              }\"\n\nVerified: MDN Browser Compatibility Data lists AbortSignal.any() Chrome version\\_added as 116. Source: https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json\n\n### 4. \"edge\": \"mirror\"\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"edge\\\": \\\"mirror\\\",\"\n- Can I use: quote \"#### Edge\\n\\n  1. ❌ 12 - 115: Not supported\\n  2. ✅ 116 - 154: Supported\"\n\nVerified: MDN BCD records Edge as a Chromium mirror for AbortSignal.any(), while Can I Use specifies Edge 116–154 as supported.\n\n### 5. \"safari\": \\{ \"version\\_added\": \"17.4\" \\}\n\nEvidence status: **verified**\nSources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"safari\\\": {\\n                \\\"version_added\\\": \\\"17.4\\\"\\n              }\"\n- WebKit: quote \"Lastly, WebKit for Safari 17.4 adds support for the 【92†`AbortSignal.any()`†developer.mozilla.org】\"\n\nSafari 17.4의 AbortSignal.any() 지원이 MDN BCD의 정확한 version\\_added 값과 WebKit 공식 릴리스 문서로 직접 확인된다.\n\n### 6. Chrome — \"version\\_added\": \"124\"\n\nEvidence status: **verified**\nSources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"chrome\\\": [\\n{\\n\\\"version_added\\\": \\\"124\\\"\\n},\\n{\\n\\\"version_added\\\": \\\"103\\\",\\n\\\"version_removed\\\": \\\"124\\\",\\n\\\"partial_implementation\\\": true,\\n\\\"notes\\\": \\\"Always aborts with an `AbortError` on timeout, not a `TimeoutError`.\\\"\\n}\\n\\]\"\n\nMDN BCD는 Chrome의 AbortSignal.timeout()을 124부터 지원하고, 103–123은 AbortError를 사용하는 부분 구현으로 기록한다. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json\n\n### 7. Safari — \"version\\_added\": \"16\"\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\nEvidence citations:\n- MDN Browser Compatibility Data: quote \"\\\"safari\\\": {\\n  \\\"version_added\\\": \\\"16\\\"\\n},\"\n\nThe cited MDN Browser Compatibility Data entry for timeout\\_static lists Safari version\\_added as 16. Source: https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json. Caveat: this verifies timeout(), not any().\n\n### 8. AbortSignal.any() — For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.\n\nEvidence status: **verified**\nSources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- WHATWG DOM Standard: quote \"For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.\"\n- MDN: quote \"The returned AbortSignal's reason will be already set to the reason of the first abort signal that was already aborted.\"\n\nThe normative algorithm exactly supports reason propagation and early return; MDN independently confirms that the first already-aborted input determines the returned signal’s reason.\n\n### 9. MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- MDN: quote \"Aborting the returned signal does not abort the other input signals or cancel their timeouts.\"\n\nMDN directly states that aborting AbortSignal.any()'s returned signal neither aborts input signals nor cancels their timeouts.\n\n### 10. WHATWG sets timeout()’s abort reason to a TimeoutError DOMException.\n\nEvidence status: **verified**\nSources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>)\nEvidence citations:\n- WHATWG DOM Standard: quote \"Returns an AbortSignal instance which will be aborted in milliseconds milliseconds. Its abort reason will be set to a “TimeoutError” DOMException.\"\n- WHATWG DOM Standard: quote \"Queue a global task on the timer task source given global to signal abort given signal and a new “TimeoutError” DOMException.\"\n\nThe WHATWG DOM Standard directly specifies TimeoutError DOMException as timeout()’s abort reason, both descriptively and in the normative algorithm. Source: https://dom.spec.whatwg.org/\n\n### 11. MDN defines browser timeout() in active time; suspended workers or bfcache can pause it.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\nEvidence citations:\n- MDN: quote \"The timeout is based on active rather than elapsed time, and will effectively be paused if the code is running in a suspended worker, or while the document is in a back-forward cache (\\\"bfcache\\\").\"\n\nMDN은 AbortSignal.timeout()이 경과 시간이 아닌 active time을 기준으로 하며, suspended worker 또는 bfcache에서 사실상 일시정지된다고 명시한다. 출처: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout\\_static\n\n### 12. MDN advises removing application-added abort listeners when the combined operation finishes.\n\nEvidence status: **verified**\nSources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\nEvidence citations:\n- MDN: quote \"If your code adds `abort` listeners to the combined signal, remove them when the operation finishes, just as you would for any other `AbortSignal`.\"\n\nMDN directly supports the lifecycle cleanup advice for listeners added to AbortSignal.any()'s combined signal. Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any\\_static\n\n## Recommendations\n\n1. **Node.js 배포 기준은 any를 18.17\\+/20.3\\+, timeout을 16.14\\+/17.3\\+로 설정하되 메서드별 안정화 이력은 별도로 확인한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\n\n2. **브라우저 any의 기준은 Chrome·Edge 116 및 Safari 17.4로 삼고 Firefox 124는 잠정값으로 취급한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>)\n\n3. **timeout은 Chrome 124 이상과 Safari 16을 확인된 기준으로 사용하고, Edge 124와 Firefox 100은 독립 확인 전까지 feature detection 또는 fallback을 적용한다.**\n   - Evidence status: partially\\_supported\n   - Sources: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>)\n\n4. **abort reason 전달과 신호 비연쇄성을 전제로 설계하고, 브라우저 timeout semantics를 Node.js에 그대로 적용하지 않는다.**\n   - Evidence status: derived\n   - Sources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n\n## Action plan\n\n1. Firefox any/timeout 및 Edge timeout 버전을 별도 검증 항목으로 남기고 확인 전 fallback을 적용한다.\n   - Evidence: partially\\_supported\n   - Sources: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\n\n2. Node.js에서 timeout 지연, active-time mapping, timer lifecycle과 process-exit 동작을 직접 테스트한다.\n   - Evidence: derived\n   - Sources: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n\n3. Node.js 메서드별 안정화 전환 버전이 필요하면 별도의 공식 이력 자료를 확보한다.\n   - Evidence: partially\\_supported\n   - Sources: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>)\n\n4. 이미 중단된 입력, 이후 abort reason 전달, returned signal의 비연쇄성을 회귀 테스트에 포함한다.\n   - Evidence: derived\n   - Sources: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>)\n\n## Evidence strength\n\n| Area | Status | Evidence | Why it matters |\n|---|---|---|---|\n| Node.js AbortSignal.any() 안정성 상태 | partial | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Limits how strongly method-level Stable can be stated. |\n| Node.js AbortSignal.timeout() 안정성 상태 | partial | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Stability conclusion must remain documentation-scoped. |\n| AbortSignal.any() Firefox 지원 버전 | partial | [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() Edge 지원 버전 | partial | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Edge threshold needs explicit verification before firm recommendation. |\n| AbortSignal.timeout() Firefox 지원 버전 | partial | [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() 알려진 동작 주의점 | partial | [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>) | Runtime-specific timeout guidance must distinguish browser and Node.js behavior. |\n| Node.js AbortSignal.any() 최초 지원 버전 | filled | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>) | Critical Node.js compatibility baseline. |\n| Node.js AbortSignal.timeout() 최초 지원 버전 | filled | [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>) | Critical Node.js compatibility baseline. |\n| AbortSignal.any() Chrome 지원 버전 | filled | [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.any() Edge 지원 버전 | filled | [caniuse.com](<https://caniuse.com/wf-abortsignal-any>) | Browser compatibility matrix entry. |\n| AbortSignal.any() Safari 지원 버전 | filled | [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>) | Browser compatibility matrix entry. |\n| AbortSignal.timeout() Chrome 지원 버전 | filled | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Exact support threshold and exception behavior matter. |\n| AbortSignal.timeout() Safari 지원 버전 | filled | [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>) | Browser compatibility matrix entry. |\n| AbortSignal.any() 알려진 동작 주의점 | filled | [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>) | Controls reason handling and listener/resource cleanup. |\n\n## Caveats and remaining gaps\n\n- **Gap:** evidence row declared both a local file identity and a remote URL without a known coherent mapping ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>))\n- **Gap:** evidence row declared both a local file identity and a remote URL without a known coherent mapping ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Gap:** Latest docs provide section-level Stable wording but no method-level stability transition record.\n- **Gap:** No method-specific Stability 2 promotion record was retrieved.\n- **Gap:** Edge 124 is inferred through the BCD Chrome mirror; direct Edge wording was not extracted.\n- **Gap:** Direct Chrome and Safari official release documents were not retrieved; BCD remains the primary compatibility evidence.\n- **Gap:** Node.js active-time mapping and internal timer ref/unref behavior remain unverified.\n- **Caveat:** Node.js 최신 Global objects 문서의 \"Stable\" 표시는 섹션 수준이며 any와 timeout 각각의 안정화 전환 버전은 제시하지 않는다. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Caveat:** Firefox 124(any)와 Firefox 100(timeout)은 감사에서 로컬 파일과 원격 URL의 증거 식별자 충돌이 확인되어 partially\\_supported로 남아 있다. ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Caveat:** Edge timeout 124는 Chrome 호환성 미러에서 추론되었고 직접적인 Edge 문구가 추출되지 않았다. Chrome·Safari 공식 릴리스 문서의 직접 대조도 남아 있다. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Caveat:** WHATWG와 MDN의 브라우저 timeout semantics는 확인되지만 Node.js의 active-time 대응과 내부 timer ref/unref 정책은 해결되지 않았다. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>))\n- **Caveat:** 감사 인계 상태에서는 연구 질문과 검증 후보의 대응이 완료되었지만 verifier batch adoption은 blocked로 남아 있다.\n- **Unverified lead:** Node.js v20.3.0 release notes were found, but an exact AbortSignal.any() quote was not captured. ([nodejs.org](<https://nodejs.org/en/blog/release/v20.3.0>))\n- **Unverified lead:** The latest Node.js docs do not show a method-specific Stability transition row for AbortSignal.any(). ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** No method-specific Stability 2 promotion record was found for AbortSignal.timeout(). ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** MDN BCD marks Chrome 103–123 timeout() as partial and notes AbortError instead of TimeoutError. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** Node.js docs describe timeout() as aborting after delay milliseconds, not browser active-time or bfcache semantics. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** The exact ref/unref policy of Node.js AbortSignal.timeout()’s internal timer remains unverified. ([nodejs.org](<https://nodejs.org/api/timers.html>), [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** WHATWG requires abortable promise APIs to reject immediately when given an already-aborted signal. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>))\n- **Unverified lead:** An unreachable timeout signal is not guaranteed to cancel its timeout. ([developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>))\n- **Unverified lead:** Node.js docs list AbortSignal.any() as added in v20.3.0 and v18.17.0. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** Node.js Global objects documentation displays “Stability: 2 - Stable”. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** Node.js docs list AbortSignal.timeout() as added in v17.3.0 and v16.14.0. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>))\n- **Unverified lead:** Node.js Global objects documentation displays “Stability: 2 - Stable”. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>))\n- **Unverified lead:** MDN BCD lists Chrome version\\_added as 116 for AbortSignal.any(). ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>))\n- **Unverified lead:** The compatibility table lists Edge 116–154 as supported for AbortSignal.any(). ([caniuse.com](<https://caniuse.com/wf-abortsignal-any>))\n- **Unverified lead:** Firefox 124 release notes state that AbortSignal.any() is now supported. ([developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>))\n- **Unverified lead:** WebKit states Safari 17.4 adds support for AbortSignal.any(). ([webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>))\n- **Unverified lead:** MDN BCD lists Chrome version\\_added as 124 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** MDN BCD marks Edge’s timeout() entry as a mirror of Chrome compatibility data. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** MDN BCD lists Firefox version\\_added as 100 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Unverified lead:** MDN BCD lists Safari version\\_added as 16 for AbortSignal.timeout(). ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>))\n- **Unverified lead:** WHATWG sets the result signal’s reason to an already-aborted input’s reason and returns it. ([dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>))\n- **Decision note:** Node.js 도입 버전은 명확하지만 메서드별 안정화 이력은 별도 확인이 필요하다. ([nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>))\n- **Decision note:** AbortSignal.any()의 브라우저 지원은 Chrome·Edge·Safari에서 확인되지만 Firefox 기준은 미확정이다. ([raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [caniuse.com](<https://caniuse.com/wf-abortsignal-any>), [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>))\n- **Decision note:** AbortSignal.timeout()의 Chrome·Safari 기준은 확인되지만 Edge와 Firefox는 추가 검증이 필요하다. ([chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>))\n- **Decision note:** 감사 패킷의 verifier batch adoption이 blocked 상태다.\n\n## Source index\n\n- **nodejs.org**: [nodejs.org](<https://nodejs.org/download/release/latest-v24.x/docs/api/globals.html>), [nodejs.org](<https://nodejs.org/en/blog/release/v20.3.0>), [nodejs.org](<https://nodejs.org/api/timers.html>)\n- **github.com**: [github.com](<https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md>)\n- **raw.githubusercontent.com**: [raw.githubusercontent.com](<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json>), [raw.githubusercontent.com](<https://raw.githubusercontent.com/nodejs/node/main/doc/changelogs/CHANGELOG_V17.md>)\n- **caniuse.com**: [caniuse.com](<https://caniuse.com/wf-abortsignal-any>)\n- **developer.mozilla.org**: [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/100>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/any_static>), [developer.mozilla.org](<https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static>)\n- **webkit.org**: [webkit.org](<https://webkit.org/blog/15063/webkit-features-in-safari-17-4/>)\n- **chromium.googlesource.com**: [chromium.googlesource.com](<https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json>)\n- **dom.spec.whatwg.org**: [dom.spec.whatwg.org](<https://dom.spec.whatwg.org/>)\n\n## Audit summary\n\n- Claims: 14 verified, 4 partially supported, 0 unsupported, 0 conflicting, 0 verification blocked.\n- Fact slots: 8 filled, 6 partial, 0 missing/conflicting, 14 total.\n- Research questions: 6.\n- Quote check (engine): 23 of 29 quotes found on the cited page; 6 not checked (not found on the page 6) — listed in [audit](audit.md).\n\n## Related artifacts\n\n- [Evidence audit](audit.md) — claim verdicts, fact-slot coverage, gaps, and renderer diagnostics.\n- [Structured source references](refs.json) — machine-readable source pointers used by the final task.\n- [Machine-readable report](control.json) — the structured final report and completion-summary contract.",
+  "auditMarkdown": "# Research audit\n\nThis artifact preserves the detailed claim/gap/source ledger behind `final-report.md`.\n\nSource verification: the engine found 23 of 29 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Evidence level\n\n- Audited claims (18 total): 14 verified, 4 partially supported, 0 unsupported, 0 conflicting, 0 verification blocked.\n- Fact slots: 8 filled, 6 partial, 0 missing/conflicting, 14 total.\n- Outside the audited-claim denominator: 21 preserved unverified leads available to synthesis, 0 additional leads omitted by a schema cap, 5 coverage gaps.\n- The zero unsupported/conflicting/blocked counts apply only to the 18 audited claims; preserved leads and gaps remain separate.\n\n## Synthesis caveats\n\n- Node.js 최신 Global objects 문서의 \"Stable\" 표시는 섹션 수준이며 any와 timeout 각각의 안정화 전환 버전은 제시하지 않는다.\n- Firefox 124(any)와 Firefox 100(timeout)은 감사에서 로컬 파일과 원격 URL의 증거 식별자 충돌이 확인되어 partially\\_supported로 남아 있다.\n- Edge timeout 124는 Chrome 호환성 미러에서 추론되었고 직접적인 Edge 문구가 추출되지 않았다. Chrome·Safari 공식 릴리스 문서의 직접 대조도 남아 있다.\n- WHATWG와 MDN의 브라우저 timeout semantics는 확인되지만 Node.js의 active-time 대응과 내부 timer ref/unref 정책은 해결되지 않았다.\n- 감사 인계 상태에서는 연구 질문과 검증 후보의 대응이 완료되었지만 verifier batch adoption은 blocked로 남아 있다.\n\n## Claim verdict ledger\n\n| ID | Status | Claim/support | Caveat/source |\n|---|---|---|---|\n| claim-001 | verified | Added in: v20.3.0, v18.17.0 | — |\n| claim-002 | partially\\_supported | Stability: 2 - Stable | 문서가 직접 뒷받침하는 값은 AbortSignal.any()의 도입 버전 v20.3.0 및 v18.17.0이며, 개별 안정화 버전은 명시되지 않는다. |\n| claim-003 | verified | Added in: v17.3.0, v16.14.0 | — |\n| claim-004 | partially\\_supported | Stability: 2 - Stable | The source supports that AbortSignal.timeout() was added in Node.js v17.3.0 and v16.14.0, but does not verify a specific stable-transition version. |\n| claim-005 | verified | \"chrome\": \\{ \"version\\_added\": \"116\" \\} | — |\n| claim-006 | verified | \"edge\": \"mirror\" | — |\n| claim-007 | partially\\_supported | \"firefox\": \\{ \"version\\_added\": \"124\" \\} | \\[raw.githubusercontent.com\\](\\<https://raw.githubusercontent.com/mdn/browser-compat-data/main/api/AbortSignal.json\\>), \\[developer.mozilla.org\\](\\<https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Releases/124\\>) |\n| claim-008 | verified | \"safari\": \\{ \"version\\_added\": \"17.4\" \\} | — |\n| claim-009 | verified | Chrome — \"version\\_added\": \"124\" | Chrome 103–123은 부분 구현이며, TimeoutError를 사용하는 지원 항목은 Chrome 124부터다. |\n| claim-010 | verified | \"edge\": \"mirror\" | Edge의 구체적인 지원 버전은 이 항목에 직접 기재되지 않으며 Chrome 데이터의 mirror 관계로 해석된다. |\n| claim-011 | partially\\_supported | Firefox — \"version\\_added\": \"100\" | — |\n| claim-012 | verified | Safari — \"version\\_added\": \"16\" | — |\n| claim-013 | verified | AbortSignal.any() — For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal. | — |\n| claim-014 | verified | MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts. | — |\n| claim-015 | verified | WHATWG sets timeout()’s abort reason to a TimeoutError DOMException. | — |\n| claim-016 | verified | MDN defines browser timeout() in active time; suspended workers or bfcache can pause it. | — |\n| claim-017 | verified | MDN advises removing application-added abort listeners when the combined operation finishes. | — |\n| claim-018 | verified | MDN says timeout() provides no way to cancel its timeout. | — |\n\n## Fact slot coverage\n\n| Slot | Status | Best value | Gap/impact |\n|---|---|---|---|\n| slot-001 | filled | Added in v20.3.0 and v18.17.0. | Critical Node.js compatibility baseline. |\n| slot-002 | partial | Global objects documentation is Stability 2 - Stable; method-specific stability history is not shown. | No method-level stability transition record was retrieved. |\n| slot-003 | filled | Added in v17.3.0 and backported to v16.14.0. | Critical Node.js compatibility baseline. |\n| slot-004 | partial | Global objects documentation is Stability 2 - Stable; method-specific promotion history is not shown. | No method-level Stability 2 promotion record was retrieved. |\n| slot-005 | filled | Chrome 116. | Browser compatibility matrix entry. |\n| slot-006 | filled | Edge 116 is listed as supported in the compatibility table. | Browser compatibility matrix entry. |\n| slot-007 | partial | Firefox 124. | no audited verified claim (claim-007) |\n| slot-008 | filled | Safari 17.4. | Browser compatibility matrix entry. |\n| slot-009 | filled | Full support at Chrome 124; Chrome 103–123 is partial. | Exact support threshold and exception behavior matter. |\n| slot-010 | partial | Edge is a mirror of Chrome compatibility data; 124 is inferred from that mirror. | Direct Edge version wording was not extracted. |\n| slot-011 | partial | Firefox 100. | no audited verified claim (claim-011) |\n| slot-012 | filled | Safari 16. | Browser compatibility matrix entry. |\n| slot-013 | filled | Already-aborted inputs determine the result reason during iteration; later aborts propagate their reason, but returned-signal abort does not cascade. | Controls reason handling and listener/resource cleanup. |\n| slot-014 | partial | WHATWG gives TimeoutError; browser MDN uses active time and has no cancellation API; Node docs state delay milliseconds. | Node-specific active-time mapping and internal timer ref/unref policy remain unresolved. |\n\n## Remaining gaps\n\n- evidence row declared both a local file identity and a remote URL without a known coherent mapping\n- evidence row declared both a local file identity and a remote URL without a known coherent mapping\n\n## Claims used in executive synthesis\n\n- **claim-001** (verified): Added in: v20.3.0, v18.17.0\n- **claim-003** (verified): Added in: v17.3.0, v16.14.0\n- **claim-005** (verified): \"chrome\": \\{ \"version\\_added\": \"116\" \\}\n- **claim-006** (verified): \"edge\": \"mirror\"\n- **claim-008** (verified): \"safari\": \\{ \"version\\_added\": \"17.4\" \\}\n- **claim-009** (verified): Chrome — \"version\\_added\": \"124\"\n- **claim-012** (verified): Safari — \"version\\_added\": \"16\"\n- **claim-013** (verified): AbortSignal.any() — For each signal of signals: if signal is aborted, then set resultSignal’s abort reason to signal’s abort reason and return resultSignal.\n- **claim-014** (verified): MDN says aborting any()’s returned signal does not abort inputs or cancel their timeouts.\n- **claim-015** (verified): WHATWG sets timeout()’s abort reason to a TimeoutError DOMException.\n- **claim-016** (verified): MDN defines browser timeout() in active time; suspended workers or bfcache can pause it.\n- **claim-017** (verified): MDN advises removing application-added abort listeners when the combined operation finishes.\n- **claim-002** (partially\\_supported): Stability: 2 - Stable\n- **claim-004** (partially\\_supported): Stability: 2 - Stable\n- **claim-007** (partially\\_supported): \"firefox\": \\{ \"version\\_added\": \"124\" \\}\n- **claim-010** (verified): \"edge\": \"mirror\"\n- **claim-011** (partially\\_supported): Firefox — \"version\\_added\": \"100\"\n- **claim-018** (verified): MDN says timeout() provides no way to cancel its timeout.\n\n## Quote check (engine)\n\nThe engine looked for each verifier quote in the page text the verifier's own tool returned for that URL, otherwise on the cited page fetched by the engine itself. No model was involved; verdicts above are unchanged.\n\n- Quotes: 29; found 23 (exact 14, after normalization 9, math notation 0); pages fetched 11; not checked 6.\n\n| Claim | Source | Quote | Why not checked |\n| --- | --- | --- | --- |\n| claim-006 | https://caniuse.com/wf-abortsignal-any | \\#\\#\\#\\# Edge 1. ❌ 12 - 115: Not supported 2. ✅ 116 - 154: Supported | not found on the page |\n| claim-008 | https://webkit.org/blog/15063/webkit-features-in-safari-17-4/ | Lastly, WebKit for Safari 17.4 adds support for the 【92†\\`AbortSignal.any()\\`†developer.mozilla.org】 | not found on the page |\n| claim-009 | https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json | \"chrome\": \\[ \\{ \"version\\_added\": \"124\" \\}, \\{ \"version\\_added\": \"103\", \"version\\_removed\": \"124\", \"partial\\_implementation\": true, \"notes\": \"Always aborts with an \\`AbortError\\` on timeout, not a \\`TimeoutError\\`.\"… | not found on the page |\n| claim-010 | https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json | \"edge\": \"mirror\", | not found on the page |\n| claim-011 | https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json | \"version\\_added\": \"100\" | not found on the page |\n| claim-012 | https://chromium.googlesource.com/external/github.com/mdn/browser-compat-data/%2B/8d6e771cb2ecd7b8b722f4beb1c8fd1e7cf3ec09/api/AbortSignal.json | \"safari\": \\{ \"version\\_added\": \"16\" \\}, | not found on the page |\n\n## Renderer diagnostics\n\n- Executive word count: 2219.\n- Rendered source URLs: 14/14.\n- Render warnings: 0.",
+  "wordCount": 2219,
   "sourceUrlCount": 14,
   "totalSourceUrlCount": 14,
   "sourceUrls": [
