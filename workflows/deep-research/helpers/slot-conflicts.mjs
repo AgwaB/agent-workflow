@@ -155,6 +155,16 @@ const normalizeEntity = (value) =>
 		.replace(/[\s\p{P}\p{S}]+/gu, " ")
 		.trim();
 
+/** The words around a short scalar's numbers ("RFC 9000" → "rfc", "50%" → "percent", "1 MB" → "mb"). */
+function unitOfScalar(value) {
+	return normalizeEntity(
+		String(value ?? "")
+			.toLowerCase()
+			.replace(/%/g, " percent ")
+			.replace(/\d+(?:[.,]\d+)*/g, " "),
+	);
+}
+
 function isNumericFactType(factType) {
 	return NUMERIC_FACT_TYPES.has((stringOf(factType) ?? "").toLowerCase());
 }
@@ -214,6 +224,11 @@ export function isLocalDocumentEntity(entity) {
 	return LOCAL_DOCUMENT.test(stringOf(entity) ?? "");
 }
 
+/** Whether `text` names `entity` as a whole name (normalized; not "http 3" in "http 30"). */
+export function textNamesEntity(text, entity) {
+	return namesEntity(normalizeEntity(text), normalizeEntity(entity));
+}
+
 /** Whether a normalized name occurs in normalized text as a whole name (not "http 3" in "http 30"). */
 function namesEntity(text, name) {
 	if (name.length < 3) return false;
@@ -233,7 +248,16 @@ function namesEntity(text, name) {
  * text, and named entities that have dated observations — on the fact's own slot first,
  * else on exactly one other slot. Anything ambiguous stays unmapped.
  */
-function mappedLocalDocumentFacts(facts) {
+function mappedLocalDocumentFacts(facts, planSlots = []) {
+	// A slot's plan entities name one subject ("HTTP/3", "RFC 9114"); several named entities are one
+	// target only when they are aliases there. Review 2026-11-09: a sentence naming RFC 9114 and RFC 9000
+	// on one slot gave its date to both and invented a conflict for RFC 9000.
+	const aliasesBySlot = new Map(
+		asArray(planSlots).map((slot) => [
+			stringOf(slot.id) ?? stringOf(slot.slotId),
+			new Set(asArray(slot.entities).map(normalizeEntity).filter(Boolean)),
+		]),
+	);
 	const datedGroups = new Map();
 	for (const fact of facts) {
 		const slotId = stringOf(fact.slotId);
@@ -262,6 +286,8 @@ function mappedLocalDocumentFacts(facts) {
 		const sameSlot = named.filter((group) => group.slotId === ownSlot);
 		const targets = sameSlot.length > 0 ? sameSlot : named;
 		if (targets.length === 0 || new Set(targets.map((group) => group.slotId)).size !== 1) continue;
+		const aliases = aliasesBySlot.get(targets[0].slotId) ?? new Set();
+		if (targets.length > 1 && !targets.every((group) => aliases.has(group.name))) continue;
 		const [date] = dates.values();
 		for (const target of targets)
 			mapped.push({
@@ -285,7 +311,7 @@ export function detectSlotConflicts({ planSlots = [], extractedFacts = [] } = {}
 		asArray(planSlots).map((slot) => [stringOf(slot.id) ?? stringOf(slot.slotId), stringOf(slot.label)]),
 	);
 	const groups = new Map();
-	const local = mappedLocalDocumentFacts(asArray(extractedFacts));
+	const local = mappedLocalDocumentFacts(asArray(extractedFacts), planSlots);
 	for (const fact of [...asArray(extractedFacts), ...local.mapped]) {
 		const slotId = stringOf(fact.slotId);
 		if (!slotId || slotId === "unslotted") continue;
@@ -310,8 +336,15 @@ export function detectSlotConflicts({ planSlots = [], extractedFacts = [] } = {}
 				conflicts.push({ slotId: group.slotId, entity: group.entity, aspect: "date", values: [...values.values()] });
 			}
 		}
-		const numbered = group.facts.filter((fact) => fact.observation.numbers);
-		if (numbered.length >= 2) {
+		// Numbers are compared only between values written with the same unit words: "1 MB" and
+		// "1024 KB", or "2 weeks" and "14 days", are one value in different units (review 2026-11-09).
+		const byUnit = new Map();
+		for (const fact of group.facts.filter((fact) => fact.observation.numbers)) {
+			const unit = unitOfScalar(fact.value);
+			byUnit.set(unit, [...(byUnit.get(unit) ?? []), fact]);
+		}
+		for (const numbered of byUnit.values()) {
+			if (numbered.length < 2) continue;
 			comparedGroups += 1;
 			const values = groupValues(
 				numbered,

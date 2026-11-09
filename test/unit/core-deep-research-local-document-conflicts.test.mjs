@@ -107,6 +107,65 @@ test("ambiguous or undated local statements are not compared", () => {
 		assert.equal(detect([fact]).conflicts.length, 0, name);
 });
 
+test("a sentence naming two entities of one slot maps only when the plan lists them as aliases", () => {
+	// Review 2026-11-09: the date belongs to RFC 9114; giving it to RFC 9000 too invented a conflict.
+	const facts = [
+		{
+			id: "e1",
+			slotId: "slot-001",
+			entity: "RFC 9000",
+			factType: "version",
+			value: "v",
+			dateOrYear: "2021-05",
+		},
+		{
+			id: "e2",
+			slotId: "slot-001",
+			entity: "RFC 9114",
+			factType: "version",
+			value: "v",
+			dateOrYear: "2022-06",
+		},
+		note(
+			"HTTP/3 (RFC 9114), which runs over QUIC (RFC 9000), was published in June 2022.",
+		),
+	];
+	assert.equal(
+		detectSlotConflicts({ extractedFacts: facts }).conflicts.length,
+		0,
+	);
+	// recorded months run: the plan lists HTTP/3 and RFC 9114 as one slot's entities
+	const aliases = detectSlotConflicts({
+		planSlots: [{ id: "slot-004", entities: ["HTTP/3", "RFC 9114"] }],
+		extractedFacts: [
+			{
+				id: "e3",
+				slotId: "slot-004",
+				entity: "RFC 9114",
+				factType: "version",
+				value: "v",
+				dateOrYear: "2022-06",
+			},
+			{
+				id: "e4",
+				slotId: "slot-004",
+				entity: "HTTP/3",
+				factType: "scope",
+				value: "v",
+				dateOrYear: "2022",
+			},
+			note(
+				"메모는 HTTP/3를 RFC 9114로 지목하고 2021년 6월 발행이라고 주장한다.",
+				{ slotId: "slot-004" },
+			),
+		],
+	});
+	assert.deepEqual(aliases.conflicts.map((c) => c.entity).sort(), [
+		"HTTP/3",
+		"RFC 9114",
+	]);
+});
+
 test("isLocalDocumentEntity: document file names, not dotted product names", () => {
 	for (const entity of [
 		"notes.md",
