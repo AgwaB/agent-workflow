@@ -68,7 +68,10 @@ export interface ToolCallEvent {
  * - total = input + cached + cacheWrite + output (the runtime sums it; adapters do not send it);
  * - `model`: the model that served the request, as the CLI reports it, when known (the resolved
  *   name, not an alias the request used);
- * - `cost` in USD or `null` when unknown — never 0 for unknown — with its `source`.
+ * - `cost` in USD or `null` when unknown — never 0 for unknown — with its `source`;
+ * - `peakContext` (optional): the largest prompt of ONE model request this event covers (input,
+ *   cache reads and cache writes together), when the event sums several requests and the CLI
+ *   reports them singly (Codex: one event per turn). Absent = the event is one request.
  * Token counts: `null` means unknown, which is different from 0.
  */
 export interface UsageEvent {
@@ -80,6 +83,7 @@ export interface UsageEvent {
 	readonly model?: string;
 	readonly cost: number | null;
 	readonly source: UsageSource;
+	readonly peakContext?: number | null;
 }
 /** Engine must answer through `WorkflowExecutor.respond` (R#4). Never auto-allowed (D2). */
 export interface ApprovalRequestEvent {
@@ -254,6 +258,10 @@ export function validateExecEvent(value: unknown): string[] {
 			if (value.cacheWrite !== undefined && !isCount(value.cacheWrite))
 				problems.push(
 					"usage.cacheWrite must be a non-negative integer or null when present",
+				);
+			if (value.peakContext !== undefined && !isCount(value.peakContext))
+				problems.push(
+					"usage.peakContext must be a non-negative integer or null when present",
 				);
 			if (
 				value.model !== undefined &&

@@ -89,10 +89,10 @@ export interface UsageSummary {
 	source: UsageSource;
 	events: number;
 	/**
-	 * 2026-11-08 (context-quality R1): the largest prompt one usage event reported
-	 * (input + cached + cacheWrite), i.e. the most context a model call of this attempt saw. Null when
-	 * an event's parts are unknown. Per usage event: one per assistant message on Pi, per turn on
-	 * Codex, one for the whole attempt on Claude (then equal to the attempt's input side).
+	 * 2026-11-08 (context-quality R1): the largest prompt one model call of this attempt saw: per
+	 * usage event its `peakContext` when reported (Codex: the largest request of the turn), else
+	 * input + cached + cacheWrite (Pi: one event per assistant message; Claude: one event for the
+	 * whole attempt, then equal to the attempt's input side). Null when an event's value is unknown.
 	 */
 	peakContext: number | null;
 }
@@ -130,19 +130,20 @@ export function summarizeUsage(
 		.map((event) => event.model)
 		.filter((name): name is string => typeof name === "string" && name !== "")
 		.at(-1);
-	const peakContext = usage.some(
-		(event) =>
-			event.input === null ||
-			event.cached === null ||
-			event.cacheWrite === null,
-	)
+	// Codex sums a turn's requests into one event; summing them is not a context size (a 17-request
+	// turn reported 777,556 with a largest request of 66,687), so its per-request peak wins.
+	const contextOf = (event: (typeof usage)[number]): number | null =>
+		event.peakContext !== undefined
+			? event.peakContext
+			: event.input === null ||
+					event.cached === null ||
+					event.cacheWrite === null
+				? null
+				: (event.input ?? 0) + (event.cached ?? 0) + (event.cacheWrite ?? 0);
+	const contexts = usage.map(contextOf);
+	const peakContext = contexts.some((value) => value === null)
 		? null
-		: Math.max(
-				...usage.map(
-					(event) =>
-						(event.input ?? 0) + (event.cached ?? 0) + (event.cacheWrite ?? 0),
-				),
-			);
+		: Math.max(...(contexts as number[]));
 	return {
 		input,
 		output,

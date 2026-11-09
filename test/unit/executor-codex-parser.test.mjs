@@ -63,6 +63,7 @@ test("recorded complete: read tool, deltas, per-turn usage without cost, final t
 	assert.match(JSON.stringify(tools[0].input), /cat a\.txt/);
 	assert.ok(events.some((event) => event.type === "message_delta"));
 	// WP12a: SDK input excludes cache reads (Codex reports 22076 including 17664 cached).
+	// 2026-11-08: the turn's two requests sent 10973 and 11103 input tokens; the larger is its peak.
 	assert.deepEqual(events.at(-2), {
 		type: "usage",
 		input: 22076 - 17664,
@@ -71,6 +72,7 @@ test("recorded complete: read tool, deltas, per-turn usage without cost, final t
 		cacheWrite: 0,
 		cost: null,
 		source: "unknown",
+		peakContext: 11103,
 	});
 	assert.deepEqual(events.at(-1), {
 		type: "completed",

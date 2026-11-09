@@ -453,6 +453,16 @@ On 0.165.0, 47,500 bytes arrived intact and 48,500 bytes became 48,022 bytes; on
 47,500 bytes arrived intact and 48,500 bytes or more became 47,988 bytes with a truncation marker.
 ASCII and Korean text hit the same byte bound.
 
+**Code mode.** Codex 0.166's model catalog gives `gpt-5.6-luna` the tool mode `code_mode_only`: the
+model calls tools, `workflow_artifact` included, from JavaScript it runs with Codex's `exec` tool, and
+only what that script returns reaches the model, capped at 10,000 tokens per `exec` by default
+(Codex `DEFAULT_MAX_OUTPUT_TOKENS`). A script that reads many pages at once therefore leaves part of
+them unseen, while the read ledger, which sees each MCP call, records every page as delivered
+complete. In recorded deep-research runs the final audit read its 17 projections in one script in
+30 of 30 such attempts; each delivered 11,579–58,010 approximate tokens and the model's context grew
+by 10,011–12,177. The feature flag `code_mode` does not change it (the catalog's tool mode takes
+precedence); no per-run override exists short of replacing Codex's model catalog.
+
 The probe conservatively reports `mcpOutputLimitChars = 32000`. The engine sets
 `--max-output-chars 30400` (5% margin), bounding both UTF-16 length and UTF-8 bytes; larger whole
 reads are paged. See [MCP](extending.md#workflow-artifact-mcp-server). Normalized `tool_call.output` is separately clipped at
@@ -480,7 +490,9 @@ the adapter defaults to 300 s (startup 30 s).
 
 Usage normalizes `input = inputTokens − cachedInputTokens − cacheWriteInputTokens`,
 `cached = cachedInputTokens`, `cacheWrite = cacheWriteInputTokens`; model comes from thread start/resume,
-else the request. Output includes reasoning. Cost is `null`, source `unknown`.
+else the request. Output includes reasoning. Cost is `null`, source `unknown`. One event covers a turn
+(the sum of its requests); `peakContext` is the largest `last.inputTokens` among the turn's
+`thread/tokenUsage/updated` notifications, the prompt of its largest single request.
 
 Raw stream: `<artifactsDir>/codex-app-server.jsonl` (`{at, dir: out|in|stderr|meta, msg}`), falling
 back to the attempt log directory. Request and MCP env values of at least 8 characters are redacted

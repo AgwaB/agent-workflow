@@ -298,7 +298,7 @@ kinds (`edit`, `delete`, `move`, `execute`) are denied on safe readOnly stages; 
 | `started` | `sessionId: string \| null` |
 | `message_delta` | `text` |
 | `tool_call` | `name`, `kind` (ACP kind), `status` (`pending`, `approval_pending`, `running`, `completed`, `failed`, `denied`, `timed_out`), optional `callId`, `input`, `output` |
-| `usage` | `input`, `output`, `cached` (integers or `null`), optional `cacheWrite` (integer or `null`) and `model` (string), `cost` (number or `null`), `source` (`reported`, `estimated`, `unknown`) |
+| `usage` | `input`, `output`, `cached` (integers or `null`), optional `cacheWrite` and `peakContext` (integers or `null`) and `model` (string), `cost` (number or `null`), `source` (`reported`, `estimated`, `unknown`) |
 | `approval_request` | `requestId` (unique per stream), `kind`, `detail` |
 | `completed` | `finalText`, optional `ownedSession`, optional `toolResultBudget` |
 | `failed` | `class` (below), `message`, `raw` (JSON or `null`), optional `ownedSession`, optional `toolResultBudget` |
@@ -317,8 +317,10 @@ Usage shape (the same for every adapter): `input` = input tokens
 `output` = output tokens with reasoning included, `model` = the model that served the request (the
 resolved name, not a request alias such as `haiku`). Do not send a total: the runtime computes
 input + cached + cacheWrite + output (`null` when a part is `null`) and the engine records it with the
-model on the task. `validateExecEvent` checks `cacheWrite` and `model` when present (additive;
-contract 0.1.0).
+model on the task. An event that sums several model requests (Codex reports per turn) may add
+`peakContext`, the largest single request's prompt (input + cache reads + cache writes); without it the
+runtime takes the event's input side as one request. `validateExecEvent` checks `cacheWrite`,
+`peakContext` and `model` when present (additive; contract 0.1.0).
 
 Usage rules: `null` means unknown and is different from `0`. `source: "unknown"` always pairs with
 `cost: null`, and `cost: null` always with `source: "unknown"`; never invent a cost. `estimated`
