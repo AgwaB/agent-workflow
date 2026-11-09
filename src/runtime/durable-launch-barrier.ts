@@ -404,11 +404,19 @@ async function writeDurableExclusive(
 	await syncDirectory(descriptor.directory);
 }
 
+/**
+ * How long a pending fence that is being unlinked may stay visible. CI 2026-11-09 (ci-flakes-20261109): Linux
+ * ext4 shows the path with nlink 0 while it finishes the unlink in its journal — up to ~4 ms under fsync load in
+ * a reproduction — and three setImmediate re-observations (microseconds) failed the launch.
+ */
+const PENDING_FENCE_UNLINK_WAIT_MS = 1_000;
+
 async function pendingCommitExists(path: string): Promise<boolean> {
 	const pendingPath = `${path}.pending`;
 	const uid =
 		typeof process.getuid === "function" ? process.getuid() : undefined;
-	for (let attempt = 0; attempt < 3; attempt += 1) {
+	const started = Date.now();
+	for (let attempt = 0; ; attempt += 1) {
 		let info;
 		try {
 			info = await lstat(pendingPath);
@@ -428,18 +436,20 @@ async function pendingCommitExists(path: string): Promise<boolean> {
 				"durable launch barrier pending fence identity mismatch",
 			);
 		if (info.nlink === 1) return true;
-		// Unlink can race lstat and leave an otherwise valid, unlinked inode
-		// snapshot. Reobserve only that case; never accept it as a live fence.
 		if (info.nlink !== 0)
+			throw new DurableLaunchBarrierError(
+				"durable launch barrier pending fence identity mismatch",
+			);
+		// Unlink can race lstat and leave an otherwise valid, unlinked inode snapshot. Reobserve only that
+		// case, until it is gone or live again (bounded); never accept it as a live fence.
+		if (Date.now() - started >= PENDING_FENCE_UNLINK_WAIT_MS)
 			throw new DurableLaunchBarrierError(
 				"durable launch barrier pending fence identity mismatch",
 			);
 		if (attempt < 2)
 			await new Promise<void>((resolveAttempt) => setImmediate(resolveAttempt));
+		else await sleep(Math.min(10, attempt));
 	}
-	throw new DurableLaunchBarrierError(
-		"durable launch barrier pending fence identity mismatch",
-	);
 }
 
 async function recoverCommittedExclusive(
