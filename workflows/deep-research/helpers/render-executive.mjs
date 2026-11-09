@@ -1510,19 +1510,45 @@ function readerTranslations(synthesis, claimIds, slotIds, sources = {}) {
 }
 
 /**
- * Numbers of `source` (three or more digits, or with a decimal point; not part of an identifier
- * such as "rq-007" or "v1") that `translated` does not contain.
+ * Numbers of `source` (three or more digits, or with a decimal point; not part of a Latin identifier
+ * such as "rq-007", "v1" or "claim-010") that `translated` does not keep. A number is kept when the
+ * translation has the same digits not glued to other digits ("약3000건", "RFC9000은", "2023.5.12."), the
+ * same value through a scale word ("1.5 million" = "150만", "$10,000" = "1만"), or a decimal comma for
+ * a decimal point. A sign may be said in words; its digits must stay. Review 2026-11-09 (gpt-6-astra,
+ * claude-fable-5-1) found the first version refused those faithful Korean forms and missed "-1000".
  */
 export function numbersDroppedBy(source, translated) {
 	if (typeof source !== "string" || typeof translated !== "string") return [];
-	const numbersOf = (text) =>
-		new Set(
-			[...text.matchAll(/(?<![\p{L}\d_./-])\d[\d,]*(?:\.\d+)?/gu)]
-				.map((match) => match[0].replace(/,/g, ""))
-				.filter((value) => value.replace(/\D/g, "").length >= 3 || value.includes(".")),
-		);
-	const kept = numbersOf(translated);
-	return [...numbersOf(source)].filter((value) => !kept.has(value));
+	const plain = translated.replace(/(\d),(?=\d{3}(?!\d))/g, "$1");
+	const scaled = new Set(
+		[...plain.matchAll(/(\d+(?:\.\d+)?)\s*(천|만|억|조|thousand|million|billion|trillion)/giu)].map(
+			(match) => scaleValue(Number(match[1]), match[2]),
+		),
+	);
+	const dropped = [];
+	for (const match of source.matchAll(/(?<![A-Za-z\d_./])(?<![A-Za-z\d]-)-?\d[\d,]*(?:\.\d+)?/g)) {
+		const literal = match[0].replace(/,/g, "");
+		const digits = literal.replace(/^-/, "");
+		if (digits.replace(/\D/g, "").length < 3 && !digits.includes(".")) continue;
+		const scaleWord = /^\s*(thousand|million|billion|trillion)\b/i.exec(
+			source.slice(match.index + match[0].length),
+		)?.[1];
+		const value = scaleWord ? scaleValue(Number(digits), scaleWord) : Number(digits);
+		const escaped = digits.replace(/\./g, "\\.");
+		const kept =
+			new RegExp(`(?<!\\d)${escaped}(?!\\d)`).test(plain) ||
+			(digits.includes(".") && new RegExp(`(?<!\\d)${digits.replace(".", ",")}(?!\\d)`).test(translated)) ||
+			[...scaled].some((candidate) => Math.abs(candidate - value) <= Math.abs(value) * 1e-9);
+		if (!kept) dropped.push(literal);
+	}
+	return [...new Set(dropped)];
+}
+
+function scaleValue(number, word) {
+	const scale = { 천: 1e3, 만: 1e4, 억: 1e8, 조: 1e12, thousand: 1e3, million: 1e6, billion: 1e9, trillion: 1e12 }[
+		word.toLowerCase()
+	];
+	return number * (scale ?? 1);
 }
 
 /**

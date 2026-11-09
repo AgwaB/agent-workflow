@@ -427,31 +427,45 @@ test("a translation that drops a number of its source is not used; the original 
 	}
 });
 
-test("numbersDroppedBy ignores identifiers, short numbers and reformatted dates", () => {
-	assert.deepEqual(
-		numbersDroppedBy(
-			"RFC 9114 | HTTP/3 | June 2022.",
-			"RFC 9114는 HTTP/3를 정의한다.",
-		),
-		["2022"],
-	);
-	assert.deepEqual(
-		numbersDroppedBy(
+test("numbersDroppedBy keeps faithful Korean number forms and catches real drops", () => {
+	// Review 2026-11-09 (gpt-6-astra, claude-fable-5-1): the first version refused these faithful forms.
+	for (const [source, translated] of [
+		["May 12, 2023 release", "2023.5.12. 출시"],
+		["about 3,000 cases", "약3000건"],
+		["RFC 9000", "RFC9000은"],
+		["1.5 million users", "150만 명"],
+		["$10,000 per year", "연간 1만 달러"],
+		["2,000,000,000 won", "20억 원"],
+		["ratio 1.5", "비율 1,5"],
+		[
 			"RFC 9000, 2021-05, TLS 1.3, 1,000 rows",
 			"RFC 9000은 2021년 5월, TLS 1.3, 1000개",
-		),
-		[],
-	);
-	assert.deepEqual(
-		numbersDroppedBy(
-			"rq-007 gapRecorded; QUIC v1, claim-010, 21 seconds",
-			"없음",
-		),
-		[],
-	);
-	assert.deepEqual(numbersDroppedBy("TLS 1.3 is required", "TLS가 필요하다"), [
-		"1.3",
-	]);
+		],
+		["rq-007 gapRecorded; QUIC v1, claim-010, 21 seconds", "없음"],
+		["Capacity is 1000 rows", "용량은1000개이다"],
+	])
+		assert.deepEqual(
+			numbersDroppedBy(source, translated),
+			[],
+			`${source} -> ${translated}`,
+		);
+	for (const [source, translated, dropped] of [
+		["drops to -1000", "감소", ["-1000"]],
+		[
+			"RFC 9114 | HTTP/3 | June 2022.",
+			"RFC 9114는 HTTP/3를 정의한다.",
+			["2022"],
+		],
+		["TLS 1.3 is required", "TLS가 필요하다", ["1.3"]],
+		["RFC 9000", "RFC 19000", ["9000"]],
+		["1.5 million", "15만", ["1.5"]],
+		["May 2023", "2022년 5월", ["2023"]],
+	])
+		assert.deepEqual(
+			numbersDroppedBy(source, translated),
+			dropped,
+			`${source} -> ${translated}`,
+		);
 });
 
 test("a malformed translations container is rejected by schema and renderer", async () => {
