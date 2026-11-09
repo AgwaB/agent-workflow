@@ -443,6 +443,10 @@ test("numbersDroppedBy keeps faithful Korean number forms and catches real drops
 		],
 		["rq-007 gapRecorded; QUIC v1, claim-010, 21 seconds", "없음"],
 		["Capacity is 1000 rows", "용량은1000개이다"],
+		// re-review 2026-11-09 (claude-fable-5-1): a scaled source written as a plain numeral
+		["1.5 million users", "1,500,000명의 사용자"],
+		["1.5 million users", "1500000명"],
+		["May 2023 release", "2023.5. 출시"],
 	])
 		assert.deepEqual(
 			numbersDroppedBy(source, translated),
@@ -460,6 +464,10 @@ test("numbersDroppedBy keeps faithful Korean number forms and catches real drops
 		["RFC 9000", "RFC 19000", ["9000"]],
 		["1.5 million", "15만", ["1.5"]],
 		["May 2023", "2022년 5월", ["2023"]],
+		// re-review 2026-11-09 (gpt-6-astra): a changed value that contains the digits
+		["1000 users", "0.1000 users", ["1000"]],
+		["1000 users", "1000.5 users", ["1000"]],
+		["12,345 rows", "12.345개", ["12345"]],
 	])
 		assert.deepEqual(
 			numbersDroppedBy(source, translated),

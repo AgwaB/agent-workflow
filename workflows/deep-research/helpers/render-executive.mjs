@@ -1511,20 +1511,16 @@ function readerTranslations(synthesis, claimIds, slotIds, sources = {}) {
 
 /**
  * Numbers of `source` (three or more digits, or with a decimal point; not part of a Latin identifier
- * such as "rq-007", "v1" or "claim-010") that `translated` does not keep. A number is kept when the
- * translation has the same digits not glued to other digits ("약3000건", "RFC9000은", "2023.5.12."), the
- * same value through a scale word ("1.5 million" = "150만", "$10,000" = "1만"), or a decimal comma for
- * a decimal point. A sign may be said in words; its digits must stay. Review 2026-11-09 (gpt-6-astra,
- * claude-fable-5-1) found the first version refused those faithful Korean forms and missed "-1000".
+ * such as "rq-007", "v1" or "claim-010") whose value `translated` does not keep. Values are compared
+ * whole: thousands separators are dropped, another comma is a decimal comma, a dotted date
+ * ("2023.5.12.") gives its parts, digits glued to Hangul count ("약3000건", "RFC9000은"), and a scale
+ * word multiplies ("1.5 million" = "150만" = "1,500,000"). A sign may be said in words; its digits must
+ * stay. Review 2026-11-09 found refusals of faithful Korean forms; the re-review found the substring
+ * match then accepted changed values ("1000" kept by "0.1000" or "1000.5").
  */
 export function numbersDroppedBy(source, translated) {
 	if (typeof source !== "string" || typeof translated !== "string") return [];
-	const plain = translated.replace(/(\d),(?=\d{3}(?!\d))/g, "$1");
-	const scaled = new Set(
-		[...plain.matchAll(/(\d+(?:\.\d+)?)\s*(천|만|억|조|thousand|million|billion|trillion)/giu)].map(
-			(match) => scaleValue(Number(match[1]), match[2]),
-		),
-	);
+	const kept = numberValuesIn(translated);
 	const dropped = [];
 	for (const match of source.matchAll(/(?<![A-Za-z\d_./])(?<![A-Za-z\d]-)-?\d[\d,]*(?:\.\d+)?/g)) {
 		const literal = match[0].replace(/,/g, "");
@@ -1534,14 +1530,34 @@ export function numbersDroppedBy(source, translated) {
 			source.slice(match.index + match[0].length),
 		)?.[1];
 		const value = scaleWord ? scaleValue(Number(digits), scaleWord) : Number(digits);
-		const escaped = digits.replace(/\./g, "\\.");
-		const kept =
-			new RegExp(`(?<!\\d)${escaped}(?!\\d)`).test(plain) ||
-			(digits.includes(".") && new RegExp(`(?<!\\d)${digits.replace(".", ",")}(?!\\d)`).test(translated)) ||
-			[...scaled].some((candidate) => Math.abs(candidate - value) <= Math.abs(value) * 1e-9);
-		if (!kept) dropped.push(literal);
+		if (![...kept].some((candidate) => Math.abs(candidate - value) <= Math.abs(value) * 1e-9))
+			dropped.push(literal);
 	}
 	return [...new Set(dropped)];
+}
+
+/** Every number value a text states (see numbersDroppedBy). */
+function numberValuesIn(text) {
+	const values = new Set();
+	for (const match of text.matchAll(/\d+(?:[.,]\d+)*/g)) {
+		const token = match[0];
+		const scaleWord = /^\s*(천|만|억|조|thousand|million|billion|trillion)/iu.exec(
+			text.slice(match.index + token.length),
+		)?.[1];
+		const scaled = (number) => (scaleWord ? scaleValue(number, scaleWord) : number);
+		// A dotted date gives its parts: "2023.5.12." and the Korean year-month "2023.5." (year 1900-2100,
+		// month 1-12); any other single dot is a decimal point ("1000.5", "0.1000").
+		const yearMonth = /^(19\d{2}|20\d{2}|2100)\.(\d{1,2})$/.exec(token);
+		if ((token.match(/\./g) ?? []).length >= 2 || (yearMonth && Number(yearMonth[2]) >= 1 && Number(yearMonth[2]) <= 12)) {
+			for (const part of token.split(".")) values.add(Number(part));
+			continue;
+		}
+		const plain = /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(token)
+			? token.replace(/,/g, "")
+			: token.replace(",", ".");
+		values.add(scaled(Number(plain)));
+	}
+	return values;
 }
 
 function scaleValue(number, word) {
