@@ -55,7 +55,8 @@ Tests come in two tiers (`test/run-unit.mjs --tier=…`). A unit test must not d
 no assertions on elapsed time, no workflow engine runs, Chrome, HTTP servers or long-lived child processes —
 `test/unit/test-tiers.test.mjs` checks the files and the unit-tier run refuses such processes and servers. A test that
 needs them is an integration test: make `// test-tier: integration` its first line. Both tiers run in `validate` and
-in CI.
+in CI. In an integration test, wait for the event (`test/helpers/wait-until.mjs`) rather than a fixed time, and count
+or observe what happened rather than how long it took; a time bound should only guard against a hang.
 
 Changes to dashboard animations also need `npm run test:ui-motion` (headless Chrome; its real-time animation checks are not part of `validate` or CI).
 
