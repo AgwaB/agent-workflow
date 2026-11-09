@@ -778,7 +778,11 @@ Every worker stage answers in the section protocol:
 
 Exactly one of each, in this order, no prose outside. The engine writes `control.json`,
 `analysis.md`, `refs.json` and `raw.md`, and retries invalid output within the stage's repair budget
-(`AGENT_WORKFLOW_ARTIFACT_OUTPUT_RETRIES`, default 2). `control.digest` is required and bounded by
+(`AGENT_WORKFLOW_ARTIFACT_OUTPUT_RETRIES`, default 2). Before retrying, a few breaks are repaired and
+recorded on the attempt: invalid JSON escapes inside strings (`json_invalid_escape`), and a `<control>` that ends
+with a closing bracket but lacks closers its nesting still needs, when the stage has an `output.controlSchema` and
+the closed result passes it (`json_missing_closers`: closers are added, never removed; not when a string is left
+open; without a schema it stays invalid). `control.digest` is required and bounded by
 `output.maxDigestChars`. `output.analysis.required: false` / `output.refs.required: false` make those
 sections optional. When quoting a whole protocol response inside analysis, write `&lt;control>`.
 
