@@ -3617,25 +3617,41 @@ export function dependencyResumableSupportBlockIds(
 ): Set<string> {
 	const bySpecId = new Map(run.tasks.map((task) => [task.specId, task]));
 	const resumable = new Set<string>();
+	// Review 2026-11-09 (gpt-6-astra): a completed partial consumer that declares
+	// invalidateOnDependencyResume reruns when a dependency does, so a block behind it is resumable too
+	// (failed A → completed B (invalidated) → blocked C).
+	const rerun = new Set<string>();
 	const isResumable = (task: WorkflowTaskRunRecord): boolean =>
 		RESUMABLE_TASK_STATUSES.has(task.status) ||
 		isBlockedTaskResumableForResume(task) ||
-		resumable.has(task.taskId);
+		resumable.has(task.taskId) ||
+		rerun.has(task.taskId);
+	const dependsOnResumable = (task: WorkflowTaskRunRecord): boolean =>
+		(task.dependsOn ?? []).some((specId) => {
+			const dependency = bySpecId.get(specId);
+			return dependency !== undefined && isResumable(dependency);
+		});
 	let changed = true;
 	while (changed) {
 		changed = false;
 		for (const task of run.tasks) {
+			if (
+				task.status === "completed" &&
+				!rerun.has(task.taskId) &&
+				task.artifactGraph?.inputPolicy?.invalidateOnDependencyResume ===
+					true &&
+				dependsOnResumable(task)
+			) {
+				rerun.add(task.taskId);
+				changed = true;
+			}
 			if (
 				resumable.has(task.taskId) ||
 				task.status !== "blocked" ||
 				task.statusDetail !== "support_declared_blocked"
 			)
 				continue;
-			const dependsOnResumable = (task.dependsOn ?? []).some((specId) => {
-				const dependency = bySpecId.get(specId);
-				return dependency !== undefined && isResumable(dependency);
-			});
-			if (dependsOnResumable) {
+			if (dependsOnResumable(task)) {
 				resumable.add(task.taskId);
 				changed = true;
 			}

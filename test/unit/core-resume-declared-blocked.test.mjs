@@ -93,6 +93,33 @@ test("a declared support block is resumable only through a resumable dependency"
 		]),
 		[],
 	);
+	// Review 2026-11-09 (gpt-6-astra): failed A → completed partial consumer B that is invalidated on a
+	// dependency resume → blocked C: C reruns with B. Without the declaration B stays and so does C's block.
+	const consumer = (invalidates) => ({
+		...task("sanitize.main", "completed", "completed", ["audit.main"]),
+		...(invalidates
+			? {
+					artifactGraph: {
+						enabled: true,
+						inputPolicy: { invalidateOnDependencyResume: true },
+					},
+				}
+			: {}),
+	});
+	for (const [invalidates, expected] of [
+		[true, ["t-final.main"]],
+		[false, []],
+	])
+		assert.deepEqual(
+			ids([
+				task("audit.main", "failed", "x"),
+				consumer(invalidates),
+				task("final.main", "blocked", "support_declared_blocked", [
+					"sanitize.main",
+				]),
+			]),
+			expected,
+		);
 	// Other blocked kinds are not widened (attention blockers keep their own rule).
 	assert.deepEqual(
 		ids([
@@ -228,4 +255,92 @@ test("resume reruns a failed audit and the support stage it blocked; a block on 
 		/non-resumable blocked task\(s\): final\.main statusDetail=support_declared_blocked/,
 	);
 	void stateDir;
+});
+
+// Review 2026-11-09 (gpt-6-astra): failed audit → completed partial consumer that is invalidated on a dependency
+// resume → declared-blocked renderer. resume refused the run ("non-resumable blocked task(s)") although the consumer
+// reruns with the audit.
+test("resume reaches a declared block behind a completed partial consumer that reruns with its dependency", async () => {
+	const cwd = join(root, "intermediary");
+	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
+	await mkdir(join(cwd, "helpers"), { recursive: true });
+	await writeFile(
+		join(cwd, ".agent-workflow", "agents", "reader.md"),
+		"---\nname: reader\ndescription: reads and reports\ntools: read\n---\nYou report.\n",
+	);
+	await writeFile(
+		join(cwd, "helpers", "sanitize.mjs"),
+		'export default async function sanitize() { return { schema: "sanitize-v1", digest: "sanitized" }; }\n',
+	);
+	await writeFile(
+		join(cwd, "helpers", "render.mjs"),
+		'export default async function render() { return { schema: "render-v1", digest: "rendered", status: "passed" }; }\n',
+	);
+	const specPath = join(cwd, "workflow.json");
+	await writeFile(
+		specPath,
+		JSON.stringify({
+			schemaVersion: 1,
+			name: "resume-intermediary",
+			defaults: { agent: "reader", readOnly: true, tools: ["read"] },
+			artifactGraph: {
+				stages: [
+					{ id: "audit", type: "single", prompt: "Audit." },
+					{
+						id: "sanitize",
+						from: ["audit"],
+						sourcePolicy: "partial",
+						inputPolicy: { invalidateOnDependencyResume: true },
+						support: { uses: "./helpers/sanitize.mjs" },
+					},
+					{
+						id: "final",
+						from: ["sanitize"],
+						sourcePolicy: "partial",
+						support: { uses: "./helpers/render.mjs" },
+					},
+				],
+			},
+		}),
+	);
+	const effectLog = join(root, "intermediary-effects.jsonl");
+	const id = "wf-resume-intermediary";
+	unregister.push(
+		core.registerWorkflowExecutor(workflowFixtureDescriptor({ id, effectLog })),
+	);
+	const started = await engine.runWorkflowSpec(specPath, cwd, {
+		task: "t",
+		executor: id,
+	});
+	assert.equal(
+		(await engine.waitForRun(cwd, started.runId, 90_000)).status,
+		"completed",
+	);
+	const record = await store.readRunRecord(cwd, started.runId);
+	const audit = record.tasks.find((t) => t.specId === "audit.main");
+	const final = record.tasks.find((t) => t.specId === "final.main");
+	markTerminal(
+		audit,
+		"failed",
+		"workflow_output_invalid_exhausted",
+		"invalid output",
+	);
+	markTerminal(
+		final,
+		"blocked",
+		"support_declared_blocked",
+		"support declared blocked",
+	);
+	await writeUnderLease(cwd, started.runId, record);
+	const resumed = await engine.resumeRun(cwd, started.runId);
+	assert.ok(resumed.resetTaskIds.includes(audit.taskId));
+	assert.ok(resumed.resetTaskIds.includes(final.taskId));
+	const again = await engine.waitForRun(cwd, started.runId, 90_000);
+	assert.equal(
+		again.status,
+		"completed",
+		JSON.stringify(
+			again.tasks.map((t) => [t.specId, t.status, t.statusDetail]),
+		),
+	);
 });
