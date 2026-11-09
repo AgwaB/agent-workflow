@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP42 review round 1, finding 2): consent binds the classifier packet. The
 // packet (task, exact candidate list, bounded descriptions) is built once before the consent
 // dialog; exactly that frozen packet is transmitted. A catalog change while the dialog is open

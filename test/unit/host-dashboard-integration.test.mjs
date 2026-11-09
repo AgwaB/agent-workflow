@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP43: a real multi-task engine run and the real dashboard HTTP host (no model).
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";

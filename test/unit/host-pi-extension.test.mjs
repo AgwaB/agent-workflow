@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP11b): the minimal Pi host (src/hosts/pi). A fake Pi ExtensionAPI captures
 // the registrations; a recording wrapper around the real host API checks that every `/aw` action

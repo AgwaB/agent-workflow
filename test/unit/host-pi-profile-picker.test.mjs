@@ -1,3 +1,4 @@
+// test-tier: integration
 // Role-profile picker tests cover probed model lists, previews, and scripted editing.
 // Back/cancel writes nothing; Save writes a user profile or workflow preference via
 // the host API. Fake TUI integration covers Custom launch choices; RPC keeps text.

@@ -1,3 +1,4 @@
+// test-tier: integration
 // 2026-11-01 (owner choice): the dashboard follows the system colour scheme, and a top-bar button
 // pins Light or Dark (kept in the browser) — Auto → Light → Dark → Auto. Light text stays readable.
 import assert from "node:assert/strict";

@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 import { drainWorkflowProject } from "../helpers/workflow-fixture-lifecycle.mjs";
 // New in agent-workflow (WP37 item 1, stage-1 open problem 8): task prompts are rendered per executor

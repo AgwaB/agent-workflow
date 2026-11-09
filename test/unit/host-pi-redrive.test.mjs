@@ -1,3 +1,4 @@
+// test-tier: integration
 // Pi session start re-drives runs without a live driver after an attached launcher exits.
 // Blocked runs stay blocked; uncertain launches require an owner decision, never relaunch.
 // Re-driving binds no audience, and skips live-driven runs. The fixture makes no model calls.

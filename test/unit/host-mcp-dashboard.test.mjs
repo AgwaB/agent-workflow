@@ -1,3 +1,4 @@
+// test-tier: integration
 import { projectId } from "../../dist/core/state-location.js";
 // WP43b: MCP URL consent keeps dashboard credentials out of model-visible tool results.
 import assert from "node:assert/strict";

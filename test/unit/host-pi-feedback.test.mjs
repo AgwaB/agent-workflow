@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP16): the Pi host's status line and completion delivery
 // (src/hosts/pi/feedback.ts) with a fake Pi UI: the footer entry while a run this session launched

@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP31 item 3, owner decisions B2/E4): built-in executor presets codex,
 // claude, pi and mixed. Each is a valid role profile whose executors exist and whose efforts each
 // executor accepts; mixed puts verification on a different model family than research/

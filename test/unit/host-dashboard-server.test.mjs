@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP43: HTTP contract and security against a fixture-backed, replaceable host source.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";

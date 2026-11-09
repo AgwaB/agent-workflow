@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP19, stage-2 review #8): the duplicate-launch fingerprint is the resolved
 // execution identity. The same request from a Claude Code host and a Codex host (each with its own
 // default executor) starts two runs; a changed workflow definition starts a new run; a changed

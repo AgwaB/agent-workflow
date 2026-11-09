@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP6: Pi executor adapter units — argv, tool mapping, readOnly, isolation, MCP/secret plumbing,
 // sessions (D3), Pi-only options, probe parsing, the per-run extension, fresh-process replay.
 import assert from "node:assert/strict";

@@ -1,3 +1,4 @@
+// test-tier: integration
 // Built-in executor default profiles: codex and claude stages that nothing else gives a model or
 // effort take the executor's preset; a preset model the probe does not list falls back to the user's
 // own CLI settings for every stage. Pi keeps its own defaults. No model or agent-CLI calls: probes are

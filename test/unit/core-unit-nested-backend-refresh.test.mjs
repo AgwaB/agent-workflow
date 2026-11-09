@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";

@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // 2026-11-05 (owner: fewer host model turns while waiting). One workflow_wait call waits up to 30 min
 // where the host's per-call limit allows it (Claude Code; the Codex plugin's tool_timeout_sec), else

@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP7: runtime-tier conformance with the codex adapter descriptor (module = the built adapter,
 // config = stub codex path + state dir): durable fencing through a real detached worker, detach
 // rediscovery from a fresh process, approval/cancel relay through the control mailbox.

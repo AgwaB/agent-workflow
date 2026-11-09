@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP18b): retention of the executor adapters' attempt state (Claude, Codex,
 // Pi records under `<stateDir>/attempts/`): terminal records older than the window go with their
 // companions; non-terminal, unreadable and recent records stay; `agent-workflow prune` prunes the

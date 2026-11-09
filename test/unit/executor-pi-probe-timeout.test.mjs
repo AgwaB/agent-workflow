@@ -1,3 +1,4 @@
+// test-tier: integration
 // Live bundle 5 (WP39), D6: `agent-workflow doctor` on a loaded machine said Pi's auth was
 // "unknown" and "could not check for pi-web-access (`pi list` failed)" although pi-web-access is
 // installed: `pi --list-models` took 4.2–5.4 s and a cold `pi list` 4.1 s, over the probe's 4 s

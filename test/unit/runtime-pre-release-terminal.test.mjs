@@ -1,3 +1,4 @@
+// test-tier: integration
 // Pre-release stops must write terminal status/failureKind, clear the active attempt,
 // discard the pristine workspace, and drain ownership through the terminal finalizer.
 import assert from "node:assert/strict";

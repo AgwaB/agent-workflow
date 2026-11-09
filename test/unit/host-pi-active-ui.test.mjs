@@ -1,3 +1,4 @@
+// test-tier: integration
 // The widget lists only session-tracked runs and clears when none are active.
 // Print/JSON shows nothing. Cancelling the TUI wait loader leaves the run running.
 // Use a fixture executor and fake loader, without model or agent CLI calls.

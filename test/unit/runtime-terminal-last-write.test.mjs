@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP2b): terminal-last-write invariant under CPU load. Observers and
 // reconcile rely on: once an attempt's result.json is terminal, every attempt artifact is complete
 // and present (stderr.log, output.log, exec-events.jsonl when a ref exists, a decided

@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // Host-aware next-step hints use CLI commands, Pi /aw commands, or MCP tool calls.
 // The fixture executor makes no model or agent CLI calls.

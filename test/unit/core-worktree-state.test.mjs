@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP39b, live bundle 5 O7): managed worktrees and the project's run/attempt
 // state. The dirty-checkout snapshot never copies `.agent-workflow/` (run and attempt state of this

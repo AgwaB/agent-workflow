@@ -1,3 +1,4 @@
+// test-tier: integration
 // A saved `pi` profile through the real Pi extension: `/aw profile set pi …` edits it, and `aw_run`
 // sends Pi's current model/effort (ctx.model, getThinkingLevel) with the profile's changes to each
 // pi stage. A fixture executor is registered as `pi` in-process (no CLI or model call).

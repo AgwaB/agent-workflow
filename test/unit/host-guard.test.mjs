@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP16): the duplicate-launch guard for detached (and attached) launches,
 // through every caller of the host API: the handlers, the `agent-workflow` CLI, the Pi `aw_run`

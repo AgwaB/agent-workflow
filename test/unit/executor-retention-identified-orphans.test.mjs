@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP19 round 7, stage-2 re-review): the adapter-state orphan sweep removes
 // only names an adapter writes under `attempts/` (hex attemptKey digest alone or with a companion
 // / atomic-write temp suffix). Notes, other tools' files and directories there are never touched,

@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19, stage-2 reviews #5 and #6): Pi completion delivery.
 // #5: a crash between the reservation and `sendMessage` (a pending receipt left by a dead

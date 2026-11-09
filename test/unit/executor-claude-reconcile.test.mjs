@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP37 item 3, parity §3.2 "Claude sessionBound reconcile"): when the worker
 // process that owns a Claude CLI dies, the CLI's stdio and control protocol die with it. A fresh
 // process cannot re-attach (sessionBound) and, unless the raw stream recorded a result, cannot know

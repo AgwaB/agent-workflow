@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // Auto routing and launch capture in a fake Pi session. Show a consent dialog with
 // classifier identity and task, then ranked choices and a separate final confirmation.

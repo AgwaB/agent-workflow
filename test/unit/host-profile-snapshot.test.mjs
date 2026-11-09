@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP19 round 2, re-review N5): the saved per-workflow profile preference is
 // part of the duplicate-launch identity, and the launch runs from the same resolved snapshot.
 // Reviewer scenario: save a preference, launch, change the preference, repeat the same request.

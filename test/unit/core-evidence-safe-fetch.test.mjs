@@ -1,3 +1,4 @@
+// test-tier: integration
 // agent-workflow 2026-11-01: the engine's evidence fetch only reaches public addresses (also after
 // redirects and at DNS time), refuses credentials and non-http schemes, caps bodies while streaming
 // (also after decompression), times out, and asks for Markdown/English first.

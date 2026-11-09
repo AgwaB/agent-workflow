@@ -1,3 +1,4 @@
+// test-tier: integration
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";

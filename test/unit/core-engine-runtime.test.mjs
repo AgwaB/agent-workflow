@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP4c-1): the engine on the runtime API. Workflows run through the real
 // engine → task runner → runtime durable worker → executor descriptor (the SDK fake executor

@@ -1,3 +1,4 @@
+// test-tier: integration
 // Workflow preferences are keyed by name and shared across CLI, Pi, and MCP.
 // Apply the saved profile when none is named and role overrides below run flags.
 // Pi configuration stores are never read.

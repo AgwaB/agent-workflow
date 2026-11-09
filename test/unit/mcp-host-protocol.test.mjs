@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP13): the built `agent-workflow` host MCP server process: startup
 // arguments (`--host` required and checked), the guarded test-executor hook refusing to start,
 // stdio framing and lifecycle through the shared protocol layer (src/mcp/stdio-server.ts), and

@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP13): the built `agent-workflow` host MCP server in a child process
 // against the official MCP TypeScript SDK client (@modelcontextprotocol/sdk, devDependency) over a
 // real stdio transport, with the guarded WP11a test-executor hook (registers `test-fixture`; no model

@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP12d-2 review #9: worker session deletion requires durable ownership evidence. The Codex adapter
 // deletes only threads it created and recorded; resuming a thread it did not create never marks
 // it owned. The Claude adapter follows the same rule for resumed sessions.

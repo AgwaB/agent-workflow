@@ -1,3 +1,4 @@
+// test-tier: integration
 // agent-workflow 2026-11-08 (context-quality backlog X1): each run records the engine version (and
 // its checkout when run from one) and the git state of the run's repository at launch, as hashes.
 import assert from "node:assert/strict";

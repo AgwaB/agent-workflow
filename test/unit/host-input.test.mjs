@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP12a, live bundle 3 open problem 1): `agent-workflow run|dynamic` and
 // Pi `/aw run|dynamic` set workflow inputs with `--input key=value` (repeatable). Values are typed

@@ -1,3 +1,4 @@
+// test-tier: integration
 // 2026-10-31: a durable worker that ends without a result leaves its task blocked for an owner
 // decision. The message now says why the worker stopped (its last log line, or that it left none),
 // so the cause is visible in status/inspect and in a failing test, not only in worker.log.

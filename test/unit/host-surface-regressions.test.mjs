@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // Session-start catch-up delivers at most five messages without starting a new turn.
 // A receipt alone is not proof of delivery; consult the owning session history.

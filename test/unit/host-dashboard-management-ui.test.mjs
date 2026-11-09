@@ -1,3 +1,4 @@
+// test-tier: integration
 // Real Chrome, real dashboard routes and a probe-only fake executor: no model/agent CLI calls.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";

@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP5): path containment, debug-mode gating, secret hygiene and startup
 // refusal of the workflow_artifact MCP server.
 import assert from "node:assert/strict";

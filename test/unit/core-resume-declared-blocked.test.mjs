@@ -1,3 +1,4 @@
+// test-tier: integration
 // agent-workflow 2026-11-08 (found by the L4 live check): deep-research's renderer declares itself blocked when the
 // final audit failed; the run then refused `resume` ("non-resumable blocked task(s): final.main
 // statusDetail=support_declared_blocked") although rerunning the failed stage is what unblocks it. A support block

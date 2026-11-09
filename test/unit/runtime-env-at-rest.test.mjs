@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP2c): SubmitRequest.env and mcpServers[].env values are never written to
 // disk by the runtime (D1: the engine stores no credentials). worker.json keeps only the keys; the
 // values reach the detached durable worker through its spawn environment; the execution plan

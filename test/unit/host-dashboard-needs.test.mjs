@@ -1,3 +1,4 @@
+// test-tier: integration
 // 2026-11-01: a failure in "Needs you" can be dismissed (this browser); executor decisions cannot; the top
 // count follows; "Show N dismissed" restores; a new failure of the same run shows again.
 import assert from "node:assert/strict";

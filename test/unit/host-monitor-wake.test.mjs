@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // 2026-11-05 (owner: wait in code, wake the host once; live checks internal host-wake-20261105):
 // the Claude Code plugin's completion monitor runs `notify-check --follow --session <id>` for its

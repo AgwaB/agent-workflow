@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // Drive the engine launch fence directly; durable stop intent survives the stop budget
 // while a competing supervisor holds the lease.

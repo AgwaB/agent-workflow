@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // WP43: real host-API source over isolated persisted records (no executors or models).
 import assert from "node:assert/strict";

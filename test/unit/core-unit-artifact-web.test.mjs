@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 import { resolveRunExecutorSelection } from "../../dist/core/executor-registry.js";
 import { drainWorkflowFixture } from "../helpers/workflow-fixture-lifecycle.mjs";

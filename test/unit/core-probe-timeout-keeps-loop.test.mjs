@@ -1,3 +1,4 @@
+// test-tier: integration
 // 2026-11-05 (first CI run, Node 22): the probe timeout timer was unref'd, so while a probe hung
 // nothing kept the event loop alive and the process could end with the probe still pending. In a
 // plain module (any Node version) that shows as exit code 13 (unsettled top-level await); with the

@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP12d-2 review #10: child process handlers are attached synchronously after spawn, before any
 // await. An immediate spawn error (ENOENT) becomes a classified `failed` event instead of an
 // uncaught exception, and a CLI that exits at once is still observed to a terminal event.

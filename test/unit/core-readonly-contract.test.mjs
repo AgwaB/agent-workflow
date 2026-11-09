@@ -1,3 +1,4 @@
+// test-tier: integration
 // Authored readOnly intent still drives compilation, scheduling and records. Executor enforcement
 // and capability negotiation are safe-only (owner decision 2026-11-06).
 // Engine runs use a fixture; adapter settings use pure builders. No model/agent-CLI calls.

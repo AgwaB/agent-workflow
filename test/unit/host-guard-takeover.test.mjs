@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19, stage-2 review #1): the duplicate-launch guard's takeover is
 // exclusive and fenced. Two launches that both find the same stale claim can no longer both end

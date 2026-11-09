@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // agent-workflow 2026-11-01: experimental flags that change what a run does are decided at launch and
 // recorded as run.experimentalFlags, so the run behaves the same whichever process drives it later

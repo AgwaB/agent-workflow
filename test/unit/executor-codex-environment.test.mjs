@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP4d): Codex environment probe — `$CODEX_HOME/rules/*.rules` allow rules
 // weaken readOnly, a non-empty global `$CODEX_HOME/AGENTS.md` weakens isolation. Temp CODEX_HOME
 // only; the stub `codex` answers the version/login/models probe commands (no real CLI).

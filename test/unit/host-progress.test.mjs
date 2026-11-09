@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP36, owner decisions E1/E2): host UX for Claude Code and Codex without a
 // model call: `agent-workflow statusline` (Claude Code statusLine command), `agent-workflow watch`

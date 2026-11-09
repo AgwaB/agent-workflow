@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP2b): the durable control channel — a file mailbox in
 // <attemptDir>/control/ served by the process that executes the attempt (here: real detached
 // durable workers running the fake executor fixture). Approvals allow/deny/timeout with the

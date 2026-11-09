@@ -1,3 +1,4 @@
+// test-tier: integration
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile } from "node:fs/promises";

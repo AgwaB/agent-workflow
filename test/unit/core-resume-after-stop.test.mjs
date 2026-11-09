@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP37 item 2, parity §3.2 "resume right after stop"): an attached
 // (in-process) supervisor can still hold the run's supervisor lease for a moment after `stop` has
 // interrupted the run. `resume` then waits a bounded time for the lease instead of refusing at once,

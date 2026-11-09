@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // 2026-10-31 edge cases: a stage a dynamic controller generates (`ctx.agent`) gets the model and
 // effort names of the executor that runs it, like a planned stage. The real engine runs a dynamic

@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP31 items 1-2, owner decision Q4): one run can mix executors by role. Two
 // fixture executors are registered as `claude` and `codex` (no CLI or model call). A saved profile
 // maps roles to executors/models/efforts; every task goes to its own executor, each stage is

@@ -1,3 +1,4 @@
+// test-tier: integration
 // Sanitized projections from real, guarded test-executor runs. No executor/provider is loaded here.
 import assert from "node:assert/strict";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";

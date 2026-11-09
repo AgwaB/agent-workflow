@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP37 item 4, parity §3.2 "saved vs declared profiles", B2 interpretation):
 // a workflow-declared profile no longer replaces the saved user profile as a whole. The precedence
 // run flag > workflow profile > saved user profile > default applies field by field: a declared

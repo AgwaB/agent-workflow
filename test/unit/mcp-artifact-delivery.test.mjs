@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP5, R#9): the delivery bound. Responses never exceed the client's MCP
 // output limit; a cut read is recorded `truncated: true` + `deliveryUnverified: true`, so it can
 // never satisfy a required read. WP5b: an oversized whole-artifact read is served as its first

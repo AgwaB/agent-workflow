@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP33 item 4, parity row 35): host-neutral launch capture. Every host API
 // launch (CLI, Pi `/aw` command and `aw_*` tools, host MCP server) records `run.launch` (schema

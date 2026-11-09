@@ -1,3 +1,4 @@
+// test-tier: integration
 import { createWorkflowRunRecord } from "../helpers/unit-test-support.mjs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";

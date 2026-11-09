@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP16): the Pi host's WP16 surfaces in a real Pi 1.1 process without a model
 // turn (RPC slash commands only, like host-pi-rpc.test.mjs). A run started with `/aw run` on the
 // guarded test executor shows the footer status entry (`setStatus` "agent-workflow"), an identical

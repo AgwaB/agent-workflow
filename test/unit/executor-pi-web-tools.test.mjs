@@ -1,3 +1,4 @@
+// test-tier: integration
 // 2026-11-02 (B6): the Pi probe lists the tools a worker-like Pi session registers, so a web tool
 // that pi-web-access's own config turned off is reported unavailable (and refused before a run)
 // instead of silently missing in the worker. A fake `pi` loads the `-e` extensions with a minimal

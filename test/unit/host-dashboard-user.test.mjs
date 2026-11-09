@@ -1,3 +1,4 @@
+// test-tier: integration
 // User scope, identity, startup races and all-project liveness. Never use the user's fixed ports.
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";

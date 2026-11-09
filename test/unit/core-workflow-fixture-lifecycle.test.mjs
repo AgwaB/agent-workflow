@@ -1,3 +1,4 @@
+// test-tier: integration
 import assert from "node:assert/strict";
 import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

@@ -1,3 +1,4 @@
+// test-tier: integration
 // Pi tools support long waits: default 30 minutes, maximum four hours; /aw wait defaults
 // to 60 seconds. Cancellation stops only the wait. Awaited results are not delivered
 // again; unsettled runs remain tracked. MCP keeps a 45-second cap. Fixture executor only.

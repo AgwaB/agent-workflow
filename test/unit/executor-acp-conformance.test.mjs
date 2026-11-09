@@ -1,3 +1,4 @@
+// test-tier: integration
 // ACP executor pilot: the conformance kit against the scripted ACP agent (offline and runtime
 // tiers). No agent CLI, no model call.
 import assert from "node:assert/strict";

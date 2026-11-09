@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP2c): owner-aware run lock. A lock whose recorded owner is provably dead
 // (pid gone, or pid reused = different birth identity) is stolen race-safely; a live owner, an
 // unreadable owner record or an unverifiable owner (other host) is never stolen.

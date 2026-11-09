@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19, stage-2 review #10): a generic support failure is not presented as a
 // verdict gate. The reviewer's control record — the final support step declared `failed` with

@@ -1,3 +1,4 @@
+// test-tier: integration
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";

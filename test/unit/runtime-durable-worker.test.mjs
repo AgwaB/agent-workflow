@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP2a-2): the executor seam end to end through real durable worker
 // processes — fencing trio (revoke before consume, kill after consume, effect without consume),
 // happy path with a released V2 barrier, fresh-process rediscovery and its refusals, and

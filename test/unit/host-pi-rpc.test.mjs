@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP11b): the Pi host in a real Pi 1.1 process, without a model turn. Pi's
 // RPC mode runs extension slash commands locally: a `prompt` whose response has
 // `data.disposition: "handled"` starts no agent run (Pi docs/rpc.md). The recorded, scrubbed

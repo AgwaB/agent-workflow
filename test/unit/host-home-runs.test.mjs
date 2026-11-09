@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // agent-workflow 2026-11-04 (Claude desktop app: its MCP server starts in ~, and three runs were
 // recorded in ~/.agent-workflow/workflows, the user-level workflow folder): a directory whose

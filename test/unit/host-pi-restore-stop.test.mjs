@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19 round 2, re-review N7): stopping the Pi run tracker while
 // `restore()` awaits the audience read must not resurrect polling. Before the fix the restore

@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // Tool-provider extensions stay in the sealed prepared launch; the Pi executor loads them.
 import assert from "node:assert/strict";

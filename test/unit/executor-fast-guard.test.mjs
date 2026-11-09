@@ -1,3 +1,4 @@
+// test-tier: integration
 // Pi fast-tier guard tests use fake provider streams, a fake extension API, and a stub CLI.
 // Cover priority service tier, payload stamping, binding-failure aborts, degraded support,
 // wrapper stream injection, attempt failure, and negotiation-gated task config.

@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 import { drainWorkflowProject } from "../helpers/workflow-fixture-lifecycle.mjs";
 // The Pi host records owning-session assistant usage while a run is active and

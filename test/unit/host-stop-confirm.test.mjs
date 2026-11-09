@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP12a, live bundle 3 open problem 10): the host `stop` retries only
 // confirm a stop it already requested. Root cause of the host-cli "stop" flake: under load the
 // first stopRun could not confirm within its 1.5 s bound (the detached supervisor held the run

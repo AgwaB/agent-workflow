@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP28, owner decision Q7): every CLI command is a host MCP tool. Through the
 // fake MCP client against an in-process server (runs on the workflow executor fixture; no model or
