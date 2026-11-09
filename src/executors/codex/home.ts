@@ -23,20 +23,22 @@
  * the home path (`storage.rs:259-270`), so a private home would find nothing and `auto` would save a
  * refresh under the private key — or when there is neither an `auth.json` nor an API-key variable.
  */
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
 	chmodSync,
-	copyFileSync,
 	existsSync,
 	lstatSync,
 	mkdirSync,
+	readdirSync,
 	readFileSync,
 	renameSync,
 	rmSync,
 	statSync,
 	symlinkSync,
+	writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
+import { processAlive } from "./state.js";
 
 export type CodexCredentialsStore =
 	| "file"
@@ -122,8 +124,6 @@ export interface CodexWorkerHome {
 	readonly reason?: string;
 	/** Entries linked into the private home (names only). */
 	readonly linked: readonly string[];
-	/** The user's CODEX_HOME the links point into (relocated homes). */
-	readonly userHome?: string;
 }
 
 /**
@@ -172,7 +172,7 @@ export function prepareCodexWorkerHome(options: {
 			linked: [],
 		};
 	}
-	return { path, relocated: true, linked, userHome: options.userHome };
+	return { path, relocated: true, linked };
 }
 
 /** Remove a private worker home; links are removed, their targets untouched. */
@@ -212,57 +212,112 @@ export function reuseCodexWorkerHome(
 			linked.push(name);
 		} catch {}
 	}
-	return { path, relocated: true, linked, userHome };
+	return { path, relocated: true, linked };
 }
 
 /**
- * Review F (2026-11-09, claude-fable-5-1): the private home links the user's auth.json, which is safe
- * because Codex rewrites it in place (0.165 source). Should a Codex version write it by rename instead,
- * the link becomes a regular file holding the refreshed token, and removing the home would drop it while
- * the user's file keeps a refresh token the server may already have rotated out. Before removal such a
- * file is moved back over the user's auth.json when it is newer (rename; a copy only across file
- * systems). agent-workflow does not parse it.
+ * Review F (2026-11-09) and round 3 (gpt-6-astra): linking is safe while Codex writes auth.json in place (0.165
+ * source). Should a Codex version replace the link with a file of its own, that file is kept, never copied over
+ * the user's auth.json: an automatic restore can overwrite a newer or another account's login. It moves to
+ * `keepDir` (mode 0600; the probe reports it) and the user's file is not touched. agent-workflow does not parse it.
+ * Throws when the file cannot be kept, so the caller leaves the home in place instead of deleting it.
  */
-export function restoreReplacedAuth(
+export function keepReplacedAuth(
 	homePath: string,
-	userHome: string | undefined,
-): "linked" | "absent" | "kept-user" | "restored" {
-	if (userHome === undefined) return "absent";
+	keepDir: string,
+): string | undefined {
 	const privateAuth = join(homePath, "auth.json");
-	let stat: ReturnType<typeof lstatSync>;
 	try {
-		stat = lstatSync(privateAuth);
+		const stat = lstatSync(privateAuth);
+		if (stat.isSymbolicLink() || !stat.isFile()) return undefined;
 	} catch {
-		return "absent";
+		return undefined;
 	}
-	if (stat.isSymbolicLink()) return "linked";
-	if (!stat.isFile()) return "absent";
-	const userAuth = join(userHome, "auth.json");
-	let userMtime = 0;
+	mkdirSync(keepDir, { recursive: true, mode: 0o700 });
+	const target = join(
+		keepDir,
+		`${Date.now()}-${randomBytes(6).toString("hex")}.auth.json`,
+	);
 	try {
-		userMtime = statSync(userAuth).mtimeMs;
-	} catch {}
-	if (stat.mtimeMs <= userMtime) return "kept-user";
-	try {
-		renameSync(privateAuth, userAuth);
+		renameSync(privateAuth, target);
+		chmodSync(target, 0o600);
 	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code !== "EXDEV") return "kept-user";
-		const temp = `${userAuth}.${process.pid}.restore`;
-		copyFileSync(privateAuth, temp);
-		chmodSync(temp, 0o600);
-		renameSync(temp, userAuth);
+		if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
+		writeFileSync(target, readFileSync(privateAuth), {
+			mode: 0o600,
+			flag: "wx",
+		});
 	}
-	return "restored";
+	return target;
 }
 
-/** Removes a kept session's private home (the per-session directory around it). */
-export function removeCodexSessionHome(path: string, userHome?: string): void {
-	restoreReplacedAuth(path, userHome);
+/** Removes a kept session's private home (the per-session directory around it), keeping a replaced auth.json. */
+export function removeCodexSessionHome(
+	path: string,
+	keepDir: string,
+): string | undefined {
+	let kept: string | undefined;
+	try {
+		kept = keepReplacedAuth(path, keepDir);
+	} catch {
+		return undefined;
+	}
 	rmSync(dirname(path), { recursive: true, force: true, maxRetries: 3 });
+	return kept;
 }
 
-export function removeCodexWorkerHome(home: CodexWorkerHome): void {
-	if (!home.relocated) return;
-	restoreReplacedAuth(home.path, home.userHome);
+/**
+ * Round 3 (gpt-6-astra): an app-server running in a kept session's home holds a lease on it (its pid), so
+ * deleting the session never removes a home in use. A lease of a process that is gone does not count.
+ */
+export function leaseCodexSessionHome(
+	path: string,
+	attemptKey: string,
+	pid: number,
+): () => void {
+	const dir = join(dirname(path), "leases");
+	const file = join(
+		dir,
+		`${createHash("sha256").update(attemptKey).digest("hex").slice(0, 32)}.json`,
+	);
+	try {
+		mkdirSync(dir, { recursive: true, mode: 0o700 });
+		writeFileSync(file, JSON.stringify({ pid, attemptKey }), { mode: 0o600 });
+	} catch {}
+	return () => rmSync(file, { force: true });
+}
+
+export function codexSessionHomeInUse(path: string): boolean {
+	const dir = join(dirname(path), "leases");
+	let names: string[];
+	try {
+		names = readdirSync(dir);
+	} catch {
+		return false;
+	}
+	return names.some((name) => {
+		try {
+			const lease = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
+				pid?: unknown;
+			};
+			return typeof lease.pid === "number" && processAlive(lease.pid);
+		} catch {
+			return false;
+		}
+	});
+}
+
+export function removeCodexWorkerHome(
+	home: CodexWorkerHome,
+	keepDir: string,
+): string | undefined {
+	if (!home.relocated) return undefined;
+	let kept: string | undefined;
+	try {
+		kept = keepReplacedAuth(home.path, keepDir);
+	} catch {
+		return undefined;
+	}
 	rmSync(home.path, { recursive: true, force: true, maxRetries: 3 });
+	return kept;
 }

@@ -332,3 +332,32 @@ test("engine probe of the codex adapter (stub CLI, clean CODEX_HOME): isolation 
 		else process.env.CODEX_HOME = previous;
 	}
 });
+
+test("probe() reports auth.json files kept aside, never the user's file contents", async () => {
+	// Round 3 (gpt-6-astra): a file that replaced the private home's auth.json link is kept, not restored.
+	const home = await codexHome({});
+	const { cli, dir } = await stubCodex();
+	const stateDir = join(dir, "state");
+	const previous = process.env.CODEX_HOME;
+	process.env.CODEX_HOME = home;
+	try {
+		const executor = createExecutor({ codexPath: cli.path, stateDir });
+		const quiet = await executor.probe();
+		assert.equal(
+			quiet.notes.some((note) => note.includes("replaced-auth")),
+			false,
+		);
+		await mkdir(join(stateDir, "replaced-auth"), { recursive: true });
+		await writeFile(
+			join(stateDir, "replaced-auth", "1-a.auth.json"),
+			'{"secret":"token-value"}',
+		);
+		const probe = await executor.probe();
+		const note = probe.notes.find((line) => line.includes("replaced-auth"));
+		assert.match(note, /^1 auth\.json file\(s\) .* codex login/);
+		assert.equal(note.includes("token-value"), false);
+	} finally {
+		if (previous === undefined) delete process.env.CODEX_HOME;
+		else process.env.CODEX_HOME = previous;
+	}
+});

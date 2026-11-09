@@ -11,7 +11,7 @@
  * (D3).
  */
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { ApprovalDecision } from "../../sdk/approval.js";
 import { requireReleased } from "../../sdk/authority.js";
@@ -46,11 +46,22 @@ import {
 } from "./capabilities.js";
 import {
 	codexSessionHomeDir,
+	codexSessionHomeInUse,
+	decideCodexWorkerHome,
+	leaseCodexSessionHome,
 	prepareCodexWorkerHome,
 	removeCodexSessionHome,
 	removeCodexWorkerHome,
 	reuseCodexWorkerHome,
 } from "./home.js";
+
+function countFiles(dir: string): number {
+	try {
+		return readdirSync(dir).length;
+	} catch {
+		return 0;
+	}
+}
 import {
 	codexEnvironmentCapabilities,
 	codexEnvironmentNotes,
@@ -162,7 +173,9 @@ interface Run {
 	readonly answered: Set<string>;
 	ownedSession?: OwnedSession;
 	/** Private CODEX_HOME of a kept session, recorded with the thread (re-review 2026-11-09). */
-	readonly keptHome?: string;
+	readonly keptHome?: { readonly home: string; readonly userHome: string };
+	/** The kept home is recorded with its thread, so it outlives this attempt (round 3). */
+	keptHomeRecorded?: boolean;
 	readonly rawPath: string | undefined;
 	readonly methodsById: Map<RpcId, string>;
 	stderr: string;
@@ -540,6 +553,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		}
 	};
 	const stateDir = config.stateDir ?? defaultStateDir();
+	const replacedAuthDir = join(stateDir, "replaced-auth");
 	const store = new AttemptStore(stateDir);
 	const threads = new ThreadOwnershipStore(stateDir);
 	const runs = new Map<string, Run>();
@@ -848,8 +862,10 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			if (keep && threadId !== undefined) {
 				// Review #9: a thread is owned only when this adapter created it (durable record
 				// written here) or resumes one it recorded earlier; a resumed foreign thread is not.
-				if (req.resumeSessionId === undefined)
+				if (req.resumeSessionId === undefined) {
 					threads.record(threadId, run.attemptKey, run.keptHome);
+					run.keptHomeRecorded = run.keptHome !== undefined;
+				}
 				if (threads.owns(threadId))
 					run.ownedSession = {
 						kind: CODEX_OWNED_SESSION_KIND,
@@ -976,6 +992,37 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			classify: classifyCodexAttemptRecord,
 			attemptDigestLength: 32,
 		});
+		// C1 (2026-11-08): isolated workers get a private CODEX_HOME (linked auth/config/rules, no
+		// global AGENTS.md) under the attempt's log directory; see home.ts for when it stays shared.
+		// A kept or resumed session's home outlives the attempt (its thread rollout lives there); see home.ts.
+		const env = { ...process.env, ...req.env };
+		const userHome = codexHomeDir(env);
+		const keepSession =
+			req.sessionId !== undefined || req.resumeSessionId !== undefined;
+		const recorded =
+			req.resumeSessionId === undefined
+				? undefined
+				: threads.home(req.resumeSessionId);
+		const resumeHome =
+			recorded !== undefined && existsSync(recorded.home)
+				? recorded
+				: undefined;
+		// Round 3 (gpt-6-astra): a thread outside a private home (not created here, created before private homes,
+		// or its home gone) can only run in the user's home, which loads the global instructions the probe said
+		// isolated workers do not get. Refused before the authority is consumed; inherit context to resume it.
+		if (req.resumeSessionId !== undefined && resumeHome === undefined) {
+			const shared = decideCodexWorkerHome({
+				userHome,
+				env,
+				inherit: req.isolation.inherit,
+			});
+			if (shared.relocate)
+				throw new SdkError(
+					"CAPABILITY_MISSING",
+					`codex thread ${req.resumeSessionId} was not created in a private CODEX_HOME by this adapter; resuming it with context isolation would load ${userHome}'s global instructions (resume it with isolation.inherit)`,
+					{ subject: "contextIsolation" },
+				);
+		}
 		// Last step before the effect (R#1).
 		const decision = await req.authority.consume();
 		if (decision.kind === "revoked")
@@ -999,21 +1046,13 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		} catch {
 			rawPath = undefined;
 		}
-		// C1 (2026-11-08): isolated workers get a private CODEX_HOME (linked auth/config/rules, no
-		// global AGENTS.md) under the attempt's log directory; see home.ts for when it stays shared.
-		// A kept or resumed session's home outlives the attempt (its thread rollout lives there); see home.ts.
-		const env = { ...process.env, ...req.env };
-		const userHome = codexHomeDir(env);
-		const keepSession =
-			req.sessionId !== undefined || req.resumeSessionId !== undefined;
-		const recordedHome =
-			req.resumeSessionId === undefined
-				? undefined
-				: threads.home(req.resumeSessionId);
 		const workerHome =
 			req.resumeSessionId !== undefined
-				? recordedHome !== undefined && existsSync(recordedHome)
-					? reuseCodexWorkerHome(recordedHome, userHome)
+				? resumeHome !== undefined
+					? reuseCodexWorkerHome(
+							resumeHome.home,
+							resumeHome.userHome ?? userHome,
+						)
 					: {
 							path: userHome,
 							relocated: false,
@@ -1042,8 +1081,21 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				stdio: ["pipe", "pipe", "pipe"],
 			},
 		);
+		// Round 3: the app-server holds a lease on a kept home; a home whose thread was never recorded (the
+		// launch failed first) is removed like an ephemeral one; a resumed thread's home stays with the thread.
+		const releaseLease =
+			keepSession && workerHome.relocated && child.pid !== undefined
+				? leaseCodexSessionHome(workerHome.path, req.attemptKey, child.pid)
+				: () => {};
 		child.once("close", () => {
-			if (!keepSession) removeCodexWorkerHome(workerHome);
+			releaseLease();
+			if (req.resumeSessionId !== undefined || run.keptHomeRecorded === true)
+				return;
+			const kept =
+				keepSession && workerHome.relocated
+					? removeCodexSessionHome(workerHome.path, replacedAuthDir)
+					: removeCodexWorkerHome(workerHome, replacedAuthDir);
+			if (kept !== undefined) raw(run, "meta", { replacedAuthKept: kept });
 		});
 		const digest = attemptDigest(req.attemptKey);
 		const redact = createSecretRedactor(requestSecrets(req), {
@@ -1070,7 +1122,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			answered: new Set(),
 			rawPath,
 			...(keepSession && workerHome.relocated
-				? { keptHome: workerHome.path }
+				? { keptHome: { home: workerHome.path, userHome } }
 				: {}),
 			methodsById: new Map(),
 			stderr: "",
@@ -1188,6 +1240,11 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			// WP4d: allow rules weaken readOnly; a global AGENTS.md weakens isolation (warnings).
 			const environment = inspectCodexEnvironment(process.env);
 			notes.push(...codexEnvironmentNotes(environment));
+			const keptAuth = countFiles(replacedAuthDir);
+			if (keptAuth > 0)
+				notes.push(
+					`${keptAuth} auth.json file(s) a Codex worker wrote in place of its linked login are kept in ${replacedAuthDir}; ${environment.codexHome}/auth.json was not changed. If Codex asks you to sign in again, run codex login, then delete the kept files.`,
+				);
 			return {
 				installed: true,
 				cliVersion: match[1],
@@ -1416,11 +1473,23 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			// Not a thread this adapter created and recorded: never touch it (review #9).
 			if (session.kind !== CODEX_OWNED_SESSION_KIND) return "refused";
 			if (!threads.owns(session.locator)) return "refused";
-			// The thread lives in its private home when it was created in one.
-			const home = threads.home(session.locator);
+			// The thread lives in its private home when it was created in one. Round 3 (gpt-6-astra): not while
+			// an app-server still runs in that home, and the home goes only after the deletion server exited.
+			const home = threads.home(session.locator)?.home;
+			const privateHome =
+				home !== undefined && existsSync(home) ? home : undefined;
+			// An attempt's app-server exits just after its terminal event; give it a moment.
+			for (
+				let waited = 0;
+				privateHome !== undefined && codexSessionHomeInUse(privateHome);
+				waited += 100
+			) {
+				if (waited >= 5_000) return "failed";
+				await new Promise((resolve) => setTimeout(resolve, 100));
+			}
 			const child = spawn(codexPath, ["app-server"], {
-				...(home !== undefined && existsSync(home)
-					? { env: { ...process.env, CODEX_HOME: home } }
+				...(privateHome !== undefined
+					? { env: { ...process.env, CODEX_HOME: privateHome } }
 					: {}),
 				stdio: ["pipe", "pipe", "pipe"],
 			});
@@ -1433,6 +1502,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				onServerRequest: (id) => conn.respondError(id, -32601, "not handled"),
 				onClose: () => closed(),
 			});
+			let outcome: DeleteOwnedSessionResult;
 			try {
 				await conn.request("initialize", {
 					clientInfo: {
@@ -1444,22 +1514,20 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				});
 				conn.notify("initialized");
 				await conn.request("thread/delete", { threadId: session.locator });
-				threads.forget(session.locator);
-				if (home !== undefined)
-					removeCodexSessionHome(home, codexHomeDir(process.env));
-				return "deleted";
+				outcome = "deleted";
 			} catch (error) {
-				if (!/not found|no rollout|unknown thread/i.test(String(error)))
-					return "failed";
-				threads.forget(session.locator);
-				if (home !== undefined)
-					removeCodexSessionHome(home, codexHomeDir(process.env));
-				return "not_found";
+				outcome = /not found|no rollout|unknown thread/i.test(String(error))
+					? "not_found"
+					: "failed";
 			} finally {
 				conn.end();
 				await withTimeout(done, 3_000);
 				if (child.exitCode === null) child.kill("SIGKILL");
 			}
+			if (outcome === "failed") return outcome;
+			threads.forget(session.locator);
+			if (home !== undefined) removeCodexSessionHome(home, replacedAuthDir);
+			return outcome;
 		},
 	};
 	return executor;

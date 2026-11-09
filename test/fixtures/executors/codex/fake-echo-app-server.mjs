@@ -29,6 +29,8 @@ function readMcpEnv(config) {
 }
 
 async function runTurn() {
+	// Keeps the turn running (round 3: deletion while an app-server is still in the session home).
+	await sleep(Number(process.env.FAKE_CODEX_TURN_DELAY_MS ?? 0));
 	const secrets = [process.env.ECHO_SECRET ?? "", ...mcpValues].filter(Boolean);
 	const echoed = secrets.join(" ");
 	const item = {
