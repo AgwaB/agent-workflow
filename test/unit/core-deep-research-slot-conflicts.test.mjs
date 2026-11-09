@@ -12,8 +12,10 @@ import finalPacket from "../../workflows/deep-research/helpers/final-audit-packe
 import normalizeInputPacket from "../../workflows/deep-research/helpers/normalize-input-packet.mjs";
 import render from "../../workflows/deep-research/helpers/render-executive.mjs";
 import {
+	collapseCompatibleValues,
 	detectSlotConflicts,
 	parseStructuredDate,
+	textNamesEntity,
 	valuesStatedBy,
 } from "../../workflows/deep-research/helpers/slot-conflicts.mjs";
 
@@ -251,6 +253,29 @@ const researchSources = {
 	]),
 };
 
+test("compatible date precisions collapse; short entity names match only when bound", () => {
+	assert.deepEqual(collapseCompatibleValues("date", ["2021", "2021-05"]), [
+		"2021-05",
+	]);
+	assert.deepEqual(collapseCompatibleValues("date", ["2021-05", "2022-05"]), [
+		"2021-05",
+		"2022-05",
+	]);
+	assert.deepEqual(
+		collapseCompatibleValues("date", ["2021", "2021-05", "2021-06"]),
+		["2021-05", "2021-06"],
+	);
+	assert.deepEqual(collapseCompatibleValues("number", ["9000", "9000"]), [
+		"9000",
+	]);
+	assert.equal(textNamesEntity("Go was released in May 2021.", "Go", 1), true);
+	assert.equal(
+		textNamesEntity("Google was released in May 2021.", "Go", 1),
+		false,
+	);
+	assert.equal(textNamesEntity("Go was released in May 2021.", "Go"), false);
+});
+
 test("numbers are compared only within the same unit words", () => {
 	const facts = (a, b) => [
 		{ id: "f1", slotId: "s", entity: "cache", factType: "size", value: a },
@@ -276,6 +301,22 @@ test("numbers are compared only within the same unit words", () => {
 		detectSlotConflicts({ extractedFacts: facts("120 ms", "250 ms") }).conflicts
 			.length,
 		1,
+	);
+	// approximation words are not a unit; bound words keep values apart (re-review 2026-11-09)
+	assert.equal(
+		detectSlotConflicts({ extractedFacts: facts("about 500 ms", "700 ms") })
+			.conflicts.length,
+		1,
+	);
+	assert.equal(
+		detectSlotConflicts({ extractedFacts: facts("약 500 ms", "700 ms") })
+			.conflicts.length,
+		1,
+	);
+	assert.equal(
+		detectSlotConflicts({ extractedFacts: facts("at least 500 ms", "700 ms") })
+			.conflicts.length,
+		0,
 	);
 });
 
@@ -324,6 +365,7 @@ async function finalPacketFor({
 	verifierStatus,
 	claimText,
 	bestValue = "May 2021",
+	extraVerifiedClaims = [],
 }) {
 	const inputPacket = await normalizeInputPacket({
 		sources: researchSources,
@@ -392,6 +434,15 @@ async function finalPacketFor({
 		},
 	});
 	for (const row of audit.claimDigests) row.verifierOwner = owner;
+	// Further verified claims on the slot (re-review 2026-11-09 cases), as the audit would list them.
+	extraVerifiedClaims.forEach((text, index) =>
+		audit.claimDigests.push({
+			...audit.claimDigests[0],
+			id: `claim-10${index + 1}`,
+			claim: text,
+			status: "verified",
+		}),
+	);
 	audit.verifierOwnerLedger = [owner];
 	return finalPacket({
 		sources: {
@@ -556,6 +607,52 @@ test("the final packet keeps a contested slot conflicting until a verified claim
 		/bestValue replaced by claim-001 \(it stated a rejected value\)/,
 	);
 	assert.equal(validateJsonSchema(stale, packetSchema).valid, true);
+
+	// Re-review 2026-11-09 (gpt-6-astra): a claim stating both values may not be dropped while another
+	// claim settles the contest; a slot the normalizer already filled also gets its stale bestValue replaced.
+	const contradiction = await finalPacketFor({
+		normalizedStatus: "conflicting",
+		verifierStatus: "verified",
+		claimText:
+			"RFC 9000 was published in May 2021, not May 2022 as the note claims.",
+		extraVerifiedClaims: ["RFC 9000 was published in May 2022."],
+	});
+	assert.equal(
+		contradiction.packet.contestedSlots[0].resolution.status,
+		"unresolved",
+	);
+	assert.match(
+		contradiction.packet.contestedSlots[0].resolution.reason,
+		/claim-001 state several values/,
+	);
+	assert.equal(
+		contradiction.packet.factSlotCoverage.find(
+			(row) => row.slotId === "slot-001",
+		).status,
+		"conflicting",
+	);
+	const agreeing = await finalPacketFor({
+		normalizedStatus: "conflicting",
+		verifierStatus: "verified",
+		claimText: "RFC 9000 was published in May 2021.",
+		extraVerifiedClaims: ["RFC 9000 was published in 2021."],
+	});
+	assert.deepEqual(agreeing.packet.contestedSlots[0].resolution.values, [
+		"2021-05",
+	]);
+	const preFilled = await finalPacketFor({
+		normalizedStatus: "filled",
+		verifierStatus: "verified",
+		claimText: "RFC 9000 was published in May 2021.",
+		bestValue: "May 2022",
+	});
+	const preFilledSlot = preFilled.packet.factSlotCoverage.find(
+		(row) => row.slotId === "slot-001",
+	);
+	assert.equal(preFilledSlot.status, "filled");
+	assert.equal(preFilledSlot.bestValue, "RFC 9000 was published in May 2021.");
+	assert.match(preFilledSlot.gapReason, /bestValue replaced by claim-001/);
+	assert.equal(validateJsonSchema(preFilled, packetSchema).valid, true);
 
 	// Report: the contest is in the audit, and an unresolved one in the reader's limits.
 	for (const [packet, expectResolved] of [

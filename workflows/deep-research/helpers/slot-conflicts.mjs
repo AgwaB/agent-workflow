@@ -155,12 +155,17 @@ const normalizeEntity = (value) =>
 		.replace(/[\s\p{P}\p{S}]+/gu, " ")
 		.trim();
 
-/** The words around a short scalar's numbers ("RFC 9000" → "rfc", "50%" → "percent", "1 MB" → "mb"). */
+/**
+ * The words around a short scalar's numbers ("RFC 9000" → "rfc", "50%" → "percent", "1 MB" → "mb").
+ * Approximation words are not a unit ("about 500 ms" compares with "700 ms"; re-review 2026-11-09);
+ * bound words ("at least", "up to") stay, since a bound does not contradict a value inside it.
+ */
 function unitOfScalar(value) {
 	return normalizeEntity(
 		String(value ?? "")
 			.toLowerCase()
 			.replace(/%/g, " percent ")
+			.replace(/~|≈|\b(?:about|approx|approximately|roughly|around|circa|ca|nearly)\b|약|대략|거의/gu, " ")
 			.replace(/\d+(?:[.,]\d+)*/g, " "),
 	);
 }
@@ -224,14 +229,18 @@ export function isLocalDocumentEntity(entity) {
 	return LOCAL_DOCUMENT.test(stringOf(entity) ?? "");
 }
 
-/** Whether `text` names `entity` as a whole name (normalized; not "http 3" in "http 30"). */
-export function textNamesEntity(text, entity) {
-	return namesEntity(normalizeEntity(text), normalizeEntity(entity));
+/**
+ * Whether `text` names `entity` as a whole name (normalized; not "http 3" in "http 30"). Names shorter
+ * than `minLength` never match (free prose uses 3; a resolver bound to a known entity may use 1 so "Go"
+ * can match — re-review 2026-11-09).
+ */
+export function textNamesEntity(text, entity, minLength = 3) {
+	return namesEntity(normalizeEntity(text), normalizeEntity(entity), minLength);
 }
 
 /** Whether a normalized name occurs in normalized text as a whole name (not "http 3" in "http 30"). */
-function namesEntity(text, name) {
-	if (name.length < 3) return false;
+function namesEntity(text, name, minLength = 3) {
+	if (!name || name.length < minLength) return false;
 	let from = 0;
 	for (;;) {
 		const at = text.indexOf(name, from);
@@ -248,16 +257,18 @@ function namesEntity(text, name) {
  * text, and named entities that have dated observations — on the fact's own slot first,
  * else on exactly one other slot. Anything ambiguous stays unmapped.
  */
-function mappedLocalDocumentFacts(facts, planSlots = []) {
-	// A slot's plan entities name one subject ("HTTP/3", "RFC 9114"); several named entities are one
-	// target only when they are aliases there. Review 2026-11-09: a sentence naming RFC 9114 and RFC 9000
-	// on one slot gave its date to both and invented a conflict for RFC 9000.
-	const aliasesBySlot = new Map(
-		asArray(planSlots).map((slot) => [
-			stringOf(slot.id) ?? stringOf(slot.slotId),
-			new Set(asArray(slot.entities).map(normalizeEntity).filter(Boolean)),
-		]),
-	);
+function mappedLocalDocumentFacts(facts) {
+	// Several named entities are one target only when the data says they are one subject: an external
+	// observation on that slot whose entity names them all ("RFC 9114 / HTTP/3"). Review 2026-11-09: a
+	// sentence naming RFC 9114 and RFC 9000 gave its date to both; re-review: plan slot entities are
+	// comparison entities, not aliases (a recorded slot listed six distinct RFCs).
+	const entityNamesBySlot = new Map();
+	for (const fact of facts) {
+		const slotId = stringOf(fact.slotId);
+		if (!slotId || isLocalDocumentEntity(fact.entity)) continue;
+		const name = normalizeEntity(fact.entity);
+		if (name) entityNamesBySlot.set(slotId, [...(entityNamesBySlot.get(slotId) ?? []), name]);
+	}
 	const datedGroups = new Map();
 	for (const fact of facts) {
 		const slotId = stringOf(fact.slotId);
@@ -286,8 +297,13 @@ function mappedLocalDocumentFacts(facts, planSlots = []) {
 		const sameSlot = named.filter((group) => group.slotId === ownSlot);
 		const targets = sameSlot.length > 0 ? sameSlot : named;
 		if (targets.length === 0 || new Set(targets.map((group) => group.slotId)).size !== 1) continue;
-		const aliases = aliasesBySlot.get(targets[0].slotId) ?? new Set();
-		if (targets.length > 1 && !targets.every((group) => aliases.has(group.name))) continue;
+		if (
+			targets.length > 1 &&
+			!(entityNamesBySlot.get(targets[0].slotId) ?? []).some((entityName) =>
+				targets.every((group) => namesEntity(entityName, group.name)),
+			)
+		)
+			continue;
 		const [date] = dates.values();
 		for (const target of targets)
 			mapped.push({
@@ -311,7 +327,7 @@ export function detectSlotConflicts({ planSlots = [], extractedFacts = [] } = {}
 		asArray(planSlots).map((slot) => [stringOf(slot.id) ?? stringOf(slot.slotId), stringOf(slot.label)]),
 	);
 	const groups = new Map();
-	const local = mappedLocalDocumentFacts(asArray(extractedFacts), planSlots);
+	const local = mappedLocalDocumentFacts(asArray(extractedFacts));
 	for (const fact of [...asArray(extractedFacts), ...local.mapped]) {
 		const slotId = stringOf(fact.slotId);
 		if (!slotId || slotId === "unslotted") continue;
@@ -378,6 +394,27 @@ export function detectSlotConflicts({ planSlots = [], extractedFacts = [] } = {}
 			action: "route_to_verifier",
 		})),
 	};
+}
+
+/**
+ * Collapses values that do not contradict each other: a year and a year-month of that year are one
+ * date (the year-month is kept), so a claim "May 2021" matching both "2021" and "2021-05" states one
+ * value (re-review 2026-11-09). Numbers are compared as given.
+ */
+export function collapseCompatibleValues(aspect, values) {
+	const unique = [...new Set(asArray(values))];
+	if (aspect !== "date") return unique;
+	const parsed = unique.map((value) => ({ value, date: parseStructuredDate(value) }));
+	return parsed
+		.filter(
+			({ value, date }) =>
+				!date ||
+				date.month !== undefined ||
+				!parsed.some(
+					(other) => other.value !== value && other.date?.year === date.year && other.date?.month !== undefined,
+				),
+		)
+		.map(({ value }) => value);
 }
 
 /**
