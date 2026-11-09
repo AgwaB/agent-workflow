@@ -254,21 +254,26 @@ function namesEntity(text, name, minLength = 3) {
 
 /**
  * Whether an entity label is just these names written as one subject ("RFC 9114 / HTTP/3",
- * "HTTP/3 (RFC 9114)"): nothing but the names, slashes, parentheses and punctuation that is part of a
- * name. A comparison or a list ("RFC 9000 vs RFC 9114", "QUIC, HTTP/3", "RFC 9000·RFC 9114",
- * "RFC 9000–RFC 9114") only says they occur together (round-3 and round-4 reviews, gpt-6-astra).
+ * "HTTP/3 (RFC 9114)"): each name is masked where it occurs, and what remains may be only whitespace,
+ * slashes and parentheses. A comparison or a list ("RFC 9000 vs RFC 9114", "QUIC, HTTP/3",
+ * "RFC 9000·RFC 9114", "Model-A - Model-B") only says they occur together (round-3/4/5 reviews, gpt-6-astra).
+ * A name not found as written in the label (another spelling) makes it no alias.
  */
 function isAliasLabel(label, targets) {
-	const punctuation = (text) => new Set(text.match(/[\p{P}\p{S}]/gu) ?? []);
-	const allowed = new Set(["/", "(", ")"]);
-	for (const target of targets) for (const mark of punctuation(target.entity)) allowed.add(mark);
-	if ([...punctuation(label)].some((mark) => !allowed.has(mark))) return false;
-	let rest = ` ${normalizeEntity(label)} `;
-	for (const name of targets.map((target) => target.name).sort((a, b) => b.length - a.length)) {
-		if (!rest.includes(` ${name} `)) return false;
-		rest = rest.split(` ${name} `).join(" ");
+	let rest = label;
+	for (const entity of targets.map((target) => target.entity).sort((a, b) => b.length - a.length)) {
+		const pattern = new RegExp(
+			`(?<![\\p{L}\\p{N}])${entity
+				.trim()
+				.split(/\s+/)
+				.map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+				.join("\\s*")}(?![\\p{L}\\p{N}])`,
+			"giu",
+		);
+		if (!pattern.test(rest)) return false;
+		rest = rest.replace(pattern, " ");
 	}
-	return rest.trim() === "";
+	return /^[\s/()]*$/u.test(rest);
 }
 
 /**

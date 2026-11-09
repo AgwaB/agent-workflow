@@ -1576,6 +1576,8 @@ function koreanCompoundValues(text) {
 	for (const match of text.matchAll(run)) {
 		let total = 0;
 		let section = 0;
+		// Whether this section wrote any coefficient: "0천만" has one (zero), "만" has none (round-5 review).
+		let written = false;
 		for (const part of match[0].matchAll(/(\d+(?:[.,]\d+)?)?\s*([십백천만억조])?/gu)) {
 			const [, digits, unit] = part;
 			if (digits === undefined && unit === undefined) continue;
@@ -1587,13 +1589,14 @@ function koreanCompoundValues(text) {
 								? digits.replace(/,/g, "")
 								: digits.replace(",", "."),
 						);
+			if (number !== undefined) written = true;
 			if (unit in KOREAN_SMALL_UNITS) section += (number ?? 1) * KOREAN_SMALL_UNITS[unit];
 			else if (unit in KOREAN_LARGE_UNITS) {
-				// No coefficient written ("만") is one; an explicit zero ("0억") stays zero (round-4 review).
-				const coefficient =
-					number === undefined && section === 0 ? 1 : section + (number ?? 0);
+				// No coefficient written ("만") is one; an explicit zero ("0억", "0천만") stays zero (round-4/5 reviews).
+				const coefficient = written ? section + (number ?? 0) : 1;
 				total += coefficient * KOREAN_LARGE_UNITS[unit];
 				section = 0;
+				written = false;
 			} else section += number ?? 0;
 		}
 		values.push(total + section);

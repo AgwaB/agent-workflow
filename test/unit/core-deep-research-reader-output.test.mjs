@@ -480,6 +480,9 @@ test("numbersDroppedBy keeps faithful Korean number forms and catches real drops
 		// round-4 review: an explicit zero is not an implied one
 		["100 million won", "0억 원", ["100"]],
 		["10,000 won", "0만원", ["10000"]],
+		// round-5 review: a zero coefficient inside a compound section
+		["10,000 won", "0천만 원", ["10000"]],
+		["100 million won", "0백억 원", ["100"]],
 	])
 		assert.deepEqual(
 			numbersDroppedBy(source, translated),
