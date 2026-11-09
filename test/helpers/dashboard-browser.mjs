@@ -58,8 +58,18 @@ export async function createBrowser(executable) {
 			...(process.getuid?.() === 0 ? ["--no-sandbox"] : []),
 			"about:blank",
 		],
-		{ stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] },
+		{ stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"] },
 	);
+	// 2026-11-09 (round-4 validation): a Chrome that ended its pipe during startup surfaced only as an uncaught
+	// EPIPE from cleanup. Keep its stderr tail and exit, and never let a pipe error escape.
+	let stderrTail = "";
+	let exitError;
+	chrome.stderr.on("data", (chunk) => {
+		stderrTail = (stderrTail + chunk.toString()).slice(-4000);
+	});
+	chrome.stdio[3].on("error", (error) => {
+		exitError ??= error;
+	});
 	let sequence = 0,
 		buffer = "",
 		session,
@@ -80,6 +90,7 @@ export async function createBrowser(executable) {
 	// 60 s command bound each (two such waits exceeded the 120 s test timeout and hid the cause).
 	chrome.on("exit", (code, signal) => {
 		const error = new Error(`Chrome exited (code ${code}, signal ${signal})`);
+		exitError ??= error;
 		for (const p of pending.values()) {
 			clearTimeout(p.timer);
 			p.reject(error);
@@ -133,6 +144,12 @@ export async function createBrowser(executable) {
 	) =>
 		new Promise((resolve, reject) => {
 			if (startupError) return reject(startupError);
+			if (
+				exitError ||
+				chrome.stdio[3].destroyed ||
+				chrome.stdio[3].writableEnded
+			)
+				return reject(exitError ?? new Error("Chrome closed its command pipe"));
 			const id = ++sequence;
 			const timer = setTimeout(() => {
 				pending.delete(id);
@@ -331,8 +348,11 @@ export async function createBrowser(executable) {
 		await send("Network.enable");
 		await send("Log.enable");
 	} catch (error) {
-		await close();
-		throw error;
+		await close().catch(() => undefined);
+		throw new Error(
+			`Chrome failed to start: ${error.message}${stderrTail.trim() ? `\nChrome stderr (tail):\n${stderrTail.trim()}` : ""}`,
+			{ cause: error },
+		);
 	}
 	// 2026-11-05 (CI: a fixed 450 ms after a 0.28 s transition read the rail mid-way on a slower
 	// macOS runner): wait until every finite animation and transition has run out (two frames
