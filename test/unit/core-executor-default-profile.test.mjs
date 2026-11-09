@@ -473,32 +473,34 @@ test("engine: a codex run probes once, keeps the listed preset model, else uses 
 
 test("engine: a hung probe fails once within the probe timeout", async (t) => {
 	const cwd = await project();
-	// 2026-11-10: instead of "finished within 380 ms", one probe timeout of fake time must settle the preflight; a
-	// second wait on the cached hung probe would need another 200 ms.
-	let probed = false;
-	t.mock.timers.enable({ apis: ["setTimeout"] });
-	let settled = false;
-	const result = preflight(cwd, {
-		executor: "claude",
-		executorProbeTimeoutMs: 200,
-		executorProber: () => {
-			probed = true;
-			return new Promise(() => undefined);
-		},
-	}).finally(() => {
-		settled = true;
+	// 2026-11-10: counted, not timed. The probe timeout expires once; waiting on the cached hung probe again would
+	// let a second one expire. (Was "< 380 ms", then fake timers with a bounded number of loop turns, which a
+	// loaded CI runner exceeded: run 42672469975.)
+	const timeoutMs = 237;
+	let expired = 0;
+	const original = globalThis.setTimeout;
+	t.after(() => {
+		globalThis.setTimeout = original;
 	});
-	result.catch(() => undefined);
-	for (let i = 0; i < 200 && !probed; i += 1)
-		await new Promise((r) => setImmediate(r));
-	assert.equal(probed, true, "the probe started");
-	t.mock.timers.tick(200);
-	for (let i = 0; i < 200 && !settled; i += 1)
-		await new Promise((r) => setImmediate(r));
-	assert.equal(settled, true, "the probe timeout was waited twice");
-	t.mock.timers.reset();
+	globalThis.setTimeout = function (callback, ms, ...rest) {
+		if (ms !== timeoutMs) return original.call(this, callback, ms, ...rest);
+		return original.call(
+			this,
+			(...args) => {
+				expired += 1;
+				callback(...args);
+			},
+			ms,
+			...rest,
+		);
+	};
 	await assert.rejects(
-		result,
-		/executor "claude" probe did not finish within 200 ms/,
+		preflight(cwd, {
+			executor: "claude",
+			executorProbeTimeoutMs: timeoutMs,
+			executorProber: () => new Promise(() => undefined),
+		}),
+		/executor "claude" probe did not finish within 237 ms/,
 	);
+	assert.equal(expired, 1, "the probe timeout was waited twice");
 });
