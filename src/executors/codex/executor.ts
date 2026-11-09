@@ -1566,13 +1566,15 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 					: acquireCodexSessionDeletion(privateHome);
 			if (releaseDeletion === undefined) return "failed";
 			try {
-				// An attempt's app-server exits just after its terminal event; give it a moment.
-				for (
-					let waited = 0;
-					privateHome !== undefined && codexSessionHomeInUse(privateHome);
-					waited += 100
+				// An attempt's app-server exits just after its terminal event; give it a moment. Wall-clock bound
+				// (CI 42610709189): counting 100 ms per loop ignored the time each lease check takes (`ps`), so a slow
+				// machine waited far past 5 s and deleted the home once the attempt ended.
+				const waitUntil = Date.now() + 5_000;
+				while (
+					privateHome !== undefined &&
+					codexSessionHomeInUse(privateHome)
 				) {
-					if (waited >= 5_000) return "failed";
+					if (Date.now() >= waitUntil) return "failed";
 					await new Promise((resolve) => setTimeout(resolve, 100));
 				}
 				const child = spawn(codexPath, ["app-server"], {

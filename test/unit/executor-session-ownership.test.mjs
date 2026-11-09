@@ -3,7 +3,14 @@
 // it owned. The Claude adapter follows the same rule for resumed sessions.
 import assert from "node:assert/strict";
 import { existsSync, readdirSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	mkdtemp,
+	readdir,
+	readFile,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -400,6 +407,53 @@ test("round 4 (codex): deletion removes the home only after its server exited", 
 		false,
 		"the deletion server had exited when deletion returned",
 	);
+});
+
+test("deletion of a session in use gives up after 5 s of wall-clock time, however slow each lease check is", async (t) => {
+	// CI 42610709189 (macos, Node 22): the wait counted 100 ms per loop while each check ran `ps`; a slow ps let the
+	// deletion wait past the in-use attempt's end and delete. A fake `ps` taking 300 ms per call reproduces it on
+	// macOS (Linux reads /proc, so there it checks the plain path).
+	const { dir, config } = await codexSetup(t);
+	const executor = createCodexExecutor(config);
+	const kept = await drain(
+		executor,
+		await executor.submit(
+			request(dir, "codex-keep-slowps", { sessionId: "keep-slowps" }),
+		),
+		{ timeoutMs: 15_000 },
+	);
+	const owned = kept.terminal.ownedSession;
+	const bin = join(dir, "slow-bin");
+	await mkdir(bin, { recursive: true });
+	await writeFile(
+		join(bin, "ps"),
+		"#!/bin/sh\nsleep 0.3\necho 'Mon Nov  9 00:00:00 2026'\n",
+		{ mode: 0o755 },
+	);
+	const previousPath = process.env.PATH;
+	process.env.PATH = `${bin}:${previousPath}`;
+	t.after(() => {
+		process.env.PATH = previousPath;
+	});
+	// This process holds a lease on the kept home, as a running attempt would.
+	const { writeCodexSessionLease } = await import(
+		"../../dist/executors/codex/home.js"
+	);
+	const keptHome = join(
+		config.stateDir,
+		"session-homes",
+		(await readdir(join(config.stateDir, "session-homes")))[0],
+		"home",
+	);
+	writeCodexSessionLease(keptHome, "holder", [process.pid]);
+	const started = Date.now();
+	assert.equal(
+		await createCodexExecutor(config).deleteOwnedSession(owned),
+		"failed",
+	);
+	const elapsed = Date.now() - started;
+	assert.ok(elapsed < 8_000, `gave up after ${elapsed} ms`);
+	assert.equal(existsSync(keptHome), true);
 });
 
 test("review #9 (claude): resuming a foreign session does not make it owned", async (t) => {
