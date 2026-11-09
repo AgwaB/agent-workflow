@@ -53,6 +53,7 @@ import {
 /** The app-server a launch spawned (round 5): stopped by `launch` when its setup then fails. */
 interface LaunchState {
 	child?: ChildProcessWithoutNullStreams;
+	run?: Run;
 }
 
 function countFiles(dir: string): number {
@@ -968,6 +969,22 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		try {
 			return await launchUnguarded(req, state);
 		} catch (error) {
+			// Round 6: a run registered before setup failed is finished, so observers and reconcile do not wait on
+			// a connection that will never terminalize it (the durable record keeps its consumed evidence).
+			const run = state.run;
+			if (run !== undefined && !run.done) {
+				const message = error instanceof Error ? error.message : String(error);
+				try {
+					emit(
+						run,
+						failureEvent(message, classifyCodexFailure({ message }), {
+							error: message,
+						}),
+					);
+				} catch {
+					run.done = true;
+				}
+			}
 			const child = state.child;
 			if (child && child.exitCode === null && child.signalCode === null) {
 				const exited = new Promise<void>((resolve) =>
@@ -1101,14 +1118,6 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			if (kept !== undefined && wired.run !== undefined)
 				raw(wired.run, "meta", { replacedAuthKept: kept });
 		});
-		if (config.testFaults?.failAfterSpawn === true) {
-			// Test only: once the server has started (its first stderr output, at most 5 s).
-			await new Promise<void>((resolve) => {
-				child.stderr.once("data", () => resolve());
-				setTimeout(resolve, 5_000).unref();
-			});
-			throw new Error("injected fault: fail after spawn");
-		}
 		const digest = attemptDigest(req.attemptKey);
 		const redact = createSecretRedactor(requestSecrets(req), {
 			minLength: 8,
@@ -1139,7 +1148,16 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			stderrRedact: redact.stream(),
 		};
 		wired.run = run;
+		state.run = run;
 		runs.set(req.attemptKey, run);
+		if (config.testFaults?.failAfterSpawn === true) {
+			// Test only: after the run is registered and the server has started (first stderr output, at most 5 s).
+			await new Promise<void>((resolve) => {
+				child.stderr.once("data", () => resolve());
+				setTimeout(resolve, 5_000).unref();
+			});
+			throw new Error("injected fault: fail after spawn");
+		}
 		store.write({
 			attemptKey: req.attemptKey,
 			phase: "spawned",
