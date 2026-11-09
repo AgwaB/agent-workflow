@@ -25,6 +25,7 @@ const PARTIAL_CONSUMERS = [
 	"audit-claims",
 	"final-audit-packet",
 	"final-audit",
+	"translation-check",
 	"final",
 ];
 
@@ -84,6 +85,8 @@ test("resuming a failed audit packet reruns the synthesis and render built from 
 	assert.deepEqual(specOf(current, plan.invalidatedTaskIds).sort(), [
 		"final-audit.main",
 		"final.main",
+		"retranslate.item",
+		"translation-check.main",
 	]);
 
 	// Without the declarations the completed synthesis and render would be kept as they are.
