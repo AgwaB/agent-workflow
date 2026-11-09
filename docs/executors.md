@@ -97,7 +97,11 @@ A stage that inherits only part of the user's context (`isolation.scope`: its ag
 `inheritProjectContext` → context files, `inheritSkills` → skills) keeps every other flag above and the
 private MCP config; only `--no-context-files` and/or `--no-skills` are dropped. A bare
 `inherit: true` (no scope) loads user extensions, skills, context files and `mcp.json`; injected
-servers register on the built-in MCP implementation.
+servers register on the built-in MCP implementation. Workflow stages always send a scope, so a workflow's
+Pi workers never load the user's extensions, prompt templates or themes, even when the agent inherits
+context; the adapter adds only `pi-web-access` (`-e`) for web tools. An extension a model provider needs
+(for example an authentication extension) is therefore not available to workflow stages; only an SDK
+caller's bare `inherit: true` loads it.
 
 User `settings.json` values not overridden by flags still apply, including retry, compaction,
 transport, shell prefix, `httpProxy` and cache warming. Pi has no per-run settings flag.
@@ -356,18 +360,21 @@ Codex), `config.toml` and `rules/` and carries no `AGENTS.md`, skills,
 plugins, memories or history; it is removed when the app-server exits, and only when every directory below the
 state directory is a plain directory (never through a symlink); one that cannot be prepared fails the attempt
 rather than running in the user's home. A request that keeps a session (`sessionId`) keeps the Codex thread,
-but under isolation that thread lives in the attempt's private home and ends with it; an isolated
-`resumeSessionId` is refused before launch with `CAPABILITY_MISSING`, since a resumed thread could only run in
-the user's home. Resume with `isolation.inherit` (the user's home). Workflows never resume Codex threads.
+but under isolation that thread lives in the attempt's private home and ends with it. A `resumeSessionId` that
+would otherwise run in a private home is refused before launch with `CAPABILITY_MISSING`, since a resumed thread
+can only run in the user's home; resume with `isolation.inherit`. Where isolated attempts use the user's home
+anyway (below), resume works there. Workflows never resume Codex threads. Earlier versions kept such sessions
+under `<stateDir>/session-homes/`; current versions do not use that directory, and you may delete it once no
+older agent-workflow process runs.
 Codex writes refreshed tokens in place, so the linked `auth.json` stays the one credential file every
 Codex process shares. Should a Codex version replace the link with a file of its own, the user's
 `auth.json` is never overwritten: that file is moved to `<stateDir>/replaced-auth/` (mode 0600) when
 the home is removed, and the probe (`agent-workflow doctor`) reports it; if Codex then asks you to sign
 in again, run `codex login` and delete the kept files. The user's
 home is kept instead (and the probe says why) when the stage inherits user context, when
-`cli_auth_credentials_store` is not `file` (the keyring store keys credentials by the home path), when
-there is neither an `auth.json` nor an `OPENAI_API_KEY`/`CODEX_API_KEY` variable, or when links cannot
-be created. agent-workflow never parses credential files (it only moves or, across file systems, copies a
+`cli_auth_credentials_store` is not `file` (the keyring store keys credentials by the home path), or
+when there is neither an `auth.json` nor an `OPENAI_API_KEY`/`CODEX_API_KEY` variable. agent-workflow never parses
+credential files (it only moves or, across file systems, copies a
 replaced `auth.json` as bytes). Project `AGENTS.md`, skills, plugins,
 apps and personal MCP tools are disabled. MCP disabling uses thread config: per-server argv overrides
 fail validation on 0.159.2, while `-c mcp_servers={}` merges rather than replacing.
@@ -544,7 +551,7 @@ remote-control notifications are redacted. Messages sent to the CLI remain uncha
 | systemPrompt | native, append | declared | `developerInstructions`; live, 0.159.2 |
 | modelSelect | native | probed | live, 0.159.2 |
 | effortLevels | low, medium, high, xhigh, max, ultra | — | `model/list`; `codex debug models` |
-| resume | native, native | probed | live, 0.159.2 |
+| resume | native, native | probed | live, 0.159.2; refused under isolation when a private home is used |
 | partialStream | native | probed | `item/agentMessage/delta` |
 | usage | native, tokens | probed | turn usage notifications |
 | toolTelemetry | native | probed | live, 0.159.2 |

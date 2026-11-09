@@ -312,6 +312,17 @@ test("codex: a launch that fails leaves no private home, and one failing after s
 		}
 	}
 	assert.equal(alive, false, "the app-server of a failed launch was stopped");
+	// Round-6 review: the run registered before the failure is finished, so observers do not wait forever.
+	const found = await failing.reconcile("codex-fail-after-spawn");
+	assert.ok(found.found, JSON.stringify(found));
+	const { terminal: failedTerminal } = await drain(failing, found.found, {
+		timeoutMs: 5_000,
+	});
+	assert.equal(failedTerminal.type, "failed");
+	assert.match(
+		failedTerminal.message ?? JSON.stringify(failedTerminal),
+		/fail after spawn/,
+	);
 	for (let i = 0; i < 50 && homesLeft().length > 0; i += 1)
 		await new Promise((resolve) => setTimeout(resolve, 20));
 	assert.deepEqual(homesLeft(), []);

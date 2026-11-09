@@ -67,9 +67,20 @@ export async function createBrowser(executable) {
 	chrome.stderr.on("data", (chunk) => {
 		stderrTail = (stderrTail + chunk.toString()).slice(-4000);
 	});
-	chrome.stdio[3].on("error", (error) => {
+	// Round-6 review: a command-pipe error, or Chrome closing its response pipe, fails pending commands at once
+	// instead of after their 60 s timeout.
+	const failPending = (error) => {
 		exitError ??= error;
-	});
+		for (const p of pending.values()) {
+			clearTimeout(p.timer);
+			p.reject(exitError);
+		}
+		pending.clear();
+	};
+	chrome.stdio[3].on("error", failPending);
+	chrome.stdio[4].on("close", () =>
+		failPending(new Error("Chrome closed its DevTools pipe")),
+	);
 	let sequence = 0,
 		buffer = "",
 		session,
@@ -312,6 +323,8 @@ export async function createBrowser(executable) {
 			// Bounded: an unresponsive Chrome is killed below rather than awaited for 60 s.
 			await send("Browser.close", {}, null, 3000);
 		} catch {}
+		// Its DevTools pipe already gone, Chrome cannot answer Browser.close: stop it now.
+		if (chrome.exitCode === null && exitError) chrome.kill();
 		if (chrome.exitCode === null && !startupError)
 			await new Promise((resolve) => {
 				chrome.once("exit", resolve);
