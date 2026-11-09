@@ -253,21 +253,37 @@ function namesEntity(text, name, minLength = 3) {
 }
 
 /**
+ * Whether an entity label is just these names written as one subject ("RFC 9114 / HTTP/3",
+ * "HTTP/3 (RFC 9114)"): nothing but the names, slashes and parentheses. A comparison or a list
+ * ("RFC 9000 vs RFC 9114", "QUIC, HTTP/3", "QUIC – HTTP/3") only says they occur together
+ * (round-3 review 2026-11-09, gpt-6-astra).
+ */
+function isAliasLabel(label, names) {
+	if (/[,;&+|]|\s[-–—]\s/.test(label)) return false;
+	let rest = ` ${normalizeEntity(label)} `;
+	for (const name of [...names].sort((a, b) => b.length - a.length)) {
+		if (!rest.includes(` ${name} `)) return false;
+		rest = rest.split(` ${name} `).join(" ");
+	}
+	return rest.trim() === "";
+}
+
+/**
  * A local-document fact restated under the entity its text names: one year-month in its value
  * text, and named entities that have dated observations — on the fact's own slot first,
  * else on exactly one other slot. Anything ambiguous stays unmapped.
  */
 function mappedLocalDocumentFacts(facts) {
 	// Several named entities are one target only when the data says they are one subject: an external
-	// observation on that slot whose entity names them all ("RFC 9114 / HTTP/3"). Review 2026-11-09: a
-	// sentence naming RFC 9114 and RFC 9000 gave its date to both; re-review: plan slot entities are
-	// comparison entities, not aliases (a recorded slot listed six distinct RFCs).
-	const entityNamesBySlot = new Map();
+	// observation on that slot whose entity is an alias label of them all ("RFC 9114 / HTTP/3"). Review
+	// 2026-11-09: a sentence naming RFC 9114 and RFC 9000 gave its date to both; re-review: plan slot
+	// entities are comparison entities, not aliases; round 3: so is "RFC 9000 vs RFC 9114".
+	const entityLabelsBySlot = new Map();
 	for (const fact of facts) {
 		const slotId = stringOf(fact.slotId);
-		if (!slotId || isLocalDocumentEntity(fact.entity)) continue;
-		const name = normalizeEntity(fact.entity);
-		if (name) entityNamesBySlot.set(slotId, [...(entityNamesBySlot.get(slotId) ?? []), name]);
+		const label = stringOf(fact.entity);
+		if (!slotId || !label || isLocalDocumentEntity(fact.entity)) continue;
+		entityLabelsBySlot.set(slotId, [...(entityLabelsBySlot.get(slotId) ?? []), label]);
 	}
 	const datedGroups = new Map();
 	for (const fact of facts) {
@@ -299,8 +315,11 @@ function mappedLocalDocumentFacts(facts) {
 		if (targets.length === 0 || new Set(targets.map((group) => group.slotId)).size !== 1) continue;
 		if (
 			targets.length > 1 &&
-			!(entityNamesBySlot.get(targets[0].slotId) ?? []).some((entityName) =>
-				targets.every((group) => namesEntity(entityName, group.name)),
+			!(entityLabelsBySlot.get(targets[0].slotId) ?? []).some((label) =>
+				isAliasLabel(
+					label,
+					targets.map((group) => group.name),
+				),
 			)
 		)
 			continue;

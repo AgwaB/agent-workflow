@@ -106,7 +106,7 @@ rejected value is replaced by the settling claim (also on a slot the normalizer 
 claim under "Contested values". Prose values are not compared, with one exception: an observation whose
 entity is a local document (`notes.md`) and whose text states exactly one year-month is compared under
 the one entity its text names (several only when an observation on that slot names them as one subject,
-such as "RFC 9114 / HTTP/3"), on the
+such as "RFC 9114 / HTTP/3" or "HTTP/3 (RFC 9114)"; "RFC 9000 vs RFC 9114" does not), on the
 observation's own slot or else on exactly one other slot, so a note that misdates a fact meets the
 external value; the audit names the document. The audit also lists reader-facing
 sentences that tell the reader a local file is wrong while citing numbers or dates of a kind the file
