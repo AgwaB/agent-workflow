@@ -477,6 +477,9 @@ test("numbersDroppedBy keeps faithful Korean number forms and catches real drops
 		["12,345 rows", "12.345개", ["12345"]],
 		["1,500 users", "1천 명", ["1500"]],
 		["1,500 users", "1천500.5명", ["1500"]],
+		// round-4 review: an explicit zero is not an implied one
+		["100 million won", "0억 원", ["100"]],
+		["10,000 won", "0만원", ["10000"]],
 	])
 		assert.deepEqual(
 			numbersDroppedBy(source, translated),
