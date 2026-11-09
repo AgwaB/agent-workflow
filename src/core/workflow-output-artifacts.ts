@@ -109,7 +109,8 @@ export type WorkflowOutputRepairCode =
 	| "control_final_synthesis_array_caps"
 	| "control_enum_near_miss"
 	| "control_object_row_from_string"
-	| "json_invalid_escape";
+	| "json_invalid_escape"
+	| "json_missing_closers";
 
 export interface WorkflowOutputRepair {
 	code: WorkflowOutputRepairCode;
@@ -1050,7 +1051,16 @@ function parseControlSection(
 	options: ParseWorkflowOutputOptions,
 ): Record<string, unknown> | undefined {
 	if (text === undefined) return undefined;
-	const parsed = parseJsonSection(text, SECTION_CONTROL, issues, repairs);
+	const issueCount = issues.length;
+	let parsed = parseJsonSection(text, SECTION_CONTROL, issues, repairs);
+	if (parsed === undefined && options.controlJsonSchema !== undefined) {
+		const closed = closedControlMatchingSchema(text, options.controlJsonSchema);
+		if (closed !== undefined) {
+			issues.splice(issueCount);
+			repairs.push(...closed.repairs);
+			parsed = closed.value;
+		}
+	}
 	if (parsed === undefined) return undefined;
 	if (!isPlainRecord(parsed)) {
 		issues.push({
@@ -2937,6 +2947,98 @@ function sectionText(
  * invalid; cline's parseJsonStream refuses to repair those for the same reason). References: MetaGPT
  * `repair_escape_error`; qwen-code and cline fall back to jsonrepair, which also repairs these.
  */
+/**
+ * A control whose only break is missing closing brackets, accepted when the closed text passes the
+ * stage's control schema: the schema confirms the closers produced the intended shape. Without a
+ * schema a missing closer stays invalid (truncation is not guessed at).
+ */
+function closedControlMatchingSchema(
+	text: string,
+	schema: JsonSchema,
+):
+	| { value: Record<string, unknown>; repairs: WorkflowOutputRepair[] }
+	| undefined {
+	const escaped = repairInvalidJsonEscapes(text);
+	const closed = closeMissingJsonBrackets(escaped.text);
+	if (closed === undefined) return undefined;
+	let value: unknown;
+	try {
+		value = JSON.parse(closed.text);
+	} catch {
+		return undefined;
+	}
+	if (!isPlainRecord(value) || !validateJsonSchema(value, schema).valid)
+		return undefined;
+	return {
+		value,
+		repairs: [
+			{
+				code: "json_missing_closers",
+				section: SECTION_CONTROL,
+				message: `${closed.added} missing closing bracket(s) added to control; the result passed the control schema`,
+			},
+			...(escaped.count > 0
+				? [
+						{
+							code: "json_invalid_escape" as const,
+							section: SECTION_CONTROL,
+							message: `${escaped.count} invalid JSON escape(s) or raw control character(s) in control made literal`,
+						},
+					]
+				: []),
+		],
+	};
+}
+
+/**
+ * 2026-11-09: deep-research's final audit nests its control four levels deep; recorded attempts
+ * (6 of the recorded final-audit JSON failures) ended "…}]}}" without the root's "}", or closed an
+ * object where its array still needed "]". Each cost a full xhigh retry. This adds closing
+ * brackets only — where the text ends with open brackets, or right before a closer that skips an
+ * open array/object — and only when the text already ends with a closer and no string is left
+ * open (a cut-off output is not completed; cf. cline parseJsonStream's unterminated-string guard).
+ * Nothing is removed or reordered; the result must still parse and pass the stage's control schema
+ * (`closedControlMatchingSchema`). Earlier policy (6a31f13) added no bracket at all; extra quotes,
+ * stray text and schema-less controls still fail.
+ */
+export function closeMissingJsonBrackets(
+	text: string,
+): { text: string; added: number } | undefined {
+	if (!/[}\]]\s*$/.test(text)) return undefined;
+	const stack: string[] = [];
+	let out = "";
+	let added = 0;
+	let inString = false;
+	let escaped = false;
+	for (const char of text) {
+		if (inString) {
+			out += char;
+			if (escaped) escaped = false;
+			else if (char === "\\") escaped = true;
+			else if (char === '"') inString = false;
+			continue;
+		}
+		if (char === '"') inString = true;
+		else if (char === "{" || char === "[") stack.push(char === "{" ? "}" : "]");
+		else if (char === "}" || char === "]") {
+			const at = stack.lastIndexOf(char);
+			if (at < 0) return undefined;
+			while (stack.length - 1 > at) {
+				out += stack.pop();
+				added += 1;
+			}
+			stack.pop();
+		}
+		out += char;
+	}
+	if (inString) return undefined;
+	while (stack.length > 0) {
+		out += stack.pop();
+		added += 1;
+	}
+	return added > 0 ? { text: out, added } : undefined;
+}
+
 export function repairInvalidJsonEscapes(text: string): {
 	text: string;
 	count: number;
