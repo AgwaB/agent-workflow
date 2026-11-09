@@ -38,7 +38,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { processAlive } from "./state.js";
+import { processAlive, processStartIdentity } from "./state.js";
 
 export type CodexCredentialsStore =
 	| "file"
@@ -282,7 +282,11 @@ export function leaseCodexSessionHome(
 	);
 	try {
 		mkdirSync(dir, { recursive: true, mode: 0o700 });
-		writeFileSync(file, JSON.stringify({ pid, attemptKey }), { mode: 0o600 });
+		writeFileSync(
+			file,
+			JSON.stringify({ pid, attemptKey, start: processStartIdentity(pid) }),
+			{ mode: 0o600 },
+		);
 	} catch {}
 	return () => rmSync(file, { force: true });
 }
@@ -299,12 +303,61 @@ export function codexSessionHomeInUse(path: string): boolean {
 		try {
 			const lease = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
 				pid?: unknown;
+				start?: unknown;
 			};
-			return typeof lease.pid === "number" && processAlive(lease.pid);
+			if (typeof lease.pid !== "number" || !processAlive(lease.pid))
+				return false;
+			// A reused pid is another process (2026-11-09): its start time differs. Unknown start: still held.
+			if (typeof lease.start !== "string") return true;
+			const start = processStartIdentity(lease.pid);
+			return start === undefined || start === lease.start;
 		} catch {
 			return false;
 		}
 	});
+}
+
+/**
+ * A crash between creating a kept session's home and recording its thread leaves a home that no ownership
+ * record names, so no session release removes it (2026-11-09). Such homes older than `minAgeMs` (a launch
+ * records its thread within seconds) that no live lease holds are removed, a replaced auth.json kept first.
+ */
+export function sweepOrphanCodexSessionHomes(options: {
+	readonly stateDir: string;
+	readonly recordedHomes: ReadonlySet<string>;
+	readonly keepDir: string;
+	readonly minAgeMs?: number;
+	readonly now?: number;
+}): string[] {
+	const root = join(options.stateDir, "session-homes");
+	const minAgeMs = options.minAgeMs ?? 24 * 60 * 60 * 1000;
+	const now = options.now ?? Date.now();
+	let names: string[];
+	try {
+		names = readdirSync(root);
+	} catch {
+		return [];
+	}
+	const removed: string[] = [];
+	for (const name of names) {
+		const home = join(root, name, "home");
+		if (options.recordedHomes.has(home) || codexSessionHomeInUse(home))
+			continue;
+		try {
+			if (now - lstatSync(join(root, name)).mtimeMs < minAgeMs) continue;
+		} catch {
+			continue;
+		}
+		if (!existsSync(home)) {
+			rmSync(join(root, name), { recursive: true, force: true, maxRetries: 3 });
+			removed.push(join(root, name));
+			continue;
+		}
+		const before = existsSync(join(root, name));
+		removeCodexSessionHome(home, options.keepDir);
+		if (before && !existsSync(join(root, name))) removed.push(join(root, name));
+	}
+	return removed;
 }
 
 export function removeCodexWorkerHome(

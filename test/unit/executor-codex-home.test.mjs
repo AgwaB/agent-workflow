@@ -32,7 +32,9 @@ import {
 	leaseCodexSessionHome,
 	removeCodexWorkerHome,
 	reuseCodexWorkerHome,
+	sweepOrphanCodexSessionHomes,
 } from "../../dist/executors/codex/home.js";
+import { processStartIdentity } from "../../dist/executors/codex/state.js";
 
 let root;
 let counter = 0;
@@ -322,5 +324,84 @@ test("a kept session's home lease counts only while its process lives", () => {
 		codexSessionHomeInUse(path),
 		false,
 		"a dead process holds no lease",
+	);
+});
+
+test("a lease names its process by start time, so a reused pid does not hold it", async () => {
+	// 2026-11-09: a crashed attempt's pid reused by another process kept deletion failing.
+	const dir = codexSessionHomeDir(join(root, `state-${++counter}`), "reuse");
+	const path = join(dir, "home");
+	assert.ok(processStartIdentity(process.pid), "start time readable here");
+	const release = leaseCodexSessionHome(path, "attempt-1", process.pid);
+	assert.equal(codexSessionHomeInUse(path), true);
+	release();
+	await mkdir(join(dir, "leases"), { recursive: true });
+	const leaseFile = join(dir, "leases", "reused.json");
+	await writeFile(
+		leaseFile,
+		JSON.stringify({
+			pid: process.pid,
+			attemptKey: "old",
+			start: "another process",
+		}),
+	);
+	assert.equal(
+		codexSessionHomeInUse(path),
+		false,
+		"same pid, different start: not held",
+	);
+	await writeFile(
+		leaseFile,
+		JSON.stringify({ pid: process.pid, attemptKey: "old" }),
+	);
+	assert.equal(
+		codexSessionHomeInUse(path),
+		true,
+		"a lease without a start time still counts",
+	);
+});
+
+test("orphan kept-session homes are swept: old, unrecorded and unleased only", async () => {
+	const home = await userHome({ config: 'model = "x"\n' });
+	const stateDir = join(root, `state-${++counter}`);
+	const keepDir = join(stateDir, "replaced-auth");
+	const make = (key) =>
+		prepareCodexWorkerHome({
+			userHome: home,
+			dir: codexSessionHomeDir(stateDir, key),
+			env: noKeys,
+		}).path;
+	const orphan = make("orphan");
+	const recorded = make("recorded");
+	const young = make("young");
+	const leased = make("leased");
+	const replaced = make("replaced");
+	leaseCodexSessionHome(leased, "attempt-leased", process.pid);
+	await unlink(join(replaced, "auth.json"));
+	await writeFile(join(replaced, "auth.json"), "rotated");
+	const now = Date.now() + 2 * 24 * 60 * 60 * 1000;
+	const recent = new Date(now - 60 * 60 * 1000);
+	await utimes(join(young, ".."), recent, recent);
+	const removed = sweepOrphanCodexSessionHomes({
+		stateDir,
+		recordedHomes: new Set([recorded]),
+		keepDir,
+		now,
+	});
+	assert.deepEqual(
+		removed.map((dir) => join(dir, "home")).sort(),
+		[orphan, replaced].sort(),
+	);
+	for (const kept of [recorded, young, leased])
+		assert.equal(existsSync(kept), true, kept);
+	assert.equal(existsSync(join(orphan, "..")), false);
+	assert.deepEqual(
+		readdirSync(keepDir).length,
+		1,
+		"the replaced auth.json is kept, not deleted",
+	);
+	assert.equal(
+		readFileSync(join(home, "auth.json"), "utf8"),
+		'{"tokens":"not-read"}',
 	);
 });

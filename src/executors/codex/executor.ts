@@ -53,6 +53,7 @@ import {
 	removeCodexSessionHome,
 	removeCodexWorkerHome,
 	reuseCodexWorkerHome,
+	sweepOrphanCodexSessionHomes,
 } from "./home.js";
 
 function countFiles(dir: string): number {
@@ -554,6 +555,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 	};
 	const stateDir = config.stateDir ?? defaultStateDir();
 	const replacedAuthDir = join(stateDir, "replaced-auth");
+	let sweptSessionHomes = false;
 	const store = new AttemptStore(stateDir);
 	const threads = new ThreadOwnershipStore(stateDir);
 	const runs = new Map<string, Run>();
@@ -987,6 +989,17 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				},
 			);
 		// WP18b: old terminal attempt records are pruned in the background (at most every 6 h).
+		// 2026-11-09: kept-session homes a crash left without a thread record (once per executor).
+		if (!sweptSessionHomes) {
+			sweptSessionHomes = true;
+			try {
+				sweepOrphanCodexSessionHomes({
+					stateDir,
+					recordedHomes: threads.recordedHomes(),
+					keepDir: replacedAuthDir,
+				});
+			} catch {}
+		}
 		schedulePeriodicAdapterStatePrune({
 			stateDir,
 			classify: classifyCodexAttemptRecord,
