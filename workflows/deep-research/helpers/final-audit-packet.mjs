@@ -1,4 +1,4 @@
-import { textNamesEntity, valuesStatedBy } from "./slot-conflicts.mjs";
+import { collapseCompatibleValues, textNamesEntity, valuesStatedBy } from "./slot-conflicts.mjs";
 import { buildSynthesisPages } from "./synthesis-pages.mjs";
 import { findSource, asArray, asObject, stringOf } from "./source-access.mjs";
 
@@ -229,39 +229,36 @@ function reconcileFactSlotCoverageWithAudit(
 // across research observations) stays `conflicting` unless a verified audited claim on that slot
 // states one of the competing values; that claim resolves it. A normalizer that marked the slot
 // filled, or a verifier that verified a claim about another aspect of the slot, does not.
-function reconcileContestedSlots(factSlots, claimDigests, slotConflicts, planSlots = []) {
-	const aliasesBySlot = new Map(
-		asArray(planSlots).map((slot) => [stringOf(slot?.id) ?? stringOf(slot?.slotId), compactStrings(slot?.entities, 8)]),
-	);
-	// Review 2026-11-09 (gpt-6-astra, claude-fable-5-1): a resolver must name the contested entity (or a
-	// plan alias of it on that slot) and state exactly one of the values ("May 2021, not May 2022"
-	// states both); resolvers that settle on different values leave the slot unresolved.
-	const namesFor = (conflict) => {
-		const entity = stringOf(conflict.entity);
-		const aliases = aliasesBySlot.get(conflict.slotId) ?? [];
-		const isAlias = entity && aliases.some((alias) => textNamesEntity(alias, entity) && textNamesEntity(entity, alias));
-		return [...new Set([entity, ...(isAlias ? aliases : [])].filter(Boolean))];
-	};
+function reconcileContestedSlots(factSlots, claimDigests, slotConflicts) {
+	// Review 2026-11-09 (gpt-6-astra, claude-fable-5-1) and re-review: the claims that bear on a contest are
+	// the verified claims on its slot that name its entity (short names allowed; plan slot entities are
+	// not aliases). One that states several incompatible values ("May 2021, not May 2022") keeps the contest
+	// open, as do claims settling on different values; compatible precisions ("2021", "2021-05") are one.
 	const conflicts = asArray(slotConflicts?.conflicts).filter(
 		(conflict) => stringOf(conflict?.slotId) && Array.isArray(conflict?.values),
 	);
 	if (conflicts.length === 0) return { factSlots, contestedSlots: [] };
 	const contestedSlots = conflicts.map((conflict) => {
-		const names = namesFor(conflict);
-		const resolvers = claimDigests
+		const entity = stringOf(conflict.entity);
+		const bearing = claimDigests
 			.filter(
 				(claim) =>
 					stringOf(claim.status) === "verified" &&
 					compactStrings(claim.factSlotIds, 12).includes(conflict.slotId) &&
-					(names.length === 0 || names.some((name) => textNamesEntity(claim.claim, name))),
+					(!entity || textNamesEntity(claim.claim, entity, 1)),
 			)
 			.map((claim) => ({
 				claimId: idOf(claim),
 				claim: stringOf(claim.claim),
-				stated: valuesStatedBy(conflict, claim.claim),
+				stated: collapseCompatibleValues(conflict.aspect, valuesStatedBy(conflict, claim.claim)),
 			}))
-			.filter((row) => row.claimId && row.stated.length === 1);
-		const settled = [...new Set(resolvers.flatMap((row) => row.stated))];
+			.filter((row) => row.claimId && row.stated.length > 0);
+		const ambiguous = bearing.filter((row) => row.stated.length > 1);
+		const resolvers = bearing.filter((row) => row.stated.length === 1);
+		const settled = collapseCompatibleValues(
+			conflict.aspect,
+			resolvers.flatMap((row) => row.stated),
+		);
 		return {
 			id: stringOf(conflict.id),
 			slotId: conflict.slotId,
@@ -277,7 +274,14 @@ function reconcileContestedSlots(factSlots, claimDigests, slotConflicts, planSlo
 				files: compactStrings(entry.files, 4),
 			})),
 			resolution:
-				settled.length === 1
+				ambiguous.length > 0
+					? {
+							status: "unresolved",
+							claimIds: bearing.map((row) => row.claimId),
+							values: [],
+							reason: `verified claim(s) ${ambiguous.map((row) => row.claimId).join(", ")} state several values`,
+						}
+					: settled.length === 1
 					? {
 							status: "resolved_by_verified_claim",
 							claimIds: resolvers.map((row) => row.claimId),
@@ -323,6 +327,29 @@ function reconcileContestedSlots(factSlots, claimDigests, slotConflicts, planSlo
 			// every contest on it was settled by a verified claim and no audited claim on the slot is
 			// conflicting, the slot is filled with the settled value(s) instead of staying conflicting.
 			const resolved = resolvedBySlot.get(slot.slotId);
+			// Review 2026-11-09: a bestValue stating a value the resolution rejected is replaced by the
+			// settling claim's text — for every resolved slot, whatever status the normalizer gave it.
+			const stale = unresolved
+				? undefined
+				: resolved?.find(
+					(row) =>
+						typeof slot.bestValue === "string" &&
+						valuesStatedBy(
+							{
+								...row,
+								values: row.values
+									.filter((entry) => !row.resolution.values.includes(entry.value))
+									.map((entry) => ({ normalized: entry.value })),
+							},
+							slot.bestValue,
+						).length > 0,
+				);
+			const bestValueFix = stale?.resolution.settlingClaim
+				? {
+						bestValue: stale.resolution.settlingClaim,
+						note: `bestValue replaced by ${stale.resolution.claimIds[0]} (it stated a rejected value)`,
+					}
+				: undefined;
 			if (
 				!unresolved &&
 				resolved &&
@@ -338,32 +365,23 @@ function reconcileContestedSlots(factSlots, claimDigests, slotConflicts, planSlo
 								.join(", ")})`,
 					)
 					.join("; ")}`;
-				// Review 2026-11-09: a bestValue stating a value the resolution rejected is replaced by the
-				// settling claim's text, so the filled slot does not carry the losing value.
-				const stale = resolved.find(
-					(row) =>
-						typeof slot.bestValue === "string" &&
-						valuesStatedBy(
-							{ ...row, values: row.values.filter((entry) => !row.resolution.values.includes(entry.value)).map((entry) => ({ normalized: entry.value })) },
-							slot.bestValue,
-						).length > 0,
-				);
 				return {
 					...slot,
 					status: "filled",
-					...(stale?.resolution.settlingClaim
-						? { bestValue: stale.resolution.settlingClaim }
-						: {}),
-					gapReason: [
-						slot.gapReason,
-						note,
-						stale ? `bestValue replaced by ${stale.resolution.claimIds[0]} (it stated a rejected value)` : undefined,
-					]
+					...(bestValueFix ? { bestValue: bestValueFix.bestValue } : {}),
+					gapReason: [slot.gapReason, note, bestValueFix?.note]
 						.filter(Boolean)
 						.join("; "),
 				};
 			}
-			if (!unresolved) return slot;
+			if (!unresolved)
+				return bestValueFix
+					? {
+							...slot,
+							bestValue: bestValueFix.bestValue,
+							gapReason: [slot.gapReason, bestValueFix.note].filter(Boolean).join("; "),
+						}
+					: slot;
 			const reason = `contested ${unresolved
 				.map(
 					(row) =>
@@ -584,7 +602,6 @@ export default async function finalAuditPacket({ sources }) {
 		factSlotReconciliation.factSlots,
 		claimDigests,
 		inputPacket.packet?.slotConflicts,
-		asArray(inputPacket.packet?.plan?.factSlots ?? plan.factSlots),
 	);
 	const factSlotCoverage = contestedReconciliation.factSlots;
 	const contestedSlots = contestedReconciliation.contestedSlots;

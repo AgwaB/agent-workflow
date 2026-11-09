@@ -107,8 +107,10 @@ test("ambiguous or undated local statements are not compared", () => {
 		assert.equal(detect([fact]).conflicts.length, 0, name);
 });
 
-test("a sentence naming two entities of one slot maps only when the plan lists them as aliases", () => {
+test("a sentence naming two entities of one slot maps only when an observation names them as one subject", () => {
 	// Review 2026-11-09: the date belongs to RFC 9114; giving it to RFC 9000 too invented a conflict.
+	// Re-review: plan slot entities are comparison entities, not aliases — only the data can say two names
+	// are one subject (an external observation whose entity names both, e.g. "RFC 9114 / HTTP/3").
 	const facts = [
 		{
 			id: "e1",
@@ -134,12 +136,27 @@ test("a sentence naming two entities of one slot maps only when the plan lists t
 		detectSlotConflicts({ extractedFacts: facts }).conflicts.length,
 		0,
 	);
-	// recorded months run: the plan lists HTTP/3 and RFC 9114 as one slot's entities
+	assert.equal(
+		detectSlotConflicts({
+			planSlots: [{ id: "slot-001", entities: ["RFC 9000", "RFC 9114"] }],
+			extractedFacts: facts,
+		}).conflicts.length,
+		0,
+		"plan entities do not make RFC 9000 and RFC 9114 one subject",
+	);
+	// recorded months run: an observation "RFC 9114 / HTTP/3" names both, so the note maps to both
 	const aliases = detectSlotConflicts({
-		planSlots: [{ id: "slot-004", entities: ["HTTP/3", "RFC 9114"] }],
 		extractedFacts: [
 			{
 				id: "e3",
+				slotId: "slot-004",
+				entity: "RFC 9114 / HTTP/3",
+				factType: "version",
+				value: "v",
+				dateOrYear: "June 2022",
+			},
+			{
+				id: "e4",
 				slotId: "slot-004",
 				entity: "RFC 9114",
 				factType: "version",
@@ -147,7 +164,7 @@ test("a sentence naming two entities of one slot maps only when the plan lists t
 				dateOrYear: "2022-06",
 			},
 			{
-				id: "e4",
+				id: "e5",
 				slotId: "slot-004",
 				entity: "HTTP/3",
 				factType: "scope",

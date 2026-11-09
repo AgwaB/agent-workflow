@@ -98,14 +98,15 @@ symbol-spacing tolerance only for math; without it, source verification is model
 Deep-research compares structured research observations by code: when workers report different dates
 or numbers for the same fact slot and entity, the slot is contested (`slotConflicts` in the
 normalizer's input packet); numbers are compared only when written with the same unit words ("1 MB" and
-"1024 KB" are not). The normalizer must route it to verification; the final packet keeps the slot
-`conflicting` until verified claims that name the entity (or a plan alias of it on that slot) state
-exactly one of the values — a claim stating both, or claims settling on different values, leave it
-unresolved. Then the slot is `filled`, the other value named, and a `bestValue` stating the rejected value is
-replaced by the settling claim; the report lists the competing values, their sources and the settling
+"1024 KB" are not; approximation words such as "about" do not count as units). The normalizer must route it to verification; the final packet keeps the slot
+`conflicting` until verified claims that name the entity state exactly one of the values (a year and a
+year-month of that year count as one) — a claim stating several values, or claims settling on different
+values, leave it unresolved. Then the slot is `filled`, the other value named, and a `bestValue` stating the
+rejected value is replaced by the settling claim (also on a slot the normalizer had already filled); the report lists the competing values, their sources and the settling
 claim under "Contested values". Prose values are not compared, with one exception: an observation whose
 entity is a local document (`notes.md`) and whose text states exactly one year-month is compared under
-the one entity its text names (several only when the plan lists them as one slot's entities), on the
+the one entity its text names (several only when an observation on that slot names them as one subject,
+such as "RFC 9114 / HTTP/3"), on the
 observation's own slot or else on exactly one other slot, so a note that misdates a fact meets the
 external value; the audit names the document. The audit also lists reader-facing
 sentences that tell the reader a local file is wrong while citing numbers or dates of a kind the file
