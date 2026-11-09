@@ -1253,7 +1253,7 @@ Full adapter limits: [Pi](https://github.com/AgwaB/agent-workflow/blob/main/docs
 | `stop` says pending (exit 1) | Another supervisor owns the run and did not confirm within 15 s; it applies the durable stop intent. Check with `agent-workflow status <run>`. |
 | The CLI prints a test-executor warning or exits 2 on every command | `AGENT_WORKFLOW_TEST_EXECUTOR_MODULE` is set; unset it (test-only hook). |
 | Changed a bundled workflow but the run still uses the old one | Runs execute their copied `bundle/`; start a new run. |
-| `resume` of an older run stops with `launch-bootstrap provenance is malformed` | A rebuilt `foreach` child of that run had a launch retry or resume under an earlier version, whose session ids did not carry the rebuild generation. The check refuses those records rather than guess, and they are not migrated; start a fresh run. Runs without rebuilt children are not affected. |
+| `resume` of an older run stops with `launch-bootstrap provenance is malformed` | A rebuilt `foreach` child of that run had a launch retry, output repair or resume under an earlier version, whose session ids did not carry the rebuild generation. The check refuses those records rather than guess, and they are not migrated; start a fresh run. Runs without rebuilt children are not affected. |
 
 ## Environment variables
 
