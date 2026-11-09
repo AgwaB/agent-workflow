@@ -787,8 +787,9 @@ Exactly one of each, in this order, no prose outside. The engine writes `control
 recorded on the attempt: invalid JSON escapes inside strings (`json_invalid_escape`), and a `<control>` whose only
 defect is the root object's missing closing brace — every inner container closed, no string open — when the stage's
 `output.controlSchema` requires every root property it declares, allows no others, and the closed control passes it
-(`json_missing_closers`). An open list or inner object is never completed, and without such a schema the control
-stays invalid. `control.digest` is required and bounded by
+(`json_missing_closers`). Under the same schema condition, a markup tag such as `</synthesis>` standing between JSON
+tokens, outside every string, is removed (`json_stray_markup`). An open list or inner object is never completed,
+other stray text is kept, and without such a schema the control stays invalid. `control.digest` is required and bounded by
 `output.maxDigestChars`. `output.analysis.required: false` / `output.refs.required: false` make those
 sections optional. When quoting a whole protocol response inside analysis, write `&lt;control>`.
 
