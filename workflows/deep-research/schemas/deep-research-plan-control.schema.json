@@ -25,8 +25,25 @@
       "type": "string",
       "minLength": 1
     },
-    "depth": {},
-    "taskType": {},
+    "depth": {
+      "enum": [
+        "quick",
+        "standard",
+        "max"
+      ]
+    },
+    "taskType": {
+      "enum": [
+        "vendor_comparison",
+        "decision_memo",
+        "implementation_guidance",
+        "research_survey",
+        "security_review",
+        "api_reference",
+        "benchmark_analysis",
+        "other"
+      ]
+    },
     "researchAxes": {
       "type": "array",
       "items": {

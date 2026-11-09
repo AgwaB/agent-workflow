@@ -32,7 +32,8 @@
               "scopeItems": { "type": "array", "items": { "type": "string" } },
               "factSlotIds": { "type": "array", "items": { "type": "string" } },
               "verificationNeed": { "enum": ["core", "useful", "optional"] }
-            }
+            },
+            "required": ["id", "claim", "verificationNeed"]
           },
           "maxItems": 48
         },
@@ -48,7 +49,8 @@
               "sourceRefs": { "type": "array", "items": { "type": "string" } },
               "whyItMatters": { "type": "string" },
               "reason": { "type": "string" }
-            }
+            },
+            "required": ["id", "claim"]
           },
           "maxItems": 24
         },
@@ -74,7 +76,9 @@
           "verificationCandidateIds": { "type": "array", "items": { "type": "string" } },
           "gapReason": { "type": "string" },
           "parentImpact": { "type": "string" }
-        }
+        },
+        "required": ["status"],
+        "anyOf": [{ "required": ["slotId"] }, { "required": ["id"] }]
       },
       "maxItems": 64
     },
