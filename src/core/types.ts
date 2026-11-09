@@ -660,11 +660,21 @@ export interface CompiledDynamicWorkflowTask {
 	availableModels?: WorkflowModelInfo[];
 }
 
-export interface WorkflowResourcePolicy {
-	version: 1;
-	skillDiscovery: "ambient" | "disabled";
-	contextFiles: "disabled";
-}
+/**
+ * v1 (sealed in runs compiled before 2026-11-10) always recorded `contextFiles: "disabled"`, even for stages that
+ * inherit project context; v2 records what the stage does. Both stay valid for the runs that sealed them.
+ */
+export type WorkflowResourcePolicy =
+	| {
+			version: 1;
+			skillDiscovery: "ambient" | "disabled";
+			contextFiles: "disabled";
+	  }
+	| {
+			version: 2;
+			skillDiscovery: "ambient" | "disabled";
+			contextFiles: "disabled" | "inherited";
+	  };
 
 export interface CompiledArtifactGraphTask {
 	enabled: true;
@@ -701,7 +711,7 @@ export interface CompiledTask {
 	inheritProjectContext?: boolean;
 	inheritSkills?: boolean;
 	/** Absent means the task permanently retains pre-policy launch behavior. */
-	resourcePolicyVersion?: 1;
+	resourcePolicyVersion?: 1 | 2;
 	roleNames: string[];
 	task: string;
 	cwd: string;

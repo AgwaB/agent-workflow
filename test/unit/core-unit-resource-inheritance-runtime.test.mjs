@@ -242,7 +242,7 @@ test("resolver preserves legacy behavior and emits warning-only raw diagnostics"
 			resourcePolicyVersion: WORKFLOW_RESOURCE_POLICY_VERSION,
 			inheritSkills: false,
 		}),
-		{ version: 1, skillDiscovery: "disabled", contextFiles: "disabled" },
+		{ version: 2, skillDiscovery: "disabled", contextFiles: "disabled" },
 	);
 	for (const inheritSkills of [undefined, true]) {
 		assert.deepEqual(
@@ -250,7 +250,7 @@ test("resolver preserves legacy behavior and emits warning-only raw diagnostics"
 				resourcePolicyVersion: WORKFLOW_RESOURCE_POLICY_VERSION,
 				inheritSkills,
 			}),
-			{ version: 1, skillDiscovery: "ambient", contextFiles: "disabled" },
+			{ version: 2, skillDiscovery: "ambient", contextFiles: "disabled" },
 		);
 	}
 	assert.deepEqual(
@@ -259,10 +259,19 @@ test("resolver preserves legacy behavior and emits warning-only raw diagnostics"
 			inheritSkills: "false",
 			inheritProjectContext: true,
 		}),
-		{ version: 1, skillDiscovery: "ambient", contextFiles: "disabled" },
+		{ version: 2, skillDiscovery: "ambient", contextFiles: "inherited" },
+	);
+	// Version 1 keeps what it sealed: context files "disabled" whatever the stage asked for.
+	assert.deepEqual(
+		resolveWorkflowResourcePolicy({
+			resourcePolicyVersion: 1,
+			inheritSkills: false,
+			inheritProjectContext: true,
+		}),
+		{ version: 1, skillDiscovery: "disabled", contextFiles: "disabled" },
 	);
 	assert.throws(
-		() => resolveWorkflowResourcePolicy({ resourcePolicyVersion: 2 }),
+		() => resolveWorkflowResourcePolicy({ resourcePolicyVersion: 3 }),
 		/unsupported/,
 	);
 	const warnings = resourceInheritanceWarnings({
@@ -296,20 +305,26 @@ test("sealed launch applies skills only for current false and preserves tools an
 			skills: undefined,
 		},
 		{
-			name: "current-false",
+			name: "v1-false",
 			resourcePolicyVersion: 1,
 			inheritSkills: false,
 			skills: [],
 		},
 		{
+			name: "current-false",
+			resourcePolicyVersion: 2,
+			inheritSkills: false,
+			skills: [],
+		},
+		{
 			name: "current-undefined",
-			resourcePolicyVersion: 1,
+			resourcePolicyVersion: 2,
 			inheritSkills: undefined,
 			skills: undefined,
 		},
 		{
 			name: "current-true",
-			resourcePolicyVersion: 1,
+			resourcePolicyVersion: 2,
 			inheritSkills: true,
 			skills: undefined,
 		},
@@ -352,7 +367,7 @@ test("sealed launch applies skills only for current false and preserves tools an
 
 test("prepared policy omission, toggles, and unsupported versions fail before a fake launch", async () => {
 	const value = await fixture("prepared-drift", {
-		resourcePolicyVersion: 1,
+		resourcePolicyVersion: 2,
 		inheritSkills: false,
 	});
 	const captured = [];
@@ -378,31 +393,31 @@ test("prepared policy omission, toggles, and unsupported versions fail before a 
 		);
 		assert.equal(captured.length, 0);
 
-		value.task.status = "pending";
-		value.task.workerHandle = undefined;
-		await assert.rejects(
-			launchWorkerTask(
-				value.cwd,
-				value.run,
-				value.task,
-				value.compiledTask,
-				undefined,
-				undefined,
-				{
-					...prepared,
-					resourcePolicy: {
-						version: 1,
-						skillDiscovery: "ambient",
-						contextFiles: "disabled",
-					},
-				},
-			),
-			/resource policy drifted/,
-		);
-		assert.equal(captured.length, 0);
+		for (const resourcePolicy of [
+			{ version: 2, skillDiscovery: "ambient", contextFiles: "disabled" },
+			{ version: 2, skillDiscovery: "disabled", contextFiles: "inherited" },
+			{ version: 1, skillDiscovery: "disabled", contextFiles: "disabled" },
+		]) {
+			value.task.status = "pending";
+			value.task.workerHandle = undefined;
+			await assert.rejects(
+				launchWorkerTask(
+					value.cwd,
+					value.run,
+					value.task,
+					value.compiledTask,
+					undefined,
+					undefined,
+					{ ...prepared, resourcePolicy },
+				),
+				/resource policy drifted/,
+				JSON.stringify(resourcePolicy),
+			);
+			assert.equal(captured.length, 0);
+		}
 
 		const invalid = await fixture("unsupported-version", {
-			resourcePolicyVersion: 2,
+			resourcePolicyVersion: 3,
 		});
 		await assert.rejects(
 			prepareWorkerTaskLaunch(
@@ -480,7 +495,7 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 	);
 
 	const current = await fixture("current-provenance", {
-		resourcePolicyVersion: 1,
+		resourcePolicyVersion: 2,
 		inheritSkills: false,
 	});
 	const prepared = await prepareWorkerTaskLaunch(
@@ -501,7 +516,7 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 		"agent-workflow-launch-bootstrap-provenance-v2",
 	);
 	assert.deepEqual(currentRecord.resourcePolicy, {
-		version: 1,
+		version: 2,
 		skillDiscovery: "disabled",
 		contextFiles: "disabled",
 	});
@@ -520,7 +535,22 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 		}),
 		resign({
 			...currentRecord,
-			resourcePolicy: { ...currentRecord.resourcePolicy, version: 2 },
+			resourcePolicy: { ...currentRecord.resourcePolicy, version: 3 },
+		}),
+		resign({
+			...currentRecord,
+			resourcePolicy: {
+				...currentRecord.resourcePolicy,
+				contextFiles: "partial",
+			},
+		}),
+		resign({
+			...currentRecord,
+			resourcePolicy: {
+				version: 1,
+				skillDiscovery: "disabled",
+				contextFiles: "inherited",
+			},
 		}),
 	]) {
 		assert.throws(
@@ -544,11 +574,47 @@ test("legacy provenance stays v1 while current records require a closed v2 polic
 		() => recordLaunchBootstrapProvenance(current.task, toggled),
 		/launch-bootstrap provenance mismatch/,
 	);
+	const contextToggled = resign({
+		...currentRecord,
+		resourcePolicy: {
+			...currentRecord.resourcePolicy,
+			contextFiles: "inherited",
+		},
+	});
+	assert.throws(
+		() => recordLaunchBootstrapProvenance(current.task, contextToggled),
+		/launch-bootstrap provenance mismatch/,
+	);
 	assert.throws(
 		() =>
 			assertWorkflowResourcePolicyMatchesTask(current.compiledTask, undefined),
 		/resource policy drifted/,
 	);
+
+	// 2026-11-10: a run sealed under policy version 1 keeps recording and accepting its version-1 policy.
+	const sealedV1 = await fixture("v1-provenance", {
+		resourcePolicyVersion: 1,
+		inheritSkills: false,
+	});
+	const v1Prepared = await prepareWorkerTaskLaunch(
+		sealedV1.cwd,
+		sealedV1.run,
+		sealedV1.task,
+		sealedV1.compiledTask,
+	);
+	const v1Record = await createLaunchBootstrapProvenance(
+		sealedV1.cwd,
+		sealedV1.run,
+		sealedV1.task,
+		sealedV1.compiledTask,
+		v1Prepared,
+	);
+	assert.deepEqual(v1Record.resourcePolicy, {
+		version: 1,
+		skillDiscovery: "disabled",
+		contextFiles: "disabled",
+	});
+	recordLaunchBootstrapProvenance(sealedV1.task, v1Record);
 });
 
 test("foreach hashes retain exact legacy bytes and bind new resolved policy semantics", async () => {
@@ -563,14 +629,14 @@ test("foreach hashes retain exact legacy bytes and bind new resolved policy sema
 	);
 
 	const disabled = await fixture("foreach-disabled", {
-		resourcePolicyVersion: 1,
+		resourcePolicyVersion: 2,
 		inheritSkills: false,
 	});
 	const ambient = await fixture("foreach-ambient", {
-		resourcePolicyVersion: 1,
+		resourcePolicyVersion: 2,
 	});
 	const explicitAmbient = await fixture("foreach-explicit-ambient", {
-		resourcePolicyVersion: 1,
+		resourcePolicyVersion: 2,
 		inheritSkills: true,
 	});
 	const disabledHash = foreachBatchExecutionSurfaceSha256(
