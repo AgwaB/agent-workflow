@@ -87,6 +87,11 @@ async function runTurn() {
 	});
 }
 
+// Round 5: FAKE_CODEX_PIDFILE records each server's pid at startup (a launch that fails after spawn).
+if (process.env.FAKE_CODEX_PIDFILE) {
+	appendFileSync(process.env.FAKE_CODEX_PIDFILE, `${process.pid}\n`);
+	process.stderr.write("fake app-server started\n");
+}
 // Round 4: FAKE_CODEX_LINGER_MS keeps the server alive after its stdin closed (until killed).
 const rl = createInterface({ input: process.stdin });
 if (process.env.FAKE_CODEX_LINGER_MS)

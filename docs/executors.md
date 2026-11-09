@@ -353,18 +353,12 @@ mcp_servers.<user server>.enabled = false
 Isolated attempts run with a **private `CODEX_HOME`** under the attempt's log directory that links
 (never copies) the user's `auth.json` (with its `auth.lock`, so Codex serializes token refreshes with the user's own
 Codex), `config.toml` and `rules/` and carries no `AGENTS.md`, skills,
-plugins, memories or history; it is removed when the app-server exits. A request that keeps a session
-gets its private home under `<stateDir>/session-homes/` instead, since the thread's rollout lives there:
-resuming the thread reuses it, and deleting the owned session deletes the thread in it and removes it.
-Processes using such a home hold a lease on it (pid and start time; a lease that cannot be written fails
-the launch). Deleting marks the session first and then waits up to 5 s for leases, else reports `failed`;
-a resume started meanwhile is refused (`INVALID_REQUEST`, "being deleted"). The home is removed only after
-the deletion's own app-server has exited, and only when every directory below the state directory is a
-plain directory (never through a symlink). A launch that fails before its thread exists removes the home
-at once, and a home a crash left without its thread record is removed by a later launch once it is a day
-old. An isolated `resumeSessionId` for a thread without
-such a home (not created by the adapter, or its home is gone) is refused before launch with
-`CAPABILITY_MISSING`, since it could only run in the user's home; resume it with `isolation.inherit`.
+plugins, memories or history; it is removed when the app-server exits, and only when every directory below the
+state directory is a plain directory (never through a symlink); one that cannot be prepared fails the attempt
+rather than running in the user's home. A request that keeps a session (`sessionId`) keeps the Codex thread,
+but under isolation that thread lives in the attempt's private home and ends with it; an isolated
+`resumeSessionId` is refused before launch with `CAPABILITY_MISSING`, since a resumed thread could only run in
+the user's home. Resume with `isolation.inherit` (the user's home). Workflows never resume Codex threads.
 Codex writes refreshed tokens in place, so the linked `auth.json` stays the one credential file every
 Codex process shares. Should a Codex version replace the link with a file of its own, the user's
 `auth.json` is never overwritten: that file is moved to `<stateDir>/replaced-auth/` (mode 0600) when
@@ -373,7 +367,8 @@ in again, run `codex login` and delete the kept files. The user's
 home is kept instead (and the probe says why) when the stage inherits user context, when
 `cli_auth_credentials_store` is not `file` (the keyring store keys credentials by the home path), when
 there is neither an `auth.json` nor an `OPENAI_API_KEY`/`CODEX_API_KEY` variable, or when links cannot
-be created. Credential files are never read by agent-workflow. Project `AGENTS.md`, skills, plugins,
+be created. agent-workflow never parses credential files (it only moves or, across file systems, copies a
+replaced `auth.json` as bytes). Project `AGENTS.md`, skills, plugins,
 apps and personal MCP tools are disabled. MCP disabling uses thread config: per-server argv overrides
 fail validation on 0.159.2, while `-c mcp_servers={}` merges rather than replacing.
 
@@ -532,7 +527,8 @@ remote-control notifications are redacted. Messages sent to the CLI remain uncha
   without a terminal event.
 - Sessions are kept only for `sessionId`/`resumeSessionId`. Codex picks the thread id, returned in
   `ExecRef.sessionId` and `ownedSession {kind: "codex-thread", locator: threadId}` for owned threads.
-  Ownership records live in `<stateDir>/sessions/`; a resumed foreign thread is not marked owned.
+  Ownership records live in `<stateDir>/sessions/`; a resumed foreign thread is not marked owned. Resume needs
+  `isolation.inherit` (see the private home above).
   `deleteOwnedSession` refuses unrecorded threads, otherwise uses `thread/delete` and removes the
   record after `deleted`/`not_found`.
 

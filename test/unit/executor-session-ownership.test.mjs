@@ -139,9 +139,12 @@ test("review #9 (codex): a kept thread the adapter created is deletable once", a
 	assert.equal(terminal.type, "completed");
 	const owned = terminal.ownedSession;
 	assert.equal(owned?.kind, "codex-thread");
-	// Resuming an owned thread keeps it owned.
+	// Resuming an owned thread keeps it owned (resume needs inherited context).
 	const resumed = await executor.submit(
-		request(dir, "codex-resume-own", { resumeSessionId: owned.locator }),
+		request(dir, "codex-resume-own", {
+			resumeSessionId: owned.locator,
+			isolation: { inherit: true },
+		}),
 	);
 	const second = await drain(executor, resumed, { timeoutMs: 15_000 });
 	assert.deepEqual(second.terminal.ownedSession, owned);
@@ -151,12 +154,12 @@ test("review #9 (codex): a kept thread the adapter created is deletable once", a
 	assert.equal(await fresh.deleteOwnedSession(owned), "refused");
 });
 
-test("codex: a kept session keeps a private home that resume reuses and deletion removes", async (t) => {
-	// Re-review 2026-11-09 (gpt-6-astra, claude-fable-5-1): the per-attempt private home was removed on close,
-	// losing the kept thread; the first fix fell back to the user's home and lost isolation.
-	const { dir, config, deletes, userHome } = await codexSetup(t);
+test("codex: an isolated kept session runs in its attempt's private home and ends with it", async (t) => {
+	// Owner decision 2026-11-09 (after review rounds 3-5 on per-session homes): no home outlives its attempt; an
+	// isolated resume is refused, an inherited one runs in the user's home.
+	const { dir, config, deletes, userHome, log } = await codexSetup(t);
 	const homes = async () =>
-		(await readFile(process.env.FAKE_CODEX_LOG, "utf8"))
+		(await readFile(log, "utf8"))
 			.split("\n")
 			.filter(Boolean)
 			.map((line) => JSON.parse(line))
@@ -176,52 +179,45 @@ test("codex: a kept session keeps a private home that resume reuses and deletion
 		keptHome && keptHome !== userHome,
 		`kept session ran in ${keptHome}`,
 	);
+	for (let i = 0; i < 50 && existsSync(keptHome); i += 1)
+		await new Promise((resolve) => setTimeout(resolve, 20));
 	assert.equal(
-		existsSync(join(keptHome, "auth.json")),
-		true,
-		"the private home survives the attempt",
-	);
-	assert.equal(
-		existsSync(join(keptHome, "AGENTS.md")),
+		existsSync(keptHome),
 		false,
-		"no global instructions in it",
+		"the private home ends with the attempt",
 	);
-	const resumed = await drain(
+	await assert.rejects(
+		executor.submit(
+			request(dir, "codex-resume-isolated", {
+				resumeSessionId: kept.terminal.ownedSession.locator,
+			}),
+		),
+		(error) => error.code === "CAPABILITY_MISSING",
+	);
+	const inherited = await drain(
 		executor,
 		await executor.submit(
-			request(dir, "codex-resume-home", {
+			request(dir, "codex-resume-inherit", {
 				resumeSessionId: kept.terminal.ownedSession.locator,
+				isolation: { inherit: true },
 			}),
 		),
 		{ timeoutMs: 15_000 },
 	);
-	assert.equal(resumed.terminal.type, "completed");
-	assert.equal((await homes())[1], keptHome, "resume reuses the kept home");
+	assert.equal(inherited.terminal.type, "completed");
+	assert.equal((await homes()).at(-1), userHome);
 	assert.equal(
 		await createCodexExecutor(config).deleteOwnedSession(
 			kept.terminal.ownedSession,
 		),
 		"deleted",
 	);
-	assert.equal((await homes())[2], keptHome, "deletion runs in the kept home");
 	assert.deepEqual(await deletes(), [kept.terminal.ownedSession.locator]);
 	assert.equal(
-		existsSync(keptHome),
-		false,
-		"deleting the session removes its home",
+		(await homes()).at(-1),
+		userHome,
+		"deletion runs in the user's home",
 	);
-	// an ephemeral attempt's private home is still removed when it ends
-	const ephemeral = await drain(
-		executor,
-		await executor.submit(request(dir, "codex-ephemeral-home")),
-		{ timeoutMs: 15_000 },
-	);
-	assert.equal(ephemeral.terminal.type, "completed");
-	const ephemeralHome = (await homes())[3];
-	assert.ok(ephemeralHome && ephemeralHome !== userHome);
-	for (let i = 0; i < 50 && existsSync(ephemeralHome); i += 1)
-		await new Promise((r) => setTimeout(r, 20));
-	assert.equal(existsSync(ephemeralHome), false);
 });
 
 test("round 3 (codex): an isolated resume of a thread without a private home is refused before launch", async (t) => {
@@ -240,7 +236,7 @@ test("round 3 (codex): an isolated resume of a thread without a private home is 
 			/isolation\.inherit/.test(error.message),
 	);
 	assert.equal(existsSync(log), false, "no app-server was started");
-	// a kept thread whose private home is gone is refused the same way
+	// a thread this adapter created and owns is refused the same way (owner decision 2026-11-09)
 	const kept = await drain(
 		executor,
 		await executor.submit(
@@ -248,8 +244,6 @@ test("round 3 (codex): an isolated resume of a thread without a private home is 
 		),
 		{ timeoutMs: 15_000 },
 	);
-	const homes = join(config.stateDir, "session-homes");
-	await rm(homes, { recursive: true, force: true });
 	await assert.rejects(
 		executor.submit(
 			request(dir, "codex-resume-gone", {
@@ -260,113 +254,67 @@ test("round 3 (codex): an isolated resume of a thread without a private home is 
 	);
 });
 
-test("round 3 (codex): a kept-session launch that fails before a thread exists leaves no home", async (t) => {
+test("codex: a launch that fails leaves no private home, and one failing after spawn stops its app-server", async (t) => {
+	// Round 3/5 reviews: failed kept launches kept their home; a failure after spawn left the server running.
 	const { dir, config } = await codexSetup(t);
-	const executor = createCodexExecutor({
+	const homesLeft = () => {
+		const found = [];
+		const walk = (path) => {
+			for (const entry of readdirSync(path, { withFileTypes: true })) {
+				if (!entry.isDirectory()) continue;
+				if (entry.name === "home") found.push(join(path, entry.name));
+				else walk(join(path, entry.name));
+			}
+		};
+		if (existsSync(config.stateDir)) walk(config.stateDir);
+		return found;
+	};
+	const missing = createCodexExecutor({
 		...config,
 		codexPath: join(dir, "missing-codex"),
 	});
 	const { terminal } = await drain(
-		executor,
-		await executor.submit(
+		missing,
+		await missing.submit(
 			request(dir, "codex-keep-fails", { sessionId: "keep-fails" }),
 		),
 		{ timeoutMs: 15_000 },
 	);
 	assert.equal(terminal.type, "failed");
-	const homes = join(config.stateDir, "session-homes");
-	for (
-		let i = 0;
-		i < 50 && existsSync(homes) && readdirSync(homes).length > 0;
-		i += 1
-	)
+	for (let i = 0; i < 50 && homesLeft().length > 0; i += 1)
 		await new Promise((resolve) => setTimeout(resolve, 20));
-	assert.deepEqual(existsSync(homes) ? readdirSync(homes) : [], []);
-});
-
-test("round 3 (codex): deleting a session while an app-server runs in its home fails and keeps the home", async (t) => {
-	// gpt-6-astra: a fresh executor deleted the home under two running resumes.
-	const { dir, config, deletes, log } = await codexSetup(t);
-	const executor = createCodexExecutor(config);
-	const kept = await drain(
-		executor,
-		await executor.submit(
-			request(dir, "codex-keep-busy", { sessionId: "keep-busy" }),
-		),
-		{ timeoutMs: 15_000 },
-	);
-	const owned = kept.terminal.ownedSession;
-	const keptHome = (await readFile(log, "utf8"))
-		.split("\n")
-		.filter(Boolean)
-		.map((line) => JSON.parse(line))
-		.find((message) => message.method === "initialize").codexHome;
-	const resumed = await executor.submit(
-		request(dir, "codex-resume-busy", {
-			resumeSessionId: owned.locator,
-			env: { FAKE_CODEX_TURN_DELAY_MS: "7000" },
-		}),
-	);
-	await new Promise((resolve) => setTimeout(resolve, 300));
-	assert.equal(
-		await createCodexExecutor(config).deleteOwnedSession(owned),
-		"failed",
-	);
-	assert.equal(existsSync(keptHome), true);
-	assert.deepEqual(await deletes(), []);
-	const second = await drain(executor, resumed, { timeoutMs: 15_000 });
-	assert.equal(second.terminal.type, "completed");
-	for (
-		let i = 0;
-		i < 50 &&
-		(await createCodexExecutor(config).deleteOwnedSession(owned)) === "failed";
-		i += 1
-	)
-		await new Promise((resolve) => setTimeout(resolve, 20));
-	assert.deepEqual(await deletes(), [owned.locator]);
-	assert.equal(existsSync(keptHome), false);
-});
-
-test("round 4 (codex): a resume started while the session is being deleted is refused, and deletion completes", async (t) => {
-	// gpt-6-astra: a resume that started after thread/delete was sent ran in a home the deletion then removed.
-	const { dir, config, deletes, log } = await codexSetup(t);
-	const executor = createCodexExecutor(config);
-	const kept = await drain(
-		executor,
-		await executor.submit(
-			request(dir, "codex-keep-fence", { sessionId: "keep-fence" }),
-		),
-		{ timeoutMs: 15_000 },
-	);
-	const owned = kept.terminal.ownedSession;
-	const keptHome = (await readFile(log, "utf8"))
-		.split("\n")
-		.filter(Boolean)
-		.map((line) => JSON.parse(line))
-		.find((message) => message.method === "initialize").codexHome;
-	process.env.FAKE_CODEX_DELETE_DELAY_MS = "1500";
+	assert.deepEqual(homesLeft(), []);
+	const pidFile = join(dir, "fake-pids");
+	process.env.FAKE_CODEX_PIDFILE = pidFile;
 	t.after(() => {
-		delete process.env.FAKE_CODEX_DELETE_DELAY_MS;
+		delete process.env.FAKE_CODEX_PIDFILE;
 	});
-	const deleting = createCodexExecutor(config).deleteOwnedSession(owned);
-	for (let i = 0; i < 100 && !(await deletes()).length; i += 1)
-		await new Promise((resolve) => setTimeout(resolve, 20));
-	assert.deepEqual(
-		await deletes(),
-		[owned.locator],
-		"thread/delete is pending",
-	);
+	const failing = createCodexExecutor({
+		...config,
+		testFaults: { failAfterSpawn: true },
+	});
 	await assert.rejects(
-		executor.submit(
-			request(dir, "codex-resume-during-delete", {
-				resumeSessionId: owned.locator,
-			}),
-		),
-		(error) =>
-			error.code === "INVALID_REQUEST" && /being deleted/.test(error.message),
+		failing.submit(request(dir, "codex-fail-after-spawn")),
+		/fail after spawn/,
 	);
-	assert.equal(await deleting, "deleted");
-	assert.equal(existsSync(keptHome), false);
+	for (let i = 0; i < 100 && !existsSync(pidFile); i += 1)
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	const pid = Number(
+		(await readFile(pidFile, "utf8")).trim().split("\n").at(-1),
+	);
+	let alive = true;
+	for (let i = 0; i < 100 && alive; i += 1) {
+		try {
+			process.kill(pid, 0);
+			await new Promise((resolve) => setTimeout(resolve, 20));
+		} catch {
+			alive = false;
+		}
+	}
+	assert.equal(alive, false, "the app-server of a failed launch was stopped");
+	for (let i = 0; i < 50 && homesLeft().length > 0; i += 1)
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	assert.deepEqual(homesLeft(), []);
 });
 
 test("round 4 (codex): deletion removes the home only after its server exited", async (t) => {
@@ -407,53 +355,6 @@ test("round 4 (codex): deletion removes the home only after its server exited", 
 		false,
 		"the deletion server had exited when deletion returned",
 	);
-});
-
-test("deletion of a session in use gives up after 5 s of wall-clock time, however slow each lease check is", async (t) => {
-	// CI 42610709189 (macos, Node 22): the wait counted 100 ms per loop while each check ran `ps`; a slow ps let the
-	// deletion wait past the in-use attempt's end and delete. A fake `ps` taking 300 ms per call reproduces it on
-	// macOS (Linux reads /proc, so there it checks the plain path).
-	const { dir, config } = await codexSetup(t);
-	const executor = createCodexExecutor(config);
-	const kept = await drain(
-		executor,
-		await executor.submit(
-			request(dir, "codex-keep-slowps", { sessionId: "keep-slowps" }),
-		),
-		{ timeoutMs: 15_000 },
-	);
-	const owned = kept.terminal.ownedSession;
-	const bin = join(dir, "slow-bin");
-	await mkdir(bin, { recursive: true });
-	await writeFile(
-		join(bin, "ps"),
-		"#!/bin/sh\nsleep 0.3\necho 'Mon Nov  9 00:00:00 2026'\n",
-		{ mode: 0o755 },
-	);
-	const previousPath = process.env.PATH;
-	process.env.PATH = `${bin}:${previousPath}`;
-	t.after(() => {
-		process.env.PATH = previousPath;
-	});
-	// This process holds a lease on the kept home, as a running attempt would.
-	const { writeCodexSessionLease } = await import(
-		"../../dist/executors/codex/home.js"
-	);
-	const keptHome = join(
-		config.stateDir,
-		"session-homes",
-		(await readdir(join(config.stateDir, "session-homes")))[0],
-		"home",
-	);
-	writeCodexSessionLease(keptHome, "holder", [process.pid]);
-	const started = Date.now();
-	assert.equal(
-		await createCodexExecutor(config).deleteOwnedSession(owned),
-		"failed",
-	);
-	const elapsed = Date.now() - started;
-	assert.ok(elapsed < 8_000, `gave up after ${elapsed} ms`);
-	assert.equal(existsSync(keptHome), true);
 });
 
 test("review #9 (claude): resuming a foreign session does not make it owned", async (t) => {
