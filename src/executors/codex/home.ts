@@ -169,6 +169,7 @@ export function prepareCodexWorkerHome(options: {
 			symlinkSync(target, join(path, name), name === "rules" ? "dir" : "file");
 			linked.push(name);
 		}
+		linkAuthLock(path, options.userHome, linked);
 	} catch (error) {
 		rmSync(path, { recursive: true, force: true });
 		return {
@@ -220,7 +221,31 @@ export function reuseCodexWorkerHome(
 			linked.push(name);
 		} catch {}
 	}
+	try {
+		lstatSync(join(path, "auth.lock"));
+		linked.push("auth.lock");
+	} catch {
+		try {
+			linkAuthLock(path, userHome, linked);
+		} catch {
+			// Without the shared lock Codex still writes auth.json in place; only cross-process refresh
+			// serialization with the user's own Codex is lost.
+		}
+	}
 	return { path, relocated: true, linked };
+}
+
+/**
+ * Codex 0.166 serializes every auth.json read/modify/write (token refresh, login) under `auth.lock` in its
+ * CODEX_HOME and saves a refresh only if the stored refresh token is still the one it refreshed from. A private
+ * home that links auth.json must share that lock, or a worker and the user's own Codex could both refresh and
+ * the later save would overwrite the earlier rotation. The link may dangle: Codex creates the target (in the
+ * user's home) when it first opens it; agent-workflow writes nothing there (2026-11-09).
+ */
+function linkAuthLock(path: string, userHome: string, linked: string[]): void {
+	if (!linked.includes("auth.json")) return;
+	symlinkSync(join(userHome, "auth.lock"), join(path, "auth.lock"), "file");
+	linked.push("auth.lock");
 }
 
 /**

@@ -351,7 +351,8 @@ mcp_servers.<user server>.enabled = false
 ```
 
 Isolated attempts run with a **private `CODEX_HOME`** under the attempt's log directory that links
-(never copies) the user's `auth.json`, `config.toml` and `rules/` and carries no `AGENTS.md`, skills,
+(never copies) the user's `auth.json` (with its `auth.lock`, so Codex serializes token refreshes with the user's own
+Codex), `config.toml` and `rules/` and carries no `AGENTS.md`, skills,
 plugins, memories or history; it is removed when the app-server exits. A request that keeps a session
 gets its private home under `<stateDir>/session-homes/` instead, since the thread's rollout lives there:
 resuming the thread reuses it, and deleting the owned session deletes the thread in it and removes it.
