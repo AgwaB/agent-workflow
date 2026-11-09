@@ -7,6 +7,9 @@ import { refusedReaderTranslations } from "./render-executive.mjs";
 import { findSource, stringOf } from "./source-access.mjs";
 
 const MAX_ITEMS = 40;
+// 2026-11-10 (live check): one malformed entry fails the whole control, and a retry with the preview repeated it, so
+// a batch of 24 lost every item; batches of at most 12 lose at most 12.
+const BATCH_SIZE = 12;
 
 export default async function translationCheck({ sources }) {
 	const refused = refusedReaderTranslations(sources).slice(0, MAX_ITEMS);
@@ -24,15 +27,13 @@ export default async function translationCheck({ sources }) {
 			items.length === 0
 				? "No reader translation is missing or drops a number of its source."
 				: `${items.length} reader text(s) untranslated or dropping a number of their source get one translation.`,
-		batches:
-			items.length === 0
-				? []
-				: [
-						{
-							id: "refused-translations",
-							reportLanguageSample: (sample ?? "").slice(0, 200),
-							items,
-						},
-					],
+		batches: Array.from(
+			{ length: Math.ceil(items.length / BATCH_SIZE) },
+			(_, index) => ({
+				id: `refused-translations-${index + 1}`,
+				reportLanguageSample: (sample ?? "").slice(0, 200),
+				items: items.slice(index * BATCH_SIZE, (index + 1) * BATCH_SIZE),
+			}),
+		),
 	};
 }

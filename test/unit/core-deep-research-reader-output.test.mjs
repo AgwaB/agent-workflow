@@ -449,13 +449,23 @@ test("refused translations are listed for one retranslation, which the report us
 	};
 	const sources = await refusedSources();
 	const check = await translationCheck({ sources });
-	assert.equal(check.batches.length, 1);
-	const [batch] = check.batches;
-	assert.equal(batch.id, "refused-translations");
-	assert.equal(
-		batch.reportLanguageSample,
-		sources["final-audit"].synthesis.bottomLine,
+	// 26 items in batches of at most 12.
+	assert.deepEqual(
+		check.batches.map((batch) => [batch.id, batch.items.length]),
+		[
+			["refused-translations-1", 12],
+			["refused-translations-2", 12],
+			["refused-translations-3", 2],
+		],
 	);
+	const batch = {
+		items: check.batches.flatMap((entry) => entry.items),
+	};
+	for (const entry of check.batches)
+		assert.equal(
+			entry.reportLanguageSample,
+			sources["final-audit"].synthesis.bottomLine,
+		);
 	assert.deepEqual(
 		batch.items.filter((item) => item.refusedTranslation !== undefined),
 		[
@@ -498,7 +508,7 @@ test("refused translations are listed for one retranslation, which the report us
 
 	// One retranslation keeps its numbers (used), the other still drops one (refused, the original shows).
 	const retried = await refusedSources();
-	retried["retranslate.refused-translations"] = {
+	retried["retranslate.refused-translations-1"] = {
 		schema: "deep-research-retranslate-v1",
 		digest: "d",
 		translations: [
