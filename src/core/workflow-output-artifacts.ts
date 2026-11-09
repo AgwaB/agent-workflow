@@ -2938,19 +2938,14 @@ function sectionText(
 }
 
 /**
- * Makes the escapes JSON does not have literal, inside strings only: a backslash before anything
- * but a quote, backslash, slash, b, f, n, r, t, or u + 4 hex digits is doubled, and a raw control
- * character is escaped. These invalid escapes come from quoting code and TeX (backslash-d,
- * backslash-paren, backslash-u{1d400}, a backslash before a backtick: the three failed attempts
- * of an Antigravity reviewer in the 2026-11-02 A/B), and none of them has a JSON meaning to lose.
- * Structure is never guessed: no quote, comma or bracket is added (a truncated value stays
- * invalid; cline's parseJsonStream refuses to repair those for the same reason). References: MetaGPT
- * `repair_escape_error`; qwen-code and cline fall back to jsonrepair, which also repairs these.
- */
-/**
- * A control whose only break is missing closing brackets, accepted when the closed text passes the
- * stage's control schema: the schema confirms the closers produced the intended shape. Without a
- * schema a missing closer stays invalid (truncation is not guessed at).
+ * 2026-11-09: deep-research's final audit nests its control four levels deep; recorded attempts ended
+ * "…}]}}" without the root's "}" (4 of the 6 recorded final-audit JSON failures), each costing a full
+ * xhigh retry. Only that omission is repaired: the root object is the one container left open at the
+ * end, every inner container was closed by the model, and the schema requires every root property it
+ * declares — so nothing the model wrote can be missing (a list cut after an element, or an inner
+ * object left open, is not completed). The closed control must pass the schema. Review 2026-11-09
+ * (gpt-6-astra, claude-fable-5-1): the first version closed any open containers and accepted a control
+ * truncated inside a list. Without a schema, or with optional root properties, it stays invalid.
  */
 function closedControlMatchingSchema(
 	text: string,
@@ -2958,12 +2953,13 @@ function closedControlMatchingSchema(
 ):
 	| { value: Record<string, unknown>; repairs: WorkflowOutputRepair[] }
 	| undefined {
+	if (!rootPropertiesAllRequired(schema)) return undefined;
 	const escaped = repairInvalidJsonEscapes(text);
-	const closed = closeMissingJsonBrackets(escaped.text);
+	const closed = closeMissingRootBrace(escaped.text);
 	if (closed === undefined) return undefined;
 	let value: unknown;
 	try {
-		value = JSON.parse(closed.text);
+		value = JSON.parse(closed);
 	} catch {
 		return undefined;
 	}
@@ -2972,11 +2968,6 @@ function closedControlMatchingSchema(
 	return {
 		value,
 		repairs: [
-			{
-				code: "json_missing_closers",
-				section: SECTION_CONTROL,
-				message: `${closed.added} missing closing bracket(s) added to control; the result passed the control schema`,
-			},
 			...(escaped.count > 0
 				? [
 						{
@@ -2986,33 +2977,43 @@ function closedControlMatchingSchema(
 						},
 					]
 				: []),
+			{
+				code: "json_missing_closers",
+				section: SECTION_CONTROL,
+				message:
+					"the root object's closing brace was added to control; every root property the schema declares is required and present",
+			},
 		],
 	};
 }
 
+function rootPropertiesAllRequired(schema: JsonSchema): boolean {
+	if (!isJsonSchemaObject(schema)) return false;
+	const properties = Object.keys(schema.properties ?? {});
+	const required = new Set(
+		Array.isArray(schema.required) ? schema.required : [],
+	);
+	return (
+		properties.length > 0 &&
+		properties.every((name) => required.has(name)) &&
+		schema.additionalProperties === false
+	);
+}
+
 /**
- * 2026-11-09: deep-research's final audit nests its control four levels deep; recorded attempts
- * (6 of the recorded final-audit JSON failures) ended "…}]}}" without the root's "}", or closed an
- * object where its array still needed "]". Each cost a full xhigh retry. This adds closing
- * brackets only — where the text ends with open brackets, or right before a closer that skips an
- * open array/object — and only when the text already ends with a closer and no string is left
- * open (a cut-off output is not completed; cf. cline parseJsonStream's unterminated-string guard).
- * Nothing is removed or reordered; the result must still parse and pass the stage's control schema
- * (`closedControlMatchingSchema`). Earlier policy (6a31f13) added no bracket at all; extra quotes,
- * stray text and schema-less controls still fail.
+ * The text with the root object's closing brace appended, when that brace is the only thing missing:
+ * the text starts an object, ends with a closer, leaves no string open, every other container is
+ * closed in order, and only the root is open at the end. Otherwise undefined.
  */
-export function closeMissingJsonBrackets(
-	text: string,
-): { text: string; added: number } | undefined {
-	if (!/[}\]]\s*$/.test(text)) return undefined;
+export function closeMissingRootBrace(text: string): string | undefined {
+	const body = text.trimEnd();
+	if (!body.trimStart().startsWith("{") || !/[}\]]$/.test(body))
+		return undefined;
 	const stack: string[] = [];
-	let out = "";
-	let added = 0;
 	let inString = false;
 	let escaped = false;
-	for (const char of text) {
+	for (const char of body) {
 		if (inString) {
-			out += char;
 			if (escaped) escaped = false;
 			else if (char === "\\") escaped = true;
 			else if (char === '"') inString = false;
@@ -3021,24 +3022,24 @@ export function closeMissingJsonBrackets(
 		if (char === '"') inString = true;
 		else if (char === "{" || char === "[") stack.push(char === "{" ? "}" : "]");
 		else if (char === "}" || char === "]") {
-			const at = stack.lastIndexOf(char);
-			if (at < 0) return undefined;
-			while (stack.length - 1 > at) {
-				out += stack.pop();
-				added += 1;
-			}
-			stack.pop();
+			if (stack.pop() !== char) return undefined;
+			if (stack.length === 0) return undefined;
 		}
-		out += char;
 	}
-	if (inString) return undefined;
-	while (stack.length > 0) {
-		out += stack.pop();
-		added += 1;
-	}
-	return added > 0 ? { text: out, added } : undefined;
+	if (inString || stack.length !== 1 || stack[0] !== "}") return undefined;
+	return `${body}}`;
 }
 
+/**
+ * Makes the escapes JSON does not have literal, inside strings only: a backslash before anything
+ * but a quote, backslash, slash, b, f, n, r, t, or u + 4 hex digits is doubled, and a raw control
+ * character is escaped. These invalid escapes come from quoting code and TeX (backslash-d,
+ * backslash-paren, backslash-u{1d400}, a backslash before a backtick: the three failed attempts
+ * of an Antigravity reviewer in the 2026-11-02 A/B), and none of them has a JSON meaning to lose.
+ * Structure is never guessed: no quote, comma or bracket is added (a truncated value stays
+ * invalid; cline's parseJsonStream refuses to repair those for the same reason). References: MetaGPT
+ * `repair_escape_error`; qwen-code and cline fall back to jsonrepair, which also repairs these.
+ */
 export function repairInvalidJsonEscapes(text: string): {
 	text: string;
 	count: number;
