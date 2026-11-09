@@ -73,26 +73,33 @@ async function audit(
 }
 
 test("a verified claim whose only quotes are absent from the fetched page is downgraded; others keep their verdict", async () => {
-	const { out, status, code } = await audit({
-		schema: "deep-research-web-quote-check-v1",
-		enabled: true,
-		results: [
-			// claim-1: fetched, readable, quote not there → downgrade.
-			result("claim-1", 0, "unverified", "quote-not-on-page"),
-			// claim-2: found on the engine's re-fetch → unchanged.
-			result("claim-2", 0, "verified-refetched"),
-			// claim-3: one quote missing, another found → unchanged (not all absent).
-			result("claim-3", 0, "unverified", "quote-not-on-page"),
-			result("claim-3", 1, "verified-captured"),
-			// claim-4: could not be checked (fetch failed) → unchanged; proves nothing.
-			result("claim-4", 0, "unverified", "network-error"),
-		],
-	});
+	const { out, status, code } = await audit(
+		{
+			schema: "deep-research-web-quote-check-v1",
+			enabled: true,
+			results: [
+				// claim-1: fetched, readable, quote not there → downgrade.
+				result("claim-1", 0, "unverified", "quote-not-on-page"),
+				// claim-2: found on the engine's re-fetch → unchanged.
+				result("claim-2", 0, "verified-refetched"),
+				// claim-3: one quote missing, another found → unchanged (not all absent).
+				result("claim-3", 0, "unverified", "quote-not-on-page"),
+				result("claim-3", 1, "verified-captured"),
+				// claim-4: could not be checked (fetch failed) → unchanged; proves nothing.
+				result("claim-4", 0, "unverified", "network-error"),
+				// claim-5 (review 2026-11-09): one quote absent, the other unchecked → unchanged (not all looked for).
+				result("claim-5", 0, "unverified", "quote-not-on-page"),
+				result("claim-5", 1, "unverified", "network-error"),
+			],
+		},
+		["claim-1", "claim-2", "claim-3", "claim-4", "claim-5"],
+	);
 	assert.deepEqual(status, {
 		"claim-1": "partially_supported",
 		"claim-2": "verified",
 		"claim-3": "verified",
 		"claim-4": "verified",
+		"claim-5": "verified",
 	});
 	assert.equal(code["claim-1"], "web_quote_not_on_page");
 	assert.equal(out.gateSummary.webQuoteCheck, "applied");

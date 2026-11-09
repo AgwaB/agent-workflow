@@ -13,8 +13,14 @@ export function workflowTaskSessionId(
 	task: WorkflowTaskRunRecord,
 ): string | undefined {
 	if (!task.artifactGraph?.enabled) return undefined;
-	const baseSessionId = workflowTaskBaseSessionId(run.runId, task.taskId);
 	if (task.outputRetry?.sessionId) return task.outputRetry.sessionId;
+	// Review 2026-11-09 (claude-fable-5-1): a rebuilt child's launch-retry/resume ids carry its
+	// generation too, or gen-1's "launch-retry-1" reuses gen-0's session. Generation 0 is unchanged.
+	const baseSessionId = generationBaseSessionId(
+		run.runId,
+		task.taskId,
+		rematerializedGeneration(task),
+	);
 	const launchAttempt = task.launchRetry?.attempts ?? 0;
 	if (launchAttempt > 0)
 		return boundedWorkflowSessionId(
@@ -23,9 +29,6 @@ export function workflowTaskSessionId(
 	const resumeAttempt = task.resumeEvents?.length ?? 0;
 	if (resumeAttempt > 0)
 		return boundedWorkflowSessionId(`${baseSessionId}.resume-${resumeAttempt}`);
-	const generation = rematerializedGeneration(task);
-	if (generation > 0)
-		return boundedWorkflowSessionId(`${baseSessionId}.gen-${generation}`);
 	return baseSessionId;
 }
 
@@ -68,7 +71,7 @@ export function retryWorkflowTaskSessionId(
 	attempt: number,
 ): string {
 	return boundedWorkflowSessionId(
-		`${workflowTaskBaseSessionId(run.runId, task.taskId)}.retry-${attempt}`,
+		`${generationBaseSessionId(run.runId, task.taskId, rematerializedGeneration(task))}.retry-${attempt}`,
 	);
 }
 
@@ -81,17 +84,14 @@ export function isWorkflowTaskSessionIdentity(input: {
 	sourceGeneration?: number;
 	sessionId: string;
 }): boolean {
-	const base = workflowTaskBaseSessionId(input.runId, input.taskId);
-	const generation = input.sourceGeneration ?? 0;
+	const generation = Math.max(0, input.sourceGeneration ?? 0);
+	const base = generationBaseSessionId(input.runId, input.taskId, generation);
 	if (input.outputRetry > 0) {
 		return new Set([
 			base,
 			boundedWorkflowSessionId(`${base}.launch-retry-${input.launchRetry}`),
 			boundedWorkflowSessionId(`${base}.resume-${input.resume}`),
 			boundedWorkflowSessionId(`${base}.retry-${input.outputRetry}`),
-			...(generation > 0
-				? [boundedWorkflowSessionId(`${base}.gen-${generation}`)]
-				: []),
 		]).has(input.sessionId);
 	}
 	if (input.launchRetry > 0)
@@ -104,15 +104,22 @@ export function isWorkflowTaskSessionIdentity(input: {
 			input.sessionId ===
 			boundedWorkflowSessionId(`${base}.resume-${input.resume}`)
 		);
-	if (generation > 0)
-		return (
-			input.sessionId === boundedWorkflowSessionId(`${base}.gen-${generation}`)
-		);
 	return input.sessionId === base;
 }
 
 function workflowTaskBaseSessionId(runId: string, taskId: string): string {
 	return boundedWorkflowSessionId(`agent-workflow.${runId}.${taskId}`);
+}
+
+function generationBaseSessionId(
+	runId: string,
+	taskId: string,
+	generation: number,
+): string {
+	const base = workflowTaskBaseSessionId(runId, taskId);
+	return generation > 0
+		? boundedWorkflowSessionId(`${base}.gen-${generation}`)
+		: base;
 }
 
 function boundedWorkflowSessionId(value: string): string {
