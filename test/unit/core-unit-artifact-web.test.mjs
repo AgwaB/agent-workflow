@@ -8398,10 +8398,11 @@ test("workflow artifact bundle records schema-slip repair telemetry", async () =
 						preservedClaims: [],
 						duplicates: [],
 					},
+					// 2026-11-10: rows need status and slotId (or id), as every recorded row has.
 					factSlotCoverage: [
 						{
-							factSlotId: "fs-1",
-							covered: false,
+							slotId: "fs-1",
+							status: "missing",
 							gapReason: null,
 						},
 					],

@@ -110,7 +110,8 @@ export type WorkflowOutputRepairCode =
 	| "control_enum_near_miss"
 	| "control_object_row_from_string"
 	| "json_invalid_escape"
-	| "json_missing_closers";
+	| "json_missing_closers"
+	| "json_stray_markup";
 
 export interface WorkflowOutputRepair {
 	code: WorkflowOutputRepairCode;
@@ -2955,13 +2956,23 @@ function closedControlMatchingSchema(
 	| undefined {
 	if (!rootPropertiesAllRequired(schema)) return undefined;
 	const escaped = repairInvalidJsonEscapes(text);
-	const closed = closeMissingRootBrace(escaped.text);
-	if (closed === undefined) return undefined;
-	let value: unknown;
-	try {
-		value = JSON.parse(closed);
-	} catch {
-		return undefined;
+	// 2026-11-10: a markup tag between JSON tokens (a recorded final audit ended "…}]}} </synthesis>}") is not JSON
+	// and carries nothing; it is removed before the root-brace check.
+	const stripped = removeStrayMarkupTags(escaped.text);
+	const parse = (candidate: string): unknown => {
+		try {
+			return JSON.parse(candidate);
+		} catch {
+			return undefined;
+		}
+	};
+	let value = stripped.tags.length > 0 ? parse(stripped.text) : undefined;
+	let closedRoot = false;
+	if (value === undefined) {
+		const closed = closeMissingRootBrace(stripped.text);
+		if (closed === undefined) return undefined;
+		value = parse(closed);
+		closedRoot = true;
 	}
 	if (!isPlainRecord(value) || !validateJsonSchema(value, schema).valid)
 		return undefined;
@@ -2977,14 +2988,63 @@ function closedControlMatchingSchema(
 						},
 					]
 				: []),
-			{
-				code: "json_missing_closers",
-				section: SECTION_CONTROL,
-				message:
-					"the root object's closing brace was added to control; every root property the schema declares is required and present",
-			},
+			...(stripped.tags.length > 0
+				? [
+						{
+							code: "json_stray_markup" as const,
+							section: SECTION_CONTROL,
+							message: `${stripped.tags.length} markup tag(s) between JSON tokens removed from control: ${stripped.tags.join(" ").slice(0, 200)}`,
+						},
+					]
+				: []),
+			...(closedRoot
+				? [
+						{
+							code: "json_missing_closers" as const,
+							section: SECTION_CONTROL,
+							message:
+								"the root object's closing brace was added to control; every root property the schema declares is required and present",
+						},
+					]
+				: []),
 		],
 	};
+}
+
+/**
+ * The text without markup tags (`<name>`, `</name>`) that stand between JSON tokens, outside every string: JSON
+ * has no `<` there, so removing a whole tag changes no value. Any other stray character is kept (and stays
+ * invalid).
+ */
+export function removeStrayMarkupTags(text: string): {
+	text: string;
+	tags: string[];
+} {
+	let out = "";
+	const tags: string[] = [];
+	let inString = false;
+	let escaped = false;
+	for (let i = 0; i < text.length; i += 1) {
+		const ch = text[i] as string;
+		if (inString) {
+			if (escaped) escaped = false;
+			else if (ch === "\\") escaped = true;
+			else if (ch === '"') inString = false;
+			out += ch;
+			continue;
+		}
+		if (ch === '"') inString = true;
+		else if (ch === "<") {
+			const tag = /^<\/?[A-Za-z][\w-]*\s*>/u.exec(text.slice(i))?.[0];
+			if (tag !== undefined) {
+				tags.push(tag);
+				i += tag.length - 1;
+				continue;
+			}
+		}
+		out += ch;
+	}
+	return { text: out, tags };
 }
 
 function rootPropertiesAllRequired(schema: JsonSchema): boolean {

@@ -9,6 +9,7 @@ import { test } from "node:test";
 import {
 	closeMissingRootBrace,
 	parseWorkflowOutput,
+	removeStrayMarkupTags,
 } from "../../dist/core/workflow-output-artifacts.js";
 
 const output = (control, refs = "[]") =>
@@ -112,9 +113,10 @@ test("truncation is not completed: open lists, open inner objects, optional root
 		},
 		"open root",
 	);
-	// stray text and an extra quote stay invalid; refs are not repaired
+	// stray text and an extra quote stay invalid; refs are not repaired. (2026-11-10: a whole markup tag such as
+	// "</synthesis>" between tokens is now removed — see the json_stray_markup tests below; other text is not.)
 	reject(
-		'{"schema":"stage-control-v1","digest":"d","x":{"y":[1]} </synthesis>}',
+		'{"schema":"stage-control-v1","digest":"d","x":{"y":[1]} synthesis done}',
 		{ controlJsonSchema: schema },
 		"stray text",
 	);
@@ -172,4 +174,63 @@ test("the deep-research final-audit schema: root brace repaired, a truncated not
 		parseWorkflowOutput(output(cut), { controlJsonSchema: finalSchema }).valid,
 		false,
 	);
+});
+
+// agent-workflow 2026-11-10: the sixth recorded final-audit failure ended "…}]}} </synthesis>}" — a markup tag between
+// JSON tokens. A whole tag outside strings is removed (JSON has no "<" there); other stray text stays invalid.
+test("removeStrayMarkupTags removes whole tags between tokens and nothing inside strings", () => {
+	assert.deepEqual(removeStrayMarkupTags('{"a":{"b":1}} </synthesis>}'), {
+		text: '{"a":{"b":1}} }',
+		tags: ["</synthesis>"],
+	});
+	assert.deepEqual(removeStrayMarkupTags('{"a":"<b>x</b>","c":1}'), {
+		text: '{"a":"<b>x</b>","c":1}',
+		tags: [],
+	});
+	assert.deepEqual(removeStrayMarkupTags('{"a":1 < 2}'), {
+		text: '{"a":1 < 2}',
+		tags: [],
+	});
+});
+
+test("a stray markup tag is removed under a schema that requires every root property, alone or with the root brace", () => {
+	const strayOnly =
+		'{"schema":"stage-control-v1","digest":"d","x":{"y":[1,2]} </synthesis>}';
+	const strayAndRoot =
+		'{"schema":"stage-control-v1","digest":"d","x":{"y":[1,2]}</x>';
+	for (const [control, codes] of [
+		[strayOnly, ["json_stray_markup"]],
+		[strayAndRoot, ["json_stray_markup", "json_missing_closers"]],
+	]) {
+		const repaired = parseWorkflowOutput(output(control), {
+			controlJsonSchema: schema,
+		});
+		assert.equal(repaired.valid, true, JSON.stringify(repaired.issues));
+		assert.deepEqual(repaired.control.x, { y: [1, 2] });
+		assert.deepEqual(
+			repaired.repairs.map((r) => [r.code, r.section]),
+			codes.map((code) => [code, "control"]),
+		);
+	}
+	for (const [control, options, name] of [
+		[
+			'{"schema":"stage-control-v1","digest":"d","x":{"y":[1,2]} done}',
+			{ controlJsonSchema: schema },
+			"other stray text",
+		],
+		[strayOnly, {}, "no schema"],
+		[
+			strayOnly,
+			{ controlJsonSchema: { ...schema, required: ["schema", "digest"] } },
+			"an optional root property",
+		],
+	]) {
+		const parsed = parseWorkflowOutput(output(control), options);
+		assert.equal(parsed.valid, false, name);
+		assert.match(
+			parsed.issues.map((i) => i.message).join("\n"),
+			invalidJson,
+			name,
+		);
+	}
 });
