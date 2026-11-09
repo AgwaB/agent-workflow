@@ -354,10 +354,14 @@ Isolated attempts run with a **private `CODEX_HOME`** under the attempt's log di
 (never copies) the user's `auth.json`, `config.toml` and `rules/` and carries no `AGENTS.md`, skills,
 plugins, memories or history; it is removed when the app-server exits. A request that keeps a session
 gets its private home under `<stateDir>/session-homes/` instead, since the thread's rollout lives there:
-resuming the thread reuses it, and deleting the owned session deletes the thread in it and removes it
-(it waits up to 5 s for an app-server still running there, else reports `failed`; a launch that fails
-before its thread exists removes the home at once, and a home a crash left without its thread record is
-removed by a later launch once it is a day old). An isolated `resumeSessionId` for a thread without
+resuming the thread reuses it, and deleting the owned session deletes the thread in it and removes it.
+Processes using such a home hold a lease on it (pid and start time; a lease that cannot be written fails
+the launch). Deleting marks the session first and then waits up to 5 s for leases, else reports `failed`;
+a resume started meanwhile is refused (`INVALID_REQUEST`, "being deleted"). The home is removed only after
+the deletion's own app-server has exited, and only when every directory below the state directory is a
+plain directory (never through a symlink). A launch that fails before its thread exists removes the home
+at once, and a home a crash left without its thread record is removed by a later launch once it is a day
+old. An isolated `resumeSessionId` for a thread without
 such a home (not created by the adapter, or its home is gone) is refused before launch with
 `CAPABILITY_MISSING`, since it could only run in the user's home; resume it with `isolation.inherit`.
 Codex writes refreshed tokens in place, so the linked `auth.json` stays the one credential file every

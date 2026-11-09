@@ -217,7 +217,9 @@ export function processStartIdentity(pid: number): string | undefined {
 			// Fields after "(comm) " start at field 3; starttime is field 22.
 			return stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19] || undefined;
 		}
+		// Fixed time zone and locale: the same process must read the same in every environment (round 4).
 		const started = execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], {
+			env: { ...process.env, TZ: "UTC0", LC_ALL: "C" },
 			encoding: "utf8",
 			timeout: 2_000,
 			stdio: ["ignore", "pipe", "ignore"],

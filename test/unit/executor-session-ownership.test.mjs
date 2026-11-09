@@ -320,6 +320,88 @@ test("round 3 (codex): deleting a session while an app-server runs in its home f
 	assert.equal(existsSync(keptHome), false);
 });
 
+test("round 4 (codex): a resume started while the session is being deleted is refused, and deletion completes", async (t) => {
+	// gpt-6-astra: a resume that started after thread/delete was sent ran in a home the deletion then removed.
+	const { dir, config, deletes, log } = await codexSetup(t);
+	const executor = createCodexExecutor(config);
+	const kept = await drain(
+		executor,
+		await executor.submit(
+			request(dir, "codex-keep-fence", { sessionId: "keep-fence" }),
+		),
+		{ timeoutMs: 15_000 },
+	);
+	const owned = kept.terminal.ownedSession;
+	const keptHome = (await readFile(log, "utf8"))
+		.split("\n")
+		.filter(Boolean)
+		.map((line) => JSON.parse(line))
+		.find((message) => message.method === "initialize").codexHome;
+	process.env.FAKE_CODEX_DELETE_DELAY_MS = "1500";
+	t.after(() => {
+		delete process.env.FAKE_CODEX_DELETE_DELAY_MS;
+	});
+	const deleting = createCodexExecutor(config).deleteOwnedSession(owned);
+	for (let i = 0; i < 100 && !(await deletes()).length; i += 1)
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	assert.deepEqual(
+		await deletes(),
+		[owned.locator],
+		"thread/delete is pending",
+	);
+	await assert.rejects(
+		executor.submit(
+			request(dir, "codex-resume-during-delete", {
+				resumeSessionId: owned.locator,
+			}),
+		),
+		(error) =>
+			error.code === "INVALID_REQUEST" && /being deleted/.test(error.message),
+	);
+	assert.equal(await deleting, "deleted");
+	assert.equal(existsSync(keptHome), false);
+});
+
+test("round 4 (codex): deletion removes the home only after its server exited", async (t) => {
+	// gpt-6-astra: after SIGKILL the home went at once, while the server could still be alive.
+	const { dir, config, log } = await codexSetup(t);
+	const executor = createCodexExecutor(config);
+	const kept = await drain(
+		executor,
+		await executor.submit(
+			request(dir, "codex-keep-linger", { sessionId: "keep-linger" }),
+		),
+		{ timeoutMs: 15_000 },
+	);
+	process.env.FAKE_CODEX_LINGER_MS = "60000";
+	t.after(() => {
+		delete process.env.FAKE_CODEX_LINGER_MS;
+	});
+	assert.equal(
+		await createCodexExecutor(config).deleteOwnedSession(
+			kept.terminal.ownedSession,
+		),
+		"deleted",
+	);
+	const servers = (await readFile(log, "utf8"))
+		.split("\n")
+		.filter(Boolean)
+		.map((line) => JSON.parse(line))
+		.filter((message) => message.method === "initialize");
+	const deletionPid = servers.at(-1).pid;
+	let alive = true;
+	try {
+		process.kill(deletionPid, 0);
+	} catch {
+		alive = false;
+	}
+	assert.equal(
+		alive,
+		false,
+		"the deletion server had exited when deletion returned",
+	);
+});
+
 test("review #9 (claude): resuming a foreign session does not make it owned", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-claude-owner-"));
 	t.after(() =>

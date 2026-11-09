@@ -87,12 +87,22 @@ async function runTurn() {
 	});
 }
 
-createInterface({ input: process.stdin }).on("line", (line) => {
+// Round 4: FAKE_CODEX_LINGER_MS keeps the server alive after its stdin closed (until killed).
+const rl = createInterface({ input: process.stdin });
+if (process.env.FAKE_CODEX_LINGER_MS)
+	rl.once("close", () =>
+		setTimeout(() => {}, Number(process.env.FAKE_CODEX_LINGER_MS)),
+	);
+rl.on("line", (line) => {
 	const message = JSON.parse(line);
 	// The home this app-server runs in (re-review 2026-11-09: kept sessions keep a private home).
 	log(
 		message.method === "initialize"
-			? { ...message, codexHome: process.env.CODEX_HOME ?? null }
+			? {
+					...message,
+					codexHome: process.env.CODEX_HOME ?? null,
+					pid: process.pid,
+				}
 			: message,
 	);
 	const reply = (result) => send({ id: message.id, result });
@@ -127,7 +137,12 @@ createInterface({ input: process.stdin }).on("line", (line) => {
 			void runTurn();
 			return;
 		case "thread/delete":
-			return reply({});
+			// Round 4: a slow delete (FAKE_CODEX_DELETE_DELAY_MS) to race a resume against it.
+			setTimeout(
+				() => reply({}),
+				Number(process.env.FAKE_CODEX_DELETE_DELAY_MS ?? 0),
+			);
+			return;
 		default:
 			if (message.id !== undefined) return reply({});
 	}

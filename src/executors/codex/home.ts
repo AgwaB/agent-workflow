@@ -37,7 +37,15 @@ import {
 	symlinkSync,
 	writeFileSync,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import {
+	basename,
+	dirname,
+	isAbsolute,
+	join,
+	relative,
+	resolve,
+	sep,
+} from "node:path";
 import { processAlive, processStartIdentity } from "./state.js";
 
 export type CodexCredentialsStore =
@@ -224,8 +232,12 @@ export function reuseCodexWorkerHome(
  */
 export function keepReplacedAuth(
 	homePath: string,
-	keepDir: string,
+	paths: CodexHomePaths,
 ): string | undefined {
+	// Round 4 (gpt-6-astra): a home (or a directory above it) replaced by a symlink would lead to the user's own
+	// auth.json; only a plain directory chain below the state directory is ever touched.
+	assertPlainDirectoryChain(paths.stateDir, homePath);
+	const keepDir = paths.keepDir;
 	const privateAuth = join(homePath, "auth.json");
 	try {
 		const stat = lstatSync(privateAuth);
@@ -251,14 +263,47 @@ export function keepReplacedAuth(
 	return target;
 }
 
+/** Where a private home may live (below `stateDir`) and where a replaced auth.json is kept. */
+export interface CodexHomePaths {
+	readonly stateDir: string;
+	readonly keepDir: string;
+}
+
+/** Every directory from below `anchor` down to `path` must be a plain directory, not a symlink. */
+function assertPlainDirectoryChain(anchor: string, path: string): void {
+	const base = resolve(anchor);
+	const rel = relative(base, resolve(path));
+	if (rel === "" || rel.startsWith("..") || isAbsolute(rel))
+		throw new Error("private CODEX_HOME is outside the state directory");
+	let current = base;
+	for (const part of rel.split(sep)) {
+		current = join(current, part);
+		const info = lstatSync(current);
+		if (!info.isDirectory() || info.isSymbolicLink())
+			throw new Error(
+				`private CODEX_HOME path is not a plain directory: ${current}`,
+			);
+	}
+}
+
+/** Whether `path` is a plain directory chain below `stateDir` (no symlinked component). */
+export function codexHomeIsPlain(stateDir: string, path: string): boolean {
+	try {
+		assertPlainDirectoryChain(stateDir, path);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 /** Removes a kept session's private home (the per-session directory around it), keeping a replaced auth.json. */
 export function removeCodexSessionHome(
 	path: string,
-	keepDir: string,
+	paths: CodexHomePaths,
 ): string | undefined {
 	let kept: string | undefined;
 	try {
-		kept = keepReplacedAuth(path, keepDir);
+		kept = keepReplacedAuth(path, paths);
 	} catch {
 		return undefined;
 	}
@@ -267,28 +312,51 @@ export function removeCodexSessionHome(
 }
 
 /**
- * Round 3 (gpt-6-astra): an app-server running in a kept session's home holds a lease on it (its pid), so
- * deleting the session never removes a home in use. A lease of a process that is gone does not count.
+ * Round 3 (gpt-6-astra): processes using a kept session's home hold a lease on it — the executor process before
+ * launch, then also its app-server — each named by pid and start time, so deleting the session never removes a
+ * home in use. Round 4: a lease is published atomically and a failure to publish fails the launch; an unreadable
+ * or malformed lease counts as held.
  */
-export function leaseCodexSessionHome(
+export function writeCodexSessionLease(
 	path: string,
 	attemptKey: string,
-	pid: number,
-): () => void {
+	pids: readonly number[],
+): void {
 	const dir = join(dirname(path), "leases");
-	const file = join(
-		dir,
-		`${createHash("sha256").update(attemptKey).digest("hex").slice(0, 32)}.json`,
+	const file = join(dir, `${leaseName(attemptKey)}.json`);
+	mkdirSync(dir, { recursive: true, mode: 0o700 });
+	const temporary = `${file}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
+	writeFileSync(
+		temporary,
+		JSON.stringify({
+			attemptKey,
+			holders: pids.map((pid) => ({ pid, start: processStartIdentity(pid) })),
+		}),
+		{ mode: 0o600, flag: "wx" },
 	);
-	try {
-		mkdirSync(dir, { recursive: true, mode: 0o700 });
-		writeFileSync(
-			file,
-			JSON.stringify({ pid, attemptKey, start: processStartIdentity(pid) }),
-			{ mode: 0o600 },
-		);
-	} catch {}
-	return () => rmSync(file, { force: true });
+	renameSync(temporary, file);
+}
+
+export function releaseCodexSessionLease(
+	path: string,
+	attemptKey: string,
+): void {
+	rmSync(join(dirname(path), "leases", `${leaseName(attemptKey)}.json`), {
+		force: true,
+	});
+}
+
+function leaseName(attemptKey: string): string {
+	return createHash("sha256").update(attemptKey).digest("hex").slice(0, 32);
+}
+
+/** A process named by pid and (when known) start time is still that process. */
+function holderAlive(holder: { pid?: unknown; start?: unknown }): boolean {
+	if (typeof holder.pid !== "number" || !processAlive(holder.pid)) return false;
+	// A reused pid is another process (its start time differs). Unknown start: still held.
+	if (typeof holder.start !== "string") return true;
+	const start = processStartIdentity(holder.pid);
+	return start === undefined || start === holder.start;
 }
 
 export function codexSessionHomeInUse(path: string): boolean {
@@ -296,25 +364,70 @@ export function codexSessionHomeInUse(path: string): boolean {
 	let names: string[];
 	try {
 		names = readdirSync(dir);
-	} catch {
-		return false;
+	} catch (error) {
+		return (error as NodeJS.ErrnoException).code !== "ENOENT";
 	}
 	return names.some((name) => {
+		if (name.endsWith(".tmp")) return false;
 		try {
 			const lease = JSON.parse(readFileSync(join(dir, name), "utf8")) as {
 				pid?: unknown;
 				start?: unknown;
+				holders?: unknown;
 			};
-			if (typeof lease.pid !== "number" || !processAlive(lease.pid))
-				return false;
-			// A reused pid is another process (2026-11-09): its start time differs. Unknown start: still held.
-			if (typeof lease.start !== "string") return true;
-			const start = processStartIdentity(lease.pid);
-			return start === undefined || start === lease.start;
+			const holders = Array.isArray(lease.holders)
+				? (lease.holders as { pid?: unknown; start?: unknown }[])
+				: [lease];
+			return holders.some(holderAlive);
 		} catch {
-			return false;
+			return true;
 		}
 	});
+}
+
+/**
+ * Round 4 (gpt-6-astra): deleting a session first publishes a "deleting" marker in its directory (exclusive),
+ * then checks the leases; a resume first publishes its lease, then checks the marker — whichever comes second
+ * sees the other. Returns a release function, or undefined when another live deletion holds the marker.
+ */
+export function acquireCodexSessionDeletion(
+	path: string,
+): (() => void) | undefined {
+	const marker = join(dirname(path), "deleting.json");
+	for (let attempt = 0; attempt < 2; attempt += 1) {
+		try {
+			writeFileSync(
+				marker,
+				JSON.stringify({
+					pid: process.pid,
+					start: processStartIdentity(process.pid),
+				}),
+				{ mode: 0o600, flag: "wx" },
+			);
+			return () => rmSync(marker, { force: true });
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+			if (codexSessionHomeDeleting(path)) return undefined;
+			rmSync(marker, { force: true });
+		}
+	}
+	return undefined;
+}
+
+/** A live deletion holds the session's marker (an unreadable marker counts as live). */
+export function codexSessionHomeDeleting(path: string): boolean {
+	const marker = join(dirname(path), "deleting.json");
+	let text: string;
+	try {
+		text = readFileSync(marker, "utf8");
+	} catch (error) {
+		return (error as NodeJS.ErrnoException).code !== "ENOENT";
+	}
+	try {
+		return holderAlive(JSON.parse(text) as { pid?: unknown; start?: unknown });
+	} catch {
+		return true;
+	}
 }
 
 /**
@@ -338,11 +451,20 @@ export function sweepOrphanCodexSessionHomes(options: {
 	} catch {
 		return [];
 	}
+	// Round 4: by session directory name, not path spelling (a record may hold a relative path).
+	const recordedNames = new Set(
+		[...options.recordedHomes].map((home) => basename(dirname(home))),
+	);
 	const removed: string[] = [];
 	for (const name of names) {
 		const home = join(root, name, "home");
-		if (options.recordedHomes.has(home) || codexSessionHomeInUse(home))
+		if (recordedNames.has(name) || codexSessionHomeInUse(home)) continue;
+		try {
+			const entry = lstatSync(join(root, name));
+			if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+		} catch {
 			continue;
+		}
 		try {
 			if (now - lstatSync(join(root, name)).mtimeMs < minAgeMs) continue;
 		} catch {
@@ -354,7 +476,10 @@ export function sweepOrphanCodexSessionHomes(options: {
 			continue;
 		}
 		const before = existsSync(join(root, name));
-		removeCodexSessionHome(home, options.keepDir);
+		removeCodexSessionHome(home, {
+			stateDir: options.stateDir,
+			keepDir: options.keepDir,
+		});
 		if (before && !existsSync(join(root, name))) removed.push(join(root, name));
 	}
 	return removed;
@@ -362,12 +487,12 @@ export function sweepOrphanCodexSessionHomes(options: {
 
 export function removeCodexWorkerHome(
 	home: CodexWorkerHome,
-	keepDir: string,
+	paths: CodexHomePaths,
 ): string | undefined {
 	if (!home.relocated) return undefined;
 	let kept: string | undefined;
 	try {
-		kept = keepReplacedAuth(home.path, keepDir);
+		kept = keepReplacedAuth(home.path, paths);
 	} catch {
 		return undefined;
 	}
