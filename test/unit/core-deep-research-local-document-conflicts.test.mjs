@@ -213,6 +213,41 @@ test("a sentence naming two entities of one slot maps only when an observation n
 		1,
 		"an alias label still maps",
 	);
+	// round-5 review: a hyphen inside a name does not license a dash between names
+	const models = (label) =>
+		detectSlotConflicts({
+			extractedFacts: [
+				{
+					id: "m1",
+					slotId: "s",
+					entity: "Model-A",
+					factType: "version",
+					value: "v",
+					dateOrYear: "2021-05",
+				},
+				{
+					id: "m2",
+					slotId: "s",
+					entity: "Model-B",
+					factType: "version",
+					value: "v",
+					dateOrYear: "2022-06",
+				},
+				note("Model-B, which replaced Model-A, was released in June 2022.", {
+					slotId: "s",
+				}),
+				{
+					id: "m3",
+					slotId: "s",
+					entity: label,
+					factType: "scope",
+					value: "v",
+					dateOrYear: "2022",
+				},
+			],
+		}).conflicts.length;
+	assert.equal(models("Model-A - Model-B"), 0);
+	assert.equal(models("Model-A / Model-B"), 1);
 });
 
 test("isLocalDocumentEntity: document file names, not dotted product names", () => {
