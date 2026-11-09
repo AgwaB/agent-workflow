@@ -250,7 +250,7 @@ export class CodexTurnNormalizer {
 	 */
 	private readonly usageByTurn = new Map<
 		string,
-		{ baseline: TokenBreakdown; latest: TokenBreakdown }
+		{ baseline: TokenBreakdown; latest: TokenBreakdown; peak?: number }
 	>();
 	private lastUsageTurn: string | undefined;
 	private lastError:
@@ -303,13 +303,22 @@ export class CodexTurnNormalizer {
 					: undefined;
 				if (total === undefined) return [];
 				const turnId = str(params.turnId) ?? "";
+				// `last` is the request just made; its inputTokens (cache reads and writes included) is
+				// the prompt that request sent, so the turn's largest one is its peak context.
+				const request =
+					typeof last?.inputTokens === "number" ? last.inputTokens : undefined;
 				const entry = this.usageByTurn.get(turnId);
 				if (entry === undefined)
 					this.usageByTurn.set(turnId, {
 						baseline: subtract(total, last),
 						latest: total,
+						...(request === undefined ? {} : { peak: request }),
 					});
-				else entry.latest = total;
+				else {
+					entry.latest = total;
+					if (request !== undefined)
+						entry.peak = Math.max(entry.peak ?? 0, request);
+				}
 				this.lastUsageTurn = turnId;
 				return [];
 			}
@@ -359,6 +368,7 @@ export class CodexTurnNormalizer {
 			...(this.model === undefined ? {} : { model: this.model }),
 			cost: null,
 			source: "unknown",
+			...(entry.peak === undefined ? {} : { peakContext: entry.peak }),
 		};
 	}
 
