@@ -3,7 +3,7 @@
 // it owned. The Claude adapter follows the same rule for resumed sessions.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -129,6 +129,89 @@ test("review #9 (codex): a kept thread the adapter created is deletable once", a
 	assert.equal(await fresh.deleteOwnedSession(owned), "deleted");
 	assert.deepEqual(await deletes(), [owned.locator]);
 	assert.equal(await fresh.deleteOwnedSession(owned), "refused");
+});
+
+test("codex: a kept session keeps a private home that resume reuses and deletion removes", async (t) => {
+	// Re-review 2026-11-09 (gpt-6-astra, claude-fable-5-1): the per-attempt private home was removed on close,
+	// losing the kept thread; the first fix fell back to the user's home and lost isolation.
+	const { dir, config, deletes } = await codexSetup(t);
+	const userHome = join(dir, "user-codex");
+	await mkdir(userHome, { recursive: true });
+	await writeFile(join(userHome, "auth.json"), "{}");
+	await writeFile(join(userHome, "AGENTS.md"), "global instructions");
+	const previous = process.env.CODEX_HOME;
+	process.env.CODEX_HOME = userHome;
+	t.after(() => {
+		if (previous === undefined) delete process.env.CODEX_HOME;
+		else process.env.CODEX_HOME = previous;
+	});
+	const homes = async () =>
+		(await readFile(process.env.FAKE_CODEX_LOG, "utf8"))
+			.split("\n")
+			.filter(Boolean)
+			.map((line) => JSON.parse(line))
+			.filter((message) => message.method === "initialize")
+			.map((message) => message.codexHome);
+	const executor = createCodexExecutor(config);
+	const kept = await drain(
+		executor,
+		await executor.submit(
+			request(dir, "codex-keep-home", { sessionId: "keep-home-1" }),
+		),
+		{ timeoutMs: 15_000 },
+	);
+	assert.equal(kept.terminal.type, "completed");
+	const [keptHome] = await homes();
+	assert.ok(
+		keptHome && keptHome !== userHome,
+		`kept session ran in ${keptHome}`,
+	);
+	assert.equal(
+		existsSync(join(keptHome, "auth.json")),
+		true,
+		"the private home survives the attempt",
+	);
+	assert.equal(
+		existsSync(join(keptHome, "AGENTS.md")),
+		false,
+		"no global instructions in it",
+	);
+	const resumed = await drain(
+		executor,
+		await executor.submit(
+			request(dir, "codex-resume-home", {
+				resumeSessionId: kept.terminal.ownedSession.locator,
+			}),
+		),
+		{ timeoutMs: 15_000 },
+	);
+	assert.equal(resumed.terminal.type, "completed");
+	assert.equal((await homes())[1], keptHome, "resume reuses the kept home");
+	assert.equal(
+		await createCodexExecutor(config).deleteOwnedSession(
+			kept.terminal.ownedSession,
+		),
+		"deleted",
+	);
+	assert.equal((await homes())[2], keptHome, "deletion runs in the kept home");
+	assert.deepEqual(await deletes(), [kept.terminal.ownedSession.locator]);
+	assert.equal(
+		existsSync(keptHome),
+		false,
+		"deleting the session removes its home",
+	);
+	// an ephemeral attempt's private home is still removed when it ends
+	const ephemeral = await drain(
+		executor,
+		await executor.submit(request(dir, "codex-ephemeral-home")),
+		{ timeoutMs: 15_000 },
+	);
+	assert.equal(ephemeral.terminal.type, "completed");
+	const ephemeralHome = (await homes())[3];
+	assert.ok(ephemeralHome && ephemeralHome !== userHome);
+	for (let i = 0; i < 50 && existsSync(ephemeralHome); i += 1)
+		await new Promise((r) => setTimeout(r, 20));
+	assert.equal(existsSync(ephemeralHome), false);
 });
 
 test("review #9 (claude): resuming a foreign session does not make it owned", async (t) => {

@@ -352,10 +352,11 @@ mcp_servers.<user server>.enabled = false
 
 Isolated attempts run with a **private `CODEX_HOME`** under the attempt's log directory that links
 (never copies) the user's `auth.json`, `config.toml` and `rules/` and carries no `AGENTS.md`, skills,
-plugins, memories or history; it is removed when the app-server exits. Codex writes refreshed tokens
+plugins, memories or history; it is removed when the app-server exits. A request that keeps a session
+gets its private home under `<stateDir>/session-homes/` instead, since the thread's rollout lives there:
+resuming the thread reuses it, and deleting the owned session deletes the thread in it and removes it. Codex writes refreshed tokens
 in place, so the linked `auth.json` stays the one credential file every Codex process shares. The user's
-home is kept instead (and the probe says why) when the stage inherits user context, when the request
-keeps or resumes a session (its rollout must outlive the attempt), when
+home is kept instead (and the probe says why) when the stage inherits user context, when
 `cli_auth_credentials_store` is not `file` (the keyring store keys credentials by the home path), when
 there is neither an `auth.json` nor an `OPENAI_API_KEY`/`CODEX_API_KEY` variable, or when links cannot
 be created. Credential files are never read by agent-workflow. Project `AGENTS.md`, skills, plugins,

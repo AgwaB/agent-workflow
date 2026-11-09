@@ -11,7 +11,7 @@
  * (D3).
  */
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
-import { mkdirSync, appendFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { ApprovalDecision } from "../../sdk/approval.js";
 import { requireReleased } from "../../sdk/authority.js";
@@ -44,7 +44,13 @@ import {
 	CODEX_VERIFIED_CLI_VERSION,
 	codexCapabilities,
 } from "./capabilities.js";
-import { prepareCodexWorkerHome, removeCodexWorkerHome } from "./home.js";
+import {
+	codexSessionHomeDir,
+	prepareCodexWorkerHome,
+	removeCodexSessionHome,
+	removeCodexWorkerHome,
+	reuseCodexWorkerHome,
+} from "./home.js";
 import {
 	codexEnvironmentCapabilities,
 	codexEnvironmentNotes,
@@ -155,6 +161,8 @@ interface Run {
 	readonly pending: Map<string, PendingApproval>;
 	readonly answered: Set<string>;
 	ownedSession?: OwnedSession;
+	/** Private CODEX_HOME of a kept session, recorded with the thread (re-review 2026-11-09). */
+	readonly keptHome?: string;
 	readonly rawPath: string | undefined;
 	readonly methodsById: Map<RpcId, string>;
 	stderr: string;
@@ -841,7 +849,7 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				// Review #9: a thread is owned only when this adapter created it (durable record
 				// written here) or resumes one it recorded earlier; a resumed foreign thread is not.
 				if (req.resumeSessionId === undefined)
-					threads.record(threadId, run.attemptKey);
+					threads.record(threadId, run.attemptKey, run.keptHome);
 				if (threads.owns(threadId))
 					run.ownedSession = {
 						kind: CODEX_OWNED_SESSION_KIND,
@@ -993,15 +1001,36 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 		}
 		// C1 (2026-11-08): isolated workers get a private CODEX_HOME (linked auth/config/rules, no
 		// global AGENTS.md) under the attempt's log directory; see home.ts for when it stays shared.
+		// A kept or resumed session's home outlives the attempt (its thread rollout lives there); see home.ts.
 		const env = { ...process.env, ...req.env };
-		const workerHome = prepareCodexWorkerHome({
-			userHome: codexHomeDir(env),
-			dir: logDir,
-			env,
-			inherit: req.isolation.inherit,
-			keepsSession:
-				req.sessionId !== undefined || req.resumeSessionId !== undefined,
-		});
+		const userHome = codexHomeDir(env);
+		const keepSession =
+			req.sessionId !== undefined || req.resumeSessionId !== undefined;
+		const recordedHome =
+			req.resumeSessionId === undefined
+				? undefined
+				: threads.home(req.resumeSessionId);
+		const workerHome =
+			req.resumeSessionId !== undefined
+				? recordedHome !== undefined && existsSync(recordedHome)
+					? reuseCodexWorkerHome(recordedHome, userHome)
+					: {
+							path: userHome,
+							relocated: false,
+							reason: "the resumed thread was not created in a private home",
+							linked: [],
+						}
+				: prepareCodexWorkerHome({
+						userHome,
+						dir: keepSession
+							? codexSessionHomeDir(
+									stateDir,
+									`${req.sessionId}\u0000${req.attemptKey}`,
+								)
+							: logDir,
+						env,
+						inherit: req.isolation.inherit,
+					});
 		if (workerHome.relocated) env.CODEX_HOME = workerHome.path;
 		// argv: no prompt, no env value. `log_dir` keeps CLI logs per attempt (and marks the launch).
 		const child = spawn(
@@ -1013,7 +1042,9 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				stdio: ["pipe", "pipe", "pipe"],
 			},
 		);
-		child.once("close", () => removeCodexWorkerHome(workerHome));
+		child.once("close", () => {
+			if (!keepSession) removeCodexWorkerHome(workerHome);
+		});
 		const digest = attemptDigest(req.attemptKey);
 		const redact = createSecretRedactor(requestSecrets(req), {
 			minLength: 8,
@@ -1038,6 +1069,9 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			pending: new Map(),
 			answered: new Set(),
 			rawPath,
+			...(keepSession && workerHome.relocated
+				? { keptHome: workerHome.path }
+				: {}),
 			methodsById: new Map(),
 			stderr: "",
 			redact,
@@ -1382,7 +1416,12 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			// Not a thread this adapter created and recorded: never touch it (review #9).
 			if (session.kind !== CODEX_OWNED_SESSION_KIND) return "refused";
 			if (!threads.owns(session.locator)) return "refused";
+			// The thread lives in its private home when it was created in one.
+			const home = threads.home(session.locator);
 			const child = spawn(codexPath, ["app-server"], {
+				...(home !== undefined && existsSync(home)
+					? { env: { ...process.env, CODEX_HOME: home } }
+					: {}),
 				stdio: ["pipe", "pipe", "pipe"],
 			});
 			let closed: () => void = () => {};
@@ -1406,11 +1445,13 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				conn.notify("initialized");
 				await conn.request("thread/delete", { threadId: session.locator });
 				threads.forget(session.locator);
+				if (home !== undefined) removeCodexSessionHome(home);
 				return "deleted";
 			} catch (error) {
 				if (!/not found|no rollout|unknown thread/i.test(String(error)))
 					return "failed";
 				threads.forget(session.locator);
+				if (home !== undefined) removeCodexSessionHome(home);
 				return "not_found";
 			} finally {
 				conn.end();
