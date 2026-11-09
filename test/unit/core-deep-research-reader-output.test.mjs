@@ -351,7 +351,7 @@ test("translations put claim, lead and fact-slot text into the task's language; 
 	assert.doesNotMatch(result.auditMarkdown, /리전-01은 캐시/);
 	assert.match(
 		result.auditMarkdown,
-		/- Reader translations: 3 applied, 0 ignored\./,
+		/- Reader translations: 3 applied, 0 ignored, 23 left untranslated\./,
 	);
 });
 
@@ -379,7 +379,7 @@ test("a translation with an unknown or repeated id or empty text is ignored, not
 	);
 	assert.match(
 		result.auditMarkdown,
-		/- Reader translations: 1 applied, 4 ignored \(claim-001, claim-999, lead-002, slot-999\)\./,
+		/- Reader translations: 1 applied, 4 ignored \(claim-001, claim-999, lead-002, slot-999\), 24 left untranslated\./,
 	);
 });
 
@@ -424,8 +424,8 @@ test("a translation that drops a number of its source is not used; the original 
 		assert.match(
 			result.auditMarkdown,
 			applied
-				? /- Reader translations: 1 applied, 1 ignored \(slot-001 area: drops 9204\)\./
-				: /- Reader translations: 0 applied, 2 ignored \(claim-001: drops 2021, slot-001 area: drops 9204\)\./,
+				? /- Reader translations: 1 applied, 1 ignored \(slot-001 area: drops 9204\), 24 left untranslated\./
+				: /- Reader translations: 0 applied, 2 ignored \(claim-001: drops 2021, slot-001 area: drops 9204\), 24 left untranslated\./,
 		);
 	}
 });
@@ -449,29 +449,52 @@ test("refused translations are listed for one retranslation, which the report us
 	};
 	const sources = await refusedSources();
 	const check = await translationCheck({ sources });
-	assert.deepEqual(check.batches, [
-		{
-			id: "refused-translations",
-			items: [
-				{
-					key: "claim-001|text",
-					source: "RFC 9000 was published in May 2021.",
-					refusedTranslation: "RFC 9000은 발행되었다.",
-					droppedNumbers: ["2021"],
-				},
-				{
-					key: "slot-001|area",
-					source: "Regional policy dimension 01 (RFC 9204)",
-					refusedTranslation: "지역 정책 차원 01",
-					droppedNumbers: ["9204"],
-				},
-			],
-		},
-	]);
-	const faithful = await translationCheck({
-		sources: withTranslations(await refusedSources(), { claims: [] }),
-	});
-	assert.deepEqual(faithful.batches, [], "nothing refused, no batch");
+	assert.equal(check.batches.length, 1);
+	const [batch] = check.batches;
+	assert.equal(batch.id, "refused-translations");
+	assert.equal(
+		batch.reportLanguageSample,
+		sources["final-audit"].synthesis.bottomLine,
+	);
+	assert.deepEqual(
+		batch.items.filter((item) => item.refusedTranslation !== undefined),
+		[
+			{
+				key: "claim-001|text",
+				source: "RFC 9000 was published in May 2021.",
+				refusedTranslation: "RFC 9000은 발행되었다.",
+				droppedNumbers: ["2021"],
+			},
+			{
+				key: "slot-001|area",
+				source: "Regional policy dimension 01 (RFC 9204)",
+				refusedTranslation: "지역 정책 차원 01",
+				droppedNumbers: ["9204"],
+			},
+		],
+	);
+	// The fixture's 24 English leads are shown in a Korean report without a translation: listed to translate.
+	const missing = batch.items.filter(
+		(item) => item.refusedTranslation === undefined,
+	);
+	assert.equal(missing.length, 24);
+	assert.ok(missing.every((item) => /^lead-\d+\|text$/u.test(item.key)));
+	const noTranslations = await refusedSources();
+	delete noTranslations["final-audit"].synthesis.translations;
+	assert.deepEqual(
+		(await translationCheck({ sources: noTranslations })).batches,
+		[],
+		"without translations nothing is expected",
+	);
+	const english = await refusedSources();
+	english["final-audit"].synthesis.bottomLine = "Documented features hold.";
+	assert.deepEqual(
+		(await translationCheck({ sources: english })).batches[0].items.map(
+			(item) => item.key,
+		),
+		["claim-001|text", "slot-001|area"],
+		"a Latin-script report lists no missing translations",
+	);
 
 	// One retranslation keeps its numbers (used), the other still drops one (refused, the original shows).
 	const retried = await refusedSources();
@@ -481,6 +504,7 @@ test("refused translations are listed for one retranslation, which the report us
 		translations: [
 			{ key: "claim-001|text", text: "RFC 9000은 2021년 5월에 발행되었다." },
 			{ key: "slot-001|area", text: "지역 정책 차원 01" },
+			{ key: "lead-001|text", text: "번역된 단서 01." },
 		],
 	};
 	const result = await render({ sources: retried });
@@ -495,7 +519,7 @@ test("refused translations are listed for one retranslation, which the report us
 	);
 	assert.match(
 		result.auditMarkdown,
-		/- Reader translations: 1 applied \(1 retranslated\), 1 ignored \(slot-001 area: drops 9204\)\./,
+		/- Reader translations: 2 applied \(2 retranslated\), 1 ignored \(slot-001 area: drops 9204\), 23 left untranslated\./,
 	);
 });
 

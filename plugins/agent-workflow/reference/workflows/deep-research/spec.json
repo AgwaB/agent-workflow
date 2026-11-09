@@ -489,7 +489,7 @@
         },
         "each": {
           "itemIdentityPath": "$.id",
-          "prompt": "The final report refused these reader translations: each drops a number of its source text, so the report shows the untranslated source. Translate each source again, faithfully, into the language of its refused translation. Keep every number of the source (years, dates, RFC, version and other numbers, amounts) and its scope and hedges; add, drop or re-judge nothing; do not translate quotes, titles, URLs or ids. Items: ${item}. Put JSON in <control> shaped exactly like {\"schema\":\"deep-research-retranslate-v1\",\"digest\":\"one line\",\"translations\":[{\"key\":\"claim-001|text\",\"text\":\"the translation\"}]} with one translations entry per item key (use the item's key exactly). <analysis> and <refs> may be omitted."
+          "prompt": "Translate these report texts into the language of the batch's reportLanguageSample. An item with refusedTranslation was translated but dropped a number of its source (droppedNumbers), so the report shows the untranslated source; an item without one was not translated. Translate each source faithfully: keep every number (years, dates, RFC, version and other numbers, amounts), its scope and hedges; add, drop or re-judge nothing; do not translate quotes, titles, URLs or ids. Batch: ${item}. Put JSON in <control> shaped exactly like {\"schema\":\"deep-research-retranslate-v1\",\"digest\":\"one line\",\"translations\":[{\"key\":\"claim-001|text\",\"text\":\"the translation\"}]} with one translations entry per item key (use the item's key exactly). <analysis> and <refs> may be omitted."
         }
       },
       {

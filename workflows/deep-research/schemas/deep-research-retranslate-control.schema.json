@@ -6,7 +6,7 @@
     "digest": { "type": "string", "minLength": 1 },
     "translations": {
       "type": "array",
-      "maxItems": 24,
+      "maxItems": 40,
       "items": {
         "type": "object",
         "required": ["key", "text"],
