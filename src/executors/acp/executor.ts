@@ -854,8 +854,13 @@ export function createAcpExecutor(options: {
 					rawStream.once("close", () => resolve());
 					rawStream.end();
 				});
+				// 2026-11-10: and so is the stderr log (it was ended without waiting).
 				onStderr(stderrRedact.flush());
-				stderrStream.end();
+				await new Promise<void>((resolve) => {
+					if (stderrStream.closed || stderrStream.destroyed) return resolve();
+					stderrStream.once("close", () => resolve());
+					stderrStream.end();
+				});
 				if (run.attemptHome !== undefined)
 					await rm(run.attemptHome, { recursive: true, force: true }).catch(
 						() => {},
