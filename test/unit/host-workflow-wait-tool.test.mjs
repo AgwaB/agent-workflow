@@ -172,19 +172,26 @@ async function tempProject(prefix) {
 	return mkdtemp(join(tmpdir(), prefix));
 }
 
-test("workflow wait boundary enforces timeout and cancellation without owning the operation", async () => {
+test("workflow wait boundary enforces timeout and cancellation without owning the operation", async (t) => {
 	const never = new Promise(() => {});
-	const startedAt = Date.now();
-	await assert.rejects(
-		awaitWithinWorkflowWaitBoundary(
-			never,
-			25,
-			undefined,
-			"wait timeout sentinel",
-		),
-		/wait timeout sentinel/,
-	);
-	assert.ok(Date.now() - startedAt < 250);
+	// 2026-11-10: fake timers instead of "finished within 250 ms" — the boundary fires at exactly its timeout.
+	t.mock.timers.enable({ apis: ["setTimeout"] });
+	let settled = false;
+	const bounded = awaitWithinWorkflowWaitBoundary(
+		never,
+		25,
+		undefined,
+		"wait timeout sentinel",
+	).finally(() => {
+		settled = true;
+	});
+	bounded.catch(() => undefined);
+	t.mock.timers.tick(24);
+	await Promise.resolve();
+	assert.equal(settled, false, "not before its timeout");
+	t.mock.timers.tick(1);
+	await assert.rejects(bounded, /wait timeout sentinel/);
+	t.mock.timers.reset();
 
 	const controller = new AbortController();
 	const aborted = awaitWithinWorkflowWaitBoundary(

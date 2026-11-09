@@ -1,4 +1,3 @@
-// test-tier: integration
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -31,17 +30,21 @@ function runningTask(overrides = {}) {
 	};
 }
 
-test("WB-004 bounds a never-settling worker operation with context", async () => {
-	const startedAt = Date.now();
+test("WB-004 bounds a never-settling worker operation with context", async (t) => {
+	// 2026-11-10: fake timers instead of "finished within 500 ms".
+	t.mock.timers.enable({ apis: ["setTimeout"] });
+	const bounded = awaitWorkerOperation(() => new Promise(() => {}), {
+		operation: "test-poll",
+		context: "workflow run-a task task-a",
+		timeoutMs: 25,
+	});
+	bounded.catch(() => undefined);
+	t.mock.timers.tick(25);
 	await assert.rejects(
-		awaitWorkerOperation(() => new Promise(() => {}), {
-			operation: "test-poll",
-			context: "workflow run-a task task-a",
-			timeoutMs: 25,
-		}),
+		bounded,
 		/error|timed out after 25ms \(workflow run-a task task-a\)/,
 	);
-	assert.ok(Date.now() - startedAt < 500);
+	t.mock.timers.reset();
 });
 
 test("WB-004 surfaces interrupt rejection and preserves recoverable worker state", async (t) => {
