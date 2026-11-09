@@ -219,6 +219,8 @@ export interface ThreadOwnershipRecord {
 	readonly threadId: string;
 	readonly attemptKey: string;
 	readonly createdAt: number;
+	/** The kept thread's private CODEX_HOME, when it was created in one (re-review 2026-11-09). */
+	readonly home?: string;
 }
 
 /**
@@ -241,7 +243,7 @@ export class ThreadOwnershipStore {
 		);
 	}
 
-	record(threadId: string, attemptKey: string): void {
+	record(threadId: string, attemptKey: string, home?: string): void {
 		mkdirSync(this.dir, { recursive: true, mode: 0o700 });
 		const path = this.path(threadId);
 		const temp = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
@@ -250,6 +252,7 @@ export class ThreadOwnershipStore {
 			threadId,
 			attemptKey,
 			createdAt: Date.now(),
+			...(home === undefined ? {} : { home }),
 		};
 		writeFileSync(temp, JSON.stringify(record), { mode: 0o600 });
 		renameSync(temp, path);
@@ -267,6 +270,20 @@ export class ThreadOwnershipStore {
 			);
 		} catch {
 			return false;
+		}
+	}
+
+	/** The private home a recorded thread was created in, if any. */
+	home(threadId: string): string | undefined {
+		try {
+			const record = JSON.parse(
+				readFileSync(this.path(threadId), "utf8"),
+			) as Partial<ThreadOwnershipRecord> | null;
+			return record?.threadId === threadId && typeof record.home === "string"
+				? record.home
+				: undefined;
+		} catch {
+			return undefined;
 		}
 	}
 

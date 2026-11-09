@@ -87,7 +87,12 @@ async function runTurn() {
 
 createInterface({ input: process.stdin }).on("line", (line) => {
 	const message = JSON.parse(line);
-	log(message);
+	// The home this app-server runs in (re-review 2026-11-09: kept sessions keep a private home).
+	log(
+		message.method === "initialize"
+			? { ...message, codexHome: process.env.CODEX_HOME ?? null }
+			: message,
+	);
 	const reply = (result) => send({ id: message.id, result });
 	switch (message.method) {
 		case "initialize":

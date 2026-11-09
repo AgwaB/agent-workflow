@@ -23,15 +23,20 @@
  * the home path (`storage.rs:259-270`), so a private home would find nothing and `auto` would save a
  * refresh under the private key — or when there is neither an `auth.json` nor an API-key variable.
  */
+import { createHash } from "node:crypto";
 import {
+	chmodSync,
+	copyFileSync,
 	existsSync,
+	lstatSync,
 	mkdirSync,
 	readFileSync,
+	renameSync,
 	rmSync,
 	statSync,
 	symlinkSync,
 } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 export type CodexCredentialsStore =
 	| "file"
@@ -83,8 +88,6 @@ export function decideCodexWorkerHome(options: {
 	readonly userHome: string;
 	readonly env?: Readonly<Record<string, string | undefined>>;
 	readonly inherit?: boolean;
-	/** The request keeps or resumes a thread (sessionId / resumeSessionId). */
-	readonly keepsSession?: boolean;
 }): CodexWorkerHomeDecision {
 	const env = options.env ?? process.env;
 	const credentialsStore = codexCredentialsStore(options.userHome);
@@ -94,14 +97,6 @@ export function decideCodexWorkerHome(options: {
 	const base = { credentialsStore, authFile } as const;
 	if (options.inherit === true)
 		return { ...base, relocate: false, reason: "stage inherits user context" };
-	// Review 2026-11-09 (gpt-6-astra): a kept thread's rollout lives in CODEX_HOME; a per-attempt home is
-	// removed on close, so a later resume would find nothing. Kept sessions use the user's home.
-	if (options.keepsSession === true)
-		return {
-			...base,
-			relocate: false,
-			reason: "the request keeps or resumes a session",
-		};
 	if (credentialsStore !== "file")
 		return {
 			...base,
@@ -127,6 +122,8 @@ export interface CodexWorkerHome {
 	readonly reason?: string;
 	/** Entries linked into the private home (names only). */
 	readonly linked: readonly string[];
+	/** The user's CODEX_HOME the links point into (relocated homes). */
+	readonly userHome?: string;
 }
 
 /**
@@ -138,7 +135,6 @@ export function prepareCodexWorkerHome(options: {
 	readonly dir: string;
 	readonly env?: Readonly<Record<string, string | undefined>>;
 	readonly inherit?: boolean;
-	readonly keepsSession?: boolean;
 }): CodexWorkerHome {
 	const decision = decideCodexWorkerHome(options);
 	if (!decision.relocate)
@@ -176,11 +172,97 @@ export function prepareCodexWorkerHome(options: {
 			linked: [],
 		};
 	}
-	return { path, relocated: true, linked };
+	return { path, relocated: true, linked, userHome: options.userHome };
 }
 
 /** Remove a private worker home; links are removed, their targets untouched. */
+/**
+ * Re-review 2026-11-09 (gpt-6-astra, claude-fable-5-1): a kept thread's rollout lives in its CODEX_HOME,
+ * so a kept session gets a private home outside the attempt's log directory that outlives the attempt:
+ * resume reuses it (the path is kept with the thread's ownership record) and deleting the owned session
+ * removes it. The first fix used the user's home instead, which silently dropped the isolation the
+ * probe had advertised.
+ */
+export function codexSessionHomeDir(stateDir: string, key: string): string {
+	return join(
+		stateDir,
+		"session-homes",
+		createHash("sha256").update(key).digest("hex").slice(0, 40),
+	);
+}
+
+/** A kept session's private home, its links restored if any went missing. */
+export function reuseCodexWorkerHome(
+	path: string,
+	userHome: string,
+): CodexWorkerHome {
+	const linked: string[] = [];
+	for (const name of ["auth.json", "config.toml", "rules"]) {
+		const link = join(path, name);
+		try {
+			lstatSync(link);
+			linked.push(name);
+			continue;
+		} catch {}
+		try {
+			const target = join(userHome, name);
+			const stat = statSync(target);
+			if (name === "rules" ? !stat.isDirectory() : !stat.isFile()) continue;
+			symlinkSync(target, link, name === "rules" ? "dir" : "file");
+			linked.push(name);
+		} catch {}
+	}
+	return { path, relocated: true, linked, userHome };
+}
+
+/**
+ * Review F (2026-11-09, claude-fable-5-1): the private home links the user's auth.json, which is safe
+ * because Codex rewrites it in place (0.165 source). Should a Codex version write it by rename instead,
+ * the link becomes a regular file holding the refreshed token, and removing the home would drop it while
+ * the user's file keeps a refresh token the server may already have rotated out. Before removal such a
+ * file is moved back over the user's auth.json when it is newer (rename; a copy only across file
+ * systems). agent-workflow does not parse it.
+ */
+export function restoreReplacedAuth(
+	homePath: string,
+	userHome: string | undefined,
+): "linked" | "absent" | "kept-user" | "restored" {
+	if (userHome === undefined) return "absent";
+	const privateAuth = join(homePath, "auth.json");
+	let stat: ReturnType<typeof lstatSync>;
+	try {
+		stat = lstatSync(privateAuth);
+	} catch {
+		return "absent";
+	}
+	if (stat.isSymbolicLink()) return "linked";
+	if (!stat.isFile()) return "absent";
+	const userAuth = join(userHome, "auth.json");
+	let userMtime = 0;
+	try {
+		userMtime = statSync(userAuth).mtimeMs;
+	} catch {}
+	if (stat.mtimeMs <= userMtime) return "kept-user";
+	try {
+		renameSync(privateAuth, userAuth);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "EXDEV") return "kept-user";
+		const temp = `${userAuth}.${process.pid}.restore`;
+		copyFileSync(privateAuth, temp);
+		chmodSync(temp, 0o600);
+		renameSync(temp, userAuth);
+	}
+	return "restored";
+}
+
+/** Removes a kept session's private home (the per-session directory around it). */
+export function removeCodexSessionHome(path: string, userHome?: string): void {
+	restoreReplacedAuth(path, userHome);
+	rmSync(dirname(path), { recursive: true, force: true, maxRetries: 3 });
+}
+
 export function removeCodexWorkerHome(home: CodexWorkerHome): void {
 	if (!home.relocated) return;
+	restoreReplacedAuth(home.path, home.userHome);
 	rmSync(home.path, { recursive: true, force: true, maxRetries: 3 });
 }
