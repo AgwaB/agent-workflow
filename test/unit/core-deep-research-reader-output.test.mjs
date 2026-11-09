@@ -447,6 +447,13 @@ test("numbersDroppedBy keeps faithful Korean number forms and catches real drops
 		["1.5 million users", "1,500,000명의 사용자"],
 		["1.5 million users", "1500000명"],
 		["May 2023 release", "2023.5. 출시"],
+		// 2026-11-09: Korean compound numerals are one value
+		["1,500 users", "1천500명"],
+		["15,000 users", "1만 5천 명"],
+		["320,000,000 won", "3억 2천만 원"],
+		["20,000,000 won", "2천만 원"],
+		["105,000", "10만 5천"],
+		["1,050", "1천50"],
 	])
 		assert.deepEqual(
 			numbersDroppedBy(source, translated),
@@ -468,6 +475,8 @@ test("numbersDroppedBy keeps faithful Korean number forms and catches real drops
 		["1000 users", "0.1000 users", ["1000"]],
 		["1000 users", "1000.5 users", ["1000"]],
 		["12,345 rows", "12.345개", ["12345"]],
+		["1,500 users", "1천 명", ["1500"]],
+		["1,500 users", "1천500.5명", ["1500"]],
 	])
 		assert.deepEqual(
 			numbersDroppedBy(source, translated),

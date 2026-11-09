@@ -356,7 +356,8 @@ plugins, memories or history; it is removed when the app-server exits. A request
 gets its private home under `<stateDir>/session-homes/` instead, since the thread's rollout lives there:
 resuming the thread reuses it, and deleting the owned session deletes the thread in it and removes it
 (it waits up to 5 s for an app-server still running there, else reports `failed`; a launch that fails
-before its thread exists removes the home at once). An isolated `resumeSessionId` for a thread without
+before its thread exists removes the home at once, and a home a crash left without its thread record is
+removed by a later launch once it is a day old). An isolated `resumeSessionId` for a thread without
 such a home (not created by the adapter, or its home is gone) is refused before launch with
 `CAPABILITY_MISSING`, since it could only run in the user's home; resume it with `isolation.inherit`.
 Codex writes refreshed tokens in place, so the linked `auth.json` stays the one credential file every

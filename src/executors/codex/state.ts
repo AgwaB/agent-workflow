@@ -6,11 +6,13 @@
  * id. The event log holds the normalized events (the same view the runtime persists). WP18b:
  * terminal records older than the retention window are pruned (`classifyCodexAttemptRecord`).
  */
+import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import {
 	appendFileSync,
 	linkSync,
 	mkdirSync,
+	readdirSync,
 	readFileSync,
 	renameSync,
 	rmSync,
@@ -204,6 +206,28 @@ export class AttemptStore {
 	}
 }
 
+/**
+ * When a process started, to tell it from a later process that reused its pid: Linux reads `starttime` from
+ * /proc, other systems ask `ps`. undefined when it cannot be read.
+ */
+export function processStartIdentity(pid: number): string | undefined {
+	try {
+		if (process.platform === "linux") {
+			const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+			// Fields after "(comm) " start at field 3; starttime is field 22.
+			return stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19] || undefined;
+		}
+		const started = execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], {
+			encoding: "utf8",
+			timeout: 2_000,
+			stdio: ["ignore", "pipe", "ignore"],
+		}).trim();
+		return started === "" ? undefined : started;
+	} catch {
+		return undefined;
+	}
+}
+
 export function processAlive(pid: number | undefined): boolean {
 	if (pid === undefined) return false;
 	try {
@@ -300,6 +324,27 @@ export class ThreadOwnershipStore {
 		} catch {
 			return undefined;
 		}
+	}
+
+	/** Every private home a thread record names (orphan sweep). */
+	recordedHomes(): Set<string> {
+		const homes = new Set<string>();
+		let names: string[] = [];
+		try {
+			names = readdirSync(this.dir);
+		} catch {
+			return homes;
+		}
+		for (const name of names) {
+			if (!name.endsWith(".json")) continue;
+			try {
+				const record = JSON.parse(
+					readFileSync(join(this.dir, name), "utf8"),
+				) as Partial<ThreadOwnershipRecord> | null;
+				if (typeof record?.home === "string") homes.add(record.home);
+			} catch {}
+		}
+		return homes;
 	}
 
 	forget(threadId: string): void {
