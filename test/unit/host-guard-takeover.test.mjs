@@ -10,6 +10,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
+import { waitUntil } from "../helpers/wait-until.mjs";
 
 const guard = await import("../../dist/hosts/launch-guard.js");
 
@@ -102,9 +103,21 @@ test("a live owner past 60 s keeps its claim (renewed lease); its record still l
 		renewMs: 10,
 	});
 	assert.equal(owner.kind, "claimed");
-	// The owner is still waiting (e.g. on a user confirmation) two minutes later.
+	// The owner is still waiting (e.g. on a user confirmation) two minutes later, and has renewed since
+	// (2026-11-10: waited for, not assumed after a fixed 150 ms).
 	clock += 120_000;
-	await new Promise((resolve) => setTimeout(resolve, 150));
+	await waitUntil(
+		async () =>
+			Date.parse(
+				JSON.parse(
+					await readFile(
+						join(guard.launchGuardDir(cwd), `${fingerprint}.json`),
+						"utf8",
+					),
+				).leaseExpiresAt,
+			) > clock,
+		"a renewal after the clock moved",
+	);
 	const second = await guard.claimLaunch(cwd, fingerprint, {
 		now,
 		inFlightWaitMs: 0,

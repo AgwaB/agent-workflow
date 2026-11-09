@@ -237,6 +237,14 @@ async function loadDiscovery(
  * this long.
  */
 const DASHBOARD_LOCAL_REQUEST_MS = 3000;
+let dashboardLocalRequestMs = DASHBOARD_LOCAL_REQUEST_MS;
+
+/** Tests set the local request bound (a stalled probe in milliseconds); `undefined` restores 3 s. */
+export function setDashboardLocalRequestMsForTests(
+	ms: number | undefined,
+): void {
+	dashboardLocalRequestMs = ms ?? DASHBOARD_LOCAL_REQUEST_MS;
+}
 
 /**
  * Bounded identity probe without credentials; do not follow redirects or accept an arbitrary
@@ -300,10 +308,7 @@ export function probeDashboardIdentity(
 				});
 			},
 		);
-		const timer = setTimeout(
-			() => finish("timeout"),
-			DASHBOARD_LOCAL_REQUEST_MS,
-		);
+		const timer = setTimeout(() => finish("timeout"), dashboardLocalRequestMs);
 		req.on("error", () => finish("unknown"));
 		req.end();
 	});
@@ -346,7 +351,7 @@ export async function readDashboardDiscovery(
 							)
 					: probeDashboardIdentity(data),
 				new Promise<"timeout">((done) => {
-					timer = setTimeout(() => done("timeout"), DASHBOARD_LOCAL_REQUEST_MS);
+					timer = setTimeout(() => done("timeout"), dashboardLocalRequestMs);
 				}),
 			]);
 		} finally {
@@ -398,7 +403,7 @@ export async function mintLaunchUrl(
 			"X-AW-Launch-Key": discovery.launchKey,
 		},
 		body: JSON.stringify(params),
-		signal: AbortSignal.timeout(DASHBOARD_LOCAL_REQUEST_MS),
+		signal: AbortSignal.timeout(dashboardLocalRequestMs),
 		redirect: "error",
 	});
 	if (!response.ok) throw new Error("Could not mint dashboard launch URL");
@@ -442,7 +447,7 @@ export async function launchConsumed(
 			`http://127.0.0.1:${discovery.port}/api/launch/${launchId}`,
 			{
 				headers: { "X-AW-Launch-Key": discovery.launchKey },
-				signal: AbortSignal.timeout(DASHBOARD_LOCAL_REQUEST_MS),
+				signal: AbortSignal.timeout(dashboardLocalRequestMs),
 				redirect: "error",
 			},
 		);
@@ -574,7 +579,7 @@ export async function shutdownDashboard(
 			method: "POST",
 			headers: { "X-AW-Launch-Key": discovery.launchKey },
 			redirect: "error",
-			signal: AbortSignal.timeout(DASHBOARD_LOCAL_REQUEST_MS),
+			signal: AbortSignal.timeout(dashboardLocalRequestMs),
 		},
 	);
 	if (!response.ok) throw new Error("Could not stop dashboard");

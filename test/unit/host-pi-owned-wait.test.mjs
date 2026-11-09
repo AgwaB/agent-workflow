@@ -341,6 +341,13 @@ test("restart: a history holding the tool result confirms it; a history without 
 		for (const handler of second.pi.handlers.get("session_start") ?? [])
 			handler({ reason: "resume" }, resumed);
 		await ext.unfinishedNoticeSettledForTests(second.pi);
+		// 2026-11-10: wait for the catch-up delivery itself, then a quiet window for a duplicate (the fixed 200 ms
+		// had to cover both).
+		if (!persisted)
+			await eventually(
+				() => completionMessages(second.pi, runId).length >= 1,
+				"the catch-up delivery",
+			);
 		await new Promise((resolve) => setTimeout(resolve, 200));
 		assert.equal(
 			completionMessages(second.pi, runId).length,

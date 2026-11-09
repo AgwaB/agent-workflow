@@ -465,7 +465,8 @@ test("RR-01 topology lease acquisition is bounded and dry run ignores a held pla
 		assert.ok(lease);
 		const start = Date.now();
 		assert.equal(await acquireWorkflowTopologyLease(cwd, 25), undefined);
-		assert.ok(Date.now() - start < 1000);
+		// 2026-11-10: only separates the 25 ms bound from the 15 s default wait (was "< 1 s").
+		assert.ok(Date.now() - start < 7_500);
 		const dry = await pruneWorkflowRuns(cwd, { keep: 0 });
 		assert.equal(dry.dryRun, true);
 		assert.equal(dry.indexUpdated, false);

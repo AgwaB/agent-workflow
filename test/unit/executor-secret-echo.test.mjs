@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { waitUntil } from "../helpers/wait-until.mjs";
 
 import {
 	createClaudeExecutor,
@@ -80,8 +81,6 @@ async function assertNoSecrets(label, dirs, events) {
 		}
 }
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 test("review #5 (codex): echoed env and MCP env values are redacted everywhere", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-codex-echo-"));
 	t.after(() =>
@@ -119,7 +118,6 @@ test("review #5 (codex): echoed env and MCP env values are redacted everywhere",
 		timeoutMs: 15_000,
 	});
 	assert.equal(terminal.type, "completed");
-	await sleep(200);
 	// The echo happened (redaction markers), and the CLI got the real values.
 	assert.match(JSON.stringify(events), /redacted/);
 	const sent = await readFile(log, "utf8");
@@ -192,10 +190,14 @@ test("review #5 (claude): a value split across stderr chunks is redacted", async
 		request(dir, "claude-echo-1", { artifactsDir }),
 	);
 	const { events } = await drain(executor, ref, { timeoutMs: 15_000 });
-	await sleep(200);
-	assert.match(
-		await readFile(join(artifactsDir, "claude-stderr.log"), "utf8"),
-		/<redacted:ECHO_SECRET>/,
+	// 2026-11-10: the Claude adapter closes its stderr log after the terminal event (its raw stream before it),
+	// so wait for the redacted line instead of a fixed 200 ms.
+	await waitUntil(
+		() =>
+			readFile(join(artifactsDir, "claude-stderr.log"), "utf8").then((text) =>
+				/<redacted:ECHO_SECRET>/.test(text),
+			),
+		"the redacted stderr line",
 	);
 	await assertNoSecrets("claude", [stateDir, artifactsDir], events);
 });
@@ -224,7 +226,6 @@ test("review #5 (pi): a value split across stderr chunks is redacted", async (t)
 		request(dir, "pi-echo-1", { artifactsDir }),
 	);
 	const { events } = await drain(executor, ref, { timeoutMs: 15_000 });
-	await sleep(200);
 	assert.match(
 		await readFile(join(artifactsDir, "pi-stderr.log"), "utf8"),
 		/\[redacted\]/,
