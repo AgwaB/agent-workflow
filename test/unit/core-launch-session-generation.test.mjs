@@ -79,3 +79,60 @@ test("a rebuilt child (source generation 1, 2) gets a distinct attempt identity 
 		/generation:/,
 	);
 });
+
+test("a rebuilt child's launch-retry, resume and output-retry sessions carry its generation", async () => {
+	// Review 2026-11-09 (claude-fable-5-1): these variants were returned before the generation, so gen-1's
+	// "launch-retry-1" reused gen-0's session id.
+	const { retryWorkflowTaskSessionId } = await import(
+		"../../dist/core/launch-session.js"
+	);
+	const variant = (generation, extra) => ({ ...child(generation), ...extra });
+	for (const [extra, suffix, counters] of [
+		[
+			{ launchRetry: { attempts: 1 } },
+			"launch-retry-1",
+			{ launchRetry: 1, outputRetry: 0, resume: 0 },
+		],
+		[
+			{ resumeEvents: [{}] },
+			"resume-1",
+			{ launchRetry: 0, outputRetry: 0, resume: 1 },
+		],
+	]) {
+		const gen0 = workflowTaskSessionId(run, variant(0, extra));
+		const gen1 = workflowTaskSessionId(run, variant(1, extra));
+		assert.equal(gen0, `agent-workflow.workflow_abc_123.task-12.${suffix}`);
+		assert.equal(
+			gen1,
+			`agent-workflow.workflow_abc_123.task-12.gen-1.${suffix}`,
+		);
+		assert.equal(
+			isWorkflowTaskSessionIdentity({
+				runId: run.runId,
+				taskId: "task-12",
+				...counters,
+				sourceGeneration: 1,
+				sessionId: gen1,
+			}),
+			true,
+		);
+		assert.equal(
+			isWorkflowTaskSessionIdentity({
+				runId: run.runId,
+				taskId: "task-12",
+				...counters,
+				sourceGeneration: 1,
+				sessionId: gen0,
+			}),
+			false,
+		);
+	}
+	assert.equal(
+		retryWorkflowTaskSessionId(run, child(0), 1),
+		"agent-workflow.workflow_abc_123.task-12.retry-1",
+	);
+	assert.equal(
+		retryWorkflowTaskSessionId(run, child(2), 1),
+		"agent-workflow.workflow_abc_123.task-12.gen-2.retry-1",
+	);
+});
