@@ -19,6 +19,10 @@
 		"final-audit.main": {
 			"chars": 9797,
 			"sha256": "aae2c8a6790ae8693808b63a8b87a550a33ce032b54213360e81137aaffd232c"
+		},
+		"retranslate.item": {
+			"chars": 1897,
+			"sha256": "b23cd8b8cc71a9570fe10a933e4d8f5c47986f81953b8a3fbcf2a6106d02bb59"
 		}
 	},
 	"workflows/deep-research/tiered-verification.spec.json": {
@@ -45,6 +49,10 @@
 		"final-audit.main": {
 			"chars": 9979,
 			"sha256": "bd90336b83740fb0f43e5778e1190e3c68aea22673ebdb44be3bba5d948215c4"
+		},
+		"retranslate.item": {
+			"chars": 1897,
+			"sha256": "b23cd8b8cc71a9570fe10a933e4d8f5c47986f81953b8a3fbcf2a6106d02bb59"
 		}
 	},
 	"workflows/deep-review/spec.json": {

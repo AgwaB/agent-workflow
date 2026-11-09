@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "required": ["schema", "digest", "translations"],
+  "properties": {
+    "schema": { "const": "deep-research-retranslate-v1" },
+    "digest": { "type": "string", "minLength": 1 },
+    "translations": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "required": ["key", "text"],
+        "properties": {
+          "key": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1, "maxLength": 2000 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

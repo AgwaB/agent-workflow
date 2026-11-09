@@ -7,6 +7,7 @@ import render, {
 	numbersDroppedBy,
 } from "../../workflows/deep-research/helpers/render-executive.mjs";
 import { buildSynthesisPages } from "../../workflows/deep-research/helpers/synthesis-pages.mjs";
+import translationCheck from "../../workflows/deep-research/helpers/translation-check.mjs";
 
 const fixture = JSON.parse(
 	await readFile(
@@ -425,6 +426,75 @@ test("a translation that drops a number of its source is not used; the original 
 				: /- Reader translations: 0 applied, 2 ignored \(claim-001: drops 2021, slot-001 area: drops 9204\)\./,
 		);
 	}
+});
+
+// 2026-11-10: recorded runs refused 22 such fields in 8 of 12 runs. translation-check lists them, the retranslate stage
+// tries each once, and the renderer uses a retranslation only when it keeps every number.
+test("refused translations are listed for one retranslation, which the report uses only when faithful", async () => {
+	const refusedSources = async () => {
+		const sources = withTranslations(await inputs(), {
+			claims: [{ id: "claim-001", text: "RFC 9000은 발행되었다." }],
+			factSlots: [{ id: "slot-001", area: "지역 정책 차원 01" }],
+		});
+		const packet = sources["final-audit-packet"].packet;
+		packet.claimVerdictLedger.find((row) => row.id === "claim-001").claim =
+			"RFC 9000 was published in May 2021.";
+		packet.factSlotCoverage.find((row) => row.slotId === "slot-001").label =
+			"Regional policy dimension 01 (RFC 9204)";
+		delete packet.synthesisInput;
+		packet.synthesisInput = buildSynthesisPages(packet);
+		return sources;
+	};
+	const sources = await refusedSources();
+	const check = await translationCheck({ sources });
+	assert.deepEqual(check.batches, [
+		{
+			id: "refused-translations",
+			items: [
+				{
+					key: "claim-001|text",
+					source: "RFC 9000 was published in May 2021.",
+					refusedTranslation: "RFC 9000은 발행되었다.",
+					droppedNumbers: ["2021"],
+				},
+				{
+					key: "slot-001|area",
+					source: "Regional policy dimension 01 (RFC 9204)",
+					refusedTranslation: "지역 정책 차원 01",
+					droppedNumbers: ["9204"],
+				},
+			],
+		},
+	]);
+	const faithful = await translationCheck({
+		sources: withTranslations(await refusedSources(), { claims: [] }),
+	});
+	assert.deepEqual(faithful.batches, [], "nothing refused, no batch");
+
+	// One retranslation keeps its numbers (used), the other still drops one (refused, the original shows).
+	const retried = await refusedSources();
+	retried["retranslate.refused-translations"] = {
+		schema: "deep-research-retranslate-v1",
+		digest: "d",
+		translations: [
+			{ key: "claim-001|text", text: "RFC 9000은 2021년 5월에 발행되었다." },
+			{ key: "slot-001|area", text: "지역 정책 차원 01" },
+		],
+	};
+	const result = await render({ sources: retried });
+	assert.equal(result.status, "passed", JSON.stringify(result.gates));
+	assert.match(
+		result.reportMarkdown,
+		/### 1\. RFC 9000은 2021년 5월에 발행되었다\./,
+	);
+	assert.match(
+		result.reportMarkdown,
+		/\| Regional policy dimension 01 \(RFC 9204\) \|/,
+	);
+	assert.match(
+		result.auditMarkdown,
+		/- Reader translations: 1 applied \(1 retranslated\), 1 ignored \(slot-001 area: drops 9204\)\./,
+	);
 });
 
 test("numbersDroppedBy keeps faithful Korean number forms and catches real drops", () => {

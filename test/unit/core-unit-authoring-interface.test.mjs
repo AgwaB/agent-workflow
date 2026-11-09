@@ -642,6 +642,8 @@ test("bundled deep-research compacts audit packets before executive final", asyn
 		"final-audit.main",
 		"final-audit-packet.main",
 		"check-web-quotes.main",
+		// 2026-11-10: refused reader translations get one retry.
+		"retranslate.item",
 	]);
 	assert.equal(final.support.uses, "./helpers/render-executive.mjs");
 	assert.deepEqual(final.support.options ?? {}, {});
