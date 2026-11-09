@@ -117,7 +117,7 @@ test("durable-launch-barrier", async () => {
 		await writeFile(fixture, "fixture\n", { mode: 0o600 });
 		const realPendingLstat = lstat;
 		let sequenceCalls = 0;
-		const runPendingSequence = async (first, second, third) => {
+		const runPendingSequence = async (first, second, third, rest) => {
 			let calls = 0;
 			injectedLstat = async (path) => {
 				if (path !== `${interleaveBarrier.readyPath}.pending`)
@@ -126,6 +126,7 @@ test("durable-launch-barrier", async () => {
 				if (calls === 1) return first();
 				if (calls === 2) return second();
 				if (calls === 3 && third !== undefined) return third();
+				if (rest !== undefined) return rest();
 				const error = new Error("injected missing pending");
 				error.code = "ENOENT";
 				throw error;
@@ -146,13 +147,30 @@ test("durable-launch-barrier", async () => {
 			),
 			{},
 		);
+		// CI 2026-11-09 (42577149353): on Linux an unlinking fence stays visible with nlink 0 for milliseconds
+		// under fsync load; three quick looks then gone is a finished unlink, not a mismatch. Only a fence that
+		// never finishes unlinking fails, after a bounded wait.
+		assert.deepEqual(
+			await runPendingSequence(
+				() => staleInfo,
+				() => staleInfo,
+				() => staleInfo,
+			),
+			{},
+		);
+		const staleSince = Date.now();
 		await assert.rejects(
 			runPendingSequence(
 				() => staleInfo,
 				() => staleInfo,
 				() => staleInfo,
+				() => staleInfo,
 			),
 			/durable launch barrier pending fence identity mismatch/u,
+		);
+		assert.ok(
+			Date.now() - staleSince >= 900,
+			"a stale fence is re-observed for the bound",
 		);
 		const validInfo = await realPendingLstat(fixture);
 		assert.deepEqual(

@@ -281,6 +281,15 @@ for (const protection of ["none", "SSE", "live run", "source failure"]) {
 		assert.equal(exited, false, "checks run every 60 seconds");
 		t.mock.timers.tick(1);
 		await until(() => calls > before);
+		// CI 2026-11-09 (42577149353): a protected check rewrites the discovery (temp file + rename) after it
+		// listed the runs; reading it mid-rewrite raced. Wait for the rewrite (its new idleExitAt) instead.
+		if (protection === "live run" || protection === "SSE") {
+			const rewritten = new Date(now + 1500).toISOString();
+			await until(
+				async () =>
+					(await readDashboardDiscovery(cwd))?.idleExitAt === rewritten,
+			);
+		}
 		if (protection === "none") {
 			await until(() => exited);
 		} else {

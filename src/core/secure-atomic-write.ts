@@ -57,12 +57,49 @@ export async function ensurePrivateDirectory(path: string): Promise<void> {
 }
 
 /** Read a bounded private regular file without following path symlinks. */
+let afterReadOpenForTests: ((path: string) => Promise<void> | void) | undefined;
+
+/** Test hook: runs right after readPrivateFileText opened the file (to replace it mid-read deterministically). */
+export function setSecureReadAfterOpenHookForTests(
+	hook?: (path: string) => Promise<void> | void,
+): void {
+	afterReadOpenForTests = hook;
+}
+
+/** The file was replaced (renamed over) or unlinked after it was opened: a concurrent write, not a swap. */
+class ReplacedWhileReadingError extends Error {}
+
+const READ_REPLACED_ATTEMPTS = 10;
+
+/**
+ * Reads a private file. CI 2026-11-09 (ci-flakes-20261109): a reader that opened the file just before an atomic
+ * rewrite renamed over it held the old, unlinked inode and failed ("not a stable regular file"), so the dashboard
+ * discovery read as absent. That case is read again (bounded); symlinks and hard links still fail.
+ */
 export async function readPrivateFileText(
 	path: string,
 	maxBytes = 1_048_576,
 ): Promise<string> {
 	if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || maxBytes > 16_777_216)
 		throw new Error("private file size limit is invalid");
+	for (let attempt = 1; ; attempt += 1) {
+		try {
+			return await readPrivateFileTextOnce(path, maxBytes);
+		} catch (error) {
+			if (
+				!(error instanceof ReplacedWhileReadingError) ||
+				attempt >= READ_REPLACED_ATTEMPTS
+			)
+				throw error;
+			await new Promise((done) => setTimeout(done, Math.min(attempt, 5)));
+		}
+	}
+}
+
+async function readPrivateFileTextOnce(
+	path: string,
+	maxBytes: number,
+): Promise<string> {
 	const absolute = resolve(path);
 	const parent = await openPrivateDirectory(dirname(absolute), false);
 	const target = join(parent.namedPath, basename(absolute));
@@ -73,6 +110,7 @@ export async function readPrivateFileText(
 			target,
 			constants.O_RDONLY | NOFOLLOW | constants.O_NONBLOCK,
 		);
+		await afterReadOpenForTests?.(absolute);
 		await assertSingleRegularFile(file, target);
 		const info = await file.stat();
 		if (info.size > maxBytes)
@@ -451,6 +489,19 @@ async function assertSingleRegularFile(
 ): Promise<void> {
 	const opened = await file.stat();
 	const named = await lstat(path);
+	// The opened file was renamed over or unlinked meanwhile (no links left, or the path now names another
+	// regular file — the rename can land between the two stats): read the path again. A symlink, a non-file
+	// or a hard link still fails; the private parent directory rules out a foreign replacement.
+	if (
+		opened.isFile() &&
+		(opened.nlink === 0 ||
+			(named.isFile() &&
+				!named.isSymbolicLink() &&
+				!sameIdentity(opened, named)))
+	)
+		throw new ReplacedWhileReadingError(
+			"private file was replaced while it was read",
+		);
 	if (!opened.isFile() || !sameIdentity(opened, named))
 		throw new Error("secure path is not a stable regular file");
 	if (opened.nlink !== 1)

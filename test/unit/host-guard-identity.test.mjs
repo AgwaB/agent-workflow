@@ -13,6 +13,7 @@ import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.
 const api = await import("../../dist/hosts/api.js");
 const core = await import("../../dist/core/index.js");
 const slots = await import("../../dist/core/launch-slots.js");
+const runs = await import("../../dist/hosts/runs.js");
 
 let root;
 let counter = 0;
@@ -71,6 +72,18 @@ async function run(ctx, extra = {}) {
 		...extra,
 	});
 	if (result.data?.runId) launched.push({ ctx, runId: result.data.runId });
+	// CI 2026-11-09 (42577149353): a run that failed at start showed no cause; the assertion text now
+	// carries each failed task's status and message.
+	if (
+		result.data?.runId &&
+		result.outcome !== "running" &&
+		result.outcome !== "existing"
+	) {
+		const inspect = await runs
+			.inspectAction(ctx, { runId: result.data.runId, failures: true })
+			.catch((error) => ({ text: `inspect failed: ${error.message}` }));
+		return { ...result, text: `${result.text}\n${inspect.text}` };
+	}
 	return result;
 }
 
