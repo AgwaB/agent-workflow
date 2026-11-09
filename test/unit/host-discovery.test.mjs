@@ -15,6 +15,7 @@ import {
 	detectAgentEnvironment,
 	ensureDashboard,
 	openInBrowser,
+	setDashboardLocalRequestMsForTests,
 } from "../../dist/hosts/dashboard/discovery.js";
 import { startDashboardServer } from "../helpers/dashboard-server.mjs";
 const key = "a".repeat(43);
@@ -108,7 +109,10 @@ test("probe rejects other services, malformed errors and redirects at once, and 
 }, async (t) => {
 	const cwd = await project(t);
 	let mode = "ok";
+	const requests = {};
+	t.after(() => setDashboardLocalRequestMsForTests(undefined));
 	const server = createServer((req, res) => {
+		requests[mode] = (requests[mode] ?? 0) + 1;
 		if (mode === "hang") return;
 		res.writeHead(
 			mode === "redirect"
@@ -154,26 +158,19 @@ test("probe rejects other services, malformed errors and redirects at once, and 
 		port: server.address().port,
 		launchKey: key,
 	});
+	// 2026-11-10: no elapsed-time window (was 2.5–4.5 s for "hang", < 2 s for the rest). A wrong answer is
+	// rejected while the bound is a minute (waiting for it would exceed this test's timeout); a stalled one ends at
+	// a short bound after one request (a timeout is not retried).
 	for (mode of ["ok", "open-auth", "open", "bad", "redirect", "hang"]) {
+		setDashboardLocalRequestMsForTests(mode === "hang" ? 300 : 60_000);
 		await writeDashboardDiscovery(cwd, {
 			pid: process.pid,
 			port: server.address().port,
 			launchKey: key,
 		});
-		const start = Date.now();
 		assert.equal(await readDashboardDiscovery(cwd), undefined, mode);
-		const elapsed = Date.now() - start;
-		if (mode === "hang")
-			assert.ok(
-				elapsed >= 2_500 && elapsed < 4_500,
-				`bounded probe: ${elapsed} ms`,
-			);
-		else
-			assert.ok(
-				elapsed < 2_000,
-				`${mode} is rejected without waiting: ${elapsed} ms`,
-			);
 	}
+	assert.equal(requests.hang, 1, "a stalled probe is not retried");
 	mode = "valid";
 	await writeDashboardDiscovery(cwd, {
 		pid: process.pid,
@@ -181,14 +178,11 @@ test("probe rejects other services, malformed errors and redirects at once, and 
 		launchKey: key,
 	});
 	assert.ok(await readDashboardDiscovery(cwd), mode);
-	const start = Date.now();
+	// A probe that never settles is bounded (it returns at all).
+	setDashboardLocalRequestMsForTests(300);
 	assert.equal(
 		await readDashboardDiscovery(cwd, { probe: () => new Promise(() => {}) }),
 		undefined,
-	);
-	assert.ok(
-		Date.now() - start < 4_500,
-		"a probe that never settles is bounded",
 	);
 });
 test("agent detection matrix: set markers (even empty), host contexts, ordinary terminals", () => {

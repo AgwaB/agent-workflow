@@ -96,29 +96,46 @@ async function waitForLeaseFree(cwd, runId) {
 }
 
 /** Holds the run lease (a live owner, like the stopped supervisor shutting down) for `ms`. */
-async function holdLease(cwd, runId, ms) {
+/** Holds the run lease until `release()` (2026-11-10: not for a fixed time); `held` resolves true after it. */
+async function holdLease(cwd, runId) {
 	let acquired;
 	const ready = new Promise((resolve) => {
 		acquired = resolve;
 	});
+	let release;
+	const released = new Promise((resolve) => {
+		release = resolve;
+	});
 	const held = store.withRunLease(cwd, runId, async () => {
 		acquired(true);
-		await new Promise((resolve) => setTimeout(resolve, ms));
+		await released;
 		return true;
 	});
 	assert.equal(await Promise.race([ready, held]), true);
-	return held;
+	return { held, release };
 }
 
 test("resume right after stop waits for the stopped supervisor's lease, then resumes", async () => {
-	engine.setResumeAfterStopLeaseWaitForTests({ timeoutMs: 10_000, pollMs: 50 });
+	// The holder lets go once resume is waiting for it (the deadline only guards a hang).
+	let polls = 0;
+	let lease;
+	engine.setResumeAfterStopLeaseWaitForTests({
+		timeoutMs: 60_000,
+		pollMs: 50,
+		onPoll: () => {
+			polls += 1;
+			lease?.release();
+		},
+	});
 	const { cwd, runId } = await stoppedRun();
-	const held = holdLease(cwd, runId, 800);
-	const startedAt = Date.now();
+	lease = await holdLease(cwd, runId);
 	const resumed = await engine.resumeRun(cwd, runId);
-	const waited = Date.now() - startedAt;
-	assert.equal(await held, true, "the lease holder finished its own work");
-	assert.ok(waited >= 500, `resume waited ${waited} ms for the lease`);
+	assert.equal(
+		await lease.held,
+		true,
+		"the lease holder finished its own work",
+	);
+	assert.ok(polls >= 1, "resume waited for the lease");
 	assert.ok(resumed.resetTaskIds.length >= 1);
 	assert.notEqual(resumed.run.status, "interrupted");
 	const run = await engine.waitForRun(cwd, runId, 60_000);
@@ -126,10 +143,16 @@ test("resume right after stop waits for the stopped supervisor's lease, then res
 });
 
 test("resume after stop refuses with an actionable message when the lease is not released in time", async () => {
-	engine.setResumeAfterStopLeaseWaitForTests({ timeoutMs: 300, pollMs: 50 });
+	let polls = 0;
+	engine.setResumeAfterStopLeaseWaitForTests({
+		timeoutMs: 300,
+		pollMs: 50,
+		onPoll: () => {
+			polls += 1;
+		},
+	});
 	const { cwd, runId } = await stoppedRun();
-	const held = holdLease(cwd, runId, 2_000);
-	const startedAt = Date.now();
+	const lease = await holdLease(cwd, runId);
 	await assert.rejects(engine.resumeRun(cwd, runId), (error) => {
 		assert.equal(
 			error.message,
@@ -137,10 +160,10 @@ test("resume after stop refuses with an actionable message when the lease is not
 		);
 		return true;
 	});
-	const waited = Date.now() - startedAt;
-	assert.ok(waited >= 250 && waited < 1_900, `waited ${waited} ms`);
+	assert.ok(polls >= 1, "resume waited for the lease before it refused");
 	// The live lease was never taken: its holder finishes normally, and the run is unchanged.
-	assert.equal(await held, true);
+	lease.release();
+	assert.equal(await lease.held, true);
 	const run = await store.readRunRecord(cwd, runId);
 	assert.equal(run.status, "interrupted");
 	// Once the lease is free, the same resume goes through.
@@ -153,7 +176,14 @@ test("resume after stop refuses with an actionable message when the lease is not
 });
 
 test("a held lease on a run that was not stopped is refused at once (no wait)", async () => {
-	engine.setResumeAfterStopLeaseWaitForTests({ timeoutMs: 5_000, pollMs: 50 });
+	let polls = 0;
+	engine.setResumeAfterStopLeaseWaitForTests({
+		timeoutMs: 5_000,
+		pollMs: 50,
+		onPoll: () => {
+			polls += 1;
+		},
+	});
 	const { cwd, specPath, id } = await project({ mode: "crash-after-consume" });
 	const started = await engine.runWorkflowSpec(specPath, cwd, {
 		task: "crash after consume",
@@ -162,14 +192,15 @@ test("a held lease on a run that was not stopped is refused at once (no wait)", 
 	const blocked = await engine.waitForRun(cwd, started.runId, 60_000);
 	assert.equal(blocked.status, "blocked");
 	await waitForLeaseFree(cwd, started.runId);
-	const held = holdLease(cwd, started.runId, 2_000);
-	const startedAt = Date.now();
+	const lease = await holdLease(cwd, started.runId);
 	await assert.rejects(
 		engine.resumeRun(cwd, started.runId),
 		/Could not acquire supervisor lease for .*; another supervisor may be active/u,
 	);
-	assert.ok(Date.now() - startedAt < 1_500);
-	assert.equal(await held, true);
+	// 2026-11-10: counted, not timed (was "< 1.5 s").
+	assert.equal(polls, 0, "refused without waiting for the lease");
+	lease.release();
+	assert.equal(await lease.held, true);
 });
 
 // agent-workflow 2026-11-04 (live: a stopped blocked run stayed blocked under "Needs you"): stop

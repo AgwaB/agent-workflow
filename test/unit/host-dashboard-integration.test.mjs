@@ -139,7 +139,6 @@ function events(cleanups, server, runId) {
 	let error;
 	let response;
 	let buffer = "";
-	const startedAt = Date.now();
 	const req = get(
 		{
 			hostname: "127.0.0.1",
@@ -174,7 +173,6 @@ function events(cleanups, server, runId) {
 						received.push({
 							event: event.slice(6).trim(),
 							data: JSON.parse(data),
-							elapsedMs: Date.now() - startedAt,
 						});
 					} catch (err) {
 						error = err;
@@ -325,11 +323,11 @@ test("dashboard HTTP observes, streams and stops a real multi-task workflow", {
 			["runs", "run"].every((kind) =>
 				items.some((item) => item.event === kind),
 			),
-		2000,
+		// 2026-11-10: a hang guard, not a latency check (was "each within 2 s"): with a 1 s poll a 2 s bound could
+		// not tell the snapshot sent on connect from the first poll (host-dashboard-server covers the former).
+		20_000,
 		"initial runs and run SSE events",
 	);
-	for (const kind of ["runs", "run"])
-		assert.ok(initial.find((item) => item.event === kind).elapsedMs < 2000);
 	const firstRun = initial.find((item) => item.event === "run").data;
 	assert.equal(firstRun.runId, runId);
 	assert.ok(

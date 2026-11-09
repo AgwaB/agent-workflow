@@ -287,9 +287,13 @@ test("a project's first run from a Claude Code session waits for the session's m
 		/This session's agent-workflow completion monitor \(from the plugin\) reports the run/;
 	const WAIT =
 		/Then call workflow_wait \{"runId":"workflow_slice\d+"\} and repeat while stillRunning is true\./;
+	// 2026-11-10: no elapsed-time bounds (were "< 1 s" and "< 5 s"). The launch waits up to a minute unless
+	// a case says otherwise, so a monitor that comes after 300 ms always ends the wait: a case that must not wait
+	// shows it by not reporting that monitor.
 	const launch = async ({
 		entrypoint = "cli",
 		monitorAfterMs,
+		monitorStartWaitMs = 60_000,
 		otherRun = false,
 		projectDir,
 	}) => {
@@ -332,7 +336,7 @@ test("a project's first run from a Claude Code session waits for the session's m
 					host: "claude-code",
 					env,
 					api,
-					monitorStartWaitMs: 1_500,
+					monitorStartWaitMs,
 				})
 				.call(
 					"workflow_run",
@@ -347,10 +351,10 @@ test("a project's first run from a Claude Code session waits for the session's m
 	// The launch text no longer says "Wait for the result" (live: a haiku host followed that line).
 	assert.doesNotMatch(first.text, /Wait for the result/);
 	// No monitor came (plugin monitor off): the launch waits, at most the bound.
-	const none = await launch({});
+	const none = await launch({ monitorStartWaitMs: 1_500 });
 	assert.match(none.text, WAIT);
 	assert.match(none.text, /Wait for the result: workflow_wait/);
-	assert.ok(none.ms >= 1_400 && none.ms < 5_000, `${none.ms} ms`);
+	assert.ok(none.ms >= 1_400, `waited ${none.ms} ms for the monitor`);
 	// Print mode / Agent SDK run no monitors; not the first run; a session in another directory:
 	// no waiting at all.
 	for (const options of [
@@ -360,7 +364,7 @@ test("a project's first run from a Claude Code session waits for the session's m
 	]) {
 		const result = await launch(options);
 		assert.match(result.text, WAIT, JSON.stringify(options));
-		assert.ok(result.ms < 1_000, `${JSON.stringify(options)}: ${result.ms} ms`);
+		assert.doesNotMatch(result.text, MONITOR, JSON.stringify(options));
 	}
 });
 

@@ -330,7 +330,18 @@ test("IR1-05 enum fingerprints retain strict JSON equality and scale to 16000 un
 			ms,
 		}),
 	);
-	assert.ok(ms < 500, `16000-member enum took ${ms}ms (quadratic regression)`);
+	// 2026-11-10: the regression is counted, not timed (was "< 500 ms"): pairwise comparison reads the members
+	// n²/2 times, fingerprinting reads each a few times.
+	let reads = 0;
+	const counted = new Proxy(schema.enum, {
+		get(target, key, receiver) {
+			if (typeof key === "string" && /^\d+$/u.test(key)) reads += 1;
+			return Reflect.get(target, key, receiver);
+		},
+	});
+	assert.equal(validateJsonSchemaSubset({ enum: counted }).valid, true);
+	t.diagnostic(JSON.stringify({ members: 16000, reads }));
+	assert.ok(reads <= 16000 * 8, `${reads} member reads (quadratic regression)`);
 	for (const values of [
 		[
 			{ a: 1, b: 2 },
