@@ -1918,7 +1918,9 @@ export default async function claimEvidenceGate({
 		// claim's quotes contradicts the verifier; a page that could not be checked proves nothing.
 		if (verdictOf(next) === VERIFICATION_STATUS.VERIFIED && webQuoteCheck.enabled) {
 			const outcome = webQuoteOutcomeForClaim(webQuoteCheck, next.id ?? claimId);
-			if (outcome.notOnPage > 0 && outcome.verified === 0) {
+			// Review 2026-11-09 (gpt-6-astra, claude-fable-5-1): "all looked for and none found" — a claim
+			// with a quote the engine could not check keeps its verdict, as documented.
+			if (outcome.notOnPage > 0 && outcome.verified === 0 && outcome.unchecked === 0) {
 				gateSummary.webQuoteNotOnPageDowngrades += 1;
 				next = withVerdict(
 					next,
