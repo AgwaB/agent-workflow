@@ -12,7 +12,7 @@ import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import { structuredDatesIn } from "./slot-conflicts.mjs";
 import { canonicalVerificationStatus } from "./verification-ontology.mjs";
-import { findSource, asArray } from "./source-access.mjs";
+import { findSource, asArray, stringOf } from "./source-access.mjs";
 
 function isRecord(value) {
 	return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -1455,10 +1455,19 @@ function translatedText(value, maxLength) {
  * rows. An entry with an unknown or repeated id or an empty or oversized text is ignored, so the
  * original shows.
  */
-function readerTranslations(synthesis, claimIds, slotIds) {
+function readerTranslations(synthesis, claimIds, slotIds, sources = {}) {
 	const claims = new Map();
 	const factSlots = new Map();
 	const ignored = [];
+	// 2026-11-09: a translation must keep its source's numbers (recorded: 15 of 141 claim texts lost a
+	// year such as "May 2023", 6 of 24 slot areas an RFC number). A field that drops one is not used,
+	// so the original shows; the audit names it.
+	const faithful = (id, field, source, translated) => {
+		const dropped = numbersDroppedBy(source, translated);
+		if (dropped.length === 0) return translated;
+		ignored.push(`${id}${field ? ` ${field}` : ""}: drops ${dropped.join(", ")}`);
+		return undefined;
+	};
 	for (const row of asArray(synthesis?.translations?.claims)) {
 		const id = claimIdOf(row);
 		const text = translatedText(row?.text, 2000);
@@ -1466,6 +1475,7 @@ function readerTranslations(synthesis, claimIds, slotIds) {
 			ignored.push(id || "(no id)");
 			continue;
 		}
+		if (!faithful(id, "", sources.claimText?.(id), text)) continue;
 		claims.set(id, {
 			readerText: text,
 			readerExplanation: translatedText(row?.explanation, 2000),
@@ -1478,13 +1488,41 @@ function readerTranslations(synthesis, claimIds, slotIds) {
 			ignored.push(id || "(no id)");
 			continue;
 		}
+		const slot = sources.slot?.(id);
+		if (!faithful(id, "area", slot?.label, area)) continue;
 		factSlots.set(id, {
 			readerArea: area,
-			readerImpact: translatedText(row?.whyItMatters, 2000),
-			readerGap: translatedText(row?.gap, 2000),
+			readerImpact: faithful(
+				id,
+				"whyItMatters",
+				slot?.parentImpact,
+				translatedText(row?.whyItMatters, 2000),
+			),
+			readerGap: faithful(
+				id,
+				"gap",
+				slot?.gapReason,
+				translatedText(row?.gap, 2000),
+			),
 		});
 	}
 	return { claims, factSlots, ignored };
+}
+
+/**
+ * Numbers of `source` (three or more digits, or with a decimal point; not part of an identifier
+ * such as "rq-007" or "v1") that `translated` does not contain.
+ */
+export function numbersDroppedBy(source, translated) {
+	if (typeof source !== "string" || typeof translated !== "string") return [];
+	const numbersOf = (text) =>
+		new Set(
+			[...text.matchAll(/(?<![\p{L}\d_./-])\d[\d,]*(?:\.\d+)?/gu)]
+				.map((match) => match[0].replace(/,/g, ""))
+				.filter((value) => value.replace(/\D/g, "").length >= 3 || value.includes(".")),
+		);
+	const kept = numbersOf(translated);
+	return [...numbersOf(source)].filter((value) => !kept.has(value));
 }
 
 /**
@@ -1632,10 +1670,25 @@ function composeResearchReport(control, packetSource) {
 	const derivedContested = ledger
 		.filter((row) => normalizeClaimStatus(row?.status) === "conflicting")
 		.map(claimToFinding);
+	const coverageById = mapById(asArray(packet.factSlotCoverage), (slot) => cleanText(slot?.slotId));
 	const translations = readerTranslations(
 		synthesis,
 		referenceIds,
 		new Set(asArray(packet.factSlotCoverage).map((slot) => cleanText(slot?.slotId))),
+		{
+			claimText: (id) => {
+				const row = referenceById.get(id);
+				return stringOf(row?.claim) ?? stringOf(row?.text);
+			},
+			slot: (id) => {
+				const slot = coverageById.get(id);
+				return slot && {
+					label: stringOf(slot.label),
+					parentImpact: stringOf(slot.parentImpact),
+					gapReason: stringOf(slot.gapReason),
+				};
+			},
+		},
 	);
 	const translateClaims = (rows) =>
 		rows.map((row) => withTranslation(row, translations.claims.get(claimIdOf(row))));
