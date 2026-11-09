@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { validateJsonSchema } from "../../dist/core/json-schema.js";
 import finalPacket from "../../workflows/deep-research/helpers/final-audit-packet.mjs";
@@ -495,6 +497,34 @@ test("refused translations are listed for one retranslation, which the report us
 		result.auditMarkdown,
 		/- Reader translations: 1 applied \(1 retranslated\), 1 ignored \(slot-001 area: drops 9204\)\./,
 	);
+});
+
+// 2026-11-10 (E8): a sentence that blames a local file for values the file does not contain was flagged in the audit
+// only; the reader now sees the engine's note beside the source-verification line.
+test("the reader sees an engine note when the report blames a file for values it does not contain", async (t) => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-attribution-reader-"));
+	t.after(() => rm(cwd, { recursive: true, force: true }));
+	await writeFile(
+		join(cwd, "notes.md"),
+		"# QUIC notes\n- QUIC에는 버전 1 이후의 새 버전도 있다.\n",
+	);
+	const blamed = await inputs();
+	blamed["final-audit"].synthesis.bottomLine =
+		"notes.md의 QUIC v2 번호를 9369로 수정하고 RFC 9368의 역할을 별도로 명시하세요.";
+	const result = await render({ sources: blamed, context: { cwd } });
+	assert.equal(result.status, "passed", JSON.stringify(result.gates));
+	const note =
+		"엔진 확인: 이 보고서가 `notes.md`에서 고치라고 한 값(9369, 9368)은 그 파일에 없습니다. 그 값이 이 파일에서 나왔다는 설명은 확인되지 않았습니다.";
+	for (const markdown of [
+		result.reportMarkdown,
+		result.completionSummaryMarkdown,
+	]) {
+		const at = markdown.indexOf(note);
+		assert.ok(at > 0, markdown.slice(-600));
+		assert.match(markdown.slice(0, at), /Source verification: [^\n]+\n\n$/);
+	}
+	const plain = await render({ sources: await inputs(), context: { cwd } });
+	assert.doesNotMatch(plain.reportMarkdown, /엔진 확인|Engine check/);
 });
 
 test("numbersDroppedBy keeps faithful Korean number forms and catches real drops", () => {
