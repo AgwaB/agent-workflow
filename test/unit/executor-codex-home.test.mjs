@@ -2,6 +2,7 @@
 // CODEX_HOME that links the user's auth.json, config.toml and rules/ and carries no global AGENTS.md.
 // Credentials are never copied; the user's home is kept whenever a link could break authentication.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
 	existsSync,
 	lstatSync,
@@ -14,12 +15,13 @@ import {
 	mkdir,
 	mkdtemp,
 	rm,
+	symlink,
 	unlink,
 	utimes,
 	writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { after, before, test } from "node:test";
 
 import {
@@ -28,8 +30,11 @@ import {
 	decideCodexWorkerHome,
 	prepareCodexWorkerHome,
 	removeCodexSessionHome,
+	acquireCodexSessionDeletion,
+	codexSessionHomeDeleting,
 	codexSessionHomeInUse,
-	leaseCodexSessionHome,
+	releaseCodexSessionLease,
+	writeCodexSessionLease,
 	removeCodexWorkerHome,
 	reuseCodexWorkerHome,
 	sweepOrphanCodexSessionHomes,
@@ -192,7 +197,10 @@ test("prepare links auth.json, config.toml and rules; no AGENTS.md, no copies; r
 		'{"tokens":"refreshed"}',
 	);
 
-	removeCodexWorkerHome(worker, join(root, `kept-${++counter}`));
+	removeCodexWorkerHome(worker, {
+		stateDir: root,
+		keepDir: join(root, `kept-${++counter}`),
+	});
 	assert.equal(existsSync(worker.path), false);
 	assert.equal(
 		readFileSync(join(home, "auth.json"), "utf8"),
@@ -211,7 +219,10 @@ test("prepare links auth.json, config.toml and rules; no AGENTS.md, no copies; r
 		env: noKeys,
 	});
 	assert.deepEqual(sparse.linked, ["auth.json"]);
-	removeCodexWorkerHome(sparse, join(root, `kept-${++counter}`));
+	removeCodexWorkerHome(sparse, {
+		stateDir: root,
+		keepDir: join(root, `kept-${++counter}`),
+	});
 	const shared = prepareCodexWorkerHome({
 		userHome: home,
 		dir,
@@ -224,7 +235,10 @@ test("prepare links auth.json, config.toml and rules; no AGENTS.md, no copies; r
 		reason: "stage inherits user context",
 		linked: [],
 	});
-	removeCodexWorkerHome(shared, join(root, `kept-${++counter}`));
+	removeCodexWorkerHome(shared, {
+		stateDir: root,
+		keepDir: join(root, `kept-${++counter}`),
+	});
 	assert.ok(existsSync(join(home, "auth.json")));
 });
 
@@ -251,7 +265,10 @@ test("a kept session's home lives outside the attempt, is reused with its links,
 		true,
 	);
 	assert.equal(existsSync(join(prepared.path, "thread-rollout.jsonl")), true);
-	removeCodexSessionHome(prepared.path, join(root, `kept-${++counter}`));
+	removeCodexSessionHome(prepared.path, {
+		stateDir: root,
+		keepDir: join(root, `kept-${++counter}`),
+	});
 	assert.equal(existsSync(dir), false);
 	assert.equal(
 		existsSync(join(home, "auth.json")),
@@ -276,7 +293,7 @@ test("removal never writes over the user's auth.json: a file that replaced the l
 		await writeFile(privateAuth, '{"tokens":"rotated"}', { mode: 0o644 });
 		const when = new Date(Date.now() + age * 1000);
 		await utimes(privateAuth, when, when);
-		const kept = removeCodexWorkerHome(prepared, keepDir);
+		const kept = removeCodexWorkerHome(prepared, { stateDir: root, keepDir });
 		assert.equal(existsSync(prepared.path), false);
 		assert.equal(
 			readFileSync(join(home, "auth.json"), "utf8"),
@@ -294,7 +311,10 @@ test("removal never writes over the user's auth.json: a file that replaced the l
 		dir: join(root, `attempt-${++counter}`),
 		env: noKeys,
 	});
-	assert.equal(removeCodexWorkerHome(prepared, keepDir), undefined);
+	assert.equal(
+		removeCodexWorkerHome(prepared, { stateDir: root, keepDir }),
+		undefined,
+	);
 	assert.equal(existsSync(keepDir), false);
 	assert.equal(lstatSync(join(home, "auth.json")).isSymbolicLink(), false);
 	// a file that cannot be kept: the home stays rather than deleting the only copy
@@ -307,7 +327,13 @@ test("removal never writes over the user's auth.json: a file that replaced the l
 	await writeFile(join(stuck.path, "auth.json"), "rotated");
 	const blocker = join(root, `blocker-${++counter}`);
 	await writeFile(blocker, "not a directory");
-	assert.equal(removeCodexWorkerHome(stuck, join(blocker, "kept")), undefined);
+	assert.equal(
+		removeCodexWorkerHome(stuck, {
+			stateDir: root,
+			keepDir: join(blocker, "kept"),
+		}),
+		undefined,
+	);
 	assert.equal(readFileSync(join(stuck.path, "auth.json"), "utf8"), "rotated");
 });
 
@@ -315,11 +341,12 @@ test("a kept session's home lease counts only while its process lives", () => {
 	const dir = codexSessionHomeDir(join(root, `state-${++counter}`), "lease");
 	const path = join(dir, "home");
 	assert.equal(codexSessionHomeInUse(path), false);
-	const release = leaseCodexSessionHome(path, "attempt-1", process.pid);
+	writeCodexSessionLease(path, "attempt-1", [process.pid]);
+	const release = () => releaseCodexSessionLease(path, "attempt-1");
 	assert.equal(codexSessionHomeInUse(path), true);
 	release();
 	assert.equal(codexSessionHomeInUse(path), false);
-	leaseCodexSessionHome(path, "attempt-2", 2 ** 22 + 12345);
+	writeCodexSessionLease(path, "attempt-2", [2 ** 22 + 12345]);
 	assert.equal(
 		codexSessionHomeInUse(path),
 		false,
@@ -332,7 +359,8 @@ test("a lease names its process by start time, so a reused pid does not hold it"
 	const dir = codexSessionHomeDir(join(root, `state-${++counter}`), "reuse");
 	const path = join(dir, "home");
 	assert.ok(processStartIdentity(process.pid), "start time readable here");
-	const release = leaseCodexSessionHome(path, "attempt-1", process.pid);
+	writeCodexSessionLease(path, "attempt-1", [process.pid]);
+	const release = () => releaseCodexSessionLease(path, "attempt-1");
 	assert.equal(codexSessionHomeInUse(path), true);
 	release();
 	await mkdir(join(dir, "leases"), { recursive: true });
@@ -376,7 +404,7 @@ test("orphan kept-session homes are swept: old, unrecorded and unleased only", a
 	const young = make("young");
 	const leased = make("leased");
 	const replaced = make("replaced");
-	leaseCodexSessionHome(leased, "attempt-leased", process.pid);
+	writeCodexSessionLease(leased, "attempt-leased", [process.pid]);
 	await unlink(join(replaced, "auth.json"));
 	await writeFile(join(replaced, "auth.json"), "rotated");
 	const now = Date.now() + 2 * 24 * 60 * 60 * 1000;
@@ -404,4 +432,125 @@ test("orphan kept-session homes are swept: old, unrecorded and unleased only", a
 		readFileSync(join(home, "auth.json"), "utf8"),
 		'{"tokens":"not-read"}',
 	);
+});
+
+test("round 4: a private home replaced by a symlink is never used to move or delete a login", async () => {
+	// gpt-6-astra: a session home pointing at the user's CODEX_HOME moved the user's auth.json away.
+	const user = await userHome();
+	const stateDir = join(root, `state-${++counter}`);
+	const dir = codexSessionHomeDir(stateDir, "linked");
+	await mkdir(dir, { recursive: true });
+	await symlink(user, join(dir, "home"));
+	const keepDir = join(stateDir, "replaced-auth");
+	assert.equal(
+		removeCodexSessionHome(join(dir, "home"), { stateDir, keepDir }),
+		undefined,
+	);
+	assert.equal(
+		readFileSync(join(user, "auth.json"), "utf8"),
+		'{"tokens":"not-read"}',
+	);
+	assert.equal(existsSync(keepDir), false);
+	assert.equal(
+		lstatSync(join(dir, "home")).isSymbolicLink(),
+		true,
+		"left in place",
+	);
+	// a symlinked directory above the home, and a home outside the state directory, are refused too
+	const above = join(stateDir, "session-homes", "linked-parent");
+	await mkdir(join(root, `real-${++counter}`, "home"), { recursive: true });
+	await writeFile(
+		join(root, `real-${counter}`, "home", "auth.json"),
+		"not-a-link",
+	);
+	await symlink(join(root, `real-${counter}`), above);
+	assert.equal(
+		removeCodexSessionHome(join(above, "home"), { stateDir, keepDir }),
+		undefined,
+	);
+	assert.equal(
+		existsSync(join(root, `real-${counter}`, "home", "auth.json")),
+		true,
+	);
+	assert.equal(
+		removeCodexSessionHome(join(user, "x", "home"), { stateDir, keepDir }),
+		undefined,
+	);
+});
+
+test("round 4: lease storage failures fail closed", async () => {
+	const dir = codexSessionHomeDir(join(root, `state-${++counter}`), "broken");
+	await mkdir(dir, { recursive: true });
+	await writeFile(join(dir, "leases"), "not a directory");
+	assert.throws(() =>
+		writeCodexSessionLease(join(dir, "home"), "a", [process.pid]),
+	);
+	assert.equal(
+		codexSessionHomeInUse(join(dir, "home")),
+		true,
+		"unreadable leases: in use",
+	);
+	const other = codexSessionHomeDir(
+		join(root, `state-${++counter}`),
+		"malformed",
+	);
+	await mkdir(join(other, "leases"), { recursive: true });
+	await writeFile(join(other, "leases", "x.json"), "{not json");
+	assert.equal(
+		codexSessionHomeInUse(join(other, "home")),
+		true,
+		"malformed lease: in use",
+	);
+});
+
+test("round 4: a process start time reads the same in every time zone", () => {
+	const code = `import(${JSON.stringify(new URL("../../dist/executors/codex/state.js", import.meta.url).href)}).then((s) => process.stdout.write(String(s.processStartIdentity(${process.pid}))))`;
+	const read = (TZ) =>
+		execFileSync(process.execPath, ["-e", code], {
+			env: { ...process.env, TZ },
+			encoding: "utf8",
+		});
+	assert.equal(read("UTC"), read("Asia/Seoul"));
+	assert.notEqual(read("UTC"), "undefined");
+});
+
+test("round 4: the sweep keeps a home whose record spelled its path differently", async () => {
+	const home = await userHome({ config: 'model = "x"\n' });
+	const stateDir = join(root, `state-${++counter}`);
+	const prepared = prepareCodexWorkerHome({
+		userHome: home,
+		dir: codexSessionHomeDir(stateDir, "spelled"),
+		env: noKeys,
+	});
+	const relativeRecord = relative(process.cwd(), prepared.path);
+	const removed = sweepOrphanCodexSessionHomes({
+		stateDir,
+		recordedHomes: new Set([relativeRecord]),
+		keepDir: join(stateDir, "replaced-auth"),
+		now: Date.now() + 3 * 24 * 60 * 60 * 1000,
+	});
+	assert.deepEqual(removed, []);
+	assert.equal(existsSync(prepared.path), true);
+});
+
+test("round 4: one live deletion holds a session; a stale marker does not", async () => {
+	const dir = codexSessionHomeDir(join(root, `state-${++counter}`), "deleting");
+	await mkdir(join(dir, "home"), { recursive: true });
+	const path = join(dir, "home");
+	const release = acquireCodexSessionDeletion(path);
+	assert.equal(typeof release, "function");
+	assert.equal(codexSessionHomeDeleting(path), true);
+	assert.equal(
+		acquireCodexSessionDeletion(path),
+		undefined,
+		"a second deletion waits",
+	);
+	release();
+	assert.equal(codexSessionHomeDeleting(path), false);
+	await writeFile(
+		join(dir, "deleting.json"),
+		JSON.stringify({ pid: 2 ** 22 + 4321 }),
+	);
+	assert.equal(codexSessionHomeDeleting(path), false, "dead holder");
+	assert.equal(typeof acquireCodexSessionDeletion(path), "function");
 });

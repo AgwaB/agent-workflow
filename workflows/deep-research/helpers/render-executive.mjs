@@ -1589,7 +1589,10 @@ function koreanCompoundValues(text) {
 						);
 			if (unit in KOREAN_SMALL_UNITS) section += (number ?? 1) * KOREAN_SMALL_UNITS[unit];
 			else if (unit in KOREAN_LARGE_UNITS) {
-				total += (section + (number ?? 0) || 1) * KOREAN_LARGE_UNITS[unit];
+				// No coefficient written ("만") is one; an explicit zero ("0억") stays zero (round-4 review).
+				const coefficient =
+					number === undefined && section === 0 ? 1 : section + (number ?? 0);
+				total += coefficient * KOREAN_LARGE_UNITS[unit];
 				section = 0;
 			} else section += number ?? 0;
 		}

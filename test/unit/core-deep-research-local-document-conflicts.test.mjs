@@ -202,6 +202,10 @@ test("a sentence naming two entities of one slot maps only when an observation n
 		"RFC 9000, RFC 9114",
 		"RFC 9000 – RFC 9114",
 		"RFC 9000 and RFC 9114",
+		// round-4 review: a middle dot or an unspaced dash is a list too
+		"RFC 9000·RFC 9114",
+		"RFC 9000–RFC 9114",
+		"RFC 9000-RFC 9114",
 	])
 		assert.equal(withLabel(label), 0, label);
 	assert.equal(

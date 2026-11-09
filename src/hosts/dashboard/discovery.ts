@@ -185,7 +185,10 @@ async function loadDiscovery(
 			(typeof process.getuid === "function" && info.uid !== process.getuid())
 		)
 			return undefined;
-		const value = JSON.parse(await readPrivateFileText(path, 4096));
+		// Round 4: the 0600/uid check above saw a path snapshot; check the file actually read too.
+		const value = JSON.parse(
+			await readPrivateFileText(path, 4096, { ownerOnly: true }),
+		);
 		if (
 			value.schema !== SCHEMA ||
 			!Number.isSafeInteger(value.protocol) ||

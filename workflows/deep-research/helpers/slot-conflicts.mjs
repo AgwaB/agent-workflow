@@ -254,14 +254,17 @@ function namesEntity(text, name, minLength = 3) {
 
 /**
  * Whether an entity label is just these names written as one subject ("RFC 9114 / HTTP/3",
- * "HTTP/3 (RFC 9114)"): nothing but the names, slashes and parentheses. A comparison or a list
- * ("RFC 9000 vs RFC 9114", "QUIC, HTTP/3", "QUIC – HTTP/3") only says they occur together
- * (round-3 review 2026-11-09, gpt-6-astra).
+ * "HTTP/3 (RFC 9114)"): nothing but the names, slashes, parentheses and punctuation that is part of a
+ * name. A comparison or a list ("RFC 9000 vs RFC 9114", "QUIC, HTTP/3", "RFC 9000·RFC 9114",
+ * "RFC 9000–RFC 9114") only says they occur together (round-3 and round-4 reviews, gpt-6-astra).
  */
-function isAliasLabel(label, names) {
-	if (/[,;&+|]|\s[-–—]\s/.test(label)) return false;
+function isAliasLabel(label, targets) {
+	const punctuation = (text) => new Set(text.match(/[\p{P}\p{S}]/gu) ?? []);
+	const allowed = new Set(["/", "(", ")"]);
+	for (const target of targets) for (const mark of punctuation(target.entity)) allowed.add(mark);
+	if ([...punctuation(label)].some((mark) => !allowed.has(mark))) return false;
 	let rest = ` ${normalizeEntity(label)} `;
-	for (const name of [...names].sort((a, b) => b.length - a.length)) {
+	for (const name of targets.map((target) => target.name).sort((a, b) => b.length - a.length)) {
 		if (!rest.includes(` ${name} `)) return false;
 		rest = rest.split(` ${name} `).join(" ");
 	}
@@ -316,10 +319,7 @@ function mappedLocalDocumentFacts(facts) {
 		if (
 			targets.length > 1 &&
 			!(entityLabelsBySlot.get(targets[0].slotId) ?? []).some((label) =>
-				isAliasLabel(
-					label,
-					targets.map((group) => group.name),
-				),
+				isAliasLabel(label, targets),
 			)
 		)
 			continue;
