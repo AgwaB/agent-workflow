@@ -481,10 +481,17 @@ export function createClaudeExecutor(options: {
 					rawStream.once("close", () => resolve());
 					rawStream.end();
 				});
+				// 2026-11-10: so is the stderr log (it was ended after the terminal event and could still be
+				// writing when a reader or the exiting worker looked).
+				onStderr(stderrRedact.flush());
+				await new Promise<void>((resolve) => {
+					if (stderrStream.closed || stderrStream.destroyed) return resolve();
+					stderrStream.once("close", () => resolve());
+					stderrStream.end();
+				});
 				const held = run.heldTerminal;
 				run.heldTerminal = undefined;
 				if (held !== undefined) push(run, held);
-				onStderr(stderrRedact.flush());
 				parser.finish({
 					exitCode: code,
 					signal,
@@ -493,7 +500,6 @@ export function createClaudeExecutor(options: {
 						? {}
 						: { spawnError: redact(spawnError) }),
 				});
-				stderrStream.end();
 			};
 			// Let readline flush the last stdout lines before deciding the terminal event.
 			if (lines !== null) setImmediate(() => void finish());

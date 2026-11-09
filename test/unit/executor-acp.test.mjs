@@ -27,6 +27,7 @@ import {
 	validateEventSequence,
 	validateExecEvent,
 } from "../../dist/sdk/index.js";
+import { slowStderrLogs } from "../helpers/slow-stderr-logs.mjs";
 
 const FAKE_AGENT = fileURLToPath(
 	new URL("../fixtures/executors/acp/fake-acp-agent.mjs", import.meta.url),
@@ -340,6 +341,8 @@ test("acp: an agent that dies mid-prompt fails; request env values are redacted 
 	assert.equal(terminal.type, "failed");
 	assert.notEqual(terminal.class, "cancelled");
 
+	// 2026-11-10: the stderr log is complete when the terminal event arrives, even with slow writes.
+	slowStderrLogs(t);
 	const secret = await setup(t, "secret");
 	const secretRef = await secret.executor.submit(
 		request(secret.dir, "acp-secret-1", {

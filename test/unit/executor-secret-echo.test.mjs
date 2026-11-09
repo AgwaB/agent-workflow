@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { waitUntil } from "../helpers/wait-until.mjs";
+import { slowStderrLogs } from "../helpers/slow-stderr-logs.mjs";
 
 import {
 	createClaudeExecutor,
@@ -154,6 +154,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 test("review #5 (claude): a value split across stderr chunks is redacted", async (t) => {
+	slowStderrLogs(t);
 	const dir = await mkdtemp(join(tmpdir(), "aw-claude-echo-"));
 	t.after(() =>
 		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
@@ -190,14 +191,11 @@ test("review #5 (claude): a value split across stderr chunks is redacted", async
 		request(dir, "claude-echo-1", { artifactsDir }),
 	);
 	const { events } = await drain(executor, ref, { timeoutMs: 15_000 });
-	// 2026-11-10: the Claude adapter closes its stderr log after the terminal event (its raw stream before it),
-	// so wait for the redacted line instead of a fixed 200 ms.
-	await waitUntil(
-		() =>
-			readFile(join(artifactsDir, "claude-stderr.log"), "utf8").then((text) =>
-				/<redacted:ECHO_SECRET>/.test(text),
-			),
-		"the redacted stderr line",
+	// 2026-11-10: the stderr log is complete when the terminal event arrives (it was closed after it), even with
+	// slow writes.
+	assert.match(
+		await readFile(join(artifactsDir, "claude-stderr.log"), "utf8"),
+		/<redacted:ECHO_SECRET>/,
 	);
 	await assertNoSecrets("claude", [stateDir, artifactsDir], events);
 });
