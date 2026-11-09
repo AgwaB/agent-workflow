@@ -3,7 +3,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { validateJsonSchema } from "../../dist/core/json-schema.js";
 import finalPacket from "../../workflows/deep-research/helpers/final-audit-packet.mjs";
-import render from "../../workflows/deep-research/helpers/render-executive.mjs";
+import render, {
+	numbersDroppedBy,
+} from "../../workflows/deep-research/helpers/render-executive.mjs";
+import { buildSynthesisPages } from "../../workflows/deep-research/helpers/synthesis-pages.mjs";
 
 const fixture = JSON.parse(
 	await readFile(
@@ -375,6 +378,80 @@ test("a translation with an unknown or repeated id or empty text is ignored, not
 		result.auditMarkdown,
 		/- Reader translations: 1 applied, 4 ignored \(claim-001, claim-999, lead-002, slot-999\)\./,
 	);
+});
+
+// 2026-11-09: recorded final audits translated "RFC 9114 | HTTP/3 | June 2022." without the year and slot labels
+// without their RFC number (15 of 141 claim texts, 6 of 24 areas). A translated field that drops a number of its
+// source is not used; the original shows and the audit names it.
+test("a translation that drops a number of its source is not used; the original shows", async () => {
+	for (const [translated, applied] of [
+		["RFC 9000은 2021년 5월에 발행되었다.", true],
+		["RFC 9000은 발행되었다.", false],
+	]) {
+		const sources = withTranslations(await inputs(), {
+			claims: [{ id: "claim-001", text: translated }],
+			factSlots: [{ id: "slot-001", area: "지역 정책 차원 01" }],
+		});
+		const packet = sources["final-audit-packet"].packet;
+		packet.claimVerdictLedger.find((row) => row.id === "claim-001").claim =
+			"RFC 9000 was published in May 2021.";
+		packet.factSlotCoverage.find((row) => row.slotId === "slot-001").label =
+			"Regional policy dimension 01 (RFC 9204)";
+		delete packet.synthesisInput;
+		packet.synthesisInput = buildSynthesisPages(packet);
+		const result = await render({ sources });
+		assert.equal(result.status, "passed", JSON.stringify(result.gates));
+		if (applied)
+			assert.match(
+				result.reportMarkdown,
+				/### 1\. RFC 9000은 2021년 5월에 발행되었다\./,
+			);
+		else {
+			assert.match(
+				result.reportMarkdown,
+				/### 1\. RFC 9000 was published in May 2021\./,
+			);
+			assert.doesNotMatch(result.reportMarkdown, /RFC 9000은 발행되었다/);
+		}
+		// the area dropped "9204" in both cases: the label stays
+		assert.match(
+			result.reportMarkdown,
+			/\| Regional policy dimension 01 \(RFC 9204\) \|/,
+		);
+		assert.match(
+			result.auditMarkdown,
+			applied
+				? /- Reader translations: 1 applied, 1 ignored \(slot-001 area: drops 9204\)\./
+				: /- Reader translations: 0 applied, 2 ignored \(claim-001: drops 2021, slot-001 area: drops 9204\)\./,
+		);
+	}
+});
+
+test("numbersDroppedBy ignores identifiers, short numbers and reformatted dates", () => {
+	assert.deepEqual(
+		numbersDroppedBy(
+			"RFC 9114 | HTTP/3 | June 2022.",
+			"RFC 9114는 HTTP/3를 정의한다.",
+		),
+		["2022"],
+	);
+	assert.deepEqual(
+		numbersDroppedBy(
+			"RFC 9000, 2021-05, TLS 1.3, 1,000 rows",
+			"RFC 9000은 2021년 5월, TLS 1.3, 1000개",
+		),
+		[],
+	);
+	assert.deepEqual(
+		numbersDroppedBy(
+			"rq-007 gapRecorded; QUIC v1, claim-010, 21 seconds",
+			"없음",
+		),
+		[],
+	);
+	assert.deepEqual(numbersDroppedBy("TLS 1.3 is required", "TLS가 필요하다"), [
+		"1.3",
+	]);
 });
 
 test("a malformed translations container is rejected by schema and renderer", async () => {
