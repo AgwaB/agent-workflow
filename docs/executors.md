@@ -97,7 +97,11 @@ A stage that inherits only part of the user's context (`isolation.scope`: its ag
 `inheritProjectContext` → context files, `inheritSkills` → skills) keeps every other flag above and the
 private MCP config; only `--no-context-files` and/or `--no-skills` are dropped. A bare
 `inherit: true` (no scope) loads user extensions, skills, context files and `mcp.json`; injected
-servers register on the built-in MCP implementation.
+servers register on the built-in MCP implementation. Workflow stages always send a scope, so a workflow's
+Pi workers never load the user's extensions, prompt templates or themes, even when the agent inherits
+context; the adapter adds only `pi-web-access` (`-e`) for web tools. An extension a model provider needs
+(for example an authentication extension) is therefore not available to workflow stages; only an SDK
+caller's bare `inherit: true` loads it.
 
 User `settings.json` values not overridden by flags still apply, including retry, compaction,
 transport, shell prefix, `httpProxy` and cache warming. Pi has no per-run settings flag.
