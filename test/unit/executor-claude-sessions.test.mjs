@@ -202,7 +202,6 @@ test("raw stream, stderr and invocation files are kept in artifactsDir without e
 		request(cwd, { artifactsDir, env: { FIXTURE_SECRET: secret } }),
 	);
 	await drain(executor, ref, { timeoutMs: 15_000 });
-	await new Promise((resolve) => setTimeout(resolve, 200));
 	const names = (await readdir(artifactsDir)).sort();
 	assert.deepEqual(names, [
 		"claude-invocation.json",

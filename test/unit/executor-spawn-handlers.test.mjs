@@ -16,6 +16,7 @@ import {
 import { createPiExecutor } from "../../dist/executors/pi/index.js";
 import { PiAttemptStore } from "../../dist/executors/pi/state.js";
 import { drain } from "../../dist/sdk/conformance/index.js";
+import { waitUntil } from "../helpers/wait-until.mjs";
 import {
 	createAuthorityGate,
 	defaultApprovalPolicy,
@@ -95,22 +96,39 @@ test("review #10 (pi): a CLI that exits at once reaches a terminal event", async
 	assert.deepEqual(reconciled, { found: ref });
 });
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** Delay the durable `spawned` write: handlers attached after it would miss an early exit. */
+/**
+ * Hold the durable `spawned` write until the child has exited: handlers attached after it would miss the exit.
+ * Resolves once that late write has landed. (2026-11-10: was a fixed 400 ms, then 600 ms for the late write.)
+ */
 function slowSpawnedWrite(t, proto, method) {
 	const original = proto[method];
 	let delayed = false;
+	let landed;
+	const written = new Promise((resolve) => {
+		landed = resolve;
+	});
 	proto[method] = async function (record) {
-		if (record.phase === "spawned" && !delayed) {
-			delayed = true;
-			await sleep(400);
+		if (record.phase !== "spawned" || delayed)
+			return original.call(this, record);
+		delayed = true;
+		await waitUntil(() => {
+			try {
+				process.kill(record.pid, 0);
+				return false;
+			} catch {
+				return true;
+			}
+		}, "the child to exit");
+		try {
+			return await original.call(this, record);
+		} finally {
+			landed();
 		}
-		return original.call(this, record);
 	};
 	t.after(() => {
 		proto[method] = original;
 	});
+	return written;
 }
 
 test("review #10 (claude): an exit during the durable spawned write is observed", async (t) => {
@@ -140,7 +158,7 @@ test("review #10 (pi): an exit during the durable spawned write is observed", as
 	t.after(() =>
 		rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
 	);
-	slowSpawnedWrite(t, PiAttemptStore.prototype, "write");
+	const lateWrite = slowSpawnedWrite(t, PiAttemptStore.prototype, "write");
 	const path = join(dir, "pi");
 	await writeFile(path, "#!/bin/sh\necho early-exit >&2\nexit 3\n", {
 		mode: 0o755,
@@ -158,15 +176,16 @@ test("review #10 (pi): an exit during the durable spawned write is observed", as
 	assert.notEqual(timedOut, true, "terminal event observed");
 	assert.equal(terminal?.type, "failed");
 	assert.match(JSON.stringify(terminal), /early-exit/u);
-	// The exited record is not overwritten by the late spawned write.
-	await sleep(600);
+	// The exited record is not overwritten by the late spawned write (once that has landed, the record ends exited).
+	await lateWrite;
+	await waitUntil(
+		() => new PiAttemptStore(join(dir, "state")).read("pi-slow-write-1"),
+		"the exited record",
+		{ accepts: (record) => record?.phase === "exited" },
+	);
 	const reconciled = await createPiExecutor({
 		piCommand: path,
 		stateDir: join(dir, "state"),
 	}).reconcile("pi-slow-write-1");
 	assert.deepEqual(reconciled, { found: ref });
-	const record = await new PiAttemptStore(join(dir, "state")).read(
-		"pi-slow-write-1",
-	);
-	assert.equal(record.phase, "exited");
 });

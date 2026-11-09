@@ -238,6 +238,7 @@ import {
 	registerWorkflowLaunchAuthority,
 } from "../../dist/core/launch-authority.js";
 import { prepareWorkerTaskLaunch } from "../../dist/core/task-runner.js";
+import { waitUntil } from "../helpers/wait-until.mjs";
 
 test("fail-fast flags off preserve failed-run scheduling without sibling cancellation", async () => {
 	const cwd = makeProject();
@@ -4993,7 +4994,15 @@ test("run lease heartbeat carries task progress fields after a task transition",
 			run.tasks[0].status = "running";
 			run.tasks[0].statusDetail = "running";
 			await writeRunRecord(cwd, run);
-			await sleep(120);
+			// 2026-11-10: until a heartbeat has carried the transition (was a fixed 120 ms, about four beats).
+			await waitUntil(() => {
+				try {
+					return JSON.parse(readFileSync(supervisorPath(cwd, runId), "utf8"))
+						.lastTaskTransitionAt;
+				} catch {
+					return undefined;
+				}
+			}, "a heartbeat after the task transition");
 		});
 		const supervisor = JSON.parse(
 			readFileSync(supervisorPath(cwd, runId), "utf8"),

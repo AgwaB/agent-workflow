@@ -108,8 +108,9 @@ test("dashboard graph: reshaping status changes morph from the previous geometry
 			'#canvas .node[data-stage="check-claims"] .agent-row',
 		),
 	);
-	// Let the first-load entrance replay finish; this test is about later redraws.
-	await new Promise((resolve) => setTimeout(resolve, 2500));
+	// Let the first-load entrance replay finish; this test is about later redraws (2026-11-10: waited for, was a
+	// fixed 2.5 s).
+	await browser.waitForMotionEnd();
 	await browser.send("Animation.enable");
 	await browser.send("Animation.setPlaybackRate", { playbackRate: 0.1 });
 	const before = await browser.evaluate(geometry);
