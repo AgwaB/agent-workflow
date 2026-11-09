@@ -17,6 +17,9 @@ const core = await import("../../dist/core/index.js");
 const engine = await import("../../dist/core/engine.js");
 const store = await import("../../dist/core/store.js");
 const slots = await import("../../dist/core/launch-slots.js");
+const { hashDynamicRequest } = await import(
+	"../../dist/core/dynamic-events.js"
+);
 
 let root;
 const unregister = [];
@@ -64,8 +67,30 @@ const task = (specId, status, statusDetail, dependsOn = []) => ({
 });
 
 test("a declared support block is resumable only through a resumable dependency", () => {
-	const ids = (tasks) =>
-		[...store.dependencyResumableSupportBlockIds({ tasks })].sort();
+	// Round 3 (gpt-6-astra): computed by the engine from its own invalidation plan (compiled flow included), so
+	// failed/interrupted intermediaries, context-only dependencies and foreach item sources count.
+	const ids = (tasks, compiledExtra = {}) =>
+		[
+			...engine.dependencyResumableBlocksForTests(
+				{ runId: "declared-blocked", tasks },
+				{
+					tasks: tasks.map((entry) => ({
+						id: entry.specId,
+						dependsOn: entry.dependsOn,
+						...(entry.artifactGraph
+							? { artifactGraph: entry.artifactGraph }
+							: {}),
+						...(entry.foreachGenerated
+							? {
+									foreachGenerated: entry.foreachGenerated,
+									sourceGeneration: 0,
+								}
+							: {}),
+						...(compiledExtra[entry.specId] ?? {}),
+					})),
+				},
+			),
+		].sort();
 	// final ← audit (failed): resumable.
 	assert.deepEqual(
 		ids([
@@ -144,6 +169,71 @@ test("a declared support block is resumable only through a resumable dependency"
 			task("worker.main", "blocked", "needs_attention", ["audit.main"]),
 		]),
 		[],
+	);
+	// Round 3: the engine also invalidates downstream of a failed or interrupted flagged consumer.
+	for (const status of ["failed", "interrupted"])
+		assert.deepEqual(
+			ids([
+				task("audit.main", "failed", "x"),
+				{ ...consumer(true), status, statusDetail: "x" },
+				task("summary.main", "completed", "completed", ["sanitize.main"]),
+				task("final.main", "blocked", "support_declared_blocked", [
+					"summary.main",
+				]),
+			]),
+			["t-final.main"],
+		);
+	// Round 3: a context-only dependency (compiled `contextDependsOn`, not in the record's dependsOn) counts.
+	assert.deepEqual(
+		ids(
+			[
+				task("audit.main", "failed", "x"),
+				task("final.main", "blocked", "support_declared_blocked", []),
+			],
+			{ "final.main": { contextDependsOn: ["audit.main"] } },
+		),
+		["t-final.main"],
+	);
+	// Round 3: a blocked foreach child whose item source failed (a logical dependency through its membership).
+	const membership = {
+		placeholderSpecId: "fan.item",
+		itemIdentity: "claim-a",
+		itemHash: "item-hash",
+		itemSourceTaskId: "t-source.main",
+		itemSourceSpecId: "source.main",
+		itemSourceKind: "control",
+		itemRef: "control:1",
+	};
+	const entries = [
+		{ taskId: "t-fan.claim-a", specId: "fan.claim-a", ...membership },
+	];
+	const dispatch = {
+		version: 1,
+		generation: 0,
+		sourceTaskId: "t-source.main",
+		entries,
+	};
+	assert.deepEqual(
+		ids(
+			[
+				task("source.main", "failed", "x"),
+				{
+					...task("fan.item", "completed", "completed", ["source.main"]),
+					dispatchMap: { ...dispatch, digest: hashDynamicRequest(dispatch) },
+					artifactGraph: {
+						enabled: true,
+						inputPolicy: { invalidateOnDependencyResume: true },
+					},
+				},
+				{
+					...task("fan.claim-a", "blocked", "support_declared_blocked", []),
+					sourceGeneration: 0,
+					foreachGenerated: membership,
+				},
+			],
+			{ "fan.item": { foreach: { itemIdentityPath: "$.id" } } },
+		),
+		["t-fan.claim-a"],
 	);
 	// reset honours the set; without it the task is untouched.
 	const blocked = task("final.main", "blocked", "support_declared_blocked", [

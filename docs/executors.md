@@ -354,10 +354,16 @@ Isolated attempts run with a **private `CODEX_HOME`** under the attempt's log di
 (never copies) the user's `auth.json`, `config.toml` and `rules/` and carries no `AGENTS.md`, skills,
 plugins, memories or history; it is removed when the app-server exits. A request that keeps a session
 gets its private home under `<stateDir>/session-homes/` instead, since the thread's rollout lives there:
-resuming the thread reuses it, and deleting the owned session deletes the thread in it and removes it. Codex writes refreshed tokens
-in place, so the linked `auth.json` stays the one credential file every Codex process shares; should a
-Codex version replace the link with a file of its own, that file is moved back over the user's `auth.json`
-before the private home is removed, when it is newer. The user's
+resuming the thread reuses it, and deleting the owned session deletes the thread in it and removes it
+(it waits up to 5 s for an app-server still running there, else reports `failed`; a launch that fails
+before its thread exists removes the home at once). An isolated `resumeSessionId` for a thread without
+such a home (not created by the adapter, or its home is gone) is refused before launch with
+`CAPABILITY_MISSING`, since it could only run in the user's home; resume it with `isolation.inherit`.
+Codex writes refreshed tokens in place, so the linked `auth.json` stays the one credential file every
+Codex process shares. Should a Codex version replace the link with a file of its own, the user's
+`auth.json` is never overwritten: that file is moved to `<stateDir>/replaced-auth/` (mode 0600) when
+the home is removed, and the probe (`agent-workflow doctor`) reports it; if Codex then asks you to sign
+in again, run `codex login` and delete the kept files. The user's
 home is kept instead (and the probe says why) when the stage inherits user context, when
 `cli_auth_credentials_store` is not `file` (the keyring store keys credentials by the home path), when
 there is neither an `auth.json` nor an `OPENAI_API_KEY`/`CODEX_API_KEY` variable, or when links cannot

@@ -181,6 +181,34 @@ test("a sentence naming two entities of one slot maps only when an observation n
 		"HTTP/3",
 		"RFC 9114",
 	]);
+	// Round 3 (gpt-6-astra): a comparison or list label says the names occur together, not that they are one
+	// subject; "HTTP/3 (RFC 9114)" is an alias label.
+	const withLabel = (label) =>
+		detectSlotConflicts({
+			extractedFacts: [
+				...facts,
+				{
+					id: "e6",
+					slotId: "slot-001",
+					entity: label,
+					factType: "scope",
+					value: "v",
+					dateOrYear: "2022",
+				},
+			],
+		}).conflicts.length;
+	for (const label of [
+		"RFC 9000 vs RFC 9114",
+		"RFC 9000, RFC 9114",
+		"RFC 9000 – RFC 9114",
+		"RFC 9000 and RFC 9114",
+	])
+		assert.equal(withLabel(label), 0, label);
+	assert.equal(
+		withLabel("RFC 9000 / RFC 9114"),
+		1,
+		"an alias label still maps",
+	);
 });
 
 test("isLocalDocumentEntity: document file names, not dotted product names", () => {

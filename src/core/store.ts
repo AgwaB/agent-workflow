@@ -3602,69 +3602,6 @@ export function isBlockedTaskResumableForResume(
 	);
 }
 
-/**
- * 2026-11-08 (L4 live): a support stage that declared itself blocked because an upstream model stage
- * failed (deep-research's renderer blocks on a failed final audit) made the whole run non-resumable,
- * although rerunning the failed stage is exactly what unblocks it. Such a task is resumable when one
- * of its direct dependencies is resumable (failed, interrupted, skipped, a resumable blocked task, or
- * — transitively — another such support block): resume then reruns the dependency and the support
- * stage after it, as a workflow engine reruns a failed node and everything after it. A support block
- * whose sources all completed stays an attention blocker (rerunning it would block again).
- * Computed once from the run before any reset, since resetting a dependency makes it pending.
- */
-export function dependencyResumableSupportBlockIds(
-	run: Pick<WorkflowRunRecord, "tasks">,
-): Set<string> {
-	const bySpecId = new Map(run.tasks.map((task) => [task.specId, task]));
-	const resumable = new Set<string>();
-	// Mirrors the engine's dependency invalidation (dependencyResumeInvalidationPlan): a completed task that
-	// declares invalidateOnDependencyResume and depends on a resumable source reruns, and so does every
-	// completed task downstream of a rerunning one, flag or not. A declared block behind a rerunning task is
-	// resumable. Review 2026-11-09 (gpt-6-astra); re-review: the propagation step needs no flag.
-	const rerun = new Set<string>();
-	const isSource = (task: WorkflowTaskRunRecord): boolean =>
-		RESUMABLE_TASK_STATUSES.has(task.status) ||
-		isBlockedTaskResumableForResume(task) ||
-		resumable.has(task.taskId);
-	const dependencies = (task: WorkflowTaskRunRecord): WorkflowTaskRunRecord[] =>
-		(task.dependsOn ?? [])
-			.map((specId) => bySpecId.get(specId))
-			.filter(
-				(dependency): dependency is WorkflowTaskRunRecord =>
-					dependency !== undefined,
-			);
-	let changed = true;
-	while (changed) {
-		changed = false;
-		for (const task of run.tasks) {
-			const deps = dependencies(task);
-			if (
-				task.status === "completed" &&
-				!rerun.has(task.taskId) &&
-				((task.artifactGraph?.inputPolicy?.invalidateOnDependencyResume ===
-					true &&
-					deps.some(isSource)) ||
-					deps.some((dependency) => rerun.has(dependency.taskId)))
-			) {
-				rerun.add(task.taskId);
-				changed = true;
-			}
-			if (
-				!resumable.has(task.taskId) &&
-				task.status === "blocked" &&
-				task.statusDetail === "support_declared_blocked" &&
-				deps.some(
-					(dependency) => isSource(dependency) || rerun.has(dependency.taskId),
-				)
-			) {
-				resumable.add(task.taskId);
-				changed = true;
-			}
-		}
-	}
-	return resumable;
-}
-
 export function resetTaskForResume(
 	task: WorkflowTaskRunRecord,
 	dependencyResumableBlocks?: ReadonlySet<string>,

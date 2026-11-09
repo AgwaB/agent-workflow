@@ -8,6 +8,7 @@ import {
 	readdirSync,
 	readFileSync,
 	realpathSync,
+	statSync,
 } from "node:fs";
 import {
 	mkdir,
@@ -27,8 +28,9 @@ import {
 	decideCodexWorkerHome,
 	prepareCodexWorkerHome,
 	removeCodexSessionHome,
+	codexSessionHomeInUse,
+	leaseCodexSessionHome,
 	removeCodexWorkerHome,
-	restoreReplacedAuth,
 	reuseCodexWorkerHome,
 } from "../../dist/executors/codex/home.js";
 
@@ -188,7 +190,7 @@ test("prepare links auth.json, config.toml and rules; no AGENTS.md, no copies; r
 		'{"tokens":"refreshed"}',
 	);
 
-	removeCodexWorkerHome(worker);
+	removeCodexWorkerHome(worker, join(root, `kept-${++counter}`));
 	assert.equal(existsSync(worker.path), false);
 	assert.equal(
 		readFileSync(join(home, "auth.json"), "utf8"),
@@ -207,7 +209,7 @@ test("prepare links auth.json, config.toml and rules; no AGENTS.md, no copies; r
 		env: noKeys,
 	});
 	assert.deepEqual(sparse.linked, ["auth.json"]);
-	removeCodexWorkerHome(sparse);
+	removeCodexWorkerHome(sparse, join(root, `kept-${++counter}`));
 	const shared = prepareCodexWorkerHome({
 		userHome: home,
 		dir,
@@ -220,7 +222,7 @@ test("prepare links auth.json, config.toml and rules; no AGENTS.md, no copies; r
 		reason: "stage inherits user context",
 		linked: [],
 	});
-	removeCodexWorkerHome(shared);
+	removeCodexWorkerHome(shared, join(root, `kept-${++counter}`));
 	assert.ok(existsSync(join(home, "auth.json")));
 });
 
@@ -247,7 +249,7 @@ test("a kept session's home lives outside the attempt, is reused with its links,
 		true,
 	);
 	assert.equal(existsSync(join(prepared.path, "thread-rollout.jsonl")), true);
-	removeCodexSessionHome(prepared.path);
+	removeCodexSessionHome(prepared.path, join(root, `kept-${++counter}`));
 	assert.equal(existsSync(dir), false);
 	assert.equal(
 		existsSync(join(home, "auth.json")),
@@ -256,11 +258,12 @@ test("a kept session's home lives outside the attempt, is reused with its links,
 	);
 });
 
-test("removal moves a refreshed auth.json back when Codex replaced the link with a newer file", async () => {
-	// Review F (2026-11-09): only safe while Codex writes auth.json in place; a write by rename would turn
-	// the link into a file holding the rotated token, which removal would otherwise delete.
-	const scenario = async (privateAgeSeconds) => {
+test("removal never writes over the user's auth.json: a file that replaced the link is kept aside", async () => {
+	// Review F, round 3 (gpt-6-astra): restoring by mtime overwrote a newer or another account's login and broke a
+	// symlinked credential store. Linking is safe while Codex writes in place; otherwise the file is only kept.
+	for (const age of [+60, -3600]) {
 		const home = await userHome();
+		const keepDir = join(root, `kept-${++counter}`);
 		const prepared = prepareCodexWorkerHome({
 			userHome: home,
 			dir: join(root, `attempt-${++counter}`),
@@ -268,35 +271,56 @@ test("removal moves a refreshed auth.json back when Codex replaced the link with
 		});
 		const privateAuth = join(prepared.path, "auth.json");
 		await unlink(privateAuth);
-		await writeFile(privateAuth, '{"tokens":"rotated"}');
-		const when = new Date(Date.now() + privateAgeSeconds * 1000);
+		await writeFile(privateAuth, '{"tokens":"rotated"}', { mode: 0o644 });
+		const when = new Date(Date.now() + age * 1000);
 		await utimes(privateAuth, when, when);
-		removeCodexWorkerHome(prepared);
+		const kept = removeCodexWorkerHome(prepared, keepDir);
 		assert.equal(existsSync(prepared.path), false);
-		return readFileSync(join(home, "auth.json"), "utf8");
-	};
-	assert.equal(
-		await scenario(+60),
-		'{"tokens":"rotated"}',
-		"newer replacement is restored",
-	);
-	assert.equal(
-		await scenario(-3600),
-		'{"tokens":"not-read"}',
-		"older replacement leaves the user's file",
-	);
-	// an intact link: nothing moves
+		assert.equal(
+			readFileSync(join(home, "auth.json"), "utf8"),
+			'{"tokens":"not-read"}',
+		);
+		assert.ok(kept?.startsWith(keepDir), `kept at ${kept}`);
+		assert.equal(readFileSync(kept, "utf8"), '{"tokens":"rotated"}');
+		assert.equal(statSync(kept).mode & 0o777, 0o600);
+	}
+	// an intact link: nothing is kept and the user's file stays a file
 	const home = await userHome();
+	const keepDir = join(root, `kept-${++counter}`);
 	const prepared = prepareCodexWorkerHome({
 		userHome: home,
 		dir: join(root, `attempt-${++counter}`),
 		env: noKeys,
 	});
-	assert.equal(restoreReplacedAuth(prepared.path, home), "linked");
-	removeCodexWorkerHome(prepared);
-	assert.equal(
-		readFileSync(join(home, "auth.json"), "utf8"),
-		'{"tokens":"not-read"}',
-	);
+	assert.equal(removeCodexWorkerHome(prepared, keepDir), undefined);
+	assert.equal(existsSync(keepDir), false);
 	assert.equal(lstatSync(join(home, "auth.json")).isSymbolicLink(), false);
+	// a file that cannot be kept: the home stays rather than deleting the only copy
+	const stuck = prepareCodexWorkerHome({
+		userHome: home,
+		dir: join(root, `attempt-${++counter}`),
+		env: noKeys,
+	});
+	await unlink(join(stuck.path, "auth.json"));
+	await writeFile(join(stuck.path, "auth.json"), "rotated");
+	const blocker = join(root, `blocker-${++counter}`);
+	await writeFile(blocker, "not a directory");
+	assert.equal(removeCodexWorkerHome(stuck, join(blocker, "kept")), undefined);
+	assert.equal(readFileSync(join(stuck.path, "auth.json"), "utf8"), "rotated");
+});
+
+test("a kept session's home lease counts only while its process lives", () => {
+	const dir = codexSessionHomeDir(join(root, `state-${++counter}`), "lease");
+	const path = join(dir, "home");
+	assert.equal(codexSessionHomeInUse(path), false);
+	const release = leaseCodexSessionHome(path, "attempt-1", process.pid);
+	assert.equal(codexSessionHomeInUse(path), true);
+	release();
+	assert.equal(codexSessionHomeInUse(path), false);
+	leaseCodexSessionHome(path, "attempt-2", 2 ** 22 + 12345);
+	assert.equal(
+		codexSessionHomeInUse(path),
+		false,
+		"a dead process holds no lease",
+	);
 });

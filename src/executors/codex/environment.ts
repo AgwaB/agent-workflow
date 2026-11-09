@@ -314,7 +314,7 @@ export function codexEnvironmentNotes(
 		`exec-policy rules: ${findings.allowRules} allow rule${findings.allowRules === 1 ? "" : "s"} in ${findings.rulesFiles} file${findings.rulesFiles === 1 ? "" : "s"} under ${findings.rulesPath}`,
 		`global instructions: ${findings.agentsPath} ${findings.globalAgentsMd}`,
 		findings.workerHome.relocate
-			? `worker home: private CODEX_HOME per attempt (auth.json, config.toml and rules linked from ${findings.codexHome}; global AGENTS.md not loaded)`
+			? `worker home: private CODEX_HOME per attempt or kept session (auth.json, config.toml and rules linked from ${findings.codexHome}; global AGENTS.md not loaded)`
 			: `worker home: ${findings.codexHome} shared (${findings.workerHome.reason})`,
 		...codexPolicyWarnings(findings),
 	];

@@ -2,7 +2,7 @@
 // deletes only threads it created and recorded; resuming a thread it did not create never marks
 // it owned. The Claude adapter follows the same rule for resumed sessions.
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -61,6 +61,17 @@ async function codexSetup(t) {
 	t.after(() => {
 		delete process.env.FAKE_CODEX_LOG;
 	});
+	// Round 3: every test runs against a temporary user CODEX_HOME, never the real one.
+	const userHome = join(dir, "user-codex");
+	await mkdir(userHome, { recursive: true });
+	await writeFile(join(userHome, "auth.json"), "{}");
+	await writeFile(join(userHome, "AGENTS.md"), "global instructions");
+	const previousHome = process.env.CODEX_HOME;
+	process.env.CODEX_HOME = userHome;
+	t.after(() => {
+		if (previousHome === undefined) delete process.env.CODEX_HOME;
+		else process.env.CODEX_HOME = previousHome;
+	});
 	const config = { codexPath, stateDir: join(dir, "state") };
 	const deletes = async () => {
 		if (!existsSync(log)) return [];
@@ -71,7 +82,7 @@ async function codexSetup(t) {
 			.filter((message) => message.method === "thread/delete")
 			.map((message) => message.params.threadId);
 	};
-	return { dir, config, deletes };
+	return { dir, config, deletes, userHome, log };
 }
 
 test("review #9 (codex): an unrecorded thread is never deleted", async (t) => {
@@ -90,9 +101,11 @@ test("review #9 (codex): an unrecorded thread is never deleted", async (t) => {
 test("review #9 (codex): resuming a foreign thread does not make it owned", async (t) => {
 	const { dir, config, deletes } = await codexSetup(t);
 	const executor = createCodexExecutor(config);
+	// A foreign thread lives in the user's home: it resumes with inherited context (round 3).
 	const ref = await executor.submit(
 		request(dir, "codex-resume-foreign", {
 			resumeSessionId: "user-thread-1",
+			isolation: { inherit: true },
 		}),
 	);
 	const { terminal } = await drain(executor, ref, { timeoutMs: 15_000 });
@@ -134,17 +147,7 @@ test("review #9 (codex): a kept thread the adapter created is deletable once", a
 test("codex: a kept session keeps a private home that resume reuses and deletion removes", async (t) => {
 	// Re-review 2026-11-09 (gpt-6-astra, claude-fable-5-1): the per-attempt private home was removed on close,
 	// losing the kept thread; the first fix fell back to the user's home and lost isolation.
-	const { dir, config, deletes } = await codexSetup(t);
-	const userHome = join(dir, "user-codex");
-	await mkdir(userHome, { recursive: true });
-	await writeFile(join(userHome, "auth.json"), "{}");
-	await writeFile(join(userHome, "AGENTS.md"), "global instructions");
-	const previous = process.env.CODEX_HOME;
-	process.env.CODEX_HOME = userHome;
-	t.after(() => {
-		if (previous === undefined) delete process.env.CODEX_HOME;
-		else process.env.CODEX_HOME = previous;
-	});
+	const { dir, config, deletes, userHome } = await codexSetup(t);
 	const homes = async () =>
 		(await readFile(process.env.FAKE_CODEX_LOG, "utf8"))
 			.split("\n")
@@ -212,6 +215,109 @@ test("codex: a kept session keeps a private home that resume reuses and deletion
 	for (let i = 0; i < 50 && existsSync(ephemeralHome); i += 1)
 		await new Promise((r) => setTimeout(r, 20));
 	assert.equal(existsSync(ephemeralHome), false);
+});
+
+test("round 3 (codex): an isolated resume of a thread without a private home is refused before launch", async (t) => {
+	// gpt-6-astra: foreign threads, records without a home and removed homes resumed in the user's home, loading
+	// the global instructions the probe said isolated workers do not get.
+	const { dir, config, log } = await codexSetup(t);
+	const executor = createCodexExecutor(config);
+	await assert.rejects(
+		executor.submit(
+			request(dir, "codex-resume-isolated", {
+				resumeSessionId: "user-thread-2",
+			}),
+		),
+		(error) =>
+			error.code === "CAPABILITY_MISSING" &&
+			/isolation\.inherit/.test(error.message),
+	);
+	assert.equal(existsSync(log), false, "no app-server was started");
+	// a kept thread whose private home is gone is refused the same way
+	const kept = await drain(
+		executor,
+		await executor.submit(
+			request(dir, "codex-keep-gone", { sessionId: "keep-gone" }),
+		),
+		{ timeoutMs: 15_000 },
+	);
+	const homes = join(config.stateDir, "session-homes");
+	await rm(homes, { recursive: true, force: true });
+	await assert.rejects(
+		executor.submit(
+			request(dir, "codex-resume-gone", {
+				resumeSessionId: kept.terminal.ownedSession.locator,
+			}),
+		),
+		(error) => error.code === "CAPABILITY_MISSING",
+	);
+});
+
+test("round 3 (codex): a kept-session launch that fails before a thread exists leaves no home", async (t) => {
+	const { dir, config } = await codexSetup(t);
+	const executor = createCodexExecutor({
+		...config,
+		codexPath: join(dir, "missing-codex"),
+	});
+	const { terminal } = await drain(
+		executor,
+		await executor.submit(
+			request(dir, "codex-keep-fails", { sessionId: "keep-fails" }),
+		),
+		{ timeoutMs: 15_000 },
+	);
+	assert.equal(terminal.type, "failed");
+	const homes = join(config.stateDir, "session-homes");
+	for (
+		let i = 0;
+		i < 50 && existsSync(homes) && readdirSync(homes).length > 0;
+		i += 1
+	)
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	assert.deepEqual(existsSync(homes) ? readdirSync(homes) : [], []);
+});
+
+test("round 3 (codex): deleting a session while an app-server runs in its home fails and keeps the home", async (t) => {
+	// gpt-6-astra: a fresh executor deleted the home under two running resumes.
+	const { dir, config, deletes, log } = await codexSetup(t);
+	const executor = createCodexExecutor(config);
+	const kept = await drain(
+		executor,
+		await executor.submit(
+			request(dir, "codex-keep-busy", { sessionId: "keep-busy" }),
+		),
+		{ timeoutMs: 15_000 },
+	);
+	const owned = kept.terminal.ownedSession;
+	const keptHome = (await readFile(log, "utf8"))
+		.split("\n")
+		.filter(Boolean)
+		.map((line) => JSON.parse(line))
+		.find((message) => message.method === "initialize").codexHome;
+	const resumed = await executor.submit(
+		request(dir, "codex-resume-busy", {
+			resumeSessionId: owned.locator,
+			env: { FAKE_CODEX_TURN_DELAY_MS: "7000" },
+		}),
+	);
+	await new Promise((resolve) => setTimeout(resolve, 300));
+	assert.equal(
+		await createCodexExecutor(config).deleteOwnedSession(owned),
+		"failed",
+	);
+	assert.equal(existsSync(keptHome), true);
+	assert.deepEqual(await deletes(), []);
+	const second = await drain(executor, resumed, { timeoutMs: 15_000 });
+	assert.equal(second.terminal.type, "completed");
+	for (
+		let i = 0;
+		i < 50 &&
+		(await createCodexExecutor(config).deleteOwnedSession(owned)) === "failed";
+		i += 1
+	)
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	assert.deepEqual(await deletes(), [owned.locator]);
+	assert.equal(existsSync(keptHome), false);
 });
 
 test("review #9 (claude): resuming a foreign session does not make it owned", async (t) => {
