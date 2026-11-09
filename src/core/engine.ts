@@ -34,7 +34,6 @@ import {
 	FAIL_FAST_CANCELLED_STATUS_DETAIL,
 	fromStatePath,
 	initializeRunRecordDirectories,
-	dependencyResumableSupportBlockIds,
 	isBlockedTaskResumableForResume,
 	invalidateTaskForDependencyResume,
 	isTerminalWorkflowStatus,
@@ -1361,9 +1360,19 @@ export interface StopRunSummary {
 	interruptedTaskIds: string[];
 }
 
-function assertBlockedRunResumable(run: WorkflowRunRecord): void {
+function assertBlockedRunResumable(
+	run: WorkflowRunRecord,
+	compiledFlow: CompiledWorkflow | undefined,
+): void {
 	if (run.status !== "blocked") return;
-	const dependencyResumable = dependencyResumableSupportBlockIds(run);
+	const dependencyResumable =
+		compiledFlow === undefined
+			? new Set<string>()
+			: dependencyResumableBlocks(
+					run,
+					compiledFlow,
+					preparedInvalidationPlan(run, compiledFlow),
+				);
 	const blockers = run.tasks.filter(
 		(task) =>
 			task.status === "blocked" &&
@@ -2204,21 +2213,87 @@ function unaffectedCompiledStructureSignature(
 	);
 }
 
+function isResumeSource(
+	task: WorkflowTaskRunRecord,
+	dependencyResumable: ReadonlySet<string>,
+): boolean {
+	return (
+		task.status === "failed" ||
+		task.status === "interrupted" ||
+		task.status === "skipped" ||
+		isBlockedTaskResumableForResume(task) ||
+		dependencyResumable.has(task.taskId)
+	);
+}
+
+/**
+ * Declared support blocks that `resume` reruns. Round 3 (gpt-6-astra): computed from this engine's own
+ * invalidation plan — logical and context dependencies, failed or interrupted intermediaries, foreach
+ * ownership — instead of a store-side approximation that missed those. A block reruns when one of its logical
+ * dependencies is a resumable source or a task the plan resets or rebuilds; a resumable block is itself a
+ * source, so this iterates to a fixed point. With a known plan (prepared journal, or the one being applied)
+ * that plan is used as is: it was computed with these blocks, and run and compiled flow may briefly
+ * disagree while a journal is replayed.
+ */
+function dependencyResumableBlocks(
+	run: WorkflowRunRecord,
+	compiledFlow: CompiledWorkflow,
+	planned?: ResumeDependencyInvalidationPlan,
+): Set<string> {
+	const compiledBySpecId = new Map(
+		compiledFlow.tasks.map((task) => [compiledTaskSpecId(task), task]),
+	);
+	// logicalDependencySpecIdsForResume without its consistency checks (the plan makes those).
+	const dependencies = (task: WorkflowTaskRunRecord): string[] => {
+		const compiled = compiledBySpecId.get(task.specId);
+		const itemSource = task.foreachGenerated?.itemSourceSpecId;
+		return [
+			...(compiled?.dependsOn ?? []),
+			...(compiled?.contextDependsOn ?? []),
+			...(task.dependsOn ?? []),
+			...(typeof itemSource === "string" ? [itemSource] : []),
+		];
+	};
+	const blocks = new Set<string>();
+	for (;;) {
+		const plan =
+			planned ?? dependencyResumeInvalidationPlan(run, compiledFlow, blocks);
+		const rerun = new Set(
+			run.tasks
+				.filter((task) => isResumeSource(task, blocks))
+				.map((task) => task.specId),
+		);
+		for (const owned of plan?.taskOwnership ?? []) rerun.add(owned.specId);
+		const next = run.tasks.filter(
+			(task) =>
+				!blocks.has(task.taskId) &&
+				task.status === "blocked" &&
+				task.statusDetail === "support_declared_blocked" &&
+				dependencies(task).some((specId) => rerun.has(specId)),
+		);
+		if (next.length === 0) return blocks;
+		for (const task of next) blocks.add(task.taskId);
+	}
+}
+
+export function dependencyResumableBlocksForTests(
+	run: WorkflowRunRecord,
+	compiledFlow: CompiledWorkflow,
+): Set<string> {
+	return dependencyResumableBlocks(run, compiledFlow);
+}
+
 function dependencyResumeInvalidationPlan(
 	run: WorkflowRunRecord,
 	compiledFlow: CompiledWorkflow,
+	dependencyResumable: ReadonlySet<string> = dependencyResumableBlocks(
+		run,
+		compiledFlow,
+	),
 ): ResumeDependencyInvalidationPlan | undefined {
-	const dependencyResumable = dependencyResumableSupportBlockIds(run);
 	const resumableSourceSpecIds = new Set(
 		run.tasks
-			.filter(
-				(task) =>
-					task.status === "failed" ||
-					task.status === "interrupted" ||
-					task.status === "skipped" ||
-					isBlockedTaskResumableForResume(task) ||
-					dependencyResumable.has(task.taskId),
-			)
+			.filter((task) => isResumeSource(task, dependencyResumable))
 			.map((task) => task.specId),
 	);
 	if (resumableSourceSpecIds.size === 0) return undefined;
@@ -2655,8 +2730,10 @@ function applyDependencyResumeInvalidation(
 	run: WorkflowRunRecord,
 	compiledFlow: CompiledWorkflow,
 	journal: ResumeDependencyInvalidationPlan,
-	dependencyResumable: ReadonlySet<string> = dependencyResumableSupportBlockIds(
+	dependencyResumable: ReadonlySet<string> = dependencyResumableBlocks(
 		run,
+		compiledFlow,
+		journal,
 	),
 ): string[] {
 	const sourceTaskIds = new Set(journal.sourceTaskIds);
@@ -2948,7 +3025,10 @@ function assertUnsupportedLegacyPreparedInvalidation(
 	});
 }
 
-function assertRunResumableForResume(run: WorkflowRunRecord): void {
+function assertRunResumableForResume(
+	run: WorkflowRunRecord,
+	compiledFlow: CompiledWorkflow | undefined,
+): void {
 	if (
 		run.status !== "failed" &&
 		run.status !== "interrupted" &&
@@ -2958,7 +3038,7 @@ function assertRunResumableForResume(run: WorkflowRunRecord): void {
 			`resume requires a failed, interrupted, or resumable blocked run; ${run.runId} is ${run.status}`,
 		);
 	}
-	assertBlockedRunResumable(run);
+	assertBlockedRunResumable(run, compiledFlow);
 }
 
 /** WP37: how long `resume` waits for a just-stopped supervisor to release the run lease. */
@@ -2999,7 +3079,12 @@ export async function resumeRun(
 	options: WorkflowScheduleOptions = {},
 ): Promise<ResumeRunSummary> {
 	const current = await readRunRecord(cwd, runIdOrPrefix);
-	assertRunResumableForResume(current);
+	assertRunResumableForResume(
+		current,
+		current.status === "blocked"
+			? await readCompiledWorkflow(cwd, current.runId)
+			: undefined,
+	);
 
 	const resetTaskIds: string[] = [];
 	const resumeUnderLease = async (
@@ -3007,10 +3092,8 @@ export async function resumeRun(
 	): Promise<WorkflowRunRecord> => {
 		assertResumeLeaseActive(leaseSignal);
 		const run = await readRunRecord(cwd, current.runId);
-		assertRunResumableForResume(run);
-		assertResumeLeaseActive(leaseSignal);
-
 		const activeCompiledFlow = await readCompiledWorkflow(cwd, run.runId);
+		assertRunResumableForResume(run, activeCompiledFlow);
 		assertResumeLeaseActive(leaseSignal);
 		if (!activeCompiledFlow) {
 			throw new Error(
@@ -3036,7 +3119,10 @@ export async function resumeRun(
 		);
 		if (!planned) {
 			await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
-				const dependencyResumable = dependencyResumableSupportBlockIds(run);
+				const dependencyResumable = dependencyResumableBlocks(
+					run,
+					activeCompiledFlow,
+				);
 				for (const task of run.tasks) {
 					if (resetTaskForResume(task, dependencyResumable))
 						resetTaskIds.push(task.taskId);
@@ -3086,7 +3172,11 @@ export async function resumeRun(
 		}
 		await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
 			// Before any reset: resetting a failed dependency makes it pending.
-			const dependencyResumable = dependencyResumableSupportBlockIds(run);
+			const dependencyResumable = dependencyResumableBlocks(
+				run,
+				activeCompiledFlow,
+				planned,
+			);
 			const invalidatedTaskIds = applyDependencyResumeInvalidation(
 				run,
 				activeCompiledFlow,
