@@ -4,8 +4,11 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
+	closeSync,
+	constants,
 	existsSync,
 	lstatSync,
+	openSync,
 	readdirSync,
 	readFileSync,
 	realpathSync,
@@ -174,9 +177,15 @@ test("prepare links auth.json, config.toml and rules; no AGENTS.md, no copies; r
 	const worker = prepareCodexWorkerHome({ userHome: home, dir, env: noKeys });
 	assert.equal(worker.relocated, true);
 	assert.equal(worker.path, join(dir, "home"));
-	assert.deepEqual(worker.linked, ["auth.json", "config.toml", "rules"]);
+	assert.deepEqual(worker.linked, [
+		"auth.json",
+		"config.toml",
+		"rules",
+		"auth.lock",
+	]);
 	assert.deepEqual(readdirSync(worker.path).sort(), [
 		"auth.json",
+		"auth.lock",
 		"config.toml",
 		"rules",
 	]);
@@ -218,7 +227,7 @@ test("prepare links auth.json, config.toml and rules; no AGENTS.md, no copies; r
 		dir,
 		env: noKeys,
 	});
-	assert.deepEqual(sparse.linked, ["auth.json"]);
+	assert.deepEqual(sparse.linked, ["auth.json", "auth.lock"]);
 	removeCodexWorkerHome(sparse, {
 		stateDir: root,
 		keepDir: join(root, `kept-${++counter}`),
@@ -553,4 +562,50 @@ test("round 4: one live deletion holds a session; a stale marker does not", asyn
 	);
 	assert.equal(codexSessionHomeDeleting(path), false, "dead holder");
 	assert.equal(typeof acquireCodexSessionDeletion(path), "function");
+});
+
+test("a private home shares the user's auth.lock, so Codex serializes refreshes with the user's own Codex", async () => {
+	// Codex 0.166 locks <CODEX_HOME>/auth.lock around every auth.json read/modify/write (storage.rs lock_for_write,
+	// manager.rs persist_tokens). The link may dangle: opening it with O_CREAT creates the target in the user's home.
+	const home = await userHome();
+	const prepared = prepareCodexWorkerHome({
+		userHome: home,
+		dir: join(root, `attempt-${++counter}`),
+		env: noKeys,
+	});
+	assert.equal(
+		lstatSync(join(prepared.path, "auth.lock")).isSymbolicLink(),
+		true,
+	);
+	assert.equal(
+		existsSync(join(home, "auth.lock")),
+		false,
+		"nothing written in the user's home",
+	);
+	const fd = openSync(
+		join(prepared.path, "auth.lock"),
+		constants.O_RDWR | constants.O_CREAT,
+		0o600,
+	);
+	closeSync(fd);
+	assert.equal(
+		statSync(join(prepared.path, "auth.lock")).ino,
+		statSync(join(home, "auth.lock")).ino,
+		"one lock file",
+	);
+	// reuse restores a missing link; an API-key-only home (no auth.json) gets none
+	await rm(join(prepared.path, "auth.lock"));
+	assert.ok(
+		reuseCodexWorkerHome(prepared.path, home).linked.includes("auth.lock"),
+	);
+	assert.equal(
+		lstatSync(join(prepared.path, "auth.lock")).isSymbolicLink(),
+		true,
+	);
+	const keyOnly = prepareCodexWorkerHome({
+		userHome: await userHome({ auth: false }),
+		dir: join(root, `attempt-${++counter}`),
+		env: { ...noKeys, OPENAI_API_KEY: "sk-test" },
+	});
+	assert.equal(keyOnly.linked.includes("auth.lock"), false);
 });
