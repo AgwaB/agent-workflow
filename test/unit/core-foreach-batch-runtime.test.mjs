@@ -1984,6 +1984,66 @@ test("one invalid batched member falls back both items to singleton without outp
 	}
 });
 
+test("a batched member that declares its input blocked falls back the pair instead of completing", async () => {
+	// Review 2026-11-09 (gpt-6-astra): the batch path published such a member as completed; the singleton
+	// path fails it (input_integrity_blocked).
+	const cwd = makeProject();
+	try {
+		writeAgent(cwd);
+		const items = writeWorkflow(cwd, "batch-blocked", { itemCount: 2 });
+		const fake = fakeApi({
+			cwd,
+			items,
+			durableBarrier: true,
+			batchItemFactory: (id, index) => ({
+				id,
+				control: {
+					schema: "stage-control-v1",
+					digest: `batch-${id}`,
+					...(index === 1
+						? {
+								inputIntegrity: {
+									status: "blocked",
+									reason: "budget_block",
+									detail: "packet over budget",
+								},
+							}
+						: {}),
+				},
+				analysis: "batched member",
+				refs: [],
+			}),
+		});
+		setWorkerApiForTests(fake.api);
+		const started = await runWorkflow("batch-blocked", cwd, {
+			task: "Run blocked batch fallback.",
+			executionProfile: "batched",
+		});
+		await waitForRun(cwd, started.runId, RUN_WAIT_MS);
+		assert.deepEqual(fake.launches.map((launch) => launch.kind).slice(0, 4), [
+			"source",
+			"batch",
+			"singleton",
+			"singleton",
+		]);
+		const run = await readRunRecord(cwd, started.runId);
+		const batch = run.foreachBatches?.[0];
+		assert.equal(batch?.phase, "fallback_applied");
+		assert.match(
+			batch?.fallback?.reason ?? "",
+			/declared input integrity blocked \(budget_block\)/,
+		);
+		for (const task of run.tasks.filter((task) => task.stageId === "fan"))
+			assert.doesNotMatch(
+				readFileSync(join(stateDir(cwd), task.files.output), "utf8"),
+				/batched member/,
+			);
+	} finally {
+		setWorkerApiForTests(undefined);
+		removeProject(cwd);
+	}
+});
+
 test("legacy completed member keeps its authority while pending leader migrates to a fresh singleton key", async () => {
 	const cwd = makeProject();
 	let started;

@@ -1,3 +1,4 @@
+import { acceptedInputIntegrityBlock } from "./required-reads.js";
 import { stateBase } from "./state-location.js";
 import { type WorkerRunStatusSnapshot } from "./runtime-port.js";
 import { randomBytes } from "node:crypto";
@@ -259,6 +260,13 @@ async function commitTerminalForeachBatch(
 							.join("; ")}`,
 					);
 				}
+				// Review 2026-11-09 (gpt-6-astra): a member that declares its input unusable is not published
+				// as completed; the pair falls back to singletons, where the block fails the task.
+				const integrityBlock = acceptedInputIntegrityBlock(parsed.control);
+				if (integrityBlock !== undefined)
+					throw new Error(
+						`batch item ${task.taskId} declared input integrity blocked (${integrityBlock.reason})`,
+					);
 				return {
 					task,
 					rawOutput: itemRawOutput,
