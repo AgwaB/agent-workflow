@@ -1,3 +1,4 @@
+// test-tier: integration
 // 2026-10-31: test cleanup must never signal a pid that no longer belongs to the process the test
 // started (macOS reuses pids; a stale group kill took down another test's durable worker, whose run
 // then ended `blocked`). process.kill is observed, so "not signalled" is checked directly.

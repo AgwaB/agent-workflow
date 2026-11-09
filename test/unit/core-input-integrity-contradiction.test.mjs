@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // 2026-11-01: deep-research's final audit (Codex, gpt-6.1-terra) withheld its synthesis as "packet
 // truncated" although every required read was delivered complete. A worker's

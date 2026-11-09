@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP5): interop proof against the official MCP TypeScript SDK client
 // (@modelcontextprotocol/sdk, devDependency only) over a real stdio transport.
 import assert from "node:assert/strict";

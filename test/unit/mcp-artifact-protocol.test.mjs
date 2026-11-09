@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP5): stdio framing, JSON-RPC errors, version negotiation and lifecycle
 // of the workflow_artifact MCP server (dist/mcp/artifact-server/server.js).
 import assert from "node:assert/strict";

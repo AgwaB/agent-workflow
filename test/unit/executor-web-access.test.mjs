@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP35, feature-parity row 57): `pi-web-access` guidance. The package stays
 // unbundled (C2: the CLIs' own web tools). The Pi executor's probe detects whether the user's Pi has
 // it (`pi list`), and when a stage needs web tools and they are missing, the install instruction

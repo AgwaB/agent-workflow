@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP4a acceptance, extended in WP4b and WP4c): every compiled core module imports
 // with plain node from a temp copy of dist/ that has no node_modules anywhere on
 // its resolution path, so src/core carries no hidden runtime dependency.

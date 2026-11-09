@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // `agent-workflow check` (2026-10-30, owner): the launch preflight without the launch, and the short
 // preflight text a launch prints. Fixture executor only; no model or agent-CLI calls.

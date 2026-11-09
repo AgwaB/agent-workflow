@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP12c): the Pi agent tools `aw_run` / `aw_dynamic` take an `inputs` object,
 // the tool form of `--input key=value` (WP12a). The host API types it by the spec's declared `input`

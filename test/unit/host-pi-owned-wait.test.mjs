@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // Completion belongs to the owning session. Its awaited tool result prevents a
 // duplicate completion message; other sessions cannot take that presentation.

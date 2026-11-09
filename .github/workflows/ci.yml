@@ -45,8 +45,13 @@ jobs:
 
       - run: npm ci --legacy-peer-deps
 
-      - name: Validate
-        run: npm run validate
+      # Unit tests do not depend on the clock and run fully parallel; integration tests (real processes, engine
+      # runs, HTTP, Chrome, time bounds) run in their own step, two files at a time. Both fail the job.
+      - name: Checks and unit tests
+        run: npm run validate:unit
+
+      - name: Integration tests
+        run: npm run test:integration
 
       - name: E2E smoke
         run: npm run e2e

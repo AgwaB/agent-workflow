@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP11a): per-action tests of the host API handlers (src/hosts/api.ts). Each
 // handler returns structured data plus a text rendering. Runs use the workflow executor fixture (no

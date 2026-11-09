@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP17): `agent-workflow doctor` (host API `doctorAction` and the CLI) and the
 // host identity plumbing (CLI → "cli", Pi host → "pi"). Fakes only: probes come from injected

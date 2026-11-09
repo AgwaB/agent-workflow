@@ -1,3 +1,4 @@
+// test-tier: integration
 // User scope, identity, startup races and all-project liveness. Never use the user's fixed ports.
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
@@ -435,9 +436,13 @@ test("idle exit includes active runs in other projects, not just the selected pr
 		},
 	});
 	now += 2000;
-	await sleep(350);
+	// 2026-11-10: a check that finds the other project's active run rewrites the discovery with idleExitAt =
+	// now + idleExitMs; wait for that (a check ran and kept the server) instead of a fixed 350 ms (CI 42491990412).
+	const keptUntil = new Date(now + 1000).toISOString();
+	await waitFor(
+		async () => (await readDashboardDiscovery(p.cwd))?.idleExitAt === keptUntil,
+	);
 	assert.equal(exited, false);
-	assert.ok(await readDashboardDiscovery(p.cwd));
 	await persistRun(other, "completed");
 	await waitFor(() => exited);
 	await assert.rejects(fetch(`http://127.0.0.1:${server.port}/api/session`));

@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP11a): the `agent-workflow` CLI (src/hosts/cli). In-process tests drive
 // runAgentWorkflowCli with a captured io (argv parsing, exit codes, TTY vs non-TTY confirmation,

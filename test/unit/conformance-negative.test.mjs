@@ -1,3 +1,4 @@
+// test-tier: integration
 // Negative tests: each injected adapter bug must fail the named conformance check.
 import assert from "node:assert/strict";
 import { test } from "node:test";

@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 import { createWorkflowRunRecord } from "../helpers/unit-test-support.mjs";
 import {

@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP8: the Claude adapter against the conformance kit, offline (stub CLI replaying scrubbed
 // claude-code 2.1.310 transcripts) and runtime tier (real durable runtime, stub CLI).
 import assert from "node:assert/strict";

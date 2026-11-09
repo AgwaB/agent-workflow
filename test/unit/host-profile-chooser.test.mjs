@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP19 round 3, review R5): the declared-profile chooser picks from the
 // definition the launch was resolved from (and fingerprinted by the duplicate guard), but the engine
 // re-read the workflow file. Changing `fast`'s model while the chooser was open silently launched the

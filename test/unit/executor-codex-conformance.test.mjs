@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP7: the codex adapter passes the offline conformance kit against a stub `codex app-server`
 // that replays scrubbed live transcripts (test/fixtures/executors/codex/recorded/) where they
 // exist and protocol-shaped synthetic ones otherwise; `mcp_tool` uses a fake app-server that

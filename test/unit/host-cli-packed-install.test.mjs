@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP11a acceptance): the packed tarball installs into a project with no Pi
 // packages and its `agent-workflow` bin works: --help, list, validate of a bundled workflow, and a

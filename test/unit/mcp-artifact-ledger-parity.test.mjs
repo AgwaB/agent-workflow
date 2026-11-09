@@ -1,3 +1,4 @@
+// test-tier: integration
 // MCP artifact results and read-ledger rows match the core tool for the same run fixture.
 import assert from "node:assert/strict";
 import { readFile, rm } from "node:fs/promises";

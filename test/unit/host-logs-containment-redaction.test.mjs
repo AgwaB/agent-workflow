@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19, stage-2 reviews #4 and #7).
 // #4: `logs` (and `inspect --results`) read only files whose canonical path is inside the

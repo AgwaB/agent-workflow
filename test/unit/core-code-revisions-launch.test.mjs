@@ -1,3 +1,4 @@
+// test-tier: integration
 // agent-workflow 2026-11-08 (X1): a launched run persists its code revisions; a nested run keeps
 // the launch's view instead of reading the repository again.
 import assert from "node:assert/strict";

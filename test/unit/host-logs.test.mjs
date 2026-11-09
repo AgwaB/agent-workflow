@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP16): the `logs` host action (`logsAction`, `agent-workflow logs`,
 // `/aw logs`): a bounded tail of task output, stderr and the latest attempt's executor events, with

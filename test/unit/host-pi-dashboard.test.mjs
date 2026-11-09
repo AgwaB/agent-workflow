@@ -1,3 +1,4 @@
+// test-tier: integration
 import { projectId } from "../../dist/core/state-location.js";
 import { stateDir } from "../helpers/state-dir.mjs";
 // WP43b: `/aw dashboard [<run>]` in the Pi host opens the local web dashboard through a one-time

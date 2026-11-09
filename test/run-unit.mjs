@@ -9,8 +9,13 @@
 // and provider credentials are removed from the environment. Live tiers opt out with
 // AGENT_WORKFLOW_LIVE=1.
 //
-// `node test/run-unit.mjs [node --test flags] [test files]`; no files = the whole unit suite.
-// AGENT_WORKFLOW_TEST_CONCURRENCY bounds parallel files; AGENT_WORKFLOW_KEEP_TEST_HOME=1 keeps homes.
+// `node test/run-unit.mjs [--tier=unit|integration] [node --test flags] [test files]`; no files = the whole
+// suite. AGENT_WORKFLOW_TEST_CONCURRENCY bounds parallel files; AGENT_WORKFLOW_KEEP_TEST_HOME=1 keeps homes.
+//
+// Tiers (2026-11-10): a file whose first line is `// test-tier: integration` runs real processes, engine runs,
+// HTTP servers or Chrome, or waits on the clock; every other file is a unit test that must not (enforced by
+// test/unit/test-tiers.test.mjs). `--tier=unit` runs fully parallel; `--tier=integration` defaults to at most
+// two files at a time, since load turns its waits into failures. Both tiers fail the run.
 import { spawn } from "node:child_process";
 import {
 	chmodSync,
@@ -23,18 +28,40 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { availableParallelism, tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const args = process.argv.slice(2);
+const tierArg = args.find((arg) => arg.startsWith("--tier="));
+const tier = tierArg?.slice("--tier=".length);
+if (tier !== undefined && tier !== "unit" && tier !== "integration") {
+	console.error(
+		`--tier must be unit or integration, not ${JSON.stringify(tier)}`,
+	);
+	process.exit(2);
+}
 const explicit = args.filter((arg) => arg.endsWith(".mjs"));
-const flags = args.filter((arg) => !arg.endsWith(".mjs"));
-const files =
+const flags = args.filter(
+	(arg) => !arg.endsWith(".mjs") && !arg.startsWith("--tier="),
+);
+const INTEGRATION_TIER_MARKER = "// test-tier: integration";
+const UNIT_TIER_GUARD = pathToFileURL(
+	resolve("test/helpers/unit-tier-guard.mjs"),
+).href;
+const isIntegration = (file) =>
+	readFileSync(file, "utf8").split("\n", 1)[0].trim() ===
+	INTEGRATION_TIER_MARKER;
+const files = (
 	explicit.length > 0
 		? explicit
 		: readdirSync("test/unit")
 				.filter((name) => name.endsWith(".test.mjs"))
 				.sort()
-				.map((name) => join("test/unit", name));
+				.map((name) => join("test/unit", name))
+).filter(
+	(file) =>
+		tier === undefined || isIntegration(file) === (tier === "integration"),
+);
 const live = process.env.AGENT_WORKFLOW_LIVE === "1";
 const keep = process.env.AGENT_WORKFLOW_KEEP_TEST_HOME === "1";
 // Hang protection: a per-test timeout unless the caller sets one, and a hard per-file kill so a
@@ -50,10 +77,13 @@ const reporterFlag = flags.some((flag) => flag.startsWith("--test-reporter"))
 const fileTimeoutMs =
 	Number.parseInt(process.env.AGENT_WORKFLOW_TEST_FILE_TIMEOUT_MS ?? "", 10) ||
 	15 * 60 * 1000;
+const defaultConcurrency = Math.max(2, availableParallelism() - 1);
 const concurrency = Math.max(
 	1,
 	Number.parseInt(process.env.AGENT_WORKFLOW_TEST_CONCURRENCY ?? "", 10) ||
-		Math.max(2, availableParallelism() - 1),
+		(tier === "integration"
+			? Math.min(2, defaultConcurrency)
+			: defaultConcurrency),
 );
 
 function isolatedEnv(home) {
@@ -131,7 +161,15 @@ function runFile(file) {
 		const home = mkdtempSync(join(tmpdir(), "aw-unit-home-"));
 		const child = spawn(
 			process.execPath,
-			["--test", ...testTimeoutFlag, ...reporterFlag, ...flags, file],
+			[
+				// The unit tier refuses long-lived child processes and servers at run time.
+				...(tier === "unit" ? [`--import=${UNIT_TIER_GUARD}`] : []),
+				"--test",
+				...testTimeoutFlag,
+				...reporterFlag,
+				...flags,
+				file,
+			],
 			{
 				env: isolatedEnv(home),
 				stdio: ["ignore", "pipe", "pipe"],
@@ -188,7 +226,9 @@ await Promise.all(
 );
 
 // Aggregated summary in node:test's own format (callers grep "ℹ pass N").
-console.log("\n# agent-workflow unit summary");
+console.log(
+	`\n# agent-workflow ${tier === undefined ? "unit" : `${tier}-tier`} summary (${files.length} files)`,
+);
 for (const key of SUMMARY_KEYS) console.log(`ℹ ${key} ${totals[key]}`);
 if (shimUses.length > 0)
 	console.error(

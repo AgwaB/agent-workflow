@@ -1,3 +1,4 @@
+// test-tier: integration
 import { agentWorkflowHome } from "../../dist/core/home-dir.js";
 import { createHmac } from "node:crypto";
 import assert from "node:assert/strict";

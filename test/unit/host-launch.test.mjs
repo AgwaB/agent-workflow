@@ -1,3 +1,4 @@
+// test-tier: integration
 import { projectId } from "../../dist/core/state-location.js";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";

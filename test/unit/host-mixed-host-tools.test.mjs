@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP31 × WP35 merge): host-tool inheritance is decided per task in a mixed
 // run. A fake native Pi host (hostTools) launches a role-profile run that mixes the workflow fixture
 // registered as `pi` and as `claude` (no CLI or model call): writable pi stages get inheritHostTools

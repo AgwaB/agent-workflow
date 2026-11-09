@@ -1,3 +1,4 @@
+// test-tier: integration
 // Phase 4: the hook is a deterministic command boundary, not a model or shell interpreter.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";

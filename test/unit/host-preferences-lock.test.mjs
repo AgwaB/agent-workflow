@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP42 review round 1, finding 3): the saved workflow preferences and the
 // saved user profiles are read–modify–write stores shared by CLI, MCP and Pi callers. Each
 // mutation holds a cross-process directory lock for the whole transaction, so concurrent saves

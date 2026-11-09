@@ -51,6 +51,12 @@ Run every applicable check below. If a change fits more than one category, run t
 | Package contents, exports, plugins, or install surface | `npm run validate`, `npm run e2e`, and `npm run pack:dry` |
 | Performance or default behavior | Include the applicable checks above plus an agreed before/after comparison and evidence that the change does not regress the affected behavior. |
 
+Tests come in two tiers (`test/run-unit.mjs --tier=…`). A unit test must not depend on the clock: no fixed sleeps,
+no assertions on elapsed time, no workflow engine runs, Chrome, HTTP servers or long-lived child processes —
+`test/unit/test-tiers.test.mjs` checks the files and the unit-tier run refuses such processes and servers. A test that
+needs them is an integration test: make `// test-tier: integration` its first line. Both tiers run in `validate` and
+in CI.
+
 Changes to dashboard animations also need `npm run test:ui-motion` (headless Chrome; its real-time animation checks are not part of `validate` or CI).
 
 Changes to workflow prompts, agent/skill instructions, schemas, or helpers that affect behavior belong in the workflow/runtime category, regardless of file extension. For bug fixes, add a regression test when practical; otherwise explain how you verified the fix.

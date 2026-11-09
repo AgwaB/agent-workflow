@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP14/WP15): `node tools/release/plugins.mjs dev <outDir>` writes a local
 // marketplace root whose plugin runs this checkout's host MCP server. Checks the dev manifests
 // (absolute Node + bin path, per-host `--host`), that the rest of the plugin equals the committed

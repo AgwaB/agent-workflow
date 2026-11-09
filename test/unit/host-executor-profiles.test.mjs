@@ -1,3 +1,4 @@
+// test-tier: integration
 // Editable executor default profiles: a saved profile named after an executor holds the user's
 // changes to that executor's default profile. Fixture executors are registered as `codex`, `claude`
 // and `pi` (no CLI or model call); the fixture probes list no models, so codex/claude start from

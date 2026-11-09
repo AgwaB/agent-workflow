@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP12d-2 review #2: Claude attempt claims are exclusive across executor instances. Two instances
 // with one stateDir and attemptKey (separate released authorities) must launch at most once, and
 // an existing claim is resolved (same ref / named refusal) instead of overwritten.

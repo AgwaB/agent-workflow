@@ -1,3 +1,4 @@
+// test-tier: integration
 import test from "node:test";
 import { runContention } from "../fixtures/core/lease-handoff/contention.mjs";
 

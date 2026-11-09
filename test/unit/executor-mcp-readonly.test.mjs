@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP12d-2 review #6: injected MCP servers do not bypass readOnly tool restrictions. Only the
 // engine's artifact tool is exposed by exact name; a readOnly request that injects any other server
 // (whose tools' non-mutation the adapter cannot enforce) is refused before the authority is consumed.

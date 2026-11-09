@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP13): the `agent-workflow` host MCP server's tools through a fake MCP
 // client against an in-process server (serveHostMcpStdio over PassThrough streams). Runs use the
 // workflow executor fixture registered in-process (no model or agent-CLI calls). Covers every tool,

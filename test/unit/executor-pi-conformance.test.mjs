@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP6: the Pi executor against the conformance kit, offline + runtime tiers. Recorded (scrubbed)
 // Pi 1.1.0 transcripts are replayed through the kit's stub CLI (test/fixtures/executors/pi/).
 import assert from "node:assert/strict";

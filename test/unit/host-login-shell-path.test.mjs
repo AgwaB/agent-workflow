@@ -1,3 +1,4 @@
+// test-tier: integration
 // 2026-11-05 (live: the ChatGPT app's Codex started the MCP server with PATH=/usr/bin:/bin:… only and
 // the claude executor was not found: "spawn claude ENOENT"). The server adds the login shell's PATH
 // entries before any tool call (as kimi-code, trilium and cline do). No real login shell or CLI runs.

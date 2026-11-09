@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP4e, owner decision "D2 개정 — 권한 모드"): permission mode `free`
 // (default) and `safe`. Engine runs use the fixture executor (test/helpers/workflow-executor-

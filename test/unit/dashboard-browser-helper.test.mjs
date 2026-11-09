@@ -1,3 +1,4 @@
+// test-tier: integration
 // 2026-11-09 (round-4 validation): a Chrome that failed during startup surfaced as an uncaught EPIPE from the test
 // helper's cleanup, hiding why Chrome failed. The helper now reports the original error with Chrome's stderr tail.
 // Round-6 review: a Chrome that closed its DevTools pipe but stays alive fails at once, not after the command

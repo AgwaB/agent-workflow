@@ -1,3 +1,4 @@
+// test-tier: integration
 // Board reads and actions go through the host API. Fake sources cover navigation,
 // mixed-executor details, verdicts, reports, approval, copy, and confirmed mutations.
 // Fake TUI integration opens /aw and /aw <run> only in TUI mode; other modes keep text.

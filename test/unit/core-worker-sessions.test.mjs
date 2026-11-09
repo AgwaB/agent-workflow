@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP12a, owner decision D3, plan R#10): worker CLI sessions are not kept by
 // default. The engine asks the executor to keep a session only when a same-session repair may
 // continue it, and releases every engine-owned session once no attempt can use it again

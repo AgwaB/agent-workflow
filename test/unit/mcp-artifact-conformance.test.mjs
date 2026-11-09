@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP5): the WP9a conformance MCP checks (`mcp.*`) applied to the real
 // workflow_artifact server. The kit's `mcp.*` checks drive an executor with the kit's stub server;
 // the server-side half of each check is exercised here with the kit's own MCP client

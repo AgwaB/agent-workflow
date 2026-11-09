@@ -1,3 +1,4 @@
+// test-tier: integration
 import { projectId } from "../../dist/core/state-location.js";
 // WP43c "always a link": the dashboard session token persists per project (sign in once per
 // browser), `--reset-session` rotates it, unsigned browsers get a sign-in page, launches auto-start

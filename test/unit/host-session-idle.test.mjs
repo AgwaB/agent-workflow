@@ -1,3 +1,4 @@
+// test-tier: integration
 import { agentWorkflowHome } from "../../dist/core/home-dir.js";
 import assert from "node:assert/strict";
 import { chmod, readFile, rm, stat, writeFile } from "node:fs/promises";

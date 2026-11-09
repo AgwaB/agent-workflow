@@ -1,3 +1,4 @@
+// test-tier: integration
 // 2026-10-31 edge cases: model and effort names are rewritten for the executor that runs a stage
 // before launch (core-pi-vocabulary-crosshost checks the negotiation). Here the real engine runs
 // the workflow against fixture executors registered under the real ids, and the SubmitRequest the

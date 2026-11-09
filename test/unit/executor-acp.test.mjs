@@ -1,3 +1,4 @@
+// test-tier: integration
 // ACP executor pilot (design note acp-pilot-20261102): the adapter against a scripted ACP v1 agent
 // (test/fixtures/executors/acp/fake-acp-agent.mjs). No agent CLI, no model call.
 import assert from "node:assert/strict";

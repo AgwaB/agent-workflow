@@ -1,3 +1,4 @@
+// test-tier: integration
 // Built-in executor default profiles: codex and claude stages that nothing else gives a model or
 // effort take the executor's preset; a preset model the probe does not list falls back to the user's
 // own CLI settings for every stage. Pi keeps its own defaults. No model or agent-CLI calls: probes are
@@ -470,16 +471,34 @@ test("engine: a codex run probes once, keeps the listed preset model, else uses 
 	}
 });
 
-test("engine: a hung probe fails once within the probe timeout", async () => {
+test("engine: a hung probe fails once within the probe timeout", async (t) => {
 	const cwd = await project();
-	const started = Date.now();
+	// 2026-11-10: instead of "finished within 380 ms", one probe timeout of fake time must settle the preflight; a
+	// second wait on the cached hung probe would need another 200 ms.
+	let probed = false;
+	t.mock.timers.enable({ apis: ["setTimeout"] });
+	let settled = false;
+	const result = preflight(cwd, {
+		executor: "claude",
+		executorProbeTimeoutMs: 200,
+		executorProber: () => {
+			probed = true;
+			return new Promise(() => undefined);
+		},
+	}).finally(() => {
+		settled = true;
+	});
+	result.catch(() => undefined);
+	for (let i = 0; i < 200 && !probed; i += 1)
+		await new Promise((r) => setImmediate(r));
+	assert.equal(probed, true, "the probe started");
+	t.mock.timers.tick(200);
+	for (let i = 0; i < 200 && !settled; i += 1)
+		await new Promise((r) => setImmediate(r));
+	assert.equal(settled, true, "the probe timeout was waited twice");
+	t.mock.timers.reset();
 	await assert.rejects(
-		preflight(cwd, {
-			executor: "claude",
-			executorProbeTimeoutMs: 200,
-			executorProber: () => new Promise(() => undefined),
-		}),
+		result,
 		/executor "claude" probe did not finish within 200 ms/,
 	);
-	assert.ok(Date.now() - started < 380, "the probe timeout was waited twice");
 });

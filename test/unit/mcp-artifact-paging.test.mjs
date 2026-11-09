@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP5b, R#9): paged whole-artifact reads through the artifact MCP server.
 // Every response fits the output limit (UTF-16 chars and UTF-8 bytes); page rows carry
 // rangeStart/rangeEnd/totalChars/contentSha256 and deliveryUnverified: false; a complete set of

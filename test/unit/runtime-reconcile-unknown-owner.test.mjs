@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP12a, live bundle 3 open problem 10): an owner-process identity check
 // that fails transiently (the Darwin helper timing out under load returns `unknown`) must not be
 // read as "the durable worker is gone". Before the fix reconcile then SIGTERMed the healthy worker

@@ -1,3 +1,4 @@
+// test-tier: integration
 // Direct coverage of the compiled process-gate contract.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";

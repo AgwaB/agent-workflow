@@ -1,3 +1,4 @@
+// test-tier: integration
 import { projectId } from "../../dist/core/state-location.js";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";

@@ -1,3 +1,4 @@
+// test-tier: integration
 // 2026-11-01 (owner choice): a status change that reshapes the graph (a foreach card collapses or
 // expands, later cards move) morphs from the previous geometry instead of jumping; the old content
 // fades out as an inert copy; reduced motion keeps the instant redraw.

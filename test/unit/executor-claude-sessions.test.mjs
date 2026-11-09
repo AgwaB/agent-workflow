@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP8: worker session cleanup (D3/R#10), probe parsing (D1: no account data), raw-log redaction.
 import assert from "node:assert/strict";
 import {

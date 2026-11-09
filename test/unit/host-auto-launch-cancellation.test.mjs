@@ -1,3 +1,4 @@
+// test-tier: integration
 // Auto launch cancellation in a fake Pi session. Escape or session end at final
 // confirmation publishes nothing; /aw stop targets only the exact published run.
 // Cancelling the comparison loader aborts the classifier before preparation.

@@ -1,3 +1,4 @@
+// test-tier: integration
 // The packed runtime imports without Pi packages, spawns shipped workers, preserves
 // the Darwin helper executable bit, and runs the fixture executor end to end.
 import assert from "node:assert/strict";

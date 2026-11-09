@@ -1,3 +1,4 @@
+// test-tier: integration
 // A process-spawning example adapter, driven by the stub CLI, passes the offline kit.
 import assert from "node:assert/strict";
 import { test } from "node:test";

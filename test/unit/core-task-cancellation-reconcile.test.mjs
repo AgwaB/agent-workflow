@@ -1,3 +1,4 @@
+// test-tier: integration
 // Stop confirmation must recover a worker that exits without publishing its terminal result.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";

@@ -1,3 +1,4 @@
+// test-tier: integration
 // WP12d-2 review #5: request env values and injected MCP env values echoed by the worker CLI never
 // reach a persisted transcript, event or error path — including stderr where a value is split
 // across two chunks — while the CLI still receives them unchanged.

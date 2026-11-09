@@ -122,7 +122,8 @@ Write your own with the bundled `workflow-guide` skill and the [usage guide](doc
 | [docs/executors.md](docs/executors.md) | How each executor CLI (Pi, Codex, Claude Code, Antigravity) is driven |
 | [docs/extending.md](docs/extending.md) | Writing an executor adapter or another host; architecture |
 
-Tests: `npm run validate` (checks, typecheck, unit tests), `npm run e2e` (packed install), `npm run test:ui-motion` (dashboard animation timing).
+Tests: `npm run validate` (checks, typecheck, unit tests, integration tests), `npm run validate:unit` (without the
+integration tier), `npm run e2e` (packed install), `npm run test:ui-motion` (dashboard animation timing).
 
 ## License
 

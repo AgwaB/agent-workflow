@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP2a-1): covers the zero-dependency directory lock
 // that replaces proper-lockfile in artifacts/registry.
 import assert from "node:assert/strict";

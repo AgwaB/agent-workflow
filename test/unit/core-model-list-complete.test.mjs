@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP31 follow-up): a probe declares whether its model list is exhaustive
 // (`ExecutorProbe.modelListComplete`). A role model missing from an exhaustive list is refused before
 // launch (MODEL_UNKNOWN); missing from a partial list (Claude Code's aliases) it is noted as "not

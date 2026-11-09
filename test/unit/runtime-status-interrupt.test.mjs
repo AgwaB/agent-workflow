@@ -1,3 +1,4 @@
+// test-tier: integration
 // Smoke coverage for runtime status and interrupt helpers.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";

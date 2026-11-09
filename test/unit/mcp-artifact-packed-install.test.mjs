@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP5 acceptance): the packed tarball ships the artifact MCP server, and the
 // server starts from an installed copy via the core launch spec (pattern from
 // runtime-packed-install.test.mjs).

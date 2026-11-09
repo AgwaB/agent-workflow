@@ -1,3 +1,4 @@
+// test-tier: integration
 // Regression: an interrupt that finds no live process (`unsupported`) is acknowledged only when
 // the exact attempt reaches a terminal state; otherwise it still fails. Found as an intermittent
 // failure of the WP4c-1 "stop during stage 1" smoke test after WP2b made interrupt skip dead

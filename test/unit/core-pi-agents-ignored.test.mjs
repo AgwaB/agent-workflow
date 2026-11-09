@@ -1,3 +1,4 @@
+// test-tier: integration
 // Pi user agents are not read, either as bundled-agent replacements or fallbacks.
 // No agent is shadowed, so no shadow notice is needed.
 import assert from "node:assert/strict";

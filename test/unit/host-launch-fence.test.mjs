@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // New in agent-workflow (WP19 round 2, re-review N1): the duplicate-launch lease fences execution,
 // not only the claim file. Reviewer scenario: launch A is paused during profile selection, its

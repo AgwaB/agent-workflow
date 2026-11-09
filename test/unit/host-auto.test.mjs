@@ -1,3 +1,4 @@
+// test-tier: integration
 import { stateDir } from "../helpers/state-dir.mjs";
 // Auto builds a local shortlist without model calls and asks consent before one
 // classifier call on the default executor. Only the final user choice launches;

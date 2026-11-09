@@ -1,3 +1,4 @@
+// test-tier: integration
 // New in agent-workflow (WP1b regression): an executor that refuses the request before it consumes
 // the execution authority ends the durable worker without READY. The engine must stop waiting for
 // READY as soon as the provisional worker's attempt is terminal and report the executor's refusal,

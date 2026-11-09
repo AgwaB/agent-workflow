@@ -1,3 +1,4 @@
+// test-tier: integration
 // Live bundle 5 (WP39), C1: `agent-workflow stop` during deep-review's reviewers, then
 // `agent-workflow resume`: both interrupted reviewer tasks failed at once with "launch-bootstrap
 // provenance is malformed" and the run finished without their findings. Resume applied a dependency
