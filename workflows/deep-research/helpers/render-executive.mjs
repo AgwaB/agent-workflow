@@ -1461,6 +1461,7 @@ function readerTranslations(
 	slotIds,
 	sources = {},
 	retranslations = new Map(),
+	expectedClaimIds = [],
 ) {
 	const claims = new Map();
 	const factSlots = new Map();
@@ -1484,6 +1485,8 @@ function readerTranslations(
 		ignored.push(`${id}${field ? ` ${field}` : ""}: drops ${dropped.join(", ")}`);
 		return undefined;
 	};
+	// Claim ids whose translation was checked (used or refused for its numbers).
+	const attempted = new Set();
 	for (const row of asArray(synthesis?.translations?.claims)) {
 		const id = claimIdOf(row);
 		const text = translatedText(row?.text, 2000);
@@ -1491,6 +1494,7 @@ function readerTranslations(
 			ignored.push(id || "(no id)");
 			continue;
 		}
+		attempted.add(id);
 		const readerText = faithful(id, "", sources.claimText?.(id), text);
 		if (!readerText) continue;
 		claims.set(id, {
@@ -1498,6 +1502,23 @@ function readerTranslations(
 			readerExplanation: translatedText(row?.explanation, 2000),
 		});
 	}
+	// 2026-11-10: a shown key finding or lead that the audit left untranslated while the report is in another
+	// script (recorded: 81 of 109 English leads in Korean reports) is listed too; the retranslate stage translates it.
+	const target = scriptOf(synthesis?.bottomLine);
+	if (target !== "latin" && synthesis?.translations)
+		for (const id of new Set(expectedClaimIds)) {
+			if (attempted.has(id) || !claimIds.has(id)) continue;
+			const source = sources.claimText?.(id);
+			if (!source || scriptOf(source) === target) continue;
+			const key = translationKey(id, "");
+			const retry = translatedText(retranslations.get(key), 2000);
+			if (retry && numbersDroppedBy(source, retry).length === 0) {
+				retranslated.push(key);
+				claims.set(id, { readerText: retry });
+				continue;
+			}
+			refused.push({ key, id, field: "text", source, translated: null, dropped: [] });
+		}
 	for (const row of asArray(synthesis?.translations?.factSlots)) {
 		const id = cleanText(row?.id);
 		const area = translatedText(row?.area, 400);
@@ -1525,6 +1546,21 @@ function readerTranslations(
 		});
 	}
 	return { claims, factSlots, ignored, refused, retranslated };
+}
+
+/** The writing system a text is mostly in: "hangul", "kana", "han", "cyrillic", or "latin" for anything else. */
+function scriptOf(text) {
+	const value = stringOf(text) ?? "";
+	const counts = {
+		hangul: (value.match(/[가-힣]/gu) ?? []).length,
+		kana: (value.match(/[\p{Script=Hiragana}\p{Script=Katakana}]/gu) ?? []).length,
+		han: (value.match(/\p{Script=Han}/gu) ?? []).length,
+		cyrillic: (value.match(/\p{Script=Cyrillic}/gu) ?? []).length,
+	};
+	const [best, count] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+	if (count === 0) return "latin";
+	// Japanese mixes kana with Han characters; any kana makes it Japanese.
+	return counts.kana > 0 ? "kana" : best;
 }
 
 function translationKey(id, field) {
@@ -1817,6 +1853,10 @@ function composeResearchReport(
 			},
 		},
 		retranslations,
+		[
+			...keyFindingIds,
+			...asArray(packet.preservedClaims).map(claimIdOf).filter(Boolean),
+		],
 	);
 	const translateClaims = (rows) =>
 		rows.map((row) => withTranslation(row, translations.claims.get(claimIdOf(row))));
@@ -1861,6 +1901,9 @@ function composeResearchReport(
 							applied: translations.claims.size + translations.factSlots.size,
 							ignored: translations.ignored,
 							retranslated: translations.retranslated,
+							untranslated: translations.refused.filter(
+								(row) => row.translated === null,
+							).length,
 						},
 					}
 				: {}),
@@ -3053,8 +3096,9 @@ function readerTranslationDiagnostics(stats) {
 	if (!stats) return [];
 	const ignored = uniqueStrings(stats.ignored, 8);
 	const retranslated = asArray(stats.retranslated).length;
+	const untranslated = Number(stats.untranslated ?? 0);
 	return [
-		`- Reader translations: ${stats.applied} applied${retranslated ? ` (${retranslated} retranslated)` : ""}, ${stats.ignored.length} ignored${ignored.length ? ` (${ignored.map((id) => escapeMarkdownText(id)).join(", ")})` : ""}.`,
+		`- Reader translations: ${stats.applied} applied${retranslated ? ` (${retranslated} retranslated)` : ""}, ${stats.ignored.length} ignored${ignored.length ? ` (${ignored.map((id) => escapeMarkdownText(id)).join(", ")})` : ""}${untranslated ? `, ${untranslated} left untranslated` : ""}.`,
 	];
 }
 
