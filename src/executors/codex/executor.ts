@@ -1445,13 +1445,15 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 				conn.notify("initialized");
 				await conn.request("thread/delete", { threadId: session.locator });
 				threads.forget(session.locator);
-				if (home !== undefined) removeCodexSessionHome(home);
+				if (home !== undefined)
+					removeCodexSessionHome(home, codexHomeDir(process.env));
 				return "deleted";
 			} catch (error) {
 				if (!/not found|no rollout|unknown thread/i.test(String(error)))
 					return "failed";
 				threads.forget(session.locator);
-				if (home !== undefined) removeCodexSessionHome(home);
+				if (home !== undefined)
+					removeCodexSessionHome(home, codexHomeDir(process.env));
 				return "not_found";
 			} finally {
 				conn.end();

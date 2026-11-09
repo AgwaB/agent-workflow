@@ -25,10 +25,13 @@
  */
 import { createHash } from "node:crypto";
 import {
+	chmodSync,
+	copyFileSync,
 	existsSync,
 	lstatSync,
 	mkdirSync,
 	readFileSync,
+	renameSync,
 	rmSync,
 	statSync,
 	symlinkSync,
@@ -119,6 +122,8 @@ export interface CodexWorkerHome {
 	readonly reason?: string;
 	/** Entries linked into the private home (names only). */
 	readonly linked: readonly string[];
+	/** The user's CODEX_HOME the links point into (relocated homes). */
+	readonly userHome?: string;
 }
 
 /**
@@ -167,7 +172,7 @@ export function prepareCodexWorkerHome(options: {
 			linked: [],
 		};
 	}
-	return { path, relocated: true, linked };
+	return { path, relocated: true, linked, userHome: options.userHome };
 }
 
 /** Remove a private worker home; links are removed, their targets untouched. */
@@ -207,15 +212,57 @@ export function reuseCodexWorkerHome(
 			linked.push(name);
 		} catch {}
 	}
-	return { path, relocated: true, linked };
+	return { path, relocated: true, linked, userHome };
+}
+
+/**
+ * Review F (2026-11-09, claude-fable-5-1): the private home links the user's auth.json, which is safe
+ * because Codex rewrites it in place (0.165 source). Should a Codex version write it by rename instead,
+ * the link becomes a regular file holding the refreshed token, and removing the home would drop it while
+ * the user's file keeps a refresh token the server may already have rotated out. Before removal such a
+ * file is moved back over the user's auth.json when it is newer (rename; a copy only across file
+ * systems). agent-workflow does not parse it.
+ */
+export function restoreReplacedAuth(
+	homePath: string,
+	userHome: string | undefined,
+): "linked" | "absent" | "kept-user" | "restored" {
+	if (userHome === undefined) return "absent";
+	const privateAuth = join(homePath, "auth.json");
+	let stat: ReturnType<typeof lstatSync>;
+	try {
+		stat = lstatSync(privateAuth);
+	} catch {
+		return "absent";
+	}
+	if (stat.isSymbolicLink()) return "linked";
+	if (!stat.isFile()) return "absent";
+	const userAuth = join(userHome, "auth.json");
+	let userMtime = 0;
+	try {
+		userMtime = statSync(userAuth).mtimeMs;
+	} catch {}
+	if (stat.mtimeMs <= userMtime) return "kept-user";
+	try {
+		renameSync(privateAuth, userAuth);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code !== "EXDEV") return "kept-user";
+		const temp = `${userAuth}.${process.pid}.restore`;
+		copyFileSync(privateAuth, temp);
+		chmodSync(temp, 0o600);
+		renameSync(temp, userAuth);
+	}
+	return "restored";
 }
 
 /** Removes a kept session's private home (the per-session directory around it). */
-export function removeCodexSessionHome(path: string): void {
+export function removeCodexSessionHome(path: string, userHome?: string): void {
+	restoreReplacedAuth(path, userHome);
 	rmSync(dirname(path), { recursive: true, force: true, maxRetries: 3 });
 }
 
 export function removeCodexWorkerHome(home: CodexWorkerHome): void {
 	if (!home.relocated) return;
+	restoreReplacedAuth(home.path, home.userHome);
 	rmSync(home.path, { recursive: true, force: true, maxRetries: 3 });
 }

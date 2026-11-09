@@ -9,7 +9,14 @@ import {
 	readFileSync,
 	realpathSync,
 } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	mkdtemp,
+	rm,
+	unlink,
+	utimes,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
@@ -21,6 +28,7 @@ import {
 	prepareCodexWorkerHome,
 	removeCodexSessionHome,
 	removeCodexWorkerHome,
+	restoreReplacedAuth,
 	reuseCodexWorkerHome,
 } from "../../dist/executors/codex/home.js";
 
@@ -246,4 +254,49 @@ test("a kept session's home lives outside the attempt, is reused with its links,
 		true,
 		"the user's files stay",
 	);
+});
+
+test("removal moves a refreshed auth.json back when Codex replaced the link with a newer file", async () => {
+	// Review F (2026-11-09): only safe while Codex writes auth.json in place; a write by rename would turn
+	// the link into a file holding the rotated token, which removal would otherwise delete.
+	const scenario = async (privateAgeSeconds) => {
+		const home = await userHome();
+		const prepared = prepareCodexWorkerHome({
+			userHome: home,
+			dir: join(root, `attempt-${++counter}`),
+			env: noKeys,
+		});
+		const privateAuth = join(prepared.path, "auth.json");
+		await unlink(privateAuth);
+		await writeFile(privateAuth, '{"tokens":"rotated"}');
+		const when = new Date(Date.now() + privateAgeSeconds * 1000);
+		await utimes(privateAuth, when, when);
+		removeCodexWorkerHome(prepared);
+		assert.equal(existsSync(prepared.path), false);
+		return readFileSync(join(home, "auth.json"), "utf8");
+	};
+	assert.equal(
+		await scenario(+60),
+		'{"tokens":"rotated"}',
+		"newer replacement is restored",
+	);
+	assert.equal(
+		await scenario(-3600),
+		'{"tokens":"not-read"}',
+		"older replacement leaves the user's file",
+	);
+	// an intact link: nothing moves
+	const home = await userHome();
+	const prepared = prepareCodexWorkerHome({
+		userHome: home,
+		dir: join(root, `attempt-${++counter}`),
+		env: noKeys,
+	});
+	assert.equal(restoreReplacedAuth(prepared.path, home), "linked");
+	removeCodexWorkerHome(prepared);
+	assert.equal(
+		readFileSync(join(home, "auth.json"), "utf8"),
+		'{"tokens":"not-read"}',
+	);
+	assert.equal(lstatSync(join(home, "auth.json")).isSymbolicLink(), false);
 });
