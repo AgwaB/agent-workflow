@@ -251,6 +251,34 @@ const researchSources = {
 	]),
 };
 
+test("numbers are compared only within the same unit words", () => {
+	const facts = (a, b) => [
+		{ id: "f1", slotId: "s", entity: "cache", factType: "size", value: a },
+		{ id: "f2", slotId: "s", entity: "cache", factType: "size", value: b },
+	];
+	for (const [a, b] of [
+		["1 MB", "1024 KB"],
+		["2 weeks", "14 days"],
+		["50%", "0.5"],
+		["$0.50 / 1K tokens", "50 cents per 1000 tokens"],
+	])
+		assert.equal(
+			detectSlotConflicts({ extractedFacts: facts(a, b) }).conflicts.length,
+			0,
+			`${a} vs ${b}`,
+		);
+	assert.equal(
+		detectSlotConflicts({ extractedFacts: facts("RFC 9369", "RFC 9368") })
+			.conflicts.length,
+		1,
+	);
+	assert.equal(
+		detectSlotConflicts({ extractedFacts: facts("120 ms", "250 ms") }).conflicts
+			.length,
+		1,
+	);
+});
+
 test("normalize-input-packet emits slotConflicts with an instruction to route the slot to verification", async () => {
 	const packet = await normalizeInputPacket({
 		sources: researchSources,
@@ -291,7 +319,12 @@ test("normalize-input-packet emits slotConflicts with an instruction to route th
 	);
 });
 
-async function finalPacketFor({ normalizedStatus, verifierStatus, claimText }) {
+async function finalPacketFor({
+	normalizedStatus,
+	verifierStatus,
+	claimText,
+	bestValue = "May 2021",
+}) {
 	const inputPacket = await normalizeInputPacket({
 		sources: researchSources,
 		context: {},
@@ -318,7 +351,7 @@ async function finalPacketFor({ normalizedStatus, verifierStatus, claimText }) {
 				slotId: "slot-001",
 				label: "RFC 9000 publication month",
 				status: normalizedStatus,
-				bestValue: "May 2021",
+				bestValue,
 				verificationCandidateIds: ["claim-001"],
 				gapReason: "",
 			},
@@ -455,6 +488,7 @@ test("the final packet keeps a contested slot conflicting until a verified claim
 		status: "resolved_by_verified_claim",
 		claimIds: ["claim-001"],
 		values: ["2021-05"],
+		settlingClaim: "RFC 9000 was published in May 2021.",
 	});
 	assert.deepEqual(
 		resolved.packet.factSlotReconciliation.unresolvedContestedSlotIds,
@@ -476,6 +510,52 @@ test("the final packet keeps a contested slot conflicting until a verified claim
 		unrelated.packet.contestedSlots[0].resolution.status,
 		"unresolved",
 	);
+
+	// Review 2026-11-09 (gpt-6-astra, claude-fable-5-1): a claim stating both values, or naming another
+	// entity, does not settle the contest; a settled slot does not keep a bestValue stating the rejected value.
+	const both = await finalPacketFor({
+		normalizedStatus: "conflicting",
+		verifierStatus: "verified",
+		claimText:
+			"RFC 9000 was published in May 2021, not May 2022 as the note claims.",
+	});
+	assert.equal(
+		both.packet.factSlotCoverage.find((row) => row.slotId === "slot-001")
+			.status,
+		"conflicting",
+	);
+	assert.equal(both.packet.contestedSlots[0].resolution.status, "unresolved");
+	assert.equal(validateJsonSchema(both, packetSchema).valid, true);
+	const otherEntity = await finalPacketFor({
+		normalizedStatus: "conflicting",
+		verifierStatus: "verified",
+		claimText: "RFC 9001 was published in May 2021.",
+	});
+	assert.equal(
+		otherEntity.packet.factSlotCoverage.find((row) => row.slotId === "slot-001")
+			.status,
+		"conflicting",
+	);
+	assert.equal(
+		otherEntity.packet.contestedSlots[0].resolution.status,
+		"unresolved",
+	);
+	const stale = await finalPacketFor({
+		normalizedStatus: "conflicting",
+		verifierStatus: "verified",
+		claimText: "RFC 9000 was published in May 2021.",
+		bestValue: "May 2022",
+	});
+	const staleSlot = stale.packet.factSlotCoverage.find(
+		(row) => row.slotId === "slot-001",
+	);
+	assert.equal(staleSlot.status, "filled");
+	assert.equal(staleSlot.bestValue, "RFC 9000 was published in May 2021.");
+	assert.match(
+		staleSlot.gapReason,
+		/bestValue replaced by claim-001 \(it stated a rejected value\)/,
+	);
+	assert.equal(validateJsonSchema(stale, packetSchema).valid, true);
 
 	// Report: the contest is in the audit, and an unresolved one in the reader's limits.
 	for (const [packet, expectResolved] of [

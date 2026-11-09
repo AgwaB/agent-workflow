@@ -97,13 +97,17 @@ symbol-spacing tolerance only for math; without it, source verification is model
 
 Deep-research compares structured research observations by code: when workers report different dates
 or numbers for the same fact slot and entity, the slot is contested (`slotConflicts` in the
-normalizer's input packet). The normalizer must route it to verification; the final packet keeps the
-slot `conflicting` until a verified claim states one of the values (then the slot is `filled`, the
-other value named), and the report lists the competing values, their sources and the settling claim
-under "Contested values". Prose values are not compared, with one exception: an observation whose
+normalizer's input packet); numbers are compared only when written with the same unit words ("1 MB" and
+"1024 KB" are not). The normalizer must route it to verification; the final packet keeps the slot
+`conflicting` until verified claims that name the entity (or a plan alias of it on that slot) state
+exactly one of the values — a claim stating both, or claims settling on different values, leave it
+unresolved. Then the slot is `filled`, the other value named, and a `bestValue` stating the rejected value is
+replaced by the settling claim; the report lists the competing values, their sources and the settling
+claim under "Contested values". Prose values are not compared, with one exception: an observation whose
 entity is a local document (`notes.md`) and whose text states exactly one year-month is compared under
-the entity its text names, on the observation's own slot or else on exactly one other slot, so a note
-that misdates a fact meets the external value; the audit names the document. The audit also lists reader-facing
+the one entity its text names (several only when the plan lists them as one slot's entities), on the
+observation's own slot or else on exactly one other slot, so a note that misdates a fact meets the
+external value; the audit names the document. The audit also lists reader-facing
 sentences that tell the reader a local file is wrong while citing numbers or dates of a kind the file
 does not contain ("Source attribution check"); they are warnings, not blockers.
 
