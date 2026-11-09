@@ -7,9 +7,11 @@ import type {
 /**
  * Marks compiled tasks that use the explicit, sealed resource-policy contract.
  * Tasks without this marker are permanently legacy, even when they happen to
- * carry an authored `inheritSkills: false` value.
+ * carry an authored `inheritSkills: false` value. New compiles use version 2
+ * (2026-11-10: `contextFiles` says whether the stage inherits project context);
+ * version 1 remains the policy of the runs that sealed it.
  */
-export const WORKFLOW_RESOURCE_POLICY_VERSION = 1 as const;
+export const WORKFLOW_RESOURCE_POLICY_VERSION = 2 as const;
 
 export type { WorkflowResourcePolicy } from "./types.js";
 
@@ -18,17 +20,23 @@ export type { WorkflowResourcePolicy } from "./types.js";
  * The absent marker deliberately preserves pre-policy behavior.
  */
 export function resolveWorkflowResourcePolicy(
-	task: Pick<CompiledTask, "resourcePolicyVersion" | "inheritSkills">,
+	task: Pick<
+		CompiledTask,
+		"resourcePolicyVersion" | "inheritSkills" | "inheritProjectContext"
+	>,
 ): WorkflowResourcePolicy | undefined {
 	if (task.resourcePolicyVersion === undefined) return undefined;
-	if (task.resourcePolicyVersion !== WORKFLOW_RESOURCE_POLICY_VERSION) {
-		throw new Error("workflow resource policy version is unsupported");
-	}
-	return {
-		version: WORKFLOW_RESOURCE_POLICY_VERSION,
-		skillDiscovery: task.inheritSkills === false ? "disabled" : "ambient",
-		contextFiles: "disabled",
-	};
+	const skillDiscovery = task.inheritSkills === false ? "disabled" : "ambient";
+	if (task.resourcePolicyVersion === 1)
+		return { version: 1, skillDiscovery, contextFiles: "disabled" };
+	if (task.resourcePolicyVersion === 2)
+		return {
+			version: 2,
+			skillDiscovery,
+			contextFiles:
+				task.inheritProjectContext === true ? "inherited" : "disabled",
+		};
+	throw new Error("workflow resource policy version is unsupported");
 }
 
 /** Strict structural validation for a persisted or prepared policy record. */
@@ -49,10 +57,12 @@ export function isWorkflowResourcePolicy(
 		keys[0] === "contextFiles" &&
 		keys[1] === "skillDiscovery" &&
 		keys[2] === "version" &&
-		record.version === WORKFLOW_RESOURCE_POLICY_VERSION &&
 		(record.skillDiscovery === "ambient" ||
 			record.skillDiscovery === "disabled") &&
-		record.contextFiles === "disabled"
+		((record.version === 1 && record.contextFiles === "disabled") ||
+			(record.version === 2 &&
+				(record.contextFiles === "disabled" ||
+					record.contextFiles === "inherited")))
 	);
 }
 
@@ -62,7 +72,10 @@ export function isWorkflowResourcePolicy(
  * not mutable authoring metadata.
  */
 export function assertWorkflowResourcePolicyMatchesTask(
-	task: Pick<CompiledTask, "resourcePolicyVersion" | "inheritSkills">,
+	task: Pick<
+		CompiledTask,
+		"resourcePolicyVersion" | "inheritSkills" | "inheritProjectContext"
+	>,
 	preparedPolicy: unknown,
 ): WorkflowResourcePolicy | undefined {
 	const resolved = resolveWorkflowResourcePolicy(task);

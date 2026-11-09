@@ -97,11 +97,11 @@ function assertNoPolicyMarker(task) {
 	assert.equal(Object.hasOwn(task, "resourcePolicyVersion"), false);
 }
 
-function expectedPolicy(inheritSkills) {
+function expectedPolicy(inheritSkills, inheritProjectContext) {
 	return {
 		version: WORKFLOW_RESOURCE_POLICY_VERSION,
 		skillDiscovery: inheritSkills === false ? "disabled" : "ambient",
-		contextFiles: "disabled",
+		contextFiles: inheritProjectContext === true ? "inherited" : "disabled",
 	};
 }
 
@@ -202,32 +202,39 @@ function dynamicBuildInput(cwd, controller, compiledFlow, agent, id) {
 }
 
 test("resource policy resolver retains legacy absence and rejects unknown versions", () => {
-	assert.equal(WORKFLOW_RESOURCE_POLICY_VERSION, 1);
+	assert.equal(WORKFLOW_RESOURCE_POLICY_VERSION, 2);
 	assert.equal(
 		resolveWorkflowResourcePolicy({ inheritSkills: false }),
 		undefined,
 		"an absent marker must remain legacy even when its raw flag is false",
 	);
-	assert.deepEqual(
-		resolveWorkflowResourcePolicy({ resourcePolicyVersion: 1 }),
-		expectedPolicy(undefined),
-	);
-	assert.deepEqual(
-		resolveWorkflowResourcePolicy({
-			resourcePolicyVersion: 1,
-			inheritSkills: true,
-		}),
-		expectedPolicy(true),
-	);
-	assert.deepEqual(
-		resolveWorkflowResourcePolicy({
-			resourcePolicyVersion: 1,
-			inheritSkills: false,
-		}),
-		expectedPolicy(false),
-	);
+	for (const inheritSkills of [undefined, true, false])
+		for (const inheritProjectContext of [undefined, true, false])
+			assert.deepEqual(
+				resolveWorkflowResourcePolicy({
+					resourcePolicyVersion: 2,
+					inheritSkills,
+					inheritProjectContext,
+				}),
+				expectedPolicy(inheritSkills, inheritProjectContext),
+			);
+	// 2026-11-10: version 1 stays what the runs that sealed it recorded — context files "disabled" even for a
+	// stage that inherits project context.
+	for (const inheritSkills of [undefined, true, false])
+		assert.deepEqual(
+			resolveWorkflowResourcePolicy({
+				resourcePolicyVersion: 1,
+				inheritSkills,
+				inheritProjectContext: true,
+			}),
+			{
+				version: 1,
+				skillDiscovery: inheritSkills === false ? "disabled" : "ambient",
+				contextFiles: "disabled",
+			},
+		);
 	assert.throws(
-		() => resolveWorkflowResourcePolicy({ resourcePolicyVersion: 2 }),
+		() => resolveWorkflowResourcePolicy({ resourcePolicyVersion: 3 }),
 		/unsupported/,
 	);
 });
@@ -265,7 +272,7 @@ test("compiler stamps omitted/true/false skills across all context-field values"
 				assert.equal(task.inheritProjectContext, context.parsed, name);
 				assert.deepEqual(
 					resolveWorkflowResourcePolicy(task),
-					expectedPolicy(skill.parsed),
+					expectedPolicy(skill.parsed, context.parsed),
 					name,
 				);
 
@@ -683,7 +690,11 @@ test("dynamic children use selected-agent flags, preserve legacy absence, and pe
 			inheritProjectContext: "true",
 		});
 
-		const newControllerRawFalse = dynamicController(cwd, 1, false);
+		const newControllerRawFalse = dynamicController(
+			cwd,
+			WORKFLOW_RESOURCE_POLICY_VERSION,
+			false,
+		);
 		const ambientFlow = { tasks: [newControllerRawFalse], warnings: [] };
 		const ambientChild = await buildDynamicGeneratedCompiledTask(
 			dynamicBuildInput(
@@ -701,7 +712,11 @@ test("dynamic children use selected-agent flags, preserve legacy absence, and pe
 			expectedPolicy(true),
 		);
 
-		const newControllerRawTrue = dynamicController(cwd, 1, true);
+		const newControllerRawTrue = dynamicController(
+			cwd,
+			WORKFLOW_RESOURCE_POLICY_VERSION,
+			true,
+		);
 		const disabledFlow = { tasks: [newControllerRawTrue], warnings: [] };
 		const disabledChild = await buildDynamicGeneratedCompiledTask(
 			dynamicBuildInput(
@@ -764,7 +779,11 @@ test("dynamic children use selected-agent flags, preserve legacy absence, and pe
 		).tasks[0];
 		assertNoPolicyMarker(roundTrippedLegacyController);
 
-		const warningController = dynamicController(cwd, 1, true);
+		const warningController = dynamicController(
+			cwd,
+			WORKFLOW_RESOURCE_POLICY_VERSION,
+			true,
+		);
 		const warningFlow = {
 			tasks: [warningController],
 			warnings: ["pre-existing warning"],
@@ -812,7 +831,25 @@ test("dynamic children use selected-agent flags, preserve legacy absence, and pe
 		).warnings;
 		assert.deepEqual(persistedWarnings, warningFlow.warnings);
 
-		const unknownController = dynamicController(cwd, 2, true);
+		// A run sealed under version 1 keeps generating version-1 children.
+		const v1Controller = dynamicController(cwd, 1, true);
+		const v1Child = await buildDynamicGeneratedCompiledTask(
+			dynamicBuildInput(
+				cwd,
+				v1Controller,
+				{ tasks: [v1Controller], warnings: [] },
+				"dynamic-ambient",
+				"v1-child",
+			),
+		);
+		assert.equal(v1Child.resourcePolicyVersion, 1);
+		assert.deepEqual(resolveWorkflowResourcePolicy(v1Child), {
+			version: 1,
+			skillDiscovery: "ambient",
+			contextFiles: "disabled",
+		});
+
+		const unknownController = dynamicController(cwd, 3, true);
 		await assert.rejects(
 			() =>
 				buildDynamicGeneratedCompiledTask(
