@@ -2898,6 +2898,28 @@ export async function sourceAttributionWarnings(texts, cwd) {
 	return warnings;
 }
 
+/** One reader line per file the report blames for values it does not contain, after the source-verification line. */
+function withAttributionNotes(markdown, warnings, quoteCheck) {
+	if (!markdown || !warnings?.length) return markdown;
+	const korean = /[가-힣]/u.test(markdown);
+	const byFile = new Map();
+	for (const warning of warnings)
+		byFile.set(warning.file, [
+			...new Set([...(byFile.get(warning.file) ?? []), ...warning.values]),
+		]);
+	const notes = [...byFile].map(([file, values]) => {
+		const shown = values.slice(0, 6).map(escapeMarkdownText).join(", ");
+		return korean
+			? `엔진 확인: 이 보고서가 \`${escapeMarkdownText(file)}\`에서 고치라고 한 값(${shown})은 그 파일에 없습니다. 그 값이 이 파일에서 나왔다는 설명은 확인되지 않았습니다.`
+			: `Engine check: \`${escapeMarkdownText(file)}\` does not contain the values this report says to correct in it (${shown}); that attribution is unconfirmed.`;
+	});
+	const statement = sourceVerificationStatement(quoteCheck);
+	const at = markdown.indexOf(statement);
+	if (at < 0) return `${markdown}\n\n${notes.join("\n\n")}`;
+	const end = at + statement.length;
+	return `${markdown.slice(0, end)}\n\n${notes.join("\n\n")}${markdown.slice(end)}`;
+}
+
 function renderSourceAttributionAudit(warnings) {
 	if (!warnings?.length) return [];
 	return [
@@ -3175,6 +3197,14 @@ export default async function renderExecutive({
 		[rendered.completionSummaryMarkdown, markdown],
 		context.cwd,
 	);
+	// 2026-11-10 (E8): the reader sees the check too, beside the source-verification line; it was audit-only, so a
+	// report that blamed a file for a value it does not state still read as confirmed.
+	markdown = withAttributionNotes(markdown, attributionWarnings, quoteCheck);
+	const completionSummaryMarkdown = withAttributionNotes(
+		rendered.completionSummaryMarkdown,
+		attributionWarnings,
+		quoteCheck,
+	);
 	const auditMarkdown = renderAuditMarkdown(
 		control,
 		auditPacket,
@@ -3238,7 +3268,7 @@ export default async function renderExecutive({
 		digest: truncateWords(stripLeadingHeading(markdown), 45),
 		status: passed ? "passed" : "failed",
 		renderMode: "evidence-backed-report",
-		completionSummaryMarkdown: passed ? rendered.completionSummaryMarkdown : "",
+		completionSummaryMarkdown: passed ? completionSummaryMarkdown : "",
 		executiveMarkdown: markdown,
 		reportMarkdown: markdown,
 		auditMarkdown,
