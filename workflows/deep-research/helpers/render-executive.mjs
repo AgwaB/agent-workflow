@@ -1455,16 +1455,32 @@ function translatedText(value, maxLength) {
  * rows. An entry with an unknown or repeated id or an empty or oversized text is ignored, so the
  * original shows.
  */
-function readerTranslations(synthesis, claimIds, slotIds, sources = {}) {
+function readerTranslations(
+	synthesis,
+	claimIds,
+	slotIds,
+	sources = {},
+	retranslations = new Map(),
+) {
 	const claims = new Map();
 	const factSlots = new Map();
 	const ignored = [];
+	const refused = [];
+	const retranslated = [];
 	// 2026-11-09: a translation must keep its source's numbers (recorded: 15 of 141 claim texts lost a
 	// year such as "May 2023", 6 of 24 slot areas an RFC number). A field that drops one is not used,
-	// so the original shows; the audit names it.
+	// so the original shows; the audit names it. 2026-11-10: the retranslate stage gets each refused
+	// field once more; its text is used when it keeps every number.
 	const faithful = (id, field, source, translated) => {
 		const dropped = numbersDroppedBy(source, translated);
 		if (dropped.length === 0) return translated;
+		const key = translationKey(id, field);
+		const retry = translatedText(retranslations.get(key), 2000);
+		if (retry && numbersDroppedBy(source, retry).length === 0) {
+			retranslated.push(key);
+			return retry;
+		}
+		refused.push({ key, id, field: field || "text", source, translated, dropped });
 		ignored.push(`${id}${field ? ` ${field}` : ""}: drops ${dropped.join(", ")}`);
 		return undefined;
 	};
@@ -1475,9 +1491,10 @@ function readerTranslations(synthesis, claimIds, slotIds, sources = {}) {
 			ignored.push(id || "(no id)");
 			continue;
 		}
-		if (!faithful(id, "", sources.claimText?.(id), text)) continue;
+		const readerText = faithful(id, "", sources.claimText?.(id), text);
+		if (!readerText) continue;
 		claims.set(id, {
-			readerText: text,
+			readerText,
 			readerExplanation: translatedText(row?.explanation, 2000),
 		});
 	}
@@ -1489,9 +1506,10 @@ function readerTranslations(synthesis, claimIds, slotIds, sources = {}) {
 			continue;
 		}
 		const slot = sources.slot?.(id);
-		if (!faithful(id, "area", slot?.label, area)) continue;
+		const readerArea = faithful(id, "area", slot?.label, area);
+		if (!readerArea) continue;
 		factSlots.set(id, {
-			readerArea: area,
+			readerArea,
 			readerImpact: faithful(
 				id,
 				"whyItMatters",
@@ -1506,7 +1524,26 @@ function readerTranslations(synthesis, claimIds, slotIds, sources = {}) {
 			),
 		});
 	}
-	return { claims, factSlots, ignored };
+	return { claims, factSlots, ignored, refused, retranslated };
+}
+
+function translationKey(id, field) {
+	return `${id}|${field || "text"}`;
+}
+
+/** The retranslate stage's texts by key ("claim-001|text", "slot-002|area"); the first one for a key wins. */
+function retranslationsFrom(sources) {
+	const texts = new Map();
+	for (const [sourceId, control] of Object.entries(sources ?? {})) {
+		if (sourceId !== "retranslate" && !sourceId.startsWith("retranslate."))
+			continue;
+		for (const row of asArray(control?.translations)) {
+			const key = cleanText(row?.key);
+			const text = stringOf(row?.text);
+			if (key && text && !texts.has(key)) texts.set(key, text);
+		}
+	}
+	return texts;
 }
 
 /**
@@ -1647,7 +1684,11 @@ function withTranslation(item, translation) {
 	return { ...item, ...fields };
 }
 
-function composeResearchReport(control, packetSource) {
+function composeResearchReport(
+	control,
+	packetSource,
+	retranslations = new Map(),
+) {
 	const packet = packetOf(packetSource);
 	const legacyReport = control?.finalReport ?? {};
 	const synthesis = isRecord(control?.synthesis) ? control.synthesis : null;
@@ -1775,6 +1816,7 @@ function composeResearchReport(control, packetSource) {
 				};
 			},
 		},
+		retranslations,
 	);
 	const translateClaims = (rows) =>
 		rows.map((row) => withTranslation(row, translations.claims.get(claimIdOf(row))));
@@ -1818,6 +1860,7 @@ function composeResearchReport(control, packetSource) {
 						readerTranslations: {
 							applied: translations.claims.size + translations.factSlots.size,
 							ignored: translations.ignored,
+							retranslated: translations.retranslated,
 						},
 					}
 				: {}),
@@ -1825,7 +1868,19 @@ function composeResearchReport(control, packetSource) {
 		packet,
 		ledger,
 		warnings,
+		translationRefusals: translations.refused,
 	};
+}
+
+/**
+ * 2026-11-10: the reader translations the report would refuse (a translation that drops a number of its source),
+ * for the translation-check stage. Empty without a modern final-audit synthesis.
+ */
+export function refusedReaderTranslations(sources) {
+	const control = findSource(sources, "final-audit");
+	const packet = findSource(sources, "final-audit-packet");
+	if (!isRecord(control?.synthesis) || !packet) return [];
+	return composeResearchReport(control, packet).translationRefusals ?? [];
 }
 
 function statusRank(item) {
@@ -2588,7 +2643,11 @@ function renderWarnings(sectionCounts) {
 }
 
 function renderResearchMarkdown(control, packetSource, options = {}) {
-	const composed = composeResearchReport(control, packetSource);
+	const composed = composeResearchReport(
+		control,
+		packetSource,
+		options.retranslations,
+	);
 	const report = composed.report;
 	const claimSummary = claimCounts(control, composed.packet);
 	const factSlots = sortedFactSlots(report);
@@ -2971,8 +3030,9 @@ function renderAuditMarkdown(
 function readerTranslationDiagnostics(stats) {
 	if (!stats) return [];
 	const ignored = uniqueStrings(stats.ignored, 8);
+	const retranslated = asArray(stats.retranslated).length;
 	return [
-		`- Reader translations: ${stats.applied} applied, ${stats.ignored.length} ignored${ignored.length ? ` (${ignored.map((id) => escapeMarkdownText(id)).join(", ")})` : ""}.`,
+		`- Reader translations: ${stats.applied} applied${retranslated ? ` (${retranslated} retranslated)` : ""}, ${stats.ignored.length} ignored${ignored.length ? ` (${ignored.map((id) => escapeMarkdownText(id)).join(", ")})` : ""}.`,
 	];
 }
 
@@ -3103,6 +3163,7 @@ export default async function renderExecutive({
 	const rendered = renderResearchMarkdown(control, auditPacket, {
 		...opts,
 		quoteCheck,
+		retranslations: retranslationsFrom(sources),
 	});
 	let markdown = rendered.markdown;
 	let truncated = false;
