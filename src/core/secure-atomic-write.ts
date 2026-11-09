@@ -74,34 +74,52 @@ const READ_REPLACED_ATTEMPTS = 10;
 /**
  * Reads a private file. CI 2026-11-09 (ci-flakes-20261109): a reader that opened the file just before an atomic
  * rewrite renamed over it held the old, unlinked inode and failed ("not a stable regular file"), so the dashboard
- * discovery read as absent. That case is read again (bounded); symlinks and hard links still fail.
+ * discovery read as absent. That case is read again (bounded); symlinks and hard links still fail. Round-4 review
+ * (gpt-6-astra): the parent directory is opened once and must stay the same directory across tries (a swapped
+ * directory fails instead of being read again), and `ownerOnly` checks the file actually read — owned by this
+ * user, no group/other permission — since a caller's check of an earlier path snapshot does not cover a
+ * replacement.
  */
 export async function readPrivateFileText(
 	path: string,
 	maxBytes = 1_048_576,
+	options: { readonly ownerOnly?: boolean } = {},
 ): Promise<string> {
 	if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || maxBytes > 16_777_216)
 		throw new Error("private file size limit is invalid");
-	for (let attempt = 1; ; attempt += 1) {
-		try {
-			return await readPrivateFileTextOnce(path, maxBytes);
-		} catch (error) {
-			if (
-				!(error instanceof ReplacedWhileReadingError) ||
-				attempt >= READ_REPLACED_ATTEMPTS
-			)
-				throw error;
-			await new Promise((done) => setTimeout(done, Math.min(attempt, 5)));
+	const absolute = resolve(path);
+	const parent = await openPrivateDirectory(dirname(absolute), false);
+	try {
+		for (let attempt = 1; ; attempt += 1) {
+			try {
+				return await readFileInOpenedParent(
+					parent,
+					absolute,
+					maxBytes,
+					options,
+				);
+			} catch (error) {
+				if (
+					!(error instanceof ReplacedWhileReadingError) ||
+					attempt >= READ_REPLACED_ATTEMPTS
+				)
+					throw error;
+				// Only the file may have been replaced; a changed directory is an error, not a retry.
+				await assertNamedDirectory(parent);
+				await new Promise((done) => setTimeout(done, Math.min(attempt, 5)));
+			}
 		}
+	} finally {
+		await parent.handle.close().catch(() => undefined);
 	}
 }
 
-async function readPrivateFileTextOnce(
-	path: string,
+async function readFileInOpenedParent(
+	parent: OpenDirectory,
+	absolute: string,
 	maxBytes: number,
+	options: { readonly ownerOnly?: boolean },
 ): Promise<string> {
-	const absolute = resolve(path);
-	const parent = await openPrivateDirectory(dirname(absolute), false);
 	const target = join(parent.namedPath, basename(absolute));
 	let file: FileHandle | undefined;
 	try {
@@ -113,6 +131,12 @@ async function readPrivateFileTextOnce(
 		await afterReadOpenForTests?.(absolute);
 		await assertSingleRegularFile(file, target);
 		const info = await file.stat();
+		if (
+			options.ownerOnly === true &&
+			((info.mode & 0o077) !== 0 ||
+				(typeof process.getuid === "function" && info.uid !== process.getuid()))
+		)
+			throw new Error("private file is not owner-only");
 		if (info.size > maxBytes)
 			throw new Error("private file exceeds size limit");
 		let content = Buffer.allocUnsafe(
@@ -146,7 +170,6 @@ async function readPrivateFileTextOnce(
 		);
 	} finally {
 		await file?.close().catch(() => undefined);
-		await parent.handle.close().catch(() => undefined);
 	}
 }
 
