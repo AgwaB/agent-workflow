@@ -254,6 +254,7 @@ function reconcileContestedSlots(factSlots, claimDigests, slotConflicts) {
 			values: conflict.values.map((entry) => ({
 				value: stringOf(entry.normalized),
 				raw: compactStrings(entry.raw, 4),
+				documents: compactStrings(entry.documents, 4),
 				sourceTypes: compactStrings(entry.sourceTypes, 4),
 				sourceUrls: compactStrings(entry.sourceUrls, 4),
 				sourceRefs: compactStrings(entry.sourceRefs, 4),

@@ -128,6 +128,8 @@ test("detectSlotConflicts flags a date or number disagreement for the same slot 
 	});
 	assert.deepEqual(result.summary, {
 		comparedGroups: 2,
+		localDocumentFacts: 0,
+		mappedLocalDocumentFacts: 0,
 		conflictCount: 2,
 		contestedSlotIds: ["slot-001", "slot-002"],
 	});
@@ -184,6 +186,8 @@ test("detectSlotConflicts flags a date or number disagreement for the same slot 
 	});
 	assert.deepEqual(agree.summary, {
 		comparedGroups: 1,
+		localDocumentFacts: 0,
+		mappedLocalDocumentFacts: 0,
 		conflictCount: 0,
 		contestedSlotIds: [],
 	});

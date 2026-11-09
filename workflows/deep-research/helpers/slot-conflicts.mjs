@@ -5,6 +5,11 @@
 // `conflicting` until a verified claim states one of the values. Free-text values are never compared:
 // on recorded runs 100 of 271 (slot, factType) groups had textually different prose values and none
 // of them was a real conflict.
+//
+// 2026-11-08 (K1 local documents): a worker records a local file's statement as a fact whose entity is
+// the file ("notes.md") with the value in prose ("메모는 … RFC 9000 … 2022년 5월 발행이라고 주장한다"), so it
+// never shared a (slot, entity) group with the external observation. Such a fact is compared under the
+// entity its text names when the text states exactly one year-month and names entities of one slot.
 import { asArray, stringOf } from "./source-access.mjs";
 
 export const SLOT_CONFLICTS_SCHEMA = "deep-research-slot-conflicts-v1";
@@ -169,6 +174,7 @@ function observe(fact) {
 
 function sourceOf(fact) {
 	return {
+		documents: [stringOf(fact.localDocument)].filter(Boolean),
 		factIds: [fact.id].filter(Boolean),
 		sourceIds: [fact.sourceId].filter(Boolean),
 		sourceTypes: [stringOf(fact.sourceType)].filter(Boolean),
@@ -200,6 +206,76 @@ function groupValues(facts, keyOf, formatOf) {
 	return byValue;
 }
 
+const LOCAL_DOCUMENT =
+	/(?:^|[\s/"'(])[\w.-]+\.(?:md|markdown|txt|rst|adoc|json|ya?ml|toml|csv|tsv|html?|xml|ini|cfg|log)(?=$|[\s)"',;:])/i;
+
+/** Whether an entity names a local document (`notes.md`, `docs/plan.yaml`) rather than a subject. */
+export function isLocalDocumentEntity(entity) {
+	return LOCAL_DOCUMENT.test(stringOf(entity) ?? "");
+}
+
+/** Whether a normalized name occurs in normalized text as a whole name (not "http 3" in "http 30"). */
+function namesEntity(text, name) {
+	if (name.length < 3) return false;
+	let from = 0;
+	for (;;) {
+		const at = text.indexOf(name, from);
+		if (at < 0) return false;
+		const before = at === 0 ? " " : text[at - 1];
+		const after = text[at + name.length] ?? " ";
+		if (!/[a-z0-9]/.test(before) && !/[a-z0-9]/.test(after)) return true;
+		from = at + 1;
+	}
+}
+
+/**
+ * A local-document fact restated under the entity its text names: one year-month in its value
+ * text, and named entities that have dated observations — on the fact's own slot first,
+ * else on exactly one other slot. Anything ambiguous stays unmapped.
+ */
+function mappedLocalDocumentFacts(facts) {
+	const datedGroups = new Map();
+	for (const fact of facts) {
+		const slotId = stringOf(fact.slotId);
+		if (!slotId || slotId === "unslotted" || isLocalDocumentEntity(fact.entity)) continue;
+		if (!observe(fact).date) continue;
+		const name = normalizeEntity(fact.entity);
+		if (name) datedGroups.set(`${slotId}\u0000${name}`, { slotId, entity: stringOf(fact.entity), name });
+	}
+	const mapped = [];
+	let localFacts = 0;
+	for (const fact of facts) {
+		if (!isLocalDocumentEntity(fact.entity)) continue;
+		localFacts += 1;
+		// Only a date the document's statement itself carries: a local fact's dateOrYear is often the day
+		// the file was read (a recorded run: "2026-11-08" beside a note about RFC 9369).
+		const text = stringOf(fact.value) ?? "";
+		const dates = new Map(
+			structuredDatesIn(text)
+				.filter((date) => date.month !== undefined)
+				.map((date) => [formatDate(date), date]),
+		);
+		if (dates.size !== 1) continue;
+		const normalized = normalizeEntity(text);
+		const named = [...datedGroups.values()].filter((group) => namesEntity(normalized, group.name));
+		const ownSlot = stringOf(fact.slotId);
+		const sameSlot = named.filter((group) => group.slotId === ownSlot);
+		const targets = sameSlot.length > 0 ? sameSlot : named;
+		if (targets.length === 0 || new Set(targets.map((group) => group.slotId)).size !== 1) continue;
+		const [date] = dates.values();
+		for (const target of targets)
+			mapped.push({
+				...fact,
+				slotId: target.slotId,
+				entity: target.entity,
+				factType: "date",
+				dateOrYear: formatDate(date),
+				localDocument: stringOf(fact.entity),
+			});
+	}
+	return { mapped, localFacts };
+}
+
 /**
  * Contested (slot, entity) groups among compacted extracted facts. Facts without a slot, with an
  * unparseable date or a non-scalar numeric value, or whose entity text differs, are not compared.
@@ -209,7 +285,8 @@ export function detectSlotConflicts({ planSlots = [], extractedFacts = [] } = {}
 		asArray(planSlots).map((slot) => [stringOf(slot.id) ?? stringOf(slot.slotId), stringOf(slot.label)]),
 	);
 	const groups = new Map();
-	for (const fact of asArray(extractedFacts)) {
+	const local = mappedLocalDocumentFacts(asArray(extractedFacts));
+	for (const fact of [...asArray(extractedFacts), ...local.mapped]) {
 		const slotId = stringOf(fact.slotId);
 		if (!slotId || slotId === "unslotted") continue;
 		const key = `${slotId}\u0000${normalizeEntity(fact.entity)}`;
@@ -253,6 +330,8 @@ export function detectSlotConflicts({ planSlots = [], extractedFacts = [] } = {}
 		schema: SLOT_CONFLICTS_SCHEMA,
 		summary: {
 			comparedGroups,
+			localDocumentFacts: local.localFacts,
+			mappedLocalDocumentFacts: local.mapped.length,
 			conflictCount: conflicts.length,
 			contestedSlotIds: [...new Set(conflicts.map((conflict) => conflict.slotId))],
 		},

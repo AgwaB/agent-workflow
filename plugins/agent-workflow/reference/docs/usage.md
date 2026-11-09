@@ -100,7 +100,10 @@ or numbers for the same fact slot and entity, the slot is contested (`slotConfli
 normalizer's input packet). The normalizer must route it to verification; the final packet keeps the
 slot `conflicting` until a verified claim states one of the values (then the slot is `filled`, the
 other value named), and the report lists the competing values, their sources and the settling claim
-under "Contested values". Prose values are not compared. The audit also lists reader-facing
+under "Contested values". Prose values are not compared, with one exception: an observation whose
+entity is a local document (`notes.md`) and whose text states exactly one year-month is compared under
+the entity its text names, on the observation's own slot or else on exactly one other slot, so a note
+that misdates a fact meets the external value; the audit names the document. The audit also lists reader-facing
 sentences that tell the reader a local file is wrong while citing numbers or dates of a kind the file
 does not contain ("Source attribution check"); they are warnings, not blockers.
 
