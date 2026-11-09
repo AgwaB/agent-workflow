@@ -1516,7 +1516,8 @@ function readerTranslations(synthesis, claimIds, slotIds, sources = {}) {
  * ("2023.5.12.") gives its parts, digits glued to Hangul count ("약3000건", "RFC9000은"), and a scale
  * word multiplies ("1.5 million" = "150만" = "1,500,000"). A sign may be said in words; its digits must
  * stay. Review 2026-11-09 found refusals of faithful Korean forms; the re-review found the substring
- * match then accepted changed values ("1000" kept by "0.1000" or "1000.5").
+ * match then accepted changed values ("1000" kept by "0.1000" or "1000.5"). Korean compound numerals
+ * count as one value too ("1천500" = 1,500, "3억 2천만" = 320,000,000).
  */
 export function numbersDroppedBy(source, translated) {
 	if (typeof source !== "string" || typeof translated !== "string") return [];
@@ -1556,6 +1557,43 @@ function numberValuesIn(text) {
 			? token.replace(/,/g, "")
 			: token.replace(",", ".");
 		values.add(scaled(Number(plain)));
+	}
+	for (const value of koreanCompoundValues(text)) values.add(value);
+	return values;
+}
+
+const KOREAN_SMALL_UNITS = { 십: 10, 백: 100, 천: 1e3 };
+const KOREAN_LARGE_UNITS = { 만: 1e4, 억: 1e8, 조: 1e12 };
+
+/**
+ * The value of each Korean compound numeral: numbers with 십/백/천 inside a 만/억/조 group, groups added
+ * ("1천500" = 1,500, "1만 5천" = 15,000, "3억 2천만" = 320,000,000). The single numbers are values of
+ * their own as well (numberValuesIn), so this only adds what the whole run states.
+ */
+function koreanCompoundValues(text) {
+	const values = [];
+	const run = /(?:\d+(?:[.,]\d+)?\s*[십백천만억조](?:\s*[만억조])*\s*)+(?:\d+(?:[.,]\d+)?(?![\d.,]))?/gu;
+	for (const match of text.matchAll(run)) {
+		let total = 0;
+		let section = 0;
+		for (const part of match[0].matchAll(/(\d+(?:[.,]\d+)?)?\s*([십백천만억조])?/gu)) {
+			const [, digits, unit] = part;
+			if (digits === undefined && unit === undefined) continue;
+			const number =
+				digits === undefined
+					? undefined
+					: Number(
+							/^\d{1,3}(?:,\d{3})+$/.test(digits)
+								? digits.replace(/,/g, "")
+								: digits.replace(",", "."),
+						);
+			if (unit in KOREAN_SMALL_UNITS) section += (number ?? 1) * KOREAN_SMALL_UNITS[unit];
+			else if (unit in KOREAN_LARGE_UNITS) {
+				total += (section + (number ?? 0) || 1) * KOREAN_LARGE_UNITS[unit];
+				section = 0;
+			} else section += number ?? 0;
+		}
+		values.push(total + section);
 	}
 	return values;
 }
