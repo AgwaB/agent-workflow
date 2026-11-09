@@ -34,9 +34,12 @@ test("a Chrome that dies during startup is reported with its exit and stderr", a
 		await writeFile(executable, `#!/bin/sh\n${script}`, { mode: 0o755 });
 		const started = Date.now();
 		await assert.rejects(createBrowser(executable), (error) => {
+			// Which error comes first (the exit, Chrome closing its pipe, or EPIPE on a write) depends on the
+			// platform; the message always says Chrome failed, how it ended and what it printed (CI 42647384816).
+			assert.match(error.message, /^Chrome failed to start: /, name);
 			assert.match(
 				error.message,
-				/Chrome failed to start: Chrome (exited \(code 3|closed its DevTools pipe)/,
+				/\[Chrome (exit code 3|stopped by SIG[A-Z]+)\]/,
 				name,
 			);
 			assert.match(error.message, /cannot open display/, name);

@@ -362,8 +362,16 @@ export async function createBrowser(executable) {
 		await send("Log.enable");
 	} catch (error) {
 		await close().catch(() => undefined);
+		// How Chrome ended, known after cleanup: the first error may be the pipe (EPIPE on Linux) rather than
+		// the exit (CI 42647384816).
+		const ended =
+			chrome.exitCode !== null
+				? ` [Chrome exit code ${chrome.exitCode}]`
+				: chrome.signalCode !== null
+					? ` [Chrome stopped by ${chrome.signalCode}]`
+					: "";
 		throw new Error(
-			`Chrome failed to start: ${error.message}${stderrTail.trim() ? `\nChrome stderr (tail):\n${stderrTail.trim()}` : ""}`,
+			`Chrome failed to start: ${error.message}${ended}${stderrTail.trim() ? `\nChrome stderr (tail):\n${stderrTail.trim()}` : ""}`,
 			{ cause: error },
 		);
 	}
