@@ -125,6 +125,17 @@ test("decision: relocate for file-store users with credentials; keep the user's 
 			),
 		);
 	}
+	// Review 2026-11-09 (gpt-6-astra): a kept or resumed session must outlive the attempt, so its rollout
+	// stays in the user's home instead of a per-attempt home removed on close.
+	assert.deepEqual(
+		decideCodexWorkerHome({ userHome: home, env: noKeys, keepsSession: true }),
+		{
+			relocate: false,
+			reason: "the request keeps or resumes a session",
+			credentialsStore: "file",
+			authFile: "present",
+		},
+	);
 	const noAuth = await userHome({ auth: false });
 	const kept = decideCodexWorkerHome({ userHome: noAuth, env: noKeys });
 	assert.equal(kept.relocate, false);

@@ -999,6 +999,8 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			dir: logDir,
 			env,
 			inherit: req.isolation.inherit,
+			keepsSession:
+				req.sessionId !== undefined || req.resumeSessionId !== undefined,
 		});
 		if (workerHome.relocated) env.CODEX_HOME = workerHome.path;
 		// argv: no prompt, no env value. `log_dir` keeps CLI logs per attempt (and marks the launch).

@@ -83,6 +83,8 @@ export function decideCodexWorkerHome(options: {
 	readonly userHome: string;
 	readonly env?: Readonly<Record<string, string | undefined>>;
 	readonly inherit?: boolean;
+	/** The request keeps or resumes a thread (sessionId / resumeSessionId). */
+	readonly keepsSession?: boolean;
 }): CodexWorkerHomeDecision {
 	const env = options.env ?? process.env;
 	const credentialsStore = codexCredentialsStore(options.userHome);
@@ -92,6 +94,14 @@ export function decideCodexWorkerHome(options: {
 	const base = { credentialsStore, authFile } as const;
 	if (options.inherit === true)
 		return { ...base, relocate: false, reason: "stage inherits user context" };
+	// Review 2026-11-09 (gpt-6-astra): a kept thread's rollout lives in CODEX_HOME; a per-attempt home is
+	// removed on close, so a later resume would find nothing. Kept sessions use the user's home.
+	if (options.keepsSession === true)
+		return {
+			...base,
+			relocate: false,
+			reason: "the request keeps or resumes a session",
+		};
 	if (credentialsStore !== "file")
 		return {
 			...base,
@@ -128,6 +138,7 @@ export function prepareCodexWorkerHome(options: {
 	readonly dir: string;
 	readonly env?: Readonly<Record<string, string | undefined>>;
 	readonly inherit?: boolean;
+	readonly keepsSession?: boolean;
 }): CodexWorkerHome {
 	const decision = decideCodexWorkerHome(options);
 	if (!decision.relocate)
