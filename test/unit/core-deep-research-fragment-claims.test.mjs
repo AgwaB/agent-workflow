@@ -168,3 +168,43 @@ test("statements, ambiguous entities and headings that only name the entity are 
 		assert.deepEqual(diagnostics.entityNamedCandidateIds, [], label);
 	}
 });
+
+// agent-workflow 2026-11-10: "Label - value" lines and table rows were not recognised; recorded runs kept
+// "RFC - Proposed Standard (May 2021)" unnamed and translations dropped its date.
+test("a dash-label line or a table row gets its entity prepended; one that names it is left alone", async () => {
+	for (const [claim, entity, expected] of [
+		[
+			"RFC - Proposed Standard (May 2021)",
+			"RFC 9000",
+			"RFC 9000 — RFC - Proposed Standard (May 2021)",
+		],
+		[
+			"Document | Type | | RFC - Proposed Standard (June 2022)",
+			"RFC 9114",
+			"RFC 9114 — Document | Type | | RFC - Proposed Standard (June 2022)",
+		],
+		[
+			"RFC 9114 | HTTP/3 | June 2022",
+			"RFC 9114",
+			"RFC 9114 | HTTP/3 | June 2022",
+		],
+		[
+			"RFC 9000 is listed as RFC - Proposed Standard (May 2021).",
+			"RFC 9000",
+			"RFC 9000 is listed as RFC - Proposed Standard (May 2021).",
+		],
+	]) {
+		const { candidate, diagnostics } = await run({
+			claim,
+			entities: [entity],
+			factEntity: entity,
+			quote: claim,
+		});
+		assert.equal(candidate?.claim, expected, claim);
+		assert.deepEqual(
+			diagnostics.entityNamedCandidateIds,
+			expected === claim ? [] : ["claim-001"],
+			claim,
+		);
+	}
+});

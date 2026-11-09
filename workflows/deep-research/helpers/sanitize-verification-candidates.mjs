@@ -677,6 +677,11 @@ function rewriteShouldPreferQuote(reasons) {
 const FRAGMENT_HEADING_RE = /^#{1,6}\s+/u;
 const FRAGMENT_LABEL_RE = /^[\p{L}\p{N} ._()/-]{1,32}:\s/u;
 const FRAGMENT_JSON_RE = /^["'{[]/u;
+// 2026-11-10: a "Label - value" line ("RFC - Proposed Standard (May 2021)", a datatracker field) and a table row
+// ("RFC 9114 | HTTP/3 | June 2022") are fragments too; recorded runs kept 13 and 13 of them unnamed, and their
+// translations named the RFC and dropped the date.
+const FRAGMENT_DASH_LABEL_RE = /^[\p{L}\p{N}._()/]{1,32}\s[-–]\s/u;
+const FRAGMENT_TABLE_ROW_RE = /\S\s*\|\s*\S/u;
 
 function isFragmentClaim(text) {
 	const value = stringOf(text).trim();
@@ -685,6 +690,8 @@ function isFragmentClaim(text) {
 		FRAGMENT_HEADING_RE.test(value) ||
 		FRAGMENT_LABEL_RE.test(value) ||
 		FRAGMENT_JSON_RE.test(value) ||
+		FRAGMENT_DASH_LABEL_RE.test(value) ||
+		FRAGMENT_TABLE_ROW_RE.test(value) ||
 		tokenSet(value).size <= 3
 	);
 }
