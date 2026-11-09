@@ -2606,6 +2606,7 @@ function renderContestedSlotsAudit(contestedSlots) {
 		const values = asArray(row.values)
 			.map((entry) => {
 				const sources = [
+					...asArray(entry.documents),
 					...asArray(entry.sourceUrls),
 					...asArray(entry.files),
 					...asArray(entry.sourceRefs),

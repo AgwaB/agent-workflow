@@ -2514,6 +2514,8 @@
     "schema": "deep-research-slot-conflicts-v1",
     "summary": {
      "comparedGroups": 3,
+     "localDocumentFacts": 0,
+     "mappedLocalDocumentFacts": 0,
      "conflictCount": 0,
      "contestedSlotIds": []
     },
