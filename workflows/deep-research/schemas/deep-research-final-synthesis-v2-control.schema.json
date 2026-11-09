@@ -145,7 +145,7 @@
                 "properties": {
                   "id": { "type": "string", "minLength": 1, "maxLength": 120 },
                   "text": { "type": "string", "minLength": 1, "maxLength": 2000 },
-                  "explanation": { "type": "string", "minLength": 1, "maxLength": 2000 }
+                  "explanation": { "type": "string", "maxLength": 2000 }
                 },
                 "additionalProperties": true
               },
@@ -159,8 +159,8 @@
                 "properties": {
                   "id": { "type": "string", "minLength": 1, "maxLength": 120 },
                   "area": { "type": "string", "minLength": 1, "maxLength": 400 },
-                  "whyItMatters": { "type": "string", "minLength": 1, "maxLength": 2000 },
-                  "gap": { "type": "string", "minLength": 1, "maxLength": 2000 }
+                  "whyItMatters": { "type": "string", "maxLength": 2000 },
+                  "gap": { "type": "string", "maxLength": 2000 }
                 },
                 "additionalProperties": true
               },
