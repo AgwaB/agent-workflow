@@ -355,8 +355,8 @@ mcp_servers.<user server>.enabled = false
 ```
 
 Isolated attempts run with a **private `CODEX_HOME`** under the attempt's log directory that links
-(never copies) the user's `auth.json` (with its `auth.lock`, so Codex serializes token refreshes with the user's own
-Codex), `config.toml` and `rules/` and carries no `AGENTS.md`, skills,
+(never copies) the user's `auth.json` (with its `auth.lock`, under which Codex saves a refresh only when the stored
+token is still the one it refreshed), `config.toml` and `rules/` and carries no `AGENTS.md`, skills,
 plugins, memories or history; it is removed when the app-server exits, and only when every directory below the
 state directory is a plain directory (never through a symlink); one that cannot be prepared fails the attempt
 rather than running in the user's home. A request that keeps a session (`sessionId`) keeps the Codex thread,
@@ -588,8 +588,13 @@ Expired-token, rate-limit and context-overflow cases have protocol coverage, not
 - Global instructions and exec-policy rules remain; the probe warns and records degradations.
 - Always pass effort if user defaults must not apply.
 - An injected MCP name colliding with a user server can merge incompatible keys and fail config.
-- `fetch_content`, `grep`, `find`, `ls` mappings and concurrent token refresh are unverified.
-- Three parallel app-servers are verified; refresh contention was not exercised.
+- `fetch_content`, `grep`, `find`, `ls` mappings are unverified.
+- Concurrent token refresh, checked with the real Codex 0.166 and 0.167 binaries against a fake login and a fake
+  OAuth server that rejects a reused refresh token: workers that start together with an expired token each send a
+  refresh with the same token (Codex holds no cross-process lock for the request — the same holds for several of the
+  user's own Codex processes); the losers get `refresh_token_reused`, reload the winner's token from the linked file
+  and finish. Whether the real OAuth server revokes more than the reused token was not tested; if Codex asks you to
+  sign in again after a parallel run, run `codex login`.
 - Hosted web search safety controls are unconfirmed (`safetyPolicy: unknown`).
 - Terminal/revoked records, or spawned records with a dead server, are eligible for pruning after
   7 days, on submit at most every 6 h and by `agent-workflow prune`, with `.events.jsonl` and `.log/`.

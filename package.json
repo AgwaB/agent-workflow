@@ -104,7 +104,7 @@
     "test:unit": "npm run build && node test/run-unit.mjs",
     "test:unit-tier": "npm run build && node test/run-unit.mjs --tier=unit",
     "test:integration": "npm run build && node test/run-unit.mjs --tier=integration",
-    "test:regression": "npm run build && node test/run-unit.mjs test/regression/engine-replay.test.mjs",
+    "test:regression": "npm run build && node test/run-unit.mjs test/regression/engine-replay.test.mjs test/regression/codex-auth-refresh.test.mjs",
     "test:ui-motion": "npm run build && AGENT_WORKFLOW_UI_MOTION=1 node test/run-unit.mjs test/unit/host-dashboard-ui.test.mjs test/unit/host-dashboard-redesign.test.mjs test/unit/host-dashboard-morph.test.mjs",
     "e2e": "node test/e2e/run.mjs",
     "pack:dry": "npm pack --dry-run --json --ignore-scripts",
