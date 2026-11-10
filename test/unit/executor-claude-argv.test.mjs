@@ -358,7 +358,7 @@ test("capability table is valid and honest", () => {
 			if (row?.source === "probed")
 				assert.match(
 					row.verifiedWith,
-					/claude-code 2\.1\.319, WP8 live 2026-10-26, re-verified 2026-11-06/,
+					/claude-code 2\.1\.322, WP8 live 2026-10-26, re-verified 2026-11-10 \(live tier, haiku\)/,
 					name,
 				);
 	}
