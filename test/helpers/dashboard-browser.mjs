@@ -64,6 +64,14 @@ export async function createBrowser(executable) {
 	// EPIPE from cleanup. Keep its stderr tail and exit, and never let a pipe error escape.
 	let stderrTail = "";
 	let exitError;
+	// Set once Chrome has exited and its stdio (stderr included) is drained.
+	let closed = false;
+	const whenClosed = new Promise((resolve) =>
+		chrome.once("close", () => {
+			closed = true;
+			resolve();
+		}),
+	);
 	chrome.stderr.on("data", (chunk) => {
 		stderrTail = (stderrTail + chunk.toString()).slice(-4000);
 	});
@@ -323,16 +331,26 @@ export async function createBrowser(executable) {
 			// Bounded: an unresponsive Chrome is killed below rather than awaited for 60 s.
 			await send("Browser.close", {}, null, 3000);
 		} catch {}
-		// Its DevTools pipe already gone, Chrome cannot answer Browser.close: stop it now.
-		if (chrome.exitCode === null && exitError) chrome.kill();
-		if (chrome.exitCode === null && !startupError)
-			await new Promise((resolve) => {
-				chrome.once("exit", resolve);
-				setTimeout(() => {
-					chrome.kill();
-					resolve();
-				}, 3000).unref();
-			});
+		// Its DevTools pipe already gone, Chrome cannot answer Browser.close. 2026-11-10 (CI 42762043887, ubuntu): a
+		// Chrome that closes its pipe and then prints why it failed lost that line to an immediate kill; it gets a
+		// moment to end on its own (and drain its stderr) before it is stopped.
+		if (chrome.exitCode === null && chrome.signalCode === null && exitError) {
+			await Promise.race([
+				whenClosed,
+				new Promise((resolve) => setTimeout(resolve, 1000).unref()),
+			]);
+			if (!closed) chrome.kill();
+		}
+		if (!closed && !startupError)
+			await Promise.race([
+				whenClosed,
+				new Promise((resolve) =>
+					setTimeout(() => {
+						chrome.kill();
+						resolve();
+					}, 3000).unref(),
+				),
+			]);
 		for (const p of pending.values()) {
 			clearTimeout(p.timer);
 			p.reject(new Error("Browser closed"));
