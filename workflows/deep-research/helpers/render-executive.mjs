@@ -1736,6 +1736,14 @@ function composeResearchReport(
 
 	if (!synthesis) {
 		const report = { ...legacyReport };
+		// A legacy report row may name the claim without the verifier's correction the ledger holds.
+		for (const key of ["notableUnsupportedClaims", "contestedAreas"])
+			if (Array.isArray(report[key]))
+				report[key] = report[key].map((row) => {
+					if (!isRecord(row) || cleanText(row.correctionOrCounterclaim)) return row;
+					const correction = cleanText(claimById.get(claimIdOf(row))?.correctionOrCounterclaim);
+					return correction ? { ...row, correctionOrCounterclaim: correction } : row;
+				});
 		if (asArray(packet.factSlotCoverage).length > 0)
 			report.factSlotCoverage = packet.factSlotCoverage;
 		if (isRecord(packet.researchMetadataSeed))
@@ -2132,23 +2140,29 @@ function fallbackCaveatText(item) {
 	);
 }
 
+const CAVEAT_TEXT_FIELDS = [
+	"readerText",
+	"gap",
+	"finding",
+	"claim",
+	"note",
+	"reason",
+	"nextStep",
+	"evidenceState",
+	"whyItMatters",
+	"parentImpact",
+];
+
 function caveatText(item) {
-	return itemText(
-		item,
-		[
-			"readerText",
-			"gap",
-			"finding",
-			"claim",
-			"note",
-			"reason",
-			"nextStep",
-			"evidenceState",
-			"whyItMatters",
-			"parentImpact",
-		],
-		fallbackCaveatText(item),
+	return itemText(item, CAVEAT_TEXT_FIELDS, fallbackCaveatText(item));
+}
+
+function rawCaveatText(item) {
+	if (typeof item === "string") return cleanText(item);
+	const field = CAVEAT_TEXT_FIELDS.find(
+		(key) => typeof item?.[key] === "string" && item[key].trim(),
 	);
+	return field ? cleanText(item[field]) : "";
 }
 
 function caveatCategories(report) {
@@ -2468,10 +2482,21 @@ function withoutSanitizerNotes(text) {
 		.trim();
 }
 
+// 2026-11-10 (owner decision pending, INBOX): a claim the verifier rejected (Unsupported) or contradicted
+// (Contested) is listed with the value the verifier found, as the verifier wrote it. The containment check uses the
+// raw text: Markdown escaping depends on position ("- x" at a line start), so escaped strings can differ.
+function correctionSuffix(kind, item, korean) {
+	if (kind !== "Unsupported" && kind !== "Contested") return "";
+	const correction = cleanText(item?.correctionOrCounterclaim);
+	if (!correction || rawCaveatText(item).includes(correction)) return "";
+	return ` ${korean ? "정정" : "Correction"}: ${escapeMarkdownText(correction)}`;
+}
+
 function renderCaveats(report) {
 	const selection = selectCaveats(report);
 	if (selection.total === 0) return [];
 	const korean = selection.selected.some(({ text }) => /[가-힣]/u.test(text));
+	const reportKorean = korean || /[가-힣]/u.test(cleanText(report?.summary ?? ""));
 	const lines = [];
 	const held = { count: 0, reasons: new Map(), urls: [] };
 	for (const { kind, item, text } of selection.selected) {
@@ -2489,7 +2514,7 @@ function renderCaveats(report) {
 		if (!readable) continue;
 		const urls = referenceList(item, 3);
 		lines.push(
-			`- **${escapeMarkdownText(kind)}:** ${readable}${urls ? ` (${urls})` : ""}`,
+			`- **${escapeMarkdownText(kind)}:** ${readable}${correctionSuffix(kind, item, reportKorean)}${urls ? ` (${urls})` : ""}`,
 		);
 	}
 	if (held.count > 0) {
