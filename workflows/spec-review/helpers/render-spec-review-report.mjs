@@ -732,6 +732,8 @@ function limitationRows({
 	gapsStand = false,
 	partition = {},
 	requirementReconciliation = {},
+	narrativeVerdict = "",
+	verdict = "",
 }) {
 	const rows = [];
 	if (!sourceCoverageComplete)
@@ -784,7 +786,7 @@ function limitationRows({
 		);
 	else if (!verdictConsistent)
 		rows.push(
-			"The narrative report verdict contradicts the deterministic ledger verdict.",
+			`The narrative report gave verdict ${narrativeVerdict || "none"}, which the deterministic ledger does not support; the report uses ${verdict}.`,
 		);
 	return rows;
 }
@@ -1027,14 +1029,19 @@ export default async function renderSpecReviewReport({
 	// agent-workflow 2026-11-04: confirmed gaps on an intact ledger pass with the unresolved
 	// requirements and needs-human rows listed as limitations (specReviewVerdict).
 	const gapsStand = ledgerVerdict === "GAPS_FOUND" && evidenceAudit.gapsGrounded;
-	const verdict =
+	const deterministicVerdict =
 		!evidenceComplete && ledgerVerdict === "CONFORMS"
 			? "INCONCLUSIVE"
 			: ledgerVerdict;
-	const verdictConsistent =
-		reportPresent &&
-		cleanText(report.verdict) === verdict &&
-		reportOwnerLedgerConsistent;
+	const narrativeVerdictMatches =
+		reportPresent && cleanText(report.verdict) === deterministicVerdict;
+	// 2026-11-10 (owner): a narrative verdict that differs from the ledger's is a warning, not a failed render. The
+	// ledger verdict stands, except that CONFORMS needs the narrative's agreement (else INCONCLUSIVE).
+	const verdict =
+		reportPresent && !narrativeVerdictMatches && deterministicVerdict === "CONFORMS"
+			? "INCONCLUSIVE"
+			: deterministicVerdict;
+	const verdictConsistent = narrativeVerdictMatches && reportOwnerLedgerConsistent;
 	const limitations = limitationRows({
 		sourceCoverageComplete,
 		coverageComplete,
@@ -1046,12 +1053,14 @@ export default async function renderSpecReviewReport({
 		gapsStand,
 		partition,
 		requirementReconciliation,
+		narrativeVerdict: reportPresent ? cleanText(report.verdict) : "",
+		verdict,
 	});
 	const passed =
 		reportPresent &&
 		sourceCoverageComplete &&
 		coverageComplete &&
-		verdictConsistent &&
+		reportOwnerLedgerConsistent &&
 		renderedAllCanonicalRows &&
 		duplicates.length === 0 &&
 		(evidenceComplete || gapsStand);

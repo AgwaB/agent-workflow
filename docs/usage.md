@@ -87,7 +87,10 @@ produce a clean report.
 Review verdicts are deterministic. Kept/weakened findings make deep-review `NEEDS_WORK`, with
 incomplete coverage named as limitations; without findings, incomplete coverage is `PARTIAL_REVIEW`.
 Grounded spec-review gaps on an intact ledger yield `GAPS_FOUND`; without gaps, unresolved
-requirements yield `INCONCLUSIVE`, and `CONFORMS` requires complete coverage. See
+requirements yield `INCONCLUSIVE`, and `CONFORMS` requires complete coverage. When the narrative synthesis states a
+different verdict, the deterministic one stands and the report and completion summary say so; a favourable verdict
+needs the narrative's agreement (otherwise deep-review `REVIEW_COMPLETE` becomes `PARTIAL_REVIEW`, spec-review
+`CONFORMS` becomes `INCONCLUSIVE`, impact-review `READY` becomes `UNKNOWN`). The run still completes. See
 [local review evidence](#local-review-evidence) for requirement rechecks and repository-byte
 citation checks.
 
