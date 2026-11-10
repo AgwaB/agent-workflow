@@ -86,7 +86,7 @@ const concurrency = Math.max(
 			: defaultConcurrency),
 );
 
-function isolatedEnv(home) {
+function isolatedEnv(home, tmp) {
 	const env = {
 		...process.env,
 		AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0",
@@ -98,6 +98,9 @@ function isolatedEnv(home) {
 		PI_CODING_AGENT_DIR: join(home, ".pi", "agent"),
 	};
 	if (live) return env;
+	// 2026-11-10 (maintenance check): tests leave mkdtemp(os.tmpdir()) directories behind (2,836 found); each file
+	// gets its own TMPDIR, removed with its home. Short and outside the home: macOS limits socket paths to 104 bytes.
+	env.TMPDIR = tmp;
 	env.CODEX_HOME = join(home, ".codex");
 	env.CLAUDE_CONFIG_DIR = join(home, ".claude");
 	env.AGENT_WORKFLOW_CODEX_REQUIREMENTS_PATH = join(home, "requirements.toml");
@@ -159,6 +162,9 @@ function removeTestHome(home, file) {
 function runFile(file) {
 	return new Promise((resolveRun) => {
 		const home = mkdtempSync(join(tmpdir(), "aw-unit-home-"));
+		const tmp = mkdtempSync(
+			join(process.platform === "win32" ? tmpdir() : "/tmp", "awt-"),
+		);
 		const child = spawn(
 			process.execPath,
 			[
@@ -171,7 +177,7 @@ function runFile(file) {
 				file,
 			],
 			{
-				env: isolatedEnv(home),
+				env: isolatedEnv(home, tmp),
 				stdio: ["ignore", "pipe", "pipe"],
 				detached: process.platform !== "win32",
 			},
@@ -210,8 +216,11 @@ function runFile(file) {
 			const shimLog = join(home, "agent-cli-shims.log");
 			if (existsSync(shimLog))
 				shimUses.push(`${file}:\n${readFileSync(shimLog, "utf8")}`);
-			if (keep) console.error(`test home kept: ${home}`);
-			else removeTestHome(home, file);
+			if (keep) console.error(`test home kept: ${home} (TMPDIR ${tmp})`);
+			else {
+				removeTestHome(home, file);
+				removeTestHome(tmp, file);
+			}
 			resolveRun();
 		});
 	});
