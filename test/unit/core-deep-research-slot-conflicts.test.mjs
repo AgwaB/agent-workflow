@@ -366,9 +366,11 @@ async function finalPacketFor({
 	claimText,
 	bestValue = "May 2021",
 	extraVerifiedClaims = [],
+	packetSources = researchSources,
 }) {
+	const plan = packetSources["plan.main"];
 	const inputPacket = await normalizeInputPacket({
-		sources: researchSources,
+		sources: packetSources,
 		context: {},
 	});
 	const candidates = [
@@ -454,6 +456,61 @@ async function finalPacketFor({
 		},
 	});
 }
+
+// agent-workflow 2026-11-10 (regression audit G8): comparison entities in a plan slot became resolver aliases — de34531
+test("the final resolver does not treat plan comparison entities as aliases", async () => {
+	const packetSources = structuredClone(researchSources);
+	packetSources["plan.main"].factSlots[0].entities = ["RFC 9000", "RFC 9001"];
+	const result = await finalPacketFor({
+		packetSources,
+		normalizedStatus: "filled",
+		verifierStatus: "verified",
+		claimText: "RFC 9001 was published in May 2021.",
+	});
+	assert.equal(result.packet.contestedSlots[0].entity, "RFC 9000");
+	assert.deepEqual(result.packet.contestedSlots[0].resolution, {
+		status: "unresolved",
+		claimIds: [],
+		values: [],
+	});
+	assert.equal(result.packet.factSlotCoverage[0].status, "conflicting");
+});
+
+// agent-workflow 2026-11-10 (regression audit G9): the final resolver rejected short entity names such as Go — de34531
+test("the final resolver accepts Go as a whole entity name but not Google", async () => {
+	const packetSources = structuredClone(researchSources);
+	packetSources["plan.main"].factSlots[0].label = "Go release month";
+	packetSources["plan.main"].factSlots[0].entities = ["Go"];
+	for (const fact of packetSources["research-questions.rq-001"]
+		.extractedFacts) {
+		if (fact.entity !== "RFC 9000") continue;
+		fact.entity = "Go";
+		fact.quote = fact.quote.replace("RFC 9000", "Go");
+	}
+	for (const [name, expected] of [
+		["Go", "resolved_by_verified_claim"],
+		["Google", "unresolved"],
+	]) {
+		const claimText = `${name} was released in May 2021.`;
+		const result = await finalPacketFor({
+			packetSources,
+			normalizedStatus: "conflicting",
+			verifierStatus: "verified",
+			claimText,
+		});
+		const contest = result.packet.contestedSlots[0];
+		assert.equal(contest.entity, "Go");
+		assert.equal(contest.resolution.status, expected, claimText);
+		assert.deepEqual(
+			contest.resolution.values,
+			name === "Go" ? ["2021-05"] : [],
+		);
+		assert.equal(
+			result.packet.factSlotCoverage[0].status,
+			name === "Go" ? "filled" : "conflicting",
+		);
+	}
+});
 
 test("the final packet keeps a contested slot conflicting until a verified claim states one of the values", async () => {
 	// The normalizer ignored the contest and the verifier could not verify: conflicting, with both values.
