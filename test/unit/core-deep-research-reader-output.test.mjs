@@ -799,3 +799,137 @@ test("the audit ledger shows a verifier's correction for claims it did not verif
 		/\| Region-06 caches for 26 seconds per the page\. \|$/,
 	);
 });
+
+// 2026-11-10 (owner decision pending, INBOX): Unsupported and Contested caveat lines carry the value the verifier
+// found ("Correction: …", "정정: …" in Korean reports); lines without a correction, or already containing it, stay.
+const CAMEL = { unsupported: "unsupported", conflicting: "conflicting" };
+async function withRejectedClaims(changes, claimText = {}) {
+	return inputs((packetSources) => {
+		const audit = packetSources["audit-claims"];
+		for (const row of audit.claimDigests) {
+			const change = changes[row.id];
+			if (!change) continue;
+			[row.status, row.correctionOrCounterclaim] = change;
+			if (claimText[row.id]) row.claim = claimText[row.id];
+		}
+		const partitions = audit.statusPartitions;
+		for (const key of Object.keys(partitions))
+			partitions[key] = partitions[key].filter((id) => !changes[id]);
+		for (const [id, [status]] of Object.entries(changes))
+			partitions[CAMEL[status]].push(id);
+		for (const key of Object.keys(partitions))
+			audit.verdictCounts[key] = partitions[key].length;
+	});
+}
+const caveatLine = (result, kind, needle) => {
+	const line = result.reportMarkdown
+		.split("\n")
+		.find((row) => row.startsWith(`- **${kind}:**`) && row.includes(needle));
+	assert.ok(line, `no ${kind} line with ${needle}`);
+	return line;
+};
+
+test("unsupported and contested caveat lines show the verifier's correction", async () => {
+	const sources = await withRejectedClaims(
+		{
+			"claim-002": [
+				"unsupported",
+				"RFC 9204 was published in June 2022, not June 2021.",
+			],
+			"claim-003": ["conflicting", "Region-03 caches for 30 seconds."],
+			"claim-004": ["unsupported", ""],
+			"claim-005": ["unsupported", "- caches for 25 seconds."],
+		},
+		{ "claim-005": "Region-05 policy - caches for 25 seconds." },
+	);
+	sources["final-audit"].synthesis.bottomLine =
+		"The documented behavior is confirmed; demand is not.";
+	const result = await render({ sources });
+	assert.equal(result.status, "passed", JSON.stringify(result.gates));
+	// After the claim, before its sources.
+	assert.match(
+		caveatLine(result, "Unsupported", "Region-02"),
+		/ Correction: RFC 9204 was published in June 2022, not June 2021\.( \(|$)/,
+	);
+	assert.match(
+		caveatLine(result, "Contested", "Region-03"),
+		/ Correction: Region-03 caches for 30 seconds\./,
+	);
+	assert.doesNotMatch(
+		caveatLine(result, "Unsupported", "Region-04"),
+		/Correction:/,
+	);
+	// Already in the claim (even where Markdown escaping of "- " would differ): not repeated.
+	assert.doesNotMatch(
+		caveatLine(result, "Unsupported", "Region-05"),
+		/Correction:/,
+	);
+	// A Korean report labels it 정정 — also when the rejected claim itself is English.
+	for (const claimText of ["RFC 9204는 2021년 6월에 발행되었다.", undefined]) {
+		const korean = await withRejectedClaims(
+			{
+				"claim-002": [
+					"unsupported",
+					"RFC 9204 was published in June 2022, not June 2021.",
+				],
+			},
+			claimText ? { "claim-002": claimText } : {},
+		);
+		korean["final-audit"].synthesis.bottomLine = "핵심 결론입니다.";
+		const rendered = await render({ sources: korean });
+		assert.match(
+			caveatLine(
+				rendered,
+				"Unsupported",
+				claimText ? "RFC 9204는" : "Region-02",
+			),
+			/ 정정: RFC 9204 was published in June 2022, not June 2021\./,
+		);
+	}
+});
+
+// Review 2026-11-10 (gpt-6.1-sol): a legacy final audit names the rejected claim without the correction that its
+// claim index holds; the line joins it by id.
+test("a legacy report row gets the correction from the claim index", async () => {
+	const result = await render({
+		sources: {
+			"final-audit": {
+				schema: "legacy-audit",
+				digest: "English report.",
+				finalReport: {
+					summary: "English report.",
+					researchMetadata: {},
+					coverageSummary: {},
+					factSlotCoverage: [],
+					mainFindings: [],
+					recommendations: [],
+					actionPlan: [],
+					remainingGaps: [],
+					parentDecisionNotes: [],
+					unverifiedButRelevant: [],
+					notableUnsupportedClaims: [
+						{
+							claimId: "c1",
+							claim: "Old value.",
+							sourceUrls: ["https://example.com"],
+						},
+					],
+				},
+				claimVerdictIndex: {
+					claims: [
+						{
+							id: "c1",
+							status: "unsupported",
+							claim: "Old value.",
+							correctionOrCounterclaim: "New value.",
+						},
+					],
+				},
+			},
+		},
+	});
+	assert.match(
+		caveatLine(result, "Unsupported", "Old value."),
+		/ Correction: New value\./,
+	);
+});
