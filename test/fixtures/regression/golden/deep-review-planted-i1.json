@@ -1,0 +1,159 @@
+{
+	"fixture": "deep-review-planted-i1",
+	"recordedFrom": {
+		"runId": "workflow_mw6re9yo_9fd81f",
+		"status": "completed",
+		"createdAt": "2026-11-07T18:50:57.655Z",
+		"engine": null,
+		"executor": "codex"
+	},
+	"status": "completed",
+	"tasks": [
+		{
+			"specId": "dedup-findings.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "fda871d9386b716d"
+		},
+		{
+			"specId": "devil-advocate.finding-001",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "2df67fecaad38dfe"
+		},
+		{
+			"specId": "devil-advocate.finding-002",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "c21827e738dc0b57"
+		},
+		{
+			"specId": "devil-advocate.finding-003",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "341e27ee43237390"
+		},
+		{
+			"specId": "devil-advocate.finding-004",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "df925fa5bd524836"
+		},
+		{
+			"specId": "devil-advocate.finding-005",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "7a27918f3c4ed2f5"
+		},
+		{
+			"specId": "devil-advocate.finding-006",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "88999b208e4d6cda"
+		},
+		{
+			"specId": "devil-advocate.finding-007",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "56996ce65910d82d"
+		},
+		{
+			"specId": "devil-advocate.finding-008",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "0f84dd702aea9a57"
+		},
+		{
+			"specId": "devil-advocate.finding-009",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "ad2ab346f5578e06"
+		},
+		{
+			"specId": "devil-advocate.finding-010",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "fa65b250c2c92421"
+		},
+		{
+			"specId": "devil-advocate.finding-011",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "72c250a8cfcc778f"
+		},
+		{
+			"specId": "devil-advocate.finding-012",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "514dbd88cd633e3f"
+		},
+		{
+			"specId": "devil-advocate.finding-013",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "01e80f5fc8c29583"
+		},
+		{
+			"specId": "devil-advocate.item",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"control": null
+		},
+		{
+			"specId": "final.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "1d1ca3f8885fee72"
+		},
+		{
+			"specId": "partition-verdicts.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "bf7c5cd1048b67d8"
+		},
+		{
+			"specId": "report-packet.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "be028e4ac0c2463a"
+		},
+		{
+			"specId": "report.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "3c6069bb5de8134c"
+		},
+		{
+			"specId": "reviewers.error-api-contract",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "8b2ebb3aed9a5584"
+		},
+		{
+			"specId": "reviewers.item",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"control": null
+		},
+		{
+			"specId": "reviewers.runtime-correctness",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "0eaa32ff08bc423f"
+		},
+		{
+			"specId": "reviewers.security",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "2adeb4e5eee49a56"
+		},
+		{
+			"specId": "triage.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "733a041d4423e1eb"
+		}
+	],
+	"finalReport": "# Deep review report\n\n## Executive summary\n\n### Core conclusion\n\nVerdict: **NEEDS_WORK**. The deterministic ledger contains 13 kept or weakened findings and 0 needs-human items.\n\n### Key findings\n\n- **high / KEEP:** 비게스트 사용자가 문서를 삭제할 수 있음\n- **high / KEEP:** 사용자 이름 검색 SQL 인젝션\n- **high / KEEP:** 문서 ID를 통한 파일 경로 탈출\n- **high / KEEP:** 저장 완료 전에 성공을 반환함\n- **high / KEEP:** 사용자 이름이 SQL에 직접 연결되어 SQL 주입 가능\n- **high / KEEP:** 재시도 모두 실패해도 마지막 오류를 반환하지 않음\n- 7 additional finding row(s) are included in the full report.\n\n### Evidence level\n\n- Canonical rows: 13 kept or weakened findings, 0 needs-human items, and 0 supporting observations.\n- Coverage: complete according to source-status accounting.\n\n### Important limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.\n\n## Finding summary\n\n| Severity | Count |\n|---|---:|\n| high | 7 |\n| medium | 6 |\n\n## Synthesis narrative\n\nSummary: src/ 리뷰에서 수정이 필요한 보안 및 안정성 문제가 확인되었습니다.\n\n## Risks and partial-review limitations\n\n- 검토된 13개 항목이 모두 유지되었으며, 그중 보안 영향이 큰 문제가 포함되어 있습니다.\n- 입력 검증, 접근 제어, 안전한 데이터 처리, 비동기 오류 전파 영역의 보완이 필요합니다.\n- 전체 검토 소스가 완료되어 커버리지 누락은 확인되지 않았습니다.\n\nRecommended synthesis action: 유지된 모든 항목을 우선순위에 따라 수정하고, 보안 회귀 테스트와 오류 처리 테스트를 추가한 뒤 재검토하십시오.\n\n## High findings\n\n### finding-001 — 비게스트 사용자가 문서를 삭제할 수 있음\n\nSeverity: **high**  \nRoot cause: `root-001`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/auth.js` | 5-8 | `canDelete` |\n| `src/index.js` | 7-12 | `deleteDocument` |\n\nReviewer/source evidence:\n\n```ts\nreturn user.role === \"admin\" || doc.ownerId === user.id || user.role !== \"guest\";\n```\n\n```ts\nif (!doc || !canDelete(user, doc)) return false;\n```\n\nVerifier evidence:\n\n```ts\nreturn user.role === \"admin\" || doc.ownerId === user.id || user.role !== \"guest\";\n```\n\n```ts\nif (!doc || !canDelete(user, doc)) return false;\n```\n\nRationale:\n\neditor, viewer 및 임의의 비게스트 역할이 소유자가 아닌 문서를 삭제할 수 있어 권한 상승과 무단 데이터 삭제가 발생합니다.\n\nRecommended action:\n\n삭제 조건을 관리자 또는 문서 소유자로만 제한하고, 허용 목록에 없는 역할은 거부하십시오.\n\n### finding-002 — 사용자 이름 검색 SQL 인젝션\n\nSeverity: **high**  \nRoot cause: `root-002`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/db.js` | 9-13 | `findUsersByName` |\n\nReviewer/source evidence:\n\n```ts\nconst sql = \"SELECT id, name, role FROM users WHERE name = '\" + name + \"'\";\n```\n\n```ts\nreturn client.query(sql, []);\n```\n\nVerifier evidence:\n\n```ts\nconst sql = \"SELECT id, name, role FROM users WHERE name = '\" + name + \"'\";\n```\n\n```ts\nreturn client.query(sql, []);\n```\n\nRationale:\n\n공격자가 name에 따옴표와 SQL 구문을 삽입하면 검색 조건을 변조하거나 추가 SQL 동작을 유도할 수 있습니다.\n\nRecommended action:\n\nname을 플레이스홀더로 바꾸고 client.query(sql, \\[name\\])으로 파라미터 바인딩을 적용한 뒤 SQL 인젝션 회귀 테스트를 추가하십시오.\n\n### finding-003 — 문서 ID를 통한 파일 경로 탈출\n\nSeverity: **high**  \nRoot cause: `root-003`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/store.js` | 7-18 | `saveDocument` |\n| `src/index.js` | 7-11 | `deleteDocument` |\n\nReviewer/source evidence:\n\n```ts\nconst path = join(DATA_DIR, `${doc.id}.json`);\n```\n\n```ts\nconst text = await fs.readFile(join(DATA_DIR, `${id}.json`), \"utf8\");\n```\n\n```ts\nconst doc = await loadDocument(docId);\n```\n\nVerifier evidence:\n\n```ts\nconst path = join(DATA_DIR, `${doc.id}.json`);\n```\n\n```ts\nconst text = await fs.readFile(join(DATA_DIR, `${id}.json`), \"utf8\");\n```\n\n```ts\nconst doc = await loadDocument(docId);\n```\n\nRationale:\n\n../ 같은 경로 요소를 포함한 ID로 DATA\\_DIR 밖의 파일을 읽거나 쓸 수 있습니다. deleteDocument는 외부 docId를 그대로 loadDocument에 전달하므로 삭제 흐름에서도 임의 경로 접근이 가능합니다.\n\nRecommended action:\n\n저장·조회 전에 ID를 허용된 문자 집합의 단일 파일명으로 제한하고, resolve 결과가 DATA\\_DIR 내부인지 검증하십시오. deleteDocument에 전달되는 ID에도 동일한 검증을 적용하십시오.\n\n### finding-007 — 저장 완료 전에 성공을 반환함\n\nSeverity: **high**  \nRoot cause: `root-007`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/store.js` | 11 | `saveDocument` |\n\nReviewer/source evidence:\n\n```text\nfs.writeFile(path, JSON.stringify(doc, null, 2), \"utf8\");\n```\n\n```ts\nreturn true;\n```\n\nVerifier evidence:\n\n```text\nfs.writeFile(path, JSON.stringify(doc, null, 2), \"utf8\");\n```\n\n```ts\nreturn true;\n```\n\nRationale:\n\n호출자는 true를 저장 완료 신호로 해석하지만 실제 쓰기 실패는 호출자에게 reject되지 않고 비동기 미처리 오류가 될 수 있으며, 직후 읽기에서 파일이 없거나 일부 상태를 볼 수 있습니다.\n\nRecommended action:\n\nfs.writeFile 호출을 await하여 쓰기 완료 및 실패가 saveDocument의 반환과 rejection에 반영되도록 하고 회귀 테스트를 추가하십시오.\n\n### finding-008 — 사용자 이름이 SQL에 직접 연결되어 SQL 주입 가능\n\nSeverity: **high**  \nRoot cause: `root-008`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/db.js` | 10 | `findUsersByName` |\n\nReviewer/source evidence:\n\n```ts\nconst sql = \"SELECT id, name, role FROM users WHERE name = '\" + name + \"'\";\n```\n\nVerifier evidence:\n\n```ts\nconst sql = \"SELECT id, name, role FROM users WHERE name = '\" + name + \"'\";\n```\n\nRationale:\n\n공격자가 따옴표와 SQL 구문을 포함한 name을 제공하면 WHERE 절을 변조하거나 추가 쿼리 동작을 유도할 수 있습니다.\n\nRecommended action:\n\n플레이스홀더와 params를 사용해 name을 바인딩하고, SQL 주입 회귀 테스트를 추가하십시오.\n\n### finding-009 — 재시도 모두 실패해도 마지막 오류를 반환하지 않음\n\nSeverity: **high**  \nRoot cause: `root-009`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/db.js` | 29-32 | `queryWithRetry` |\n\nReviewer/source evidence:\n\n```json\n    } catch (error) {\n```\n\n```ts\n      if (attempt < attempts) continue;\n```\n\n```json\n    }\n```\n\n```json\n  }\n```\n\nVerifier evidence:\n\n```json\n    } catch (error) {\n      if (attempt < attempts) continue;\n    }\n  }\n```\n\n```ts\n  for (let attempt = 1; attempt <= attempts; attempt += 1) {\n```\n\nRationale:\n\n모든 시도가 실패하면 함수가 undefined로 resolve되어 호출자가 쿼리 실패를 성공 또는 빈 결과로 오인할 수 있습니다. 또한 attempts가 0이면 쿼리 없이 동일하게 undefined를 반환합니다.\n\nRecommended action:\n\n마지막 오류를 저장한 뒤 모든 시도가 실패하면 throw하고, attempts가 양의 정수인지 검증하십시오.\n\n### finding-013 — 사용자 이름이 SQL에 직접 보간됨\n\nSeverity: **high**  \nRoot cause: `root-013`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/db.js` | 10 | `findUsersByName` |\n\nReviewer/source evidence:\n\n```ts\n  const sql = \"SELECT id, name, role FROM users WHERE name = '\" + name + \"'\";\n  return client.query(sql, []);\n```\n\nVerifier evidence:\n\n```ts\nconst sql = \"SELECT id, name, role FROM users WHERE name = '\" + name + \"'\";\n```\n\n```ts\nreturn client.query(sql, []);\n```\n\nRationale:\n\n따옴표나 SQL 구문을 포함한 이름은 쿼리를 변경할 수 있어 SQL 인젝션을 가능하게 하며, 클라이언트 기능에 따라 무단 공개 또는 수정이 발생할 수 있습니다.\n\nRecommended action:\n\nname을 문자열 연결하지 말고 매개변수화된 쿼리를 사용하세요. 예: client.query(\"SELECT id, name, role FROM users WHERE name = ?\", \\[name\\]). 회귀 테스트도 추가하세요.\n\n## Medium findings\n\n### finding-004 — 저장 완료 전에 성공을 반환하고 쓰기 오류를 누락함\n\nSeverity: **medium**  \nRoot cause: `root-004`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/store.js` | 7-12 | `saveDocument` |\n\nReviewer/source evidence:\n\n```text\nfs.writeFile(path, JSON.stringify(doc, null, 2), \"utf8\");\n```\n\n```ts\nreturn true;\n```\n\nVerifier evidence:\n\n```text\nfs.writeFile(path, JSON.stringify(doc, null, 2), \"utf8\");\n```\n\n```ts\nreturn true;\n```\n\nRationale:\n\n호출자는 파일이 저장되었다고 판단하지만 실제 쓰기가 아직 진행 중일 수 있고, 쓰기 실패가 saveDocument의 rejection으로 전달되지 않습니다. 데이터 손실과 오류 감지가 발생합니다.\n\nRecommended action:\n\nfs.writeFile 호출을 await하고, 쓰기 실패가 saveDocument 호출자에게 rejection으로 전달되도록 하십시오.\n\n### finding-005 — 최종 쿼리 오류가 조용히 사라짐\n\nSeverity: **medium**  \nRoot cause: `root-005`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/db.js` | 25-32 | `queryWithRetry` |\n\nReviewer/source evidence:\n\n```json\n} catch (error) {\n```\n\n```ts\n  if (attempt < attempts) continue;\n```\n\n```json\n}\n```\n\nVerifier evidence:\n\n```json\n    } catch (error) {\n```\n\n```ts\n      if (attempt < attempts) continue;\n```\n\nRationale:\n\n호출자가 쿼리 실패를 정상 결과와 구분하지 못해 오류가 은닉되고, 후속 권한·데이터 처리 로직이 잘못된 상태로 진행될 수 있습니다.\n\nRecommended action:\n\n모든 시도가 실패하면 마지막 오류를 보존해 다시 throw하고 회귀 테스트를 추가하십시오.\n\n### finding-006 — 페이지가 요청한 크기보다 한 항목 더 반환됨\n\nSeverity: **medium**  \nRoot cause: `root-006`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/pagination.js` | 11 | `paginate` |\n\nReviewer/source evidence:\n\n```ts\nconst end = start + pageSize + 1;\n```\n\nVerifier evidence:\n\n```text\npaginate([1,2,3,4,5], 1, 2) -> { items: [1,2], page: 1, totalPages: 3 }\n```\n\n```ts\nconst end = start + pageSize + 1;\n```\n\nRationale:\n\nslice의 종료 인덱스는 배타적이므로 pageSize개가 아니라 최대 pageSize\\+1개가 반환됩니다. 문서 예시와 페이지 크기 계약이 불일치합니다.\n\nRecommended action:\n\nend를 start \\+ pageSize로 수정하고 첫 페이지, 중간 페이지, 마지막 페이지 및 빈 입력에 대한 회귀 테스트를 추가하십시오.\n\n### finding-010 — 읽기 또는 검증 실패 시 config 파일 핸들이 누수됨\n\nSeverity: **medium**  \nRoot cause: `root-010`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/store.js` | 27-33 | `readConfigName` |\n\nReviewer/source evidence:\n\n```ts\n  if (!firstLine.trim()) throw new Error(\"config name is empty\");\n  await handle.close();\n```\n\nVerifier evidence:\n\n```ts\nconst handle = await fs.open(path, \"r\");\n```\n\n```ts\nconst { buffer, bytesRead } = await handle.read(Buffer.alloc(256), 0, 256, 0);\n```\n\n```ts\nif (!firstLine.trim()) throw new Error(\"config name is empty\");\n```\n\n```ts\nawait handle.close();\n```\n\nRationale:\n\nread()가 reject되거나 첫 번째 줄이 비어 있으면 close() 전에 실행이 종료되어 파일 디스크립터가 누수됩니다. 반복되는 잘못된 형식 또는 실패 요청은 디스크립터를 고갈시킬 수 있습니다.\n\nRecommended action:\n\nread와 검증을 try/finally로 감싸고 finally에서 핸들을 닫아 원래 오류를 보존하세요. 실패 경로에 대한 회귀 테스트도 추가하세요.\n\n### finding-011 — truncateTitle이 유효하지 않은 max 값을 허용하여 길이 계약을 위반함\n\nSeverity: **medium**  \nRoot cause: `root-011`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/format.js` | 15-17 | `truncateTitle` |\n\nReviewer/source evidence:\n\n```ts\nexport function truncateTitle(title, max = 40) {\n  if (typeof title !== \"string\") return \"\";\n  return title.length <= max ? title : `${title.slice(0, max - 1)}…`;\n}\n```\n\nVerifier evidence:\n\n```text\n/** Shorten a title to at most `max` characters, adding an ellipsis when cut. */\n```\n\n```ts\nreturn title.length <= max ? title : `${title.slice(0, max - 1)}…`;\n```\n\nRationale:\n\nmax=0 또는 음수일 때 함수는 문서화된 최대값을 초과하는 비어 있지 않은 결과를 반환할 수 있으며, 정수가 아닌 값도 일관되지 않은 경계 동작을 만듭니다. 이로 인해 유효하지 않은 호출자 입력이 API 계약 위반이 됩니다.\n\nRecommended action:\n\n슬라이싱 전에 \\`max\\`가 유한한 정수이고 \\`max &gt;= 1\\`인지 검증하거나, 길이 0 동작을 명시적으로 정의하세요.\n\n### finding-012 — 모든 시도가 실패한 후에도 queryWithRetry가 성공적으로 resolve됨\n\nSeverity: **medium**  \nRoot cause: `root-012`  \n\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| `src/db.js` | 25-32 | `queryWithRetry` |\n\nReviewer/source evidence:\n\n```text\n * Rejects with the last error when every attempt fails.\n */\nexport async function queryWithRetry(client, sql, params, attempts = 3) {\n  for (let attempt = 1; attempt <= attempts; attempt += 1) {\n    try {\n      return await client.query(sql, params);\n    } catch (error) {\n      if (attempt < attempts) continue;\n    }\n  }\n}\n```\n\nVerifier evidence:\n\n```ts\n  for (let attempt = 1; attempt <= attempts; attempt += 1) {\n    try {\n      return await client.query(sql, params);\n    } catch (error) {\n      if (attempt < attempts) continue;\n    }\n  }\n```\n\nRationale:\n\n모든 시도가 실패하면 최종 caught error가 반환되거나 다시 throw되지 않으며, attempts가 0 이하이면 루프가 실행되지 않아 조용히 성공하는 동작이 발생합니다.\n\nRecommended action:\n\n마지막 오류를 보존해 루프 종료 후 다시 throw하고, attempts가 양의 정수인지 검증하며 회귀 테스트를 추가하세요.\n\n## Recommended next action\n\nAddress kept or weakened findings and resolve needs-human items before release.\n\n## Evidence and review coverage\n\n- Canonical ledger rows rendered: 13 kept or weakened findings, 0 needs-human items, and 0 supporting observations.\n- Source coverage: complete according to deterministic source-status accounting.\n- Finding cards preserve ledger locations, evidence quotes, verifier dispositions, counter-evidence, and recommended actions where present.\n- Counts, dispositions, and the effective verdict come from deterministic partition state; narrative synthesis cannot override them.\n\n## Limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.\n\n## Related artifacts\n\n- [Machine-readable report](control.json) — structured renderer output and completion-summary contract.\n- [Structured source references](refs.json) — source pointers retained by the final workflow task.\n- [Legacy compatibility report](review.md) — byte-identical copy of this report.\n",
+	"audit": null
+}

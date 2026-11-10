@@ -1,0 +1,90 @@
+{
+	"fixture": "spec-review-current-codex",
+	"recordedFrom": {
+		"runId": "workflow_mwa5om5q_c612a1",
+		"status": "completed",
+		"createdAt": "2026-11-10T03:54:13.174Z",
+		"engine": {
+			"version": "0.1.0",
+			"checkout": {
+				"head": "078781bba7575fb38254c4cabeaceb17ec60f948",
+				"branch": "main",
+				"dirty": false,
+				"statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+			}
+		},
+		"executor": "codex"
+	},
+	"status": "completed",
+	"tasks": [
+		{
+			"specId": "candidate-findings.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "bbd053b6ad6e9df8"
+		},
+		{
+			"specId": "extract-spec.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "dc6befa4fb9454a9"
+		},
+		{
+			"specId": "final.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "e827c88c400799f7"
+		},
+		{
+			"specId": "inspect-tests.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "037d3347d6583478"
+		},
+		{
+			"specId": "map-implementation.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "65d8458fc0545fd9"
+		},
+		{
+			"specId": "partition-findings.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "937e94731df8d795"
+		},
+		{
+			"specId": "recheck-requirements.item",
+			"status": "completed",
+			"statusDetail": "foreach_empty",
+			"control": null
+		},
+		{
+			"specId": "report.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "446f56f024726cdb"
+		},
+		{
+			"specId": "select-unclear.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "045bddf0f9b3c220"
+		},
+		{
+			"specId": "verify-findings.finding-001",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "735395cbaeb52117"
+		},
+		{
+			"specId": "verify-findings.item",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"control": null
+		}
+	],
+	"finalReport": "# Spec review report\n\n## Executive summary\n\n### Core conclusion\n\nVerdict: **GAPS_FOUND**. REQ-004의 윈도우 만료 처리가 구현되지 않아 갭이 확인되었습니다.\n\n### Key gaps and actions\n\n- **KEEP:** Window expiration is not implemented — Action: Add an expiration check before incrementing; when now - entry.start is at least WINDOW\\_MS, replace the entry with a new zero-count window.\n- **Next action:** allow()에서 now - entry.start가 WINDOW\\_MS 이상인지 확인하고, 만료 시 count가 0인 새 윈도우로 교체하세요.\n\n### Evidence level\n\n- 1 actionable, 0 needs-human, and 0 dropped canonical disposition row(s).\n- Source lifecycle and candidate/verifier accounting passed deterministic completeness checks.\n\n### Important limitations\n\n- NONBLOCKING scope limitation: Tests were inspected but not executed; no test files or fixtures were found.\n- REQ-004 / finding-001: 60초 경과 후 기존 키의 count가 초기화되지 않습니다.\n\n## Conformance conclusion\n\n- Effective verdict: **GAPS_FOUND**\n- Narrative summary: REQ-004의 윈도우 만료 처리가 구현되지 않아 갭이 확인되었습니다.\n\n## Actionable conformance gaps\n\n### finding-001 — Window expiration is not implemented\n\n- Disposition: **KEEP**\n- Severity: **high**\n- Requirements: REQ-004\n- Claim: After 60 seconds, an existing key's count is not reset, so calls that should begin a new window can remain rejected.\n- Recommended action: Add an expiration check before incrementing; when now - entry.start is at least WINDOW\\_MS, replace the entry with a new zero-count window.\n\nEvidence:\n\n```json\n{\"file\":\"SPEC.md\",\"lineEnd\":6,\"lineStart\":6,\"quote\":\"- **R4.** When 60 seconds have passed since a key's window started, its count starts again from zero.\",\"relevance\":\"Explicit expiration requirement.\"}\n```\n\n```json\n{\"file\":\"src/limiter.js\",\"lineEnd\":2,\"lineStart\":2,\"quote\":\"const WINDOW_MS = 60_000;\",\"relevance\":\"Window duration is declared but not used.\"}\n```\n\n```json\n{\"file\":\"src/limiter.js\",\"lineEnd\":13,\"lineStart\":7,\"quote\":\"\\tlet entry = windows.get(key);\\n\\tif (!entry) {\\n\\t\\tentry = { start: now, count: 0 };\\n\\t\\twindows.set(key, entry);\\n\\t}\\n\\tentry.count += 1;\\n\\treturn entry.count <= LIMIT;\",\"relevance\":\"Existing entries are never replaced based on elapsed time; their counts are always incremented.\"}\n```\n\n## Requirement coverage\n\n| Requirement | Status | Notes |\n|---|---|---|\n| REQ-001 | covered |  |\n| REQ-002 | covered |  |\n| REQ-003 | covered |  |\n| REQ-004 | gap |  |\n\n## Nonblocking scope limitations\n\n- Tests were inspected but not executed; no test files or fixtures were found.\n\n## Needs human review\n\nNo needs-human disposition is present in the canonical ledger.\n\n## Dropped findings\n\nNo dropped finding is present in the canonical ledger.\n\n## Preliminary no-issue observations (unverified)\n\nThese model-authored notes are not independent conformance evidence.\n\n- REQ-001 is supported by LIMIT=5 and the count threshold.\n- REQ-002 is supported by the &lt;= LIMIT return condition.\n- REQ-003 is supported by the per-key Map entries.\n\n## Narrative risks and limitations\n\n- REQ-004 / finding-001: 60초 경과 후 기존 키의 count가 초기화되지 않습니다.\n\n## Verifier integrity\n\n- Candidates: 1 total; 1 unique.\n- Verifier rows: 1 total; 1 unique.\n- Missing verification rows: 0 (their dispositions are rendered once under Needs human review).\n- Orphan verifier rows: 0 (their dispositions are rendered once under Needs human review).\n- Invalid verifier rows: 0.\n- Batch-integrity rows: 0 (affected dispositions are rendered once under Needs human review).\n- Owner ledger: 1 owner row(s), 1 verifier row(s); reconciliation passed.\n\n## Evidence corrections\n\nVerifier and requirement-coverage evidence that differed from the file only in its cited lines or whitespace was matched against the file; verifier evidence is stored as the file's own text.\n\n- REQ-001 coverage: src/limiter.js lines 7-13 → 12-14 (the quote occurs once in the file, at these lines)\n- REQ-003 coverage: src/limiter.js lines 6-10 → 7-11 (the quote occurs once in the file, at these lines)\n- REQ-004 coverage: src/limiter.js lines 5-13 → 6-14 (the quote occurs once in the file, at these lines)\n\n## Byte evidence audit\n\n```json\n{\"complete\":true,\"coverage\":[{\"accountedBy\":[],\"complete\":true,\"corrections\":[{\"actual\":\"12-14\",\"cited\":\"7-13\",\"field\":\"coverage\",\"file\":\"src/limiter.js\",\"id\":\"REQ-001\",\"reason\":\"line\"}],\"id\":\"REQ-001\",\"index\":0,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":1,\"lineStart\":1,\"quote\":\"const LIMIT = 5;\",\"relevance\":\"Defines the five-call limit.\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"<sha256>\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":14,\"lineStart\":12,\"quote\":\"entry.count += 1;\\n\\treturn entry.count <= LIMIT;\\n}\",\"relevance\":\"Counts calls and allows counts through five.\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[],\"complete\":true,\"id\":\"REQ-002\",\"index\":1,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":13,\"lineStart\":13,\"quote\":\"return entry.count <= LIMIT;\",\"relevance\":\"Returns false from the sixth call onward.\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[],\"complete\":true,\"corrections\":[{\"actual\":\"7-11\",\"cited\":\"6-10\",\"field\":\"coverage\",\"file\":\"src/limiter.js\",\"id\":\"REQ-003\",\"reason\":\"line\"}],\"id\":\"REQ-003\",\"index\":2,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":3,\"lineStart\":3,\"quote\":\"const windows = new Map();\",\"relevance\":\"Stores state by key.\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"<sha256>\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":11,\"lineStart\":7,\"quote\":\"let entry = windows.get(key);\\n\\tif (!entry) {\\n\\t\\tentry = { start: now, count: 0 };\\n\\t\\twindows.set(key, entry);\\n\\t}\",\"relevance\":\"Creates and retrieves independent per-key entries.\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[\"finding-001\"],\"complete\":true,\"corrections\":[{\"actual\":\"6-14\",\"cited\":\"5-13\",\"field\":\"coverage\",\"file\":\"src/limiter.js\",\"id\":\"REQ-004\",\"reason\":\"line\"}],\"id\":\"REQ-004\",\"index\":3,\"positive\":false,\"rows\":[{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":2,\"lineStart\":2,\"quote\":\"const WINDOW_MS = 60_000;\",\"relevance\":\"The configured window duration exists but is not used.\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"<sha256>\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":14,\"lineStart\":6,\"quote\":\"export function allow(key, now = Date.now()) {\\n\\tlet entry = windows.get(key);\\n\\tif (!entry) {\\n\\t\\tentry = { start: now, count: 0 };\\n\\t\\twindows.set(key, entry);\\n\\t}\\n\\tentry.count += 1;\\n\\treturn entry.count <= LIMIT;\\n}\",\"relevance\":\"Never checks elapsed time or resets an existing entry.\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"status\":\"gap\",\"verdict\":\"KEEP\"}],\"findings\":[{\"complete\":true,\"id\":\"finding-001\",\"rows\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":6,\"lineStart\":6,\"quote\":\"- **R4.** When 60 seconds have passed since a key's window started, its count starts again from zero.\",\"relevance\":\"Explicit expiration requirement.\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"<sha256>\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":2,\"lineStart\":2,\"quote\":\"const WINDOW_MS = 60_000;\",\"relevance\":\"Window duration is declared but not used.\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"<sha256>\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":13,\"lineStart\":7,\"quote\":\"\\tlet entry = windows.get(key);\\n\\tif (!entry) {\\n\\t\\tentry = { start: now, count: 0 };\\n\\t\\twindows.set(key, entry);\\n\\t}\\n\\tentry.count += 1;\\n\\treturn entry.count <= LIMIT;\",\"relevance\":\"Existing entries are never replaced based on elapsed time; their counts are always incremented.\"},\"field\":\"evidence\",\"index\":2,\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"verdict\":\"KEEP\"}],\"protocol\":\"spec-local-evidence-v1\",\"requirementReconciliation\":{\"allCovered\":false,\"complete\":true,\"coverageIds\":[\"REQ-001\",\"REQ-002\",\"REQ-003\",\"REQ-004\"],\"issues\":[],\"missingIds\":[],\"proof\":{\"candidateControlSha256\":\"<sha256>\",\"candidateManifestSha256\":\"<sha256>\",\"candidateTaskId\":\"task-4\",\"extractControlSha256\":\"<sha256>\",\"extractTaskId\":\"task-1\",\"inspectTestsControlSha256\":\"<sha256>\",\"inspectTestsTaskId\":\"task-3\",\"mapControlSha256\":\"<sha256>\",\"mapTaskId\":\"task-2\",\"runId\":\"<run>\"},\"protocol\":\"spec-requirement-reconciliation-v1\",\"requirementIds\":[\"REQ-001\",\"REQ-002\",\"REQ-003\",\"REQ-004\"],\"sourceEvidence\":[{\"checked\":[{\"citation\":{\"file\":\"<cwd>/SPEC.md\",\"lineEnd\":3,\"lineStart\":3,\"quote\":\"- **R1.** `allow(key)` returns `true` for the first 5 calls for a key within a 60-second window.\"},\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-001\"},{\"checked\":[{\"citation\":{\"file\":\"<cwd>/SPEC.md\",\"lineEnd\":4,\"lineStart\":4,\"quote\":\"- **R2.** The 6th and later calls for that key within the same window return `false`.\"},\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-002\"},{\"checked\":[{\"citation\":{\"file\":\"<cwd>/SPEC.md\",\"lineEnd\":5,\"lineStart\":5,\"quote\":\"- **R3.** Keys are independent: calls for one key never change the result for another key.\"},\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-003\"},{\"checked\":[{\"citation\":{\"file\":\"<cwd>/SPEC.md\",\"lineEnd\":6,\"lineStart\":6,\"quote\":\"- **R4.** When 60 seconds have passed since a key's window started, its count starts again from zero.\"},\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-004\"}],\"unresolvedIds\":[]}}\n```\n\n## Recommended next action\n\nallow()에서 now - entry.start가 WINDOW\\_MS 이상인지 확인하고, 만료 시 count가 0인 새 윈도우로 교체하세요.\n\n## Evidence and limitations\n\n- Partition source lifecycle: complete.\n- Canonical counts: 1 actionable, 0 needs-human, 0 dropped.\n- Test execution attested: false (read-only inspection).\n- The deterministic partition ledger controls findings, dispositions, counts, and the effective verdict; narrative synthesis cannot override it.\n- No source-coverage or renderer-integrity limitation was recorded.\n\n## Related artifacts\n\n- [Machine-readable renderer control](control.json)\n- [Structured source references](refs.json)\n- [Canonical disposition ledger](source-ledger.json)\n",
+	"audit": null
+}

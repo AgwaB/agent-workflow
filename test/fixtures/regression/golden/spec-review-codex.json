@@ -1,0 +1,81 @@
+{
+	"fixture": "spec-review-codex",
+	"recordedFrom": {
+		"runId": "workflow_mw7jacel_556f23",
+		"status": "completed",
+		"createdAt": "2026-11-08T07:51:43.464Z",
+		"engine": null,
+		"executor": "codex"
+	},
+	"status": "completed",
+	"tasks": [
+		{
+			"specId": "candidate-findings.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "69dec81fb6bceabf"
+		},
+		{
+			"specId": "extract-spec.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "b4620d7d6c5ca3e2"
+		},
+		{
+			"specId": "final.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "50bd41f2e06d4807"
+		},
+		{
+			"specId": "inspect-tests.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "42deaee8ccb3782b"
+		},
+		{
+			"specId": "map-implementation.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "7f43418440eda4d9"
+		},
+		{
+			"specId": "partition-findings.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "14b026a9e95689ca"
+		},
+		{
+			"specId": "recheck-requirements.item",
+			"status": "completed",
+			"statusDetail": "foreach_empty",
+			"control": null
+		},
+		{
+			"specId": "report.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "db976b0d2062083d"
+		},
+		{
+			"specId": "select-unclear.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "045bddf0f9b3c220"
+		},
+		{
+			"specId": "verify-findings.finding-001",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "05ef584f39421882"
+		},
+		{
+			"specId": "verify-findings.item",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"control": null
+		}
+	],
+	"finalReport": "# Spec review report\n\n## Executive summary\n\n### Core conclusion\n\nVerdict: **GAPS_FOUND**. src/limiter.js는 대부분의 요구사항을 충족하지만, 60초 후 카운터 리셋이 없어 REQ-004에 대한 확인된 갭이 1건 있습니다.\n\n### Key gaps and actions\n\n- **KEEP:** Rate-limit windows never reset after 60 seconds — Action: Compare now with entry.start before incrementing; reset the entry count and window start when the window has elapsed.\n- **Next action:** allow(key)에서 now와 entry.start를 비교해 60초 경과 시 count와 window start를 초기화한 뒤 검토를 다시 실행하세요.\n\n### Evidence level\n\n- 1 actionable, 0 needs-human, and 0 dropped canonical disposition row(s).\n- Source lifecycle and candidate/verifier accounting passed deterministic completeness checks.\n\n### Important limitations\n\n- NONBLOCKING scope limitation: No tests or fixtures were available; tests were not executed in this read-only stage.\n- finding-001 / REQ-004: 60초가 지나도 allow(key)의 기존 카운터와 윈도우 시작 시각이 리셋되지 않습니다.\n\n## Conformance conclusion\n\n- Effective verdict: **GAPS_FOUND**\n- Narrative summary: src/limiter.js는 대부분의 요구사항을 충족하지만, 60초 후 카운터 리셋이 없어 REQ-004에 대한 확인된 갭이 1건 있습니다.\n\n## Actionable conformance gaps\n\n### finding-001 — Rate-limit windows never reset after 60 seconds\n\n- Disposition: **KEEP**\n- Severity: **high**\n- Requirements: REQ-004\n- Claim: allow(key) does not reset an existing key's count when 60 seconds have elapsed since its window started, violating R4.\n- Recommended action: Compare now with entry.start before incrementing; reset the entry count and window start when the window has elapsed.\n\nEvidence:\n\n```json\n{\"file\":\"SPEC.md\",\"lineEnd\":6,\"lineStart\":6,\"quote\":\"- **R4.** When 60 seconds have passed since a key's window started, its count starts again from zero.\",\"relevance\":\"Explicitly requires count reset after 60 seconds.\"}\n```\n\n```json\n{\"file\":\"src/limiter.js\",\"lineEnd\":13,\"lineStart\":7,\"quote\":\"let entry = windows.get(key);\\n\\tif (!entry) {\\n\\t\\tentry = { start: now, count: 0 };\\n\\t\\twindows.set(key, entry);\\n\\t}\\n\\tentry.count += 1;\\n\\treturn entry.count <= LIMIT;\",\"relevance\":\"Existing entries are reused; no elapsed-time check or count reset occurs.\"}\n```\n\n## Requirement coverage\n\n| Requirement | Status | Notes |\n|---|---|---|\n| REQ-001 | covered |  |\n| REQ-002 | covered |  |\n| REQ-003 | covered |  |\n| REQ-004 | gap |  |\n\n## Nonblocking scope limitations\n\n- No tests or fixtures were available; tests were not executed in this read-only stage.\n\n## Needs human review\n\nNo needs-human disposition is present in the canonical ledger.\n\n## Dropped findings\n\nNo dropped finding is present in the canonical ledger.\n\n## Preliminary no-issue observations (unverified)\n\nThese model-authored notes are not independent conformance evidence.\n\n- REQ-001 is supported by LIMIT=5 and the count comparison.\n- REQ-002 is supported by returning entry.count &lt;= LIMIT.\n- REQ-003 is supported by the Map keyed by each key.\n\n## Narrative risks and limitations\n\n- finding-001 / REQ-004: 60초가 지나도 allow(key)의 기존 카운터와 윈도우 시작 시각이 리셋되지 않습니다.\n\n## Verifier integrity\n\n- Candidates: 1 total; 1 unique.\n- Verifier rows: 1 total; 1 unique.\n- Missing verification rows: 0 (their dispositions are rendered once under Needs human review).\n- Orphan verifier rows: 0 (their dispositions are rendered once under Needs human review).\n- Invalid verifier rows: 0.\n- Batch-integrity rows: 0 (affected dispositions are rendered once under Needs human review).\n- Owner ledger: 1 owner row(s), 1 verifier row(s); reconciliation passed.\n\n## Byte evidence audit\n\n```json\n{\"complete\":true,\"coverage\":[{\"accountedBy\":[],\"complete\":true,\"id\":\"REQ-001\",\"index\":0,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":2,\"lineStart\":1,\"quote\":\"const LIMIT = 5;\\nconst WINDOW_MS = 60_000;\",\"relevance\":\"Defines the five-call limit and 60-second window constant.\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"<sha256>\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":13,\"lineStart\":12,\"quote\":\"entry.count += 1;\\n\\treturn entry.count <= LIMIT;\",\"relevance\":\"Allows the first five calls.\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[],\"complete\":true,\"id\":\"REQ-002\",\"index\":1,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":13,\"lineStart\":12,\"quote\":\"entry.count += 1;\\n\\treturn entry.count <= LIMIT;\",\"relevance\":\"Returns false from the sixth call onward while the entry persists.\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[],\"complete\":true,\"id\":\"REQ-003\",\"index\":2,\"positive\":true,\"rows\":[{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":10,\"lineStart\":3,\"quote\":\"const windows = new Map();\\n\\n/** Returns true when the call for `key` is allowed (see SPEC.md). */\\nexport function allow(key, now = Date.now()) {\\n\\tlet entry = windows.get(key);\\n\\tif (!entry) {\\n\\t\\tentry = { start: now, count: 0 };\",\"relevance\":\"Stores independent entries keyed by key.\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"status\":\"covered\",\"verdict\":\"KEEP\"},{\"accountedBy\":[\"finding-001\"],\"complete\":true,\"id\":\"REQ-004\",\"index\":3,\"positive\":false,\"rows\":[{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":13,\"lineStart\":7,\"quote\":\"let entry = windows.get(key);\\n\\tif (!entry) {\\n\\t\\tentry = { start: now, count: 0 };\\n\\t\\twindows.set(key, entry);\\n\\t}\\n\\tentry.count += 1;\\n\\treturn entry.count <= LIMIT;\",\"relevance\":\"No elapsed-time check or reset occurs after initialization.\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"status\":\"gap\",\"verdict\":\"KEEP\"}],\"findings\":[{\"complete\":true,\"id\":\"finding-001\",\"rows\":[{\"citation\":{\"file\":\"SPEC.md\",\"lineEnd\":6,\"lineStart\":6,\"quote\":\"- **R4.** When 60 seconds have passed since a key's window started, its count starts again from zero.\",\"relevance\":\"Explicitly requires count reset after 60 seconds.\"},\"field\":\"evidence\",\"index\":0,\"sha256\":\"<sha256>\",\"status\":\"verified\"},{\"citation\":{\"file\":\"src/limiter.js\",\"lineEnd\":13,\"lineStart\":7,\"quote\":\"let entry = windows.get(key);\\n\\tif (!entry) {\\n\\t\\tentry = { start: now, count: 0 };\\n\\t\\twindows.set(key, entry);\\n\\t}\\n\\tentry.count += 1;\\n\\treturn entry.count <= LIMIT;\",\"relevance\":\"Existing entries are reused; no elapsed-time check or count reset occurs.\"},\"field\":\"evidence\",\"index\":1,\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"verdict\":\"KEEP\"}],\"protocol\":\"spec-local-evidence-v1\",\"requirementReconciliation\":{\"allCovered\":false,\"complete\":true,\"coverageIds\":[\"REQ-001\",\"REQ-002\",\"REQ-003\",\"REQ-004\"],\"issues\":[],\"missingIds\":[],\"proof\":{\"candidateControlSha256\":\"<sha256>\",\"candidateManifestSha256\":\"<sha256>\",\"candidateTaskId\":\"task-4\",\"extractControlSha256\":\"<sha256>\",\"extractTaskId\":\"task-1\",\"inspectTestsControlSha256\":\"<sha256>\",\"inspectTestsTaskId\":\"task-3\",\"mapControlSha256\":\"<sha256>\",\"mapTaskId\":\"task-2\",\"runId\":\"<run>\"},\"protocol\":\"spec-requirement-reconciliation-v1\",\"requirementIds\":[\"REQ-001\",\"REQ-002\",\"REQ-003\",\"REQ-004\"],\"sourceEvidence\":[{\"checked\":[{\"citation\":{\"file\":\"<cwd>/SPEC.md\",\"lineEnd\":3,\"lineStart\":3,\"quote\":\"- **R1.** `allow(key)` returns `true` for the first 5 calls for a key within a 60-second window.\"},\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-001\"},{\"checked\":[{\"citation\":{\"file\":\"<cwd>/SPEC.md\",\"lineEnd\":4,\"lineStart\":4,\"quote\":\"- **R2.** The 6th and later calls for that key within the same window return `false`.\"},\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-002\"},{\"checked\":[{\"citation\":{\"file\":\"<cwd>/SPEC.md\",\"lineEnd\":5,\"lineStart\":5,\"quote\":\"- **R3.** Keys are independent: calls for one key never change the result for another key.\"},\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-003\"},{\"checked\":[{\"citation\":{\"file\":\"<cwd>/SPEC.md\",\"lineEnd\":6,\"lineStart\":6,\"quote\":\"- **R4.** When 60 seconds have passed since a key's window started, its count starts again from zero.\"},\"sha256\":\"<sha256>\",\"status\":\"verified\"}],\"complete\":true,\"id\":\"REQ-004\"}],\"unresolvedIds\":[]}}\n```\n\n## Recommended next action\n\nallow(key)에서 now와 entry.start를 비교해 60초 경과 시 count와 window start를 초기화한 뒤 검토를 다시 실행하세요.\n\n## Evidence and limitations\n\n- Partition source lifecycle: complete.\n- Canonical counts: 1 actionable, 0 needs-human, 0 dropped.\n- Test execution attested: false (read-only inspection).\n- The deterministic partition ledger controls findings, dispositions, counts, and the effective verdict; narrative synthesis cannot override it.\n- No source-coverage or renderer-integrity limitation was recorded.\n\n## Related artifacts\n\n- [Machine-readable renderer control](control.json)\n- [Structured source references](refs.json)\n- [Canonical disposition ledger](source-ledger.json)\n",
+	"audit": null
+}

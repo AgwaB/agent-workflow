@@ -1,0 +1,103 @@
+{
+	"fixture": "impact-review-current-codex",
+	"recordedFrom": {
+		"runId": "workflow_mwa5pjul_b22b58",
+		"status": "failed",
+		"createdAt": "2026-11-10T03:54:56.835Z",
+		"engine": {
+			"version": "0.1.0",
+			"checkout": {
+				"head": "078781bba7575fb38254c4cabeaceb17ec60f948",
+				"branch": "main",
+				"dirty": false,
+				"statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+			}
+		},
+		"executor": "codex"
+	},
+	"status": "failed",
+	"tasks": [
+		{
+			"specId": "impact-analysis.api-contract-impact.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "c60844e943128800"
+		},
+		{
+			"specId": "impact-analysis.change-scope.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "87015ebeaa1b0910"
+		},
+		{
+			"specId": "impact-analysis.contract-consistency.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "98aa991c9fdf5600"
+		},
+		{
+			"specId": "impact-analysis.docs-release-impact.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "8c0b9495afa5bc97"
+		},
+		{
+			"specId": "impact-analysis.final.main",
+			"status": "failed",
+			"statusDetail": "support_declared_failed",
+			"message": "support declared failed",
+			"control": "ea1ffae74c76f047"
+		},
+		{
+			"specId": "impact-analysis.impact-synthesis.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "866ee0e7933e3893"
+		},
+		{
+			"specId": "impact-analysis.implementation-map.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "6801e9edcc0ecfe6"
+		},
+		{
+			"specId": "impact-analysis.regression-risk.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "fe0f38701464ddc0"
+		},
+		{
+			"specId": "impact-analysis.security-performance-impact.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "446fe080ca1bf6eb"
+		},
+		{
+			"specId": "impact-analysis.ship-readiness.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "c25bbf6183d81121"
+		},
+		{
+			"specId": "impact-analysis.state-data-impact.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "4ac9b9dc1aa334ae"
+		},
+		{
+			"specId": "impact-analysis.validation-impact.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "26d11ad43c90e0ef"
+		},
+		{
+			"specId": "impact-analysis.validation-map.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "38362eb31bca8e28"
+		}
+	],
+	"finalReport": null,
+	"audit": null
+}

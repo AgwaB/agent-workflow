@@ -29,9 +29,16 @@
 //   controlSequence  { "<task id>": [control, …] }: the Nth submit for that task (counted in the
 //                 effect log, so across worker processes) answers with the Nth control (the last
 //                 one repeats) instead of the default `{schema, digest}` control
+//   replay        { file }: answer from a recorded run (test/helpers/regression-fixtures.mjs). The Nth submit of a
+//                 task answers with the Nth recorded output of its spec id (failed attempts first, the last one
+//                 repeats) after re-doing the recorded artifact reads; a spec id without a recording answers
+//                 "no recording" (the output is invalid, so the task fails the same way every time)
 import { appendFileSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { createFakeExecutor } from "@agwab/agent-workflow/sdk/testing";
+import { workflowRunDir } from "../../dist/core/store.js";
 import { handleWorkflowArtifactToolCall } from "../../dist/core/workflow-artifact-tool.js";
 
 export const WORKFLOW_EXECUTOR_FIXTURE_MODULE = fileURLToPath(import.meta.url);
@@ -158,11 +165,87 @@ export function autoComparisonText(prompt, recommend, status) {
 	});
 }
 
+const replays = new Map();
+
+/** The recorded run of `config.replay.file` (gzip JSON), loaded once per process. */
+function replayFixture(config) {
+	const file = config.replay.file;
+	if (!replays.has(file)) {
+		const bytes = readFileSync(file);
+		replays.set(
+			file,
+			JSON.parse(
+				(file.endsWith(".gz") ? gunzipSync(bytes) : bytes).toString("utf8"),
+			),
+		);
+	}
+	return replays.get(file);
+}
+
+/** The run-record task an attempt key names (awf1:<run>:<task>:<digest>). */
+function replayTask(req) {
+	const [, runId, taskId] = req.attemptKey.split(":");
+	const run = JSON.parse(
+		readFileSync(join(workflowRunDir(req.cwd, runId), "run.json"), "utf8"),
+	);
+	return run.tasks.find((task) => task.taskId === taskId);
+}
+
+function replaySpecId(req) {
+	return replayTask(req)?.specId;
+}
+
+/**
+ * Reads a replayed attempt makes: each read the current engine requires of the task, `count` times (a required read
+ * with a count must be made exactly that often), as a compliant model would; then the recorded worker's other reads.
+ */
+function replayReads(req, config) {
+	const task = replayTask(req);
+	const keyOf = (read) =>
+		JSON.stringify([
+			read.source,
+			read.artifact,
+			read.path ?? null,
+			read.maxChars ?? null,
+			read.maxItems ?? null,
+		]);
+	const required = (task?.artifactGraph?.requiredReads ?? []).flatMap(
+		(read) => {
+			if (typeof read !== "string") {
+				const { count = 1, ...spec } = read;
+				return Array.from({ length: count }, () => spec);
+			}
+			const match = /^([A-Za-z0-9_.-]+)\.(control|analysis|refs|raw)$/.exec(
+				read,
+			);
+			return match ? [{ source: match[1], artifact: match[2] }] : [];
+		},
+	);
+	const requiredKeys = new Set(required.map(keyOf));
+	const recorded = (
+		replayFixture(config).tasks[task?.specId]?.reads ?? []
+	).filter((read) => !requiredKeys.has(keyOf(read)));
+	return [...required, ...recorded];
+}
+
+function replayText(req, config) {
+	const label = req.attemptKey.split(":")[2] ?? "task";
+	const recorded = replayFixture(config).tasks[replaySpecId(req)];
+	if (!recorded?.attempts?.length)
+		return `no recording for ${replaySpecId(req) ?? label}`;
+	const attempt = submitsFor(config.effectLog, label) - 1;
+	// Recorded outputs name the recorded run's cwd through a placeholder (regression-fixtures.mjs).
+	return recorded.attempts[Math.min(attempt, recorded.attempts.length - 1)]
+		.split("{{AW_REPLAY_CWD}}")
+		.join(req.cwd);
+}
+
 function scriptFor(req, config) {
 	const label = req.attemptKey.split(":")[2] ?? "task";
 	const sequence = config.controlSequence?.[label];
-	const finalText =
-		config.autoRecommend !== undefined && isAutoClassifierRequest(req)
+	const finalText = config.replay
+		? replayText(req, config)
+		: config.autoRecommend !== undefined && isAutoClassifierRequest(req)
 			? autoComparisonText(req.prompt, config.autoRecommend, config.autoStatus)
 			: sequence
 				? workflowControlText(
@@ -212,10 +295,18 @@ async function readArtifacts(req, config, effectLog) {
 	const { version: _version, ...access } = JSON.parse(
 		readFileSync(configPath, "utf8"),
 	);
-	for (const read of config.reads ?? []) {
+	const reads = config.replay ? replayReads(req, config) : (config.reads ?? []);
+	for (const read of reads) {
 		try {
 			await handleWorkflowArtifactToolCall(
-				{ action: "read", source: read.source, artifact: read.artifact },
+				{
+					action: "read",
+					source: read.source,
+					artifact: read.artifact,
+					...(read.path === undefined ? {} : { path: read.path }),
+					...(read.maxChars === undefined ? {} : { maxChars: read.maxChars }),
+					...(read.maxItems === undefined ? {} : { maxItems: read.maxItems }),
+				},
 				access,
 			);
 			log(effectLog, {

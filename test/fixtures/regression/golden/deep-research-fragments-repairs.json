@@ -1,0 +1,250 @@
+{
+	"fixture": "deep-research-fragments-repairs",
+	"recordedFrom": {
+		"runId": "workflow_mw6s1w6u_2e35dc",
+		"status": "completed",
+		"createdAt": "2026-11-07T19:09:19.549Z",
+		"engine": null,
+		"executor": "codex"
+	},
+	"status": "failed",
+	"tasks": [
+		{
+			"specId": "audit-claims.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "7c4d1e7aeb8161b5"
+		},
+		{
+			"specId": "check-web-quotes.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "15672d1c4b419b98"
+		},
+		{
+			"specId": "final-audit-packet.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "b84913c990f23bc4"
+		},
+		{
+			"specId": "final-audit.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "c517821bd4bbc93e"
+		},
+		{
+			"specId": "final.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "e626a6487f34badb"
+		},
+		{
+			"specId": "normalize-claims.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "a7da6ff522d4e7e3"
+		},
+		{
+			"specId": "normalize-input-packet.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "f96505f0f514a58b"
+		},
+		{
+			"specId": "plan.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "7d6962167e58d40b"
+		},
+		{
+			"specId": "research-questions.item",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"control": null
+		},
+		{
+			"specId": "research-questions.rq-001",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "f871e07f892a36b2"
+		},
+		{
+			"specId": "research-questions.rq-002",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "6fefb086762219be"
+		},
+		{
+			"specId": "research-questions.rq-003",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "7bada0a80d7445e1"
+		},
+		{
+			"specId": "research-questions.rq-004",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "5175989c170e49cd"
+		},
+		{
+			"specId": "research-questions.rq-005",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "0777b5d712defd36"
+		},
+		{
+			"specId": "research-questions.rq-006",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "1c2e07303873c7cb"
+		},
+		{
+			"specId": "research-questions.rq-007",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "f7b971b97f08e41d"
+		},
+		{
+			"specId": "retranslate.item",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"control": null
+		},
+		{
+			"specId": "retranslate.refused-translations-1",
+			"status": "failed",
+			"statusDetail": "workflow_output_invalid_exhausted",
+			"message": "Validation error: workflow output protocol was invalid.\nReturn these sections in this order, at most once each, with no prose outside the tags. Optional sections may be omitted:\n<control>{...}</control>\n<analysis>...</analysis> (optional)\n<refs>[...]</refs> (optional)\nIssues:\n- control: control section is required\n- output must not contain prose outside workflow output sections",
+			"control": null
+		},
+		{
+			"specId": "sanitize-claims.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "8cb0f2bfff137565"
+		},
+		{
+			"specId": "translation-check.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "645734388ce5d19f"
+		},
+		{
+			"specId": "verify-claims.claim-001",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "cbfc8af3ecb26a28"
+		},
+		{
+			"specId": "verify-claims.claim-002",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "968ec3b7325f38e4"
+		},
+		{
+			"specId": "verify-claims.claim-003",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "7965599b5b7ef2d6"
+		},
+		{
+			"specId": "verify-claims.claim-004",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "c903c058914c2d0f"
+		},
+		{
+			"specId": "verify-claims.claim-005",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "0381c0201ded4c3f"
+		},
+		{
+			"specId": "verify-claims.claim-006",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "90004fa098ade2c1"
+		},
+		{
+			"specId": "verify-claims.claim-007",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "eeefcacc5a569f93"
+		},
+		{
+			"specId": "verify-claims.claim-008",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "caf0369ad1632bd7"
+		},
+		{
+			"specId": "verify-claims.claim-009",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "deeb01f6b4de4396"
+		},
+		{
+			"specId": "verify-claims.claim-010",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "df93454447270ca9"
+		},
+		{
+			"specId": "verify-claims.claim-011",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "d3ccae5faecda9b3"
+		},
+		{
+			"specId": "verify-claims.claim-012",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "03cdfaf67a3f05db"
+		},
+		{
+			"specId": "verify-claims.claim-013",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "2d7a53ca0eb43639"
+		},
+		{
+			"specId": "verify-claims.claim-014",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "1640d9efb174b30d"
+		},
+		{
+			"specId": "verify-claims.claim-015",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "edb34aae9076afc6"
+		},
+		{
+			"specId": "verify-claims.claim-016",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "ccd55af86c27f47b"
+		},
+		{
+			"specId": "verify-claims.claim-017",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "45955f4448ea6584"
+		},
+		{
+			"specId": "verify-claims.claim-018",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "15d112a753747941"
+		},
+		{
+			"specId": "verify-claims.item",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"control": null
+		}
+	],
+	"finalReport": "# Research report\n\n## Executive summary\n\n### Core conclusion\n\nRFC 9000·9001·9002는 2021년 5월 QUIC v1 전송, TLS 1.3 보안, 손실 감지·혼잡 제어를 정의한다. RFC 9114·9204는 2022년 6월 HTTP/3와 QPACK을, RFC 9369는 2023년 5월 QUIC v2를 다룬다. 감사된 상태 정보상 여섯 RFC 모두 Proposed Standard이며, QUIC v2의 v1 호환성 및 차이에 관한 세부 주장은 부분 지원으로 표시해야 한다. notes.md의 UDP 기반 QUIC 설명은 RFC 9000과 대조되었다.\n\n### Main recommendations\n\n아래 권고는 조사 결과를 바탕으로 한 제안입니다.\n\n- RFC 9000·9001·9002를 QUIC v1 핵심 사양 묶음으로 제시하고, TLS와 손실·혼잡 제어가 별도 RFC로 정의된다는 점을 명시한다.\n- RFC 9114는 QUIC 위의 HTTP 의미 매핑, RFC 9204는 HTTP/3 필드 압축인 QPACK으로 설명한다.\n- RFC 9369는 QUIC v2의 식별 정보와 Proposed Standard 상태까지는 확정적으로 기재하되, v1과의 구체적 차이 및 호환성 설명은 부분 지원 각주를 붙인다. (일부 근거만 확인됨)\n- notes.md의 QUIC-over-UDP 및 IETF QUIC 작업 그룹 관련 메모는 RFC 9000을 외부 대조 근거로 함께 표시한다.\n\n### Limits to keep in mind\n\n- 일부 근거를 충분히 확인하지 못했습니다. 해당 내용을 확정된 사실로 받아들이지 마세요.\n- 추가로 확인할 질문이 남아 있습니다. 확인된 일부 사실만으로 전체 결론이 입증된 것은 아닙니다.\n- QUIC v2의 정확한 wire-level 차이와 호환성 세부는 현재 근거가 완전히 정합적이지 않습니다. 보고서에서는 RFC 9369의 존재·발행월·상태와 v2의 개요만 확정적으로 쓰고, 세부 동작은 추가 1차 검증 뒤 확정해야 합니다.\n\nSource verification: the engine found 0 of 34 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Research scope and method\n\n- Task type: research\\_survey.\n- Research depth: standard.\n- Research questions: 7.\n- Planned fact slots: 19.\n- Expected output shape: research\\_brief.\n- Scope coverage: covered 7.\n- Method: plan research questions, collect source evidence, normalize claims, verify selected claims, apply deterministic audit gates, and synthesize the report.\n\n## Main findings\n\n### 1. RFC 9000, QUIC: A UDP-Based Multiplexed and Secure Transport, 2021년 5월.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9000/>)\nEvidence citations:\n- source-001: quote \"RFC 9000  | QUIC Transport Protocol  | May 2021\"\n- source-002: quote \"# QUIC: A UDP-Based Multiplexed and Secure Transport\\nRFC 9000\\nDocument  | Type  |  | RFC - Proposed Standard (May 2021)\"\n\nRFC Editor와 IETF Datatracker가 번호, 정식 제목, 발행월을 확인한다.\n\n### 2. 이 문서는 QUIC 버전 1을 정의한다.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9000/>)\nEvidence citations:\n- source-002: quote \"This document defines version 1 of QUIC, which conforms to the version-independent properties of QUIC defined in [QUIC-INVARIANTS\\].\"\n\nRFC 9000 본문이 QUIC 버전 1의 정의 문서임을 명시한다.\n\n### 3. RFC 9001, Using TLS to Secure QUIC, 2021년 5월 발행; 현재 상태는 Proposed Standard이다.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9001/>)\nEvidence citations:\n- RFC Editor: quote \"RFC 9001  | Using TLS to Secure QUIC  | May 2021\"\n- IETF Datatracker: quote \"RFC - Proposed Standard (May 2021)\"\n- RFC Editor: quote \"This document describes how Transport Layer Security (TLS) is used to secure QUIC.\"\n\nRFC Editor와 IETF Datatracker가 제목·발행월·현재 상태를 확인한다.\n\n### 4. RFC 9001은 QUIC에서 TLS 1.3을 사용하고 핸드셰이크에서 파생된 키로 패킷을 보호하도록 규정한다.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>)\nEvidence citations:\n- source-rfc-editor-9001: quote \"This document describes how QUIC [QUIC-TRANSPORT\\] is secured using TLS [TLS13\\].\"\n- source-rfc-editor-9001: quote \"For brevity, the acronym TLS is used to refer to TLS 1.3, though a newer version could be used; see Section 4.2.\"\n- source-rfc-editor-9001: quote \"QUIC assumes responsibility for the confidentiality and integrity protection of packets. For this it uses keys derived from a TLS handshake\"\n\nRFC 9001이 QUIC의 TLS 사용과 패킷 보호 방식을 설명한다.\n\n### 5. RFC 9002, QUIC Loss Detection and Congestion Control, 2021년 5월.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>)\nEvidence citations:\n- IETF Datatracker: quote \"QUIC Loss Detection and Congestion Control\\nRFC 9002\\nDocument  | Type  |  | RFC - Proposed Standard (May 2021)\"\n\nIETF Datatracker와 RFC Editor가 번호, 제목, 발행월을 확인한다.\n\n### 6. 이 문서는 QUIC의 손실 감지와 혼잡 제어 메커니즘을 설명한다.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>)\nEvidence citations:\n- source-002: quote \"This document describes loss detection and congestion control mechanisms for QUIC.\"\n- source-002: quote \"This document specifies a sender-side congestion controller for QUIC similar to TCP NewReno [RFC6582\\].\"\n- source-002: quote \"Loss detection is separate per packet number space, unlike RTT measurement and congestion control, because RTT and congestion control are properties of the path, whereas loss detection also relies upon key availability.\"\n\nRFC 9002가 다루는 기술 범위를 직접 설명한다.\n\n### 7. RFC 9114, HTTP/3, 2022년 6월.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>)\nEvidence citations:\n- source-001: quote \"RFC 9114  | HTTP/3  | June 2022\"\n- IETF Datatracker: quote \"HTTP/3\\nRFC 9114\\nDocument  | Type  |  | RFC - Proposed Standard (June 2022)\"\n\nRFC Editor와 IETF Datatracker가 번호, 제목, 발행월을 확인한다.\n\n### 8. RFC 9114 — This document defines HTTP/3: a mapping of HTTP semantics over the QUIC transport protocol.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9114/>)\nEvidence citations:\n- source-003: quote \"This document defines HTTP/3: a mapping of HTTP semantics over the QUIC transport protocol, drawing heavily on the design of HTTP/2.\"\n\nRFC 9114의 초록과 본문이 HTTP/3를 QUIC 전송 프로토콜 위의 HTTP 의미론 매핑으로 명시한다.\n\n### 9. RFC 9204, QPACK: Field Compression for HTTP/3, 2022년 6월.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>)\nEvidence citations:\n- RFC Editor: quote \"RFC 9204  | QPACK  | June 2022\"\n- RFC Editor: quote \"# RFC 9204\\n# QPACK: Field Compression for HTTP/3\"\n\nRFC Editor가 번호, 제목, 발행월을 확인한다.\n\n### 10. QPACK은 HTTP/3에서 사용하는 HTTP 필드를 효율적으로 표현하기 위한 압축 형식이다.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>)\nEvidence citations:\n- RFC Editor: quote \"This specification defines QPACK: a compression format for efficiently representing HTTP fields that is to be used in HTTP/3.\"\n\nRFC 9204가 HTTP/3 필드 압축 형식임을 설명한다.\n\n### 11. RFC 9369, QUICv2, 2023년 5월.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>)\nEvidence citations:\n- RFC Editor: quote \"RFC 9369  | QUICv2  | May 2023\"\n\nIETF Datatracker와 RFC Editor가 번호, 제목, 발행월을 확인한다.\n\n### 12. 몇 가지 차이를 제외하면 QUIC 버전 2 엔드포인트는 QUIC 버전 1 사양을 구현해야 한다.\n\nEvidence status: **partially\\_supported**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>)\nEvidence citations:\n- source-002: quote \"Except for a few differences, QUIC version 2 endpoints MUST implement the QUIC version 1 specification as described in [QUIC\\], [QUIC-TLS\\], and [QUIC-RECOVERY\\]. The remainder of this section lists the differences.\"\n\n이 주장은 감사상 부분 지원이며, 세부 호환성 설명으로 확정해서는 안 된다.\n\n## Recommendations\n\n1. **RFC 9000·9001·9002를 QUIC v1 핵심 사양 묶음으로 제시하고, TLS와 손실·혼잡 제어가 별도 RFC로 정의된다는 점을 명시한다.**\n   - Evidence status: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9000/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9001/>)\n\n2. **RFC 9114는 QUIC 위의 HTTP 의미 매핑, RFC 9204는 HTTP/3 필드 압축인 QPACK으로 설명한다.**\n   - Evidence status: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9114/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>)\n\n3. **RFC 9369는 QUIC v2의 식별 정보와 Proposed Standard 상태까지는 확정적으로 기재하되, v1과의 구체적 차이 및 호환성 설명은 부분 지원 각주를 붙인다.**\n   - Evidence status: partially\\_supported\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369>)\n\n4. **notes.md의 QUIC-over-UDP 및 IETF QUIC 작업 그룹 관련 메모는 RFC 9000을 외부 대조 근거로 함께 표시한다.**\n   - Evidence status: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>)\n\n## Action plan\n\n1. 표에 각 RFC의 번호·제목·발행월·표준화 상태·주요 범위를 별도 열로 기록한다.\n   - Evidence: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9000/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>)\n\n2. HTTP/3와 QPACK을 각각 HTTP 의미 매핑과 필드 압축 사양으로 구분해 기록한다.\n   - Evidence: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9114/>)\n\n3. QUIC v2 항목에는 RFC 9369의 발행 정보와 상태를 기록하고, 세부 차이 주장은 검증 보류로 표시한다.\n   - Evidence: partially\\_supported\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369>)\n\n4. notes.md의 관련 설명은 로컬 메모임을 밝히고 RFC 9000과 교차 인용한다.\n   - Evidence: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>)\n\n## Evidence strength\n\n| Area | Status | Evidence | Why it matters |\n|---|---|---|---|\n| RFC 9369 다루는 내용 | partial | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>) | QUIC v2의 v1 재사용과 차이를 설명한다. |\n| RFC 9000 식별·발행 정보 | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9000/>) | RFC 9000 식별 기준을 확정한다. |\n| RFC 9000 표준화 상태 | filled | [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9000/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>) | RFC 상태 비교의 기준이다. |\n| RFC 9000 다루는 내용 | filled | [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9000/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>) | QUIC v1 전송 범위를 규정한다. |\n| RFC 9001 식별·발행 정보 | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>) | QUIC TLS 문서 식별을 확정한다. |\n| RFC 9001 표준화 상태 | filled | [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9001/>) | RFC 9001 상태 비교를 확정한다. |\n| RFC 9001 다루는 내용 | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>) | QUIC 보안 핸드셰이크 범위를 설명한다. |\n| RFC 9002 식별·발행 정보 | filled | [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>) | 손실·혼잡 문서 식별을 확정한다. |\n| RFC 9002 표준화 상태 | filled | [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>) | RFC 9002 상태 비교를 확정한다. |\n| RFC 9002 다루는 내용 | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>) | QUIC 복구·혼잡 제어 범위를 규정한다. |\n| RFC 9114 식별·발행 정보 | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>) | HTTP/3 문서 식별을 확정한다. |\n| RFC 9114 표준화 상태 | filled | [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9114/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>) | HTTP/3 상태 비교를 확정한다. |\n| RFC 9114 다루는 내용 | filled | [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9114/>) | HTTP/3와 QUIC의 기능 경계를 설명한다. |\n| RFC 9204 식별·발행 정보 | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>) | QPACK 문서 식별을 확정한다. |\n| RFC 9204 표준화 상태 | filled | [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9204/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>) | QPACK 상태 비교를 확정한다. |\n| RFC 9204 다루는 내용 | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>) | HTTP/3 헤더 압축 범위를 설명한다. |\n| RFC 9369 식별·발행 정보 | filled | [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>) | QUIC v2 문서 식별을 확정한다. |\n| RFC 9369 표준화 상태 | filled | [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369>) | QUIC v2 상태 비교를 확정한다. |\n| notes.md의 관련 주장과 근거 | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>) | 로컬 notes.md 주장의 외부 대조 근거다. |\n\n## Caveats and remaining gaps\n\n- **Gap:** evidence row declared both a local file identity and a remote URL without a known coherent mapping ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>))\n- **Caveat:** QUIC v2의 v1 사양 재사용 및 차이에 관한 claim-017은 감사상 partially supported이다. 로컬 파일 식별자와 원격 RFC URL의 매핑 불일치가 남아 있어, RFC 9369의 세부 차이를 검증 완료 사실처럼 기술해서는 안 된다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369>))\n- **Caveat:** 감사 패킷의 batch adoption 상태는 source-evidence compatibility failure 1건으로 blocked이다. 개별 판정은 17건 verified와 1건 partially supported로 유지되지만, 후속 자동 채택에는 재검증이 필요하다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>))\n- **Unverified lead:** RFC 9000은 UDP 데이터그램 위의 패킷, 순서가 있는 단방향·양방향 스트림, 흐름 제어를 다룬다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>))\n- **Unverified lead:** TLS 통합과 손실 감지·혼잡 제어는 각각 RFC 9001과 RFC 9002에서 다룬다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>))\n- **Unverified lead:** QUIC은 CRYPTO 프레임으로 TLS 핸드셰이크 데이터를 운반한다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>))\n- **Unverified lead:** 손실 감지는 패킷 번호 공간별로 분리되며, RTT 측정과 혼잡 제어는 경로의 속성이다. ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>))\n- **Unverified lead:** 혼잡 제어기는 경로별로 적용되며 slow start, recovery, congestion avoidance를 포함한다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>))\n- **Unverified lead:** 각 요청-응답 쌍은 하나의 QUIC 스트림을 사용하며 스트림은 서로 독립적이다. ([rfc-editor.org](<https://www.rfc-editor.org/info/rfc9114/>))\n- **Unverified lead:** QPACK은 정적·동적 테이블과 인코더·디코더 단방향 스트림을 사용한다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>))\n- **Unverified lead:** QUIC v2는 wire version field, packet type bits, Initial salt, HKDF labels, Retry Integrity Tag material을 변경한다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>))\n- **Unverified lead:** QUIC은 TLS 1.3을 사용한다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>))\n- **Unverified lead:** HTTP/3는 QUIC 위에서 동작하는 HTTP 버전이다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>))\n- **Unverified lead:** HTTP/3의 헤더 압축은 HTTP/2의 HPACK 대신 별도 방식을 사용한다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>))\n- **Unverified lead:** QUIC에는 버전 1 이후의 새 버전도 있다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>))\n- **Unverified lead:** RFC - Proposed Standard (May 2021). ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9000/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>))\n- **Unverified lead:** RFC - Proposed Standard (May 2021). ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>))\n- **Unverified lead:** Proposed Standard. ([rfc-editor.org](<https://www.rfc-editor.org/info/rfc9114/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>))\n- **Unverified lead:** This document defines HTTP/3: a mapping of HTTP semantics over the QUIC transport protocol. ([rfc-editor.org](<https://www.rfc-editor.org/info/rfc9114/>))\n- **Unverified lead:** RFC - Proposed Standard (June 2022). ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9204/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>))\n- **Unverified lead:** RFC 9369의 현재 문서 범주는 Proposed Standard이다. ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369>))\n- **Decision note:** RFC 9000·9001·9002·9114·9204·9369의 표준화 상태는 모두 Proposed Standard로 확인된다. ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9000/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>))\n- **Decision note:** QUIC v2의 식별 정보와 Proposed Standard 상태는 검증되었으나, v1과의 세부 차이 설명은 부분 지원이다. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369>))\n\n## Source index\n\n- **rfc-editor.org**: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9114/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369>)\n- **datatracker.ietf.org**: [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9000/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9001/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9204/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>)\n\n## Audit summary\n\n- Claims: 17 verified, 1 partially supported, 0 unsupported, 0 conflicting, 0 verification blocked.\n- Fact slots: 18 filled, 1 partial, 0 missing/conflicting, 19 total.\n- Research questions: 7.\n- Quote check (engine): 0 of 34 quotes found on the cited page; 34 not checked (host not found 34) — listed in [audit](audit.md).\n\n## Related artifacts\n\n- [Evidence audit](audit.md) — claim verdicts, fact-slot coverage, gaps, and renderer diagnostics.\n- [Structured source references](refs.json) — machine-readable source pointers used by the final task.\n- [Machine-readable report](control.json) — the structured final report and completion-summary contract.\n",
+	"audit": "# Research audit\n\nThis artifact preserves the detailed claim/gap/source ledger behind `final-report.md`.\n\nSource verification: the engine found 0 of 34 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Evidence level\n\n- Audited claims (18 total): 17 verified, 1 partially supported, 0 unsupported, 0 conflicting, 0 verification blocked.\n- Fact slots: 18 filled, 1 partial, 0 missing/conflicting, 19 total.\n- Outside the audited-claim denominator: 18 preserved unverified leads available to synthesis, 0 additional leads omitted by a schema cap, 0 coverage gaps.\n- The zero unsupported/conflicting/blocked counts apply only to the 18 audited claims; preserved leads and gaps remain separate.\n\n## Synthesis caveats\n\n- QUIC v2의 v1 사양 재사용 및 차이에 관한 claim-017은 감사상 partially supported이다. 로컬 파일 식별자와 원격 RFC URL의 매핑 불일치가 남아 있어, RFC 9369의 세부 차이를 검증 완료 사실처럼 기술해서는 안 된다.\n- 감사 패킷의 batch adoption 상태는 source-evidence compatibility failure 1건으로 blocked이다. 개별 판정은 17건 verified와 1건 partially supported로 유지되지만, 후속 자동 채택에는 재검증이 필요하다.\n\n## Claim verdict ledger\n\n| ID | Status | Claim/support | Caveat/source |\n|---|---|---|---|\n| claim-001 | verified | RFC 9000, QUIC: A UDP-Based Multiplexed and Secure Transport, May 2021. | — |\n| claim-002 | verified | RFC 9000 — RFC - Proposed Standard (May 2021). | — |\n| claim-003 | verified | This document defines version 1 of QUIC. | TLS, loss detection, and congestion control are described in accompanying RFCs. |\n| claim-004 | verified | RFC 9001, Using TLS to Secure QUIC, May 2021; current status: Proposed Standard. | — |\n| claim-005 | verified | RFC 9001 defines using TLS 1.3 with QUIC and protecting packets with handshake-derived keys. | The RFC notes that a newer TLS version could be used if specified by the relevant section. |\n| claim-006 | verified | RFC 9002, QUIC Loss Detection and Congestion Control, May 2021. | — |\n| claim-007 | verified | RFC 9002 — RFC - Proposed Standard (May 2021). | The page separately labels the RFC category as Standards Track; the verified claim concerns the Datatracker status field. |\n| claim-008 | verified | This document describes loss detection and congestion control mechanisms for QUIC. | — |\n| claim-009 | verified | RFC 9114, HTTP/3, June 2022. | — |\n| claim-010 | verified | RFC 9114 — Proposed Standard | RFC 본문은 이를 Internet Standards Track document라고 표현한다. |\n| claim-011 | verified | RFC 9114 — This document defines HTTP/3: a mapping of HTTP semantics over the QUIC transport protocol. | RFC 9114는 2022년 발행된 Proposed Standard이다. |\n| claim-012 | verified | RFC 9204, QPACK: Field Compression for HTTP/3, June 2022. | 표준화 상태 자체는 이 주장에 포함되지 않는다. |\n| claim-013 | verified | RFC 9204 — RFC - Proposed Standard (June 2022). | RFC Editor labels it Standards Track, which is compatible with the Datatracker category Proposed Standard. |\n| claim-014 | verified | This specification defines QPACK: a compression format for efficiently representing HTTP fields that is to be used in HTTP/3. | — |\n| claim-015 | verified | RFC 9369, QUICv2, May 2023. | — |\n| claim-016 | verified | RFC 9369 \\| QUICv2 \\| May 2023 | — |\n| claim-017 | partially\\_supported | Except for a few differences, QUIC version 2 endpoints MUST implement the QUIC version 1 specification. | The requirement is qualified by the specific differences defined in RFC 9369. |\n| claim-018 | verified | QUIC은 UDP 위에서 동작하는 전송 프로토콜로, IETF QUIC 작업 그룹에서 표준화했다. | The wording ‘standardized by the Working Group’ summarizes the documented IETF standardization process. |\n\n## Fact slot coverage\n\n| Slot | Status | Best value | Gap/impact |\n|---|---|---|---|\n| slot-001 | filled | RFC 9000, QUIC: A UDP-Based Multiplexed and Secure Transport, May 2021. | RFC 9000 식별 기준을 확정한다. |\n| slot-002 | filled | RFC - Proposed Standard (May 2021). | RFC 상태 비교의 기준이다. |\n| slot-003 | filled | This document defines version 1 of QUIC. | QUIC v1 전송 범위를 규정한다. |\n| slot-004 | filled | RFC 9001, Using TLS to Secure QUIC, May 2021. | QUIC TLS 문서 식별을 확정한다. |\n| slot-005 | filled | Current status: Proposed Standard. | RFC 9001 상태 비교를 확정한다. |\n| slot-006 | filled | RFC 9001 defines using TLS 1.3 with QUIC and protecting packets with handshake-derived keys. | QUIC 보안 핸드셰이크 범위를 설명한다. |\n| slot-007 | filled | RFC 9002, QUIC Loss Detection and Congestion Control, May 2021. | 손실·혼잡 문서 식별을 확정한다. |\n| slot-008 | filled | RFC - Proposed Standard (May 2021). | RFC 9002 상태 비교를 확정한다. |\n| slot-009 | filled | This document describes loss detection and congestion control mechanisms for QUIC. | QUIC 복구·혼잡 제어 범위를 규정한다. |\n| slot-010 | filled | RFC 9114, HTTP/3, June 2022. | HTTP/3 문서 식별을 확정한다. |\n| slot-011 | filled | Proposed Standard. | HTTP/3 상태 비교를 확정한다. |\n| slot-012 | filled | This document defines HTTP/3: a mapping of HTTP semantics over the QUIC transport protocol. | HTTP/3와 QUIC의 기능 경계를 설명한다. |\n| slot-013 | filled | RFC 9204, QPACK: Field Compression for HTTP/3, June 2022. | QPACK 문서 식별을 확정한다. |\n| slot-014 | filled | RFC - Proposed Standard (June 2022). | QPACK 상태 비교를 확정한다. |\n| slot-015 | filled | QPACK is a compression format for efficiently representing HTTP fields used in HTTP/3. | HTTP/3 헤더 압축 범위를 설명한다. |\n| slot-016 | filled | RFC 9369, QUICv2, May 2023. | QUIC v2 문서 식별을 확정한다. |\n| slot-017 | filled | RFC 9369's current document category is Proposed Standard. | QUIC v2 상태 비교를 확정한다. |\n| slot-018 | partial | Except for a few differences, QUIC version 2 endpoints MUST implement the QUIC version 1 specification. | no audited verified claim (claim-017) |\n| slot-019 | filled | notes.md line 3 states that QUIC runs over UDP and was standardized by the IETF QUIC working group. | 로컬 notes.md 주장의 외부 대조 근거다. |\n\n## Remaining gaps\n\n- evidence row declared both a local file identity and a remote URL without a known coherent mapping\n\n## Claims used in executive synthesis\n\n- **claim-001** (verified): RFC 9000, QUIC: A UDP-Based Multiplexed and Secure Transport, May 2021.\n- **claim-003** (verified): This document defines version 1 of QUIC.\n- **claim-004** (verified): RFC 9001, Using TLS to Secure QUIC, May 2021; current status: Proposed Standard.\n- **claim-005** (verified): RFC 9001 defines using TLS 1.3 with QUIC and protecting packets with handshake-derived keys.\n- **claim-006** (verified): RFC 9002, QUIC Loss Detection and Congestion Control, May 2021.\n- **claim-008** (verified): This document describes loss detection and congestion control mechanisms for QUIC.\n- **claim-009** (verified): RFC 9114, HTTP/3, June 2022.\n- **claim-011** (verified): RFC 9114 — This document defines HTTP/3: a mapping of HTTP semantics over the QUIC transport protocol.\n- **claim-012** (verified): RFC 9204, QPACK: Field Compression for HTTP/3, June 2022.\n- **claim-014** (verified): This specification defines QPACK: a compression format for efficiently representing HTTP fields that is to be used in HTTP/3.\n- **claim-015** (verified): RFC 9369, QUICv2, May 2023.\n- **claim-017** (partially\\_supported): Except for a few differences, QUIC version 2 endpoints MUST implement the QUIC version 1 specification.\n- **claim-002** (verified): RFC 9000 — RFC - Proposed Standard (May 2021).\n- **claim-007** (verified): RFC 9002 — RFC - Proposed Standard (May 2021).\n- **claim-010** (verified): RFC 9114 — Proposed Standard\n- **claim-013** (verified): RFC 9204 — RFC - Proposed Standard (June 2022).\n- **claim-016** (verified): RFC 9369 | QUICv2 | May 2023\n- **claim-018** (verified): QUIC은 UDP 위에서 동작하는 전송 프로토콜로, IETF QUIC 작업 그룹에서 표준화했다.\n\n## Quote check (engine)\n\nThe engine looked for each verifier quote in the page text the verifier's own tool returned for that URL, otherwise on the cited page fetched by the engine itself. No model was involved; verdicts above are unchanged.\n\n- Quotes: 34; found 0 (exact 0, after normalization 0, math notation 0); pages fetched 14; not checked 34.\n\n| Claim | Source | Quote | Why not checked |\n| --- | --- | --- | --- |\n| claim-001 | https://www.rfc-editor.org/rfc/rfc9000.html | RFC 9000 \\| QUIC Transport Protocol \\| May 2021 | host not found |\n| claim-001 | https://datatracker.ietf.org/doc/rfc9000/ | \\# QUIC: A UDP-Based Multiplexed and Secure Transport RFC 9000 Document \\| Type \\| \\| RFC - Proposed Standard (May 2021) | host not found |\n| claim-002 | https://datatracker.ietf.org/doc/rfc9000/ | RFC - Proposed Standard (May 2021) | host not found |\n| claim-002 | https://www.rfc-editor.org/rfc/rfc9000.html | RFC 9000 \\| QUIC Transport Protocol \\| May 2021 | host not found |\n| claim-003 | https://www.rfc-editor.org/rfc/rfc9000.html | This document defines version 1 of QUIC, which conforms to the version-independent properties of QUIC defined in \\[QUIC-INVARIANTS\\]. | host not found |\n| claim-004 | https://www.rfc-editor.org/rfc/rfc9001.html | RFC 9001 \\| Using TLS to Secure QUIC \\| May 2021 | host not found |\n| claim-004 | https://datatracker.ietf.org/doc/rfc9001/ | RFC - Proposed Standard (May 2021) | host not found |\n| claim-004 | https://www.rfc-editor.org/rfc/rfc9001.html | This document describes how Transport Layer Security (TLS) is used to secure QUIC. | host not found |\n| claim-005 | https://www.rfc-editor.org/rfc/rfc9001.html | This document describes how QUIC \\[QUIC-TRANSPORT\\] is secured using TLS \\[TLS13\\]. | host not found |\n| claim-005 | https://www.rfc-editor.org/rfc/rfc9001.html | For brevity, the acronym TLS is used to refer to TLS 1.3, though a newer version could be used; see Section 4.2. | host not found |\n| claim-005 | https://www.rfc-editor.org/rfc/rfc9001.html | QUIC assumes responsibility for the confidentiality and integrity protection of packets. For this it uses keys derived from a TLS handshake | host not found |\n| claim-006 | https://datatracker.ietf.org/doc/rfc9002/ | QUIC Loss Detection and Congestion Control RFC 9002 Document \\| Type \\| \\| RFC - Proposed Standard (May 2021) | host not found |\n| claim-007 | https://datatracker.ietf.org/doc/rfc9002/ | Document \\| Type \\| \\| RFC - Proposed Standard (May 2021) | host not found |\n| claim-008 | https://www.rfc-editor.org/rfc/rfc9002.html | This document describes loss detection and congestion control mechanisms for QUIC. | host not found |\n| claim-008 | https://www.rfc-editor.org/rfc/rfc9002.html | This document specifies a sender-side congestion controller for QUIC similar to TCP NewReno \\[RFC6582\\]. | host not found |\n| claim-008 | https://www.rfc-editor.org/rfc/rfc9002.html | Loss detection is separate per packet number space, unlike RTT measurement and congestion control, because RTT and congestion control are properties of the path… | host not found |\n| claim-009 | https://www.rfc-editor.org/rfc/rfc9114.html | RFC 9114 \\| HTTP/3 \\| June 2022 | host not found |\n| claim-009 | https://datatracker.ietf.org/doc/rfc9114/ | HTTP/3 RFC 9114 Document \\| Type \\| \\| RFC - Proposed Standard (June 2022) | host not found |\n| claim-010 | https://www.rfc-editor.org/info/rfc9114/ | Proposed Standard | host not found |\n| claim-010 | https://datatracker.ietf.org/doc/rfc9114/ | RFC - Proposed Standard (June 2022) | host not found |\n| claim-011 | https://www.rfc-editor.org/info/rfc9114/ | This document defines HTTP/3: a mapping of HTTP semantics over the QUIC transport protocol, drawing heavily on the design of HTTP/2. | host not found |\n| claim-012 | https://www.rfc-editor.org/rfc/rfc9204.html | RFC 9204 \\| QPACK \\| June 2022 | host not found |\n| claim-012 | https://www.rfc-editor.org/rfc/rfc9204.html | \\# RFC 9204 \\# QPACK: Field Compression for HTTP/3 | host not found |\n| claim-013 | https://datatracker.ietf.org/doc/rfc9204/ | RFC - Proposed Standard (June 2022) | host not found |\n| claim-013 | https://www.rfc-editor.org/rfc/rfc9204.html | RFC 9204 \\| QPACK \\| June 2022 | host not found |\n| claim-014 | https://www.rfc-editor.org/rfc/rfc9204.html | This specification defines QPACK: a compression format for efficiently representing HTTP fields that is to be used in HTTP/3. | host not found |\n| claim-015 | https://www.rfc-editor.org/rfc/rfc9369.html | RFC 9369 \\| QUICv2 \\| May 2023 | host not found |\n| claim-016 | https://datatracker.ietf.org/doc/html/rfc9369 | RFC 9369 \\| QUICv2 \\| May 2023 | host not found |\n| claim-016 | https://datatracker.ietf.org/doc/html/rfc9369 | RFC 9369 Proposed Standard | host not found |\n| claim-016 | https://www.rfc-editor.org/info/rfc9369 | Proposed Standard | host not found |\n| claim-017 | https://www.rfc-editor.org/rfc/rfc9369.html | Except for a few differences, QUIC version 2 endpoints MUST implement the QUIC version 1 specification as described in \\[QUIC\\], \\[QUIC-TLS\\], and \\[QUIC-RECOVERY\\]. The… | host not found |\n| claim-018 | https://www.rfc-editor.org/rfc/rfc9000.html | QUIC: A UDP-Based Multiplexed and Secure Transport | host not found |\n| claim-018 | https://www.rfc-editor.org/rfc/rfc9000.html | This is an Internet Standards Track document. This document is a product of the Internet Engineering Task Force (IETF). | host not found |\n| claim-018 | https://www.rfc-editor.org/rfc/rfc9000.html | The IETF QUIC Working Group received an enormous amount of support from many people. | host not found |\n\n## Renderer diagnostics\n\n- Executive word count: 2047.\n- Rendered source URLs: 14/14.\n- Render warnings: 0.\n- Reader translations: 44 applied, 1 ignored (claim-011: drops 9114), 4 left untranslated.\n"
+}

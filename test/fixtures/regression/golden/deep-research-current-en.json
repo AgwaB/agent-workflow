@@ -1,0 +1,252 @@
+{
+	"fixture": "deep-research-current-en",
+	"recordedFrom": {
+		"runId": "workflow_mwa5oqzk_c97ccc",
+		"status": "completed",
+		"createdAt": "2026-11-10T03:54:19.430Z",
+		"engine": {
+			"version": "0.1.0",
+			"checkout": {
+				"head": "078781bba7575fb38254c4cabeaceb17ec60f948",
+				"branch": "main",
+				"dirty": false,
+				"statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+			}
+		},
+		"executor": "codex"
+	},
+	"status": "completed",
+	"tasks": [
+		{
+			"specId": "audit-claims.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "e44508993c901c29"
+		},
+		{
+			"specId": "check-web-quotes.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "c99a458276d73060"
+		},
+		{
+			"specId": "final-audit-packet.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "9d57a7092abce031"
+		},
+		{
+			"specId": "final-audit.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "18a50dda98cc2cc2"
+		},
+		{
+			"specId": "final.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "447231c91acdc09f"
+		},
+		{
+			"specId": "normalize-claims.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "d41a0f10e598cfca"
+		},
+		{
+			"specId": "normalize-input-packet.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "c44c5b0b81f1fa37"
+		},
+		{
+			"specId": "plan.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "3fd8d97f19598be3"
+		},
+		{
+			"specId": "research-questions.item",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"control": null
+		},
+		{
+			"specId": "research-questions.rq-001",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "804db16fc6fe1d13"
+		},
+		{
+			"specId": "research-questions.rq-002",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "ab3a1eeb4de54c80"
+		},
+		{
+			"specId": "research-questions.rq-003",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "b865a9e81f6a2884"
+		},
+		{
+			"specId": "research-questions.rq-004",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "ca6e0b18d8cbd191"
+		},
+		{
+			"specId": "research-questions.rq-005",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "65a592b1bf5df29d"
+		},
+		{
+			"specId": "research-questions.rq-006",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "95d9802cf3b65e94"
+		},
+		{
+			"specId": "research-questions.rq-007",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "2c82edece7ded2e1"
+		},
+		{
+			"specId": "retranslate.item",
+			"status": "completed",
+			"statusDetail": "foreach_empty",
+			"control": null
+		},
+		{
+			"specId": "sanitize-claims.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "6fd8d91d3712d868"
+		},
+		{
+			"specId": "translation-check.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "4195255b760fdddc"
+		},
+		{
+			"specId": "verify-claims.claim-001",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "43d6fdb195b7ba37"
+		},
+		{
+			"specId": "verify-claims.claim-002",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "3a7d86db5042b50b"
+		},
+		{
+			"specId": "verify-claims.claim-003",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "ac6d2a850d7ea6b2"
+		},
+		{
+			"specId": "verify-claims.claim-004",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "076bd86990aa2194"
+		},
+		{
+			"specId": "verify-claims.claim-005",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "5ccc0930a1766ed6"
+		},
+		{
+			"specId": "verify-claims.claim-006",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "8d7e9b26ec62878f"
+		},
+		{
+			"specId": "verify-claims.claim-007",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "f5214d4cd8cb1c92"
+		},
+		{
+			"specId": "verify-claims.claim-008",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "58859cb0d6aa8bb8"
+		},
+		{
+			"specId": "verify-claims.claim-009",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "88024e1346a17008"
+		},
+		{
+			"specId": "verify-claims.claim-010",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "bf023f8c1e1f1684"
+		},
+		{
+			"specId": "verify-claims.claim-011",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "7bff363d03bb63b5"
+		},
+		{
+			"specId": "verify-claims.claim-012",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "30082c1ec15e30df"
+		},
+		{
+			"specId": "verify-claims.claim-013",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "e729ff36af7c3b8b"
+		},
+		{
+			"specId": "verify-claims.claim-014",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "86d5387488c939da"
+		},
+		{
+			"specId": "verify-claims.claim-015",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "5aaf2d28828210eb"
+		},
+		{
+			"specId": "verify-claims.claim-016",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "589f94bcb40913f0"
+		},
+		{
+			"specId": "verify-claims.claim-017",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "f4e70c6af558643b"
+		},
+		{
+			"specId": "verify-claims.claim-018",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "ec3f899297520845"
+		},
+		{
+			"specId": "verify-claims.item",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"control": null
+		}
+	],
+	"finalReport": "# Research report\n\n## Executive summary\n\n### Core conclusion\n\nThe core IETF specifications are RFC 9000 (May 2021, QUIC version 1 transport), RFC 9001 (May 2021, TLS usage with QUIC), RFC 9002 (May 2021, loss detection and congestion control), RFC 9114 (June 2022, HTTP/3 over QUIC), RFC 9204 (June 2022, QPACK header compression), and RFC 9369 (May 2023, QUIC version 2). RFCs 9001, 9002, 9114, 9204, and 9369 are Standards Track, generally classified as Proposed Standard. RFC 9000's Internet Standards Track designation is preserved in the evidence but was not separately verified in the audited claim set. notes.md is consistent with the RFCs but is contextual rather than authoritative.\n\n### Main recommendations\n\nThese recommendations are proposals based on the research, not validated outcomes.\n\n- Use the six RFCs as the canonical reference set for QUIC versioning, TLS integration, transport behavior, HTTP/3, header compression, and QUIC version 2.\n- Treat publication status as distinct from deployment status; verify RFC 9000's exact standards-track category directly if that distinction is material. (Not yet checked)\n\n### Limits to keep in mind\n\n- Questions remain unanswered. Verifying some facts does not establish the whole conclusion.\n- The RFC 9000 status label is present in preserved evidence but was not separately verified in the audited claim set; treat that one status label as provisional when exact standards classification matters.\n- These records establish what the IETF published and its track, not how widely each version or HTTP/3 is deployed.\n\nSource verification: the engine found 28 of 28 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Research scope and method\n\n- Task type: research\\_survey.\n- Research depth: standard.\n- Research questions: 7.\n- Planned fact slots: 7.\n- Expected output shape: research\\_brief.\n- Scope coverage: covered 8.\n- Method: plan research questions, collect source evidence, normalize claims, verify selected claims, apply deterministic audit gates, and synthesize the report.\n\n## Main findings\n\n### 1. This document defines version 1 of QUIC, which conforms to the version-independent properties of QUIC defined in \\[QUIC-INVARIANTS\\].\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>)\nEvidence citations:\n- IETF Datatracker: quote \"This document defines version 1 of QUIC, which conforms to the version-independent properties of QUIC defined in [QUIC-INVARIANTS\\].\"\n\nThe IETF Datatracker RFC text explicitly states that the document defines version 1 of QUIC.\n\n### 2. RFC 9001 describes how TLS is used to secure QUIC.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>)\nEvidence citations:\n- source-001: quote \"RFC 9001  | Using TLS to Secure QUIC  | May 2021\"\n- source-001: quote \"This document describes how Transport Layer Security (TLS) is used to secure QUIC.\"\n\nThe primary RFC Editor page identifies RFC 9001 as Using TLS to Secure QUIC and explicitly states that it describes how TLS is used to secure QUIC.\n\n### 3. RFC 9001 is an Internet Standards Track document.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>)\nEvidence citations:\n- RFC Editor: quote \"This is an Internet Standards Track document.\"\n- RFC Editor: quote \"RFC 9001  | Using TLS to Secure QUIC  | May 2021\"\n\nThe RFC Editor page directly states that RFC 9001 is an Internet Standards Track document.\n\n### 4. RFC 9002 covers QUIC loss detection and congestion control mechanisms.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>)\nEvidence citations:\n- RFC Editor: quote \"This document describes loss detection and congestion control mechanisms for QUIC.\"\n- RFC Editor: quote \"RFC 9002  | QUIC Loss Detection  | May 2021\"\n\nThe RFC Editor abstract directly matches the claimed technical scope.\n\n### 5. This is an Internet Standards Track document.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>)\nEvidence citations:\n- RFC Editor: quote \"This is an Internet Standards Track document.\"\n- IETF Datatracker: quote \"RFC - Proposed Standard (May 2021)\"\n\nThe RFC Editor and IETF Datatracker both provide direct supporting text.\n\n### 6. RFC 9114 defines a mapping of HTTP semantics over QUIC.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>)\nEvidence citations:\n- RFC Editor: quote \"This document describes a mapping of HTTP semantics over QUIC.\"\n\nThe RFC 9114 abstract explicitly states that it describes a mapping of HTTP semantics over QUIC.\n\n### 7. This is an Internet Standards Track document.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>)\nEvidence citations:\n- source-002: quote \"This is an Internet Standards Track document.\"\n- source-002: quote \"RFC - Proposed Standard (June 2022)\"\n\nRFC Editor and Datatracker text directly use the claimed wording.\n\n### 8. RFC 9204 defines QPACK for efficiently representing HTTP fields in HTTP/3.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>)\nEvidence citations:\n- source-001: quote \"This specification defines QPACK: a compression format for efficiently representing HTTP fields that is to be used in HTTP/3.\"\n- source-001: quote \"RFC 9204  | QPACK  | June 2022\"\n\nThe RFC Editor abstract explicitly defines QPACK as a compression format for efficiently representing HTTP fields in HTTP/3.\n\n### 9. RFC 9204 — Document | Type | | RFC - Proposed Standard (June 2022)\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9204/>)\nEvidence citations:\n- IETF Datatracker: quote \"Document  | Type  |  | RFC - Proposed Standard (June 2022)\"\n\nIETF Datatracker explicitly identifies RFC 9204 as RFC - Proposed Standard (June 2022).\n\n### 10. RFC 9369 defines QUIC version 2 as identical to version 1 except for some trivial details.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>)\nEvidence citations:\n- IETF Datatracker: quote \"This document specifies QUIC version 2, which is identical to QUIC version 1 except for some trivial details.\"\n\nThe RFC abstract states that QUIC version 2 is identical to version 1 except for some trivial details.\n\n### 11. This is an Internet Standards Track document.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369/>)\nEvidence citations:\n- IETF Datatracker: quote \"This is an Internet Standards Track document.\"\n- RFC Editor: quote \"This is an Internet Standards Track document.\"\n- RFC Editor: quote \"Proposed Standard\"\n\nBoth IETF Datatracker and RFC Editor pages directly support the claim.\n\n### 12. The local notes say QUIC uses TLS 1.3 for its handshake.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: `notes.md`\nEvidence citations:\n- notes.md lines 4-4: quote \"- QUIC uses TLS 1.3 for its handshake.\"\n\nThe local note contains the exact claimed wording.\n\n## Recommendations\n\n1. **Use the six RFCs as the canonical reference set for QUIC versioning, TLS integration, transport behavior, HTTP/3, header compression, and QUIC version 2.**\n   - Evidence status: derived\n   - Sources: [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>)\n\n2. **Treat publication status as distinct from deployment status; verify RFC 9000's exact standards-track category directly if that distinction is material.**\n   - Evidence status: unverified\n   - Sources: [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9001/>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9002/>)\n\n## Action plan\n\n1. Cite RFC 9000, May 2021, for QUIC version 1 transport; retain the qualification on its separately unverified status label.\n   - Evidence: unverified\n   - Sources: [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>)\n\n2. Cite RFC 9001, May 2021, for securing QUIC with TLS and its Standards Track status.\n   - Evidence: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9001/>)\n\n3. Cite RFC 9002, May 2021, for QUIC loss detection and congestion control and its Proposed Standard status.\n   - Evidence: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9002/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>)\n\n4. Cite RFC 9114, June 2022, for HTTP/3's mapping of HTTP semantics over QUIC and its Proposed Standard status.\n   - Evidence: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>)\n\n5. Cite RFC 9204, June 2022, for QPACK header compression in HTTP/3 and its Proposed Standard status.\n   - Evidence: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9204/>)\n\n6. Cite RFC 9369, May 2023, for QUIC version 2 and its Proposed Standard status.\n   - Evidence: derived\n   - Sources: [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369/>)\n\n## Evidence strength\n\n| Area | Status | Evidence | Why it matters |\n|---|---|---|---|\n| RFC 9000 QUIC version 1 transport metadata and scope | filled | [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>) | Required RFC 9000 metadata and transport scope. |\n| RFC 9001 QUIC TLS usage metadata and scope | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9001/history/>) | Required QUIC TLS metadata and scope. |\n| RFC 9002 QUIC loss detection and congestion control metadata and scope | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>) | Required loss-detection and congestion-control mapping. |\n| RFC 9114 HTTP/3 metadata and scope | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>) | Required HTTP/3 RFC mapping. |\n| RFC 9204 QPACK header compression metadata and scope | filled | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9204/>) | Required QPACK metadata and compression scope. |\n| RFC 9369 QUIC version 2 metadata and scope | filled | [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369/>) | Required QUIC version-2 metadata and scope. |\n| notes.md statements relevant to QUIC and HTTP/3 standardization | filled | — | Required local context and terminology. |\n\n## Caveats and remaining gaps\n\n- **Caveat:** RFC 9000's Internet Standards Track designation is retained as a preserved source lead, but the audited claim ledger does not include a separately verified status claim for it. ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>))\n- **Caveat:** RFC publication and standards-track status do not establish implementation deployment or interoperability prevalence. ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9001/>))\n- **Caveat:** notes.md was consulted as local context; the RFCs remain authoritative for protocol scope and standardization metadata. (`notes.md`)\n- **Unverified lead:** RFC 9000 is titled “QUIC: A UDP-Based Multiplexed and Secure Transport.” ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>))\n- **Unverified lead:** RFC 9000 is an Internet Standards Track document. ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>))\n- **Unverified lead:** RFC 9001 covers QUIC-specific TLS handshake adjustments and authentication of transport parameters. ([rfc-editor.org](<https://www.rfc-editor.org/info/rfc9001/>))\n- **Unverified lead:** QUIC loss detection uses acknowledgments and a Probe Timeout. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>))\n- **Unverified lead:** RFC 9002 specifies a sender-side congestion controller similar to TCP NewReno. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>))\n- **Unverified lead:** RFC 9114 identifies HTTP/2 features subsumed by QUIC and explains porting extensions to HTTP/3. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>))\n- **Unverified lead:** HTTP/3 replaces HPACK with QPACK because QUIC lacks HPACK’s in-order transmission guarantee. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>))\n- **Unverified lead:** QPACK is a variation of HPACK intended to reduce head-of-line blocking. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>))\n- **Unverified lead:** QUIC version 2 uses changes intended to mitigate ossification and exercise version negotiation. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369>))\n- **Unverified lead:** The local notes describe HTTP/3 as the HTTP version running over QUIC.\n- **Unverified lead:** The local notes say HTTP/3 uses its own header-compression scheme instead of HTTP/2 HPACK.\n- **Unverified lead:** The local notes indicate that QUIC has versions newer than version 1.\n- **Unverified lead:** RFC 9000 defines version 1 of QUIC. ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>))\n- **Unverified lead:** IETF Datatracker identifies RFC 9002 as Proposed Standard. ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>))\n- **Unverified lead:** IETF Datatracker classifies RFC 9114 as Proposed Standard. ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>))\n- **Unverified lead:** IETF Datatracker identifies RFC 9204 as Proposed Standard. ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9204/>))\n- **Unverified lead:** RFC Editor classifies RFC 9369 as Proposed Standard. ([rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369/>))\n- **Decision note:** The requested protocol areas are covered by a coherent six-RFC core, with publication months and technical scopes established from RFC and IETF metadata. ([datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>))\n\n## Source index\n\n- **datatracker.ietf.org**: [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9000.html>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9001/history/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9002/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9114/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/rfc9204/>), [datatracker.ietf.org](<https://datatracker.ietf.org/doc/html/rfc9369>)\n- **rfc-editor.org**: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9001.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9002.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9114.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9369/>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9001/>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9002/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9369>)\n\n## Audit summary\n\n- Claims: 18 verified, 0 partially supported, 0 unsupported, 0 conflicting, 0 verification blocked.\n- Fact slots: 7 filled, 0 partial, 0 missing/conflicting, 7 total.\n- Research questions: 7.\n- Quote check (engine): 28 of 28 quotes found on the cited page.\n\n## Related artifacts\n\n- [Evidence audit](audit.md) — claim verdicts, fact-slot coverage, gaps, and renderer diagnostics.\n- [Structured source references](refs.json) — machine-readable source pointers used by the final task.\n- [Machine-readable report](control.json) — the structured final report and completion-summary contract.\n",
+	"audit": "# Research audit\n\nThis artifact preserves the detailed claim/gap/source ledger behind `final-report.md`.\n\nSource verification: the engine found 28 of 28 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Evidence level\n\n- Audited claims (18 total): 18 verified, 0 partially supported, 0 unsupported, 0 conflicting, 0 verification blocked.\n- Fact slots: 7 filled, 0 partial, 0 missing/conflicting, 7 total.\n- Outside the audited-claim denominator: 17 preserved unverified leads available to synthesis, 0 additional leads omitted by a schema cap, 0 coverage gaps.\n- The zero unsupported/conflicting/blocked counts apply only to the 18 audited claims; preserved leads and gaps remain separate.\n\n## Synthesis caveats\n\n- RFC 9000's Internet Standards Track designation is retained as a preserved source lead, but the audited claim ledger does not include a separately verified status claim for it.\n- RFC publication and standards-track status do not establish implementation deployment or interoperability prevalence.\n- notes.md was consulted as local context; the RFCs remain authoritative for protocol scope and standardization metadata.\n\n## Claim verdict ledger\n\n| ID | Status | Claim/support | Caveat/source |\n|---|---|---|---|\n| claim-001 | verified | This document defines version 1 of QUIC, which conforms to the version-independent properties of QUIC defined in \\[QUIC-INVARIANTS\\]. | — |\n| claim-002 | verified | RFC 9000 was published in May 2021. | — |\n| claim-003 | verified | RFC 9001 describes how TLS is used to secure QUIC. | — |\n| claim-004 | verified | RFC 9001 was published in May 2021. | — |\n| claim-005 | verified | RFC 9001 is an Internet Standards Track document. | — |\n| claim-006 | verified | RFC 9002 covers QUIC loss detection and congestion control mechanisms. | — |\n| claim-007 | verified | RFC 9002 was published in May 2021. | — |\n| claim-008 | verified | This is an Internet Standards Track document. | — |\n| claim-009 | verified | RFC 9114 defines a mapping of HTTP semantics over QUIC. | — |\n| claim-010 | verified | RFC 9114 was published in June 2022. | — |\n| claim-011 | verified | This is an Internet Standards Track document. | — |\n| claim-012 | verified | RFC 9204 defines QPACK for efficiently representing HTTP fields in HTTP/3. | The local notes are consistent but are not needed for this claim. |\n| claim-013 | verified | RFC 9204 was published in June 2022. | The local notes do not independently establish the publication date. |\n| claim-014 | verified | RFC 9204 — Document \\| Type \\| \\| RFC - Proposed Standard (June 2022) | — |\n| claim-015 | verified | RFC 9369 defines QUIC version 2 as identical to version 1 except for some trivial details. | The RFC also enumerates concrete wire-format and cryptographic changes. |\n| claim-016 | verified | RFC 9369 was published in May 2023. | — |\n| claim-017 | verified | This is an Internet Standards Track document. | RFC 9369 is specifically categorized as Proposed Standard within the Standards Track. |\n| claim-018 | verified | The local notes say QUIC uses TLS 1.3 for its handshake. | — |\n\n## Fact slot coverage\n\n| Slot | Status | Best value | Gap/impact |\n|---|---|---|---|\n| slot-001 | filled | RFC 9000 defines QUIC version 1 and was published in May 2021; primary status evidence is preserved. | Required RFC 9000 metadata and transport scope. |\n| slot-002 | filled | RFC 9001 describes TLS use to secure QUIC, was published in May 2021, and is Standards Track. | Required QUIC TLS metadata and scope. |\n| slot-003 | filled | RFC 9002 covers QUIC loss detection and congestion control, was published in May 2021, and is Proposed Standard. | Required loss-detection and congestion-control mapping. |\n| slot-004 | filled | RFC 9114 maps HTTP semantics over QUIC, was published in June 2022, and is Proposed Standard. | Required HTTP/3 RFC mapping. |\n| slot-005 | filled | RFC 9204 defines QPACK for HTTP/3 field compression, was published in June 2022, and is Proposed Standard. | Required QPACK metadata and compression scope. |\n| slot-006 | filled | RFC 9369 defines QUIC version 2, was published in May 2023, and is classified as Proposed Standard. | Required QUIC version-2 metadata and scope. |\n| slot-007 | filled | notes.md says QUIC uses TLS 1.3, HTTP/3 runs over QUIC, HTTP/3 uses separate compression, and newer QUIC versions exist. | Required local context and terminology. |\n\n## Remaining gaps\n\nNo remaining gaps were reported.\n\n## Claims used in executive synthesis\n\n- **claim-001** (verified): This document defines version 1 of QUIC, which conforms to the version-independent properties of QUIC defined in \\[QUIC-INVARIANTS\\].\n- **claim-003** (verified): RFC 9001 describes how TLS is used to secure QUIC.\n- **claim-005** (verified): RFC 9001 is an Internet Standards Track document.\n- **claim-006** (verified): RFC 9002 covers QUIC loss detection and congestion control mechanisms.\n- **claim-008** (verified): This is an Internet Standards Track document.\n- **claim-009** (verified): RFC 9114 defines a mapping of HTTP semantics over QUIC.\n- **claim-011** (verified): This is an Internet Standards Track document.\n- **claim-012** (verified): RFC 9204 defines QPACK for efficiently representing HTTP fields in HTTP/3.\n- **claim-014** (verified): RFC 9204 — Document | Type | | RFC - Proposed Standard (June 2022)\n- **claim-015** (verified): RFC 9369 defines QUIC version 2 as identical to version 1 except for some trivial details.\n- **claim-017** (verified): This is an Internet Standards Track document.\n- **claim-018** (verified): The local notes say QUIC uses TLS 1.3 for its handshake.\n- **claim-002** (verified): RFC 9000 was published in May 2021.\n- **claim-004** (verified): RFC 9001 was published in May 2021.\n- **claim-007** (verified): RFC 9002 was published in May 2021.\n- **claim-010** (verified): RFC 9114 was published in June 2022.\n- **claim-013** (verified): RFC 9204 was published in June 2022.\n- **claim-016** (verified): RFC 9369 was published in May 2023.\n\n## Quote check (engine)\n\nThe engine looked for each verifier quote in the page text the verifier's own tool returned for that URL, otherwise on the cited page fetched by the engine itself. No model was involved; verdicts above are unchanged.\n\n- Quotes: 28; found 28 (exact 7, after normalization 21, math notation 0); pages fetched 12; not checked 0.\n\n## Renderer diagnostics\n\n- Executive word count: 1885.\n- Rendered source URLs: 14/14.\n- Render warnings: 0.\n"
+}
