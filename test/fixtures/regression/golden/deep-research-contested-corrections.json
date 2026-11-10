@@ -1,0 +1,234 @@
+{
+	"fixture": "deep-research-contested-corrections",
+	"recordedFrom": {
+		"runId": "workflow_mwas8eay_c45d98",
+		"status": "completed",
+		"createdAt": "2026-11-10T14:25:27.663Z",
+		"engine": {
+			"version": "0.1.0",
+			"checkout": {
+				"head": "cf269250a1cf97f1f507e41837927a05ea4519dd",
+				"branch": "work/report-corrections-20261110",
+				"dirty": true,
+				"statusSha256": "538a2b41a643b0d9768a8f11aef425bed7149a76750bc5737655983e505b4a30",
+				"diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+			}
+		},
+		"executor": "codex"
+	},
+	"status": "completed",
+	"tasks": [
+		{
+			"specId": "audit-claims.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "bc785d287daabc54"
+		},
+		{
+			"specId": "check-web-quotes.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "80aa0e7b4ca96fd3"
+		},
+		{
+			"specId": "final-audit-packet.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "1aad6091944aaca5"
+		},
+		{
+			"specId": "final-audit.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "8ea4315c660186af"
+		},
+		{
+			"specId": "final.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "4f7e542fd12e6eac"
+		},
+		{
+			"specId": "normalize-claims.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "56af2c3b487b9cf1"
+		},
+		{
+			"specId": "normalize-input-packet.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "39800c202c77be4a"
+		},
+		{
+			"specId": "plan.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "42c87a81fab71cee"
+		},
+		{
+			"specId": "research-questions.item",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"control": null
+		},
+		{
+			"specId": "research-questions.rq-001",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "368ee21473fb9cb3"
+		},
+		{
+			"specId": "research-questions.rq-002",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "221f10c2efccdbda"
+		},
+		{
+			"specId": "research-questions.rq-003",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "dde0fe01a25b1045"
+		},
+		{
+			"specId": "research-questions.rq-004",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "6f4696d7238ce3ce"
+		},
+		{
+			"specId": "research-questions.rq-005",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "d9bf5665c996f774"
+		},
+		{
+			"specId": "research-questions.rq-006",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "855934827a84debb"
+		},
+		{
+			"specId": "retranslate.item",
+			"status": "completed",
+			"statusDetail": "foreach_empty",
+			"control": null
+		},
+		{
+			"specId": "sanitize-claims.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "c5b6d20dad69d299"
+		},
+		{
+			"specId": "translation-check.main",
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "4195255b760fdddc"
+		},
+		{
+			"specId": "verify-claims.claim-001",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "be4cb19de5c3ca4a"
+		},
+		{
+			"specId": "verify-claims.claim-002",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "c7e80198055e686b"
+		},
+		{
+			"specId": "verify-claims.claim-003",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "8511ab02f2cb8abf"
+		},
+		{
+			"specId": "verify-claims.claim-004",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "62138af7bc5e2809"
+		},
+		{
+			"specId": "verify-claims.claim-005",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "d7ee06caf8d5c304"
+		},
+		{
+			"specId": "verify-claims.claim-006",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "1d330269187c4177"
+		},
+		{
+			"specId": "verify-claims.claim-007",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "f30b2487ac0438f6"
+		},
+		{
+			"specId": "verify-claims.claim-008",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "e7c0e194037cb331"
+		},
+		{
+			"specId": "verify-claims.claim-009",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "c5bb1b13d2cac4c0"
+		},
+		{
+			"specId": "verify-claims.claim-010",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "8a9114931314a0ad"
+		},
+		{
+			"specId": "verify-claims.claim-011",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "ee8ea64b67c2ed3c"
+		},
+		{
+			"specId": "verify-claims.claim-012",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "f02bfc6b1e5a7a3b"
+		},
+		{
+			"specId": "verify-claims.claim-013",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "5897b4ec44c2e7df"
+		},
+		{
+			"specId": "verify-claims.claim-014",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "275538f47c140a65"
+		},
+		{
+			"specId": "verify-claims.claim-015",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "599a5e5db6b41ffb"
+		},
+		{
+			"specId": "verify-claims.claim-016",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "f739892428ea9447"
+		},
+		{
+			"specId": "verify-claims.item",
+			"status": "completed",
+			"statusDetail": "foreach_materialized",
+			"control": null
+		}
+	],
+	"finalReport": "# Research report\n\n## Executive summary\n\n### Core conclusion\n\nQPACK's static table has 99 entries indexed 0–98 (RFC 9204, Section 3.1 and Appendix A). Its encoder stream type is 0x02 and decoder stream type is 0x03 (RFC 9204, Section 4.2). RFC 9204 was published in June 2022 (RFC 9204 front matter). The largest QUIC variable-length integer is 2^62−1, or 4611686018427387903 (RFC 9000, Section 16). These authoritative figures correct conflicting values in notes.md.\n\n### Main recommendations\n\nThese recommendations are proposals based on the research, not validated outcomes.\n\n- Use the RFC-corrected figures above as the reference values and annotate the conflicting notes.md entries.\n\n### Limits to keep in mind\n\n- Some sources disagree; those conclusions need further checking.\n- Questions remain unanswered. Verifying some facts does not establish the whole conclusion.\n- The supplied summary's table-size figure should not be used as the protocol value; the RFC identifies 99 entries.\n- Using the notes' stream identifiers would swap the two protocol roles and produce an incorrect implementation reference.\n- Use the official RFC publication month when dating or citing RFC 9204.\n- The larger notes.md value is not encodable as a QUIC variable-length integer and must be replaced.\n\nSource verification: the engine found 19 of 21 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Research scope and method\n\n- Task type: api\\_reference.\n- Research depth: standard.\n- Research questions: 6.\n- Planned fact slots: 6.\n- Expected output shape: research\\_brief.\n- Scope coverage: covered\\_with\\_conflicts 5, covered 1.\n- Method: plan research questions, collect source evidence, normalize claims, verify selected claims, apply deterministic audit gates, and synthesize the report.\n\n## Main findings\n\n### 1. RFC 9204's QPACK static table contains 99 entries indexed 0–98.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>); `RFC 9204, Section 3.1`\nEvidence citations:\n- rfc9204-001 lines 992-993: quote \"97  | x-frame-options  | deny\\n98  | x-frame-options  | sameorigin\"\n- rfc9204-002 lines 350-355: quote \"Note that the QPACK static table is indexed from 0, whereas the HPACK static table is indexed from 1.\"\n\nRFC 9204 Section 3.1 establishes zero-based indexing, and Appendix A lists index 98 as the final entry.\n\n### 2. RFC 9204 Section 4.2 assigns unidirectional stream type 0x02 to the QPACK encoder stream.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>)\nEvidence citations:\n- source-rfc9204 lines 456-456: quote \"An encoder stream is a unidirectional stream of type 0x02.\"\n\nThe RFC explicitly identifies the encoder stream type as 0x02.\n\n### 3. RFC 9204 Section 4.2 assigns unidirectional stream type 0x03 to the QPACK decoder stream.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>)\nEvidence citations:\n- source-rfc9204: quote \"A decoder stream is a unidirectional stream of type 0x03. It carries an unframed sequence of decoder instructions from decoder to encoder.\"\n\nThe RFC explicitly identifies the decoder stream type as 0x03.\n\n### 4. RFC 9204 was published in June 2022.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9204/>)\nEvidence citations:\n- RFC Editor: quote \"Published:\\n    June 2022\"\n\nThe RFC front matter and official RFC metadata provide the June 2022 publication month.\n\n### 5. The largest encodable QUIC variable-length integer is 4611686018427387903, equal to 2^62−1.\n\nEvidence status: **verified**  \nConfidence: **high**\nSources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>)\nEvidence citations:\n- RFC 9000, Section 16, Table 4 lines 1915-1915: quote \"11  | 8  | 62 | 0-4611686018427387903\"\n\nRFC 9000 Section 16 gives the 62-bit maximum value.\n\n## Recommendations\n\n1. **Use the RFC-corrected figures above as the reference values and annotate the conflicting notes.md entries.**\n   - Evidence status: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9204/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>)\n\n## Action plan\n\n1. Publish the short reference with the cited RFC sections and correct the four discrepant notes.md figures.\n   - Evidence: derived\n   - Sources: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9204/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>)\n\n## Evidence strength\n\n| Area | Status | Evidence | Why it matters |\n|---|---|---|---|\n| QPACK static table size | conflicting | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>); `notes.md` | The central QPACK table figure cannot be finalized without adjudication. |\n| QPACK encoder stream type | conflicting | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>); `notes.md` | A transposed stream identifier would make the protocol reference incorrect. |\n| QPACK decoder stream type | conflicting | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>); `notes.md` | A transposed stream identifier would make the protocol reference incorrect. |\n| RFC 9204 publication month | conflicting | [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9204/>); `notes.md` | The final citation must use the official publication month. |\n| Largest QUIC variable-length integer | conflicting | [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>); `notes.md` | The exact numeric limit is a critical QUIC reference value. |\n| Team-reviewed figures and wording in notes.md | conflicting | `notes.md` | Preserves the required local source and discrepancy audit trail. |\n\n## Caveats and remaining gaps\n\n- **Gap:** RFC-derived 99 entries conflicts with notes.md's 61.\n- **Gap:** RFC assigns 0x02/0x03 while notes.md reverses them.\n- **Gap:** Official metadata says June 2022; notes.md says June 2021.\n- **Gap:** RFC 9000 gives 2^62-1; notes.md gives 2^64-1.\n- **Contested:** notes.md records the QPACK static table as having 61 entries. Correction: RFC 9204's static table has 99 entries, not 61. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.txt>); `notes.md`)\n- **Contested:** notes.md records QPACK encoder stream type 0x03. Correction: Correct encoder stream type: 0x02; correct decoder stream type: 0x03. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>); `<cwd>/notes.md`)\n- **Contested:** notes.md records QPACK decoder stream type 0x02. Correction: Use 0x03 for the QPACK decoder stream; 0x02 is the encoder stream type. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>); `<cwd>/notes.md`)\n- **Contested:** notes.md states that RFC 9204 was published in June 2021. Correction: RFC 9204 was published in June 2022. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>); `notes.md`)\n- **Contested:** notes.md states that the largest QUIC variable-length integer is 2^64−1. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>); `notes.md`)\n- **Caveat:** The team-reviewed notes.md says the QPACK static table has 61 entries, but RFC 9204 supports 99 entries indexed 0–98. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.txt>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>); `notes.md`)\n- **Caveat:** notes.md reverses the encoder and decoder stream-type assignments; RFC 9204 assigns 0x02 to the encoder and 0x03 to the decoder. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>); `<cwd>/notes.md`)\n- **Caveat:** notes.md gives June 2021, while official RFC metadata and front matter identify June 2022. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9204/>); `notes.md`)\n- **Caveat:** notes.md gives 2^64−1, but RFC 9000 defines the maximum QUIC variable-length integer as 2^62−1. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>); `notes.md`)\n- **Unverified lead:** RFC 9204 Sections 4.2 and 8.2 provide the stream-type citation anchor. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>))\n- **Unverified lead:** RFC 9204 front matter and RFC Editor metadata show June 2022. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9204/>))\n- **Unverified lead:** RFC 9000 Section 16 gives the variable-length integer range ending at 4611686018427387903. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>))\n- **Unverified lead:** The supplied notes.md figures require correction against RFC 9204 and RFC 9000. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>))\n- **Unverified lead:** RFC 9204 defines two QPACK unidirectional stream types. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>))\n- **Unverified lead:** notes.md lines 3–6 contain the four supplied figures used for cross-checking.\n- **Unverified lead:** RFC 9204 states that the QPACK static table is indexed from 0. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>))\n- **Unverified lead:** RFC 9204 Appendix A lists the final QPACK static-table entry at index 98. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>))\n- **Unverified lead:** RFC 9204's QPACK static table has 99 entries indexed from 0 through 98. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>))\n- **Unverified lead:** The largest encodable QUIC variable-length integer is 4611686018427387903, equal to 2^62−1. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>))\n- **Unverified lead:** RFC 9000 defines QUIC variable-length integers with 6-, 14-, 30-, or 62-bit values. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>))\n- **Decision note:** The supplied notes contain four figures that conflict with the cited RFC authorities. ([rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9204/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>))\n\n## Source index\n\n- **rfc-editor.org**: [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.html>), [rfc-editor.org](<https://www.rfc-editor.org/info/rfc9204/>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9000.html>), [rfc-editor.org](<https://www.rfc-editor.org/rfc/rfc9204.txt>)\n\n## Audit summary\n\n- Claims: 11 verified, 0 partially supported, 0 unsupported, 5 conflicting, 0 verification blocked.\n- Fact slots: 0 filled, 0 partial, 6 missing/conflicting, 6 total.\n- Research questions: 6.\n- Quote check (engine): 19 of 21 quotes found on the cited page; 2 not checked (not found on the page 2) — listed in [audit](audit.md).\n\n## Related artifacts\n\n- [Evidence audit](audit.md) — claim verdicts, fact-slot coverage, gaps, and renderer diagnostics.\n- [Structured source references](refs.json) — machine-readable source pointers used by the final task.\n- [Machine-readable report](control.json) — the structured final report and completion-summary contract.\n",
+	"audit": "# Research audit\n\nThis artifact preserves the detailed claim/gap/source ledger behind `final-report.md`.\n\nSource verification: the engine found 19 of 21 quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.\n\n## Evidence level\n\n- Audited claims (16 total): 11 verified, 0 partially supported, 0 unsupported, 5 conflicting, 0 verification blocked.\n- Fact slots: 0 filled, 0 partial, 6 missing/conflicting, 6 total.\n- Outside the audited-claim denominator: 11 preserved unverified leads available to synthesis, 0 additional leads omitted by a schema cap, 4 coverage gaps.\n\n## Synthesis caveats\n\n- The team-reviewed notes.md says the QPACK static table has 61 entries, but RFC 9204 supports 99 entries indexed 0–98.\n- notes.md reverses the encoder and decoder stream-type assignments; RFC 9204 assigns 0x02 to the encoder and 0x03 to the decoder.\n- notes.md gives June 2021, while official RFC metadata and front matter identify June 2022.\n- notes.md gives 2^64−1, but RFC 9000 defines the maximum QUIC variable-length integer as 2^62−1.\n\n## Claim verdict ledger\n\n| ID | Status | Claim/support | Caveat/source |\n|---|---|---|---|\n| claim-001 | conflicting | notes.md records the QPACK static table as having 61 entries. | The RFC implies the total by zero-based indexing and the final table index rather than stating the total explicitly. Correction: RFC 9204's static table has 99 entries, not 61. |\n| claim-002 | verified | 98 \\| x-frame-options \\| sameorigin | The 99-entry total is inferred from zero-based indices 0–98. |\n| claim-003 | verified | 98 \\| x-frame-options \\| sameorigin | The table is zero-based, so indices 0–98 represent 99 entries. |\n| claim-004 | verified | 98 \\| x-frame-options \\| sameorigin | The original claim is supported: RFC 9204's static table contains 99 entries indexed 0–98. |\n| claim-005 | conflicting | notes.md records the QPACK encoder stream type as 0x03. | The claim is accurate only as a description of notes.md's contents. Correction: Correct encoder stream type: 0x02; correct decoder stream type: 0x03. |\n| claim-006 | verified | RFC 9204 Section 4.2 identifies the QPACK encoder stream as unidirectional stream type 0x02. | The decoder stream is separately assigned type 0x03. |\n| claim-007 | conflicting | notes.md records 0x02 as the QPACK decoder-stream type. | The notes entry appears to swap encoder and decoder stream types. Correction: Use 0x03 for the QPACK decoder stream; 0x02 is the encoder stream type. |\n| claim-008 | verified | RFC 9204 identifies the QPACK decoder stream as type 0x03. | The adjacent encoder-stream type is 0x02. |\n| claim-009 | conflicting | notes.md records RFC 9204 as published in June 2021. | The local-recording claim is textually supported, but its implied RFC publication date is incorrect. Correction: RFC 9204 was published in June 2022. |\n| claim-010 | verified | RFC 9204 was published in June 2022. | — |\n| claim-011 | conflicting | notes.md records the largest QUIC variable-length integer as 2^64-1. | The local note is accurately quoted but technically incorrect. |\n| claim-012 | verified | QUIC — 11 \\| 8 \\| 62 \\| 0-4611686018427387903 | — |\n| claim-013 | verified | QUIC — 11 \\| 8 \\| 62 \\| 0-4611686018427387903 | — |\n| claim-014 | verified | RFC 9204 identifies the encoder stream as unidirectional type 0x02. | The local notes reverse the encoder and decoder values. |\n| claim-015 | verified | RFC 9204 identifies the decoder stream as unidirectional type 0x03. | The local notes reverse the encoder and decoder values. |\n| claim-016 | verified | RFC 9000 sets the largest QUIC variable-length integer to 4611686018427387903, or 2^62-1. | The maximum follows from 62 usable bits, not 64. |\n\n## Fact slot coverage\n\n| Slot | Status | Best value | Gap/impact |\n|---|---|---|---|\n| slot-001 | conflicting | RFC 9204 supports 99 entries indexed 0 through 98; notes.md says 61 entries. | RFC evidence supports 99; notes.md line 3 records 61. |\n| slot-002 | conflicting | RFC 9204 identifies encoder stream type 0x02; notes.md records 0x03. | RFC source says 0x02; notes.md line 4 says 0x03. |\n| slot-003 | conflicting | RFC 9204 identifies decoder stream type 0x03; notes.md records 0x02. | RFC source says 0x03; notes.md line 4 says 0x02. |\n| slot-004 | conflicting | Official RFC metadata states June 2022; notes.md states June 2021. | RFC Editor metadata says June 2022; notes.md lines 3-6 say June 2021. |\n| slot-005 | conflicting | RFC 9000 gives 2^62-1, or 4611686018427387903; notes.md says 2^64-1. | RFC 9000 lists a 62-bit maximum; notes.md line 6 says 2^64-1. |\n| slot-006 | conflicting | RFC 9204's static table has 99 entries, not 61. \\| Correct encoder stream type: 0x02; correct decoder stream type: 0x03. \\| Use 0x03 for the QPACK decoder stream; 0x02 is the encoder stream type. \\| RFC 9204 was published in June 2022. | Local provenance is present; its figures conflict with RFC authority on slots 1-5.; audited claim status is conflicting (claim-001, claim-005, claim-007, claim-009, claim-011, claim-014, claim-015, claim-016) |\n\n## Remaining gaps\n\nNo remaining gaps were reported.\n\n## Claims used in executive synthesis\n\n- **claim-004** (verified): 98 | x-frame-options | sameorigin\n- **claim-006** (verified): RFC 9204 Section 4.2 identifies the QPACK encoder stream as unidirectional stream type 0x02.\n- **claim-008** (verified): RFC 9204 identifies the QPACK decoder stream as type 0x03.\n- **claim-010** (verified): RFC 9204 was published in June 2022.\n- **claim-012** (verified): QUIC — 11 | 8 | 62 | 0-4611686018427387903\n- **claim-001** (conflicting): notes.md records the QPACK static table as having 61 entries.\n- **claim-005** (conflicting): notes.md records the QPACK encoder stream type as 0x03.\n- **claim-007** (conflicting): notes.md records 0x02 as the QPACK decoder-stream type.\n- **claim-009** (conflicting): notes.md records RFC 9204 as published in June 2021.\n- **claim-011** (conflicting): notes.md records the largest QUIC variable-length integer as 2^64-1.\n\n## Quote check (engine)\n\nThe engine looked for each verifier quote in the page text the verifier's own tool returned for that URL, otherwise on the cited page fetched by the engine itself. No model was involved; verdicts above are unchanged.\n\n- Quotes: 21; found 19 (exact 5, after normalization 14, math notation 0); pages fetched 3; not checked 2.\n\n| Claim | Source | Quote | Why not checked |\n| --- | --- | --- | --- |\n| claim-005 | https://www.rfc-editor.org/rfc/rfc9204.html | An encoder stream is a unidirectional stream of type 0x02. It carries an unframed sequence of encoder instructions from encoder to decoder. \\* A… | not found on the page |\n| claim-011 | https://www.rfc-editor.org/rfc/rfc9000.html | This means that integers are encoded on 1, 2, 4, or 8 bytes and can encode 6-, 14-, 30-, or 62-bit values, respectively. Table… | not found on the page |\n\n## Renderer diagnostics\n\n- Executive word count: 1313.\n- Rendered source URLs: 4/4.\n- Render warnings: 0.\n- Reader translations: 27 applied, 0 ignored.\n"
+}
