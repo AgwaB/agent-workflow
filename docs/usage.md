@@ -113,7 +113,10 @@ such as "RFC 9114 / HTTP/3" or "HTTP/3 (RFC 9114)"; "RFC 9000 vs RFC 9114" does 
 observation's own slot or else on exactly one other slot, so a note that misdates a fact meets the
 external value; the audit names the document. The audit also lists reader-facing
 sentences that tell the reader a local file is wrong while citing numbers or dates of a kind the file
-does not contain ("Source attribution check"); they are warnings, not blockers.
+does not contain ("Source attribution check"); they are warnings, not blockers. A claim the verifier did not
+verify but corrected (`partially_supported` or `unsupported` with `correctionOrCounterclaim`) leaves its fact slot
+`partial`, with the correction in the gap reason, even when other claims on the slot are verified; the audit's
+claim ledger shows the correction.
 
 Research synthesis requires a header and all sixteen indexed pages at `maxChars: 16000`, including
 empty tails, exactly once. Pages are bounded in UTF-16 units and UTF-8 bytes, with 256,000 aggregate

@@ -198,6 +198,29 @@ function reconcileFactSlotCoverageWithAudit(
 				gapReason: slot.gapReason ? `${slot.gapReason}; ${reason}` : reason,
 			};
 		}
+		// 2026-11-10 (owner; P3 hard claims): a claim the verifier did not verify but corrected means part of what the
+		// slot holds is wrong; verified claims on other aspects of the slot do not settle that. The slot stays
+		// partial with the correction in its gap reason (bestValue is the normalizer's and may carry the wrong part).
+		const corrected = claims.filter(
+			(claim) =>
+				["partially_supported", "unsupported"].includes(stringOf(claim.status)) &&
+				stringOf(claim.correctionOrCounterclaim)?.trim(),
+		);
+		if (corrected.length > 0 && slot.status === "filled") {
+			const notes = compactStrings(
+				corrected.map(
+					(claim) =>
+						`${idOf(claim) ?? "claim"}: ${claim.correctionOrCounterclaim.trim()}`,
+				),
+				4,
+			);
+			const reason = `verifier correction on a claim it did not verify (${notes.join(" | ")})`;
+			return {
+				...slot,
+				status: "partial",
+				gapReason: slot.gapReason ? `${slot.gapReason}; ${reason}` : reason,
+			};
+		}
 		if (
 			!statuses.has("verified") &&
 			slot.status === "filled" &&

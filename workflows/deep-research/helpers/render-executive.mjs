@@ -3029,11 +3029,24 @@ function renderAuditMarkdown(
 					row.verdictDigest?.support ??
 					stringifyItem(row),
 			);
+			// 2026-11-10 (owner): the packet keeps an empty caveat as "", which hid the verifier's correction behind
+			// `??`; a claim the verifier did not verify shows its correction next to the caveat. Other rows unchanged.
+			const caveatNote = cleanText(row.caveat);
+			const correction = cleanText(row.correctionOrCounterclaim);
+			const showCorrection =
+				correction &&
+				(!caveatNote ||
+					(normalizeClaimStatus(row.status) !== "verified" &&
+						!caveatNote.includes(correction)));
 			const caveat = escapeTableCell(
-				row.caveat ??
-					row.correctionOrCounterclaim ??
-					markdownLinkList(urlsOf(row, 3), 3) ??
-					"—",
+				showCorrection
+					? caveatNote
+						? `${caveatNote} Correction: ${correction}`
+						: correction
+					: (row.caveat ??
+							row.correctionOrCounterclaim ??
+							markdownLinkList(urlsOf(row, 3), 3) ??
+							"—"),
 			);
 			out.push(`| ${id} | ${status} | ${support} | ${caveat || "—"} |`);
 		}
