@@ -1541,6 +1541,8 @@ function deterministicNextAction(verdict) {
 function completionLimitations({
 	_reportAvailable,
 	reportVerdictConsistent,
+	narrativeVerdict,
+	effectiveVerdict,
 	rendererIntegrityFailed,
 	partition,
 	findingCountMismatch,
@@ -1569,7 +1571,7 @@ function completionLimitations({
 		);
 	else if (!reportVerdictConsistent)
 		limitations.push(
-			"Executive synthesis contradicted the deterministic verdict and was rejected.",
+			`The executive synthesis gave verdict ${cleanText(narrativeVerdict) || "none"}, which the deterministic ledger does not support; the report uses ${cleanText(effectiveVerdict)}.`,
 		);
 	if (findingCountMismatch)
 		limitations.push(
@@ -1786,6 +1788,8 @@ function renderMarkdown({
 	const limitations = completionLimitations({
 		_reportAvailable: reportAvailable,
 		reportVerdictConsistent,
+		narrativeVerdict: report?.verdict,
+		effectiveVerdict,
 		rendererIntegrityFailed,
 		partition,
 		findingCountMismatch,
@@ -2060,6 +2064,13 @@ export default async function renderReviewReport({ sources, context = {} }) {
 	let effectiveVerdict = requiredReportVerdict(partition, all.length);
 	const reportVerdictConsistent =
 		reportAvailable && cleanText(report.verdict) === effectiveVerdict;
+	// 2026-11-10 (owner): a narrative verdict that differs from the ledger's is a warning, not a failed render. The
+	// ledger verdict stands, except that REVIEW_COMPLETE needs the narrative's agreement (else PARTIAL_REVIEW).
+	const verdictDowngraded =
+		reportAvailable &&
+		!reportVerdictConsistent &&
+		effectiveVerdict === "REVIEW_COMPLETE";
+	if (verdictDowngraded) effectiveVerdict = "PARTIAL_REVIEW";
 	let rendererIntegrityFailed = false;
 	const renderCurrentVerdict = () =>
 		renderMarkdown({
@@ -2151,8 +2162,7 @@ export default async function renderReviewReport({ sources, context = {} }) {
 		renderedAllFindings &&
 		renderedAllNeedsHuman &&
 		renderedAllSupportNotes &&
-		reportAvailable &&
-		reportVerdictConsistent;
+		reportAvailable;
 	if (!renderIntegrityPassed) {
 		rendererIntegrityFailed = true;
 		if (effectiveVerdict !== "PARTIAL_REVIEW") {
@@ -2160,7 +2170,9 @@ export default async function renderReviewReport({ sources, context = {} }) {
 		}
 		rendered = renderCurrentVerdict();
 	}
-	const passed = renderIntegrityPassed && effectiveVerdict !== "PARTIAL_REVIEW";
+	const passed =
+		renderIntegrityPassed &&
+		(effectiveVerdict !== "PARTIAL_REVIEW" || verdictDowngraded);
 
 	let sidecarPath;
 	let sidecarError;

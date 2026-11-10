@@ -1053,7 +1053,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 		riskFloorConsistent(synthesisRisk, regressionRisk, canonicalRisk);
 	// A known blocker remains authoritative even when another risk dimension is
 	// unknown; an understated risk cannot support a READY label.
-	const verdict =
+	const requiredReportVerdict =
 		proposedVerdict === "BLOCKED"
 			? "BLOCKED"
 			: riskGatePassed && (proposedVerdict !== "READY" || riskConsistent)
@@ -1062,7 +1062,15 @@ export default async function renderImpactReport({ sources, context = {} }) {
 	const verdictConsistent =
 		allLedgerSourcesAvailable &&
 		coverageComplete &&
-		cleanText(safeSynthesis.verdict) === verdict;
+		cleanText(safeSynthesis.verdict) === requiredReportVerdict;
+	// 2026-11-10 (owner): a synthesis verdict that differs from the one the lens results require is a warning, not a
+	// failed render. The required verdict stands, except that READY needs the synthesis's agreement (else UNKNOWN).
+	const verdictMismatch =
+		allLedgerSourcesAvailable && coverageComplete && !verdictConsistent;
+	const verdict =
+		verdictMismatch && requiredReportVerdict === "READY"
+			? "UNKNOWN"
+			: requiredReportVerdict;
 	const collections = rowCollections({
 		synthesis: effectiveSynthesis,
 		contract: safeContract,
@@ -1105,7 +1113,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 		);
 	if (allLedgerSourcesAvailable && !verdictConsistent)
 		limitations.push(
-			`Synthesis verdict ${cleanText(safeSynthesis.verdict) || "unavailable"} contradicts required verdict ${verdict}.`,
+			`The synthesis gave verdict ${cleanText(safeSynthesis.verdict) || "none"}, but the lens results require ${requiredReportVerdict}; the report uses ${verdict}.`,
 		);
 	if (allLedgerSourcesAvailable && !riskConsistent)
 		limitations.push(
@@ -1134,7 +1142,6 @@ export default async function renderImpactReport({ sources, context = {} }) {
 	const passed =
 		allLedgerSourcesAvailable &&
 		coverageComplete &&
-		verdictConsistent &&
 		riskConsistent &&
 		riskGatePassed &&
 		renderedAllStructuredItems;

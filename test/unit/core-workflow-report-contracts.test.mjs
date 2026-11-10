@@ -1,6 +1,6 @@
 import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
@@ -625,15 +625,21 @@ test("impact-review renderer applies blocking and unknown precedence and fails c
 		assert.equal(unknownVerdict.gates.riskGatePassed, false);
 		assert.match(unknownVerdict.markdown, /HUMAN-1/);
 
+		// 2026-11-10 (owner): a synthesis verdict that differs from the required one no longer fails the render; the
+		// required verdict stands and the reader is told.
 		const contradiction = impactSources();
 		contradiction["impact-analysis.impact-synthesis"].verdict = "READY";
 		const contradictionResult = await renderImpactReport({
 			sources: contradiction,
 			context,
 		});
-		assert.equal(contradictionResult.status, "failed");
+		assert.equal(contradictionResult.status, "passed");
+		assert.equal(contradictionResult.verdict, "NEEDS_WORK");
 		assert.equal(contradictionResult.gates.verdictConsistent, false);
-		assert.equal(contradictionResult.completionSummaryMarkdown, "");
+		assert.match(
+			contradictionResult.completionSummaryMarkdown,
+			/synthesis gave verdict READY, but the lens results require NEEDS\\?_WORK; the report uses NEEDS\\?_WORK/,
+		);
 
 		const understated = impactSources();
 		understated["impact-analysis.impact-synthesis"].riskLevel = "low";
@@ -679,6 +685,7 @@ test("spec-review renderer fails closed on verdict, source, evidence, and verifi
 	const cwd = mkdtempSync(join(tmpdir(), "spec-review-render-fail-"));
 	try {
 		const context = completeContext(cwd);
+		// A report whose owner ledger does not match the partition still fails.
 		const contradiction = await renderSpecReviewReport({
 			sources: {
 				"partition-findings.main": cleanPartition(),
@@ -920,5 +927,96 @@ test("spec-review renderer fails closed on verdict, source, evidence, and verifi
 			maxRetries: 10,
 			retryDelay: 100,
 		});
+	}
+});
+
+// agent-workflow 2026-11-10 (owner): a deep-review narrative verdict that contradicts the ledger is a warning, not a
+// failed render. Recorded inputs of a passed run (support-replay fixture claude-deep-review-4cce9b), with the
+// narrative verdict changed.
+test("deep-review renderer keeps the ledger verdict and passes when only the narrative verdict differs", async () => {
+	const runDir = new URL(
+		"../fixtures/support-replay/runs/claude-deep-review-4cce9b/",
+		import.meta.url,
+	);
+	const run = JSON.parse(readFileSync(new URL("run.json", runDir), "utf8"));
+	const control = (specId) => {
+		const task = run.tasks.find((row) => row.specId === specId);
+		return JSON.parse(
+			readFileSync(
+				new URL(`tasks/${task.taskId}/control.json`, runDir),
+				"utf8",
+			),
+		);
+	};
+	const { default: renderReview } = await import(
+		"../../workflows/deep-review/helpers/render-review-report.mjs"
+	);
+	const sources = () => ({
+		"partition-verdicts.main": control("partition-verdicts.main"),
+		"report.main": control("report.main"),
+	});
+	const recorded = await renderReview({
+		sources: sources(),
+		options: {},
+		context: {},
+	});
+	assert.equal(recorded.status, "passed");
+	assert.equal(recorded.verdict, "NEEDS_WORK");
+
+	const contradicted = sources();
+	contradicted["report.main"] = {
+		...contradicted["report.main"],
+		verdict: "REVIEW_COMPLETE",
+	};
+	const result = await renderReview({
+		sources: contradicted,
+		options: {},
+		context: {},
+	});
+	assert.equal(result.status, "passed");
+	assert.equal(result.verdict, "NEEDS_WORK");
+	assert.equal(result.gates.reportVerdictConsistent, false);
+	assert.match(
+		result.completionSummaryMarkdown,
+		/gave verdict REVIEW\\?_COMPLETE, which the deterministic ledger does not support; the report uses NEEDS\\?_WORK/,
+	);
+	assert.match(result.markdown, /contradicted the deterministic ledger/);
+});
+
+// agent-workflow 2026-11-10 (owner): a spec-review narrative verdict that contradicts the ledger is a warning, not a
+// failed render. A recorded passed run (support-replay fixture claude-spec-review-7f6ae1) is replayed with the
+// report's verdict changed.
+test("spec-review renderer keeps the ledger verdict and passes when only the narrative verdict differs", async () => {
+	const { materialize, replaySupport } = await import(
+		"../helpers/support-replay.mjs"
+	);
+	const { cwd, run } = materialize("claude-spec-review-7f6ae1");
+	try {
+		const runDir = join(
+			stateDir(cwd),
+			".agent-workflow",
+			"workflows",
+			run.runId,
+		);
+		const reportTask = run.tasks.find((row) => row.specId === "report.main");
+		const reportPath = join(runDir, "tasks", reportTask.taskId, "control.json");
+		const recorded = await replaySupport(cwd, run);
+		assert.equal(recorded["final.main"].status, "passed");
+		assert.equal(recorded["final.main"].verdict, "GAPS_FOUND");
+		const reportControl = JSON.parse(readFileSync(reportPath, "utf8"));
+		writeFileSync(
+			reportPath,
+			JSON.stringify({ ...reportControl, verdict: "CONFORMS" }),
+		);
+		const result = (await replaySupport(cwd, run))["final.main"];
+		assert.equal(result.status, "passed");
+		assert.equal(result.verdict, "GAPS_FOUND");
+		assert.equal(result.gates.reportVerdictConsistent, false);
+		assert.match(
+			result.completionSummaryMarkdown,
+			/gave verdict CONFORMS, which the deterministic ledger does not support; the report uses GAPS\\?_FOUND/,
+		);
+	} finally {
+		rmSync(cwd, { recursive: true, force: true });
 	}
 });

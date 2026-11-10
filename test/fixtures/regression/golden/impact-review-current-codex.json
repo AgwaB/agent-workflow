@@ -16,7 +16,7 @@
 		},
 		"executor": "codex"
 	},
-	"status": "failed",
+	"status": "completed",
 	"tasks": [
 		{
 			"specId": "impact-analysis.api-contract-impact.main",
@@ -44,10 +44,9 @@
 		},
 		{
 			"specId": "impact-analysis.final.main",
-			"status": "failed",
-			"statusDetail": "support_declared_failed",
-			"message": "support declared failed",
-			"control": "ea1ffae74c76f047"
+			"status": "completed",
+			"statusDetail": "support_completed",
+			"control": "c2d5837be5942bd9"
 		},
 		{
 			"specId": "impact-analysis.impact-synthesis.main",
