@@ -58,6 +58,12 @@ needs them is an integration test: make `// test-tier: integration` its first li
 in CI. In an integration test, wait for the event (`test/helpers/wait-until.mjs`) rather than a fixed time, and count
 or observe what happened rather than how long it took; a time bound should only guard against a hang.
 
+After a large change, also run `npm run test:regression` once (not part of `validate` or CI): it replays recorded
+real runs (`test/fixtures/regression/`) through the engine with their recorded model outputs and compares every
+task's outcome and the final report with `test/fixtures/regression/golden/`. An intended change is re-recorded with
+`AGENT_WORKFLOW_WRITE_REGRESSION=1 npm run test:regression` and reviewed in the diff; a new fixture is captured with
+`node test/helpers/regression-fixtures.mjs --capture <run dir> <name>`.
+
 Changes to dashboard animations also need `npm run test:ui-motion` (headless Chrome; its real-time animation checks are not part of `validate` or CI).
 
 Changes to workflow prompts, agent/skill instructions, schemas, or helpers that affect behavior belong in the workflow/runtime category, regardless of file extension. For bug fixes, add a regression test when practical; otherwise explain how you verified the fix.
