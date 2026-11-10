@@ -739,3 +739,63 @@ test("claims the sanitizer held back read as one reader line, and pipeline notes
 		1,
 	);
 });
+
+// 2026-11-10 (owner, after the P3 hard-claim round): verifiers rate a false claim partially_supported or unsupported
+// and give the right value in correctionOrCounterclaim. The audit ledger shows that correction — also when the
+// verifier left an empty caveat, which used to hide it behind `??` — and a verified row keeps its caveat alone.
+test("the audit ledger shows a verifier's correction for claims it did not verify", async () => {
+	const sources = await inputs((packetSources) => {
+		const digests = packetSources["audit-claims"].claimDigests;
+		const edit = (id, status, caveat, correction) => {
+			const row = digests.find((claim) => claim.id === id);
+			row.status = status;
+			row.verdictDigest = { ...row.verdictDigest, caveat };
+			row.correctionOrCounterclaim = correction;
+		};
+		edit(
+			"claim-002",
+			"partially_supported",
+			"",
+			"Region-02 caches for 23 seconds, not 22.",
+		);
+		edit(
+			"claim-003",
+			"unsupported",
+			"Only the regional page was found.",
+			"Region-03 caches for 30 seconds.",
+		);
+		edit(
+			"claim-004",
+			"verified",
+			"Wording differs slightly.",
+			"Not shown for a verified row with a caveat.",
+		);
+		edit("claim-005", "verified", "", "Shown when there is no caveat.");
+		edit(
+			"claim-006",
+			"partially_supported",
+			"Region-06 caches for 26 seconds per the page.",
+			"Region-06 caches for 26 seconds per the page.",
+		);
+	});
+	const result = await render({ sources });
+	const row = (id) =>
+		result.auditMarkdown
+			.split("\n")
+			.find((line) => line.startsWith(`| ${id} |`));
+	assert.match(
+		row("claim-002"),
+		/\| Region-02 caches for 23 seconds, not 22\. \|$/,
+	);
+	assert.match(
+		row("claim-003"),
+		/\| Only the regional page was found\. Correction: Region-03 caches for 30 seconds\. \|$/,
+	);
+	assert.match(row("claim-004"), /\| Wording differs slightly\. \|$/);
+	assert.match(row("claim-005"), /\| Shown when there is no caveat\. \|$/);
+	// A correction the caveat already states is not repeated.
+	assert.match(
+		row("claim-006"),
+		/\| Region-06 caches for 26 seconds per the page\. \|$/,
+	);
+});
