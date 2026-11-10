@@ -8,6 +8,7 @@ import {
 	persistManagementRun,
 } from "../helpers/dashboard-management.mjs";
 import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
+import { waitForSavedProfile } from "../helpers/dashboard-profile-wait.mjs";
 import { profileAction } from "../../dist/hosts/catalog.js";
 
 const chrome = await findChrome();
@@ -246,10 +247,7 @@ test("Chrome executor default profiles: built-in shown, edited with the full eff
 	);
 	await set(browser, "Effort", "max");
 	await browser.click('[data-management-action="save-profile"]');
-	// The save result ("Saved profile:"), not the "Saved profiles" panel heading that is always there.
-	await browser.waitFor(() =>
-		document.querySelector("#center")?.textContent.includes("Saved profile:"),
-	);
+	await waitForSavedProfile(browser);
 	const shown = await profileAction(p.ctx, { op: "show", name: "codex" });
 	assert.equal(shown.data.profile.effort, "max");
 	assert.equal(shown.data.profile.roles, undefined);

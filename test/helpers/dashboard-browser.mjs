@@ -32,9 +32,15 @@ export async function findChrome() {
 	}
 	return null;
 }
-export async function createBrowser(executable) {
+export async function createBrowser(
+	executable,
+	{
+		launch = spawn,
+		nextPoll = () => new Promise((resolve) => setTimeout(resolve, 25)),
+	} = {},
+) {
 	const profile = await mkdtemp(join(tmpdir(), "aw-dashboard-browser-"));
-	const chrome = spawn(
+	const chrome = launch(
 		executable,
 		[
 			"--headless=new",
@@ -211,7 +217,7 @@ export async function createBrowser(executable) {
 			} catch (error) {
 				if (!isNavigationError(error)) throw error;
 			}
-			await new Promise((resolve) => setTimeout(resolve, 25));
+			await nextPoll();
 		}
 		throw new Error(`Browser condition timed out: ${fn}`);
 	};

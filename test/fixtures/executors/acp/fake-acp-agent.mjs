@@ -3,16 +3,11 @@
 // conformance scenarios usage_unknown | slow | approval | mcp_tool | fail_*). FAKE_ACP_ATTEMPT (set by the
 // conformance harness through the request env) tags the launch record.
 // Every request it receives (method, params without env values) is appended to FAKE_ACP_LOG.
-import {
-	appendFileSync,
-	existsSync,
-	mkdirSync,
-	writeFileSync,
-	writeSync,
-} from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { callMcpTool } from "../../../../dist/sdk/conformance/index.js";
+import { finishLateAuthentication } from "../../../helpers/acp-late-auth.mjs";
 
 if (process.argv.includes("--version")) {
 	process.stdout.write("0.99.0\n");
@@ -678,13 +673,8 @@ process.stdin.on("data", (text) => {
 					// The client reads the response first and the stderr line after it; the agent ignores the client's
 					// stop signal and exits by itself, so the line always exists and only the client's draining is
 					// under test (a killed agent could otherwise die between the two writes).
-					process.on("SIGTERM", () => {});
-					writeSync(
-						1,
-						`${JSON.stringify({ jsonrpc: "2.0", id: message.id, result: {} })}\n`,
-					);
-					writeSync(2, "Signed in: https://example.invalid/done\n");
-					process.exit(0);
+					void finishLateAuthentication(message.id);
+					break;
 				}
 				process.stderr.write(
 					"Open the following link to authenticate: https://example.invalid/login\n",
