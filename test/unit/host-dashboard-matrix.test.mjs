@@ -397,7 +397,18 @@ test("dashboard live matrix: focus survives updates and all sampled frames retai
 				frame.y === frames[0].y &&
 				frame.w === frames[0].w,
 		),
-		"clock ticks do not jump the graph",
+		// 2026-11-11: failed once on macOS/Node 26 CI (42986253099, passed on rerun; 40/40 locally): name the frames.
+		`clock ticks do not jump the graph: ${JSON.stringify(
+			frames
+				.map((frame, index) => ({ index, ...frame }))
+				.filter(
+					(frame) =>
+						frame.x !== frames[0].x ||
+						frame.y !== frames[0].y ||
+						frame.w !== frames[0].w,
+				)
+				.slice(0, 4),
+		)} vs first ${JSON.stringify(frames[0])}`,
 	);
 	await browser.click('[data-filter="running"]');
 	const lastRunning = run.tasks.find((task) => task.status === "running");
