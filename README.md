@@ -1,130 +1,138 @@
-# agent-workflow
+<p align="center">
+  <img src=".github/assets/logo.svg" width="160" alt="agent-workflow">
+</p>
 
-`@agwab/agent-workflow` runs multi-worker workflows on coding-agent CLIs: **Pi**, **Codex**,
-**Claude Code** and experimental **Antigravity**. A JSON spec defines model stages, fan-out,
-fan-in, loops, deterministic helpers, structured outputs and required-read gates. The engine
-compiles the spec, schedules stages and dispatches workers to the selected executors.
+<h1 align="center">agent-workflow</h1>
 
-Pre-release: expect breaking changes before 1.0, including to the executor SDK contract.
+<p align="center"><strong>Repeatable multi-agent workflows on the coding-agent CLIs you already use.</strong></p>
 
-## Install
+<p align="center">
+  <a href="https://github.com/AgwaB/agent-workflow/actions/workflows/ci.yml"><img src="https://github.com/AgwaB/agent-workflow/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+</p>
 
-Requires Node.js 22+ and at least one executor CLI installed and logged in:
-[Pi](docs/executors.md#pi) 1.1+, [Codex](docs/executors.md#codex) (`codex-cli` 0.159+),
-[Claude Code](docs/executors.md#claude-code) 2.1+, or [Antigravity](docs/executors.md#antigravity-acp).
-Each executor uses its own login; agent-workflow never handles credentials.
+agent-workflow runs named, repeatable multi-step workflows — deep research, code review, spec conformance,
+impact review, or your team's own routines — on **Claude Code**, **Codex**, **Pi** and, experimentally,
+**Antigravity**. Each step runs as a worker on the CLI you choose; the engine passes results between steps, checks
+them, and records the run so you can watch, stop or resume it.
 
-```sh
-npm install @agwab/agent-workflow       # project-local
-npm install -g @agwab/agent-workflow    # or globally
-```
+<p align="center">
+  <img src=".github/assets/demo.webp" width="900" alt="Demo: the same requests in Claude Code and Pi, first in plain language, then as an /aw command, and the runs on the agent-workflow dashboard">
+</p>
 
-The package has no runtime dependencies. Pi packages are optional peers, needed only by the Pi host.
+> **Pre-release.** Not on npm yet; breaking changes are expected before 1.0. Until the first release,
+> [install from source](docs/hosts.md#requirements-and-installing-from-source).
 
 ## Quick start
 
-```sh
-npx agent-workflow list
-npx agent-workflow validate deep-review
-npx agent-workflow run deep-review "Review the current diff for reliability" --executor claude
-npx agent-workflow run spec-review "Check docs/spec.md against src/" --executor codex --permission-mode safe
-id=$(npx agent-workflow run deep-research "State of X" --detach --json | jq -r .data.runId)
-npx agent-workflow wait "$id" --timeout 30m
-npx agent-workflow inspect "$id" --failures --results
-```
+Install it where you type; the CLIs that do the work only need to be logged in.
 
-`run` prints a capability preview and waits in the foreground. `--detach` hands the run to a
-background supervisor. Run records and logs live in a private [per-project state directory](docs/usage.md#where-run-state-lives),
-not the repository. See the [CLI reference](docs/cli.md).
-
-**The default permission mode is `free`: workers run without approval prompts or a sandbox, even
-when the stage declares `readOnly`.** Use `--permission-mode safe` to enforce read-only intent,
-policy-based approvals that fail closed and a worktree for every write-capable stage. All four
-bundled workflows declare read-only intent; it is not a safety boundary in `free`.
-See [permission modes](docs/usage.md#permission-modes) for limits and executor mappings.
-
-Every launch prints a link to the loopback-only [dashboard](docs/hosts.md#dashboard), with live tasks,
-logs, reports and controls. `agent-workflow dashboard --open` opens it; `run … --open` opens it
-for a new run. No sign-in is required by default; `--auth` adds a browser session for shared
-machines and `--readonly` disables controls.
-
-## Hosts and executors
-
-A **host** is where you launch and monitor workflows. An **executor** runs the workers; it need
-not be the same CLI as the host.
-
-| Executor | Runs | Notes |
-|---|---|---|
-| `pi` | `pi --mode json` | Native MCP and tool allowlist; deep-research needs `pi-web-access`. |
-| `codex` | `codex app-server` | Coarse tool allowlist (sandbox modes); global `AGENTS.md` and exec-policy rules apply. |
-| `claude` | `claude -p` stream-json | Fine tool allowlist, native read-only mode. |
-| `antigravity` (experimental) | `agy_acp_server` (ACP) | Antigravity login, Gemini models; workspace `AGENTS.md`/`GEMINI.md` not isolated. |
-
-Choose with `--executor <id>` or an [execution profile](docs/usage.md#profiles). Without a choice,
-hosts use their own CLI; the terminal selects an installed, logged-in executor from `pi` →
-`claude` → `codex`, preferring verified logins. `agent-workflow doctor` checks readiness.
-The [preflight](docs/usage.md#preflight-capability-tools-models-and-effort) refuses unsupported
-stage needs or records explicit degradations before launch.
-
-### Pi host
+**Claude Code**
 
 ```sh
-pi -e npm:@agwab/agent-workflow          # one session
-pi install npm:@agwab/agent-workflow     # persistent; add -l for the project
+claude plugin marketplace add AgwaB/agent-workflow
+claude plugin install agent-workflow@agent-workflow
 ```
 
-In Pi: `/aw list`, `/aw run deep-review "Review the current diff" --executor codex`,
-`/aw wait <run>`. The agent can also use the `aw_*` tools. See the [Pi host guide](docs/hosts.md#pi).
-
-### Codex and Claude Code hosts
-
-Install the plugin to register the host MCP server and the `agent-workflow`, `workflow-guide`
-`execution-router` and `aw` skills:
+**Codex**
 
 ```sh
-claude plugin marketplace add AgwaB/agent-workflow && claude plugin install agent-workflow@agent-workflow
-codex plugin marketplace add AgwaB/agent-workflow && codex plugin add agent-workflow@agent-workflow
+codex plugin marketplace add AgwaB/agent-workflow
+codex plugin add agent-workflow@agent-workflow
 ```
 
-Use `/aw` (or `/agent-workflow:aw`) in Claude Code; `$aw` or `aw …` in Codex (trust the plugin hook on first start).
-The six forms are help (`aw`), `dashboard [run]`, `run <workflow> <task…>`, `dynamic <task…>`,
-`auto <task…>` and `stop <run>`: no options or questions; launches detach. `auto` immediately starts
-the classifier’s top pick, without approval questions (launch consent source `command`). Or ask for a workflow in the conversation.
-Codex cannot add `/aw` slash commands; plugins with hooks use our marketplace, not OpenAI’s public directory.
-For server-only installation, local development and
-timeouts, see [plugins](docs/hosts.md#claude-code-and-codex) and the [host MCP server](docs/hosts.md#claude-code-and-codex).
+**Pi**
+
+```sh
+pi install npm:@agwab/agent-workflow
+```
+
+**Terminal**
+
+```sh
+npm install -g @agwab/agent-workflow
+```
+
+Requirements, MCP-only setup and other hosts: [Hosts](docs/hosts.md).
+
+## Ask in plain language
+
+Describe what you need and say it should go through agent-workflow. The agent picks the workflow that fits, starts
+it and reports back:
+
+```text
+Look into how the major web servers support HTTP/3 these days, with sources. Use agent-workflow.
+```
+
+```text
+Have agent-workflow review what I changed today before I open the PR.
+```
+
+```text
+Does our API still match docs/API_SPEC.md? Check it with a workflow.
+```
+
+```text
+What could break if I merge this branch? Run it through agent-workflow.
+```
+
+To choose the workflow yourself, name it: `Use deep-review on the current diff, focusing on concurrency.`
+
+## Or use a command
+
+| Where | Command |
+|---|---|
+| Claude Code | `/aw run deep-review "Review the current diff"` |
+| Codex | `$aw run deep-review "Review the current diff"` |
+| Pi | `/aw run deep-review "Review the current diff"` |
+| Terminal | `agent-workflow run deep-review "Review the current diff" --executor claude` |
+
+`auto <task>` picks a workflow for you; `dynamic <task>` plans a one-off one. Every launch prints a link to the
+local dashboard, where you watch the run, read the report and stop it. All commands: [CLI](docs/cli.md).
+
+By default workers run without approval prompts or a sandbox; use
+[`--permission-mode safe`](docs/usage.md#permission-modes) to enforce read-only stages and approvals.
 
 ## Bundled workflows
 
-| Workflow | Use when |
+| Workflow | Use it when |
 |---|---|
-| `deep-research` | You need a grounded answer based on source material, using the executor's web tools. |
-| `deep-review` | You want code or design reviewed from several angles. |
-| `spec-review` | You want to check a spec or contract against implementation and tests. |
-| `impact-review` | You need affected areas, risks, missing tests and docs before merging or releasing. |
+| `deep-research` | a question needs sources: comparisons, the state of a field, fact checks |
+| `deep-review` | a diff or design deserves more than one reviewer pass |
+| `spec-review` | an implementation must match a spec, an API contract or acceptance criteria |
+| `impact-review` | a change is about to be merged or released |
 
-See [workflow details](workflows/README.md) and [executor support](docs/usage.md#support-matrix).
-Write your own with the bundled `workflow-guide` skill and the [usage guide](docs/usage.md).
+![deep-research: plan, research in parallel, verify claims against their sources, report](.github/assets/deep-research-flow.png)
+
+![deep-review: triage, parallel reviewers, challenge every finding, report](.github/assets/deep-review-flow.png)
+
+![spec-review: spec, code and tests, candidate gaps, verification, conformance report](.github/assets/spec-review-flow.png)
+
+![impact-review: map the change, impact lenses, cross-checks, ship readiness](.github/assets/impact-review-flow.png)
+
+More on each: [bundled workflows](docs/usage.md#bundled-workflows).
+
+## Write your own
+
+A workflow is a JSON graph of stages. The bundled `workflow-guide` skill writes and validates one for you:
+
+```text
+Use workflow-guide to create a release-readiness workflow: inspect docs, tests and recent changes,
+then produce a checklist.
+```
+
+![Stage types: single, foreach, reduce, loop, dag and dynamic](.github/assets/stage-types.png)
+
+Stages, helpers and the spec format: [Usage](docs/usage.md#stage-model).
 
 ## Documentation
 
-- **Connect a host:** [Pi, Claude Code or Codex setup](docs/hosts.md).
-- **Run and monitor:** [usage](docs/usage.md#running), [CLI commands](docs/cli.md),
-  [dashboard](docs/hosts.md#dashboard).
-- **Write a workflow:** [stages and DAGs](docs/usage.md#stage-model); **integrate a CLI:**
-  [executor behavior](docs/executors.md) and [adapter development](docs/extending.md).
-
-| Document | For |
+| Guide | For |
 |---|---|
-| [docs/usage.md](docs/usage.md) | Running and writing workflows: profiles, permission modes, bundled workflows, support matrix, environment variables |
-| [docs/cli.md](docs/cli.md) | The `agent-workflow` command reference |
-| [docs/hosts.md](docs/hosts.md) | Using it from Claude Code, Codex and Pi; the dashboard |
-| [docs/executors.md](docs/executors.md) | How each executor CLI (Pi, Codex, Claude Code, Antigravity) is driven |
-| [docs/extending.md](docs/extending.md) | Writing an executor adapter or another host; architecture |
+| [Usage](docs/usage.md) | Running and writing workflows: stages, profiles, permission modes, bundled workflows |
+| [CLI](docs/cli.md) | Every `agent-workflow` command |
+| [Hosts](docs/hosts.md) | Installing in Claude Code, Codex and Pi; the dashboard |
+| [Executors](docs/executors.md) | How each CLI is driven, and what is verified |
+| [Extending](docs/extending.md) | Writing an executor adapter or another host |
 
-Tests: `npm run validate` (checks, typecheck, unit tests, integration tests), `npm run validate:unit` (without the
-integration tier), `npm run e2e` (packed install), `npm run test:ui-motion` (dashboard animation timing).
-
-## License
-
-MIT. See `LICENSE` and `NOTICE`.
+Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Security: [SECURITY.md](SECURITY.md). License: MIT ([LICENSE](LICENSE), [NOTICE](NOTICE)).

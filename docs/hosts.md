@@ -7,6 +7,22 @@ Use agent-workflow from a conversation or a local browser:
 - **[Dashboard](#dashboard):** open a project's local web view to inspect and manage runs.
 - **[Other MCP clients and Antigravity CLI (agy)](#other-hosts):** register the MCP server or converted plugin and call its tools.
 
+## Requirements and installing from source
+
+Node.js 22+ (tested on macOS and Linux) and at least one executor CLI installed and logged in: Claude Code 2.1+,
+Codex 0.159+, Pi 1.1+ or Antigravity ([executors](executors.md)). Each CLI keeps its own login; agent-workflow never
+handles credentials. Install agent-workflow where you type (a host below); the executors need only their login.
+`agent-workflow doctor` shows what is ready.
+
+Until the first npm release, the npm-based installs below do not resolve. From a checkout:
+
+```sh
+git clone https://github.com/AgwaB/agent-workflow && cd agent-workflow
+npm ci && npm run build && npm link     # puts agent-workflow and agent-workflow-mcp on your PATH
+```
+
+For the Claude Code plugin from a checkout, see [local development](#local-development).
+
 ## Claude Code and Codex
 
 Ask for a workflow, for example “run deep-review on the current diff”. The agent launches a detached run, reports its id and dashboard link, then waits or receives completion. It quotes the result preview and report paths when finished.
