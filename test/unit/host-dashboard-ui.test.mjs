@@ -1415,6 +1415,34 @@ test("dashboard Chrome: the rail steps aside for the inspector on narrower scree
 		800,
 	);
 	await browser.waitFor(() => !document.getElementById("inspector").hidden);
+	// The inspector's sections keep its width while it folds; with side margins they used to
+	// spill past its right edge (2026-11-11). Nothing may overflow it, in the stage or run details.
+	const spill = () =>
+		browser.evaluate(() => {
+			const inspector = document.getElementById("inspector");
+			const right = inspector.getBoundingClientRect().right;
+			return [...inspector.querySelectorAll("*")]
+				.filter(
+					(node) =>
+						node.getClientRects().length &&
+						node.getBoundingClientRect().right - right > 1,
+				)
+				.map((node) => node.className || node.tagName);
+		});
+	assert.deepEqual(await spill(), [], "stage inspector");
+	await browser.evaluate(() =>
+		[...document.querySelectorAll(".actions button")]
+			.find((button) => /Run details/.test(button.textContent))
+			?.click(),
+	);
+	await browser.waitFor(() => document.querySelector(".details-section"));
+	assert.deepEqual(await spill(), [], "run details");
+	await browser.open(
+		`${fixture.origin}/?run=${running}&stage=triage`,
+		1280,
+		800,
+	);
+	await browser.waitFor(() => !document.getElementById("inspector").hidden);
 	assert.deepEqual((await state()).rail, false);
 	await browser.evaluate(() => document.querySelector(".rail-button").click());
 	assert.deepEqual((await state()).rail, true);

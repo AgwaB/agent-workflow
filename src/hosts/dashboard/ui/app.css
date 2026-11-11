@@ -39,6 +39,10 @@
 	--t-layout: 0.28s;
 	--t-leave: 0.16s;
 	--ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+	/* Controls (2026-11-11, owner: "spacing looks off everywhere"): one height, one radius. */
+	--control: 32px;
+	--control-sm: 28px;
+	--radius: 8px;
 	font:
 		15px / 1.5 system-ui,
 		-apple-system,
@@ -68,20 +72,41 @@ button,
 input,
 select {
 	background: transparent;
-	border: 1px solid var(--line);
-	border-radius: 6px;
+	border: 1px solid var(--line2);
+	border-radius: var(--radius);
 }
 button {
 	cursor: pointer;
-	padding: 5px 12px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: var(--control);
+	padding: 0 12px;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1.2;
+	transition:
+		background var(--t-fast) ease,
+		border-color var(--t-fast) ease,
+		color var(--t-fast) ease;
 }
 button:hover:not(:disabled) {
 	border-color: var(--line2);
 	background: var(--selected);
 }
 button:disabled {
-	opacity: 0.45;
+	opacity: 0.5;
 	cursor: not-allowed;
+}
+input:not([type="checkbox"], [type="radio"]),
+select {
+	min-height: var(--control);
+	padding: 0 10px;
+	font-size: 14px;
+}
+select {
+	padding-right: 6px;
 }
 :focus-visible {
 	outline: 2px solid var(--text);
@@ -92,6 +117,9 @@ a,
 	color: var(--text);
 }
 .link {
+	display: inline;
+	min-height: 0;
+	font-weight: inherit;
 	border: 0;
 	padding: 0;
 	text-decoration: underline;
@@ -202,14 +230,18 @@ kbd {
 	border-radius: 4px;
 }
 .connection {
+	font-family: inherit;
 	font-size: 14px;
 	white-space: nowrap;
 }
 .badge {
+	display: inline-flex;
+	align-items: center;
+	min-height: var(--control-sm);
 	font-size: 12px;
-	padding: 2px 8px;
+	padding: 0 10px;
 	border: 1px solid var(--line);
-	border-radius: 6px;
+	border-radius: var(--radius);
 	white-space: nowrap;
 }
 /*
@@ -261,7 +293,8 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 	display: none;
 }
 .rail-button {
-	padding: 4px 6px;
+	min-height: var(--control-sm);
+	padding: 0 6px;
 	border-color: transparent;
 	color: var(--muted);
 	margin-right: -6px;
@@ -293,6 +326,13 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 /* "Needs you" items read like run rows (2026-11-11): the same spacing, sizes and quiet hover. */
 .need {
 	width: 100%;
+	min-height: 0;
+	justify-content: flex-start;
+	align-items: flex-start;
+	font-size: inherit;
+	font-weight: inherit;
+	line-height: inherit;
+	background: none;
 	display: flex;
 	gap: 8px;
 	text-align: left;
@@ -694,6 +734,8 @@ progress::-moz-progress-bar {
 /* Left edges line up with the run header's (28 px; 16 px on narrower screens). */
 /* Owner: in its off state the switch was hard to see — a framed control with a clear "Show". */
 .code-switch {
+	min-height: 0;
+	font-weight: inherit;
 	position: absolute;
 	left: 28px;
 	top: 12px;
@@ -1040,6 +1082,23 @@ progress::-moz-progress-bar {
 }
 /* Closed (hidden, inert) it stays drawn while its column narrows; the global [hidden] rule would
  * drop it at once. */
+/*
+ * The inspector's children keep its width while it folds (min-width above), so their side space is
+ * padding, not margin: with margins they spilled past the right edge (2026-11-11).
+ */
+.inspector
+	> :is(
+		.details-section,
+		.item-filters,
+		.items-tools,
+		.task-details,
+		.items-progress,
+		.agents-meta,
+		.item-list
+	) {
+	margin-inline: 0;
+	padding-inline: 22px;
+}
 .inspector[hidden] {
 	display: block !important;
 	opacity: 0;
@@ -1078,6 +1137,7 @@ progress::-moz-progress-bar {
 	padding: 0 16px;
 }
 .tabs button {
+	min-height: 0;
 	border: 0;
 	border-bottom: 2px solid transparent;
 	border-radius: 0;
@@ -1099,6 +1159,7 @@ progress::-moz-progress-bar {
 	margin-bottom: 8px;
 }
 .output-label button {
+	min-height: 0;
 	border: 0;
 	padding: 0;
 	color: var(--text);
@@ -1233,14 +1294,36 @@ dd {
 	margin: 2px 0 0;
 	overflow-wrap: anywhere;
 }
+/* Label beside value (2026-11-11), like a properties table; the report keeps its own rows. */
+dl:not(.report-row-fields) {
+	display: grid;
+	grid-template-columns: minmax(110px, max-content) minmax(0, 1fr);
+	gap: 8px 20px;
+}
+dl:not(.report-row-fields) > :is(dt, dd) {
+	margin: 0;
+}
+/* A command and its Copy button: one quiet box, the button at its top right. */
 .command {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
 	border: 1px solid var(--line);
-	padding: 8px;
+	border-radius: var(--radius);
+	background: var(--surface);
+	padding: 8px 8px 8px 12px;
 	margin-top: 8px;
 }
+.command pre {
+	flex: 1;
+	min-width: 0;
+	padding-top: 5px;
+}
 .command button {
-	margin-top: 8px;
-	font-size: 14px;
+	flex: none;
+	min-height: var(--control-sm);
+	margin: 0;
+	font-size: 13px;
 }
 .items-tools {
 	display: flex;
@@ -1476,7 +1559,8 @@ dialog footer .muted {
 }
 .palette-input {
 	width: 100%;
-	padding: 10px;
+	min-height: 40px;
+	padding: 0 12px;
 }
 .palette-list {
 	display: grid;
@@ -1485,14 +1569,16 @@ dialog footer .muted {
 	margin: 12px 0;
 }
 .palette-list button {
+	justify-content: flex-start;
+	min-height: 36px;
 	border: 0;
 	text-align: left;
-	padding: 10px;
+	padding: 0 10px;
+	font-weight: 400;
 }
 .palette-list button[aria-selected="true"] {
 	color: var(--text);
-	outline: 1px solid var(--text);
-	outline-offset: -1px;
+	background: var(--selected);
 }
 .report {
 	width: min(880px, calc(100vw - 32px));
@@ -1810,6 +1896,8 @@ dialog.report footer .report-page {
 	display: none;
 }
 .report-toc button {
+	min-height: 0;
+	font-weight: inherit;
 	border: 0;
 	padding: 0;
 	color: var(--muted);
@@ -2048,8 +2136,9 @@ dialog.report footer .report-page {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
+	min-height: var(--control-sm);
 	font-size: 13px;
-	padding: 2px 5px;
+	padding: 0 10px;
 	color: var(--muted);
 }
 .item-filters .glyph {
@@ -2187,9 +2276,10 @@ main.signin code {
 	fill: var(--accent);
 }
 .theme-button {
+	min-height: var(--control-sm);
 	font-size: 12.5px;
 	color: var(--muted);
-	padding: 3px 9px;
+	padding: 0 10px;
 }
 .need-item {
 	display: flex;
@@ -2201,6 +2291,7 @@ main.signin code {
 	min-width: 0;
 }
 .need-dismiss {
+	min-height: 0;
 	border: 0;
 	padding: 2px 7px;
 	color: var(--faint);
@@ -2302,28 +2393,66 @@ main.signin code {
 .management-card button {
 	margin: 4px 8px 4px 0;
 }
+/*
+ * Fields on one grid (2026-11-11): labels and boxes line up, nested field groups join the same
+ * grid, and a hint sits on its own row underneath.
+ */
 .management-fields {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 12px;
-	margin: 12px 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	align-items: end;
+	gap: 12px 16px;
+	margin: 12px 0 16px;
+}
+.management-fields .management-fields {
+	display: contents;
+}
+.management-fields > small,
+.management-fields .management-fields > small {
+	grid-column: 1 / -1;
+	order: 1;
+	margin-top: -4px;
+	font-size: 12.5px;
 }
 .management-field {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
-	margin: 8px 0;
+	margin: 0;
 	min-width: 0;
+}
+.management-field > span {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--muted);
 }
 .management-field input,
 .management-field select {
 	font: inherit;
+	font-size: 14px;
 	color: var(--text);
 	background: var(--surface);
-	border: 1px solid var(--line);
-	border-radius: 6px;
-	padding: 8px;
+	border: 1px solid var(--line2);
+	border-radius: var(--radius);
+	width: 100%;
 	max-width: 100%;
+}
+/* A workflow's or project's name opens it: a title, not a framed button. */
+.management-list-row > button:first-child,
+.project-card > button:first-child {
+	min-height: 0;
+	margin: 0 0 4px;
+	padding: 0;
+	border: 0;
+	background: none;
+	font-size: 15px;
+	font-weight: 600;
+}
+.management-list-row > button:first-child:hover:not(:disabled),
+.project-card > button:first-child:hover:not(:disabled) {
+	background: none;
+	text-decoration: underline;
+	text-underline-offset: 3px;
 }
 .management-list-row,
 .management-role {
