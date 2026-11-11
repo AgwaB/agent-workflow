@@ -47,11 +47,13 @@ import {
 	workflowRunDir,
 } from "../core/store.js";
 import type { WorkflowHostId, WorkflowRunRecord } from "../core/types.js";
+import { listUnfinishedNoticesIgnoringInvalidAcknowledgements } from "../core/workflow-notices.js";
 import { summarizeWorkflowTerminal } from "../core/workflow-terminal.js";
 import { hostCommandHints } from "./hints.js";
 import { hostTextRedactor } from "./redaction.js";
 import { readWorkflowResultPresentation } from "./result-presentation.js";
 import { containedProjectStateDir } from "./run-files.js";
+import { unfinishedRunReminder } from "./unfinished-notice.js";
 import { readProjectRunEntries } from "./run-progress.js";
 
 export const NOTIFY_CHECK_DIR = "notify-check";
@@ -78,6 +80,8 @@ export interface NotifyCheckData {
 	notifications: RunNotification[];
 	/** Settled runs left for the next check (over NOTIFY_CHECK_MAX_RUNS). */
 	deferred: number;
+	/** 2026-11-12: the unfinished-run reminder this check added (prompt checks only). */
+	reminder?: string;
 }
 
 /**
@@ -475,6 +479,34 @@ export async function notifyCheck(
 			);
 	}
 	const checked = await checkOnce(cwd, options);
+	// 2026-11-12 (owner: the unfinished-run notice was Pi-only): a whole-project check (the prompt
+	// hook of Claude Code and Codex, or a manual check) also reminds about unfinished runs that are
+	// not dismissed — the reminder Pi gives at session start, with the same six-hour window. A run
+	// this check just reported is not repeated. One run's or one session's check (monitor, wake)
+	// adds nothing. A reminder failure never fails the check.
+	if (options.runId === undefined && options.session === undefined) {
+		const host = options.host ?? "cli";
+		const reminder = await unfinishedRunReminder(
+			{
+				noticesAction: async (ctx) => ({
+					data: await listUnfinishedNoticesIgnoringInvalidAcknowledgements(
+						ctx.cwd,
+					),
+				}),
+			},
+			{ cwd, host, ...(options.env ? { env: options.env } : {}) },
+			options.now ?? Date.now(),
+			{
+				host,
+				exclude: checked.data.notifications.map((entry) => entry.runId),
+			},
+		).catch(() => undefined);
+		if (reminder) {
+			const text = hostTextRedactor(options.env ?? process.env)(reminder);
+			checked.data.reminder = text;
+			checked.text = checked.text ? `${checked.text}\n${text}` : text;
+		}
+	}
 	if (options.stamp !== undefined)
 		await updateStamp(cwd, options.stamp, checked.data.deferred > 0, startedAt);
 	return checked;

@@ -331,6 +331,8 @@ For either host, run `agent-workflow watch [runId]` in another terminal pane to 
 
 `agent-workflow notify-check` announces newly settled run states once. A state returned by `workflow_wait` is marked seen; receipts live in `.agent-workflow/notify-check/` in the [state directory](usage.md#where-run-state-lives). A `UserPromptSubmit` hook adds its output to the host's context at the user's next message. Interactive session wake mechanisms work without waiting for another prompt; see [completion delivery](#completion-check-hook).
 
+A whole-project check (not `--run` or `--session`) also adds the [unfinished-run reminder](#unfinished-run-reminders): the same reminder Pi gives at session start, with the host's own commands. A run the same check just announced is not repeated.
+
 #### Claude Code hook
 
 The plugin includes a `UserPromptSubmit` command hook with a 60 s timeout. It runs this in `$CLAUDE_PROJECT_DIR`:
@@ -339,35 +341,36 @@ The plugin includes a `UserPromptSubmit` command hook with a 60 s timeout. It ru
 npx -y --package=@agwab/agent-workflow@<package version> agent-workflow notify-check --host claude-code
 ```
 
-The generated hook skips CLI startup when there are no runs or no `run.json` changes since `.agent-workflow/notify-check/hook-claude-code.stamp`. Its shell finds the state directory using `realpath`, a SHA-256 tool and the
+The generated hook skips CLI startup when there are no runs, or when no `run.json` changed since `.agent-workflow/notify-check/hook-claude-code.stamp` and that stamp is less than six hours old (an older stamp lets the reminder repeat). Its shell finds the state directory using `realpath`, a SHA-256 tool and the
 `projects/*-<hash>` glob, and only reads state paths; without either tool it leaves the decision
 to the CLI. `notify-check --stamp hook-claude-code` writes the stamp through a contained writer after success. Failed checks or changes during a check are retried at the next prompt. At most 5 runs are announced per check; deferred runs prevent stamping so the next prompt drains the backlog. Errors print nothing and do not fail the prompt.
 
 #### Codex hook
 
-This example starts the CLI on every prompt; it does not test repository paths.
+The plugin's Codex prompt hook (`scripts/codex-host-command.sh`) does two things. A prompt that is an `aw` command goes to `host-command` alone, since its JSON decision must be the whole output. Any other prompt runs `notify-check --host codex --stamp hook-codex` with the same idle fast path as the Claude Code hook. Codex adds plain stdout as developer context. Interactive Codex sessions also receive supervisor-delivered completions through `codex queue`. Such a completion is marked as reported, so the next prompt does not repeat it. `codex exec` uses waits ([details](#waiting-without-polling-codex-sessions)).
 
-The plugin ships an `aw` command hook, not a next-prompt completion-check hook. To add next-prompt completion checks, put this in `~/.codex/hooks.json` or a trusted project's `.codex/hooks.json`, then trust it with `/hooks`:
+The hook's declared command never changes between releases, and only the script's content does, so Codex does not ask to trust it again after an update.
 
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "agent-workflow notify-check --host codex 2>/dev/null; exit 0",
-            "timeout": 60
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+### Unfinished-run reminders
 
-Codex runs hooks in the session directory and adds stdout as developer context. Without a global install, substitute the version-pinned `npx --package` command. Interactive Codex sessions also receive supervisor-delivered completions through `codex queue`; `codex exec` uses waits ([details](#waiting-without-polling-codex-sessions)).
+Every host reminds you about runs that stopped or failed and that you have not dealt with:
+
+| Host | When |
+|---|---|
+| Pi | At session start |
+| Claude Code, Codex | With the plugin's prompt hook, at your next message |
+| Dashboard | "Needs you" and Maintenance |
+
+A run qualifies when it is a top-level failed or interrupted run, or a blocked run needing an executor decision, updated in the last 7 days. Mock runs are excluded and at most 5 are listed. A run is reminded again when its state changes or 6 hours after the last reminder. Reminder state is shared by all hosts of the project.
+
+Dismissing a reminder hides it in every host. You can dismiss from:
+
+- the dashboard's "Needs you" × or Maintenance → Dismiss
+- `workflow_notices {"action":"acknowledge", …}`
+- `/aw notices acknowledge …`
+- `agent-workflow notices acknowledge …`
+
+A dismissal records the run's exact state, so a run that later fails again is reminded again. Show again (or `notices clear`) undoes it. Dismissing never changes the run or its resume.
 
 ### Dashboard opening
 
@@ -575,7 +578,7 @@ Re-driving does not take over completion delivery: the original audience session
 
 The host then warns about unfinished top-level failed/interrupted runs and blocked runs needing executor decisions. It excludes mock runs, active acknowledgements and runs not updated for 7 days; at most 5 appear. Rendered degraded finals are labeled `failed (final rendered — degraded)`. Malformed acknowledgement sidecars suppress nothing.
 
-Notices repeat after status/update changes, stale acknowledgement or 6 hours. State lives in `.agent-workflow/workflows/unfinished-notices.json` in the
+Notices repeat after status/update changes, stale acknowledgement or 6 hours. Claude Code and Codex give the same reminder through their prompt hook ([unfinished-run reminders](#unfinished-run-reminders)). State lives in `.agent-workflow/workflows/unfinished-notices.json` in the
 [project state directory](usage.md#where-run-state-lives). Silence a state with `/aw notices acknowledge <run> --state <sha256> --reason <text>`.
 
 ### Status line and completion delivery
