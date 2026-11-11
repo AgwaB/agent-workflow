@@ -41,6 +41,27 @@ async function set(browser, label, value) {
 		value,
 	);
 }
+// 2026-11-11: a workflow opens from anywhere on its card, on a page of its own.
+async function openWorkflowCard(browser, name) {
+	await browser.evaluate((name) => {
+		const card = document.querySelector(
+			`a.workflow-card[data-workflow="${name}"] .workflow-card-text`,
+		);
+		if (!card) throw new Error(`Missing workflow card ${name}`);
+		card.click();
+	}, name);
+	await browser.waitFor(
+		() =>
+			new URLSearchParams(location.search).has("workflow") &&
+			!!document.querySelector('[data-management-action="check"]'),
+	);
+	assert.equal(
+		await browser.evaluate(() =>
+			new URLSearchParams(location.search).get("workflow"),
+		),
+		name,
+	);
+}
 async function clickText(browser, text) {
 	await browser.evaluate((text) => {
 		const button = [...document.querySelectorAll("#center button")].find(
@@ -105,9 +126,14 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 			.querySelector('[data-management="workflows"]')
 			?.textContent.includes("Management fixture"),
 	);
-	await clickText(browser, "manage");
-	await browser.waitFor(
-		() => !!document.querySelector('[data-management-action="check"]'),
+	await openWorkflowCard(browser, "manage");
+	assert.ok(
+		await browser.evaluate(
+			() =>
+				document.querySelectorAll(".property-table.numbered tbody tr").length >
+					0 && !!document.querySelector("a.back-link"),
+		),
+		"the workflow page lists its stages and links back",
 	);
 	await set(browser, "Executor", "codex");
 	await browser.click('[data-management-action="check"]');
@@ -319,10 +345,7 @@ test("Chrome readonly management: navigation stays available and all action muta
 			.querySelector('[data-management="workflows"]')
 			?.textContent.includes("Management fixture"),
 	);
-	await clickText(browser, "manage");
-	await browser.waitFor(
-		() => !!document.querySelector('[data-management-action="check"]'),
-	);
+	await openWorkflowCard(browser, "manage");
 	assert.equal(
 		await browser.evaluate(
 			() => document.querySelector('[data-management-action="check"]').disabled,

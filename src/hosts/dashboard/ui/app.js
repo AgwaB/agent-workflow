@@ -401,6 +401,8 @@ function readState() {
 		]),
 		dialog: choice("dialog", ["stop", "resume"]),
 		layout: choice("layout", ["td", "lr"]) || "td",
+		// The workflow page opened from the Workflows list (2026-11-11).
+		workflow: params.get("workflow"),
 	};
 }
 let state = readState();
@@ -490,6 +492,7 @@ function go(patch, replace = false) {
 			tab: null,
 			view: null,
 			dialog: null,
+			workflow: null,
 		};
 	if (Object.hasOwn(patch, "task")) state.stage = null;
 	if (Object.hasOwn(patch, "stage")) state.task = null;
@@ -5680,13 +5683,13 @@ async function renderManagement() {
 	}
 }
 async function renderWorkflows(page) {
+	if (state.workflow) return renderWorkflow(page, state.workflow);
 	const [catalog, agents] = await Promise.all([
 		managementApi(projectRoute("workflows")),
 		managementApi(projectRoute("agents")),
 	]);
 	const list = managementPanel("Available workflows");
-	const detail = element("div", { "aria-live": "polite" });
-	page.append(list, detail);
+	page.append(list);
 	if (!catalog.data.workflows.length)
 		list.append(
 			element(
@@ -5695,168 +5698,49 @@ async function renderWorkflows(page) {
 				"No workflows yet. Add a workflow definition to .agent-workflow/workflows, or install a workflow bundle. Run agent-workflow list to discover it.",
 			),
 		);
-	for (const workflow of catalog.data.workflows) {
-		list.append(
-			element(
-				"article",
-				{ class: "management-list-row" },
-				managementControl(
-					workflow.name,
-					async () => {
-						const data = await managementApi(
-							projectRoute(`workflows/${encodeURIComponent(workflow.name)}`),
-						);
-						// Display authored stage/agent names, not a second compiler or execution plan.
-						const authored = JSON.parse(data.spec.data.spec);
-						const stages = Array.isArray(authored.artifactGraph?.stages)
-							? authored.artifactGraph.stages
-							: [];
-						const panel = managementPanel(
-							workflow.name,
-							element("h3", {}, "Stages and agents"),
-							element(
-								"ul",
-								{},
-								stages.map((stage) =>
-									element(
-										"li",
-										{},
-										`${stage.id} · ${stage.type || (stage.support ? "code" : "stage")} · ${stage.agent || authored.defaults?.agent || "executor default"}`,
-									),
-								),
-							),
-							managementResult(data.validation),
-							element(
-								"details",
-								{},
-								element("summary", {}, "Stages and agents · resolved spec"),
-								element("pre", {}, data.spec.data.spec),
-							),
-							element(
-								"details",
-								{},
-								element("summary", {}, "Compiled roles"),
-								managementResult(data.roles),
-							),
-						);
-						detail.replaceChildren(panel);
-						const options = await modelControls();
-						const profiles =
-							(await managementApi("/api/profiles")).data.profiles || [];
-						const profile = choices("Check profile", [
-							"",
-							...new Set([
-								...profiles.map((p) => p.name),
-								...Object.keys(authored.executionProfiles || {}),
-								"pi",
-								"claude",
-								"codex",
-								"mixed",
-							]),
-						]);
-						const permission = choices("Check permission mode", [
-							"",
-							"free",
-							"safe",
-						]);
-						const output = element("div");
-						const command = element("div");
-						const selected = () => ({
-							...options.values(),
-							...(profile.value ? { profile: profile.value } : {}),
-							...(permission.value ? { permissionMode: permission.value } : {}),
-						});
-						const awCommand = `aw run ${shellArg(workflow.name)} "<task>"`;
-						const update = () => {
-							const flags = Object.entries(selected())
-								.map(
-									([key, value]) =>
-										` --${key === "permissionMode" ? "permission-mode" : key} ${shellArg(value)}`,
-								)
-								.join("");
-							command.replaceChildren(commandHint(awCommand));
-							if (flags)
-								command.append(
-									element(
-										"p",
-										{ class: "muted" },
-										"aw uses saved defaults; for these explicit Check overrides use the CLI:",
-									),
-									commandHint(
-										`agent-workflow run ${shellArg(workflow.name)} "<task>"${flags}`,
-									),
-								);
-						};
-						const form = element(
-							"div",
-							{ class: "management-fields", onchange: update, oninput: update },
-							options.node,
-							field("Profile (optional)", profile),
-							field("Permission mode", permission),
-						);
-						panel.append(
-							element("h3", {}, "Check · no run or model call"),
-							form,
-							managementControl(
-								"Check",
-								async () => {
-									output.replaceChildren(
-										managementResult(
-											await managementWrite(
-												projectRoute(
-													`workflows/${encodeURIComponent(workflow.name)}/check`,
-												),
-												"POST",
-												selected(),
-											),
-										),
-									);
-								},
-								output,
-								{ "data-management-action": "check" },
-							),
-							output,
-							command,
-						);
-						update();
-					},
-					detail,
-					{ write: false },
-				),
-				element("p", {}, workflow.description || "No description."),
+	// 2026-11-11 (owner): the whole card opens the workflow, on a page of its own.
+	list.append(
+		element(
+			"div",
+			{ class: "workflow-cards" },
+			catalog.data.workflows.map((workflow) =>
 				element(
-					"small",
-					{ class: "muted" },
-					`Source: ${workflow.scope || "catalog"} · ${workflow.specPath} · aliases: ${workflow.aliases.join(", ") || "none"}${workflow.agent ? ` · agent: ${workflow.agent}` : ""}${workflow.readOnly !== undefined ? ` · read-only: ${workflow.readOnly}` : ""}`,
+					"a",
+					{
+						class: "workflow-card",
+						href: workflowHref(workflow.name),
+						"data-workflow": workflow.name,
+					},
+					element(
+						"span",
+						{ class: "workflow-card-head" },
+						element("strong", {}, workflow.name),
+						workflowTags(workflow),
+					),
+					element(
+						"span",
+						{ class: "workflow-card-text" },
+						workflow.description || "No description.",
+					),
 				),
-				workflow.routing
-					? element(
-							"p",
-							{ class: "muted" },
-							Object.entries(workflow.routing)
-								.map(([key, hints]) => `${humanize(key)}: ${hints.join("; ")}`)
-								.join(" · "),
-						)
-					: null,
 			),
-		);
-	}
+		),
+	);
 	page.append(
 		managementPanel(
 			"Agents",
 			agents.data.agents.length
-				? agents.data.agents.map((agent) =>
-						element(
-							"article",
-							{ class: "management-list-row" },
-							element("h3", {}, agent.displayName),
-							element("p", {}, agent.description || "No description."),
+				? propertyTable(
+						["Agent", "Description", "Source"],
+						agents.data.agents.map((agent) => [
+							element("strong", {}, agent.displayName),
+							agent.description || "No description.",
 							element(
-								"small",
+								"span",
 								{ class: "muted" },
-								`${agent.scope} · ${agent.sourcePath}${agent.model ? ` · ${agent.model}` : ""}`,
+								`${agent.scope}${agent.model ? ` · ${agent.model}` : ""}`,
 							),
-						),
+						]),
 					)
 				: element(
 						"p",
@@ -5865,6 +5749,250 @@ async function renderWorkflows(page) {
 					),
 		),
 	);
+}
+const ROUTING_LABELS = {
+	useWhen: "Use when",
+	avoidWhen: "Avoid when",
+	outputs: "Outputs",
+};
+function workflowHref(name) {
+	const params = new URLSearchParams();
+	if (state.project) params.set("project", state.project);
+	params.set("view", "workflows");
+	if (name) params.set("workflow", name);
+	return `/?${params}`;
+}
+function workflowTags(workflow) {
+	return element(
+		"span",
+		{ class: "workflow-tags" },
+		[
+			workflow.scope,
+			workflow.readOnly ? "read-only" : null,
+			workflow.agent ? `agent: ${workflow.agent}` : null,
+		]
+			.filter(Boolean)
+			.map((tag) => element("span", { class: "tag" }, tag)),
+	);
+}
+/** A plain table: a header row and rows of cells (text or nodes). */
+function propertyTable(headers, rows, attrs = {}) {
+	return element(
+		"table",
+		{ class: "property-table", ...attrs },
+		headers
+			? element(
+					"thead",
+					{},
+					element(
+						"tr",
+						{},
+						headers.map((header) => element("th", {}, header)),
+					),
+				)
+			: null,
+		element(
+			"tbody",
+			{},
+			rows.map((cells) =>
+				element(
+					"tr",
+					{},
+					cells.map((cell) => element("td", {}, cell ?? "—")),
+				),
+			),
+		),
+	);
+}
+/** The workflow page (2026-11-11): what it is, its stages, its check and the raw spec. */
+async function renderWorkflow(page, name) {
+	page.querySelector("h1").textContent = name;
+	page
+		.querySelector("h1")
+		.before(
+			element(
+				"a",
+				{ class: "back-link", href: workflowHref(null) },
+				"← All workflows",
+			),
+		);
+	const [catalog, data] = await Promise.all([
+		managementApi(projectRoute("workflows")),
+		managementApi(projectRoute(`workflows/${encodeURIComponent(name)}`)),
+	]);
+	const workflow = catalog.data.workflows.find(
+		(entry) => entry.name === name,
+	) || { name };
+	page.querySelector("h1 + p")?.replaceChildren(workflowTags(workflow));
+	// Authored stage and agent names, not a second compiler. A spec that cannot be read here
+	// still shows its validation, check and raw text (2026-11-11: one failure blanked the page).
+	let authored = {};
+	let specError = "";
+	try {
+		authored = JSON.parse(data.spec.data.spec);
+	} catch (error) {
+		specError = error.message;
+	}
+	const stages = Array.isArray(authored.artifactGraph?.stages)
+		? authored.artifactGraph.stages
+		: [];
+	const about = managementPanel(
+		"About",
+		element("p", {}, workflow.description || "No description."),
+		propertyTable(
+			null,
+			[
+				...Object.entries(workflow.routing || {}).map(([key, hints]) => [
+					ROUTING_LABELS[key] || humanize(key),
+					hints.join(" "),
+				]),
+				[
+					"Source",
+					element("span", { class: "mono" }, workflow.specPath || "—"),
+				],
+				workflow.aliases?.length
+					? ["Aliases", workflow.aliases.join(", ")]
+					: null,
+			].filter(Boolean),
+			{ class: "property-table keyed" },
+		),
+	);
+	const validation = data.validation?.data;
+	const stagesPanel = managementPanel(
+		"Stages",
+		specError
+			? element(
+					"p",
+					{ role: "alert", class: "management-error" },
+					`The stage list could not be read: ${specError}`,
+				)
+			: propertyTable(
+					["#", "Stage", "Kind", "Agent"],
+					stages.map((stage, index) => [
+						String(index + 1),
+						element("strong", {}, stage.id),
+						stage.type || (stage.support ? "code" : "stage"),
+						stage.agent || authored.defaults?.agent || "executor default",
+					]),
+					{ class: "property-table numbered" },
+				),
+		data.validation?.error
+			? element(
+					"p",
+					{ role: "alert", class: "management-error" },
+					data.validation.error,
+				)
+			: validation
+				? [
+						element("h3", {}, "Validation"),
+						propertyTable(
+							null,
+							[
+								["Spec", "Valid ✓"],
+								["Type", validation.type],
+								["Tasks", String(validation.tasks)],
+								["Roles", String(validation.roles)],
+								["Max concurrency", String(validation.maxConcurrency)],
+								...validation.warnings.map((warning) => ["Warning", warning]),
+								...validation.blockedPermissionPreviews.map((entry) => [
+									"Blocked",
+									`${entry.taskId}: ${entry.reason || entry.statusDetail}`,
+								]),
+							],
+							{ class: "property-table keyed" },
+						),
+					]
+				: null,
+	);
+	const check = managementPanel("Check · no run or model call");
+	const advanced = managementPanel(
+		"Advanced",
+		element(
+			"details",
+			{},
+			element("summary", {}, "Resolved spec"),
+			element("pre", {}, data.spec.data.spec),
+		),
+		element(
+			"details",
+			{},
+			element("summary", {}, "Compiled roles"),
+			managementResult(data.roles),
+		),
+	);
+	page.append(about, stagesPanel, check, advanced);
+	const options = await modelControls();
+	const profiles = (await managementApi("/api/profiles")).data.profiles || [];
+	const profile = choices("Check profile", [
+		"",
+		...new Set([
+			...profiles.map((p) => p.name),
+			...Object.keys(authored.executionProfiles || {}),
+			"pi",
+			"claude",
+			"codex",
+			"mixed",
+		]),
+	]);
+	const permission = choices("Check permission mode", ["", "free", "safe"]);
+	const output = element("div");
+	const command = element("div");
+	const selected = () => ({
+		...options.values(),
+		...(profile.value ? { profile: profile.value } : {}),
+		...(permission.value ? { permissionMode: permission.value } : {}),
+	});
+	const awCommand = `aw run ${shellArg(name)} "<task>"`;
+	const update = () => {
+		const flags = Object.entries(selected())
+			.map(
+				([key, value]) =>
+					` --${key === "permissionMode" ? "permission-mode" : key} ${shellArg(value)}`,
+			)
+			.join("");
+		command.replaceChildren(commandHint(awCommand));
+		if (flags)
+			command.append(
+				element(
+					"p",
+					{ class: "muted" },
+					"aw uses saved defaults; for these explicit Check overrides use the CLI:",
+				),
+				commandHint(`agent-workflow run ${shellArg(name)} "<task>"${flags}`),
+			);
+	};
+	check.append(
+		element(
+			"div",
+			{ class: "management-fields", onchange: update, oninput: update },
+			options.node,
+			field("Profile (optional)", profile),
+			field("Permission mode", permission),
+		),
+		element(
+			"div",
+			{ class: "management-actions" },
+			managementControl(
+				"Check",
+				async () => {
+					output.replaceChildren(
+						managementResult(
+							await managementWrite(
+								projectRoute(`workflows/${encodeURIComponent(name)}/check`),
+								"POST",
+								selected(),
+							),
+						),
+					);
+				},
+				output,
+				{ "data-management-action": "check", class: "primary" },
+			),
+		),
+		output,
+		command,
+	);
+	update();
 }
 /** `role  executor:model:effort` lines of a role map, as the CLI shows them. */
 function roleTable(roles = {}) {
