@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -14,6 +15,9 @@ export async function createFixtureServer({
 	readonly = false,
 	snapshots,
 	extraProjects = [],
+	// 2026-11-12: list failed top-level runs as unfinished notices (the shared dismissal); off, the
+	// notices list is empty and "Needs you" dismissals stay in the browser.
+	notices = false,
 } = {}) {
 	const readJson = async (name) =>
 		JSON.parse(await readFile(new URL(name, fixtures), "utf8"));
@@ -44,6 +48,10 @@ export async function createFixtureServer({
 	const mutations = [],
 		requests = [],
 		clients = new Set();
+	// Notice acknowledgements by run id; a run's state digest follows its status and update time.
+	const acknowledgements = new Map();
+	const noticeDigest = (run) =>
+		createHash("sha256").update(`${run.status}|${run.updatedAt}`).digest("hex");
 	const start = Date.now(),
 		base = Date.parse(session.serverTime);
 	let origin,
@@ -142,6 +150,68 @@ export async function createFixtureServer({
 			if (emptyProject && url.pathname.endsWith("/runs"))
 				return json({ serverTime: serverTime(), runs: [] });
 			if (url.pathname === "/api/runs") return json(summaries());
+			// The notices endpoint (2026-11-12): acknowledgements by run, keyed to a fixed state digest.
+			const noticeMatch =
+				/^\/api\/notices(?:\/(workflow_[A-Za-z0-9_-]+)\/(acknowledge|clear))?$/.exec(
+					url.pathname,
+				);
+			if (noticeMatch) {
+				const listed = notices
+					? [...runs.values()]
+							.filter((run) => run.status === "failed" && !run.parentRunId)
+							.map((run) => ({
+								runId: run.runId,
+								status: run.status,
+								updatedAt: run.updatedAt,
+								sha256: noticeDigest(run),
+							}))
+					: [];
+				if (!noticeMatch[1] && request.method === "GET")
+					return json({
+						action: "notices",
+						ok: true,
+						data: {
+							notices: listed,
+							acknowledgements: [...acknowledgements.values()].map((entry) => ({
+								...entry,
+								active: listed.some(
+									(run) =>
+										run.runId === entry.runId && run.sha256 === entry.sha256,
+								),
+							})),
+							warnings: [],
+						},
+					});
+				if (request.method === "POST" && noticeMatch[1]) {
+					if (readonly) return json({ error: "read-only" }, 403);
+					if (request.headers["x-aw-csrf"] !== session.csrf)
+						return json({ error: "mutation-security-check-failed" }, 403);
+					let body = "";
+					for await (const chunk of request) body += chunk;
+					const data = body ? JSON.parse(body) : {};
+					mutations.push({
+						runId: noticeMatch[1],
+						action: `notices-${noticeMatch[2]}`,
+						body: data,
+					});
+					if (noticeMatch[2] === "clear")
+						acknowledgements.delete(noticeMatch[1]);
+					else {
+						const run = listed.find((entry) => entry.runId === noticeMatch[1]);
+						if (!run || run.sha256 !== data.state)
+							return json({ error: "Run state changed" }, 409);
+						acknowledgements.set(noticeMatch[1], {
+							runId: noticeMatch[1],
+							status: run.status,
+							updatedAt: run.updatedAt,
+							sha256: run.sha256,
+							reason: data.reason,
+							acknowledgedAt: serverTime(),
+						});
+					}
+					return json({ action: "notices", ok: true, data: {} });
+				}
+			}
 			if (url.pathname === "/api/events") {
 				response.writeHead(200, {
 					"Content-Type": "text/event-stream",
