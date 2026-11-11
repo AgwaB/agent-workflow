@@ -116,7 +116,12 @@ export async function unfinishedRunReminder(
 	api: UnfinishedNoticeApi,
 	ctx: HostApiContext,
 	nowMs: number,
-	options: { host?: WorkflowHostId; exclude?: Iterable<string> } = {},
+	options: {
+		host?: WorkflowHostId;
+		exclude?: Iterable<string>;
+		/** Only record `exclude` (and print nothing): a check that still has reports queued. */
+		recordOnly?: boolean;
+	} = {},
 ): Promise<string | undefined> {
 	const host = options.host ?? ctx.host ?? "cli";
 	const hints = hostCommandHints(host);
@@ -164,6 +169,7 @@ export async function unfinishedRunReminder(
 			changed = true;
 			continue;
 		}
+		if (options.recordOnly) continue;
 		const entry = state[run.runId];
 		const lastNotifiedMs = Date.parse(entry?.lastNotifiedAt ?? "");
 		const unchanged =

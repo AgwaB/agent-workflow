@@ -80,3 +80,56 @@ test("notify-check reminds about unfinished runs on every host, every six hours,
 		rmSync(cwd, { recursive: true, force: true });
 	}
 });
+
+// Found on the recording project (9 runs settled at once): the reminder named runs whose
+// completion lines were still queued, and the next prompt reported them again as completions.
+test("notify-check holds the reminder while completion reports are queued, and never repeats a run", async () => {
+	const cwd = makeProject();
+	try {
+		const t0 = Date.parse("2026-06-12T00:00:00.000Z");
+		// The first check sets the baseline: runs settled after it are reported as completions.
+		writeUnfinishedNoticeIndex(cwd, []);
+		await notifyCheck(cwd, { host: "claude-code", now: t0 });
+		const ids = Array.from({ length: 7 }, (_, i) => `workflow_r${i}`);
+		writeUnfinishedNoticeIndex(
+			cwd,
+			ids.map((runId) =>
+				writeUnfinishedNoticeIndexRun({
+					runId,
+					name: "deep-review",
+					updatedAt: "2026-06-12T01:00:00.000Z",
+				}),
+			),
+		);
+		const seen = new Map();
+		const count = (text) => {
+			for (const id of ids)
+				for (const _ of text.matchAll(new RegExp(`${id}\\b`, "g")))
+					seen.set(id, (seen.get(id) ?? 0) + 1);
+		};
+		const first = await notifyCheck(cwd, {
+			host: "claude-code",
+			now: t0 + 2 * HOUR,
+		});
+		assert.equal(first.data.deferred, 2);
+		assert.equal(
+			first.data.reminder,
+			undefined,
+			"held while reports are queued",
+		);
+		count(first.text.replace(/^agent-workflow: \d+ more.*$/m, ""));
+		const second = await notifyCheck(cwd, {
+			host: "claude-code",
+			now: t0 + 2 * HOUR + 1000,
+		});
+		assert.equal(second.data.deferred, 0);
+		count(second.text);
+		assert.deepEqual(
+			ids.map((id) => seen.get(id)),
+			ids.map(() => 2),
+			"each run once: its completion line names it twice (label and Details)",
+		);
+	} finally {
+		rmSync(cwd, { recursive: true, force: true });
+	}
+});

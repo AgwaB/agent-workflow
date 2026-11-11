@@ -482,8 +482,9 @@ export async function notifyCheck(
 	// 2026-11-12 (owner: the unfinished-run notice was Pi-only): a whole-project check (the prompt
 	// hook of Claude Code and Codex, or a manual check) also reminds about unfinished runs that are
 	// not dismissed — the reminder Pi gives at session start, with the same six-hour window. A run
-	// this check just reported is not repeated. One run's or one session's check (monitor, wake)
-	// adds nothing. A reminder failure never fails the check.
+	// this check just reported is not repeated, and while reports are queued the reminder waits
+	// for the next check. One run's or one session's check (monitor, wake) adds nothing. A
+	// reminder failure never fails the check.
 	if (options.runId === undefined && options.session === undefined) {
 		const host = options.host ?? "cli";
 		const reminder = await unfinishedRunReminder(
@@ -499,6 +500,9 @@ export async function notifyCheck(
 			{
 				host,
 				exclude: checked.data.notifications.map((entry) => entry.runId),
+				// Reports still queued (over the cap of five) come first: a reminder now could
+				// name a run whose completion line is only due at the next prompt.
+				recordOnly: checked.data.deferred > 0,
 			},
 		).catch(() => undefined);
 		if (reminder) {
