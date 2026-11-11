@@ -228,6 +228,34 @@ test("executorModelsAction reports each probe's models and the modelListComplete
 	);
 	assert.equal(failing.data.executors[0].state, "probe-failed");
 	assert.match(failing.data.executors[0].note, /probe failed: boom/);
+	assert.deepEqual(failing.data.executors[0].effortLevels, []);
+});
+
+test("executorModelsAction reports the adapter's effort levels and per-model levels (2026-11-11)", async () => {
+	const result = await realApi.executorModelsAction(
+		{ cwd: root },
+		{
+			executors: ["codex", "claude"],
+			prober: async (descriptor) => ({
+				capabilities:
+					descriptor.id === "codex"
+						? { effortLevels: ["low", "medium", "high", "ultra"] }
+						: {},
+				probe: {
+					installed: true,
+					auth: "ok",
+					...(descriptor.id === "codex"
+						? { modelEfforts: { "gpt-x": ["low", "medium"] } }
+						: {}),
+				},
+			}),
+		},
+	);
+	const [codex, claude] = result.data.executors;
+	assert.deepEqual(codex.effortLevels, ["low", "medium", "high", "ultra"]);
+	assert.deepEqual(codex.modelEfforts, { "gpt-x": ["low", "medium"] });
+	assert.deepEqual(claude.effortLevels, []);
+	assert.equal("modelEfforts" in claude, false);
 });
 
 // --- preview -------------------------------------------------------------------------------------

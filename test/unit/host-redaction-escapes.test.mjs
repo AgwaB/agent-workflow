@@ -58,3 +58,22 @@ test("N4: escaped quotes inside structured credentials are redacted completely",
 		'{"password":"REDACTED","next":"visible"}',
 	);
 });
+
+// 2026-11-11: a URL inside an escaped JSON string (deep-research's spec embeds an example claim
+// as a JSON string) took the escaping backslashes into the URL; the URL parser turned them into
+// slashes and the text stopped being valid JSON — the dashboard could not open the workflow.
+test("a URL in escaped JSON keeps the escaping and still loses its credentials", () => {
+	const inner = JSON.stringify({
+		sourceUrls: ["https://example.invalid/docs/"],
+		link: "https://example.invalid/cb?access_token=SENSITIVE-URL-TOKEN&page=2",
+	});
+	for (const text of [
+		JSON.stringify({ example: inner }),
+		JSON.stringify({ outer: JSON.stringify({ example: inner }) }),
+	]) {
+		const out = redact(text);
+		assert.doesNotThrow(() => JSON.parse(out), out);
+		assert.ok(!out.includes("SENSITIVE-URL-TOKEN"), out);
+		assert.ok(out.includes("https://example.invalid/docs/"), out);
+	}
+});

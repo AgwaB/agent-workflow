@@ -401,6 +401,8 @@ function readState() {
 		]),
 		dialog: choice("dialog", ["stop", "resume"]),
 		layout: choice("layout", ["td", "lr"]) || "td",
+		// The workflow page opened from the Workflows list (2026-11-11).
+		workflow: params.get("workflow"),
 	};
 }
 let state = readState();
@@ -490,6 +492,7 @@ function go(patch, replace = false) {
 			tab: null,
 			view: null,
 			dialog: null,
+			workflow: null,
 		};
 	if (Object.hasOwn(patch, "task")) state.stage = null;
 	if (Object.hasOwn(patch, "stage")) state.task = null;
@@ -595,26 +598,34 @@ function verdictWord(value) {
 		? text
 		: text.charAt(0) + text.slice(1).toLowerCase();
 }
-function railLine(summary) {
-	if (
-		summary.status === "completed" ||
-		(summary.status === "failed" && summary.verdictGate)
-	) {
+/**
+ * The compact rail (2026-11-11, owner): a short word only when there is something to know, with
+ * its tone — a clean finish says nothing (its check mark does), a verdict or stop says it once.
+ */
+function railStatus(summary) {
+	if (summary.status === "failed" && !summary.verdictGate)
+		return ["err", "Failed"]; // the reason is under "Needs you", above
+	if (summary.status === "blocked" || summary.needsYou?.length)
+		return ["warn", "Needs you"];
+	if (summary.status === "completed" || summary.status === "failed") {
 		const outcome = finishedOutcome(summary);
-		if (outcome.caveats) return "Finished · with caveats";
-		if (shortfall(summary)) return outcome.word;
-		return `Finished${summary.verdict ? ` · ${verdictWord(summary.verdict)}` : ""}`;
+		if (outcome.caveats) return ["warn", "With caveats"];
+		if (!outcome.clean) return ["warn", outcome.word];
+		const verdict = verdictWord(summary.verdict);
+		return ["", verdict.charAt(0).toUpperCase() + verdict.slice(1)];
 	}
-	if (summary.status === "failed")
-		return summary.needsYou?.[0]?.title || "A task failed";
-	if (summary.status === "blocked") return "Decision required";
-	if (summary.status === "interrupted") return "Stopped";
-	return summary.status === "running"
-		? summary.name.includes("review")
-			? "Reviewing is under way"
-			: "Work is under way"
-		: "Waiting to start";
+	if (summary.status === "interrupted") return ["", "Stopped"];
+	if (summary.status === "running") return ["", ""];
+	return ["", "Waiting to start"];
 }
+function railCount(counts, agents) {
+	const noun = agents ? "agents" : "tasks";
+	return counts.completed === counts.total
+		? `${counts.total} ${noun}`
+		: `${counts.completed} of ${counts.total} ${noun}`;
+}
+/** "6m" for "6m 00s", "1h" for "1h 00m": the rail rounds where nothing is lost. */
+const railElapsed = (run) => elapsed(run).replace(/ 00[sm]$/, "");
 function progress(completed, total, status = "") {
 	return element("progress", {
 		class: status ? `p-${status}` : null,
@@ -805,12 +816,35 @@ function renderRail() {
 				{ class: "need-restore link" },
 			),
 		);
-	rail.append(element("h2", { class: "rail-heading muted" }, "Runs"));
+	rail.append(
+		element(
+			"h2",
+			{ class: "rail-heading" },
+			element("span", {}, "Runs"),
+			runs.length
+				? element("span", { class: "rail-count" }, runs.length)
+				: null,
+		),
+	);
 	if (!runs.length)
 		rail.append(element("p", { class: "muted" }, "No runs yet"));
+	// Today / Earlier headings (2026-11-11, owner chose the compact rail), only when both occur.
+	const today = new Date(now()).toDateString();
+	const isToday = (summary) =>
+		new Date(date(summary.createdAt)).toDateString() === today;
+	const grouped = runs.some(isToday) && !runs.every(isToday);
+	let group = null;
 	for (const summary of runs) {
 		const counts = summary.agentSummary || summary.taskSummary;
 		const display = summary.runId === run?.runId ? run : summary;
+		const live = liveRun(display);
+		const [tone, word] = railStatus(display);
+		if (grouped && group !== isToday(summary)) {
+			group = isToday(summary);
+			rail.append(
+				element("div", { class: "rail-group" }, group ? "Today" : "Earlier"),
+			);
+		}
 		const row = element(
 			"div",
 			{
@@ -857,6 +891,22 @@ function renderRail() {
 					},
 					ago(summary.createdAt),
 				),
+				// Report replaces "3h ago" where it is wanted (hover, selected, keyboard).
+				summary.status === "completed" && summary.reportAvailable
+					? element(
+							"a",
+							{
+								class: "run-report",
+								href: `?run=${encodeURIComponent(summary.runId)}&view=report`,
+								onclick: (event) => {
+									event.preventDefault();
+									event.stopPropagation();
+									go({ run: summary.runId, view: "report" });
+								},
+							},
+							"Report →",
+						)
+					: null,
 			),
 			summary.taskPreview
 				? element(
@@ -865,36 +915,26 @@ function renderRail() {
 						summary.taskPreview,
 					)
 				: null,
+			// One quiet line: what to know (a verdict, a stop, a failure), the time, the agents.
 			element(
 				"div",
-				{ class: "row run-progress" },
-				progress(counts.completed, counts.total, summary.status),
-				element("span", {}, `${counts.completed} / ${counts.total}`),
+				{ class: "run-meta" },
+				...[
+					word ? element("span", { class: `run-word ${tone}` }, word) : null,
+					element(
+						"span",
+						{ class: "run-count" },
+						railCount(counts, Boolean(summary.agentSummary)),
+					),
+					element(
+						"span",
+						{ class: "elapsed", "data-run-elapsed": summary.runId },
+						railElapsed(summary),
+					),
+				].filter(Boolean),
 			),
-			element(
-				"div",
-				{ class: "run-line" },
-				element("span", { class: "grow" }, railLine(display)),
-				element(
-					"span",
-					{ class: "elapsed muted", "data-run-elapsed": summary.runId },
-					elapsed(summary),
-				),
-				summary.status === "completed" && summary.reportAvailable
-					? element(
-							"a",
-							{
-								href: `?run=${encodeURIComponent(summary.runId)}&view=report`,
-								onclick: (event) => {
-									event.preventDefault();
-									event.stopPropagation();
-									go({ run: summary.runId, view: "report" });
-								},
-							},
-							"Report ↗",
-						)
-					: null,
-			),
+			// The bar only while it moves; a finished run's full bar says nothing.
+			live ? progress(counts.completed, counts.total, summary.status) : null,
 		);
 		rail.append(row);
 	}
@@ -5146,7 +5186,7 @@ setInterval(() => {
 		const summary = runs.find(
 			(summary) => summary.runId === node.dataset.runElapsed,
 		);
-		if (summary) node.textContent = elapsed(summary);
+		if (summary) node.textContent = railElapsed(summary);
 	}
 	if (!run) return;
 	refreshGraphTexts();
@@ -5504,6 +5544,68 @@ async function modelControls(saved = {}, prefix = "") {
 	const list = element("datalist", { id: `models-${++modelControlId}` });
 	model.setAttribute("list", list.id);
 	const note = element("small", { class: "muted" });
+	const effortNote = element("small", {
+		class: "muted",
+		"data-effort-note": "",
+	});
+	// 2026-11-11 (owner): Effort offers the levels the chosen executor (and, when its CLI reports
+	// them, the chosen model) has, not the engine's whole vocabulary. Automatic keeps the whole
+	// list: the engine maps a level the executor lacks to its nearest one before launch.
+	const effortScope = () => {
+		const entry = data.executors.find((entry) => entry.id === exec.value);
+		const declared = entry?.effortLevels?.length
+			? EFFORT_LEVELS.filter((level) => entry.effortLevels.includes(level))
+			: null;
+		const name = model.value.trim();
+		const perModel =
+			name && entry?.modelEfforts
+				? (entry.modelEfforts[name] ??
+					Object.entries(entry.modelEfforts).find(
+						([key]) =>
+							key.split("/").pop() === name || name.split("/").pop() === key,
+					)?.[1])
+				: undefined;
+		const narrowed = perModel
+			? EFFORT_LEVELS.filter(
+					(level) =>
+						perModel.includes(level) && (!declared || declared.includes(level)),
+				)
+			: [];
+		if (narrowed.length)
+			return {
+				levels: narrowed,
+				text:
+					narrowed.length === 1 && narrowed[0] === "off"
+						? `${name} does not think on ${entry.id}: its effort is off.`
+						: `Effort for ${name} on ${entry.id}: ${narrowed.join(" · ")}.`,
+			};
+		if (declared)
+			return {
+				levels: declared,
+				text: `Effort on ${entry.id}: ${declared.join(" · ")}.`,
+			};
+		return {
+			levels: EFFORT_LEVELS,
+			text: exec.value
+				? `${exec.value} declares no effort levels; a level it lacks runs at its nearest one.`
+				: "Choose an executor to see its effort levels; a level it lacks runs at its nearest one.",
+		};
+	};
+	const updateEffort = () => {
+		const current = effort.value;
+		const { levels, text } = effortScope();
+		const options = [
+			["", "Automatic"],
+			...levels.map((level) => [level, level]),
+		];
+		if (current && !levels.includes(current))
+			options.push([current, `${current} (not available here)`]);
+		effort.replaceChildren(
+			...options.map(([value, label]) => element("option", { value }, label)),
+		);
+		effort.value = current;
+		effortNote.textContent = text;
+	};
 	const update = () => {
 		const entry = data.executors.find((entry) => entry.id === exec.value);
 		list.replaceChildren(
@@ -5511,8 +5613,11 @@ async function modelControls(saved = {}, prefix = "") {
 		);
 		note.textContent =
 			entry?.note || "Choose an executor for its model suggestions.";
+		updateEffort();
 	};
 	exec.addEventListener("change", update);
+	model.addEventListener("input", updateEffort);
+	model.addEventListener("change", updateEffort);
 	update();
 	return {
 		node: element(
@@ -5523,6 +5628,7 @@ async function modelControls(saved = {}, prefix = "") {
 			field("Effort", effort),
 			list,
 			note,
+			effortNote,
 		),
 		values: () =>
 			Object.fromEntries(
@@ -5643,13 +5749,13 @@ async function renderManagement() {
 	}
 }
 async function renderWorkflows(page) {
+	if (state.workflow) return renderWorkflow(page, state.workflow);
 	const [catalog, agents] = await Promise.all([
 		managementApi(projectRoute("workflows")),
 		managementApi(projectRoute("agents")),
 	]);
 	const list = managementPanel("Available workflows");
-	const detail = element("div", { "aria-live": "polite" });
-	page.append(list, detail);
+	page.append(list);
 	if (!catalog.data.workflows.length)
 		list.append(
 			element(
@@ -5658,168 +5764,49 @@ async function renderWorkflows(page) {
 				"No workflows yet. Add a workflow definition to .agent-workflow/workflows, or install a workflow bundle. Run agent-workflow list to discover it.",
 			),
 		);
-	for (const workflow of catalog.data.workflows) {
-		list.append(
-			element(
-				"article",
-				{ class: "management-list-row" },
-				managementControl(
-					workflow.name,
-					async () => {
-						const data = await managementApi(
-							projectRoute(`workflows/${encodeURIComponent(workflow.name)}`),
-						);
-						// Display authored stage/agent names, not a second compiler or execution plan.
-						const authored = JSON.parse(data.spec.data.spec);
-						const stages = Array.isArray(authored.artifactGraph?.stages)
-							? authored.artifactGraph.stages
-							: [];
-						const panel = managementPanel(
-							workflow.name,
-							element("h3", {}, "Stages and agents"),
-							element(
-								"ul",
-								{},
-								stages.map((stage) =>
-									element(
-										"li",
-										{},
-										`${stage.id} · ${stage.type || (stage.support ? "code" : "stage")} · ${stage.agent || authored.defaults?.agent || "executor default"}`,
-									),
-								),
-							),
-							managementResult(data.validation),
-							element(
-								"details",
-								{},
-								element("summary", {}, "Stages and agents · resolved spec"),
-								element("pre", {}, data.spec.data.spec),
-							),
-							element(
-								"details",
-								{},
-								element("summary", {}, "Compiled roles"),
-								managementResult(data.roles),
-							),
-						);
-						detail.replaceChildren(panel);
-						const options = await modelControls();
-						const profiles =
-							(await managementApi("/api/profiles")).data.profiles || [];
-						const profile = choices("Check profile", [
-							"",
-							...new Set([
-								...profiles.map((p) => p.name),
-								...Object.keys(authored.executionProfiles || {}),
-								"pi",
-								"claude",
-								"codex",
-								"mixed",
-							]),
-						]);
-						const permission = choices("Check permission mode", [
-							"",
-							"free",
-							"safe",
-						]);
-						const output = element("div");
-						const command = element("div");
-						const selected = () => ({
-							...options.values(),
-							...(profile.value ? { profile: profile.value } : {}),
-							...(permission.value ? { permissionMode: permission.value } : {}),
-						});
-						const awCommand = `aw run ${shellArg(workflow.name)} "<task>"`;
-						const update = () => {
-							const flags = Object.entries(selected())
-								.map(
-									([key, value]) =>
-										` --${key === "permissionMode" ? "permission-mode" : key} ${shellArg(value)}`,
-								)
-								.join("");
-							command.replaceChildren(commandHint(awCommand));
-							if (flags)
-								command.append(
-									element(
-										"p",
-										{ class: "muted" },
-										"aw uses saved defaults; for these explicit Check overrides use the CLI:",
-									),
-									commandHint(
-										`agent-workflow run ${shellArg(workflow.name)} "<task>"${flags}`,
-									),
-								);
-						};
-						const form = element(
-							"div",
-							{ class: "management-fields", onchange: update, oninput: update },
-							options.node,
-							field("Profile (optional)", profile),
-							field("Permission mode", permission),
-						);
-						panel.append(
-							element("h3", {}, "Check · no run or model call"),
-							form,
-							managementControl(
-								"Check",
-								async () => {
-									output.replaceChildren(
-										managementResult(
-											await managementWrite(
-												projectRoute(
-													`workflows/${encodeURIComponent(workflow.name)}/check`,
-												),
-												"POST",
-												selected(),
-											),
-										),
-									);
-								},
-								output,
-								{ "data-management-action": "check" },
-							),
-							output,
-							command,
-						);
-						update();
-					},
-					detail,
-					{ write: false },
-				),
-				element("p", {}, workflow.description || "No description."),
+	// 2026-11-11 (owner): the whole card opens the workflow, on a page of its own.
+	list.append(
+		element(
+			"div",
+			{ class: "workflow-cards" },
+			catalog.data.workflows.map((workflow) =>
 				element(
-					"small",
-					{ class: "muted" },
-					`Source: ${workflow.scope || "catalog"} · ${workflow.specPath} · aliases: ${workflow.aliases.join(", ") || "none"}${workflow.agent ? ` · agent: ${workflow.agent}` : ""}${workflow.readOnly !== undefined ? ` · read-only: ${workflow.readOnly}` : ""}`,
+					"a",
+					{
+						class: "workflow-card",
+						href: workflowHref(workflow.name),
+						"data-workflow": workflow.name,
+					},
+					element(
+						"span",
+						{ class: "workflow-card-head" },
+						element("strong", {}, workflow.name),
+						workflowTags(workflow),
+					),
+					element(
+						"span",
+						{ class: "workflow-card-text" },
+						workflow.description || "No description.",
+					),
 				),
-				workflow.routing
-					? element(
-							"p",
-							{ class: "muted" },
-							Object.entries(workflow.routing)
-								.map(([key, hints]) => `${humanize(key)}: ${hints.join("; ")}`)
-								.join(" · "),
-						)
-					: null,
 			),
-		);
-	}
+		),
+	);
 	page.append(
 		managementPanel(
 			"Agents",
 			agents.data.agents.length
-				? agents.data.agents.map((agent) =>
-						element(
-							"article",
-							{ class: "management-list-row" },
-							element("h3", {}, agent.displayName),
-							element("p", {}, agent.description || "No description."),
+				? propertyTable(
+						["Agent", "Description", "Source"],
+						agents.data.agents.map((agent) => [
+							element("strong", {}, agent.displayName),
+							agent.description || "No description.",
 							element(
-								"small",
+								"span",
 								{ class: "muted" },
-								`${agent.scope} · ${agent.sourcePath}${agent.model ? ` · ${agent.model}` : ""}`,
+								`${agent.scope}${agent.model ? ` · ${agent.model}` : ""}`,
 							),
-						),
+						]),
 					)
 				: element(
 						"p",
@@ -5828,6 +5815,250 @@ async function renderWorkflows(page) {
 					),
 		),
 	);
+}
+const ROUTING_LABELS = {
+	useWhen: "Use when",
+	avoidWhen: "Avoid when",
+	outputs: "Outputs",
+};
+function workflowHref(name) {
+	const params = new URLSearchParams();
+	if (state.project) params.set("project", state.project);
+	params.set("view", "workflows");
+	if (name) params.set("workflow", name);
+	return `/?${params}`;
+}
+function workflowTags(workflow) {
+	return element(
+		"span",
+		{ class: "workflow-tags" },
+		[
+			workflow.scope,
+			workflow.readOnly ? "read-only" : null,
+			workflow.agent ? `agent: ${workflow.agent}` : null,
+		]
+			.filter(Boolean)
+			.map((tag) => element("span", { class: "tag" }, tag)),
+	);
+}
+/** A plain table: a header row and rows of cells (text or nodes). */
+function propertyTable(headers, rows, attrs = {}) {
+	return element(
+		"table",
+		{ class: "property-table", ...attrs },
+		headers
+			? element(
+					"thead",
+					{},
+					element(
+						"tr",
+						{},
+						headers.map((header) => element("th", {}, header)),
+					),
+				)
+			: null,
+		element(
+			"tbody",
+			{},
+			rows.map((cells) =>
+				element(
+					"tr",
+					{},
+					cells.map((cell) => element("td", {}, cell ?? "—")),
+				),
+			),
+		),
+	);
+}
+/** The workflow page (2026-11-11): what it is, its stages, its check and the raw spec. */
+async function renderWorkflow(page, name) {
+	page.querySelector("h1").textContent = name;
+	page
+		.querySelector("h1")
+		.before(
+			element(
+				"a",
+				{ class: "back-link", href: workflowHref(null) },
+				"← All workflows",
+			),
+		);
+	const [catalog, data] = await Promise.all([
+		managementApi(projectRoute("workflows")),
+		managementApi(projectRoute(`workflows/${encodeURIComponent(name)}`)),
+	]);
+	const workflow = catalog.data.workflows.find(
+		(entry) => entry.name === name,
+	) || { name };
+	page.querySelector("h1 + p")?.replaceChildren(workflowTags(workflow));
+	// Authored stage and agent names, not a second compiler. A spec that cannot be read here
+	// still shows its validation, check and raw text (2026-11-11: one failure blanked the page).
+	let authored = {};
+	let specError = "";
+	try {
+		authored = JSON.parse(data.spec.data.spec);
+	} catch (error) {
+		specError = error.message;
+	}
+	const stages = Array.isArray(authored.artifactGraph?.stages)
+		? authored.artifactGraph.stages
+		: [];
+	const about = managementPanel(
+		"About",
+		element("p", {}, workflow.description || "No description."),
+		propertyTable(
+			null,
+			[
+				...Object.entries(workflow.routing || {}).map(([key, hints]) => [
+					ROUTING_LABELS[key] || humanize(key),
+					hints.join(" "),
+				]),
+				[
+					"Source",
+					element("span", { class: "mono" }, workflow.specPath || "—"),
+				],
+				workflow.aliases?.length
+					? ["Aliases", workflow.aliases.join(", ")]
+					: null,
+			].filter(Boolean),
+			{ class: "property-table keyed" },
+		),
+	);
+	const validation = data.validation?.data;
+	const stagesPanel = managementPanel(
+		"Stages",
+		specError
+			? element(
+					"p",
+					{ role: "alert", class: "management-error" },
+					`The stage list could not be read: ${specError}`,
+				)
+			: propertyTable(
+					["#", "Stage", "Kind", "Agent"],
+					stages.map((stage, index) => [
+						String(index + 1),
+						element("strong", {}, stage.id),
+						stage.type || (stage.support ? "code" : "stage"),
+						stage.agent || authored.defaults?.agent || "executor default",
+					]),
+					{ class: "property-table numbered" },
+				),
+		data.validation?.error
+			? element(
+					"p",
+					{ role: "alert", class: "management-error" },
+					data.validation.error,
+				)
+			: validation
+				? [
+						element("h3", {}, "Validation"),
+						propertyTable(
+							null,
+							[
+								["Spec", "Valid ✓"],
+								["Type", validation.type],
+								["Tasks", String(validation.tasks)],
+								["Roles", String(validation.roles)],
+								["Max concurrency", String(validation.maxConcurrency)],
+								...validation.warnings.map((warning) => ["Warning", warning]),
+								...validation.blockedPermissionPreviews.map((entry) => [
+									"Blocked",
+									`${entry.taskId}: ${entry.reason || entry.statusDetail}`,
+								]),
+							],
+							{ class: "property-table keyed" },
+						),
+					]
+				: null,
+	);
+	const check = managementPanel("Check · no run or model call");
+	const advanced = managementPanel(
+		"Advanced",
+		element(
+			"details",
+			{},
+			element("summary", {}, "Resolved spec"),
+			element("pre", {}, data.spec.data.spec),
+		),
+		element(
+			"details",
+			{},
+			element("summary", {}, "Compiled roles"),
+			managementResult(data.roles),
+		),
+	);
+	page.append(about, stagesPanel, check, advanced);
+	const options = await modelControls();
+	const profiles = (await managementApi("/api/profiles")).data.profiles || [];
+	const profile = choices("Check profile", [
+		"",
+		...new Set([
+			...profiles.map((p) => p.name),
+			...Object.keys(authored.executionProfiles || {}),
+			"pi",
+			"claude",
+			"codex",
+			"mixed",
+		]),
+	]);
+	const permission = choices("Check permission mode", ["", "free", "safe"]);
+	const output = element("div");
+	const command = element("div");
+	const selected = () => ({
+		...options.values(),
+		...(profile.value ? { profile: profile.value } : {}),
+		...(permission.value ? { permissionMode: permission.value } : {}),
+	});
+	const awCommand = `aw run ${shellArg(name)} "<task>"`;
+	const update = () => {
+		const flags = Object.entries(selected())
+			.map(
+				([key, value]) =>
+					` --${key === "permissionMode" ? "permission-mode" : key} ${shellArg(value)}`,
+			)
+			.join("");
+		command.replaceChildren(commandHint(awCommand));
+		if (flags)
+			command.append(
+				element(
+					"p",
+					{ class: "muted" },
+					"aw uses saved defaults; for these explicit Check overrides use the CLI:",
+				),
+				commandHint(`agent-workflow run ${shellArg(name)} "<task>"${flags}`),
+			);
+	};
+	check.append(
+		element(
+			"div",
+			{ class: "management-fields", onchange: update, oninput: update },
+			options.node,
+			field("Profile (optional)", profile),
+			field("Permission mode", permission),
+		),
+		element(
+			"div",
+			{ class: "management-actions" },
+			managementControl(
+				"Check",
+				async () => {
+					output.replaceChildren(
+						managementResult(
+							await managementWrite(
+								projectRoute(`workflows/${encodeURIComponent(name)}/check`),
+								"POST",
+								selected(),
+							),
+						),
+					);
+				},
+				output,
+				{ "data-management-action": "check", class: "primary" },
+			),
+		),
+		output,
+		command,
+	);
+	update();
 }
 /** `role  executor:model:effort` lines of a role map, as the CLI shows them. */
 function roleTable(roles = {}) {
@@ -6202,45 +6433,209 @@ async function renderProfiles(page) {
 		);
 	prefPanel.append(prefEditor, prefOutput);
 }
+/** "12.4 MB" from bytes. */
+function formatBytes(bytes) {
+	const units = ["B", "KB", "MB", "GB"];
+	let value = Number(bytes) || 0;
+	let unit = 0;
+	while (value >= 1024 && unit < units.length - 1) {
+		value /= 1024;
+		unit++;
+	}
+	return `${unit ? value.toFixed(value < 10 ? 1 : 0) : value} ${units[unit]}`;
+}
+function runHref(runId) {
+	const params = new URLSearchParams();
+	if (state.project) params.set("project", state.project);
+	params.set("run", runId);
+	return `/?${params}`;
+}
+/** A coloured dot and a word (status is never colour alone). */
+function stateLabel(tone, text) {
+	return element(
+		"span",
+		{ class: `state-label ${tone}` },
+		element("span", { class: "state-dot", "aria-hidden": "true" }),
+		text,
+	);
+}
+/** Raw results and the CLI equivalent, folded away (2026-11-11). */
+function moreDetails(title, ...children) {
+	return element(
+		"details",
+		{ class: "more-details" },
+		element("summary", {}, title),
+		children,
+	);
+}
+/*
+ * Maintenance (2026-11-11, owner: "only what a user would really use"): unfinished runs to look
+ * at or dismiss, then cleaning up old runs with an exact preview. Nothing removed: the raw
+ * results and CLI commands are folded under "Details".
+ */
 async function renderMaintenance(page) {
-	const keep = input("Keep newest terminal runs", "50", {
+	page
+		.querySelector("h1 + p")
+		?.replaceChildren(
+			"Unfinished runs that still raise notices, and old runs you can clean up. This project only.",
+		);
+	const [notices, list] = await Promise.all([
+		managementApi(projectRoute("notices")),
+		api("/api/runs").catch(() => ({ runs: [] })),
+	]);
+	const known = new Map((list.runs || []).map((entry) => [entry.runId, entry]));
+	// A run reads as its workflow and task, with its id underneath (2026-11-11).
+	const runCell = (runId) => {
+		const entry = known.get(runId);
+		return element(
+			"a",
+			{ href: runHref(runId), class: "run-cell", "data-prune-run": runId },
+			element("span", {}, entry?.name || runId),
+			entry
+				? element(
+						"small",
+						{ class: "muted" },
+						`${entry.taskPreview ? `${entry.taskPreview} · ` : ""}${runId.slice(-6)}`,
+					)
+				: null,
+		);
+	};
+	const noticeOutput = element("div");
+	const dismissed = notices.data.acknowledgements || [];
+	// The list names every unfinished run; one with an active acknowledgement is already dismissed.
+	const open = (notices.data.notices || []).filter(
+		(entry) =>
+			!dismissed.some((ack) => ack.active && ack.runId === entry.runId),
+	);
+	const noticePanel = managementPanel(
+		"Unfinished runs",
+		element(
+			"p",
+			{ class: "muted" },
+			"A stopped or failed run is reported when a host starts. Open it to resume or inspect it, or dismiss the notice once you have dealt with it: the run itself and resume stay as they are.",
+		),
+		open.length
+			? propertyTable(
+					["Run", "State", "Updated", ""],
+					open.map((entry) => {
+						const reason = input(`Reason for ${entry.runId}`, "", {
+							placeholder: "Reason (optional)",
+						});
+						return [
+							runCell(entry.runId),
+							stateLabel(
+								entry.status === "failed" ? "err" : "muted",
+								humanize(entry.status),
+							),
+							element("span", { title: entry.updatedAt }, ago(entry.updatedAt)),
+							element(
+								"span",
+								{ class: "row-actions" },
+								reason,
+								managementControl(
+									"Dismiss",
+									async () => {
+										await managementWrite(
+											projectRoute(
+												`notices/${encodeURIComponent(entry.runId)}/acknowledge`,
+											),
+											"POST",
+											{
+												state: entry.sha256,
+												reason:
+													reason.value.trim() || "Dismissed in the dashboard",
+											},
+										);
+										await renderManagement();
+									},
+									noticeOutput,
+									{ "data-notice-dismiss": entry.runId },
+								),
+							),
+						];
+					}),
+					{ class: "property-table notices" },
+				)
+			: element(
+					"p",
+					{},
+					"Nothing to look at: no unfinished run is raising a notice.",
+				),
+		dismissed.length
+			? moreDetails(
+					`Dismissed (${dismissed.length})`,
+					propertyTable(
+						["Run", "Reason", ""],
+						dismissed.map((entry) => [
+							runCell(entry.runId),
+							`${entry.reason}${entry.active ? "" : " · the run changed since"}`,
+							managementControl(
+								"Show again",
+								async () => {
+									await managementWrite(
+										projectRoute(
+											`notices/${encodeURIComponent(entry.runId)}/clear`,
+										),
+										"POST",
+									);
+									await renderManagement();
+								},
+								noticeOutput,
+							),
+						]),
+					),
+				)
+			: null,
+		notices.data.warnings?.length
+			? element("pre", {}, notices.data.warnings.join("\n"))
+			: null,
+		noticeOutput,
+		moreDetails(
+			"Same from the terminal",
+			commandHint("agent-workflow notices list"),
+		),
+	);
+	page.append(noticePanel);
+
+	const keep = input("Keep the newest finished runs", "50", {
 		type: "number",
 		min: 0,
 		max: 100000,
 	});
-	const older = input("Older than days (optional)", "", {
+	const older = input("Only runs older than (days)", "", {
 		type: "number",
 		min: 0,
 		max: 36500,
+		placeholder: "Any age",
 	});
-	const output = element("div");
+	const output = element("div", { class: "prune-output" });
 	let preview;
 	const params = () => ({
 		keep: Number(keep.value),
 		...(older.value !== "" ? { olderThanDays: Number(older.value) } : {}),
 	});
 	const remove = managementControl(
-		"Delete previewed data",
+		"Delete",
 		async () => {
 			const shown = preview;
 			preview = null;
 			remove.hidden = true;
-			try {
-				output.replaceChildren(
-					managementResult(
-						await managementWrite(projectRoute("prune"), "POST", {
-							...shown.params,
-							digest: shown.result.digest,
-						}),
-					),
-				);
-			} catch (error) {
-				// Mismatch never deletes. The new preview is displayed; a fresh Preview is required.
-				throw error;
-			}
+			const result = await managementWrite(projectRoute("prune"), "POST", {
+				...shown.params,
+				digest: shown.result.digest,
+			});
+			const deleted = (result.data.runs || []).filter((run) => run.deleted);
+			output.replaceChildren(
+				element(
+					"p",
+					{ role: "status", class: "prune-summary" },
+					`Deleted ${deleted.length} ${deleted.length === 1 ? "run" : "runs"}, freeing ${formatBytes(result.data.deletedBytes)}.`,
+				),
+				moreDetails("Full result", managementResult(result)),
+			);
 		},
 		output,
-		{ "data-management-action": "prune-delete" },
+		{ "data-management-action": "prune-delete", class: "danger" },
 	);
 	remove.hidden = true;
 	const invalidate = () => {
@@ -6249,155 +6644,286 @@ async function renderMaintenance(page) {
 	};
 	keep.addEventListener("input", invalidate);
 	older.addEventListener("input", invalidate);
-	const panel = managementPanel(
-		"Prune history",
-		element(
-			"p",
-			{},
-			"Preview exactly what will be deleted, including executor attempt state and stale launch claims. Active runs and protected evidence stay. Delete is refused if the preview changes.",
-		),
-		element(
-			"div",
-			{ class: "management-fields" },
-			field("Keep newest terminal runs", keep),
-			field("Older than days (optional)", older),
-		),
-		managementControl(
-			"Preview prune",
-			async () => {
-				invalidate();
-				const selected = params();
-				const result = await managementWrite(
-					projectRoute("prune/preview"),
-					"POST",
-					selected,
-				);
-				preview = { params: selected, result };
-				output.replaceChildren(
-					managementResult(result),
-					element("h3", {}, "Run selection and protections"),
-				);
-				for (const run of result.data.runs)
-					output.append(
-						element(
-							"p",
-							{},
-							`${run.runId}: ${run.protected ? "Protected" : run.selected ? "Would delete" : "Kept"} · ${run.status} · ${run.bytes} bytes`,
-						),
-					);
-				remove.hidden = !result.ok;
-			},
+	const verdict = (run) =>
+		run.protected
+			? stateLabel("warn", "Kept · protected")
+			: run.selected
+				? stateLabel("err", "Will delete")
+				: stateLabel("muted", "Kept");
+	page.append(
+		managementPanel(
+			"Clean up old runs",
+			element(
+				"p",
+				{ class: "muted" },
+				"Delete finished runs you no longer need. Running runs and protected evidence are always kept, and you see exactly what goes before anything is deleted.",
+			),
+			element(
+				"div",
+				{ class: "management-fields" },
+				field("Keep the newest finished runs", keep),
+				field("Only runs older than (days)", older),
+			),
+			element(
+				"div",
+				{ class: "management-actions" },
+				managementControl(
+					"Preview",
+					async () => {
+						invalidate();
+						const selected = params();
+						const result = await managementWrite(
+							projectRoute("prune/preview"),
+							"POST",
+							selected,
+						);
+						preview = { params: selected, result };
+						const runs = [...(result.data.runs || [])].sort(
+							(a, b) =>
+								Number(b.selected && !b.protected) -
+									Number(a.selected && !a.protected) ||
+								String(b.updatedAt).localeCompare(String(a.updatedAt)),
+						);
+						const going = runs.filter((run) => run.selected && !run.protected);
+						const bytes = going.reduce((sum, run) => sum + (run.bytes || 0), 0);
+						// append() skips the empty parts (replaceChildren would print "null").
+						output.replaceChildren();
+						append(output, [
+							element(
+								"p",
+								{ role: "status", class: "prune-summary" },
+								going.length
+									? `${going.length} ${going.length === 1 ? "run" : "runs"} would be deleted, freeing ${formatBytes(bytes)}.${runs.length > going.length ? ` ${runs.length - going.length} kept.` : ""}`
+									: "Nothing to delete with these settings.",
+							),
+							runs.length
+								? propertyTable(
+										["Run", "Status", "Updated", "Size", ""],
+										runs.map((run) => [
+											runCell(run.runId),
+											humanize(run.status),
+											element(
+												"span",
+												{ title: run.updatedAt },
+												ago(run.updatedAt),
+											),
+											formatBytes(run.bytes),
+											verdict(run),
+										]),
+										{ class: "property-table prune" },
+									)
+								: null,
+							moreDetails("Full preview", managementResult(result)),
+						]);
+						remove.textContent = `Delete ${going.length} ${going.length === 1 ? "run" : "runs"}`;
+						remove.hidden = !result.ok || !going.length;
+					},
+					output,
+					{ "data-management-action": "prune-preview" },
+				),
+				remove,
+			),
 			output,
-			{ "data-management-action": "prune-preview" },
-		),
-		remove,
-		output,
-		commandHint(
-			"agent-workflow prune --keep <N> [--older-than <days>] [--yes]",
-		),
-	);
-	page.append(panel);
-	const notices = await managementApi(projectRoute("notices"));
-	const noticeOutput = element("div");
-	const noticePanel = managementPanel(
-		"Notices",
-		element(
-			"p",
-			{ class: "muted" },
-			"Acknowledgements only hide notifications; history and resume authority are unchanged.",
-		),
-	);
-	page.append(noticePanel);
-	for (const entry of notices.data.notices || []) {
-		const reason = input(`Reason for ${entry.runId}`);
-		noticePanel.append(
-			element(
-				"article",
-				{ class: "management-list-row" },
-				element("h3", {}, entry.runId),
-				element("p", {}, `${entry.status} · ${entry.updatedAt}`),
-				field("Reason", reason),
-				managementControl(
-					"Acknowledge",
-					async () => {
-						noticeOutput.replaceChildren(
-							managementResult(
-								await managementWrite(
-									projectRoute(
-										`notices/${encodeURIComponent(entry.runId)}/acknowledge`,
-									),
-									"POST",
-									{ state: entry.sha256, reason: reason.value },
-								),
-							),
-						);
-					},
-					noticeOutput,
+			moreDetails(
+				"Same from the terminal",
+				commandHint(
+					"agent-workflow prune --keep <N> [--older-than <days>] [--yes]",
 				),
 			),
-		);
-	}
-	for (const entry of notices.data.acknowledgements || [])
-		noticePanel.append(
-			element(
-				"article",
-				{ class: "management-list-row" },
-				element(
-					"p",
-					{},
-					`${entry.runId} · ${entry.active ? "Acknowledged" : "State changed"} · ${entry.reason}`,
-				),
-				managementControl(
-					"Clear acknowledgement",
-					async () => {
-						noticeOutput.replaceChildren(
-							managementResult(
-								await managementWrite(
-									projectRoute(
-										`notices/${encodeURIComponent(entry.runId)}/clear`,
-									),
-									"POST",
-								),
-							),
-						);
-					},
-					noticeOutput,
-				),
-			),
-		);
-	if (!(notices.data.notices?.length || notices.data.acknowledgements?.length))
-		noticePanel.append(element("p", {}, "No notices or acknowledgements."));
-	if (notices.data.warnings?.length)
-		noticePanel.append(element("pre", {}, notices.data.warnings.join("\n")));
-	noticePanel.append(noticeOutput, commandHint("agent-workflow notices list"));
+		),
+	);
 }
+const EXECUTOR_STATES = {
+	ready: ["ok", "Ready"],
+	"logged-out": ["warn", "Not logged in"],
+	"not-installed": ["muted", "Not installed"],
+};
+/*
+ * Executors (2026-11-11, owner): which CLIs can run workflows here and what to do about the rest,
+ * then what to know and the defaults. The full doctor report stays under "Details".
+ */
 async function renderExecutors(page) {
-	const output = element("div");
+	page
+		.querySelector("h1 + p")
+		?.replaceChildren(
+			"The coding-agent CLIs that run workflow stages, checked on this machine without a model call.",
+		);
+	const body = element("div", { "aria-live": "polite" });
+	const checked = element("span", { class: "muted" });
 	const show = async (refresh = false) => {
 		const result = await managementApi(
 			`/api/doctor${refresh ? "?refresh=1" : ""}`,
 		);
-		output.replaceChildren(managementResult(result));
+		const data = result.data;
+		const executors = data.executors || [];
+		const ready = executors.filter((entry) => entry.usable).length;
+		checked.textContent = `Checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · cached for 60 s`;
+		const knows = [
+			...(data.warnings || []),
+			...(data.node && !data.node.supported
+				? [
+						`Node ${data.node.version} is older than the required ${data.node.required}.`,
+					]
+				: []),
+			...(data.home && !data.home.writable
+				? [`The home ${data.home.path} is not writable.`]
+				: []),
+		];
+		body.replaceChildren();
+		append(body, [
+			managementPanel(
+				"Status",
+				element(
+					"p",
+					{ class: "lead" },
+					`${ready} of ${executors.length} ready. `,
+					data.defaultExecutor?.id
+						? [
+								"Runs use ",
+								element("strong", {}, data.defaultExecutor.id),
+								" unless you choose another executor.",
+							]
+						: "No executor is ready to run workflows.",
+				),
+				propertyTable(
+					["Executor", "Status", "Version", "What to do"],
+					executors.map((entry) => {
+						const [tone, label] = EXECUTOR_STATES[entry.state] || [
+							entry.usable ? "ok" : "warn",
+							humanize(entry.state || (entry.usable ? "ready" : "unavailable")),
+						];
+						return [
+							element("strong", {}, entry.id),
+							stateLabel(tone, label),
+							entry.cliVersion
+								? [
+										entry.cliVersion,
+										entry.versionMatchesVerified === false
+											? element(
+													"span",
+													{ class: "muted" },
+													` · tested on ${entry.verifiedVersion}`,
+												)
+											: null,
+									]
+								: "—",
+							entry.fix || (entry.usable ? "—" : entry.error || "—"),
+						];
+					}),
+					{ class: "property-table executors" },
+				),
+			),
+			knows.length
+				? managementPanel(
+						"Things to know",
+						element(
+							"ul",
+							{ class: "notes-list" },
+							knows.map((text) => element("li", {}, text)),
+						),
+					)
+				: null,
+			managementPanel(
+				"Defaults",
+				propertyTable(
+					null,
+					[
+						[
+							"Default executor",
+							data.defaultExecutor?.id
+								? [
+										element("strong", {}, data.defaultExecutor.id),
+										element(
+											"span",
+											{ class: "muted" },
+											` · ${data.defaultExecutor.reason || data.defaultExecutor.source}`,
+										),
+									]
+								: "none ready",
+						],
+						[
+							"Permission mode",
+							[
+								element("strong", {}, data.permissionMode?.mode || "free"),
+								element(
+									"span",
+									{ class: "muted" },
+									` · ${data.permissionMode?.source === "default" ? "default" : "saved"}`,
+								),
+							],
+						],
+						[
+							"Models and effort",
+							element(
+								"a",
+								{
+									href: `/?${new URLSearchParams({ ...(state.project ? { project: state.project } : {}), view: "profiles" })}`,
+								},
+								"Set per executor in Profiles",
+							),
+						],
+					],
+					{ class: "property-table keyed" },
+				),
+			),
+			managementPanel(
+				"Details",
+				moreDetails(
+					"Executor notes",
+					propertyTable(
+						null,
+						executors.map((entry) => [
+							entry.id,
+							element(
+								"ul",
+								{ class: "notes-list" },
+								(entry.notes || []).map((note) => element("li", {}, note)),
+							),
+						]),
+						{ class: "property-table keyed" },
+					),
+				),
+				moreDetails(
+					"Environment",
+					propertyTable(
+						null,
+						[
+							data.node
+								? [
+										"Node",
+										`${data.node.version} (requires ${data.node.required})`,
+									]
+								: null,
+							data.home
+								? ["Home", element("span", { class: "mono" }, data.home.path)]
+								: null,
+							data.runIndex
+								? [
+										"Run index",
+										`${data.runIndex.entries} entries · ${data.runIndex.stale} stale · ${data.runIndex.dangling} dangling`,
+									]
+								: null,
+							["Host", data.host],
+						].filter(Boolean),
+						{ class: "property-table keyed" },
+					),
+				),
+				moreDetails("Full report", managementResult(result)),
+				moreDetails(
+					"Same from the terminal",
+					commandHint("agent-workflow doctor"),
+				),
+			),
+		]);
 	};
 	page.append(
-		managementPanel(
-			"Executor health",
-			element(
-				"p",
-				{ class: "muted" },
-				"Cached for 60 seconds. Refresh runs bounded executor probes; it never calls a model.",
-			),
-			managementControl(
-				"Refresh",
-				async () => {
-					await show(true);
-				},
-				output,
-				{ write: false },
-			),
-			output,
-			commandHint("agent-workflow doctor"),
+		element(
+			"div",
+			{ class: "management-actions page-actions" },
+			managementControl("Refresh", () => show(true), body, { write: false }),
+			checked,
 		),
+		body,
 	);
 	await show();
 }

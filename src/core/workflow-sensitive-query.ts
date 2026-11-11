@@ -85,7 +85,9 @@ export function isSensitiveWorkflowQueryKey(key: string): boolean {
 
 /** Redact URLs and credential-bearing assignments in provider text. */
 export function redactSensitiveWorkflowText(value: string): string {
-	const withUrls = value.replace(/https?:\/\/[^\s)\]}>"']+/gi, (match) => {
+	// A backslash ends a URL: in escaped JSON it is the quote's escape, and the URL parser would
+	// turn it into a slash and break the JSON around it (2026-11-11).
+	const withUrls = value.replace(/https?:\/\/[^\s)\]}>"'\\]+/gi, (match) => {
 		const trailing = match.match(/[.,;:!?]+$/)?.[0] ?? "";
 		const core = trailing ? match.slice(0, -trailing.length) : match;
 		try {

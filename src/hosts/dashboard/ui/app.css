@@ -39,6 +39,10 @@
 	--t-layout: 0.28s;
 	--t-leave: 0.16s;
 	--ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+	/* Controls (2026-11-11, owner: "spacing looks off everywhere"): one height, one radius. */
+	--control: 32px;
+	--control-sm: 28px;
+	--radius: 8px;
 	font:
 		15px / 1.5 system-ui,
 		-apple-system,
@@ -47,6 +51,9 @@
 		sans-serif;
 	background: var(--bg);
 	font-variant-numeric: tabular-nums;
+	/* 2026-11-11 (owner: text looked heavy): grayscale smoothing, as macOS apps draw light-on-dark. */
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 	color: var(--text);
 }
 * {
@@ -65,19 +72,72 @@ button,
 input,
 select {
 	background: transparent;
-	border: 1px solid var(--line);
-	border-radius: 6px;
+	border: 1px solid var(--line2);
+	border-radius: var(--radius);
 }
 button {
 	cursor: pointer;
-	padding: 5px 12px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: var(--control);
+	padding: 0 12px;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1.2;
+	transition:
+		background var(--t-fast) ease,
+		border-color var(--t-fast) ease,
+		color var(--t-fast) ease;
 }
 button:hover:not(:disabled) {
 	border-color: var(--line2);
 	background: var(--selected);
 }
 button:disabled {
-	opacity: 0.45;
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+input:not([type="checkbox"], [type="radio"]),
+select {
+	min-height: var(--control);
+	padding: 0 10px;
+	font-size: 14px;
+}
+/*
+ * Selects draw their own chevron (2026-11-11, owner: the native arrow sat on the edge and its
+ * text started further in than an input's). Two gradients, not an image: the CSP allows no data
+ * URLs, and currentColor follows the theme.
+ */
+select {
+	appearance: none;
+	padding-right: 32px;
+	/* A thin chevron: two 1.5 px diagonal strokes, "\" then "/", meeting at the bottom. */
+	--chevron: var(--muted);
+	background-image:
+		linear-gradient(
+			45deg,
+			transparent calc(50% - 0.8px),
+			var(--chevron) calc(50% - 0.8px) calc(50% + 0.8px),
+			transparent calc(50% + 0.8px)
+		),
+		linear-gradient(
+			-45deg,
+			transparent calc(50% - 0.8px),
+			var(--chevron) calc(50% - 0.8px) calc(50% + 0.8px),
+			transparent calc(50% + 0.8px)
+		);
+	background-position:
+		right 17px center,
+		right 12px center;
+	background-size:
+		5px 5px,
+		5px 5px;
+	background-repeat: no-repeat;
+}
+select:disabled {
+	opacity: 0.5;
 	cursor: not-allowed;
 }
 :focus-visible {
@@ -89,6 +149,9 @@ a,
 	color: var(--text);
 }
 .link {
+	display: inline;
+	min-height: 0;
+	font-weight: inherit;
 	border: 0;
 	padding: 0;
 	text-decoration: underline;
@@ -199,14 +262,18 @@ kbd {
 	border-radius: 4px;
 }
 .connection {
+	font-family: inherit;
 	font-size: 14px;
 	white-space: nowrap;
 }
 .badge {
+	display: inline-flex;
+	align-items: center;
+	min-height: var(--control-sm);
 	font-size: 12px;
-	padding: 2px 8px;
+	padding: 0 10px;
 	border: 1px solid var(--line);
-	border-radius: 6px;
+	border-radius: var(--radius);
 	white-space: nowrap;
 }
 /*
@@ -258,7 +325,8 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 	display: none;
 }
 .rail-button {
-	padding: 4px 6px;
+	min-height: var(--control-sm);
+	padding: 0 6px;
 	border-color: transparent;
 	color: var(--muted);
 	margin-right: -6px;
@@ -273,41 +341,61 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 	min-height: 0;
 }
 .rail-heading {
-	font-size: 14px;
-	font-weight: 400;
-	padding: 16px 0 8px;
+	display: flex;
+	justify-content: space-between;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--faint);
+	margin: 0;
+	padding: 16px 8px 6px;
 }
+.rail-group {
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--faint);
+	padding: 12px 8px 4px;
+}
+/* "Needs you" items read like run rows (2026-11-11): the same spacing, sizes and quiet hover. */
 .need {
 	width: 100%;
+	min-height: 0;
+	justify-content: flex-start;
+	align-items: flex-start;
+	font-size: inherit;
+	font-weight: inherit;
+	line-height: inherit;
+	background: none;
 	display: flex;
-	gap: 10px;
+	gap: 8px;
 	text-align: left;
-	padding: 18px 4px 12px;
+	padding: 7px 8px;
 	border: 0;
-	border-top: 1px solid var(--line);
-	border-radius: 0;
+	border-radius: 8px;
 }
 .need-title {
 	display: block;
-	font-size: 15px;
-	font-weight: 450;
+	font-size: 14px;
+	font-weight: 500;
 }
 .need-action {
 	display: block;
-	color: var(--text);
-	text-decoration: underline;
-	font-size: 14px;
-	margin: 4px 0;
+	color: var(--warn);
+	font-size: 12.5px;
+	margin: 2px 0 1px;
 }
 .need small {
 	overflow-wrap: anywhere;
 	display: block;
-	font-size: 14px;
-	color: var(--muted);
+	font-size: 12px;
+	color: var(--faint);
 }
+/*
+ * The compact rail (2026-11-11, owner chose "B"): three quiet lines a run — name and when, the task
+ * on one line, then what to know · agents · time. Spacing instead of rules; the bar only while live.
+ */
 .run-row {
-	border-bottom: 1px solid var(--line);
-	padding: 8px 4px;
+	padding: 7px 8px;
+	border-radius: 8px;
 	cursor: pointer;
 	transition: background var(--t-fast) ease;
 }
@@ -316,44 +404,95 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 }
 .run-row[aria-current="true"] {
 	background: var(--selected);
-	border-radius: 6px;
+	box-shadow: inset 0 0 0 1px var(--line);
 }
 .run-row .glyph.running .status-icon {
 	animation: pulse 1.8s ease-in-out infinite;
 }
+.run-row > .row > .grow {
+	font-size: 14px;
+	font-weight: 500;
+}
 .run-started {
 	flex: none;
 	font-size: 12px;
+	color: var(--faint);
 }
 /* A run row's lines sit under its name, past the glyph. */
 .run-row > :not(:first-child) {
-	margin-left: 28px;
+	margin-left: 26px;
 }
 .run-task {
-	margin: 2px 0 0 28px;
-	font-size: 13px;
-	line-height: 1.4;
-	color: var(--muted);
-	overflow-wrap: anywhere;
-	display: -webkit-box;
-	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
-	line-clamp: 2;
+	margin-top: 1px;
+	font-size: 12.5px;
+	line-height: 1.45;
+	color: var(--faint);
+	white-space: nowrap;
 	overflow: hidden;
+	text-overflow: ellipsis;
 }
-.run-row .elapsed {
-	font-size: 13px;
+.run-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 4px;
+	font-size: 12px;
+	color: var(--faint);
 	white-space: nowrap;
+	min-width: 0;
 }
-.run-progress {
-	margin: 6px 0;
-	gap: 12px;
+.run-meta .elapsed {
+	font-family: inherit;
 }
-.run-progress span {
-	font: 13px var(--mono);
-	color: var(--muted);
-	white-space: nowrap;
+/* The dots between parts are decoration, not text. */
+.run-meta > span + span::before {
+	content: "·";
+	margin-right: 6px;
+	opacity: 0.6;
+}
+.run-word {
 	flex: none;
+}
+.run-count {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+.run-word.warn {
+	color: var(--warn);
+}
+.run-word.err {
+	color: var(--err);
+}
+/* Report takes the place of "3h ago" where it is wanted: on hover, the selected run, or by keyboard. */
+.run-report {
+	display: none;
+	flex: none;
+	font-size: 12px;
+	color: var(--muted);
+	text-decoration: none;
+}
+.run-report:hover {
+	color: var(--text);
+}
+.run-row:is(:hover, [aria-current="true"], :focus-within) .run-report {
+	display: inline;
+}
+.run-row:is(:hover, [aria-current="true"], :focus-within):has(.run-report)
+	.run-started {
+	display: none;
+}
+.run-row > progress {
+	display: block;
+	width: auto;
+	height: 2px;
+	margin-top: 7px;
+}
+.run-row > progress::-webkit-progress-value {
+	background: var(--accent);
+}
+.run-row > progress::-moz-progress-bar {
+	background: var(--accent);
 }
 progress {
 	appearance: none;
@@ -373,13 +512,6 @@ progress::-webkit-progress-value {
 }
 progress::-moz-progress-bar {
 	background: var(--done);
-}
-.run-line {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	font-size: 14px;
-	color: var(--muted);
 }
 .center {
 	display: flex;
@@ -634,6 +766,8 @@ progress::-moz-progress-bar {
 /* Left edges line up with the run header's (28 px; 16 px on narrower screens). */
 /* Owner: in its off state the switch was hard to see — a framed control with a clear "Show". */
 .code-switch {
+	min-height: 0;
+	font-weight: inherit;
 	position: absolute;
 	left: 28px;
 	top: 12px;
@@ -980,6 +1114,23 @@ progress::-moz-progress-bar {
 }
 /* Closed (hidden, inert) it stays drawn while its column narrows; the global [hidden] rule would
  * drop it at once. */
+/*
+ * The inspector's children keep its width while it folds (min-width above), so their side space is
+ * padding, not margin: with margins they spilled past the right edge (2026-11-11).
+ */
+.inspector
+	> :is(
+		.details-section,
+		.item-filters,
+		.items-tools,
+		.task-details,
+		.items-progress,
+		.agents-meta,
+		.item-list
+	) {
+	margin-inline: 0;
+	padding-inline: 22px;
+}
 .inspector[hidden] {
 	display: block !important;
 	opacity: 0;
@@ -1018,6 +1169,7 @@ progress::-moz-progress-bar {
 	padding: 0 16px;
 }
 .tabs button {
+	min-height: 0;
 	border: 0;
 	border-bottom: 2px solid transparent;
 	border-radius: 0;
@@ -1039,6 +1191,7 @@ progress::-moz-progress-bar {
 	margin-bottom: 8px;
 }
 .output-label button {
+	min-height: 0;
 	border: 0;
 	padding: 0;
 	color: var(--text);
@@ -1173,14 +1326,36 @@ dd {
 	margin: 2px 0 0;
 	overflow-wrap: anywhere;
 }
+/* Label beside value (2026-11-11), like a properties table; the report keeps its own rows. */
+dl:not(.report-row-fields) {
+	display: grid;
+	grid-template-columns: minmax(110px, max-content) minmax(0, 1fr);
+	gap: 8px 20px;
+}
+dl:not(.report-row-fields) > :is(dt, dd) {
+	margin: 0;
+}
+/* A command and its Copy button: one quiet box, the button at its top right. */
 .command {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
 	border: 1px solid var(--line);
-	padding: 8px;
+	border-radius: var(--radius);
+	background: var(--surface);
+	padding: 8px 8px 8px 12px;
 	margin-top: 8px;
 }
+.command pre {
+	flex: 1;
+	min-width: 0;
+	padding-top: 5px;
+}
 .command button {
-	margin-top: 8px;
-	font-size: 14px;
+	flex: none;
+	min-height: var(--control-sm);
+	margin: 0;
+	font-size: 13px;
 }
 .items-tools {
 	display: flex;
@@ -1190,7 +1365,6 @@ dd {
 .items-tools input {
 	min-width: 0;
 	width: 100%;
-	padding: 6px;
 }
 .items-tools select {
 	max-width: 120px;
@@ -1310,6 +1484,14 @@ main.signin button {
 	background: var(--primary-hover);
 	color: var(--bg);
 }
+/* Disabled (e.g. read-only): a quiet outlined button, not a washed-out grey block. */
+.primary:disabled {
+	opacity: 1;
+	color: var(--faint);
+	background: transparent;
+	border-color: var(--line2);
+	font-weight: 500;
+}
 .empty {
 	padding: 32px;
 	color: var(--muted);
@@ -1416,7 +1598,8 @@ dialog footer .muted {
 }
 .palette-input {
 	width: 100%;
-	padding: 10px;
+	min-height: 40px;
+	padding: 0 12px;
 }
 .palette-list {
 	display: grid;
@@ -1425,14 +1608,16 @@ dialog footer .muted {
 	margin: 12px 0;
 }
 .palette-list button {
+	justify-content: flex-start;
+	min-height: 36px;
 	border: 0;
 	text-align: left;
-	padding: 10px;
+	padding: 0 10px;
+	font-weight: 400;
 }
 .palette-list button[aria-selected="true"] {
 	color: var(--text);
-	outline: 1px solid var(--text);
-	outline-offset: -1px;
+	background: var(--selected);
 }
 .report {
 	width: min(880px, calc(100vw - 32px));
@@ -1750,6 +1935,8 @@ dialog.report footer .report-page {
 	display: none;
 }
 .report-toc button {
+	min-height: 0;
+	font-weight: inherit;
 	border: 0;
 	padding: 0;
 	color: var(--muted);
@@ -1988,8 +2175,9 @@ dialog.report footer .report-page {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
+	min-height: var(--control-sm);
 	font-size: 13px;
-	padding: 2px 5px;
+	padding: 0 10px;
 	color: var(--muted);
 }
 .item-filters .glyph {
@@ -2070,12 +2258,6 @@ main.signin code {
 	fill: var(--muted);
 	font-size: 14px;
 }
-.run-line > .grow {
-	flex-basis: 100%;
-}
-.run-line > .elapsed {
-	margin-right: auto;
-}
 .needs-button.none {
 	color: var(--muted);
 }
@@ -2133,9 +2315,10 @@ main.signin code {
 	fill: var(--accent);
 }
 .theme-button {
+	min-height: var(--control-sm);
 	font-size: 12.5px;
 	color: var(--muted);
-	padding: 3px 9px;
+	padding: 0 10px;
 }
 .need-item {
 	display: flex;
@@ -2147,6 +2330,7 @@ main.signin code {
 	min-width: 0;
 }
 .need-dismiss {
+	min-height: 0;
 	border: 0;
 	padding: 2px 7px;
 	color: var(--faint);
@@ -2169,17 +2353,23 @@ main.signin code {
 .project-switcher {
 	display: grid;
 	gap: 6px;
-	padding: 16px;
+	padding: 16px 8px 4px;
+}
+.project-switcher label {
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--faint);
 }
 .project-switcher select {
 	width: 100%;
 	min-width: 0;
 	font: inherit;
+	font-size: 14px;
 	color: inherit;
-	background: var(--bg);
+	background-color: var(--bg);
 	border: 1px solid var(--line);
-	border-radius: 6px;
-	padding: 8px;
+	border-radius: 8px;
+	padding: 0 32px 0 10px;
 }
 .projects-overview {
 	padding: 24px;
@@ -2194,18 +2384,24 @@ main.signin code {
 /* Management pages share the run rail, surface tokens and text-only result components. */
 .management-nav {
 	display: grid;
-	gap: 4px;
-	margin: 8px 0 20px;
+	gap: 1px;
+	margin: 8px 0 12px;
 }
 .management-nav a {
-	padding: 7px 10px;
-	border-radius: 6px;
+	padding: 5px 8px;
+	border-radius: 8px;
+	font-size: 14px;
 	color: var(--muted);
 	text-decoration: none;
+	transition: background var(--t-fast) ease;
+}
+.management-nav a:hover {
+	background: var(--surface);
 }
 .management-nav a[aria-current="page"] {
-	background: var(--surface);
+	background: var(--selected);
 	color: var(--text);
+	font-weight: 500;
 }
 .management-page {
 	width: min(100%, 1080px);
@@ -2236,28 +2432,66 @@ main.signin code {
 .management-card button {
 	margin: 4px 8px 4px 0;
 }
+/*
+ * Fields on one grid (2026-11-11): labels and boxes line up, nested field groups join the same
+ * grid, and a hint sits on its own row underneath.
+ */
 .management-fields {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 12px;
-	margin: 12px 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	align-items: end;
+	gap: 12px 16px;
+	margin: 12px 0 16px;
+}
+.management-fields .management-fields {
+	display: contents;
+}
+.management-fields > small,
+.management-fields .management-fields > small {
+	grid-column: 1 / -1;
+	order: 1;
+	margin-top: -4px;
+	font-size: 12.5px;
 }
 .management-field {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
-	margin: 8px 0;
+	margin: 0;
 	min-width: 0;
+}
+.management-field > span {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--muted);
 }
 .management-field input,
 .management-field select {
 	font: inherit;
+	font-size: 14px;
 	color: var(--text);
-	background: var(--surface);
-	border: 1px solid var(--line);
-	border-radius: 6px;
-	padding: 8px;
+	background-color: var(--surface);
+	border: 1px solid var(--line2);
+	border-radius: var(--radius);
+	width: 100%;
 	max-width: 100%;
+}
+/* A workflow's or project's name opens it: a title, not a framed button. */
+.management-list-row > button:first-child,
+.project-card > button:first-child {
+	min-height: 0;
+	margin: 0 0 4px;
+	padding: 0;
+	border: 0;
+	background: none;
+	font-size: 15px;
+	font-weight: 600;
+}
+.management-list-row > button:first-child:hover:not(:disabled),
+.project-card > button:first-child:hover:not(:disabled) {
+	background: none;
+	text-decoration: underline;
+	text-underline-offset: 3px;
 }
 .management-list-row,
 .management-role {
@@ -2304,4 +2538,290 @@ main.signin code {
 }
 .blocked-actions-chip {
 	display: inline-block;
+}
+
+/*
+ * Workflows (2026-11-11, owner): cards that open a workflow page, and plain tables for facts.
+ */
+.workflow-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+	gap: 12px;
+}
+.workflow-card {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 14px 16px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	color: inherit;
+	text-decoration: none;
+	transition:
+		background var(--t-fast) ease,
+		border-color var(--t-fast) ease;
+}
+.workflow-card:hover {
+	background: var(--surface);
+	border-color: var(--line2);
+}
+.workflow-card-head {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.workflow-card-head strong {
+	font-size: 15px;
+	margin-right: auto;
+}
+.workflow-card-text {
+	color: var(--muted);
+	font-size: 14px;
+	line-height: 1.5;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 3;
+	line-clamp: 3;
+	overflow: hidden;
+}
+.workflow-tags {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.tag {
+	display: inline-flex;
+	align-items: center;
+	min-height: 22px;
+	padding: 0 8px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	font-size: 12px;
+	color: var(--muted);
+	white-space: nowrap;
+}
+.back-link {
+	display: inline-block;
+	margin-bottom: 10px;
+	font-size: 14px;
+	color: var(--muted);
+	text-decoration: none;
+}
+.back-link:hover {
+	color: var(--text);
+}
+.property-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14px;
+	margin: 8px 0 4px;
+}
+.property-table th {
+	text-align: left;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--faint);
+	padding: 0 12px 8px 0;
+	border-bottom: 1px solid var(--line);
+}
+.property-table td {
+	padding: 9px 12px 9px 0;
+	border-bottom: 1px solid var(--line);
+	vertical-align: top;
+	overflow-wrap: anywhere;
+}
+.property-table tr:last-child td {
+	border-bottom: 0;
+}
+.property-table.keyed td:first-child {
+	width: min(160px, 32%);
+	color: var(--muted);
+}
+.property-table.numbered td:first-child {
+	width: 36px;
+	color: var(--faint);
+}
+.management-actions {
+	display: flex;
+	gap: 8px;
+	margin: 4px 0 8px;
+}
+.management-card .command button {
+	margin: 0;
+}
+.management-card details {
+	margin: 0;
+}
+.management-card details > summary {
+	margin: 0;
+	padding: 6px 0;
+}
+.management-card h3 {
+	margin: 20px 0 4px;
+}
+/* Maintenance and Executors (2026-11-11, owner): status words, quiet details, a real delete. */
+.state-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	white-space: nowrap;
+}
+.state-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--faint);
+	flex: none;
+}
+.state-label.ok .state-dot {
+	background: var(--accent);
+}
+.state-label.warn {
+	color: var(--warn);
+}
+.state-label.warn .state-dot {
+	background: var(--warn);
+}
+.state-label.err {
+	color: var(--err);
+}
+.state-label.err .state-dot {
+	background: var(--err);
+}
+.state-label.muted {
+	color: var(--muted);
+}
+.management-card .lead {
+	font-size: 15px;
+	margin: 0 0 8px;
+}
+.notes-list {
+	margin: 0;
+	padding-left: 18px;
+	color: var(--muted);
+	font-size: 14px;
+}
+.notes-list li + li {
+	margin-top: 4px;
+}
+.row-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+.row-actions input {
+	width: 180px;
+	min-width: 0;
+	background: var(--surface);
+}
+.management-card .row-actions button,
+.management-card .property-table button {
+	margin: 0;
+}
+.property-table td:has(> .row-actions) {
+	width: 1%;
+	white-space: nowrap;
+}
+.property-table.executors td:first-child {
+	width: 120px;
+}
+.property-table.executors td:nth-child(2) {
+	width: 150px;
+}
+.property-table.executors td:nth-child(3) {
+	width: 150px;
+}
+.property-table.prune td:nth-child(n + 2) {
+	white-space: nowrap;
+}
+.property-table a.mono {
+	color: var(--text);
+	text-decoration: none;
+	font-size: 13px;
+}
+.property-table a.mono:hover {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+.prune-summary {
+	margin: 12px 0 4px;
+	font-weight: 500;
+}
+button.danger:not(:disabled) {
+	color: var(--err);
+	border-color: color-mix(in srgb, var(--err) 45%, transparent);
+}
+button.danger:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--err) 12%, transparent);
+	border-color: var(--err);
+}
+.more-details {
+	margin-top: 10px;
+}
+.more-details > summary {
+	font-size: 13px;
+	color: var(--muted);
+}
+.more-details[open] > summary {
+	margin-bottom: 6px;
+}
+.page-actions {
+	align-items: center;
+	margin: 12px 0 16px;
+}
+.page-actions .muted {
+	font-size: 13px;
+}
+.run-cell {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	color: var(--text);
+	text-decoration: none;
+}
+.run-cell > span {
+	font-weight: 500;
+}
+.run-cell small {
+	font-size: 12.5px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 46ch;
+}
+.run-cell:hover > span {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+/* Narrow screens: notice and prune rows stack instead of overflowing their card. */
+@media (max-width: 700px) {
+	.property-table:is(.notices, .prune),
+	.property-table:is(.notices, .prune) :is(tbody, tr, td) {
+		display: block;
+		width: auto;
+	}
+	.property-table:is(.notices, .prune) thead {
+		display: none;
+	}
+	.property-table:is(.notices, .prune) tr {
+		padding: 10px 0;
+		border-bottom: 1px solid var(--line);
+	}
+	.property-table:is(.notices, .prune) td {
+		border: 0;
+		padding: 2px 0;
+		white-space: normal;
+	}
+	.property-table td:has(> .row-actions) {
+		width: auto;
+	}
+	.row-actions {
+		justify-content: flex-start;
+		margin-top: 6px;
+	}
+	.row-actions input {
+		flex: 1;
+		width: auto;
+	}
 }

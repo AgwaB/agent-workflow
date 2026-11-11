@@ -48,6 +48,13 @@ export interface ExecutorModelList {
 	modelListComplete: boolean;
 	/** One line for a picker: what the list means for a role model. */
 	note: string;
+	/**
+	 * 2026-11-11: the effort levels the adapter declares (`capabilities().effortLevels`), so a picker
+	 * offers only these; empty when it declares none (then every engine level is offered).
+	 */
+	effortLevels: string[];
+	/** Per-model levels when the CLI reports them (Codex: `codex debug models`; Pi: non-thinking models). */
+	modelEfforts?: Record<string, string[]>;
 	error?: string;
 }
 
@@ -84,11 +91,12 @@ async function probeModels(
 			models: null,
 			modelListComplete: false,
 			note: `unavailable: ${error}`,
+			effortLevels: [],
 			error,
 		};
 	}
 	try {
-		const { probe } = await withTimeout(
+		const { probe, capabilities } = await withTimeout(
 			(request.prober ?? cachedExecutorProber)(registration.descriptor),
 			request.timeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS,
 		);
@@ -98,6 +106,7 @@ async function probeModels(
 			probe as Parameters<typeof probeModelList>[0],
 		);
 		const complete = probe.modelListComplete === true;
+		const modelEfforts = probe.modelEfforts;
 		return {
 			id,
 			usable,
@@ -105,6 +114,21 @@ async function probeModels(
 			models,
 			modelListComplete: complete,
 			note: modelListNote(models, complete),
+			effortLevels: Array.isArray(capabilities?.effortLevels)
+				? capabilities.effortLevels.filter(
+						(level): level is string => typeof level === "string",
+					)
+				: [],
+			...(modelEfforts === undefined
+				? {}
+				: {
+						modelEfforts: Object.fromEntries(
+							Object.entries(modelEfforts).map(([model, levels]) => [
+								model,
+								[...levels],
+							]),
+						),
+					}),
 		};
 	} catch (error) {
 		const message = (
@@ -117,6 +141,7 @@ async function probeModels(
 			models: null,
 			modelListComplete: false,
 			note: `probe failed: ${message}`,
+			effortLevels: [],
 			error: message,
 		};
 	}

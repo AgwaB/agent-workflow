@@ -41,6 +41,27 @@ async function set(browser, label, value) {
 		value,
 	);
 }
+// 2026-11-11: a workflow opens from anywhere on its card, on a page of its own.
+async function openWorkflowCard(browser, name) {
+	await browser.evaluate((name) => {
+		const card = document.querySelector(
+			`a.workflow-card[data-workflow="${name}"] .workflow-card-text`,
+		);
+		if (!card) throw new Error(`Missing workflow card ${name}`);
+		card.click();
+	}, name);
+	await browser.waitFor(
+		() =>
+			new URLSearchParams(location.search).has("workflow") &&
+			!!document.querySelector('[data-management-action="check"]'),
+	);
+	assert.equal(
+		await browser.evaluate(() =>
+			new URLSearchParams(location.search).get("workflow"),
+		),
+		name,
+	);
+}
 async function clickText(browser, text) {
 	await browser.evaluate((text) => {
 		const button = [...document.querySelectorAll("#center button")].find(
@@ -105,11 +126,55 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 			.querySelector('[data-management="workflows"]')
 			?.textContent.includes("Management fixture"),
 	);
-	await clickText(browser, "manage");
-	await browser.waitFor(
-		() => !!document.querySelector('[data-management-action="check"]'),
+	await openWorkflowCard(browser, "manage");
+	assert.ok(
+		await browser.evaluate(
+			() =>
+				document.querySelectorAll(".property-table.numbered tbody tr").length >
+					0 && !!document.querySelector("a.back-link"),
+		),
+		"the workflow page lists its stages and links back",
 	);
+	// 2026-11-11 (owner): Effort offers the chosen executor's levels, narrowed by the model's.
+	const effort = () =>
+		browser.evaluate(() => ({
+			options: [...document.querySelector('[aria-label="Effort"]').options].map(
+				(option) => option.value,
+			),
+			note: document.querySelector("[data-effort-note]").textContent,
+		}));
+	assert.equal((await effort()).options.length, 9, "Automatic: every level");
+	await set(browser, "Executor", "claude");
+	assert.deepEqual((await effort()).options, [
+		"",
+		"low",
+		"medium",
+		"high",
+		"xhigh",
+		"max",
+	]);
+	assert.match((await effort()).note, /^Effort on claude: low · medium/);
+	await set(browser, "Effort", "max");
 	await set(browser, "Executor", "codex");
+	await set(browser, "Model", "fixture-model");
+	assert.deepEqual(
+		await effort(),
+		{
+			options: ["", "low", "medium", "high", "max"],
+			note: "Effort for fixture-model on codex: low · medium · high.",
+		},
+		"the model's levels; a kept choice it lacks stays visible as unavailable",
+	);
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Effort"]').selectedOptions[0]
+					.textContent,
+		),
+		"max (not available here)",
+	);
+	await set(browser, "Model", "");
+	await set(browser, "Effort", "");
 	await browser.click('[data-management-action="check"]');
 	await browser.waitFor(() =>
 		document.querySelector("#center")?.textContent.includes("Preflight passed"),
@@ -129,16 +194,44 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 		true,
 	);
 	assert.equal(existsSync(p.effects), false, "check/probes never submit work");
+	await persistManagementRun(p.cwd, "workflow_ui_stopped", "interrupted");
 	await browser.click('.management-nav a[href*="view=maintenance"]');
 	await browser.waitFor(
 		() => !!document.querySelector('[data-management-action="prune-preview"]'),
 	);
-	await set(browser, "Keep newest terminal runs", "0");
+	// 2026-11-11 (owner): an unfinished run is a row with Dismiss; an empty reason is recorded as
+	// "Dismissed in the dashboard", and Show again brings the notice back.
+	await browser.waitFor(
+		() =>
+			!!document.querySelector('[data-notice-dismiss="workflow_ui_stopped"]'),
+	);
+	await browser.click('[data-notice-dismiss="workflow_ui_stopped"]');
+	await browser.waitFor(
+		() =>
+			!document.querySelector('[data-notice-dismiss="workflow_ui_stopped"]') &&
+			document
+				.querySelector(".more-details")
+				?.textContent.includes("Dismissed in the dashboard"),
+	);
+	await clickText(browser, "Show again");
+	await browser.waitFor(
+		() =>
+			!!document.querySelector('[data-notice-dismiss="workflow_ui_stopped"]'),
+	);
+	await set(browser, "Keep the newest finished runs", "0");
 	await browser.click('[data-management-action="prune-preview"]');
+	// 2026-11-11 (owner): the preview is a table of runs, each with what happens to it.
 	await browser.waitFor(() =>
 		document
-			.querySelector("#center")
-			?.textContent.includes("workflow_ui_terminal: Would delete"),
+			.querySelector('[data-prune-run="workflow_ui_terminal"]')
+			?.closest("tr")
+			?.textContent.includes("Will delete"),
+	);
+	assert.match(
+		await browser.evaluate(
+			() => document.querySelector(".prune-summary").textContent,
+		),
+		/^\d+ runs? would be deleted, freeing [\d.]+ (?:B|KB|MB)\./,
 	);
 	assert.equal(existsSync(terminal.dir), true, "preview never deletes");
 	assert.equal(
@@ -149,7 +242,7 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 		),
 		false,
 	);
-	await set(browser, "Keep newest terminal runs", "1");
+	await set(browser, "Keep the newest finished runs", "1");
 	assert.equal(
 		await browser.evaluate(
 			() =>
@@ -164,6 +257,20 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 		document
 			.querySelector("#center")
 			?.textContent.includes("Default executor here"),
+	);
+	// 2026-11-11 (owner): a status table first; the doctor text stays under Details.
+	assert.ok(
+		await browser.evaluate(() => {
+			const rows = [
+				...document.querySelectorAll(".property-table.executors tbody tr"),
+			].map((row) => row.textContent);
+			return (
+				rows.some(
+					(row) => row.startsWith("management-fake") || row.includes("pi"),
+				) &&
+				/\d+ of \d+ ready\./.test(document.querySelector(".lead").textContent)
+			);
+		}),
 	);
 	await clickText(browser, "Refresh");
 	await browser.waitFor(() =>
@@ -319,15 +426,37 @@ test("Chrome readonly management: navigation stays available and all action muta
 			.querySelector('[data-management="workflows"]')
 			?.textContent.includes("Management fixture"),
 	);
-	await clickText(browser, "manage");
-	await browser.waitFor(
-		() => !!document.querySelector('[data-management-action="check"]'),
-	);
+	await openWorkflowCard(browser, "manage");
 	assert.equal(
 		await browser.evaluate(
 			() => document.querySelector('[data-management-action="check"]').disabled,
 		),
 		true,
+	);
+	// 2026-11-11 (owner): selects draw their own chevron and pad like inputs; a disabled
+	// primary reads as an outlined button, not a washed-out block.
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const style = (selector) =>
+				getComputedStyle(document.querySelector(selector));
+			const select = style(".management-field select");
+			const input = style(".management-field input");
+			const check = style('[data-management-action="check"]');
+			return {
+				appearance: select.appearance,
+				sameIndent: select.paddingLeft === input.paddingLeft,
+				sameHeight: select.height === input.height,
+				chevron: select.backgroundImage.includes("linear-gradient"),
+				disabledOpacity: check.opacity,
+			};
+		}),
+		{
+			appearance: "none",
+			sameIndent: true,
+			sameHeight: true,
+			chevron: true,
+			disabledOpacity: "1",
+		},
 	);
 	assert.deepEqual(browser.errors, []);
 });

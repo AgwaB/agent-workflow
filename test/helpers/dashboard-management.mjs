@@ -8,6 +8,14 @@ import { resetExecutorProbeCacheForTests } from "../../dist/core/executor-defaul
 import { stateBase } from "../../dist/core/state-location.js";
 import { dashboardCsrf } from "../../dist/hosts/dashboard/security.js";
 
+// The Effort picker's data: claude's levels; codex's levels and one model with fewer.
+const EFFORTS = {
+	claude: { effortLevels: ["low", "medium", "high", "xhigh", "max"] },
+	codex: {
+		effortLevels: ["low", "medium", "high", "xhigh", "max", "ultra"],
+		modelEfforts: { "fixture-model": ["low", "medium", "high"] },
+	},
+};
 export async function managementProject(t, options = {}) {
 	const project = await dashboardProject(t, "aw-dashboard-management-");
 	const { cwd } = project;
@@ -44,6 +52,7 @@ export async function managementProject(t, options = {}) {
 						cliVersion: "1.2.3",
 						auth: "ok",
 					},
+					...(EFFORTS[id] ?? {}),
 				},
 			}),
 		);

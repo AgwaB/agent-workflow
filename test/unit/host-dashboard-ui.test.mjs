@@ -318,9 +318,12 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 				const m = node.parentElement.getScreenCTM();
 				size *= Math.hypot(m.a, m.b);
 			}
+			smallest = Math.min(smallest, size);
+			// The 60% share counts the main view; the runs rail is a compact list by choice
+			// (owner, 2026-11-11). The 12 px floor still holds everywhere.
+			if (node.parentElement.closest(".rail")) continue;
 			total++;
 			if (size >= 13.99) large++;
-			smallest = Math.min(smallest, size);
 		}
 		return { total, large, smallest };
 	});
@@ -1412,6 +1415,34 @@ test("dashboard Chrome: the rail steps aside for the inspector on narrower scree
 		800,
 	);
 	await browser.waitFor(() => !document.getElementById("inspector").hidden);
+	// The inspector's sections keep its width while it folds; with side margins they used to
+	// spill past its right edge (2026-11-11). Nothing may overflow it, in the stage or run details.
+	const spill = () =>
+		browser.evaluate(() => {
+			const inspector = document.getElementById("inspector");
+			const right = inspector.getBoundingClientRect().right;
+			return [...inspector.querySelectorAll("*")]
+				.filter(
+					(node) =>
+						node.getClientRects().length &&
+						node.getBoundingClientRect().right - right > 1,
+				)
+				.map((node) => node.className || node.tagName);
+		});
+	assert.deepEqual(await spill(), [], "stage inspector");
+	await browser.evaluate(() =>
+		[...document.querySelectorAll(".actions button")]
+			.find((button) => /Run details/.test(button.textContent))
+			?.click(),
+	);
+	await browser.waitFor(() => document.querySelector(".details-section"));
+	assert.deepEqual(await spill(), [], "run details");
+	await browser.open(
+		`${fixture.origin}/?run=${running}&stage=triage`,
+		1280,
+		800,
+	);
+	await browser.waitFor(() => !document.getElementById("inspector").hidden);
 	assert.deepEqual((await state()).rail, false);
 	await browser.evaluate(() => document.querySelector(".rail-button").click());
 	assert.deepEqual((await state()).rail, true);
@@ -1429,6 +1460,27 @@ test("dashboard Chrome: the rail steps aside for the inspector on narrower scree
 	});
 	assert.equal(task, "Review the ledger's retry path");
 	assert.match(started, /^\d+m ago$/);
+	// The compact rail (owner, 2026-11-11): a bar only on live runs, one meta line, no text dots.
+	const rail = await browser.evaluate(() =>
+		[...document.querySelectorAll(".run-row")].map((row) => ({
+			current: row.getAttribute("aria-current") === "true",
+			bar: Boolean(row.querySelector("progress")),
+			meta: row.querySelector(".run-meta")?.textContent ?? null,
+			count: row.querySelector(".run-count")?.textContent ?? "",
+		})),
+	);
+	assert.ok(
+		rail.find((row) => row.current).bar,
+		"the running run keeps its bar",
+	);
+	assert.ok(
+		rail.some((row) => !row.bar),
+		"a run that is not live has no bar",
+	);
+	for (const row of rail) {
+		assert.ok(row.meta !== null && !row.meta.includes("·"), row.meta);
+		assert.match(row.count, /^(?:\d+ of )?\d+ (?:agents|tasks)$/);
+	}
 	// A phone: one column, the rail closed until asked for.
 	await browser.send("Emulation.setDeviceMetricsOverride", {
 		width: 390,
