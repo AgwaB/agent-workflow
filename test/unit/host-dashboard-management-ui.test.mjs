@@ -135,7 +135,46 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 		),
 		"the workflow page lists its stages and links back",
 	);
+	// 2026-11-11 (owner): Effort offers the chosen executor's levels, narrowed by the model's.
+	const effort = () =>
+		browser.evaluate(() => ({
+			options: [...document.querySelector('[aria-label="Effort"]').options].map(
+				(option) => option.value,
+			),
+			note: document.querySelector("[data-effort-note]").textContent,
+		}));
+	assert.equal((await effort()).options.length, 9, "Automatic: every level");
+	await set(browser, "Executor", "claude");
+	assert.deepEqual((await effort()).options, [
+		"",
+		"low",
+		"medium",
+		"high",
+		"xhigh",
+		"max",
+	]);
+	assert.match((await effort()).note, /^Effort on claude: low · medium/);
+	await set(browser, "Effort", "max");
 	await set(browser, "Executor", "codex");
+	await set(browser, "Model", "fixture-model");
+	assert.deepEqual(
+		await effort(),
+		{
+			options: ["", "low", "medium", "high", "max"],
+			note: "Effort for fixture-model on codex: low · medium · high.",
+		},
+		"the model's levels; a kept choice it lacks stays visible as unavailable",
+	);
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Effort"]').selectedOptions[0]
+					.textContent,
+		),
+		"max (not available here)",
+	);
+	await set(browser, "Model", "");
+	await set(browser, "Effort", "");
 	await browser.click('[data-management-action="check"]');
 	await browser.waitFor(() =>
 		document.querySelector("#center")?.textContent.includes("Preflight passed"),

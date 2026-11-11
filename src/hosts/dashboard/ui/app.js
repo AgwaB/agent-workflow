@@ -5544,6 +5544,68 @@ async function modelControls(saved = {}, prefix = "") {
 	const list = element("datalist", { id: `models-${++modelControlId}` });
 	model.setAttribute("list", list.id);
 	const note = element("small", { class: "muted" });
+	const effortNote = element("small", {
+		class: "muted",
+		"data-effort-note": "",
+	});
+	// 2026-11-11 (owner): Effort offers the levels the chosen executor (and, when its CLI reports
+	// them, the chosen model) has, not the engine's whole vocabulary. Automatic keeps the whole
+	// list: the engine maps a level the executor lacks to its nearest one before launch.
+	const effortScope = () => {
+		const entry = data.executors.find((entry) => entry.id === exec.value);
+		const declared = entry?.effortLevels?.length
+			? EFFORT_LEVELS.filter((level) => entry.effortLevels.includes(level))
+			: null;
+		const name = model.value.trim();
+		const perModel =
+			name && entry?.modelEfforts
+				? (entry.modelEfforts[name] ??
+					Object.entries(entry.modelEfforts).find(
+						([key]) =>
+							key.split("/").pop() === name || name.split("/").pop() === key,
+					)?.[1])
+				: undefined;
+		const narrowed = perModel
+			? EFFORT_LEVELS.filter(
+					(level) =>
+						perModel.includes(level) && (!declared || declared.includes(level)),
+				)
+			: [];
+		if (narrowed.length)
+			return {
+				levels: narrowed,
+				text:
+					narrowed.length === 1 && narrowed[0] === "off"
+						? `${name} does not think on ${entry.id}: its effort is off.`
+						: `Effort for ${name} on ${entry.id}: ${narrowed.join(" · ")}.`,
+			};
+		if (declared)
+			return {
+				levels: declared,
+				text: `Effort on ${entry.id}: ${declared.join(" · ")}.`,
+			};
+		return {
+			levels: EFFORT_LEVELS,
+			text: exec.value
+				? `${exec.value} declares no effort levels; a level it lacks runs at its nearest one.`
+				: "Choose an executor to see its effort levels; a level it lacks runs at its nearest one.",
+		};
+	};
+	const updateEffort = () => {
+		const current = effort.value;
+		const { levels, text } = effortScope();
+		const options = [
+			["", "Automatic"],
+			...levels.map((level) => [level, level]),
+		];
+		if (current && !levels.includes(current))
+			options.push([current, `${current} (not available here)`]);
+		effort.replaceChildren(
+			...options.map(([value, label]) => element("option", { value }, label)),
+		);
+		effort.value = current;
+		effortNote.textContent = text;
+	};
 	const update = () => {
 		const entry = data.executors.find((entry) => entry.id === exec.value);
 		list.replaceChildren(
@@ -5551,8 +5613,11 @@ async function modelControls(saved = {}, prefix = "") {
 		);
 		note.textContent =
 			entry?.note || "Choose an executor for its model suggestions.";
+		updateEffort();
 	};
 	exec.addEventListener("change", update);
+	model.addEventListener("input", updateEffort);
+	model.addEventListener("change", updateEffort);
 	update();
 	return {
 		node: element(
@@ -5563,6 +5628,7 @@ async function modelControls(saved = {}, prefix = "") {
 			field("Effort", effort),
 			list,
 			note,
+			effortNote,
 		),
 		values: () =>
 			Object.fromEntries(
