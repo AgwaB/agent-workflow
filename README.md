@@ -17,7 +17,7 @@ impact review, or your team's own routines — on **Claude Code**, **Codex**, **
 them, and records the run so you can watch, stop or resume it.
 
 <p align="center">
-  <img src=".github/assets/dashboard.webp" width="900" alt="A deep-research run in the agent-workflow dashboard: research questions fan out, claims are verified, the report opens">
+  <img src=".github/assets/demo.webp" width="900" alt="Demo: the same requests in Claude Code and Pi, first in plain language, then as an /aw command, and the runs on the agent-workflow dashboard">
 </p>
 
 > **Pre-release.** Not on npm yet; breaking changes are expected before 1.0. Until the first release,
