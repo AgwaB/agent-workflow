@@ -352,5 +352,30 @@ test("Chrome readonly management: navigation stays available and all action muta
 		),
 		true,
 	);
+	// 2026-11-11 (owner): selects draw their own chevron and pad like inputs; a disabled
+	// primary reads as an outlined button, not a washed-out block.
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const style = (selector) =>
+				getComputedStyle(document.querySelector(selector));
+			const select = style(".management-field select");
+			const input = style(".management-field input");
+			const check = style('[data-management-action="check"]');
+			return {
+				appearance: select.appearance,
+				sameIndent: select.paddingLeft === input.paddingLeft,
+				sameHeight: select.height === input.height,
+				chevron: select.backgroundImage.includes("linear-gradient"),
+				disabledOpacity: check.opacity,
+			};
+		}),
+		{
+			appearance: "none",
+			sameIndent: true,
+			sameHeight: true,
+			chevron: true,
+			disabledOpacity: "1",
+		},
+	);
 	assert.deepEqual(browser.errors, []);
 });

@@ -105,8 +105,40 @@ select {
 	padding: 0 10px;
 	font-size: 14px;
 }
+/*
+ * Selects draw their own chevron (2026-11-11, owner: the native arrow sat on the edge and its
+ * text started further in than an input's). Two gradients, not an image: the CSP allows no data
+ * URLs, and currentColor follows the theme.
+ */
 select {
-	padding-right: 6px;
+	appearance: none;
+	padding-right: 32px;
+	/* A thin chevron: two 1.5 px diagonal strokes, "\" then "/", meeting at the bottom. */
+	--chevron: var(--muted);
+	background-image:
+		linear-gradient(
+			45deg,
+			transparent calc(50% - 0.8px),
+			var(--chevron) calc(50% - 0.8px) calc(50% + 0.8px),
+			transparent calc(50% + 0.8px)
+		),
+		linear-gradient(
+			-45deg,
+			transparent calc(50% - 0.8px),
+			var(--chevron) calc(50% - 0.8px) calc(50% + 0.8px),
+			transparent calc(50% + 0.8px)
+		);
+	background-position:
+		right 17px center,
+		right 12px center;
+	background-size:
+		5px 5px,
+		5px 5px;
+	background-repeat: no-repeat;
+}
+select:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 :focus-visible {
 	outline: 2px solid var(--text);
@@ -1333,7 +1365,6 @@ dl:not(.report-row-fields) > :is(dt, dd) {
 .items-tools input {
 	min-width: 0;
 	width: 100%;
-	padding: 6px;
 }
 .items-tools select {
 	max-width: 120px;
@@ -1452,6 +1483,14 @@ main.signin button {
 .primary:hover:not(:disabled) {
 	background: var(--primary-hover);
 	color: var(--bg);
+}
+/* Disabled (e.g. read-only): a quiet outlined button, not a washed-out grey block. */
+.primary:disabled {
+	opacity: 1;
+	color: var(--faint);
+	background: transparent;
+	border-color: var(--line2);
+	font-weight: 500;
 }
 .empty {
 	padding: 32px;
@@ -2327,10 +2366,10 @@ main.signin code {
 	font: inherit;
 	font-size: 14px;
 	color: inherit;
-	background: var(--bg);
+	background-color: var(--bg);
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	padding: 6px 8px;
+	padding: 0 32px 0 10px;
 }
 .projects-overview {
 	padding: 24px;
@@ -2431,7 +2470,7 @@ main.signin code {
 	font: inherit;
 	font-size: 14px;
 	color: var(--text);
-	background: var(--surface);
+	background-color: var(--surface);
 	border: 1px solid var(--line2);
 	border-radius: var(--radius);
 	width: 100%;
