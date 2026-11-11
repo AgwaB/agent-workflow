@@ -6433,45 +6433,209 @@ async function renderProfiles(page) {
 		);
 	prefPanel.append(prefEditor, prefOutput);
 }
+/** "12.4 MB" from bytes. */
+function formatBytes(bytes) {
+	const units = ["B", "KB", "MB", "GB"];
+	let value = Number(bytes) || 0;
+	let unit = 0;
+	while (value >= 1024 && unit < units.length - 1) {
+		value /= 1024;
+		unit++;
+	}
+	return `${unit ? value.toFixed(value < 10 ? 1 : 0) : value} ${units[unit]}`;
+}
+function runHref(runId) {
+	const params = new URLSearchParams();
+	if (state.project) params.set("project", state.project);
+	params.set("run", runId);
+	return `/?${params}`;
+}
+/** A coloured dot and a word (status is never colour alone). */
+function stateLabel(tone, text) {
+	return element(
+		"span",
+		{ class: `state-label ${tone}` },
+		element("span", { class: "state-dot", "aria-hidden": "true" }),
+		text,
+	);
+}
+/** Raw results and the CLI equivalent, folded away (2026-11-11). */
+function moreDetails(title, ...children) {
+	return element(
+		"details",
+		{ class: "more-details" },
+		element("summary", {}, title),
+		children,
+	);
+}
+/*
+ * Maintenance (2026-11-11, owner: "only what a user would really use"): unfinished runs to look
+ * at or dismiss, then cleaning up old runs with an exact preview. Nothing removed: the raw
+ * results and CLI commands are folded under "Details".
+ */
 async function renderMaintenance(page) {
-	const keep = input("Keep newest terminal runs", "50", {
+	page
+		.querySelector("h1 + p")
+		?.replaceChildren(
+			"Unfinished runs that still raise notices, and old runs you can clean up. This project only.",
+		);
+	const [notices, list] = await Promise.all([
+		managementApi(projectRoute("notices")),
+		api("/api/runs").catch(() => ({ runs: [] })),
+	]);
+	const known = new Map((list.runs || []).map((entry) => [entry.runId, entry]));
+	// A run reads as its workflow and task, with its id underneath (2026-11-11).
+	const runCell = (runId) => {
+		const entry = known.get(runId);
+		return element(
+			"a",
+			{ href: runHref(runId), class: "run-cell", "data-prune-run": runId },
+			element("span", {}, entry?.name || runId),
+			entry
+				? element(
+						"small",
+						{ class: "muted" },
+						`${entry.taskPreview ? `${entry.taskPreview} · ` : ""}${runId.slice(-6)}`,
+					)
+				: null,
+		);
+	};
+	const noticeOutput = element("div");
+	const dismissed = notices.data.acknowledgements || [];
+	// The list names every unfinished run; one with an active acknowledgement is already dismissed.
+	const open = (notices.data.notices || []).filter(
+		(entry) =>
+			!dismissed.some((ack) => ack.active && ack.runId === entry.runId),
+	);
+	const noticePanel = managementPanel(
+		"Unfinished runs",
+		element(
+			"p",
+			{ class: "muted" },
+			"A stopped or failed run is reported when a host starts. Open it to resume or inspect it, or dismiss the notice once you have dealt with it: the run itself and resume stay as they are.",
+		),
+		open.length
+			? propertyTable(
+					["Run", "State", "Updated", ""],
+					open.map((entry) => {
+						const reason = input(`Reason for ${entry.runId}`, "", {
+							placeholder: "Reason (optional)",
+						});
+						return [
+							runCell(entry.runId),
+							stateLabel(
+								entry.status === "failed" ? "err" : "muted",
+								humanize(entry.status),
+							),
+							element("span", { title: entry.updatedAt }, ago(entry.updatedAt)),
+							element(
+								"span",
+								{ class: "row-actions" },
+								reason,
+								managementControl(
+									"Dismiss",
+									async () => {
+										await managementWrite(
+											projectRoute(
+												`notices/${encodeURIComponent(entry.runId)}/acknowledge`,
+											),
+											"POST",
+											{
+												state: entry.sha256,
+												reason:
+													reason.value.trim() || "Dismissed in the dashboard",
+											},
+										);
+										await renderManagement();
+									},
+									noticeOutput,
+									{ "data-notice-dismiss": entry.runId },
+								),
+							),
+						];
+					}),
+					{ class: "property-table notices" },
+				)
+			: element(
+					"p",
+					{},
+					"Nothing to look at: no unfinished run is raising a notice.",
+				),
+		dismissed.length
+			? moreDetails(
+					`Dismissed (${dismissed.length})`,
+					propertyTable(
+						["Run", "Reason", ""],
+						dismissed.map((entry) => [
+							runCell(entry.runId),
+							`${entry.reason}${entry.active ? "" : " · the run changed since"}`,
+							managementControl(
+								"Show again",
+								async () => {
+									await managementWrite(
+										projectRoute(
+											`notices/${encodeURIComponent(entry.runId)}/clear`,
+										),
+										"POST",
+									);
+									await renderManagement();
+								},
+								noticeOutput,
+							),
+						]),
+					),
+				)
+			: null,
+		notices.data.warnings?.length
+			? element("pre", {}, notices.data.warnings.join("\n"))
+			: null,
+		noticeOutput,
+		moreDetails(
+			"Same from the terminal",
+			commandHint("agent-workflow notices list"),
+		),
+	);
+	page.append(noticePanel);
+
+	const keep = input("Keep the newest finished runs", "50", {
 		type: "number",
 		min: 0,
 		max: 100000,
 	});
-	const older = input("Older than days (optional)", "", {
+	const older = input("Only runs older than (days)", "", {
 		type: "number",
 		min: 0,
 		max: 36500,
+		placeholder: "Any age",
 	});
-	const output = element("div");
+	const output = element("div", { class: "prune-output" });
 	let preview;
 	const params = () => ({
 		keep: Number(keep.value),
 		...(older.value !== "" ? { olderThanDays: Number(older.value) } : {}),
 	});
 	const remove = managementControl(
-		"Delete previewed data",
+		"Delete",
 		async () => {
 			const shown = preview;
 			preview = null;
 			remove.hidden = true;
-			try {
-				output.replaceChildren(
-					managementResult(
-						await managementWrite(projectRoute("prune"), "POST", {
-							...shown.params,
-							digest: shown.result.digest,
-						}),
-					),
-				);
-			} catch (error) {
-				// Mismatch never deletes. The new preview is displayed; a fresh Preview is required.
-				throw error;
-			}
+			const result = await managementWrite(projectRoute("prune"), "POST", {
+				...shown.params,
+				digest: shown.result.digest,
+			});
+			const deleted = (result.data.runs || []).filter((run) => run.deleted);
+			output.replaceChildren(
+				element(
+					"p",
+					{ role: "status", class: "prune-summary" },
+					`Deleted ${deleted.length} ${deleted.length === 1 ? "run" : "runs"}, freeing ${formatBytes(result.data.deletedBytes)}.`,
+				),
+				moreDetails("Full result", managementResult(result)),
+			);
 		},
 		output,
-		{ "data-management-action": "prune-delete" },
+		{ "data-management-action": "prune-delete", class: "danger" },
 	);
 	remove.hidden = true;
 	const invalidate = () => {
@@ -6480,155 +6644,286 @@ async function renderMaintenance(page) {
 	};
 	keep.addEventListener("input", invalidate);
 	older.addEventListener("input", invalidate);
-	const panel = managementPanel(
-		"Prune history",
-		element(
-			"p",
-			{},
-			"Preview exactly what will be deleted, including executor attempt state and stale launch claims. Active runs and protected evidence stay. Delete is refused if the preview changes.",
-		),
-		element(
-			"div",
-			{ class: "management-fields" },
-			field("Keep newest terminal runs", keep),
-			field("Older than days (optional)", older),
-		),
-		managementControl(
-			"Preview prune",
-			async () => {
-				invalidate();
-				const selected = params();
-				const result = await managementWrite(
-					projectRoute("prune/preview"),
-					"POST",
-					selected,
-				);
-				preview = { params: selected, result };
-				output.replaceChildren(
-					managementResult(result),
-					element("h3", {}, "Run selection and protections"),
-				);
-				for (const run of result.data.runs)
-					output.append(
-						element(
-							"p",
-							{},
-							`${run.runId}: ${run.protected ? "Protected" : run.selected ? "Would delete" : "Kept"} · ${run.status} · ${run.bytes} bytes`,
-						),
-					);
-				remove.hidden = !result.ok;
-			},
+	const verdict = (run) =>
+		run.protected
+			? stateLabel("warn", "Kept · protected")
+			: run.selected
+				? stateLabel("err", "Will delete")
+				: stateLabel("muted", "Kept");
+	page.append(
+		managementPanel(
+			"Clean up old runs",
+			element(
+				"p",
+				{ class: "muted" },
+				"Delete finished runs you no longer need. Running runs and protected evidence are always kept, and you see exactly what goes before anything is deleted.",
+			),
+			element(
+				"div",
+				{ class: "management-fields" },
+				field("Keep the newest finished runs", keep),
+				field("Only runs older than (days)", older),
+			),
+			element(
+				"div",
+				{ class: "management-actions" },
+				managementControl(
+					"Preview",
+					async () => {
+						invalidate();
+						const selected = params();
+						const result = await managementWrite(
+							projectRoute("prune/preview"),
+							"POST",
+							selected,
+						);
+						preview = { params: selected, result };
+						const runs = [...(result.data.runs || [])].sort(
+							(a, b) =>
+								Number(b.selected && !b.protected) -
+									Number(a.selected && !a.protected) ||
+								String(b.updatedAt).localeCompare(String(a.updatedAt)),
+						);
+						const going = runs.filter((run) => run.selected && !run.protected);
+						const bytes = going.reduce((sum, run) => sum + (run.bytes || 0), 0);
+						// append() skips the empty parts (replaceChildren would print "null").
+						output.replaceChildren();
+						append(output, [
+							element(
+								"p",
+								{ role: "status", class: "prune-summary" },
+								going.length
+									? `${going.length} ${going.length === 1 ? "run" : "runs"} would be deleted, freeing ${formatBytes(bytes)}.${runs.length > going.length ? ` ${runs.length - going.length} kept.` : ""}`
+									: "Nothing to delete with these settings.",
+							),
+							runs.length
+								? propertyTable(
+										["Run", "Status", "Updated", "Size", ""],
+										runs.map((run) => [
+											runCell(run.runId),
+											humanize(run.status),
+											element(
+												"span",
+												{ title: run.updatedAt },
+												ago(run.updatedAt),
+											),
+											formatBytes(run.bytes),
+											verdict(run),
+										]),
+										{ class: "property-table prune" },
+									)
+								: null,
+							moreDetails("Full preview", managementResult(result)),
+						]);
+						remove.textContent = `Delete ${going.length} ${going.length === 1 ? "run" : "runs"}`;
+						remove.hidden = !result.ok || !going.length;
+					},
+					output,
+					{ "data-management-action": "prune-preview" },
+				),
+				remove,
+			),
 			output,
-			{ "data-management-action": "prune-preview" },
-		),
-		remove,
-		output,
-		commandHint(
-			"agent-workflow prune --keep <N> [--older-than <days>] [--yes]",
-		),
-	);
-	page.append(panel);
-	const notices = await managementApi(projectRoute("notices"));
-	const noticeOutput = element("div");
-	const noticePanel = managementPanel(
-		"Notices",
-		element(
-			"p",
-			{ class: "muted" },
-			"Acknowledgements only hide notifications; history and resume authority are unchanged.",
-		),
-	);
-	page.append(noticePanel);
-	for (const entry of notices.data.notices || []) {
-		const reason = input(`Reason for ${entry.runId}`);
-		noticePanel.append(
-			element(
-				"article",
-				{ class: "management-list-row" },
-				element("h3", {}, entry.runId),
-				element("p", {}, `${entry.status} · ${entry.updatedAt}`),
-				field("Reason", reason),
-				managementControl(
-					"Acknowledge",
-					async () => {
-						noticeOutput.replaceChildren(
-							managementResult(
-								await managementWrite(
-									projectRoute(
-										`notices/${encodeURIComponent(entry.runId)}/acknowledge`,
-									),
-									"POST",
-									{ state: entry.sha256, reason: reason.value },
-								),
-							),
-						);
-					},
-					noticeOutput,
+			moreDetails(
+				"Same from the terminal",
+				commandHint(
+					"agent-workflow prune --keep <N> [--older-than <days>] [--yes]",
 				),
 			),
-		);
-	}
-	for (const entry of notices.data.acknowledgements || [])
-		noticePanel.append(
-			element(
-				"article",
-				{ class: "management-list-row" },
-				element(
-					"p",
-					{},
-					`${entry.runId} · ${entry.active ? "Acknowledged" : "State changed"} · ${entry.reason}`,
-				),
-				managementControl(
-					"Clear acknowledgement",
-					async () => {
-						noticeOutput.replaceChildren(
-							managementResult(
-								await managementWrite(
-									projectRoute(
-										`notices/${encodeURIComponent(entry.runId)}/clear`,
-									),
-									"POST",
-								),
-							),
-						);
-					},
-					noticeOutput,
-				),
-			),
-		);
-	if (!(notices.data.notices?.length || notices.data.acknowledgements?.length))
-		noticePanel.append(element("p", {}, "No notices or acknowledgements."));
-	if (notices.data.warnings?.length)
-		noticePanel.append(element("pre", {}, notices.data.warnings.join("\n")));
-	noticePanel.append(noticeOutput, commandHint("agent-workflow notices list"));
+		),
+	);
 }
+const EXECUTOR_STATES = {
+	ready: ["ok", "Ready"],
+	"logged-out": ["warn", "Not logged in"],
+	"not-installed": ["muted", "Not installed"],
+};
+/*
+ * Executors (2026-11-11, owner): which CLIs can run workflows here and what to do about the rest,
+ * then what to know and the defaults. The full doctor report stays under "Details".
+ */
 async function renderExecutors(page) {
-	const output = element("div");
+	page
+		.querySelector("h1 + p")
+		?.replaceChildren(
+			"The coding-agent CLIs that run workflow stages, checked on this machine without a model call.",
+		);
+	const body = element("div", { "aria-live": "polite" });
+	const checked = element("span", { class: "muted" });
 	const show = async (refresh = false) => {
 		const result = await managementApi(
 			`/api/doctor${refresh ? "?refresh=1" : ""}`,
 		);
-		output.replaceChildren(managementResult(result));
+		const data = result.data;
+		const executors = data.executors || [];
+		const ready = executors.filter((entry) => entry.usable).length;
+		checked.textContent = `Checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · cached for 60 s`;
+		const knows = [
+			...(data.warnings || []),
+			...(data.node && !data.node.supported
+				? [
+						`Node ${data.node.version} is older than the required ${data.node.required}.`,
+					]
+				: []),
+			...(data.home && !data.home.writable
+				? [`The home ${data.home.path} is not writable.`]
+				: []),
+		];
+		body.replaceChildren();
+		append(body, [
+			managementPanel(
+				"Status",
+				element(
+					"p",
+					{ class: "lead" },
+					`${ready} of ${executors.length} ready. `,
+					data.defaultExecutor?.id
+						? [
+								"Runs use ",
+								element("strong", {}, data.defaultExecutor.id),
+								" unless you choose another executor.",
+							]
+						: "No executor is ready to run workflows.",
+				),
+				propertyTable(
+					["Executor", "Status", "Version", "What to do"],
+					executors.map((entry) => {
+						const [tone, label] = EXECUTOR_STATES[entry.state] || [
+							entry.usable ? "ok" : "warn",
+							humanize(entry.state || (entry.usable ? "ready" : "unavailable")),
+						];
+						return [
+							element("strong", {}, entry.id),
+							stateLabel(tone, label),
+							entry.cliVersion
+								? [
+										entry.cliVersion,
+										entry.versionMatchesVerified === false
+											? element(
+													"span",
+													{ class: "muted" },
+													` · tested on ${entry.verifiedVersion}`,
+												)
+											: null,
+									]
+								: "—",
+							entry.fix || (entry.usable ? "—" : entry.error || "—"),
+						];
+					}),
+					{ class: "property-table executors" },
+				),
+			),
+			knows.length
+				? managementPanel(
+						"Things to know",
+						element(
+							"ul",
+							{ class: "notes-list" },
+							knows.map((text) => element("li", {}, text)),
+						),
+					)
+				: null,
+			managementPanel(
+				"Defaults",
+				propertyTable(
+					null,
+					[
+						[
+							"Default executor",
+							data.defaultExecutor?.id
+								? [
+										element("strong", {}, data.defaultExecutor.id),
+										element(
+											"span",
+											{ class: "muted" },
+											` · ${data.defaultExecutor.reason || data.defaultExecutor.source}`,
+										),
+									]
+								: "none ready",
+						],
+						[
+							"Permission mode",
+							[
+								element("strong", {}, data.permissionMode?.mode || "free"),
+								element(
+									"span",
+									{ class: "muted" },
+									` · ${data.permissionMode?.source === "default" ? "default" : "saved"}`,
+								),
+							],
+						],
+						[
+							"Models and effort",
+							element(
+								"a",
+								{
+									href: `/?${new URLSearchParams({ ...(state.project ? { project: state.project } : {}), view: "profiles" })}`,
+								},
+								"Set per executor in Profiles",
+							),
+						],
+					],
+					{ class: "property-table keyed" },
+				),
+			),
+			managementPanel(
+				"Details",
+				moreDetails(
+					"Executor notes",
+					propertyTable(
+						null,
+						executors.map((entry) => [
+							entry.id,
+							element(
+								"ul",
+								{ class: "notes-list" },
+								(entry.notes || []).map((note) => element("li", {}, note)),
+							),
+						]),
+						{ class: "property-table keyed" },
+					),
+				),
+				moreDetails(
+					"Environment",
+					propertyTable(
+						null,
+						[
+							data.node
+								? [
+										"Node",
+										`${data.node.version} (requires ${data.node.required})`,
+									]
+								: null,
+							data.home
+								? ["Home", element("span", { class: "mono" }, data.home.path)]
+								: null,
+							data.runIndex
+								? [
+										"Run index",
+										`${data.runIndex.entries} entries · ${data.runIndex.stale} stale · ${data.runIndex.dangling} dangling`,
+									]
+								: null,
+							["Host", data.host],
+						].filter(Boolean),
+						{ class: "property-table keyed" },
+					),
+				),
+				moreDetails("Full report", managementResult(result)),
+				moreDetails(
+					"Same from the terminal",
+					commandHint("agent-workflow doctor"),
+				),
+			),
+		]);
 	};
 	page.append(
-		managementPanel(
-			"Executor health",
-			element(
-				"p",
-				{ class: "muted" },
-				"Cached for 60 seconds. Refresh runs bounded executor probes; it never calls a model.",
-			),
-			managementControl(
-				"Refresh",
-				async () => {
-					await show(true);
-				},
-				output,
-				{ write: false },
-			),
-			output,
-			commandHint("agent-workflow doctor"),
+		element(
+			"div",
+			{ class: "management-actions page-actions" },
+			managementControl("Refresh", () => show(true), body, { write: false }),
+			checked,
 		),
+		body,
 	);
 	await show();
 }

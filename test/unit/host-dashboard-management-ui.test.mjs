@@ -194,16 +194,44 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 		true,
 	);
 	assert.equal(existsSync(p.effects), false, "check/probes never submit work");
+	await persistManagementRun(p.cwd, "workflow_ui_stopped", "interrupted");
 	await browser.click('.management-nav a[href*="view=maintenance"]');
 	await browser.waitFor(
 		() => !!document.querySelector('[data-management-action="prune-preview"]'),
 	);
-	await set(browser, "Keep newest terminal runs", "0");
+	// 2026-11-11 (owner): an unfinished run is a row with Dismiss; an empty reason is recorded as
+	// "Dismissed in the dashboard", and Show again brings the notice back.
+	await browser.waitFor(
+		() =>
+			!!document.querySelector('[data-notice-dismiss="workflow_ui_stopped"]'),
+	);
+	await browser.click('[data-notice-dismiss="workflow_ui_stopped"]');
+	await browser.waitFor(
+		() =>
+			!document.querySelector('[data-notice-dismiss="workflow_ui_stopped"]') &&
+			document
+				.querySelector(".more-details")
+				?.textContent.includes("Dismissed in the dashboard"),
+	);
+	await clickText(browser, "Show again");
+	await browser.waitFor(
+		() =>
+			!!document.querySelector('[data-notice-dismiss="workflow_ui_stopped"]'),
+	);
+	await set(browser, "Keep the newest finished runs", "0");
 	await browser.click('[data-management-action="prune-preview"]');
+	// 2026-11-11 (owner): the preview is a table of runs, each with what happens to it.
 	await browser.waitFor(() =>
 		document
-			.querySelector("#center")
-			?.textContent.includes("workflow_ui_terminal: Would delete"),
+			.querySelector('[data-prune-run="workflow_ui_terminal"]')
+			?.closest("tr")
+			?.textContent.includes("Will delete"),
+	);
+	assert.match(
+		await browser.evaluate(
+			() => document.querySelector(".prune-summary").textContent,
+		),
+		/^\d+ runs? would be deleted, freeing [\d.]+ (?:B|KB|MB)\./,
 	);
 	assert.equal(existsSync(terminal.dir), true, "preview never deletes");
 	assert.equal(
@@ -214,7 +242,7 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 		),
 		false,
 	);
-	await set(browser, "Keep newest terminal runs", "1");
+	await set(browser, "Keep the newest finished runs", "1");
 	assert.equal(
 		await browser.evaluate(
 			() =>
@@ -229,6 +257,20 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 		document
 			.querySelector("#center")
 			?.textContent.includes("Default executor here"),
+	);
+	// 2026-11-11 (owner): a status table first; the doctor text stays under Details.
+	assert.ok(
+		await browser.evaluate(() => {
+			const rows = [
+				...document.querySelectorAll(".property-table.executors tbody tr"),
+			].map((row) => row.textContent);
+			return (
+				rows.some(
+					(row) => row.startsWith("management-fake") || row.includes("pi"),
+				) &&
+				/\d+ of \d+ ready\./.test(document.querySelector(".lead").textContent)
+			);
+		}),
 	);
 	await clickText(browser, "Refresh");
 	await browser.waitFor(() =>

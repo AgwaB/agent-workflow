@@ -2660,3 +2660,168 @@ main.signin code {
 .management-card h3 {
 	margin: 20px 0 4px;
 }
+/* Maintenance and Executors (2026-11-11, owner): status words, quiet details, a real delete. */
+.state-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	white-space: nowrap;
+}
+.state-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--faint);
+	flex: none;
+}
+.state-label.ok .state-dot {
+	background: var(--accent);
+}
+.state-label.warn {
+	color: var(--warn);
+}
+.state-label.warn .state-dot {
+	background: var(--warn);
+}
+.state-label.err {
+	color: var(--err);
+}
+.state-label.err .state-dot {
+	background: var(--err);
+}
+.state-label.muted {
+	color: var(--muted);
+}
+.management-card .lead {
+	font-size: 15px;
+	margin: 0 0 8px;
+}
+.notes-list {
+	margin: 0;
+	padding-left: 18px;
+	color: var(--muted);
+	font-size: 14px;
+}
+.notes-list li + li {
+	margin-top: 4px;
+}
+.row-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+.row-actions input {
+	width: 180px;
+	min-width: 0;
+	background: var(--surface);
+}
+.management-card .row-actions button,
+.management-card .property-table button {
+	margin: 0;
+}
+.property-table td:has(> .row-actions) {
+	width: 1%;
+	white-space: nowrap;
+}
+.property-table.executors td:first-child {
+	width: 120px;
+}
+.property-table.executors td:nth-child(2) {
+	width: 150px;
+}
+.property-table.executors td:nth-child(3) {
+	width: 150px;
+}
+.property-table.prune td:nth-child(n + 2) {
+	white-space: nowrap;
+}
+.property-table a.mono {
+	color: var(--text);
+	text-decoration: none;
+	font-size: 13px;
+}
+.property-table a.mono:hover {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+.prune-summary {
+	margin: 12px 0 4px;
+	font-weight: 500;
+}
+button.danger:not(:disabled) {
+	color: var(--err);
+	border-color: color-mix(in srgb, var(--err) 45%, transparent);
+}
+button.danger:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--err) 12%, transparent);
+	border-color: var(--err);
+}
+.more-details {
+	margin-top: 10px;
+}
+.more-details > summary {
+	font-size: 13px;
+	color: var(--muted);
+}
+.more-details[open] > summary {
+	margin-bottom: 6px;
+}
+.page-actions {
+	align-items: center;
+	margin: 12px 0 16px;
+}
+.page-actions .muted {
+	font-size: 13px;
+}
+.run-cell {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	color: var(--text);
+	text-decoration: none;
+}
+.run-cell > span {
+	font-weight: 500;
+}
+.run-cell small {
+	font-size: 12.5px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 46ch;
+}
+.run-cell:hover > span {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+/* Narrow screens: notice and prune rows stack instead of overflowing their card. */
+@media (max-width: 700px) {
+	.property-table:is(.notices, .prune),
+	.property-table:is(.notices, .prune) :is(tbody, tr, td) {
+		display: block;
+		width: auto;
+	}
+	.property-table:is(.notices, .prune) thead {
+		display: none;
+	}
+	.property-table:is(.notices, .prune) tr {
+		padding: 10px 0;
+		border-bottom: 1px solid var(--line);
+	}
+	.property-table:is(.notices, .prune) td {
+		border: 0;
+		padding: 2px 0;
+		white-space: normal;
+	}
+	.property-table td:has(> .row-actions) {
+		width: auto;
+	}
+	.row-actions {
+		justify-content: flex-start;
+		margin-top: 6px;
+	}
+	.row-actions input {
+		flex: 1;
+		width: auto;
+	}
+}
