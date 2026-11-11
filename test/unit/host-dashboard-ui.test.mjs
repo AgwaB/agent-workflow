@@ -318,9 +318,12 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 				const m = node.parentElement.getScreenCTM();
 				size *= Math.hypot(m.a, m.b);
 			}
+			smallest = Math.min(smallest, size);
+			// The 60% share counts the main view; the runs rail is a compact list by choice
+			// (owner, 2026-11-11). The 12 px floor still holds everywhere.
+			if (node.parentElement.closest(".rail")) continue;
 			total++;
 			if (size >= 13.99) large++;
-			smallest = Math.min(smallest, size);
 		}
 		return { total, large, smallest };
 	});
@@ -1429,6 +1432,27 @@ test("dashboard Chrome: the rail steps aside for the inspector on narrower scree
 	});
 	assert.equal(task, "Review the ledger's retry path");
 	assert.match(started, /^\d+m ago$/);
+	// The compact rail (owner, 2026-11-11): a bar only on live runs, one meta line, no text dots.
+	const rail = await browser.evaluate(() =>
+		[...document.querySelectorAll(".run-row")].map((row) => ({
+			current: row.getAttribute("aria-current") === "true",
+			bar: Boolean(row.querySelector("progress")),
+			meta: row.querySelector(".run-meta")?.textContent ?? null,
+			count: row.querySelector(".run-count")?.textContent ?? "",
+		})),
+	);
+	assert.ok(
+		rail.find((row) => row.current).bar,
+		"the running run keeps its bar",
+	);
+	assert.ok(
+		rail.some((row) => !row.bar),
+		"a run that is not live has no bar",
+	);
+	for (const row of rail) {
+		assert.ok(row.meta !== null && !row.meta.includes("·"), row.meta);
+		assert.match(row.count, /^(?:\d+ of )?\d+ (?:agents|tasks)$/);
+	}
 	// A phone: one column, the rail closed until asked for.
 	await browser.send("Emulation.setDeviceMetricsOverride", {
 		width: 390,

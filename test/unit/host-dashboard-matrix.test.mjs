@@ -135,7 +135,7 @@ test("dashboard matrix: shape/state projections, viewport geometry, counts and k
 				assert.deepEqual(await browser.evaluate(layoutProblems), [], label);
 				const counts = await browser.evaluate(() => ({
 					rail: document.querySelector(
-						'.run-row[aria-current="true"] .run-progress span',
+						'.run-row[aria-current="true"] .run-count',
 					)?.textContent,
 					header: document.querySelector("#hero-sub").textContent,
 					groupCounts: [...document.querySelectorAll("[data-group] span")].map(
@@ -176,7 +176,13 @@ test("dashboard matrix: shape/state projections, viewport geometry, counts and k
 						...document.querySelectorAll(".segment.completed.ok"),
 					].every((el) => getComputedStyle(el).fill === "rgb(90, 90, 90)"),
 				}));
-				assert.equal(counts.rail, `${done} / ${expected.length}`, label);
+				assert.equal(
+					counts.rail,
+					done === expected.length
+						? `${done} agents`
+						: `${done} of ${expected.length} agents`,
+					label,
+				);
 				assert.ok(
 					counts.header.includes(
 						["running", "blocked"].includes(run.status)

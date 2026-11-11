@@ -595,26 +595,34 @@ function verdictWord(value) {
 		? text
 		: text.charAt(0) + text.slice(1).toLowerCase();
 }
-function railLine(summary) {
-	if (
-		summary.status === "completed" ||
-		(summary.status === "failed" && summary.verdictGate)
-	) {
+/**
+ * The compact rail (2026-11-11, owner): a short word only when there is something to know, with
+ * its tone — a clean finish says nothing (its check mark does), a verdict or stop says it once.
+ */
+function railStatus(summary) {
+	if (summary.status === "failed" && !summary.verdictGate)
+		return ["err", "Failed"]; // the reason is under "Needs you", above
+	if (summary.status === "blocked" || summary.needsYou?.length)
+		return ["warn", "Needs you"];
+	if (summary.status === "completed" || summary.status === "failed") {
 		const outcome = finishedOutcome(summary);
-		if (outcome.caveats) return "Finished · with caveats";
-		if (shortfall(summary)) return outcome.word;
-		return `Finished${summary.verdict ? ` · ${verdictWord(summary.verdict)}` : ""}`;
+		if (outcome.caveats) return ["warn", "With caveats"];
+		if (!outcome.clean) return ["warn", outcome.word];
+		const verdict = verdictWord(summary.verdict);
+		return ["", verdict.charAt(0).toUpperCase() + verdict.slice(1)];
 	}
-	if (summary.status === "failed")
-		return summary.needsYou?.[0]?.title || "A task failed";
-	if (summary.status === "blocked") return "Decision required";
-	if (summary.status === "interrupted") return "Stopped";
-	return summary.status === "running"
-		? summary.name.includes("review")
-			? "Reviewing is under way"
-			: "Work is under way"
-		: "Waiting to start";
+	if (summary.status === "interrupted") return ["", "Stopped"];
+	if (summary.status === "running") return ["", ""];
+	return ["", "Waiting to start"];
 }
+function railCount(counts, agents) {
+	const noun = agents ? "agents" : "tasks";
+	return counts.completed === counts.total
+		? `${counts.total} ${noun}`
+		: `${counts.completed} of ${counts.total} ${noun}`;
+}
+/** "6m" for "6m 00s", "1h" for "1h 00m": the rail rounds where nothing is lost. */
+const railElapsed = (run) => elapsed(run).replace(/ 00[sm]$/, "");
 function progress(completed, total, status = "") {
 	return element("progress", {
 		class: status ? `p-${status}` : null,
@@ -805,12 +813,35 @@ function renderRail() {
 				{ class: "need-restore link" },
 			),
 		);
-	rail.append(element("h2", { class: "rail-heading muted" }, "Runs"));
+	rail.append(
+		element(
+			"h2",
+			{ class: "rail-heading" },
+			element("span", {}, "Runs"),
+			runs.length
+				? element("span", { class: "rail-count" }, runs.length)
+				: null,
+		),
+	);
 	if (!runs.length)
 		rail.append(element("p", { class: "muted" }, "No runs yet"));
+	// Today / Earlier headings (2026-11-11, owner chose the compact rail), only when both occur.
+	const today = new Date(now()).toDateString();
+	const isToday = (summary) =>
+		new Date(date(summary.createdAt)).toDateString() === today;
+	const grouped = runs.some(isToday) && !runs.every(isToday);
+	let group = null;
 	for (const summary of runs) {
 		const counts = summary.agentSummary || summary.taskSummary;
 		const display = summary.runId === run?.runId ? run : summary;
+		const live = liveRun(display);
+		const [tone, word] = railStatus(display);
+		if (grouped && group !== isToday(summary)) {
+			group = isToday(summary);
+			rail.append(
+				element("div", { class: "rail-group" }, group ? "Today" : "Earlier"),
+			);
+		}
 		const row = element(
 			"div",
 			{
@@ -857,6 +888,22 @@ function renderRail() {
 					},
 					ago(summary.createdAt),
 				),
+				// Report replaces "3h ago" where it is wanted (hover, selected, keyboard).
+				summary.status === "completed" && summary.reportAvailable
+					? element(
+							"a",
+							{
+								class: "run-report",
+								href: `?run=${encodeURIComponent(summary.runId)}&view=report`,
+								onclick: (event) => {
+									event.preventDefault();
+									event.stopPropagation();
+									go({ run: summary.runId, view: "report" });
+								},
+							},
+							"Report →",
+						)
+					: null,
 			),
 			summary.taskPreview
 				? element(
@@ -865,36 +912,26 @@ function renderRail() {
 						summary.taskPreview,
 					)
 				: null,
+			// One quiet line: what to know (a verdict, a stop, a failure), the time, the agents.
 			element(
 				"div",
-				{ class: "row run-progress" },
-				progress(counts.completed, counts.total, summary.status),
-				element("span", {}, `${counts.completed} / ${counts.total}`),
+				{ class: "run-meta" },
+				...[
+					word ? element("span", { class: `run-word ${tone}` }, word) : null,
+					element(
+						"span",
+						{ class: "run-count" },
+						railCount(counts, Boolean(summary.agentSummary)),
+					),
+					element(
+						"span",
+						{ class: "elapsed", "data-run-elapsed": summary.runId },
+						railElapsed(summary),
+					),
+				].filter(Boolean),
 			),
-			element(
-				"div",
-				{ class: "run-line" },
-				element("span", { class: "grow" }, railLine(display)),
-				element(
-					"span",
-					{ class: "elapsed muted", "data-run-elapsed": summary.runId },
-					elapsed(summary),
-				),
-				summary.status === "completed" && summary.reportAvailable
-					? element(
-							"a",
-							{
-								href: `?run=${encodeURIComponent(summary.runId)}&view=report`,
-								onclick: (event) => {
-									event.preventDefault();
-									event.stopPropagation();
-									go({ run: summary.runId, view: "report" });
-								},
-							},
-							"Report ↗",
-						)
-					: null,
-			),
+			// The bar only while it moves; a finished run's full bar says nothing.
+			live ? progress(counts.completed, counts.total, summary.status) : null,
 		);
 		rail.append(row);
 	}
@@ -5146,7 +5183,7 @@ setInterval(() => {
 		const summary = runs.find(
 			(summary) => summary.runId === node.dataset.runElapsed,
 		);
-		if (summary) node.textContent = elapsed(summary);
+		if (summary) node.textContent = railElapsed(summary);
 	}
 	if (!run) return;
 	refreshGraphTexts();

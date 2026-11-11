@@ -47,6 +47,9 @@
 		sans-serif;
 	background: var(--bg);
 	font-variant-numeric: tabular-nums;
+	/* 2026-11-11 (owner: text looked heavy): grayscale smoothing, as macOS apps draw light-on-dark. */
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 	color: var(--text);
 }
 * {
@@ -273,41 +276,54 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 	min-height: 0;
 }
 .rail-heading {
-	font-size: 14px;
-	font-weight: 400;
-	padding: 16px 0 8px;
+	display: flex;
+	justify-content: space-between;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--faint);
+	margin: 0;
+	padding: 16px 8px 6px;
 }
+.rail-group {
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--faint);
+	padding: 12px 8px 4px;
+}
+/* "Needs you" items read like run rows (2026-11-11): the same spacing, sizes and quiet hover. */
 .need {
 	width: 100%;
 	display: flex;
-	gap: 10px;
+	gap: 8px;
 	text-align: left;
-	padding: 18px 4px 12px;
+	padding: 7px 8px;
 	border: 0;
-	border-top: 1px solid var(--line);
-	border-radius: 0;
+	border-radius: 8px;
 }
 .need-title {
 	display: block;
-	font-size: 15px;
-	font-weight: 450;
+	font-size: 14px;
+	font-weight: 500;
 }
 .need-action {
 	display: block;
-	color: var(--text);
-	text-decoration: underline;
-	font-size: 14px;
-	margin: 4px 0;
+	color: var(--warn);
+	font-size: 12.5px;
+	margin: 2px 0 1px;
 }
 .need small {
 	overflow-wrap: anywhere;
 	display: block;
-	font-size: 14px;
-	color: var(--muted);
+	font-size: 12px;
+	color: var(--faint);
 }
+/*
+ * The compact rail (2026-11-11, owner chose "B"): three quiet lines a run — name and when, the task
+ * on one line, then what to know · agents · time. Spacing instead of rules; the bar only while live.
+ */
 .run-row {
-	border-bottom: 1px solid var(--line);
-	padding: 8px 4px;
+	padding: 7px 8px;
+	border-radius: 8px;
 	cursor: pointer;
 	transition: background var(--t-fast) ease;
 }
@@ -316,44 +332,95 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 }
 .run-row[aria-current="true"] {
 	background: var(--selected);
-	border-radius: 6px;
+	box-shadow: inset 0 0 0 1px var(--line);
 }
 .run-row .glyph.running .status-icon {
 	animation: pulse 1.8s ease-in-out infinite;
 }
+.run-row > .row > .grow {
+	font-size: 14px;
+	font-weight: 500;
+}
 .run-started {
 	flex: none;
 	font-size: 12px;
+	color: var(--faint);
 }
 /* A run row's lines sit under its name, past the glyph. */
 .run-row > :not(:first-child) {
-	margin-left: 28px;
+	margin-left: 26px;
 }
 .run-task {
-	margin: 2px 0 0 28px;
-	font-size: 13px;
-	line-height: 1.4;
-	color: var(--muted);
-	overflow-wrap: anywhere;
-	display: -webkit-box;
-	-webkit-box-orient: vertical;
-	-webkit-line-clamp: 2;
-	line-clamp: 2;
+	margin-top: 1px;
+	font-size: 12.5px;
+	line-height: 1.45;
+	color: var(--faint);
+	white-space: nowrap;
 	overflow: hidden;
+	text-overflow: ellipsis;
 }
-.run-row .elapsed {
-	font-size: 13px;
+.run-meta {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 4px;
+	font-size: 12px;
+	color: var(--faint);
 	white-space: nowrap;
+	min-width: 0;
 }
-.run-progress {
-	margin: 6px 0;
-	gap: 12px;
+.run-meta .elapsed {
+	font-family: inherit;
 }
-.run-progress span {
-	font: 13px var(--mono);
-	color: var(--muted);
-	white-space: nowrap;
+/* The dots between parts are decoration, not text. */
+.run-meta > span + span::before {
+	content: "·";
+	margin-right: 6px;
+	opacity: 0.6;
+}
+.run-word {
 	flex: none;
+}
+.run-count {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+.run-word.warn {
+	color: var(--warn);
+}
+.run-word.err {
+	color: var(--err);
+}
+/* Report takes the place of "3h ago" where it is wanted: on hover, the selected run, or by keyboard. */
+.run-report {
+	display: none;
+	flex: none;
+	font-size: 12px;
+	color: var(--muted);
+	text-decoration: none;
+}
+.run-report:hover {
+	color: var(--text);
+}
+.run-row:is(:hover, [aria-current="true"], :focus-within) .run-report {
+	display: inline;
+}
+.run-row:is(:hover, [aria-current="true"], :focus-within):has(.run-report)
+	.run-started {
+	display: none;
+}
+.run-row > progress {
+	display: block;
+	width: auto;
+	height: 2px;
+	margin-top: 7px;
+}
+.run-row > progress::-webkit-progress-value {
+	background: var(--accent);
+}
+.run-row > progress::-moz-progress-bar {
+	background: var(--accent);
 }
 progress {
 	appearance: none;
@@ -373,13 +440,6 @@ progress::-webkit-progress-value {
 }
 progress::-moz-progress-bar {
 	background: var(--done);
-}
-.run-line {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	font-size: 14px;
-	color: var(--muted);
 }
 .center {
 	display: flex;
@@ -2070,12 +2130,6 @@ main.signin code {
 	fill: var(--muted);
 	font-size: 14px;
 }
-.run-line > .grow {
-	flex-basis: 100%;
-}
-.run-line > .elapsed {
-	margin-right: auto;
-}
 .needs-button.none {
 	color: var(--muted);
 }
@@ -2169,17 +2223,23 @@ main.signin code {
 .project-switcher {
 	display: grid;
 	gap: 6px;
-	padding: 16px;
+	padding: 16px 8px 4px;
+}
+.project-switcher label {
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--faint);
 }
 .project-switcher select {
 	width: 100%;
 	min-width: 0;
 	font: inherit;
+	font-size: 14px;
 	color: inherit;
 	background: var(--bg);
 	border: 1px solid var(--line);
-	border-radius: 6px;
-	padding: 8px;
+	border-radius: 8px;
+	padding: 6px 8px;
 }
 .projects-overview {
 	padding: 24px;
@@ -2194,18 +2254,24 @@ main.signin code {
 /* Management pages share the run rail, surface tokens and text-only result components. */
 .management-nav {
 	display: grid;
-	gap: 4px;
-	margin: 8px 0 20px;
+	gap: 1px;
+	margin: 8px 0 12px;
 }
 .management-nav a {
-	padding: 7px 10px;
-	border-radius: 6px;
+	padding: 5px 8px;
+	border-radius: 8px;
+	font-size: 14px;
 	color: var(--muted);
 	text-decoration: none;
+	transition: background var(--t-fast) ease;
+}
+.management-nav a:hover {
+	background: var(--surface);
 }
 .management-nav a[aria-current="page"] {
-	background: var(--surface);
+	background: var(--selected);
 	color: var(--text);
+	font-weight: 500;
 }
 .management-page {
 	width: min(100%, 1080px);
