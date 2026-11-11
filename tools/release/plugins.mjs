@@ -177,6 +177,11 @@ const SHELL_STATE_HASH = [
 	'[ -z "$p" ] || h=$(printf %s "$p" | (shasum -a 256 || sha256sum) 2>/dev/null | cut -c1-12)',
 	'case "$h" in ????????????) ;; *) h="" ;; esac',
 ];
+// The project's state directory, or empty. find, not a glob: zsh (the macOS login shell, which hosts use
+// to run these commands) aborts on a glob without matches where sh keeps it literal (2026-11-11: the
+// completion monitor failed in every project without runs).
+const SHELL_PROJECT_DIR =
+	'set -- "$(find "$P/projects" -mindepth 1 -maxdepth 1 -name "*-$h" 2>/dev/null | head -n 1)"';
 
 /**
  * WP36: the shell command of the completion hook: `agent-workflow notify-check` in the project
@@ -210,7 +215,7 @@ export function notifyHookCommand(cli, host) {
 		'[ -n "$d" ] || d=.',
 		...SHELL_STATE_HASH,
 		[
-			'if [ -n "$h" ]; then set -- "$P"/projects/*-"$h"',
+			`if [ -n "$h" ]; then ${SHELL_PROJECT_DIR}`,
 			'w="$1/.agent-workflow/workflows"',
 			'[ -d "$w" ] || exit 0',
 			`s="$1/.agent-workflow/notify-check/${stamp}.stamp"`,
@@ -356,7 +361,7 @@ export function claudeCompletionMonitor(cli) {
 			// Polls every 2 s: a launch from this session waits up to 5 s for the monitor of a project's
 			// first run (MONITOR_FIRST_RUN_WAIT_MS) instead of falling back to workflow_wait. Without a
 			// hash (no realpath/sha256 tool) the CLI waits instead.
-			'until [ -z "$h" ] || { set -- "$P"/projects/*-"$h"; [ -d "$1/.agent-workflow/workflows" ]; }; do kill -0 "$PPID" 2>/dev/null || exit 0; sleep 2; done',
+			`until [ -z "$h" ] || { ${SHELL_PROJECT_DIR}; [ -d "$1/.agent-workflow/workflows" ]; }; do kill -0 "$PPID" 2>/dev/null || exit 0; sleep 2; done`,
 			`cd "$d" && exec ${follow} "$s"`,
 		].join("; "),
 		description: "agent-workflow: a run this session started has finished",
