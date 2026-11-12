@@ -394,9 +394,7 @@ function taskLine(task) {
 	return `${state === "completed" ? "Done" : labels[state] || "Waiting"}${task.startedAt && task.completedAt ? ` · ${duration(task.elapsedMs ?? date(task.completedAt) - date(task.startedAt))}` : ""}`;
 }
 const cost = (usage) =>
-	usage?.costUsd == null
-		? "Not collected"
-		: `$${usage.costUsd.toFixed(usage.costUsd < 0.1 ? 4 : 2)}`;
+	usage?.costUsd == null ? "Not collected" : formatUsd(usage.costUsd);
 function readState() {
 	const params = new URLSearchParams(location.search);
 	const choice = (key, values) =>
@@ -499,6 +497,7 @@ async function copy(text) {
 	}
 }
 function go(patch, replace = false) {
+	const wasReport = state.view === "report";
 	const switching = patch.run && patch.run !== state.run;
 	if (switching)
 		state = {
@@ -517,6 +516,8 @@ function go(patch, replace = false) {
 	urlState(replace);
 	if (railOpen) toggleRail(false);
 	if (switching) loadRun();
+	// The report is a page: entering or leaving it redraws the whole centre.
+	else if (run && wasReport !== (state.view === "report")) renderRun();
 	else {
 		renderSelection();
 		renderModal();
@@ -1215,13 +1216,7 @@ function renderHeader() {
 		!liveRun(run) &&
 		(run.status === "completed" || run.verdictGate) &&
 		(run.verdict || run.summary || run.tasks.some((t) => t.outcome));
-	const summary =
-		run.summary ||
-		[...run.tasks]
-			.reverse()
-			.find(
-				(t) => t.outcome?.text && t.kind !== "foreach" && t.kind !== "support",
-			)?.outcome?.text;
+	const summary = runSummaryText(run);
 	return element(
 		"section",
 		{ class: "run-header", id: "run-header", "data-status": status },
@@ -2913,13 +2908,17 @@ export function timelineRows(projection, stages, until) {
 					: start);
 		return [start - t0, Math.max(start, end) - t0];
 	};
+	// 2026-11-12 (owner): code steps never report cost, so the ratio counts agents only.
 	const costOf = (tasks) => {
 		const known = tasks.filter((task) => task.usage?.costUsd != null);
+		const agents = tasks.filter(
+			(task) => !["support", "dynamic", "loop"].includes(task.kind),
+		);
 		return known.length
 			? {
 					usd: known.reduce((sum, task) => sum + task.usage.costUsd, 0),
-					of: known.length,
-					tasks: tasks.length,
+					of: agents.filter((task) => task.usage?.costUsd != null).length,
+					tasks: agents.length,
 				}
 			: null;
 	};
@@ -3183,6 +3182,12 @@ function renderRun() {
 		hideCode: !showCode,
 		keep: selectedStage(),
 	});
+	if (state.view === "report") {
+		renderReportPage();
+		renderSelection();
+		renderModal();
+		return;
+	}
 	const signature = graphSignature(graphModel, state.layout);
 	const canvas = $("canvas");
 	const keepGraph =
@@ -3272,7 +3277,7 @@ function definition(rows) {
 			]),
 	);
 }
-function usageRows(usage) {
+function usageRows(usage, agents) {
 	// "Total tokens" only when the executor reported a total; a missing total next to reported
 	// input/output counts is "not reported", not "not collected".
 	const reportedParts = usage?.input != null || usage?.output != null;
@@ -3295,12 +3300,18 @@ function usageRows(usage) {
 		usage?.cacheRead != null
 			? ["Cached input tokens", usage.cacheRead.toLocaleString()]
 			: null,
-		usage?.tasksReporting != null
+		// 2026-11-12 (owner): code steps never report cost, so the ratio counts agents only.
+		agents
 			? [
 					"Coverage",
-					`${usage.tasksReporting} / ${usage.taskCount} tasks reporting`,
+					`${agents.agentsReporting} / ${agents.agentTotal} agents reporting`,
 				]
-			: null,
+			: usage?.tasksReporting != null
+				? [
+						"Coverage",
+						`${usage.tasksReporting} / ${usage.taskCount} tasks reporting`,
+					]
+				: null,
 		usage?.note ? ["Note", usage.note] : null,
 	];
 }
@@ -3363,7 +3374,8 @@ function renderSelection() {
 	if (!run) return;
 	const task = selectedTask(),
 		stage = graphModel?.stages.get(state.stage);
-	const visible = !!task || !!stage || state.view === "details";
+	const visible =
+		state.view !== "report" && (!!task || !!stage || state.view === "details");
 	const inspector = $("inspector"),
 		key = `${run.runId}:${state.task}:${state.stage}:${state.view}`;
 	const same = inspector.dataset.key === key,
@@ -3432,7 +3444,7 @@ function renderSelection() {
 				definition([
 					["Host", run.launch?.host || run.host || "Not collected"],
 					["Permission mode", run.permissionMode || "Not collected"],
-					...usageRows(run.usage),
+					...usageRows(run.usage, run.cost),
 				]),
 			),
 		);
@@ -4296,22 +4308,16 @@ function openDialog(key, children, className = "") {
 	)?.focus();
 }
 function dismissDialog(update = true) {
-	reportGeneration++;
 	$("dialog").close();
 	modalKey = "";
-	if (update && (state.dialog || state.view === "report")) {
+	if (update && state.dialog) {
 		state.dialog = null;
-		if (state.view === "report") state.view = null;
 		urlState();
 	}
 	if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
 }
 function renderModal() {
 	if (!run) return;
-	if (!state.dialog && state.view === "report") {
-		if (modalKey !== `report:${run.runId}`) openReport();
-		return;
-	}
 	if (!state.dialog) {
 		if (modalKey && !["palette", "key"].includes(modalKey))
 			dismissDialog(false);
@@ -4942,6 +4948,10 @@ function sourceLines(cell) {
 function reportBlocks(container) {
 	let block = null;
 	for (const node of [...container.children]) {
+		if (node.matches(".finding-card")) {
+			block = null;
+			continue;
+		}
 		if (node.matches(".md-h1, .md-h2, nav")) block = null;
 		else if (node.matches(".md-h3")) {
 			block = element("section", { class: "md-block" });
@@ -4964,107 +4974,709 @@ function storedReportPage() {
 		return null; // Storage unavailable: follow the dashboard.
 	}
 }
-function reportPage(dialog) {
-	const page = dialog.dataset.page ?? document.documentElement.dataset.theme;
+function reportPage(view) {
+	const page = view.dataset.page ?? document.documentElement.dataset.theme;
 	if (page === "light" || page === "dark") return page;
 	return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
-/** Called once the report dialog is open (openDialog clears the previous page choice). */
-function reportPageButton(dialog) {
+/** Called once the report page is drawn. */
+function reportPageButton(view) {
 	const stored = storedReportPage();
-	if (stored) dialog.dataset.page = stored;
+	if (stored) view.dataset.page = stored;
 	const control = button(
 		"",
 		() => {
-			const next = reportPage(dialog) === "dark" ? "light" : "dark";
+			const next = reportPage(view) === "dark" ? "light" : "dark";
 			try {
 				localStorage.setItem(REPORT_PAGE_KEY, next);
 			} catch {
 				// The choice then lasts for this report only.
 			}
-			dialog.dataset.page = next;
+			view.dataset.page = next;
 			label();
 		},
 		{ class: "report-page" },
 	);
 	const label = () => {
 		control.textContent =
-			reportPage(dialog) === "dark" ? "Light page" : "Dark page";
+			reportPage(view) === "dark" ? "Light page" : "Dark page";
 	};
 	label();
 	return control;
 }
-/** The report's sections (its `##` headings) as a contents list; nothing for a short report. */
-function reportContents(container) {
-	const sections = [...container.querySelectorAll(".md-h2")];
-	if (sections.length < 3) return null;
-	// On a phone the list folds behind "Contents" (it took half the first screen).
-	const nav = element(
-		"nav",
-		{ class: "report-toc", "aria-label": "Report sections" },
-		element("span", { class: "muted toc-label" }, "Contents"),
-		button("Contents", () => toggle(), {
-			class: "toc-toggle",
-			"aria-expanded": "false",
-		}),
-		...sections.map((heading) =>
-			button(
-				heading.textContent,
-				() => {
-					toggle(false);
-					heading.scrollIntoView({ block: "start", behavior: "smooth" });
-				},
-				{ class: "toc-entry" },
+/**
+ * 2026-11-12 (owner): the report is a page of its own, not a modal (`?run=…&view=report`: it can
+ * be shared and the back button leaves it). Its structure is only what the report text says.
+ * A deep-review style report writes each finding as `### finding-001 — title` with `Severity:` and
+ * `Verifier verdict:` lines and a Locations table; those parts become a card. Any other report
+ * (or any other part of this one) stays plain rendered Markdown, so nothing is ever invented.
+ */
+const FINDING_HEADING = /^(finding-\d+)\s+[—–-]+\s+(.+)$/;
+const LABEL_LINE = /^([A-Z][A-Za-z-]*(?:(?: \/ | |\/)[A-Za-z-]+){0,4}):\s*$/;
+/** Markdown escapes and entities, as plain text (for chips, never for rendering). */
+const plainMd = (value) =>
+	value
+		.replace(/\\([\\`*_{}[\]()#+\-.!|<>~&])/g, "$1")
+		.replace(
+			/&(amp|lt|gt|quot|#39);/g,
+			(_, name) =>
+				({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" })[name],
+		)
+		.replace(/\*\*([^*]+)\*\*/g, "$1");
+/** The report as plain Markdown parts and finding parts, in order (fenced code is never split). */
+export function splitReport(text) {
+	const segments = [];
+	let current = { kind: "markdown", lines: [] };
+	let fence = null;
+	const finish = () => {
+		if (current.kind === "finding" || current.lines.some((line) => line.trim()))
+			segments.push(current);
+	};
+	for (const line of text.split("\n")) {
+		const mark = /^\s*(`{3,}|~{3,})\s*([\w+.#-]*)\s*$/.exec(line);
+		if (fence) {
+			if (
+				mark &&
+				!mark[2] &&
+				mark[1][0] === fence[0] &&
+				mark[1].length >= fence.length
+			)
+				fence = null;
+			current.lines.push(line);
+			continue;
+		}
+		if (mark) {
+			fence = mark[1];
+			current.lines.push(line);
+			continue;
+		}
+		const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
+		if (heading && heading[1].length <= 3) {
+			const finding =
+				heading[1].length === 3 ? FINDING_HEADING.exec(heading[2]) : null;
+			if (finding) {
+				finish();
+				current = {
+					kind: "finding",
+					id: finding[1],
+					title: finding[2],
+					heading: line,
+					lines: [],
+				};
+				continue;
+			}
+			if (current.kind === "finding") {
+				finish();
+				current = { kind: "markdown", lines: [] };
+			}
+		}
+		current.lines.push(line);
+	}
+	finish();
+	return segments;
+}
+/** A finding part: severity, verifier verdict, location rows and its labelled blocks. */
+export function parseFinding(segment) {
+	const head = [],
+		blocks = [];
+	let block = null,
+		fence = null;
+	for (const line of segment.lines) {
+		const mark = /^\s*(`{3,}|~{3,})/.exec(line);
+		if (fence) {
+			if (
+				mark &&
+				mark[1][0] === fence[0] &&
+				mark[1].length >= fence.length &&
+				!line.replace(/^\s*[`~]+/, "").trim()
+			)
+				fence = null;
+			(block?.lines ?? head).push(line);
+			continue;
+		}
+		if (mark) {
+			fence = mark[1];
+			(block?.lines ?? head).push(line);
+			continue;
+		}
+		const label = LABEL_LINE.exec(line.trim());
+		if (label) {
+			block = { label: label[1], lines: [] };
+			blocks.push(block);
+			continue;
+		}
+		(block?.lines ?? head).push(line);
+	}
+	const pick = (name) =>
+		new RegExp(`^${name}:\\s*\\**([A-Za-z\\\\_-]+)\\**`, "m").exec(
+			head.join("\n"),
+		)?.[1];
+	const locations = (
+		blocks.find((item) => item.label === "Locations")?.lines ?? []
+	)
+		.map((line) => /^\s*\|(.+)\|\s*$/.exec(line))
+		.filter(Boolean)
+		.map((match) => match[1].split("|").map((cell) => cell.trim()))
+		.filter((cells) => !cells.every((cell) => /^:?-{2,}:?$/.test(cell)))
+		.slice(1)
+		.map(([file, line, symbol]) => ({
+			file: plainMd(file ?? "").replace(/^`|`$/g, ""),
+			line: plainMd(line ?? ""),
+			symbol: plainMd(symbol ?? "").replace(/^`|`$/g, ""),
+		}));
+	return {
+		id: segment.id,
+		title: segment.title,
+		severity: pick("Severity")?.replaceAll("\\", ""),
+		verdict: pick("Verifier verdict")?.replaceAll("\\", ""),
+		locations,
+		intro: head
+			.filter(
+				(line) => !/^(?:Severity|Verifier verdict|Root cause):/.test(line),
+			)
+			.join("\n"),
+		blocks: blocks.filter((item) => item.label !== "Locations"),
+		raw: `${segment.heading}\n${segment.lines.join("\n")}`.trimEnd(),
+	};
+}
+const SEVERITIES = {
+	critical: ["failed", "Critical"],
+	high: ["failed", "High"],
+	medium: ["attention", "Medium"],
+	low: ["pending", "Low"],
+};
+/** Severity as glyph + word. An unknown word is shown as written. */
+function severityInfo(word) {
+	const key = String(word ?? "").toLowerCase();
+	return [key, ...(SEVERITIES[key] ?? ["pending", verdictWord(key)])];
+}
+const VERDICTS = {
+	keep: ["kept", "completed", "Kept"],
+	kept: ["kept", "completed", "Kept"],
+	weaken: ["weakened", "attention", "Weakened"],
+	weakened: ["weakened", "attention", "Weakened"],
+	drop: ["dropped", "skipped", "Dropped"],
+	dropped: ["dropped", "skipped", "Dropped"],
+	needs_human: ["needs-human", "blocked", "Needs human"],
+};
+/**
+ * The verifier's word for a finding. A deep-review report prints "Verifier verdict:" only for a
+ * finding that is not kept, and says its ledger holds "kept or weakened findings": a card without
+ * the line is Kept only in a report that says so; otherwise it has no verifier pill.
+ */
+function verifierInfo(word, ledgerKept) {
+	if (!word) return ledgerKept ? VERDICTS.keep : null;
+	const key = word.toLowerCase();
+	return (
+		VERDICTS[key] ?? [key.replace(/_/g, "-"), "pending", verdictWord(word)]
+	);
+}
+function findingCard(finding, ledgerKept) {
+	const [severity, severityGlyph, severityWord] = severityInfo(
+		finding.severity,
+	);
+	const verifier = verifierInfo(finding.verdict, ledgerKept);
+	const title = element("div");
+	renderTextMarkdown(title, `### ${finding.title}`, 1);
+	const heading = title.firstElementChild;
+	heading?.classList.add("finding-title");
+	const text = (lines) => {
+		const box = element("div", { class: "finding-text" });
+		renderTextMarkdown(box, lines, 4);
+		return box;
+	};
+	const parts = finding.blocks
+		.filter((block) => block.lines.some((line) => line.trim()))
+		.map((block) => {
+			const body = block.lines.join("\n");
+			if (!/evidence|caveat|counter/i.test(block.label))
+				return element(
+					"section",
+					{ class: "finding-part" },
+					element("h4", { class: "part-label" }, block.label),
+					text(body),
+				);
+			const count = block.lines.filter((line) =>
+				/^\s*(?:```|~~~|[-*+]\s)/.test(line),
+			).length;
+			// A code block has two fences; a list one mark per item.
+			const size = /^\s*(?:```|~~~)/m.test(body) ? Math.ceil(count / 2) : count;
+			return element(
+				"details",
+				{ class: "finding-part finding-fold" },
+				element("summary", {}, block.label, size ? ` (${size})` : ""),
+				text(body),
+			);
+		});
+	return {
+		severity,
+		verdict: verifier?.[0] ?? "",
+		card: element(
+			"article",
+			{
+				class: "finding-card",
+				"data-severity": severity,
+				"data-verdict": verifier?.[0] ?? "",
+				"aria-label": finding.id,
+			},
+			element(
+				"div",
+				{ class: "finding-head" },
+				element(
+					"span",
+					{ class: `severity-chip ${severity}`, title: finding.severity },
+					glyph(severityGlyph),
+					severityWord,
+				),
+				verifier
+					? element(
+							"span",
+							{ class: `verifier-pill ${verifier[0]}`, title: finding.verdict },
+							glyph(verifier[1]),
+							verifier[2],
+						)
+					: null,
+				element("span", { class: "finding-id" }, finding.id),
+			),
+			heading,
+			finding.locations.length
+				? element(
+						"div",
+						{ class: "finding-locations" },
+						finding.locations.map((where) =>
+							element(
+								"span",
+								{ class: "location-chip" },
+								element("b", {}, `${where.file}:${where.line}`),
+								where.symbol && where.symbol !== "—"
+									? ` · ${where.symbol}`
+									: null,
+							),
+						),
+					)
+				: null,
+			finding.intro.trim() ? text(finding.intro) : null,
+			parts,
+			element(
+				"div",
+				{ class: "finding-foot" },
+				button("Copy fix prompt", () => copy(finding.raw), {
+					class: "small",
+					"data-copy-finding": finding.id,
+				}),
 			),
 		),
+	};
+}
+/** Render the report into `container`; returns its finding cards (none for a plain report). */
+function renderReport(container, text) {
+	const ledgerKept = /kept or weakened findings/i.test(text);
+	const found = [];
+	for (const segment of splitReport(text)) {
+		const finding = segment.kind === "finding" ? parseFinding(segment) : null;
+		// A finding heading without its own "Severity:" line (another workflow's report) is not a
+		// card: it stays Markdown, as written.
+		if (finding?.severity) {
+			const built = findingCard(finding, ledgerKept);
+			found.push(built);
+			container.append(built.card);
+		} else
+			renderTextMarkdown(
+				container,
+				(finding ? [segment.heading, ...segment.lines] : segment.lines).join(
+					"\n",
+				),
+				2,
+			);
+	}
+	reportBlocks(container);
+	return found;
+}
+/** The sticky outline: the report's `##` and `###` headings (a finding by its id). */
+function reportOutline(content, scroller) {
+	const targets = [...content.querySelectorAll(".md-h2, .md-h3, .finding-card")]
+		.filter((node) => !node.matches(".finding-title"))
+		.map((node) => ({
+			node,
+			level: node.matches(".md-h2") ? 0 : 1,
+			label: node.matches(".finding-card")
+				? node.getAttribute("aria-label")
+				: [...node.childNodes]
+						.map((child) =>
+							child.classList?.contains("md-index")
+								? `${child.textContent}. `
+								: child.textContent,
+						)
+						.join(""),
+			title: node.matches(".finding-card")
+				? node.querySelector(".finding-title")?.textContent
+				: null,
+			severity: node.dataset?.severity,
+		}));
+	if (!targets.length) return null;
+	const links = targets.map((target) =>
+		element(
+			"a",
+			{
+				class: `outline-link level-${target.level}`,
+				href: "#",
+				title: target.title,
+				onclick: (event) => {
+					event.preventDefault();
+					toggle(false);
+					current(target);
+					target.node.scrollIntoView({
+						block: "start",
+						behavior: reducedMotion() ? "auto" : "smooth",
+					});
+				},
+			},
+			target.severity
+				? element("span", { class: `outline-dot ${target.severity}` })
+				: null,
+			target.label,
+		),
+	);
+	const nav = element(
+		"nav",
+		{ class: "report-outline", "aria-label": "Report outline" },
+		button("On this page", () => toggle(), {
+			class: "outline-toggle",
+			"aria-expanded": "false",
+		}),
+		element("div", { class: "outline-links" }, links),
 	);
 	const toggle = (open = !nav.classList.contains("open")) => {
 		nav.classList.toggle("open", open);
 		nav
-			.querySelector(".toc-toggle")
+			.querySelector(".outline-toggle")
 			.setAttribute("aria-expanded", String(open));
 	};
+	const current = (target) => {
+		links.forEach((link, index) => {
+			const on = targets[index] === target;
+			link.classList.toggle("current", on);
+			if (on) link.setAttribute("aria-current", "location");
+			else link.removeAttribute("aria-current");
+		});
+	};
+	// The section being read: the last shown heading whose top has reached the top of the page.
+	const update = () => {
+		const edge = scroller.getBoundingClientRect().top + 96;
+		let at = null;
+		for (const target of targets) {
+			if (!target.node.getClientRects().length) continue;
+			at ??= target;
+			if (target.node.getBoundingClientRect().top <= edge) at = target;
+		}
+		current(at);
+	};
+	// A filtered-out card or section leaves the outline too.
+	content.addEventListener("report-filter", () => {
+		links.forEach((link, index) => {
+			link.hidden = !targets[index].node.getClientRects().length;
+		});
+		update();
+	});
+	let frame = 0;
+	scroller.addEventListener("scroll", () => {
+		cancelAnimationFrame(frame);
+		frame = requestAnimationFrame(update);
+	});
+	requestAnimationFrame(update);
 	return nav;
 }
-async function openReport() {
-	const id = run.runId,
-		generation = ++reportGeneration;
-	const body = element(
-		"div",
-		{ class: "report-content", id: "report-content" },
-		"Loading report…",
-	);
-	openDialog(
-		`report:${id}`,
-		[
-			element("h2", { id: "dialog-title" }, `${run.name} · Report`),
-			body,
-			element(
-				"footer",
-				{},
-				button("Close", () => dismissDialog(), { "data-cancel": "true" }),
-			),
-		],
-		"report",
-	);
-	const footer = $("dialog").querySelector("footer");
-	footer.prepend(reportPageButton($("dialog")));
-	try {
-		const data = await api(`/api/runs/${encodeURIComponent(id)}/report`);
-		if (generation !== reportGeneration || modalKey !== `report:${id}`) return;
-		body.replaceChildren();
-		renderTextMarkdown(body, data.text);
-		reportBlocks(body);
-		const contents = reportContents(body);
-		if (contents) body.prepend(contents);
-		if (data.truncated)
-			body.append(
-				element("p", { class: "muted" }, "Report truncated by the host."),
-			);
-	} catch (error) {
-		if (generation === reportGeneration)
-			body.textContent = `Report unavailable: ${error.message}`;
+/** Severity and verifier count chips that filter the finding cards. */
+function findingFilters(content, found, empty) {
+	if (!found.length) return null;
+	const filters = { severity: "", verdict: "" };
+	const tally = (key) => {
+		const counts = new Map();
+		for (const item of found)
+			if (item[key]) counts.set(item[key], (counts.get(item[key]) ?? 0) + 1);
+		return counts;
+	};
+	// A heading whose whole section is finding cards disappears with them.
+	const sections = [];
+	let section = null;
+	for (const node of content.children) {
+		if (node.matches(".md-h1, .md-h2")) {
+			section = { heading: node, cards: [], plain: false };
+			sections.push(section);
+		} else if (node.matches(".finding-card")) section?.cards.push(node);
+		else if (section) section.plain = true;
 	}
+	const apply = () => {
+		let shown = 0;
+		for (const { card } of found) {
+			card.hidden =
+				(filters.severity && card.dataset.severity !== filters.severity) ||
+				(filters.verdict && card.dataset.verdict !== filters.verdict);
+			if (!card.hidden) shown++;
+		}
+		for (const item of sections)
+			item.heading.hidden =
+				item.cards.length > 0 &&
+				!item.plain &&
+				item.cards.every((card) => card.hidden);
+		empty.hidden = shown > 0;
+		content.dispatchEvent(new Event("report-filter"));
+		for (const chip of chips.querySelectorAll("[data-filter-key]"))
+			chip.setAttribute(
+				"aria-pressed",
+				String(filters[chip.dataset.filterKey] === chip.dataset.filterValue),
+			);
+	};
+	const chip = (key, value, text) =>
+		button(
+			text,
+			() => {
+				filters[key] = filters[key] === value ? "" : value;
+				apply();
+			},
+			{
+				class: "filter-chip",
+				"data-filter-key": key,
+				"data-filter-value": value,
+				"aria-pressed": "false",
+			},
+		);
+	const order = ["critical", "high", "medium", "low"];
+	const severities = [...tally("severity")].sort(
+		(a, b) => (order.indexOf(a[0]) + 1 || 9) - (order.indexOf(b[0]) + 1 || 9),
+	);
+	const verdicts = [...tally("verdict")].sort(
+		(a, b) =>
+			(["kept", "weakened", "needs-human", "dropped"].indexOf(a[0]) + 1 || 9) -
+			(["kept", "weakened", "needs-human", "dropped"].indexOf(b[0]) + 1 || 9),
+	);
+	const word = (value) =>
+		Object.values(VERDICTS).find((item) => item[0] === value)?.[2] ??
+		verdictWord(value);
+	const chips = element(
+		"div",
+		{ class: "filter-chips", role: "group", "aria-label": "Filter findings" },
+		severities.length
+			? element("span", { class: "chip-label" }, "Severity")
+			: null,
+		severities.map(([value, count]) =>
+			chip(
+				"severity",
+				value,
+				`${count} ${severityInfo(value)[2].toLowerCase()}`,
+			),
+		),
+		verdicts.length
+			? element("span", { class: "chip-label" }, "Verifier")
+			: null,
+		verdicts.map(([value, count]) =>
+			chip("verdict", value, `${count} ${word(value).toLowerCase()}`),
+		),
+	);
+	return chips;
+}
+/** What the finished run is, as one badge (the rail and the result card use the same words). */
+function resultBadge(summary) {
+	if (summary.status === "interrupted") return ["interrupted", "Stopped"];
+	if (summary.status === "failed" && !summary.verdictGate)
+		return ["failed", "Failed"];
+	if (summary.status === "blocked") return ["blocked", "Needs you"];
+	if (summary.status === "running") return ["running", "Running"];
+	if (summary.status === "pending") return ["pending", "Waiting"];
+	const sentence = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+	if (summary.verdict)
+		return [
+			CLEAN_VERDICT.test(summary.verdict) ? "completed" : "attention",
+			sentence(verdictWord(summary.verdict)),
+		];
+	const outcome = finishedOutcome(summary);
+	return [outcome.clean ? "completed" : "attention", outcome.word];
+}
+/** A cut-off summary ("… the new graceMs lo…") reads up to its last whole sentence. */
+function leadSentence(text) {
+	if (!text?.endsWith("…")) return text;
+	const whole = text.slice(0, -1);
+	const end = [...whole.matchAll(/[.!?](?=\s)/g)].at(-1);
+	return end && end.index >= 20 ? whole.slice(0, end.index + 1) : text;
+}
+/** One sentence on what the run found: its own summary, else its last step's result. */
+function runSummaryText(r) {
+	return (
+		r.summary ||
+		[...(r.tasks ?? [])]
+			.reverse()
+			.find(
+				(t) => t.outcome?.text && t.kind !== "foreach" && t.kind !== "support",
+			)?.outcome?.text
+	);
+}
+/**
+ * Cost with how many agents reported it (2026-11-12, owner). Code steps never report cost, so only
+ * agents are counted ("8 of 8 agents reported"); a partial sum has a "+", and an unknown cost is
+ * "—", never $0. `costs` is a list of a run's `cost` (a project's runs add up).
+ */
+function formatUsd(value) {
+	return `$${value.toFixed(value < 0.1 ? 4 : 2)}`;
+}
+function costLabel(costs) {
+	if (!costs.length)
+		return { text: "—", ratio: "", title: "Cost not reported", runs: 0 };
+	const known = costs.filter((entry) => entry?.costUsd != null);
+	const total = costs.reduce((sum, entry) => sum + (entry?.agentTotal ?? 0), 0);
+	const reporting = costs.reduce(
+		(sum, entry) => sum + (entry?.agentsReporting ?? 0),
+		0,
+	);
+	const partial = costs.some(
+		(entry) => (entry?.agentsReporting ?? 0) < (entry?.agentTotal ?? 0),
+	);
+	const ratio = `${reporting} of ${total} agent${total === 1 ? "" : "s"} reported`;
+	if (!known.length)
+		return {
+			text: "—",
+			ratio,
+			title: total ? `No cost reported (${ratio})` : "No agents ran",
+			runs: 0,
+		};
+	const sum = known.reduce((acc, entry) => acc + entry.costUsd, 0);
+	return {
+		text: `${formatUsd(sum)}${partial ? "+" : ""}`,
+		ratio,
+		title: partial
+			? `${ratio} cost. The true total may be higher.`
+			: `${ratio} cost`,
+		runs: known.length,
+	};
+}
+/** "Dark page"/"Light page" and the run's meta line sit in the header; this draws the whole page. */
+function renderReportPage() {
+	const key = `${run.runId}:${run.updatedAt}:${run.status}`;
+	const old = $("report-view");
+	if (old?.dataset.key === key) return;
+	const generation = ++reportGeneration;
+	const scroll = old?.dataset.run === run.runId ? old.scrollTop : 0;
+	const [tone, word] = resultBadge(run);
+	const summary = runSummaryText(run);
+	const cost = costLabel(run.cost ? [run.cost] : []);
+	const meta = [
+		element("span", {}, run.name),
+		element(
+			"span",
+			{ title: `Finished ${new Date(date(run.updatedAt)).toLocaleString()}` },
+			liveRun(run) ? "Not finished" : `Finished ${ago(run.updatedAt)}`,
+		),
+		element(
+			"span",
+			{
+				title:
+					"Active time: when agents and steps were working, not the time the run sat waiting",
+			},
+			run.activeMs != null ? `${duration(run.activeMs)} active` : elapsed(run),
+		),
+		run.agentSummary
+			? element(
+					"span",
+					{},
+					`${run.agentSummary.completed} of ${run.agentSummary.total} agents`,
+				)
+			: null,
+		element(
+			"span",
+			{ class: "report-cost", title: cost.title },
+			run.cost?.costUsd != null
+				? `${cost.text} · ${cost.ratio}`
+				: `Cost ${cost.text}`,
+		),
+	];
+	let loaded = "";
+	const copyButton = button("Copy as Markdown", () => loaded && copy(loaded), {
+		class: "copy-report",
+		disabled: true,
+	});
+	const openButton = button("Open run", () => go({ view: null }), {
+		class: "primary",
+		"data-action": "open-run",
+	});
+	const content = element(
+		"article",
+		{ class: "report-content", id: "report-content" },
+		run.reportAvailable ? "Loading report…" : "This run has no report.",
+	);
+	const chips = element("div", { class: "report-filters" });
+	const empty = element(
+		"p",
+		{ class: "muted filter-empty", hidden: true },
+		"No findings match these filters.",
+	);
+	const outline = element("div", { class: "outline-slot" });
+	const actions = element("div", { class: "actions" }, copyButton, openButton);
+	const view = element(
+		"div",
+		{
+			class: "report-view",
+			id: "report-view",
+			"data-key": key,
+			"data-run": run.runId,
+		},
+		element(
+			"div",
+			{ class: "report-layout" },
+			element(
+				"header",
+				{ class: "report-head" },
+				element(
+					"div",
+					{ class: "report-title-row" },
+					element(
+						"span",
+						{ class: `result-badge ${tone}`, "data-tone": tone },
+						glyph(tone),
+						element("strong", {}, word),
+					),
+					actions,
+				),
+				element(
+					"h1",
+					{ class: "report-summary", tabindex: "-1" },
+					leadSentence(summary) || `${run.name} report`,
+				),
+				element("p", { class: "report-meta" }, meta),
+				chips,
+			),
+			outline,
+			element("div", { class: "report-body" }, empty, content),
+		),
+	);
+	actions.insertBefore(reportPageButton(view), openButton);
+	const center = $("center");
+	graphControl?.destroy();
+	graphControl = null;
+	center.replaceChildren(view);
+	view.scrollTop = scroll;
+	if (!old || old.dataset.run !== run.runId)
+		view.querySelector(".report-summary").focus({ preventScroll: true });
+	if (!run.reportAvailable) return;
+	api(`/api/runs/${encodeURIComponent(run.runId)}/report`)
+		.then((data) => {
+			if (generation !== reportGeneration || !view.isConnected) return;
+			content.replaceChildren();
+			loaded = data.text;
+			copyButton.disabled = false;
+			const found = renderReport(content, data.text);
+			const filters = findingFilters(content, found, empty);
+			if (filters) chips.replaceChildren(filters);
+			const nav = reportOutline(content, view);
+			if (nav) outline.replaceWith(nav);
+			view.scrollTop = scroll;
+			if (data.truncated)
+				content.append(
+					element("p", { class: "muted" }, "Report truncated by the host."),
+				);
+		})
+		.catch((error) => {
+			if (generation === reportGeneration)
+				content.textContent = `Report unavailable: ${error.message}`;
+		});
 }
 function openStatusKey() {
 	openDialog("key", [

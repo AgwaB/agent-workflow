@@ -260,7 +260,8 @@ export async function createBrowser(
 		await waitFor(
 			() =>
 				document.readyState === "complete" &&
-				!!document.querySelector("#task-count"),
+				// A run, or the report page (2026-11-12): both are a finished first drawing.
+				!!document.querySelector("#task-count, #report-view"),
 		);
 	};
 	// Two frames, then any layout transition (a panel opening or closing moves what is clicked)

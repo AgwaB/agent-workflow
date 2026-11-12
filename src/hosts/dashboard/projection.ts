@@ -40,12 +40,28 @@ export interface DashboardRunSummary {
 	taskSummary: RunSummary["taskSummary"];
 	/** Agent tasks only (no foreach placeholders or support helpers): what the header counts. */
 	agentSummary?: { completed: number; total: number };
+	/**
+	 * 2026-11-12 (owner): what the run cost and how many of its agents reported it. Code steps never
+	 * report cost, so only agent tasks count in the ratio; `costUsd` is null when nothing reported
+	 * (unknown, never zero).
+	 */
+	cost?: DashboardRunCost;
+	/**
+	 * 2026-11-12 (owner): active time, the union of the run's task intervals (started → completed,
+	 * or until now for a running task), not wall clock: a run that sat waiting does not count it.
+	 */
+	activeMs?: number;
 	verdict?: string;
 	/** The run's only failure is the final verdict gate (the report is the outcome). */
 	verdictGate?: true;
 	reportAvailable: boolean;
 	needsYou: DashboardNeed[];
 	live: boolean;
+}
+export interface DashboardRunCost {
+	costUsd: number | null;
+	agentsReporting: number;
+	agentTotal: number;
 }
 export interface DashboardUsage {
 	input?: number;
@@ -148,10 +164,53 @@ function taskPreview(task: string | undefined): string | undefined {
 		? `${line.slice(0, TASK_PREVIEW_CHARS - 1).trimEnd()}…`
 		: line;
 }
+/** The union of task intervals in milliseconds: overlapping tasks count once, gaps not at all. */
+export function activeTimeMs(
+	tasks: ReadonlyArray<{
+		status: string;
+		startedAt?: string;
+		completedAt?: string;
+		elapsedMs?: number;
+	}>,
+	now: number,
+): number {
+	const spans: Array<[number, number]> = [];
+	for (const task of tasks) {
+		// A launch claim can stamp a start on a task still waiting: it has not run yet.
+		if (task.status === "pending") continue;
+		const start = Date.parse(task.startedAt ?? "");
+		if (!Number.isFinite(start)) continue;
+		const done = Date.parse(task.completedAt ?? "");
+		const end = Number.isFinite(done)
+			? done
+			: task.status === "running"
+				? now
+				: typeof task.elapsedMs === "number"
+					? start + task.elapsedMs
+					: Number.NaN;
+		if (Number.isFinite(end) && end > start) spans.push([start, end]);
+	}
+	spans.sort((a, b) => a[0] - b[0]);
+	let total = 0;
+	let reach = Number.NEGATIVE_INFINITY;
+	for (const [start, end] of spans) {
+		if (end <= reach) continue;
+		total += end - Math.max(start, reach);
+		reach = end;
+	}
+	return total;
+}
+function taskCost(task: {
+	usage?: WorkflowTaskUsageValues & { aggregate?: WorkflowTaskUsageValues };
+}): number | undefined {
+	const value = task.usage?.aggregate ?? task.usage;
+	return typeof value?.costUsd === "number" ? value.costUsd : undefined;
+}
 export function projectRunSummary(
 	run: RunSummary | DashboardStatusRun,
 	shown?: DashboardShownRun,
 	live = "live" in run && run.live === true,
+	now = Date.now(),
 ): DashboardRunSummary {
 	const detail = "tasks" in run ? run : undefined;
 	const executors = [
@@ -178,6 +237,24 @@ export function projectRunSummary(
 			),
 	);
 	const preview = taskPreview(shown?.runtimeTask);
+	const taskCosts = (shown?.run.tasks ?? []).flatMap((task) => {
+		const value = taskCost(task);
+		return value === undefined ? [] : [value];
+	});
+	const rolledUp = shown?.run.usage?.costUsd;
+	const cost: DashboardRunCost | undefined = shown
+		? {
+				costUsd:
+					typeof rolledUp === "number"
+						? rolledUp
+						: taskCosts.length
+							? taskCosts.reduce((a, b) => a + b, 0)
+							: null,
+				agentsReporting: agents.filter((task) => taskCost(task) !== undefined)
+					.length,
+				agentTotal: agents.length,
+			}
+		: undefined;
 	const blockedActions = shown
 		? runBlockedActions(shown.run)
 		: projectBlockedActions(run.blockedActions);
@@ -207,6 +284,7 @@ export function projectRunSummary(
 					},
 				}
 			: {}),
+		...(cost ? { cost, activeMs: activeTimeMs(shown!.run.tasks, now) } : {}),
 		...(detail?.verdict ? { verdict: detail.verdict } : {}),
 		...(detail?.verdictGate ? { verdictGate: true as const } : {}),
 		reportAvailable: Boolean(detail?.reportArtifacts.length),

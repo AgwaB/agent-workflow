@@ -456,12 +456,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	);
 	assert.equal(fixture.mutations.at(-1).action, "resume");
 
-	await open(`run=${complete}&view=report`);
-	await browser.waitFor(() =>
-		document
-			.querySelector("#report-content")
-			?.textContent.includes("Review report"),
-	);
+	await open(`run=${complete}`);
 	// Finished paths stay visible and static: no perpetual decorative glints or packets.
 	assert.deepEqual(
 		await browser.evaluate(() => ({
@@ -469,6 +464,22 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 			packets: document.querySelectorAll(".handoff-packet,.pulse").length,
 		})),
 		{ done: true, packets: 0 },
+	);
+	// 2026-11-12 (owner): "Open report" leads to the report page (its own URL), not a modal.
+	await browser.evaluate(() =>
+		[...document.querySelectorAll("#run-header button")]
+			.find((button) => button.textContent === "Open report")
+			.click(),
+	);
+	await browser.waitFor(() => document.querySelector("#report-content"));
+	assert.deepEqual(
+		[...(await route(browser)), await text("dialog[open]")],
+		[complete, "report", undefined],
+	);
+	await browser.waitFor(() =>
+		document
+			.querySelector("#report-content")
+			?.textContent.includes("Review report"),
 	);
 
 	assert.equal(
@@ -533,9 +544,17 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 			json: "Ship it — owner: release; blocking: true",
 		},
 	);
-	assert.equal(
-		await browser.evaluate(() => document.querySelector(".report-toc")),
-		null,
+	// The outline lists the report's own headings (## and ###), the first one current.
+	assert.deepEqual(
+		await browser.evaluate(() =>
+			[...document.querySelectorAll(".report-outline .outline-link")].map(
+				(link) => [link.textContent, link.className],
+			),
+		),
+		[
+			["Main findings", "outline-link level-0 current"],
+			["1. Retries are bounded", "outline-link level-1"],
+		],
 	);
 	// 2026-11-03 reading aids (owner's design rules: no filled cards, no tinted chips, status as
 	// glyph + word): a finding is a section with a hanging number, field labels are quiet, evidence
@@ -581,7 +600,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	// The page colour is chosen in the report and kept in this browser.
 	const page = () =>
 		browser.evaluate(() => [
-			document.querySelector("dialog").dataset.page ?? null,
+			document.querySelector("#report-view").dataset.page ?? null,
 			document.querySelector(".report-page")?.textContent,
 		]);
 	const [initialPage] = await page();
@@ -592,7 +611,6 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		chosen,
 		chosen === "light" ? "Dark page" : "Light page",
 	]);
-	await browser.key("Escape");
 	await open(`run=${complete}&view=report`);
 	await browser.waitFor(() =>
 		document
@@ -603,7 +621,6 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	await browser.evaluate(() =>
 		localStorage.removeItem("agent-workflow:report-page"),
 	);
-	await browser.key("Escape");
 
 	// 2026-11-03: a finished task opens on its Result: digest, analysis as text-only Markdown,
 	// references as text (no links), the control JSON folded away.
@@ -1623,21 +1640,23 @@ test("dashboard Chrome: the rail steps aside for the inspector on narrower scree
 		390,
 		844,
 	);
-	await browser.waitFor(() => document.querySelector(".report-toc"));
+	await browser.waitFor(() => document.querySelector(".report-outline"));
 	const contents = () =>
 		browser.evaluate(() => ({
 			expanded: document
-				.querySelector(".toc-toggle")
+				.querySelector(".outline-toggle")
 				.getAttribute("aria-expanded"),
-			entries: [...document.querySelectorAll(".toc-entry")].filter(
+			entries: [...document.querySelectorAll(".outline-link")].filter(
 				(entry) => entry.getClientRects().length,
 			).length,
 		}));
 	assert.deepEqual(await contents(), { expanded: "false", entries: 0 });
-	await browser.evaluate(() => document.querySelector(".toc-toggle").click());
+	await browser.evaluate(() =>
+		document.querySelector(".outline-toggle").click(),
+	);
 	assert.deepEqual(await contents(), { expanded: "true", entries: 3 });
 	await browser.evaluate(() =>
-		document.querySelectorAll(".toc-entry")[1].click(),
+		document.querySelectorAll(".outline-link")[1].click(),
 	);
 	assert.deepEqual(await contents(), { expanded: "false", entries: 0 });
 });
@@ -2096,4 +2115,498 @@ test("the dashboard's effort choices are the engine's effort vocabulary", async 
 		[...listed.matchAll(/"([^"]+)"/g)].map((match) => match[1]),
 		[...EFFORT_LEVELS],
 	);
+});
+
+// 2026-11-12 (owner): the report is a page with its own URL, an outline, and — for a deep-review
+// style report — finding cards with filter chips. Everything shown comes from the report text.
+/** The run and view in the address bar (other query parts, like the project, are not under test). */
+const route = (browser) =>
+	browser.evaluate(() => {
+		const params = new URL(location.href).searchParams;
+		return [params.get("run"), params.get("view")];
+	});
+// The renderer ends these field lines with a Markdown hard break ("  "); the fixture file is kept
+// free of trailing whitespace (the diff check), so the breaks are put back here.
+const deepReport = (
+	await readFile(
+		new URL("../fixtures/dashboard/report-deep-review.md", import.meta.url),
+		"utf8",
+	)
+).replace(/^((?:Severity|Root cause|Verifier verdict): .*)$/gm, "$1  ");
+/** Share of text at 14px or more outside the rail, and the smallest size (the guard of the first test). */
+const measureTypography = (browser) =>
+	browser.evaluate(() => {
+		const walker = document.createTreeWalker(
+			document.querySelector("#app"),
+			NodeFilter.SHOW_TEXT,
+		);
+		let node,
+			total = 0,
+			large = 0,
+			smallest = Infinity;
+		while ((node = walker.nextNode())) {
+			if (
+				!node.textContent.trim() ||
+				node.parentElement.closest("title,script,style")
+			)
+				continue;
+			const range = document.createRange();
+			range.selectNode(node);
+			const rect = range.getBoundingClientRect();
+			// What is drawn in the window now (a folded <details> and the page below are not).
+			if (
+				!rect.width ||
+				!rect.height ||
+				rect.bottom < 0 ||
+				rect.top > innerHeight ||
+				rect.right < 0 ||
+				rect.left > innerWidth ||
+				!node.parentElement.checkVisibility()
+			)
+				continue;
+			const size = parseFloat(getComputedStyle(node.parentElement).fontSize);
+			smallest = Math.min(smallest, size);
+			if (node.parentElement.closest(".rail")) continue;
+			total++;
+			if (size >= 13.99) large++;
+		}
+		return { total, large, smallest };
+	});
+test("dashboard Chrome: a deep-review report is a page with a verdict header, an outline, finding cards and filters", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	fixture.reports.set(complete, deepReport);
+	Object.assign(fixture.runs.get(complete), {
+		summary:
+			"The working-tree changes should not go into a PR yet. Three high findings were kept.",
+		agentSummary: { completed: 8, total: 8 },
+		cost: { costUsd: 0.282, agentsReporting: 8, agentTotal: 8 },
+		activeMs: 97_000,
+	});
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	const text = (selector) =>
+		browser.evaluate(
+			(selector) => document.querySelector(selector)?.textContent,
+			selector,
+		);
+	const copied = () => browser.evaluate(() => globalThis.copiedText);
+	await browser.open(`${fixture.origin}/?run=${complete}&view=report`);
+	await browser.waitFor(
+		() => document.querySelectorAll(".finding-card").length,
+	);
+	await browser.evaluate(() => {
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: {
+				writeText: async (value) => {
+					globalThis.copiedText = value;
+				},
+			},
+		});
+	});
+	// Header: verdict badge (icon + word), the result card's sentence, the meta line, the actions.
+	const header = await browser.evaluate(() => ({
+		badge: document.querySelector(".result-badge").textContent,
+		icon: !!document.querySelector(".result-badge .glyph svg"),
+		summary: document.querySelector(".report-summary").textContent,
+		meta: [...document.querySelectorAll(".report-meta > span")].map(
+			(span) => span.textContent,
+		),
+		costTitle: document.querySelector(".report-cost").title,
+		actions: [...document.querySelectorAll(".report-title-row button")].map(
+			(button) => button.textContent,
+		),
+		dialog: document.querySelector("dialog").open,
+	}));
+	assert.match(header.meta[1], /^Finished \d+[mhd] ago$|^Finished just now$/);
+	header.meta[1] = "Finished";
+	assert.deepEqual(header, {
+		badge: "Needs work",
+		icon: true,
+		summary:
+			"The working-tree changes should not go into a PR yet. Three high findings were kept.",
+		meta: [
+			"deep-review",
+			"Finished",
+			"1m 37s active",
+			"8 of 8 agents",
+			"$0.28 · 8 of 8 agents reported",
+		],
+		costTitle: "8 of 8 agents reported cost",
+		actions: ["Copy as Markdown", "Light page", "Open run"],
+		dialog: false,
+	});
+	// Finding cards: a severity chip and a separate verifier pill, location chips from the Locations
+	// table. The report states "WEAKEN" for one finding and says nothing about a changed severity,
+	// so the card shows "High" and "Weakened" only.
+	const cards = await browser.evaluate(() =>
+		[...document.querySelectorAll(".finding-card")].map((card) => ({
+			id: card.querySelector(".finding-id").textContent,
+			title: card.querySelector(".finding-title").textContent,
+			severity: card.querySelector(".severity-chip").textContent,
+			verifier: card.querySelector(".verifier-pill")?.textContent,
+			locations: [...card.querySelectorAll(".location-chip")].map(
+				(chip) => chip.textContent,
+			),
+			folds: [...card.querySelectorAll("details > summary")].map(
+				(summary) => summary.textContent,
+			),
+			parts: [...card.querySelectorAll(".part-label")].map(
+				(label) => label.textContent,
+			),
+			open: card.querySelectorAll("details[open]").length,
+		})),
+	);
+	assert.deepEqual(
+		cards.map(({ id, severity, verifier }) => [id, severity, verifier]),
+		[
+			["finding-001", "High", "Kept"],
+			["finding-002", "High", "Kept"],
+			["finding-003", "High", "Weakened"],
+			["finding-004", "High", "Kept"],
+		],
+	);
+	assert.equal(
+		cards[0].title,
+		"graceMs makes expired entries live ttlMs+graceMs; the existing TTL test fails and nothing refreshes stale entries",
+	);
+	assert.deepEqual(cards[0].locations, [
+		"src/cache.js:14 · Cache.get",
+		"src/cache.js:3 · Cache constructor graceMs default",
+		"src/server.js:10-13 · /users handler",
+		"test/cache.test.js:10-11 · entries expire after their TTL",
+	]);
+	// A location with no symbol shows just file and line.
+	assert.deepEqual(cards[1].locations, [
+		"src/server.js:9 · createServer handler",
+		"docs/API_SPEC.md:6",
+	]);
+	assert.deepEqual(cards[0].parts, ["Rationale", "Recommended action"]);
+	assert.deepEqual(cards[0].folds, [
+		"Reviewer/source evidence (5)",
+		"Verifier evidence (6)",
+		"Caveat / counter-evidence (4)",
+	]);
+	assert.equal(cards[0].open, 0, "evidence is folded until asked for");
+	assert.doesNotMatch(
+		await browser.evaluate(() =>
+			[...document.querySelectorAll(".finding-head")]
+				.map((head) => head.textContent)
+				.join(" "),
+		),
+		/→|downgraded|medium/i,
+	);
+	// Count chips are filters: severity, then verifier verdicts; kept + weakened add up.
+	const chips = () =>
+		browser.evaluate(() =>
+			[...document.querySelectorAll(".filter-chip")].map(
+				(chip) => `${chip.textContent}:${chip.getAttribute("aria-pressed")}`,
+			),
+		);
+	const visible = () =>
+		browser.evaluate(() =>
+			[...document.querySelectorAll(".finding-card")]
+				.filter((card) => !card.hidden)
+				.map((card) => card.getAttribute("aria-label")),
+		);
+	assert.deepEqual(await chips(), [
+		"4 high:false",
+		"3 kept:false",
+		"1 weakened:false",
+	]);
+	await browser.click('[data-filter-value="weakened"]');
+	assert.deepEqual(await visible(), ["finding-003"]);
+	// A filtered-out card leaves the outline too.
+	assert.deepEqual(
+		await browser.evaluate(() =>
+			[...document.querySelectorAll(".outline-link")]
+				.filter(
+					(link) => !link.hidden && link.textContent.startsWith("finding-"),
+				)
+				.map((link) => link.textContent),
+		),
+		["finding-003"],
+	);
+	assert.equal(
+		await browser.evaluate(() =>
+			document
+				.querySelector(".filter-chip[data-filter-value=weakened]")
+				.getAttribute("aria-pressed"),
+		),
+		"true",
+	);
+	await browser.click('[data-filter-value="kept"]');
+	assert.deepEqual(await visible(), [
+		"finding-001",
+		"finding-002",
+		"finding-004",
+	]);
+	await browser.click('[data-filter-value="kept"]');
+	assert.equal((await visible()).length, 4);
+	// The sticky outline: the report's own ## and ### headings, findings by id; reading highlights.
+	const outline = await browser.evaluate(() =>
+		[...document.querySelectorAll(".outline-link")].map(
+			(link) =>
+				`${link.classList.contains("level-1") ? "  " : ""}${link.textContent}`,
+		),
+	);
+	assert.deepEqual(outline.slice(0, 9), [
+		"Executive summary",
+		"  Core conclusion",
+		"  Key findings",
+		"  Evidence level",
+		"  Important limitations",
+		"Finding summary",
+		"Synthesis narrative",
+		"Risks and partial-review limitations",
+		"High findings",
+	]);
+	assert.deepEqual(outline.slice(9, 13), [
+		"  finding-001",
+		"  finding-002",
+		"  finding-003",
+		"  finding-004",
+	]);
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				getComputedStyle(document.querySelector(".report-outline")).position,
+		),
+		"sticky",
+	);
+	assert.equal(
+		await text(".outline-link.current"),
+		"Executive summary",
+		"the first section is current at the top",
+	);
+	await browser.evaluate(() =>
+		[...document.querySelectorAll(".outline-link")]
+			.find((link) => link.textContent === "  finding-003".trim())
+			.click(),
+	);
+	await browser.waitFor(
+		() =>
+			document.querySelector(".outline-link.current")?.textContent ===
+			"finding-003",
+	);
+	// The page scrolls to it (smoothly), and the highlight stays on it when the scroll settles.
+	await browser.waitFor(
+		() => document.querySelector("#report-view").scrollTop > 400,
+	);
+	await browser.waitFor(
+		() =>
+			new Promise((resolve) => {
+				const view = document.querySelector("#report-view");
+				const before = view.scrollTop;
+				setTimeout(() => resolve(view.scrollTop === before), 250);
+			}),
+	);
+	assert.equal(await text(".outline-link.current"), "finding-003");
+	// Copy fix prompt: that finding's own Markdown, nothing from its neighbours.
+	await browser.click('[data-copy-finding="finding-003"]');
+	const fix = await copied();
+	assert.match(fix, /^### finding-003 — Unknown user never yields 404\n/);
+	assert.match(fix, /Verifier verdict: \*\*WEAKEN\*\*/);
+	assert.match(fix, /Recommended action:/);
+	assert.doesNotMatch(fix, /finding-00[124]/);
+	assert.equal(await text("#notice"), "Copied", "the copy says so");
+	// Copy as Markdown: the whole report, as written.
+	await browser.evaluate(() => {
+		globalThis.copiedText = "";
+	});
+	await browser.click(".copy-report");
+	assert.equal(await copied(), deepReport);
+	// No inline styles (the CSP forbids them), no links or images from the report.
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			styled: document.querySelectorAll("#report-view [style]").length,
+			links: document.querySelectorAll("#report-content a, #report-content img")
+				.length,
+		})),
+		{ styled: 0, links: 0 },
+	);
+	const typography = await measureTypography(browser);
+	assert.ok(
+		typography.smallest >= 12 && typography.large / typography.total >= 0.6,
+		JSON.stringify(typography),
+	);
+	// Open run leads back to the run; the back button returns to the report, forward to the run.
+	await browser.click('[data-action="open-run"]');
+	await browser.waitFor(() => document.querySelector("#task-count"));
+	assert.deepEqual(await route(browser), [complete, null]);
+	await browser.evaluate(() => history.back());
+	await browser.waitFor(() => document.querySelector(".finding-card"));
+	assert.deepEqual(await route(browser), [complete, "report"]);
+	await browser.evaluate(() => history.forward());
+	await browser.waitFor(() => document.querySelector("#task-count"));
+	assert.deepEqual(await route(browser), [complete, null]);
+	// "Open report" pushes the page again; back leaves it.
+	await browser.evaluate(() =>
+		[...document.querySelectorAll("#run-header button")]
+			.find((button) => button.textContent === "Open report")
+			.click(),
+	);
+	await browser.waitFor(() => document.querySelector(".finding-card"));
+	await browser.evaluate(() => history.back());
+	await browser.waitFor(() => document.querySelector("#task-count"));
+	assert.deepEqual(await route(browser), [complete, null]);
+});
+
+test("dashboard Chrome: a report without the deep-review structure stays plain Markdown", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	// A medium finding after a high one: filtering by severity hides the heading of an empty section.
+	const card = (id, severity, verdict) =>
+		`### ${id} — Title of ${id}\n\nSeverity: **${severity}**  \n${verdict ? `Verifier verdict: **${verdict}**  \n` : ""}\nLocations:\n\n| File | Line | Symbol |\n|---|---:|---|\n| \`a.js\` | 1 | — |\n\nRationale:\n\nBecause.\n`;
+	await browser.open(`${fixture.origin}/?run=${complete}&view=report`);
+	await browser.waitFor(() => document.querySelector("#report-content .md-h1"));
+	// The default fixture report has no finding sections: no cards, no chips, the outline still works.
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			cards: document.querySelectorAll(".finding-card").length,
+			chips: document.querySelectorAll(".filter-chip").length,
+			outline: [...document.querySelectorAll(".outline-link")].map(
+				(link) => link.textContent,
+			),
+			blocks: document.querySelectorAll(".md-block").length,
+			title: document.querySelector(".report-summary").textContent,
+			badge: document.querySelector(".result-badge").textContent,
+		})),
+		{
+			cards: 0,
+			chips: 0,
+			outline: ["Main findings", "1. Retries are bounded"],
+			blocks: 1,
+			// The fixture run has no summary sentence: the title says what this is, nothing more.
+			title: "deep-review report",
+			badge: "Needs work",
+		},
+	);
+	// A "finding" without Severity / Verifier lines in a report that never says "kept or weakened"
+	// gets a card without a verifier pill: nothing is assumed.
+	fixture.reports.set(
+		complete,
+		`# Findings\n\n## High findings\n\n${card("finding-001", "high")}\n## Medium findings\n\n${card("finding-002", "medium", "NEEDS\\_HUMAN")}\n## Gaps\n\n### finding-003 — Written as bullets\n\n- Disposition: **Keep**\n- Severity: **High**\n`,
+	);
+	await browser.open(`${fixture.origin}/?run=${complete}&view=report`);
+	await browser.waitFor(
+		() => document.querySelectorAll(".finding-card").length === 2,
+	);
+	// Another workflow's "### finding-003 — …" with bullet fields has no Severity line: no card.
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			cards: document.querySelectorAll(".finding-card").length,
+			plain: [...document.querySelectorAll("#report-content .md-h3")]
+				.filter((heading) => !heading.closest(".finding-card"))
+				.map((heading) => heading.textContent),
+			chips: [...document.querySelectorAll(".filter-chip")].map(
+				(chip) => chip.textContent,
+			),
+		})),
+		{
+			cards: 2,
+			plain: ["finding-003 — Written as bullets"],
+			chips: ["1 high", "1 medium", "1 needs human"],
+		},
+	);
+	assert.deepEqual(
+		await browser.evaluate(() =>
+			[...document.querySelectorAll(".finding-card")].map((item) => [
+				item.querySelector(".severity-chip").textContent,
+				item.querySelector(".verifier-pill")?.textContent ?? null,
+			]),
+		),
+		[
+			["High", null],
+			["Medium", "Needs human"],
+		],
+	);
+	await browser.click('[data-filter-value="medium"]');
+	assert.deepEqual(
+		await browser.evaluate(() =>
+			[...document.querySelectorAll("#report-content .md-h2")].map(
+				(heading) => [heading.textContent, heading.hidden],
+			),
+		),
+		[
+			["High findings", true],
+			["Medium findings", false],
+			// A section with plain content next to cards is never hidden.
+			["Gaps", false],
+		],
+	);
+	await browser.click('[data-filter-value="needs-human"]');
+	await browser.click('[data-filter-value="high"]');
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector(".filter-empty").hidden,
+		),
+		false,
+		"filters that match nothing say so",
+	);
+	// A run without a report says so and still has its way back.
+	await browser.open(`${fixture.origin}/?run=${running}&view=report`);
+	await browser.waitFor(() => document.querySelector("#report-content"));
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector("#report-content").textContent,
+		),
+		"This run has no report.",
+	);
+	await browser.click('[data-action="open-run"]');
+	await browser.waitFor(() => document.querySelector("#task-count"));
+	assert.deepEqual(await route(browser), [running, null]);
+});
+
+test("dashboard Chrome: the report page on a phone has no horizontal overflow and a folded outline", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	fixture.reports.set(complete, deepReport);
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	for (const [width, height] of [
+		[390, 844],
+		[1440, 900],
+	]) {
+		await browser.open(
+			`${fixture.origin}/?run=${complete}&view=report`,
+			width,
+			height,
+		);
+		await browser.waitFor(() => document.querySelector(".finding-card"));
+		await browser.evaluate(() =>
+			document.querySelector(".finding-fold").setAttribute("open", ""),
+		);
+		assert.deepEqual(
+			await browser.evaluate(() => ({
+				page: document.documentElement.scrollWidth <= innerWidth,
+				view:
+					document.querySelector("#report-view").scrollWidth <=
+					document.querySelector("#report-view").clientWidth,
+				cards: [...document.querySelectorAll(".finding-card")].every(
+					(card) => card.getBoundingClientRect().right <= innerWidth,
+				),
+			})),
+			{ page: true, view: true, cards: true },
+			`${width}px`,
+		);
+	}
 });

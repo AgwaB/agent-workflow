@@ -1619,9 +1619,6 @@ dialog footer .muted {
 	color: var(--text);
 	background: var(--selected);
 }
-.report {
-	width: min(880px, calc(100vw - 32px));
-}
 /*
  * Report reading (2026-11-03). Owner's rules from the dashboard briefs (F5, DIRECTIONS; "AI slop"
  * review): neutral surfaces, no filled cards or boxes in boxes, hairlines and space instead of
@@ -1629,24 +1626,6 @@ dialog footer .muted {
  * decision), no tinted chips, body 15 px+, nothing under 12 px, tabular numbers. Reference: the
  * "Ledger"/"Editorial" directions (Linear issue view, a printed report).
  */
-/* Report page colour chosen in the report (else the dashboard theme). */
-dialog.report[data-page="light"] {
-	color-scheme: light;
-}
-dialog.report[data-page="dark"] {
-	color-scheme: dark;
-}
-/* The report's footer stays in view while reading; the page button sits on the left. */
-dialog.report footer {
-	position: sticky;
-	bottom: -24px;
-	margin: 16px -24px -24px;
-	padding: 12px 24px;
-	background: var(--overlay);
-}
-dialog.report footer .report-page {
-	margin-right: auto;
-}
 .report-content {
 	overflow-wrap: anywhere;
 	/* Korean wraps between words, not inside them. */
@@ -1663,7 +1642,7 @@ dialog.report footer .report-page {
 	max-width: 70ch;
 }
 /* Rendered Markdown (report and task result): heading sizes by Markdown level, quiet addresses. */
-.report-content :is(h3, h4, h5, h6) {
+.report-content :is(h2, h3, h4, h5, h6) {
 	margin: 24px 0 8px;
 	line-height: 1.4;
 	letter-spacing: -0.01em;
@@ -1914,38 +1893,6 @@ dialog.report footer .report-page {
 .report-content .md-block > :first-child {
 	margin-top: 16px;
 }
-.report-toc {
-	position: sticky;
-	top: -24px;
-	z-index: 1;
-	background: var(--overlay);
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 4px 14px;
-	padding: 10px 0 12px;
-	margin-bottom: 8px;
-	border-bottom: 1px solid var(--line);
-	font-size: 14px;
-}
-.report-toc > span {
-	color: var(--faint);
-}
-.report-toc .toc-toggle {
-	display: none;
-}
-.report-toc button {
-	min-height: 0;
-	font-weight: inherit;
-	border: 0;
-	padding: 0;
-	color: var(--muted);
-}
-.report-toc button:hover {
-	color: var(--text);
-	text-decoration: underline;
-	text-underline-offset: 3px;
-}
 #notice {
 	position: fixed;
 	bottom: 24px;
@@ -2074,28 +2021,6 @@ dialog.report footer .report-page {
 	}
 	.more.bottom {
 		bottom: 76px;
-	}
-	.report-toc .toc-label {
-		display: none;
-	}
-	.report-toc .toc-toggle {
-		display: inline-flex;
-		border: 0;
-		padding: 0;
-		color: var(--muted);
-	}
-	.report-toc .toc-toggle::after {
-		content: " ▾";
-	}
-	.report-toc.open .toc-toggle::after {
-		content: " ▴";
-	}
-	.report-toc:not(.open) .toc-entry {
-		display: none;
-	}
-	.report-toc.open {
-		flex-direction: column;
-		align-items: flex-start;
 	}
 	.inspector,
 	.inspector[hidden] {
@@ -3050,5 +2975,379 @@ button.danger:hover:not(:disabled) {
 	}
 	.tl-axis text:nth-child(even) {
 		display: none;
+	}
+}
+
+/*
+ * The report page (2026-11-12, owner): the report is a page, not a modal. A verdict header, a
+ * sticky outline of the report's own headings, finding cards when the report has them, and the
+ * Markdown at reading size. Colour only where it changes a decision, as everywhere else.
+ */
+.report-view {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	padding: 24px 28px 64px;
+	background: var(--bg);
+	color: var(--text);
+}
+.report-view[data-page="light"] {
+	color-scheme: light;
+}
+.report-view[data-page="dark"] {
+	color-scheme: dark;
+}
+.report-view [hidden] {
+	display: none !important;
+}
+.report-layout {
+	display: grid;
+	grid-template-columns: 200px minmax(0, 1fr);
+	grid-template-areas:
+		"outline head"
+		"outline body";
+	column-gap: 40px;
+	align-items: start;
+	max-width: 1120px;
+	margin: 0 auto;
+}
+.report-head {
+	grid-area: head;
+	min-width: 0;
+}
+.outline-slot,
+.report-outline {
+	grid-area: outline;
+}
+.report-body {
+	grid-area: body;
+	min-width: 0;
+}
+.report-title-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+.report-title-row .actions {
+	margin-left: auto;
+}
+.result-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: var(--control);
+	padding: 0 12px 0 6px;
+	border: 1px solid var(--line2);
+	border-radius: var(--radius);
+	font-size: 15px;
+}
+.result-badge strong {
+	font-weight: 600;
+}
+.result-badge:is(.attention, .blocked) {
+	background: var(--warn-tint);
+	border-color: transparent;
+	color: var(--warn-on-tint);
+}
+.result-badge.failed {
+	background: color-mix(in srgb, var(--err) 13%, transparent);
+	border-color: transparent;
+	color: var(--err);
+}
+.result-badge.completed {
+	background: color-mix(in srgb, var(--accent) 13%, transparent);
+	border-color: transparent;
+	color: var(--accent);
+}
+.report-summary {
+	margin: 16px 0 6px;
+	font-size: 22px;
+	line-height: 1.4;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	max-width: 46em;
+	overflow-wrap: anywhere;
+}
+.report-summary:focus {
+	outline: none;
+}
+.report-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px 16px;
+	margin: 0;
+	color: var(--muted);
+	font-size: 14px;
+}
+.filter-chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 16px 0 4px;
+}
+.chip-label {
+	font-size: 12px;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+.chip-label:not(:first-child) {
+	margin-left: 10px;
+}
+.filter-chip {
+	min-height: var(--control-sm);
+	padding: 0 12px;
+	border-radius: 999px;
+	font-size: 13px;
+	font-weight: 400;
+}
+.filter-chip[aria-pressed="true"] {
+	background: var(--selected);
+	border-color: var(--faint);
+}
+.report-outline {
+	position: sticky;
+	top: 0;
+	max-height: calc(100dvh - 96px);
+	overflow-y: auto;
+	font-size: 14px;
+}
+.outline-toggle {
+	display: none;
+}
+.outline-links {
+	display: grid;
+	border-left: 1px solid var(--line);
+}
+.outline-link {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 28px;
+	padding: 3px 8px 3px 12px;
+	margin-left: -1px;
+	border-left: 2px solid transparent;
+	color: var(--muted);
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+	text-decoration: none;
+}
+.outline-link:hover {
+	color: var(--text);
+}
+.outline-link.current {
+	border-left-color: var(--text);
+	color: var(--text);
+	font-weight: 500;
+}
+.outline-link.level-1 {
+	padding-left: 24px;
+}
+.outline-dot {
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--faint);
+}
+.outline-dot:is(.high, .critical) {
+	background: var(--err);
+}
+.outline-dot.medium {
+	background: var(--warn);
+}
+.report-view .report-content {
+	padding-top: 8px;
+	font-size: 16px;
+	line-height: 1.7;
+}
+.report-view .report-content > :first-child {
+	margin-top: 0;
+}
+.report-view .report-content .md-h2 {
+	margin-top: 36px;
+}
+.filter-empty {
+	margin: 16px 0 0;
+}
+.finding-card {
+	margin: 16px 0;
+	padding: 16px 18px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	background: var(--surface);
+	max-width: 78ch;
+}
+.finding-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+.finding-id {
+	margin-left: auto;
+	font: 12px var(--mono);
+	color: var(--faint);
+}
+.severity-chip,
+.verifier-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	min-height: 26px;
+	padding: 0 9px 0 4px;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1;
+}
+.severity-chip {
+	border: 1px solid var(--line2);
+	color: var(--muted);
+}
+.severity-chip:is(.high, .critical) {
+	background: color-mix(in srgb, var(--err) 13%, transparent);
+	border-color: transparent;
+	color: var(--err);
+}
+.severity-chip.medium {
+	background: var(--warn-tint);
+	border-color: transparent;
+	color: var(--warn-on-tint);
+}
+.verifier-pill {
+	border: 1px solid var(--line2);
+	color: var(--muted);
+}
+.verifier-pill:is(.weakened, .needs-human) {
+	border-color: var(--warn);
+	color: var(--warn-on-tint);
+}
+.report-content .finding-card .finding-title {
+	margin: 12px 0 8px;
+	padding: 0;
+	border: 0;
+	font-size: 18px;
+	line-height: 1.4;
+	color: var(--text);
+}
+.finding-locations {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+.location-chip {
+	max-width: 100%;
+	padding: 2px 8px;
+	border: 1px solid var(--line2);
+	border-radius: 6px;
+	font: 12px var(--mono);
+	color: var(--muted);
+	overflow-wrap: anywhere;
+}
+.location-chip b {
+	font-weight: 400;
+	color: var(--text);
+}
+.finding-part {
+	margin-top: 14px;
+}
+.report-content .finding-card .part-label {
+	margin: 0 0 4px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--muted);
+}
+.finding-fold > summary {
+	display: flex;
+	align-items: center;
+	min-height: 28px;
+	cursor: pointer;
+	font-size: 14px;
+	color: var(--muted);
+}
+.finding-fold {
+	margin-top: 6px;
+}
+.finding-fold > summary {
+	list-style: none;
+	gap: 8px;
+}
+.finding-fold > summary::-webkit-details-marker {
+	display: none;
+}
+.finding-fold > summary::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-right: 1.5px solid currentColor;
+	border-bottom: 1.5px solid currentColor;
+	transform: rotate(-45deg);
+	transition: transform var(--t-fast) ease;
+}
+.finding-fold[open] > summary::before {
+	transform: rotate(45deg);
+}
+.finding-fold[open] > summary {
+	margin-bottom: 6px;
+}
+.finding-text > :first-child {
+	margin-top: 0;
+}
+.finding-text > :last-child {
+	margin-bottom: 0;
+}
+.finding-text :is(p, li) {
+	max-width: none;
+}
+.finding-foot {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 14px;
+	padding-top: 12px;
+	border-top: 1px solid var(--line);
+}
+@media (max-width: 900px) {
+	.report-view {
+		padding: 16px 16px 48px;
+	}
+	.report-layout {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas:
+			"head"
+			"outline"
+			"body";
+	}
+	.report-outline {
+		position: static;
+		max-height: none;
+		margin-top: 12px;
+		padding-bottom: 8px;
+		border-bottom: 1px solid var(--line);
+	}
+	.outline-toggle {
+		display: inline-flex;
+		border: 0;
+		padding: 0;
+		min-height: var(--control-sm);
+		color: var(--muted);
+	}
+	.outline-toggle::after {
+		content: " ▾";
+	}
+	.report-outline.open .outline-toggle::after {
+		content: " ▴";
+	}
+	.report-outline:not(.open) .outline-links {
+		display: none;
+	}
+	.report-title-row .actions {
+		margin-left: 0;
+	}
+	.report-summary {
+		font-size: 20px;
 	}
 }
