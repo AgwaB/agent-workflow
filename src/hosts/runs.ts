@@ -240,9 +240,16 @@ export async function statusAction(
 		? undefined
 		: await formatRunStatus(ctx.cwd, ref, hostCommandHints(ctx.host));
 	const run = await readRunRecord(ctx.cwd, ref);
+	const live =
+		run.status === "running"
+			? await isWorkflowRunLeaseLive(ctx.cwd, run.runId).catch(() => false)
+			: false;
 	const card =
 		refreshedCard ??
-		formatHumanRunStatus(run, { hints: hostCommandHints(ctx.host) });
+		formatHumanRunStatus(run, {
+			hints: hostCommandHints(ctx.host),
+			...(run.status === "running" ? { driverLive: live } : {}),
+		});
 	// WP18b: a terminal run shows its domain verdict and report; a verdict-gate run leads with
 	// "finished — verdict: X (report ready)".
 	const presentation = await terminalPresentation(
@@ -283,9 +290,7 @@ export async function statusAction(
 		{
 			run: {
 				...summarizeRun(run),
-				live:
-					run.status === "running" &&
-					(await isWorkflowRunLeaseLive(ctx.cwd, run.runId).catch(() => false)),
+				live,
 				...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
 				...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
 				reportArtifacts: presentation?.artifacts ?? [],

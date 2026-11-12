@@ -1466,6 +1466,7 @@ export async function withRunLease<T>(
 	cwd: string,
 	runId: string,
 	action: (abortSignal: AbortSignal) => Promise<T>,
+	options: { observer?: boolean } = {},
 ): Promise<T | undefined> {
 	assertSafeRunId(runId);
 	await ensureStateBase(cwd);
@@ -1522,6 +1523,9 @@ export async function withRunLease<T>(
 				progress?.lastTaskTransitionAt ?? carriedProgress.lastTaskTransitionAt;
 			const taskStatusCounts =
 				progress?.taskStatusCounts ?? carriedProgress.taskStatusCounts;
+			// An observer (a read-only refresh) keeps the lock alive but is not a driver: the last
+			// driver's heartbeat stays in supervisor.json, so a dead driver is not hidden by readers.
+			if (options.observer) return;
 			await assertLockOwner(lockFile, ownerId);
 			await writeJsonAtomic(
 				supervisorFile,

@@ -13,15 +13,27 @@ const DEFAULT_WAIT_TIMEOUT_MS = 60_000;
 const MAX_WAIT_TIMEOUT_MS = 14_400_000;
 export const POLL_INTERVAL_MS = 1_000;
 
+/**
+ * `observer`: a reader (`status`, `show`, `logs`) refreshes the run but is not its driver, so its
+ * lease leaves `supervisor.json` alone. Otherwise every read would stamp a fresh heartbeat and
+ * the pid of the reading process, and a run whose driver died would look driven for as long as
+ * something keeps reading it.
+ */
 export async function refreshRun(
 	cwd: string,
 	runIdOrPrefix: string,
+	options: { observer?: boolean } = {},
 ): Promise<WorkflowRunRecord> {
 	const current = await readRunRecord(cwd, runIdOrPrefix);
-	const refreshed = await withRunLease(cwd, current.runId, async () => {
-		const run = await readRunRecord(cwd, current.runId);
-		return workflowTaskRunner().refreshRun(cwd, run);
-	});
+	const refreshed = await withRunLease(
+		cwd,
+		current.runId,
+		async () => {
+			const run = await readRunRecord(cwd, current.runId);
+			return workflowTaskRunner().refreshRun(cwd, run);
+		},
+		options,
+	);
 	return refreshed ?? current;
 }
 
