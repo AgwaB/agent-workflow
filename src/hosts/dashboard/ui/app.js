@@ -4881,15 +4881,31 @@ function openPalette() {
 	});
 	let selected = 0,
 		matches = [];
+	// 2026-11-12 (QA): a run reads as its workflow and task (not a bare id), with its state and age;
+	// the task is searchable too. Names that start with the query come first, so "triage" + Enter
+	// still opens the triage stage.
 	const entries = [
-		...runs.map((r) => ({
-			text: `${r.name} · ${r.runId.slice(-6)}`,
-			choose: () => go({ run: r.runId, dialog: null, view: null }),
-		})),
+		...runs.map((r) => {
+			const [, word] = railStatus(r);
+			return {
+				group: "Runs",
+				label: r.name,
+				detail: r.taskPreview || r.runId,
+				meta: [word || labels[r.status] || r.status, ago(r.createdAt)]
+					.filter(Boolean)
+					.join(" · "),
+				search: `${r.name} ${r.taskPreview || ""} ${r.runId} ${r.status}`,
+				choose: () => go({ run: r.runId, dialog: null, view: null }),
+			};
+		}),
 		...[...(graphModel?.stages.values() || [])]
 			.filter((s) => !s.ghost)
 			.map((s) => ({
-				text: s.id,
+				group: "Stages in this run",
+				label: humanize(s.id),
+				detail: s.id,
+				meta: "",
+				search: `${s.id} ${humanize(s.id)}`,
 				choose: () => {
 					state.dialog = null;
 					chooseStage(s);
@@ -4897,14 +4913,47 @@ function openPalette() {
 			})),
 	];
 	function paint() {
-		matches = entries.filter((entry) =>
-			entry.text.toLowerCase().includes(input.value.toLowerCase()),
-		);
+		const query = input.value.trim().toLowerCase();
+		const rank = (entry) =>
+			!query ||
+			entry.label.toLowerCase().startsWith(query) ||
+			entry.detail.toLowerCase().startsWith(query)
+				? 0
+				: entry.label.toLowerCase().includes(query)
+					? 1
+					: 2;
+		matches = entries
+			.filter((entry) => entry.search.toLowerCase().includes(query))
+			.map((entry, order) => ({ entry, order }))
+			.sort((a, b) => rank(a.entry) - rank(b.entry) || a.order - b.order)
+			.map(({ entry }) => entry);
 		selected = Math.max(0, Math.min(selected, matches.length - 1));
-		list.replaceChildren(
-			...matches.map((entry, i) =>
+		list.replaceChildren();
+		let group = null;
+		matches.forEach((entry, i) => {
+			if (!query && entry.group !== group) {
+				group = entry.group;
+				list.append(
+					element(
+						"div",
+						{ class: "palette-group", role: "presentation" },
+						group,
+					),
+				);
+			}
+			list.append(
 				button(
-					entry.text,
+					[
+						element(
+							"span",
+							{ class: "palette-main" },
+							element("span", { class: "palette-label" }, entry.label),
+							element("span", { class: "palette-detail" }, entry.detail),
+						),
+						entry.meta
+							? element("span", { class: "palette-meta" }, entry.meta)
+							: null,
+					],
 					() => {
 						dismissDialog(false);
 						entry.choose();
@@ -4916,15 +4965,17 @@ function openPalette() {
 						tabindex: "-1",
 					},
 				),
-			),
-		);
+			);
+		});
 		if (!matches.length)
 			list.append(element("p", { class: "muted" }, "No matches"));
 		input.setAttribute(
 			"aria-activedescendant",
 			matches.length ? `palette-${selected}` : "",
 		);
-		list.children[selected]?.scrollIntoView({ block: "nearest" });
+		document
+			.getElementById(`palette-${selected}`)
+			?.scrollIntoView({ block: "nearest" });
 	}
 	input.addEventListener("input", () => {
 		selected = 0;
