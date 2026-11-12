@@ -15,6 +15,7 @@ import type {
 	ProfileRequest,
 	WorkflowPreferenceRequest,
 } from "../api.js";
+import { effortChoicesFor } from "../executor-models.js";
 import { isExecutorProfileName } from "../user-profiles.js";
 import type { PiHostApi } from "./host.js";
 
@@ -542,9 +543,22 @@ class Picker {
 					next.model = typed;
 				} else next.model = choice;
 			} else if (field.startsWith("Effort:")) {
-				const choice = await this.ui.select(`Effort for ${key}`, [
+				// 2026-11-12 (owner: effort by executor and model): the levels of this executor and
+				// model, as in the dashboard; a saved level they lack stays choosable to keep it.
+				const probe = (await this.models()).find(
+					(entry) => entry.id === executor,
+				);
+				const { levels, note } = effortChoicesFor(
+					probe,
+					next.model,
+					EFFORT_LEVELS,
+				);
+				const kept =
+					next.effort && !levels.includes(next.effort) ? [next.effort] : [];
+				const choice = await this.ui.select(`Effort for ${key}\n${note}`, [
 					DEFAULT_EFFORT,
-					...EFFORT_LEVELS,
+					...levels,
+					...kept,
 				]);
 				if (choice === undefined) continue;
 				if (choice === DEFAULT_EFFORT) delete next.effort;
