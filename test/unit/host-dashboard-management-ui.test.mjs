@@ -103,7 +103,7 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 				(node) => node.textContent,
 			),
 		),
-		["Runs", "Workflows", "Profiles", "Maintenance", "Executors"],
+		["Overview", "Runs", "Workflows", "Profiles", "Maintenance", "Executors"],
 	);
 	await clickText(browser, "ui-profile");
 	await browser.waitFor(
@@ -278,8 +278,27 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 			.querySelector("#center")
 			?.textContent.includes("Permission mode default"),
 	);
-	// Return to Runs through the same sidebar. Use its URL rather than the browser helper's run-only open().
+	// 2026-11-12: Overview is the first item and the project's landing page (no run, no view).
+	assert.deepEqual(
+		await browser.evaluate(() =>
+			[...document.querySelectorAll(".management-nav a")].map(
+				(link) => link.textContent,
+			),
+		),
+		["Overview", "Runs", "Workflows", "Profiles", "Maintenance", "Executors"],
+	);
 	await browser.click('.management-nav a:not([href*="view="])');
+	await browser.waitFor(() => !!document.querySelector("#home-view"));
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelector('.management-nav a[aria-current="page"]')
+					.textContent,
+		),
+		"Overview",
+	);
+	// Return to Runs through the same sidebar: it opens the latest run.
+	await browser.click('.management-nav a[href*="view=runs"]');
 	await browser.waitFor(() => !!document.querySelector("#task-count"));
 	assert.equal(
 		await browser.evaluate(

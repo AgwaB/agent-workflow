@@ -2066,7 +2066,8 @@ test("dashboard Chrome: project overview, explicit selection, keyboard-labelled 
 	await browser.waitFor(
 		() =>
 			document.querySelector("#project")?.textContent === "payments-api" &&
-			document.querySelector(".run-header"),
+			// 2026-11-12: a project opens to its overview, not to a run.
+			document.querySelector("#home-view"),
 	);
 	assert.equal(
 		await browser.evaluate(() =>
@@ -2075,7 +2076,7 @@ test("dashboard Chrome: project overview, explicit selection, keyboard-labelled 
 		"payments-api-123456789abc",
 	);
 	await open(`${fixture.origin}/`);
-	await browser.waitFor(() => document.querySelector(".run-header"));
+	await browser.waitFor(() => document.querySelector("#home-view"));
 	assert.equal(
 		await browser.evaluate(() =>
 			document.querySelector("#project-switcher").getAttribute("aria-label"),
@@ -2125,6 +2126,11 @@ const route = (browser) =>
 		const params = new URL(location.href).searchParams;
 		return [params.get("run"), params.get("view")];
 	});
+const text2 = (browser, selector) =>
+	browser.evaluate(
+		(selector) => document.querySelector(selector)?.textContent,
+		selector,
+	);
 // The renderer ends these field lines with a Markdown hard break ("  "); the fixture file is kept
 // free of trailing whitespace (the diff check), so the breaks are put back here.
 const deepReport = (
@@ -2609,4 +2615,312 @@ test("dashboard Chrome: the report page on a phone has no horizontal overflow an
 			`${width}px`,
 		);
 	}
+});
+
+// 2026-11-12 (owner): with no run chosen the dashboard opens to the project overview. Aggregates
+// (cost, agent reporting counts, active time) come with the run list; the fixture states them
+// here, with numbers that tell wall clock from active time and tasks from agents apart.
+const docsWriter = "workflow_mvt1t1i7_7b71df";
+const quickRead = "workflow_mvt1jojn_3dd217";
+const research = "workflow_mvt63y66_4c2a15";
+const blocked = "workflow_mvt9n8dd_19b2f4";
+function overviewFixture(fixture) {
+	const set = (id, values) => Object.assign(fixture.runs.get(id), values);
+	set(complete, {
+		taskPreview: "Review the checkout flow",
+		agentSummary: { completed: 8, total: 8 },
+		// The run's own usage says 10 of 16 tasks reported; its eight agents all did.
+		cost: { costUsd: 0.282, agentsReporting: 8, agentTotal: 8 },
+		activeMs: 97_000,
+	});
+	set(research, {
+		cost: { costUsd: 3.4, agentsReporting: 5, agentTotal: 6 },
+		activeMs: 1_500_000,
+	});
+	set(docsWriter, {
+		cost: { costUsd: 0.0007, agentsReporting: 1, agentTotal: 1 },
+		activeMs: 5_000,
+	});
+	// Stopped by the user: hidden from Recent results until asked for.
+	set(quickRead, {
+		status: "interrupted",
+		cost: { costUsd: null, agentsReporting: 0, agentTotal: 1 },
+		activeMs: 4_000,
+	});
+	// Created 07:00, updated 07:06: it sat waiting. Its work took 2m 15s.
+	set(failed, {
+		cost: { costUsd: 0.0061, agentsReporting: 2, agentTotal: 2 },
+		activeMs: 135_000,
+	});
+}
+test("dashboard Chrome: the overview is the landing view with needs, running, results, workflows and totals", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	overviewFixture(fixture);
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	const all = (selector, pick = (node) => node.textContent) =>
+		browser.evaluate(
+			(selector, pick) =>
+				[...document.querySelectorAll(selector)].map(
+					new Function("node", `return (${pick})(node)`),
+				),
+			selector,
+			String(pick),
+		);
+	await browser.open(`${fixture.origin}/`);
+	await browser.waitFor(() => document.querySelector(".home-row.recent"));
+	// No run is chosen: no run in the address bar, nothing of a run on the page, Overview current.
+	assert.deepEqual(await route(browser), [null, null]);
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			title: document.querySelector(".home-grid h1").firstChild.textContent,
+			run: !!document.querySelector("#task-count, #run-header"),
+			nav: [...document.querySelectorAll(".management-nav a")].map((link) => [
+				link.textContent,
+				link.getAttribute("aria-current"),
+			]),
+		})),
+		{
+			title: "payments-api",
+			run: false,
+			nav: [
+				["Overview", "page"],
+				["Runs", null],
+				["Workflows", null],
+				["Profiles", null],
+				["Maintenance", null],
+				["Executors", null],
+			],
+		},
+	);
+	// Needs you: the same needs as the rail (same order), with the same action.
+	assert.deepEqual(
+		await all(".home-need", (node) => [
+			node.querySelector("strong").textContent,
+			[...node.querySelectorAll("button")].map((button) => button.textContent),
+		]),
+		[
+			["Controller needs a decision", ["Inspect & resume", "Open run"]],
+			[
+				"map-implementation failed",
+				["Inspect & resume", "Open run", "Dismiss"],
+			],
+		],
+	);
+	// Running now: the run that works.
+	assert.deepEqual(
+		await all(
+			"#home-running .home-row",
+			(node) => node.querySelector("strong").textContent,
+		),
+		["deep-review"],
+	);
+	// Recent results: newest first; the stopped run is hidden, a failed one stays.
+	const recent = () =>
+		all("#home-recent .home-row.recent", (node) => [
+			node.querySelector(".result-badge").textContent,
+			node.querySelector(".home-row-task").textContent,
+			node.querySelector(".home-row-when small").textContent,
+		]);
+	assert.deepEqual(await recent(), [
+		["Needs you", "migration-planner", "— · —"],
+		// Wall clock 6m; active time 2m 15s.
+		["Failed", "spec-review", "2m 15s · $0.0061"],
+		["Complete", "deep-research", "25m 00s · $3.40+"],
+		["Needs work", "Review the checkout flow", "1m 37s · $0.28"],
+		["Finished", "docs-writer", "5s · $0.0007"],
+	]);
+	assert.equal(
+		await text2(browser, '[data-home-key="stopped"]'),
+		"Show 1 stopped run",
+	);
+	await browser.click('[data-home-key="stopped"]');
+	assert.deepEqual((await recent()).at(-1), [
+		"Stopped",
+		"live6-quick-read",
+		// Unknown cost is a dash, never $0.
+		"4s · —",
+	]);
+	assert.equal(
+		await text2(browser, '[data-home-key="stopped"]'),
+		"Hide stopped runs",
+	);
+	await browser.click('[data-home-key="stopped"]');
+	assert.equal((await recent()).length, 5);
+	// A partial cost has a "+" and its ratio in a title; agents are the denominator.
+	assert.deepEqual(
+		await all("#home-recent .home-cost", (node) => [
+			node.textContent,
+			node.title,
+		]),
+		[
+			["—", "Cost not reported"],
+			["$0.0061", "2 of 2 agents reported cost"],
+			["$3.40+", "5 of 6 agents reported cost. The true total may be higher."],
+			["$0.28", "8 of 8 agents reported cost"],
+			["$0.0007", "1 of 1 agent reported cost"],
+		],
+	);
+	// This project: totals use active time and the agent-only ratio.
+	assert.deepEqual(
+		await all(".home-stat", (node) => [
+			node.querySelector(".home-stat-value").textContent,
+			node.querySelector(".home-stat-name").textContent,
+			node.querySelector(".home-stat-note").textContent,
+		]),
+		[
+			["7", "runs", "3 done · 1 stopped · 1 failed · 1 running · 1 needs you"],
+			["$3.69+", "spend", "16 of 18 agents reported"],
+			["29m 01s", "active time", "all runs, not waiting"],
+		],
+	);
+	// Workflows: runs, last result, median active time, cost with its ratio, an outcome strip.
+	const workflow = (name) =>
+		browser.evaluate((name) => {
+			const row = document.querySelector(`[data-workflow="${name}"]`);
+			return [...row.cells].map((cell) =>
+				cell.querySelector(".strip")
+					? [...cell.querySelectorAll(".sq")].map((sq) =>
+							sq.className.replace("sq ", ""),
+						)
+					: cell.textContent.trim(),
+			);
+		}, name);
+	assert.deepEqual(await workflow("deep-review"), [
+		"deep-review",
+		"2",
+		"Running",
+		"1m 37s",
+		"$0.28 1/2",
+		["warn", "run"],
+	]);
+	assert.deepEqual(await workflow("spec-review"), [
+		"spec-review",
+		"1",
+		"Failed",
+		"—",
+		"$0.0061 1/1",
+		["err"],
+	]);
+	// Selecting a run opens it as before; back returns to the overview.
+	await browser.click('#home-recent .home-row[data-run="' + complete + '"]');
+	await browser.waitFor(() => document.querySelector("#task-count"));
+	assert.deepEqual(await route(browser), [complete, null]);
+	await browser.evaluate(() => history.back());
+	await browser.waitFor(() => document.querySelector("#home-view"));
+	assert.deepEqual(await route(browser), [null, null]);
+	assert.equal(
+		await browser.evaluate(
+			() => !!document.querySelector("#canvas, #run-header"),
+		),
+		false,
+	);
+	// Needs you leads where the rail does: the resume dialog.
+	await browser.click('.home-need [class~="primary"]');
+	await browser.waitFor(() => document.querySelector("dialog[open]"));
+	assert.match(await text2(browser, "#dialog-title"), /^Resume /);
+	assert.equal(
+		await browser.evaluate(() =>
+			new URL(location.href).searchParams.get("dialog"),
+		),
+		"resume",
+	);
+	// The run list changes: a finished run leaves "Running now" for the results, live.
+	await browser.key("Escape");
+	await browser.click('.management-nav a:not([href*="view="])');
+	await browser.waitFor(() => document.querySelector("#home-view"));
+	const done = fixture.runs.get(running);
+	done.status = "completed";
+	done.verdict = "NEEDS_WORK";
+	done.live = false;
+	fixture.publish();
+	await browser.waitFor(
+		() =>
+			document.querySelector("#home-running .home-calm")?.textContent ===
+			"Nothing running right now.",
+	);
+	assert.equal((await recent())[0][0], "Needs work");
+	const typography = await measureTypography(browser);
+	assert.ok(
+		typography.smallest >= 12 && typography.large / typography.total >= 0.6,
+		JSON.stringify(typography),
+	);
+});
+
+test("dashboard Chrome: existing run links and the Runs item still open a run; the overview fits a phone", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	overviewFixture(fixture);
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.open(`${fixture.origin}/?run=${complete}&task=triage.main`);
+	assert.deepEqual(await route(browser), [complete, null]);
+	assert.equal(
+		await browser.evaluate(() =>
+			new URL(location.href).searchParams.get("task"),
+		),
+		"triage.main",
+	);
+	assert.equal(
+		await browser.evaluate(() => !!document.querySelector("#home-view")),
+		false,
+	);
+	// The run details count agents for the cost ratio too: 8 of 8, not the 10 of 16 tasks the engine counts.
+	await browser.open(`${fixture.origin}/?run=${complete}&view=details`);
+	await browser.waitFor(() => document.querySelector("#inspector dl"));
+	assert.match(
+		await text2(browser, "#inspector"),
+		/Coverage8 \/ 8 agents reporting/,
+	);
+	assert.doesNotMatch(await text2(browser, "#inspector"), /tasks reporting/);
+	// The nav's Runs item opens the latest run (a running one first), as the landing used to.
+	await browser.open(`${fixture.origin}/?view=runs`);
+	assert.deepEqual(await route(browser), [running, null]);
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelector('.management-nav a[aria-current="page"]')
+					.textContent,
+		),
+		"Runs",
+	);
+	await browser.click('.management-nav a:not([href*="view="])');
+	await browser.waitFor(() => document.querySelector("#home-view"));
+	assert.deepEqual(await route(browser), [null, null]);
+	// A phone: one column, the workflows table stacks, nothing runs past the width.
+	await browser.open(`${fixture.origin}/`, 390, 844);
+	await browser.waitFor(() => document.querySelector(".home-table"));
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			page: document.documentElement.scrollWidth <= innerWidth,
+			view:
+				document.querySelector("#home-view").scrollWidth <=
+				document.querySelector("#home-view").clientWidth,
+			head: getComputedStyle(document.querySelector(".home-table thead"))
+				.display,
+			rows: [
+				...document.querySelectorAll(".home-row.recent, .home-table tr"),
+			].every((row) => row.getBoundingClientRect().right <= innerWidth),
+		})),
+		{ page: true, view: true, head: "none", rows: true },
+	);
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelector(".home-stats").getBoundingClientRect().right <=
+				innerWidth,
+		),
+		true,
+	);
 });

@@ -406,6 +406,8 @@ function readState() {
 		stage: params.get("stage"),
 		tab: choice("tab", ["result", "output", "stderr", "events"]),
 		view: choice("view", [
+			// "runs" opens the latest run (the nav's Runs item); the overview has no view of its own.
+			"runs",
 			"report",
 			"details",
 			"workflows",
@@ -814,26 +816,31 @@ function renderRail() {
 		element(
 			"nav",
 			{ class: "management-nav", "aria-label": "Dashboard views" },
-			["Runs", "Workflows", "Profiles", "Maintenance", "Executors"].map(
-				(title) => {
-					const view = title.toLowerCase();
-					const params = new URLSearchParams();
-					if (state.project) params.set("project", state.project);
-					if (view !== "runs") params.set("view", view);
-					return element(
-						"a",
-						{
-							href: `/?${params}`,
-							"aria-current":
-								(state.view || "runs") === view ||
-								(view === "runs" && !managementView())
-									? "page"
-									: null,
-						},
-						title,
-					);
-				},
-			),
+			[
+				"Overview",
+				"Runs",
+				"Workflows",
+				"Profiles",
+				"Maintenance",
+				"Executors",
+			].map((title) => {
+				const view = title.toLowerCase();
+				const params = new URLSearchParams();
+				if (state.project) params.set("project", state.project);
+				// 2026-11-12 (owner): Overview is the project's landing page (no run, no view);
+				// Runs opens the latest run, as the dashboard did before.
+				if (view !== "overview") params.set("view", view);
+				const current = managementView()
+					? state.view === view
+					: view === "overview"
+						? !state.run
+						: view === "runs" && Boolean(state.run);
+				return element(
+					"a",
+					{ href: `/?${params}`, "aria-current": current ? "page" : null },
+					title,
+				);
+			}),
 		),
 	);
 	if (managementView()) return;
@@ -855,19 +862,7 @@ function renderRail() {
 							element("small", {}, `${need.run.name} ${ago(need.since)}`),
 						),
 					],
-					() => {
-						const target =
-							need.run.runId === run?.runId
-								? run.tasks.find((t) =>
-										[t.taskId, t.specId].includes(need.taskId),
-									)?.specId
-								: need.taskId;
-						go({
-							run: need.run.runId,
-							task: target || null,
-							dialog: "resume",
-						});
-					},
+					() => openNeed(need),
 					{ class: "need" },
 				),
 				need.kind === "failed"
@@ -5891,6 +5886,7 @@ async function refreshRuns() {
 	if (allNeeds().some((need) => need.kind === "failed")) await refreshNotices();
 	renderTop();
 	renderRail();
+	if (homeShown()) renderHome();
 }
 function acceptRun(data) {
 	if (data.runId !== state.run) return;
@@ -5998,10 +5994,8 @@ function connectEvents() {
 			runs = data.runs;
 			renderTop();
 			renderRail();
-			if (!state.run && runs.length) {
-				const first = runs.find((r) => r.status === "running") || runs[0];
-				go({ run: first.runId }, true);
-			}
+			// No run open: the overview follows the run list.
+			if (homeShown()) renderHome();
 		}),
 	);
 	source.addEventListener(
@@ -6133,12 +6127,9 @@ window.addEventListener("popstate", () => {
 	if (modalKey) dismissDialog(false);
 	if (state.run !== previous) {
 		if (state.run) loadRun();
-		else {
-			state.run =
-				runs.find((r) => r.status === "running")?.runId || runs[0]?.runId;
-			if (state.run) loadRun();
-		}
+		else showHome();
 	} else if (run) renderRun();
+	else if (homeShown()) renderHome();
 });
 document.addEventListener("keydown", (event) => {
 	if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -6199,6 +6190,8 @@ setInterval(() => {
 		);
 		if (summary) node.textContent = railElapsed(summary);
 	}
+	for (const node of document.querySelectorAll("[data-ago]"))
+		node.textContent = ago(node.dataset.ago);
 	if (!run) return;
 	refreshGraphTexts();
 	if (liveRun(run)) refreshTimeline();
@@ -6314,6 +6307,550 @@ function renderOverview() {
 		),
 	);
 }
+/**
+ * 2026-11-12 (owner): the project overview is what the dashboard opens to when no run is chosen
+ * (`/?project=…`): what needs you, what runs now, the latest results, the workflows and the
+ * project's totals. It reads the run list only; the run list carries each run's cost, agent
+ * reporting counts and active time (projection.ts), so no run's detail is fetched.
+ */
+let showStopped = false;
+/** The run list's own entry (nav "Runs"): the latest run, as the dashboard opened before the overview. */
+function runsHref() {
+	const params = new URLSearchParams();
+	if (state.project) params.set("project", state.project);
+	params.set("view", "runs");
+	return `/?${params}`;
+}
+const homeShown = () =>
+	Boolean(state.project) &&
+	!state.run &&
+	state.view !== "runs" &&
+	!managementView();
+const median = (values) => {
+	const sorted = [...values].sort((a, b) => a - b);
+	if (!sorted.length) return null;
+	const middle = Math.floor(sorted.length / 2);
+	return sorted.length % 2
+		? sorted[middle]
+		: (sorted[middle - 1] + sorted[middle]) / 2;
+};
+/** The look of one run in a strip of squares: glyph status → tone. */
+const STRIP_TONES = {
+	completed: "ok",
+	attention: "warn",
+	blocked: "warn",
+	failed: "err",
+	interrupted: "stop",
+	running: "run",
+	pending: "run",
+};
+function openNeed(need) {
+	const target =
+		need.run.runId === run?.runId
+			? run.tasks.find((t) => [t.taskId, t.specId].includes(need.taskId))
+					?.specId
+			: need.taskId;
+	go({ run: need.run.runId, task: target || null, dialog: "resume" });
+}
+function timeAgo(value) {
+	return element("span", { "data-ago": value }, ago(value));
+}
+function resultChip(summary) {
+	const [tone, word] = resultBadge(summary);
+	return element(
+		"span",
+		{ class: `result-badge small ${tone}`, "data-tone": tone },
+		glyph(tone),
+		element("strong", {}, word),
+	);
+}
+function costCell(summary) {
+	const label = costLabel(summary.cost ? [summary.cost] : []);
+	return element(
+		"span",
+		{
+			class: "home-cost",
+			title: summary.cost ? label.title : "Cost not reported",
+		},
+		label.text,
+	);
+}
+function homeNeeds() {
+	const needs = visibleNeeds();
+	if (!needs.length)
+		return element("p", { class: "home-calm" }, "Nothing needs you.");
+	return needs.map((need) => {
+		const agents = need.run.agentSummary;
+		return element(
+			"article",
+			{ class: `home-need ${need.kind}` },
+			glyph(need.kind === "failed" ? "failed" : "blocked"),
+			element(
+				"div",
+				{ class: "home-need-body" },
+				element("strong", {}, need.title),
+				element(
+					"p",
+					{ class: "muted" },
+					`${need.run.name} · ${ago(need.since)}`,
+					agents
+						? ` · ${agents.completed} of ${agents.total} agents finished`
+						: "",
+				),
+				need.run.taskPreview
+					? element(
+							"p",
+							{ class: "home-task faint", title: need.run.taskPreview },
+							need.run.taskPreview,
+						)
+					: null,
+				element(
+					"div",
+					{ class: "home-need-actions" },
+					button("Inspect & resume", () => openNeed(need), {
+						class: "primary small",
+					}),
+					button("Open run", () => go({ run: need.run.runId }), {
+						class: "small",
+					}),
+					need.kind === "failed"
+						? button("Dismiss", () => setNeedDismissed([need], true), {
+								class: "small",
+								title:
+									"Dismiss everywhere: the dashboard and the Pi, Claude Code and Codex reminders (a new failure shows again)",
+							})
+						: null,
+				),
+			),
+		);
+	});
+}
+function runLink(summary, children, className) {
+	return element(
+		"a",
+		{
+			class: className,
+			href: runHref(summary.runId),
+			"data-run": summary.runId,
+			onclick: (event) => {
+				if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+				event.preventDefault();
+				go({ run: summary.runId });
+			},
+		},
+		children,
+	);
+}
+function homeRunning(running) {
+	if (!running.length)
+		return element("p", { class: "home-calm" }, "Nothing running right now.");
+	return running.map((summary) => {
+		const counts = summary.agentSummary || summary.taskSummary;
+		return runLink(
+			summary,
+			[
+				element(
+					"span",
+					{ class: "home-row-main" },
+					glyph("running"),
+					element("strong", {}, summary.name),
+					element(
+						"span",
+						{ class: "muted home-row-count" },
+						railCount(counts, Boolean(summary.agentSummary)),
+					),
+					element(
+						"span",
+						{ class: "muted", "data-run-elapsed": summary.runId },
+						railElapsed(summary),
+					),
+				),
+				summary.taskPreview
+					? element(
+							"span",
+							{ class: "home-task faint", title: summary.taskPreview },
+							summary.taskPreview,
+						)
+					: null,
+				progress(counts.completed, counts.total, summary.status),
+			],
+			"home-row running",
+		);
+	});
+}
+function homeRecent(finished, stopped, running) {
+	const shown = showStopped
+		? finished
+		: finished.filter((summary) => summary.status !== "interrupted");
+	return [
+		shown.length
+			? element(
+					"div",
+					{ class: "home-list" },
+					shown.slice(0, 8).map((summary) => {
+						const agents = summary.agentSummary;
+						return runLink(
+							summary,
+							[
+								resultChip(summary),
+								element(
+									"span",
+									{
+										class: "home-row-task",
+										title: summary.taskPreview || summary.name,
+									},
+									summary.taskPreview || summary.name,
+								),
+								element(
+									"span",
+									{ class: "home-row-when muted" },
+									timeAgo(summary.updatedAt),
+									element(
+										"small",
+										{},
+										summary.activeMs != null ? duration(summary.activeMs) : "—",
+										" · ",
+										costCell(summary),
+									),
+								),
+								// The workflow, unless it already is the line above.
+								element(
+									"span",
+									{ class: "home-row-meta faint" },
+									[
+										summary.taskPreview ? summary.name : null,
+										agents
+											? `${agents.completed} of ${agents.total} agents`
+											: null,
+									]
+										.filter(Boolean)
+										.join(" · "),
+								),
+							],
+							"home-row recent",
+						);
+					}),
+				)
+			: element(
+					"p",
+					{ class: "home-calm" },
+					stopped && !showStopped
+						? "No results to show. Stopped runs are hidden."
+						: "No finished runs yet.",
+				),
+		finished.length
+			? element(
+					"a",
+					{ class: "home-all", href: runsHref() },
+					`All ${finished.length + running} runs →`,
+				)
+			: null,
+	];
+}
+function homeWorkflows(all) {
+	const groups = new Map();
+	for (const summary of [...all].sort(
+		(a, b) => date(a.createdAt) - date(b.createdAt),
+	)) {
+		if (!groups.has(summary.name)) groups.set(summary.name, []);
+		groups.get(summary.name).push(summary);
+	}
+	const rows = [...groups.entries()]
+		.map(([name, list]) => ({
+			name,
+			list,
+			updated: Math.max(...list.map((summary) => date(summary.updatedAt))),
+		}))
+		.sort((a, b) => b.updated - a.updated);
+	return element(
+		"div",
+		{ class: "home-table-wrap" },
+		element(
+			"table",
+			{ class: "home-table" },
+			element(
+				"thead",
+				{},
+				element(
+					"tr",
+					{},
+					element("th", {}, "Workflow"),
+					element("th", { class: "n" }, "Runs"),
+					element("th", {}, "Last result"),
+					element(
+						"th",
+						{ class: "n", title: "Median active time of completed runs" },
+						"Median",
+					),
+					element(
+						"th",
+						{
+							class: "n",
+							title:
+								"Reported cost. + means some agents did not report; code steps are not counted",
+						},
+						"Cost",
+					),
+					element("th", {}, "Last runs"),
+				),
+			),
+			element(
+				"tbody",
+				{},
+				rows.map(({ name, list }) => {
+					const last = list.at(-1);
+					const completed = list
+						.filter((summary) => summary.status === "completed")
+						.map((summary) => summary.activeMs)
+						.filter((value) => value != null);
+					const middle = median(completed);
+					const label = costLabel(list.map((summary) => summary.cost));
+					const strip = list.slice(-12);
+					return element(
+						"tr",
+						{ "data-workflow": name },
+						element("td", { class: "wf", "data-label": "Workflow" }, name),
+						element("td", { class: "n", "data-label": "Runs" }, list.length),
+						element("td", { "data-label": "Last result" }, resultChip(last)),
+						element(
+							"td",
+							{
+								class: "n",
+								"data-label": "Median",
+								title: `Median active time of ${completed.length} completed run${completed.length === 1 ? "" : "s"}`,
+							},
+							middle == null ? "—" : duration(middle),
+						),
+						element(
+							"td",
+							{
+								class: "n",
+								"data-label": "Cost",
+								title: `${label.title}${label.runs ? ` · ${label.runs} of ${list.length} runs reported` : ""}`,
+							},
+							element("span", { class: "home-cost" }, label.text),
+							label.runs
+								? element(
+										"small",
+										{ class: "faint home-cost-runs" },
+										` ${label.runs}/${list.length}`,
+									)
+								: null,
+						),
+						element(
+							"td",
+							{ "data-label": "Last runs" },
+							element(
+								"span",
+								{
+									class: "strip",
+									role: "img",
+									"aria-label": `Last ${strip.length} runs, oldest to newest: ${strip
+										.map((summary) => resultBadge(summary)[1])
+										.join(", ")}`,
+								},
+								strip.map((summary) => {
+									const [tone, word] = resultBadge(summary);
+									return element("i", {
+										class: `sq ${STRIP_TONES[tone] || "run"}`,
+										title: `${word} · ${new Date(date(summary.createdAt)).toLocaleString()}`,
+									});
+								}),
+							),
+						),
+					);
+				}),
+			),
+		),
+		element(
+			"p",
+			{ class: "strip-legend faint" },
+			element(
+				"span",
+				{},
+				element("i", { class: "sq warn" }),
+				"Findings or gaps",
+			),
+			element("span", {}, element("i", { class: "sq err" }), "Failed"),
+			element("span", {}, element("i", { class: "sq stop" }), "Stopped"),
+			element("span", {}, element("i", { class: "sq ok" }), "Clean"),
+			element("span", {}, "Oldest → newest"),
+		),
+	);
+}
+function homeProject(all) {
+	const done = all.filter(
+			(summary) =>
+				summary.status === "completed" ||
+				(summary.status === "failed" && summary.verdictGate),
+		).length,
+		stopped = all.filter((summary) => summary.status === "interrupted").length,
+		failed = all.filter(
+			(summary) => summary.status === "failed" && !summary.verdictGate,
+		).length,
+		live = all.filter((summary) => summary.status === "running").length,
+		waiting = all.filter((summary) => summary.status === "blocked").length;
+	const label = costLabel(all.map((summary) => summary.cost));
+	const active = all.reduce((sum, summary) => sum + (summary.activeMs ?? 0), 0);
+	const stat = (value, name, note, title) =>
+		element(
+			"div",
+			{ class: "home-stat" },
+			element("div", { class: "home-stat-value", title }, value),
+			element("div", { class: "home-stat-name" }, name),
+			element("div", { class: "home-stat-note faint" }, note),
+		);
+	return element(
+		"div",
+		{ class: "home-stats" },
+		stat(
+			all.length,
+			"runs",
+			[
+				`${done} done`,
+				stopped ? `${stopped} stopped` : null,
+				failed ? `${failed} failed` : null,
+				live ? `${live} running` : null,
+				waiting ? `${waiting} need${waiting === 1 ? "s" : ""} you` : null,
+			]
+				.filter(Boolean)
+				.join(" · "),
+		),
+		stat(label.text, "spend", label.ratio || "", label.title),
+		stat(
+			duration(active),
+			"active time",
+			"all runs, not waiting",
+			"The time agents and steps were working; a run that sat waiting does not count it",
+		),
+	);
+}
+function renderHome() {
+	const center = $("center");
+	const previous = $("home-view");
+	const scroll = previous?.scrollTop ?? 0;
+	const focused =
+		document.activeElement?.closest("[data-home-key]")?.dataset.homeKey;
+	const project = projects.find((entry) => entry.id === state.project);
+	const all = [...runs].sort((a, b) => date(b.updatedAt) - date(a.updatedAt));
+	if (!all.length) {
+		center.replaceChildren(
+			element(
+				"p",
+				{ class: "empty", id: "home-view" },
+				"No runs in this project. Start one from your terminal.",
+			),
+		);
+		return;
+	}
+	const running = all.filter((summary) => summary.status === "running");
+	const finished = all.filter((summary) => summary.status !== "running");
+	const stopped = finished.filter(
+		(summary) => summary.status === "interrupted",
+	).length;
+	const needs = visibleNeeds();
+	const oldest = all.reduce(
+		(min, summary) => Math.min(min, date(summary.createdAt)),
+		Infinity,
+	);
+	const section = (title, children, extra = null, id = null) =>
+		element(
+			"section",
+			{ class: "home-section", id },
+			element("h2", {}, element("span", {}, title), extra),
+			children,
+		);
+	center.replaceChildren(
+		element(
+			"div",
+			{ class: "home-view", id: "home-view" },
+			element(
+				"div",
+				{ class: "home-grid" },
+				element(
+					"h1",
+					{},
+					project?.name || "Project",
+					element(
+						"small",
+						{},
+						`${all.length} run${all.length === 1 ? "" : "s"} since ${new Date(oldest).toLocaleDateString([], { month: "short", day: "numeric" })}`,
+					),
+				),
+				element(
+					"div",
+					{ class: "home-col" },
+					section(
+						"Needs you",
+						homeNeeds(),
+						needs.length
+							? element("span", { class: "faint" }, needs.length)
+							: null,
+						"home-needs",
+					),
+					section("Running now", homeRunning(running), null, "home-running"),
+					section(
+						"Recent results",
+						homeRecent(finished, stopped, running.length),
+						stopped
+							? button(
+									showStopped
+										? "Hide stopped runs"
+										: `Show ${stopped} stopped run${stopped === 1 ? "" : "s"}`,
+									() => {
+										showStopped = !showStopped;
+										renderHome();
+										$("home-view")
+											.querySelector("[data-home-key=stopped]")
+											?.focus({ preventScroll: true });
+									},
+									{
+										class: "small home-toggle",
+										"data-home-key": "stopped",
+										"aria-pressed": String(showStopped),
+									},
+								)
+							: null,
+						"home-recent",
+					),
+				),
+				element(
+					"div",
+					{ class: "home-col" },
+					section("This project", homeProject(all), null, "home-project"),
+					section("Workflows", homeWorkflows(all), null, "home-workflows"),
+				),
+			),
+		),
+	);
+	const view = $("home-view");
+	view.scrollTop = scroll;
+	if (focused)
+		view
+			.querySelector(`[data-home-key="${CSS.escape(focused)}"]`)
+			?.focus({ preventScroll: true });
+}
+/** The overview: no run is open; the run list keeps coming from the event stream. */
+function showHome() {
+	++loadGeneration;
+	selectionController?.abort();
+	logController?.abort();
+	logGeneration++;
+	stopEvents();
+	graphControl?.destroy();
+	graphControl = null;
+	run = null;
+	graphModel = null;
+	if (modalKey) dismissDialog(false);
+	$("inspector").hidden = true;
+	$("inspector").inert = true;
+	$("body").classList.remove("inspecting");
+	applyRail();
+	renderTop();
+	renderRail();
+	renderHome();
+	connectEvents();
+}
 let overviewRefreshing = false;
 setInterval(async () => {
 	if (
@@ -6392,24 +6929,22 @@ async function start() {
 			return;
 		}
 		await refreshRuns();
-		if (!state.run) {
+		// The nav's Runs item opens the latest run (a running one first), as the landing used to.
+		if (!state.run && state.view === "runs") {
 			state.run =
 				runs.find((r) => r.status === "running")?.runId ||
 				runs[0]?.runId ||
 				null;
+			state.view = null;
+			urlState(true);
+		} else if (!state.run && state.view === "report") {
+			// A report is a run's page: without its run there is nothing to open.
+			state.view = null;
 			urlState(true);
 		}
+		// 2026-11-12 (owner): with no run chosen the dashboard opens to the project overview.
 		if (state.run) await loadRun();
-		else {
-			$("center").replaceChildren(
-				element(
-					"p",
-					{ class: "empty" },
-					"No runs in this project. Start one from your terminal.",
-				),
-			);
-			connectEvents();
-		}
+		else showHome();
 	} catch (error) {
 		$("center").replaceChildren(
 			element(
