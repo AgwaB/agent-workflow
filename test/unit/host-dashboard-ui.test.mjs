@@ -1847,6 +1847,115 @@ test("dashboard Chrome: a click on the empty canvas closes the inspector; a drag
 	assert.deepEqual(await state(), [false, "triage"]);
 });
 
+test("dashboard Chrome: the timeline lays stages and their agents on one time axis", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+}, async (t) => {
+	// 2026-11-12 (owner: the run's timeline): when each stage and agent ran, how long it took and
+	// what it cost; a cost nobody reported is "—", never $0. A row opens what a card opens.
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.open(
+		`${fixture.origin}/?run=${complete}&layout=timeline`,
+		1440,
+		900,
+	);
+	await browser.waitFor(() => document.querySelectorAll(".tl-row").length > 0);
+	const rows = await browser.evaluate(() =>
+		[...document.querySelectorAll(".tl-row")].map((row) => [
+			row.getAttribute("aria-label"),
+			row.classList.contains("tl-child"),
+		]),
+	);
+	assert.equal(rows.length, 16);
+	assert.deepEqual(rows.slice(0, 3), [
+		["Triage, Completed, 16s, $0.0030", false],
+		["Reviewers, Completed, 13s", false],
+		["stop-signal-race, Completed, 13s", true],
+	]);
+	assert.deepEqual(
+		rows.find(([label]) => label.startsWith("Devil advocate")),
+		["Devil advocate, Completed, 18s, $0.0162", false],
+	);
+	assert.equal(
+		rows.filter(([, child]) => child).length,
+		8,
+		"three reviewers and five devil's advocates",
+	);
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelector('.tl-row[data-row="stage:reviewers"] .tl-cost')
+					.textContent,
+		),
+		"—",
+	);
+	assert.deepEqual(
+		await browser.evaluate(() =>
+			[...document.querySelectorAll('#timeline [role="toolbar"] button')].map(
+				(node) => [
+					node.getAttribute("aria-label"),
+					node.getAttribute("aria-pressed"),
+				],
+			),
+		),
+		[
+			["Top-down", "false"],
+			["Left-right", "false"],
+			["Timeline", "true"],
+		],
+	);
+	await browser.click('.tl-row[data-row="stage:devil-advocate"]');
+	await browser.waitFor(() => !document.getElementById("inspector").hidden);
+	assert.deepEqual(
+		await browser.evaluate(() => [
+			new URLSearchParams(location.search).get("stage"),
+			new URLSearchParams(location.search).get("layout"),
+			document
+				.querySelector('.tl-row[data-row="stage:devil-advocate"]')
+				.getAttribute("aria-current"),
+		]),
+		["devil-advocate", "timeline", "true"],
+	);
+	// Back to the graph.
+	await browser.click('#timeline [aria-label="Top-down"]');
+	await browser.waitFor(() => document.querySelector(".node[data-stage]"));
+	assert.deepEqual(
+		await browser.evaluate(() => [
+			document.getElementById("timeline"),
+			new URLSearchParams(location.search).get("layout"),
+		]),
+		[null, null],
+	);
+	// A task at work ends now; one still waiting (even with a launch stamp) has no bar yet.
+	const live = await browser.evaluate(async (run) => {
+		const { timelineRows, deriveGraph } = await import("./app.js");
+		const until = Date.parse("2026-10-29T08:10:00Z");
+		const rows = timelineRows(
+			run,
+			[...deriveGraph(run).stages.values()],
+			until,
+		);
+		const of = (id) => rows.find((row) => row.task?.specId === id);
+		return [
+			of("reviewers.ledger-double-write").span,
+			of("reviewers.webhook-retry-path").span,
+			of("reviewers.ledger-double-write").cost,
+			rows.find((row) => row.stage.id === "triage").cost,
+		];
+	}, fixture.runs.get(running));
+	assert.deepEqual(live, [
+		[102_000, 540_000],
+		null,
+		null,
+		{ usd: 0.0124, of: 1, tasks: 1 },
+	]);
+});
+
 test("dashboard Chrome: project overview, explicit selection, keyboard-labelled switcher and remembered choice", {
 	skip: chrome
 		? false

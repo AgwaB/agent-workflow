@@ -52,6 +52,7 @@ const iconPaths = {
 	sidebar: "M2.5 3.5h11v9h-11zM6.5 3.5v9",
 	agent: "M8 1.8l1.6 4.6 4.6 1.6-4.6 1.6L8 14.2 6.4 9.6 1.8 8l4.6-1.6z",
 	code: "M5.5 4L1.8 8l3.7 4M10.5 4l3.7 4-3.7 4",
+	timeline: "M2 4h6M5 8h8M3.5 12h5",
 };
 function markIcon(status, x = 0, y = 0, size = 16) {
 	const icon = svg("svg", {
@@ -408,7 +409,7 @@ function readState() {
 			"executors",
 		]),
 		dialog: choice("dialog", ["stop", "resume"]),
-		layout: choice("layout", ["td", "lr"]) || "td",
+		layout: choice("layout", ["td", "lr", "timeline"]) || "td",
 		// The workflow page opened from the Workflows list (2026-11-11).
 		workflow: params.get("workflow"),
 	};
@@ -2532,16 +2533,7 @@ function renderGraph() {
 					[...model.nodes.keys()].at(-1);
 				reveal(id, true);
 			}),
-			button(markIcon("td"), () => changeLayout("td"), {
-				"aria-label": "Top-down",
-				title: "Top-down",
-				"aria-pressed": String(!horizontal),
-			}),
-			button(markIcon("lr"), () => changeLayout("lr"), {
-				"aria-label": "Left-right",
-				title: "Left-right",
-				"aria-pressed": String(horizontal),
-			}),
+			...viewButtons(),
 			button("?", openStatusKey, { "aria-label": "Status key" }),
 		),
 	);
@@ -2867,6 +2859,258 @@ let showCode = (() => {
 		return false;
 	}
 })();
+/** The run's views: the graph top-down or left-right, or the timeline (2026-11-12). */
+function viewButtons() {
+	return [
+		["td", "Top-down"],
+		["lr", "Left-right"],
+		["timeline", "Timeline"],
+	].map(([layout, name]) =>
+		button(markIcon(layout), () => changeLayout(layout), {
+			"aria-label": name,
+			title: name,
+			"aria-pressed": String(state.layout === layout),
+		}),
+	);
+}
+/** "0s", "45s", "1m", "1m 30s", "1h", "1h 05m": a mark on the timeline's axis. */
+function tickLabel(seconds) {
+	if (seconds < 60) return `${seconds}s`;
+	const minutes = Math.floor(seconds / 60),
+		rest = seconds % 60;
+	if (minutes < 60) return rest ? `${minutes}m ${rest}s` : `${minutes}m`;
+	const left = minutes % 60;
+	return `${Math.floor(minutes / 60)}h${left ? ` ${String(left).padStart(2, "0")}m` : ""}`;
+}
+const TICK_STEPS = [
+	1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 43200,
+];
+/**
+ * The timeline's rows (2026-11-12, owner: "실행 타임라인"): each stage, then, for a stage of
+ * several agents, each agent. `span` is [start, end] in ms from the run's start (a task still
+ * at work ends at `until`); null when it has not started. `cost` is null when no task of the
+ * row reported one, never 0.
+ */
+export function timelineRows(projection, stages, until) {
+	const t0 = date(projection.createdAt);
+	const spanOf = (task) => {
+		const start = date(task.startedAt);
+		// A launch claim can stamp a start on a task still waiting: it has not run yet.
+		if (!start || task.status === "pending") return null;
+		const end =
+			date(task.completedAt) ||
+			(!["completed", "failed", "interrupted", "skipped"].includes(task.status)
+				? until
+				: task.elapsedMs != null
+					? start + task.elapsedMs
+					: start);
+		return [start - t0, Math.max(start, end) - t0];
+	};
+	const costOf = (tasks) => {
+		const known = tasks.filter((task) => task.usage?.costUsd != null);
+		return known.length
+			? {
+					usd: known.reduce((sum, task) => sum + task.usage.costUsd, 0),
+					of: known.length,
+					tasks: tasks.length,
+				}
+			: null;
+	};
+	const rows = [];
+	for (const stage of stages) {
+		const tasks = stage.tasks.filter((task) => !task.placeholder);
+		const spans = tasks.map(spanOf).filter(Boolean);
+		const span = spans.length
+			? [
+					Math.min(...spans.map((each) => each[0])),
+					Math.max(...spans.map((each) => each[1])),
+				]
+			: null;
+		rows.push({ stage, span, status: stage.status, cost: costOf(tasks) });
+		if (stage.items.length > 1)
+			for (const task of stage.items)
+				rows.push({
+					stage,
+					task,
+					span: spanOf(task),
+					status: taskState(task),
+					cost: costOf([task]),
+					stageStart: span?.[0],
+				});
+	}
+	return rows;
+}
+function renderTimeline() {
+	const t0 = date(run.createdAt);
+	const until = liveRun(run) ? now() : Math.max(date(run.updatedAt), t0);
+	const rows = timelineRows(run, [...graphModel.stages.values()], until);
+	const total = Math.max(
+		1000,
+		until - t0,
+		...rows.map((row) => row.span?.[1] ?? 0),
+	);
+	const step =
+		TICK_STEPS.find((each) => total / 1000 / each <= 6) ?? TICK_STEPS.at(-1);
+	const ticks = [];
+	for (let at = 0; at * 1000 <= total; at += step) ticks.push(at);
+	const at = (ms) => `${((ms / total) * 100).toFixed(3)}%`;
+	const money = (value) =>
+		value == null
+			? "—"
+			: `$${value.usd.toFixed(value.usd < 0.1 ? 4 : 2)}${value.of < value.tasks ? "+" : ""}`;
+	const axis = svg("svg", { class: "tl-axis", "aria-hidden": "true" });
+	for (const tick of ticks)
+		axis.append(
+			svg(
+				"text",
+				{
+					x: at(tick * 1000),
+					y: 20,
+					"text-anchor": tick === 0 ? "start" : "middle",
+				},
+				tickLabel(tick),
+			),
+		);
+	const list = element(
+		"div",
+		{ class: "tl-scroll" },
+		element(
+			"div",
+			{ class: "tl-head" },
+			element("span", {}, "Stage"),
+			axis,
+			element("span", { class: "num" }, "Time"),
+			element("span", { class: "num tl-cost" }, "Cost"),
+		),
+	);
+	for (const row of rows) {
+		const { stage, task, span } = row;
+		const code = stage.kind === "support";
+		const lane = svg("svg", { class: "tl-lane", "aria-hidden": "true" });
+		for (const tick of ticks)
+			lane.append(
+				svg("line", {
+					class: "tl-grid",
+					x1: at(tick * 1000),
+					x2: at(tick * 1000),
+					y1: 0,
+					y2: "100%",
+				}),
+			);
+		// An agent that started after its stage did: the wait is drawn dotted.
+		if (
+			task &&
+			span &&
+			row.stageStart != null &&
+			span[0] - row.stageStart >= Math.max(5000, total * 0.03)
+		)
+			lane.append(
+				svg("line", {
+					class: "tl-wait",
+					x1: at(row.stageStart),
+					x2: at(span[0]),
+					y1: 16,
+					y2: 16,
+				}),
+			);
+		if (span)
+			lane.append(
+				svg("rect", {
+					class: `tl-bar ${row.status}${code ? " code" : ""}`,
+					x: at(span[0]),
+					width: at(span[1] - span[0]),
+					y: code ? 14 : 11,
+					height: code ? 4 : 10,
+					rx: code ? 2 : 3,
+				}),
+			);
+		const name = task
+			? task.title || task.specId.slice(stage.id.length + 1) || task.specId
+			: humanize(stage.short || stage.name || stage.id);
+		const took = span ? duration(span[1] - span[0]) : "";
+		const key = task ? `task:${task.specId}` : `stage:${stage.id}`;
+		list.append(
+			button(
+				[
+					element(
+						"span",
+						{ class: "tl-name" },
+						glyph(row.status),
+						code && !task ? kindIcon("code") : null,
+						element("span", { class: "tl-label", title: name }, name),
+						!task && stage.items.length > 1
+							? element("span", { class: "tl-count" }, `×${stage.items.length}`)
+							: null,
+					),
+					lane,
+					element("span", { class: "num" }, took),
+					element(
+						"span",
+						{
+							class: "num tl-cost",
+							title:
+								row.cost && row.cost.of < row.cost.tasks
+									? `${row.cost.of} of ${row.cost.tasks} reported a cost`
+									: null,
+						},
+						money(row.cost),
+					),
+				],
+				() => (task ? go({ task: task.specId }) : chooseStage(stage)),
+				{
+					class: `tl-row${task ? " tl-child" : ""}${span ? "" : " tl-waiting"}`,
+					"data-row": key,
+					"aria-label": `${name}, ${labels[row.status] || "Waiting"}${took ? `, ${took}` : ""}${row.cost ? `, ${money(row.cost)}` : ""}`,
+				},
+			),
+		);
+	}
+	list.append(
+		element(
+			"p",
+			{ class: "tl-note" },
+			"From the run's start. A dotted line is an agent that started after its stage did. — means not reported.",
+		),
+	);
+	return element(
+		"div",
+		{
+			class: "timeline",
+			id: "timeline",
+			role: "region",
+			"aria-label": `Timeline of ${run.name}`,
+		},
+		list,
+		element(
+			"div",
+			{ class: "toolbar", role: "toolbar", "aria-label": "Run view" },
+			...viewButtons(),
+		),
+	);
+}
+/** The timeline row of the open stage or agent is marked current. */
+function markTimelineSelection() {
+	const task = selectedTask()?.specId;
+	const key = task ? `task:${task}` : state.stage ? `stage:${state.stage}` : "";
+	for (const row of document.querySelectorAll(".tl-row"))
+		if (row.dataset.row === key) row.setAttribute("aria-current", "true");
+		else row.removeAttribute("aria-current");
+}
+/** Redraw the timeline in place (a live run's bars grow), keeping its scroll and focus. */
+function refreshTimeline() {
+	const current = $("timeline");
+	if (!current) return;
+	const scroll = current.querySelector(".tl-scroll")?.scrollTop ?? 0;
+	const focused = document.activeElement?.closest(".tl-row")?.dataset.row;
+	const next = renderTimeline();
+	current.replaceWith(next);
+	next.querySelector(".tl-scroll").scrollTop = scroll;
+	markTimelineSelection();
+	if (focused)
+		next
+			.querySelector(`[data-row="${CSS.escape(focused)}"]`)
+			?.focus({ preventScroll: true });
+}
 function toggleCode() {
 	showCode = !showCode;
 	try {
@@ -2938,7 +3182,17 @@ function renderRun() {
 		canvas &&
 		graphControl?.signature === signature &&
 		graphControl.runId === run.runId;
-	if (keepGraph) {
+	if (state.layout === "timeline") {
+		// The timeline instead of the graph (2026-11-12): redrawn in place, keeping its scroll.
+		graphControl?.destroy();
+		graphControl = null;
+		if ($("timeline")) {
+			for (const child of [...$("center").children])
+				if (child.id !== "timeline") child.remove();
+			$("center").prepend(renderHeader());
+			refreshTimeline();
+		} else $("center").replaceChildren(renderHeader(), renderTimeline());
+	} else if (keepGraph) {
 		// The canvas stays in place (removing and re-adding it would restart its animations).
 		for (const child of [...$("center").children])
 			if (child !== canvas) child.remove();
@@ -3145,6 +3399,7 @@ function renderSelection() {
 		);
 	for (const row of document.querySelectorAll(".stage-row"))
 		row.classList.toggle("selected", row.dataset.stage === selectedStage());
+	markTimelineSelection();
 	if (!visible) return stopTaskLoads();
 	if (swapped && !reducedMotion())
 		inspector.animate(
@@ -5327,6 +5582,7 @@ setInterval(() => {
 	}
 	if (!run) return;
 	refreshGraphTexts();
+	if (liveRun(run)) refreshTimeline();
 	if ($("status-sentence"))
 		$("status-sentence").replaceChildren(...sentenceParts());
 	if ($("hero-sub")) $("hero-sub").textContent = heroSubline();
