@@ -224,10 +224,16 @@ waits in the foreground, printing progress to stderr, until it is terminal; then
 result. Ctrl-C stops waiting, not the run. Use `--detach` to hand the run to a background supervisor
 (`agent-workflow supervise <id>`, log in `<run dir>/supervise.log`) and return immediately. In Pi,
 `/aw run` returns once the run is launched; the Pi session keeps driving it while it lives.
-A run keeps its `running` status when its driver dies (Pi session quit, killed supervisor), but
-`status`, `show` and the run list then say `no live driver — not progressing` (no lease and no live
-supervisor process). Reads never refresh the driver heartbeat. `wait <run>` or `supervise <run>`
-drives it again; `stop` then `resume` also works.
+When a run's driver dies (Pi session quit, killed supervisor) it stays `running` for a short time.
+`status`, `show` and the run list say `no live driver — not progressing` (no lease and no live
+supervisor process); `wait <run>` or `supervise <run>` drives it again. Reads never refresh the
+driver heartbeat. Once the driver is clearly dead, the next read marks the run `interrupted`: the
+driver process is gone, its last heartbeat is at least 2 minutes old and no live process holds the
+run lock. Any worker still running is stopped and completed work is kept. The card says `Stopped:
+the process running it ended (its host was closed). Completed work is kept. Resume to continue.`
+(a user `stop` says it was a stop request), and `resume <run>` works in one step. The run then
+appears in the unfinished-run reminder. Status, `show`, `logs`, the run list, the dashboard,
+`notify-check`, the reminder and `resume` all do this; a run with a live driver is never touched.
 
 `--json` prints one JSON object (`{action, ok, outcome, data}`) for scripting. An identical active run
 started in the last 10 minutes is not started twice (`--force-new` overrides). Options:

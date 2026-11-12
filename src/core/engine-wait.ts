@@ -1,3 +1,4 @@
+import { interruptRunIfDriverLost } from "./driver-lost.js";
 import { workflowTaskRunner } from "./task-launch.js";
 import { formatApproxDuration } from "./run-estimates.js";
 import {
@@ -17,7 +18,8 @@ export const POLL_INTERVAL_MS = 1_000;
  * `observer`: a reader (`status`, `show`, `logs`) refreshes the run but is not its driver, so its
  * lease leaves `supervisor.json` alone. Otherwise every read would stamp a fresh heartbeat and
  * the pid of the reading process, and a run whose driver died would look driven for as long as
- * something keeps reading it.
+ * something keeps reading it. An observer read is also where a run whose driver is clearly dead
+ * (`interruptRunIfDriverLost`) becomes `interrupted`; drivers never convert.
  */
 export async function refreshRun(
 	cwd: string,
@@ -34,7 +36,9 @@ export async function refreshRun(
 		},
 		options,
 	);
-	return refreshed ?? current;
+	const latest = refreshed ?? current;
+	if (!options.observer) return latest;
+	return (await interruptRunIfDriverLost(cwd, latest)) ?? latest;
 }
 
 export function hasActiveSchedulerWork(

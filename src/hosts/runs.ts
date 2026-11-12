@@ -32,6 +32,11 @@ import {
 	recordSupervisorError,
 } from "../core/engine-wait.js";
 import {
+	interruptDriverLostRuns,
+	readRunInterruptingDriverLost,
+} from "../core/driver-lost.js";
+import { isDriverLostRun } from "../core/run-stop-marking.js";
+import {
 	formatWorkflowPruneSummary,
 	pruneWorkflowRuns,
 	type WorkflowPruneSummary,
@@ -138,6 +143,8 @@ export interface RunSummary {
 	/** WP31: every executor of a mixed run (role profile), the run's executor first. */
 	executors?: string[];
 	permissionMode?: string;
+	/** `driver_lost`: interrupted by the engine because the process running it ended (not a user stop). */
+	statusDetail?: "driver_lost";
 	taskSummary: WorkflowRunRecord["taskSummary"];
 }
 
@@ -157,6 +164,7 @@ export function summarizeRun(run: WorkflowRunRecord): RunSummary {
 			? { executors: Object.keys(run.roleExecution.executors) }
 			: {}),
 		...(run.permissionMode ? { permissionMode: run.permissionMode.mode } : {}),
+		...(isDriverLostRun(run) ? { statusDetail: "driver_lost" as const } : {}),
 		taskSummary: run.taskSummary,
 	};
 }
@@ -215,6 +223,8 @@ export async function statusAction(
 ): Promise<HostResult<StatusData>> {
 	assertActionAllowed(ctx, "status");
 	if (request.runId === undefined) {
+		// Readers of the list interrupt running runs whose driver is clearly gone (driver-lost.ts).
+		await interruptDriverLostRuns(ctx.cwd);
 		const text = request.snapshot
 			? undefined
 			: await formatStatus(ctx.cwd, hostCommandHints(ctx.host));
@@ -239,7 +249,10 @@ export async function statusAction(
 	const refreshedCard = request.snapshot
 		? undefined
 		: await formatRunStatus(ctx.cwd, ref, hostCommandHints(ctx.host));
-	const run = await readRunRecord(ctx.cwd, ref);
+	const run = await readRunInterruptingDriverLost(
+		ctx.cwd,
+		await readRunRecord(ctx.cwd, ref),
+	);
 	const live =
 		run.status === "running"
 			? await isWorkflowRunLeaseLive(ctx.cwd, run.runId).catch(() => false)

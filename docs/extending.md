@@ -677,7 +677,7 @@ returns ids with host-verified logs; `includeReport` returns bounded report text
 returns redacted task text up to 8,000 characters, not the workflow description.
 
 `RunSummary` contains runId, name?, status, type, createdAt, updatedAt, parentRunId?, executor?,
-executors?, permissionMode?, taskSummary. Mixed-run task summaries include executor/model/effort.
+executors?, permissionMode?, statusDetail? (`driver_lost`: an `interrupted` run the engine stopped because its driver process ended, not a user stop), taskSummary. Mixed-run task summaries include executor/model/effort.
 
 #### `run` / `dynamic`
 

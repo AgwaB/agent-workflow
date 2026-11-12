@@ -320,8 +320,15 @@ export function statusSentence(run, time = now(), stopping = false) {
 			["running", "retry", "blocked"].includes(taskState(t)),
 	);
 	if (stopping) return "Stopping. Waiting for the supervisor to confirm.";
-	if (run.status === "interrupted")
+	if (run.status === "interrupted") {
+		// The engine interrupted it itself: the process running it ended (host closed), not a user stop.
+		if (
+			run.statusDetail === "driver_lost" ||
+			tasks.some((t) => t.statusDetail === "driver_lost")
+		)
+			return "Stopped: the process running it ended (its host was closed). Completed work is kept. Resume to continue.";
 		return "Stopped by you. Completed work is kept. Resume when ready.";
+	}
 	if (
 		tasks.some((t) => t.statusDetail === "executor_needs_decision") ||
 		run.needsYou?.some((n) => n.kind === "decision")

@@ -9,6 +9,10 @@ import {
 } from "./command-hints.js";
 import { readFileLinesBounded } from "./workflow-preview.js";
 
+import {
+	DRIVER_LOST_RUN_SENTENCE,
+	isDriverLostRun,
+} from "./run-stop-marking.js";
 import { formatDynamicAuditSummary } from "./dynamic-audit.js";
 import { buildDynamicToolResultBudgetMetrics } from "./dynamic-tool-result-budget-metrics.js";
 import {
@@ -679,6 +683,8 @@ function formatWarnings(
 	options: HumanRunFormatOptions,
 ): string[] {
 	const lines: string[] = [];
+	// Interrupted by the engine because the process driving the run ended: not a user stop.
+	if (isDriverLostRun(run)) lines.push(DRIVER_LOST_RUN_SENTENCE);
 	if (run.degradation?.summary)
 		lines.push(`⚠ Degraded: ${run.degradation.summary}`);
 	const captureLag = formatTerminalCaptureLagWarning(run);
@@ -990,6 +996,7 @@ export function formatRun(
 		options.driverLive,
 	);
 	if (stallWarning) lines.push(stallWarning);
+	if (isDriverLostRun(run)) lines.push(DRIVER_LOST_RUN_SENTENCE);
 
 	for (const task of run.tasks) {
 		lines.push(formatTask(task, detail));
