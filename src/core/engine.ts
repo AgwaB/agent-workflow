@@ -208,7 +208,6 @@ import {
 	buildForeachBatchPrompt,
 	foreachBatchExecutionSurfaceSha256,
 	foreachBatchTasks,
-	isActiveForeachBatchPhase,
 	markForeachBatchInvalidated,
 	markForeachBatchStopped,
 	setForeachBatchPhase,
@@ -288,6 +287,11 @@ import {
 	sleep,
 	stillRunningAfterWaitMessage,
 } from "./engine-wait.js";
+import { interruptRunIfDriverLost } from "./driver-lost.js";
+import {
+	DRIVER_LOST_STATUS_DETAIL,
+	markRunStopped,
+} from "./run-stop-marking.js";
 import {
 	requiredDynamicString,
 	remainingDynamicRuntimeMs,
@@ -1731,42 +1735,6 @@ function workflowStoppedTaskIds(run: WorkflowRunRecord): string[] {
 		.map((task) => task.taskId);
 }
 
-function markRunStopped(run: WorkflowRunRecord): string[] {
-	const interruptedTaskIds: string[] = [];
-	for (const task of run.tasks) {
-		const durableBarrierRecord = task.durableLaunchBarrier?.records.at(-1);
-		if (
-			task.status === "running" &&
-			(task.statusDetail === "cancellation_failed" ||
-				(durableBarrierRecord !== undefined &&
-					durableBarrierRecord.phase !== "cancellation_acknowledged"))
-		)
-			continue;
-		if (
-			setTaskTerminal(task, "interrupted", "workflow_stopped", {
-				exitCode: 130,
-				lastMessage: "Workflow stopped by user request",
-			})
-		) {
-			interruptedTaskIds.push(task.taskId);
-		} else if (task.status === "blocked") {
-			// Stopping the run abandons blocked tasks, including decisions.
-			// They become interrupted and resume like any stopped task.
-			delete task.activity;
-			task.status = "interrupted";
-			task.statusDetail = "workflow_stopped";
-			task.completedAt = new Date().toISOString();
-			task.exitCode = 130;
-			task.lastMessage = "Workflow stopped by user request";
-			interruptedTaskIds.push(task.taskId);
-		}
-	}
-	for (const record of run.foreachBatches ?? []) {
-		if (!isActiveForeachBatchPhase(record.phase)) continue;
-		markForeachBatchStopped(run, record);
-	}
-	return interruptedTaskIds;
-}
 type ForeachInvalidationGroupSnapshot = {
 	placeholderSpecId: string;
 	parentTaskId: string;
@@ -3078,6 +3046,8 @@ async function runStopRecordedForResume(
 	const run = await readRunRecord(cwd, runId).catch(() => undefined);
 	if (run === undefined || run.status !== "interrupted") return false;
 	if (workflowStoppedTaskIds(run).length > 0) return true;
+	if (run.tasks.some((task) => task.statusDetail === DRIVER_LOST_STATUS_DETAIL))
+		return true;
 	return (await readWorkflowStopIntent(cwd, runId)) !== undefined;
 }
 
@@ -3086,7 +3056,10 @@ export async function resumeRun(
 	runIdOrPrefix: string,
 	options: WorkflowScheduleOptions = {},
 ): Promise<ResumeRunSummary> {
-	const current = await readRunRecord(cwd, runIdOrPrefix);
+	let current = await readRunRecord(cwd, runIdOrPrefix);
+	// A `running` run whose driver is clearly gone is interrupted first, so resume is one step.
+	if (current.status === "running")
+		current = (await interruptRunIfDriverLost(cwd, current)) ?? current;
 	assertRunResumableForResume(
 		current,
 		current.status === "blocked"

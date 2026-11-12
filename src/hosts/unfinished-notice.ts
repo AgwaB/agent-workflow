@@ -14,6 +14,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { stateBase } from "../core/state-location.js";
+import { interruptDriverLostRuns } from "../core/driver-lost.js";
 import { readRunRecord } from "../core/store.js";
 import type { WorkflowHostId } from "../core/types.js";
 import { listUnfinishedNoticesIgnoringInvalidAcknowledgements } from "../core/workflow-notices.js";
@@ -145,6 +146,8 @@ export async function unfinishedRunReminderDetails(
 	const host = options.host ?? ctx.host ?? "cli";
 	const hints = hostCommandHints(host);
 	const exclude = new Set(options.exclude ?? []);
+	// A running run whose driver is clearly gone becomes interrupted first, so it is listed below.
+	await interruptDriverLostRuns(ctx.cwd).catch(() => []);
 	// Malformed or invalid acknowledgements never suppress notices. The strict list
 	// refuses them, so retry treating them as no acknowledgements.
 	const data = await api

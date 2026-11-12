@@ -768,6 +768,28 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 				stalledRun({ live: false, status: "interrupted" }),
 				at,
 			),
+			// The engine interrupted it itself (its driver ended): not "Stopped by you".
+			lost: statusSentence(
+				stalledRun({
+					live: false,
+					status: "interrupted",
+					statusDetail: "driver_lost",
+				}),
+				at,
+			),
+			lostByTask: statusSentence(
+				stalledRun({
+					status: "interrupted",
+					tasks: [
+						{
+							stageId: "a",
+							status: "interrupted",
+							statusDetail: "driver_lost",
+						},
+					],
+				}),
+				at,
+			),
 		};
 		return { retry, launch, decision, unknown: statusSentence(run), stalled };
 	});
@@ -779,6 +801,12 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	for (const key of ["driven", "unknown", "fresh"])
 		assert.match(mapped.stalled[key], /^Work is under way\./, key);
 	assert.match(mapped.stalled.stopped, /^Stopped by you/);
+	for (const key of ["lost", "lostByTask"])
+		assert.equal(
+			mapped.stalled[key],
+			"Stopped: the process running it ended (its host was closed). Completed work is kept. Resume to continue.",
+			key,
+		);
 	assert.match(mapped.retry, /rate-limit retry \(2 of 4, 6:40\)/);
 	assert.equal(mapped.retry, mapped.launch);
 	assert.match(mapped.decision, /you need to decide/);

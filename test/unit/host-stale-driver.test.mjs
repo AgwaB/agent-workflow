@@ -144,8 +144,11 @@ async function ageRun(cwd, runId, ms = 10 * 60_000) {
 	await writeFile(path, `${JSON.stringify(record, null, "\t")}\n`);
 }
 
-/** The dead driver's last heartbeat is old, as it is when a run was abandoned a while ago. */
-async function ageHeartbeat(cwd, runId, ms = 53 * 60_000) {
+/**
+ * The dead driver's last heartbeat is old. Under two minutes the run is only "stalled"; from two
+ * minutes the next reader interrupts it (test/unit/host-driver-lost.test.mjs).
+ */
+async function ageHeartbeat(cwd, runId, ms = 90_000) {
 	const path = store.supervisorPath(cwd, runId);
 	const record = JSON.parse(await readFile(path, "utf8"));
 	record.updatedAt = new Date(Date.now() - ms).toISOString();
@@ -182,7 +185,7 @@ test("a run whose driver died is presented as stalled by status, show, raw and t
 	assert.equal(status.data.run.status, "running");
 	assert.equal(status.data.run.live, false, status.text);
 	assert.match(status.text, /⚠ stalled — no live driver/);
-	assert.match(status.text, /last supervisor heartbeat 5\dm ago/);
+	assert.match(status.text, /last supervisor heartbeat 1m ago/);
 	// The reader left the driver's heartbeat alone (pid and time of the dead launcher).
 	assert.deepEqual(
 		{

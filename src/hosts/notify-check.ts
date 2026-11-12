@@ -19,7 +19,9 @@ import { stateBase } from "../core/state-location.js";
 // settles again is reported again. `wait` (CLI, MCP `workflow_wait`, Pi) marks a settled state it
 // returned as seen (creating the directory and baseline when needed, WP39b), so a result the host
 // already showed is not repeated.
-// No model call, no lease; markers of pruned runs are removed.
+// No model call; markers of pruned runs are removed. The one write a check can make to a run is
+// turning a `running` run whose driver is clearly gone into `interrupted` (core/driver-lost.ts),
+// which is then reported like any settled run.
 // WP42 (review round 1, finding 4): the plugin's prompt hook only reads in shell (a `find -newer`
 // against its stamp); the stamp itself (`hook-<host>.stamp`) is written here (`--stamp <name>`),
 // through the same contained directory as the receipts, after a successful check, with the check's
@@ -46,6 +48,10 @@ import {
 	readRunRecord,
 	workflowRunDir,
 } from "../core/store.js";
+import {
+	interruptDriverLostRuns,
+	interruptRunIfDriverLost,
+} from "../core/driver-lost.js";
 import type { WorkflowHostId, WorkflowRunRecord } from "../core/types.js";
 import { listUnfinishedNoticesIgnoringInvalidAcknowledgements } from "../core/workflow-notices.js";
 import { summarizeWorkflowTerminal } from "../core/workflow-terminal.js";
@@ -582,6 +588,10 @@ async function checkOnce(
 	const now = options.now ?? Date.now();
 	const host = options.host ?? "cli";
 	const empty = { data: { notifications: [], deferred: 0 }, text: "" };
+	// A run whose driver is gone settles here, so this check reports it (best effort, never throws).
+	if (options.runId === undefined)
+		await interruptDriverLostRuns(cwd, { nowMs: now });
+	else await interruptRunIfDriverLost(cwd, options.runId, { nowMs: now });
 	const entries = (await readProjectRunEntries(cwd)).filter(
 		(entry) =>
 			!entry.parentRunId &&

@@ -187,6 +187,10 @@ export function projectRunSummary(
 		name: run.name ?? "workflow",
 		status: run.status,
 		...(run.status === "blocked" && statusDetail ? { statusDetail } : {}),
+		// An interrupted run the engine stopped itself (its driver ended): not "stopped by you".
+		...(run.status === "interrupted" && run.statusDetail === "driver_lost"
+			? { statusDetail: "driver_lost" }
+			: {}),
 		createdAt: run.createdAt,
 		updatedAt: run.updatedAt,
 		...(preview ? { taskPreview: preview } : {}),

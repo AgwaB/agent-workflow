@@ -3922,6 +3922,80 @@ export async function isWorkflowRunLeaseLive(
 	}
 }
 
+/** A driver heartbeat this old, from a dead process, means the run's driver is gone for good. */
+export const DRIVER_LOST_AFTER_MS = 120_000;
+
+export interface RunDriverLostAssessment {
+	lost: boolean;
+	/** Why the run is not (yet) judged lost, or what proved it lost. */
+	detail: string;
+}
+
+/**
+ * Is the run's driver clearly dead? Only when every recorded driver pid (run lock, `supervisor.json`,
+ * the supervisor lease) is gone, the newest heartbeat (lock mtime, `supervisor.json` `updatedAt`,
+ * lease `heartbeatAt`) is at least {@link DRIVER_LOST_AFTER_MS} old and the run lock is not held by a
+ * live owner. Anything unreadable, unrecorded or alive reads as "not lost": a wrong "lost" would
+ * interrupt a run that is progressing.
+ *
+ * `ownLock`: the caller holds the run lock itself (the re-check under the lease), so the lock is
+ * not evidence either way.
+ */
+export async function assessRunDriverLost(
+	cwd: string,
+	runId: string,
+	options: { nowMs?: number; ownLock?: boolean } = {},
+): Promise<RunDriverLostAssessment> {
+	const nowMs = options.nowMs ?? Date.now();
+	const dir = workflowRunDir(cwd, runId);
+	const lockFile = join(dir, "supervisor.lock");
+	const pids: number[] = [];
+	const heartbeats: number[] = [];
+	try {
+		if (!options.ownLock) {
+			const lock = await readLockSnapshot(lockFile);
+			if (lock) {
+				if (!(await lockReclaimDecision(lockFile, lock)).reclaimable)
+					return {
+						lost: false,
+						detail: "the run lock is held by a live owner",
+					};
+				if (lock.pid !== undefined) pids.push(lock.pid);
+				heartbeats.push(lock.mtimeMs);
+			}
+		}
+		for (const file of [
+			join(dir, "supervisor.json"),
+			supervisorLeasePath(cwd, runId),
+		]) {
+			try {
+				const record = JSON.parse(await readFile(file, "utf8")) as {
+					pid?: unknown;
+					updatedAt?: unknown;
+					heartbeatAt?: unknown;
+				};
+				if (typeof record.pid === "number") pids.push(record.pid);
+				const at = record.heartbeatAt ?? record.updatedAt;
+				const parsed = typeof at === "string" ? Date.parse(at) : Number.NaN;
+				if (Number.isFinite(parsed)) heartbeats.push(parsed);
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+				return { lost: false, detail: "a driver record is unreadable" };
+			}
+		}
+	} catch {
+		return { lost: false, detail: "the run lock is unreadable" };
+	}
+	if (pids.length === 0 || heartbeats.length === 0)
+		return { lost: false, detail: "no driver was recorded for the run" };
+	if (pids.some((pid) => isProcessAlive(pid)))
+		return { lost: false, detail: "the driver process is alive" };
+	const ageMs = nowMs - Math.max(...heartbeats);
+	if (ageMs < DRIVER_LOST_AFTER_MS)
+		return { lost: false, detail: "the driver heartbeat is recent" };
+	return { lost: true, detail: "the driver process is gone" };
+}
+
 export function supervisorLeasePath(cwd: string, runId: string): string {
 	return join(workflowRunDir(cwd, runId), "supervisor-lease.json");
 }

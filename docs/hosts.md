@@ -361,7 +361,7 @@ Every host reminds you about runs that stopped or failed and that you have not d
 | Claude Code, Codex | With the plugin's prompt hook, at your next message: a one-line summary under your message, details for the assistant |
 | Dashboard | "Needs you" and Maintenance |
 
-A run qualifies when it is a top-level failed or interrupted run, or a blocked run needing an executor decision, updated in the last 7 days. Mock runs are excluded and at most 5 are listed. A run is reminded again when its state changes or 6 hours after the last reminder. Reminder state is shared by all hosts of the project.
+A run qualifies when it is a top-level failed or interrupted run, or a blocked run needing an executor decision, updated in the last 7 days. Mock runs are excluded and at most 5 are listed. A run is reminded again when its state changes or 6 hours after the last reminder. Reminder state is shared by all hosts of the project. Building the reminder first marks a `running` run whose driver is clearly dead (process gone, heartbeat 2+ minutes old, no live lock owner) as `interrupted`, so a run left behind by a closed host is listed. The prompt hook's idle fast path (a stamp under 6 h old and no changed `run.json`) can postpone that for up to 6 h; `status`, the dashboard and `resume` do it at once.
 
 Dismissing a reminder hides it in every host. You can dismiss from:
 
@@ -572,7 +572,7 @@ Inheritance uses file configuration: workers read the user's `mcp.json`; live pa
 
 ### Session start
 
-Startup work is asynchronous and does not delay Pi. In supervisor role, the host re-drives project runs with scheduler work and no live driver. A held lease or a live other pid with a supervisor heartbeat younger than 30 s prevents takeover. Blocked runs stay blocked. Workers that died without terminal records are reconciled; unknown outcomes block as `executor_needs_decision`, never automatically relaunch.
+Startup work is asynchronous and does not delay Pi. In supervisor role, the host re-drives project runs with scheduler work and no live driver. A held lease or a live other pid with a supervisor heartbeat younger than 30 s prevents takeover. Re-driving comes first: only a run still `running` with a clearly dead driver afterwards (a heartbeat of 2+ minutes from a gone pid, no live lock owner) is marked `interrupted` by the notice below, so it is listed and `/aw resume` works. Blocked runs stay blocked. Workers that died without terminal records are reconciled; unknown outcomes block as `executor_needs_decision`, never automatically relaunch.
 
 Re-driving does not take over completion delivery: the original audience session still owns it. Attached runs continue only while Pi runs; use `--detach` to outlive sessions.
 
@@ -778,7 +778,7 @@ Overview counts use status summaries: `running` includes running/blocked runs, `
 
 #### Dashboard projection
 
-Run summaries include `runId`, `name`, `status`, `statusDetail?`, timestamps, redacted `taskPreview?` (≤140 characters), executor(s), host, task/agent counts, verdict, report availability, `needsYou` and `live` (a supervisor holds the lease). A `running` run with `live: false` and no recent launch is shown as stalled: the status text says `no live driver`, the dashboard says `Stalled`. The status stays `running`.
+Run summaries include `runId`, `name`, `status`, `statusDetail?`, timestamps, redacted `taskPreview?` (≤140 characters), executor(s), host, task/agent counts, verdict, report availability, `needsYou` and `live` (a supervisor holds the lease). A `running` run with `live: false` and no recent launch is shown as stalled: the status text says `no live driver`, the dashboard says `Stalled`. The status stays `running` until the driver has been dead for 2 minutes; the next read (a dashboard refresh included) then makes it `interrupted` with `statusDetail: "driver_lost"`, and the dashboard says `Stopped: the process running it ended (its host was closed). Completed work is kept. Resume to continue.` instead of `Stopped by you.`
 
 Full runs add the redacted runtime task, permission mode, usage (or `null`), redacted launch details and tasks. Tasks include ids, kind, agent, state/reason, dependencies, executor/model/effort, timing, retry information, last message, usage, worktree, log availability, item title, outcome and current activity.
 
