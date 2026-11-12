@@ -2874,3 +2874,181 @@ button.danger:hover:not(:disabled) {
 	font-size: 12px;
 	color: var(--faint);
 }
+/* 2026-11-12: the run's timeline — stages (and their agents) on one time axis. */
+.timeline {
+	flex: 1;
+	min-height: 0;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	container-type: inline-size;
+}
+.tl-scroll {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	padding: 4px 28px 12px;
+}
+/* The graph's view switch, in the same place, below the rows instead of over them. */
+.timeline > .toolbar {
+	position: static;
+	align-self: flex-start;
+	margin: 4px 28px 16px;
+}
+.tl-head,
+.tl-row {
+	display: grid;
+	grid-template-columns: minmax(140px, 240px) minmax(0, 1fr) 64px 80px;
+	align-items: center;
+	column-gap: 14px;
+}
+.tl-head {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	height: 32px;
+	padding: 0 8px;
+	border-bottom: 1px solid var(--line2);
+	background: var(--bg);
+	color: var(--faint);
+	font-size: 12px;
+}
+.tl-axis {
+	display: block;
+	width: 100%;
+	height: 32px;
+	overflow: visible;
+}
+.tl-axis text {
+	fill: var(--faint);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+.tl-row {
+	width: 100%;
+	height: 34px;
+	padding: 0 8px;
+	border: 0;
+	border-bottom: 1px solid var(--line);
+	border-radius: 0;
+	background: none;
+	color: var(--text);
+	font: inherit;
+	font-size: 14px;
+	text-align: left;
+}
+.tl-row:hover {
+	background: var(--selected);
+}
+.tl-row[aria-current="true"] {
+	background: var(--selected);
+	box-shadow: inset 2px 0 0 var(--text);
+}
+.tl-row .num,
+.tl-head .num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	color: var(--muted);
+}
+.tl-name {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+.tl-name .glyph {
+	flex: none;
+}
+.tl-name .kind-icon {
+	flex: none;
+	color: var(--faint);
+}
+.tl-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.tl-count {
+	flex: none;
+	color: var(--faint);
+}
+.tl-child .tl-name {
+	padding-left: 22px;
+	color: var(--muted);
+}
+.tl-waiting .tl-label {
+	color: var(--faint);
+}
+.tl-lane {
+	display: block;
+	width: 100%;
+	height: 34px;
+	overflow: visible;
+}
+.tl-grid {
+	stroke: var(--line);
+}
+.tl-wait {
+	stroke: var(--line2);
+	stroke-width: 1.5;
+	stroke-dasharray: 2 3;
+}
+.tl-bar {
+	fill: var(--done);
+	stroke: var(--done);
+	stroke-width: 1;
+}
+.tl-bar.running {
+	fill: var(--accent);
+	stroke: var(--accent);
+	animation: pulse 1.8s ease-in-out infinite;
+}
+.tl-bar.retry,
+.tl-bar.blocked {
+	fill: var(--warn);
+	stroke: var(--warn);
+}
+.tl-bar.failed {
+	fill: var(--err);
+	stroke: var(--err);
+}
+.tl-bar.interrupted,
+.tl-bar.skipped {
+	fill: var(--later);
+	stroke: var(--later);
+}
+.tl-note {
+	margin: 14px 8px 0;
+	color: var(--faint);
+	font-size: 13px;
+}
+@media (prefers-reduced-motion: reduce) {
+	.tl-bar.running {
+		animation: none;
+	}
+}
+@media (max-width: 1200px) {
+	.tl-scroll {
+		padding-inline: 16px;
+	}
+	.timeline > .toolbar {
+		margin-inline: 16px;
+	}
+}
+/* A narrow centre (an open inspector, a phone): no cost column, every other axis mark. */
+@container (max-width: 680px) {
+	.tl-scroll {
+		padding: 4px 12px 12px;
+	}
+	.tl-head,
+	.tl-row {
+		grid-template-columns: minmax(110px, 170px) minmax(0, 1fr) 56px;
+		column-gap: 10px;
+	}
+	.tl-cost {
+		display: none;
+	}
+	.tl-axis text:nth-child(even) {
+		display: none;
+	}
+}
