@@ -92,3 +92,84 @@ test("Needs you: dismiss a failure, keep executor decisions, restore, and see a 
 	assert.equal(now.needs.length, 2);
 	assert.equal(now.restore, null);
 });
+
+// 2026-11-12 (owner: one dismissal for every host): a failed run's need is dismissed through the
+// project's notice acknowledgements, so the Pi, Claude Code and Codex reminders stay quiet too;
+// "Show N dismissed" clears it; a new failure of the run (another state) shows again.
+test("Needs you: a dismissal is the shared notice acknowledgement", {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 60_000,
+}, async (t) => {
+	const fixture = await createFixtureServer({ notices: true });
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.open(`${fixture.origin}/`);
+	await browser.waitFor(
+		() => document.querySelectorAll("#rail .need").length === 2,
+	);
+	assert.match(
+		await browser.evaluate(() =>
+			document.querySelector("#rail .need-dismiss").getAttribute("title"),
+		),
+		/Dismiss everywhere/,
+	);
+	await browser.click("#rail .need-dismiss");
+	await browser.waitFor(
+		() =>
+			document.querySelector("#rail .need-restore")?.textContent ===
+			"Show 1 dismissed",
+	);
+	const acknowledge = fixture.mutations.find(
+		(entry) => entry.action === "notices-acknowledge",
+	);
+	assert.equal(acknowledge?.runId, FAILED_RUN);
+	assert.equal(acknowledge.body.reason, "Dismissed in the dashboard");
+	assert.match(acknowledge.body.state, /^[a-f0-9]{64}$/);
+	assert.equal(
+		await browser.evaluate(() =>
+			localStorage.getItem(
+				Object.keys(localStorage).find((key) =>
+					key.startsWith("agent-workflow:dismissed-needs:"),
+				) ?? "",
+			),
+		),
+		"[]",
+		"not kept in this browser only",
+	);
+
+	// Another browser (a reload with no local state) sees the dismissal too.
+	await browser.evaluate(() => localStorage.clear());
+	await browser.open(`${fixture.origin}/`);
+	await browser.waitFor(() => document.querySelector("#rail .need-restore"));
+	assert.deepEqual((await rail(browser)).needs, [
+		"Controller needs a decision",
+	]);
+
+	await browser.click("#rail .need-restore");
+	await browser.waitFor(
+		() => document.querySelectorAll("#rail .need").length === 2,
+	);
+	assert.ok(
+		fixture.mutations.some(
+			(entry) => entry.action === "notices-clear" && entry.runId === FAILED_RUN,
+		),
+	);
+
+	// Dismiss again, then the run fails again (a new state): it shows again.
+	await browser.click("#rail .need-dismiss");
+	await browser.waitFor(() => document.querySelector("#rail .need-restore"));
+	const run = fixture.runs.get(FAILED_RUN);
+	run.updatedAt = new Date(Date.parse(run.updatedAt) + 60_000).toISOString();
+	run.needsYou = run.needsYou.map((need) => ({
+		...need,
+		since: new Date(Date.parse(need.since) + 60_000).toISOString(),
+	}));
+	fixture.publish();
+	await browser.open(`${fixture.origin}/`);
+	await browser.waitFor(
+		() => document.querySelectorAll("#rail .need").length === 2,
+	);
+});

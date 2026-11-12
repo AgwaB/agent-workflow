@@ -667,20 +667,99 @@ function allNeeds() {
 		(r.needsYou || []).map((n) => ({ ...n, run: r, key: needKey(n, r.runId) })),
 	);
 }
+/*
+ * 2026-11-12 (owner: one dismissal for every host): a failed run's "Needs you" item is dismissed
+ * through the project's notice acknowledgements, the ones Pi, Claude Code and Codex reminders and
+ * Maintenance use, so dismissing it here quiets it there too. Read-only dashboards, runs that are
+ * not a notice, and a refused write fall back to this browser's own list (the previous behavior).
+ */
+let noticeState = { acknowledged: new Set(), states: new Map() };
+async function refreshNotices() {
+	if (!state.project || state.project === "all") return;
+	try {
+		const listed = (await api(projectRoute("notices"))).data;
+		noticeState = {
+			acknowledged: new Set(
+				(listed.acknowledgements || [])
+					.filter((entry) => entry.active)
+					.map((entry) => entry.runId),
+			),
+			states: new Map(
+				(listed.notices || []).map((entry) => [entry.runId, entry.sha256]),
+			),
+		};
+	} catch {
+		// Keep the last known notices: a failed read never shows a dismissed item again.
+	}
+}
+const serverDismissed = (need) =>
+	need.kind === "failed" && noticeState.acknowledged.has(need.run.runId);
 function visibleNeeds() {
 	const dismissed = dismissedNeeds();
 	return allNeeds().filter(
-		(need) => need.kind !== "failed" || !dismissed.has(need.key),
+		(need) =>
+			need.kind !== "failed" ||
+			(!dismissed.has(need.key) && !serverDismissed(need)),
 	);
 }
-function setNeedDismissed(keys, dismissed) {
+function setNeedDismissed(needs, dismissed) {
+	// The rail changes at once; the shared acknowledgement is written after, and a refused write
+	// falls back to this browser's list.
 	const current = dismissedNeeds();
-	for (const key of keys)
-		if (dismissed) current.add(key);
-		else current.delete(key);
+	const shared = [];
+	for (const need of needs) {
+		const runId = need.run.runId;
+		const sha256 = noticeState.states.get(runId);
+		if (dismissed) {
+			if (!readonly() && sha256) {
+				noticeState.acknowledged.add(runId);
+				shared.push({ need, runId, sha256 });
+			} else current.add(need.key);
+		} else {
+			current.delete(need.key);
+			if (!readonly() && noticeState.acknowledged.has(runId)) {
+				noticeState.acknowledged.delete(runId);
+				shared.push({ need, runId });
+			}
+		}
+	}
 	saveDismissedNeeds(current);
 	renderTop();
 	renderRail();
+	if (!shared.length) return;
+	Promise.all(
+		shared.map(async ({ need, runId, sha256 }) => {
+			try {
+				await api(
+					projectRoute(
+						`notices/${encodeURIComponent(runId)}/${dismissed ? "acknowledge" : "clear"}`,
+					),
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							"X-AW-CSRF": session.csrf,
+						},
+						body: JSON.stringify(
+							dismissed
+								? { state: sha256, reason: "Dismissed in the dashboard" }
+								: {},
+						),
+					},
+				);
+			} catch {
+				if (!dismissed) return;
+				const kept = dismissedNeeds();
+				kept.add(need.key);
+				saveDismissedNeeds(kept);
+			}
+		}),
+	)
+		.then(refreshNotices)
+		.then(() => {
+			renderTop();
+			renderRail();
+		});
 }
 
 function renderRail() {
@@ -785,7 +864,7 @@ function renderRail() {
 								].findIndex((item) =>
 									item.querySelector(`[data-need="${CSS.escape(need.key)}"]`),
 								);
-								setNeedDismissed([need.key], true);
+								setNeedDismissed([need], true);
 								const left = [...$("rail").querySelectorAll(".need")];
 								(
 									left[Math.min(index, left.length - 1)] ??
@@ -796,7 +875,8 @@ function renderRail() {
 								class: "need-dismiss",
 								"data-need": need.key,
 								"aria-label": `Dismiss: ${need.title}`,
-								title: "Dismiss (this browser; a new failure shows again)",
+								title:
+									"Dismiss everywhere: the dashboard and the Pi, Claude Code and Codex reminders (a new failure shows again)",
 							},
 						)
 					: null,
@@ -807,10 +887,7 @@ function renderRail() {
 			button(
 				`Show ${hidden.length} dismissed`,
 				() => {
-					setNeedDismissed(
-						hidden.map((need) => need.key),
-						false,
-					);
+					setNeedDismissed(hidden, false);
 					$("rail").querySelector(".need")?.focus({ preventScroll: true });
 				},
 				{ class: "need-restore link" },
@@ -4878,6 +4955,7 @@ async function refreshRuns() {
 	const data = await api("/api/runs");
 	syncClock(data.serverTime);
 	runs = data.runs;
+	if (allNeeds().some((need) => need.kind === "failed")) await refreshNotices();
 	renderTop();
 	renderRail();
 }
@@ -6512,7 +6590,7 @@ async function renderMaintenance(page) {
 		element(
 			"p",
 			{ class: "muted" },
-			"A stopped or failed run is reported when a host starts. Open it to resume or inspect it, or dismiss the notice once you have dealt with it: the run itself and resume stay as they are.",
+			"Claude Code, Codex and Pi remind you about a stopped or failed run until you dismiss it. Open it to resume or inspect it; dismissing hides the reminder everywhere, including Needs you. The run itself and resume stay as they are.",
 		),
 		open.length
 			? propertyTable(

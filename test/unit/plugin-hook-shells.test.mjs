@@ -4,12 +4,19 @@
 // so the completion monitor reported a failure at each Claude Code start. Both commands run here under sh and zsh.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	rmSync,
+	utimesSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import {
 	claudeCompletionMonitor,
+	codexHostCommandHookScript,
 	notifyHookCommand,
 } from "../../tools/release/plugins.mjs";
 
@@ -74,6 +81,54 @@ for (const shell of shells)
 				hook.stdout,
 				/^CLI notify-check --host claude-code --stamp hook-claude-code$/m,
 			);
+
+			// 2026-11-12: a fresh stamp with no run.json change skips the CLI; a stamp over six hours
+			// old starts it again, so the unfinished-run reminder can repeat.
+			const stamp = join(
+				state,
+				".agent-workflow",
+				"notify-check",
+				"hook-claude-code.stamp",
+			);
+			mkdirSync(join(state, ".agent-workflow", "notify-check"), {
+				recursive: true,
+			});
+			writeFileSync(stamp, "");
+			const old = Date.now() / 1000 - 7 * 3600;
+			utimesSync(
+				join(state, ".agent-workflow", "workflows", "workflow_x", "run.json"),
+				old - 60,
+				old - 60,
+			);
+			assert.equal(run(notifyHookCommand(cli, "claude-code")).stdout, "");
+			utimesSync(stamp, old, old);
+			assert.match(
+				run(notifyHookCommand(cli, "claude-code")).stdout,
+				/^CLI notify-check --host claude-code --stamp hook-claude-code$/m,
+			);
+
+			// The Codex script: an aw command goes to host-command alone (its JSON is the whole
+			// output); any other prompt runs the check (with its own stamp) and nothing else.
+			const script = join(root, "codex-hook.sh");
+			writeFileSync(script, codexHostCommandHookScript(cli));
+			const codex = (prompt) =>
+				spawnSync(shell, [script], {
+					env: { ...env, CLAUDE_PROJECT_DIR: "" },
+					cwd: project,
+					input: JSON.stringify({ prompt }),
+					encoding: "utf8",
+					timeout: 20_000,
+				});
+			const command = codex("$aw status");
+			assert.equal(command.status, 0, command.stderr);
+			assert.equal(command.stdout, "CLI host-command --host codex\n");
+			const plain = codex("what changed today?");
+			assert.equal(plain.status, 0, plain.stderr);
+			assert.equal(
+				plain.stdout,
+				"CLI notify-check --host codex --stamp hook-codex\n",
+			);
+
 			const monitor = run(claudeCompletionMonitor(cli).command);
 			assert.equal(monitor.status, 0, monitor.stderr);
 			assert.equal(monitor.stderr, "");
