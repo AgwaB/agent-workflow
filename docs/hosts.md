@@ -331,14 +331,14 @@ For either host, run `agent-workflow watch [runId]` in another terminal pane to 
 
 `agent-workflow notify-check` announces newly settled run states once. A state returned by `workflow_wait` is marked seen; receipts live in `.agent-workflow/notify-check/` in the [state directory](usage.md#where-run-state-lives). A `UserPromptSubmit` hook adds its output to the host's context at the user's next message. Interactive session wake mechanisms work without waiting for another prompt; see [completion delivery](#completion-check-hook).
 
-A whole-project check (not `--run` or `--session`) also adds the [unfinished-run reminder](#unfinished-run-reminders): the same reminder Pi gives at session start, with the host's own commands. A run the same check just announced is not repeated.
+A whole-project check (not `--run` or `--session`) also adds the [unfinished-run reminder](#unfinished-run-reminders): the same reminder Pi gives at session start, with the host's own commands. A run the same check just announced is not repeated. The plugin hooks pass `--hook`. When there is a reminder, the output is the hook JSON: a one-line summary as `systemMessage`, which Claude Code and Codex show to the user under their message, and everything as `additionalContext` for the model. Otherwise the output is plain text as before.
 
 #### Claude Code hook
 
 The plugin includes a `UserPromptSubmit` command hook with a 60 s timeout. It runs this in `$CLAUDE_PROJECT_DIR`:
 
 ```sh
-npx -y --package=@agwab/agent-workflow@<package version> agent-workflow notify-check --host claude-code
+npx -y --package=@agwab/agent-workflow@<package version> agent-workflow notify-check --host claude-code --hook
 ```
 
 The generated hook skips CLI startup when there are no runs, or when no `run.json` changed since `.agent-workflow/notify-check/hook-claude-code.stamp` and that stamp is less than six hours old (an older stamp lets the reminder repeat). Its shell finds the state directory using `realpath`, a SHA-256 tool and the
@@ -358,7 +358,7 @@ Every host reminds you about runs that stopped or failed and that you have not d
 | Host | When |
 |---|---|
 | Pi | At session start |
-| Claude Code, Codex | With the plugin's prompt hook, at your next message |
+| Claude Code, Codex | With the plugin's prompt hook, at your next message: a one-line summary under your message, details for the assistant |
 | Dashboard | "Needs you" and Maintenance |
 
 A run qualifies when it is a top-level failed or interrupted run, or a blocked run needing an executor decision, updated in the last 7 days. Mock runs are excluded and at most 5 are listed. A run is reminded again when its state changes or 6 hours after the last reminder. Reminder state is shared by all hosts of the project.

@@ -79,7 +79,7 @@ for (const shell of shells)
 			assert.equal(hook.status, 0, hook.stderr);
 			assert.match(
 				hook.stdout,
-				/^CLI notify-check --host claude-code --stamp hook-claude-code$/m,
+				/^CLI notify-check --host claude-code --stamp hook-claude-code --hook$/m,
 			);
 
 			// 2026-11-12: a fresh stamp with no run.json change skips the CLI; a stamp over six hours
@@ -104,7 +104,7 @@ for (const shell of shells)
 			utimesSync(stamp, old, old);
 			assert.match(
 				run(notifyHookCommand(cli, "claude-code")).stdout,
-				/^CLI notify-check --host claude-code --stamp hook-claude-code$/m,
+				/^CLI notify-check --host claude-code --stamp hook-claude-code --hook$/m,
 			);
 
 			// The Codex script: an aw command goes to host-command alone (its JSON is the whole
@@ -126,7 +126,7 @@ for (const shell of shells)
 			assert.equal(plain.status, 0, plain.stderr);
 			assert.equal(
 				plain.stdout,
-				"CLI notify-check --host codex --stamp hook-codex\n",
+				"CLI notify-check --host codex --stamp hook-codex --hook\n",
 			);
 
 			const monitor = run(claudeCompletionMonitor(cli).command);

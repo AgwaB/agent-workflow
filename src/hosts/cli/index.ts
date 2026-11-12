@@ -896,14 +896,20 @@ async function dispatch(
 		}
 		case "notify-check": {
 			const parsed = parseCommandArgs(argv, {
-				flags: ["--json", "--follow"],
+				flags: ["--json", "--follow", "--hook"],
 				values: ["--host", "--interval", "--stamp", "--run", "--session"],
 			});
 			only(
 				parsed,
 				0,
-				"notify-check [--host cli|claude-code|codex|generic] [--json] [--stamp <name>] [--run <run-id>] [--session <host-session-id>] [--follow [--interval <seconds>]]",
+				"notify-check [--host cli|claude-code|codex|generic] [--json] [--hook] [--stamp <name>] [--run <run-id>] [--session <host-session-id>] [--follow [--interval <seconds>]]",
 			);
+			// 2026-11-12: --hook prints the prompt hook's JSON when there is an unfinished-run reminder.
+			const hook = parsed.flags.has("--hook");
+			if (hook && (parsed.flags.has("--json") || parsed.flags.has("--follow")))
+				throw new HostUsageError(
+					"--hook cannot be combined with --json or --follow",
+				);
 			// 2026-11-05: one run only; with --follow, exit once it has settled (a Claude Code Monitor
 			// started for one launch: its line wakes the session, then the monitor ends).
 			const runFilter = parsed.values.get("--run");
@@ -950,6 +956,7 @@ async function dispatch(
 					...(stamp !== undefined ? { stamp } : {}),
 					...(runFilter !== undefined ? { runId: runFilter } : {}),
 					...(session !== undefined ? { session } : {}),
+					...(hook ? { hook } : {}),
 				});
 			if (follow && runFilter !== undefined) {
 				const run = await readRunRecord(io.cwd, runFilter).catch(

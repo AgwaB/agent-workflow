@@ -176,7 +176,7 @@ One line about this project's active runs, for a status bar such as Claude Code'
 JSON Claude Code passes on stdin (workspace.project_dir, workspace.current_dir, cwd) to find the
 project, else the working directory. Read-only, no model call, never fails loudly (always exit 0).
 Blocked runs show for a day as "needs action".`,
-	"notify-check": `Usage: agent-workflow notify-check [--host cli|claude-code|codex|generic] [--json] [--stamp <name>]
+	"notify-check": `Usage: agent-workflow notify-check [--host cli|claude-code|codex|generic] [--json] [--hook] [--stamp <name>]
        agent-workflow notify-check --follow [--interval <seconds>] [--host …]
 
 Print one line per run of this project that finished (or now needs the user) since the last check,
@@ -188,7 +188,10 @@ Meant for host hooks that add their output to the conversation (Claude Code plug
 UserPromptSubmit hook); no model call. Exit 0. --follow keeps checking every 5 s (--interval 1-60)
 and prints each new line as it appears, for a long-lived feed such as a Claude Code plugin monitor.
 --stamp <name> (for a prompt hook's idle test) writes .agent-workflow/notify-check/<name>.stamp
-after a successful check, timed to the check's start.`,
+after a successful check, timed to the check's start.
+A whole-project check also reminds about unfinished runs nobody dismissed (every 6 h, like Pi's
+session-start notice). --hook (for a prompt hook) prints that case as the hook JSON: a one-line
+summary as systemMessage, shown to the user, and everything as additionalContext for the model.`,
 	help: `Usage: agent-workflow help [<command>]`,
 };
 

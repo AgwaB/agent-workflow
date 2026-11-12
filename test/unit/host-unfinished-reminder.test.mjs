@@ -35,6 +35,11 @@ test("notify-check reminds about unfinished runs on every host, every six hours,
 			/- deep-research workflow_recent: failed \(updated 2026-06-11T00:00:00\.000Z\) \[state [a-f0-9]{64}\] — workflow_resume \{"runId":"workflow_recent"\}/,
 		);
 		assert.match(first.text, /dismiss it in the dashboard \(Maintenance\)/);
+		// The model hosts get the text in context, not on screen: it says what to do with it.
+		assert.match(
+			first.text,
+			/^For the assistant: the user has not seen this\. Before answering their message, tell them/m,
+		);
 		assert.equal(first.data.reminder, first.text);
 
 		assert.equal(
@@ -128,6 +133,50 @@ test("notify-check holds the reminder while completion reports are queued, and n
 			ids.map((id) => seen.get(id)),
 			ids.map(() => 2),
 			"each run once: its completion line names it twice (label and Details)",
+		);
+	} finally {
+		rmSync(cwd, { recursive: true, force: true });
+	}
+});
+
+// Seen live (Claude Code with haiku, 2026-11-12): the model relayed the context-only reminder in 1 of
+// 3 sessions. The prompt hook's JSON puts a one-line summary on the user's screen (systemMessage in
+// Claude Code and Codex) and leaves the details to the model.
+test("notify-check --hook shows the reminder to the user and gives the model the details", async () => {
+	const cwd = makeProject();
+	try {
+		writeUnfinishedNoticeIndex(cwd, [
+			writeUnfinishedNoticeIndexRun({
+				runId: "workflow_a",
+				name: "deep-review",
+			}),
+			writeUnfinishedNoticeIndexRun({
+				runId: "workflow_b",
+				name: "spec-review",
+				status: "interrupted",
+			}),
+		]);
+		const now = Date.parse("2026-06-12T12:00:00.000Z");
+		const hooked = await notifyCheck(cwd, { host: "codex", now, hook: true });
+		const output = JSON.parse(hooked.text);
+		assert.equal(
+			output.systemMessage,
+			"agent-workflow: 2 unfinished runs in this project — deep-review (failed), spec-review (interrupted). Ask to inspect, resume or dismiss them, or use the dashboard's Maintenance.",
+		);
+		assert.equal(output.hookSpecificOutput.hookEventName, "UserPromptSubmit");
+		assert.match(
+			output.hookSpecificOutput.additionalContext,
+			/workflow_resume \{"runId":"workflow_a"\}/,
+		);
+		assert.match(
+			output.hookSpecificOutput.additionalContext,
+			/^For the assistant: the user was shown a one-line summary/m,
+		);
+		assert.equal(
+			(await notifyCheck(cwd, { host: "codex", now: now + HOUR, hook: true }))
+				.text,
+			"",
+			"nothing to say: no output (plain text otherwise, as before)",
 		);
 	} finally {
 		rmSync(cwd, { recursive: true, force: true });

@@ -210,6 +210,7 @@ export function notifyHookCommand(cli, host) {
 		host,
 		"--stamp",
 		stamp,
+		"--hook",
 	]
 		.map(shellWord)
 		.join(" ");
