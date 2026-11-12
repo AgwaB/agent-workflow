@@ -53,7 +53,7 @@ import { hostCommandHints } from "./hints.js";
 import { hostTextRedactor } from "./redaction.js";
 import { readWorkflowResultPresentation } from "./result-presentation.js";
 import { containedProjectStateDir } from "./run-files.js";
-import { unfinishedRunReminder } from "./unfinished-notice.js";
+import { unfinishedRunReminderDetails } from "./unfinished-notice.js";
 import { readProjectRunEntries } from "./run-progress.js";
 
 export const NOTIFY_CHECK_DIR = "notify-check";
@@ -458,6 +458,12 @@ export async function notifyCheck(
 		runId?: string;
 		/** 2026-11-05: only the runs this host session launched; refreshes its monitor stamp. */
 		session?: string;
+		/**
+		 * 2026-11-12: the prompt hook's output. With a reminder, `text` is the hooks' JSON: the
+		 * summary as `systemMessage` (on the user's screen in Claude Code and Codex) and everything
+		 * as `additionalContext` (the model's). Without one, plain text as before.
+		 */
+		hook?: boolean;
 	} = {},
 ): Promise<{ data: NotifyCheckData; text: string }> {
 	if (options.stamp !== undefined) assertNotifyStampName(options.stamp);
@@ -487,7 +493,7 @@ export async function notifyCheck(
 	// reminder failure never fails the check.
 	if (options.runId === undefined && options.session === undefined) {
 		const host = options.host ?? "cli";
-		const reminder = await unfinishedRunReminder(
+		const reminder = await unfinishedRunReminderDetails(
 			{
 				noticesAction: async (ctx) => ({
 					data: await listUnfinishedNoticesIgnoringInvalidAcknowledgements(
@@ -503,12 +509,23 @@ export async function notifyCheck(
 				// Reports still queued (over the cap of five) come first: a reminder now could
 				// name a run whose completion line is only due at the next prompt.
 				recordOnly: checked.data.deferred > 0,
+				shownToUser: options.hook === true,
 			},
 		).catch(() => undefined);
 		if (reminder) {
-			const text = hostTextRedactor(options.env ?? process.env)(reminder);
+			const redact = hostTextRedactor(options.env ?? process.env);
+			const text = redact(reminder.text);
 			checked.data.reminder = text;
-			checked.text = checked.text ? `${checked.text}\n${text}` : text;
+			const context = checked.text ? `${checked.text}\n${text}` : text;
+			checked.text = options.hook
+				? JSON.stringify({
+						systemMessage: redact(reminder.summary),
+						hookSpecificOutput: {
+							hookEventName: "UserPromptSubmit",
+							additionalContext: context,
+						},
+					})
+				: context;
 		}
 	}
 	if (options.stamp !== undefined)

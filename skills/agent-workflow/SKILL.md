@@ -79,7 +79,11 @@ Use whichever form your tool list shows.
    command shows active runs). A line containing `agent-workflow: workflow … finished — …` in a
    later turn's context (Claude Code prefixes it, for example `UserPromptSubmit hook success: `)
    comes from the completion check (`agent-workflow notify-check`, run by the Claude Code plugin's
-   prompt hook): tell the user, with the verdict and report path it names.
+   prompt hook): tell the user, with the verdict and report path it names. A block headed
+   `Unfinished agent-workflow run(s) in this project:` from the same hook lists failed or
+   interrupted runs the user has not dismissed: before answering their message, tell them in one
+   or two lines which runs and that you can inspect, resume or dismiss them; act only when asked
+   (dismissing is `workflow_notices` `acknowledge` with the `[state …]` it shows).
 5. `terminal: true`: the run finished. Quote the result preview and give the report paths verbatim
    (the `reportArtifacts`/paths the tool prints), plus the `Dashboard:` link when the result has one:
    it opens the run's report in the local dashboard, where the user can read the report and each

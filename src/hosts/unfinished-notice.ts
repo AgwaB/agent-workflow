@@ -116,13 +116,32 @@ export async function unfinishedRunReminder(
 	api: UnfinishedNoticeApi,
 	ctx: HostApiContext,
 	nowMs: number,
+	options: Parameters<typeof unfinishedRunReminderDetails>[3] = {},
+): Promise<string | undefined> {
+	return (await unfinishedRunReminderDetails(api, ctx, nowMs, options))?.text;
+}
+
+export interface UnfinishedReminder {
+	/** The full reminder (the model's context, or Pi's notice). */
+	text: string;
+	/** One line for the user's screen (a hook's `systemMessage`). */
+	summary: string;
+}
+
+/** The reminder with a one-line summary for the user (2026-11-12: hooks show it on screen). */
+export async function unfinishedRunReminderDetails(
+	api: UnfinishedNoticeApi,
+	ctx: HostApiContext,
+	nowMs: number,
 	options: {
 		host?: WorkflowHostId;
 		exclude?: Iterable<string>;
 		/** Only record `exclude` (and print nothing): a check that still has reports queued. */
 		recordOnly?: boolean;
+		/** The summary goes on the user's screen, so the model is not asked to relay it. */
+		shownToUser?: boolean;
 	} = {},
-): Promise<string | undefined> {
+): Promise<UnfinishedReminder | undefined> {
 	const host = options.host ?? ctx.host ?? "cli";
 	const hints = hostCommandHints(host);
 	const exclude = new Set(options.exclude ?? []);
@@ -209,13 +228,22 @@ export async function unfinishedRunReminder(
 	await rename(temp, file);
 	if (needing.length === 0) return undefined;
 
+	const records = new Map(
+		await Promise.all(
+			needing.map(
+				async (run) =>
+					[
+						run.runId,
+						await readRunRecord(ctx.cwd, run.runId).catch(() => undefined),
+					] as const,
+			),
+		),
+	);
 	// Name the workflow and mark failed runs with degraded rendered output.
 	// Unreadable run records add no detail.
 	const lines = await Promise.all(
 		needing.slice(0, MAX_RUNS).map(async (run) => {
-			const record = await readRunRecord(ctx.cwd, run.runId).catch(
-				() => undefined,
-			);
+			const record = records.get(run.runId);
 			const name = record?.name ? `${record.name} ` : "";
 			const status = record?.degradation?.finalOutputRendered
 				? `${run.status} (final rendered — degraded)`
@@ -229,9 +257,33 @@ export async function unfinishedRunReminder(
 		lines.push(
 			`- … and ${needing.length - MAX_RUNS} more (${host === "pi" ? "/aw notices list" : host === "cli" ? "agent-workflow notices list" : 'workflow_notices {"action":"list"}'})`,
 		);
-	return [
+	const text = [
 		`Unfinished agent-workflow run${needing.length > 1 ? "s" : ""} in this project:`,
 		...lines,
 		`Inspect with ${hints.inspectFailures("<run>")}; silence one with ${dismissHint(host)}${host === "pi" ? "" : " or dismiss it in the dashboard (Maintenance)"}.`,
+		// 2026-11-12: Claude Code and Codex hand this to the model. When the hook also shows the
+		// summary on screen the model only needs to know that; otherwise it has to relay it (the
+		// skill may not be loaded for an unrelated message, so the text says so itself).
+		...(MODEL_HOSTS.has(host)
+			? [options.shownToUser ? SHOWN_INSTRUCTION : RELAY_INSTRUCTION]
+			: []),
 	].join("\n");
+	const named = needing.slice(0, MAX_RUNS).map((run) => {
+		const name = records.get(run.runId)?.name ?? run.runId;
+		return `${name} (${run.status})`;
+	});
+	const more =
+		needing.length > MAX_RUNS ? ` and ${needing.length - MAX_RUNS} more` : "";
+	const summary = `agent-workflow: ${needing.length} unfinished run${needing.length > 1 ? "s" : ""} in this project — ${named.join(", ")}${more}. Ask to inspect, resume or dismiss ${needing.length > 1 ? "them" : "it"}, or use the dashboard's Maintenance.`;
+	return { text, summary };
 }
+
+const MODEL_HOSTS = new Set<WorkflowHostId>([
+	"claude-code",
+	"codex",
+	"generic",
+]);
+export const SHOWN_INSTRUCTION =
+	"For the assistant: the user was shown a one-line summary of these runs. Answer their message; inspect, resume or dismiss a run only when they ask.";
+export const RELAY_INSTRUCTION =
+	"For the assistant: the user has not seen this. Before answering their message, tell them in one or two short lines which runs are unfinished (workflow, failed or interrupted, when) and that you can inspect, resume or dismiss them; then answer their message. Do not inspect, resume or dismiss unless they ask.";
