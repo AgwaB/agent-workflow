@@ -200,12 +200,23 @@ h3 {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
+/*
+ * 2026-11-12 (review, P1-1): the icon is centred by flex, not by the baseline (`vertical-align:
+ * middle` left it 1.3-1.8px low in every badge, row and button that pairs a glyph with text).
+ * `1lh` is one text line: centred in a centred row, on the first line in a top-aligned one.
+ */
 .glyph {
 	color: var(--muted);
-	display: inline-block;
-	width: 18px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	flex-shrink: 0;
-	text-align: center;
+	width: 18px;
+	height: 1lh;
+}
+.glyph > .status-icon {
+	display: block;
+	flex: none;
 }
 .glyph.running,
 .connection.live {
@@ -2065,6 +2076,10 @@ dialog footer .muted {
 	vertical-align: middle;
 	color: var(--muted);
 }
+/* 2026-11-12 (review, P1-1): a 1.5px "!" beside 600-weight text reads thin. */
+.status-icon:is(.blocked, .attention) path {
+	stroke-width: 2;
+}
 .status-icon.running {
 	color: var(--accent);
 }
@@ -2983,6 +2998,10 @@ button.danger:hover:not(:disabled) {
  * sticky outline of the report's own headings, finding cards when the report has them, and the
  * Markdown at reading size. Colour only where it changes a decision, as everywhere else.
  */
+/*
+ * 2026-11-12 (review, P2-7): the page's own width, not the window's, decides when the outline
+ * folds: the rail takes 260px of every window.
+ */
 .report-view {
 	flex: 1;
 	min-height: 0;
@@ -2990,6 +3009,10 @@ button.danger:hover:not(:disabled) {
 	padding: 24px 28px 64px;
 	background: var(--bg);
 	color: var(--text);
+	container-type: inline-size;
+}
+.report-view:focus {
+	outline: none;
 }
 .report-view[data-page="light"] {
 	color-scheme: light;
@@ -3000,20 +3023,26 @@ button.danger:hover:not(:disabled) {
 .report-view [hidden] {
 	display: none !important;
 }
+/*
+ * 2026-11-12 (owner, review P1-2 variant A): the header spans the top; below it the body is one
+ * reading measure with the outline ("On this page") at its right. The block is centred as a
+ * whole, so a wide window leaves no gap between the rail and the content.
+ */
 .report-layout {
 	display: grid;
-	grid-template-columns: 200px minmax(0, 1fr);
+	grid-template-columns: minmax(0, 720px) 220px;
 	grid-template-areas:
-		"outline head"
-		"outline body";
-	column-gap: 40px;
+		"head head"
+		"body outline";
+	column-gap: 56px;
+	justify-content: center;
 	align-items: start;
-	max-width: 1120px;
-	margin: 0 auto;
 }
 .report-head {
 	grid-area: head;
 	min-width: 0;
+	padding-bottom: 20px;
+	border-bottom: 1px solid var(--line);
 }
 .outline-slot,
 .report-outline {
@@ -3022,6 +3051,11 @@ button.danger:hover:not(:disabled) {
 .report-body {
 	grid-area: body;
 	min-width: 0;
+}
+.report-body,
+.outline-slot,
+.report-outline {
+	margin-top: 24px;
 }
 .report-title-row {
 	display: flex;
@@ -3032,33 +3066,28 @@ button.danger:hover:not(:disabled) {
 .report-title-row .actions {
 	margin-left: auto;
 }
+/*
+ * Status badges, chips and pills (2026-11-12, owner: the 2026-11-03 rule stands): a coloured glyph
+ * and a short word in --text or --muted, a hairline frame, no tinted fill. One shape for every
+ * status that is not clickable (radius 6px; 28px in the page header, 24px in cards and lists). The
+ * padding is set from the 16px icon box so the left and right gaps match (review, P1-1).
+ */
 .result-badge {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	min-height: var(--control);
-	padding: 0 12px 0 6px;
+	min-height: var(--control-sm);
+	padding: 0 12px 0 10px;
 	border: 1px solid var(--line2);
-	border-radius: var(--radius);
-	font-size: 15px;
+	border-radius: 6px;
+	font-size: 14px;
+	color: var(--text);
 }
 .result-badge strong {
 	font-weight: 600;
 }
-.result-badge:is(.attention, .blocked) {
-	background: var(--warn-tint);
-	border-color: transparent;
-	color: var(--warn-on-tint);
-}
-.result-badge.failed {
-	background: color-mix(in srgb, var(--err) 13%, transparent);
-	border-color: transparent;
-	color: var(--err);
-}
-.result-badge.completed {
-	background: color-mix(in srgb, var(--accent) 13%, transparent);
-	border-color: transparent;
-	color: var(--accent);
+:is(.result-badge, .severity-chip, .verifier-pill) > .glyph {
+	width: 16px;
 }
 .report-summary {
 	margin: 16px 0 6px;
@@ -3066,16 +3095,13 @@ button.danger:hover:not(:disabled) {
 	line-height: 1.4;
 	font-weight: 600;
 	letter-spacing: -0.01em;
-	max-width: 46em;
+	max-width: 720px;
 	overflow-wrap: anywhere;
 }
 .report-summary:focus {
 	outline: none;
 }
 .report-meta {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 2px 16px;
 	margin: 0;
 	color: var(--muted);
 	font-size: 14px;
@@ -3089,8 +3115,6 @@ button.danger:hover:not(:disabled) {
 }
 .chip-label {
 	font-size: 12px;
-	letter-spacing: 0.02em;
-	text-transform: uppercase;
 	color: var(--muted);
 }
 .chip-label:not(:first-child) {
@@ -3099,26 +3123,41 @@ button.danger:hover:not(:disabled) {
 .filter-chip {
 	min-height: var(--control-sm);
 	padding: 0 12px;
-	border-radius: 999px;
+	border-radius: var(--radius);
 	font-size: 13px;
 	font-weight: 400;
 }
-.filter-chip[aria-pressed="true"] {
-	background: var(--selected);
-	border-color: var(--faint);
+/* 2026-11-12 (review, P2-5): the pressed chip must be seen from the top of a long page. */
+.filter-chip[aria-pressed="true"],
+.filter-chip[aria-pressed="true"]:hover:not(:disabled) {
+	background: var(--text);
+	border-color: var(--text);
+	color: var(--bg);
 }
+.filter-count {
+	font-size: 13px;
+}
+/* 28px of top bar plus the view's padding: the outline never runs under the top bar (review, P2-1). */
 .report-outline {
 	position: sticky;
 	top: 0;
-	max-height: calc(100dvh - 96px);
+	max-height: calc(100dvh - 136px);
 	overflow-y: auto;
 	font-size: 14px;
+}
+.outline-title {
+	margin: 0 0 8px;
+	padding-left: 12px;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--faint);
 }
 .outline-toggle {
 	display: none;
 }
 .outline-links {
 	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	border-left: 1px solid var(--line);
 }
 .outline-link {
@@ -3131,11 +3170,22 @@ button.danger:hover:not(:disabled) {
 	border-left: 2px solid transparent;
 	color: var(--muted);
 	line-height: 1.35;
-	overflow-wrap: anywhere;
 	text-decoration: none;
+}
+/* One line each; the whole title is in the tooltip. */
+.outline-text {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .outline-link:hover {
 	color: var(--text);
+}
+/* 2026-11-12 (review, P1-4): the nav scrolls, so a ring drawn outside the link is cut off. */
+.outline-link:focus-visible,
+a.home-row.recent:focus-visible {
+	outline-offset: -2px;
 }
 .outline-link.current {
 	border-left-color: var(--text);
@@ -3159,7 +3209,7 @@ button.danger:hover:not(:disabled) {
 	background: var(--warn);
 }
 .report-view .report-content {
-	padding-top: 8px;
+	padding-top: 0;
 	font-size: 16px;
 	line-height: 1.7;
 }
@@ -3168,6 +3218,28 @@ button.danger:hover:not(:disabled) {
 }
 .report-view .report-content .md-h2 {
 	margin-top: 36px;
+}
+/* The column is the measure: paragraphs, lists and cards share its edges (review, P1-2). */
+.report-view .report-content :is(p, li, .md-group),
+.report-view .finding-card {
+	max-width: none;
+}
+/* 2026-11-12 (review, P2-4): the document's own title is a label above its first section. */
+.report-view .report-content > .md-h1:first-child {
+	margin: 0 0 4px;
+	font-size: 13px;
+	line-height: 20px;
+	font-weight: 500;
+	letter-spacing: 0;
+	color: var(--muted);
+}
+.report-view .report-content > .md-h1:first-child + .md-h2 {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: 0;
+}
+.report-view :is(.md-h2, .md-h3, .finding-card) {
+	scroll-margin-top: 16px;
 }
 .filter-empty {
 	margin: 16px 0 0;
@@ -3178,7 +3250,6 @@ button.danger:hover:not(:disabled) {
 	border: 1px solid var(--line);
 	border-radius: var(--radius);
 	background: var(--surface);
-	max-width: 78ch;
 }
 .finding-head {
 	display: flex;
@@ -3195,35 +3266,26 @@ button.danger:hover:not(:disabled) {
 .verifier-pill {
 	display: inline-flex;
 	align-items: center;
-	gap: 2px;
-	min-height: 26px;
-	padding: 0 9px 0 4px;
+	gap: 4px;
+	min-height: 24px;
+	padding: 0 9px 0 6px;
+	border: 1px solid var(--line2);
 	border-radius: 6px;
 	font-size: 13px;
 	font-weight: 500;
 	line-height: 1;
 }
+/* A severity is a coloured dot (the outline's), so a cross always means "failed". */
 .severity-chip {
-	border: 1px solid var(--line2);
-	color: var(--muted);
-}
-.severity-chip:is(.high, .critical) {
-	background: color-mix(in srgb, var(--err) 13%, transparent);
-	border-color: transparent;
-	color: var(--err);
-}
-.severity-chip.medium {
-	background: var(--warn-tint);
-	border-color: transparent;
-	color: var(--warn-on-tint);
+	gap: 6px;
+	padding: 0 9px;
+	color: var(--text);
 }
 .verifier-pill {
-	border: 1px solid var(--line2);
 	color: var(--muted);
 }
 .verifier-pill:is(.weakened, .needs-human) {
-	border-color: var(--warn);
-	color: var(--warn-on-tint);
+	color: var(--text);
 }
 .report-content .finding-card .finding-title {
 	margin: 12px 0 8px;
@@ -3242,6 +3304,7 @@ button.danger:hover:not(:disabled) {
 .location-chip {
 	max-width: 100%;
 	padding: 2px 8px;
+	line-height: 18px;
 	border: 1px solid var(--line2);
 	border-radius: 6px;
 	font: 12px var(--mono);
@@ -3265,6 +3328,7 @@ button.danger:hover:not(:disabled) {
 	display: flex;
 	align-items: center;
 	min-height: 28px;
+	padding: 0;
 	cursor: pointer;
 	font-size: 14px;
 	color: var(--muted);
@@ -3314,8 +3378,10 @@ button.danger:hover:not(:disabled) {
 	.report-view {
 		padding: 16px 16px 48px;
 	}
+}
+@container (max-width: 900px) {
 	.report-layout {
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: minmax(0, 720px);
 		grid-template-areas:
 			"head"
 			"outline"
@@ -3327,6 +3393,9 @@ button.danger:hover:not(:disabled) {
 		margin-top: 12px;
 		padding-bottom: 8px;
 		border-bottom: 1px solid var(--line);
+	}
+	.outline-title {
+		display: none;
 	}
 	.outline-toggle {
 		display: inline-flex;
@@ -3368,7 +3437,8 @@ button.danger:hover:not(:disabled) {
 }
 .home-grid {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+	/* 2026-11-12 (review, P2-8): the results list is the wider column. */
+	grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
 	gap: 20px 28px;
 	align-items: start;
 	max-width: 1240px;
@@ -3407,15 +3477,18 @@ button.danger:hover:not(:disabled) {
 	gap: 8px;
 	min-height: var(--control-sm);
 	margin: 0 0 6px;
-	font-size: 13px;
+	font-size: 14px;
 	font-weight: 500;
-	letter-spacing: 0.02em;
-	text-transform: uppercase;
 	color: var(--muted);
 }
-.home-section > h2 button {
-	text-transform: none;
-	letter-spacing: 0;
+.home-section > h2 a {
+	font-size: 14px;
+	font-weight: 400;
+	color: var(--muted);
+	text-decoration: none;
+}
+.home-section > h2 a:hover {
+	color: var(--text);
 }
 .home-view button.small {
 	min-height: var(--control-sm);
@@ -3429,12 +3502,11 @@ button.danger:hover:not(:disabled) {
 .home-toggle:hover:not(:disabled) {
 	color: var(--text);
 }
-.home-calm {
+/* 2026-11-12 (review, P2-9): an empty section is a quiet line, not a box; with both empty, one line. */
+.home-calm,
+.home-status {
 	margin: 0;
-	padding: 10px 14px;
-	border: 1px solid var(--line);
-	border-radius: var(--radius);
-	background: var(--surface);
+	padding: 0;
 	color: var(--muted);
 	font-size: 14px;
 }
@@ -3498,6 +3570,10 @@ a.home-row:hover {
 .home-row-count {
 	margin-left: auto;
 }
+.home-table-wrap,
+.home-list {
+	container-type: inline-size;
+}
 .home-list {
 	overflow: hidden;
 	border: 1px solid var(--line);
@@ -3507,8 +3583,8 @@ a.home-row:hover {
 a.home-row.recent {
 	grid-template-columns: 124px minmax(0, 1fr) auto;
 	grid-template-areas:
-		"badge task when"
-		"badge meta when";
+		"badge name when"
+		"badge task when";
 	align-items: center;
 	gap: 2px 12px;
 	margin: 0;
@@ -3528,17 +3604,23 @@ a.home-row.recent .result-badge {
 	grid-area: badge;
 	justify-self: start;
 }
+/* 2026-11-12 (review, P2-8): the workflow tells rows apart, so it leads; the task is the quiet line. */
+.home-row-name {
+	grid-area: name;
+	overflow: hidden;
+	font-size: 14px;
+	font-weight: 500;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.home-row-name span {
+	font-weight: 400;
+}
 .home-row-task {
 	grid-area: task;
 	overflow: hidden;
 	font-size: 14px;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-.home-row-meta {
-	grid-area: meta;
-	overflow: hidden;
-	font-size: 14px;
+	color: var(--muted);
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
@@ -3554,19 +3636,13 @@ a.home-row.recent .result-badge {
 	color: var(--faint);
 }
 .home-all {
-	display: inline-block;
-	margin-top: 8px;
-	font-size: 14px;
-	color: var(--muted);
-	text-decoration: none;
-}
-.home-all:hover {
-	color: var(--text);
+	margin-top: 6px;
+	padding-inline: 0;
 }
 .result-badge.small {
-	min-height: var(--control-sm);
-	padding: 0 10px 0 4px;
-	font-size: 14px;
+	min-height: 24px;
+	padding: 0 10px 0 8px;
+	font-size: 13px;
 }
 .home-stats {
 	display: grid;
@@ -3577,7 +3653,7 @@ a.home-row.recent .result-badge {
 }
 .home-stat {
 	min-width: 0;
-	padding: 12px 16px;
+	padding: 12px 14px;
 	border-left: 1px solid var(--line);
 }
 .home-stat:first-child {
@@ -3595,6 +3671,10 @@ a.home-row.recent .result-badge {
 }
 .home-stat-note {
 	font-size: 14px;
+	text-wrap: balance;
+}
+.home-stat-note .nowrap {
+	white-space: nowrap;
 }
 .home-table-wrap {
 	overflow: hidden;
@@ -3627,11 +3707,17 @@ a.home-row.recent .result-badge {
 .home-table :is(th, td).n {
 	text-align: right;
 }
+.home-table :is(th, td):first-child {
+	padding-left: 14px;
+}
 .home-table td.wf {
 	font-weight: 500;
 }
-.home-cost-runs {
-	font-size: 13px;
+.home-table td.wf a {
+	text-decoration: none;
+}
+.home-table td.wf a:hover {
+	text-decoration: underline;
 }
 .strip {
 	display: inline-flex;
@@ -3681,14 +3767,34 @@ a.home-row.recent .result-badge {
 	.home-view {
 		padding: 16px 16px 48px;
 	}
-	a.home-row.recent {
-		grid-template-columns: minmax(0, 1fr) auto;
-		grid-template-areas:
-			"badge when"
-			"task task"
-			"meta meta";
-		gap: 4px 12px;
+	/* One stat per line: the value on the right, the name and note on the left (review, P3-2). */
+	.home-stats {
+		grid-template-columns: minmax(0, 1fr);
 	}
+	.home-stat {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		column-gap: 12px;
+		border-left: 0;
+		border-top: 1px solid var(--line);
+	}
+	.home-stat:first-child {
+		border-top: 0;
+	}
+	.home-stat-value {
+		grid-column: 2;
+		grid-row: 1 / span 2;
+		align-self: center;
+	}
+	.home-stat-note {
+		grid-column: 1;
+	}
+}
+/*
+ * 2026-11-12 (review, P1-3): each part switches to its stacked form when ITS box is narrow. The
+ * room is the window minus the rail and the other column, which a viewport query cannot see.
+ */
+@container (max-width: 567px) {
 	.home-table thead {
 		display: none;
 	}
@@ -3709,6 +3815,7 @@ a.home-row.recent .result-badge {
 		border-top: 0;
 	}
 	.home-table td,
+	.home-table :is(th, td):first-child,
 	.home-table :is(th, td).n {
 		padding: 0;
 		border: 0;
@@ -3730,5 +3837,26 @@ a.home-row.recent .result-badge {
 	}
 	.home-table td[data-label="Last runs"] {
 		grid-column: 1 / -1;
+	}
+}
+/* Wide enough for the four figures on one line; below that they take two lines. */
+@container (min-width: 420px) and (max-width: 567px) {
+	.home-table tr {
+		grid-template-columns: repeat(4, auto);
+		justify-content: space-between;
+	}
+	.home-table td.wf,
+	.home-table td[data-label="Last runs"] {
+		grid-column: 1 / -1;
+	}
+}
+@container (max-width: 480px) {
+	a.home-row.recent {
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-areas:
+			"badge when"
+			"name name"
+			"task task";
+		gap: 4px 12px;
 	}
 }

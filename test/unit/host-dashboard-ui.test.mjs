@@ -1,6 +1,6 @@
 // test-tier: integration
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 import {
 	createBrowser,
@@ -544,17 +544,15 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 			json: "Ship it — owner: release; blocking: true",
 		},
 	);
-	// The outline lists the report's own headings (## and ###), the first one current.
+	// The outline lists the report's own sections (##), the first one current; a sub-section
+	// (###) that is not a finding is left out (2026-11-12, review P2-6).
 	assert.deepEqual(
 		await browser.evaluate(() =>
 			[...document.querySelectorAll(".report-outline .outline-link")].map(
 				(link) => [link.textContent, link.className],
 			),
 		),
-		[
-			["Main findings", "outline-link level-0 current"],
-			["1. Retries are bounded", "outline-link level-1"],
-		],
+		[["Main findings", "outline-link level-0 current"]],
 	);
 	// 2026-11-03 reading aids (owner's design rules: no filled cards, no tinted chips, status as
 	// glyph + word): a finding is a section with a hanging number, field labels are quiet, evidence
@@ -2328,17 +2326,29 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 	]);
 	await browser.click('[data-filter-value="weakened"]');
 	assert.deepEqual(await visible(), ["finding-003"]);
-	// A filtered-out card leaves the outline too.
+	// A filtered-out card leaves the outline too (a finding is listed by its title, its id in the tooltip).
 	assert.deepEqual(
 		await browser.evaluate(() =>
 			[...document.querySelectorAll(".outline-link")]
-				.filter(
-					(link) => !link.hidden && link.textContent.startsWith("finding-"),
-				)
-				.map((link) => link.textContent),
+				.filter((link) => !link.hidden && link.title.startsWith("finding-"))
+				.map((link) => link.title),
 		),
-		["finding-003"],
+		["finding-003 — Unknown user never yields 404"],
 	);
+	// The filter says what it did, and the first match is brought into view (review, P2-5).
+	assert.equal(await text(".filter-count"), "Showing 1 of 4");
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector(".filter-clear").hidden,
+		),
+		false,
+	);
+	await browser.waitFor(() => {
+		const top = document
+			.querySelector('.finding-card[aria-label="finding-003"]')
+			.getBoundingClientRect().top;
+		return top >= 0 && top < innerHeight / 2;
+	});
 	assert.equal(
 		await browser.evaluate(() =>
 			document
@@ -2355,30 +2365,45 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 	]);
 	await browser.click('[data-filter-value="kept"]');
 	assert.equal((await visible()).length, 4);
-	// The sticky outline: the report's own ## and ### headings, findings by id; reading highlights.
+	// The sticky outline "On this page" (2026-11-12, review P2-6): the report's own ## sections and
+	// its findings by title, one line each; the short ### sub-sections are left out.
 	const outline = await browser.evaluate(() =>
 		[...document.querySelectorAll(".outline-link")].map(
 			(link) =>
 				`${link.classList.contains("level-1") ? "  " : ""}${link.textContent}`,
 		),
 	);
-	assert.deepEqual(outline.slice(0, 9), [
+	assert.deepEqual(outline.slice(0, 5), [
 		"Executive summary",
-		"  Core conclusion",
-		"  Key findings",
-		"  Evidence level",
-		"  Important limitations",
 		"Finding summary",
 		"Synthesis narrative",
 		"Risks and partial-review limitations",
 		"High findings",
 	]);
-	assert.deepEqual(outline.slice(9, 13), [
-		"  finding-001",
-		"  finding-002",
-		"  finding-003",
-		"  finding-004",
+	assert.deepEqual(outline.slice(5, 9), [
+		"  graceMs makes expired entries live ttlMs+graceMs; the existing TTL test fails and nothing refreshes stale entries",
+		"  Missing id returns 200 instead of 400",
+		"  Unknown user never yields 404",
+		"  Grace period lets responses be served up to 35s old, exceeding the 30s limit",
 	]);
+	assert.ok(
+		!outline.includes("  Core conclusion"),
+		"sub-sections are not listed",
+	);
+	assert.equal(await text(".outline-title"), "On this page");
+	assert.deepEqual(
+		await browser
+			.evaluate(() =>
+				[...document.querySelectorAll(".outline-link")].map((link) => {
+					const label = link.querySelector(".outline-text");
+					const style = getComputedStyle(label);
+					return [style.whiteSpace, style.textOverflow];
+				}),
+			)
+			.then((rows) => [...new Set(rows.map((row) => row.join(" ")))]),
+		["nowrap ellipsis"],
+		"one line each",
+	);
 	assert.equal(
 		await browser.evaluate(
 			() =>
@@ -2393,12 +2418,12 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 	);
 	await browser.evaluate(() =>
 		[...document.querySelectorAll(".outline-link")]
-			.find((link) => link.textContent === "  finding-003".trim())
+			.find((link) => link.title.startsWith("finding-003"))
 			.click(),
 	);
 	await browser.waitFor(
 		() =>
-			document.querySelector(".outline-link.current")?.textContent ===
+			document.querySelector(".outline-link.current")?.title.split(" ")[0] ===
 			"finding-003",
 	);
 	// The page scrolls to it (smoothly), and the highlight stays on it when the scroll settles.
@@ -2413,7 +2438,12 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 				setTimeout(() => resolve(view.scrollTop === before), 250);
 			}),
 	);
-	assert.equal(await text(".outline-link.current"), "finding-003");
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector(".outline-link.current").title,
+		),
+		"finding-003 — Unknown user never yields 404",
+	);
 	// Copy fix prompt: that finding's own Markdown, nothing from its neighbours.
 	await browser.click('[data-copy-finding="finding-003"]');
 	const fix = await copied();
@@ -2494,7 +2524,7 @@ test("dashboard Chrome: a report without the deep-review structure stays plain M
 		{
 			cards: 0,
 			chips: 0,
-			outline: ["Main findings", "1. Retries are bounded"],
+			outline: ["Main findings"],
 			blocks: 1,
 			// The fixture run has no summary sentence: the title says what this is, nothing more.
 			title: "deep-review report",
@@ -2679,7 +2709,13 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 	assert.deepEqual(await route(browser), [null, null]);
 	assert.deepEqual(
 		await browser.evaluate(() => ({
+			// The page says what it is; the project is in the top bar and the rail.
 			title: document.querySelector(".home-grid h1").firstChild.textContent,
+			// The date depends on the time zone; the space before the count is for screen readers.
+			heading: document
+				.querySelector(".home-grid h1")
+				.textContent.replace(/since .*/, "since"),
+			crumb: document.querySelector("#project").textContent,
 			run: !!document.querySelector("#task-count, #run-header"),
 			nav: [...document.querySelectorAll(".management-nav a")].map((link) => [
 				link.textContent,
@@ -2687,7 +2723,9 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 			]),
 		})),
 		{
-			title: "payments-api",
+			title: "Overview",
+			heading: "Overview 7 runs since",
+			crumb: "payments-api",
 			run: false,
 			nav: [
 				["Overview", "page"],
@@ -2725,16 +2763,23 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 	const recent = () =>
 		all("#home-recent .home-row.recent", (node) => [
 			node.querySelector(".result-badge").textContent,
-			node.querySelector(".home-row-task").textContent,
+			node.querySelector(".home-row-name").textContent,
+			node.querySelector(".home-row-task")?.textContent ?? null,
 			node.querySelector(".home-row-when small").textContent,
 		]);
+	// 2026-11-12 (review, P2-8): the workflow leads, the task the run was given is the quiet line.
 	assert.deepEqual(await recent(), [
-		["Needs you", "migration-planner", "— · —"],
+		["Needs you", "migration-planner", null, "— · —"],
 		// Wall clock 6m; active time 2m 15s.
-		["Failed", "spec-review", "2m 15s · $0.0061"],
-		["Complete", "deep-research", "25m 00s · $3.40+"],
-		["Needs work", "Review the checkout flow", "1m 37s · $0.28"],
-		["Finished", "docs-writer", "5s · $0.0007"],
+		["Failed", "spec-review", null, "2m 15s · $0.0061"],
+		["Complete", "deep-research", null, "25m 00s · $3.40+"],
+		[
+			"Needs work",
+			"deep-review · 8 of 8 agents",
+			"Review the checkout flow",
+			"1m 37s · $0.28",
+		],
+		["Finished", "docs-writer", null, "5s · $0.0007"],
 	]);
 	assert.equal(
 		await text2(browser, '[data-home-key="stopped"]'),
@@ -2744,6 +2789,7 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 	assert.deepEqual((await recent()).at(-1), [
 		"Stopped",
 		"live6-quick-read",
+		null,
 		// Unknown cost is a dash, never $0.
 		"4s · —",
 	]);
@@ -2792,12 +2838,14 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 					: cell.textContent.trim(),
 			);
 		}, name);
+	// "Last result" is the last run that finished, not the one still going (owner, 2026-11-12), and
+	// the cost has no runs ratio beside it: "$0.28+ 1/2" read as incomplete and complete at once.
 	assert.deepEqual(await workflow("deep-review"), [
 		"deep-review",
 		"2",
-		"Running",
+		"Needs work",
 		"1m 37s",
-		"$0.28 1/2",
+		"$0.28",
 		["warn", "run"],
 	]);
 	assert.deepEqual(await workflow("spec-review"), [
@@ -2805,9 +2853,29 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 		"1",
 		"Failed",
 		"—",
-		"$0.0061 1/1",
+		"$0.0061",
 		["err"],
 	]);
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelector(
+					'[data-workflow="deep-review"] td.n:nth-child(5)',
+				).title,
+		),
+		"8 of 8 agents reported cost · 1 of 2 runs reported",
+		"the runs ratio is in the tooltip",
+	);
+	// The workflow's name leads to the Workflows page, and the section links there too.
+	assert.deepEqual(
+		await browser.evaluate(() => [
+			document
+				.querySelector('[data-workflow="deep-review"] td.wf a')
+				.getAttribute("href"),
+			document.querySelector(".home-manage").textContent,
+		]),
+		["/?project=payments-api-123456789abc&view=workflows", "Manage →"],
+	);
 	// Selecting a run opens it as before; back returns to the overview.
 	await browser.click('#home-recent .home-row[data-run="' + complete + '"]');
 	await browser.waitFor(() => document.querySelector("#task-count"));
@@ -2923,4 +2991,884 @@ test("dashboard Chrome: existing run links and the Runs item still open a run; t
 		),
 		true,
 	);
+	// 2026-11-12 (review, P3-2): the three stats stand in a column, each value on one line.
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const stats = [...document.querySelectorAll(".home-stat")].map((stat) =>
+				stat.getBoundingClientRect(),
+			);
+			const values = [...document.querySelectorAll(".home-stat-value")].map(
+				(value) => value.getBoundingClientRect().height,
+			);
+			return {
+				column: stats.every(
+					(box, index) => index === 0 || box.top >= stats[index - 1].bottom - 1,
+				),
+				oneLine: values.every((height) => height <= 30),
+			};
+		}),
+		{ column: true, oneLine: true },
+	);
 });
+
+// 2026-11-12 (review fixes): the UI/UX review of the report page and the overview, and the owner's
+// decisions on it. Each test names the review item it holds.
+const fixtureSnapshots = async () => {
+	const dir = new URL("../fixtures/dashboard/", import.meta.url);
+	return Promise.all(
+		(await readdir(dir))
+			.filter((name) => name.startsWith("run-"))
+			.map(async (name) =>
+				JSON.parse(await readFile(new URL(name, dir), "utf8")),
+			),
+	);
+};
+const reviewFixture = async (t, options = {}) => {
+	const fixture = await createFixtureServer(options);
+	t.after(() => fixture.close());
+	fixture.reports.set(complete, deepReport);
+	overviewFixture(fixture);
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	return { fixture, browser };
+};
+const chromeOptions = {
+	skip: chrome
+		? false
+		: "Chrome is not installed (set CHROME to a local executable)",
+	timeout: 120_000,
+};
+/**
+ * Where the icon of every badge-like element sits against its box and its text (P1-1). The icon is
+ * centred when its centre is the box's centre; the padding is balanced when the gap before the icon
+ * and the gap after the text are alike (the border and padding of the box included).
+ */
+const measureBadges = (browser, selector) =>
+	browser.evaluate((selector) => {
+		const textRight = (node) => {
+			const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+			let last = null,
+				text;
+			while ((text = walker.nextNode()))
+				if (text.textContent.trim()) last = text;
+			const range = document.createRange();
+			range.selectNodeContents(last);
+			return range.getBoundingClientRect().right;
+		};
+		return [...document.querySelectorAll(selector)].map((node) => {
+			const box = node.getBoundingClientRect();
+			const mark = node.querySelector(
+				":scope > .glyph .status-icon, :scope > .outline-dot",
+			);
+			const icon = mark.getBoundingClientRect();
+			const style = getComputedStyle(node);
+			return {
+				text: node.textContent.trim(),
+				centre: icon.top + icon.height / 2 - (box.top + box.height / 2),
+				before: icon.left - box.left,
+				after: box.right - textRight(node),
+				background: style.backgroundColor,
+				radius: style.borderTopLeftRadius,
+				height: box.height,
+			};
+		});
+	}, selector);
+const checkBadges = (rows, where, height) => {
+	assert.ok(rows.length > 0, `${where}: there are badges`);
+	for (const row of rows) {
+		assert.ok(
+			Math.abs(row.centre) <= 0.5,
+			`${where}: "${row.text}" icon is ${row.centre}px off the centre of its box`,
+		);
+		assert.ok(
+			Math.abs(row.before - row.after) <= 3,
+			`${where}: "${row.text}" has ${row.before}px before the icon and ${row.after}px after the text`,
+		);
+		// The owner's 2026-11-03 rule stands: glyph + word, colour on the glyph only, no tinted chips.
+		assert.equal(
+			row.background,
+			"rgba(0, 0, 0, 0)",
+			`${where}: "${row.text}" has a fill`,
+		);
+		assert.equal(
+			row.radius,
+			"6px",
+			`${where}: "${row.text}" has the status shape`,
+		);
+		if (height)
+			assert.equal(row.height, height, `${where}: "${row.text}" height`);
+	}
+};
+
+test(
+	"dashboard Chrome: badges, chips and pills centre their icon, balance their padding and carry no fill (P1-1, P2-10, P3-9)",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		// The report page: the header badge (28px); severity chips and verifier pills (24px).
+		await browser.open(`${fixture.origin}/?run=${complete}&view=report`);
+		await browser.waitFor(() => document.querySelector(".finding-card"));
+		checkBadges(
+			await measureBadges(browser, ".report-head .result-badge"),
+			"report header",
+			28,
+		);
+		checkBadges(
+			await measureBadges(browser, ".severity-chip"),
+			"severity chips",
+			24,
+		);
+		checkBadges(
+			await measureBadges(browser, ".verifier-pill"),
+			"verifier pills",
+			24,
+		);
+		// Controls keep the control shape: the filter chips are 8px-radius, 28px buttons (P2-10).
+		assert.deepEqual(
+			await browser.evaluate(() => {
+				const chip = document.querySelector(".filter-chip");
+				const style = getComputedStyle(chip);
+				return [style.borderTopLeftRadius, chip.getBoundingClientRect().height];
+			}),
+			["8px", 28],
+		);
+		// The overview: Stopped (the owner's), Failed and the others, in Recent results and the table.
+		await browser.open(`${fixture.origin}/`);
+		await browser.waitFor(() => document.querySelector(".home-row.recent"));
+		await browser.click('[data-home-key="stopped"]');
+		const recent = await measureBadges(
+			browser,
+			".home-row.recent .result-badge",
+		);
+		assert.ok(recent.some((row) => row.text === "Stopped"));
+		checkBadges(recent, "recent results", 24);
+		checkBadges(
+			await measureBadges(browser, ".home-table .result-badge"),
+			"workflows table",
+			24,
+		);
+		// The run view: the rail's rows, the result line, the top bar's button. Each icon is centred
+		// on its row; these are not boxes, so only the centre is held.
+		await browser.open(`${fixture.origin}/?run=${failed}`);
+		await browser.waitFor(() => document.querySelector(".run-row"));
+		const centred = await browser.evaluate(() =>
+			[".run-row > .row", ".needs-button", ".result-verdict", ".home-need"]
+				.flatMap((selector) => [...document.querySelectorAll(selector)])
+				.filter((row) => row.querySelector(":scope > .glyph .status-icon"))
+				.map((row) => {
+					const icon = row
+						.querySelector(":scope > .glyph .status-icon")
+						.getBoundingClientRect();
+					const box = row.getBoundingClientRect();
+					return [
+						row.className,
+						Math.abs(icon.top + icon.height / 2 - (box.top + box.height / 2)),
+					];
+				}),
+		);
+		assert.ok(centred.length >= 3, JSON.stringify(centred));
+		for (const [name, off] of centred)
+			assert.ok(off <= 0.5, `${name}: icon ${off}px off the centre of its row`);
+	},
+);
+
+test(
+	"dashboard Chrome: the report at 2304px has its outline right of the body, under the header, with one reading measure (P1-2)",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		await browser.open(
+			`${fixture.origin}/?run=${complete}&view=report`,
+			2304,
+			1190,
+		);
+		await browser.waitFor(() => document.querySelector(".finding-card"));
+		const rect = (selector) =>
+			browser.evaluate((selector) => {
+				const r = document.querySelector(selector).getBoundingClientRect();
+				return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+			}, selector);
+		const [rail, head, body, outline, card, paragraph, view] =
+			await Promise.all(
+				[
+					"#rail",
+					".report-head",
+					".report-body",
+					".report-outline",
+					".finding-card",
+					".report-content p",
+					"#report-view",
+				].map(rect),
+			);
+		assert.ok(outline.left >= body.right, "the outline is right of the body");
+		assert.ok(
+			outline.top >= head.bottom,
+			"the outline starts under the header, not beside it",
+		);
+		assert.ok(
+			Math.abs(head.left - body.left) <= 1,
+			"the header and the body share a left edge",
+		);
+		assert.ok(
+			outline.right <= head.right + 1,
+			"the outline ends where the header ends",
+		);
+		// One measure: paragraphs and cards fill the same column.
+		assert.ok(paragraph.right <= body.right + 1);
+		assert.ok(Math.abs(card.right - body.right) <= 1, "cards fill the column");
+		assert.ok(Math.abs(card.left - body.left) <= 1);
+		// No big empty gap: the block is centred in the page with the same margin on each side, and the
+		// first content starts well inside the old 700px.
+		const left = head.left - rail.right,
+			right = view.right - head.right;
+		assert.ok(
+			Math.abs(left - right) <= 18,
+			`centred: ${left} against ${right}`,
+		);
+		assert.ok(
+			left <= 560,
+			`the gap between the rail and the content is ${left}px`,
+		);
+		assert.equal(await text2(browser, ".outline-title"), "On this page");
+		// 1100px: the page beside the rail is narrower than 900px, so the outline folds above the body.
+		await browser.open(
+			`${fixture.origin}/?run=${complete}&view=report`,
+			1100,
+			900,
+		);
+		await browser.waitFor(() => document.querySelector(".finding-card"));
+		assert.deepEqual(
+			await browser.evaluate(() => {
+				const view = document.querySelector("#report-view");
+				const outline = document.querySelector(".report-outline");
+				const body = document.querySelector(".report-body");
+				return {
+					folded:
+						getComputedStyle(document.querySelector(".outline-toggle"))
+							.display !== "none",
+					above:
+						outline.getBoundingClientRect().bottom <=
+						body.getBoundingClientRect().top + 1,
+					bodyWidth: body.getBoundingClientRect().width >= 600,
+					overflow: view.scrollWidth <= view.clientWidth,
+				};
+			}),
+			{ folded: true, above: true, bodyWidth: true, overflow: true },
+		);
+	},
+);
+
+test(
+	"dashboard Chrome: the outline highlight agrees with a click, reaches the last sections, and keeps its ring (P2-1, P1-4)",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		await browser.open(
+			`${fixture.origin}/?run=${complete}&view=report`,
+			1440,
+			900,
+		);
+		await browser.waitFor(() => document.querySelector(".finding-card"));
+		const settle = () =>
+			browser.waitFor(
+				() =>
+					new Promise((resolve) => {
+						const view = document.querySelector("#report-view");
+						const before = view.scrollTop;
+						setTimeout(() => resolve(view.scrollTop === before), 300);
+					}),
+			);
+		const current = () => text2(browser, ".outline-link.current");
+		for (const label of [
+			"finding-002 — Missing id returns 200 instead of 400",
+			"Related artifacts",
+			"Limitations",
+			"Evidence and review coverage",
+		]) {
+			await browser.evaluate(
+				(label) =>
+					[...document.querySelectorAll(".outline-link")]
+						.find((link) => link.title === label || link.textContent === label)
+						.click(),
+				label,
+			);
+			await settle();
+			// What was clicked stays current, also when the page cannot scroll that section to the top.
+			assert.equal(
+				await browser.evaluate((label) => {
+					const link = document.querySelector(".outline-link.current");
+					return link.title === label || link.textContent === label;
+				}, label),
+				true,
+				`clicking "${label}" ends with "${await current()}"`,
+			);
+		}
+		// A section reached by a click is not under the top bar: its top has a margin from the page's top.
+		await browser.evaluate(() =>
+			[...document.querySelectorAll(".outline-link")]
+				.find((link) => link.title.startsWith("finding-002"))
+				.click(),
+		);
+		await settle();
+		const gap = await browser.evaluate(
+			() =>
+				document
+					.querySelector('.finding-card[aria-label="finding-002"]')
+					.getBoundingClientRect().top -
+				document.querySelector("#report-view").getBoundingClientRect().top,
+		);
+		assert.ok(
+			gap >= 8 && gap <= 24,
+			`the card starts ${gap}px under the top of the page`,
+		);
+		// Reading by hand takes over: the end of the page is the last section, and the middle follows.
+		await browser.evaluate(() => {
+			const view = document.querySelector("#report-view");
+			view.dispatchEvent(new WheelEvent("wheel", { deltaY: 100 }));
+			view.scrollTop = view.scrollHeight;
+		});
+		await browser.waitFor(
+			() =>
+				document.querySelector(".outline-link.current")?.textContent ===
+				"Related artifacts",
+		);
+		await browser.evaluate(() => {
+			const view = document.querySelector("#report-view");
+			view.dispatchEvent(new WheelEvent("wheel", { deltaY: -100 }));
+			const card = document.querySelector(
+				'.finding-card[aria-label="finding-003"]',
+			);
+			view.scrollTop +=
+				card.getBoundingClientRect().top -
+				view.getBoundingClientRect().top -
+				40;
+		});
+		await browser.waitFor(() =>
+			document
+				.querySelector(".outline-link.current")
+				?.title.startsWith("finding-003"),
+		);
+		// The ring of a focused outline link is drawn inside the link: the outline scrolls, which would
+		// cut one drawn outside (P1-4).
+		const ring = await browser.evaluate(() => {
+			const link = document.querySelector(".outline-link");
+			link.focus();
+			const style = getComputedStyle(link);
+			const box = link.getBoundingClientRect();
+			const clip = link.closest(".report-outline").getBoundingClientRect();
+			const grow =
+				parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth);
+			return {
+				visible: link.matches(":focus-visible"),
+				inside:
+					box.left - grow >= clip.left &&
+					box.right + grow <= clip.right &&
+					box.top - grow >= clip.top,
+			};
+		});
+		assert.deepEqual(ring, { visible: true, inside: true });
+	},
+);
+
+test(
+	"dashboard Chrome: a long outline scrolls to its current entry and stays under the top bar (P2-1)",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		const many = Array.from(
+			{ length: 40 },
+			(_, index) =>
+				`## Section number ${index + 1}\n\nText of section ${index + 1}.\n\n`,
+		).join("");
+		fixture.reports.set(complete, `# Long report\n\n${many}`);
+		await browser.open(
+			`${fixture.origin}/?run=${complete}&view=report`,
+			1280,
+			700,
+		);
+		await browser.waitFor(() => document.querySelector(".outline-link"));
+		assert.deepEqual(
+			await browser.evaluate(() => {
+				const nav = document.querySelector(".report-outline");
+				const view = document.querySelector("#report-view");
+				return {
+					scrolls: nav.scrollHeight > nav.clientHeight,
+					// The outline never runs under the top bar: its box fits the page's own height.
+					fits: nav.getBoundingClientRect().height <= view.clientHeight - 48,
+				};
+			}),
+			{ scrolls: true, fits: true },
+		);
+		await browser.evaluate(() => {
+			const view = document.querySelector("#report-view");
+			view.dispatchEvent(new WheelEvent("wheel", { deltaY: 100 }));
+			view.scrollTop = view.scrollHeight;
+		});
+		await browser.waitFor(
+			() =>
+				document.querySelector(".outline-link.current")?.textContent ===
+				"Section number 40",
+		);
+		assert.deepEqual(
+			await browser.evaluate(() => {
+				const nav = document
+					.querySelector(".report-outline")
+					.getBoundingClientRect();
+				const link = document
+					.querySelector(".outline-link.current")
+					.getBoundingClientRect();
+				const view = document
+					.querySelector("#report-view")
+					.getBoundingClientRect();
+				return {
+					inView: link.top >= nav.top - 1 && link.bottom <= nav.bottom + 1,
+					belowTopBar: nav.top >= view.top,
+				};
+			}),
+			{ inView: true, belowTopBar: true },
+		);
+		// A section near the end cannot be scrolled to the top of the page; what was clicked is still
+		// the current one, not the last section the page ends on (the click starts a long scroll).
+		await browser.evaluate(() => {
+			const view = document.querySelector("#report-view");
+			view.dispatchEvent(new WheelEvent("wheel", { deltaY: -100 }));
+			view.scrollTop = 0;
+		});
+		await browser.waitFor(
+			() =>
+				document.querySelector(".outline-link.current")?.textContent ===
+				"Section number 1",
+		);
+		await browser.evaluate(() =>
+			[...document.querySelectorAll(".outline-link")]
+				.find((link) => link.textContent === "Section number 38")
+				.click(),
+		);
+		await browser.waitFor(
+			() =>
+				new Promise((resolve) => {
+					const view = document.querySelector("#report-view");
+					const before = view.scrollTop;
+					setTimeout(() => resolve(view.scrollTop === before), 300);
+				}),
+		);
+		assert.equal(
+			await text2(browser, ".outline-link.current"),
+			"Section number 38",
+		);
+		assert.deepEqual(
+			await browser.evaluate(() => {
+				const view = document.querySelector("#report-view");
+				return view.scrollTop + view.clientHeight >= view.scrollHeight - 2;
+			}),
+			true,
+			"the page is at its end, so section 38 could not reach the top",
+		);
+	},
+);
+
+test(
+	"dashboard Chrome: a finding card puts its rationale and action first, then the folds (P3-1); filters say what they did (P2-5)",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		await browser.open(
+			`${fixture.origin}/?run=${complete}&view=report`,
+			1440,
+			900,
+		);
+		await browser.waitFor(() => document.querySelector(".finding-card"));
+		assert.deepEqual(
+			await browser.evaluate(() =>
+				[...document.querySelector(".finding-card").children]
+					.map((part) =>
+						part.matches("details")
+							? "fold"
+							: part.querySelector(".part-label")?.textContent,
+					)
+					.filter(Boolean),
+			),
+			["Rationale", "Recommended action", "fold", "fold", "fold"],
+		);
+		// A closed fold is one 28px row, not a 40px one.
+		assert.deepEqual(
+			await browser.evaluate(() =>
+				[
+					...document.querySelectorAll(
+						".finding-card:first-of-type .finding-fold > summary",
+					),
+				].map((summary) => summary.getBoundingClientRect().height),
+			),
+			[28, 28, 28],
+		);
+		// A pressed chip is the page's text colour on its background: seen from far up the page.
+		await browser.click('[data-filter-value="weakened"]');
+		// (the pointer is still over it: a pressed chip keeps its look under the pointer)
+		await browser.waitFor(
+			() =>
+				getComputedStyle(
+					document.querySelector('.filter-chip[data-filter-value="weakened"]'),
+				).backgroundColor ===
+				getComputedStyle(document.querySelector("#report-view")).color,
+		);
+		assert.deepEqual(
+			await browser.evaluate(() => {
+				const chip = document.querySelector(
+					'.filter-chip[data-filter-value="weakened"]',
+				);
+				const style = getComputedStyle(chip);
+				const page = getComputedStyle(document.querySelector("#report-view"));
+				return [
+					style.backgroundColor === page.color,
+					style.color === page.backgroundColor,
+				];
+			}),
+			[true, true],
+		);
+		await browser.click(".filter-clear");
+		assert.equal(await text2(browser, ".filter-count"), "");
+		assert.equal(
+			await browser.evaluate(
+				() => document.querySelectorAll(".finding-card:not([hidden])").length,
+			),
+			4,
+		);
+	},
+);
+
+test(
+	"dashboard Chrome: the report's title is a label, its header is one block, and the page theme can follow the dashboard again (P2-4, P3-5, P3-6, P3-7, P3-8)",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		await browser.open(
+			`${fixture.origin}/?run=${complete}&view=report`,
+			1440,
+			900,
+		);
+		await browser.waitFor(() => document.querySelector(".finding-card"));
+		// The document's own title is quiet (13px label); the page's sentence is the largest text.
+		assert.deepEqual(
+			await browser.evaluate(() => {
+				const label = getComputedStyle(
+					document.querySelector(".report-content > .md-h1"),
+				);
+				const sentence = getComputedStyle(
+					document.querySelector(".report-summary"),
+				);
+				return [parseFloat(label.fontSize), parseFloat(sentence.fontSize)];
+			}),
+			[13, 22],
+		);
+		// Meta items are joined with a middle dot, not spaced apart.
+		assert.match(
+			await text2(browser, ".report-meta"),
+			/^deep-review · Finished .* · 1m 37s active · 8 of 8 agents · \$0\.28 · 8 of 8 agents reported$/,
+		);
+		// The tab says where it is.
+		assert.equal(
+			await browser.evaluate(() => document.title),
+			"Report · deep-review · payments-api",
+		);
+		// Focus starts on the page, so the first Tab reaches Copy as Markdown, not the filters.
+		assert.equal(
+			await browser.evaluate(() => document.activeElement.id),
+			"report-view",
+		);
+		await browser.key("Tab");
+		assert.equal(
+			await browser.evaluate(() => document.activeElement.className),
+			"copy-report",
+		);
+		// "Light page"/"Dark page" is a pin only while it differs from the dashboard: pressing it again
+		// returns to following it.
+		const pinned = () =>
+			browser.evaluate(() => [
+				document.querySelector("#report-view").dataset.page ?? null,
+				localStorage.getItem("agent-workflow:report-page"),
+			]);
+		assert.deepEqual(await pinned(), [null, null]);
+		await browser.click(".report-page");
+		const [page, stored] = await pinned();
+		assert.ok(page === "light" || page === "dark");
+		assert.equal(stored, page);
+		await browser.click(".report-page");
+		assert.deepEqual(await pinned(), [null, null]);
+		// The overview's tab, and the heading's accessible name.
+		await browser.open(`${fixture.origin}/`);
+		await browser.waitFor(() => document.querySelector(".home-row.recent"));
+		assert.equal(
+			await browser.evaluate(() => document.title),
+			"Overview · payments-api",
+		);
+	},
+);
+
+test(
+	"dashboard Chrome: the rail has no run groups on the overview, and has them again with a run (P2-2)",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		await browser.open(`${fixture.origin}/`);
+		await browser.waitFor(() => document.querySelector(".home-row.recent"));
+		const rail = () =>
+			browser.evaluate(() => ({
+				headings: [...document.querySelectorAll("#rail .rail-heading")].map(
+					(node) => node.querySelector("span")?.textContent ?? node.textContent,
+				),
+				runs: document.querySelectorAll("#rail .run-row").length,
+				needs: document.querySelectorAll("#rail .need").length,
+				switcher: !!document.querySelector("#rail #project-switcher"),
+				nav: document.querySelectorAll("#rail .management-nav a").length,
+			}));
+		assert.deepEqual(await rail(), {
+			headings: [],
+			runs: 0,
+			needs: 0,
+			switcher: true,
+			nav: 6,
+		});
+		// The top bar's "Needs you" leads to the needs the page itself lists.
+		await browser.click(".needs-button");
+		assert.equal(
+			await browser.evaluate(
+				() => !!document.activeElement.closest("#home-needs"),
+			),
+			true,
+		);
+		// A run brings the groups back (the rail is how to switch runs)...
+		await browser.click('#home-recent .home-row[data-run="' + complete + '"]');
+		await browser.waitFor(() => document.querySelector("#task-count"));
+		const open = await rail();
+		assert.deepEqual(open.headings, ["Needs you", "Runs"]);
+		assert.ok(
+			open.runs >= 6 && open.needs >= 1 && open.switcher && open.nav === 6,
+		);
+		// ...and the report page too; going back to the overview takes them away again.
+		await browser.click(
+			'[data-action="open-report"], #run-header button:not([data-action])',
+		);
+		await browser.evaluate(() => history.back());
+		await browser.evaluate(() => history.back());
+		await browser.waitFor(() => document.querySelector("#home-view"));
+		assert.deepEqual(await rail(), {
+			headings: [],
+			runs: 0,
+			needs: 0,
+			switcher: true,
+			nav: 6,
+		});
+	},
+);
+
+test(
+	"dashboard Chrome: an ended run shows its active time in the rail and the run header; a live run keeps its clock (P1-5)",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		// Created 07:00 and last updated 07:06: six minutes of wall clock, 2m 15s of work.
+		await browser.open(`${fixture.origin}/?run=${failed}`);
+		await browser.waitFor(() => document.querySelector(".run-row"));
+		const elapsed = (id) =>
+			browser.evaluate(
+				(id) =>
+					document.querySelector(`[data-run-elapsed="${id}"]`).textContent,
+				id,
+			);
+		assert.equal(await elapsed(failed), "2m 15s");
+		assert.match(await text2(browser, "#hero-sub"), /^spec-review · 2m 15s · /);
+		// The overview says the same about the same run (and the report calls it "active").
+		assert.equal(await elapsed(complete), "1m 37s");
+		// A running run shows the clock: its wall time is not its (smaller) active time.
+		assert.notEqual(await elapsed(running), "5s");
+		fixture.runs.get(running).activeMs = 5_000;
+		fixture.publish();
+		await browser.waitFor(() =>
+			document.querySelector('[data-run-elapsed="workflow_mvt9k2qa_7c41e0"]'),
+		);
+		assert.notEqual(await elapsed(running), "5s");
+	},
+);
+
+test(
+	"dashboard Chrome: the overview's calm state is one line; one empty section keeps its heading without a box (P2-9)",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		for (const run of fixture.runs.values()) {
+			if (["running", "blocked", "failed"].includes(run.status))
+				run.status = "completed";
+			run.needsYou = [];
+			run.live = false;
+		}
+		await browser.open(`${fixture.origin}/`);
+		await browser.waitFor(() => document.querySelector(".home-row.recent"));
+		assert.deepEqual(
+			await browser.evaluate(() => ({
+				line: document.querySelector("#home-status")?.textContent,
+				sections: [...document.querySelectorAll(".home-section > h2")].map(
+					(node) => node.querySelector("span").textContent,
+				),
+				box: (() => {
+					const style = getComputedStyle(
+						document.querySelector("#home-status"),
+					);
+					return [style.borderTopWidth, style.backgroundColor];
+				})(),
+			})),
+			{
+				line: "Nothing needs you · nothing running",
+				sections: ["Recent results", "This project", "Workflows"],
+				box: ["0px", "rgba(0, 0, 0, 0)"],
+			},
+		);
+		// With something running, "Needs you" is the quiet line and "Running now" has its row.
+		const live = fixture.runs.get(running);
+		live.status = "running";
+		live.live = true;
+		fixture.publish();
+		await browser.waitFor(() =>
+			document.querySelector("#home-running .home-row"),
+		);
+		assert.deepEqual(
+			await browser.evaluate(() => ({
+				status: !!document.querySelector("#home-status"),
+				needs: document.querySelector("#home-needs .home-calm")?.textContent,
+				box: getComputedStyle(document.querySelector("#home-needs .home-calm"))
+					.borderTopWidth,
+			})),
+			{ status: false, needs: "Nothing needs you.", box: "0px" },
+		);
+	},
+);
+
+test(
+	"dashboard Chrome: Show all expands the results in place, the Runs item prefers a run that is not stopped, Last result is the last one that finished (P2-3)",
+	chromeOptions,
+	async (t) => {
+		const snapshots = await fixtureSnapshots();
+		const docs = snapshots.find((run) => run.runId === docsWriter);
+		// Six more finished runs, older than everything else, and a newer docs-writer that was stopped.
+		const more = Array.from({ length: 6 }, (_, index) => ({
+			...structuredClone(docs),
+			runId: `workflow_mvt1t1i7_old${index}`,
+			createdAt: `2026-10-2${index}T04:33:36.224Z`,
+			updatedAt: `2026-10-2${index}T04:33:42.001Z`,
+		}));
+		const stoppedDocs = {
+			...structuredClone(docs),
+			runId: "workflow_mvt1t1i7_stop00",
+			status: "interrupted",
+			createdAt: "2026-10-29T09:00:00.000Z",
+			updatedAt: "2026-10-29T09:00:20.000Z",
+		};
+		const { browser, fixture } = await reviewFixture(t, {
+			snapshots: [...snapshots, ...more, stoppedDocs],
+		});
+		await browser.open(`${fixture.origin}/`);
+		await browser.waitFor(() => document.querySelector(".home-row.recent"));
+		const rows = () =>
+			browser.evaluate(() => ({
+				rows: document.querySelectorAll("#home-recent .home-row.recent").length,
+				stopped: document.querySelectorAll(
+					"#home-recent .result-badge.interrupted",
+				).length,
+				button:
+					document.querySelector('[data-home-key="all"]')?.textContent ?? null,
+				toggle:
+					document.querySelector('[data-home-key="stopped"]')?.textContent ??
+					null,
+				link: !!document.querySelector("a.home-all"),
+				focus: document.activeElement?.dataset?.homeKey ?? null,
+			}));
+		// Eight results, the stopped ones hidden; the button names how many there are in all.
+		const before = await rows();
+		assert.deepEqual(
+			[before.rows, before.stopped, before.button, before.toggle, before.link],
+			[8, 0, "Show all 13", "Show 2 stopped runs", false],
+		);
+		await browser.click('[data-home-key="all"]');
+		// In place: the address is the overview's, every result is listed, stopped ones with them.
+		assert.deepEqual(await route(browser), [null, null]);
+		const all = await rows();
+		assert.deepEqual(
+			[all.rows, all.stopped, all.button, all.toggle, all.focus],
+			[13, 2, "Show fewer", null, "all"],
+		);
+		await browser.click('[data-home-key="all"]');
+		assert.equal((await rows()).rows, 8);
+		// Last result: the workflow's last run that finished. docs-writer's newest run was stopped.
+		assert.equal(
+			await browser.evaluate(() =>
+				document
+					.querySelector('[data-workflow="docs-writer"] td:nth-child(3)')
+					.textContent.trim(),
+			),
+			"Finished",
+		);
+		// The nav's Runs item: the running run first; without one, the newest that is not stopped.
+		const order = await browser.evaluate(async (project) => {
+			const data = await (await fetch(`/api/projects/${project}/runs`)).json();
+			return data.runs.map((summary) => [summary.runId, summary.status]);
+		}, "payments-api-123456789abc");
+		await browser.open(`${fixture.origin}/?view=runs`);
+		assert.deepEqual((await route(browser))[0], running);
+		for (const run of fixture.runs.values())
+			if (run.status === "running") run.status = "completed";
+		fixture.runs.get(order[0][0]).status = "interrupted";
+		await browser.open(`${fixture.origin}/?view=runs`);
+		const expected = order.find(
+			([, status]) => !["running", "interrupted"].includes(status),
+		);
+		assert.ok(expected && expected[0] !== order[0][0]);
+		assert.deepEqual((await route(browser))[0], expected[0]);
+	},
+);
+
+test(
+	"dashboard Chrome: the overview's parts follow their own width: no clipped table, a readable results list (P1-3, P2-8)",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		for (const [width, height] of [
+			[1280, 800],
+			[1180, 800],
+			[1440, 900],
+			[2304, 1190],
+			[1101, 800],
+		]) {
+			await browser.open(`${fixture.origin}/`, width, height);
+			await browser.waitFor(() => document.querySelector(".home-table"));
+			const fit = await browser.evaluate(() => {
+				const wrap = document.querySelector(".home-table-wrap");
+				const box = wrap.getBoundingClientRect();
+				const table = document.querySelector(".home-table");
+				const strips = [...document.querySelectorAll(".home-table .strip")].map(
+					(strip) => strip.getBoundingClientRect(),
+				);
+				const task = document.querySelector(".home-row-task");
+				return {
+					// Nothing of the table is cut off: its box is inside the wrapper, and every outcome strip
+					// is drawn inside it too.
+					table: table.getBoundingClientRect().right <= box.right + 0.5,
+					strips: strips.every(
+						(strip) => strip.right <= box.right && strip.width > 0,
+					),
+					page: document.documentElement.scrollWidth <= innerWidth,
+					task: task.getBoundingClientRect().width,
+				};
+			});
+			assert.equal(fit.table, true, `${width}px: the table fits its box`);
+			assert.equal(
+				fit.strips,
+				true,
+				`${width}px: the "Last runs" strips are visible`,
+			);
+			assert.equal(fit.page, true, `${width}px: no sideways scroll`);
+			assert.ok(
+				fit.task >= 180,
+				`${width}px: the task text is ${fit.task}px wide`,
+			);
+		}
+	},
+);

@@ -335,13 +335,13 @@ export function statusSentence(run, time = now(), stopping = false) {
 	)
 		return `${reviewing ? "Reviewing" : "Work"} is paused. The executor couldn't confirm whether one task ran — you need to decide.`;
 	if (run.status === "failed" && run.verdictGate)
-		return `Finished ${ago(run.updatedAt, time).replace(/(\d)([mhd])/, "$1 $2")} with verdict ${run.verdict ? verdictWord(run.verdict) : "not passed"}. The final gate did not pass; the report explains why.${run.reportAvailable ? " Report is ready." : ""}`;
+		return `Finished ${ago(run.updatedAt, time)} with verdict ${run.verdict ? verdictWord(run.verdict) : "not passed"}. The final gate did not pass; the report explains why.${run.reportAvailable ? " Report is ready." : ""}`;
 	if (run.status === "failed")
 		return failed
 			? `Stopped at ${failed.stageId}. ${/contract/.test(failed.statusDetail || "") ? "Output didn't match the contract." : "A task failed."} Inspect and resume when ready.`
 			: "A task failed. Inspect and resume when ready.";
 	if (run.status === "completed")
-		return `Finished ${ago(run.updatedAt, time).replace(/(\d)([mhd])/, "$1 $2")}.${run.reportAvailable ? " Report is ready." : ""}`;
+		return `Finished ${ago(run.updatedAt, time)}.${run.reportAvailable ? " Report is ready." : ""}`;
 	if (run.status === "blocked")
 		return "Work is paused. Review the run details before continuing.";
 	// `live: false` on a run that says running: the process that drove it is gone (30 s grace for a
@@ -465,6 +465,27 @@ function urlState(replace = false) {
 		"",
 		`${location.pathname}${params.size ? `?${params}` : ""}`,
 	);
+	syncTitle();
+}
+/** 2026-11-12 (review, P3-8): each history entry reads differently ("Report · deep-review · my-service"). */
+function syncTitle() {
+	const project = projects.find((entry) => entry.id === state.project)?.name;
+	const name = state.run
+		? (run?.runId === state.run ? run : runs.find((r) => r.runId === state.run))
+				?.name
+		: null;
+	const page = managementView()
+		? state.view.charAt(0).toUpperCase() + state.view.slice(1)
+		: state.run
+			? state.view === "report" && name
+				? "Report"
+				: null
+			: state.project
+				? "Overview"
+				: null;
+	document.title =
+		[page, state.run ? name : null, project].filter(Boolean).join(" · ") ||
+		"agent-workflow";
 }
 async function api(path, options = {}) {
 	if (path.startsWith("/api/runs"))
@@ -560,6 +581,11 @@ function renderTop() {
 			// Amber only when something waits for you; "Needs you 0" stays neutral.
 			[needs ? glyph("blocked") : null, `Needs you  ${needs}`],
 			() => {
+				// 2026-11-12 (review, P2-2): the overview shows the needs itself; the rail has none there.
+				if (homeShown()) {
+					$("home-needs")?.querySelector("button, a")?.focus();
+					return;
+				}
 				if (!railShown()) toggleRail(true);
 				$("rail").querySelector(".need")?.focus();
 			},
@@ -573,6 +599,7 @@ function renderTop() {
 	]);
 	applyRail();
 	updateConnection();
+	syncTitle();
 	if (focusedLabel)
 		$("top")
 			.querySelector(`[aria-label="${CSS.escape(focusedLabel)}"]`)
@@ -643,8 +670,15 @@ function railCount(counts, agents) {
 		? `${counts.total} ${noun}`
 		: `${counts.completed} of ${counts.total} ${noun}`;
 }
+/**
+ * 2026-11-12 (owner, review P1-5): one duration language. A live run shows the clock running; a run
+ * that has ended shows its active time (when agents and steps worked), as the overview and the
+ * report do, so the same run never has two numbers.
+ */
+const runElapsed = (run) =>
+	!liveRun(run) && run.activeMs != null ? duration(run.activeMs) : elapsed(run);
 /** "6m" for "6m 00s", "1h" for "1h 00m": the rail rounds where nothing is lost. */
-const railElapsed = (run) => elapsed(run).replace(/ 00[sm]$/, "");
+const railElapsed = (run) => runElapsed(run).replace(/ 00[sm]$/, "");
 function progress(completed, total, status = "") {
 	return element("progress", {
 		class: status ? `p-${status}` : null,
@@ -843,7 +877,9 @@ function renderRail() {
 			}),
 		),
 	);
-	if (managementView()) return;
+	// 2026-11-12 (owner, review P2-2): the overview lists the needs and the runs itself, so the rail
+	// keeps only the project switcher and the nav there; the groups return with a run or a report.
+	if (managementView() || homeShown()) return;
 	if (needs.length || hidden.length)
 		rail.append(element("h2", { class: "rail-heading" }, "Needs you"));
 	for (const need of needs)
@@ -1116,7 +1152,7 @@ function heroSubline() {
 	const tasks = agentTasks(run),
 		done = tasks.filter((t) => t.status === "completed").length;
 	const noun = tasks.length === 1 ? "agent" : "agents";
-	return `${run.name} · ${elapsed(run)} · ${liveRun(run) ? `${done} of ${tasks.length} ${noun} done` : `${tasks.length} ${noun}`}`;
+	return `${run.name} · ${runElapsed(run)} · ${liveRun(run) ? `${done} of ${tasks.length} ${noun} done` : `${tasks.length} ${noun}`}`;
 }
 const badgeStates = new Map();
 function renderBadge(status) {
@@ -4969,10 +5005,15 @@ function storedReportPage() {
 		return null; // Storage unavailable: follow the dashboard.
 	}
 }
-function reportPage(view) {
-	const page = view.dataset.page ?? document.documentElement.dataset.theme;
-	if (page === "light" || page === "dark") return page;
+/** The dashboard's own scheme: the chosen theme, else the system's. */
+const appScheme = () => {
+	const theme = document.documentElement.dataset.theme;
+	if (theme === "light" || theme === "dark") return theme;
 	return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
+function reportPage(view) {
+	const page = view.dataset.page;
+	return page === "light" || page === "dark" ? page : appScheme();
 }
 /** Called once the report page is drawn. */
 function reportPageButton(view) {
@@ -4982,12 +5023,17 @@ function reportPageButton(view) {
 		"",
 		() => {
 			const next = reportPage(view) === "dark" ? "light" : "dark";
+			// 2026-11-12 (review, P3-6): choosing the dashboard's own scheme is no pin: the page
+			// follows the dashboard again, so there is always a way back.
+			const follow = next === appScheme();
 			try {
-				localStorage.setItem(REPORT_PAGE_KEY, next);
+				if (follow) localStorage.removeItem(REPORT_PAGE_KEY);
+				else localStorage.setItem(REPORT_PAGE_KEY, next);
 			} catch {
 				// The choice then lasts for this report only.
 			}
-			view.dataset.page = next;
+			if (follow) delete view.dataset.page;
+			else view.dataset.page = next;
 			label();
 		},
 		{ class: "report-page" },
@@ -5167,9 +5213,7 @@ function verifierInfo(word, ledgerKept) {
 	);
 }
 function findingCard(finding, ledgerKept) {
-	const [severity, severityGlyph, severityWord] = severityInfo(
-		finding.severity,
-	);
+	const [severity, , severityWord] = severityInfo(finding.severity);
 	const verifier = verifierInfo(finding.verdict, ledgerKept);
 	const title = element("div");
 	renderTextMarkdown(title, `### ${finding.title}`, 1);
@@ -5180,11 +5224,15 @@ function findingCard(finding, ledgerKept) {
 		renderTextMarkdown(box, lines, 4);
 		return box;
 	};
+	// 2026-11-12 (owner, review P3-1): what is wrong and what to do come first, directly under the
+	// title; the evidence and caveat folds follow them.
+	const folded = (block) => /evidence|caveat|counter/i.test(block.label);
 	const parts = finding.blocks
 		.filter((block) => block.lines.some((line) => line.trim()))
+		.sort((a, b) => Number(folded(a)) - Number(folded(b)))
 		.map((block) => {
 			const body = block.lines.join("\n");
-			if (!/evidence|caveat|counter/i.test(block.label))
+			if (!folded(block))
 				return element(
 					"section",
 					{ class: "finding-part" },
@@ -5220,7 +5268,8 @@ function findingCard(finding, ledgerKept) {
 				element(
 					"span",
 					{ class: `severity-chip ${severity}`, title: finding.severity },
-					glyph(severityGlyph),
+					// 2026-11-12 (review, P2-10): a dot, so a cross only ever means "failed".
+					element("span", { class: `outline-dot ${severity}` }),
 					severityWord,
 				),
 				verifier
@@ -5287,28 +5336,42 @@ function renderReport(container, text) {
 	reportBlocks(container);
 	return found;
 }
-/** The sticky outline: the report's `##` and `###` headings (a finding by its id). */
+/**
+ * The sticky outline, "On this page" (2026-11-12, review P2-6): the report's `##` headings and its
+ * findings, each on one line (a finding by its title, its id in the tooltip). Sub-sections of a
+ * section are left out; a `### finding-NNN — title` heading that is not a card still counts.
+ */
 function reportOutline(content, scroller) {
 	const targets = [...content.querySelectorAll(".md-h2, .md-h3, .finding-card")]
-		.filter((node) => !node.matches(".finding-title"))
-		.map((node) => ({
-			node,
-			level: node.matches(".md-h2") ? 0 : 1,
-			label: node.matches(".finding-card")
-				? node.getAttribute("aria-label")
+		.filter(
+			(node) =>
+				!node.matches(".finding-title") &&
+				(!node.matches(".md-h3") || FINDING_HEADING.test(node.textContent)),
+		)
+		.map((node) => {
+			const card = node.matches(".finding-card");
+			const text = card
+				? node.querySelector(".finding-title")?.textContent
 				: [...node.childNodes]
 						.map((child) =>
 							child.classList?.contains("md-index")
 								? `${child.textContent}. `
 								: child.textContent,
 						)
-						.join(""),
-			title: node.matches(".finding-card")
-				? node.querySelector(".finding-title")?.textContent
-				: null,
-			severity: node.dataset?.severity,
-		}));
+						.join("");
+			const found = card ? null : FINDING_HEADING.exec(text);
+			return {
+				node,
+				level: card || found ? 1 : 0,
+				label: found ? found[2] : text,
+				title: card ? `${node.getAttribute("aria-label")} — ${text}` : text,
+				severity: node.dataset?.severity,
+			};
+		});
 	if (!targets.length) return null;
+	// The entry the reader clicked stays current until they scroll by hand (review, P2-1): the
+	// scroll a click starts must not hand the highlight to a neighbour.
+	let pinned = null;
 	const links = targets.map((target) =>
 		element(
 			"a",
@@ -5319,6 +5382,7 @@ function reportOutline(content, scroller) {
 				onclick: (event) => {
 					event.preventDefault();
 					toggle(false);
+					pinned = target;
 					current(target);
 					target.node.scrollIntoView({
 						block: "start",
@@ -5329,7 +5393,7 @@ function reportOutline(content, scroller) {
 			target.severity
 				? element("span", { class: `outline-dot ${target.severity}` })
 				: null,
-			target.label,
+			element("span", { class: "outline-text" }, target.label),
 		),
 	);
 	const nav = element(
@@ -5339,6 +5403,11 @@ function reportOutline(content, scroller) {
 			class: "outline-toggle",
 			"aria-expanded": "false",
 		}),
+		element(
+			"p",
+			{ class: "outline-title", "aria-hidden": "true" },
+			"On this page",
+		),
 		element("div", { class: "outline-links" }, links),
 	);
 	const toggle = (open = !nav.classList.contains("open")) => {
@@ -5351,26 +5420,55 @@ function reportOutline(content, scroller) {
 		links.forEach((link, index) => {
 			const on = targets[index] === target;
 			link.classList.toggle("current", on);
-			if (on) link.setAttribute("aria-current", "location");
-			else link.removeAttribute("aria-current");
+			if (on) {
+				link.setAttribute("aria-current", "location");
+				// A long outline scrolls by itself, so the current entry is never out of sight (the
+				// page is not moved: only the outline's own scroll is set).
+				if (nav.scrollHeight > nav.clientHeight) {
+					const box = nav.getBoundingClientRect();
+					const at = link.getBoundingClientRect();
+					const top = at.top - box.top + nav.scrollTop;
+					if (top < nav.scrollTop) nav.scrollTop = top;
+					else if (top + at.height > nav.scrollTop + nav.clientHeight)
+						nav.scrollTop = top + at.height - nav.clientHeight;
+				}
+			} else link.removeAttribute("aria-current");
 		});
 	};
-	// The section being read: the last shown heading whose top has reached the top of the page.
+	// The section being read: the last shown heading above a line a third of the way down the
+	// page (at most 160px); at the very end of the page, the last shown one, which could never
+	// reach that line.
 	const update = () => {
-		const edge = scroller.getBoundingClientRect().top + 96;
-		let at = null;
-		for (const target of targets) {
-			if (!target.node.getClientRects().length) continue;
-			at ??= target;
-			if (target.node.getBoundingClientRect().top <= edge) at = target;
-		}
+		const shown = targets.filter(
+			(target) => target.node.getClientRects().length,
+		);
+		const edge =
+			scroller.getBoundingClientRect().top +
+			Math.min(160, scroller.clientHeight / 3);
+		const atEnd =
+			scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2;
+		let at = pinned ?? (atEnd ? shown.at(-1) : null);
+		if (!at)
+			for (const target of shown) {
+				at ??= target;
+				if (target.node.getBoundingClientRect().top <= edge) at = target;
+			}
 		current(at);
 	};
+	for (const type of ["wheel", "touchmove", "keydown", "pointerdown"])
+		scroller.addEventListener(
+			type,
+			() => {
+				pinned = null;
+			},
+			{ passive: true },
+		);
 	// A filtered-out card or section leaves the outline too.
 	content.addEventListener("report-filter", () => {
 		links.forEach((link, index) => {
 			link.hidden = !targets[index].node.getClientRects().length;
 		});
+		if (pinned && !pinned.node.getClientRects().length) pinned = null;
 		update();
 	});
 	let frame = 0;
@@ -5401,7 +5499,7 @@ function findingFilters(content, found, empty) {
 		} else if (node.matches(".finding-card")) section?.cards.push(node);
 		else if (section) section.plain = true;
 	}
-	const apply = () => {
+	const apply = (reveal = false) => {
 		let shown = 0;
 		for (const { card } of found) {
 			card.hidden =
@@ -5415,7 +5513,18 @@ function findingFilters(content, found, empty) {
 				!item.plain &&
 				item.cards.every((card) => card.hidden);
 		empty.hidden = shown > 0;
+		// 2026-11-12 (review, P2-5): say what the filter did, and show it (the cards are far down).
+		const on = Boolean(filters.severity || filters.verdict);
+		status.textContent = on ? `Showing ${shown} of ${found.length}` : "";
+		clear.hidden = !on;
 		content.dispatchEvent(new Event("report-filter"));
+		if (reveal && on && shown)
+			found
+				.find((item) => !item.card.hidden)
+				?.card.scrollIntoView({
+					block: "start",
+					behavior: reducedMotion() ? "auto" : "smooth",
+				});
 		for (const chip of chips.querySelectorAll("[data-filter-key]"))
 			chip.setAttribute(
 				"aria-pressed",
@@ -5427,7 +5536,7 @@ function findingFilters(content, found, empty) {
 			text,
 			() => {
 				filters[key] = filters[key] === value ? "" : value;
-				apply();
+				apply(true);
 			},
 			{
 				class: "filter-chip",
@@ -5448,6 +5557,18 @@ function findingFilters(content, found, empty) {
 	const word = (value) =>
 		Object.values(VERDICTS).find((item) => item[0] === value)?.[2] ??
 		verdictWord(value);
+	const status = element("span", {
+		class: "muted filter-count",
+		role: "status",
+	});
+	const clear = button(
+		"Clear",
+		() => {
+			filters.severity = filters.verdict = "";
+			apply();
+		},
+		{ class: "link filter-clear", hidden: true },
+	);
 	const chips = element(
 		"div",
 		{ class: "filter-chips", role: "group", "aria-label": "Filter findings" },
@@ -5467,6 +5588,8 @@ function findingFilters(content, found, empty) {
 		verdicts.map(([value, count]) =>
 			chip("verdict", value, `${count} ${word(value).toLowerCase()}`),
 		),
+		status,
+		clear,
 	);
 	return chips;
 }
@@ -5612,6 +5735,11 @@ function renderReportPage() {
 			id: "report-view",
 			"data-key": key,
 			"data-run": run.runId,
+			// 2026-11-12 (review, P3-7): focus starts on the page itself, so the first Tab reaches
+			// the actions before the filters.
+			tabindex: "-1",
+			role: "region",
+			"aria-label": `${run.name} report`,
 		},
 		element(
 			"div",
@@ -5632,10 +5760,17 @@ function renderReportPage() {
 				),
 				element(
 					"h1",
-					{ class: "report-summary", tabindex: "-1" },
+					{ class: "report-summary" },
 					leadSentence(summary) || `${run.name} report`,
 				),
-				element("p", { class: "report-meta" }, meta),
+				// 2026-11-12 (review, P3-5): "·" between the items, as everywhere else.
+				element(
+					"p",
+					{ class: "report-meta" },
+					meta
+						.filter(Boolean)
+						.flatMap((item, index) => (index ? [" · ", item] : [item])),
+				),
 				chips,
 			),
 			outline,
@@ -5649,7 +5784,7 @@ function renderReportPage() {
 	center.replaceChildren(view);
 	view.scrollTop = scroll;
 	if (!old || old.dataset.run !== run.runId)
-		view.querySelector(".report-summary").focus({ preventScroll: true });
+		view.focus({ preventScroll: true });
 	if (!run.reportAvailable) return;
 	api(`/api/runs/${encodeURIComponent(run.runId)}/report`)
 		.then((data) => {
@@ -6191,7 +6326,7 @@ setInterval(() => {
 		if (summary) node.textContent = railElapsed(summary);
 	}
 	for (const node of document.querySelectorAll("[data-ago]"))
-		node.textContent = ago(node.dataset.ago);
+		node.textContent = whenText(node.dataset.ago);
 	if (!run) return;
 	refreshGraphTexts();
 	if (liveRun(run)) refreshTimeline();
@@ -6314,11 +6449,11 @@ function renderOverview() {
  * reporting counts and active time (projection.ts), so no run's detail is fetched.
  */
 let showStopped = false;
-/** The run list's own entry (nav "Runs"): the latest run, as the dashboard opened before the overview. */
-function runsHref() {
+/** The management page's own address (the overview's "Manage →", a workflow's name). */
+function managementHref(view) {
 	const params = new URLSearchParams();
 	if (state.project) params.set("project", state.project);
-	params.set("view", "runs");
+	params.set("view", view);
 	return `/?${params}`;
 }
 const homeShown = () =>
@@ -6352,8 +6487,29 @@ function openNeed(need) {
 			: need.taskId;
 	go({ run: need.run.runId, task: target || null, dialog: "resume" });
 }
+/**
+ * "5m ago" for a day, then the date and time: a column of "1d ago" tells rows apart no better
+ * than no time at all (2026-11-12, review P3-5).
+ */
+function whenText(value, time = now()) {
+	if (time - date(value) < 86_400_000) return ago(value, time);
+	return new Date(date(value)).toLocaleString([], {
+		month: "short",
+		day: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+		hour12: false,
+	});
+}
 function timeAgo(value) {
-	return element("span", { "data-ago": value }, ago(value));
+	return element(
+		"span",
+		{
+			"data-ago": value,
+			title: new Date(date(value)).toLocaleString(),
+		},
+		whenText(value),
+	);
 }
 function resultChip(summary) {
 	const [tone, word] = resultBadge(summary);
@@ -6478,29 +6634,46 @@ function homeRunning(running) {
 		);
 	});
 }
-function homeRecent(finished, stopped, running) {
-	const shown = showStopped
-		? finished
-		: finished.filter((summary) => summary.status !== "interrupted");
+let showAll = false;
+function homeRecent(finished, stopped) {
+	// "Show all" lifts the cap of eight and brings the stopped runs with it, in place.
+	const shown = (
+		showStopped || showAll
+			? finished
+			: finished.filter((summary) => summary.status !== "interrupted")
+	).slice(0, showAll ? Infinity : 8);
 	return [
 		shown.length
 			? element(
 					"div",
 					{ class: "home-list" },
-					shown.slice(0, 8).map((summary) => {
+					shown.map((summary) => {
 						const agents = summary.agentSummary;
 						return runLink(
 							summary,
 							[
 								resultChip(summary),
+								// 2026-11-12 (review, P2-8): the workflow leads (it tells rows apart), then the
+								// agents; the task the run was given is the quiet line below.
 								element(
 									"span",
-									{
-										class: "home-row-task",
-										title: summary.taskPreview || summary.name,
-									},
-									summary.taskPreview || summary.name,
+									{ class: "home-row-name", title: summary.name },
+									summary.name,
+									agents
+										? element(
+												"span",
+												{ class: "muted" },
+												` · ${agents.completed} of ${agents.total} agents`,
+											)
+										: null,
 								),
+								summary.taskPreview
+									? element(
+											"span",
+											{ class: "home-row-task", title: summary.taskPreview },
+											summary.taskPreview,
+										)
+									: null,
 								element(
 									"span",
 									{ class: "home-row-when muted" },
@@ -6512,19 +6685,6 @@ function homeRecent(finished, stopped, running) {
 										" · ",
 										costCell(summary),
 									),
-								),
-								// The workflow, unless it already is the line above.
-								element(
-									"span",
-									{ class: "home-row-meta faint" },
-									[
-										summary.taskPreview ? summary.name : null,
-										agents
-											? `${agents.completed} of ${agents.total} agents`
-											: null,
-									]
-										.filter(Boolean)
-										.join(" · "),
 								),
 							],
 							"home-row recent",
@@ -6538,11 +6698,14 @@ function homeRecent(finished, stopped, running) {
 						? "No results to show. Stopped runs are hidden."
 						: "No finished runs yet.",
 				),
-		finished.length
-			? element(
-					"a",
-					{ class: "home-all", href: runsHref() },
-					`All ${finished.length + running} runs →`,
+		showAll || finished.length > shown.length
+			? button(
+					showAll ? "Show fewer" : `Show all ${finished.length}`,
+					() => {
+						showAll = !showAll;
+						renderHome();
+					},
+					{ class: "small home-toggle home-all", "data-home-key": "all" },
 				)
 			: null,
 	];
@@ -6576,7 +6739,14 @@ function homeWorkflows(all) {
 					{},
 					element("th", {}, "Workflow"),
 					element("th", { class: "n" }, "Runs"),
-					element("th", {}, "Last result"),
+					element(
+						"th",
+						{
+							title:
+								"The latest run that finished; a stopped run is not a result",
+						},
+						"Last result",
+					),
 					element(
 						"th",
 						{ class: "n", title: "Median active time of completed runs" },
@@ -6598,7 +6768,12 @@ function homeWorkflows(all) {
 				"tbody",
 				{},
 				rows.map(({ name, list }) => {
-					const last = list.at(-1);
+					// 2026-11-12 (owner): the last run that finished, not one that was stopped or is
+					// still going.
+					const last =
+						list.findLast((summary) =>
+							["completed", "failed"].includes(summary.status),
+						) ?? list.at(-1);
 					const completed = list
 						.filter((summary) => summary.status === "completed")
 						.map((summary) => summary.activeMs)
@@ -6609,7 +6784,11 @@ function homeWorkflows(all) {
 					return element(
 						"tr",
 						{ "data-workflow": name },
-						element("td", { class: "wf", "data-label": "Workflow" }, name),
+						element(
+							"td",
+							{ class: "wf", "data-label": "Workflow" },
+							element("a", { href: managementHref("workflows") }, name),
+						),
 						element("td", { class: "n", "data-label": "Runs" }, list.length),
 						element("td", { "data-label": "Last result" }, resultChip(last)),
 						element(
@@ -6628,14 +6807,9 @@ function homeWorkflows(all) {
 								"data-label": "Cost",
 								title: `${label.title}${label.runs ? ` · ${label.runs} of ${list.length} runs reported` : ""}`,
 							},
+							// 2026-11-12 (review, P2-11): "$1.39+ 5/5" read as incomplete and complete at
+							// once; the runs ratio is in the tooltip.
 							element("span", { class: "home-cost" }, label.text),
-							label.runs
-								? element(
-										"small",
-										{ class: "faint home-cost-runs" },
-										` ${label.runs}/${list.length}`,
-									)
-								: null,
 						),
 						element(
 							"td",
@@ -6706,6 +6880,7 @@ function homeProject(all) {
 		stat(
 			all.length,
 			"runs",
+			// Each part stays whole when the note wraps; the middle dot stays with the part before it.
 			[
 				`${done} done`,
 				stopped ? `${stopped} stopped` : null,
@@ -6714,7 +6889,14 @@ function homeProject(all) {
 				waiting ? `${waiting} need${waiting === 1 ? "s" : ""} you` : null,
 			]
 				.filter(Boolean)
-				.join(" · "),
+				.flatMap((part, index, parts) => [
+					index ? " " : null,
+					element(
+						"span",
+						{ class: "nowrap" },
+						index < parts.length - 1 ? `${part} ·` : part,
+					),
+				]),
 		),
 		stat(label.text, "spend", label.ratio || "", label.title),
 		stat(
@@ -6753,6 +6935,7 @@ function renderHome() {
 		(min, summary) => Math.min(min, date(summary.createdAt)),
 		Infinity,
 	);
+	const calm = !needs.length && !running.length;
 	const section = (title, children, extra = null, id = null) =>
 		element(
 			"section",
@@ -6767,10 +6950,12 @@ function renderHome() {
 			element(
 				"div",
 				{ class: "home-grid" },
+				// The project is in the top bar and the rail; the page says what it is (review, P3-4).
 				element(
 					"h1",
 					{},
-					project?.name || "Project",
+					"Overview",
+					" ",
 					element(
 						"small",
 						{},
@@ -6780,19 +6965,34 @@ function renderHome() {
 				element(
 					"div",
 					{ class: "home-col" },
-					section(
-						"Needs you",
-						homeNeeds(),
-						needs.length
-							? element("span", { class: "faint" }, needs.length)
-							: null,
-						"home-needs",
-					),
-					section("Running now", homeRunning(running), null, "home-running"),
+					// 2026-11-12 (review, P2-9): with nothing to do and nothing running, one quiet line;
+					// a section shows only when it has something to say.
+					calm
+						? element(
+								"p",
+								{ class: "home-status", id: "home-status" },
+								"Nothing needs you · nothing running",
+							)
+						: [
+								section(
+									"Needs you",
+									homeNeeds(),
+									needs.length
+										? element("span", { class: "faint" }, needs.length)
+										: null,
+									"home-needs",
+								),
+								section(
+									"Running now",
+									homeRunning(running),
+									null,
+									"home-running",
+								),
+							],
 					section(
 						"Recent results",
-						homeRecent(finished, stopped, running.length),
-						stopped
+						homeRecent(finished, stopped),
+						stopped && !showAll
 							? button(
 									showStopped
 										? "Hide stopped runs"
@@ -6807,7 +7007,6 @@ function renderHome() {
 									{
 										class: "small home-toggle",
 										"data-home-key": "stopped",
-										"aria-pressed": String(showStopped),
 									},
 								)
 							: null,
@@ -6818,7 +7017,16 @@ function renderHome() {
 					"div",
 					{ class: "home-col" },
 					section("This project", homeProject(all), null, "home-project"),
-					section("Workflows", homeWorkflows(all), null, "home-workflows"),
+					section(
+						"Workflows",
+						homeWorkflows(all),
+						element(
+							"a",
+							{ class: "home-manage", href: managementHref("workflows") },
+							"Manage →",
+						),
+						"home-workflows",
+					),
 				),
 			),
 		),
@@ -6930,11 +7138,14 @@ async function start() {
 		}
 		await refreshRuns();
 		// The nav's Runs item opens the latest run (a running one first), as the landing used to.
+		// 2026-11-12 (review, P2-3): a stopped run is the last thing it should open.
 		if (!state.run && state.view === "runs") {
 			state.run =
-				runs.find((r) => r.status === "running")?.runId ||
-				runs[0]?.runId ||
-				null;
+				(
+					runs.find((r) => r.status === "running") ||
+					runs.find((r) => r.status !== "interrupted") ||
+					runs[0]
+				)?.runId || null;
 			state.view = null;
 			urlState(true);
 		} else if (!state.run && state.view === "report") {
