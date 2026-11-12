@@ -41,6 +41,8 @@ const MODELS = [
 		models: ["sonnet", "opus", "haiku"],
 		modelListComplete: false,
 		note: realApi.modelListNote(["sonnet", "opus", "haiku"], false),
+		effortLevels: ["low", "medium", "high", "xhigh", "max"],
+		modelEfforts: { haiku: ["low", "medium", "high"] },
 	},
 	{
 		id: "codex",
@@ -536,7 +538,25 @@ test("Custom: per-role executor, model from the probe list and effort; saved as 
 			},
 		],
 		["select", pick("Effort:")],
-		["select", pick("low")],
+		[
+			"select",
+			({ title, options }) => {
+				// 2026-11-12: claude's levels, not the engine's whole vocabulary.
+				assert.match(
+					title,
+					/Effort on claude: low · medium · high · xhigh · max\./,
+				);
+				assert.deepEqual(options, [
+					"(default)",
+					"low",
+					"medium",
+					"high",
+					"xhigh",
+					"max",
+				]);
+				return "low";
+			},
+		],
 		["select", pick("Done")],
 		["select", pick("Done")],
 		[
@@ -804,4 +824,45 @@ test("launch chooser: Custom… closed without saving starts nothing", async () 
 		/^Launch cancelled: the profile picker was closed/,
 	);
 	assert.deepEqual((await realApi.statusAction(hostCtx)).data.runs, []);
+});
+
+test("effortChoicesFor: executor levels, narrowed by the model's, else every level", () => {
+	const order = [
+		"off",
+		"minimal",
+		"low",
+		"medium",
+		"high",
+		"xhigh",
+		"max",
+		"ultra",
+	];
+	const claude = MODELS.find((entry) => entry.id === "claude");
+	assert.deepEqual(realApi.effortChoicesFor(claude, "haiku", order), {
+		levels: ["low", "medium", "high"],
+		note: "Effort for haiku on claude: low · medium · high.",
+	});
+	assert.deepEqual(realApi.effortChoicesFor(claude, "opus", order).levels, [
+		"low",
+		"medium",
+		"high",
+		"xhigh",
+		"max",
+	]);
+	assert.deepEqual(
+		realApi.effortChoicesFor(undefined, "x", order).levels,
+		order,
+	);
+	assert.deepEqual(
+		realApi.effortChoicesFor(
+			{
+				id: "pi",
+				effortLevels: ["off", "low", "high"],
+				modelEfforts: { "a/b": ["off"] },
+			},
+			"b",
+			order,
+		),
+		{ levels: ["off"], note: "b does not think on pi: its effort is off." },
+	);
 });

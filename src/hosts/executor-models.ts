@@ -169,3 +169,53 @@ export async function executorModelsAction(
 			.join("\n"),
 	);
 }
+
+/**
+ * 2026-11-12: the effort levels a picker offers for an executor and, when its CLI reports them,
+ * a model: the adapter's levels narrowed by the model's, in the engine's order. Without declared
+ * levels (an unknown executor, or none chosen) every engine level is offered: the engine maps a
+ * level the executor lacks to its nearest one before launch. The same rule as the dashboard.
+ */
+export function effortChoicesFor(
+	entry:
+		| Pick<ExecutorModelList, "id" | "effortLevels" | "modelEfforts">
+		| undefined,
+	model: string | undefined,
+	order: readonly string[],
+): { levels: string[]; note: string } {
+	const declared = entry?.effortLevels?.length
+		? order.filter((level) => entry.effortLevels.includes(level))
+		: undefined;
+	const name = model?.trim();
+	const perModel =
+		name && entry?.modelEfforts
+			? (entry.modelEfforts[name] ??
+				Object.entries(entry.modelEfforts).find(
+					([key]) =>
+						key.split("/").pop() === name || name.split("/").pop() === key,
+				)?.[1])
+			: undefined;
+	const narrowed = perModel
+		? order.filter(
+				(level) =>
+					perModel.includes(level) && (!declared || declared.includes(level)),
+			)
+		: [];
+	if (entry && name && narrowed.length)
+		return {
+			levels: narrowed,
+			note:
+				narrowed.length === 1 && narrowed[0] === "off"
+					? `${name} does not think on ${entry.id}: its effort is off.`
+					: `Effort for ${name} on ${entry.id}: ${narrowed.join(" · ")}.`,
+		};
+	if (entry && declared)
+		return {
+			levels: declared,
+			note: `Effort on ${entry.id}: ${declared.join(" · ")}.`,
+		};
+	return {
+		levels: [...order],
+		note: "A level the executor lacks runs at its nearest one.",
+	};
+}

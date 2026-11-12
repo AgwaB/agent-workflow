@@ -65,6 +65,7 @@ export {
 	type ExecutorModelsData,
 	type ExecutorModelsRequest,
 	executorModelsAction,
+	effortChoicesFor,
 	modelListNote,
 } from "./executor-models.js";
 export { COMMAND_HELP, GENERAL_HELP, helpAction } from "./help.js";
