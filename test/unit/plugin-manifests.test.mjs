@@ -90,6 +90,12 @@ test("each host registers the agent-workflow server through the pinned npx packa
 		assert.equal(pkg.bin["agent-workflow-mcp"], "src/mcp/host-server/bin.mjs");
 		// The server starts in the session's working directory (its project root): no cwd.
 		assert.equal(server.cwd, undefined);
+		// 2026-11-12: Codex passes an MCP server only its fixed variables plus `env_vars`, so the
+		// server would ignore a custom AGENT_WORKFLOW_HOME the hooks honour. Claude passes the env.
+		assert.deepEqual(
+			server.env_vars,
+			host === "codex" ? ["AGENT_WORKFLOW_HOME"] : undefined,
+		);
 	}
 	const launch = plugins.npxLaunch(pkg.version, "codex");
 	assert.deepEqual(

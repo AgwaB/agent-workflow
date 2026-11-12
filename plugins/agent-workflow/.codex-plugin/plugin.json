@@ -45,7 +45,10 @@
         "1920000"
       ],
       "startup_timeout_sec": 120,
-      "tool_timeout_sec": 1920
+      "tool_timeout_sec": 1920,
+      "env_vars": [
+        "AGENT_WORKFLOW_HOME"
+      ]
     }
   },
   "interface": {
