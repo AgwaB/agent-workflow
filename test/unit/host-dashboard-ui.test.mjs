@@ -660,9 +660,45 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	await browser.click('[aria-label="Run details"]');
 	assert.match(await text("#inspector"), /Launch command/);
 	assert.match(await text("#inspector"), /Permission mode/);
+	fixture.runs.get(running).taskPreview = "Check the payout ledger";
+	fixture.publish();
+	await browser.waitFor(() =>
+		[...document.querySelectorAll(".run-task")].some((node) =>
+			node.textContent.includes("payout ledger"),
+		),
+	);
 	await browser.key("k", 4);
 	await browser.waitFor(
 		() => document.querySelector(".palette-input") !== null,
+	);
+	// 2026-11-12: a run row names its workflow and task, with its state and age; tasks are searchable.
+	const firstRun = await browser.evaluate(() => {
+		const row = document.querySelector(".palette-list [role=option]");
+		return {
+			label: row.querySelector(".palette-label")?.textContent,
+			detail: row.querySelector(".palette-detail")?.textContent,
+			meta: row.querySelector(".palette-meta")?.textContent,
+			heading: document.querySelector(".palette-group")?.textContent,
+		};
+	});
+	assert.equal(firstRun.heading, "Runs");
+	assert.ok(
+		firstRun.label && firstRun.detail && firstRun.detail !== firstRun.label,
+	);
+	assert.match(firstRun.meta, / · (?:just now|\d+[mhd] ago)$/);
+	await browser.evaluate(() => {
+		const input = document.querySelector(".palette-input");
+		input.value = "payout";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+	});
+	assert.match(
+		await browser.evaluate(
+			() =>
+				document.querySelector(".palette-list [role=option] .palette-detail")
+					?.textContent ?? "",
+		),
+		/payout ledger/,
+		"a run is found by its task",
 	);
 	await browser.evaluate(() => {
 		const input = document.querySelector(".palette-input");
