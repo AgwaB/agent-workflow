@@ -19,6 +19,7 @@ import {
 } from "./engine-wait.js";
 import {
 	isMockRunProvenance,
+	isWorkflowRunLeaseLive,
 	LEASE_STALE_MS,
 	listRunRecords,
 	readFreshIndex,
@@ -156,14 +157,43 @@ export function formatScheduledRetryWait(
 	return `waiting for scheduled retry at ${friendlyTimestamp(wait.at)} (${why})`;
 }
 
+/**
+ * A run that says `running` with scheduler work left, while no process drives it (`driverLive` is
+ * the run lease / live-pid heartbeat check; `undefined` = not checked). Runs younger than the
+ * lease-stale window are not judged: a launch may not have taken its lease yet. (`createdAt`, not
+ * `updatedAt`: a refreshing read rewrites `run.json` and would keep a dead run looking young.)
+ */
+export function runHasNoLiveDriver(
+	run: Pick<WorkflowRunRecord, "status" | "taskSummary" | "createdAt">,
+	driverLive: boolean | undefined,
+	nowMs = Date.now(),
+): boolean {
+	if (driverLive !== false || !hasActiveSchedulerWork(run)) return false;
+	if (run.status !== "running") return false;
+	const createdMs = parseIsoTimeMs(run.createdAt);
+	return createdMs === undefined || nowMs - createdMs > LEASE_STALE_MS;
+}
+
 export function formatRunStallWarning(
-	run: Pick<WorkflowRunRecord, "runId" | "status" | "createdAt"> & {
+	run: Pick<
+		WorkflowRunRecord,
+		"runId" | "status" | "createdAt" | "taskSummary"
+	> & {
 		tasks?: WorkflowRunRecord["tasks"];
 	},
 	supervisor: WorkflowSupervisorRecord | undefined,
 	nowMs = Date.now(),
 	hints: WorkflowCommandHints = DEFAULT_COMMAND_HINTS,
+	driverLive?: boolean,
 ): string | undefined {
+	if (runHasNoLiveDriver(run, driverLive, nowMs)) {
+		const heartbeatMs = parseIsoTimeMs(supervisor?.updatedAt);
+		const last =
+			heartbeatMs === undefined
+				? ""
+				: ` (last supervisor heartbeat ${formatStallAge(Math.max(0, nowMs - heartbeatMs))} ago)`;
+		return `⚠ stalled — no live driver${last}; the run is not progressing. Continue it: ${hints.wait(run.runId)}`;
+	}
 	const stall = detectRunStall(run, supervisor, nowMs);
 	if (!stall) return undefined;
 	if (stall.kind === "heartbeat-lost")
@@ -179,6 +209,8 @@ export interface HumanRunFormatOptions {
 	supervisor?: WorkflowSupervisorRecord;
 	nowMs?: number;
 	hints?: WorkflowCommandHints;
+	/** Whether a live process drives the run (lease check); `false` presents a stalled run. */
+	driverLive?: boolean;
 }
 
 function formatStallAge(ms: number): string {
@@ -192,6 +224,15 @@ function parseIsoTimeMs(value: string | undefined): number | undefined {
 	if (!value) return undefined;
 	const parsed = Date.parse(value);
 	return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/** Lease check for a `running` run (undefined for other statuses: no driver is expected). */
+export async function readDriverLive(
+	cwd: string,
+	run: Pick<WorkflowRunRecord, "runId" | "status">,
+): Promise<boolean | undefined> {
+	if (run.status !== "running") return undefined;
+	return await isWorkflowRunLeaseLive(cwd, run.runId).catch(() => undefined);
 }
 
 async function readRunSupervisor(
@@ -246,7 +287,7 @@ async function refreshRunForFormat(
 	runIdOrPrefix: string,
 ): Promise<FormatRefreshResult> {
 	try {
-		return { run: await refreshRun(cwd, runIdOrPrefix) };
+		return { run: await refreshRun(cwd, runIdOrPrefix, { observer: true }) };
 	} catch (error) {
 		if (!isRefreshPollAggregateError(error)) throw error;
 		const run = await readRunRecord(cwd, runIdOrPrefix);
@@ -269,8 +310,13 @@ export async function formatRunDetails(
 ): Promise<string> {
 	const { run, warning } = await refreshRunForFormat(cwd, runIdOrPrefix);
 	const supervisor = await readRunSupervisor(cwd, run.runId);
+	const driverLive = await readDriverLive(cwd, run);
 	return prependRefreshWarning(
-		formatHumanRunDetails(run, { supervisor, ...(hints ? { hints } : {}) }),
+		formatHumanRunDetails(run, {
+			supervisor,
+			driverLive,
+			...(hints ? { hints } : {}),
+		}),
 		warning,
 	);
 }
@@ -282,8 +328,13 @@ export async function formatRawRunDetails(
 ): Promise<string> {
 	const { run, warning } = await refreshRunForFormat(cwd, runIdOrPrefix);
 	const supervisor = await readRunSupervisor(cwd, run.runId);
+	const driverLive = await readDriverLive(cwd, run);
 	return prependRefreshWarning(
-		formatRun(run, "full", { supervisor, ...(hints ? { hints } : {}) }),
+		formatRun(run, "full", {
+			supervisor,
+			driverLive,
+			...(hints ? { hints } : {}),
+		}),
 		warning,
 	);
 }
@@ -295,8 +346,13 @@ export async function formatRunStatus(
 ): Promise<string> {
 	const { run, warning } = await refreshRunForFormat(cwd, runIdOrPrefix);
 	const supervisor = await readRunSupervisor(cwd, run.runId);
+	const driverLive = await readDriverLive(cwd, run);
 	return prependRefreshWarning(
-		formatHumanRunStatus(run, { supervisor, ...(hints ? { hints } : {}) }),
+		formatHumanRunStatus(run, {
+			supervisor,
+			driverLive,
+			...(hints ? { hints } : {}),
+		}),
 		warning,
 	);
 }
@@ -453,7 +509,10 @@ function formatHumanRunCard(
 			? `Workflow ${run.status}: ${workflowName(run)}`
 			: `Workflow: ${workflowName(run)}`;
 	const lines = [heading, `Run: ${run.runId}`];
-	if (options.mode !== "outcome") lines.push(`Status: ${run.status}`);
+	if (options.mode !== "outcome")
+		lines.push(
+			`Status: ${run.status}${runHasNoLiveDriver(run, options.driverLive, options.nowMs) ? " — no live driver, not progressing" : ""}`,
+		);
 	if (options.mode === "details") {
 		lines.push(`Started: ${friendlyTimestamp(run.createdAt)}`);
 		lines.push(`Updated: ${friendlyTimestamp(run.updatedAt)}`);
@@ -631,6 +690,7 @@ function formatWarnings(
 		options.supervisor,
 		options.nowMs ?? Date.now(),
 		options.hints,
+		options.driverLive,
 	);
 	if (stall) lines.push(stall);
 	else {
@@ -806,6 +866,17 @@ async function formatHumanRunList(
 		.filter((run) => run.status === "completed")
 		.slice(0, 5);
 	const mockTags = await mockTagMap(cwd, [...active, ...completed]);
+	// A running run nobody drives is not "Active": say so on its row.
+	for (const run of active) {
+		if (
+			run.status === "running" &&
+			runHasNoLiveDriver(run, await readDriverLive(cwd, run))
+		)
+			mockTags.set(
+				run.runId,
+				`${mockTags.get(run.runId) ?? ""} (no live driver — not progressing)`,
+			);
+	}
 	const lines = ["Workflow runs"];
 	appendRunGroup(
 		lines,
@@ -916,6 +987,7 @@ export function formatRun(
 		options.supervisor,
 		options.nowMs ?? Date.now(),
 		options.hints,
+		options.driverLive,
 	);
 	if (stallWarning) lines.push(stallWarning);
 
@@ -988,7 +1060,7 @@ async function refreshRunRecordingSupervisorError(
 	runId: string,
 ): Promise<void> {
 	try {
-		await refreshRun(cwd, runId);
+		await refreshRun(cwd, runId, { observer: true });
 	} catch (error) {
 		await recordSupervisorError(cwd, runId, error);
 	}

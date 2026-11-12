@@ -778,7 +778,7 @@ Overview counts use status summaries: `running` includes running/blocked runs, `
 
 #### Dashboard projection
 
-Run summaries include `runId`, `name`, `status`, `statusDetail?`, timestamps, redacted `taskPreview?` (≤140 characters), executor(s), host, task/agent counts, verdict, report availability, `needsYou` and `live` (a supervisor holds the lease).
+Run summaries include `runId`, `name`, `status`, `statusDetail?`, timestamps, redacted `taskPreview?` (≤140 characters), executor(s), host, task/agent counts, verdict, report availability, `needsYou` and `live` (a supervisor holds the lease). A `running` run with `live: false` and no recent launch is shown as stalled: the status text says `no live driver`, the dashboard says `Stalled`. The status stays `running`.
 
 Full runs add the redacted runtime task, permission mode, usage (or `null`), redacted launch details and tasks. Tasks include ids, kind, agent, state/reason, dependencies, executor/model/effort, timing, retry information, last message, usage, worktree, log availability, item title, outcome and current activity.
 

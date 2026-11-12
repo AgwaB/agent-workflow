@@ -224,6 +224,10 @@ waits in the foreground, printing progress to stderr, until it is terminal; then
 result. Ctrl-C stops waiting, not the run. Use `--detach` to hand the run to a background supervisor
 (`agent-workflow supervise <id>`, log in `<run dir>/supervise.log`) and return immediately. In Pi,
 `/aw run` returns once the run is launched; the Pi session keeps driving it while it lives.
+A run keeps its `running` status when its driver dies (Pi session quit, killed supervisor), but
+`status`, `show` and the run list then say `no live driver — not progressing` (no lease and no live
+supervisor process). Reads never refresh the driver heartbeat. `wait <run>` or `supervise <run>`
+drives it again; `stop` then `resume` also works.
 
 `--json` prints one JSON object (`{action, ok, outcome, data}`) for scripting. An identical active run
 started in the last 10 minutes is not started twice (`--force-new` overrides). Options:

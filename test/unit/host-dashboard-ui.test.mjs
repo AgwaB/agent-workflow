@@ -744,8 +744,41 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		delete task.retry;
 		task.statusDetail = "private_unknown_engine_code";
 		run.status = "blocked";
-		return { retry, launch, decision, unknown: statusSentence(run) };
+		// A run that says running but has no live driver is not "under way" (30 s launch grace).
+		// (The page clock follows the fixture server's time, so pass the time explicitly.)
+		const at = Date.now();
+		const old = new Date(at - 600_000).toISOString();
+		const stalledRun = (extra) => ({
+			status: "running",
+			tasks: [{ stageId: "reviewers", status: "pending" }],
+			taskSummary: { failed: 0 },
+			needsYou: [],
+			createdAt: old,
+			...extra,
+		});
+		const stalled = {
+			dead: statusSentence(stalledRun({ live: false }), at),
+			driven: statusSentence(stalledRun({ live: true }), at),
+			unknown: statusSentence(stalledRun({}), at),
+			fresh: statusSentence(
+				stalledRun({ live: false, createdAt: new Date(at).toISOString() }),
+				at,
+			),
+			stopped: statusSentence(
+				stalledRun({ live: false, status: "interrupted" }),
+				at,
+			),
+		};
+		return { retry, launch, decision, unknown: statusSentence(run), stalled };
 	});
+	assert.match(
+		mapped.stalled.dead,
+		/^Stalled\. No process is driving this run/,
+	);
+	assert.doesNotMatch(mapped.stalled.dead, /under way/);
+	for (const key of ["driven", "unknown", "fresh"])
+		assert.match(mapped.stalled[key], /^Work is under way\./, key);
+	assert.match(mapped.stalled.stopped, /^Stopped by you/);
 	assert.match(mapped.retry, /rate-limit retry \(2 of 4, 6:40\)/);
 	assert.equal(mapped.retry, mapped.launch);
 	assert.match(mapped.decision, /you need to decide/);

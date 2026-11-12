@@ -336,6 +336,14 @@ export function statusSentence(run, time = now(), stopping = false) {
 		return `Finished ${ago(run.updatedAt, time).replace(/(\d)([mhd])/, "$1 $2")}.${run.reportAvailable ? " Report is ready." : ""}`;
 	if (run.status === "blocked")
 		return "Work is paused. Review the run details before continuing.";
+	// `live: false` on a run that says running: the process that drove it is gone (30 s grace for a
+	// launch that has not taken its lease yet). Nothing progresses until it is driven or stopped.
+	if (
+		run.status === "running" &&
+		run.live === false &&
+		time - date(run.createdAt) > 30_000
+	)
+		return "Stalled. No process is driving this run and nothing is progressing. Stop it, then resume to continue.";
 	let text = reviewing
 		? "Reviewing is under way."
 		: run.status === "running"

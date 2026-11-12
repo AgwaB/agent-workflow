@@ -261,7 +261,9 @@ export async function logsAction(
 	const resolved = await readRunRecord(ctx.cwd, request.runId.trim());
 	const run = request.snapshot
 		? resolved
-		: await refreshRun(ctx.cwd, resolved.runId).catch(() => resolved);
+		: await refreshRun(ctx.cwd, resolved.runId, { observer: true }).catch(
+				() => resolved,
+			);
 	const redact = logRedactor(hostEnv(ctx));
 	const { tasks, omitted } = selectTasks(run, request.task?.trim());
 	const data: LogsData = {
