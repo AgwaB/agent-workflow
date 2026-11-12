@@ -30,7 +30,13 @@ export async function withWorkflowFixtureLease(cwd, runId, action) {
 // Call before resetting fake workers or deleting a fixture, including failure paths.
 export async function drainWorkflowFixture(cwd, runId) {
 	const run = await readRunRecord(cwd, runId);
-	if (!isTerminalWorkflowStatus(run.status)) await stopRun(cwd, runId);
+	if (!isTerminalWorkflowStatus(run.status))
+		await stopRun(cwd, runId).catch(async (error) => {
+			// 2026-11-12 (CI 43174022375, ubuntu Node 22): the run can settle between the read and the
+			// stop; a run that is terminal now needs no stop. Anything else still fails the drain.
+			if (!isTerminalWorkflowStatus((await readRunRecord(cwd, runId)).status))
+				throw error;
+		});
 	// Terminal task status can be persisted before the scheduling lease unwinds.
 	await withWorkflowFixtureLease(cwd, runId, async () => {});
 	await flushPendingIndexUpdatesForTests(cwd);
