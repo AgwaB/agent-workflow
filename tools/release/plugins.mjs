@@ -484,6 +484,9 @@ export function codexPluginManifest(
 				),
 				startup_timeout_sec: CODEX_STARTUP_TIMEOUT_SEC,
 				tool_timeout_sec: CODEX_TOOL_TIMEOUT_SEC,
+				// Codex hands an MCP server only a fixed set of variables (HOME, PATH, …) plus these, so
+				// without it a custom AGENT_WORKFLOW_HOME reached the hooks but not the server (2026-11-12).
+				env_vars: ["AGENT_WORKFLOW_HOME"],
 			},
 		},
 		interface: {
