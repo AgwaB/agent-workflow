@@ -446,10 +446,30 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
  * on one line, then what to know · agents · time. Spacing instead of rules; the bar only while live.
  */
 .run-row {
+	position: relative;
 	padding: 10px 8px;
 	border-radius: 8px;
 	cursor: pointer;
 	transition: background var(--t-fast) ease;
+}
+/*
+ * 2026-11-13 (owner): spacing alone did not separate the runs, so a hairline sits between two
+ * rows, inset to the row's padding (a list rule, as in Linear and GitHub). It steps aside next to
+ * a hovered or open row, whose own surface already marks it.
+ */
+.run-row + .run-row::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 8px;
+	right: 8px;
+	height: 1px;
+	background: var(--line2);
+	pointer-events: none;
+}
+:is(.run-row:hover, .run-row[aria-current="true"]) + .run-row::before,
+.run-row:is(:hover, [aria-current="true"])::before {
+	opacity: 0;
 }
 .run-row:hover {
 	background: var(--surface);

@@ -4553,5 +4553,31 @@ test(
 			spacing.between >= 3 * Math.max(spacing.within, 1),
 			`rows ${spacing.between}px apart, lines ${spacing.within}px apart`,
 		);
+		// Spacing was not enough (owner, 2026-11-13): a hairline between two rows, gone beside the
+		// open row.
+		assert.deepEqual(
+			await browser.evaluate(() => {
+				const rows = [...document.querySelectorAll(".run-row")];
+				const open = rows.findIndex((row) => row.ariaCurrent === "true");
+				const rule = (row) => {
+					const style = getComputedStyle(row, "::before");
+					return style.content !== "none" && style.opacity !== "0"
+						? style.height
+						: "none";
+				};
+				const plain = rows.findIndex(
+					(row, i) =>
+						i > 0 &&
+						Math.abs(i - open) > 1 &&
+						rows[i - 1].ariaCurrent !== "true",
+				);
+				return [
+					rule(rows[plain]),
+					rule(rows[open]),
+					rule(rows[open + 1] ?? rows[open]),
+				];
+			}),
+			["1px", "none", "none"],
+		);
 	},
 );
