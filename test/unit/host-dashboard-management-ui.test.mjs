@@ -352,6 +352,31 @@ test("Chrome management: the views, profile edit, check preview and the overview
 			);
 		}),
 	);
+	// Exercise the real doctor's version-warning wording, not the synthetic responses below.
+	const versions = await browser.evaluate(() => ({
+		executors: [...document.querySelectorAll(".executors tbody tr")]
+			.filter((row) => row.children[2].textContent.includes(", tested on"))
+			.map((row) => row.children[0].textContent),
+		headers: [...document.querySelectorAll(".executors th")].map(
+			(node) => node.textContent,
+		),
+		notes: [...document.querySelectorAll(".management-card .notes-list > li")]
+			.filter((node) => !node.closest("details"))
+			.map((node) => node.textContent),
+	}));
+	assert.ok(versions.executors.length >= 2);
+	assert.ok(
+		!versions.notes.some((note) => /differs from the verified/.test(note)),
+	);
+	const merged = versions.notes.filter((note) =>
+		/installed version differs from the tested one \(see Version\)/.test(note),
+	);
+	assert.equal(merged.length, 1);
+	assert.equal(
+		merged[0],
+		`${versions.executors.slice(0, -1).join(", ")} and ${versions.executors.at(-1)}: installed version differs from the tested one (see Version). Capability rows marked probed may not hold.`,
+	);
+	assert.ok(!versions.headers.includes("What to do"));
 	await clickText(browser, "Refresh");
 	await browser.waitFor(() =>
 		document
@@ -634,3 +659,193 @@ test("Chrome management: no middle dot and no em dash in workflows, profiles, ex
 		assert.deepEqual(await scanMarks(browser), [], "overview, opened");
 	}
 });
+
+test("Chrome management: workflow stages read as plain words and hide a repeated agent", {
+	timeout: 60000,
+}, async (t) => {
+	const p = await managementProject(t);
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	const url = `${p.server.url}&project=${p.server.projectId}&view=workflows`;
+	await navigate(browser, url);
+	await browser.waitFor(
+		() => !!document.querySelector('[data-workflow="deep-research"]'),
+	);
+	await t.test("catalog built-in tag", async () =>
+		assert.match(
+			await browser.evaluate(
+				() =>
+					document.querySelector(
+						'[data-workflow="deep-research"] .workflow-tags',
+					).textContent,
+			),
+			/built-in/,
+		),
+	);
+	await openWorkflowCard(browser, "deep-research");
+	const stages = await browser.evaluate(() => ({
+		tags: document.querySelector("h1 + p").textContent,
+		headers: [...document.querySelectorAll(".numbered th")].map(
+			(n) => n.textContent,
+		),
+		kinds: [...document.querySelectorAll(".numbered tbody tr")].map(
+			(n) => n.children[2].textContent,
+		),
+	}));
+	await t.test("page built-in tag", () =>
+		assert.match(stages.tags, /built-in.*agent: researcher/),
+	);
+	await t.test("shared agent column omitted", () =>
+		assert.deepEqual(stages.headers, ["#", "Stage", "Kind"]),
+	);
+	await t.test("plain kinds", () =>
+		assert.deepEqual(
+			[...new Set(stages.kinds)].sort(),
+			[
+				"Code step",
+				"Combines results",
+				"One agent",
+				"One agent per item",
+			].sort(),
+		),
+	);
+	await browser.send("Page.addScriptToEvaluateOnNewDocument", {
+		source: `(() => {
+		const original = window.fetch;
+		window.fetch = async (url, options) => {
+			const response = await original(url, options);
+			if (!String(url).endsWith("/workflows/manage")) return response;
+			const data = await response.json();
+			const spec = JSON.parse(data.spec.data.spec);
+			spec.artifactGraph.stages = [
+				{ id: "one", type: "single" },
+				{ id: "two", type: "single", agent: "researcher" },
+				{ id: "code", support: { uses: "fixture.mjs" } },
+			];
+			data.spec.data.spec = JSON.stringify(spec);
+			return new Response(JSON.stringify(data), {
+				headers: { "Content-Type": "application/json" },
+			});
+		};
+	})();`,
+	});
+	await browser.click("a.back-link");
+	await browser.waitFor(
+		() =>
+			!new URLSearchParams(location.search).has("workflow") &&
+			!!document.querySelector('[data-workflow="manage"]'),
+	);
+	await browser.waitFor(
+		() => !!document.querySelector('[data-workflow="manage"]'),
+	);
+	await openWorkflowCard(browser, "manage");
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			headers: [...document.querySelectorAll(".numbered th")].map(
+				(n) => n.textContent,
+			),
+			agents: [...document.querySelectorAll(".numbered tbody tr")].map(
+				(n) => n.children[3]?.textContent,
+			),
+		})),
+		{
+			headers: ["#", "Stage", "Kind", "Agent"],
+			agents: ["reader", "researcher", ""],
+		},
+	);
+});
+
+for (const mode of ["ready", "fix", "four", "one"]) {
+	test(`Chrome management: executors table and notes omit repeats (${mode})`, {
+		timeout: 60000,
+	}, async (t) => {
+		const p = await managementProject(t);
+		const browser = await createBrowser(chrome);
+		t.after(() => browser.close());
+		await navigate(browser, `${p.server.url}&project=${p.server.projectId}`);
+		await browser.waitFor(() => !!document.querySelector("#home-view"));
+		const ids = ["pi", "claude", "codex", "antigravity"];
+		const entries = ids.map((id, i) => ({
+			id,
+			usable: mode !== "fix" || i !== 0,
+			state: mode === "fix" && i === 0 ? "not-installed" : "ready",
+			cliVersion: "2",
+			verifiedVersion: "1",
+			versionMatchesVerified:
+				mode === "four" || (mode === "one" && i === 0) ? false : true,
+			...(mode === "fix" && i === 0 ? { fix: "Install fixture CLI" } : {}),
+		}));
+		const security = [
+			"codex: 2 allow rules in 1 file under /fixture/codex/rules let matching commands run without approval (readOnly is emulated for Codex workers)",
+			"codex: global instructions /fixture/codex/AGENTS.md (1 file) are loaded into every Codex worker (context isolation is emulated)",
+		];
+		const versions = entries
+			.filter((e) => !e.versionMatchesVerified)
+			.map(
+				(e) =>
+					`${e.id}: installed 2 differs from the verified 1; capability rows marked probed may not hold`,
+			);
+		const doctorData = {
+			executors: entries,
+			warnings: [versions[0], ...security, ...versions.slice(1)].filter(
+				Boolean,
+			),
+			node: { supported: false, version: "1", required: "22" },
+			home: { writable: false, path: "/fixture/home" },
+		};
+		await browser.send("Page.addScriptToEvaluateOnNewDocument", {
+			source: `(() => {
+			const original = window.fetch;
+			window.fetch = (url, options) => String(url).startsWith('/api/doctor')
+				? Promise.resolve(new Response(JSON.stringify({data:${JSON.stringify(doctorData)}}), {headers:{'Content-Type':'application/json'}}))
+				: original(url, options);
+		})();`,
+		});
+		await browser.click('.management-nav a[href*="view=executors"]');
+		await browser.waitFor(
+			() => !!document.querySelector(".property-table.executors"),
+		);
+		const actual = await browser.evaluate(() => ({
+			headers: [...document.querySelectorAll(".executors th")].map(
+				(n) => n.textContent,
+			),
+			rows: [...document.querySelectorAll(".executors tbody tr")].map((n) =>
+				[...n.children].map((c) => c.textContent),
+			),
+			notes: [...document.querySelectorAll(".management-card .notes-list > li")]
+				.filter((n) => !n.closest("details"))
+				.map((n) => n.textContent),
+		}));
+		await t.test("action column", () =>
+			assert.deepEqual(actual.headers, [
+				"Executor",
+				"Status",
+				"Version",
+				...(mode === "fix" ? ["What to do"] : []),
+			]),
+		);
+		if (mode === "fix")
+			await t.test("empty ready actions", () =>
+				assert.deepEqual(
+					actual.rows.map((r) => r[3]),
+					["Install fixture CLI", "", "", ""],
+				),
+			);
+		const others = [
+			...security,
+			"Node 1 is older than the required 22.",
+			"The home /fixture/home is not writable.",
+		];
+		assert.deepEqual(
+			actual.notes,
+			mode === "four"
+				? [
+						...others,
+						"pi, claude, codex and antigravity: installed version differs from the tested one (see Version). Capability rows marked probed may not hold.",
+					]
+				: mode === "one"
+					? [versions[0], ...others]
+					: others,
+		);
+	});
+}

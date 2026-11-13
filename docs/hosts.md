@@ -629,7 +629,7 @@ With `AGENT_WORKFLOW_ROLE=worker` or `disabled`, tools and notices are not regis
 
 The sidebar project switcher selects a project or **All projects**. The All projects page shows project paths (including missing paths), active runs, needs-attention counts and last activity from status summaries. `?project=<id>` selects a project; the last choice is remembered in this browser. Only the selected project is polled in detail.
 
-A project opens on its **Overview**: what needs you, what is running, recent results, the project's totals (runs, spend, active time) and a table of its workflows. Inside a run or a report, the sidebar lists the project's runs with task previews, timing, progress and reports.
+A project opens on its **Overview**: what needs you, what is running, recent results, the project's totals (runs, spend, active time) and a table of its workflows. A recent result with a report opens the report; others open the run. Inside a run or a report, the sidebar lists the project's runs with task previews, timing, progress and reports.
 
 **Needs you** lists what the [unfinished-run reminders](#unfinished-run-reminders) list: executor decisions, failed or blocked runs, and runs interrupted without a user stop (its host closed). Inspect opens the run with the task that needs you selected. Dismissing a failure or an interruption hides it in every host (the shared notice acknowledgement; a read-only dashboard keeps it in this browser only); "Show N dismissed" brings it back. Decisions cannot be dismissed. A run you stopped is not a need; it offers Resume on its page.
 

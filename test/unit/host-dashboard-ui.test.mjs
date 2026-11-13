@@ -2886,10 +2886,10 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 		]),
 		["/?project=payments-api-123456789abc&view=workflows", "Manage →"],
 	);
-	// Selecting a run opens it as before; back returns to the overview.
+	// A finished result with a report opens that report; Back returns to the overview.
 	await browser.click('#home-recent .home-row[data-run="' + complete + '"]');
-	await browser.waitFor(() => document.querySelector("#task-count"));
-	assert.deepEqual(await route(browser), [complete, null]);
+	await browser.waitFor(() => document.querySelector("#report-content"));
+	assert.deepEqual(await route(browser), [complete, "report"]);
 	await browser.evaluate(() => history.back());
 	await browser.waitFor(() => document.querySelector("#home-view"));
 	assert.deepEqual(await route(browser), [null, null]);
@@ -3674,7 +3674,9 @@ test(
 			true,
 		);
 		// A run brings the groups back (the rail is how to switch runs)...
-		await browser.click('#home-recent .home-row[data-run="' + complete + '"]');
+		await browser.click(
+			'#home-recent .home-row[data-run="' + docsWriter + '"]',
+		);
 		await browser.waitFor(() => document.querySelector("#task-count"));
 		const open = await rail();
 		// No "Needs you" group: each need is on its run's own row (owner, pass 2).
@@ -4580,3 +4582,97 @@ test(
 		);
 	},
 );
+
+test("dashboard Chrome: a recent result with a report opens the report; Needs work has its own icon", {
+	timeout: 60000,
+}, async (t) => {
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	overviewFixture(fixture);
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.open(`${fixture.origin}/`);
+	await browser.waitFor(() => !!document.querySelector(".home-row.recent"));
+	const paths = await browser.evaluate(() => ({
+		attention: document
+			.querySelector(".result-badge.attention path")
+			?.getAttribute("d"),
+		blocked: document.querySelector(".home-need path")?.getAttribute("d"),
+	}));
+	await t.test("distinct flag", () =>
+		assert.notEqual(paths.attention, paths.blocked),
+	);
+	assert.equal(paths.blocked, "M8 3v6M8 12h.01");
+	for (const [id, view] of [
+		[complete, "report"],
+		[docsWriter, null],
+	]) {
+		const href = await browser.evaluate(
+			(id) => document.querySelector(`#home-recent [data-run="${id}"]`).href,
+			id,
+		);
+		await t.test(`href ${id}`, () =>
+			assert.equal(new URL(href).searchParams.get("view"), view),
+		);
+		for (const modifier of ["metaKey", "ctrlKey", "shiftKey"]) {
+			assert.equal(
+				await browser.evaluate(
+					(id, modifier) => {
+						const event = new MouseEvent("click", {
+							bubbles: true,
+							cancelable: true,
+							[modifier]: true,
+						});
+						document.addEventListener("click", (e) => e.preventDefault(), {
+							once: true,
+						});
+						// Capture the row handler result before suppressing the browser default in this test.
+						let prevented;
+						document
+							.querySelector(`#home-recent [data-run="${id}"]`)
+							.addEventListener(
+								"click",
+								(e) => {
+									prevented = e.defaultPrevented;
+								},
+								{ once: true },
+							);
+						document
+							.querySelector(`#home-recent [data-run="${id}"]`)
+							.dispatchEvent(event);
+						return prevented;
+					},
+					id,
+					modifier,
+				),
+				false,
+			);
+		}
+		await browser.click(`#home-recent [data-run="${id}"]`);
+		await browser.waitFor(
+			`new URLSearchParams(location.search).get('run') === ${JSON.stringify(id)} && !!document.querySelector('#report-content, #run-header')`,
+		);
+		await t.test(`click ${id}`, async () =>
+			assert.deepEqual(await route(browser), [id, view]),
+		);
+		if (view === "report") {
+			await t.test("report header flag", async () => {
+				const flags = await browser.evaluate(() =>
+					[
+						...document.querySelectorAll(
+							"#report-view .status-icon.attention path",
+						),
+					].map((n) => n.getAttribute("d")),
+				);
+				assert.ok(flags.length >= 1);
+				assert.ok(flags.every((path) => path === "M4 14V2l8 1-2 3 2 3-8-1"));
+			});
+		}
+		await browser.evaluate(() => history.back());
+		await browser.waitFor(
+			() =>
+				!new URLSearchParams(location.search).has("run") &&
+				!!document.querySelector("#home-recent .home-row"),
+		);
+	}
+});

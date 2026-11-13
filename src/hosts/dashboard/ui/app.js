@@ -42,7 +42,7 @@ const iconPaths = {
 	completed: "M3.5 8.5l3 3 6-7",
 	failed: "M4 4l8 8M12 4l-8 8",
 	blocked: "M8 3v6M8 12h.01",
-	attention: "M8 3v6M8 12h.01",
+	attention: "M4 14V2l8 1-2 3 2 3-8-1",
 	retry: "M13 6a6 6 0 1 0 1 3M8 5v3.2l2 1.2M11 2l3 1-1 3",
 	interrupted: "M5.5 5.5h5v5h-5z",
 	skipped: "M4 12l8-8",
@@ -6753,17 +6753,17 @@ function homeNeeds() {
 		);
 	});
 }
-function runLink(summary, children, className) {
+function runLink(summary, children, className, view) {
 	return element(
 		"a",
 		{
 			class: className,
-			href: runHref(summary.runId),
+			href: `${runHref(summary.runId)}${view ? `&view=${view}` : ""}`,
 			"data-run": summary.runId,
 			onclick: (event) => {
 				if (event.metaKey || event.ctrlKey || event.shiftKey) return;
 				event.preventDefault();
-				go({ run: summary.runId });
+				go({ run: summary.runId, ...(view ? { view } : {}) });
 			},
 		},
 		children,
@@ -6874,6 +6874,7 @@ function homeRecent(finished, stopped) {
 								costCell(summary),
 							],
 							"home-row recent",
+							summary.reportAvailable ? "report" : undefined,
 						);
 					}),
 				)
@@ -8871,7 +8872,7 @@ function workflowTags(workflow) {
 		"span",
 		{ class: "workflow-tags" },
 		[
-			workflow.scope,
+			workflow.scope === "package" ? "built-in" : workflow.scope,
 			workflow.readOnly ? "read-only" : null,
 			workflow.agent ? `agent: ${workflow.agent}` : null,
 		]
@@ -8940,6 +8941,15 @@ async function renderWorkflow(page, name) {
 	const stages = Array.isArray(authored.artifactGraph?.stages)
 		? authored.artifactGraph.stages
 		: [];
+	const stageAgent = (stage) =>
+		stage.support || stage.type === "code"
+			? ""
+			: stage.agent || authored.defaults?.agent || "executor default";
+	const showAgent =
+		!workflow.agent ||
+		stages.some(
+			(stage) => stageAgent(stage) && stageAgent(stage) !== workflow.agent,
+		);
 	const about = managementPanel(
 		"About",
 		element("p", {}, workflow.description || "No description."),
@@ -8971,12 +8981,20 @@ async function renderWorkflow(page, name) {
 					`The stage list could not be read: ${specError}`,
 				)
 			: propertyTable(
-					["#", "Stage", "Kind", "Agent"],
+					["#", "Stage", "Kind", ...(showAgent ? ["Agent"] : [])],
 					stages.map((stage, index) => [
 						String(index + 1),
 						element("strong", {}, stage.id),
-						stage.type || (stage.support ? "code" : "stage"),
-						stage.agent || authored.defaults?.agent || "executor default",
+						stage.support || stage.type === "code"
+							? "Code step"
+							: {
+									single: "One agent",
+									foreach: "One agent per item",
+									reduce: "Combines results",
+								}[stage.type] ||
+								stage.type ||
+								"stage",
+						...(showAgent ? [stageAgent(stage)] : []),
 					]),
 					{ class: "property-table numbered" },
 				),
@@ -9843,8 +9861,22 @@ async function renderExecutors(page) {
 		const executors = data.executors || [];
 		const ready = executors.filter((entry) => entry.usable).length;
 		checked.textContent = `Checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}, cached for 60 s`;
+		const showFix = executors.some(
+			(entry) => entry.fix || (!entry.usable && entry.error),
+		);
+		const versionNotes = executors
+			.filter((entry) => entry.versionMatchesVerified === false)
+			.map((entry) => ({
+				id: entry.id,
+				text: `${entry.id}: installed ${entry.cliVersion} differs from the verified ${entry.verifiedVersion}; capability rows marked probed may not hold`,
+			}))
+			.filter((note) => data.warnings?.includes(note.text));
+		const mergeVersions = versionNotes.length >= 2;
 		const knows = [
-			...(data.warnings || []),
+			...(data.warnings || []).filter(
+				(text) =>
+					!mergeVersions || !versionNotes.some((note) => note.text === text),
+			),
 			...(data.node && !data.node.supported
 				? [
 						`Node ${data.node.version} is older than the required ${data.node.required}.`,
@@ -9854,6 +9886,12 @@ async function renderExecutors(page) {
 				? [`The home ${data.home.path} is not writable.`]
 				: []),
 		];
+		if (mergeVersions) {
+			const ids = versionNotes.map((note) => note.id);
+			knows.push(
+				`${ids.slice(0, -1).join(", ")} and ${ids.at(-1)}: installed version differs from the tested one (see Version). Capability rows marked probed may not hold.`,
+			);
+		}
 		body.replaceChildren();
 		append(body, [
 			managementPanel(
@@ -9871,7 +9909,7 @@ async function renderExecutors(page) {
 						: "No executor is ready to run workflows.",
 				),
 				propertyTable(
-					["Executor", "Status", "Version", "What to do"],
+					["Executor", "Status", "Version", ...(showFix ? ["What to do"] : [])],
 					executors.map((entry) => {
 						const [tone, label] = EXECUTOR_STATES[entry.state] || [
 							entry.usable ? "ok" : "warn",
@@ -9892,7 +9930,9 @@ async function renderExecutors(page) {
 											: null,
 									]
 								: "n/a",
-							entry.fix || (entry.usable ? "n/a" : entry.error || "n/a"),
+							...(showFix
+								? [entry.fix || (entry.usable ? "" : entry.error || "")]
+								: []),
 						];
 					}),
 					{ class: "property-table executors" },
