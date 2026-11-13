@@ -123,7 +123,7 @@ test("Chrome management: the views, profile edit, check preview and the overview
 	);
 	await browser.click('[data-profile-open="ui-profile"]');
 	await browser.waitFor(
-		() => !!document.querySelector('[aria-label="Profile name"]'),
+		() => !!document.querySelector('[data-management-action="save-profile"]'),
 	);
 	await set(browser, "Model", "fixture-model");
 	await set(browser, "Effort", "high");
@@ -444,15 +444,14 @@ test("Chrome executor default profiles: built-in shown, edited with the full eff
 	);
 	await browser.click('[data-profile-open="codex"]');
 	await browser.waitFor(
-		() => !!document.querySelector('[aria-label="Profile name"]'),
+		() => !!document.querySelector('[data-management-action="save-profile"]'),
 	);
 	assert.deepEqual(
 		await browser.evaluate(() => {
-			const name = document.querySelector('[aria-label="Profile name"]');
 			const effort = document.querySelector('[aria-label="Effort"]');
 			return [
-				name.value,
-				name.readOnly,
+				document.querySelector(".profile-editor").dataset.profileEdit,
+				!document.querySelector('[aria-label="Profile name"]'),
 				[
 					...document
 						.getElementById(effort.getAttribute("aria-controls"))

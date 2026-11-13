@@ -419,6 +419,8 @@ function readState() {
 		layout: choice("layout", ["td", "lr", "timeline"]) || "td",
 		// The workflow page opened from the Workflows list (2026-11-11).
 		workflow: params.get("workflow"),
+		profile: params.get("profile"),
+		createProfile: choice("createProfile", ["1"]),
 	};
 }
 let state = readState();
@@ -461,7 +463,7 @@ function urlState(replace = false) {
 	for (const [key, value] of Object.entries(state))
 		if (value && !(key === "layout" && value === "td")) params.set(key, value);
 	history[replace ? "replaceState" : "pushState"](
-		null,
+		replace ? history.state : null,
 		"",
 		`${location.pathname}${params.size ? `?${params}` : ""}`,
 	);
@@ -484,8 +486,19 @@ function syncTitle() {
 				? "Overview"
 				: null;
 	document.title =
-		[page, state.run ? name : null, project].filter(Boolean).join(" | ") ||
-		"agent-workflow";
+		[
+			page,
+			state.view === "profiles"
+				? state.createProfile
+					? "New profile"
+					: state.profile
+				: state.run
+					? name
+					: null,
+			project,
+		]
+			.filter(Boolean)
+			.join(" | ") || "agent-workflow";
 }
 async function api(path, options = {}) {
 	if (path.startsWith("/api/runs"))
@@ -531,6 +544,8 @@ function go(patch, replace = false) {
 			view: null,
 			dialog: null,
 			workflow: null,
+			profile: null,
+			createProfile: null,
 		};
 	if (Object.hasOwn(patch, "task")) state.stage = null;
 	if (Object.hasOwn(patch, "stage")) state.task = null;
@@ -6274,7 +6289,14 @@ $("dialog").addEventListener("click", (event) => {
 			dismissDialog(!["palette", "key"].includes(modalKey));
 	}
 });
+let profileListReturn = null;
 window.addEventListener("popstate", () => {
+	if (profileListReturn) {
+		const done = profileListReturn;
+		profileListReturn = null;
+		done();
+		return;
+	}
 	if (
 		managementView() ||
 		["workflows", "profiles", "executors"].includes(readState().view)
@@ -7741,7 +7763,11 @@ function choicePicker(
 	return { node, control, setOptions };
 }
 
-async function modelControls(saved = {}, prefix = "") {
+async function modelControls(
+	saved = {},
+	prefix = "",
+	{ foldNotes = false } = {},
+) {
 	const data = (await managementApi("/api/executors/models")).data;
 	const ids = data.executors.map((entry) => entry.id);
 	if (saved.executor && !ids.includes(saved.executor)) ids.push(saved.executor);
@@ -7843,8 +7869,15 @@ async function modelControls(saved = {}, prefix = "") {
 			field("Executor", executorPicker.node),
 			field("Model", modelPicker.node),
 			field("Effort", effortPicker.node),
-			note,
-			effortNote,
+			foldNotes
+				? element(
+						"details",
+						{ class: "model-availability" },
+						element("summary", {}, "Model availability"),
+						note,
+						effortNote,
+					)
+				: [note, effortNote],
 		),
 		values: () =>
 			Object.fromEntries(
@@ -7867,59 +7900,376 @@ const EFFORT_LEVELS = [
 	"max",
 	"ultra",
 ];
-async function roleEditor(roles = {}) {
-	const rows = element("div", { class: "management-role-rows" });
-	const entries = [];
-	async function add(key = "", value = {}) {
-		const role = input("Role name", key, {
-			placeholder: "default, verification, agent:reader…",
-		});
-		const model = await modelControls(value, `Role ${key || "new"} `);
-		const row = element(
-			"div",
-			{ class: "management-role" },
-			field("Role", role),
-			model.node,
+const PROFILE_ROLES = {
+	default: ["Default role", "Stages without a more specific assignment"],
+	planning: ["Planning", "Plan and break down the work"],
+	"research-execution": [
+		"Research & execution",
+		"Research, investigate or implement",
+	],
+	synthesis: ["Synthesis", "Combine the results"],
+	verification: ["Verification", "Check findings and evidence"],
+	"final-judgment": ["Final judgment", "Make the final assessment"],
+};
+
+/** Configuration hints, not a final stage/runtime preview. Executor-default hints follow its overlay policy. */
+export function profileRolePreview(key, roles = {}, context = {}) {
+	const own = Object.hasOwn(roles, key)
+		? roles[key]
+		: context.presetRoles?.[key];
+	const origin = Object.hasOwn(roles, key) ? "Role override" : "Preset";
+	if (!context.executor)
+		return {
+			values: { ...(own || {}) },
+			sources: Object.fromEntries(
+				Object.keys(own || {}).map((field) => [field, origin]),
+			),
+			ignored: false,
+		};
+	const common = context.common || {};
+	const base = context.baseline || {};
+	const flat =
+		(common.executor || context.executor) === context.executor ? common : {};
+	const values = { executor: context.executor };
+	const sources = { executor: "Executor default" };
+	const hasBase = Object.hasOwn(base, key);
+	for (const field of ["model", "effort"]) {
+		if (hasBase && base[key][field] !== undefined) {
+			values[field] = base[key][field];
+			sources[field] = "Built-in";
+		}
+		if ((hasBase || key === "default") && flat[field] !== undefined) {
+			values[field] = flat[field];
+			sources[field] = "Common setting";
+		}
+	}
+	const ignored = Boolean(
+		own &&
+			(own.executor || common.executor || context.executor) !==
+				context.executor,
+	);
+	if (own && !ignored)
+		for (const field of ["model", "effort"]) {
+			if (own[field] !== undefined) {
+				values[field] = own[field];
+				sources[field] = origin;
+			}
+		}
+	return { values, sources, ignored };
+}
+
+// The standard cards are available configuration slots, not a claim that a workflow runs all these roles.
+async function roleEditor(roles = {}, { getContext = () => ({}) } = {}) {
+	const drafts = new Map(
+		Object.entries(roles).map(([id, value]) => [
+			id,
+			{
+				id,
+				name: id.startsWith("agent:") ? id.slice(6) : id,
+				agent: id.startsWith("agent:"),
+				value: { ...value },
+			},
+		]),
+	);
+	const cards = element("div", {
+		class: "role-cards",
+		"aria-label": "Role assignments",
+	});
+	const panel = element("section", {
+		class: "role-inspector",
+		"aria-label": "Selected role settings",
+	});
+	const notice = element("p", { class: "role-map-note muted" });
+	const errors = element("div");
+	let selected = Object.keys(roles)[0] || "planning",
+		generation = 0,
+		agentId = 0;
+	let inheritance, heading;
+	const keyOf = (draft) => (draft.agent ? `agent:${draft.name}` : draft.name);
+	const previewKey = (draft) =>
+		draft.agent && !draft.name ? draft.id : keyOf(draft);
+	const previewRoles = () =>
+		Object.fromEntries(
+			[...drafts.values()].map((entry) => [previewKey(entry), entry.value]),
 		);
-		const entry = { role, model, row };
-		entries.push(entry);
-		row.append(
-			button(
-				"Remove role",
-				() => {
-					entries.splice(entries.indexOf(entry), 1);
-					row.remove();
-				},
-				{ disabled: readonly() },
+	const titleFor = (id) => {
+		const draft = drafts.get(id);
+		return draft?.agent
+			? `Agent: ${draft.name || "new agent"}`
+			: PROFILE_ROLES[id]?.[0] || id;
+	};
+	const purposeFor = (id) =>
+		drafts.get(id)?.agent
+			? "Only stages using this agent"
+			: PROFILE_ROLES[id]?.[1] || "Custom role assignment";
+	const viewFor = (id) =>
+		profileRolePreview(
+			drafts.has(id) ? previewKey(drafts.get(id)) : id,
+			previewRoles(),
+			getContext(),
+		);
+	const selectRole = (id, focus = true) =>
+		select(id, focus).catch((error) => {
+			errors.replaceChildren(
+				element(
+					"p",
+					{ role: "alert", class: "management-error" },
+					error.message,
+				),
+			);
+		});
+	const fieldValue = (name, view) => {
+		const source = view.sources[name] || "Inherited";
+		const label =
+			{
+				"Role override": "Custom",
+				"Common setting": "Common",
+				"Executor default": "Default",
+			}[source] || source;
+		return element(
+			"span",
+			{ class: "role-fact", "data-role-field": name, "data-origin": source },
+			element(
+				"span",
+				{ class: "role-fact-label" },
+				name.charAt(0).toUpperCase() + name.slice(1),
+			),
+			element(
+				"span",
+				{ class: "role-fact-value" },
+				element("span", { title: source }, view.values[name] || "Inherited"),
+				view.values[name] ? element("small", { class: "faint" }, label) : null,
 			),
 		);
-		rows.append(row);
+	};
+	function refresh() {
+		const focused = document.activeElement?.dataset.roleCard;
+		const ids = [
+			...new Set([
+				...Object.keys(PROFILE_ROLES),
+				...Object.keys(getContext().presetRoles || {}),
+				...drafts.keys(),
+			]),
+		];
+		cards.replaceChildren(
+			...ids.map((id) => {
+				const view = viewFor(id);
+				const custom = drafts.has(id);
+				return button(
+					[
+						element(
+							"span",
+							{ class: "role-card-head" },
+							kindIcon("agent"),
+							element("strong", {}, titleFor(id)),
+							element(
+								"small",
+								{ class: "role-source" },
+								custom
+									? "Customized"
+									: view.sources.model || view.sources.effort || "Inherited",
+							),
+						),
+						element("span", { class: "role-purpose muted" }, purposeFor(id)),
+						element(
+							"span",
+							{ class: "role-facts" },
+							...["executor", "model", "effort"].map((field) =>
+								fieldValue(field, view),
+							),
+						),
+						view.ignored
+							? element(
+									"span",
+									{ class: "role-warning" },
+									`Not used by ${getContext().executor} defaults`,
+								)
+							: null,
+					],
+					() => selectRole(id),
+					{
+						class: "role-card",
+						"data-role-card": id,
+						"aria-label": `Edit ${titleFor(id)}`,
+						"aria-description": `${purposeFor(id)}. ${["executor", "model", "effort"].map((field) => `${field}: ${view.values[field] || "inherited"}${view.sources[field] ? ` (${view.sources[field]})` : ""}`).join(". ")}${view.ignored ? ". Other-executor assignment is not used by these defaults." : ""}`,
+						"aria-pressed": String(selected === id),
+					},
+				);
+			}),
+		);
+		if (focused)
+			cards
+				.querySelector(`[data-role-card="${CSS.escape(focused)}"]`)
+				?.focus({ preventScroll: true });
+		if (heading) heading.textContent = titleFor(selected);
+		const reset = panel.querySelector("[data-role-reset]");
+		if (reset) reset.disabled = readonly() || !drafts.has(selected);
+		if (inheritance) {
+			const view = viewFor(selected);
+			inheritance.replaceChildren(
+				element(
+					"span",
+					{},
+					view.ignored
+						? `This assignment is not used by ${getContext().executor} stage defaults.`
+						: "Empty fields inherit; only filled fields change this role.",
+				),
+			);
+		}
+		const context = getContext();
+		notice.textContent = context.executor
+			? `Hints for ${context.executor} stage defaults. Built-in models can fall back to the CLI's settings; a named profile or workflow can override these.`
+			: "These are profile assignments, not an execution order. A workflow or launch setting can override them.";
 	}
-	for (const [key, value] of Object.entries(roles)) await add(key, value);
-	const errors = element("div");
-	return {
-		node: element(
+	async function select(id, focus = false) {
+		const token = ++generation;
+		selected = id;
+		heading = inheritance = null;
+		panel.replaceChildren(
+			element(
+				"p",
+				{ class: "muted", role: "status" },
+				"Loading role settings…",
+			),
+		);
+		const existing = drafts.get(id);
+		// A preset is a whole role entry at the API boundary. Seed the editor, but keep
+		// selection inert: only an actual field change registers this draft as an override.
+		const draft = existing || {
+			id,
+			name: id,
+			agent: false,
+			value: { ...(getContext().presetRoles?.[id] || {}) },
+		};
+		let models;
+		try {
+			models = await modelControls(
+				draft.value,
+				`Role ${draft.agent && !draft.name ? "new" : keyOf(draft)} `,
+				{ foldNotes: true },
+			);
+		} catch (error) {
+			if (token !== generation) return;
+			panel.replaceChildren(
+				element(
+					"p",
+					{ role: "alert", class: "management-error" },
+					error.message,
+				),
+				button("Try again", () => selectRole(id), { "data-role-retry": "" }),
+			);
+			refresh();
+			return;
+		}
+		if (token !== generation) return;
+		heading = element("h3", { tabindex: "-1" }, titleFor(id));
+		inheritance = element("p", { class: "role-inheritance muted" });
+		const name = draft.agent
+			? input("Agent name", draft.name, {
+					placeholder: "reviewer",
+					maxlength: 128,
+				})
+			: null;
+		const update = () => {
+			if (token !== generation) return;
+			if (name) draft.name = name.value;
+			draft.value = models.values();
+			if (draft.agent || Object.keys(draft.value).length) drafts.set(id, draft);
+			else drafts.delete(id);
+			refresh();
+		};
+		models.node.addEventListener("input", update);
+		models.node.addEventListener("change", update);
+		name?.addEventListener("input", update);
+		panel.replaceChildren();
+		append(panel, [
+			element("span", { class: "role-panel-label faint" }, "Editing role"),
+			heading,
+			element("p", { class: "muted" }, purposeFor(id)),
+			name ? field("Agent name", name) : null,
+			models.node,
+			inheritance,
+			button(
+				draft.agent ? "Remove agent override" : "Reset role",
+				() => {
+					drafts.delete(id);
+					selectRole(draft.agent ? "planning" : id);
+				},
+				{ disabled: readonly(), class: "small", "data-role-reset": "" },
+			),
+		]);
+		refresh();
+		errors.replaceChildren();
+		if (focus) {
+			heading.focus({ preventScroll: true });
+			panel.scrollIntoView({ block: "nearest" });
+		}
+	}
+	let invalidId;
+	const values = () => {
+		const out = {};
+		for (const [id, draft] of drafts) {
+			invalidId = id;
+			if (draft.agent && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(draft.name))
+				throw new Error("Enter a valid agent name.");
+			if (!Object.keys(draft.value).length)
+				throw new Error("Choose at least one setting for the role.");
+			const key = keyOf(draft);
+			if (Object.hasOwn(out, key))
+				throw new Error("Each agent can have only one override.");
+			out[key] = { ...draft.value };
+		}
+		invalidId = undefined;
+		return out;
+	};
+	const node = element(
+		"div",
+		{ class: "visual-role-editor" },
+		element(
 			"div",
-			{},
-			rows,
+			{ class: "role-map-head" },
+			element("h2", {}, "Role assignments"),
 			managementControl(
-				"Add role",
+				"Add agent override",
 				async () => {
-					await add();
-					errors.replaceChildren();
+					const id = `@agent-${++agentId}`;
+					drafts.set(id, { id, name: "", agent: true, value: {} });
+					await select(id, true);
+					panel.querySelector('[aria-label="Agent name"]')?.focus();
 				},
 				errors,
+				{ class: "small" },
 			),
-			errors,
 		),
-		values: () =>
-			Object.fromEntries(
-				entries.map(({ role, model }) => {
-					if (!role.value.trim())
-						throw new Error("Enter a name for each role.");
-					return [role.value.trim(), model.values()];
-				}),
-			),
+		element(
+			"p",
+			{ class: "muted" },
+			"Select a card to change who handles that role.",
+		),
+		element("div", { class: "role-map-layout" }, cards, panel),
+		notice,
+		errors,
+	);
+	await select(selected);
+	return {
+		node,
+		values,
+		refresh,
+		contextChanged: () => {
+			refresh();
+			return selectRole(selected, false);
+		},
+		focusInvalid: async () => {
+			if (invalidId !== undefined) {
+				const disclosure = node.closest("details");
+				if (disclosure) disclosure.open = true;
+				await select(invalidId, true);
+				(
+					panel.querySelector('[aria-label="Agent name"]') ||
+					panel.querySelector("input")
+				)?.focus();
+			}
+		},
 	};
 }
 async function renderManagement() {
@@ -8411,6 +8761,7 @@ async function renderProfiles(page) {
 			managementControl("New profile", () => edit({}), errors, {
 				write: false,
 				class: "small",
+				"data-profile-new": "",
 			}),
 		),
 		saved.length
@@ -8430,17 +8781,77 @@ async function renderProfiles(page) {
 				),
 	);
 	overview.append(defaultLine, defaults, savedSection);
+	const backToProfiles = () => {
+		if (history.state?.profileEditor) history.back();
+		else location.assign(managementHref("profiles"));
+	};
+	const reloadProfiles = async (savedName = state.profile) => {
+		if (history.state?.profileEditor) {
+			// Save a new profile's detail URL for Forward, then consume the list->editor
+			// entry on Back. Refresh locally so the write's confirmation survives.
+			if (savedName) {
+				state.profile = savedName;
+				state.createProfile = null;
+				urlState(true);
+			}
+			await new Promise((resolve, reject) => {
+				profileListReturn = () => {
+					state = readState();
+					history.replaceState(
+						{ profileReturnFocus: savedName },
+						"",
+						location.href,
+					);
+					renderManagement().then(resolve, reject);
+				};
+				history.back();
+			});
+		} else {
+			history.replaceState(
+				{ profileReturnFocus: savedName },
+				"",
+				location.href,
+			);
+			state.profile = null;
+			state.createProfile = null;
+			urlState(true);
+			await renderManagement();
+		}
+	};
 	let editGeneration = 0;
-	async function edit(profile, executorDefault) {
+	async function edit(profile, executorDefault, fromRoute = false) {
+		if (!fromRoute) {
+			const params = new URLSearchParams(location.search);
+			params.set("view", "profiles");
+			params.delete("profile");
+			params.delete("createProfile");
+			params.set(
+				profile.name ? "profile" : "createProfile",
+				profile.name || "1",
+			);
+			history.replaceState(
+				{
+					...history.state,
+					profileReturnFocus: profile.name || "",
+					newProfileReturn: !profile.name,
+				},
+				"",
+				location.href,
+			);
+			history.pushState(
+				{ profileEditor: true },
+				"",
+				`${location.pathname}?${params}`,
+			);
+			location.reload();
+			return;
+		}
 		const generation = ++editGeneration;
-		const trigger = document.activeElement;
 		const id = input("Profile name", profile.name || "", {
 			maxlength: 64,
 			readonly: !!profile.name,
 		});
-		const models = await modelControls(profile);
-		const roles = await roleEditor(profile.roles);
-		if (generation !== editGeneration || !page.isConnected) return;
+		const models = await modelControls(profile, "", { foldNotes: true });
 		const permission = choices(
 			"Profile permission mode",
 			["", "free", "safe"],
@@ -8450,18 +8861,37 @@ async function renderProfiles(page) {
 			["", "None (keep current)"],
 			...presets.data.presets.map((p) => [p.id, `${p.id}: ${p.description}`]),
 		]);
+		const baseline =
+			presets.data.presets.find(
+				(entry) => entry.id === executorDefault?.builtIn,
+			)?.roles || {};
+		const roles = await roleEditor(profile.roles, {
+			getContext: () => {
+				const selectedPreset = presets.data.presets.find(
+					(entry) => entry.id === preset.value,
+				);
+				const common = models.values();
+				return {
+					executor: executorDefault?.executor,
+					baseline,
+					common: {
+						...common,
+						executor: common.executor || selectedPreset?.executor,
+					},
+					presetRoles: selectedPreset?.roles || {},
+				};
+			},
+		});
+		if (generation !== editGeneration || !page.isConnected) return;
+		models.node.addEventListener("input", roles.refresh);
+		models.node.addEventListener("change", roles.refresh);
+		preset.addEventListener("change", roles.contextChanged);
 		const strict = input(
 			"Strict capabilities (comma separated)",
 			(profile.strictCapabilities || []).join(", "),
 		);
 		const output = element("div");
-		const cancel = () => {
-			++editGeneration;
-			editor.replaceChildren();
-			editor.hidden = true;
-			overview.hidden = false;
-			trigger?.focus({ preventScroll: true });
-		};
+		const cancel = backToProfiles;
 		const hasSavedProfile = data.profiles.some(
 			(entry) => entry.name === profile.name,
 		);
@@ -8480,7 +8910,7 @@ async function renderProfiles(page) {
 						await managementWrite("/api/profiles-default", "PUT", {
 							name: data.default === profile.name ? null : profile.name,
 						});
-						await renderManagement();
+						await reloadProfiles();
 					},
 					output,
 				),
@@ -8518,7 +8948,7 @@ async function renderProfiles(page) {
 							`/api/profiles/${encodeURIComponent(profile.name)}`,
 							"DELETE",
 						);
-						await renderManagement();
+						await reloadProfiles();
 					},
 					output,
 					{ class: "danger" },
@@ -8532,35 +8962,26 @@ async function renderProfiles(page) {
 			"details",
 			{ class: "profile-advanced" },
 			element("summary", {}, "Advanced settings"),
-			field("Start from preset", preset),
-			element(
-				"details",
-				{ class: "more-details" },
-				element("summary", {}, "What the presets set"),
-				presets.data.presets.map((entry) =>
-					element(
-						"details",
-						{},
-						element("summary", {}, entry.description),
-						roleTable(entry.roles),
-					),
-				),
-			),
+			field("Base preset (keep overrides)", preset),
 			element(
 				"div",
 				{ class: "management-fields" },
 				field("Permission mode", permission),
 				field("Strict capabilities (comma separated)", strict),
 			),
-			element("h3", {}, "Role overrides"),
-			element(
-				"p",
-				{ class: "muted" },
-				"Only set a role when it should differ from the settings above.",
-			),
-			roles.node,
 		);
 		editor.replaceChildren(
+			element(
+				"nav",
+				{ class: "profile-breadcrumb", "aria-label": "Profile navigation" },
+				button("← Profiles", backToProfiles, {
+					class: "link",
+					"aria-label": "Back to profiles",
+					"data-profile-back": "",
+				}),
+				element("span", { "aria-hidden": "true" }, "/"),
+				element("span", {}, profile.name || "New profile"),
+			),
 			managementPanel(
 				executorDefault
 					? `Edit ${profile.name} defaults`
@@ -8574,15 +8995,14 @@ async function renderProfiles(page) {
 						? "Leave a field empty to keep the built-in setting. Changes affect future runs, not existing ones."
 						: "Leave a field empty to use the executor's defaults. Changes affect future runs.",
 				),
-				field("Name", id),
-				models.node,
-				executorDefault
-					? moreDetails(
-							"Current role settings",
-							roleTable(executorDefault.roles),
-							element("p", { class: "muted" }, executorDefault.note),
-						)
-					: null,
+				element(
+					"section",
+					{ class: "profile-common", "aria-label": "Common settings" },
+					element("h3", {}, "Common settings"),
+					!profile.name ? field("Name", id) : null,
+					models.node,
+				),
+				roles.node,
 				advanced,
 				element(
 					"div",
@@ -8594,10 +9014,7 @@ async function renderProfiles(page) {
 							try {
 								assignedRoles = roles.values();
 							} catch (error) {
-								advanced.open = true;
-								[...roles.node.querySelectorAll('[aria-label="Role name"]')]
-									.find((field) => !field.value.trim())
-									?.focus();
+								await roles.focusInvalid();
 								throw error;
 							}
 							const values = {
@@ -8623,9 +9040,16 @@ async function renderProfiles(page) {
 								"strictCapabilities",
 							].filter((key) => values[key] === undefined);
 							// Profile updates merge role maps: removing a role must explicitly unset it.
+							const presetRoles =
+								presets.data.presets.find((entry) => entry.id === preset.value)
+									?.roles || {};
 							unset.push(
 								...Object.keys(profile.roles || {})
-									.filter((key) => !Object.hasOwn(values.roles, key))
+									.filter(
+										(key) =>
+											!Object.hasOwn(values.roles, key) &&
+											!Object.hasOwn(presetRoles, key),
+									)
 									.map((key) => `roles.${key}`),
 							);
 							const saved = await managementWrite(
@@ -8637,7 +9061,7 @@ async function renderProfiles(page) {
 									...(preset.value ? { preset: preset.value } : {}),
 								},
 							);
-							await renderManagement();
+							await reloadProfiles(id.value);
 							// The status stays short; the host API's full text remains behind Details.
 							const status = element(
 								"div",
@@ -8656,6 +9080,7 @@ async function renderProfiles(page) {
 				output,
 			),
 		);
+		editor.setAttribute("data-profile-edit", profile.name || "");
 		overview.hidden = true;
 		editor.hidden = false;
 		page.scrollIntoView({ block: "start" });
@@ -8663,6 +9088,38 @@ async function renderProfiles(page) {
 			? editor.querySelector('[aria-label="Executor"]')
 			: id
 		)?.focus();
+	}
+	if (state.profile || state.createProfile) {
+		const selected = data.profiles.find(
+			(entry) => entry.name === state.profile,
+		);
+		const executorDefault = executorDefaults.find(
+			(entry) => entry.executor === state.profile,
+		);
+		if (state.createProfile) await edit({}, undefined, true);
+		else if (selected || executorDefault)
+			await edit(selected || { name: state.profile }, executorDefault, true);
+		else
+			errors.append(
+				button("← Profiles", backToProfiles, {
+					class: "link",
+					"aria-label": "Back to profiles",
+				}),
+				element(
+					"p",
+					{ role: "alert", class: "management-error" },
+					"Profile not found.",
+				),
+			);
+	} else {
+		const focus = history.state?.newProfileReturn
+			? overview.querySelector("[data-profile-new]")
+			: history.state?.profileReturnFocus
+				? overview.querySelector(
+						`[data-profile-open="${CSS.escape(history.state.profileReturnFocus)}"]`,
+					)
+				: null;
+		focus?.focus({ preventScroll: true });
 	}
 	const prefPanel = element(
 		"details",
@@ -8750,7 +9207,13 @@ async function renderProfiles(page) {
 					managementControl(
 						"Save workflow preference",
 						async () => {
-							const values = roles.values();
+							let values;
+							try {
+								values = roles.values();
+							} catch (error) {
+								await roles.focusInvalid();
+								throw error;
+							}
 							const unset = [
 								...(!profile.value ? ["profile"] : []),
 								...Object.keys(current.roles || {})

@@ -52,6 +52,11 @@ async function click(browser, text) {
 		if (!node) throw new Error(`Missing visible button ${text}`);
 		node.click();
 	}, text);
+	if (text === "Cancel")
+		await browser.waitFor(() => {
+			const overview = document.querySelector(".profile-overview");
+			return overview && !overview.hidden;
+		});
 }
 async function edit(browser, name) {
 	await browser.click(`[data-profile-open="${name}"]`);
@@ -120,7 +125,7 @@ test("Profiles: compact landing, focused editing, Cancel and hidden values prese
 			advancedOpen: document.querySelector(".profile-advanced").open,
 			visibleFields: [
 				...document.querySelectorAll(
-					".profile-editor input, .profile-editor select",
+					".profile-common input, .profile-common select",
 				),
 			]
 				.filter((node) => node.checkVisibility())
@@ -129,7 +134,7 @@ test("Profiles: compact landing, focused editing, Cancel and hidden values prese
 		{
 			overviewHidden: true,
 			advancedOpen: false,
-			visibleFields: ["Profile name", "Executor", "Model", "Effort"],
+			visibleFields: ["Executor", "Model", "Effort"],
 		},
 	);
 	await set(p.browser, "Effort", "high");
@@ -148,8 +153,7 @@ test("Profiles: compact landing, focused editing, Cancel and hidden values prese
 	assert.deepEqual(after.strictCapabilities, ["readOnly"]);
 	assert.deepEqual(after.roles, values.roles);
 	await edit(p.browser, "daily");
-	await p.browser.click(".profile-advanced > summary");
-	await click(p.browser, "Remove role");
+	await click(p.browser, "Reset role");
 	await save(p.browser);
 	assert.equal(
 		(await profile(p.ctx, "daily")).roles,
@@ -157,29 +161,27 @@ test("Profiles: compact landing, focused editing, Cancel and hidden values prese
 		"a removed role is explicitly unset",
 	);
 	await edit(p.browser, "daily");
-	await p.browser.click(".profile-advanced > summary");
-	await click(p.browser, "Add role");
+	await click(p.browser, "Add agent override");
 	await p.browser.waitFor(
-		() => !!document.querySelector('[aria-label="Role name"]'),
+		() => !!document.querySelector('[aria-label="Agent name"]'),
 	);
-	await p.browser.click(".profile-advanced > summary");
 	await p.browser.click('[data-management-action="save-profile"]');
 	await p.browser.waitFor(
 		() =>
 			document.querySelector(".profile-editor [role=alert]")?.textContent ===
-			"Enter a name for each role.",
+			"Enter a valid agent name.",
 	);
 	assert.equal(
 		await p.browser.evaluate(
 			() => document.querySelector(".profile-advanced").open,
 		),
-		true,
+		false,
 	);
 	assert.equal(
 		await p.browser.evaluate(() =>
 			document.activeElement.getAttribute("aria-label"),
 		),
-		"Role name",
+		"Agent name",
 	);
 	await click(p.browser, "Cancel");
 	assert.equal((await profile(p.ctx, "daily")).roles, undefined);
@@ -199,11 +201,42 @@ test("Profiles: presets, default/clear and deletion stay available inside the ed
 	await set(p.browser, "Profile name", "mixed-review");
 	await p.browser.click(".profile-advanced > summary");
 	await set(p.browser, "Profile preset", "mixed");
+	await p.browser.click('[data-role-card="verification"]');
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role verification Model"]'),
+	);
+	await set(p.browser, "Role verification Model", "manual/preset-model");
 	await save(p.browser);
 	assert.equal(
 		(await profile(p.ctx, "mixed-review")).roles.verification.executor,
 		"claude",
 	);
+	assert.deepEqual(
+		(await profile(p.ctx, "mixed-review")).roles.verification,
+		{ executor: "claude", model: "manual/preset-model", effort: "high" },
+		"editing one preset field preserves its other fields",
+	);
+	// Reset means the selected preset, not an unset that removes the preset's freshly merged role.
+	await edit(p.browser, "mixed-review");
+	await p.browser.click(".profile-advanced > summary");
+	await set(p.browser, "Profile preset", "mixed");
+	await p.browser.click('[data-role-card="verification"]');
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role verification Executor"]'),
+	);
+	await p.browser.click("[data-role-reset]");
+	await p.browser.waitFor(
+		() =>
+			document.querySelector(
+				'[data-role-card="verification"] [data-role-field="model"]',
+			)?.dataset.origin === "Preset",
+	);
+	await save(p.browser);
+	assert.deepEqual((await profile(p.ctx, "mixed-review")).roles.verification, {
+		executor: "claude",
+		model: "sonnet",
+		effort: "high",
+	});
 	await edit(p.browser, "mixed-review");
 	await p.browser.click(".profile-options > summary");
 	await click(p.browser, "Use mixed-review by default");
@@ -268,13 +301,12 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 	);
 	await set(p.browser, "Workflow preferred profile", "mixed");
 	await p.browser.click(".profile-preferences .more-details > summary");
-	await click(p.browser, "Add role");
+	await p.browser.click('[data-role-card="verification"]');
 	await p.browser.waitFor(
-		() => !!document.querySelector('[aria-label="Role name"]'),
+		() => !!document.querySelector('[aria-label="Role verification Executor"]'),
 	);
-	await set(p.browser, "Role name", "verification");
-	await set(p.browser, "Role new Executor", "claude");
-	await set(p.browser, "Role new Effort", "high");
+	await set(p.browser, "Role verification Executor", "claude");
+	await set(p.browser, "Role verification Effort", "high");
 	await click(p.browser, "Save workflow preference");
 	await p.browser.waitFor(
 		() =>
@@ -286,7 +318,7 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 	).data.preference;
 	assert.equal(saved.profile, "mixed");
 	assert.equal(saved.roles.verification.effort, "high");
-	await click(p.browser, "Remove role");
+	await click(p.browser, "Reset role");
 	await click(p.browser, "Save workflow preference");
 	await p.browser.waitFor(
 		() =>
