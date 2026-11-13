@@ -307,7 +307,15 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 	);
 	await set(p.browser, "Workflow preferred profile", "mixed");
 	await p.browser.click(".profile-preferences .more-details > summary");
+	await p.browser.waitFor(
+		() => !!document.querySelector(".profile-preferences .profile-flow .node"),
+	);
 	await selectRole(p.browser, "verification");
+	await p.browser.waitFor(
+		() =>
+			document.querySelector(".profile-preferences .role-sharing-note")
+				?.textContent === "Not used by the steps shown here.",
+	);
 	assert.deepEqual(
 		await p.browser.evaluate(() => ({
 			notice: document.querySelector(".profile-preferences .role-sharing-note")
@@ -326,6 +334,11 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 		},
 	);
 	await selectRole(p.browser, "default");
+	await p.browser.waitFor(
+		() =>
+			document.querySelector(".profile-preferences .role-sharing-note")
+				?.textContent === "Used by Read.",
+	);
 	assert.equal(
 		await p.browser.evaluate(
 			() =>
