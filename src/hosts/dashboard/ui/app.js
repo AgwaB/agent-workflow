@@ -864,7 +864,11 @@ function railNeed(need, alone = false) {
 					element("span", { class: "need-label" }, "Needs you"),
 					element("span", { class: "need-action" }, "Inspect"),
 				),
-				element("b", { class: "need-title" }, needReason(need)),
+				element(
+					"b",
+					{ class: "need-title", title: needReason(need) },
+					needReason(need),
+				),
 				alone
 					? element("small", {}, `${need.run.name} ${ago(need.since)}`)
 					: null,

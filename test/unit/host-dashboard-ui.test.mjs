@@ -4491,3 +4491,67 @@ test(
 		);
 	},
 );
+
+test(
+	"dashboard Chrome: a need on its run's row is part of the row, and rows read as groups",
+	chromeOptions,
+	async (t) => {
+		// 2026-11-13 (owner): the need looked like a box inside the row ("겹"), and the rail's rows
+		// were hard to tell apart. The need has no surface of its own; a row's lines sit closer
+		// together than the rows do.
+		const { browser, fixture } = await reviewFixture(t);
+		await browser.open(`${fixture.origin}/?run=${failed}`);
+		await browser.waitFor(() => document.querySelector(".run-row .need"));
+		const box = await browser.evaluate(() => {
+			const rect = document
+				.querySelector(".run-row .need")
+				.getBoundingClientRect();
+			return { x: rect.x + 8, y: rect.y + 4 };
+		});
+		await browser.send("Input.dispatchMouseEvent", {
+			type: "mouseMoved",
+			x: box.x,
+			y: box.y,
+		});
+		const need = await browser.evaluate(() => {
+			const node = document.querySelector(".run-row .need");
+			const title = node.querySelector(".need-title");
+			return {
+				background: getComputedStyle(node).backgroundColor,
+				padding: getComputedStyle(node).paddingLeft,
+				lines: Math.round(
+					title.getBoundingClientRect().height /
+						Number.parseFloat(getComputedStyle(title).lineHeight || "20"),
+				),
+			};
+		});
+		assert.deepEqual(need, {
+			background: "rgba(0, 0, 0, 0)",
+			padding: "0px",
+			lines: 1,
+		});
+		const spacing = await browser.evaluate(() => {
+			const rows = [...document.querySelectorAll(".run-row")];
+			const index = rows.findIndex(
+				(row, i) =>
+					rows[i + 1] &&
+					!row.querySelector(".need") &&
+					row.querySelector(".run-task") &&
+					row.querySelector(".run-meta"),
+			);
+			const [a, b] = [rows[index], rows[index + 1]];
+			const name = a.querySelector(".row").getBoundingClientRect();
+			const task = a.querySelector(".run-task").getBoundingClientRect();
+			const meta = a.querySelector(".run-meta").getBoundingClientRect();
+			const next = b.querySelector(".row").getBoundingClientRect();
+			return {
+				within: Math.max(task.top - name.bottom, meta.top - task.bottom),
+				between: next.top - meta.bottom,
+			};
+		});
+		assert.ok(
+			spacing.between >= 3 * Math.max(spacing.within, 1),
+			`rows ${spacing.between}px apart, lines ${spacing.within}px apart`,
+		);
+	},
+);

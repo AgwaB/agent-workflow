@@ -390,6 +390,28 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 .need:hover:not(:disabled) {
 	background: var(--selected);
 }
+/* 2026-11-13 (owner): inside a run row the need is part of the row, not a box in a box: no own
+ * surface or inset, the reason on one line; hover underlines "Inspect" instead. */
+.run-row .need {
+	padding: 0;
+	border-radius: 0;
+}
+.run-row .need:hover:not(:disabled) {
+	background: none;
+}
+.run-row .need:hover:not(:disabled) .need-action {
+	text-decoration-thickness: 2px;
+}
+.run-row .need-title {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+/* The x sits on the "Needs you" line, centred with it. */
+.run-row .need-dismiss {
+	padding: 0 7px;
+	line-height: 16px;
+}
 .need-head {
 	display: flex;
 	align-items: baseline;
@@ -424,7 +446,7 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
  * on one line, then what to know · agents · time. Spacing instead of rules; the bar only while live.
  */
 .run-row {
-	padding: 7px 8px;
+	padding: 10px 8px;
 	border-radius: 8px;
 	cursor: pointer;
 	transition: background var(--t-fast) ease;
@@ -453,9 +475,9 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 	margin-left: 26px;
 }
 .run-task {
-	margin-top: 1px;
+	margin-top: 0;
 	font-size: 12.5px;
-	line-height: 1.45;
+	line-height: 1.35;
 	color: var(--faint);
 	white-space: nowrap;
 	overflow: hidden;
@@ -2280,7 +2302,6 @@ main.signin code {
 }
 .run-row > .need-item {
 	margin-top: 4px;
-	margin-left: 18px;
 }
 .need-item > .need {
 	flex: 1;
