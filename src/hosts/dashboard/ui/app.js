@@ -8097,7 +8097,11 @@ export function profileSlotPreview(slot, roles = {}, context = {}) {
 				found[1].sources[field] === "Role override"
 					? found[0]
 					: found[1].sources[field];
-		} else if (!context.executor && common[field] !== undefined) {
+		} else if (
+			!context.executor &&
+			common[field] !== undefined &&
+			(!executorEntry || values.executor === common.executor)
+		) {
 			values[field] = common[field];
 			sources[field] = "Common";
 		}
@@ -8225,7 +8229,11 @@ async function roleEditor(
 				? slotNow() || slots[0]
 				: slots.find((entry) => entry.id === stage.id) || slots[0];
 		const view = slotView(slot);
-		return `${view.values.model || "Model inherited"}, ${view.values.effort || "effort inherited"}${stage.kind === "dynamic" ? " (dynamic)" : ""}`;
+		const label =
+			!view.values.model && !view.values.effort
+				? "Automatic"
+				: `${view.values.model || "Automatic model"}, ${view.values.effort || "automatic effort"}`;
+		return `${label}${stage.kind === "dynamic" ? " (dynamic)" : ""}`;
 	};
 	const panelTitle = () => titleFor(selected);
 	const rememberScope = () => {
@@ -8295,16 +8303,38 @@ async function roleEditor(
 								slot.roleKeys.indexOf(keyFor(selected)) + 1,
 							),
 						});
+			// Keep this entry's executor while asking what an empty model/effort uses.
+			const own = drafts.has(selected)
+				? drafts.get(selected).value
+				: getContext().presetRoles?.[keyFor(selected)];
+			const executor = own?.executor;
+			const fieldFallback =
+				!getContext().executor && slot && executor
+					? profileSlotPreview(
+							{
+								...slot,
+								roleKeys: slot.roleKeys.slice(
+									slot.roleKeys.indexOf(keyFor(selected)),
+								),
+							},
+							{
+								...previewRoles(),
+								[keyFor(selected)]: { executor },
+							},
+							getContext(),
+						)
+					: fallback;
 			for (const [field, input] of [
 				...panel.querySelectorAll(".management-picker > input"),
 			].map((input) => [
 				input.getAttribute("aria-label")?.split(" ").at(-1)?.toLowerCase(),
 				input,
 			])) {
-				if (!input.value)
-					input.placeholder = fallback.values[field]
-						? `Automatic (${fallback.values[field]})`
-						: "Automatic";
+				if (!input.value) {
+					const value = (field === "executor" ? fallback : fieldFallback)
+						.values[field];
+					input.placeholder = value ? `Automatic (${value})` : "Automatic";
+				}
 			}
 			inheritance.textContent = view.ignored
 				? `This assignment is not used by ${getContext().executor} stage defaults.`

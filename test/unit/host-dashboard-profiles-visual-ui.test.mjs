@@ -1508,3 +1508,294 @@ test("Profile Save stays reachable without covering picker options or keyboard f
 	}
 	assert.deepEqual(p.browser.errors, []);
 });
+
+test("Profile slot hints only borrow Common values for a compatible executor", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await list(p);
+	const actual = await p.browser.evaluate(async () => {
+		const { profileSlotPreview } = await import("./app.js");
+		const common = { executor: "claude", model: "sonnet", effort: "high" };
+		const slot = { roleKeys: ["verification", "default"] };
+		return [
+			profileSlotPreview(
+				slot,
+				{ verification: { executor: "codex" } },
+				{ common },
+			),
+			profileSlotPreview(
+				slot,
+				{ verification: { executor: "claude" } },
+				{ common },
+			),
+			profileSlotPreview(slot, {}, { common }),
+			profileSlotPreview(
+				slot,
+				{ verification: { executor: "codex" } },
+				{
+					common: { model: "m", effort: "high" },
+				},
+			),
+			profileSlotPreview(slot, {}, { common: { model: "m", effort: "high" } }),
+			profileSlotPreview(
+				slot,
+				{
+					verification: { executor: "codex" },
+					default: { model: "m-any" },
+				},
+				{ common },
+			),
+			profileSlotPreview(
+				slot,
+				{
+					verification: { executor: "codex" },
+					default: { executor: "claude", model: "m-claude", effort: "low" },
+				},
+				{ common },
+			),
+			profileSlotPreview(
+				slot,
+				{},
+				{
+					executor: "codex",
+					common: { model: "executor-model", effort: "low" },
+					baseline: { verification: { model: "built-in", effort: "high" } },
+				},
+			),
+		];
+	});
+	assert.deepEqual(actual, [
+		{ values: { executor: "codex" }, sources: { executor: "verification" } },
+		{
+			values: { executor: "claude", model: "sonnet", effort: "high" },
+			sources: { executor: "verification", model: "Common", effort: "Common" },
+		},
+		{
+			values: { executor: "claude", model: "sonnet", effort: "high" },
+			sources: { executor: "Common", model: "Common", effort: "Common" },
+		},
+		{ values: { executor: "codex" }, sources: { executor: "verification" } },
+		{
+			values: { model: "m", effort: "high" },
+			sources: { model: "Common", effort: "Common" },
+		},
+		{
+			values: { executor: "codex", model: "m-any" },
+			sources: { executor: "verification", model: "default" },
+		},
+		{ values: { executor: "codex" }, sources: { executor: "verification" } },
+		{
+			values: { executor: "codex", model: "executor-model", effort: "low" },
+			sources: {
+				executor: "verification",
+				model: "Common setting",
+				effort: "Common setting",
+			},
+		},
+	]);
+});
+
+async function hintState(browser) {
+	return browser.evaluate(() => ({
+		...Object.fromEntries(
+			["Executor", "Model", "Effort"].map((field) => {
+				const input = document.querySelector(
+					`[aria-label="Role verification ${field}"]`,
+				);
+				return [field, { value: input.value, placeholder: input.placeholder }];
+			}),
+		),
+		label: document.querySelector('[data-stage-line="verify-a"]').dataset.full,
+		scope: document.querySelector(".profile-scope-note").textContent,
+	}));
+}
+async function chooseAutomatic(browser, field) {
+	await browser.click(`[aria-label="Role verification ${field}"]`);
+	await browser.waitFor(
+		() => !!document.querySelector('.role-inspector [role="option"]'),
+	);
+	await browser.evaluate((field) => {
+		const picker = document
+			.querySelector(`[aria-label="Role verification ${field}"]`)
+			.closest(".management-picker");
+		const option = [...picker.querySelectorAll('[role="option"]')].find(
+			(entry) => entry.textContent === "Automatic",
+		);
+		if (!option) throw new Error("Missing Automatic option");
+		option.click();
+	}, field);
+	await browser.waitFor(
+		`document.querySelector(${JSON.stringify(`[aria-label="Role verification ${field}"]`)})?.value === ""`,
+	);
+}
+
+test("Profile unset hints keep the draft executor and save only the cleared model", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	const common = { executor: "claude", model: "sonnet", effort: "high" };
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "daily",
+		values: {
+			...common,
+			roles: {
+				verification: {
+					executor: "codex",
+					model: "fixture-model",
+					effort: "high",
+				},
+			},
+		},
+	});
+	await list(p);
+	await edit(p.browser, "daily");
+	await select(p.browser, "verification");
+	await chooseAutomatic(p.browser, "Model");
+	let state = await hintState(p.browser);
+	assert.equal(state.Executor.value, "codex");
+	assert.equal(state.Model.placeholder, "Automatic");
+	assert.equal(state.label, "Automatic model, high");
+	assert.doesNotMatch(state.label, /sonnet/);
+	assert.doesNotMatch(state.scope, /Model: Common/);
+	const saved = await save(p);
+	assert.deepEqual(saved.roles.verification, {
+		executor: "codex",
+		effort: "high",
+	});
+	for (const [field, value] of Object.entries(common))
+		assert.equal(saved[field], value);
+	await edit(p.browser, "daily");
+	await select(p.browser, "verification");
+	await chooseAutomatic(p.browser, "Effort");
+	state = await hintState(p.browser);
+	assert.equal(state.Effort.placeholder, "Automatic");
+	assert.equal(state.label, "Automatic");
+	await chooseAutomatic(p.browser, "Executor");
+	state = await hintState(p.browser);
+	assert.equal(state.Executor.placeholder, "Automatic (claude)");
+	assert.equal(state.Model.placeholder, "Automatic (sonnet)");
+	assert.equal(state.Effort.placeholder, "Automatic (high)");
+	assert.equal(state.label, "sonnet, high");
+	await set(p.browser, "Role verification Executor", "claude");
+	await p.browser.waitFor(
+		() =>
+			document.querySelector('[aria-label="Role verification Executor"]')
+				?.value === "claude",
+	);
+	assert.equal(
+		(await hintState(p.browser)).Model.placeholder,
+		"Automatic (sonnet)",
+	);
+	await set(p.browser, "Role verification Executor", "codex");
+	await p.browser.waitFor(
+		() =>
+			document.querySelector('[aria-label="Role verification Executor"]')
+				?.value === "codex",
+	);
+	await set(p.browser, "Role verification Model", "fixture-model");
+	await p.browser.waitFor(
+		() =>
+			document.querySelector('[aria-label="Role verification Model"]')
+				?.value === "fixture-model",
+	);
+	assert.equal(
+		(await hintState(p.browser)).label,
+		"fixture-model, automatic effort",
+	);
+});
+
+for (const [name, values, expected] of [
+	[
+		"executor-free lower key",
+		{
+			executor: "claude",
+			model: "sonnet",
+			roles: {
+				default: { model: "m-any" },
+				verification: { executor: "codex" },
+			},
+		},
+		"Automatic (m-any)",
+	],
+	[
+		"foreign lower key",
+		{
+			executor: "claude",
+			model: "sonnet",
+			roles: {
+				default: { executor: "claude", model: "m-claude" },
+				verification: { executor: "codex" },
+			},
+		},
+		"Automatic",
+	],
+	[
+		"Common without executor",
+		{ model: "m", roles: { verification: { executor: "codex" } } },
+		"Automatic",
+	],
+]) {
+	test(`Profile model placeholder respects ${name}`, {
+		timeout: 90000,
+	}, async (t) => {
+		const p = await open(t);
+		await profileAction(p.ctx, { op: "set", name: "lower-hints", values });
+		await list(p);
+		await edit(p.browser, "lower-hints");
+		await select(p.browser, "verification");
+		assert.equal((await hintState(p.browser)).Model.placeholder, expected);
+	});
+}
+
+test("Profile unset hints keep the selected preset executor without creating an override", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "preset-hints",
+		values: { executor: "claude", model: "sonnet", effort: "high" },
+	});
+	const before = (
+		await profileAction(p.ctx, {
+			op: "show",
+			name: "preset-hints",
+		})
+	).data.profile;
+	await list(p);
+	await edit(p.browser, "preset-hints");
+	await set(p.browser, "Profile preset", "pi");
+	await select(p.browser, "default");
+	await p.browser.waitFor(
+		() =>
+			document.querySelector('[aria-label="Profile setting scope"]')?.value ===
+				"default" &&
+			!!document.querySelector('[aria-label="Role default Model"]') &&
+			document.querySelector('[aria-label="Role default Executor"]')?.value ===
+				"pi",
+	);
+	const state = await p.browser.evaluate(() => ({
+		executor: document.querySelector('[aria-label="Role default Executor"]')
+			.value,
+		model: document.querySelector('[aria-label="Role default Model"]').value,
+		placeholder: document.querySelector('[aria-label="Role default Model"]')
+			.placeholder,
+		resetDisabled: document.querySelector("[data-role-reset]").disabled,
+	}));
+	assert.equal(state.executor, "pi");
+	assert.equal(state.model, "");
+	assert.equal(
+		state.resetDisabled,
+		true,
+		"selecting must not create an override",
+	);
+	assert.deepEqual(
+		(await profileAction(p.ctx, { op: "show", name: "preset-hints" })).data
+			.profile,
+		before,
+		"without pressing Save the profile on disk stays unchanged",
+	);
+	assert.equal(state.placeholder, "Automatic");
+});
