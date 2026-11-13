@@ -11,6 +11,7 @@ import {
 import type { RunSummary, StatusData, showRunAction } from "../api.js";
 import type { WorkflowTaskUsageValues } from "../../core/types.js";
 import { EXECUTOR_NEEDS_DECISION_STATUS_DETAIL } from "../../core/terminal-result.js";
+import { isUserStoppedRun } from "../../core/run-stop-marking.js";
 import type { TaskOutcome } from "./task-text.js";
 
 export type DashboardStatusRun = NonNullable<StatusData["run"]>;
@@ -18,7 +19,8 @@ export type DashboardShownRun = Awaited<
 	ReturnType<typeof showRunAction>
 >["data"];
 export interface DashboardNeed {
-	kind: "failed" | "decision";
+	/** `stopped`: interrupted, but not by the user (its host closed, for example). */
+	kind: "failed" | "decision" | "stopped";
 	title: string;
 	requestId?: string;
 	taskId?: string;
@@ -148,6 +150,27 @@ export function projectNeedsYou(
 		needs.push({
 			kind: "failed",
 			title: `${record?.stageId ?? task?.specId ?? run.name ?? "Run"} ${run.status}`,
+			...(task ? { taskId: task.taskId } : {}),
+			since: record?.completedAt ?? run.updatedAt,
+		});
+	}
+	// 2026-11-13 (owner): "Needs you" lists what the host reminders list. A run interrupted without a
+	// user stop (its host closed) is one of them; a run the user stopped is not.
+	if (
+		run.status === "interrupted" &&
+		!run.parentRunId &&
+		!isUserStoppedRun(run)
+	) {
+		const task = run.tasks.find((item) => item.status === "interrupted");
+		const record = shown?.run.tasks.find(
+			(item) => item.taskId === task?.taskId,
+		);
+		needs.push({
+			kind: "stopped",
+			title:
+				run.statusDetail === "driver_lost"
+					? "Stopped, host closed"
+					: "Stopped unexpectedly",
 			...(task ? { taskId: task.taskId } : {}),
 			since: record?.completedAt ?? run.updatedAt,
 		});

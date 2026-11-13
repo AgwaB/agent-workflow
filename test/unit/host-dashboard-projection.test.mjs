@@ -171,6 +171,41 @@ test("failed/blocked runs need attention even without approvals; live is not inf
 	}
 });
 
+// 2026-11-13 (owner): "Needs you" lists what the host reminders list. An interrupted run is one of
+// them unless the user stopped it; a child run never is.
+test("an interrupted run needs you unless the user stopped it", () => {
+	const { run } = data();
+	run.status = "interrupted";
+	const stopped = (statusDetail, extra = {}) => {
+		run.tasks = [
+			{
+				taskId: "task-1",
+				specId: "a",
+				status: "completed",
+				statusDetail: "completed",
+			},
+			{ taskId: "task-2", specId: "b", status: "interrupted", statusDetail },
+		];
+		Object.assign(run, extra);
+		return projectNeedsYou(run);
+	};
+	assert.deepEqual(stopped("driver_lost", { statusDetail: "driver_lost" }), [
+		{
+			kind: "stopped",
+			title: "Stopped, host closed",
+			taskId: "task-2",
+			since: run.updatedAt,
+		},
+	]);
+	delete run.statusDetail;
+	assert.equal(stopped("cancelled")[0].title, "Stopped unexpectedly");
+	assert.deepEqual(stopped("workflow_stopped"), []);
+	assert.deepEqual(
+		stopped("driver_lost", { parentRunId: "workflow_parent" }),
+		[],
+	);
+});
+
 test("a verdict-gated failure is an outcome, not a need: verdictGate is carried and Needs you stays empty", () => {
 	const { run, shown } = data();
 	run.status = "failed";

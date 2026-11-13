@@ -2703,23 +2703,8 @@ main.signin code {
 .notes-list li + li {
 	margin-top: 4px;
 }
-.row-actions {
-	display: flex;
-	justify-content: flex-end;
-	gap: 8px;
-}
-.row-actions input {
-	width: 180px;
-	min-width: 0;
-	background: var(--surface);
-}
-.management-card .row-actions button,
 .management-card .property-table button {
 	margin: 0;
-}
-.property-table td:has(> .row-actions) {
-	width: 1%;
-	white-space: nowrap;
 }
 .property-table.executors td:first-child {
 	width: 120px;
@@ -2730,9 +2715,6 @@ main.signin code {
 .property-table.executors td:nth-child(3) {
 	width: 150px;
 }
-.property-table.prune td:nth-child(n + 2) {
-	white-space: nowrap;
-}
 .property-table a.mono {
 	color: var(--text);
 	text-decoration: none;
@@ -2741,10 +2723,6 @@ main.signin code {
 .property-table a.mono:hover {
 	text-decoration: underline;
 	text-underline-offset: 3px;
-}
-.prune-summary {
-	margin: 12px 0 4px;
-	font-weight: 500;
 }
 button.danger:not(:disabled) {
 	color: var(--err);
@@ -2770,58 +2748,6 @@ button.danger:hover:not(:disabled) {
 }
 .page-actions .muted {
 	font-size: 13px;
-}
-.run-cell {
-	display: flex;
-	flex-direction: column;
-	gap: 1px;
-	color: var(--text);
-	text-decoration: none;
-}
-.run-cell > span {
-	font-weight: 500;
-}
-.run-cell small {
-	font-size: 12.5px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	max-width: 46ch;
-}
-.run-cell:hover > span {
-	text-decoration: underline;
-	text-underline-offset: 3px;
-}
-/* Narrow screens: notice and prune rows stack instead of overflowing their card. */
-@media (max-width: 700px) {
-	.property-table:is(.notices, .prune),
-	.property-table:is(.notices, .prune) :is(tbody, tr, td) {
-		display: block;
-		width: auto;
-	}
-	.property-table:is(.notices, .prune) thead {
-		display: none;
-	}
-	.property-table:is(.notices, .prune) tr {
-		padding: 10px 0;
-		border-bottom: 1px solid var(--line);
-	}
-	.property-table:is(.notices, .prune) td {
-		border: 0;
-		padding: 2px 0;
-		white-space: normal;
-	}
-	.property-table td:has(> .row-actions) {
-		width: auto;
-	}
-	.row-actions {
-		justify-content: flex-start;
-		margin-top: 6px;
-	}
-	.row-actions input {
-		flex: 1;
-		width: auto;
-	}
 }
 /* Palette rows (2026-11-12): name and task, state and age on the right; group headings. */
 .palette-group {
@@ -3601,6 +3527,14 @@ a.home-row.recent:focus-visible {
 	color: var(--muted);
 	font-size: 14px;
 }
+/* The calm line keeps "Show N dismissed" on its right, as a section header would. */
+.home-status {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 4px 8px;
+}
 .home-need {
 	display: flex;
 	gap: 8px;
@@ -3613,6 +3547,10 @@ a.home-row.recent:focus-visible {
 }
 .home-need.decision {
 	border-left-color: var(--warn);
+}
+/* 2026-11-13: a run stopped without a user stop (its host closed) is grey, like its glyph. */
+.home-need.stopped {
+	border-left-color: var(--muted);
 }
 .home-need > .glyph {
 	margin-top: 1px;
@@ -3804,6 +3742,72 @@ a.home-row.recent .home-cost {
 }
 .home-stat-note .nowrap {
 	white-space: nowrap;
+}
+/* 2026-11-13: cleaning up old runs is a line under the numbers, and a confirmation in place. */
+.home-cleanup {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 12px;
+	margin-top: 10px;
+	padding: 10px 14px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	font-size: 14px;
+	color: var(--muted);
+}
+.home-cleanup p {
+	display: grid;
+	gap: 2px;
+	flex: 1 1 200px;
+	margin: 0;
+	color: var(--text);
+}
+.home-cleanup p small {
+	font-size: 13px;
+}
+.home-cleanup.confirming {
+	display: grid;
+	justify-content: stretch;
+	color: var(--text);
+}
+.home-cleanup .more-details {
+	margin: 0;
+}
+.home-cleanup-list {
+	display: grid;
+	gap: 4px;
+	max-height: 220px;
+	margin: 0;
+	padding: 0;
+	overflow: auto;
+	list-style: none;
+}
+.home-cleanup-list li {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+}
+.home-cleanup-list li > span:first-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.home-cleanup-list li > .muted {
+	flex: none;
+}
+.home-cleanup-actions {
+	display: flex;
+	gap: 8px;
+}
+.home-cleanup .management-error {
+	margin: 0;
+}
+.home-cleanup-done {
+	margin: 10px 0 0;
+	font-size: 14px;
+	color: var(--muted);
 }
 .home-table-wrap {
 	overflow: hidden;

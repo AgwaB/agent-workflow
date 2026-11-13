@@ -2734,7 +2734,6 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 				["Runs", null],
 				["Workflows", null],
 				["Profiles", null],
-				["Maintenance", null],
 				["Executors", null],
 			],
 		},
@@ -3664,7 +3663,7 @@ test(
 			runs: 0,
 			needs: 0,
 			switcher: true,
-			nav: 6,
+			nav: 5,
 		});
 		// The top bar's "Needs you" leads to the needs the page itself lists.
 		await browser.click(".needs-button");
@@ -3681,7 +3680,7 @@ test(
 		// No "Needs you" group: each need is on its run's own row (owner, pass 2).
 		assert.deepEqual(open.headings, ["Runs"]);
 		assert.ok(
-			open.runs >= 6 && open.needs >= 1 && open.switcher && open.nav === 6,
+			open.runs >= 6 && open.needs >= 1 && open.switcher && open.nav === 5,
 		);
 		// ...and the report page too; going back to the overview takes them away again.
 		await browser.click(
@@ -3695,7 +3694,7 @@ test(
 			runs: 0,
 			needs: 0,
 			switcher: true,
-			nav: 6,
+			nav: 5,
 		});
 	},
 );

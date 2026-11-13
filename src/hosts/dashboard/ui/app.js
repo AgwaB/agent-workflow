@@ -412,7 +412,7 @@ function readState() {
 			"details",
 			"workflows",
 			"profiles",
-			"maintenance",
+			// "maintenance" (until 2026-11-13) opens the overview, where its parts now live.
 			"executors",
 		]),
 		dialog: choice("dialog", ["stop", "resume"]),
@@ -651,7 +651,7 @@ function verdictWord(value) {
 function railStatus(summary) {
 	if (summary.status === "failed" && !summary.verdictGate)
 		return ["err", "Failed"]; // the reason is under "Needs you", above
-	if (summary.status === "blocked" || summary.needsYou?.length)
+	if (summary.status === "blocked" || needsAttention(summary))
 		return ["warn", "Needs you"];
 	if (summary.status === "completed" || summary.status === "failed") {
 		const outcome = finishedOutcome(summary);
@@ -722,8 +722,8 @@ function allNeeds() {
 }
 /*
  * 2026-11-12 (owner: one dismissal for every host): a failed run's "Needs you" item is dismissed
- * through the project's notice acknowledgements, the ones Pi, Claude Code and Codex reminders and
- * Maintenance use, so dismissing it here quiets it there too. Read-only dashboards, runs that are
+ * through the project's notice acknowledgements, the ones Pi, Claude Code and Codex reminders use,
+ * so dismissing it here quiets it there too. Read-only dashboards, runs that are
  * not a notice, and a refused write fall back to this browser's own list (the previous behavior).
  */
 let noticeState = { acknowledged: new Set(), states: new Map() };
@@ -745,13 +745,20 @@ async function refreshNotices() {
 		// Keep the last known notices: a failed read never shows a dismissed item again.
 	}
 }
+const DISMISS_TITLE =
+	"Dismiss everywhere: the dashboard and the Pi, Claude Code and Codex reminders (it shows again if the run changes)";
+/** A decision blocks its run and stays; a failure or an unexpected stop can be dismissed. */
+const dismissible = (need) => need.kind !== "decision";
+/** A need other than an unexpected stop: the run reads "Needs you", not "Stopped". */
+const needsAttention = (run) =>
+	Boolean(run.needsYou?.some((need) => need.kind !== "stopped"));
 const serverDismissed = (need) =>
-	need.kind === "failed" && noticeState.acknowledged.has(need.run.runId);
+	dismissible(need) && noticeState.acknowledged.has(need.run.runId);
 function visibleNeeds() {
 	const dismissed = dismissedNeeds();
 	return allNeeds().filter(
 		(need) =>
-			need.kind !== "failed" ||
+			!dismissible(need) ||
 			(!dismissed.has(need.key) && !serverDismissed(need)),
 	);
 }
@@ -876,13 +883,12 @@ function railNeed(need, alone = false) {
 			() => openNeed(need),
 			{ class: "need", "aria-label": `Inspect: ${needReason(need)}` },
 		),
-		need.kind === "failed"
+		dismissible(need)
 			? button("×", dismiss, {
 					class: "need-dismiss",
 					"data-need": need.key,
 					"aria-label": `Dismiss: ${needReason(need)}`,
-					title:
-						"Dismiss everywhere: the dashboard and the Pi, Claude Code and Codex reminders (a new failure shows again)",
+					title: DISMISS_TITLE,
 				})
 			: null,
 	);
@@ -922,31 +928,26 @@ function renderRail() {
 		element(
 			"nav",
 			{ class: "management-nav", "aria-label": "Dashboard views" },
-			[
-				"Overview",
-				"Runs",
-				"Workflows",
-				"Profiles",
-				"Maintenance",
-				"Executors",
-			].map((title) => {
-				const view = title.toLowerCase();
-				const params = new URLSearchParams();
-				if (state.project) params.set("project", state.project);
-				// 2026-11-12 (owner): Overview is the project's landing page (no run, no view);
-				// Runs opens the latest run, as the dashboard did before.
-				if (view !== "overview") params.set("view", view);
-				const current = managementView()
-					? state.view === view
-					: view === "overview"
-						? !state.run
-						: view === "runs" && Boolean(state.run);
-				return element(
-					"a",
-					{ href: `/?${params}`, "aria-current": current ? "page" : null },
-					title,
-				);
-			}),
+			["Overview", "Runs", "Workflows", "Profiles", "Executors"].map(
+				(title) => {
+					const view = title.toLowerCase();
+					const params = new URLSearchParams();
+					if (state.project) params.set("project", state.project);
+					// 2026-11-12 (owner): Overview is the project's landing page (no run, no view);
+					// Runs opens the latest run, as the dashboard did before.
+					if (view !== "overview") params.set("view", view);
+					const current = managementView()
+						? state.view === view
+						: view === "overview"
+							? !state.run
+							: view === "runs" && Boolean(state.run);
+					return element(
+						"a",
+						{ href: `/?${params}`, "aria-current": current ? "page" : null },
+						title,
+					);
+				},
+			),
 		),
 	);
 	// 2026-11-12 (owner, review P2-2): the overview lists the needs and the runs itself, so the rail
@@ -1027,7 +1028,7 @@ function renderRail() {
 				glyph(
 					display.status === "failed" && !display.verdictGate
 						? "failed"
-						: display.needsYou?.length ||
+						: needsAttention(display) ||
 								display.status === "blocked" ||
 								(!liveRun(display) && shortfall(display))
 							? "blocked"
@@ -1177,7 +1178,7 @@ function heroState(run) {
 	if (run.status === "failed" && !run.verdictGate) return ["failed", "Failed"];
 	if (shortfall(run)) return ["attention", finishedOutcome(run).word];
 	if (run.status === "completed") return ["completed", "Finished"];
-	if (run.status === "blocked" || run.needsYou?.length)
+	if (run.status === "blocked" || needsAttention(run))
 		return ["blocked", "Needs you"];
 	return [run.status, labels[run.status] || "Waiting"];
 }
@@ -6048,7 +6049,7 @@ async function refreshRuns() {
 	const data = await api("/api/runs");
 	syncClock(data.serverTime);
 	runs = data.runs;
-	if (allNeeds().some((need) => need.kind === "failed")) await refreshNotices();
+	if (allNeeds().some(dismissible)) await refreshNotices();
 	renderTop();
 	renderRail();
 	if (homeShown()) renderHome();
@@ -6276,9 +6277,7 @@ $("dialog").addEventListener("click", (event) => {
 window.addEventListener("popstate", () => {
 	if (
 		managementView() ||
-		["workflows", "profiles", "maintenance", "executors"].includes(
-			readState().view,
-		)
+		["workflows", "profiles", "executors"].includes(readState().view)
 	) {
 		location.reload();
 		return;
@@ -6574,7 +6573,13 @@ function homeNeeds() {
 		return element(
 			"article",
 			{ class: `home-need ${need.kind}`, "data-run": need.run.runId },
-			glyph(need.kind === "failed" ? "failed" : "blocked"),
+			glyph(
+				need.kind === "decision"
+					? "blocked"
+					: need.kind === "stopped"
+						? "interrupted"
+						: "failed",
+			),
 			element(
 				"div",
 				{ class: "home-need-body" },
@@ -6605,11 +6610,10 @@ function homeNeeds() {
 					button("Inspect", () => openNeed(need), {
 						class: "primary small",
 					}),
-					need.kind === "failed"
+					dismissible(need)
 						? button("Dismiss", () => setNeedDismissed([need], true), {
 								class: "small",
-								title:
-									"Dismiss everywhere: the dashboard and the Pi, Claude Code and Codex reminders (a new failure shows again)",
+								title: DISMISS_TITLE,
 							})
 						: null,
 				),
@@ -6974,6 +6978,180 @@ function homeProject(all) {
 		),
 	);
 }
+/*
+ * 2026-11-13 (owner: "too many choices"): cleaning up old runs is one line under the project's
+ * numbers. The newest 50 finished runs stay (the CLI's default); the line shows only when older
+ * runs can go, and Delete asks once, with the exact list. Other rules stay in the terminal
+ * (`agent-workflow prune --keep N`). The server deletes only what this preview showed (digest).
+ */
+const CLEANUP_KEEP = 50;
+let cleanup = {
+	key: null,
+	preview: null,
+	confirming: false,
+	message: null,
+	error: null,
+};
+function refreshCleanup(force = false) {
+	if (readonly() || !state.project || state.project === "all") return;
+	const key = `${state.project}|${runs.length}`;
+	if (!force && cleanup.key === key) return;
+	const sameProject = cleanup.key?.startsWith(`${state.project}|`);
+	cleanup = {
+		key,
+		preview: sameProject ? cleanup.preview : null,
+		message: sameProject ? cleanup.message : null,
+		confirming: false,
+		error: null,
+	};
+	managementWrite(projectRoute("prune/preview"), "POST", { keep: CLEANUP_KEEP })
+		.then((result) => {
+			if (cleanup.key === key) cleanup.preview = result;
+		})
+		.catch(() => {
+			if (cleanup.key === key) cleanup.preview = null;
+		})
+		.finally(() => {
+			if (cleanup.key === key && homeShown()) renderHome();
+		});
+}
+const cleanupRuns = (preview) =>
+	(preview?.ok ? preview.data.runs || [] : []).filter(
+		(entry) => entry.selected && !entry.protected,
+	);
+async function deleteOldRuns() {
+	const shown = cleanup.preview;
+	const going = cleanupRuns(shown);
+	try {
+		const result = await managementWrite(projectRoute("prune"), "POST", {
+			keep: CLEANUP_KEEP,
+			digest: shown.digest,
+		});
+		const deleted = (result.data.runs || []).filter((entry) => entry.deleted);
+		cleanup.message = `Deleted ${deleted.length} ${deleted.length === 1 ? "run" : "runs"}, freeing ${formatBytes(result.data.deletedBytes)}.`;
+		cleanup.preview = null;
+		cleanup.confirming = false;
+		await refreshRuns();
+		refreshCleanup(true);
+	} catch (error) {
+		// 409: the runs changed since the preview; show the new list and ask again.
+		if (error.data?.preview) cleanup.preview = error.data.preview;
+		cleanup.error =
+			error.status === 409
+				? `The list changed (it was ${going.length}). Check it and delete again.`
+				: error.message;
+	}
+	renderHome();
+	$("home-view")
+		.querySelector('[data-home-key^="cleanup"]')
+		?.focus({ preventScroll: true });
+}
+function homeCleanup() {
+	const going = cleanupRuns(cleanup.preview);
+	const message = cleanup.message
+		? element(
+				"p",
+				{ class: "home-cleanup-done", role: "status" },
+				cleanup.message,
+			)
+		: null;
+	if (!going.length) return message;
+	const bytes = going.reduce((sum, entry) => sum + (entry.bytes || 0), 0);
+	const count = `${going.length} old ${going.length === 1 ? "run" : "runs"}`;
+	const named = new Map(runs.map((summary) => [summary.runId, summary.name]));
+	if (!cleanup.confirming)
+		return element(
+			"div",
+			{ class: "home-cleanup" },
+			element(
+				"p",
+				{},
+				`${count} can be deleted (${formatBytes(bytes)})`,
+				element(
+					"small",
+					{ class: "faint" },
+					`The newest ${CLEANUP_KEEP} finished runs are kept.`,
+				),
+			),
+			button(
+				"Clean up…",
+				() => {
+					cleanup.confirming = true;
+					cleanup.message = null;
+					renderHome();
+					$("home-view")
+						.querySelector('[data-home-key="cleanup-cancel"]')
+						?.focus({ preventScroll: true });
+				},
+				{ class: "small", "data-home-key": "cleanup" },
+			),
+		);
+	return element(
+		"div",
+		{
+			class: "home-cleanup confirming",
+			role: "group",
+			"aria-label": "Clean up old runs",
+		},
+		element(
+			"p",
+			{},
+			`Delete ${count} and free ${formatBytes(bytes)}? This cannot be undone.`,
+		),
+		element(
+			"details",
+			{ class: "more-details" },
+			element("summary", {}, "Which runs"),
+			element(
+				"ul",
+				{ class: "home-cleanup-list" },
+				going.map((entry) =>
+					element(
+						"li",
+						{ "data-cleanup-run": entry.runId },
+						element("span", {}, named.get(entry.runId) || entry.runId),
+						element(
+							"span",
+							{ class: "muted" },
+							`${whenText(entry.updatedAt)}, ${formatBytes(entry.bytes)}`,
+						),
+					),
+				),
+			),
+		),
+		cleanup.error
+			? element(
+					"p",
+					{ role: "alert", class: "management-error" },
+					cleanup.error,
+				)
+			: null,
+		element(
+			"div",
+			{ class: "home-cleanup-actions" },
+			button(
+				`Delete ${going.length} ${going.length === 1 ? "run" : "runs"}`,
+				deleteOldRuns,
+				{
+					class: "small danger",
+					"data-home-key": "cleanup-delete",
+				},
+			),
+			button(
+				"Cancel",
+				() => {
+					cleanup.confirming = false;
+					cleanup.error = null;
+					renderHome();
+					$("home-view")
+						.querySelector('[data-home-key="cleanup"]')
+						?.focus({ preventScroll: true });
+				},
+				{ class: "small", "data-home-key": "cleanup-cancel" },
+			),
+		),
+	);
+}
 function renderHome() {
 	const center = $("center");
 	const previous = $("home-view");
@@ -6992,6 +7170,7 @@ function renderHome() {
 		);
 		return;
 	}
+	refreshCleanup();
 	const running = all.filter((summary) => summary.status === "running");
 	const needs = visibleNeeds();
 	// 2026-11-12 (owner, pass 2): a run that needs you is listed under "Needs you" only; once it is
@@ -7008,6 +7187,22 @@ function renderHome() {
 		Infinity,
 	);
 	const calm = !needs.length && !running.length;
+	// 2026-11-13 (owner): dismissed needs come back from here (the rail does the same beside a run).
+	const hidden = allNeeds().filter(
+		(need) => !needs.some((shown) => shown.key === need.key),
+	);
+	const restore = hidden.length
+		? button(
+				`Show ${hidden.length} dismissed`,
+				() => {
+					setNeedDismissed(hidden, false);
+					$("home-view")
+						.querySelector(".home-need button")
+						?.focus({ preventScroll: true });
+				},
+				{ class: "small home-toggle", "data-home-key": "restore" },
+			)
+		: null;
 	const section = (title, children, extra = null, id = null) =>
 		element(
 			"section",
@@ -7041,14 +7236,16 @@ function renderHome() {
 							"p",
 							{ class: "home-status", id: "home-status" },
 							"Nothing needs you and nothing is running.",
+							restore,
 						)
 					: [
 							section(
 								"Needs you",
 								homeNeeds(),
-								needs.length
-									? element("span", { class: "faint" }, needs.length)
-									: null,
+								restore ||
+									(needs.length
+										? element("span", { class: "faint" }, needs.length)
+										: null),
 								"home-needs",
 							),
 							section(
@@ -7081,7 +7278,12 @@ function renderHome() {
 						: null,
 					"home-recent",
 				),
-				section("This project", homeProject(all), null, "home-project"),
+				section(
+					"This project",
+					[homeProject(all), homeCleanup()],
+					null,
+					"home-project",
+				),
 				section(
 					"Workflows",
 					homeWorkflows(all),
@@ -7237,9 +7439,7 @@ async function start() {
 }
 // Management pages use the same text-only components as run views. No launch endpoint or form.
 function managementView() {
-	return ["workflows", "profiles", "maintenance", "executors"].includes(
-		state.view,
-	);
+	return ["workflows", "profiles", "executors"].includes(state.view);
 }
 const managementApi = (path, options = {}) =>
 	api(path, { signal: AbortSignal.timeout(150000), ...options });
@@ -7549,7 +7749,7 @@ async function renderManagement() {
 	);
 	$("center").replaceChildren(page);
 	try {
-		if (["workflows", "maintenance"].includes(state.view) && !state.project) {
+		if (state.view === "workflows" && !state.project) {
 			page.append(
 				element(
 					"p",
@@ -7561,7 +7761,6 @@ async function renderManagement() {
 		}
 		if (state.view === "workflows") await renderWorkflows(page);
 		if (state.view === "profiles") await renderProfiles(page);
-		if (state.view === "maintenance") await renderMaintenance(page);
 		if (state.view === "executors") await renderExecutors(page);
 	} catch (error) {
 		page.append(
@@ -8288,271 +8487,6 @@ function moreDetails(title, ...children) {
 		{ class: "more-details" },
 		element("summary", {}, title),
 		children,
-	);
-}
-/*
- * Maintenance (2026-11-11, owner: "only what a user would really use"): unfinished runs to look
- * at or dismiss, then cleaning up old runs with an exact preview. Nothing removed: the raw
- * results and CLI commands are folded under "Details".
- */
-async function renderMaintenance(page) {
-	page
-		.querySelector("h1 + p")
-		?.replaceChildren(
-			"Unfinished runs that still raise notices, and old runs you can clean up. This project only.",
-		);
-	const [notices, list] = await Promise.all([
-		managementApi(projectRoute("notices")),
-		api("/api/runs").catch(() => ({ runs: [] })),
-	]);
-	const known = new Map((list.runs || []).map((entry) => [entry.runId, entry]));
-	// A run reads as its workflow and task, with its id underneath (2026-11-11).
-	const runCell = (runId) => {
-		const entry = known.get(runId);
-		return element(
-			"a",
-			{ href: runHref(runId), class: "run-cell", "data-prune-run": runId },
-			element("span", {}, entry?.name || runId),
-			entry
-				? element(
-						"small",
-						{ class: "muted" },
-						`${entry.taskPreview ? `${entry.taskPreview}, ` : ""}${runId.slice(-6)}`,
-					)
-				: null,
-		);
-	};
-	const noticeOutput = element("div");
-	const dismissed = notices.data.acknowledgements || [];
-	// The list names every unfinished run; one with an active acknowledgement is already dismissed.
-	const open = (notices.data.notices || []).filter(
-		(entry) =>
-			!dismissed.some((ack) => ack.active && ack.runId === entry.runId),
-	);
-	const noticePanel = managementPanel(
-		"Unfinished runs",
-		element(
-			"p",
-			{ class: "muted" },
-			"Claude Code, Codex and Pi remind you about a stopped or failed run until you dismiss it. Open it to resume or inspect it; dismissing hides the reminder everywhere, including Needs you. The run itself and resume stay as they are.",
-		),
-		open.length
-			? propertyTable(
-					["Run", "State", "Updated", ""],
-					open.map((entry) => {
-						const reason = input(`Reason for ${entry.runId}`, "", {
-							placeholder: "Reason (optional)",
-						});
-						return [
-							runCell(entry.runId),
-							stateLabel(
-								entry.status === "failed" ? "err" : "muted",
-								humanize(entry.status),
-							),
-							element("span", { title: entry.updatedAt }, ago(entry.updatedAt)),
-							element(
-								"span",
-								{ class: "row-actions" },
-								reason,
-								managementControl(
-									"Dismiss",
-									async () => {
-										await managementWrite(
-											projectRoute(
-												`notices/${encodeURIComponent(entry.runId)}/acknowledge`,
-											),
-											"POST",
-											{
-												state: entry.sha256,
-												reason:
-													reason.value.trim() || "Dismissed in the dashboard",
-											},
-										);
-										await renderManagement();
-									},
-									noticeOutput,
-									{ "data-notice-dismiss": entry.runId },
-								),
-							),
-						];
-					}),
-					{ class: "property-table notices" },
-				)
-			: element(
-					"p",
-					{},
-					"Nothing to look at: no unfinished run is raising a notice.",
-				),
-		dismissed.length
-			? moreDetails(
-					`Dismissed (${dismissed.length})`,
-					propertyTable(
-						["Run", "Reason", ""],
-						dismissed.map((entry) => [
-							runCell(entry.runId),
-							`${entry.reason}${entry.active ? "" : ", the run changed since"}`,
-							managementControl(
-								"Show again",
-								async () => {
-									await managementWrite(
-										projectRoute(
-											`notices/${encodeURIComponent(entry.runId)}/clear`,
-										),
-										"POST",
-									);
-									await renderManagement();
-								},
-								noticeOutput,
-							),
-						]),
-					),
-				)
-			: null,
-		notices.data.warnings?.length
-			? element("pre", {}, notices.data.warnings.join("\n"))
-			: null,
-		noticeOutput,
-		moreDetails(
-			"Same from the terminal",
-			commandHint("agent-workflow notices list"),
-		),
-	);
-	page.append(noticePanel);
-
-	const keep = input("Keep the newest finished runs", "50", {
-		type: "number",
-		min: 0,
-		max: 100000,
-	});
-	const older = input("Only runs older than (days)", "", {
-		type: "number",
-		min: 0,
-		max: 36500,
-		placeholder: "Any age",
-	});
-	const output = element("div", { class: "prune-output" });
-	let preview;
-	const params = () => ({
-		keep: Number(keep.value),
-		...(older.value !== "" ? { olderThanDays: Number(older.value) } : {}),
-	});
-	const remove = managementControl(
-		"Delete",
-		async () => {
-			const shown = preview;
-			preview = null;
-			remove.hidden = true;
-			const result = await managementWrite(projectRoute("prune"), "POST", {
-				...shown.params,
-				digest: shown.result.digest,
-			});
-			const deleted = (result.data.runs || []).filter((run) => run.deleted);
-			output.replaceChildren(
-				element(
-					"p",
-					{ role: "status", class: "prune-summary" },
-					`Deleted ${deleted.length} ${deleted.length === 1 ? "run" : "runs"}, freeing ${formatBytes(result.data.deletedBytes)}.`,
-				),
-				moreDetails("Full result", managementResult(result)),
-			);
-		},
-		output,
-		{ "data-management-action": "prune-delete", class: "danger" },
-	);
-	remove.hidden = true;
-	const invalidate = () => {
-		preview = null;
-		remove.hidden = true;
-	};
-	keep.addEventListener("input", invalidate);
-	older.addEventListener("input", invalidate);
-	const verdict = (run) =>
-		run.protected
-			? stateLabel("warn", "Kept, protected")
-			: run.selected
-				? stateLabel("err", "Will delete")
-				: stateLabel("muted", "Kept");
-	page.append(
-		managementPanel(
-			"Clean up old runs",
-			element(
-				"p",
-				{ class: "muted" },
-				"Delete finished runs you no longer need. Running runs and protected evidence are always kept, and you see exactly what goes before anything is deleted.",
-			),
-			element(
-				"div",
-				{ class: "management-fields" },
-				field("Keep the newest finished runs", keep),
-				field("Only runs older than (days)", older),
-			),
-			element(
-				"div",
-				{ class: "management-actions" },
-				managementControl(
-					"Preview",
-					async () => {
-						invalidate();
-						const selected = params();
-						const result = await managementWrite(
-							projectRoute("prune/preview"),
-							"POST",
-							selected,
-						);
-						preview = { params: selected, result };
-						const runs = [...(result.data.runs || [])].sort(
-							(a, b) =>
-								Number(b.selected && !b.protected) -
-									Number(a.selected && !a.protected) ||
-								String(b.updatedAt).localeCompare(String(a.updatedAt)),
-						);
-						const going = runs.filter((run) => run.selected && !run.protected);
-						const bytes = going.reduce((sum, run) => sum + (run.bytes || 0), 0);
-						// append() skips the empty parts (replaceChildren would print "null").
-						output.replaceChildren();
-						append(output, [
-							element(
-								"p",
-								{ role: "status", class: "prune-summary" },
-								going.length
-									? `${going.length} ${going.length === 1 ? "run" : "runs"} would be deleted, freeing ${formatBytes(bytes)}.${runs.length > going.length ? ` ${runs.length - going.length} kept.` : ""}`
-									: "Nothing to delete with these settings.",
-							),
-							runs.length
-								? propertyTable(
-										["Run", "Status", "Updated", "Size", ""],
-										runs.map((run) => [
-											runCell(run.runId),
-											humanize(run.status),
-											element(
-												"span",
-												{ title: run.updatedAt },
-												ago(run.updatedAt),
-											),
-											formatBytes(run.bytes),
-											verdict(run),
-										]),
-										{ class: "property-table prune" },
-									)
-								: null,
-							moreDetails("Full preview", managementResult(result)),
-						]);
-						remove.textContent = `Delete ${going.length} ${going.length === 1 ? "run" : "runs"}`;
-						remove.hidden = !result.ok || !going.length;
-					},
-					output,
-					{ "data-management-action": "prune-preview" },
-				),
-				remove,
-			),
-			output,
-			moreDetails(
-				"Same from the terminal",
-				commandHint(
-					"agent-workflow prune --keep <N> [--older-than <days>] [--yes]",
-				),
-			),
-		),
 	);
 }
 const EXECUTOR_STATES = {

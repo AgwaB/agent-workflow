@@ -2,6 +2,8 @@
 // Real Chrome, real dashboard routes and a probe-only fake executor: no model/agent CLI calls.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import test from "node:test";
 import {
 	managementProject,
@@ -72,7 +74,22 @@ async function clickText(browser, text) {
 		button.click();
 	}, text);
 }
-test("Chrome management: all five views, profile edit, check preview and prune preview; deep links and reduced motion", {
+// Finished runs older than the fixture's others, oldest first; returns their directories.
+async function persistOldRuns(cwd, count) {
+	const dirs = [];
+	for (let index = 0; index < count; index++) {
+		const at = new Date(Date.UTC(2025, 0, 1 + index)).toISOString();
+		const { dir } = await persistManagementRun(
+			cwd,
+			`workflow_ui_old_${String(index).padStart(2, "0")}`,
+			"completed",
+			{ createdAt: at, updatedAt: at },
+		);
+		dirs.push(dir);
+	}
+	return dirs;
+}
+test("Chrome management: the views, profile edit, check preview and the overview's needs and clean-up; deep links and reduced motion", {
 	timeout: 120000,
 }, async (t) => {
 	assert.ok(
@@ -104,7 +121,7 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 				(node) => node.textContent,
 			),
 		),
-		["Overview", "Runs", "Workflows", "Profiles", "Maintenance", "Executors"],
+		["Overview", "Runs", "Workflows", "Profiles", "Executors"],
 	);
 	await clickText(browser, "ui-profile");
 	await browser.waitFor(
@@ -195,64 +212,117 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 		true,
 	);
 	assert.equal(existsSync(p.effects), false, "check/probes never submit work");
+	// 2026-11-13 (owner: "too many choices"): no Maintenance view. A run stopped without a user stop
+	// is a need on the overview, dismissed with one click; old runs go with one confirmed button.
 	await persistManagementRun(p.cwd, "workflow_ui_stopped", "interrupted");
-	await browser.click('.management-nav a[href*="view=maintenance"]');
-	await browser.waitFor(
-		() => !!document.querySelector('[data-management-action="prune-preview"]'),
+	const userStop = await persistManagementRun(
+		p.cwd,
+		"workflow_ui_user_stop",
+		"interrupted",
 	);
-	// 2026-11-11 (owner): an unfinished run is a row with Dismiss; an empty reason is recorded as
-	// "Dismissed in the dashboard", and Show again brings the notice back.
-	await browser.waitFor(
-		() =>
-			!!document.querySelector('[data-notice-dismiss="workflow_ui_stopped"]'),
-	);
-	await browser.click('[data-notice-dismiss="workflow_ui_stopped"]');
+	userStop.run.tasks[0].statusDetail = "workflow_stopped";
+	await writeFile(join(userStop.dir, "run.json"), JSON.stringify(userStop.run));
+	const old = await persistOldRuns(p.cwd, 51);
+	await browser.click('.management-nav a:not([href*="view="])');
 	await browser.waitFor(
 		() =>
-			!document.querySelector('[data-notice-dismiss="workflow_ui_stopped"]') &&
-			document
-				.querySelector(".more-details")
-				?.textContent.includes("Dismissed in the dashboard"),
+			!!document.querySelector('.home-need[data-run="workflow_ui_stopped"]') &&
+			!!document.querySelector(".home-cleanup"),
 	);
-	await clickText(browser, "Show again");
+	assert.deepEqual(
+		await browser.evaluate(() =>
+			[...document.querySelectorAll(".home-need")].map((need) => [
+				need.dataset.run,
+				need.querySelector(".home-need-reason b").textContent,
+				[...need.querySelectorAll("button")].map((node) => node.textContent),
+			]),
+		),
+		[["workflow_ui_stopped", "Stopped unexpectedly", ["Inspect", "Dismiss"]]],
+		"the run the user stopped is not a need",
+	);
+	await clickText(browser, "Dismiss");
 	await browser.waitFor(
 		() =>
-			!!document.querySelector('[data-notice-dismiss="workflow_ui_stopped"]'),
+			!document.querySelector(".home-need") &&
+			!!document.querySelector('[data-home-key="restore"]'),
 	);
-	await set(browser, "Keep the newest finished runs", "0");
-	await browser.click('[data-management-action="prune-preview"]');
-	// 2026-11-11 (owner): the preview is a table of runs, each with what happens to it.
-	await browser.waitFor(() =>
-		document
-			.querySelector('[data-prune-run="workflow_ui_terminal"]')
-			?.closest("tr")
-			?.textContent.includes("Will delete"),
+	// The dismissal is the shared acknowledgement the host reminders read.
+	let acknowledged;
+	for (let tries = 0; tries < 50 && !acknowledged; tries++) {
+		acknowledged = (
+			await p.http(`${p.base}/notices`)
+		).data.data.acknowledgements.find(
+			(entry) => entry.runId === "workflow_ui_stopped" && entry.active,
+		);
+		if (!acknowledged) await new Promise((resolve) => setTimeout(resolve, 100));
+	}
+	assert.equal(acknowledged?.reason, "Dismissed in the dashboard");
+	await clickText(browser, "Show 1 dismissed");
+	await browser.waitFor(
+		() =>
+			!!document.querySelector('.home-need[data-run="workflow_ui_stopped"]'),
 	);
-	assert.match(
-		await browser.evaluate(
-			() => document.querySelector(".prune-summary").textContent,
+	// Clean up: the line names how many runs go; Delete asks once, with the list.
+	const line = await browser.evaluate(
+		() => document.querySelector(".home-cleanup p").textContent,
+	);
+	const count = Number(
+		/^(\d+) old runs? can be deleted \([\d.]+ (?:B|KB|MB)\)The newest 50 finished runs are kept\.$/.exec(
+			line,
+		)?.[1],
+	);
+	assert.ok(count > 0, line);
+	assert.equal(existsSync(old[0]), true, "showing the line deletes nothing");
+	await clickText(browser, "Clean up…");
+	await browser.waitFor(
+		() => !!document.querySelector(".home-cleanup.confirming"),
+	);
+	const listed = await browser.evaluate(() =>
+		[...document.querySelectorAll("[data-cleanup-run]")].map(
+			(node) => node.dataset.cleanupRun,
 		),
-		/^\d+ runs? would be deleted, freeing [\d.]+ (?:B|KB|MB)\./,
 	);
-	assert.equal(existsSync(terminal.dir), true, "preview never deletes");
-	assert.equal(
-		await browser.evaluate(
-			() =>
-				document.querySelector('[data-management-action="prune-delete"]')
-					.hidden,
-		),
-		false,
+	assert.equal(listed.length, count);
+	assert.ok(listed.includes("workflow_ui_old_00"), listed.join());
+	await clickText(browser, "Cancel");
+	await browser.waitFor(
+		() =>
+			!document.querySelector(".home-cleanup.confirming") &&
+			!!document.querySelector('[data-home-key="cleanup"]'),
 	);
-	await set(browser, "Keep the newest finished runs", "1");
-	assert.equal(
-		await browser.evaluate(
-			() =>
-				document.querySelector('[data-management-action="prune-delete"]')
-					.hidden,
-		),
-		true,
-		"editing parameters invalidates confirmation",
+	assert.equal(existsSync(old[0]), true, "Cancel deletes nothing");
+	await clickText(browser, "Clean up…");
+	// A preview that no longer matches (another host changed the runs) deletes nothing: the server
+	// answers 409 with the new list and the confirmation asks again.
+	await browser.evaluate(() => {
+		const original = window.fetch;
+		window.fetch = (url, options = {}) => {
+			if (!String(url).endsWith("/prune")) return original(url, options);
+			window.fetch = original;
+			const body = { ...JSON.parse(options.body), digest: "0".repeat(64) };
+			return original(url, { ...options, body: JSON.stringify(body) });
+		};
+	});
+	await clickText(browser, `Delete ${count} runs`);
+	await browser.waitFor(
+		() =>
+			/^The list changed/.test(
+				document.querySelector(".home-cleanup [role=alert]")?.textContent ?? "",
+			) && !!document.querySelector(".home-cleanup.confirming"),
 	);
+	assert.equal(existsSync(old[0]), true, "a changed preview deletes nothing");
+	await clickText(browser, `Delete ${count} runs`);
+	await browser.waitFor(
+		() =>
+			/^Deleted \d+ runs?, freeing /.test(
+				document.querySelector(".home-cleanup-done")?.textContent ?? "",
+			) && !document.querySelector(".home-cleanup"),
+	);
+	assert.equal(existsSync(old[0]), false, "the oldest run is gone");
+	assert.equal(existsSync(old.at(-1)), true, "the newest are kept");
+	// An old link to the Maintenance view opens the overview.
+	await navigate(browser, `${url}&view=maintenance`);
+	await browser.waitFor(() => !!document.querySelector("#home-view"));
 	await browser.click('.management-nav a[href*="view=executors"]');
 	await browser.waitFor(() =>
 		document
@@ -286,7 +356,7 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 				(link) => link.textContent,
 			),
 		),
-		["Overview", "Runs", "Workflows", "Profiles", "Maintenance", "Executors"],
+		["Overview", "Runs", "Workflows", "Profiles", "Executors"],
 	);
 	await browser.click('.management-nav a:not([href*="view="])');
 	await browser.waitFor(() => !!document.querySelector("#home-view"));
@@ -318,7 +388,14 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 		),
 		0,
 	);
-	assert.deepEqual(browser.errors, [], "no script, CSP or network errors");
+	assert.deepEqual(
+		// The one expected error: the 409 of the changed clean-up preview, above.
+		browser.errors.filter(
+			(error) => !(/ 409 /.test(error.text) && error.url?.endsWith("/prune")),
+		),
+		[],
+		"no script, CSP or network errors",
+	);
 	assert.equal(existsSync(p.effects), false);
 });
 
@@ -418,21 +495,16 @@ test("Chrome readonly management: navigation stays available and all action muta
 	const p = await managementProject(t, { readonly: true });
 	const browser = await createBrowser(chrome);
 	t.after(() => browser.close());
-	await navigate(
-		browser,
-		`${p.origin}/?project=${p.server.projectId}&view=maintenance`,
-		"maintenance",
-	);
+	// Read-only: no clean-up line, even with runs to clean up (the preview is a write route).
+	await persistOldRuns(p.cwd, 51);
+	await navigate(browser, `${p.origin}/?project=${p.server.projectId}`);
 	await browser.waitFor(
-		() => !!document.querySelector('[data-management-action="prune-preview"]'),
+		() => !!document.querySelector("#home-project .home-stats"),
 	);
+	await new Promise((resolve) => setTimeout(resolve, 500));
 	assert.equal(
-		await browser.evaluate(
-			() =>
-				document.querySelector('[data-management-action="prune-preview"]')
-					.disabled,
-		),
-		true,
+		await browser.evaluate(() => !!document.querySelector(".home-cleanup")),
+		false,
 	);
 	assert.equal(
 		await browser.evaluate(
@@ -483,7 +555,7 @@ test("Chrome readonly management: navigation stays available and all action muta
 
 // 2026-11-12 (owner, pass 2): no middle dot and no em dash in the dashboard's own text, on every
 // management page, read-write and read-only. An unknown value reads "n/a".
-test("Chrome management: no middle dot and no em dash in workflows, profiles, maintenance and executors", {
+test("Chrome management: no middle dot and no em dash in workflows, profiles, executors and the overview", {
 	timeout: 120000,
 }, async (t) => {
 	assert.ok(
@@ -502,7 +574,7 @@ test("Chrome management: no middle dot and no em dash in workflows, profiles, ma
 		const browser = await createBrowser(chrome);
 		t.after(() => browser.close());
 		const url = `${p.origin}/?project=${p.server.projectId}`;
-		for (const view of ["workflows", "profiles", "maintenance", "executors"]) {
+		for (const view of ["workflows", "profiles", "executors"]) {
 			await navigate(browser, `${url}&view=${view}`, view);
 			await browser.waitFor(
 				() =>
@@ -523,17 +595,28 @@ test("Chrome management: no middle dot and no em dash in workflows, profiles, ma
 		);
 		await openWorkflowCard(browser, "manage");
 		assert.deepEqual(await scanMarks(browser), [], "a workflow page");
-		// Maintenance with a stopped run's notice, its details open.
-		await navigate(browser, `${url}&view=maintenance`, "maintenance");
+		// The overview with a need and, read-write, the clean-up confirmation with its list open.
+		await persistOldRuns(p.cwd, 51);
+		await navigate(browser, url);
 		await browser.waitFor(
 			() =>
-				!!document.querySelector('[data-management-action="prune-preview"]'),
+				!!document.querySelector(".home-need") &&
+				!!document.querySelector("#home-project .home-stats"),
 		);
+		if (!readonly) {
+			await browser.waitFor(
+				() => !!document.querySelector('[data-home-key="cleanup"]'),
+			);
+			await clickText(browser, "Clean up…");
+			await browser.waitFor(
+				() => !!document.querySelector(".home-cleanup.confirming"),
+			);
+		}
 		await browser.evaluate(() =>
 			document
 				.querySelectorAll("details")
 				.forEach((details) => details.setAttribute("open", "")),
 		);
-		assert.deepEqual(await scanMarks(browser), [], "maintenance, opened");
+		assert.deepEqual(await scanMarks(browser), [], "overview, opened");
 	}
 });

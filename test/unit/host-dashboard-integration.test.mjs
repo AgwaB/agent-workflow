@@ -422,8 +422,7 @@ test("dashboard HTTP observes, streams and stops a real multi-task workflow", {
 	assert.ok(Date.now() - stoppingAt < 20_000);
 	const interrupted = await listed();
 	assert.equal(interrupted.status, "interrupted");
-	// Product question: projectNeedsYou only emits generic failed/blocked alerts,
-	// not interrupted alerts, although resuming an interrupted run needs a human.
+	// A run the user stopped is not a need (owner, 2026-11-13); one whose host closed is.
 	assert.deepEqual(interrupted.needsYou, []);
 	assert.deepEqual((await json(server, path)).needsYou, []);
 	// Check task text last so a projection regression cannot hide the lifecycle
