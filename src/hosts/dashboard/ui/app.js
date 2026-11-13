@@ -1807,20 +1807,32 @@ function edgeState(from, to) {
 	if (settledStage(to) || to.status === "interrupted") return "done";
 	return settledStage(from) || activeStage(from) ? "next" : "later";
 }
-function renderGraph() {
+function renderGraph(preview = null) {
+	const model = preview?.model || graphModel;
+	const layout = preview?.layout || state.layout;
+	const expandedCode = preview ? preview.showCode : showCode;
+	const views = preview?.views || graphViews;
+	const lineFor = preview?.describe || stageLine;
+	const openStage = preview?.select || chooseStage;
+	const selectedId = preview?.selected || selectedStage;
+	const prefix = preview ? "profile-flow-" : "";
 	// First drawing of this run in this tab: replay how the work travelled (cards and edges
 	// appear layer by layer). Redraws after a status change do not.
-	const replay = graphControl?.runId !== run.runId;
-	graphControl?.destroy();
-	const model = graphModel;
+	const replay = !preview && graphControl?.runId !== run.runId;
+	if (!preview) graphControl?.destroy();
 	// Each graph shape keeps its own view: showing the code steps fits the taller graph anew.
-	const viewKey = `${run.runId}:${state.layout}:${showCode}`;
-	const savedView = graphViews.get(viewKey);
-	const wrap = element("div", { class: "canvas", id: "canvas" });
+	const viewKey = `${preview ? preview.key : run.runId}:${layout}:${expandedCode}`;
+	const savedView = views.get(viewKey);
+	const wrap = element("div", {
+		class: preview ? "canvas profile-flow-canvas" : "canvas",
+		id: preview ? null : "canvas",
+	});
 	const drawing = svg("svg", {
 		class: "graph",
 		role: "group",
-		"aria-label": `Graph of ${run.name}. Arrow keys move between stages; Enter opens.`,
+		"aria-label": preview
+			? `Workflow ${preview.name} settings. Arrow keys move between stages; Enter edits.`
+			: `Graph of ${run.name}. Arrow keys move between stages; Enter opens.`,
 	});
 	const viewport = svg("g"),
 		edges = svg("g"),
@@ -1833,7 +1845,7 @@ function renderGraph() {
 		svg(
 			"pattern",
 			{
-				id: "failure-hatch",
+				id: `${prefix}failure-hatch`,
 				width: 5,
 				height: 5,
 				patternUnits: "userSpaceOnUse",
@@ -1848,7 +1860,7 @@ function renderGraph() {
 			svg(
 				"marker",
 				{
-					id: `arrow-${state}`,
+					id: `${prefix}arrow-${state}`,
 					class: `arrow ${state}`,
 					viewBox: "0 0 10 10",
 					refX: 8.5,
@@ -1865,7 +1877,7 @@ function renderGraph() {
 	drawing.append(defs, viewport);
 	wrap.append(drawing);
 	const positions = new Map(),
-		horizontal = state.layout === "lr";
+		horizontal = layout === "lr";
 	const widest = Math.max(...model.layers.map((layer) => layer.length));
 	const width = widest >= 4 ? 300 : widest === 3 ? 340 : 440;
 	let axis = 0;
@@ -1908,17 +1920,16 @@ function renderGraph() {
 			rails[layerOf.get(edge.from)],
 			rails[layerOf.get(edge.to) - 1],
 		);
-		const state = edgeState(
-			model.nodes.get(edge.from),
-			model.nodes.get(edge.to),
-		);
+		const state = preview
+			? "later"
+			: edgeState(model.nodes.get(edge.from), model.nodes.get(edge.to));
 		const link = svg(
 			"g",
 			{ class: `link ${state}`, "data-link": `${edge.from}>${edge.to}` },
 			svg("path", {
 				class: `edge ${state}`,
 				d,
-				"marker-end": `url(#arrow-${state})`,
+				"marker-end": `url(#${prefix}arrow-${state})`,
 				"data-edge": `${edge.from}>${edge.to}`,
 			}),
 			svg("circle", { class: `port ${state}`, cx: x1, cy: y1, r: 3 }),
@@ -1970,7 +1981,7 @@ function renderGraph() {
 							? "agent"
 							: null;
 		const node = svg("g", {
-			class: `node ${stage.status}${stage.ghost ? " ghost" : ""}${stage.kind === "support" ? " support" : ""}${group ? " group" : ""}${nextStage(stage) ? " next" : ""}`,
+			class: `node ${preview ? "settings" : stage.status}${stage.ghost ? " ghost" : ""}${stage.kind === "support" ? " support" : ""}${group ? " group" : ""}${!preview && nextStage(stage) ? " next" : ""}`,
 			transform: `translate(${p.x},${p.y})`,
 			tabindex: "0",
 			role: "button",
@@ -1978,7 +1989,11 @@ function renderGraph() {
 			...(group
 				? { "data-members": stage.members.map((s) => s.id).join(",") }
 				: {}),
-			"aria-label": `${group ? title : stage.name || stage.id}, ${labels[stage.status] || "Waiting"}${blockedCount ? `, ${blockedCount} actions blocked` : ""}`,
+			"aria-label": preview
+				? group
+					? `${title}, select a stage`
+					: `${stage.name || stage.id}, ${lineFor(stage)}`
+				: `${group ? title : stage.name || stage.id}, ${labels[stage.status] || "Waiting"}${blockedCount ? `, ${blockedCount} actions blocked` : ""}`,
 		});
 		node.append(
 			svg("rect", { class: "outline", width: p.w, height: p.h, rx: 10 }),
@@ -1991,7 +2006,9 @@ function renderGraph() {
 			),
 			// 2026-11-03 (owner): the graph shows the process; what agents concluded ("2 weaken ·
 			// 1 keep", "Needs work") stays in the card's text and in the result, not in its mark.
-			markIcon(stage.status, 12, 12),
+			preview
+				? kindIcon(stage.kind === "support" ? "code" : "agent", 12, 12)
+				: markIcon(stage.status, 12, 12),
 			svg(
 				"text",
 				{
@@ -2026,7 +2043,7 @@ function renderGraph() {
 			if (!node.contains(event.relatedTarget)) trace(null);
 		});
 		// The card opens its stage (a group card: its first stage; each row opens its own).
-		const open = () => chooseStage(group ? stage.members[0] : stage);
+		const open = () => openStage(group ? stage.members[0] : stage);
 		node.addEventListener("click", open);
 		node.addEventListener("keydown", (event) => {
 			if (["Enter", " "].includes(event.key)) {
@@ -2066,7 +2083,7 @@ function renderGraph() {
 					role: "button",
 					tabindex: "0",
 					"data-stage": member.id,
-					"aria-label": `${member.name || member.id}, ${labels[member.status] || "Waiting"}`,
+					"aria-label": `${member.name || member.id}, ${preview ? lineFor(member) : labels[member.status] || "Waiting"}`,
 				});
 				row.append(
 					svg("rect", {
@@ -2076,10 +2093,22 @@ function renderGraph() {
 						height: 25,
 						fill: "transparent",
 					}),
-					markIcon(member.status, 15, y - 11, 13),
+					preview
+						? kindIcon(
+								member.kind === "support" ? "code" : "agent",
+								15,
+								y - 11,
+								13,
+							)
+						: markIcon(member.status, 15, y - 11, 13),
 					svg(
 						"text",
-						{ x: 36, y, class: "agent-name", "data-fit": p.w - 150 },
+						{
+							x: 36,
+							y,
+							class: "agent-name",
+							"data-fit": preview ? p.w / 2 - 45 : p.w - 150,
+						},
 						humanize(name),
 					),
 					svg(
@@ -2090,48 +2119,56 @@ function renderGraph() {
 							class: "agent-state",
 							"text-anchor": "end",
 							"data-stage-line": member.id,
+							...(preview ? { "data-fit": p.w / 2 - 25 } : {}),
 						},
-						stageLine(member),
+						lineFor(member),
 					),
 				);
 				row.addEventListener("click", (event) => {
 					event.stopPropagation();
-					chooseStage(member);
+					openStage(member);
 				});
 				row.addEventListener("keydown", (event) => {
 					if (["Enter", " "].includes(event.key)) {
 						event.preventDefault();
 						event.stopPropagation();
-						chooseStage(member);
+						openStage(member);
 					}
 				});
 				node.append(row);
 			});
-			const barWidth = p.w - 92,
-				completedWidth = (stage.done / stage.members.length) * barWidth;
-			node.append(
-				svg("rect", {
-					x: 12,
-					y: p.h - 14,
-					width: barWidth,
-					height: 3,
-					rx: 1.5,
-					class: "track",
-				}),
-				svg("rect", {
-					x: 12,
-					y: p.h - 14,
-					width: completedWidth,
-					height: 3,
-					rx: 1.5,
-					class: "bar",
-				}),
-				svg(
-					"text",
-					{ x: p.w - 14, y: p.h - 10, "text-anchor": "end", class: "fraction" },
-					`${stage.done}/${stage.members.length}`,
-				),
-			);
+			if (!preview) {
+				const barWidth = p.w - 92,
+					completedWidth = (stage.done / stage.members.length) * barWidth;
+				node.append(
+					svg("rect", {
+						x: 12,
+						y: p.h - 14,
+						width: barWidth,
+						height: 3,
+						rx: 1.5,
+						class: "track",
+					}),
+					svg("rect", {
+						x: 12,
+						y: p.h - 14,
+						width: completedWidth,
+						height: 3,
+						rx: 1.5,
+						class: "bar",
+					}),
+					svg(
+						"text",
+						{
+							x: p.w - 14,
+							y: p.h - 10,
+							"text-anchor": "end",
+							class: "fraction",
+						},
+						`${stage.done}/${stage.members.length}`,
+					),
+				);
+			}
 			nodes.append(node);
 			continue;
 		}
@@ -2214,7 +2251,7 @@ function renderGraph() {
 						"data-fit": p.w - 48,
 						"data-stage-line": stage.id,
 					},
-					stageLine(stage),
+					lineFor(stage),
 				),
 			);
 		if (
@@ -2239,7 +2276,9 @@ function renderGraph() {
 							height: 5,
 							rx: 1,
 							class: `segment ${status} ${tone} stagger-${i % 6}`,
-							...(tone === "err" ? { fill: "url(#failure-hatch)" } : {}),
+							...(tone === "err"
+								? { fill: `url(#${prefix}failure-hatch)` }
+								: {}),
 							"data-segment": task.specId,
 							"aria-label": `${task.title || task.specId}, ${labels[status] || "Waiting"}${tone === "err" ? ", failed" : task.outcome?.status && task.outcome.tone !== "ok" ? `, ${task.outcome.status}` : ""}`,
 						},
@@ -2294,6 +2333,7 @@ function renderGraph() {
 		}
 		nodes.append(node);
 	}
+	let disposed = false;
 	let view = savedView ? { ...savedView } : { x: 0, y: 0, k: 1 },
 		dragged = null;
 	function bounds() {
@@ -2394,7 +2434,7 @@ function renderGraph() {
 		clamp();
 		view.width = wrap.clientWidth;
 		view.height = wrap.clientHeight;
-		graphViews.set(viewKey, { ...view });
+		views.set(viewKey, { ...view });
 		viewport.setAttribute(
 			"transform",
 			`translate(${view.x},${view.y}) scale(${view.k})`,
@@ -2557,7 +2597,10 @@ function renderGraph() {
 	wrap.addEventListener("pointerup", () => {
 		// 2026-11-04 (owner): a click on the empty canvas closes the open inspector (a stage, an
 		// agent or Run details); a drag only pans.
-		if (dragged && !dragged.moved && !$("inspector").hidden) closeInspector();
+		if (dragged && !dragged.moved) {
+			if (preview) preview.clear();
+			else if (!$("inspector").hidden) closeInspector();
+		}
 		dragged = null;
 	});
 	wrap.addEventListener("pointercancel", () => {
@@ -2572,8 +2615,8 @@ function renderGraph() {
 					type: "button",
 					class: "code-switch",
 					role: "switch",
-					"aria-checked": String(showCode),
-					title: showCode
+					"aria-checked": String(expandedCode),
+					title: expandedCode
 						? "Hide the steps the engine runs itself"
 						: "Show the steps the engine runs itself (no model)",
 				},
@@ -2583,13 +2626,13 @@ function renderGraph() {
 					"span",
 					{
 						class: "code-switch-count",
-						"data-short": showCode
+						"data-short": expandedCode
 							? `${model.codeSteps} shown`
 							: model.hiddenCode
 								? `${model.hiddenCode} hidden`
 								: "Code",
 					},
-					showCode
+					expandedCode
 						? `${model.codeSteps} code step${model.codeSteps === 1 ? "" : "s"} shown`
 						: model.hiddenCode
 							? `${model.hiddenCode} code step${model.hiddenCode === 1 ? "" : "s"} hidden`
@@ -2598,30 +2641,39 @@ function renderGraph() {
 				element(
 					"span",
 					{ class: "code-switch-action" },
-					showCode ? "Hide" : "Show",
+					expandedCode ? "Hide" : "Show",
 				),
 			),
 		);
-	wrap.querySelector(".code-switch")?.addEventListener("click", toggleCode);
+	wrap
+		.querySelector(".code-switch")
+		?.addEventListener("click", preview ? preview.toggleCode : toggleCode);
 	wrap.append(
 		element(
 			"div",
 			{ class: "toolbar", role: "toolbar", "aria-label": "Graph view" },
-			button([markIcon("fit"), "Fit"], fit, { title: "Fit graph (F)" }),
+			button([markIcon("fit"), "Fit"], fit, {
+				title: preview ? "Fit graph" : "Fit graph (F)",
+			}),
 			button("Focus", () => {
 				const id =
-					selectedStage() ||
+					selectedId() ||
 					[...model.nodes.values()].find((s) =>
 						["running", "retry", "blocked", "failed"].includes(s.status),
 					)?.id ||
-					[...model.nodes.keys()].at(-1);
+					(preview
+						? [...model.nodes.keys()][0]
+						: [...model.nodes.keys()].at(-1));
 				reveal(id, true);
 			}),
-			...viewButtons(),
-			button("?", openStatusKey, { "aria-label": "Status key" }),
+			...(preview ? preview.controls() : viewButtons()),
+			preview
+				? null
+				: button("?", openStatusKey, { "aria-label": "Status key" }),
 		),
 	);
 	function resize() {
+		if (disposed) return;
 		if (!view.manual) return fit();
 		view.x += (wrap.clientWidth - (view.width || wrap.clientWidth)) / 2;
 		view.y += (wrap.clientHeight - (view.height || wrap.clientHeight)) / 2;
@@ -2709,7 +2761,7 @@ function renderGraph() {
 		}
 	}
 	requestAnimationFrame(() => {
-		if (wrap.isConnected) {
+		if (!disposed && wrap.isConnected) {
 			resize();
 			observer.observe(wrap);
 			if (replay) playReplay();
@@ -2851,8 +2903,46 @@ function renderGraph() {
 			}
 		});
 	}
-	graphControl = {
+	function refreshSettings() {
+		if (!preview) return;
+		for (const text of nodes.querySelectorAll("[data-stage-line]")) {
+			const stage = model.stages.get(text.dataset.stageLine);
+			if (stage) {
+				text.dataset.full = lineFor(stage);
+				text.textContent = text.dataset.full;
+			}
+		}
+		const selected = selectedId();
+		const owner = model.owner.get(selected) || selected;
+		const related = preview.related();
+		for (const node of nodes.querySelectorAll(":scope > .node")) {
+			const stage = model.nodes.get(node.dataset.stage);
+			node.classList.toggle("selected", node.dataset.stage === owner);
+			node.classList.toggle(
+				"shared-setting",
+				stage.kind === "group"
+					? stage.members.some((member) => related.has(member.id))
+					: related.has(stage.id),
+			);
+			if (stage.kind !== "group")
+				node.setAttribute("aria-label", `${stage.id}, ${lineFor(stage)}`);
+		}
+		for (const row of nodes.querySelectorAll(".stage-row")) {
+			row.classList.toggle("selected", row.dataset.stage === selected);
+			row.classList.toggle(
+				"shared-setting",
+				row.dataset.stage !== selected && related.has(row.dataset.stage),
+			);
+			row.setAttribute(
+				"aria-label",
+				`${row.dataset.stage}, ${lineFor(model.stages.get(row.dataset.stage))}`,
+			);
+		}
+		if (wrap.isConnected && wrap.clientWidth) apply();
+	}
+	const control = {
 		destroy: () => {
+			disposed = true;
 			observer.disconnect();
 			for (const animation of packets) animation.cancel();
 		},
@@ -2860,7 +2950,12 @@ function renderGraph() {
 		reveal,
 		handoff,
 		morph,
+		refresh: refreshSettings,
 	};
+	if (preview) {
+		refreshSettings();
+		preview.control(control);
+	} else graphControl = control;
 	return wrap;
 }
 /** An inert, display-only copy of a card's previous content (no focus, events or hooks). */
@@ -3492,13 +3587,13 @@ function renderSelection() {
 	inspector.inert = !visible;
 	$("body").classList.toggle("inspecting", visible);
 	applyRail();
-	for (const node of document.querySelectorAll(".node"))
+	for (const node of $("canvas")?.querySelectorAll(".node") || [])
 		node.classList.toggle(
 			"selected",
 			node.dataset.stage === selectedStage() ||
 				(node.dataset.members?.split(",") ?? []).includes(selectedStage()),
 		);
-	for (const row of document.querySelectorAll(".stage-row"))
+	for (const row of $("canvas")?.querySelectorAll(".stage-row") || [])
 		row.classList.toggle("selected", row.dataset.stage === selectedStage());
 	markTimelineSelection();
 	if (!visible) return stopTaskLoads();
@@ -6394,7 +6489,7 @@ setInterval(() => {
 /** Live texts inside the drawn graph (stage lines of running/retry stages, agent states). */
 function refreshGraphTexts() {
 	if (!run) return;
-	for (const node of document.querySelectorAll("[data-stage-line]")) {
+	for (const node of $("canvas")?.querySelectorAll("[data-stage-line]") || []) {
 		const stage = graphModel?.stages.get(node.dataset.stageLine);
 		if (stage && ["running", "retry"].includes(stage.status)) {
 			const text = stageLine(stage);
@@ -6402,7 +6497,8 @@ function refreshGraphTexts() {
 			if (node.firstElementChild) node.firstElementChild.textContent = text;
 		}
 	}
-	for (const node of document.querySelectorAll("[data-agent-state]")) {
+	for (const node of $("canvas")?.querySelectorAll("[data-agent-state]") ||
+		[]) {
 		const task = run.tasks.find((t) => t.specId === node.dataset.agentState);
 		if (task) {
 			const text = agentState(task);
@@ -7788,6 +7884,7 @@ async function modelControls(
 	const exec = executorPicker.control,
 		model = modelPicker.control,
 		effort = effortPicker.control;
+	for (const control of [exec, model, effort]) control.disabled = readonly();
 	const note = element("small", { class: "muted" });
 	const effortNote = element("small", {
 		class: "muted",
@@ -7958,8 +8055,55 @@ export function profileRolePreview(key, roles = {}, context = {}) {
 	return { values, sources, ignored };
 }
 
-// The standard cards are available configuration slots, not a claim that a workflow runs all these roles.
-async function roleEditor(roles = {}, { getContext = () => ({}) } = {}) {
+/** Values in this profile layer, not a workflow/launch-time resolution. Keys come from the core slot collector. */
+export function profileSlotPreview(slot, roles = {}, context = {}) {
+	const keys = slot?.roleKeys || ["default"];
+	const entries = keys.map((key) => [
+		key,
+		profileRolePreview(key, roles, context),
+	]);
+	const common = context.common || {};
+	const executorEntry = entries.find(([, entry]) => entry.values.executor);
+	const values = {},
+		sources = {};
+	if (executorEntry) {
+		values.executor = executorEntry[1].values.executor;
+		sources.executor = executorEntry[0];
+	} else if (common.executor) {
+		values.executor = common.executor;
+		sources.executor = "Common";
+	}
+	for (const field of ["model", "effort"]) {
+		const found = entries.find(
+			([, entry]) =>
+				entry.values[field] !== undefined &&
+				(!entry.values.executor || entry.values.executor === values.executor),
+		);
+		if (found) {
+			values[field] = found[1].values[field];
+			sources[field] =
+				found[1].sources[field] === "Role override"
+					? found[0]
+					: found[1].sources[field];
+		} else if (!context.executor && common[field] !== undefined) {
+			values[field] = common[field];
+			sources[field] = "Common";
+		}
+	}
+	return { values, sources };
+}
+
+// The actual workflow diagram is the main editor. Unused/agent overrides remain under a folded selector.
+async function roleEditor(
+	roles = {},
+	{
+		getContext = () => ({}),
+		workflows = [],
+		initialWorkflow = "",
+		fixedWorkflow = false,
+		onWorkflowChange = () => {},
+	} = {},
+) {
 	const drafts = new Map(
 		Object.entries(roles).map(([id, value]) => [
 			id,
@@ -7971,20 +8115,38 @@ async function roleEditor(roles = {}, { getContext = () => ({}) } = {}) {
 			},
 		]),
 	);
-	const cards = element("div", {
-		class: "role-cards",
-		"aria-label": "Role assignments",
-	});
 	const panel = element("section", {
 		class: "role-inspector",
-		"aria-label": "Selected role settings",
+		"aria-label": "Selected stage settings",
 	});
-	const notice = element("p", { class: "role-map-note muted" });
+	const graphHost = element("div", { class: "profile-flow" });
 	const errors = element("div");
-	let selected = Object.keys(roles)[0] || "planning",
-		generation = 0,
-		agentId = 0;
-	let inheritance, heading;
+	const scopeNote = element("p", { class: "profile-scope-note muted" });
+	const picker = choices(
+		"Profile workflow",
+		[
+			["", "Choose a workflow"],
+			...workflows.map((entry) => [entry.name, entry.name]),
+		],
+		workflows.some((entry) => entry.name === initialWorkflow)
+			? initialWorkflow
+			: workflows[0]?.name || "",
+	);
+	const other = choices("Role to edit", [["", "Choose a role or agent"]]);
+	let selected = null,
+		currentStage = null,
+		currentSlot = null,
+		graph = null,
+		graphController = null;
+	let generation = 0,
+		workflowGeneration = 0,
+		agentId = 0,
+		disposed = false,
+		graphAbort;
+	let heading, inheritance;
+	let layout = "td",
+		expandedCode = false;
+	const views = new Map();
 	const keyOf = (draft) => (draft.agent ? `agent:${draft.name}` : draft.name);
 	const previewKey = (draft) =>
 		draft.agent && !draft.name ? draft.id : keyOf(draft);
@@ -7992,58 +8154,88 @@ async function roleEditor(roles = {}, { getContext = () => ({}) } = {}) {
 		Object.fromEntries(
 			[...drafts.values()].map((entry) => [previewKey(entry), entry.value]),
 		);
+	const keyFor = (id) => (drafts.has(id) ? previewKey(drafts.get(id)) : id);
+	const idFor = (key) =>
+		[...drafts.values()].find((entry) => keyOf(entry) === key)?.id || key;
 	const titleFor = (id) => {
-		const draft = drafts.get(id);
-		return draft?.agent
-			? `Agent: ${draft.name || "new agent"}`
-			: PROFILE_ROLES[id]?.[0] || id;
+		const draft = drafts.get(id),
+			key = draft ? keyOf(draft) : id;
+		return draft?.agent || key?.startsWith("agent:")
+			? `Agent: ${draft?.name || key.slice(6) || "new agent"}`
+			: PROFILE_ROLES[key]?.[0] || key;
 	};
-	const purposeFor = (id) =>
-		drafts.get(id)?.agent
-			? "Only stages using this agent"
-			: PROFILE_ROLES[id]?.[1] || "Custom role assignment";
 	const viewFor = (id) =>
-		profileRolePreview(
-			drafts.has(id) ? previewKey(drafts.get(id)) : id,
-			previewRoles(),
-			getContext(),
+		profileRolePreview(keyFor(id), previewRoles(), getContext());
+	// Topology stays fixed while fields change; do not rescan every task for every label.
+	const slotNodes = new Map(),
+		nodeSlots = new Map();
+	const indexSlots = () => {
+		slotNodes.clear();
+		nodeSlots.clear();
+		if (!graph) return;
+		const ids = [...new Set(graph.tasks.map((task) => task.stageId))].sort(
+			(a, b) => b.length - a.length,
 		);
+		for (const slot of graph.slots) {
+			const id = ids.find(
+				(id) =>
+					slot.id === id ||
+					slot.parentId === id ||
+					slot.id.startsWith(`${id}.`),
+			);
+			if (!id) continue;
+			slotNodes.set(slot.id, id);
+			if (!nodeSlots.has(id)) nodeSlots.set(id, []);
+			nodeSlots.get(id).push(slot);
+		}
+	};
+	const nodeForSlot = (slot) => slotNodes.get(slot.id);
+	const slotsFor = (id) => nodeSlots.get(id) || [];
+	const slotNow = () => graph?.slots.find((slot) => slot.id === currentSlot);
+	const related = () =>
+		new Set(
+			(graph?.slots || [])
+				.filter((slot) => selected && slot.roleKeys.includes(keyFor(selected)))
+				.map(nodeForSlot)
+				.filter(Boolean),
+		);
+	const slotView = (slot) =>
+		profileSlotPreview(slot, previewRoles(), getContext());
+	const describe = (stage) => {
+		const slots = slotsFor(stage.id);
+		if (!slots.length)
+			return stage.kind === "support"
+				? "Code step, no model"
+				: "Runtime container, no direct model";
+		const slot =
+			currentStage === stage.id
+				? slotNow() || slots[0]
+				: slots.find((entry) => entry.id === stage.id) || slots[0];
+		const view = slotView(slot);
+		return `${view.values.model || "Model inherited"}, ${view.values.effort || "effort inherited"}${stage.kind === "dynamic" ? " (dynamic)" : ""}`;
+	};
+	const panelTitle = () =>
+		currentStage
+			? humanize(
+					currentSlot && currentSlot !== currentStage
+						? currentSlot
+						: currentStage,
+				)
+			: titleFor(selected);
 	const selectRole = (id, focus = true) =>
 		select(id, focus).catch((error) => {
-			errors.replaceChildren(
-				element(
-					"p",
-					{ role: "alert", class: "management-error" },
-					error.message,
-				),
-			);
+			if (!disposed)
+				errors.replaceChildren(
+					element(
+						"p",
+						{ role: "alert", class: "management-error" },
+						error.message,
+					),
+				);
 		});
-	const fieldValue = (name, view) => {
-		const source = view.sources[name] || "Inherited";
-		const label =
-			{
-				"Role override": "Custom",
-				"Common setting": "Common",
-				"Executor default": "Default",
-			}[source] || source;
-		return element(
-			"span",
-			{ class: "role-fact", "data-role-field": name, "data-origin": source },
-			element(
-				"span",
-				{ class: "role-fact-label" },
-				name.charAt(0).toUpperCase() + name.slice(1),
-			),
-			element(
-				"span",
-				{ class: "role-fact-value" },
-				element("span", { title: source }, view.values[name] || "Inherited"),
-				view.values[name] ? element("small", { class: "faint" }, label) : null,
-			),
-		);
-	};
 	function refresh() {
-		const focused = document.activeElement?.dataset.roleCard;
+		if (disposed) return;
+		const focused = document.activeElement === other;
 		const ids = [
 			...new Set([
 				...Object.keys(PROFILE_ROLES),
@@ -8051,75 +8243,225 @@ async function roleEditor(roles = {}, { getContext = () => ({}) } = {}) {
 				...drafts.keys(),
 			]),
 		];
-		cards.replaceChildren(
-			...ids.map((id) => {
-				const view = viewFor(id);
-				const custom = drafts.has(id);
-				return button(
-					[
-						element(
-							"span",
-							{ class: "role-card-head" },
-							kindIcon("agent"),
-							element("strong", {}, titleFor(id)),
-							element(
-								"small",
-								{ class: "role-source" },
-								custom
-									? "Customized"
-									: view.sources.model || view.sources.effort || "Inherited",
-							),
-						),
-						element("span", { class: "role-purpose muted" }, purposeFor(id)),
-						element(
-							"span",
-							{ class: "role-facts" },
-							...["executor", "model", "effort"].map((field) =>
-								fieldValue(field, view),
-							),
-						),
-						view.ignored
-							? element(
-									"span",
-									{ class: "role-warning" },
-									`Not used by ${getContext().executor} defaults`,
-								)
-							: null,
-					],
-					() => selectRole(id),
-					{
-						class: "role-card",
-						"data-role-card": id,
-						"aria-label": `Edit ${titleFor(id)}`,
-						"aria-description": `${purposeFor(id)}. ${["executor", "model", "effort"].map((field) => `${field}: ${view.values[field] || "inherited"}${view.sources[field] ? ` (${view.sources[field]})` : ""}`).join(". ")}${view.ignored ? ". Other-executor assignment is not used by these defaults." : ""}`,
-						"aria-pressed": String(selected === id),
-					},
-				);
-			}),
+		other.replaceChildren(
+			element("option", { value: "" }, "Choose a role or agent"),
+			...ids.map((id) =>
+				element(
+					"option",
+					{ value: id },
+					`${titleFor(id)}${drafts.has(id) ? " (custom)" : ""}`,
+				),
+			),
 		);
-		if (focused)
-			cards
-				.querySelector(`[data-role-card="${CSS.escape(focused)}"]`)
-				?.focus({ preventScroll: true });
-		if (heading) heading.textContent = titleFor(selected);
+		other.value = ids.includes(selected) ? selected : "";
+		if (focused) other.focus({ preventScroll: true });
+		if (heading) heading.textContent = panelTitle();
 		const reset = panel.querySelector("[data-role-reset]");
 		if (reset) reset.disabled = readonly() || !drafts.has(selected);
-		if (inheritance) {
-			const view = viewFor(selected);
-			inheritance.replaceChildren(
+		if (inheritance && selected) {
+			const view = viewFor(selected),
+				slot = slotNow();
+			const inherited = slot ? slotView(slot) : view;
+			const fallback =
+				getContext().executor || !slot
+					? view
+					: slotView({
+							...slot,
+							roleKeys: slot.roleKeys.slice(
+								slot.roleKeys.indexOf(keyFor(selected)) + 1,
+							),
+						});
+			for (const [field, input] of [
+				...panel.querySelectorAll(".management-picker > input"),
+			].map((input) => [
+				input.getAttribute("aria-label")?.split(" ").at(-1)?.toLowerCase(),
+				input,
+			])) {
+				if (!input.value)
+					input.placeholder = fallback.values[field]
+						? `Inherit: ${fallback.values[field]}`
+						: "Inherited";
+			}
+			inheritance.textContent = view.ignored
+				? `This assignment is not used by ${getContext().executor} stage defaults.`
+				: "Empty fields inherit. Changes are saved only when you save.";
+			const targets = (graph?.slots || []).filter((entry) =>
+				entry.roleKeys.includes(keyFor(selected)),
+			);
+			scopeNote.textContent = `${titleFor(selected)}: ${targets.length} declared slot${targets.length === 1 ? "" : "s"} in ${related().size} stage${related().size === 1 ? "" : "s"}. More-specific agent settings can take precedence.`;
+			scopeNote.textContent += ` Model: ${inherited.sources.model || "inherited"}; effort: ${inherited.sources.effort || "inherited"}.`;
+		}
+		graphController?.refresh();
+	}
+	function clear() {
+		++generation;
+		selected = currentStage = currentSlot = null;
+		heading = inheritance = null;
+		panel.replaceChildren(
+			element(
+				"p",
+				{ class: "muted" },
+				"Select a node to edit its model settings.",
+			),
+		);
+		scopeNote.textContent = "";
+		refresh();
+	}
+	function chooseKey(slot) {
+		const own = previewRoles();
+		const agent = slot.roleKeys.find(
+			(key) => key.startsWith("agent:") && Object.hasOwn(own, key),
+		);
+		return agent || slot.profileRole || slot.roleKeys[0] || "default";
+	}
+	function chooseNode(stage) {
+		currentStage = stage.id;
+		const slots = slotsFor(stage.id);
+		if (!slots.length) {
+			++generation;
+			selected = currentSlot = null;
+			heading = inheritance = null;
+			panel.replaceChildren(
+				element("h3", { tabindex: "-1" }, humanize(stage.id)),
 				element(
-					"span",
-					{},
-					view.ignored
-						? `This assignment is not used by ${getContext().executor} stage defaults.`
-						: "Empty fields inherit; only filled fields change this role.",
+					"p",
+					{ class: "muted" },
+					"This step has no model settings. It runs code, not a model.",
 				),
 			);
+			panel.querySelector("h3").focus({ preventScroll: true });
+			panel.scrollIntoView({ block: "nearest" });
+			scopeNote.textContent = "";
+			refresh();
+			return;
 		}
-		const context = getContext();
-		notice.textContent = context.executor
-			? `Hints for ${context.executor} stage defaults. Built-in models can fall back to the CLI's settings; a named profile or workflow can override these.`
-			: "These are profile assignments, not an execution order. A workflow or launch setting can override them.";
+		currentSlot = slots.some((entry) => entry.id === currentSlot)
+			? currentSlot
+			: slots[0].id;
+		selectRole(idFor(chooseKey(slotNow())));
+	}
+	function draw() {
+		graphController?.destroy();
+		graphController = null;
+		if (!graph || disposed) return;
+		const projection = {
+			tasks: graph.tasks.map((task) => ({
+				...task,
+				status: "pending",
+				statusDetail: "pending",
+				placeholder: true,
+			})),
+		};
+		const model = deriveGraph(projection, {
+			hideCode: !expandedCode,
+			keep: currentStage,
+		});
+		const drawing = renderGraph({
+			model,
+			name: graph.name,
+			key: `${state.project}:${picker.value}`,
+			layout,
+			showCode: expandedCode,
+			views,
+			describe,
+			select: chooseNode,
+			selected: () => currentStage,
+			related,
+			clear,
+			control: (value) => {
+				graphController = value;
+			},
+			toggleCode: () => {
+				expandedCode = !expandedCode;
+				draw();
+				graphHost.querySelector(".code-switch")?.focus({ preventScroll: true });
+			},
+			controls: () =>
+				[
+					["td", "Top-down"],
+					["lr", "Left-right"],
+				].map(([value, name]) =>
+					button(
+						markIcon(value),
+						() => {
+							layout = value;
+							draw();
+							graphHost
+								.querySelector(`[aria-label="${name}"]`)
+								?.focus({ preventScroll: true });
+						},
+						{
+							"aria-label": name,
+							title: name,
+							"aria-pressed": String(layout === value),
+						},
+					),
+				),
+		});
+		graphHost.replaceChildren(drawing);
+	}
+	async function loadGraph() {
+		const token = ++workflowGeneration;
+		graphAbort?.abort();
+		graphAbort = new AbortController();
+		graphController?.destroy();
+		graphController = null;
+		graph = null;
+		clear();
+		onWorkflowChange(picker.value);
+		if (!picker.value) {
+			graphHost.replaceChildren(
+				element(
+					"p",
+					{ class: "empty" },
+					state.project
+						? "Choose a workflow to see its Run diagram."
+						: "Choose a project to see its workflows.",
+				),
+			);
+			return;
+		}
+		graphHost.replaceChildren(
+			element(
+				"p",
+				{ role: "status", class: "empty" },
+				"Loading workflow diagram…",
+			),
+		);
+		try {
+			const data = await managementApi(
+				projectRoute(`workflows/${encodeURIComponent(picker.value)}`),
+				{
+					signal: AbortSignal.any([
+						graphAbort.signal,
+						AbortSignal.timeout(150000),
+					]),
+				},
+			);
+			if (disposed || token !== workflowGeneration) return;
+			if (
+				data.graph?.error ||
+				!Array.isArray(data.graph?.tasks) ||
+				!Array.isArray(data.graph?.slots)
+			)
+				throw new Error(
+					data.graph?.error || "Workflow diagram is unavailable.",
+				);
+			graph = data.graph;
+			indexSlots();
+			draw();
+			refresh();
+		} catch (error) {
+			if (disposed || token !== workflowGeneration) return;
+			graphHost.replaceChildren(
+				element(
+					"p",
+					{ role: "alert", class: "management-error" },
+					error.message,
+				),
+				button("Try again", loadGraph, { "data-workflow-graph-retry": "" }),
+			);
+		}
 	}
 	async function select(id, focus = false) {
 		const token = ++generation;
@@ -8128,18 +8470,18 @@ async function roleEditor(roles = {}, { getContext = () => ({}) } = {}) {
 		panel.replaceChildren(
 			element(
 				"p",
-				{ class: "muted", role: "status" },
-				"Loading role settings…",
+				{ role: "status", class: "muted" },
+				"Loading model settings…",
 			),
 		);
-		const existing = drafts.get(id);
-		// A preset is a whole role entry at the API boundary. Seed the editor, but keep
-		// selection inert: only an actual field change registers this draft as an override.
+		const existing = drafts.get(id),
+			key = keyFor(id);
+		const agent = key?.startsWith("agent:");
 		const draft = existing || {
 			id,
-			name: id,
-			agent: false,
-			value: { ...(getContext().presetRoles?.[id] || {}) },
+			name: agent ? key.slice(6) : key,
+			agent,
+			value: { ...(getContext().presetRoles?.[key] || {}) },
 		};
 		let models;
 		try {
@@ -8149,7 +8491,7 @@ async function roleEditor(roles = {}, { getContext = () => ({}) } = {}) {
 				{ foldNotes: true },
 			);
 		} catch (error) {
-			if (token !== generation) return;
+			if (disposed || token !== generation) return;
 			panel.replaceChildren(
 				element(
 					"p",
@@ -8161,20 +8503,47 @@ async function roleEditor(roles = {}, { getContext = () => ({}) } = {}) {
 			refresh();
 			return;
 		}
-		if (token !== generation) return;
-		heading = element("h3", { tabindex: "-1" }, titleFor(id));
+		if (disposed || token !== generation) return;
+		heading = element("h3", { tabindex: "-1" }, panelTitle());
 		inheritance = element("p", { class: "role-inheritance muted" });
-		const name = draft.agent
-			? input("Agent name", draft.name, {
-					placeholder: "reviewer",
-					maxlength: 128,
-				})
+		const slot = slotNow(),
+			siblings = slotsFor(currentStage);
+		const slotPicker =
+			slot && (siblings.length > 1 || slot.id !== currentStage)
+				? choices(
+						"Profile stage slot",
+						siblings.map((entry) => [entry.id, entry.id]),
+						currentSlot,
+					)
+				: null;
+		if (slotPicker)
+			slotPicker.addEventListener("change", () => {
+				currentSlot = slotPicker.value;
+				selectRole(idFor(chooseKey(slotNow())));
+			});
+		const scope = slot
+			? choices(
+					"Profile setting scope",
+					slot.roleKeys.map((key) => [key, titleFor(idFor(key))]),
+					key,
+				)
 			: null;
+		if (scope)
+			scope.addEventListener("change", () => selectRole(idFor(scope.value)));
+		const name =
+			draft.agent && !currentStage
+				? input("Agent name", draft.name, {
+						placeholder: "reviewer",
+						maxlength: 128,
+						disabled: readonly(),
+					})
+				: null;
 		const update = () => {
-			if (token !== generation) return;
+			if (disposed || token !== generation) return;
 			if (name) draft.name = name.value;
 			draft.value = models.values();
-			if (draft.agent || Object.keys(draft.value).length) drafts.set(id, draft);
+			if (draft.explicit || Object.keys(draft.value).length)
+				drafts.set(id, draft);
 			else drafts.delete(id);
 			refresh();
 		};
@@ -8183,9 +8552,19 @@ async function roleEditor(roles = {}, { getContext = () => ({}) } = {}) {
 		name?.addEventListener("input", update);
 		panel.replaceChildren();
 		append(panel, [
-			element("span", { class: "role-panel-label faint" }, "Editing role"),
+			element(
+				"span",
+				{ class: "role-panel-label faint" },
+				currentStage ? "Selected stage" : "Other setting",
+			),
 			heading,
-			element("p", { class: "muted" }, purposeFor(id)),
+			slotPicker ? field("Declared stage / profile slot", slotPicker) : null,
+			scope
+				? field(
+						`Shared setting${related().size > 1 ? ` (${related().size} stages)` : ""}`,
+						scope,
+					)
+				: null,
 			name ? field("Agent name", name) : null,
 			models.node,
 			inheritance,
@@ -8193,7 +8572,8 @@ async function roleEditor(roles = {}, { getContext = () => ({}) } = {}) {
 				draft.agent ? "Remove agent override" : "Reset role",
 				() => {
 					drafts.delete(id);
-					selectRole(draft.agent ? "planning" : id);
+					if (draft.agent && !currentStage) clear();
+					else selectRole(id);
 				},
 				{ disabled: readonly(), class: "small", "data-role-reset": "" },
 			),
@@ -8222,57 +8602,118 @@ async function roleEditor(roles = {}, { getContext = () => ({}) } = {}) {
 		invalidId = undefined;
 		return out;
 	};
+	const extras = element(
+		"details",
+		{ class: "profile-other-roles" },
+		element("summary", {}, "Other role and agent settings"),
+		field("Role / agent", other),
+		managementControl(
+			"Add agent override",
+			async () => {
+				currentStage = currentSlot = null;
+				const id = `@agent-${++agentId}`;
+				drafts.set(id, {
+					id,
+					name: "",
+					agent: true,
+					explicit: true,
+					value: {},
+				});
+				await select(id, true);
+				panel.querySelector('[aria-label="Agent name"]')?.focus();
+			},
+			errors,
+			{ class: "small" },
+		),
+	);
+	other.addEventListener("change", () => {
+		currentStage = currentSlot = null;
+		if (other.value) selectRole(other.value);
+		else clear();
+	});
+	picker.addEventListener("change", loadGraph);
 	const node = element(
 		"div",
-		{ class: "visual-role-editor" },
+		{ class: "visual-role-editor workflow-role-editor" },
 		element(
 			"div",
-			{ class: "role-map-head" },
-			element("h2", {}, "Role assignments"),
-			managementControl(
-				"Add agent override",
-				async () => {
-					const id = `@agent-${++agentId}`;
-					drafts.set(id, { id, name: "", agent: true, value: {} });
-					await select(id, true);
-					panel.querySelector('[aria-label="Agent name"]')?.focus();
-				},
-				errors,
-				{ class: "small" },
-			),
+			{ class: "profile-flow-header" },
+			element("h2", {}, "Workflow settings"),
+			fixedWorkflow
+				? element("span", { class: "muted" }, picker.value)
+				: field("Workflow", picker),
 		),
+		element("div", { class: "profile-flow-layout" }, graphHost, panel),
+		scopeNote,
 		element(
 			"p",
-			{ class: "muted" },
-			"Select a card to change who handles that role.",
+			{ class: "role-map-note muted" },
+			"Profile settings on the workflow's Run diagram, not a running workflow. Workflow/launch overrides may win. Generated agents and loop iterations appear at runtime.",
 		),
-		element("div", { class: "role-map-layout" }, cards, panel),
-		notice,
+		extras,
 		errors,
 	);
-	await select(selected);
+	node.addEventListener("keydown", (event) => {
+		if (
+			event.defaultPrevented ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.altKey
+		)
+			return;
+		if (event.key === "Escape" && (currentStage || selected)) {
+			const stage = currentStage;
+			clear();
+			[...graphHost.querySelectorAll(".node, .stage-row")]
+				.find((item) => item.dataset.stage === stage)
+				?.focus({ preventScroll: true });
+			event.preventDefault();
+			event.stopPropagation();
+		} else if (
+			event.key.toLowerCase() === "f" &&
+			event.target.closest(".profile-flow")
+		) {
+			graphController?.fit();
+			event.preventDefault();
+			event.stopPropagation();
+		}
+	});
+	refresh();
+	clear();
+	void loadGraph();
 	return {
 		node,
 		values,
 		refresh,
 		contextChanged: () => {
 			refresh();
-			return selectRole(selected, false);
+			return selected ? selectRole(selected, false) : Promise.resolve();
 		},
 		focusInvalid: async () => {
-			if (invalidId !== undefined) {
-				const disclosure = node.closest("details");
-				if (disclosure) disclosure.open = true;
-				await select(invalidId, true);
-				(
-					panel.querySelector('[aria-label="Agent name"]') ||
-					panel.querySelector("input")
-				)?.focus();
-			}
+			if (invalidId === undefined) return;
+			const disclosure = node.closest("details");
+			if (disclosure) disclosure.open = true;
+			extras.open = true;
+			currentStage = currentSlot = null;
+			await select(invalidId, true);
+			(
+				panel.querySelector('[aria-label="Agent name"]') ||
+				panel.querySelector("input")
+			)?.focus();
+		},
+		destroy: () => {
+			disposed = true;
+			++generation;
+			++workflowGeneration;
+			graphAbort?.abort();
+			graphController?.destroy();
 		},
 	};
 }
+let managementCleanup = () => {};
 async function renderManagement() {
+	managementCleanup();
+	managementCleanup = () => {};
 	connection = "Live";
 	lastEvent = Date.now();
 	renderTop();
@@ -8656,11 +9097,20 @@ function roleTable(roles = {}) {
 }
 // Profiles (2026-11-13): a short list first, one editor at a time. Settings/API semantics stay as they are.
 async function renderProfiles(page) {
-	const [result, presets, preferences] = await Promise.all([
+	const [result, presets, preferences, catalog] = await Promise.all([
 		managementApi("/api/profiles"),
 		managementApi("/api/profiles/presets"),
 		managementApi("/api/workflow-preferences"),
+		state.project
+			? managementApi(projectRoute("workflows"))
+			: Promise.resolve({ data: { workflows: [] } }),
 	]);
+	if (!page.isConnected) return;
+	const workflows = catalog.data.workflows;
+	const roleEditors = new Set();
+	managementCleanup = () => {
+		for (const editor of roleEditors) editor.destroy();
+	};
 	page.classList.add("profiles-page");
 	page
 		.querySelector("h1 + p")
@@ -8852,6 +9302,12 @@ async function renderProfiles(page) {
 			readonly: !!profile.name,
 		});
 		const models = await modelControls(profile, "", { foldNotes: true });
+		const commonSummary = element("span", { class: "muted" });
+		const updateCommonSummary = () => {
+			const values = models.values();
+			commonSummary.textContent = ` ${values.model || "Inherited"}, ${values.effort || "Inherited"}`;
+		};
+		updateCommonSummary();
 		const permission = choices(
 			"Profile permission mode",
 			["", "free", "safe"],
@@ -8866,6 +9322,12 @@ async function renderProfiles(page) {
 				(entry) => entry.id === executorDefault?.builtIn,
 			)?.roles || {};
 		const roles = await roleEditor(profile.roles, {
+			workflows,
+			initialWorkflow: state.workflow,
+			onWorkflowChange: (name) => {
+				state.workflow = name || null;
+				urlState(true);
+			},
 			getContext: () => {
 				const selectedPreset = presets.data.presets.find(
 					(entry) => entry.id === preset.value,
@@ -8882,9 +9344,15 @@ async function renderProfiles(page) {
 				};
 			},
 		});
-		if (generation !== editGeneration || !page.isConnected) return;
+		if (generation !== editGeneration || !page.isConnected) {
+			roles.destroy();
+			return;
+		}
+		roleEditors.add(roles);
 		models.node.addEventListener("input", roles.refresh);
 		models.node.addEventListener("change", roles.refresh);
+		models.node.addEventListener("input", updateCommonSummary);
+		models.node.addEventListener("change", updateCommonSummary);
 		preset.addEventListener("change", roles.contextChanged);
 		const strict = input(
 			"Strict capabilities (comma separated)",
@@ -8988,18 +9456,16 @@ async function renderProfiles(page) {
 					: profile.name
 						? `Edit ${profile.name}`
 						: "New profile",
+				!profile.name ? field("Name", id) : null,
 				element(
-					"p",
-					{ class: "muted" },
-					executorDefault
-						? "Leave a field empty to keep the built-in setting. Changes affect future runs, not existing ones."
-						: "Leave a field empty to use the executor's defaults. Changes affect future runs.",
-				),
-				element(
-					"section",
+					"details",
 					{ class: "profile-common", "aria-label": "Common settings" },
-					element("h3", {}, "Common settings"),
-					!profile.name ? field("Name", id) : null,
+					element("summary", {}, "Common settings", commonSummary),
+					element(
+						"p",
+						{ class: "muted" },
+						"Empty fields inherit. Changes affect future runs, not existing ones.",
+					),
 					models.node,
 				),
 				roles.node,
@@ -9085,7 +9551,7 @@ async function renderProfiles(page) {
 		editor.hidden = false;
 		page.scrollIntoView({ block: "start" });
 		(profile.name
-			? editor.querySelector('[aria-label="Executor"]')
+			? editor.querySelector('[aria-label="Profile workflow"]')
 			: id
 		)?.focus();
 	}
@@ -9142,8 +9608,6 @@ async function renderProfiles(page) {
 		);
 		return;
 	}
-	const workflows = (await managementApi(projectRoute("workflows"))).data
-		.workflows;
 	if (!workflows.length) {
 		prefPanel.append(
 			element("p", { class: "muted" }, "No workflows in this project."),
@@ -9180,8 +9644,14 @@ async function renderProfiles(page) {
 	updatePreferenceCount();
 	prefPanel.append(field("Workflow", chooser), prefEditor, prefOutput);
 	let preferenceGeneration = 0;
+	let preferenceEditor;
 	chooser.addEventListener("change", async () => {
 		const generation = ++preferenceGeneration;
+		if (preferenceEditor) {
+			preferenceEditor.destroy();
+			roleEditors.delete(preferenceEditor);
+			preferenceEditor = null;
+		}
 		const name = chooser.value;
 		prefEditor.replaceChildren();
 		prefOutput.replaceChildren();
@@ -9196,8 +9666,17 @@ async function renderProfiles(page) {
 					placeholder: "Declared profile, saved profile or preset",
 				},
 			);
-			const roles = await roleEditor(current.roles);
-			if (generation !== preferenceGeneration || !page.isConnected) return;
+			const roles = await roleEditor(current.roles, {
+				workflows: workflows.filter((entry) => entry.name === name),
+				initialWorkflow: name,
+				fixedWorkflow: true,
+			});
+			if (generation !== preferenceGeneration || !page.isConnected) {
+				roles.destroy();
+				return;
+			}
+			preferenceEditor = roles;
+			roleEditors.add(roles);
 			prefEditor.replaceChildren(
 				field("Profile", profile),
 				moreDetails("Role overrides", roles.node),
@@ -9243,6 +9722,8 @@ async function renderProfiles(page) {
 						"Clear workflow preference",
 						async () => {
 							await managementWrite(path, "DELETE");
+							roles.destroy();
+							roleEditors.delete(roles);
 							configured.delete(name);
 							updatePreferenceCount();
 							if (generation !== preferenceGeneration || !page.isConnected)

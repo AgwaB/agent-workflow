@@ -36,6 +36,8 @@ async function set(browser, label, value) {
 		(label, value) => {
 			const field = document.querySelector(`[aria-label="${label}"]`);
 			if (!field) throw new Error(`Missing field ${label}`);
+			const details = field.closest("details");
+			if (details) details.open = true;
 			field.value = value;
 			field.dispatchEvent(new Event("input", { bubbles: true }));
 			field.dispatchEvent(new Event("change", { bubbles: true }));
@@ -63,6 +65,13 @@ async function edit(browser, name) {
 	await browser.waitFor(
 		() => !!document.querySelector('[data-management-action="save-profile"]'),
 	);
+}
+async function selectRole(browser, key) {
+	await browser.evaluate(() => {
+		document.querySelector(".profile-other-roles").open = true;
+	});
+	await set(browser, "Role to edit", key);
+	await browser.waitFor(() => !!document.querySelector(".role-inspector h3"));
 }
 async function save(browser) {
 	await browser.click('[data-management-action="save-profile"]');
@@ -134,7 +143,7 @@ test("Profiles: compact landing, focused editing, Cancel and hidden values prese
 		{
 			overviewHidden: true,
 			advancedOpen: false,
-			visibleFields: ["Executor", "Model", "Effort"],
+			visibleFields: [],
 		},
 	);
 	await set(p.browser, "Effort", "high");
@@ -153,6 +162,7 @@ test("Profiles: compact landing, focused editing, Cancel and hidden values prese
 	assert.deepEqual(after.strictCapabilities, ["readOnly"]);
 	assert.deepEqual(after.roles, values.roles);
 	await edit(p.browser, "daily");
+	await selectRole(p.browser, "verification");
 	await click(p.browser, "Reset role");
 	await save(p.browser);
 	assert.equal(
@@ -161,6 +171,7 @@ test("Profiles: compact landing, focused editing, Cancel and hidden values prese
 		"a removed role is explicitly unset",
 	);
 	await edit(p.browser, "daily");
+	await p.browser.click(".profile-other-roles > summary");
 	await click(p.browser, "Add agent override");
 	await p.browser.waitFor(
 		() => !!document.querySelector('[aria-label="Agent name"]'),
@@ -201,10 +212,7 @@ test("Profiles: presets, default/clear and deletion stay available inside the ed
 	await set(p.browser, "Profile name", "mixed-review");
 	await p.browser.click(".profile-advanced > summary");
 	await set(p.browser, "Profile preset", "mixed");
-	await p.browser.click('[data-role-card="verification"]');
-	await p.browser.waitFor(
-		() => !!document.querySelector('[aria-label="Role verification Model"]'),
-	);
+	await selectRole(p.browser, "verification");
 	await set(p.browser, "Role verification Model", "manual/preset-model");
 	await save(p.browser);
 	assert.equal(
@@ -220,16 +228,12 @@ test("Profiles: presets, default/clear and deletion stay available inside the ed
 	await edit(p.browser, "mixed-review");
 	await p.browser.click(".profile-advanced > summary");
 	await set(p.browser, "Profile preset", "mixed");
-	await p.browser.click('[data-role-card="verification"]');
-	await p.browser.waitFor(
-		() => !!document.querySelector('[aria-label="Role verification Executor"]'),
-	);
+	await selectRole(p.browser, "verification");
 	await p.browser.click("[data-role-reset]");
-	await p.browser.waitFor(
-		() =>
-			document.querySelector(
-				'[data-role-card="verification"] [data-role-field="model"]',
-			)?.dataset.origin === "Preset",
+	await p.browser.waitFor(() =>
+		document
+			.querySelector(".profile-scope-note")
+			?.textContent.includes("Model: Preset"),
 	);
 	await save(p.browser);
 	assert.deepEqual((await profile(p.ctx, "mixed-review")).roles.verification, {
@@ -301,10 +305,7 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 	);
 	await set(p.browser, "Workflow preferred profile", "mixed");
 	await p.browser.click(".profile-preferences .more-details > summary");
-	await p.browser.click('[data-role-card="verification"]');
-	await p.browser.waitFor(
-		() => !!document.querySelector('[aria-label="Role verification Executor"]'),
-	);
+	await selectRole(p.browser, "verification");
 	await set(p.browser, "Role verification Executor", "claude");
 	await set(p.browser, "Role verification Effort", "high");
 	await click(p.browser, "Save workflow preference");

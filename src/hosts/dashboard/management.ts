@@ -26,6 +26,7 @@ import {
 } from "../user-profiles.js";
 import type { HostApiContext } from "../types.js";
 import { validRunId } from "./security.js";
+import { workflowSettingsGraph } from "./workflow-graph.js";
 
 export class DashboardHttpError extends Error {
 	constructor(
@@ -300,6 +301,7 @@ export function createDashboardManagement(options: Options) {
 						spec,
 						roles: await workflowRolesAction(selected, { workflow: ref }),
 						validation: await validate(),
+						graph: await workflowSettingsGraph(selected, ref),
 					});
 				}
 				if (parts.length === 6 && parts[5] === "check" && method === "POST") {

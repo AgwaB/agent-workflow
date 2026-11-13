@@ -2638,12 +2638,16 @@ button.profile-row {
 }
 .profile-common {
 	margin-top: 16px;
-	padding: 16px;
+	padding: 12px;
 	border: 1px solid var(--line);
 	border-radius: var(--radius);
 }
-.profile-common > h3 {
-	margin: 0 0 12px;
+.profile-common > summary {
+	font-size: 14px;
+	overflow-wrap: anywhere;
+}
+.profile-common > summary > span {
+	font-weight: 400;
 }
 .management-fields > .model-availability {
 	grid-column: 1 / -1;
@@ -2658,105 +2662,77 @@ button.profile-row {
 .visual-role-editor {
 	margin-top: 24px;
 }
-.role-map-head {
+.profile-flow-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	flex-wrap: wrap;
 	gap: 12px;
 }
-.role-map-head h2 {
+.profile-flow-header h2 {
 	margin: 0;
 	font-size: 16px;
 }
-.role-map-layout {
+.profile-flow-header > label {
+	width: min(100%, 300px);
+	min-width: 0;
+}
+.profile-flow-layout {
 	display: grid;
-	grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+	grid-template-columns: minmax(0, 1fr) 300px;
 	align-items: start;
 	gap: 16px;
 	margin-top: 12px;
 }
-.role-cards {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 10px;
+.profile-flow {
+	--profile-flow-height: clamp(440px, calc(100vh - 420px), 700px);
 	min-width: 0;
-}
-button.role-card {
-	display: flex;
-	flex-direction: column;
-	align-items: stretch;
-	justify-content: flex-start;
-	gap: 8px;
-	width: 100%;
-	min-width: 0;
-	margin: 0;
-	padding: 12px;
+	min-height: var(--profile-flow-height);
 	border: 1px solid var(--line);
 	border-radius: var(--radius);
-	background: none;
-	font-size: 14px;
-	font-weight: 400;
-	text-align: left;
+	overflow: hidden;
 }
-.role-card:hover:not(:disabled),
-.role-card[aria-pressed="true"] {
-	border-color: var(--text);
-	background: var(--surface);
+.profile-flow-canvas {
+	height: var(--profile-flow-height);
+	min-height: 440px;
 }
-.role-card-head {
-	display: flex;
-	align-items: flex-start;
+.profile-flow .toolbar {
+	left: 12px;
+	bottom: 12px;
 	gap: 6px;
-	width: 100%;
 }
-.role-card-head > .kind-icon {
-	flex: none;
+.profile-flow .code-switch {
+	left: 12px;
+	top: 12px;
+	max-width: calc(100% - 24px);
 }
-.role-card-head strong {
-	font-weight: 500;
-	overflow-wrap: anywhere;
-}
-.role-source {
-	margin-left: auto;
-	font-size: 12px;
-	color: var(--faint);
-}
-.role-purpose {
-	font-size: 13px;
-}
-.role-facts {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr);
-	gap: 5px;
-	width: 100%;
+.profile-flow :is(.toolbar button, .code-switch, .more) {
 	margin: 0;
-	font-size: 13px;
 }
-.role-fact {
-	display: grid;
-	grid-template-columns: 54px minmax(0, 1fr);
-	gap: 8px;
+.profile-flow .node.settings .outline {
+	stroke-dasharray: none;
 }
-.role-fact-label {
-	color: var(--faint);
+.profile-flow .node.shared-setting:not(.selected) .outline {
+	stroke: var(--muted);
+	stroke-dasharray: 3 3;
 }
-.role-fact-value {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: baseline;
-	gap: 3px 6px;
-	min-width: 0;
-	overflow-wrap: anywhere;
+.profile-flow .stage-row.selected > rect {
+	fill: var(--surface);
+	stroke: var(--line2);
 }
-.role-fact-value > span {
-	min-width: 0;
-}
-.role-fact-value small {
-	margin-left: auto;
-	font-size: 12px;
-}
-.role-fact[data-origin="Role override"] .role-fact-value > span {
+.profile-flow .stage-row.selected .agent-name {
 	font-weight: 600;
+}
+.profile-flow .stage-row.shared-setting > rect {
+	stroke: var(--muted);
+	stroke-dasharray: 3 3;
+}
+.profile-flow .edge.later {
+	stroke: var(--faint);
+	stroke-dasharray: none;
+}
+.profile-flow .arrow.later path {
+	fill: var(--faint);
 }
 .role-inspector {
 	min-width: 0;
@@ -2768,28 +2744,36 @@ button.role-card {
 .role-inspector > h3 {
 	margin: 4px 0 8px;
 	font-size: 16px;
+	overflow-wrap: anywhere;
 }
 .role-inspector .management-fields {
 	grid-template-columns: minmax(0, 1fr);
 }
-.role-panel-label,
-.role-warning {
+.role-panel-label {
 	font-size: 12px;
 }
 .role-inheritance,
-.role-map-note {
+.role-map-note,
+.profile-scope-note {
 	font-size: 13px;
+	overflow-wrap: anywhere;
 }
 .role-map-note {
 	margin-top: 12px;
 }
-@media (max-width: 850px) {
-	.role-map-layout {
-		grid-template-columns: minmax(0, 1fr);
-	}
+.profile-other-roles {
+	margin-top: 16px;
 }
-@media (max-width: 540px) {
-	.role-cards {
+.profile-other-roles > summary {
+	font-size: 14px;
+	color: var(--muted);
+}
+.profile-other-roles > label {
+	max-width: 360px;
+	margin: 12px 0;
+}
+@media (max-width: 1100px) {
+	.profile-flow-layout {
 		grid-template-columns: minmax(0, 1fr);
 	}
 }

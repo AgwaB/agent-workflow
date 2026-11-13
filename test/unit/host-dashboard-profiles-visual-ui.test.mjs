@@ -7,16 +7,21 @@ import { profileAction } from "../../dist/hosts/catalog.js";
 import { executorPreset } from "../../dist/core/executor-presets.js";
 import { overlayExecutorProfile } from "../../dist/core/executor-policy.js";
 import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
-import { managementProject } from "../helpers/dashboard-management.mjs";
+import {
+	managementProject,
+	persistManagementRun,
+} from "../helpers/dashboard-management.mjs";
+import { profileGraphFixtures } from "../helpers/dashboard-profile-graph.mjs";
 import { scanMarks } from "../helpers/dashboard-marks.mjs";
 
 const chrome = await findChrome();
-async function open(t) {
+async function open(t, options = {}) {
 	assert.ok(chrome, "Chrome is required");
-	const p = await managementProject(t);
+	const p = await managementProject(t, options);
+	await profileGraphFixtures(p.cwd);
 	const browser = await createBrowser(chrome);
 	t.after(() => browser.close());
-	const url = `${p.origin}/?project=${p.server.projectId}&view=profiles`;
+	const url = `${p.origin}/?project=${p.server.projectId}&view=profiles&workflow=model-flow`;
 	return { ...p, browser, url };
 }
 async function list(p) {
@@ -45,6 +50,8 @@ async function set(browser, label, value) {
 		(label, value) => {
 			const field = document.querySelector(`[aria-label="${label}"]`);
 			if (!field) throw new Error(`Missing field: ${label}`);
+			const details = field.closest("details");
+			if (details) details.open = true;
 			field.value = value;
 			field.dispatchEvent(new Event("input", { bubbles: true }));
 			field.dispatchEvent(new Event("change", { bubbles: true }));
@@ -54,7 +61,34 @@ async function set(browser, label, value) {
 	);
 }
 async function select(browser, key) {
-	await browser.click(`[data-role-card="${key}"]`);
+	const stage = {
+		planning: "plan",
+		verification: "verify-a",
+		synthesis: "combine",
+		"final-judgment": "final",
+		default: "plan",
+	}[key];
+	if (stage) {
+		await browser.waitFor(
+			() => !!document.querySelector(".profile-flow .node"),
+		);
+		await browser.click(`.profile-flow [data-stage="${stage}"]`);
+		await browser.waitFor(() => !!document.querySelector(".role-inspector h3"));
+		await browser.evaluate((key) => {
+			const scope = document.querySelector(
+				'[aria-label="Profile setting scope"]',
+			);
+			if (scope && scope.value !== key) {
+				scope.value = key;
+				scope.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+		}, key);
+	} else {
+		await browser.evaluate(() => {
+			document.querySelector(".profile-other-roles").open = true;
+		});
+		await set(browser, "Role to edit", key);
+	}
 	await browser.waitFor(() => !!document.querySelector(".role-inspector h3"));
 }
 async function save(p) {
@@ -186,7 +220,7 @@ test("Profiles detail: Back/Cancel, browser Back/Forward, reload and direct link
 	assert.equal(existsSync(p.effects), false);
 });
 
-test("Profiles visual map: selecting is inert, role/agent changes stay local, reset and narrow keyboard editing", {
+test("Profiles Run diagram: selecting is inert, scoped role/agent changes stay local, reset and narrow keyboard editing", {
 	timeout: 120000,
 }, async (t) => {
 	const p = await open(t);
@@ -204,44 +238,35 @@ test("Profiles visual map: selecting is inert, role/agent changes stay local, re
 	await profileAction(p.ctx, { op: "set", name: "daily", values: original });
 	await list(p);
 	await edit(p.browser, "daily");
+	await p.browser.waitFor(
+		() => !!document.querySelector('.profile-flow .node[data-stage="plan"]'),
+	);
 	assert.deepEqual(
 		await p.browser.evaluate(() => ({
-			cards: [
-				...document.querySelectorAll(".profile-editor [data-role-card]"),
-			].map((node) => node.dataset.roleCard),
+			cards: document.querySelectorAll("[data-role-card]").length,
 			common: document.querySelector('.profile-common [aria-label="Model"]')
 				.value,
-			verification: [
-				...document.querySelectorAll(
-					'[data-role-card="verification"] .role-fact-value > span',
-				),
-			].map((node) => node.textContent),
-			arrows: document.querySelectorAll(
-				".visual-role-editor .edge, .visual-role-editor marker",
+			collapsed: !document.querySelector(".profile-common").open,
+			plan: document.querySelector('[data-stage-line="plan"]').textContent,
+			verification: document.querySelector('[data-stage-line="verify-a"]')
+				.textContent,
+			edges: document.querySelectorAll(".profile-flow .edge").length,
+			runtimeBars: document.querySelectorAll(
+				".profile-flow .bar, .profile-flow .fraction",
 			).length,
-			factsStacked: [...document.querySelectorAll(".role-facts")].every(
-				(node) =>
-					getComputedStyle(node).gridTemplateColumns.split(/\s+/).length === 1,
-			),
 			barePanelText: [...document.querySelector(".role-inspector").childNodes]
 				.filter((node) => node.nodeType === Node.TEXT_NODE)
 				.map((node) => node.textContent.trim())
 				.filter(Boolean),
 		})),
 		{
-			cards: [
-				"default",
-				"planning",
-				"research-execution",
-				"synthesis",
-				"verification",
-				"final-judgment",
-				"agent:reader",
-			],
+			cards: 0,
 			common: "fixture-model",
-			verification: ["claude", "sonnet", "high"],
-			arrows: 0,
-			factsStacked: true,
+			collapsed: true,
+			plan: "custom/model-id, max",
+			verification: "custom/model-id, max",
+			edges: 3,
+			runtimeBars: 0,
 			barePanelText: [],
 		},
 	);
@@ -251,17 +276,23 @@ test("Profiles visual map: selecting is inert, role/agent changes stay local, re
 	assert.deepEqual(
 		after.roles,
 		original.roles,
-		"selecting unconfigured cards must not write empty/explicit role entries",
+		"selecting unconfigured nodes/scopes must not write empty role entries",
 	);
 	await edit(p.browser, "daily");
 	await select(p.browser, "verification");
 	await set(p.browser, "Role verification Model", "manual/new-model");
 	assert.match(
 		await p.browser.evaluate(
-			() =>
-				document.querySelector('[data-role-card="verification"]').textContent,
+			() => document.querySelector('[data-stage-line="verify-a"]').textContent,
 		),
-		/manual\/new-model/,
+		/custom\/model-id/,
+		"the more-specific agent model still wins",
+	);
+	assert.match(
+		await p.browser.evaluate(
+			() => document.querySelector(".profile-scope-note").textContent,
+		),
+		/Model: agent:reader/,
 	);
 	after = await save(p);
 	assert.equal(after.roles.verification.model, "manual/new-model");
@@ -284,11 +315,12 @@ test("Profiles visual map: selecting is inert, role/agent changes stay local, re
 		effort: "high",
 	});
 	await edit(p.browser, "daily");
-	await p.browser.evaluate(() =>
+	await p.browser.evaluate(() => {
+		document.querySelector(".profile-other-roles").open = true;
 		[...document.querySelectorAll(".visual-role-editor button")]
 			.find((node) => node.textContent === "Add agent override")
-			.click(),
-	);
+			.click();
+	});
 	await p.browser.waitFor(
 		() => !!document.querySelector('[aria-label="Agent name"]'),
 	);
@@ -318,7 +350,9 @@ test("Profiles visual map: selecting is inert, role/agent changes stay local, re
 		effort: "high",
 	});
 	await edit(p.browser, "daily");
-	// Hold A's real model response while B finishes, then release A: stale selection must not win.
+	await p.browser.waitFor(
+		() => !!document.querySelector('.profile-flow .node[data-stage="plan"]'),
+	);
 	await p.browser.evaluate(() => {
 		const original = window.fetch;
 		window.fetch = async (...args) => {
@@ -335,7 +369,7 @@ test("Profiles visual map: selecting is inert, role/agent changes stay local, re
 			return original(...args);
 		};
 	});
-	await p.browser.click('[data-role-card="planning"]');
+	await p.browser.click('.profile-flow .node[data-stage="plan"]');
 	await p.browser.waitFor(() => !!window.releaseRoleModels);
 	await select(p.browser, "verification");
 	await p.browser.evaluate(() => window.releaseRoleModels());
@@ -349,9 +383,8 @@ test("Profiles visual map: selecting is inert, role/agent changes stay local, re
 		await p.browser.evaluate(
 			() => document.querySelector(".role-inspector h3")?.textContent,
 		),
-		"Verification",
+		"Verify a",
 	);
-	// A recoverable catalog failure must be an error+Retry, not an endless Loading status.
 	await p.browser.evaluate(() => {
 		const original = window.fetch;
 		window.fetch = async (...args) => {
@@ -362,7 +395,7 @@ test("Profiles visual map: selecting is inert, role/agent changes stay local, re
 			return original(...args);
 		};
 	});
-	await p.browser.click('[data-role-card="synthesis"]');
+	await p.browser.click('.profile-flow .node[data-stage="combine"]');
 	await p.browser.waitFor(
 		() =>
 			document.querySelector('.role-inspector [role="alert"]')?.textContent ===
@@ -377,7 +410,7 @@ test("Profiles visual map: selecting is inert, role/agent changes stay local, re
 	await p.browser.click("[data-role-retry]");
 	await p.browser.waitFor(
 		() =>
-			document.querySelector(".role-inspector h3")?.textContent === "Synthesis",
+			document.querySelector(".role-inspector h3")?.textContent === "Combine",
 	);
 	await p.browser.send("Emulation.setDeviceMetricsOverride", {
 		width: 390,
@@ -390,10 +423,10 @@ test("Profiles visual map: selecting is inert, role/agent changes stay local, re
 			features: [{ name: "prefers-color-scheme", value: theme }],
 		});
 		await p.browser.evaluate(() =>
-			document.querySelector('[data-role-card="verification"]').focus(),
+			document
+				.querySelector('.profile-flow .stage-row[data-stage="verify-a"]')
+				.focus(),
 		);
-		// A native button activates on Enter's keypress. Unlike picker keydown handlers,
-		// CDP needs the carriage-return text to generate that native activation.
 		await p.browser.send("Input.dispatchKeyEvent", {
 			type: "keyDown",
 			key: "Enter",
@@ -408,17 +441,17 @@ test("Profiles visual map: selecting is inert, role/agent changes stay local, re
 			code: "Enter",
 			windowsVirtualKeyCode: 13,
 		});
-		try {
-			await p.browser.waitFor(
-				() =>
-					document.activeElement ===
-					document.querySelector(".role-inspector h3"),
-			);
-		} catch (error) {
-			assert.fail(
-				`${theme} keyboard: ${JSON.stringify(await p.browser.evaluate(() => ({ active: document.activeElement?.outerHTML.slice(0, 500), panel: document.querySelector(".role-inspector")?.textContent.slice(0, 700), selected: document.querySelector('[data-role-card][aria-pressed="true"]')?.dataset.roleCard })))}`,
-			);
-		}
+		await p.browser.waitFor(
+			() =>
+				document.activeElement === document.querySelector(".role-inspector h3"),
+		);
+		await p.browser.key("Tab");
+		assert.equal(
+			await p.browser.evaluate(() =>
+				document.activeElement.getAttribute("aria-label"),
+			),
+			"Profile setting scope",
+		);
 		await p.browser.key("Tab");
 		assert.equal(
 			await p.browser.evaluate(() =>
@@ -447,6 +480,424 @@ test("Profiles visual map: selecting is inert, role/agent changes stay local, re
 	}
 	assert.deepEqual(p.browser.errors, []);
 	assert.equal(existsSync(p.effects), false);
+});
+
+test("Profiles use the same Run nodes/edges, show shared edits live, and never start a workflow", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "daily",
+		values: {
+			executor: "codex",
+			model: "fixture-model",
+			effort: "low",
+			roles: { verification: { model: "shared-before" } },
+		},
+	});
+	await list(p);
+	await edit(p.browser, "daily");
+	await select(p.browser, "verification");
+	await p.browser.evaluate(() => {
+		window.originalSettingsSvg = document.querySelector(".profile-flow .graph");
+	});
+	await set(p.browser, "Role verification Model", "manual/shared-after");
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			labels: ["verify-a", "verify-b"].map(
+				(id) =>
+					document.querySelector(`[data-stage-line="${id}"]`).dataset.full,
+			),
+			secondary: document
+				.querySelector('.profile-flow .stage-row[data-stage="verify-b"]')
+				.classList.contains("shared-setting"),
+			stable:
+				window.originalSettingsSvg ===
+				document.querySelector(".profile-flow .graph"),
+		})),
+		{
+			labels: ["manual/shared-after, low", "manual/shared-after, low"],
+			secondary: true,
+			stable: true,
+		},
+	);
+	assert.match(
+		await p.browser.evaluate(
+			() => document.querySelector(".profile-scope-note").textContent,
+		),
+		/2 declared slots in 2 stages/,
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document
+					.querySelector('[aria-label="Profile setting scope"]')
+					.closest("label").firstElementChild.textContent,
+		),
+		"Shared setting (2 stages)",
+	);
+	const shape = await p.browser.evaluate(() => ({
+		nodes: [...document.querySelectorAll(".profile-flow .graph .node")].map(
+			(node) => [
+				node.dataset.stage,
+				node.getAttribute("transform"),
+				node.querySelector(".outline").getAttribute("width"),
+				node.querySelector(".outline").getAttribute("height"),
+			],
+		),
+		rows: [...document.querySelectorAll(".profile-flow .stage-row")].map(
+			(node) => node.dataset.stage,
+		),
+		edges: [...document.querySelectorAll(".profile-flow .edge")].map((edge) =>
+			edge.getAttribute("d"),
+		),
+	}));
+	await set(p.browser, "Profile setting scope", "default");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role default Model"]'),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Role default Model"]').placeholder,
+		),
+		"Inherit: fixture-model",
+		"default cannot inherit from a higher-precedence role",
+	);
+	await set(p.browser, "Profile setting scope", "agent:reader");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role agent:reader Model"]'),
+	);
+	await set(p.browser, "Role agent:reader Model", "temporary-agent");
+	await set(p.browser, "Role agent:reader Model", "");
+	const saved = await save(p);
+	assert.equal(
+		saved.roles["agent:reader"],
+		undefined,
+		"clearing an implicit agent scope removes it rather than blocking Save",
+	);
+	assert.equal(saved.roles.verification.model, "manual/shared-after");
+	assert.equal(
+		(await p.http(`${p.base}/runs`)).data.runs.length,
+		0,
+		"settings preview creates no run",
+	);
+	assert.equal(existsSync(p.effects), false);
+	const graph = (await p.http(`${p.base}/workflows/model-flow`)).data.graph;
+	// Persist a Run fixture only after verifying preview caused no run/execution.
+	const { run } = await persistManagementRun(
+		p.cwd,
+		"workflow_shape_run",
+		"completed",
+	);
+	const template = run.tasks[0];
+	await persistManagementRun(p.cwd, "workflow_shape_run", "completed", {
+		name: "model-flow",
+		tasks: graph.tasks.map((task, index) => ({
+			...template,
+			...task,
+			taskId: `shape_${index}`,
+			status: "completed",
+			statusDetail: "completed",
+			attempts: 0,
+		})),
+	});
+	const fixtureRun = await p.http(`${p.base}/runs/workflow_shape_run`);
+	assert.equal(fixtureRun.status, 200, JSON.stringify(fixtureRun.data));
+	await p.browser.send("Page.navigate", {
+		url: `${p.origin}/?project=${p.server.projectId}&run=workflow_shape_run`,
+	});
+	await p.browser.waitFor(
+		() => !!document.querySelector('#canvas .node[data-stage="plan"]'),
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			nodes: [...document.querySelectorAll("#canvas .graph .node")].map(
+				(node) => [
+					node.dataset.stage,
+					node.getAttribute("transform"),
+					node.querySelector(".outline").getAttribute("width"),
+					node.querySelector(".outline").getAttribute("height"),
+				],
+			),
+			rows: [...document.querySelectorAll("#canvas .stage-row")].map(
+				(node) => node.dataset.stage,
+			),
+			edges: [...document.querySelectorAll("#canvas .edge")].map((edge) =>
+				edge.getAttribute("d"),
+			),
+		})),
+		shape,
+		"same authored workflow produces the Run renderer's exact node/row/edge geometry",
+	);
+	assert.deepEqual(p.browser.errors, []);
+	assert.equal(existsSync(p.effects), false);
+});
+
+test("Profile diagrams keep code read-only, expose declared loop slots and recover from stale/failed workflow loads", {
+	timeout: 120000,
+}, async (t) => {
+	const p = await open(t);
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "daily",
+		values: { executor: "codex", model: "fixture-model" },
+	});
+	await list(p);
+	await edit(p.browser, "daily");
+	await p.browser.waitFor(
+		() => !!document.querySelector(".profile-flow .code-switch"),
+	);
+	await p.browser.click(".profile-flow .code-switch");
+	await p.browser.waitFor(
+		() => !!document.querySelector('.profile-flow .node[data-stage="record"]'),
+	);
+	assert.equal(
+		await p.browser.evaluate(() =>
+			document.activeElement.matches(".profile-flow .code-switch"),
+		),
+		true,
+		"code toggle retains focus after redraw",
+	);
+	await p.browser.click('.profile-flow .node[data-stage="record"]');
+	assert.match(
+		await p.browser.evaluate(
+			() => document.querySelector(".role-inspector").textContent,
+		),
+		/runs code, not a model/,
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelectorAll(".role-inspector input").length,
+		),
+		0,
+	);
+	await set(p.browser, "Profile workflow", "expanding-flow");
+	await p.browser.waitFor(
+		() => !!document.querySelector('.profile-flow .node[data-stage="iterate"]'),
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(() =>
+			[...document.querySelectorAll(".profile-flow .node")].map(
+				(node) => node.dataset.stage,
+			),
+		),
+		["iterate", "adaptive", "final"],
+	);
+	await p.browser.click('.profile-flow .node[data-stage="iterate"]');
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Profile stage slot"]'),
+	);
+	await set(p.browser, "Profile stage slot", "iterate.check");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role verification Model"]'),
+	);
+	await set(p.browser, "Role verification Model", "loop-check/model");
+	await p.browser.key("Escape");
+	assert.match(
+		await p.browser.evaluate(
+			() => document.querySelector(".role-inspector").textContent,
+		),
+		/Select a node/,
+	);
+	// The first request ignores abort deliberately; its late response must not replace B.
+	await p.browser.evaluate(() => {
+		const original = window.fetch;
+		window.fetch = async (url, options) => {
+			if (String(url).endsWith("/workflows/model-flow")) {
+				window.fetch = original;
+				await new Promise((resolve) => {
+					window.releaseDiagram = resolve;
+				});
+				const response = await original(url, { ...options, signal: undefined });
+				await response.clone().json();
+				window.diagramCompleted = true;
+				return response;
+			}
+			return original(url, options);
+		};
+	});
+	await set(p.browser, "Profile workflow", "model-flow");
+	await p.browser.waitFor(() => !!window.releaseDiagram);
+	await set(p.browser, "Profile workflow", "expanding-flow");
+	await p.browser.waitFor(
+		() => !!document.querySelector('.profile-flow .node[data-stage="iterate"]'),
+	);
+	await p.browser.evaluate(() => window.releaseDiagram());
+	await p.browser.waitFor(() => window.diagramCompleted);
+	await p.browser.evaluate(async () => {
+		await new Promise((resolve) =>
+			requestAnimationFrame(() => requestAnimationFrame(resolve)),
+		);
+	});
+	assert.equal(
+		await p.browser.evaluate(
+			() => !!document.querySelector('.profile-flow .node[data-stage="plan"]'),
+		),
+		false,
+	);
+	await p.browser.evaluate(() => {
+		const original = window.fetch;
+		window.fetch = async (...args) => {
+			if (String(args[0]).endsWith("/workflows/model-flow")) {
+				window.fetch = original;
+				throw new Error("fixture diagram failure");
+			}
+			return original(...args);
+		};
+	});
+	await set(p.browser, "Profile workflow", "model-flow");
+	await p.browser.waitFor(
+		() =>
+			document.querySelector('.profile-flow [role="alert"]')?.textContent ===
+			"fixture diagram failure",
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() => !!document.querySelector('.profile-flow [role="status"]'),
+		),
+		false,
+	);
+	await p.browser.click("[data-workflow-graph-retry]");
+	await p.browser.waitFor(
+		() => !!document.querySelector('.profile-flow .node[data-stage="plan"]'),
+	);
+	await p.browser.evaluate(() => {
+		const timeout = AbortSignal.timeout;
+		AbortSignal.timeout = () => {
+			AbortSignal.timeout = timeout;
+			return AbortSignal.abort(
+				new DOMException("fixture graph timeout", "TimeoutError"),
+			);
+		};
+	});
+	await set(p.browser, "Profile workflow", "expanding-flow");
+	await p.browser.waitFor(
+		() =>
+			document.querySelector('.profile-flow [role="alert"]')?.textContent ===
+			"fixture graph timeout",
+	);
+	await p.browser.click("[data-workflow-graph-retry]");
+	await p.browser.waitFor(
+		() => !!document.querySelector('.profile-flow .node[data-stage="iterate"]'),
+	);
+	const after = await save(p);
+	assert.equal(
+		after.roles.verification.model,
+		"loop-check/model",
+		"switching diagrams/closing the inspector does not discard drafts",
+	);
+	assert.deepEqual(p.browser.errors, []);
+	assert.equal(existsSync(p.effects), false);
+});
+
+test("Saving while the diagram loads keeps a stable layout and cannot resurrect the editor", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "daily",
+		values: { executor: "codex", model: "fixture-model" },
+	});
+	await list(p);
+	await edit(p.browser, "daily");
+	await p.browser.waitFor(
+		() => !!document.querySelector(".profile-flow .node"),
+	);
+	await p.browser.evaluate(() => {
+		const original = window.fetch;
+		window.fetch = async (url, options) => {
+			if (String(url).includes("/workflows/")) {
+				window.fetch = original;
+				await new Promise((resolve) => {
+					window.releasePendingGraph = resolve;
+				});
+				const response = await original(url, { ...options, signal: undefined });
+				window.pendingGraphCompleted = true;
+				return response;
+			}
+			return original(url, options);
+		};
+	});
+	await set(p.browser, "Profile workflow", "expanding-flow");
+	await p.browser.waitFor(() => !!window.releasePendingGraph);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector(".profile-flow").getBoundingClientRect()
+					.height >= 440,
+		),
+		true,
+		"loading reserves the diagram's space",
+	);
+	await set(p.browser, "Effort", "high");
+	const after = await save(p);
+	assert.equal(after.effort, "high");
+	await p.browser.evaluate(() => window.releasePendingGraph());
+	await p.browser.waitFor(() => window.pendingGraphCompleted);
+	await p.browser.evaluate(async () => {
+		await new Promise((resolve) =>
+			requestAnimationFrame(() => requestAnimationFrame(resolve)),
+		);
+	});
+	await waitList(p.browser);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector(".profile-editor").hidden,
+		),
+		true,
+	);
+	assert.equal(existsSync(p.effects), false);
+	assert.deepEqual(p.browser.errors, []);
+});
+
+test("Readonly profile diagrams remain navigable without enabling model writes", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t, { readonly: true });
+	const values = {
+		executor: "codex",
+		model: "fixture-model",
+		roles: { verification: { model: "read-only-model" } },
+	};
+	await profileAction(p.ctx, { op: "set", name: "daily", values });
+	await list(p);
+	await edit(p.browser, "daily");
+	await select(p.browser, "verification");
+	assert.equal(
+		await p.browser.evaluate(() =>
+			[...document.querySelectorAll(".role-inspector input")].every(
+				(input) => input.disabled,
+			),
+		),
+		true,
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[data-management-action="save-profile"]')
+					.disabled,
+		),
+		true,
+	);
+	await set(p.browser, "Profile workflow", "expanding-flow");
+	await p.browser.waitFor(
+		() => !!document.querySelector('.profile-flow .node[data-stage="iterate"]'),
+	);
+	await p.browser.click('.profile-flow .node[data-stage="iterate"]');
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Profile stage slot"]'),
+	);
+	assert.deepEqual(
+		(await profileAction(p.ctx, { op: "show", name: "daily" })).data.profile
+			.roles,
+		values.roles,
+	);
+	assert.equal((await p.http(`${p.base}/runs`)).data.runs.length, 0);
+	assert.equal(existsSync(p.effects), false);
+	assert.deepEqual(p.browser.errors, []);
 });
 
 test("Profile role hints match the core executor-default overlay without inventing final workflow values", {
@@ -539,56 +990,35 @@ test("Profile role hints match the core executor-default overlay without inventi
 	});
 	assert.deepEqual(unresolved[0].values, { effort: "high" });
 	assert.deepEqual(unresolved[1].values, { executor: "pi" });
-	// Exercise the real executor-default editor too, not only the pure hint helper.
+	// Exercise the same hints on actual workflow nodes in the executor-default editor.
 	await edit(p.browser, "codex");
-	assert.equal(
+	await select(p.browser, "planning");
+	assert.match(
 		await p.browser.evaluate(
-			() =>
-				document.querySelector(
-					'[data-role-card="planning"] [data-role-field="model"]',
-				).dataset.origin,
+			() => document.querySelector(".profile-scope-note").textContent,
 		),
-		"Built-in",
+		/Model: Built-in/,
 	);
 	await set(p.browser, "Effort", "low");
-	assert.equal(
+	assert.match(
 		await p.browser.evaluate(
-			() =>
-				document.querySelector(
-					'[data-role-card="planning"] [data-role-field="effort"]',
-				).dataset.origin,
+			() => document.querySelector(".profile-scope-note").textContent,
 		),
-		"Common setting",
+		/effort: Common setting/,
 	);
 	await select(p.browser, "verification");
 	await set(p.browser, "Role verification Executor", "claude");
 	assert.match(
 		await p.browser.evaluate(
-			() =>
-				document.querySelector('[data-role-card="verification"] .role-warning')
-					?.textContent,
+			() => document.querySelector(".role-inheritance").textContent,
 		),
-		/Not used by codex defaults/,
-	);
-	assert.deepEqual(
-		await p.browser.evaluate(() =>
-			[
-				...document.querySelectorAll(
-					'[data-role-card="verification"] .role-fact-value > span',
-				),
-			].map((node) => node.textContent),
-		),
-		["codex", "gpt-5.6-luna", "low"],
+		/not used by codex stage defaults/,
 	);
 	assert.equal(
 		await p.browser.evaluate(
-			() =>
-				document.querySelector(
-					'[data-role-card="planning"] [data-role-field="model"] small',
-				).textContent,
+			() => document.querySelector('[data-stage-line="verify-a"]').textContent,
 		),
-		"Built-in",
-		"field origins are visible, not tooltip-only",
+		"gpt-5.6-luna, low",
 	);
 	await p.browser.click('[data-management-action="save-profile"]');
 	await p.browser.waitFor(
