@@ -8111,158 +8111,143 @@ function roleTable(roles = {}) {
 			.join("\n"),
 	);
 }
+// Profiles (2026-11-13): a short list first, one editor at a time. Settings/API semantics stay as they are.
 async function renderProfiles(page) {
 	const [result, presets, preferences] = await Promise.all([
 		managementApi("/api/profiles"),
 		managementApi("/api/profiles/presets"),
 		managementApi("/api/workflow-preferences"),
 	]);
-	const data = result.data;
-	const list = managementPanel("Saved profiles");
-	const editor = element("div");
-	const errors = element("div");
-	page.append(list, errors, editor);
-	if (!data.profiles.length)
-		list.append(
-			element(
-				"p",
-				{},
-				"No profiles yet. Choose New profile below, or run agent-workflow profile set <name> --executor <id>.",
-			),
+	page.classList.add("profiles-page");
+	page
+		.querySelector("h1 + p")
+		?.replaceChildren(
+			"Choose the models your workflows use. Shared by every project and host.",
 		);
-	list.append(
-		element("p", { class: "muted" }, `Default: ${data.default || "none"}`),
-	);
+	const data = result.data;
+	const overview = element("div", { class: "profile-overview" });
+	const editor = element("div", { class: "profile-editor", hidden: true });
+	const errors = element("div");
+	page.append(errors, overview, editor);
 	const executorDefaults = data.executorDefaults || [];
 	const executorProfileNames = new Set(
 		executorDefaults.map((entry) => entry.executor),
 	);
-	for (const profile of data.profiles)
-		list.append(
-			element(
-				"div",
-				{ class: "management-list-row" },
-				managementControl(
-					profile.name,
-					async () => {
-						await edit(profile);
-					},
-					errors,
-					{ write: false },
-				),
-				element(
-					"small",
-					{ class: "muted" },
-					[
-						executorProfileNames.has(profile.name)
-							? `default profile of ${profile.name} stages`
-							: "",
-						profile.executor,
-						profile.model,
-						profile.permissionMode,
-					]
-						.filter(Boolean)
-						.join(", "),
-				),
-				managementControl(
-					`Use ${profile.name} by default`,
-					async () => {
-						await managementWrite("/api/profiles-default", "PUT", {
-							name: profile.name,
-						});
-						await renderManagement();
-					},
-					errors,
-				),
-				managementControl(
-					`Delete ${profile.name}`,
-					async () => {
-						await managementWrite(
-							`/api/profiles/${encodeURIComponent(profile.name)}`,
-							"DELETE",
-						);
-						await renderManagement();
-					},
-					errors,
-				),
-			),
-		);
-	list.append(
-		managementControl(
-			"Clear default",
-			async () => {
-				await managementWrite("/api/profiles-default", "PUT", { name: null });
-				await renderManagement();
-			},
-			errors,
-		),
-		managementControl(
-			"New profile",
-			async () => {
-				await edit({});
-			},
-			errors,
-			{ write: false },
-		),
+	const defaultLine = element(
+		"p",
+		{ class: "profile-default muted" },
+		data.default
+			? `Default profile: ${data.default}`
+			: "No default profile. Each executor uses its own defaults.",
 	);
-	// Executor default profiles: the model/effort of each executor's stages where nothing else sets
-	// them. Editing one saves a profile named after the executor that holds only the changes.
-	const executorPanel = managementPanel(
-		"Executor default profiles",
+	const describe = (profile) => {
+		const parts = [profile.executor, profile.model, profile.effort];
+		const roles = Object.keys(profile.roles || {}).length;
+		if (roles)
+			parts.push(`${roles} role ${roles === 1 ? "override" : "overrides"}`);
+		return (
+			parts.filter(Boolean).join(", ") || "Executor's own model and effort"
+		);
+	};
+	const row = (name, summary, action, attrs = {}, badge = null) =>
+		managementControl(
+			[
+				element("strong", { class: "profile-name" }, name),
+				element("span", { class: "profile-summary muted" }, summary),
+				element("span", { class: "profile-badge" }, badge || ""),
+				element(
+					"span",
+					{ class: "profile-chevron", "aria-hidden": "true" },
+					"›",
+				),
+			],
+			action,
+			errors,
+			{
+				write: false,
+				class: "profile-row",
+				"data-profile-open": name,
+				"aria-label": `Edit ${name}`,
+				...attrs,
+			},
+		);
+	const defaults = element(
+		"section",
+		{ class: "profiles-section" },
+		element("h2", {}, "Executor defaults"),
 		element(
 			"p",
 			{ class: "muted" },
-			"Model and effort of each executor's stages where the workflow, the launch and the chosen profile set none. Your changes apply on top of the built-in profile.",
+			"Used when a workflow or chosen profile does not set a model.",
 		),
 	);
 	for (const entry of executorDefaults) {
 		const saved = data.profiles.find(
 			(profile) => profile.name === entry.executor,
 		);
-		executorPanel.append(
-			element(
-				"div",
-				{
-					class: "management-list-row management-executor-default",
-					"data-executor-default": entry.executor,
-				},
-				element("strong", {}, entry.executor),
-				managementControl(
-					`Edit ${entry.executor} default`,
-					async () => {
-						await edit(saved || { name: entry.executor }, entry);
-					},
-					errors,
-					{ write: false },
-				),
-				...(saved
-					? [
-							managementControl(
-								`Restore built-in ${entry.executor}`,
-								async () => {
-									await managementWrite(
-										`/api/profiles/${encodeURIComponent(entry.executor)}`,
-										"DELETE",
-									);
-									await renderManagement();
-								},
-								errors,
-							),
-						]
-					: []),
-				element("p", { class: "muted" }, entry.note),
+		const main = entry.roles?.default;
+		const summary = main
+			? [main.model || "Executor's own model", main.effort]
+					.filter(Boolean)
+					.join(", ")
+			: "Uses Pi's current model and effort";
+		defaults.append(
+			row(
+				entry.executor,
+				summary,
+				() => edit(saved || { name: entry.executor }, entry),
+				{ "data-executor-default": entry.executor },
+				data.default === entry.executor
+					? "Default profile"
+					: saved
+						? "Customized"
+						: null,
 			),
-			roleTable(entry.roles),
 		);
 	}
-	list.after(executorPanel);
+	const saved = data.profiles.filter(
+		(profile) => !executorProfileNames.has(profile.name),
+	);
+	const savedSection = element(
+		"section",
+		{ class: "profiles-section" },
+		element(
+			"div",
+			{ class: "profile-section-head" },
+			element("h2", {}, "Your profiles"),
+			managementControl("New profile", () => edit({}), errors, {
+				write: false,
+				class: "small",
+			}),
+		),
+		saved.length
+			? saved.map((profile) =>
+					row(
+						profile.name,
+						describe(profile),
+						() => edit(profile),
+						{},
+						data.default === profile.name ? "Default profile" : null,
+					),
+				)
+			: element(
+					"p",
+					{ class: "muted" },
+					"Create one to reuse a model setup across workflows.",
+				),
+	);
+	overview.append(defaultLine, defaults, savedSection);
+	let editGeneration = 0;
 	async function edit(profile, executorDefault) {
+		const generation = ++editGeneration;
+		const trigger = document.activeElement;
 		const id = input("Profile name", profile.name || "", {
 			maxlength: 64,
 			readonly: !!profile.name,
 		});
 		const models = await modelControls(profile);
 		const roles = await roleEditor(profile.roles);
+		if (generation !== editGeneration || !page.isConnected) return;
 		const permission = choices(
 			"Profile permission mode",
 			["", "free", "safe"],
@@ -8277,182 +8262,362 @@ async function renderProfiles(page) {
 			(profile.strictCapabilities || []).join(", "),
 		);
 		const output = element("div");
-		editor.replaceChildren(
-			managementPanel(
-				profile.name ? `Edit ${profile.name}` : "New profile",
-				...(executorDefault
-					? [
-							element(
-								"p",
-								{ class: "muted" },
-								`Changes to the default profile of ${executorDefault.executor} stages. Leave a field empty to keep what it runs now:`,
-							),
-							roleTable(executorDefault.roles),
-						]
-					: []),
-				field("Name", id),
-				field("Start from preset", preset),
-				models.node,
-				field("Permission mode", permission),
-				field("Strict capabilities (comma separated)", strict),
-				element("h3", {}, "Role assignments"),
-				roles.node,
+		const cancel = () => {
+			++editGeneration;
+			editor.replaceChildren();
+			editor.hidden = true;
+			overview.hidden = false;
+			trigger?.focus({ preventScroll: true });
+		};
+		const hasSavedProfile = data.profiles.some(
+			(entry) => entry.name === profile.name,
+		);
+		const options = element(
+			"details",
+			{ class: "profile-options" },
+			element("summary", {}, "Profile options"),
+		);
+		if (hasSavedProfile) {
+			options.append(
 				managementControl(
-					"Save profile",
+					data.default === profile.name
+						? "Clear default"
+						: `Use ${profile.name} by default`,
 					async () => {
-						const values = {
-							...models.values(),
-							...(permission.value ? { permissionMode: permission.value } : {}),
-							...(strict.value.trim()
-								? {
-										strictCapabilities: strict.value
-											.split(",")
-											.map((s) => s.trim())
-											.filter(Boolean),
-									}
-								: {}),
-							roles: roles.values(),
-						};
-						const unset = [
-							"executor",
-							"model",
-							"effort",
-							"permissionMode",
-							"strictCapabilities",
-						].filter((key) => values[key] === undefined);
-						// Removing a role is explicit: the host API deliberately merges role maps.
-						unset.push(
-							...Object.keys(profile.roles || {})
-								.filter((key) => !Object.hasOwn(values.roles, key))
-								.map((key) => `roles.${key}`),
-						);
-						const saved = await managementWrite(
-							`/api/profiles/${encodeURIComponent(id.value)}`,
-							"PUT",
-							{
-								values,
-								unset,
-								...(preset.value ? { preset: preset.value } : {}),
-							},
-						);
+						await managementWrite("/api/profiles-default", "PUT", {
+							name: data.default === profile.name ? null : profile.name,
+						});
 						await renderManagement();
-						$("center")
-							.querySelector(".management-page")
-							.append(managementResult(saved));
 					},
 					output,
-					{ "data-management-action": "save-profile" },
 				),
+			);
+			const label = executorDefault
+				? `Restore built-in ${profile.name}`
+				: `Delete ${profile.name}`;
+			const confirm = element("div", {
+				class: "profile-delete-confirm",
+				hidden: true,
+			});
+			options.append(
+				button(
+					label,
+					() => {
+						confirm.hidden = false;
+						confirm.querySelector("button")?.focus();
+					},
+					{ class: "danger", disabled: readonly() },
+				),
+				confirm,
+			);
+			confirm.append(
+				element(
+					"p",
+					{},
+					executorDefault
+						? "Remove your changes and use the built-in settings?"
+						: "Delete this saved profile? Existing runs are unchanged.",
+				),
+				managementControl(
+					"Confirm",
+					async () => {
+						await managementWrite(
+							`/api/profiles/${encodeURIComponent(profile.name)}`,
+							"DELETE",
+						);
+						await renderManagement();
+					},
+					output,
+					{ class: "danger" },
+				),
+				button("Keep profile", () => {
+					confirm.hidden = true;
+				}),
+			);
+		}
+		const advanced = element(
+			"details",
+			{ class: "profile-advanced" },
+			element("summary", {}, "Advanced settings"),
+			field("Start from preset", preset),
+			element(
+				"details",
+				{ class: "more-details" },
+				element("summary", {}, "What the presets set"),
+				presets.data.presets.map((entry) =>
+					element(
+						"details",
+						{},
+						element("summary", {}, entry.description),
+						roleTable(entry.roles),
+					),
+				),
+			),
+			element(
+				"div",
+				{ class: "management-fields" },
+				field("Permission mode", permission),
+				field("Strict capabilities (comma separated)", strict),
+			),
+			element("h3", {}, "Role overrides"),
+			element(
+				"p",
+				{ class: "muted" },
+				"Only set a role when it should differ from the settings above.",
+			),
+			roles.node,
+		);
+		editor.replaceChildren(
+			managementPanel(
+				executorDefault
+					? `Edit ${profile.name} defaults`
+					: profile.name
+						? `Edit ${profile.name}`
+						: "New profile",
+				element(
+					"p",
+					{ class: "muted" },
+					executorDefault
+						? "Leave a field empty to keep the built-in setting. Changes affect future runs, not existing ones."
+						: "Leave a field empty to use the executor's defaults. Changes affect future runs.",
+				),
+				field("Name", id),
+				models.node,
+				executorDefault
+					? moreDetails(
+							"Current role settings",
+							roleTable(executorDefault.roles),
+							element("p", { class: "muted" }, executorDefault.note),
+						)
+					: null,
+				advanced,
+				element(
+					"div",
+					{ class: "profile-editor-actions" },
+					managementControl(
+						"Save profile",
+						async () => {
+							let assignedRoles;
+							try {
+								assignedRoles = roles.values();
+							} catch (error) {
+								advanced.open = true;
+								[...roles.node.querySelectorAll('[aria-label="Role name"]')]
+									.find((field) => !field.value.trim())
+									?.focus();
+								throw error;
+							}
+							const values = {
+								...models.values(),
+								...(permission.value
+									? { permissionMode: permission.value }
+									: {}),
+								...(strict.value.trim()
+									? {
+											strictCapabilities: strict.value
+												.split(",")
+												.map((s) => s.trim())
+												.filter(Boolean),
+										}
+									: {}),
+								roles: assignedRoles,
+							};
+							const unset = [
+								"executor",
+								"model",
+								"effort",
+								"permissionMode",
+								"strictCapabilities",
+							].filter((key) => values[key] === undefined);
+							// Profile updates merge role maps: removing a role must explicitly unset it.
+							unset.push(
+								...Object.keys(profile.roles || {})
+									.filter((key) => !Object.hasOwn(values.roles, key))
+									.map((key) => `roles.${key}`),
+							);
+							const saved = await managementWrite(
+								`/api/profiles/${encodeURIComponent(id.value)}`,
+								"PUT",
+								{
+									values,
+									unset,
+									...(preset.value ? { preset: preset.value } : {}),
+								},
+							);
+							await renderManagement();
+							// The status stays short; the host API's full text remains behind Details.
+							const status = element(
+								"div",
+								{ class: "profile-save-status", role: "status" },
+								`Saved profile: ${id.value}`,
+								moreDetails("Details", managementResult(saved)),
+							);
+							$("center").querySelector(".management-page")?.prepend(status);
+						},
+						output,
+						{ class: "primary", "data-management-action": "save-profile" },
+					),
+					button("Cancel", cancel),
+				),
+				hasSavedProfile ? options : null,
 				output,
-				commandHint(
-					`agent-workflow profile set ${shellArg(profile.name || "<name>")} --executor <id>`,
+				moreDetails(
+					"Same from the terminal",
+					commandHint(
+						`agent-workflow profile set ${shellArg(profile.name || "<name>")} --executor <id>`,
+					),
 				),
 			),
 		);
+		overview.hidden = true;
+		editor.hidden = false;
+		page.scrollIntoView({ block: "start" });
+		(profile.name
+			? editor.querySelector('[aria-label="Executor"]')
+			: id
+		)?.focus();
 	}
-	page.append(
-		managementPanel(
-			"Presets",
-			presets.data.presets.map((preset) =>
-				element(
-					"details",
-					{},
-					element("summary", {}, `${preset.id}: ${preset.description}`),
-					element("pre", {}, JSON.stringify(preset.roles, null, 2)),
-				),
-			),
-		),
-	);
-	const prefPanel = managementPanel(
-		"Per-workflow preferences",
+	const prefPanel = element(
+		"details",
+		{ class: "profile-preferences profiles-section" },
+		element("summary", {}, "Workflow-specific settings"),
 		element(
 			"p",
 			{ class: "muted" },
-			"Stored at user level; workflow definitions and declared profiles are resolved in the selected project.",
+			"Optional. Override a profile or role for one workflow, across projects.",
 		),
 	);
-	page.append(prefPanel);
+	overview.append(prefPanel);
 	if (!state.project) {
 		prefPanel.append(
-			element("p", {}, "Choose a project to edit workflow preferences."),
+			element(
+				"p",
+				{ class: "muted" },
+				"Choose a project to edit workflow settings.",
+			),
 		);
 		return;
 	}
 	const workflows = (await managementApi(projectRoute("workflows"))).data
 		.workflows;
+	if (!workflows.length) {
+		prefPanel.append(
+			element("p", { class: "muted" }, "No workflows in this project."),
+		);
+		return;
+	}
+	const chooser = choices("Workflow to configure", [
+		["", "Choose a workflow"],
+		...workflows.map((workflow) => [workflow.name, workflow.name]),
+	]);
 	const prefOutput = element("div");
 	const prefEditor = element("div");
-	for (const workflow of workflows) {
-		const saved = preferences.data.preferences.find(
-			(pref) => pref.workflow === workflow.name,
-		);
-		prefPanel.append(
-			managementControl(
-				`${workflow.name}${saved?.profile ? `, ${saved.profile}` : ""}`,
-				async () => {
-					const path = `/api/workflow-preferences/${encodeURIComponent(workflow.name)}?project=${encodeURIComponent(state.project)}`;
-					const current = (await managementApi(path)).data.preference || {};
-					const profile = input(
-						"Workflow preferred profile",
-						current.profile || "",
-						{ placeholder: "Declared profile, saved profile or preset" },
-					);
-					const roles = await roleEditor(current.roles);
-					prefEditor.replaceChildren(
-						element("h3", {}, workflow.name),
-						field("Profile", profile),
-						roles.node,
-						managementControl(
-							"Save workflow preference",
-							async () => {
-								const values = roles.values();
-								const unset = [
-									...(!profile.value ? ["profile"] : []),
-									...Object.keys(current.roles || {})
-										.filter((key) => !Object.hasOwn(values, key))
-										.map((key) => `roles.${key}`),
-								];
-								prefOutput.replaceChildren(
-									managementResult(
-										await managementWrite(path, "PUT", {
-											...(profile.value ? { profile: profile.value } : {}),
-											roles: values,
-											unset,
-										}),
-									),
-								);
-							},
-							prefOutput,
-						),
-						managementControl(
-							"Clear workflow preference",
-							async () => {
-								prefOutput.replaceChildren(
-									managementResult(await managementWrite(path, "DELETE")),
-								);
-							},
-							prefOutput,
-						),
-						commandHint(
-							`agent-workflow profile workflow show ${shellArg(workflow.name)}`,
-						),
-					);
-					prefOutput.replaceChildren();
+	const configured = new Set(
+		preferences.data.preferences
+			.filter((pref) =>
+				workflows.some((workflow) => workflow.name === pref.workflow),
+			)
+			.map((pref) => pref.workflow),
+	);
+	const updatePreferenceCount = () => {
+		prefPanel
+			.querySelector("summary")
+			.replaceChildren(
+				"Workflow-specific settings",
+				configured.size
+					? element(
+							"span",
+							{ class: "muted" },
+							` (${configured.size} configured)`,
+						)
+					: "",
+			);
+	};
+	updatePreferenceCount();
+	prefPanel.append(field("Workflow", chooser), prefEditor, prefOutput);
+	let preferenceGeneration = 0;
+	chooser.addEventListener("change", async () => {
+		const generation = ++preferenceGeneration;
+		const name = chooser.value;
+		prefEditor.replaceChildren();
+		prefOutput.replaceChildren();
+		if (!name) return;
+		try {
+			const path = `/api/workflow-preferences/${encodeURIComponent(name)}?project=${encodeURIComponent(state.project)}`;
+			let current = (await managementApi(path)).data.preference || {};
+			const profile = input(
+				"Workflow preferred profile",
+				current.profile || "",
+				{
+					placeholder: "Declared profile, saved profile or preset",
 				},
-				prefOutput,
-				{ write: false },
-			),
-		);
-	}
-	if (!workflows.length)
-		prefPanel.append(
-			element(
-				"p",
-				{},
-				"Add a workflow to .agent-workflow/workflows to save preferences for it.",
-			),
-		);
-	prefPanel.append(prefEditor, prefOutput);
+			);
+			const roles = await roleEditor(current.roles);
+			if (generation !== preferenceGeneration || !page.isConnected) return;
+			prefEditor.replaceChildren(
+				field("Profile", profile),
+				moreDetails("Role overrides", roles.node),
+				element(
+					"div",
+					{ class: "profile-editor-actions" },
+					managementControl(
+						"Save workflow preference",
+						async () => {
+							const values = roles.values();
+							const unset = [
+								...(!profile.value ? ["profile"] : []),
+								...Object.keys(current.roles || {})
+									.filter((key) => !Object.hasOwn(values, key))
+									.map((key) => `roles.${key}`),
+							];
+							const saved = await managementWrite(path, "PUT", {
+								...(profile.value ? { profile: profile.value } : {}),
+								roles: values,
+								unset,
+							});
+							// Later saves must unset roles added by this save too.
+							current = saved.data.preference || {};
+							configured.add(name);
+							updatePreferenceCount();
+							if (generation !== preferenceGeneration || !page.isConnected)
+								return;
+							prefOutput.replaceChildren(
+								element("p", { role: "status" }, "Workflow settings saved."),
+								moreDetails("Details", managementResult(saved)),
+							);
+						},
+						prefOutput,
+						{ class: "primary" },
+					),
+					managementControl(
+						"Clear workflow preference",
+						async () => {
+							await managementWrite(path, "DELETE");
+							configured.delete(name);
+							updatePreferenceCount();
+							if (generation !== preferenceGeneration || !page.isConnected)
+								return;
+							chooser.value = "";
+							prefEditor.replaceChildren();
+							prefOutput.replaceChildren(
+								element("p", { role: "status" }, "Workflow settings cleared."),
+							);
+						},
+						prefOutput,
+					),
+				),
+			);
+		} catch (error) {
+			if (generation === preferenceGeneration)
+				prefOutput.replaceChildren(
+					element(
+						"p",
+						{ role: "alert", class: "management-error" },
+						error.message,
+					),
+				);
+		}
+	});
 }
 /** "12.4 MB" from bytes. */
 function formatBytes(bytes) {

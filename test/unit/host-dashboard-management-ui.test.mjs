@@ -110,10 +110,8 @@ test("Chrome management: the views, profile edit, check preview and the overview
 	});
 	const url = `${p.origin}/?project=${p.server.projectId}`;
 	await navigate(browser, `${url}&view=profiles`, "profiles");
-	await browser.waitFor(() =>
-		[...document.querySelectorAll("#center button")].some(
-			(node) => node.textContent === "ui-profile",
-		),
+	await browser.waitFor(
+		() => !!document.querySelector('[data-profile-open="ui-profile"]'),
 	);
 	assert.deepEqual(
 		await browser.evaluate(() =>
@@ -123,7 +121,7 @@ test("Chrome management: the views, profile edit, check preview and the overview
 		),
 		["Overview", "Runs", "Workflows", "Profiles", "Executors"],
 	);
-	await clickText(browser, "ui-profile");
+	await browser.click('[data-profile-open="ui-profile"]');
 	await browser.waitFor(
 		() => !!document.querySelector('[aria-label="Profile name"]'),
 	);
@@ -418,18 +416,22 @@ test("Chrome executor default profiles: built-in shown, edited with the full eff
 		[...document.querySelectorAll("[data-executor-default]")].map((row) => [
 			row.dataset.executorDefault,
 			row.textContent,
-			row.nextElementSibling?.textContent ?? "",
 		]),
 	);
 	assert.deepEqual(
 		rows.map(([id]) => id),
 		["codex", "claude", "pi"],
 	);
-	assert.match(rows[0][1], /built-in; fields you do not set fall back/);
-	assert.match(rows[0][2], /planning\s+codex:gpt-5\.6-luna:high/);
-	assert.match(rows[1][2], /default\s+claude:sonnet:medium/);
-	assert.match(rows[2][1], /pi's own model and effort/);
-	await clickText(browser, "Edit codex default");
+	assert.match(rows[0][1], /gpt-5\.6-luna, medium/);
+	assert.match(rows[1][1], /sonnet, medium/);
+	assert.match(rows[2][1], /Pi's current model and effort/);
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelectorAll(".profile-overview pre").length,
+		),
+		0,
+	);
+	await browser.click('[data-profile-open="codex"]');
 	await browser.waitFor(
 		() => !!document.querySelector('[aria-label="Profile name"]'),
 	);
@@ -463,19 +465,17 @@ test("Chrome executor default profiles: built-in shown, edited with the full eff
 	await browser.waitFor(() =>
 		document
 			.querySelector('[data-executor-default="codex"]')
-			?.nextElementSibling?.textContent.match(
-				/planning\s+codex:gpt-5\.6-luna:max/,
-			),
+			?.textContent.includes("gpt-5.6-luna, max"),
 	);
+	await browser.click('[data-profile-open="codex"]');
+	await browser.waitFor(() => !!document.querySelector(".profile-options"));
+	await browser.click(".profile-options > summary");
 	await clickText(browser, "Restore built-in codex");
-	await browser.waitFor(
-		() =>
-			!![...document.querySelectorAll("#center button")].find(
-				(node) => node.textContent === "Edit codex default",
-			) &&
-			![...document.querySelectorAll("#center button")].some(
-				(node) => node.textContent === "Restore built-in codex",
-			),
+	await clickText(browser, "Confirm");
+	await browser.waitFor(() =>
+		document
+			.querySelector('[data-executor-default="codex"]')
+			?.textContent.includes("gpt-5.6-luna, medium"),
 	);
 	assert.equal(
 		(await profileAction(p.ctx, { op: "show", name: "codex" })).data.builtIn,
