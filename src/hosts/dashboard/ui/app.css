@@ -2550,9 +2550,6 @@ main.signin code {
 	border-bottom: 1px solid var(--line);
 }
 /* Profiles: concise settings rows, then one focused editor. */
-.profiles-page {
-	max-width: 1000px;
-}
 .profile-default {
 	padding-bottom: 16px;
 	border-bottom: 1px solid var(--line);
@@ -3047,6 +3044,12 @@ button.profile-row {
 }
 .management-card .property-table button {
 	margin: 0;
+}
+.executor-status-scroll {
+	overflow-x: auto;
+}
+.property-table.executors {
+	min-width: 720px;
 }
 .property-table.executors td:first-child {
 	width: 120px;

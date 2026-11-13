@@ -4752,3 +4752,130 @@ test("dashboard Chrome: a recent result with a report opens the report; Needs wo
 		);
 	}
 });
+
+test(
+	"F2 report controls use page contrast in every shell/page pairing",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		await browser.send("Emulation.setDeviceMetricsOverride", {
+			width: 980,
+			height: 900,
+			deviceScaleFactor: 1,
+			mobile: false,
+		});
+		for (const shell of ["dark", "light"])
+			for (const page of ["light", "dark"])
+				for (const mode of ["toggle", "stored"]) {
+					await browser.open(
+						`${fixture.origin}/?run=${complete}&view=report`,
+						980,
+					);
+					await browser.waitFor(
+						() => !!document.querySelector(".finding-card"),
+					);
+					await browser.evaluate((shell) => {
+						localStorage.setItem("agent-workflow:theme", shell);
+						localStorage.removeItem("agent-workflow:report-page");
+					}, shell);
+					if (mode === "stored")
+						await browser.evaluate(
+							(page) =>
+								localStorage.setItem("agent-workflow:report-page", page),
+							page,
+						);
+					await browser.open(
+						`${fixture.origin}/?run=${complete}&view=report`,
+						980,
+					);
+					await browser.waitFor(
+						() => !!document.querySelector(".finding-card"),
+					);
+					if (mode === "toggle" && shell !== page)
+						await browser.click(".report-page");
+					await browser.waitFor(
+						`getComputedStyle(document.querySelector('.report-view')).backgroundColor === ${JSON.stringify(page === "light" ? "rgb(246, 245, 241)" : "rgb(20, 20, 20)")}`,
+					);
+					await browser.click(".filter-chip");
+					await browser.waitFor(() =>
+						document.querySelector('.filter-chip[aria-pressed="true"]'),
+					);
+					await browser.waitForMotionEnd();
+					assert.equal(
+						await browser.evaluate(
+							() => document.documentElement.dataset.theme,
+						),
+						shell,
+					);
+					const controls = await browser.evaluate(() => {
+						const rgba = (color) => color.match(/[\d.]+/g).map(Number);
+						const lum = (rgb) =>
+							rgb
+								.slice(0, 3)
+								.map((v) => {
+									v /= 255;
+									return v <= 0.04045
+										? v / 12.92
+										: ((v + 0.055) / 1.055) ** 2.4;
+								})
+								.reduce(
+									(sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i],
+									0,
+								);
+						return [
+							...document.querySelectorAll(
+								'.copy-report, .report-page, [data-action="open-run"], .filter-chip, .finding-card button, .outline-toggle',
+							),
+						]
+							.filter((n) => n.getClientRects().length && !n.disabled)
+							.map((n) => {
+								let background = [255, 255, 255];
+								const layers = [];
+								for (let p = n; p; p = p.parentElement) layers.unshift(p);
+								for (const parent of layers) {
+									const color = rgba(getComputedStyle(parent).backgroundColor);
+									const alpha = color[3] ?? 1;
+									background = background.map(
+										(v, i) => color[i] * alpha + v * (1 - alpha),
+									);
+								}
+								const fg = lum(rgba(getComputedStyle(n).color)),
+									bg = lum(background);
+								return {
+									text: n.textContent,
+									pressed: n.getAttribute("aria-pressed"),
+									color: getComputedStyle(n).color,
+									background,
+									contrast:
+										(Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05),
+								};
+							});
+					});
+					assert.ok(controls.some((c) => c.pressed === "true"));
+					assert.ok(controls.some((c) => c.pressed === "false"));
+					t.diagnostic(
+						JSON.stringify({
+							shell,
+							page,
+							mode,
+							minimumContrast: Math.min(...controls.map((c) => c.contrast)),
+						}),
+					);
+					for (const label of [
+						"Copy as Markdown",
+						"Open run",
+						"On this page",
+						"Copy fix prompt",
+					])
+						assert.ok(
+							controls.some((c) => c.text === label),
+							`${shell}/${page}: ${label}`,
+						);
+					for (const control of controls)
+						assert.ok(
+							control.contrast >= 4.5,
+							`${shell}/${page}: ${JSON.stringify(control)}`,
+						);
+				}
+	},
+);

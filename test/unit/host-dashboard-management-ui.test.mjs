@@ -454,7 +454,7 @@ test("Chrome management: the views, profile edit, check preview and the overview
 	assert.equal(existsSync(p.effects), false);
 });
 
-test("Chrome executor default profiles: built-in shown, edited with the full effort list, restored", {
+test("Chrome executor default profiles: built-in shown, edited with inherited executor efforts, restored", {
 	timeout: 120000,
 }, async (t) => {
 	assert.ok(
@@ -505,11 +505,7 @@ test("Chrome executor default profiles: built-in shown, edited with the full eff
 				].map((option) => option.dataset.value),
 			];
 		}),
-		[
-			"codex",
-			true,
-			["", "off", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
-		],
+		["codex", true, ["", "low", "medium", "high", "xhigh", "max", "ultra"]],
 	);
 	await set(browser, "Effort", "max");
 	await browser.click('[data-management-action="save-profile"]');
@@ -793,13 +789,19 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 					8,
 				),
 			],
-			usable: mode !== "fix" || i !== 0,
-			state: mode === "fix" && i === 0 ? "not-installed" : "ready",
+			usable: mode !== "fix" || i !== 3,
+			state: mode === "fix" && i === 3 ? "logged-out" : "ready",
 			cliVersion: "2",
 			verifiedVersion: "1",
 			versionMatchesVerified:
-				mode === "four" || (mode === "one" && i === 0) ? false : true,
-			...(mode === "fix" && i === 0 ? { fix: "Install fixture CLI" } : {}),
+				mode === "four" || ((mode === "one" || mode === "fix") && i === 0)
+					? false
+					: true,
+			...(mode === "fix" && i === 3
+				? {
+						fix: "Log in to Antigravity using the CLI login command, then return here and check again. Your account must have access to the configured workspace.",
+					}
+				: {}),
 		}));
 		const security = [
 			"codex: 2 allow rules in 1 file under /fixture/codex/rules let matching commands run without approval (readOnly is emulated for Codex workers)",
@@ -884,6 +886,38 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 			}),
 			true,
 		);
+		await t.test("F2 readable Status columns at 390px", async () => {
+			const layout = await browser.evaluate(() => {
+				const table = document.querySelector(".property-table.executors");
+				const host = table.parentElement;
+				const names = [...table.querySelectorAll("td:first-child strong")].map(
+					(n) => {
+						const range = document.createRange();
+						range.selectNodeContents(n);
+						return [n.textContent, range.getClientRects().length];
+					},
+				);
+				const fix = table.querySelector("td:nth-child(4)");
+				host.scrollLeft = host.scrollWidth;
+				return {
+					names,
+					width: table.getBoundingClientRect().width,
+					fixWidth: fix?.clientWidth,
+					scrollable: ["auto", "scroll"].includes(
+						getComputedStyle(host).overflowX,
+					),
+					reached: host.scrollLeft > 0,
+				};
+			});
+			assert.deepEqual(
+				layout.names,
+				ids.map((id) => [id, 1]),
+			);
+			assert.ok(layout.width >= 640, JSON.stringify(layout));
+			assert.ok(layout.scrollable && layout.reached, JSON.stringify(layout));
+			if (mode === "fix")
+				assert.ok(layout.fixWidth >= 200, JSON.stringify(layout));
+		});
 		const actual = await browser.evaluate(() => ({
 			headers: [...document.querySelectorAll(".executors th")].map(
 				(n) => n.textContent,
@@ -907,7 +941,12 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 			await t.test("empty ready actions", () =>
 				assert.deepEqual(
 					actual.rows.map((r) => r[3]),
-					["Install fixture CLI", "", "", ""],
+					[
+						"",
+						"",
+						"",
+						"Log in to Antigravity using the CLI login command, then return here and check again. Your account must have access to the configured workspace.",
+					],
 				),
 			);
 		const others = [
@@ -922,9 +961,58 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 						...others,
 						"pi, claude, codex and antigravity: installed version differs from the tested one (see Version). Capability rows marked probed may not hold.",
 					]
-				: mode === "one"
+				: mode === "one" || mode === "fix"
 					? [versions[0], ...others]
 					: others,
 		);
 	});
 }
+
+test("F2 management landing pages share margins at 1600 and fit 390/980", {
+	timeout: 120000,
+}, async (t) => {
+	const p = await managementProject(t);
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	for (const width of [1600, 390, 980]) {
+		const boxes = [];
+		for (const view of ["workflows", "profiles", "executors"]) {
+			await navigate(
+				browser,
+				`${p.server.url}&project=${p.server.projectId}&view=${view}`,
+				view,
+			);
+			await browser.waitFor(
+				`document.querySelector('[data-management="${view}"]') && ('${view}' !== 'executors' || document.querySelector('.property-table.executors'))`,
+			);
+			await browser.send("Emulation.setDeviceMetricsOverride", {
+				width,
+				height: 1000,
+				deviceScaleFactor: 1,
+				mobile: false,
+			});
+			await browser.waitForMotionEnd();
+			boxes.push(
+				await browser.evaluate(() => {
+					const page = document.querySelector(".management-page"),
+						title = page.querySelector("h1");
+					return {
+						x: title.getBoundingClientRect().x,
+						width: page.getBoundingClientRect().width,
+						overflow: document.body.scrollWidth > innerWidth,
+						pageOverflow: page.scrollWidth > page.clientWidth,
+					};
+				}),
+			);
+		}
+		assert.ok(
+			boxes.every((b) => !b.overflow && !b.pageOverflow),
+			JSON.stringify({ width, boxes }),
+		);
+		assert.deepEqual(
+			boxes.map((b) => [b.x, b.width]),
+			Array(3).fill([boxes[0].x, boxes[0].width]),
+			JSON.stringify({ width, boxes }),
+		);
+	}
+});

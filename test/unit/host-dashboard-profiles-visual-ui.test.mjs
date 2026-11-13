@@ -1791,3 +1791,495 @@ test("Profile unset hints keep the selected preset executor without creating an 
 	);
 	assert.equal(state.placeholder, "Automatic");
 });
+
+async function f2Options(browser, label) {
+	await browser.evaluate((label) => {
+		const input = document.querySelector(`[aria-label="${label}"]`);
+		for (
+			let parent = input.parentElement;
+			parent;
+			parent = parent.parentElement
+		)
+			if (parent.tagName === "DETAILS") parent.open = true;
+		input.click();
+	}, label);
+	return browser.evaluate(
+		(label) =>
+			[
+				...document
+					.querySelector(`[aria-label="${label}"]`)
+					.closest(".management-picker")
+					.querySelectorAll('[role="option"]'),
+			].map((n) => n.textContent),
+		label,
+	);
+}
+async function f2Choose(browser, label, value) {
+	await browser.evaluate(
+		(label, value) => {
+			const picker = document
+				.querySelector(`[aria-label="${label}"]`)
+				.closest(".management-picker");
+			const option = [...picker.querySelectorAll('[role="option"]')].find(
+				(n) => n.dataset.value === value,
+			);
+			if (!option) throw new Error(`Missing suggestion ${label}: ${value}`);
+			option.click();
+		},
+		label,
+		value,
+	);
+}
+
+async function f2Capture(browser) {
+	await browser.evaluate(() => {
+		window.f2Writes = [];
+		const original = window.fetch;
+		window.fetch = (url, options) => {
+			if (options?.method === "PUT")
+				window.f2Writes.push({
+					url: String(url),
+					body: JSON.parse(options.body),
+				});
+			return original(url, options);
+		};
+	});
+}
+
+test("F2 inherited executor catalog: built-in Common and role suggestions stay unstored", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await list(p);
+	await edit(p.browser, "codex");
+	await f2Capture(p.browser);
+	assert.ok((await f2Options(p.browser, "Model")).includes("fixture-model"));
+	assert.ok(!(await f2Options(p.browser, "Effort")).includes("off"));
+	await select(p.browser, "verification");
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Model")).includes(
+			"fixture-model",
+		),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector('[aria-label="Executor"]').value,
+		),
+		"",
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector("[data-role-reset]").disabled,
+		),
+		true,
+	);
+	await p.browser.click('[data-management-action="save-profile"]');
+	await p.browser.waitFor(
+		() => !!document.querySelector(".profile-save-status"),
+	);
+	const writes = await p.browser.evaluate(() => window.f2Writes);
+	assert.equal(writes.length, 1);
+	assert.equal(writes[0].body.values.executor, undefined);
+	assert.ok(writes[0].body.unset.includes("executor"));
+	assert.deepEqual(writes[0].body.values.roles, {});
+	const saved = (await profileAction(p.ctx, { op: "show", name: "codex" })).data
+		.profile;
+	assert.equal(saved.executor, undefined);
+	assert.deepEqual(saved.roles || {}, {});
+	await edit(p.browser, "codex");
+	await f2Capture(p.browser);
+	await f2Options(p.browser, "Model");
+	await f2Choose(p.browser, "Model", "fixture-model");
+	assert.deepEqual(await f2Options(p.browser, "Effort"), [
+		"Automatic",
+		"low",
+		"medium",
+		"high",
+	]);
+	await select(p.browser, "verification");
+	await f2Options(p.browser, "Role verification Model");
+	await f2Choose(p.browser, "Role verification Model", "fixture-model");
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Role verification Executor"]')
+					.value,
+		),
+		"",
+	);
+	await p.browser.click('[data-management-action="save-profile"]');
+	await p.browser.waitFor(
+		() => !!document.querySelector(".profile-save-status"),
+	);
+	const picked = (await profileAction(p.ctx, { op: "show", name: "codex" }))
+		.data.profile;
+	assert.equal(picked.executor, undefined);
+	assert.equal(picked.model, "fixture-model");
+	assert.deepEqual(picked.roles.verification, { model: "fixture-model" });
+	const pickedWrites = await p.browser.evaluate(() => window.f2Writes);
+	assert.equal(pickedWrites[0].body.values.executor, undefined);
+	assert.deepEqual(pickedWrites[0].body.values.roles.verification, {
+		model: "fixture-model",
+	});
+});
+
+test("F2 inherited executor catalog: Base preset and Common context refresh without resets", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await p.browser.send("Page.addScriptToEvaluateOnNewDocument", {
+		source: `(() => {
+		const original = window.fetch;
+		window.fetch = async (url, options) => {
+			const response = await original(url, options);
+			if (!String(url).endsWith('/api/executors/models')) return response;
+			const body = await response.json();
+			for (const entry of body.data.executors) entry.models = [entry.id + '-only'];
+			return new Response(JSON.stringify(body), {headers:{'Content-Type':'application/json'}});
+		};
+	})();`,
+	});
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "daily",
+		values: { model: "manual/model", effort: "off" },
+	});
+	await list(p);
+	await edit(p.browser, "daily");
+	assert.deepEqual(await f2Options(p.browser, "Model"), ["Automatic"]);
+	await set(p.browser, "Profile preset", "codex");
+	assert.ok((await f2Options(p.browser, "Model")).includes("codex-only"));
+	assert.ok(
+		(await f2Options(p.browser, "Effort")).includes("off (not available here)"),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector('[aria-label="Model"]').value,
+		),
+		"manual/model",
+	);
+	await select(p.browser, "verification");
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Effort")).includes("ultra"),
+	);
+	await set(p.browser, "Profile preset", "");
+	await set(p.browser, "Executor", "claude");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role verification Model"]'),
+	);
+	assert.ok(
+		!(await f2Options(p.browser, "Role verification Effort")).includes("ultra"),
+	);
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Effort")).includes("max"),
+	);
+	assert.deepEqual(await f2Options(p.browser, "Role verification Model"), [
+		"Automatic",
+		"claude-only",
+	]);
+	await f2Choose(p.browser, "Role verification Model", "claude-only");
+	await f2Capture(p.browser);
+	const saved = await save(p);
+	assert.equal(saved.executor, "claude");
+	assert.deepEqual(saved.roles, { verification: { model: "claude-only" } });
+	const writes = await p.browser.evaluate(() => window.f2Writes);
+	assert.deepEqual(writes[0].body.values.roles, {
+		verification: { model: "claude-only" },
+	});
+});
+
+test("F2 inherited executor catalog: workflow preference uses its known selected profile", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "daily",
+		values: {
+			executor: "claude",
+			model: "sonnet",
+			effort: "high",
+			roles: { verification: { executor: "codex", effort: "high" } },
+		},
+	});
+	await list(p);
+	await set(p.browser, "Workflow to configure", "model-flow");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
+	);
+	await set(p.browser, "Workflow preferred profile", "daily");
+	await p.browser.evaluate(() => {
+		for (const d of document.querySelectorAll("details")) d.open = true;
+	});
+	await select(p.browser, "verification");
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Model")).includes(
+			"fixture-model",
+		),
+	);
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Effort")).includes("ultra"),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Role verification Executor"]')
+					.value,
+		),
+		"",
+	);
+	await f2Capture(p.browser);
+	assert.deepEqual(await p.browser.evaluate(() => window.f2Writes), []);
+	await f2Options(p.browser, "Role verification Model");
+	await set(p.browser, "Role verification Model", "gpt-6.1-sol");
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Effort")).includes("ultra"),
+		"model-only preference must retain the lower role executor, not Common",
+	);
+	await p.browser.evaluate(() =>
+		[...document.querySelectorAll("button")]
+			.find((n) => n.textContent === "Save workflow preference")
+			.click(),
+	);
+	await p.browser.waitFor(() =>
+		[...document.querySelectorAll('[role="status"]')].some(
+			(n) => n.textContent === "Workflow settings saved.",
+		),
+	);
+	const writes = await p.browser.evaluate(() => window.f2Writes);
+	assert.equal(writes.length, 1);
+	assert.deepEqual(writes[0].body.roles, {
+		verification: { model: "gpt-6.1-sol" },
+	});
+	const stored = (
+		await p.http(
+			`/api/workflow-preferences/model-flow?project=${p.server.projectId}`,
+		)
+	).data.data.preference;
+	assert.deepEqual(stored.roles, { verification: { model: "gpt-6.1-sol" } });
+	await set(p.browser, "Workflow to configure", "");
+	await set(p.browser, "Workflow to configure", "model-flow");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
+	);
+	await p.browser.evaluate(() => {
+		for (const d of document.querySelectorAll("details")) d.open = true;
+	});
+	await select(p.browser, "verification");
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Effort")).includes("ultra"),
+	);
+	await set(p.browser, "Workflow preferred profile", "claude");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role verification Model"]'),
+	);
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Effort")).includes("max"),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Role verification Model"]').value,
+		),
+		"gpt-6.1-sol",
+	);
+	await set(p.browser, "Workflow preferred profile", "daily");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role verification Model"]'),
+	);
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Effort")).includes("ultra"),
+	);
+	await p.browser.evaluate(() =>
+		document.querySelector("[data-role-reset]").click(),
+	);
+	await p.browser.waitFor(
+		() =>
+			document.querySelector('[aria-label="Role verification Model"]')
+				?.value === "",
+	);
+	await p.browser.evaluate(() => {
+		window.f2Writes = [];
+		for (const node of document.querySelectorAll('[role="status"]'))
+			if (node.textContent === "Workflow settings saved.") node.remove();
+		[...document.querySelectorAll("button")]
+			.find((node) => node.textContent === "Save workflow preference")
+			.click();
+	});
+	await p.browser.waitFor(() => window.f2Writes.length === 1);
+	const resetWrite = (await p.browser.evaluate(() => window.f2Writes))[0].body;
+	assert.deepEqual(resetWrite.roles, {});
+	assert.ok(resetWrite.unset.includes("roles.verification"));
+	await p.browser.waitFor(() =>
+		[...document.querySelectorAll('[role="status"]')].some(
+			(node) => node.textContent === "Workflow settings saved.",
+		),
+	);
+	assert.deepEqual(
+		(
+			await p.http(
+				`/api/workflow-preferences/model-flow?project=${p.server.projectId}`,
+			)
+		).data.data.preference.roles || {},
+		{},
+	);
+	await set(p.browser, "Workflow preferred profile", "unknown-profile");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role verification Model"]'),
+	);
+	assert.deepEqual(await f2Options(p.browser, "Role verification Model"), [
+		"Automatic",
+	]);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector("[data-role-reset]").disabled,
+		),
+		true,
+	);
+});
+
+for (const blank of ["", "   "]) {
+	test(`F2 blank new profile name ${JSON.stringify(blank)} is local and preserves draft`, {
+		timeout: 90000,
+	}, async (t) => {
+		const p = await open(t);
+		await list(p);
+		await p.browser.click("[data-profile-new]");
+		await p.browser.waitFor(
+			() => !!document.querySelector('[aria-label="Profile name"]'),
+		);
+		await set(p.browser, "Model", "manual/kept");
+		await set(p.browser, "Profile name", blank);
+		await f2Capture(p.browser);
+		await p.browser.click('[data-management-action="save-profile"]');
+		await p.browser.waitFor(
+			() => !!document.querySelector('.profile-editor [role="alert"]'),
+		);
+		assert.match(
+			await p.browser.evaluate(
+				() =>
+					document.querySelector('.profile-editor [role="alert"]').textContent,
+			),
+			/name/i,
+		);
+		assert.equal(
+			await p.browser.evaluate(() =>
+				document.activeElement.getAttribute("aria-label"),
+			),
+			"Profile name",
+		);
+		assert.deepEqual(await p.browser.evaluate(() => window.f2Writes), []);
+		assert.equal(
+			await p.browser.evaluate(
+				() => document.querySelector('[aria-label="Model"]').value,
+			),
+			"manual/kept",
+		);
+		await set(p.browser, "Profile name", "daily");
+		assert.equal((await save(p)).model, "manual/kept");
+	});
+}
+
+test("F2 review preference explicit executor beats built-in and keeps layers ordered", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await list(p);
+	await set(p.browser, "Workflow to configure", "model-flow");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
+	);
+	await set(p.browser, "Workflow preferred profile", "codex");
+	await p.browser.evaluate(() => {
+		for (const d of document.querySelectorAll("details")) d.open = true;
+	});
+	await select(p.browser, "verification");
+	await set(p.browser, "Role verification Executor", "claude");
+	assert.ok(
+		!(await f2Options(p.browser, "Role verification Effort")).includes("ultra"),
+		"explicit Claude preference must not use Codex catalog",
+	);
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Effort")).includes("max"),
+	);
+	await f2Capture(p.browser);
+	await p.browser.evaluate(() =>
+		[...document.querySelectorAll("button")]
+			.find((node) => node.textContent === "Save workflow preference")
+			.click(),
+	);
+	await p.browser.waitFor(() =>
+		[...document.querySelectorAll('[role="status"]')].some(
+			(node) => node.textContent === "Workflow settings saved.",
+		),
+	);
+	assert.deepEqual(
+		(await p.browser.evaluate(() => window.f2Writes))[0].body.roles,
+		{ verification: { executor: "claude" } },
+	);
+	const stored = (
+		await p.http(
+			`/api/workflow-preferences/model-flow?project=${p.server.projectId}`,
+		)
+	).data.data.preference;
+	assert.deepEqual(stored.roles, { verification: { executor: "claude" } });
+	await set(p.browser, "Workflow to configure", "");
+	await set(p.browser, "Workflow to configure", "model-flow");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
+	);
+	await p.browser.evaluate(() => {
+		for (const d of document.querySelectorAll("details")) d.open = true;
+	});
+	await select(p.browser, "verification");
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Effort")).includes("max"),
+	);
+	await p.browser.evaluate(() =>
+		document.querySelector("[data-role-reset]").click(),
+	);
+	await p.browser.waitFor(
+		() =>
+			document.querySelector('[aria-label="Role verification Executor"]')
+				?.value === "",
+	);
+	assert.ok(
+		(await f2Options(p.browser, "Role verification Effort")).includes("ultra"),
+	);
+	const views = await p.browser.evaluate(async () => {
+		const { profileSlotPreview } = await import("./app.js");
+		const slot = { roleKeys: ["agent:reader", "verification", "default"] };
+		const context = {
+			preferenceProfile: {
+				common: { executor: "claude", model: "sonnet", effort: "high" },
+				presetRoles: {
+					"agent:reader": {
+						executor: "codex",
+						model: "codex-only",
+						effort: "ultra",
+					},
+					verification: { executor: "codex" },
+				},
+			},
+		};
+		return [
+			profileSlotPreview(
+				slot,
+				{ verification: { model: "manual/model", effort: "off" } },
+				context,
+			).values,
+			profileSlotPreview(slot, { default: { executor: "claude" } }, context)
+				.values,
+			profileSlotPreview(
+				slot,
+				{ default: { executor: "pi", model: "manual/pi" } },
+				context,
+			).values,
+		];
+	});
+	assert.deepEqual(views, [
+		{ executor: "codex", model: "manual/model", effort: "off" },
+		{ executor: "claude", model: "sonnet", effort: "high" },
+		{ executor: "pi", model: "manual/pi" },
+	]);
+});
