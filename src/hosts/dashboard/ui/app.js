@@ -1862,7 +1862,9 @@ function renderGraph() {
 			layerOf.set(stage.id, n);
 			positions.set(stage.id, {
 				x: horizontal ? axis : side,
-				y: horizontal ? side : axis + (height - nodeHeight(stage)) / 2,
+				// Top-aligned in their layer (owner 2026-11-13): cards of different heights keep their
+				// titles on one line; each edge still leaves from its own card's bottom.
+				y: horizontal ? side : axis,
 				w: width,
 				h: nodeHeight(stage),
 			});

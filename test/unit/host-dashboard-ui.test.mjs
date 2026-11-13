@@ -3087,11 +3087,13 @@ const measureBadges = (browser, selector) =>
 				after: box.right - textRight(node),
 				background: style.backgroundColor,
 				radius: style.borderTopLeftRadius,
+				border: style.borderTopWidth,
 				height: box.height,
 			};
 		});
 	}, selector);
-const checkBadges = (rows, where, height) => {
+/** `framed`: a label (severity, verifier) keeps its hairline frame; a run's status is unframed. */
+const checkBadges = (rows, where, height, framed = true) => {
 	assert.ok(rows.length > 0, `${where}: there are badges`);
 	for (const row of rows) {
 		assert.ok(
@@ -3108,11 +3110,20 @@ const checkBadges = (rows, where, height) => {
 			"rgba(0, 0, 0, 0)",
 			`${where}: "${row.text}" has a fill`,
 		);
-		assert.equal(
-			row.radius,
-			"6px",
-			`${where}: "${row.text}" has the status shape`,
-		);
+		// 2026-11-13 (owner, "follow the references"): a run's status is a glyph and a word with no
+		// frame, starting on its column's edge (Inngest, Vercel, Linear); labels keep the frame.
+		if (framed)
+			assert.equal(
+				row.radius,
+				"6px",
+				`${where}: "${row.text}" has the label shape`,
+			);
+		else
+			assert.deepEqual(
+				[row.border, row.before],
+				["0px", 0],
+				`${where}: "${row.text}" is unframed and starts on its edge`,
+			);
 		if (height)
 			assert.equal(row.height, height, `${where}: "${row.text}" height`);
 	}
@@ -3130,6 +3141,7 @@ test(
 			await measureBadges(browser, ".report-head .result-badge"),
 			"report header",
 			28,
+			false,
 		);
 		checkBadges(
 			await measureBadges(browser, ".severity-chip"),
@@ -3159,11 +3171,12 @@ test(
 			".home-row.recent .result-badge",
 		);
 		assert.ok(recent.some((row) => row.text === "Stopped"));
-		checkBadges(recent, "recent results", 24);
+		checkBadges(recent, "recent results", 24, false);
 		checkBadges(
 			await measureBadges(browser, ".home-table .result-badge"),
 			"workflows table",
 			24,
+			false,
 		);
 		// The run view: the rail's rows, the result line, the top bar's button. Each icon is centred
 		// on its row; these are not boxes, so only the centre is held.
@@ -4431,5 +4444,50 @@ test(
 		);
 		await browser.waitFor(() => document.querySelector("#timeline"));
 		await none("timeline");
+	},
+);
+
+test(
+	"dashboard Chrome: cards side by side in the top-down graph share their top edge",
+	chromeOptions,
+	async (t) => {
+		// 2026-11-13 (owner): a taller card beside a shorter one left the shorter one's title lower;
+		// cards in one layer are top-aligned so their titles read as one line.
+		const { browser, fixture } = await reviewFixture(t);
+		// A one-agent stage beside the three-agent reviewers card: both follow triage.
+		const live = fixture.runs.get(running);
+		const triage = live.tasks.find((task) => task.specId === "triage.main");
+		live.tasks.splice(1, 0, {
+			...structuredClone(triage),
+			taskId: "task-context",
+			specId: "context.main",
+			stageId: "context",
+			dependsOn: ["triage.main"],
+		});
+		let pairs = 0;
+		for (const runId of [running, complete, failed]) {
+			await browser.open(`${fixture.origin}/?run=${runId}`);
+			await browser.waitFor(() => document.querySelector(".node[data-stage]"));
+			const boxes = await browser.evaluate(() =>
+				[...document.querySelectorAll(".node[data-stage]")].map((node) => {
+					const box = node.querySelector(".outline").getBoundingClientRect();
+					return { top: box.top, bottom: box.bottom, height: box.height };
+				}),
+			);
+			for (const [i, a] of boxes.entries())
+				for (const b of boxes.slice(i + 1)) {
+					if (a.bottom <= b.top || b.bottom <= a.top) continue;
+					if (Math.abs(a.height - b.height) < 1) continue;
+					pairs += 1;
+					assert.ok(
+						Math.abs(a.top - b.top) <= 1,
+						`${runId}: cards of ${a.height}px and ${b.height}px start ${Math.abs(a.top - b.top)}px apart`,
+					);
+				}
+		}
+		assert.ok(
+			pairs > 0,
+			"a fixture has a layer with cards of different heights",
+		);
 	},
 );
