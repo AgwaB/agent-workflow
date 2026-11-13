@@ -154,9 +154,15 @@ test("Chrome management: the views, profile edit, check preview and the overview
 	// 2026-11-11 (owner): Effort offers the chosen executor's levels, narrowed by the model's.
 	const effort = () =>
 		browser.evaluate(() => ({
-			options: [...document.querySelector('[aria-label="Effort"]').options].map(
-				(option) => option.value,
-			),
+			options: [
+				...document
+					.getElementById(
+						document
+							.querySelector('[aria-label="Effort"]')
+							.getAttribute("aria-controls"),
+					)
+					.querySelectorAll('[role="option"]'),
+			].map((option) => option.dataset.value),
 			note: document.querySelector("[data-effort-note]").textContent,
 		}));
 	assert.equal((await effort()).options.length, 9, "Automatic: every level");
@@ -184,8 +190,13 @@ test("Chrome management: the views, profile edit, check preview and the overview
 	assert.equal(
 		await browser.evaluate(
 			() =>
-				document.querySelector('[aria-label="Effort"]').selectedOptions[0]
-					.textContent,
+				document
+					.getElementById(
+						document
+							.querySelector('[aria-label="Effort"]')
+							.getAttribute("aria-controls"),
+					)
+					.querySelector('[aria-selected="true"]').textContent,
 		),
 		"max (not available here)",
 	);
@@ -442,7 +453,11 @@ test("Chrome executor default profiles: built-in shown, edited with the full eff
 			return [
 				name.value,
 				name.readOnly,
-				[...effort.options].map((option) => option.value),
+				[
+					...document
+						.getElementById(effort.getAttribute("aria-controls"))
+						.querySelectorAll('[role="option"]'),
+				].map((option) => option.dataset.value),
 			];
 		}),
 		[

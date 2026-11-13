@@ -7550,21 +7550,219 @@ function commandHint(command) {
 		button("Copy", () => copy(command)),
 	);
 }
+// One styled, below-field menu for Executor, Model and Effort (2026-11-13, owner).
+let activePicker = null;
+let pickerId = 0;
+document.addEventListener("pointerdown", (event) => {
+	if (activePicker && !activePicker.node.contains(event.target))
+		activePicker.close();
+});
+function choicePicker(
+	label,
+	values,
+	value = "",
+	{ editable = false, placeholder = "Automatic" } = {},
+) {
+	const id = `picker-${++pickerId}`;
+	const control = input(label, value, {
+		role: "combobox",
+		"aria-controls": id,
+		"aria-expanded": "false",
+		"aria-haspopup": "listbox",
+		"aria-autocomplete": editable ? "list" : "none",
+		autocomplete: "off",
+		readonly: !editable,
+		placeholder,
+	});
+	const menu = element("div", {
+		id,
+		role: "listbox",
+		"aria-label": `${label} options`,
+		class: "picker-menu",
+		hidden: true,
+	});
+	const node = element("div", { class: "management-picker" }, control, menu);
+	// Padding/empty-state clicks must not activate the surrounding field label or steal focus.
+	menu.addEventListener("pointerdown", (event) => event.preventDefault());
+	menu.addEventListener("click", (event) => event.preventDefault());
+	let options = [],
+		shown = [],
+		active = -1,
+		filtering = false,
+		choosing = false;
+	const close = () => {
+		menu.hidden = true;
+		control.setAttribute("aria-expanded", "false");
+		control.removeAttribute("aria-activedescendant");
+		if (activePicker?.node === node) activePicker = null;
+	};
+	const highlight = (index, scroll = true) => {
+		active = index;
+		const items = [...menu.querySelectorAll('[role="option"]')];
+		for (let i = 0; i < items.length; i++)
+			items[i].toggleAttribute("data-active", i === active);
+		if (items[active]) {
+			control.setAttribute("aria-activedescendant", items[active].id);
+			if (scroll)
+				items[active].scrollIntoView({ block: "nearest", behavior: "instant" });
+		} else control.removeAttribute("aria-activedescendant");
+	};
+	const choose = (index) => {
+		const item = shown[index];
+		if (!item) return;
+		control.value = item[0];
+		close();
+		choosing = true;
+		control.dispatchEvent(new Event("input", { bubbles: true }));
+		control.dispatchEvent(new Event("change", { bubbles: true }));
+		choosing = false;
+		control.focus({ preventScroll: true });
+	};
+	const paint = () => {
+		const query = editable && filtering ? control.value.toLowerCase() : "";
+		shown = options.filter(
+			([value, text]) =>
+				!query || `${value} ${text}`.toLowerCase().includes(query),
+		);
+		menu.replaceChildren(
+			...shown.map(([value, text], index) =>
+				element(
+					"div",
+					{
+						id: `${id}-${index}`,
+						role: "option",
+						"data-value": value,
+						"aria-selected": String(value === control.value),
+						onpointermove: () => highlight(index, false),
+						onclick: () => choose(index),
+					},
+					text,
+				),
+			),
+		);
+		if (!shown.length)
+			menu.append(
+				element(
+					"div",
+					{ class: "picker-empty", role: "status" },
+					"No suggestions. You can type a model ID.",
+				),
+			);
+		active = shown.findIndex(([value]) => value === control.value);
+		if (!menu.hidden) highlight(active, false);
+	};
+	const open = () => {
+		if (activePicker?.node !== node) activePicker?.close();
+		activePicker = { node, close };
+		filtering = false;
+		paint();
+		menu.hidden = false;
+		control.setAttribute("aria-expanded", "true");
+		// The list contributes to the page's scroll area, so it can stay below even at the bottom.
+		menu.style.maxHeight = `${Math.min(240, Math.max(80, (node.closest(".management-page")?.clientHeight || innerHeight) - 100))}px`;
+		menu.scrollIntoView({ block: "nearest", behavior: "instant" });
+		highlight(active);
+	};
+	control.addEventListener("click", () => {
+		if (!editable && !menu.hidden) close();
+		else if (menu.hidden) open();
+	});
+	control.addEventListener("input", (event) => {
+		if (!editable || event.isComposing || choosing) return;
+		if (document.activeElement === control && menu.hidden) open();
+		filtering = true;
+		paint();
+	});
+	control.addEventListener("change", paint);
+	let typed = "",
+		typedAt = 0;
+	control.addEventListener("keydown", (event) => {
+		if (event.isComposing) return;
+		const wasOpen = !menu.hidden;
+		if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+			event.preventDefault();
+			event.stopPropagation();
+			if (!wasOpen) open();
+			let next = active;
+			if (!shown.length) next = -1;
+			else if (active < 0)
+				next = event.key === "ArrowDown" ? 0 : shown.length - 1;
+			else if (wasOpen)
+				next =
+					(active + (event.key === "ArrowDown" ? 1 : -1) + shown.length) %
+					shown.length;
+			highlight(next);
+		} else if (event.key === "Enter" && wasOpen) {
+			event.preventDefault();
+			event.stopPropagation();
+			if (active >= 0) choose(active);
+			else close();
+		} else if (event.key === "Escape" && wasOpen) {
+			event.preventDefault();
+			event.stopPropagation();
+			close();
+		} else if (event.key === "Tab") close();
+		else if (!editable && ["Home", "End", " "].includes(event.key)) {
+			event.preventDefault();
+			event.stopPropagation();
+			if (event.key === " " && wasOpen) close();
+			else {
+				if (!wasOpen) open();
+				if (event.key !== " ")
+					highlight(event.key === "Home" ? 0 : shown.length - 1);
+			}
+		} else if (
+			!editable &&
+			event.key.length === 1 &&
+			!event.ctrlKey &&
+			!event.metaKey &&
+			!event.altKey
+		) {
+			event.preventDefault();
+			if (!wasOpen) open();
+			typed = Date.now() - typedAt > 700 ? event.key : typed + event.key;
+			typedAt = Date.now();
+			highlight(
+				shown.findIndex(([, text]) =>
+					text.toLowerCase().startsWith(typed.toLowerCase()),
+				),
+			);
+		}
+	});
+	node.addEventListener("focusout", (event) => {
+		if (!node.contains(event.relatedTarget)) close();
+	});
+	const setOptions = (values) => {
+		options = values.map((entry) =>
+			Array.isArray(entry) ? entry : [entry, entry || "Automatic"],
+		);
+		paint();
+	};
+	setOptions(values);
+	return { node, control, setOptions };
+}
+
 async function modelControls(saved = {}, prefix = "") {
 	const data = (await managementApi("/api/executors/models")).data;
 	const ids = data.executors.map((entry) => entry.id);
 	if (saved.executor && !ids.includes(saved.executor)) ids.push(saved.executor);
-	const exec = choices(`${prefix}Executor`, ["", ...ids], saved.executor || "");
-	const model = input(`${prefix}Model`, saved.model || "", {
+	const executorPicker = choicePicker(
+		`${prefix}Executor`,
+		["", ...ids],
+		saved.executor || "",
+	);
+	const modelPicker = choicePicker(`${prefix}Model`, [], saved.model || "", {
+		editable: true,
 		placeholder: "Executor default",
 	});
-	const effort = choices(
+	const effortPicker = choicePicker(
 		`${prefix}Effort`,
 		["", ...EFFORT_LEVELS],
 		saved.effort || "",
 	);
-	const list = element("datalist", { id: `models-${++modelControlId}` });
-	model.setAttribute("list", list.id);
+	const exec = executorPicker.control,
+		model = modelPicker.control,
+		effort = effortPicker.control;
 	const note = element("small", { class: "muted" });
 	const effortNote = element("small", {
 		class: "muted",
@@ -7622,17 +7820,15 @@ async function modelControls(saved = {}, prefix = "") {
 		];
 		if (current && !levels.includes(current))
 			options.push([current, `${current} (not available here)`]);
-		effort.replaceChildren(
-			...options.map(([value, label]) => element("option", { value }, label)),
-		);
-		effort.value = current;
+		effortPicker.setOptions(options);
 		effortNote.textContent = text;
 	};
 	const update = () => {
 		const entry = data.executors.find((entry) => entry.id === exec.value);
-		list.replaceChildren(
-			...(entry?.models || []).map((id) => element("option", { value: id })),
-		);
+		modelPicker.setOptions([
+			["", "Executor default"],
+			...(entry?.models || []),
+		]);
 		note.textContent =
 			entry?.note || "Choose an executor for its model suggestions.";
 		updateEffort();
@@ -7645,10 +7841,9 @@ async function modelControls(saved = {}, prefix = "") {
 		node: element(
 			"div",
 			{ class: "management-fields" },
-			field("Executor", exec),
-			field("Model", model),
-			field("Effort", effort),
-			list,
+			field("Executor", executorPicker.node),
+			field("Model", modelPicker.node),
+			field("Effort", effortPicker.node),
 			note,
 			effortNote,
 		),
@@ -7662,7 +7857,6 @@ async function modelControls(saved = {}, prefix = "") {
 			),
 	};
 }
-let modelControlId = 0;
 // The engine's effort vocabulary (core/types.ts EFFORT_LEVELS); executors map it to their own levels.
 const EFFORT_LEVELS = [
 	"off",
@@ -8461,12 +8655,6 @@ async function renderProfiles(page) {
 				),
 				hasSavedProfile ? options : null,
 				output,
-				moreDetails(
-					"Same from the terminal",
-					commandHint(
-						`agent-workflow profile set ${shellArg(profile.name || "<name>")} --executor <id>`,
-					),
-				),
 			),
 		);
 		overview.hidden = true;

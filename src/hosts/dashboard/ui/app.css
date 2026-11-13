@@ -110,7 +110,8 @@ select {
  * text started further in than an input's). Two gradients, not an image: the CSP allows no data
  * URLs, and currentColor follows the theme.
  */
-select {
+select,
+.management-picker > input {
 	appearance: none;
 	padding-right: 32px;
 	/* A thin chevron: two 1.5 px diagonal strokes, "\" then "/", meeting at the bottom. */
@@ -2443,6 +2444,58 @@ main.signin code {
 }
 .management-fields .management-fields {
 	display: contents;
+}
+/* Same surface, chevron and below-field list for Executor, Model and Effort. */
+.management-picker {
+	position: relative;
+	min-width: 0;
+}
+.management-picker:has([aria-expanded="true"]) {
+	z-index: 30;
+}
+.management-picker > input[readonly] {
+	cursor: pointer;
+}
+.picker-menu {
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 0;
+	width: 100%;
+	z-index: 30;
+	max-height: 240px;
+	overflow: auto;
+	overscroll-behavior: contain;
+	margin: 0;
+	padding: 4px;
+	border: 1px solid var(--line2);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: 0 8px 24px #0003;
+	font-size: 14px;
+	font-weight: 400;
+	text-align: left;
+	scroll-margin-block: 12px;
+}
+.picker-menu [role="option"] {
+	position: relative;
+	min-height: 32px;
+	padding: 6px 26px 6px 10px;
+	border-radius: 4px;
+	cursor: pointer;
+	overflow-wrap: anywhere;
+}
+.picker-menu [role="option"][data-active] {
+	background: var(--selected);
+}
+.picker-menu [aria-selected="true"]::after {
+	content: "✓";
+	position: absolute;
+	right: 8px;
+}
+.picker-empty {
+	padding: 8px 10px;
+	color: var(--muted);
 }
 .management-fields > small,
 .management-fields .management-fields > small {
