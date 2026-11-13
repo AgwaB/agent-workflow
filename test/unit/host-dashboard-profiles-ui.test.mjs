@@ -71,7 +71,9 @@ async function selectRole(browser, key) {
 		document.querySelector(".profile-other-roles").open = true;
 	});
 	await set(browser, "Role to edit", key);
-	await browser.waitFor(() => !!document.querySelector(".role-inspector h3"));
+	await browser.waitFor(
+		`!!document.querySelector(${JSON.stringify(`[aria-label="Role ${key} Model"]`)})`,
+	);
 }
 async function save(browser) {
 	await browser.click('[data-management-action="save-profile"]');
@@ -305,6 +307,33 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 	);
 	await set(p.browser, "Workflow preferred profile", "mixed");
 	await p.browser.click(".profile-preferences .more-details > summary");
+	await selectRole(p.browser, "verification");
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			notice: document.querySelector(".profile-preferences .role-sharing-note")
+				.textContent,
+			footnote: document.querySelector(".profile-preferences .role-map-note")
+				.textContent,
+			sticky: getComputedStyle(
+				document.querySelector(".profile-preferences .profile-editor-actions"),
+			).position,
+		})),
+		{
+			notice: "Not used by the steps shown here.",
+			footnote:
+				"Preview, not a run. A launch option can override these settings.",
+			sticky: "static",
+		},
+	);
+	await selectRole(p.browser, "default");
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector(".profile-preferences .role-sharing-note")
+					.textContent,
+		),
+		"Used by Read.",
+	);
 	await selectRole(p.browser, "verification");
 	await set(p.browser, "Role verification Executor", "claude");
 	await set(p.browser, "Role verification Effort", "high");

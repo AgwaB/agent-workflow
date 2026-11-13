@@ -250,9 +250,35 @@ test("model pickers: manual model IDs survive, suggestions commit once, and clea
 		false,
 		"committing does not reopen the suggestions",
 	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('.profile-common [aria-label="Model"]')
+					.placeholder,
+		),
+		"Automatic",
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document
+					.querySelector('.profile-common [aria-label="Model"]')
+					.parentElement.querySelector('[role="option"]').textContent,
+		),
+		"Automatic",
+	);
 	await pick(p.browser, "Model", "");
 	assert.equal(await value(p.browser, "Model"), "");
 	assert.equal(await shown(p.browser, "Model"), false);
+	await p.browser.click('[data-management-action="save-profile"]');
+	await p.browser.waitFor(
+		() => !!document.querySelector(".profile-save-status"),
+	);
+	assert.equal(
+		(await profileAction(p.ctx, { op: "show", name: "picker-test" })).data
+			.profile.model,
+		undefined,
+	);
 	assert.deepEqual(p.browser.errors, []);
 });
 

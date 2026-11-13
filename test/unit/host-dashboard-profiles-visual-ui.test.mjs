@@ -90,7 +90,9 @@ async function select(browser, key) {
 		});
 		await set(browser, "Role to edit", key);
 	}
-	await browser.waitFor(() => !!document.querySelector(".role-inspector h3"));
+	await browser.waitFor(
+		`!!document.querySelector(${JSON.stringify(`[aria-label="Role ${key} Model"]`)})`,
+	);
 }
 async function save(p) {
 	await p.browser.click('[data-management-action="save-profile"]');
@@ -480,6 +482,12 @@ test("Profiles use the same Run nodes/edges, show shared edits live, and never s
 	timeout: 90000,
 }, async (t) => {
 	const p = await open(t);
+	await p.browser.send("Emulation.setDeviceMetricsOverride", {
+		width: 1600,
+		height: 1000,
+		deviceScaleFactor: 1,
+		mobile: false,
+	});
 	await profileAction(p.ctx, {
 		op: "set",
 		name: "daily",
@@ -526,7 +534,7 @@ test("Profiles use the same Run nodes/edges, show shared edits live, and never s
 		await p.browser.evaluate(
 			() => document.querySelector(".role-sharing-note").textContent,
 		),
-		"One setting shared by Verify a and Verify b.",
+		"Used by Verify a and Verify b. Shared with other workflows on this profile.",
 	);
 	const shape = await p.browser.evaluate(() => ({
 		nodes: [...document.querySelectorAll(".profile-flow .graph .node")].map(
@@ -553,7 +561,7 @@ test("Profiles use the same Run nodes/edges, show shared edits live, and never s
 			() =>
 				document.querySelector('[aria-label="Role default Model"]').placeholder,
 		),
-		"Inherit: fixture-model",
+		"Automatic (fixture-model)",
 		"default cannot inherit from a higher-precedence role",
 	);
 	await set(p.browser, "Profile setting scope", "agent:reader");
@@ -906,7 +914,73 @@ test("Shared profile UX identifies the setting, not the clicked verification nod
 	});
 	await list(p);
 	await edit(p.browser, "daily");
+	await select(p.browser, "synthesis");
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector(".role-sharing-note").textContent,
+		),
+		"Used by Combine. Shared with other workflows on this profile.",
+	);
+	await set(p.browser, "Profile setting scope", "agent:reader");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role agent:reader Model"]'),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector(".role-sharing-note").textContent,
+		),
+		"Used by 5 steps here. Shared with other workflows on this profile.",
+	);
+	await p.browser.click(".profile-scope-options > summary");
+	await select(p.browser, "research-execution");
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector(".role-sharing-note").textContent,
+		),
+		"Not used by the steps shown here.",
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				!document.querySelector('[aria-label="Profile setting scope"]') &&
+				!document.querySelector(".profile-scope-note").checkVisibility(),
+		),
+		true,
+	);
+	await p.browser.click(".profile-scope-options > summary");
+	assert.equal(
+		await p.browser.evaluate(() =>
+			document.querySelector(".profile-scope-note").checkVisibility(),
+		),
+		true,
+	);
+	await p.browser.click(".profile-scope-options > summary");
 	await select(p.browser, "verification");
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			header: document.querySelector(".profile-flow-header h2").textContent,
+			label: document
+				.querySelector('[aria-label="Profile workflow"]')
+				.closest("label").firstChild.textContent,
+			footnote: document.querySelector(".role-map-note").textContent,
+			inheritance: document.querySelector(".role-inheritance").textContent,
+			common: document.querySelector(".profile-common p").textContent,
+		})),
+		{
+			header: "Models by step",
+			label: "Show on",
+			footnote:
+				"Preview, not a run. A workflow or launch option can override these settings.",
+			inheritance: "Empty fields use the default.",
+			common: "Empty fields use the default. Applies to future runs.",
+		},
+	);
+	assert.doesNotMatch(
+		await p.browser.evaluate(
+			() => document.querySelector(".role-inspector").innerText,
+		),
+		/Shared model settings|declared slot|Run diagram|inherit/i,
+	);
 	assert.equal(
 		await p.browser.evaluate(
 			() => document.querySelector(".role-inspector h3").textContent,
@@ -915,18 +989,23 @@ test("Shared profile UX identifies the setting, not the clicked verification nod
 	);
 	assert.deepEqual(
 		await p.browser.evaluate(() => ({
-			label: document.querySelector(".role-panel-label").textContent,
+			label: document.querySelector(".role-panel-label")?.textContent || null,
 			notice: document.querySelector(".role-sharing-note")?.textContent,
 			scopeOpen: document.querySelector(".profile-scope-options")?.open,
+			noteVisible: document
+				.querySelector(".profile-scope-note")
+				.checkVisibility(),
 			scopeVisible: document
 				.querySelector('[aria-label="Profile setting scope"]')
 				.checkVisibility(),
 		})),
 		{
-			label: "Shared model settings",
-			notice: "One setting shared by Verify a and Verify b.",
+			label: null,
+			notice:
+				"Used by Verify a and Verify b. Shared with other workflows on this profile.",
 			scopeOpen: false,
 			scopeVisible: false,
+			noteVisible: false,
 		},
 	);
 	await p.browser.evaluate(() =>
@@ -1132,5 +1211,300 @@ test("Profile role hints match the core executor-default overlay without inventi
 		model: "gpt-5.6-luna",
 		effort: "low",
 	});
+	assert.deepEqual(p.browser.errors, []);
+});
+
+test("Fresh narrow profile preview keeps the code switch clear of nodes and stage rows", {
+	timeout: 120000,
+}, async (t) => {
+	const p = await open(t);
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "daily",
+		values: { executor: "codex", model: "fixture-model" },
+	});
+	await p.browser.send("Emulation.setDeviceMetricsOverride", {
+		width: 390,
+		height: 844,
+		deviceScaleFactor: 1,
+		mobile: false,
+	});
+	for (const workflow of ["model-flow", "deep-research"]) {
+		const url = new URL(p.url);
+		url.searchParams.set("workflow", workflow);
+		url.searchParams.set("profile", "daily");
+		await p.browser.send("Page.navigate", { url: url.href });
+		await p.browser.waitFor(
+			() => !!document.querySelector(".profile-flow .code-switch"),
+		);
+		for (const action of ["initial fit", "Fit button", "Fit key"]) {
+			if (action === "Fit button")
+				await p.browser.click('.profile-flow button[title="Fit graph"]');
+			if (action === "Fit key")
+				await p.browser.evaluate(() => {
+					const canvas = document.querySelector(".profile-flow .canvas");
+					canvas.dispatchEvent(
+						new KeyboardEvent("keydown", { key: "f", bubbles: true }),
+					);
+				});
+			await p.browser.evaluate(
+				() =>
+					new Promise((resolve) =>
+						requestAnimationFrame(() => requestAnimationFrame(resolve)),
+					),
+			);
+			assert.deepEqual(
+				await p.browser.evaluate(() => {
+					const chip = document
+						.querySelector(".profile-flow .code-switch")
+						.getBoundingClientRect();
+					return [
+						...document.querySelectorAll(
+							".profile-flow .graph .node, .profile-flow .node-name, .profile-flow .stage-row",
+						),
+					]
+						.filter((node) => {
+							const box = node.getBoundingClientRect();
+							return (
+								chip.left < box.right &&
+								chip.right > box.left &&
+								chip.top < box.bottom &&
+								chip.bottom > box.top
+							);
+						})
+						.map((node) => ({
+							stage: node.closest("[data-stage]")?.dataset.stage,
+							kind: node.getAttribute("class"),
+						}));
+				}),
+				[],
+				`${workflow}: chip intersects no node, title or stage row after ${action}`,
+			);
+			assert.equal(
+				await p.browser.evaluate(() => {
+					const chip = document
+						.querySelector(".profile-flow .code-switch")
+						.getBoundingClientRect();
+					const node = document.querySelector(".profile-flow .graph .node");
+					return (
+						node.getBoundingClientRect().top >= chip.bottom &&
+						node.querySelector(".node-name").getBoundingClientRect().top >=
+							chip.bottom
+					);
+				}),
+				true,
+				`${workflow}: first node and title are below the chip after ${action}`,
+			);
+		}
+	}
+	assert.deepEqual(p.browser.errors, []);
+});
+
+test("Profile Save stays reachable without covering picker options or keyboard focus", {
+	timeout: 120000,
+}, async (t) => {
+	const p = await open(t);
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "daily",
+		values: { executor: "codex", model: "fixture-model" },
+	});
+	await list(p);
+	await edit(p.browser, "daily");
+	await select(p.browser, "verification");
+	for (const [width, height] of [
+		[1600, 1000],
+		[390, 844],
+	]) {
+		await p.browser.send("Emulation.setDeviceMetricsOverride", {
+			width,
+			height,
+			deviceScaleFactor: 1,
+			mobile: false,
+		});
+		assert.equal(
+			await p.browser.evaluate(() => {
+				const page = document.querySelector(".management-page");
+				page.scrollTop = 0;
+				const bar = document.querySelector(".profile-editor-actions-sticky");
+				const box = page.getBoundingClientRect();
+				const hit = document.elementFromPoint(
+					box.x + box.width / 2,
+					box.bottom - 2,
+				);
+				return hit === bar || bar.contains(hit);
+			}),
+			true,
+			`${width}: sticky bar covers the scrollport bottom`,
+		);
+		assert.equal(
+			await p.browser.evaluate(() => {
+				const panel = document.querySelector(".role-inspector");
+				return (
+					panel.querySelector("h3").getBoundingClientRect().top -
+						panel.getBoundingClientRect().top <=
+					24
+				);
+			}),
+			true,
+			`${width}: inspector title starts at panel padding`,
+		);
+		assert.equal(
+			await p.browser.evaluate(() => {
+				const page = document.querySelector(".management-page");
+				page.scrollTop = page.scrollHeight;
+				const last = document.querySelector(".profile-options > summary");
+				const box = last.getBoundingClientRect();
+				const hit = document.elementFromPoint(
+					box.x + box.width / 2,
+					box.y + box.height / 2,
+				);
+				return (
+					box.top >= 0 &&
+					box.bottom <= innerHeight &&
+					(hit === last || last.contains(hit))
+				);
+			}),
+			true,
+			`${width}: final Profile options remains visible and hit-testable`,
+		);
+		for (const theme of ["light", "dark"]) {
+			await p.browser.send("Emulation.setEmulatedMedia", {
+				features: [{ name: "prefers-color-scheme", value: theme }],
+			});
+			assert.equal(
+				await p.browser.evaluate(() => {
+					const page = document.querySelector(".management-page");
+					page.scrollTop = 0;
+					const save = document.querySelector(
+						'[data-management-action="save-profile"]',
+					);
+					const box = save.getBoundingClientRect();
+					return (
+						box.top >= 0 &&
+						box.bottom <= innerHeight &&
+						document.elementFromPoint(
+							box.x + box.width / 2,
+							box.y + box.height / 2,
+						) === save
+					);
+				}),
+				true,
+				`${width} ${theme}: Save at top`,
+			);
+			await p.browser.evaluate(() => {
+				document.querySelector(".profile-common").open = true;
+			});
+			for (const label of ["Role verification Effort", "Model"]) {
+				await p.browser.click(`[aria-label="${label}"]`);
+				assert.equal(
+					await p.browser.evaluate((label) => {
+						const input = document.querySelector(`[aria-label="${label}"]`);
+						const menu = document.getElementById(
+							input.getAttribute("aria-controls"),
+						);
+						const box = menu.getBoundingClientRect();
+						return (
+							!menu.hidden &&
+							box.height > 0 &&
+							box.top >= 0 &&
+							box.bottom <= innerHeight
+						);
+					}, label),
+					true,
+					`${width} ${theme}: ${label} menu visible`,
+				);
+				assert.deepEqual(
+					await p.browser.evaluate((label) => {
+						const input = document.querySelector(`[aria-label="${label}"]`);
+						const menu = document.getElementById(
+							input.getAttribute("aria-controls"),
+						);
+						const bounds = menu.getBoundingClientRect();
+						return [...menu.querySelectorAll('[role="option"]')]
+							.filter((option) => {
+								const box = option.getBoundingClientRect();
+								const x = box.x + box.width / 2,
+									y = box.y + box.height / 2;
+								return (
+									y >= bounds.top &&
+									y <= bounds.bottom &&
+									y >= 0 &&
+									y < innerHeight &&
+									document.elementFromPoint(x, y) !== option
+								);
+							})
+							.map((option) => option.textContent);
+					}, label),
+					[],
+					`${width} ${theme}: ${label} options hit-testable`,
+				);
+				await p.browser.key("Escape");
+			}
+			await p.browser.evaluate(() => {
+				document.querySelector(".profile-options").open = true;
+				document.querySelector(".role-inspector h3").focus();
+			});
+			let reachedOptions = false;
+			for (let i = 0; i < 35; i++) {
+				await p.browser.key("Tab");
+				const focus = await p.browser.evaluate(() => {
+					const node = document.activeElement,
+						box = node.getBoundingClientRect();
+					const hit = document.elementFromPoint(
+						box.x + box.width / 2,
+						box.y + box.height / 2,
+					);
+					return {
+						visible:
+							box.top >= 0 &&
+							box.bottom <= innerHeight &&
+							(hit === node || node.contains(hit)),
+						options: !!node.closest(".profile-options"),
+					};
+				});
+				assert.equal(
+					focus.visible,
+					true,
+					`${width} ${theme}: Tab ${i} visible`,
+				);
+				if (focus.options) {
+					reachedOptions = true;
+					break;
+				}
+			}
+			assert.equal(reachedOptions, true);
+		}
+	}
+	await save(p);
+	for (const [width, height] of [
+		[1600, 1000],
+		[390, 844],
+	]) {
+		await p.browser.send("Emulation.setDeviceMetricsOverride", {
+			width,
+			height,
+			deviceScaleFactor: 1,
+			mobile: false,
+		});
+		assert.equal(
+			await p.browser.evaluate(() => {
+				const status = document.querySelector(".profile-save-status");
+				const page = document.querySelector(".management-page");
+				page.scrollTop = page.scrollHeight;
+				const box = status.getBoundingClientRect();
+				const hit = document.elementFromPoint(
+					box.x + box.width / 2,
+					box.y + box.height / 2,
+				);
+				return (
+					box.top >= 0 &&
+					box.bottom <= innerHeight &&
+					(hit === status || status.contains(hit))
+				);
+			}),
+			true,
+		);
+	}
 	assert.deepEqual(p.browser.errors, []);
 });

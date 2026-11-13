@@ -2348,6 +2348,9 @@ function renderGraph(preview = null) {
 			h: Math.max(...values.map((p) => p.y + p.h)) + 8 - y0,
 		};
 	}
+	function previewInset() {
+		return preview && matchMedia("(max-width: 800px)").matches ? 28 : 0;
+	}
 	// The graph can never be panned out of sight: a graph smaller than the canvas stays inside
 	// it, a larger one stops when its far edge reaches the canvas edge.
 	function clamp() {
@@ -2359,7 +2362,14 @@ function renderGraph(preview = null) {
 			return [Math.min(near, far), Math.max(near, far)];
 		};
 		const [xMin, xMax] = range(16, 16, wrap.clientWidth, b.x0, b.w);
-		const [yMin, yMax] = range(16, 76, wrap.clientHeight, b.y0, b.h);
+		// The overflowing branch caps Fit at the near edge; reserve the chip here too.
+		const [yMin, yMax] = range(
+			16 + previewInset(),
+			76,
+			wrap.clientHeight,
+			b.y0,
+			b.h,
+		);
 		view.x = Math.min(xMax, Math.max(xMin, view.x));
 		view.y = Math.min(yMax, Math.max(yMin, view.y));
 	}
@@ -2511,6 +2521,8 @@ function renderGraph(preview = null) {
 		const b = bounds();
 		if (!b) return;
 		const { x0, y0, w, h } = b;
+		// Reserve room for the code-step chip only in narrow profile previews.
+		const inset = previewInset();
 		const available = Math.max(100, wrap.clientHeight - 140);
 		// Never shrink boxes below what their text needs; a big graph pans (clamped) instead.
 		const k = Math.max(
@@ -2526,7 +2538,9 @@ function renderGraph(preview = null) {
 					? 20 - x0 * k
 					: wrap.clientWidth / 2 - (x0 + w / 2) * k,
 			y:
-				h * k > available ? 44 - y0 * k : 44 + (available - h * k) / 2 - y0 * k,
+				h * k > available
+					? 44 + inset - y0 * k
+					: 44 + inset + (available - h * k) / 2 - y0 * k,
 		};
 		apply();
 	}
@@ -7874,7 +7888,7 @@ async function modelControls(
 	);
 	const modelPicker = choicePicker(`${prefix}Model`, [], saved.model || "", {
 		editable: true,
-		placeholder: "Executor default",
+		placeholder: "Automatic",
 	});
 	const effortPicker = choicePicker(
 		`${prefix}Effort`,
@@ -7947,10 +7961,7 @@ async function modelControls(
 	};
 	const update = () => {
 		const entry = data.executors.find((entry) => entry.id === exec.value);
-		modelPicker.setOptions([
-			["", "Executor default"],
-			...(entry?.models || []),
-		]);
+		modelPicker.setOptions([["", "Automatic"], ...(entry?.models || [])]);
 		note.textContent =
 			entry?.note || "Choose an executor for its model suggestions.";
 		updateEffort();
@@ -8224,13 +8235,14 @@ async function roleEditor(
 		if (!graph) return "Shared setting, not per-node.";
 		const ids = [...related()];
 		if (!ids.length) return "Not used by the steps shown here.";
-		if (ids.length === 1)
-			return `One shared setting, used by ${humanize(ids[0])} here.`;
-		if (ids.length === 2) {
-			const names = ids.map(humanize).join(" and ");
-			if (names.length <= 72) return `One setting shared by ${names}.`;
-		}
-		return `One setting shared by ${ids.length} stages in this workflow.`;
+		const names = ids.map(humanize).join(" and ");
+		const usage =
+			ids.length === 1 || (ids.length === 2 && names.length <= 72)
+				? `Used by ${names}.`
+				: `Used by ${ids.length} steps here.`;
+		return fixedWorkflow
+			? usage
+			: `${usage} Shared with other workflows on this profile.`;
 	};
 	const selectRole = (id, focus = true) =>
 		select(id, focus).catch((error) => {
@@ -8290,12 +8302,12 @@ async function roleEditor(
 			])) {
 				if (!input.value)
 					input.placeholder = fallback.values[field]
-						? `Inherit: ${fallback.values[field]}`
-						: "Inherited";
+						? `Automatic (${fallback.values[field]})`
+						: "Automatic";
 			}
 			inheritance.textContent = view.ignored
 				? `This assignment is not used by ${getContext().executor} stage defaults.`
-				: "Empty fields inherit. Changes are saved only when you save.";
+				: "Empty fields use the default.";
 			const targets = (graph?.slots || []).filter((entry) =>
 				entry.roleKeys.includes(keyFor(selected)),
 			);
@@ -8543,24 +8555,22 @@ async function roleEditor(
 					key,
 				)
 			: null;
-		const scopeOptions = scope
-			? element(
-					"details",
-					{ class: "profile-scope-options", open: scopeExpanded },
-					element("summary", {}, "Advanced scope"),
-					field("Setting scope", scope),
-				)
-			: null;
+		const scopeOptions = element(
+			"details",
+			{ class: "profile-scope-options", open: scopeExpanded },
+			element("summary", {}, "Advanced scope"),
+			scope ? field("Setting scope", scope) : null,
+			scopeNote,
+		);
 		if (scope) {
 			scope.addEventListener("change", () => {
 				scopeExpanded = scopeOptions.open;
 				selectRole(idFor(scope.value));
 			});
-			scopeOptions.addEventListener("toggle", () => {
-				if (!disposed && token === generation)
-					scopeExpanded = scopeOptions.open;
-			});
 		}
+		scopeOptions.addEventListener("toggle", () => {
+			if (!disposed && token === generation) scopeExpanded = scopeOptions.open;
+		});
 		const name =
 			draft.agent && !currentStage
 				? input("Agent name", draft.name, {
@@ -8583,11 +8593,6 @@ async function roleEditor(
 		name?.addEventListener("input", update);
 		panel.replaceChildren();
 		append(panel, [
-			element(
-				"span",
-				{ class: "role-panel-label faint" },
-				"Shared model settings",
-			),
 			heading,
 			sharing,
 			slotPicker ? field("Step inside this node", slotPicker) : null,
@@ -8665,17 +8670,18 @@ async function roleEditor(
 		element(
 			"div",
 			{ class: "profile-flow-header" },
-			element("h2", {}, "Workflow settings"),
+			element("h2", {}, "Models by step"),
 			fixedWorkflow
 				? element("span", { class: "muted" }, picker.value)
-				: field("Workflow", picker),
+				: field("Show on", picker),
 		),
 		element("div", { class: "profile-flow-layout" }, graphHost, panel),
-		scopeNote,
 		element(
 			"p",
 			{ class: "role-map-note muted" },
-			"Profile settings on the workflow's Run diagram, not a running workflow. Workflow/launch overrides may win. Generated agents and loop iterations appear at runtime.",
+			fixedWorkflow
+				? "Preview, not a run. A launch option can override these settings."
+				: "Preview, not a run. A workflow or launch option can override these settings.",
 		),
 		extras,
 		errors,
@@ -9491,7 +9497,7 @@ async function renderProfiles(page) {
 					element(
 						"p",
 						{ class: "muted" },
-						"Empty fields inherit. Changes affect future runs, not existing ones.",
+						"Empty fields use the default. Applies to future runs.",
 					),
 					models.node,
 				),
@@ -9499,7 +9505,7 @@ async function renderProfiles(page) {
 				advanced,
 				element(
 					"div",
-					{ class: "profile-editor-actions" },
+					{ class: "profile-editor-actions profile-editor-actions-sticky" },
 					managementControl(
 						"Save profile",
 						async () => {

@@ -2741,16 +2741,13 @@ button.profile-row {
 	border-radius: var(--radius);
 	background: var(--surface);
 }
-.role-inspector > h3 {
+.management-card .role-inspector > h3 {
 	margin: 4px 0 8px;
 	font-size: 16px;
 	overflow-wrap: anywhere;
 }
 .role-inspector .management-fields {
 	grid-template-columns: minmax(0, 1fr);
-}
-.role-panel-label {
-	font-size: 12px;
 }
 .role-inheritance,
 .role-sharing-note,
@@ -2811,6 +2808,18 @@ button.profile-row {
 	gap: 8px;
 	margin-top: 20px;
 }
+.profile-editor-actions-sticky {
+	position: sticky;
+	bottom: calc(-1 * var(--profile-page-padding));
+	z-index: 20;
+	padding: 12px 0 calc(12px + var(--profile-page-padding));
+	border-top: 1px solid var(--line);
+	background: var(--bg);
+}
+.management-page:has(.profile-editor-actions-sticky) {
+	--profile-page-padding: 24px;
+	scroll-padding-bottom: calc(88px + var(--profile-page-padding));
+}
 .profile-delete-confirm p {
 	margin: 12px 0 8px;
 }
@@ -2863,6 +2872,9 @@ button.profile-row {
 @media (max-width: 800px) {
 	.management-page {
 		padding: 16px;
+	}
+	.management-page:has(.profile-editor-actions-sticky) {
+		--profile-page-padding: 16px;
 	}
 	.management-fields {
 		flex-direction: column;
