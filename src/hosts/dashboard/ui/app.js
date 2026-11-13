@@ -8117,7 +8117,7 @@ async function roleEditor(
 	);
 	const panel = element("section", {
 		class: "role-inspector",
-		"aria-label": "Selected stage settings",
+		"aria-label": "Shared model settings",
 	});
 	const graphHost = element("div", { class: "profile-flow" });
 	const errors = element("div");
@@ -8143,9 +8143,10 @@ async function roleEditor(
 		agentId = 0,
 		disposed = false,
 		graphAbort;
-	let heading, inheritance;
+	let heading, inheritance, sharing;
 	let layout = "td",
-		expandedCode = false;
+		expandedCode = false,
+		scopeExpanded = false;
 	const views = new Map();
 	const keyOf = (draft) => (draft.agent ? `agent:${draft.name}` : draft.name);
 	const previewKey = (draft) =>
@@ -8214,14 +8215,23 @@ async function roleEditor(
 		const view = slotView(slot);
 		return `${view.values.model || "Model inherited"}, ${view.values.effort || "effort inherited"}${stage.kind === "dynamic" ? " (dynamic)" : ""}`;
 	};
-	const panelTitle = () =>
-		currentStage
-			? humanize(
-					currentSlot && currentSlot !== currentStage
-						? currentSlot
-						: currentStage,
-				)
-			: titleFor(selected);
+	const panelTitle = () => titleFor(selected);
+	const rememberScope = () => {
+		const current = panel.querySelector(".profile-scope-options");
+		if (current) scopeExpanded = current.open;
+	};
+	const sharingText = () => {
+		if (!graph) return "Shared setting, not per-node.";
+		const ids = [...related()];
+		if (!ids.length) return "Not used by the steps shown here.";
+		if (ids.length === 1)
+			return `One shared setting, used by ${humanize(ids[0])} here.`;
+		if (ids.length === 2) {
+			const names = ids.map(humanize).join(" and ");
+			if (names.length <= 72) return `One setting shared by ${names}.`;
+		}
+		return `One setting shared by ${ids.length} stages in this workflow.`;
+	};
 	const selectRole = (id, focus = true) =>
 		select(id, focus).catch((error) => {
 			if (!disposed)
@@ -8256,6 +8266,7 @@ async function roleEditor(
 		other.value = ids.includes(selected) ? selected : "";
 		if (focused) other.focus({ preventScroll: true });
 		if (heading) heading.textContent = panelTitle();
+		if (sharing && selected) sharing.textContent = sharingText();
 		const reset = panel.querySelector("[data-role-reset]");
 		if (reset) reset.disabled = readonly() || !drafts.has(selected);
 		if (inheritance && selected) {
@@ -8294,14 +8305,15 @@ async function roleEditor(
 		graphController?.refresh();
 	}
 	function clear() {
+		rememberScope();
 		++generation;
 		selected = currentStage = currentSlot = null;
-		heading = inheritance = null;
+		heading = inheritance = sharing = null;
 		panel.replaceChildren(
 			element(
 				"p",
 				{ class: "muted" },
-				"Select a node to edit its model settings.",
+				"Select a node to edit the shared model settings it uses.",
 			),
 		);
 		scopeNote.textContent = "";
@@ -8318,9 +8330,10 @@ async function roleEditor(
 		currentStage = stage.id;
 		const slots = slotsFor(stage.id);
 		if (!slots.length) {
+			rememberScope();
 			++generation;
 			selected = currentSlot = null;
-			heading = inheritance = null;
+			heading = inheritance = sharing = null;
 			panel.replaceChildren(
 				element("h3", { tabindex: "-1" }, humanize(stage.id)),
 				element(
@@ -8464,14 +8477,15 @@ async function roleEditor(
 		}
 	}
 	async function select(id, focus = false) {
+		rememberScope();
 		const token = ++generation;
 		selected = id;
-		heading = inheritance = null;
+		heading = inheritance = sharing = null;
 		panel.replaceChildren(
 			element(
 				"p",
 				{ role: "status", class: "muted" },
-				"Loading model settings…",
+				"Loading shared settings…",
 			),
 		);
 		const existing = drafts.get(id),
@@ -8505,6 +8519,7 @@ async function roleEditor(
 		}
 		if (disposed || token !== generation) return;
 		heading = element("h3", { tabindex: "-1" }, panelTitle());
+		sharing = element("p", { class: "role-sharing-note muted" });
 		inheritance = element("p", { class: "role-inheritance muted" });
 		const slot = slotNow(),
 			siblings = slotsFor(currentStage);
@@ -8528,8 +8543,24 @@ async function roleEditor(
 					key,
 				)
 			: null;
-		if (scope)
-			scope.addEventListener("change", () => selectRole(idFor(scope.value)));
+		const scopeOptions = scope
+			? element(
+					"details",
+					{ class: "profile-scope-options", open: scopeExpanded },
+					element("summary", {}, "Advanced scope"),
+					field("Setting scope", scope),
+				)
+			: null;
+		if (scope) {
+			scope.addEventListener("change", () => {
+				scopeExpanded = scopeOptions.open;
+				selectRole(idFor(scope.value));
+			});
+			scopeOptions.addEventListener("toggle", () => {
+				if (!disposed && token === generation)
+					scopeExpanded = scopeOptions.open;
+			});
+		}
 		const name =
 			draft.agent && !currentStage
 				? input("Agent name", draft.name, {
@@ -8555,19 +8586,15 @@ async function roleEditor(
 			element(
 				"span",
 				{ class: "role-panel-label faint" },
-				currentStage ? "Selected stage" : "Other setting",
+				"Shared model settings",
 			),
 			heading,
-			slotPicker ? field("Declared stage / profile slot", slotPicker) : null,
-			scope
-				? field(
-						`Shared setting${related().size > 1 ? ` (${related().size} stages)` : ""}`,
-						scope,
-					)
-				: null,
+			sharing,
+			slotPicker ? field("Step inside this node", slotPicker) : null,
 			name ? field("Agent name", name) : null,
 			models.node,
 			inheritance,
+			scopeOptions,
 			button(
 				draft.agent ? "Remove agent override" : "Reset role",
 				() => {

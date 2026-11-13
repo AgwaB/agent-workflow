@@ -79,6 +79,7 @@ async function select(browser, key) {
 				'[aria-label="Profile setting scope"]',
 			);
 			if (scope && scope.value !== key) {
+				scope.closest("details").open = true;
 				scope.value = key;
 				scope.dispatchEvent(new Event("change", { bubbles: true }));
 			}
@@ -383,7 +384,7 @@ test("Profiles Run diagram: selecting is inert, scoped role/agent changes stay l
 		await p.browser.evaluate(
 			() => document.querySelector(".role-inspector h3")?.textContent,
 		),
-		"Verify a",
+		"Verification",
 	);
 	await p.browser.evaluate(() => {
 		const original = window.fetch;
@@ -410,7 +411,7 @@ test("Profiles Run diagram: selecting is inert, scoped role/agent changes stay l
 	await p.browser.click("[data-role-retry]");
 	await p.browser.waitFor(
 		() =>
-			document.querySelector(".role-inspector h3")?.textContent === "Combine",
+			document.querySelector(".role-inspector h3")?.textContent === "Synthesis",
 	);
 	await p.browser.send("Emulation.setDeviceMetricsOverride", {
 		width: 390,
@@ -444,13 +445,6 @@ test("Profiles Run diagram: selecting is inert, scoped role/agent changes stay l
 		await p.browser.waitFor(
 			() =>
 				document.activeElement === document.querySelector(".role-inspector h3"),
-		);
-		await p.browser.key("Tab");
-		assert.equal(
-			await p.browser.evaluate(() =>
-				document.activeElement.getAttribute("aria-label"),
-			),
-			"Profile setting scope",
 		);
 		await p.browser.key("Tab");
 		assert.equal(
@@ -530,12 +524,9 @@ test("Profiles use the same Run nodes/edges, show shared edits live, and never s
 	);
 	assert.equal(
 		await p.browser.evaluate(
-			() =>
-				document
-					.querySelector('[aria-label="Profile setting scope"]')
-					.closest("label").firstElementChild.textContent,
+			() => document.querySelector(".role-sharing-note").textContent,
 		),
-		"Shared setting (2 stages)",
+		"One setting shared by Verify a and Verify b.",
 	);
 	const shape = await p.browser.evaluate(() => ({
 		nodes: [...document.querySelectorAll(".profile-flow .graph .node")].map(
@@ -896,6 +887,115 @@ test("Readonly profile diagrams remain navigable without enabling model writes",
 		values.roles,
 	);
 	assert.equal((await p.http(`${p.base}/runs`)).data.runs.length, 0);
+	assert.equal(existsSync(p.effects), false);
+	assert.deepEqual(p.browser.errors, []);
+});
+
+test("Shared profile UX identifies the setting, not the clicked verification node", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "daily",
+		values: {
+			executor: "codex",
+			model: "fixture-model",
+			roles: { verification: { model: "shared-original" } },
+		},
+	});
+	await list(p);
+	await edit(p.browser, "daily");
+	await select(p.browser, "verification");
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector(".role-inspector h3").textContent,
+		),
+		"Verification",
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			label: document.querySelector(".role-panel-label").textContent,
+			notice: document.querySelector(".role-sharing-note")?.textContent,
+			scopeOpen: document.querySelector(".profile-scope-options")?.open,
+			scopeVisible: document
+				.querySelector('[aria-label="Profile setting scope"]')
+				.checkVisibility(),
+		})),
+		{
+			label: "Shared model settings",
+			notice: "One setting shared by Verify a and Verify b.",
+			scopeOpen: false,
+			scopeVisible: false,
+		},
+	);
+	await p.browser.evaluate(() =>
+		document.querySelector(".role-inspector h3").focus(),
+	);
+	await p.browser.key("Tab");
+	assert.equal(
+		await p.browser.evaluate(() =>
+			document.activeElement.getAttribute("aria-label"),
+		),
+		"Role verification Executor",
+		"main keyboard path goes straight to settings",
+	);
+	await set(p.browser, "Role verification Model", "manual/shared-ux");
+	await p.browser.click('.profile-flow .stage-row[data-stage="verify-b"]');
+	await p.browser.waitFor(
+		() =>
+			document.querySelector('[aria-label="Role verification Model"]')
+				?.value === "manual/shared-ux",
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector(".role-inspector h3").textContent,
+		),
+		"Verification",
+	);
+	await p.browser.click(".profile-scope-options > summary");
+	assert.equal(
+		await p.browser.evaluate(() =>
+			document
+				.querySelector('[aria-label="Profile setting scope"]')
+				.checkVisibility(),
+		),
+		true,
+	);
+	await set(p.browser, "Profile setting scope", "default");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role default Model"]'),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector(".profile-scope-options").open,
+		),
+		true,
+		"changing scope does not close its disclosure",
+	);
+	// Closing then selecting in one task must not let the old queued toggle reopen it.
+	await p.browser.evaluate(() => {
+		document.querySelector(".profile-scope-options").open = false;
+		document
+			.querySelector('.profile-flow .stage-row[data-stage="verify-a"]')
+			.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+	});
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Role verification Model"]'),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector(".profile-scope-options").open,
+		),
+		false,
+		"the last user close survives immediate node selection",
+	);
+	const saved = await save(p);
+	assert.deepEqual(
+		saved.roles,
+		{ verification: { model: "manual/shared-ux" } },
+		"one shared role, no verify-a/verify-b keys or implicit default entry",
+	);
 	assert.equal(existsSync(p.effects), false);
 	assert.deepEqual(p.browser.errors, []);
 });

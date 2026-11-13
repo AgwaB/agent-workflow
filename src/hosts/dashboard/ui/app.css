@@ -2753,10 +2753,24 @@ button.profile-row {
 	font-size: 12px;
 }
 .role-inheritance,
+.role-sharing-note,
 .role-map-note,
 .profile-scope-note {
 	font-size: 13px;
 	overflow-wrap: anywhere;
+}
+.role-sharing-note {
+	margin: 0 0 12px;
+}
+.profile-scope-options {
+	margin: 12px 0;
+}
+.profile-scope-options > summary {
+	font-size: 13px;
+	color: var(--muted);
+}
+.profile-scope-options[open] > label {
+	margin-top: 12px;
 }
 .role-map-note {
 	margin-top: 12px;
