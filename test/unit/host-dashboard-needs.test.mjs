@@ -45,7 +45,7 @@ test("Needs you: dismiss a failure, keep executor decisions, restore, and see a 
 	assert.equal(now.top, "Needs you 2");
 	assert.deepEqual(
 		now.dismiss,
-		["Dismiss: map-implementation failed"],
+		["Dismiss: Failed at map-implementation"],
 		"only the failure",
 	);
 

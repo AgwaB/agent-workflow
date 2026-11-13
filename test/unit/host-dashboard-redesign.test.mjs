@@ -137,15 +137,15 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 				Number.parseInt(rows.rows[0].time, 10) >= 12,
 				rows.rows[0].time,
 			);
-			assert.equal(rows.rows[1].line, "Partly · No significance test");
+			assert.equal(rows.rows[1].line, "Partly: No significance test");
 			assert.equal(rows.rows[1].time, "10s");
-			assert.equal(rows.rows[2].line, `Not checked · ${injection}`);
+			assert.equal(rows.rows[2].line, `Not checked: ${injection}`);
 			assert.equal(rows.rows[3].line, "The source could not be opened");
 			assert.equal(rows.rows[3].time, "11s");
 			assert.equal(rows.rows[4].time, "");
 			assert.equal(rows.rows[4].title, "four");
 			// 2026-11-03: a finished agent shows its one-line outcome too (scan without opening each).
-			assert.equal(rows.rows[5].line, "Verified · Source agrees");
+			assert.equal(rows.rows[5].line, "Verified: Source agrees");
 			assert.equal(rows.rows[3].index, "6");
 			assert.ok(rows.rows.every((r) => r.button === "BUTTON"));
 			assert.equal(rows.injected, false);
@@ -170,7 +170,7 @@ test("dashboard redesign: agent contracts, handoffs and reduced motion in Chrome
 				await browser.evaluate(
 					() => document.querySelector(".inspector-head .outcome")?.textContent,
 				),
-				"Partly · No significance test",
+				"Partly: No significance test",
 			);
 			await open("&stage=verify-claims");
 			await browser.evaluate(() => {

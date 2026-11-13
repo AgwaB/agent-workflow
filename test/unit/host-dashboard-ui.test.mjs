@@ -8,6 +8,7 @@ import {
 	MOTION_SKIP,
 	motionChecks,
 } from "../helpers/dashboard-browser.mjs";
+import { scanMarks } from "../helpers/dashboard-marks.mjs";
 import {
 	CSP,
 	createFixtureServer,
@@ -344,7 +345,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	);
 	assert.match(
 		await text("#task-status"),
-		/Waiting to retry · attempt 2 of 4 · next in \d+:\d{2}/,
+		/Waiting to retry, attempt 2 of 4, next in \d+:\d{2}/,
 	);
 	const before = await text("#task-status");
 	await browser.waitFor(
@@ -541,7 +542,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 			code: ["ts", '\tif (a **b**) return "ok"; // 2\n  <x>'],
 			markup: 0,
 			keyword: [true, true, true],
-			json: "Ship it — owner: release; blocking: true",
+			json: "Ship it, owner: release; blocking: true",
 		},
 	);
 	// The outline lists the report's own sections (##), the first one current; a sub-section
@@ -700,7 +701,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	assert.ok(
 		firstRun.label && firstRun.detail && firstRun.detail !== firstRun.label,
 	);
-	assert.match(firstRun.meta, / · (?:just now|\d+[mhd] ago)$/);
+	assert.match(firstRun.meta, /, (?:just now|\d+[mhd] ago)$/);
 	await browser.evaluate(() => {
 		const input = document.querySelector(".palette-input");
 		input.value = "payout";
@@ -988,7 +989,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	await open(`run=${scale.runId}`);
 	assert.match(
 		await text('[data-stage="reviewers"]'),
-		/240 agents · inspect items/,
+		/240 agents, inspect items/,
 	);
 	assert.equal(
 		await browser.evaluate(
@@ -1389,7 +1390,7 @@ test("dashboard Chrome: code steps hide by default; one that failed or is select
 	assert.deepEqual(failed["dedup-findings"], [
 		"code",
 		"code",
-		"Failed — verifier ids did not match",
+		"Failed: verifier ids did not match",
 	]);
 	assert.deepEqual(failed.triage.slice(0, 2), ["agent", "agent"]);
 	assert.match(failed.reviewers[0], /^\d+ agents$/);
@@ -1937,7 +1938,7 @@ test("dashboard Chrome: the timeline lays stages and their agents on one time ax
 				document.querySelector('.tl-row[data-row="stage:reviewers"] .tl-cost')
 					.textContent,
 		),
-		"—",
+		"n/a",
 	);
 	assert.deepEqual(
 		await browser.evaluate(() =>
@@ -2240,7 +2241,7 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 			"Finished",
 			"1m 37s active",
 			"8 of 8 agents",
-			"$0.28 · 8 of 8 agents reported",
+			"$0.28, 8 of 8 agents reported",
 		],
 		costTitle: "8 of 8 agents reported cost",
 		actions: ["Copy as Markdown", "Light page", "Open run"],
@@ -2255,8 +2256,9 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 			title: card.querySelector(".finding-title").textContent,
 			severity: card.querySelector(".severity-chip").textContent,
 			verifier: card.querySelector(".verifier-pill")?.textContent,
-			locations: [...card.querySelectorAll(".location-chip")].map(
-				(chip) => chip.textContent,
+			// The file and line, then the symbol in its own span, spaced by a margin.
+			locations: [...card.querySelectorAll(".location-chip")].map((chip) =>
+				[...chip.children].map((part) => part.textContent).join(" "),
 			),
 			folds: [...card.querySelectorAll("details > summary")].map(
 				(summary) => summary.textContent,
@@ -2281,14 +2283,14 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 		"graceMs makes expired entries live ttlMs+graceMs; the existing TTL test fails and nothing refreshes stale entries",
 	);
 	assert.deepEqual(cards[0].locations, [
-		"src/cache.js:14 · Cache.get",
-		"src/cache.js:3 · Cache constructor graceMs default",
-		"src/server.js:10-13 · /users handler",
-		"test/cache.test.js:10-11 · entries expire after their TTL",
+		"src/cache.js:14 Cache.get",
+		"src/cache.js:3 Cache constructor graceMs default",
+		"src/server.js:10-13 /users handler",
+		"test/cache.test.js:10-11 entries expire after their TTL",
 	]);
 	// A location with no symbol shows just file and line.
 	assert.deepEqual(cards[1].locations, [
-		"src/server.js:9 · createServer handler",
+		"src/server.js:9 createServer handler",
 		"docs/API_SPEC.md:6",
 	]);
 	assert.deepEqual(cards[0].parts, ["Rationale", "Recommended action"]);
@@ -2333,7 +2335,7 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 				.filter((link) => !link.hidden && link.title.startsWith("finding-"))
 				.map((link) => link.title),
 		),
-		["finding-003 — Unknown user never yields 404"],
+		["finding-003: Unknown user never yields 404"],
 	);
 	// The filter says what it did, and the first match is brought into view (review, P2-5).
 	assert.equal(await text(".filter-count"), "Showing 1 of 4");
@@ -2423,7 +2425,7 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 	);
 	await browser.waitFor(
 		() =>
-			document.querySelector(".outline-link.current")?.title.split(" ")[0] ===
+			document.querySelector(".outline-link.current")?.title.split(":")[0] ===
 			"finding-003",
 	);
 	// The page scrolls to it (smoothly), and the highlight stays on it when the scroll settles.
@@ -2442,7 +2444,7 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 		await browser.evaluate(
 			() => document.querySelector(".outline-link.current").title,
 		),
-		"finding-003 — Unknown user never yields 404",
+		"finding-003: Unknown user never yields 404",
 	);
 	// Copy fix prompt: that finding's own Markdown, nothing from its neighbours.
 	await browser.click('[data-copy-finding="finding-003"]');
@@ -2737,18 +2739,17 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 			],
 		},
 	);
-	// Needs you: the same needs as the rail (same order), with the same action.
+	// Needs you: the run's own identity (workflow), then the reason in the rail's wording; Inspect
+	// is the lead action, a failure can be dismissed, and there is no "Open run" beside Inspect.
 	assert.deepEqual(
 		await all(".home-need", (node) => [
 			node.querySelector("strong").textContent,
+			node.querySelector(".home-need-reason b").textContent,
 			[...node.querySelectorAll("button")].map((button) => button.textContent),
 		]),
 		[
-			["Controller needs a decision", ["Inspect & resume", "Open run"]],
-			[
-				"map-implementation failed",
-				["Inspect & resume", "Open run", "Dismiss"],
-			],
+			["migration-planner", "Controller needs a decision", ["Inspect"]],
+			["spec-review", "Failed at map-implementation", ["Inspect", "Dismiss"]],
 		],
 	);
 	// Running now: the run that works.
@@ -2759,27 +2760,29 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 		),
 		["deep-review"],
 	);
-	// Recent results: newest first; the stopped run is hidden, a failed one stays.
+	// Recent results: newest first; the stopped run is hidden. A run that is in "Needs you" is not
+	// listed twice (owner, pass 2): migration-planner and spec-review are above, not here.
 	const recent = () =>
 		all("#home-recent .home-row.recent", (node) => [
 			node.querySelector(".result-badge").textContent,
-			node.querySelector(".home-row-name").textContent,
+			node.querySelector(".home-row-wf").textContent,
+			node.querySelector(".home-row-agents")?.textContent ?? null,
 			node.querySelector(".home-row-task")?.textContent ?? null,
-			node.querySelector(".home-row-when small").textContent,
+			node.querySelector(".home-row-dur").textContent,
+			node.querySelector(".home-cost").textContent,
 		]);
 	// 2026-11-12 (review, P2-8): the workflow leads, the task the run was given is the quiet line.
 	assert.deepEqual(await recent(), [
-		["Needs you", "migration-planner", null, "— · —"],
-		// Wall clock 6m; active time 2m 15s.
-		["Failed", "spec-review", null, "2m 15s · $0.0061"],
-		["Complete", "deep-research", null, "25m 00s · $3.40+"],
+		["Complete", "deep-research", null, null, "25m 00s", "$3.40+"],
 		[
 			"Needs work",
-			"deep-review · 8 of 8 agents",
+			"deep-review",
+			"8 of 8 agents",
 			"Review the checkout flow",
-			"1m 37s · $0.28",
+			"1m 37s",
+			"$0.28",
 		],
-		["Finished", "docs-writer", null, "5s · $0.0007"],
+		["Finished", "docs-writer", null, null, "5s", "$0.0007"],
 	]);
 	assert.equal(
 		await text2(browser, '[data-home-key="stopped"]'),
@@ -2790,15 +2793,25 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 		"Stopped",
 		"live6-quick-read",
 		null,
-		// Unknown cost is a dash, never $0.
-		"4s · —",
+		null,
+		"4s",
+		// Unknown cost is "n/a" in muted text, never $0.
+		"n/a",
 	]);
+	assert.equal(
+		await browser.evaluate(() =>
+			document
+				.querySelector("#home-recent .home-row.recent:last-child .home-cost")
+				.classList.contains("muted"),
+		),
+		true,
+	);
 	assert.equal(
 		await text2(browser, '[data-home-key="stopped"]'),
 		"Hide stopped runs",
 	);
 	await browser.click('[data-home-key="stopped"]');
-	assert.equal((await recent()).length, 5);
+	assert.equal((await recent()).length, 3);
 	// A partial cost has a "+" and its ratio in a title; agents are the denominator.
 	assert.deepEqual(
 		await all("#home-recent .home-cost", (node) => [
@@ -2806,8 +2819,6 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 			node.title,
 		]),
 		[
-			["—", "Cost not reported"],
-			["$0.0061", "2 of 2 agents reported cost"],
 			["$3.40+", "5 of 6 agents reported cost. The true total may be higher."],
 			["$0.28", "8 of 8 agents reported cost"],
 			["$0.0007", "1 of 1 agent reported cost"],
@@ -2821,7 +2832,7 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 			node.querySelector(".home-stat-note").textContent,
 		]),
 		[
-			["7", "runs", "3 done · 1 stopped · 1 failed · 1 running · 1 needs you"],
+			["7", "runs", "3 done, 1 stopped, 1 failed, 1 running, 1 needs you"],
 			["$3.69+", "spend", "16 of 18 agents reported"],
 			["29m 01s", "active time", "all runs, not waiting"],
 		],
@@ -2852,7 +2863,7 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 		"spec-review",
 		"1",
 		"Failed",
-		"—",
+		"n/a",
 		"$0.0061",
 		["err"],
 	]);
@@ -2863,14 +2874,14 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 					'[data-workflow="deep-review"] td.n:nth-child(5)',
 				).title,
 		),
-		"8 of 8 agents reported cost · 1 of 2 runs reported",
+		"8 of 8 agents reported cost, 1 of 2 runs reported",
 		"the runs ratio is in the tooltip",
 	);
 	// The workflow's name leads to the Workflows page, and the section links there too.
 	assert.deepEqual(
 		await browser.evaluate(() => [
 			document
-				.querySelector('[data-workflow="deep-review"] td.wf a')
+				.querySelector('[data-workflow="deep-review"] td.c-wf a')
 				.getAttribute("href"),
 			document.querySelector(".home-manage").textContent,
 		]),
@@ -2889,18 +2900,25 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 		),
 		false,
 	);
-	// Needs you leads where the rail does: the resume dialog.
+	// Inspect opens the run with the task that needs a decision selected, and no dialog: the person
+	// looks first and presses Resume on the run (owner, pass 2).
 	await browser.click('.home-need [class~="primary"]');
-	await browser.waitFor(() => document.querySelector("dialog[open]"));
-	assert.match(await text2(browser, "#dialog-title"), /^Resume /);
-	assert.equal(
-		await browser.evaluate(() =>
-			new URL(location.href).searchParams.get("dialog"),
-		),
-		"resume",
+	await browser.waitFor(() =>
+		document.querySelector("#inspector:not([hidden])"),
+	);
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const url = new URL(location.href);
+			return [
+				url.searchParams.get("run"),
+				url.searchParams.get("task"),
+				url.searchParams.get("dialog"),
+				document.querySelector("dialog[open]") === null,
+			];
+		}),
+		[blocked, "adaptive.controller", null, true],
 	);
 	// The run list changes: a finished run leaves "Running now" for the results, live.
-	await browser.key("Escape");
 	await browser.click('.management-nav a:not([href*="view="])');
 	await browser.waitFor(() => document.querySelector("#home-view"));
 	const done = fixture.runs.get(running);
@@ -3280,7 +3298,7 @@ test(
 			);
 		const current = () => text2(browser, ".outline-link.current");
 		for (const label of [
-			"finding-002 — Missing id returns 200 instead of 400",
+			"finding-002: Missing id returns 200 instead of 400",
 			"Related artifacts",
 			"Limitations",
 			"Evidence and review coverage",
@@ -3560,15 +3578,22 @@ test(
 			}),
 			[13, 22],
 		);
-		// Meta items are joined with a middle dot, not spaced apart.
-		assert.match(
-			await text2(browser, ".report-meta"),
-			/^deep-review · Finished .* · 1m 37s active · 8 of 8 agents · \$0\.28 · 8 of 8 agents reported$/,
+		// Meta items are spaced by the layout (a gap), with no mark between them.
+		assert.deepEqual(
+			await browser.evaluate(() => {
+				const meta = document.querySelector(".report-meta");
+				return [
+					meta.children.length,
+					getComputedStyle(meta).columnGap,
+					/[·—]/.test(meta.textContent),
+				];
+			}),
+			[5, "16px", false],
 		);
 		// The tab says where it is.
 		assert.equal(
 			await browser.evaluate(() => document.title),
-			"Report · deep-review · payments-api",
+			"Report | deep-review | payments-api",
 		);
 		// Focus starts on the page, so the first Tab reaches Copy as Markdown, not the filters.
 		assert.equal(
@@ -3599,7 +3624,7 @@ test(
 		await browser.waitFor(() => document.querySelector(".home-row.recent"));
 		assert.equal(
 			await browser.evaluate(() => document.title),
-			"Overview · payments-api",
+			"Overview | payments-api",
 		);
 	},
 );
@@ -3640,7 +3665,8 @@ test(
 		await browser.click('#home-recent .home-row[data-run="' + complete + '"]');
 		await browser.waitFor(() => document.querySelector("#task-count"));
 		const open = await rail();
-		assert.deepEqual(open.headings, ["Needs you", "Runs"]);
+		// No "Needs you" group: each need is on its run's own row (owner, pass 2).
+		assert.deepEqual(open.headings, ["Runs"]);
 		assert.ok(
 			open.runs >= 6 && open.needs >= 1 && open.switcher && open.nav === 6,
 		);
@@ -3676,7 +3702,7 @@ test(
 				id,
 			);
 		assert.equal(await elapsed(failed), "2m 15s");
-		assert.match(await text2(browser, "#hero-sub"), /^spec-review · 2m 15s · /);
+		assert.match(await text2(browser, "#hero-sub"), /^spec-review, 2m 15s, /);
 		// The overview says the same about the same run (and the report calls it "active").
 		assert.equal(await elapsed(complete), "1m 37s");
 		// A running run shows the clock: its wall time is not its (smaller) active time.
@@ -3717,7 +3743,7 @@ test(
 				})(),
 			})),
 			{
-				line: "Nothing needs you · nothing running",
+				line: "Nothing needs you and nothing is running.",
 				sections: ["Recent results", "This project", "Workflows"],
 				box: ["0px", "rgba(0, 0, 0, 0)"],
 			},
@@ -3785,7 +3811,8 @@ test(
 		const before = await rows();
 		assert.deepEqual(
 			[before.rows, before.stopped, before.button, before.toggle, before.link],
-			[8, 0, "Show all 13", "Show 2 stopped runs", false],
+			// 14 runs: one is running and two need you, so they are not results.
+			[8, 0, "Show all 11", "Show 2 stopped runs", false],
 		);
 		await browser.click('[data-home-key="all"]');
 		// In place: the address is the overview's, every result is listed, stopped ones with them.
@@ -3793,7 +3820,7 @@ test(
 		const all = await rows();
 		assert.deepEqual(
 			[all.rows, all.stopped, all.button, all.toggle, all.focus],
-			[13, 2, "Show fewer", null, "all"],
+			[11, 2, "Show fewer", null, "all"],
 		);
 		await browser.click('[data-home-key="all"]');
 		assert.equal((await rows()).rows, 8);
@@ -3870,5 +3897,539 @@ test(
 				`${width}px: the task text is ${fit.task}px wide`,
 			);
 		}
+	},
+);
+
+// 2026-11-12 (owner, pass 2): look first. Every way into a need opens the run with the failing
+// task selected and the inspector showing what failed; "Resume…" is a button on the run.
+test(
+	"dashboard Chrome: Inspect opens the failing task with no dialog, from the overview and from the rail; Resume stays an explicit button",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		const where = () =>
+			browser.evaluate(() => {
+				const url = new URL(location.href);
+				return {
+					run: url.searchParams.get("run"),
+					task: url.searchParams.get("task"),
+					dialog: url.searchParams.get("dialog"),
+					open: document.querySelector("dialog[open]") !== null,
+					inspector: !document.querySelector("#inspector").hidden,
+					text: document.querySelector("#inspector").textContent,
+				};
+			});
+		// From the overview card.
+		await browser.open(`${fixture.origin}/`);
+		await browser.waitFor(() => document.querySelector(".home-need"));
+		await browser.evaluate(() =>
+			document
+				.querySelector(
+					`.home-need[data-run="${"workflow_mvt8x01c_aa3e91"}"] .primary`,
+				)
+				.click(),
+		);
+		await browser.waitFor(() => document.querySelector("#task-status"));
+		let now = await where();
+		assert.equal(now.run, failed);
+		assert.equal(now.task, "map-implementation.main");
+		assert.equal(now.dialog, null);
+		assert.equal(now.open, false, "no dialog opens by itself");
+		assert.equal(now.inspector, true);
+		assert.match(now.text, /map-implementation/);
+		// Resume is the person's own press on the run, and it opens the existing confirm dialog.
+		await browser.click('[data-action="resume"]');
+		await browser.waitFor(() => document.querySelector("dialog[open]"));
+		assert.match(await text2(browser, "#dialog-title"), /^Resume spec-review/);
+		await browser.key("Escape");
+		// From the rail, with another run open.
+		await browser.open(`${fixture.origin}/?run=${complete}`);
+		await browser.waitFor(() =>
+			document.querySelector(
+				`.run-row[data-run="workflow_mvt8x01c_aa3e91"] .need`,
+			),
+		);
+		await browser.click(`.run-row[data-run="${failed}"] .need`);
+		await browser.waitFor(
+			() =>
+				new URL(location.href).searchParams.get("run") !==
+				"workflow_mvt23704_e8e6d7",
+		);
+		await browser.waitFor(() => document.querySelector("#task-status"));
+		now = await where();
+		assert.equal(now.run, failed);
+		assert.equal(now.task, "map-implementation.main");
+		assert.equal(now.open, false);
+		assert.match(now.text, /map-implementation/);
+		// A link that asks for the dialog still gets it.
+		await browser.open(`${fixture.origin}/?run=${failed}&dialog=resume`);
+		await browser.waitFor(() => document.querySelector("dialog[open]"));
+		assert.match(await text2(browser, "#dialog-title"), /^Resume spec-review/);
+	},
+);
+
+test(
+	"dashboard Chrome: a need is on its run's own row in the rail; dismissing it works there",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		await browser.open(`${fixture.origin}/?run=${complete}`);
+		await browser.waitFor(() =>
+			document.querySelector(
+				`.run-row[data-run="workflow_mvt8x01c_aa3e91"] .need`,
+			),
+		);
+		const rail = () =>
+			browser.evaluate((failed) => {
+				const row = document.querySelector(`.run-row[data-run="${failed}"]`);
+				const text = (node) => node?.textContent.replace(/\s+/g, " ").trim();
+				return {
+					headings: [...document.querySelectorAll("#rail .rail-heading")].map(
+						(node) =>
+							node.querySelector("span")?.textContent ?? node.textContent,
+					),
+					// The same run appears once.
+					rows: document.querySelectorAll(`.run-row[data-run="${failed}"]`)
+						.length,
+					name: text(row.querySelector(".row .grow")),
+					task: text(row.querySelector(".run-task")),
+					need: text(row.querySelector(".need")),
+					reason: text(row.querySelector(".need-title")),
+					dismiss: row
+						.querySelector(".need-dismiss")
+						?.getAttribute("aria-label"),
+					meta: text(row.querySelector(".run-meta")),
+					needs: document.querySelectorAll("#rail .need").length,
+					restore: text(document.querySelector("#rail .need-restore")),
+				};
+			}, failed);
+		let now = await rail();
+		// No "Needs you" group; the run's own identity lines stay; the need sits in the row.
+		assert.deepEqual(now.headings, ["Runs"]);
+		assert.equal(now.rows, 1);
+		assert.equal(now.name, "spec-review");
+		assert.equal(now.need, "Needs youInspectFailed at map-implementation");
+		assert.equal(now.reason, "Failed at map-implementation");
+		assert.equal(now.dismiss, "Dismiss: Failed at map-implementation");
+		assert.doesNotMatch(
+			now.meta,
+			/Failed/,
+			"the meta line does not say it twice",
+		);
+		assert.equal(now.needs, 2, "the decision is on its own row too");
+		// Dismiss: the need leaves the row, the word returns to the meta line, and it can be restored.
+		await browser.click(`.run-row[data-run="${failed}"] .need-dismiss`);
+		await browser.waitFor(
+			() =>
+				!document.querySelector(
+					`.run-row[data-run="workflow_mvt8x01c_aa3e91"] .need`,
+				),
+		);
+		now = await rail();
+		assert.equal(now.need, undefined);
+		assert.match(now.meta, /^Failed/);
+		assert.equal(now.needs, 1);
+		assert.equal(now.restore, "Show 1 dismissed");
+		await browser.click("#rail .need-restore");
+		await browser.waitFor(() =>
+			document.querySelector(
+				`.run-row[data-run="workflow_mvt8x01c_aa3e91"] .need`,
+			),
+		);
+		assert.equal((await rail()).needs, 2);
+	},
+);
+
+test(
+	"dashboard Chrome: the overview's need leads with the run's identity and a dismissed run is a result again",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		await browser.open(`${fixture.origin}/`);
+		await browser.waitFor(() => document.querySelector(".home-need"));
+		const card = () =>
+			browser.evaluate((failed) => {
+				const node = document.querySelector(`.home-need[data-run="${failed}"]`);
+				if (!node) return null;
+				return {
+					lines: [...node.querySelector(".home-need-body").children].map(
+						(child) => child.textContent.replace(/\s+/g, " ").trim(),
+					),
+					recent: [...document.querySelectorAll("#home-recent .home-row")].map(
+						(row) => row.dataset.run,
+					),
+				};
+			}, failed);
+		const before = await card();
+		// The workflow, then the reason in the rail's wording, how far it got and when, then the buttons.
+		assert.equal(before.lines[0], "spec-review");
+		assert.match(before.lines[1], /^Failed at map-implementation/);
+		assert.equal(before.lines.at(-1), "InspectDismiss");
+		assert.ok(!before.recent.includes(failed), "not listed twice");
+		await browser.click(
+			`.home-need[data-run="${failed}"] button:not(.primary)`,
+		);
+		await browser.waitFor(
+			() =>
+				!document.querySelector(
+					`.home-need[data-run="workflow_mvt8x01c_aa3e91"]`,
+				),
+		);
+		assert.ok(
+			(
+				await browser.evaluate(() =>
+					[...document.querySelectorAll("#home-recent .home-row")].map(
+						(row) => row.dataset.run,
+					),
+				)
+			).includes(failed),
+			"dismissed, the run is one of the results",
+		);
+	},
+);
+
+// Column x positions: every row has them at the same x (owner, pass 2).
+const columnLefts = (browser, rowSelector, cellSelector) =>
+	browser.evaluate(
+		(rowSelector, cellSelector) =>
+			[...document.querySelectorAll(rowSelector)].map((row) =>
+				[...row.querySelectorAll(cellSelector)].map((cell) => {
+					const box = cell.getBoundingClientRect();
+					return [
+						Math.round(box.left * 10) / 10,
+						Math.round(box.right * 10) / 10,
+					];
+				}),
+			),
+		rowSelector,
+		cellSelector,
+	);
+const sameColumns = (rows, where, edge = 0) => {
+	assert.ok(rows.length >= 3, `${where}: rows ${rows.length}`);
+	for (const row of rows) {
+		assert.equal(row.length, rows[0].length, `${where}: same column count`);
+		row.forEach((cell, index) =>
+			assert.ok(
+				Math.abs(cell[edge] - rows[0][index][edge]) <= 1,
+				`${where}: column ${index} is at ${cell[edge]}, not ${rows[0][index][edge]}`,
+			),
+		);
+	}
+};
+test(
+	"dashboard Chrome: the Workflows table is a real table whose columns line up on every row (1280, 1440, 1101, 2304)",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		for (const [width, height] of [
+			[1280, 800],
+			[1440, 900],
+			[2304, 1190],
+		]) {
+			await browser.open(`${fixture.origin}/`, width, height);
+			await browser.waitFor(() => document.querySelector(".home-table"));
+			const where = `${width}px`;
+			const shape = await browser.evaluate(() => {
+				const rows = [...document.querySelectorAll(".home-table tr")];
+				return {
+					table: getComputedStyle(document.querySelector(".home-table"))
+						.display,
+					layout: getComputedStyle(document.querySelector(".home-table"))
+						.tableLayout,
+					row: [...new Set(rows.map((row) => getComputedStyle(row).display))],
+					head: document.querySelectorAll(".home-table th").length,
+					shown: [...document.querySelectorAll(".home-table thead th")].map(
+						(th) => getComputedStyle(th).display !== "none",
+					),
+					names: [...document.querySelectorAll(".home-table thead th")].map(
+						(th) => th.textContent,
+					),
+				};
+			});
+			// Never stacked label-over-value cards at this width: all six columns, as table rows.
+			assert.equal(shape.table, "table", where);
+			assert.equal(shape.layout, "fixed", where);
+			assert.deepEqual(shape.row, ["table-row"], where);
+			assert.deepEqual(
+				shape.names,
+				["Workflow", "Runs", "Last result", "Median", "Cost", "Last runs"],
+				where,
+			);
+			assert.ok(shape.shown.every(Boolean), `${where}: no column is dropped`);
+			const rows = await columnLefts(browser, ".home-table tr", "th, td");
+			sameColumns(rows, `${where} left`);
+			// Numbers are right-aligned: their right edges agree too.
+			const numbers = await browser.evaluate(() => {
+				const cells = (selector) =>
+					[...document.querySelectorAll(selector)].map((cell) => {
+						const range = document.createRange();
+						range.selectNodeContents(cell);
+						return [
+							Math.round(range.getBoundingClientRect().right),
+							getComputedStyle(cell).textAlign,
+							getComputedStyle(cell).fontVariantNumeric,
+						];
+					});
+				return {
+					runs: cells(".home-table td.c-runs"),
+					median: cells(".home-table td.c-median"),
+					cost: cells(".home-table td.c-cost"),
+				};
+			});
+			for (const [name, cells] of Object.entries(numbers)) {
+				assert.ok(cells.length >= 3, name);
+				assert.ok(
+					cells.every(([right]) => Math.abs(right - cells[0][0]) <= 1),
+					`${where}: ${name} is right-aligned ${JSON.stringify(cells)}`,
+				);
+				assert.ok(
+					cells.every(
+						([, align, figures]) =>
+							align === "right" && figures.includes("tabular-nums"),
+					),
+					`${where}: ${name} has tabular figures`,
+				);
+			}
+			// The badge column: left-aligned at one x, centred in its row.
+			const badges = await browser.evaluate(() =>
+				[...document.querySelectorAll(".home-table td.c-last")].map((cell) => {
+					const row = cell.parentElement.getBoundingClientRect();
+					const badge = cell
+						.querySelector(".result-badge")
+						.getBoundingClientRect();
+					return {
+						left: badge.left - cell.getBoundingClientRect().left,
+						centre: badge.top + badge.height / 2 - (row.top + row.height / 2),
+					};
+				}),
+			);
+			for (const badge of badges) {
+				assert.ok(
+					Math.abs(badge.left - badges[0].left) <= 1 && badge.left <= 14,
+					`${where}: badge left ${badge.left}`,
+				);
+				assert.ok(
+					Math.abs(badge.centre) <= 1,
+					`${where}: badge centre ${badge.centre}`,
+				);
+			}
+			assert.equal(
+				await browser.evaluate(
+					() => document.documentElement.scrollWidth <= innerWidth,
+				),
+				true,
+				`${where}: no sideways scroll`,
+			);
+		}
+		// Narrower: the least important column ("Median") drops out; the rest still line up and the
+		// table does not stack (labels over values appear only at phone width).
+		await browser.open(`${fixture.origin}/`, 1101, 800);
+		await browser.waitFor(() => document.querySelector(".home-table"));
+		assert.deepEqual(
+			await browser.evaluate(() => ({
+				row: getComputedStyle(document.querySelector(".home-table tbody tr"))
+					.display,
+				shown: [...document.querySelectorAll(".home-table thead th")]
+					.filter((th) => getComputedStyle(th).display !== "none")
+					.map((th) => th.textContent),
+			})),
+			{
+				row: "table-row",
+				shown: ["Workflow", "Runs", "Last result", "Cost", "Last runs"],
+			},
+		);
+		sameColumns(
+			await columnLefts(browser, ".home-table tr", "th, td"),
+			"1101px left",
+		);
+		await browser.open(`${fixture.origin}/`, 390, 844);
+		await browser.waitFor(() => document.querySelector(".home-table"));
+		assert.deepEqual(
+			await browser.evaluate(() => ({
+				page: document.documentElement.scrollWidth <= innerWidth,
+				head: getComputedStyle(document.querySelector(".home-table thead"))
+					.display,
+			})),
+			{ page: true, head: "none" },
+		);
+	},
+);
+
+test(
+	"dashboard Chrome: Recent results are aligned rows: a status column, a flexible title, then date, duration and cost",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		for (const [width, height] of [
+			[1280, 800],
+			[1440, 900],
+			[2304, 1190],
+		]) {
+			await browser.open(`${fixture.origin}/`, width, height);
+			await browser.waitFor(() => document.querySelector(".home-row.recent"));
+			await browser.evaluate(() =>
+				document.querySelector('[data-home-key="stopped"]')?.click(),
+			);
+			const where = `${width}px`;
+			const lefts = await columnLefts(
+				browser,
+				"#home-recent .home-row.recent",
+				":scope > *",
+			);
+			sameColumns(lefts, `${where} left`);
+			sameColumns(
+				lefts.map((row) => row.slice(2)),
+				`${where} right`,
+				1,
+			);
+			const detail = await browser.evaluate(() =>
+				[...document.querySelectorAll("#home-recent .home-row.recent")].map(
+					(row) => {
+						const box = row.getBoundingClientRect();
+						const badge = row
+							.querySelector(".result-badge")
+							.getBoundingClientRect();
+						const style = (selector) =>
+							getComputedStyle(row.querySelector(selector));
+						return {
+							centre: badge.top + badge.height / 2 - (box.top + box.height / 2),
+							badgeLeft: badge.left - box.left,
+							align: ["date", "dur"].map(
+								(name) => style(`.home-row-${name}`).textAlign,
+							),
+							cost: style(".home-cost").textAlign,
+							figures: style(".home-row-dur").fontVariantNumeric,
+							// The agents sit after a gap, in their own box, when the run has them.
+							gap: (() => {
+								const agents = row.querySelector(".home-row-agents");
+								const name = row.querySelector(".home-row-wf");
+								return agents
+									? agents.getBoundingClientRect().left -
+											name.getBoundingClientRect().right
+									: null;
+							})(),
+							task: row.querySelector(".home-row-task")
+								? row.querySelector(".home-row-task").getBoundingClientRect()
+										.top >=
+									row.querySelector(".home-row-name").getBoundingClientRect()
+										.bottom -
+										1
+								: null,
+						};
+					},
+				),
+			);
+			for (const row of detail) {
+				assert.ok(
+					Math.abs(row.centre) <= 1,
+					`${where}: badge centred ${row.centre}`,
+				);
+				assert.ok(Math.abs(row.badgeLeft - detail[0].badgeLeft) <= 1, where);
+				assert.deepEqual(row.align, ["right", "right"], where);
+				assert.equal(row.cost, "right", where);
+				assert.match(row.figures, /tabular-nums/, where);
+				if (row.gap !== null)
+					assert.ok(
+						row.gap >= 8,
+						`${where}: gap before the agents is ${row.gap}`,
+					);
+				if (row.task !== null)
+					assert.equal(row.task, true, `${where}: the task is the second line`);
+			}
+		}
+		// A phone: duration and cost sit under the date, still in their own columns.
+		await browser.open(`${fixture.origin}/`, 390, 844);
+		await browser.waitFor(() => document.querySelector(".home-row.recent"));
+		const phone = await columnLefts(
+			browser,
+			"#home-recent .home-row.recent",
+			".home-row-date, .home-row-dur, .home-cost",
+		);
+		sameColumns(phone, "390px right", 1);
+		assert.deepEqual(
+			await browser.evaluate(() => ({
+				page: document.documentElement.scrollWidth <= innerWidth,
+				under: [
+					...document.querySelectorAll("#home-recent .home-row.recent"),
+				].every(
+					(row) =>
+						row.querySelector(".home-row-dur").getBoundingClientRect().top >=
+						row.querySelector(".home-row-date").getBoundingClientRect().bottom -
+							1,
+				),
+			})),
+			{ page: true, under: true },
+		);
+	},
+);
+
+test(
+	"dashboard Chrome: no middle dot and no em dash in the text of the overview, run, report, palette and rail",
+	chromeOptions,
+	async (t) => {
+		const { browser, fixture } = await reviewFixture(t);
+		// A report's own words are data; this one has none of the marks, so only ours are scanned.
+		fixture.reports.set(
+			complete,
+			deepReport.replaceAll("—", "-").replaceAll("·", ","),
+		);
+		const none = async (where) =>
+			assert.deepEqual(await scanMarks(browser), [], where);
+		// The overview, with the stopped runs shown and a need dismissed (every state of its parts).
+		await browser.open(`${fixture.origin}/`, 1440, 900);
+		await browser.waitFor(() => document.querySelector(".home-row.recent"));
+		await browser.evaluate(() =>
+			document.querySelector('[data-home-key="stopped"]')?.click(),
+		);
+		await none("overview");
+		await browser.open(`${fixture.origin}/`, 390, 844);
+		await browser.waitFor(() => document.querySelector(".home-row.recent"));
+		await none("overview on a phone");
+		// A run with its rail, graph and an inspector open on a task, for a failed run and a finished one.
+		for (const [query, name] of [
+			[`run=${failed}&task=map-implementation.main`, "failed run"],
+			[`run=${complete}&task=triage.main`, "finished run"],
+			[`run=${running}`, "running run"],
+			[`run=${running}&view=details`, "run details"],
+			[`run=${failed}&dialog=resume`, "resume dialog"],
+		]) {
+			await browser.open(`${fixture.origin}/?${query}`, 1440, 900);
+			await browser.waitFor(() => document.querySelector(".run-row"));
+			await browser.waitFor(() => document.querySelector("#task-count"));
+			await none(name);
+		}
+		// The same dialog, read-only (its note used to be "Read-only, action disabled" with a dash).
+		fixture.setReadonly(true);
+		await browser.open(
+			`${fixture.origin}/?run=${failed}&dialog=resume`,
+			1440,
+			900,
+		);
+		await browser.waitFor(() => document.querySelector("dialog[open]"));
+		assert.match(await text2(browser, "dialog"), /Read-only: actions are off/);
+		await none("resume dialog, read-only");
+		fixture.setReadonly(false);
+		// The report page.
+		await browser.open(
+			`${fixture.origin}/?run=${complete}&view=report`,
+			1440,
+			900,
+		);
+		await browser.waitFor(() => document.querySelector(".finding-card"));
+		await none("report page");
+		// The palette.
+		await browser.open(`${fixture.origin}/?run=${running}`, 1440, 900);
+		await browser.waitFor(() => document.querySelector(".run-row"));
+		await browser.key("k", 4);
+		await browser.waitFor(() => document.querySelector(".palette-input"));
+		await none("palette");
+		// The timeline layout of a run.
+		await browser.open(
+			`${fixture.origin}/?run=${complete}&layout=timeline`,
+			1440,
+			900,
+		);
+		await browser.waitFor(() => document.querySelector("#timeline"));
+		await none("timeline");
 	},
 );

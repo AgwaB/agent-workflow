@@ -366,33 +366,52 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 	color: var(--faint);
 	padding: 12px 8px 4px;
 }
-/* "Needs you" items read like run rows (2026-11-11): the same spacing, sizes and quiet hover. */
+/*
+ * A need sits on its run's own row (2026-11-12, owner pass 2): "Needs you" and "Inspect" on one
+ * line, the reason under it, the dismiss x at the right. The same sizes as the row's other lines.
+ */
 .need {
 	width: 100%;
 	min-height: 0;
 	justify-content: flex-start;
-	align-items: flex-start;
+	align-items: stretch;
+	flex-direction: column;
 	font-size: inherit;
 	font-weight: inherit;
 	line-height: inherit;
 	background: none;
 	display: flex;
-	gap: 8px;
+	gap: 1px;
 	text-align: left;
-	padding: 7px 8px;
+	padding: 4px 8px;
 	border: 0;
-	border-radius: 8px;
+	border-radius: 6px;
 }
-.need-title {
-	display: block;
-	font-size: 14px;
+.need:hover:not(:disabled) {
+	background: var(--selected);
+}
+.need-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+.need-label {
+	color: var(--warn);
+	font-size: 12px;
 	font-weight: 500;
 }
 .need-action {
+	color: var(--text);
+	font-size: 12px;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.need-title {
 	display: block;
-	color: var(--warn);
-	font-size: 12.5px;
-	margin: 2px 0 1px;
+	font-size: 13px;
+	font-weight: 500;
+	overflow-wrap: anywhere;
 }
 .need small {
 	overflow-wrap: anywhere;
@@ -455,11 +474,9 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 .run-meta .elapsed {
 	font-family: inherit;
 }
-/* The dots between parts are decoration, not text. */
-.run-meta > span + span::before {
-	content: "·";
-	margin-right: 6px;
-	opacity: 0.6;
+/* Parts are spaced by the gap, with no mark between them. */
+.run-meta {
+	gap: 12px;
 }
 .run-word {
 	flex: none;
@@ -838,12 +855,8 @@ progress::-moz-progress-bar {
 	text-decoration: underline;
 	text-underline-offset: 2px;
 }
-.code-switch-action::before {
-	content: "·";
-	display: inline-block;
-	margin-right: 7px;
-	color: var(--faint);
-	text-decoration: none;
+.code-switch-action {
+	margin-left: 8px;
 }
 @media (prefers-reduced-motion: reduce) {
 	.code-switch .track,
@@ -2265,6 +2278,10 @@ main.signin code {
 	align-items: flex-start;
 	gap: 2px;
 }
+.run-row > .need-item {
+	margin-top: 4px;
+	margin-left: 18px;
+}
 .need-item > .need {
 	flex: 1;
 	min-width: 0;
@@ -3102,6 +3119,9 @@ button.danger:hover:not(:disabled) {
 	outline: none;
 }
 .report-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px 16px;
 	margin: 0;
 	color: var(--muted);
 	font-size: 14px;
@@ -3315,6 +3335,9 @@ a.home-row.recent:focus-visible {
 	font-weight: 400;
 	color: var(--text);
 }
+.location-symbol {
+	margin-left: 8px;
+}
 .finding-part {
 	margin-top: 14px;
 }
@@ -3437,20 +3460,16 @@ a.home-row.recent:focus-visible {
 }
 .home-grid {
 	display: grid;
-	/* 2026-11-12 (review, P2-8): the results list is the wider column. */
-	grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-	gap: 20px 28px;
-	align-items: start;
+	grid-template-columns: minmax(0, 1fr);
 	max-width: 1240px;
 	margin: 0 auto;
 }
 .home-grid > h1 {
-	grid-column: 1 / -1;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: baseline;
 	gap: 4px 12px;
-	margin: 0;
+	margin: 0 0 20px;
 	font-size: 22px;
 	line-height: 30px;
 	font-weight: 600;
@@ -3461,14 +3480,46 @@ a.home-row.recent:focus-visible {
 	font-weight: 400;
 	color: var(--faint);
 }
-.home-col {
-	display: grid;
-	gap: 24px;
-	align-content: start;
+.home-grid > :not(h1) {
 	min-width: 0;
+	margin-bottom: 24px;
 }
-.home-section {
-	min-width: 0;
+/*
+ * 2026-11-12 (owner, pass 2): from 1101px the needs, the running run and the project's totals sit
+ * above the results, and the Workflows table has the full width below, where its columns fit
+ * (a half-width column squeezed it into stacked cards). Below that, one column in the same order.
+ */
+@media (min-width: 1101px) {
+	.home-grid {
+		grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+		column-gap: 28px;
+		grid-template-areas:
+			"title title"
+			"needs project"
+			"running project"
+			"recent recent"
+			"workflows workflows";
+	}
+	.home-grid > h1 {
+		grid-area: title;
+	}
+	#home-needs,
+	#home-status {
+		grid-area: needs;
+	}
+	#home-running {
+		grid-area: running;
+	}
+	#home-project {
+		grid-area: project;
+		align-self: start;
+	}
+	#home-recent {
+		grid-area: recent;
+	}
+	#home-workflows {
+		grid-area: workflows;
+	}
 }
 .home-section > h2 {
 	display: flex;
@@ -3536,6 +3587,19 @@ a.home-row.recent:focus-visible {
 	font-size: 14px;
 	overflow-wrap: anywhere;
 }
+.home-need-body > strong {
+	font-size: 15px;
+	font-weight: 500;
+}
+/* Why it needs you first, then how far it got and when: spaced by the gap. */
+.home-need-body p.home-need-reason {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px 16px;
+}
+.home-need-reason b {
+	font-weight: 500;
+}
 .home-need-actions {
 	display: flex;
 	flex-wrap: wrap;
@@ -3581,12 +3645,11 @@ a.home-row:hover {
 	background: var(--surface);
 }
 a.home-row.recent {
-	grid-template-columns: 124px minmax(0, 1fr) auto;
-	grid-template-areas:
-		"badge name when"
-		"badge task when";
+	/* Fixed tracks: every row has its columns at the same x (status, title, date, duration, cost). */
+	grid-template-columns: 136px minmax(0, 1fr) 116px 76px 84px;
+	grid-template-areas: "badge title date dur cost";
 	align-items: center;
-	gap: 2px 12px;
+	gap: 0 16px;
 	margin: 0;
 	padding: 10px 14px;
 	border: 0;
@@ -3603,37 +3666,64 @@ a.home-row.recent:hover {
 a.home-row.recent .result-badge {
 	grid-area: badge;
 	justify-self: start;
+	align-self: center;
+	max-width: 100%;
 }
-/* 2026-11-12 (review, P2-8): the workflow tells rows apart, so it leads; the task is the quiet line. */
-.home-row-name {
-	grid-area: name;
+.result-badge strong {
+	min-width: 0;
 	overflow: hidden;
-	font-size: 14px;
-	font-weight: 500;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.home-row-name span {
+/* 2026-11-12 (review, P2-8): the workflow tells rows apart, so it leads; the task is the quiet line. */
+.home-row-title {
+	grid-area: title;
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+.home-row-name {
+	display: flex;
+	align-items: baseline;
+	gap: 0 12px;
+	min-width: 0;
+	font-size: 14px;
+	font-weight: 500;
+}
+.home-row-wf {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.home-row-agents {
+	flex: none;
 	font-weight: 400;
 }
 .home-row-task {
-	grid-area: task;
 	overflow: hidden;
 	font-size: 14px;
 	color: var(--muted);
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.home-row-when {
-	grid-area: when;
-	display: grid;
-	justify-items: end;
+.home-row-date,
+.home-row-dur,
+a.home-row.recent .home-cost {
 	font-size: 14px;
+	text-align: right;
 	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
 }
-.home-row-when small {
-	font-size: 14px;
-	color: var(--faint);
+.home-row-date {
+	grid-area: date;
+}
+.home-row-dur {
+	grid-area: dur;
+}
+a.home-row.recent .home-cost {
+	grid-area: cost;
+	color: var(--muted);
 }
 .home-all {
 	margin-top: 6px;
@@ -3682,10 +3772,29 @@ a.home-row.recent .result-badge {
 	border-radius: var(--radius);
 	background: var(--surface);
 }
+/*
+ * 2026-11-12 (owner, pass 2): a real table with fixed column widths, so every column is at the same
+ * x on every row. Numbers are right-aligned with tabular figures; the badge column is left-aligned.
+ */
 .home-table {
 	width: 100%;
+	table-layout: fixed;
 	border-collapse: collapse;
 	font-size: 14px;
+}
+/* The strip is the flexible column: what is left over goes to it, so the figures stay together. */
+col.c-wf {
+	width: 220px;
+}
+col.c-runs {
+	width: 72px;
+}
+col.c-last {
+	width: 164px;
+}
+col.c-median,
+col.c-cost {
+	width: 104px;
 }
 .home-table th {
 	padding: 8px 12px;
@@ -3699,6 +3808,9 @@ a.home-row.recent .result-badge {
 .home-table td {
 	padding: 9px 12px;
 	border-top: 1px solid var(--line);
+	vertical-align: middle;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 .home-table tbody tr:first-child td {
@@ -3706,18 +3818,23 @@ a.home-row.recent .result-badge {
 }
 .home-table :is(th, td).n {
 	text-align: right;
+	font-variant-numeric: tabular-nums;
 }
 .home-table :is(th, td):first-child {
 	padding-left: 14px;
 }
-.home-table td.wf {
+.home-table td.c-wf {
 	font-weight: 500;
 }
-.home-table td.wf a {
+.home-table td.c-wf a {
 	text-decoration: none;
 }
-.home-table td.wf a:hover {
+.home-table td.c-wf a:hover {
 	text-decoration: underline;
+}
+.home-table .result-badge {
+	max-width: 100%;
+	vertical-align: middle;
 }
 .strip {
 	display: inline-flex;
@@ -3758,11 +3875,6 @@ a.home-row.recent .result-badge {
 	align-items: center;
 	gap: 6px;
 }
-@media (max-width: 1100px) {
-	.home-grid {
-		grid-template-columns: minmax(0, 1fr);
-	}
-}
 @media (max-width: 640px) {
 	.home-view {
 		padding: 16px 16px 48px;
@@ -3791,17 +3903,30 @@ a.home-row.recent .result-badge {
 	}
 }
 /*
- * 2026-11-12 (review, P1-3): each part switches to its stacked form when ITS box is narrow. The
- * room is the window minus the rail and the other column, which a viewport query cannot see.
+ * 2026-11-12 (review, P1-3; owner, pass 2): each part follows ITS own width, which a viewport query
+ * cannot see. The table drops "Median" first, then "Last runs"; only a phone-wide table stacks.
  */
-@container (max-width: 567px) {
+@container (max-width: 839px) {
+	.home-table :is(col, th, td).c-median {
+		display: none;
+	}
+}
+@container (max-width: 739px) {
+	.home-table :is(col, th, td).c-strip {
+		display: none;
+	}
+}
+@container (max-width: 479px) {
+	.home-table colgroup,
 	.home-table thead {
 		display: none;
 	}
 	.home-table,
 	.home-table tbody,
 	.home-table tr,
-	.home-table td {
+	.home-table td,
+	.home-table td.c-median,
+	.home-table td.c-strip {
 		display: block;
 	}
 	.home-table tr {
@@ -3828,35 +3953,25 @@ a.home-row.recent .result-badge {
 		font-size: 12px;
 		color: var(--muted);
 	}
-	.home-table td.wf {
+	.home-table td.c-wf {
 		grid-column: 1 / -1;
 		font-size: 15px;
 	}
-	.home-table td.wf::before {
+	.home-table td.c-wf::before {
 		display: none;
 	}
-	.home-table td[data-label="Last runs"] {
+	.home-table td.c-strip {
 		grid-column: 1 / -1;
 	}
 }
-/* Wide enough for the four figures on one line; below that they take two lines. */
-@container (min-width: 420px) and (max-width: 567px) {
-	.home-table tr {
-		grid-template-columns: repeat(4, auto);
-		justify-content: space-between;
-	}
-	.home-table td.wf,
-	.home-table td[data-label="Last runs"] {
-		grid-column: 1 / -1;
-	}
-}
-@container (max-width: 480px) {
+/* A narrow list: the badge and the date on top, the title under, duration and cost under the date. */
+@container (max-width: 599px) {
 	a.home-row.recent {
-		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-columns: minmax(0, 1fr) 72px 84px;
 		grid-template-areas:
-			"badge when"
-			"name name"
-			"task task";
+			"badge date date"
+			"title title title"
+			". dur cost";
 		gap: 4px 12px;
 	}
 }

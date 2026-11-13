@@ -263,7 +263,7 @@ function syncClock(value) {
 	if (date(value)) clockOffset = date(value) - Date.now();
 }
 function duration(ms) {
-	if (!Number.isFinite(ms)) return "—";
+	if (!Number.isFinite(ms)) return "n/a";
 	if (ms >= 0 && ms < 1000) return `${(ms / 1000).toFixed(2)}s`;
 	const seconds = Math.max(0, Math.floor(ms / 1000));
 	if (seconds < 60) return `${seconds}s`;
@@ -333,7 +333,7 @@ export function statusSentence(run, time = now(), stopping = false) {
 		tasks.some((t) => t.statusDetail === "executor_needs_decision") ||
 		run.needsYou?.some((n) => n.kind === "decision")
 	)
-		return `${reviewing ? "Reviewing" : "Work"} is paused. The executor couldn't confirm whether one task ran — you need to decide.`;
+		return `${reviewing ? "Reviewing" : "Work"} is paused. The executor couldn't confirm whether one task ran, so you need to decide.`;
 	if (run.status === "failed" && run.verdictGate)
 		return `Finished ${ago(run.updatedAt, time)} with verdict ${run.verdict ? verdictWord(run.verdict) : "not passed"}. The final gate did not pass; the report explains why.${run.reportAvailable ? " Report is ready." : ""}`;
 	if (run.status === "failed")
@@ -387,11 +387,11 @@ function taskLine(task) {
 	const state = taskState(task);
 	if (state === "retry")
 		return task.retry
-			? `Waiting to retry · attempt ${task.retry.attempt}${task.retry.maxAttempts ? ` of ${task.retry.maxAttempts}` : ""}${task.retry.nextRetryAt ? ` · next in ${countdown(task.retry.nextRetryAt)}` : ""}`
+			? `Waiting to retry, attempt ${task.retry.attempt}${task.retry.maxAttempts ? ` of ${task.retry.maxAttempts}` : ""}${task.retry.nextRetryAt ? `, next in ${countdown(task.retry.nextRetryAt)}` : ""}`
 			: "Waiting for an automatic retry";
 	if (state === "running")
-		return `Running${task.startedAt ? ` · ${duration(now() - date(task.startedAt))}` : ""}`;
-	return `${state === "completed" ? "Done" : labels[state] || "Waiting"}${task.startedAt && task.completedAt ? ` · ${duration(task.elapsedMs ?? date(task.completedAt) - date(task.startedAt))}` : ""}`;
+		return `Running${task.startedAt ? `, ${duration(now() - date(task.startedAt))}` : ""}`;
+	return `${state === "completed" ? "Done" : labels[state] || "Waiting"}${task.startedAt && task.completedAt ? `, ${duration(task.elapsedMs ?? date(task.completedAt) - date(task.startedAt))}` : ""}`;
 }
 const cost = (usage) =>
 	usage?.costUsd == null ? "Not collected" : formatUsd(usage.costUsd);
@@ -484,7 +484,7 @@ function syncTitle() {
 				? "Overview"
 				: null;
 	document.title =
-		[page, state.run ? name : null, project].filter(Boolean).join(" · ") ||
+		[page, state.run ? name : null, project].filter(Boolean).join(" | ") ||
 		"agent-workflow";
 }
 async function api(path, options = {}) {
@@ -611,7 +611,7 @@ function updateConnection() {
 	const stale = lastEvent && Date.now() - lastEvent > 30000;
 	el.textContent =
 		connection === "Signed out"
-			? "Signed out — use the printed URL"
+			? "Signed out: use the printed URL"
 			: stale
 				? `Stale (updated ${Math.floor((Date.now() - lastEvent) / 1000)}s ago)`
 				: connection === "Live"
@@ -779,6 +779,7 @@ function setNeedDismissed(needs, dismissed) {
 	saveDismissedNeeds(current);
 	renderTop();
 	renderRail();
+	if (homeShown()) renderHome();
 	if (!shared.length) return;
 	Promise.all(
 		shared.map(async ({ need, runId, sha256 }) => {
@@ -812,9 +813,76 @@ function setNeedDismissed(needs, dismissed) {
 		.then(() => {
 			renderTop();
 			renderRail();
+			if (homeShown()) renderHome();
 		});
 }
 
+/**
+ * One reason in one wording wherever a need shows (rail, overview): "Failed at candidate-findings".
+ * A decision keeps its own sentence ("Controller needs a decision"); a failure without a task is
+ * "Run failed".
+ */
+function needReason(need) {
+	if (need.kind !== "failed") return need.title;
+	const space = need.title.lastIndexOf(" ");
+	const word = need.title.slice(space + 1);
+	return need.taskId
+		? `${word.charAt(0).toUpperCase()}${word.slice(1)} at ${need.title.slice(0, space)}`
+		: `Run ${word}`;
+}
+/**
+ * A need in the rail (2026-11-12, owner pass 2): on the run's own row, or alone when the run is
+ * not listed. "Inspect" opens the run with the failing task selected; the x dismisses.
+ */
+function railNeed(need, alone = false) {
+	const dismiss = () => {
+		const rail = $("rail");
+		const needs = [...rail.querySelectorAll(".need-item")];
+		const index = needs.findIndex((item) =>
+			item.querySelector(`[data-need="${CSS.escape(need.key)}"]`),
+		);
+		setNeedDismissed([need], true);
+		const left = [...$("rail").querySelectorAll(".need")];
+		(
+			left[Math.min(index, left.length - 1)] ??
+			$("rail").querySelector(".need-restore") ??
+			$("rail").querySelector(`[data-run="${CSS.escape(need.run.runId)}"]`)
+		)?.focus({ preventScroll: true });
+	};
+	return element(
+		"div",
+		{
+			class: `need-item${alone ? " alone" : ""}`,
+			// The row around it opens the run; this is its own control.
+			onclick: (event) => event.stopPropagation(),
+		},
+		button(
+			[
+				element(
+					"span",
+					{ class: "need-head" },
+					element("span", { class: "need-label" }, "Needs you"),
+					element("span", { class: "need-action" }, "Inspect"),
+				),
+				element("b", { class: "need-title" }, needReason(need)),
+				alone
+					? element("small", {}, `${need.run.name} ${ago(need.since)}`)
+					: null,
+			],
+			() => openNeed(need),
+			{ class: "need", "aria-label": `Inspect: ${needReason(need)}` },
+		),
+		need.kind === "failed"
+			? button("×", dismiss, {
+					class: "need-dismiss",
+					"data-need": need.key,
+					"aria-label": `Dismiss: ${needReason(need)}`,
+					title:
+						"Dismiss everywhere: the dashboard and the Pi, Claude Code and Codex reminders (a new failure shows again)",
+				})
+			: null,
+	);
+}
 function renderRail() {
 	const focusedProject = document.activeElement === $("project-switcher");
 	const focusedRun = document.activeElement?.closest(".run-row")?.dataset.run;
@@ -880,56 +948,24 @@ function renderRail() {
 	// 2026-11-12 (owner, review P2-2): the overview lists the needs and the runs itself, so the rail
 	// keeps only the project switcher and the nav there; the groups return with a run or a report.
 	if (managementView() || homeShown()) return;
-	if (needs.length || hidden.length)
+	// 2026-11-12 (owner, pass 2): one run is one row. A need sits on its own run's row (below); a
+	// "Needs you" group stays only for a need whose run is not in the list.
+	const listed = new Set(runs.map((summary) => summary.runId));
+	const orphans = needs.filter((need) => !listed.has(need.run.runId));
+	if (orphans.length) {
 		rail.append(element("h2", { class: "rail-heading" }, "Needs you"));
-	for (const need of needs)
-		rail.append(
-			element(
-				"div",
-				{ class: "need-item" },
-				button(
-					[
-						glyph(need.kind === "failed" ? "failed" : "blocked"),
-						element(
-							"span",
-							{ class: "grow" },
-							element("b", { class: "need-title" }, need.title),
-							element("span", { class: "need-action" }, "Inspect & resume"),
-							element("small", {}, `${need.run.name} ${ago(need.since)}`),
-						),
-					],
-					() => openNeed(need),
-					{ class: "need" },
-				),
-				need.kind === "failed"
-					? button(
-							"×",
-							() => {
-								// Focus the need now at this position (the next, else the previous one),
-								// else the restore link.
-								const index = [
-									...rail.querySelectorAll(".need-item"),
-								].findIndex((item) =>
-									item.querySelector(`[data-need="${CSS.escape(need.key)}"]`),
-								);
-								setNeedDismissed([need], true);
-								const left = [...$("rail").querySelectorAll(".need")];
-								(
-									left[Math.min(index, left.length - 1)] ??
-									$("rail").querySelector(".need-restore")
-								)?.focus({ preventScroll: true });
-							},
-							{
-								class: "need-dismiss",
-								"data-need": need.key,
-								"aria-label": `Dismiss: ${need.title}`,
-								title:
-									"Dismiss everywhere: the dashboard and the Pi, Claude Code and Codex reminders (a new failure shows again)",
-							},
-						)
-					: null,
-			),
-		);
+		for (const need of orphans) rail.append(railNeed(need, true));
+	}
+	rail.append(
+		element(
+			"h2",
+			{ class: "rail-heading" },
+			element("span", {}, "Runs"),
+			runs.length
+				? element("span", { class: "rail-count" }, runs.length)
+				: null,
+		),
+	);
 	if (hidden.length)
 		rail.append(
 			button(
@@ -941,16 +977,6 @@ function renderRail() {
 				{ class: "need-restore link" },
 			),
 		);
-	rail.append(
-		element(
-			"h2",
-			{ class: "rail-heading" },
-			element("span", {}, "Runs"),
-			runs.length
-				? element("span", { class: "rail-count" }, runs.length)
-				: null,
-		),
-	);
 	if (!runs.length)
 		rail.append(element("p", { class: "muted" }, "No runs yet"));
 	// Today / Earlier headings (2026-11-11, owner chose the compact rail), only when both occur.
@@ -963,7 +989,9 @@ function renderRail() {
 		const counts = summary.agentSummary || summary.taskSummary;
 		const display = summary.runId === run?.runId ? run : summary;
 		const live = liveRun(display);
-		const [tone, word] = railStatus(display);
+		const own = needs.filter((need) => need.run.runId === summary.runId);
+		// The need says it ("Failed at candidate-findings"); the meta line does not say it twice.
+		const [tone, word] = own.length ? ["", ""] : railStatus(display);
 		if (grouped && group !== isToday(summary)) {
 			group = isToday(summary);
 			rail.append(
@@ -1040,6 +1068,7 @@ function renderRail() {
 						summary.taskPreview,
 					)
 				: null,
+			own.map((need) => railNeed(need)),
 			// One quiet line: what to know (a verdict, a stop, a failure), the time, the agents.
 			element(
 				"div",
@@ -1152,7 +1181,7 @@ function heroSubline() {
 	const tasks = agentTasks(run),
 		done = tasks.filter((t) => t.status === "completed").length;
 	const noun = tasks.length === 1 ? "agent" : "agents";
-	return `${run.name} · ${runElapsed(run)} · ${liveRun(run) ? `${done} of ${tasks.length} ${noun} done` : `${tasks.length} ${noun}`}`;
+	return `${run.name}, ${runElapsed(run)}, ${liveRun(run) ? `${done} of ${tasks.length} ${noun} done` : `${tasks.length} ${noun}`}`;
 }
 const badgeStates = new Map();
 function renderBadge(status) {
@@ -1615,14 +1644,14 @@ function stageLine(stage) {
 		return (
 			[...[...flagged].map(([status, count]) => `${count} ${status}`), took]
 				.filter(Boolean)
-				.join(" · ") ||
+				.join(", ") ||
 			(stage.items.length ? `${stage.items.length} done` : "No agents ran")
 		);
 	}
 	const only = stage.items[0];
 	if (!only) return labels[stage.status] || "Waiting";
 	if (only.status === "failed" && stage.kind === "support" && only.lastMessage)
-		return `Failed — ${only.lastMessage}`;
+		return `Failed: ${only.lastMessage}`;
 	if (only.status !== "completed") return taskLine(only);
 	const took =
 		only.startedAt && only.completedAt
@@ -1642,14 +1671,14 @@ function stageLine(stage) {
 					)
 				? readablePairs(only.outcome.text.trim())
 				: "";
-	return [said, took].filter(Boolean).join(" · ") || "Done";
+	return [said, took].filter(Boolean).join(", ") || "Done";
 }
 /** "dedup: raw=3, unique=3, duplicates=0" → "raw 3 · unique 3 · duplicates 0" (code-step results). */
 function readablePairs(text) {
 	const body = text.replace(/^[\w-]+:\s*/, "");
 	const pairs = body.split(/,\s*/);
 	return pairs.length > 1 && pairs.every((pair) => /^[\w-]+=\S+$/.test(pair))
-		? pairs.map((pair) => pair.replace("=", " ")).join(" · ")
+		? pairs.map((pair) => pair.replace("=", " ")).join(", ")
 		: text;
 }
 function chooseStage(stage) {
@@ -1900,7 +1929,7 @@ function renderGraph() {
 		const p = positions.get(stage.id);
 		const group = stage.kind === "group";
 		const title = group
-			? `${stage.name ? `${stage.name} · ` : ""}${stage.members.length} in parallel`
+			? `${stage.name ? `${stage.name}, ` : ""}${stage.members.length} in parallel`
 			: humanize(stage.short || stage.name || stage.id);
 		// Who did the work, at the card's right (owner's pick, 2026-11-03): "✦ agent" / "✦ 3 agents",
 		// "</> code". With no code step in view every card is an agent's, so a lone "agent" goes.
@@ -1936,7 +1965,7 @@ function renderGraph() {
 				{},
 				group
 					? title
-					: `${title}${stage.kind === "support" ? " · code step (no model)" : ""}`,
+					: `${title}${stage.kind === "support" ? ", code step (no model)" : ""}`,
 			),
 			// 2026-11-03 (owner): the graph shows the process; what agents concluded ("2 weaken ·
 			// 1 keep", "Needs work") stays in the card's text and in the result, not in its mark.
@@ -2148,8 +2177,8 @@ function renderGraph() {
 					"text",
 					{ x: 36, y: 44, class: "sub", "data-fit": p.w - 48 },
 					stage.items.length > 48
-						? `${stage.items.length} agents · inspect items`
-						: `${stage.done} of ${stage.items.length} done · ${count("running")} running`,
+						? `${stage.items.length} agents, inspect items`
+						: `${stage.done} of ${stage.items.length} done, ${count("running")} running`,
 				),
 			);
 		} else if (!group)
@@ -2195,7 +2224,7 @@ function renderGraph() {
 						svg(
 							"title",
 							{},
-							`${task.title || task.specId} · ${task.outcome?.status || labels[status] || "Waiting"}`,
+							`${task.title || task.specId}, ${task.outcome?.status || labels[status] || "Waiting"}`,
 						),
 					),
 				);
@@ -2327,7 +2356,7 @@ function renderGraph() {
 		}
 		for (const [side, hint] of Object.entries(hints)) {
 			hint.hidden = !count[side];
-			const text = `${count[side]} more${live[side] ? " \u00b7 active" : ""}`;
+			const text = `${count[side]} more${live[side] ? ", active" : ""}`;
 			hint.textContent =
 				side === "left" || side === "top"
 					? `${sides[side]} ${text}`
@@ -2993,7 +3022,7 @@ function renderTimeline() {
 	const at = (ms) => `${((ms / total) * 100).toFixed(3)}%`;
 	const money = (value) =>
 		value == null
-			? "—"
+			? "n/a"
 			: `$${value.usd.toFixed(value.usd < 0.1 ? 4 : 2)}${value.of < value.tasks ? "+" : ""}`;
 	const axis = svg("svg", { class: "tl-axis", "aria-hidden": "true" });
 	for (const tick of ticks)
@@ -3106,7 +3135,7 @@ function renderTimeline() {
 		element(
 			"p",
 			{ class: "tl-note" },
-			"From the run's start. A dotted line is an agent that started after its stage did. — means not reported.",
+			"From the run's start. A dotted line is an agent that started after its stage did. n/a means not reported.",
 		),
 	);
 	return element(
@@ -3386,7 +3415,7 @@ function blockedSamples(task) {
 			element(
 				"p",
 				{},
-				`${sample.tool}${sample.command ? `: ${sample.command}` : ""} — ${sample.reason}${sample.source ? ` (${sample.source} policy)` : " (source unknown)"}`,
+				`${sample.tool}${sample.command ? `: ${sample.command}` : ""}, ${sample.reason}${sample.source ? ` (${sample.source} policy)` : " (source unknown)"}`,
 			),
 		),
 		commandBlock(
@@ -3517,7 +3546,7 @@ function renderSelection() {
 						task.executor || run.executor || "No executor",
 						task.model || "default model",
 						task.effort || "default",
-					].join(" · "),
+					].join(", "),
 				),
 			]),
 		);
@@ -3609,11 +3638,11 @@ function renderSelection() {
 				task.retry
 					? [
 							"Attempts",
-							`Attempt ${task.retry.attempt}${task.retry.maxAttempts ? ` of ${task.retry.maxAttempts}` : ""}${task.retry.nextRetryAt ? ` · scheduled ${task.retry.nextRetryAt}` : ""}`,
+							`Attempt ${task.retry.attempt}${task.retry.maxAttempts ? ` of ${task.retry.maxAttempts}` : ""}${task.retry.nextRetryAt ? `, scheduled ${task.retry.nextRetryAt}` : ""}`,
 						]
 					: null,
 				["Started", task.startedAt || "Not started"],
-				["Ended", task.completedAt || "—"],
+				["Ended", task.completedAt || "n/a"],
 				...usageRows(task.usage),
 				["Depends on", task.dependsOn?.join(", ") || "None"],
 				task.worktree
@@ -3621,7 +3650,7 @@ function renderSelection() {
 							"Worktree",
 							[task.worktree.branch, task.worktree.path]
 								.filter(Boolean)
-								.join(" · ") || "Not collected",
+								.join(", ") || "Not collected",
 						]
 					: null,
 			]),
@@ -3705,7 +3734,7 @@ function taskAnnotation(task) {
 								: "Couldn't check"),
 				),
 			),
-			task.outcome.text ? ` · ${task.outcome.text}` : null,
+			task.outcome.text ? `: ${task.outcome.text}` : null,
 		);
 	if (taskState(task) === "retry")
 		return element("div", { class: "agent-sub" }, taskLine(task));
@@ -3795,7 +3824,7 @@ function itemExpansion(task, id, entering = false, variant = "") {
 				{ class: "muted" },
 				task.status === "failed"
 					? task.lastMessage || "A task failed. Open the agent for its logs."
-					: `${taskLine(task)} — no result yet.`,
+					: `${taskLine(task)}, no result yet.`,
 			),
 			open,
 		);
@@ -3870,7 +3899,7 @@ function siblingNav(task) {
 		"nav",
 		{ class: "item-nav", "aria-label": "Agents in this stage" },
 		button(
-			`‹ ${humanize(stage.id)} · ${stage.items.length} agents`,
+			`‹ ${humanize(stage.id)}, ${stage.items.length} agents`,
 			() => go({ stage: stage.id }),
 			{ class: "item-back", "data-nav": "list" },
 		),
@@ -3904,7 +3933,7 @@ function renderSingle(inspector, stage) {
 			{ class: "agents-meta" },
 			[taskLine(task), task.executor || run.executor, task.model, task.effort]
 				.filter(Boolean)
-				.join(" · "),
+				.join(", "),
 		),
 		itemExpansion(task, "stage-result", false, "single"),
 	);
@@ -3917,7 +3946,7 @@ function renderItems(inspector, stage, previous = new Map()) {
 		element(
 			"p",
 			{ class: "agents-meta" },
-			`${stage.items.length} agents · ${stage.done} done`,
+			`${stage.items.length} agents, ${stage.done} done`,
 		),
 	);
 	const key = `${run.runId}:${stage.id}`,
@@ -4084,8 +4113,8 @@ function renderItems(inspector, stage, previous = new Map()) {
 							class: `agent-item ${status}`,
 							"data-item": task.specId,
 							"data-row-group": group,
-							title: `${task.title || task.specId} · ${taskLine(task)}${task.outcome?.text ? ` · ${task.outcome.text}` : ""}`,
-							"aria-label": `${task.title || task.specId} · ${taskLine(task)}`,
+							title: `${task.title || task.specId}, ${taskLine(task)}${task.outcome?.text ? `, ${task.outcome.text}` : ""}`,
+							"aria-label": `${task.title || task.specId}, ${taskLine(task)}`,
 						},
 					),
 				);
@@ -4173,7 +4202,7 @@ function paintResult() {
 						? "Loading…"
 						: taskState(task) === "completed"
 							? "No result files for this task."
-							: "No result yet — the task has not finished."),
+							: "No result yet. The task has not finished."),
 			),
 		);
 		return;
@@ -4279,7 +4308,7 @@ function paintLogs() {
 			? "Loading…"
 			: task.hasLogs
 				? "No output captured for this stream."
-				: "No logs yet — this task has not started.");
+				: "No logs yet. This task has not started.");
 	$("log-notice").textContent = [
 		stream?.truncated || logData?.truncated
 			? "Showing the bounded tail; earlier lines were truncated."
@@ -4404,7 +4433,7 @@ function renderModal() {
 			element(
 				"p",
 				{},
-				"Records a durable stop intent, then waits for the active supervisor to confirm (up to 15 s). Stop requested — waiting for supervisor confirmation, then Stopped. In-flight usage may not be collected.",
+				"Records a durable stop intent, then waits for the active supervisor to confirm (up to 15 s). Stop requested: waiting for supervisor confirmation, then Stopped. In-flight usage may not be collected.",
 			),
 		];
 	} else if (kind === "resume") {
@@ -4441,7 +4470,7 @@ function renderModal() {
 			element(
 				"span",
 				{ class: "muted" },
-				readonly() ? "Read-only — action disabled" : "Esc to cancel",
+				readonly() ? "Read-only: actions are off" : "Esc to cancel",
 			),
 			button("Cancel", () => dismissDialog(), { "data-cancel": "true" }),
 			button(confirm, () => mutate(runId, kind), {
@@ -4735,7 +4764,7 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 		const fields = Object.keys(row)
 			.filter((key) => key !== main)
 			.flatMap((key, index) => [
-				index ? "; " : main ? " — " : "",
+				index ? "; " : main ? ", " : "",
 				element("span", { class: "md-label" }, `${key}:`),
 				" ",
 				Array.isArray(row[key]) ? row[key].join(", ") : String(row[key]),
@@ -5292,8 +5321,9 @@ function findingCard(finding, ledgerKept) {
 								"span",
 								{ class: "location-chip" },
 								element("b", {}, `${where.file}:${where.line}`),
+								// "—" is how a report's table says "no symbol"; it is data, not text of ours.
 								where.symbol && where.symbol !== "—"
-									? ` · ${where.symbol}`
+									? element("span", { class: "location-symbol" }, where.symbol)
 									: null,
 							),
 						),
@@ -5364,7 +5394,7 @@ function reportOutline(content, scroller) {
 				node,
 				level: card || found ? 1 : 0,
 				label: found ? found[2] : text,
-				title: card ? `${node.getAttribute("aria-label")} — ${text}` : text,
+				title: card ? `${node.getAttribute("aria-label")}: ${text}` : text,
 				severity: node.dataset?.severity,
 			};
 		});
@@ -5631,14 +5661,14 @@ function runSummaryText(r) {
 /**
  * Cost with how many agents reported it (2026-11-12, owner). Code steps never report cost, so only
  * agents are counted ("8 of 8 agents reported"); a partial sum has a "+", and an unknown cost is
- * "—", never $0. `costs` is a list of a run's `cost` (a project's runs add up).
+ * "n/a", never $0. `costs` is a list of a run's `cost` (a project's runs add up).
  */
 function formatUsd(value) {
 	return `$${value.toFixed(value < 0.1 ? 4 : 2)}`;
 }
 function costLabel(costs) {
 	if (!costs.length)
-		return { text: "—", ratio: "", title: "Cost not reported", runs: 0 };
+		return { text: "n/a", ratio: "", title: "Cost not reported", runs: 0 };
 	const known = costs.filter((entry) => entry?.costUsd != null);
 	const total = costs.reduce((sum, entry) => sum + (entry?.agentTotal ?? 0), 0);
 	const reporting = costs.reduce(
@@ -5651,7 +5681,7 @@ function costLabel(costs) {
 	const ratio = `${reporting} of ${total} agent${total === 1 ? "" : "s"} reported`;
 	if (!known.length)
 		return {
-			text: "—",
+			text: "n/a",
 			ratio,
 			title: total ? `No cost reported (${ratio})` : "No agents ran",
 			runs: 0,
@@ -5702,7 +5732,7 @@ function renderReportPage() {
 			"span",
 			{ class: "report-cost", title: cost.title },
 			run.cost?.costUsd != null
-				? `${cost.text} · ${cost.ratio}`
+				? `${cost.text}, ${cost.ratio}`
 				: `Cost ${cost.text}`,
 		),
 	];
@@ -5763,14 +5793,8 @@ function renderReportPage() {
 					{ class: "report-summary" },
 					leadSentence(summary) || `${run.name} report`,
 				),
-				// 2026-11-12 (review, P3-5): "·" between the items, as everywhere else.
-				element(
-					"p",
-					{ class: "report-meta" },
-					meta
-						.filter(Boolean)
-						.flatMap((item, index) => (index ? [" · ", item] : [item])),
-				),
+				// 2026-11-12 (owner, pass 2): the items are spaced by the layout, not by a mark between them.
+				element("p", { class: "report-meta" }, meta.filter(Boolean)),
 				chips,
 			),
 			outline,
@@ -5825,7 +5849,7 @@ function openStatusKey() {
 				{ class: "row" },
 				glyph(status),
 				status === "retry"
-					? "Auto-retry — no action"
+					? "Auto-retry, no action"
 					: status === "blocked"
 						? "Needs you"
 						: labels[status],
@@ -5905,7 +5929,7 @@ function openPalette() {
 				detail: r.taskPreview || r.runId,
 				meta: [word || labels[r.status] || r.status, ago(r.createdAt)]
 					.filter(Boolean)
-					.join(" · "),
+					.join(", "),
 				search: `${r.name} ${r.taskPreview || ""} ${r.runId} ${r.status}`,
 				choose: () => go({ run: r.runId, dialog: null, view: null }),
 			};
@@ -6418,12 +6442,12 @@ function renderOverview() {
 								"p",
 								{ class: "muted" },
 								project.path,
-								project.pathMissing ? " · path missing" : "",
+								project.pathMissing ? ", path missing" : "",
 							),
 							element(
 								"p",
 								{},
-								`${project.counts.running} active · ${project.counts.needsAttention} need attention`,
+								`${project.counts.running} active, ${project.counts.needsAttention} need attention`,
 							),
 							project.counts.lastActivity
 								? element(
@@ -6480,12 +6504,14 @@ const STRIP_TONES = {
 	pending: "run",
 };
 function openNeed(need) {
+	// 2026-11-12 (owner, pass 2): look first. The run opens with the failing task selected and the
+	// inspector showing what failed and why; "Resume…" is a button the person presses on the run.
 	const target =
 		need.run.runId === run?.runId
 			? run.tasks.find((t) => [t.taskId, t.specId].includes(need.taskId))
 					?.specId
 			: need.taskId;
-	go({ run: need.run.runId, task: target || null, dialog: "resume" });
+	go({ run: need.run.runId, task: target || null, dialog: null });
 }
 /**
  * "5m ago" for a day, then the date and time: a column of "1d ago" tells rows apart no better
@@ -6525,7 +6551,7 @@ function costCell(summary) {
 	return element(
 		"span",
 		{
-			class: "home-cost",
+			class: `home-cost${label.text === "n/a" ? " muted" : ""}`,
 			title: summary.cost ? label.title : "Cost not reported",
 		},
 		label.text,
@@ -6537,37 +6563,41 @@ function homeNeeds() {
 		return element("p", { class: "home-calm" }, "Nothing needs you.");
 	return needs.map((need) => {
 		const agents = need.run.agentSummary;
+		// 2026-11-12 (owner, pass 2): the card leads with the run's identity as everywhere else (its
+		// workflow and task), then why it needs you, how far it got and when.
 		return element(
 			"article",
-			{ class: `home-need ${need.kind}` },
+			{ class: `home-need ${need.kind}`, "data-run": need.run.runId },
 			glyph(need.kind === "failed" ? "failed" : "blocked"),
 			element(
 				"div",
 				{ class: "home-need-body" },
-				element("strong", {}, need.title),
-				element(
-					"p",
-					{ class: "muted" },
-					`${need.run.name} · ${ago(need.since)}`,
-					agents
-						? ` · ${agents.completed} of ${agents.total} agents finished`
-						: "",
-				),
+				element("strong", {}, need.run.name),
 				need.run.taskPreview
 					? element(
 							"p",
-							{ class: "home-task faint", title: need.run.taskPreview },
+							{ class: "home-task muted", title: need.run.taskPreview },
 							need.run.taskPreview,
 						)
 					: null,
 				element(
+					"p",
+					{ class: "home-need-reason" },
+					element("b", {}, needReason(need)),
+					agents
+						? element(
+								"span",
+								{ class: "muted" },
+								`${agents.completed} of ${agents.total} agents finished`,
+							)
+						: null,
+					element("span", { class: "muted" }, ago(need.since)),
+				),
+				element(
 					"div",
 					{ class: "home-need-actions" },
-					button("Inspect & resume", () => openNeed(need), {
+					button("Inspect", () => openNeed(need), {
 						class: "primary small",
-					}),
-					button("Open run", () => go({ run: need.run.runId }), {
-						class: "small",
 					}),
 					need.kind === "failed"
 						? button("Dismiss", () => setNeedDismissed([need], true), {
@@ -6653,39 +6683,53 @@ function homeRecent(finished, stopped) {
 							summary,
 							[
 								resultChip(summary),
-								// 2026-11-12 (review, P2-8): the workflow leads (it tells rows apart), then the
-								// agents; the task the run was given is the quiet line below.
+								// 2026-11-12 (review, P2-8): the workflow leads (it tells rows apart), then its
+								// agents after a gap; the task the run was given is the quiet line below.
 								element(
 									"span",
-									{ class: "home-row-name", title: summary.name },
-									summary.name,
-									agents
+									{ class: "home-row-title" },
+									element(
+										"span",
+										{ class: "home-row-name" },
+										element(
+											"span",
+											{ class: "home-row-wf", title: summary.name },
+											summary.name,
+										),
+										agents
+											? element(
+													"span",
+													{ class: "home-row-agents muted" },
+													`${agents.completed} of ${agents.total} agents`,
+												)
+											: null,
+									),
+									summary.taskPreview
 										? element(
 												"span",
-												{ class: "muted" },
-												` · ${agents.completed} of ${agents.total} agents`,
+												{ class: "home-row-task", title: summary.taskPreview },
+												summary.taskPreview,
 											)
 										: null,
 								),
-								summary.taskPreview
-									? element(
-											"span",
-											{ class: "home-row-task", title: summary.taskPreview },
-											summary.taskPreview,
-										)
-									: null,
+								// Date, duration and cost each have their own column (owner, pass 2).
 								element(
 									"span",
-									{ class: "home-row-when muted" },
+									{ class: "home-row-date muted" },
 									timeAgo(summary.updatedAt),
-									element(
-										"small",
-										{},
-										summary.activeMs != null ? duration(summary.activeMs) : "—",
-										" · ",
-										costCell(summary),
-									),
 								),
+								element(
+									"span",
+									{
+										class: `home-row-dur${summary.activeMs == null ? " muted" : ""}`,
+										title:
+											summary.activeMs == null
+												? "Active time not available"
+												: "Active time",
+									},
+									summary.activeMs != null ? duration(summary.activeMs) : "n/a",
+								),
+								costCell(summary),
 							],
 							"home-row recent",
 						);
@@ -6725,6 +6769,17 @@ function homeWorkflows(all) {
 			updated: Math.max(...list.map((summary) => date(summary.updatedAt))),
 		}))
 		.sort((a, b) => b.updated - a.updated);
+	// 2026-11-12 (owner, pass 2): a real table. The columns have fixed widths (app.css), so every
+	// row has them at the same x; "Median" and "Last runs" drop out when the table is narrow.
+	const columns = [
+		["wf", "Workflow", ""],
+		["runs", "Runs", "n"],
+		["last", "Last result", ""],
+		["median", "Median", "n"],
+		["cost", "Cost", "n"],
+		["strip", "Last runs", ""],
+	];
+	const unknown = (title) => element("span", { class: "muted", title }, "n/a");
 	return element(
 		"div",
 		{ class: "home-table-wrap" },
@@ -6732,36 +6787,28 @@ function homeWorkflows(all) {
 			"table",
 			{ class: "home-table" },
 			element(
+				"colgroup",
+				{},
+				columns.map(([key]) => element("col", { class: `c-${key}` })),
+			),
+			element(
 				"thead",
 				{},
 				element(
 					"tr",
 					{},
-					element("th", {}, "Workflow"),
-					element("th", { class: "n" }, "Runs"),
-					element(
-						"th",
-						{
-							title:
-								"The latest run that finished; a stopped run is not a result",
-						},
-						"Last result",
-					),
-					element(
-						"th",
-						{ class: "n", title: "Median active time of completed runs" },
-						"Median",
-					),
-					element(
-						"th",
-						{
-							class: "n",
-							title:
-								"Reported cost. + means some agents did not report; code steps are not counted",
-						},
-						"Cost",
-					),
-					element("th", {}, "Last runs"),
+					columns.map(([key, label, align]) => {
+						const titles = {
+							last: "The latest run that finished; a stopped run is not a result",
+							median: "Median active time of completed runs",
+							cost: "Reported cost. + means some agents did not report; code steps are not counted",
+						};
+						return element(
+							"th",
+							{ class: `c-${key} ${align}`.trim(), title: titles[key] },
+							label,
+						);
+					}),
 				),
 			),
 			element(
@@ -6786,34 +6833,48 @@ function homeWorkflows(all) {
 						{ "data-workflow": name },
 						element(
 							"td",
-							{ class: "wf", "data-label": "Workflow" },
-							element("a", { href: managementHref("workflows") }, name),
+							{ class: "c-wf", "data-label": "Workflow" },
+							element(
+								"a",
+								{ href: managementHref("workflows"), title: name },
+								name,
+							),
 						),
-						element("td", { class: "n", "data-label": "Runs" }, list.length),
-						element("td", { "data-label": "Last result" }, resultChip(last)),
+						element(
+							"td",
+							{ class: "c-runs n", "data-label": "Runs" },
+							list.length,
+						),
+						element(
+							"td",
+							{ class: "c-last", "data-label": "Last result" },
+							resultChip(last),
+						),
 						element(
 							"td",
 							{
-								class: "n",
+								class: "c-median n",
 								"data-label": "Median",
 								title: `Median active time of ${completed.length} completed run${completed.length === 1 ? "" : "s"}`,
 							},
-							middle == null ? "—" : duration(middle),
+							middle == null ? unknown() : duration(middle),
 						),
 						element(
 							"td",
 							{
-								class: "n",
+								class: "c-cost n",
 								"data-label": "Cost",
-								title: `${label.title}${label.runs ? ` · ${label.runs} of ${list.length} runs reported` : ""}`,
+								title: `${label.title}${label.runs ? `, ${label.runs} of ${list.length} runs reported` : ""}`,
 							},
 							// 2026-11-12 (review, P2-11): "$1.39+ 5/5" read as incomplete and complete at
 							// once; the runs ratio is in the tooltip.
-							element("span", { class: "home-cost" }, label.text),
+							label.text === "n/a"
+								? unknown()
+								: element("span", { class: "home-cost" }, label.text),
 						),
 						element(
 							"td",
-							{ "data-label": "Last runs" },
+							{ class: "c-strip", "data-label": "Last runs" },
 							element(
 								"span",
 								{
@@ -6827,7 +6888,7 @@ function homeWorkflows(all) {
 									const [tone, word] = resultBadge(summary);
 									return element("i", {
 										class: `sq ${STRIP_TONES[tone] || "run"}`,
-										title: `${word} · ${new Date(date(summary.createdAt)).toLocaleString()}`,
+										title: `${word}, ${new Date(date(summary.createdAt)).toLocaleString()}`,
 									});
 								}),
 							),
@@ -6894,7 +6955,7 @@ function homeProject(all) {
 					element(
 						"span",
 						{ class: "nowrap" },
-						index < parts.length - 1 ? `${part} ·` : part,
+						index < parts.length - 1 ? `${part},` : part,
 					),
 				]),
 		),
@@ -6926,11 +6987,16 @@ function renderHome() {
 		return;
 	}
 	const running = all.filter((summary) => summary.status === "running");
-	const finished = all.filter((summary) => summary.status !== "running");
+	const needs = visibleNeeds();
+	// 2026-11-12 (owner, pass 2): a run that needs you is listed under "Needs you" only; once it is
+	// dismissed it is one of the results again.
+	const needing = new Set(needs.map((need) => need.run.runId));
+	const finished = all.filter(
+		(summary) => summary.status !== "running" && !needing.has(summary.runId),
+	);
 	const stopped = finished.filter(
 		(summary) => summary.status === "interrupted",
 	).length;
-	const needs = visibleNeeds();
 	const oldest = all.reduce(
 		(min, summary) => Math.min(min, date(summary.createdAt)),
 		Infinity,
@@ -6962,71 +7028,63 @@ function renderHome() {
 						`${all.length} run${all.length === 1 ? "" : "s"} since ${new Date(oldest).toLocaleDateString([], { month: "short", day: "numeric" })}`,
 					),
 				),
-				element(
-					"div",
-					{ class: "home-col" },
-					// 2026-11-12 (review, P2-9): with nothing to do and nothing running, one quiet line;
-					// a section shows only when it has something to say.
-					calm
-						? element(
-								"p",
-								{ class: "home-status", id: "home-status" },
-								"Nothing needs you · nothing running",
+				// 2026-11-12 (review, P2-9): with nothing to do and nothing running, one quiet line;
+				// a section shows only when it has something to say.
+				calm
+					? element(
+							"p",
+							{ class: "home-status", id: "home-status" },
+							"Nothing needs you and nothing is running.",
+						)
+					: [
+							section(
+								"Needs you",
+								homeNeeds(),
+								needs.length
+									? element("span", { class: "faint" }, needs.length)
+									: null,
+								"home-needs",
+							),
+							section(
+								"Running now",
+								homeRunning(running),
+								null,
+								"home-running",
+							),
+						],
+				section(
+					"Recent results",
+					homeRecent(finished, stopped),
+					stopped && !showAll
+						? button(
+								showStopped
+									? "Hide stopped runs"
+									: `Show ${stopped} stopped run${stopped === 1 ? "" : "s"}`,
+								() => {
+									showStopped = !showStopped;
+									renderHome();
+									$("home-view")
+										.querySelector("[data-home-key=stopped]")
+										?.focus({ preventScroll: true });
+								},
+								{
+									class: "small home-toggle",
+									"data-home-key": "stopped",
+								},
 							)
-						: [
-								section(
-									"Needs you",
-									homeNeeds(),
-									needs.length
-										? element("span", { class: "faint" }, needs.length)
-										: null,
-									"home-needs",
-								),
-								section(
-									"Running now",
-									homeRunning(running),
-									null,
-									"home-running",
-								),
-							],
-					section(
-						"Recent results",
-						homeRecent(finished, stopped),
-						stopped && !showAll
-							? button(
-									showStopped
-										? "Hide stopped runs"
-										: `Show ${stopped} stopped run${stopped === 1 ? "" : "s"}`,
-									() => {
-										showStopped = !showStopped;
-										renderHome();
-										$("home-view")
-											.querySelector("[data-home-key=stopped]")
-											?.focus({ preventScroll: true });
-									},
-									{
-										class: "small home-toggle",
-										"data-home-key": "stopped",
-									},
-								)
-							: null,
-						"home-recent",
-					),
+						: null,
+					"home-recent",
 				),
-				element(
-					"div",
-					{ class: "home-col" },
-					section("This project", homeProject(all), null, "home-project"),
-					section(
-						"Workflows",
-						homeWorkflows(all),
-						element(
-							"a",
-							{ class: "home-manage", href: managementHref("workflows") },
-							"Manage →",
-						),
-						"home-workflows",
+				section("This project", homeProject(all), null, "home-project"),
+				section(
+					"Workflows",
+					homeWorkflows(all),
+					element(
+						"a",
+						{ class: "home-manage", href: managementHref("workflows") },
+						"Manage →",
 					),
+					"home-workflows",
 				),
 			),
 		),
@@ -7335,12 +7393,12 @@ async function modelControls(saved = {}, prefix = "") {
 				text:
 					narrowed.length === 1 && narrowed[0] === "off"
 						? `${name} does not think on ${entry.id}: its effort is off.`
-						: `Effort for ${name} on ${entry.id}: ${narrowed.join(" · ")}.`,
+						: `Effort for ${name} on ${entry.id}: ${narrowed.join(", ")}.`,
 			};
 		if (declared)
 			return {
 				levels: declared,
-				text: `Effort on ${entry.id}: ${declared.join(" · ")}.`,
+				text: `Effort on ${entry.id}: ${declared.join(", ")}.`,
 			};
 		return {
 			levels: EFFORT_LEVELS,
@@ -7479,8 +7537,8 @@ async function renderManagement() {
 			"p",
 			{ class: "muted" },
 			["profiles", "executors"].includes(state.view)
-				? "User level · shared by every project and host"
-				: "Selected project · shared host actions",
+				? "User level, shared by every project and host"
+				: "Selected project, shared host actions",
 		),
 	);
 	$("center").replaceChildren(page);
@@ -7562,7 +7620,7 @@ async function renderWorkflows(page) {
 							element(
 								"span",
 								{ class: "muted" },
-								`${agent.scope}${agent.model ? ` · ${agent.model}` : ""}`,
+								`${agent.scope}${agent.model ? `, ${agent.model}` : ""}`,
 							),
 						]),
 					)
@@ -7622,7 +7680,7 @@ function propertyTable(headers, rows, attrs = {}) {
 				element(
 					"tr",
 					{},
-					cells.map((cell) => element("td", {}, cell ?? "—")),
+					cells.map((cell) => element("td", {}, cell ?? "n/a")),
 				),
 			),
 		),
@@ -7672,7 +7730,7 @@ async function renderWorkflow(page, name) {
 				]),
 				[
 					"Source",
-					element("span", { class: "mono" }, workflow.specPath || "—"),
+					element("span", { class: "mono" }, workflow.specPath || "n/a"),
 				],
 				workflow.aliases?.length
 					? ["Aliases", workflow.aliases.join(", ")]
@@ -7728,7 +7786,7 @@ async function renderWorkflow(page, name) {
 					]
 				: null,
 	);
-	const check = managementPanel("Check · no run or model call");
+	const check = managementPanel("Check: no run or model call");
 	const advanced = managementPanel(
 		"Advanced",
 		element(
@@ -7899,7 +7957,7 @@ async function renderProfiles(page) {
 						profile.permissionMode,
 					]
 						.filter(Boolean)
-						.join(" · "),
+						.join(", "),
 				),
 				managementControl(
 					`Use ${profile.name} by default`,
@@ -8007,7 +8065,7 @@ async function renderProfiles(page) {
 		);
 		const preset = choices("Profile preset", [
 			["", "None (keep current)"],
-			...presets.data.presets.map((p) => [p.id, `${p.id} — ${p.description}`]),
+			...presets.data.presets.map((p) => [p.id, `${p.id}: ${p.description}`]),
 		]);
 		const strict = input(
 			"Strict capabilities (comma separated)",
@@ -8094,7 +8152,7 @@ async function renderProfiles(page) {
 				element(
 					"details",
 					{},
-					element("summary", {}, `${preset.id} — ${preset.description}`),
+					element("summary", {}, `${preset.id}: ${preset.description}`),
 					element("pre", {}, JSON.stringify(preset.roles, null, 2)),
 				),
 			),
@@ -8125,7 +8183,7 @@ async function renderProfiles(page) {
 		);
 		prefPanel.append(
 			managementControl(
-				`${workflow.name}${saved?.profile ? ` · ${saved.profile}` : ""}`,
+				`${workflow.name}${saved?.profile ? `, ${saved.profile}` : ""}`,
 				async () => {
 					const path = `/api/workflow-preferences/${encodeURIComponent(workflow.name)}?project=${encodeURIComponent(state.project)}`;
 					const current = (await managementApi(path)).data.preference || {};
@@ -8253,7 +8311,7 @@ async function renderMaintenance(page) {
 				? element(
 						"small",
 						{ class: "muted" },
-						`${entry.taskPreview ? `${entry.taskPreview} · ` : ""}${runId.slice(-6)}`,
+						`${entry.taskPreview ? `${entry.taskPreview}, ` : ""}${runId.slice(-6)}`,
 					)
 				: null,
 		);
@@ -8326,7 +8384,7 @@ async function renderMaintenance(page) {
 						["Run", "Reason", ""],
 						dismissed.map((entry) => [
 							runCell(entry.runId),
-							`${entry.reason}${entry.active ? "" : " · the run changed since"}`,
+							`${entry.reason}${entry.active ? "" : ", the run changed since"}`,
 							managementControl(
 								"Show again",
 								async () => {
@@ -8404,7 +8462,7 @@ async function renderMaintenance(page) {
 	older.addEventListener("input", invalidate);
 	const verdict = (run) =>
 		run.protected
-			? stateLabel("warn", "Kept · protected")
+			? stateLabel("warn", "Kept, protected")
 			: run.selected
 				? stateLabel("err", "Will delete")
 				: stateLabel("muted", "Kept");
@@ -8515,7 +8573,7 @@ async function renderExecutors(page) {
 		const data = result.data;
 		const executors = data.executors || [];
 		const ready = executors.filter((entry) => entry.usable).length;
-		checked.textContent = `Checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · cached for 60 s`;
+		checked.textContent = `Checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}, cached for 60 s`;
 		const knows = [
 			...(data.warnings || []),
 			...(data.node && !data.node.supported
@@ -8560,12 +8618,12 @@ async function renderExecutors(page) {
 											? element(
 													"span",
 													{ class: "muted" },
-													` · tested on ${entry.verifiedVersion}`,
+													`, tested on ${entry.verifiedVersion}`,
 												)
 											: null,
 									]
-								: "—",
-							entry.fix || (entry.usable ? "—" : entry.error || "—"),
+								: "n/a",
+							entry.fix || (entry.usable ? "n/a" : entry.error || "n/a"),
 						];
 					}),
 					{ class: "property-table executors" },
@@ -8594,7 +8652,7 @@ async function renderExecutors(page) {
 										element(
 											"span",
 											{ class: "muted" },
-											` · ${data.defaultExecutor.reason || data.defaultExecutor.source}`,
+											`, ${data.defaultExecutor.reason || data.defaultExecutor.source}`,
 										),
 									]
 								: "none ready",
@@ -8606,7 +8664,7 @@ async function renderExecutors(page) {
 								element(
 									"span",
 									{ class: "muted" },
-									` · ${data.permissionMode?.source === "default" ? "default" : "saved"}`,
+									`, ${data.permissionMode?.source === "default" ? "default" : "saved"}`,
 								),
 							],
 						],
@@ -8658,7 +8716,7 @@ async function renderExecutors(page) {
 							data.runIndex
 								? [
 										"Run index",
-										`${data.runIndex.entries} entries · ${data.runIndex.stale} stale · ${data.runIndex.dangling} dangling`,
+										`${data.runIndex.entries} entries, ${data.runIndex.stale} stale, ${data.runIndex.dangling} dangling`,
 									]
 								: null,
 							["Host", data.host],
@@ -8690,5 +8748,5 @@ start();
 
 /** "1 project · 2 active runs · 1 needs attention" (singular forms for one). */
 function overviewSummary(projectCount, running, attention) {
-	return `${projectCount} ${projectCount === 1 ? "project" : "projects"} · ${running} active ${running === 1 ? "run" : "runs"} · ${attention} ${attention === 1 ? "needs" : "need"} attention`;
+	return `${projectCount} ${projectCount === 1 ? "project" : "projects"}, ${running} active ${running === 1 ? "run" : "runs"}, ${attention} ${attention === 1 ? "needs" : "need"} attention`;
 }

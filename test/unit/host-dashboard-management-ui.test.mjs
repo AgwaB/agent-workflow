@@ -8,6 +8,7 @@ import {
 	persistManagementRun,
 } from "../helpers/dashboard-management.mjs";
 import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
+import { scanMarks } from "../helpers/dashboard-marks.mjs";
 import { waitForSavedProfile } from "../helpers/dashboard-profile-wait.mjs";
 import { profileAction } from "../../dist/hosts/catalog.js";
 
@@ -153,7 +154,7 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 		"xhigh",
 		"max",
 	]);
-	assert.match((await effort()).note, /^Effort on claude: low · medium/);
+	assert.match((await effort()).note, /^Effort on claude: low, medium/);
 	await set(browser, "Effort", "max");
 	await set(browser, "Executor", "codex");
 	await set(browser, "Model", "fixture-model");
@@ -161,7 +162,7 @@ test("Chrome management: all five views, profile edit, check preview and prune p
 		await effort(),
 		{
 			options: ["", "low", "medium", "high", "max"],
-			note: "Effort for fixture-model on codex: low · medium · high.",
+			note: "Effort for fixture-model on codex: low, medium, high.",
 		},
 		"the model's levels; a kept choice it lacks stays visible as unavailable",
 	);
@@ -478,4 +479,61 @@ test("Chrome readonly management: navigation stays available and all action muta
 		},
 	);
 	assert.deepEqual(browser.errors, []);
+});
+
+// 2026-11-12 (owner, pass 2): no middle dot and no em dash in the dashboard's own text, on every
+// management page, read-write and read-only. An unknown value reads "n/a".
+test("Chrome management: no middle dot and no em dash in workflows, profiles, maintenance and executors", {
+	timeout: 120000,
+}, async (t) => {
+	assert.ok(
+		chrome,
+		"Chrome is required for dashboard management UI validation",
+	);
+	for (const readonly of [false, true]) {
+		const p = await managementProject(t, { readonly });
+		await persistManagementRun(p.cwd, "workflow_ui_terminal");
+		await persistManagementRun(p.cwd, "workflow_ui_stopped", "interrupted");
+		await profileAction(p.ctx, {
+			op: "set",
+			name: "ui-profile",
+			values: { executor: "codex", model: "fixture-model", effort: "low" },
+		});
+		const browser = await createBrowser(chrome);
+		t.after(() => browser.close());
+		const url = `${p.origin}/?project=${p.server.projectId}`;
+		for (const view of ["workflows", "profiles", "maintenance", "executors"]) {
+			await navigate(browser, `${url}&view=${view}`, view);
+			await browser.waitFor(
+				() =>
+					document.querySelector(".management-page")?.textContent.length > 40,
+			);
+			assert.deepEqual(
+				await scanMarks(browser),
+				[],
+				`${view}${readonly ? " (read-only)" : ""}`,
+			);
+		}
+		// A workflow's own page, with its check and parameters.
+		await navigate(browser, `${url}&view=workflows`, "workflows");
+		await browser.waitFor(() =>
+			document
+				.querySelector('[data-management="workflows"]')
+				?.textContent.includes("Management fixture"),
+		);
+		await openWorkflowCard(browser, "manage");
+		assert.deepEqual(await scanMarks(browser), [], "a workflow page");
+		// Maintenance with a stopped run's notice, its details open.
+		await navigate(browser, `${url}&view=maintenance`, "maintenance");
+		await browser.waitFor(
+			() =>
+				!!document.querySelector('[data-management-action="prune-preview"]'),
+		);
+		await browser.evaluate(() =>
+			document
+				.querySelectorAll("details")
+				.forEach((details) => details.setAttribute("open", "")),
+		);
+		assert.deepEqual(await scanMarks(browser), [], "maintenance, opened");
+	}
 });

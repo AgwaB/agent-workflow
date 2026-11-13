@@ -245,7 +245,7 @@ test("dashboard matrix: shape/state projections, viewport geometry, counts and k
 					);
 					assert.equal(
 						counts.meta,
-						`${items.length} agents · ${items.filter((task) => task.status === "completed").length} done`,
+						`${items.length} agents, ${items.filter((task) => task.status === "completed").length} done`,
 						label,
 					);
 					assert.equal(
@@ -269,7 +269,7 @@ test("dashboard matrix: shape/state projections, viewport geometry, counts and k
 						await browser.evaluate(
 							() => document.querySelector(".agents-meta").textContent,
 						),
-						`2 agents · ${expected.filter((task) => task.kind === "dynamic-agent" && task.status === "completed").length} done`,
+						`2 agents, ${expected.filter((task) => task.kind === "dynamic-agent" && task.status === "completed").length} done`,
 						label,
 					);
 					assert.equal(
