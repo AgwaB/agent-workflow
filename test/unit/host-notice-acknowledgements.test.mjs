@@ -129,6 +129,52 @@ test("only exact acknowledged failures, interruptions and eligible approval bloc
 	assert.equal((await list(cwd)).acknowledgements.length, 3);
 });
 
+// 2026-11-13 (owner): a run the user stopped is not unfinished business. A run interrupted because
+// the process running it ended still is, and so is any other interruption.
+test("a run the user stopped raises no notice; one whose host closed does", async (t) => {
+	const cwd = await project(t);
+	const interrupted = (statusDetail) => ({
+		status: "interrupted",
+		tasks: [
+			{
+				taskId: "task-1",
+				specId: "task-1",
+				status: "completed",
+				statusDetail: "completed",
+				files: {},
+			},
+			{
+				taskId: "task-2",
+				specId: "task-2",
+				status: "interrupted",
+				statusDetail,
+				files: {},
+			},
+		],
+	});
+	await fixture(cwd, "workflow_user_stop", interrupted("workflow_stopped"));
+	await fixture(cwd, "workflow_host_closed", interrupted("driver_lost"));
+	await fixture(cwd, "workflow_cancelled", interrupted("cancelled"));
+	assert.deepEqual(
+		(await list(cwd)).notices.map((run) => run.runId),
+		["workflow_cancelled", "workflow_host_closed"],
+	);
+	const message = await warnings(cwd);
+	assert.match(message, /workflow_host_closed/);
+	assert.doesNotMatch(message, /workflow_user_stop/);
+	await assert.rejects(
+		command(cwd, [
+			"acknowledge",
+			"workflow_user_stop",
+			"--state",
+			"0".repeat(64),
+			"--reason",
+			"nothing to dismiss",
+		]),
+		/not an eligible unfinished notice/,
+	);
+});
+
 for (const change of ["status", "updatedAt", "content"]) {
 	test(`changed ${change} invalidates acknowledgement and returns to normal deduplication`, async (t) => {
 		const cwd = await project(t);

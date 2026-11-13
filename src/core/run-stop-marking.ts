@@ -29,6 +29,23 @@ export function isDriverLostRun(
 	);
 }
 
+/** Task `statusDetail` of a task interrupted by a user `stop`. */
+export const USER_STOP_STATUS_DETAIL = "workflow_stopped";
+
+/**
+ * An interrupted run that a person stopped (`stop`). 2026-11-13 (owner): such a run is not
+ * unfinished business; reminders and the dashboard's "Needs you" leave it out.
+ */
+export function isUserStoppedRun(run: {
+	status: string;
+	tasks: ReadonlyArray<{ statusDetail?: unknown }>;
+}): boolean {
+	return (
+		run.status === "interrupted" &&
+		run.tasks.some((task) => task?.statusDetail === USER_STOP_STATUS_DETAIL)
+	);
+}
+
 export type RunStopReason = "user" | "driver_lost";
 
 /** Interrupt every unfinished task of `run`; returns their ids. Completed work is untouched. */
@@ -37,7 +54,9 @@ export function markRunStopped(
 	reason: RunStopReason = "user",
 ): string[] {
 	const statusDetail =
-		reason === "driver_lost" ? DRIVER_LOST_STATUS_DETAIL : "workflow_stopped";
+		reason === "driver_lost"
+			? DRIVER_LOST_STATUS_DETAIL
+			: USER_STOP_STATUS_DETAIL;
 	const lastMessage =
 		reason === "driver_lost"
 			? DRIVER_LOST_TASK_MESSAGE
