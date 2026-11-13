@@ -7659,7 +7659,6 @@ function choicePicker(
 		menu.hidden = false;
 		control.setAttribute("aria-expanded", "true");
 		// The list contributes to the page's scroll area, so it can stay below even at the bottom.
-		menu.style.maxHeight = `${Math.min(240, Math.max(80, (node.closest(".management-page")?.clientHeight || innerHeight) - 100))}px`;
 		menu.scrollIntoView({ block: "nearest", behavior: "instant" });
 		highlight(active);
 	};

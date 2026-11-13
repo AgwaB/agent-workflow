@@ -2462,7 +2462,7 @@ main.signin code {
 	left: 0;
 	width: 100%;
 	z-index: 30;
-	max-height: 240px;
+	max-height: min(240px, 50vh);
 	overflow: auto;
 	overscroll-behavior: contain;
 	margin: 0;

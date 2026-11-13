@@ -284,6 +284,7 @@ test("model pickers: lower page and narrow viewports scroll the same downward li
 				width: document.body.scrollWidth,
 				height: menu.clientHeight,
 				scroll: menu.scrollHeight,
+				inlineStyle: menu.hasAttribute("style"),
 			};
 		});
 		assert.ok(rects.below >= 5 && rects.below <= 7, JSON.stringify(rects));
@@ -296,6 +297,7 @@ test("model pickers: lower page and narrow viewports scroll the same downward li
 			"long lists scroll inside their surface",
 		);
 		assert.equal(rects.width, 390);
+		assert.equal(rects.inlineStyle, false, "menu sizing stays in CSP-safe CSS");
 		await browser.key("End");
 		const active = await browser.evaluate(() => {
 			const control = document.querySelector('[aria-label="Effort"]');
