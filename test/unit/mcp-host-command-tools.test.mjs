@@ -8,7 +8,14 @@ import { stateDir } from "../helpers/state-dir.mjs";
 // command when the client has no elicitation, change nothing on decline/cancel/error and act on
 // accept; a dry-run prune and the read-only calls never ask.
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	mkdtemp,
+	readFile,
+	realpath,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
@@ -166,6 +173,28 @@ async function interruptedRun(ctx) {
 	return { runId, executor };
 }
 
+/**
+ * An unfinished-run notice: an interrupted run whose host closed (2026-11-13: a run the user
+ * stopped is not a notice), made from a stopped one once its worker has finished writing.
+ */
+async function noticeRun(ctx) {
+	const interrupted = await interruptedRun(ctx);
+	await drainWorkflowProject(ctx.cwd);
+	const file = join(
+		stateDir(ctx.cwd),
+		".agent-workflow",
+		"workflows",
+		interrupted.runId,
+		"run.json",
+	);
+	const run = JSON.parse(await readFile(file, "utf8"));
+	for (const task of run.tasks)
+		if (task.statusDetail === "workflow_stopped")
+			task.statusDetail = "driver_lost";
+	await writeFile(file, JSON.stringify(run));
+	return interrupted;
+}
+
 test("tools/list: the nine CLI-command tools follow the original nine; schemas, annotations and instructions", async () => {
 	const { cwd, env } = await project();
 	const client = await connect({ root: cwd, env });
@@ -216,10 +245,9 @@ test("tools/list: the nine CLI-command tools follow the original nine; schemas, 
 
 test("read-only tools equal the host API and CLI --json; no elicitation is sent", async () => {
 	const { cwd, env, ctx } = await project();
-	const { runId } = await interruptedRun(ctx);
 	// The stopped worker's finalizer appends its last event after the status turns interrupted; the
-	// byte counts the prune calls compare below change until it has.
-	await drainWorkflowProject(cwd);
+	// byte counts the prune calls compare below change until it has (noticeRun drains it).
+	const { runId } = await noticeRun(ctx);
 	const prober = async (descriptor) => ({
 		probe:
 			descriptor.id === "claude"
@@ -388,7 +416,7 @@ test("resume continues a run (detach default true); supervise starts nothing for
 
 test("changes without elicitation support are refused with the terminal command; nothing changes", async () => {
 	const { cwd, env, ctx } = await project();
-	const { runId } = await interruptedRun(ctx);
+	const { runId } = await noticeRun(ctx);
 	const sha = (await api.noticesAction(ctx, { argv: ["list"] })).data.notices[0]
 		.sha256;
 	await mkdir(join(cwd, "sub"), { recursive: true });
@@ -491,7 +519,7 @@ test("changes without elicitation support are refused with the terminal command;
 
 test("changes ask through elicitation: decline/cancel/error change nothing, accept acts", async () => {
 	const { cwd, env, ctx } = await project();
-	const { runId } = await interruptedRun(ctx);
+	const { runId } = await noticeRun(ctx);
 	const sha = (await api.noticesAction(ctx, { argv: ["list"] })).data.notices[0]
 		.sha256;
 	let answer = { action: "decline" };
