@@ -3310,6 +3310,12 @@ function refreshTimeline() {
 }
 function toggleCode() {
 	showCode = !showCode;
+	if (
+		!showCode &&
+		selectedStage() &&
+		!deriveGraph(run, { hideCode: true }).nodes.has(selectedStage())
+	)
+		go({ stage: null, task: null });
 	try {
 		if (showCode) localStorage.setItem(CODE_KEY, "shown");
 		else localStorage.removeItem(CODE_KEY);
@@ -7967,7 +7973,18 @@ async function modelControls(
 			entry?.note || "Choose an executor for its model suggestions.";
 		updateEffort();
 	};
-	exec.addEventListener("change", update);
+	let previousExecutor = exec.value;
+	exec.addEventListener("change", () => {
+		if (exec.value !== previousExecutor) {
+			previousExecutor = exec.value;
+			model.value = effort.value = "";
+			update();
+			for (const control of [model, effort]) {
+				control.dispatchEvent(new Event("input", { bubbles: true }));
+				control.dispatchEvent(new Event("change", { bubbles: true }));
+			}
+		} else update();
+	});
 	model.addEventListener("input", updateEffort);
 	model.addEventListener("change", updateEffort);
 	update();
@@ -8109,7 +8126,7 @@ export function profileSlotPreview(slot, roles = {}, context = {}) {
 	return { values, sources };
 }
 
-// The actual workflow diagram is the main editor. Unused/agent overrides remain under a folded selector.
+// The actual workflow diagram is the editor; unmapped saved entries remain in the drafts.
 async function roleEditor(
 	roles = {},
 	{
@@ -8148,7 +8165,6 @@ async function roleEditor(
 			? initialWorkflow
 			: workflows[0]?.name || "",
 	);
-	const other = choices("Role to edit", [["", "Choose a role or agent"]]);
 	let selected = null,
 		currentStage = null,
 		currentSlot = null,
@@ -8156,7 +8172,6 @@ async function roleEditor(
 		graphController = null;
 	let generation = 0,
 		workflowGeneration = 0,
-		agentId = 0,
 		disposed = false,
 		graphAbort;
 	let heading, inheritance, sharing;
@@ -8165,20 +8180,18 @@ async function roleEditor(
 		scopeExpanded = false;
 	const views = new Map();
 	const keyOf = (draft) => (draft.agent ? `agent:${draft.name}` : draft.name);
-	const previewKey = (draft) =>
-		draft.agent && !draft.name ? draft.id : keyOf(draft);
 	const previewRoles = () =>
 		Object.fromEntries(
-			[...drafts.values()].map((entry) => [previewKey(entry), entry.value]),
+			[...drafts.values()].map((entry) => [keyOf(entry), entry.value]),
 		);
-	const keyFor = (id) => (drafts.has(id) ? previewKey(drafts.get(id)) : id);
+	const keyFor = (id) => (drafts.has(id) ? keyOf(drafts.get(id)) : id);
 	const idFor = (key) =>
 		[...drafts.values()].find((entry) => keyOf(entry) === key)?.id || key;
 	const titleFor = (id) => {
 		const draft = drafts.get(id),
 			key = draft ? keyOf(draft) : id;
 		return draft?.agent || key?.startsWith("agent:")
-			? `Agent: ${draft?.name || key.slice(6) || "new agent"}`
+			? `Agent: ${draft?.name || key.slice(6)}`
 			: PROFILE_ROLES[key]?.[0] || key;
 	};
 	const viewFor = (id) =>
@@ -8266,26 +8279,6 @@ async function roleEditor(
 		});
 	function refresh() {
 		if (disposed) return;
-		const focused = document.activeElement === other;
-		const ids = [
-			...new Set([
-				...Object.keys(PROFILE_ROLES),
-				...Object.keys(getContext().presetRoles || {}),
-				...drafts.keys(),
-			]),
-		];
-		other.replaceChildren(
-			element("option", { value: "" }, "Choose a role or agent"),
-			...ids.map((id) =>
-				element(
-					"option",
-					{ value: id },
-					`${titleFor(id)}${drafts.has(id) ? " (custom)" : ""}`,
-				),
-			),
-		);
-		other.value = ids.includes(selected) ? selected : "";
-		if (focused) other.focus({ preventScroll: true });
 		if (heading) heading.textContent = panelTitle();
 		if (sharing && selected) sharing.textContent = sharingText();
 		const reset = panel.querySelector("[data-role-reset]");
@@ -8429,6 +8422,12 @@ async function roleEditor(
 			},
 			toggleCode: () => {
 				expandedCode = !expandedCode;
+				if (
+					!expandedCode &&
+					currentStage &&
+					!deriveGraph(projection, { hideCode: true }).nodes.has(currentStage)
+				)
+					clear();
 				draw();
 				graphHost.querySelector(".code-switch")?.focus({ preventScroll: true });
 			},
@@ -8542,11 +8541,9 @@ async function roleEditor(
 		};
 		let models;
 		try {
-			models = await modelControls(
-				draft.value,
-				`Role ${draft.agent && !draft.name ? "new" : keyOf(draft)} `,
-				{ foldNotes: true },
-			);
+			models = await modelControls(draft.value, `Role ${keyOf(draft)} `, {
+				foldNotes: true,
+			});
 		} catch (error) {
 			if (disposed || token !== generation) return;
 			panel.replaceChildren(
@@ -8602,32 +8599,20 @@ async function roleEditor(
 		scopeOptions.addEventListener("toggle", () => {
 			if (!disposed && token === generation) scopeExpanded = scopeOptions.open;
 		});
-		const name =
-			draft.agent && !currentStage
-				? input("Agent name", draft.name, {
-						placeholder: "reviewer",
-						maxlength: 128,
-						disabled: readonly(),
-					})
-				: null;
 		const update = () => {
 			if (disposed || token !== generation) return;
-			if (name) draft.name = name.value;
 			draft.value = models.values();
-			if (draft.explicit || Object.keys(draft.value).length)
-				drafts.set(id, draft);
+			if (Object.keys(draft.value).length) drafts.set(id, draft);
 			else drafts.delete(id);
 			refresh();
 		};
 		models.node.addEventListener("input", update);
 		models.node.addEventListener("change", update);
-		name?.addEventListener("input", update);
 		panel.replaceChildren();
 		append(panel, [
 			heading,
 			sharing,
 			slotPicker ? field("Step inside this node", slotPicker) : null,
-			name ? field("Agent name", name) : null,
 			models.node,
 			inheritance,
 			scopeOptions,
@@ -8635,8 +8620,7 @@ async function roleEditor(
 				draft.agent ? "Remove agent override" : "Reset role",
 				() => {
 					drafts.delete(id);
-					if (draft.agent && !currentStage) clear();
-					else selectRole(id);
+					selectRole(id);
 				},
 				{ disabled: readonly(), class: "small", "data-role-reset": "" },
 			),
@@ -8648,52 +8632,10 @@ async function roleEditor(
 			panel.scrollIntoView({ block: "nearest" });
 		}
 	}
-	let invalidId;
-	const values = () => {
-		const out = {};
-		for (const [id, draft] of drafts) {
-			invalidId = id;
-			if (draft.agent && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(draft.name))
-				throw new Error("Enter a valid agent name.");
-			if (!Object.keys(draft.value).length)
-				throw new Error("Choose at least one setting for the role.");
-			const key = keyOf(draft);
-			if (Object.hasOwn(out, key))
-				throw new Error("Each agent can have only one override.");
-			out[key] = { ...draft.value };
-		}
-		invalidId = undefined;
-		return out;
-	};
-	const extras = element(
-		"details",
-		{ class: "profile-other-roles" },
-		element("summary", {}, "Other role and agent settings"),
-		field("Role / agent", other),
-		managementControl(
-			"Add agent override",
-			async () => {
-				currentStage = currentSlot = null;
-				const id = `@agent-${++agentId}`;
-				drafts.set(id, {
-					id,
-					name: "",
-					agent: true,
-					explicit: true,
-					value: {},
-				});
-				await select(id, true);
-				panel.querySelector('[aria-label="Agent name"]')?.focus();
-			},
-			errors,
-			{ class: "small" },
-		),
-	);
-	other.addEventListener("change", () => {
-		currentStage = currentSlot = null;
-		if (other.value) selectRole(other.value);
-		else clear();
-	});
+	const values = () =>
+		Object.fromEntries(
+			[...drafts.values()].map((draft) => [keyOf(draft), { ...draft.value }]),
+		);
 	picker.addEventListener("change", loadGraph);
 	const node = element(
 		"div",
@@ -8714,7 +8656,6 @@ async function roleEditor(
 				? "Preview, not a run. A launch option can override these settings."
 				: "Preview, not a run. A workflow or launch option can override these settings.",
 		),
-		extras,
 		errors,
 	);
 	node.addEventListener("keydown", (event) => {
@@ -8752,18 +8693,6 @@ async function roleEditor(
 		contextChanged: () => {
 			refresh();
 			return selected ? selectRole(selected, false) : Promise.resolve();
-		},
-		focusInvalid: async () => {
-			if (invalidId === undefined) return;
-			const disclosure = node.closest("details");
-			if (disclosure) disclosure.open = true;
-			extras.open = true;
-			currentStage = currentSlot = null;
-			await select(invalidId, true);
-			(
-				panel.querySelector('[aria-label="Agent name"]') ||
-				panel.querySelector("input")
-			)?.focus();
 		},
 		destroy: () => {
 			disposed = true;
@@ -9557,13 +9486,7 @@ async function renderProfiles(page) {
 					managementControl(
 						"Save profile",
 						async () => {
-							let assignedRoles;
-							try {
-								assignedRoles = roles.values();
-							} catch (error) {
-								await roles.focusInvalid();
-								throw error;
-							}
+							const assignedRoles = roles.values();
 							const values = {
 								...models.values(),
 								...(permission.value
@@ -9767,13 +9690,7 @@ async function renderProfiles(page) {
 					managementControl(
 						"Save workflow preference",
 						async () => {
-							let values;
-							try {
-								values = roles.values();
-							} catch (error) {
-								await roles.focusInvalid();
-								throw error;
-							}
+							const values = roles.values();
 							const unset = [
 								...(!profile.value ? ["profile"] : []),
 								...Object.keys(current.roles || {})

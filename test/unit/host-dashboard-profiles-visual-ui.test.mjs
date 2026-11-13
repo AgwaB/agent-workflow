@@ -67,13 +67,16 @@ async function select(browser, key) {
 		synthesis: "combine",
 		"final-judgment": "final",
 		default: "plan",
+		"agent:reader": "verify-a",
 	}[key];
 	if (stage) {
 		await browser.waitFor(
 			() => !!document.querySelector(".profile-flow .node"),
 		);
 		await browser.click(`.profile-flow [data-stage="${stage}"]`);
-		await browser.waitFor(() => !!document.querySelector(".role-inspector h3"));
+		await browser.waitFor(
+			() => !!document.querySelector(".role-inspector input"),
+		);
 		await browser.evaluate((key) => {
 			const scope = document.querySelector(
 				'[aria-label="Profile setting scope"]',
@@ -84,11 +87,6 @@ async function select(browser, key) {
 				scope.dispatchEvent(new Event("change", { bubbles: true }));
 			}
 		}, key);
-	} else {
-		await browser.evaluate(() => {
-			document.querySelector(".profile-other-roles").open = true;
-		});
-		await set(browser, "Role to edit", key);
 	}
 	await browser.waitFor(
 		`!!document.querySelector(${JSON.stringify(`[aria-label="Role ${key} Model"]`)})`,
@@ -236,6 +234,8 @@ test("Profiles Run diagram: selecting is inert, scoped role/agent changes stay l
 		roles: {
 			verification: { executor: "claude", model: "sonnet", effort: "high" },
 			"agent:reader": { model: "custom/model-id", effort: "max" },
+			"agent:ghost": { model: "x" },
+			"research-execution": { model: "unused" },
 		},
 	};
 	await profileAction(p.ctx, { op: "set", name: "daily", values: original });
@@ -299,56 +299,48 @@ test("Profiles Run diagram: selecting is inert, scoped role/agent changes stay l
 	);
 	after = await save(p);
 	assert.equal(after.roles.verification.model, "manual/new-model");
+	for (const key of ["agent:ghost", "research-execution"])
+		assert.equal(
+			JSON.stringify(after.roles[key]),
+			JSON.stringify(original.roles[key]),
+		);
 	assert.deepEqual(after.roles["agent:reader"], original.roles["agent:reader"]);
 	assert.equal(after.permissionMode, "safe");
 	assert.deepEqual(after.strictCapabilities, ["readOnly"]);
 	assert.equal(after.model, "fixture-model");
 	await edit(p.browser, "daily");
+	await select(p.browser, "verification");
+	await set(p.browser, "Role verification Executor", "codex");
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Role verification Model"]').value,
+		),
+		"",
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Role verification Effort"]').value,
+		),
+		"",
+	);
+	after = await save(p);
+	assert.deepEqual(after.roles.verification, { executor: "codex" });
+	await edit(p.browser, "daily");
 	await select(p.browser, "agent:reader");
-	await set(p.browser, "Agent name", "reviewer");
 	await set(p.browser, "Role agent:reader Effort", "high");
 	after = await save(p);
-	assert.equal(
-		after.roles["agent:reader"],
-		undefined,
-		"renamed key is explicitly unset",
-	);
-	assert.deepEqual(after.roles["agent:reviewer"], {
+	assert.deepEqual(after.roles["agent:reader"], {
 		model: "custom/model-id",
 		effort: "high",
 	});
-	await edit(p.browser, "daily");
-	await p.browser.evaluate(() => {
-		document.querySelector(".profile-other-roles").open = true;
-		[...document.querySelectorAll(".visual-role-editor button")]
-			.find((node) => node.textContent === "Add agent override")
-			.click();
-	});
-	await p.browser.waitFor(
-		() => !!document.querySelector('[aria-label="Agent name"]'),
-	);
-	await set(p.browser, "Agent name", "reviewer");
-	await set(p.browser, "Role new Model", "new-agent/model");
-	await p.browser.click('[data-management-action="save-profile"]');
-	await p.browser.waitFor(
-		() =>
-			document.querySelector('.profile-editor [role="alert"]')?.textContent ===
-			"Each agent can have only one override.",
-	);
-	assert.deepEqual(
-		(await profileAction(p.ctx, { op: "show", name: "daily" })).data.profile
-			.roles["agent:reviewer"],
-		{ model: "custom/model-id", effort: "high" },
-	);
-	await set(p.browser, "Agent name", "writer");
-	after = await save(p);
-	assert.deepEqual(after.roles["agent:writer"], { model: "new-agent/model" });
 	await edit(p.browser, "daily");
 	await select(p.browser, "verification");
 	await p.browser.click("[data-role-reset]");
 	after = await save(p);
 	assert.equal(after.roles.verification, undefined);
-	assert.deepEqual(after.roles["agent:reviewer"], {
+	assert.deepEqual(after.roles["agent:reader"], {
 		model: "custom/model-id",
 		effort: "high",
 	});
@@ -411,9 +403,12 @@ test("Profiles Run diagram: selecting is inert, scoped role/agent changes stay l
 		false,
 	);
 	await p.browser.click("[data-role-retry]");
+	await p.browser.waitFor(() =>
+		document.querySelector('[aria-label="Role agent:reader Model"]'),
+	);
+	await set(p.browser, "Profile setting scope", "synthesis");
 	await p.browser.waitFor(
-		() =>
-			document.querySelector(".role-inspector h3")?.textContent === "Synthesis",
+		() => !!document.querySelector('[aria-label="Role synthesis Model"]'),
 	);
 	await p.browser.send("Emulation.setDeviceMetricsOverride", {
 		width: 390,
@@ -453,7 +448,7 @@ test("Profiles Run diagram: selecting is inert, scoped role/agent changes stay l
 			await p.browser.evaluate(() =>
 				document.activeElement.getAttribute("aria-label"),
 			),
-			"Role verification Executor",
+			"Role agent:reader Executor",
 		);
 		assert.equal(
 			await p.browser.evaluate(
@@ -671,6 +666,26 @@ test("Profile diagrams keep code read-only, expose declared loop slots and recov
 			() => document.querySelectorAll(".role-inspector input").length,
 		),
 		0,
+	);
+	await p.browser.click(".profile-flow .code-switch");
+	await p.browser.waitFor(
+		() =>
+			document
+				.querySelector(".profile-flow .code-switch")
+				?.getAttribute("aria-checked") === "false",
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				!!document.querySelector('.profile-flow .node[data-stage="record"]'),
+		),
+		false,
+	);
+	assert.match(
+		await p.browser.evaluate(
+			() => document.querySelector(".role-inspector").textContent,
+		),
+		/Select a node/,
 	);
 	await set(p.browser, "Profile workflow", "expanding-flow");
 	await p.browser.waitFor(
@@ -930,29 +945,6 @@ test("Shared profile UX identifies the setting, not the clicked verification nod
 			() => document.querySelector(".role-sharing-note").textContent,
 		),
 		"Used by 5 steps here. Shared with other workflows on this profile.",
-	);
-	await p.browser.click(".profile-scope-options > summary");
-	await select(p.browser, "research-execution");
-	assert.equal(
-		await p.browser.evaluate(
-			() => document.querySelector(".role-sharing-note").textContent,
-		),
-		"Not used by the steps shown here.",
-	);
-	assert.equal(
-		await p.browser.evaluate(
-			() =>
-				!document.querySelector('[aria-label="Profile setting scope"]') &&
-				!document.querySelector(".profile-scope-note").checkVisibility(),
-		),
-		true,
-	);
-	await p.browser.click(".profile-scope-options > summary");
-	assert.equal(
-		await p.browser.evaluate(() =>
-			document.querySelector(".profile-scope-note").checkVisibility(),
-		),
-		true,
 	);
 	await p.browser.click(".profile-scope-options > summary");
 	await select(p.browser, "verification");

@@ -178,6 +178,19 @@ test("Chrome management: the views, profile edit, check preview and the overview
 	assert.match((await effort()).note, /^Effort on claude: low, medium/);
 	await set(browser, "Effort", "max");
 	await set(browser, "Executor", "codex");
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector('[aria-label="Effort"]').value,
+		),
+		"",
+	);
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector('[aria-label="Model"]').value,
+		),
+		"",
+	);
+	await set(browser, "Effort", "max");
 	await set(browser, "Model", "fixture-model");
 	assert.deepEqual(
 		await effort(),
@@ -201,6 +214,14 @@ test("Chrome management: the views, profile edit, check preview and the overview
 		"max (not available here)",
 	);
 	await set(browser, "Model", "");
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector('[aria-label="Model"]').value,
+		),
+		"",
+	);
+	// The built-in codex model need not be offered by this isolated executor.
+	await set(browser, "Model", "fixture-model");
 	await set(browser, "Effort", "");
 	await browser.click('[data-management-action="check"]');
 	await browser.waitFor(() =>
@@ -767,6 +788,11 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 		const ids = ["pi", "claude", "codex", "antigravity"];
 		const entries = ids.map((id, i) => ({
 			id,
+			notes: [
+				"Executor capability availability depends on the installed CLI and its authenticated account. ".repeat(
+					8,
+				),
+			],
 			usable: mode !== "fix" || i !== 0,
 			state: mode === "fix" && i === 0 ? "not-installed" : "ready",
 			cliVersion: "2",
@@ -804,6 +830,59 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 		await browser.click('.management-nav a[href*="view=executors"]');
 		await browser.waitFor(
 			() => !!document.querySelector(".property-table.executors"),
+		);
+		await browser.send("Emulation.setDeviceMetricsOverride", {
+			width: 1600,
+			height: 1000,
+			deviceScaleFactor: 1,
+			mobile: false,
+		});
+		await browser.evaluate(() => {
+			[...document.querySelectorAll("details")].find(
+				(n) => n.querySelector("summary")?.textContent === "Executor notes",
+			).open = true;
+		});
+		const lines = await browser.evaluate(() => {
+			const details = [...document.querySelectorAll("details")].find(
+				(n) => n.querySelector("summary")?.textContent === "Executor notes",
+			);
+			return [...details.querySelectorAll("td:first-child")].map((n) => {
+				const range = document.createRange();
+				range.selectNodeContents(n);
+				return [
+					n.textContent,
+					range.getClientRects().length,
+					range.getBoundingClientRect().height,
+				];
+			});
+		});
+		assert.deepEqual(
+			lines,
+			ids.map((id) => [id, 1, lines[0][2]]),
+		);
+		await browser.send("Emulation.setDeviceMetricsOverride", {
+			width: 390,
+			height: 844,
+			deviceScaleFactor: 1,
+			mobile: false,
+		});
+		assert.equal(
+			await browser.evaluate(() => {
+				const details = [...document.querySelectorAll("details")].find(
+					(n) => n.querySelector("summary")?.textContent === "Executor notes",
+				);
+				return (
+					[...details.querySelectorAll("td:first-child")].every((n) => {
+						const range = document.createRange();
+						range.selectNodeContents(n);
+						return (
+							range.getClientRects().length === 1 &&
+							range.getBoundingClientRect().width <= n.clientWidth
+						);
+					}) && document.body.scrollWidth === 390
+				);
+			}),
+			true,
 		);
 		const actual = await browser.evaluate(() => ({
 			headers: [...document.querySelectorAll(".executors th")].map(

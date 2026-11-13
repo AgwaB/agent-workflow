@@ -166,6 +166,8 @@ test("model pickers: one style, anchored below, pointer selection, keyboard and 
 		"Escape does not commit the highlight",
 	);
 	await pick(browser, "Executor", "claude");
+	assert.equal(await value(browser, "Model"), "");
+	assert.equal(await value(browser, "Effort"), "");
 	await browser.click(field("Effort"));
 	await browser.key("End");
 	await browser.key("Enter");
@@ -344,4 +346,48 @@ test("model pickers: lower page and narrow viewports scroll the same downward li
 		await browser.key("Escape");
 	}
 	assert.deepEqual(browser.errors, []);
+});
+
+test("Executor changes alone reset saved Model and Effort, including Automatic, and save cleared fields", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await setup(t, {
+		executor: "claude",
+		model: "sonnet",
+		effort: "max",
+	});
+	await pick(p.browser, "Executor", "claude");
+	assert.equal(await value(p.browser, "Model"), "sonnet");
+	assert.equal(await value(p.browser, "Effort"), "max");
+	await pick(p.browser, "Executor", "");
+	assert.equal(await value(p.browser, "Model"), "");
+	assert.equal(await value(p.browser, "Effort"), "");
+	await pick(p.browser, "Model", "");
+	await pick(p.browser, "Effort", "high");
+	await pick(p.browser, "Executor", "codex");
+	assert.equal(await value(p.browser, "Effort"), "");
+	await p.browser.evaluate(() => {
+		const original = window.fetch;
+		window.fetch = (url, options) => {
+			if (
+				String(url).includes("/api/profiles/picker-test") &&
+				options?.method === "PUT"
+			)
+				window.savedPickerBody = JSON.parse(options.body);
+			return original(url, options);
+		};
+	});
+	await p.browser.click('[data-management-action="save-profile"]');
+	await p.browser.waitFor(
+		() => !!document.querySelector(".profile-save-status"),
+	);
+	const body = await p.browser.evaluate(() => window.savedPickerBody);
+	assert.deepEqual(body.values, { executor: "codex", roles: {} });
+	assert.ok(body.unset.includes("model") && body.unset.includes("effort"));
+	const saved = (
+		await profileAction(p.ctx, { op: "show", name: "picker-test" })
+	).data.profile;
+	assert.equal(saved.model, undefined);
+	assert.equal(saved.effort, undefined);
+	assert.equal(saved.executor, "codex");
 });

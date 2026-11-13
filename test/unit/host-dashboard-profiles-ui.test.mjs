@@ -10,16 +10,19 @@ import {
 	workflowPreferenceAction,
 } from "../../dist/hosts/catalog.js";
 
+import { profileGraphFixtures } from "../helpers/dashboard-profile-graph.mjs";
+
 const chrome = await findChrome();
 async function open(t, options = {}) {
 	assert.ok(chrome, "Chrome is required");
 	const project = await managementProject(t, options);
+	await profileGraphFixtures(project.cwd);
 	const browser = await createBrowser(chrome);
 	t.after(() => browser.close());
 	return {
 		...project,
 		browser,
-		url: `${project.origin}/?project=${project.server.projectId}&view=profiles`,
+		url: `${project.origin}/?project=${project.server.projectId}&view=profiles&workflow=model-flow`,
 	};
 }
 async function load(browser, url) {
@@ -67,10 +70,15 @@ async function edit(browser, name) {
 	);
 }
 async function selectRole(browser, key) {
-	await browser.evaluate(() => {
-		document.querySelector(".profile-other-roles").open = true;
-	});
-	await set(browser, "Role to edit", key);
+	const stage = key === "default" ? "plan" : "verify-a";
+	await browser.waitFor(
+		() => !!document.querySelector('.profile-flow .node[data-stage="plan"]'),
+	);
+	await browser.click(`.profile-flow [data-stage="${stage}"]`);
+	await browser.waitFor(
+		`!!document.querySelector(${JSON.stringify(`[aria-label="Role ${key === "default" ? "planning" : key} Model"]`)})`,
+	);
+	await set(browser, "Profile setting scope", key);
 	await browser.waitFor(
 		`!!document.querySelector(${JSON.stringify(`[aria-label="Role ${key} Model"]`)})`,
 	);
@@ -173,31 +181,16 @@ test("Profiles: compact landing, focused editing, Cancel and hidden values prese
 		"a removed role is explicitly unset",
 	);
 	await edit(p.browser, "daily");
-	await p.browser.click(".profile-other-roles > summary");
-	await click(p.browser, "Add agent override");
-	await p.browser.waitFor(
-		() => !!document.querySelector('[aria-label="Agent name"]'),
-	);
-	await p.browser.click('[data-management-action="save-profile"]');
-	await p.browser.waitFor(
-		() =>
-			document.querySelector(".profile-editor [role=alert]")?.textContent ===
-			"Enter a valid agent name.",
-	);
 	assert.equal(
 		await p.browser.evaluate(
-			() => document.querySelector(".profile-advanced").open,
+			() =>
+				!!document.querySelector(
+					'.profile-other-roles, [aria-label="Role to edit"], [aria-label="Agent name"]',
+				),
 		),
 		false,
 	);
-	assert.equal(
-		await p.browser.evaluate(() =>
-			document.activeElement.getAttribute("aria-label"),
-		),
-		"Agent name",
-	);
 	await click(p.browser, "Cancel");
-	assert.equal((await profile(p.ctx, "daily")).roles, undefined);
 	assert.deepEqual(await scanMarks(p.browser), []);
 	assert.deepEqual(p.browser.errors, []);
 });
@@ -301,7 +294,7 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 		false,
 	);
 	await p.browser.click(".profile-preferences > summary");
-	await set(p.browser, "Workflow to configure", "manage");
+	await set(p.browser, "Workflow to configure", "model-flow");
 	await p.browser.waitFor(
 		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
 	);
@@ -314,7 +307,7 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 	await p.browser.waitFor(
 		() =>
 			document.querySelector(".profile-preferences .role-sharing-note")
-				?.textContent === "Not used by the steps shown here.",
+				?.textContent === "Used by Verify a and Verify b.",
 	);
 	assert.deepEqual(
 		await p.browser.evaluate(() => ({
@@ -327,7 +320,7 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 			).position,
 		})),
 		{
-			notice: "Not used by the steps shown here.",
+			notice: "Used by Verify a and Verify b.",
 			footnote:
 				"Preview, not a run. A launch option can override these settings.",
 			sticky: "static",
@@ -337,7 +330,7 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 	await p.browser.waitFor(
 		() =>
 			document.querySelector(".profile-preferences .role-sharing-note")
-				?.textContent === "Used by Read.",
+				?.textContent === "Used by 5 steps here.",
 	);
 	assert.equal(
 		await p.browser.evaluate(
@@ -345,7 +338,7 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 				document.querySelector(".profile-preferences .role-sharing-note")
 					.textContent,
 		),
-		"Used by Read.",
+		"Used by 5 steps here.",
 	);
 	await selectRole(p.browser, "verification");
 	await set(p.browser, "Role verification Executor", "claude");
@@ -357,7 +350,10 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 				?.textContent === "Workflow settings saved.",
 	);
 	const saved = (
-		await workflowPreferenceAction(p.ctx, { op: "show", workflow: "manage" })
+		await workflowPreferenceAction(p.ctx, {
+			op: "show",
+			workflow: "model-flow",
+		})
 	).data.preference;
 	assert.equal(saved.profile, "mixed");
 	assert.equal(saved.roles.verification.effort, "high");
@@ -369,8 +365,12 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 				?.textContent === "Workflow settings saved.",
 	);
 	assert.equal(
-		(await workflowPreferenceAction(p.ctx, { op: "show", workflow: "manage" }))
-			.data.preference.roles,
+		(
+			await workflowPreferenceAction(p.ctx, {
+				op: "show",
+				workflow: "model-flow",
+			})
+		).data.preference.roles,
 		undefined,
 	);
 	await click(p.browser, "Clear workflow preference");
@@ -380,8 +380,12 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 				?.textContent === "Workflow settings cleared.",
 	);
 	assert.equal(
-		(await workflowPreferenceAction(p.ctx, { op: "show", workflow: "manage" }))
-			.data.preference,
+		(
+			await workflowPreferenceAction(p.ctx, {
+				op: "show",
+				workflow: "model-flow",
+			})
+		).data.preference,
 		undefined,
 	);
 	assert.deepEqual(p.browser.errors, []);
@@ -435,4 +439,55 @@ test("Profiles: read-only editing and narrow layouts keep settings safe and reac
 	);
 	assert.deepEqual(await scanMarks(p.browser), []);
 	assert.deepEqual(p.browser.errors, []);
+});
+
+test("Workflow preference keeps unmapped saved entries and has no outside-diagram editor", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	const hidden = {
+		"agent:ghost": { model: "x" },
+		"research-execution": { model: "unused" },
+	};
+	await workflowPreferenceAction(p.ctx, {
+		op: "set",
+		workflow: "model-flow",
+		roles: hidden,
+	});
+	await load(p.browser, p.url);
+	await p.browser.click(".profile-preferences > summary");
+	await set(p.browser, "Workflow to configure", "model-flow");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
+	);
+	await p.browser.click(".profile-preferences .more-details > summary");
+	await selectRole(p.browser, "verification");
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				!!document.querySelector(
+					'.profile-preferences .profile-other-roles, .profile-preferences [aria-label="Role to edit"], .profile-preferences [aria-label="Agent name"]',
+				) ||
+				[...document.querySelectorAll(".profile-preferences button")].some(
+					(n) => n.textContent === "Add agent override",
+				),
+		),
+		false,
+	);
+	await set(p.browser, "Role verification Model", "changed");
+	await click(p.browser, "Save workflow preference");
+	await p.browser.waitFor(() =>
+		[...document.querySelectorAll(".profile-preferences [role=status]")].some(
+			(n) => n.textContent === "Workflow settings saved.",
+		),
+	);
+	const saved = (
+		await workflowPreferenceAction(p.ctx, {
+			op: "show",
+			workflow: "model-flow",
+		})
+	).data.preference;
+	for (const key of Object.keys(hidden))
+		assert.equal(JSON.stringify(saved.roles[key]), JSON.stringify(hidden[key]));
+	assert.equal(saved.roles.verification.model, "changed");
 });

@@ -134,6 +134,82 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		]),
 		["4 code steps shownHide", "true", "code-switch", "shown"],
 	);
+	const plainCode = await browser.evaluate(
+		() => document.querySelector(".node.support")?.dataset.stage,
+	);
+	assert.ok(plainCode);
+	await browser.evaluate(
+		(id) =>
+			document
+				.querySelector(`.node[data-stage="${id}"]`)
+				.dispatchEvent(new MouseEvent("click", { bubbles: true })),
+		plainCode,
+	);
+	await browser.waitFor(
+		() =>
+			new URL(location.href).searchParams.has("stage") ||
+			new URL(location.href).searchParams.has("task"),
+	);
+	await browser.evaluate(() => document.querySelector(".code-switch").click());
+	await browser.waitFor(
+		() =>
+			document.querySelector(".code-switch")?.getAttribute("aria-checked") ===
+			"false",
+	);
+	assert.equal(
+		await browser.evaluate(
+			(id) => !!document.querySelector(`.node[data-stage="${id}"]`),
+			plainCode,
+		),
+		false,
+	);
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				new URL(location.href).searchParams.has("stage") ||
+				new URL(location.href).searchParams.has("task"),
+		),
+		false,
+	);
+	assert.equal(
+		await browser.evaluate(() =>
+			document.activeElement.matches(".code-switch"),
+		),
+		true,
+	);
+	await browser.evaluate(() => history.back());
+	await browser.waitFor(
+		() =>
+			new URL(location.href).searchParams.has("stage") ||
+			new URL(location.href).searchParams.has("task"),
+	);
+	assert.equal(
+		await browser.evaluate(
+			(id) => !!document.querySelector(`.node[data-stage="${id}"]`),
+			plainCode,
+		),
+		true,
+	);
+	await browser.evaluate(() => history.forward());
+	await browser.waitFor(
+		() =>
+			!new URL(location.href).searchParams.has("stage") &&
+			!new URL(location.href).searchParams.has("task"),
+	);
+	await browser.evaluate(() => document.querySelector(".code-switch").click());
+	await browser.waitFor(() => document.querySelectorAll(".node").length === 8);
+	await browser.waitFor(() =>
+		document
+			.getAnimations()
+			.every(
+				(animation) =>
+					animation.playState !== "running" ||
+					animation.effect?.getTiming().iterations === Infinity,
+			),
+	);
+	await browser.evaluate(() =>
+		document.querySelector('[aria-label="Fit"]')?.click(),
+	);
 	// The rest of this test reads the full graph; the switch stays on across reloads.
 	assert.equal(
 		await browser.evaluate(() => document.querySelectorAll(".node").length),

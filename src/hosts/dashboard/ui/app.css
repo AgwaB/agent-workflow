@@ -2772,17 +2772,7 @@ button.profile-row {
 .role-map-note {
 	margin-top: 12px;
 }
-.profile-other-roles {
-	margin-top: 16px;
-}
-.profile-other-roles > summary {
-	font-size: 14px;
-	color: var(--muted);
-}
-.profile-other-roles > label {
-	max-width: 360px;
-	margin: 12px 0;
-}
+
 @media (max-width: 1100px) {
 	.profile-flow-layout {
 		grid-template-columns: minmax(0, 1fr);
@@ -2983,6 +2973,8 @@ button.profile-row {
 	border-bottom: 0;
 }
 .property-table.keyed td:first-child {
+	overflow-wrap: normal;
+	min-width: 11ch;
 	width: min(160px, 32%);
 	color: var(--muted);
 }
