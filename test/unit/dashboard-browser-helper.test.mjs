@@ -45,7 +45,8 @@ test("a Chrome that dies during startup is reported with its exit and stderr", a
 		],
 		[
 			"closes-pipes-stays-alive",
-			'exec 3<&- 4>&-\necho "fake chrome: cannot open display" >&2\nsleep 30\n',
+			// Keep the sleeper in Chrome's PID: a shell child would retain stderr after cleanup kills the shell.
+			'exec 3<&- 4>&-\necho "fake chrome: cannot open display" >&2\nexec sleep 30\n',
 		],
 	]) {
 		const executable = join(dir, name);
