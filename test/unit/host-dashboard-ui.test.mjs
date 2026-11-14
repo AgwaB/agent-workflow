@@ -163,6 +163,9 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 }, async (t) => {
 	const fixture = await createFixtureServer();
 	t.after(() => fixture.close());
+	// Absent capture, as projection emits it; malformed synthetic shell text is not a UI validity signal.
+	for (const run of fixture.runs.values())
+		if (run.launch) run.launch.command = "";
 	const browser = await createBrowser(chrome);
 	t.after(() => browser.close());
 	const text = (selector) =>
@@ -866,7 +869,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		undefined,
 	);
 	await browser.click('[aria-label="Run details"]');
-	assert.match(await text("#inspector"), /Launch command/);
+	assert.doesNotMatch(await text("#inspector"), /Launch command|undefined/);
 	assert.match(await text("#inspector"), /Permission mode/);
 	fixture.runs.get(running).taskPreview = "Check the payout ledger";
 	fixture.publish();
@@ -2392,6 +2395,10 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 			(selector) => document.querySelector(selector)?.textContent,
 			selector,
 		);
+	// Filter scrolls are not the subject here; finish them synchronously before the next native click.
+	await browser.send("Emulation.setEmulatedMedia", {
+		features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+	});
 	const copied = () => browser.evaluate(() => globalThis.copiedText);
 	await browser.open(`${fixture.origin}/?run=${complete}&view=report`);
 	await browser.waitFor(
@@ -2959,8 +2966,8 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 			node.querySelector(".home-row-wf").textContent,
 			node.querySelector(".home-row-agents")?.textContent ?? null,
 			node.querySelector(".home-row-task")?.textContent ?? null,
-			node.querySelector(".home-row-dur").textContent,
-			node.querySelector(".home-cost").textContent,
+			node.querySelector(".home-row-dur")?.textContent ?? null,
+			node.querySelector(".home-cost")?.textContent ?? null,
 		]);
 	// 2026-11-12 (review, P2-8): the workflow leads, the task the run was given is the quiet line.
 	assert.deepEqual(await recent(), [
@@ -2986,16 +2993,17 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 		null,
 		null,
 		"4s",
-		// Unknown cost is "n/a" in muted text, never $0.
-		"n/a",
+		// Unknown cost is omitted, never presented as zero.
+		null,
 	]);
 	assert.equal(
-		await browser.evaluate(() =>
-			document
-				.querySelector("#home-recent .home-row.recent:last-child .home-cost")
-				.classList.contains("muted"),
+		await browser.evaluate(
+			() =>
+				!!document.querySelector(
+					"#home-recent .home-row.recent:last-child .home-cost",
+				),
 		),
-		true,
+		false,
 	);
 	assert.equal(
 		await text2(browser, '[data-home-key="stopped"]'),
@@ -3024,8 +3032,8 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 		]),
 		[
 			["7", "runs", "3 done, 1 stopped, 1 failed, 1 running, 1 needs you"],
-			["$3.69+", "spend", "16 of 18 agents reported"],
-			["29m 01s", "active time", "all runs, not waiting"],
+			["$3.69+", "spend", "16 of 18 agents reported; 4 of 7 runs reported"],
+			["29m 01s", "active time", "5 of 7 runs reported, not waiting"],
 		],
 	);
 	// Workflows: runs, last result, median active time, cost with its ratio, an outcome strip.
@@ -3054,7 +3062,7 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 		"spec-review",
 		"1",
 		"Failed",
-		"n/a",
+		"",
 		"$0.0061",
 		["err"],
 	]);
@@ -3694,6 +3702,9 @@ test(
 	chromeOptions,
 	async (t) => {
 		const { browser, fixture } = await reviewFixture(t);
+		await browser.send("Emulation.setEmulatedMedia", {
+			features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+		});
 		await browser.open(
 			`${fixture.origin}/?run=${complete}&view=report`,
 			1440,
@@ -4367,15 +4378,17 @@ test(
 			// Numbers are right-aligned: their right edges agree too.
 			const numbers = await browser.evaluate(() => {
 				const cells = (selector) =>
-					[...document.querySelectorAll(selector)].map((cell) => {
-						const range = document.createRange();
-						range.selectNodeContents(cell);
-						return [
-							Math.round(range.getBoundingClientRect().right),
-							getComputedStyle(cell).textAlign,
-							getComputedStyle(cell).fontVariantNumeric,
-						];
-					});
+					[...document.querySelectorAll(selector)]
+						.filter((cell) => cell.textContent.trim())
+						.map((cell) => {
+							const range = document.createRange();
+							range.selectNodeContents(cell);
+							return [
+								Math.round(range.getBoundingClientRect().right),
+								getComputedStyle(cell).textAlign,
+								getComputedStyle(cell).fontVariantNumeric,
+							];
+						});
 				return {
 					runs: cells(".home-table td.c-runs"),
 					median: cells(".home-table td.c-median"),
@@ -4466,6 +4479,11 @@ test(
 	chromeOptions,
 	async (t) => {
 		const { browser, fixture } = await reviewFixture(t);
+		const costOnly = [...fixture.runs.values()].find(
+			(run) => run.cost?.costUsd != null && run.status === "completed",
+		);
+		assert.ok(costOnly);
+		delete costOnly.activeMs;
 		for (const [width, height] of [
 			[1280, 800],
 			[1440, 900],
@@ -4477,17 +4495,37 @@ test(
 				document.querySelector('[data-home-key="stopped"]')?.click(),
 			);
 			const where = `${width}px`;
-			const lefts = await columnLefts(
-				browser,
-				"#home-recent .home-row.recent",
-				":scope > *",
+			assert.ok(
+				await browser.evaluate(() =>
+					[...document.querySelectorAll("#home-recent .home-row.recent")].some(
+						(row) =>
+							row.querySelector(".home-cost") &&
+							!row.querySelector(".home-row-dur"),
+					),
+				),
+				`${where}: cost-only row rendered`,
 			);
-			sameColumns(lefts, `${where} left`);
-			sameColumns(
-				lefts.map((row) => row.slice(2)),
-				`${where} right`,
-				1,
-			);
+			// Missing metrics have no node. Check each available column independently, rather
+			// than pretending every run reported the same data.
+			for (const selector of [
+				".result-badge",
+				".home-row-title",
+				".home-row-date",
+				".home-row-dur",
+				".home-cost",
+			]) {
+				const columns = await columnLefts(
+					browser,
+					"#home-recent .home-row.recent",
+					selector,
+				);
+				const available = columns.filter((row) => row.length);
+				sameColumns(available, `${where} ${selector} left`);
+				if (
+					[".home-row-date", ".home-row-dur", ".home-cost"].includes(selector)
+				)
+					sameColumns(available, `${where} ${selector} right`, 1);
+			}
 			const detail = await browser.evaluate(() =>
 				[...document.querySelectorAll("#home-recent .home-row.recent")].map(
 					(row) => {
@@ -4496,15 +4534,17 @@ test(
 							.querySelector(".result-badge")
 							.getBoundingClientRect();
 						const style = (selector) =>
-							getComputedStyle(row.querySelector(selector));
+							row.querySelector(selector)
+								? getComputedStyle(row.querySelector(selector))
+								: null;
 						return {
 							centre: badge.top + badge.height / 2 - (box.top + box.height / 2),
 							badgeLeft: badge.left - box.left,
 							align: ["date", "dur"].map(
-								(name) => style(`.home-row-${name}`).textAlign,
+								(name) => style(`.home-row-${name}`)?.textAlign ?? null,
 							),
-							cost: style(".home-cost").textAlign,
-							figures: style(".home-row-dur").fontVariantNumeric,
+							cost: style(".home-cost")?.textAlign ?? null,
+							figures: style(".home-row-dur")?.fontVariantNumeric ?? null,
 							// The agents sit after a gap, in their own box, when the run has them.
 							gap: (() => {
 								const agents = row.querySelector(".home-row-agents");
@@ -4531,9 +4571,11 @@ test(
 					`${where}: badge centred ${row.centre}`,
 				);
 				assert.ok(Math.abs(row.badgeLeft - detail[0].badgeLeft) <= 1, where);
-				assert.deepEqual(row.align, ["right", "right"], where);
-				assert.equal(row.cost, "right", where);
-				assert.match(row.figures, /tabular-nums/, where);
+				assert.equal(row.align[0], "right", where);
+				if (row.align[1] !== null) assert.equal(row.align[1], "right", where);
+				if (row.cost !== null) assert.equal(row.cost, "right", where);
+				if (row.figures !== null)
+					assert.match(row.figures, /tabular-nums/, where);
 				if (row.gap !== null)
 					assert.ok(
 						row.gap >= 8,
@@ -4546,12 +4588,32 @@ test(
 		// A phone: duration and cost sit under the date, still in their own columns.
 		await browser.open(`${fixture.origin}/`, 390, 844);
 		await browser.waitFor(() => document.querySelector(".home-row.recent"));
-		const phone = await columnLefts(
-			browser,
-			"#home-recent .home-row.recent",
-			".home-row-date, .home-row-dur, .home-cost",
+		for (const selector of [".home-row-date", ".home-row-dur", ".home-cost"]) {
+			const phone = (
+				await columnLefts(browser, "#home-recent .home-row.recent", selector)
+			).filter((row) => row.length);
+			assert.ok(
+				phone.length >= 2,
+				`390px ${selector}: at least two available values`,
+			);
+			for (const row of phone) {
+				assert.equal(row.length, 1);
+				assert.ok(
+					Math.abs(row[0][1] - phone[0][0][1]) <= 1,
+					`390px ${selector}: right edges align`,
+				);
+			}
+		}
+		assert.ok(
+			await browser.evaluate(() =>
+				[...document.querySelectorAll("#home-recent .home-row.recent")].some(
+					(row) =>
+						row.querySelector(".home-cost") &&
+						!row.querySelector(".home-row-dur"),
+				),
+			),
+			"390px: cost-only row rendered",
 		);
-		sameColumns(phone, "390px right", 1);
 		assert.deepEqual(
 			await browser.evaluate(() => ({
 				page: document.documentElement.scrollWidth <= innerWidth,
@@ -4559,9 +4621,11 @@ test(
 					...document.querySelectorAll("#home-recent .home-row.recent"),
 				].every(
 					(row) =>
+						!row.querySelector(".home-row-dur") ||
 						row.querySelector(".home-row-dur").getBoundingClientRect().top >=
-						row.querySelector(".home-row-date").getBoundingClientRect().bottom -
-							1,
+							row.querySelector(".home-row-date").getBoundingClientRect()
+								.bottom -
+								1,
 				),
 			})),
 			{ page: true, under: true },

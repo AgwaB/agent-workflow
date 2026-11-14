@@ -2629,11 +2629,6 @@ a.profile-row {
 	padding-top: 20px;
 	border-top: 1px solid var(--line);
 }
-.profile-preferences > summary {
-	cursor: pointer;
-	font-size: 14px;
-	color: var(--muted);
-}
 .profile-editor {
 	max-width: none;
 }
@@ -2656,22 +2651,16 @@ a.profile-row {
 	border: 1px solid var(--line);
 	border-radius: var(--radius);
 }
-.profile-common > summary {
+.profile-common h3 {
+	margin: 0 0 12px;
 	font-size: 14px;
-	overflow-wrap: anywhere;
 }
-.profile-common > summary > span {
-	font-weight: 400;
-}
-.management-fields > .model-availability {
+.management-fields > small {
 	grid-column: 1 / -1;
-	font-size: 13px;
-	color: var(--muted);
 }
-.model-availability > small {
-	display: block;
-	margin-top: 6px;
-	font-size: 12.5px;
+.profile-restrictions {
+	font-size: 13px;
+	overflow-wrap: anywhere;
 }
 .visual-role-editor {
 	margin-top: 24px;
@@ -2780,8 +2769,7 @@ a.profile-row {
 }
 .role-inheritance,
 .role-sharing-note,
-.role-map-note,
-.profile-scope-note {
+.role-map-note {
 	font-size: 13px;
 	overflow-wrap: anywhere;
 }
@@ -2790,13 +2778,6 @@ a.profile-row {
 }
 .profile-scope-options {
 	margin: 12px 0;
-}
-.profile-scope-options > summary {
-	font-size: 13px;
-	color: var(--muted);
-}
-.profile-scope-options[open] > label {
-	margin-top: 12px;
 }
 .role-map-note {
 	margin-top: 12px;
@@ -2812,14 +2793,6 @@ a.profile-row {
 	margin-top: 20px;
 	padding-top: 16px;
 	border-top: 1px solid var(--line);
-}
-.profile-advanced > summary,
-.profile-options > summary {
-	font-size: 14px;
-	color: var(--muted);
-}
-.profile-advanced[open] > summary {
-	margin-bottom: 16px;
 }
 .profile-editor-actions {
 	display: flex;
@@ -2977,6 +2950,29 @@ a.profile-row {
 .management-result {
 	margin: 12px 0;
 }
+.management-diagnostics {
+	margin: 12px 0;
+	padding: 16px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	min-width: 0;
+}
+.management-diagnostics pre {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.diagnostic-fields {
+	margin: 8px 0;
+}
+.diagnostic-fields dt {
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+.diagnostic-fields dd {
+	margin: 4px 0 12px 12px;
+	min-width: 0;
+}
+
 .management-error {
 	color: var(--err);
 }
@@ -4462,6 +4458,9 @@ col.c-cost {
 		border: 0;
 		text-align: left;
 		white-space: normal;
+	}
+	.home-table td:is(.c-cost, .c-median):empty {
+		display: none;
 	}
 	.home-table td::before {
 		content: attr(data-label);

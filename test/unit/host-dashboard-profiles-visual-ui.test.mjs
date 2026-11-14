@@ -50,11 +50,21 @@ async function set(browser, label, value) {
 		(label, value) => {
 			const field = document.querySelector(`[aria-label="${label}"]`);
 			if (!field) throw new Error(`Missing field: ${label}`);
+			const configuration = field.closest(".profile-configuration");
+			const restore = configuration?.hidden;
+			if (configuration?.hidden)
+				document.querySelector("[data-profile-configure]").click();
+			if (field.closest(".profile-model-view")?.hidden)
+				document.querySelector("[data-profile-configure]").click();
+			const management = field.closest(".profile-scope-options");
+			if (management?.hidden)
+				document.querySelector("[data-assignment-manage]").click();
 			const details = field.closest("details");
 			if (details) details.open = true;
 			field.value = value;
 			field.dispatchEvent(new Event("input", { bubbles: true }));
 			field.dispatchEvent(new Event("change", { bubbles: true }));
+			if (restore) document.querySelector("[data-profile-configure]").click();
 		},
 		label,
 		value,
@@ -73,6 +83,10 @@ async function select(browser, key) {
 		await browser.waitFor(
 			() => !!document.querySelector(".profile-flow .node"),
 		);
+		await browser.evaluate(() => {
+			if (document.querySelector(".profile-model-view")?.hidden)
+				document.querySelector("[data-profile-configure]").click();
+		});
 		await browser.click(`.profile-flow [data-stage="${stage}"]`);
 		await browser.waitFor(
 			() => !!document.querySelector(".role-inspector input"),
@@ -82,7 +96,8 @@ async function select(browser, key) {
 				'[aria-label="Profile setting scope"]',
 			);
 			if (scope && scope.value !== key) {
-				scope.closest("details").open = true;
+				if (scope.closest(".profile-scope-options").hidden)
+					document.querySelector("[data-assignment-manage]").click();
 				scope.value = key;
 				scope.dispatchEvent(new Event("change", { bubbles: true }));
 			}
@@ -252,7 +267,9 @@ test("Profiles Run diagram: selecting is inert, scoped role/agent changes stay l
 			cards: document.querySelectorAll("[data-role-card]").length,
 			common: document.querySelector('.profile-common [aria-label="Model"]')
 				.value,
-			collapsed: !document.querySelector(".profile-common").open,
+			commonVisible: document
+				.querySelector(".profile-common")
+				.checkVisibility(),
 			plan: document.querySelector('[data-stage-line="plan"]').textContent,
 			verification: document.querySelector('[data-stage-line="verify-a"]')
 				.textContent,
@@ -268,7 +285,7 @@ test("Profiles Run diagram: selecting is inert, scoped role/agent changes stay l
 		{
 			cards: 0,
 			common: "fixture-model",
-			collapsed: true,
+			commonVisible: true,
 			plan: "custom/model-id, max",
 			verification: "custom/model-id, max",
 			edges: 3,
@@ -294,11 +311,12 @@ test("Profiles Run diagram: selecting is inert, scoped role/agent changes stay l
 		/custom\/model-id/,
 		"the more-specific agent model still wins",
 	);
-	assert.match(
-		await p.browser.evaluate(
-			() => document.querySelector(".profile-scope-note").textContent,
+	assert.equal(
+		await p.browser.evaluate(() =>
+			document.querySelector(".profile-scope-note"),
 		),
-		/Model: agent:reader/,
+		null,
+		"internal source narration is absent; the diagram above still shows the winning agent value",
 	);
 	after = await save(p);
 	assert.equal(after.roles.verification.model, "manual/new-model");
@@ -522,11 +540,11 @@ test("Profiles use the same Run nodes/edges, show shared edits live, and never s
 			stable: true,
 		},
 	);
-	assert.match(
-		await p.browser.evaluate(
-			() => document.querySelector(".profile-scope-note").textContent,
+	assert.equal(
+		await p.browser.evaluate(() =>
+			document.querySelector(".profile-scope-note"),
 		),
-		/2 declared slots in 2 stages/,
+		null,
 	);
 	assert.equal(
 		await p.browser.evaluate(
@@ -949,7 +967,7 @@ test("Shared profile UX identifies the setting, not the clicked verification nod
 		),
 		"Used by 5 steps here. Shared with other workflows on this profile.",
 	);
-	await p.browser.click(".profile-scope-options > summary");
+	await p.browser.click("[data-assignment-manage]");
 	await select(p.browser, "verification");
 	assert.deepEqual(
 		await p.browser.evaluate(() => ({
@@ -959,15 +977,15 @@ test("Shared profile UX identifies the setting, not the clicked verification nod
 				.closest("label").firstChild.textContent,
 			footnote: document.querySelector(".role-map-note").textContent,
 			inheritance: document.querySelector(".role-inheritance").textContent,
-			common: document.querySelector(".profile-common p").textContent,
+			common: document.querySelector(".profile-common h3").textContent,
 		})),
 		{
 			header: "Models by step",
 			label: "Show on",
 			footnote:
 				"Preview, not a run. A workflow or launch option can override these settings.",
-			inheritance: "Empty fields use the default.",
-			common: "Empty fields use the default. Applies to future runs.",
+			inheritance: "",
+			common: "Common settings",
 		},
 	);
 	assert.doesNotMatch(
@@ -986,10 +1004,8 @@ test("Shared profile UX identifies the setting, not the clicked verification nod
 		await p.browser.evaluate(() => ({
 			label: document.querySelector(".role-panel-label")?.textContent || null,
 			notice: document.querySelector(".role-sharing-note")?.textContent,
-			scopeOpen: document.querySelector(".profile-scope-options")?.open,
-			noteVisible: document
-				.querySelector(".profile-scope-note")
-				.checkVisibility(),
+			scopeOpen: !document.querySelector(".profile-scope-options")?.hidden,
+			noteVisible: !!document.querySelector(".profile-scope-note"),
 			scopeVisible: document
 				.querySelector('[aria-label="Profile setting scope"]')
 				.checkVisibility(),
@@ -1027,7 +1043,7 @@ test("Shared profile UX identifies the setting, not the clicked verification nod
 		),
 		"Verification",
 	);
-	await p.browser.click(".profile-scope-options > summary");
+	await p.browser.click("[data-assignment-manage]");
 	assert.equal(
 		await p.browser.evaluate(() =>
 			document
@@ -1042,14 +1058,14 @@ test("Shared profile UX identifies the setting, not the clicked verification nod
 	);
 	assert.equal(
 		await p.browser.evaluate(
-			() => document.querySelector(".profile-scope-options").open,
+			() => !document.querySelector(".profile-scope-options").hidden,
 		),
 		true,
-		"changing scope does not close its disclosure",
+		"changing assignment keeps management open",
 	);
 	// Closing then selecting in one task must not let the old queued toggle reopen it.
 	await p.browser.evaluate(() => {
-		document.querySelector(".profile-scope-options").open = false;
+		document.querySelector(".profile-scope-options").hidden = true;
 		document
 			.querySelector('.profile-flow .stage-row[data-stage="verify-a"]')
 			.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -1059,7 +1075,7 @@ test("Shared profile UX identifies the setting, not the clicked verification nod
 	);
 	assert.equal(
 		await p.browser.evaluate(
-			() => document.querySelector(".profile-scope-options").open,
+			() => !document.querySelector(".profile-scope-options").hidden,
 		),
 		false,
 		"the last user close survives immediate node selection",
@@ -1169,16 +1185,20 @@ test("Profile role hints match the core executor-default overlay without inventi
 	await select(p.browser, "planning");
 	assert.match(
 		await p.browser.evaluate(
-			() => document.querySelector(".profile-scope-note").textContent,
+			() =>
+				document.querySelector('[aria-label="Role planning Model"]')
+					.placeholder,
 		),
-		/Model: Built-in/,
+		/Automatic \(.+\)/,
 	);
 	await set(p.browser, "Effort", "low");
-	assert.match(
+	assert.equal(
 		await p.browser.evaluate(
-			() => document.querySelector(".profile-scope-note").textContent,
+			() =>
+				document.querySelector('[aria-label="Role planning Effort"]')
+					.placeholder,
 		),
-		/effort: Common setting/,
+		"Automatic (low)",
 	);
 	await select(p.browser, "verification");
 	await set(p.browser, "Role verification Executor", "claude");
@@ -1581,7 +1601,8 @@ test("Profile Save stays reachable without covering picker options or keyboard f
 			await p.browser.evaluate(() => {
 				const page = document.querySelector(".management-page");
 				page.scrollTop = page.scrollHeight;
-				const last = document.querySelector(".profile-options > summary");
+				const last = document.querySelector("[data-profile-configure]");
+				last.scrollIntoView({ block: "center" });
 				const box = last.getBoundingClientRect();
 				const hit = document.elementFromPoint(
 					box.x + box.width / 2,
@@ -1670,8 +1691,8 @@ test("Profile Save stays reachable without covering picker options or keyboard f
 				await p.browser.key("Escape");
 			}
 			await p.browser.evaluate(() => {
-				document.querySelector(".profile-options").open = true;
-				document.querySelector(".role-inspector h3").focus();
+				document.querySelector("[data-profile-configure]").click();
+				document.querySelector("[data-profile-configure]").focus();
 			});
 			let reachedOptions = false;
 			for (let i = 0; i < 35; i++) {
@@ -1702,6 +1723,7 @@ test("Profile Save stays reachable without covering picker options or keyboard f
 				}
 			}
 			assert.equal(reachedOptions, true);
+			await p.browser.click("[data-profile-configure]");
 		}
 	}
 	await save(p);
@@ -1835,7 +1857,7 @@ async function hintState(browser) {
 			}),
 		),
 		label: document.querySelector('[data-stage-line="verify-a"]').dataset.full,
-		scope: document.querySelector(".profile-scope-note").textContent,
+		scope: document.querySelector(".role-inheritance").textContent,
 	}));
 }
 async function chooseAutomatic(browser, field) {

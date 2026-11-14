@@ -2696,7 +2696,7 @@ function renderGraph(preview = null) {
 		),
 	);
 	function resize() {
-		if (disposed) return;
+		if (disposed || !wrap.clientWidth || !wrap.clientHeight) return;
 		if (!view.manual) return fit();
 		view.x += (wrap.clientWidth - (view.width || wrap.clientWidth)) / 2;
 		view.y += (wrap.clientHeight - (view.height || wrap.clientHeight)) / 2;
@@ -3643,10 +3643,12 @@ function renderSelection() {
 				{ class: "details-section" },
 				element("h3", {}, "Task"),
 				element("p", {}, run.task || "No task text collected"),
-				element("h3", {}, "Launch command"),
-				run.launch?.command
-					? commandBlock(run.launch.command)
-					: element("p", { class: "muted" }, "Not collected"),
+				...(run.launch?.command?.trim()
+					? [
+							element("h3", {}, "Launch command"),
+							commandBlock(run.launch.command),
+						]
+					: []),
 				definition([
 					["Host", run.launch?.host || run.host || "Not collected"],
 					["Permission mode", run.permissionMode || "Not collected"],
@@ -3674,6 +3676,12 @@ function renderSelection() {
 			(status === "failed"
 				? task.lastMessage || "A task failed. Inspect the logs before resuming."
 				: null);
+		const executorLine =
+			task.kind === "support"
+				? "Code step · no model call"
+				: [task.executor || run.executor, task.model, task.effort]
+						.filter(Boolean)
+						.join(", ");
 		inspector.append(
 			...[siblingNav(task)].filter(Boolean),
 			inspectorHeader(task.title || name, status, [
@@ -3685,15 +3693,9 @@ function renderSelection() {
 					taskLine(task),
 				),
 				reason ? element("p", { class: "task-reason" }, reason) : null,
-				element(
-					"p",
-					{ class: "executor-line" },
-					[
-						task.executor || run.executor || "No executor",
-						task.model || "default model",
-						task.effort || "default",
-					].join(", "),
-				),
+				executorLine
+					? element("p", { class: "executor-line" }, executorLine)
+					: null,
 			]),
 		);
 		if (reasons[task.statusDetail])
@@ -3780,7 +3782,7 @@ function renderSelection() {
 			element("summary", {}, "Details"),
 			definition([
 				["Task", task.specId],
-				["Agent", task.agent || "Not collected"],
+				task.agent ? ["Agent", task.agent] : null,
 				task.retry
 					? [
 							"Attempts",
@@ -3788,7 +3790,7 @@ function renderSelection() {
 						]
 					: null,
 				["Started", task.startedAt || "Not started"],
-				["Ended", task.completedAt || "n/a"],
+				task.completedAt ? ["Ended", task.completedAt] : null,
 				...usageRows(task.usage),
 				["Depends on", task.dependsOn?.join(", ") || "None"],
 				task.worktree
@@ -3800,11 +3802,9 @@ function renderSelection() {
 						]
 					: null,
 			]),
-			element("h3", {}, "Terminal handoff"),
-			["stderr", "output"].map((stream) =>
-				commandBlock(
-					`agent-workflow logs ${shellArg(run.runId)} --task ${shellArg(task.specId)} --stream ${stream}`,
-				),
+			element("h3", {}, "Logs in terminal"),
+			commandBlock(
+				`agent-workflow logs ${shellArg(run.runId)} --task ${shellArg(task.specId)} --stream ${tab === "result" ? "output" : tab}`,
 			),
 		);
 		details.open = !!detailsOpen;
@@ -3954,9 +3954,13 @@ function itemResult(task) {
 	return itemResults.get(key);
 }
 function itemExpansion(task, id, entering = false, variant = "") {
-	const open = button("Open agent ›", () => go({ task: task.specId }), {
-		class: "item-open",
-	});
+	const open = button(
+		task.kind === "support" ? "Open task ›" : "Open agent ›",
+		() => go({ task: task.specId }),
+		{
+			class: "item-open",
+		},
+	);
 	const body = element("div", {
 		class: `item-expand${entering ? " entering" : ""}${variant ? ` ${variant}` : ""}`,
 		id,
@@ -4077,7 +4081,12 @@ function renderSingle(inspector, stage) {
 		element(
 			"p",
 			{ class: "agents-meta" },
-			[taskLine(task), task.executor || run.executor, task.model, task.effort]
+			[
+				taskLine(task),
+				...(task.kind === "support"
+					? ["Code step · no model call"]
+					: [task.executor || run.executor, task.model, task.effort]),
+			]
 				.filter(Boolean)
 				.join(", "),
 		),
@@ -5407,22 +5416,26 @@ function findingCard(finding, ledgerKept) {
 		.sort((a, b) => Number(folded(a)) - Number(folded(b)))
 		.map((block) => {
 			const body = block.lines.join("\n");
-			if (!folded(block))
-				return element(
-					"section",
-					{ class: "finding-part" },
-					element("h4", { class: "part-label" }, block.label),
-					text(body),
-				);
 			const count = block.lines.filter((line) =>
 				/^\s*(?:```|~~~|[-*+]\s)/.test(line),
 			).length;
 			// A code block has two fences; a list one mark per item.
 			const size = /^\s*(?:```|~~~)/m.test(body) ? Math.ceil(count / 2) : count;
+			const label = `${block.label}${folded(block) && size ? ` (${size})` : ""}`;
+			// Short source blocks are readable without a disclosure, independent of viewport.
+			const long =
+				body.trim().length > 600 || body.trim().split("\n").length > 8;
+			if (!folded(block) || !long)
+				return element(
+					"section",
+					{ class: "finding-part" },
+					element("h4", { class: "part-label" }, label),
+					text(body),
+				);
 			return element(
 				"details",
 				{ class: "finding-part finding-fold" },
-				element("summary", {}, block.label, size ? ` (${size})` : ""),
+				element("summary", {}, label),
 				text(body),
 			);
 		});
@@ -6845,7 +6858,8 @@ function resultChip(summary) {
 	);
 }
 function costCell(summary) {
-	const label = costLabel(summary.cost ? [summary.cost] : []);
+	if (summary.cost?.costUsd == null) return null;
+	const label = costLabel([summary.cost]);
 	return element(
 		"span",
 		{
@@ -7021,17 +7035,13 @@ function homeRecent(finished, stopped) {
 									{ class: "home-row-date muted" },
 									timeAgo(summary.updatedAt),
 								),
-								element(
-									"span",
-									{
-										class: `home-row-dur${summary.activeMs == null ? " muted" : ""}`,
-										title:
-											summary.activeMs == null
-												? "Active time not available"
-												: "Active time",
-									},
-									summary.activeMs != null ? duration(summary.activeMs) : "n/a",
-								),
+								summary.activeMs != null
+									? element(
+											"span",
+											{ class: "home-row-dur", title: "Active time" },
+											duration(summary.activeMs),
+										)
+									: null,
 								costCell(summary),
 							],
 							"home-row recent",
@@ -7083,7 +7093,7 @@ function homeWorkflows(all) {
 		["cost", "Cost", "n"],
 		["strip", "Last runs", ""],
 	];
-	const unknown = (title) => element("span", { class: "muted", title }, "n/a");
+	const unknown = () => null;
 	return element(
 		"div",
 		{ class: "home-table-wrap" },
@@ -7159,7 +7169,9 @@ function homeWorkflows(all) {
 							{
 								class: "c-median n",
 								"data-label": "Median",
-								title: `Median active time of ${completed.length} completed run${completed.length === 1 ? "" : "s"}`,
+								title: list.some((summary) => summary.status === "completed")
+									? `Active time reported for ${completed.length} of ${list.filter((summary) => summary.status === "completed").length} completed ${list.filter((summary) => summary.status === "completed").length === 1 ? "run" : "runs"}`
+									: "No completed runs",
 							},
 							middle == null ? unknown() : duration(middle),
 						),
@@ -7230,7 +7242,8 @@ function homeProject(all) {
 		live = all.filter((summary) => summary.status === "running").length,
 		waiting = all.filter((summary) => summary.status === "blocked").length;
 	const label = costLabel(all.map((summary) => summary.cost));
-	const active = all.reduce((sum, summary) => sum + (summary.activeMs ?? 0), 0);
+	const timed = all.filter((summary) => summary.activeMs != null);
+	const active = timed.reduce((sum, summary) => sum + summary.activeMs, 0);
 	const stat = (value, name, note, title) =>
 		element(
 			"div",
@@ -7263,13 +7276,22 @@ function homeProject(all) {
 					),
 				]),
 		),
-		stat(label.text, "spend", label.ratio || "", label.title),
-		stat(
-			duration(active),
-			"active time",
-			"all runs, not waiting",
-			"The time agents and steps were working; a run that sat waiting does not count it",
-		),
+		label.runs
+			? stat(
+					label.text,
+					"spend",
+					`${label.ratio}; ${label.runs} of ${all.length} runs reported`,
+					label.title,
+				)
+			: null,
+		timed.length
+			? stat(
+					duration(active),
+					"active time",
+					`${timed.length} of ${all.length} runs reported, not waiting`,
+					"The time agents and steps were working; a run that sat waiting does not count it",
+				)
+			: null,
 	);
 }
 /*
@@ -7773,17 +7795,65 @@ function choices(label, values, value = "") {
 	control.value = value;
 	return control;
 }
-function managementResult(value) {
+// Deliberate diagnostics, with direct readable content rather than nested raw JSON folds.
+function diagnosticView(label, ...content) {
+	const body = element(
+		"div",
+		{ hidden: true, class: "management-diagnostics" },
+		content,
+	);
+	const toggle = button(
+		label,
+		() => {
+			body.hidden = !body.hidden;
+			toggle.setAttribute("aria-expanded", String(!body.hidden));
+		},
+		{ "aria-expanded": "false" },
+	);
+	return element("div", {}, toggle, body);
+}
+function readableDiagnostic(value) {
+	if (value === null || typeof value !== "object")
+		return element("pre", {}, value === "" ? '""' : String(value));
+	if (!Object.keys(value).length)
+		return element("pre", {}, Array.isArray(value) ? "[]" : "{}");
+	if (Array.isArray(value))
+		return element(
+			"ul",
+			{},
+			value.map((entry) => element("li", {}, readableDiagnostic(entry))),
+		);
+	return element(
+		"dl",
+		{ class: "diagnostic-fields" },
+		Object.entries(value).map(([key, entry]) =>
+			element(
+				"div",
+				{},
+				element("dt", {}, key),
+				element("dd", {}, readableDiagnostic(entry)),
+			),
+		),
+	);
+}
+function managementResult(value, detailLabel = "Result details") {
+	const data = value.data || value;
+	const capability = data.capability;
 	return element(
 		"div",
 		{ class: "management-result", role: "status" },
-		element("pre", {}, value.text || JSON.stringify(value, null, 2)),
-		element(
-			"details",
-			{},
-			element("summary", {}, "Structured details"),
-			element("pre", {}, JSON.stringify(value.data || value, null, 2)),
-		),
+		value.text ? element("pre", {}, value.text) : readableDiagnostic(value),
+		capability
+			? element(
+					"p",
+					{ class: "management-check-limitations" },
+					`Capability limitations: ${capability.degradations?.length ?? "see details"}. Forced read-only: ${capability.forcedReadOnly?.length ?? "see details"}. Review Check details before running.`,
+				)
+			: null,
+		capability?.forcedReadOnly?.length
+			? readableDiagnostic(capability.forcedReadOnly)
+			: null,
+		diagnosticView(detailLabel, readableDiagnostic(data)),
 	);
 }
 function managementPanel(title, ...children) {
@@ -7939,7 +8009,7 @@ function choicePicker(
 				element(
 					"div",
 					{ class: "picker-empty", role: "status" },
-					"No suggestions. You can type a model ID.",
+					"No suggestions. You can type a value.",
 				),
 			);
 		active = shown.findIndex(([value]) => value === control.value);
@@ -8038,7 +8108,7 @@ function choicePicker(
 async function modelControls(
 	saved = {},
 	prefix = "",
-	{ foldNotes = false, getExecutor = () => undefined } = {},
+	{ getExecutor = () => undefined } = {},
 ) {
 	const data = (await managementApi("/api/executors/models")).data;
 	const ids = data.executors.map((entry) => entry.id);
@@ -8061,11 +8131,28 @@ async function modelControls(
 		model = modelPicker.control,
 		effort = effortPicker.control;
 	for (const control of [exec, model, effort]) control.disabled = readonly();
-	const note = element("small", { class: "muted" });
+	const note = element("small", {
+		class: "muted",
+		id: `${model.getAttribute("aria-controls")}-note`,
+		role: "status",
+	});
 	const effortNote = element("small", {
 		class: "muted",
+		id: `${effort.getAttribute("aria-controls")}-note`,
+		role: "status",
 		"data-effort-note": "",
 	});
+	const associate = (control, message) => {
+		const ids = new Set(
+			(control.getAttribute("aria-describedby") || "")
+				.split(/\s+/)
+				.filter(Boolean),
+		);
+		if (message.textContent) ids.add(message.id);
+		else ids.delete(message.id);
+		if (ids.size) control.setAttribute("aria-describedby", [...ids].join(" "));
+		else control.removeAttribute("aria-describedby");
+	};
 	// Suggestions use the same profile-layer resolution as the diagram; values() still only
 	// returns the user's fields. Refreshing inherited context never emits a field change.
 	const effectiveExecutor = () => getExecutor(exec.value) || exec.value;
@@ -8094,29 +8181,11 @@ async function modelControls(
 						perModel.includes(level) && (!declared || declared.includes(level)),
 				)
 			: [];
-		if (narrowed.length)
-			return {
-				levels: narrowed,
-				text:
-					narrowed.length === 1 && narrowed[0] === "off"
-						? `${name} does not think on ${entry.id}: its effort is off.`
-						: `Effort for ${name} on ${entry.id}: ${narrowed.join(", ")}.`,
-			};
-		if (declared)
-			return {
-				levels: declared,
-				text: `Effort on ${entry.id}: ${declared.join(", ")}.`,
-			};
-		return {
-			levels: EFFORT_LEVELS,
-			text: effectiveExecutor()
-				? `${effectiveExecutor()} declares no effort levels; a level it lacks runs at its nearest one.`
-				: "Choose an executor to see its effort levels; a level it lacks runs at its nearest one.",
-		};
+		return { levels: narrowed.length ? narrowed : declared || EFFORT_LEVELS };
 	};
 	const updateEffort = () => {
 		const current = effort.value;
-		const { levels, text } = effortScope();
+		const { levels } = effortScope();
 		const options = [
 			["", "Automatic"],
 			...levels.map((level) => [level, level]),
@@ -8124,15 +8193,48 @@ async function modelControls(
 		if (current && !levels.includes(current))
 			options.push([current, `${current} (not available here)`]);
 		effortPicker.setOptions(options);
-		effortNote.textContent = text;
+		effortNote.textContent =
+			current && !levels.includes(current)
+				? `${current} is not available here; it runs at the nearest supported effort level.`
+				: "";
+		effortNote.hidden = !effortNote.textContent;
+		associate(effort, effortNote);
 	};
 	const update = () => {
 		const entry = data.executors.find(
 			(entry) => entry.id === effectiveExecutor(),
 		);
 		modelPicker.setOptions([["", "Automatic"], ...(entry?.models || [])]);
-		note.textContent =
-			entry?.note || "Choose an executor for its model suggestions.";
+		const warnings = [];
+		if (effectiveExecutor() && !entry)
+			warnings.push(
+				`Unknown executor: ${effectiveExecutor()}. Model suggestions are unavailable.`,
+			);
+		if (entry?.state === "not-installed")
+			warnings.push(`${entry.id} is not installed.`);
+		else if (entry?.state === "logged-out")
+			warnings.push(`${entry.id} is not logged in. Log in using its CLI.`);
+		else if (entry?.usable === false)
+			warnings.push(`${entry.id} is unavailable (${entry.state}).`);
+		if (entry?.error)
+			warnings.push(`Model suggestions unavailable: ${entry.error}`);
+		// Match core role-profiles.modelListed exactly: suffixes either way, not basename equality.
+		if (
+			entry?.modelListComplete &&
+			Array.isArray(entry.models) &&
+			model.value &&
+			!entry.models.some(
+				(listed) =>
+					listed === model.value ||
+					listed.endsWith(`/${model.value}`) ||
+					model.value.endsWith(`/${listed}`),
+			)
+		)
+			warnings.push(`Model is not in ${entry.id}'s complete model list.`);
+		note.textContent = warnings.join(" ");
+		note.hidden = !note.textContent;
+		associate(exec, note);
+		associate(model, note);
 		updateEffort();
 	};
 	let previousExecutor = exec.value;
@@ -8147,8 +8249,10 @@ async function modelControls(
 			}
 		} else update();
 	});
-	model.addEventListener("input", updateEffort);
-	model.addEventListener("change", updateEffort);
+	effort.addEventListener("input", updateEffort);
+	effort.addEventListener("change", updateEffort);
+	model.addEventListener("input", update);
+	model.addEventListener("change", update);
 	update();
 	return {
 		node: element(
@@ -8157,15 +8261,8 @@ async function modelControls(
 			field("Executor", executorPicker.node),
 			field("Model", modelPicker.node),
 			field("Effort", effortPicker.node),
-			foldNotes
-				? element(
-						"details",
-						{ class: "model-availability" },
-						element("summary", {}, "Model availability"),
-						note,
-						effortNote,
-					)
-				: [note, effortNote],
+			note,
+			effortNote,
 		),
 		refresh: update,
 		values: () =>
@@ -8254,23 +8351,34 @@ export function profileRolePreview(key, roles = {}, context = {}) {
 
 /** Values in this profile layer, not a workflow/launch-time resolution. Keys come from the core slot collector. */
 export function profileSlotPreview(slot, roles = {}, context = {}) {
+	const { values, sources } = profileSlotResolution(slot, roles, context);
+	return { values, sources };
+}
+
+// Keep winning scope identity separate from the public, human-readable source labels.
+function profileSlotResolution(slot, roles = {}, context = {}) {
 	const keys = slot?.roleKeys || ["default"];
 	if (context.preferenceProfile) {
 		// Workflow preferences are a higher layer, not edits to the selected profile.
 		// Resolve all scopes in that layer before consulting any lower scope.
 		const lower = context.preferenceProfile;
 		const entries = [
-			...keys.map((key) => [key, roles[key] || {}]),
-			...keys.map((key) => [key, profileRolePreview(key, {}, lower).values]),
+			...keys.map((key) => [key, roles[key] || {}, {}]),
+			...keys.map((key) => {
+				const entry = profileRolePreview(key, {}, lower);
+				return [key, entry.values, entry.sources];
+			}),
 			// Executor-default previews already apply their Common overlay policy.
 			["Common", lower.executor ? {} : lower.common || {}],
 		];
 		const values = {},
-			sources = {};
+			sources = {},
+			winners = {};
 		const executor = entries.find(([, value]) => value.executor);
 		if (executor) {
 			values.executor = executor[1].executor;
 			sources.executor = executor[0];
+			winners.executor = { key: executor[0], source: executor[2]?.executor };
 		}
 		for (const field of ["model", "effort"]) {
 			const found = entries.find(
@@ -8281,9 +8389,10 @@ export function profileSlotPreview(slot, roles = {}, context = {}) {
 			if (found) {
 				values[field] = found[1][field];
 				sources[field] = found[0];
+				winners[field] = { key: found[0], source: found[2]?.[field] };
 			}
 		}
-		return { values, sources };
+		return { values, sources, winners };
 	}
 	const entries = keys.map((key) => [
 		key,
@@ -8292,10 +8401,15 @@ export function profileSlotPreview(slot, roles = {}, context = {}) {
 	const common = context.common || {};
 	const executorEntry = entries.find(([, entry]) => entry.values.executor);
 	const values = {},
-		sources = {};
+		sources = {},
+		winners = {};
 	if (executorEntry) {
 		values.executor = executorEntry[1].values.executor;
 		sources.executor = executorEntry[0];
+		winners.executor = {
+			key: executorEntry[0],
+			source: executorEntry[1].sources.executor,
+		};
 	} else if (common.executor) {
 		values.executor = common.executor;
 		sources.executor = "Common";
@@ -8308,6 +8422,7 @@ export function profileSlotPreview(slot, roles = {}, context = {}) {
 		);
 		if (found) {
 			values[field] = found[1].values[field];
+			winners[field] = { key: found[0], source: found[1].sources[field] };
 			sources[field] =
 				found[1].sources[field] === "Role override"
 					? found[0]
@@ -8321,7 +8436,7 @@ export function profileSlotPreview(slot, roles = {}, context = {}) {
 			sources[field] = "Common";
 		}
 	}
-	return { values, sources };
+	return { values, sources, winners };
 }
 
 // The actual workflow diagram is the editor; unmapped saved entries remain in the drafts.
@@ -8352,7 +8467,7 @@ async function roleEditor(
 	});
 	const graphHost = element("div", { class: "profile-flow" });
 	const errors = element("div");
-	const scopeNote = element("p", { class: "profile-scope-note muted" });
+
 	const picker = choices(
 		"Profile workflow",
 		[
@@ -8449,7 +8564,7 @@ async function roleEditor(
 	const panelTitle = () => titleFor(selected);
 	const rememberScope = () => {
 		const current = panel.querySelector(".profile-scope-options");
-		if (current) scopeExpanded = current.open;
+		if (current) scopeExpanded = !current.hidden;
 	};
 	const sharingText = () => {
 		if (!graph) return "Shared setting, not per-node.";
@@ -8485,7 +8600,7 @@ async function roleEditor(
 		if (inheritance && selected) {
 			const view = viewFor(selected),
 				slot = slotNow();
-			const inherited = slot ? slotView(slot) : view;
+
 			const fallback =
 				getContext().preferenceProfile && slot
 					? profileSlotPreview(
@@ -8538,14 +8653,37 @@ async function roleEditor(
 					input.placeholder = value ? `Automatic (${value})` : "Automatic";
 				}
 			}
-			inheritance.textContent = view.ignored
-				? `This assignment is not used by ${getContext().executor} stage defaults.`
-				: "Empty fields use the default.";
-			const targets = (graph?.slots || []).filter((entry) =>
-				entry.roleKeys.includes(keyFor(selected)),
-			);
-			scopeNote.textContent = `${titleFor(selected)}: ${targets.length} declared slot${targets.length === 1 ? "" : "s"} in ${related().size} stage${related().size === 1 ? "" : "s"}. More-specific agent settings can take precedence.`;
-			scopeNote.textContent += ` Model: ${inherited.sources.model || "inherited"}; effort: ${inherited.sources.effort || "inherited"}.`;
+			const context = getContext();
+			const resolved = slot
+				? profileSlotResolution(slot, previewRoles(), context)
+				: null;
+			const selectedIndex = slot?.roleKeys.indexOf(keyFor(selected)) ?? -1;
+			const shadowed = ["executor", "model", "effort"].filter((field) => {
+				// Executor-default overlays fix the executor; an absent agent cannot win it.
+				if (field === "executor" && context.executor) return false;
+				const sourceIndex =
+					slot?.roleKeys.indexOf(resolved?.winners[field]?.key) ?? -1;
+				return (
+					own?.[field] !== undefined &&
+					sourceIndex >= 0 &&
+					sourceIndex < selectedIndex
+				);
+			});
+			const exceptions = shadowed.map((field) => {
+				const winner = resolved.winners[field];
+				const origin = ["Built-in", "Preset", "Common setting"].includes(
+					winner.source,
+				)
+					? ` (${winner.source})`
+					: "";
+				return `${titleFor(idFor(winner.key))}${origin} takes precedence for ${field} in this step.`;
+			});
+			if (view.ignored)
+				exceptions.unshift(
+					`This assignment is not used by ${getContext().executor} stage defaults.`,
+				);
+			inheritance.textContent = exceptions.join(" ");
+			inheritance.hidden = !exceptions.length;
 		}
 		graphController?.refresh();
 	}
@@ -8560,8 +8698,15 @@ async function roleEditor(
 				{ class: "muted" },
 				"Select a node to edit the shared model settings it uses.",
 			),
+			button(
+				"Manage assignments",
+				() => {
+					scopeExpanded = true;
+					selectRole(idFor("default"));
+				},
+				{ "data-assignment-open": "" },
+			),
 		);
-		scopeNote.textContent = "";
 		refresh();
 	}
 	function chooseKey(slot) {
@@ -8589,7 +8734,6 @@ async function roleEditor(
 			);
 			panel.querySelector("h3").focus({ preventScroll: true });
 			panel.scrollIntoView({ block: "nearest" });
-			scopeNote.textContent = "";
 			refresh();
 			return;
 		}
@@ -8623,7 +8767,8 @@ async function roleEditor(
 			views,
 			describe,
 			select: chooseNode,
-			selected: () => currentStage,
+			// Keep currentStage as the Escape focus anchor, not an unrelated active selection.
+			selected: () => (currentSlot || !selected ? currentStage : null),
 			related,
 			clear,
 			control: (value) => {
@@ -8731,6 +8876,8 @@ async function roleEditor(
 		rememberScope();
 		const token = ++generation;
 		selected = id;
+		if (slotNow() && !slotNow().roleKeys.includes(keyFor(id)))
+			currentSlot = null;
 		heading = inheritance = sharing = selectedModels = null;
 		panel.replaceChildren(
 			element(
@@ -8752,7 +8899,6 @@ async function roleEditor(
 		let models;
 		try {
 			models = await modelControls(draft.value, `Role ${keyOf(draft)} `, {
-				foldNotes: true,
 				getExecutor: () => {
 					const slot = slotNow();
 					const roles = previewRoles();
@@ -8803,29 +8949,40 @@ async function roleEditor(
 				currentSlot = slotPicker.value;
 				selectRole(idFor(chooseKey(slotNow())));
 			});
-		const scope = slot
-			? choices(
-					"Profile setting scope",
-					slot.roleKeys.map((key) => [key, titleFor(idFor(key))]),
-					key,
-				)
-			: null;
-		const scopeOptions = element(
-			"details",
-			{ class: "profile-scope-options", open: scopeExpanded },
-			element("summary", {}, "Advanced scope"),
-			scope ? field("Setting scope", scope) : null,
-			scopeNote,
+		const keys = [
+			...new Set([
+				...(slot?.roleKeys || []),
+				...Object.keys(PROFILE_ROLES),
+				...(graph?.slots || []).flatMap((entry) => entry.roleKeys),
+				...Object.keys(previewRoles()),
+			]),
+		];
+		const scope = choices(
+			"Profile setting scope",
+			keys.map((key) => [key, titleFor(idFor(key))]),
+			key,
 		);
-		if (scope) {
-			scope.addEventListener("change", () => {
-				scopeExpanded = scopeOptions.open;
-				selectRole(idFor(scope.value));
-			});
-		}
-		scopeOptions.addEventListener("toggle", () => {
-			if (!disposed && token === generation) scopeExpanded = scopeOptions.open;
-		});
+		const scopeOptions = element(
+			"section",
+			{
+				class: "profile-scope-options",
+				hidden: !scopeExpanded,
+				"aria-label": "Assignment management",
+			},
+			field("Assignment", scope),
+		);
+		const manage = button(
+			"Manage assignments",
+			() => {
+				scopeExpanded = !scopeExpanded;
+				scopeOptions.hidden = !scopeExpanded;
+				manage.setAttribute("aria-expanded", String(scopeExpanded));
+				if (scopeExpanded) scope.focus();
+			},
+			{ "data-assignment-manage": "", "aria-expanded": String(scopeExpanded) },
+		);
+		scope.addEventListener("change", () => selectRole(idFor(scope.value)));
+
 		const update = () => {
 			if (disposed || token !== generation) return;
 			draft.value = models.values();
@@ -8842,6 +8999,7 @@ async function roleEditor(
 			slotPicker ? field("Step inside this node", slotPicker) : null,
 			models.node,
 			inheritance,
+			manage,
 			scopeOptions,
 			button(
 				draft.agent ? "Remove agent override" : "Reset role",
@@ -9017,8 +9175,8 @@ async function renderWorkflows(page) {
 		),
 	);
 	page.append(
-		managementPanel(
-			"Agents",
+		diagnosticView(
+			"Agent inventory",
 			agents.data.agents.length
 				? propertyTable(
 						["Agent", "Description", "Source"],
@@ -9145,13 +9303,6 @@ async function renderWorkflow(page, name) {
 					ROUTING_LABELS[key] || humanize(key),
 					hints.join(" "),
 				]),
-				[
-					"Source",
-					element("span", { class: "mono" }, workflow.specPath || "n/a"),
-				],
-				workflow.aliases?.length
-					? ["Aliases", workflow.aliases.join(", ")]
-					: null,
 			].filter(Boolean),
 			{ class: "property-table keyed" },
 		),
@@ -9195,11 +9346,7 @@ async function renderWorkflow(page, name) {
 						propertyTable(
 							null,
 							[
-								["Spec", "Valid ✓"],
-								["Type", validation.type],
-								["Tasks", String(validation.tasks)],
-								["Roles", String(validation.roles)],
-								["Max concurrency", String(validation.maxConcurrency)],
+								["Spec", "Valid specification; not an execution guarantee."],
 								...validation.warnings.map((warning) => ["Warning", warning]),
 								...validation.blockedPermissionPreviews.map((entry) => [
 									"Blocked",
@@ -9212,35 +9359,45 @@ async function renderWorkflow(page, name) {
 				: null,
 	);
 	const check = managementPanel("Check: no run or model call");
-	const advanced = managementPanel(
-		"Advanced",
-		element(
-			"details",
-			{},
-			element("summary", {}, "Resolved spec"),
-			element("pre", {}, data.spec.data.spec),
-		),
-		element(
-			"details",
-			{},
-			element("summary", {}, "Compiled roles"),
-			managementResult(data.roles),
-		),
+	const aliases = (workflow.aliases || []).filter((alias) => alias !== name);
+	const roles = data.roles?.data?.roles;
+	const diagnostics = diagnosticView(
+		"Workflow diagnostics",
+		element("h2", {}, "Source"),
+		element("p", { class: "mono" }, workflow.specPath || "Unavailable"),
+		aliases.length ? element("p", {}, `Aliases: ${aliases.join(", ")}`) : null,
+		element("h2", {}, "Resolved spec"),
+		element("pre", {}, data.spec.data.spec),
+		roles?.length || (roles && Object.keys(roles).length)
+			? [
+					element("h2", {}, "Compiled roles"),
+					readableDiagnostic(data.roles.data),
+				]
+			: null,
+		data.roles?.error
+			? element("p", { role: "alert" }, data.roles.error)
+			: null,
 	);
-	page.append(about, stagesPanel, check, advanced);
+	page.append(about, stagesPanel, check, diagnostics);
 	const options = await modelControls();
 	const profiles = (await managementApi("/api/profiles")).data.profiles || [];
-	const profile = choices("Check profile", [
+	const profilePicker = choicePicker(
+		"Check profile",
+		[
+			"",
+			...new Set([
+				...profiles.map((p) => p.name),
+				...Object.keys(authored.executionProfiles || {}),
+				"pi",
+				"claude",
+				"codex",
+				"mixed",
+			]),
+		],
 		"",
-		...new Set([
-			...profiles.map((p) => p.name),
-			...Object.keys(authored.executionProfiles || {}),
-			"pi",
-			"claude",
-			"codex",
-			"mixed",
-		]),
-	]);
+		{ editable: true, placeholder: "Saved/default profile" },
+	);
+	const profile = profilePicker.control;
 	const permission = choices("Check permission mode", ["", "free", "safe"]);
 	const output = element("div");
 	const command = element("div");
@@ -9249,7 +9406,7 @@ async function renderWorkflow(page, name) {
 		...(profile.value ? { profile: profile.value } : {}),
 		...(permission.value ? { permissionMode: permission.value } : {}),
 	});
-	const awCommand = `aw run ${shellArg(name)} "<task>"`;
+
 	const update = () => {
 		const flags = Object.entries(selected())
 			.map(
@@ -9257,25 +9414,48 @@ async function renderWorkflow(page, name) {
 					` --${key === "permissionMode" ? "permission-mode" : key} ${shellArg(value)}`,
 			)
 			.join("");
-		command.replaceChildren(commandHint(awCommand));
-		if (flags)
-			command.append(
-				element(
-					"p",
-					{ class: "muted" },
-					"aw uses saved defaults; for these explicit Check overrides use the CLI:",
-				),
-				commandHint(`agent-workflow run ${shellArg(name)} "<task>"${flags}`),
-			);
+		command.replaceChildren(
+			commandHint(`agent-workflow run ${shellArg(name)} "<task>"${flags}`),
+		);
 	};
+	const overrides = element(
+		"div",
+		{
+			hidden: true,
+			id: `check-overrides-${++pickerId}`,
+			class: "check-overrides management-fields",
+			onchange: update,
+			oninput: update,
+		},
+		options.node,
+		field("Profile (optional)", profilePicker.node),
+		field("Permission mode", permission),
+	);
+	const summary = element("p", { class: "check-settings-summary" });
+	const originalUpdate = update;
+	const refreshSummary = () => {
+		originalUpdate();
+		summary.textContent = Object.keys(selected()).length
+			? `Active Check overrides: ${Object.entries(selected())
+					.map(([key, value]) => `${key}: ${value}`)
+					.join("; ")}`
+			: "Check uses saved/default settings. No run or model call.";
+	};
+	overrides.onchange = overrides.oninput = refreshSummary;
 	check.append(
-		element(
-			"div",
-			{ class: "management-fields", onchange: update, oninput: update },
-			options.node,
-			field("Profile (optional)", profile),
-			field("Permission mode", permission),
+		summary,
+		button(
+			"Check different settings",
+			(event) => {
+				overrides.hidden = !overrides.hidden;
+				event.currentTarget.setAttribute(
+					"aria-expanded",
+					String(!overrides.hidden),
+				);
+			},
+			{ "aria-expanded": "false", "aria-controls": overrides.id },
 		),
+		overrides,
 		element(
 			"div",
 			{ class: "management-actions" },
@@ -9289,6 +9469,7 @@ async function renderWorkflow(page, name) {
 								"POST",
 								selected(),
 							),
+							"Check details",
 						),
 					);
 				},
@@ -9299,7 +9480,7 @@ async function renderWorkflow(page, name) {
 		output,
 		command,
 	);
-	update();
+	refreshSummary();
 }
 /** `role  executor:model:effort` lines of a role map, as the CLI shows them. */
 function roleTable(roles = {}) {
@@ -9366,9 +9547,13 @@ async function renderProfiles(page) {
 		"p",
 		{ class: "profile-default muted" },
 		data.default
-			? `Default profile: ${data.default}`
+			? `Default profile: ${data.default}. Not found in the profiles shown here.`
 			: "No default profile. Each executor uses its own defaults.",
 	);
+	defaultLine.hidden =
+		!!data.default &&
+		(executorProfileNames.has(data.default) ||
+			data.profiles.some((profile) => profile.name === data.default));
 	const describe = (profile) => {
 		const parts = [profile.executor, profile.model, profile.effort];
 		const roles = Object.keys(profile.roles || {}).length;
@@ -9596,16 +9781,9 @@ async function renderProfiles(page) {
 		id.addEventListener("input", clearNameError);
 		let presetExecutor;
 		const models = await modelControls(profile, "", {
-			foldNotes: true,
 			getExecutor: (executor) =>
 				executorDefault?.executor || executor || presetExecutor,
 		});
-		const commonSummary = element("span", { class: "muted" });
-		const updateCommonSummary = () => {
-			const values = models.values();
-			commonSummary.textContent = ` ${values.model || "Inherited"}, ${values.effort || "Inherited"}`;
-		};
-		updateCommonSummary();
 		const permission = choices(
 			"Profile permission mode",
 			["", "free", "safe"],
@@ -9649,8 +9827,6 @@ async function renderProfiles(page) {
 		roleEditors.add(roles);
 		models.node.addEventListener("input", roles.refresh);
 		models.node.addEventListener("change", roles.refresh);
-		models.node.addEventListener("input", updateCommonSummary);
-		models.node.addEventListener("change", updateCommonSummary);
 		preset.addEventListener("change", () => {
 			presetExecutor = presets.data.presets.find(
 				(entry) => entry.id === preset.value,
@@ -9672,9 +9848,9 @@ async function renderProfiles(page) {
 			(entry) => entry.name === profile.name,
 		);
 		const options = element(
-			"details",
+			"section",
 			{ class: "profile-options" },
-			element("summary", {}, "Profile options"),
+			element("h3", {}, "Manage profile"),
 		);
 		if (hasSavedProfile) {
 			options.append(
@@ -9738,9 +9914,9 @@ async function renderProfiles(page) {
 			);
 		}
 		const advanced = element(
-			"details",
+			"section",
 			{ class: "profile-advanced" },
-			element("summary", {}, "Advanced settings"),
+			element("h3", {}, "Execution options"),
 			field("Base preset (keep overrides)", preset),
 			element(
 				"div",
@@ -9748,6 +9924,55 @@ async function renderProfiles(page) {
 				field("Permission mode", permission),
 				field("Strict capabilities (comma separated)", strict),
 			),
+		);
+		for (const control of [permission, preset, strict])
+			control.disabled = readonly();
+		const restrictions = element("p", {
+			class: "profile-restrictions muted",
+			role: "status",
+		});
+		const updateRestrictions = () => {
+			const parts = [
+				preset.value ? `Preset: ${preset.value}` : "",
+				permission.value ? `Permissions: ${permission.value}` : "",
+				strict.value.trim() ? `Strict: ${strict.value.trim()}` : "",
+			].filter(Boolean);
+			restrictions.textContent = parts.join("; ");
+			restrictions.hidden = !parts.length;
+		};
+		for (const control of [permission, preset, strict]) {
+			control.addEventListener("input", updateRestrictions);
+			control.addEventListener("change", updateRestrictions);
+		}
+		updateRestrictions();
+		const normal = element(
+			"div",
+			{ class: "profile-model-view" },
+			element(
+				"section",
+				{ class: "profile-common", "aria-label": "Common settings" },
+				element("h3", {}, "Common settings"),
+				models.node,
+			),
+			roles.node,
+		);
+		const configuration = element(
+			"section",
+			{ class: "profile-configuration", hidden: true },
+			advanced,
+			hasSavedProfile ? options : null,
+			output,
+		);
+		const configure = button(
+			"Profile options",
+			() => {
+				configuration.hidden = !configuration.hidden;
+				normal.hidden = !configuration.hidden;
+				configure.textContent = configuration.hidden
+					? "Profile options"
+					: "Model settings";
+			},
+			{ "data-profile-configure": "" },
 		);
 		const draft = settingsDraft(editor, () => ({
 			name: id.value.trim(),
@@ -9786,19 +10011,10 @@ async function renderProfiles(page) {
 							nameError,
 						)
 					: null,
-				element(
-					"details",
-					{ class: "profile-common", "aria-label": "Common settings" },
-					element("summary", {}, "Common settings", commonSummary),
-					element(
-						"p",
-						{ class: "muted" },
-						"Empty fields use the default. Applies to future runs.",
-					),
-					models.node,
-				),
-				roles.node,
-				advanced,
+				configure,
+				restrictions,
+				normal,
+				configuration,
 				element(
 					"div",
 					{ class: "profile-editor-actions profile-editor-actions-sticky" },
@@ -9897,12 +10113,11 @@ async function renderProfiles(page) {
 							}
 							draft.clear();
 							await reloadProfiles(savedName);
-							// The status stays short; the host API's full text remains behind Details.
+							// Successful saves need only a concise confirmation.
 							const status = element(
 								"div",
 								{ class: "profile-save-status", role: "status" },
 								`Saved profile: ${savedName}`,
-								moreDetails("Details", managementResult(saved)),
 							);
 							$("center").querySelector(".management-page")?.prepend(status);
 						},
@@ -9912,8 +10127,6 @@ async function renderProfiles(page) {
 					button("Cancel", cancel),
 					saveOutput,
 				),
-				hasSavedProfile ? options : null,
-				output,
 			),
 		);
 		editor.setAttribute("data-profile-edit", profile.name || "");
@@ -9958,9 +10171,9 @@ async function renderProfiles(page) {
 		focus?.focus({ preventScroll: true });
 	}
 	const prefPanel = element(
-		"details",
+		"section",
 		{ class: "profile-preferences profiles-section" },
-		element("summary", {}, "Workflow-specific settings"),
+		element("h2", {}, "Workflow-specific settings"),
 		element(
 			"p",
 			{ class: "muted" },
@@ -9999,7 +10212,7 @@ async function renderProfiles(page) {
 	);
 	const updatePreferenceCount = () => {
 		prefPanel
-			.querySelector("summary")
+			.querySelector("h2")
 			.replaceChildren(
 				"Workflow-specific settings",
 				configured.size
@@ -10080,7 +10293,7 @@ async function renderProfiles(page) {
 			}));
 			prefEditor.replaceChildren(
 				field("Profile", profile),
-				moreDetails("Role overrides", roles.node),
+				roles.node,
 				element(
 					"div",
 					{ class: "profile-editor-actions" },
@@ -10109,8 +10322,13 @@ async function renderProfiles(page) {
 							if (generation !== preferenceGeneration || !page.isConnected)
 								return;
 							prefOutput.replaceChildren(
-								element("p", { role: "status" }, "Workflow settings saved."),
-								moreDetails("Details", managementResult(saved)),
+								element(
+									"p",
+									{ role: "status" },
+									preferenceDraft.dirty()
+										? "Workflow settings saved. Later changes are unsaved."
+										: "Workflow settings saved.",
+								),
 							);
 						},
 						prefOutput,
@@ -10192,7 +10410,7 @@ const EXECUTOR_STATES = {
 };
 /*
  * Executors (2026-11-11, owner): which CLIs can run workflows here and what to do about the rest,
- * then what to know and the defaults. The full doctor report stays under "Details".
+ * then what to know and the defaults. Adapter and environment notes have one diagnostic view.
  */
 async function renderExecutors(page) {
 	page
@@ -10201,7 +10419,6 @@ async function renderExecutors(page) {
 			"The coding-agent CLIs that run workflow stages, checked on this machine without a model call.",
 		);
 	const body = element("div", { "aria-live": "polite" });
-	const checked = element("span", { class: "muted" });
 	const show = async (refresh = false) => {
 		const result = await managementApi(
 			`/api/doctor${refresh ? "?refresh=1" : ""}`,
@@ -10209,7 +10426,6 @@ async function renderExecutors(page) {
 		const data = result.data;
 		const executors = data.executors || [];
 		const ready = executors.filter((entry) => entry.usable).length;
-		checked.textContent = `Checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}, cached for 60 s`;
 		const showFix = executors.some(
 			(entry) => entry.fix || (!entry.usable && entry.error),
 		);
@@ -10231,6 +10447,13 @@ async function renderExecutors(page) {
 						`Node ${data.node.version} is older than the required ${data.node.required}.`,
 					]
 				: []),
+			...(data.defaultExecutor?.id && data.defaultExecutor.usable === false
+				? [
+						`Default executor ${data.defaultExecutor.id} is not ready. ${data.defaultExecutor.profile ? `Check profile "${data.defaultExecutor.profile}". ` : ""}${data.defaultExecutor.reason || data.defaultExecutor.source || ""}`,
+					]
+				: []),
+			...(data.runIndex?.error ? [`Run index: ${data.runIndex.error}`] : []),
+			...(data.runIndex?.hint ? [`Run index: ${data.runIndex.hint}`] : []),
 			...(data.home && !data.home.writable
 				? [`The home ${data.home.path} is not writable.`]
 				: []),
@@ -10250,11 +10473,13 @@ async function renderExecutors(page) {
 					{ class: "lead" },
 					`${ready} of ${executors.length} ready. `,
 					data.defaultExecutor?.id
-						? [
-								"Runs use ",
-								element("strong", {}, data.defaultExecutor.id),
-								" unless you choose another executor.",
-							]
+						? data.defaultExecutor.usable === false
+							? `Default executor ${data.defaultExecutor.id} is not ready.`
+							: [
+									"Runs use ",
+									element("strong", {}, data.defaultExecutor.id),
+									" unless you choose another executor.",
+								]
 						: "No executor is ready to run workflows.",
 				),
 				element(
@@ -10321,14 +10546,7 @@ async function renderExecutors(page) {
 						[
 							"Default executor",
 							data.defaultExecutor?.id
-								? [
-										element("strong", {}, data.defaultExecutor.id),
-										element(
-											"span",
-											{ class: "muted" },
-											`, ${data.defaultExecutor.reason || data.defaultExecutor.source}`,
-										),
-									]
+								? element("strong", {}, data.defaultExecutor.id)
 								: "none ready",
 						],
 						[
@@ -10356,52 +10574,68 @@ async function renderExecutors(page) {
 					{ class: "property-table keyed" },
 				),
 			),
-			managementPanel(
-				"Details",
-				moreDetails(
-					"Executor notes",
-					propertyTable(
-						null,
-						executors.map((entry) => [
-							entry.id,
-							element(
-								"ul",
-								{ class: "notes-list" },
-								(entry.notes || []).map((note) => element("li", {}, note)),
+			diagnosticView(
+				"Executor diagnostics",
+				executors.some((entry) => entry.notes?.length)
+					? [
+							element("h2", {}, "Adapter notes"),
+							propertyTable(
+								null,
+								executors
+									.filter((entry) => entry.notes?.length)
+									.map((entry) => [
+										entry.id,
+										element(
+											"ul",
+											{ class: "notes-list" },
+											entry.notes.map((note) => element("li", {}, note)),
+										),
+									]),
+								{ class: "property-table keyed" },
 							),
-						]),
-						{ class: "property-table keyed" },
-					),
-				),
-				moreDetails(
-					"Environment",
-					propertyTable(
-						null,
-						[
-							data.node
-								? [
-										"Node",
-										`${data.node.version} (requires ${data.node.required})`,
-									]
-								: null,
-							data.home
-								? ["Home", element("span", { class: "mono" }, data.home.path)]
-								: null,
-							data.runIndex
-								? [
-										"Run index",
-										`${data.runIndex.entries} entries, ${data.runIndex.stale} stale, ${data.runIndex.dangling} dangling`,
-									]
-								: null,
-							["Host", data.host],
-						].filter(Boolean),
-						{ class: "property-table keyed" },
-					),
-				),
-				moreDetails("Full report", managementResult(result)),
-				moreDetails(
-					"Same from the terminal",
-					commandHint("agent-workflow doctor"),
+						]
+					: null,
+				element("h2", {}, "Environment"),
+				propertyTable(
+					null,
+					[
+						data.node
+							? [
+									"Node",
+									`${data.node.version} (requires ${data.node.required})`,
+								]
+							: null,
+						data.home
+							? ["Home", element("span", { class: "mono" }, data.home.path)]
+							: null,
+						data.defaultExecutor
+							? [
+									"Default executor selection",
+									readableDiagnostic(data.defaultExecutor),
+								]
+							: null,
+						data.runIndex
+							? [
+									"Run index",
+									data.runIndex.error
+										? readableDiagnostic(
+												Object.fromEntries(
+													Object.entries(data.runIndex).filter(
+														([key]) =>
+															![
+																"entries",
+																"stale",
+																"dangling",
+																"prunable",
+															].includes(key),
+													),
+												),
+											)
+										: readableDiagnostic(data.runIndex),
+								]
+							: null,
+						data.host ? ["Host", data.host] : null,
+					].filter(Boolean),
 				),
 			),
 		]);
@@ -10411,7 +10645,6 @@ async function renderExecutors(page) {
 			"div",
 			{ class: "management-actions page-actions" },
 			managementControl("Refresh", () => show(true), body, { write: false }),
-			checked,
 		),
 		body,
 	);

@@ -29,7 +29,6 @@ async function setup(t, values = {}) {
 	await browser.waitFor(
 		() => !!document.querySelector('[data-management-action="save-profile"]'),
 	);
-	await browser.click(".profile-common > summary");
 	return { ...p, browser };
 }
 const field = (name) => `.profile-editor [aria-label="${name}"]`;
@@ -215,7 +214,7 @@ test("model pickers: manual model IDs survive, suggestions commit once, and clea
 		await p.browser.evaluate(
 			() => document.querySelector(".picker-empty").textContent,
 		),
-		"No suggestions. You can type a model ID.",
+		"No suggestions. You can type a value.",
 	);
 	await p.browser.click(".picker-empty");
 	assert.equal(
@@ -239,7 +238,6 @@ test("model pickers: manual model IDs survive, suggestions commit once, and clea
 	await p.browser.waitFor(
 		() => !!document.querySelector('[aria-label="Model"]'),
 	);
-	await p.browser.click(".profile-common > summary");
 	// With an unknown current ID, Up starts at the last suggestion, not the reset option.
 	await p.browser.click(field("Model"));
 	await p.browser.key("ArrowUp");
