@@ -897,11 +897,37 @@ test("E: manual pan/zoom and fitted graph survive options round trip and real re
 				.querySelector(".profile-flow svg.graph > g")
 				.getAttribute("transform"),
 		);
+	const layout = async (visible) => {
+		// The graph fits in rAF and then observes size. Node presence alone can
+		// expose the pre-fit transform; cross a rendering/ResizeObserver cycle.
+		const size = await p.browser.evaluate(async () => {
+			await new Promise((resolve) =>
+				requestAnimationFrame(() => requestAnimationFrame(resolve)),
+			);
+			const canvas = document.querySelector(".profile-flow-canvas");
+			return { width: canvas.clientWidth, height: canvas.clientHeight };
+		});
+		if (visible)
+			assert.ok(size.width > 0 && size.height > 0, "graph has real layout");
+		else assert.deepEqual(size, { width: 0, height: 0 });
+	};
 	const roundtrip = async () => {
 		await p.browser.click("[data-profile-configure]");
-		await p.browser.evaluate(() => new Promise((r) => setTimeout(r, 120)));
+		await layout(false);
 		await p.browser.click("[data-profile-configure]");
+		await layout(true);
+		assert.equal(
+			await p.browser.evaluate(
+				() => document.querySelector('[aria-label="Model"]').value,
+			),
+			"manual/draft-roundtrip",
+			"options round trip preserves the unsaved draft",
+		);
 	};
+	await set(p.browser, "Model", "manual/draft-roundtrip");
+	await layout(true);
+	// Establish an actual fitted baseline, not the synchronous pre-layout view.
+	await p.browser.click('.profile-flow [title="Fit graph"]');
 	const fitted = await transform();
 	await roundtrip();
 	assert.equal(await transform(), fitted, "fitted view preserved");
@@ -931,7 +957,7 @@ test("E: manual pan/zoom and fitted graph survive options round trip and real re
 		deviceScaleFactor: 1,
 		mobile: false,
 	});
-	await p.browser.evaluate(() => new Promise((r) => setTimeout(r, 120)));
+	await layout(true);
 	const resized = await transform();
 	assert.notEqual(resized, manual, "real resize still updates the view");
 	await roundtrip();
