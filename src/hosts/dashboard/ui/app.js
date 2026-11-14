@@ -1829,10 +1829,15 @@ function renderGraph(preview = null) {
 	// Each graph shape keeps its own view: showing the code steps fits the taller graph anew.
 	const viewKey = `${preview ? preview.key : run.runId}:${layout}:${expandedCode}`;
 	const savedView = views.get(viewKey);
-	const wrap = element("div", {
-		class: preview ? "canvas profile-flow-canvas" : "canvas",
+	// Run controls occupy their own rows, not the drawable/pannable viewport. Every
+	// camera operation (including resize and keyboard reveal) measures only wrap.
+	// Profile previews retain their independent layout and saved camera behavior.
+	const shell = element("div", {
+		class: preview ? "canvas profile-flow-canvas" : "canvas run-graph",
 		id: preview ? null : "canvas",
 	});
+	const wrap = preview ? shell : element("div", { class: "graph-drawing" });
+	if (!preview) shell.append(wrap);
 	const drawing = svg("svg", {
 		class: "graph",
 		role: "group",
@@ -2370,11 +2375,17 @@ function renderGraph(preview = null) {
 				far = size - trail - (start + length) * view.k;
 			return [Math.min(near, far), Math.max(near, far)];
 		};
-		const [xMin, xMax] = range(16, 16, wrap.clientWidth, b.x0, b.w);
+		// Keep the original gutter even when the graph overflows. Reduce it only
+		// if this viewport cannot fit a single full card plus the bounds' 8px
+		// padding on each side (notably a 440px card at the readable phone floor).
+		const cardWidth = Math.max(...[...positions.values()].map((p) => p.w));
+		const spare = wrap.clientWidth - (cardWidth + 16) * view.k;
+		const margin = preview ? 16 : Math.min(16, Math.max(0, spare / 2));
+		const [xMin, xMax] = range(margin, margin, wrap.clientWidth, b.x0, b.w);
 		// The overflowing branch caps Fit at the near edge; reserve the chip here too.
 		const [yMin, yMax] = range(
 			16 + previewInset(),
-			76,
+			preview ? 76 : 16,
 			wrap.clientHeight,
 			b.y0,
 			b.h,
@@ -2403,7 +2414,7 @@ function renderGraph(preview = null) {
 	function pan(side) {
 		view.manual = true;
 		const dx = wrap.clientWidth * 0.8,
-			dy = (wrap.clientHeight - 76) * 0.8;
+			dy = (wrap.clientHeight - (preview ? 76 : 0)) * 0.8;
 		if (side === "left") view.x += dx;
 		else if (side === "right") view.x -= dx;
 		else if (side === "top") view.y += dy;
@@ -2412,7 +2423,7 @@ function renderGraph(preview = null) {
 	}
 	function updateHints() {
 		const W = wrap.clientWidth,
-			H = wrap.clientHeight - 60;
+			H = wrap.clientHeight - (preview ? 60 : 0);
 		const count = { left: 0, right: 0, top: 0, bottom: 0 },
 			live = { left: false, right: false, top: false, bottom: false };
 		for (const stage of model.nodes.values()) {
@@ -2532,7 +2543,11 @@ function renderGraph(preview = null) {
 		const { x0, y0, w, h } = b;
 		// Reserve room for the code-step chip only in narrow profile previews.
 		const inset = previewInset();
-		const available = Math.max(100, wrap.clientHeight - 140);
+		const top = preview ? 44 + inset : 16;
+		const available = Math.max(
+			preview ? 100 : 1,
+			wrap.clientHeight - (preview ? 140 : 32),
+		);
 		// Never shrink boxes below what their text needs; a big graph pans (clamped) instead.
 		const k = Math.max(
 			FIT_MIN_ZOOM,
@@ -2548,8 +2563,8 @@ function renderGraph(preview = null) {
 					: wrap.clientWidth / 2 - (x0 + w / 2) * k,
 			y:
 				h * k > available
-					? 44 + inset - y0 * k
-					: 44 + inset + (available - h * k) / 2 - y0 * k,
+					? top - y0 * k
+					: top + (available - h * k) / 2 - y0 * k,
 		};
 		apply();
 	}
@@ -2557,18 +2572,22 @@ function renderGraph(preview = null) {
 		const id = model.owner.get(stageId) ?? stageId;
 		const p = positions.get(id);
 		if (!p) return;
+		// In short Run windows the shell can scroll its chrome. Keyboard/Focus
+		// reveal must bring the drawing back as well as moving its camera.
+		if (!preview) wrap.scrollIntoView({ block: "nearest", inline: "nearest" });
 		if (
 			!focus &&
 			p.x * view.k + view.x >= 0 &&
 			p.y * view.k + view.y >= 0 &&
 			(p.x + p.w) * view.k + view.x < wrap.clientWidth &&
-			(p.y + p.h) * view.k + view.y < wrap.clientHeight - 60
+			(p.y + p.h) * view.k + view.y < wrap.clientHeight - (preview ? 60 : 0)
 		)
 			return;
 		view.manual = true;
 		if (focus) view.k = Math.min(1.15, (wrap.clientWidth - 32) / p.w);
 		view.x = wrap.clientWidth / 2 - (p.x + p.w / 2) * view.k;
-		view.y = (wrap.clientHeight - 60) / 2 - (p.y + p.h / 2) * view.k;
+		view.y =
+			(wrap.clientHeight - (preview ? 60 : 0)) / 2 - (p.y + p.h / 2) * view.k;
 		apply();
 	}
 	wrap.addEventListener(
@@ -2631,7 +2650,7 @@ function renderGraph(preview = null) {
 	});
 	// Code steps are hidden unless this switch shows them (owner's pick, 2026-11-03).
 	if (model.codeSteps)
-		wrap.append(
+		shell.append(
 			element(
 				"button",
 				{
@@ -2668,10 +2687,12 @@ function renderGraph(preview = null) {
 				),
 			),
 		);
-	wrap
+	if (!preview && model.codeSteps)
+		shell.prepend(shell.querySelector(".code-switch"));
+	shell
 		.querySelector(".code-switch")
 		?.addEventListener("click", preview ? preview.toggleCode : toggleCode);
-	wrap.append(
+	shell.append(
 		element(
 			"div",
 			{ class: "toolbar", role: "toolbar", "aria-label": "Graph view" },
@@ -2702,7 +2723,12 @@ function renderGraph(preview = null) {
 		view.y += (wrap.clientHeight - (view.height || wrap.clientHeight)) / 2;
 		apply();
 	}
-	wrap.append(...Object.values(hints));
+	if (preview) wrap.append(...Object.values(hints));
+	else
+		shell.insertBefore(
+			element("div", { class: "graph-hints" }, ...Object.values(hints)),
+			shell.querySelector(".toolbar"),
+		);
 	const observer = new ResizeObserver(resize);
 	// The journey, replayed: layer n's cards fade in at n·step, the edges leaving them draw
 	// themselves toward the next layer right after. Web Animations only — no inline styles.
@@ -2979,7 +3005,7 @@ function renderGraph(preview = null) {
 		refreshSettings();
 		preview.control(control);
 	} else graphControl = control;
-	return wrap;
+	return shell;
 }
 /** An inert, display-only copy of a card's previous content (no focus, events or hooks). */
 function staleCopy(children) {
