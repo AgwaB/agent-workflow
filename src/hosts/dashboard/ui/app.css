@@ -62,6 +62,21 @@
 body {
 	margin: 0;
 }
+.skip-link {
+	position: fixed;
+	top: 8px;
+	left: 8px;
+	z-index: 1000;
+	padding: 12px 16px;
+	border: 1px solid var(--text);
+	border-radius: var(--radius);
+	background: var(--surface);
+	color: var(--text);
+	transform: translateY(calc(-100% - 16px));
+}
+.skip-link:focus {
+	transform: none;
+}
 button,
 input,
 select {
@@ -2573,8 +2588,9 @@ main.signin code {
 	gap: 12px;
 	margin-bottom: 8px;
 }
-button.profile-row {
+a.profile-row {
 	display: grid;
+	text-decoration: none;
 	grid-template-columns: minmax(100px, 1fr) minmax(0, 2fr) auto 12px;
 	align-items: center;
 	gap: 12px;
@@ -2588,6 +2604,7 @@ button.profile-row {
 	text-align: left;
 	font-size: 14px;
 	font-weight: 400;
+	line-height: 1.2;
 }
 .profile-row:hover:not(:disabled) {
 	background: var(--surface);
@@ -2814,8 +2831,62 @@ button.profile-row {
 	margin: 12px 0;
 	font-size: 14px;
 }
+/* Larger list controls can scroll the confirmation away; expanded Details still scroll normally. */
+.profile-save-status:not(:has(details[open])) {
+	position: sticky;
+	top: 0;
+	z-index: 20;
+	background: var(--bg);
+}
+.profile-name-error {
+	margin: 6px 0 0;
+}
+/* Preserve fine-pointer desktop density; larger controls have real, nonoverlapping boxes. */
+@media (max-width: 800px), (pointer: coarse) {
+	:root {
+		--control: 44px;
+		--control-sm: 44px;
+	}
+	input:not([type="checkbox"], [type="radio"]),
+	select,
+	textarea,
+	.management-field input,
+	.management-field select,
+	.project-switcher select,
+	.picker-menu {
+		font-size: 16px;
+	}
+	button,
+	.top button,
+	button.link,
+	.code-switch,
+	.need-dismiss,
+	.management-list-row > button:first-child,
+	.project-card > button:first-child,
+	.management-nav a,
+	a.profile-row,
+	summary,
+	.picker-menu [role="option"] {
+		min-height: 44px;
+		min-width: 44px;
+	}
+	.management-nav a,
+	summary,
+	.picker-menu [role="option"] {
+		align-content: center;
+	}
+	button.link {
+		display: inline-flex;
+	}
+	.profile-flow .toolbar {
+		max-width: calc(100% - 24px);
+	}
+	.picker-menu {
+		max-height: min(240px, calc(50vh - 16px));
+	}
+}
 @media (max-width: 600px) {
-	button.profile-row {
+	a.profile-row {
 		grid-template-columns: minmax(0, 1fr) auto 12px;
 		gap: 4px 8px;
 	}

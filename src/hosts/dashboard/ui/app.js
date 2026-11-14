@@ -2355,7 +2355,10 @@ function renderGraph(preview = null) {
 		};
 	}
 	function previewInset() {
-		return preview && matchMedia("(max-width: 800px)").matches ? 28 : 0;
+		return preview &&
+			matchMedia("(max-width: 800px), (pointer: coarse)").matches
+			? 44
+			: 0;
 	}
 	// The graph can never be panned out of sight: a graph smaller than the canvas stays inside
 	// it, a larger one stops when its far edge reaches the canvas edge.
@@ -6410,6 +6413,11 @@ $("dialog").addEventListener("click", (event) => {
 			dismissDialog(!["palette", "key"].includes(modalKey));
 	}
 });
+// Focus without fragment navigation: management popstate reloads would discard drafts.
+$("skip-content").addEventListener("click", (event) => {
+	event.preventDefault();
+	$("center").focus();
+});
 let profileListReturn = null;
 window.addEventListener("popstate", () => {
 	if (profileListReturn) {
@@ -9228,8 +9236,20 @@ async function renderProfiles(page) {
 			parts.filter(Boolean).join(", ") || "Executor's own model and effort"
 		);
 	};
-	const row = (name, summary, action, attrs = {}, badge = null) =>
-		managementControl(
+	const row = (name, summary, action, attrs = {}, badge = null) => {
+		const params = new URLSearchParams(location.search);
+		params.set("view", "profiles");
+		params.delete("createProfile");
+		params.set("profile", name);
+		const link = element(
+			"a",
+			{
+				href: `${location.pathname}?${params}`,
+				class: "profile-row",
+				"data-profile-open": name,
+				"aria-label": `Edit ${name}`,
+				...attrs,
+			},
 			[
 				element("strong", { class: "profile-name" }, name),
 				element("span", { class: "profile-summary muted" }, summary),
@@ -9240,16 +9260,22 @@ async function renderProfiles(page) {
 					"›",
 				),
 			],
-			action,
-			errors,
-			{
-				write: false,
-				class: "profile-row",
-				"data-profile-open": name,
-				"aria-label": `Edit ${name}`,
-				...attrs,
-			},
 		);
+		link.addEventListener("click", (event) => {
+			if (
+				event.defaultPrevented ||
+				event.button !== 0 ||
+				event.metaKey ||
+				event.ctrlKey ||
+				event.shiftKey ||
+				event.altKey
+			)
+				return;
+			event.preventDefault();
+			action();
+		});
+		return link;
+	};
 	const defaults = element(
 		"section",
 		{ class: "profiles-section" },
@@ -9387,6 +9413,25 @@ async function renderProfiles(page) {
 			maxlength: 64,
 			readonly: !!profile.name,
 		});
+		const nameError = element("p", {
+			id: "profile-name-error",
+			class: "management-error profile-name-error",
+			role: "alert",
+			hidden: true,
+		});
+		const clearNameError = () => {
+			if (!id.value.trim()) return;
+			nameError.hidden = true;
+			nameError.textContent = "";
+			id.removeAttribute("aria-invalid");
+			const descriptions = (id.getAttribute("aria-describedby") || "")
+				.split(/\s+/)
+				.filter((value) => value && value !== nameError.id);
+			if (descriptions.length)
+				id.setAttribute("aria-describedby", descriptions.join(" "));
+			else id.removeAttribute("aria-describedby");
+		};
+		id.addEventListener("input", clearNameError);
 		let presetExecutor;
 		const models = await modelControls(profile, "", {
 			foldNotes: true,
@@ -9553,7 +9598,14 @@ async function renderProfiles(page) {
 					: profile.name
 						? `Edit ${profile.name}`
 						: "New profile",
-				!profile.name ? field("Name", id) : null,
+				!profile.name
+					? element(
+							"div",
+							{ class: "profile-name-field" },
+							field("Name", id),
+							nameError,
+						)
+					: null,
 				element(
 					"details",
 					{ class: "profile-common", "aria-label": "Common settings" },
@@ -9574,9 +9626,24 @@ async function renderProfiles(page) {
 						"Save profile",
 						async () => {
 							if (!id.value.trim()) {
-								id.focus();
-								throw new Error("Enter a profile name before saving.");
+								nameError.textContent = "Enter a profile name before saving.";
+								nameError.hidden = false;
+								id.setAttribute("aria-invalid", "true");
+								const descriptions = new Set(
+									(id.getAttribute("aria-describedby") || "")
+										.split(/\s+/)
+										.filter(Boolean),
+								);
+								descriptions.add(nameError.id);
+								id.setAttribute(
+									"aria-describedby",
+									[...descriptions].join(" "),
+								);
+								id.focus({ preventScroll: true });
+								nameError.parentElement.scrollIntoView({ block: "center" });
+								return;
 							}
+							clearNameError();
 							const assignedRoles = roles.values();
 							const values = {
 								...models.values(),
