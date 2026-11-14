@@ -8,7 +8,24 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { createBrowser } from "../helpers/dashboard-browser.mjs";
+import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
+
+test("click hits an offscreen target even when the document uses smooth scrolling", async (t) => {
+	const chrome = await findChrome();
+	if (!chrome) return t.skip("Chrome is not installed");
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.send("Page.navigate", {
+		url: `data:text/html,${encodeURIComponent('<!doctype html><style>html { scroll-behavior: smooth; } body { margin: 0; } .space { height: 4000px; }</style><div class="space"></div><button onclick="globalThis.clicked = true">Target</button><div class="space"></div>')}`,
+	});
+	await browser.waitFor(() => !!document.querySelector("button"));
+	await browser.click("button");
+	assert.equal(
+		await browser.evaluate(() => globalThis.clicked === true),
+		true,
+		"the native click must use the target position after scrolling, not its old offscreen position",
+	);
+});
 
 test("a Chrome that dies during startup is reported with its exit and stderr", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-fake-chrome-"));

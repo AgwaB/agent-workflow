@@ -463,7 +463,7 @@ function urlState(replace = false) {
 	for (const [key, value] of Object.entries(state))
 		if (value && !(key === "layout" && value === "td")) params.set(key, value);
 	history[replace ? "replaceState" : "pushState"](
-		replace ? history.state : null,
+		settingsHistoryState(replace ? history.state : null, replace),
 		"",
 		`${location.pathname}${params.size ? `?${params}` : ""}`,
 	);
@@ -6418,8 +6418,144 @@ $("skip-content").addEventListener("click", (event) => {
 	event.preventDefault();
 	$("center").focus();
 });
+// Readers describe only values that Save writes, never graph/view state. Snapshot
+// before mounting controls, so deferred graph/catalog work cannot bless a user edit.
+const settingsDrafts = new Set();
+function draftSnapshot(value) {
+	return JSON.stringify(value, (_key, item) =>
+		item && typeof item === "object" && !Array.isArray(item)
+			? Object.fromEntries(
+					Object.entries(item).sort(([a], [b]) => a.localeCompare(b)),
+				)
+			: item,
+	);
+}
+function settingsDraft(node, read) {
+	let baseline = draftSnapshot(read());
+	const draft = {
+		node,
+		dirty: () => !readonly() && draftSnapshot(read()) !== baseline,
+		snapshot: () => draftSnapshot(read()),
+		saved: (snapshot) => {
+			baseline = snapshot;
+		},
+		clear: () => settingsDrafts.delete(draft),
+	};
+	settingsDrafts.add(draft);
+	return draft;
+}
+function hasSettingsDraft() {
+	for (const draft of settingsDrafts) {
+		if (!draft.node.isConnected) settingsDrafts.delete(draft);
+		else if (draft.dirty()) return true;
+	}
+	return false;
+}
+function approveSettingsDiscard() {
+	return (
+		!hasSettingsDraft() ||
+		window.confirm("Discard unsaved settings changes? Cancel to keep editing.")
+	);
+}
+function discardSettingsDrafts() {
+	if (!approveSettingsDiscard()) return false;
+	settingsDrafts.clear();
+	return true;
+}
+window.addEventListener("beforeunload", (event) => {
+	if (!hasSettingsDraft()) return;
+	event.preventDefault();
+	event.returnValue = "";
+});
+// App-owned ordinary links get an app confirmation even where native departure
+// dialogs are suppressed. Bubble after target handlers (profile rows own theirs).
+document.addEventListener("click", (event) => {
+	if (
+		event.defaultPrevented ||
+		event.button !== 0 ||
+		event.metaKey ||
+		event.ctrlKey ||
+		event.shiftKey ||
+		event.altKey
+	)
+		return;
+	const link = event.target.closest?.("a[href]");
+	if (
+		!link ||
+		link.hasAttribute("download") ||
+		(link.target && link.target.toLowerCase() !== "_self")
+	)
+		return;
+	const destination = new URL(link.href, location.href);
+	if (!["http:", "https:"].includes(destination.protocol)) return;
+	if (
+		destination.origin === location.origin &&
+		destination.pathname === location.pathname &&
+		destination.search === location.search &&
+		link.href.includes("#")
+	)
+		return;
+	if (!discardSettingsDrafts()) event.preventDefault();
+});
+// Without Navigation API, tag only our existing/app-created entries; never add a
+// sentinel or infer position from history.length. Keep other history state intact.
+function settingsHistoryState(value, replace = false) {
+	if (window.navigation) return value;
+	const index = history.state?.dashboardHistoryIndex;
+	return {
+		...(replace ? history.state : {}),
+		...value,
+		dashboardHistoryIndex:
+			(Number.isInteger(index) ? index : 0) + (replace ? 0 : 1),
+	};
+}
+if (
+	!window.navigation &&
+	!Number.isInteger(history.state?.dashboardHistoryIndex)
+)
+	history.replaceState(
+		settingsHistoryState(history.state, true),
+		"",
+		location.href,
+	);
+const currentSettingsHistoryIndex = () =>
+	window.navigation?.currentEntry?.index ??
+	history.state?.dashboardHistoryIndex;
+// Scripted same-document traversal can be refused before it commits. Browser
+// toolbar traversals are not cancelable in Chrome: popstate restores their real
+// entry with go(), then asks, preserving every forward entry (never pushState).
+let settingsHistoryIndex = currentSettingsHistoryIndex();
+let settingsHistoryReturn = null;
+window.navigation?.addEventListener("navigate", (event) => {
+	if (settingsHistoryReturn) return;
+	if (
+		event.navigationType !== "traverse" ||
+		!event.destination.sameDocument ||
+		!event.cancelable
+	)
+		return;
+	if (!discardSettingsDrafts()) event.preventDefault();
+});
 let profileListReturn = null;
 window.addEventListener("popstate", () => {
+	const index = currentSettingsHistoryIndex();
+	if (settingsHistoryReturn) {
+		const target = settingsHistoryReturn;
+		settingsHistoryReturn = null;
+		if (discardSettingsDrafts()) history.go(target.index - index);
+		return;
+	}
+	if (
+		hasSettingsDraft() &&
+		Number.isInteger(index) &&
+		Number.isInteger(settingsHistoryIndex) &&
+		index !== settingsHistoryIndex
+	) {
+		settingsHistoryReturn = { index };
+		history.go(settingsHistoryIndex - index);
+		return;
+	}
+	settingsHistoryIndex = index;
 	if (profileListReturn) {
 		const done = profileListReturn;
 		profileListReturn = null;
@@ -6561,6 +6697,11 @@ window.addEventListener("pageshow", (event) => {
 });
 const PROJECT_KEY = "agent-workflow:project";
 function selectProject(id) {
+	if (!discardSettingsDrafts()) {
+		const chooser = document.querySelector('[aria-label="Project"]');
+		if (chooser) chooser.value = state.project || "all";
+		return;
+	}
 	try {
 		localStorage.setItem(PROJECT_KEY, id);
 	} catch {
@@ -8792,6 +8933,7 @@ async function roleEditor(
 let managementCleanup = () => {};
 async function renderManagement() {
 	managementCleanup();
+	settingsDrafts.clear();
 	managementCleanup = () => {};
 	renderTop();
 	renderRail();
@@ -9344,6 +9486,7 @@ async function renderProfiles(page) {
 	);
 	overview.append(defaultLine, defaults, savedSection);
 	const backToProfiles = () => {
+		if (!discardSettingsDrafts()) return;
 		if (history.state?.profileEditor) history.back();
 		else location.assign(managementHref("profiles"));
 	};
@@ -9360,7 +9503,14 @@ async function renderProfiles(page) {
 				profileListReturn = () => {
 					state = readState();
 					history.replaceState(
-						{ profileReturnFocus: savedName },
+						settingsHistoryState(
+							{
+								...history.state,
+								profileReturnFocus: savedName,
+								newProfileReturn: false,
+							},
+							true,
+						),
 						"",
 						location.href,
 					);
@@ -9370,7 +9520,14 @@ async function renderProfiles(page) {
 			});
 		} else {
 			history.replaceState(
-				{ profileReturnFocus: savedName },
+				settingsHistoryState(
+					{
+						...history.state,
+						profileReturnFocus: savedName,
+						newProfileReturn: false,
+					},
+					true,
+				),
 				"",
 				location.href,
 			);
@@ -9383,6 +9540,7 @@ async function renderProfiles(page) {
 	let editGeneration = 0;
 	async function edit(profile, executorDefault, fromRoute = false) {
 		if (!fromRoute) {
+			if (!discardSettingsDrafts()) return;
 			const params = new URLSearchParams(location.search);
 			params.set("view", "profiles");
 			params.delete("profile");
@@ -9392,16 +9550,19 @@ async function renderProfiles(page) {
 				profile.name || "1",
 			);
 			history.replaceState(
-				{
-					...history.state,
-					profileReturnFocus: profile.name || "",
-					newProfileReturn: !profile.name,
-				},
+				settingsHistoryState(
+					{
+						...history.state,
+						profileReturnFocus: profile.name || "",
+						newProfileReturn: !profile.name,
+					},
+					true,
+				),
 				"",
 				location.href,
 			);
 			history.pushState(
-				{ profileEditor: true },
+				settingsHistoryState({ profileEditor: true }),
 				"",
 				`${location.pathname}?${params}`,
 			);
@@ -9409,6 +9570,7 @@ async function renderProfiles(page) {
 			return;
 		}
 		const generation = ++editGeneration;
+		let savedRoles = profile.roles || {};
 		const id = input("Profile name", profile.name || "", {
 			maxlength: 64,
 			readonly: !!profile.name,
@@ -9501,7 +9663,11 @@ async function renderProfiles(page) {
 			(profile.strictCapabilities || []).join(", "),
 		);
 		const output = element("div");
-		const cancel = backToProfiles;
+		const saveOutput = element("div", { class: "profile-save-feedback" });
+		const cancel = () => {
+			draft.clear();
+			backToProfiles();
+		};
 		const hasSavedProfile = data.profiles.some(
 			(entry) => entry.name === profile.name,
 		);
@@ -9517,9 +9683,11 @@ async function renderProfiles(page) {
 						? "Clear default"
 						: `Use ${profile.name} by default`,
 					async () => {
+						if (!approveSettingsDiscard()) return;
 						await managementWrite("/api/profiles-default", "PUT", {
 							name: data.default === profile.name ? null : profile.name,
 						});
+						settingsDrafts.clear();
 						await reloadProfiles();
 					},
 					output,
@@ -9558,6 +9726,7 @@ async function renderProfiles(page) {
 							`/api/profiles/${encodeURIComponent(profile.name)}`,
 							"DELETE",
 						);
+						draft.clear();
 						await reloadProfiles();
 					},
 					output,
@@ -9580,6 +9749,17 @@ async function renderProfiles(page) {
 				field("Strict capabilities (comma separated)", strict),
 			),
 		);
+		const draft = settingsDraft(editor, () => ({
+			name: id.value.trim(),
+			...models.values(),
+			permissionMode: permission.value,
+			preset: preset.value,
+			strictCapabilities: strict.value
+				.split(",")
+				.map((s) => s.trim())
+				.filter(Boolean),
+			roles: roles.values(),
+		}));
 		editor.replaceChildren(
 			element(
 				"nav",
@@ -9672,7 +9852,7 @@ async function renderProfiles(page) {
 								presets.data.presets.find((entry) => entry.id === preset.value)
 									?.roles || {};
 							unset.push(
-								...Object.keys(profile.roles || {})
+								...Object.keys(savedRoles)
 									.filter(
 										(key) =>
 											!Object.hasOwn(values.roles, key) &&
@@ -9680,8 +9860,10 @@ async function renderProfiles(page) {
 									)
 									.map((key) => `roles.${key}`),
 							);
+							const submitted = draft.snapshot();
+							const savedName = id.value;
 							const saved = await managementWrite(
-								`/api/profiles/${encodeURIComponent(id.value)}`,
+								`/api/profiles/${encodeURIComponent(savedName)}`,
 								"PUT",
 								{
 									values,
@@ -9689,20 +9871,46 @@ async function renderProfiles(page) {
 									...(preset.value ? { preset: preset.value } : {}),
 								},
 							);
-							await reloadProfiles(id.value);
+							// A deliberate leave/replacement owns the current page, not this completion.
+							if (
+								!page.isConnected ||
+								generation !== editGeneration ||
+								!settingsDrafts.has(draft)
+							)
+								return;
+							// Use the successful API snapshot, including roles supplied by a preset,
+							// for later merge unsets in this retained editor only.
+							savedRoles = saved.data.profile.roles || {};
+							draft.saved(submitted);
+							if (draft.dirty()) {
+								saveOutput.replaceChildren(
+									element(
+										"div",
+										{
+											class: "profile-save-status",
+											role: "status",
+										},
+										`Saved profile: ${savedName}. Later changes are unsaved.`,
+									),
+								);
+								return;
+							}
+							draft.clear();
+							await reloadProfiles(savedName);
 							// The status stays short; the host API's full text remains behind Details.
 							const status = element(
 								"div",
 								{ class: "profile-save-status", role: "status" },
-								`Saved profile: ${id.value}`,
+								`Saved profile: ${savedName}`,
 								moreDetails("Details", managementResult(saved)),
 							);
 							$("center").querySelector(".management-page")?.prepend(status);
 						},
-						output,
+						saveOutput,
 						{ class: "primary", "data-management-action": "save-profile" },
 					),
 					button("Cancel", cancel),
+					saveOutput,
 				),
 				hasSavedProfile ? options : null,
 				output,
@@ -9807,7 +10015,14 @@ async function renderProfiles(page) {
 	prefPanel.append(field("Workflow", chooser), prefEditor, prefOutput);
 	let preferenceGeneration = 0;
 	let preferenceEditor;
+	let preferenceDraft;
+	let preferenceName = "";
 	chooser.addEventListener("change", async () => {
+		if (!discardSettingsDrafts()) {
+			chooser.value = preferenceName;
+			return;
+		}
+		preferenceName = chooser.value;
 		const generation = ++preferenceGeneration;
 		if (preferenceEditor) {
 			preferenceEditor.destroy();
@@ -9859,6 +10074,10 @@ async function renderProfiles(page) {
 			}
 			preferenceEditor = roles;
 			roleEditors.add(roles);
+			preferenceDraft = settingsDraft(prefEditor, () => ({
+				profile: profile.value,
+				roles: roles.values(),
+			}));
 			prefEditor.replaceChildren(
 				field("Profile", profile),
 				moreDetails("Role overrides", roles.node),
@@ -9868,6 +10087,7 @@ async function renderProfiles(page) {
 					managementControl(
 						"Save workflow preference",
 						async () => {
+							const submitted = preferenceDraft.snapshot();
 							const values = roles.values();
 							const unset = [
 								...(!profile.value ? ["profile"] : []),
@@ -9882,6 +10102,8 @@ async function renderProfiles(page) {
 							});
 							// Later saves must unset roles added by this save too.
 							current = saved.data.preference || {};
+							if (generation === preferenceGeneration && page.isConnected)
+								preferenceDraft.saved(submitted);
 							configured.add(name);
 							updatePreferenceCount();
 							if (generation !== preferenceGeneration || !page.isConnected)
@@ -9898,6 +10120,7 @@ async function renderProfiles(page) {
 						"Clear workflow preference",
 						async () => {
 							await managementWrite(path, "DELETE");
+							if (generation === preferenceGeneration) preferenceDraft.clear();
 							roles.destroy();
 							roleEditors.delete(roles);
 							configured.delete(name);
@@ -9905,6 +10128,7 @@ async function renderProfiles(page) {
 							if (generation !== preferenceGeneration || !page.isConnected)
 								return;
 							chooser.value = "";
+							preferenceName = "";
 							prefEditor.replaceChildren();
 							prefOutput.replaceChildren(
 								element("p", { role: "status" }, "Workflow settings cleared."),

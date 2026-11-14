@@ -39,6 +39,122 @@ test("dashboard static assets have no executable content sinks or inline code", 
 });
 
 const chrome = await findChrome();
+test("D Run inspector: coarse/narrow independent controls retain hit areas and parallel navigation", {
+	timeout: 120000,
+}, async (t) => {
+	assert.ok(chrome);
+	const fixture = await createFixtureServer();
+	t.after(() => fixture.close());
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	let fineSizes;
+	for (const [width, coarse] of [
+		[1280, false],
+		[1280, true],
+		[390, true],
+		[1280, false],
+	]) {
+		await browser.send("Emulation.setDeviceMetricsOverride", {
+			width,
+			height: 900,
+			deviceScaleFactor: 1,
+			mobile: false,
+		});
+		await browser.send("Emulation.setTouchEmulationEnabled", {
+			enabled: coarse,
+		});
+		await browser.open(
+			`${fixture.origin}/?run=${running}&task=reviewers.webhook-retry-path`,
+		);
+		await browser.waitFor(
+			() =>
+				!!document.querySelector(".tabs button") &&
+				!!document.querySelector('[data-nav="next"]'),
+		);
+		await browser.waitFor(() =>
+			document
+				.getAnimations()
+				.every(
+					(a) =>
+						a.playState !== "running" ||
+						a.effect?.getTiming().iterations === Infinity,
+				),
+		);
+		const sizes = await browser.evaluate(() =>
+			[
+				...document.querySelectorAll(
+					'.tabs button, .output-label button, [data-nav="previous"], [data-nav="next"]',
+				),
+			].map((n) => {
+				const r = n.getBoundingClientRect();
+				return { text: n.textContent, width: r.width, height: r.height };
+			}),
+		);
+		assert.ok(sizes.length >= 7, JSON.stringify(sizes));
+		if (coarse)
+			for (const size of sizes) {
+				assert.ok(
+					size.width >= 44 && size.height >= 44,
+					JSON.stringify({ width, size }),
+				);
+			}
+		else {
+			assert.equal(sizes.find((s) => s.text === "Copy").height, 21);
+			assert.ok(sizes.at(-1).width < 44);
+			assert.ok(sizes[0].height < 44);
+			if (fineSizes) assert.deepEqual(sizes, fineSizes);
+			fineSizes = sizes;
+		}
+		await browser.click('[data-nav="next"]');
+		await browser.waitFor(
+			() =>
+				new URL(location.href).searchParams.get("task") ===
+				"reviewers.refund-idempotency",
+		);
+		await browser.click('[data-nav="previous"]');
+		await browser.waitFor(
+			() =>
+				new URL(location.href).searchParams.get("task") ===
+				"reviewers.webhook-retry-path",
+		);
+		for (const tab of ["Output", "Stderr", "Events", "Result"]) {
+			await browser.evaluate(
+				(tab) =>
+					[...document.querySelectorAll(".tabs button")]
+						.find((n) => n.textContent === tab)
+						.scrollIntoView({ block: "center" }),
+				tab,
+			);
+			const hit = await browser.evaluate((tab) => {
+				const n = [...document.querySelectorAll(".tabs button")].find(
+						(n) => n.textContent === tab,
+					),
+					r = n.getBoundingClientRect();
+				return n.contains(
+					document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2),
+				);
+			}, tab);
+			assert.equal(hit, true, `${width}: ${tab} hit area`);
+			await browser.evaluate(
+				(tab) =>
+					[...document.querySelectorAll(".tabs button")]
+						.find((n) => n.textContent === tab)
+						.click(),
+				tab,
+			);
+		}
+		assert.equal(
+			await browser.evaluate(
+				() =>
+					document.documentElement.scrollWidth > innerWidth ||
+					document.querySelector("#inspector").scrollWidth >
+						document.querySelector("#inspector").clientWidth,
+			),
+			false,
+		);
+	}
+	assert.deepEqual(browser.errors, []);
+});
 test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL state", {
 	skip: chrome
 		? false

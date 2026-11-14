@@ -2699,6 +2699,7 @@ a.profile-row {
 	margin-top: 12px;
 }
 .profile-flow {
+	container-type: inline-size;
 	--profile-flow-height: clamp(440px, calc(100vh - 420px), 700px);
 	min-width: 0;
 	min-height: var(--profile-flow-height);
@@ -2722,6 +2723,20 @@ a.profile-row {
 }
 .profile-flow :is(.toolbar button, .code-switch, .more) {
 	margin: 0;
+}
+/* Keep horizontal pan hints below the code chip at every pointer/column size. */
+.profile-flow-canvas .more.left,
+.profile-flow-canvas .more.right {
+	top: 68px;
+}
+/* Separate the vertical hints and toolbar when only the graph column is narrow. */
+@container (max-width: 600px) {
+	.profile-flow-canvas .more.top {
+		top: 124px;
+	}
+	.profile-flow-canvas .more.bottom {
+		bottom: 82px;
+	}
 }
 .profile-flow .node.settings .outline {
 	stroke-dasharray: none;
@@ -2820,6 +2835,19 @@ a.profile-row {
 	border-top: 1px solid var(--line);
 	background: var(--bg);
 }
+.profile-save-feedback {
+	flex-basis: 100%;
+	min-width: 0;
+	max-height: min(180px, 25vh);
+	overflow: auto;
+	overflow-wrap: anywhere;
+}
+.profile-save-feedback:empty {
+	display: none;
+}
+.profile-save-feedback > :is(p, .profile-save-status) {
+	margin: 0;
+}
 .management-page:has(.profile-editor-actions-sticky) {
 	--profile-page-padding: 24px;
 	scroll-padding-bottom: calc(88px + var(--profile-page-padding));
@@ -2880,6 +2908,35 @@ a.profile-row {
 	}
 	.profile-flow .toolbar {
 		max-width: calc(100% - 24px);
+	}
+	.profile-flow .more.left,
+	.profile-flow .more.right {
+		top: 68px;
+	}
+	.profile-flow .more.top {
+		top: 124px;
+	}
+	.profile-flow .more.bottom {
+		bottom: 82px;
+	}
+	.tabs button,
+	.output-label button,
+	.item-nav [data-nav="previous"],
+	.item-nav [data-nav="next"] {
+		min-width: 44px;
+		min-height: 44px;
+	}
+	.item-nav {
+		flex-wrap: wrap;
+	}
+	.item-nav .item-back {
+		flex-basis: 100%;
+	}
+	.item-nav .grow {
+		display: none;
+	}
+	.item-nav .item-pos {
+		flex: 1;
 	}
 	.picker-menu {
 		max-height: min(240px, calc(50vh - 16px));

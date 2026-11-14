@@ -99,6 +99,23 @@ export async function createBrowser(
 		buffer = "",
 		session,
 		startupError;
+	const eventWaiters = new Set();
+	let eventsClosed = false;
+	const nextEvent = (method, timeout = 5000) => {
+		const promise = new Promise((resolve, reject) => {
+			if (eventsClosed) return reject(new Error("Browser closed"));
+			const waiter = { method, resolve, reject, timer: null };
+			waiter.timer = setTimeout(() => {
+				eventWaiters.delete(waiter);
+				reject(new Error(`CDP event timeout: ${method}`));
+			}, timeout);
+			eventWaiters.add(waiter);
+		});
+		// Cleanup may run before a caller awaits its event; keep rejection observable
+		// to that caller without producing an unhandled rejection during teardown.
+		promise.catch(() => {});
+		return promise;
+	};
 	const pending = new Map(),
 		errors = [],
 		requests = [],
@@ -130,6 +147,12 @@ export async function createBrowser(
 			buffer = buffer.slice(at + 1);
 			if (!packet) continue;
 			const event = JSON.parse(packet);
+			for (const waiter of eventWaiters) {
+				if (event.method !== waiter.method) continue;
+				clearTimeout(waiter.timer);
+				eventWaiters.delete(waiter);
+				waiter.resolve(event.params);
+			}
 			if (event.id && pending.has(event.id)) {
 				const p = pending.get(event.id);
 				pending.delete(event.id);
@@ -289,7 +312,12 @@ export async function createBrowser(
 		const box = await evaluate((selector) => {
 			const node = document.querySelector(selector);
 			if (!node) return null;
-			node.scrollIntoView({ block: "nearest", inline: "nearest" });
+			// Read coordinates only after scrolling; CSS smooth scrolling would leave them stale.
+			node.scrollIntoView({
+				block: "nearest",
+				inline: "nearest",
+				behavior: "instant",
+			});
 			const r = node.getBoundingClientRect();
 			return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
 		}, selector);
@@ -334,6 +362,12 @@ export async function createBrowser(
 		await settle();
 	};
 	const close = async () => {
+		eventsClosed = true;
+		for (const waiter of eventWaiters) {
+			clearTimeout(waiter.timer);
+			waiter.reject(new Error("Browser closed"));
+		}
+		eventWaiters.clear();
 		try {
 			// Bounded: an unresponsive Chrome is killed below rather than awaited for 60 s.
 			await send("Browser.close", {}, null, 3000);
@@ -425,6 +459,7 @@ export async function createBrowser(
 		);
 	return {
 		send: sendWithScheme,
+		nextEvent,
 		evaluate,
 		waitFor,
 		waitForMotionEnd,

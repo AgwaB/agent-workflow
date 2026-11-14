@@ -123,6 +123,9 @@ test("Profiles detail: Back/Cancel, browser Back/Forward, reload and direct link
 		/Profiles \| daily/,
 	);
 	await set(p.browser, "Effort", "high");
+	await p.browser.evaluate(() => {
+		window.confirm = () => true;
+	});
 	await p.browser.click("[data-profile-back]");
 	await waitList(p.browser);
 	assert.equal(
@@ -1204,6 +1207,239 @@ test("Profile role hints match the core executor-default overlay without inventi
 		effort: "low",
 	});
 	assert.deepEqual(p.browser.errors, []);
+});
+
+test("D graph controls: native first/last focus keeps narrow/coarse and desktop/fine hints and controls disjoint", {
+	timeout: 120000,
+}, async (t) => {
+	const p = await open(t);
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "daily",
+		values: { executor: "codex" },
+	});
+	for (const width of [390, 320, 1600]) {
+		await p.browser.send("Emulation.setTouchEmulationEnabled", {
+			enabled: width < 1600,
+		});
+		await p.browser.send("Emulation.setDeviceMetricsOverride", {
+			width,
+			height: width === 1600 ? 1000 : 900,
+			deviceScaleFactor: 1,
+			mobile: false,
+		});
+		await p.browser.send("Page.navigate", {
+			url: `${p.url.replace("model-flow", "deep-research")}&profile=daily`,
+		});
+		await p.browser.waitFor(
+			() => !!document.querySelector(".profile-flow .code-switch"),
+		);
+		await p.browser.click(".profile-flow .code-switch");
+		await p.browser.waitFor(
+			() => document.querySelectorAll(".profile-flow .node").length === 13,
+		);
+		for (const horizontal of [false, true]) {
+			if (horizontal)
+				await p.browser.click('.profile-flow button[title="Left-right"]');
+			await p.browser.evaluate(() =>
+				document.querySelector('[aria-label="Profile workflow"]').focus(),
+			);
+			await p.browser.key("Tab");
+			for (const last of [false, true]) {
+				if (last)
+					for (let i = 0; i < 12; i++)
+						await p.browser.key(horizontal ? "ArrowRight" : "ArrowDown");
+				const result = await p.browser.evaluate(() => {
+					const host = document.querySelector(".profile-flow"),
+						canvas = host.querySelector(".canvas");
+					canvas.scrollIntoView({ block: "center" });
+					const nodes = [...host.querySelectorAll(".node")];
+					const focused = document.activeElement;
+					const area = canvas.getBoundingClientRect(),
+						box = focused.getBoundingClientRect();
+					const controls = [
+						...host.querySelectorAll(
+							".code-switch, .more:not([hidden]), .toolbar button",
+						),
+					];
+					const collisions = [];
+					for (let i = 0; i < controls.length; i++)
+						for (let j = i + 1; j < controls.length; j++) {
+							const a = controls[i].getBoundingClientRect(),
+								b = controls[j].getBoundingClientRect();
+							if (
+								a.left < b.right &&
+								a.right > b.left &&
+								a.top < b.bottom &&
+								a.bottom > b.top
+							)
+								collisions.push([controls[i].className, controls[j].className]);
+						}
+					return {
+						coarse: matchMedia("(pointer: coarse)").matches,
+						nodeHit: focused.contains(
+							document.elementFromPoint(
+								box.x + box.width / 2,
+								box.y + box.height / 2,
+							),
+						),
+						rectangles: controls.map((n) => ({
+							label: n.textContent || n.title,
+							rect: n.getBoundingClientRect().toJSON(),
+						})),
+						index: nodes.indexOf(focused),
+						visible:
+							box.top >= area.top &&
+							box.bottom <= area.bottom &&
+							box.left < area.right &&
+							box.right > area.left,
+						fullyVisible: box.left >= area.left && box.right <= area.right,
+						collisions,
+						misses: controls
+							.filter((n) => {
+								const r = n.getBoundingClientRect();
+								return !n.contains(
+									document.elementFromPoint(
+										r.x + r.width / 2,
+										r.y + r.height / 2,
+									),
+								);
+							})
+							.map((n) => n.className),
+					};
+				});
+				assert.equal(result.coarse, width < 1600);
+				assert.equal(result.index, last ? 12 : 0);
+				assert.equal(result.nodeHit, true, JSON.stringify(result));
+				assert.equal(
+					result.visible,
+					true,
+					`${width}/${horizontal}/${last}: ${JSON.stringify(result)}`,
+				);
+				// At 320 the existing text-preserving Fit floor is wider than the canvas; do not shrink cards/targets.
+				if (width >= 390) assert.equal(result.fullyVisible, true);
+				assert.deepEqual(
+					result.collisions,
+					[],
+					`${width}/${horizontal}/${last}: ${JSON.stringify(result)}`,
+				);
+				assert.deepEqual(
+					result.misses,
+					[],
+					`${width}/${horizontal}/${last}: native hit areas`,
+				);
+			}
+			await p.browser.click('.profile-flow button[title="Fit graph"]');
+			await p.browser.click(".profile-flow .toolbar button:nth-child(2)");
+		}
+		await p.browser.click(".profile-flow .code-switch");
+		await p.browser.waitFor(
+			() => document.querySelectorAll(".profile-flow .node").length < 13,
+		);
+	}
+	assert.deepEqual(p.browser.errors, []);
+});
+
+test("D profile Save failure: narrow server feedback is visible and preserves the draft", {
+	timeout: 60000,
+}, async (t) => {
+	const p = await open(t);
+	await p.browser.send("Emulation.setDeviceMetricsOverride", {
+		width: 390,
+		height: 900,
+		deviceScaleFactor: 1,
+		mobile: false,
+	});
+	await list(p);
+	await p.browser.click("[data-profile-new]");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Profile name"]'),
+	);
+	await set(p.browser, "Profile name", "bad/name");
+	await p.browser.click('[data-management-action="save-profile"]');
+	await p.browser.waitFor(() =>
+		[...document.querySelectorAll('.profile-editor [role="alert"]')].some(
+			(n) => n.checkVisibility() && n.textContent,
+		),
+	);
+	const feedback = await p.browser.evaluate(() => {
+		const error = [
+			...document.querySelectorAll('.profile-editor [role="alert"]'),
+		].find((n) => n.checkVisibility() && n.textContent);
+		const r = error.getBoundingClientRect();
+		return {
+			visible: r.top >= 0 && r.bottom <= innerHeight,
+			text: error.textContent,
+			value: document.querySelector('[aria-label="Profile name"]').value,
+			overflow: document.documentElement.scrollWidth > innerWidth,
+		};
+	});
+	assert.equal(feedback.value, "bad/name");
+	assert.ok(feedback.text.length);
+	assert.equal(feedback.visible, true, JSON.stringify(feedback));
+	assert.equal(feedback.overflow, false);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				!document.querySelector('[data-management-action="save-profile"]')
+					.disabled,
+		),
+		true,
+	);
+	await p.browser.evaluate(() => {
+		window.fetch = async () =>
+			new Response(
+				JSON.stringify({
+					error: "Long server failure: " + "unbroken-detail".repeat(200),
+				}),
+				{ status: 500 },
+			);
+	});
+	await p.browser.click('[data-management-action="save-profile"]');
+	await p.browser.waitFor(() =>
+		document
+			.querySelector('.profile-editor [role="alert"]:not([hidden])')
+			?.textContent.startsWith("Long server failure"),
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(() => {
+			const feedback = document.querySelector(".profile-save-feedback"),
+				r = feedback.getBoundingClientRect();
+			const controls = [
+				...document.querySelectorAll(".profile-editor-actions-sticky > button"),
+			];
+			return {
+				visible: r.top >= 0 && r.bottom <= innerHeight,
+				scrollable: feedback.scrollHeight > feedback.clientHeight,
+				overflow: document.documentElement.scrollWidth > innerWidth,
+				covered: controls.some((n) => {
+					const b = n.getBoundingClientRect();
+					return !n.contains(
+						document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2),
+					);
+				}),
+				value: document.querySelector('[aria-label="Profile name"]').value,
+			};
+		}),
+		{
+			visible: true,
+			scrollable: true,
+			overflow: false,
+			covered: false,
+			value: "bad/name",
+		},
+	);
+	assert.deepEqual(
+		p.browser.errors.filter(
+			(e) =>
+				!(
+					e.source === "network" &&
+					e.url.endsWith("/api/profiles/bad%2Fname") &&
+					e.text.includes("400")
+				),
+		),
+		[],
+	);
 });
 
 test("Fresh narrow profile preview keeps the code switch clear of nodes and stage rows", {
