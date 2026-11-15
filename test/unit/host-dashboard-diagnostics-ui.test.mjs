@@ -49,12 +49,13 @@ async function setup(t, data, view = "workflows&workflow=manage") {
 	t.after(() => b.close());
 	await b.send("Page.addScriptToEvaluateOnNewDocument", {
 		source: `(() => {
- const original = window.fetch; window.checkBodies = [];
+ const original = window.fetch; window.checkBodies = []; window.checkPaths = [];
  const fixtures = ${JSON.stringify(data)};
  window.fetch = async (url, options) => {
-  const key = Object.keys(fixtures).find(k => String(url).includes(k));
+  const workflowKey = new URLSearchParams(location.search).get("workflow");
+  const key = Object.keys(fixtures).find(k => String(url).includes(k.replace(":workflowKey", workflowKey)));
   if (!key) return original(url, options);
-  if (String(url).endsWith('/check')) window.checkBodies.push(JSON.parse(options.body));
+  if (String(url).endsWith('/check')) { window.checkBodies.push(JSON.parse(options.body)); window.checkPaths.push(String(url)); }
   return new Response(JSON.stringify(fixtures[key]), {headers:{'Content-Type':'application/json'}});
  };
  })();`,
@@ -121,7 +122,7 @@ test(
 		];
 		const { b } = await setup(t, {
 			"/api/executors/models": { data: { executors: entries } },
-			"/workflows/manage/check": {
+			"/workflows/:workflowKey/check": {
 				text: "Simulated check; no run started",
 				data: {},
 			},
@@ -275,7 +276,7 @@ test(
 			list: ["first", false, 0, ""],
 		};
 		const { b } = await setup(t, {
-			"/workflows/manage/check": {
+			"/workflows/:workflowKey/check": {
 				text: "No model call",
 				data: {
 					capability: {
@@ -328,6 +329,9 @@ test(
 		assert.deepEqual(await b.evaluate(() => window.checkBodies), [
 			{ model: "retained/manual", profile: "no-match-profile" },
 		]);
+		const checkPaths = await b.evaluate(() => window.checkPaths);
+		assert.equal(checkPaths.length, 1);
+		assert.match(checkPaths[0], /\/workflows\/[a-f0-9]{64}\/check$/);
 		await click(b, "Check details");
 		const rendered = await b.evaluate(() => ({
 			text: document.querySelector(".management-result").innerText,

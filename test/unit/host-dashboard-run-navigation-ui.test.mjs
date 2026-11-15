@@ -143,6 +143,16 @@ test("Run values are recorded, usage is separate/unknown, captured plan never ob
 	timeout: 90000,
 }, async (t) => {
 	const { f, b } = await setup(t);
+	// Exercise lookup failure explicitly; the shared historical fixture now implements the endpoint.
+	await b.send("Page.addScriptToEvaluateOnNewDocument", {
+		source: `(() => {
+			const original = window.fetch;
+			window.fetch = async (url, ...args) => {
+				if (String(url).endsWith("/workflow-settings-target")) throw new Error("Fixture lookup unavailable");
+				return original(url, ...args);
+			};
+		})();`,
+	});
 	const r = [...f.runs.values()].find((r) => r.status === "running");
 	const task = r.tasks.find((t) => !t.placeholder);
 	task.model = "recorded-plan";
