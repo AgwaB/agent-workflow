@@ -927,6 +927,10 @@ function railNeed(need, alone = false) {
 }
 function renderRail() {
 	const focusedProject = document.activeElement === $("project-switcher");
+	const actionsOpen = $("rail").querySelector(".run-actions")?.open;
+	const focusedAction = document.activeElement?.closest(".run-actions")
+		? document.activeElement.tagName.toLowerCase()
+		: null;
 	const focusedRun = document.activeElement?.closest(".run-row")?.dataset.run;
 	const rail = $("rail"),
 		scroll = rail.scrollTop;
@@ -980,16 +984,9 @@ function renderRail() {
 			}),
 		),
 	);
-	rail.append(
-		element(
-			"a",
-			{
-				href: managementHref("history"),
-				class: "link",
-				"data-testid": "manage-run-deletion",
-			},
-			"Delete selected Runs…",
-		),
+	const footer = element(
+		"footer",
+		{ class: "rail-footer" },
 		element("h2", { class: "rail-heading" }, "Shared settings"),
 		element(
 			"nav",
@@ -1008,7 +1005,12 @@ function renderRail() {
 	);
 	// 2026-11-12 (owner, review P2-2): the overview lists the needs and the runs itself, so the rail
 	// keeps only the project switcher and the nav there; the groups return with a run or a report.
-	if (managementView() || homeShown()) return;
+	if (managementView() || homeShown()) {
+		rail.append(footer);
+		rail.scrollTop = scroll;
+		if (focusedProject) switcher.focus({ preventScroll: true });
+		return;
+	}
 	// 2026-11-12 (owner, pass 2): one run is one row. A need sits on its own run's row (below); a
 	// "Needs you" group stays only for a need whose run is not in the list.
 	const listed = new Set(runs.map((summary) => summary.runId));
@@ -1017,14 +1019,49 @@ function renderRail() {
 		rail.append(element("h2", { class: "rail-heading" }, "Needs you"));
 		for (const need of orphans) rail.append(railNeed(need, true));
 	}
+	const actions = state.project
+		? element(
+				"details",
+				{
+					class: "run-actions",
+					onkeydown: (event) => {
+						if (event.key === "Escape" && actions.open) {
+							event.preventDefault();
+							event.stopPropagation();
+							actions.open = false;
+							actions.querySelector("summary").focus({ preventScroll: true });
+						}
+					},
+				},
+				element(
+					"summary",
+					{ "aria-label": "Run list actions", title: "Run list actions" },
+					"⋯",
+				),
+				element(
+					"a",
+					{
+						href: managementHref("history"),
+						"data-testid": "manage-run-deletion",
+					},
+					"Delete run records…",
+				),
+			)
+		: null;
+	if (actions) actions.open = Boolean(actionsOpen);
 	rail.append(
 		element(
-			"h2",
-			{ class: "rail-heading" },
-			element("span", {}, "Runs"),
-			runs.length
-				? element("span", { class: "rail-count" }, runs.length)
-				: null,
+			"div",
+			{ class: "rail-run-heading" },
+			element(
+				"h2",
+				{ class: "rail-heading" },
+				element("span", {}, "Runs"),
+				runs.length
+					? element("span", { class: "rail-count" }, runs.length)
+					: null,
+			),
+			actions,
 		),
 	);
 	if (hidden.length)
@@ -1153,6 +1190,9 @@ function renderRail() {
 		);
 		rail.append(row);
 	}
+	rail.append(footer);
+	if (focusedAction)
+		actions?.querySelector(focusedAction)?.focus({ preventScroll: true });
 	rail.scrollTop = scroll;
 	if (focusedProject) switcher.focus({ preventScroll: true });
 	if (focusedRun)
@@ -1784,11 +1824,18 @@ function readablePairs(text) {
 		? pairs.map((pair) => pair.replace("=", " ")).join(", ")
 		: text;
 }
+function emptyForeach(stage) {
+	return (
+		stage?.kind === "foreach" &&
+		!stage.items.length &&
+		stage.tasks.every((task) => task.placeholder)
+	);
+}
 function chooseStage(stage) {
 	if (stage.ghost) return chooseStage(stage.parent);
 	// 2026-11-03 (owner): a one-agent stage opens like a many-agent one — its readable result
 	// first (renderSingle); "Open agent ›" leads to the raw output, logs and events.
-	if (!stage.items.length && stage.tasks.length === 1)
+	if (!stage.items.length && stage.tasks.length === 1 && !emptyForeach(stage))
 		go({ task: stage.tasks[0].specId });
 	else go({ stage: stage.id });
 }
@@ -3681,8 +3728,12 @@ function renderSelection() {
 			}),
 		);
 	if (!run) return;
-	const task = selectedTask(),
-		stage = graphModel?.stages.get(state.stage);
+	const selected = selectedTask(),
+		selectedGroup = graphModel?.stages.get(selected?.stageId),
+		task = emptyForeach(selectedGroup) ? null : selected,
+		stage =
+			graphModel?.stages.get(state.stage) ||
+			(emptyForeach(selectedGroup) ? selectedGroup : null);
 	const visible =
 		state.view !== "report" && (!!task || !!stage || state.view === "details");
 	const inspector = $("inspector"),
@@ -4211,6 +4262,25 @@ function renderSingle(inspector, stage) {
 	);
 }
 function renderItems(inspector, stage, previous = new Map()) {
+	if (emptyForeach(stage)) {
+		const completed =
+			stage.status === "completed" &&
+			stage.tasks.every((task) => task.statusDetail === "foreach_empty");
+		inspector.append(
+			inspectorHeader(humanize(stage.id), stage.status),
+			element(
+				"p",
+				{ class: "agents-meta" },
+				completed
+					? "No applicable items. No agents ran."
+					: `${humanize(stage.status)}. No generated agents yet. This stage has not completed an empty pass.`,
+			),
+			...(!completed
+				? stage.tasks.map((task) => taskAnnotation(task)).filter(Boolean)
+				: []),
+		);
+		return;
+	}
 	if (stage.kind !== "foreach" && stage.items.length === 1)
 		return renderSingle(inspector, stage);
 	inspector.append(

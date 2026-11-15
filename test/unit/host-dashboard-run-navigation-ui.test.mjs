@@ -475,7 +475,7 @@ test("primary Run history restores rich rail and observation; deletion stays sec
 				document.querySelector('[data-testid="manage-run-deletion"]')
 					.textContent,
 		),
-		"Delete selected Runs…",
+		"Delete run records…",
 	);
 });
 

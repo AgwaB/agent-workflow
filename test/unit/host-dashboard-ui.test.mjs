@@ -3905,7 +3905,7 @@ test(
 		await browser.waitFor(() => document.querySelector("#task-count"));
 		const open = await rail();
 		// No "Needs you" group: each need is on its run's own row (owner, pass 2).
-		assert.deepEqual(open.headings, ["Shared settings", "Runs"]);
+		assert.deepEqual(open.headings, ["Runs", "Shared settings"]);
 		assert.ok(
 			open.runs >= 6 && open.needs >= 1 && open.switcher && open.nav === 5,
 		);
@@ -4244,7 +4244,7 @@ test(
 			}, failed);
 		let now = await rail();
 		// No "Needs you" group; the run's own identity lines stay; the need sits in the row.
-		assert.deepEqual(now.headings, ["Shared settings", "Runs"]);
+		assert.deepEqual(now.headings, ["Runs", "Shared settings"]);
 		assert.equal(now.rows, 1);
 		assert.equal(now.name, "spec-review");
 		assert.equal(now.need, "Needs youInspectFailed at map-implementation");

@@ -1077,10 +1077,10 @@ It defaults to port 7417, then 7418–7426, then ephemeral; explicit `--port` /
 `AGENT_WORKFLOW_DASHBOARD_PORT` is strict. Custom homes reuse the last port or use an ephemeral one.
 `dashboard --project DIR` chooses only the opened view. The sidebar offers All projects and a
 remembered project choice. Project navigation separates Overview, Workflows and Run history from shared
-Profiles/Executors. Workflow settings edit one project/source draft for future Runs; existing Runs show
+Profiles/Executors in a footer after the Run rows. Workflow settings edit one project/source draft for future Runs; existing Runs show
 recorded model/effort and executor-reported usage separately, with unknown values left unknown.
 Run history opens the rich Run list beside the current/latest eligible Run, with graph, results, logs and
-reports. Its secondary **Delete selected Runs…** action (legacy `view=history`) deletes only explicitly
+reports. Its secondary **Delete run records…** action in the Run-list **⋯** controls (legacy `view=history`) deletes only explicitly
 selected terminal IDs after a resource/digest confirmation; owned
 worktrees (including dirty changes) and supported engine-owned sessions may be removed, with no
 guaranteed undo. Broad keep/age cleanup is separately labelled Advanced maintenance.

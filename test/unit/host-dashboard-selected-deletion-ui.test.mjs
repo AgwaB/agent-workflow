@@ -486,6 +486,7 @@ for (const readonly of [false, true]) {
 				() => !!document.querySelector('.run-row[aria-current="true"]'),
 			),
 		);
+		await p.browser.click(".run-actions summary");
 		await p.browser.click('[data-testid="manage-run-deletion"]');
 		await p.browser.waitFor(
 			() => document.querySelectorAll("[data-history-id]").length === 3,
@@ -508,7 +509,18 @@ for (const readonly of [false, true]) {
 			),
 			0,
 		);
-		await p.browser.click('[data-testid="manage-run-deletion"]');
+		assert.equal(
+			await p.browser.evaluate(
+				() =>
+					document.querySelectorAll(
+						'.run-actions, [data-testid="manage-run-deletion"]',
+					).length,
+			),
+			0,
+		);
+		await p.browser.send("Page.navigate", {
+			url: `${p.origin}/?project=all&view=history`,
+		});
 		await p.browser.waitFor(() =>
 			document
 				.querySelector("#center")

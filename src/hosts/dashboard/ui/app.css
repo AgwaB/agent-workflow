@@ -4610,3 +4610,51 @@ col.c-cost {
 		gap: 4px 12px;
 	}
 }
+
+/* One scroll surface: shared user-level settings follow the Run list, low on short lists. */
+.rail {
+	display: flex;
+	flex-direction: column;
+}
+.rail > * {
+	flex-shrink: 0;
+}
+.rail-footer {
+	margin-top: auto;
+	padding-top: 16px;
+	border-top: 1px solid var(--line);
+}
+.rail-run-heading {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+}
+.rail-run-heading > .rail-heading {
+	flex: 1;
+	gap: 8px;
+	justify-content: flex-start;
+}
+.run-actions {
+	padding-top: 10px;
+}
+.run-actions summary {
+	cursor: pointer;
+	list-style: none;
+	padding: 4px 8px;
+	border-radius: 4px;
+}
+.run-actions summary::-webkit-details-marker {
+	display: none;
+}
+.run-actions[open] {
+	width: 100%;
+}
+.run-actions[open] summary {
+	width: fit-content;
+	margin-left: auto;
+}
+.run-actions a {
+	display: block;
+	padding: 8px;
+	font-size: 12px;
+}

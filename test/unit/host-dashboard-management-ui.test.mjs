@@ -448,6 +448,7 @@ test("Chrome management: the views, profile edit, check preview and the overview
 			!!document.querySelector(".run-row") &&
 			!!document.querySelector(".run-header"),
 	);
+	await browser.click(".run-actions summary");
 	await browser.click('[data-testid="manage-run-deletion"]');
 	await browser.waitFor(
 		() => !!document.querySelector(".history-list [data-history-id]"),
