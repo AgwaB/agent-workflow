@@ -441,8 +441,14 @@ test("Chrome management: the views, profile edit, check preview and the overview
 		),
 		"Overview",
 	);
-	// History lists real records; the retained legacy latest-run deep link still opens a run.
-	await browser.click('.management-nav a[href*="view=history"]');
+	// Primary History restores observation; selected deletion remains secondary.
+	await browser.click('.management-nav a[href*="view=runs"]');
+	await browser.waitFor(
+		() =>
+			!!document.querySelector(".run-row") &&
+			!!document.querySelector(".run-header"),
+	);
+	await browser.click('[data-testid="manage-run-deletion"]');
 	await browser.waitFor(
 		() => !!document.querySelector(".history-list [data-history-id]"),
 	);

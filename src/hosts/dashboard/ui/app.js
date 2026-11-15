@@ -961,7 +961,7 @@ function renderRail() {
 			"nav",
 			{ class: "management-nav", "aria-label": "Dashboard views" },
 			["Overview", "Workflows", "Run history"].map((title) => {
-				const view = title === "Run history" ? "history" : title.toLowerCase();
+				const view = title === "Run history" ? "runs" : title.toLowerCase();
 				const params = new URLSearchParams();
 				if (state.project) params.set("project", state.project);
 				// 2026-11-12 (owner): Overview is the project's landing page (no run, no view);
@@ -970,8 +970,8 @@ function renderRail() {
 				const current = managementView()
 					? state.view === view
 					: view === "overview"
-						? !state.run
-						: view === "history" && Boolean(state.run);
+						? !state.run && state.view !== "runs"
+						: view === "runs" && (Boolean(state.run) || state.view === "runs");
 				return element(
 					"a",
 					{ href: `/?${params}`, "aria-current": current ? "page" : null },
@@ -981,6 +981,15 @@ function renderRail() {
 		),
 	);
 	rail.append(
+		element(
+			"a",
+			{
+				href: managementHref("history"),
+				class: "link",
+				"data-testid": "manage-run-deletion",
+			},
+			"Delete selected Runs…",
+		),
 		element("h2", { class: "rail-heading" }, "Shared settings"),
 		element(
 			"nav",
@@ -9270,7 +9279,8 @@ async function renderManagement() {
 	managementCleanup = () => {};
 	renderTop();
 	renderRail();
-	const title = state.view === "history" ? "Run history" : humanize(state.view);
+	const title =
+		state.view === "history" ? "Delete selected Runs" : humanize(state.view);
 	const page = element(
 		"div",
 		{ class: "management-page", "data-management": state.view },
@@ -9307,14 +9317,13 @@ async function renderManagement() {
 	}
 }
 async function renderRunHistory(page) {
+	page.append(
+		element("a", { href: managementHref("runs") }, "Back to Run history"),
+	);
 	const project = state.project;
 	if (!project) {
 		page.append(
-			element(
-				"p",
-				{},
-				"Choose a project before viewing or deleting its Run history.",
-			),
+			element("p", {}, "Choose a project before deleting selected Runs."),
 		);
 		return;
 	}

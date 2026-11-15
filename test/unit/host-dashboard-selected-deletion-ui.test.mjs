@@ -94,7 +94,7 @@ async function assertDiagnosticsFit(p, selector) {
 	);
 }
 
-test("Run history primary/shared groups and actual project list; exact cancel/commit never expands selection or prunes broadly", {
+test("Secondary selected deletion retains primary/shared groups and actual project list; exact cancel/commit never expands selection or prunes broadly", {
 	timeout: 90000,
 }, async (t) => {
 	const p = await setup(t);
@@ -451,3 +451,77 @@ test("partial/protected commit result is never represented as full success", {
 		"synthetic partial fixture did not dispatch actual delete",
 	);
 });
+
+for (const readonly of [false, true]) {
+	test(`secondary deletion returns to familiar History and All projects requires scope (readonly=${readonly})`, {
+		timeout: 90000,
+	}, async (t) => {
+		const p = await setup(t, { readonly });
+		await p.browser.send("Emulation.setDeviceMetricsOverride", {
+			width: 1440,
+			height: 900,
+			deviceScaleFactor: 1,
+			mobile: false,
+		});
+		assert.equal(
+			await p.browser.evaluate(
+				() => document.querySelector("#center h1").textContent,
+			),
+			"Delete selected Runs",
+		);
+		await p.browser.click('#center a[href*="view=runs"]');
+		await p.browser.waitFor(
+			() =>
+				document.querySelectorAll(".run-row").length === 3 &&
+				!!document.querySelector(".run-header"),
+		);
+		assert.equal(
+			await p.browser.evaluate(
+				() => document.querySelectorAll("[data-history-id]").length,
+			),
+			0,
+		);
+		assert.ok(
+			await p.browser.evaluate(
+				() => !!document.querySelector('.run-row[aria-current="true"]'),
+			),
+		);
+		await p.browser.click('[data-testid="manage-run-deletion"]');
+		await p.browser.waitFor(
+			() => document.querySelectorAll("[data-history-id]").length === 3,
+		);
+		assert.equal(
+			await p.browser.evaluate(
+				() => document.querySelector("#center h1").textContent,
+			),
+			"Delete selected Runs",
+		);
+		await p.browser.send("Page.navigate", {
+			url: `${p.origin}/?project=all&view=runs`,
+		});
+		await p.browser.waitFor(
+			() => !!document.querySelector(".projects-overview"),
+		);
+		assert.equal(
+			await p.browser.evaluate(
+				() => document.querySelectorAll("[data-history-id]").length,
+			),
+			0,
+		);
+		await p.browser.click('[data-testid="manage-run-deletion"]');
+		await p.browser.waitFor(() =>
+			document
+				.querySelector("#center")
+				.textContent.includes("Choose a project before deleting selected Runs"),
+		);
+		assert.equal(
+			await p.browser.evaluate(
+				() =>
+					document.querySelectorAll(
+						'input[type="checkbox"], [data-testid="selected-delete-confirm"]',
+					).length,
+			),
+			0,
+		);
+	});
+}

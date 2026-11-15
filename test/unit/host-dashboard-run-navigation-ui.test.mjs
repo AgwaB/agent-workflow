@@ -377,3 +377,181 @@ test("Stop/Resume status, readonly, confirmation/cancel and repeated effects war
 		true,
 	);
 });
+
+test("primary Run history restores rich rail and observation; deletion stays secondary", {
+	timeout: 90000,
+}, async (t) => {
+	const { f, b } = await setup(t);
+	[...f.runs.values()].find((r) => r.status === "running").taskPreview =
+		"History restoration task preview";
+	await b.open(f.origin);
+	await b.waitFor(() => !!document.querySelector("#home-view"));
+	const historyLink = '.management-nav a[href*="view=runs"]';
+	assert.equal(
+		await b.evaluate(() =>
+			[...document.querySelectorAll('[aria-label="Dashboard views"] a')]
+				.find((a) => a.textContent === "Run history")
+				?.getAttribute("href")
+				.includes("view=runs"),
+		),
+		true,
+		"primary History must use existing Run observation, not deletion management",
+	);
+	await b.click(historyLink);
+	await b.waitFor(
+		() =>
+			!!document.querySelector(".run-header") &&
+			document.querySelectorAll(".run-row").length > 1,
+	);
+	const active = [...f.runs.values()].find((r) => r.status === "running");
+	assert.equal((await state(b)).run, active.runId);
+	assert.equal((await state(b)).view, "runs");
+	assert.equal(
+		await b.evaluate(
+			() =>
+				document.querySelectorAll("[data-history-id], .project-workflow-editor")
+					.length,
+		),
+		0,
+	);
+	const rows = await b.evaluate(() =>
+		[...document.querySelectorAll(".run-row")].map((row) => ({
+			id: row.dataset.run,
+			started: !!row.querySelector(".run-started"),
+			counts: !!row.querySelector(".run-count"),
+			elapsed: !!row.querySelector(".elapsed"),
+			preview: !!row.querySelector(".run-task"),
+		})),
+	);
+	assert.ok(rows.every((r) => r.started && r.counts && r.elapsed));
+	assert.ok(rows.some((r) => r.preview));
+	assert.ok(
+		await b.evaluate(
+			() => !!document.querySelector('.run-row[aria-current="true"] progress'),
+		),
+	);
+	const completed = [...f.runs.values()].find(
+		(r) => r.status === "completed" && r.reportAvailable,
+	);
+	await b.click(`[data-run="${completed.runId}"]`);
+	await b.waitFor(() => !!document.querySelector(".report-page"));
+	assert.equal((await state(b)).run, completed.runId);
+	assert.equal(
+		await b.evaluate(
+			() => document.querySelector('.run-row[aria-current="true"]').dataset.run,
+		),
+		completed.runId,
+	);
+	assert.ok(
+		await b.evaluate(
+			() =>
+				!!document.querySelector('.run-row[aria-current="true"] .run-report'),
+		),
+	);
+	await b.click(`[data-run="${active.runId}"]`);
+	await b.waitFor(() => !!document.querySelector(".run-header"));
+	assert.equal((await state(b)).run, active.runId);
+	assert.equal(
+		await b.evaluate(
+			() => document.querySelector('.run-row[aria-current="true"]').dataset.run,
+		),
+		active.runId,
+	);
+	await b.click('[data-task="reviewers.webhook-retry-path"]');
+	await b.waitFor(() => !!document.querySelector('[data-tab="events"]'));
+	await b.click('[data-tab="events"]');
+	assert.ok(await b.evaluate(() => !!document.querySelector("#inspector")));
+	assert.ok(
+		await b.evaluate(
+			() =>
+				!!document.querySelector(
+					'.management-nav a[aria-current="page"][href*="view=runs"]',
+				),
+		),
+	);
+	assert.equal(
+		await b.evaluate(
+			() =>
+				document.querySelector('[data-testid="manage-run-deletion"]')
+					.textContent,
+		),
+		"Delete selected Runs…",
+	);
+});
+
+test("empty history stays truthful while loading and after a Run-list failure", {
+	timeout: 90000,
+}, async (t) => {
+	const f = await createFixtureServer({ snapshots: [] });
+	t.after(() => f.close());
+	const b = await createBrowser(chrome);
+	t.after(() => b.close());
+	await b.send("Page.addScriptToEvaluateOnNewDocument", {
+		source: `const originalFetch = window.fetch;
+		const failHistory = new URLSearchParams(location.search).has("fixtureFailure");
+		window.fetch = async (...args) => {
+			if (String(args[0]).endsWith('/runs')) {
+				await new Promise(resolve => window.__releaseHistory = resolve);
+				if (failHistory)
+					return new Response(JSON.stringify({error:'Fixture history unavailable'}), {status:500});
+			}
+			return originalFetch(...args);
+		};`,
+	});
+	await b.send("Page.navigate", { url: `${f.origin}/?view=runs` });
+	await b.waitFor(() => !!window.__releaseHistory);
+	assert.match(
+		await b.evaluate(() => document.querySelector("#center").textContent),
+		/Connecting/,
+	);
+	assert.equal(
+		await b.evaluate(
+			() => document.querySelectorAll(".run-row, [data-history-id]").length,
+		),
+		0,
+	);
+	await b.evaluate(() => window.__releaseHistory());
+	await b.waitFor(() =>
+		document.querySelector("#rail")?.textContent.includes("No runs yet"),
+	);
+	assert.match(
+		await b.evaluate(() => document.querySelector("#center").textContent),
+		/No runs in this project/,
+	);
+	assert.equal((await state(b)).run, undefined);
+	assert.deepEqual(
+		await b.evaluate(() =>
+			[
+				...document.querySelectorAll(
+					'[aria-label="Dashboard views"] a[aria-current="page"]',
+				),
+			].map((a) => a.textContent),
+		),
+		["Run history"],
+	);
+	assert.ok(
+		await b.evaluate(
+			() => !!document.querySelector('[data-testid="manage-run-deletion"]'),
+		),
+	);
+	await b.send("Page.navigate", {
+		url: `${f.origin}/?view=runs&fixtureFailure=1`,
+	});
+	await b.waitFor(() => !!window.__releaseHistory);
+	await b.evaluate(() => window.__releaseHistory());
+	await b.waitFor(() =>
+		document
+			.querySelector("#center")
+			.textContent.includes("Dashboard unavailable"),
+	);
+	assert.match(
+		await b.evaluate(() => document.querySelector("#center").textContent),
+		/Fixture history unavailable/,
+	);
+	assert.equal(
+		await b.evaluate(
+			() => document.querySelectorAll("[data-history-id]").length,
+		),
+		0,
+	);
+});
