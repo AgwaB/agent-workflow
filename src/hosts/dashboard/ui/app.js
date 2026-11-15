@@ -9582,13 +9582,15 @@ async function renderRunHistory(page) {
 				{},
 				"Includes attached logs/reports, actual owned managed worktrees below (including dirty changes), and engine-owned sessions where supported. Session counts are deletion-time facts; unsupported sessions remain. No guaranteed recovery or undo. Excludes the main checkout and project settings, unselected/active runs, other projects, auto-router history, global adapter state and host launch claims.",
 			),
-			preview.error || preview.data?.error
-				? element(
-						"p",
-						{ role: "alert" },
-						`Preview error: ${preview.error || preview.data.error}`,
-					)
-				: null,
+			...(preview.error || preview.data?.error
+				? [
+						element(
+							"p",
+							{ role: "alert" },
+							`Preview error: ${preview.error || preview.data.error}`,
+						),
+					]
+				: []),
 			...rows.map((row) =>
 				element(
 					"article",

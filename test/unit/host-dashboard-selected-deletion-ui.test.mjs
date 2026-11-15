@@ -145,6 +145,19 @@ test("Secondary selected deletion retains primary/shared groups and actual proje
 		"only duplicate technical object is folded",
 	);
 	await assertDiagnosticsFit(p, '[data-testid="selected-delete-preview"]');
+	assert.deepEqual(
+		await p.browser.evaluate(() =>
+			[
+				...document.querySelector('[data-testid="selected-delete-preview"]')
+					.childNodes,
+			]
+				.filter((node) => node.nodeType === 3)
+				.map((node) => node.textContent.trim())
+				.filter(Boolean),
+		),
+		[],
+		"missing optional preview content must not become visible text",
+	);
 	assert.match(text, /workflow_delete_ui_a/);
 	assert.doesNotMatch(text, /workflow_delete_ui_b/);
 	assert.match(
