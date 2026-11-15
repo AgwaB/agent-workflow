@@ -35,10 +35,11 @@ say the same.
 | `workflow_notices` | Unfinished-run notices: `list` (default); `acknowledge` (`runId`, `state`, `reason`) and `clear` (`runId`) need the user's confirmation. |
 | `workflow_prune` | Remove finished runs (`keep?`, `olderThanDays?`). A dry run unless `dryRun: false`, which needs the user's confirmation. |
 | `workflow_profile` | Saved user profiles: `op` `list` (default) or `show`; `set`, `delete`, `default`, `clear-default` need the user's confirmation. |
+| `workflow_project_settings` | Project-local workflow settings, including orphan keys: start with `list`, `show` or `inspect-recovery`. `clear-binding`, `reset`, `purge`, `clear-project` and `recover` need returned project/CAS tokens and user confirmation. Shared preferences and existing Runs stay unchanged. |
 
 **Confirmed changes.** `workflow_prune` with `dryRun: false`, `workflow_profile` `set`/`delete`/
-`default`/`clear-default`, `workflow_notices` `acknowledge`/`clear` show the
-user a confirmation dialog first (MCP elicitation). Call them only when the user asked for that change. If the user
+`default`/`clear-default`, `workflow_notices` `acknowledge`/`clear`, and changing
+`workflow_project_settings` operations show the user a confirmation dialog first (MCP elicitation). Call them only when the user asked for that change. If the user
 declines, nothing changes: do not retry. If the host cannot show the dialog, the tool refuses and
 names the terminal command; give that command to the user instead of trying another way.
 
@@ -134,6 +135,6 @@ the user asks).
 ## Without the MCP tools
 
 The same operations exist in the CLI (`agent-workflow list|run|dynamic|auto|wait|status|inspect|logs|stop|
-validate|resume|show|roles|agents|notices|doctor|prune|profile|supervise`). If the CLI is not
+validate|resume|show|roles|agents|notices|doctor|prune|profile|project-settings|supervise`). If the CLI is not
 installed, run it through npx:
 `npx -y --package=@agwab/agent-workflow agent-workflow <command>`.

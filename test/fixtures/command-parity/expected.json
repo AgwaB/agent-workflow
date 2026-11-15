@@ -381,6 +381,11 @@
        ]
       },
       "specPath": "@@REPO@@/workflows/impact-review/spec.json",
+      "identity": {
+       "scope": "package",
+       "relativeSpec": "impact-review/spec.json"
+      },
+      "workflowKey": "22d58e4969e28f4ae98a78fd3846f66d182aab9ad920b9265452a6be6795c4a5",
       "description": "Read-only DAG impact review: map a proposed or applied change, analyze contract, state/data, validation, docs/release, and security/performance impact in parallel, then join those lenses into ship-risk and action-plan synthesis without editing files.",
       "agent": "scout",
       "readOnly": true
@@ -404,6 +409,11 @@
        ]
       },
       "specPath": "@@REPO@@/workflows/spec-review/spec.json",
+      "identity": {
+       "scope": "package",
+       "relativeSpec": "spec-review/spec.json"
+      },
+      "workflowKey": "e4ad1986c76e241c1dcbaee81ee1f605547a49d77686d59de90911049e4123bc",
       "description": "Read-only spec conformance review: extract requirements from a referenced spec, map implementation and tests in parallel, verify candidate gaps, and produce an evidence-backed report without editing files.",
       "agent": "scout",
       "readOnly": true

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
 import { stopRun } from "../../dist/core/engine.js";
-import { getWorkerHandle } from "../../dist/core/task-artifacts.js";
+import {
+	getWorkerHandle,
+	recoverWorkerHandle,
+} from "../../dist/core/task-artifacts.js";
 import { readRunEvents, runPaths } from "../../dist/runtime/artifacts/index.js";
 import { acquireDirectoryLock } from "../../dist/runtime/artifacts/dir-lock.js";
 import {
@@ -48,10 +51,12 @@ export async function drainWorkflowProject(cwd) {
 	for (const run of await listRunRecords(cwd)) {
 		await drainWorkflowFixture(cwd, run.runId);
 		const settled = await readRunRecord(cwd, run.runId);
-		// stopRun can clear a task's handle after acknowledging cancellation; retain its owner.
+		// Stop and terminal result handling clear live handles before the finalizer publishes.
+		// Recover from this task's exact persisted correlation when neither snapshot retains one.
 		const refs = new Map();
 		for (const task of [...run.tasks, ...settled.tasks]) {
-			const ref = getWorkerHandle(task);
+			const ref =
+				getWorkerHandle(task) ?? (await recoverWorkerHandle(run, task, cwd));
 			if (ref) refs.set(`${ref.cwd}/${ref.runId}/${ref.attemptId}`, ref);
 		}
 		for (const ref of refs.values()) {
