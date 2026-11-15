@@ -394,7 +394,7 @@ test(
 				await b.evaluate(
 					() => document.querySelector(".executor-line")?.textContent ?? null,
 				),
-				Object.values(metadata).join(", ") || null,
+				`Executor: ${metadata.executor || "unknown"}, Recorded model: ${metadata.model || "unknown"}, Executor-reported model: unknown / not reported, Recorded effort: ${metadata.effort || "unknown"}`,
 			);
 		}
 		for (const [tab, stream] of [

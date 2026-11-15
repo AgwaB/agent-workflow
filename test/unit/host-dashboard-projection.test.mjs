@@ -256,11 +256,61 @@ test("a task on the executor's default model shows the model its usage reported"
 	const { run, shown } = data();
 	const task = shown.run.tasks[2];
 	assert.equal(projectRun(run, shown).tasks[2].model, undefined);
+	assert.equal("reportedModel" in projectRun(run, shown).tasks[2], false);
 	task.usage = { inputTokens: 1, outputTokens: 1, model: "claude-sonnet-5-5" };
 	assert.equal(projectRun(run, shown).tasks[2].model, "claude-sonnet-5-5");
 	// A model the run asked for still wins over the reported one.
 	task.runtime.model = "opus";
 	assert.equal(projectRun(run, shown).tasks[2].model, "opus");
+	assert.equal(
+		projectRun(run, shown).tasks[2].reportedModel,
+		"claude-sonnet-5-5",
+	);
+	delete task.usage;
+	assert.equal(projectRun(run, shown).tasks[2].model, "opus");
+	assert.equal("reportedModel" in projectRun(run, shown).tasks[2], false);
+});
+
+test("reportedModel allowlists recorded usage only, not configuration or arbitrary metadata", () => {
+	const { run, shown } = data();
+	const task = shown.run.tasks[1];
+	shown.run.configuration = {
+		schema: "agent-workflow-configuration-v1",
+		capture: {
+			key: "private-key",
+			identity: { physicalSpecPath: "/private/source" },
+		},
+		slots: {
+			read: {
+				executor: { source: "project-default", value: "codex" },
+				model: { source: "project-default", value: "configured-plan" },
+				effort: { source: "unresolved" },
+			},
+		},
+		shadowed: [],
+	};
+	task.usage = {
+		inputTokens: 1,
+		model: "executor-report",
+		providerVerified: true,
+		privatePath: "/private/usage",
+		secret: "never-forward",
+	};
+	const projected = projectRun(run, shown);
+	assert.equal(projected.tasks[1].model, "gpt-test");
+	assert.equal(projected.tasks[1].reportedModel, "executor-report");
+	assert.equal(
+		projected.configuration.slots.read.model.value,
+		"configured-plan",
+	);
+	assert.doesNotMatch(
+		JSON.stringify(projected),
+		/physicalSpecPath|private-key|private\/usage|providerVerified|never-forward/,
+	);
+	for (const model of [undefined, null, "", {}, 123]) {
+		task.usage.model = model;
+		assert.equal("reportedModel" in projectRun(run, shown).tasks[1], false);
+	}
 });
 
 test("log availability uses host-verified files, not merely planned paths", () => {

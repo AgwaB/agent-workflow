@@ -6,6 +6,9 @@ import { test } from "node:test";
 
 import {
 	BUILTIN_EXECUTOR_IDS,
+	registerWorkflowExecutor,
+	resolveRunExecutorSelection,
+	WorkflowExecutorUnavailableError,
 	workflowExecutorRegistration,
 } from "../../dist/core/executor-registry.js";
 import { ACP_ADAPTER_VERSION } from "../../dist/executors/acp/version.js";
@@ -54,5 +57,71 @@ process.stdout.write(JSON.stringify({ id: executor.id, version: executor.version
 }
 
 test("an unknown executor id has no registration", () => {
-	assert.equal(workflowExecutorRegistration("nope"), undefined);
+	for (const id of ["nope", ...Object.getOwnPropertyNames(Object.prototype)])
+		assert.equal(workflowExecutorRegistration(id), undefined, id);
+});
+
+test("inherited names are unknown for run flags and project bindings, without fallback", () => {
+	for (const id of [
+		"constructor",
+		"toString",
+		"hasOwnProperty",
+		"valueOf",
+		"isPrototypeOf",
+		"propertyIsEnumerable",
+		"toLocaleString",
+	]) {
+		for (const source of ["run-flag", "project-default", "project-slot"]) {
+			assert.throws(
+				() =>
+					resolveRunExecutorSelection({
+						defaultExecutor: "pi",
+						...(source === "run-flag"
+							? { runFlag: id }
+							: { projectExecutor: { id, source, slot: "one" } }),
+					}),
+				(error) => {
+					assert.ok(error instanceof WorkflowExecutorUnavailableError);
+					assert.equal(error.executorId, id);
+					assert.equal(error.source, source);
+					assert.match(error.message, /is unknown/);
+					if (source === "project-slot")
+						assert.match(error.message, /project slot "one"/);
+					return true;
+				},
+			);
+		}
+	}
+});
+
+test("explicit registrations can use prototype-like names and restore their absence", () => {
+	const descriptor = {
+		...workflowExecutorRegistration("pi").descriptor,
+		id: "constructor",
+	};
+	const unregister = registerWorkflowExecutor(descriptor);
+	try {
+		assert.deepEqual(
+			resolveRunExecutorSelection({ runFlag: "constructor" }).descriptor,
+			descriptor,
+		);
+	} finally {
+		unregister();
+	}
+	assert.equal(workflowExecutorRegistration("constructor"), undefined);
+});
+
+test("a project slot error without an optional slot never displays undefined", () => {
+	assert.throws(
+		() =>
+			resolveRunExecutorSelection({
+				projectExecutor: { id: "nope", source: "project-slot" },
+			}),
+		(error) => {
+			assert.ok(error instanceof WorkflowExecutorUnavailableError);
+			assert.match(error.message, /from project slot/);
+			assert.doesNotMatch(error.message, /undefined/);
+			return true;
+		},
+	);
 });

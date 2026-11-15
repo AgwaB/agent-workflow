@@ -31,6 +31,7 @@ import type {
 } from "./types.js";
 import {
 	resolveWorkflowRuntime,
+	withRuntimeProvenance,
 	selectWorkflowRuntime,
 	type WorkflowModelInfo,
 	type WorkflowRuntimeDefaults,
@@ -219,13 +220,44 @@ export async function buildDynamicGeneratedCompiledTask(input: {
 	);
 	const tools = nativeToolPolicy.tools;
 	const toolProviders = nativeToolPolicy.toolProviders;
+	const traced = input.controllerCompiledTask.runtime.provenance !== undefined;
 	const selectedRuntime = selectWorkflowRuntime(
 		input.dynamic.runtimeOverrides,
-		runtimeSettings(input.request),
+		traced
+			? withRuntimeProvenance(
+					runtimeSettings(input.request),
+					"generated-request",
+					input.generatedSpecId,
+				)
+			: runtimeSettings(input.request),
 		runtimeSettings(executionProfile),
 		runtimeSettings(input.controllerCompiledTask.runtime),
-		runtimeSettings(agentDefinition),
+		traced
+			? withRuntimeProvenance(
+					runtimeSettings(agentDefinition),
+					"agent",
+					input.generatedSpecId,
+				)
+			: runtimeSettings(agentDefinition),
 	);
+	if (selectedRuntime.provenance)
+		selectedRuntime.provenance = Object.fromEntries(
+			Object.entries(selectedRuntime.provenance).map(([field, origin]) => [
+				field,
+				{
+					...origin,
+					...(origin.originSlot && origin.originSlot !== input.generatedSpecId
+						? {
+								inheritedFrom: origin.inheritedFrom ?? origin.originSlot,
+								inheritedVia: [
+									...(origin.inheritedVia ?? []),
+									origin.originSlot,
+								],
+							}
+						: {}),
+				},
+			]),
+		);
 	const controllerRuntimeApi = (
 		input.controllerCompiledTask.runtime as { api?: string }
 	).api;
@@ -861,7 +893,16 @@ function runtimeSettings(value: unknown): WorkflowRuntimeDefaults | undefined {
 		record.fast === "inherit" || record.fast === "off" || record.fast === "on"
 			? record.fast
 			: undefined;
-	return model || effort || fast ? { model, effort, fast } : undefined;
+	return model || effort || fast
+		? {
+				model,
+				effort,
+				fast,
+				...((value as WorkflowRuntimeDefaults).provenance
+					? { provenance: (value as WorkflowRuntimeDefaults).provenance }
+					: {}),
+			}
+		: undefined;
 }
 
 function normalizeDynamicArtifactInputs(

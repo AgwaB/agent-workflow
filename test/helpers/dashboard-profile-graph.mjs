@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 // Real authored topology used by both the settings view and persisted Run fixtures.
@@ -67,6 +67,83 @@ export async function profileGraphFixtures(cwd) {
 	await writeFile(
 		join(base, "profile-controller.mjs"),
 		'export async function run() { throw new Error("DIAGRAM MUST NOT EXECUTE CONTROLLERS"); }\n',
+	);
+	return spec;
+}
+
+// Canonical editor fixture: authored containment and real compiler dependencies, no execution.
+export async function projectSettingsGraphFixtures(cwd) {
+	await profileGraphFixtures(cwd);
+	const base = join(cwd, ".agent-workflow/workflows");
+	const single = (id, after = []) => ({
+		id,
+		type: "single",
+		profileRole: "verification",
+		after,
+		prompt: "EDITOR-PROMPT-NOT-EXECUTED",
+	});
+	const spec = {
+		schemaVersion: 1,
+		name: "canonical-editor",
+		defaults: {
+			agent: "reader",
+			readOnly: true,
+			tools: ["read"],
+			model: "fixture-model",
+			effort: "medium",
+		},
+		artifactGraph: {
+			stages: [
+				{
+					id: "iterate",
+					type: "loop",
+					maxRounds: 2,
+					until: { stage: "check", path: "$.status", equals: "verified" },
+					stages: [
+						{ ...single("work"), after: undefined },
+						{ ...single("check"), after: undefined },
+					],
+				},
+				{
+					id: "nested",
+					type: "dag",
+					after: ["iterate"],
+					stages: [single("check"), single("peer", ["check"])],
+				},
+				{
+					id: "items",
+					type: "foreach",
+					from: "nested",
+					each: { agent: "reader", prompt: "Inspect {{item}}" },
+					output: { analysis: { required: true } },
+				},
+				{
+					id: "adaptive",
+					type: "dynamic",
+					after: ["items"],
+					dynamic: {
+						uses: "./profile-controller.mjs",
+						decisionLoop: {
+							planner: { agent: "reader" },
+							workerDefaults: { agent: "reader" },
+						},
+					},
+				},
+				{
+					id: "record",
+					after: ["adaptive"],
+					support: { uses: "./profile-code.mjs" },
+				},
+				single("__proto__", ["record"]),
+				single("constructor", ["__proto__"]),
+			],
+		},
+	};
+	await writeFile(join(base, "canonical-editor.json"), JSON.stringify(spec));
+	await mkdir(join(base, "canonical-editor"));
+	await writeFile(
+		join(base, "canonical-editor/spec.json"),
+		JSON.stringify({ ...spec, artifactGraph: { stages: [single("peer")] } }),
 	);
 	return spec;
 }

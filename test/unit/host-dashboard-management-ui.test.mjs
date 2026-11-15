@@ -46,6 +46,13 @@ async function set(browser, label, value) {
 }
 // 2026-11-11: a workflow opens from anywhere on its card, on a page of its own.
 async function openWorkflowCard(browser, name) {
+	const key = await browser.evaluate(
+		(name) =>
+			document.querySelector(`a.workflow-card[data-workflow="${name}"]`)
+				?.dataset.workflowKey,
+		name,
+	);
+	assert.match(key, /^[a-f0-9]{64}$/);
 	await browser.evaluate((name) => {
 		const card = document.querySelector(
 			`a.workflow-card[data-workflow="${name}"] .workflow-card-text`,
@@ -62,7 +69,7 @@ async function openWorkflowCard(browser, name) {
 		await browser.evaluate(() =>
 			new URLSearchParams(location.search).get("workflow"),
 		),
-		name,
+		key,
 	);
 }
 async function clickText(browser, text) {
@@ -119,7 +126,7 @@ test("Chrome management: the views, profile edit, check preview and the overview
 				(node) => node.textContent,
 			),
 		),
-		["Overview", "Runs", "Workflows", "Profiles", "Executors"],
+		["Overview", "Workflows", "Run history", "Profiles", "Executors"],
 	);
 	await browser.click('[data-profile-open="ui-profile"]');
 	await browser.waitFor(
@@ -244,7 +251,9 @@ test("Chrome management: the views, profile edit, check preview and the overview
 		await browser.evaluate(() =>
 			document
 				.querySelector("#center")
-				.textContent.includes("agent-workflow run 'manage'"),
+				.textContent.includes(
+					"agent-workflow run '.agent-workflow/workflows/manage.json'",
+				),
 		),
 		true,
 	);
@@ -299,6 +308,8 @@ test("Chrome management: the views, profile edit, check preview and the overview
 		() =>
 			!!document.querySelector('.home-need[data-run="workflow_ui_stopped"]'),
 	);
+	// Broad cleanup is deliberately separated from selected-record deletion.
+	await browser.click(".advanced-maintenance > summary");
 	// Clean up: the line names how many runs go; Delete asks once, with the list.
 	const line = await browser.evaluate(
 		() => document.querySelector(".home-cleanup p").textContent,
@@ -418,7 +429,7 @@ test("Chrome management: the views, profile edit, check preview and the overview
 				(link) => link.textContent,
 			),
 		),
-		["Overview", "Runs", "Workflows", "Profiles", "Executors"],
+		["Overview", "Workflows", "Run history", "Profiles", "Executors"],
 	);
 	await browser.click('.management-nav a:not([href*="view="])');
 	await browser.waitFor(() => !!document.querySelector("#home-view"));
@@ -430,8 +441,12 @@ test("Chrome management: the views, profile edit, check preview and the overview
 		),
 		"Overview",
 	);
-	// Return to Runs through the same sidebar: it opens the latest run.
-	await browser.click('.management-nav a[href*="view=runs"]');
+	// History lists real records; the retained legacy latest-run deep link still opens a run.
+	await browser.click('.management-nav a[href*="view=history"]');
+	await browser.waitFor(
+		() => !!document.querySelector(".history-list [data-history-id]"),
+	);
+	await navigate(browser, `${url}&view=runs`);
 	await browser.waitFor(() => !!document.querySelector("#task-count"));
 	assert.equal(
 		await browser.evaluate(
@@ -439,7 +454,7 @@ test("Chrome management: the views, profile edit, check preview and the overview
 				document.querySelector('.management-nav a[aria-current="page"]')
 					.textContent,
 		),
-		"Runs",
+		"Run history",
 	);
 	assert.equal(
 		await browser.evaluate(
@@ -590,12 +605,19 @@ test("Chrome readonly management: navigation stays available and all action muta
 	);
 	// 2026-11-11 (owner): selects draw their own chevron and pad like inputs; a disabled
 	// primary reads as an outlined button, not a washed-out block.
+	await clickText(browser, "Check different settings");
+	assert.equal(
+		await browser.evaluate(() =>
+			document.querySelector(".check-overrides").checkVisibility(),
+		),
+		true,
+	);
 	assert.deepEqual(
 		await browser.evaluate(() => {
 			const style = (selector) =>
 				getComputedStyle(document.querySelector(selector));
-			const select = style(".management-field select");
-			const input = style(".management-field input");
+			const select = style(".check-overrides .management-field select");
+			const input = style(".check-overrides .management-field input");
 			const check = style('[data-management-action="check"]');
 			return {
 				appearance: select.appearance,
@@ -670,6 +692,7 @@ test("Chrome management: no middle dot and no em dash in workflows, profiles, ex
 			await browser.waitFor(
 				() => !!document.querySelector('[data-home-key="cleanup"]'),
 			);
+			await browser.click(".advanced-maintenance > summary");
 			await clickText(browser, "Clean up…");
 			await browser.waitFor(
 				() => !!document.querySelector(".home-cleanup.confirming"),
@@ -738,7 +761,7 @@ test("Chrome management: workflow stages read as plain words and hide a repeated
 		const original = window.fetch;
 		window.fetch = async (url, options) => {
 			const response = await original(url, options);
-			if (!String(url).endsWith("/workflows/manage")) return response;
+			if (!String(url).endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
 			const data = await response.json();
 			const spec = JSON.parse(data.spec.data.spec);
 			spec.artifactGraph.stages = [
@@ -1036,7 +1059,7 @@ test("Workflow normal view, explicit retained overrides and complete readable Ch
 		source: `(() => {
  const original = window.fetch; window.checkBodies = [];
  window.fetch = async (url, options) => {
-  if (String(url).endsWith('/workflows/manage/check')) {
+  if (String(url).endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow') + '/check')) {
    window.checkBodies.push(JSON.parse(options.body));
    if (window.checkBodies.length === 3) return new Response(JSON.stringify({error: 'Refused: safety policy unavailable <img src=x>'}), {status: 400, headers:{'Content-Type':'application/json'}});
    return new Response(JSON.stringify({text: 'Accepted with 6 limitations; no run started.', data: {capability: {preview: ${JSON.stringify(preview)}, degradations: ['web', 'tools', 'cost', 'a', 'b', 'c'], forcedReadOnly: ['forced readonly stage']}, unknownDiagnostic: 'unique adapter refusal <script>bad()</script>'}}), {headers:{'Content-Type':'application/json'}});
@@ -1165,10 +1188,12 @@ test("Workflow normal view, explicit retained overrides and complete readable Ch
 		true,
 	);
 	await browser.click('[data-management-action="check"]');
-	await browser.waitFor(() => !!document.querySelector(".management-error"));
+	await browser.waitFor(
+		() => !!document.querySelector(".management-error:not([hidden])"),
+	);
 	assert.match(
 		await browser.evaluate(
-			() => document.querySelector(".management-error").innerText,
+			() => document.querySelector(".management-error:not([hidden])").innerText,
 		),
 		/Refused: safety policy unavailable <img src=x>/,
 	);
@@ -1196,7 +1221,7 @@ test("Workflow unreadable spec retains visible errors, diagnostics source and un
  const original = window.fetch;
  window.fetch = async (url, options) => {
   const response = await original(url, options);
-  if (!String(url).endsWith('/workflows/manage')) return response;
+  if (!String(url).endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
   const value = await response.json();
   value.spec.data.spec = 'unreadable <img src=x onerror=alert(1)>';
   value.validation = {error: 'Invalid specification: unique validation failure'};

@@ -200,7 +200,8 @@ test("tools/list: the nine CLI-command tools follow the original nine; schemas, 
 	const client = await connect({ root: cwd, env });
 	const { tools } = (await client.request("tools/list")).result;
 	assert.deepEqual(tools.map((tool) => tool.name).slice(9, 18), NEW_TOOLS);
-	assert.equal(tools.length, 21); // WP43b: workflow_dashboard; then workflow_check.
+	assert.equal(tools.length, 22);
+	assert.equal(tools.at(-1).name, "workflow_project_settings");
 	const byName = Object.fromEntries(tools.map((tool) => [tool.name, tool]));
 	for (const name of NEW_TOOLS) {
 		const tool = byName[name];

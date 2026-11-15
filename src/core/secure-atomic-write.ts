@@ -83,7 +83,11 @@ const READ_REPLACED_ATTEMPTS = 10;
 export async function readPrivateFileText(
 	path: string,
 	maxBytes = 1_048_576,
-	options: { readonly ownerOnly?: boolean } = {},
+	options: {
+		readonly ownerOnly?: boolean;
+		/** Keep a leading BOM for byte-accurate digests and backups. */
+		readonly preserveBOM?: boolean;
+	} = {},
 ): Promise<string> {
 	if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || maxBytes > 16_777_216)
 		throw new Error("private file size limit is invalid");
@@ -118,7 +122,7 @@ async function readFileInOpenedParent(
 	parent: OpenDirectory,
 	absolute: string,
 	maxBytes: number,
-	options: { readonly ownerOnly?: boolean },
+	options: { readonly ownerOnly?: boolean; readonly preserveBOM?: boolean },
 ): Promise<string> {
 	const target = join(parent.namedPath, basename(absolute));
 	let file: FileHandle | undefined;
@@ -165,9 +169,10 @@ async function readFileInOpenedParent(
 			throw new Error("private file exceeds size limit");
 		await assertSingleRegularFile(file, target);
 		await assertNamedDirectory(parent);
-		return new TextDecoder("utf-8", { fatal: true }).decode(
-			content.subarray(0, bytesRead),
-		);
+		return new TextDecoder("utf-8", {
+			fatal: true,
+			ignoreBOM: options.preserveBOM === true,
+		}).decode(content.subarray(0, bytesRead));
 	} finally {
 		await file?.close().catch(() => undefined);
 	}

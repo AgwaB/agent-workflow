@@ -93,6 +93,7 @@ export function hostMcpSendsStructuredContent(
 	);
 }
 
+export const WORKFLOW_PROJECT_SETTINGS_TOOL = "workflow_project_settings";
 export const WORKFLOW_LIST_TOOL = "workflow_list";
 export const WORKFLOW_RUN_TOOL = "workflow_run";
 export const WORKFLOW_DYNAMIC_TOOL = "workflow_dynamic";
@@ -892,6 +893,46 @@ export const HOST_MCP_TOOLS: readonly HostMcpToolDefinition[] = [
 			openWorldHint: false,
 		},
 	},
+	{
+		name: WORKFLOW_PROJECT_SETTINGS_TOOL,
+		title: "Inspect or clear project-local workflow settings",
+		description:
+			"Project-local settings only, including orphan/undiscovered exact keys. Start with list/show or inspect-recovery. Changing operations require projectId and the returned CAS tokens, plus user elicitation confirmation. clear-binding removes one whole defaults or exact slot binding; reset/purge affect one entry; clear-project removes all entries; recover backs up malformed storage before replacement. Shared preferences and existing Runs are untouched. No replacement intent, paths or confirmation boolean accepted.",
+		inputSchema: {
+			type: "object",
+			additionalProperties: false,
+			properties: {
+				op: {
+					type: "string",
+					enum: [
+						"list",
+						"show",
+						"clear-binding",
+						"reset",
+						"purge",
+						"clear-project",
+						"inspect-recovery",
+						"recover",
+					],
+				},
+				projectId: { type: "string" },
+				key: { type: "string", pattern: "^[a-f0-9]{64}$" },
+				storeEpoch: { type: "string" },
+				revision: { type: "string" },
+				rawDigest: { type: "string" },
+				binding: { type: "string", enum: ["defaults", "slot"] },
+				slot: { type: "string" },
+				...CWD_PROPERTY,
+			},
+			required: ["op"],
+		},
+		annotations: {
+			readOnlyHint: false,
+			destructiveHint: true,
+			idempotentHint: false,
+			openWorldHint: false,
+		},
+	},
 ];
 
 /** Tool definitions as sent for one negotiated protocol revision. */
@@ -973,6 +1014,8 @@ export type HostMcpApi = Pick<
 	| "pruneAction"
 	| "profileAction"
 	| "workflowPreferenceAction"
+	| "previewProjectSettingsRecoveryAction"
+	| "projectSettingsRecoveryAction"
 	| "superviseDetachedAction"
 	| "autoAction"
 >;
@@ -1785,6 +1828,39 @@ export function createHostMcpService(
 			call: McpToolCallContext,
 		) => Promise<HostMcpToolResult>
 	> = {
+		[WORKFLOW_PROJECT_SETTINGS_TOOL]: async (args, call) => {
+			const { cwd: _cwd, ...value } = args;
+			const request = hostApi.projectSettingsRecoveryRequest(value);
+			const ctx = await context(args, call);
+			const preview = await api.previewProjectSettingsRecoveryAction(
+				ctx,
+				request,
+			);
+			if (preview.data.changing) {
+				const flags: Record<string, string> = {
+					projectId: "--confirm-project",
+					key: "--key",
+					storeEpoch: "--store-epoch",
+					revision: "--revision",
+					rawDigest: "--raw-digest",
+					binding: "--binding",
+					slot: "--slot",
+				};
+				const words = ["agent-workflow", "project-settings", request.op];
+				for (const [key, value] of Object.entries(request))
+					if (key !== "op") words.push(flags[key]!, value);
+				const refused = await requireConfirmation(call, {
+					action: "profile",
+					summary: `Apply project-local settings ${request.op} to ${preview.data.projectId}`,
+					detail: preview.text,
+					command: words.map(shellWord).join(" "),
+					cwd: ctx.cwd,
+				});
+				if (refused) return refused;
+			}
+			const outcome = await api.projectSettingsRecoveryAction(ctx, request);
+			return finish(call, outcome, outcome.data);
+		},
 		[WORKFLOW_DASHBOARD_TOOL]: async (args, call) => {
 			const ctx = await context(args, call);
 			// Same local-process authority as stop; never bypass worker/disabled role restrictions.

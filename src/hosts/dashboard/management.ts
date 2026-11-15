@@ -1,7 +1,8 @@
 // Dashboard transport only: shared host actions own all catalog, profile and retention policy.
 import { createHash } from "node:crypto";
 import { clearExecutorProbeCache } from "../../core/executor-default.js";
-import { resolve } from "node:path";
+import { resolve, relative, isAbsolute, sep } from "node:path";
+import { realpath } from "node:fs/promises";
 import type { IncomingMessage } from "node:http";
 import { isValidWorkflowName } from "../../core/workflow-specs.js";
 import { workflowExecutorRegistration } from "../../core/executor-registry.js";
@@ -17,9 +18,15 @@ import {
 	workflowPreferenceAction,
 } from "../catalog.js";
 import { checkWorkflowAction } from "../launch.js";
+import {
+	readProjectWorkflowSettingsAction,
+	previewProjectWorkflowSettingsAction,
+	saveProjectWorkflowSettingsAction,
+} from "../project-workflow-settings-actions.js";
+import { ProjectWorkflowSettingsConflict } from "../project-workflow-settings.js";
 import { doctorAction } from "../doctor.js";
 import { executorModelsAction } from "../executor-models.js";
-import { noticesAction, pruneAction } from "../runs.js";
+import { noticesAction, pruneAction, showRunAction } from "../runs.js";
 import {
 	assertUserProfileName,
 	validateUserProfileValues,
@@ -103,8 +110,16 @@ function bounded(
 		bad(`${key} must be an integer from 0 to ${max}`);
 	return value;
 }
+type CanonicalData =
+	| null
+	| undefined
+	| string
+	| number
+	| boolean
+	| CanonicalData[]
+	| { [key: string]: CanonicalData };
 // Stable across directory enumeration order, but includes every preview/protection and parameter.
-function canonical(value: unknown): unknown {
+function canonical(value: unknown): CanonicalData {
 	if (Array.isArray(value))
 		return value
 			.map(canonical)
@@ -115,7 +130,15 @@ function canonical(value: unknown): unknown {
 				.sort(([a], [b]) => a.localeCompare(b))
 				.map(([key, item]) => [key, canonical(item)]),
 		);
-	return value;
+	if (
+		value === null ||
+		value === undefined ||
+		typeof value === "string" ||
+		typeof value === "number" ||
+		typeof value === "boolean"
+	)
+		return value;
+	throw new Error("management preview contains unsupported non-JSON data");
 }
 export function createDashboardManagement(options: Options) {
 	// A bounded queue prevents concurrent dashboard probes/prunes (including user-level adapter state).
@@ -136,10 +159,19 @@ export function createDashboardManagement(options: Options) {
 	let doctorCache:
 		| { at: number; result: Awaited<ReturnType<typeof doctorAction>> }
 		| undefined;
-	async function workflow(ctx: HostApiContext, ref: string): Promise<string> {
-		name(ref);
+	async function workflow(
+		ctx: HostApiContext,
+		ref: string,
+		keyOnly = false,
+	): Promise<string> {
+		if (!/^[a-f0-9]{64}$/.test(ref)) {
+			if (keyOnly) throw new DashboardHttpError(404, "workflow key not found");
+			name(ref);
+		}
 		const catalog = await listWorkflowsAction(ctx);
-		const entry = catalog.data.workflows.find((entry) => entry.name === ref);
+		const entry = catalog.data.workflows.find(
+			(entry) => entry.workflowKey === ref || (!keyOnly && entry.name === ref),
+		);
 		if (!entry) throw new DashboardHttpError(404, "workflow not found");
 		// Resolve only the server-discovered path, not a request-controlled file reference.
 		return resolve(ctx.cwd, entry.specPath);
@@ -271,18 +303,208 @@ export function createDashboardManagement(options: Options) {
 			}
 			if (
 				parts[1] !== "projects" ||
-				!["workflows", "agents", "prune", "notices"].includes(parts[3] ?? "")
+				![
+					"workflows",
+					"agents",
+					"prune",
+					"notices",
+					"run-deletions",
+					"runs",
+				].includes(parts[3] ?? "")
 			)
 				return undefined;
 			const selected = await options.project(parts[2] ?? "");
 			const resource = parts[3];
+			if (
+				resource === "runs" &&
+				parts.length === 6 &&
+				parts[5] === "workflow-settings-target"
+			) {
+				if (method !== "GET")
+					throw new DashboardHttpError(405, "method not allowed");
+				const runId = parts[4]!;
+				if (!validRunId(runId)) bad("invalid run id");
+				if (url.search) bad("lookup accepts no query parameters");
+				const shown = await showRunAction(selected, {
+					runId,
+					snapshot: true,
+				}).catch(() => {
+					throw new DashboardHttpError(404, "recorded run unavailable");
+				});
+				if (shown.data.run.runId !== runId)
+					throw new DashboardHttpError(404, "exact run not found");
+				const unavailable = (reason: string) =>
+					ok({ runId, target: null, reason });
+				const run = shown.data.run;
+				const catalog = await listWorkflowsAction(selected);
+				const capture = run.configuration?.capture;
+				let matches: typeof catalog.data.workflows;
+				if (capture !== undefined) {
+					// A recorded capture is authoritative over the legacy specPath. Never fall back to a name.
+					if (
+						!capture?.identity ||
+						typeof capture.key !== "string" ||
+						!/^[a-f0-9]{64}$/.test(capture.key)
+					)
+						return unavailable("recorded-identity-insufficient");
+					matches = catalog.data.workflows.filter(
+						(entry) =>
+							entry.workflowKey === capture.key &&
+							JSON.stringify(canonical(entry.identity)) ===
+								JSON.stringify(canonical(capture.identity)),
+					);
+				} else {
+					if (typeof run.specPath !== "string" || !run.specPath.trim())
+						return unavailable("recorded-source-missing");
+					// Lexical comparison only for recorded data. All filesystem resolution is restricted
+					// to current server-discovered sources, never an arbitrary recorded/client path.
+					let recorded = resolve(selected.cwd, run.specPath);
+					// The server's startup root can be a known lexical alias (e.g. /tmp on macOS)
+					// of the registered physical root. Resolve only those trusted roots, not run.cwd.
+					const startupRoot = await realpath(ctx.cwd).catch(() => undefined);
+					const sameStartupProject =
+						startupRoot !== undefined &&
+						startupRoot ===
+							(await realpath(selected.cwd).catch(() => undefined));
+					const local = relative(ctx.cwd, recorded);
+					if (
+						sameStartupProject &&
+						!isAbsolute(local) &&
+						local !== ".." &&
+						!local.startsWith(`..${sep}`)
+					)
+						recorded = resolve(selected.cwd, local);
+					matches = [];
+					for (const entry of catalog.data.workflows) {
+						const source = resolve(selected.cwd, entry.specPath);
+						const physical = await realpath(source).catch(() => undefined);
+						if (recorded === source || recorded === physical)
+							matches.push(entry);
+					}
+				}
+				if (matches.length === 0) return unavailable("definition-unmatched");
+				if (matches.length !== 1) return unavailable("definition-ambiguous");
+				const entry = matches[0]!;
+				if (!entry.workflowKey || !entry.identity)
+					return unavailable("definition-unavailable");
+				return ok({ runId, target: { workflowKey: entry.workflowKey } });
+			}
+			if (resource === "run-deletions") {
+				if (method !== "POST")
+					throw new DashboardHttpError(405, "method not allowed");
+				if (
+					!(
+						parts.length === 4 ||
+						(parts.length === 5 && parts[4] === "preview")
+					)
+				)
+					throw new DashboardHttpError(404, "not found");
+				const body = await options.body(request);
+				fields(body, ["runIds", "digest"]);
+				if (
+					!Array.isArray(body.runIds) ||
+					!body.runIds.length ||
+					!body.runIds.every((id) => typeof id === "string" && validRunId(id))
+				)
+					bad("runIds must contain nonempty exact run ids");
+				const runIds = [...new Set(body.runIds as string[])].sort();
+				if (
+					(parts.length === 4 || body.digest !== undefined) &&
+					(typeof body.digest !== "string" ||
+						!/^[a-f0-9]{64}$/.test(body.digest))
+				)
+					bad("a preview digest is required");
+				const argv = runIds.flatMap((id) => ["--run", id]);
+				return await serial(async () => {
+					const preview = await pruneAction(selected, { argv });
+					// A missing retention root can return an empty successful plan. It is not
+					// confirmation of the requested exact selection, and must never dispatch deletion.
+					const complete = runIds.every((id) =>
+						preview.data.runs.some((run) => run.runId === id),
+					);
+					const digest = createHash("sha256")
+						.update(
+							JSON.stringify(
+								canonical({
+									operation: "run-deletions",
+									project: { id: parts[2], cwd: selected.cwd },
+									runIds,
+									preview: { outcome: preview.outcome, data: preview.data },
+								}),
+							),
+						)
+						.digest("hex");
+					const fresh = {
+						...preview,
+						runIds,
+						digest,
+						...(complete
+							? {}
+							: {
+									outcome: "failed",
+									error: "requested terminal runs unavailable",
+								}),
+					};
+					if (parts.length === 5) return ok(fresh);
+					if (
+						body.digest !== digest ||
+						preview.outcome !== "success" ||
+						!complete
+					)
+						return {
+							status: 409,
+							value: {
+								error:
+									"Run deletion preview changed or failed. Review the fresh preview before deleting.",
+								preview: fresh,
+							},
+						};
+					return ok(await pruneAction(selected, { argv: [...argv, "--yes"] }));
+				});
+			}
 			if (resource === "agents" && parts.length === 4 && method === "GET")
 				return ok(await listAgentsAction(selected));
 			if (resource === "workflows") {
 				if (parts.length === 4 && method === "GET")
 					return ok(await listWorkflowsAction(selected));
 				if (!parts[4]) return undefined;
-				const ref = await workflow(selected, parts[4]);
+				const settingsRoute = parts[5] === "settings";
+				const ref = await workflow(selected, parts[4], settingsRoute);
+				if (settingsRoute) {
+					if (parts.length === 6 && method === "GET")
+						return ok(await readProjectWorkflowSettingsAction(selected, ref));
+					if (
+						(parts.length === 6 && method === "PUT") ||
+						(parts.length === 7 &&
+							["preview", "check"].includes(parts[6]!) &&
+							method === "POST")
+					) {
+						const body = await options.body(request);
+						fields(body, ["intent", "expected"]);
+						if (method === "PUT")
+							return ok(
+								await serial(() =>
+									saveProjectWorkflowSettingsAction(
+										selected,
+										ref,
+										body.intent,
+										body.expected,
+									),
+								),
+							);
+						return ok(
+							await serial(() =>
+								previewProjectWorkflowSettingsAction(
+									selected,
+									ref,
+									body.intent,
+									body.expected,
+								),
+							),
+						);
+					}
+					throw new DashboardHttpError(405, "method not allowed");
+				}
 				if (parts.length === 5 && method === "GET") {
 					const spec = await showWorkflowSpecAction(selected, {
 						workflow: ref,
@@ -299,7 +521,11 @@ export function createDashboardManagement(options: Options) {
 					};
 					return ok({
 						spec,
-						roles: await workflowRolesAction(selected, { workflow: ref }),
+						roles: await workflowRolesAction(selected, { workflow: ref }).catch(
+							(error) => ({
+								error: error instanceof Error ? error.message : String(error),
+							}),
+						),
 						validation: await validate(),
 						graph: await workflowSettingsGraph(selected, ref),
 					});
@@ -411,6 +637,8 @@ export function createDashboardManagement(options: Options) {
 			return undefined;
 		} catch (error) {
 			if (error instanceof DashboardHttpError) throw error;
+			if (error instanceof ProjectWorkflowSettingsConflict)
+				throw new DashboardHttpError(409, error.message);
 			const message = error instanceof Error ? error.message : String(error);
 			if (
 				/no saved profile named|unknown profile.*default|run.*not found|ENOENT/i.test(

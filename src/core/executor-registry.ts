@@ -135,15 +135,25 @@ export function workflowExecutorRegistration(
 ): WorkflowExecutorRegistration | undefined {
 	const registered = registrations.get(id);
 	if (registered !== undefined) return registered;
-	const builtin = BUILTIN_DESCRIPTORS[id];
+	const builtin = Object.hasOwn(BUILTIN_DESCRIPTORS, id)
+		? BUILTIN_DESCRIPTORS[id]
+		: undefined;
 	if (builtin !== undefined) return { id, descriptor: builtin() };
-	const builtinReason = BUILTIN_UNAVAILABLE[id];
+	const builtinReason = Object.hasOwn(BUILTIN_UNAVAILABLE, id)
+		? BUILTIN_UNAVAILABLE[id]
+		: undefined;
 	return builtinReason === undefined
 		? undefined
 		: { id, unavailableReason: builtinReason };
 }
 
 export interface RunExecutorSelectionInput {
+	/** Already selected local binding, below an explicit run flag. */
+	projectExecutor?: {
+		id: string;
+		source: "project-default" | "project-slot";
+		slot?: string;
+	};
 	/** Run flag (`--executor`). */
 	runFlag?: string;
 	/** WP31: workflow name of the saved per-workflow preference and its executor. */
@@ -171,8 +181,13 @@ export interface RunExecutorSelectionInput {
 function describeSource(
 	source: WorkflowRunExecutorSource,
 	profile: string | undefined,
+	slot?: string,
 ): string {
 	if (source === "run-flag") return "run flag";
+	if (source === "project-default")
+		return `project workflow default${slot ? ` for slot "${slot}"` : ""}`;
+	if (source === "project-slot")
+		return slot === undefined ? "project slot" : `project slot "${slot}"`;
 	if (source === "workflow-preference")
 		return `saved preference of workflow "${profile}"`;
 	if (source === "workflow-profile")
@@ -198,8 +213,14 @@ export function resolveRunExecutorSelection(
 		id: string | undefined;
 		source: WorkflowRunExecutorSource;
 		profile?: string;
+		slot?: string;
 	}> = [
 		{ id: input.runFlag, source: "run-flag" },
+		{
+			id: input.projectExecutor?.id,
+			source: input.projectExecutor?.source ?? "project-default",
+			slot: input.projectExecutor?.slot,
+		},
 		{
 			id: input.workflowPreferenceExecutor,
 			source: "workflow-preference",
@@ -229,7 +250,11 @@ export function resolveRunExecutorSelection(
 			"",
 			"default",
 		);
-	const where = describeSource(selected.source, selected.profile);
+	const where = describeSource(
+		selected.source,
+		selected.profile,
+		selected.slot,
+	);
 	if (!EXECUTOR_ID_PATTERN.test(selected.id))
 		throw new WorkflowExecutorUnavailableError(
 			`executor id "${selected.id}" from ${where} is invalid`,

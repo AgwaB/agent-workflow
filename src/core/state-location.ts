@@ -56,9 +56,12 @@ function physicalHome(path: string): string {
 }
 
 const bases = new Map<string, string>();
-export function stateBase(cwd: string): string {
+export function stateBase(
+	cwd: string,
+	env: NodeJS.ProcessEnv = process.env,
+): string {
 	const path = canonicalProjectPath(cwd);
-	const home = agentWorkflowHome();
+	const home = agentWorkflowHome(env);
 	const key = JSON.stringify([path, home]);
 	let base = bases.get(key);
 	if (base === undefined) {
@@ -79,8 +82,11 @@ export function toStatePath(cwd: string, filePath: string): string {
 }
 
 /** Create only physical application-owned components, never through a project-state symlink. */
-export async function ensureStateBase(cwd: string): Promise<string> {
-	const base = stateBase(cwd);
+export async function ensureStateBase(
+	cwd: string,
+	env: NodeJS.ProcessEnv = process.env,
+): Promise<string> {
+	const base = stateBase(cwd, env);
 	const home = dirname(dirname(base));
 	await mkdir(home, { recursive: true, mode: 0o700 });
 	for (const dir of [home, dirname(base), base]) {

@@ -43,6 +43,24 @@ Show the compiled role context exactly as it is injected into task prompts.`,
 	agents: `Usage: agent-workflow agents [--json]
 
 List discoverable agent definitions.`,
+	"project-settings": `Usage: agent-workflow project-settings list [--json]
+       agent-workflow project-settings show --key <key> [--json]
+       agent-workflow project-settings inspect-recovery [--json]
+       agent-workflow project-settings clear-binding --key <key> --binding defaults|slot [--slot <exact-slot>]
+           --store-epoch <epoch> --revision <revision> --confirm-project <projectId> [--json]
+       agent-workflow project-settings reset|purge --key <key> --store-epoch <epoch>
+           --revision <revision> --confirm-project <projectId> [--json]
+       agent-workflow project-settings clear-project --store-epoch <epoch> --raw-digest <digest>
+           --confirm-project <projectId> [--json]
+       agent-workflow project-settings recover --raw-digest <inspected-digest> --confirm-project <projectId> [--json]
+
+Project-local only. list/show include orphan keys without definition discovery and return CAS tokens
+and projectId. Changes require those exact tokens and explicit project confirmation; conflicts require
+fresh inspection, never automatic retry. clear-binding removes a whole binding, preserving siblings.
+reset keeps an empty entry; purge removes the entry and rotates the epoch. clear-project clears all
+local entries, not shared preferences. recover only replaces malformed storage after verified private
+backup. Unsafe/unreadable, invalid UTF-8 and oversized originals refuse recovery. Reads create nothing.
+Shared profiles/preferences and existing Run Resume are unchanged. No replacement intent or path accepted.`,
 	profile: `Usage: agent-workflow profile list [--json]
        agent-workflow profile show [<name>] [--json]
        agent-workflow profile set <name> [--preset codex|claude|pi|mixed] [--executor <id>]
@@ -206,7 +224,8 @@ Workflows:
   roles <workflow>     show compiled role context
   agents               list agent definitions
   show <workflow>      print a workflow spec
-  profile ...          manage saved user profiles
+  profile ...          manage shared user profiles/preferences
+  project-settings ... inspect/clear/recover project-local workflow settings
 
 Runs:
   run <workflow> <task...>   start a workflow (foreground; --detach for background)

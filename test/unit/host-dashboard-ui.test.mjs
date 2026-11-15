@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import test from "node:test";
 import {
-	createBrowser,
+	createBrowser as createNativeBrowser,
 	findChrome,
 	MOTION_SKIP,
 	motionChecks,
@@ -38,6 +38,23 @@ test("dashboard static assets have no executable content sinks or inline code", 
 	assert.doesNotMatch(css, /font-size:\s*(?:[0-9]|1[01])px\b/);
 });
 
+// This older static HTTP fixture predates E1. Supply only its new read-only lookup
+// contract, keeping all existing runtime/CSP/no-network-error assertions unchanged.
+async function createBrowser(...args) {
+	const browser = await createNativeBrowser(...args);
+	await browser.send("Page.addScriptToEvaluateOnNewDocument", {
+		source: `
+ const originalFetch = window.fetch;
+ window.fetch = (...args) => {
+  const path = String(args[0]);
+  const match = /^\\/api\\/projects\\/[^/]+\\/runs\\/(workflow_[A-Za-z0-9_-]+)\\/workflow-settings-target$/.exec(path);
+  if (match && (!args[1]?.method || args[1].method === 'GET')) return Promise.resolve(new Response(JSON.stringify({runId:match[1],target:null,reason:'definition-unavailable'}),{status:200}));
+  return originalFetch(...args);
+ };
+ `,
+	});
+	return browser;
+}
 const chrome = await findChrome();
 test("D Run inspector: coarse/narrow independent controls retain hit areas and parallel navigation", {
 	timeout: 120000,
@@ -652,7 +669,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	);
 	assert.equal(fixture.mutations.at(-1).action, "resume");
 
-	await open(`run=${complete}`);
+	await open(`run=${complete}&view=runs`);
 	// Finished paths stay visible and static: no perpetual decorative glints or packets.
 	assert.deepEqual(
 		await browser.evaluate(() => ({
@@ -1305,7 +1322,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 	);
 });
 
-test("dashboard Chrome: a stage selected while the run works is cleared when it finishes; a task stays", {
+test("dashboard Chrome: deliberate stage and task selection remain when the run finishes", {
 	skip: chrome
 		? false
 		: "Chrome is not installed (set CHROME to a local executable)",
@@ -1334,11 +1351,16 @@ test("dashboard Chrome: a stage selected while the run works is cleared when it 
 	const live = fixture.runs.get(running);
 	finish(live, "completed");
 	await browser.waitFor(
-		() => new URLSearchParams(location.search).get("stage") === null,
+		() => document.querySelector("#run-header")?.dataset.status !== "running",
+	);
+	assert.equal(
+		await param("stage"),
+		"reviewers",
+		"completion preserves deliberate stage selection",
 	);
 	assert.equal(
 		await browser.evaluate(() => document.querySelector("#inspector").hidden),
-		true,
+		false,
 	);
 	// A task the user opened is their reading, not a stale focus: it stays.
 	finish(live, "running");
@@ -2170,7 +2192,7 @@ test("dashboard Chrome: the timeline lays stages and their agents on one time ax
 			document.getElementById("timeline"),
 			new URLSearchParams(location.search).get("layout"),
 		]),
-		[null, null],
+		[null, "td"],
 	);
 	// A task at work ends now; one still waiting (even with a launch stamp) has no bar yet.
 	const live = await browser.evaluate(async (run) => {
@@ -2930,8 +2952,8 @@ test("dashboard Chrome: the overview is the landing view with needs, running, re
 			run: false,
 			nav: [
 				["Overview", "page"],
-				["Runs", null],
 				["Workflows", null],
+				["Run history", null],
 				["Profiles", null],
 				["Executors", null],
 			],
@@ -3171,14 +3193,14 @@ test("dashboard Chrome: existing run links and the Runs item still open a run; t
 	assert.doesNotMatch(await text2(browser, "#inspector"), /tasks reporting/);
 	// The nav's Runs item opens the latest run (a running one first), as the landing used to.
 	await browser.open(`${fixture.origin}/?view=runs`);
-	assert.deepEqual(await route(browser), [running, null]);
+	assert.deepEqual(await route(browser), [running, "runs"]);
 	assert.equal(
 		await browser.evaluate(
 			() =>
 				document.querySelector('.management-nav a[aria-current="page"]')
 					.textContent,
 		),
-		"Runs",
+		"Run history",
 	);
 	await browser.click('.management-nav a:not([href*="view="])');
 	await browser.waitFor(() => document.querySelector("#home-view"));
@@ -3862,7 +3884,7 @@ test(
 				nav: document.querySelectorAll("#rail .management-nav a").length,
 			}));
 		assert.deepEqual(await rail(), {
-			headings: [],
+			headings: ["Shared settings"],
 			runs: 0,
 			needs: 0,
 			switcher: true,
@@ -3883,7 +3905,7 @@ test(
 		await browser.waitFor(() => document.querySelector("#task-count"));
 		const open = await rail();
 		// No "Needs you" group: each need is on its run's own row (owner, pass 2).
-		assert.deepEqual(open.headings, ["Runs"]);
+		assert.deepEqual(open.headings, ["Shared settings", "Runs"]);
 		assert.ok(
 			open.runs >= 6 && open.needs >= 1 && open.switcher && open.nav === 5,
 		);
@@ -3895,7 +3917,7 @@ test(
 		await browser.evaluate(() => history.back());
 		await browser.waitFor(() => document.querySelector("#home-view"));
 		assert.deepEqual(await rail(), {
-			headings: [],
+			headings: ["Shared settings"],
 			runs: 0,
 			needs: 0,
 			switcher: true,
@@ -4222,7 +4244,7 @@ test(
 			}, failed);
 		let now = await rail();
 		// No "Needs you" group; the run's own identity lines stay; the need sits in the row.
-		assert.deepEqual(now.headings, ["Runs"]);
+		assert.deepEqual(now.headings, ["Shared settings", "Runs"]);
 		assert.equal(now.rows, 1);
 		assert.equal(now.name, "spec-review");
 		assert.equal(now.need, "Needs youInspectFailed at map-implementation");
@@ -4723,7 +4745,7 @@ test(
 		});
 		let pairs = 0;
 		for (const runId of [running, complete, failed]) {
-			await browser.open(`${fixture.origin}/?run=${runId}`);
+			await browser.open(`${fixture.origin}/?run=${runId}&view=runs`);
 			await browser.waitFor(() => document.querySelector(".node[data-stage]"));
 			const boxes = await browser.evaluate(() =>
 				[...document.querySelectorAll(".node[data-stage]")].map((node) => {

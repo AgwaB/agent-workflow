@@ -197,6 +197,7 @@ test("initialize and tools/list: server name, instructions, every tool gated per
 			"workflow_dashboard",
 			// 2026-10-30: the launch preflight without the launch (host-check-preflight.test.mjs).
 			"workflow_check",
+			"workflow_project_settings",
 		],
 	);
 	for (const tool of tools) {

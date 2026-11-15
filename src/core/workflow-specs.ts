@@ -26,6 +26,12 @@ import {
 	parseArtifactGraphWorkflowSpec,
 } from "./artifact-graph-schema.js";
 import { agentWorkflowHome, PROJECT_STATE_DIRECTORY } from "./home-dir.js";
+import { canonicalProjectPath } from "./state-location.js";
+import { workflowDefinitionFingerprint } from "./execution-profile.js";
+import type {
+	ProjectWorkflowSettingsIdentity,
+	ProjectWorkflowSettingsTarget,
+} from "./project-workflow-settings.js";
 import {
 	type ArtifactGraphWorkflowSpec,
 	WorkflowValidationError,
@@ -251,6 +257,95 @@ export async function resolveWorkflowRef(
 		specPath: match!.file,
 		workflowName: match!.name,
 		workflowRoot: match!.root,
+	};
+}
+
+/** Stable source locator; package installation directories are deliberately excluded. */
+export function projectWorkflowSettingsKey(
+	identity: ProjectWorkflowSettingsIdentity,
+): string {
+	const locator =
+		identity.scope === "external"
+			? [identity.scope, identity.physicalSpecPath]
+			: [identity.scope, identity.relativeSpec];
+	return createHash("sha256").update(JSON.stringify(locator)).digest("hex");
+}
+
+/** Additive settings identity resolution; the existing name/path resolver is unchanged. */
+export async function resolveProjectWorkflowSettingsTarget(
+	ref: string,
+	cwd: string,
+): Promise<ProjectWorkflowSettingsTarget> {
+	const project = canonicalProjectPath(cwd);
+	const resolved = await resolveWorkflowRef(ref, project);
+	const specPath = await realpath(resolved.specPath);
+	const roots = workflowRoots(project);
+	const physicalRoots = await Promise.all(
+		roots.map(async (root) => {
+			try {
+				return { ...root, physical: await realpath(root.path) };
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code === "ENOENT")
+					return undefined;
+				throw error;
+			}
+		}),
+	);
+	const identityFor = (physical: string): ProjectWorkflowSettingsIdentity => {
+		for (const root of physicalRoots) {
+			if (!root) continue;
+			const rel = relative(root.physical, physical);
+			if (
+				rel &&
+				rel !== ".." &&
+				!rel.startsWith(`..${sep}`) &&
+				!isAbsolute(rel)
+			)
+				return { scope: root.scope, relativeSpec: rel.split(sep).join("/") };
+		}
+		return { scope: "external", physicalSpecPath: physical };
+	};
+	const identity = identityFor(specPath);
+	const key = projectWorkflowSettingsKey(identity);
+	const claims: Array<{ aliases: string[]; priority: number; key: string }> =
+		[];
+	for (const root of roots) {
+		for (const file of await listSpecFiles(root.path)) {
+			claims.push({
+				aliases: aliasesFor(file, root.path),
+				priority: root.priority,
+				key: projectWorkflowSettingsKey(identityFor(await realpath(file))),
+			});
+		}
+	}
+	const aliases = [
+		...new Set(
+			claims
+				.filter((claim) => claim.key === key)
+				.flatMap((claim) => claim.aliases),
+		),
+	].sort();
+	const winners = aliases.map((alias) => {
+		const matches = claims.filter((claim) => claim.aliases.includes(alias));
+		const priority = Math.min(...matches.map((claim) => claim.priority));
+		return [
+			alias,
+			matches
+				.filter((claim) => claim.priority === priority)
+				.map((claim) => claim.key)
+				.sort(),
+		];
+	});
+	return {
+		specPath,
+		identity,
+		key,
+		definitionFingerprint: workflowDefinitionFingerprint(
+			JSON.parse(await readFile(specPath, "utf8")),
+		),
+		resolutionToken: createHash("sha256")
+			.update(JSON.stringify([key, winners]))
+			.digest("hex"),
 	};
 }
 

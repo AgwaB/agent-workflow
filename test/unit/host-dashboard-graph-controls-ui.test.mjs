@@ -12,6 +12,18 @@ async function setup(t, width = 390, height = 844, motion = false) {
 	t.after(() => fixture.close());
 	const browser = await createBrowser(chrome);
 	t.after(() => browser.close());
+	// Static fixture has no catalog lookup: provide only E1's safe null-target GET.
+	// All original runtime/CSP/network-error assertions stay unchanged.
+	await browser.send("Page.addScriptToEvaluateOnNewDocument", {
+		source: `
+	 const originalFetch = window.fetch;
+	 window.fetch = (...args) => {
+	  const match = /^\\/api\\/projects\\/[^/]+\\/runs\\/(workflow_[A-Za-z0-9_-]+)\\/workflow-settings-target$/.exec(String(args[0]));
+	  if (match && (!args[1]?.method || args[1].method === 'GET')) return Promise.resolve(new Response(JSON.stringify({runId:match[1],target:null,reason:'definition-unavailable'}),{status:200}));
+	  return originalFetch(...args);
+	 };
+	`,
+	});
 	await browser.send("Emulation.setDeviceMetricsOverride", {
 		width,
 		height,
@@ -29,7 +41,11 @@ async function setup(t, width = 390, height = 844, motion = false) {
 			},
 		],
 	});
-	await browser.open(`${fixture.origin}/?run=${complete}`, width, height);
+	await browser.open(
+		`${fixture.origin}/?run=${complete}&view=runs`,
+		width,
+		height,
+	);
 	assert.deepEqual(await browser.evaluate(() => [innerWidth, innerHeight]), [
 		width,
 		height,

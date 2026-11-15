@@ -408,6 +408,7 @@ function readState() {
 		view: choice("view", [
 			// "runs" opens the latest run (the nav's Runs item); the overview has no view of its own.
 			"runs",
+			"history",
 			"report",
 			"details",
 			"workflows",
@@ -430,6 +431,8 @@ let session,
 	run = null,
 	graphModel = null,
 	graphControl = null;
+const runLandingSeen = new Set();
+let workflowTarget = null;
 let runRevision = 0;
 let loadGeneration = 0,
 	selectionController,
@@ -461,7 +464,15 @@ const readonly = () => session?.mode === "read-only";
 function urlState(replace = false) {
 	const params = new URLSearchParams();
 	for (const [key, value] of Object.entries(state))
-		if (value && !(key === "layout" && value === "td")) params.set(key, value);
+		if (
+			value &&
+			!(
+				key === "layout" &&
+				value === "td" &&
+				!new URLSearchParams(location.search).has("layout")
+			)
+		)
+			params.set(key, value);
 	history[replace ? "replaceState" : "pushState"](
 		settingsHistoryState(replace ? history.state : null, replace),
 		"",
@@ -949,25 +960,40 @@ function renderRail() {
 		element(
 			"nav",
 			{ class: "management-nav", "aria-label": "Dashboard views" },
-			["Overview", "Runs", "Workflows", "Profiles", "Executors"].map(
-				(title) => {
-					const view = title.toLowerCase();
-					const params = new URLSearchParams();
-					if (state.project) params.set("project", state.project);
-					// 2026-11-12 (owner): Overview is the project's landing page (no run, no view);
-					// Runs opens the latest run, as the dashboard did before.
-					if (view !== "overview") params.set("view", view);
-					const current = managementView()
-						? state.view === view
-						: view === "overview"
-							? !state.run
-							: view === "runs" && Boolean(state.run);
-					return element(
-						"a",
-						{ href: `/?${params}`, "aria-current": current ? "page" : null },
-						title,
-					);
-				},
+			["Overview", "Workflows", "Run history"].map((title) => {
+				const view = title === "Run history" ? "history" : title.toLowerCase();
+				const params = new URLSearchParams();
+				if (state.project) params.set("project", state.project);
+				// 2026-11-12 (owner): Overview is the project's landing page (no run, no view);
+				// Runs opens the latest run, as the dashboard did before.
+				if (view !== "overview") params.set("view", view);
+				const current = managementView()
+					? state.view === view
+					: view === "overview"
+						? !state.run
+						: view === "history" && Boolean(state.run);
+				return element(
+					"a",
+					{ href: `/?${params}`, "aria-current": current ? "page" : null },
+					title,
+				);
+			}),
+		),
+	);
+	rail.append(
+		element("h2", { class: "rail-heading" }, "Shared settings"),
+		element(
+			"nav",
+			{ class: "management-nav", "aria-label": "Shared settings" },
+			["profiles", "executors"].map((view) =>
+				element(
+					"a",
+					{
+						href: managementHref(view),
+						"aria-current": state.view === view ? "page" : null,
+					},
+					humanize(view),
+				),
 			),
 		),
 	);
@@ -1296,6 +1322,47 @@ function renderHeader() {
 			{ "aria-label": "Run details" },
 		),
 	);
+	const context = element("div", { class: "run-context" });
+	context.append(
+		workflowTarget?.target?.workflowKey
+			? element(
+					"a",
+					{
+						href: workflowHref(workflowTarget.target.workflowKey),
+						"data-testid": "run-workflow-link",
+					},
+					"Current Workflow settings (future Runs only)",
+				)
+			: element(
+					"p",
+					{ class: "muted", "data-testid": "run-workflow-unavailable" },
+					`Workflow unavailable: ${workflowTarget?.reason || "checking source"}.`,
+				),
+	);
+	if (!liveRun(run) && !needsResume(run))
+		context.append(
+			element(
+				"p",
+				{ class: "muted", "data-testid": "run-action-reason" },
+				"No Stop/Resume: terminal; business verdicts are results, not resumable failures.",
+			),
+		);
+	else if (readonly())
+		context.append(
+			element(
+				"p",
+				{ class: "muted" },
+				"Read-only: no Stop/Resume. Server checks remain authoritative.",
+			),
+		);
+	else
+		context.append(
+			element(
+				"p",
+				{ class: "muted" },
+				"Recorded-status eligibility; server capability/ownership checks may refuse.",
+			),
+		);
 	// Only a run that finished its work has a result; a failed or stopped run keeps "Status", so an
 	// earlier stage's summary never reads as the outcome of a run that did not get there.
 	const result =
@@ -1319,6 +1386,7 @@ function renderHeader() {
 			),
 			actions,
 		),
+		context,
 		element(
 			"div",
 			{ class: "result" },
@@ -3682,6 +3750,21 @@ function renderSelection() {
 				]),
 			),
 		);
+		inspector.append(
+			element(
+				"section",
+				{ class: "details-section", "data-testid": "captured-run-plan" },
+				element("h3", {}, "Captured requested/resolved plan"),
+				element(
+					"p",
+					{},
+					"Recorded launch-time plan, not today's settings or provider-observed execution.",
+				),
+				run.configuration
+					? readableDiagnostic(run.configuration)
+					: element("p", {}, "Unknown: no captured configuration recorded."),
+			),
+		);
 		for (const affected of run.tasks.filter(
 			(task) => task.blockedActions?.count,
 		))
@@ -3699,15 +3782,14 @@ function renderSelection() {
 		const reason =
 			task.retry?.reason ||
 			reasons[task.statusDetail] ||
-			(status === "failed"
-				? task.lastMessage || "A task failed. Inspect the logs before resuming."
+			(["failed", "interrupted", "blocked"].includes(status)
+				? task.lastMessage ||
+					"Cause not recorded. Inspect the logs and stopped work before resuming."
 				: null);
 		const executorLine =
 			task.kind === "support"
 				? "Code step · no model call"
-				: [task.executor || run.executor, task.model, task.effort]
-						.filter(Boolean)
-						.join(", ");
+				: `Executor: ${task.executor || run.executor || "unknown"}, Recorded model: ${task.model || "unknown"}, Executor-reported model: ${task.reportedModel || "unknown / not reported"}, Recorded effort: ${task.effort || "unknown"}`;
 		inspector.append(
 			...[siblingNav(task)].filter(Boolean),
 			inspectorHeader(task.title || name, status, [
@@ -4624,7 +4706,7 @@ function renderModal() {
 			element(
 				"p",
 				{},
-				"Resets failed, interrupted and resumable blocked tasks, then continues. Completed tasks are not relaunched.",
+				"Resets failed, interrupted and resumable blocked tasks, then continues. Tasks may execute again and repeat side effects. Completed tasks are not relaunched.",
 			),
 			element(
 				"p",
@@ -6241,15 +6323,38 @@ function acceptRun(data) {
 	)
 		return;
 	const handoffs = taskHandoffs(run, data);
-	// 2026-11-03: a stage the user was watching stays selected after the run finishes and hides the
-	// result; when the run leaves `running`, a stage selection (not a task) is cleared.
-	const finishing = run?.status === "running" && data.status !== "running";
+	const first = !run;
 	runRevision++;
 	run = data;
-	if (finishing && state.stage && !state.task) {
-		state.stage = null;
+	// Only a fresh, implicit entry chooses a landing. SSE completion never navigates.
+	if (
+		first &&
+		!runLandingSeen.has(`${state.project}:${data.runId}`) &&
+		!state.view &&
+		!state.task &&
+		!state.stage &&
+		!state.tab &&
+		!new URLSearchParams(location.search).has("layout")
+	) {
+		if (data.status === "completed" && data.reportAvailable)
+			state.view = "report";
+		else if (
+			["failed", "interrupted", "blocked"].includes(data.status) &&
+			!data.verdictGate
+		) {
+			const stopped = data.tasks.find((task) =>
+				["failed", "interrupted", "blocked"].includes(task.status),
+			);
+			if (stopped) state.task = stopped.specId;
+		} else if (liveRun(data)) {
+			const active = data.tasks.find(
+				(task) => task.status === "running" && !task.placeholder,
+			);
+			if (active) state.task = active.specId;
+		}
 		urlState(true);
 	}
+	runLandingSeen.add(`${state.project}:${data.runId}`);
 	if (!liveRun(run)) stoppingRuns.delete(run.runId);
 	const index = runs.findIndex((r) => r.runId === run.runId);
 	if (index >= 0) runs[index] = run;
@@ -6385,6 +6490,7 @@ async function loadRun() {
 	graphControl?.destroy();
 	graphControl = null;
 	run = null;
+	workflowTarget = null;
 	graphModel = null;
 	logController?.abort();
 	logGeneration++;
@@ -6409,6 +6515,31 @@ async function loadRun() {
 	updateConnection();
 	renderRail();
 	const generation = loadGeneration;
+	const project = state.project,
+		runId = state.run;
+	api(
+		`/api/projects/${encodeURIComponent(project)}/runs/${encodeURIComponent(runId)}/workflow-settings-target`,
+	)
+		.then((target) => {
+			if (
+				generation === loadGeneration &&
+				state.project === project &&
+				state.run === runId
+			) {
+				workflowTarget = target;
+				if (run) renderRun();
+			}
+		})
+		.catch(() => {
+			if (
+				generation === loadGeneration &&
+				state.project === project &&
+				state.run === runId
+			) {
+				workflowTarget = { reason: "recorded source lookup unavailable" };
+				if (run) renderRun();
+			}
+		});
 	const settle = () => {
 		if (!center.classList.contains("switching")) return;
 		center.classList.remove("switching");
@@ -6603,7 +6734,7 @@ window.addEventListener("popstate", () => {
 	}
 	if (
 		managementView() ||
-		["workflows", "profiles", "executors"].includes(readState().view)
+		["workflows", "profiles", "executors", "history"].includes(readState().view)
 	) {
 		location.reload();
 		return;
@@ -7498,6 +7629,9 @@ function renderHome() {
 	const center = $("center");
 	const previous = $("home-view");
 	const scroll = previous?.scrollTop ?? 0;
+	const maintenanceOpen =
+		previous?.querySelector(".advanced-maintenance")?.open ||
+		cleanup.confirming;
 	const focused =
 		document.activeElement?.closest("[data-home-key]")?.dataset.homeKey;
 	const project = projects.find((entry) => entry.id === state.project);
@@ -7622,7 +7756,23 @@ function renderHome() {
 				),
 				section(
 					"This project",
-					[homeProject(all), homeCleanup()],
+					[
+						homeProject(all),
+						element(
+							"details",
+							{
+								class: "advanced-maintenance",
+								open: maintenanceOpen ? "" : null,
+							},
+							element("summary", {}, "Advanced maintenance"),
+							element(
+								"p",
+								{},
+								"Broad keep/age cleanup includes project runs and auto-router history, global executor adapter state and local host launch claims. This is not selected-record deletion. Owned worktrees (including dirty changes) and supported engine-owned sessions may be removed; no guaranteed undo.",
+							),
+							homeCleanup(),
+						),
+					],
 					null,
 					"home-project",
 				),
@@ -7754,7 +7904,6 @@ async function start() {
 					runs.find((r) => r.status !== "interrupted") ||
 					runs[0]
 				)?.runId || null;
-			state.view = null;
 			urlState(true);
 		} else if (!state.run && state.view === "report") {
 			// A report is a run's page: without its run there is nothing to open.
@@ -7781,7 +7930,7 @@ async function start() {
 }
 // Management pages use the same text-only components as run views. No launch endpoint or form.
 function managementView() {
-	return ["workflows", "profiles", "executors"].includes(state.view);
+	return ["workflows", "profiles", "executors", "history"].includes(state.view);
 }
 const managementApi = (path, options = {}) =>
 	api(path, { signal: AbortSignal.timeout(150000), ...options });
@@ -9121,7 +9270,7 @@ async function renderManagement() {
 	managementCleanup = () => {};
 	renderTop();
 	renderRail();
-	const title = humanize(state.view);
+	const title = state.view === "history" ? "Run history" : humanize(state.view);
 	const page = element(
 		"div",
 		{ class: "management-page", "data-management": state.view },
@@ -9146,6 +9295,7 @@ async function renderManagement() {
 			);
 			return;
 		}
+		if (state.view === "history") await renderRunHistory(page);
 		if (state.view === "workflows") await renderWorkflows(page);
 		if (state.view === "profiles") await renderProfiles(page);
 		if (state.view === "executors") await renderExecutors(page);
@@ -9156,6 +9306,267 @@ async function renderManagement() {
 		);
 	}
 }
+async function renderRunHistory(page) {
+	const project = state.project;
+	if (!project) {
+		page.append(
+			element(
+				"p",
+				{},
+				"Choose a project before viewing or deleting its Run history.",
+			),
+		);
+		return;
+	}
+	const current = () =>
+		page.isConnected && state.view === "history" && state.project === project;
+	const route = `/api/projects/${encodeURIComponent(project)}/run-deletions`;
+	const data = await managementApi(
+		`/api/projects/${encodeURIComponent(project)}/runs`,
+	);
+	if (!current()) return;
+	const selected = new Set();
+	let version = 0,
+		preview = null,
+		pending = false,
+		committing = false;
+	const disclosure = element("section", {
+		class: "management-result",
+		"data-testid": "selected-delete-preview",
+		hidden: true,
+	});
+	const message = element("div", {
+		class: "management-result",
+		role: "status",
+		"data-testid": "selected-delete-status",
+	});
+	const list = element("div", { class: "history-list" });
+	const ids = () => [...selected].sort();
+	const valid = (token) => current() && token === version;
+	const invalidate = () => {
+		++version;
+		preview = null;
+		disclosure.hidden = true;
+		update();
+	};
+	const review = button(
+		"Review selected deletion",
+		async () => {
+			const token = ++version,
+				runIds = ids();
+			pending = true;
+			preview = null;
+			disclosure.hidden = true;
+			update();
+			try {
+				const result = await managementWrite(`${route}/preview`, "POST", {
+					runIds,
+				});
+				if (!valid(token)) return;
+				preview = result;
+				showPreview();
+			} catch (error) {
+				if (valid(token))
+					message.textContent = `Preview refused: ${error.message}. Selection retained.`;
+			} finally {
+				if (valid(token)) {
+					pending = false;
+					update();
+				}
+			}
+		},
+		{ "data-testid": "selected-delete-review", disabled: true },
+	);
+	const confirm = button(
+		"Delete exactly these selected runs",
+		async () => {
+			if (!readyToDelete()) return;
+			const shown = preview,
+				token = ++version,
+				runIds = ids();
+			pending = true;
+			committing = true;
+			message.textContent =
+				"Deleting selected runs. This sent request cannot be cancelled.";
+			update();
+			try {
+				const result = await managementWrite(route, "POST", {
+					runIds,
+					digest: shown.digest,
+				});
+				if (!valid(token)) return;
+				preview = null;
+				disclosure.hidden = true;
+				const rows = result.data?.runs || [];
+				const complete =
+					result.outcome === "success" &&
+					runIds.every((id) =>
+						rows.some(
+							(row) =>
+								row.runId === id &&
+								row.deleted &&
+								row.purged &&
+								!row.error &&
+								!row.protected,
+						),
+					);
+				message.textContent = complete
+					? `Deleted exactly ${runIds.length} selected runs. No guaranteed undo.`
+					: "Deletion incomplete or protected; inspect retained evidence and errors. Not full success.";
+				message.append(readableDiagnostic(result));
+				for (const row of rows)
+					if (row.deleted) {
+						selected.delete(row.runId);
+						list
+							.querySelector(`[data-history-id="${CSS.escape(row.runId)}"]`)
+							?.remove();
+					}
+			} catch (error) {
+				if (!valid(token)) return;
+				preview = null;
+				disclosure.hidden = true;
+				message.textContent =
+					error.status === 409
+						? "Conflict (409): selection retained. Review a fresh preview and explicitly confirm again; nothing automatically retried."
+						: `Deletion not confirmed: ${error.message}. Selection retained; partial effects may exist.`;
+				if (error.data) message.append(readableDiagnostic(error.data));
+			} finally {
+				if (valid(token)) {
+					pending = false;
+					committing = false;
+					update();
+					message.scrollIntoView({ block: "start", behavior: "instant" });
+				}
+			}
+		},
+		{ "data-testid": "selected-delete-confirm", disabled: true },
+	);
+	const cancel = button(
+		"Cancel deletion",
+		() => {
+			if (committing) return;
+			invalidate();
+			message.textContent = "Deletion cancelled. Selection retained.";
+		},
+		{ "data-testid": "selected-delete-cancel" },
+	);
+	function readyToDelete() {
+		return (
+			current() &&
+			!readonly() &&
+			!pending &&
+			selected.size > 0 &&
+			preview?.outcome === "success" &&
+			/^[a-f0-9]{64}$/.test(preview.digest || "") &&
+			JSON.stringify(preview.runIds) === JSON.stringify(ids()) &&
+			ids().every((id) =>
+				preview.data?.runs?.some(
+					(row) =>
+						row.runId === id && row.selected && !row.protected && !row.error,
+				),
+			)
+		);
+	}
+	function update() {
+		review.disabled = readonly() || pending || !selected.size;
+		confirm.disabled = !readyToDelete();
+		cancel.disabled = committing;
+		for (const checkbox of list.querySelectorAll(
+			"input:not([data-nonterminal])",
+		))
+			checkbox.disabled = readonly() || committing;
+	}
+	function showPreview() {
+		disclosure.hidden = false;
+		const rows = preview.data?.runs || [];
+		disclosure.replaceChildren(
+			element("h2", {}, "Confirm exact selected Run deletion"),
+			element(
+				"p",
+				{},
+				`Project: ${projects.find((p) => p.id === project)?.name || project} (${project}). Exact IDs: ${ids().join(", ")}`,
+			),
+			element(
+				"p",
+				{},
+				"Includes attached logs/reports, actual owned managed worktrees below (including dirty changes), and engine-owned sessions where supported. Session counts are deletion-time facts; unsupported sessions remain. No guaranteed recovery or undo. Excludes the main checkout and project settings, unselected/active runs, other projects, auto-router history, global adapter state and host launch claims.",
+			),
+			...rows.map((row) =>
+				element(
+					"article",
+					{},
+					element("h3", {}, row.runId),
+					element(
+						"p",
+						{},
+						`Status: ${row.status}; protected: ${Boolean(row.protected)}${row.error ? `; error: ${row.error}` : ""}`,
+					),
+					...(row.worktrees || []).map((tree) =>
+						element(
+							"p",
+							{},
+							`Owned worktree: ${tree.path}; branch: ${tree.branch || "unknown"}; dirty: ${tree.dirty}; unique commits: ${tree.commits}${tree.error ? `; error: ${tree.error}` : ""}`,
+						),
+					),
+				),
+			),
+			readableDiagnostic(preview),
+			cancel,
+			confirm,
+		);
+		update();
+	}
+	for (const summary of data.runs || []) {
+		const terminal = ["completed", "failed", "interrupted"].includes(
+			summary.status,
+		);
+		const check = element("input", {
+			type: "checkbox",
+			"aria-label": `Select ${summary.runId}`,
+			disabled: readonly() || !terminal,
+			"data-nonterminal": !terminal ? "true" : null,
+			onchange: (event) => {
+				if (committing) return;
+				if (event.target.checked) selected.add(summary.runId);
+				else selected.delete(summary.runId);
+				pending = false;
+				invalidate();
+			},
+		});
+		list.append(
+			element(
+				"article",
+				{ "data-history-id": summary.runId },
+				check,
+				element(
+					"a",
+					{ href: runHref(summary.runId) },
+					`${summary.name}, ${summary.runId}`,
+				),
+				element(
+					"p",
+					{},
+					`${summary.status}, ${summary.updatedAt}${!terminal ? ", Active/nonterminal runs cannot be selected" : ""}`,
+				),
+			),
+		);
+	}
+	page.append(
+		element(
+			"p",
+			{},
+			readonly()
+				? "Read-only: deletion unavailable."
+				: "Select exact terminal records in this project; no age or keep policy is applied.",
+		),
+		list,
+		review,
+		message,
+		disclosure,
+	);
+	if (!data.runs?.length) list.append(element("p", {}, "No runs yet"));
+}
+
 async function renderWorkflows(page) {
 	if (state.workflow) return renderWorkflow(page, state.workflow);
 	const [catalog, agents] = await Promise.all([
@@ -9182,8 +9593,9 @@ async function renderWorkflows(page) {
 					"a",
 					{
 						class: "workflow-card",
-						href: workflowHref(workflow.name),
+						href: workflowHref(workflow.workflowKey || workflow.name),
 						"data-workflow": workflow.name,
+						"data-workflow-key": workflow.workflowKey || "",
 					},
 					element(
 						"span",
@@ -9195,6 +9607,11 @@ async function renderWorkflows(page) {
 						"span",
 						{ class: "workflow-card-text" },
 						workflow.description || "No description.",
+					),
+					element(
+						"small",
+						{ class: "muted" },
+						workflow.specPath || workflow.scope,
 					),
 				),
 			),
@@ -9229,11 +9646,11 @@ const ROUTING_LABELS = {
 	avoidWhen: "Avoid when",
 	outputs: "Outputs",
 };
-function workflowHref(name) {
+function workflowHref(key) {
 	const params = new URLSearchParams();
 	if (state.project) params.set("project", state.project);
 	params.set("view", "workflows");
-	if (name) params.set("workflow", name);
+	if (key) params.set("workflow", key);
 	return `/?${params}`;
 }
 function workflowTags(workflow) {
@@ -9278,8 +9695,689 @@ function propertyTable(headers, rows, attrs = {}) {
 		),
 	);
 }
+/** Project-local intent only. Resolution and authorization belong to the keyed B2 API. */
+async function projectWorkflowEditor(page, project, workflow, graph, current) {
+	const route = `/api/projects/${encodeURIComponent(project)}/workflows/${workflow.workflowKey}/settings`;
+	const host = managementPanel("Settings for this project's next new runs");
+	host.classList.add("project-workflow-editor");
+	host.dataset.workflowKey = workflow.workflowKey;
+	host.dataset.projectId = project;
+	host.append(
+		element(
+			"p",
+			{ class: "muted mono", "data-testid": "workflow-settings-source" },
+			`${workflow.name}, ${workflow.scope || "source"}, ${workflow.specPath || workflow.workflowKey}`,
+		),
+	);
+	page.append(host);
+	let disposed = false,
+		saving = false,
+		generation = 0,
+		request = 0,
+		selection = null;
+	let settings,
+		intent,
+		preview,
+		previewGeneration = -1,
+		controller;
+	let layout = "td",
+		showCode = true;
+	const views = new Map();
+	const refreshers = new Set();
+	const live = () => !disposed && current() && host.isConnected;
+	managementCleanup = () => {
+		disposed = true;
+		++request;
+		controller?.destroy();
+	};
+	const copy = (value) => structuredClone(value);
+	const own = (map, key) =>
+		map && Object.hasOwn(map, key) ? map[key] : undefined;
+	const put = (map, key, value) =>
+		Object.defineProperty(map, key, {
+			value,
+			enumerable: true,
+			configurable: true,
+			writable: true,
+		});
+	const expected = () =>
+		Object.fromEntries(
+			[
+				"storeEpoch",
+				"revision",
+				"definitionFingerprint",
+				"resolutionToken",
+			].map((key) => [key, settings[key]]),
+		);
+	const status = element("p", {
+		role: "status",
+		"data-testid": "workflow-settings-status",
+	});
+	const error = element("p", {
+		role: "alert",
+		class: "management-error",
+		hidden: true,
+	});
+	host.append(status);
+	status.textContent = "Loading project settings…";
+	const loaded = await managementApi(route);
+	if (!live()) return;
+	settings = loaded.settings;
+	intent = copy(settings.intent);
+	// Refuse future schemas rather than turning a partial UI view into replacement intent.
+	const supported = (value) =>
+		value &&
+		typeof value === "object" &&
+		!Array.isArray(value) &&
+		(value.slots === undefined ||
+			(value.slots !== null &&
+				typeof value.slots === "object" &&
+				!Array.isArray(value.slots))) &&
+		Object.keys(value).every((key) => ["defaults", "slots"].includes(key)) &&
+		[value.defaults, ...Object.values(value.slots || {})]
+			.filter((v) => v !== undefined)
+			.every(
+				(binding) =>
+					binding &&
+					typeof binding === "object" &&
+					!Array.isArray(binding) &&
+					typeof binding.executor === "string" &&
+					binding.executor.length > 0 &&
+					["model", "effort"].every(
+						(key) =>
+							!Object.hasOwn(binding, key) ||
+							(typeof binding[key] === "string" && binding[key].length > 0),
+					) &&
+					(binding.effort === undefined ||
+						EFFORT_LEVELS.includes(binding.effort)) &&
+					Object.keys(binding).every((key) =>
+						["executor", "model", "effort"].includes(key),
+					),
+			);
+	if (!supported(intent)) {
+		status.textContent =
+			"This writable intent is not supported by this editor. Original settings preserved; editing refused.";
+		return;
+	}
+	let metadata = loaded;
+	const draft = settingsDraft(host, () => intent);
+	const inventory = (await managementApi("/api/executors/models")).data;
+	if (!live()) {
+		draft.clear();
+		return;
+	}
+	const common = element("section", {
+		class: "project-common",
+		"aria-label": "Workflow common defaults",
+	});
+	const graphHost = element("div", { class: "profile-flow" });
+	const authored = element("div", {
+		class: "project-authored",
+		"aria-label": "Expanded authored tasks",
+	});
+	const panel = element("section", {
+		class: "role-inspector",
+		"aria-label": "Canonical task settings",
+	});
+	const editors = element(
+		"div",
+		{},
+		common,
+		element(
+			"div",
+			{ class: "profile-flow-layout" },
+			element("div", {}, graphHost, authored),
+			panel,
+		),
+	);
+	const binding = (id) =>
+		id === null ? intent.defaults : own(intent.slots, id);
+	const row = (id) =>
+		previewGeneration === generation
+			? own(preview?.check?.data?.configuration?.slots, id)
+			: undefined;
+	const fail = (message) => {
+		error.hidden = false;
+		error.textContent = message;
+	};
+	const updateStatus = () => {
+		status.textContent = readonly()
+			? "Read-only connection: settings are inspectable; Preview, Check and Save are unavailable."
+			: `${draft.dirty() ? "Unsaved changes" : "No unsaved changes"}. ${previewGeneration === generation ? "Calculated preview, not observed execution." : "Preview not current; unresolved fields are unknown until Preview/Check."}`;
+		save.disabled = readonly() || !draft.dirty();
+	};
+	function changed() {
+		++generation;
+		error.hidden = true;
+		updateStatus();
+		// Existing controls retain focus and raw manual IDs; only calculated labels become stale.
+		for (const label of host.querySelectorAll("[data-calculated]"))
+			label.textContent = "Unknown until Preview/Check (draft changed)";
+		for (const refresh of refreshers) refresh();
+		controller?.refresh();
+	}
+	function setBinding(id, value) {
+		if (id === null) {
+			if (value) intent.defaults = value;
+			else delete intent.defaults;
+		} else {
+			if (!intent.slots) intent.slots = {};
+			if (value) put(intent.slots, id, value);
+			else delete intent.slots[id];
+		}
+		changed();
+	}
+	function sourceText(value, field) {
+		if (!value) return "Unknown / not calculated";
+		const actual =
+			field === "effort"
+				? `requested: ${value.requested ?? "unknown"}; resolved: ${value.resolved ?? "unknown"}${value.reason ? ` (${value.reason})` : ""}`
+				: (value.value ?? "unknown");
+		return `${actual}; source: ${value.source || "unknown"}${value.originSlot ? `; origin: ${value.originSlot}` : ""}${value.inheritedFrom ? `; inherited from: ${value.inheritedFrom}` : ""}${value.inheritedVia?.length ? `; via: ${value.inheritedVia.join(" → ")}` : ""}`;
+	}
+	function controls(id) {
+		const value = binding(id) || {};
+		const resolved = id === null ? undefined : row(id);
+		const slot = metadata.editableSlots.find((slot) => slot.id === id);
+		const dynamic = slot?.kind === "dynamic-profile";
+		const parentExecutor =
+			previewGeneration === generation ? slot?.parentExecutor : undefined;
+		const actualExecutor = dynamic ? parentExecutor : resolved?.executor?.value;
+		const prefix = id === null ? "Common" : `Slot ${id}`;
+		const node = element("div", {
+			class: "management-fields",
+			"data-binding": id ?? "common",
+		});
+		const ids = [
+			...new Set(
+				[
+					...(inventory.executors || []).map((entry) => entry.id),
+					value.executor,
+					actualExecutor,
+				].filter(Boolean),
+			),
+		];
+		const executor = choicePicker(
+			`${prefix} Executor`,
+			[["", "No local binding"], ...ids],
+			value.executor || "",
+			{
+				placeholder: actualExecutor
+					? `Resolved: ${actualExecutor}`
+					: "Choose executor explicitly",
+			},
+		);
+		const model = choicePicker(`${prefix} Model`, [], value.model || "", {
+			editable: true,
+			placeholder: "No local model override",
+		});
+		const effort = choicePicker(
+			`${prefix} Effort`,
+			[["", "No local effort override"], ...EFFORT_LEVELS],
+			value.effort || "",
+			{ placeholder: "No local effort override" },
+		);
+		const note = element("small", { class: "muted", role: "status" });
+		const refresh = () => {
+			for (const reset of node.querySelectorAll("[data-reset-field]"))
+				reset.disabled =
+					readonly() ||
+					!Object.hasOwn(binding(id) || {}, reset.dataset.resetField);
+			const remove = node.querySelector("[data-remove-binding]");
+			if (remove) remove.disabled = readonly() || !binding(id);
+			const currentExecutor = dynamic
+				? previewGeneration === generation
+					? slot?.parentExecutor
+					: undefined
+				: id === null
+					? undefined
+					: row(id)?.executor?.value;
+			const exec = binding(id)?.executor || currentExecutor;
+			executor.control.value = binding(id)?.executor || "";
+			const entry = inventory.executors.find((entry) => entry.id === exec);
+			model.setOptions([["", "No local override"], ...(entry?.models || [])]);
+			model.control.disabled = effort.control.disabled = readonly() || !exec;
+			executor.control.disabled = readonly() || dynamic;
+			executor.control.placeholder = currentExecutor
+				? `Resolved: ${currentExecutor}`
+				: "Choose executor explicitly";
+			note.textContent = dynamic
+				? `Dynamic template shares its actual parent executor: ${currentExecutor || "unknown; Preview required"}. Editing never pins the parent. A stale/incompatible binding is refused, not rebound.`
+				: !exec
+					? "Choose an executor or calculate the actual slot executor before selecting model/effort."
+					: `Binding executor: ${exec}${!entry ? "; unknown executor, manual IDs retained" : entry.error ? `; model inventory unavailable: ${entry.error}` : "; manual model IDs supported"}. Changing executor retains model/effort for explicit review; incompatible values are refused.`;
+		};
+		executor.control.addEventListener("change", () => {
+			if (readonly() || dynamic) return;
+			if (!executor.control.value) {
+				if (
+					!window.confirm(
+						"Remove this whole binding, including its model and effort?",
+					)
+				) {
+					executor.control.value = binding(id)?.executor || "";
+					return;
+				}
+				setBinding(id, undefined);
+				renderFields();
+				return;
+			}
+			setBinding(id, { ...binding(id), executor: executor.control.value });
+			refresh();
+		});
+		for (const [key, picker] of [
+			["model", model],
+			["effort", effort],
+		]) {
+			const change = () => {
+				if (readonly()) return;
+				const previous = binding(id);
+				if (!previous && !picker.control.value) return;
+				const exec =
+					previous?.executor ||
+					(dynamic
+						? previewGeneration === generation
+							? slot?.parentExecutor
+							: undefined
+						: row(id)?.executor?.value);
+				if (!exec || (dynamic && exec !== slot?.parentExecutor)) {
+					fail(
+						"Actual parent/slot executor is unresolved or incompatible. Preview and review, or explicitly choose a compatible executor; no values were rebound.",
+					);
+					return;
+				}
+				const next = { ...previous, executor: exec };
+				if (picker.control.value) next[key] = picker.control.value;
+				else delete next[key];
+				setBinding(id, next);
+				refresh();
+			};
+			picker.control.addEventListener("input", change);
+			node.append(
+				field(key === "model" ? "Model" : "Effort", picker.node),
+				element(
+					"small",
+					{ "data-calculated": key },
+					id === null
+						? value[key]
+							? `Requested common ${key}: ${value[key]}; source: project-default. Effective values and compatibility are resolved per canonical slot.`
+							: "No common field override; inspect a canonical slot for its actual baseline/source."
+						: sourceText(resolved?.[key], key),
+				),
+				button(
+					`Reset ${key} override`,
+					() => {
+						const previous = binding(id);
+						if (!previous) return;
+						const next = { ...previous };
+						delete next[key];
+						setBinding(id, next);
+						renderFields();
+					},
+					{
+						disabled: readonly() || !Object.hasOwn(value, key),
+						"data-reset-field": key,
+					},
+				),
+			);
+		}
+		node.prepend(
+			field("Executor pin", executor.node),
+			element(
+				"small",
+				{ "data-calculated": "executor" },
+				id === null
+					? value.executor
+						? `Project default pin: ${value.executor}`
+						: "No project common pin; baseline remains unchanged"
+					: sourceText(resolved?.executor, "executor"),
+			),
+		);
+		node.append(
+			note,
+			button(
+				"Remove whole binding",
+				() => {
+					if (
+						window.confirm(
+							"Remove this whole binding (executor, model and effort)? Baseline will be resolved again.",
+						)
+					) {
+						setBinding(id, undefined);
+						renderFields();
+					}
+				},
+				{
+					disabled: readonly() || !binding(id),
+					"data-remove-binding": id ?? "common",
+				},
+			),
+		);
+		refreshers.add(refresh);
+		refresh();
+		return node;
+	}
+	function renderFields() {
+		refreshers.clear();
+		common.replaceChildren(
+			element("h3", {}, "Workflow common defaults"),
+			element(
+				"p",
+				{ class: "muted" },
+				"Explicit project defaults affect this workflow's next new runs, including controller/common lineage. Separate nested child Runs keep their existing inheritance; parent executor changes can indirectly affect them.",
+			),
+			controls(null),
+		);
+		const selected = metadata.authored.find((node) => node.id === selection);
+		panel.replaceChildren(
+			element(
+				"h3",
+				{ tabindex: "-1", "data-testid": "canonical-slot-title" },
+				selected?.id || "Select an authored task",
+			),
+		);
+		if (!selected)
+			panel.append(
+				element(
+					"p",
+					{},
+					"Select a canonical task. Common and task edits share one draft and one Save.",
+				),
+			);
+		else if (!selected.editable)
+			panel.append(
+				element(
+					"p",
+					{ "data-testid": "noneditable-node" },
+					{
+						group:
+							"Structural group: no direct model. Select an expanded authored child.",
+						controller:
+							"Dynamic controller: no individual model editor. Only declared templates are editable; future workers are not invented.",
+						code: "Code step: no model settings.",
+					}[selected.kind] || "No editable model slot.",
+				),
+			);
+		else
+			panel.append(
+				element(
+					"p",
+					{ class: "muted" },
+					selected.kind === "template"
+						? `Authored template${selected.parentId ? ` in ${selected.parentId}` : ""}; generated tasks inherit its captured settings, not live edits.`
+						: `Only canonical slot ${selected.id}; role peers are independent.`,
+				),
+				controls(selected.id),
+			);
+	}
+	const choose = (id) => {
+		selection = id;
+		for (const item of authored.querySelectorAll("[data-canonical-slot]"))
+			item.setAttribute(
+				"aria-pressed",
+				String(item.dataset.canonicalSlot === id),
+			);
+		renderFields();
+		controller?.refresh();
+		// Explicit editor selection only; never a Run/SSE update. Keep graph camera intact.
+		if (id && window.matchMedia("(max-width: 1100px)").matches) {
+			panel.scrollIntoView({ block: "start", behavior: "instant" });
+			panel.querySelector("h3")?.focus({ preventScroll: true });
+		}
+	};
+	function draw() {
+		controller?.destroy();
+		const tasks = [...(graph?.tasks || [])];
+		for (const task of graph?.templateTasks || [])
+			tasks.push({
+				...task,
+				specId: `template:${task.stageId}`,
+				dependsOn: task.dependsOn.map((id) => `template:${id}`),
+			});
+		const present = new Set(tasks.map((task) => task.stageId));
+		// Extra authored entries are selectable definitions, never fabricated runtime dependencies.
+		for (const node of metadata.authored)
+			if (!present.has(node.id))
+				tasks.push({
+					specId: `authored:${node.id}`,
+					stageId: node.id,
+					kind: node.kind === "code" ? "support" : node.kind,
+					dependsOn: [],
+				});
+		const model = deriveGraph(
+			{
+				tasks: tasks.map((task) => ({
+					...task,
+					status: "pending",
+					statusDetail: "pending",
+					placeholder: true,
+				})),
+			},
+			{ hideCode: !showCode, keep: selection },
+		);
+		graphHost.replaceChildren(
+			renderGraph({
+				model,
+				name: workflow.name,
+				key: `${project}:${workflow.workflowKey}`,
+				layout,
+				showCode,
+				views,
+				describe: (stage) => {
+					const node = metadata.authored.find((node) => node.id === stage.id);
+					return node?.editable
+						? sourceText(row(node.id)?.model, "model")
+						: {
+								group: "Structural group",
+								controller: "Dynamic controller",
+								code: "Code, no model",
+							}[node?.kind] || "Authored definition";
+				},
+				select: (stage) => choose(stage.id),
+				selected: () => selection,
+				related: () => new Set(),
+				clear: () => choose(null),
+				control: (value) => {
+					controller = value;
+				},
+				toggleCode: () => {
+					showCode = !showCode;
+					draw();
+				},
+				controls: () =>
+					[
+						["td", "Top-down"],
+						["lr", "Left-right"],
+					].map(([value, label]) =>
+						button(
+							markIcon(value),
+							() => {
+								layout = value;
+								draw();
+							},
+							{ "aria-label": label, "aria-pressed": String(layout === value) },
+						),
+					),
+			}),
+		);
+		authored.replaceChildren(
+			element("h3", {}, "Expanded authored tasks / templates"),
+			element(
+				"p",
+				{ class: "muted" },
+				"Graph edges are compiled dependencies (including loop templates). The expanded list shows authored containment, not additional dependency edges.",
+			),
+			...metadata.authored.map((node) =>
+				button(
+					`${node.parentId ? `${node.parentId} / ` : ""}${node.id}, ${node.kind}`,
+					() => choose(node.id),
+					{
+						"data-canonical-slot": node.id,
+						"aria-pressed": String(node.id === selection),
+					},
+				),
+			),
+		);
+	}
+	async function calculate(op = "preview") {
+		if (saving) return;
+		const token = ++request,
+			version = generation;
+		const body = { intent: copy(intent), expected: expected() };
+		try {
+			const result = await managementWrite(`${route}/${op}`, "POST", body);
+			if (!live() || token !== request || version !== generation) return;
+			preview = result;
+			previewGeneration = version;
+			metadata = result;
+			error.hidden = true;
+			if (!result.check?.ok)
+				fail(
+					`Check refused: ${result.check?.text || "No calculable configuration"}. Draft retained. ${result.check?.data?.configuration ? "Calculated configuration is shown separately; capability refusal is not a Save result." : "Unresolved configuration remains unknown."}`,
+				);
+			renderFields();
+			controller?.refresh();
+			updateStatus();
+		} catch (failure) {
+			if (live() && token === request && version === generation)
+				fail(
+					`${failure.message}. Draft retained. Reload and review before retrying; Preview/Check never saves.`,
+				);
+		}
+	}
+	const save = button(
+		"Save settings",
+		async () => {
+			if (saving) return;
+			saving = true;
+			const token = ++request,
+				version = generation,
+				submitted = copy(intent),
+				snapshot = draft.snapshot();
+			editors.inert = true;
+			save.disabled = true;
+			try {
+				const result = await managementWrite(route, "PUT", {
+					intent: submitted,
+					expected: expected(),
+				});
+				if (!live() || token !== request) return;
+				settings = result;
+				draft.saved(snapshot);
+				error.hidden = true;
+				updateStatus();
+				status.textContent = draft.dirty()
+					? "Submitted settings saved. Unsaved changes remain; save them separately."
+					: "Settings saved for this project/workflow. Existing runs are unchanged.";
+			} catch (failure) {
+				if (live() && token === request && version === generation) {
+					fail(
+						`${failure.status === 409 ? "Conflict (409): " : "Save not confirmed: "}${failure.message}. Complete draft retained. Reload and review; no automatic overwrite/retry.`,
+					);
+					updateStatus();
+				}
+			} finally {
+				saving = false;
+				if (live()) {
+					editors.inert = false;
+					save.disabled = readonly() || !draft.dirty();
+				}
+			}
+		},
+		{
+			class: "primary",
+			"data-management-action": "save-project-settings",
+			disabled: readonly(),
+		},
+	);
+	host.append(
+		editors,
+		element(
+			"div",
+			{ class: "management-actions" },
+			button("Preview", () => calculate(), {
+				disabled: readonly(),
+				"data-testid": "project-settings-preview",
+			}),
+			button("Check draft", () => calculate("check"), {
+				disabled: readonly(),
+				"data-testid": "project-settings-check",
+			}),
+			button(
+				"Cancel / reload",
+				() => {
+					if (approveSettingsDiscard()) renderManagement();
+				},
+				{ "data-testid": "project-settings-reload" },
+			),
+			save,
+		),
+		error,
+		element(
+			"details",
+			{ class: "project-shared-advanced" },
+			element(
+				"summary",
+				{},
+				"Advanced: shared profiles and workflow preferences",
+			),
+			element(
+				"p",
+				{},
+				"User-level, name-keyed settings shared with other projects. Project Save does not migrate, copy, relabel or delete them.",
+			),
+			element(
+				"a",
+				{ href: managementHref("profiles") },
+				"Manage shared Profiles and assignments",
+			),
+		),
+	);
+	host.addEventListener("keydown", (event) => {
+		if (
+			event.defaultPrevented ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.altKey
+		)
+			return;
+		if (event.key === "Escape" && selection) {
+			const previous = selection;
+			choose(null);
+			graphHost
+				.querySelector(`[data-stage="${CSS.escape(previous)}"]`)
+				?.focus({ preventScroll: true });
+			event.preventDefault();
+			event.stopPropagation();
+		} else if (
+			event.key.toLowerCase() === "f" &&
+			event.target.closest(".profile-flow")
+		) {
+			controller?.fit();
+			event.preventDefault();
+			event.stopPropagation();
+		}
+	});
+	if (graph?.error)
+		fail(
+			`Compiled graph: ${graph.error}. Authored definitions remain inspectable.`,
+		);
+	renderFields();
+	draw();
+	updateStatus();
+	if (!readonly()) await calculate();
+}
+
 /** The workflow page (2026-11-11): what it is, its stages, its check and the raw spec. */
 async function renderWorkflow(page, name) {
+	const project = state.project;
+	let selectionKey = name;
+	const route = (suffix = "") =>
+		`/api/projects/${encodeURIComponent(project)}/workflows/${encodeURIComponent(selectionKey)}${suffix}`;
+	const current = () =>
+		page.isConnected &&
+		state.project === project &&
+		state.workflow === selectionKey;
 	page.querySelector("h1").textContent = name;
 	page
 		.querySelector("h1")
@@ -9290,13 +10388,62 @@ async function renderWorkflow(page, name) {
 				"← All workflows",
 			),
 		);
-	const [catalog, data] = await Promise.all([
-		managementApi(projectRoute("workflows")),
-		managementApi(projectRoute(`workflows/${encodeURIComponent(name)}`)),
-	]);
-	const workflow = catalog.data.workflows.find(
-		(entry) => entry.name === name,
-	) || { name };
+	const catalog = await managementApi(
+		`/api/projects/${encodeURIComponent(project)}/workflows`,
+	);
+	if (!current()) return;
+	const exact = catalog.data.workflows.find(
+		(entry) => entry.workflowKey === name,
+	);
+	const aliases = catalog.data.workflows.filter((entry) => entry.name === name);
+	if (!exact && aliases.length > 1) {
+		page.append(
+			element(
+				"p",
+				{ role: "alert" },
+				"Multiple sources have this workflow name. Return to All workflows and select an explicit source.",
+			),
+		);
+		return;
+	}
+	const workflow = exact || aliases[0] || { name };
+	if (workflow.workflowKey) {
+		selectionKey = workflow.workflowKey;
+		state.workflow = selectionKey;
+		const params = new URLSearchParams(location.search);
+		params.set("workflow", selectionKey);
+		history.replaceState(
+			history.state,
+			"",
+			`${location.pathname}?${params}${location.hash}`,
+		);
+	}
+	const data = await managementApi(route());
+	if (!current()) return;
+	page.querySelector("h1").textContent = workflow.name;
+	if (workflow.workflowKey) {
+		try {
+			await projectWorkflowEditor(page, project, workflow, data.graph, current);
+		} catch (failure) {
+			if (!current()) return;
+			const status = page.querySelector(
+				'[data-testid="workflow-settings-status"]',
+			);
+			if (status) {
+				status.textContent = `Project settings unavailable: ${failure.message}. No draft was saved or discarded.`;
+				status.setAttribute("role", "alert");
+			}
+			page.append(button("Reload project settings", renderManagement));
+		}
+		if (!current()) return;
+	} else
+		page.append(
+			element(
+				"p",
+				{ role: "alert" },
+				"Project settings unavailable: no server workflow identity.",
+			),
+		);
 	page.querySelector("h1 + p")?.replaceChildren(workflowTags(workflow));
 	// Authored stage and agent names, not a second compiler. A spec that cannot be read here
 	// still shows its validation, check and raw text (2026-11-11: one failure blanked the page).
@@ -9385,13 +10532,17 @@ async function renderWorkflow(page, name) {
 				: null,
 	);
 	const check = managementPanel("Check: no run or model call");
-	const aliases = (workflow.aliases || []).filter((alias) => alias !== name);
+	const workflowAliases = (workflow.aliases || []).filter(
+		(alias) => alias !== workflow.name,
+	);
 	const roles = data.roles?.data?.roles;
 	const diagnostics = diagnosticView(
 		"Workflow diagnostics",
 		element("h2", {}, "Source"),
 		element("p", { class: "mono" }, workflow.specPath || "Unavailable"),
-		aliases.length ? element("p", {}, `Aliases: ${aliases.join(", ")}`) : null,
+		workflowAliases.length
+			? element("p", {}, `Aliases: ${workflowAliases.join(", ")}`)
+			: null,
 		element("h2", {}, "Resolved spec"),
 		element("pre", {}, data.spec.data.spec),
 		roles?.length || (roles && Object.keys(roles).length)
@@ -9441,7 +10592,9 @@ async function renderWorkflow(page, name) {
 			)
 			.join("");
 		command.replaceChildren(
-			commandHint(`agent-workflow run ${shellArg(name)} "<task>"${flags}`),
+			commandHint(
+				`agent-workflow run ${shellArg(workflow.specPath || workflow.name)} "<task>"${flags}`,
+			),
 		);
 	};
 	const overrides = element(
@@ -9490,11 +10643,7 @@ async function renderWorkflow(page, name) {
 				async () => {
 					output.replaceChildren(
 						managementResult(
-							await managementWrite(
-								projectRoute(`workflows/${encodeURIComponent(name)}/check`),
-								"POST",
-								selected(),
-							),
+							await managementWrite(route("/check"), "POST", selected()),
 							"Check details",
 						),
 					);

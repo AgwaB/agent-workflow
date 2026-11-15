@@ -13,6 +13,10 @@ import type { WorkflowTaskUsageValues } from "../../core/types.js";
 import { EXECUTOR_NEEDS_DECISION_STATUS_DETAIL } from "../../core/terminal-result.js";
 import { isUserStoppedRun } from "../../core/run-stop-marking.js";
 import type { TaskOutcome } from "./task-text.js";
+import type {
+	WorkflowConfiguration,
+	WorkflowConfigurationSlot,
+} from "../../core/project-settings-runtime.js";
 
 export type DashboardStatusRun = NonNullable<StatusData["run"]>;
 export type DashboardShownRun = Awaited<
@@ -85,6 +89,8 @@ export interface DashboardTask {
 	placeholder: boolean;
 	executor?: string;
 	model?: string;
+	/** Recorded executor usage metadata, not independently provider-verified. */
+	reportedModel?: string;
 	effort?: string;
 	startedAt?: string;
 	completedAt?: string;
@@ -107,6 +113,8 @@ export interface DashboardTask {
 	hasLogs: boolean;
 }
 export interface DashboardRun extends DashboardRunSummary {
+	/** Recorded requested/resolved compiler plan; not today's settings or observed execution. */
+	configuration?: Pick<WorkflowConfiguration, "schema" | "slots" | "shadowed">;
 	task?: string;
 	permissionMode?: string;
 	usage:
@@ -371,6 +379,9 @@ export function projectRun(
 			placeholder: task.kind === "foreach" && !generated,
 			...(executor ? { executor } : {}),
 			...(model ? { model } : {}),
+			...(typeof task.usage?.model === "string" && task.usage.model
+				? { reportedModel: task.usage.model }
+				: {}),
 			...(effort ? { effort } : {}),
 			...(task.startedAt ? { startedAt: task.startedAt } : {}),
 			...(task.completedAt ? { completedAt: task.completedAt } : {}),
@@ -447,6 +458,9 @@ export function projectRun(
 	}
 	return {
 		...projectRunSummary(run, shown, live),
+		...(record.configuration
+			? { configuration: projectCapturedConfiguration(record.configuration) }
+			: {}),
 		// The user's task for this run (host API `includeTask`), never the workflow's description.
 		...(shown.runtimeTask ? { task: shown.runtimeTask } : {}),
 		...(run.permissionMode ? { permissionMode: run.permissionMode } : {}),
@@ -472,5 +486,64 @@ export function projectRun(
 				}
 			: {}),
 		tasks,
+	};
+}
+
+/** Allowlist recorded fields; never forward capture paths, prompts or future unknown metadata. */
+export function projectCapturedConfiguration(
+	configuration: WorkflowConfiguration,
+): NonNullable<DashboardRun["configuration"]> {
+	const lineage = (field: WorkflowConfigurationSlot["model"]) => ({
+		source: field.source,
+		...(field.originSlot !== undefined ? { originSlot: field.originSlot } : {}),
+		...(field.inheritedFrom !== undefined
+			? { inheritedFrom: field.inheritedFrom }
+			: {}),
+		...(field.originScope !== undefined
+			? { originScope: field.originScope }
+			: {}),
+		...(field.inheritedVia !== undefined
+			? { inheritedVia: [...field.inheritedVia] }
+			: {}),
+	});
+	return {
+		schema: configuration.schema,
+		slots: Object.fromEntries(
+			Object.entries(configuration.slots).map(([id, slot]) => [
+				id,
+				{
+					executor: {
+						source: slot.executor.source,
+						...(slot.executor.value !== undefined
+							? { value: slot.executor.value }
+							: {}),
+					},
+					model: {
+						...lineage(slot.model),
+						...(slot.model.value !== undefined
+							? { value: slot.model.value }
+							: {}),
+					},
+					effort: {
+						...lineage(slot.effort),
+						...(slot.effort.requested !== undefined
+							? { requested: slot.effort.requested }
+							: {}),
+						...(slot.effort.resolved !== undefined
+							? { resolved: slot.effort.resolved }
+							: {}),
+						...(slot.effort.reason !== undefined
+							? { reason: slot.effort.reason }
+							: {}),
+					},
+				},
+			]),
+		),
+		shadowed: configuration.shadowed.map(({ scope, slot, field, reason }) => ({
+			scope,
+			slot,
+			field,
+			reason,
+		})),
 	};
 }

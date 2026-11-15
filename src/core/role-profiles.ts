@@ -11,6 +11,7 @@
 // for a field of a stage wins that field; a flat profile `executor` is the layer's value for every
 // stage it has no role entry for. A role entry's model/effort apply only when the stage runs on the
 // entry's executor (or the entry names none): a model id belongs to its executor.
+import type { ProjectWorkflowSettingsIntent } from "./project-workflow-settings.js";
 import {
 	EFFORT_LEVELS,
 	WORKFLOW_PROFILE_ROLES,
@@ -223,6 +224,8 @@ export interface ResolveStageRoleAssignmentsInput {
 		profile?: string;
 	};
 	layers: readonly WorkflowRoleLayer[];
+	projectSettings?: ProjectWorkflowSettingsIntent;
+	trace?: boolean;
 }
 
 export interface ResolvedStageRoleAssignments {
@@ -264,6 +267,16 @@ export function resolveStageRoleAssignments(
 			| undefined;
 		if (input.runFlagExecutor)
 			chosen = { executor: input.runFlagExecutor, source: "run-flag" };
+		const localSlots = input.projectSettings?.slots;
+		const localSlot =
+			localSlots && Object.hasOwn(localSlots, slot.id)
+				? localSlots[slot.id]
+				: undefined;
+		const common = input.projectSettings?.defaults;
+		if (!chosen && localSlot)
+			chosen = { executor: localSlot.executor, source: "project-slot" };
+		if (!chosen && common)
+			chosen = { executor: common.executor, source: "project-default" };
 		for (const layer of chosen ? [] : input.layers) {
 			const key = keys.find((candidate) => layer.roles?.[candidate]?.executor);
 			const executor =
@@ -286,17 +299,34 @@ export function resolveStageRoleAssignments(
 		};
 		if (slot.kind === "dynamic-profile" && slot.parentId !== undefined) {
 			const parent = executorBySlot[slot.parentId] ?? input.primary.id;
+			if (localSlot && !input.runFlagExecutor && localSlot.executor !== parent)
+				throw new Error(
+					`project settings: ${slot.id} executor ${localSlot.executor} must match parent ${slot.parentId} executor ${parent}`,
+				);
 			if (chosen.executor !== parent)
 				warnings.push(
 					`${slot.id}: a dynamic decision-loop slot runs on its stage's executor ${parent}, not ${chosen.executor}`,
 				);
 			if (chosen.executor !== parent)
 				chosen = { executor: parent, source: "parent-stage" };
-		} else executorBySlot[slot.id] = chosen.executor;
+		} else
+			Object.defineProperty(executorBySlot, slot.id, {
+				value: chosen.executor,
+				enumerable: true,
+				configurable: true,
+				writable: true,
+			});
 		const executor = chosen.executor;
 		const field = (
 			name: "model" | "effort",
-		): { value: string; role: string } | undefined => {
+		): { value: string; role: string; source: string } | undefined => {
+			for (const [binding, source] of [
+				[localSlot, "project-slot"],
+				[common, "project-default"],
+			] as const) {
+				if (binding?.executor === executor && binding[name] !== undefined)
+					return { value: binding[name]!, role: source, source };
+			}
 			const overrideKey = name === "model" ? "model" : "effort";
 			for (const layer of input.layers) {
 				if (layer.stageOverrides?.[slot.id]?.[overrideKey] !== undefined)
@@ -307,28 +337,76 @@ export function resolveStageRoleAssignments(
 					if (value === undefined) continue;
 					if (entry!.executor !== undefined && entry!.executor !== executor)
 						continue;
-					return { value, role: key };
+					return { value, role: key, source: layer.tier };
 				}
 			}
 			return undefined;
 		};
 		const model = field("model");
 		const effort = field("effort");
-		stages[slot.id] = {
-			executor,
-			source: chosen.source,
-			...(chosen.profile === undefined ? {} : { profile: chosen.profile }),
-			...(chosen.role === undefined ? {} : { role: chosen.role }),
-			...(model === undefined ? {} : { model: model.value }),
-			...(effort === undefined ? {} : { effort: effort.value as EffortLevel }),
-		};
-		if (model !== undefined || effort !== undefined)
-			overrides[slot.id] = {
+		Object.defineProperty(stages, slot.id, {
+			enumerable: true,
+			configurable: true,
+			writable: true,
+			value: {
+				...(input.trace
+					? {
+							fieldSources: {
+								...(model
+									? {
+											model: {
+												source: model.source,
+												originSlot: slot.id,
+												originScope:
+													model.source === "project-default"
+														? "workflow-default"
+														: "slot",
+												...(model.source === "project-default"
+													? { inheritedFrom: "workflow-default" }
+													: {}),
+											},
+										}
+									: {}),
+								...(effort
+									? {
+											effort: {
+												source: effort.source,
+												originSlot: slot.id,
+												originScope:
+													effort.source === "project-default"
+														? "workflow-default"
+														: "slot",
+												...(effort.source === "project-default"
+													? { inheritedFrom: "workflow-default" }
+													: {}),
+											},
+										}
+									: {}),
+							},
+						}
+					: {}),
+				executor,
+				source: chosen.source,
+				...(chosen.profile === undefined ? {} : { profile: chosen.profile }),
+				...(chosen.role === undefined ? {} : { role: chosen.role }),
 				...(model === undefined ? {} : { model: model.value }),
 				...(effort === undefined
 					? {}
 					: { effort: effort.value as EffortLevel }),
-			};
+			},
+		});
+		if (model !== undefined || effort !== undefined)
+			Object.defineProperty(overrides, slot.id, {
+				enumerable: true,
+				configurable: true,
+				writable: true,
+				value: {
+					...(model === undefined ? {} : { model: model.value }),
+					...(effort === undefined
+						? {}
+						: { effort: effort.value as EffortLevel }),
+				},
+			});
 	}
 	const executors = [
 		...new Set([input.primary.id, ...Object.values(executorBySlot)]),

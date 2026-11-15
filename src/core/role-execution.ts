@@ -5,6 +5,9 @@
 // executor runs stages (owner decision Q4) — marks every stage with its executor so the compiler
 // records `runtime.executor` on its tasks. The result is frozen as `run.roleExecution`. Runs without
 // any role map take none of these paths (single-executor behavior unchanged).
+import { RUNTIME_FIELD_SOURCES } from "./workflow-runtime.js";
+import { assertProjectSettingsTargets } from "./project-settings-runtime.js";
+import type { ProjectWorkflowSettingsIntent } from "./project-workflow-settings.js";
 import {
 	applyExecutionProfileStageOverrides,
 	collectWorkflowRoleSlots,
@@ -127,8 +130,13 @@ function selectionFor(
 	id: string,
 	source: string,
 	profile: string | undefined,
+	slot?: string,
 ): WorkflowRunExecutorSelection {
 	// Unknown/unavailable ids fail here, naming the tier that chose them (never a fallback).
+	if (source === "project-slot" || source === "project-default")
+		return resolveRunExecutorSelection({
+			projectExecutor: { id, source, slot },
+		});
 	if (source === "run-flag")
 		return resolveRunExecutorSelection({ runFlag: id });
 	if (source === "workflow-preference")
@@ -167,7 +175,11 @@ export function planRoleExecution<
 	runFlagExecutor?: string;
 	/** `--model`: role models are then not checked (the flag wins). */
 	runFlagModel?: string;
+	projectSettings?: ProjectWorkflowSettingsIntent;
+	trace?: boolean;
 }): PlannedRoleExecution<Spec> {
+	if (input.projectSettings)
+		assertProjectSettingsTargets(input.spec, input.projectSettings);
 	let executor = input.executor;
 	const slots = collectWorkflowRoleSlots(input.spec);
 	const resolve = (primary: WorkflowRunExecutorSelection) =>
@@ -182,6 +194,8 @@ export function planRoleExecution<
 				...(primary.profile === undefined ? {} : { profile: primary.profile }),
 			},
 			layers: input.layers,
+			projectSettings: input.projectSettings,
+			trace: input.trace,
 		});
 	let resolved = resolve(executor);
 	const used = [...new Set(Object.values(resolved.executorBySlot))];
@@ -195,6 +209,7 @@ export function planRoleExecution<
 				assignment.executor,
 				assignment.source,
 				assignment.profile,
+				first?.id,
 			);
 		resolved = resolve(executor);
 	}
@@ -208,17 +223,32 @@ export function planRoleExecution<
 			assignment.executor,
 			assignment.source,
 			assignment.profile,
+			slot.id,
 		);
 	}
-	const overlay: Record<string, ExecutionProfileStageOverlay> = {};
-	for (const [slot, override] of Object.entries(resolved.overrides))
-		overlay[slot] = { ...override };
+	const overlay: Record<string, ExecutionProfileStageOverlay> =
+		Object.fromEntries(
+			Object.entries(resolved.overrides).map(([slot, override]) => [
+				slot,
+				{
+					...override,
+					...(resolved.stages[slot]?.fieldSources
+						? { [RUNTIME_FIELD_SOURCES]: resolved.stages[slot]!.fieldSources }
+						: {}),
+				},
+			]),
+		);
 	if (resolved.mixed)
 		for (const [slot, id] of Object.entries(resolved.executorBySlot))
-			overlay[slot] = {
-				...(overlay[slot] ?? {}),
-				[EXECUTION_PROFILE_EXECUTOR]: id,
-			};
+			Object.defineProperty(overlay, slot, {
+				enumerable: true,
+				configurable: true,
+				writable: true,
+				value: {
+					...(Object.hasOwn(overlay, slot) ? overlay[slot] : {}),
+					[EXECUTION_PROFILE_EXECUTOR]: id,
+				},
+			});
 	const spec =
 		Object.keys(overlay).length === 0
 			? input.spec

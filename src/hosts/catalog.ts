@@ -17,7 +17,11 @@ import type {
 	WorkflowRoleMap,
 	WorkflowRoutingHints,
 } from "../core/types.js";
-import { listWorkflows, resolveWorkflowRef } from "../core/workflow-specs.js";
+import {
+	listWorkflows,
+	resolveWorkflowRef,
+	resolveProjectWorkflowSettingsTarget,
+} from "../core/workflow-specs.js";
 import { HostUsageError } from "./args.js";
 import {
 	assertActionAllowed,
@@ -51,6 +55,9 @@ import {
 } from "./workflow-preferences.js";
 
 export interface WorkflowListSummary {
+	/** Canonical source identity; never a name-first save target. */
+	workflowKey?: string;
+	identity?: import("../core/project-workflow-settings.js").ProjectWorkflowSettingsIdentity;
 	name: string;
 	aliases: string[];
 	specPath: string;
@@ -95,12 +102,19 @@ async function listWorkflowSummaries(
 		summaries.push(
 			...(await Promise.all(
 				workflows.slice(offset, offset + 4).map(async (workflow) => {
+					let target:
+						| Awaited<ReturnType<typeof resolveProjectWorkflowSettingsTarget>>
+						| undefined;
 					let description: string | undefined;
 					let agent: string | undefined;
 					let readOnly: boolean | undefined;
 					let routing: WorkflowRoutingHints | undefined;
 					try {
 						const loaded = await loadWorkflowSpec(workflow.specPath, cwd);
+						target = await resolveProjectWorkflowSettingsTarget(
+							workflow.specPath,
+							cwd,
+						);
 						description = loaded.spec.description;
 						agent = (loaded.spec.defaults as { agent?: string } | undefined)
 							?.agent;
@@ -112,6 +126,9 @@ async function listWorkflowSummaries(
 					}
 					return {
 						name: workflow.name,
+						...(target
+							? { workflowKey: target.key, identity: target.identity }
+							: {}),
 						aliases: workflow.aliases,
 						...(workflow.scope ? { scope: workflow.scope } : {}),
 						...(routing ? { routing } : {}),

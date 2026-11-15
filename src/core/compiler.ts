@@ -5,6 +5,12 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 import { loadAgentByName } from "./agents.js";
+import {
+	configurationSlot,
+	type WorkflowConfiguration,
+	type RuntimeProvenance,
+} from "./project-settings-runtime.js";
+import type { WorkflowStageRoleAssignment } from "./types.js";
 import { DYNAMIC_OUTPUT_PROFILES } from "./dynamic-profiles.js";
 import { isModelTaskMaxRuntimeMs } from "./model-task-runtime.js";
 import { stringifyPromptJson } from "./prompt-json.js";
@@ -52,6 +58,8 @@ import {
 } from "./types.js";
 import {
 	resolveWorkflowRuntime,
+	withRuntimeProvenance,
+	RUNTIME_FIELD_SOURCES,
 	runtimeDefaultsForExecutor,
 	selectWorkflowRuntime,
 	type WorkflowModelInfo,
@@ -67,6 +75,8 @@ import {
 	applyWorkflowToolPolicy,
 	INHERITED_HOST_TOOLS_CLASSIFICATION,
 } from "./tool-policy.js";
+
+const COMPILE_CANONICAL_SLOT = Symbol("workflow.compileCanonicalSlot");
 
 const DELEGATION_TOOLS = new Set([
 	"skill_test_worker",
@@ -91,6 +101,8 @@ const DEFAULT_DYNAMIC_DECISION_LOOP_MAX_ACTIONS = 6;
 const DEFAULT_DYNAMIC_DECISION_LOOP_MAX_STALLS = 3;
 
 export interface CompileOptions {
+	configuration?: WorkflowConfiguration;
+	roleAssignments?: Record<string, WorkflowStageRoleAssignment>;
 	cwd: string;
 	specPath?: string;
 	availableModels?: WorkflowModelInfo[];
@@ -233,6 +245,7 @@ function lowerArtifactGraphStage(
 		: stage.id;
 	const lowered: any = {
 		...stage,
+		[COMPILE_CANONICAL_SLOT]: stageId,
 		from: lowerArtifactGraphFrom(stage.from),
 		prompt: lowerArtifactGraphPrompt(stage),
 		artifactGraphOutput: stage.output,
@@ -255,11 +268,14 @@ function lowerArtifactGraphStage(
 		};
 	}
 	if (stage.onExhausted) {
-		lowered.onExhausted = lowerArtifactGraphStage(stage.onExhausted, {
-			metadata: context.metadata,
-			specDir: context.specDir,
-			namespace: stageId,
-		});
+		lowered.onExhausted = {
+			...lowerArtifactGraphStage(stage.onExhausted, {
+				metadata: context.metadata,
+				specDir: context.specDir,
+				namespace: stageId,
+			}),
+			[COMPILE_CANONICAL_SLOT]: `${stageId}.$onExhausted`,
+		};
 	}
 	if (runtimeStageKindFor(stage) !== "dag") {
 		context.metadata.set(
@@ -884,6 +900,7 @@ export async function compileWorkflow(
 	}
 	const failurePolicy = compileWorkflowFailurePolicy(spec.artifactGraph);
 	if (failurePolicy) compiled.failurePolicy = failurePolicy;
+	if (options.configuration) compiled.configuration = options.configuration;
 	return compiled;
 }
 
@@ -1493,7 +1510,11 @@ function normalizeStageRefs(value: unknown): string[] {
 	return [];
 }
 
-function runtimeSettings(value: unknown): WorkflowRuntimeDefaults | undefined {
+function runtimeSettings(
+	value: unknown,
+	source?: string,
+	originSlot?: string,
+): WorkflowRuntimeDefaults | undefined {
 	if (!isPlainRecord(value)) return undefined;
 	const model =
 		typeof value.model === "string" && value.model.trim()
@@ -1507,7 +1528,17 @@ function runtimeSettings(value: unknown): WorkflowRuntimeDefaults | undefined {
 		value.fast === "inherit" || value.fast === "off" || value.fast === "on"
 			? value.fast
 			: undefined;
-	return model || effort || fast ? { model, effort, fast } : undefined;
+	const runtime: WorkflowRuntimeDefaults | undefined =
+		model || effort || fast ? { model, effort, fast } : undefined;
+	if (!source) return runtime;
+	const provenance = (value as { [RUNTIME_FIELD_SOURCES]?: RuntimeProvenance })[
+		RUNTIME_FIELD_SOURCES
+	];
+	return withRuntimeProvenance(
+		{ ...runtime, ...(provenance ? { provenance } : {}) },
+		source,
+		originSlot,
+	);
 }
 
 function formatRoleText(
@@ -1605,9 +1636,34 @@ async function compileArtifactGraphPlan(
 		Object.keys(workflowInput).length > 0
 			? `# Workflow Input\n\n${stringifyPromptJson(workflowInput)}`
 			: "";
-	const runtimeOverrides = options.runtimeOverrides;
-	const runtimeDefaults = options.runtimeDefaults;
-	const specRuntimeDefaults = runtimeSettings(spec.defaults);
+	const trace = (
+		value: WorkflowRuntimeDefaults | undefined,
+		source: string,
+		slot?: string,
+	) =>
+		options.configuration ? withRuntimeProvenance(value, source, slot) : value;
+	const authored = (value: unknown, slot: string) =>
+		runtimeSettings(
+			value,
+			options.configuration ? "author-stage" : undefined,
+			slot,
+		);
+	const hasRuntimeOverrides =
+		options.runtimeOverrides &&
+		(options.runtimeOverrides.model !== undefined ||
+			options.runtimeOverrides.effort !== undefined ||
+			options.runtimeOverrides.fast !== undefined);
+	const runtimeOverrides =
+		options.configuration && !hasRuntimeOverrides
+			? undefined
+			: options.runtimeOverrides
+				? trace(options.runtimeOverrides, "run-flag")
+				: undefined;
+	const runtimeDefaults = trace(options.runtimeDefaults, "host-default");
+	const specRuntimeDefaults = trace(
+		runtimeSettings(spec.defaults),
+		"author-default",
+	);
 	const workflowCwd = resolve(options.cwd, spec.defaults?.cwd ?? ".");
 	const tasks: any[] = [];
 	const stageRecords: any[] = [];
@@ -1630,6 +1686,20 @@ async function compileArtifactGraphPlan(
 		if (role === undefined) return defaults;
 		return {
 			...(defaults ?? {}),
+			...(options.configuration
+				? {
+						provenance: {
+							model:
+								defaults?.model !== undefined
+									? defaults.provenance?.model
+									: { source: "host-default" },
+							effort:
+								defaults?.effort !== undefined
+									? defaults.provenance?.effort
+									: { source: "host-default" },
+						},
+					}
+				: {}),
 			...(defaults?.model === undefined && role.model !== undefined
 				? { model: role.model }
 				: {}),
@@ -1647,6 +1717,7 @@ async function compileArtifactGraphPlan(
 		overrides: Partial<CompiledTask> & Record<string, unknown> = {},
 	): Promise<any> => {
 		const key = `${stage.id}.${taskId}`;
+		const canonicalSlot: string = stage[COMPILE_CANONICAL_SLOT] ?? stage.id;
 		// WP31 (Q4): a stage of a role-profile run carries its executor; host model defaults and the
 		// host model registry apply only to stages on the executor they belong to.
 		const stageExecutor = (stage as { [EXECUTION_PROFILE_EXECUTOR]?: string })[
@@ -1732,10 +1803,10 @@ async function compileArtifactGraphPlan(
 			);
 			const requestedRuntime = selectWorkflowRuntime(
 				runtimeOverrides,
-				runtimeSettings(stage),
+				authored(stage, canonicalSlot),
 				dynamicRuntimeDefaults,
 				specRuntimeDefaults,
-				dynamicExecutorDefault,
+				trace(dynamicExecutorDefault, "executor-default"),
 			);
 			const resolvedDynamicRuntime = await resolveWorkflowRuntime(
 				requestedRuntime,
@@ -1767,10 +1838,15 @@ async function compileArtifactGraphPlan(
 					runtimeOverrides,
 					runtimeDefaults: dynamicRuntimeDefaults,
 					specRuntimeDefaults,
-					stageRuntime: runtimeSettings(stage),
+					stageRuntime: authored(stage, canonicalSlot),
 					...(dynamicExecutorDefault === undefined
 						? {}
-						: { executorDefault: dynamicExecutorDefault }),
+						: {
+								executorDefault: trace(
+									dynamicExecutorDefault,
+									"executor-default",
+								),
+							}),
 				},
 				overrides,
 			);
@@ -1797,6 +1873,43 @@ async function compileArtifactGraphPlan(
 							inheritHostTools: effectiveDynamicToolPolicy.inheritHostTools,
 						}),
 			};
+			if (options.configuration) {
+				Object.defineProperty(options.configuration.slots, canonicalSlot, {
+					enumerable: true,
+					configurable: true,
+					writable: true,
+					value: configurationSlot(
+						resolvedDynamicRuntime,
+						stageEffectiveExecutor,
+						options.roleAssignments &&
+							Object.hasOwn(options.roleAssignments, canonicalSlot)
+							? options.roleAssignments[canonicalSlot]
+							: undefined,
+					),
+				});
+				for (const name of [
+					"planner",
+					"workerDefaults",
+					"verifier",
+					"synthesis",
+				]) {
+					const profile = dynamicTask.dynamic.decisionLoop?.[name];
+					if (!profile) continue;
+					const id = `${canonicalSlot}.$${name}`;
+					const row = configurationSlot(
+						profile,
+						stageEffectiveExecutor,
+						options.roleAssignments?.[id],
+					);
+					delete row.effort.resolved; // Templates are resolved only when materialized.
+					Object.defineProperty(options.configuration.slots, id, {
+						value: row,
+						enumerable: true,
+						configurable: true,
+						writable: true,
+					});
+				}
+			}
 			return dynamicTask;
 		}
 
@@ -1910,19 +2023,22 @@ async function compileArtifactGraphPlan(
 		);
 		const requestedRuntime = selectWorkflowRuntime(
 			runtimeOverrides,
-			runtimeSettings(each),
-			runtimeSettings(stage),
+			authored(each, canonicalSlot),
+			authored(stage, canonicalSlot),
 			withHostExecutorDefault(stageRuntimeDefaults, stageEffectiveExecutor, {
 				agent: stageAgentName,
 				profileRole: stage.profileRole,
 			}),
 			specRuntimeDefaults,
-			runtimeSettings(stageAgent),
-			executorDefaultRuntime(
-				stageEffectiveExecutor === undefined
-					? undefined
-					: options.executorDefaults?.[stageEffectiveExecutor],
-				{ agent: stageAgentName, profileRole: stage.profileRole },
+			trace(runtimeSettings(stageAgent), "agent"),
+			trace(
+				executorDefaultRuntime(
+					stageEffectiveExecutor === undefined
+						? undefined
+						: options.executorDefaults?.[stageEffectiveExecutor],
+					{ agent: stageAgentName, profileRole: stage.profileRole },
+				),
+				"executor-default",
 			),
 		);
 		const resolvedRuntime = await resolveWorkflowRuntime(
@@ -1942,6 +2058,20 @@ async function compileArtifactGraphPlan(
 			resolvedRuntime,
 			stageAvailableModels,
 		);
+		if (options.configuration && !overrides.loopPlaceholder)
+			Object.defineProperty(options.configuration.slots, canonicalSlot, {
+				enumerable: true,
+				configurable: true,
+				writable: true,
+				value: configurationSlot(
+					resolvedRuntime,
+					stageEffectiveExecutor,
+					options.roleAssignments &&
+						Object.hasOwn(options.roleAssignments, canonicalSlot)
+						? options.roleAssignments[canonicalSlot]
+						: undefined,
+				),
+			});
 		const runtime = {
 			approvalMode:
 				stage.approvalMode ?? spec.defaults?.approvalMode ?? "non-interactive",
@@ -2605,18 +2735,25 @@ function compileDynamicDecisionLoop(
 		recordValue(value.stateIndex, "requiredFindingIds"),
 	);
 	return {
-		planner: compileDynamicDecisionLoopProfile(value.planner, runtimePriority),
+		planner: compileDynamicDecisionLoopProfile(
+			value.planner,
+			runtimePriority,
+			"planner",
+		),
 		workerDefaults: compileDynamicDecisionLoopProfile(
 			value.workerDefaults,
 			runtimePriority,
+			"workerDefaults",
 		),
 		verifier: compileDynamicDecisionLoopProfile(
 			value.verifier,
 			runtimePriority,
+			"verifier",
 		),
 		synthesis: compileDynamicDecisionLoopProfile(
 			value.synthesis,
 			runtimePriority,
+			"synthesis",
 		),
 		allowedAgents: stringArray(value.allowedAgents),
 		...(allowedToolSelection.tools
@@ -2678,6 +2815,7 @@ function compileDynamicDecisionLoopProfile(
 		stageRuntime?: WorkflowRuntimeDefaults;
 		executorDefault?: WorkflowRuntimeDefaults;
 	},
+	profileName: string,
 ): any | undefined {
 	if (!isPlainRecord(value)) return undefined;
 	const toolSelection = filterToolSelection(
@@ -2688,7 +2826,11 @@ function compileDynamicDecisionLoopProfile(
 	);
 	const runtime = selectWorkflowRuntime(
 		runtimePriority.runtimeOverrides,
-		runtimeSettings(value),
+		runtimeSettings(
+			value,
+			runtimePriority.stageRuntime?.provenance ? "author-profile" : undefined,
+			`${runtimePriority.stageRuntime?.provenance?.model?.originSlot}.$${profileName}`,
+		),
 		runtimePriority.stageRuntime,
 		runtimePriority.runtimeDefaults,
 		runtimePriority.specRuntimeDefaults,

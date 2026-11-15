@@ -48,6 +48,50 @@ run-state paths; user settings live under `$AGENT_WORKFLOW_HOME`. Pi web-tool di
 the state directory's `.agent-workflow/`; a file outside it shows as `(not read: path is outside the project's artifact
 root …)`.
 
+## Project-local workflow settings
+
+Project-local intent is scoped to the physical project and a source-aware workflow key, not just
+`spec.name`. Name, filename alias and physical path select the same key when they resolve to the
+same definition. Source roots remain distinct; a shadowing definition has a different key. Bundled
+keys do not depend on the package installation directory; external definitions use their physical
+path. Stored keys can outlive discovery. Inspect them with `agent-workflow project-settings list`
+and `show --key <key>` or MCP `workflow_project_settings`.
+
+Intent has workflow `defaults` and exact canonical authored `slots`. Each explicit binding includes
+an executor and optional model/effort; absent fields inherit rather than selecting Automatic.
+Editable slots are authored model leaves/templates, including declared dynamic-profile templates,
+not controllers, code/groups, generated task IDs or a separate child Run's settings. Dynamic-profile
+executor bindings must agree with their controller. A workflow default supplies common values;
+a slot overrides it. Field precedence is **explicit run flag > local slot > local defaults > shared
+legacy resolution**. Executor selection also fences executor-bound model/effort: changing an executor
+does not carry incompatible lower-layer values to it. Shared profile/preference resolution remains
+the baseline when local values are absent. `--profile` selects that baseline, not a bypass of local
+intent. Check and named launch use the same resolver; recorded values describe the requested/resolved
+plan, not observed provider execution.
+
+Shared `profile workflow` preferences are still user-level and keyed by workflow name, potentially
+across projects. They are neither migrated into nor deleted by project-local settings. Project-local
+storage is private under the project's state base at `workflow-settings/v1/settings.json`.
+Preview does not save. Saves fence epoch, entry revision, definition fingerprint and alias resolution;
+clears use exact stored keys and snapshot tokens without requiring the definition to remain available.
+New named launches freeze settings; changing them later does not change existing Run Resume.
+Spec-less direct dynamic runs do not read this named-workflow store.
+
+For an orphan/invalid binding, explicitly remove only that whole defaults or slot binding with
+`project-settings clear-binding`; siblings remain intact, even if they are independently invalid.
+A per-field edit is a full validated intent save, not a partial deletion of a binding's executor.
+Entry `reset` keeps an empty tombstone; `purge` removes it and rotates the epoch. `clear-project`
+requires whole-project confirmation plus epoch/raw digest and empties only this project's local
+settings. Shared preferences, other projects and existing Run records are preserved.
+
+Malformed/unknown storage is preserved and blocks new named launches rather than falling back.
+Use the noncreating `inspect-recovery`, review its raw digest/bytes and project scope, then explicitly
+confirm `recover` with that digest. Recovery verifies an exact private backup before publishing an
+empty store. It refuses valid stores, unsafe/unreadable files, invalid UTF-8 and originals over
+16 MiB; no implicit repair, migration or overwrite retry occurs. Recovery and whole-project clear
+are distinct from entry clearing. See [CLI syntax](cli.md#project-local-workflow-settings) and
+[MCP confirmation](hosts.md#project-local-settings-recovery).
+
 ## Bundled workflows
 
 Bundled workflows ship as directory-local bundles with a spec, schemas and support helpers.
@@ -1032,7 +1076,13 @@ also live here. Workers still run in the project directory or its managed worktr
 It defaults to port 7417, then 7418–7426, then ephemeral; explicit `--port` /
 `AGENT_WORKFLOW_DASHBOARD_PORT` is strict. Custom homes reuse the last port or use an ephemeral one.
 `dashboard --project DIR` chooses only the opened view. The sidebar offers All projects and a
-remembered project choice. See [Dashboard](hosts.md#dashboard) for identity, security and lifecycle.
+remembered project choice. Project navigation separates Overview, Workflows and Run history from shared
+Profiles/Executors. Workflow settings edit one project/source draft for future Runs; existing Runs show
+recorded model/effort and executor-reported usage separately, with unknown values left unknown.
+Run history deletes only explicitly selected terminal IDs after a resource/digest confirmation; owned
+worktrees (including dirty changes) and supported engine-owned sessions may be removed, with no
+guaranteed undo. Broad keep/age cleanup is separately labelled Advanced maintenance.
+See [Dashboard](hosts.md#dashboard) for scope, identity, security and lifecycle.
 
 Definitions stay in the repository: `<project>/workflows/`,
 `<project>/.agent-workflow/workflows/` (specs) and `<project>/.agent-workflow/agents/`.
