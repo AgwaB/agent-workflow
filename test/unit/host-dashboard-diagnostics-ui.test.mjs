@@ -64,6 +64,18 @@ async function setup(t, data, view = "workflows&workflow=manage") {
 		url: `${p.origin}/?project=${p.server.projectId}&view=${view}`,
 	});
 	await b.waitFor(() => !!document.querySelector(".management-page"));
+	if (view.startsWith("workflows&workflow=")) {
+		await b.waitFor(
+			() => !!document.querySelector('[data-management-action="check"]'),
+		);
+		assert.equal(
+			await b.evaluate(
+				() => document.querySelector('[data-testid="saved-launch-check"]').open,
+			),
+			false,
+		);
+		await b.click('[data-testid="saved-launch-check"] > summary');
+	}
 	return { b, p };
 }
 async function click(b, text) {

@@ -40,7 +40,7 @@ async function open(t, options = {}) {
 		const originalFetch = window.fetch;
 		window.fetch = async (...args) => {
 			const path = String(args[0]), options = args[1] || {};
-			if (path.includes('/settings')) window.__requests.push({path, method: options.method || 'GET', body: options.body && JSON.parse(options.body)});
+			if (path.includes('/settings') || path.endsWith('/check')) window.__requests.push({path, method: options.method || 'GET', body: options.body && JSON.parse(options.body)});
 			const response = await originalFetch(...args);
 			const op = path.endsWith('/preview') ? 'preview' : path.endsWith('/settings') ? (options.method || 'GET') : '';
 			if (window.__holds[op]) { window.__holds[op] = false; await new Promise(resolve => { window.__releases[op] = resolve; }); }
@@ -109,6 +109,213 @@ async function saved(p) {
 	);
 }
 const intent = async (p) => (await p.http(p.path)).data.settings.intent;
+async function baseline(p, label) {
+	await p.browser.click(`[aria-label="${label}"]`);
+	const menu = await p.browser.evaluate(
+		(label) =>
+			document
+				.querySelector(`[aria-label="${label}"]`)
+				.getAttribute("aria-controls"),
+		label,
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			(menu) => document.querySelector(`#${menu} [data-value=""]`)?.textContent,
+			menu,
+		),
+		"Use baseline settings",
+	);
+	await p.browser.click(`#${menu} [data-value=""]`);
+}
+
+for (const width of [970, 1476])
+	test(`polish: scoped Save and draft status stay visible through a long editor at ${width}px`, {
+		timeout: 90000,
+	}, async (t) => {
+		const p = await open(t);
+		await p.browser.send("Emulation.setDeviceMetricsOverride", {
+			width,
+			height: 997,
+			deviceScaleFactor: 1,
+			mobile: false,
+		});
+		await load(p);
+		await settled(p);
+		await set(p, "Common Executor", "management-fake");
+		await set(p, "Common Effort", "high");
+		for (const end of [false, true]) {
+			await p.browser.evaluate((end) => {
+				const page = document.querySelector(".management-page");
+				page.scrollTop = end ? page.scrollHeight : 0;
+			}, end);
+			const boxes = await p.browser.evaluate(() => {
+				const page = document
+					.querySelector(".management-page")
+					.getBoundingClientRect();
+				return [
+					...document.querySelectorAll(
+						'[data-management-action="save-project-settings"], [data-testid="workflow-settings-status"]',
+					),
+				].map((node) => {
+					const r = node.getBoundingClientRect();
+					return {
+						text: node.textContent,
+						visible: node.checkVisibility(),
+						top: r.top,
+						bottom: r.bottom,
+						left: r.left,
+						right: r.right,
+						page: {
+							top: page.top,
+							bottom: Math.min(page.bottom, innerHeight),
+							left: page.left,
+							right: page.right,
+						},
+					};
+				});
+			});
+			for (const box of boxes)
+				assert.ok(
+					box.visible &&
+						box.top >= box.page.top &&
+						box.bottom <= box.page.bottom &&
+						box.left >= box.page.left &&
+						box.right <= box.page.right,
+					JSON.stringify(box),
+				);
+			assert.match(
+				boxes[0].text + boxes[1].text,
+				/project\/workflow|this project/,
+			);
+			assert.match(boxes[0].text + boxes[1].text, /Unsaved changes/);
+		}
+		assert.deepEqual(await intent(p), {}, "visibility changes never save");
+	});
+
+test("polish: baseline pickers replace duplicate resets, one draft calculation and folded saved checks/stage summary", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await p.browser.waitFor(
+		() => !!document.querySelector('[data-management-action="check"]'),
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			resets: document.querySelectorAll("[data-reset-field]").length,
+			draftChecks: document.querySelectorAll(
+				'[data-testid="project-settings-check"]',
+			).length,
+			title: document.querySelector(".project-common h3").textContent,
+			stagesFolded: !!document.querySelector(
+				'[data-testid="workflow-stage-summary"]:not([open])',
+			),
+			checkFolded: !!document.querySelector(
+				'[data-testid="saved-launch-check"]:not([open])',
+			),
+			preview: document.querySelector(
+				'[data-testid="project-settings-preview"]',
+			).textContent,
+		})),
+		{
+			resets: 0,
+			draftChecks: 0,
+			title: "Common settings",
+			stagesFolded: true,
+			checkFolded: true,
+			preview: "Calculate draft settings",
+		},
+	);
+	await set(p, "Common Executor", "management-fake");
+	await set(p, "Common Model", "fixture-model");
+	await set(p, "Common Effort", "high");
+	await baseline(p, "Common Model");
+	assert.deepEqual(
+		await p.browser.evaluate(() =>
+			["Executor", "Model", "Effort"].map(
+				(key) => document.querySelector(`[aria-label="Common ${key}"]`).value,
+			),
+		),
+		["management-fake", "", "high"],
+	);
+	await p.browser.click('[data-testid="project-settings-preview"]');
+	await settled(p);
+	await p.browser.click('[data-testid="saved-launch-check"] > summary');
+	await p.browser.click('[data-management-action="check"]');
+	await p.browser.waitFor(() =>
+		window.__requests.some(
+			(r) => r.path.endsWith("/check") && !r.path.includes("/settings/"),
+		),
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(
+			() =>
+				window.__requests.find(
+					(r) => r.path.endsWith("/check") && !r.path.includes("/settings/"),
+				).body,
+		),
+		{},
+		"saved/launch Check never submits unsaved intent",
+	);
+	assert.deepEqual(await intent(p), {});
+});
+
+test("polish: a calculation response never scrolls or focuses a task editor on update", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await select(p, "iterate.check");
+	await p.browser.evaluate(() => {
+		window.__holds.preview = true;
+		document.querySelector('[data-testid="project-settings-preview"]').click();
+	});
+	await p.browser.waitFor(() => !!window.__releases.preview);
+	const before = await p.browser.evaluate(() => {
+		const page = document.querySelector(".management-page");
+		page.scrollTop = page.scrollHeight;
+		document
+			.querySelector('[data-testid="project-settings-reload"]')
+			.focus({ preventScroll: true });
+		return {
+			scroll: page.scrollTop,
+			camera: document
+				.querySelector(".profile-flow .graph > g")
+				.getAttribute("transform"),
+		};
+	});
+	assert.match(before.camera, /^translate\([^)]*\) scale\(/);
+	await p.browser.evaluate(() => window.__releases.preview());
+	await p.browser.waitFor(
+		() =>
+			new Promise((resolve) =>
+				requestAnimationFrame(() =>
+					requestAnimationFrame(() =>
+						resolve(
+							document
+								.querySelector('[data-testid="workflow-settings-status"]')
+								.textContent.includes("Calculated preview"),
+						),
+					),
+				),
+			),
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			scroll: document.querySelector(".management-page").scrollTop,
+			camera: document
+				.querySelector(".profile-flow .graph > g")
+				.getAttribute("transform"),
+		})),
+		before,
+	);
+	assert.equal(
+		await p.browser.evaluate(() => document.activeElement?.dataset.testid),
+		"project-settings-reload",
+	);
+});
 
 test("implicit ordinary executor immediately reflects model binding", {
 	timeout: 90000,
@@ -160,7 +367,7 @@ test("implicit ordinary executor immediately reflects model binding", {
 	);
 });
 
-for (const width of [970, 1440])
+for (const width of [970, 1476])
 	test(`field hints stay adjacent and explicit selection reveals inspector at ${width}px`, {
 		timeout: 90000,
 	}, async (t) => {
@@ -174,7 +381,32 @@ for (const width of [970, 1440])
 		await load(p);
 		await settled(p);
 		const camera = await p.browser.evaluate(() =>
-			document.querySelector(".profile-flow .graph").getAttribute("viewBox"),
+			document
+				.querySelector(".profile-flow .graph > g")
+				.getAttribute("transform"),
+		);
+		assert.match(camera, /^translate\([^)]*\) scale\(/);
+		await select(p, "constructor");
+		const lowerGeometry = await p.browser.evaluate(() => {
+			const panel = document.querySelector(".role-inspector");
+			return [
+				...panel.querySelectorAll(
+					'h3, [aria-label="Slot constructor Executor"], [aria-label="Slot constructor Model"]',
+				),
+			].map((n) => {
+				const r = n.getBoundingClientRect();
+				return { top: r.top, bottom: r.bottom, height: innerHeight };
+			});
+		});
+		for (const rect of lowerGeometry)
+			assert.ok(
+				rect.top >= 0 && rect.bottom <= rect.height,
+				JSON.stringify(lowerGeometry),
+			);
+		assert.equal(
+			lowerGeometry.length,
+			3,
+			"lower authored selection reveals title and controls",
 		);
 		await select(p, "iterate.check");
 		const geometry = await p.browser.evaluate(() => {
@@ -197,11 +429,15 @@ for (const width of [970, 1440])
 				}),
 			};
 		});
-		if (width === 970)
-			assert.ok(
-				geometry.title.top >= 0 && geometry.title.bottom <= geometry.height,
-				JSON.stringify(geometry),
-			);
+		assert.ok(
+			geometry.title.top >= 0 && geometry.title.bottom <= geometry.height,
+			JSON.stringify(geometry),
+		);
+		assert.equal(
+			await p.browser.evaluate(() => document.activeElement?.dataset.testid),
+			"canonical-slot-title",
+			"explicit selection focuses the editor without moving the graph camera",
+		);
 		for (const field of geometry.fields) {
 			assert.ok(field.hintTop >= field.fieldBottom - 1, JSON.stringify(field));
 			assert.ok(field.hintTop - field.fieldBottom < 30, JSON.stringify(field));
@@ -209,7 +445,9 @@ for (const width of [970, 1440])
 		}
 		assert.equal(
 			await p.browser.evaluate(() =>
-				document.querySelector(".profile-flow .graph").getAttribute("viewBox"),
+				document
+					.querySelector(".profile-flow .graph > g")
+					.getAttribute("transform"),
 			),
 			camera,
 			"explicit selection preserves graph camera",
@@ -338,7 +576,7 @@ test("one canonical draft: common and independent peers survive selection; per-f
 	await set(p, "Slot nested.check Executor", "management-fake");
 	await set(p, "Slot nested.check Effort", "medium");
 	await set(p, "Slot nested.check Model", "fixture-model");
-	await p.browser.click('.role-inspector [data-reset-field="effort"]');
+	await baseline(p, "Slot nested.check Effort");
 	assert.deepEqual(
 		await p.browser.evaluate(() =>
 			["Executor", "Model", "Effort"].map(
@@ -363,7 +601,7 @@ test("one canonical draft: common and independent peers survive selection; per-f
 		),
 		"low",
 	);
-	await p.browser.click('.role-inspector [data-reset-field="model"]');
+	await baseline(p, "Slot iterate.check Model");
 	assert.deepEqual(
 		await p.browser.evaluate(() =>
 			["Executor", "Model", "Effort"].map(
@@ -821,7 +1059,7 @@ test("capability refusal remains separate from calculated configuration and expl
 	await settled(p);
 	await set(p, "Common Executor", "management-offline");
 	await set(p, "Common Model", "manual-unknown");
-	await p.browser.click('[data-testid="project-settings-check"]');
+	await p.browser.click('[data-testid="project-settings-preview"]');
 	await p.browser.waitFor(() =>
 		document
 			.querySelector('.project-workflow-editor [role="alert"]')

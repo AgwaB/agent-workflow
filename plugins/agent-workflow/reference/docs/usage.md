@@ -70,9 +70,16 @@ intent. Check and named launch use the same resolver; recorded values describe t
 plan, not observed provider execution.
 
 Shared `profile workflow` preferences are still user-level and keyed by workflow name, potentially
-across projects. They are neither migrated into nor deleted by project-local settings. Project-local
+across projects. The shared editor suggests saved/preset/declared profile names or inheritance and
+also accepts typed names; configured workflows are marked in its chooser. Removing saved shared
+overrides is a secondary, explicit cross-project confirmation, including any dirty-form discard.
+Cancel preserves the draft and saved preference; failed deletion keeps the form. These preferences
+are neither migrated into nor deleted by project-local settings. Project-local
 storage is private under the project's state base at `workflow-settings/v1/settings.json`.
-Preview does not save. Saves fence epoch, entry revision, definition fingerprint and alias resolution;
+In the dashboard, **Calculate draft settings** does not save. The scoped sticky Save/status bar applies
+one complete workflow draft; **Use baseline settings** in Model/Effort unsets only that field, keeping
+the execution environment. Whole common/task draft clearing is a separate secondary action. The
+folded saved-settings/launch Check does not include the unsaved draft. Saves fence epoch, entry revision, definition fingerprint and alias resolution;
 clears use exact stored keys and snapshot tokens without requiring the definition to remain available.
 New named launches freeze settings; changing them later does not change existing Run Resume.
 Spec-less direct dynamic runs do not read this named-workflow store.
@@ -1078,7 +1085,8 @@ It defaults to port 7417, then 7418–7426, then ephemeral; explicit `--port` /
 `dashboard --project DIR` chooses only the opened view. The sidebar offers All projects and a
 remembered project choice. Project navigation separates Overview, Workflows and Run history from shared
 Profiles/Executors in a footer after the Run rows. Workflow settings edit one project/source draft for future Runs; existing Runs show
-recorded model/effort and executor-reported usage separately, with unknown values left unknown.
+recorded model/effort and executor-reported model/usage separately, with unknown values left unknown.
+Overview's Last result links the exact Run/report, separately from future workflow settings.
 Run history opens the rich Run list beside the current/latest eligible Run, with graph, results, logs and
 reports. Its secondary **Delete run records…** action in the Run-list **⋯** controls (legacy `view=history`) deletes only explicitly
 selected terminal IDs after a resource/digest confirmation; owned

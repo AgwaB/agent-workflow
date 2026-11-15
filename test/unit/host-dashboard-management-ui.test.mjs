@@ -71,6 +71,14 @@ async function openWorkflowCard(browser, name) {
 		),
 		key,
 	);
+	assert.equal(
+		await browser.evaluate(
+			() => document.querySelector('[data-testid="saved-launch-check"]').open,
+		),
+		false,
+		"saved/launch check is secondary to the draft editor",
+	);
+	await browser.click('[data-testid="saved-launch-check"] > summary');
 }
 async function clickText(browser, text) {
 	await browser.evaluate((text) => {

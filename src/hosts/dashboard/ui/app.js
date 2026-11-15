@@ -1388,30 +1388,32 @@ function renderHeader() {
 					`Workflow unavailable: ${workflowTarget?.reason || "checking source"}.`,
 				),
 	);
-	if (!liveRun(run) && !needsResume(run))
-		context.append(
+	const finished = !liveRun(run) && !needsResume(run);
+	context.append(
+		element(
+			"p",
+			{ class: "muted", "data-testid": "run-action-reason" },
+			finished
+				? "Finished."
+				: readonly()
+					? "Read-only: Stop/Resume unavailable."
+					: needsResume(run)
+						? "Review stopped work before resuming."
+						: "Run in progress.",
+		),
+		moreDetails(
+			"Run action policy",
 			element(
 				"p",
-				{ class: "muted", "data-testid": "run-action-reason" },
-				"No Stop/Resume: terminal; business verdicts are results, not resumable failures.",
+				{},
+				finished
+					? "No Stop/Resume: terminal; business verdicts are results, not resumable failures."
+					: readonly()
+						? "Read-only: no Stop/Resume. Server checks remain authoritative."
+						: "Recorded-status eligibility; server capability/ownership checks may refuse.",
 			),
-		);
-	else if (readonly())
-		context.append(
-			element(
-				"p",
-				{ class: "muted" },
-				"Read-only: no Stop/Resume. Server checks remain authoritative.",
-			),
-		);
-	else
-		context.append(
-			element(
-				"p",
-				{ class: "muted" },
-				"Recorded-status eligibility; server capability/ownership checks may refuse.",
-			),
-		);
+		),
+	);
 	// Only a run that finished its work has a result; a failed or stopped run keeps "Status", so an
 	// earlier stage's summary never reads as the outcome of a run that did not get there.
 	const result =
@@ -1435,7 +1437,6 @@ function renderHeader() {
 			),
 			actions,
 		),
-		context,
 		element(
 			"div",
 			{ class: "result" },
@@ -1474,6 +1475,7 @@ function renderHeader() {
 				sentenceParts(),
 			),
 		),
+		context,
 		element(
 			"span",
 			{ id: "task-count", class: "sr-only" },
@@ -4253,7 +4255,12 @@ function renderSingle(inspector, stage) {
 				taskLine(task),
 				...(task.kind === "support"
 					? ["Code step · no model call"]
-					: [task.executor || run.executor, task.model, task.effort]),
+					: [
+							`Executor: ${task.executor || run.executor || "unknown"}`,
+							`Recorded model: ${task.model || "unknown"}`,
+							`Recorded effort: ${task.effort || "unknown"}`,
+							`Executor-reported model: ${task.reportedModel || "unknown / not reported"}`,
+						]),
 			]
 				.filter(Boolean)
 				.join(", "),
@@ -7398,7 +7405,12 @@ function homeWorkflows(all) {
 						element(
 							"td",
 							{ class: "c-last", "data-label": "Last result" },
-							resultChip(last),
+							runLink(
+								last,
+								resultChip(last),
+								"home-last-result",
+								last.reportAvailable ? "report" : undefined,
+							),
 						),
 						element(
 							"td",
@@ -9570,6 +9582,13 @@ async function renderRunHistory(page) {
 				{},
 				"Includes attached logs/reports, actual owned managed worktrees below (including dirty changes), and engine-owned sessions where supported. Session counts are deletion-time facts; unsupported sessions remain. No guaranteed recovery or undo. Excludes the main checkout and project settings, unselected/active runs, other projects, auto-router history, global adapter state and host launch claims.",
 			),
+			preview.error || preview.data?.error
+				? element(
+						"p",
+						{ role: "alert" },
+						`Preview error: ${preview.error || preview.data.error}`,
+					)
+				: null,
 			...rows.map((row) =>
 				element(
 					"article",
@@ -9580,16 +9599,37 @@ async function renderRunHistory(page) {
 						{},
 						`Status: ${row.status}; protected: ${Boolean(row.protected)}${row.error ? `; error: ${row.error}` : ""}`,
 					),
+					row.bytes !== undefined
+						? element("p", {}, `Record resources: ${row.bytes} bytes`)
+						: null,
+					row.ownedSessions
+						? element(
+								"p",
+								{},
+								`Engine-owned sessions: deleted ${row.ownedSessions.deleted}; not found ${row.ownedSessions.notFound}; unsupported ${row.ownedSessions.unsupported} (left in place).`,
+							)
+						: null,
+					row.retainedEvidencePath
+						? element("p", {}, `Retained evidence: ${row.retainedEvidencePath}`)
+						: null,
+					row.retainedMirrorPath
+						? element("p", {}, `Retained mirror: ${row.retainedMirrorPath}`)
+						: null,
 					...(row.worktrees || []).map((tree) =>
 						element(
 							"p",
 							{},
-							`Owned worktree: ${tree.path}; branch: ${tree.branch || "unknown"}; dirty: ${tree.dirty}; unique commits: ${tree.commits}${tree.error ? `; error: ${tree.error}` : ""}`,
+							`Owned worktree: ${tree.path}; branch: ${tree.branch || "unknown"}; dirty: ${tree.dirty}; unique commits: ${tree.commits}${tree.missing ? "; missing worktree" : ""}${tree.error ? `; error: ${tree.error}` : ""}`,
 						),
 					),
 				),
 			),
-			readableDiagnostic(preview),
+			element(
+				"details",
+				{ class: "deletion-technical" },
+				element("summary", {}, "Technical preview details"),
+				readableDiagnostic(preview),
+			),
 			cancel,
 			confirm,
 		);
@@ -9921,8 +9961,8 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	};
 	const updateStatus = () => {
 		status.textContent = readonly()
-			? "Read-only connection: settings are inspectable; Preview, Check and Save are unavailable."
-			: `${draft.dirty() ? "Unsaved changes" : "No unsaved changes"}. ${previewGeneration === generation ? "Calculated preview, not observed execution." : "Preview not current; unresolved fields are unknown until Preview/Check."}`;
+			? "Read-only: this project/workflow is inspectable; calculation and Save are unavailable."
+			: `${draft.dirty() ? "Unsaved changes" : "No unsaved changes"} for this project/workflow. ${previewGeneration === generation ? "Calculated preview, not observed execution." : "Calculate draft settings to refresh unknown values."}`;
 		save.disabled = readonly() || !draft.dirty();
 	};
 	function changed() {
@@ -9931,7 +9971,9 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		updateStatus();
 		// Existing controls retain focus and raw manual IDs; only calculated labels become stale.
 		for (const label of host.querySelectorAll("[data-calculated]"))
-			label.textContent = "Unknown until Preview/Check (draft changed)";
+			label.textContent = "Unknown until draft calculation (draft changed)";
+		for (const label of host.querySelectorAll("[data-source-lineage]"))
+			label.textContent = "Unknown until draft calculation (draft changed)";
 		for (const refresh of refreshers) refresh();
 		controller?.refresh();
 	}
@@ -9946,13 +9988,13 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		}
 		changed();
 	}
-	function sourceText(value, field) {
+	function sourceText(value, field, full = false) {
 		if (!value) return "Unknown / not calculated";
 		const actual =
 			field === "effort"
 				? `requested: ${value.requested ?? "unknown"}; resolved: ${value.resolved ?? "unknown"}${value.reason ? ` (${value.reason})` : ""}`
 				: (value.value ?? "unknown");
-		return `${actual}; source: ${value.source || "unknown"}${value.originSlot ? `; origin: ${value.originSlot}` : ""}${value.inheritedFrom ? `; inherited from: ${value.inheritedFrom}` : ""}${value.inheritedVia?.length ? `; via: ${value.inheritedVia.join(" → ")}` : ""}`;
+		return `${actual}; source: ${value.source || "unknown"}${value.originSlot ? `; origin: ${value.originSlot}` : ""}${full && value.inheritedFrom ? `; inherited from: ${value.inheritedFrom}` : ""}${full && value.inheritedVia?.length ? `; via: ${value.inheritedVia.join(" → ")}` : ""}`;
 	}
 	function controls(id) {
 		const value = binding(id) || {};
@@ -9988,20 +10030,16 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		);
 		const model = choicePicker(`${prefix} Model`, [], value.model || "", {
 			editable: true,
-			placeholder: "No local model override",
+			placeholder: "Use baseline settings",
 		});
 		const effort = choicePicker(
 			`${prefix} Effort`,
-			[["", "No local effort override"], ...EFFORT_LEVELS],
+			[["", "Use baseline settings"], ...EFFORT_LEVELS],
 			value.effort || "",
-			{ placeholder: "No local effort override" },
+			{ placeholder: "Use baseline settings" },
 		);
 		const note = element("small", { class: "muted", role: "status" });
 		const refresh = () => {
-			for (const reset of node.querySelectorAll("[data-reset-field]"))
-				reset.disabled =
-					readonly() ||
-					!Object.hasOwn(binding(id) || {}, reset.dataset.resetField);
 			const remove = node.querySelector("[data-remove-binding]");
 			if (remove) remove.disabled = readonly() || !binding(id);
 			const currentExecutor = dynamic
@@ -10014,7 +10052,10 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			const exec = binding(id)?.executor || currentExecutor;
 			executor.control.value = binding(id)?.executor || "";
 			const entry = inventory.executors.find((entry) => entry.id === exec);
-			model.setOptions([["", "No local override"], ...(entry?.models || [])]);
+			model.setOptions([
+				["", "Use baseline settings"],
+				...(entry?.models || []),
+			]);
 			model.control.disabled = effort.control.disabled = readonly() || !exec;
 			executor.control.disabled = readonly() || dynamic;
 			executor.control.placeholder = currentExecutor
@@ -10024,14 +10065,14 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				? `Dynamic template shares its actual parent executor: ${currentExecutor || "unknown; Preview required"}. Editing never pins the parent. A stale/incompatible binding is refused, not rebound.`
 				: !exec
 					? "Choose an executor or calculate the actual slot executor before selecting model/effort."
-					: `Binding executor: ${exec}${!entry ? "; unknown executor, manual IDs retained" : entry.error ? `; model inventory unavailable: ${entry.error}` : "; manual model IDs supported"}. Changing executor retains model/effort for explicit review; incompatible values are refused.`;
+					: `Execution environment: ${exec}${!entry ? "; unknown executor, manual IDs retained" : entry.error ? `; model inventory unavailable: ${entry.error}` : "; manual model IDs supported"}. Changing executor retains model/effort for explicit review; incompatible values are refused.`;
 		};
 		executor.control.addEventListener("change", () => {
 			if (readonly() || dynamic) return;
 			if (!executor.control.value) {
 				if (
 					!window.confirm(
-						"Remove this whole binding, including its model and effort?",
+						`Clear ${id === null ? "common settings" : `task ${id} settings`} in this draft, including model and effort? Saved settings are unchanged until Save.`,
 					)
 				) {
 					executor.control.value = binding(id)?.executor || "";
@@ -10079,57 +10120,69 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					{ "data-calculated": key },
 					id === null
 						? value[key]
-							? `Requested common ${key}: ${value[key]}; source: project-default. Effective values and compatibility are resolved per canonical slot.`
-							: "No common field override; inspect a canonical slot for its actual baseline/source."
+							? `Requested ${key}: ${value[key]}; source: project-default. Each task resolves its own baseline.`
+							: "Baseline settings; select a task to see its source."
 						: sourceText(resolved?.[key], key),
-				),
-				button(
-					`Reset ${key} override`,
-					() => {
-						const previous = binding(id);
-						if (!previous) return;
-						const next = { ...previous };
-						delete next[key];
-						setBinding(id, next);
-						renderFields();
-					},
-					{
-						disabled: readonly() || !Object.hasOwn(value, key),
-						"data-reset-field": key,
-					},
 				),
 			);
 		}
 		node.prepend(
-			field("Executor pin", executor.node),
+			field("Execution environment", executor.node),
 			element(
 				"small",
 				{ "data-calculated": "executor" },
 				id === null
 					? value.executor
-						? `Project default pin: ${value.executor}`
-						: "No project common pin; baseline remains unchanged"
+						? `Project execution environment: ${value.executor}`
+						: "Baseline execution environment"
 					: sourceText(resolved?.executor, "executor"),
 			),
 		);
 		node.append(
 			note,
-			button(
-				"Remove whole binding",
-				() => {
-					if (
-						window.confirm(
-							"Remove this whole binding (executor, model and effort)? Baseline will be resolved again.",
-						)
-					) {
-						setBinding(id, undefined);
-						renderFields();
-					}
-				},
-				{
-					disabled: readonly() || !binding(id),
-					"data-remove-binding": id ?? "common",
-				},
+			...(id === null
+				? []
+				: [
+						moreDetails(
+							"Setting sources and lineage",
+							...["executor", "model", "effort"].map((key) =>
+								element(
+									"p",
+									{ "data-source-lineage": key },
+									`${humanize(key)}: ${sourceText(resolved?.[key], key, true)}`,
+								),
+							),
+						),
+					]),
+			element(
+				"details",
+				{ class: "binding-actions" },
+				element(
+					"summary",
+					{},
+					id === null
+						? "Common settings actions"
+						: "This task's settings actions",
+				),
+				button(
+					id === null
+						? "Clear common settings in this draft"
+						: "Clear this task's settings in this draft",
+					() => {
+						if (
+							window.confirm(
+								`Clear ${id === null ? "common settings" : `task ${id} settings`} (executor, model and effort) in this draft? Baseline will be resolved again. Saved settings are unchanged until Save.`,
+							)
+						) {
+							setBinding(id, undefined);
+							renderFields();
+						}
+					},
+					{
+						disabled: readonly() || !binding(id),
+						"data-remove-binding": id ?? "common",
+					},
+				),
 			),
 		);
 		refreshers.add(refresh);
@@ -10139,13 +10192,21 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	function renderFields() {
 		refreshers.clear();
 		common.replaceChildren(
-			element("h3", {}, "Workflow common defaults"),
+			element("h3", {}, "Common settings"),
 			element(
 				"p",
 				{ class: "muted" },
-				"Explicit project defaults affect this workflow's next new runs, including controller/common lineage. Separate nested child Runs keep their existing inheritance; parent executor changes can indirectly affect them.",
+				"For this workflow's next new Runs in this project. Existing Runs stay unchanged.",
 			),
 			controls(null),
+			moreDetails(
+				"Scope and nested Runs",
+				element(
+					"p",
+					{},
+					"Common settings include controller/common lineage. Separate nested child Runs keep their existing inheritance; parent executor changes can indirectly affect them.",
+				),
+			),
 		);
 		const selected = metadata.authored.find((node) => node.id === selection);
 		panel.replaceChildren(
@@ -10160,7 +10221,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				element(
 					"p",
 					{},
-					"Select a canonical task. Common and task edits share one draft and one Save.",
+					"Select a task to edit. Common and task settings share one draft and one Save.",
 				),
 			);
 		else if (!selected.editable)
@@ -10184,7 +10245,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					{ class: "muted" },
 					selected.kind === "template"
 						? `Authored template${selected.parentId ? ` in ${selected.parentId}` : ""}; generated tasks inherit its captured settings, not live edits.`
-						: `Only canonical slot ${selected.id}; role peers are independent.`,
+						: `Settings for task ${selected.id} only; other tasks are independent.`,
 				),
 				controls(selected.id),
 			);
@@ -10199,7 +10260,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		renderFields();
 		controller?.refresh();
 		// Explicit editor selection only; never a Run/SSE update. Keep graph camera intact.
-		if (id && window.matchMedia("(max-width: 1100px)").matches) {
+		if (id) {
 			panel.scrollIntoView({ block: "start", behavior: "instant" });
 			panel.querySelector("h3")?.focus({ preventScroll: true });
 		}
@@ -10298,13 +10359,13 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			),
 		);
 	}
-	async function calculate(op = "preview") {
+	async function calculate() {
 		if (saving) return;
 		const token = ++request,
 			version = generation;
 		const body = { intent: copy(intent), expected: expected() };
 		try {
-			const result = await managementWrite(`${route}/${op}`, "POST", body);
+			const result = await managementWrite(`${route}/preview`, "POST", body);
 			if (!live() || token !== request || version !== generation) return;
 			preview = result;
 			previewGeneration = version;
@@ -10325,7 +10386,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		}
 	}
 	const save = button(
-		"Save settings",
+		"Save project/workflow settings",
 		async () => {
 			if (saving) return;
 			saving = true;
@@ -10373,14 +10434,14 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		editors,
 		element(
 			"div",
-			{ class: "management-actions" },
-			button("Preview", () => calculate(), {
+			{
+				class:
+					"profile-editor-actions profile-editor-actions-sticky project-workflow-actions",
+			},
+			save,
+			button("Calculate draft settings", () => calculate(), {
 				disabled: readonly(),
 				"data-testid": "project-settings-preview",
-			}),
-			button("Check draft", () => calculate("check"), {
-				disabled: readonly(),
-				"data-testid": "project-settings-check",
 			}),
 			button(
 				"Cancel / reload",
@@ -10389,7 +10450,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				},
 				{ "data-testid": "project-settings-reload" },
 			),
-			save,
+			status,
 		),
 		error,
 		element(
@@ -10561,30 +10622,35 @@ async function renderWorkflow(page, name) {
 	);
 	const validation = data.validation?.data;
 	const stagesPanel = managementPanel(
-		"Stages",
+		"Validation and task summary",
 		specError
 			? element(
 					"p",
 					{ role: "alert", class: "management-error" },
 					`The stage list could not be read: ${specError}`,
 				)
-			: propertyTable(
-					["#", "Stage", "Kind", ...(showAgent ? ["Agent"] : [])],
-					stages.map((stage, index) => [
-						String(index + 1),
-						element("strong", {}, stage.id),
-						stage.support || stage.type === "code"
-							? "Code step"
-							: {
-									single: "One agent",
-									foreach: "One agent per item",
-									reduce: "Combines results",
-								}[stage.type] ||
-								stage.type ||
-								"stage",
-						...(showAgent ? [stageAgent(stage)] : []),
-					]),
-					{ class: "property-table numbered" },
+			: element(
+					"details",
+					{ "data-testid": "workflow-stage-summary" },
+					element("summary", {}, "Read-only stage summary"),
+					propertyTable(
+						["#", "Stage", "Kind", ...(showAgent ? ["Agent"] : [])],
+						stages.map((stage, index) => [
+							String(index + 1),
+							element("strong", {}, stage.id),
+							stage.support || stage.type === "code"
+								? "Code step"
+								: {
+										single: "One agent",
+										foreach: "One agent per item",
+										reduce: "Combines results",
+									}[stage.type] ||
+									stage.type ||
+									"stage",
+							...(showAgent ? [stageAgent(stage)] : []),
+						]),
+						{ class: "property-table numbered" },
+					),
 				),
 		data.validation?.error
 			? element(
@@ -10610,7 +10676,7 @@ async function renderWorkflow(page, name) {
 					]
 				: null,
 	);
-	const check = managementPanel("Check: no run or model call");
+	const check = managementPanel("Check saved settings and launch overrides");
 	const workflowAliases = (workflow.aliases || []).filter(
 		(alias) => alias !== workflow.name,
 	);
@@ -10634,7 +10700,24 @@ async function renderWorkflow(page, name) {
 			? element("p", { role: "alert" }, data.roles.error)
 			: null,
 	);
-	page.append(about, stagesPanel, check, diagnostics);
+	page.append(
+		about,
+		stagesPanel,
+		element(
+			"details",
+			{ class: "saved-launch-check", "data-testid": "saved-launch-check" },
+			element(
+				"summary",
+				{},
+				"Check saved settings / launch overrides (no model call)",
+			),
+			check,
+		),
+		diagnostics,
+	);
+	// A page-level action bar remains reachable even beyond a long authored list or summary.
+	const projectActions = page.querySelector(".project-workflow-actions");
+	if (projectActions) page.append(projectActions);
 	const options = await modelControls();
 	const profiles = (await managementApi("/api/profiles")).data.profiles || [];
 	const profilePicker = choicePicker(
@@ -10697,7 +10780,7 @@ async function renderWorkflow(page, name) {
 			? `Active Check overrides: ${Object.entries(selected())
 					.map(([key, value]) => `${key}: ${value}`)
 					.join("; ")}`
-			: "Check uses saved/default settings. No run or model call.";
+			: "Uses saved/default settings, not the unsaved draft above. No run or model call.";
 	};
 	overrides.onchange = overrides.oninput = refreshSummary;
 	check.append(
@@ -11455,7 +11538,7 @@ async function renderProfiles(page) {
 		["", "Choose a workflow"],
 		...workflows.map((workflow) => [workflow.name, workflow.name]),
 	]);
-	const prefOutput = element("div");
+	const prefFeedback = element("div");
 	const prefEditor = element("div");
 	const configured = new Set(
 		preferences.data.preferences
@@ -11465,6 +11548,9 @@ async function renderProfiles(page) {
 			.map((pref) => pref.workflow),
 	);
 	const updatePreferenceCount = () => {
+		for (const option of chooser.options)
+			if (option.value)
+				option.textContent = `${option.value}${configured.has(option.value) ? " — configured" : ""}`;
 		prefPanel
 			.querySelector("h2")
 			.replaceChildren(
@@ -11479,7 +11565,7 @@ async function renderProfiles(page) {
 			);
 	};
 	updatePreferenceCount();
-	prefPanel.append(field("Workflow", chooser), prefEditor, prefOutput);
+	prefPanel.append(field("Workflow", chooser), prefEditor, prefFeedback);
 	let preferenceGeneration = 0;
 	let preferenceEditor;
 	let preferenceDraft;
@@ -11497,18 +11583,43 @@ async function renderProfiles(page) {
 			preferenceEditor = null;
 		}
 		const name = chooser.value;
+		prefEditor.inert = false;
 		prefEditor.replaceChildren();
-		prefOutput.replaceChildren();
+		// Each selection owns its output, including late failure handlers in managementControl.
+		const prefOutput = element("div");
+		prefFeedback.replaceChildren(prefOutput);
 		if (!name) return;
 		try {
 			const path = `/api/workflow-preferences/${encodeURIComponent(name)}?project=${encodeURIComponent(state.project)}`;
 			let current = (await managementApi(path)).data.preference || {};
-			const profile = input(
+			const profileOptions = (declared = []) => [
+				["", "Inherit workflow/default profile"],
+				...new Set(
+					[
+						...data.profiles.map((entry) => entry.name),
+						...executorDefaults.map((entry) => entry.executor),
+						...presets.data.presets.map((entry) => entry.id),
+						...declared,
+						current.profile,
+					].filter(Boolean),
+				),
+			];
+			const profilePicker = choicePicker(
 				"Workflow preferred profile",
+				profileOptions(),
 				current.profile || "",
+				{ editable: true, placeholder: "Inherit workflow/default profile" },
+			);
+			const profile = profilePicker.control;
+			profile.disabled = readonly();
+			const profileOptionsStatus = element(
+				"small",
 				{
-					placeholder: "Declared profile, saved profile or preset",
+					class: "muted",
+					"data-testid": "preference-profile-options-status",
+					role: "status",
 				},
+				"Saved/preset suggestions available; checking declared profiles…",
 			);
 			const roles = await roleEditor(current.roles, {
 				workflows: workflows.filter((entry) => entry.name === name),
@@ -11546,7 +11657,8 @@ async function renderProfiles(page) {
 				roles: roles.values(),
 			}));
 			prefEditor.replaceChildren(
-				field("Profile", profile),
+				field("Preferred profile", profilePicker.node),
+				profileOptionsStatus,
 				roles.node,
 				element(
 					"div",
@@ -11588,28 +11700,99 @@ async function renderProfiles(page) {
 						prefOutput,
 						{ class: "primary" },
 					),
-					managementControl(
-						"Clear workflow preference",
-						async () => {
-							await managementWrite(path, "DELETE");
-							if (generation === preferenceGeneration) preferenceDraft.clear();
-							roles.destroy();
-							roleEditors.delete(roles);
-							configured.delete(name);
-							updatePreferenceCount();
-							if (generation !== preferenceGeneration || !page.isConnected)
-								return;
-							chooser.value = "";
-							preferenceName = "";
-							prefEditor.replaceChildren();
-							prefOutput.replaceChildren(
-								element("p", { role: "status" }, "Workflow settings cleared."),
-							);
+					element(
+						"details",
+						{
+							"data-testid": "shared-preference-actions",
+							class: "shared-preference-actions",
 						},
-						prefOutput,
+						element("summary", {}, "Shared settings actions"),
+						managementControl(
+							"Remove saved shared overrides…",
+							async () => {
+								if (
+									readonly() ||
+									generation !== preferenceGeneration ||
+									!page.isConnected
+								)
+									return;
+								const confirmedDraft = preferenceDraft,
+									snapshot = confirmedDraft.snapshot();
+								if (
+									!window.confirm(
+										`Remove saved shared overrides for ${name} across projects? This affects future launches, not existing Runs or project-local settings.${confirmedDraft.dirty() ? " This also discards this form's unsaved changes." : " This form will close after confirmed removal."} Cancel keeps this draft and saved settings.`,
+									)
+								)
+									return;
+								prefEditor.inert = true;
+								try {
+									await managementWrite(path, "DELETE");
+									configured.delete(name);
+									updatePreferenceCount();
+									if (generation !== preferenceGeneration || !page.isConnected)
+										return;
+									if (confirmedDraft.snapshot() !== snapshot) {
+										prefOutput.replaceChildren(
+											element(
+												"p",
+												{ role: "status" },
+												"Saved shared overrides removed. Newer unsaved changes retained; nothing else was saved.",
+											),
+										);
+										current = {};
+										return;
+									}
+									confirmedDraft.clear();
+									roles.destroy();
+									roleEditors.delete(roles);
+									prefEditor.replaceChildren();
+									prefOutput.replaceChildren(
+										element(
+											"p",
+											{ role: "status" },
+											"Workflow settings cleared.",
+										),
+									);
+								} finally {
+									if (generation === preferenceGeneration && page.isConnected)
+										prefEditor.inert = false;
+								}
+							},
+							prefOutput,
+							{ "data-management-action": "remove-shared-preference" },
+						),
 					),
 				),
 			);
+			// Discovery only updates suggestions, never the input/draft. Late responses belong to this selection.
+			const entry = workflows.find((entry) => entry.name === name);
+			managementApi(
+				projectRoute(
+					`workflows/${encodeURIComponent(entry?.workflowKey || name)}`,
+				),
+			)
+				.then((result) => {
+					if (
+						generation !== preferenceGeneration ||
+						!page.isConnected ||
+						preferenceEditor !== roles
+					)
+						return;
+					const spec = JSON.parse(result.spec.data.spec);
+					profilePicker.setOptions(
+						profileOptions(Object.keys(spec.executionProfiles || {})),
+					);
+					profileOptionsStatus.textContent =
+						"Available: saved, preset and declared profiles. Unlisted names can be typed.";
+				})
+				.catch((error) => {
+					if (
+						generation === preferenceGeneration &&
+						page.isConnected &&
+						preferenceEditor === roles
+					)
+						profileOptionsStatus.textContent = `Declared profile suggestions unavailable: ${error.message}. Saved/preset suggestions and manual names remain available; draft retained.`;
+				});
 		} catch (error) {
 			if (generation === preferenceGeneration)
 				prefOutput.replaceChildren(

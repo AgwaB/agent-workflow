@@ -2,6 +2,8 @@
 // Profiles are a short list and one focused editor. Real Chrome/routes; isolated user home, no model calls.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { managementProject } from "../helpers/dashboard-management.mjs";
 import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
 import { scanMarks } from "../helpers/dashboard-marks.mjs";
@@ -103,6 +105,448 @@ async function save(browser) {
 }
 const profile = async (ctx, name) =>
 	(await profileAction(ctx, { op: "show", name })).data.profile;
+
+test("polish: shared removal Cancel sends no DELETE and retains the dirty draft; failure retains form; success removes only confirmed preference", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	for (const workflow of ["model-flow", "manage"])
+		await workflowPreferenceAction(p.ctx, {
+			op: "set",
+			workflow,
+			profile: "mixed",
+		});
+	await p.browser.send("Page.addScriptToEvaluateOnNewDocument", {
+		source: `
+	window.__deletes=[]; window.__failDelete=false;
+	const originalFetch=window.fetch;
+	window.fetch=(path,options={})=>{
+		if(options.method==='DELETE' && String(path).includes('/workflow-preferences/')) {
+			window.__deletes.push(String(path));
+			if(window.__failDelete) return Promise.resolve(new Response(JSON.stringify({error:'fixture removal refused'}),{status:503}));
+		}
+		return originalFetch(path,options);
+	};
+	window.__nativeConfirm=window.confirm;
+	window.confirm=(message)=>{window.__confirmation=message;return false;};
+	`,
+	});
+	await load(p.browser, p.url);
+	await set(p.browser, "Workflow to configure", "model-flow");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
+	);
+	await set(p.browser, "Workflow preferred profile", "manual/unlisted-draft");
+	// Native click on the real action. On the baseline it deletes immediately, without asking.
+	await p.browser.evaluate(() => {
+		const details = document.querySelector(
+			'[data-testid="shared-preference-actions"]',
+		);
+		if (details) details.open = true;
+	});
+	const target = await p.browser.evaluate(() => {
+		const b = [
+			...document.querySelectorAll(".profile-preferences button"),
+		].find((n) =>
+			/Clear workflow preference|Remove saved shared overrides/.test(
+				n.textContent,
+			),
+		);
+		b.dataset.polishRemove = "true";
+		return '[data-polish-remove="true"]';
+	});
+	await p.browser.click(target);
+	await p.browser.waitFor(
+		() =>
+			!!window.__confirmation ||
+			!document.querySelector('[aria-label="Workflow preferred profile"]'),
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(() => window.__deletes),
+		[],
+		"Cancel must not DELETE saved settings",
+	);
+	assert.match(
+		await p.browser.evaluate(() => window.__confirmation),
+		/model-flow.*across projects.*unsaved/s,
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Workflow preferred profile"]')
+					.value,
+		),
+		"manual/unlisted-draft",
+	);
+	await p.browser.evaluate(() => {
+		window.confirm = window.__nativeConfirm;
+		window.__failDelete = true;
+	});
+	const nativeRemove = async (accept) => {
+		const event = p.browser.nextEvent("Page.javascriptDialogOpening");
+		const clicking = p.browser.click(
+			'[data-management-action="remove-shared-preference"]',
+		);
+		const dialog = await event;
+		assert.match(dialog.message, /across projects.*unsaved/s);
+		await p.browser.send("Page.handleJavaScriptDialog", { accept });
+		await clicking;
+	};
+	await nativeRemove(false);
+	assert.deepEqual(await p.browser.evaluate(() => window.__deletes), []);
+	await nativeRemove(true);
+	await p.browser.waitFor(
+		() => !!document.querySelector('.profile-preferences [role="alert"]'),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Workflow preferred profile"]')
+					.value,
+		),
+		"manual/unlisted-draft",
+	);
+	assert.equal(
+		(
+			await workflowPreferenceAction(p.ctx, {
+				op: "show",
+				workflow: "model-flow",
+			})
+		).data.preference.profile,
+		"mixed",
+	);
+	await p.browser.evaluate(() => {
+		window.__failDelete = false;
+	});
+	await nativeRemove(true);
+	await p.browser.waitFor(
+		() => !document.querySelector('[aria-label="Workflow preferred profile"]'),
+	);
+	assert.equal(
+		(
+			await workflowPreferenceAction(p.ctx, {
+				op: "show",
+				workflow: "model-flow",
+			})
+		).data.preference,
+		undefined,
+	);
+	assert.equal(
+		(await workflowPreferenceAction(p.ctx, { op: "show", workflow: "manage" }))
+			.data.preference.profile,
+		"mixed",
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			value: document.querySelector('[aria-label="Workflow to configure"]')
+				.value,
+			labels: [
+				...document.querySelector('[aria-label="Workflow to configure"]')
+					.options,
+			]
+				.filter((o) => ["model-flow", "manage"].includes(o.value))
+				.map((o) => o.textContent),
+		})),
+		{ value: "model-flow", labels: ["manage — configured", "model-flow"] },
+	);
+});
+
+test("polish: editable profile suggestions include saved, preset, declared and inheritance; configured chooser updates without resetting selection", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await profileAction(p.ctx, {
+		op: "set",
+		name: "daily",
+		values: { executor: "codex", model: "fixture-model" },
+	});
+	const specPath = join(p.cwd, ".agent-workflow/workflows/model-flow.json");
+	const spec = JSON.parse(await readFile(specPath, "utf8"));
+	spec.executionProfiles = { "declared-local": { plan: { effort: "low" } } };
+	await writeFile(specPath, JSON.stringify(spec));
+	await load(p.browser, p.url);
+	await set(p.browser, "Workflow to configure", "model-flow");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
+	);
+	assert.equal(
+		await p.browser.evaluate(() =>
+			document
+				.querySelector('[aria-label="Workflow preferred profile"]')
+				.getAttribute("role"),
+		),
+		"combobox",
+	);
+	await p.browser.waitFor(
+		() =>
+			!!document
+				.querySelector('[data-testid="preference-profile-options-status"]')
+				?.textContent.includes("Available"),
+	);
+	await p.browser.click('[aria-label="Workflow preferred profile"]');
+	const suggestions = await p.browser.evaluate(() =>
+		[
+			...document.querySelectorAll(
+				'[aria-label="Workflow preferred profile options"] [role="option"]',
+			),
+		].map((n) => [n.dataset.value, n.textContent]),
+	);
+	for (const name of ["daily", "mixed", "declared-local"])
+		assert.ok(
+			suggestions.some(([value]) => value === name),
+			JSON.stringify(suggestions),
+		);
+	assert.ok(
+		suggestions.some(([value, label]) => !value && /inherit/i.test(label)),
+	);
+	await p.browser.key("Escape");
+	await set(p.browser, "Workflow preferred profile", "manual/unlisted-profile");
+	await p.browser.key("Escape");
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Workflow preferred profile"]')
+					.value,
+		),
+		"manual/unlisted-profile",
+	);
+	await set(p.browser, "Workflow preferred profile", "mixed");
+	await p.browser.key("Escape");
+	await p.browser.click(".profile-preferences .primary");
+	await p.browser.waitFor(() =>
+		[
+			...document.querySelector('[aria-label="Workflow to configure"]').options,
+		].some(
+			(o) => o.value === "model-flow" && o.textContent.includes("configured"),
+		),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Workflow to configure"]').value,
+		),
+		"model-flow",
+	);
+});
+
+test("polish: profile discovery failure and late response never replace manual drafts or another workflow", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await p.browser.send("Page.addScriptToEvaluateOnNewDocument", {
+		source: `
+	const originalFetch=window.fetch; window.__discoveryMode='hold';
+	window.fetch=async(path,options)=>{
+		const response=await originalFetch(path,options);
+		if(/\\/workflows\\/[a-f0-9]{64}$/.test(String(path))) {
+			if(window.__discoveryMode==='hold') {window.__discoveryMode=''; await new Promise(resolve=>window.__releaseDiscovery=resolve);}
+			else if(window.__discoveryMode==='fail') return new Response(JSON.stringify({error:'fixture discovery unavailable'}),{status:503});
+		}
+		return response;
+	};`,
+	});
+	await load(p.browser, p.url);
+	await set(p.browser, "Workflow to configure", "model-flow");
+	await p.browser.waitFor(() => !!window.__releaseDiscovery);
+	await set(p.browser, "Workflow preferred profile", "manual/keep");
+	await p.browser.evaluate(() => window.__releaseDiscovery());
+	await p.browser.waitFor(() =>
+		document
+			.querySelector('[data-testid="preference-profile-options-status"]')
+			.textContent.startsWith("Available"),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Workflow preferred profile"]')
+					.value,
+		),
+		"manual/keep",
+	);
+	await p.browser.evaluate(() => {
+		window.confirm = () => true;
+		window.__discoveryMode = "hold";
+		window.__releaseDiscovery = null;
+	});
+	await set(p.browser, "Workflow to configure", "manage");
+	await p.browser.waitFor(
+		() =>
+			document.querySelector('[aria-label="Workflow preferred profile"]')
+				?.value === "",
+	);
+	await p.browser.waitFor(
+		() => typeof window.__releaseDiscovery === "function",
+	);
+	await set(p.browser, "Workflow preferred profile", "manual/second");
+	await p.browser.evaluate(() => {
+		window.__discoveryMode = "fail";
+	});
+	await set(p.browser, "Workflow to configure", "model-flow");
+	await p.browser.waitFor(() =>
+		document
+			.querySelector('[data-testid="preference-profile-options-status"]')
+			?.textContent.includes("unavailable"),
+	);
+	await set(p.browser, "Workflow preferred profile", "manual/third");
+	await p.browser.evaluate(() => window.__releaseDiscovery());
+	await p.browser.evaluate(async () => {
+		await new Promise((resolve) =>
+			requestAnimationFrame(() => requestAnimationFrame(resolve)),
+		);
+	});
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Workflow preferred profile"]')
+					.value,
+		),
+		"manual/third",
+	);
+	assert.match(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector(
+					'[data-testid="preference-profile-options-status"]',
+				).textContent,
+		),
+		/unavailable.*draft retained/,
+	);
+});
+
+for (const outcome of ["success", "failed"])
+	test(`polish: late shared removal ${outcome} cannot clear, freeze or report into another workflow draft`, {
+		timeout: 90000,
+	}, async (t) => {
+		const p = await open(t);
+		for (const workflow of ["model-flow", "manage"])
+			await workflowPreferenceAction(p.ctx, {
+				op: "set",
+				workflow,
+				profile: "mixed",
+			});
+		await p.browser.send("Page.addScriptToEvaluateOnNewDocument", {
+			source: `
+		window.confirm=()=>true;
+		const originalFetch=window.fetch;
+		window.fetch=async(path,options={})=>{
+			if(options.method==='DELETE' && String(path).includes('/workflow-preferences/model-flow')) {
+				const response=${JSON.stringify(outcome)}==='failed'?new Response(JSON.stringify({error:'fixture late refusal'}),{status:503}):await originalFetch(path,options);
+				await new Promise(resolve=>window.__releaseRemoval=resolve);
+				window.__removalReleased=true; return response;
+			}
+			return originalFetch(path,options);
+		};`,
+		});
+		await load(p.browser, p.url);
+		await set(p.browser, "Workflow to configure", "model-flow");
+		await p.browser.waitFor(
+			() =>
+				!!document.querySelector('[aria-label="Workflow preferred profile"]'),
+		);
+		await p.browser.click(
+			'[data-testid="shared-preference-actions"] > summary',
+		);
+		await p.browser.click(
+			'[data-management-action="remove-shared-preference"]',
+		);
+		await p.browser.waitFor(() => !!window.__releaseRemoval);
+		assert.ok(
+			await p.browser.evaluate(() =>
+				[
+					...document.querySelector('[aria-label="Workflow to configure"]')
+						.options,
+				].some(
+					(o) =>
+						o.value === "model-flow" && o.textContent.includes("configured"),
+				),
+			),
+			"no optimistic marker removal",
+		);
+		await set(p.browser, "Workflow to configure", "manage");
+		await p.browser.waitFor(
+			() =>
+				document.querySelector('[aria-label="Workflow preferred profile"]')
+					?.value === "mixed",
+		);
+		await set(p.browser, "Workflow preferred profile", "manual/newer-draft");
+		await p.browser.evaluate(() => window.__releaseRemoval());
+		await p.browser.waitFor(
+			() =>
+				new Promise((resolve) =>
+					requestAnimationFrame(() =>
+						requestAnimationFrame(() => resolve(!!window.__removalReleased)),
+					),
+				),
+		);
+		assert.deepEqual(
+			await p.browser.evaluate(() => ({
+				workflow: document.querySelector('[aria-label="Workflow to configure"]')
+					.value,
+				profile: document.querySelector(
+					'[aria-label="Workflow preferred profile"]',
+				).value,
+				inert:
+					document
+						.querySelector('[aria-label="Workflow preferred profile"]')
+						.closest("[inert]") !== null,
+				errors: [
+					...document.querySelectorAll('.profile-preferences [role="alert"]'),
+				].map((n) => n.textContent),
+			})),
+			{
+				workflow: "manage",
+				profile: "manual/newer-draft",
+				inert: false,
+				errors: [],
+			},
+		);
+		assert.equal(
+			(
+				await workflowPreferenceAction(p.ctx, {
+					op: "show",
+					workflow: "manage",
+				})
+			).data.preference.profile,
+			"mixed",
+		);
+		assert.equal(
+			Boolean(
+				(
+					await workflowPreferenceAction(p.ctx, {
+						op: "show",
+						workflow: "model-flow",
+					})
+				).data.preference,
+			),
+			outcome === "failed",
+		);
+	});
+
+test("polish: readonly shared saved-removal is disabled", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t, { readonly: true });
+	await workflowPreferenceAction(p.ctx, {
+		op: "set",
+		workflow: "model-flow",
+		profile: "mixed",
+	});
+	await load(p.browser, p.url);
+	await set(p.browser, "Workflow to configure", "model-flow");
+	await p.browser.waitFor(
+		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
+	);
+	await p.browser.click('[data-testid="shared-preference-actions"] > summary');
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector(
+					'[data-management-action="remove-shared-preference"]',
+				).disabled,
+		),
+		true,
+	);
+});
 
 test("Profiles: compact landing, focused editing, Cancel and hidden values preserved on save", {
 	timeout: 90000,
@@ -400,7 +844,15 @@ test("Profiles: workflow settings are selected on demand and role removal works 
 		).data.preference.roles,
 		undefined,
 	);
-	await click(p.browser, "Clear workflow preference");
+	await p.browser.click('[data-testid="shared-preference-actions"] > summary');
+	const confirmation = p.browser.nextEvent("Page.javascriptDialogOpening");
+	// Do not await click while the native confirmation blocks the renderer.
+	const removing = p.browser.click(
+		'[data-management-action="remove-shared-preference"]',
+	);
+	await confirmation;
+	await p.browser.send("Page.handleJavaScriptDialog", { accept: true });
+	await removing;
 	await p.browser.waitFor(
 		() =>
 			document.querySelector(".profile-preferences p[role=status]")

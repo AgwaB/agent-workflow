@@ -31,7 +31,7 @@ async function setup(t, options = {}) {
   const response=await originalFetch(...args);
   if(path.endsWith('/preview')) {
    if(window.__deleteMode==='hold') {window.__deleteMode='';await new Promise(resolve=>window.__releasePreview=resolve);}
-   if(window.__deleteMode==='disclosure') {const data=await response.json();data.data.runs[0].worktrees=[{path:'.agent-workflow/worktrees/owned-test',branch:'owned',dirty:true,commits:3}];return new Response(JSON.stringify(data),{status:200});}
+   if(window.__deleteMode==='disclosure') {const data=await response.json();data.data.runs[0].worktrees=[{path:'.agent-workflow/worktrees/owned-test',branch:'owned',dirty:true,commits:3}];data.data.runs[0].ownedSessions={deleted:0,notFound:0,unsupported:2};data.data.runs[0].error='fixture resource warning';return new Response(JSON.stringify(data),{status:200});}
    if(window.__deleteMode==='protected') {const data=await response.json();data.data.runs[0].protected=true;return new Response(JSON.stringify(data),{status:200});}
   }
   if(path.endsWith('/run-deletions') && window.__deleteMode==='hold-commit') {
@@ -61,6 +61,10 @@ const review = async (p) => {
 };
 
 async function assertDiagnosticsFit(p, selector) {
+	await p.browser.evaluate((selector) => {
+		const technical = document.querySelector(`${selector} .deletion-technical`);
+		if (technical) technical.open = true;
+	}, selector);
 	const geometry = await p.browser.evaluate((selector) => {
 		const root = document.querySelector(selector);
 		const bounds = document.querySelector("#center").getBoundingClientRect();
@@ -130,6 +134,16 @@ test("Secondary selected deletion retains primary/shared groups and actual proje
 			document.querySelector('[data-testid="selected-delete-preview"]')
 				.textContent,
 	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				!!document.querySelector(
+					'[data-testid="selected-delete-preview"] .deletion-technical:not([open])',
+				),
+		),
+		true,
+		"only duplicate technical object is folded",
+	);
 	await assertDiagnosticsFit(p, '[data-testid="selected-delete-preview"]');
 	assert.match(text, /workflow_delete_ui_a/);
 	assert.doesNotMatch(text, /workflow_delete_ui_b/);
@@ -185,6 +199,25 @@ test("owned worktree facts are visible without claiming source unaffected; prote
 		/Owned worktree: .agent-workflow\/worktrees\/owned-test; branch: owned; dirty: true; unique commits: 3/,
 	);
 	assert.doesNotMatch(text, /source unaffected/);
+	const visible = await p.browser.evaluate(
+		() =>
+			document.querySelector('[data-testid="selected-delete-preview"]')
+				.innerText,
+	);
+	assert.match(visible, /workflow_delete_ui_a/);
+	assert.match(
+		visible,
+		/Owned worktree: .agent-workflow\/worktrees\/owned-test; branch: owned; dirty: true; unique commits: 3/,
+	);
+	assert.match(visible, /unsupported 2 \(left in place\)/);
+	assert.match(visible, /error: fixture resource warning/);
+	assert.match(visible, /No guaranteed recovery or undo/);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector(".deletion-technical").open,
+		),
+		false,
+	);
 	await p.browser.click('[data-testid="selected-delete-cancel"]');
 	await p.browser.evaluate(() => (window.__deleteMode = "protected"));
 	await review(p);

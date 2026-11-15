@@ -2884,6 +2884,29 @@ a.profile-row {
 .project-workflow-editor .role-inspector {
 	scroll-margin-top: 16px;
 }
+.project-workflow-actions {
+	margin-top: 20px;
+	align-items: center;
+}
+.project-workflow-actions [data-testid="workflow-settings-status"] {
+	flex-basis: 100%;
+	margin: 0;
+	font-size: 13px;
+	overflow-wrap: anywhere;
+}
+.project-workflow-editor .binding-actions {
+	grid-column: 1 / -1;
+}
+.project-workflow-editor .binding-actions button {
+	width: auto;
+	text-align: left;
+}
+.shared-preference-actions {
+	flex-basis: 100%;
+}
+.saved-launch-check {
+	margin: 20px 0;
+}
 .project-workflow-editor [data-calculated] {
 	overflow-wrap: anywhere;
 	color: var(--muted);

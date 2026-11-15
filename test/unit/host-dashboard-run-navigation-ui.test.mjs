@@ -361,12 +361,25 @@ test("Stop/Resume status, readonly, confirmation/cancel and repeated effects war
 		),
 		0,
 	);
-	assert.match(
+	assert.equal(
 		await b.evaluate(
 			() =>
 				document.querySelector('[data-testid="run-action-reason"]').textContent,
 		),
-		/business verdicts are results/,
+		"Finished.",
+	);
+	const policy = await b.evaluate(() => ({
+		text: document.querySelector(".run-context details").textContent,
+		open: document.querySelector(".run-context details").open,
+	}));
+	assert.equal(policy.open, false, "terminal policy is secondary, not removed");
+	assert.match(policy.text, /business verdicts are results/);
+	await b.click(".run-context details > summary");
+	assert.match(
+		await b.evaluate(
+			() => document.querySelector(".run-context details").innerText,
+		),
+		/No Stop\/Resume: terminal; business verdicts are results, not resumable failures/,
 	);
 	f.setReadonly(true);
 	await entry(b, `${f.origin}/?run=${active.runId}&view=runs`);

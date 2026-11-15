@@ -477,7 +477,14 @@ test("settings drafts: workflow chooser refusal retains profile and manual role 
 	);
 	assert.equal(await dirty(b), false);
 	await set(b, "Workflow preferred profile", "mixed");
-	await button(b, "Clear workflow preference");
+	await b.click('[data-testid="shared-preference-actions"] > summary');
+	const confirmations = await b.evaluate(() => window.guardCalls);
+	await button(b, "Remove saved shared overrides…");
+	assert.equal(
+		await b.evaluate(() => window.guardCalls),
+		confirmations + 1,
+		"saved shared removal separately confirms discarding the dirty form",
+	);
 	await b.waitFor(
 		() => !document.querySelector('[aria-label="Workflow preferred profile"]'),
 	);
