@@ -570,18 +570,24 @@ for (const noNavigation of [false, true])
 		assert.equal(await dirty(b), false);
 	});
 
-test("settings drafts: workflow Check is transient and never registers a settings draft", {
+// The workflow-page Check form was deleted (2026-11-16, owner); opening the page alone is not a draft.
+test("settings drafts: workflow page has no Check form and opening it registers no settings draft", {
 	timeout: 60000,
 }, async (t) => {
 	const { b, url } = await fixture(t);
 	await b.send("Page.navigate", {
 		url: url.replace("view=profiles", "view=workflows"),
 	});
-	await b.waitFor(
-		() => !!document.querySelector('[data-management-action="check"]'),
+	await b.waitFor(() => !!document.querySelector(".project-workflow-actions"));
+	assert.equal(
+		await b.evaluate(
+			() =>
+				document.querySelectorAll(
+					'[data-management-action="check"], [aria-label="Check profile"]',
+				).length,
+		),
+		0,
 	);
-	await set(b, "Check profile", "unsaved-probe-profile");
-	await set(b, "Check permission mode", "safe");
 	assert.equal(await dirty(b), false);
 });
 
