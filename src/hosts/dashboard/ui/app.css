@@ -2875,6 +2875,10 @@ a.profile-row {
 	padding-bottom: 16px;
 	border-bottom: 1px solid var(--line);
 }
+/* Background hint changes must not move the reader through browser scroll anchoring. */
+.management-page:has(.project-workflow-editor) {
+	overflow-anchor: none;
+}
 .project-workflow-editor .management-fields {
 	grid-template-columns: minmax(0, 1fr);
 }

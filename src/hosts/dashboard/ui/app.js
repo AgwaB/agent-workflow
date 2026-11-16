@@ -9836,7 +9836,10 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		previewGeneration = -1,
 		controller;
 	let layout = "td",
-		showCode = true;
+		showCode = true,
+		calculationQueued = false,
+		attemptedGeneration = -1,
+		feedback = "";
 	const views = new Map();
 	const refreshers = new Set();
 	const live = () => !disposed && current() && host.isConnected;
@@ -9956,18 +9959,35 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		previewGeneration === generation
 			? own(preview?.check?.data?.configuration?.slots, id)
 			: undefined;
-	const fail = (message) => {
+	const fail = (message, retry = false) => {
 		error.hidden = false;
-		error.textContent = message;
+		error.replaceChildren(document.createTextNode(message));
+		if (retry)
+			error.append(
+				button("Retry", () => {
+					attemptedGeneration = -1;
+					scheduleCalculation();
+				}),
+			);
 	};
 	const updateStatus = () => {
 		status.textContent = readonly()
-			? "Read-only: this project/workflow is inspectable; calculation and Save are unavailable."
-			: `${draft.dirty() ? "Unsaved changes" : "No unsaved changes"} for this project/workflow. ${previewGeneration === generation ? "Calculated preview, not observed execution." : "Calculate draft settings to refresh unknown values."}`;
-		save.disabled = readonly() || !draft.dirty();
+			? "Read-only: editing unavailable."
+			: feedback;
+		status.hidden = !status.textContent;
+		save.disabled = readonly() || saving || !draft.dirty();
 	};
+	function scheduleCalculation() {
+		if (!live() || readonly() || saving || calculationQueued) return;
+		calculationQueued = true;
+		queueMicrotask(() => {
+			calculationQueued = false;
+			if (live() && !readonly() && !saving) void calculate();
+		});
+	}
 	function changed() {
 		++generation;
+		feedback = "";
 		error.hidden = true;
 		updateStatus();
 		// Keep controls and raw saved IDs; stale calculations are not current sources.
@@ -9979,8 +9999,10 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		}
 		for (const refresh of refreshers) refresh();
 		controller?.refresh();
+		scheduleCalculation();
 	}
 	function setBinding(id, value) {
+		if (draftSnapshot(binding(id)) === draftSnapshot(value)) return;
 		if (id === null) {
 			if (value) intent.defaults = value;
 			else delete intent.defaults;
@@ -10047,9 +10069,10 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		const refresh = () => {
 			const remove = node.querySelector("[data-remove-binding]");
 			if (remove) remove.disabled = readonly() || !binding(id);
+			const currentSlot = metadata.editableSlots.find((slot) => slot.id === id);
 			const currentExecutor = dynamic
 				? previewGeneration === generation
-					? slot?.parentExecutor
+					? currentSlot?.parentExecutor
 					: undefined
 				: id === null
 					? undefined
@@ -10061,11 +10084,29 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			const models = [
 				...new Set([...(entry?.models || []), previousModel].filter(Boolean)),
 			];
-			model.control.replaceChildren(
-				element("option", { value: "" }, "Use baseline settings"),
-				...models.map((id) => element("option", { value: id }, id)),
-			);
-			model.control.value = previousModel;
+			const options = ["", ...models];
+			if (
+				options.length !== model.control.options.length ||
+				options.some(
+					(value, index) => model.control.options[index]?.value !== value,
+				)
+			) {
+				model.control.replaceChildren(
+					element("option", { value: "" }, "Use baseline settings"),
+					...models.map((id) => element("option", { value: id }, id)),
+				);
+				model.control.value = previousModel;
+			}
+			for (const hint of node.querySelectorAll(
+				"[data-calculated], [data-source-lineage]",
+			)) {
+				const key = hint.dataset.calculated || hint.dataset.sourceLineage;
+				const value = row(id)?.[key];
+				hint.textContent = value
+					? `${hint.hasAttribute("data-source-lineage") ? `${humanize(key)}: ` : ""}${sourceText(value, key, hint.hasAttribute("data-source-lineage"))}`
+					: "";
+				hint.hidden = !value;
+			}
 			model.control.disabled = effort.control.disabled = readonly() || !exec;
 			executor.control.disabled = readonly() || dynamic;
 			executor.control.placeholder = currentExecutor
@@ -10091,16 +10132,19 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				if (readonly()) return;
 				const previous = binding(id);
 				if (!previous && !picker.control.value) return;
+				const currentSlot = metadata.editableSlots.find(
+					(slot) => slot.id === id,
+				);
+				const parentExecutor =
+					previewGeneration === generation
+						? currentSlot?.parentExecutor
+						: undefined;
 				const exec =
 					previous?.executor ||
-					(dynamic
-						? previewGeneration === generation
-							? slot?.parentExecutor
-							: undefined
-						: row(id)?.executor?.value);
-				if (!exec || (dynamic && exec !== slot?.parentExecutor)) {
+					(dynamic ? parentExecutor : row(id)?.executor?.value);
+				if (!exec || (dynamic && exec !== parentExecutor)) {
 					fail(
-						"Actual parent/slot executor is unresolved or incompatible. Preview and review, or explicitly choose a compatible executor; no values were rebound.",
+						"Actual parent/slot executor is unresolved or incompatible. Review the settings; no values were rebound.",
 					);
 					return;
 				}
@@ -10339,9 +10383,10 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		);
 	}
 	async function calculate() {
-		if (saving) return;
+		if (saving || readonly() || attemptedGeneration === generation) return;
 		const token = ++request,
 			version = generation;
+		attemptedGeneration = version;
 		const body = { intent: copy(intent), expected: expected() };
 		try {
 			const result = await managementWrite(`${route}/preview`, "POST", body);
@@ -10353,28 +10398,30 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			if (!result.check?.ok)
 				fail(
 					`Check refused: ${result.check?.text || "No calculable configuration"}. Draft retained. ${result.check?.data?.configuration ? "Calculated configuration is shown separately; capability refusal is not a Save result." : "Unresolved configuration remains unknown."}`,
+					!result.check?.data?.configuration,
 				);
-			renderFields();
+			for (const refresh of refreshers) refresh();
 			controller?.refresh();
 			updateStatus();
 		} catch (failure) {
 			if (live() && token === request && version === generation)
 				fail(
-					`${failure.message}. Draft retained. Reload and review before retrying; Preview/Check never saves.`,
+					`${failure.message}. Draft retained. Automatic calculation failed.`,
+					true,
 				);
 		}
 	}
 	const save = button(
-		"Save project/workflow settings",
+		"Save",
 		async () => {
-			if (saving) return;
+			if (saving || readonly()) return;
 			saving = true;
+			feedback = "Saving…";
+			updateStatus();
 			const token = ++request,
-				version = generation,
 				submitted = copy(intent),
 				snapshot = draft.snapshot();
-			editors.inert = true;
-			save.disabled = true;
+			let confirmed = false;
 			try {
 				const result = await managementWrite(route, "PUT", {
 					intent: submitted,
@@ -10383,13 +10430,15 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				if (!live() || token !== request) return;
 				settings = result;
 				draft.saved(snapshot);
+				confirmed = true;
 				error.hidden = true;
+				feedback = draft.dirty()
+					? "Submitted settings saved. Unsaved changes remain."
+					: "Settings saved.";
 				updateStatus();
-				status.textContent = draft.dirty()
-					? "Submitted settings saved. Unsaved changes remain; save them separately."
-					: "Settings saved for this project/workflow. Existing runs are unchanged.";
 			} catch (failure) {
-				if (live() && token === request && version === generation) {
+				if (live() && token === request) {
+					feedback = "";
 					fail(
 						`${failure.status === 409 ? "Conflict (409): " : "Save not confirmed: "}${failure.message}. Complete draft retained. Reload and review; no automatic overwrite/retry.`,
 					);
@@ -10398,8 +10447,13 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			} finally {
 				saving = false;
 				if (live()) {
-					editors.inert = false;
-					save.disabled = readonly() || !draft.dirty();
+					updateStatus();
+					// A settled calculation already describes this exact intent. Only a
+					// pending/newer generation needs another request with the new CAS tokens.
+					if (confirmed && previewGeneration !== generation) {
+						attemptedGeneration = -1;
+						scheduleCalculation();
+					}
 				}
 			}
 		},
@@ -10418,12 +10472,8 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					"profile-editor-actions profile-editor-actions-sticky project-workflow-actions",
 			},
 			save,
-			button("Calculate draft settings", () => calculate(), {
-				disabled: readonly(),
-				"data-testid": "project-settings-preview",
-			}),
 			button(
-				"Cancel / reload",
+				"Discard changes",
 				() => {
 					if (approveSettingsDiscard()) renderManagement();
 				},
@@ -10484,7 +10534,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	renderFields();
 	draw();
 	updateStatus();
-	if (!readonly()) await calculate();
+	scheduleCalculation();
 }
 
 /** The workflow page (2026-11-11): what it is, its stages, its check and the raw spec. */

@@ -40,10 +40,15 @@ async function open(t, options = {}) {
 		const originalFetch = window.fetch;
 		window.fetch = async (...args) => {
 			const path = String(args[0]), options = args[1] || {};
-			if (path.includes('/settings') || path.endsWith('/check')) window.__requests.push({path, method: options.method || 'GET', body: options.body && JSON.parse(options.body)});
-			const response = await originalFetch(...args);
+			const request = {path, method: options.method || 'GET', body: options.body && JSON.parse(options.body)};
+			if (path.includes('/settings') || path.endsWith('/check')) window.__requests.push(request);
+			const fail = (path.endsWith('/preview') && window.__failPreview) || (options.method === 'PUT' && window.__failPUT);
+			if (fail) { window.__failPreview = false; window.__failPUT = false; }
+			const response = fail ? new Response(JSON.stringify({error: 'fixture calculation unavailable'}), {status: 503, headers: {'content-type': 'application/json'}}) : await originalFetch(...args);
 			const op = path.endsWith('/preview') ? 'preview' : path.endsWith('/settings') ? (options.method || 'GET') : '';
 			if (window.__holds[op]) { window.__holds[op] = false; await new Promise(resolve => { window.__releases[op] = resolve; }); }
+			const json = response.json.bind(response);
+			response.json = async () => { const data = await json(); request.response = {status: response.status, data}; return data; };
 			return response;
 		};
 	`,
@@ -56,8 +61,7 @@ async function load(p) {
 	await p.browser.send("Page.navigate", { url: p.url });
 	try {
 		await p.browser.waitFor(
-			() =>
-				!!document.querySelector('[data-testid="project-settings-preview"]'),
+			() => !!document.querySelector(".project-workflow-actions"),
 		);
 	} catch (error) {
 		throw new Error(
@@ -75,11 +79,34 @@ async function load(p) {
 	);
 }
 async function settled(p) {
-	await p.browser.waitFor(() =>
-		document
-			.querySelector('[data-testid="workflow-settings-status"]')
-			?.textContent.includes("Calculated preview"),
-	);
+	await p.browser.waitFor(() => {
+		const request = window.__requests.findLast((r) =>
+			r.path.endsWith("/preview"),
+		);
+		const load = window.__requests.findLast(
+			(r) => r.path.endsWith("/settings") && r.method === "GET",
+		);
+		if (
+			!request?.response ||
+			request.response.status !== 200 ||
+			window.__requests.indexOf(request) < window.__requests.indexOf(load) ||
+			!document.querySelector(".project-common [data-binding]")
+		)
+			return false;
+		return [
+			...document.querySelectorAll(".project-workflow-editor [data-binding]"),
+		].every((node) => {
+			const value =
+				node.dataset.binding === "common"
+					? request.body.intent.defaults
+					: request.body.intent.slots?.[node.dataset.binding];
+			return ["Executor", "Model", "Effort"].every(
+				(key) =>
+					node.querySelector(`[aria-label$=" ${key}"]`).value ===
+					(value?.[key.toLowerCase()] || ""),
+			);
+		});
+	});
 }
 async function select(p, id) {
 	await p.browser.click(`[data-canonical-slot="${id}"]`);
@@ -173,6 +200,510 @@ async function refused(p, text = "Draft retained") {
 	);
 }
 
+test("automatic settings: meaningful edits calculate without a manual action", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await select(p, "iterate.check");
+	await set(p, "Slot iterate.check Effort", "high");
+	await p.browser.waitFor(
+		() =>
+			window.__requests.some(
+				(r) =>
+					r.path.endsWith("/preview") &&
+					r.body.intent.slots?.["iterate.check"]?.effort === "high",
+			),
+		3000,
+	);
+	await p.browser.waitFor(() =>
+		document
+			.querySelector('.role-inspector [data-calculated="effort"]')
+			.textContent.includes("requested: high"),
+	);
+	assert.deepEqual(await intent(p), {}, "automatic calculation never persists");
+	assert.deepEqual(
+		await p.browser.evaluate(() =>
+			[...document.querySelectorAll(".project-workflow-actions button")].map(
+				(n) => n.textContent,
+			),
+		),
+		["Save", "Discard changes"],
+	);
+});
+
+test("automatic settings: same-turn coalescing preserves DOM, open picker, lineage and native options", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	assert.equal(
+		await p.browser.evaluate(
+			() => window.__requests.filter((r) => r.path.endsWith("/preview")).length,
+		),
+		1,
+		"writable initial load calculates once",
+	);
+	await select(p, "iterate.check");
+	await p.browser.evaluate(() => {
+		window.__beforeCount = window.__requests.filter((r) =>
+			r.path.endsWith("/preview"),
+		).length;
+		window.__holds.preview = true;
+		window.__graph = document.querySelector(".profile-flow .graph");
+		window.__fitCamera = window.__graph
+			.querySelector("g")
+			.getAttribute("transform");
+		const rect = window.__graph.getBoundingClientRect();
+		window.__graph.dispatchEvent(
+			new WheelEvent("wheel", {
+				deltaY: -80,
+				ctrlKey: true,
+				clientX: rect.x + rect.width / 2,
+				clientY: rect.y + rect.height / 2,
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		for (const [label, value] of [
+			["Common Executor", "management-fake"],
+			["Common Effort", "low"],
+			["Common Effort", "high"],
+		]) {
+			const node = document.querySelector(`[aria-label="${label}"]`);
+			node.value = value;
+			node.dispatchEvent(new Event("input", { bubbles: true }));
+			node.dispatchEvent(new Event("change", { bubbles: true }));
+		}
+		window.__common = document.querySelector(".project-common");
+		window.__panel = document.querySelector(".role-inspector");
+		window.__model = document.querySelector('[aria-label="Common Model"]');
+		window.__options = [...window.__model.options];
+		document.querySelector(".role-inspector details").open = true;
+	});
+	await p.browser.waitFor(() => !!window.__releases.preview);
+	await p.browser.click('[aria-label="Common Effort"]');
+	await p.browser.key("ArrowDown");
+	const before = await p.browser.evaluate(() => ({
+		active: document.activeElement.getAttribute("aria-activedescendant"),
+		scroll: document.querySelector(".management-page").scrollTop,
+		camera: document
+			.querySelector(".profile-flow .graph > g")
+			.getAttribute("transform"),
+	}));
+	assert.notEqual(
+		before.camera,
+		await p.browser.evaluate(() => window.__fitCamera),
+		"test uses a manually zoomed camera, not the initial fit",
+	);
+	await p.browser.evaluate(() => window.__releases.preview());
+	await settled(p);
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			active: document.activeElement.getAttribute("aria-activedescendant"),
+			scroll: document.querySelector(".management-page").scrollTop,
+			camera: document
+				.querySelector(".profile-flow .graph > g")
+				.getAttribute("transform"),
+		})),
+		before,
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			common: window.__common === document.querySelector(".project-common"),
+			panel: window.__panel === document.querySelector(".role-inspector"),
+			graph: window.__graph === document.querySelector(".profile-flow .graph"),
+			model:
+				window.__model ===
+				document.querySelector('[aria-label="Common Model"]'),
+			options: window.__options.every(
+				(option, i) => option === window.__model.options[i],
+			),
+			open: document
+				.querySelector('[aria-label="Common Effort"]')
+				.getAttribute("aria-expanded"),
+			lineage: document.querySelector(".role-inspector details").open,
+			count:
+				window.__requests.filter((r) => r.path.endsWith("/preview")).length -
+				window.__beforeCount,
+		})),
+		{
+			common: true,
+			panel: true,
+			graph: true,
+			model: true,
+			options: true,
+			open: "true",
+			lineage: true,
+			count: 1,
+		},
+	);
+	assert.deepEqual(await intent(p), {});
+});
+
+test("automatic settings: failure has no same-generation loop, keeps unknown sources and contextual recovery", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await select(p, "iterate.check");
+	await p.browser.evaluate(() => {
+		window.__failPreview = true;
+		window.__holds.preview = true;
+	});
+	await set(p, "Slot iterate.check Effort", "high");
+	await p.browser.waitFor(() => !!window.__releases.preview);
+	const before = await p.browser.evaluate(() => {
+		document.querySelector(".management-page").scrollTop = 500;
+		document
+			.querySelector('[aria-label="Slot iterate.check Effort"]')
+			.focus({ preventScroll: true });
+		return {
+			scroll: document.querySelector(".management-page").scrollTop,
+			focus: document.activeElement.getAttribute("aria-label"),
+			camera: document
+				.querySelector(".profile-flow .graph > g")
+				.getAttribute("transform"),
+		};
+	});
+	await p.browser.evaluate(() => window.__releases.preview());
+	await refused(p, "Automatic calculation failed");
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			scroll: document.querySelector(".management-page").scrollTop,
+			focus: document.activeElement.getAttribute("aria-label"),
+			camera: document
+				.querySelector(".profile-flow .graph > g")
+				.getAttribute("transform"),
+		})),
+		before,
+	);
+	const count = await p.browser.evaluate(
+		() => window.__requests.filter((r) => r.path.endsWith("/preview")).length,
+	);
+	assert.equal(
+		await p.browser.evaluate(() =>
+			[...document.querySelectorAll(".role-inspector [data-calculated]")].every(
+				(node) => node.hidden && node.textContent === "",
+			),
+		),
+		true,
+	);
+	await select(p, "nested.check");
+	await select(p, "iterate.check");
+	await p.browser.evaluate(async () => {
+		await new Promise(requestAnimationFrame);
+		await new Promise(requestAnimationFrame);
+	});
+	assert.equal(
+		await p.browser.evaluate(
+			() => window.__requests.filter((r) => r.path.endsWith("/preview")).length,
+		),
+		count,
+		"inspection and rendering never retry a failed generation",
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Slot iterate.check Effort"]')
+					.value,
+		),
+		"high",
+	);
+	await p.browser.click('.project-workflow-editor [role="alert"] button');
+	await settled(p);
+	assert.match(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('.role-inspector [data-calculated="effort"]')
+					.textContent,
+		),
+		/requested: high/,
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('.project-workflow-editor [role="alert"]')
+					.hidden,
+		),
+		true,
+	);
+	assert.deepEqual(await intent(p), {});
+});
+
+test("automatic settings: pending preview and queued newer draft cannot invalidate Save or reuse old CAS", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await set(p, "Common Executor", "management-fake");
+	await settled(p);
+	await p.browser.evaluate(() => {
+		window.__holds.preview = true;
+	});
+	await set(p, "Common Effort", "high");
+	await p.browser.waitFor(() => !!window.__releases.preview);
+	const old = tokens((await p.http(p.path)).data.settings);
+	await p.browser.evaluate(() => {
+		window.__holds.PUT = true;
+		const field = document.querySelector('[aria-label="Common Effort"]');
+		field.value = "medium";
+		field.dispatchEvent(new Event("input", { bubbles: true }));
+		document
+			.querySelector('[data-management-action="save-project-settings"]')
+			.click();
+	});
+	await p.browser.waitFor(() => !!window.__releases.PUT);
+	const count = await p.browser.evaluate(
+		() => window.__requests.filter((r) => r.path.endsWith("/preview")).length,
+	);
+	await set(p, "Common Effort", "low");
+	await p.browser.evaluate(() => window.__releases.preview());
+	assert.equal(
+		await p.browser.evaluate(
+			() => window.__requests.filter((r) => r.path.endsWith("/preview")).length,
+		),
+		count,
+		"calculation paused throughout PUT",
+	);
+	await p.browser.evaluate(() => window.__releases.PUT());
+	await p.browser.waitFor(() =>
+		document
+			.querySelector('[data-testid="workflow-settings-status"]')
+			.textContent.startsWith("Submitted settings saved"),
+	);
+	await settled(p);
+	const requests = await p.browser.evaluate(() => window.__requests);
+	const puts = requests.filter((r) => r.method === "PUT");
+	assert.equal(puts.length, 1);
+	assert.deepEqual(puts[0].body.expected, old);
+	assert.equal(puts[0].body.intent.defaults.effort, "medium");
+	assert.equal((await intent(p)).defaults.effort, "medium");
+	const latest = requests.findLast((r) => r.path.endsWith("/preview"));
+	assert.equal(latest.body.intent.defaults.effort, "low");
+	assert.deepEqual(
+		latest.body.expected,
+		tokens((await p.http(p.path)).data.settings),
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector(
+					'[data-management-action="save-project-settings"]',
+				).disabled,
+		),
+		false,
+	);
+	await saved(p);
+	assert.equal((await intent(p)).defaults.effort, "low");
+	assert.equal(
+		await p.browser.evaluate(
+			() => window.__requests.filter((r) => r.method === "PUT").length,
+		),
+		2,
+	);
+});
+
+test("automatic settings: stale failure cannot replace newer success or move focus/scroll", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await select(p, "iterate.check");
+	await p.browser.evaluate(() => {
+		window.__failPreview = true;
+		window.__holds.preview = true;
+	});
+	await set(p, "Slot iterate.check Effort", "high");
+	await p.browser.waitFor(() => !!window.__releases.preview);
+	await set(p, "Slot iterate.check Effort", "low");
+	await settled(p);
+	const before = await p.browser.evaluate(() => {
+		document.querySelector(".management-page").scrollTop = 500;
+		document
+			.querySelector('[aria-label="Slot iterate.check Model"]')
+			.focus({ preventScroll: true });
+		return {
+			scroll: document.querySelector(".management-page").scrollTop,
+			focus: document.activeElement.getAttribute("aria-label"),
+		};
+	});
+	await p.browser.evaluate(async () => {
+		window.__releases.preview();
+		await new Promise(requestAnimationFrame);
+	});
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			scroll: document.querySelector(".management-page").scrollTop,
+			focus: document.activeElement.getAttribute("aria-label"),
+		})),
+		before,
+	);
+	assert.match(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('.role-inspector [data-calculated="effort"]')
+					.textContent,
+		),
+		/requested: low/,
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('.project-workflow-editor [role="alert"]')
+					.hidden,
+		),
+		true,
+	);
+});
+
+test("automatic settings: failed Save retains newer whole intent, error and old CAS without automatic retry", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await set(p, "Common Executor", "management-fake");
+	await set(p, "Common Effort", "high");
+	await settled(p);
+	await p.browser.evaluate(() => {
+		window.__failPUT = true;
+		window.__holds.PUT = true;
+		document
+			.querySelector('[data-management-action="save-project-settings"]')
+			.click();
+	});
+	await p.browser.waitFor(() => !!window.__releases.PUT);
+	await set(p, "Common Effort", "low");
+	await p.browser.evaluate(() => window.__releases.PUT());
+	await refused(p, "Save not confirmed");
+	assert.deepEqual(await intent(p), {});
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector('[aria-label="Common Effort"]').value,
+		),
+		"low",
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() => window.__requests.filter((r) => r.method === "PUT").length,
+		),
+		1,
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector(
+					'[data-management-action="save-project-settings"]',
+				).disabled,
+		),
+		false,
+	);
+	await saved(p);
+	assert.equal((await intent(p)).defaults.effort, "low");
+	const puts = await p.browser.evaluate(() =>
+		window.__requests.filter((r) => r.method === "PUT"),
+	);
+	assert.equal(puts.length, 2);
+	assert.deepEqual(
+		puts[1].body.expected,
+		puts[0].body.expected,
+		"failed Save never rebases tokens",
+	);
+});
+
+test("automatic settings: open dynamic controls use refreshed actual parent without pinning it", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await select(p, "adaptive.$workerDefaults");
+	await p.browser.evaluate(() => {
+		window.__dynamicModel = document.querySelector(
+			'[aria-label="Slot adaptive.$workerDefaults Model"]',
+		);
+	});
+	await set(p, "Common Executor", "codex");
+	await settled(p);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				window.__dynamicModel ===
+				document.querySelector(
+					'[aria-label="Slot adaptive.$workerDefaults Model"]',
+				),
+		),
+		true,
+	);
+	await set(p, "Slot adaptive.$workerDefaults Model", "fixture-model");
+	await saved(p);
+	assert.deepEqual(await intent(p), {
+		defaults: { executor: "codex" },
+		slots: {
+			"adaptive.$workerDefaults": { executor: "codex", model: "fixture-model" },
+		},
+	});
+});
+
+test("automatic settings: Discard cancel keeps draft, confirm reloads authoritative saved data", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await set(p, "Common Executor", "management-fake");
+	await set(p, "Common Effort", "high");
+	await saved(p);
+	await set(p, "Common Effort", "low");
+	await settled(p);
+	await p.browser.evaluate(() => {
+		window.__confirmations = 0;
+		window.confirm = () => {
+			++window.__confirmations;
+			return false;
+		};
+		document.querySelector('[data-testid="project-settings-reload"]').click();
+	});
+	assert.equal(await p.browser.evaluate(() => window.__confirmations), 1);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector('[aria-label="Common Effort"]').value,
+		),
+		"low",
+	);
+	await p.browser.evaluate(() => {
+		window.confirm = () => true;
+		document.querySelector('[data-testid="project-settings-reload"]').click();
+	});
+	await settled(p);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector('[aria-label="Common Effort"]').value,
+		),
+		"high",
+	);
+	assert.equal((await intent(p)).defaults.effort, "high");
+	assert.equal(
+		await p.browser.evaluate(
+			() => window.__requests.filter((r) => r.method === "PUT").length,
+		),
+		1,
+		"discard sends no write",
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() => window.__requests.filter((r) => r.method === "DELETE").length,
+		),
+		0,
+	);
+});
+
 test("minimal settings: requested clutter is deleted, not folded or hidden", {
 	timeout: 90000,
 }, async (t) => {
@@ -218,6 +749,11 @@ test("minimal settings: requested clutter is deleted, not folded or hidden", {
 		"Clear common settings in this draft",
 		"Scope and nested Runs",
 		"Model authoring",
+		"Calculate draft settings",
+		"Save project/workflow settings",
+		"Cancel / reload",
+		"No unsaved changes",
+		"Calculate draft settings to refresh unknown values",
 	])
 		assert.equal(dom.text.includes(text), false, text);
 	assert.deepEqual(dom.common, [
@@ -423,7 +959,7 @@ for (const failedInventory of [false, true, "request"])
 	});
 
 for (const width of [970, 1476])
-	test(`polish: scoped Save and draft status stay visible through a long editor at ${width}px`, {
+	test(`polish: short Save and Discard stay visible through a long editor at ${width}px`, {
 		timeout: 90000,
 	}, async (t) => {
 		const p = await open(t);
@@ -447,9 +983,7 @@ for (const width of [970, 1476])
 					.querySelector(".management-page")
 					.getBoundingClientRect();
 				return [
-					...document.querySelectorAll(
-						'[data-management-action="save-project-settings"], [data-testid="workflow-settings-status"]',
-					),
+					...document.querySelectorAll(".project-workflow-actions button"),
 				].map((node) => {
 					const r = node.getBoundingClientRect();
 					return {
@@ -477,16 +1011,15 @@ for (const width of [970, 1476])
 						box.right <= box.page.right,
 					JSON.stringify(box),
 				);
-			assert.match(
-				boxes[0].text + boxes[1].text,
-				/project\/workflow|this project/,
+			assert.deepEqual(
+				boxes.map((box) => box.text),
+				["Save", "Discard changes"],
 			);
-			assert.match(boxes[0].text + boxes[1].text, /Unsaved changes/);
 		}
 		assert.deepEqual(await intent(p), {}, "visibility changes never save");
 	});
 
-test("polish: baseline pickers replace duplicate resets, one draft calculation and folded saved checks/stage summary", {
+test("polish: baseline pickers replace duplicate resets, automatic calculation and folded saved checks/stage summary", {
 	timeout: 90000,
 }, async (t) => {
 	const p = await open(t);
@@ -508,9 +1041,9 @@ test("polish: baseline pickers replace duplicate resets, one draft calculation a
 			checkFolded: !!document.querySelector(
 				'[data-testid="saved-launch-check"]:not([open])',
 			),
-			preview: document.querySelector(
-				'[data-testid="project-settings-preview"]',
-			).textContent,
+			buttons: [
+				...document.querySelectorAll(".project-workflow-actions button"),
+			].map((node) => node.textContent),
 		})),
 		{
 			resets: 0,
@@ -518,7 +1051,7 @@ test("polish: baseline pickers replace duplicate resets, one draft calculation a
 			title: "Common settings",
 			stagesFolded: true,
 			checkFolded: true,
-			preview: "Calculate draft settings",
+			buttons: ["Save", "Discard changes"],
 		},
 	);
 	await set(p, "Common Executor", "codex");
@@ -533,7 +1066,6 @@ test("polish: baseline pickers replace duplicate resets, one draft calculation a
 		),
 		["codex", "", "high"],
 	);
-	await p.browser.click('[data-testid="project-settings-preview"]');
 	await settled(p);
 	await p.browser.click('[data-testid="saved-launch-check"] > summary');
 	await p.browser.click('[data-management-action="check"]');
@@ -564,8 +1096,8 @@ test("polish: a calculation response never scrolls or focuses a task editor on u
 	await select(p, "iterate.check");
 	await p.browser.evaluate(() => {
 		window.__holds.preview = true;
-		document.querySelector('[data-testid="project-settings-preview"]').click();
 	});
+	await set(p, "Slot iterate.check Effort", "high");
 	await p.browser.waitFor(() => !!window.__releases.preview);
 	const before = await p.browser.evaluate(() => {
 		const page = document.querySelector(".management-page");
@@ -582,19 +1114,11 @@ test("polish: a calculation response never scrolls or focuses a task editor on u
 	});
 	assert.match(before.camera, /^translate\([^)]*\) scale\(/);
 	await p.browser.evaluate(() => window.__releases.preview());
-	await p.browser.waitFor(
-		() =>
-			new Promise((resolve) =>
-				requestAnimationFrame(() =>
-					requestAnimationFrame(() =>
-						resolve(
-							document
-								.querySelector('[data-testid="workflow-settings-status"]')
-								.textContent.includes("Calculated preview"),
-						),
-					),
-				),
-			),
+	await settled(p);
+	await p.browser.waitFor(() =>
+		document
+			.querySelector('.role-inspector [data-calculated="effort"]')
+			.textContent.includes("requested: high"),
 	);
 	assert.deepEqual(
 		await p.browser.evaluate(() => ({
@@ -634,7 +1158,6 @@ test("implicit ordinary executor immediately reflects model binding", {
 		resolved,
 	);
 	for (const id of ["nested.peer", "adaptive.$planner"]) {
-		await p.browser.click('[data-testid="project-settings-preview"]');
 		await settled(p);
 		await select(p, id);
 		const actual = await p.browser.evaluate(
@@ -908,7 +1431,6 @@ test("one canonical draft: common and independent peers survive selection; per-f
 		),
 		["codex", "", "low"],
 	);
-	await p.browser.click('[data-testid="project-settings-preview"]');
 	await settled(p);
 	assert.deepEqual(await intent(p), {}, "Preview is not persistence");
 	await saved(p);
@@ -974,7 +1496,6 @@ test("409 and saved legacy unknown values retain complete draft, deliberate relo
 		),
 		"manual-provider/unknown-id",
 	);
-	await p.browser.click('[data-testid="project-settings-preview"]');
 	await p.browser.waitFor(() =>
 		[
 			...document.querySelectorAll('.project-workflow-editor [role="alert"]'),
@@ -1033,7 +1554,6 @@ test("409 and saved legacy unknown values retain complete draft, deliberate relo
 	});
 	await saved(p);
 	assert.deepEqual(await intent(p), { slots: {} });
-	await p.browser.click('[data-testid="project-settings-preview"]');
 	await settled(p);
 	await select(p, "iterate.check");
 	assert.match(
@@ -1057,15 +1577,15 @@ test("late preview/save responses cannot replace a newer selection/draft or depa
 	await load(p);
 	await settled(p);
 	await set(p, "Common Executor", "management-fake");
-	await set(p, "Common Effort", "high");
 	await p.browser.evaluate(() => {
 		window.__holds.preview = true;
-		document.querySelector('[data-testid="project-settings-preview"]').click();
 	});
+	await set(p, "Common Effort", "high");
 	await p.browser.waitFor(() => !!window.__releases.preview);
 	await select(p, "iterate.check");
 	await set(p, "Slot iterate.check Executor", "management-fake");
 	await set(p, "Slot iterate.check Effort", "low");
+	await settled(p); // Newer response wins before the held older response is released.
 	await p.browser.evaluate(() => {
 		window.__releases.preview();
 		window.__previewReleased = true;
@@ -1149,11 +1669,13 @@ test("late Save completion never blesses or replaces an intervening draft genera
 			.click();
 	});
 	await p.browser.waitFor(() => !!window.__releases.PUT);
-	// Inert prevents human edits during Save; inject a deterministic intervening input to exercise the generation fence too.
+	// Editing stays available during Save; a newer generation must survive the submitted snapshot.
 	await set(p, "Common Effort", "low");
 	await p.browser.evaluate(() => window.__releases.PUT());
-	await p.browser.waitFor(
-		() => !document.querySelector(".project-common").parentElement.inert,
+	await p.browser.waitFor(() =>
+		document
+			.querySelector('[data-testid="workflow-settings-status"]')
+			.textContent.startsWith("Submitted settings saved"),
 	);
 	assert.equal(
 		await p.browser.evaluate(
@@ -1298,7 +1820,9 @@ test("delayed keyed load cannot populate another source/project; same-name cards
 	const p = await open(t);
 	await load(p);
 	await settled(p);
+	await set(p, "Common Executor", "management-fake");
 	await p.browser.evaluate(() => {
+		window.confirm = () => true;
 		window.__holds.GET = true;
 		document.querySelector('[data-testid="project-settings-reload"]').click();
 	});
@@ -1373,7 +1897,6 @@ test("capability refusal remains separate from calculated configuration and expl
 	await load(p);
 	await settled(p);
 	await set(p, "Common Effort", "high");
-	await p.browser.click('[data-testid="project-settings-preview"]');
 	await settled(p);
 	await p.browser.waitFor(() =>
 		document

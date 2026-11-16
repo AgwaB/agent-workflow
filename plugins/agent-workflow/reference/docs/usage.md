@@ -76,9 +76,12 @@ overrides is a secondary, explicit cross-project confirmation, including any dir
 Cancel preserves the draft and saved preference; failed deletion keeps the form. These preferences
 are neither migrated into nor deleted by project-local settings. Project-local
 storage is private under the project's state base at `workflow-settings/v1/settings.json`.
-In the dashboard, **Calculate draft settings** does not save. The scoped sticky Save/status bar applies
-one complete workflow draft. Model is a selection-only dropdown that retains saved unlisted IDs,
-including on inventory failure; new arbitrary IDs remain supported through CLI/API and shared Profiles.
+In the dashboard, writable initial load and meaningful edits automatically calculate the draft without
+saving or executing. The sticky footer offers only **Save** and **Discard changes**. Save applies one
+complete snapshot; newer edits during Save remain unsaved and refresh with the returned revision.
+Discard changes confirms a dirty discard and reloads saved settings; it does not delete them.
+Calculation failures retain the draft and offer contextual Retry without an automatic retry loop.
+Model is a selection-only dropdown that retains saved unlisted IDs, including on inventory failure; new arbitrary IDs remain supported through CLI/API and shared Profiles.
 **Use baseline settings** in Model/Effort unsets only that field, keeping the executor and sibling values.
 Executor offers explicit IDs only and never pins a baseline just by opening the editor. Task draft
 binding clearing is a separate secondary action; there is no common clear control. Stale calculated
