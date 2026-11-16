@@ -75,7 +75,8 @@ async function load(p) {
 				.textContent.includes("Loading"),
 	);
 	await p.browser.waitFor(
-		() => !!document.querySelector('[data-canonical-slot="iterate.check"]'),
+		() =>
+			!!document.querySelector('.profile-flow [data-stage="iterate.check"]'),
 	);
 }
 async function settled(p) {
@@ -108,9 +109,27 @@ async function settled(p) {
 		});
 	});
 }
+// Tasks are selected in the graph itself (keyboard path); there is no duplicate task list.
 async function select(p, id) {
-	await p.browser.click(`[data-canonical-slot="${id}"]`);
+	await p.browser.evaluate((id) => {
+		const node = document.querySelector(
+			`.profile-flow [data-stage="${CSS.escape(id)}"]`,
+		);
+		if (!node) throw new Error(`Missing graph node: ${id}`);
+		node.focus({ preventScroll: true });
+	}, id);
+	await p.browser.key("Enter");
 }
+const graphIds = (p) =>
+	p.browser.evaluate(() =>
+		[
+			...new Set(
+				[...document.querySelectorAll(".profile-flow [data-stage]")]
+					.map((node) => node.dataset.stage)
+					.filter((id) => !id.startsWith("__group_")),
+			),
+		].sort(),
+	);
 async function set(p, label, value) {
 	await p.browser.evaluate(
 		(label, value) => {
@@ -710,8 +729,18 @@ test("minimal settings: requested clutter is deleted, not folded or hidden", {
 	const p = await open(t);
 	await load(p);
 	await settled(p);
+	// The whole page (including panels after the editor) has rendered.
+	await p.browser.waitFor(
+		() => !!document.querySelector('[data-management-action="check"]'),
+	);
 	const dom = await p.browser.evaluate(() => ({
 		text: document.querySelector(".management-page").textContent,
+		removed: document.querySelectorAll(
+			'.project-authored, [data-canonical-slot], .project-shared-advanced, [data-testid="workflow-stage-summary"], .property-table.numbered',
+		).length,
+		about: [...document.querySelectorAll(".management-page h2")].some(
+			(node) => node.textContent === "About",
+		),
 		common: [
 			...document.querySelectorAll(
 				".project-common h3, .project-common label > span",
@@ -739,6 +768,8 @@ test("minimal settings: requested clutter is deleted, not folded or hidden", {
 	assert.equal(dom.commonClear, 0);
 	assert.equal(dom.commonHints, 0);
 	assert.equal(dom.emptyHeadings, 0);
+	assert.equal(dom.removed, 0, "duplicate task list, shared link, stage table");
+	assert.equal(dom.about, true, "workflow description is kept");
 	for (const text of [
 		"Settings for this project's next new runs",
 		"For this workflow's next new Runs in this project. Existing Runs stay unchanged.",
@@ -754,6 +785,12 @@ test("minimal settings: requested clutter is deleted, not folded or hidden", {
 		"Cancel / reload",
 		"No unsaved changes",
 		"Calculate draft settings to refresh unknown values",
+		"Expanded authored tasks",
+		"Graph edges are compiled dependencies",
+		"Advanced: shared profiles",
+		"Validation and task summary",
+		"Read-only stage summary",
+		"Valid specification",
 	])
 		assert.equal(dom.text.includes(text), false, text);
 	assert.deepEqual(dom.common, [
@@ -1035,8 +1072,8 @@ test("polish: baseline pickers replace duplicate resets, automatic calculation a
 				'[data-testid="project-settings-check"]',
 			).length,
 			title: document.querySelector(".project-common h3").textContent,
-			stagesFolded: !!document.querySelector(
-				'[data-testid="workflow-stage-summary"]:not([open])',
+			stageSummary: !!document.querySelector(
+				'[data-testid="workflow-stage-summary"]',
 			),
 			checkFolded: !!document.querySelector(
 				'[data-testid="saved-launch-check"]:not([open])',
@@ -1049,7 +1086,7 @@ test("polish: baseline pickers replace duplicate resets, automatic calculation a
 			resets: 0,
 			draftChecks: 0,
 			title: "Common settings",
-			stagesFolded: true,
+			stageSummary: false,
 			checkFolded: true,
 			buttons: ["Save", "Discard changes"],
 		},
@@ -1271,11 +1308,10 @@ for (const width of [970, 1476])
 			camera,
 			"explicit selection preserves graph camera",
 		);
-		assert.ok(
-			await p.browser.evaluate(
-				() => document.querySelectorAll("[data-canonical-slot]").length > 10,
-			),
-			"expanded definitions stay available",
+		assert.deepEqual(
+			await graphIds(p),
+			(await p.http(p.path)).data.authored.map((node) => node.id).sort(),
+			"every authored definition stays selectable in the graph",
 		);
 		await p.browser.evaluate(() =>
 			document
@@ -1313,12 +1349,12 @@ test("canonical editor: expanded nested/foreach/dynamic slots, exact header and 
 			await p.browser.evaluate(() =>
 				[
 					...document.querySelectorAll(
-						'[data-canonical-slot][aria-pressed="true"]',
+						'.profile-flow [data-stage][aria-pressed="true"]',
 					),
-				].map((item) => item.dataset.canonicalSlot),
+				].map((item) => item.dataset.stage),
 			),
 			[node.id],
-			"authored selection is exposed accessibly",
+			"graph selection is exposed accessibly",
 		);
 		assert.equal(
 			await p.browser.evaluate(
@@ -1337,12 +1373,10 @@ test("canonical editor: expanded nested/foreach/dynamic slots, exact header and 
 			node.id,
 		);
 	}
-	assert.equal(
-		await p.browser.evaluate(
-			() => document.querySelectorAll("[data-canonical-slot]").length,
-		),
-		authored.length,
-		"no invented future workers",
+	assert.deepEqual(
+		await graphIds(p),
+		authored.map((node) => node.id).sort(),
+		"graph covers every authored definition and invents no future workers",
 	);
 	assert.ok(
 		await p.browser.evaluate(
@@ -1843,7 +1877,8 @@ test("delayed keyed load cannot populate another source/project; same-name cards
 	);
 	assert.equal(
 		await p.browser.evaluate(
-			() => !!document.querySelector('[data-canonical-slot="iterate.check"]'),
+			() =>
+				!!document.querySelector('.profile-flow [data-stage="iterate.check"]'),
 		),
 		false,
 	);

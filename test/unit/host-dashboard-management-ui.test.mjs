@@ -161,10 +161,10 @@ test("Chrome management: the views, profile edit, check preview and the overview
 	assert.ok(
 		await browser.evaluate(
 			() =>
-				document.querySelectorAll(".property-table.numbered tbody tr").length >
-					0 && !!document.querySelector("a.back-link"),
+				document.querySelectorAll(".profile-flow .node").length > 0 &&
+				!!document.querySelector("a.back-link"),
 		),
-		"the workflow page lists its stages and links back",
+		"the workflow page shows its graph and links back",
 	);
 	await clickText(browser, "Check different settings");
 	// 2026-11-11 (owner): Effort offers the chosen executor's levels, narrowed by the model's.
@@ -722,7 +722,7 @@ test("Chrome management: no middle dot and no em dash in workflows, profiles, ex
 	}
 });
 
-test("Chrome management: workflow stages read as plain words and hide a repeated agent", {
+test("Chrome management: workflow detail keeps the graph and drops the stage table and routine validation", {
 	timeout: 60000,
 }, async (t) => {
 	const p = await managementProject(t);
@@ -745,35 +745,32 @@ test("Chrome management: workflow stages read as plain words and hide a repeated
 		),
 	);
 	await openWorkflowCard(browser, "deep-research");
-	const stages = await browser.evaluate(() => ({
+	await browser.waitFor(() => !!document.querySelector(".profile-flow .node"));
+	const detail = await browser.evaluate(() => ({
 		tags: document.querySelectorAll(".management-page > p .workflow-tags")
 			.length,
 		name: document.querySelector("h1").textContent,
-		headers: [...document.querySelectorAll(".numbered th")].map(
-			(n) => n.textContent,
-		),
-		kinds: [...document.querySelectorAll(".numbered tbody tr")].map(
-			(n) => n.children[2].textContent,
-		),
+		tables: document.querySelectorAll(".property-table.numbered").length,
+		alerts: [
+			...document.querySelectorAll('[data-testid="workflow-spec-problems"]'),
+		].length,
+		text: document.querySelector(".management-page").textContent,
 	}));
 	await t.test("detail badges removed while the workflow name remains", () => {
-		assert.equal(stages.tags, 0);
-		assert.equal(stages.name, "deep-research");
+		assert.equal(detail.tags, 0);
+		assert.equal(detail.name, "deep-research");
 	});
-	await t.test("shared agent column omitted", () =>
-		assert.deepEqual(stages.headers, ["#", "Stage", "Kind"]),
-	);
-	await t.test("plain kinds", () =>
-		assert.deepEqual(
-			[...new Set(stages.kinds)].sort(),
-			[
-				"Code step",
-				"Combines results",
-				"One agent",
-				"One agent per item",
-			].sort(),
-		),
-	);
+	await t.test("redundant stage table and routine validation removed", () => {
+		assert.equal(detail.tables, 0);
+		assert.equal(detail.alerts, 0);
+		for (const text of [
+			"Validation and task summary",
+			"Read-only stage summary",
+			"Valid specification",
+		])
+			assert.equal(detail.text.includes(text), false, text);
+	});
+	// A real definition problem is still shown, as one short alert without a section.
 	await browser.send("Page.addScriptToEvaluateOnNewDocument", {
 		source: `(() => {
 		const original = window.fetch;
@@ -781,13 +778,7 @@ test("Chrome management: workflow stages read as plain words and hide a repeated
 			const response = await original(url, options);
 			if (!String(url).endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
 			const data = await response.json();
-			const spec = JSON.parse(data.spec.data.spec);
-			spec.artifactGraph.stages = [
-				{ id: "one", type: "single" },
-				{ id: "two", type: "single", agent: "researcher" },
-				{ id: "code", support: { uses: "fixture.mjs" } },
-			];
-			data.spec.data.spec = JSON.stringify(spec);
+			data.validation = { data: { warnings: ["unique spec warning"], blockedPermissionPreviews: [{ taskId: "read", reason: "unique blocked reason" }] } };
 			return new Response(JSON.stringify(data), {
 				headers: { "Content-Type": "application/json" },
 			});
@@ -800,22 +791,30 @@ test("Chrome management: workflow stages read as plain words and hide a repeated
 			!new URLSearchParams(location.search).has("workflow") &&
 			!!document.querySelector('[data-workflow="manage"]'),
 	);
-	await browser.waitFor(
-		() => !!document.querySelector('[data-workflow="manage"]'),
-	);
 	await openWorkflowCard(browser, "manage");
 	assert.deepEqual(
 		await browser.evaluate(() => ({
-			headers: [...document.querySelectorAll(".numbered th")].map(
-				(n) => n.textContent,
-			),
-			agents: [...document.querySelectorAll(".numbered tbody tr")].map(
-				(n) => n.children[3]?.textContent,
-			),
+			problems: [
+				...document.querySelectorAll(
+					'[data-testid="workflow-spec-problems"] li',
+				),
+			].map((n) => n.textContent),
+			role: document
+				.querySelector('[data-testid="workflow-spec-problems"]')
+				?.getAttribute("role"),
+			heading: [
+				...document.querySelectorAll(
+					".management-page h2, .management-page h3",
+				),
+			].some((n) => /Validation/.test(n.textContent)),
 		})),
 		{
-			headers: ["#", "Stage", "Kind", "Agent"],
-			agents: ["reader", "researcher", ""],
+			problems: [
+				"Warning: unique spec warning",
+				"Blocked: read: unique blocked reason",
+			],
+			role: "alert",
+			heading: false,
 		},
 	);
 });
@@ -1109,7 +1108,8 @@ test("Workflow normal view, explicit retained overrides and complete readable Ch
 		{
 			overridesVisible: false,
 			diagnosticsVisible: false,
-			metadata: ["Use when", "Outputs", "Spec"],
+			// A valid spec adds no Validation row (2026-11-16, owner).
+			metadata: ["Use when", "Outputs"],
 		},
 	);
 	await browser.click('[data-management-action="check"]');
@@ -1258,7 +1258,7 @@ test("Workflow unreadable spec retains visible errors, diagnostics source and un
 	const normal = await browser.evaluate(
 		() => document.querySelector(".management-page").innerText,
 	);
-	assert.match(normal, /stage list could not be read/);
+	assert.match(normal, /workflow spec could not be read/);
 	assert.match(normal, /Invalid specification: unique validation failure/);
 	assert.ok(!normal.includes("unique compiled data"));
 	await clickText(browser, "Workflow diagnostics");

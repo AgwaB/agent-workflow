@@ -3099,11 +3099,18 @@ function renderGraph(preview = null) {
 					? stage.members.some((member) => related.has(member.id))
 					: related.has(stage.id),
 			);
-			if (stage.kind !== "group")
+			if (stage.kind !== "group") {
 				node.setAttribute("aria-label", `${stage.id}, ${lineFor(stage)}`);
+				// The graph is the only task picker, so its selection must be announced.
+				node.setAttribute(
+					"aria-pressed",
+					String(node.dataset.stage === selected),
+				);
+			}
 		}
 		for (const row of nodes.querySelectorAll(".stage-row")) {
 			row.classList.toggle("selected", row.dataset.stage === selected);
+			row.setAttribute("aria-pressed", String(row.dataset.stage === selected));
 			row.classList.toggle(
 				"shared-setting",
 				row.dataset.stage !== selected && related.has(row.dataset.stage),
@@ -9934,10 +9941,6 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		"aria-label": "Workflow common defaults",
 	});
 	const graphHost = element("div", { class: "profile-flow" });
-	const authored = element("div", {
-		class: "project-authored",
-		"aria-label": "Expanded authored tasks",
-	});
 	const panel = element("section", {
 		class: "role-inspector",
 		"aria-label": "Canonical task settings",
@@ -9949,7 +9952,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		element(
 			"div",
 			{ class: "profile-flow-layout" },
-			element("div", {}, graphHost, authored),
+			element("div", {}, graphHost),
 			panel,
 		),
 	);
@@ -10275,11 +10278,6 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	}
 	const choose = (id) => {
 		selection = id;
-		for (const item of authored.querySelectorAll("[data-canonical-slot]"))
-			item.setAttribute(
-				"aria-pressed",
-				String(item.dataset.canonicalSlot === id),
-			);
 		renderFields();
 		controller?.refresh();
 		// Explicit editor selection only; never a Run/SSE update. Keep graph camera intact.
@@ -10362,24 +10360,6 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 						),
 					),
 			}),
-		);
-		authored.replaceChildren(
-			element("h3", {}, "Expanded authored tasks / templates"),
-			element(
-				"p",
-				{ class: "muted" },
-				"Graph edges are compiled dependencies (including loop templates). The expanded list shows authored containment, not additional dependency edges.",
-			),
-			...metadata.authored.map((node) =>
-				button(
-					`${node.parentId ? `${node.parentId} / ` : ""}${node.id}, ${node.kind}`,
-					() => choose(node.id),
-					{
-						"data-canonical-slot": node.id,
-						"aria-pressed": String(node.id === selection),
-					},
-				),
-			),
 		);
 	}
 	async function calculate() {
@@ -10482,25 +10462,6 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			status,
 		),
 		error,
-		element(
-			"details",
-			{ class: "project-shared-advanced" },
-			element(
-				"summary",
-				{},
-				"Advanced: shared profiles and workflow preferences",
-			),
-			element(
-				"p",
-				{},
-				"User-level, name-keyed settings shared with other projects. Project Save does not migrate, copy, relabel or delete them.",
-			),
-			element(
-				"a",
-				{ href: managementHref("profiles") },
-				"Manage shared Profiles and assignments",
-			),
-		),
 	);
 	host.addEventListener("keydown", (event) => {
 		if (
@@ -10623,18 +10584,6 @@ async function renderWorkflow(page, name) {
 	} catch (error) {
 		specError = error.message;
 	}
-	const stages = Array.isArray(authored.artifactGraph?.stages)
-		? authored.artifactGraph.stages
-		: [];
-	const stageAgent = (stage) =>
-		stage.support || stage.type === "code"
-			? ""
-			: stage.agent || authored.defaults?.agent || "executor default";
-	const showAgent =
-		!workflow.agent ||
-		stages.some(
-			(stage) => stageAgent(stage) && stageAgent(stage) !== workflow.agent,
-		);
 	const about = managementPanel(
 		"About",
 		element("p", {}, workflow.description || "No description."),
@@ -10649,62 +10598,28 @@ async function renderWorkflow(page, name) {
 			{ class: "property-table keyed" },
 		),
 	);
+	// A valid definition needs no section; only real definition problems are shown (2026-11-16, owner).
 	const validation = data.validation?.data;
-	const stagesPanel = managementPanel(
-		"Validation and task summary",
-		specError
-			? element(
-					"p",
-					{ role: "alert", class: "management-error" },
-					`The stage list could not be read: ${specError}`,
-				)
-			: element(
-					"details",
-					{ "data-testid": "workflow-stage-summary" },
-					element("summary", {}, "Read-only stage summary"),
-					propertyTable(
-						["#", "Stage", "Kind", ...(showAgent ? ["Agent"] : [])],
-						stages.map((stage, index) => [
-							String(index + 1),
-							element("strong", {}, stage.id),
-							stage.support || stage.type === "code"
-								? "Code step"
-								: {
-										single: "One agent",
-										foreach: "One agent per item",
-										reduce: "Combines results",
-									}[stage.type] ||
-									stage.type ||
-									"stage",
-							...(showAgent ? [stageAgent(stage)] : []),
-						]),
-						{ class: "property-table numbered" },
-					),
-				),
-		data.validation?.error
-			? element(
-					"p",
-					{ role: "alert", class: "management-error" },
-					data.validation.error,
-				)
-			: validation
-				? [
-						element("h3", {}, "Validation"),
-						propertyTable(
-							null,
-							[
-								["Spec", "Valid specification; not an execution guarantee."],
-								...validation.warnings.map((warning) => ["Warning", warning]),
-								...validation.blockedPermissionPreviews.map((entry) => [
-									"Blocked",
-									`${entry.taskId}: ${entry.reason || entry.statusDetail}`,
-								]),
-							],
-							{ class: "property-table keyed" },
-						),
-					]
-				: null,
-	);
+	const problems = [
+		...(specError ? [`The workflow spec could not be read: ${specError}`] : []),
+		...(data.validation?.error ? [data.validation.error] : []),
+		...(validation?.warnings || []).map((warning) => `Warning: ${warning}`),
+		...(validation?.blockedPermissionPreviews || []).map(
+			(entry) =>
+				`Blocked: ${entry.taskId}: ${entry.reason || entry.statusDetail}`,
+		),
+	];
+	const specProblems = problems.length
+		? element(
+				"ul",
+				{
+					role: "alert",
+					class: "management-error",
+					"data-testid": "workflow-spec-problems",
+				},
+				...problems.map((problem) => element("li", {}, problem)),
+			)
+		: null;
 	const check = managementPanel("Check saved settings and launch overrides");
 	const workflowAliases = (workflow.aliases || []).filter(
 		(alias) => alias !== workflow.name,
@@ -10730,8 +10645,8 @@ async function renderWorkflow(page, name) {
 			: null,
 	);
 	page.append(
+		...(specProblems ? [specProblems] : []),
 		about,
-		stagesPanel,
 		element(
 			"details",
 			{ class: "saved-launch-check", "data-testid": "saved-launch-check" },
