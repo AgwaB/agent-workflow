@@ -74,6 +74,7 @@ async function setup(t, data, view = "workflows&workflow=manage") {
 			),
 			false,
 		);
+		await click(b, "Workflow diagnostics");
 		await b.click('[data-testid="saved-launch-check"] > summary');
 	}
 	return { b, p };

@@ -9945,14 +9945,15 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		class: "role-inspector",
 		"aria-label": "Canonical task settings",
 	});
+	// Wide: the graph fills the page and every setting sits in one sticky side column (2026-11-16, owner).
 	const editors = element(
 		"div",
-		{},
-		common,
+		{ class: "project-workflow-layout" },
+		element("div", { class: "project-workflow-graph" }, graphHost),
 		element(
-			"div",
-			{ class: "profile-flow-layout" },
-			element("div", {}, graphHost),
+			"aside",
+			{ class: "project-settings-side", "aria-label": "Settings" },
+			common,
 			panel,
 		),
 	);
@@ -10282,7 +10283,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		controller?.refresh();
 		// Explicit editor selection only; never a Run/SSE update. Keep graph camera intact.
 		if (id) {
-			panel.scrollIntoView({ block: "start", behavior: "instant" });
+			panel.scrollIntoView({ block: "nearest", behavior: "instant" });
 			panel.querySelector("h3")?.focus({ preventScroll: true });
 		}
 	};
@@ -10625,8 +10626,19 @@ async function renderWorkflow(page, name) {
 		(alias) => alias !== workflow.name,
 	);
 	const roles = data.roles?.data?.roles;
+	// Check is a diagnostic tool: automatic draft calculation already covers ordinary editing.
 	const diagnostics = diagnosticView(
 		"Workflow diagnostics",
+		element(
+			"details",
+			{ class: "saved-launch-check", "data-testid": "saved-launch-check" },
+			element(
+				"summary",
+				{},
+				"Check saved settings / launch overrides (no model call)",
+			),
+			check,
+		),
 		element("h2", {}, "Source"),
 		element("p", { class: "mono" }, workflow.specPath || "Unavailable"),
 		workflowAliases.length
@@ -10644,21 +10656,7 @@ async function renderWorkflow(page, name) {
 			? element("p", { role: "alert" }, data.roles.error)
 			: null,
 	);
-	page.append(
-		...(specProblems ? [specProblems] : []),
-		about,
-		element(
-			"details",
-			{ class: "saved-launch-check", "data-testid": "saved-launch-check" },
-			element(
-				"summary",
-				{},
-				"Check saved settings / launch overrides (no model call)",
-			),
-			check,
-		),
-		diagnostics,
-	);
+	page.append(...(specProblems ? [specProblems] : []), about, diagnostics);
 	// A page-level action bar remains reachable even beyond a long authored list or summary.
 	const projectActions = page.querySelector(".project-workflow-actions");
 	if (projectActions) page.append(projectActions);

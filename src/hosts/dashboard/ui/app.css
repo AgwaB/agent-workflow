@@ -2875,9 +2875,42 @@ a.profile-row {
 	padding-bottom: 16px;
 	border-bottom: 1px solid var(--line);
 }
-/* Background hint changes must not move the reader through browser scroll anchoring. */
+/* Background hint changes must not move the reader through browser scroll anchoring.
+   The editor uses the whole center column, so the page scrolls wherever the pointer is. */
 .management-page:has(.project-workflow-editor) {
 	overflow-anchor: none;
+	width: 100%;
+}
+.project-workflow-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 360px;
+	align-items: start;
+	gap: 20px;
+}
+.project-workflow-graph .profile-flow {
+	--profile-flow-height: max(440px, calc(100vh - 260px));
+}
+.project-settings-side {
+	position: sticky;
+	top: 0;
+	max-height: calc(100vh - 200px);
+	overflow: auto;
+	min-width: 0;
+}
+@media (max-width: 1100px) {
+	/* One column: common settings, graph, then the selected task. */
+	.project-workflow-layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.project-settings-side {
+		display: contents;
+	}
+	.project-settings-side .project-common {
+		order: -1;
+	}
+	.project-workflow-graph .profile-flow {
+		--profile-flow-height: clamp(440px, calc(100vh - 420px), 700px);
+	}
 }
 .project-workflow-editor .management-fields {
 	grid-template-columns: minmax(0, 1fr);

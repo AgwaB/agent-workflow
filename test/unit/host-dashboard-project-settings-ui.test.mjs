@@ -996,6 +996,71 @@ for (const failedInventory of [false, true, "request"])
 	});
 
 for (const width of [970, 1476])
+	test(`layout: full-width page, graph beside sticky settings at ${width}px`, {
+		timeout: 90000,
+	}, async (t) => {
+		const p = await open(t);
+		await p.browser.send("Emulation.setDeviceMetricsOverride", {
+			width,
+			height: 997,
+			deviceScaleFactor: 1,
+			mobile: false,
+		});
+		await load(p);
+		await settled(p);
+		await p.browser.waitFor(
+			() => !!document.querySelector('[data-management-action="check"]'),
+		);
+		const measure = () =>
+			p.browser.evaluate(() => {
+				const box = (s) =>
+					document.querySelector(s).getBoundingClientRect().toJSON();
+				return {
+					page: box(".management-page"),
+					center: box("#center"),
+					graph: box(".profile-flow"),
+					common: box(".project-common"),
+					panel: box(".role-inspector"),
+					checkVisible: document
+						.querySelector('[data-testid="saved-launch-check"]')
+						.checkVisibility(),
+				};
+			});
+		const before = await measure();
+		// Scrolling works anywhere in the center column: the page is not a narrow centred strip.
+		assert.ok(
+			before.page.left - before.center.left <= 1 &&
+				before.center.right - before.page.right <= 1,
+			JSON.stringify(before),
+		);
+		assert.equal(before.checkVisible, false, "Check lives in diagnostics");
+		if (width === 1476) {
+			assert.ok(
+				before.common.left >= before.graph.right &&
+					before.panel.left >= before.graph.right &&
+					before.panel.top >= before.common.bottom,
+				"settings column sits beside the graph",
+			);
+			await p.browser.evaluate(() => {
+				document.querySelector(".management-page").scrollTop = 400;
+			});
+			const after = await measure();
+			assert.ok(
+				// Without sticking it would move up the full 400px and leave the page top.
+				after.common.top >= after.page.top &&
+					after.common.top >= before.common.top - 400 + 200,
+				`settings stay in view while the page scrolls: ${JSON.stringify(after.common)}`,
+			);
+		} else
+			assert.ok(
+				before.common.bottom <= before.graph.top &&
+					before.graph.bottom <= before.panel.top,
+				"narrow: common settings, graph, then the selected task",
+			);
+		assert.deepEqual(await intent(p), {}, "layout never saves");
+	});
+
+for (const width of [970, 1476])
 	test(`polish: short Save and Discard stay visible through a long editor at ${width}px`, {
 		timeout: 90000,
 	}, async (t) => {
@@ -1104,6 +1169,11 @@ test("polish: baseline pickers replace duplicate resets, automatic calculation a
 		["codex", "", "high"],
 	);
 	await settled(p);
+	await p.browser.evaluate(() =>
+		[...document.querySelectorAll("button")]
+			.find((n) => n.textContent === "Workflow diagnostics")
+			.click(),
+	);
 	await p.browser.click('[data-testid="saved-launch-check"] > summary');
 	await p.browser.click('[data-management-action="check"]');
 	await p.browser.waitFor(() =>

@@ -71,13 +71,18 @@ async function openWorkflowCard(browser, name) {
 		),
 		key,
 	);
-	assert.equal(
-		await browser.evaluate(
-			() => document.querySelector('[data-testid="saved-launch-check"]').open,
-		),
-		false,
-		"saved/launch check is secondary to the draft editor",
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			checkOpen: document.querySelector('[data-testid="saved-launch-check"]')
+				.open,
+			checkVisible: document
+				.querySelector('[data-testid="saved-launch-check"]')
+				.checkVisibility(),
+		})),
+		{ checkOpen: false, checkVisible: false },
+		"saved/launch check lives inside closed Workflow diagnostics",
 	);
+	await clickText(browser, "Workflow diagnostics");
 	await browser.click('[data-testid="saved-launch-check"] > summary');
 }
 async function clickText(browser, text) {
@@ -1107,7 +1112,8 @@ test("Workflow normal view, explicit retained overrides and complete readable Ch
 		})),
 		{
 			overridesVisible: false,
-			diagnosticsVisible: false,
+			// Opened by openWorkflowCard to reach Check; it starts closed.
+			diagnosticsVisible: true,
 			// A valid spec adds no Validation row (2026-11-16, owner).
 			metadata: ["Use when", "Outputs"],
 		},
@@ -1195,7 +1201,6 @@ test("Workflow normal view, explicit retained overrides and complete readable Ch
 		commands[0],
 		/agent-workflow run.*--executor 'claude'.*--model 'manual-model'.*--profile 'manual-profile'.*--permission-mode 'safe'/,
 	);
-	await clickText(browser, "Workflow diagnostics");
 	assert.equal(
 		await browser.evaluate(() =>
 			[...document.querySelectorAll("button")]
