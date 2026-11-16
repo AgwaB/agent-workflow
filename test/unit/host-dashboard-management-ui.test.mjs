@@ -746,7 +746,9 @@ test("Chrome management: workflow stages read as plain words and hide a repeated
 	);
 	await openWorkflowCard(browser, "deep-research");
 	const stages = await browser.evaluate(() => ({
-		tags: document.querySelector("h1 + p").textContent,
+		tags: document.querySelectorAll(".management-page > p .workflow-tags")
+			.length,
+		name: document.querySelector("h1").textContent,
 		headers: [...document.querySelectorAll(".numbered th")].map(
 			(n) => n.textContent,
 		),
@@ -754,9 +756,10 @@ test("Chrome management: workflow stages read as plain words and hide a repeated
 			(n) => n.children[2].textContent,
 		),
 	}));
-	await t.test("page built-in tag", () =>
-		assert.match(stages.tags, /built-in.*agent: researcher/),
-	);
+	await t.test("detail badges removed while the workflow name remains", () => {
+		assert.equal(stages.tags, 0);
+		assert.equal(stages.name, "deep-research");
+	});
 	await t.test("shared agent column omitted", () =>
 		assert.deepEqual(stages.headers, ["#", "Stage", "Kind"]),
 	);

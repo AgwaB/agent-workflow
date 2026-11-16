@@ -2,7 +2,7 @@
 // Test-owned headless Chrome, real B2 routes, isolated homes/projects and fake executors only.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { managementProject } from "../helpers/dashboard-management.mjs";
 import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
 import { projectSettingsGraphFixtures } from "../helpers/dashboard-profile-graph.mjs";
@@ -92,6 +92,11 @@ async function set(p, label, value) {
 			);
 			if (!node) throw new Error(`Missing ${label}`);
 			if (node.disabled) throw new Error(`Disabled ${label}`);
+			if (
+				node.tagName === "SELECT" &&
+				![...node.options].some((option) => option.value === value)
+			)
+				throw new Error(`Unavailable ${label} option: ${value}`);
 			node.value = value;
 			node.dispatchEvent(new Event("input", { bubbles: true }));
 			node.dispatchEvent(new Event("change", { bubbles: true }));
@@ -110,6 +115,24 @@ async function saved(p) {
 }
 const intent = async (p) => (await p.http(p.path)).data.settings.intent;
 async function baseline(p, label) {
+	const native = await p.browser.evaluate(
+		(label) =>
+			document.querySelector(`[aria-label="${label}"]`).tagName === "SELECT",
+		label,
+	);
+	if (native) {
+		assert.equal(
+			await p.browser.evaluate(
+				(label) =>
+					document.querySelector(`[aria-label="${label}"] option[value=""]`)
+						.textContent,
+				label,
+			),
+			"Use baseline settings",
+		);
+		await set(p, label, "");
+		return;
+	}
 	await p.browser.click(`[aria-label="${label}"]`);
 	const menu = await p.browser.evaluate(
 		(label) =>
@@ -127,6 +150,277 @@ async function baseline(p, label) {
 	);
 	await p.browser.click(`#${menu} [data-value=""]`);
 }
+
+async function seed(p, value) {
+	const current = (await p.http(p.path)).data.settings;
+	const result = await p.http(p.path, {
+		method: "PUT",
+		body: {
+			expected: tokens(current),
+			intent: { defaults: { executor: "management-fake" } },
+		},
+	});
+	assert.equal(result.status, 200, JSON.stringify(result.data));
+	// Test-owned legacy store: the model was saved before its catalog stopped offering it.
+	const file = projectWorkflowSettingsPath(p.cwd, { env: p.env });
+	const store = JSON.parse(await readFile(file, "utf8"));
+	store.workflows[p.entry.workflowKey].intent = value;
+	await writeFile(file, JSON.stringify(store));
+}
+async function refused(p, text = "Draft retained") {
+	await p.browser.waitFor(
+		`[...document.querySelectorAll('.project-workflow-editor [role="alert"]')].some((node) => !node.hidden && node.textContent.includes(${JSON.stringify(text)}))`,
+	);
+}
+
+test("minimal settings: requested clutter is deleted, not folded or hidden", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	const dom = await p.browser.evaluate(() => ({
+		text: document.querySelector(".management-page").textContent,
+		common: [
+			...document.querySelectorAll(
+				".project-common h3, .project-common label > span",
+			),
+		].map((node) => node.textContent),
+		commonExtra: document.querySelectorAll(
+			".project-common p, .project-common details",
+		).length,
+		heading: document.querySelector(".management-page h1").textContent,
+		topTags: document.querySelectorAll(".management-page > p .tag").length,
+		source: document.querySelectorAll(
+			'[data-testid="workflow-settings-source"]',
+		).length,
+		commonClear: document.querySelectorAll('[data-remove-binding="common"]')
+			.length,
+		commonHints: document.querySelectorAll(".project-common [data-calculated]")
+			.length,
+		emptyHeadings: [...document.querySelectorAll("h1,h2,h3")].filter(
+			(node) => !node.textContent.trim(),
+		).length,
+	}));
+	assert.equal(dom.heading, "canonical-editor");
+	assert.equal(dom.topTags, 0);
+	assert.equal(dom.source, 0);
+	assert.equal(dom.commonClear, 0);
+	assert.equal(dom.commonHints, 0);
+	assert.equal(dom.emptyHeadings, 0);
+	for (const text of [
+		"Settings for this project's next new runs",
+		"For this workflow's next new Runs in this project. Existing Runs stay unchanged.",
+		"Unknown until draft calculation",
+		"Execution environment:",
+		"manual model IDs supported",
+		"Common settings actions",
+		"Clear common settings in this draft",
+		"Scope and nested Runs",
+		"Model authoring",
+	])
+		assert.equal(dom.text.includes(text), false, text);
+	assert.deepEqual(dom.common, [
+		"Common settings",
+		"Executor",
+		"Model",
+		"Effort",
+	]);
+	assert.equal(dom.commonExtra, 0);
+	await select(p, "iterate.check");
+	await set(p, "Slot iterate.check Effort", "high");
+	assert.deepEqual(
+		await p.browser.evaluate(() =>
+			[
+				...document.querySelectorAll(
+					"[data-calculated], [data-source-lineage]",
+				),
+			].map((node) => ({ text: node.textContent, hidden: node.hidden })),
+		),
+		Array.from({ length: 6 }, () => ({ text: "", hidden: true })),
+		"stale source values disappear without replacement copy",
+	);
+	assert.equal(
+		await p.browser.evaluate(() =>
+			document
+				.querySelector(".project-workflow-editor")
+				.textContent.includes("Unknown until draft calculation"),
+		),
+		false,
+	);
+});
+
+test("minimal settings: executor menu has no empty choice and baseline is not pinned", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await p.browser.click('[aria-label="Common Executor"]');
+	const menu = await p.browser.evaluate(() => {
+		const control = document.querySelector('[aria-label="Common Executor"]');
+		return {
+			value: control.value,
+			options: [
+				...document
+					.getElementById(control.getAttribute("aria-controls"))
+					.querySelectorAll('[role="option"]'),
+			].map((node) => ({ value: node.dataset.value, text: node.textContent })),
+		};
+	});
+	assert.equal(menu.value, "");
+	assert.ok(menu.options.length > 0);
+	assert.ok(
+		menu.options.every(
+			(option) => option.value && option.text !== "No local binding",
+		),
+	);
+	assert.deepEqual(await intent(p), {});
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector(
+					'[data-management-action="save-project-settings"]',
+				).disabled,
+		),
+		true,
+	);
+});
+
+for (const failedInventory of [false, true, "request"])
+	test(`minimal settings: native model selections preserve saved raw IDs and siblings through refresh (inventory failure=${failedInventory})`, {
+		timeout: 90000,
+	}, async (t) => {
+		const p = await open(t);
+		const raw = "legacy-provider/Raw:unlisted+ID";
+		const targetExecutor =
+			failedInventory === "request" ? "management-fake" : "codex";
+		const initial = {
+			defaults: { executor: "management-fake", model: raw, effort: "low" },
+			slots: {
+				"iterate.check": {
+					executor: "management-fake",
+					model: `${raw}/task`,
+					effort: "medium",
+				},
+			},
+		};
+		await seed(p, initial);
+		const file = projectWorkflowSettingsPath(p.cwd, { env: p.env });
+		const originalBytes = await readFile(file, "utf8");
+		if (failedInventory)
+			await p.browser.send("Page.addScriptToEvaluateOnNewDocument", {
+				source: `
+			const inventoryFetch = window.fetch;
+			window.fetch = async (...args) => {
+				const response = await inventoryFetch(...args);
+				if (String(args[0]) === '/api/executors/models') {
+					if (${failedInventory === "request"}) return new Response(JSON.stringify({error: 'fixture inventory unavailable'}), {status: 503, headers: {'Content-Type':'application/json'}});
+					const value = await response.json();
+					value.data.executors = [{id: 'codex', models: [], error: 'fixture inventory unavailable'}];
+					return new Response(JSON.stringify(value), {status: 200, headers: {'Content-Type':'application/json'}});
+				}
+				return response;
+			};
+		`,
+			});
+		await load(p);
+		await refused(p);
+		await select(p, "iterate.check");
+		const snapshot = () =>
+			p.browser.evaluate(() =>
+				["Common", "Slot iterate.check"].map((prefix) => {
+					const control = document.querySelector(
+						`[aria-label="${prefix} Model"]`,
+					);
+					return {
+						tag: control.tagName,
+						value: control.value,
+						options: [...(control.options || [])].map((option) => option.value),
+						textInputs: control
+							.closest("[data-binding]")
+							.querySelectorAll(
+								'input:not([readonly]), [contenteditable="true"], input[type="search"]',
+							).length,
+					};
+				}),
+			);
+		let fields = await snapshot();
+		for (const [index, value] of [raw, `${raw}/task`].entries()) {
+			assert.equal(fields[index].tag, "SELECT");
+			assert.equal(fields[index].value, value);
+			assert.ok(fields[index].options.includes(value));
+			assert.equal(fields[index].textInputs, 0);
+		}
+		assert.equal(
+			await p.browser.evaluate(
+				() =>
+					document.querySelector(
+						'[data-management-action="save-project-settings"]',
+					).disabled,
+			),
+			true,
+			"loading unlisted values never dirties or rebinds intent",
+		);
+		await set(p, "Common Effort", "high");
+		await set(p, "Slot iterate.check Executor", targetExecutor);
+		fields = await snapshot();
+		assert.deepEqual(
+			fields.map((field) => field.value),
+			[raw, `${raw}/task`],
+		);
+		if (failedInventory)
+			assert.match(
+				await p.browser.evaluate(
+					() => document.querySelector(".role-inspector").textContent,
+				),
+				/fixture inventory unavailable/,
+			);
+		await select(p, "nested.check");
+		await select(p, "iterate.check");
+		assert.deepEqual(
+			(await snapshot()).map((field) => field.value),
+			[raw, `${raw}/task`],
+		);
+		await p.browser.click('[data-management-action="save-project-settings"]');
+		await refused(p, "Save not confirmed");
+		assert.deepEqual(
+			await p.browser.evaluate(
+				() =>
+					window.__requests.find((request) => request.method === "PUT").body
+						.intent,
+			),
+			{
+				defaults: { ...initial.defaults, effort: "high" },
+				slots: {
+					"iterate.check": {
+						...initial.slots["iterate.check"],
+						executor: targetExecutor,
+					},
+				},
+			},
+		);
+		assert.equal(
+			await readFile(file, "utf8"),
+			originalBytes,
+			"catalog refusal never changes the legacy store",
+		);
+		assert.deepEqual(
+			(await snapshot()).map((field) => field.value),
+			[raw, `${raw}/task`],
+		);
+		await p.browser.evaluate(() => {
+			window.confirm = () => true;
+			document.querySelector('[data-testid="project-settings-reload"]').click();
+		});
+		await refused(p);
+		await select(p, "iterate.check");
+		assert.deepEqual(
+			(await snapshot()).map((field) => field.value),
+			[raw, `${raw}/task`],
+		);
+		assert.equal((await p.http(`${p.base}/runs`)).data.runs.length, 0);
+	});
 
 for (const width of [970, 1476])
 	test(`polish: scoped Save and draft status stay visible through a long editor at ${width}px`, {
@@ -227,7 +521,7 @@ test("polish: baseline pickers replace duplicate resets, one draft calculation a
 			preview: "Calculate draft settings",
 		},
 	);
-	await set(p, "Common Executor", "management-fake");
+	await set(p, "Common Executor", "codex");
 	await set(p, "Common Model", "fixture-model");
 	await set(p, "Common Effort", "high");
 	await baseline(p, "Common Model");
@@ -237,7 +531,7 @@ test("polish: baseline pickers replace duplicate resets, one draft calculation a
 				(key) => document.querySelector(`[aria-label="Common ${key}"]`).value,
 			),
 		),
-		["management-fake", "", "high"],
+		["codex", "", "high"],
 	);
 	await p.browser.click('[data-testid="project-settings-preview"]');
 	await settled(p);
@@ -416,9 +710,11 @@ for (const width of [970, 1476])
 				title: { top: title.top, bottom: title.bottom },
 				height: innerHeight,
 				fields: [...panel.querySelectorAll("[data-calculated]")].map((hint) => {
+					let sibling = hint.nextElementSibling;
+					while (sibling.hidden) sibling = sibling.nextElementSibling;
 					const field = hint.previousElementSibling.getBoundingClientRect(),
 						h = hint.getBoundingClientRect(),
-						next = hint.nextElementSibling.getBoundingClientRect();
+						next = sibling.getBoundingClientRect();
 					return {
 						name: hint.dataset.calculated,
 						fieldBottom: field.bottom,
@@ -565,15 +861,15 @@ test("one canonical draft: common and independent peers survive selection; per-f
 	const p = await open(t);
 	await load(p);
 	await settled(p);
-	await set(p, "Common Executor", "management-fake");
+	await set(p, "Common Executor", "codex");
 	await set(p, "Common Model", "fixture-model");
 	await set(p, "Common Effort", "high");
 	await select(p, "iterate.check");
-	await set(p, "Slot iterate.check Executor", "management-fake");
+	await set(p, "Slot iterate.check Executor", "codex");
 	await set(p, "Slot iterate.check Model", "fixture-model");
 	await set(p, "Slot iterate.check Effort", "low");
 	await select(p, "nested.check");
-	await set(p, "Slot nested.check Executor", "management-fake");
+	await set(p, "Slot nested.check Executor", "codex");
 	await set(p, "Slot nested.check Effort", "medium");
 	await set(p, "Slot nested.check Model", "fixture-model");
 	await baseline(p, "Slot nested.check Effort");
@@ -585,11 +881,11 @@ test("one canonical draft: common and independent peers survive selection; per-f
 						.value,
 			),
 		),
-		["management-fake", "fixture-model", ""],
+		["codex", "fixture-model", ""],
 	);
 	for (const id of ["__proto__", "constructor"]) {
 		await select(p, id);
-		await set(p, `Slot ${id} Executor`, "management-fake");
+		await set(p, `Slot ${id} Executor`, "codex");
 		await set(p, `Slot ${id} Model`, "fixture-model");
 	}
 	await select(p, "iterate.check");
@@ -610,7 +906,7 @@ test("one canonical draft: common and independent peers survive selection; per-f
 						.value,
 			),
 		),
-		["management-fake", "", "low"],
+		["codex", "", "low"],
 	);
 	await p.browser.click('[data-testid="project-settings-preview"]');
 	await settled(p);
@@ -618,16 +914,16 @@ test("one canonical draft: common and independent peers survive selection; per-f
 	await saved(p);
 	const result = await intent(p);
 	assert.deepEqual(result.defaults, {
-		executor: "management-fake",
+		executor: "codex",
 		model: "fixture-model",
 		effort: "high",
 	});
 	assert.deepEqual(result.slots["iterate.check"], {
-		executor: "management-fake",
+		executor: "codex",
 		effort: "low",
 	});
 	assert.deepEqual(result.slots["nested.check"], {
-		executor: "management-fake",
+		executor: "codex",
 		model: "fixture-model",
 	});
 	assert.ok(Object.hasOwn(result.slots, "__proto__"));
@@ -654,15 +950,21 @@ test("one canonical draft: common and independent peers survive selection; per-f
 	]);
 });
 
-test("409 and manual unknown values retain complete draft, deliberate reload and binding removal restore baseline", {
+test("409 and saved legacy unknown values retain complete draft, deliberate reload and task binding removal restore baseline", {
 	timeout: 90000,
 }, async (t) => {
 	const p = await open(t);
+	await seed(p, {
+		slots: {
+			"iterate.check": {
+				executor: "codex",
+				model: "manual-provider/unknown-id",
+			},
+		},
+	});
 	await load(p);
-	await settled(p);
+	await refused(p);
 	await select(p, "iterate.check");
-	await set(p, "Slot iterate.check Executor", "management-fake");
-	await set(p, "Slot iterate.check Model", "manual-provider/unknown-id");
 	await select(p, "iterate.work");
 	await select(p, "iterate.check");
 	assert.equal(
@@ -693,7 +995,11 @@ test("409 and manual unknown values retain complete draft, deliberate reload and
 				method: "PUT",
 				body: {
 					expected: tokens(current),
-					intent: { defaults: { executor: "management-fake", effort: "high" } },
+					intent: {
+						slots: {
+							"iterate.check": { executor: "management-fake", effort: "high" },
+						},
+					},
 				},
 			})
 		).status,
@@ -712,18 +1018,21 @@ test("409 and manual unknown values retain complete draft, deliberate reload and
 		),
 		"fixture-model",
 	);
-	assert.equal((await intent(p)).slots, undefined);
+	assert.deepEqual((await intent(p)).slots, {
+		"iterate.check": { executor: "management-fake", effort: "high" },
+	});
 	await p.browser.evaluate(() => {
 		window.confirm = () => true;
 		document.querySelector('[data-testid="project-settings-reload"]').click();
 	});
 	await settled(p);
+	await select(p, "iterate.check");
 	await p.browser.evaluate(() => {
 		window.confirm = () => true;
-		document.querySelector('[data-remove-binding="common"]').click();
+		document.querySelector('[data-remove-binding="iterate.check"]').click();
 	});
 	await saved(p);
-	assert.deepEqual(await intent(p), {});
+	assert.deepEqual(await intent(p), { slots: {} });
 	await p.browser.click('[data-testid="project-settings-preview"]');
 	await settled(p);
 	await select(p, "iterate.check");
@@ -932,13 +1241,16 @@ test("dynamic leaf uses actual parent, never pins/rebinds it; executor changes p
 	const other =
 		slot.parentExecutor === "management-fake" ? "codex" : "management-fake";
 	await set(p, "Common Executor", other);
-	assert.match(
-		await p.browser.evaluate(
-			() =>
-				document.querySelector('.role-inspector [role="status"]').textContent,
+	assert.deepEqual(
+		await p.browser.evaluate(() =>
+			[
+				...document.querySelectorAll(
+					".role-inspector [data-calculated], .role-inspector [data-source-lineage]",
+				),
+			].map((node) => ({ text: node.textContent, hidden: node.hidden })),
 		),
-		/actual parent executor: unknown; Preview required/,
-		"changed defaults invalidate the displayed parent executor",
+		Array.from({ length: 6 }, () => ({ text: "", hidden: true })),
+		"changed defaults invalidate the displayed parent executor without replacement prose",
 	);
 	const bytes = await readFile(
 		projectWorkflowSettingsPath(p.cwd, { env: p.env }),
@@ -964,8 +1276,8 @@ test("dynamic leaf uses actual parent, never pins/rebinds it; executor changes p
 		"fixture-model",
 	);
 	await select(p, "iterate.check");
-	await set(p, "Slot iterate.check Executor", "management-fake");
-	await set(p, "Slot iterate.check Model", "manual/keep-this-id");
+	await set(p, "Slot iterate.check Executor", "pi");
+	await set(p, "Slot iterate.check Model", "fixture-model");
 	await set(p, "Slot iterate.check Effort", "high");
 	await set(p, "Slot iterate.check Executor", "codex");
 	assert.deepEqual(
@@ -976,7 +1288,7 @@ test("dynamic leaf uses actual parent, never pins/rebinds it; executor changes p
 						.value,
 			),
 		),
-		["manual/keep-this-id", "high"],
+		["fixture-model", "high"],
 	);
 });
 
@@ -1055,11 +1367,14 @@ test("capability refusal remains separate from calculated configuration and expl
 	timeout: 90000,
 }, async (t) => {
 	const p = await open(t);
+	await seed(p, {
+		defaults: { executor: "management-offline", model: "manual-unknown" },
+	});
 	await load(p);
 	await settled(p);
-	await set(p, "Common Executor", "management-offline");
-	await set(p, "Common Model", "manual-unknown");
+	await set(p, "Common Effort", "high");
 	await p.browser.click('[data-testid="project-settings-preview"]');
+	await settled(p);
 	await p.browser.waitFor(() =>
 		document
 			.querySelector('.project-workflow-editor [role="alert"]')
@@ -1081,12 +1396,16 @@ test("capability refusal remains separate from calculated configuration and expl
 		),
 		false,
 	);
-	assert.deepEqual(await intent(p), {}, "Check did not save");
+	assert.deepEqual(
+		await intent(p),
+		{ defaults: { executor: "management-offline", model: "manual-unknown" } },
+		"Check did not save the changed effort",
+	);
 	await saved(p);
 	assert.equal((await intent(p)).defaults.model, "manual-unknown");
 });
 
-test("readonly canonical editor truthfully exposes unknown provenance, disables mutations and keeps structural inspection", {
+test("readonly canonical editor leaves unresolved provenance absent, disables mutations and keeps structural inspection", {
 	timeout: 90000,
 }, async (t) => {
 	const p = await open(t, { readonly: true });
@@ -1108,11 +1427,15 @@ test("readonly canonical editor truthfully exposes unknown provenance, disables 
 		),
 		/Read-only/,
 	);
-	assert.match(
-		await p.browser.evaluate(
-			() => document.querySelector(".role-inspector").textContent,
+	assert.deepEqual(
+		await p.browser.evaluate(() =>
+			[
+				...document.querySelectorAll(
+					".role-inspector [data-calculated], .role-inspector [data-source-lineage]",
+				),
+			].map((node) => ({ text: node.textContent, hidden: node.hidden })),
 		),
-		/Unknown \/ not calculated/,
+		Array.from({ length: 6 }, () => ({ text: "", hidden: true })),
 	);
 	assert.deepEqual(
 		await p.browser.evaluate(() =>

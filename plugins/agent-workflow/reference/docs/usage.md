@@ -77,9 +77,12 @@ Cancel preserves the draft and saved preference; failed deletion keeps the form.
 are neither migrated into nor deleted by project-local settings. Project-local
 storage is private under the project's state base at `workflow-settings/v1/settings.json`.
 In the dashboard, **Calculate draft settings** does not save. The scoped sticky Save/status bar applies
-one complete workflow draft; **Use baseline settings** in Model/Effort unsets only that field, keeping
-the execution environment. Whole common/task draft clearing is a separate secondary action. The
-folded saved-settings/launch Check does not include the unsaved draft. Saves fence epoch, entry revision, definition fingerprint and alias resolution;
+one complete workflow draft. Model is a selection-only dropdown that retains saved unlisted IDs,
+including on inventory failure; new arbitrary IDs remain supported through CLI/API and shared Profiles.
+**Use baseline settings** in Model/Effort unsets only that field, keeping the executor and sibling values.
+Executor offers explicit IDs only and never pins a baseline just by opening the editor. Task draft
+binding clearing is a separate secondary action; there is no common clear control. Stale calculated
+source labels disappear until recalculated. The folded saved-settings/launch Check does not include the unsaved draft. Saves fence epoch, entry revision, definition fingerprint and alias resolution;
 clears use exact stored keys and snapshot tokens without requiring the definition to remain available.
 New named launches freeze settings; changing them later does not change existing Run Resume.
 Spec-less direct dynamic runs do not read this named-workflow store.

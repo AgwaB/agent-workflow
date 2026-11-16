@@ -9819,17 +9819,11 @@ function propertyTable(headers, rows, attrs = {}) {
 /** Project-local intent only. Resolution and authorization belong to the keyed B2 API. */
 async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	const route = `/api/projects/${encodeURIComponent(project)}/workflows/${workflow.workflowKey}/settings`;
-	const host = managementPanel("Settings for this project's next new runs");
-	host.classList.add("project-workflow-editor");
+	const host = element("section", {
+		class: "management-card project-workflow-editor",
+	});
 	host.dataset.workflowKey = workflow.workflowKey;
 	host.dataset.projectId = project;
-	host.append(
-		element(
-			"p",
-			{ class: "muted mono", "data-testid": "workflow-settings-source" },
-			`${workflow.name}, ${workflow.scope || "source"}, ${workflow.specPath || workflow.workflowKey}`,
-		),
-	);
 	page.append(host);
 	let disposed = false,
 		saving = false,
@@ -9922,7 +9916,12 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	}
 	let metadata = loaded;
 	const draft = settingsDraft(host, () => intent);
-	const inventory = (await managementApi("/api/executors/models")).data;
+	let inventory;
+	try {
+		inventory = (await managementApi("/api/executors/models")).data;
+	} catch (failure) {
+		inventory = { executors: [], error: failure.message };
+	}
 	if (!live()) {
 		draft.clear();
 		return;
@@ -9971,11 +9970,13 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		++generation;
 		error.hidden = true;
 		updateStatus();
-		// Existing controls retain focus and raw manual IDs; only calculated labels become stale.
-		for (const label of host.querySelectorAll("[data-calculated]"))
-			label.textContent = "Unknown until draft calculation (draft changed)";
-		for (const label of host.querySelectorAll("[data-source-lineage]"))
-			label.textContent = "Unknown until draft calculation (draft changed)";
+		// Keep controls and raw saved IDs; stale calculations are not current sources.
+		for (const label of host.querySelectorAll(
+			"[data-calculated], [data-source-lineage]",
+		)) {
+			label.textContent = "";
+			label.hidden = true;
+		}
 		for (const refresh of refreshers) refresh();
 		controller?.refresh();
 	}
@@ -9991,7 +9992,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		changed();
 	}
 	function sourceText(value, field, full = false) {
-		if (!value) return "Unknown / not calculated";
+		if (!value) return "";
 		const actual =
 			field === "effort"
 				? `requested: ${value.requested ?? "unknown"}; resolved: ${value.resolved ?? "unknown"}${value.reason ? ` (${value.reason})` : ""}`
@@ -10022,7 +10023,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		];
 		const executor = choicePicker(
 			`${prefix} Executor`,
-			[["", "No local binding"], ...ids],
+			ids,
 			value.executor || "",
 			{
 				placeholder: actualExecutor
@@ -10030,10 +10031,12 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					: "Choose executor explicitly",
 			},
 		);
-		const model = choicePicker(`${prefix} Model`, [], value.model || "", {
-			editable: true,
-			placeholder: "Use baseline settings",
-		});
+		const modelControl = choices(
+			`${prefix} Model`,
+			[["", "Use baseline settings"], ...(value.model ? [value.model] : [])],
+			value.model || "",
+		);
+		const model = { control: modelControl, node: modelControl };
 		const effort = choicePicker(
 			`${prefix} Effort`,
 			[["", "Use baseline settings"], ...EFFORT_LEVELS],
@@ -10054,36 +10057,29 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			const exec = binding(id)?.executor || currentExecutor;
 			executor.control.value = binding(id)?.executor || "";
 			const entry = inventory.executors.find((entry) => entry.id === exec);
-			model.setOptions([
-				["", "Use baseline settings"],
-				...(entry?.models || []),
-			]);
+			const previousModel = model.control.value;
+			const models = [
+				...new Set([...(entry?.models || []), previousModel].filter(Boolean)),
+			];
+			model.control.replaceChildren(
+				element("option", { value: "" }, "Use baseline settings"),
+				...models.map((id) => element("option", { value: id }, id)),
+			);
+			model.control.value = previousModel;
 			model.control.disabled = effort.control.disabled = readonly() || !exec;
 			executor.control.disabled = readonly() || dynamic;
 			executor.control.placeholder = currentExecutor
 				? `Resolved: ${currentExecutor}`
 				: "Choose executor explicitly";
-			note.textContent = dynamic
-				? `Dynamic template shares its actual parent executor: ${currentExecutor || "unknown; Preview required"}. Editing never pins the parent. A stale/incompatible binding is refused, not rebound.`
-				: !exec
-					? "Choose an executor or calculate the actual slot executor before selecting model/effort."
-					: `Execution environment: ${exec}${!entry ? "; unknown executor, manual IDs retained" : entry.error ? `; model inventory unavailable: ${entry.error}` : "; manual model IDs supported"}. Changing executor retains model/effort for explicit review; incompatible values are refused.`;
+			const inventoryError = entry?.error || inventory.error;
+			note.textContent = inventoryError
+				? `Model inventory unavailable: ${inventoryError}`
+				: "";
+			note.hidden = !note.textContent;
 		};
 		executor.control.addEventListener("change", () => {
 			if (readonly() || dynamic) return;
-			if (!executor.control.value) {
-				if (
-					!window.confirm(
-						`Clear ${id === null ? "common settings" : `task ${id} settings`} in this draft, including model and effort? Saved settings are unchanged until Save.`,
-					)
-				) {
-					executor.control.value = binding(id)?.executor || "";
-					return;
-				}
-				setBinding(id, undefined);
-				renderFields();
-				return;
-			}
+			if (!executor.control.value) return;
 			setBinding(id, { ...binding(id), executor: executor.control.value });
 			refresh();
 		});
@@ -10117,28 +10113,28 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			picker.control.addEventListener("input", change);
 			node.append(
 				field(key === "model" ? "Model" : "Effort", picker.node),
-				element(
-					"small",
-					{ "data-calculated": key },
-					id === null
-						? value[key]
-							? `Requested ${key}: ${value[key]}; source: project-default. Each task resolves its own baseline.`
-							: "Baseline settings; select a task to see its source."
-						: sourceText(resolved?.[key], key),
-				),
+				...(id === null
+					? []
+					: [
+							element(
+								"small",
+								{ "data-calculated": key, hidden: !resolved?.[key] },
+								sourceText(resolved?.[key], key),
+							),
+						]),
 			);
 		}
 		node.prepend(
-			field("Execution environment", executor.node),
-			element(
-				"small",
-				{ "data-calculated": "executor" },
-				id === null
-					? value.executor
-						? `Project execution environment: ${value.executor}`
-						: "Baseline execution environment"
-					: sourceText(resolved?.executor, "executor"),
-			),
+			field("Executor", executor.node),
+			...(id === null
+				? []
+				: [
+						element(
+							"small",
+							{ "data-calculated": "executor", hidden: !resolved?.executor },
+							sourceText(resolved?.executor, "executor"),
+						),
+					]),
 		);
 		node.append(
 			note,
@@ -10150,42 +10146,36 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 							...["executor", "model", "effort"].map((key) =>
 								element(
 									"p",
-									{ "data-source-lineage": key },
-									`${humanize(key)}: ${sourceText(resolved?.[key], key, true)}`,
+									{ "data-source-lineage": key, hidden: !resolved?.[key] },
+									resolved?.[key]
+										? `${humanize(key)}: ${sourceText(resolved[key], key, true)}`
+										: "",
 								),
 							),
 						),
+						element(
+							"details",
+							{ class: "binding-actions" },
+							element("summary", {}, "This task's settings actions"),
+							button(
+								"Clear this task's settings in this draft",
+								() => {
+									if (
+										window.confirm(
+											`Clear task ${id} settings (executor, model and effort) in this draft? Baseline will be resolved again. Saved settings are unchanged until Save.`,
+										)
+									) {
+										setBinding(id, undefined);
+										renderFields();
+									}
+								},
+								{
+									disabled: readonly() || !binding(id),
+									"data-remove-binding": id,
+								},
+							),
+						),
 					]),
-			element(
-				"details",
-				{ class: "binding-actions" },
-				element(
-					"summary",
-					{},
-					id === null
-						? "Common settings actions"
-						: "This task's settings actions",
-				),
-				button(
-					id === null
-						? "Clear common settings in this draft"
-						: "Clear this task's settings in this draft",
-					() => {
-						if (
-							window.confirm(
-								`Clear ${id === null ? "common settings" : `task ${id} settings`} (executor, model and effort) in this draft? Baseline will be resolved again. Saved settings are unchanged until Save.`,
-							)
-						) {
-							setBinding(id, undefined);
-							renderFields();
-						}
-					},
-					{
-						disabled: readonly() || !binding(id),
-						"data-remove-binding": id ?? "common",
-					},
-				),
-			),
 		);
 		refreshers.add(refresh);
 		refresh();
@@ -10195,20 +10185,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		refreshers.clear();
 		common.replaceChildren(
 			element("h3", {}, "Common settings"),
-			element(
-				"p",
-				{ class: "muted" },
-				"For this workflow's next new Runs in this project. Existing Runs stay unchanged.",
-			),
 			controls(null),
-			moreDetails(
-				"Scope and nested Runs",
-				element(
-					"p",
-					{},
-					"Common settings include controller/common lineage. Separate nested child Runs keep their existing inheritance; parent executor changes can indirectly affect them.",
-				),
-			),
 		);
 		const selected = metadata.authored.find((node) => node.id === selection);
 		panel.replaceChildren(
@@ -10586,7 +10563,7 @@ async function renderWorkflow(page, name) {
 				"Project settings unavailable: no server workflow identity.",
 			),
 		);
-	page.querySelector("h1 + p")?.replaceChildren(workflowTags(workflow));
+	page.querySelector("h1 + p")?.remove();
 	// Authored stage and agent names, not a second compiler. A spec that cannot be read here
 	// still shows its validation, check and raw text (2026-11-11: one failure blanked the page).
 	let authored = {};
