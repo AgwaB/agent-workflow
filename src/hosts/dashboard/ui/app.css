@@ -2870,15 +2870,75 @@ a.profile-row {
 .history-list input {
 	margin-right: 12px;
 }
-.project-common {
-	margin-bottom: 24px;
-	padding-bottom: 16px;
+.project-workflow-editor {
+	--project-editor-height: max(440px, calc(100vh - 260px));
+	min-height: calc(var(--project-editor-height) + 44px);
+}
+.project-settings-spinner {
+	display: block;
+	width: 16px;
+	height: 16px;
+	border: 2px solid var(--line);
+	border-top-color: var(--text);
+	border-radius: 50%;
+	animation: project-settings-spin 0.8s linear infinite;
+}
+@keyframes project-settings-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.project-settings-spinner {
+		animation: none;
+	}
+}
+.project-workflow-header {
+	position: sticky;
+	top: 0;
+	z-index: 25;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px 24px;
+	padding: 12px 0;
+	background: var(--bg);
 	border-bottom: 1px solid var(--line);
+}
+.project-workflow-heading {
+	min-width: 0;
+	flex: 1 1 220px;
+}
+.workflow-description {
+	margin: 0;
+	font-size: 13px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.project-common {
+	padding: 16px;
+}
+.task-settings-scope {
+	border: 0;
+	margin: 12px 0;
+	padding: 0;
+}
+.task-settings-scope label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 8px 0;
+}
+.project-workflow-header h1 {
+	overflow-wrap: anywhere;
 }
 /* Background hint changes must not move the reader through browser scroll anchoring.
    The editor uses the whole center column, so the page scrolls wherever the pointer is. */
 .management-page:has(.project-workflow-editor) {
 	overflow-anchor: none;
+	scroll-padding-top: 112px;
 	width: 100%;
 }
 .project-workflow-layout {
@@ -2888,28 +2948,28 @@ a.profile-row {
 	gap: 20px;
 }
 .project-workflow-graph .profile-flow {
-	--profile-flow-height: max(440px, calc(100vh - 260px));
+	--profile-flow-height: var(--project-editor-height);
 }
 .project-settings-side {
 	position: sticky;
-	top: 0;
-	max-height: calc(100vh - 200px);
-	overflow: auto;
+	top: 104px;
 	min-width: 0;
 }
 @media (max-width: 1100px) {
-	/* One column: common settings, graph, then the selected task. */
+	/* One column: the active settings panel, then the graph. */
+	.project-workflow-editor {
+		--project-editor-height: clamp(440px, calc(100vh - 420px), 700px);
+	}
 	.project-workflow-layout {
 		grid-template-columns: minmax(0, 1fr);
 	}
 	.project-settings-side {
-		display: contents;
-	}
-	.project-settings-side .project-common {
+		position: static;
+		max-height: none;
 		order: -1;
 	}
 	.project-workflow-graph .profile-flow {
-		--profile-flow-height: clamp(440px, calc(100vh - 420px), 700px);
+		--profile-flow-height: var(--project-editor-height);
 	}
 }
 .project-workflow-editor .management-fields {
@@ -2919,11 +2979,19 @@ a.profile-row {
 	order: 0;
 }
 .project-workflow-editor .role-inspector {
-	scroll-margin-top: 16px;
+	scroll-margin-top: 112px;
 }
 .project-workflow-actions {
-	margin-top: 20px;
+	display: flex;
+	flex: 0 1 auto;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+	gap: 8px;
 	align-items: center;
+}
+.project-workflow-actions [data-testid="workflow-settings-dirty"] {
+	flex-basis: 100%;
+	text-align: right;
 }
 .project-workflow-actions [data-testid="workflow-settings-status"] {
 	flex-basis: 100%;
@@ -2931,12 +2999,13 @@ a.profile-row {
 	font-size: 13px;
 	overflow-wrap: anywhere;
 }
-.project-workflow-editor .binding-actions {
-	grid-column: 1 / -1;
+.project-workflow-actions [data-testid="workflow-settings-status"] {
+	text-align: right;
 }
-.project-workflow-editor .binding-actions button {
-	width: auto;
-	text-align: left;
+.project-workflow-actions .management-error {
+	flex-basis: 100%;
+	max-width: 420px;
+	margin: 0;
 }
 .shared-preference-actions {
 	flex-basis: 100%;

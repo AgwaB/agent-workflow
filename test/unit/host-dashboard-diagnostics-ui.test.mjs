@@ -64,19 +64,13 @@ async function setup(t, data, view = "workflows&workflow=manage") {
 		url: `${p.origin}/?project=${p.server.projectId}&view=${view}`,
 	});
 	await b.waitFor(() => !!document.querySelector(".management-page"));
-	if (view.startsWith("workflows&workflow=")) {
+	if (view.startsWith("workflows&workflow="))
 		await b.waitFor(
-			() => !!document.querySelector('[data-management-action="check"]'),
+			() =>
+				!!document.querySelector(
+					'[data-management-action="save-project-settings"]',
+				),
 		);
-		assert.equal(
-			await b.evaluate(
-				() => document.querySelector('[data-testid="saved-launch-check"]').open,
-			),
-			false,
-		);
-		await click(b, "Workflow diagnostics");
-		await b.click('[data-testid="saved-launch-check"] > summary');
-	}
 	return { b, p };
 }
 async function click(b, text) {
@@ -102,282 +96,37 @@ async function set(b, label, value) {
 }
 
 test(
-	"D model exceptions: real catalog states, exact complete-list aliases and live associations",
+	"D workflow page deletes Check and diagnostic payloads, retaining ordinary scope editing",
 	opts,
 	async (t) => {
-		const base = {
-			usable: true,
-			state: "ready",
-			models: ["provider/alpha", "beta", "a/b/c"],
-			modelListComplete: true,
-			effortLevels: ["low", "high"],
-			modelEfforts: { "provider/alpha": ["low"] },
-		};
-		const entries = [
-			{ ...base, id: "ready" },
-			{
-				...base,
-				id: "missing",
-				usable: false,
-				state: "not-installed",
-				models: null,
-			},
-			{ ...base, id: "logout", usable: false, state: "logged-out" },
-			{
-				...base,
-				id: "broken",
-				usable: false,
-				state: "probe-failed",
-				error: "probe <failed>",
-			},
-			{ ...base, id: "partial", modelListComplete: false },
-			{ ...base, id: "null", models: null },
-		];
 		const { b } = await setup(t, {
-			"/api/executors/models": { data: { executors: entries } },
 			"/workflows/:workflowKey/check": {
-				text: "Simulated check; no run started",
-				data: {},
+				text: "must not render",
+				data: { secret: "unused diagnostics" },
 			},
 		});
-		await b.waitFor(() => !!document.querySelector('[aria-label="Executor"]'));
-		await click(b, "Check different settings");
-		const note = () =>
-			b.evaluate(() =>
-				[...document.querySelectorAll(".check-overrides small")]
-					.filter((n) => !n.hidden)
-					.map((n) => n.textContent)
-					.join("\n"),
-			);
-		for (const [id, pattern] of [
-			["missing", /not installed/i],
-			["logout", /log in|not logged in/i],
-			["broken", /probe <failed>/],
-			["future", /Unknown executor: future/],
-		]) {
-			await set(b, "Executor", id);
-			assert.match(await note(), pattern);
-			const linked = await b.evaluate(() =>
-				["Executor", "Model"].every((label) => {
-					const n = document.querySelector(`[aria-label="${label}"]`);
-					return n
-						.getAttribute("aria-describedby")
-						?.split(/\s+/)
-						.some((id) => {
-							const m = document.getElementById(id);
-							return (
-								m?.getAttribute("role") === "status" &&
-								m.textContent &&
-								!m.hidden
-							);
-						});
-				}),
-			);
-			assert.equal(linked, true);
-		}
-		await set(b, "Executor", "ready");
-		assert.equal(await note(), "");
-		await b.evaluate(() => {
-			const n = document.querySelector('[aria-label="Model"]');
-			n.setAttribute("aria-describedby", "other-description");
-		});
-		for (const value of [
-			"alpha",
-			"provider/alpha",
-			"beta",
-			"other/beta",
-			"b/c",
-			"a/b/c",
-			"c",
-		]) {
-			await set(b, "Model", value);
-			assert.equal(await note(), "", value);
-		}
-		for (const value of ["other/alpha", "other/c", " alpha", "manual-id"]) {
-			await set(b, "Model", value);
-			assert.match(
-				await note(),
-				/not in ready's complete model list\./i,
-				value,
-			);
-			assert.doesNotMatch(await note(), /launch refuses/i, value);
-			assert.equal(
-				await b.evaluate(
-					() => document.querySelector('[aria-label="Model"]').value,
-				),
-				value,
-			);
-		}
-		assert.ok(
-			await b.evaluate(() =>
-				document
-					.querySelector('[aria-label="Model"]')
-					.getAttribute("aria-describedby")
-					.includes("other-description"),
-			),
+		assert.deepEqual(
+			await b.evaluate(() => ({
+				checks: window.checkPaths,
+				removed: document.querySelectorAll(
+					".management-diagnostics, .saved-launch-check, .check-overrides, [data-management-action='check']",
+				).length,
+				scope: document.querySelector(".project-common h3").textContent,
+			})),
+			{ checks: [], removed: 0, scope: "All tasks" },
 		);
-		await set(b, "Executor", "partial");
+		await set(b, "All tasks Executor", "codex");
+		await set(b, "All tasks Effort", "high");
 		assert.equal(
-			await b.evaluate(() =>
-				document
-					.querySelector('[aria-label="Model"]')
-					.getAttribute("aria-describedby"),
-			),
-			"other-description",
-		);
-		await set(b, "Model", "arbitrary/manual");
-		assert.equal(await note(), "");
-		await set(b, "Executor", "null");
-		await set(b, "Model", "arbitrary/manual");
-		assert.equal(await note(), "");
-		await set(b, "Executor", "ready");
-		await set(b, "Effort", "high");
-		await set(b, "Model", "provider/alpha");
-		assert.match(await note(), /high is not available/);
-		assert.equal(
-			await b.evaluate(() => {
-				const n = document.querySelector('[aria-label="Effort"]');
-				return document
-					.getElementById(n.getAttribute("aria-describedby"))
-					?.getAttribute("role");
-			}),
-			"status",
-		);
-		await set(b, "Effort", "low");
-		assert.equal(await note(), "");
-		await set(b, "Effort", "high");
-		await set(b, "Effort", "");
-		assert.equal(await note(), "");
-		assert.equal(
-			await b.evaluate(() =>
-				document
-					.querySelector('[aria-label="Effort"]')
-					.hasAttribute("aria-describedby"),
+			await b.evaluate(
+				() =>
+					document.querySelector(
+						'[data-management-action="save-project-settings"]',
+					).disabled,
 			),
 			false,
 		);
-		await set(b, "Model", "manual-id");
-		await b.click('[data-management-action="check"]');
-		await b.waitFor(
-			() =>
-				document.querySelector(".management-result") ||
-				document.querySelector(".management-error"),
-		);
-		// The warning does not clear/reject the submitted manual model.
-		assert.equal(
-			await b.evaluate(
-				() => document.querySelector('[aria-label="Model"]').value,
-			),
-			"manual-id",
-		);
-	},
-);
-
-test(
-	"D Check diagnostics preserve exact keys, empty values, primitive arrays and override state",
-	opts,
-	async (t) => {
-		const extra = {
-			"final-judgment": "x",
-			my_role: "y",
-			"provider/model": false,
-			zero: 0,
-			emptyArray: [],
-			emptyObject: {},
-			emptyString: "",
-			literal: "<img src=x onerror=bad()>",
-			list: ["first", false, 0, ""],
-		};
-		const { b } = await setup(t, {
-			"/workflows/:workflowKey/check": {
-				text: "No model call",
-				data: {
-					capability: {
-						preview:
-							"web safety controls are not engine-enforced\nfree permission mode: authored readOnly is not enforced",
-						degradations: [],
-						forcedReadOnly: ["stage-one"],
-					},
-					extra,
-				},
-			},
-		});
-		await b.waitFor(
-			() => !!document.querySelector('[data-management-action="check"]'),
-		);
-		const state = () =>
-			b.evaluate(() => {
-				const n = [...document.querySelectorAll("button")].find(
-					(n) => n.textContent === "Check different settings",
-				);
-				return {
-					expanded: n.getAttribute("aria-expanded"),
-					linked:
-						document.getElementById(n.getAttribute("aria-controls")) ===
-						document.querySelector(".check-overrides"),
-				};
-			});
-		assert.deepEqual(await state(), { expanded: "false", linked: true });
-		await click(b, "Check different settings");
-		assert.deepEqual(await state(), { expanded: "true", linked: true });
-		await b.click('[aria-label="Check profile"]');
-		await set(b, "Check profile", "no-match-profile");
-		assert.doesNotMatch(
-			await b.evaluate(
-				() => document.querySelector(".picker-empty").textContent,
-			),
-			/model ID/,
-		);
-		await set(b, "Model", "retained/manual");
-		await click(b, "Check different settings");
-		assert.deepEqual(await state(), { expanded: "false", linked: true });
-		assert.match(
-			await b.evaluate(
-				() => document.querySelector(".check-settings-summary").textContent,
-			),
-			/retained\/manual/,
-		);
-		await b.click('[data-management-action="check"]');
-		await b.waitFor(() => !!document.querySelector(".management-result"));
-		assert.deepEqual(await b.evaluate(() => window.checkBodies), [
-			{ model: "retained/manual", profile: "no-match-profile" },
-		]);
-		const checkPaths = await b.evaluate(() => window.checkPaths);
-		assert.equal(checkPaths.length, 1);
-		assert.match(checkPaths[0], /\/workflows\/[a-f0-9]{64}\/check$/);
-		await click(b, "Check details");
-		const rendered = await b.evaluate(() => ({
-			text: document.querySelector(".management-result").innerText,
-			keys: [...document.querySelectorAll(".management-result dt")].map(
-				(n) => n.textContent,
-			),
-			lists: [...document.querySelectorAll(".management-result ul")].map(
-				(n) => n.textContent,
-			),
-			injected: document.querySelectorAll(".management-result img").length,
-		}));
-		for (const key of Object.keys(extra))
-			assert.ok(rendered.keys.includes(key), key);
-		for (const value of [
-			"[]",
-			"{}",
-			'""',
-			"false",
-			"0",
-			extra.literal,
-			"web safety controls are not engine-enforced",
-			"authored readOnly is not enforced",
-		])
-			assert.ok(rendered.text.includes(value), value);
-		assert.ok(
-			rendered.lists.some(
-				(text) =>
-					text.includes("first") &&
-					text.includes("false") &&
-					text.includes("0"),
-			),
-		);
-		assert.equal(rendered.injected, 0);
+		assert.deepEqual(await b.evaluate(() => window.checkPaths), []);
 	},
 );
 
@@ -444,6 +193,136 @@ test(
 		);
 		for (const key of ["entries", "stale", "dangling", "prunable"])
 			assert.ok(!keys.includes(key), key);
+	},
+);
+
+// Moved from the deleted workflow-page Check form (2026-11-16): the same shared model controls
+// are still used by the Profile editor, so their catalog-state warnings stay covered there.
+test(
+	"D profile model controls: real catalog states, exact complete-list aliases and live associations",
+	opts,
+	async (t) => {
+		const base = {
+			usable: true,
+			state: "ready",
+			models: ["provider/alpha", "beta", "a/b/c"],
+			modelListComplete: true,
+			effortLevels: ["low", "high"],
+			modelEfforts: { "provider/alpha": ["low"] },
+		};
+		const entries = [
+			{ ...base, id: "ready" },
+			{
+				...base,
+				id: "missing",
+				usable: false,
+				state: "not-installed",
+				models: null,
+			},
+			{ ...base, id: "logout", usable: false, state: "logged-out" },
+			{
+				...base,
+				id: "broken",
+				usable: false,
+				state: "probe-failed",
+				error: "probe <failed>",
+			},
+			{ ...base, id: "partial", modelListComplete: false },
+			{ ...base, id: "null", models: null },
+		];
+		const { b, p } = await setup(
+			t,
+			{ "/api/executors/models": { data: { executors: entries } } },
+			"profiles",
+		);
+		await profileAction(p.ctx, {
+			op: "set",
+			name: "catalog-states",
+			values: { executor: "codex" },
+		});
+		await b.send("Page.navigate", {
+			url: `${p.origin}/?project=${p.server.projectId}&view=profiles`,
+		});
+		await b.waitFor(
+			() => !!document.querySelector('[data-profile-open="catalog-states"]'),
+		);
+		await b.click('[data-profile-open="catalog-states"]');
+		await b.waitFor(
+			() => !!document.querySelector('.profile-editor [aria-label="Executor"]'),
+		);
+		// Visible status text linked to Executor/Model/Effort.
+		const note = () =>
+			b.evaluate(() =>
+				[
+					...new Set(
+						["Executor", "Model", "Effort"].flatMap((label) =>
+							(
+								document
+									.querySelector(`.profile-editor [aria-label="${label}"]`)
+									.getAttribute("aria-describedby") || ""
+							)
+								.split(/\s+/)
+								.filter(Boolean),
+						),
+					),
+				]
+					.map((id) => document.getElementById(id))
+					.filter((n) => n && !n.hidden && n.getAttribute("role") === "status")
+					.map((n) => n.textContent)
+					.join("\n"),
+			);
+		for (const [id, pattern] of [
+			["missing", /not installed/i],
+			["logout", /log in|not logged in/i],
+			["broken", /probe <failed>/],
+			["future", /Unknown executor: future/],
+		]) {
+			await set(b, "Executor", id);
+			assert.match(await note(), pattern, id);
+		}
+		await set(b, "Executor", "ready");
+		assert.equal(await note(), "");
+		for (const value of [
+			"alpha",
+			"provider/alpha",
+			"beta",
+			"other/beta",
+			"b/c",
+			"a/b/c",
+			"c",
+		]) {
+			await set(b, "Model", value);
+			assert.equal(await note(), "", value);
+		}
+		for (const value of ["other/alpha", "other/c", " alpha", "manual-id"]) {
+			await set(b, "Model", value);
+			assert.match(
+				await note(),
+				/not in ready's complete model list\./i,
+				value,
+			);
+			assert.doesNotMatch(await note(), /launch refuses/i, value);
+			assert.equal(
+				await b.evaluate(
+					() =>
+						document.querySelector('.profile-editor [aria-label="Model"]')
+							.value,
+				),
+				value,
+				"warning never clears the typed model",
+			);
+		}
+		for (const id of ["partial", "null"]) {
+			await set(b, "Executor", id);
+			await set(b, "Model", "arbitrary/manual");
+			assert.equal(await note(), "", id);
+		}
+		await set(b, "Executor", "ready");
+		await set(b, "Effort", "high");
+		await set(b, "Model", "provider/alpha");
+		assert.match(await note(), /high is not available/);
+		await set(b, "Effort", "low");
+		assert.equal(await note(), "");
 	},
 );
 

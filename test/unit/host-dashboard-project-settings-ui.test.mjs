@@ -130,7 +130,20 @@ const graphIds = (p) =>
 			),
 		].sort(),
 	);
+async function custom(p) {
+	const radio = '[name="task-settings-scope"][value="custom"]';
+	const needed = await p.browser.evaluate((selector) => {
+		const node = document.querySelector(selector);
+		return node && !node.checked;
+	}, radio);
+	if (needed) {
+		await settled(p);
+		await p.browser.click(radio);
+		await settled(p);
+	}
+}
 async function set(p, label, value) {
+	if (label.startsWith("Slot ")) await custom(p);
 	await p.browser.evaluate(
 		(label, value) => {
 			const node = document.querySelector(
@@ -215,9 +228,409 @@ async function seed(p, value) {
 }
 async function refused(p, text = "Draft retained") {
 	await p.browser.waitFor(
-		`[...document.querySelectorAll('.project-workflow-editor [role="alert"]')].some((node) => !node.hidden && node.textContent.includes(${JSON.stringify(text)}))`,
+		`[...document.querySelectorAll('.project-workflow-header [role="alert"]')].some((node) => !node.hidden && node.textContent.includes(${JSON.stringify(text)}))`,
 	);
 }
+
+test("scope S1: loading is an accessible spinner with reserved editor space", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await p.browser.send("Emulation.setDeviceMetricsOverride", {
+		width: 1476,
+		height: 997,
+		deviceScaleFactor: 1,
+		mobile: false,
+	});
+	await p.browser.send("Page.addScriptToEvaluateOnNewDocument", {
+		source: "window.__holds.GET = true;",
+	});
+	await p.browser.send("Page.navigate", { url: p.url });
+	await p.browser.waitFor(() => !!window.__releases.GET);
+	const before = await p.browser.evaluate(() => {
+		const host = document.querySelector(".project-workflow-editor");
+		const r = host.getBoundingClientRect();
+		return {
+			spinner: !!host.querySelector('[role="status"][aria-label="Loading"]'),
+			text: host.textContent,
+			top: r.top,
+			height: r.height,
+		};
+	});
+	assert.equal(before.spinner, true);
+	assert.doesNotMatch(before.text, /Loading project settings/);
+	assert.ok(before.height >= 440);
+	await p.browser.evaluate(() => window.__releases.GET());
+	await p.browser.waitFor(
+		() => !!document.querySelector(".profile-flow .graph"),
+	);
+	await settled(p);
+	const after = await p.browser.evaluate(() => {
+		const r = document
+			.querySelector(".project-workflow-editor")
+			.getBoundingClientRect();
+		return {
+			top: r.top,
+			height: r.height,
+			loading: !!document.querySelector('[aria-label="Loading"]'),
+		};
+	});
+	assert.equal(after.loading, false);
+	assert.equal(after.top, before.top);
+	assert.equal(
+		after.height,
+		before.height,
+		"reserved space prevents a load jump",
+	);
+});
+
+test("scope S2: All tasks is the default panel and edits workflow defaults only", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			titles: [...document.querySelectorAll(".project-settings-side h3")]
+				.filter((n) => n.checkVisibility())
+				.map((n) => n.textContent),
+			old: document
+				.querySelector(".management-page")
+				.textContent.includes("Common settings"),
+		})),
+		{ titles: ["All tasks"], old: false },
+	);
+	await set(p, "All tasks Executor", "management-fake");
+	await set(p, "All tasks Effort", "high");
+	await saved(p);
+	assert.deepEqual(await intent(p), {
+		defaults: { executor: "management-fake", effort: "high" },
+	});
+});
+
+test("scope S3: task scope choice captures resolved settings, removes only its binding and returns with Escape", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await select(p, "iterate.check");
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			back: document.querySelector('[data-testid="all-tasks-back"]')
+				?.textContent,
+			choices: [
+				...document.querySelectorAll('[name="task-settings-scope"]'),
+			].map((n) => ({
+				text: n.closest("label").textContent,
+				checked: n.checked,
+			})),
+			fields: [
+				...document.querySelectorAll(".role-inspector [data-binding]"),
+			].filter((n) => n.checkVisibility()).length,
+			old: !!document.querySelector(".binding-actions"),
+		})),
+		{
+			back: "← All tasks",
+			choices: [
+				{ text: "Use All tasks settings", checked: true },
+				{ text: "Custom for this task", checked: false },
+			],
+			fields: 0,
+			old: false,
+		},
+	);
+	const initial = await p.browser.evaluate(
+		() =>
+			window.__requests.findLast((r) => r.path.endsWith("/preview")).response
+				.data.check.data.configuration.slots["iterate.check"],
+	);
+	await p.browser.click('[name="task-settings-scope"][value="custom"]');
+	await settled(p);
+	const custom = await p.browser.evaluate(() =>
+		window.__requests.findLast((r) => r.path.endsWith("/preview")),
+	);
+	assert.deepEqual(custom.body.intent.slots["iterate.check"], {
+		executor: initial.executor.value,
+		model: initial.model.value,
+		effort: initial.effort.requested,
+	});
+	assert.deepEqual(
+		["executor", "model", "effort"].map((k) =>
+			k === "effort"
+				? custom.response.data.check.data.configuration.slots["iterate.check"][
+						k
+					].resolved
+				: custom.response.data.check.data.configuration.slots["iterate.check"][
+						k
+					].value,
+		),
+		["executor", "model", "effort"].map((k) =>
+			k === "effort" ? initial[k].resolved : initial[k].value,
+		),
+	);
+	await select(p, "nested.check");
+	await p.browser.click('[name="task-settings-scope"][value="custom"]');
+	await settled(p);
+	await select(p, "iterate.check");
+	await p.browser.click('[name="task-settings-scope"][value="all"]');
+	await settled(p);
+	await saved(p);
+	assert.equal(Object.hasOwn((await intent(p)).slots, "iterate.check"), false);
+	assert.ok(Object.hasOwn((await intent(p)).slots, "nested.check"));
+	await p.browser.click('[data-testid="all-tasks-back"]');
+	assert.equal(
+		await p.browser.evaluate(() =>
+			document.querySelector(".project-common").checkVisibility(),
+		),
+		true,
+	);
+	await select(p, "iterate.check");
+	await p.browser.evaluate(() =>
+		document
+			.querySelector(".project-workflow-editor")
+			.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+			),
+	);
+	assert.equal(
+		await p.browser.evaluate(() =>
+			document.querySelector(".project-common").checkVisibility(),
+		),
+		true,
+	);
+	assert.equal(
+		await p.browser.evaluate(() => document.activeElement.dataset.stage),
+		"iterate.check",
+	);
+});
+
+test("scope S4: graph has current model and effort, Custom marker, and no stale lineage", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	const line = () =>
+		p.browser.evaluate(
+			() =>
+				document.querySelector('.profile-flow [data-stage="iterate.check"]')
+					.textContent,
+		);
+	assert.match(await line(), /fixture-model · medium/);
+	assert.doesNotMatch(await line(), /source:|origin:|Custom/);
+	await select(p, "iterate.check");
+	await p.browser.click('[name="task-settings-scope"][value="custom"]');
+	await settled(p);
+	await p.browser.evaluate(() => {
+		window.__holds.preview = true;
+	});
+	await set(p, "Slot iterate.check Effort", "high");
+	await p.browser.waitFor(() => !!window.__releases.preview);
+	assert.match(await line(), /Custom/);
+	assert.doesNotMatch(await line(), /fixture-model|medium|source:|origin:/);
+	await p.browser.evaluate(() => window.__releases.preview());
+	await settled(p);
+	assert.match(await line(), /fixture-model · high.*Custom/s);
+});
+
+test("scope S5: explicit executor changes clear only models excluded by complete available inventories", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	const raw = "legacy/Unlisted";
+	await seed(p, {
+		defaults: { executor: "management-fake", model: raw, effort: "low" },
+		slots: {
+			"iterate.check": {
+				executor: "management-fake",
+				model: raw,
+				effort: "medium",
+			},
+		},
+	});
+	await p.browser.send("Page.addScriptToEvaluateOnNewDocument", {
+		source: `
+		const catalogFetch = window.fetch;
+		window.fetch = async (...args) => {
+			if (String(args[0]) !== '/api/executors/models') return catalogFetch(...args);
+			return new Response(JSON.stringify({data: {executors: [
+				{id: 'management-fake', models: ['fixture-model'], modelListComplete: true},
+				{id: 'codex', models: ['fixture-model'], modelListComplete: true},
+				{id: 'claude', models: ['fixture-model'], modelListComplete: false},
+				{id: 'pi', models: null, modelListComplete: true},
+				{id: 'antigravity', models: [], modelListComplete: true, error: 'inventory unavailable'}
+			]}}), {headers: {'Content-Type': 'application/json'}});
+		};`,
+	});
+	await load(p);
+	await refused(p);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector('[aria-label="All tasks Model"]').value,
+		),
+		raw,
+	);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector(
+					'[data-management-action="save-project-settings"]',
+				).disabled,
+		),
+		true,
+	);
+	for (const id of ["claude", "pi", "antigravity"]) {
+		await set(p, "All tasks Executor", id);
+		assert.equal(
+			await p.browser.evaluate(
+				() => document.querySelector('[aria-label="All tasks Model"]').value,
+			),
+			raw,
+			id,
+		);
+	}
+	await set(p, "All tasks Executor", "codex");
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector('[aria-label="All tasks Model"]').value,
+		),
+		"",
+	);
+	assert.match(
+		await p.browser.evaluate(
+			() => document.querySelector(".project-common").textContent,
+		),
+		/Model cleared/,
+	);
+	await set(p, "All tasks Model", "fixture-model");
+	await set(p, "All tasks Executor", "management-fake");
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector('[aria-label="All tasks Model"]').value,
+		),
+		"fixture-model",
+	);
+	await select(p, "iterate.check");
+	await set(p, "Slot iterate.check Executor", "codex");
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="Slot iterate.check Model"]').value,
+		),
+		"",
+	);
+	assert.match(
+		await p.browser.evaluate(
+			() => document.querySelector(".role-inspector").textContent,
+		),
+		/Model cleared/,
+	);
+	await p.browser.waitFor(
+		() =>
+			window.__requests.findLast((r) => r.path.endsWith("/preview"))?.body
+				.intent.slots?.["iterate.check"]?.executor === "codex",
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(
+			() =>
+				window.__requests.findLast((r) => r.path.endsWith("/preview")).body
+					.intent.slots["iterate.check"],
+		),
+		{ executor: "codex", effort: "medium" },
+	);
+});
+
+test("scope S6: diagnostics and About are deleted; description and real spec alert remain", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await p.browser.send("Page.addScriptToEvaluateOnNewDocument", {
+		source: `
+		const detailFetch = window.fetch;
+		window.fetch = async (...args) => {
+			const response = await detailFetch(...args);
+			if (!String(args[0]).endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
+			const value = await response.json(); value.validation = {error: 'unique real spec problem'};
+			return new Response(JSON.stringify(value), {headers: {'Content-Type': 'application/json'}});
+		};`,
+	});
+	await load(p);
+	await settled(p);
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			removed: document.querySelectorAll(
+				'.management-diagnostics, [data-management-action="check"], [data-testid="saved-launch-check"], .property-table',
+			).length,
+			headings: [...document.querySelectorAll(".management-page h2")].map(
+				(n) => n.textContent,
+			),
+			description: document.querySelector(".workflow-description")?.textContent,
+			alert: document.querySelector('[data-testid="workflow-spec-problems"]')
+				?.textContent,
+		})),
+		{
+			removed: 0,
+			headings: [],
+			description: "No description.",
+			alert: "unique real spec problem",
+		},
+	);
+});
+
+test("scope S7: title actions are sticky at the top, show dirty feedback, and have no bottom footer", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			header: !!document.querySelector(".project-workflow-header h1"),
+			actions: !!document.querySelector(
+				".project-workflow-header .project-workflow-actions",
+			),
+			bottom: document.querySelectorAll(".profile-editor-actions-sticky")
+				.length,
+			dirty: document.querySelector('[data-testid="workflow-settings-dirty"]')
+				?.hidden,
+			disabled: document.querySelector(
+				'[data-management-action="save-project-settings"]',
+			).disabled,
+			position: getComputedStyle(
+				document.querySelector(".project-workflow-header") || document.body,
+			).position,
+		})),
+		{
+			header: true,
+			actions: true,
+			bottom: 0,
+			dirty: true,
+			disabled: true,
+			position: "sticky",
+		},
+	);
+	await set(p, "All tasks Executor", "management-fake");
+	assert.deepEqual(
+		await p.browser.evaluate(() => ({
+			hidden: document.querySelector('[data-testid="workflow-settings-dirty"]')
+				.hidden,
+			text: document.querySelector('[data-testid="workflow-settings-dirty"]')
+				.textContent,
+		})),
+		{ hidden: false, text: "Unsaved changes" },
+	);
+	await saved(p);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.querySelector('[data-testid="workflow-settings-dirty"]')
+					.hidden,
+		),
+		true,
+	);
+});
 
 test("automatic settings: meaningful edits calculate without a manual action", {
 	timeout: 90000,
@@ -266,6 +679,7 @@ test("automatic settings: same-turn coalescing preserves DOM, open picker, linea
 		"writable initial load calculates once",
 	);
 	await select(p, "iterate.check");
+	await custom(p);
 	await p.browser.evaluate(() => {
 		window.__beforeCount = window.__requests.filter((r) =>
 			r.path.endsWith("/preview"),
@@ -287,9 +701,9 @@ test("automatic settings: same-turn coalescing preserves DOM, open picker, linea
 			}),
 		);
 		for (const [label, value] of [
-			["Common Executor", "management-fake"],
-			["Common Effort", "low"],
-			["Common Effort", "high"],
+			["Slot iterate.check Executor", "management-fake"],
+			["Slot iterate.check Effort", "low"],
+			["Slot iterate.check Effort", "high"],
 		]) {
 			const node = document.querySelector(`[aria-label="${label}"]`);
 			node.value = value;
@@ -298,12 +712,14 @@ test("automatic settings: same-turn coalescing preserves DOM, open picker, linea
 		}
 		window.__common = document.querySelector(".project-common");
 		window.__panel = document.querySelector(".role-inspector");
-		window.__model = document.querySelector('[aria-label="Common Model"]');
+		window.__model = document.querySelector(
+			'[aria-label="Slot iterate.check Model"]',
+		);
 		window.__options = [...window.__model.options];
 		document.querySelector(".role-inspector details").open = true;
 	});
 	await p.browser.waitFor(() => !!window.__releases.preview);
-	await p.browser.click('[aria-label="Common Effort"]');
+	await p.browser.click('[aria-label="Slot iterate.check Effort"]');
 	await p.browser.key("ArrowDown");
 	const before = await p.browser.evaluate(() => ({
 		active: document.activeElement.getAttribute("aria-activedescendant"),
@@ -336,12 +752,12 @@ test("automatic settings: same-turn coalescing preserves DOM, open picker, linea
 			graph: window.__graph === document.querySelector(".profile-flow .graph"),
 			model:
 				window.__model ===
-				document.querySelector('[aria-label="Common Model"]'),
+				document.querySelector('[aria-label="Slot iterate.check Model"]'),
 			options: window.__options.every(
 				(option, i) => option === window.__model.options[i],
 			),
 			open: document
-				.querySelector('[aria-label="Common Effort"]')
+				.querySelector('[aria-label="Slot iterate.check Effort"]')
 				.getAttribute("aria-expanded"),
 			lineage: document.querySelector(".role-inspector details").open,
 			count:
@@ -369,6 +785,7 @@ test("automatic settings: failure has no same-generation loop, keeps unknown sou
 	await load(p);
 	await settled(p);
 	await select(p, "iterate.check");
+	await custom(p);
 	await p.browser.evaluate(() => {
 		window.__failPreview = true;
 		window.__holds.preview = true;
@@ -432,7 +849,7 @@ test("automatic settings: failure has no same-generation loop, keeps unknown sou
 		),
 		"high",
 	);
-	await p.browser.click('.project-workflow-editor [role="alert"] button');
+	await p.browser.click('.project-workflow-header [role="alert"] button');
 	await settled(p);
 	assert.match(
 		await p.browser.evaluate(
@@ -445,7 +862,7 @@ test("automatic settings: failure has no same-generation loop, keeps unknown sou
 	assert.equal(
 		await p.browser.evaluate(
 			() =>
-				document.querySelector('.project-workflow-editor [role="alert"]')
+				document.querySelector('.project-workflow-header [role="alert"]')
 					.hidden,
 		),
 		true,
@@ -459,17 +876,17 @@ test("automatic settings: pending preview and queued newer draft cannot invalida
 	const p = await open(t);
 	await load(p);
 	await settled(p);
-	await set(p, "Common Executor", "management-fake");
+	await set(p, "All tasks Executor", "management-fake");
 	await settled(p);
 	await p.browser.evaluate(() => {
 		window.__holds.preview = true;
 	});
-	await set(p, "Common Effort", "high");
+	await set(p, "All tasks Effort", "high");
 	await p.browser.waitFor(() => !!window.__releases.preview);
 	const old = tokens((await p.http(p.path)).data.settings);
 	await p.browser.evaluate(() => {
 		window.__holds.PUT = true;
-		const field = document.querySelector('[aria-label="Common Effort"]');
+		const field = document.querySelector('[aria-label="All tasks Effort"]');
 		field.value = "medium";
 		field.dispatchEvent(new Event("input", { bubbles: true }));
 		document
@@ -480,7 +897,7 @@ test("automatic settings: pending preview and queued newer draft cannot invalida
 	const count = await p.browser.evaluate(
 		() => window.__requests.filter((r) => r.path.endsWith("/preview")).length,
 	);
-	await set(p, "Common Effort", "low");
+	await set(p, "All tasks Effort", "low");
 	await p.browser.evaluate(() => window.__releases.preview());
 	assert.equal(
 		await p.browser.evaluate(
@@ -534,6 +951,7 @@ test("automatic settings: stale failure cannot replace newer success or move foc
 	await load(p);
 	await settled(p);
 	await select(p, "iterate.check");
+	await custom(p);
 	await p.browser.evaluate(() => {
 		window.__failPreview = true;
 		window.__holds.preview = true;
@@ -574,7 +992,7 @@ test("automatic settings: stale failure cannot replace newer success or move foc
 	assert.equal(
 		await p.browser.evaluate(
 			() =>
-				document.querySelector('.project-workflow-editor [role="alert"]')
+				document.querySelector('.project-workflow-header [role="alert"]')
 					.hidden,
 		),
 		true,
@@ -587,8 +1005,8 @@ test("automatic settings: failed Save retains newer whole intent, error and old 
 	const p = await open(t);
 	await load(p);
 	await settled(p);
-	await set(p, "Common Executor", "management-fake");
-	await set(p, "Common Effort", "high");
+	await set(p, "All tasks Executor", "management-fake");
+	await set(p, "All tasks Effort", "high");
 	await settled(p);
 	await p.browser.evaluate(() => {
 		window.__failPUT = true;
@@ -598,13 +1016,13 @@ test("automatic settings: failed Save retains newer whole intent, error and old 
 			.click();
 	});
 	await p.browser.waitFor(() => !!window.__releases.PUT);
-	await set(p, "Common Effort", "low");
+	await set(p, "All tasks Effort", "low");
 	await p.browser.evaluate(() => window.__releases.PUT());
 	await refused(p, "Save not confirmed");
 	assert.deepEqual(await intent(p), {});
 	assert.equal(
 		await p.browser.evaluate(
-			() => document.querySelector('[aria-label="Common Effort"]').value,
+			() => document.querySelector('[aria-label="All tasks Effort"]').value,
 		),
 		"low",
 	);
@@ -648,7 +1066,7 @@ test("automatic settings: open dynamic controls use refreshed actual parent with
 			'[aria-label="Slot adaptive.$workerDefaults Model"]',
 		);
 	});
-	await set(p, "Common Executor", "codex");
+	await set(p, "All tasks Executor", "codex");
 	await settled(p);
 	assert.equal(
 		await p.browser.evaluate(
@@ -665,7 +1083,11 @@ test("automatic settings: open dynamic controls use refreshed actual parent with
 	assert.deepEqual(await intent(p), {
 		defaults: { executor: "codex" },
 		slots: {
-			"adaptive.$workerDefaults": { executor: "codex", model: "fixture-model" },
+			"adaptive.$workerDefaults": {
+				executor: "codex",
+				model: "fixture-model",
+				effort: "medium",
+			},
 		},
 	});
 });
@@ -676,10 +1098,10 @@ test("automatic settings: Discard cancel keeps draft, confirm reloads authoritat
 	const p = await open(t);
 	await load(p);
 	await settled(p);
-	await set(p, "Common Executor", "management-fake");
-	await set(p, "Common Effort", "high");
+	await set(p, "All tasks Executor", "management-fake");
+	await set(p, "All tasks Effort", "high");
 	await saved(p);
-	await set(p, "Common Effort", "low");
+	await set(p, "All tasks Effort", "low");
 	await settled(p);
 	await p.browser.evaluate(() => {
 		window.__confirmations = 0;
@@ -692,7 +1114,7 @@ test("automatic settings: Discard cancel keeps draft, confirm reloads authoritat
 	assert.equal(await p.browser.evaluate(() => window.__confirmations), 1);
 	assert.equal(
 		await p.browser.evaluate(
-			() => document.querySelector('[aria-label="Common Effort"]').value,
+			() => document.querySelector('[aria-label="All tasks Effort"]').value,
 		),
 		"low",
 	);
@@ -703,7 +1125,7 @@ test("automatic settings: Discard cancel keeps draft, confirm reloads authoritat
 	await settled(p);
 	assert.equal(
 		await p.browser.evaluate(
-			() => document.querySelector('[aria-label="Common Effort"]').value,
+			() => document.querySelector('[aria-label="All tasks Effort"]').value,
 		),
 		"high",
 	);
@@ -731,7 +1153,7 @@ test("minimal settings: requested clutter is deleted, not folded or hidden", {
 	await settled(p);
 	// The whole page (including panels after the editor) has rendered.
 	await p.browser.waitFor(
-		() => !!document.querySelector('[data-management-action="check"]'),
+		() => !!document.querySelector(".workflow-description"),
 	);
 	const dom = await p.browser.evaluate(() => ({
 		text: document.querySelector(".management-page").textContent,
@@ -769,7 +1191,11 @@ test("minimal settings: requested clutter is deleted, not folded or hidden", {
 	assert.equal(dom.commonHints, 0);
 	assert.equal(dom.emptyHeadings, 0);
 	assert.equal(dom.removed, 0, "duplicate task list, shared link, stage table");
-	assert.equal(dom.about, true, "workflow description is kept");
+	assert.equal(
+		dom.about,
+		false,
+		"description is under the title, not an About section",
+	);
 	for (const text of [
 		"Settings for this project's next new runs",
 		"For this workflow's next new Runs in this project. Existing Runs stay unchanged.",
@@ -793,12 +1219,7 @@ test("minimal settings: requested clutter is deleted, not folded or hidden", {
 		"Valid specification",
 	])
 		assert.equal(dom.text.includes(text), false, text);
-	assert.deepEqual(dom.common, [
-		"Common settings",
-		"Executor",
-		"Model",
-		"Effort",
-	]);
+	assert.deepEqual(dom.common, ["All tasks", "Executor", "Model", "Effort"]);
 	assert.equal(dom.commonExtra, 0);
 	await select(p, "iterate.check");
 	await set(p, "Slot iterate.check Effort", "high");
@@ -829,9 +1250,9 @@ test("minimal settings: executor menu has no empty choice and baseline is not pi
 	const p = await open(t);
 	await load(p);
 	await settled(p);
-	await p.browser.click('[aria-label="Common Executor"]');
+	await p.browser.click('[aria-label="All tasks Executor"]');
 	const menu = await p.browser.evaluate(() => {
-		const control = document.querySelector('[aria-label="Common Executor"]');
+		const control = document.querySelector('[aria-label="All tasks Executor"]');
 		return {
 			value: control.value,
 			options: [
@@ -902,7 +1323,7 @@ for (const failedInventory of [false, true, "request"])
 		await select(p, "iterate.check");
 		const snapshot = () =>
 			p.browser.evaluate(() =>
-				["Common", "Slot iterate.check"].map((prefix) => {
+				["All tasks", "Slot iterate.check"].map((prefix) => {
 					const control = document.querySelector(
 						`[aria-label="${prefix} Model"]`,
 					);
@@ -935,12 +1356,13 @@ for (const failedInventory of [false, true, "request"])
 			true,
 			"loading unlisted values never dirties or rebinds intent",
 		);
-		await set(p, "Common Effort", "high");
+		await set(p, "All tasks Effort", "high");
 		await set(p, "Slot iterate.check Executor", targetExecutor);
+		const expectedTaskModel = failedInventory ? `${raw}/task` : "";
 		fields = await snapshot();
 		assert.deepEqual(
 			fields.map((field) => field.value),
-			[raw, `${raw}/task`],
+			[raw, expectedTaskModel],
 		);
 		if (failedInventory)
 			assert.match(
@@ -953,7 +1375,7 @@ for (const failedInventory of [false, true, "request"])
 		await select(p, "iterate.check");
 		assert.deepEqual(
 			(await snapshot()).map((field) => field.value),
-			[raw, `${raw}/task`],
+			[raw, expectedTaskModel],
 		);
 		await p.browser.click('[data-management-action="save-project-settings"]');
 		await refused(p, "Save not confirmed");
@@ -967,7 +1389,9 @@ for (const failedInventory of [false, true, "request"])
 				defaults: { ...initial.defaults, effort: "high" },
 				slots: {
 					"iterate.check": {
-						...initial.slots["iterate.check"],
+						...(failedInventory
+							? initial.slots["iterate.check"]
+							: { effort: "medium" }),
 						executor: targetExecutor,
 					},
 				},
@@ -980,7 +1404,7 @@ for (const failedInventory of [false, true, "request"])
 		);
 		assert.deepEqual(
 			(await snapshot()).map((field) => field.value),
-			[raw, `${raw}/task`],
+			[raw, expectedTaskModel],
 		);
 		await p.browser.evaluate(() => {
 			window.confirm = () => true;
@@ -1009,7 +1433,7 @@ for (const width of [970, 1476])
 		await load(p);
 		await settled(p);
 		await p.browser.waitFor(
-			() => !!document.querySelector('[data-management-action="check"]'),
+			() => !!document.querySelector(".workflow-description"),
 		);
 		const measure = () =>
 			p.browser.evaluate(() => {
@@ -1021,9 +1445,9 @@ for (const width of [970, 1476])
 					graph: box(".profile-flow"),
 					common: box(".project-common"),
 					panel: box(".role-inspector"),
-					checkVisible: document
-						.querySelector('[data-testid="saved-launch-check"]')
-						.checkVisibility(),
+					checkVisible: !!document.querySelector(
+						'[data-testid="saved-launch-check"]',
+					),
 				};
 			});
 		const before = await measure();
@@ -1033,12 +1457,10 @@ for (const width of [970, 1476])
 				before.center.right - before.page.right <= 1,
 			JSON.stringify(before),
 		);
-		assert.equal(before.checkVisible, false, "Check lives in diagnostics");
+		assert.equal(before.checkVisible, false, "Check is deleted");
 		if (width === 1476) {
 			assert.ok(
-				before.common.left >= before.graph.right &&
-					before.panel.left >= before.graph.right &&
-					before.panel.top >= before.common.bottom,
+				before.common.left >= before.graph.right,
 				"settings column sits beside the graph",
 			);
 			await p.browser.evaluate(() => {
@@ -1053,14 +1475,13 @@ for (const width of [970, 1476])
 			);
 		} else
 			assert.ok(
-				before.common.bottom <= before.graph.top &&
-					before.graph.bottom <= before.panel.top,
-				"narrow: common settings, graph, then the selected task",
+				before.common.bottom <= before.graph.top,
+				"narrow: active settings panel, then the graph",
 			);
 		assert.deepEqual(await intent(p), {}, "layout never saves");
 	});
 
-for (const width of [970, 1476])
+for (const width of [390, 970, 1476])
 	test(`polish: short Save and Discard stay visible through a long editor at ${width}px`, {
 		timeout: 90000,
 	}, async (t) => {
@@ -1073,8 +1494,8 @@ for (const width of [970, 1476])
 		});
 		await load(p);
 		await settled(p);
-		await set(p, "Common Executor", "management-fake");
-		await set(p, "Common Effort", "high");
+		await set(p, "All tasks Executor", "management-fake");
+		await set(p, "All tasks Effort", "high");
 		for (const end of [false, true]) {
 			await p.browser.evaluate((end) => {
 				const page = document.querySelector(".management-page");
@@ -1128,7 +1549,7 @@ test("polish: baseline pickers replace duplicate resets, automatic calculation a
 	await load(p);
 	await settled(p);
 	await p.browser.waitFor(
-		() => !!document.querySelector('[data-management-action="check"]'),
+		() => !!document.querySelector(".workflow-description"),
 	);
 	assert.deepEqual(
 		await p.browser.evaluate(() => ({
@@ -1150,46 +1571,41 @@ test("polish: baseline pickers replace duplicate resets, automatic calculation a
 		{
 			resets: 0,
 			draftChecks: 0,
-			title: "Common settings",
+			title: "All tasks",
 			stageSummary: false,
-			checkFolded: true,
+			checkFolded: false,
 			buttons: ["Save", "Discard changes"],
 		},
 	);
-	await set(p, "Common Executor", "codex");
-	await set(p, "Common Model", "fixture-model");
-	await set(p, "Common Effort", "high");
-	await baseline(p, "Common Model");
+	await set(p, "All tasks Executor", "codex");
+	await set(p, "All tasks Model", "fixture-model");
+	await set(p, "All tasks Effort", "high");
+	await baseline(p, "All tasks Model");
 	assert.deepEqual(
 		await p.browser.evaluate(() =>
 			["Executor", "Model", "Effort"].map(
-				(key) => document.querySelector(`[aria-label="Common ${key}"]`).value,
+				(key) =>
+					document.querySelector(`[aria-label="All tasks ${key}"]`).value,
 			),
 		),
 		["codex", "", "high"],
 	);
 	await settled(p);
-	await p.browser.evaluate(() =>
-		[...document.querySelectorAll("button")]
-			.find((n) => n.textContent === "Workflow diagnostics")
-			.click(),
-	);
-	await p.browser.click('[data-testid="saved-launch-check"] > summary');
-	await p.browser.click('[data-management-action="check"]');
-	await p.browser.waitFor(() =>
-		window.__requests.some(
-			(r) => r.path.endsWith("/check") && !r.path.includes("/settings/"),
-		),
-	);
-	assert.deepEqual(
+	assert.equal(
 		await p.browser.evaluate(
 			() =>
-				window.__requests.find(
-					(r) => r.path.endsWith("/check") && !r.path.includes("/settings/"),
-				).body,
+				document.querySelectorAll(
+					'[data-management-action="check"], .management-diagnostics',
+				).length,
 		),
-		{},
-		"saved/launch Check never submits unsaved intent",
+		0,
+	);
+	assert.deepEqual(
+		await p.browser.evaluate(() =>
+			window.__requests.filter((r) => r.path.endsWith("/check")),
+		),
+		[],
+		"no obsolete Check is submitted",
 	);
 	assert.deepEqual(await intent(p), {});
 });
@@ -1201,6 +1617,7 @@ test("polish: a calculation response never scrolls or focuses a task editor on u
 	await load(p);
 	await settled(p);
 	await select(p, "iterate.check");
+	await custom(p);
 	await p.browser.evaluate(() => {
 		window.__holds.preview = true;
 	});
@@ -1311,6 +1728,7 @@ for (const width of [970, 1476])
 		);
 		assert.match(camera, /^translate\([^)]*\) scale\(/);
 		await select(p, "constructor");
+		await custom(p);
 		const lowerGeometry = await p.browser.evaluate(() => {
 			const panel = document.querySelector(".role-inspector");
 			return [
@@ -1332,6 +1750,8 @@ for (const width of [970, 1476])
 			3,
 			"lower authored selection reveals title and controls",
 		);
+		await select(p, "iterate.check");
+		await custom(p);
 		await select(p, "iterate.check");
 		const geometry = await p.browser.evaluate(() => {
 			const panel = document.querySelector(".role-inspector");
@@ -1396,7 +1816,7 @@ for (const width of [970, 1476])
 					document.querySelector('[data-testid="canonical-slot-title"]')
 						.textContent,
 			),
-			"Select an authored task",
+			"All tasks",
 		);
 		assert.equal(
 			await p.browser.evaluate(() => document.activeElement?.dataset.stage),
@@ -1470,7 +1890,7 @@ test("canonical editor: expanded nested/foreach/dynamic slots, exact header and 
 				document.querySelector('[data-testid="canonical-slot-title"]')
 					.textContent,
 		),
-		"Select an authored task",
+		"All tasks",
 	);
 	const controls = await p.browser.evaluate(() =>
 		[...document.querySelectorAll(".profile-flow button")].map((node) =>
@@ -1488,9 +1908,9 @@ test("one canonical draft: common and independent peers survive selection; per-f
 	const p = await open(t);
 	await load(p);
 	await settled(p);
-	await set(p, "Common Executor", "codex");
-	await set(p, "Common Model", "fixture-model");
-	await set(p, "Common Effort", "high");
+	await set(p, "All tasks Executor", "codex");
+	await set(p, "All tasks Model", "fixture-model");
+	await set(p, "All tasks Effort", "high");
 	await select(p, "iterate.check");
 	await set(p, "Slot iterate.check Executor", "codex");
 	await set(p, "Slot iterate.check Model", "fixture-model");
@@ -1602,7 +2022,7 @@ test("409 and saved legacy unknown values retain complete draft, deliberate relo
 	);
 	await p.browser.waitFor(() =>
 		[
-			...document.querySelectorAll('.project-workflow-editor [role="alert"]'),
+			...document.querySelectorAll('.project-workflow-header [role="alert"]'),
 		].some((n) => n.textContent.includes("Draft retained")),
 	);
 	assert.equal(
@@ -1633,7 +2053,7 @@ test("409 and saved legacy unknown values retain complete draft, deliberate relo
 	await p.browser.click('[data-management-action="save-project-settings"]');
 	await p.browser.waitFor(() =>
 		[
-			...document.querySelectorAll('.project-workflow-editor [role="alert"]'),
+			...document.querySelectorAll('.project-workflow-header [role="alert"]'),
 		].some((n) => n.textContent.includes("Conflict (409)")),
 	);
 	assert.equal(
@@ -1652,10 +2072,7 @@ test("409 and saved legacy unknown values retain complete draft, deliberate relo
 	});
 	await settled(p);
 	await select(p, "iterate.check");
-	await p.browser.evaluate(() => {
-		window.confirm = () => true;
-		document.querySelector('[data-remove-binding="iterate.check"]').click();
-	});
+	await p.browser.click('[name="task-settings-scope"][value="all"]');
 	await saved(p);
 	assert.deepEqual(await intent(p), { slots: {} });
 	await settled(p);
@@ -1680,11 +2097,11 @@ test("late preview/save responses cannot replace a newer selection/draft or depa
 	const p = await open(t);
 	await load(p);
 	await settled(p);
-	await set(p, "Common Executor", "management-fake");
+	await set(p, "All tasks Executor", "management-fake");
 	await p.browser.evaluate(() => {
 		window.__holds.preview = true;
 	});
-	await set(p, "Common Effort", "high");
+	await set(p, "All tasks Effort", "high");
 	await p.browser.waitFor(() => !!window.__releases.preview);
 	await select(p, "iterate.check");
 	await set(p, "Slot iterate.check Executor", "management-fake");
@@ -1764,8 +2181,8 @@ test("late Save completion never blesses or replaces an intervening draft genera
 	const p = await open(t);
 	await load(p);
 	await settled(p);
-	await set(p, "Common Executor", "management-fake");
-	await set(p, "Common Effort", "high");
+	await set(p, "All tasks Executor", "management-fake");
+	await set(p, "All tasks Effort", "high");
 	await p.browser.evaluate(() => {
 		window.__holds.PUT = true;
 		document
@@ -1774,7 +2191,7 @@ test("late Save completion never blesses or replaces an intervening draft genera
 	});
 	await p.browser.waitFor(() => !!window.__releases.PUT);
 	// Editing stays available during Save; a newer generation must survive the submitted snapshot.
-	await set(p, "Common Effort", "low");
+	await set(p, "All tasks Effort", "low");
 	await p.browser.evaluate(() => window.__releases.PUT());
 	await p.browser.waitFor(() =>
 		document
@@ -1783,7 +2200,7 @@ test("late Save completion never blesses or replaces an intervening draft genera
 	);
 	assert.equal(
 		await p.browser.evaluate(
-			() => document.querySelector('[aria-label="Common Effort"]').value,
+			() => document.querySelector('[aria-label="All tasks Effort"]').value,
 		),
 		"low",
 	);
@@ -1807,7 +2224,7 @@ test("late Save completion never blesses or replaces an intervening draft genera
 				.querySelector('[data-testid="workflow-settings-status"]')
 				.textContent.startsWith("Settings saved") ||
 			document
-				.querySelector('.project-workflow-editor [role="alert"]')
+				.querySelector('.project-workflow-header [role="alert"]')
 				.textContent.includes("Conflict (409)"),
 	);
 	assert.equal(
@@ -1856,7 +2273,11 @@ test("dynamic leaf uses actual parent, never pins/rebinds it; executor changes p
 	await saved(p);
 	assert.deepEqual(await intent(p), {
 		slots: {
-			[slot.id]: { executor: slot.parentExecutor, model: "fixture-model" },
+			[slot.id]: {
+				executor: slot.parentExecutor,
+				model: "fixture-model",
+				effort: "medium",
+			},
 		},
 	});
 	assert.equal(
@@ -1866,7 +2287,7 @@ test("dynamic leaf uses actual parent, never pins/rebinds it; executor changes p
 	);
 	const other =
 		slot.parentExecutor === "management-fake" ? "codex" : "management-fake";
-	await set(p, "Common Executor", other);
+	await set(p, "All tasks Executor", other);
 	assert.deepEqual(
 		await p.browser.evaluate(() =>
 			[
@@ -1885,7 +2306,7 @@ test("dynamic leaf uses actual parent, never pins/rebinds it; executor changes p
 	await p.browser.click('[data-management-action="save-project-settings"]');
 	await p.browser.waitFor(() =>
 		document
-			.querySelector('.project-workflow-editor [role="alert"]')
+			.querySelector('.project-workflow-header [role="alert"]')
 			?.textContent.includes("draft retained"),
 	);
 	assert.equal(
@@ -1901,6 +2322,8 @@ test("dynamic leaf uses actual parent, never pins/rebinds it; executor changes p
 		),
 		"fixture-model",
 	);
+	await set(p, "All tasks Executor", slot.parentExecutor);
+	await settled(p);
 	await select(p, "iterate.check");
 	await set(p, "Slot iterate.check Executor", "pi");
 	await set(p, "Slot iterate.check Model", "fixture-model");
@@ -1924,7 +2347,7 @@ test("delayed keyed load cannot populate another source/project; same-name cards
 	const p = await open(t);
 	await load(p);
 	await settled(p);
-	await set(p, "Common Executor", "management-fake");
+	await set(p, "All tasks Executor", "management-fake");
 	await p.browser.evaluate(() => {
 		window.confirm = () => true;
 		window.__holds.GET = true;
@@ -1952,8 +2375,8 @@ test("delayed keyed load cannot populate another source/project; same-name cards
 		),
 		false,
 	);
-	await set(p, "Common Executor", "management-fake");
-	await set(p, "Common Effort", "low");
+	await set(p, "All tasks Executor", "management-fake");
+	await set(p, "All tasks Effort", "low");
 	await saved(p);
 	assert.deepEqual(await intent(p), {}, "other same-name source untouched");
 	const originalBytes = await readFile(
@@ -1966,8 +2389,8 @@ test("delayed keyed load cannot populate another source/project; same-name cards
 			const q = await open(child);
 			await load(q);
 			await settled(q);
-			await set(q, "Common Executor", "management-fake");
-			await set(q, "Common Effort", "high");
+			await set(q, "All tasks Executor", "management-fake");
+			await set(q, "All tasks Effort", "high");
 			await saved(q);
 			assert.equal((await intent(q)).defaults.effort, "high");
 			assert.equal(
@@ -2001,11 +2424,11 @@ test("capability refusal remains separate from calculated configuration and expl
 	});
 	await load(p);
 	await settled(p);
-	await set(p, "Common Effort", "high");
+	await set(p, "All tasks Effort", "high");
 	await settled(p);
 	await p.browser.waitFor(() =>
 		document
-			.querySelector('.project-workflow-editor [role="alert"]')
+			.querySelector('.project-workflow-header [role="alert"]')
 			?.textContent.includes("capability refusal is not a Save result"),
 	);
 	await select(p, "iterate.check");

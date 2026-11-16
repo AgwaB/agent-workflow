@@ -9883,8 +9883,12 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		class: "management-error",
 		hidden: true,
 	});
-	host.append(status);
-	status.textContent = "Loading project settings…";
+	const loading = element("span", {
+		class: "project-settings-spinner",
+		role: "status",
+		"aria-label": "Loading",
+	});
+	host.append(loading, status);
 	const loaded = await managementApi(route);
 	if (!live()) return;
 	settings = loaded.settings;
@@ -9920,6 +9924,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					),
 			);
 	if (!supported(intent)) {
+		loading.remove();
 		status.textContent =
 			"This writable intent is not supported by this editor. Original settings preserved; editing refused.";
 		return;
@@ -9936,9 +9941,10 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		draft.clear();
 		return;
 	}
+	loading.remove();
 	const common = element("section", {
 		class: "project-common",
-		"aria-label": "Workflow common defaults",
+		"aria-label": "All tasks settings",
 	});
 	const graphHost = element("div", { class: "profile-flow" });
 	const panel = element("section", {
@@ -9974,7 +9980,13 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				}),
 			);
 	};
+	const dirty = element(
+		"small",
+		{ class: "muted", "data-testid": "workflow-settings-dirty", hidden: true },
+		"Unsaved changes",
+	);
 	const updateStatus = () => {
+		dirty.hidden = !draft.dirty();
 		status.textContent = readonly()
 			? "Read-only: editing unavailable."
 			: feedback;
@@ -10033,7 +10045,8 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		const parentExecutor =
 			previewGeneration === generation ? slot?.parentExecutor : undefined;
 		const actualExecutor = dynamic ? parentExecutor : resolved?.executor?.value;
-		const prefix = id === null ? "Common" : `Slot ${id}`;
+		const prefix = id === null ? "All tasks" : `Slot ${id}`;
+		let modelCleared = false;
 		const node = element("div", {
 			class: "management-fields",
 			"data-binding": id ?? "common",
@@ -10071,8 +10084,6 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		);
 		const note = element("small", { class: "muted", role: "status" });
 		const refresh = () => {
-			const remove = node.querySelector("[data-remove-binding]");
-			if (remove) remove.disabled = readonly() || !binding(id);
 			const currentSlot = metadata.editableSlots.find((slot) => slot.id === id);
 			const currentExecutor = dynamic
 				? previewGeneration === generation
@@ -10084,7 +10095,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			const exec = binding(id)?.executor || currentExecutor;
 			executor.control.value = binding(id)?.executor || "";
 			const entry = inventory.executors.find((entry) => entry.id === exec);
-			const previousModel = model.control.value;
+			const previousModel = binding(id)?.model || "";
 			const models = [
 				...new Set([...(entry?.models || []), previousModel].filter(Boolean)),
 			];
@@ -10117,15 +10128,36 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				? `Resolved: ${currentExecutor}`
 				: "Choose executor explicitly";
 			const inventoryError = entry?.error || inventory.error;
-			note.textContent = inventoryError
-				? `Model inventory unavailable: ${inventoryError}`
-				: "";
+			note.textContent = modelCleared
+				? "Model cleared: not available for this executor."
+				: inventoryError
+					? `Model inventory unavailable: ${inventoryError}`
+					: "";
 			note.hidden = !note.textContent;
 		};
 		executor.control.addEventListener("change", () => {
 			if (readonly() || dynamic) return;
 			if (!executor.control.value) return;
-			setBinding(id, { ...binding(id), executor: executor.control.value });
+			const next = { ...binding(id), executor: executor.control.value };
+			const entry = inventory.executors.find(
+				(entry) => entry.id === next.executor,
+			);
+			modelCleared = Boolean(
+				next.executor !== binding(id)?.executor &&
+					next.model &&
+					!inventory.error &&
+					!entry?.error &&
+					entry?.modelListComplete === true &&
+					Array.isArray(entry.models) &&
+					!entry.models.some(
+						(listed) =>
+							listed === next.model ||
+							listed.endsWith(`/${next.model}`) ||
+							next.model.endsWith(`/${listed}`),
+					),
+			);
+			if (modelCleared) delete next.model;
+			setBinding(id, next);
 			refresh();
 		});
 		for (const [key, picker] of [
@@ -10134,6 +10166,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		]) {
 			const change = () => {
 				if (readonly()) return;
+				modelCleared = false;
 				const previous = binding(id);
 				if (!previous && !picker.control.value) return;
 				const currentSlot = metadata.editableSlots.find(
@@ -10201,28 +10234,6 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 								),
 							),
 						),
-						element(
-							"details",
-							{ class: "binding-actions" },
-							element("summary", {}, "This task's settings actions"),
-							button(
-								"Clear this task's settings in this draft",
-								() => {
-									if (
-										window.confirm(
-											`Clear task ${id} settings (executor, model and effort) in this draft? Baseline will be resolved again. Saved settings are unchanged until Save.`,
-										)
-									) {
-										setBinding(id, undefined);
-										renderFields();
-									}
-								},
-								{
-									disabled: readonly() || !binding(id),
-									"data-remove-binding": id,
-								},
-							),
-						),
 					]),
 		);
 		refreshers.add(refresh);
@@ -10231,8 +10242,14 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	}
 	function renderFields() {
 		refreshers.clear();
+		common.hidden = selection !== null;
+		panel.hidden = selection === null;
 		common.replaceChildren(
-			element("h3", {}, "Common settings"),
+			element(
+				"h3",
+				{ "data-testid": "all-tasks-title", tabindex: "-1" },
+				"All tasks",
+			),
 			controls(null),
 		);
 		const selected = metadata.authored.find((node) => node.id === selection);
@@ -10240,18 +10257,15 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			element(
 				"h3",
 				{ tabindex: "-1", "data-testid": "canonical-slot-title" },
-				selected?.id || "Select an authored task",
+				selected?.id || "All tasks",
 			),
 		);
-		if (!selected)
-			panel.append(
-				element(
-					"p",
-					{},
-					"Select a task to edit. Common and task settings share one draft and one Save.",
-				),
+		if (selected)
+			panel.prepend(
+				button("← All tasks", returnToAll, { "data-testid": "all-tasks-back" }),
 			);
-		else if (!selected.editable)
+		if (!selected) return;
+		if (!selected.editable)
 			panel.append(
 				element(
 					"p",
@@ -10265,7 +10279,64 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					}[selected.kind] || "No editable model slot.",
 				),
 			);
-		else
+		else {
+			const custom = Boolean(binding(selected.id));
+			const scope = element(
+				"fieldset",
+				{ class: "task-settings-scope" },
+				element("legend", { class: "sr-only" }, "Task settings scope"),
+			);
+			for (const [value, label] of [
+				["all", "Use All tasks settings"],
+				["custom", "Custom for this task"],
+			]) {
+				const option = element("input", {
+					type: "radio",
+					name: "task-settings-scope",
+					value,
+					checked: custom === (value === "custom"),
+					disabled:
+						readonly() ||
+						(value === "custom" && !row(selected.id)?.executor?.value),
+				});
+				refreshers.add(() => {
+					option.disabled =
+						readonly() ||
+						(value === "custom" &&
+							!binding(selected.id) &&
+							!row(selected.id)?.executor?.value);
+				});
+				option.addEventListener("change", () => {
+					if (readonly() || !option.checked) return;
+					if (value === "all") setBinding(selected.id, undefined);
+					else {
+						const resolved = row(selected.id);
+						const slot = metadata.editableSlots.find(
+							(slot) => slot.id === selected.id,
+						);
+						const executor = resolved?.executor?.value;
+						if (
+							!executor ||
+							(slot?.kind === "dynamic-profile" &&
+								executor !== slot.parentExecutor)
+						) {
+							fail(
+								"Actual parent/slot executor is unresolved or incompatible. No values were rebound.",
+							);
+							return;
+						}
+						const next = { executor };
+						if (resolved.model?.value) next.model = resolved.model.value;
+						if (resolved.effort?.requested)
+							next.effort = resolved.effort.requested;
+						setBinding(selected.id, next);
+					}
+					renderFields();
+				});
+				scope.append(element("label", {}, option, label));
+			}
+			const fields = controls(selected.id);
+			fields.hidden = !custom;
 			panel.append(
 				element(
 					"p",
@@ -10274,8 +10345,17 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 						? `Authored template${selected.parentId ? ` in ${selected.parentId}` : ""}; generated tasks inherit its captured settings, not live edits.`
 						: `Settings for task ${selected.id} only; other tasks are independent.`,
 				),
-				controls(selected.id),
+				scope,
+				fields,
 			);
+		}
+	}
+	function returnToAll() {
+		const previous = selection;
+		choose(null);
+		graphHost
+			.querySelector(`[data-stage="${CSS.escape(previous)}"]`)
+			?.focus({ preventScroll: true });
 	}
 	const choose = (id) => {
 		selection = id;
@@ -10327,8 +10407,16 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				views,
 				describe: (stage) => {
 					const node = metadata.authored.find((node) => node.id === stage.id);
+					const resolved = row(node?.id);
+					const line = resolved
+						? [resolved.model?.value, resolved.effort?.resolved]
+								.filter(Boolean)
+								.join(" · ")
+						: "";
 					return node?.editable
-						? sourceText(row(node.id)?.model, "model")
+						? [line, binding(node.id) ? "Custom" : ""]
+								.filter(Boolean)
+								.join(" · ")
 						: {
 								group: "Structural group",
 								controller: "Dynamic controller",
@@ -10444,25 +10532,23 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			disabled: readonly(),
 		},
 	);
-	host.append(
-		editors,
+	host.append(editors);
+	page.querySelector(".project-workflow-header").append(
 		element(
 			"div",
-			{
-				class:
-					"profile-editor-actions profile-editor-actions-sticky project-workflow-actions",
-			},
+			{ class: "project-workflow-actions" },
 			save,
 			button(
 				"Discard changes",
 				() => {
 					if (approveSettingsDiscard()) renderManagement();
 				},
-				{ "data-testid": "project-settings-reload" },
+				{ "data-testid": "project-settings-reload", disabled: readonly() },
 			),
+			dirty,
 			status,
+			error,
 		),
-		error,
 	);
 	host.addEventListener("keydown", (event) => {
 		if (
@@ -10473,11 +10559,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		)
 			return;
 		if (event.key === "Escape" && selection) {
-			const previous = selection;
-			choose(null);
-			graphHost
-				.querySelector(`[data-stage="${CSS.escape(previous)}"]`)
-				?.focus({ preventScroll: true });
+			returnToAll();
 			event.preventDefault();
 			event.stopPropagation();
 		} else if (
@@ -10499,7 +10581,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	scheduleCalculation();
 }
 
-/** The workflow page (2026-11-11): what it is, its stages, its check and the raw spec. */
+/** Project workflow: one draft, graph task selection and title-row Save/Discard. */
 async function renderWorkflow(page, name) {
 	const project = state.project;
 	let selectionKey = name;
@@ -10551,7 +10633,23 @@ async function renderWorkflow(page, name) {
 	}
 	const data = await managementApi(route());
 	if (!current()) return;
-	page.querySelector("h1").textContent = workflow.name;
+	const title = page.querySelector("h1");
+	title.textContent = workflow.name;
+	page.querySelector("h1 + p")?.remove();
+	const header = element("header", { class: "project-workflow-header" });
+	title.before(header);
+	header.append(
+		element(
+			"div",
+			{ class: "project-workflow-heading" },
+			title,
+			element(
+				"p",
+				{ class: "workflow-description muted" },
+				workflow.description || "No description.",
+			),
+		),
+	);
 	if (workflow.workflowKey) {
 		try {
 			await projectWorkflowEditor(page, project, workflow, data.graph, current);
@@ -10561,6 +10659,7 @@ async function renderWorkflow(page, name) {
 				'[data-testid="workflow-settings-status"]',
 			);
 			if (status) {
+				page.querySelector(".project-settings-spinner")?.remove();
 				status.textContent = `Project settings unavailable: ${failure.message}. No draft was saved or discarded.`;
 				status.setAttribute("role", "alert");
 			}
@@ -10575,9 +10674,7 @@ async function renderWorkflow(page, name) {
 				"Project settings unavailable: no server workflow identity.",
 			),
 		);
-	page.querySelector("h1 + p")?.remove();
-	// Authored stage and agent names, not a second compiler. A spec that cannot be read here
-	// still shows its validation, check and raw text (2026-11-11: one failure blanked the page).
+	// Parsing here only exposes real definition problems, not a second compiler or raw-spec view.
 	let authored = {};
 	let specError = "";
 	try {
@@ -10585,20 +10682,6 @@ async function renderWorkflow(page, name) {
 	} catch (error) {
 		specError = error.message;
 	}
-	const about = managementPanel(
-		"About",
-		element("p", {}, workflow.description || "No description."),
-		propertyTable(
-			null,
-			[
-				...Object.entries(workflow.routing || {}).map(([key, hints]) => [
-					ROUTING_LABELS[key] || humanize(key),
-					hints.join(" "),
-				]),
-			].filter(Boolean),
-			{ class: "property-table keyed" },
-		),
-	);
 	// A valid definition needs no section; only real definition problems are shown (2026-11-16, owner).
 	const validation = data.validation?.data;
 	const problems = [
@@ -10621,145 +10704,7 @@ async function renderWorkflow(page, name) {
 				...problems.map((problem) => element("li", {}, problem)),
 			)
 		: null;
-	const check = managementPanel("Check saved settings and launch overrides");
-	const workflowAliases = (workflow.aliases || []).filter(
-		(alias) => alias !== workflow.name,
-	);
-	const roles = data.roles?.data?.roles;
-	// Check is a diagnostic tool: automatic draft calculation already covers ordinary editing.
-	const diagnostics = diagnosticView(
-		"Workflow diagnostics",
-		element(
-			"details",
-			{ class: "saved-launch-check", "data-testid": "saved-launch-check" },
-			element(
-				"summary",
-				{},
-				"Check saved settings / launch overrides (no model call)",
-			),
-			check,
-		),
-		element("h2", {}, "Source"),
-		element("p", { class: "mono" }, workflow.specPath || "Unavailable"),
-		workflowAliases.length
-			? element("p", {}, `Aliases: ${workflowAliases.join(", ")}`)
-			: null,
-		element("h2", {}, "Resolved spec"),
-		element("pre", {}, data.spec.data.spec),
-		roles?.length || (roles && Object.keys(roles).length)
-			? [
-					element("h2", {}, "Compiled roles"),
-					readableDiagnostic(data.roles.data),
-				]
-			: null,
-		data.roles?.error
-			? element("p", { role: "alert" }, data.roles.error)
-			: null,
-	);
-	page.append(...(specProblems ? [specProblems] : []), about, diagnostics);
-	// A page-level action bar remains reachable even beyond a long authored list or summary.
-	const projectActions = page.querySelector(".project-workflow-actions");
-	if (projectActions) page.append(projectActions);
-	const options = await modelControls();
-	const profiles = (await managementApi("/api/profiles")).data.profiles || [];
-	const profilePicker = choicePicker(
-		"Check profile",
-		[
-			"",
-			...new Set([
-				...profiles.map((p) => p.name),
-				...Object.keys(authored.executionProfiles || {}),
-				"pi",
-				"claude",
-				"codex",
-				"mixed",
-			]),
-		],
-		"",
-		{ editable: true, placeholder: "Saved/default profile" },
-	);
-	const profile = profilePicker.control;
-	const permission = choices("Check permission mode", ["", "free", "safe"]);
-	const output = element("div");
-	const command = element("div");
-	const selected = () => ({
-		...options.values(),
-		...(profile.value ? { profile: profile.value } : {}),
-		...(permission.value ? { permissionMode: permission.value } : {}),
-	});
-
-	const update = () => {
-		const flags = Object.entries(selected())
-			.map(
-				([key, value]) =>
-					` --${key === "permissionMode" ? "permission-mode" : key} ${shellArg(value)}`,
-			)
-			.join("");
-		command.replaceChildren(
-			commandHint(
-				`agent-workflow run ${shellArg(workflow.specPath || workflow.name)} "<task>"${flags}`,
-			),
-		);
-	};
-	const overrides = element(
-		"div",
-		{
-			hidden: true,
-			id: `check-overrides-${++pickerId}`,
-			class: "check-overrides management-fields",
-			onchange: update,
-			oninput: update,
-		},
-		options.node,
-		field("Profile (optional)", profilePicker.node),
-		field("Permission mode", permission),
-	);
-	const summary = element("p", { class: "check-settings-summary" });
-	const originalUpdate = update;
-	const refreshSummary = () => {
-		originalUpdate();
-		summary.textContent = Object.keys(selected()).length
-			? `Active Check overrides: ${Object.entries(selected())
-					.map(([key, value]) => `${key}: ${value}`)
-					.join("; ")}`
-			: "Uses saved/default settings, not the unsaved draft above. No run or model call.";
-	};
-	overrides.onchange = overrides.oninput = refreshSummary;
-	check.append(
-		summary,
-		button(
-			"Check different settings",
-			(event) => {
-				overrides.hidden = !overrides.hidden;
-				event.currentTarget.setAttribute(
-					"aria-expanded",
-					String(!overrides.hidden),
-				);
-			},
-			{ "aria-expanded": "false", "aria-controls": overrides.id },
-		),
-		overrides,
-		element(
-			"div",
-			{ class: "management-actions" },
-			managementControl(
-				"Check",
-				async () => {
-					output.replaceChildren(
-						managementResult(
-							await managementWrite(route("/check"), "POST", selected()),
-							"Check details",
-						),
-					);
-				},
-				output,
-				{ "data-management-action": "check", class: "primary" },
-			),
-		),
-		output,
-		command,
-	);
-	refreshSummary();
+	if (specProblems) header.after(specProblems);
 }
 /** `role  executor:model:effort` lines of a role map, as the CLI shows them. */
 function roleTable(roles = {}) {

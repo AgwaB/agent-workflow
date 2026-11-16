@@ -77,15 +77,14 @@ Cancel preserves the draft and saved preference; failed deletion keeps the form.
 are neither migrated into nor deleted by project-local settings. Project-local
 storage is private under the project's state base at `workflow-settings/v1/settings.json`.
 In the dashboard, writable initial load and meaningful edits automatically calculate the draft without
-saving or executing. The sticky footer offers only **Save** and **Discard changes**. Save applies one
+saving or executing. **Save** and **Discard changes** sit in the sticky title row with an unsaved-changes indicator. Save applies one
 complete snapshot; newer edits during Save remain unsaved and refresh with the returned revision.
 Discard changes confirms a dirty discard and reloads saved settings; it does not delete them.
 Calculation failures retain the draft and offer contextual Retry without an automatic retry loop.
-Model is a selection-only dropdown that retains saved unlisted IDs, including on inventory failure; new arbitrary IDs remain supported through CLI/API and shared Profiles.
+The default **All tasks** panel edits workflow defaults. Selecting a graph task shows **Use All tasks settings** or **Custom for this task**; fields appear only for Custom. Custom captures the current resolved values without changing the result. Returning to All tasks settings removes only that task binding in the draft. **← All tasks** and Escape return to the defaults panel.
+Model is a selection-only dropdown that retains saved unlisted IDs on load, including on inventory failure; new arbitrary IDs remain supported through CLI/API and shared Profiles. Explicit executor changes clear a model only when the new executor's complete, available inventory excludes it, with a short inline note. Partial/unavailable inventories and listed models retain it.
 **Use baseline settings** in Model/Effort unsets only that field, keeping the executor and sibling values.
-Executor offers explicit IDs only and never pins a baseline just by opening the editor. Task draft
-binding clearing is a separate secondary action; there is no common clear control. Stale calculated
-source labels disappear until recalculated. The saved-settings/launch Check (in Workflow diagnostics) does not include the unsaved draft. Saves fence epoch, entry revision, definition fingerprint and alias resolution;
+Executor offers explicit IDs only and never pins a baseline just by opening the editor. Graph nodes show the current **model · effort** and a **Custom** marker for task bindings; stale values disappear until recalculated. Detailed lineage stays in the task panel. The title has one muted description line; About, routing tables and Workflow diagnostics (including launch Check, Source, Resolved spec and roles) are not on this page. Real spec problems remain visible. CLI/API Check is unchanged. Saves fence epoch, entry revision, definition fingerprint and alias resolution;
 clears use exact stored keys and snapshot tokens without requiring the definition to remain available.
 New named launches freeze settings; changing them later does not change existing Run Resume.
 Spec-less direct dynamic runs do not read this named-workflow store.

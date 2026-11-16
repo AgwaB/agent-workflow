@@ -63,7 +63,10 @@ async function openWorkflowCard(browser, name) {
 	await browser.waitFor(
 		() =>
 			new URLSearchParams(location.search).has("workflow") &&
-			!!document.querySelector('[data-management-action="check"]'),
+			!!document.querySelector(
+				'[data-management-action="save-project-settings"]',
+			) &&
+			!!document.querySelector(".workflow-description"),
 	);
 	assert.equal(
 		await browser.evaluate(() =>
@@ -71,19 +74,16 @@ async function openWorkflowCard(browser, name) {
 		),
 		key,
 	);
-	assert.deepEqual(
-		await browser.evaluate(() => ({
-			checkOpen: document.querySelector('[data-testid="saved-launch-check"]')
-				.open,
-			checkVisible: document
-				.querySelector('[data-testid="saved-launch-check"]')
-				.checkVisibility(),
-		})),
-		{ checkOpen: false, checkVisible: false },
-		"saved/launch check lives inside closed Workflow diagnostics",
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelectorAll(
+					'[data-management-action="check"], [data-testid="saved-launch-check"], .management-diagnostics',
+				).length,
+		),
+		0,
+		"workflow diagnostics are deleted",
 	);
-	await clickText(browser, "Workflow diagnostics");
-	await browser.click('[data-testid="saved-launch-check"] > summary');
 }
 async function clickText(browser, text) {
 	await browser.evaluate((text) => {
@@ -171,106 +171,26 @@ test("Chrome management: the views, profile edit, check preview and the overview
 		),
 		"the workflow page shows its graph and links back",
 	);
-	await clickText(browser, "Check different settings");
-	// 2026-11-11 (owner): Effort offers the chosen executor's levels, narrowed by the model's.
-	const effort = () =>
-		browser.evaluate(() => ({
-			options: [
-				...document
-					.getElementById(
-						document
-							.querySelector('[aria-label="Effort"]')
-							.getAttribute("aria-controls"),
-					)
-					.querySelectorAll('[role="option"]'),
-			].map((option) => option.dataset.value),
-			note: document.querySelector("[data-effort-note]").textContent,
-		}));
-	assert.equal((await effort()).options.length, 9, "Automatic: every level");
-	await set(browser, "Executor", "claude");
-	assert.deepEqual((await effort()).options, [
-		"",
-		"low",
-		"medium",
-		"high",
-		"xhigh",
-		"max",
-	]);
-	assert.equal(
-		(await effort()).note,
-		"",
-		"supported effort needs no explanation",
-	);
-	await set(browser, "Effort", "max");
-	await set(browser, "Executor", "codex");
 	assert.equal(
 		await browser.evaluate(
-			() => document.querySelector('[aria-label="Effort"]').value,
+			() => document.querySelector(".workflow-description").textContent,
 		),
-		"",
+		"Management fixture",
+	);
+	await set(browser, "All tasks Executor", "codex");
+	await set(browser, "All tasks Model", "fixture-model");
+	await set(browser, "All tasks Effort", "high");
+	await browser.click('[data-management-action="save-project-settings"]');
+	await browser.waitFor(
+		() =>
+			document.querySelector('[data-testid="workflow-settings-status"]')
+				.textContent === "Settings saved.",
 	);
 	assert.equal(
-		await browser.evaluate(
-			() => document.querySelector('[aria-label="Model"]').value,
-		),
-		"",
+		existsSync(p.effects),
+		false,
+		"draft calculation and Save never submit work",
 	);
-	await set(browser, "Effort", "max");
-	await set(browser, "Model", "fixture-model");
-	assert.deepEqual(
-		await effort(),
-		{
-			options: ["", "low", "medium", "high", "max"],
-			note: "max is not available here; it runs at the nearest supported effort level.",
-		},
-		"the model's levels; a kept choice it lacks stays visible as unavailable",
-	);
-	assert.equal(
-		await browser.evaluate(
-			() =>
-				document
-					.getElementById(
-						document
-							.querySelector('[aria-label="Effort"]')
-							.getAttribute("aria-controls"),
-					)
-					.querySelector('[aria-selected="true"]').textContent,
-		),
-		"max (not available here)",
-	);
-	await set(browser, "Model", "");
-	assert.equal(
-		await browser.evaluate(
-			() => document.querySelector('[aria-label="Model"]').value,
-		),
-		"",
-	);
-	// The built-in codex model need not be offered by this isolated executor.
-	await set(browser, "Model", "fixture-model");
-	await set(browser, "Effort", "");
-	await browser.click('[data-management-action="check"]');
-	await browser.waitFor(() =>
-		document.querySelector("#center")?.textContent.includes("Preflight passed"),
-	);
-	assert.equal(
-		await browser.evaluate(() =>
-			document
-				.querySelector("#center")
-				.textContent.includes("Capability check"),
-		),
-		true,
-	);
-	assert.equal(
-		await browser.evaluate(() =>
-			document
-				.querySelector("#center")
-				.textContent.includes(
-					"agent-workflow run '.agent-workflow/workflows/manage.json'",
-				),
-		),
-		true,
-	);
-	assert.equal(existsSync(p.effects), false, "check/probes never submit work");
 	// 2026-11-13 (owner: "too many choices"): no Maintenance view. A run stopped without a user stop
 	// is a need on the overview, dismissed with one click; old runs go with one confirmed button.
 	await persistManagementRun(p.cwd, "workflow_ui_stopped", "interrupted");
@@ -619,16 +539,20 @@ test("Chrome readonly management: navigation stays available and all action muta
 	await openWorkflowCard(browser, "manage");
 	assert.equal(
 		await browser.evaluate(
-			() => document.querySelector('[data-management-action="check"]').disabled,
+			() =>
+				document.querySelector(
+					'[data-management-action="save-project-settings"]',
+				).disabled,
 		),
 		true,
 	);
-	// 2026-11-11 (owner): selects draw their own chevron and pad like inputs; a disabled
-	// primary reads as an outlined button, not a washed-out block.
-	await clickText(browser, "Check different settings");
 	assert.equal(
 		await browser.evaluate(() =>
-			document.querySelector(".check-overrides").checkVisibility(),
+			[
+				...document.querySelectorAll(
+					".project-workflow-editor input, .project-workflow-editor select, [data-testid='project-settings-reload']",
+				),
+			].every((node) => node.disabled),
 		),
 		true,
 	);
@@ -636,15 +560,16 @@ test("Chrome readonly management: navigation stays available and all action muta
 		await browser.evaluate(() => {
 			const style = (selector) =>
 				getComputedStyle(document.querySelector(selector));
-			const select = style(".check-overrides .management-field select");
-			const input = style(".check-overrides .management-field input");
-			const check = style('[data-management-action="check"]');
+			const select = style('[aria-label="All tasks Model"]');
+			const input = style('[aria-label="All tasks Executor"]');
 			return {
 				appearance: select.appearance,
 				sameIndent: select.paddingLeft === input.paddingLeft,
 				sameHeight: select.height === input.height,
 				chevron: select.backgroundImage.includes("linear-gradient"),
-				disabledOpacity: check.opacity,
+				disabledOpacity: style(
+					'[data-management-action="save-project-settings"]',
+				).opacity,
 			};
 		}),
 		{
@@ -1069,26 +994,14 @@ test("F2 management landing pages share margins at 1600 and fit 390/980", {
 	}
 });
 
-test("Workflow normal view, explicit retained overrides and complete readable Check safety details", {
+test("Workflow normal view deletes diagnostics, routing tables and launch Check rather than hiding them", {
 	timeout: 60000,
 }, async (t) => {
-	const p = await managementProject(t);
-	const browser = await createBrowser(chrome);
+	const p = await managementProject(t),
+		browser = await createBrowser(chrome);
 	t.after(() => browser.close());
-	const preview =
-		"accepted with 6 degradations\nweb safety controls are not engine-enforced\nfree permission mode: authored readOnly is not enforced\n<img src=x onerror=alert(1)>";
 	await browser.send("Page.addScriptToEvaluateOnNewDocument", {
-		source: `(() => {
- const original = window.fetch; window.checkBodies = [];
- window.fetch = async (url, options) => {
-  if (String(url).endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow') + '/check')) {
-   window.checkBodies.push(JSON.parse(options.body));
-   if (window.checkBodies.length === 3) return new Response(JSON.stringify({error: 'Refused: safety policy unavailable <img src=x>'}), {status: 400, headers:{'Content-Type':'application/json'}});
-   return new Response(JSON.stringify({text: 'Accepted with 6 limitations; no run started.', data: {capability: {preview: ${JSON.stringify(preview)}, degradations: ['web', 'tools', 'cost', 'a', 'b', 'c'], forcedReadOnly: ['forced readonly stage']}, unknownDiagnostic: 'unique adapter refusal <script>bad()</script>'}}), {headers:{'Content-Type':'application/json'}});
-  }
-  return original(url, options);
- };
- })();`,
+		source: `window.__checkPaths = []; const originalFetch = window.fetch; window.fetch = (...args) => { if (String(args[0]).endsWith('/check')) window.__checkPaths.push(String(args[0])); return originalFetch(...args); };`,
 	});
 	await navigate(
 		browser,
@@ -1100,140 +1013,29 @@ test("Workflow normal view, explicit retained overrides and complete readable Ch
 	await openWorkflowCard(browser, "manage");
 	assert.deepEqual(
 		await browser.evaluate(() => ({
-			overridesVisible: document
-				.querySelector(".check-overrides")
-				.checkVisibility(),
-			diagnosticsVisible: document
-				.querySelector(".management-diagnostics")
-				.checkVisibility(),
-			metadata: [
-				...document.querySelectorAll(".property-table.keyed td:first-child"),
-			].map((n) => n.textContent),
+			description: document.querySelector(".workflow-description").textContent,
+			removed: document.querySelectorAll(
+				".check-overrides, .management-diagnostics, .management-result, .command, .property-table, [data-management-action='check']",
+			).length,
+			about: [...document.querySelectorAll("h2")].some(
+				(n) => n.textContent === "About",
+			),
 		})),
-		{
-			overridesVisible: false,
-			// Opened by openWorkflowCard to reach Check; it starts closed.
-			diagnosticsVisible: true,
-			// A valid spec adds no Validation row (2026-11-16, owner).
-			metadata: ["Use when", "Outputs"],
-		},
+		{ description: "Management fixture", removed: 0, about: false },
 	);
-	await browser.click('[data-management-action="check"]');
+	await set(browser, "All tasks Executor", "codex");
+	await set(browser, "All tasks Effort", "high");
 	await browser.waitFor(
-		() => !!document.querySelector(".management-check-limitations"),
+		() =>
+			!document.querySelector(
+				'[data-management-action="save-project-settings"]',
+			).disabled,
 	);
-	assert.deepEqual(await browser.evaluate(() => window.checkBodies), [{}]);
-	assert.match(
-		await browser.evaluate(
-			() => document.querySelector(".management-result").innerText,
-		),
-		/limitations: 6.*Forced read-only: 1/s,
-	);
-	assert.match(
-		await browser.evaluate(
-			() => document.querySelector(".management-result").innerText,
-		),
-		/forced readonly stage/,
-	);
-	await clickText(browser, "Check details");
-	const text = await browser.evaluate(
-		() => document.querySelector(".management-result").innerText,
-	);
-	assert.ok(text.includes(preview));
-	assert.ok(text.includes("unique adapter refusal <script>bad()</script>"));
-	assert.equal(
-		await browser.evaluate(
-			() =>
-				document.querySelectorAll(
-					".management-result img, .management-result script",
-				).length,
-		),
-		0,
-	);
-	await clickText(browser, "Check different settings");
-	await set(browser, "Executor", "claude");
-	await set(browser, "Effort", "minimal");
-	assert.match(
-		await browser.evaluate(
-			() => document.querySelector("[data-effort-note]").textContent,
-		),
-		/not available/,
-	);
-	await set(browser, "Effort", "high");
-	assert.equal(
-		await browser.evaluate(
-			() => document.querySelector("[data-effort-note]").textContent,
-		),
-		"",
-	);
-	await set(browser, "Effort", "minimal");
-	await set(browser, "Effort", "");
-	assert.equal(
-		await browser.evaluate(
-			() => document.querySelector("[data-effort-note]").textContent,
-		),
-		"",
-	);
-	await set(browser, "Model", "manual-model");
-	await set(browser, "Check profile", "manual-profile");
-	await set(browser, "Check permission mode", "safe");
-	await clickText(browser, "Check different settings");
-	const summary = await browser.evaluate(
-		() => document.querySelector(".check-settings-summary").innerText,
-	);
-	assert.match(
-		summary,
-		/executor: claude.*model: manual-model.*profile: manual-profile.*permissionMode: safe/,
-	);
-	await browser.click('[data-management-action="check"]');
-	await browser.waitFor(() => window.checkBodies.length === 2);
-	assert.deepEqual(await browser.evaluate(() => window.checkBodies[1]), {
-		executor: "claude",
-		model: "manual-model",
-		profile: "manual-profile",
-		permissionMode: "safe",
-	});
-	const commands = await browser.evaluate(() =>
-		[...document.querySelectorAll(".command")].map((n) => n.textContent),
-	);
-	assert.equal(commands.length, 1);
-	assert.match(
-		commands[0],
-		/agent-workflow run.*--executor 'claude'.*--model 'manual-model'.*--profile 'manual-profile'.*--permission-mode 'safe'/,
-	);
-	assert.equal(
-		await browser.evaluate(() =>
-			[...document.querySelectorAll("button")]
-				.find((n) => n.textContent === "Workflow diagnostics")
-				.parentElement.querySelector(".management-diagnostics")
-				.checkVisibility(),
-		),
-		true,
-	);
-	await browser.click('[data-management-action="check"]');
-	await browser.waitFor(
-		() => !!document.querySelector(".management-error:not([hidden])"),
-	);
-	assert.match(
-		await browser.evaluate(
-			() => document.querySelector(".management-error:not([hidden])").innerText,
-		),
-		/Refused: safety policy unavailable <img src=x>/,
-	);
-	assert.equal(
-		await browser.evaluate(
-			() =>
-				document.querySelectorAll(
-					".management-result img, .management-error img",
-				).length,
-		),
-		0,
-	);
-
+	assert.deepEqual(await browser.evaluate(() => window.__checkPaths), []);
 	assert.equal(existsSync(p.effects), false);
 });
 
-test("Workflow unreadable spec retains visible errors, diagnostics source and unique compiled roles", {
+test("Workflow unreadable spec retains visible errors without source or compiled-role disclosures", {
 	timeout: 30000,
 }, async (t) => {
 	const p = await managementProject(t);
@@ -1258,7 +1060,7 @@ test("Workflow unreadable spec retains visible errors, diagnostics source and un
 		`${p.origin}/?project=${p.server.projectId}&view=workflows&workflow=manage`,
 	);
 	await browser.waitFor(
-		() => !!document.querySelector('[data-management-action="check"]'),
+		() => !!document.querySelector('[data-testid="workflow-spec-problems"]'),
 	);
 	const normal = await browser.evaluate(
 		() => document.querySelector(".management-page").innerText,
@@ -1266,19 +1068,16 @@ test("Workflow unreadable spec retains visible errors, diagnostics source and un
 	assert.match(normal, /workflow spec could not be read/);
 	assert.match(normal, /Invalid specification: unique validation failure/);
 	assert.ok(!normal.includes("unique compiled data"));
-	await clickText(browser, "Workflow diagnostics");
-	const visible = await browser.evaluate(
-		() => document.querySelector(".management-page").innerText,
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelectorAll(
+					".management-diagnostics, .saved-launch-check",
+				).length,
+		),
+		0,
 	);
-	assert.match(
-		visible,
-		/Resolved spec.*unreadable <img src=x onerror=alert\(1\)>/s,
-	);
-	assert.match(
-		visible,
-		/unique-role.*unique compiled data <script>bad\(\)<\/script>/s,
-	);
-	assert.match(visible, /Source/);
+	assert.doesNotMatch(normal, /Resolved spec|Source|unique-role/);
 	assert.equal(
 		await browser.evaluate(
 			() =>
