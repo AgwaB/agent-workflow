@@ -141,6 +141,7 @@ try {
 		// WP43b: open the local dashboard (URL elicitation or terminal instructions; never a token).
 		"workflow_dashboard",
 		"workflow_check",
+		"workflow_project_settings",
 	]);
 
 	const listed = await call("workflow_list", { query: "e2e-review" });

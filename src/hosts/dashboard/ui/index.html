@@ -6,15 +6,16 @@
     <meta name="color-scheme" content="light dark" />
     <title>agent-workflow</title>
     <link rel="stylesheet" href="./app.css" />
-    <link rel="stylesheet" href="./vendor/shiki/colours.css">
+    <link rel="stylesheet" href="./vendor/shiki/colours.css" />
     <script type="module" src="./app.js"></script>
   </head>
   <body>
+    <a id="skip-content" class="skip-link" href="#center">Skip to content</a>
     <div id="app">
       <header id="top" class="top"></header>
       <div id="body" class="body">
         <aside id="rail" class="rail" aria-label="Runs"></aside>
-        <main id="center" class="center">
+        <main id="center" class="center" tabindex="-1">
           <p class="empty">Connecting to the dashboard…</p>
         </main>
         <aside

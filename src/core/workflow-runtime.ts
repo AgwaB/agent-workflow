@@ -1,4 +1,7 @@
 import { EFFORT_LEVELS, type FastMode, type EffortLevel } from "./types.js";
+import type { RuntimeProvenance } from "./project-settings-runtime.js";
+
+export const RUNTIME_FIELD_SOURCES = Symbol("workflow.runtimeFieldSources");
 
 export type WorkflowModelThinkingLevelMap = Partial<
 	Record<EffortLevel, string | null>
@@ -14,6 +17,7 @@ export interface WorkflowModelInfo {
 }
 
 export interface WorkflowRuntimeDefaults {
+	provenance?: RuntimeProvenance;
 	model?: string;
 	effort?: EffortLevel;
 	fast?: FastMode;
@@ -42,6 +46,7 @@ export interface WorkflowRuntimeEffortResolution {
 }
 
 export interface WorkflowRuntimeResolutionInput {
+	provenance?: RuntimeProvenance;
 	model?: string;
 	api?: string;
 	effort?: EffortLevel;
@@ -73,12 +78,37 @@ export function selectWorkflowRuntime(
 ): WorkflowRuntimeResolutionInput {
 	const modelLayer = layers.find((layer) => modelOf(layer));
 	const model = modelOf(modelLayer);
-	const effort = layers.find((layer) => layer?.effort)?.effort;
+	const effortLayer = layers.find((layer) => layer?.effort);
+	const effort = effortLayer?.effort;
 	const fast = layers.map(fastOf).find((value) => value !== undefined);
 	return {
+		...(layers.some((layer) => layer?.provenance)
+			? {
+					provenance: {
+						...(modelLayer?.provenance?.model
+							? { model: modelLayer.provenance.model }
+							: {}),
+						...(effortLayer?.provenance?.effort
+							? { effort: effortLayer.provenance.effort }
+							: {}),
+					},
+				}
+			: {}),
 		...(model ? { model } : {}),
 		...(effort ? { effort } : {}),
 		...(fast ? { fast } : {}),
+	};
+}
+
+export function withRuntimeProvenance(
+	layer: WorkflowRuntimeLayer,
+	source: string,
+	originSlot?: string,
+): WorkflowRuntimeDefaults {
+	const origin = { source, ...(originSlot ? { originSlot } : {}) };
+	return {
+		...layer,
+		provenance: { model: origin, effort: origin, ...layer?.provenance },
 	};
 }
 
@@ -134,6 +164,7 @@ export async function resolveWorkflowRuntime(
 			? { effort: effortResolution.resolved }
 			: {}),
 		...(effortResolution ? { effortResolution } : {}),
+		...(runtime.provenance ? { provenance: runtime.provenance } : {}),
 		...(fast ? { fast } : {}),
 	};
 }

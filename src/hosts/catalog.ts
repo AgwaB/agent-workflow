@@ -17,7 +17,11 @@ import type {
 	WorkflowRoleMap,
 	WorkflowRoutingHints,
 } from "../core/types.js";
-import { listWorkflows, resolveWorkflowRef } from "../core/workflow-specs.js";
+import {
+	listWorkflows,
+	resolveWorkflowRef,
+	resolveProjectWorkflowSettingsTarget,
+} from "../core/workflow-specs.js";
 import { HostUsageError } from "./args.js";
 import {
 	assertActionAllowed,
@@ -51,6 +55,9 @@ import {
 } from "./workflow-preferences.js";
 
 export interface WorkflowListSummary {
+	/** Canonical source identity; never a name-first save target. */
+	workflowKey?: string;
+	identity?: import("../core/project-workflow-settings.js").ProjectWorkflowSettingsIdentity;
 	name: string;
 	aliases: string[];
 	specPath: string;
@@ -95,12 +102,19 @@ async function listWorkflowSummaries(
 		summaries.push(
 			...(await Promise.all(
 				workflows.slice(offset, offset + 4).map(async (workflow) => {
+					let target:
+						| Awaited<ReturnType<typeof resolveProjectWorkflowSettingsTarget>>
+						| undefined;
 					let description: string | undefined;
 					let agent: string | undefined;
 					let readOnly: boolean | undefined;
 					let routing: WorkflowRoutingHints | undefined;
 					try {
 						const loaded = await loadWorkflowSpec(workflow.specPath, cwd);
+						target = await resolveProjectWorkflowSettingsTarget(
+							workflow.specPath,
+							cwd,
+						);
 						description = loaded.spec.description;
 						agent = (loaded.spec.defaults as { agent?: string } | undefined)
 							?.agent;
@@ -112,6 +126,9 @@ async function listWorkflowSummaries(
 					}
 					return {
 						name: workflow.name,
+						...(target
+							? { workflowKey: target.key, identity: target.identity }
+							: {}),
 						aliases: workflow.aliases,
 						...(workflow.scope ? { scope: workflow.scope } : {}),
 						...(routing ? { routing } : {}),
@@ -483,7 +500,7 @@ export type ProfileRequest =
 			values?: Record<string, unknown>;
 			unset?: string[];
 			makeDefault?: boolean;
-			/** WP31: start from a built-in preset (codex, claude, pi, mixed). */
+			/** Start from a built-in preset (codex, codex-high, claude, mixed). */
 			preset?: string;
 	  }
 	/** WP31: the built-in executor presets and their role tables. */
@@ -542,7 +559,13 @@ export function executorDefaultProfileInfo(
 			? saved
 				? `your changes on top of ${id}'s own model and effort${id === "pi" ? " (in Pi: its current ones)" : ""}; profile delete ${id} restores them`
 				: `${id}'s own model and effort${id === "pi" ? " (in Pi: its current ones)" : ""}`
-			: `${saved ? `built-in with your changes; profile delete ${id} restores the built-in one` : "built-in"}; fields you do not set fall back to your own ${id} settings when ${id} does not offer ${executorPreset(preset).roles.default?.model ?? "the preset model"}`;
+			: `${saved ? `built-in with your changes; profile delete ${id} restores the built-in one` : "built-in"}; fields you do not set fall back to your own ${id} settings when ${id} does not offer every preset model (${[
+					...new Set(
+						Object.values(executorPreset(preset).roles)
+							.map((role) => role.model)
+							.filter(Boolean),
+					),
+				].join(", ")})`;
 	return {
 		executor: id,
 		saved: saved !== undefined,
@@ -606,7 +629,7 @@ function builtInExecutorProfile(
 					...formatRoleMapLines(executorPreset(preset).roles).map(
 						(line) => `    ${line}`,
 					),
-					`When ${id} does not offer this model, every ${id} stage uses your own ${id} model and effort instead.`,
+					`When ${id} does not offer every preset model, every ${id} stage uses your own ${id} model and effort instead.`,
 					edit,
 				];
 	return result("profile", "success", data, text.join("\n"));

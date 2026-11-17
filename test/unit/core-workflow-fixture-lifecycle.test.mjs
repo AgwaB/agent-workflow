@@ -1,6 +1,7 @@
 // test-tier: integration
 import assert from "node:assert/strict";
-import { access, mkdtemp, rm, writeFile } from "node:fs/promises";
+import fs, { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -11,7 +12,12 @@ import {
 	readFixtureLog,
 	workflowFixtureDescriptor,
 } from "../helpers/workflow-executor-fixture.mjs";
-import { readRunEvents } from "../../dist/runtime/artifacts/index.js";
+import { readRunEvents, runPaths } from "../../dist/runtime/artifacts/index.js";
+import { acquireDirectoryLock } from "../../dist/runtime/artifacts/dir-lock.js";
+import {
+	workerRunsDir,
+	workflowTaskStateCwd,
+} from "../../dist/core/task-artifacts.js";
 import * as h from "../helpers/unit-test-support.mjs";
 import {
 	drainWorkflowFixture,
@@ -173,6 +179,88 @@ test("project teardown stops active fixture workers and waits for finalizer publ
 			maxRetries: 10,
 			retryDelay: 100,
 		});
+	}
+});
+
+test("project teardown recovers cleared terminal handles before awaiting finalizer publication", {
+	timeout: 10000,
+}, async () => {
+	const { cwd, runId } = await completedFixture();
+	const run = await h.readRunRecord(cwd, runId);
+	run.status = "completed";
+	const task = run.tasks[0];
+	assert.equal(task.workerHandle, undefined);
+	await h.writeRunRecord(cwd, run);
+	const ref = {
+		cwd: workflowTaskStateCwd(cwd, task),
+		runsDir: workerRunsDir(run, task),
+		runId: "run_fixture_terminal_drain",
+		attemptId: "attempt_terminal_drain",
+	};
+	const paths = runPaths(ref);
+	await mkdir(paths.runDir, { recursive: true });
+	await mkdir(join(paths.runsDir, ".locks"), { recursive: true });
+	await writeFile(
+		paths.runJsonPath,
+		JSON.stringify({
+			runId: ref.runId,
+			correlationId: `${run.runId}:${task.taskId}`,
+			latestAttemptId: ref.attemptId,
+			activeAttemptId: null,
+			status: "completed",
+		}),
+	);
+	await writeFile(paths.eventsPath, "");
+	let release = await acquireDirectoryLock(paths.lockPath, {
+		retries: 0,
+		retryMs: 0,
+	});
+	const originalReadFile = fs.readFile;
+	let observed;
+	const publicationRead = new Promise((resolve) => {
+		observed = resolve;
+	});
+	fs.readFile = async (path, ...args) => {
+		if (String(path) === paths.eventsPath) observed();
+		return originalReadFile(path, ...args);
+	};
+	syncBuiltinESMExports();
+	const terminalEvents = `${JSON.stringify({ type: "attempt.completed", attemptId: ref.attemptId })}\n`;
+	let settled = false;
+	const draining = drainWorkflowProject(cwd).then(() => {
+		settled = true;
+	});
+	try {
+		await Promise.race([
+			publicationRead,
+			draining.then(() =>
+				assert.fail(
+					"drain returned without observing the cleared handle's finalizer",
+				),
+			),
+		]);
+		assert.equal(
+			settled,
+			false,
+			"unpublished terminal attempt still owns the fixture",
+		);
+		await writeFile(paths.eventsPath, terminalEvents);
+		assert.equal(
+			settled,
+			false,
+			"publication alone does not release the writer lock",
+		);
+		await release();
+		release = undefined;
+		await draining;
+	} finally {
+		fs.readFile = originalReadFile;
+		syncBuiltinESMExports();
+		await writeFile(paths.eventsPath, terminalEvents);
+		if (release) await release();
+		await draining;
+		await h.flushPendingIndexUpdatesForTests();
+		await rm(cwd, { recursive: true, force: true });
 	}
 });
 

@@ -293,8 +293,9 @@ test("--executor puts every stage on one executor; a role model of another execu
 		codex.map((entry, index) => [stages[index], entry]),
 	);
 	// plan's role entry (default) belongs to claude: its model does not apply; the codex default
-	// profile (preset `codex`, planning: high) fills the stage instead.
-	assert.equal(byLabel.plan.model, "gpt-5.6-luna");
+	// profile (preset `codex`, planning: gpt-6.1-sol high) fills the stage instead. check keeps the
+	// saved profile's own codex verification model.
+	assert.equal(byLabel.plan.model, "gpt-6.1-sol");
 	assert.equal(byLabel.plan.effort, "high");
 	assert.equal(byLabel.check.model, "gpt-5.6-luna");
 });

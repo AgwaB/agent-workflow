@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { RUNTIME_FIELD_SOURCES } from "./workflow-runtime.js";
+import type { RuntimeProvenance } from "./project-settings-runtime.js";
 
 import {
 	WORKFLOW_PROFILE_ROLES,
@@ -33,6 +35,7 @@ export type ProfiledArtifactGraphStage = Record<string, unknown> & {
 
 /** WP31: a stage override that may carry the internal executor metadata. */
 export type ExecutionProfileStageOverlay = ExecutionProfileStageOverride & {
+	[RUNTIME_FIELD_SOURCES]?: RuntimeProvenance;
 	[EXECUTION_PROFILE_EXECUTOR]?: string;
 };
 
@@ -163,6 +166,7 @@ export function applyWorkflowExecutionProfile<Spec>(
 	spec: Spec,
 	profileName: string | undefined,
 	profileOverride: WorkflowCapturedExecutionProfile | undefined,
+	trace = false,
 ): { spec: Spec; record?: WorkflowRunExecutionProfile } {
 	const profiles = (
 		spec as {
@@ -211,11 +215,48 @@ export function applyWorkflowExecutionProfile<Spec>(
 		]),
 	);
 	return {
-		spec: applyExecutionProfileStageOverrides(spec as never, stageOverrides, {
-			// Authored profile values preserve each.* precedence; saved UI profiles
-			// deliberately target effective foreach workers.
-			foreachRuntimeTarget: profileName ? "stage" : "each",
-		}) as Spec,
+		spec: applyExecutionProfileStageOverrides(
+			spec as never,
+			Object.fromEntries(
+				Object.entries(stageOverrides).map(([id, override]) => [
+					id,
+					{
+						...override,
+						...(trace
+							? {
+									[RUNTIME_FIELD_SOURCES]: {
+										...(override.model === undefined
+											? {}
+											: {
+													model: {
+														source: profileName
+															? "workflow-profile"
+															: "user-profile",
+														originSlot: id,
+													},
+												}),
+										...(override.effort === undefined
+											? {}
+											: {
+													effort: {
+														source: profileName
+															? "workflow-profile"
+															: "user-profile",
+														originSlot: id,
+													},
+												}),
+									},
+								}
+							: {}),
+					},
+				]),
+			),
+			{
+				// Authored profile values preserve each.* precedence; saved UI profiles
+				// deliberately target effective foreach workers.
+				foreachRuntimeTarget: profileName ? "stage" : "each",
+			},
+		) as Spec,
 		record: {
 			name: selectedName,
 			...(profileName === undefined && profileOverride?.definitionFingerprint
@@ -313,7 +354,7 @@ function mapStage(
 ): Record<string, unknown> {
 	let next = applyOverride(
 		stage,
-		mapping[canonicalId],
+		Object.hasOwn(mapping, canonicalId) ? mapping[canonicalId] : undefined,
 		stage.type === "foreach" && foreachRuntimeOnEach,
 	);
 
@@ -357,7 +398,9 @@ function mapStage(
 					...nextLoop,
 					[slot]: applyOverride(
 						profile,
-						mapping[`${canonicalId}.$${slot}`],
+						Object.hasOwn(mapping, `${canonicalId}.$${slot}`)
+							? mapping[`${canonicalId}.$${slot}`]
+							: undefined,
 						false,
 					),
 				};
@@ -381,6 +424,18 @@ function applyOverride(
 ): Record<string, unknown> {
 	if (!override) return target;
 	const runtimeOverride = {
+		...(override[RUNTIME_FIELD_SOURCES]
+			? {
+					[RUNTIME_FIELD_SOURCES]: {
+						...(
+							(foreach && isRecord(target.each)
+								? target.each
+								: target) as ExecutionProfileStageOverlay
+						)[RUNTIME_FIELD_SOURCES],
+						...override[RUNTIME_FIELD_SOURCES],
+					},
+				}
+			: {}),
 		...(override.model === undefined ? {} : { model: override.model }),
 		...(override.effort === undefined ? {} : { effort: override.effort }),
 		...(override.fast === undefined ? {} : { fast: override.fast }),

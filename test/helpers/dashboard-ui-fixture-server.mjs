@@ -244,6 +244,15 @@ export async function createFixtureServer({
 			const run = runs.get(match[1]),
 				suffix = match[2];
 			if (!suffix && request.method === "GET") return json(run);
+			// Historical projections have no server-discovered current workflow definition.
+			if (suffix === "/workflow-settings-target" && request.method === "GET")
+				return json({
+					runId: run.runId,
+					target: null,
+					reason: run.specPath
+						? "definition-unmatched"
+						: "recorded-source-missing",
+				});
 			if (/^\/tasks\/[^/]+\/logs$/.test(suffix)) {
 				const data = structuredClone(logs);
 				data.taskId = decodeURIComponent(suffix.split("/")[2]);

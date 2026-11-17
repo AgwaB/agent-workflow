@@ -34,7 +34,7 @@ test("notify-check reminds about unfinished runs on every host, every six hours,
 			first.text,
 			/- deep-research workflow_recent: failed \(updated 2026-06-11T00:00:00\.000Z\) \[state [a-f0-9]{64}\] — workflow_resume \{"runId":"workflow_recent"\}/,
 		);
-		assert.match(first.text, /dismiss it in the dashboard \(Maintenance\)/);
+		assert.match(first.text, /dismiss it in the dashboard \(Needs you\)/);
 		// The model hosts get the text in context, not on screen: it says what to do with it.
 		assert.match(
 			first.text,
@@ -161,7 +161,7 @@ test("notify-check --hook shows the reminder to the user and gives the model the
 		const output = JSON.parse(hooked.text);
 		assert.equal(
 			output.systemMessage,
-			"agent-workflow: 2 unfinished runs in this project — deep-review (failed), spec-review (interrupted). Ask to inspect, resume or dismiss them, or use the dashboard's Maintenance.",
+			"agent-workflow: 2 unfinished runs in this project — deep-review (failed), spec-review (interrupted). Ask to inspect, resume or dismiss them, or use the dashboard's Needs you.",
 		);
 		assert.equal(output.hookSpecificOutput.hookEventName, "UserPromptSubmit");
 		assert.match(

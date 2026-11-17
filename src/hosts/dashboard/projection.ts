@@ -11,14 +11,20 @@ import {
 import type { RunSummary, StatusData, showRunAction } from "../api.js";
 import type { WorkflowTaskUsageValues } from "../../core/types.js";
 import { EXECUTOR_NEEDS_DECISION_STATUS_DETAIL } from "../../core/terminal-result.js";
+import { isUserStoppedRun } from "../../core/run-stop-marking.js";
 import type { TaskOutcome } from "./task-text.js";
+import type {
+	WorkflowConfiguration,
+	WorkflowConfigurationSlot,
+} from "../../core/project-settings-runtime.js";
 
 export type DashboardStatusRun = NonNullable<StatusData["run"]>;
 export type DashboardShownRun = Awaited<
 	ReturnType<typeof showRunAction>
 >["data"];
 export interface DashboardNeed {
-	kind: "failed" | "decision";
+	/** `stopped`: interrupted, but not by the user (its host closed, for example). */
+	kind: "failed" | "decision" | "stopped";
 	title: string;
 	requestId?: string;
 	taskId?: string;
@@ -40,12 +46,28 @@ export interface DashboardRunSummary {
 	taskSummary: RunSummary["taskSummary"];
 	/** Agent tasks only (no foreach placeholders or support helpers): what the header counts. */
 	agentSummary?: { completed: number; total: number };
+	/**
+	 * 2026-11-12 (owner): what the run cost and how many of its agents reported it. Code steps never
+	 * report cost, so only agent tasks count in the ratio; `costUsd` is null when nothing reported
+	 * (unknown, never zero).
+	 */
+	cost?: DashboardRunCost;
+	/**
+	 * 2026-11-12 (owner): active time, the union of the run's task intervals (started → completed,
+	 * or until now for a running task), not wall clock: a run that sat waiting does not count it.
+	 */
+	activeMs?: number;
 	verdict?: string;
 	/** The run's only failure is the final verdict gate (the report is the outcome). */
 	verdictGate?: true;
 	reportAvailable: boolean;
 	needsYou: DashboardNeed[];
 	live: boolean;
+}
+export interface DashboardRunCost {
+	costUsd: number | null;
+	agentsReporting: number;
+	agentTotal: number;
 }
 export interface DashboardUsage {
 	input?: number;
@@ -67,6 +89,8 @@ export interface DashboardTask {
 	placeholder: boolean;
 	executor?: string;
 	model?: string;
+	/** Recorded executor usage metadata, not independently provider-verified. */
+	reportedModel?: string;
 	effort?: string;
 	startedAt?: string;
 	completedAt?: string;
@@ -89,6 +113,8 @@ export interface DashboardTask {
 	hasLogs: boolean;
 }
 export interface DashboardRun extends DashboardRunSummary {
+	/** Recorded requested/resolved compiler plan; not today's settings or observed execution. */
+	configuration?: Pick<WorkflowConfiguration, "schema" | "slots" | "shadowed">;
 	task?: string;
 	permissionMode?: string;
 	usage:
@@ -136,6 +162,27 @@ export function projectNeedsYou(
 			since: record?.completedAt ?? run.updatedAt,
 		});
 	}
+	// 2026-11-13 (owner): "Needs you" lists what the host reminders list. A run interrupted without a
+	// user stop (its host closed) is one of them; a run the user stopped is not.
+	if (
+		run.status === "interrupted" &&
+		!run.parentRunId &&
+		!isUserStoppedRun(run)
+	) {
+		const task = run.tasks.find((item) => item.status === "interrupted");
+		const record = shown?.run.tasks.find(
+			(item) => item.taskId === task?.taskId,
+		);
+		needs.push({
+			kind: "stopped",
+			title:
+				run.statusDetail === "driver_lost"
+					? "Stopped, host closed"
+					: "Stopped unexpectedly",
+			...(task ? { taskId: task.taskId } : {}),
+			since: record?.completedAt ?? run.updatedAt,
+		});
+	}
 	return needs;
 }
 
@@ -148,10 +195,53 @@ function taskPreview(task: string | undefined): string | undefined {
 		? `${line.slice(0, TASK_PREVIEW_CHARS - 1).trimEnd()}…`
 		: line;
 }
+/** The union of task intervals in milliseconds: overlapping tasks count once, gaps not at all. */
+export function activeTimeMs(
+	tasks: ReadonlyArray<{
+		status: string;
+		startedAt?: string;
+		completedAt?: string;
+		elapsedMs?: number;
+	}>,
+	now: number,
+): number {
+	const spans: Array<[number, number]> = [];
+	for (const task of tasks) {
+		// A launch claim can stamp a start on a task still waiting: it has not run yet.
+		if (task.status === "pending") continue;
+		const start = Date.parse(task.startedAt ?? "");
+		if (!Number.isFinite(start)) continue;
+		const done = Date.parse(task.completedAt ?? "");
+		const end = Number.isFinite(done)
+			? done
+			: task.status === "running"
+				? now
+				: typeof task.elapsedMs === "number"
+					? start + task.elapsedMs
+					: Number.NaN;
+		if (Number.isFinite(end) && end > start) spans.push([start, end]);
+	}
+	spans.sort((a, b) => a[0] - b[0]);
+	let total = 0;
+	let reach = Number.NEGATIVE_INFINITY;
+	for (const [start, end] of spans) {
+		if (end <= reach) continue;
+		total += end - Math.max(start, reach);
+		reach = end;
+	}
+	return total;
+}
+function taskCost(task: {
+	usage?: WorkflowTaskUsageValues & { aggregate?: WorkflowTaskUsageValues };
+}): number | undefined {
+	const value = task.usage?.aggregate ?? task.usage;
+	return typeof value?.costUsd === "number" ? value.costUsd : undefined;
+}
 export function projectRunSummary(
 	run: RunSummary | DashboardStatusRun,
 	shown?: DashboardShownRun,
 	live = "live" in run && run.live === true,
+	now = Date.now(),
 ): DashboardRunSummary {
 	const detail = "tasks" in run ? run : undefined;
 	const executors = [
@@ -178,6 +268,24 @@ export function projectRunSummary(
 			),
 	);
 	const preview = taskPreview(shown?.runtimeTask);
+	const taskCosts = (shown?.run.tasks ?? []).flatMap((task) => {
+		const value = taskCost(task);
+		return value === undefined ? [] : [value];
+	});
+	const rolledUp = shown?.run.usage?.costUsd;
+	const cost: DashboardRunCost | undefined = shown
+		? {
+				costUsd:
+					typeof rolledUp === "number"
+						? rolledUp
+						: taskCosts.length
+							? taskCosts.reduce((a, b) => a + b, 0)
+							: null,
+				agentsReporting: agents.filter((task) => taskCost(task) !== undefined)
+					.length,
+				agentTotal: agents.length,
+			}
+		: undefined;
 	const blockedActions = shown
 		? runBlockedActions(shown.run)
 		: projectBlockedActions(run.blockedActions);
@@ -207,6 +315,7 @@ export function projectRunSummary(
 					},
 				}
 			: {}),
+		...(cost ? { cost, activeMs: activeTimeMs(shown!.run.tasks, now) } : {}),
 		...(detail?.verdict ? { verdict: detail.verdict } : {}),
 		...(detail?.verdictGate ? { verdictGate: true as const } : {}),
 		reportAvailable: Boolean(detail?.reportArtifacts.length),
@@ -270,6 +379,9 @@ export function projectRun(
 			placeholder: task.kind === "foreach" && !generated,
 			...(executor ? { executor } : {}),
 			...(model ? { model } : {}),
+			...(typeof task.usage?.model === "string" && task.usage.model
+				? { reportedModel: task.usage.model }
+				: {}),
 			...(effort ? { effort } : {}),
 			...(task.startedAt ? { startedAt: task.startedAt } : {}),
 			...(task.completedAt ? { completedAt: task.completedAt } : {}),
@@ -346,6 +458,9 @@ export function projectRun(
 	}
 	return {
 		...projectRunSummary(run, shown, live),
+		...(record.configuration
+			? { configuration: projectCapturedConfiguration(record.configuration) }
+			: {}),
 		// The user's task for this run (host API `includeTask`), never the workflow's description.
 		...(shown.runtimeTask ? { task: shown.runtimeTask } : {}),
 		...(run.permissionMode ? { permissionMode: run.permissionMode } : {}),
@@ -371,5 +486,64 @@ export function projectRun(
 				}
 			: {}),
 		tasks,
+	};
+}
+
+/** Allowlist recorded fields; never forward capture paths, prompts or future unknown metadata. */
+export function projectCapturedConfiguration(
+	configuration: WorkflowConfiguration,
+): NonNullable<DashboardRun["configuration"]> {
+	const lineage = (field: WorkflowConfigurationSlot["model"]) => ({
+		source: field.source,
+		...(field.originSlot !== undefined ? { originSlot: field.originSlot } : {}),
+		...(field.inheritedFrom !== undefined
+			? { inheritedFrom: field.inheritedFrom }
+			: {}),
+		...(field.originScope !== undefined
+			? { originScope: field.originScope }
+			: {}),
+		...(field.inheritedVia !== undefined
+			? { inheritedVia: [...field.inheritedVia] }
+			: {}),
+	});
+	return {
+		schema: configuration.schema,
+		slots: Object.fromEntries(
+			Object.entries(configuration.slots).map(([id, slot]) => [
+				id,
+				{
+					executor: {
+						source: slot.executor.source,
+						...(slot.executor.value !== undefined
+							? { value: slot.executor.value }
+							: {}),
+					},
+					model: {
+						...lineage(slot.model),
+						...(slot.model.value !== undefined
+							? { value: slot.model.value }
+							: {}),
+					},
+					effort: {
+						...lineage(slot.effort),
+						...(slot.effort.requested !== undefined
+							? { requested: slot.effort.requested }
+							: {}),
+						...(slot.effort.resolved !== undefined
+							? { resolved: slot.effort.resolved }
+							: {}),
+						...(slot.effort.reason !== undefined
+							? { reason: slot.effort.reason }
+							: {}),
+					},
+				},
+			]),
+		),
+		shadowed: configuration.shadowed.map(({ scope, slot, field, reason }) => ({
+			scope,
+			slot,
+			field,
+			reason,
+		})),
 	};
 }

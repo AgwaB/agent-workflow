@@ -381,6 +381,11 @@
        ]
       },
       "specPath": "@@REPO@@/workflows/impact-review/spec.json",
+      "identity": {
+       "scope": "package",
+       "relativeSpec": "impact-review/spec.json"
+      },
+      "workflowKey": "22d58e4969e28f4ae98a78fd3846f66d182aab9ad920b9265452a6be6795c4a5",
       "description": "Read-only DAG impact review: map a proposed or applied change, analyze contract, state/data, validation, docs/release, and security/performance impact in parallel, then join those lenses into ship-risk and action-plan synthesis without editing files.",
       "agent": "scout",
       "readOnly": true
@@ -404,6 +409,11 @@
        ]
       },
       "specPath": "@@REPO@@/workflows/spec-review/spec.json",
+      "identity": {
+       "scope": "package",
+       "relativeSpec": "spec-review/spec.json"
+      },
+      "workflowKey": "e4ad1986c76e241c1dcbaee81ee1f605547a49d77686d59de90911049e4123bc",
       "description": "Read-only spec conformance review: extract requirements from a referenced spec, map implementation and tests in parallel, verify candidate gaps, and produce an evidence-backed report without editing files.",
       "agent": "scout",
       "readOnly": true
@@ -507,36 +517,36 @@
       "roles": {
        "default": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
+        "model": "gpt-6-luna",
         "effort": "medium"
        },
        "planning": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
+        "model": "gpt-6.1-sol",
         "effort": "high"
        },
        "research-execution": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
+        "model": "gpt-6-luna",
         "effort": "medium"
        },
        "synthesis": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
-        "effort": "medium"
+        "model": "gpt-6-luna",
+        "effort": "high"
        },
        "verification": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
+        "model": "gpt-6-luna",
         "effort": "high"
        },
        "final-judgment": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
-        "effort": "high"
+        "model": "gpt-6.1-sol",
+        "effort": "xhigh"
        }
       },
-      "note": "built-in; fields you do not set fall back to your own codex settings when codex does not offer gpt-5.6-luna"
+      "note": "built-in; fields you do not set fall back to your own codex settings when codex does not offer every preset model (gpt-6-luna, gpt-6.1-sol)"
      },
      {
       "executor": "claude",
@@ -545,36 +555,36 @@
       "roles": {
        "default": {
         "executor": "claude",
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "medium"
        },
        "planning": {
         "executor": "claude",
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "high"
        },
        "research-execution": {
         "executor": "claude",
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "medium"
        },
        "synthesis": {
         "executor": "claude",
-        "model": "sonnet",
-        "effort": "medium"
+        "model": "claude-opus-5-5",
+        "effort": "high"
        },
        "verification": {
         "executor": "claude",
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "high"
        },
        "final-judgment": {
         "executor": "claude",
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "high"
        }
       },
-      "note": "built-in; fields you do not set fall back to your own claude settings when claude does not offer sonnet"
+      "note": "built-in; fields you do not set fall back to your own claude settings when claude does not offer every preset model (claude-opus-5-5)"
      },
      {
       "executor": "pi",
@@ -683,142 +693,148 @@
     "presets": [
      {
       "id": "codex",
-      "description": "every role on codex (gpt-5.6-luna)",
+      "description": "every role on codex (planning/final judgment: gpt-6.1-sol; research, synthesis and verification: gpt-6-luna)",
       "executor": "codex",
       "roles": {
        "default": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
+        "model": "gpt-6-luna",
         "effort": "medium"
        },
        "planning": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
+        "model": "gpt-6.1-sol",
         "effort": "high"
        },
        "research-execution": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
+        "model": "gpt-6-luna",
         "effort": "medium"
        },
        "synthesis": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
-        "effort": "medium"
+        "model": "gpt-6-luna",
+        "effort": "high"
        },
        "verification": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
+        "model": "gpt-6-luna",
         "effort": "high"
        },
        "final-judgment": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
+        "model": "gpt-6.1-sol",
+        "effort": "xhigh"
+       }
+      }
+     },
+     {
+      "id": "codex-high",
+      "description": "every role on codex (gpt-6.1-sol; research: high, planning/synthesis/final judgment: xhigh, verification: max)",
+      "executor": "codex",
+      "roles": {
+       "default": {
+        "executor": "codex",
+        "model": "gpt-6.1-sol",
         "effort": "high"
+       },
+       "planning": {
+        "executor": "codex",
+        "model": "gpt-6.1-sol",
+        "effort": "xhigh"
+       },
+       "research-execution": {
+        "executor": "codex",
+        "model": "gpt-6.1-sol",
+        "effort": "high"
+       },
+       "synthesis": {
+        "executor": "codex",
+        "model": "gpt-6.1-sol",
+        "effort": "xhigh"
+       },
+       "verification": {
+        "executor": "codex",
+        "model": "gpt-6.1-sol",
+        "effort": "max"
+       },
+       "final-judgment": {
+        "executor": "codex",
+        "model": "gpt-6.1-sol",
+        "effort": "xhigh"
        }
       }
      },
      {
       "id": "claude",
-      "description": "every role on claude (sonnet)",
+      "description": "every role on claude (claude-opus-5-5; research: medium, other roles: high)",
       "executor": "claude",
       "roles": {
        "default": {
         "executor": "claude",
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "medium"
        },
        "planning": {
         "executor": "claude",
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "high"
        },
        "research-execution": {
         "executor": "claude",
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "medium"
        },
        "synthesis": {
         "executor": "claude",
-        "model": "sonnet",
-        "effort": "medium"
+        "model": "claude-opus-5-5",
+        "effort": "high"
        },
        "verification": {
         "executor": "claude",
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "high"
        },
        "final-judgment": {
         "executor": "claude",
-        "model": "sonnet",
-        "effort": "high"
-       }
-      }
-     },
-     {
-      "id": "pi",
-      "description": "every role on pi (Pi's configured default model)",
-      "executor": "pi",
-      "roles": {
-       "default": {
-        "executor": "pi",
-        "effort": "medium"
-       },
-       "planning": {
-        "executor": "pi",
-        "effort": "high"
-       },
-       "research-execution": {
-        "executor": "pi",
-        "effort": "medium"
-       },
-       "synthesis": {
-        "executor": "pi",
-        "effort": "medium"
-       },
-       "verification": {
-        "executor": "pi",
-        "effort": "high"
-       },
-       "final-judgment": {
-        "executor": "pi",
+        "model": "claude-opus-5-5",
         "effort": "high"
        }
       }
      },
      {
       "id": "mixed",
-      "description": "planning, synthesis, verification and final judgment on claude (sonnet); research/implementation on codex (gpt-5.6-luna)",
-      "executor": "claude",
+      "description": "planning, synthesis and final judgment on claude (claude-opus-5-5, high); research/implementation and verification on codex (gpt-6-luna, medium/high)",
+      "executor": "codex",
       "roles": {
        "default": {
-        "executor": "claude",
-        "model": "sonnet",
+        "executor": "codex",
+        "model": "gpt-6-luna",
         "effort": "medium"
        },
        "planning": {
         "executor": "claude",
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "high"
        },
        "research-execution": {
         "executor": "codex",
-        "model": "gpt-5.6-luna",
+        "model": "gpt-6-luna",
         "effort": "medium"
        },
        "synthesis": {
         "executor": "claude",
-        "model": "sonnet",
-        "effort": "medium"
+        "model": "claude-opus-5-5",
+        "effort": "high"
        },
        "verification": {
-        "executor": "claude",
-        "model": "sonnet",
+        "executor": "codex",
+        "model": "gpt-6-luna",
         "effort": "high"
        },
        "final-judgment": {
         "executor": "claude",
-        "model": "sonnet",
+        "model": "claude-opus-5-5",
         "effort": "high"
        }
       }

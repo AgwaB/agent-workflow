@@ -373,8 +373,8 @@ test("Back and cancel write nothing", async () => {
 		(call) => call.kind === "select" && /every workflow/.test(call.title),
 	);
 	assert.deepEqual(
-		profileList.options.map((option) => option.split(" ")[0]),
-		["Codex", "Claude", "Pi", "Mixed", "Custom…"],
+		profileList.options.map((option) => option.split(" —")[0]),
+		["Codex", "Codex High", "Claude", "Mixed", "Custom…"],
 	);
 	assert.deepEqual(
 		(await realApi.profileAction(ctx, { op: "list" })).data.profiles,
@@ -414,7 +414,7 @@ test("a preset saved as a new default user profile", async () => {
 	assert.match(research.warning, /codex is not-installed/);
 	const saved = await realApi.profileAction(ctx, { op: "show", name: "team" });
 	assert.equal(saved.data.default, "team");
-	assert.equal(saved.data.profile.executor, "claude");
+	assert.equal(saved.data.profile.executor, "codex");
 	assert.equal(
 		saved.data.profile.roles["research-execution"].executor,
 		"codex",
@@ -562,7 +562,7 @@ test("Custom: per-role executor, model from the probe list and effort; saved as 
 		[
 			"preview",
 			({ preview }) => {
-				assert.equal(preview.title, "Custom (from Pi)");
+				assert.equal(preview.title, "Custom (from Codex)");
 				const row = preview.rows.find((entry) => entry.role === "verification");
 				assert.deepEqual(
 					[row.executor, row.model, row.effort, row.inherited],
@@ -588,13 +588,13 @@ test("Custom: per-role executor, model from the probe list and effort; saved as 
 		name: "custom1",
 	});
 	assert.equal(saved.data.default, undefined, "not made the default");
-	assert.equal(saved.data.profile.executor, "pi");
+	assert.equal(saved.data.profile.executor, "codex");
 	assert.deepEqual(saved.data.profile.roles.verification, {
 		executor: "claude",
 		model: "opus",
 		effort: "low",
 	});
-	assert.equal(saved.data.profile.roles.default.executor, "pi");
+	assert.equal(saved.data.profile.roles.default.executor, "codex");
 });
 
 test("workflow scope: a preset plus an edited role becomes the workflow's preference", async () => {
@@ -634,14 +634,14 @@ test("workflow scope: a preset plus an edited role becomes the workflow's prefer
 	});
 	assert.equal(shown.data.preference.profile, "claude");
 	assert.deepEqual(shown.data.preference.roles, {
-		synthesis: { executor: "claude", model: "sonnet", effort: "low" },
+		synthesis: { executor: "claude", model: "claude-opus-5-5", effort: "low" },
 	});
 	// Opening it again marks the saved choice.
 	const again = scripted([["select", answer(undefined)]]);
 	await picker.runProfilePicker(again.ui, api, ctx, { workflow: "wf.json" });
 	assert.ok(
 		again.calls[0].options.includes(
-			"Claude — every role on claude (sonnet) (saved for this workflow)",
+			"Claude — every role on claude (claude-opus-5-5; research: medium, other roles: high) (saved for this workflow)",
 		),
 	);
 });

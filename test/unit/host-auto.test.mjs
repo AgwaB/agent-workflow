@@ -189,7 +189,7 @@ test("a run flag and a saved user profile select the classifier executor (Q5: th
 	);
 	assert.deepEqual(
 		[flagged.executor, flagged.source, flagged.model, flagged.effort],
-		["codex", "run-flag", "gpt-5.6-luna", "medium"],
+		["codex", "run-flag", "gpt-6-luna", "medium"],
 		"the Pi model belongs to pi only; codex uses its default profile",
 	);
 	const pi = await api.resolveAutoClassifier(
@@ -298,7 +298,7 @@ test("the top recommendation launches and the launch capture records the selecti
 	);
 	assert.deepEqual(selection.classifier, {
 		executor: "claude",
-		model: "sonnet",
+		model: "claude-opus-5-5",
 	});
 	assert.equal(selection.consent, "command");
 	assert.match(selection.taskSha256, /^[0-9a-f]{64}$/);
@@ -327,7 +327,7 @@ test("the top recommendation launches and the launch capture records the selecti
 	);
 	assert.match(
 		shown.text,
-		/Auto selection: wp32-alpha \(recommended; \d+ candidates; classifier claude sonnet; consent command\)/,
+		/Auto selection: wp32-alpha \(recommended; \d+ candidates; classifier claude claude-opus-5-5; consent command\)/,
 	);
 });
 

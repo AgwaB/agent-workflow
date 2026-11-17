@@ -8,6 +8,9 @@ import { createFixtureServer } from "../helpers/dashboard-ui-fixture-server.mjs"
 
 const chrome = await findChrome();
 const FAILED_RUN = "workflow_mvt8x01c_aa3e91";
+// 2026-11-12 (owner): the overview lists the needs itself and the rail's groups appear with a run
+// open, so the rail's "Needs you" is exercised on a run that is not one of the needs.
+const OPEN_RUN = "workflow_mvt23704_e8e6d7";
 
 const rail = (browser) =>
 	browser.evaluate(() => ({
@@ -34,7 +37,7 @@ test("Needs you: dismiss a failure, keep executor decisions, restore, and see a 
 	t.after(() => fixture.close());
 	const browser = await createBrowser(chrome);
 	t.after(() => browser.close());
-	await browser.open(`${fixture.origin}/`);
+	await browser.open(`${fixture.origin}/?run=${OPEN_RUN}`);
 	await browser.waitFor(
 		() => document.querySelectorAll("#rail .need").length === 2,
 	);
@@ -42,7 +45,7 @@ test("Needs you: dismiss a failure, keep executor decisions, restore, and see a 
 	assert.equal(now.top, "Needs you 2");
 	assert.deepEqual(
 		now.dismiss,
-		["Dismiss: map-implementation failed"],
+		["Dismiss: Failed at map-implementation"],
 		"only the failure",
 	);
 
@@ -59,7 +62,7 @@ test("Needs you: dismiss a failure, keep executor decisions, restore, and see a 
 		"focus moves to the next need",
 	);
 
-	await browser.open(`${fixture.origin}/`);
+	await browser.open(`${fixture.origin}/?run=${OPEN_RUN}`);
 	await browser.waitFor(() => document.querySelector("#rail .need-restore"));
 	assert.deepEqual(
 		(await rail(browser)).needs,
@@ -106,7 +109,7 @@ test("Needs you: a dismissal is the shared notice acknowledgement", {
 	t.after(() => fixture.close());
 	const browser = await createBrowser(chrome);
 	t.after(() => browser.close());
-	await browser.open(`${fixture.origin}/`);
+	await browser.open(`${fixture.origin}/?run=${OPEN_RUN}`);
 	await browser.waitFor(
 		() => document.querySelectorAll("#rail .need").length === 2,
 	);
@@ -142,7 +145,7 @@ test("Needs you: a dismissal is the shared notice acknowledgement", {
 
 	// Another browser (a reload with no local state) sees the dismissal too.
 	await browser.evaluate(() => localStorage.clear());
-	await browser.open(`${fixture.origin}/`);
+	await browser.open(`${fixture.origin}/?run=${OPEN_RUN}`);
 	await browser.waitFor(() => document.querySelector("#rail .need-restore"));
 	assert.deepEqual((await rail(browser)).needs, [
 		"Controller needs a decision",
@@ -168,7 +171,7 @@ test("Needs you: a dismissal is the shared notice acknowledgement", {
 		since: new Date(Date.parse(need.since) + 60_000).toISOString(),
 	}));
 	fixture.publish();
-	await browser.open(`${fixture.origin}/`);
+	await browser.open(`${fixture.origin}/?run=${OPEN_RUN}`);
 	await browser.waitFor(
 		() => document.querySelectorAll("#rail .need").length === 2,
 	);

@@ -3,8 +3,8 @@
 // Claude Code and Codex get the same reminder through `notify-check` in their prompt hook, and the
 // dashboard dismisses through the same acknowledgements. One list, one dismissal, every host.
 //
-// Eligibility is the host API's notice list: top-level failed/interrupted runs and resumable
-// executor-decision blocks, excluding mocks. Valid acknowledgements suppress a run; malformed
+// Eligibility is the host API's notice list: top-level failed runs, top-level interrupted runs the
+// user did not stop (2026-11-13), and resumable executor-decision blocks, excluding mocks. Valid acknowledgements suppress a run; malformed
 // sidecars suppress none. Runs older than seven days are skipped and at most five are listed.
 // A run is reminded again after its status/update changes, after a stale acknowledgement, or six
 // hours after the last reminder (the state file is shared by every host of the project, so one
@@ -263,7 +263,7 @@ export async function unfinishedRunReminderDetails(
 	const text = [
 		`Unfinished agent-workflow run${needing.length > 1 ? "s" : ""} in this project:`,
 		...lines,
-		`Inspect with ${hints.inspectFailures("<run>")}; silence one with ${dismissHint(host)}${host === "pi" ? "" : " or dismiss it in the dashboard (Maintenance)"}.`,
+		`Inspect with ${hints.inspectFailures("<run>")}; silence one with ${dismissHint(host)}${host === "pi" ? "" : " or dismiss it in the dashboard (Needs you)"}.`,
 		// 2026-11-12: Claude Code and Codex hand this to the model. When the hook also shows the
 		// summary on screen the model only needs to know that; otherwise it has to relay it (the
 		// skill may not be loaded for an unrelated message, so the text says so itself).
@@ -277,7 +277,7 @@ export async function unfinishedRunReminderDetails(
 	});
 	const more =
 		needing.length > MAX_RUNS ? ` and ${needing.length - MAX_RUNS} more` : "";
-	const summary = `agent-workflow: ${needing.length} unfinished run${needing.length > 1 ? "s" : ""} in this project — ${named.join(", ")}${more}. Ask to inspect, resume or dismiss ${needing.length > 1 ? "them" : "it"}, or use the dashboard's Maintenance.`;
+	const summary = `agent-workflow: ${needing.length} unfinished run${needing.length > 1 ? "s" : ""} in this project — ${named.join(", ")}${more}. Ask to inspect, resume or dismiss ${needing.length > 1 ? "them" : "it"}, or use the dashboard's Needs you.`;
 	return { text, summary };
 }
 

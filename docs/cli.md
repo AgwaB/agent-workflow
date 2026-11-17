@@ -34,7 +34,8 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `show <workflow>` | The resolved spec file. |
 | `show <run> [--raw]` | Run details. Arguments that start with `workflow_` (or `--raw`) are runs. |
 | `profile list \| show [name] \| set <name> … \| delete <name> \| default <name> \| default --clear \| presets` | Saved user profiles, roles and built-in presets (below). |
-| `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | Saved per-workflow preferences (below). |
+| `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | Shared user-level, name-keyed workflow preferences (below). |
+| `project-settings list \| show \| clear-binding \| reset \| purge \| clear-project \| inspect-recovery \| recover` | Separate project-local inspection and recovery, including undiscovered keys (below). |
 | `run <workflow> <task…>` | Start exactly the named workflow and wait in the foreground until it is terminal. |
 | `dynamic <task…>` | Start a spec-less direct dynamic run; same options as `run`. |
 | `auto <task…>` | Classify the task once and start the top recommendation without asking; same options as `run`. Below. |
@@ -48,7 +49,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `prune [--keep N] [--older-than DAYS] [--yes]` | Preview deletion of old terminal runs (default: keep newest 50), classifier requests, managed worktrees, terminal executor attempts older than 7 days (or `--older-than`), and host launch claims older than 1 h. `--yes` applies it. See [retention](usage.md#run-records) for protections and cleanup rules. |
 | `notices list [--json] \| acknowledge <run> --state <sha256> --reason <text> \| clear <run> [--json]` | Notification-only acknowledgements of unfinished runs. |
 | `supervise <run> \| --all [--poll-ms N] [--max-runtime-ms N]` | Drive scheduling from this process until the run(s) are terminal. |
-| `dashboard [--port N] [--readonly] [--auth] [--open] [--project DIR]` | One user-level localhost dashboard for all projects: Runs, Workflows/Check, Profiles/preferences, Maintenance/prune/notices and Executors; Stop/Resume/Approve/Reject. |
+| `dashboard [--port N] [--readonly] [--auth] [--open] [--project DIR]` | One user-level localhost dashboard for all projects: Overview (needs, clean-up), Runs, Workflows/Check, Profiles/preferences and Executors; Stop/Resume/Approve/Reject. |
 | `watch [run] [--follow] [--once] [--interval S] [--bell]` | Live terminal view of the project's active runs or one run (tasks, status, elapsed, blockers, verdict and report at the end). Read-only. Below. |
 | `statusline` | One line about the active runs for a status bar (Claude Code `statusLine`); empty when idle; always exit 0. Below. |
 | `notify-check [--host H] [--json] [--stamp N] [--run ID] [--follow [--interval S]]` | One line per run that finished (or needs the user) since the last check, each state once; for host hooks. Below. |
@@ -61,9 +62,59 @@ A run argument accepts the run id or an unambiguous prefix.
 Every command except `help`/`--version`, the hook entry `host-command` (below), and the terminal views `watch`, `dashboard`, `statusline`,
 `notify-check`, whose data the `workflow_status`/`workflow_wait` tools already return, is also a host MCP tool (`workflow_<command>`,
 [host-mcp.md](hosts.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default`, `profile workflow set|clear` and
-`notices acknowledge|clear` ask the user to confirm through MCP elicitation, and a client that
+`notices acknowledge|clear` and changing `project-settings` operations ask the user to confirm through MCP elicitation, and a client that
 cannot ask is refused with the CLI command line to run here instead. `supervise` on MCP starts the
 detached supervisor and returns at once.
+
+## Project-local workflow settings
+
+This is separate from shared `profile workflow` preferences. Work in the intended project, inspect
+first, and use its returned `projectId`, exact 64-hex workflow `key` and CAS tokens. `list` includes
+empty and undiscovered/orphan entries; `show` does not discover or load a definition. Read operations
+create no files or directories. Unknown arguments and fields are errors.
+
+```sh
+agent-workflow project-settings list --json
+agent-workflow project-settings show --key "$KEY" --json
+# Remove one complete stored slot binding, not a model/effort field:
+agent-workflow project-settings clear-binding --key "$KEY" --binding slot --slot "$SLOT" \
+  --store-epoch "$EPOCH" --revision "$REVISION" --confirm-project "$PROJECT_ID"
+# For workflow defaults use --binding defaults, without --slot.
+agent-workflow project-settings reset --key "$KEY" \
+  --store-epoch "$EPOCH" --revision "$REVISION" --confirm-project "$PROJECT_ID"
+agent-workflow project-settings purge --key "$KEY" \
+  --store-epoch "$EPOCH" --revision "$REVISION" --confirm-project "$PROJECT_ID"
+# Distinct whole-project operation; use epoch and digest from a fresh list:
+agent-workflow project-settings clear-project --store-epoch "$EPOCH" \
+  --raw-digest "$DIGEST" --confirm-project "$PROJECT_ID"
+```
+
+Review the affected values returned by inspection before supplying `--confirm-project`; this flag
+is explicit destructive consent for that project, not a discovery path. The CLI also prints the
+scope and affected values on stderr. A stale epoch/revision/digest conflicts without overwriting;
+inspect again and review rather than automatically retrying. `clear-binding` preserves defaults,
+sibling slots and every other entry. It does not repair unrelated invalid intent. `reset` retains
+an empty entry with a new revision; `purge` removes the entry and rotates the store epoch.
+`clear-project` writes an empty store with a new epoch. Shared profiles/preferences, other projects
+and existing Runs are unchanged. Clearing restores lower-layer behavior for future launches; it
+does not guarantee a launch will pass Check.
+
+Malformed stores block ordinary local reads and new named launches; there is no fallback repair.
+Inspection/recovery remains separate, and existing Run Resume uses its captured configuration.
+
+```sh
+agent-workflow project-settings inspect-recovery --json
+# Use the rawDigest and projectId returned by that inspection:
+agent-workflow project-settings recover --raw-digest "$RAW_DIGEST" --confirm-project "$PROJECT_ID"
+```
+
+Recovery requires the inspected raw digest, preserves an exact verified private backup and then
+replaces only malformed project-local storage. It refuses a valid store (use `clear-project`),
+unsafe/unreadable files, invalid UTF-8 and originals over 16 MiB; those require manual safe repair.
+Ordinary stores are limited to 512 entries and 1 MiB. Neither clear nor recovery migrates shared
+settings, discovers vanished definitions, supplies replacement metadata or edits existing Runs.
+For identity and precedence see [usage](usage.md#project-local-workflow-settings). The MCP tool is
+`workflow_project_settings`, with an additional user confirmation dialog for every change.
 
 ## `check`
 
@@ -85,7 +136,7 @@ These options also apply to `auto`.
 | Option | Meaning |
 |---|---|
 | `--executor <id>` | Executor for this run: `pi`, `codex`, `claude` (or a registered id). Highest precedence. |
-| `--profile <name>` | A profile the workflow declares (`executionProfiles`), else a saved user profile with that name, else a built-in preset (`codex`, `claude`, `pi`, `mixed`). Without it: the workflow's saved preference profile, if any. |
+| `--profile <name>` | A profile the workflow declares (`executionProfiles`), else a saved user profile with that name, else a built-in preset (`codex`, `codex-high`, `claude`, `mixed`). Without it: the workflow's saved preference profile, if any. |
 | `--permission-mode free\|safe` | Approvals and sandbox (`docs/usage.md#permission-modes`). Default `free`. |
 | `--allow-unverified <a,b>` | Accept these `unverified` executor capabilities, e.g. `contextIsolation`. |
 | `--model <id>` | Model override for every stage. |
@@ -100,6 +151,8 @@ The task is every remaining positional word. Put `--` before task text that star
 `agent-workflow run deep-review -- --literal text`.
 
 ### Precedence
+
+Project-local executor/model/effort intent adds the layers described in [Project-local workflow settings](#project-local-workflow-settings); the following describes the shared baseline without that intent.
 
 Executor and permission mode: **run flag > workflow-declared profile > saved user profile >
 default** (mode `free`; executor: below). Without `--profile` a launch uses the workflow's saved
@@ -203,9 +256,9 @@ still win; `--model`/`--effort` override everything).
 ### Roles and presets
 
 ```sh
-agent-workflow profile presets                         # codex, claude, pi, mixed and their role tables
+agent-workflow profile presets                         # codex, codex-high, claude, mixed and their role tables
 agent-workflow profile set team --preset mixed --default
-agent-workflow profile set team --role verification=codex:gpt-5.6-luna:high
+agent-workflow profile set team --role verification=codex:gpt-6-luna:high
 agent-workflow profile set team --role synthesis=:haiku   # model only (executor from other layers)
 agent-workflow profile set team --unset roles.synthesis
 ```
@@ -235,7 +288,7 @@ shows and edits them; `doctor` reports what each one resolves to on this machine
 
 ```sh
 agent-workflow profile workflow set deep-research --profile mixed \
-  --role verification=codex:gpt-5.6-luna:high
+  --role verification=codex:gpt-6-luna:high
 agent-workflow profile workflow show deep-research
 agent-workflow profile workflow set deep-research --unset roles.verification
 agent-workflow profile workflow clear deep-research
@@ -302,7 +355,7 @@ browser session; the session persists across restarts in `<home>/dashboard-sessi
 stops a running dashboard first, rotates that token and exits; every browser must sign in again. It
 also works when no dashboard is running. `--readonly` adds a read-only badge and rejects all mutations on the server.
 `--open` opens the dashboard in the browser (under `--auth` via a one-time sign-in URL: 60-second expiry, single use), including on pipes when explicitly requested; it reuses an existing dashboard. `--project` selects the opened view (an existing directory, default cwd), not the server scope.
-The sidebar offers a project switcher and All projects overview; the last view is remembered. Its Runs · Workflows · Profiles · Maintenance · Executors views are deep-linkable with `?project=<id>&view=workflows|profiles|maintenance|executors`. Profiles/preferences and executor health are user-level; workflows, run history and notices use the selected project. Check starts no run and makes no model call. Prune Delete requires the same parameters and the digest of a fresh server preview; a changed preview returns 409 without deletion. See [Dashboard management](hosts.md#what-it-shows). Ctrl-C/SIGTERM stops the dashboard, never the runs; exit 0.
+The sidebar offers a project switcher and All projects overview; the last view is remembered. A project opens on its Overview; the Workflows, Profiles and Executors views are deep-linkable with `?project=<id>&view=workflows|profiles|executors`. Profiles/preferences and executor health are user-level; workflows, run history and notices use the selected project. Check starts no run and makes no model call. The Overview's clean-up Delete requires the digest of a fresh server preview; a changed preview returns 409 without deletion. See [Dashboard management](hosts.md#what-it-shows). Ctrl-C/SIGTERM stops the dashboard, never the runs; exit 0.
 Invalid ports, occupied ports and non-directories exit 2. No `--json` mode.
 
 `--detached` is the background-process mode: prints only `Dashboard listening on 127.0.0.1:<port>`,

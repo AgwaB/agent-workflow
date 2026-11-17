@@ -19,6 +19,17 @@ import {
 	type WorkflowSavedUserProfileLayer,
 } from "../core/engine.js";
 import { workflowDefinitionFingerprint } from "../core/execution-profile.js";
+import { resolveProjectWorkflowSettingsTarget } from "../core/workflow-specs.js";
+import {
+	freezeProjectSettingsCapture,
+	type WorkflowConfiguration,
+} from "../core/project-settings-runtime.js";
+import {
+	validateProjectWorkflowSettingsIntent,
+	type ProjectWorkflowSettingsCapture,
+	type ProjectWorkflowSettingsIntent,
+} from "../core/project-workflow-settings.js";
+import { readProjectWorkflowSettings } from "./project-workflow-settings.js";
 import { createHostContext, withHostContext } from "../core/host-context.js";
 import {
 	HOST_DEFAULT_EXECUTORS,
@@ -147,6 +158,8 @@ export interface LaunchProfileInfo {
 }
 
 export interface LaunchData {
+	/** Captured compiler plan, never a capability acceptance or observed provider result. */
+	configuration?: WorkflowConfiguration;
 	/** WP43d: `auth` is set only when that dashboard requires sign-in (`--auth`). */
 	dashboard?: RunDashboardLink;
 	mode: "named-workflow" | "direct-dynamic";
@@ -937,6 +950,7 @@ function launchData(
 		mode,
 		runId: run.runId,
 		status: run.status,
+		...(run.configuration ? { configuration: run.configuration } : {}),
 		...(run.name ? { name: run.name } : {}),
 		...(mode === "named-workflow"
 			? { specPath: toDisplayPath(run.specPath, ctx.cwd) }
@@ -1023,6 +1037,7 @@ function launchExecutionIdentity(
 	loaded: LoadedWorkflowSpec,
 	request: LaunchRequestBase,
 	snapshot: LaunchProfileSnapshot,
+	capture?: ProjectWorkflowSettingsCapture,
 ): Record<string, unknown> {
 	const host = ctx.host ?? "cli";
 	const resolved = snapshot.resolved;
@@ -1063,6 +1078,16 @@ function launchExecutionIdentity(
 	return {
 		host,
 		executor,
+		// CAS generations are not execution configuration. Stable hashing sorts intent keys.
+		...(capture && hasProjectIntent(capture.intent)
+			? {
+					projectSettings: {
+						key: capture.key,
+						definitionFingerprint: capture.definitionFingerprint,
+						intent: capture.intent,
+					},
+				}
+			: {}),
 		defaultExecutor: ctx.defaultExecutor ?? "",
 		profile: snapshotIdentity(snapshot),
 		runtimeDefaults: ctx.runtimeDefaults ?? null,
@@ -1085,7 +1110,36 @@ async function launch(
 	request: LaunchRequestBase,
 	loaded: LoadedWorkflowSpec,
 	start: (options: WorkflowRunOptions) => Promise<WorkflowRunRecord>,
+	draft?: ProjectWorkflowSettingsIntent,
 ): Promise<HostResult<LaunchData>> {
+	// Resolve the exact loaded source, not its display name. Read even absence before any chooser
+	// or duplicate claim; corruption later in a dialog cannot change this launch's intent.
+	let capture: ProjectWorkflowSettingsCapture | undefined;
+	if (action === "run") {
+		const target = await resolveProjectWorkflowSettingsTarget(
+			loaded.specPath,
+			ctx.cwd,
+		);
+		if (
+			target.definitionFingerprint !==
+			workflowDefinitionFingerprint(loaded.spec)
+		)
+			throw new WorkflowDefinitionChangedError(loaded.specPath);
+		const read = await readProjectWorkflowSettings(ctx.cwd, target, {
+			env: hostEnv(ctx),
+		});
+		capture = freezeProjectSettingsCapture({
+			identity: read.identity,
+			key: read.key,
+			storeEpoch: read.storeEpoch,
+			revision: read.revision,
+			definitionFingerprint: read.definitionFingerprint,
+			intent:
+				draft === undefined
+					? read.intent
+					: validateProjectWorkflowSettingsIntent(draft),
+		});
+	}
 	const mode = action === "run" ? "named-workflow" : "direct-dynamic";
 	const task = request.task.trim();
 	// WP19 round 3 (R5): the definition this launch is resolved from (guard, chooser); the engine
@@ -1122,6 +1176,7 @@ async function launch(
 		loaded,
 		request,
 		snapshot,
+		capture,
 	);
 	const fingerprint = launchFingerprint({
 		execution,
@@ -1178,6 +1233,7 @@ async function launch(
 			mode,
 			task,
 			snapshot,
+			capture,
 			inputOverrides,
 			definitionFingerprint,
 			// WP19 round 2 (N1): the ownership fence right before `start()`. A launch whose claim
@@ -1208,6 +1264,7 @@ async function launchClaimed(
 		mode: LaunchData["mode"];
 		task: string;
 		snapshot: LaunchProfileSnapshot;
+		capture?: ProjectWorkflowSettingsCapture;
 		inputOverrides: Record<string, unknown> | undefined;
 		/** WP19 round 3 (R5): fingerprint of the definition the launch was resolved from. */
 		definitionFingerprint: string;
@@ -1235,6 +1292,7 @@ async function launchClaimed(
 		request.permissionMode ?? profile.fallback?.permissionMode;
 	const runtimeDefaults = profile.runtimeDefaults ?? ctx.runtimeDefaults;
 	const overrides = runtimeOverrides(request);
+	let configuration: WorkflowConfiguration | undefined;
 	const options: WorkflowRunOptions & {
 		[WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK]: (
 			notice: string,
@@ -1243,7 +1301,17 @@ async function launchClaimed(
 		[WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT]: string;
 	} = {
 		task,
-		...(request.preflightOnly ? { preflightOnly: true } : {}),
+		...(launch.capture && hasProjectIntent(launch.capture.intent)
+			? { projectWorkflowSettings: launch.capture }
+			: {}),
+		...(request.preflightOnly
+			? {
+					preflightOnly: true,
+					configurationSink: (value: WorkflowConfiguration) => {
+						configuration = value;
+					},
+				}
+			: {}),
 		...profile.selection,
 		...(profile.savedUserProfile && profile.selection.executionProfile
 			? { savedUserProfile: savedUserProfileLayer(profile.savedUserProfile) }
@@ -1334,6 +1402,7 @@ async function launchClaimed(
 				"success",
 				{
 					mode,
+					...(configuration ? { configuration } : {}),
 					...(profile.info ? { profile: profile.info } : {}),
 					capability: {
 						preview: error.negotiation.preview,
@@ -1360,13 +1429,16 @@ async function launchClaimed(
 				},
 				`Not started: ${error.message}`,
 			);
-		if (isRefusal(error))
-			return refusalResult(
+		if (isRefusal(error)) {
+			const refused = refusalResult(
 				action,
 				mode,
 				error as WorkflowCapabilityError,
 				profile.info,
 			);
+			if (configuration) refused.data.configuration = configuration;
+			return refused;
+		}
 		throw error;
 	}
 	await launch.onStarted(run.runId).catch(() => undefined);
@@ -1451,9 +1523,24 @@ export async function runWorkflowAction(
  * and capability/tool/model/effort checks as `run`, then stop. `refused` names what would stop a
  * run; `success` shows the short check. No run, no duplicate-launch claim, no model call.
  */
+function hasProjectIntent(intent: ProjectWorkflowSettingsIntent): boolean {
+	return (
+		intent.defaults !== undefined || Object.keys(intent.slots ?? {}).length > 0
+	);
+}
+
 export async function checkWorkflowAction(
 	ctx: HostApiContext,
 	request: Omit<RunWorkflowRequest, "task"> & { task?: string },
+): Promise<HostResult<LaunchData>> {
+	return checkWorkflowConfiguration(ctx, request);
+}
+
+/** Trusted draft seam: never accepts client identity, paths or slot authorization. */
+export async function checkWorkflowConfiguration(
+	ctx: HostApiContext,
+	request: Omit<RunWorkflowRequest, "task"> & { task?: string },
+	draft?: ProjectWorkflowSettingsIntent,
 ): Promise<HostResult<LaunchData>> {
 	assertActionAllowed(ctx, "validate" satisfies HostAction);
 	if (typeof request.workflow !== "string" || !request.workflow.trim())
@@ -1468,8 +1555,13 @@ export async function checkWorkflowAction(
 	};
 	validateLaunchRequest(full, "run");
 	const loaded = await loadWorkflowSpec(request.workflow.trim(), ctx.cwd);
-	const checked = await launch(ctx, "run", full, loaded, (options) =>
-		runWorkflowSpec(loaded.specPath, ctx.cwd, options),
+	const checked = await launch(
+		ctx,
+		"run",
+		full,
+		loaded,
+		(options) => runWorkflowSpec(loaded.specPath, ctx.cwd, options),
+		draft,
 	);
 	return { ...checked, action: "check" };
 }

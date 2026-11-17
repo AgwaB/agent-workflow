@@ -1,4 +1,9 @@
 import { runHostCommandHook } from "../host-command.js";
+import {
+	projectSettingsRecoveryAction,
+	previewProjectSettingsRecoveryAction,
+	projectSettingsRecoveryRequest,
+} from "../project-workflow-settings-recovery.js";
 import { projectId, stateBase } from "../../core/state-location.js";
 // Thin host-neutral CLI: parse flags, call one host API handler, and print text or JSON.
 // Exit codes: 0 success/completed, 1 failed/blocked/interrupted/refused/timeout, 2 usage error.
@@ -531,6 +536,38 @@ async function dispatch(
 			return emit(await listAgentsAction(ctx));
 		case "profile":
 			return profileCommand(argv, ctx, emit);
+		case "project-settings": {
+			const parsed = parseCommandArgs(argv, {
+				flags: ["--json"],
+				values: [
+					"--key",
+					"--store-epoch",
+					"--revision",
+					"--raw-digest",
+					"--binding",
+					"--slot",
+					"--confirm-project",
+				],
+			});
+			const [op] = only(parsed, 1, "project-settings <operation> [options]");
+			const value: Record<string, unknown> = { op };
+			for (const [flag, name] of [
+				["--key", "key"],
+				["--store-epoch", "storeEpoch"],
+				["--revision", "revision"],
+				["--raw-digest", "rawDigest"],
+				["--binding", "binding"],
+				["--slot", "slot"],
+				["--confirm-project", "projectId"],
+			]) {
+				if (parsed.values.has(flag!)) value[name!] = parsed.values.get(flag!);
+			}
+			const request = projectSettingsRecoveryRequest(value);
+			const preview = await previewProjectSettingsRecoveryAction(ctx, request);
+			if (preview.data.changing)
+				io.stderr(`Confirmed project-local change:\n${preview.text}\n`);
+			return emit(await projectSettingsRecoveryAction(ctx, request));
+		}
 		case "run":
 		case "dynamic":
 			return launchCommand(command, argv, ctx, io, emit);

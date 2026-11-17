@@ -121,7 +121,7 @@ function stagesOf(run) {
 }
 
 const EXPECTED = {
-	plan: ["claude", "sonnet", "high", "workflow-preference"],
+	plan: ["claude", "claude-opus-5-5", "high", "workflow-preference"],
 	check: ["codex", "gpt-5.6-luna", "high", "workflow-preference"],
 };
 
@@ -287,7 +287,7 @@ test("profile workflow list/show/clear and validation", async () => {
 	assert.equal(result.code, 2);
 	assert.match(
 		result.err,
-		/unknown profile "nope".*built-in presets: codex, claude, pi, mixed/s,
+		/unknown profile "nope".*built-in presets: codex, codex-high, claude, mixed/s,
 	);
 	result = await cliRun(cwd, env, [
 		"profile",

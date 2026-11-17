@@ -21,7 +21,8 @@ test("dashboard adds warning chips on live blocked-count update and safe samples
 	t.after(() => browser.close());
 	const run = fixture.runs.get("workflow_mvt23704_e8e6d7");
 	assert.ok(run);
-	await browser.open(`${fixture.origin}/?run=${run.runId}`);
+	// This is graph-chip coverage; completed runs now default to their report.
+	await browser.open(`${fixture.origin}/?run=${run.runId}&view=runs&layout=td`);
 	await browser.waitFor(() => document.querySelector("#run-header"));
 	assert.equal(
 		await browser.evaluate(

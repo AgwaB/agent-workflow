@@ -1,3 +1,7 @@
+import type {
+	WorkflowConfiguration,
+	RuntimeProvenance,
+} from "./project-settings-runtime.js";
 import type { BlockedActions } from "./blocked-actions.js";
 import type { TaskActivity } from "./task-activity.js";
 import type { ExecutorCapabilities } from "../sdk/capabilities.js";
@@ -448,6 +452,7 @@ export interface PermissionPreview {
 }
 
 export interface CompiledTaskRuntime {
+	provenance?: RuntimeProvenance;
 	model?: string;
 	api?: string;
 	effort?: EffortLevel;
@@ -594,6 +599,7 @@ export interface CompiledDynamicNestedWorkflow {
 }
 
 export interface CompiledDynamicDecisionLoopExecutionProfile {
+	provenance?: RuntimeProvenance;
 	agent?: string;
 	model?: string;
 	effort?: EffortLevel;
@@ -1469,6 +1475,8 @@ export type WorkflowRouteDepth = "quick" | "standard" | "max";
 
 /** Where a run's executor came from (B2: run flag > workflow profile > user profile > default). */
 export type WorkflowRunExecutorSource =
+	| "project-default"
+	| "project-slot"
 	| "run-flag"
 	/** WP31: the saved per-workflow preference (role overrides). */
 	| "workflow-preference"
@@ -1623,6 +1631,7 @@ export type WorkflowStageExecutorSource =
 
 /** WP31: the resolved role assignment of one model-backed stage slot. */
 export interface WorkflowStageRoleAssignment {
+	fieldSources?: RuntimeProvenance;
 	executor: string;
 	source: WorkflowStageExecutorSource;
 	/** Profile (or workflow) name of the layer that chose the executor. */
@@ -1902,6 +1911,7 @@ export interface WorkflowRunDegradation {
 }
 
 export interface WorkflowRunRecord {
+	configuration?: WorkflowConfiguration;
 	schemaVersion: 1;
 	/** Launching host's references, fixed for this run and its children. */
 	hostContext?: import("./host-context.js").HostContext;
@@ -2044,6 +2054,7 @@ export interface WorktreeSnapshotRecord {
 }
 
 export interface CompiledWorkflow {
+	configuration?: WorkflowConfiguration;
 	schemaVersion: 1;
 	name?: string;
 	description?: string;

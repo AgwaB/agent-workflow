@@ -74,6 +74,7 @@ test("skill tool names are the host MCP server's tools", () => {
 		"workflow_logs",
 		"workflow_notices",
 		"workflow_profile",
+		"workflow_project_settings",
 		"workflow_prune",
 		"workflow_resume",
 		"workflow_roles",

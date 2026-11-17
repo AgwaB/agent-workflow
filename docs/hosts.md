@@ -151,6 +151,38 @@ The server's working directory, resolved through symlinks, is its project root. 
 
 Exit codes: `2` for usage errors, `1` for a misconfigured test-executor hook, `0` on stdin EOF, SIGTERM or SIGINT. In-flight calls answer before shutdown, with at most 5 s after a signal. stdout is protocol only; diagnostics go to stderr. The CLI's guarded test-executor hook works here too ([cli.md](cli.md)).
 
+### Project-local settings recovery
+
+Use `workflow_project_settings` separately from shared `workflow_profile` preferences. The optional
+`cwd` follows the existing server-root confinement; callers cannot supply replacement paths, project
+identity metadata, intent, environment or slot metadata. Unknown and operation-inapplicable fields
+are rejected, including `confirm: true`.
+
+| `op` | Required fields besides `op` |
+| --- | --- |
+| `list`, `inspect-recovery` | None |
+| `show` | `key` |
+| `clear-binding` | `projectId`, `key`, `storeEpoch`, `revision`, `binding` (`defaults` or `slot`); `slot` required only for `binding: "slot"` |
+| `reset`, `purge` | `projectId`, `key`, `storeEpoch`, `revision` |
+| `clear-project` | `projectId`, `storeEpoch`, `rawDigest` from `list` |
+| `recover` | `projectId`, `rawDigest` from `inspect-recovery` |
+
+Reads return the server's project scope and snapshot under `data.affected`, create nothing and work
+without workflow discovery. Use exact stored keys, including orphan entries, not workflow names or
+Run task IDs. Every change first discloses the project, operation, selected key/binding and affected
+values (or raw digest/byte count for malformed recovery). The existing MCP elicitation gate must
+accept; unsupported clients receive the scoped terminal command, and decline/cancel/error changes
+nothing. Request arguments never confer confirmation authority. CAS is checked again after consent;
+a concurrent edit conflicts without overwriting or retrying.
+
+Selected binding clear removes that whole binding and preserves siblings. Reset retains an empty
+entry; purge removes one entry and rotates the epoch; whole-project clear empties all local entries.
+Recovery is distinct: only inspected malformed storage may be replaced, after an exact verified
+private backup. Unsafe/unreadable, invalid UTF-8 and over-16-MiB originals refuse recovery. No shared
+profiles/preferences, other projects or existing Runs are changed, and unrelated invalid intent is
+not silently repaired. See [CLI commands](cli.md#project-local-workflow-settings) and
+[scope/precedence](usage.md#project-local-workflow-settings).
+
 ### Tools
 
 Every tool accepts optional `cwd`. Unknown parameters are refused. Handler data types are documented in the [host API](extending.md#host-api).
@@ -175,7 +207,8 @@ Every tool accepts optional `cwd`. Unknown parameters are refused. Handler data 
 | `workflow_notices` | `action?` (`list` default, `acknowledge`, `clear`), `runId?`, `state?`, `reason?` | List: `{notices, acknowledgements, warnings}`; changes confirm |
 | `workflow_doctor` | — | `DoctorData`; no model call or writes |
 | `workflow_prune` | `keep?`, `olderThanDays?`, `dryRun?` (default true) | Prune summary; `dryRun: false` confirms after showing the dry run |
-| `workflow_profile` | `op?` (see below), `name?`, profile fields | `ProfileData` / `WorkflowPreferenceData`; changes confirm |
+| `workflow_profile` | `op?` (see below), `name?`, profile fields | Shared user-level `ProfileData` / name-keyed `WorkflowPreferenceData`; changes confirm |
+| `workflow_project_settings` | `op`, operation-specific fields below | Project-local exact-key inspection/clear/recovery; changes confirm; shared preferences untouched |
 | `workflow_supervise` | `runId` | Starts a detached supervisor for a running run without a live driver; `{runId, status, started, reason?: not-running \| live-supervisor, detached?}` |
 | `workflow_auto` | `task`, launch options | `AutoData`: phase, consent, classifier, shortlist, recommendation, selection and launch |
 
@@ -353,19 +386,19 @@ The hook's declared command never changes between releases, and only the script'
 
 ### Unfinished-run reminders
 
-Every host reminds you about runs that stopped or failed and that you have not dealt with:
+Every host reminds you about runs that failed or stopped on their own and that you have not dealt with:
 
 | Host | When |
 |---|---|
 | Pi | At session start |
 | Claude Code, Codex | With the plugin's prompt hook, at your next message: a one-line summary under your message, details for the assistant |
-| Dashboard | "Needs you" and Maintenance |
+| Dashboard | "Needs you" on the Overview and beside the run in the sidebar |
 
-A run qualifies when it is a top-level failed or interrupted run, or a blocked run needing an executor decision, updated in the last 7 days. Mock runs are excluded and at most 5 are listed. A run is reminded again when its state changes or 6 hours after the last reminder. Reminder state is shared by all hosts of the project. Building the reminder first marks a `running` run whose driver is clearly dead (process gone, heartbeat 2+ minutes old, no live lock owner) as `interrupted`, so a run left behind by a closed host is listed. The prompt hook's idle fast path (a stamp under 6 h old and no changed `run.json`) can postpone that for up to 6 h; `status`, the dashboard and `resume` do it at once.
+A run qualifies when it is a top-level failed run, a top-level interrupted run you did not stop yourself (its host closed, for example), or a blocked run needing an executor decision, updated in the last 7 days. A run you stopped with Stop or `stop` is not listed. Mock runs are excluded and at most 5 are listed. A run is reminded again when its state changes or 6 hours after the last reminder. Reminder state is shared by all hosts of the project. Building the reminder first marks a `running` run whose driver is clearly dead (process gone, heartbeat 2+ minutes old, no live lock owner) as `interrupted`, so a run left behind by a closed host is listed. The prompt hook's idle fast path (a stamp under 6 h old and no changed `run.json`) can postpone that for up to 6 h; `status`, the dashboard and `resume` do it at once.
 
 Dismissing a reminder hides it in every host. You can dismiss from:
 
-- the dashboard's "Needs you" × or Maintenance → Dismiss
+- the dashboard's "Needs you" (Dismiss on the Overview, × in the sidebar)
 - `workflow_notices {"action":"acknowledge", …}`
 - `/aw notices acknowledge …`
 - `agent-workflow notices acknowledge …`
@@ -531,7 +564,7 @@ Reads and actions use only the host API. Resumed runs are tracked for completion
 `/aw profile` opens the TUI picker; outside TUI it lists profiles. Text operations remain available.
 
 1. Choose scope: a saved user profile for every workflow, or one workflow's saved preference. The launch chooser's `Custom…` skips this step.
-2. Choose preset (`Codex`, `Claude`, `Pi`, `Mixed`), saved profile, or `Custom…`. Custom starts from the current choice, otherwise `Pi`.
+2. Choose preset (`Codex`, `Codex High`, `Claude`, `Mixed`), saved profile, or `Custom…`. Custom starts from the current choice, otherwise `Codex`. Built-in models/efforts are listed in [usage](usage.md#roles-presets-and-mixed-runs); `pi` is still an executor, not a preset.
 3. Preview executor/model/effort per role: `default`, `planning`, `research-execution`, `synthesis`, `verification`, `final-judgment`, then `agent:<name>`. Missing role entries inherit the default. Warnings show missing/logged-out executors and unknown models (complete model lists cause launch refusal; partial lists only note the mismatch). Below 66 columns, rows stack over two lines.
 4. Edit roles: choose executor (`pi`, `claude`, `codex`), model (executor default, probed list or manual id), effort, or remove the role. Changing executor clears the model. Probes make no model calls; edits write nothing until Save.
 5. Save. User scope can update/create a named profile and make it default; an unedited saved profile only asks about making it default. Workflow scope saves the base profile and differing role overrides, replacing earlier overrides. A preference cannot remove a base-profile role; the picker warns and keeps it.
@@ -576,7 +609,7 @@ Startup work is asynchronous and does not delay Pi. In supervisor role, the host
 
 Re-driving does not take over completion delivery: the original audience session still owns it. Attached runs continue only while Pi runs; use `--detach` to outlive sessions.
 
-The host then warns about unfinished top-level failed/interrupted runs and blocked runs needing executor decisions. It excludes mock runs, active acknowledgements and runs not updated for 7 days; at most 5 appear. Rendered degraded finals are labeled `failed (final rendered — degraded)`. Malformed acknowledgement sidecars suppress nothing.
+The host then warns about unfinished top-level failed runs, interrupted runs the user did not stop and blocked runs needing executor decisions. It excludes mock runs, active acknowledgements and runs not updated for 7 days; at most 5 appear. Rendered degraded finals are labeled `failed (final rendered — degraded)`. Malformed acknowledgement sidecars suppress nothing.
 
 Notices repeat after status/update changes, stale acknowledgement or 6 hours. Claude Code and Codex give the same reminder through their prompt hook ([unfinished-run reminders](#unfinished-run-reminders)). State lives in `.agent-workflow/workflows/unfinished-notices.json` in the
 [project state directory](usage.md#where-run-state-lives). Silence a state with `/aw notices acknowledge <run> --state <sha256> --reason <text>`.
@@ -627,33 +660,47 @@ With `AGENT_WORKFLOW_ROLE=worker` or `disabled`, tools and notices are not regis
 
 ### What it shows
 
-The sidebar project switcher selects a project or **All projects**. The overview shows project paths (including missing paths), active runs, needs-attention counts and last activity from status summaries. `?project=<id>` selects a project; the last choice is remembered in this browser. Only the selected project is polled in detail. Inside a project, the sidebar lists runs with task previews, timing, progress and reports. **Needs you** collects executor decisions and failed/blocked runs. Failures can be dismissed in this browser; decisions cannot. A stopped run offers Resume rather than appearing as a new need.
+The sidebar project switcher selects a project or **All projects**. The All projects page shows project paths (including missing paths), active runs, needs-attention counts and last activity from status summaries. `?project=<id>` selects a project; the last choice is remembered in this browser. Only the selected project is polled in detail.
 
-The sidebar has **Runs · Workflows · Profiles · Maintenance · Executors**. Management views are deep-linkable with `?project=<id>&view=workflows|profiles|maintenance|executors`; switching projects keeps the management view. There is no launch form: start runs with `aw run`, `aw dynamic`, `aw auto`, the CLI, MCP or Pi.
+A project opens on its **Overview**: what needs you, what is running, recent results, the project's totals (runs, spend, active time) and a table of its workflows. Recent results and each workflow's **Last result** link open the exact Run's report when available, otherwise its observation; the workflow-name link separately opens the catalog for future settings. Unavailable cost and active-time metrics are omitted, not displayed as zero; real zero remains visible. Spend includes agent reporting coverage and the number of runs reporting cost. Active time independently counts runs with `activeMs`; missing time is not inferred from cost. Workflow median uses only completed runs with reported active time, with coverage in its tooltip. Inside a run or a report, the sidebar lists the project's runs with task previews, timing, progress and reports.
+
+**Needs you** lists what the [unfinished-run reminders](#unfinished-run-reminders) list: executor decisions, failed or blocked runs, and runs interrupted without a user stop (its host closed). Inspect opens the run with the task that needs you selected. Dismissing a failure or an interruption hides it in every host (the shared notice acknowledgement; a read-only dashboard keeps it in this browser only); "Show N dismissed" brings it back. Decisions cannot be dismissed. A run you stopped is not a need; it offers Resume on its page.
+
+**Selected Run deletion.** From Run history, choose the secondary **Delete run records…** action in the Run-list **⋯** controls. This deletion-management page lists the current project's records and offers **Back to Run history**. Select exact terminal IDs, then Review selected deletion. All projects requires choosing a project first. Confirmation names the project and IDs, attached logs/reports and actual owned worktree paths, dirty state and unique commits. Deletion can discard owned worktree changes and remove supported engine-owned sessions; unsupported sessions remain. There is no guaranteed recovery or undo. The main checkout, project settings, unselected/active Runs, other projects, auto-router history, global adapter state and launch claims are excluded. The server rechecks the exact selection and digest; 409 retains selection and requires a fresh preview and explicit confirmation. Partial/protected results and retained evidence are shown, not reported as full success. Only the redundant technical preview object is folded; exact IDs, resource paths, dirty/unique-commit facts, protection/errors, session warnings and no-undo scope remain visible.
+
+**Advanced maintenance.** The Overview separately folds broad keep/age cleanup under Advanced maintenance. When more than 50 finished Runs exist, Clean up… previews older records while retaining the newest 50. Unlike selected deletion, this broad action also covers auto-router requests, global executor adapter state and local launch claims. Owned worktrees and supported sessions can be removed; no guaranteed undo. Read-only disables mutations. CLI `prune --keep <N>` offers other policies.
+
+The project's primary sidebar has **Overview, Workflows, Run history**. A separate **Shared settings** footer follows the Run rows (and sits low with a short list), containing Profiles and Executors; their settings are user-level across projects and hosts. Run history opens the familiar rich Run rail beside the running/latest eligible Run, with graph, results, logs, timeline and reports (`view=runs`). Views are deep-linkable with `?project=<id>&view=runs|workflows|history|profiles|executors`. Legacy `view=history` remains selected deletion management; `view=maintenance` opens Overview. Switching projects keeps the management view. There is no launch form: start runs with `aw run`, `aw dynamic`, `aw auto`, the CLI, MCP or Pi.
 
 | View | Scope | Management |
 |---|---|---|
-| Runs | Selected project (or All projects overview) | Existing run, task and report views |
-| Workflows | Selected project | Discover workflows and agents, source/scope and routing hints; inspect stages, compiled roles and validation; **Check** executor/profile/model/effort/permission mode without starting a run or calling a model |
-| Profiles | User level, shared by every project and host | List/show/create/edit/delete profiles, apply presets, set/clear the default, and edit role assignments using probed executor/model choices. Executor default profiles (codex, claude, pi) are listed with what their stages get; Edit saves only your changes, Restore built-in deletes them. Per-workflow preferences are also user-level; the selected project supplies the workflow definition and declared profiles. |
-| Maintenance | Selected project's runs/notices | Prune preview/delete and notice acknowledgement/clear. The shared prune action also previews user-level executor attempt state and stale project launch claims. |
-| Executors | User level | Installed CLI/version vs verified version, login state, default executor and why, permission-mode default and warnings. Reports are cached for 60 seconds; **Refresh** invalidates report and probe caches. |
+| Overview | Selected project (or All projects) | Needs you with Inspect and Dismiss, active/recent results, separate Advanced maintenance |
+| Run history | Selected project | Rich Run rail and observation, Run/task/report links; secondary Run-list ⋯ → Delete run records… opens exact deletion management |
+| Workflows | Selected project | Purpose and routing hints on catalog cards; detail shows a short description, workflow graph and project settings. Valid definitions add no extra section; warnings, blocked permission previews and unreadable-spec errors remain one alert. About, routing tables and Workflow diagnostics (Check, Source, Resolved spec and roles) are deleted from detail. Agent inventory remains available from the list; CLI/API Check is unchanged. |
+| Profiles | User level, shared by every project and host | Compact executor-default and saved-profile rows summarize permissions and strict capabilities. Open a row to edit permission mode and strict capabilities, Save or Discard changes, set/clear the default, or confirm Delete / Restore built-in. Create with New profile. Back, browser Back/Forward and same-tab departures retain draft guards; reload requests the browser's unsaved-changes warning. Discard changes deliberately leaves without another warning. Forward reopens saved values. Detail links use `&profile=<name>` (`&createProfile=1` for a new profile). Executor, model, effort, presets, role diagrams/overrides and workflow-specific preferences are not edited here. |
+| Executors | User level | Readiness, actionable failures, installed/tested versions, security warnings, default executor and effective permission mode (display-only). Unusable defaults retain their selecting profile/reason, and run-index errors and repair hints remain visible rather than implying a successful empty inspection. Executor diagnostics opens default-selection provenance, adapter notes and environment information without duplicate reports. **Refresh** refreshes readiness. |
 
-Empty states explain how to add definitions or profiles. Action errors appear inline. Command hints use `agent-workflow` CLI commands or the minimal `aw run <workflow> "<task>"`; `aw` uses saved defaults and does not parse launch flags. To reproduce explicit Check overrides, use the displayed CLI command.
+**Project Workflow editor.** Open a catalog source to edit settings for this project's next new Runs. A small accessible spinner reserves editor space during load. On wide screens the graph fills the left and the active settings panel stays in a sticky right column; narrow screens put the active panel above the graph. **All tasks** edits workflow defaults and offers a native **Preset** select: Custom, codex, codex-high, claude, mixed. A preset fills the draft defaults and role-specific authored slots in one step, using server-provided role keys. Unknown roles retain defaults; dynamic templates cannot pin a different executor. Every field stays editable; a draft that no longer exactly matches a preset shows Custom, including after loading saved values. Only the intent is saved, never a preset name. The graph is the only task picker: pointer or keyboard selects every authored inner task/template and announces selection as pressed. Task panels offer **← All tasks** (also Escape) and **Use All tasks settings** / **Custom for this task**. Only Custom shows fields; switching to Custom captures current resolved values without changing the result, while switching back removes only that slot binding from the draft. Groups/controllers/code keep short explanations. Dynamic templates use the actual parent executor and never pin or rebind it. All settings share one full draft. **Save** (primary) and **Discard changes** live in the sticky title row, with a small unsaved indicator and brief feedback; narrow widths wrap at the top. Discard confirms dirty loss and reloads saved settings without deleting them. Initial writable load and meaningful edits automatically calculate without saving or executing. Calculations preserve controls, open pickers, focus and graph camera; failures retain the draft and offer contextual Retry without a loop. Save submits one full snapshot with four CAS tokens; intervening edits remain unsaved and recalculate with the returned revision. Conflicts/refusals preserve the whole draft without automatic overwrite/rebase. Model is a selection-only dropdown that preserves saved raw/unlisted IDs on load and inventory failure. Model/Effort offer **Use baseline settings**, removing only that field while retaining executor/siblings. Explicit executor changes clear a model only if a complete available inventory excludes it and show one short note; listed models and partial/unavailable inventories retain it. Executor offers explicit IDs only and opening the editor pins nothing. Nodes show freshly calculated **model · effort** plus **Custom** when a slot binding exists; stale values vanish until recalculated. Full lineage remains in the task panel, never on nodes. Readonly disables mutations; real errors remain visible. Selection reveals/focuses its panel without moving the camera; background updates never scroll/focus. Escape returns exact graph focus. Shared Profiles remain in the sidebar and project Save never migrates them or changes existing Runs.
 
-**Prune confirmation rule:** Preview calls the shared `pruneAction` in dry-run mode with bounded keep/older-than parameters. It shows run selections, protections, adapter paths and stale launch claims. The server hashes the complete unredacted preview, project identity and parameters into a SHA-256 digest. Delete sends those same parameters and digest; the server serializes management pruning, recomputes the dry run and only calls `pruneAction` with `yes: true` when the digest matches. A changed preview returns **409**, includes the new preview and deletes nothing. The UI requires a fresh Preview after a mismatch or parameter edit. Shared prune protections (active runs/leases, retained references, owned sessions, worktrees and evidence) remain authoritative at deletion time, including changes made by another host. Notice acknowledgement requires the listed run-state hash and a reason; it changes notifications, never run history or resume authority. Dashboard users are the actors for these confirmed host actions; there are no extra MCP confirmation dialogs.
+**Shared Profiles.** Dashboard Save patches only permission mode and strict capabilities; stored executor, model, effort and role assignments are left untouched. It does not seed model settings on creation. Shared model/role/preset and workflow-preference authoring remains available through CLI, MCP and Pi's profile picker; project-local model settings use the Workflow editor. Removing the dashboard preference editor does not migrate or delete shared preferences, change precedence or affect existing Runs.
 
-The run view separates process status from the workflow's verdict: a workflow may finish its work and still report “Needs work”. The graph shows stages, dependencies and agent progress. Code steps are hidden by default; Show/Hide remembers your choice. Failed, running, attention-required or selected code steps remain visible. Fit, Focus and direction controls help navigate larger graphs.
+Empty states explain how to add definitions or profiles. Action errors appear inline. The dashboard workflow page has no launch Check form; use CLI/API Check for saved settings or launch overrides.
 
-Select a stage or agent to see activity, results, output, stderr or events. Finished agents expand in place; **Open agent** shows full detail and log tabs. Run details show the task, redacted launch command, permission mode, host and usage. Unreported cost is `null`/“Not collected”, not zero.
+**Advanced maintenance confirmation rule:** The Overview's folded broad clean-up line calls the shared `pruneAction` in dry-run mode (`keep` 50) through the preview route; the route also takes `olderThanDays`. The shared prune action also previews user-level executor attempt state and stale project launch claims, and Delete cleans those too. The server hashes the complete unredacted preview, project identity and parameters into a SHA-256 digest. Delete sends those same parameters and digest; the server serializes management pruning, recomputes the dry run and only calls `pruneAction` with `yes: true` when the digest matches. A changed preview returns **409**, includes the new preview and deletes nothing. After a mismatch the Overview shows the new list and asks again. Shared prune protections (active runs/leases, retained references, owned sessions, worktrees and evidence) remain authoritative at deletion time, including changes made by another host. Notice acknowledgement requires the listed run-state hash and a reason (the dashboard records "Dismissed in the dashboard"); it changes notifications, never run history or resume authority. Dashboard users are the actors for these confirmed host actions; there are no extra MCP confirmation dialogs.
 
-Reports and task results render text-only Markdown, with no active links, images or HTML. Code highlighting loads locally when available and falls back to plain text. The report's Light/Dark page choice is independent of the dashboard's Auto/Light/Dark theme. Theme, sidebar and display choices are stored in this browser.
+The run view puts the result before concise contextual action status and folded Run action policy details. It separates process status from the workflow's verdict: a workflow may finish its work and still report “Needs work”. First implicit entry opens active work/graph, a completed report (or recorded summary when absent), or failed/interrupted work and its recorded cause. Explicit view/task/stage/tab/layout wins. Live completion never changes the chosen view, stage, selection or camera. Back/Forward and late-load guards remain.
 
-Stop explains its impact and records a durable request for the supervisor. Resume does not relaunch completed tasks. Approval dialogs show the controller question and scope; rejecting leaves the run blocked.
+Run values come only from recorded projections: **Recorded model** preserves the legacy configured/resolved-or-usage-fallback field; **Executor-reported model** is usage metadata, unknown when absent and not independently provider-verified. Equal values do not prove a configured model existed. Run details separately show the captured requested/resolved plan when present, never today's settings or observed execution. Run has no model editor. The current Workflow settings link uses trusted recorded source identity; missing/ambiguous/unavailable sources explain absence instead of guessing by name. That link changes future Runs only. The graph shows stages, dependencies and agent progress. Code steps are hidden by default; Show/Hide remembers your choice. Failed, running or attention-required code steps remain visible. Hiding code clears a selected plain code step; opening a hidden code step from a link or Jump still shows it selected. Fit, Focus and direction controls help navigate larger graphs.
+
+Select a stage or agent to see activity, results, output, stderr or events. Finished agents expand in place; **Open agent** shows full detail and log tabs (**Open task** for code steps). Code-step summaries and details identify engine work, not a model call; actual agent executor/model/effort remain visible when known. Run details show the task, redacted launch command when captured and nonblank (literal task words are not filtered), permission mode, host and usage. Task details offer one terminal log command matching the selected log tab (Result uses Output), while original result/control JSON and all log tabs remain available. Unreported cost is `null`/“Not collected”, not zero.
+
+Open report shows the run's report as a page of its own (`&view=report`, so it can be linked): the verdict and summary first, an "On this page" outline, and each finding with its own severity, locations and a "Copy fix prompt" button. Reports and task results render text-only Markdown, with no active links, images or HTML. Code highlighting loads locally when available and falls back to plain text. Evidence, verifier evidence and caveat/counter-evidence blocks are directly visible when their trimmed Markdown is at most 600 characters and at most 8 lines; exceeding either limit folds the entire block, with its heading/count and all content retained. This rule is content-based, independent of viewport. Filtering, outline links and Markdown copy are unchanged. The report's Light/Dark page choice is independent of the dashboard's Auto/Light/Dark theme. Theme, sidebar and display choices are stored in this browser.
+
+Stop explains its impact and records a durable request for the supervisor. Stop/Resume follow recorded status, with visible readonly/ineligibility reasons; server capability, ownership and refusal checks remain authoritative. Resume warns that tasks may execute again and repeat side effects; completed tasks are not relaunched. Approval dialogs show the controller question and scope; rejecting leaves the run blocked.
 
 `Live`, `Reconnecting` and `Stale (updated …)` describe the connection, not run status. Stale appears after 30 s without a heartbeat. Reduced-motion preferences disable animations. Keyboard controls include ↑/↓ navigation, Enter, Escape, `⌘K` search, and `j`/`k` between agents. Clicking empty canvas closes the inspector; dragging pans instead.
 
-Deep-link state includes `project`, `run`, `stage`, `task`, `tab=result|output|stderr|events`, `view=report|details|workflows|profiles|maintenance|executors`, and `dialog=stop|resume`.
+Deep-link state includes `project`, `run`, `stage`, `task`, `tab=result|output|stderr|events`, `view=runs|history|report|details|workflows|profiles|executors`, and `dialog=stop|resume`.
 
 ### Start, stop and options
 

@@ -48,6 +48,70 @@ run-state paths; user settings live under `$AGENT_WORKFLOW_HOME`. Pi web-tool di
 the state directory's `.agent-workflow/`; a file outside it shows as `(not read: path is outside the project's artifact
 root …)`.
 
+## Project-local workflow settings
+
+Project-local intent is scoped to the physical project and a source-aware workflow key, not just
+`spec.name`. Name, filename alias and physical path select the same key when they resolve to the
+same definition. Source roots remain distinct; a shadowing definition has a different key. Bundled
+keys do not depend on the package installation directory; external definitions use their physical
+path. Stored keys can outlive discovery. Inspect them with `agent-workflow project-settings list`
+and `show --key <key>` or MCP `workflow_project_settings`.
+
+Intent has workflow `defaults` and exact canonical authored `slots`. Each explicit binding includes
+an executor and optional model/effort; absent fields inherit rather than selecting Automatic.
+Editable slots are authored model leaves/templates, including declared dynamic-profile templates,
+not controllers, code/groups, generated task IDs or a separate child Run's settings. Dynamic-profile
+executor bindings must agree with their controller. A workflow default supplies common values;
+a slot overrides it. Field precedence is **explicit run flag > local slot > local defaults > shared
+legacy resolution**. Executor selection also fences executor-bound model/effort: changing an executor
+does not carry incompatible lower-layer values to it. Shared profile/preference resolution remains
+the baseline when local values are absent. `--profile` selects that baseline, not a bypass of local
+intent. Check and named launch use the same resolver; recorded values describe the requested/resolved
+plan, not observed provider execution.
+
+Shared `profile workflow` preferences are still user-level and keyed by workflow name, potentially
+across projects. Manage them through CLI, MCP or Pi's profile picker, not the dashboard Profiles page.
+They are neither migrated into nor deleted by project-local settings. Dashboard Profiles manages
+only shared permission mode, strict capabilities, default selection and profile creation/deletion or
+built-in restoration. Save leaves stored executor/model/effort and role assignments untouched;
+new profiles contain no invented model settings. Project-local
+storage is private under the project's state base at `workflow-settings/v1/settings.json`.
+In the dashboard, writable initial load and meaningful edits automatically calculate the draft without
+saving or executing. **Save** and **Discard changes** sit in the sticky title row with an unsaved-changes indicator. Save applies one
+complete snapshot; newer edits during Save remain unsaved and refresh with the returned revision.
+Discard changes confirms a dirty discard and reloads saved settings; it does not delete them.
+Calculation failures retain the draft and offer contextual Retry without an automatic retry loop.
+The default **All tasks** panel edits workflow defaults. Its native **Preset** select offers
+**Custom**, **codex**, **codex-high**, **claude** and **mixed**. Selecting a preset replaces the entire
+draft: defaults use its `default` role, while authored slots get role-specific bindings only when
+they differ. Role addresses come from the server, not task names; unknown roles keep defaults.
+Dynamic templates cannot pin another executor: incompatible role models are omitted and inherit
+from their actual controller. Every field remains manually editable. The select shows a preset
+only while the complete draft exactly matches its fill (also on reload); otherwise **Custom**.
+The name is not stored. Nothing is persisted until Save; Discard restores the saved intent.
+Selecting a graph task shows **Use All tasks settings** or **Custom for this task**; fields appear only for Custom. Custom captures the current resolved values without changing the result. Returning to All tasks settings removes only that task binding in the draft. **← All tasks** and Escape return to the defaults panel.
+Model is a selection-only dropdown that retains saved unlisted IDs on load, including on inventory failure; new arbitrary IDs remain supported through CLI/API and Pi's profile picker. Explicit executor changes clear a model only when the new executor's complete, available inventory excludes it, with a short inline note. Partial/unavailable inventories and listed models retain it.
+**Use baseline settings** in Model/Effort unsets only that field, keeping the executor and sibling values.
+Executor offers explicit IDs only and never pins a baseline just by opening the editor. Graph nodes show the current **model · effort** and a **Custom** marker for task bindings; stale values disappear until recalculated. Detailed lineage stays in the task panel. The title has one muted description line; About, routing tables and Workflow diagnostics (including launch Check, Source, Resolved spec and roles) are not on this page. Real spec problems remain visible. CLI/API Check is unchanged. Saves fence epoch, entry revision, definition fingerprint and alias resolution;
+clears use exact stored keys and snapshot tokens without requiring the definition to remain available.
+New named launches freeze settings; changing them later does not change existing Run Resume.
+Spec-less direct dynamic runs do not read this named-workflow store.
+
+For an orphan/invalid binding, explicitly remove only that whole defaults or slot binding with
+`project-settings clear-binding`; siblings remain intact, even if they are independently invalid.
+A per-field edit is a full validated intent save, not a partial deletion of a binding's executor.
+Entry `reset` keeps an empty tombstone; `purge` removes it and rotates the epoch. `clear-project`
+requires whole-project confirmation plus epoch/raw digest and empties only this project's local
+settings. Shared preferences, other projects and existing Run records are preserved.
+
+Malformed/unknown storage is preserved and blocks new named launches rather than falling back.
+Use the noncreating `inspect-recovery`, review its raw digest/bytes and project scope, then explicitly
+confirm `recover` with that digest. Recovery verifies an exact private backup before publishing an
+empty store. It refuses valid stores, unsafe/unreadable files, invalid UTF-8 and originals over
+16 MiB; no implicit repair, migration or overwrite retry occurs. Recovery and whole-project clear
+are distinct from entry clearing. See [CLI syntax](cli.md#project-local-workflow-settings) and
+[MCP confirmation](hosts.md#project-local-settings-recovery).
+
 ## Bundled workflows
 
 Bundled workflows ship as directory-local bundles with a spec, schemas and support helpers.
@@ -422,9 +486,9 @@ run's executor (`run.executor`) when nothing higher names one.
   "executionProfiles": { "mixed": {} },
   "executionProfileRoles": {
     "mixed": {
-      "default": { "executor": "claude", "model": "sonnet", "effort": "medium" },
-      "research-execution": { "executor": "codex", "model": "gpt-5.6-luna" },
-      "verification": { "executor": "claude", "effort": "high" }
+      "default": { "executor": "codex", "model": "gpt-6-luna", "effort": "medium" },
+      "planning": { "executor": "claude", "model": "claude-opus-5-5", "effort": "high" },
+      "verification": { "executor": "codex", "effort": "high" }
     }
   }
 }
@@ -432,7 +496,7 @@ run's executor (`run.executor`) when nothing higher names one.
 
 ```sh
 agent-workflow profile set team --preset mixed --default
-agent-workflow profile set team --role verification=codex:gpt-5.6-luna:high
+agent-workflow profile set team --role verification=codex:gpt-6-luna:high
 agent-workflow profile workflow set deep-research --profile team --role synthesis=::high
 ```
 
@@ -449,7 +513,7 @@ agent-workflow profile workflow set deep-research --profile team --role synthesi
 The highest layer that has a value for a stage wins that field. A role entry's model and effort
 apply only when the stage runs on that entry's executor (or the entry names none): a model id belongs
 to its executor, so `--executor codex` with a profile whose `verification` entry is
-`claude:sonnet` runs verification on codex with codex's model. Dynamic decision-loop slots
+`claude:claude-opus-5-5` runs verification on codex with codex's model. Dynamic decision-loop slots
 (`$planner`, `$verifier`, …) and the workers a dynamic stage generates run on the dynamic stage's
 executor (a note says so when a role asked for another one). Nested workflow runs keep their
 parent's executor.
@@ -470,21 +534,24 @@ profile has that name, or `profile set <name> --preset <preset>`):
 
 | Preset | Run executor | Roles |
 |---|---|---|
-| `codex` | codex | every role codex `gpt-5.6-luna` |
-| `claude` | claude | every role claude `sonnet` |
-| `pi` | pi | every role pi, Pi's configured default model |
-| `mixed` | claude | planning, synthesis, verification, final-judgment: claude `sonnet`; research/implementation (`research-execution`): codex `gpt-5.6-luna` |
+| `codex` | codex | planning: SOL/high; research: LUNA/medium; synthesis and verification: LUNA/high; final-judgment: SOL/xhigh |
+| `codex-high` | codex | all SOL: research/high; planning, synthesis and final-judgment/xhigh; verification/max |
+| `claude` | claude | all OPUS: research/medium; other roles/high |
+| `mixed` | codex | planning, synthesis and final-judgment: OPUS/high; research: LUNA/medium; verification: LUNA/high |
 
-Efforts in every preset: `high` for planning, verification and final judgment, `medium` otherwise.
-In `mixed`, verification runs on a different model family from the codex workers whose findings it
-checks. Preset models are names the CLIs accept today; if your account lacks
-one, override the role (`--role research-execution=codex:<model>`) or use `--model`.
+SOL = codex `gpt-6.1-sol`, LUNA = codex `gpt-6-luna`, OPUS = claude `claude-opus-5-5`.
+Research means `research-execution`; the extra `default` role exactly equals that entry, including
+its executor (also the run executor). Preset efforts are requested values; executor/model negotiation
+still applies. If your account lacks a model, override the role or use `--model`.
+There is no built-in `pi` preset. `--profile pi` still selects a workflow-declared `pi` profile first,
+then a saved user profile named `pi` (Pi has no built-in model table); without either it is an
+unknown profile. To run Pi without a named profile, use `--executor pi`.
 
 **Executor default profiles.** A stage on codex or claude that no layer above gives a model or
 effort takes it from the executor's preset (`codex` or `claude` above): the lowest layer, below
 the stage, its agent, workflow defaults, host defaults, every profile and `--model`. When the
-executor's probe lists models but not the preset's, every such stage instead uses your own CLI
-settings and the preview says so (`Notice: codex default profile: model "gpt-5.6-luna" is not
+executor's probe lists models but omits any model used by the preset, every such stage instead uses your own CLI
+settings and the preview says so (`Notice: codex default profile: model "gpt-6-luna" is not
 offered here; …`):
 
 | Executor | Read from | Fields |
@@ -1032,7 +1099,16 @@ also live here. Workers still run in the project directory or its managed worktr
 It defaults to port 7417, then 7418–7426, then ephemeral; explicit `--port` /
 `AGENT_WORKFLOW_DASHBOARD_PORT` is strict. Custom homes reuse the last port or use an ephemeral one.
 `dashboard --project DIR` chooses only the opened view. The sidebar offers All projects and a
-remembered project choice. See [Dashboard](hosts.md#dashboard) for identity, security and lifecycle.
+remembered project choice. Project navigation separates Overview, Workflows and Run history from shared
+Profiles/Executors in a footer after the Run rows. Workflow settings edit one project/source draft for future Runs; existing Runs show
+recorded model/effort and executor-reported model/usage separately, with unknown values left unknown.
+Overview's Last result links the exact Run/report, separately from future workflow settings.
+Run history opens the rich Run list beside the current/latest eligible Run, with graph, results, logs and
+reports. Its secondary **Delete run records…** action in the Run-list **⋯** controls (legacy `view=history`) deletes only explicitly
+selected terminal IDs after a resource/digest confirmation; owned
+worktrees (including dirty changes) and supported engine-owned sessions may be removed, with no
+guaranteed undo. Broad keep/age cleanup is separately labelled Advanced maintenance.
+See [Dashboard](hosts.md#dashboard) for scope, identity, security and lifecycle.
 
 Definitions stay in the repository: `<project>/workflows/`,
 `<project>/.agent-workflow/workflows/` (specs) and `<project>/.agent-workflow/agents/`.

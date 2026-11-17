@@ -1,5 +1,24 @@
 // Host-neutral API: CLI, MCP, and Pi adapters call one typed handler per action.
 // No Pi imports; contracts are in docs/extending.md#host-api.
+export {
+	readProjectWorkflowSettingsAction,
+	previewProjectWorkflowSettingsAction,
+	saveProjectWorkflowSettingsAction,
+	listProjectWorkflowSettings,
+	readProjectWorkflowSettingsEntry,
+	clearProjectWorkflowSettingsEntry,
+	clearProjectWorkflowSettings,
+	inspectProjectWorkflowSettingsRecovery,
+	recoverProjectWorkflowSettings,
+} from "./project-workflow-settings-actions.js";
+export {
+	projectSettingsRecoveryRequest,
+	projectSettingsRecoveryChanges,
+	previewProjectSettingsRecoveryAction,
+	projectSettingsRecoveryAction,
+	type ProjectSettingsRecoveryRequest,
+	type ProjectSettingsRecoveryOp,
+} from "./project-workflow-settings-recovery.js";
 import { showWorkflowSpecAction } from "./catalog.js";
 import { showRunAction } from "./runs.js";
 import type { HostApiContext, HostResult } from "./types.js";

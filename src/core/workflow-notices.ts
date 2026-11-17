@@ -10,6 +10,7 @@ import {
 	writeJsonAtomic,
 } from "./store.js";
 import { assertWorkflowActionAllowedForRole } from "./process-role.js";
+import { isUserStoppedRun } from "./run-stop-marking.js";
 import type { WorkflowRunRecord } from "./types.js";
 
 const SIDECAR = "notice-acknowledgements.json";
@@ -201,7 +202,12 @@ async function observe(root: string, runId: string): Promise<ObservedNotice> {
 						task.status === "blocked" &&
 						task.statusDetail === "executor_needs_decision",
 				)
-			: !run.parentRunId;
+			: // A run the user stopped is not unfinished business (2026-11-13, owner).
+				!run.parentRunId &&
+				!isUserStoppedRun({
+					status: run.status,
+					tasks: run.tasks.filter(object),
+				});
 	if (!eligible) throw new Error("Run is not an eligible unfinished notice.");
 	return {
 		runId,
