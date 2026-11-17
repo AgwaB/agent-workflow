@@ -7647,9 +7647,15 @@ test("deep-review finding-pipeline opt-in batch planner flattens results with st
 			(finding) =>
 				finding.findingId === "F-006" &&
 				finding.title === "Alpha runtime regression" &&
-				finding.note === "no devil-advocate verdict received for this finding",
+				finding.note ===
+					"no devil-advocate verdict received for this finding" &&
+				finding.needsHumanCause === "verifier_missing",
 		),
 	);
+	assert.deepEqual(partition.partitionSummary.needsHumanByCause, {
+		verifier_output_invalid: 7,
+		verifier_missing: 1,
+	});
 });
 
 test("deep-review batch partition routes string evidence rows to NEEDS_HUMAN", async () => {
@@ -8146,6 +8152,15 @@ test("deep-review batch partition demotes summary-only KEEP verdicts", async () 
 		partition.normalizationNotes.some((note) =>
 			note.includes("batched KEEP for"),
 		),
+	);
+	assert.ok(
+		partition.partitions.needsHuman.every(
+			(candidate) => candidate.needsHumanCause === "batch_evidence_demoted",
+		),
+	);
+	assert.equal(
+		partition.partitionSummary.needsHumanByCause.batch_evidence_demoted,
+		partition.partitionSummary.needsHuman,
 	);
 });
 

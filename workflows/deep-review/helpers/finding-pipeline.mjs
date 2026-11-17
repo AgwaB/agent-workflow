@@ -2340,6 +2340,40 @@ function supportNoteFromItem(item, reason, relatedRoot) {
 	};
 }
 
+// Machine-readable reason a row sits in needsHuman (additive; verdicts do not
+// depend on it). "never reviewed" causes: verifier_missing, verifier_output_invalid.
+// "reviewed but not reportable": source_coverage_incomplete,
+// verifier_evidence_ungrounded, batch_evidence_demoted, evidence_insufficient.
+// Genuinely judged ambiguous: verifier_needs_human. Other: coverage_gap,
+// support_unassociated.
+export const NEEDS_HUMAN_CAUSES = Object.freeze([
+	"verifier_missing",
+	"verifier_output_invalid",
+	"verifier_evidence_ungrounded",
+	"source_coverage_incomplete",
+	"batch_evidence_demoted",
+	"evidence_insufficient",
+	"coverage_gap",
+	"support_unassociated",
+	"verifier_needs_human",
+]);
+
+function withNeedsHumanCause(item, cause) {
+	return { ...item, needsHumanCause: cause };
+}
+
+export function summarizeNeedsHumanCauses(items) {
+	const counts = {};
+	for (const item of Array.isArray(items) ? items : []) {
+		const cause =
+			typeof item?.needsHumanCause === "string" && item.needsHumanCause
+				? item.needsHumanCause
+				: "unspecified";
+		counts[cause] = (counts[cause] ?? 0) + 1;
+	}
+	return counts;
+}
+
 function supportNeedsHumanItem(item, reason) {
 	// The rejected target is not provenance. Do not carry it into a first-class
 	// NEEDS_HUMAN row where a renderer could mistake it for a validated link.
@@ -2347,6 +2381,7 @@ function supportNeedsHumanItem(item, reason) {
 	return {
 		...unassociated,
 		verdict: "NEEDS_HUMAN",
+		needsHumanCause: "support_unassociated",
 		supportAssociation: "unassociated",
 		note: `Support-only finding could not be conservatively associated with a material behavioral root (${reason}); review it as a first-class item.`,
 	};
@@ -3162,6 +3197,7 @@ function buildReportPacket({
 		weaken: partitions.weaken.length,
 		drop: partitions.drop.length,
 		needsHuman: partitions.needsHuman.length,
+		needsHumanByCause: summarizeNeedsHumanCauses(partitions.needsHuman),
 		supportNotes: supportNotes.length,
 		mergedFindings: exactReportCount(
 			partitionSummary.mergedFindings,
@@ -4206,9 +4242,12 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 		}
 		const fallbackId = `${issue.batchId ? "batch-verdict" : "verdict-integrity"}-${String(integrityIssueIndex).padStart(3, "0")}`;
 		partitions.needsHuman.push(
-			issue.batchId
-				? batchIssueNeedsHumanItem(issue, reviewerFinding, fallbackId)
-				: verdictIntegrityNeedsHumanItem(issue, reviewerFinding, fallbackId),
+			withNeedsHumanCause(
+				issue.batchId
+					? batchIssueNeedsHumanItem(issue, reviewerFinding, fallbackId)
+					: verdictIntegrityNeedsHumanItem(issue, reviewerFinding, fallbackId),
+				"verifier_output_invalid",
+			),
 		);
 		normalizationNotes.push(
 			`devil-advocate integrity issue ${issue.reason} for "${issue.title ?? issue.findingId ?? "unknown"}" routed to NEEDS_HUMAN`,
@@ -4376,6 +4415,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 			partitions.needsHuman.push({
 				...item,
 				verdict: "NEEDS_HUMAN",
+				needsHumanCause: "source_coverage_incomplete",
 				note,
 			});
 			normalizationNotes.push(
@@ -4429,6 +4469,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 			partitions.needsHuman.push({
 				...item,
 				verdict: "NEEDS_HUMAN",
+				needsHumanCause: "verifier_evidence_ungrounded",
 				note: failure.statusDetail,
 			});
 			normalizationNotes.push(
@@ -4443,6 +4484,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 			partitions.needsHuman.push({
 				...item,
 				verdict: "NEEDS_HUMAN",
+				needsHumanCause: "batch_evidence_demoted",
 				note: batchDemotionReason,
 				batchEvidenceIssue: {
 					reason: batchDemotionReason,
@@ -4475,6 +4517,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 			partitions.needsHuman.push({
 				...item,
 				verdict: "NEEDS_HUMAN",
+				needsHumanCause: "evidence_insufficient",
 				note: lacksIdentityEvidence
 					? "verdict lacked code-preserved locations or evidenceQuotes required for a reportable disposition"
 					: "verdict lacked independent verifier evidence required for a reportable disposition",
@@ -4487,7 +4530,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 		if (verdict === "KEEP") partitions.keep.push(item);
 		else if (verdict === "WEAKEN") partitions.weaken.push(item);
 		else if (verdict === "DROP") partitions.drop.push(item);
-		else partitions.needsHuman.push(item);
+		else partitions.needsHuman.push(withNeedsHumanCause(item, "verifier_needs_human"));
 	}
 
 	for (const [index, issue] of reviewerCoverageIssues.entries()) {
@@ -4496,6 +4539,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 			rootCauseId: "reviewer-coverage",
 			title: String(issue.source ?? "Reviewer coverage").trim(),
 			verdict: "NEEDS_HUMAN",
+			needsHumanCause: "coverage_gap",
 			severity: "unknown",
 			locations: [],
 			evidenceQuotes: [],
@@ -4522,6 +4566,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 			rootCauseId: finding.rootCauseId ?? finding.findingId ?? finding.id,
 			title: String(finding.title ?? ""),
 			verdict: "NEEDS_HUMAN",
+			needsHumanCause: "verifier_missing",
 			severity: canonicalSeverity(finding.severity),
 			originalSeverity: finding.originalSeverity ?? finding.severity ?? "unknown",
 			file: finding.file,
@@ -4711,6 +4756,7 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 		weaken: partitions.weaken.length,
 		drop: partitions.drop.length,
 		needsHuman: partitions.needsHuman.length,
+		needsHumanByCause: summarizeNeedsHumanCauses(partitions.needsHuman),
 		supportNotes: supportNotes.length,
 		mergedFindings,
 		verdictsReceived: verdictRows.length,

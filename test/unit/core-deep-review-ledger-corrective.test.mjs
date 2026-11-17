@@ -305,6 +305,10 @@ test("deep-review verifies exact read/OCR coverage and fails partial rendering c
 		partition.partitions.needsHuman[0].note,
 		/originating reviewer did not complete required source coverage/u,
 	);
+	assert.equal(
+		partition.partitions.needsHuman[0].needsHumanCause,
+		"source_coverage_incomplete",
+	);
 	const output = await render({
 		sources: {
 			"partition-verdicts.main": partition,
@@ -676,6 +680,13 @@ test("deep-review grounds structured singleton verifier evidence", async (t) => 
 		forged.partitions.needsHuman[0].note,
 		/verifier evidence was not grounded/u,
 	);
+	assert.equal(
+		forged.partitions.needsHuman[0].needsHumanCause,
+		"verifier_evidence_ungrounded",
+	);
+	assert.deepEqual(forged.partitionSummary.needsHumanByCause, {
+		verifier_evidence_ungrounded: 1,
+	});
 });
 
 test("deep-review carries 26 mixed legacy recommendations through schema-valid partition and final rendering", async (t) => {
