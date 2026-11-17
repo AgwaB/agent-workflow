@@ -91,8 +91,16 @@ function escapeTableCell(value) {
 	return escapeHeadingText(value);
 }
 
-function inlineCode(value) {
-	const text = escapeTableCell(value);
+// A code span is literal in CommonMark: Markdown escapes (`_` -> `\_`) would show as written.
+// Only what the span or a table cell cannot carry changes: HTML (viewers differ), whitespace runs
+// and, in a table cell, `|` — GFM splits cells on unescaped pipes even inside code spans and
+// unescapes `\|` in the cell text, so the escape is invisible there (GFM spec, "Tables").
+function inlineCode(value, { table = false } = {}) {
+	let text = cleanText(value)
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;");
+	if (table) text = text.replace(/\|/g, "\\|");
 	const longestRun = Math.max(
 		0,
 		...[...text.matchAll(/`+/g)].map((match) => match[0].length),
@@ -957,7 +965,7 @@ function renderLocationsTable(locations) {
 					: location.lineEnd !== undefined && location.lineEnd !== location.line
 						? `${location.line}-${location.lineEnd}`
 						: `${location.line}`;
-			return `| ${inlineCode(location.file)} | ${escapeTableCell(line)} | ${location.symbol ? inlineCode(location.symbol) : "—"} |`;
+			return `| ${inlineCode(location.file, { table: true })} | ${escapeTableCell(line)} | ${location.symbol ? inlineCode(location.symbol, { table: true }) : "—"} |`;
 		}),
 		"",
 	];
