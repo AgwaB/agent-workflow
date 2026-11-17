@@ -1449,10 +1449,17 @@ function renderRisks(report, partition) {
 			? risk
 			: (risk?.risk ?? risk?.note ?? risk?.summary ?? JSON.stringify(risk)),
 	);
+	// The same failed source is carried by both summaries; list it once.
+	const seenFailures = new Set();
 	const partialFailures = [
 		...asArray(partition?.sourceStatusSummary?.partialFailures),
 		...asArray(partition?.reportContext?.partialFailures),
-	];
+	].filter((failure) => {
+		const key = `${failure?.specId ?? ""}|${failure?.taskId ?? ""}|${failure?.source ?? ""}|${failure?.status ?? ""}|${failure?.displayName ?? ""}`;
+		if (seenFailures.has(key)) return false;
+		seenFailures.add(key);
+		return true;
+	});
 	const notes = asArray(partition?.normalizationNotes).map((note) =>
 		typeof note === "string" ? note : JSON.stringify(note),
 	);
