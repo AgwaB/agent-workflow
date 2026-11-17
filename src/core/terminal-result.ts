@@ -28,6 +28,7 @@ import {
 	recordSharedModelRateLimitBackoff,
 	retryOrFailTransientWorkerFailure,
 	shouldRetryTransientModelFailure,
+	taskConfiguredToolsSideEffectFree,
 	transientFailureAttemptPath,
 	transientModelRateLimitBackoffMs,
 } from "./retry-policy.js";
@@ -336,6 +337,7 @@ export async function materializeTerminalWorkerResult(
 			workflowResult,
 			outputBytes,
 			toolCalls?.summary,
+			taskConfiguredToolsSideEffectFree(task),
 		)
 	) {
 		const retryAttempt = (task.launchRetry?.attempts ?? 0) + 1;

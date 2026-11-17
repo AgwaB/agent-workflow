@@ -141,6 +141,7 @@ import {
 	recoverWorkerHandle,
 	workerRunsDir,
 	workflowTaskStateCwd,
+	writeTaskArtifactDetached,
 } from "./task-artifacts.js";
 import { acknowledgeWorkerTaskInterrupted } from "./task-cancellation.js";
 import {
@@ -394,9 +395,9 @@ export async function launchWorkerTask(
 		await throwIfLaunchStopped(cwd, run.runId, leaseSignal, workflowStopSignal);
 		await writeFile(taskPromptFile, compiledTask.compiledPrompt, "utf8");
 		await throwIfLaunchStopped(cwd, run.runId, leaseSignal, workflowStopSignal);
-		await writeFile(outputFile, "", "utf8");
+		await writeTaskArtifactDetached(outputFile, "");
 		await throwIfLaunchStopped(cwd, run.runId, leaseSignal, workflowStopSignal);
-		await writeFile(stderrFile, "", "utf8");
+		await writeTaskArtifactDetached(stderrFile, "");
 		await throwIfLaunchStopped(cwd, run.runId, leaseSignal, workflowStopSignal);
 
 		if (toolResultBudgetConfiguration) {

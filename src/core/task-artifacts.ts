@@ -165,6 +165,19 @@ async function linkTaskArtifact(source: string, target: string): Promise<void> {
 	await link(source, target);
 }
 
+/**
+ * Writes a task-path log after detaching the name. Terminal materialization hard-links worker
+ * logs into the task paths, so truncating in place would also destroy the worker-run attempt's
+ * original log (the same inode) — evidence a retry must not lose.
+ */
+export async function writeTaskArtifactDetached(
+	target: string,
+	content: string,
+): Promise<void> {
+	await unlinkExistingTaskArtifact(target);
+	await writeFile(target, content, "utf8");
+}
+
 async function unlinkExistingTaskArtifact(target: string): Promise<void> {
 	try {
 		await unlink(target);
@@ -181,23 +194,25 @@ export async function copyLogOrEmpty(
 ): Promise<number> {
 	await mkdir(dirname(target), { recursive: true });
 	if (!ref) {
-		await writeFile(target, "", "utf8");
+		await writeTaskArtifactDetached(target, "");
 		return 0;
 	}
 	let source: string;
 	try {
 		source = safeArtifactPath(snapshot, ref, artifactRoot);
 	} catch {
-		await writeFile(target, "", "utf8");
+		await writeTaskArtifactDetached(target, "");
 		return 0;
 	}
 	let copied = true;
 	try {
 		await linkTaskArtifact(source, target);
 	} catch {
+		// Detach first: copyFile would write through a still-linked target.
+		await unlinkExistingTaskArtifact(target);
 		await copyFile(source, target).catch(async () => {
 			copied = false;
-			await writeFile(target, "", "utf8");
+			await writeTaskArtifactDetached(target, "");
 		});
 	}
 	if (!copied) return 0;
