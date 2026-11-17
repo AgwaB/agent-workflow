@@ -145,16 +145,16 @@ test("Chrome management: the views, profile edit, check preview and the overview
 	await browser.waitFor(
 		() => !!document.querySelector('[data-management-action="save-profile"]'),
 	);
-	await set(browser, "Model", "fixture-model");
-	await set(browser, "Effort", "high");
+	await set(browser, "Profile permission mode", "safe");
+	await set(browser, "Strict capabilities (comma separated)", "readOnly");
 	await browser.click('[data-management-action="save-profile"]');
 	await browser.waitFor(() =>
 		document.querySelector("#center")?.textContent.includes("Saved profile:"),
 	);
 	assert.equal(
 		(await profileAction(p.ctx, { op: "show", name: "ui-profile" })).data
-			.profile.effort,
-		"high",
+			.profile.permissionMode,
+		"safe",
 	);
 	await browser.click('.management-nav a[href*="view=workflows"]');
 	await browser.waitFor(() =>
@@ -416,90 +416,83 @@ test("Chrome management: the views, profile edit, check preview and the overview
 	assert.equal(existsSync(p.effects), false);
 });
 
-test("Chrome executor default profiles: built-in shown, edited with inherited executor efforts, restored", {
+test("Chrome executor default profiles: permissions shown and edited without pinning built-in model settings; restored", {
 	timeout: 120000,
 }, async (t) => {
-	assert.ok(
-		chrome,
-		"Chrome is required for dashboard management UI validation",
-	);
+	assert.ok(chrome);
 	const p = await managementProject(t);
 	const browser = await createBrowser(chrome);
 	t.after(() => browser.close());
-	const url = `${p.origin}/?project=${p.server.projectId}`;
-	await navigate(browser, `${url}&view=profiles`, "profiles");
+	await navigate(
+		browser,
+		`${p.origin}/?project=${p.server.projectId}&view=profiles`,
+		"profiles",
+	);
 	await browser.waitFor(
 		() => !!document.querySelector('[data-executor-default="codex"]'),
 	);
-	const rows = await browser.evaluate(() =>
-		[...document.querySelectorAll("[data-executor-default]")].map((row) => [
-			row.dataset.executorDefault,
-			row.textContent,
-		]),
-	);
 	assert.deepEqual(
-		rows.map(([id]) => id),
-		["codex", "claude", "pi"],
-	);
-	assert.match(rows[0][1], /gpt-5\.6-luna, medium/);
-	assert.match(rows[1][1], /sonnet, medium/);
-	assert.match(rows[2][1], /Pi's current model and effort/);
-	assert.equal(
-		await browser.evaluate(
-			() => document.querySelectorAll(".profile-overview pre").length,
+		await browser.evaluate(() =>
+			[...document.querySelectorAll("[data-executor-default]")].map((row) => [
+				row.dataset.executorDefault,
+				row.querySelector(".profile-summary").textContent,
+			]),
 		),
-		0,
+		[
+			["codex", "Permissions: free"],
+			["claude", "Permissions: free"],
+			["pi", "Permissions: free"],
+		],
 	);
 	await browser.click('[data-profile-open="codex"]');
 	await browser.waitFor(
 		() => !!document.querySelector('[data-management-action="save-profile"]'),
 	);
 	assert.deepEqual(
-		await browser.evaluate(() => {
-			const effort = document.querySelector('[aria-label="Effort"]');
-			return [
-				document.querySelector(".profile-editor").dataset.profileEdit,
-				!document.querySelector('[aria-label="Profile name"]'),
-				[
-					...document
-						.getElementById(effort.getAttribute("aria-controls"))
-						.querySelectorAll('[role="option"]'),
-				].map((option) => option.dataset.value),
-			];
-		}),
-		["codex", true, ["", "low", "medium", "high", "xhigh", "max", "ultra"]],
+		await browser.evaluate(() => ({
+			name: document.querySelector(".profile-editor").dataset.profileEdit,
+			nameInput: !!document.querySelector('[aria-label="Profile name"]'),
+			modelInputs: document.querySelectorAll(
+				'.profile-editor [aria-label="Executor"],.profile-editor [aria-label="Model"],.profile-editor [aria-label="Effort"]',
+			).length,
+		})),
+		{ name: "codex", nameInput: false, modelInputs: 0 },
 	);
-	await set(browser, "Effort", "max");
+	await set(browser, "Profile permission mode", "safe");
 	await browser.click('[data-management-action="save-profile"]');
 	await waitForSavedProfile(browser);
 	const shown = await profileAction(p.ctx, { op: "show", name: "codex" });
-	assert.equal(shown.data.profile.effort, "max");
-	assert.equal(shown.data.profile.roles, undefined);
+	assert.equal(shown.data.profile.permissionMode, "safe");
+	for (const key of ["executor", "model", "effort", "roles"])
+		assert.equal(shown.data.profile[key], undefined, key);
 	assert.deepEqual(shown.data.effective.roles.planning, {
 		executor: "codex",
 		model: "gpt-5.6-luna",
-		effort: "max",
+		effort: "high",
 	});
-	await browser.waitFor(() =>
-		document
-			.querySelector('[data-executor-default="codex"]')
-			?.textContent.includes("gpt-5.6-luna, max"),
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelector(
+					'[data-executor-default="codex"] .profile-summary',
+				).textContent,
+		),
+		"Permissions: safe",
 	);
 	await browser.click('[data-profile-open="codex"]');
 	await browser.waitFor(() => !!document.querySelector(".profile-options"));
-	await browser.click("[data-profile-configure]");
 	await clickText(browser, "Restore built-in codex");
 	await clickText(browser, "Confirm");
-	await browser.waitFor(() =>
-		document
-			.querySelector('[data-executor-default="codex"]')
-			?.textContent.includes("gpt-5.6-luna, medium"),
+	await browser.waitFor(
+		() =>
+			document.querySelector('[data-executor-default="codex"] .profile-summary')
+				?.textContent === "Permissions: free",
 	);
 	assert.equal(
 		(await profileAction(p.ctx, { op: "show", name: "codex" })).data.builtIn,
 		true,
 	);
-	assert.deepEqual(browser.errors, [], "no script, CSP or network errors");
+	assert.deepEqual(browser.errors, []);
 	assert.equal(existsSync(p.effects), false);
 });
 

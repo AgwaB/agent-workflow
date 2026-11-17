@@ -2628,8 +2628,7 @@ main.signin code {
 	text-decoration: underline;
 	text-underline-offset: 3px;
 }
-.management-list-row,
-.management-role {
+.management-list-row {
 	padding: 12px 0;
 	border-bottom: 1px solid var(--line);
 }
@@ -2694,10 +2693,6 @@ a.profile-row {
 .profile-chevron {
 	font-size: 20px;
 }
-.profile-preferences {
-	padding-top: 20px;
-	border-top: 1px solid var(--line);
-}
 .profile-editor {
 	max-width: none;
 }
@@ -2714,47 +2709,8 @@ a.profile-row {
 	padding: 0;
 	border: 0;
 }
-.profile-common {
-	margin-top: 16px;
-	padding: 12px;
-	border: 1px solid var(--line);
-	border-radius: var(--radius);
-}
-.profile-common h3 {
-	margin: 0 0 12px;
-	font-size: 14px;
-}
 .management-fields > small {
 	grid-column: 1 / -1;
-}
-.profile-restrictions {
-	font-size: 13px;
-	overflow-wrap: anywhere;
-}
-.visual-role-editor {
-	margin-top: 24px;
-}
-.profile-flow-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	flex-wrap: wrap;
-	gap: 12px;
-}
-.profile-flow-header h2 {
-	margin: 0;
-	font-size: 16px;
-}
-.profile-flow-header > label {
-	width: min(100%, 300px);
-	min-width: 0;
-}
-.profile-flow-layout {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) 300px;
-	align-items: start;
-	gap: 16px;
-	margin-top: 12px;
 }
 .profile-flow {
 	container-type: inline-size;
@@ -2835,21 +2791,6 @@ a.profile-row {
 }
 .role-inspector .management-fields {
 	grid-template-columns: minmax(0, 1fr);
-}
-.role-inheritance,
-.role-sharing-note,
-.role-map-note {
-	font-size: 13px;
-	overflow-wrap: anywhere;
-}
-.role-sharing-note {
-	margin: 0 0 12px;
-}
-.profile-scope-options {
-	margin: 12px 0;
-}
-.role-map-note {
-	margin-top: 12px;
 }
 .run-context {
 	display: flex;
@@ -3007,22 +2948,10 @@ a.profile-row {
 	max-width: 420px;
 	margin: 0;
 }
-.shared-preference-actions {
-	flex-basis: 100%;
-}
-.saved-launch-check {
-	margin: 20px 0;
-}
 .project-workflow-editor [data-calculated] {
 	overflow-wrap: anywhere;
 	color: var(--muted);
 }
-@media (max-width: 1100px) {
-	.profile-flow-layout {
-		grid-template-columns: minmax(0, 1fr);
-	}
-}
-.profile-advanced,
 .profile-options {
 	margin-top: 20px;
 	padding-top: 16px;
@@ -3170,9 +3099,6 @@ a.profile-row {
 		grid-column: 3;
 		grid-row: 1 / 3;
 	}
-}
-.management-role-table {
-	margin: 8px 0 16px;
 }
 .management-result pre,
 .management-card pre {

@@ -15,7 +15,11 @@ async function fixture(t, options = {}) {
 	await profileAction(p.ctx, {
 		op: "set",
 		name: "daily",
-		values: { executor: "claude", model: "sonnet" },
+		values: {
+			executor: "claude",
+			model: "hidden/model",
+			strictCapabilities: ["readOnly"],
+		},
 	});
 	const b = await createBrowser(chrome);
 	t.after(() => b.close());
@@ -35,7 +39,7 @@ async function fixture(t, options = {}) {
 }
 async function load(b, url) {
 	await b.send("Page.navigate", { url });
-	await b.waitFor(() => !!document.querySelector(".profile-preferences"));
+	await b.waitFor(() => !!document.querySelector(".profile-overview"));
 }
 async function edit(b) {
 	await b.click('[data-profile-open="daily"]');
@@ -48,21 +52,21 @@ async function set(b, label, value) {
 		(label, value) => {
 			const field = document.querySelector(`[aria-label="${label}"]`);
 			if (!field) throw Error(`Missing ${label}`);
-			const configuration = field.closest(".profile-configuration");
-			const restore = configuration?.hidden;
-			if (restore || field.closest(".profile-model-view")?.hidden)
-				document.querySelector("[data-profile-configure]").click();
 			field.value = value;
 			field.dispatchEvent(new Event("input", { bubbles: true }));
 			field.dispatchEvent(new Event("change", { bubbles: true }));
-			if (restore) document.querySelector("[data-profile-configure]").click();
 		},
 		label,
 		value,
 	);
 }
-async function model(b) {
-	return b.evaluate(() => document.querySelector('[aria-label="Model"]').value);
+async function strictValue(b) {
+	return b.evaluate(
+		() =>
+			document.querySelector(
+				'[aria-label="Strict capabilities (comma separated)"]',
+			).value,
+	);
 }
 async function dialog(b, action, accept, type) {
 	const event = b.nextEvent("Page.javascriptDialogOpening");
@@ -106,13 +110,13 @@ for (const noNavigation of [false, true])
 			.profile;
 		await load(b, url);
 		await edit(b); // trusted mouse activation
-		await set(b, "Model", "unsaved-native");
+		await set(b, "Strict capabilities (comma separated)", "unsaved-native");
 		const before = await b.evaluate(() => {
 			window.documentMarker = "same";
 			return location.href;
 		});
 		await dialog(b, () => b.send("Page.reload"), false, "beforeunload");
-		assert.equal(await model(b), "unsaved-native");
+		assert.equal(await strictValue(b), "unsaved-native");
 		assert.equal(await b.evaluate(() => window.documentMarker), "same");
 		assert.equal(await b.evaluate(() => location.href), before);
 		await dialog(
@@ -124,7 +128,7 @@ for (const noNavigation of [false, true])
 			false,
 			"beforeunload",
 		);
-		assert.equal(await model(b), "unsaved-native");
+		assert.equal(await strictValue(b), "unsaved-native");
 		assert.equal(await b.evaluate(() => location.href), before);
 		await dialog(b, () => b.send("Page.reload"), true, "beforeunload");
 		await b.waitFor(
@@ -132,9 +136,9 @@ for (const noNavigation of [false, true])
 				!!document.querySelector('[data-management-action="save-profile"]') &&
 				!window.documentMarker,
 		);
-		assert.equal(await model(b), "sonnet");
-		await b.click('[aria-label="Model"]');
-		await set(b, "Model", "leave-again");
+		assert.equal(await strictValue(b), "readOnly");
+		await b.click('[aria-label="Strict capabilities (comma separated)"]');
+		await set(b, "Strict capabilities (comma separated)", "leave-again");
 		await dialog(
 			b,
 			() =>
@@ -161,7 +165,7 @@ for (const noNavigation of [false, true])
 		await load(b, url);
 		await edit(b);
 		assert.equal(await b.evaluate(() => !window.navigation), noNavigation);
-		await set(b, "Model", "unsaved-history");
+		await set(b, "Strict capabilities (comma separated)", "unsaved-history");
 		const original = await b.send("Page.getNavigationHistory");
 		const address = await b.evaluate(() => location.href);
 		await confirmPolicy(b, false);
@@ -187,7 +191,7 @@ for (const noNavigation of [false, true])
 							actual: await b.send("Page.getNavigationHistory"),
 							address,
 							actualAddress: await b.evaluate(() => location.href),
-							model: await model(b),
+							model: await strictValue(b),
 						}),
 					);
 				}
@@ -195,7 +199,7 @@ for (const noNavigation of [false, true])
 			await traversal;
 			await b.waitFor(`window.guardCalls === ${i + 1}`, 3000);
 			assert.equal(await b.evaluate(() => location.href), address);
-			assert.equal(await model(b), "unsaved-history");
+			assert.equal(await strictValue(b), "unsaved-history");
 			assert.deepEqual(await b.send("Page.getNavigationHistory"), original);
 		}
 		await confirmPolicy(b, true);
@@ -209,34 +213,13 @@ for (const noNavigation of [false, true])
 		assert.equal(back.currentIndex, original.currentIndex - 1);
 		assert.equal(back.entries.length, original.entries.length);
 
-		await set(b, "Workflow to configure", "model-flow");
-		await b.waitFor(
-			() =>
-				!!document.querySelector('[aria-label="Workflow preferred profile"]'),
-		);
-		await set(b, "Workflow preferred profile", "unsaved-forward-preference");
-		await confirmPolicy(b, false);
-		await b.send("Page.navigateToHistoryEntry", {
-			entryId: original.entries[original.currentIndex].id,
-		});
-		await b.waitFor(() => window.guardCalls === 1);
-		assert.deepEqual(await b.send("Page.getNavigationHistory"), back);
-		assert.equal(
-			await b.evaluate(
-				() =>
-					document.querySelector('[aria-label="Workflow preferred profile"]')
-						.value,
-			),
-			"unsaved-forward-preference",
-		);
-		await confirmPolicy(b, true);
 		await b.send("Page.navigateToHistoryEntry", {
 			entryId: original.entries[original.currentIndex].id,
 		});
 		await b.waitFor(
 			() => !!document.querySelector('[data-management-action="save-profile"]'),
 		);
-		assert.equal(await model(b), "sonnet");
+		assert.equal(await strictValue(b), "readOnly");
 		assert.equal(
 			(await b.send("Page.getNavigationHistory")).currentIndex,
 			original.currentIndex,
@@ -251,20 +234,24 @@ for (const noNavigation of [false, true])
 		await load(b, url);
 		await edit(b);
 		await confirmPolicy(b, false);
-		await set(b, "Model", "draft");
+		await set(b, "Strict capabilities (comma separated)", "draft");
 		const address = await b.evaluate(() => location.href);
 		await b.click("[data-profile-back]");
 		assert.equal(await b.evaluate(() => location.href), address);
-		assert.equal(await model(b), "draft");
+		assert.equal(await strictValue(b), "draft");
 		assert.equal(await b.evaluate(() => window.guardCalls), 1);
-		await set(b, "Model", "sonnet");
+		await set(b, "Strict capabilities (comma separated)", "readOnly");
 		await b.click("[data-profile-back]");
 		await b.waitFor(
 			() => !!document.querySelector(".profile-overview:not([hidden])"),
 		);
 		await edit(b);
 		await confirmPolicy(b, false);
-		await set(b, "Model", "saved-new");
+		await set(
+			b,
+			"Strict capabilities (comma separated)",
+			"readOnly, contextIsolation",
+		);
 		const beforeSave = await b.send("Page.getNavigationHistory");
 		await b.click('[data-management-action="save-profile"]');
 		await b.waitFor(() => !!document.querySelector(".profile-save-status"));
@@ -281,19 +268,19 @@ for (const noNavigation of [false, true])
 			(await b.send("Page.getNavigationHistory")).currentIndex,
 			beforeSave.currentIndex,
 		);
-		assert.equal(await model(b), "saved-new");
+		assert.equal(await strictValue(b), "readOnly, contextIsolation");
 		await confirmPolicy(b, false);
-		await set(b, "Model", "explicit-discard");
+		await set(b, "Strict capabilities (comma separated)", "explicit-discard");
 		await b.evaluate(() =>
 			[...document.querySelectorAll("button")]
-				.find((n) => n.textContent === "Cancel" && n.checkVisibility())
+				.find((n) => n.textContent === "Discard changes" && n.checkVisibility())
 				.click(),
 		);
 		await b.waitFor(
 			() => !!document.querySelector(".profile-overview:not([hidden])"),
 		);
 		await edit(b);
-		assert.equal(await model(b), "saved-new");
+		assert.equal(await strictValue(b), "readOnly, contextIsolation");
 	});
 
 test("settings drafts: clean view interactions, same values, normalization and undo are quiet; readonly never warns", {
@@ -303,46 +290,40 @@ test("settings drafts: clean view interactions, same values, normalization and u
 	await load(b, url);
 	await edit(b);
 	assert.equal(await dirty(b), false);
-	await b.click('[aria-label="Model"]');
-	await b.click("[data-profile-configure]");
-	await b.click("[data-profile-configure]");
-	await b.waitFor(
-		() => !!document.querySelector('.profile-flow [data-stage="plan"]'),
+	await b.click('[aria-label="Strict capabilities (comma separated)"]');
+	await b.evaluate(() =>
+		document.querySelector('button[aria-label^="Theme:"]').click(),
 	);
-	await b.click('.profile-flow [data-stage="plan"]');
-	await b.evaluate(() => {
-		document.querySelector('.profile-flow button[title="Fit graph"]').click();
-		[...document.querySelectorAll(".profile-flow button")]
-			.find((n) => n.textContent === "Focus")
-			.click();
-		document.querySelector('.profile-flow [aria-label="Left-right"]').click();
-		document.querySelector('.profile-flow [aria-label="Top-down"]').click();
-		document.querySelector(".profile-flow .code-switch")?.click();
-		document.querySelector('button[aria-label^="Theme:"]').click();
-	});
-	await set(b, "Profile workflow", "expanding-flow");
-	await b.waitFor(() => !!document.querySelector(".profile-flow .node"));
 	assert.equal(await dirty(b), false);
-	await set(b, "Model", "sonnet");
-	await set(b, "Strict capabilities (comma separated)", " , ");
+	await set(b, "Strict capabilities (comma separated)", "readOnly");
+	await set(b, "Strict capabilities (comma separated)", " readOnly, , ");
 	assert.equal(await dirty(b), false);
-	await set(b, "Model", "changed");
+	await set(b, "Strict capabilities (comma separated)", "changed");
 	assert.equal(await dirty(b), true);
-	await set(b, "Model", "sonnet");
+	await set(b, "Strict capabilities (comma separated)", "readOnly");
 	assert.equal(await dirty(b), false);
 	await set(b, "Profile permission mode", "safe");
 	assert.equal(await dirty(b), true);
 	await set(b, "Profile permission mode", "");
 	assert.equal(await dirty(b), false);
-	await button(b, "Cancel");
+	await button(b, "Discard changes");
 	await b.waitFor(
 		() => !!document.querySelector(".profile-overview:not([hidden])"),
 	);
 	assert.equal(await dirty(b), false);
 	const ro = await fixture(t, { readonly: true });
 	await load(ro.b, `${ro.url}&profile=daily`);
-	await ro.b.waitFor(() => !!document.querySelector('[aria-label="Model"]'));
-	await set(ro.b, "Model", "readonly-programmatic");
+	await ro.b.waitFor(
+		() =>
+			!!document.querySelector(
+				'[aria-label="Strict capabilities (comma separated)"]',
+			),
+	);
+	await set(
+		ro.b,
+		"Strict capabilities (comma separated)",
+		"readonly-programmatic",
+	);
 	assert.equal(await dirty(ro.b), false);
 });
 
@@ -351,8 +332,13 @@ test("settings drafts: failed and invalid saves, cancelled Delete, default chang
 }, async (t) => {
 	const { b, url } = await fixture(t);
 	await load(b, `${url}&profile=daily`); // deep link, no editor marker
-	await b.waitFor(() => !!document.querySelector('[aria-label="Model"]'));
-	await set(b, "Model", "failed-save");
+	await b.waitFor(
+		() =>
+			!!document.querySelector(
+				'[aria-label="Strict capabilities (comma separated)"]',
+			),
+	);
+	await set(b, "Strict capabilities (comma separated)", "failed-save");
 	await b.evaluate(() => {
 		const fetch = window.fetch;
 		window.fetch = (url, options) =>
@@ -367,14 +353,14 @@ test("settings drafts: failed and invalid saves, cancelled Delete, default chang
 			?.textContent.includes("fixture network failure"),
 	);
 	assert.equal(await dirty(b), true);
-	await b.click("[data-profile-configure]");
+
 	await button(b, "Delete daily");
 	await button(b, "Keep profile");
 	assert.equal(await dirty(b), true);
 	await confirmPolicy(b, false);
 	await button(b, "Use daily by default");
 	assert.equal(await dirty(b), true);
-	assert.equal(await model(b), "failed-save");
+	assert.equal(await strictValue(b), "failed-save");
 	await confirmPolicy(b, true);
 	await button(b, "Use daily by default"); // injected network failure must not unregister the draft
 	await b.waitFor(() =>
@@ -398,8 +384,8 @@ test("settings drafts: failed and invalid saves, cancelled Delete, default chang
 		})),
 		before,
 	);
-	assert.equal(await model(b), "failed-save");
-	await button(b, "Cancel");
+	assert.equal(await strictValue(b), "failed-save");
+	await button(b, "Discard changes");
 	await b.waitFor(
 		() => !!document.querySelector(".profile-overview:not([hidden])"),
 	);
@@ -407,7 +393,7 @@ test("settings drafts: failed and invalid saves, cancelled Delete, default chang
 	await b.waitFor(
 		() => !!document.querySelector('[aria-label="Profile name"]'),
 	);
-	await set(b, "Model", "invalid-name-draft");
+	await set(b, "Strict capabilities (comma separated)", "invalid-name-draft");
 	await button(b, "Save profile");
 	assert.equal(
 		await b.evaluate(() =>
@@ -420,75 +406,11 @@ test("settings drafts: failed and invalid saves, cancelled Delete, default chang
 	assert.equal(await dirty(b), true);
 	await confirmPolicy(b, false);
 	await b.click("[data-profile-back]");
-	assert.equal(await model(b), "invalid-name-draft");
-	await button(b, "Cancel");
+	assert.equal(await strictValue(b), "invalid-name-draft");
+	await button(b, "Discard changes");
 	await b.waitFor(
 		() => !!document.querySelector(".profile-overview:not([hidden])"),
 	);
-});
-
-test("settings drafts: workflow chooser refusal retains profile and manual role model; accept discards and Save/clear reset baseline", {
-	timeout: 60000,
-}, async (t) => {
-	const { b, url } = await fixture(t);
-	await load(b, url);
-
-	await set(b, "Workflow to configure", "model-flow");
-	await b.waitFor(
-		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
-	);
-	await set(b, "Workflow preferred profile", "mixed");
-
-	await b.waitFor(
-		() => !!document.querySelector('.profile-flow [data-stage="verify-a"]'),
-	);
-	await b.click('.profile-flow [data-stage="verify-a"]');
-	await b.waitFor(
-		() => !!document.querySelector('[aria-label="Role verification Model"]'),
-	);
-	await set(b, "Role verification Model", "manual/unsaved");
-	assert.equal(await dirty(b), true);
-	await confirmPolicy(b, false);
-	await set(b, "Workflow to configure", "expanding-flow");
-	assert.deepEqual(
-		await b.evaluate(() => [
-			document.querySelector('[aria-label="Workflow to configure"]').value,
-			document.querySelector('[aria-label="Workflow preferred profile"]').value,
-			document.querySelector('[aria-label="Role verification Model"]').value,
-			window.guardCalls,
-		]),
-		["model-flow", "mixed", "manual/unsaved", 1],
-	);
-	await confirmPolicy(b, true);
-	await set(b, "Workflow to configure", "expanding-flow");
-	await b.waitFor(
-		() =>
-			document.querySelector('[aria-label="Workflow preferred profile"]')
-				?.value === "",
-	);
-	assert.equal(await dirty(b), false);
-	await set(b, "Workflow preferred profile", "daily");
-	assert.equal(await dirty(b), true);
-	await button(b, "Save workflow preference");
-	await b.waitFor(
-		() =>
-			document.querySelector(".profile-preferences p[role=status]")
-				?.textContent === "Workflow settings saved.",
-	);
-	assert.equal(await dirty(b), false);
-	await set(b, "Workflow preferred profile", "mixed");
-	await b.click('[data-testid="shared-preference-actions"] > summary');
-	const confirmations = await b.evaluate(() => window.guardCalls);
-	await button(b, "Remove saved shared overrides…");
-	assert.equal(
-		await b.evaluate(() => window.guardCalls),
-		confirmations + 1,
-		"saved shared removal separately confirms discarding the dirty form",
-	);
-	await b.waitFor(
-		() => !document.querySelector('[aria-label="Workflow preferred profile"]'),
-	);
-	assert.equal(await dirty(b), false);
 });
 
 for (const noNavigation of [false, true])
@@ -498,9 +420,14 @@ for (const noNavigation of [false, true])
 		const { b, url } = await fixture(t, { noNavigation });
 		await load(b, url);
 		await load(b, `${url}&profile=daily`);
-		await b.waitFor(() => !!document.querySelector('[aria-label="Model"]'));
-		await b.click('[aria-label="Model"]'); // trusted activation in this document
-		await set(b, "Model", "deep-native");
+		await b.waitFor(
+			() =>
+				!!document.querySelector(
+					'[aria-label="Strict capabilities (comma separated)"]',
+				),
+		);
+		await b.click('[aria-label="Strict capabilities (comma separated)"]'); // trusted activation in this document
+		await set(b, "Strict capabilities (comma separated)", "deep-native");
 		const original = await b.send("Page.getNavigationHistory");
 		for (let i = 0; i < 2; i++) {
 			await dialog(
@@ -509,7 +436,7 @@ for (const noNavigation of [false, true])
 				false,
 				"beforeunload",
 			);
-			assert.equal(await model(b), "deep-native");
+			assert.equal(await strictValue(b), "deep-native");
 			assert.deepEqual(await b.send("Page.getNavigationHistory"), original);
 		}
 		await dialog(
@@ -522,8 +449,13 @@ for (const noNavigation of [false, true])
 			() => !!document.querySelector(".profile-overview:not([hidden])"),
 		);
 		await b.evaluate(() => history.forward());
-		await b.waitFor(() => !!document.querySelector('[aria-label="Model"]'));
-		assert.equal(await model(b), "sonnet");
+		await b.waitFor(
+			() =>
+				!!document.querySelector(
+					'[aria-label="Strict capabilities (comma separated)"]',
+				),
+		);
+		assert.equal(await strictValue(b), "readOnly");
 		// Create a genuine cross-document forward destination without sentinels.
 		await b.send("Page.navigate", {
 			url: url.replace("view=profiles", "view=workflows"),
@@ -532,9 +464,14 @@ for (const noNavigation of [false, true])
 			() => new URLSearchParams(location.search).get("view") === "workflows",
 		);
 		await b.evaluate(() => history.back());
-		await b.waitFor(() => !!document.querySelector('[aria-label="Model"]'));
-		await b.click('[aria-label="Model"]');
-		await set(b, "Model", "forward-native");
+		await b.waitFor(
+			() =>
+				!!document.querySelector(
+					'[aria-label="Strict capabilities (comma separated)"]',
+				),
+		);
+		await b.click('[aria-label="Strict capabilities (comma separated)"]');
+		await set(b, "Strict capabilities (comma separated)", "forward-native");
 		const beforeForward = await b.send("Page.getNavigationHistory");
 		await dialog(
 			b,
@@ -542,7 +479,7 @@ for (const noNavigation of [false, true])
 			false,
 			"beforeunload",
 		);
-		assert.equal(await model(b), "forward-native");
+		assert.equal(await strictValue(b), "forward-native");
 		assert.deepEqual(await b.send("Page.getNavigationHistory"), beforeForward);
 		await dialog(
 			b,
@@ -554,10 +491,15 @@ for (const noNavigation of [false, true])
 			() => new URLSearchParams(location.search).get("view") === "workflows",
 		);
 		await b.evaluate(() => history.back());
-		await b.waitFor(() => !!document.querySelector('[aria-label="Model"]'));
-		assert.equal(await model(b), "sonnet");
-		await b.click('[aria-label="Model"]');
-		await set(b, "Model", "project-discard");
+		await b.waitFor(
+			() =>
+				!!document.querySelector(
+					'[aria-label="Strict capabilities (comma separated)"]',
+				),
+		);
+		assert.equal(await strictValue(b), "readOnly");
+		await b.click('[aria-label="Strict capabilities (comma separated)"]');
+		await set(b, "Strict capabilities (comma separated)", "project-discard");
 		await confirmPolicy(b, true);
 		await set(b, "Project", "all");
 		await b.waitFor(
@@ -591,46 +533,18 @@ test("settings drafts: workflow page has no Check form and opening it registers 
 	assert.equal(await dirty(b), false);
 });
 
-test("settings drafts: slow graph completion cannot adopt an intervening edit as the baseline", {
-	timeout: 60000,
-}, async (t) => {
-	const { b, url } = await fixture(t);
-	await load(b, url);
-	await b.send("Fetch.enable", {
-		patterns: [
-			{
-				urlPattern: "*/api/projects/*/workflows/model-flow",
-				requestStage: "Request",
-			},
-		],
-	});
-	try {
-		const paused = b.nextEvent("Fetch.requestPaused");
-		await edit(b);
-		const request = await paused;
-		await set(b, "Model", "edited-before-graph");
-		assert.equal(await dirty(b), true);
-		await b.send("Fetch.continueRequest", { requestId: request.requestId });
-		await b.waitFor(
-			() => !!document.querySelector('.profile-flow [data-stage="plan"]'),
-		);
-		assert.equal(await model(b), "edited-before-graph");
-		assert.equal(await dirty(b), true);
-		await set(b, "Model", "sonnet");
-		assert.equal(await dirty(b), false);
-	} finally {
-		await b.send("Fetch.disable");
-	}
-});
-
 test("settings drafts: default changes require consent before mutation and never save the discarded profile", {
 	timeout: 60000,
 }, async (t) => {
 	const { b, url, ctx } = await fixture(t);
 	await load(b, url);
 	await edit(b);
-	await set(b, "Model", "not-saved-by-default-change");
-	await b.click("[data-profile-configure]");
+	await set(
+		b,
+		"Strict capabilities (comma separated)",
+		"not-saved-by-default-change",
+	);
+
 	await confirmPolicy(b, false);
 	await button(b, "Use daily by default");
 	assert.equal(
@@ -647,10 +561,10 @@ test("settings drafts: default changes require consent before mutation and never
 	);
 	assert.equal(await dirty(b), false);
 	await edit(b);
-	assert.equal(await model(b), "sonnet");
+	assert.equal(await strictValue(b), "readOnly");
 });
 
-test("settings drafts: role reset stays dirty; cancelled Delete and successful Delete/Restore preserve their existing confirmation", {
+test("settings drafts: clearing strict capabilities stays dirty; cancelled Delete and successful Delete/Restore preserve their existing confirmation", {
 	timeout: 60000,
 }, async (t) => {
 	const { b, url, ctx } = await fixture(t);
@@ -658,7 +572,7 @@ test("settings drafts: role reset stays dirty; cancelled Delete and successful D
 		op: "set",
 		name: "daily",
 		values: {
-			roles: { verification: { executor: "claude", model: "sonnet" } },
+			roles: { verification: { executor: "claude", model: "readOnly" } },
 		},
 	});
 	await profileAction(ctx, {
@@ -668,13 +582,13 @@ test("settings drafts: role reset stays dirty; cancelled Delete and successful D
 	});
 	await load(b, `${url}&profile=daily`);
 	await b.waitFor(
-		() => !!document.querySelector('.profile-flow [data-stage="verify-a"]'),
+		() =>
+			!!document.querySelector(
+				'[aria-label="Strict capabilities (comma separated)"]',
+			),
 	);
-	await b.click('.profile-flow [data-stage="verify-a"]');
-	await b.waitFor(() => !!document.querySelector("[data-role-reset]"));
-	await button(b, "Reset role");
+	await set(b, "Strict capabilities (comma separated)", "");
 	assert.equal(await dirty(b), true);
-	await b.click("[data-profile-configure]");
 	await button(b, "Delete daily");
 	await button(b, "Keep profile");
 	assert.equal(await dirty(b), true);
@@ -686,9 +600,18 @@ test("settings drafts: role reset stays dirty; cancelled Delete and successful D
 	);
 	assert.equal(await dirty(b), false);
 	await b.click('[data-profile-open="codex"]');
-	await b.waitFor(() => !!document.querySelector('[aria-label="Model"]'));
-	await set(b, "Model", "unsaved-before-restore");
-	await b.click("[data-profile-configure]");
+	await b.waitFor(
+		() =>
+			!!document.querySelector(
+				'[aria-label="Strict capabilities (comma separated)"]',
+			),
+	);
+	await set(
+		b,
+		"Strict capabilities (comma separated)",
+		"unsaved-before-restore",
+	);
+
 	await button(b, "Restore built-in codex");
 	await button(b, "Keep profile");
 	assert.equal(await dirty(b), true);
@@ -746,7 +669,7 @@ for (const during of ["late", "undo", "leave", "failure"])
 			});
 		await load(b, url);
 		await edit(b);
-		await set(b, "Model", "submitted-model");
+		await set(b, "Strict capabilities (comma separated)", "contextIsolation");
 		await b.evaluate((failure) => {
 			const fetch = window.fetch;
 			window.fetch = async (...args) => {
@@ -773,12 +696,21 @@ for (const during of ["late", "undo", "leave", "failure"])
 		await b.waitFor(() => !!window.heldResponse);
 		assert.equal(await b.evaluate(() => window.heldResponse.status), 200);
 		{
-			await set(b, "Model", "edited-during-save");
-			if (during === "undo") await set(b, "Model", "submitted-model");
+			await set(
+				b,
+				"Strict capabilities (comma separated)",
+				"edited-during-save",
+			);
+			if (during === "undo")
+				await set(
+					b,
+					"Strict capabilities (comma separated)",
+					"contextIsolation",
+				);
 			if (during === "leave") {
 				// A successful default change intentionally replaces the editor in this document.
 				await confirmPolicy(b, true);
-				await b.click("[data-profile-configure]");
+
 				await button(b, "Use daily by default");
 				await b.waitFor(
 					() => !!document.querySelector(".profile-overview:not([hidden])"),
@@ -786,7 +718,9 @@ for (const during of ["late", "undo", "leave", "failure"])
 			}
 			if (during === "late")
 				await b.evaluate(() => {
-					const input = document.querySelector('[aria-label="Model"]');
+					const input = document.querySelector(
+						'[aria-label="Strict capabilities (comma separated)"]',
+					);
 					// Common fields are directly visible.
 					input.focus();
 					input.scrollIntoView({ block: "center" });
@@ -798,7 +732,7 @@ for (const during of ["late", "undo", "leave", "failure"])
 						!!document.querySelector(".profile-editor .profile-save-status"),
 					3000,
 				);
-				assert.equal(await model(b), "edited-during-save");
+				assert.equal(await strictValue(b), "edited-during-save");
 				assert.equal(await dirty(b), true);
 				assert.deepEqual(
 					await b.evaluate(() => {
@@ -809,7 +743,9 @@ for (const during of ["late", "undo", "leave", "failure"])
 							visible: r.top >= 0 && r.bottom <= innerHeight,
 							focused:
 								document.activeElement ===
-								document.querySelector('[aria-label="Model"]'),
+								document.querySelector(
+									'[aria-label="Strict capabilities (comma separated)"]',
+								),
 							editable:
 								!document.activeElement.disabled &&
 								!document.activeElement.readOnly,
@@ -823,20 +759,24 @@ for (const during of ["late", "undo", "leave", "failure"])
 					),
 					/unsaved/i,
 				);
-				await set(b, "Model", "submitted-model");
+				await set(
+					b,
+					"Strict capabilities (comma separated)",
+					"contextIsolation",
+				);
 				assert.equal(await dirty(b), false);
 			} else if (during === "failure") {
 				await b.waitFor(
 					() => !!document.querySelector(".profile-editor .management-error"),
 				);
-				assert.equal(await model(b), "edited-during-save");
+				assert.equal(await strictValue(b), "edited-during-save");
 				assert.equal(await dirty(b), true);
 			} else if (during === "undo") {
 				await b.waitFor(
 					() => !!document.querySelector(".profile-overview:not([hidden])"),
 				);
 				await edit(b);
-				assert.equal(await model(b), "submitted-model");
+				assert.equal(await strictValue(b), "contextIsolation");
 				assert.equal(await dirty(b), false);
 			} else {
 				// A protocol round-trip after completion must not resurrect or annotate the old editor.
@@ -860,9 +800,10 @@ for (const during of ["late", "undo", "leave", "failure"])
 				);
 			}
 			assert.equal(
-				(await profileAction(ctx, { op: "show", name: "daily" })).data.profile
-					.model,
-				"submitted-model",
+				(
+					await profileAction(ctx, { op: "show", name: "daily" })
+				).data.profile.strictCapabilities.join(", "),
+				"contextIsolation",
 			);
 		}
 	});
@@ -873,7 +814,7 @@ test("settings drafts: sidebar same-tab departure uses native app confirmation o
 	const { b, url } = await fixture(t);
 	await load(b, url);
 	await edit(b);
-	await set(b, "Model", "sidebar-draft");
+	await set(b, "Strict capabilities (comma separated)", "sidebar-draft");
 	const original = await b.send("Page.getNavigationHistory");
 	const address = await b.evaluate(() => location.href);
 	// Select the app-owned sidebar link without changing its href/default action.
@@ -887,7 +828,7 @@ test("settings drafts: sidebar same-tab departure uses native app confirmation o
 	assert.ok(link.length);
 	const actual = '.management-nav a[href*="view=workflows"]';
 	await dialog(b, () => b.click(actual), false, "confirm");
-	assert.equal(await model(b), "sidebar-draft");
+	assert.equal(await strictValue(b), "sidebar-draft");
 	assert.equal(await b.evaluate(() => location.href), address);
 	assert.deepEqual(await b.send("Page.getNavigationHistory"), original);
 	await dialog(b, () => b.click(actual), true, "confirm");
@@ -897,46 +838,13 @@ test("settings drafts: sidebar same-tab departure uses native app confirmation o
 	assert.equal(b.errors.length, 0);
 });
 
-test("settings drafts: profile row owns its native discard confirmation without a delegated duplicate", {
-	timeout: 60000,
-}, async (t) => {
-	const { b, url } = await fixture(t);
-	await load(b, url);
-
-	await set(b, "Workflow to configure", "model-flow");
-	await b.waitFor(
-		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
-	);
-	await set(b, "Workflow preferred profile", "unsaved-row-preference");
-	const before = await b.send("Page.getNavigationHistory");
-	await dialog(
-		b,
-		() => b.click('[data-profile-open="daily"]'),
-		false,
-		"confirm",
-	);
-	assert.deepEqual(await b.send("Page.getNavigationHistory"), before);
-	assert.equal(await dirty(b), true);
-	await dialog(
-		b,
-		() => b.click('[data-profile-open="daily"]'),
-		true,
-		"confirm",
-	);
-	await b.waitFor(
-		() => !!document.querySelector('[data-management-action="save-profile"]'),
-	);
-	assert.equal(await model(b), "sonnet");
-	assert.equal(await dirty(b), false);
-});
-
 test("settings drafts: delegated links keep native exceptions and clean/undo navigation quiet", {
 	timeout: 60000,
 }, async (t) => {
 	const { b, url } = await fixture(t);
 	await load(b, url);
 	await edit(b);
-	await set(b, "Model", "link-exceptions");
+	await set(b, "Strict capabilities (comma separated)", "link-exceptions");
 	await confirmPolicy(b, false);
 	const before = await b.send("Page.getNavigationHistory");
 	const result = await b.evaluate(() => {
@@ -1008,9 +916,9 @@ test("settings drafts: delegated links keep native exceptions and clean/undo nav
 	]);
 	assert.equal(result.calls, 0);
 	assert.equal(result.href, result.expectedHref);
-	assert.equal(await model(b), "link-exceptions");
+	assert.equal(await strictValue(b), "link-exceptions");
 	assert.deepEqual(await b.send("Page.getNavigationHistory"), before);
-	await set(b, "Model", "sonnet");
+	await set(b, "Strict capabilities (comma separated)", "readOnly");
 	await b.click('.management-nav a[href*="view=workflows"]');
 	await b.waitFor(
 		() =>
@@ -1027,95 +935,6 @@ test("settings drafts: delegated links keep native exceptions and clean/undo nav
 			"Workflows",
 	);
 });
-
-for (const preset of [false, true])
-	test(`F1: repeated Save removes newly saved roles (preset: ${preset})`, {
-		timeout: 60000,
-	}, async (t) => {
-		const { b, url, ctx } = await fixture(t);
-		const kept = {
-			verification: { executor: "claude", model: "sonnet" },
-			"agent:hidden-unmapped": { executor: "claude", model: "hidden-model" },
-		};
-		await profileAction(ctx, {
-			op: "set",
-			name: "daily",
-			values: { roles: kept },
-		});
-		await load(b, `${url}&profile=daily`);
-		await b.waitFor(
-			() => !!document.querySelector('.profile-flow [data-stage="plan"]'),
-		);
-		if (preset) await set(b, "Profile preset", "mixed");
-		else {
-			await b.click('.profile-flow [data-stage="plan"]');
-			await b.waitFor(
-				() => !!document.querySelector('[aria-label="Role planning Model"]'),
-			);
-			await set(b, "Role planning Model", "new-planning-role");
-		}
-		await b.evaluate(() => {
-			const fetch = window.fetch;
-			window.saveBodies = [];
-			window.fetch = async (...args) => {
-				const saving =
-					new URL(args[0], location.href).pathname === "/api/profiles/daily" &&
-					args[1]?.method === "PUT";
-				if (saving) window.saveBodies.push(JSON.parse(args[1].body));
-				const response = await fetch(...args);
-				if (saving && window.saveBodies.length === 1) {
-					window.heldSave = true;
-					await new Promise((resolve) => {
-						window.releaseSave = resolve;
-					});
-				}
-				return response;
-			};
-		});
-		await button(b, "Save profile");
-		await b.waitFor(() => window.heldSave);
-		await set(b, "Model", "later-common-model");
-		await b.evaluate(() => window.releaseSave());
-		await b.waitFor(() =>
-			document
-				.querySelector(".profile-save-status")
-				?.textContent.includes("Later changes"),
-		);
-		const first = (await profileAction(ctx, { op: "show", name: "daily" })).data
-			.profile;
-		assert.ok(first.roles.planning);
-		await set(b, "Profile preset", "");
-		await b.click('.profile-flow [data-stage="plan"]');
-		await b.waitFor(() => !!document.querySelector("[data-role-reset]"));
-		await button(b, "Reset role");
-		await button(b, "Save profile");
-		await b.waitFor(
-			() => !!document.querySelector(".profile-overview:not([hidden])"),
-		);
-		const second = (await profileAction(ctx, { op: "show", name: "daily" }))
-			.data.profile;
-		const bodies = await b.evaluate(() => window.saveBodies);
-		console.log(
-			"F1 evidence",
-			JSON.stringify({
-				preset,
-				firstRoles: first.roles,
-				secondRoles: second.roles,
-				secondUnset: bodies[1].unset,
-			}),
-		);
-		assert.equal(
-			second.roles.planning,
-			undefined,
-			"second Save must remove planning introduced by first Save",
-		);
-		assert.ok(bodies[1].unset.includes("roles.planning"));
-		assert.deepEqual(
-			second.roles["agent:hidden-unmapped"],
-			kept["agent:hidden-unmapped"],
-		);
-		assert.deepEqual(second.roles.verification, kept.verification);
-	});
 
 for (const noNavigation of [false, true])
 	test(`F2: new profile Save focuses saved row (Navigation API absent: ${noNavigation})`, {
@@ -1159,43 +978,3 @@ for (const noNavigation of [false, true])
 		);
 		assert.equal(await dirty(b), false);
 	});
-
-test("settings drafts: preference save baseline is the submitted data, not edits made during the request", {
-	timeout: 60000,
-}, async (t) => {
-	const { b, url } = await fixture(t);
-	await load(b, url);
-
-	await set(b, "Workflow to configure", "model-flow");
-	await b.waitFor(
-		() => !!document.querySelector('[aria-label="Workflow preferred profile"]'),
-	);
-	await set(b, "Workflow preferred profile", "daily");
-	await b.send("Fetch.enable", {
-		patterns: [
-			{
-				urlPattern: "*/api/workflow-preferences/model-flow?*",
-				requestStage: "Request",
-			},
-		],
-	});
-	try {
-		const paused = b.nextEvent("Fetch.requestPaused");
-		await button(b, "Save workflow preference");
-		const request = await paused;
-		assert.equal(request.request.method, "PUT");
-		await set(b, "Workflow preferred profile", "changed-during-save");
-		await b.send("Fetch.continueRequest", { requestId: request.requestId });
-		await b.waitFor(
-			() =>
-				document.querySelector(".profile-preferences p[role=status]")
-					?.textContent ===
-				"Workflow settings saved. Later changes are unsaved.",
-		);
-		assert.equal(await dirty(b), true);
-		await set(b, "Workflow preferred profile", "daily");
-		assert.equal(await dirty(b), false);
-	} finally {
-		await b.send("Fetch.disable");
-	}
-});

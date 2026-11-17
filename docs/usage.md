@@ -70,11 +70,11 @@ intent. Check and named launch use the same resolver; recorded values describe t
 plan, not observed provider execution.
 
 Shared `profile workflow` preferences are still user-level and keyed by workflow name, potentially
-across projects. The shared editor suggests saved/preset/declared profile names or inheritance and
-also accepts typed names; configured workflows are marked in its chooser. Removing saved shared
-overrides is a secondary, explicit cross-project confirmation, including any dirty-form discard.
-Cancel preserves the draft and saved preference; failed deletion keeps the form. These preferences
-are neither migrated into nor deleted by project-local settings. Project-local
+across projects. Manage them through CLI, MCP or Pi's profile picker, not the dashboard Profiles page.
+They are neither migrated into nor deleted by project-local settings. Dashboard Profiles manages
+only shared permission mode, strict capabilities, default selection and profile creation/deletion or
+built-in restoration. Save leaves stored executor/model/effort and role assignments untouched;
+new profiles contain no invented model settings. Project-local
 storage is private under the project's state base at `workflow-settings/v1/settings.json`.
 In the dashboard, writable initial load and meaningful edits automatically calculate the draft without
 saving or executing. **Save** and **Discard changes** sit in the sticky title row with an unsaved-changes indicator. Save applies one
@@ -82,7 +82,7 @@ complete snapshot; newer edits during Save remain unsaved and refresh with the r
 Discard changes confirms a dirty discard and reloads saved settings; it does not delete them.
 Calculation failures retain the draft and offer contextual Retry without an automatic retry loop.
 The default **All tasks** panel edits workflow defaults. Selecting a graph task shows **Use All tasks settings** or **Custom for this task**; fields appear only for Custom. Custom captures the current resolved values without changing the result. Returning to All tasks settings removes only that task binding in the draft. **← All tasks** and Escape return to the defaults panel.
-Model is a selection-only dropdown that retains saved unlisted IDs on load, including on inventory failure; new arbitrary IDs remain supported through CLI/API and shared Profiles. Explicit executor changes clear a model only when the new executor's complete, available inventory excludes it, with a short inline note. Partial/unavailable inventories and listed models retain it.
+Model is a selection-only dropdown that retains saved unlisted IDs on load, including on inventory failure; new arbitrary IDs remain supported through CLI/API and Pi's profile picker. Explicit executor changes clear a model only when the new executor's complete, available inventory excludes it, with a short inline note. Partial/unavailable inventories and listed models retain it.
 **Use baseline settings** in Model/Effort unsets only that field, keeping the executor and sibling values.
 Executor offers explicit IDs only and never pins a baseline just by opening the editor. Graph nodes show the current **model · effort** and a **Custom** marker for task bindings; stale values disappear until recalculated. Detailed lineage stays in the task panel. The title has one muted description line; About, routing tables and Workflow diagnostics (including launch Check, Source, Resolved spec and roles) are not on this page. Real spec problems remain visible. CLI/API Check is unchanged. Saves fence epoch, entry revision, definition fingerprint and alias resolution;
 clears use exact stored keys and snapshot tokens without requiring the definition to remain available.

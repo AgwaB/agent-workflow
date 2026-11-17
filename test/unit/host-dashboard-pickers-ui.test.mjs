@@ -1,391 +1,182 @@
 // test-tier: integration
-// The owner wants the same below-field menu for Executor, Model and Effort, not native OS popups.
+// Shared selection menus remain covered on the project Workflow editor, not removed Profile model controls.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { managementProject } from "../helpers/dashboard-management.mjs";
 import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
-import { profileAction } from "../../dist/hosts/catalog.js";
 
-const chrome = await findChrome();
-async function setup(t, values = {}) {
-	assert.ok(chrome, "Chrome is required");
+async function setup(t) {
+	const chrome = await findChrome();
+	assert.ok(chrome);
 	const p = await managementProject(t);
-	await profileAction(p.ctx, { op: "set", name: "picker-test", values });
-	const browser = await createBrowser(chrome);
-	t.after(() => browser.close());
-	await browser.send("Emulation.setDeviceMetricsOverride", {
+	const b = await createBrowser(chrome);
+	t.after(() => b.close());
+	await b.send("Emulation.setDeviceMetricsOverride", {
 		width: 1440,
 		height: 900,
 		deviceScaleFactor: 1,
 		mobile: false,
 	});
-	await browser.send("Page.navigate", {
-		url: `${p.origin}/?project=${p.server.projectId}&view=profiles`,
+	await b.send("Page.navigate", {
+		url: `${p.origin}/?project=${p.server.projectId}&view=workflows&workflow=manage`,
 	});
-	await browser.waitFor(
-		() => !!document.querySelector('[data-profile-open="picker-test"]'),
+	await b.waitFor(
+		() => !!document.querySelector('[aria-label="All tasks Effort"]'),
 	);
-	await browser.click('[data-profile-open="picker-test"]');
-	await browser.waitFor(
-		() => !!document.querySelector('[data-management-action="save-profile"]'),
-	);
-	return { ...p, browser };
+	return { ...p, b };
 }
-const field = (name) => `.profile-editor [aria-label="${name}"]`;
-async function value(browser, label) {
-	return browser.evaluate(
-		(label) => document.querySelector(`[aria-label="${label}"]`).value,
-		label,
-	);
-}
-async function menu(browser, label) {
-	return `#${await browser.evaluate((label) => document.querySelector(`[aria-label="${label}"]`).getAttribute("aria-controls"), label)}`;
-}
-async function pick(browser, label, selected) {
-	await browser.click(field(label));
-	await browser.click(
-		`${await menu(browser, label)} [data-value="${selected}"]`,
-	);
-}
-async function shown(browser, label) {
-	return browser.evaluate(
-		(label) =>
+const control = (name) => `[aria-label="All tasks ${name}"]`;
+const expanded = (b, name) =>
+	b.evaluate(
+		(name) =>
 			document
-				.querySelector(`[aria-label="${label}"]`)
+				.querySelector(`[aria-label="All tasks ${name}"]`)
 				.getAttribute("aria-expanded") === "true",
-		label,
+		name,
 	);
+async function choose(b, name, value) {
+	await b.click(control(name));
+	const id = await b.evaluate(
+		(name) =>
+			document
+				.querySelector(`[aria-label="All tasks ${name}"]`)
+				.getAttribute("aria-controls"),
+		name,
+	);
+	await b.click(`#${id} [data-value="${value}"]`);
 }
-
-test("model pickers: one style, anchored below, pointer selection, keyboard and light-dismiss", {
+test("Shared Workflow pickers: anchored menus, native pointer selection, keyboard and light-dismiss", {
 	timeout: 90000,
 }, async (t) => {
-	const { browser } = await setup(t, {
-		executor: "codex",
-		model: "fixture-model",
-		effort: "max",
-	});
-	const styles = await browser.evaluate(() =>
-		["Executor", "Model", "Effort"].map((label) => {
-			const node = document.querySelector(`[aria-label="${label}"]`);
-			const style = getComputedStyle(node);
+	const { b } = await setup(t);
+	await choose(b, "Executor", "codex");
+	const styles = await b.evaluate(() =>
+		["Executor", "Effort"].map((name) => {
+			const n = document.querySelector(`[aria-label="All tasks ${name}"]`),
+				s = getComputedStyle(n);
 			return [
-				node.getAttribute("role"),
-				style.backgroundImage,
-				style.paddingRight,
-				style.height,
+				n.getAttribute("role"),
+				s.backgroundImage,
+				s.height,
+				s.paddingRight,
 			];
 		}),
 	);
 	assert.deepEqual(styles[0], styles[1]);
-	assert.deepEqual(styles[1], styles[2]);
 	assert.match(styles[0][1], /linear-gradient/);
-	for (const label of ["Executor", "Model", "Effort"]) {
-		await browser.click(field(label));
-		const box = await browser.evaluate((label) => {
-			const input = document.querySelector(`[aria-label="${label}"]`);
-			const list = document.getElementById(input.getAttribute("aria-controls"));
-			const a = input.getBoundingClientRect(),
-				b = list.getBoundingClientRect();
-			return {
-				below: b.top - a.bottom,
-				width: b.width - a.width,
-				left: b.left - a.left,
-				open: document.querySelectorAll(".picker-menu:not([hidden])").length,
-			};
-		}, label);
-		assert.ok(
-			box.below >= 5 && box.below <= 7,
-			`${label}: ${JSON.stringify(box)}`,
-		);
-		assert.equal(box.width, 0);
-		assert.equal(box.left, 0);
-		assert.equal(box.open, 1);
-		const padding = await browser.evaluate((label) => {
-			const control = document.querySelector(`[aria-label="${label}"]`);
-			const list = document.getElementById(
-				control.getAttribute("aria-controls"),
-			);
-			const rect = list.getBoundingClientRect();
-			window.pickerToggles = [];
-			window.pickerObserver = new MutationObserver((entries) =>
-				window.pickerToggles.push(...entries.map((entry) => entry.oldValue)),
-			);
-			window.pickerObserver.observe(control, {
-				attributes: true,
-				attributeOldValue: true,
-				attributeFilter: ["aria-expanded"],
-			});
-			return { x: rect.left + 3, y: rect.top + 3 };
-		}, label);
-		await browser.send("Input.dispatchMouseEvent", {
-			type: "mousePressed",
-			...padding,
-			button: "left",
-			clickCount: 1,
-		});
-		await browser.send("Input.dispatchMouseEvent", {
-			type: "mouseReleased",
-			...padding,
-			button: "left",
-			clickCount: 1,
-		});
+	for (const name of ["Executor", "Effort"]) {
+		await b.click(control(name));
 		assert.deepEqual(
-			await browser.evaluate(() => {
-				window.pickerObserver.disconnect();
-				return window.pickerToggles;
-			}),
-			[],
-			`${label}: menu padding does not close/reopen the list`,
+			await b.evaluate((name) => {
+				const n = document.querySelector(`[aria-label="All tasks ${name}"]`),
+					menu = document.getElementById(n.getAttribute("aria-controls")),
+					a = n.getBoundingClientRect(),
+					r = menu.getBoundingClientRect();
+				return {
+					below: r.top - a.bottom,
+					width: r.width - a.width,
+					left: r.left - a.left,
+					open: document.querySelectorAll(".picker-menu:not([hidden])").length,
+				};
+			}, name),
+			{ below: 6, width: 0, left: 0, open: 1 },
 		);
-		assert.equal(await shown(browser, label), true);
-		await browser.key("Escape");
-		assert.equal(await shown(browser, label), false);
+		await b.key("Escape");
+		assert.equal(await expanded(b, name), false);
 	}
-	// A previously saved effort the selected model does not offer stays visible until changed.
-	assert.equal(await value(browser, "Effort"), "max");
-	assert.match(
-		await browser.evaluate(
-			() =>
-				document.querySelector(
-					'.profile-editor [role="option"][data-value="max"]',
-				).textContent,
-		),
-		/not available here/,
-	);
-	await pick(browser, "Effort", "high");
-	assert.equal(await value(browser, "Effort"), "high");
-	assert.equal(await shown(browser, "Effort"), false);
-	await browser.click(field("Effort"));
-	await browser.key("ArrowDown");
-	await browser.key("Escape");
+	await choose(b, "Executor", "codex");
+	await choose(b, "Effort", "high");
 	assert.equal(
-		await value(browser, "Effort"),
+		await b.evaluate(
+			() => document.querySelector('[aria-label="All tasks Effort"]').value,
+		),
 		"high",
-		"Escape does not commit the highlight",
 	);
-	await pick(browser, "Executor", "claude");
-	assert.equal(await value(browser, "Model"), "");
-	assert.equal(await value(browser, "Effort"), "");
-	await browser.click(field("Effort"));
-	await browser.key("End");
-	await browser.key("Enter");
-	assert.equal(await value(browser, "Effort"), "max");
-	assert.equal(await shown(browser, "Effort"), false);
-	await browser.click(field("Executor"));
-	await browser.key("Tab");
-	assert.equal(await shown(browser, "Executor"), false);
+	await b.click(control("Effort"));
+	await b.key("ArrowDown");
+	await b.key("Escape");
 	assert.equal(
-		await browser.evaluate(() =>
-			document.activeElement.getAttribute("aria-label"),
+		await b.evaluate(
+			() => document.querySelector('[aria-label="All tasks Effort"]').value,
 		),
-		"Model",
+		"high",
 	);
-	await browser.click(field("Model"));
-	await browser.click(".profile-editor h2");
-	assert.equal(await shown(browser, "Model"), false);
+	await b.click(control("Executor"));
+	await b.key("Tab");
+	assert.equal(await expanded(b, "Executor"), false);
+	await b.click(control("Effort"));
+	await b.click(".project-common h3");
+	assert.equal(await expanded(b, "Effort"), false);
 	assert.equal(
-		await browser.evaluate(() =>
-			document
-				.querySelector(".profile-editor")
-				.textContent.includes("Same from the terminal"),
+		await b.evaluate(
+			() => document.querySelector('[aria-label="All tasks Model"]').tagName,
 		),
-		false,
+		"SELECT",
 	);
-	assert.deepEqual(browser.errors, []);
+	assert.deepEqual(b.errors, []);
 });
-
-test("model pickers: manual model IDs survive, suggestions commit once, and clearing uses executor defaults", {
+test("Shared Workflow picker: long downward menus stay scrollable and keyboard options visible on narrow screens", {
 	timeout: 90000,
 }, async (t) => {
-	const p = await setup(t, {
-		executor: "codex",
-		model: "saved/unknown-model",
-		effort: "high",
-	});
-	assert.equal(await value(p.browser, "Model"), "saved/unknown-model");
-	await p.browser.click(field("Model"));
-	await p.browser.evaluate(() =>
-		document.querySelector('[aria-label="Model"]').select(),
-	);
-	await p.browser.send("Input.insertText", { text: "custom/new-model" });
-	assert.equal(await shown(p.browser, "Model"), true);
-	assert.equal(
-		await p.browser.evaluate(
-			() => document.querySelector(".picker-empty").textContent,
-		),
-		"No suggestions. You can type a value.",
-	);
-	await p.browser.click(".picker-empty");
-	assert.equal(
-		await p.browser.evaluate(() => !!document.querySelector(".picker-empty")),
-		true,
-		"clicking empty menu text must not clear filtering or reopen the menu",
-	);
-	await p.browser.key("Enter");
-	assert.equal(await shown(p.browser, "Model"), false);
-	assert.equal(await value(p.browser, "Model"), "custom/new-model");
-	await p.browser.click('[data-management-action="save-profile"]');
-	await p.browser.waitFor(
-		() => !!document.querySelector(".profile-save-status"),
-	);
-	assert.equal(
-		(await profileAction(p.ctx, { op: "show", name: "picker-test" })).data
-			.profile.model,
-		"custom/new-model",
-	);
-	await p.browser.click('[data-profile-open="picker-test"]');
-	await p.browser.waitFor(
-		() => !!document.querySelector('[aria-label="Model"]'),
-	);
-	// With an unknown current ID, Up starts at the last suggestion, not the reset option.
-	await p.browser.click(field("Model"));
-	await p.browser.key("ArrowUp");
-	await p.browser.key("Enter");
-	assert.equal(await value(p.browser, "Model"), "fixture-model");
-	await pick(p.browser, "Model", "fixture-model");
-	assert.equal(await value(p.browser, "Model"), "fixture-model");
-	assert.equal(
-		await shown(p.browser, "Model"),
-		false,
-		"committing does not reopen the suggestions",
-	);
-	assert.equal(
-		await p.browser.evaluate(
-			() =>
-				document.querySelector('.profile-common [aria-label="Model"]')
-					.placeholder,
-		),
-		"Automatic",
-	);
-	assert.equal(
-		await p.browser.evaluate(
-			() =>
-				document
-					.querySelector('.profile-common [aria-label="Model"]')
-					.parentElement.querySelector('[role="option"]').textContent,
-		),
-		"Automatic",
-	);
-	await pick(p.browser, "Model", "");
-	assert.equal(await value(p.browser, "Model"), "");
-	assert.equal(await shown(p.browser, "Model"), false);
-	await p.browser.click('[data-management-action="save-profile"]');
-	await p.browser.waitFor(
-		() => !!document.querySelector(".profile-save-status"),
-	);
-	assert.equal(
-		(await profileAction(p.ctx, { op: "show", name: "picker-test" })).data
-			.profile.model,
-		undefined,
-	);
-	assert.deepEqual(p.browser.errors, []);
-});
-
-test("model pickers: lower page and narrow viewports scroll the same downward list into view", {
-	timeout: 90000,
-}, async (t) => {
-	const { browser } = await setup(t);
+	const { b } = await setup(t);
+	await choose(b, "Executor", "codex");
 	for (const theme of ["dark", "light"]) {
-		await browser.send("Emulation.setEmulatedMedia", {
+		await b.send("Emulation.setEmulatedMedia", {
 			features: [{ name: "prefers-color-scheme", value: theme }],
 		});
-		await browser.send("Emulation.setDeviceMetricsOverride", {
+		await b.send("Emulation.setDeviceMetricsOverride", {
 			width: 390,
 			height: 420,
 			deviceScaleFactor: 1,
 			mobile: false,
 		});
-		await browser.click(field("Effort"));
-		const rects = await browser.evaluate(() => {
-			const control = document.querySelector('[aria-label="Effort"]');
-			const menu = document.getElementById(
-				control.getAttribute("aria-controls"),
-			);
-			const a = control.getBoundingClientRect(),
-				b = menu.getBoundingClientRect();
+		await b.evaluate(() =>
+			document
+				.querySelector('[aria-label="All tasks Effort"]')
+				.scrollIntoView({ block: "center", behavior: "instant" }),
+		);
+		await b.click(control("Effort"));
+		await b.waitFor(
+			() =>
+				document
+					.querySelector('[aria-label="All tasks Effort"]')
+					.getAttribute("aria-expanded") === "true",
+		);
+		const r = await b.evaluate(() => {
+			const n = document.querySelector('[aria-label="All tasks Effort"]'),
+				m = document.getElementById(n.getAttribute("aria-controls")),
+				a = n.getBoundingClientRect(),
+				r = m.getBoundingClientRect();
 			return {
-				below: b.top - a.bottom,
-				bottom: b.bottom,
-				top: a.top,
+				below: r.top - a.bottom,
+				bottom: r.bottom,
 				screen: innerHeight,
 				width: document.body.scrollWidth,
-				height: menu.clientHeight,
-				scroll: menu.scrollHeight,
-				inlineStyle: menu.hasAttribute("style"),
+				height: m.clientHeight,
+				scroll: m.scrollHeight,
+				inline: m.hasAttribute("style"),
 			};
 		});
-		assert.ok(rects.below >= 5 && rects.below <= 7, JSON.stringify(rects));
-		assert.ok(
-			rects.bottom <= rects.screen && rects.top >= 48,
-			JSON.stringify(rects),
+		assert.equal(r.below, 6);
+		assert.ok(r.bottom <= r.screen, JSON.stringify(r));
+		assert.ok(r.scroll > r.height);
+		assert.equal(r.width, 390);
+		assert.equal(r.inline, false);
+		await b.key("End");
+		assert.deepEqual(
+			await b.evaluate(() => {
+				const n = document.querySelector('[aria-label="All tasks Effort"]'),
+					a = document.getElementById(n.getAttribute("aria-activedescendant")),
+					r = a.getBoundingClientRect(),
+					m = a.parentElement.getBoundingClientRect();
+				return {
+					label: a.textContent,
+					visible: r.bottom <= m.bottom && r.top >= m.top,
+				};
+			}),
+			{ label: "ultra", visible: true },
 		);
-		assert.ok(
-			rects.scroll > rects.height,
-			"long lists scroll inside their surface",
-		);
-		assert.equal(rects.width, 390);
-		assert.equal(rects.inlineStyle, false, "menu sizing stays in CSP-safe CSS");
-		await browser.key("End");
-		const active = await browser.evaluate(() => {
-			const control = document.querySelector('[aria-label="Effort"]');
-			const node = document.getElementById(
-				control.getAttribute("aria-activedescendant"),
-			);
-			const parent = node.parentElement.getBoundingClientRect(),
-				rect = node.getBoundingClientRect();
-			return {
-				label: node.textContent,
-				visible: rect.bottom <= parent.bottom && rect.top >= parent.top,
-			};
-		});
-		assert.equal(active.label, "ultra");
-		assert.equal(active.visible, true);
-		await browser.key("Escape");
+		await b.key("Escape");
 	}
-	assert.deepEqual(browser.errors, []);
-});
-
-test("Executor changes alone reset saved Model and Effort, including Automatic, and save cleared fields", {
-	timeout: 90000,
-}, async (t) => {
-	const p = await setup(t, {
-		executor: "claude",
-		model: "sonnet",
-		effort: "max",
-	});
-	await pick(p.browser, "Executor", "claude");
-	assert.equal(await value(p.browser, "Model"), "sonnet");
-	assert.equal(await value(p.browser, "Effort"), "max");
-	await pick(p.browser, "Executor", "");
-	assert.equal(await value(p.browser, "Model"), "");
-	assert.equal(await value(p.browser, "Effort"), "");
-	await pick(p.browser, "Model", "");
-	await pick(p.browser, "Effort", "high");
-	await pick(p.browser, "Executor", "codex");
-	assert.equal(await value(p.browser, "Effort"), "");
-	await p.browser.evaluate(() => {
-		const original = window.fetch;
-		window.fetch = (url, options) => {
-			if (
-				String(url).includes("/api/profiles/picker-test") &&
-				options?.method === "PUT"
-			)
-				window.savedPickerBody = JSON.parse(options.body);
-			return original(url, options);
-		};
-	});
-	await p.browser.click('[data-management-action="save-profile"]');
-	await p.browser.waitFor(
-		() => !!document.querySelector(".profile-save-status"),
-	);
-	const body = await p.browser.evaluate(() => window.savedPickerBody);
-	assert.deepEqual(body.values, { executor: "codex", roles: {} });
-	assert.ok(body.unset.includes("model") && body.unset.includes("effort"));
-	const saved = (
-		await profileAction(p.ctx, { op: "show", name: "picker-test" })
-	).data.profile;
-	assert.equal(saved.model, undefined);
-	assert.equal(saved.effort, undefined);
-	assert.equal(saved.executor, "codex");
+	assert.deepEqual(b.errors, []);
 });

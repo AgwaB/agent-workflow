@@ -196,138 +196,9 @@ test(
 	},
 );
 
-// Moved from the deleted workflow-page Check form (2026-11-16): the same shared model controls
-// are still used by the Profile editor, so their catalog-state warnings stay covered there.
+// Profile model controls and their warning-only catalog path are deleted, not hidden.
 test(
-	"D profile model controls: real catalog states, exact complete-list aliases and live associations",
-	opts,
-	async (t) => {
-		const base = {
-			usable: true,
-			state: "ready",
-			models: ["provider/alpha", "beta", "a/b/c"],
-			modelListComplete: true,
-			effortLevels: ["low", "high"],
-			modelEfforts: { "provider/alpha": ["low"] },
-		};
-		const entries = [
-			{ ...base, id: "ready" },
-			{
-				...base,
-				id: "missing",
-				usable: false,
-				state: "not-installed",
-				models: null,
-			},
-			{ ...base, id: "logout", usable: false, state: "logged-out" },
-			{
-				...base,
-				id: "broken",
-				usable: false,
-				state: "probe-failed",
-				error: "probe <failed>",
-			},
-			{ ...base, id: "partial", modelListComplete: false },
-			{ ...base, id: "null", models: null },
-		];
-		const { b, p } = await setup(
-			t,
-			{ "/api/executors/models": { data: { executors: entries } } },
-			"profiles",
-		);
-		await profileAction(p.ctx, {
-			op: "set",
-			name: "catalog-states",
-			values: { executor: "codex" },
-		});
-		await b.send("Page.navigate", {
-			url: `${p.origin}/?project=${p.server.projectId}&view=profiles`,
-		});
-		await b.waitFor(
-			() => !!document.querySelector('[data-profile-open="catalog-states"]'),
-		);
-		await b.click('[data-profile-open="catalog-states"]');
-		await b.waitFor(
-			() => !!document.querySelector('.profile-editor [aria-label="Executor"]'),
-		);
-		// Visible status text linked to Executor/Model/Effort.
-		const note = () =>
-			b.evaluate(() =>
-				[
-					...new Set(
-						["Executor", "Model", "Effort"].flatMap((label) =>
-							(
-								document
-									.querySelector(`.profile-editor [aria-label="${label}"]`)
-									.getAttribute("aria-describedby") || ""
-							)
-								.split(/\s+/)
-								.filter(Boolean),
-						),
-					),
-				]
-					.map((id) => document.getElementById(id))
-					.filter((n) => n && !n.hidden && n.getAttribute("role") === "status")
-					.map((n) => n.textContent)
-					.join("\n"),
-			);
-		for (const [id, pattern] of [
-			["missing", /not installed/i],
-			["logout", /log in|not logged in/i],
-			["broken", /probe <failed>/],
-			["future", /Unknown executor: future/],
-		]) {
-			await set(b, "Executor", id);
-			assert.match(await note(), pattern, id);
-		}
-		await set(b, "Executor", "ready");
-		assert.equal(await note(), "");
-		for (const value of [
-			"alpha",
-			"provider/alpha",
-			"beta",
-			"other/beta",
-			"b/c",
-			"a/b/c",
-			"c",
-		]) {
-			await set(b, "Model", value);
-			assert.equal(await note(), "", value);
-		}
-		for (const value of ["other/alpha", "other/c", " alpha", "manual-id"]) {
-			await set(b, "Model", value);
-			assert.match(
-				await note(),
-				/not in ready's complete model list\./i,
-				value,
-			);
-			assert.doesNotMatch(await note(), /launch refuses/i, value);
-			assert.equal(
-				await b.evaluate(
-					() =>
-						document.querySelector('.profile-editor [aria-label="Model"]')
-							.value,
-				),
-				value,
-				"warning never clears the typed model",
-			);
-		}
-		for (const id of ["partial", "null"]) {
-			await set(b, "Executor", id);
-			await set(b, "Model", "arbitrary/manual");
-			assert.equal(await note(), "", id);
-		}
-		await set(b, "Executor", "ready");
-		await set(b, "Effort", "high");
-		await set(b, "Model", "provider/alpha");
-		assert.match(await note(), /high is not available/);
-		await set(b, "Effort", "low");
-		assert.equal(await note(), "");
-	},
-);
-
-test(
-	"D complete catalog warning is advisory: saved manual models and unrelated values survive Save",
+	"D Profiles omits catalog warnings and retains hidden manual model/role values on permission Save",
 	opts,
 	async (t) => {
 		const { b, p } = await setup(
@@ -338,11 +209,11 @@ test(
 						executors: [
 							{
 								id: "codex",
-								state: "ready",
-								usable: true,
+								state: "probe-failed",
+								usable: false,
+								error: "must not render",
 								models: ["listed"],
 								modelListComplete: true,
-								effortLevels: ["low", "high"],
 							},
 						],
 					},
@@ -359,48 +230,34 @@ test(
 		};
 		await profileAction(p.ctx, { op: "set", name: "manual-warning", values });
 		await b.send("Page.navigate", {
-			url: `${p.origin}/?project=${p.server.projectId}&view=profiles`,
+			url: `${p.origin}/?project=${p.server.projectId}&view=profiles&profile=manual-warning`,
 		});
-		await b.waitFor(
-			() => !!document.querySelector('[data-profile-open="manual-warning"]'),
-		);
-		await b.click('[data-profile-open="manual-warning"]');
 		await b.waitFor(
 			() => !!document.querySelector('[data-management-action="save-profile"]'),
 		);
-		assert.match(
+		assert.equal(
 			await b.evaluate(
-				() => document.querySelector(".profile-editor").innerText,
+				() =>
+					document.querySelectorAll(
+						'.profile-editor [aria-label="Executor"], .profile-editor [aria-label="Model"], .profile-editor [aria-label="Effort"], .profile-editor [data-effort-note]',
+					).length,
 			),
-			/not in codex's complete model list\./i,
+			0,
 		);
 		assert.doesNotMatch(
 			await b.evaluate(
 				() => document.querySelector(".profile-editor").innerText,
 			),
-			/launch refuses/i,
+			/must not render|complete model list|not available here/,
 		);
-		assert.equal(
-			await b.evaluate(() => {
-				const ids = [
-					...document.querySelectorAll('.profile-editor small[role="status"]'),
-				].map((n) => n.id);
-				return (
-					ids.length > 0 &&
-					ids.every(Boolean) &&
-					ids.length === new Set(ids).size
-				);
-			}),
-			true,
-		);
-		await set(b, "Effort", "high");
+		await set(b, "Profile permission mode", "free");
 		await b.click('[data-management-action="save-profile"]');
 		await b.waitFor(() => !!document.querySelector(".profile-save-status"));
 		const stored = (
 			await profileAction(p.ctx, { op: "show", name: "manual-warning" })
 		).data.profile;
-		for (const key of ["executor", "model", "roles", "permissionMode"])
+		for (const key of ["executor", "model", "effort", "roles"])
 			assert.deepEqual(stored[key], values[key]);
-		assert.equal(stored.effort, "high");
+		assert.equal(stored.permissionMode, "free");
 	},
 );

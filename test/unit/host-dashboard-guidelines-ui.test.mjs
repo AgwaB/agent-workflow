@@ -51,7 +51,7 @@ test("G1: blank profile name has one visible connected error, correction preserv
 }, async (t) => {
 	const p = await open(t);
 	const b = p.browser;
-	await set(b, "Model", "manual/keep-this-id");
+	await set(b, "Strict capabilities (comma separated)", "readOnly");
 	await set(b, "Profile name", "   ");
 	await b.evaluate(() => {
 		const hint = document.createElement("p");
@@ -99,7 +99,9 @@ test("G1: blank profile name has one visible connected error, correction preserv
 					(node) => node.textContent === "Enter a profile name before saving.",
 				).length,
 				puts: window.profilePuts,
-				model: document.querySelector('[aria-label="Model"]').value,
+				model: document.querySelector(
+					'[aria-label="Strict capabilities (comma separated)"]',
+				).value,
 			};
 		});
 		assert.deepEqual(result, {
@@ -109,7 +111,7 @@ test("G1: blank profile name has one visible connected error, correction preserv
 			visible: true,
 			count: 1,
 			puts: 0,
-			model: "manual/keep-this-id",
+			model: "readOnly",
 		});
 	}
 	await set(b, "Profile name", "corrected");
@@ -146,10 +148,10 @@ test("G1: blank profile name has one visible connected error, correction preserv
 	await set(b, "Profile name", "corrected");
 	await b.click('[data-management-action="save-profile"]');
 	await b.waitFor(() => !!document.querySelector(".profile-save-status"));
-	assert.equal(
+	assert.deepEqual(
 		(await profileAction(p.ctx, { op: "show", name: "corrected" })).data.profile
-			.model,
-		"manual/keep-this-id",
+			.strictCapabilities,
+		["readOnly"],
 	);
 });
 
@@ -158,7 +160,6 @@ test("G3: narrow and coarse controls retain usable geometry and desktop density"
 }, async (t) => {
 	const p = await open(t);
 	const b = p.browser;
-	await b.waitFor(() => !!document.querySelector(".profile-flow .code-switch"));
 	for (const [width, coarse] of [
 		[390, false],
 		[390, true],
@@ -176,9 +177,6 @@ test("G3: narrow and coarse controls retain usable geometry and desktop density"
 			enabled: coarse,
 			maxTouchPoints: 1,
 		});
-		await b.evaluate(
-			() => (document.querySelector(".profile-common").open = true),
-		);
 		const sizes = await b.evaluate(() => {
 			const rect = (node) => {
 				const r = node.getBoundingClientRect();
@@ -187,8 +185,11 @@ test("G3: narrow and coarse controls retain usable geometry and desktop density"
 			return {
 				coarse: matchMedia("(pointer: coarse)").matches,
 				font: parseFloat(
-					getComputedStyle(document.querySelector('[aria-label="Model"]'))
-						.fontSize,
+					getComputedStyle(
+						document.querySelector(
+							'[aria-label="Strict capabilities (comma separated)"]',
+						),
+					).fontSize,
 				),
 				buttons: [
 					...document.querySelectorAll(
@@ -225,83 +226,15 @@ test("G3: narrow and coarse controls retain usable geometry and desktop density"
 		deviceScaleFactor: 1,
 		mobile: false,
 	});
-	await b.click(".profile-flow .code-switch");
-	await b.waitFor(
-		() =>
-			document
-				.querySelector(".profile-flow .code-switch")
-				?.getAttribute("aria-checked") === "true",
-	);
-	await b.click('.profile-flow .toolbar button[title="Fit graph"]');
-	const geometry = await b.evaluate(() => {
-		const rect = (selector) =>
-			document.querySelector(selector).getBoundingClientRect();
-		const chip = rect(".profile-flow .code-switch");
-		const first = rect(".profile-flow .node");
-		return { chipBottom: chip.bottom, firstTop: first.top };
-	});
-	assert.ok(geometry.firstTop >= geometry.chipBottom, JSON.stringify(geometry));
-	const lastGeometry = await b.evaluate(() => {
-		const nodes = [...document.querySelectorAll(".profile-flow .node")];
-		nodes[0].focus();
-		for (let index = 0; index < nodes.length + 5; index++)
-			document.activeElement.dispatchEvent(
-				new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
-			);
-		const last = nodes.at(-1),
-			box = last.getBoundingClientRect();
-		const canvas = last.closest(".canvas").getBoundingClientRect();
-		const toolbar = document
-			.querySelector(".profile-flow .toolbar")
-			.getBoundingClientRect();
-		const controls = [
-			...document.querySelectorAll(
-				".profile-flow .code-switch, .profile-flow .toolbar button, .profile-flow .more",
-			),
-		].filter((node) => node.getBoundingClientRect().width);
-		const overlaps = [];
-		for (let i = 0; i < controls.length; i++)
-			for (let j = i + 1; j < controls.length; j++) {
-				const a = controls[i].getBoundingClientRect(),
-					b = controls[j].getBoundingClientRect();
-				if (
-					a.left < b.right &&
-					a.right > b.left &&
-					a.top < b.bottom &&
-					a.bottom > b.top
-				)
-					overlaps.push([controls[i].textContent, controls[j].textContent]);
-			}
-		return {
-			focused: document.activeElement === last,
-			inside: box.top >= canvas.top && box.bottom <= canvas.bottom,
-			clear:
-				box.bottom <= toolbar.top ||
-				box.right <= toolbar.left ||
-				box.left >= toolbar.right,
-			overlaps,
-		};
-	});
-	assert.deepEqual(lastGeometry, {
-		focused: true,
-		inside: true,
-		clear: true,
-		overlaps: [],
-	});
-	await b.click('[aria-label="Effort"]');
 	assert.equal(
-		await b.evaluate(() => {
-			const input = document.querySelector('[aria-label="Effort"]');
-			const menu = document.getElementById(input.getAttribute("aria-controls"));
-			return (
-				[...menu.querySelectorAll('[role="option"]')].every(
-					(node) => node.getBoundingClientRect().height >= 44,
-				) && parseFloat(getComputedStyle(menu).fontSize) >= 16
-			);
-		}),
-		true,
+		await b.evaluate(
+			() =>
+				document.querySelectorAll(
+					".profile-editor .graph, .profile-editor .management-picker",
+				).length,
+		),
+		0,
 	);
-	await b.key("Escape");
 	await b.click('[data-management-action="save-profile"]');
 	await b.waitFor(
 		() => document.activeElement?.getAttribute("aria-label") === "Profile name",
