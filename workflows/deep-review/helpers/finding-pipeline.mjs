@@ -4530,7 +4530,14 @@ function partitionVerdicts(sources, options = {}, context = {}) {
 		if (verdict === "KEEP") partitions.keep.push(item);
 		else if (verdict === "WEAKEN") partitions.weaken.push(item);
 		else if (verdict === "DROP") partitions.drop.push(item);
-		else partitions.needsHuman.push(withNeedsHumanCause(item, "verifier_needs_human"));
+		else
+			partitions.needsHuman.push(
+				withNeedsHumanCause(
+					item,
+					// An unrecognized verdict was routed here by normalizeVerdict; it is not a judgement.
+					invalid !== undefined ? "verifier_output_invalid" : "verifier_needs_human",
+				),
+			);
 	}
 
 	for (const [index, issue] of reviewerCoverageIssues.entries()) {

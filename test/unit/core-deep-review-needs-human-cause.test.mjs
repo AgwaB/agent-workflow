@@ -63,16 +63,30 @@ test("verifier_missing: no verdict is distinguished from a verifier NEEDS_HUMAN 
 	});
 	assert.equal(causeOf(result, "a"), "verifier_missing");
 	assert.equal(causeOf(result, "b"), "verifier_needs_human");
-	assert.equal(
-		result.partitionSummary.needsHuman,
-		2 + result.partitions.needsHuman.length - 2,
-	);
+	assert.equal(result.partitionSummary.needsHuman, 2);
+	assert.equal(result.partitions.needsHuman.length, 2);
 	assert.equal(result.partitionSummary.missingVerdicts, 1);
 	assert.equal(result.partitionSummary.needsHumanByCause.verifier_missing, 1);
 	assert.equal(
 		result.partitionSummary.needsHumanByCause.verifier_needs_human,
 		1,
 	);
+});
+
+test("verifier_output_invalid: an unrecognized verdict is not reported as a verifier judgement", async () => {
+	for (const value of ["UNSURE", "keep", null]) {
+		const result = await partition([finding("a")], {
+			a: verdict("a", value),
+		});
+		assert.equal(
+			causeOf(result, "a"),
+			"verifier_output_invalid",
+			String(value),
+		);
+		assert.deepEqual(result.partitionSummary.needsHumanByCause, {
+			verifier_output_invalid: 1,
+		});
+	}
 });
 
 test("evidence_insufficient: a KEEP verdict on a finding without code-preserved quotes is demoted with its own cause", async () => {
