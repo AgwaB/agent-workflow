@@ -1,172 +1,66 @@
 // test-tier: integration
-// Real Chrome/routes and isolated storage; no executor or model calls.
+// E1–E3: the removed Profiles page redirects; executor permissions retain store semantics.
 import assert from "node:assert/strict";
-import test from "node:test";
 import { readFile, writeFile } from "node:fs/promises";
+import test from "node:test";
 import { userProfilesPath } from "../../dist/hosts/user-profiles.js";
+import { LEVEL_CAPABILITY_NAMES } from "../../dist/sdk/capabilities.js";
+import { profileAction } from "../../dist/hosts/catalog.js";
 import {
-	profilesFixture,
-	loadProfiles,
-	editProfile,
-	setProfileField,
-	profileButton,
-	saveProfile,
-	storedProfile,
+	executorsFixture,
+	loadExecutors,
+	setPermission,
+	toggleCapability,
+	savePermissions,
 	seedProfile,
+	storedProfile,
 } from "../helpers/dashboard-profiles.mjs";
-import {
-	profileAction,
-	workflowPreferenceAction,
-} from "../../dist/hosts/catalog.js";
-
 const opts = { timeout: 60000 };
 
 test(
-	"P1 Profiles deletes model, executor, effort, diagram, assignments and presets rather than folding them",
+	"E1 Shared settings contains only Executors and legacy Profiles links land there",
 	opts,
 	async (t) => {
-		const p = await profilesFixture(t);
-		await seedProfile(p, {
-			executor: "codex",
-			model: "manual/model",
-			effort: "high",
-			roles: { verification: { model: "role/model" } },
-		});
-		await loadProfiles(p);
-		await editProfile(p.b);
-		assert.deepEqual(
-			await p.b.evaluate(() => ({
-				removed: [
-					...document.querySelectorAll(
-						".profile-editor input, .profile-editor select",
+		const p = await executorsFixture(t);
+		for (const suffix of ["", "&profile=daily", "&createProfile=1"]) {
+			await p.b.send("Page.navigate", {
+				url: p.url.replace("view=executors", "view=profiles") + suffix,
+			});
+			await p.b.waitFor(() => !!document.querySelector(".management-page h1"));
+			assert.deepEqual(
+				await p.b.evaluate(() => ({
+					title: document.querySelector("h1").textContent,
+					links: [
+						...document.querySelectorAll('[aria-label="Shared settings"] a'),
+					].map((n) => n.textContent),
+					profiles: document.querySelectorAll(
+						'a[href*="view=profiles"], .profiles-page',
+					).length,
+					view: new URL(location.href).searchParams.get("view"),
+					legacy: ["profile", "createProfile"].some((key) =>
+						new URL(location.href).searchParams.has(key),
 					),
-				]
-					.map((n) => n.getAttribute("aria-label"))
-					.filter((label) =>
-						/Executor|Model|Effort|preset|scope|workflow/i.test(label),
-					),
-				diagrams: document.querySelectorAll(
-					".profile-editor .graph, .role-inspector, .visual-role-editor, [data-profile-configure]",
-				).length,
-				buttons: [...document.querySelectorAll(".profile-editor button")]
-					.map((n) => n.textContent)
-					.filter((text) =>
-						/preset|assignment|Model settings|Profile options/i.test(text),
-					),
-			})),
-			{ removed: [], diagrams: 0, buttons: [] },
-		);
+				})),
+				{
+					title: "Executors",
+					links: ["Executors"],
+					profiles: 0,
+					view: "executors",
+					legacy: false,
+				},
+			);
+		}
 		assert.deepEqual(p.b.errors, []);
 	},
 );
 
 test(
-	"P2 Profiles has no workflow-specific settings or preference/catalog requests and does not change saved preferences",
+	"E2 executor rows offer Automatic/Free/Safe and known strict checkboxes under Advanced; P4 retention",
 	opts,
 	async (t) => {
-		const p = await profilesFixture(t);
-		await workflowPreferenceAction(p.ctx, {
-			op: "set",
-			workflow: "manage",
-			profile: "mixed",
-			roles: { verification: { model: "untouched" } },
-		});
-		const before = await workflowPreferenceAction(p.ctx, {
-			op: "show",
-			workflow: "manage",
-		});
-		await p.b.send("Page.addScriptToEvaluateOnNewDocument", {
-			source: `window.profileRequests=[];const original=window.fetch;window.fetch=(path,options)=>{window.profileRequests.push(String(path));return original(path,options);};`,
-		});
-		await loadProfiles(p);
-		assert.deepEqual(
-			await p.b.evaluate(() => ({
-				panels: document.querySelectorAll(
-					'.profile-preferences, [aria-label="Workflow to configure"], [aria-label="Workflow preferred profile"]',
-				).length,
-				wording: document
-					.querySelector(".profiles-page")
-					.textContent.includes("Workflow-specific settings"),
-				requests: window.profileRequests.filter((path) =>
-					/workflow-preferences|profiles\/presets|executors\/models|\/workflows/.test(
-						path,
-					),
-				),
-			})),
-			{ panels: 0, wording: false, requests: [] },
-		);
-		assert.deepEqual(
-			await workflowPreferenceAction(p.ctx, { op: "show", workflow: "manage" }),
-			before,
-		);
-	},
-);
-
-test(
-	"P3 Profiles presents only permission/strict settings, profile management and Save/Discard",
-	opts,
-	async (t) => {
-		const p = await profilesFixture(t);
-		await seedProfile(p, {
-			executor: "codex",
-			model: "do-not-summarize",
-			effort: "low",
-			permissionMode: "safe",
-			strictCapabilities: ["readOnly"],
-		});
-		await loadProfiles(p);
-		assert.deepEqual(
-			await p.b.evaluate(() => ({
-				intro: document.querySelector("h1 + p").textContent,
-				summary: document.querySelector(
-					'[data-profile-open="daily"] .profile-summary',
-				).textContent,
-			})),
-			{
-				intro: "Manage shared profile permissions and strict capabilities.",
-				summary: "Permissions: safe, Strict: readOnly",
-			},
-		);
-		await editProfile(p.b);
-		assert.deepEqual(
-			await p.b.evaluate(() =>
-				[
-					...document.querySelectorAll(
-						".profile-editor input, .profile-editor select",
-					),
-				]
-					.filter((n) => n.checkVisibility())
-					.map((n) => n.getAttribute("aria-label")),
-			),
-			["Profile permission mode", "Strict capabilities (comma separated)"],
-		);
-		for (const label of [
-			"Save profile",
-			"Discard changes",
-			"Use daily by default",
-			"Delete daily",
-		])
-			assert.equal(
-				await p.b.evaluate(
-					(label) =>
-						[...document.querySelectorAll(".profile-editor button")].some(
-							(n) => n.textContent === label && n.checkVisibility(),
-						),
-					label,
-				),
-				true,
-				label,
-			);
-	},
-);
-
-test(
-	"P4 Profiles Save patches only visible fields and preserves supported hidden stored values; create invents no model settings",
-	opts,
-	async (t) => {
-		const p = await profilesFixture(t);
+		const p = await executorsFixture(t);
 		const values = {
-			executor: "codex",
+			executor: "claude",
 			model: "manual/unlisted",
 			effort: "ultra",
 			permissionMode: "safe",
@@ -182,20 +76,51 @@ test(
 		};
 		await seedProfile(p, values);
 		await p.b.send("Page.addScriptToEvaluateOnNewDocument", {
-			source: `window.profileWrites=[];const original=window.fetch;window.fetch=async(path,options={})=>{if(options.method==='PUT'&&String(path).includes('/api/profiles/'))window.profileWrites.push(JSON.parse(options.body));const response=await original(path,options);if(String(path)==='/api/profiles'&&response.ok){const data=await response.json();data.data.profiles.forEach(p=>p.futureOpaque={raw:'  unchanged  ',nested:[1,false,null]});return new Response(JSON.stringify(data),{status:200,headers:{'Content-Type':'application/json'}});}return response;};`,
+			source: `window.permissionWrites=[];const original=window.fetch;window.fetch=(path,options={})=>{if(options.method==='PUT'&&String(path).includes('/api/profiles/'))window.permissionWrites.push(JSON.parse(options.body));return original(path,options);};`,
 		});
-		await loadProfiles(p);
-		await editProfile(p.b);
-		// Native permission select remains visible; the baseline only exposes it behind Profile options.
-		await p.b.evaluate(() => {
-			const c = document.querySelector(
-				'[aria-label="Profile permission mode"]',
-			);
-			c.value = "free";
-			c.dispatchEvent(new Event("change", { bubbles: true }));
-		});
-		await saveProfile(p.b);
-		assert.deepEqual(await p.b.evaluate(() => window.profileWrites), [
+		await loadExecutors(p);
+		assert.deepEqual(
+			await p.b.evaluate(() =>
+				[...document.querySelectorAll("[data-executor-permissions]")]
+					.map((n) => n.dataset.executorPermissions)
+					.sort(),
+			),
+			["antigravity", "claude", "codex", "pi"],
+		);
+		assert.deepEqual(
+			await p.b.evaluate(() => {
+				const row = document.querySelector(
+					'[data-executor-permissions="codex"]',
+				);
+				return {
+					options: [...row.querySelectorAll("select option")].map((n) => [
+						n.value,
+						n.textContent,
+					]),
+					folded: !row.querySelector("details").open,
+					advanced: row.querySelector("summary").textContent,
+					capabilities: [...row.querySelectorAll('input[type="checkbox"]')].map(
+						(n) => n.value,
+					),
+					textInputs: row.querySelectorAll('input:not([type="checkbox"])')
+						.length,
+				};
+			}),
+			{
+				options: [
+					["", "Automatic"],
+					["free", "Free"],
+					["safe", "Safe"],
+				],
+				folded: true,
+				advanced: "Advanced",
+				capabilities: [...LEVEL_CAPABILITY_NAMES],
+				textInputs: 0,
+			},
+		);
+		await setPermission(p.b, "free");
+		await savePermissions(p.b);
+		assert.deepEqual(await p.b.evaluate(() => window.permissionWrites), [
 			{
 				values: { permissionMode: "free", strictCapabilities: ["readOnly"] },
 				unset: [],
@@ -209,10 +134,9 @@ test(
 				key,
 			);
 		assert.equal(after.permissionMode, "free");
-		await editProfile(p.b);
-		await setProfileField(p.b, "Profile permission mode", "");
-		await setProfileField(p.b, "Strict capabilities (comma separated)", "");
-		await saveProfile(p.b);
+		await setPermission(p.b, "");
+		await toggleCapability(p.b, "readOnly");
+		await savePermissions(p.b);
 		const cleared = await storedProfile(p);
 		assert.equal(cleared.permissionMode, undefined);
 		assert.equal(cleared.strictCapabilities, undefined);
@@ -222,154 +146,190 @@ test(
 				JSON.stringify(values[key]),
 				key,
 			);
-		await p.b.click("[data-profile-new]");
-		await p.b.waitFor(
-			() => !!document.querySelector('[aria-label="Profile name"]'),
-		);
-		await setProfileField(p.b, "Profile name", "minimal");
-		await saveProfile(p.b);
-		const created = await storedProfile(p, "minimal");
-		assert.deepEqual(Object.keys(created).sort(), ["name", "updatedAt"]);
+		await toggleCapability(p.b, "contextIsolation");
+		await savePermissions(p.b);
+		assert.deepEqual((await storedProfile(p)).strictCapabilities, [
+			"contextIsolation",
+		]);
 		assert.deepEqual(p.b.errors, []);
 	},
 );
 
 test(
-	"Profiles create, default/clear, delete confirmation and restore built-in remain available",
+	"E3 named profiles and their management controls disappear without changing saved bytes or default",
 	opts,
 	async (t) => {
-		const p = await profilesFixture(t);
-		await seedProfile(p, { permissionMode: "safe" });
+		const p = await executorsFixture(t);
 		await seedProfile(
 			p,
-			{ model: "saved-model", roles: { planning: { effort: "high" } } },
-			"codex",
-		);
-		await loadProfiles(p);
-		await editProfile(p.b);
-		await profileButton(p.b, "Use daily by default");
-		await p.b.waitFor(
-			() => !!document.querySelector(".profile-overview:not([hidden])"),
-		);
-		assert.equal(
-			(await profileAction(p.ctx, { op: "list" })).data.default,
+			{
+				executor: "codex",
+				model: "manual/named",
+				roles: { planning: { effort: "high" } },
+			},
 			"daily",
 		);
-		await editProfile(p.b);
-		await profileButton(p.b, "Clear default");
-		await p.b.waitFor(
-			() => !!document.querySelector(".profile-overview:not([hidden])"),
+		await profileAction(p.ctx, { op: "default", name: "daily" });
+		const path = userProfilesPath(p.env),
+			original = await readFile(path, "utf8");
+		await loadExecutors(p);
+		assert.doesNotMatch(
+			await p.b.evaluate(() => document.querySelector("#center").innerText),
+			/Your profiles|New profile|Default profile|Use daily|Delete daily|Restore built-in|Set per executor in Profiles/,
 		);
-		assert.equal(
-			(await profileAction(p.ctx, { op: "list" })).data.default,
-			undefined,
-		);
-		await editProfile(p.b);
-		await profileButton(p.b, "Delete daily");
-		await profileButton(p.b, "Keep profile");
-		assert.ok(await storedProfile(p));
-		await profileButton(p.b, "Delete daily");
-		await profileButton(p.b, "Confirm");
-		await p.b.waitFor(
-			() => !!document.querySelector(".profile-overview:not([hidden])"),
-		);
-		assert.equal(
-			(await profileAction(p.ctx, { op: "list" })).data.profiles.some(
-				(p) => p.name === "daily",
-			),
-			false,
-		);
-		await editProfile(p.b, "codex");
-		await profileButton(p.b, "Restore built-in codex");
-		await profileButton(p.b, "Confirm");
-		await p.b.waitFor(
-			() => !!document.querySelector(".profile-overview:not([hidden])"),
-		);
-		assert.equal(
-			(await profileAction(p.ctx, { op: "list" })).data.profiles.length,
-			0,
-		);
-		await editProfile(p.b, "codex");
 		assert.equal(
 			await p.b.evaluate(
-				() => document.querySelectorAll(".profile-options").length,
+				() =>
+					document.querySelectorAll(
+						"[data-profile-open], [data-profile-new], .profile-editor",
+					).length,
 			),
 			0,
 		);
-		assert.deepEqual(p.b.errors, []);
+		await setPermission(p.b, "safe");
+		await savePermissions(p.b);
+		const before = JSON.parse(original),
+			after = JSON.parse(await readFile(path, "utf8"));
+		assert.equal(
+			JSON.stringify(after.profiles.daily),
+			JSON.stringify(before.profiles.daily),
+		);
+		assert.equal(after.default, before.default);
 	},
 );
 
 test(
-	"Profiles readonly leaves navigation available and all retained mutation controls disabled",
+	"E2 readonly disables permission edits and saves but keeps Advanced and navigation available",
 	opts,
 	async (t) => {
-		const p = await profilesFixture(t, { readonly: true });
-		await seedProfile(p, { permissionMode: "safe" });
-		await loadProfiles(p);
-		await editProfile(p.b);
-		assert.deepEqual(
-			await p.b.evaluate(() => ({
-				fields: [
-					...document.querySelectorAll(
-						".profile-editor select, .profile-editor input",
-					),
-				]
-					.filter((n) => n.checkVisibility())
-					.map((n) => n.disabled),
-				actions: [
-					...document.querySelectorAll(
-						'.profile-options button, [data-management-action="save-profile"]',
-					),
-				]
-					.filter((n) => n.checkVisibility())
-					.map((n) => n.disabled),
-				back: document.querySelector("[data-profile-back]").disabled,
-			})),
-			{ fields: [true, true], actions: [true, true, true], back: false },
+		const p = await executorsFixture(t, { readonly: true });
+		await loadExecutors(p);
+		const state = await p.b.evaluate(() => ({
+			rows: document.querySelectorAll("[data-executor-permissions]").length,
+			disabled: [
+				...document.querySelectorAll(
+					"[data-executor-permissions] input, [data-executor-permissions] select, [data-save-permissions], [data-discard-permissions]",
+				),
+			].every((n) => n.disabled),
+			nav: [
+				...document.querySelectorAll('[aria-label="Shared settings"] a'),
+			].map((n) => n.textContent),
+		}));
+		assert.deepEqual(state, { rows: 4, disabled: true, nav: ["Executors"] });
+		await p.b.evaluate(() =>
+			document.querySelector("[data-executor-permissions] summary").click(),
+		);
+		assert.equal(
+			await p.b.evaluate(
+				() =>
+					document.querySelector("[data-executor-permissions] details").open,
+			),
+			true,
 		);
 		assert.deepEqual(p.b.errors, []);
 	},
 );
 
 test(
-	"P4 boundary: the existing store rejects unknown fields without allowing UI Save or changing original bytes",
+	"Executor permission Save retains dotted strict constraints authored elsewhere and never loads model/preference editors",
 	opts,
 	async (t) => {
-		const p = await profilesFixture(t);
+		const p = await executorsFixture(t);
 		await seedProfile(p, {
-			executor: "codex",
-			model: "manual/unlisted",
-			effort: "ultra",
-			roles: { verification: { model: "manual/role" } },
+			strictCapabilities: ["toolAllowlist.detail", "readOnly"],
 		});
-		const path = userProfilesPath(p.env);
-		const store = JSON.parse(await readFile(path, "utf8"));
-		store.profiles.daily.futureOpaque = {
+		await loadExecutors(p);
+		await setPermission(p.b, "safe");
+		await savePermissions(p.b);
+		assert.deepEqual((await storedProfile(p)).strictCapabilities, [
+			"toolAllowlist.detail",
+			"readOnly",
+		]);
+		assert.ok(
+			p.b.requests.every(
+				(url) => !/\/api\/(executors\/models|workflow-preferences)/.test(url),
+			),
+		);
+		assert.equal(
+			await p.b.evaluate(() =>
+				document
+					.querySelector('[data-executor-permissions="codex"] details')
+					.textContent.includes("Also required: toolAllowlist.detail"),
+			),
+			true,
+		);
+	},
+);
+
+test(
+	"Existing unknown profile storage blocks permission editing and remains byte-identical",
+	opts,
+	async (t) => {
+		const p = await executorsFixture(t);
+		await seedProfile(p, {
+			model: "manual/unlisted",
+			roles: { verification: { model: "retained" } },
+		});
+		const path = userProfilesPath(p.env),
+			store = JSON.parse(await readFile(path, "utf8"));
+		store.profiles.codex.futureOpaque = {
 			raw: "  unchanged  ",
 			nested: [1, false, null],
 		};
 		const original = JSON.stringify(store, null, 2) + "\n";
 		await writeFile(path, original);
-		await p.b.send("Page.navigate", { url: p.url + "&profile=daily" });
-		await p.b.waitFor(
-			() => !!document.querySelector('.management-page [role="alert"]'),
-		);
-		assert.match(
-			await p.b.evaluate(
-				() =>
-					document.querySelector('.management-page [role="alert"]').textContent,
-			),
-			/unknown field "futureOpaque"/,
+		await p.b.send("Page.navigate", { url: p.url });
+		await p.b.waitFor(() =>
+			document
+				.querySelector('.management-page [role="alert"]')
+				?.textContent.includes('unknown field "futureOpaque"'),
 		);
 		assert.equal(
 			await p.b.evaluate(
-				() =>
-					document.querySelectorAll('[data-management-action="save-profile"]')
-						.length,
+				() => document.querySelectorAll("[data-save-permissions]").length,
 			),
 			0,
 		);
 		assert.equal(await readFile(path, "utf8"), original);
+	},
+);
+
+test(
+	"E6 Save and Discard appear only on the row with unsaved changes",
+	opts,
+	async (t) => {
+		const p = await executorsFixture(t);
+		await loadExecutors(p);
+		const shown = () =>
+			p.b.evaluate(() =>
+				[...document.querySelectorAll("[data-executor-permissions]")]
+					.filter((row) =>
+						row.querySelector(".executor-permission-actions").checkVisibility(),
+					)
+					.map((row) => row.dataset.executorPermissions),
+			);
+		assert.deepEqual(await shown(), [], "clean rows show no actions");
+		await setPermission(p.b, "safe");
+		assert.deepEqual(await shown(), ["codex"]);
+		await setPermission(p.b, "");
+		assert.deepEqual(await shown(), [], "undo back to saved hides actions");
+		await toggleCapability(p.b, "readOnly");
+		assert.deepEqual(await shown(), ["codex"]);
+		await p.b.evaluate(() =>
+			document
+				.querySelector(
+					'[data-executor-permissions="codex"] [data-discard-permissions]',
+				)
+				.click(),
+		);
+		assert.deepEqual(await shown(), [], "Discard hides actions");
+		await setPermission(p.b, "safe");
+		await savePermissions(p.b);
+		await p.b.waitFor(() =>
+			document
+				.querySelector('[data-executor-permissions="codex"] [role="status"]')
+				?.textContent.startsWith("Saved"),
+		);
+		assert.deepEqual(await shown(), [], "Save hides actions, keeps feedback");
 	},
 );

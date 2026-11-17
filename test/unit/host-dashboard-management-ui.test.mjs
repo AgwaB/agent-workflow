@@ -11,7 +11,10 @@ import {
 } from "../helpers/dashboard-management.mjs";
 import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
 import { scanMarks } from "../helpers/dashboard-marks.mjs";
-import { waitForSavedProfile } from "../helpers/dashboard-profile-wait.mjs";
+import {
+	setPermission,
+	savePermissions,
+} from "../helpers/dashboard-profiles.mjs";
 import { profileAction } from "../../dist/hosts/catalog.js";
 
 const chrome = await findChrome();
@@ -109,7 +112,7 @@ async function persistOldRuns(cwd, count) {
 	}
 	return dirs;
 }
-test("Chrome management: the views, profile edit, check preview and the overview's needs and clean-up; deep links and reduced motion", {
+test("Chrome management: the views, permission edit, check preview and the overview's needs and clean-up; deep links and reduced motion", {
 	timeout: 120000,
 }, async (t) => {
 	assert.ok(
@@ -129,9 +132,9 @@ test("Chrome management: the views, profile edit, check preview and the overview
 		features: [{ name: "prefers-reduced-motion", value: "reduce" }],
 	});
 	const url = `${p.origin}/?project=${p.server.projectId}`;
-	await navigate(browser, `${url}&view=profiles`, "profiles");
+	await navigate(browser, `${url}&view=executors`, "executors");
 	await browser.waitFor(
-		() => !!document.querySelector('[data-profile-open="ui-profile"]'),
+		() => !!document.querySelector('[data-executor-permissions="codex"]'),
 	);
 	assert.deepEqual(
 		await browser.evaluate(() =>
@@ -139,21 +142,13 @@ test("Chrome management: the views, profile edit, check preview and the overview
 				(node) => node.textContent,
 			),
 		),
-		["Overview", "Workflows", "Run history", "Profiles", "Executors"],
+		["Overview", "Workflows", "Run history", "Executors"],
 	);
-	await browser.click('[data-profile-open="ui-profile"]');
-	await browser.waitFor(
-		() => !!document.querySelector('[data-management-action="save-profile"]'),
-	);
-	await set(browser, "Profile permission mode", "safe");
-	await set(browser, "Strict capabilities (comma separated)", "readOnly");
-	await browser.click('[data-management-action="save-profile"]');
-	await browser.waitFor(() =>
-		document.querySelector("#center")?.textContent.includes("Saved profile:"),
-	);
+	await setPermission(browser, "safe");
+	await savePermissions(browser);
 	assert.equal(
-		(await profileAction(p.ctx, { op: "show", name: "ui-profile" })).data
-			.profile.permissionMode,
+		(await profileAction(p.ctx, { op: "show", name: "codex" })).data.profile
+			.permissionMode,
 		"safe",
 	);
 	await browser.click('.management-nav a[href*="view=workflows"]');
@@ -362,7 +357,7 @@ test("Chrome management: the views, profile edit, check preview and the overview
 				(link) => link.textContent,
 			),
 		),
-		["Overview", "Workflows", "Run history", "Profiles", "Executors"],
+		["Overview", "Workflows", "Run history", "Executors"],
 	);
 	await browser.click('.management-nav a:not([href*="view="])');
 	await browser.waitFor(() => !!document.querySelector("#home-view"));
@@ -416,8 +411,8 @@ test("Chrome management: the views, profile edit, check preview and the overview
 	assert.equal(existsSync(p.effects), false);
 });
 
-test("Chrome executor default profiles: permissions shown and edited without pinning built-in model settings; restored", {
-	timeout: 120000,
+test("Chrome executor defaults: permission Save and Automatic do not pin built-in model settings", {
+	timeout: 60000,
 }, async (t) => {
 	assert.ok(chrome);
 	const p = await managementProject(t);
@@ -425,42 +420,21 @@ test("Chrome executor default profiles: permissions shown and edited without pin
 	t.after(() => browser.close());
 	await navigate(
 		browser,
-		`${p.origin}/?project=${p.server.projectId}&view=profiles`,
-		"profiles",
+		`${p.origin}/?project=${p.server.projectId}&view=executors`,
+		"executors",
 	);
 	await browser.waitFor(
-		() => !!document.querySelector('[data-executor-default="codex"]'),
+		() => !!document.querySelector('[data-executor-permissions="codex"]'),
 	);
-	assert.deepEqual(
-		await browser.evaluate(() =>
-			[...document.querySelectorAll("[data-executor-default]")].map((row) => [
-				row.dataset.executorDefault,
-				row.querySelector(".profile-summary").textContent,
-			]),
+	assert.equal(
+		await browser.evaluate(
+			() =>
+				document.querySelector('[aria-label="codex permission mode"]').value,
 		),
-		[
-			["codex", "Permissions: free"],
-			["claude", "Permissions: free"],
-			["pi", "Permissions: free"],
-		],
+		"",
 	);
-	await browser.click('[data-profile-open="codex"]');
-	await browser.waitFor(
-		() => !!document.querySelector('[data-management-action="save-profile"]'),
-	);
-	assert.deepEqual(
-		await browser.evaluate(() => ({
-			name: document.querySelector(".profile-editor").dataset.profileEdit,
-			nameInput: !!document.querySelector('[aria-label="Profile name"]'),
-			modelInputs: document.querySelectorAll(
-				'.profile-editor [aria-label="Executor"],.profile-editor [aria-label="Model"],.profile-editor [aria-label="Effort"]',
-			).length,
-		})),
-		{ name: "codex", nameInput: false, modelInputs: 0 },
-	);
-	await set(browser, "Profile permission mode", "safe");
-	await browser.click('[data-management-action="save-profile"]');
-	await waitForSavedProfile(browser);
+	await setPermission(browser, "safe");
+	await savePermissions(browser);
 	const shown = await profileAction(p.ctx, { op: "show", name: "codex" });
 	assert.equal(shown.data.profile.permissionMode, "safe");
 	for (const key of ["executor", "model", "effort", "roles"])
@@ -470,27 +444,12 @@ test("Chrome executor default profiles: permissions shown and edited without pin
 		model: "gpt-6.1-sol",
 		effort: "high",
 	});
+	await setPermission(browser, "");
+	await savePermissions(browser);
 	assert.equal(
-		await browser.evaluate(
-			() =>
-				document.querySelector(
-					'[data-executor-default="codex"] .profile-summary',
-				).textContent,
-		),
-		"Permissions: safe",
-	);
-	await browser.click('[data-profile-open="codex"]');
-	await browser.waitFor(() => !!document.querySelector(".profile-options"));
-	await clickText(browser, "Restore built-in codex");
-	await clickText(browser, "Confirm");
-	await browser.waitFor(
-		() =>
-			document.querySelector('[data-executor-default="codex"] .profile-summary')
-				?.textContent === "Permissions: free",
-	);
-	assert.equal(
-		(await profileAction(p.ctx, { op: "show", name: "codex" })).data.builtIn,
-		true,
+		(await profileAction(p.ctx, { op: "show", name: "codex" })).data.profile
+			.permissionMode,
+		undefined,
 	);
 	assert.deepEqual(browser.errors, []);
 	assert.equal(existsSync(p.effects), false);
@@ -578,7 +537,7 @@ test("Chrome readonly management: navigation stays available and all action muta
 
 // 2026-11-12 (owner, pass 2): no middle dot and no em dash in the dashboard's own text, on every
 // management page, read-write and read-only. An unknown value reads "n/a".
-test("Chrome management: no middle dot and no em dash in workflows, profiles, executors and the overview", {
+test("Chrome management: no middle dot and no em dash in workflows, executors and the overview", {
 	timeout: 120000,
 }, async (t) => {
 	assert.ok(
@@ -597,7 +556,7 @@ test("Chrome management: no middle dot and no em dash in workflows, profiles, ex
 		const browser = await createBrowser(chrome);
 		t.after(() => browser.close());
 		const url = `${p.origin}/?project=${p.server.projectId}`;
-		for (const view of ["workflows", "profiles", "executors"]) {
+		for (const view of ["workflows", "executors"]) {
 			await navigate(browser, `${url}&view=${view}`, view);
 			await browser.waitFor(
 				() =>
@@ -905,6 +864,7 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 				"Status",
 				"Version",
 				...(mode === "fix" ? ["What to do"] : []),
+				"Permissions",
 			]),
 		);
 		if (mode === "fix")
@@ -946,7 +906,7 @@ test("F2 management landing pages share margins at 1600 and fit 390/980", {
 	t.after(() => browser.close());
 	for (const width of [1600, 390, 980]) {
 		const boxes = [];
-		for (const view of ["workflows", "profiles", "executors"]) {
+		for (const view of ["workflows", "executors"]) {
 			await navigate(
 				browser,
 				`${p.server.url}&project=${p.server.projectId}&view=${view}`,
@@ -981,7 +941,7 @@ test("F2 management landing pages share margins at 1600 and fit 390/980", {
 		);
 		assert.deepEqual(
 			boxes.map((b) => [b.x, b.width]),
-			Array(3).fill([boxes[0].x, boxes[0].width]),
+			Array(2).fill([boxes[0].x, boxes[0].width]),
 			JSON.stringify({ width, boxes }),
 		);
 	}

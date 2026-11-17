@@ -70,11 +70,12 @@ intent. Check and named launch use the same resolver; recorded values describe t
 plan, not observed provider execution.
 
 Shared `profile workflow` preferences are still user-level and keyed by workflow name, potentially
-across projects. Manage them through CLI, MCP or Pi's profile picker, not the dashboard Profiles page.
-They are neither migrated into nor deleted by project-local settings. Dashboard Profiles manages
-only shared permission mode, strict capabilities, default selection and profile creation/deletion or
-built-in restoration. Save leaves stored executor/model/effort and role assignments untouched;
-new profiles contain no invented model settings. Project-local
+across projects. Manage them through CLI, MCP or Pi's profile picker, not the dashboard.
+They are neither migrated into nor deleted by project-local settings. Dashboard **Executors** edits
+only each executor's shared permission mode (**Automatic**, **Free**, **Safe**) and known strict
+capability checkboxes under **Advanced**, with per-row **Save** and **Discard**. Save leaves stored
+executor/model/effort and role assignments untouched. Named profiles and their default selection
+remain available through CLI, MCP and Pi; the dashboard does not modify or delete them. Project-local
 storage is private under the project's state base at `workflow-settings/v1/settings.json`.
 In the dashboard, writable initial load and meaningful edits automatically calculate the draft without
 saving or executing. **Save** and **Discard changes** sit in the sticky title row with an unsaved-changes indicator. Save applies one
@@ -1100,7 +1101,7 @@ It defaults to port 7417, then 7418–7426, then ephemeral; explicit `--port` /
 `AGENT_WORKFLOW_DASHBOARD_PORT` is strict. Custom homes reuse the last port or use an ephemeral one.
 `dashboard --project DIR` chooses only the opened view. The sidebar offers All projects and a
 remembered project choice. Project navigation separates Overview, Workflows and Run history from shared
-Profiles/Executors in a footer after the Run rows. Workflow settings edit one project/source draft for future Runs; existing Runs show
+Executors in a footer after the Run rows. Old `view=profiles` links open Executors. Workflow settings edit one project/source draft for future Runs; existing Runs show
 recorded model/effort and executor-reported model/usage separately, with unknown values left unknown.
 Overview's Last result links the exact Run/report, separately from future workflow settings.
 Run history opens the rich Run list beside the current/latest eligible Run, with graph, results, logs and

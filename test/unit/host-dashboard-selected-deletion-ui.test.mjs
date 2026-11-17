@@ -116,7 +116,7 @@ test("Secondary selected deletion retains primary/shared groups and actual proje
 				(n) => n.textContent,
 			),
 		),
-		["Profiles", "Executors"],
+		["Executors"],
 	);
 	assert.equal(
 		await p.browser.evaluate(
