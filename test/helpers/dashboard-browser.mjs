@@ -232,17 +232,26 @@ export async function createBrowser(
 	];
 	const isNavigationError = (error) =>
 		NAVIGATION_ERRORS.some((text) => String(error?.message).includes(text));
+	// A predicate that reads a node the (new) document has not rendered yet is "not ready", not a
+	// failure (2026-11-17: CI runners raced navigations into null reads). Other errors still throw;
+	// the last missing-node error is reported if the condition never holds.
+	const isNotRenderedYet = (error) =>
+		/Cannot read properties of (null|undefined)/.test(String(error?.message));
 	const waitFor = async (fn, timeout = 20_000) => {
 		const until = Date.now() + timeout;
+		let pending;
 		while (Date.now() < until) {
 			try {
 				if (await evaluate(fn)) return;
 			} catch (error) {
-				if (!isNavigationError(error)) throw error;
+				if (!isNavigationError(error) && !isNotRenderedYet(error)) throw error;
+				if (isNotRenderedYet(error)) pending = error;
 			}
 			await nextPoll();
 		}
-		throw new Error(`Browser condition timed out: ${fn}`);
+		throw new Error(
+			`Browser condition timed out: ${fn}${pending ? `\nlast error: ${pending.message}` : ""}`,
+		);
 	};
 	// The dashboard follows the system theme (2026-11-01) and headless Chrome reports light. Tests
 	// see the dark palette unless they emulate a colour scheme themselves. 2026-11-05 (first CI run:
