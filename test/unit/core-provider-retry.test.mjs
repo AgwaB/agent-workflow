@@ -116,6 +116,35 @@ test("classified rate limits read all error surfaces and never cap explicit wait
 	}
 });
 
+test("a transient hint is capped at the longest default backoff; rate_limit hints are not", () => {
+	const base = { attempt: 1, modelBackoffKey: "anthropic", stderrText: "" };
+	const huge = '503: {"code":"upstream_busy","retry_after_s":86400}';
+	assert.equal(
+		transientModelRateLimitBackoffMs({
+			...base,
+			failureKind: "transient",
+			errorMessage: huge,
+		}),
+		5 * 60_000,
+	);
+	assert.equal(
+		transientModelRateLimitBackoffMs({
+			...base,
+			failureKind: "transient",
+			errorMessage: '503: {"retry_after_s":290}',
+		}),
+		290_000,
+	);
+	assert.equal(
+		transientModelRateLimitBackoffMs({
+			...base,
+			failureKind: "rate_limit",
+			errorMessage: huge,
+		}),
+		86_400_000,
+	);
+});
+
 test("a transient failure honours a provider hint and otherwise stays immediate", () => {
 	const base = { attempt: 1, modelBackoffKey: "anthropic", stderrText: "" };
 	assert.equal(
