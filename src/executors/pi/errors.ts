@@ -76,6 +76,9 @@ export const PI_ERROR_RULES: readonly PiErrorRule[] = [
 			/^\s*5\d\d\s*:|"code"\s*:\s*"(?:upstream_busy|overloaded|server_error)"/i,
 		evidence: "live",
 	},
+	// Provider stream broke after tokens were sent: assistant stopReason "error" with this message (live,
+	// DeepSeek via OpenAI-compatible proxy, 2026-11-17 runs workflow_mwk50eau_532ced and workflow_mwkp9dv3_a851e6).
+	{ class: "transient", match: /model failed mid-stream/i, evidence: "live" },
 	{
 		class: "transient",
 		match: /\((?:500|502|503|504|529)\)/,

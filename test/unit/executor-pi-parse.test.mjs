@@ -296,6 +296,7 @@ test("error rules: every row classifies its own sample; unmatched text is unknow
 		'503: {"message":"The model is busy. Retry shortly.","type":"server_error","code":"upstream_busy","retry_after_s":20}':
 			"transient",
 		'{"code":"overloaded"}': "transient",
+		"The model failed mid-stream.": "transient",
 		'400: {"message":"bad request","code":"invalid_request"}': "unknown",
 		'401: {"message":"nope"}': "unknown",
 		"segmentation fault in flux module": "unknown",
