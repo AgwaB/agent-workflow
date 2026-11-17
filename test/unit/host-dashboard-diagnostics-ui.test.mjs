@@ -111,7 +111,7 @@ test(
 				removed: document.querySelectorAll(
 					".management-diagnostics, .saved-launch-check, .check-overrides, [data-management-action='check']",
 				).length,
-				scope: document.querySelector(".project-common h3").textContent,
+				scope: document.querySelector(".project-common h2").textContent,
 			})),
 			{ checks: [], removed: 0, scope: "All tasks" },
 		);

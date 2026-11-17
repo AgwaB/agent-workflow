@@ -66,6 +66,8 @@ test("Shared Workflow pickers: anchored menus, native pointer selection, keyboar
 	assert.match(styles[0][1], /linear-gradient/);
 	for (const name of ["Executor", "Effort"]) {
 		await b.click(control(name));
+		// M1 scales from the anchor: assert resting geometry, not an in-flight frame.
+		await b.waitForMotionEnd();
 		assert.deepEqual(
 			await b.evaluate((name) => {
 				const n = document.querySelector(`[aria-label="All tasks ${name}"]`),
@@ -105,7 +107,7 @@ test("Shared Workflow pickers: anchored menus, native pointer selection, keyboar
 	await b.key("Tab");
 	assert.equal(await expanded(b, "Executor"), false);
 	await b.click(control("Effort"));
-	await b.click(".project-common h3");
+	await b.click(".project-common h2");
 	assert.equal(await expanded(b, "Effort"), false);
 	assert.equal(
 		await b.evaluate(
@@ -136,6 +138,7 @@ test("Shared Workflow picker: long downward menus stay scrollable and keyboard o
 				.scrollIntoView({ block: "center", behavior: "instant" }),
 		);
 		await b.click(control("Effort"));
+		await b.waitForMotionEnd();
 		await b.waitFor(
 			() =>
 				document

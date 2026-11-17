@@ -330,6 +330,25 @@ test(
 				.querySelector('[data-executor-permissions="codex"] [role="status"]')
 				?.textContent.startsWith("Saved"),
 		);
-		assert.deepEqual(await shown(), [], "Save hides actions, keeps feedback");
+		// The Save button shows its brief saved check first (M3), then the clean row hides actions.
+		await p.b.waitFor(
+			() =>
+				!document
+					.querySelector(
+						'[data-executor-permissions="codex"] .executor-permission-actions',
+					)
+					.checkVisibility(),
+			5000,
+		);
+		assert.match(
+			await p.b.evaluate(
+				() =>
+					document.querySelector(
+						'[data-executor-permissions="codex"] [role="status"]',
+					)?.textContent ?? "",
+			),
+			/^Saved/,
+			"feedback stays after actions hide",
+		);
 	},
 );

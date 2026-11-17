@@ -3,6 +3,11 @@ const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
 function element(tag, attrs = {}, ...children) {
 	const node = document.createElement(tag);
+	// Every code/log block can overflow at narrow widths or with unbroken output.
+	if (tag === "pre") {
+		node.tabIndex = 0;
+		node.setAttribute("aria-label", "Code or output");
+	}
 	for (const [key, value] of Object.entries(attrs)) {
 		if (value === null || value === undefined || value === false) continue;
 		if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
@@ -932,7 +937,9 @@ function railNeed(need, alone = false) {
 		(
 			left[Math.min(index, left.length - 1)] ??
 			$("rail").querySelector(".need-restore") ??
-			$("rail").querySelector(`[data-run="${CSS.escape(need.run.runId)}"]`)
+			$("rail").querySelector(
+				`[data-run="${CSS.escape(need.run.runId)}"] .run-open`,
+			)
 		)?.focus({ preventScroll: true });
 	};
 	return element(
@@ -1147,20 +1154,9 @@ function renderRail() {
 			"div",
 			{
 				class: "run-row",
-				role: "button",
-				tabindex: "0",
 				"data-run": summary.runId,
 				"aria-current": String(summary.runId === state.run),
 				onclick: () => go({ run: summary.runId }),
-				onkeydown: (event) => {
-					if (
-						event.target === event.currentTarget &&
-						["Enter", " "].includes(event.key)
-					) {
-						event.preventDefault();
-						go({ run: summary.runId });
-					}
-				},
 			},
 			element(
 				"div",
@@ -1175,8 +1171,13 @@ function renderRail() {
 							: summary.status,
 				),
 				element(
-					"span",
-					{ class: "grow truncate", title: summary.name },
+					"button",
+					{
+						type: "button",
+						class: "run-open grow truncate",
+						title: summary.name,
+						"aria-label": `Open ${summary.name}, ${summary.taskPreview || summary.runId}`,
+					},
 					summary.name,
 				),
 				// When it started, and below, the task it was given: four "deep-review" rows read
@@ -1244,7 +1245,7 @@ function renderRail() {
 	if (focusedProject) switcher.focus({ preventScroll: true });
 	if (focusedRun)
 		rail
-			.querySelector(`[data-run="${CSS.escape(focusedRun)}"]`)
+			.querySelector(`[data-run="${CSS.escape(focusedRun)}"] .run-open`)
 			?.focus({ preventScroll: true });
 }
 function actionButton(text, dialog, cls = "") {
@@ -2133,6 +2134,8 @@ function renderGraph(preview = null) {
 	for (const stage of model.nodes.values()) {
 		const p = positions.get(stage.id);
 		const group = stage.kind === "group";
+		const hasMembers =
+			group || (activeAgents(stage) && stage.items.length <= 6);
 		const title = group
 			? `${stage.name ? `${stage.name}, ` : ""}${stage.members.length} in parallel`
 			: humanize(stage.short || stage.name || stage.id);
@@ -2155,8 +2158,8 @@ function renderGraph(preview = null) {
 		const node = svg("g", {
 			class: `node ${preview ? "settings" : stage.status}${stage.ghost ? " ghost" : ""}${stage.kind === "support" ? " support" : ""}${group ? " group" : ""}${!preview && nextStage(stage) ? " next" : ""}`,
 			transform: `translate(${p.x},${p.y})`,
-			tabindex: "0",
-			role: "button",
+			tabindex: hasMembers ? "-1" : "0",
+			role: hasMembers ? "group" : "button",
 			"data-stage": stage.id,
 			...(group
 				? { "data-members": stage.members.map((s) => s.id).join(",") }
@@ -2208,6 +2211,20 @@ function renderGraph(preview = null) {
 					)
 				: null,
 		);
+		if (hasMembers)
+			node.append(
+				svg("rect", {
+					class: "node-open",
+					x: 0,
+					y: 0,
+					width: p.w,
+					height: 32,
+					fill: "transparent",
+					role: "button",
+					tabindex: "0",
+					"aria-label": `Open ${title}`,
+				}),
+			);
 		node.addEventListener("mouseenter", () => trace(stage.id));
 		node.addEventListener("mouseleave", () => trace(null));
 		node.addEventListener("focusin", () => trace(stage.id));
@@ -2227,7 +2244,11 @@ function renderGraph(preview = null) {
 			) {
 				event.preventDefault();
 				event.stopPropagation();
-				const list = [...nodes.querySelectorAll(".node, .agent-row")],
+				const list = [
+						...nodes.querySelectorAll(
+							'.node[role="button"], .node-open, .agent-row',
+						),
+					],
 					i = list.indexOf(event.target);
 				const target =
 					list[
@@ -2521,10 +2542,8 @@ function renderGraph(preview = null) {
 		};
 	}
 	function previewInset() {
-		return preview &&
-			matchMedia("(max-width: 800px), (pointer: coarse)").matches
-			? 44
-			: 0;
+		// The preview chip exists on desktop too. Reserve its row for every camera path.
+		return preview && model.codeSteps ? 48 : 0;
 	}
 	// The graph can never be panned out of sight: a graph smaller than the canvas stays inside
 	// it, a larger one stops when its far edge reaches the canvas edge.
@@ -2702,12 +2721,12 @@ function renderGraph(preview = null) {
 		const b = bounds();
 		if (!b) return;
 		const { x0, y0, w, h } = b;
-		// Reserve room for the code-step chip only in narrow profile previews.
+		// Reserve the preview's code-step chip at every width.
 		const inset = previewInset();
 		const top = preview ? 44 + inset : 16;
 		const available = Math.max(
 			preview ? 100 : 1,
-			wrap.clientHeight - (preview ? 140 : 32),
+			wrap.clientHeight - (preview ? 140 + inset : 32),
 		);
 		// Never shrink boxes below what their text needs; a big graph pans (clamped) instead.
 		const k = Math.max(
@@ -3256,18 +3275,52 @@ let showCode = (() => {
 	}
 })();
 /** The run's views: the graph top-down or left-right, or the timeline (2026-11-12). */
-function viewButtons() {
-	return [
+function layoutSwitch(selected, change, timeline = false) {
+	const options = [
 		["td", "Top-down"],
 		["lr", "Left-right"],
-		["timeline", "Timeline"],
-	].map(([layout, name]) =>
-		button(markIcon(layout), () => changeLayout(layout), {
-			"aria-label": name,
-			title: name,
-			"aria-pressed": String(state.layout === layout),
-		}),
+		...(timeline ? [["timeline", "Timeline"]] : []),
+	];
+	const previous = document.querySelector(".layout-switch")?.dataset.selected;
+	const indicator = element("span", {
+		class: "layout-indicator",
+		"aria-hidden": "true",
+	});
+	const control = element(
+		"div",
+		{
+			class: `layout-switch${timeline ? " has-timeline" : ""}`,
+			role: "group",
+			"aria-label": "Graph layout",
+			"data-selected": selected,
+		},
+		indicator,
+		options.map(([value, label]) =>
+			button(markIcon(value), () => change(value), {
+				"aria-label": label,
+				title: label,
+				"aria-pressed": String(selected === value),
+			}),
+		),
 	);
+	if (previous && previous !== selected) {
+		const delta =
+			options.findIndex(([v]) => v === previous) -
+			options.findIndex(([v]) => v === selected);
+		indicator.animate(
+			reducedMotion()
+				? [{ opacity: 0.5 }, { opacity: 1 }]
+				: [
+						{ transform: `translateX(${delta * 100}%)` },
+						{ transform: "translateX(0)" },
+					],
+			{ duration: 200, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+		);
+	}
+	return control;
+}
+function viewButtons() {
+	return [layoutSwitch(state.layout, changeLayout, true)];
 }
 /** "0s", "45s", "1m", "1m 30s", "1h", "1h 05m": a mark on the timeline's axis. */
 function tickLabel(seconds) {
@@ -8223,6 +8276,8 @@ function managementControl(
 			try {
 				await action();
 			} catch (error) {
+				if (control.hasAttribute("data-save-state"))
+					saveFeedback(control, "idle");
 				output.replaceChildren(
 					element(
 						"p",
@@ -8244,6 +8299,24 @@ function managementControl(
 		},
 	);
 	return control;
+}
+// Button-local feedback never replaces the editor, its focus, or newer unsaved values.
+const saveTimers = new WeakMap();
+function saveFeedback(control, state, settled = () => {}) {
+	clearTimeout(saveTimers.get(control));
+	control.dataset.saveState = state;
+	control.classList.add("save-feedback");
+	control.setAttribute("aria-busy", String(state === "saving"));
+	control.textContent =
+		state === "saving" ? "Saving…" : state === "saved" ? "Saved ✓" : "Save";
+	if (state === "saved")
+		saveTimers.set(
+			control,
+			setTimeout(() => {
+				saveFeedback(control, "idle");
+				settled();
+			}, 1200),
+		);
 }
 function commandHint(command) {
 	return element(
@@ -8292,9 +8365,30 @@ function choicePicker(
 		shown = [],
 		active = -1,
 		filtering = false,
-		choosing = false;
+		choosing = false,
+		menuMotion;
+	const animateMenu = (opening) => {
+		menuMotion?.cancel();
+		const frames = opening
+			? [{ opacity: 0 }, { opacity: 1 }]
+			: [{ opacity: 1 }, { opacity: 0 }];
+		if (!reducedMotion()) {
+			frames[0].transform = opening ? "scale(0.97)" : "scale(1)";
+			frames[1].transform = opening ? "scale(1)" : "scale(0.97)";
+		}
+		menuMotion = menu.animate(frames, {
+			duration: opening ? 160 : 100,
+			easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+		});
+		if (!opening)
+			menuMotion.onfinish = () => {
+				menu.hidden = true;
+			};
+	};
 	const close = () => {
-		menu.hidden = true;
+		if (control.getAttribute("aria-expanded") !== "true") return;
+		menu.inert = true;
+		animateMenu(false);
 		control.setAttribute("aria-expanded", "false");
 		control.removeAttribute("aria-activedescendant");
 		if (activePicker?.node === node) activePicker = null;
@@ -8360,18 +8454,24 @@ function choicePicker(
 		filtering = false;
 		paint();
 		menu.hidden = false;
+		menu.inert = false;
+		animateMenu(true);
 		control.setAttribute("aria-expanded", "true");
 		// The list contributes to the page's scroll area, so it can stay below even at the bottom.
 		menu.scrollIntoView({ block: "nearest", behavior: "instant" });
 		highlight(active);
 	};
 	control.addEventListener("click", () => {
-		if (!editable && !menu.hidden) close();
-		else if (menu.hidden) open();
+		if (!editable && control.getAttribute("aria-expanded") === "true") close();
+		else if (control.getAttribute("aria-expanded") !== "true") open();
 	});
 	control.addEventListener("input", (event) => {
 		if (!editable || event.isComposing || choosing) return;
-		if (document.activeElement === control && menu.hidden) open();
+		if (
+			document.activeElement === control &&
+			control.getAttribute("aria-expanded") !== "true"
+		)
+			open();
 		filtering = true;
 		paint();
 	});
@@ -8380,7 +8480,7 @@ function choicePicker(
 		typedAt = 0;
 	control.addEventListener("keydown", (event) => {
 		if (event.isComposing) return;
-		const wasOpen = !menu.hidden;
+		const wasOpen = control.getAttribute("aria-expanded") === "true";
 		if (["ArrowDown", "ArrowUp"].includes(event.key)) {
 			event.preventDefault();
 			event.stopPropagation();
@@ -8470,13 +8570,13 @@ async function renderManagement(prefetched = false) {
 		"div",
 		{ class: "management-page", "data-management": state.view },
 		element("h1", {}, title),
-		element(
-			"p",
-			{ class: "muted" },
-			state.view === "executors"
-				? "User level, shared by every project and host"
-				: "Selected project, shared host actions",
-		),
+		state.view === "executors"
+			? element(
+					"p",
+					{ class: "muted" },
+					"User level, shared by every project and host",
+				)
+			: null,
 	);
 	$("center").replaceChildren(page);
 	try {
@@ -8796,7 +8896,10 @@ async function renderWorkflows(page) {
 		managementApi(projectRoute("workflows")),
 		managementApi(projectRoute("agents")),
 	]);
-	const list = managementPanel("Available workflows");
+	const list = element("section", {
+		class: "workflow-list",
+		"aria-label": "Available workflows",
+	});
 	page.append(list);
 	if (!catalog.data.workflows.length)
 		list.append(
@@ -8830,11 +8933,6 @@ async function renderWorkflows(page) {
 						"span",
 						{ class: "workflow-card-text" },
 						workflow.description || "No description.",
-					),
-					element(
-						"small",
-						{ class: "muted" },
-						workflow.specPath || workflow.scope,
 					),
 				),
 			),
@@ -8922,7 +9020,7 @@ function propertyTable(headers, rows, attrs = {}) {
 async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	const route = `/api/projects/${encodeURIComponent(project)}/workflows/${workflow.workflowKey}/settings`;
 	const host = element("section", {
-		class: "management-card project-workflow-editor",
+		class: "project-workflow-editor",
 	});
 	host.dataset.workflowKey = workflow.workflowKey;
 	host.dataset.projectId = project;
@@ -9416,7 +9514,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		panel.hidden = selection === null;
 		common.replaceChildren(
 			element(
-				"h3",
+				"h2",
 				{ "data-testid": "all-tasks-title", tabindex: "-1" },
 				"All tasks",
 			),
@@ -9426,7 +9524,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		const selected = metadata.authored.find((node) => node.id === selection);
 		panel.replaceChildren(
 			element(
-				"h3",
+				"h2",
 				{ tabindex: "-1", "data-testid": "canonical-slot-title" },
 				selected?.id || "All tasks",
 			),
@@ -9535,7 +9633,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		// Explicit editor selection only; never a Run/SSE update. Keep graph camera intact.
 		if (id) {
 			panel.scrollIntoView({ block: "nearest", behavior: "instant" });
-			panel.querySelector("h3")?.focus({ preventScroll: true });
+			panel.querySelector("h2")?.focus({ preventScroll: true });
 		}
 	};
 	function draw() {
@@ -9605,20 +9703,12 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					showCode = !showCode;
 					draw();
 				},
-				controls: () =>
-					[
-						["td", "Top-down"],
-						["lr", "Left-right"],
-					].map(([value, label]) =>
-						button(
-							markIcon(value),
-							() => {
-								layout = value;
-								draw();
-							},
-							{ "aria-label": label, "aria-pressed": String(layout === value) },
-						),
-					),
+				controls: () => [
+					layoutSwitch(layout, (value) => {
+						layout = value;
+						draw();
+					}),
+				],
 			}),
 		);
 	}
@@ -9664,6 +9754,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		async () => {
 			if (saving || readonly()) return;
 			saving = true;
+			saveFeedback(save, "saving");
 			feedback = "Saving…";
 			updateStatus();
 			const token = ++request,
@@ -9679,6 +9770,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				settings = result;
 				draft.saved(snapshot);
 				confirmed = true;
+				saveFeedback(save, "saved");
 				error.hidden = true;
 				feedback = draft.dirty()
 					? "Submitted settings saved. Unsaved changes remain."
@@ -9693,6 +9785,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					updateStatus();
 				}
 			} finally {
+				if (!confirmed) saveFeedback(save, "idle");
 				saving = false;
 				if (live()) {
 					updateStatus();
@@ -9706,7 +9799,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			}
 		},
 		{
-			class: "primary",
+			class: "primary save-feedback",
 			"data-management-action": "save-project-settings",
 			disabled: readonly(),
 		},
@@ -9942,6 +10035,7 @@ function executorPermissions(page, id, profile, capabilityNames) {
 	const save = managementControl(
 		"Save",
 		async () => {
+			saveFeedback(save, "saving");
 			const submitted = draft.snapshot();
 			const current = read();
 			const values = {
@@ -9962,6 +10056,7 @@ function executorPermissions(page, id, profile, capabilityNames) {
 				return;
 			baseline = current;
 			draft.saved(submitted);
+			saveFeedback(save, "saved", showActions);
 			showActions();
 			output.replaceChildren(
 				element(
@@ -9972,13 +10067,21 @@ function executorPermissions(page, id, profile, capabilityNames) {
 			);
 		},
 		output,
-		{ "data-save-permissions": "", "aria-label": `Save ${id} permissions` },
+		{
+			class: "save-feedback",
+			"data-save-permissions": "",
+			"aria-label": `Save ${id} permissions`,
+		},
 	);
 	permission.disabled = readonly();
 	// Save/Discard appear only on a row with unsaved changes (2026-11-17, owner).
 	let actions;
 	const showActions = () => {
-		if (actions) actions.hidden = !draft.dirty();
+		if (actions)
+			actions.hidden =
+				!draft.dirty() &&
+				save.dataset.saveState !== "saved" &&
+				save.dataset.saveState !== "saving";
 	};
 	row.addEventListener("change", () => {
 		output.replaceChildren();

@@ -531,6 +531,21 @@ body:not([data-ready]) :is(.body, .rail, .inspector) {
 	font-size: 14px;
 	font-weight: 500;
 }
+.run-open {
+	/* Global buttons centre their label; a run title reads from the left like the other rows. */
+	display: block;
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 2px;
+	background: transparent;
+	color: inherit;
+	text-align: left;
+}
+.run-open:hover:not(:disabled) {
+	background: transparent;
+}
 .run-started {
 	flex: none;
 	font-size: 12px;
@@ -2516,8 +2531,11 @@ main.signin code {
 	color: var(--text);
 	font-weight: 500;
 }
+.workflow-list + div {
+	margin-top: 16px;
+}
 .management-page {
-	width: min(100%, 1080px);
+	width: 100%;
 	margin: 0 auto;
 	padding: 24px;
 	overflow: auto;
@@ -2590,6 +2608,10 @@ main.signin code {
 	font-weight: 400;
 	text-align: left;
 	scroll-margin-block: 12px;
+	transform-origin: top left;
+}
+.picker-menu[inert] {
+	pointer-events: none;
 }
 .picker-menu [role="option"] {
 	position: relative;
@@ -2787,7 +2809,7 @@ main.signin code {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px 12px;
-	margin: 0;
+	margin: 12px 0 0;
 	font-size: 12px;
 	overflow-wrap: anywhere;
 }
@@ -2803,6 +2825,7 @@ main.signin code {
 	margin-right: 12px;
 }
 .project-workflow-editor {
+	margin-top: 20px;
 	--project-editor-height: max(440px, calc(100vh - 260px));
 	min-height: calc(var(--project-editor-height) + 44px);
 }
@@ -2851,6 +2874,62 @@ main.signin code {
 }
 .project-common {
 	padding: 16px;
+}
+.project-common > h2,
+.role-inspector > h2 {
+	font-size: 14px;
+	margin: 4px 0 8px;
+	overflow-wrap: anywhere;
+}
+.save-feedback {
+	min-width: 100px;
+}
+.layout-switch {
+	position: relative;
+	isolation: isolate;
+	display: inline-flex;
+	flex: none;
+	padding: 3px;
+	gap: 0;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.layout-indicator {
+	position: absolute;
+	z-index: -1;
+	top: 3px;
+	bottom: 3px;
+	left: 3px;
+	width: calc((100% - 6px) / 2);
+	border-radius: 5px;
+	background: var(--selected);
+}
+.layout-switch[data-selected="lr"] .layout-indicator {
+	left: 50%;
+}
+.layout-switch.has-timeline .layout-indicator {
+	width: calc((100% - 6px) / 3);
+}
+.layout-switch.has-timeline[data-selected="lr"] .layout-indicator {
+	left: calc(3px + (100% - 6px) / 3);
+}
+.layout-switch[data-selected="timeline"] .layout-indicator {
+	left: calc(3px + (100% - 6px) * 2 / 3);
+}
+.toolbar .layout-switch > button {
+	position: relative;
+	flex: none;
+	margin: 0;
+	background: transparent;
+	border-color: transparent;
+}
+.toolbar .layout-switch > button[aria-pressed="true"] {
+	background: transparent;
+}
+.node-open:focus-visible {
+	stroke: var(--text);
+	stroke-width: 2px;
+	outline: none;
 }
 .task-settings-scope {
 	border: 0;
@@ -3077,6 +3156,9 @@ main.signin code {
 /*
  * Workflows (2026-11-11, owner): cards that open a workflow page, and plain tables for facts.
  */
+.workflow-list {
+	margin-top: 20px;
+}
 .workflow-cards {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
