@@ -504,21 +504,77 @@ function syncTitle() {
 		[page, state.run ? name : null, project].filter(Boolean).join(" | ") ||
 		"agent-workflow";
 }
+let pendingLoads = 0,
+	progressTimer;
+function beginLoading() {
+	if (pendingLoads++ === 0)
+		progressTimer = setTimeout(() => {
+			$("global-progress").hidden = false;
+		}, 150);
+	let finished = false;
+	return () => {
+		if (finished) return;
+		finished = true;
+		if (--pendingLoads === 0) {
+			clearTimeout(progressTimer);
+			$("global-progress").hidden = true;
+		}
+	};
+}
+const initialLoads = new Map();
+function prefetch(path) {
+	if (initialLoads.has(path)) return;
+	const load = path.endsWith("/runs") ? api(path) : managementApi(path);
+	initialLoads.set(path, load);
+	load.catch(() => {}); // A speculative failure is handled by its eventual consumer.
+}
 async function api(path, options = {}) {
 	if (path.startsWith("/api/runs"))
 		path = `/api/projects/${encodeURIComponent(state.project)}/${path.slice(5)}`;
-	const response = await fetch(path, {
-		credentials: "same-origin",
-		...options,
-		signal: options.signal || AbortSignal.timeout(20000),
-	});
-	const data = await response.json();
-	if (!response.ok)
-		throw Object.assign(
-			new Error(data.error || `Request failed (${response.status})`),
-			{ status: response.status, data },
-		);
-	return data;
+	if (!options.method && initialLoads.has(path)) {
+		const load = initialLoads.get(path);
+		initialLoads.delete(path);
+		return load;
+	}
+	const finish = beginLoading();
+	const signal = options.signal || AbortSignal.timeout(20000);
+	try {
+		let request = path,
+			init = options;
+		while (true) {
+			const response = await fetch(request, {
+				credentials: "same-origin",
+				...init,
+				signal,
+			});
+			const data = await response.json();
+			if (!response.ok)
+				throw Object.assign(
+					new Error(data.error || `Request failed (${response.status})`),
+					{ status: response.status, data },
+				);
+			if (response.status !== 202 || !data.pending) return data;
+			// The server's explicit pending protocol: never treat an unprobed executor as ready.
+			if (!/^\/api\/calculations\/[a-f0-9-]+$/.test(data.poll))
+				throw new Error("Invalid calculation receipt");
+			await new Promise((resolve, reject) => {
+				const abort = () => {
+					clearTimeout(timer);
+					reject(signal.reason);
+				};
+				const timer = setTimeout(() => {
+					signal.removeEventListener("abort", abort);
+					resolve();
+				}, data.retryAfterMs);
+				if (signal.aborted) abort();
+				else signal.addEventListener("abort", abort, { once: true });
+			});
+			request = data.poll;
+			init = {};
+		}
+	} finally {
+		finish();
+	}
 }
 function notice(text) {
 	clearTimeout(noticeTimer);
@@ -6099,7 +6155,13 @@ function renderReportPage() {
 	const content = element(
 		"article",
 		{ class: "report-content", id: "report-content" },
-		run.reportAvailable ? "Loading report…" : "This run has no report.",
+		run.reportAvailable
+			? element("span", {
+					class: "project-settings-spinner",
+					role: "status",
+					"aria-label": "Loading report",
+				})
+			: "This run has no report.",
 	);
 	const chips = element("div", { class: "report-filters" });
 	const empty = element(
@@ -6593,7 +6655,13 @@ async function loadRun() {
 		center.classList.add("switching");
 		center.inert = true;
 	} else
-		center.replaceChildren(element("p", { class: "empty" }, "Loading run…"));
+		center.replaceChildren(
+			element("span", {
+				class: "project-settings-spinner",
+				role: "status",
+				"aria-label": "Loading run",
+			}),
+		);
 	connection = "Reconnecting";
 	lastEvent = 0;
 	updateConnection();
@@ -7928,9 +7996,35 @@ setInterval(async () => {
 }, 5000);
 async function start() {
 	try {
-		session = await api("/api/session");
+		initialLoads.clear();
+		const sessionPromise = api("/api/session");
+		const projectsPromise = api("/api/projects");
+		// Explicit project bookmarks can start safe reads before session/project discovery.
+		if (state.project && state.project !== "all") {
+			const base = `/api/projects/${encodeURIComponent(state.project)}`;
+			if (state.view === "workflows") {
+				prefetch(`${base}/workflows`);
+				if (state.workflow) {
+					prefetch("/api/profiles/presets");
+					prefetch("/api/executors/models");
+				}
+				if (/^[a-f0-9]{64}$/.test(state.workflow || "")) {
+					prefetch(`${base}/workflows/${state.workflow}?view=editor`);
+					prefetch(`${base}/workflows/${state.workflow}/settings`);
+				} else prefetch(`${base}/agents`);
+			} else if (state.view !== "executors") prefetch(`${base}/runs`);
+		}
+		if (state.view === "executors") {
+			prefetch("/api/doctor");
+			prefetch("/api/profiles");
+		}
+		const [sessionData, projectData] = await Promise.all([
+			sessionPromise,
+			projectsPromise,
+		]);
+		session = sessionData;
 		syncClock(session.serverTime);
-		projects = (await api("/api/projects")).projects;
+		projects = projectData.projects;
 		if (!state.project) {
 			let remembered;
 			try {
@@ -7962,7 +8056,7 @@ async function start() {
 			}
 			state.project = null;
 			state.run = null;
-			if (managementView()) await renderManagement();
+			if (managementView()) await renderManagement(true);
 			else renderOverview();
 			return;
 		}
@@ -7973,7 +8067,7 @@ async function start() {
 		}
 		urlState(true);
 		if (managementView()) {
-			await renderManagement();
+			await renderManagement(true);
 			return;
 		}
 		await refreshRuns();
@@ -8374,7 +8468,9 @@ const EFFORT_LEVELS = [
 	"ultra",
 ];
 let managementCleanup = () => {};
-async function renderManagement() {
+async function renderManagement(prefetched = false) {
+	// Speculative reads are a one-navigation handoff, never a cross-navigation settings cache.
+	if (prefetched !== true) initialLoads.clear();
 	managementCleanup();
 	settingsDrafts.clear();
 	managementCleanup = () => {};
@@ -8900,6 +8996,14 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		"aria-label": "Loading",
 	});
 	host.append(loading, status);
+	const presetsPromise = managementApi("/api/profiles/presets").then(
+		(result) => ({ result }),
+		(failure) => ({ failure }),
+	);
+	const inventoryPromise = managementApi("/api/executors/models").then(
+		(result) => ({ result }),
+		(failure) => ({ failure }),
+	);
 	const loaded = await managementApi(route);
 	if (!live()) return;
 	settings = loaded.settings;
@@ -8943,21 +9047,11 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	let metadata = loaded;
 	const draft = settingsDraft(host, () => intent);
 	let presets = [];
-	try {
-		presets = (await managementApi("/api/profiles/presets")).data.presets;
-	} catch (failure) {
-		failPresetLoad(failure);
-	}
 	function failPresetLoad(failure) {
 		error.hidden = false;
 		error.textContent = `Presets unavailable: ${failure.message}. Manual editing remains available.`;
 	}
-	let inventory;
-	try {
-		inventory = (await managementApi("/api/executors/models")).data;
-	} catch (failure) {
-		inventory = { executors: [], error: failure.message };
-	}
+	let inventory = { executors: [] };
 	if (!live()) {
 		draft.clear();
 		return;
@@ -9078,6 +9172,13 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		...presets.map((preset) => preset.id),
 	]);
 	const refreshPreset = () => {
+		const values = ["", ...presets.map((preset) => preset.id)];
+		if (values.length !== presetControl.options.length)
+			presetControl.replaceChildren(
+				...values.map((value) =>
+					element("option", { value }, value || "Custom"),
+				),
+			);
 		presetControl.disabled = readonly() || !presets.length;
 		presetControl.value =
 			presets.find(
@@ -9164,6 +9265,15 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					: row(id)?.executor?.value;
 			const exec = binding(id)?.executor || currentExecutor;
 			executor.control.value = binding(id)?.executor || "";
+			executor.setOptions([
+				...new Set(
+					[
+						...(inventory.executors || []).map((entry) => entry.id),
+						binding(id)?.executor,
+						currentExecutor,
+					].filter(Boolean),
+				),
+			]);
 			const entry = inventory.executors.find((entry) => entry.id === exec);
 			const previousModel = binding(id)?.model || "";
 			const models = [
@@ -9531,7 +9641,15 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		attemptedGeneration = version;
 		const body = { intent: copy(intent), expected: expected() };
 		try {
-			const result = await managementWrite(`${route}/preview`, "POST", body);
+			const result = await managementApi(`${route}/preview`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"X-AW-CSRF": session.csrf,
+					Prefer: "respond-async",
+				},
+				body: JSON.stringify(body),
+			});
 			if (!live() || token !== request || version !== generation) return;
 			preview = result;
 			previewGeneration = version;
@@ -9652,11 +9770,30 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	draw();
 	updateStatus();
 	scheduleCalculation();
+	void Promise.all([presetsPromise, inventoryPromise]).then(
+		([presetLoad, inventoryLoad]) => {
+			if (!live()) return;
+			if (presetLoad.failure) failPresetLoad(presetLoad.failure);
+			else presets = presetLoad.result.data.presets;
+			inventory = inventoryLoad.failure
+				? { executors: [], error: inventoryLoad.failure.message }
+				: inventoryLoad.result.data;
+			// Keep control identity, focus and the user's draft while optional choices arrive.
+			for (const refresh of refreshers) refresh();
+		},
+	);
 }
 
 /** Project workflow: one draft, graph task selection and title-row Save/Discard. */
 async function renderWorkflow(page, name) {
 	const project = state.project;
+	prefetch("/api/profiles/presets");
+	prefetch("/api/executors/models");
+	if (/^[a-f0-9]{64}$/.test(name)) {
+		const base = `/api/projects/${encodeURIComponent(project)}/workflows/${name}`;
+		prefetch(`${base}?view=editor`);
+		prefetch(`${base}/settings`);
+	}
 	let selectionKey = name;
 	const route = (suffix = "") =>
 		`/api/projects/${encodeURIComponent(project)}/workflows/${encodeURIComponent(selectionKey)}${suffix}`;
@@ -9704,7 +9841,7 @@ async function renderWorkflow(page, name) {
 			`${location.pathname}?${params}${location.hash}`,
 		);
 	}
-	const data = await managementApi(route());
+	const data = await managementApi(`${route()}?view=editor`);
 	if (!current()) return;
 	const title = page.querySelector("h1");
 	title.textContent = workflow.name;
@@ -9747,18 +9884,12 @@ async function renderWorkflow(page, name) {
 				"Project settings unavailable: no server workflow identity.",
 			),
 		);
-	// Parsing here only exposes real definition problems, not a second compiler or raw-spec view.
-	let authored = {};
-	let specError = "";
-	try {
-		authored = JSON.parse(data.spec.data.spec);
-	} catch (error) {
-		specError = error.message;
-	}
 	// A valid definition needs no section; only real definition problems are shown (2026-11-16, owner).
 	const validation = data.validation?.data;
 	const problems = [
-		...(specError ? [`The workflow spec could not be read: ${specError}`] : []),
+		...(data.specError
+			? [`The workflow spec could not be read: ${data.specError}`]
+			: []),
 		...(data.validation?.error ? [data.validation.error] : []),
 		...(validation?.warnings || []).map((warning) => `Warning: ${warning}`),
 		...(validation?.blockedPermissionPreviews || []).map(
@@ -10208,6 +10339,7 @@ async function renderExecutors(page) {
 			{ class: "management-actions page-actions" },
 			managementControl("Refresh", () => show(true), refreshOutput, {
 				write: false,
+				"data-management-action": "doctor-refresh",
 			}),
 			refreshOutput,
 		),

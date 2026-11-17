@@ -1,3 +1,33 @@
+#global-progress {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 3px;
+	z-index: 10000;
+	pointer-events: none;
+	background: linear-gradient(90deg, transparent, var(--accent), transparent);
+	background-size: 50% 100%;
+	background-repeat: no-repeat;
+	animation: dashboard-progress 1.2s ease-in-out infinite;
+}
+#global-progress[hidden] {
+	display: none;
+}
+@keyframes dashboard-progress {
+	from {
+		background-position: -100% 0;
+	}
+	to {
+		background-position: 200% 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	#global-progress {
+		animation: none;
+		background: var(--accent);
+	}
+}
 :root {
 	/* Follows the system (light or dark) unless the theme button pins one (data-theme). */
 	color-scheme: light dark;

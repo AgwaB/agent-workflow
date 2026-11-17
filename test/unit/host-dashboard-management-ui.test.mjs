@@ -120,7 +120,7 @@ test("Chrome management: the views, permission edit, check preview and the overv
 		"Chrome is required for dashboard management UI validation",
 	);
 	const p = await managementProject(t);
-	const terminal = await persistManagementRun(p.cwd, "workflow_ui_terminal");
+	await persistManagementRun(p.cwd, "workflow_ui_terminal");
 	await profileAction(p.ctx, {
 		op: "set",
 		name: "ui-profile",
@@ -658,7 +658,7 @@ test("Chrome management: workflow detail keeps the graph and drops the stage tab
 		const original = window.fetch;
 		window.fetch = async (url, options) => {
 			const response = await original(url, options);
-			if (!String(url).endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
+			if (!new URL(url, location.href).pathname.endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
 			const data = await response.json();
 			data.validation = { data: { warnings: ["unique spec warning"], blockedPermissionPreviews: [{ taskId: "read", reason: "unique blocked reason" }] } };
 			return new Response(JSON.stringify(data), {
@@ -999,9 +999,9 @@ test("Workflow unreadable spec retains visible errors without source or compiled
  const original = window.fetch;
  window.fetch = async (url, options) => {
   const response = await original(url, options);
-  if (!String(url).endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
+  if (!new URL(url, location.href).pathname.endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
   const value = await response.json();
-  value.spec.data.spec = 'unreadable <img src=x onerror=alert(1)>';
+  value.specError = 'unreadable <img src=x onerror=alert(1)>';
   value.validation = {error: 'Invalid specification: unique validation failure'};
   value.roles = {data: {roles: [{role: 'unique-role', note: 'unique compiled data <script>bad()</script>'}]}};
   return new Response(JSON.stringify(value), {headers:{'Content-Type':'application/json'}});

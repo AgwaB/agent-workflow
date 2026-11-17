@@ -10,13 +10,23 @@
     <script type="module" src="./app.js"></script>
   </head>
   <body>
+    <div
+      id="global-progress"
+      role="progressbar"
+      aria-label="Loading dashboard"
+      hidden
+    ></div>
     <a id="skip-content" class="skip-link" href="#center">Skip to content</a>
     <div id="app">
       <header id="top" class="top"></header>
       <div id="body" class="body">
         <aside id="rail" class="rail" aria-label="Runs"></aside>
         <main id="center" class="center" tabindex="-1">
-          <p class="empty">Connecting to the dashboard…</p>
+          <span
+            class="project-settings-spinner"
+            role="status"
+            aria-label="Loading dashboard"
+          ></span>
         </main>
         <aside
           id="inspector"

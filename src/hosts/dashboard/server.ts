@@ -65,6 +65,11 @@ export interface DashboardServerOptions {
 	now?: () => number;
 	/** Publish discovery (CLI enables it; embedded/test servers opt in). */
 	discovery?: boolean;
+	/**
+	 * Probe the installed executors once in the background after start, so the first page that
+	 * needs executor state does not wait for a cold probe (Pi takes seconds). CLI enables it.
+	 */
+	warmExecutorProbes?: boolean;
 	launchKey?: string;
 	token?: string;
 	/**
@@ -330,6 +335,7 @@ export async function startDashboardServer(
 	});
 
 	const management = createDashboardManagement({
+		warmExecutorProbes: options.warmExecutorProbes === true,
 		context: { cwd, env, host: "cli", readonly: options.readonly },
 		project: async (id) => ({
 			cwd: (await projectRegistration(id)).path,

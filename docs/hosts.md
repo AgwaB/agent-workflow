@@ -793,6 +793,7 @@ The last port is stored in `<home>/dashboard-port`. Custom homes reuse it when f
 | `AGENT_WORKFLOW_DASHBOARD_PORT` | Strict port override (1–65535) |
 | `AGENT_WORKFLOW_DASHBOARD_AUTH=1` | Require sign-in, including auto-started servers |
 | `AGENT_WORKFLOW_DASHBOARD_AUTOSTART=0` | Disable automatic dashboard startup |
+| `AGENT_WORKFLOW_DASHBOARD_WARM_PROBES=0` | Skip the one background executor probe a CLI-started dashboard runs after start (it lets the first page skip a cold probe) |
 | `AGENT_WORKFLOW_DASHBOARD_OPEN=1` | Open after launch, subject to agent suppression |
 | `AGENT_WORKFLOW_DASHBOARD_IDLE_MS` | Detached idle timeout; default 2 h, minimum 1 min |
 | `AGENT_WORKFLOW_DASHBOARD_POLL_MS` | SSE poll interval; default 1000 ms, range 500–10000 ms |

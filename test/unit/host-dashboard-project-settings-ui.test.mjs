@@ -52,7 +52,16 @@ async function open(t, options = {}) {
 			const op = path.endsWith('/preview') ? 'preview' : path.endsWith('/settings') ? (options.method || 'GET') : '';
 			if (window.__holds[op]) { window.__holds[op] = false; await new Promise(resolve => { window.__releases[op] = resolve; }); }
 			const json = response.json.bind(response);
-			response.json = async () => { const data = await json(); request.response = {status: response.status, data}; return data; };
+			response.json = async () => {
+				const data = await json();
+				request.response = {status: response.status, data};
+				if (data.pending) request.calculationId = data.calculationId;
+				if (path.startsWith('/api/calculations/') && !data.pending) {
+					const logical = window.__requests.find(r => r.calculationId === path.split('/').at(-1));
+					if (logical) logical.response = {status: response.status, data};
+				}
+				return data;
+			};
 			return response;
 		};
 	`,
@@ -791,7 +800,7 @@ test("scope S6: diagnostics and About are deleted; description and real spec ale
 		const detailFetch = window.fetch;
 		window.fetch = async (...args) => {
 			const response = await detailFetch(...args);
-			if (!String(args[0]).endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
+			if (!new URL(args[0], location.href).pathname.endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
 			const value = await response.json(); value.validation = {error: 'unique real spec problem'};
 			return new Response(JSON.stringify(value), {headers: {'Content-Type': 'application/json'}});
 		};`,

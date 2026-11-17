@@ -846,6 +846,9 @@ async function dispatch(
 					idleExitMs,
 					onIdleExit: stop,
 					discovery: true,
+					// Unit runs disable it so fake/shimmed CLIs are not probed behind a test's back.
+					warmExecutorProbes:
+						io.env.AGENT_WORKFLOW_DASHBOARD_WARM_PROBES !== "0",
 					env: io.env,
 					...(port === undefined ? {} : { port }),
 					readonly: parsed.flags.has("--readonly"),
