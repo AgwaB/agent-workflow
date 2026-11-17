@@ -45,6 +45,9 @@ async function refreshFailedAttempt({
 	output = "I'll start by examining the source files.",
 	summary,
 	contextLengthExceeded = false,
+	configuredTools,
+	bootstrapTools = configuredTools, // null: no launch record
+	inheritHostTools,
 }) {
 	const cwd = makeProject();
 	try {
@@ -69,6 +72,19 @@ async function refreshFailedAttempt({
 			workflowSpec("unit-scout"),
 		);
 		const task = run.tasks[0];
+		if (configuredTools !== undefined) task.tools = configuredTools;
+		if (bootstrapTools !== undefined && bootstrapTools !== null)
+			task.launchBootstrap = {
+				version: 1,
+				records: [
+					{
+						effectivePolicy: {
+							tools: bootstrapTools,
+							...(inheritHostTools ? { inheritHostTools: true } : {}),
+						},
+					},
+				],
+			};
 		task.status = "running";
 		task.statusDetail = "running";
 		task.startedAt = new Date().toISOString();
@@ -252,4 +268,56 @@ test("partial output + read-only tools but context length exceeded is not retrie
 
 test("zero output is still retried without any tool evidence", async () => {
 	assertRetried(await refreshFailedAttempt({ output: "", summary: undefined }));
+});
+
+const READ_ONLY = ["read", "grep", "find", "ls"];
+
+test("configured read-only tools prove side-effect freedom without any tool-call capture", async () => {
+	assertRetried(
+		await refreshFailedAttempt({
+			summary: undefined,
+			configuredTools: [...READ_ONLY, "workflow_artifact"],
+		}),
+	);
+	assertRetried(
+		await refreshFailedAttempt({
+			summary: undefined,
+			configuredTools: [ARTIFACT_TOOL, "read"],
+		}),
+	);
+});
+
+for (const [name, opts] of [
+	["write", { configuredTools: [...READ_ONLY, "write"] }],
+	["edit", { configuredTools: ["read", "edit"] }],
+	["bash", { configuredTools: ["read", "bash"] }],
+	[
+		"an unknown provider tool",
+		{ configuredTools: ["read", "mcp__other__lookup"] },
+	],
+	[
+		"inherited host tools",
+		{ configuredTools: READ_ONLY, inheritHostTools: true },
+	],
+	[
+		"a mutating tool only in the launch record",
+		{ configuredTools: READ_ONLY, bootstrapTools: ["read", "bash"] },
+	],
+	["no configured set", {}],
+	["an empty configured set", { configuredTools: [], bootstrapTools: [] }],
+	["no launch record", { configuredTools: READ_ONLY, bootstrapTools: null }],
+])
+	test(`no capture + ${name} is not retried`, async () => {
+		assertNotRetried(
+			await refreshFailedAttempt({ summary: undefined, ...opts }),
+		);
+	});
+
+test("the call-summary proof stays an alternative to the configured-set proof", async () => {
+	assertRetried(
+		await refreshFailedAttempt({
+			summary: summaryOf({ read: 1 }),
+			configuredTools: ["read", "bash"],
+		}),
+	);
 });

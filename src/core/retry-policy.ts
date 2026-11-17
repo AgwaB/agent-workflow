@@ -530,9 +530,11 @@ export const SIDE_EFFECT_FREE_RETRY_TOOLS: ReadonlySet<string> = new Set([
 	mcpPrefixedToolName(ARTIFACT_MCP_SERVER_NAME, WORKFLOW_ARTIFACT_TOOL_NAME),
 ]);
 
+const isCount = (value: unknown): value is number => typeof value === "number";
+
 /**
- * True only when the attempt's tool-call summary proves every call was on the allowlist.
- * Fails closed: a missing/malformed summary, dropped records, or any other tool is not side-effect free.
+ * Proof 1 (needs capture): the attempt's tool-call summary shows every call was on the allowlist.
+ * Fails closed: a missing/malformed summary, dropped records, non-count values or any other tool.
  */
 export function attemptUsedOnlySideEffectFreeTools(
 	toolCallsSummary: unknown,
@@ -545,13 +547,13 @@ export function attemptUsedOnlySideEffectFreeTools(
 		typeof callsByTool !== "object" ||
 		callsByTool === null ||
 		Array.isArray(callsByTool) ||
-		typeof totalCalls !== "number" ||
+		!isCount(totalCalls) ||
 		droppedRecords !== 0
 	)
 		return false;
 	let counted = 0;
 	for (const [tool, count] of Object.entries(callsByTool)) {
-		if (typeof count !== "number" || !SIDE_EFFECT_FREE_RETRY_TOOLS.has(tool))
+		if (!isCount(count) || !SIDE_EFFECT_FREE_RETRY_TOOLS.has(tool))
 			return false;
 		counted += count;
 	}
@@ -559,8 +561,44 @@ export function attemptUsedOnlySideEffectFreeTools(
 }
 
 /**
+ * Proof 2 (always available): every tool the worker COULD call is on the allowlist. The callable
+ * set is the task's configured `tools` plus the sealed launch provenance of the latest attempt
+ * (`launchBootstrap.records[-1].effectivePolicy`, written before every launch): its `tools` must
+ * agree and it must not add inherited host tools (codemode, `mcp__*`, ...). MCP/provider tools
+ * are only callable when named in `tools` (providers are filtered to the selected tools), and the
+ * artifact server contributes only workflow_artifact (allowlisted). Anything missing, empty,
+ * unknown or not on the allowlist fails closed.
+ */
+export function taskConfiguredToolsSideEffectFree(task: {
+	tools?: unknown;
+	launchBootstrap?: unknown;
+}): boolean {
+	const allAllowed = (tools: unknown): tools is string[] =>
+		Array.isArray(tools) &&
+		tools.length > 0 &&
+		tools.every(
+			(tool) =>
+				typeof tool === "string" &&
+				(SIDE_EFFECT_FREE_RETRY_TOOLS.has(tool) ||
+					tool === WORKFLOW_ARTIFACT_TOOL_NAME),
+		);
+	if (!allAllowed(task.tools)) return false;
+	const records = (task.launchBootstrap as { records?: unknown } | undefined)
+		?.records;
+	if (!Array.isArray(records) || records.length === 0) return false;
+	const policy = (
+		records[records.length - 1] as {
+			effectivePolicy?: { tools?: unknown; inheritHostTools?: unknown };
+		}
+	)?.effectivePolicy;
+	if (typeof policy !== "object" || policy === null) return false;
+	if (policy.inheritHostTools !== undefined) return false;
+	return allAllowed(policy.tools);
+}
+
+/**
  * A failed model task is retried when its failure kind is retryable and either it left no output, or
- * it left partial output but every tool it called was side-effect free (`toolCallsSummary` proves it).
+ * it left partial output but every tool it called was side-effect free (the configured callable set or `toolCallsSummary` proves it).
  */
 export function shouldRetryTransientModelFailure(
 	statusInfo: {
@@ -571,6 +609,7 @@ export function shouldRetryTransientModelFailure(
 	workflowResult: { contextLengthExceeded?: boolean; noFinalOutput?: boolean },
 	outputBytes: number,
 	toolCallsSummary?: unknown,
+	configuredToolsSideEffectFree = false,
 ): boolean {
 	if (
 		statusInfo.status !== "failed" ||
@@ -580,7 +619,9 @@ export function shouldRetryTransientModelFailure(
 		return false;
 	if (outputBytes === 0 && workflowResult.noFinalOutput === true) return true;
 	return (
-		outputBytes > 0 && attemptUsedOnlySideEffectFreeTools(toolCallsSummary)
+		outputBytes > 0 &&
+		(configuredToolsSideEffectFree ||
+			attemptUsedOnlySideEffectFreeTools(toolCallsSummary))
 	);
 }
 
