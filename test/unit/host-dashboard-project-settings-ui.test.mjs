@@ -650,12 +650,14 @@ test("scope S4: graph has current model and effort, Custom marker, and no stale 
 	const p = await open(t);
 	await load(p);
 	await settled(p);
+	// The full line, not the width-fitted label (fonts differ per OS: "Custom" can render "Cust…").
 	const line = () =>
-		p.browser.evaluate(
-			() =>
-				document.querySelector('.profile-flow [data-stage="iterate.check"]')
-					.textContent,
-		);
+		p.browser.evaluate(() => {
+			const text = document.querySelector(
+				'.profile-flow [data-stage-line="iterate.check"]',
+			);
+			return text.dataset.full ?? text.textContent;
+		});
 	assert.match(await line(), /fixture-model · medium/);
 	assert.doesNotMatch(await line(), /source:|origin:|Custom/);
 	await select(p, "iterate.check");

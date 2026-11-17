@@ -195,8 +195,11 @@ for (const width of [970, 1440])
 				true,
 			);
 			await b.click('[data-testid="manage-run-deletion"]');
+			// The URL changes before the new document renders its rail.
 			await b.waitFor(
-				() => new URLSearchParams(location.search).get("view") === "history",
+				() =>
+					new URLSearchParams(location.search).get("view") === "history" &&
+					!!document.querySelector("#rail .rail-footer"),
 			);
 			assert.equal(f.mutations.length, 0);
 			await b.evaluate(() => {

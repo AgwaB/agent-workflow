@@ -567,10 +567,13 @@ for (const readonly of [false, true]) {
 		await p.browser.send("Page.navigate", {
 			url: `${p.origin}/?project=all&view=history`,
 		});
-		await p.browser.waitFor(() =>
-			document
-				.querySelector("#center")
-				.textContent.includes("Choose a project before deleting selected Runs"),
+		await p.browser.waitFor(
+			() =>
+				document
+					.querySelector("#center")
+					?.textContent.includes(
+						"Choose a project before deleting selected Runs",
+					) ?? false,
 		);
 		assert.equal(
 			await p.browser.evaluate(
