@@ -98,8 +98,8 @@ test("renderer names both verdicts when the final verdict differs from the narra
 		.split("\n")
 		.find((line) => line.startsWith("> Verdict note:"));
 	assert.ok(note, out.markdown);
-	assert.match(note, /written for verdict `NEEDS\\_WORK`/);
-	assert.match(note, /final report verdict is `PARTIAL\\_REVIEW`/);
+	assert.match(note, /written for verdict `NEEDS_WORK`/);
+	assert.match(note, /final report verdict is `PARTIAL_REVIEW`/);
 	assert.match(note, /1 verifier verdict\(s\) are missing/);
 	assert.ok(
 		out.markdown.indexOf("> Verdict note:") <

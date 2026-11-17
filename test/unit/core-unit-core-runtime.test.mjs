@@ -8571,9 +8571,9 @@ test("deep-review render-review-report emits finding cards from partition ledger
 		assert.match(result.markdown, /Critical findings/);
 		assert.match(
 			result.markdown,
-			/\| `src\/auth\.ts` \| 14 \| `JWT\\_SECRET` \|/,
+			/\| `src\/auth\.ts` \| 14 \| `JWT_SECRET` \|/,
 		);
-		assert.match(result.markdown, /\| `Dockerfile` \| 9 \| `JWT\\_SECRET` \|/);
+		assert.match(result.markdown, /\| `Dockerfile` \| 9 \| `JWT_SECRET` \|/);
 		assert.match(
 			result.markdown,
 			/\| `src\/auth\\\|pipe\.ts` \| 20 \| `JWT\\\|SECRET` \|/,
