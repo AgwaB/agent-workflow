@@ -118,6 +118,7 @@ import {
 	resolveWorkflowResourcePolicy,
 } from "./resource-inheritance.js";
 import { isTaskTimedOut, markTaskTimedOut } from "./result.js";
+import { preserveTimedOutPartialOutput } from "./timeout-partial.js";
 import {
 	launchRetryBackoffRemainingMs,
 	modelRateLimitBackoffKey,
@@ -1096,6 +1097,7 @@ async function interruptTimedOutWorker(
 	task: WorkflowTaskRunRecord,
 ): Promise<void> {
 	await acknowledgeWorkerTaskInterrupted(cwd, run, task, "workflow timeout");
+	await preserveTimedOutPartialOutput(cwd, task);
 }
 
 function markCancellationFailed(

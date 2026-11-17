@@ -46,6 +46,7 @@ import {
 	recordTaskTimingTelemetry,
 	recordTerminalTaskObservability,
 } from "./task-observability.js";
+import { timedOutPartialNote } from "./timeout-partial.js";
 import { type WorkflowRunRecord, type WorkflowTaskRunRecord } from "./types.js";
 
 export async function materializeTerminalWorkerResult(
@@ -163,6 +164,10 @@ export async function materializeTerminalWorkerResult(
 		};
 		errorMessage = permanentModelFailure;
 	}
+	if (statusInfo.failureKind === "timeout" && outputBytes > 0) {
+		task.timedOutPartial = { outputBytes, validated: false };
+		errorMessage = `${errorMessage ?? "executor run timed out"}${timedOutPartialNote(task)}`;
+	} else delete task.timedOutPartial;
 	recordTerminalTaskObservability({
 		task,
 		snapshot,
@@ -311,6 +316,14 @@ export async function materializeTerminalWorkerResult(
 		errorMessage,
 		noFinalOutput: outputBytes === 0,
 		contextLengthExceeded,
+		...(task.timedOutPartial
+			? {
+					timedOutPartial: {
+						...task.timedOutPartial,
+						outputFile: task.files.output,
+					},
+				}
+			: {}),
 		worker: {
 			runId: snapshot.runId,
 			attemptId: snapshot.attemptId,
