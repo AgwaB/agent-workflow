@@ -26,6 +26,10 @@ const RATE_LIMIT_TRANSIENT_RETRY_BACKOFF_BASE_MS = 60_000;
 const RATE_LIMIT_TRANSIENT_RETRY_BACKOFF_MAX_MS = 5 * 60_000;
 const OAUTH_RATE_LIMIT_TRANSIENT_RETRY_BACKOFF_BASE_MS = 15 * 60_000;
 const OAUTH_RATE_LIMIT_TRANSIENT_RETRY_BACKOFF_MAX_MS = 60 * 60_000;
+// Upper bound for a provider hint on a non-rate-limit transient failure: the existing
+// longest default transient/rate-limit wait for API-key access, so a transient hint never
+// waits longer than the engine's own non-hinted rate-limit backoff.
+const TRANSIENT_HINT_BACKOFF_MAX_MS = RATE_LIMIT_TRANSIENT_RETRY_BACKOFF_MAX_MS;
 interface SharedModelRateLimitBackoffState {
 	nextEligibleAtMs: number;
 	retryAfterMs: number;
@@ -500,9 +504,14 @@ export function transientModelRateLimitBackoffMs(options: {
 		.map((text) => providerRetryAfterMs(text, nowMs))
 		.filter((delay): delay is number => delay !== undefined);
 	if (!rateLimited && !hints.length) return undefined;
-	return hints.length
-		? Math.max(...hints)
-		: defaultRateLimitBackoffMs(options.attempt, options.modelBackoffKey);
+	if (!hints.length) {
+		return defaultRateLimitBackoffMs(options.attempt, options.modelBackoffKey);
+	}
+	const hint = Math.max(...hints);
+	// The hinted backoff is recorded model-wide, so an absurd hint on a transient
+	// ("busy") failure must not park every task of that model. A quota reset
+	// (rate_limit) may legitimately be hours away and stays uncapped.
+	return rateLimited ? hint : Math.min(hint, TRANSIENT_HINT_BACKOFF_MAX_MS);
 }
 
 export function launchRetryBackoffRemainingMs(
