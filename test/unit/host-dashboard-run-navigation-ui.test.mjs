@@ -513,9 +513,15 @@ test("empty history stays truthful while loading and after a Run-list failure", 
 	});
 	await b.send("Page.navigate", { url: `${f.origin}/?view=runs` });
 	await b.waitFor(() => !!window.__releaseHistory);
-	assert.match(
-		await b.evaluate(() => document.querySelector("#center").textContent),
-		/Connecting/,
+	// Loading shows a spinner (2026-11-17: replaced the "Connecting…" text), never "No runs".
+	assert.deepEqual(
+		await b.evaluate(() => ({
+			loading: document
+				.querySelector('#center [role="status"]')
+				?.getAttribute("aria-label"),
+			empty: /No runs/.test(document.querySelector("#center").textContent),
+		})),
+		{ loading: "Loading dashboard", empty: false },
 	);
 	assert.equal(
 		await b.evaluate(
