@@ -3164,6 +3164,8 @@ export function buildIntegrityPreview({
 	const verifierMissing = countOf(verifierCoverage?.missingFindingIds);
 	const verifierOrphan = countOf(verifierCoverage?.orphanFindingIds);
 	const verifierDuplicate = countOf(verifierCoverage?.duplicateFindingIds);
+	const verifierOwner = countOf(verifierCoverage?.ownerIssues);
+	const verifierStatus = countOf(verifierCoverage?.statusIssues);
 	const reviewerMissingLenses = countOf(reviewerLedger?.missingPlannedLensIds);
 	const reviewerUnexpected = countOf(
 		reviewerLedger?.unexpectedMaterializedReviewerIds,
@@ -3180,6 +3182,16 @@ export function buildIntegrityPreview({
 		issues.push(
 			`verifier verdicts include ${verifierOrphan} orphan and ${verifierDuplicate} duplicate finding ids`,
 		);
+	if (verifierOwner + verifierStatus > 0)
+		issues.push(
+			`verifier ownership/status failures (${verifierOwner} owner, ${verifierStatus} status)`,
+		);
+	// Any other reason verifierCoverage.complete is false still has to be visible.
+	else if (
+		verifierCoverage?.complete === false &&
+		missing + verifierOrphan + verifierDuplicate === 0
+	)
+		issues.push("verifier coverage is incomplete");
 	if (s.batchIntegrityIssues > 0)
 		issues.push(`${s.batchIntegrityIssues} batch integrity issues`);
 	if (s.verdictIntegrityIssues > 0)
