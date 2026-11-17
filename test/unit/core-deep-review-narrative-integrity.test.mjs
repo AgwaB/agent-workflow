@@ -11,6 +11,9 @@ const root = join(process.cwd(), "workflows", "deep-review", "helpers");
 const pipeline = (
 	await import(pathToFileURL(join(root, "finding-pipeline.mjs")).href)
 ).default;
+const { buildIntegrityPreview } = await import(
+	pathToFileURL(join(root, "finding-pipeline.mjs")).href
+);
 const render = (
 	await import(pathToFileURL(join(root, "render-review-report.mjs")).href)
 ).default;
@@ -121,4 +124,59 @@ test("renderer prints no verdict note when the narrative and final verdicts agre
 	});
 	assert.equal(out.verdict, "PARTIAL_REVIEW");
 	assert.doesNotMatch(out.markdown, /Verdict note:/);
+});
+
+const cleanSummary = {
+	missingVerdicts: 0,
+	reviewerFindings: 3,
+	verdictsReceived: 3,
+	batchIntegrityIssues: 0,
+	verdictIntegrityIssues: 0,
+	reviewerCoverageIssues: 0,
+	partialFailures: 0,
+};
+const cleanCoverage = {
+	complete: true,
+	missingFindingIds: [],
+	orphanFindingIds: [],
+	duplicateFindingIds: [],
+	ownerIssues: [],
+	statusIssues: [],
+};
+const preview = (coverage) =>
+	buildIntegrityPreview({
+		exactPartitionSummary: cleanSummary,
+		verifierCoverage: { ...cleanCoverage, ...coverage },
+		reviewerLedger: {},
+	});
+
+test("integrity preview: a clean packet reports no issues", () => {
+	const result = preview({});
+	assert.equal(result.hasIssues, false);
+	assert.deepEqual(result.issues, []);
+	assert.equal(result.verifierCoverageComplete, true);
+});
+
+test("integrity preview: owner-only and status-only verifier failures are issues", () => {
+	for (const [name, extra] of [
+		[
+			"owner",
+			{ ownerIssues: [{ sourceId: "devil-advocate.x", findingId: "a" }] },
+		],
+		[
+			"status",
+			{ statusIssues: [{ sourceId: "devil-advocate.x", reason: "r" }] },
+		],
+	]) {
+		const result = preview({ complete: false, ...extra });
+		assert.equal(result.verifierCoverageComplete, false, name);
+		assert.equal(result.hasIssues, true, name);
+		assert.match(result.issues[0], /ownership\/status failures/, name);
+	}
+});
+
+test("integrity preview: incomplete coverage is never reported as no issues", () => {
+	const result = preview({ complete: false });
+	assert.equal(result.hasIssues, true);
+	assert.deepEqual(result.issues, ["verifier coverage is incomplete"]);
 });

@@ -131,13 +131,13 @@
 			"specId": "partition-verdicts.main",
 			"status": "completed",
 			"statusDetail": "support_completed",
-			"control": "2560a2fede17462b"
+			"control": "cb3ffd84c74be2ab"
 		},
 		{
 			"specId": "report-packet.main",
 			"status": "completed",
 			"statusDetail": "support_completed",
-			"control": "a244f127e9cb214f"
+			"control": "50e4bbaeb85f33af"
 		},
 		{
 			"specId": "report.main",
