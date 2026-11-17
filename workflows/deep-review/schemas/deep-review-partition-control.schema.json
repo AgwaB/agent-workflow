@@ -389,6 +389,9 @@
           "minimum": 0,
           "maximum": 15000
         },
+        "integrityPreview": {
+          "type": "object"
+        },
         "partitionSummary": {
           "type": "object",
           "required": [

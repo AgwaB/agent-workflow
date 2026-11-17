@@ -3152,6 +3152,54 @@ function finalizeReportPacketCharCount(packet) {
 	return packet;
 }
 
+// agent-workflow 2026-11-17 (owner "다 진행"): the narrative stage only sees the packet, which is built before
+// the renderer's integrity checks. These facts are computed from data available at packet time so the model
+// cannot read an absent field as "no integrity or coverage problem". Additive; verdict precedence is unchanged.
+export function buildIntegrityPreview({
+	exactPartitionSummary,
+	verifierCoverage,
+	reviewerLedger,
+}) {
+	const countOf = (value) => (Array.isArray(value) ? value.length : 0);
+	const verifierMissing = countOf(verifierCoverage?.missingFindingIds);
+	const verifierOrphan = countOf(verifierCoverage?.orphanFindingIds);
+	const verifierDuplicate = countOf(verifierCoverage?.duplicateFindingIds);
+	const reviewerMissingLenses = countOf(reviewerLedger?.missingPlannedLensIds);
+	const reviewerUnexpected = countOf(
+		reviewerLedger?.unexpectedMaterializedReviewerIds,
+	);
+	const reviewerInvalid = countOf(reviewerLedger?.invalidAttestations);
+	const s = exactPartitionSummary;
+	const issues = [];
+	const missing = Math.max(s.missingVerdicts, verifierMissing);
+	if (missing > 0)
+		issues.push(
+			`${missing} of ${s.reviewerFindings} reviewer findings have no verifier verdict (${s.verdictsReceived} received)`,
+		);
+	if (verifierOrphan + verifierDuplicate > 0)
+		issues.push(
+			`verifier verdicts include ${verifierOrphan} orphan and ${verifierDuplicate} duplicate finding ids`,
+		);
+	if (s.batchIntegrityIssues > 0)
+		issues.push(`${s.batchIntegrityIssues} batch integrity issues`);
+	if (s.verdictIntegrityIssues > 0)
+		issues.push(`${s.verdictIntegrityIssues} verdict integrity issues`);
+	if (s.reviewerCoverageIssues + reviewerMissingLenses + reviewerUnexpected + reviewerInvalid > 0)
+		issues.push(
+			`reviewer coverage issues (${s.reviewerCoverageIssues} counted, ${reviewerMissingLenses} planned lenses missing, ${reviewerUnexpected} unexpected reviewers, ${reviewerInvalid} invalid attestations)`,
+		);
+	if (s.partialFailures > 0)
+		issues.push(`${s.partialFailures} source task(s) did not complete`);
+	// Exact counts stay in partitionSummary; this block adds what the packet lacked: an explicit verdict on
+	// verifier coverage and a short human-readable list of the gaps.
+	return {
+		hasIssues: issues.length > 0,
+		verifierCoverageComplete: verifierCoverage?.complete === true,
+		missingVerifierFindingCount: verifierMissing,
+		issues: issues.slice(0, 6),
+	};
+}
+
 function buildReportPacket({
 	partitions,
 	supportNotes,
@@ -3267,6 +3315,11 @@ function buildReportPacket({
 			partitions.keep.length + partitions.weaken.length,
 		),
 		partitionSummary: exactPartitionSummary,
+		integrityPreview: buildIntegrityPreview({
+			exactPartitionSummary,
+			verifierCoverage,
+			reviewerLedger,
+		}),
 		sourceStatusSummary: exactSourceStatusSummary,
 		reportContext: {
 			keep,

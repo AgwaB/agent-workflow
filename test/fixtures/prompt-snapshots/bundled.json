@@ -69,8 +69,8 @@
 			"sha256": "80f1694b303c68fbbfbbd81dd1be3edb8869bbdb4575e99a6abe40ffb081c05c"
 		},
 		"report.main": {
-			"chars": 3967,
-			"sha256": "6777f043a4597f5032e80660a6f5f5419da5c1b9c2404690b48d7d3206caa595"
+			"chars": 4507,
+			"sha256": "703316ac756cc27d4888e89d707cc84edd5ab3d70e7f135ecc1454579d39b273"
 		}
 	},
 	"workflows/impact-review/spec.json": {

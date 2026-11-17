@@ -118,13 +118,13 @@
 			"specId": "partition-verdicts.main",
 			"status": "completed",
 			"statusDetail": "support_completed",
-			"control": "5698aaa573adb167"
+			"control": "bde883612152ac59"
 		},
 		{
 			"specId": "report-packet.main",
 			"status": "completed",
 			"statusDetail": "support_completed",
-			"control": "ddd2672a85c61af1"
+			"control": "08bd57a948767d69"
 		},
 		{
 			"specId": "report.main",

@@ -1812,6 +1812,35 @@ function renderRelatedArtifacts() {
 	];
 }
 
+// agent-workflow 2026-11-17 (owner "다 진행"): the narrative is written before the renderer's integrity checks.
+// When the final verdict differs from the verdict the narrative was written for, say so next to the narrative.
+// A narrative the ledger already contradicts gets the separate warning below, so this covers the consistent case.
+function narrativeVerdictNoteReasons(partition) {
+	const summary = partition?.partitionSummary ?? {};
+	const reasons = [];
+	const missing = Math.max(
+		Number(summary.missingVerdicts) || 0,
+		asArray(partition?.verifierCoverage?.missingFindingIds).length,
+	);
+	if (missing > 0) reasons.push(`${missing} verifier verdict(s) are missing`);
+	if (hasPartialFailures(partition))
+		reasons.push("review coverage is partial");
+	return reasons;
+}
+
+function renderNarrativeVerdictNote(report, effectiveVerdict, partition) {
+	const narrativeVerdict = cleanText(report?.verdict);
+	if (!narrativeVerdict || narrativeVerdict === effectiveVerdict) return [];
+	const reasons = narrativeVerdictNoteReasons(partition);
+	const reason = reasons.length
+		? reasons.join("; ")
+		: "the renderer's integrity checks did not pass";
+	return [
+		`> Verdict note: this narrative was written for verdict ${inlineCode(narrativeVerdict)}, but the final report verdict is ${inlineCode(effectiveVerdict)} (${reason}). Where the narrative describes review coverage or integrity, the final verdict and the limitations above take precedence.`,
+		"",
+	];
+}
+
 function renderMarkdown({
 	report,
 	reportAvailable,
@@ -1874,6 +1903,9 @@ function renderMarkdown({
 		lines.push(
 			"## Synthesis narrative",
 			"",
+			...(reportVerdictConsistent
+				? renderNarrativeVerdictNote(report, effectiveVerdict, partition)
+				: []),
 			`Summary: ${escapeMarkdownText(report.summary)}`,
 			"",
 			...renderRisks(report, partition),

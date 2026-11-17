@@ -1002,7 +1002,7 @@
    "schema": "deep-review-report-packet-v1",
    "digest": "54a5f3c7c5479d970481ac15e6459e1f0e404889315e0bebaefd7c636b8189db",
    "maxChars": 15000,
-   "actualChars": 2450,
+   "actualChars": 2599,
    "expectedVerdict": "NEEDS_WORK",
    "partitionSummary": {
     "keep": 4,
@@ -1021,6 +1021,14 @@
     "reviewerFindings": 5,
     "missingVerdicts": 0,
     "partialFailures": 1
+   },
+   "integrityPreview": {
+    "hasIssues": true,
+    "verifierCoverageComplete": true,
+    "missingVerifierFindingCount": 0,
+    "issues": [
+     "1 source task(s) did not complete"
+    ]
    },
    "sourceStatusSummary": {
     "total": 7,
@@ -1490,7 +1498,7 @@
   "schema": "deep-review-report-packet-v1",
   "digest": "54a5f3c7c5479d970481ac15e6459e1f0e404889315e0bebaefd7c636b8189db",
   "maxChars": 15000,
-  "actualChars": 2450,
+  "actualChars": 2599,
   "expectedVerdict": "NEEDS_WORK",
   "partitionSummary": {
    "keep": 4,
@@ -1509,6 +1517,14 @@
    "reviewerFindings": 5,
    "missingVerdicts": 0,
    "partialFailures": 1
+  },
+  "integrityPreview": {
+   "hasIssues": true,
+   "verifierCoverageComplete": true,
+   "missingVerifierFindingCount": 0,
+   "issues": [
+    "1 source task(s) did not complete"
+   ]
   },
   "sourceStatusSummary": {
    "total": 7,

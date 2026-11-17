@@ -1232,7 +1232,7 @@
    "schema": "deep-review-report-packet-v1",
    "digest": "5c64011b56cc49166dc7b780f9efc24ef11b89eef8c40a213ab5cb4405922eb3",
    "maxChars": 15000,
-   "actualChars": 2492,
+   "actualChars": 2607,
    "expectedVerdict": "NEEDS_WORK",
    "partitionSummary": {
     "keep": 6,
@@ -1249,6 +1249,12 @@
     "reviewerFindings": 7,
     "missingVerdicts": 0,
     "partialFailures": 0
+   },
+   "integrityPreview": {
+    "hasIssues": false,
+    "verifierCoverageComplete": true,
+    "missingVerifierFindingCount": 0,
+    "issues": []
    },
    "sourceStatusSummary": {
     "total": 8,
@@ -1795,7 +1801,7 @@
   "schema": "deep-review-report-packet-v1",
   "digest": "5c64011b56cc49166dc7b780f9efc24ef11b89eef8c40a213ab5cb4405922eb3",
   "maxChars": 15000,
-  "actualChars": 2492,
+  "actualChars": 2607,
   "expectedVerdict": "NEEDS_WORK",
   "partitionSummary": {
    "keep": 6,
@@ -1812,6 +1818,12 @@
    "reviewerFindings": 7,
    "missingVerdicts": 0,
    "partialFailures": 0
+  },
+  "integrityPreview": {
+   "hasIssues": false,
+   "verifierCoverageComplete": true,
+   "missingVerifierFindingCount": 0,
+   "issues": []
   },
   "sourceStatusSummary": {
    "total": 8,
