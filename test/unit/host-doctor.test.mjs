@@ -501,7 +501,7 @@ test("doctor reports each executor's default profile: built-in, user-settings fa
 				descriptor.id === "codex"
 					? ["models: gpt-6.1-sol"]
 					: descriptor.id === "claude"
-						? ["models: default, sonnet, opus"]
+						? ["models: default, sonnet, opus, claude-opus-5-5"]
 						: [],
 		},
 		capabilities: fakeCapabilities(),
@@ -516,10 +516,10 @@ test("doctor reports each executor's default profile: built-in, user-settings fa
 	assert.deepEqual(byId.codex.roles, {
 		default: { model: "gpt-6.1-sol", effort: "high" },
 	});
-	assert.match(byId.codex.notice, /gpt-5\.6-luna" is not offered here/);
+	assert.match(byId.codex.notice, /gpt-6-luna" is not offered here/);
 	assert.equal(byId.claude.base, "built-in");
 	assert.deepEqual(byId.claude.roles.planning, {
-		model: "sonnet",
+		model: "claude-opus-5-5",
 		effort: "high",
 	});
 	assert.equal(byId.pi.base, "none");
@@ -530,7 +530,7 @@ test("doctor reports each executor's default profile: built-in, user-settings fa
 	);
 	assert.match(
 		first.text,
-		/claude {2}built-in: sonnet\/medium; planning, verification, final-judgment: sonnet\/high/,
+		/claude {2}built-in: claude-opus-5-5\/medium; planning, synthesis, verification, final-judgment: claude-opus-5-5\/high/,
 	);
 	assert.match(first.text, /pi {6}pi's own model and effort/);
 	await api.profileAction(ctx, {
@@ -552,6 +552,6 @@ test("doctor reports each executor's default profile: built-in, user-settings fa
 	});
 	assert.match(
 		second.text,
-		/claude {2}built-in with your changes: sonnet\/medium; planning, final-judgment: sonnet\/high; verification: opus\/high/,
+		/claude {2}built-in with your changes: claude-opus-5-5\/medium; planning, synthesis, final-judgment: claude-opus-5-5\/high; verification: opus\/high/,
 	);
 });

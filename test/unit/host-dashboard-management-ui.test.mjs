@@ -467,7 +467,7 @@ test("Chrome executor default profiles: permissions shown and edited without pin
 		assert.equal(shown.data.profile[key], undefined, key);
 	assert.deepEqual(shown.data.effective.roles.planning, {
 		executor: "codex",
-		model: "gpt-5.6-luna",
+		model: "gpt-6.1-sol",
 		effort: "high",
 	});
 	assert.equal(
