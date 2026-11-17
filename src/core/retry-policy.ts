@@ -6,6 +6,11 @@ import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { sleep } from "./launch-operations.js";
 import { shrinkAdaptiveLiveModelWorkersForBackoff } from "./launch-slots.js";
+import {
+	ARTIFACT_MCP_SERVER_NAME,
+	WORKFLOW_ARTIFACT_TOOL_NAME,
+} from "./artifact-access.js";
+import { mcpPrefixedToolName } from "./artifact-tool-names.js";
 import { agentWorkflowHome } from "./home-dir.js";
 import { providerRetryAfterMs } from "./provider-retry.js";
 import { nowIso } from "./store.js";
@@ -512,6 +517,51 @@ export function launchRetryBackoffRemainingMs(
 	return Math.max(0, nextEligibleAtMs - Date.now());
 }
 
+/**
+ * Tools whose calls leave nothing a rerun could duplicate: Pi's read-only file tools, and the
+ * workflow_artifact tool, whose only actions are `list` and `read` (its sole write is an
+ * append-only, attempt-filtered read-ledger row; workflow-artifact-tool.ts).
+ */
+export const SIDE_EFFECT_FREE_RETRY_TOOLS: ReadonlySet<string> = new Set([
+	"read",
+	"grep",
+	"find",
+	"ls",
+	mcpPrefixedToolName(ARTIFACT_MCP_SERVER_NAME, WORKFLOW_ARTIFACT_TOOL_NAME),
+]);
+
+/**
+ * True only when the attempt's tool-call summary proves every call was on the allowlist.
+ * Fails closed: a missing/malformed summary, dropped records, or any other tool is not side-effect free.
+ */
+export function attemptUsedOnlySideEffectFreeTools(
+	toolCallsSummary: unknown,
+): boolean {
+	if (typeof toolCallsSummary !== "object" || toolCallsSummary === null)
+		return false;
+	const summary = toolCallsSummary as Record<string, unknown>;
+	const { callsByTool, totalCalls, droppedRecords } = summary;
+	if (
+		typeof callsByTool !== "object" ||
+		callsByTool === null ||
+		Array.isArray(callsByTool) ||
+		typeof totalCalls !== "number" ||
+		droppedRecords !== 0
+	)
+		return false;
+	let counted = 0;
+	for (const [tool, count] of Object.entries(callsByTool)) {
+		if (typeof count !== "number" || !SIDE_EFFECT_FREE_RETRY_TOOLS.has(tool))
+			return false;
+		counted += count;
+	}
+	return counted === totalCalls;
+}
+
+/**
+ * A failed model task is retried when its failure kind is retryable and either it left no output, or
+ * it left partial output but every tool it called was side-effect free (`toolCallsSummary` proves it).
+ */
 export function shouldRetryTransientModelFailure(
 	statusInfo: {
 		status: WorkflowTaskRunRecord["status"];
@@ -520,13 +570,17 @@ export function shouldRetryTransientModelFailure(
 	},
 	workflowResult: { contextLengthExceeded?: boolean; noFinalOutput?: boolean },
 	outputBytes: number,
+	toolCallsSummary?: unknown,
 ): boolean {
+	if (
+		statusInfo.status !== "failed" ||
+		!RETRYABLE_EXECUTOR_FAILURE_KINDS.has(statusInfo.failureKind ?? "") ||
+		workflowResult.contextLengthExceeded === true
+	)
+		return false;
+	if (outputBytes === 0 && workflowResult.noFinalOutput === true) return true;
 	return (
-		statusInfo.status === "failed" &&
-		RETRYABLE_EXECUTOR_FAILURE_KINDS.has(statusInfo.failureKind ?? "") &&
-		outputBytes === 0 &&
-		workflowResult.noFinalOutput === true &&
-		workflowResult.contextLengthExceeded !== true
+		outputBytes > 0 && attemptUsedOnlySideEffectFreeTools(toolCallsSummary)
 	);
 }
 

@@ -331,7 +331,12 @@ export async function materializeTerminalWorkerResult(
 		},
 	};
 	if (
-		shouldRetryTransientModelFailure(statusInfo, workflowResult, outputBytes)
+		shouldRetryTransientModelFailure(
+			statusInfo,
+			workflowResult,
+			outputBytes,
+			toolCalls?.summary,
+		)
 	) {
 		const retryAttempt = (task.launchRetry?.attempts ?? 0) + 1;
 		const rateLimitBackoffMs = transientModelRateLimitBackoffMs({
