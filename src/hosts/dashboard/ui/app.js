@@ -9843,6 +9843,7 @@ function executorPermissions(page, id, profile, capabilityNames) {
 				return;
 			baseline = current;
 			draft.saved(submitted);
+			showActions();
 			output.replaceChildren(
 				element(
 					"p",
@@ -9855,7 +9856,15 @@ function executorPermissions(page, id, profile, capabilityNames) {
 		{ "data-save-permissions": "", "aria-label": `Save ${id} permissions` },
 	);
 	permission.disabled = readonly();
-	row.addEventListener("change", () => output.replaceChildren());
+	// Save/Discard appear only on a row with unsaved changes (2026-11-17, owner).
+	let actions;
+	const showActions = () => {
+		if (actions) actions.hidden = !draft.dirty();
+	};
+	row.addEventListener("change", () => {
+		output.replaceChildren();
+		showActions();
+	});
 	row.append(
 		field("Permission mode", permission),
 		element(
@@ -9876,9 +9885,9 @@ function executorPermissions(page, id, profile, capabilityNames) {
 					)
 				: null,
 		),
-		element(
+		(actions = element(
 			"div",
-			{ class: "executor-permission-actions" },
+			{ class: "executor-permission-actions", hidden: true },
 			save,
 			button(
 				"Discard",
@@ -9887,6 +9896,7 @@ function executorPermissions(page, id, profile, capabilityNames) {
 					for (const { name, control } of strict)
 						control.checked = baseline.strictCapabilities.includes(name);
 					output.replaceChildren();
+					showActions();
 				},
 				{
 					disabled: readonly(),
@@ -9894,7 +9904,7 @@ function executorPermissions(page, id, profile, capabilityNames) {
 					"aria-label": `Discard ${id} permission changes`,
 				},
 			),
-		),
+		)),
 		output,
 	);
 	return row;

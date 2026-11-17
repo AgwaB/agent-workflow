@@ -137,6 +137,8 @@ test(
 				mobile: false,
 			});
 			await loadExecutors(p);
+			// Save/Discard appear once the row has unsaved changes.
+			await setPermission(p.b, "free");
 			for (const selector of [
 				"select",
 				"[data-save-permissions]",
@@ -181,6 +183,14 @@ test(
 					].every((n) => n.checkVisibility()),
 				),
 				true,
+			);
+			// Leave the row clean so the next width's reload is not an unsaved departure.
+			await p.b.evaluate(() =>
+				document
+					.querySelector(
+						'[data-executor-permissions="codex"] [data-discard-permissions]',
+					)
+					.click(),
 			);
 		}
 		await setPermission(p.b, "free");

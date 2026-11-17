@@ -293,3 +293,43 @@ test(
 		assert.equal(await readFile(path, "utf8"), original);
 	},
 );
+
+test(
+	"E6 Save and Discard appear only on the row with unsaved changes",
+	opts,
+	async (t) => {
+		const p = await executorsFixture(t);
+		await loadExecutors(p);
+		const shown = () =>
+			p.b.evaluate(() =>
+				[...document.querySelectorAll("[data-executor-permissions]")]
+					.filter((row) =>
+						row.querySelector(".executor-permission-actions").checkVisibility(),
+					)
+					.map((row) => row.dataset.executorPermissions),
+			);
+		assert.deepEqual(await shown(), [], "clean rows show no actions");
+		await setPermission(p.b, "safe");
+		assert.deepEqual(await shown(), ["codex"]);
+		await setPermission(p.b, "");
+		assert.deepEqual(await shown(), [], "undo back to saved hides actions");
+		await toggleCapability(p.b, "readOnly");
+		assert.deepEqual(await shown(), ["codex"]);
+		await p.b.evaluate(() =>
+			document
+				.querySelector(
+					'[data-executor-permissions="codex"] [data-discard-permissions]',
+				)
+				.click(),
+		);
+		assert.deepEqual(await shown(), [], "Discard hides actions");
+		await setPermission(p.b, "safe");
+		await savePermissions(p.b);
+		await p.b.waitFor(() =>
+			document
+				.querySelector('[data-executor-permissions="codex"] [role="status"]')
+				?.textContent.startsWith("Saved"),
+		);
+		assert.deepEqual(await shown(), [], "Save hides actions, keeps feedback");
+	},
+);
