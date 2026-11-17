@@ -2632,82 +2632,43 @@ main.signin code {
 	padding: 12px 0;
 	border-bottom: 1px solid var(--line);
 }
-/* Profiles: concise settings rows, then one focused editor. */
-.profile-default {
-	padding-bottom: 16px;
-	border-bottom: 1px solid var(--line);
+/* Permission-only executor defaults, with strict constraints out of the primary path. */
+.executor-permissions {
+	min-width: 210px;
+	max-width: 300px;
 }
-.profiles-section {
-	margin: 24px 0;
-}
-.profiles-section h2 {
-	margin: 0;
-	font-size: 15px;
-	font-weight: 600;
-}
-.profiles-section > p {
-	margin: 6px 0 12px;
-	font-size: 14px;
-}
-.profile-section-head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	margin-bottom: 8px;
-}
-a.profile-row {
+.executor-strict {
 	display: grid;
-	text-decoration: none;
-	grid-template-columns: minmax(100px, 1fr) minmax(0, 2fr) auto 12px;
-	align-items: center;
-	gap: 12px;
-	width: 100%;
-	margin: 0;
-	padding: 14px 8px;
-	border: 0;
-	border-bottom: 1px solid var(--line);
-	border-radius: 0;
-	background: none;
-	text-align: left;
-	font-size: 14px;
-	font-weight: 400;
-	line-height: 1.2;
-}
-.profile-row:hover:not(:disabled) {
-	background: var(--surface);
-}
-.profile-name {
-	font-weight: 500;
-	overflow-wrap: anywhere;
-}
-.profile-summary {
+	gap: 4px;
 	min-width: 0;
-	overflow-wrap: anywhere;
-}
-.profile-badge,
-.profile-chevron {
-	font-size: 12px;
-	color: var(--faint);
-}
-.profile-chevron {
-	font-size: 20px;
-}
-.profile-editor {
-	max-width: none;
-}
-.profile-breadcrumb {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	margin-top: 20px;
-	font-size: 14px;
-	color: var(--muted);
-}
-.profile-editor > .management-card {
-	margin-top: 20px;
+	margin: 0 0 12px;
 	padding: 0;
 	border: 0;
+}
+.executor-strict legend {
+	font-size: 13px;
+	color: var(--muted);
+	margin-bottom: 8px;
+}
+.executor-strict label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 32px;
+	overflow-wrap: anywhere;
+}
+.executor-permission-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.executor-permission-feedback {
+	max-height: 180px;
+	overflow: auto;
+	overflow-wrap: anywhere;
+}
+.executor-permission-feedback p {
+	margin: 8px 0 0;
 }
 .management-fields > small {
 	grid-column: 1 / -1;
@@ -2952,59 +2913,6 @@ a.profile-row {
 	overflow-wrap: anywhere;
 	color: var(--muted);
 }
-.profile-options {
-	margin-top: 20px;
-	padding-top: 16px;
-	border-top: 1px solid var(--line);
-}
-.profile-editor-actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-top: 20px;
-}
-.profile-editor-actions-sticky {
-	position: sticky;
-	bottom: calc(-1 * var(--profile-page-padding));
-	z-index: 20;
-	padding: 12px 0 calc(12px + var(--profile-page-padding));
-	border-top: 1px solid var(--line);
-	background: var(--bg);
-}
-.profile-save-feedback {
-	flex-basis: 100%;
-	min-width: 0;
-	max-height: min(180px, 25vh);
-	overflow: auto;
-	overflow-wrap: anywhere;
-}
-.profile-save-feedback:empty {
-	display: none;
-}
-.profile-save-feedback > :is(p, .profile-save-status) {
-	margin: 0;
-}
-.management-page:has(.profile-editor-actions-sticky) {
-	--profile-page-padding: 24px;
-	scroll-padding-bottom: calc(88px + var(--profile-page-padding));
-}
-.profile-delete-confirm p {
-	margin: 12px 0 8px;
-}
-.profile-save-status {
-	margin: 12px 0;
-	font-size: 14px;
-}
-/* Larger list controls can scroll the confirmation away; expanded Details still scroll normally. */
-.profile-save-status:not(:has(details[open])) {
-	position: sticky;
-	top: 0;
-	z-index: 20;
-	background: var(--bg);
-}
-.profile-name-error {
-	margin: 6px 0 0;
-}
 /* Preserve fine-pointer desktop density; larger controls have real, nonoverlapping boxes. */
 @media (max-width: 800px), (pointer: coarse) {
 	:root {
@@ -3028,7 +2936,6 @@ a.profile-row {
 	.management-list-row > button:first-child,
 	.project-card > button:first-child,
 	.management-nav a,
-	a.profile-row,
 	summary,
 	.picker-menu [role="option"] {
 		min-height: 44px;
@@ -3038,6 +2945,9 @@ a.profile-row {
 	summary,
 	.picker-menu [role="option"] {
 		align-content: center;
+	}
+	.executor-strict label {
+		min-height: 44px;
 	}
 	button.link {
 		display: inline-flex;
@@ -3076,28 +2986,6 @@ a.profile-row {
 	}
 	.picker-menu {
 		max-height: min(240px, calc(50vh - 16px));
-	}
-}
-@media (max-width: 600px) {
-	a.profile-row {
-		grid-template-columns: minmax(0, 1fr) auto 12px;
-		gap: 4px 8px;
-	}
-	.profile-name {
-		grid-column: 1;
-		grid-row: 1;
-	}
-	.profile-summary {
-		grid-column: 1;
-		grid-row: 2;
-	}
-	.profile-badge {
-		grid-column: 2;
-		grid-row: 1 / 3;
-	}
-	.profile-chevron {
-		grid-column: 3;
-		grid-row: 1 / 3;
 	}
 }
 .management-result pre,
@@ -3143,9 +3031,6 @@ a.profile-row {
 @media (max-width: 800px) {
 	.management-page {
 		padding: 16px;
-	}
-	.management-page:has(.profile-editor-actions-sticky) {
-		--profile-page-padding: 16px;
 	}
 	.management-fields {
 		flex-direction: column;
@@ -3337,12 +3222,16 @@ a.profile-row {
 }
 .property-table.executors td:first-child {
 	width: 120px;
+	min-width: 120px;
 }
 .property-table.executors td:nth-child(2) {
 	width: 150px;
 }
 .property-table.executors td:nth-child(3) {
 	width: 150px;
+}
+.property-table.executors:has(th:nth-child(5)) td:nth-child(4) {
+	min-width: 200px;
 }
 .property-table a.mono {
 	color: var(--text);

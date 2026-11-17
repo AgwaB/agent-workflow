@@ -198,7 +198,7 @@ test(
 
 // Profile model controls and their warning-only catalog path are deleted, not hidden.
 test(
-	"D Profiles omits catalog warnings and retains hidden manual model/role values on permission Save",
+	"D Executors omit catalog warnings and retains hidden manual model/role values on permission Save",
 	opts,
 	async (t) => {
 		const { b, p } = await setup(
@@ -219,7 +219,7 @@ test(
 					},
 				},
 			},
-			"profiles",
+			"executors",
 		);
 		const values = {
 			executor: "codex",
@@ -228,34 +228,47 @@ test(
 			roles: { "agent:future-role": { model: "unknown/role" } },
 			permissionMode: "safe",
 		};
-		await profileAction(p.ctx, { op: "set", name: "manual-warning", values });
+		await profileAction(p.ctx, { op: "set", name: "codex", values });
 		await b.send("Page.navigate", {
-			url: `${p.origin}/?project=${p.server.projectId}&view=profiles&profile=manual-warning`,
+			url: `${p.origin}/?project=${p.server.projectId}&view=executors`,
 		});
 		await b.waitFor(
-			() => !!document.querySelector('[data-management-action="save-profile"]'),
+			() =>
+				!!document.querySelector(
+					'[data-executor-permissions="codex"] [data-save-permissions]',
+				),
 		);
 		assert.equal(
 			await b.evaluate(
 				() =>
 					document.querySelectorAll(
-						'.profile-editor [aria-label="Executor"], .profile-editor [aria-label="Model"], .profile-editor [aria-label="Effort"], .profile-editor [data-effort-note]',
+						'.executor-permissions [aria-label="Executor"], .executor-permissions [aria-label="Model"], .executor-permissions [aria-label="Effort"], .executor-permissions [data-effort-note]',
 					).length,
 			),
 			0,
 		);
 		assert.doesNotMatch(
 			await b.evaluate(
-				() => document.querySelector(".profile-editor").innerText,
+				() => document.querySelector(".executor-permissions").innerText,
 			),
 			/must not render|complete model list|not available here/,
 		);
-		await set(b, "Profile permission mode", "free");
-		await b.click('[data-management-action="save-profile"]');
-		await b.waitFor(() => !!document.querySelector(".profile-save-status"));
-		const stored = (
-			await profileAction(p.ctx, { op: "show", name: "manual-warning" })
-		).data.profile;
+		await set(b, "codex permission mode", "free");
+		await b.evaluate(() =>
+			document
+				.querySelector(
+					'[data-executor-permissions="codex"] [data-save-permissions]',
+				)
+				.click(),
+		);
+		await b.waitFor(
+			() =>
+				document.querySelector(
+					'[data-executor-permissions="codex"] [role="status"]',
+				)?.textContent === "Saved.",
+		);
+		const stored = (await profileAction(p.ctx, { op: "show", name: "codex" }))
+			.data.profile;
 		for (const key of ["executor", "model", "effort", "roles"])
 			assert.deepEqual(stored[key], values[key]);
 		assert.equal(stored.permissionMode, "free");

@@ -397,6 +397,13 @@ const cost = (usage) =>
 	usage?.costUsd == null ? "Not collected" : formatUsd(usage.costUsd);
 function readState() {
 	const params = new URLSearchParams(location.search);
+	// Keep old bookmarks useful, without retaining a Profiles route or editor state.
+	if (params.get("view") === "profiles") {
+		params.set("view", "executors");
+		params.delete("profile");
+		params.delete("createProfile");
+		history.replaceState(history.state, "", `${location.pathname}?${params}`);
+	}
 	const choice = (key, values) =>
 		values.includes(params.get(key)) ? params.get(key) : null;
 	return {
@@ -412,7 +419,6 @@ function readState() {
 			"report",
 			"details",
 			"workflows",
-			"profiles",
 			// "maintenance" (until 2026-11-13) opens the overview, where its parts now live.
 			"executors",
 		]),
@@ -420,8 +426,6 @@ function readState() {
 		layout: choice("layout", ["td", "lr", "timeline"]) || "td",
 		// The workflow page opened from the Workflows list (2026-11-11).
 		workflow: params.get("workflow"),
-		profile: params.get("profile"),
-		createProfile: choice("createProfile", ["1"]),
 	};
 }
 let state = readState();
@@ -497,19 +501,8 @@ function syncTitle() {
 				? "Overview"
 				: null;
 	document.title =
-		[
-			page,
-			state.view === "profiles"
-				? state.createProfile
-					? "New profile"
-					: state.profile
-				: state.run
-					? name
-					: null,
-			project,
-		]
-			.filter(Boolean)
-			.join(" | ") || "agent-workflow";
+		[page, state.run ? name : null, project].filter(Boolean).join(" | ") ||
+		"agent-workflow";
 }
 async function api(path, options = {}) {
 	if (path.startsWith("/api/runs"))
@@ -555,8 +548,6 @@ function go(patch, replace = false) {
 			view: null,
 			dialog: null,
 			workflow: null,
-			profile: null,
-			createProfile: null,
 		};
 	if (Object.hasOwn(patch, "task")) state.stage = null;
 	if (Object.hasOwn(patch, "stage")) state.task = null;
@@ -991,7 +982,7 @@ function renderRail() {
 		element(
 			"nav",
 			{ class: "management-nav", "aria-label": "Shared settings" },
-			["profiles", "executors"].map((view) =>
+			["executors"].map((view) =>
 				element(
 					"a",
 					{
@@ -6731,7 +6722,7 @@ window.addEventListener("beforeunload", (event) => {
 	event.returnValue = "";
 });
 // App-owned ordinary links get an app confirmation even where native departure
-// dialogs are suppressed. Bubble after target handlers (profile rows own theirs).
+// dialogs are suppressed. Bubble after target handlers.
 document.addEventListener("click", (event) => {
 	if (
 		event.defaultPrevented ||
@@ -6799,7 +6790,6 @@ window.navigation?.addEventListener("navigate", (event) => {
 		return;
 	if (!discardSettingsDrafts()) event.preventDefault();
 });
-let profileListReturn = null;
 window.addEventListener("popstate", () => {
 	const index = currentSettingsHistoryIndex();
 	if (settingsHistoryReturn) {
@@ -6819,15 +6809,9 @@ window.addEventListener("popstate", () => {
 		return;
 	}
 	settingsHistoryIndex = index;
-	if (profileListReturn) {
-		const done = profileListReturn;
-		profileListReturn = null;
-		done();
-		return;
-	}
 	if (
 		managementView() ||
-		["workflows", "profiles", "executors", "history"].includes(readState().view)
+		["workflows", "executors", "history"].includes(readState().view)
 	) {
 		location.reload();
 		return;
@@ -8028,7 +8012,7 @@ async function start() {
 }
 // Management pages use the same text-only components as run views. No launch endpoint or form.
 function managementView() {
-	return ["workflows", "profiles", "executors", "history"].includes(state.view);
+	return ["workflows", "executors", "history"].includes(state.view);
 }
 const managementApi = (path, options = {}) =>
 	api(path, { signal: AbortSignal.timeout(150000), ...options });
@@ -8405,7 +8389,7 @@ async function renderManagement() {
 		element(
 			"p",
 			{ class: "muted" },
-			["profiles", "executors"].includes(state.view)
+			state.view === "executors"
 				? "User level, shared by every project and host"
 				: "Selected project, shared host actions",
 		),
@@ -8424,7 +8408,6 @@ async function renderManagement() {
 		}
 		if (state.view === "history") await renderRunHistory(page);
 		if (state.view === "workflows") await renderWorkflows(page);
-		if (state.view === "profiles") await renderProfiles(page);
 		if (state.view === "executors") await renderExecutors(page);
 	} catch (error) {
 		page.append(
@@ -9796,513 +9779,125 @@ async function renderWorkflow(page, name) {
 		: null;
 	if (specProblems) header.after(specProblems);
 }
-// Profiles (2026-11-13): a short list first, one editor at a time. Settings/API semantics stay as they are.
-async function renderProfiles(page) {
-	const result = await managementApi("/api/profiles");
-	if (!page.isConnected) return;
-	page.classList.add("profiles-page");
-	page
-		.querySelector("h1 + p")
-		?.replaceChildren(
-			"Manage shared profile permissions and strict capabilities.",
-		);
-	const data = result.data;
-	const overview = element("div", { class: "profile-overview" });
-	const editor = element("div", { class: "profile-editor", hidden: true });
-	const errors = element("div");
-	page.append(errors, overview, editor);
-	const executorDefaults = data.executorDefaults || [];
-	const executorProfileNames = new Set(
-		executorDefaults.map((entry) => entry.executor),
-	);
-	const defaultLine = element(
-		"p",
-		{ class: "profile-default muted" },
-		data.default
-			? `Default profile: ${data.default}. Not found in the profiles shown here.`
-			: "No default profile.",
-	);
-	defaultLine.hidden =
-		!!data.default &&
-		(executorProfileNames.has(data.default) ||
-			data.profiles.some((profile) => profile.name === data.default));
-	const describe = (profile) =>
+// Each row owns one permission-only patch; never rewrite hidden model/role fields.
+function executorPermissions(page, id, profile, capabilityNames) {
+	const row = element("div", {
+		class: "executor-permissions",
+		"data-executor-permissions": id,
+	});
+	const permission = choices(
+		`${id} permission mode`,
 		[
-			`Permissions: ${profile.permissionMode || "free"}`,
-			profile.strictCapabilities?.length
-				? `Strict: ${profile.strictCapabilities.join(", ")}`
-				: "",
-		]
-			.filter(Boolean)
-			.join(", ");
-	const row = (name, summary, action, attrs = {}, badge = null) => {
-		const params = new URLSearchParams(location.search);
-		params.set("view", "profiles");
-		params.delete("createProfile");
-		params.set("profile", name);
-		const link = element(
-			"a",
-			{
-				href: `${location.pathname}?${params}`,
-				class: "profile-row",
-				"data-profile-open": name,
-				"aria-label": `Edit ${name}`,
-				...attrs,
-			},
-			[
-				element("strong", { class: "profile-name" }, name),
-				element("span", { class: "profile-summary muted" }, summary),
-				element("span", { class: "profile-badge" }, badge || ""),
-				element(
-					"span",
-					{ class: "profile-chevron", "aria-hidden": "true" },
-					"›",
+			["", "Automatic"],
+			["free", "Free"],
+			["safe", "Safe"],
+		],
+		profile.permissionMode || "",
+	);
+	const strict = capabilityNames.map((name) => {
+		const control = element("input", {
+			type: "checkbox",
+			value: name,
+			checked: (profile.strictCapabilities || []).includes(name),
+			"aria-label": `${id} strict ${name}`,
+			disabled: readonly(),
+		});
+		return { name, control };
+	});
+	// Dotted constraints authored through other hosts are not editable here, and must not be dropped.
+	const retained = (profile.strictCapabilities || []).filter(
+		(name) => !capabilityNames.includes(name),
+	);
+	const read = () => ({
+		permissionMode: permission.value,
+		strictCapabilities: [
+			...retained,
+			...strict
+				.filter(({ control }) => control.checked)
+				.map(({ name }) => name),
+		],
+	});
+	let baseline = read();
+	const draft = settingsDraft(row, read);
+	const output = element("div", { class: "executor-permission-feedback" });
+	const save = managementControl(
+		"Save",
+		async () => {
+			const submitted = draft.snapshot();
+			const current = read();
+			const values = {
+				...(current.permissionMode
+					? { permissionMode: current.permissionMode }
+					: {}),
+				...(current.strictCapabilities.length
+					? { strictCapabilities: current.strictCapabilities }
+					: {}),
+			};
+			await managementWrite(`/api/profiles/${encodeURIComponent(id)}`, "PUT", {
+				values,
+				unset: ["permissionMode", "strictCapabilities"].filter(
+					(key) => values[key] === undefined,
 				),
-			],
-		);
-		link.addEventListener("click", (event) => {
-			if (
-				event.defaultPrevented ||
-				event.button !== 0 ||
-				event.metaKey ||
-				event.ctrlKey ||
-				event.shiftKey ||
-				event.altKey
-			)
+			});
+			if (!page.isConnected || !row.isConnected || !settingsDrafts.has(draft))
 				return;
-			event.preventDefault();
-			action();
-		});
-		return link;
-	};
-	const defaults = element(
-		"section",
-		{ class: "profiles-section" },
-		element("h2", {}, "Executor defaults"),
-		element(
-			"p",
-			{ class: "muted" },
-			"Shared permissions and strict capabilities for each executor.",
-		),
-	);
-	for (const entry of executorDefaults) {
-		const saved = data.profiles.find(
-			(profile) => profile.name === entry.executor,
-		);
-		const summary = describe(saved || {});
-		defaults.append(
-			row(
-				entry.executor,
-				summary,
-				() => edit(saved || { name: entry.executor }, entry),
-				{ "data-executor-default": entry.executor },
-				data.default === entry.executor
-					? "Default profile"
-					: saved
-						? "Customized"
-						: null,
-			),
-		);
-	}
-	const saved = data.profiles.filter(
-		(profile) => !executorProfileNames.has(profile.name),
-	);
-	const savedSection = element(
-		"section",
-		{ class: "profiles-section" },
-		element(
-			"div",
-			{ class: "profile-section-head" },
-			element("h2", {}, "Your profiles"),
-			managementControl("New profile", () => edit({}), errors, {
-				write: false,
-				class: "small",
-				"data-profile-new": "",
-			}),
-		),
-		saved.length
-			? saved.map((profile) =>
-					row(
-						profile.name,
-						describe(profile),
-						() => edit(profile),
-						{},
-						data.default === profile.name ? "Default profile" : null,
-					),
-				)
-			: element(
-					"p",
-					{ class: "muted" },
-					"Create a profile to reuse permissions and strict capabilities.",
-				),
-	);
-	overview.append(defaultLine, defaults, savedSection);
-	const backToProfiles = () => {
-		if (!discardSettingsDrafts()) return;
-		if (history.state?.profileEditor) history.back();
-		else location.assign(managementHref("profiles"));
-	};
-	const reloadProfiles = async (savedName = state.profile) => {
-		if (history.state?.profileEditor) {
-			// Save a new profile's detail URL for Forward, then consume the list->editor
-			// entry on Back. Refresh locally so the write's confirmation survives.
-			if (savedName) {
-				state.profile = savedName;
-				state.createProfile = null;
-				urlState(true);
-			}
-			await new Promise((resolve, reject) => {
-				profileListReturn = () => {
-					state = readState();
-					history.replaceState(
-						settingsHistoryState(
-							{
-								...history.state,
-								profileReturnFocus: savedName,
-								newProfileReturn: false,
-							},
-							true,
-						),
-						"",
-						location.href,
-					);
-					renderManagement().then(resolve, reject);
-				};
-				history.back();
-			});
-		} else {
-			history.replaceState(
-				settingsHistoryState(
-					{
-						...history.state,
-						profileReturnFocus: savedName,
-						newProfileReturn: false,
-					},
-					true,
-				),
-				"",
-				location.href,
-			);
-			state.profile = null;
-			state.createProfile = null;
-			urlState(true);
-			await renderManagement();
-		}
-	};
-	let editGeneration = 0;
-	async function edit(profile, executorDefault, fromRoute = false) {
-		if (!fromRoute) {
-			if (!discardSettingsDrafts()) return;
-			const params = new URLSearchParams(location.search);
-			params.set("view", "profiles");
-			params.delete("profile");
-			params.delete("createProfile");
-			params.set(
-				profile.name ? "profile" : "createProfile",
-				profile.name || "1",
-			);
-			history.replaceState(
-				settingsHistoryState(
-					{
-						...history.state,
-						profileReturnFocus: profile.name || "",
-						newProfileReturn: !profile.name,
-					},
-					true,
-				),
-				"",
-				location.href,
-			);
-			history.pushState(
-				settingsHistoryState({ profileEditor: true }),
-				"",
-				`${location.pathname}?${params}`,
-			);
-			location.reload();
-			return;
-		}
-		const generation = ++editGeneration;
-		const id = input("Profile name", profile.name || "", {
-			maxlength: 64,
-			readonly: !!profile.name,
-		});
-		const nameError = element("p", {
-			id: "profile-name-error",
-			class: "management-error profile-name-error",
-			role: "alert",
-			hidden: true,
-		});
-		const clearNameError = () => {
-			if (!id.value.trim()) return;
-			nameError.hidden = true;
-			nameError.textContent = "";
-			id.removeAttribute("aria-invalid");
-			const descriptions = (id.getAttribute("aria-describedby") || "")
-				.split(/\s+/)
-				.filter((value) => value && value !== nameError.id);
-			if (descriptions.length)
-				id.setAttribute("aria-describedby", descriptions.join(" "));
-			else id.removeAttribute("aria-describedby");
-		};
-		id.addEventListener("input", clearNameError);
-		const permission = choices(
-			"Profile permission mode",
-			["", "free", "safe"],
-			profile.permissionMode || "",
-		);
-		const strict = input(
-			"Strict capabilities (comma separated)",
-			(profile.strictCapabilities || []).join(", "),
-		);
-		const output = element("div");
-		const saveOutput = element("div", { class: "profile-save-feedback" });
-		const cancel = () => {
-			draft.clear();
-			backToProfiles();
-		};
-		const hasSavedProfile = data.profiles.some(
-			(entry) => entry.name === profile.name,
-		);
-		const options = element(
-			"section",
-			{ class: "profile-options" },
-			element("h3", {}, "Manage profile"),
-		);
-		if (hasSavedProfile) {
-			options.append(
-				managementControl(
-					data.default === profile.name
-						? "Clear default"
-						: `Use ${profile.name} by default`,
-					async () => {
-						if (!approveSettingsDiscard()) return;
-						await managementWrite("/api/profiles-default", "PUT", {
-							name: data.default === profile.name ? null : profile.name,
-						});
-						settingsDrafts.clear();
-						await reloadProfiles();
-					},
-					output,
-				),
-			);
-			const label = executorDefault
-				? `Restore built-in ${profile.name}`
-				: `Delete ${profile.name}`;
-			const confirm = element("div", {
-				class: "profile-delete-confirm",
-				hidden: true,
-			});
-			options.append(
-				button(
-					label,
-					() => {
-						confirm.hidden = false;
-						confirm.querySelector("button")?.focus();
-					},
-					{ class: "danger", disabled: readonly() },
-				),
-				confirm,
-			);
-			confirm.append(
+			baseline = current;
+			draft.saved(submitted);
+			output.replaceChildren(
 				element(
 					"p",
-					{},
-					executorDefault
-						? "Remove your changes and use the built-in settings?"
-						: "Delete this saved profile? Existing runs are unchanged.",
+					{ role: "status" },
+					draft.dirty() ? "Saved. Later changes are unsaved." : "Saved.",
 				),
-				managementControl(
-					"Confirm",
-					async () => {
-						await managementWrite(
-							`/api/profiles/${encodeURIComponent(profile.name)}`,
-							"DELETE",
-						);
-						draft.clear();
-						await reloadProfiles();
-					},
-					output,
-					{ class: "danger" },
-				),
-				button("Keep profile", () => {
-					confirm.hidden = true;
-				}),
 			);
-		}
-		const configuration = element(
-			"div",
-			{ class: "management-fields" },
-			field("Permission mode", permission),
-			field("Strict capabilities (comma separated)", strict),
-		);
-		for (const control of [permission, strict]) control.disabled = readonly();
-		const draft = settingsDraft(editor, () => ({
-			name: id.value.trim(),
-			permissionMode: permission.value,
-			strictCapabilities: strict.value
-				.split(",")
-				.map((s) => s.trim())
-				.filter(Boolean),
-		}));
-		editor.replaceChildren(
+		},
+		output,
+		{ "data-save-permissions": "", "aria-label": `Save ${id} permissions` },
+	);
+	permission.disabled = readonly();
+	row.addEventListener("change", () => output.replaceChildren());
+	row.append(
+		field("Permission mode", permission),
+		element(
+			"details",
+			{},
+			element("summary", {}, "Advanced"),
 			element(
-				"nav",
-				{ class: "profile-breadcrumb", "aria-label": "Profile navigation" },
-				button("← Profiles", backToProfiles, {
-					class: "link",
-					"aria-label": "Back to profiles",
-					"data-profile-back": "",
-				}),
-				element("span", { "aria-hidden": "true" }, "/"),
-				element("span", {}, profile.name || "New profile"),
+				"fieldset",
+				{ class: "executor-strict" },
+				element("legend", {}, "Strict capabilities"),
+				strict.map(({ name, control }) => element("label", {}, control, name)),
 			),
-			managementPanel(
-				executorDefault
-					? `Edit ${profile.name} defaults`
-					: profile.name
-						? `Edit ${profile.name}`
-						: "New profile",
-				!profile.name
-					? element(
-							"div",
-							{ class: "profile-name-field" },
-							field("Name", id),
-							nameError,
-						)
-					: null,
-				configuration,
-				hasSavedProfile ? options : null,
-				output,
-				element(
-					"div",
-					{ class: "profile-editor-actions profile-editor-actions-sticky" },
-					managementControl(
-						"Save profile",
-						async () => {
-							if (!id.value.trim()) {
-								nameError.textContent = "Enter a profile name before saving.";
-								nameError.hidden = false;
-								id.setAttribute("aria-invalid", "true");
-								const descriptions = new Set(
-									(id.getAttribute("aria-describedby") || "")
-										.split(/\s+/)
-										.filter(Boolean),
-								);
-								descriptions.add(nameError.id);
-								id.setAttribute(
-									"aria-describedby",
-									[...descriptions].join(" "),
-								);
-								id.focus({ preventScroll: true });
-								nameError.parentElement.scrollIntoView({ block: "center" });
-								return;
-							}
-							clearNameError();
-							const values = {
-								...(permission.value
-									? { permissionMode: permission.value }
-									: {}),
-								...(strict.value.trim()
-									? {
-											strictCapabilities: strict.value
-												.split(",")
-												.map((s) => s.trim())
-												.filter(Boolean),
-										}
-									: {}),
-							};
-							const unset = ["permissionMode", "strictCapabilities"].filter(
-								(key) => values[key] === undefined,
-							);
-							// The API merges values under the store lock. Patch only visible fields;
-							// never normalize, revalidate, or unset hidden profile/role values here.
-							const submitted = draft.snapshot();
-							const savedName = id.value;
-							await managementWrite(
-								`/api/profiles/${encodeURIComponent(savedName)}`,
-								"PUT",
-								{
-									values,
-									unset,
-								},
-							);
-							// A deliberate leave/replacement owns the current page, not this completion.
-							if (
-								!page.isConnected ||
-								generation !== editGeneration ||
-								!settingsDrafts.has(draft)
-							)
-								return;
-							draft.saved(submitted);
-							if (draft.dirty()) {
-								saveOutput.replaceChildren(
-									element(
-										"div",
-										{
-											class: "profile-save-status",
-											role: "status",
-										},
-										`Saved profile: ${savedName}. Later changes are unsaved.`,
-									),
-								);
-								return;
-							}
-							draft.clear();
-							await reloadProfiles(savedName);
-							// Successful saves need only a concise confirmation.
-							const status = element(
-								"div",
-								{ class: "profile-save-status", role: "status" },
-								`Saved profile: ${savedName}`,
-							);
-							$("center").querySelector(".management-page")?.prepend(status);
-						},
-						saveOutput,
-						{ class: "primary", "data-management-action": "save-profile" },
-					),
-					button("Discard changes", cancel),
-					saveOutput,
-				),
-			),
-		);
-		editor.setAttribute("data-profile-edit", profile.name || "");
-		overview.hidden = true;
-		editor.hidden = false;
-		page.scrollIntoView({ block: "start" });
-		(profile.name ? permission : id)?.focus();
-	}
-	if (state.profile || state.createProfile) {
-		const selected = data.profiles.find(
-			(entry) => entry.name === state.profile,
-		);
-		const executorDefault = executorDefaults.find(
-			(entry) => entry.executor === state.profile,
-		);
-		if (state.createProfile) await edit({}, undefined, true);
-		else if (selected || executorDefault)
-			await edit(selected || { name: state.profile }, executorDefault, true);
-		else
-			errors.append(
-				button("← Profiles", backToProfiles, {
-					class: "link",
-					"aria-label": "Back to profiles",
-				}),
-				element(
-					"p",
-					{ role: "alert", class: "management-error" },
-					"Profile not found.",
-				),
-			);
-	} else {
-		const focus = history.state?.newProfileReturn
-			? overview.querySelector("[data-profile-new]")
-			: history.state?.profileReturnFocus
-				? overview.querySelector(
-						`[data-profile-open="${CSS.escape(history.state.profileReturnFocus)}"]`,
+			retained.length
+				? element(
+						"p",
+						{ class: "muted" },
+						`Also required: ${retained.join(", ")}`,
 					)
-				: null;
-		focus?.focus({ preventScroll: true });
-	}
+				: null,
+		),
+		element(
+			"div",
+			{ class: "executor-permission-actions" },
+			save,
+			button(
+				"Discard",
+				() => {
+					permission.value = baseline.permissionMode;
+					for (const { name, control } of strict)
+						control.checked = baseline.strictCapabilities.includes(name);
+					output.replaceChildren();
+				},
+				{
+					disabled: readonly(),
+					"data-discard-permissions": "",
+					"aria-label": `Discard ${id} permission changes`,
+				},
+			),
+		),
+		output,
+	);
+	return row;
 }
 /** "12.4 MB" from bytes. */
 function formatBytes(bytes) {
@@ -10355,10 +9950,30 @@ async function renderExecutors(page) {
 			"The coding-agent CLIs that run workflow stages, checked on this machine without a model call.",
 		);
 	const body = element("div", { "aria-live": "polite" });
+	const refreshOutput = element("div");
 	const show = async (refresh = false) => {
-		const result = await managementApi(
-			`/api/doctor${refresh ? "?refresh=1" : ""}`,
+		if (refresh && !approveSettingsDiscard()) return;
+		const snapshots = new Map(
+			[...settingsDrafts].map((draft) => [draft, draft.snapshot()]),
 		);
+		const [result, profiles] = await Promise.all([
+			managementApi(`/api/doctor${refresh ? "?refresh=1" : ""}`),
+			managementApi("/api/profiles"),
+		]);
+		if (!page.isConnected) return;
+		if (
+			refresh &&
+			[...snapshots].some(([draft, snapshot]) => draft.snapshot() !== snapshot)
+		) {
+			refreshOutput.replaceChildren(
+				element(
+					"p",
+					{ role: "status" },
+					"Settings changed during refresh. Refresh again to discard them.",
+				),
+			);
+			return;
+		}
 		const data = result.data;
 		const executors = data.executors || [];
 		const ready = executors.filter((entry) => entry.usable).length;
@@ -10401,6 +10016,8 @@ async function renderExecutors(page) {
 			);
 		}
 		body.replaceChildren();
+		for (const draft of settingsDrafts)
+			if (!draft.node.isConnected) draft.clear();
 		append(body, [
 			managementPanel(
 				"Status",
@@ -10432,6 +10049,7 @@ async function renderExecutors(page) {
 							"Status",
 							"Version",
 							...(showFix ? ["What to do"] : []),
+							"Permissions",
 						],
 						executors.map((entry) => {
 							const [tone, label] = EXECUTOR_STATES[entry.state] || [
@@ -10458,6 +10076,14 @@ async function renderExecutors(page) {
 								...(showFix
 									? [entry.fix || (entry.usable ? "" : entry.error || "")]
 									: []),
+								executorPermissions(
+									page,
+									entry.id,
+									profiles.data.profiles.find(
+										(profile) => profile.name === entry.id,
+									) || {},
+									profiles.data.capabilityNames,
+								),
 							];
 						}),
 						{ class: "property-table executors" },
@@ -10495,16 +10121,6 @@ async function renderExecutors(page) {
 									`, ${data.permissionMode?.source === "default" ? "default" : "saved"}`,
 								),
 							],
-						],
-						[
-							"Models and effort",
-							element(
-								"a",
-								{
-									href: `/?${new URLSearchParams({ ...(state.project ? { project: state.project } : {}), view: "profiles" })}`,
-								},
-								"Set per executor in Profiles",
-							),
 						],
 					],
 					{ class: "property-table keyed" },
@@ -10580,7 +10196,10 @@ async function renderExecutors(page) {
 		element(
 			"div",
 			{ class: "management-actions page-actions" },
-			managementControl("Refresh", () => show(true), body, { write: false }),
+			managementControl("Refresh", () => show(true), refreshOutput, {
+				write: false,
+			}),
+			refreshOutput,
 		),
 		body,
 	);
