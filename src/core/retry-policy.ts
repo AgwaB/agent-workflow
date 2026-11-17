@@ -530,7 +530,8 @@ export const SIDE_EFFECT_FREE_RETRY_TOOLS: ReadonlySet<string> = new Set([
 	mcpPrefixedToolName(ARTIFACT_MCP_SERVER_NAME, WORKFLOW_ARTIFACT_TOOL_NAME),
 ]);
 
-const isCount = (value: unknown): value is number => typeof value === "number";
+const isCount = (value: unknown): value is number =>
+	typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 
 /**
  * Proof 1 (needs capture): the attempt's tool-call summary shows every call was on the allowlist.

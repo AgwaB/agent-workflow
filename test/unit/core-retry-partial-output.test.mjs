@@ -321,3 +321,26 @@ test("the call-summary proof stays an alternative to the configured-set proof", 
 		}),
 	);
 });
+test("negative or fractional counts in the summary are not retried", async () => {
+	for (const callsByTool of [
+		{ read: -1 },
+		{ read: 1.5 },
+		{ read: 2, grep: -1 },
+	])
+		assertNotRetried(
+			await refreshFailedAttempt({
+				summary: {
+					schemaVersion: 1,
+					enabled: true,
+					totalCalls: Object.values(callsByTool).reduce((a, b) => a + b, 0),
+					callsByTool,
+					droppedRecords: 0,
+				},
+			}),
+		);
+	assertNotRetried(
+		await refreshFailedAttempt({
+			summary: { ...summaryOf({ read: 1 }), totalCalls: -1 },
+		}),
+	);
+});
