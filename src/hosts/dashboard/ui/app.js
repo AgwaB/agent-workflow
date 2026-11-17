@@ -1427,7 +1427,7 @@ function renderHeader() {
 						href: workflowHref(workflowTarget.target.workflowKey),
 						"data-testid": "run-workflow-link",
 					},
-					"Current Workflow settings (future Runs only)",
+					"Workflow settings",
 				)
 			: element(
 					"p",
@@ -1435,32 +1435,20 @@ function renderHeader() {
 					`Workflow unavailable: ${workflowTarget?.reason || "checking source"}.`,
 				),
 	);
+	// A finished Run needs no action note: its status line already says so (2026-11-17, owner).
 	const finished = !liveRun(run) && !needsResume(run);
-	context.append(
-		element(
-			"p",
-			{ class: "muted", "data-testid": "run-action-reason" },
-			finished
-				? "Finished."
-				: readonly()
+	if (!finished)
+		context.append(
+			element(
+				"p",
+				{ class: "muted", "data-testid": "run-action-reason" },
+				readonly()
 					? "Read-only: Stop/Resume unavailable."
 					: needsResume(run)
 						? "Review stopped work before resuming."
 						: "Run in progress.",
-		),
-		moreDetails(
-			"Run action policy",
-			element(
-				"p",
-				{},
-				finished
-					? "No Stop/Resume: terminal; business verdicts are results, not resumable failures."
-					: readonly()
-						? "Read-only: no Stop/Resume. Server checks remain authoritative."
-						: "Recorded-status eligibility; server capability/ownership checks may refuse.",
 			),
-		),
-	);
+		);
 	// Only a run that finished its work has a result; a failed or stopped run keeps "Status", so an
 	// earlier stage's summary never reads as the outcome of a run that did not get there.
 	const result =

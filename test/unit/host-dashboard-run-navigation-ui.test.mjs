@@ -236,7 +236,7 @@ test("trusted current Workflow target uses actual keyed E1 API, missing definiti
 	assert.ok(
 		link.href.includes(catalog.find((w) => w.name === "manage").workflowKey),
 	);
-	assert.match(link.text, /future Runs only/);
+	assert.equal(link.text, "Workflow settings");
 	await b.evaluate(() => {
 		const original = window.fetch;
 		window.fetch = async (...args) => {
@@ -361,25 +361,14 @@ test("Stop/Resume status, readonly, confirmation/cancel and repeated effects war
 		),
 		0,
 	);
-	assert.equal(
-		await b.evaluate(
-			() =>
-				document.querySelector('[data-testid="run-action-reason"]').textContent,
-		),
-		"Finished.",
-	);
-	const policy = await b.evaluate(() => ({
-		text: document.querySelector(".run-context details").textContent,
-		open: document.querySelector(".run-context details").open,
-	}));
-	assert.equal(policy.open, false, "terminal policy is secondary, not removed");
-	assert.match(policy.text, /business verdicts are results/);
-	await b.click(".run-context details > summary");
-	assert.match(
-		await b.evaluate(
-			() => document.querySelector(".run-context details").innerText,
-		),
-		/No Stop\/Resume: terminal; business verdicts are results, not resumable failures/,
+	// A finished Run has no action note or policy disclosure; its status line says it finished.
+	assert.deepEqual(
+		await b.evaluate(() => ({
+			reason: document.querySelectorAll('[data-testid="run-action-reason"]')
+				.length,
+			policy: document.querySelectorAll(".run-context details").length,
+		})),
+		{ reason: 0, policy: 0 },
 	);
 	f.setReadonly(true);
 	await entry(b, `${f.origin}/?run=${active.runId}&view=runs`);
