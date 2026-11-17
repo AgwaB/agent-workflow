@@ -18,6 +18,8 @@ test("G3: narrow and coarse executor controls retain usable geometry and desktop
 	const p = await executorsFixture(t),
 		{ b } = p;
 	await loadExecutors(p);
+	// Save/Discard appear only on a changed row; measure them in that state.
+	await setPermission(b, "safe");
 	for (const [width, coarse] of [
 		[390, false],
 		[390, true],
