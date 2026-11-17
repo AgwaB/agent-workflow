@@ -69,6 +69,13 @@ export const PI_ERROR_RULES: readonly PiErrorRule[] = [
 			/"code"\s*:\s*5\d\d\b|Internal Server Error|Internal error encountered/,
 		evidence: "live",
 	},
+	// Provider "model is busy": status token then ':' and a JSON body with a string code (live, 2026-11-16).
+	{
+		class: "transient",
+		match:
+			/^\s*5\d\d\s*:|"code"\s*:\s*"(?:upstream_busy|overloaded|server_error)"/i,
+		evidence: "live",
+	},
 	{
 		class: "transient",
 		match: /\((?:500|502|503|504|529)\)/,

@@ -27,6 +27,9 @@ for (const [hint, expected] of [
 	["resets 15:30 (Asia/Seoul)", 9_720_000],
 	["resets 12am (Asia/Seoul)", 40_320_000],
 	["Retry-After: 1 | resets 3:30pm (Asia/Seoul)", 9_720_000],
+	['{"code":"upstream_busy","retry_after_s":20}', 20_000],
+	["retry_after_s=7.5", 7500],
+	['"retry_after_s": 0', undefined],
 	["Try again in 0 seconds.", undefined],
 	["Retry-After: -1", undefined],
 	["Retry-After: Infinity", undefined],
@@ -111,6 +114,34 @@ test("classified rate limits read all error surfaces and never cap explicit wait
 	} finally {
 		setExecutorAuthKindProbe(undefined);
 	}
+});
+
+test("a transient failure honours a provider hint and otherwise stays immediate", () => {
+	const base = { attempt: 1, modelBackoffKey: "anthropic", stderrText: "" };
+	assert.equal(
+		transientModelRateLimitBackoffMs({
+			...base,
+			failureKind: "transient",
+			errorMessage: '503: {"code":"upstream_busy","retry_after_s":20}',
+		}),
+		20_000,
+	);
+	assert.equal(
+		transientModelRateLimitBackoffMs({
+			...base,
+			failureKind: "transient",
+			errorMessage: "fetch failed",
+		}),
+		undefined,
+	);
+	assert.equal(
+		transientModelRateLimitBackoffMs({
+			...base,
+			failureKind: "permanent",
+			errorMessage: '{"retry_after_s":20}',
+		}),
+		undefined,
+	);
 });
 
 test("a multi-hour provider reset survives a fresh process", async () => {

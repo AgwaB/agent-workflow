@@ -293,6 +293,11 @@ test("error rules: every row classifies its own sample; unmatched text is unknow
 		'{"code":429,"status":"RESOURCE_EXHAUSTED"}': "rate_limit",
 		'{"code":500,"status":"Internal Server Error"}': "transient",
 		"fetch failed": "transient",
+		'503: {"message":"The model is busy. Retry shortly.","type":"server_error","code":"upstream_busy","retry_after_s":20}':
+			"transient",
+		'{"code":"overloaded"}': "transient",
+		'400: {"message":"bad request","code":"invalid_request"}': "unknown",
+		'401: {"message":"nope"}': "unknown",
 		"segmentation fault in flux module": "unknown",
 	};
 	for (const [message, expected] of Object.entries(samples))

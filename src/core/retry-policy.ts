@@ -485,15 +485,16 @@ export function transientModelRateLimitBackoffMs(options: {
 	].filter(
 		(value): value is string => typeof value === "string" && value.length > 0,
 	);
-	if (
-		options.failureKind !== "rate_limit" &&
-		!candidates.some(isRateLimitModelFailureText)
-	)
-		return undefined;
+	const rateLimited =
+		options.failureKind === "rate_limit" ||
+		candidates.some(isRateLimitModelFailureText);
+	// A transient failure (503 "model is busy") backs off only when the provider gave a hint.
+	if (!rateLimited && options.failureKind !== "transient") return undefined;
 	const nowMs = Date.now();
 	const hints = candidates
 		.map((text) => providerRetryAfterMs(text, nowMs))
 		.filter((delay): delay is number => delay !== undefined);
+	if (!rateLimited && !hints.length) return undefined;
 	return hints.length
 		? Math.max(...hints)
 		: defaultRateLimitBackoffMs(options.attempt, options.modelBackoffKey);

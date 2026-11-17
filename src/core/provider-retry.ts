@@ -120,6 +120,10 @@ export function providerRetryAfterMs(
 		if (httpDate) add(Date.parse(httpDate[0]) - nowMs);
 	}
 	for (const match of text.matchAll(
+		/\bretry_after_s["']?\s*[:=]\s*["']?(\d+(?:\.\d+)?)(?!\d)/giu,
+	))
+		add(Number(match[1]) * 1000);
+	for (const match of text.matchAll(
 		/\bresets?(?:[_ -]?at)?["']?\s*[:=]?\s*["']?(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2}))/giu,
 	))
 		add(Date.parse(match[1]!) - nowMs);
