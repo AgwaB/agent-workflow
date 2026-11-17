@@ -1,6 +1,7 @@
 import { modelTaskRuntimeDeadlineMs } from "./model-task-runtime.js";
 import type { WorkflowTaskRunRecord } from "./types.js";
 import { nowIso, setTaskTerminal } from "./store.js";
+import { timedOutPartialNote } from "./timeout-partial.js";
 
 export interface TaskResultArtifact {
 	resultFile: string;
@@ -33,7 +34,7 @@ export function resultCompletedAfterTimeout(
 export function markTaskTimedOut(task: WorkflowTaskRunRecord): void {
 	setTaskTerminal(task, "failed", "timeout", {
 		exitCode: 124,
-		lastMessage: `task exceeded timeout=${task.runtime.maxRuntimeMs}`,
+		lastMessage: `task exceeded timeout=${task.runtime.maxRuntimeMs}${timedOutPartialNote(task)}`,
 	});
 }
 

@@ -889,6 +889,12 @@ and publish stable items early in standalone `<partial-control>{"schema":"workfl
 `from: {source, path, streaming: {enabled: true, minChunk: 2}}`. Published items need a string `id`
 and must not change in the final control. Downstream reducers still wait for every item.
 
+**Task runtime limit.** A model task that exceeds its `maxRuntimeMs` (default 30 minutes; set per stage,
+profile or `defaults`; `0` = no limit) is stopped and ends `failed` with `statusDetail: "timeout"`. Whatever
+the worker had written is kept in the task's `output.log`, and `result.json` records `timedOutPartial`
+(`outputBytes`, `validated: false`); the failure message names it. That text is evidence only: it is never
+validated into a control or output artifact, so downstream stages and reports see an ordinary failed source.
+
 ### Support helpers
 
 ```json

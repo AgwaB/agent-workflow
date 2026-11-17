@@ -1296,6 +1296,8 @@ export interface WorkflowTaskRunRecord {
 	activity?: TaskActivity;
 	/** Engine-owned worker sessions reported by the executor (R#10). */
 	ownedSessions?: WorkflowTaskOwnedSessionRecord[];
+	/** Worker output kept (unvalidated, never a result) when the task hit its runtime limit. */
+	timedOutPartial?: { outputBytes: number; validated: false };
 	taskId: string;
 	specId: string;
 	displayName: string;
