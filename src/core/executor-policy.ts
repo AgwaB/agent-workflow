@@ -215,13 +215,15 @@ function builtInExecutorDefaultProfile(
 		executorPreset(policy.defaultPreset).roles,
 	))
 		roles[role] = modelEffort(assignment);
-	const model = roles.default?.model;
-	if (
-		model === undefined ||
-		listedModels === null ||
-		modelListed(model, listedModels)
-	)
-		return { roles };
+	// Presets may use several models (codex uses SOL and LUNA). Preserve the
+	// existing all-stage fallback if any built-in role model is unavailable.
+	const model =
+		listedModels === null
+			? undefined
+			: [...new Set(Object.values(roles).map((role) => role.model))].find(
+					(model) => model !== undefined && !modelListed(model, listedModels),
+				);
+	if (model === undefined) return { roles };
 	const user = policy.userDefaults?.(env);
 	const effort = isEffortLevel(user?.effort) ? user.effort : undefined;
 	const unified = {

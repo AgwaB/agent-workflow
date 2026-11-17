@@ -685,7 +685,7 @@ executors?, permissionMode?, statusDetail? (`driver_lost`: an `interrupted` run 
 |---|---|
 | `task` | Required runtime task |
 | `executor`, `permissionMode` | Run overrides; mode `free` / `safe` |
-| `profile` | Declared profile, saved user profile, then built-in preset (`codex`, `claude`, `pi`, `mixed`); unknown names throw |
+| `profile` | Declared profile, saved user profile, then built-in preset (`codex`, `codex-high`, `claude`, `mixed`); unknown names throw |
 | `allowUnverifiedCapabilities` | Capability opt-in keys |
 | `model`, `effort` | Overrides for every stage |
 | `inputOverrides` | Typed values for declared inputs |

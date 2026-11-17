@@ -4,6 +4,7 @@ import {
 	workflowDefinitionFingerprint,
 } from "../core/execution-profile.js";
 import { loadWorkflowSpec } from "../core/schema.js";
+import { roleKeysForSlot } from "../core/role-profiles.js";
 import { resolveProjectWorkflowSettingsTarget } from "../core/workflow-specs.js";
 import {
 	assertProjectSettingsTargets,
@@ -133,7 +134,11 @@ export function projectSettingsDefinition(
 					}
 				: { id: node.id, kind: "model" };
 		});
-	return { authored, editableSlots };
+	// Read-only compiler role addresses; never persisted as project intent.
+	const slotRoleKeys = Object.fromEntries(
+		slots.map((slot) => [slot.id, roleKeysForSlot(slot)]),
+	);
+	return { authored, editableSlots, slotRoleKeys };
 }
 
 function invalid(error: unknown): never {

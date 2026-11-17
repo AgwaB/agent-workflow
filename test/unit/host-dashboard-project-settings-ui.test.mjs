@@ -3,6 +3,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { registerWorkflowExecutor } from "../../dist/core/executor-registry.js";
+import { resetExecutorProbeCacheForTests } from "../../dist/core/executor-default.js";
+import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 import { managementProject } from "../helpers/dashboard-management.mjs";
 import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
 import { projectSettingsGraphFixtures } from "../helpers/dashboard-profile-graph.mjs";
@@ -231,6 +235,240 @@ async function refused(p, text = "Draft retained") {
 		`[...document.querySelectorAll('.project-workflow-header [role="alert"]')].some((node) => !node.hidden && node.textContent.includes(${JSON.stringify(text)}))`,
 	);
 }
+
+async function presetProject(t, options = {}) {
+	const p = await open(t, options);
+	for (const id of ["codex", "claude"])
+		t.after(
+			registerWorkflowExecutor(
+				workflowFixtureDescriptor({
+					id,
+					capabilities: {
+						effortLevels: ["low", "medium", "high", "xhigh", "max"],
+					},
+					probe: {
+						installed: true,
+						auth: "ok",
+						models:
+							id === "codex"
+								? ["gpt-6.1-sol", "gpt-6-luna"]
+								: ["claude-opus-5-5"],
+						modelListComplete: true,
+					},
+				}),
+			),
+		);
+	resetExecutorProbeCacheForTests();
+	const file = join(p.cwd, ".agent-workflow/workflows/canonical-editor.json");
+	const spec = JSON.parse(await readFile(file, "utf8"));
+	spec.artifactGraph.stages[0].stages[0].profileRole = "planning";
+	spec.artifactGraph.stages[1].stages[1].profileRole = "synthesis";
+	spec.artifactGraph.stages.at(-1).profileRole = "final-judgment";
+	const loop = spec.artifactGraph.stages.find(
+		(stage) => stage.id === "adaptive",
+	).dynamic.decisionLoop;
+	loop.planner.profileRole = "planning";
+	loop.workerDefaults.profileRole = "verification";
+	await writeFile(file, JSON.stringify(spec));
+	return p;
+}
+const presetValue = (p) =>
+	p.browser.evaluate(
+		() => document.querySelector('[aria-label="Preset"]').value,
+	);
+const draftIntent = (p) =>
+	p.browser.evaluate(
+		() =>
+			window.__requests.findLast((r) => r.path.endsWith("/preview")).body
+				.intent,
+	);
+
+test("R3-R4: native preset fill, manual editing, discard, save and reload use one complete intent", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await presetProject(t);
+	await load(p);
+	await settled(p);
+	assert.deepEqual(
+		await p.browser.evaluate(() => {
+			const node = document.querySelector('[aria-label="Preset"]');
+			return (
+				node && {
+					tag: node.tagName,
+					options: [...node.options].map((o) => [o.value, o.textContent]),
+				}
+			);
+		}),
+		{
+			tag: "SELECT",
+			options: [
+				["", "Custom"],
+				["codex", "codex"],
+				["codex-high", "codex-high"],
+				["claude", "claude"],
+				["mixed", "mixed"],
+			],
+		},
+	);
+	await p.browser.evaluate(() =>
+		document.querySelector('[aria-label="Preset"]').focus(),
+	);
+	await set(p, "Preset", "codex-high");
+	await settled(p);
+	assert.equal(
+		await p.browser.evaluate(
+			() =>
+				document.activeElement ===
+				document.querySelector('[aria-label="Preset"]'),
+		),
+		true,
+		"preset fill preserves keyboard focus",
+	);
+	const filled = await draftIntent(p);
+	assert.deepEqual(filled.defaults, {
+		executor: "codex",
+		model: "gpt-6.1-sol",
+		effort: "high",
+	});
+	assert.deepEqual(filled.slots["iterate.work"], {
+		executor: "codex",
+		model: "gpt-6.1-sol",
+		effort: "xhigh",
+	});
+	assert.deepEqual(filled.slots["iterate.check"], {
+		executor: "codex",
+		model: "gpt-6.1-sol",
+		effort: "max",
+	});
+	assert.deepEqual(filled.slots["nested.peer"], {
+		executor: "codex",
+		model: "gpt-6.1-sol",
+		effort: "xhigh",
+	});
+	assert.deepEqual(filled.slots.constructor, {
+		executor: "codex",
+		model: "gpt-6.1-sol",
+		effort: "xhigh",
+	});
+	assert.deepEqual(filled.slots["adaptive.$planner"], {
+		executor: "codex",
+		model: "gpt-6.1-sol",
+		effort: "xhigh",
+	});
+	assert.deepEqual(filled.slots["adaptive.$workerDefaults"], {
+		executor: "codex",
+		model: "gpt-6.1-sol",
+		effort: "max",
+	});
+	assert.equal(filled.slots.items, undefined, "unknown role uses defaults");
+	assert.equal(await presetValue(p), "codex-high");
+	await set(p, "Preset", "");
+	assert.equal(
+		await presetValue(p),
+		"codex-high",
+		"Custom never stores a name or clears intent",
+	);
+	assert.deepEqual(await intent(p), {}, "selection does not save");
+	await set(p, "All tasks Effort", "medium");
+	await settled(p);
+	assert.equal(await presetValue(p), "");
+	await p.browser.evaluate(() => {
+		window.confirm = () => true;
+		document.querySelector('[data-testid="project-settings-reload"]').click();
+	});
+	await p.browser.waitFor(
+		() => document.querySelector('[aria-label="Preset"]')?.value === "",
+	);
+	await settled(p);
+	assert.deepEqual(await draftIntent(p), {});
+	await set(p, "Preset", "codex-high");
+	await settled(p);
+	await saved(p);
+	assert.deepEqual(await intent(p), filled);
+	const puts = await p.browser.evaluate(() =>
+		window.__requests.filter((r) => r.method === "PUT"),
+	);
+	assert.equal(puts.length, 1);
+	assert.deepEqual(puts[0].body.intent, filled);
+	assert.deepEqual(Object.keys(puts[0].body).sort(), ["expected", "intent"]);
+	await load(p);
+	await settled(p);
+	assert.equal(await presetValue(p), "codex-high");
+	await select(p, "iterate.check");
+	await set(p, "Slot iterate.check Effort", "high");
+	await settled(p);
+	await p.browser.click('[data-testid="all-tasks-back"]');
+	assert.equal(await presetValue(p), "", "task edits also become Custom");
+});
+
+test("R3: mixed uses server role keys, safe raw IDs and actual-parent dynamic bindings", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await presetProject(t);
+	await load(p);
+	await settled(p);
+	const metadata = (await p.http(p.path)).data;
+	assert.deepEqual(metadata.slotRoleKeys["iterate.work"], [
+		"agent:reader",
+		"planning",
+		"default",
+	]);
+	await set(p, "Preset", "mixed");
+	await settled(p);
+	const filled = await draftIntent(p);
+	assert.deepEqual(filled.defaults, {
+		executor: "codex",
+		model: "gpt-6-luna",
+		effort: "medium",
+	});
+	assert.deepEqual(filled.slots["iterate.work"], {
+		executor: "claude",
+		model: "claude-opus-5-5",
+		effort: "high",
+	});
+	assert.deepEqual(filled.slots["iterate.check"], {
+		executor: "codex",
+		model: "gpt-6-luna",
+		effort: "high",
+	});
+	assert.equal(filled.slots["nested.peer"].executor, "claude");
+	assert.equal(filled.slots.constructor.executor, "claude");
+	assert.equal(filled.slots.__proto__.executor, "codex");
+	assert.equal(
+		filled.slots["adaptive.$planner"],
+		undefined,
+		"incompatible OPUS template inherits its codex parent",
+	);
+	assert.deepEqual(filled.slots["adaptive.$workerDefaults"], {
+		executor: "codex",
+		model: "gpt-6-luna",
+		effort: "high",
+	});
+	for (const slot of metadata.editableSlots.filter(
+		(slot) => slot.kind === "dynamic-profile",
+	))
+		assert.ok(
+			!filled.slots[slot.id] || filled.slots[slot.id].executor === "codex",
+			"template cannot pin a different executor from its actual parent",
+		);
+	assert.equal(await presetValue(p), "mixed");
+	await saved(p);
+	assert.deepEqual(await intent(p), filled);
+});
+
+test("R3-R4: preset selection is disabled in read-only projects", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await presetProject(t, { readonly: true });
+	await load(p);
+	assert.equal(
+		await p.browser.evaluate(
+			() => document.querySelector('[aria-label="Preset"]')?.disabled,
+		),
+		true,
+	);
+	assert.deepEqual(await intent(p), {});
+});
 
 test("scope S1: loading is an accessible spinner with reserved editor space", {
 	timeout: 90000,
@@ -1219,7 +1457,13 @@ test("minimal settings: requested clutter is deleted, not folded or hidden", {
 		"Valid specification",
 	])
 		assert.equal(dom.text.includes(text), false, text);
-	assert.deepEqual(dom.common, ["All tasks", "Executor", "Model", "Effort"]);
+	assert.deepEqual(dom.common, [
+		"All tasks",
+		"Preset",
+		"Executor",
+		"Model",
+		"Effort",
+	]);
 	assert.equal(dom.commonExtra, 0);
 	await select(p, "iterate.check");
 	await set(p, "Slot iterate.check Effort", "high");

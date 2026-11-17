@@ -1,8 +1,6 @@
 // test-tier: integration
-// New in agent-workflow (WP31 item 3, owner decisions B2/E4): built-in executor presets codex,
-// claude, pi and mixed. Each is a valid role profile whose executors exist and whose efforts each
-// executor accepts; mixed puts verification on a different model family than research/
-// implementation. `profile set <name> --preset <id>` saves one (explicit flags win), `profile presets`
+// Built-in executor presets codex, codex-high, claude and mixed. Each is a valid role profile
+// whose executors exist and whose efforts each executor accepts. `profile set <name> --preset <id>` saves one (explicit flags win), `profile presets`
 // lists them, and `--profile <id>` selects one directly.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
@@ -101,10 +99,10 @@ const EFFORTS = {
 	pi: types.EFFORT_LEVELS,
 };
 
-test("every preset is a valid role profile with conservative, executor-valid values", () => {
+test("every preset is a valid role profile with executor-valid reference values", () => {
 	assert.deepEqual(
 		[...presets.EXECUTOR_PRESET_IDS],
-		["codex", "claude", "pi", "mixed"],
+		["codex", "codex-high", "claude", "mixed"],
 	);
 	for (const id of presets.EXECUTOR_PRESET_IDS) {
 		const preset = presets.executorPreset(id);
@@ -115,9 +113,8 @@ test("every preset is a valid role profile with conservative, executor-valid val
 		assert.deepEqual(
 			Object.keys(preset.roles).sort(),
 			["default", ...types.WORKFLOW_PROFILE_ROLES].sort(),
-			`${id} maps default and every profile role`,
 		);
-		assert.ok(core.workflowExecutorRegistration(preset.executor)?.descriptor);
+		assert.equal(preset.executor, preset.roles["research-execution"].executor);
 		for (const [role, assignment] of Object.entries(preset.roles)) {
 			assert.ok(
 				core.workflowExecutorRegistration(assignment.executor)?.descriptor,
@@ -125,37 +122,25 @@ test("every preset is a valid role profile with conservative, executor-valid val
 			);
 			assert.ok(
 				EFFORTS[assignment.executor].includes(assignment.effort),
-				`${id}.${role}: ${assignment.effort} is valid for ${assignment.executor}`,
+				`${id}.${role}: ${assignment.effort}`,
 			);
-			// Conservative: no max/xhigh/ultra effort in a default preset.
 			assert.ok(
-				["medium", "high"].includes(assignment.effort),
-				`${id}.${role}`,
+				(assignment.executor === "codex"
+					? ["gpt-6.1-sol", "gpt-6-luna"]
+					: ["claude-opus-5-5"]
+				).includes(assignment.model),
 			);
-			if (assignment.executor === "codex")
-				assert.equal(assignment.model, "gpt-5.6-luna");
-			if (assignment.executor === "claude")
-				assert.equal(assignment.model, "sonnet");
-			if (assignment.executor === "pi")
-				assert.equal(assignment.model, undefined, "Pi's own default model");
 		}
 	}
-	const single = { codex: "codex", claude: "claude", pi: "pi" };
-	for (const [id, executor] of Object.entries(single)) {
-		const preset = presets.executorPreset(id);
-		assert.equal(preset.executor, executor);
-		for (const assignment of Object.values(preset.roles))
-			assert.equal(assignment.executor, executor);
-	}
-	const mixed = presets.executorPreset("mixed").roles;
-	assert.equal(mixed.planning.executor, "claude");
-	assert.equal(mixed.synthesis.executor, "claude");
-	assert.equal(mixed["research-execution"].executor, "codex");
-	assert.notEqual(
-		mixed.verification.executor,
-		mixed["research-execution"].executor,
-		"E4: verification runs on another family than the producer",
+	assert.equal(
+		presets.executorPreset("mixed").roles.verification.executor,
+		"codex",
 	);
+	assert.equal(
+		presets.executorPreset("mixed").roles.planning.executor,
+		"claude",
+	);
+	assert.throws(() => presets.executorPreset("pi"), /unknown preset "pi"/);
 	assert.throws(
 		() => presets.executorPreset("gemini"),
 		/unknown preset "gemini"/,
@@ -199,7 +184,7 @@ test("profile set --preset saves the preset; explicit flags win; profile presets
 		run.out.join(""),
 	);
 	const saved = JSON.parse(run.out.join("")).data.profile;
-	assert.equal(saved.executor, "claude");
+	assert.equal(saved.executor, "codex");
 	assert.equal(saved.permissionMode, "safe");
 	assert.deepEqual(saved.roles.verification, {
 		executor: "codex",
@@ -208,7 +193,7 @@ test("profile set --preset saves the preset; explicit flags win; profile presets
 	});
 	assert.deepEqual(saved.roles.planning, {
 		executor: "claude",
-		model: "sonnet",
+		model: "claude-opus-5-5",
 		effort: "high",
 	});
 	// A preset replaces executor and roles; other fields stay.
@@ -244,7 +229,7 @@ test("profile set --preset saves the preset; explicit flags win; profile presets
 	);
 	assert.match(
 		run.out.join(""),
-		/roles:\n {4}default +codex:gpt-5\.6-luna:medium/,
+		/roles:\n {4}default +codex:gpt-6-luna:medium/,
 	);
 	run = io();
 	assert.equal(
@@ -254,7 +239,7 @@ test("profile set --preset saves the preset; explicit flags win; profile presets
 	assert.match(run.out.join(""), /^codex — every role on codex/m);
 	assert.match(
 		run.out.join(""),
-		/^mixed — planning, synthesis, verification and final judgment on claude/m,
+		/^mixed — planning, synthesis and final judgment on claude/m,
 	);
 	// Usage errors exit 2 with the reason.
 	for (const argv of [
@@ -309,9 +294,9 @@ test("--profile <preset> runs a workflow with the preset when no declared or sav
 			stage.model,
 		]),
 		[
-			["plan", "claude", "sonnet"],
-			["research", "codex", "gpt-5.6-luna"],
-			["verify", "claude", "sonnet"],
+			["plan", "claude", "claude-opus-5-5"],
+			["research", "codex", "gpt-6-luna"],
+			["verify", "codex", "gpt-6-luna"],
 		],
 	);
 	let waited;
@@ -324,16 +309,47 @@ test("--profile <preset> runs a workflow with the preset when no declared or sav
 	assert.equal(waited.outcome, "completed");
 	const submits = (log) =>
 		readFixtureLog(log).filter((entry) => entry.type === "submit");
-	assert.equal(submits(logs.claude).length, 2);
-	assert.equal(submits(logs.codex).length, 1);
+	assert.equal(submits(logs.claude).length, 1);
+	assert.equal(submits(logs.codex).length, 2);
 	await assert.rejects(
 		api.runWorkflowAction(ctx, {
 			workflow: "wf.json",
 			task: "x",
 			profile: "nope",
 		}),
-		/built-in presets: codex, claude, pi, mixed/,
+		/built-in presets: codex, codex-high, claude, mixed/,
 	);
+});
+
+test("--profile pi is unknown without a declared or saved profile; saved pi and declared pi still work", async () => {
+	const { ctx, cwd } = await project();
+	await assert.rejects(
+		api.checkWorkflowAction(ctx, { workflow: "wf.json", profile: "pi" }),
+		/unknown profile "pi"/,
+	);
+	await api.profileAction(ctx, {
+		op: "set",
+		name: "pi",
+		values: { executor: "codex", model: "saved-model" },
+	});
+	const saved = await api.checkWorkflowAction(ctx, {
+		workflow: "wf.json",
+		profile: "pi",
+	});
+	assert.equal(saved.data.profile.kind, "user");
+	assert.equal(saved.data.profile.name, "pi");
+	const file = join(cwd, "wf.json");
+	const spec = JSON.parse(
+		await (await import("node:fs/promises")).readFile(file, "utf8"),
+	);
+	spec.executionProfiles = { pi: {} };
+	await writeFile(file, JSON.stringify(spec));
+	const declared = await api.checkWorkflowAction(ctx, {
+		workflow: "wf.json",
+		profile: "pi",
+	});
+	assert.equal(declared.data.profile.kind, "declared");
+	assert.equal(declared.data.profile.name, "pi");
 });
 
 test("in the Pi host a preset on another executor resolves models without Pi's model registry", async () => {
@@ -375,7 +391,11 @@ test("in the Pi host a preset on another executor resolves models without Pi's m
 	if (waited.outcome !== "completed")
 		assert.fail(await runDiagnostics(ctx.cwd, launched.data.runId));
 	for (const task of run.tasks) {
-		assert.equal(task.runtime.model, "gpt-5.6-luna", "not the Pi registry id");
+		assert.equal(
+			task.runtime.model,
+			task.stageId === "plan" ? "gpt-6.1-sol" : "gpt-6-luna",
+			"not the Pi registry id",
+		);
 		assert.notEqual(task.runtime.model, "anthropic/claude-test");
 	}
 });

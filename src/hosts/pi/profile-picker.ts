@@ -82,8 +82,8 @@ const DONE = "Done";
 const REMOVE_ROLE = "Remove this role (use the default role)";
 const PRESET_TITLES: Record<string, string> = {
 	codex: "Codex",
+	"codex-high": "Codex High",
 	claude: "Claude",
-	pi: "Pi",
 	mixed: "Mixed",
 };
 
@@ -263,9 +263,7 @@ class Picker {
 			const index = labels.indexOf(picked);
 			const custom = picked === CUSTOM_CHOICE;
 			const base: Choice | undefined = custom
-				? (choices.find((c) => c.id === current) ??
-					choices.find((c) => c.id === "pi") ??
-					choices[0])
+				? (choices.find((c) => c.id === current) ?? choices[0])
 				: choices[index];
 			if (!base) continue;
 			let roles = clone(base.roles);

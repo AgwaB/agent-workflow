@@ -49,16 +49,26 @@ const PRESET_EFFORTS = {
 	default: "medium",
 	planning: "high",
 	"research-execution": "medium",
-	synthesis: "medium",
+	synthesis: "high",
 	verification: "high",
-	"final-judgment": "high",
+	"final-judgment": "xhigh",
 };
 
 function presetRoles(model) {
 	return Object.fromEntries(
 		Object.entries(PRESET_EFFORTS).map(([role, effort]) => [
 			role,
-			{ model, effort },
+			{
+				model:
+					model === presets.PRESET_CODEX_MODEL &&
+					["planning", "final-judgment"].includes(role)
+						? presets.PRESET_CODEX_SOL_MODEL
+						: model,
+				effort:
+					model === presets.PRESET_CLAUDE_MODEL && role === "final-judgment"
+						? "high"
+						: effort,
+			},
 		]),
 	);
 }
@@ -74,7 +84,7 @@ test("the preset applies when its model is listed or the probe lists none; pi ha
 	assert.deepEqual(
 		policy.resolveExecutorDefaultProfile(
 			"claude",
-			["default", "sonnet", "opus"],
+			["default", "sonnet", "opus", presets.PRESET_CLAUDE_MODEL],
 			await claudeHome({ model: "opus" }),
 		),
 		{ roles: presetRoles(presets.PRESET_CLAUDE_MODEL) },
@@ -106,7 +116,7 @@ test("codex: an unlisted preset model falls back to config.toml for every stage,
 	});
 	assert.match(
 		profile.notice,
-		/^codex default profile: model "gpt-5\.6-luna" is not offered here; stages without a model\/effort use your codex settings \(gpt-6\.1-sol, high\) from .*config\.toml$/,
+		/^codex default profile: model "gpt-6-luna" is not offered here; stages without a model\/effort use your codex settings \(gpt-6\.1-sol, high\) from .*config\.toml$/,
 	);
 	const withProfile = await codexHome(
 		[
@@ -127,6 +137,21 @@ test("codex: an unlisted preset model falls back to config.toml for every stage,
 			.roles,
 		{ default: { model: "gpt-6-luna", effort: "high" } },
 	);
+});
+
+test("codex: missing SOL also falls back when LUNA is offered", async () => {
+	const env = await codexHome(
+		'model = "gpt-6-luna"\nmodel_reasoning_effort = "high"\n',
+	);
+	const profile = policy.resolveExecutorDefaultProfile(
+		"codex",
+		["gpt-6-luna"],
+		env,
+	);
+	assert.deepEqual(profile.roles, {
+		default: { model: "gpt-6-luna", effort: "high" },
+	});
+	assert.match(profile.notice, /model "gpt-6\.1-sol" is not offered here/);
 });
 
 test("claude: an unlisted preset model falls back to settings.json; an effort outside the vocabulary is dropped", async () => {
@@ -247,11 +272,11 @@ test("resolve with a saved profile: overlay on the preset or on the fallback (no
 	assert.deepEqual(
 		policy.resolveExecutorDefaultProfile(
 			"codex",
-			[presets.PRESET_CODEX_MODEL],
+			[presets.PRESET_CODEX_MODEL, presets.PRESET_CODEX_SOL_MODEL],
 			env,
 			saved,
 		).roles.planning,
-		{ model: presets.PRESET_CODEX_MODEL, effort: "xhigh" },
+		{ model: presets.PRESET_CODEX_SOL_MODEL, effort: "xhigh" },
 	);
 	const fallback = policy.resolveExecutorDefaultProfile(
 		"codex",

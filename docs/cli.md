@@ -136,7 +136,7 @@ These options also apply to `auto`.
 | Option | Meaning |
 |---|---|
 | `--executor <id>` | Executor for this run: `pi`, `codex`, `claude` (or a registered id). Highest precedence. |
-| `--profile <name>` | A profile the workflow declares (`executionProfiles`), else a saved user profile with that name, else a built-in preset (`codex`, `claude`, `pi`, `mixed`). Without it: the workflow's saved preference profile, if any. |
+| `--profile <name>` | A profile the workflow declares (`executionProfiles`), else a saved user profile with that name, else a built-in preset (`codex`, `codex-high`, `claude`, `mixed`). Without it: the workflow's saved preference profile, if any. |
 | `--permission-mode free\|safe` | Approvals and sandbox (`docs/usage.md#permission-modes`). Default `free`. |
 | `--allow-unverified <a,b>` | Accept these `unverified` executor capabilities, e.g. `contextIsolation`. |
 | `--model <id>` | Model override for every stage. |
@@ -256,9 +256,9 @@ still win; `--model`/`--effort` override everything).
 ### Roles and presets
 
 ```sh
-agent-workflow profile presets                         # codex, claude, pi, mixed and their role tables
+agent-workflow profile presets                         # codex, codex-high, claude, mixed and their role tables
 agent-workflow profile set team --preset mixed --default
-agent-workflow profile set team --role verification=codex:gpt-5.6-luna:high
+agent-workflow profile set team --role verification=codex:gpt-6-luna:high
 agent-workflow profile set team --role synthesis=:haiku   # model only (executor from other layers)
 agent-workflow profile set team --unset roles.synthesis
 ```
@@ -288,7 +288,7 @@ shows and edits them; `doctor` reports what each one resolves to on this machine
 
 ```sh
 agent-workflow profile workflow set deep-research --profile mixed \
-  --role verification=codex:gpt-5.6-luna:high
+  --role verification=codex:gpt-6-luna:high
 agent-workflow profile workflow show deep-research
 agent-workflow profile workflow set deep-research --unset roles.verification
 agent-workflow profile workflow clear deep-research

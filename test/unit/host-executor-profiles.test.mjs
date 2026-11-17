@@ -152,19 +152,20 @@ async function runOn(ctx, request) {
 }
 
 const LUNA = presets.PRESET_CODEX_MODEL;
+const SOL = presets.PRESET_CODEX_SOL_MODEL;
 
 test("without a saved profile codex stages run the built-in default profile", async () => {
 	const logs = executors();
 	const { ctx, cwd } = await project();
 	const runId = await runOn(ctx, { executor: "codex" });
 	assert.deepEqual(await sent(cwd, runId, logs.codex), {
-		plan: { model: LUNA, effort: "high" },
+		plan: { model: SOL, effort: "high" },
 		check: { model: LUNA, effort: "high" },
 		note: { model: LUNA, effort: "medium" },
 	});
 	const run = await store.readRunRecord(cwd, runId);
 	assert.deepEqual(run.executorDefaults.codex.planning, {
-		model: LUNA,
+		model: SOL,
 		effort: "high",
 	});
 });
@@ -181,19 +182,19 @@ test("a saved codex profile changes only what it sets, on top of the built-in on
 	});
 	const runId = await runOn(ctx, { executor: "codex" });
 	assert.deepEqual(await sent(cwd, runId, logs.codex), {
-		plan: { model: LUNA, effort: "xhigh" },
+		plan: { model: SOL, effort: "xhigh" },
 		check: { model: "gpt-6.1-sol", effort: "high" },
 		note: { model: LUNA, effort: "medium" },
 	});
 	const run = await store.readRunRecord(cwd, runId);
 	assert.deepEqual(run.executorDefaults.codex.planning, {
-		model: LUNA,
+		model: SOL,
 		effort: "xhigh",
 	});
 	// The claude entry does not reach codex stages.
 	assert.deepEqual(run.executorDefaults.codex.synthesis, {
 		model: LUNA,
-		effort: "medium",
+		effort: "high",
 	});
 });
 
@@ -231,7 +232,7 @@ test("profile show reports the built-in profile, then the built-in one with the 
 	const { ctx } = await project();
 	const builtIn = await api.profileAction(ctx, { op: "show", name: "codex" });
 	assert.equal(builtIn.data.builtIn, true);
-	assert.equal(builtIn.data.profile.roles.planning.model, LUNA);
+	assert.equal(builtIn.data.profile.roles.planning.model, SOL);
 	assert.match(
 		builtIn.text,
 		/built-in default profile of codex stages; not saved/,
@@ -254,7 +255,7 @@ test("profile show reports the built-in profile, then the built-in one with the 
 	});
 	assert.deepEqual(changed.data.effective.roles.planning, {
 		executor: "codex",
-		model: LUNA,
+		model: SOL,
 		effort: "xhigh",
 	});
 	assert.match(changed.text, /^codex \(default profile of codex stages\)/);

@@ -8959,6 +8959,16 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	}
 	let metadata = loaded;
 	const draft = settingsDraft(host, () => intent);
+	let presets = [];
+	try {
+		presets = (await managementApi("/api/profiles/presets")).data.presets;
+	} catch (failure) {
+		failPresetLoad(failure);
+	}
+	function failPresetLoad(failure) {
+		error.hidden = false;
+		error.textContent = `Presets unavailable: ${failure.message}. Manual editing remains available.`;
+	}
 	let inventory;
 	try {
 		inventory = (await managementApi("/api/executors/models")).data;
@@ -9057,6 +9067,55 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		}
 		changed();
 	}
+	// Build ordinary project intent from the server's role addresses, never task names.
+	// A dynamic binding's executor is a compatibility namespace, not an executor pin.
+	function presetIntent(preset) {
+		const defaults = copy(preset.roles.default);
+		const slots = {};
+		for (const slot of metadata.editableSlots) {
+			const keys = own(metadata.slotRoleKeys, slot.id) || [];
+			const key = keys.find((key) => Object.hasOwn(preset.roles, key));
+			const value = copy(key ? preset.roles[key] : defaults);
+			if (slot.kind === "dynamic-profile") {
+				const parent = metadata.authored.find(
+					(node) => node.id === slot.id,
+				)?.parentId;
+				const executor = own(slots, parent)?.executor || defaults.executor;
+				// Incompatible models cannot be rebound across executors. Inherit the
+				// actual parent instead, just as manual template editing requires.
+				if (value.executor !== executor) continue;
+			}
+			if (draftSnapshot(value) !== draftSnapshot(defaults))
+				put(slots, slot.id, value);
+		}
+		return { defaults, ...(Object.keys(slots).length ? { slots } : {}) };
+	}
+	const presetControl = choices("Preset", [
+		["", "Custom"],
+		...presets.map((preset) => preset.id),
+	]);
+	const refreshPreset = () => {
+		presetControl.disabled = readonly() || !presets.length;
+		presetControl.value =
+			presets.find(
+				(preset) =>
+					draftSnapshot(intent) === draftSnapshot(presetIntent(preset)),
+			)?.id || "";
+	};
+	presetControl.addEventListener("change", () => {
+		if (readonly()) return;
+		const preset = presets.find((preset) => preset.id === presetControl.value);
+		if (!preset) {
+			// Custom is derived, not a stored profile or destructive reset.
+			refreshPreset();
+			return;
+		}
+		const focused = document.activeElement === presetControl;
+		intent = presetIntent(preset);
+		changed();
+		renderFields();
+		if (focused) presetControl.focus({ preventScroll: true });
+	});
 	function sourceText(value, field, full = false) {
 		if (!value) return "";
 		const actual =
@@ -9270,6 +9329,8 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	}
 	function renderFields() {
 		refreshers.clear();
+		refreshers.add(refreshPreset);
+		refreshPreset();
 		common.hidden = selection !== null;
 		panel.hidden = selection === null;
 		common.replaceChildren(
@@ -9278,6 +9339,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				{ "data-testid": "all-tasks-title", tabindex: "-1" },
 				"All tasks",
 			),
+			field("Preset", presetControl),
 			controls(null),
 		);
 		const selected = metadata.authored.find((node) => node.id === selection);

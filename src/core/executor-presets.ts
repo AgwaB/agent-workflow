@@ -1,24 +1,23 @@
-// New in agent-workflow (WP31 item 3, owner decisions B2/E4): built-in executor presets. A preset is
-// a ready-made role profile (role-profiles.ts): a run executor plus role → executor/model/effort.
-// Model ids are names the adapters' CLIs already accept (Codex `codex debug models` slugs, Claude
-// Code model aliases); Pi model ids depend on the user's Pi providers, so the `pi` preset leaves the
-// model to Pi's own default. Defaults are conservative: one mid-size model per executor, effort
-// `high` only for planning, verification and final judgment.
-//   codex  every role on codex (gpt-5.6-luna)
-//   claude every role on claude (sonnet)
-//   pi     every role on pi (Pi's configured default model)
-//   mixed  planning, synthesis and final judgment on claude (sonnet); research/implementation
-//          (`research-execution`) on codex (gpt-5.6-luna); verification on claude, a different
-//          model family from the codex workers whose findings it checks (E4).
-// `agent-workflow profile set <name> --preset <id>` saves one as a user profile; `--profile <id>`
-// selects one directly when no declared or saved profile has that name.
-import type { EffortLevel, WorkflowRoleMap } from "./types.js";
+// Built-in role profiles. These are native executor model ids, not provider-qualified Pi ids.
+// `default` and the run executor follow research-execution. A preset is a value table, not a
+// compatibility layer; choosing one never imports or migrates another product's settings.
+import type {
+	EffortLevel,
+	WorkflowRoleAssignment,
+	WorkflowRoleMap,
+} from "./types.js";
 
-export const EXECUTOR_PRESET_IDS = ["codex", "claude", "pi", "mixed"] as const;
+export const EXECUTOR_PRESET_IDS = [
+	"codex",
+	"codex-high",
+	"claude",
+	"mixed",
+] as const;
 export type ExecutorPresetId = (typeof EXECUTOR_PRESET_IDS)[number];
 
-export const PRESET_CODEX_MODEL = "gpt-5.6-luna";
-export const PRESET_CLAUDE_MODEL = "sonnet";
+export const PRESET_CODEX_MODEL = "gpt-6-luna";
+export const PRESET_CODEX_SOL_MODEL = "gpt-6.1-sol";
+export const PRESET_CLAUDE_MODEL = "claude-opus-5-5";
 
 export interface ExecutorPreset {
 	id: ExecutorPresetId;
@@ -28,58 +27,59 @@ export interface ExecutorPreset {
 	roles: WorkflowRoleMap;
 }
 
-const EFFORT: Record<string, EffortLevel> = {
-	default: "medium",
-	planning: "high",
-	"research-execution": "medium",
-	synthesis: "medium",
-	verification: "high",
-	"final-judgment": "high",
-};
-
-function allOn(executor: string, model?: string): WorkflowRoleMap {
-	return Object.fromEntries(
-		Object.entries(EFFORT).map(([role, effort]) => [
-			role,
-			{ executor, ...(model === undefined ? {} : { model }), effort },
-		]),
-	);
+function runtime(model: string, effort: EffortLevel): WorkflowRoleAssignment {
+	return {
+		executor: model === PRESET_CLAUDE_MODEL ? "claude" : "codex",
+		model,
+		effort,
+	};
 }
-
-const PRESETS: Record<ExecutorPresetId, () => ExecutorPreset> = {
-	codex: () => ({
-		id: "codex",
-		description: `every role on codex (${PRESET_CODEX_MODEL})`,
-		executor: "codex",
-		roles: allOn("codex", PRESET_CODEX_MODEL),
-	}),
-	claude: () => ({
-		id: "claude",
-		description: `every role on claude (${PRESET_CLAUDE_MODEL})`,
-		executor: "claude",
-		roles: allOn("claude", PRESET_CLAUDE_MODEL),
-	}),
-	pi: () => ({
-		id: "pi",
-		description: "every role on pi (Pi's configured default model)",
-		executor: "pi",
-		roles: allOn("pi"),
-	}),
-	mixed: () => {
-		const claude = allOn("claude", PRESET_CLAUDE_MODEL);
-		return {
-			id: "mixed",
-			description: `planning, synthesis, verification and final judgment on claude (${PRESET_CLAUDE_MODEL}); research/implementation on codex (${PRESET_CODEX_MODEL})`,
-			executor: "claude",
-			roles: {
-				...claude,
-				"research-execution": {
-					executor: "codex",
-					model: PRESET_CODEX_MODEL,
-					effort: EFFORT["research-execution"]!,
-				},
-			},
-		};
+const sol = (effort: EffortLevel) => runtime(PRESET_CODEX_SOL_MODEL, effort);
+const luna = (effort: EffortLevel) => runtime(PRESET_CODEX_MODEL, effort);
+const opus = (effort: EffortLevel) => runtime(PRESET_CLAUDE_MODEL, effort);
+const PRESETS: Record<
+	ExecutorPresetId,
+	{ description: string; roles: WorkflowRoleMap }
+> = {
+	codex: {
+		description: `every role on codex (planning/final judgment: ${PRESET_CODEX_SOL_MODEL}; research, synthesis and verification: ${PRESET_CODEX_MODEL})`,
+		roles: {
+			planning: sol("high"),
+			"research-execution": luna("medium"),
+			synthesis: luna("high"),
+			verification: luna("high"),
+			"final-judgment": sol("xhigh"),
+		},
+	},
+	"codex-high": {
+		description: `every role on codex (${PRESET_CODEX_SOL_MODEL}; research: high, planning/synthesis/final judgment: xhigh, verification: max)`,
+		roles: {
+			planning: sol("xhigh"),
+			"research-execution": sol("high"),
+			synthesis: sol("xhigh"),
+			verification: sol("max"),
+			"final-judgment": sol("xhigh"),
+		},
+	},
+	claude: {
+		description: `every role on claude (${PRESET_CLAUDE_MODEL}; research: medium, other roles: high)`,
+		roles: {
+			planning: opus("high"),
+			"research-execution": opus("medium"),
+			synthesis: opus("high"),
+			verification: opus("high"),
+			"final-judgment": opus("high"),
+		},
+	},
+	mixed: {
+		description: `planning, synthesis and final judgment on claude (${PRESET_CLAUDE_MODEL}, high); research/implementation and verification on codex (${PRESET_CODEX_MODEL}, medium/high)`,
+		roles: {
+			planning: opus("high"),
+			"research-execution": luna("medium"),
+			synthesis: opus("high"),
+			verification: luna("high"),
+			"final-judgment": opus("high"),
+		},
 	},
 };
 
@@ -96,5 +96,17 @@ export function executorPreset(id: string): ExecutorPreset {
 		throw new Error(
 			`unknown preset "${id}"; built-in presets: ${EXECUTOR_PRESET_IDS.join(", ")}`,
 		);
-	return PRESETS[id]();
+	const { description, roles } = PRESETS[id];
+	const defaults = roles["research-execution"]!;
+	return {
+		id,
+		description,
+		executor: defaults.executor!,
+		roles: Object.fromEntries(
+			Object.entries({ default: defaults, ...roles }).map(([role, value]) => [
+				role,
+				{ ...value },
+			]),
+		),
+	};
 }

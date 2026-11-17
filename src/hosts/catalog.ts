@@ -500,7 +500,7 @@ export type ProfileRequest =
 			values?: Record<string, unknown>;
 			unset?: string[];
 			makeDefault?: boolean;
-			/** WP31: start from a built-in preset (codex, claude, pi, mixed). */
+			/** Start from a built-in preset (codex, codex-high, claude, mixed). */
 			preset?: string;
 	  }
 	/** WP31: the built-in executor presets and their role tables. */
@@ -559,7 +559,13 @@ export function executorDefaultProfileInfo(
 			? saved
 				? `your changes on top of ${id}'s own model and effort${id === "pi" ? " (in Pi: its current ones)" : ""}; profile delete ${id} restores them`
 				: `${id}'s own model and effort${id === "pi" ? " (in Pi: its current ones)" : ""}`
-			: `${saved ? `built-in with your changes; profile delete ${id} restores the built-in one` : "built-in"}; fields you do not set fall back to your own ${id} settings when ${id} does not offer ${executorPreset(preset).roles.default?.model ?? "the preset model"}`;
+			: `${saved ? `built-in with your changes; profile delete ${id} restores the built-in one` : "built-in"}; fields you do not set fall back to your own ${id} settings when ${id} does not offer every preset model (${[
+					...new Set(
+						Object.values(executorPreset(preset).roles)
+							.map((role) => role.model)
+							.filter(Boolean),
+					),
+				].join(", ")})`;
 	return {
 		executor: id,
 		saved: saved !== undefined,
@@ -623,7 +629,7 @@ function builtInExecutorProfile(
 					...formatRoleMapLines(executorPreset(preset).roles).map(
 						(line) => `    ${line}`,
 					),
-					`When ${id} does not offer this model, every ${id} stage uses your own ${id} model and effort instead.`,
+					`When ${id} does not offer every preset model, every ${id} stage uses your own ${id} model and effort instead.`,
 					edit,
 				];
 	return result("profile", "success", data, text.join("\n"));

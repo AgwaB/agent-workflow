@@ -8,7 +8,7 @@ import { type HostResult, result } from "./types.js";
 const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, codex, claude, antigravity; run flag beats profiles;
                                default: first installed and logged-in of pi, claude, codex)
   --profile <name>             workflow-declared execution profile, else a saved user profile,
-                               else a built-in preset (codex, claude, pi, mixed)
+                               else a built-in preset (codex, codex-high, claude, mixed)
   --permission-mode free|safe  approvals/sandbox mode (default free; see docs/usage.md#permission-modes)
   --allow-unverified <a,b>     accept these unverified executor capabilities (B4 opt-in)
   --model <id>                 model override for every stage
@@ -63,7 +63,7 @@ backup. Unsafe/unreadable, invalid UTF-8 and oversized originals refuse recovery
 Shared profiles/preferences and existing Run Resume are unchanged. No replacement intent or path accepted.`,
 	profile: `Usage: agent-workflow profile list [--json]
        agent-workflow profile show [<name>] [--json]
-       agent-workflow profile set <name> [--preset codex|claude|pi|mixed] [--executor <id>]
+       agent-workflow profile set <name> [--preset codex|codex-high|claude|mixed] [--executor <id>]
                                   [--model <id>] [--effort <level>]
                                   [--role <role>=<executor>[:<model>[:<effort>]]]...
                                   [--permission-mode free|safe] [--strict-capabilities <a,b>]

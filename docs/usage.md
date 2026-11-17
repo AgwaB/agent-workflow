@@ -81,7 +81,15 @@ saving or executing. **Save** and **Discard changes** sit in the sticky title ro
 complete snapshot; newer edits during Save remain unsaved and refresh with the returned revision.
 Discard changes confirms a dirty discard and reloads saved settings; it does not delete them.
 Calculation failures retain the draft and offer contextual Retry without an automatic retry loop.
-The default **All tasks** panel edits workflow defaults. Selecting a graph task shows **Use All tasks settings** or **Custom for this task**; fields appear only for Custom. Custom captures the current resolved values without changing the result. Returning to All tasks settings removes only that task binding in the draft. **← All tasks** and Escape return to the defaults panel.
+The default **All tasks** panel edits workflow defaults. Its native **Preset** select offers
+**Custom**, **codex**, **codex-high**, **claude** and **mixed**. Selecting a preset replaces the entire
+draft: defaults use its `default` role, while authored slots get role-specific bindings only when
+they differ. Role addresses come from the server, not task names; unknown roles keep defaults.
+Dynamic templates cannot pin another executor: incompatible role models are omitted and inherit
+from their actual controller. Every field remains manually editable. The select shows a preset
+only while the complete draft exactly matches its fill (also on reload); otherwise **Custom**.
+The name is not stored. Nothing is persisted until Save; Discard restores the saved intent.
+Selecting a graph task shows **Use All tasks settings** or **Custom for this task**; fields appear only for Custom. Custom captures the current resolved values without changing the result. Returning to All tasks settings removes only that task binding in the draft. **← All tasks** and Escape return to the defaults panel.
 Model is a selection-only dropdown that retains saved unlisted IDs on load, including on inventory failure; new arbitrary IDs remain supported through CLI/API and Pi's profile picker. Explicit executor changes clear a model only when the new executor's complete, available inventory excludes it, with a short inline note. Partial/unavailable inventories and listed models retain it.
 **Use baseline settings** in Model/Effort unsets only that field, keeping the executor and sibling values.
 Executor offers explicit IDs only and never pins a baseline just by opening the editor. Graph nodes show the current **model · effort** and a **Custom** marker for task bindings; stale values disappear until recalculated. Detailed lineage stays in the task panel. The title has one muted description line; About, routing tables and Workflow diagnostics (including launch Check, Source, Resolved spec and roles) are not on this page. Real spec problems remain visible. CLI/API Check is unchanged. Saves fence epoch, entry revision, definition fingerprint and alias resolution;
@@ -478,9 +486,9 @@ run's executor (`run.executor`) when nothing higher names one.
   "executionProfiles": { "mixed": {} },
   "executionProfileRoles": {
     "mixed": {
-      "default": { "executor": "claude", "model": "sonnet", "effort": "medium" },
-      "research-execution": { "executor": "codex", "model": "gpt-5.6-luna" },
-      "verification": { "executor": "claude", "effort": "high" }
+      "default": { "executor": "codex", "model": "gpt-6-luna", "effort": "medium" },
+      "planning": { "executor": "claude", "model": "claude-opus-5-5", "effort": "high" },
+      "verification": { "executor": "codex", "effort": "high" }
     }
   }
 }
@@ -488,7 +496,7 @@ run's executor (`run.executor`) when nothing higher names one.
 
 ```sh
 agent-workflow profile set team --preset mixed --default
-agent-workflow profile set team --role verification=codex:gpt-5.6-luna:high
+agent-workflow profile set team --role verification=codex:gpt-6-luna:high
 agent-workflow profile workflow set deep-research --profile team --role synthesis=::high
 ```
 
@@ -505,7 +513,7 @@ agent-workflow profile workflow set deep-research --profile team --role synthesi
 The highest layer that has a value for a stage wins that field. A role entry's model and effort
 apply only when the stage runs on that entry's executor (or the entry names none): a model id belongs
 to its executor, so `--executor codex` with a profile whose `verification` entry is
-`claude:sonnet` runs verification on codex with codex's model. Dynamic decision-loop slots
+`claude:claude-opus-5-5` runs verification on codex with codex's model. Dynamic decision-loop slots
 (`$planner`, `$verifier`, …) and the workers a dynamic stage generates run on the dynamic stage's
 executor (a note says so when a role asked for another one). Nested workflow runs keep their
 parent's executor.
@@ -526,21 +534,24 @@ profile has that name, or `profile set <name> --preset <preset>`):
 
 | Preset | Run executor | Roles |
 |---|---|---|
-| `codex` | codex | every role codex `gpt-5.6-luna` |
-| `claude` | claude | every role claude `sonnet` |
-| `pi` | pi | every role pi, Pi's configured default model |
-| `mixed` | claude | planning, synthesis, verification, final-judgment: claude `sonnet`; research/implementation (`research-execution`): codex `gpt-5.6-luna` |
+| `codex` | codex | planning: SOL/high; research: LUNA/medium; synthesis and verification: LUNA/high; final-judgment: SOL/xhigh |
+| `codex-high` | codex | all SOL: research/high; planning, synthesis and final-judgment/xhigh; verification/max |
+| `claude` | claude | all OPUS: research/medium; other roles/high |
+| `mixed` | codex | planning, synthesis and final-judgment: OPUS/high; research: LUNA/medium; verification: LUNA/high |
 
-Efforts in every preset: `high` for planning, verification and final judgment, `medium` otherwise.
-In `mixed`, verification runs on a different model family from the codex workers whose findings it
-checks. Preset models are names the CLIs accept today; if your account lacks
-one, override the role (`--role research-execution=codex:<model>`) or use `--model`.
+SOL = codex `gpt-6.1-sol`, LUNA = codex `gpt-6-luna`, OPUS = claude `claude-opus-5-5`.
+Research means `research-execution`; the extra `default` role exactly equals that entry, including
+its executor (also the run executor). Preset efforts are requested values; executor/model negotiation
+still applies. If your account lacks a model, override the role or use `--model`.
+There is no built-in `pi` preset. `--profile pi` still selects a workflow-declared `pi` profile first,
+then a saved user profile named `pi` (Pi has no built-in model table); without either it is an
+unknown profile. To run Pi without a named profile, use `--executor pi`.
 
 **Executor default profiles.** A stage on codex or claude that no layer above gives a model or
 effort takes it from the executor's preset (`codex` or `claude` above): the lowest layer, below
 the stage, its agent, workflow defaults, host defaults, every profile and `--model`. When the
-executor's probe lists models but not the preset's, every such stage instead uses your own CLI
-settings and the preview says so (`Notice: codex default profile: model "gpt-5.6-luna" is not
+executor's probe lists models but omits any model used by the preset, every such stage instead uses your own CLI
+settings and the preview says so (`Notice: codex default profile: model "gpt-6-luna" is not
 offered here; …`):
 
 | Executor | Read from | Fields |
