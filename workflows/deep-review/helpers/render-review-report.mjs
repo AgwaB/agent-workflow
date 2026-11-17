@@ -1145,6 +1145,11 @@ function renderFindingCard(finding) {
 		...(finding.verdict && finding.verdict !== "KEEP"
 			? [`Verifier verdict: **${escapeMarkdownText(finding.verdict)}**  `]
 			: []),
+		...(finding.verdict === "NEEDS_HUMAN" && cleanText(finding.needsHumanCause)
+			? [
+					`Needs-human cause: ${needsHumanCauseCode(cleanText(finding.needsHumanCause))} — ${escapeMarkdownText(needsHumanCauseLabel(cleanText(finding.needsHumanCause)))}  `,
+				]
+			: []),
 		"",
 		...renderLocationsTable(locations),
 		...renderEvidenceQuotes(reviewerQuotes, "Reviewer/source evidence"),
@@ -1213,11 +1218,52 @@ function renderDropped(partition) {
 	return { lines: out, representedIds };
 }
 
+const NEEDS_HUMAN_CAUSE_LABELS = {
+	verifier_missing: "verifier never returned a verdict (not reviewed)",
+	verifier_output_invalid: "verifier output malformed or duplicated (not reviewed)",
+	verifier_evidence_ungrounded: "verifier evidence not grounded in the source",
+	source_coverage_incomplete: "originating reviewer did not complete source coverage",
+	batch_evidence_demoted: "batched verdict demoted for weak evidence",
+	evidence_insufficient: "verdict lacked required evidence",
+	coverage_gap: "planned review coverage is missing",
+	support_unassociated: "support-only finding with no proven root",
+	verifier_needs_human: "verifier judged it ambiguous",
+};
+
+function needsHumanCauseCode(cause) {
+	return /^[a-z_]+$/u.test(cause) ? `\`${cause}\`` : inlineCode(cause);
+}
+
+function needsHumanCauseLabel(cause) {
+	return NEEDS_HUMAN_CAUSE_LABELS[cause] ?? "cause not recorded";
+}
+
+function renderNeedsHumanBreakdown(items) {
+	const counts = new Map();
+	for (const item of items) {
+		const cause = cleanText(item?.needsHumanCause) || "unspecified";
+		counts.set(cause, (counts.get(cause) ?? 0) + 1);
+	}
+	if (counts.size === 0 || (counts.size === 1 && counts.has("unspecified"))) {
+		return [];
+	}
+	return [
+		"Causes:",
+		"",
+		...[...counts].map(
+			([cause, count]) =>
+				`- ${count} × ${needsHumanCauseCode(cause)} — ${needsHumanCauseLabel(cause)}`,
+		),
+		"",
+	];
+}
+
 function renderNeedsHuman(partition) {
 	const ledger = partition?.partitions ?? partition?.reportContext;
 	const items = asArray(ledger?.needsHuman);
 	if (items.length === 0) return { lines: [], representedIds: [] };
 	const out = ["## Needs human review", ""];
+	out.push(...renderNeedsHumanBreakdown(items));
 	const representedIds = [];
 	for (const [index, raw] of items.entries()) {
 		const finding = normalizeFinding(raw, index, "NEEDS_HUMAN");
