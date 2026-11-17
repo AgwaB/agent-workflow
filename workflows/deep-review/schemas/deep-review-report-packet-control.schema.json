@@ -38,6 +38,9 @@
     "partitionSummary": {
       "type": "object"
     },
+    "integrityPreview": {
+      "type": "object"
+    },
     "sourceStatusSummary": {
       "type": "object"
     },
