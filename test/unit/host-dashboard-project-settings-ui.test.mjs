@@ -133,6 +133,22 @@ async function select(p, id) {
 	}, id);
 	await p.browser.key("Enter");
 }
+// Code steps start hidden (2026-11-18, owner); tests that walk every authored node show them first.
+async function showCodeSteps(p) {
+	const shown = await p.browser.evaluate(() =>
+		document
+			.querySelector(".profile-flow .code-switch")
+			?.textContent.includes("shown"),
+	);
+	if (!shown) {
+		await p.browser.click(".profile-flow .code-switch");
+		await p.browser.waitFor(() =>
+			document
+				.querySelector(".profile-flow .code-switch")
+				?.textContent.includes("shown"),
+		);
+	}
+}
 const graphIds = (p) =>
 	p.browser.evaluate(() =>
 		[
@@ -1984,6 +2000,7 @@ for (const width of [970, 1476])
 		});
 		await load(p);
 		await settled(p);
+		await showCodeSteps(p);
 		// The graph fits in the first frame after its draw (app.js resize()); sample the camera after it.
 		await p.browser.evaluate(
 			() =>
@@ -2101,6 +2118,7 @@ test("canonical editor: expanded nested/foreach/dynamic slots, exact header and 
 	const p = await open(t);
 	await load(p);
 	await settled(p);
+	await showCodeSteps(p);
 	const authored = (await p.http(p.path)).data.authored;
 	assert.ok(authored.some((node) => node.id === "nested.check"));
 	for (const node of authored) {
@@ -2934,3 +2952,33 @@ for (const width of [390, 970, 1476]) {
 		assert.deepEqual(await boxes(), beforeSave, "save alert moved controls");
 	});
 }
+
+test("code steps: hidden by default, toggled with the Run graph's glide and remembered", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	const state = () =>
+		p.browser.evaluate(() => ({
+			label: document.querySelector(".profile-flow .code-switch").textContent,
+			code: !!document.querySelector('.profile-flow [data-stage="record"]'),
+		}));
+	assert.match((await state()).label, /hidden/);
+	assert.equal((await state()).code, false);
+	const animations = await p.browser.evaluate(async () => {
+		document.querySelector(".profile-flow .code-switch").click();
+		await new Promise((done) =>
+			requestAnimationFrame(() => requestAnimationFrame(done)),
+		);
+		return document.getAnimations().length;
+	});
+	assert.ok(animations > 0, "the graph glides instead of jumping");
+	assert.equal((await state()).code, true);
+	assert.equal(
+		await p.browser.evaluate(() =>
+			localStorage.getItem("agent-workflow:code-steps"),
+		),
+		"shown",
+	);
+});

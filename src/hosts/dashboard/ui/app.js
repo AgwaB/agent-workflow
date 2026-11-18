@@ -3442,8 +3442,7 @@ function exitCopy(element) {
 	return copy;
 }
 /** Card boxes and edge paths of the drawn graph (user units), for a morphing redraw. */
-function graphGeometry() {
-	const canvas = $("canvas");
+function graphGeometry(canvas = $("canvas")) {
 	if (!canvas) return null;
 	const nodes = new Map(),
 		edges = new Map();
@@ -9273,8 +9272,15 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		preview,
 		previewGeneration = -1,
 		controller;
+	// Code steps follow the same remembered switch as the Run graph: hidden unless shown (2026-11-18, owner).
 	let layout = "td",
-		showCode = true,
+		showCode = (() => {
+			try {
+				return localStorage.getItem(CODE_KEY) === "shown";
+			} catch {
+				return false;
+			}
+		})(),
 		calculationQueued = false,
 		attemptedGeneration = -1,
 		feedback = "";
@@ -9938,8 +9944,18 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					controller = value;
 				},
 				toggleCode: () => {
+					// Same glide as the Run graph: cards move, leaving ones fade, the view follows.
+					const previous = graphGeometry(
+						graphHost.querySelector(".profile-flow-canvas"),
+					);
 					showCode = !showCode;
+					try {
+						if (showCode) localStorage.setItem(CODE_KEY, "shown");
+						else localStorage.removeItem(CODE_KEY);
+					} catch {}
 					draw();
+					if (previous) controller?.morph(previous);
+					graphHost.querySelector(".code-switch")?.focus();
 				},
 				controls: () => [
 					layoutSwitch(layout, (value) => {
