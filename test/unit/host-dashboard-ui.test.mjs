@@ -652,7 +652,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		{
 			cards: 1,
 			status: "failed",
-			title: "4 in parallel",
+			title: "Parallel",
 			rows: [
 				"extract-requirements:completed",
 				"map-implementation:failed",
@@ -1151,7 +1151,7 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		{
 			cards: [
 				"impact.scope:completed:Scope",
-				"__group_0:running:2 in parallel",
+				"__group_0:running:Parallel",
 				"impact.synthesis:pending:Synthesis",
 			],
 			rows: ["Api", "Data"],
@@ -2259,12 +2259,17 @@ test("dashboard Chrome: project overview, explicit selection, keyboard-labelled 
 		),
 		2,
 	);
-	assert.ok(
-		await browser.evaluate(() =>
-			document
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			missing: document
 				.querySelector(".projects-overview")
-				.textContent.includes("path missing"),
-		),
+				.textContent.includes("Folder missing"),
+			path: /~\/|\/Users\/|\/tmp\//.test(
+				document.querySelector(".projects-overview").textContent,
+			),
+		})),
+		{ missing: true, path: false },
+		"a missing folder is stated without showing any path",
 	);
 	assert.equal(
 		fixture.requests.some(

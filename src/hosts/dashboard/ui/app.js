@@ -262,6 +262,21 @@ function themeButton() {
 	});
 }
 const date = (value) => Date.parse(value) || 0;
+/** A readable local time with the exact recorded timestamp on hover. */
+const when = (value) =>
+	date(value)
+		? element(
+				"time",
+				{ datetime: value, title: value },
+				new Date(date(value)).toLocaleString(undefined, {
+					month: "short",
+					day: "numeric",
+					hour: "2-digit",
+					minute: "2-digit",
+					second: "2-digit",
+				}),
+			)
+		: value;
 let clockOffset = 0;
 const now = () => Date.now() + clockOffset;
 function syncClock(value) {
@@ -400,14 +415,13 @@ function taskLine(task) {
 }
 const cost = (usage) =>
 	usage?.costUsd == null ? "Not collected" : formatUsd(usage.costUsd);
-function readState() {
-	const params = new URLSearchParams(location.search);
+function readState(href = location.href) {
+	const params = new URL(href, location.href).searchParams;
 	// Keep old bookmarks useful, without retaining a Profiles route or editor state.
 	if (params.get("view") === "profiles") {
 		params.set("view", "executors");
 		params.delete("profile");
 		params.delete("createProfile");
-		history.replaceState(history.state, "", `${location.pathname}?${params}`);
 	}
 	const choice = (key, values) =>
 		values.includes(params.get(key)) ? params.get(key) : null;
@@ -470,7 +484,7 @@ let reportGeneration = 0,
 	noticeTimer;
 const stoppingRuns = new Set();
 const readonly = () => session?.mode === "read-only";
-function urlState(replace = false) {
+function urlState(replace = false, hash = location.hash) {
 	const params = new URLSearchParams();
 	for (const [key, value] of Object.entries(state))
 		if (
@@ -485,8 +499,9 @@ function urlState(replace = false) {
 	history[replace ? "replaceState" : "pushState"](
 		settingsHistoryState(replace ? history.state : null, replace),
 		"",
-		`${location.pathname}${params.size ? `?${params}` : ""}`,
+		`${location.pathname}${params.size ? `?${params}` : ""}${hash}`,
 	);
+	settingsHistoryIndex = currentSettingsHistoryIndex();
 	syncTitle();
 }
 /** 2026-11-12 (review, P3-8): each history entry reads differently ("Report · deep-review · my-service"). */
@@ -598,6 +613,21 @@ async function copy(text) {
 	}
 }
 function go(patch, replace = false) {
+	if (managementView()) {
+		return navigateDashboard(
+			{
+				...state,
+				task: null,
+				stage: null,
+				tab: null,
+				view: null,
+				dialog: null,
+				workflow: null,
+				...patch,
+			},
+			{ replace },
+		);
+	}
 	const wasReport = state.view === "report";
 	const switching = patch.run && patch.run !== state.run;
 	if (switching)
@@ -616,7 +646,7 @@ function go(patch, replace = false) {
 	state = { ...state, ...patch };
 	urlState(replace);
 	if (railOpen) toggleRail(false);
-	if (switching) loadRun();
+	if (switching) loadRun(true);
 	// The report is a page: entering or leaving it redraws the whole centre.
 	else if (run && wasReport !== (state.view === "report")) renderRun();
 	else {
@@ -624,7 +654,167 @@ function go(patch, replace = false) {
 		renderModal();
 	}
 }
+// A route owns its asynchronous work. A later route invalidates every continuation.
+let navigationGeneration = 0;
+let centerTransition;
+function changeCenter(update, animate = false) {
+	centerTransition?.skipTransition();
+	if (!animate || reducedMotion()) {
+		update();
+		return Promise.resolve();
+	}
+	if (document.startViewTransition) {
+		const generation = navigationGeneration;
+		centerTransition = document.startViewTransition(() => {
+			if (generation === navigationGeneration) update();
+		});
+		centerTransition.ready.catch(() => {});
+		centerTransition.finished.catch(() => {});
+		return centerTransition.updateCallbackDone;
+	}
+	update();
+	$("center").animate([{ opacity: 0.65 }, { opacity: 1 }], {
+		duration: MOTION.fast,
+		easing: "ease-out",
+	});
+	return Promise.resolve();
+}
+async function navigateDashboard(
+	next,
+	{
+		replace = false,
+		traversal = false,
+		hash = traversal ? location.hash : "",
+	} = {},
+) {
+	if (!traversal && !discardSettingsDrafts()) return;
+	const generation = ++navigationGeneration;
+	const projectChanged = next.project !== state.project;
+	++loadGeneration;
+	selectionController?.abort();
+	stopTaskLoads();
+	stopEvents();
+	connection = "Reconnecting";
+	lastEvent = 0;
+	backoff = 1000;
+	managementCleanup();
+	managementCleanup = () => {};
+	settingsDrafts.clear();
+	graphControl?.destroy();
+	graphControl = null;
+	graphModel = null;
+	run = null;
+	workflowTarget = null;
+	if (modalKey) dismissDialog(false);
+	state = next;
+	if (state.project === "all") state.project = null;
+	if (state.project && !projects.some((p) => p.id === state.project)) {
+		state.project = null;
+		notice("This project is not registered. Showing all projects.");
+	}
+	if (!state.project) state.run = null;
+	if (projectChanged) {
+		runs = [];
+		noticeState = { acknowledged: new Set(), states: new Map() };
+		cleanup = {
+			key: "",
+			preview: null,
+			confirming: false,
+			message: "",
+			error: null,
+		};
+	}
+	initialLoads.clear();
+	if (!traversal) urlState(replace, hash);
+	else syncTitle();
+	$("inspector").hidden = true;
+	$("inspector").inert = true;
+	$("body").classList.remove("inspecting");
+	if (railOpen) toggleRail(false);
+	applyRail();
+	renderTop();
+	renderRail();
+	const center = $("center");
+	center.classList.add("switching");
+	center.inert = true;
+	const finish = beginLoading();
+	try {
+		if (managementView()) {
+			center.inert = false;
+			center.classList.remove("switching");
+			await renderManagement(false, true);
+			if (generation === navigationGeneration && state.project) connectEvents();
+		} else if (!state.project) await changeCenter(renderOverview, true);
+		else {
+			await refreshRuns(false);
+			if (generation !== navigationGeneration) return;
+			if (!state.run && state.view === "runs") {
+				state.run =
+					(
+						runs.find((r) => r.status === "running") ||
+						runs.find((r) => r.status !== "interrupted") ||
+						runs[0]
+					)?.runId || null;
+				urlState(true);
+			} else if (!state.run && state.view === "report") {
+				state.view = null;
+				urlState(true);
+			}
+			if (state.run) await loadRun(true);
+			else await changeCenter(showHome, true);
+		}
+		if (generation !== navigationGeneration) return;
+		center.scrollTop = 0;
+		for (const node of center.querySelectorAll(
+			".home-view, .management-page, .report-view, .report-scroll",
+		))
+			node.scrollTop = 0;
+		if (hash) {
+			let id = hash.slice(1);
+			try {
+				id = decodeURIComponent(id);
+			} catch {
+				/* Malformed fragments are literal IDs. */
+			}
+			document.getElementById(id)?.scrollIntoView({ block: "start" });
+		}
+		syncTitle();
+	} catch (error) {
+		if (generation !== navigationGeneration) return;
+		center.replaceChildren(
+			element(
+				"div",
+				{ class: "empty", role: "alert" },
+				`Dashboard unavailable: ${error.message}`,
+				button("Try again", () =>
+					navigateDashboard(state, { traversal: true }),
+				),
+			),
+		);
+	} finally {
+		finish();
+		if (generation === navigationGeneration) {
+			center.classList.remove("switching");
+			center.inert = false;
+		}
+	}
+}
+let topSignature = "";
 function renderTop() {
+	const signature = JSON.stringify([
+		state.project,
+		projects.map((p) => [p.id, p.name]),
+		visibleNeeds().length,
+		readonly(),
+		// Everything the bar renders must be here, or a change leaves it stale (e.g. the theme label).
+		themeOverride ?? themeChoice(),
+	]);
+	if (signature === topSignature) {
+		updateConnection();
+		syncTitle();
+		return;
+	}
+	topSignature = signature;
 	const focusedLabel = $("top").contains(document.activeElement)
 		? document.activeElement.getAttribute("aria-label")
 		: null;
@@ -673,13 +863,11 @@ function renderTop() {
 			? element("span", { class: "badge", id: "readonly-badge" }, "Read-only")
 			: null,
 		themeButton(),
-		managementView()
-			? null
-			: element("span", {
-					id: "connection",
-					class: "connection",
-					role: "status",
-				}),
+		element("span", {
+			id: "connection",
+			class: "connection",
+			role: "status",
+		}),
 	]);
 	applyRail();
 	updateConnection();
@@ -692,6 +880,8 @@ function renderTop() {
 function updateConnection() {
 	const el = $("connection");
 	if (!el) return;
+	el.hidden = managementView();
+	if (el.hidden) return;
 	const stale = lastEvent && Date.now() - lastEvent > 30000;
 	el.textContent =
 		connection === "Signed out"
@@ -813,8 +1003,10 @@ function allNeeds() {
 let noticeState = { acknowledged: new Set(), states: new Map() };
 async function refreshNotices() {
 	if (!state.project || state.project === "all") return;
+	const project = state.project;
 	try {
 		const listed = (await api(projectRoute("notices"))).data;
+		if (state.project !== project) return;
 		noticeState = {
 			acknowledged: new Set(
 				(listed.acknowledgements || [])
@@ -979,7 +1171,50 @@ function railNeed(need, alone = false) {
 			: null,
 	);
 }
+function syncRailNavigation() {
+	for (const link of $("rail").querySelectorAll(".management-nav a")) {
+		const view = new URLSearchParams(link.search).get("view");
+		const current = managementView()
+			? state.view === view
+			: !view
+				? !state.run && state.view !== "runs"
+				: view === "runs" && (Boolean(state.run) || state.view === "runs");
+		if (current) link.setAttribute("aria-current", "page");
+		else link.removeAttribute("aria-current");
+	}
+}
+let railSignature = "";
 function renderRail() {
+	const compact = managementView() || homeShown();
+	const signature = JSON.stringify([
+		state.project,
+		projects.map((p) => [p.id, p.name]),
+		compact,
+		compact
+			? null
+			: [
+					runs,
+					run,
+					state.run,
+					visibleNeeds(),
+					[...stoppingRuns],
+					dismissedNeeds(),
+				],
+	]);
+	if (signature === railSignature) {
+		syncRailNavigation();
+		return;
+	}
+	railSignature = signature;
+	const focusedHref = $("rail").contains(document.activeElement)
+		? document.activeElement.closest("a")?.getAttribute("href")
+		: null;
+	const restoreLink = () => {
+		if (focusedHref)
+			$("rail")
+				.querySelector(`a[href="${CSS.escape(focusedHref)}"]`)
+				?.focus({ preventScroll: true });
+	};
 	const focusedProject = document.activeElement === $("project-switcher");
 	const actionsOpen = $("rail").querySelector(".run-actions")?.open;
 	const focusedAction = document.activeElement?.closest(".run-actions")
@@ -1063,6 +1298,7 @@ function renderRail() {
 		rail.append(footer);
 		rail.scrollTop = scroll;
 		if (focusedProject) switcher.focus({ preventScroll: true });
+		restoreLink();
 		return;
 	}
 	// 2026-11-12 (owner, pass 2): one run is one row. A need sits on its own run's row (below); a
@@ -1156,7 +1392,9 @@ function renderRail() {
 				class: "run-row",
 				"data-run": summary.runId,
 				"aria-current": String(summary.runId === state.run),
-				onclick: () => go({ run: summary.runId }),
+				onclick: (event) => {
+					if (!event.target.closest("a")) go({ run: summary.runId });
+				},
 			},
 			element(
 				"div",
@@ -1196,12 +1434,7 @@ function renderRail() {
 							"a",
 							{
 								class: "run-report",
-								href: `?run=${encodeURIComponent(summary.runId)}&view=report`,
-								onclick: (event) => {
-									event.preventDefault();
-									event.stopPropagation();
-									go({ run: summary.runId, view: "report" });
-								},
+								href: `${runHref(summary.runId)}&view=report`,
 							},
 							"Report →",
 						)
@@ -1239,6 +1472,7 @@ function renderRail() {
 		rail.append(row);
 	}
 	rail.append(footer);
+	restoreLink();
 	if (focusedAction)
 		actions?.querySelector(focusedAction)?.focus({ preventScroll: true });
 	rail.scrollTop = scroll;
@@ -2137,7 +2371,10 @@ function renderGraph(preview = null) {
 		const hasMembers =
 			group || (activeAgents(stage) && stage.items.length <= 6);
 		const title = group
-			? `${stage.name ? `${stage.name}, ` : ""}${stage.members.length} in parallel`
+			? // A group is a layout of steps that run together, not a step itself (2026-11-18, owner).
+				stage.name
+				? humanize(stage.name)
+				: "Parallel"
 			: humanize(stage.short || stage.name || stage.id);
 		// Who did the work, at the card's right (owner's pick, 2026-11-03): "✦ agent" / "✦ 3 agents",
 		// "</> code". With no code step in view every card is an agent's, so a lone "agent" goes.
@@ -2170,7 +2407,8 @@ function renderGraph(preview = null) {
 					: `${stage.name || stage.id}, ${lineFor(stage)}`
 				: `${group ? title : stage.name || stage.id}, ${labels[stage.status] || "Waiting"}${blockedCount ? `, ${blockedCount} actions blocked` : ""}`,
 		});
-		node.append(
+		// Native append writes a literal "null" text node for absent parts: drop them.
+		const parts = [
 			svg("rect", { class: "outline", width: p.w, height: p.h, rx: 10 }),
 			svg(
 				"title",
@@ -2189,7 +2427,7 @@ function renderGraph(preview = null) {
 				{
 					x: 36,
 					y: 24,
-					class: "node-name",
+					class: group ? "node-name group-label" : "node-name",
 					"data-fit": p.w - 48 - (tag ? tag.length * 7 + 30 : 0),
 				},
 				title,
@@ -2210,7 +2448,8 @@ function renderGraph(preview = null) {
 						svg("text", { x: p.w - 14, y: 24, "text-anchor": "end" }, tag),
 					)
 				: null,
-		);
+		];
+		node.append(...parts.filter(Boolean));
 		if (hasMembers)
 			node.append(
 				svg("rect", {
@@ -2686,7 +2925,11 @@ function renderGraph(preview = null) {
 		// floor (an explicit zoom-out) the text shrinks with the boxes instead of spilling over them.
 		for (const text of nodes.querySelectorAll("text")) {
 			if (text.closest(".morph-old, .node-kind")) continue; // a fading copy keeps its fitted text
-			const size = text.classList.contains("node-name") ? 15 : 14;
+			const size = text.classList.contains("group-label")
+				? 12
+				: text.classList.contains("node-name")
+					? 15
+					: 14;
 			const fontSize = Math.max(size, size / Math.max(view.k, FIT_MIN_ZOOM));
 			text.setAttribute("font-size", fontSize);
 			// A class rule would override the presentation attribute: use a nested text span.
@@ -3223,8 +3466,7 @@ function exitCopy(element) {
 	return copy;
 }
 /** Card boxes and edge paths of the drawn graph (user units), for a morphing redraw. */
-function graphGeometry() {
-	const canvas = $("canvas");
+function graphGeometry(canvas = $("canvas")) {
 	if (!canvas) return null;
 	const nodes = new Map(),
 		edges = new Map();
@@ -4054,8 +4296,8 @@ function renderSelection() {
 							`Attempt ${task.retry.attempt}${task.retry.maxAttempts ? ` of ${task.retry.maxAttempts}` : ""}${task.retry.nextRetryAt ? `, scheduled ${task.retry.nextRetryAt}` : ""}`,
 						]
 					: null,
-				["Started", task.startedAt || "Not started"],
-				task.completedAt ? ["Ended", task.completedAt] : null,
+				["Started", task.startedAt ? when(task.startedAt) : "Not started"],
+				task.completedAt ? ["Ended", when(task.completedAt)] : null,
 				...usageRows(task.usage),
 				["Depends on", task.dependsOn?.join(", ") || "None"],
 				task.worktree
@@ -4348,17 +4590,21 @@ function renderSingle(inspector, stage) {
 			{ class: "agents-meta" },
 			[
 				taskLine(task),
+				// Short facts, not labelled prose (2026-11-18, owner: hard to read). The executor's own
+				// model report appears only when it differs from what was recorded.
 				...(task.kind === "support"
-					? ["Code step · no model call"]
+					? ["Code step, no model call"]
 					: [
-							`Executor: ${task.executor || run.executor || "unknown"}`,
-							`Recorded model: ${task.model || "unknown"}`,
-							`Recorded effort: ${task.effort || "unknown"}`,
-							`Executor-reported model: ${task.reportedModel || "unknown / not reported"}`,
+							task.executor || run.executor,
+							task.model,
+							task.effort,
+							task.reportedModel && task.reportedModel !== task.model
+								? `reported ${task.reportedModel}`
+								: null,
 						]),
 			]
 				.filter(Boolean)
-				.join(", "),
+				.join(" · "),
 		),
 		itemExpansion(task, "stage-result", false, "single"),
 	);
@@ -6261,7 +6507,11 @@ function renderReportPage() {
 	graphControl = null;
 	center.replaceChildren(view);
 	view.scrollTop = scroll;
-	if (!old || old.dataset.run !== run.runId)
+	if (
+		(!old || old.dataset.run !== run.runId) &&
+		(document.activeElement === document.body ||
+			center.contains(document.activeElement))
+	)
 		view.focus({ preventScroll: true });
 	if (!run.reportAvailable) return;
 	api(`/api/runs/${encodeURIComponent(run.runId)}/report`)
@@ -6317,7 +6567,7 @@ function openStatusKey() {
 		element(
 			"p",
 			{ class: "muted" },
-			"A card titled “n in parallel” stacks stages that share the same inputs and outputs; each row is one stage. Hover or focus a card to light its connections.",
+			"A card labelled “Parallel” groups steps that run at the same time; each row is one step. Hover or focus a card to light its connections.",
 		),
 		element("h3", {}, "Arrows"),
 		...[
@@ -6492,14 +6742,18 @@ function openPalette() {
 	paint();
 	input.focus();
 }
-async function refreshRuns() {
+async function refreshRuns(updateCenter = true) {
+	const project = state.project,
+		generation = navigationGeneration;
 	const data = await api("/api/runs");
+	if (state.project !== project || generation !== navigationGeneration) return;
 	syncClock(data.serverTime);
 	runs = data.runs;
 	if (allNeeds().some(dismissible)) await refreshNotices();
+	if (state.project !== project || generation !== navigationGeneration) return;
 	renderTop();
 	renderRail();
-	if (homeShown()) renderHome();
+	if (updateCenter && homeShown()) renderHome();
 }
 function acceptRun(data) {
 	if (data.runId !== state.run) return;
@@ -6579,7 +6833,7 @@ export function taskHandoffs(previous, next) {
 		return [];
 	});
 }
-async function refreshRun() {
+async function refreshRun(animate = false) {
 	const id = state.run,
 		generation = loadGeneration,
 		revision = runRevision;
@@ -6594,7 +6848,12 @@ async function refreshRun() {
 		id === state.run &&
 		revision === runRevision
 	)
-		acceptRun(data);
+		await changeCenter(() => {
+			// New content must not inherit the departed view's inert state (notably report focus).
+			$("center").inert = false;
+			$("center").classList.remove("switching");
+			acceptRun(data);
+		}, animate);
 }
 function stopEvents() {
 	clearTimeout(reconnectTimer);
@@ -6669,7 +6928,7 @@ function connectEvents() {
 	}
 	source.onerror = reconnect;
 }
-async function loadRun() {
+async function loadRun(animate = false) {
 	++loadGeneration;
 	selectionController?.abort();
 	selectionController = new AbortController();
@@ -6689,10 +6948,9 @@ async function loadRun() {
 	$("inspector").inert = true;
 	$("body").classList.remove("inspecting");
 	applyRail();
-	// Switching runs (owner: smoother): the previous run stays, dimmed and inert, until the next
-	// one is drawn, instead of flashing an empty "Loading run…" page.
+	// Keep the previous view, dimmed and inert, until the next run is drawn.
 	const center = $("center");
-	if (center.querySelector(".run-header")) {
+	if (center.children.length) {
 		center.classList.add("switching");
 		center.inert = true;
 	} else
@@ -6737,14 +6995,9 @@ async function loadRun() {
 		if (!center.classList.contains("switching")) return;
 		center.classList.remove("switching");
 		center.inert = false;
-		if (!reducedMotion())
-			center.animate([{ opacity: 0.4 }, { opacity: 1 }], {
-				duration: MOTION.base,
-				easing: "ease-out",
-			});
 	};
 	try {
-		await refreshRun();
+		await refreshRun(animate === true);
 		if (generation === loadGeneration) settle();
 	} catch (error) {
 		if (generation !== loadGeneration || error.name === "AbortError") return;
@@ -6776,7 +7029,7 @@ $("dialog").addEventListener("click", (event) => {
 			dismissDialog(!["palette", "key"].includes(modalKey));
 	}
 });
-// Focus without fragment navigation: management popstate reloads would discard drafts.
+// Focus without fragment navigation or a draft departure.
 $("skip-content").addEventListener("click", (event) => {
 	event.preventDefault();
 	$("center").focus();
@@ -6858,7 +7111,15 @@ document.addEventListener("click", (event) => {
 		link.href.includes("#")
 	)
 		return;
-	if (!discardSettingsDrafts()) event.preventDefault();
+	if (
+		destination.origin === location.origin &&
+		["/", "/index.html"].includes(destination.pathname)
+	) {
+		event.preventDefault();
+		const next = readState(destination.href);
+		if (!destination.searchParams.has("project")) next.project = state.project;
+		navigateDashboard(next, { hash: destination.hash });
+	} else if (!discardSettingsDrafts()) event.preventDefault();
 });
 // Without Navigation API, tag only our existing/app-created entries; never add a
 // sentinel or infer position from history.length. Keep other history state intact.
@@ -6918,25 +7179,19 @@ window.addEventListener("popstate", () => {
 		return;
 	}
 	settingsHistoryIndex = index;
+	const next = readState();
 	if (
-		managementView() ||
-		["workflows", "executors", "history"].includes(readState().view)
+		!managementView() &&
+		!["workflows", "executors", "history"].includes(next.view) &&
+		next.project === state.project &&
+		next.run === state.run &&
+		run
 	) {
-		location.reload();
-		return;
-	}
-	if (readState().project !== state.project) {
-		location.reload();
-		return;
-	}
-	const previous = state.run;
-	state = readState();
-	if (modalKey) dismissDialog(false);
-	if (state.run !== previous) {
-		if (state.run) loadRun();
-		else showHome();
-	} else if (run) renderRun();
-	else if (homeShown()) renderHome();
+		state = next;
+		if (modalKey) dismissDialog(false);
+		renderRun();
+		syncTitle();
+	} else navigateDashboard(next, { traversal: true });
 });
 document.addEventListener("keydown", (event) => {
 	if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -7049,7 +7304,8 @@ window.addEventListener("pagehide", () => {
 	logController?.abort();
 });
 window.addEventListener("pageshow", (event) => {
-	if (event.persisted && session && state.project) loadRun();
+	if (event.persisted && session)
+		navigateDashboard(readState(), { traversal: true });
 });
 const PROJECT_KEY = "agent-workflow:project";
 function selectProject(id) {
@@ -7063,8 +7319,10 @@ function selectProject(id) {
 	} catch {
 		/* Storage is optional. */
 	}
-	location.assign(
-		`/?project=${encodeURIComponent(id)}${managementView() ? `&view=${state.view}` : ""}`,
+	navigateDashboard(
+		readState(
+			`/?project=${encodeURIComponent(id)}${managementView() ? `&view=${state.view}` : ""}`,
+		),
 	);
 }
 function renderOverview() {
@@ -7092,12 +7350,22 @@ function renderOverview() {
 							"article",
 							{ class: "project-card" },
 							button(project.name, () => selectProject(project.id)),
-							element(
-								"p",
-								{ class: "muted" },
-								project.path,
-								project.pathMissing ? ", path missing" : "",
-							),
+							// No paths in ordinary UI; a path only tells apart projects that share a name.
+							projects.some(
+								(other) => other !== project && other.name === project.name,
+							) || project.pathMissing
+								? element(
+										"p",
+										{ class: "muted" },
+										projects.some(
+											(other) =>
+												other !== project && other.name === project.name,
+										)
+											? project.path
+											: "",
+										project.pathMissing ? "Folder missing" : "",
+									)
+								: null,
 							element(
 								"p",
 								{},
@@ -7278,11 +7546,6 @@ function runLink(summary, children, className, view) {
 			class: className,
 			href: `${runHref(summary.runId)}${view ? `&view=${view}` : ""}`,
 			"data-run": summary.runId,
-			onclick: (event) => {
-				if (event.metaKey || event.ctrlKey || event.shiftKey) return;
-				event.preventDefault();
-				go({ run: summary.runId, ...(view ? { view } : {}) });
-			},
 		},
 		children,
 	);
@@ -8555,7 +8818,8 @@ const EFFORT_LEVELS = [
 	"ultra",
 ];
 let managementCleanup = () => {};
-async function renderManagement(prefetched = false) {
+async function renderManagement(prefetched = false, animate = false) {
+	const generation = navigationGeneration;
 	// Speculative reads are a one-navigation handoff, never a cross-navigation settings cache.
 	if (prefetched !== true) initialLoads.clear();
 	managementCleanup();
@@ -8577,7 +8841,8 @@ async function renderManagement(prefetched = false) {
 				)
 			: null,
 	);
-	$("center").replaceChildren(page);
+	await changeCenter(() => $("center").replaceChildren(page), animate);
+	if (generation !== navigationGeneration || !page.isConnected) return;
 	try {
 		if (state.view === "workflows" && !state.project) {
 			page.append(
@@ -8590,9 +8855,10 @@ async function renderManagement(prefetched = false) {
 			return;
 		}
 		if (state.view === "history") await renderRunHistory(page);
-		if (state.view === "workflows") await renderWorkflows(page);
-		if (state.view === "executors") await renderExecutors(page);
+		else if (state.view === "workflows") await renderWorkflows(page);
+		else if (state.view === "executors") await renderExecutors(page);
 	} catch (error) {
+		if (generation !== navigationGeneration || !page.isConnected) return;
 		page.append(
 			element("p", { role: "alert", class: "management-error" }, error.message),
 			button("Try again", renderManagement),
@@ -8868,7 +9134,9 @@ async function renderRunHistory(page) {
 				element(
 					"p",
 					{},
-					`${summary.status}, ${summary.updatedAt}${!terminal ? ", Active/nonterminal runs cannot be selected" : ""}`,
+					`${humanize(summary.status)}, `,
+					when(summary.updatedAt),
+					!terminal ? ", still running: cannot be selected" : "",
 				),
 			),
 		);
@@ -9034,8 +9302,15 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		preview,
 		previewGeneration = -1,
 		controller;
+	// Code steps follow the same remembered switch as the Run graph: hidden unless shown (2026-11-18, owner).
 	let layout = "td",
-		showCode = true,
+		showCode = (() => {
+			try {
+				return localStorage.getItem(CODE_KEY) === "shown";
+			} catch {
+				return false;
+			}
+		})(),
 		calculationQueued = false,
 		attemptedGeneration = -1,
 		feedback = "";
@@ -9144,7 +9419,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	loading.remove();
 	const common = element("section", {
 		class: "project-common",
-		"aria-label": "All tasks settings",
+		"aria-label": "All steps settings",
 	});
 	const graphHost = element("div", { class: "profile-flow" });
 	const panel = element("section", {
@@ -9301,7 +9576,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		const parentExecutor =
 			previewGeneration === generation ? slot?.parentExecutor : undefined;
 		const actualExecutor = dynamic ? parentExecutor : resolved?.executor?.value;
-		const prefix = id === null ? "All tasks" : `Slot ${id}`;
+		const prefix = id === null ? "All steps" : `Slot ${id}`;
 		let modelCleared = false;
 		const node = element("div", {
 			class: "management-fields",
@@ -9515,7 +9790,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			element(
 				"h2",
 				{ "data-testid": "all-tasks-title", tabindex: "-1" },
-				"All tasks",
+				"All steps",
 			),
 			field("Preset", presetControl),
 			controls(null),
@@ -9525,12 +9800,12 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			element(
 				"h2",
 				{ tabindex: "-1", "data-testid": "canonical-slot-title" },
-				selected?.id || "All tasks",
+				selected ? humanize(selected.id) : "All steps",
 			),
 		);
 		if (selected)
 			panel.prepend(
-				button("← All tasks", returnToAll, { "data-testid": "all-tasks-back" }),
+				button("← All steps", returnToAll, { "data-testid": "all-tasks-back" }),
 			);
 		if (!selected) return;
 		if (!selected.editable)
@@ -9555,8 +9830,8 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				element("legend", { class: "sr-only" }, "Task settings scope"),
 			);
 			for (const [value, label] of [
-				["all", "Use All tasks settings"],
-				["custom", "Custom for this task"],
+				["all", "Same as all steps"],
+				["custom", "Custom"],
 			]) {
 				const option = element("input", {
 					type: "radio",
@@ -9605,17 +9880,15 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			}
 			const fields = controls(selected.id);
 			fields.hidden = !custom;
-			panel.append(
-				element(
-					"p",
-					{ class: "muted" },
-					selected.kind === "template"
-						? `Authored template${selected.parentId ? ` in ${selected.parentId}` : ""}; generated tasks inherit its captured settings, not live edits.`
-						: `Settings for task ${selected.id} only; other tasks are independent.`,
-				),
-				scope,
-				fields,
-			);
+			if (selected.kind === "template")
+				panel.append(
+					element(
+						"p",
+						{ class: "muted" },
+						`Template${selected.parentId ? ` in ${humanize(selected.parentId)}` : ""}: steps it creates use these settings.`,
+					),
+				);
+			panel.append(scope, fields);
 		}
 	}
 	function returnToAll() {
@@ -9699,8 +9972,18 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					controller = value;
 				},
 				toggleCode: () => {
+					// Same glide as the Run graph: cards move, leaving ones fade, the view follows.
+					const previous = graphGeometry(
+						graphHost.querySelector(".profile-flow-canvas"),
+					);
 					showCode = !showCode;
+					try {
+						if (showCode) localStorage.setItem(CODE_KEY, "shown");
+						else localStorage.removeItem(CODE_KEY);
+					} catch {}
 					draw();
+					if (previous) controller?.morph(previous);
+					graphHost.querySelector(".code-switch")?.focus();
 				},
 				controls: () => [
 					layoutSwitch(layout, (value) => {
@@ -9995,6 +10278,28 @@ async function renderWorkflow(page, name) {
 		: null;
 	if (specProblems) header.after(specProblems);
 }
+/**
+ * Ordinary dashboard text names what a note is about, not where it lives (2026-11-17, owner): file
+ * paths (often already reduced to "/Users/REDACTED") are dropped with the connector words that
+ * pointed at them. Executor diagnostics keep the raw facts for debugging.
+ */
+function withoutPaths(text) {
+	// Absolute paths with at least two segments (not URLs), home-relative and Windows paths.
+	const path =
+		/(?:(?<![\w:/.])\/(?:[^\s/,;:)"']+\/)+[^\s,;:)"']*|~\/[^\s,;:)"']*|[A-Za-z]:\\[^\s,;:)"']*)/;
+	return String(text)
+		.replace(
+			new RegExp(
+				`\\s*(?:under|in|from|at|linked from)?\\s*(?:the\\s+worker\\s+home\\s+)?${path.source}`,
+				"g",
+			),
+			(match) => (/worker\s+home/.test(match) ? " in the worker home" : ""),
+		)
+		.replace(/\s+\(/g, " (")
+		.replace(/\s{2,}/g, " ")
+		.replace(/\s+([.,;:)])/g, "$1")
+		.trim();
+}
 /** "12.4 MB" from bytes. */
 function formatBytes(bytes) {
 	const units = ["B", "KB", "MB", "GB"];
@@ -10085,9 +10390,9 @@ async function renderExecutors(page) {
 			...(data.runIndex?.error ? [`Run index: ${data.runIndex.error}`] : []),
 			...(data.runIndex?.hint ? [`Run index: ${data.runIndex.hint}`] : []),
 			...(data.home && !data.home.writable
-				? [`The home ${data.home.path} is not writable.`]
+				? ["The agent-workflow home is not writable."]
 				: []),
-		];
+		].map(withoutPaths);
 		if (mergeVersions) {
 			const ids = versionNotes.map((note) => note.id);
 			knows.push(
@@ -10155,7 +10460,11 @@ async function renderExecutors(page) {
 										]
 									: "n/a",
 								...(showFix
-									? [entry.fix || (entry.usable ? "" : entry.error || "")]
+									? [
+											withoutPaths(
+												entry.fix || (entry.usable ? "" : entry.error || ""),
+											),
+										]
 									: []),
 							];
 						}),

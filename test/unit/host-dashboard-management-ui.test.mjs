@@ -159,9 +159,9 @@ test("Chrome management: the views, project settings and the overview's needs an
 		),
 		"Management fixture",
 	);
-	await set(browser, "All tasks Executor", "codex");
-	await set(browser, "All tasks Model", "fixture-model");
-	await set(browser, "All tasks Effort", "high");
+	await set(browser, "All steps Executor", "codex");
+	await set(browser, "All steps Model", "fixture-model");
+	await set(browser, "All steps Effort", "high");
 	await browser.click('[data-management-action="save-project-settings"]');
 	await browser.waitFor(
 		() =>
@@ -455,8 +455,8 @@ test("Chrome readonly management: navigation stays available and all action muta
 		await browser.evaluate(() => {
 			const style = (selector) =>
 				getComputedStyle(document.querySelector(selector));
-			const select = style('[aria-label="All tasks Model"]');
-			const input = style('[aria-label="All tasks Executor"]');
+			const select = style('[aria-label="All steps Model"]');
+			const input = style('[aria-label="All steps Executor"]');
 			return {
 				appearance: select.appearance,
 				sameIndent: select.paddingLeft === input.paddingLeft,
@@ -602,8 +602,8 @@ test("Chrome management: workflow detail keeps the graph and drops the stage tab
 			assert.equal(detail.text.includes(text), false, text);
 	});
 	// A real definition problem is still shown, as one short alert without a section.
-	await browser.send("Page.addScriptToEvaluateOnNewDocument", {
-		source: `(() => {
+	// Routes now share a document: install this response fixture in the current realm.
+	await browser.evaluate(`(() => {
 		const original = window.fetch;
 		window.fetch = async (url, options) => {
 			const response = await original(url, options);
@@ -614,8 +614,7 @@ test("Chrome management: workflow detail keeps the graph and drops the stage tab
 				headers: { "Content-Type": "application/json" },
 			});
 		};
-	})();`,
-	});
+	})();`);
 	await browser.click("a.back-link");
 	await browser.waitFor(
 		() =>
@@ -699,14 +698,13 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 			node: { supported: false, version: "1", required: "22" },
 			home: { writable: false, path: "/fixture/home" },
 		};
-		await browser.send("Page.addScriptToEvaluateOnNewDocument", {
-			source: `(() => {
+		// In-app navigation retains the current document and its installed fixture.
+		await browser.evaluate(`(() => {
 			const original = window.fetch;
 			window.fetch = (url, options) => String(url).startsWith('/api/doctor')
 				? Promise.resolve(new Response(JSON.stringify({data:${JSON.stringify(doctorData)}}), {headers:{'Content-Type':'application/json'}}))
 				: original(url, options);
-		})();`,
-		});
+		})();`);
 		await browser.click('.management-nav a[href*="view=executors"]');
 		await browser.waitFor(
 			() => !!document.querySelector(".property-table.executors"),
@@ -827,10 +825,12 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 					],
 				),
 			);
+		// Ordinary notes name the fact, never the path (2026-11-17, owner).
 		const others = [
-			...security,
+			"codex: 2 allow rules in 1 file let matching commands run without approval (readOnly is emulated for Codex workers)",
+			"codex: global instructions (1 file) are loaded into every Codex worker (context isolation is emulated)",
 			"Node 1 is older than the required 22.",
-			"The home /fixture/home is not writable.",
+			"The agent-workflow home is not writable.",
 		];
 		assert.deepEqual(
 			actual.notes,
@@ -924,8 +924,8 @@ test("Workflow normal view deletes diagnostics, routing tables and launch Check 
 		})),
 		{ description: "Management fixture", removed: 0, about: false },
 	);
-	await set(browser, "All tasks Executor", "codex");
-	await set(browser, "All tasks Effort", "high");
+	await set(browser, "All steps Executor", "codex");
+	await set(browser, "All steps Effort", "high");
 	await browser.waitFor(
 		() =>
 			!document.querySelector(

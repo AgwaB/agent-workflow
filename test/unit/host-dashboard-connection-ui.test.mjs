@@ -28,7 +28,10 @@ test("F3 static management omits the live indicator in both access modes", {
 				);
 				assert.deepEqual(
 					await browser.evaluate(() => ({
-						indicators: document.querySelectorAll("#connection, .connection")
+						// In-app navigation keeps the node and hides it on static views.
+						indicators: [
+							...document.querySelectorAll("#connection, .connection"),
+						].filter((n) => n.checkVisibility() && !n.closest("[hidden]"))
 							.length,
 						readonly: !!document.querySelector("#readonly-badge"),
 					})),

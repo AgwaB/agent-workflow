@@ -113,10 +113,10 @@ test(
 				).length,
 				scope: document.querySelector(".project-common h2").textContent,
 			})),
-			{ checks: [], removed: 0, scope: "All tasks" },
+			{ checks: [], removed: 0, scope: "All steps" },
 		);
-		await set(b, "All tasks Executor", "codex");
-		await set(b, "All tasks Effort", "high");
+		await set(b, "All steps Executor", "codex");
+		await set(b, "All steps Effort", "high");
 		assert.equal(
 			await b.evaluate(
 				() =>

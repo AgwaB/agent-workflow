@@ -21,16 +21,16 @@ async function setup(t) {
 		url: `${p.origin}/?project=${p.server.projectId}&view=workflows&workflow=manage`,
 	});
 	await b.waitFor(
-		() => !!document.querySelector('[aria-label="All tasks Effort"]'),
+		() => !!document.querySelector('[aria-label="All steps Effort"]'),
 	);
 	return { ...p, b };
 }
-const control = (name) => `[aria-label="All tasks ${name}"]`;
+const control = (name) => `[aria-label="All steps ${name}"]`;
 const expanded = (b, name) =>
 	b.evaluate(
 		(name) =>
 			document
-				.querySelector(`[aria-label="All tasks ${name}"]`)
+				.querySelector(`[aria-label="All steps ${name}"]`)
 				.getAttribute("aria-expanded") === "true",
 		name,
 	);
@@ -39,7 +39,7 @@ async function choose(b, name, value) {
 	const id = await b.evaluate(
 		(name) =>
 			document
-				.querySelector(`[aria-label="All tasks ${name}"]`)
+				.querySelector(`[aria-label="All steps ${name}"]`)
 				.getAttribute("aria-controls"),
 		name,
 	);
@@ -52,7 +52,7 @@ test("Shared Workflow pickers: anchored menus, native pointer selection, keyboar
 	await choose(b, "Executor", "codex");
 	const styles = await b.evaluate(() =>
 		["Executor", "Effort"].map((name) => {
-			const n = document.querySelector(`[aria-label="All tasks ${name}"]`),
+			const n = document.querySelector(`[aria-label="All steps ${name}"]`),
 				s = getComputedStyle(n);
 			return [
 				n.getAttribute("role"),
@@ -70,7 +70,7 @@ test("Shared Workflow pickers: anchored menus, native pointer selection, keyboar
 		await b.waitForMotionEnd();
 		assert.deepEqual(
 			await b.evaluate((name) => {
-				const n = document.querySelector(`[aria-label="All tasks ${name}"]`),
+				const n = document.querySelector(`[aria-label="All steps ${name}"]`),
 					menu = document.getElementById(n.getAttribute("aria-controls")),
 					a = n.getBoundingClientRect(),
 					r = menu.getBoundingClientRect();
@@ -90,7 +90,7 @@ test("Shared Workflow pickers: anchored menus, native pointer selection, keyboar
 	await choose(b, "Effort", "high");
 	assert.equal(
 		await b.evaluate(
-			() => document.querySelector('[aria-label="All tasks Effort"]').value,
+			() => document.querySelector('[aria-label="All steps Effort"]').value,
 		),
 		"high",
 	);
@@ -99,7 +99,7 @@ test("Shared Workflow pickers: anchored menus, native pointer selection, keyboar
 	await b.key("Escape");
 	assert.equal(
 		await b.evaluate(
-			() => document.querySelector('[aria-label="All tasks Effort"]').value,
+			() => document.querySelector('[aria-label="All steps Effort"]').value,
 		),
 		"high",
 	);
@@ -111,7 +111,7 @@ test("Shared Workflow pickers: anchored menus, native pointer selection, keyboar
 	assert.equal(await expanded(b, "Effort"), false);
 	assert.equal(
 		await b.evaluate(
-			() => document.querySelector('[aria-label="All tasks Model"]').tagName,
+			() => document.querySelector('[aria-label="All steps Model"]').tagName,
 		),
 		"SELECT",
 	);
@@ -134,7 +134,7 @@ test("Shared Workflow picker: long downward menus stay scrollable and keyboard o
 		});
 		await b.evaluate(() =>
 			document
-				.querySelector('[aria-label="All tasks Effort"]')
+				.querySelector('[aria-label="All steps Effort"]')
 				.scrollIntoView({ block: "center", behavior: "instant" }),
 		);
 		await b.click(control("Effort"));
@@ -142,11 +142,11 @@ test("Shared Workflow picker: long downward menus stay scrollable and keyboard o
 		await b.waitFor(
 			() =>
 				document
-					.querySelector('[aria-label="All tasks Effort"]')
+					.querySelector('[aria-label="All steps Effort"]')
 					.getAttribute("aria-expanded") === "true",
 		);
 		const r = await b.evaluate(() => {
-			const n = document.querySelector('[aria-label="All tasks Effort"]'),
+			const n = document.querySelector('[aria-label="All steps Effort"]'),
 				m = document.getElementById(n.getAttribute("aria-controls")),
 				a = n.getBoundingClientRect(),
 				r = m.getBoundingClientRect();
@@ -168,7 +168,7 @@ test("Shared Workflow picker: long downward menus stay scrollable and keyboard o
 		await b.key("End");
 		assert.deepEqual(
 			await b.evaluate(() => {
-				const n = document.querySelector('[aria-label="All tasks Effort"]'),
+				const n = document.querySelector('[aria-label="All steps Effort"]'),
 					a = document.getElementById(n.getAttribute("aria-activedescendant")),
 					r = a.getBoundingClientRect(),
 					m = a.parentElement.getBoundingClientRect();
