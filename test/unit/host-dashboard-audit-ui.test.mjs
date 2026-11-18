@@ -71,7 +71,7 @@ async function settings(t, reduced = false) {
 	await b.waitFor(
 		() =>
 			!!document.querySelector(".profile-flow .node.group") &&
-			!!document.querySelector('[aria-label="All tasks Effort"]'),
+			!!document.querySelector('[aria-label="All steps Effort"]'),
 	);
 	await b.waitForMotionEnd();
 	return { p, b };
@@ -310,7 +310,7 @@ for (const reduced of [false, true]) {
 		await b.evaluate(() => {
 			window.__motion = [];
 			const picker = document.querySelector(
-				'[aria-label="All tasks Executor"]',
+				'[aria-label="All steps Executor"]',
 			);
 			picker.focus();
 			picker.click();
@@ -391,7 +391,7 @@ for (const reduced of [false, true]) {
 		const { b } = await settings(t, reduced);
 		const projectSave = '[data-management-action="save-project-settings"]';
 		await b.evaluate(() => {
-			const n = document.querySelector('[aria-label="All tasks Executor"]');
+			const n = document.querySelector('[aria-label="All steps Executor"]');
 			n.value = "codex";
 			n.dispatchEvent(new Event("change", { bubbles: true }));
 		});

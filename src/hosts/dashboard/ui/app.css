@@ -2392,6 +2392,11 @@ main.signin code {
 .node.support .outline {
 	fill: transparent;
 }
+/* A parallel card's label names the layout, not a step: smaller and quieter than step names. */
+.node .node-name.group-label {
+	fill: var(--muted);
+	letter-spacing: 0.02em;
+}
 .node.support .node-name {
 	fill: var(--muted);
 	font-size: 14px;

@@ -2356,7 +2356,10 @@ function renderGraph(preview = null) {
 		const hasMembers =
 			group || (activeAgents(stage) && stage.items.length <= 6);
 		const title = group
-			? `${stage.name ? `${stage.name}, ` : ""}${stage.members.length} in parallel`
+			? // A group is a layout of steps that run together, not a step itself (2026-11-18, owner).
+				stage.name
+				? humanize(stage.name)
+				: "Parallel"
 			: humanize(stage.short || stage.name || stage.id);
 		// Who did the work, at the card's right (owner's pick, 2026-11-03): "✦ agent" / "✦ 3 agents",
 		// "</> code". With no code step in view every card is an agent's, so a lone "agent" goes.
@@ -2408,7 +2411,7 @@ function renderGraph(preview = null) {
 				{
 					x: 36,
 					y: 24,
-					class: "node-name",
+					class: group ? "node-name group-label" : "node-name",
 					"data-fit": p.w - 48 - (tag ? tag.length * 7 + 30 : 0),
 				},
 				title,
@@ -2905,7 +2908,11 @@ function renderGraph(preview = null) {
 		// floor (an explicit zoom-out) the text shrinks with the boxes instead of spilling over them.
 		for (const text of nodes.querySelectorAll("text")) {
 			if (text.closest(".morph-old, .node-kind")) continue; // a fading copy keeps its fitted text
-			const size = text.classList.contains("node-name") ? 15 : 14;
+			const size = text.classList.contains("group-label")
+				? 12
+				: text.classList.contains("node-name")
+					? 15
+					: 14;
 			const fontSize = Math.max(size, size / Math.max(view.k, FIT_MIN_ZOOM));
 			text.setAttribute("font-size", fontSize);
 			// A class rule would override the presentation attribute: use a nested text span.
@@ -6539,7 +6546,7 @@ function openStatusKey() {
 		element(
 			"p",
 			{ class: "muted" },
-			"A card titled “n in parallel” stacks stages that share the same inputs and outputs; each row is one stage. Hover or focus a card to light its connections.",
+			"A card labelled “Parallel” groups steps that run at the same time; each row is one step. Hover or focus a card to light its connections.",
 		),
 		element("h3", {}, "Arrows"),
 		...[
@@ -9389,7 +9396,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	loading.remove();
 	const common = element("section", {
 		class: "project-common",
-		"aria-label": "All tasks settings",
+		"aria-label": "All steps settings",
 	});
 	const graphHost = element("div", { class: "profile-flow" });
 	const panel = element("section", {
@@ -9546,7 +9553,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		const parentExecutor =
 			previewGeneration === generation ? slot?.parentExecutor : undefined;
 		const actualExecutor = dynamic ? parentExecutor : resolved?.executor?.value;
-		const prefix = id === null ? "All tasks" : `Slot ${id}`;
+		const prefix = id === null ? "All steps" : `Slot ${id}`;
 		let modelCleared = false;
 		const node = element("div", {
 			class: "management-fields",
@@ -9760,7 +9767,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			element(
 				"h2",
 				{ "data-testid": "all-tasks-title", tabindex: "-1" },
-				"All tasks",
+				"All steps",
 			),
 			field("Preset", presetControl),
 			controls(null),
@@ -9770,12 +9777,12 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			element(
 				"h2",
 				{ tabindex: "-1", "data-testid": "canonical-slot-title" },
-				selected?.id || "All tasks",
+				selected ? humanize(selected.id) : "All steps",
 			),
 		);
 		if (selected)
 			panel.prepend(
-				button("← All tasks", returnToAll, { "data-testid": "all-tasks-back" }),
+				button("← All steps", returnToAll, { "data-testid": "all-tasks-back" }),
 			);
 		if (!selected) return;
 		if (!selected.editable)
@@ -9800,8 +9807,8 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				element("legend", { class: "sr-only" }, "Task settings scope"),
 			);
 			for (const [value, label] of [
-				["all", "Use All tasks settings"],
-				["custom", "Custom for this task"],
+				["all", "Same as all steps"],
+				["custom", "Custom"],
 			]) {
 				const option = element("input", {
 					type: "radio",
@@ -9851,13 +9858,13 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			const fields = controls(selected.id);
 			fields.hidden = !custom;
 			panel.append(
-				element(
-					"p",
-					{ class: "muted" },
-					selected.kind === "template"
-						? `Authored template${selected.parentId ? ` in ${selected.parentId}` : ""}; generated tasks inherit its captured settings, not live edits.`
-						: `Settings for task ${selected.id} only; other tasks are independent.`,
-				),
+				selected.kind === "template"
+					? element(
+							"p",
+							{ class: "muted" },
+							`Template${selected.parentId ? ` in ${humanize(selected.parentId)}` : ""}: steps it creates use these settings.`,
+						)
+					: null,
 				scope,
 				fields,
 			);
