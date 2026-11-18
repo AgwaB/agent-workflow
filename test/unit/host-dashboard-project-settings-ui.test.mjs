@@ -1984,6 +1984,13 @@ for (const width of [970, 1476])
 		});
 		await load(p);
 		await settled(p);
+		// The graph fits in the first frame after its draw (app.js resize()); sample the camera after it.
+		await p.browser.evaluate(
+			() =>
+				new Promise((done) =>
+					requestAnimationFrame(() => requestAnimationFrame(done)),
+				),
+		);
 		const camera = await p.browser.evaluate(() =>
 			document
 				.querySelector(".profile-flow .graph > g")
