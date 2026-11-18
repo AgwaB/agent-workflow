@@ -2549,6 +2549,9 @@ test("dynamic leaf uses actual parent, never pins/rebinds it; executor changes p
 		projectWorkflowSettingsPath(p.cwd, { env: p.env }),
 		"utf8",
 	);
+	// The automatic refusal alert grows the header and moves Save (108px -> 175px); a click whose
+	// coordinates were read before it appeared misses the button (CI ubuntu/Node 24, 2026-11-17).
+	await refused(p, "Automatic calculation failed");
 	await p.browser.click('[data-management-action="save-project-settings"]');
 	await p.browser.waitFor(() =>
 		document
