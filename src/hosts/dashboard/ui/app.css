@@ -644,7 +644,20 @@ progress::-webkit-progress-value {
 progress::-moz-progress-bar {
 	background: var(--done);
 }
+/* Only the centre cross-fades; the rail/top bar retain their DOM, scroll and focus. */
+:root {
+	view-transition-name: none;
+}
+::view-transition-old(dashboard-center),
+::view-transition-new(dashboard-center) {
+	animation-duration: 150ms;
+	animation-timing-function: ease-out;
+}
+::view-transition {
+	pointer-events: none;
+}
 .center {
+	view-transition-name: dashboard-center;
 	display: flex;
 	flex-direction: column;
 	min-width: 0;

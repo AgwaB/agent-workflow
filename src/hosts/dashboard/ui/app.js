@@ -400,14 +400,13 @@ function taskLine(task) {
 }
 const cost = (usage) =>
 	usage?.costUsd == null ? "Not collected" : formatUsd(usage.costUsd);
-function readState() {
-	const params = new URLSearchParams(location.search);
+function readState(href = location.href) {
+	const params = new URL(href, location.href).searchParams;
 	// Keep old bookmarks useful, without retaining a Profiles route or editor state.
 	if (params.get("view") === "profiles") {
 		params.set("view", "executors");
 		params.delete("profile");
 		params.delete("createProfile");
-		history.replaceState(history.state, "", `${location.pathname}?${params}`);
 	}
 	const choice = (key, values) =>
 		values.includes(params.get(key)) ? params.get(key) : null;
@@ -470,7 +469,7 @@ let reportGeneration = 0,
 	noticeTimer;
 const stoppingRuns = new Set();
 const readonly = () => session?.mode === "read-only";
-function urlState(replace = false) {
+function urlState(replace = false, hash = location.hash) {
 	const params = new URLSearchParams();
 	for (const [key, value] of Object.entries(state))
 		if (
@@ -485,8 +484,9 @@ function urlState(replace = false) {
 	history[replace ? "replaceState" : "pushState"](
 		settingsHistoryState(replace ? history.state : null, replace),
 		"",
-		`${location.pathname}${params.size ? `?${params}` : ""}`,
+		`${location.pathname}${params.size ? `?${params}` : ""}${hash}`,
 	);
+	settingsHistoryIndex = currentSettingsHistoryIndex();
 	syncTitle();
 }
 /** 2026-11-12 (review, P3-8): each history entry reads differently ("Report · deep-review · my-service"). */
@@ -598,6 +598,21 @@ async function copy(text) {
 	}
 }
 function go(patch, replace = false) {
+	if (managementView()) {
+		return navigateDashboard(
+			{
+				...state,
+				task: null,
+				stage: null,
+				tab: null,
+				view: null,
+				dialog: null,
+				workflow: null,
+				...patch,
+			},
+			{ replace },
+		);
+	}
 	const wasReport = state.view === "report";
 	const switching = patch.run && patch.run !== state.run;
 	if (switching)
@@ -616,7 +631,7 @@ function go(patch, replace = false) {
 	state = { ...state, ...patch };
 	urlState(replace);
 	if (railOpen) toggleRail(false);
-	if (switching) loadRun();
+	if (switching) loadRun(true);
 	// The report is a page: entering or leaving it redraws the whole centre.
 	else if (run && wasReport !== (state.view === "report")) renderRun();
 	else {
@@ -624,7 +639,165 @@ function go(patch, replace = false) {
 		renderModal();
 	}
 }
+// A route owns its asynchronous work. A later route invalidates every continuation.
+let navigationGeneration = 0;
+let centerTransition;
+function changeCenter(update, animate = false) {
+	centerTransition?.skipTransition();
+	if (!animate || reducedMotion()) {
+		update();
+		return Promise.resolve();
+	}
+	if (document.startViewTransition) {
+		const generation = navigationGeneration;
+		centerTransition = document.startViewTransition(() => {
+			if (generation === navigationGeneration) update();
+		});
+		centerTransition.ready.catch(() => {});
+		centerTransition.finished.catch(() => {});
+		return centerTransition.updateCallbackDone;
+	}
+	update();
+	$("center").animate([{ opacity: 0.65 }, { opacity: 1 }], {
+		duration: MOTION.fast,
+		easing: "ease-out",
+	});
+	return Promise.resolve();
+}
+async function navigateDashboard(
+	next,
+	{
+		replace = false,
+		traversal = false,
+		hash = traversal ? location.hash : "",
+	} = {},
+) {
+	if (!traversal && !discardSettingsDrafts()) return;
+	const generation = ++navigationGeneration;
+	const projectChanged = next.project !== state.project;
+	++loadGeneration;
+	selectionController?.abort();
+	stopTaskLoads();
+	stopEvents();
+	connection = "Reconnecting";
+	lastEvent = 0;
+	backoff = 1000;
+	managementCleanup();
+	managementCleanup = () => {};
+	settingsDrafts.clear();
+	graphControl?.destroy();
+	graphControl = null;
+	graphModel = null;
+	run = null;
+	workflowTarget = null;
+	if (modalKey) dismissDialog(false);
+	state = next;
+	if (state.project === "all") state.project = null;
+	if (state.project && !projects.some((p) => p.id === state.project)) {
+		state.project = null;
+		notice("This project is not registered. Showing all projects.");
+	}
+	if (!state.project) state.run = null;
+	if (projectChanged) {
+		runs = [];
+		noticeState = { acknowledged: new Set(), states: new Map() };
+		cleanup = {
+			key: "",
+			preview: null,
+			confirming: false,
+			message: "",
+			error: null,
+		};
+	}
+	initialLoads.clear();
+	if (!traversal) urlState(replace, hash);
+	else syncTitle();
+	$("inspector").hidden = true;
+	$("inspector").inert = true;
+	$("body").classList.remove("inspecting");
+	if (railOpen) toggleRail(false);
+	applyRail();
+	renderTop();
+	renderRail();
+	const center = $("center");
+	center.classList.add("switching");
+	center.inert = true;
+	const finish = beginLoading();
+	try {
+		if (managementView()) {
+			center.inert = false;
+			center.classList.remove("switching");
+			await renderManagement(false, true);
+			if (generation === navigationGeneration && state.project) connectEvents();
+		} else if (!state.project) await changeCenter(renderOverview, true);
+		else {
+			await refreshRuns(false);
+			if (generation !== navigationGeneration) return;
+			if (!state.run && state.view === "runs") {
+				state.run =
+					(
+						runs.find((r) => r.status === "running") ||
+						runs.find((r) => r.status !== "interrupted") ||
+						runs[0]
+					)?.runId || null;
+				urlState(true);
+			} else if (!state.run && state.view === "report") {
+				state.view = null;
+				urlState(true);
+			}
+			if (state.run) await loadRun(true);
+			else await changeCenter(showHome, true);
+		}
+		if (generation !== navigationGeneration) return;
+		center.scrollTop = 0;
+		for (const node of center.querySelectorAll(
+			".home-view, .management-page, .report-view, .report-scroll",
+		))
+			node.scrollTop = 0;
+		if (hash) {
+			let id = hash.slice(1);
+			try {
+				id = decodeURIComponent(id);
+			} catch {
+				/* Malformed fragments are literal IDs. */
+			}
+			document.getElementById(id)?.scrollIntoView({ block: "start" });
+		}
+		syncTitle();
+	} catch (error) {
+		if (generation !== navigationGeneration) return;
+		center.replaceChildren(
+			element(
+				"div",
+				{ class: "empty", role: "alert" },
+				`Dashboard unavailable: ${error.message}`,
+				button("Try again", () =>
+					navigateDashboard(state, { traversal: true }),
+				),
+			),
+		);
+	} finally {
+		finish();
+		if (generation === navigationGeneration) {
+			center.classList.remove("switching");
+			center.inert = false;
+		}
+	}
+}
+let topSignature = "";
 function renderTop() {
+	const signature = JSON.stringify([
+		state.project,
+		projects.map((p) => [p.id, p.name]),
+		visibleNeeds().length,
+		readonly(),
+	]);
+	if (signature === topSignature) {
+		updateConnection();
+		syncTitle();
+		return;
+	}
+	topSignature = signature;
 	const focusedLabel = $("top").contains(document.activeElement)
 		? document.activeElement.getAttribute("aria-label")
 		: null;
@@ -673,13 +846,11 @@ function renderTop() {
 			? element("span", { class: "badge", id: "readonly-badge" }, "Read-only")
 			: null,
 		themeButton(),
-		managementView()
-			? null
-			: element("span", {
-					id: "connection",
-					class: "connection",
-					role: "status",
-				}),
+		element("span", {
+			id: "connection",
+			class: "connection",
+			role: "status",
+		}),
 	]);
 	applyRail();
 	updateConnection();
@@ -692,6 +863,8 @@ function renderTop() {
 function updateConnection() {
 	const el = $("connection");
 	if (!el) return;
+	el.hidden = managementView();
+	if (el.hidden) return;
 	const stale = lastEvent && Date.now() - lastEvent > 30000;
 	el.textContent =
 		connection === "Signed out"
@@ -813,8 +986,10 @@ function allNeeds() {
 let noticeState = { acknowledged: new Set(), states: new Map() };
 async function refreshNotices() {
 	if (!state.project || state.project === "all") return;
+	const project = state.project;
 	try {
 		const listed = (await api(projectRoute("notices"))).data;
+		if (state.project !== project) return;
 		noticeState = {
 			acknowledged: new Set(
 				(listed.acknowledgements || [])
@@ -979,7 +1154,50 @@ function railNeed(need, alone = false) {
 			: null,
 	);
 }
+function syncRailNavigation() {
+	for (const link of $("rail").querySelectorAll(".management-nav a")) {
+		const view = new URLSearchParams(link.search).get("view");
+		const current = managementView()
+			? state.view === view
+			: !view
+				? !state.run && state.view !== "runs"
+				: view === "runs" && (Boolean(state.run) || state.view === "runs");
+		if (current) link.setAttribute("aria-current", "page");
+		else link.removeAttribute("aria-current");
+	}
+}
+let railSignature = "";
 function renderRail() {
+	const compact = managementView() || homeShown();
+	const signature = JSON.stringify([
+		state.project,
+		projects.map((p) => [p.id, p.name]),
+		compact,
+		compact
+			? null
+			: [
+					runs,
+					run,
+					state.run,
+					visibleNeeds(),
+					[...stoppingRuns],
+					dismissedNeeds(),
+				],
+	]);
+	if (signature === railSignature) {
+		syncRailNavigation();
+		return;
+	}
+	railSignature = signature;
+	const focusedHref = $("rail").contains(document.activeElement)
+		? document.activeElement.closest("a")?.getAttribute("href")
+		: null;
+	const restoreLink = () => {
+		if (focusedHref)
+			$("rail")
+				.querySelector(`a[href="${CSS.escape(focusedHref)}"]`)
+				?.focus({ preventScroll: true });
+	};
 	const focusedProject = document.activeElement === $("project-switcher");
 	const actionsOpen = $("rail").querySelector(".run-actions")?.open;
 	const focusedAction = document.activeElement?.closest(".run-actions")
@@ -1063,6 +1281,7 @@ function renderRail() {
 		rail.append(footer);
 		rail.scrollTop = scroll;
 		if (focusedProject) switcher.focus({ preventScroll: true });
+		restoreLink();
 		return;
 	}
 	// 2026-11-12 (owner, pass 2): one run is one row. A need sits on its own run's row (below); a
@@ -1156,7 +1375,9 @@ function renderRail() {
 				class: "run-row",
 				"data-run": summary.runId,
 				"aria-current": String(summary.runId === state.run),
-				onclick: () => go({ run: summary.runId }),
+				onclick: (event) => {
+					if (!event.target.closest("a")) go({ run: summary.runId });
+				},
 			},
 			element(
 				"div",
@@ -1196,12 +1417,7 @@ function renderRail() {
 							"a",
 							{
 								class: "run-report",
-								href: `?run=${encodeURIComponent(summary.runId)}&view=report`,
-								onclick: (event) => {
-									event.preventDefault();
-									event.stopPropagation();
-									go({ run: summary.runId, view: "report" });
-								},
+								href: `${runHref(summary.runId)}&view=report`,
 							},
 							"Report →",
 						)
@@ -1239,6 +1455,7 @@ function renderRail() {
 		rail.append(row);
 	}
 	rail.append(footer);
+	restoreLink();
 	if (focusedAction)
 		actions?.querySelector(focusedAction)?.focus({ preventScroll: true });
 	rail.scrollTop = scroll;
@@ -6261,7 +6478,11 @@ function renderReportPage() {
 	graphControl = null;
 	center.replaceChildren(view);
 	view.scrollTop = scroll;
-	if (!old || old.dataset.run !== run.runId)
+	if (
+		(!old || old.dataset.run !== run.runId) &&
+		(document.activeElement === document.body ||
+			center.contains(document.activeElement))
+	)
 		view.focus({ preventScroll: true });
 	if (!run.reportAvailable) return;
 	api(`/api/runs/${encodeURIComponent(run.runId)}/report`)
@@ -6492,14 +6713,18 @@ function openPalette() {
 	paint();
 	input.focus();
 }
-async function refreshRuns() {
+async function refreshRuns(updateCenter = true) {
+	const project = state.project,
+		generation = navigationGeneration;
 	const data = await api("/api/runs");
+	if (state.project !== project || generation !== navigationGeneration) return;
 	syncClock(data.serverTime);
 	runs = data.runs;
 	if (allNeeds().some(dismissible)) await refreshNotices();
+	if (state.project !== project || generation !== navigationGeneration) return;
 	renderTop();
 	renderRail();
-	if (homeShown()) renderHome();
+	if (updateCenter && homeShown()) renderHome();
 }
 function acceptRun(data) {
 	if (data.runId !== state.run) return;
@@ -6579,7 +6804,7 @@ export function taskHandoffs(previous, next) {
 		return [];
 	});
 }
-async function refreshRun() {
+async function refreshRun(animate = false) {
 	const id = state.run,
 		generation = loadGeneration,
 		revision = runRevision;
@@ -6594,7 +6819,12 @@ async function refreshRun() {
 		id === state.run &&
 		revision === runRevision
 	)
-		acceptRun(data);
+		await changeCenter(() => {
+			// New content must not inherit the departed view's inert state (notably report focus).
+			$("center").inert = false;
+			$("center").classList.remove("switching");
+			acceptRun(data);
+		}, animate);
 }
 function stopEvents() {
 	clearTimeout(reconnectTimer);
@@ -6669,7 +6899,7 @@ function connectEvents() {
 	}
 	source.onerror = reconnect;
 }
-async function loadRun() {
+async function loadRun(animate = false) {
 	++loadGeneration;
 	selectionController?.abort();
 	selectionController = new AbortController();
@@ -6689,10 +6919,9 @@ async function loadRun() {
 	$("inspector").inert = true;
 	$("body").classList.remove("inspecting");
 	applyRail();
-	// Switching runs (owner: smoother): the previous run stays, dimmed and inert, until the next
-	// one is drawn, instead of flashing an empty "Loading run…" page.
+	// Keep the previous view, dimmed and inert, until the next run is drawn.
 	const center = $("center");
-	if (center.querySelector(".run-header")) {
+	if (center.children.length) {
 		center.classList.add("switching");
 		center.inert = true;
 	} else
@@ -6737,14 +6966,9 @@ async function loadRun() {
 		if (!center.classList.contains("switching")) return;
 		center.classList.remove("switching");
 		center.inert = false;
-		if (!reducedMotion())
-			center.animate([{ opacity: 0.4 }, { opacity: 1 }], {
-				duration: MOTION.base,
-				easing: "ease-out",
-			});
 	};
 	try {
-		await refreshRun();
+		await refreshRun(animate === true);
 		if (generation === loadGeneration) settle();
 	} catch (error) {
 		if (generation !== loadGeneration || error.name === "AbortError") return;
@@ -6776,7 +7000,7 @@ $("dialog").addEventListener("click", (event) => {
 			dismissDialog(!["palette", "key"].includes(modalKey));
 	}
 });
-// Focus without fragment navigation: management popstate reloads would discard drafts.
+// Focus without fragment navigation or a draft departure.
 $("skip-content").addEventListener("click", (event) => {
 	event.preventDefault();
 	$("center").focus();
@@ -6858,7 +7082,15 @@ document.addEventListener("click", (event) => {
 		link.href.includes("#")
 	)
 		return;
-	if (!discardSettingsDrafts()) event.preventDefault();
+	if (
+		destination.origin === location.origin &&
+		["/", "/index.html"].includes(destination.pathname)
+	) {
+		event.preventDefault();
+		const next = readState(destination.href);
+		if (!destination.searchParams.has("project")) next.project = state.project;
+		navigateDashboard(next, { hash: destination.hash });
+	} else if (!discardSettingsDrafts()) event.preventDefault();
 });
 // Without Navigation API, tag only our existing/app-created entries; never add a
 // sentinel or infer position from history.length. Keep other history state intact.
@@ -6918,25 +7150,19 @@ window.addEventListener("popstate", () => {
 		return;
 	}
 	settingsHistoryIndex = index;
+	const next = readState();
 	if (
-		managementView() ||
-		["workflows", "executors", "history"].includes(readState().view)
+		!managementView() &&
+		!["workflows", "executors", "history"].includes(next.view) &&
+		next.project === state.project &&
+		next.run === state.run &&
+		run
 	) {
-		location.reload();
-		return;
-	}
-	if (readState().project !== state.project) {
-		location.reload();
-		return;
-	}
-	const previous = state.run;
-	state = readState();
-	if (modalKey) dismissDialog(false);
-	if (state.run !== previous) {
-		if (state.run) loadRun();
-		else showHome();
-	} else if (run) renderRun();
-	else if (homeShown()) renderHome();
+		state = next;
+		if (modalKey) dismissDialog(false);
+		renderRun();
+		syncTitle();
+	} else navigateDashboard(next, { traversal: true });
 });
 document.addEventListener("keydown", (event) => {
 	if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -7049,7 +7275,8 @@ window.addEventListener("pagehide", () => {
 	logController?.abort();
 });
 window.addEventListener("pageshow", (event) => {
-	if (event.persisted && session && state.project) loadRun();
+	if (event.persisted && session)
+		navigateDashboard(readState(), { traversal: true });
 });
 const PROJECT_KEY = "agent-workflow:project";
 function selectProject(id) {
@@ -7063,8 +7290,10 @@ function selectProject(id) {
 	} catch {
 		/* Storage is optional. */
 	}
-	location.assign(
-		`/?project=${encodeURIComponent(id)}${managementView() ? `&view=${state.view}` : ""}`,
+	navigateDashboard(
+		readState(
+			`/?project=${encodeURIComponent(id)}${managementView() ? `&view=${state.view}` : ""}`,
+		),
 	);
 }
 function renderOverview() {
@@ -7288,11 +7517,6 @@ function runLink(summary, children, className, view) {
 			class: className,
 			href: `${runHref(summary.runId)}${view ? `&view=${view}` : ""}`,
 			"data-run": summary.runId,
-			onclick: (event) => {
-				if (event.metaKey || event.ctrlKey || event.shiftKey) return;
-				event.preventDefault();
-				go({ run: summary.runId, ...(view ? { view } : {}) });
-			},
 		},
 		children,
 	);
@@ -8565,7 +8789,8 @@ const EFFORT_LEVELS = [
 	"ultra",
 ];
 let managementCleanup = () => {};
-async function renderManagement(prefetched = false) {
+async function renderManagement(prefetched = false, animate = false) {
+	const generation = navigationGeneration;
 	// Speculative reads are a one-navigation handoff, never a cross-navigation settings cache.
 	if (prefetched !== true) initialLoads.clear();
 	managementCleanup();
@@ -8587,7 +8812,8 @@ async function renderManagement(prefetched = false) {
 				)
 			: null,
 	);
-	$("center").replaceChildren(page);
+	await changeCenter(() => $("center").replaceChildren(page), animate);
+	if (generation !== navigationGeneration || !page.isConnected) return;
 	try {
 		if (state.view === "workflows" && !state.project) {
 			page.append(
@@ -8600,9 +8826,10 @@ async function renderManagement(prefetched = false) {
 			return;
 		}
 		if (state.view === "history") await renderRunHistory(page);
-		if (state.view === "workflows") await renderWorkflows(page);
-		if (state.view === "executors") await renderExecutors(page);
+		else if (state.view === "workflows") await renderWorkflows(page);
+		else if (state.view === "executors") await renderExecutors(page);
 	} catch (error) {
+		if (generation !== navigationGeneration || !page.isConnected) return;
 		page.append(
 			element("p", { role: "alert", class: "management-error" }, error.message),
 			button("Try again", renderManagement),

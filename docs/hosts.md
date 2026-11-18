@@ -656,6 +656,8 @@ With `AGENT_WORKFLOW_ROLE=worker` or `disabled`, tools and notices are not regis
 
 ## Dashboard
 
+Dashboard links, project switching and Back/Forward navigate in-app without reloading the document. The centre cross-fades for 150 ms (no animation with reduced motion); overlapping data requests share the thin global progress bar. The sidebar/top bar stay in place unless their content changes. Unsaved workflow settings still require one discard confirmation: Cancel keeps the URL and draft. Real document departures keep the browser's unsaved-changes guard; modifier/middle clicks, new-tab targets, downloads and external links retain native behaviour.
+
 `agent-workflow dashboard` serves one localhost-only dashboard for all registered projects: progress, stages, agent activity, logs, results and items needing attention. Stop, Resume, Approve and Reject use the shared [host API](extending.md#host-api). The dashboard takes no run lease and makes no model calls itself; resuming or approving can continue model work.
 
 ### What it shows

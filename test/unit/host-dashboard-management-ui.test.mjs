@@ -602,8 +602,8 @@ test("Chrome management: workflow detail keeps the graph and drops the stage tab
 			assert.equal(detail.text.includes(text), false, text);
 	});
 	// A real definition problem is still shown, as one short alert without a section.
-	await browser.send("Page.addScriptToEvaluateOnNewDocument", {
-		source: `(() => {
+	// Routes now share a document: install this response fixture in the current realm.
+	await browser.evaluate(`(() => {
 		const original = window.fetch;
 		window.fetch = async (url, options) => {
 			const response = await original(url, options);
@@ -614,8 +614,7 @@ test("Chrome management: workflow detail keeps the graph and drops the stage tab
 				headers: { "Content-Type": "application/json" },
 			});
 		};
-	})();`,
-	});
+	})();`);
 	await browser.click("a.back-link");
 	await browser.waitFor(
 		() =>
@@ -699,14 +698,13 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 			node: { supported: false, version: "1", required: "22" },
 			home: { writable: false, path: "/fixture/home" },
 		};
-		await browser.send("Page.addScriptToEvaluateOnNewDocument", {
-			source: `(() => {
+		// In-app navigation retains the current document and its installed fixture.
+		await browser.evaluate(`(() => {
 			const original = window.fetch;
 			window.fetch = (url, options) => String(url).startsWith('/api/doctor')
 				? Promise.resolve(new Response(JSON.stringify({data:${JSON.stringify(doctorData)}}), {headers:{'Content-Type':'application/json'}}))
 				: original(url, options);
-		})();`,
-		});
+		})();`);
 		await browser.click('.management-nav a[href*="view=executors"]');
 		await browser.waitFor(
 			() => !!document.querySelector(".property-table.executors"),

@@ -451,8 +451,8 @@ export async function createBrowser(
 				button: "left",
 				clickCount: 1,
 			});
-			// A plain link (the dashboard's view navigation) reloads the page; its new document has no
-			// guard and the click was delivered (2026-11-06, CI ubuntu/Node 26).
+			// Support both in-app routes (the guard survives) and native document navigation (the
+			// new document has no guard). Neither absence nor survival implies a missed click.
 			let misses = [];
 			try {
 				misses = await evaluate(() => {

@@ -2429,8 +2429,15 @@ test("late preview/save responses cannot replace a newer selection/draft or depa
 	await p.browser.waitFor(() => !!document.querySelector(".workflow-cards"));
 	assert.equal(
 		await p.browser.evaluate(() => typeof window.__releases.PUT),
-		"undefined",
-		"departure destroyed the old response continuation with its document",
+		"function",
+		"in-app departure preserves the document and fences the old continuation",
+	);
+	await p.browser.evaluate(async () => {
+		window.__releases.PUT();
+		await new Promise(requestAnimationFrame);
+	});
+	await p.browser.waitFor(
+		() => document.querySelector("#global-progress").hidden,
 	);
 	assert.equal(
 		await p.browser.evaluate(
@@ -2503,6 +2510,97 @@ test("late Save completion never blesses or replaces an intervening draft genera
 		"newer draft saves against the confirmed submitted revision",
 	);
 });
+
+for (const noNavigation of [false, true]) {
+	test(`N4: dirty in-app Back/Forward guard preserves URL, draft and history (Navigation API absent: ${noNavigation})`, {
+		timeout: 90000,
+	}, async (t) => {
+		const p = await open(t);
+		if (noNavigation)
+			await p.browser.send("Page.addScriptToEvaluateOnNewDocument", {
+				source:
+					'Object.defineProperty(window, "navigation", { value: undefined });',
+			});
+		await load(p);
+		await settled(p);
+		await p.browser.click(".back-link");
+		await p.browser.waitFor(() => !!document.querySelector(".workflow-cards"));
+		await p.browser.evaluate(
+			(key) =>
+				document
+					.querySelector(`.workflow-card[data-workflow-key="${key}"]`)
+					.click(),
+			p.entry.workflowKey,
+		);
+		await p.browser.waitFor(
+			() => !!document.querySelector(".project-workflow-actions"),
+		);
+		await settled(p);
+		await set(p, "All tasks Executor", "management-fake");
+		await set(p, "All tasks Effort", "high");
+		await settled(p);
+		await p.browser.evaluate(() => {
+			window.__draftDocument = "kept";
+			window.__draftHref = location.href;
+			window.__discardCalls = 0;
+			window.confirm = () => {
+				window.__discardCalls++;
+				return !!window.__allowDiscard;
+			};
+		});
+		assert.equal(
+			await p.browser.evaluate(
+				() => !dispatchEvent(new Event("beforeunload", { cancelable: true })),
+			),
+			true,
+		);
+		await p.browser.evaluate(() => history.back());
+		await p.browser.waitFor(
+			() => window.__discardCalls === 1 && location.href === window.__draftHref,
+		);
+		assert.equal(
+			await p.browser.evaluate(
+				() => document.querySelector('[aria-label="All tasks Effort"]').value,
+			),
+			"high",
+		);
+		assert.equal(
+			await p.browser.evaluate(() => window.__draftDocument),
+			"kept",
+		);
+		await p.browser.evaluate(() => {
+			window.__allowDiscard = true;
+			history.back();
+		});
+		await p.browser.waitFor(() => !!document.querySelector(".workflow-cards"));
+		assert.equal(
+			await p.browser.evaluate(() => window.__discardCalls),
+			2,
+			"one confirmation per traversal, never a duplicate",
+		);
+		await p.browser.evaluate(() => history.forward());
+		await p.browser.waitFor(
+			() => !!document.querySelector(".project-workflow-actions"),
+		);
+		await settled(p);
+		assert.equal(
+			await p.browser.evaluate(() => window.__draftDocument),
+			"kept",
+		);
+		assert.equal(
+			await p.browser.evaluate(() => window.__discardCalls),
+			2,
+			"accepted discard leaves no ghost draft",
+		);
+		assert.equal(
+			await p.browser.evaluate(
+				() => !dispatchEvent(new Event("beforeunload", { cancelable: true })),
+			),
+			false,
+		);
+		assert.deepEqual(await intent(p), {});
+	});
+}
 
 test("dynamic leaf uses actual parent, never pins/rebinds it; executor changes preserve incompatible intent for explicit review", {
 	timeout: 90000,
