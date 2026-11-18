@@ -7092,12 +7092,22 @@ function renderOverview() {
 							"article",
 							{ class: "project-card" },
 							button(project.name, () => selectProject(project.id)),
-							element(
-								"p",
-								{ class: "muted" },
-								project.path,
-								project.pathMissing ? ", path missing" : "",
-							),
+							// No paths in ordinary UI; a path only tells apart projects that share a name.
+							projects.some(
+								(other) => other !== project && other.name === project.name,
+							) || project.pathMissing
+								? element(
+										"p",
+										{ class: "muted" },
+										projects.some(
+											(other) =>
+												other !== project && other.name === project.name,
+										)
+											? project.path
+											: "",
+										project.pathMissing ? "Folder missing" : "",
+									)
+								: null,
 							element(
 								"p",
 								{},
@@ -9995,6 +10005,28 @@ async function renderWorkflow(page, name) {
 		: null;
 	if (specProblems) header.after(specProblems);
 }
+/**
+ * Ordinary dashboard text names what a note is about, not where it lives (2026-11-17, owner): file
+ * paths (often already reduced to "/Users/REDACTED") are dropped with the connector words that
+ * pointed at them. Executor diagnostics keep the raw facts for debugging.
+ */
+function withoutPaths(text) {
+	// Absolute paths with at least two segments (not URLs), home-relative and Windows paths.
+	const path =
+		/(?:(?<![\w:/.])\/(?:[^\s/,;:)"']+\/)+[^\s,;:)"']*|~\/[^\s,;:)"']*|[A-Za-z]:\\[^\s,;:)"']*)/;
+	return String(text)
+		.replace(
+			new RegExp(
+				`\\s*(?:under|in|from|at|linked from)?\\s*(?:the\\s+worker\\s+home\\s+)?${path.source}`,
+				"g",
+			),
+			(match) => (/worker\s+home/.test(match) ? " in the worker home" : ""),
+		)
+		.replace(/\s+\(/g, " (")
+		.replace(/\s{2,}/g, " ")
+		.replace(/\s+([.,;:)])/g, "$1")
+		.trim();
+}
 /** "12.4 MB" from bytes. */
 function formatBytes(bytes) {
 	const units = ["B", "KB", "MB", "GB"];
@@ -10085,9 +10117,9 @@ async function renderExecutors(page) {
 			...(data.runIndex?.error ? [`Run index: ${data.runIndex.error}`] : []),
 			...(data.runIndex?.hint ? [`Run index: ${data.runIndex.hint}`] : []),
 			...(data.home && !data.home.writable
-				? [`The home ${data.home.path} is not writable.`]
+				? ["The agent-workflow home is not writable."]
 				: []),
-		];
+		].map(withoutPaths);
 		if (mergeVersions) {
 			const ids = versionNotes.map((note) => note.id);
 			knows.push(
@@ -10155,7 +10187,11 @@ async function renderExecutors(page) {
 										]
 									: "n/a",
 								...(showFix
-									? [entry.fix || (entry.usable ? "" : entry.error || "")]
+									? [
+											withoutPaths(
+												entry.fix || (entry.usable ? "" : entry.error || ""),
+											),
+										]
 									: []),
 							];
 						}),

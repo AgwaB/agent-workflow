@@ -2259,12 +2259,17 @@ test("dashboard Chrome: project overview, explicit selection, keyboard-labelled 
 		),
 		2,
 	);
-	assert.ok(
-		await browser.evaluate(() =>
-			document
+	assert.deepEqual(
+		await browser.evaluate(() => ({
+			missing: document
 				.querySelector(".projects-overview")
-				.textContent.includes("path missing"),
-		),
+				.textContent.includes("Folder missing"),
+			path: /~\/|\/Users\/|\/tmp\//.test(
+				document.querySelector(".projects-overview").textContent,
+			),
+		})),
+		{ missing: true, path: false },
+		"a missing folder is stated without showing any path",
 	);
 	assert.equal(
 		fixture.requests.some(

@@ -827,10 +827,12 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 					],
 				),
 			);
+		// Ordinary notes name the fact, never the path (2026-11-17, owner).
 		const others = [
-			...security,
+			"codex: 2 allow rules in 1 file let matching commands run without approval (readOnly is emulated for Codex workers)",
+			"codex: global instructions (1 file) are loaded into every Codex worker (context isolation is emulated)",
 			"Node 1 is older than the required 22.",
-			"The home /fixture/home is not writable.",
+			"The agent-workflow home is not writable.",
 		];
 		assert.deepEqual(
 			actual.notes,
