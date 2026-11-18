@@ -143,9 +143,14 @@ test("a Chrome that hangs at startup is relaunched once; two hangs fail with bot
 	});
 	let calls = 0;
 	const browser = await createBrowser(chrome, {
-		launch: (executable, args, options) =>
-			spawn(++calls === 1 ? hung : executable, args, options),
+		launch: (executable, args, options) => {
+			// Only the fake gets the 1 s budget: a real Chrome on a slow CI runner needs longer to answer
+			// (CI 44352210538, macOS).
+			if (++calls === 2) delete process.env.AW_TEST_CHROME_STARTUP_TIMEOUT_MS;
+			return spawn(calls === 1 ? hung : executable, args, options);
+		},
 	});
+	process.env.AW_TEST_CHROME_STARTUP_TIMEOUT_MS = "1000";
 	t.after(() => browser.close());
 	assert.equal(calls, 2);
 	assert.equal(await browser.evaluate(() => 1 + 1), 2);
