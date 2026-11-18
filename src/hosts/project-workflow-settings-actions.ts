@@ -295,8 +295,13 @@ export async function previewProjectWorkflowSettingsAction(
 	const draft = intent(value);
 	const current = await readProjectWorkflowSettingsAction(ctx, workflow);
 	assertExpected(current.settings, projectSettingsExpected(expectedValue));
-	const baseline = await checkDraft(ctx, workflow, {});
-	const check = await checkDraft(ctx, workflow, draft);
+	const baselinePromise = checkDraft(ctx, workflow, {});
+	const [baseline, check] = await Promise.all([
+		baselinePromise,
+		Object.keys(draft).length === 0
+			? baselinePromise
+			: checkDraft(ctx, workflow, draft),
+	]);
 	const latest = await readProjectWorkflowSettingsAction(ctx, workflow);
 	assertExpected(latest.settings, projectSettingsExpected(expectedValue));
 	const loaded = await loadWorkflowSpec(workflow, ctx.cwd);

@@ -106,19 +106,17 @@ test("polish: completed Run shows result before concise contextual policy detail
 				result.compareDocumentPosition(context) &
 				Node.DOCUMENT_POSITION_FOLLOWING
 			),
-			reason: document.querySelector('[data-testid="run-action-reason"]')
-				.textContent,
-			folded: !!context.querySelector("details:not([open])"),
-			policy: context.textContent,
+			reason: document.querySelectorAll('[data-testid="run-action-reason"]')
+				.length,
+			policy: context.querySelectorAll("details").length,
 			buttons: [...document.querySelectorAll("#run-header button")].map(
 				(n) => n.textContent,
 			),
 		};
 	});
 	assert.equal(facts.before, true);
-	assert.equal(facts.reason, "Finished.");
-	assert.equal(facts.folded, true);
-	assert.match(facts.policy, /business verdicts are results/);
+	assert.equal(facts.reason, 0, "finished Runs carry no action note");
+	assert.equal(facts.policy, 0, "no Run action policy disclosure");
 	assert.equal(
 		facts.buttons.some((s) => /Stop|Resume/.test(s)),
 		false,

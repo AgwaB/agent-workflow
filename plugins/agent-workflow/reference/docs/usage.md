@@ -71,11 +71,12 @@ plan, not observed provider execution.
 
 Shared `profile workflow` preferences are still user-level and keyed by workflow name, potentially
 across projects. Manage them through CLI, MCP or Pi's profile picker, not the dashboard.
-They are neither migrated into nor deleted by project-local settings. Dashboard **Executors** edits
-only each executor's shared permission mode (**Automatic**, **Free**, **Safe**) and known strict
-capability checkboxes under **Advanced**, with per-row **Save** and **Discard**. Save leaves stored
-executor/model/effort and role assignments untouched. Named profiles and their default selection
-remain available through CLI, MCP and Pi; the dashboard does not modify or delete them. Project-local
+They are neither migrated into nor deleted by project-local settings. Dashboard **Executors** shows
+readiness and one read-only permission fact from the doctor's effective default: **Free** means
+workers run without approvals or sandbox; **Safe** means workers run sandboxed with approvals
+limited to their tools. Use `--permission-mode safe` to restrict a run. There are no permission or
+strict-capability editors on this page, including on read-only dashboards. Shared profiles and their
+default selection remain available through CLI, MCP and Pi; the dashboard does not modify or delete them. Project-local
 storage is private under the project's state base at `workflow-settings/v1/settings.json`.
 In the dashboard, writable initial load and meaningful edits automatically calculate the draft without
 saving or executing. **Save** and **Discard changes** sit in the sticky title row with an unsaved-changes indicator. Save applies one

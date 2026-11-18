@@ -1,11 +1,10 @@
 // test-tier: integration
-// Retained geometry and skip-link behavior on the executor permission editor.
+// Retained geometry and skip-link behavior on the observation-only Executors page.
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	executorsFixture,
 	loadExecutors,
-	setPermission,
 } from "../helpers/dashboard-profiles.mjs";
 async function open(t) {
 	const p = await executorsFixture(t);
@@ -18,8 +17,6 @@ test("G3: narrow and coarse executor controls retain usable geometry and desktop
 	const p = await executorsFixture(t),
 		{ b } = p;
 	await loadExecutors(p);
-	// Save/Discard appear only on a changed row; measure them in that state.
-	await setPermission(b, "safe");
 	for (const [width, coarse] of [
 		[390, false],
 		[390, true],
@@ -39,14 +36,9 @@ test("G3: narrow and coarse executor controls retain usable geometry and desktop
 		});
 		const sizes = await b.evaluate(() => ({
 			coarse: matchMedia("(pointer: coarse)").matches,
-			font: parseFloat(
-				getComputedStyle(
-					document.querySelector('[aria-label="codex permission mode"]'),
-				).fontSize,
-			),
 			buttons: [
 				...document.querySelectorAll(
-					".executor-permission-actions button, .top button, .management-nav a, .executor-permissions summary",
+					".page-actions button, .top button, .management-nav a",
 				),
 			]
 				.filter((n) => n.checkVisibility())
@@ -58,7 +50,6 @@ test("G3: narrow and coarse executor controls retain usable geometry and desktop
 		}));
 		assert.equal(sizes.coarse, coarse);
 		const touchSized = width <= 800 || coarse;
-		assert.equal(sizes.font, touchSized ? 16 : 14);
 		assert.equal(sizes.overflow, false);
 		if (touchSized)
 			for (const control of sizes.buttons)
@@ -66,17 +57,17 @@ test("G3: narrow and coarse executor controls retain usable geometry and desktop
 					control.size.every((size) => size >= 44),
 					JSON.stringify(control),
 				);
-		else assert.equal(sizes.buttons.find((n) => n.name === "Save").size[1], 32);
+		else
+			assert.equal(sizes.buttons.find((n) => n.name === "Refresh").size[1], 32);
 	}
 	assert.deepEqual(b.errors, []);
 });
 
-test("G5: first Tab exposes skip link, activation focuses main without navigation or draft reset", {
+test("G5: first Tab exposes skip link, activation focuses main without navigation or document reset", {
 	timeout: 120000,
 }, async (t) => {
 	const p = await open(t);
 	const b = p.browser;
-	await setPermission(b, "safe");
 	await b.evaluate(() => {
 		document.activeElement?.blur();
 		window.skipDocument = document;
@@ -126,8 +117,6 @@ test("G5: first Tab exposes skip link, activation focuses main without navigatio
 			href: location.href,
 			length: history.length,
 			focus: document.activeElement.id,
-			draft: document.querySelector('[aria-label="codex permission mode"]')
-				.value,
 			same: document === window.skipDocument,
 			tabIndex: document.querySelector("main").tabIndex,
 		})),
@@ -135,7 +124,6 @@ test("G5: first Tab exposes skip link, activation focuses main without navigatio
 			href: before.href,
 			length: before.length,
 			focus: "center",
-			draft: "safe",
 			same: true,
 			tabIndex: -1,
 		},

@@ -414,7 +414,11 @@ for (const [width, height] of [
 		const selectors = await browser.evaluate(() => [
 			"#canvas .code-switch",
 			...[...document.querySelectorAll("#canvas .toolbar button")].map(
-				(_, i) => `#canvas .toolbar button:nth-child(${i + 1})`,
+				(n, i) => {
+					// M2 wraps only layout buttons in a labelled segmented group.
+					n.dataset.reachability = String(i);
+					return `#canvas [data-reachability="${i}"]`;
+				},
 			),
 			...[...document.querySelectorAll("#canvas .more:not([hidden])")].map(
 				(n) => `#canvas [data-more="${n.dataset.more}"]`,

@@ -52,7 +52,16 @@ async function open(t, options = {}) {
 			const op = path.endsWith('/preview') ? 'preview' : path.endsWith('/settings') ? (options.method || 'GET') : '';
 			if (window.__holds[op]) { window.__holds[op] = false; await new Promise(resolve => { window.__releases[op] = resolve; }); }
 			const json = response.json.bind(response);
-			response.json = async () => { const data = await json(); request.response = {status: response.status, data}; return data; };
+			response.json = async () => {
+				const data = await json();
+				request.response = {status: response.status, data};
+				if (data.pending) request.calculationId = data.calculationId;
+				if (path.startsWith('/api/calculations/') && !data.pending) {
+					const logical = window.__requests.find(r => r.calculationId === path.split('/').at(-1));
+					if (logical) logical.response = {status: response.status, data};
+				}
+				return data;
+			};
 			return response;
 		};
 	`,
@@ -530,7 +539,7 @@ test("scope S2: All tasks is the default panel and edits workflow defaults only"
 	await settled(p);
 	assert.deepEqual(
 		await p.browser.evaluate(() => ({
-			titles: [...document.querySelectorAll(".project-settings-side h3")]
+			titles: [...document.querySelectorAll(".project-settings-side h2")]
 				.filter((n) => n.checkVisibility())
 				.map((n) => n.textContent),
 			old: document
@@ -791,7 +800,7 @@ test("scope S6: diagnostics and About are deleted; description and real spec ale
 		const detailFetch = window.fetch;
 		window.fetch = async (...args) => {
 			const response = await detailFetch(...args);
-			if (!String(args[0]).endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
+			if (!new URL(args[0], location.href).pathname.endsWith('/workflows/' + new URLSearchParams(location.search).get('workflow'))) return response;
 			const value = await response.json(); value.validation = {error: 'unique real spec problem'};
 			return new Response(JSON.stringify(value), {headers: {'Content-Type': 'application/json'}});
 		};`,
@@ -803,16 +812,17 @@ test("scope S6: diagnostics and About are deleted; description and real spec ale
 			removed: document.querySelectorAll(
 				'.management-diagnostics, [data-management-action="check"], [data-testid="saved-launch-check"], .property-table',
 			).length,
-			headings: [...document.querySelectorAll(".management-page h2")].map(
-				(n) => n.textContent,
-			),
+			// F2 promotes scope titles to h2; diagnostics remain deleted.
+			headings: [...document.querySelectorAll(".management-page h2")]
+				.filter((n) => n.checkVisibility())
+				.map((n) => n.textContent),
 			description: document.querySelector(".workflow-description")?.textContent,
 			alert: document.querySelector('[data-testid="workflow-spec-problems"]')
 				?.textContent,
 		})),
 		{
 			removed: 0,
-			headings: [],
+			headings: ["All tasks"],
 			description: "No description.",
 			alert: "unique real spec problem",
 		},
@@ -1405,7 +1415,7 @@ test("minimal settings: requested clutter is deleted, not folded or hidden", {
 		),
 		common: [
 			...document.querySelectorAll(
-				".project-common h3, .project-common label > span",
+				".project-common h2, .project-common label > span",
 			),
 		].map((node) => node.textContent),
 		commonExtra: document.querySelectorAll(
@@ -1810,7 +1820,7 @@ test("polish: baseline pickers replace duplicate resets, automatic calculation a
 			draftChecks: document.querySelectorAll(
 				'[data-testid="project-settings-check"]',
 			).length,
-			title: document.querySelector(".project-common h3").textContent,
+			title: document.querySelector(".project-common h2").textContent,
 			stageSummary: !!document.querySelector(
 				'[data-testid="workflow-stage-summary"]',
 			),
@@ -1986,7 +1996,7 @@ for (const width of [970, 1476])
 			const panel = document.querySelector(".role-inspector");
 			return [
 				...panel.querySelectorAll(
-					'h3, [aria-label="Slot constructor Executor"], [aria-label="Slot constructor Model"]',
+					'h2, [aria-label="Slot constructor Executor"], [aria-label="Slot constructor Model"]',
 				),
 			].map((n) => {
 				const r = n.getBoundingClientRect();
@@ -2008,7 +2018,7 @@ for (const width of [970, 1476])
 		await select(p, "iterate.check");
 		const geometry = await p.browser.evaluate(() => {
 			const panel = document.querySelector(".role-inspector");
-			const title = panel.querySelector("h3").getBoundingClientRect();
+			const title = panel.querySelector("h2").getBoundingClientRect();
 			return {
 				title: { top: title.top, bottom: title.bottom },
 				height: innerHeight,

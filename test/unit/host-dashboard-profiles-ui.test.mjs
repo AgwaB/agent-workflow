@@ -1,19 +1,14 @@
 // test-tier: integration
-// E1–E3: the removed Profiles page redirects; executor permissions retain store semantics.
+// X1–X4: Executors is observation-only; shared profile storage belongs to other hosts.
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import test from "node:test";
 import { userProfilesPath } from "../../dist/hosts/user-profiles.js";
-import { LEVEL_CAPABILITY_NAMES } from "../../dist/sdk/capabilities.js";
 import { profileAction } from "../../dist/hosts/catalog.js";
 import {
 	executorsFixture,
 	loadExecutors,
-	setPermission,
-	toggleCapability,
-	savePermissions,
 	seedProfile,
-	storedProfile,
 } from "../helpers/dashboard-profiles.mjs";
 const opts = { timeout: 60000 };
 
@@ -55,108 +50,138 @@ test(
 );
 
 test(
-	"E2 executor rows offer Automatic/Free/Safe and known strict checkboxes under Advanced; P4 retention",
+	"X1 Executors has status columns only, no permission editor or profile requests",
 	opts,
 	async (t) => {
 		const p = await executorsFixture(t);
-		const values = {
-			executor: "claude",
-			model: "manual/unlisted",
-			effort: "ultra",
-			permissionMode: "safe",
-			strictCapabilities: ["readOnly"],
-			roles: {
-				verification: {
-					executor: "claude",
-					model: "manual/role",
-					effort: "max",
-				},
-				"agent:future": { model: "unmapped" },
-			},
-		};
-		await seedProfile(p, values);
-		await p.b.send("Page.addScriptToEvaluateOnNewDocument", {
-			source: `window.permissionWrites=[];const original=window.fetch;window.fetch=(path,options={})=>{if(options.method==='PUT'&&String(path).includes('/api/profiles/'))window.permissionWrites.push(JSON.parse(options.body));return original(path,options);};`,
-		});
 		await loadExecutors(p);
 		assert.deepEqual(
-			await p.b.evaluate(() =>
-				[...document.querySelectorAll("[data-executor-permissions]")]
-					.map((n) => n.dataset.executorPermissions)
-					.sort(),
+			await p.b.evaluate(() => ({
+				headers: [...document.querySelectorAll(".executors th")].map(
+					(n) => n.textContent,
+				),
+				rows: document.querySelectorAll(".executors tbody tr").length,
+				controls: document.querySelectorAll(
+					".executors select, .executors input, [data-executor-permissions], [data-save-permissions], [data-discard-permissions]",
+				).length,
+			})),
+			{ headers: ["Executor", "Status", "Version"], rows: 4, controls: 0 },
+		);
+		assert.doesNotMatch(
+			await p.b.evaluate(
+				() => document.querySelector(".management-page").innerText,
 			),
-			["antigravity", "claude", "codex", "pi"],
+			/Strict capabilities|Advanced|\bSave\b|\bDiscard\b|Permission mode/,
 		);
-		assert.deepEqual(
-			await p.b.evaluate(() => {
-				const row = document.querySelector(
-					'[data-executor-permissions="codex"]',
-				);
-				return {
-					options: [...row.querySelectorAll("select option")].map((n) => [
-						n.value,
-						n.textContent,
-					]),
-					folded: !row.querySelector("details").open,
-					advanced: row.querySelector("summary").textContent,
-					capabilities: [...row.querySelectorAll('input[type="checkbox"]')].map(
-						(n) => n.value,
+		await p.b.click('[data-management-action="doctor-refresh"]');
+		await p.b.waitFor(
+			() =>
+				!document.querySelector('[data-management-action="doctor-refresh"]')
+					.disabled,
+		);
+		assert.ok(
+			p.b.requests.every(
+				(url) =>
+					!/\/api\/(profiles(?:[/?]|$)|executors\/models|workflow-preferences)/.test(
+						url,
 					),
-					textInputs: row.querySelectorAll('input:not([type="checkbox"])')
-						.length,
-				};
-			}),
-			{
-				options: [
-					["", "Automatic"],
-					["free", "Free"],
-					["safe", "Safe"],
-				],
-				folded: true,
-				advanced: "Advanced",
-				capabilities: [...LEVEL_CAPABILITY_NAMES],
-				textInputs: 0,
-			},
+			),
+			JSON.stringify(p.b.requests),
 		);
-		await setPermission(p.b, "free");
-		await savePermissions(p.b);
-		assert.deepEqual(await p.b.evaluate(() => window.permissionWrites), [
-			{
-				values: { permissionMode: "free", strictCapabilities: ["readOnly"] },
-				unset: [],
-			},
-		]);
-		const after = await storedProfile(p);
-		for (const key of ["executor", "model", "effort", "roles"])
-			assert.equal(
-				JSON.stringify(after[key]),
-				JSON.stringify(values[key]),
-				key,
-			);
-		assert.equal(after.permissionMode, "free");
-		await setPermission(p.b, "");
-		await toggleCapability(p.b, "readOnly");
-		await savePermissions(p.b);
-		const cleared = await storedProfile(p);
-		assert.equal(cleared.permissionMode, undefined);
-		assert.equal(cleared.strictCapabilities, undefined);
-		for (const key of ["executor", "model", "effort", "roles"])
-			assert.equal(
-				JSON.stringify(cleared[key]),
-				JSON.stringify(values[key]),
-				key,
-			);
-		await toggleCapability(p.b, "contextIsolation");
-		await savePermissions(p.b);
-		assert.deepEqual((await storedProfile(p)).strictCapabilities, [
-			"contextIsolation",
-		]);
 		assert.deepEqual(p.b.errors, []);
 	},
 );
 
+for (const readonly of [false, true]) {
+	for (const mode of ["free", "safe"]) {
+		test(
+			`X2 ${readonly ? "readonly" : "writable"} Executors shows one ${mode} fact from the doctor's effective default`,
+			opts,
+			async (t) => {
+				const p = await executorsFixture(t, { readonly });
+				await seedProfile(p, {
+					permissionMode: mode === "free" ? "safe" : "free",
+				});
+				await seedProfile(p, { permissionMode: mode }, "daily");
+				await profileAction(p.ctx, { op: "default", name: "daily" });
+				await loadExecutors(p);
+				const meaning =
+					mode === "free"
+						? "Free — workers run without approvals or sandbox"
+						: "Safe — workers run sandboxed with approvals limited to their tools";
+				assert.deepEqual(
+					await p.b.evaluate(() =>
+						[
+							...document.querySelectorAll(
+								'[data-testid="executor-permission-fact"]',
+							),
+						].map((n) => ({
+							text: n.textContent,
+							visible: n.checkVisibility(),
+							aboveTable: Boolean(
+								n.compareDocumentPosition(
+									document.querySelector(".executors"),
+								) & Node.DOCUMENT_POSITION_FOLLOWING,
+							),
+						})),
+					),
+					[
+						{
+							text: `Permissions: ${meaning}. Use --permission-mode safe to restrict.`,
+							visible: true,
+							aboveTable: true,
+						},
+					],
+				);
+				assert.deepEqual(
+					await p.b.evaluate(() => ({
+						defaults: [
+							...document.querySelectorAll(".management-card h2"),
+						].some((n) => n.textContent === "Defaults"),
+						status: /Runs use pi unless you choose another executor\.$/.test(
+							document.querySelector(".management-card .lead")?.textContent,
+						),
+					})),
+					{ defaults: false, status: true },
+					"no Defaults card; the Status line names the default executor",
+				);
+				assert.deepEqual(p.b.errors, []);
+			},
+		);
+	}
+}
+
 test(
-	"E3 named profiles and their management controls disappear without changing saved bytes or default",
+	"X2 Refresh replaces the effective permission fact without duplicating it",
+	opts,
+	async (t) => {
+		const p = await executorsFixture(t);
+		await loadExecutors(p);
+		await seedProfile(p, { permissionMode: "safe" }, "daily");
+		await profileAction(p.ctx, { op: "default", name: "daily" });
+		await p.b.click('[data-management-action="doctor-refresh"]');
+		await p.b.waitFor(
+			() =>
+				!document.querySelector('[data-management-action="doctor-refresh"]')
+					.disabled,
+		);
+		assert.deepEqual(
+			await p.b.evaluate(() =>
+				[
+					...document.querySelectorAll(
+						'[data-testid="executor-permission-fact"]',
+					),
+				].map((n) => n.textContent),
+			),
+			[
+				"Permissions: Safe — workers run sandboxed with approvals limited to their tools. Use --permission-mode safe to restrict.",
+			],
+		);
+	},
+);
+
+test(
+	"E3 visiting and refreshing Executors leaves every saved profile byte and default unchanged",
 	opts,
 	async (t) => {
 		const p = await executorsFixture(t);
@@ -169,6 +194,10 @@ test(
 			},
 			"daily",
 		);
+		await seedProfile(p, {
+			permissionMode: "safe",
+			strictCapabilities: ["toolAllowlist.detail", "readOnly"],
+		});
 		await profileAction(p.ctx, { op: "default", name: "daily" });
 		const path = userProfilesPath(p.env),
 			original = await readFile(path, "utf8");
@@ -186,83 +215,19 @@ test(
 			),
 			0,
 		);
-		await setPermission(p.b, "safe");
-		await savePermissions(p.b);
-		const before = JSON.parse(original),
-			after = JSON.parse(await readFile(path, "utf8"));
-		assert.equal(
-			JSON.stringify(after.profiles.daily),
-			JSON.stringify(before.profiles.daily),
+		await p.b.click('[data-management-action="doctor-refresh"]');
+		await p.b.waitFor(
+			() =>
+				!document.querySelector('[data-management-action="doctor-refresh"]')
+					.disabled,
 		);
-		assert.equal(after.default, before.default);
-	},
-);
-
-test(
-	"E2 readonly disables permission edits and saves but keeps Advanced and navigation available",
-	opts,
-	async (t) => {
-		const p = await executorsFixture(t, { readonly: true });
-		await loadExecutors(p);
-		const state = await p.b.evaluate(() => ({
-			rows: document.querySelectorAll("[data-executor-permissions]").length,
-			disabled: [
-				...document.querySelectorAll(
-					"[data-executor-permissions] input, [data-executor-permissions] select, [data-save-permissions], [data-discard-permissions]",
-				),
-			].every((n) => n.disabled),
-			nav: [
-				...document.querySelectorAll('[aria-label="Shared settings"] a'),
-			].map((n) => n.textContent),
-		}));
-		assert.deepEqual(state, { rows: 4, disabled: true, nav: ["Executors"] });
-		await p.b.evaluate(() =>
-			document.querySelector("[data-executor-permissions] summary").click(),
-		);
-		assert.equal(
-			await p.b.evaluate(
-				() =>
-					document.querySelector("[data-executor-permissions] details").open,
-			),
-			true,
-		);
+		assert.equal(await readFile(path, "utf8"), original);
 		assert.deepEqual(p.b.errors, []);
 	},
 );
 
 test(
-	"Executor permission Save retains dotted strict constraints authored elsewhere and never loads model/preference editors",
-	opts,
-	async (t) => {
-		const p = await executorsFixture(t);
-		await seedProfile(p, {
-			strictCapabilities: ["toolAllowlist.detail", "readOnly"],
-		});
-		await loadExecutors(p);
-		await setPermission(p.b, "safe");
-		await savePermissions(p.b);
-		assert.deepEqual((await storedProfile(p)).strictCapabilities, [
-			"toolAllowlist.detail",
-			"readOnly",
-		]);
-		assert.ok(
-			p.b.requests.every(
-				(url) => !/\/api\/(executors\/models|workflow-preferences)/.test(url),
-			),
-		);
-		assert.equal(
-			await p.b.evaluate(() =>
-				document
-					.querySelector('[data-executor-permissions="codex"] details')
-					.textContent.includes("Also required: toolAllowlist.detail"),
-			),
-			true,
-		);
-	},
-);
-
-test(
-	"Existing unknown profile storage blocks permission editing and remains byte-identical",
+	"Unknown profile storage remains byte-identical and its doctor warning stays visible",
 	opts,
 	async (t) => {
 		const p = await executorsFixture(t);
@@ -278,11 +243,12 @@ test(
 		};
 		const original = JSON.stringify(store, null, 2) + "\n";
 		await writeFile(path, original);
-		await p.b.send("Page.navigate", { url: p.url });
-		await p.b.waitFor(() =>
-			document
-				.querySelector('.management-page [role="alert"]')
-				?.textContent.includes('unknown field "futureOpaque"'),
+		await loadExecutors(p);
+		assert.match(
+			await p.b.evaluate(
+				() => document.querySelector(".management-page").innerText,
+			),
+			/unknown field "futureOpaque"/,
 		);
 		assert.equal(
 			await p.b.evaluate(
@@ -291,45 +257,5 @@ test(
 			0,
 		);
 		assert.equal(await readFile(path, "utf8"), original);
-	},
-);
-
-test(
-	"E6 Save and Discard appear only on the row with unsaved changes",
-	opts,
-	async (t) => {
-		const p = await executorsFixture(t);
-		await loadExecutors(p);
-		const shown = () =>
-			p.b.evaluate(() =>
-				[...document.querySelectorAll("[data-executor-permissions]")]
-					.filter((row) =>
-						row.querySelector(".executor-permission-actions").checkVisibility(),
-					)
-					.map((row) => row.dataset.executorPermissions),
-			);
-		assert.deepEqual(await shown(), [], "clean rows show no actions");
-		await setPermission(p.b, "safe");
-		assert.deepEqual(await shown(), ["codex"]);
-		await setPermission(p.b, "");
-		assert.deepEqual(await shown(), [], "undo back to saved hides actions");
-		await toggleCapability(p.b, "readOnly");
-		assert.deepEqual(await shown(), ["codex"]);
-		await p.b.evaluate(() =>
-			document
-				.querySelector(
-					'[data-executor-permissions="codex"] [data-discard-permissions]',
-				)
-				.click(),
-		);
-		assert.deepEqual(await shown(), [], "Discard hides actions");
-		await setPermission(p.b, "safe");
-		await savePermissions(p.b);
-		await p.b.waitFor(() =>
-			document
-				.querySelector('[data-executor-permissions="codex"] [role="status"]')
-				?.textContent.startsWith("Saved"),
-		);
-		assert.deepEqual(await shown(), [], "Save hides actions, keeps feedback");
 	},
 );

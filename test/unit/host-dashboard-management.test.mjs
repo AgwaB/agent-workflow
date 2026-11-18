@@ -108,7 +108,10 @@ test("management catalogs and check reuse host actions, never resolve request pa
 
 test("profile API round trip equals profileAction show, including roles, presets, defaults, unset and delete", async (t) => {
 	const p = await managementProject(t);
-	assert.equal((await p.http("/api/profiles")).status, 200);
+	const listed = await p.http("/api/profiles");
+	assert.equal(listed.status, 200);
+	assert.deepEqual(listed.data, await profileAction(p.ctx, { op: "list" }));
+	assert.equal(Object.hasOwn(listed.data.data, "capabilityNames"), false);
 	const presets = await p.http("/api/profiles/presets");
 	assert.equal(presets.status, 200);
 	assert.ok(presets.data.data.presets.some((preset) => preset.id === "mixed"));
@@ -276,12 +279,20 @@ test("executor models are descriptor-validated; doctor caches 60 seconds and exp
 		"report remains cached before expiry",
 	);
 	p.advance(60_000);
+	// Expired: the last report is returned at once while one background refresh runs.
 	const expired = await p.http("/api/doctor");
 	assert.equal(expired.status, 200);
+	assert.equal(expired.data.data.permissionMode.mode, "free");
+	let refreshed;
+	for (let i = 0; i < 200; i++) {
+		refreshed = (await p.http("/api/doctor")).data.data.permissionMode.mode;
+		if (refreshed === "safe") break;
+		await new Promise((resolve) => setTimeout(resolve, 10));
+	}
 	assert.equal(
-		expired.data.data.permissionMode.mode,
+		refreshed,
 		"safe",
-		"expired report sees updated saved defaults",
+		"the background refresh sees updated saved defaults",
 	);
 	const models = await p.http("/api/executors/models?executor=management-fake");
 	assert.equal(models.status, 200);
@@ -560,4 +571,21 @@ test("management responses redact secrets, including profile values and action t
 	assert.equal(response.status, 200);
 	assert.equal(text.includes(secret), false);
 	assert.match(text, /REDACTED/);
+});
+
+test("dashboard profile writes drop the cached doctor report so saved permissions show at once", async (t) => {
+	const p = await managementProject(t);
+	assert.equal(
+		(await p.http("/api/doctor")).data.data.permissionMode.mode,
+		"free",
+	);
+	const saved = await p.http("/api/profiles/codex", {
+		method: "PUT",
+		body: { values: { permissionMode: "safe" }, makeDefault: true },
+	});
+	assert.equal(saved.status, 200, JSON.stringify(saved.data));
+	assert.equal(
+		(await p.http("/api/doctor")).data.data.permissionMode.mode,
+		"safe",
+	);
 });

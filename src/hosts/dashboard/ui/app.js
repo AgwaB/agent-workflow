@@ -3,6 +3,11 @@ const $ = (id) => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
 function element(tag, attrs = {}, ...children) {
 	const node = document.createElement(tag);
+	// Every code/log block can overflow at narrow widths or with unbroken output.
+	if (tag === "pre") {
+		node.tabIndex = 0;
+		node.setAttribute("aria-label", "Code or output");
+	}
 	for (const [key, value] of Object.entries(attrs)) {
 		if (value === null || value === undefined || value === false) continue;
 		if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
@@ -504,21 +509,77 @@ function syncTitle() {
 		[page, state.run ? name : null, project].filter(Boolean).join(" | ") ||
 		"agent-workflow";
 }
+let pendingLoads = 0,
+	progressTimer;
+function beginLoading() {
+	if (pendingLoads++ === 0)
+		progressTimer = setTimeout(() => {
+			$("global-progress").hidden = false;
+		}, 150);
+	let finished = false;
+	return () => {
+		if (finished) return;
+		finished = true;
+		if (--pendingLoads === 0) {
+			clearTimeout(progressTimer);
+			$("global-progress").hidden = true;
+		}
+	};
+}
+const initialLoads = new Map();
+function prefetch(path) {
+	if (initialLoads.has(path)) return;
+	const load = path.endsWith("/runs") ? api(path) : managementApi(path);
+	initialLoads.set(path, load);
+	load.catch(() => {}); // A speculative failure is handled by its eventual consumer.
+}
 async function api(path, options = {}) {
 	if (path.startsWith("/api/runs"))
 		path = `/api/projects/${encodeURIComponent(state.project)}/${path.slice(5)}`;
-	const response = await fetch(path, {
-		credentials: "same-origin",
-		...options,
-		signal: options.signal || AbortSignal.timeout(20000),
-	});
-	const data = await response.json();
-	if (!response.ok)
-		throw Object.assign(
-			new Error(data.error || `Request failed (${response.status})`),
-			{ status: response.status, data },
-		);
-	return data;
+	if (!options.method && initialLoads.has(path)) {
+		const load = initialLoads.get(path);
+		initialLoads.delete(path);
+		return load;
+	}
+	const finish = beginLoading();
+	const signal = options.signal || AbortSignal.timeout(20000);
+	try {
+		let request = path,
+			init = options;
+		while (true) {
+			const response = await fetch(request, {
+				credentials: "same-origin",
+				...init,
+				signal,
+			});
+			const data = await response.json();
+			if (!response.ok)
+				throw Object.assign(
+					new Error(data.error || `Request failed (${response.status})`),
+					{ status: response.status, data },
+				);
+			if (response.status !== 202 || !data.pending) return data;
+			// The server's explicit pending protocol: never treat an unprobed executor as ready.
+			if (!/^\/api\/calculations\/[a-f0-9-]+$/.test(data.poll))
+				throw new Error("Invalid calculation receipt");
+			await new Promise((resolve, reject) => {
+				const abort = () => {
+					clearTimeout(timer);
+					reject(signal.reason);
+				};
+				const timer = setTimeout(() => {
+					signal.removeEventListener("abort", abort);
+					resolve();
+				}, data.retryAfterMs);
+				if (signal.aborted) abort();
+				else signal.addEventListener("abort", abort, { once: true });
+			});
+			request = data.poll;
+			init = {};
+		}
+	} finally {
+		finish();
+	}
 }
 function notice(text) {
 	clearTimeout(noticeTimer);
@@ -876,7 +937,9 @@ function railNeed(need, alone = false) {
 		(
 			left[Math.min(index, left.length - 1)] ??
 			$("rail").querySelector(".need-restore") ??
-			$("rail").querySelector(`[data-run="${CSS.escape(need.run.runId)}"]`)
+			$("rail").querySelector(
+				`[data-run="${CSS.escape(need.run.runId)}"] .run-open`,
+			)
 		)?.focus({ preventScroll: true });
 	};
 	return element(
@@ -1091,20 +1154,9 @@ function renderRail() {
 			"div",
 			{
 				class: "run-row",
-				role: "button",
-				tabindex: "0",
 				"data-run": summary.runId,
 				"aria-current": String(summary.runId === state.run),
 				onclick: () => go({ run: summary.runId }),
-				onkeydown: (event) => {
-					if (
-						event.target === event.currentTarget &&
-						["Enter", " "].includes(event.key)
-					) {
-						event.preventDefault();
-						go({ run: summary.runId });
-					}
-				},
 			},
 			element(
 				"div",
@@ -1119,8 +1171,13 @@ function renderRail() {
 							: summary.status,
 				),
 				element(
-					"span",
-					{ class: "grow truncate", title: summary.name },
+					"button",
+					{
+						type: "button",
+						class: "run-open grow truncate",
+						title: summary.name,
+						"aria-label": `Open ${summary.name}, ${summary.taskPreview || summary.runId}`,
+					},
 					summary.name,
 				),
 				// When it started, and below, the task it was given: four "deep-review" rows read
@@ -1188,7 +1245,7 @@ function renderRail() {
 	if (focusedProject) switcher.focus({ preventScroll: true });
 	if (focusedRun)
 		rail
-			.querySelector(`[data-run="${CSS.escape(focusedRun)}"]`)
+			.querySelector(`[data-run="${CSS.escape(focusedRun)}"] .run-open`)
 			?.focus({ preventScroll: true });
 }
 function actionButton(text, dialog, cls = "") {
@@ -1371,7 +1428,7 @@ function renderHeader() {
 						href: workflowHref(workflowTarget.target.workflowKey),
 						"data-testid": "run-workflow-link",
 					},
-					"Current Workflow settings (future Runs only)",
+					"Workflow settings",
 				)
 			: element(
 					"p",
@@ -1379,32 +1436,20 @@ function renderHeader() {
 					`Workflow unavailable: ${workflowTarget?.reason || "checking source"}.`,
 				),
 	);
+	// A finished Run needs no action note: its status line already says so (2026-11-17, owner).
 	const finished = !liveRun(run) && !needsResume(run);
-	context.append(
-		element(
-			"p",
-			{ class: "muted", "data-testid": "run-action-reason" },
-			finished
-				? "Finished."
-				: readonly()
+	if (!finished)
+		context.append(
+			element(
+				"p",
+				{ class: "muted", "data-testid": "run-action-reason" },
+				readonly()
 					? "Read-only: Stop/Resume unavailable."
 					: needsResume(run)
 						? "Review stopped work before resuming."
 						: "Run in progress.",
-		),
-		moreDetails(
-			"Run action policy",
-			element(
-				"p",
-				{},
-				finished
-					? "No Stop/Resume: terminal; business verdicts are results, not resumable failures."
-					: readonly()
-						? "Read-only: no Stop/Resume. Server checks remain authoritative."
-						: "Recorded-status eligibility; server capability/ownership checks may refuse.",
 			),
-		),
-	);
+		);
 	// Only a run that finished its work has a result; a failed or stopped run keeps "Status", so an
 	// earlier stage's summary never reads as the outcome of a run that did not get there.
 	const result =
@@ -2089,6 +2134,8 @@ function renderGraph(preview = null) {
 	for (const stage of model.nodes.values()) {
 		const p = positions.get(stage.id);
 		const group = stage.kind === "group";
+		const hasMembers =
+			group || (activeAgents(stage) && stage.items.length <= 6);
 		const title = group
 			? `${stage.name ? `${stage.name}, ` : ""}${stage.members.length} in parallel`
 			: humanize(stage.short || stage.name || stage.id);
@@ -2111,8 +2158,8 @@ function renderGraph(preview = null) {
 		const node = svg("g", {
 			class: `node ${preview ? "settings" : stage.status}${stage.ghost ? " ghost" : ""}${stage.kind === "support" ? " support" : ""}${group ? " group" : ""}${!preview && nextStage(stage) ? " next" : ""}`,
 			transform: `translate(${p.x},${p.y})`,
-			tabindex: "0",
-			role: "button",
+			tabindex: hasMembers ? "-1" : "0",
+			role: hasMembers ? "group" : "button",
 			"data-stage": stage.id,
 			...(group
 				? { "data-members": stage.members.map((s) => s.id).join(",") }
@@ -2164,6 +2211,20 @@ function renderGraph(preview = null) {
 					)
 				: null,
 		);
+		if (hasMembers)
+			node.append(
+				svg("rect", {
+					class: "node-open",
+					x: 0,
+					y: 0,
+					width: p.w,
+					height: 32,
+					fill: "transparent",
+					role: "button",
+					tabindex: "0",
+					"aria-label": `Open ${title}`,
+				}),
+			);
 		node.addEventListener("mouseenter", () => trace(stage.id));
 		node.addEventListener("mouseleave", () => trace(null));
 		node.addEventListener("focusin", () => trace(stage.id));
@@ -2183,7 +2244,11 @@ function renderGraph(preview = null) {
 			) {
 				event.preventDefault();
 				event.stopPropagation();
-				const list = [...nodes.querySelectorAll(".node, .agent-row")],
+				const list = [
+						...nodes.querySelectorAll(
+							'.node[role="button"], .node-open, .agent-row',
+						),
+					],
 					i = list.indexOf(event.target);
 				const target =
 					list[
@@ -2477,10 +2542,8 @@ function renderGraph(preview = null) {
 		};
 	}
 	function previewInset() {
-		return preview &&
-			matchMedia("(max-width: 800px), (pointer: coarse)").matches
-			? 44
-			: 0;
+		// The preview chip exists on desktop too. Reserve its row for every camera path.
+		return preview && model.codeSteps ? 48 : 0;
 	}
 	// The graph can never be panned out of sight: a graph smaller than the canvas stays inside
 	// it, a larger one stops when its far edge reaches the canvas edge.
@@ -2658,12 +2721,12 @@ function renderGraph(preview = null) {
 		const b = bounds();
 		if (!b) return;
 		const { x0, y0, w, h } = b;
-		// Reserve room for the code-step chip only in narrow profile previews.
+		// Reserve the preview's code-step chip at every width.
 		const inset = previewInset();
 		const top = preview ? 44 + inset : 16;
 		const available = Math.max(
 			preview ? 100 : 1,
-			wrap.clientHeight - (preview ? 140 : 32),
+			wrap.clientHeight - (preview ? 140 + inset : 32),
 		);
 		// Never shrink boxes below what their text needs; a big graph pans (clamped) instead.
 		const k = Math.max(
@@ -3212,18 +3275,52 @@ let showCode = (() => {
 	}
 })();
 /** The run's views: the graph top-down or left-right, or the timeline (2026-11-12). */
-function viewButtons() {
-	return [
+function layoutSwitch(selected, change, timeline = false) {
+	const options = [
 		["td", "Top-down"],
 		["lr", "Left-right"],
-		["timeline", "Timeline"],
-	].map(([layout, name]) =>
-		button(markIcon(layout), () => changeLayout(layout), {
-			"aria-label": name,
-			title: name,
-			"aria-pressed": String(state.layout === layout),
-		}),
+		...(timeline ? [["timeline", "Timeline"]] : []),
+	];
+	const previous = document.querySelector(".layout-switch")?.dataset.selected;
+	const indicator = element("span", {
+		class: "layout-indicator",
+		"aria-hidden": "true",
+	});
+	const control = element(
+		"div",
+		{
+			class: `layout-switch${timeline ? " has-timeline" : ""}`,
+			role: "group",
+			"aria-label": "Graph layout",
+			"data-selected": selected,
+		},
+		indicator,
+		options.map(([value, label]) =>
+			button(markIcon(value), () => change(value), {
+				"aria-label": label,
+				title: label,
+				"aria-pressed": String(selected === value),
+			}),
+		),
 	);
+	if (previous && previous !== selected) {
+		const delta =
+			options.findIndex(([v]) => v === previous) -
+			options.findIndex(([v]) => v === selected);
+		indicator.animate(
+			reducedMotion()
+				? [{ opacity: 0.5 }, { opacity: 1 }]
+				: [
+						{ transform: `translateX(${delta * 100}%)` },
+						{ transform: "translateX(0)" },
+					],
+			{ duration: 200, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+		);
+	}
+	return control;
+}
+function viewButtons() {
+	return [layoutSwitch(state.layout, changeLayout, true)];
 }
 /** "0s", "45s", "1m", "1m 30s", "1h", "1h 05m": a mark on the timeline's axis. */
 function tickLabel(seconds) {
@@ -6099,7 +6196,13 @@ function renderReportPage() {
 	const content = element(
 		"article",
 		{ class: "report-content", id: "report-content" },
-		run.reportAvailable ? "Loading report…" : "This run has no report.",
+		run.reportAvailable
+			? element("span", {
+					class: "project-settings-spinner",
+					role: "status",
+					"aria-label": "Loading report",
+				})
+			: "This run has no report.",
 	);
 	const chips = element("div", { class: "report-filters" });
 	const empty = element(
@@ -6593,7 +6696,13 @@ async function loadRun() {
 		center.classList.add("switching");
 		center.inert = true;
 	} else
-		center.replaceChildren(element("p", { class: "empty" }, "Loading run…"));
+		center.replaceChildren(
+			element("span", {
+				class: "project-settings-spinner",
+				role: "status",
+				"aria-label": "Loading run",
+			}),
+		);
 	connection = "Reconnecting";
 	lastEvent = 0;
 	updateConnection();
@@ -7928,9 +8037,34 @@ setInterval(async () => {
 }, 5000);
 async function start() {
 	try {
-		session = await api("/api/session");
+		initialLoads.clear();
+		const sessionPromise = api("/api/session");
+		const projectsPromise = api("/api/projects");
+		// Explicit project bookmarks can start safe reads before session/project discovery.
+		if (state.project && state.project !== "all") {
+			const base = `/api/projects/${encodeURIComponent(state.project)}`;
+			if (state.view === "workflows") {
+				prefetch(`${base}/workflows`);
+				if (state.workflow) {
+					prefetch("/api/profiles/presets");
+					prefetch("/api/executors/models");
+				}
+				if (/^[a-f0-9]{64}$/.test(state.workflow || "")) {
+					prefetch(`${base}/workflows/${state.workflow}?view=editor`);
+					prefetch(`${base}/workflows/${state.workflow}/settings`);
+				} else prefetch(`${base}/agents`);
+			} else if (state.view !== "executors") prefetch(`${base}/runs`);
+		}
+		if (state.view === "executors") {
+			prefetch("/api/doctor");
+		}
+		const [sessionData, projectData] = await Promise.all([
+			sessionPromise,
+			projectsPromise,
+		]);
+		session = sessionData;
 		syncClock(session.serverTime);
-		projects = (await api("/api/projects")).projects;
+		projects = projectData.projects;
 		if (!state.project) {
 			let remembered;
 			try {
@@ -7962,7 +8096,7 @@ async function start() {
 			}
 			state.project = null;
 			state.run = null;
-			if (managementView()) await renderManagement();
+			if (managementView()) await renderManagement(true);
 			else renderOverview();
 			return;
 		}
@@ -7973,7 +8107,7 @@ async function start() {
 		}
 		urlState(true);
 		if (managementView()) {
-			await renderManagement();
+			await renderManagement(true);
 			return;
 		}
 		await refreshRuns();
@@ -8141,6 +8275,8 @@ function managementControl(
 			try {
 				await action();
 			} catch (error) {
+				if (control.hasAttribute("data-save-state"))
+					saveFeedback(control, "idle");
 				output.replaceChildren(
 					element(
 						"p",
@@ -8162,6 +8298,24 @@ function managementControl(
 		},
 	);
 	return control;
+}
+// Button-local feedback never replaces the editor, its focus, or newer unsaved values.
+const saveTimers = new WeakMap();
+function saveFeedback(control, state, settled = () => {}) {
+	clearTimeout(saveTimers.get(control));
+	control.dataset.saveState = state;
+	control.classList.add("save-feedback");
+	control.setAttribute("aria-busy", String(state === "saving"));
+	control.textContent =
+		state === "saving" ? "Saving…" : state === "saved" ? "Saved ✓" : "Save";
+	if (state === "saved")
+		saveTimers.set(
+			control,
+			setTimeout(() => {
+				saveFeedback(control, "idle");
+				settled();
+			}, 1200),
+		);
 }
 function commandHint(command) {
 	return element(
@@ -8210,9 +8364,30 @@ function choicePicker(
 		shown = [],
 		active = -1,
 		filtering = false,
-		choosing = false;
+		choosing = false,
+		menuMotion;
+	const animateMenu = (opening) => {
+		menuMotion?.cancel();
+		const frames = opening
+			? [{ opacity: 0 }, { opacity: 1 }]
+			: [{ opacity: 1 }, { opacity: 0 }];
+		if (!reducedMotion()) {
+			frames[0].transform = opening ? "scale(0.97)" : "scale(1)";
+			frames[1].transform = opening ? "scale(1)" : "scale(0.97)";
+		}
+		menuMotion = menu.animate(frames, {
+			duration: opening ? 160 : 100,
+			easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+		});
+		if (!opening)
+			menuMotion.onfinish = () => {
+				menu.hidden = true;
+			};
+	};
 	const close = () => {
-		menu.hidden = true;
+		if (control.getAttribute("aria-expanded") !== "true") return;
+		menu.inert = true;
+		animateMenu(false);
 		control.setAttribute("aria-expanded", "false");
 		control.removeAttribute("aria-activedescendant");
 		if (activePicker?.node === node) activePicker = null;
@@ -8278,18 +8453,24 @@ function choicePicker(
 		filtering = false;
 		paint();
 		menu.hidden = false;
+		menu.inert = false;
+		animateMenu(true);
 		control.setAttribute("aria-expanded", "true");
 		// The list contributes to the page's scroll area, so it can stay below even at the bottom.
 		menu.scrollIntoView({ block: "nearest", behavior: "instant" });
 		highlight(active);
 	};
 	control.addEventListener("click", () => {
-		if (!editable && !menu.hidden) close();
-		else if (menu.hidden) open();
+		if (!editable && control.getAttribute("aria-expanded") === "true") close();
+		else if (control.getAttribute("aria-expanded") !== "true") open();
 	});
 	control.addEventListener("input", (event) => {
 		if (!editable || event.isComposing || choosing) return;
-		if (document.activeElement === control && menu.hidden) open();
+		if (
+			document.activeElement === control &&
+			control.getAttribute("aria-expanded") !== "true"
+		)
+			open();
 		filtering = true;
 		paint();
 	});
@@ -8298,7 +8479,7 @@ function choicePicker(
 		typedAt = 0;
 	control.addEventListener("keydown", (event) => {
 		if (event.isComposing) return;
-		const wasOpen = !menu.hidden;
+		const wasOpen = control.getAttribute("aria-expanded") === "true";
 		if (["ArrowDown", "ArrowUp"].includes(event.key)) {
 			event.preventDefault();
 			event.stopPropagation();
@@ -8374,7 +8555,9 @@ const EFFORT_LEVELS = [
 	"ultra",
 ];
 let managementCleanup = () => {};
-async function renderManagement() {
+async function renderManagement(prefetched = false) {
+	// Speculative reads are a one-navigation handoff, never a cross-navigation settings cache.
+	if (prefetched !== true) initialLoads.clear();
 	managementCleanup();
 	settingsDrafts.clear();
 	managementCleanup = () => {};
@@ -8386,13 +8569,13 @@ async function renderManagement() {
 		"div",
 		{ class: "management-page", "data-management": state.view },
 		element("h1", {}, title),
-		element(
-			"p",
-			{ class: "muted" },
-			state.view === "executors"
-				? "User level, shared by every project and host"
-				: "Selected project, shared host actions",
-		),
+		state.view === "executors"
+			? element(
+					"p",
+					{ class: "muted" },
+					"User level, shared by every project and host",
+				)
+			: null,
 	);
 	$("center").replaceChildren(page);
 	try {
@@ -8712,7 +8895,10 @@ async function renderWorkflows(page) {
 		managementApi(projectRoute("workflows")),
 		managementApi(projectRoute("agents")),
 	]);
-	const list = managementPanel("Available workflows");
+	const list = element("section", {
+		class: "workflow-list",
+		"aria-label": "Available workflows",
+	});
 	page.append(list);
 	if (!catalog.data.workflows.length)
 		list.append(
@@ -8746,11 +8932,6 @@ async function renderWorkflows(page) {
 						"span",
 						{ class: "workflow-card-text" },
 						workflow.description || "No description.",
-					),
-					element(
-						"small",
-						{ class: "muted" },
-						workflow.specPath || workflow.scope,
 					),
 				),
 			),
@@ -8838,7 +9019,7 @@ function propertyTable(headers, rows, attrs = {}) {
 async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	const route = `/api/projects/${encodeURIComponent(project)}/workflows/${workflow.workflowKey}/settings`;
 	const host = element("section", {
-		class: "management-card project-workflow-editor",
+		class: "project-workflow-editor",
 	});
 	host.dataset.workflowKey = workflow.workflowKey;
 	host.dataset.projectId = project;
@@ -8900,6 +9081,14 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		"aria-label": "Loading",
 	});
 	host.append(loading, status);
+	const presetsPromise = managementApi("/api/profiles/presets").then(
+		(result) => ({ result }),
+		(failure) => ({ failure }),
+	);
+	const inventoryPromise = managementApi("/api/executors/models").then(
+		(result) => ({ result }),
+		(failure) => ({ failure }),
+	);
 	const loaded = await managementApi(route);
 	if (!live()) return;
 	settings = loaded.settings;
@@ -8943,21 +9132,11 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	let metadata = loaded;
 	const draft = settingsDraft(host, () => intent);
 	let presets = [];
-	try {
-		presets = (await managementApi("/api/profiles/presets")).data.presets;
-	} catch (failure) {
-		failPresetLoad(failure);
-	}
 	function failPresetLoad(failure) {
 		error.hidden = false;
 		error.textContent = `Presets unavailable: ${failure.message}. Manual editing remains available.`;
 	}
-	let inventory;
-	try {
-		inventory = (await managementApi("/api/executors/models")).data;
-	} catch (failure) {
-		inventory = { executors: [], error: failure.message };
-	}
+	let inventory = { executors: [] };
 	if (!live()) {
 		draft.clear();
 		return;
@@ -9078,6 +9257,13 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		...presets.map((preset) => preset.id),
 	]);
 	const refreshPreset = () => {
+		const values = ["", ...presets.map((preset) => preset.id)];
+		if (values.length !== presetControl.options.length)
+			presetControl.replaceChildren(
+				...values.map((value) =>
+					element("option", { value }, value || "Custom"),
+				),
+			);
 		presetControl.disabled = readonly() || !presets.length;
 		presetControl.value =
 			presets.find(
@@ -9164,6 +9350,15 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					: row(id)?.executor?.value;
 			const exec = binding(id)?.executor || currentExecutor;
 			executor.control.value = binding(id)?.executor || "";
+			executor.setOptions([
+				...new Set(
+					[
+						...(inventory.executors || []).map((entry) => entry.id),
+						binding(id)?.executor,
+						currentExecutor,
+					].filter(Boolean),
+				),
+			]);
 			const entry = inventory.executors.find((entry) => entry.id === exec);
 			const previousModel = binding(id)?.model || "";
 			const models = [
@@ -9318,7 +9513,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		panel.hidden = selection === null;
 		common.replaceChildren(
 			element(
-				"h3",
+				"h2",
 				{ "data-testid": "all-tasks-title", tabindex: "-1" },
 				"All tasks",
 			),
@@ -9328,7 +9523,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		const selected = metadata.authored.find((node) => node.id === selection);
 		panel.replaceChildren(
 			element(
-				"h3",
+				"h2",
 				{ tabindex: "-1", "data-testid": "canonical-slot-title" },
 				selected?.id || "All tasks",
 			),
@@ -9437,7 +9632,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		// Explicit editor selection only; never a Run/SSE update. Keep graph camera intact.
 		if (id) {
 			panel.scrollIntoView({ block: "nearest", behavior: "instant" });
-			panel.querySelector("h3")?.focus({ preventScroll: true });
+			panel.querySelector("h2")?.focus({ preventScroll: true });
 		}
 	};
 	function draw() {
@@ -9507,20 +9702,12 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					showCode = !showCode;
 					draw();
 				},
-				controls: () =>
-					[
-						["td", "Top-down"],
-						["lr", "Left-right"],
-					].map(([value, label]) =>
-						button(
-							markIcon(value),
-							() => {
-								layout = value;
-								draw();
-							},
-							{ "aria-label": label, "aria-pressed": String(layout === value) },
-						),
-					),
+				controls: () => [
+					layoutSwitch(layout, (value) => {
+						layout = value;
+						draw();
+					}),
+				],
 			}),
 		);
 	}
@@ -9531,7 +9718,15 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		attemptedGeneration = version;
 		const body = { intent: copy(intent), expected: expected() };
 		try {
-			const result = await managementWrite(`${route}/preview`, "POST", body);
+			const result = await managementApi(`${route}/preview`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"X-AW-CSRF": session.csrf,
+					Prefer: "respond-async",
+				},
+				body: JSON.stringify(body),
+			});
 			if (!live() || token !== request || version !== generation) return;
 			preview = result;
 			previewGeneration = version;
@@ -9558,6 +9753,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 		async () => {
 			if (saving || readonly()) return;
 			saving = true;
+			saveFeedback(save, "saving");
 			feedback = "Saving…";
 			updateStatus();
 			const token = ++request,
@@ -9573,6 +9769,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				settings = result;
 				draft.saved(snapshot);
 				confirmed = true;
+				saveFeedback(save, "saved");
 				error.hidden = true;
 				feedback = draft.dirty()
 					? "Submitted settings saved. Unsaved changes remain."
@@ -9587,6 +9784,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 					updateStatus();
 				}
 			} finally {
+				if (!confirmed) saveFeedback(save, "idle");
 				saving = false;
 				if (live()) {
 					updateStatus();
@@ -9600,7 +9798,7 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			}
 		},
 		{
-			class: "primary",
+			class: "primary save-feedback",
 			"data-management-action": "save-project-settings",
 			disabled: readonly(),
 		},
@@ -9652,11 +9850,30 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 	draw();
 	updateStatus();
 	scheduleCalculation();
+	void Promise.all([presetsPromise, inventoryPromise]).then(
+		([presetLoad, inventoryLoad]) => {
+			if (!live()) return;
+			if (presetLoad.failure) failPresetLoad(presetLoad.failure);
+			else presets = presetLoad.result.data.presets;
+			inventory = inventoryLoad.failure
+				? { executors: [], error: inventoryLoad.failure.message }
+				: inventoryLoad.result.data;
+			// Keep control identity, focus and the user's draft while optional choices arrive.
+			for (const refresh of refreshers) refresh();
+		},
+	);
 }
 
 /** Project workflow: one draft, graph task selection and title-row Save/Discard. */
 async function renderWorkflow(page, name) {
 	const project = state.project;
+	prefetch("/api/profiles/presets");
+	prefetch("/api/executors/models");
+	if (/^[a-f0-9]{64}$/.test(name)) {
+		const base = `/api/projects/${encodeURIComponent(project)}/workflows/${name}`;
+		prefetch(`${base}?view=editor`);
+		prefetch(`${base}/settings`);
+	}
 	let selectionKey = name;
 	const route = (suffix = "") =>
 		`/api/projects/${encodeURIComponent(project)}/workflows/${encodeURIComponent(selectionKey)}${suffix}`;
@@ -9704,7 +9921,7 @@ async function renderWorkflow(page, name) {
 			`${location.pathname}?${params}${location.hash}`,
 		);
 	}
-	const data = await managementApi(route());
+	const data = await managementApi(`${route()}?view=editor`);
 	if (!current()) return;
 	const title = page.querySelector("h1");
 	title.textContent = workflow.name;
@@ -9747,18 +9964,12 @@ async function renderWorkflow(page, name) {
 				"Project settings unavailable: no server workflow identity.",
 			),
 		);
-	// Parsing here only exposes real definition problems, not a second compiler or raw-spec view.
-	let authored = {};
-	let specError = "";
-	try {
-		authored = JSON.parse(data.spec.data.spec);
-	} catch (error) {
-		specError = error.message;
-	}
 	// A valid definition needs no section; only real definition problems are shown (2026-11-16, owner).
 	const validation = data.validation?.data;
 	const problems = [
-		...(specError ? [`The workflow spec could not be read: ${specError}`] : []),
+		...(data.specError
+			? [`The workflow spec could not be read: ${data.specError}`]
+			: []),
 		...(data.validation?.error ? [data.validation.error] : []),
 		...(validation?.warnings || []).map((warning) => `Warning: ${warning}`),
 		...(validation?.blockedPermissionPreviews || []).map(
@@ -9778,136 +9989,6 @@ async function renderWorkflow(page, name) {
 			)
 		: null;
 	if (specProblems) header.after(specProblems);
-}
-// Each row owns one permission-only patch; never rewrite hidden model/role fields.
-function executorPermissions(page, id, profile, capabilityNames) {
-	const row = element("div", {
-		class: "executor-permissions",
-		"data-executor-permissions": id,
-	});
-	const permission = choices(
-		`${id} permission mode`,
-		[
-			["", "Automatic"],
-			["free", "Free"],
-			["safe", "Safe"],
-		],
-		profile.permissionMode || "",
-	);
-	const strict = capabilityNames.map((name) => {
-		const control = element("input", {
-			type: "checkbox",
-			value: name,
-			checked: (profile.strictCapabilities || []).includes(name),
-			"aria-label": `${id} strict ${name}`,
-			disabled: readonly(),
-		});
-		return { name, control };
-	});
-	// Dotted constraints authored through other hosts are not editable here, and must not be dropped.
-	const retained = (profile.strictCapabilities || []).filter(
-		(name) => !capabilityNames.includes(name),
-	);
-	const read = () => ({
-		permissionMode: permission.value,
-		strictCapabilities: [
-			...retained,
-			...strict
-				.filter(({ control }) => control.checked)
-				.map(({ name }) => name),
-		],
-	});
-	let baseline = read();
-	const draft = settingsDraft(row, read);
-	const output = element("div", { class: "executor-permission-feedback" });
-	const save = managementControl(
-		"Save",
-		async () => {
-			const submitted = draft.snapshot();
-			const current = read();
-			const values = {
-				...(current.permissionMode
-					? { permissionMode: current.permissionMode }
-					: {}),
-				...(current.strictCapabilities.length
-					? { strictCapabilities: current.strictCapabilities }
-					: {}),
-			};
-			await managementWrite(`/api/profiles/${encodeURIComponent(id)}`, "PUT", {
-				values,
-				unset: ["permissionMode", "strictCapabilities"].filter(
-					(key) => values[key] === undefined,
-				),
-			});
-			if (!page.isConnected || !row.isConnected || !settingsDrafts.has(draft))
-				return;
-			baseline = current;
-			draft.saved(submitted);
-			showActions();
-			output.replaceChildren(
-				element(
-					"p",
-					{ role: "status" },
-					draft.dirty() ? "Saved. Later changes are unsaved." : "Saved.",
-				),
-			);
-		},
-		output,
-		{ "data-save-permissions": "", "aria-label": `Save ${id} permissions` },
-	);
-	permission.disabled = readonly();
-	// Save/Discard appear only on a row with unsaved changes (2026-11-17, owner).
-	let actions;
-	const showActions = () => {
-		if (actions) actions.hidden = !draft.dirty();
-	};
-	row.addEventListener("change", () => {
-		output.replaceChildren();
-		showActions();
-	});
-	row.append(
-		field("Permission mode", permission),
-		element(
-			"details",
-			{},
-			element("summary", {}, "Advanced"),
-			element(
-				"fieldset",
-				{ class: "executor-strict" },
-				element("legend", {}, "Strict capabilities"),
-				strict.map(({ name, control }) => element("label", {}, control, name)),
-			),
-			retained.length
-				? element(
-						"p",
-						{ class: "muted" },
-						`Also required: ${retained.join(", ")}`,
-					)
-				: null,
-		),
-		(actions = element(
-			"div",
-			{ class: "executor-permission-actions", hidden: true },
-			save,
-			button(
-				"Discard",
-				() => {
-					permission.value = baseline.permissionMode;
-					for (const { name, control } of strict)
-						control.checked = baseline.strictCapabilities.includes(name);
-					output.replaceChildren();
-					showActions();
-				},
-				{
-					disabled: readonly(),
-					"data-discard-permissions": "",
-					"aria-label": `Discard ${id} permission changes`,
-				},
-			),
-		)),
-		output,
-	);
-	return row;
 }
 /** "12.4 MB" from bytes. */
 function formatBytes(bytes) {
@@ -9962,30 +10043,13 @@ async function renderExecutors(page) {
 	const body = element("div", { "aria-live": "polite" });
 	const refreshOutput = element("div");
 	const show = async (refresh = false) => {
-		if (refresh && !approveSettingsDiscard()) return;
-		const snapshots = new Map(
-			[...settingsDrafts].map((draft) => [draft, draft.snapshot()]),
+		const result = await managementApi(
+			`/api/doctor${refresh ? "?refresh=1" : ""}`,
 		);
-		const [result, profiles] = await Promise.all([
-			managementApi(`/api/doctor${refresh ? "?refresh=1" : ""}`),
-			managementApi("/api/profiles"),
-		]);
 		if (!page.isConnected) return;
-		if (
-			refresh &&
-			[...snapshots].some(([draft, snapshot]) => draft.snapshot() !== snapshot)
-		) {
-			refreshOutput.replaceChildren(
-				element(
-					"p",
-					{ role: "status" },
-					"Settings changed during refresh. Refresh again to discard them.",
-				),
-			);
-			return;
-		}
 		const data = result.data;
 		const executors = data.executors || [];
+		const safe = data.permissionMode?.mode === "safe";
 		const ready = executors.filter((entry) => entry.usable).length;
 		const showFix = executors.some(
 			(entry) => entry.fix || (!entry.usable && entry.error),
@@ -10026,8 +10090,6 @@ async function renderExecutors(page) {
 			);
 		}
 		body.replaceChildren();
-		for (const draft of settingsDrafts)
-			if (!draft.node.isConnected) draft.clear();
 		append(body, [
 			managementPanel(
 				"Status",
@@ -10046,6 +10108,11 @@ async function renderExecutors(page) {
 						: "No executor is ready to run workflows.",
 				),
 				element(
+					"p",
+					{ "data-testid": "executor-permission-fact" },
+					`Permissions: ${safe ? "Safe — workers run sandboxed with approvals limited to their tools" : "Free — workers run without approvals or sandbox"}. Use --permission-mode safe to restrict.`,
+				),
+				element(
 					"div",
 					{
 						class: "executor-status-scroll",
@@ -10059,7 +10126,6 @@ async function renderExecutors(page) {
 							"Status",
 							"Version",
 							...(showFix ? ["What to do"] : []),
-							"Permissions",
 						],
 						executors.map((entry) => {
 							const [tone, label] = EXECUTOR_STATES[entry.state] || [
@@ -10086,14 +10152,6 @@ async function renderExecutors(page) {
 								...(showFix
 									? [entry.fix || (entry.usable ? "" : entry.error || "")]
 									: []),
-								executorPermissions(
-									page,
-									entry.id,
-									profiles.data.profiles.find(
-										(profile) => profile.name === entry.id,
-									) || {},
-									profiles.data.capabilityNames,
-								),
 							];
 						}),
 						{ class: "property-table executors" },
@@ -10110,32 +10168,7 @@ async function renderExecutors(page) {
 						),
 					)
 				: null,
-			managementPanel(
-				"Defaults",
-				propertyTable(
-					null,
-					[
-						[
-							"Default executor",
-							data.defaultExecutor?.id
-								? element("strong", {}, data.defaultExecutor.id)
-								: "none ready",
-						],
-						[
-							"Permission mode",
-							[
-								element("strong", {}, data.permissionMode?.mode || "free"),
-								element(
-									"span",
-									{ class: "muted" },
-									`, ${data.permissionMode?.source === "default" ? "default" : "saved"}`,
-								),
-							],
-						],
-					],
-					{ class: "property-table keyed" },
-				),
-			),
+			// The Status line already names the default executor (2026-11-17, owner: no Defaults card).
 			diagnosticView(
 				"Executor diagnostics",
 				executors.some((entry) => entry.notes?.length)
@@ -10208,6 +10241,7 @@ async function renderExecutors(page) {
 			{ class: "management-actions page-actions" },
 			managementControl("Refresh", () => show(true), refreshOutput, {
 				write: false,
+				"data-management-action": "doctor-refresh",
 			}),
 			refreshOutput,
 		),

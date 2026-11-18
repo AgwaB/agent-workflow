@@ -7,7 +7,6 @@ import type { IncomingMessage } from "node:http";
 import { isValidWorkflowName } from "../../core/workflow-specs.js";
 import { workflowExecutorRegistration } from "../../core/executor-registry.js";
 import { EFFORT_LEVELS, WorkflowValidationError } from "../../core/types.js";
-import { LEVEL_CAPABILITY_NAMES } from "../../sdk/capabilities.js";
 import { HostUsageError } from "../args.js";
 import {
 	listWorkflowsAction,
@@ -35,6 +34,7 @@ import {
 import type { HostApiContext } from "../types.js";
 import { validRunId } from "./security.js";
 import { workflowSettingsGraph } from "./workflow-graph.js";
+import { DashboardCalculations } from "./calculations.js";
 
 export class DashboardHttpError extends Error {
 	constructor(
@@ -49,6 +49,7 @@ interface Reply {
 	value: unknown;
 }
 interface Options {
+	warmExecutorProbes?: boolean;
 	context: HostApiContext;
 	project(id: string): Promise<HostApiContext>;
 	body(request: IncomingMessage): Promise<Record<string, unknown>>;
@@ -142,6 +143,7 @@ function canonical(value: unknown): CanonicalData {
 	throw new Error("management preview contains unsupported non-JSON data");
 }
 export function createDashboardManagement(options: Options) {
+	const calculations = new DashboardCalculations(options.now);
 	// A bounded queue prevents concurrent dashboard probes/prunes (including user-level adapter state).
 	let tail: Promise<unknown> = Promise.resolve();
 	let queued = 0;
@@ -160,6 +162,37 @@ export function createDashboardManagement(options: Options) {
 	let doctorCache:
 		| { at: number; result: Awaited<ReturnType<typeof doctorAction>> }
 		| undefined;
+	// An expired report is still shown at once while one background refresh runs (2026-11-17:
+	// a cold doctor kept the Executors page blank for seconds). Refresh=1 still waits for fresh data.
+	let doctorRefresh: Promise<unknown> | undefined;
+	// Saved permission/default changes must show at once; only probe staleness is tolerated.
+	function stale<T>(result: T): T {
+		doctorCache = undefined;
+		return result;
+	}
+	function refreshDoctor(ctx: HostApiContext) {
+		doctorRefresh ??= serial(async () => {
+			doctorCache = {
+				at: options.now(),
+				result: await doctorAction(ctx, { probeTimeoutMs: 30_000 }),
+			};
+		})
+			.catch(() => undefined)
+			.finally(() => {
+				doctorRefresh = undefined;
+			});
+		return doctorRefresh;
+	}
+	// Fills the shared probe cache and the doctor report once, so the first Executors/settings
+	// page does not wait for cold probes; failures are ignored (the page then probes as before).
+	if (options.warmExecutorProbes)
+		setTimeout(() => {
+			void serial(() =>
+				executorModelsAction(options.context, { timeoutMs: 30_000 }),
+			)
+				.catch(() => undefined)
+				.then(() => refreshDoctor(options.context));
+		}, 0).unref?.();
 	async function workflow(
 		ctx: HostApiContext,
 		ref: string,
@@ -187,15 +220,12 @@ export function createDashboardManagement(options: Options) {
 		const ctx = options.context;
 		try {
 			if (parts[0] !== "api") return undefined;
+			if (parts[1] === "calculations" && parts.length === 3 && method === "GET")
+				return calculations.read(parts[2]!);
 			if (parts[1] === "profiles" && parts.length <= 3) {
 				const id = parts[2];
-				if (!id && method === "GET") {
-					const result = await profileAction(ctx, { op: "list" });
-					return ok({
-						...result,
-						data: { ...result.data, capabilityNames: LEVEL_CAPABILITY_NAMES },
-					});
-				}
+				if (!id && method === "GET")
+					return ok(await profileAction(ctx, { op: "list" }));
 				if (id === "presets" && method === "GET")
 					return ok(await profileAction(ctx, { op: "presets" }));
 				if (id) {
@@ -203,7 +233,9 @@ export function createDashboardManagement(options: Options) {
 					if (method === "GET")
 						return ok(await profileAction(ctx, { op: "show", name: id }));
 					if (method === "DELETE")
-						return ok(await profileAction(ctx, { op: "delete", name: id }));
+						return ok(
+							stale(await profileAction(ctx, { op: "delete", name: id })),
+						);
 					if (method === "PUT") {
 						const body = await options.body(request);
 						fields(body, ["values", "unset", "preset", "makeDefault"]);
@@ -213,14 +245,16 @@ export function createDashboardManagement(options: Options) {
 						)
 							bad("invalid makeDefault");
 						return ok(
-							await profileAction(ctx, {
-								op: "set",
-								name: id,
-								values: record(body.values),
-								unset: unset(body.unset),
-								preset: text(body, "preset"),
-								makeDefault: body.makeDefault as boolean | undefined,
-							}),
+							stale(
+								await profileAction(ctx, {
+									op: "set",
+									name: id,
+									values: record(body.values),
+									unset: unset(body.unset),
+									preset: text(body, "preset"),
+									makeDefault: body.makeDefault as boolean | undefined,
+								}),
+							),
 						);
 					}
 				}
@@ -233,7 +267,9 @@ export function createDashboardManagement(options: Options) {
 				const body = await options.body(request);
 				fields(body, ["name"]);
 				if (body.name !== null) assertUserProfileName(body.name);
-				return ok(await profileAction(ctx, { op: "default", name: body.name }));
+				return ok(
+					stale(await profileAction(ctx, { op: "default", name: body.name })),
+				);
 			}
 			if (parts[1] === "workflow-preferences" && parts.length <= 3) {
 				if (parts.length === 2 && method === "GET")
@@ -290,21 +326,21 @@ export function createDashboardManagement(options: Options) {
 				)
 					bad("refresh must be 1");
 				return ok(
-					await serial(async () => {
-						if (
-							!doctorCache ||
-							url.searchParams.get("refresh") === "1" ||
-							options.now() - doctorCache.at >= 60_000
-						) {
-							if (url.searchParams.get("refresh") === "1")
-								clearExecutorProbeCache();
-							doctorCache = {
-								at: options.now(),
-								result: await doctorAction(ctx, { probeTimeoutMs: 30_000 }),
-							};
-						}
+					await (async () => {
+						if (url.searchParams.get("refresh") === "1" || !doctorCache)
+							return serial(async () => {
+								if (url.searchParams.get("refresh") === "1")
+									clearExecutorProbeCache();
+								doctorCache = {
+									at: options.now(),
+									result: await doctorAction(ctx, { probeTimeoutMs: 30_000 }),
+								};
+								return doctorCache.result;
+							});
+						if (options.now() - doctorCache.at >= 60_000)
+							void refreshDoctor(ctx);
 						return doctorCache.result;
-					}),
+					})(),
 				);
 			}
 			if (
@@ -498,16 +534,24 @@ export function createDashboardManagement(options: Options) {
 									),
 								),
 							);
-						return ok(
-							await serial(() =>
-								previewProjectWorkflowSettingsAction(
-									selected,
-									ref,
-									body.intent,
-									body.expected,
-								),
-							),
-						);
+						const preview = () =>
+							previewProjectWorkflowSettingsAction(
+								selected,
+								ref,
+								body.intent,
+								body.expected,
+							);
+						// Interactive callers get a pending receipt, not a fabricated capability pass.
+						// Read-only calculations must not queue behind model/doctor probes or saves.
+						if (request.headers["prefer"] === "respond-async")
+							return calculations.start(preview, (error) =>
+								error instanceof ProjectWorkflowSettingsConflict
+									? 409
+									: error instanceof HostUsageError
+										? 400
+										: 500,
+							);
+						return ok(await preview());
 					}
 					throw new DashboardHttpError(405, "method not allowed");
 				}
@@ -525,15 +569,33 @@ export function createDashboardManagement(options: Options) {
 							};
 						}
 					};
+					const lean = url.searchParams.get("view") === "editor";
+					let specError: string | undefined;
+					if (lean)
+						try {
+							JSON.parse(spec.data.spec);
+						} catch (error) {
+							specError =
+								error instanceof Error ? error.message : String(error);
+						}
+					const [roles, validation, graph] = await Promise.all([
+						lean
+							? undefined
+							: workflowRolesAction(selected, { workflow: ref }).catch(
+									(error) => ({
+										error:
+											error instanceof Error ? error.message : String(error),
+									}),
+								),
+						validate(),
+						workflowSettingsGraph(selected, ref),
+					]);
 					return ok({
-						spec,
-						roles: await workflowRolesAction(selected, { workflow: ref }).catch(
-							(error) => ({
-								error: error instanceof Error ? error.message : String(error),
-							}),
-						),
-						validation: await validate(),
-						graph: await workflowSettingsGraph(selected, ref),
+						...(lean
+							? { ...(specError ? { specError } : {}) }
+							: { spec, roles }),
+						validation,
+						graph,
 					});
 				}
 				if (parts.length === 6 && parts[5] === "check" && method === "POST") {

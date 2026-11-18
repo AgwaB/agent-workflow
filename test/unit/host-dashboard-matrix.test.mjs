@@ -161,7 +161,12 @@ test("dashboard matrix: shape/state projections, viewport geometry, counts and k
 					accessible: [...document.querySelectorAll(".node,.agent-row")].every(
 						(node) =>
 							node.getAttribute("aria-label") &&
-							node.getAttribute("tabindex") === "0",
+							(node.getAttribute("role") === "group"
+								? node.getAttribute("tabindex") === "-1" &&
+									!!node.querySelector(
+										':scope > .node-open[role="button"][tabindex="0"][aria-label]',
+									)
+								: node.getAttribute("tabindex") === "0"),
 					),
 					meaningColors: Object.entries({
 						running: "rgb(111, 191, 142)",
