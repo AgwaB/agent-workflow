@@ -32,7 +32,26 @@ export async function findChrome() {
 	}
 	return null;
 }
-export async function createBrowser(
+// A Chrome that hangs before answering its first DevTools commands is relaunched once (2026-11-18, CI
+// 44341818447: macOS Chrome sat 60 s on Runtime.enable while logging CVDisplayLink errors). Only a startup hang
+// is retried: a Chrome that exits or closes its pipe fails at once, as before.
+export async function createBrowser(executable, options = {}) {
+	try {
+		return await createBrowserOnce(executable, options);
+	} catch (error) {
+		if (!error.chromeStartupHang) throw error;
+		console.error(
+			`[dashboard-browser] Chrome hung at startup; relaunching once: ${error.message.split("\n")[0]}`,
+		);
+		try {
+			return await createBrowserOnce(executable, options);
+		} catch (second) {
+			second.message += `\n(first attempt: ${error.message.split("\n")[0]})`;
+			throw second;
+		}
+	}
+}
+async function createBrowserOnce(
 	executable,
 	{
 		launch = spawn,
@@ -544,21 +563,35 @@ export async function createBrowser(
 		});
 	};
 	try {
+		const startupTimeout = Math.min(
+			Number(process.env.AW_TEST_CHROME_STARTUP_TIMEOUT_MS) || 30_000,
+			CDP_TIMEOUT_MS,
+		);
 		const { targetId } = await send(
 			"Target.createTarget",
 			{ url: "about:blank" },
 			null,
+			startupTimeout,
 		);
 		({ sessionId: session } = await send(
 			"Target.attachToTarget",
 			{ targetId, flatten: true },
 			null,
+			startupTimeout,
 		));
-		await send("Page.enable");
-		await send("Runtime.enable");
-		await send("Network.enable");
-		await send("Log.enable");
+		for (const method of [
+			"Page.enable",
+			"Runtime.enable",
+			"Network.enable",
+			"Log.enable",
+		])
+			await send(method, {}, session, startupTimeout);
 	} catch (error) {
+		// Decided before cleanup kills it: still running and silent means it hung, not that it failed.
+		const hung =
+			/^CDP timeout: /.test(String(error?.message)) &&
+			chrome.exitCode === null &&
+			chrome.signalCode === null;
 		await close().catch(() => undefined);
 		// How Chrome ended, known after cleanup: the first error may be the pipe (EPIPE on Linux) rather than
 		// the exit (CI 42647384816).
@@ -568,9 +601,12 @@ export async function createBrowser(
 				: chrome.signalCode !== null
 					? ` [Chrome stopped by ${chrome.signalCode}]`
 					: "";
-		throw new Error(
-			`Chrome failed to start: ${error.message}${ended}${stderrTail.trim() ? `\nChrome stderr (tail):\n${stderrTail.trim()}` : ""}`,
-			{ cause: error },
+		throw Object.assign(
+			new Error(
+				`Chrome failed to start: ${error.message}${ended}${stderrTail.trim() ? `\nChrome stderr (tail):\n${stderrTail.trim()}` : ""}`,
+				{ cause: error },
+			),
+			{ chromeStartupHang: hung },
 		);
 	}
 	// 2026-11-05 (CI: a fixed 450 ms after a 0.28 s transition read the rail mid-way on a slower

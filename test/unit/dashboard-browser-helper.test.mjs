@@ -4,6 +4,7 @@
 // Round-6 review: a Chrome that closed its DevTools pipe but stays alive fails at once, not after the command
 // timeout.
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -123,4 +124,47 @@ test("a Chrome that dies during startup is reported with its exit and stderr", a
 		const elapsed = Date.now() - started;
 		assert.ok(elapsed < 5_000, `${name} took ${elapsed} ms`);
 	}
+});
+
+test("a Chrome that hangs at startup is relaunched once; two hangs fail with both reasons", async (t) => {
+	const chrome = await findChrome();
+	if (!chrome) return t.skip("Chrome not found");
+	const dir = await mkdtemp(join(tmpdir(), "aw-hung-chrome-"));
+	t.after(() => rm(dir, { recursive: true, force: true }));
+	const hung = join(dir, "hung");
+	// Keeps the DevTools pipes open and never answers, like the CI Chrome stuck on Runtime.enable.
+	await writeFile(hung, "#!/bin/sh\nexec sleep 30\n", { mode: 0o755 });
+	const previous = process.env.AW_TEST_CHROME_STARTUP_TIMEOUT_MS;
+	process.env.AW_TEST_CHROME_STARTUP_TIMEOUT_MS = "1000";
+	t.after(() => {
+		if (previous === undefined)
+			delete process.env.AW_TEST_CHROME_STARTUP_TIMEOUT_MS;
+		else process.env.AW_TEST_CHROME_STARTUP_TIMEOUT_MS = previous;
+	});
+	let calls = 0;
+	const browser = await createBrowser(chrome, {
+		launch: (executable, args, options) =>
+			spawn(++calls === 1 ? hung : executable, args, options),
+	});
+	t.after(() => browser.close());
+	assert.equal(calls, 2);
+	assert.equal(await browser.evaluate(() => 1 + 1), 2);
+	let attempts = 0;
+	await assert.rejects(
+		createBrowser(hung, {
+			launch: (executable, args, options) => {
+				attempts++;
+				return spawn(executable, args, options);
+			},
+		}),
+		(error) => {
+			assert.match(error.message, /^Chrome failed to start: CDP timeout: /);
+			assert.match(
+				error.message,
+				/first attempt: Chrome failed to start: CDP timeout: /,
+			);
+			return true;
+		},
+	);
+	assert.equal(attempts, 2);
 });
