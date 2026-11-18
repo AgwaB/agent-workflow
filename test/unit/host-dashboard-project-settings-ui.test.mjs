@@ -2969,6 +2969,10 @@ test("code steps: hidden by default, toggled with the Run graph's glide and reme
 		}));
 	assert.match((await state()).label, /hidden/);
 	assert.equal((await state()).code, false);
+	// CI macOS runners report "reduce motion": state the preference instead of inheriting it.
+	await p.browser.send("Emulation.setEmulatedMedia", {
+		features: [{ name: "prefers-reduced-motion", value: "no-preference" }],
+	});
 	const animations = await p.browser.evaluate(async () => {
 		document.querySelector(".profile-flow .code-switch").click();
 		await new Promise((done) =>
@@ -2984,6 +2988,21 @@ test("code steps: hidden by default, toggled with the Run graph's glide and reme
 		),
 		"shown",
 	);
+	// With reduced motion the switch still works, without movement.
+	await p.browser.send("Emulation.setEmulatedMedia", {
+		features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+	});
+	assert.equal(
+		await p.browser.evaluate(async () => {
+			document.querySelector(".profile-flow .code-switch").click();
+			await new Promise((done) =>
+				requestAnimationFrame(() => requestAnimationFrame(done)),
+			);
+			return document.getAnimations().length;
+		}),
+		0,
+	);
+	assert.equal((await state()).code, false);
 });
 
 test("step panel: plain name, two short choices, no stray text", {
