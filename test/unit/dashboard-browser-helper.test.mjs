@@ -27,6 +27,62 @@ test("click hits an offscreen target even when the document uses smooth scrollin
 	);
 });
 
+const page = (html) =>
+	`data:text/html,${encodeURIComponent(`<!doctype html><style>body{margin:0}button,#decoy,#overlay{position:absolute;left:10px;width:100px;height:40px}</style>${html}`)}`;
+
+test("click re-measures when the target moves between measuring and pressing, and the misdirected press has no effect", async (t) => {
+	const chrome = await findChrome();
+	if (!chrome) return t.skip("Chrome is not installed");
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	// The click guard is installed after the measurement and before the press: move the target then and
+	// let a decoy take its place (it ignores the pointer until then, so the measurement sees the target).
+	await browser.send("Page.navigate", {
+		url: page(`<button id="target" style="top:10px">Target</button>
+<div id="decoy" style="top:10px;pointer-events:none">Decoy</div>
+<script>
+globalThis.clicks = [];
+for (const id of ["target", "decoy"]) document.getElementById(id).onclick = () => clicks.push(id);
+let moved = false;
+Object.defineProperty(window, "__awClickGuard", {
+	configurable: true,
+	set(value) {
+		Object.defineProperty(window, "__awClickGuard", { configurable: true, writable: true, value });
+		if (!moved) { moved = true; document.getElementById("target").style.top = "200px"; document.getElementById("decoy").style.pointerEvents = "auto"; }
+	},
+});
+</script>`),
+	});
+	await browser.waitFor(() => !!document.querySelector("#target"));
+	await browser.click("#target");
+	assert.deepEqual(
+		await browser.evaluate(() => globalThis.clicks),
+		["target"],
+		"the press that landed on the decoy must be blocked, and the retry must reach the target",
+	);
+});
+
+test("click on a target permanently covered by an overlay fails clearly and delivers nothing", async (t) => {
+	const chrome = await findChrome();
+	if (!chrome) return t.skip("Chrome is not installed");
+	const browser = await createBrowser(chrome);
+	t.after(() => browser.close());
+	await browser.send("Page.navigate", {
+		url: page(`<button id="target" style="top:10px">Target</button>
+<div id="overlay" style="top:0;height:80px">Overlay</div>
+<script>
+globalThis.clicks = [];
+for (const id of ["target", "overlay"]) document.getElementById(id).onclick = () => clicks.push(id);
+</script>`),
+	});
+	await browser.waitFor(() => !!document.querySelector("#target"));
+	await assert.rejects(
+		browser.click("#target"),
+		/Click target #target was not hit: target covered by <div#overlay>/,
+	);
+	assert.deepEqual(await browser.evaluate(() => globalThis.clicks), []);
+});
+
 test("a Chrome that dies during startup is reported with its exit and stderr", async (t) => {
 	const dir = await mkdtemp(join(tmpdir(), "aw-fake-chrome-"));
 	t.after(() => rm(dir, { recursive: true, force: true }));

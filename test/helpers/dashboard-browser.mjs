@@ -316,41 +316,146 @@ export async function createBrowser(
 					requestAnimationFrame(() => requestAnimationFrame(check));
 				}),
 		);
+	// Actionability, like Playwright/Puppeteer: the target is attached, visible, its box is unchanged across
+	// two animation frames and the point to press hits the target itself. Returns the point, or why not.
+	const measureTarget = (selector, budgetMs) =>
+		evaluate(
+			(selector, budgetMs) =>
+				new Promise((resolve) => {
+					const deadline = performance.now() + budgetMs;
+					const describe = (n) =>
+						n
+							? `<${n.localName}${n.id ? `#${n.id}` : ""}${n.classList?.length ? `.${[...n.classList].join(".")}` : ""}>`
+							: "nothing";
+					let previous = "";
+					let reason = "missing";
+					const frame = () => {
+						const node = document.querySelector(selector);
+						let key = "";
+						if (!node) reason = "no element matches";
+						else {
+							// Read coordinates only after scrolling; CSS smooth scrolling would leave them stale.
+							node.scrollIntoView({
+								block: "nearest",
+								inline: "nearest",
+								behavior: "instant",
+							});
+							const r = node.getBoundingClientRect();
+							const style = getComputedStyle(node);
+							if (
+								r.width <= 0 ||
+								r.height <= 0 ||
+								style.visibility !== "visible" ||
+								style.display === "none"
+							)
+								reason = "not visible";
+							else {
+								key = [r.x, r.y, r.width, r.height].join(",");
+								const x = r.x + r.width / 2;
+								const y = r.y + r.height / 2;
+								const hit = document.elementFromPoint(x, y);
+								if (key !== previous) reason = "box still moving";
+								else if (!hit || !(hit === node || node.contains(hit)))
+									reason = `covered by ${describe(hit)}`;
+								else return resolve({ x, y });
+							}
+						}
+						previous = key;
+						if (performance.now() > deadline) return resolve({ reason });
+						requestAnimationFrame(frame);
+					};
+					requestAnimationFrame(frame);
+				}),
+			selector,
+			budgetMs,
+		);
+	const CLICK_ACTIONABLE_MS = 5000;
+	const CLICK_ATTEMPTS = 4;
 	const click = async (selector) => {
 		await settle();
-		const box = await evaluate((selector) => {
-			const node = document.querySelector(selector);
-			if (!node) return null;
-			// Read coordinates only after scrolling; CSS smooth scrolling would leave them stale.
-			node.scrollIntoView({
-				block: "nearest",
-				inline: "nearest",
-				behavior: "instant",
+		const problems = [];
+		for (let attempt = 1; attempt <= CLICK_ATTEMPTS; attempt++) {
+			const box = await measureTarget(selector, CLICK_ACTIONABLE_MS);
+			if (box.reason) {
+				problems.push(`target ${box.reason}`);
+				break;
+			}
+			// Guard for this click only: an event outside the intended node (the page moved the target after
+			// the measurement) is blocked, so a misdirected click has no side effect, and recorded.
+			await evaluate(
+				(selector, x, y) => {
+					const node = document.querySelector(selector);
+					const misses = [];
+					const types = [
+						"pointerdown",
+						"mousedown",
+						"pointerup",
+						"mouseup",
+						"click",
+					];
+					const guard = (event) => {
+						if (node?.isConnected && node.contains(event.target)) return;
+						misses.push(
+							`${event.type} on <${event.target?.localName ?? event.target}${event.target?.id ? `#${event.target.id}` : ""}>`,
+						);
+						event.preventDefault();
+						event.stopImmediatePropagation();
+					};
+					for (const type of types) window.addEventListener(type, guard, true);
+					window.__awClickGuard = {
+						misses,
+						remove: () => {
+							for (const type of types)
+								window.removeEventListener(type, guard, true);
+						},
+					};
+				},
+				selector,
+				box.x,
+				box.y,
+			);
+			await send("Input.dispatchMouseEvent", {
+				type: "mousePressed",
+				...box,
+				button: "left",
+				clickCount: 1,
 			});
-			const r = node.getBoundingClientRect();
-			return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-		}, selector);
-		if (!box) throw new Error(`Missing click target: ${selector}`);
-		await send("Input.dispatchMouseEvent", {
-			type: "mousePressed",
-			...box,
-			button: "left",
-			clickCount: 1,
-		});
-		await send("Input.dispatchMouseEvent", {
-			type: "mouseReleased",
-			...box,
-			button: "left",
-			clickCount: 1,
-		});
-		// A plain link (the dashboard's view navigation) reloads the page while settle() polls;
-		// then wait for the new document instead (2026-11-06, CI ubuntu/Node 26).
-		try {
+			await send("Input.dispatchMouseEvent", {
+				type: "mouseReleased",
+				...box,
+				button: "left",
+				clickCount: 1,
+			});
+			// A plain link (the dashboard's view navigation) reloads the page; its new document has no
+			// guard and the click was delivered (2026-11-06, CI ubuntu/Node 26).
+			let misses = [];
+			try {
+				misses = await evaluate(() => {
+					const guard = window.__awClickGuard;
+					if (!guard) return [];
+					guard.remove();
+					delete window.__awClickGuard;
+					return guard.misses;
+				});
+			} catch (error) {
+				if (!isNavigationError(error)) throw error;
+				await waitFor(() => document.readyState === "complete");
+			}
+			if (!misses.length) {
+				try {
+					await settle();
+				} catch (error) {
+					if (!isNavigationError(error)) throw error;
+					await waitFor(() => document.readyState === "complete");
+				}
+				return;
+			}
+			problems.push(`attempt ${attempt} hit ${misses.join(", ")}`);
 			await settle();
-		} catch (error) {
-			if (!isNavigationError(error)) throw error;
-			await waitFor(() => document.readyState === "complete");
 		}
+		throw new Error(
+			`Click target ${selector} was not hit: ${problems.join("; ")}`,
+		);
 	};
 	const key = async (key, modifiers = 0) => {
 		const windowsVirtualKeyCode =
