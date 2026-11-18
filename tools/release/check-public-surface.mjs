@@ -28,6 +28,12 @@ for (const path of tracked) {
 	if (forbiddenPrefixes.some((prefix) => path.startsWith(prefix))) {
 		violations.push(`${path}: local maintenance surface must not be tracked`);
 	}
+	// A worktree's `node_modules` link was committed once (f28425f4, 2026-11-18).
+	if (path.split("/").includes("node_modules")) {
+		violations.push(
+			`${path}: dependency directories and links must not be tracked`,
+		);
+	}
 	if (path.startsWith("tools/") && !path.startsWith("tools/release/")) {
 		violations.push(
 			`${path}: public tools are allowlisted under tools/release/ only; move maintenance, measurement, or forensics tools under ignored internal/`,
