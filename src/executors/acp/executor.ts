@@ -603,11 +603,6 @@ export function createAcpExecutor(options: {
 	async function launch(req: SubmitRequest): Promise<ExecRef> {
 		const known = runs.get(req.attemptKey);
 		if (known !== undefined) return known.ref;
-		schedulePeriodicAdapterStatePrune({
-			stateDir: config.stateDir,
-			classify: classifyAcpAttemptRecord,
-			attemptDigestLength: 40,
-		});
 		const existingRef = fromLookup(
 			req.attemptKey,
 			await store.lookupAttempt(req.attemptKey),
@@ -754,6 +749,12 @@ export function createAcpExecutor(options: {
 				...req.env,
 			},
 			stdio: ["pipe", "pipe", "pipe"],
+		});
+		// WP18b: pruned in the background (at most every 6 h) only once the launch is admitted; a refused submit schedules none.
+		schedulePeriodicAdapterStatePrune({
+			stateDir: config.stateDir,
+			classify: classifyAcpAttemptRecord,
+			attemptDigestLength: 40,
 		});
 		const ref: ExecRef = {
 			executorId: preset.id,

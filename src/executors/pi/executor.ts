@@ -698,12 +698,6 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			);
 		};
 		if (known !== undefined) return fromRecord(known);
-		// WP18b: old terminal attempt records are pruned in the background (at most every 6 h).
-		schedulePeriodicAdapterStatePrune({
-			stateDir,
-			classify: (record) => classifyPiAttemptRecord(stateDir, record),
-			attemptDigestLength: 64,
-		});
 		const runDir =
 			req.artifactsDir ?? join(stateDir, "runs", attemptDigest(key));
 		if (!(await store.create({ attemptKey: key, phase: "pending", runDir }))) {
@@ -784,6 +778,12 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 			env,
 			stdio: ["pipe", "pipe", "pipe", "pipe"],
 			detached: process.platform !== "win32",
+		});
+		// WP18b: pruned in the background (at most every 6 h) only once the launch is admitted; a refused submit schedules none.
+		schedulePeriodicAdapterStatePrune({
+			stateDir,
+			classify: (record) => classifyPiAttemptRecord(stateDir, record),
+			attemptDigestLength: 64,
 		});
 		try {
 			await new Promise<void>((resolveSpawn, rejectSpawn) => {
