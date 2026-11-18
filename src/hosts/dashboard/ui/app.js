@@ -791,6 +791,8 @@ function renderTop() {
 		projects.map((p) => [p.id, p.name]),
 		visibleNeeds().length,
 		readonly(),
+		// Everything the bar renders must be here, or a change leaves it stale (e.g. the theme label).
+		themeOverride ?? themeChoice(),
 	]);
 	if (signature === topSignature) {
 		updateConnection();
