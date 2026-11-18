@@ -9816,6 +9816,11 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 				},
 				{ "data-testid": "project-settings-reload", disabled: readonly() },
 			),
+		),
+		// Own full-width row: messages never resize the Save/Discard row.
+		element(
+			"div",
+			{ class: "project-workflow-messages" },
 			dirty,
 			status,
 			error,
