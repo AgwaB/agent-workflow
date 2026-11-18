@@ -9857,17 +9857,15 @@ async function projectWorkflowEditor(page, project, workflow, graph, current) {
 			}
 			const fields = controls(selected.id);
 			fields.hidden = !custom;
-			panel.append(
-				selected.kind === "template"
-					? element(
-							"p",
-							{ class: "muted" },
-							`Template${selected.parentId ? ` in ${humanize(selected.parentId)}` : ""}: steps it creates use these settings.`,
-						)
-					: null,
-				scope,
-				fields,
-			);
+			if (selected.kind === "template")
+				panel.append(
+					element(
+						"p",
+						{ class: "muted" },
+						`Template${selected.parentId ? ` in ${humanize(selected.parentId)}` : ""}: steps it creates use these settings.`,
+					),
+				);
+			panel.append(scope, fields);
 		}
 	}
 	function returnToAll() {

@@ -2985,3 +2985,30 @@ test("code steps: hidden by default, toggled with the Run graph's glide and reme
 		"shown",
 	);
 });
+
+test("step panel: plain name, two short choices, no stray text", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	await select(p, "iterate.check");
+	assert.deepEqual(
+		await p.browser.evaluate(() => {
+			const panel = document.querySelector(".role-inspector");
+			return {
+				title: panel.querySelector('[data-testid="canonical-slot-title"]')
+					.textContent,
+				choices: [...panel.querySelectorAll(".task-settings-scope label")].map(
+					(n) => n.textContent.trim(),
+				),
+				stray: /\bnull\b|undefined|Settings for task/.test(panel.textContent),
+			};
+		}),
+		{
+			title: "Iterate.check",
+			choices: ["Same as all steps", "Custom"],
+			stray: false,
+		},
+	);
+});
