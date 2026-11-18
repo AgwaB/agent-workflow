@@ -7,7 +7,6 @@ import type { IncomingMessage } from "node:http";
 import { isValidWorkflowName } from "../../core/workflow-specs.js";
 import { workflowExecutorRegistration } from "../../core/executor-registry.js";
 import { EFFORT_LEVELS, WorkflowValidationError } from "../../core/types.js";
-import { LEVEL_CAPABILITY_NAMES } from "../../sdk/capabilities.js";
 import { HostUsageError } from "../args.js";
 import {
 	listWorkflowsAction,
@@ -225,13 +224,8 @@ export function createDashboardManagement(options: Options) {
 				return calculations.read(parts[2]!);
 			if (parts[1] === "profiles" && parts.length <= 3) {
 				const id = parts[2];
-				if (!id && method === "GET") {
-					const result = await profileAction(ctx, { op: "list" });
-					return ok({
-						...result,
-						data: { ...result.data, capabilityNames: LEVEL_CAPABILITY_NAMES },
-					});
-				}
+				if (!id && method === "GET")
+					return ok(await profileAction(ctx, { op: "list" }));
 				if (id === "presets" && method === "GET")
 					return ok(await profileAction(ctx, { op: "presets" }));
 				if (id) {

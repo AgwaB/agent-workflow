@@ -196,9 +196,9 @@ test(
 	},
 );
 
-// Profile model controls and their warning-only catalog path are deleted, not hidden.
+// Catalog warnings and model/preference editors do not belong to executor observation.
 test(
-	"D Executors omit catalog warnings and retains hidden manual model/role values on permission Save",
+	"D Executors omit catalog warnings and never modify hidden manual model/role values",
 	opts,
 	async (t) => {
 		const { b, p } = await setup(
@@ -232,45 +232,36 @@ test(
 		await b.send("Page.navigate", {
 			url: `${p.origin}/?project=${p.server.projectId}&view=executors`,
 		});
-		await b.waitFor(
-			() =>
-				!!document.querySelector(
-					'[data-executor-permissions="codex"] [data-save-permissions]',
-				),
-		);
+		await b.waitFor(() => !!document.querySelector(".executors"));
 		assert.equal(
 			await b.evaluate(
 				() =>
 					document.querySelectorAll(
-						'.executor-permissions [aria-label="Executor"], .executor-permissions [aria-label="Model"], .executor-permissions [aria-label="Effort"], .executor-permissions [data-effort-note]',
+						".executors select, .executors input, [data-save-permissions], [data-effort-note]",
 					).length,
 			),
 			0,
 		);
 		assert.doesNotMatch(
 			await b.evaluate(
-				() => document.querySelector(".executor-permissions").innerText,
+				() => document.querySelector(".management-page").innerText,
 			),
 			/must not render|complete model list|not available here/,
 		);
-		await set(b, "codex permission mode", "free");
-		await b.evaluate(() =>
-			document
-				.querySelector(
-					'[data-executor-permissions="codex"] [data-save-permissions]',
-				)
-				.click(),
-		);
-		await b.waitFor(
-			() =>
-				document.querySelector(
-					'[data-executor-permissions="codex"] [role="status"]',
-				)?.textContent === "Saved.",
+		assert.ok(
+			b.requests.every(
+				(url) => !/\/api\/(executors\/models|workflow-preferences)/.test(url),
+			),
 		);
 		const stored = (await profileAction(p.ctx, { op: "show", name: "codex" }))
 			.data.profile;
-		for (const key of ["executor", "model", "effort", "roles"])
+		for (const key of [
+			"executor",
+			"model",
+			"effort",
+			"roles",
+			"permissionMode",
+		])
 			assert.deepEqual(stored[key], values[key]);
-		assert.equal(stored.permissionMode, "free");
 	},
 );

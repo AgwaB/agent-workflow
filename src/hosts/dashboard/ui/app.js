@@ -8057,7 +8057,6 @@ async function start() {
 		}
 		if (state.view === "executors") {
 			prefetch("/api/doctor");
-			prefetch("/api/profiles");
 		}
 		const [sessionData, projectData] = await Promise.all([
 			sessionPromise,
@@ -9991,146 +9990,6 @@ async function renderWorkflow(page, name) {
 		: null;
 	if (specProblems) header.after(specProblems);
 }
-// Each row owns one permission-only patch; never rewrite hidden model/role fields.
-function executorPermissions(page, id, profile, capabilityNames) {
-	const row = element("div", {
-		class: "executor-permissions",
-		"data-executor-permissions": id,
-	});
-	const permission = choices(
-		`${id} permission mode`,
-		[
-			["", "Automatic"],
-			["free", "Free"],
-			["safe", "Safe"],
-		],
-		profile.permissionMode || "",
-	);
-	const strict = capabilityNames.map((name) => {
-		const control = element("input", {
-			type: "checkbox",
-			value: name,
-			checked: (profile.strictCapabilities || []).includes(name),
-			"aria-label": `${id} strict ${name}`,
-			disabled: readonly(),
-		});
-		return { name, control };
-	});
-	// Dotted constraints authored through other hosts are not editable here, and must not be dropped.
-	const retained = (profile.strictCapabilities || []).filter(
-		(name) => !capabilityNames.includes(name),
-	);
-	const read = () => ({
-		permissionMode: permission.value,
-		strictCapabilities: [
-			...retained,
-			...strict
-				.filter(({ control }) => control.checked)
-				.map(({ name }) => name),
-		],
-	});
-	let baseline = read();
-	const draft = settingsDraft(row, read);
-	const output = element("div", { class: "executor-permission-feedback" });
-	const save = managementControl(
-		"Save",
-		async () => {
-			saveFeedback(save, "saving");
-			const submitted = draft.snapshot();
-			const current = read();
-			const values = {
-				...(current.permissionMode
-					? { permissionMode: current.permissionMode }
-					: {}),
-				...(current.strictCapabilities.length
-					? { strictCapabilities: current.strictCapabilities }
-					: {}),
-			};
-			await managementWrite(`/api/profiles/${encodeURIComponent(id)}`, "PUT", {
-				values,
-				unset: ["permissionMode", "strictCapabilities"].filter(
-					(key) => values[key] === undefined,
-				),
-			});
-			if (!page.isConnected || !row.isConnected || !settingsDrafts.has(draft))
-				return;
-			baseline = current;
-			draft.saved(submitted);
-			saveFeedback(save, "saved", showActions);
-			showActions();
-			output.replaceChildren(
-				element(
-					"p",
-					{ role: "status" },
-					draft.dirty() ? "Saved. Later changes are unsaved." : "Saved.",
-				),
-			);
-		},
-		output,
-		{
-			class: "save-feedback",
-			"data-save-permissions": "",
-			"aria-label": `Save ${id} permissions`,
-		},
-	);
-	permission.disabled = readonly();
-	// Save/Discard appear only on a row with unsaved changes (2026-11-17, owner).
-	let actions;
-	const showActions = () => {
-		if (actions)
-			actions.hidden =
-				!draft.dirty() &&
-				save.dataset.saveState !== "saved" &&
-				save.dataset.saveState !== "saving";
-	};
-	row.addEventListener("change", () => {
-		output.replaceChildren();
-		showActions();
-	});
-	row.append(
-		field("Permission mode", permission),
-		element(
-			"details",
-			{},
-			element("summary", {}, "Advanced"),
-			element(
-				"fieldset",
-				{ class: "executor-strict" },
-				element("legend", {}, "Strict capabilities"),
-				strict.map(({ name, control }) => element("label", {}, control, name)),
-			),
-			retained.length
-				? element(
-						"p",
-						{ class: "muted" },
-						`Also required: ${retained.join(", ")}`,
-					)
-				: null,
-		),
-		(actions = element(
-			"div",
-			{ class: "executor-permission-actions", hidden: true },
-			save,
-			button(
-				"Discard",
-				() => {
-					permission.value = baseline.permissionMode;
-					for (const { name, control } of strict)
-						control.checked = baseline.strictCapabilities.includes(name);
-					output.replaceChildren();
-					showActions();
-				},
-				{
-					disabled: readonly(),
-					"data-discard-permissions": "",
-					"aria-label": `Discard ${id} permission changes`,
-				},
-			),
-		)),
-		output,
-	);
-	return row;
-}
 /** "12.4 MB" from bytes. */
 function formatBytes(bytes) {
 	const units = ["B", "KB", "MB", "GB"];
@@ -10184,30 +10043,13 @@ async function renderExecutors(page) {
 	const body = element("div", { "aria-live": "polite" });
 	const refreshOutput = element("div");
 	const show = async (refresh = false) => {
-		if (refresh && !approveSettingsDiscard()) return;
-		const snapshots = new Map(
-			[...settingsDrafts].map((draft) => [draft, draft.snapshot()]),
+		const result = await managementApi(
+			`/api/doctor${refresh ? "?refresh=1" : ""}`,
 		);
-		const [result, profiles] = await Promise.all([
-			managementApi(`/api/doctor${refresh ? "?refresh=1" : ""}`),
-			managementApi("/api/profiles"),
-		]);
 		if (!page.isConnected) return;
-		if (
-			refresh &&
-			[...snapshots].some(([draft, snapshot]) => draft.snapshot() !== snapshot)
-		) {
-			refreshOutput.replaceChildren(
-				element(
-					"p",
-					{ role: "status" },
-					"Settings changed during refresh. Refresh again to discard them.",
-				),
-			);
-			return;
-		}
 		const data = result.data;
 		const executors = data.executors || [];
+		const safe = data.permissionMode?.mode === "safe";
 		const ready = executors.filter((entry) => entry.usable).length;
 		const showFix = executors.some(
 			(entry) => entry.fix || (!entry.usable && entry.error),
@@ -10248,8 +10090,6 @@ async function renderExecutors(page) {
 			);
 		}
 		body.replaceChildren();
-		for (const draft of settingsDrafts)
-			if (!draft.node.isConnected) draft.clear();
 		append(body, [
 			managementPanel(
 				"Status",
@@ -10268,6 +10108,11 @@ async function renderExecutors(page) {
 						: "No executor is ready to run workflows.",
 				),
 				element(
+					"p",
+					{ "data-testid": "executor-permission-fact" },
+					`Permissions: ${safe ? "Safe — workers run sandboxed with approvals limited to their tools" : "Free — workers run without approvals or sandbox"}. Use --permission-mode safe to restrict.`,
+				),
+				element(
 					"div",
 					{
 						class: "executor-status-scroll",
@@ -10281,7 +10126,6 @@ async function renderExecutors(page) {
 							"Status",
 							"Version",
 							...(showFix ? ["What to do"] : []),
-							"Permissions",
 						],
 						executors.map((entry) => {
 							const [tone, label] = EXECUTOR_STATES[entry.state] || [
@@ -10308,14 +10152,6 @@ async function renderExecutors(page) {
 								...(showFix
 									? [entry.fix || (entry.usable ? "" : entry.error || "")]
 									: []),
-								executorPermissions(
-									page,
-									entry.id,
-									profiles.data.profiles.find(
-										(profile) => profile.name === entry.id,
-									) || {},
-									profiles.data.capabilityNames,
-								),
 							];
 						}),
 						{ class: "property-table executors" },
@@ -10342,17 +10178,6 @@ async function renderExecutors(page) {
 							data.defaultExecutor?.id
 								? element("strong", {}, data.defaultExecutor.id)
 								: "none ready",
-						],
-						[
-							"Permission mode",
-							[
-								element("strong", {}, data.permissionMode?.mode || "free"),
-								element(
-									"span",
-									{ class: "muted" },
-									`, ${data.permissionMode?.source === "default" ? "default" : "saved"}`,
-								),
-							],
 						],
 					],
 					{ class: "property-table keyed" },

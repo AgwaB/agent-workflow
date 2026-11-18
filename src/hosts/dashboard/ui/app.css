@@ -2684,44 +2684,6 @@ main.signin code {
 	padding: 12px 0;
 	border-bottom: 1px solid var(--line);
 }
-/* Permission-only executor defaults, with strict constraints out of the primary path. */
-.executor-permissions {
-	min-width: 210px;
-	max-width: 300px;
-}
-.executor-strict {
-	display: grid;
-	gap: 4px;
-	min-width: 0;
-	margin: 0 0 12px;
-	padding: 0;
-	border: 0;
-}
-.executor-strict legend {
-	font-size: 13px;
-	color: var(--muted);
-	margin-bottom: 8px;
-}
-.executor-strict label {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	min-height: 32px;
-	overflow-wrap: anywhere;
-}
-.executor-permission-actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-}
-.executor-permission-feedback {
-	max-height: 180px;
-	overflow: auto;
-	overflow-wrap: anywhere;
-}
-.executor-permission-feedback p {
-	margin: 8px 0 0;
-}
 .management-fields > small {
 	grid-column: 1 / -1;
 }
@@ -3054,9 +3016,6 @@ main.signin code {
 	summary,
 	.picker-menu [role="option"] {
 		align-content: center;
-	}
-	.executor-strict label {
-		min-height: 44px;
 	}
 	button.link {
 		display: inline-flex;

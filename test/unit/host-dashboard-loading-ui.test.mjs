@@ -114,9 +114,7 @@ test("global progress covers overlapping fetches, errors and reduced motion with
 		window.__hold.clear();
 		window.__release["/api/projects"]();
 	});
-	await p.browser.waitFor(() =>
-		document.querySelector("[data-executor-permissions]"),
-	);
+	await p.browser.waitFor(() => document.querySelector(".executors"));
 	await p.browser.waitFor(
 		() => document.querySelector("#global-progress").hidden,
 	);

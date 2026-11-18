@@ -385,10 +385,10 @@ for (const reduced of [false, true]) {
 			!reduced,
 		);
 	});
-	test(`motion M3: project and permission Save states retain size and drafts, reduced=${reduced}`, {
+	test(`motion M3: project Save states retain size and drafts, reduced=${reduced}`, {
 		timeout: 90000,
 	}, async (t) => {
-		const { p, b } = await settings(t, reduced);
+		const { b } = await settings(t, reduced);
 		const projectSave = '[data-management-action="save-project-settings"]';
 		await b.evaluate(() => {
 			const n = document.querySelector('[aria-label="All tasks Executor"]');
@@ -401,26 +401,8 @@ for (const reduced of [false, true]) {
 					'[data-management-action="save-project-settings"]',
 				).disabled,
 		);
-		for (const selector of [
-			projectSave,
-			'[data-executor-permissions="codex"] [data-save-permissions]',
-		]) {
-			if (selector !== projectSave) {
-				await b.send("Page.navigate", {
-					url: `${p.origin}/?view=executors&project=${p.server.projectId}`,
-				});
-				await b.waitFor(
-					() =>
-						!!document.querySelector('[aria-label="codex permission mode"]'),
-				);
-				await b.evaluate(() => {
-					const n = document.querySelector(
-						'[aria-label="codex permission mode"]',
-					);
-					n.value = "safe";
-					n.dispatchEvent(new Event("change", { bubbles: true }));
-				});
-			}
+		{
+			const selector = projectSave;
 			const width = await b.evaluate((selector) => {
 				window.__holdSave = true;
 				const n = document.querySelector(selector);

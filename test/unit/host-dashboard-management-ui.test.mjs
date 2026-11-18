@@ -11,10 +11,6 @@ import {
 } from "../helpers/dashboard-management.mjs";
 import { createBrowser, findChrome } from "../helpers/dashboard-browser.mjs";
 import { scanMarks } from "../helpers/dashboard-marks.mjs";
-import {
-	setPermission,
-	savePermissions,
-} from "../helpers/dashboard-profiles.mjs";
 import { profileAction } from "../../dist/hosts/catalog.js";
 
 const chrome = await findChrome();
@@ -112,7 +108,7 @@ async function persistOldRuns(cwd, count) {
 	}
 	return dirs;
 }
-test("Chrome management: the views, permission edit, check preview and the overview's needs and clean-up; deep links and reduced motion", {
+test("Chrome management: the views, project settings and the overview's needs and clean-up; deep links and reduced motion", {
 	timeout: 120000,
 }, async (t) => {
 	assert.ok(
@@ -133,9 +129,7 @@ test("Chrome management: the views, permission edit, check preview and the overv
 	});
 	const url = `${p.origin}/?project=${p.server.projectId}`;
 	await navigate(browser, `${url}&view=executors`, "executors");
-	await browser.waitFor(
-		() => !!document.querySelector('[data-executor-permissions="codex"]'),
-	);
+	await browser.waitFor(() => !!document.querySelector(".executors"));
 	assert.deepEqual(
 		await browser.evaluate(() =>
 			[...document.querySelectorAll(".management-nav a")].map(
@@ -143,13 +137,6 @@ test("Chrome management: the views, permission edit, check preview and the overv
 			),
 		),
 		["Overview", "Workflows", "Run history", "Executors"],
-	);
-	await setPermission(browser, "safe");
-	await savePermissions(browser);
-	assert.equal(
-		(await profileAction(p.ctx, { op: "show", name: "codex" })).data.profile
-			.permissionMode,
-		"safe",
 	);
 	await browser.click('.management-nav a[href*="view=workflows"]');
 	await browser.waitFor(() =>
@@ -411,50 +398,6 @@ test("Chrome management: the views, permission edit, check preview and the overv
 	assert.equal(existsSync(p.effects), false);
 });
 
-test("Chrome executor defaults: permission Save and Automatic do not pin built-in model settings", {
-	timeout: 60000,
-}, async (t) => {
-	assert.ok(chrome);
-	const p = await managementProject(t);
-	const browser = await createBrowser(chrome);
-	t.after(() => browser.close());
-	await navigate(
-		browser,
-		`${p.origin}/?project=${p.server.projectId}&view=executors`,
-		"executors",
-	);
-	await browser.waitFor(
-		() => !!document.querySelector('[data-executor-permissions="codex"]'),
-	);
-	assert.equal(
-		await browser.evaluate(
-			() =>
-				document.querySelector('[aria-label="codex permission mode"]').value,
-		),
-		"",
-	);
-	await setPermission(browser, "safe");
-	await savePermissions(browser);
-	const shown = await profileAction(p.ctx, { op: "show", name: "codex" });
-	assert.equal(shown.data.profile.permissionMode, "safe");
-	for (const key of ["executor", "model", "effort", "roles"])
-		assert.equal(shown.data.profile[key], undefined, key);
-	assert.deepEqual(shown.data.effective.roles.planning, {
-		executor: "codex",
-		model: "gpt-6.1-sol",
-		effort: "high",
-	});
-	await setPermission(browser, "");
-	await savePermissions(browser);
-	assert.equal(
-		(await profileAction(p.ctx, { op: "show", name: "codex" })).data.profile
-			.permissionMode,
-		undefined,
-	);
-	assert.deepEqual(browser.errors, []);
-	assert.equal(existsSync(p.effects), false);
-});
-
 test("Chrome readonly management: navigation stays available and all action mutations are disabled", {
 	timeout: 60000,
 }, async (t) => {
@@ -535,9 +478,9 @@ test("Chrome readonly management: navigation stays available and all action muta
 	assert.deepEqual(browser.errors, []);
 });
 
-// 2026-11-12 (owner, pass 2): no middle dot and no em dash in the dashboard's own text, on every
-// management page, read-write and read-only. An unknown value reads "n/a".
-test("Chrome management: no middle dot and no em dash in workflows, executors and the overview", {
+// No middle dots or decorative em dashes; the required Permissions fact is the sole em-dash exception.
+// Check every management page, read-write and read-only. An unknown value reads "n/a".
+test("Chrome management: only the required permission fact uses an em dash, with no middle dots", {
 	timeout: 120000,
 }, async (t) => {
 	assert.ok(
@@ -562,9 +505,15 @@ test("Chrome management: no middle dot and no em dash in workflows, executors an
 				() =>
 					document.querySelector(".management-page")?.textContent.length > 40,
 			);
+			if (view === "executors")
+				await browser.waitFor(() => !!document.querySelector(".executors"));
 			assert.deepEqual(
 				await scanMarks(browser),
-				[],
+				view === "executors"
+					? [
+							`text: ${"Permissions: Free — workers run without approvals or sandbox. Use --permission-mode safe to restrict.".slice(0, 80)}`,
+						]
+					: [],
 				`${view}${readonly ? " (read-only)" : ""}`,
 			);
 		}
@@ -864,7 +813,6 @@ for (const mode of ["ready", "fix", "four", "one"]) {
 				"Status",
 				"Version",
 				...(mode === "fix" ? ["What to do"] : []),
-				"Permissions",
 			]),
 		);
 		if (mode === "fix")

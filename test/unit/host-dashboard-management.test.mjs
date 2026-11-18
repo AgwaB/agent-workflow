@@ -108,7 +108,10 @@ test("management catalogs and check reuse host actions, never resolve request pa
 
 test("profile API round trip equals profileAction show, including roles, presets, defaults, unset and delete", async (t) => {
 	const p = await managementProject(t);
-	assert.equal((await p.http("/api/profiles")).status, 200);
+	const listed = await p.http("/api/profiles");
+	assert.equal(listed.status, 200);
+	assert.deepEqual(listed.data, await profileAction(p.ctx, { op: "list" }));
+	assert.equal(Object.hasOwn(listed.data.data, "capabilityNames"), false);
 	const presets = await p.http("/api/profiles/presets");
 	assert.equal(presets.status, 200);
 	assert.ok(presets.data.data.presets.some((preset) => preset.id === "mixed"));

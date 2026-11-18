@@ -22,48 +22,5 @@ export async function loadExecutors(p, url = p.url) {
 	await p.b.send("Page.navigate", { url });
 	await p.b.waitFor(() => !!document.querySelector(".executors"));
 }
-export async function setPermission(b, value, executor = "codex") {
-	await b.evaluate(
-		(value, executor) => {
-			const control = document.querySelector(
-				`[aria-label="${executor} permission mode"]`,
-			);
-			if (!control) throw new Error(`Missing ${executor} permission mode`);
-			control.value = value;
-			control.dispatchEvent(new Event("change", { bubbles: true }));
-		},
-		value,
-		executor,
-	);
-}
-export async function toggleCapability(b, capability, executor = "codex") {
-	await b.evaluate(
-		(capability, executor) => {
-			const row = document.querySelector(
-				`[data-executor-permissions="${executor}"]`,
-			);
-			row.querySelector("details").open = true;
-			row.querySelector(`input[value="${capability}"]`).click();
-		},
-		capability,
-		executor,
-	);
-}
-export async function savePermissions(b, executor = "codex") {
-	await b.evaluate(
-		(executor) =>
-			document
-				.querySelector(
-					`[data-executor-permissions="${executor}"] [data-save-permissions]`,
-				)
-				.click(),
-		executor,
-	);
-	await b.waitFor(
-		`document.querySelector('[data-executor-permissions="${executor}"] [role="status"]')?.textContent === 'Saved.'`,
-	);
-}
-export const storedProfile = async (p, name = "codex") =>
-	(await profileAction(p.ctx, { op: "show", name })).data.profile;
 export const seedProfile = (p, values = {}, name = "codex") =>
 	profileAction(p.ctx, { op: "set", name, values });
