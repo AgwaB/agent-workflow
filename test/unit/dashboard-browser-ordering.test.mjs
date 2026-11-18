@@ -79,17 +79,19 @@ for (const message of [
 	});
 }
 
-test("click recovers from a navigation during settle and waits for the next document", async (t) => {
+test("click recovers from a navigation after the press and waits for the next document", async (t) => {
 	const paused = Promise.withResolvers();
 	const release = Promise.withResolvers();
 	t.after(() => release.resolve());
 	const expressions = [];
 	const replies = [
-		value(true),
-		value({ x: 10, y: 20 }),
-		failure("Inspected target navigated or closed"),
-		failure("Cannot find context with specified id"),
-		value(true),
+		value(true), // settle
+		value({ x: 10, y: 20 }), // actionability measurement
+		value(true), // click guard installed
+		failure("Inspected target navigated or closed"), // reading the guard: the click navigated
+		failure("Cannot find context with specified id"), // next document not ready yet
+		value(true), // next document complete
+		value(true), // settle on the next document
 	];
 	const { browser, calls } = await scriptedBrowser(
 		t,
@@ -105,9 +107,9 @@ test("click recovers from a navigation during settle and waits for the next docu
 	const clicking = browser.click("a.next-view");
 	try {
 		await Promise.race([paused.promise, clicking]);
-		assert.equal(expressions.length, 4);
-		assert.match(expressions[2], /getAnimations/);
-		assert.match(expressions[3], /document.readyState/);
+		assert.equal(expressions.length, 5);
+		assert.match(expressions[3], /__awClickGuard/);
+		assert.match(expressions[4], /document.readyState/);
 		assert.deepEqual(
 			calls
 				.filter(({ method }) => method === "Input.dispatchMouseEvent")
@@ -117,11 +119,41 @@ test("click recovers from a navigation during settle and waits for the next docu
 		release.resolve();
 		await clicking;
 		assert.equal(replies.length, 0);
-		assert.match(expressions[4], /document.readyState/);
+		assert.match(expressions[5], /document.readyState/);
+		assert.match(expressions[6], /getAnimations/);
 	} finally {
 		release.resolve();
 		await clicking.catch(() => {});
 	}
+});
+
+test("click does not press when the page navigates before the press, and measures again", async (t) => {
+	const expressions = [];
+	const replies = [
+		value(true), // settle
+		failure("Inspected target navigated or closed"), // measurement: the page navigated on its own
+		value(true), // next document complete
+		value({ x: 10, y: 20 }), // measurement on the next document
+		value(true), // click guard installed
+		value([]), // guard read: the press hit the target
+		value(true), // settle
+	];
+	const { browser, calls } = await scriptedBrowser(
+		t,
+		(expression) => {
+			expressions.push(expression);
+			return replies.shift();
+		},
+		() => assert.fail("no polling needed"),
+	);
+	await browser.click("button.save");
+	assert.equal(replies.length, 0);
+	assert.deepEqual(
+		calls
+			.filter(({ method }) => method === "Input.dispatchMouseEvent")
+			.map(({ params }) => params.type),
+		["mousePressed", "mouseReleased"],
+	);
 });
 
 for (const action of ["waitFor", "click"]) {

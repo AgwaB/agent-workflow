@@ -1623,6 +1623,13 @@ for (const failedInventory of [false, true, "request"])
 			(await snapshot()).map((field) => field.value),
 			[raw, expectedTaskModel],
 		);
+		// The latest calculation's outcome may show or move an alert above Save; a click whose
+		// coordinates were read before that missed the button (CI ubuntu/Node 22, 2026-11-17).
+		await p.browser.waitFor(
+			() =>
+				!!window.__requests.findLast((r) => r.path.endsWith("/preview"))
+					?.response,
+		);
 		await p.browser.click('[data-management-action="save-project-settings"]');
 		await refused(p, "Save not confirmed");
 		assert.deepEqual(
@@ -2549,6 +2556,9 @@ test("dynamic leaf uses actual parent, never pins/rebinds it; executor changes p
 		projectWorkflowSettingsPath(p.cwd, { env: p.env }),
 		"utf8",
 	);
+	// The automatic refusal alert grows the header and moves Save (108px -> 175px); a click whose
+	// coordinates were read before it appeared misses the button (CI ubuntu/Node 24, 2026-11-17).
+	await refused(p, "Automatic calculation failed");
 	await p.browser.click('[data-management-action="save-project-settings"]');
 	await p.browser.waitFor(() =>
 		document

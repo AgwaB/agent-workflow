@@ -25,6 +25,10 @@ async function setup(t) {
 	await mkdir(userHome);
 	await writeFile(join(userHome, "auth.json"), "{}");
 	const stateDir = join(dir, "state");
+	// submit schedules a background state prune that writes <stateDir>/.prune-stamp after submit has settled; a fresh
+	// stamp makes it return after a stat, so nothing can write into stateDir while cleanup removes it.
+	await mkdir(stateDir, { recursive: true });
+	await writeFile(join(stateDir, ".prune-stamp"), "");
 	return {
 		dir,
 		userHome,

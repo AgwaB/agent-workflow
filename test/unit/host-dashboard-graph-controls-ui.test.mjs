@@ -569,13 +569,30 @@ test("Run motion-enabled code morph lands on the final native camera", {
 			deltaY: 0,
 		});
 		await frames(browser);
+		// Record the viewport animation when it is created: on a slow runner it can finish (and leave
+		// getAnimations()) before a lookup after the click's frames, which is not "no glide".
+		await browser.evaluate(() => {
+			window.viewportAnimations = [];
+			if (window.restoreAnimate) window.restoreAnimate();
+			const original = Element.prototype.animate;
+			Element.prototype.animate = function (...args) {
+				const animation = original.apply(this, args);
+				if (this.matches("#canvas svg.graph > g"))
+					window.viewportAnimations.push(animation);
+				return animation;
+			};
+			window.restoreAnimate = () => {
+				Element.prototype.animate = original;
+			};
+		});
 		await browser.click("#canvas .code-switch");
 		await frames(browser);
 		const measured = await browser.evaluate(async () => {
 			const viewport = document.querySelector("#canvas svg.graph > g");
-			const animation = viewport
-				.getAnimations()
-				.find((a) => a.effect.target === viewport);
+			window.restoreAnimate();
+			const animation = window.viewportAnimations.find(
+				(a) => a.effect.target === viewport,
+			);
 			if (!animation) return { animation: false };
 			const end = new DOMMatrix(
 				animation.effect.getKeyframes().at(-1).transform,

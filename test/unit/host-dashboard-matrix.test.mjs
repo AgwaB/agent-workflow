@@ -372,7 +372,13 @@ test("dashboard live matrix: focus survives updates and all sampled frames retai
 	);
 	// Capture observable DOM geometry every 125 ms (8 fps). Clock-only updates must leave card
 	// positions and the canvas node intact; legitimate status changes have a separate handoff test.
+	// The graph is fitted to its viewport in the first animation frame after it is drawn (2026-11-18,
+	// flaky on macOS CI: a starved frame clock let sampling start on the unfitted pre-frame layout).
+	// Sample only after a frame has run since the last redraw; a real jump later still fails below.
 	const frames = await browser.evaluate(async () => {
+		await new Promise((resolve) =>
+			requestAnimationFrame(() => requestAnimationFrame(resolve)),
+		);
 		const canvas = document.querySelector("#canvas");
 		const frames = [];
 		for (let i = 0; i < 24; i++) {
