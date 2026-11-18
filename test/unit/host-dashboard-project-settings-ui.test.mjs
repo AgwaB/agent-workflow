@@ -2992,7 +2992,7 @@ test("step panel: plain name, two short choices, no stray text", {
 	const p = await open(t);
 	await load(p);
 	await settled(p);
-	await select(p, "iterate.check");
+	await select(p, "nested.check");
 	assert.deepEqual(
 		await p.browser.evaluate(() => {
 			const panel = document.querySelector(".role-inspector");
@@ -3002,11 +3002,11 @@ test("step panel: plain name, two short choices, no stray text", {
 				choices: [...panel.querySelectorAll(".task-settings-scope label")].map(
 					(n) => n.textContent.trim(),
 				),
-				stray: /\bnull\b|undefined|Settings for task/.test(panel.textContent),
+				stray: /null|undefined|Settings for task/.test(panel.textContent),
 			};
 		}),
 		{
-			title: "Iterate.check",
+			title: "Nested.check",
 			choices: ["Same as all steps", "Custom"],
 			stray: false,
 		},
