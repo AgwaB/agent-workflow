@@ -2392,7 +2392,8 @@ function renderGraph(preview = null) {
 					: `${stage.name || stage.id}, ${lineFor(stage)}`
 				: `${group ? title : stage.name || stage.id}, ${labels[stage.status] || "Waiting"}${blockedCount ? `, ${blockedCount} actions blocked` : ""}`,
 		});
-		node.append(
+		// Native append writes a literal "null" text node for absent parts: drop them.
+		const parts = [
 			svg("rect", { class: "outline", width: p.w, height: p.h, rx: 10 }),
 			svg(
 				"title",
@@ -2432,7 +2433,8 @@ function renderGraph(preview = null) {
 						svg("text", { x: p.w - 14, y: 24, "text-anchor": "end" }, tag),
 					)
 				: null,
-		);
+		];
+		node.append(...parts.filter(Boolean));
 		if (hasMembers)
 			node.append(
 				svg("rect", {
@@ -4573,17 +4575,21 @@ function renderSingle(inspector, stage) {
 			{ class: "agents-meta" },
 			[
 				taskLine(task),
+				// Short facts, not labelled prose (2026-11-18, owner: hard to read). The executor's own
+				// model report appears only when it differs from what was recorded.
 				...(task.kind === "support"
-					? ["Code step · no model call"]
+					? ["Code step, no model call"]
 					: [
-							`Executor: ${task.executor || run.executor || "unknown"}`,
-							`Recorded model: ${task.model || "unknown"}`,
-							`Recorded effort: ${task.effort || "unknown"}`,
-							`Executor-reported model: ${task.reportedModel || "unknown / not reported"}`,
+							task.executor || run.executor,
+							task.model,
+							task.effort,
+							task.reportedModel && task.reportedModel !== task.model
+								? `reported ${task.reportedModel}`
+								: null,
 						]),
 			]
 				.filter(Boolean)
-				.join(", "),
+				.join(" · "),
 		),
 		itemExpansion(task, "stage-result", false, "single"),
 	);

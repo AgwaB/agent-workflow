@@ -3012,3 +3012,30 @@ test("step panel: plain name, two short choices, no stray text", {
 		},
 	);
 });
+
+test("graph cards: no stray text nodes, labels are not text-selectable, group focus ring is the card", {
+	timeout: 90000,
+}, async (t) => {
+	const p = await open(t);
+	await load(p);
+	await settled(p);
+	assert.deepEqual(
+		await p.browser.evaluate(() => {
+			const graph = document.querySelector(".profile-flow .graph");
+			const stray = [];
+			const walk = document.createTreeWalker(graph, NodeFilter.SHOW_TEXT);
+			for (let n = walk.nextNode(); n; n = walk.nextNode())
+				if (
+					n.parentElement.namespaceURI === "http://www.w3.org/2000/svg" &&
+					!["text", "tspan", "title"].includes(n.parentElement.localName) &&
+					n.textContent.trim()
+				)
+					stray.push(n.textContent);
+			return {
+				stray,
+				select: getComputedStyle(graph.querySelector("text")).userSelect,
+			};
+		}),
+		{ stray: [], select: "none" },
+	);
+});

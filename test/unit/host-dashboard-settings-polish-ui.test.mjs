@@ -64,9 +64,9 @@ test("polish: stage summary labels recorded model/effort and executor-reported u
 	let text = await browser.evaluate(
 		() => document.querySelector(".agents-meta").textContent,
 	);
-	assert.match(text, /Recorded model: claude-haiku-5-5/);
-	assert.match(text, /Recorded effort: low/);
-	assert.match(text, /Executor-reported model: unknown \/ not reported/);
+	// Short facts (2026-11-18, owner); the agent page keeps the fully labelled line.
+	assert.match(text, / · claude-haiku-5-5 · low$/);
+	assert.doesNotMatch(text, /reported|Recorded|unknown/);
 	task.reportedModel = "provider/actual";
 	fixture.publish();
 	await browser.waitFor(() =>
@@ -77,8 +77,7 @@ test("polish: stage summary labels recorded model/effort and executor-reported u
 	text = await browser.evaluate(
 		() => document.querySelector(".agents-meta").textContent,
 	);
-	assert.match(text, /Recorded model: claude-haiku-5-5/);
-	assert.match(text, /Executor-reported model: provider\/actual/);
+	assert.match(text, / · claude-haiku-5-5 · low · reported provider\/actual$/);
 	assert.ok(
 		await browser.evaluate(() =>
 			[...document.querySelectorAll("#inspector button")].some((n) =>

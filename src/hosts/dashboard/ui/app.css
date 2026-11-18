@@ -1444,10 +1444,14 @@ pre {
 .result-analysis :is(.md-h4, .md-h5, .md-h6) {
 	color: var(--muted);
 }
+.result-analysis {
+	font-size: 14px;
+	line-height: 1.7;
+}
 .result-analysis p,
 .result-analysis ul,
 .result-analysis ol {
-	margin: 6px 0;
+	margin: 0 0 12px;
 }
 .result-analysis ul,
 .result-analysis ol {
@@ -1460,7 +1464,16 @@ pre {
 }
 .result-analysis code,
 .result-refs code {
-	font: 13px var(--mono);
+	font: 12.5px / 1.5 var(--mono);
+}
+/* Inline references read as small chips that wrap, not as full-width code lines. */
+.result-analysis :not(pre) > code {
+	padding: 1px 5px;
+	border-radius: 4px;
+	background: var(--line);
+	overflow-wrap: anywhere;
+	box-decoration-break: clone;
+	-webkit-box-decoration-break: clone;
 }
 .result-analysis .report-table {
 	border-collapse: collapse;
@@ -1671,6 +1684,7 @@ dl:not(.report-row-fields, .diagnostic-fields) > :is(dt, dd) {
 	margin: 0 22px 12px;
 	color: var(--muted);
 	font-size: 13px;
+	line-height: 1.5;
 }
 .primary,
 main.signin button {
@@ -2906,10 +2920,18 @@ main.signin code {
 .toolbar .layout-switch > button[aria-pressed="true"] {
 	background: transparent;
 }
-.node-open:focus-visible {
+/* The open target covers only the card's header; its focus shows as the whole card's outline. */
+.node-open:focus {
+	outline: none;
+}
+.node:has(> .node-open:focus-visible) > rect.outline {
 	stroke: var(--text);
 	stroke-width: 2px;
-	outline: none;
+}
+/* Clicking a card or row never paints a text selection over its label. */
+.graph text {
+	-webkit-user-select: none;
+	user-select: none;
 }
 .task-settings-scope {
 	border: 0;
