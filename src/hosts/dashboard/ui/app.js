@@ -10168,21 +10168,7 @@ async function renderExecutors(page) {
 						),
 					)
 				: null,
-			managementPanel(
-				"Defaults",
-				propertyTable(
-					null,
-					[
-						[
-							"Default executor",
-							data.defaultExecutor?.id
-								? element("strong", {}, data.defaultExecutor.id)
-								: "none ready",
-						],
-					],
-					{ class: "property-table keyed" },
-				),
-			),
+			// The Status line already names the default executor (2026-11-17, owner: no Defaults card).
 			diagnosticView(
 				"Executor diagnostics",
 				executors.some((entry) => entry.notes?.length)

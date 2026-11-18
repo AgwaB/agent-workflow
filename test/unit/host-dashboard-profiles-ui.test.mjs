@@ -133,16 +133,17 @@ for (const readonly of [false, true]) {
 						},
 					],
 				);
-				assert.equal(
-					await p.b.evaluate(
-						() =>
-							[
-								...document.querySelectorAll(
-									".property-table.keyed td:first-child",
-								),
-							].filter((n) => n.textContent === "Permission mode").length,
-					),
-					0,
+				assert.deepEqual(
+					await p.b.evaluate(() => ({
+						defaults: [
+							...document.querySelectorAll(".management-card h2"),
+						].some((n) => n.textContent === "Defaults"),
+						status: /Runs use pi unless you choose another executor\.$/.test(
+							document.querySelector(".management-card .lead")?.textContent,
+						),
+					})),
+					{ defaults: false, status: true },
+					"no Defaults card; the Status line names the default executor",
 				);
 				assert.deepEqual(p.b.errors, []);
 			},
