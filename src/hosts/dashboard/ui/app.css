@@ -1357,7 +1357,8 @@ progress::-moz-progress-bar {
 	overflow-wrap: anywhere;
 }
 .executor-line {
-	font: 14px / 1.6 var(--mono);
+	font-size: 13px;
+	line-height: 1.6;
 	color: var(--muted);
 	margin-top: 12px;
 	overflow-wrap: anywhere;
@@ -2538,7 +2539,7 @@ main.signin code {
 	padding: 0 32px 0 10px;
 }
 .projects-overview {
-	padding: 24px;
+	padding: 24px 28px;
 	max-width: 960px;
 }
 .project-card {
@@ -2575,7 +2576,8 @@ main.signin code {
 .management-page {
 	width: 100%;
 	margin: 0 auto;
-	padding: 24px;
+	/* Same 28px gutter as the Overview and Run pages. */
+	padding: 24px 28px;
 	overflow: auto;
 }
 .management-page h1 {

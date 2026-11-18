@@ -71,3 +71,49 @@ test("agent panel: tabs, output, log box, details and terminal command share one
 	assert.ok(facts.logPadding >= 10, "log text does not touch its border");
 	assert.doesNotMatch(facts.details, ISO, "Started/Ended read as local times");
 });
+
+test("every view starts on the same 28px page gutter; history shows readable times", {
+	timeout: 120000,
+}, async (t) => {
+	assert.ok(chrome, "native Chrome required");
+	const p = await managementProject(t);
+	await persistManagementRun(p.cwd, "workflow_alignment_history", "completed");
+	const b = await createBrowser(chrome);
+	t.after(() => b.close());
+	// Wide layout: narrow screens deliberately use a 16px gutter.
+	await b.send("Emulation.setDeviceMetricsOverride", {
+		width: 1476,
+		height: 997,
+		deviceScaleFactor: 1,
+		mobile: false,
+	});
+	const lefts = {};
+	for (const view of ["", "workflows", "executors", "history"]) {
+		await b.send("Page.navigate", {
+			url: `${p.origin}/?project=${p.server.projectId}${view ? `&view=${view}` : ""}`,
+		});
+		await b.waitFor(() => !!document.querySelector("#center h1"));
+		lefts[view || "overview"] = await b.evaluate(() =>
+			Math.round(
+				document.querySelector("#center h1").getBoundingClientRect().left -
+					document.querySelector("#center").getBoundingClientRect().left,
+			),
+		);
+		if (view === "history") {
+			await b.waitFor(() =>
+				document.querySelector("#center").innerText.includes("Completed"),
+			);
+			assert.doesNotMatch(
+				await b.evaluate(() => document.querySelector("#center").innerText),
+				ISO,
+				"history rows read as local times",
+			);
+		}
+	}
+	assert.deepEqual(lefts, {
+		overview: 28,
+		workflows: 28,
+		executors: 28,
+		history: 28,
+	});
+});

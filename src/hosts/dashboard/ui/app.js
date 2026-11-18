@@ -9134,7 +9134,9 @@ async function renderRunHistory(page) {
 				element(
 					"p",
 					{},
-					`${summary.status}, ${summary.updatedAt}${!terminal ? ", Active/nonterminal runs cannot be selected" : ""}`,
+					`${humanize(summary.status)}, `,
+					when(summary.updatedAt),
+					!terminal ? ", still running: cannot be selected" : "",
 				),
 			),
 		);
