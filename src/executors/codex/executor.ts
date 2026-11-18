@@ -1029,12 +1029,6 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 					subject: req.attemptKey,
 				},
 			);
-		// WP18b: old terminal attempt records are pruned in the background (at most every 6 h).
-		schedulePeriodicAdapterStatePrune({
-			stateDir,
-			classify: classifyCodexAttemptRecord,
-			attemptDigestLength: 32,
-		});
 		// C1 (2026-11-08): isolated workers get a private CODEX_HOME (linked auth/config/rules, no global AGENTS.md)
 		// under the attempt's log directory; see home.ts for when it stays shared. Owner decision 2026-11-09 (after
 		// three review rounds on per-session homes): a kept session uses that home too and ends with the attempt, and
@@ -1111,6 +1105,12 @@ export function createCodexExecutor(rawConfig?: JsonValue): WorkflowExecutor & {
 			},
 		);
 		state.child = child;
+		// WP18b: pruned in the background (at most every 6 h) only once the launch is admitted; a refused submit schedules none.
+		schedulePeriodicAdapterStatePrune({
+			stateDir,
+			classify: classifyCodexAttemptRecord,
+			attemptDigestLength: 32,
+		});
 		// The run is wired up below; a launch that fails first still removes the home (round 5).
 		const wired: { run?: Run } = {};
 		child.once("close", () => {

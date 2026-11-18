@@ -238,12 +238,6 @@ export function createClaudeExecutor(options: {
 	async function launch(req: SubmitRequest): Promise<ExecRef> {
 		const known = runs.get(req.attemptKey);
 		if (known !== undefined) return known.ref;
-		// WP18b: old terminal attempt records are pruned in the background (at most every 6 h).
-		schedulePeriodicAdapterStatePrune({
-			stateDir: config.stateDir,
-			classify: classifyClaudeAttemptRecord,
-			attemptDigestLength: 40,
-		});
 		const existingRef = fromLookup(
 			req.attemptKey,
 			await store.lookupAttempt(req.attemptKey),
@@ -342,6 +336,12 @@ export function createClaudeExecutor(options: {
 			cwd: req.cwd,
 			env: { ...process.env, ...plan.env },
 			stdio: ["pipe", "pipe", "pipe"],
+		});
+		// WP18b: pruned in the background (at most every 6 h) only once the launch is admitted; a refused submit schedules none.
+		schedulePeriodicAdapterStatePrune({
+			stateDir: config.stateDir,
+			classify: classifyClaudeAttemptRecord,
+			attemptDigestLength: 40,
 		});
 		const ref: ExecRef = {
 			executorId: CLAUDE_EXECUTOR_ID,
