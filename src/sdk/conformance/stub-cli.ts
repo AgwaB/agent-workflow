@@ -97,7 +97,6 @@ const logPath = base + ".log.jsonl";
 const argv = process.argv.slice(2);
 const log = (entry) => appendFileSync(logPath, JSON.stringify({ ...entry, pid: process.pid }) + "\n");
 const script = config.scripts.find((candidate) => (candidate.when?.argvIncludes ?? []).every((part) => argv.includes(part))) ?? null;
-log({ type: "start", argv, cwd: process.cwd(), envKeys: Object.keys(process.env).sort(), script: script?.name ?? null, effect: script ? script.effect !== false : false, startedAt: Date.now() });
 process.on("exit", (code) => log({ type: "exit", code }));
 for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
 	process.on(signal, () => {
@@ -105,6 +104,9 @@ for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
 		process.exit(signal === "SIGINT" ? 130 : signal === "SIGHUP" ? 129 : 143);
 	});
 }
+// Log "start" only once the signal handlers exist: harnesses treat it as "ready", and a SIGTERM before
+// the handler is installed kills the stub with the default action and loses the signal record.
+log({ type: "start", argv, cwd: process.cwd(), envKeys: Object.keys(process.env).sort(), script: script?.name ?? null, effect: script ? script.effect !== false : false, startedAt: Date.now() });
 
 const stdinLines = [];
 const stdinWaiters = [];
