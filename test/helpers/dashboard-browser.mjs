@@ -375,45 +375,70 @@ export async function createBrowser(
 		await settle();
 		const problems = [];
 		for (let attempt = 1; attempt <= CLICK_ATTEMPTS; attempt++) {
-			const box = await measureTarget(selector, CLICK_ACTIONABLE_MS);
+			// A navigation before the press (the page replaced its document) is not a click: wait for the
+			// next document and measure again.
+			const navigated = Symbol("navigated");
+			const beforePress = async (step) => {
+				try {
+					return await step();
+				} catch (error) {
+					if (!isNavigationError(error)) throw error;
+					await waitFor(() => document.readyState === "complete");
+					return navigated;
+				}
+			};
+			const box = await beforePress(() =>
+				measureTarget(selector, CLICK_ACTIONABLE_MS),
+			);
+			if (box === navigated) {
+				problems.push(`attempt ${attempt}: page navigated before the press`);
+				continue;
+			}
 			if (box.reason) {
 				problems.push(`target ${box.reason}`);
 				break;
 			}
 			// Guard for this click only: an event outside the intended node (the page moved the target after
 			// the measurement) is blocked, so a misdirected click has no side effect, and recorded.
-			await evaluate(
-				(selector, x, y) => {
-					const node = document.querySelector(selector);
-					const misses = [];
-					const types = [
-						"pointerdown",
-						"mousedown",
-						"pointerup",
-						"mouseup",
-						"click",
-					];
-					const guard = (event) => {
-						if (node?.isConnected && node.contains(event.target)) return;
-						misses.push(
-							`${event.type} on <${event.target?.localName ?? event.target}${event.target?.id ? `#${event.target.id}` : ""}>`,
-						);
-						event.preventDefault();
-						event.stopImmediatePropagation();
-					};
-					for (const type of types) window.addEventListener(type, guard, true);
-					window.__awClickGuard = {
-						misses,
-						remove: () => {
-							for (const type of types)
-								window.removeEventListener(type, guard, true);
-						},
-					};
-				},
-				selector,
-				box.x,
-				box.y,
+			const guarded = await beforePress(() =>
+				evaluate(
+					(selector, x, y) => {
+						const node = document.querySelector(selector);
+						const misses = [];
+						const types = [
+							"pointerdown",
+							"mousedown",
+							"pointerup",
+							"mouseup",
+							"click",
+						];
+						const guard = (event) => {
+							if (node?.isConnected && node.contains(event.target)) return;
+							misses.push(
+								`${event.type} on <${event.target?.localName ?? event.target}${event.target?.id ? `#${event.target.id}` : ""}>`,
+							);
+							event.preventDefault();
+							event.stopImmediatePropagation();
+						};
+						for (const type of types)
+							window.addEventListener(type, guard, true);
+						window.__awClickGuard = {
+							misses,
+							remove: () => {
+								for (const type of types)
+									window.removeEventListener(type, guard, true);
+							},
+						};
+					},
+					selector,
+					box.x,
+					box.y,
+				),
 			);
+			if (guarded === navigated) {
+				problems.push(`attempt ${attempt}: page navigated before the press`);
+				continue;
+			}
 			await send("Input.dispatchMouseEvent", {
 				type: "mousePressed",
 				...box,
