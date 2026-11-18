@@ -2962,22 +2962,28 @@ main.signin code {
 	gap: 8px;
 	align-items: center;
 }
-.project-workflow-actions [data-testid="workflow-settings-dirty"] {
-	flex-basis: 100%;
+.project-workflow-messages {
+	flex: 1 0 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 4px;
+	min-width: 0;
+}
+.project-workflow-messages:not(:has(> :not([hidden]))) {
+	display: none;
+}
+.project-workflow-messages [data-testid="workflow-settings-dirty"] {
 	text-align: right;
 }
-.project-workflow-actions [data-testid="workflow-settings-status"] {
-	flex-basis: 100%;
+.project-workflow-messages [data-testid="workflow-settings-status"] {
 	margin: 0;
 	font-size: 13px;
 	overflow-wrap: anywhere;
-}
-.project-workflow-actions [data-testid="workflow-settings-status"] {
 	text-align: right;
 }
-.project-workflow-actions .management-error {
-	flex-basis: 100%;
-	max-width: 420px;
+.project-workflow-messages .management-error {
+	max-width: 100%;
 	margin: 0;
 }
 .project-workflow-editor [data-calculated] {

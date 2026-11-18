@@ -2769,3 +2769,70 @@ test("readonly canonical editor leaves unresolved provenance absent, disables mu
 	);
 	assert.deepEqual(await intent(p), {});
 });
+
+for (const width of [390, 970, 1476]) {
+	test(`header: calculation and save alerts do not move Save or Discard at ${width}px`, {
+		timeout: 90000,
+	}, async (t) => {
+		const p = await open(t);
+		await p.browser.send("Emulation.setDeviceMetricsOverride", {
+			width,
+			height: 900,
+			deviceScaleFactor: 1,
+			mobile: false,
+		});
+		await load(p);
+		await settled(p);
+		const boxes = () =>
+			p.browser.evaluate(() =>
+				[
+					'[data-management-action="save-project-settings"]',
+					'[data-testid="project-settings-reload"]',
+				].map((selector) => {
+					const { x, y, width, height } = document
+						.querySelector(selector)
+						.getBoundingClientRect();
+					return { x, y, width, height };
+				}),
+			);
+		const shot = async (name) => {
+			const dir = process.env.AW_SHOT_DIR;
+			if (!dir) return;
+			const { mkdir, writeFile } = await import("node:fs/promises");
+			await mkdir(dir, { recursive: true });
+			const { data } = await p.browser.send("Page.captureScreenshot", {
+				format: "png",
+				clip: { x: 0, y: 0, width, height: 420, scale: 1 },
+			});
+			await writeFile(
+				join(dir, `${name}-${width}.png`),
+				Buffer.from(data, "base64"),
+			);
+		};
+		await set(p, "All tasks Executor", "management-fake");
+		await settled(p);
+		await p.browser.evaluate(() => {
+			window.__failPreview = true;
+			window.__holds.preview = true;
+		});
+		await set(p, "All tasks Effort", "high");
+		await p.browser.waitFor(() => !!window.__releases.preview);
+		const before = await boxes();
+		await p.browser.evaluate(() => window.__releases.preview());
+		await refused(p, "Automatic calculation failed");
+		await shot("calculation-failed");
+		assert.deepEqual(await boxes(), before, "calculation alert moved controls");
+		await set(p, "All tasks Effort", "low");
+		await settled(p);
+		const beforeSave = await boxes();
+		await p.browser.evaluate(() => {
+			window.__failPUT = true;
+			document
+				.querySelector('[data-management-action="save-project-settings"]')
+				.click();
+		});
+		await refused(p, "Save not confirmed");
+		await shot("save-not-confirmed");
+		assert.deepEqual(await boxes(), beforeSave, "save alert moved controls");
+	});
+}
