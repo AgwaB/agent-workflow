@@ -1623,6 +1623,13 @@ for (const failedInventory of [false, true, "request"])
 			(await snapshot()).map((field) => field.value),
 			[raw, expectedTaskModel],
 		);
+		// The latest calculation's outcome may show or move an alert above Save; a click whose
+		// coordinates were read before that missed the button (CI ubuntu/Node 22, 2026-11-17).
+		await p.browser.waitFor(
+			() =>
+				!!window.__requests.findLast((r) => r.path.endsWith("/preview"))
+					?.response,
+		);
 		await p.browser.click('[data-management-action="save-project-settings"]');
 		await refused(p, "Save not confirmed");
 		assert.deepEqual(
