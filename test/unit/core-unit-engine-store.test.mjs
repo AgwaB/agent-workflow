@@ -3905,7 +3905,12 @@ test("worker launch gate honors env override and recovers slots after throw", as
 	const originalReleaseDelay =
 		process.env.AGENT_WORKFLOW_LAUNCH_SLOT_RELEASE_DELAY_MS;
 	process.env.AGENT_WORKFLOW_MAX_CONCURRENT_LAUNCHES = "2";
-	setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
+	const thirdLaunchQueued = Promise.withResolvers();
+	setWorkerLaunchControlsForTests({
+		releaseDelayMs: 0,
+		retryJitterMs: 0,
+		onLaunchSlotQueued: () => thirdLaunchQueued.resolve(),
+	});
 	const cleanupController = new AbortController();
 	const releaseRunWorker = [];
 	const trackedLaunches = new Set();
@@ -4044,15 +4049,15 @@ test("worker launch gate honors env override and recovers slots after throw", as
 		const launches = fixtures.map(launchFixture);
 		await waitForRunWorkerEntries(2);
 		assert.equal(maxActive, 2);
-		let queuedFixture;
-		await eventually(() => {
-			queuedFixture = fixtures.find(
-				(fixture) =>
-					fixture.task.timing?.launchQueuedAt !== undefined &&
-					fixture.task.timing?.launchStartedAt === undefined,
-			);
-			assert.ok(queuedFixture);
-		});
+		// The third launch reaches the gate only after its own prep awaits; wait for
+		// the gate's queued signal instead of polling on a wall-clock budget.
+		await thirdLaunchQueued.promise;
+		const queuedFixture = fixtures.find(
+			(fixture) =>
+				fixture.task.timing?.launchQueuedAt !== undefined &&
+				fixture.task.timing?.launchStartedAt === undefined,
+		);
+		assert.ok(queuedFixture);
 		assert.ok(queuedFixture.task.timing.launchQueuedAt);
 		assert.equal(queuedFixture.task.timing.launchCompletedAt, undefined);
 		releaseRunWorker.shift()();
