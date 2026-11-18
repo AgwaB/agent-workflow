@@ -262,6 +262,21 @@ function themeButton() {
 	});
 }
 const date = (value) => Date.parse(value) || 0;
+/** A readable local time with the exact recorded timestamp on hover. */
+const when = (value) =>
+	date(value)
+		? element(
+				"time",
+				{ datetime: value, title: value },
+				new Date(date(value)).toLocaleString(undefined, {
+					month: "short",
+					day: "numeric",
+					hour: "2-digit",
+					minute: "2-digit",
+					second: "2-digit",
+				}),
+			)
+		: value;
 let clockOffset = 0;
 const now = () => Date.now() + clockOffset;
 function syncClock(value) {
@@ -4281,8 +4296,8 @@ function renderSelection() {
 							`Attempt ${task.retry.attempt}${task.retry.maxAttempts ? ` of ${task.retry.maxAttempts}` : ""}${task.retry.nextRetryAt ? `, scheduled ${task.retry.nextRetryAt}` : ""}`,
 						]
 					: null,
-				["Started", task.startedAt || "Not started"],
-				task.completedAt ? ["Ended", task.completedAt] : null,
+				["Started", task.startedAt ? when(task.startedAt) : "Not started"],
+				task.completedAt ? ["Ended", when(task.completedAt)] : null,
 				...usageRows(task.usage),
 				["Depends on", task.dependsOn?.join(", ") || "None"],
 				task.worktree
