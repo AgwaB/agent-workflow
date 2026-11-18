@@ -80,9 +80,14 @@ test("HTTP editor detail is lean without changing legacy callers; async preview 
 	assert.equal(receipt.status, 202);
 	assert.equal(receipt.data.pending, true);
 	assert.equal(Object.hasOwn(receipt.data, "check"), false);
+	// Poll like the dashboard does, bounded by time rather than by a count of back-to-back requests: 200
+	// immediate polls lasted ~1 s and ran out before a slow macOS CI runner finished the preview (CI 44330472615).
 	let reply = receipt;
-	for (let i = 0; i < 200 && reply.status === 202; i++)
+	const until = Date.now() + 30_000;
+	while (reply.status === 202 && Date.now() < until) {
+		await new Promise((resolve) => setTimeout(resolve, 25));
 		reply = await p.http(receipt.data.poll);
+	}
 	assert.equal(reply.status, 200);
 	assert.ok(reply.data.check.data.configuration);
 	const legacy = await p.http(`${route}/settings/preview`, {
