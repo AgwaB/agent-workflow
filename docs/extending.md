@@ -801,7 +801,8 @@ rehashed before launch; changed specs return `stale`. There is no classifier-fai
 `compare(operation)` wraps the classifier call with cancellation (Pi loader); late output is
 discarded when the action signal aborts. `AutoData` includes phase, classifierCalled, classifier?,
 consent? (`command`), shortlist, status?, reason?, recommendation?, ranked?, selected?, launch?, next?.
-Phases: `classifier-unavailable`, `stale`, `launched`.
+Phases: `classifier-unavailable` (no classifier executor resolved; nothing sent), `not-launched`
+(comparison ran or was cancelled, no workflow started; see status/reason), `stale`, `launched`.
 
 #### `stop`
 

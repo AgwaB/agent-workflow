@@ -224,7 +224,8 @@ then executor defaults. Launches use normal profiles, duplicate guards, capabili
 and foreground/detach behavior. Changed named specs return `stale`.
 
 Launch metadata records candidates, recommendation, selection, classifier executor/model,
-consent source `command`, and only the task's SHA-256. JSON phases are `classifier-unavailable`,
+consent source `command`, and only the task's SHA-256. JSON phases: `classifier-unavailable` (no classifier executor resolved; nothing sent), `not-launched`
+(the comparison ran or was cancelled and no workflow started; see `status`/`reason`, e.g. `no-fit`),
 `stale` and `launched` (with `data.launch`).
 
 ### Stop confirmation
