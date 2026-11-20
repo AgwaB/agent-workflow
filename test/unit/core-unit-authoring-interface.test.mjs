@@ -1236,6 +1236,115 @@ test("artifact graph opt-ins reject malformed or misplaced authoring fields", ()
 	);
 });
 
+test("requiredReads must name a source in the stage's own from, not any sibling", () => {
+	const stage = (inputPolicy, extra = {}) => ({
+		id: "plan",
+		type: "reduce",
+		from: "scan",
+		prompt: "Plan.",
+		inputPolicy,
+		...extra,
+	});
+	const spec = (stages) =>
+		artifactGraphWorkflowSpec({ artifactGraph: { stages } });
+	const base = [
+		{ id: "scan", type: "single", prompt: "Scan." },
+		{ id: "control", type: "single", prompt: "Control.", from: "scan" },
+	];
+	const sibling = assertThrowsFlow(() =>
+		parseWorkflow(
+			spec([...base, stage({ requiredReads: ["control.control"] })]),
+		),
+	);
+	assertIssue(
+		sibling,
+		"$.artifactGraph.stages[2].inputPolicy.requiredReads[0]",
+		'stage "plan" requires reading "control.control", but "control" is not one of this stage\'s sources ("scan")',
+	);
+	const policy = assertThrowsFlow(() =>
+		parseWorkflow(
+			spec([
+				...base,
+				stage({
+					requiredReadPolicy: [{ source: "control", artifact: "control" }],
+				}),
+			]),
+		),
+	);
+	assertIssue(
+		policy,
+		"$.artifactGraph.stages[2].inputPolicy.requiredReadPolicy[0]",
+		'not one of this stage\'s sources ("scan")',
+	);
+	// after is ordering-only: it adds no source.
+	const afterOnly = assertThrowsFlow(() =>
+		parseWorkflow(
+			spec([
+				...base,
+				stage({ requiredReads: ["control.control"] }, { after: ["control"] }),
+			]),
+		),
+	);
+	assertIssue(
+		afterOnly,
+		"$.artifactGraph.stages[2].inputPolicy.requiredReads[0]",
+		"not one of this stage's sources",
+	);
+	// Own from, implicit previous stage and dag outputs still validate.
+	parseWorkflow(spec([...base, stage({ requiredReads: ["scan.control"] })]));
+	parseWorkflow(
+		spec([
+			...base,
+			{
+				id: "next",
+				type: "single",
+				prompt: "Next.",
+				inputPolicy: { requiredReads: ["control.control"] },
+			},
+		]),
+	);
+	parseWorkflow(
+		spec([
+			{
+				id: "analysis",
+				type: "dag",
+				outputFrom: "final",
+				stages: [{ id: "final", type: "single", prompt: "Final." }],
+			},
+			stage(
+				{ requiredReads: ["analysis.final.control"] },
+				{ from: "analysis" },
+			),
+		]),
+	);
+	// A dag child's own sibling from is a source; a sibling it does not read is not.
+	const dagSpec = (read) =>
+		spec([
+			{
+				id: "box",
+				type: "dag",
+				outputFrom: "c",
+				stages: [
+					{ id: "a", type: "single", prompt: "A." },
+					{ id: "b", type: "single", prompt: "B." },
+					{
+						id: "c",
+						type: "reduce",
+						from: "a",
+						prompt: "C.",
+						inputPolicy: { requiredReads: [read] },
+					},
+				],
+			},
+		]);
+	parseWorkflow(dagSpec("a.control"));
+	assertIssue(
+		assertThrowsFlow(() => parseWorkflow(dagSpec("b.control"))),
+		"$.artifactGraph.stages[0].stages[2].inputPolicy.requiredReads[0]",
+		'not one of this stage\'s sources ("a")',
+	);
+});
+
 // WP12d-1 (review #1): the mutation-capable tool is removed (warning) instead of kept.
 test("compiler warns when readOnly stage keeps mutation-capable tools", async () => {
 	const cwd = makeProject();

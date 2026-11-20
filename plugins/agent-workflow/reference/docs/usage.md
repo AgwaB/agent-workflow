@@ -1060,7 +1060,7 @@ the task's `read-ledger.jsonl`. Details: [`mcp.md`](https://github.com/AgwaB/age
 `inputPolicy.requiredReads` (with `enforcement: "fail"`) makes a stage prove it read named
 artifacts before its output is accepted. A string entry (`"plan.control"`) requires a complete read;
 an object entry can require a `path` projection with `maxChars`/`maxItems` and an exact `count`.
-Truncated reads never count. Direct file reads do not satisfy it: the ledger proves artifact access,
+Truncated reads never count. A required read must name one of the stage's own sources (its `from`; `after` is ordering-only and adds none), and a `path` must resolve in that artifact, or the read stays missing. Direct file reads do not satisfy it: the ledger proves artifact access,
 not semantic use. It also proves delivery to the executor, not what reached the model: an executor
 whose model reads tools through scripts (Codex `gpt-5.6-luna`, [code mode](https://github.com/AgwaB/agent-workflow/blob/main/docs/executors.md#codex))
 may pass on only part of a large batch of reads. A stage whose required reads stay missing after its repair retries fails

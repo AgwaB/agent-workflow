@@ -780,10 +780,64 @@ function validateArtifactGraphBody(
 	validateStageArray(graph.stages, `${path}.stages`, issues);
 }
 
+type StageArrayMode = "top" | "dag" | "loop";
+
+/**
+ * The sources a stage can actually read at runtime (its own source manifest),
+ * mirrored from compiler.ts: `from` adds sources, `after` never does, a stage
+ * with neither `from` nor `after` implicitly reads the previous top-level
+ * stage, dag root children inherit container context (not nameable locally),
+ * and dag outputs are rewritten to `dag.<outputChild>`.
+ */
+interface OwnSourceScope {
+	stageId: string;
+	ids: ReadonlySet<string>;
+	/** Dynamic stages publish runtime-named `<stage>.output*` sources. */
+	prefixes: readonly string[];
+}
+
+function ownSourceScopeFor(
+	stages: readonly unknown[],
+	index: number,
+	mode: StageArrayMode,
+): OwnSourceScope | undefined {
+	if (mode === "loop") return undefined;
+	const stage = stages[index];
+	if (!isRecord(stage) || typeof stage.id !== "string") return undefined;
+	const byId = new Map<string, Record<string, unknown>>();
+	for (const candidate of stages) {
+		if (isRecord(candidate) && typeof candidate.id === "string") {
+			byId.set(candidate.id, candidate);
+		}
+	}
+	const refs: Array<Record<string, unknown>> = [];
+	const hasFrom = stage.from !== undefined;
+	const hasAfter = stage.after !== undefined;
+	for (const ref of extractDependencyRefs(stage.from)) {
+		const dep = byId.get(ref);
+		if (dep) refs.push(dep);
+	}
+	if (mode === "top" && !hasFrom && !hasAfter) {
+		const previous = stages[index - 1];
+		if (isRecord(previous)) refs.push(previous);
+	}
+	const ids = new Set<string>();
+	const prefixes: string[] = [];
+	for (const dep of refs) {
+		const sourceId = stageSourceId(dep);
+		if (sourceId) ids.add(sourceId);
+		if (dep.type === "dynamic" && typeof dep.id === "string") {
+			prefixes.push(`${dep.id}.`);
+		}
+	}
+	return { stageId: stage.id, ids, prefixes };
+}
+
 function validateStageArray(
 	value: unknown,
 	path: string,
 	issues: ValidationIssue[],
+	mode: StageArrayMode = "top",
 ): void {
 	if (!Array.isArray(value)) {
 		issues.push({ path, message: "must be an array" });
@@ -793,7 +847,14 @@ function validateStageArray(
 	const ids = collectStageIds(value, path, issues);
 	const sourceIds = collectStageSourceIds(value);
 	for (const [index, item] of value.entries()) {
-		validateStage(item, `${path}[${index}]`, ids, sourceIds, issues);
+		validateStage(
+			item,
+			`${path}[${index}]`,
+			ids,
+			sourceIds,
+			issues,
+			ownSourceScopeFor(value, index, mode),
+		);
 	}
 	validateStreamingProducerDeclarations(value, path, issues);
 	validateStageDependencyGraph(value, path, issues);
@@ -1015,6 +1076,7 @@ function validateStage(
 	siblingIds: ReadonlySet<string>,
 	sourceIds: ReadonlySet<string>,
 	issues: ValidationIssue[],
+	ownScope?: OwnSourceScope,
 ): void {
 	const stage = recordAt(value, path, issues);
 	if (!stage) return;
@@ -1088,6 +1150,7 @@ function validateStage(
 		sourceIds,
 		issues,
 		stage.sourceProjection,
+		ownScope,
 	);
 	validateOutput(stage.output, `${path}.output`, issues);
 	validateSupportStage(stage, type, path, issues);
@@ -1319,6 +1382,7 @@ function validateInputPolicy(
 	siblingIds: ReadonlySet<string>,
 	issues: ValidationIssue[],
 	sourceProjection: unknown,
+	ownScope?: OwnSourceScope,
 ): void {
 	if (value === undefined) return;
 	const policy = recordAt(value, path, issues);
@@ -1329,12 +1393,14 @@ function validateInputPolicy(
 		`${path}.requiredReads`,
 		siblingIds,
 		issues,
+		ownScope,
 	);
 	validateRequiredReadPolicy(
 		policy.requiredReadPolicy,
 		`${path}.requiredReadPolicy`,
 		siblingIds,
 		issues,
+		ownScope,
 	);
 	if (
 		policy.terminalBarrier !== undefined &&
@@ -1405,6 +1471,7 @@ function validateRequiredReads(
 	path: string,
 	sourceIds: ReadonlySet<string>,
 	issues: ValidationIssue[],
+	ownScope?: OwnSourceScope,
 ): void {
 	if (value === undefined) return;
 	if (!Array.isArray(value)) {
@@ -1434,7 +1501,7 @@ function validateRequiredReads(
 				message: `duplicate required read "${key}"`,
 			});
 		seen.add(key);
-		validateRequiredRead(normalized, itemPath, sourceIds, issues);
+		validateRequiredRead(normalized, itemPath, sourceIds, issues, ownScope);
 	}
 }
 
@@ -1502,6 +1569,7 @@ function validateRequiredReadPolicy(
 	path: string,
 	sourceIds: ReadonlySet<string>,
 	issues: ValidationIssue[],
+	ownScope?: OwnSourceScope,
 ): void {
 	if (value === undefined) return;
 	if (!Array.isArray(value)) {
@@ -1537,7 +1605,13 @@ function validateRequiredReadPolicy(
 					message: `duplicate policy for ${readName}`,
 				});
 			seen.add(key);
-			validateRequiredRead({ source, artifact }, itemPath, sourceIds, issues);
+			validateRequiredRead(
+				{ source, artifact },
+				itemPath,
+				sourceIds,
+				issues,
+				ownScope,
+			);
 		}
 		validateRequiredReadPolicyPath(policy.path, `${itemPath}.path`, issues);
 		optionalPositiveInteger(policy.maxItems, `${itemPath}.maxItems`, issues);
@@ -1608,6 +1682,7 @@ function validateRequiredRead(
 	path: string,
 	sourceIds: ReadonlySet<string>,
 	issues: ValidationIssue[],
+	ownScope?: OwnSourceScope,
 ): void {
 	if (value.source.trim() === "" || value.artifact.trim() === "") {
 		issues.push({ path, message: "must use source.artifact form" });
@@ -1617,6 +1692,16 @@ function validateRequiredRead(
 		issues.push({
 			path,
 			message: `required read source "${value.source}" is not an available upstream artifact source`,
+		});
+	} else if (
+		ownScope &&
+		!ownScope.ids.has(value.source) &&
+		!ownScope.prefixes.some((prefix) => value.source.startsWith(prefix))
+	) {
+		const own = [...ownScope.ids];
+		issues.push({
+			path,
+			message: `stage "${ownScope.stageId}" requires reading "${value.source}.${value.artifact}", but "${value.source}" is not one of this stage's sources (${own.length > 0 ? own.map((id) => `"${id}"`).join(", ") : "none"}); add it to this stage's from (after is ordering-only and adds no sources)`,
 		});
 	}
 	const artifact = value.artifact as WorkflowArtifactKind;
@@ -2224,7 +2309,7 @@ function validateLoopStage(
 			message: "loop requires at least two child stages",
 		});
 	}
-	validateStageArray(stage.stages, `${path}.stages`, issues);
+	validateStageArray(stage.stages, `${path}.stages`, issues, "loop");
 	validateLoopChildren(stage.stages, `${path}.stages`, issues);
 	const childIds = stage.stages
 		.filter(isRecord)
@@ -2401,7 +2486,7 @@ function validateDagStage(
 		});
 		return;
 	}
-	validateStageArray(stage.stages, `${path}.stages`, issues);
+	validateStageArray(stage.stages, `${path}.stages`, issues, "dag");
 	for (const [index, child] of stage.stages.entries()) {
 		if (isRecord(child) && child.type === "loop") {
 			issues.push({

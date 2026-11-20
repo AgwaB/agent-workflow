@@ -396,6 +396,13 @@ export function formatRequiredReadFailureMessage(
 		parts.push(
 			`missing required workflow artifact reads: ${check.missing.join(", ")}`,
 		);
+		const pathReads = check.missing.filter((name) => name.includes(" path="));
+		if (pathReads.length > 0) {
+			// A path read counts only when the path resolved in the artifact; say so.
+			parts.push(
+				`a read with a path is satisfied only when that path resolves in the source artifact (path did not resolve or was never read: ${pathReads.join(", ")})`,
+			);
+		}
 	}
 	if (
 		check.incompleteCoverage !== undefined &&
