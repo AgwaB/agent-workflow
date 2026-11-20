@@ -43,6 +43,8 @@ The initializer accepts only `name`, optional `description`, and 1–8 exact `{i
 
 ## Copy pattern
 
+The `skills/workflow-guide/scaffolds/` paths in the commands below (and in the initializer command above) are this directory, relative to a repository checkout. Run the commands from the project directory and replace that prefix with this directory's absolute path when the skill is installed elsewhere, for example as a plugin.
+
 ```bash
 mkdir -p .agent-workflow/workflows/my-workflow
 cp -R skills/workflow-guide/scaffolds/foreach-reduce/* .agent-workflow/workflows/my-workflow/
