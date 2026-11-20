@@ -758,7 +758,11 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 		},
 	);
 	// The outline lists the report's own sections (##), the first one current; a sub-section
-	// (###) that is not a finding is left out (2026-11-12, review P2-6).
+	// (###) that is not a finding is left out (2026-11-12, review P2-6). The first "current" is set on the
+	// outline's first animation frame, which a slow runner can delay past the read (CI 44807406004).
+	await browser.waitFor(() =>
+		document.querySelector(".report-outline .outline-link.current"),
+	);
 	assert.deepEqual(
 		await browser.evaluate(() =>
 			[...document.querySelectorAll(".report-outline .outline-link")].map(
