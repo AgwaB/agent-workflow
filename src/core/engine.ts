@@ -4221,16 +4221,30 @@ async function scheduleDagPass(
 	const dispatchMapValidationSnapshot =
 		createArtifactGraphRuntimeValidationSnapshot(run);
 
-	for (
-		let index = 0;
-		index < run.tasks.length && running < maxConcurrency;
-		index += 1
-	) {
+	// Support helpers run inline and block this loop until they finish, so every
+	// other ready task launches first; ready support tasks follow in task order.
+	// After a helper returns, the non-support sweep restarts so stages it made
+	// ready still launch in this pass. Helpers take no worker slot, so a full
+	// pool ends only the non-support sweep.
+	let supportSweep = false;
+	const supportAttempted = new Set<number>();
+	for (let index = 0; ; index += 1) {
+		if (
+			index >= run.tasks.length ||
+			(!supportSweep && running >= maxConcurrency)
+		) {
+			if (supportSweep) return false;
+			supportSweep = true;
+			index = -1;
+			continue;
+		}
 		assertScheduleLeaseActive(leaseSignal);
 		if (await finalizeStopIntentIfRequested(cwd, run)) return false;
 		const task = run.tasks[index];
 		const compiledTask = compiledFlow.tasks[index];
 		if (!task || !compiledTask || task.status !== "pending") continue;
+		if ((compiledTask.kind === "support") !== supportSweep) continue;
+		if (supportSweep && supportAttempted.has(index)) continue;
 		if (
 			await suspendedDynamicControllerStillWaiting(cwd, run, task, compiledTask)
 		) {
@@ -4344,6 +4358,7 @@ async function scheduleDagPass(
 
 		const taskCountBeforeLaunch = run.tasks.length;
 		const compiledTaskCountBeforeLaunch = compiledFlow.tasks.length;
+		if (supportSweep) supportAttempted.add(index);
 		assertScheduleLeaseActive(leaseSignal);
 		const launched = await launchPendingTaskAt(
 			cwd,
@@ -4365,6 +4380,10 @@ async function scheduleDagPass(
 		if (await applyFailFastCancellation(cwd, run, compiledFlow)) return true;
 		if (await finalizeStopIntentIfRequested(cwd, run)) return false;
 		if (launched && run.tasks[index]?.status === "running") running += 1;
+		if (supportSweep) {
+			supportSweep = false;
+			index = -1;
+		}
 	}
 	return false;
 }
