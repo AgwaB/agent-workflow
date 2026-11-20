@@ -8,6 +8,8 @@ import {
 	readFile,
 	rm,
 	access,
+	open,
+	unlink,
 } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
@@ -20,6 +22,7 @@ import {
 	rebuildDynamicState,
 	readOrRebuildDynamicState,
 } from "../../dist/core/dynamic-state.js";
+import { workflowsRoot } from "../../dist/core/store.js";
 import { dynamicEventsPath } from "../../dist/core/dynamic-events.js";
 const spec = (depth, workflows = {}, budget = {}, helpers = {}) =>
 	h.artifactGraphWorkflowSpec({
@@ -348,89 +351,131 @@ test("cancellation stops local nested controllers without authorizing another si
 		await f.close();
 	}
 });
-test("runtime deadline still bounds a controller after successful sibling workflows", async (t) => {
-	const childSpec = h.artifactGraphWorkflowSpec({
-		artifactGraph: {
-			stages: [{ id: "leaf", support: { uses: "./leaf.mjs" } }],
-		},
-	});
-	const f = await fixture({
-		"spec.json": spec(1, childRef, { maxRuntimeMs: 600 }),
-		"controller.mjs": `import {writeFile} from 'node:fs/promises';export default async ctx=>{await ctx.workflow('child','one');await ctx.workflow('child','two');await writeFile('RESTART_MARKER','both');await new Promise(()=>{});}`,
-		"child/spec.json": childSpec,
-		"child/leaf.mjs": `export default()=>({schema:'stage-control-v1',digest:'leaf'})`,
-	});
-	const realSetImmediate = globalThis.setImmediate;
-	const realSetTimeout = globalThis.setTimeout;
-	const realClearTimeout = globalThis.clearTimeout;
-	let running;
-	let parentLaunches = 0;
-	let timer;
-	let timedOut = false;
-	try {
-		h.setIndexUpdateDebounceMsForTests(0);
-		t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
-		setDynamicControllerHooksForTests({
-			beforeControllerWorkerLaunch: ({ runId }) => {
-				if (runId === f.run.runId) {
-					parentLaunches += 1;
-					t.mock.timers.tick(100);
-				}
+// Only the controller's deadline timer is mocked. Store retry sleeps (index lock,
+// topology lease, replaced-file reads) must keep running on real timers: a mocked
+// sleep never fires because this test only advances mock time deliberately.
+function mockOnlyDeadlineTimer(
+	t,
+	deadlineDelayMs,
+	realSetTimeout,
+	realClearTimeout,
+) {
+	t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: Date.now() });
+	const mockSetTimeout = globalThis.setTimeout;
+	const mockClearTimeout = globalThis.clearTimeout;
+	const mocked = new WeakSet();
+	globalThis.setTimeout = (fn, ms, ...args) => {
+		if (ms !== deadlineDelayMs) return realSetTimeout(fn, ms, ...args);
+		const handle = mockSetTimeout(fn, ms, ...args);
+		mocked.add(handle);
+		return handle;
+	};
+	globalThis.clearTimeout = (handle) =>
+		mocked.has(handle) ? mockClearTimeout(handle) : realClearTimeout(handle);
+}
+
+// Another writer holds the index lock for a real interval, forcing the store's
+// retry sleep while the mocked clock is frozen.
+function holdIndexLock(cwd, holdMs, realSetTimeout) {
+	const lockFile = join(workflowsRoot(cwd), "index.lock");
+	void (async () => {
+		const handle = await open(lockFile, "wx").catch(() => undefined);
+		if (!handle) return;
+		await handle.writeFile(
+			`held\n${process.pid}\n${new Date().toISOString()}\n`,
+		);
+		await handle.close();
+		realSetTimeout(() => void unlink(lockFile).catch(() => {}), holdMs);
+	})();
+}
+
+for (const holdIndexLockMs of [0, 400]) {
+	test(`runtime deadline still bounds a controller after successful sibling workflows${holdIndexLockMs ? " while the index lock is held" : ""}`, async (t) => {
+		const childSpec = h.artifactGraphWorkflowSpec({
+			artifactGraph: {
+				stages: [{ id: "leaf", support: { uses: "./leaf.mjs" } }],
 			},
 		});
-		running = h.scheduleRun(f.cwd, f.run.runId);
-		const watchdog = new Promise((_, reject) => {
-			// Real time bounds fixture setup/teardown only; the product deadline
-			// remains the exact mocked 100 + 499 + 1 ms boundary below.
-			timer = realSetTimeout(() => {
-				timedOut = true;
-				reject(new Error("deadline fixture lifecycle watchdog (15000ms)"));
-			}, 15000);
+		const f = await fixture({
+			"spec.json": spec(1, childRef, { maxRuntimeMs: 600 }),
+			"controller.mjs": `import {writeFile} from 'node:fs/promises';export default async ctx=>{await ctx.workflow('child','one');await ctx.workflow('child','two');await writeFile('RESTART_MARKER','both');await new Promise(()=>{});}`,
+			"child/spec.json": childSpec,
+			"child/leaf.mjs": `export default()=>({schema:'stage-control-v1',digest:'leaf'})`,
 		});
-		// Attach the rejection handler immediately, including during filesystem reads.
-		void watchdog.catch(() => {});
-		while (true) {
-			try {
-				await access(join(f.cwd, "RESTART_MARKER"));
-				break;
-			} catch (error) {
-				if (error.code !== "ENOENT") throw error;
+		const realSetImmediate = globalThis.setImmediate;
+		const realSetTimeout = globalThis.setTimeout;
+		const realClearTimeout = globalThis.clearTimeout;
+		let running;
+		let parentLaunches = 0;
+		let timer;
+		let timedOut = false;
+		try {
+			h.setIndexUpdateDebounceMsForTests(0);
+			// Controller budget 600 ms minus the 100 ms ticked at launch = 500 ms timer.
+			mockOnlyDeadlineTimer(t, 500, realSetTimeout, realClearTimeout);
+			setDynamicControllerHooksForTests({
+				beforeControllerWorkerLaunch: ({ runId }) => {
+					if (runId === f.run.runId) {
+						parentLaunches += 1;
+						t.mock.timers.tick(100);
+						if (holdIndexLockMs)
+							holdIndexLock(f.cwd, holdIndexLockMs, realSetTimeout);
+					}
+				},
+			});
+			running = h.scheduleRun(f.cwd, f.run.runId);
+			const watchdog = new Promise((_, reject) => {
+				// Real time bounds fixture setup/teardown only; the product deadline
+				// remains the exact mocked 100 + 499 + 1 ms boundary below.
+				timer = realSetTimeout(() => {
+					timedOut = true;
+					reject(new Error("deadline fixture lifecycle watchdog (15000ms)"));
+				}, 15000);
+			});
+			// Attach the rejection handler immediately, including during filesystem reads.
+			void watchdog.catch(() => {});
+			while (true) {
+				try {
+					await access(join(f.cwd, "RESTART_MARKER"));
+					break;
+				} catch (error) {
+					if (error.code !== "ENOENT") throw error;
+				}
+				if (timedOut) await watchdog;
+				await new Promise((resolve) => realSetImmediate(resolve));
 			}
-			if (timedOut) await watchdog;
-			t.mock.timers.tick(0);
-			await new Promise((resolve) => realSetImmediate(resolve));
-		}
-		assert.equal(parentLaunches, 1);
-		const childIds = await children(f.cwd, f.run.runId);
-		assert.equal(childIds.length, 2);
-		for (const id of childIds)
-			assert.equal((await h.readRunRecord(f.cwd, id)).status, "completed");
-		// 100ms elapsed before the controller body: resetting the parent budget
-		// after either sibling would incorrectly move its original deadline to 700ms.
-		t.mock.timers.tick(499);
-		assert.equal((await controller(f.cwd, f.run.runId)).status, "running");
-		t.mock.timers.tick(1);
-		await Promise.race([running, watchdog]);
-		const task = await controller(f.cwd, f.run.runId);
-		assert.equal(task.statusDetail, "dynamic_budget_blocked");
-		assert.match(task.lastMessage, /maxRuntimeMs=600/);
-		assert.equal(await depth(f.cwd, f.run.runId), 1);
-	} finally {
-		if (timer) realClearTimeout(timer);
-		setDynamicControllerHooksForTests();
-		t.mock.timers.reset();
-		h.setIndexUpdateDebounceMsForTests(undefined);
-		if (running) {
-			try {
-				await h.stopRun(f.cwd, f.run.runId);
-			} catch (error) {
-				if (error?.name !== "WorkflowStopPending") throw error;
+			assert.equal(parentLaunches, 1);
+			const childIds = await children(f.cwd, f.run.runId);
+			assert.equal(childIds.length, 2);
+			for (const id of childIds)
+				assert.equal((await h.readRunRecord(f.cwd, id)).status, "completed");
+			// 100ms elapsed before the controller body: resetting the parent budget
+			// after either sibling would incorrectly move its original deadline to 700ms.
+			t.mock.timers.tick(499);
+			assert.equal((await controller(f.cwd, f.run.runId)).status, "running");
+			t.mock.timers.tick(1);
+			await Promise.race([running, watchdog]);
+			const task = await controller(f.cwd, f.run.runId);
+			assert.equal(task.statusDetail, "dynamic_budget_blocked");
+			assert.match(task.lastMessage, /maxRuntimeMs=600/);
+			assert.equal(await depth(f.cwd, f.run.runId), 1);
+		} finally {
+			if (timer) realClearTimeout(timer);
+			setDynamicControllerHooksForTests();
+			t.mock.timers.reset();
+			h.setIndexUpdateDebounceMsForTests(undefined);
+			if (running) {
+				try {
+					await h.stopRun(f.cwd, f.run.runId);
+				} catch (error) {
+					if (error?.name !== "WorkflowStopPending") throw error;
+				}
+				await running;
 			}
-			await running;
+			await f.close();
 		}
-		await f.close();
-	}
-});
+	});
+}
 
 test("real-clock runtime deadline aborts a pending controller without requiring child progress", {
 	timeout: 10000,
