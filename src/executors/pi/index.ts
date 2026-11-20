@@ -23,6 +23,7 @@ export {
 export { type PiExecutorConfig, parsePiExecutorConfig } from "./config.js";
 export {
 	classifyPiFailure,
+	withPiFailureHint,
 	PI_ERROR_RULES,
 	type PiErrorRule,
 } from "./errors.js";

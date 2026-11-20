@@ -219,6 +219,8 @@ Provider-stream behavior is tested offline only; a real priority request is unve
 
 `PI_ERROR_RULES` uses the first matching rule, else `unknown`. Pi can exit 0 after a provider error;
 the adapter checks the last assistant `stopReason: "error"` and `errorMessage` before exit/stderr.
+`No API provider registered for api: <api>` (a model whose provider api a Pi extension registers) is a
+non-retryable `config` failure whose message adds a hint; see Isolation above.
 
 The answer ends at the first assistant message with `stopReason: "stop"`. Later extension-triggered
 turns, such as pi-web-access `web-search-content-ready`, contribute usage but cannot replace the

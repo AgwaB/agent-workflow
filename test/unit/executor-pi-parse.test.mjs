@@ -5,6 +5,7 @@ import { test } from "node:test";
 
 import {
 	classifyPiFailure,
+	withPiFailureHint,
 	PI_ERROR_RULES,
 	PiEventNormalizer,
 	PiJsonlSplitter,
@@ -14,6 +15,7 @@ import {
 	validateEventSequence,
 	validateExecEvent,
 } from "../../dist/sdk/index.js";
+import { isAutoRetryable } from "../../dist/sdk/errors.js";
 import { loadTranscript } from "../fixtures/executors/pi/harness.mjs";
 
 /** Normalize a whole transcript the way the adapter does for a live process. */
@@ -289,6 +291,8 @@ test("error rules: every row classifies its own sample; unmatched text is unknow
 		'Model "x" not found. Use --list-models': "config",
 		"Unknown option --foo": "config",
 		"No API key found for mistral.": "auth",
+		"No API provider registered for api: cortexkit-anthropic-messages":
+			"config",
 		"OpenAI API error (401): bad key": "auth",
 		'{"code":429,"status":"RESOURCE_EXHAUSTED"}': "rate_limit",
 		'{"code":500,"status":"Internal Server Error"}': "transient",
@@ -311,6 +315,18 @@ test("error rules: every row classifies its own sample; unmatched text is unknow
 	assert.ok(
 		PI_ERROR_RULES.filter((rule) => rule.evidence === "live").length >= 4,
 	);
+});
+
+test("unregistered extension provider api: config class (not retryable) with an actionable hint", () => {
+	const message =
+		"Error: No API provider registered for api: cortexkit-anthropic-messages";
+	assert.equal(classifyPiFailure(message, 1), "config");
+	assert.equal(isAutoRetryable("config"), false);
+	const hinted = withPiFailureHint(message);
+	assert.ok(hinted.startsWith(message));
+	assert.match(hinted, /"cortexkit-anthropic-messages"/);
+	assert.match(hinted, /docs\/executors\.md/);
+	assert.equal(withPiFailureHint("fetch failed"), "fetch failed");
 });
 
 test("an extension follow-up turn after the answer does not replace it (pi-web-access content-ready)", () => {

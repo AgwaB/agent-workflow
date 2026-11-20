@@ -11,7 +11,7 @@ import type {
 import type { JsonValue } from "../../sdk/json.js";
 import { isJsonValue } from "../../sdk/json.js";
 import { piToolKind } from "./argv.js";
-import { classifyPiFailure } from "./errors.js";
+import { classifyPiFailure, withPiFailureHint } from "./errors.js";
 
 /** Skip Pi JSON lines larger than this limit. */
 export const MAX_JSON_LINE_CHARS = 64 * 1024 * 1024;
@@ -347,7 +347,10 @@ export class PiEventNormalizer {
 		if (stopReason === "error") {
 			const message =
 				this.streamErrors.at(-1) ?? "assistant stopped with an error";
-			return failed(classifyPiFailure(message, exit.exitCode), message);
+			return failed(
+				classifyPiFailure(message, exit.exitCode),
+				withPiFailureHint(message),
+			);
 		}
 		if (stopReason === "aborted" || this.settledAborted)
 			return failed(
@@ -359,7 +362,10 @@ export class PiEventNormalizer {
 				stderrTail.trim() ||
 				this.streamErrors.at(-1) ||
 				`pi exited ${exit.signal ?? exit.exitCode}`;
-			return failed(classifyPiFailure(message, exit.exitCode), message);
+			return failed(
+				classifyPiFailure(message, exit.exitCode),
+				withPiFailureHint(message),
+			);
 		}
 		if (this.lastAssistant === undefined)
 			return failed(
