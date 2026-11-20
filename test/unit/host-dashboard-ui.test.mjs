@@ -2352,6 +2352,55 @@ const text2 = (browser, selector) =>
 		(selector) => document.querySelector(selector)?.textContent,
 		selector,
 	);
+// Clicks an outline entry and waits until the page has scrolled where that click sends it: the section's top
+// at its scroll margin, or the end of the page when the section is too near it. 2026-11-20 (CI 44751733688):
+// the old wait, "scrollTop did not change for 300 ms", also held while a smooth scroll had not started or
+// stalled on a slow runner, so the next assertion read the page mid-scroll. The label is an entry's full
+// text or tooltip.
+const clickOutlineAndSettle = async (browser, label) => {
+	const result = await browser.evaluate(
+		(label) =>
+			new Promise((resolve) => {
+				const view = document.querySelector("#report-view");
+				const link = [...document.querySelectorAll(".outline-link")].find(
+					(entry) => entry.title === label || entry.textContent === label,
+				);
+				const card = /^(finding-\d+): /.exec(label);
+				const section = card
+					? document.querySelector(`.finding-card[aria-label="${card[1]}"]`)
+					: [...document.querySelectorAll(".md-h2, .md-h3")].find((heading) =>
+							heading.textContent.endsWith(label),
+						);
+				const margin = parseFloat(getComputedStyle(section).scrollMarginTop);
+				const expected = Math.max(
+					0,
+					Math.min(
+						view.scrollHeight - view.clientHeight,
+						section.getBoundingClientRect().top -
+							view.getBoundingClientRect().top +
+							view.scrollTop -
+							margin,
+					),
+				);
+				link.click();
+				const deadline = performance.now() + 15_000;
+				const check = () => {
+					if (Math.abs(view.scrollTop - expected) <= 1)
+						resolve({ reached: true });
+					else if (performance.now() > deadline)
+						resolve({ reached: false, scrollTop: view.scrollTop, expected });
+					else setTimeout(check, 25);
+				};
+				check();
+			}),
+		label,
+	);
+	assert.deepEqual(
+		result,
+		{ reached: true },
+		`clicking "${label}" did not scroll the page to its target`,
+	);
+};
 // The renderer ends these field lines with a Markdown hard break ("  "); the fixture file is kept
 // free of trailing whitespace (the diff check), so the breaks are put back here.
 const deepReport = (
@@ -3525,15 +3574,6 @@ test(
 			900,
 		);
 		await browser.waitFor(() => document.querySelector(".finding-card"));
-		const settle = () =>
-			browser.waitFor(
-				() =>
-					new Promise((resolve) => {
-						const view = document.querySelector("#report-view");
-						const before = view.scrollTop;
-						setTimeout(() => resolve(view.scrollTop === before), 300);
-					}),
-			);
 		const current = () => text2(browser, ".outline-link.current");
 		for (const label of [
 			"finding-002: Missing id returns 200 instead of 400",
@@ -3541,14 +3581,7 @@ test(
 			"Limitations",
 			"Evidence and review coverage",
 		]) {
-			await browser.evaluate(
-				(label) =>
-					[...document.querySelectorAll(".outline-link")]
-						.find((link) => link.title === label || link.textContent === label)
-						.click(),
-				label,
-			);
-			await settle();
+			await clickOutlineAndSettle(browser, label);
 			// What was clicked stays current, also when the page cannot scroll that section to the top.
 			assert.equal(
 				await browser.evaluate((label) => {
@@ -3560,12 +3593,10 @@ test(
 			);
 		}
 		// A section reached by a click is not under the top bar: its top has a margin from the page's top.
-		await browser.evaluate(() =>
-			[...document.querySelectorAll(".outline-link")]
-				.find((link) => link.title.startsWith("finding-002"))
-				.click(),
+		await clickOutlineAndSettle(
+			browser,
+			"finding-002: Missing id returns 200 instead of 400",
 		);
-		await settle();
 		const gap = await browser.evaluate(
 			() =>
 				document
@@ -3695,19 +3726,7 @@ test(
 				document.querySelector(".outline-link.current")?.textContent ===
 				"Section number 1",
 		);
-		await browser.evaluate(() =>
-			[...document.querySelectorAll(".outline-link")]
-				.find((link) => link.textContent === "Section number 38")
-				.click(),
-		);
-		await browser.waitFor(
-			() =>
-				new Promise((resolve) => {
-					const view = document.querySelector("#report-view");
-					const before = view.scrollTop;
-					setTimeout(() => resolve(view.scrollTop === before), 300);
-				}),
-		);
+		await clickOutlineAndSettle(browser, "Section number 38");
 		assert.equal(
 			await text2(browser, ".outline-link.current"),
 			"Section number 38",
