@@ -269,6 +269,165 @@ test("requiredReads targeting after-only sources fail before worker launch", asy
 	}
 });
 
+test("a pending in-process support helper does not delay launching another ready root stage", async () => {
+	const cwd = makeProject();
+	const key = `agent-workflow-test-support-parallel:${cwd}`;
+	const gate = deferred();
+	const helperStarted = deferred();
+	const workerLaunched = deferred();
+	let scheduling;
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		globalThis[Symbol.for(key)] = { gate, started: helperStarted };
+		mkdirSync(join(cwd, "workflows"), { recursive: true });
+		writeFileSync(
+			join(cwd, "workflows", "gated-helper.mjs"),
+			`const shared = globalThis[Symbol.for(${JSON.stringify(key)})];\nexport default async function helper() {\n  shared.started.resolve();\n  await shared.gate.promise;\n  return { analysis: "released" };\n}\n`,
+		);
+		setTaskRuntimeApiForTests({
+			async runWorker() {
+				workerLaunched.resolve();
+				return {
+					runId: "run_parallel_root",
+					attemptId: "attempt_parallel_root",
+					status: "running",
+				};
+			},
+			async getWorkerStatus() {
+				return null;
+			},
+			async reconcileWorkerRun() {
+				return {};
+			},
+			async interruptWorker() {
+				return {};
+			},
+		});
+		const spec = workflowSpec("unit-scout", {
+			artifactGraph: {
+				maxConcurrency: 2,
+				stages: [
+					{
+						id: "slow",
+						prompt: "Slow helper.",
+						after: [],
+						support: { uses: "./gated-helper.mjs" },
+					},
+					{ id: "worker", type: "single", prompt: "Root.", after: [] },
+				],
+			},
+		});
+		const specPath = join(cwd, "workflows", "unit.json");
+		writeFileSync(specPath, JSON.stringify(spec, null, 2));
+		const compiled = await compileWorkflow(spec, {
+			cwd,
+			task: "Parallel roots",
+			specPath: "workflows/unit.json",
+		});
+		const { run } = await createWorkflowRunRecord(cwd, compiled, specPath);
+		await writeStaticRunArtifacts(cwd, run, compiled, spec);
+		await writeRunRecord(cwd, run);
+		scheduling = scheduleRun(cwd, run.runId);
+		await helperStarted.promise;
+		// Hang bound, not a speed check: the helper is still pending here, so the
+		// worker launch must not depend on it finishing.
+		const outcome = await Promise.race([
+			workerLaunched.promise.then(() => "launched"),
+			sleep(3_000).then(() => "blocked-behind-support"),
+		]);
+		assert.equal(outcome, "launched");
+		const midRun = await readRunRecord(cwd, run.runId);
+		assert.equal(taskBySpec(midRun, "slow.main").status, "running");
+		assert.equal(taskBySpec(midRun, "worker.main").status, "running");
+		gate.resolve();
+		await scheduling;
+		const finalRun = await readRunRecord(cwd, run.runId);
+		assert.equal(taskBySpec(finalRun, "slow.main").status, "completed");
+	} finally {
+		gate.resolve();
+		if (scheduling)
+			await Promise.race([scheduling.catch(() => undefined), sleep(5_000)]);
+		delete globalThis[Symbol.for(key)];
+		setTaskRuntimeApiForTests(undefined);
+		cleanup(cwd);
+	}
+});
+
+test("ready support helpers run after other ready launches and keep their relative order", async () => {
+	const cwd = makeProject();
+	const key = `agent-workflow-test-support-order:${cwd}`;
+	const events = [];
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		globalThis[Symbol.for(key)] = events;
+		mkdirSync(join(cwd, "workflows"), { recursive: true });
+		for (const name of ["first", "second"]) {
+			writeFileSync(
+				join(cwd, "workflows", `${name}-helper.mjs`),
+				`export default async function helper() {\n  globalThis[Symbol.for(${JSON.stringify(key)})].push(${JSON.stringify(name)});\n  return { analysis: ${JSON.stringify(name)} };\n}\n`,
+			);
+		}
+		setTaskRuntimeApiForTests({
+			async runWorker() {
+				events.push("worker");
+				return {
+					runId: "run_support_order",
+					attemptId: "attempt_support_order",
+					status: "running",
+				};
+			},
+			async getWorkerStatus() {
+				return null;
+			},
+			async reconcileWorkerRun() {
+				return {};
+			},
+			async interruptWorker() {
+				return {};
+			},
+		});
+		const spec = workflowSpec("unit-scout", {
+			artifactGraph: {
+				maxConcurrency: 3,
+				stages: [
+					{
+						id: "first",
+						prompt: "First helper.",
+						after: [],
+						support: { uses: "./first-helper.mjs" },
+					},
+					{
+						id: "second",
+						prompt: "Second helper.",
+						after: [],
+						support: { uses: "./second-helper.mjs" },
+					},
+					{ id: "worker", type: "single", prompt: "Root.", after: [] },
+				],
+			},
+		});
+		const specPath = join(cwd, "workflows", "unit.json");
+		writeFileSync(specPath, JSON.stringify(spec, null, 2));
+		const compiled = await compileWorkflow(spec, {
+			cwd,
+			task: "Support order",
+			specPath: "workflows/unit.json",
+		});
+		const { run } = await createWorkflowRunRecord(cwd, compiled, specPath);
+		await writeStaticRunArtifacts(cwd, run, compiled, spec);
+		await writeRunRecord(cwd, run);
+		await scheduleRun(cwd, run.runId);
+		assert.deepEqual(events, ["worker", "first", "second"]);
+		const finalRun = await readRunRecord(cwd, run.runId);
+		assert.equal(taskBySpec(finalRun, "first.main").status, "completed");
+		assert.equal(taskBySpec(finalRun, "second.main").status, "completed");
+	} finally {
+		delete globalThis[Symbol.for(key)];
+		setTaskRuntimeApiForTests(undefined);
+		cleanup(cwd);
+	}
+});
+
 test("stopRun reports pending when an in-process support helper ignores abort", async () => {
 	const cwd = makeProject();
 	let scheduling;
