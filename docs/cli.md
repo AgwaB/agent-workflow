@@ -27,12 +27,12 @@ workflow name that only an enclosing project has then fails with "not found in <
 | Command | What it does |
 |---|---|
 | `list [--query T] [--offset N] [--limit N]` | Discoverable workflows: project `workflows/` and `.agent-workflow/workflows/`, `~/.agent-workflow/workflows/`, bundled (Pi's directories are not read). `--limit` (1-20) pages the output and bounds it to 50 KB. |
-| `validate <workflow>` | Load and compile a spec without running it. |
+| `validate <workflow>` | Load and compile a spec without running it. Its `Tasks:` count is the compiled task count: a `foreach` or `loop` counts once, so a run has more ([task ids](usage.md#run-records)). |
 | `check <workflow> [<task…>] [launch options]` | The launch preflight without the launch: executor, tools, models and effort for the executor that would run each stage (below). No run, no model call. |
 | `roles <workflow>` | Compiled role context as injected into task prompts. |
 | `agents` | Agent definitions. |
 | `show <workflow>` | The resolved spec file. |
-| `show <run> [--raw]` | Run details. Arguments that start with `workflow_` (or `--raw`) are runs. |
+| `show <run> [--raw]` | Run details. Arguments that start with `workflow_` (or `--raw`) are runs; any other argument is looked up as a workflow, so a mistyped run id without that prefix fails with `workflow name or spec file not found`. |
 | `profile list \| show [name] \| set <name> … \| delete <name> \| default <name> \| default --clear \| presets` | Saved user profiles, roles and built-in presets (below). |
 | `profile workflow list \| show <workflow> \| set <workflow> … \| clear <workflow>` | Shared user-level, name-keyed workflow preferences (below). |
 | `project-settings list \| show \| clear-binding \| reset \| purge \| clear-project \| inspect-recovery \| recover` | Separate project-local inspection and recovery, including undiscovered keys (below). |
@@ -141,11 +141,11 @@ These options also apply to `auto`.
 | `--allow-unverified <a,b>` | Accept these `unverified` executor capabilities, e.g. `contextIsolation`. |
 | `--model <id>` | Model override for every stage. |
 | `--effort <level>` | Effort override: `off minimal low medium high xhigh max ultra`. Each executor and model gets the nearest level it supports, the lower one on a tie (Codex `ultra` on Luna → `max`; Claude/Pi `ultra` → `max`; Codex `off`/`minimal` → `low`), and `check`/the launch text says so. |
-| `--input <key=value>` | Set a workflow input the spec declares (repeatable; `--input=key=value` also works). Typed like the declared default: string as is, number, `true`/`false`, JSON for arrays, objects and `null`. An undeclared key, a wrong type, a repeated key or a missing `=` is a usage error (exit 2, nothing starts). Example: `--input depth=quick`. |
+| `--input <key=value>` | Set a workflow input the spec declares (repeatable; `--input=key=value` also works). Typed like the declared default: string as is, number, `true`/`false`, JSON for arrays, objects and `null`. An undeclared key, a wrong type, a repeated key or a missing `=` is a usage error (exit 2, nothing starts). Declared inputs reach prompts only as a `# Workflow Input` block, never as `${input.x}` ([details](usage.md#workflow-inputs---input-keyvalue)). Example: `--input depth=quick`. |
 | `--detach` | Start a background supervisor (`agent-workflow supervise <id>`, log in `<run dir>/supervise.log`) and return the run id at once. |
 | `--force-new` | Start a new run although an identical launch (same workflow, task, inputs and options) is still active; without it, the guard prints that run (`outcome: "existing"`, exit 0) and, in the foreground, waits for it. Applies to `--detach` too. |
 | `--timeout <d>` | Stop waiting after `d` (`30000`, `30s`, `5m`, `1h`). The run continues. Not with `--detach`. |
-| `--json` | Print one JSON object `{action, ok, outcome, data}` (for `run`/`resume` without `--detach`, `data.wait` holds the final wait result). |
+| `--json` | Print one JSON object `{action, ok, outcome, data}` (for `run`/`resume` without `--detach`, `data.wait` holds the final wait result; `ok` and `outcome` describe that wait, while the rest of `data`, including `status` and `taskSummary`, is the launch snapshot, so read the final state from `data.wait`). |
 
 The task is every remaining positional word. Put `--` before task text that starts with `--`:
 `agent-workflow run deep-review -- --literal text`.

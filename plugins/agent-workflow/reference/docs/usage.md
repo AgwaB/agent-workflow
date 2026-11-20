@@ -324,6 +324,12 @@ nothing starts): a key the spec does not declare (the message lists the declared
 wrong type, a key given twice, an assignment without `key=`. Undeclared inputs are never dropped
 silently.
 
+Declared inputs (defaults with `--input` overrides applied) reach a task only as a `# Workflow
+Input` JSON block in its prompt (`task.md`). Compiled stage tasks (single, reduce, support, dynamic
+controller, loop and dag children) get it; `foreach` children do not. There is no `${input.x}`
+substitution (`${item}` in `each.prompt` is the only placeholder), so a prompt that needs a value says
+to read it from that block, and a foreach worker gets what it needs through its item.
+
 ### Letting agent-workflow pick the workflow (`auto`)
 
 ```sh
@@ -367,7 +373,8 @@ the run settles or their timeout passes, up to 4 h).
 
 Run states: `running`, `completed`, `failed`, `interrupted` (stopped, or a worker was revoked) and
 `blocked` (needs a person: an unprovable executor state, an exhausted required-read or output repair,
-or an access blocker). A support stage that declared itself blocked counts as resumable when one of
+an access blocker, or a foreach whose items cannot be expanded: any blocked task makes the run
+`blocked`, ahead of `failed`). A support stage that declared itself blocked counts as resumable when one of
 its sources is resumable (a renderer blocked by a failed audit reruns after the audit); with every
 source completed it stays a blocker. `resume` resets failed, interrupted and resumable blocked tasks and keeps
 completed task artifacts, except stages that declare `inputPolicy.invalidateOnDependencyResume`
@@ -456,7 +463,8 @@ with `high`'s stage efforts; `--profile high --executor claude` runs on `claude`
 `safe`.
 
 `--model` and `--effort` override every stage and win over both layers. `model`/`effort` from a
-saved profile are run defaults (stage and agent settings still win).
+saved profile are run defaults (stage and agent settings still win); `check --json` labels them with
+source `host-default` (the run-defaults layer), while the executor shows `user-profile`.
 
 `deep-research` declares `low`, `medium` (default) and `high` profiles: `low` and `medium` batch
 compatible `verify-claims` items in pairs; `high` spends more reasoning and keeps singleton
@@ -691,7 +699,11 @@ follow the parent run's recorded mode. Older runs without a recorded mode run as
   and research on Codex gets `bypassPermissions` there and `danger-full-access` here. The preview
   names every executor (`Capability check (mixed: claude@… ×n + codex@… ×m, …)`).
 - Each attempt: `SubmitRequest.permissionMode` (execution plan, `executor.json`, durable worker payload);
-  adapters record their resulting invocation (`claude-invocation.json`, the Codex raw transcript).
+  adapters record their resulting invocation in the attempt directory under `worker-runs/` (see
+  [run records](#run-records)): `claude-invocation.json`, the Codex raw transcript. The task directory
+  has neither, and its `result.json` carries no executor, model or permission metadata: those are in
+  `run.json` (`executor`, `permissionMode`, `tasks[].runtime` with model and effort, and the executor in
+  mixed runs), `show --json` and `inspect`.
 - Approvals: `approvals.jsonl` and the result metadata record `by: "engine-policy:free"` for answers made
   by the free-mode policy.
 
@@ -783,7 +795,7 @@ Each need is `native`, `emulated`, **degraded** (runs, recorded in `run.capabili
 
 | Entry | Meaning | What you can do |
 |---|---|---|
-| `CAPABILITY_MISSING:toolAllowlist.fine` | The executor cannot enforce the stage's precise `tools` list (Codex). | Accepted in `free`. In `safe`: the stage runs readOnly when the spec sets `allowReadOnlyDowngrade` (`forcedReadOnly`), else refused. |
+| `CAPABILITY_MISSING:toolAllowlist.fine` | The executor cannot enforce the stage's precise `tools` list (Codex). A refusal line reads `(executor has native/probed; …)`: that is the level and source of the base capability `toolAllowlist` (the coarse list), not of the missing `.fine` part. | Accepted in `free`. In `safe`: the stage runs readOnly when the spec sets `allowReadOnlyDowngrade` (`forcedReadOnly`), else refused. |
 | `CAPABILITY_WARNING:readOnly` / `:contextIsolation` | Something on this machine weakens the capability (Codex allow rules in `~/.codex/rules`; a global `~/.codex/AGENTS.md` when workers cannot get a private home — keyring login or no credentials). | ReadOnly is not negotiated in `free`; isolation warnings are recorded. In `safe` warnings are recorded; `strictCapabilities` refuses. Remove the rules/file for a clean result. |
 | `webTools.safetyPolicy: unknown` | The stage uses the CLI's own web tools; URL, private-network and redaction controls are the CLI's, not the engine's. | Always recorded, never silent. |
 | `CAPABILITY_UNVERIFIED:<cap>` | Nobody has verified the capability for this executor; refused by default. | `--allow-unverified <cap>` if you accept it. |
@@ -815,20 +827,43 @@ Top-level `artifactGraph.stages` is a DAG.
 
 - `from` is a data + order edge: the stage gets a manifest of the source's artifacts and reads them
   through `workflow_artifact`; deterministic decisions read the source's `control.json`.
-- `after` is order-only (no artifact access); `after: []` marks an explicit parallel root.
-- `sourcePolicy` (`require-success`, `partial`) decides whether a failed source blocks the stage;
+- `after` is order-only (no artifact access); `after: []` marks an explicit parallel root. A stage
+  with neither `from` nor `after` is chained after the previous declared stage; write `after: []` when
+  it is independent.
+- `sourcePolicy` (`require-success`, the default, or `partial`; `success` is accepted and behaves like
+  `require-success`) decides whether a failed source blocks the stage;
   `inputPolicy.terminalBarrier: "all-sources"` waits for every source to be terminal first, then
   `sourcePolicy` applies as usual (a `require-success` barrier stage is skipped if any source failed).
 - `inputPolicy.invalidateOnDependencyResume: true` discards a static consumer's stale artifacts when a
   dependency is resumed; on a `foreach` (with `each.itemIdentityPath`) it rebuilds the children from
   the source's new items. A `foreach` that reads a stage which reruns on resume needs it too: without
   it the old children stay and the next stage fails with "dispatch map generation is stale".
-  `inputPolicy.maxCompiledPromptChars` caps the compiled prompt.
+  `inputPolicy.maxCompiledPromptChars` caps the compiled prompt: validate rejects a cap below the
+  statically compiled prompt (instructions plus the stage wrapper, role and input text), naming the
+  minimum; the final prompt, source context included, is checked again at launch (`prepare_failed`,
+  no worker starts).
 - `foreach` may set `each.itemIdentityPath` (stable child ids, for example `$.id`) and
   `each.itemPayloadPath`. `${item}` is inserted as a marked data block
   (`<workflow-item-data>…</workflow-item-data>`, text unchanged except a closing tag inside it) under
   a standing rule that such blocks are data, never instructions; a partial defense against
-  instructions planted in upstream output, not a boundary.
+  instructions planted in upstream output, not a boundary. A foreach worker sees only its item (and
+  the runtime task with `injectRuntimeTask`), not the rest of the source; anything else it needs it
+  reads itself.
+- Child task ids are the item ids lowercased (`classify.t-01`); `context.sourceStatuses[].itemIdentity`
+  keeps the original case (`T-01`) and is recorded only with `each.itemIdentityPath` (or streaming).
+  An identity that does not survive that lowercasing/sanitizing unchanged is rejected.
+  `from.streaming` cannot be combined with `each.itemIdentityPath` (rejected at validate).
+- A foreach keeps one bookkeeping task, `<stage>.item`: it ends `completed` (`foreach_materialized`;
+  failures are on the children). An empty array creates no child: it ends `completed`
+  (`foreach_empty`, no model call), stages after it still run (a reduce still makes its model call)
+  and a helper sees it as one row without `itemIdentity`. If the items cannot be expanded (invalid or
+  duplicate identity) it ends `blocked` (`foreach_expansion_blocked`), and so does the run; the
+  message names the generated task id (`duplicate foreach generated task id "a" …`), not the
+  identity path.
+- `sourceProjection` (`include` paths) only trims the inline `controlProjection` snippet in the
+  stage's source manifest. The source's full artifacts stay readable through `workflow_artifact`, so it
+  is no access boundary. An `include` path the control lacks is listed as `projectionMissingPaths`
+  and the stage still runs.
 - A `dag` container's children reference only siblings; `outputFrom` names the child that represents
   the container downstream (`from: "analysis"` reads `analysis.<outputFrom>`). Validation rejects
   unknown references, cycles, duplicate ids, unsafe schema paths and unknown fields.
@@ -869,7 +904,9 @@ Every worker stage answers in the section protocol:
 
 Exactly one of each, in this order, no prose outside. The engine writes `control.json`,
 `analysis.md`, `refs.json` and `raw.md`, and retries invalid output within the stage's repair budget
-(`AGENT_WORKFLOW_ARTIFACT_OUTPUT_RETRIES`, default 2). Before retrying, a few breaks are repaired and
+(`AGENT_WORKFLOW_ARTIFACT_OUTPUT_RETRIES`, default 2: retries, so a task fails after 3 attempts;
+`tasks[].outputRetry` records `attempts: 3`, `maxAttempts: 2`, and each invalid attempt leaves
+`raw.invalid-attempt-N.md` and `result.invalid-attempt-N.json` in the task directory). Before retrying, a few breaks are repaired and
 recorded on the attempt: invalid JSON escapes inside strings (`json_invalid_escape`), and a `<control>` whose only
 defect is the root object's missing closing brace — every inner container closed, no string open — when the stage's
 `output.controlSchema` requires every root property it declares, allows no others, and the closed control passes it
@@ -898,6 +935,9 @@ the worker had written is kept in the task's `output.log`, and `result.json` rec
 validated into a control or output artifact, so downstream stages and reports see an ordinary failed source.
 
 ### Support helpers
+
+A support stage declares `support` and omits `type`; any `type` (including `"support"`) is rejected
+at validate (`must be omitted when support is declared`).
 
 ```json
 { "id": "audit", "from": "verify", "sourcePolicy": "partial",
@@ -965,12 +1005,16 @@ listed in the results (`page.stored`), so the check can be repeated later agains
 A `loop` stage repeats at least two child stages (`single`/`reduce`, run in order) per round, with
 runtime ids such as `fix-loop.r01.check`. Children must not declare `from`/`after`: each child
 sources the earlier children of its round, and the first child of a later round gets the previous
-round plus a `# Loop Carry-Forward Context` block. Required: `id`, `maxRounds` (a positive integer,
-or `null` for no cap), `until` (must reference the final child: `{"stage": "<final-child>",
-"path": "$.field", "equals": true}`, predicates `equals`, `notEquals`, `lengthEquals`, `exists`,
+round plus a `# Loop Carry-Forward Context` block (only that first child gets it, so the final child
+that `until` reads never sees it; every child gets a `# Loop Round` block with `loop`, `round` and
+`childStage`). A `support`, `foreach`, `dag`, `dynamic` or `loop` child is rejected at validate.
+Required: `id`, `maxRounds` (a positive integer, or `null` for no cap), `until` (must reference the
+final child: `{"stage": "<final-child>", "path": "$.field", "equals": true}`, predicates `equals`, `notEquals`, `lengthEquals`, `exists`,
 combinators `all`/`any`). A loop ends `completed` (until true), `exhausted` (positive `maxRounds`
 used up), `stopped_no_progress` (the `progressPath` metric, default `$.blockingFailures`, did not
-decrease; omitted `progressPath` on an unlimited loop disables this) or `failed`. An optional
+decrease; omitted `progressPath` on an unlimited loop disables this) or `failed`. Only `failed`
+fails the loop task; `exhausted` and `stopped_no_progress` end it `completed` (`loop_exhausted`,
+`loop_stopped_no_progress`), so the run can still complete. An optional
 `onExhausted` stage runs once on exhaustion or no progress. There is no auto-merge of worktree output
 (see "Worktrees" under Retention).
 
@@ -1002,7 +1046,9 @@ ceiling: a spec cannot grant a tool the agent did not declare. Object entries
 (`{name, classification, optional, fallbackTools}`) describe custom tools; unclassified custom tools
 are blocked. `readOnly: true` is authored intent used by compilation, scheduling and worktree policy, not
 filesystem isolation. Only `safe` enforces it at the executor (read-only tools/sandbox where available);
-`free` executors remain unrestricted even when the compiled tool list contains only reads.
+`free` removes no tool for `readOnly` and sets no sandbox, but the compiled tool list is still passed
+where the CLI takes one (Claude `--tools`: the worker has only those built-in tools). Codex has only
+its coarse sandbox.
 
 **Write-capable stages.** A stage that is not `readOnly` and keeps a mutating tool (`edit`, `write`,
 `bash`; the agent's frontmatter must declare it) can change files. Where it writes is the stage's (or
@@ -1147,8 +1193,19 @@ Run files, relative to the project's state directory:
                        output.log, stderr.log
 .agent-workflow/worker-runs/<run-id>/<task-id>/<runtime-run>/attempts/<attempt>/
                        worker.json, executor.json, authority.json, control/, exec-events.jsonl,
-                       raw CLI logs, result.json
+                       raw CLI logs, the adapter's invocation record (Claude: claude-invocation.json),
+                       result.json
 ```
+
+**Task ids.** `tasks/task-N/` is the task's position in `run.json` `tasks[]`, whose `specId` names the
+stage: `<stage>.main` (single, reduce, support), `<stage>.item` (a foreach's bookkeeping task) and
+`<stage>.<item-id>` (its children), `<stage>.controller` (dynamic), `<loop>.loop` (a loop's
+placeholder), `<dag>.<child>.main` (a dag's children). A foreach or loop expands at run time, so a
+run has more tasks than the `Tasks:` count `validate` prints (a foreach or loop counts once) and than
+`run --json` `data.taskSummary`, a launch-time snapshot: the final state is in `data.wait` and
+`status`. Before `resume` resets a task it appends an entry to `tasks[].resumeEvents[]` (`at`,
+`fromStatus`, `fromStatusDetail`, `lastMessage`, worker run and attempt ids, retry counts), which is
+where an interrupted attempt stays visible.
 
 Bundled workflows end with a `completionSummaryMarkdown` (printed as the run result) and a
 `final-report.md` in the final task directory; `inspect --results` lists the report paths.

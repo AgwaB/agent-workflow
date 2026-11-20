@@ -598,6 +598,17 @@ test("prune, notices, supervise and help: data, text and usage errors", async ()
 	assert.throws(() => api.helpAction("nope"), api.HostUsageError);
 });
 
+test("run help lists every effort level the CLI accepts", async () => {
+	const { EFFORT_LEVELS } = await import("../../dist/core/types.js");
+	const line = api
+		.helpAction("run")
+		.text.split("\n")
+		.find((text) => text.includes("--effort <level>"));
+	assert.ok(line, "run help documents --effort");
+	for (const level of EFFORT_LEVELS)
+		assert.match(line, new RegExp(`\\b${level}\\b`));
+});
+
 test("process role guard: workers may validate but not launch", async () => {
 	const { ctx } = await project();
 	const worker = { ...ctx, env: { ...ctx.env, AGENT_WORKFLOW_ROLE: "worker" } };
