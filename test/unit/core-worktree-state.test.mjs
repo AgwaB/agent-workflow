@@ -241,8 +241,11 @@ test("status, show and inspect name a worktree task's worktree path and branch",
 	await runWithWorktrees(cwd, "workflow_wtshow", ["task-1"]);
 	const format = await import("../../dist/core/engine-format.js");
 	const store = await import("../../dist/core/store.js");
+	const { displayPathUnderHome } = await import("../../dist/core/home-dir.js");
 	const run = await store.readRunRecord(cwd, "workflow_wtshow");
-	const expected = `Worktree: ${run.tasks[0].worktree.path} (branch agent-workflow/workflow_wtshow-task-1)`;
+	// Human text shows a worktree under the home as `~/…` (CI Linux homes contain the isolated state dir).
+	const shownPath = displayPathUnderHome(run.tasks[0].worktree.path);
+	const expected = `Worktree: ${shownPath} (branch agent-workflow/workflow_wtshow-task-1)`;
 	for (const text of [
 		format.formatHumanRunStatus(run),
 		format.formatHumanRunDetails(run),
@@ -257,7 +260,7 @@ test("status, show and inspect name a worktree task's worktree path and branch",
 	assert.match(inspected.text, /- task-1: completed\//u);
 	assert.ok(
 		inspected.text.includes(
-			`    worktree: ${run.tasks[0].worktree.path} (branch agent-workflow/workflow_wtshow-task-1)`,
+			`    worktree: ${shownPath} (branch agent-workflow/workflow_wtshow-task-1)`,
 		),
 		inspected.text,
 	);
