@@ -11,6 +11,8 @@ import {
 export interface PiErrorRule extends ErrorClassificationRule {
 	/** Where the row comes from: a recorded transcript, or Pi source/docs only. */
 	readonly evidence: "live" | "offline" | "source";
+	/** Actionable text appended to the failure message; `$1` is the first capture group of `match`. */
+	readonly hint?: string;
 }
 
 export const PI_ERROR_RULES: readonly PiErrorRule[] = [
@@ -36,6 +38,14 @@ export const PI_ERROR_RULES: readonly PiErrorRule[] = [
 		class: "config",
 		match: /workflow fast mode .*binding mismatch|fast tier failed/,
 		evidence: "offline",
+	},
+	// A model whose provider api comes from a Pi extension (models.json custom `api`): workflow workers run
+	// with --no-extensions, so the api is never registered (live, run workflow_mwoulqyw_05a7a5 task-2).
+	{
+		class: "config",
+		match: /No API provider registered for api: ([^\s'"`,;]+)/,
+		evidence: "live",
+		hint: 'the model\'s provider api "$1" is registered by a Pi extension, and workflow stages run without user extensions. Pick a model whose provider is built into Pi, or run it outside a workflow. See docs/executors.md (Pi → Isolation).',
 	},
 	// Missing credentials for a provider: exits 1 before any request (offline transcript).
 	{ class: "auth", match: "No API key found for", evidence: "offline" },
@@ -97,4 +107,15 @@ export function classifyPiFailure(
 	exitCode: number | null,
 ): FailureClass {
 	return classifyFailure({ message, exitCode }, PI_ERROR_RULES);
+}
+
+/** The failure message with the matching rule's actionable hint appended (unchanged when none applies). */
+export function withPiFailureHint(message: string): string {
+	for (const rule of PI_ERROR_RULES) {
+		if (rule.hint === undefined || !(rule.match instanceof RegExp)) continue;
+		const m = rule.match.exec(message);
+		if (m === null) continue;
+		return `${message}\nHint: ${rule.hint.replace("$1", m[1] ?? "")}`;
+	}
+	return message;
 }
