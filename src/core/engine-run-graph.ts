@@ -1428,6 +1428,51 @@ export function updateDownstreamDependencies(
 	}
 }
 
+/**
+ * A finished loop hands its last executed round to every stage that names the loop in `from`: the loop
+ * placeholder dependency is swapped for that round's children (like a foreach placeholder is swapped for its
+ * generated tasks). Stages that only order after the loop (`after`) keep the placeholder alone.
+ */
+export function replaceLoopPlaceholderWithFinalRound(
+	run: WorkflowRunRecord,
+	compiledFlow: CompiledWorkflow,
+	placeholderSpecId: string,
+	finalRoundSpecIds: string[],
+): void {
+	const runTaskBySpecId = new Map(run.tasks.map((task) => [task.specId, task]));
+	for (const task of compiledFlow.tasks) {
+		const context = task.contextDependsOn;
+		if (!context) continue;
+		// Idempotent: a restart after the compiled flow was written but before the run record was
+		// leaves only the run record to swap.
+		const alreadySwapped =
+			finalRoundSpecIds.length > 0 &&
+			finalRoundSpecIds.every((id) => context.includes(id));
+		if (!context.includes(placeholderSpecId) && !alreadySwapped) continue;
+		task.contextDependsOn = replaceDependencyList(
+			context,
+			placeholderSpecId,
+			finalRoundSpecIds,
+		);
+		if (task.dependsOn) {
+			task.dependsOn = replaceDependencyList(
+				task.dependsOn,
+				placeholderSpecId,
+				finalRoundSpecIds,
+			);
+		}
+		const runTask = runTaskBySpecId.get(compiledTaskSpecId(task));
+		if (runTask?.dependsOn) {
+			runTask.dependsOn = replaceDependencyList(
+				runTask.dependsOn,
+				placeholderSpecId,
+				finalRoundSpecIds,
+			);
+		}
+	}
+	synchronizeTerminalBarrierSourceSpecIds(run, compiledFlow);
+}
+
 export function replaceDependencyList(
 	dependsOn: string[],
 	placeholderSpecId: string,

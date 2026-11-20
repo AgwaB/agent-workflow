@@ -1,0 +1,60 @@
+{
+	"fixture": "loop-output-consumer-haiku",
+	"recordedFrom": {
+		"runId": "workflow_mwoxv695_d532e3",
+		"status": "completed",
+		"createdAt": "2026-11-20T12:11:54.864Z",
+		"engine": {
+			"version": "0.1.0",
+			"checkout": {
+				"head": "9e6743617f1efb1d56812b857f75c21c36471f34",
+				"branch": "work/loop-output-20261120",
+				"dirty": false,
+				"statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+			}
+		},
+		"executor": "claude"
+	},
+	"status": "completed",
+	"tasks": [
+		{
+			"specId": "draft-loop.loop",
+			"status": "completed",
+			"statusDetail": "loop_completed",
+			"control": null
+		},
+		{
+			"specId": "draft-loop.r01.draft",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "60e6bd6785b06626"
+		},
+		{
+			"specId": "draft-loop.r01.review",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "1c87a4c066cd027d"
+		},
+		{
+			"specId": "draft-loop.r02.draft",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "0481e5a3c4e77455"
+		},
+		{
+			"specId": "draft-loop.r02.review",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "9d41f8419e3cf1de"
+		},
+		{
+			"specId": "final.main",
+			"status": "completed",
+			"statusDetail": "completed",
+			"control": "ef890bba4e371e2f"
+		}
+	],
+	"finalReport": null,
+	"audit": null
+}

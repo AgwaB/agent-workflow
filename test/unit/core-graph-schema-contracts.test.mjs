@@ -578,3 +578,132 @@ test("public TypeScript workflow authors can declare injectRuntimeTask without c
 		});
 	}
 });
+
+function loopConsumerSpec(consumer) {
+	return graph([
+		{
+			id: "cycle",
+			type: "loop",
+			maxRounds: 2,
+			until: { stage: "check", path: "$.done", equals: true },
+			stages: [
+				{ id: "work", type: "single", prompt: "Work." },
+				{ id: "check", type: "single", prompt: "Check." },
+			],
+		},
+		{ id: "after-cycle", prompt: "Use the loop output.", ...consumer },
+	]);
+}
+
+for (const [name, consumer] of [
+	["single", { type: "single", from: ["cycle"] }],
+	["reduce", { type: "reduce", from: ["cycle"] }],
+	[
+		"support",
+		{ type: undefined, from: ["cycle"], support: { uses: "./h.mjs" } },
+	],
+	[
+		"single with round-independent requiredReads",
+		{
+			type: "single",
+			from: ["cycle"],
+			inputPolicy: { requiredReads: ["cycle.check.control"] },
+		},
+	],
+])
+	test(`stage from a loop is accepted for ${name} consumers`, () => {
+		assert.doesNotThrow(() => parseWorkflow(loopConsumerSpec(consumer)));
+	});
+
+for (const [name, consumer, pattern] of [
+	[
+		"foreach from a loop id",
+		{
+			type: "foreach",
+			from: "cycle",
+			each: { prompt: "Each." },
+		},
+		/stages\[1\]\.from.*loop "cycle".*foreach/,
+	],
+	[
+		"foreach from a loop control path",
+		{
+			type: "foreach",
+			from: { source: "cycle", path: "$.items" },
+			each: { prompt: "Each." },
+		},
+		/stages\[1\]\.from\.source.*loop "cycle".*foreach/,
+	],
+	[
+		"dynamic from a loop",
+		{ type: "dynamic", from: ["cycle"], dynamic: { uses: "./c.mjs" } },
+		/stages\[1\]\.from\[0\].*loop "cycle".*dynamic/,
+	],
+	[
+		"dag from a loop",
+		{
+			type: "dag",
+			from: ["cycle"],
+			stages: [{ id: "inner", type: "single", prompt: "Inner." }],
+		},
+		/stages\[1\]\.from\[0\].*loop "cycle".*dag/,
+	],
+	[
+		"requiredReads naming the loop id itself",
+		{
+			type: "single",
+			from: ["cycle"],
+			inputPolicy: { requiredReads: ["cycle.analysis"] },
+		},
+		/requiredReads\[0\].*"cycle".*not an available upstream artifact source/,
+	],
+])
+	test(`validate rejects ${name} with a clear message`, () => {
+		assert.throws(() => parseWorkflow(loopConsumerSpec(consumer)), pattern);
+	});
+
+test("a loop that reads another loop is rejected at validate", () => {
+	const spec = loopConsumerSpec({ type: "single", from: ["cycle"] });
+	spec.artifactGraph.stages.push({
+		id: "second",
+		type: "loop",
+		maxRounds: 2,
+		from: ["cycle"],
+		until: { stage: "check2", path: "$.done", equals: true },
+		stages: [
+			{ id: "work2", type: "single", prompt: "Work." },
+			{ id: "check2", type: "single", prompt: "Check." },
+		],
+	});
+	assert.throws(
+		() => parseWorkflow(spec),
+		/stages\[2\]\.from\[0\].*loop "cycle".*loop/,
+	);
+});
+
+test("compile marks an explicit loop from as context so the engine can rewrite it", async () => {
+	const cwd = makeProject();
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		const spec = loopConsumerSpec({ type: "single", from: ["cycle"] });
+		spec.artifactGraph.stages.push({
+			id: "ordered",
+			type: "single",
+			prompt: "Order only.",
+			after: ["cycle"],
+		});
+		const compiled = await compileWorkflow(spec, { cwd, task: "t" });
+		const byId = (id) => compiled.tasks.find((task) => task.stageId === id);
+		assert.deepEqual(byId("after-cycle").dependsOn, ["cycle.loop"]);
+		assert.deepEqual(byId("after-cycle").contextDependsOn, ["cycle.loop"]);
+		assert.deepEqual(byId("ordered").dependsOn, ["cycle.loop"]);
+		assert.deepEqual(byId("ordered").contextDependsOn, []);
+	} finally {
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 5,
+			retryDelay: 10,
+		});
+	}
+});

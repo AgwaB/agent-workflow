@@ -974,6 +974,14 @@ decrease; omitted `progressPath` on an unlimited loop disables this) or `failed`
 `onExhausted` stage runs once on exhaustion or no progress. There is no auto-merge of worktree output
 (see "Worktrees" under Retention).
 
+A `single`, `reduce` or `support` stage that names a loop in `from` receives the outputs of every
+child of the loop's last executed round, as sources named `<loop>.<child>` (for example
+`fix-loop.check`; `requiredReads` use the same names) plus a `# Loop Results` block (`status`,
+`roundsUsed`, `rubricMet`, `finalCheck`), so a consumer can tell that an `exhausted` or
+`stopped_no_progress` loop did not meet its rubric. A `failed` loop is an ordinary failed source under
+the consumer's `sourcePolicy`; `after` stays ordering-only. `foreach`, `dynamic`, `dag` and `loop`
+stages cannot read a loop (rejected at validate).
+
 ### Roles
 
 Top-level `roles` declare reusable context injected as a `# Role Context` block: `fromAgent`

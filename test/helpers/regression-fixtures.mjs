@@ -126,6 +126,27 @@ function bundledSpecOf(name) {
 	return relative(REPO, join(dir, file));
 }
 
+/**
+ * The spec a replay runs: the bundled spec of the run's workflow when there is one, else the run's own spec
+ * frozen next to the fixtures (a scenario run of a spec that is not bundled).
+ */
+function replaySpecOf(runDir, run, name) {
+	if (
+		existsSync(
+			join(
+				REPO,
+				"workflows",
+				run.name.startsWith("deep-research") ? "deep-research" : run.name,
+			),
+		)
+	)
+		return bundledSpecOf(run.name);
+	const frozen = join(REGRESSION_FIXTURES, "specs", `${name}.spec.json`);
+	mkdirSync(dirname(frozen), { recursive: true });
+	writeFileSync(frozen, readFileSync(join(runDir, "spec.json")));
+	return relative(REPO, frozen);
+}
+
 export function captureRegressionFixture(runDir, name) {
 	const run = readJson(join(runDir, "run.json"));
 	const compiled = readJson(join(runDir, "compiled.json"));
@@ -151,7 +172,7 @@ export function captureRegressionFixture(runDir, name) {
 			executor: run.executor?.id ?? null,
 		},
 		workflow: run.name,
-		spec: bundledSpecOf(run.name),
+		spec: replaySpecOf(runDir, run, name),
 		task: compiled.task,
 		profile: run.executionProfile?.name ?? null,
 		files: projectFiles(run.cwd),

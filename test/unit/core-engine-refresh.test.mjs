@@ -40,6 +40,7 @@ import {
 	removeForeachGeneratedTasksForPlaceholders,
 	resolveForeachSiblingSourceIds,
 	reconcileForeachGeneratedRunRecords,
+	replaceLoopPlaceholderWithFinalRound,
 	synchronizeTerminalBarrierSourceSpecIds,
 } from "../../dist/core/engine-run-graph.js";
 
@@ -521,6 +522,55 @@ test("all-sources barrier only delays the start; sourcePolicy decides once sourc
 			true,
 		);
 	}
+});
+
+test("loop final-round swap also repairs a run record left behind by a restart", () => {
+	const finalRound = ["draft-loop.r02.draft", "draft-loop.r02.review"];
+	const consumer = {
+		id: "final.main",
+		stageId: "final",
+		dependsOn: [...finalRound],
+		contextDependsOn: [...finalRound],
+	};
+	const ordered = {
+		id: "later.main",
+		stageId: "later",
+		dependsOn: ["draft-loop.loop"],
+		contextDependsOn: [],
+	};
+	// The compiled flow was already written with the swap; the run record was not.
+	const flow = {
+		tasks: [{ id: "draft-loop.loop" }, consumer, ordered],
+		stages: [],
+	};
+	const run = {
+		tasks: [
+			{ taskId: "task-1", specId: "draft-loop.loop", status: "running" },
+			{
+				taskId: "task-2",
+				specId: "final.main",
+				status: "pending",
+				dependsOn: ["draft-loop.loop"],
+			},
+			{
+				taskId: "task-3",
+				specId: "later.main",
+				status: "pending",
+				dependsOn: ["draft-loop.loop"],
+			},
+		],
+	};
+	replaceLoopPlaceholderWithFinalRound(
+		run,
+		flow,
+		"draft-loop.loop",
+		finalRound,
+	);
+	assert.deepEqual(run.tasks[1].dependsOn, finalRound);
+	assert.deepEqual(consumer.contextDependsOn, finalRound);
+	// An after-only stage keeps waiting on the placeholder alone.
+	assert.deepEqual(run.tasks[2].dependsOn, ["draft-loop.loop"]);
+	assert.deepEqual(ordered.dependsOn, ["draft-loop.loop"]);
 });
 
 test("generation reset removes mapped foreach children and restores the placeholder dependency", () => {

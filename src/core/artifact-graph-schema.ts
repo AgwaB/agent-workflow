@@ -824,6 +824,16 @@ function ownSourceScopeFor(
 	const ids = new Set<string>();
 	const prefixes: string[] = [];
 	for (const dep of refs) {
+		if (dep.type === "loop" && typeof dep.id === "string") {
+			// Only an explicit `from` hands over a loop's last round, as `<loop>.<child>`; implicit
+			// chaining after a loop gets no loop sources.
+			if (!hasFrom) continue;
+			for (const child of Array.isArray(dep.stages) ? dep.stages : []) {
+				if (isRecord(child) && typeof child.id === "string")
+					ids.add(`${dep.id}.${child.id}`);
+			}
+			continue;
+		}
 		const sourceId = stageSourceId(dep);
 		if (sourceId) ids.add(sourceId);
 		if (dep.type === "dynamic" && typeof dep.id === "string") {
@@ -857,7 +867,58 @@ function validateStageArray(
 		);
 	}
 	validateStreamingProducerDeclarations(value, path, issues);
+	validateLoopSourceConsumers(value, path, issues);
 	validateStageDependencyGraph(value, path, issues);
+}
+
+/**
+ * A loop is consumable only as the source of a single/reduce/support stage: the engine hands that stage
+ * the last executed round's children. Other consumer kinds would silently receive nothing, so reject them.
+ */
+function validateLoopSourceConsumers(
+	stages: readonly unknown[],
+	path: string,
+	issues: ValidationIssue[],
+): void {
+	const loopIds = new Set(
+		stages
+			.filter(isRecord)
+			.filter((stage) => stage.type === "loop")
+			.map((stage) => stage.id)
+			.filter((id): id is string => typeof id === "string"),
+	);
+	if (loopIds.size === 0) return;
+	for (const [index, stage] of stages.entries()) {
+		if (!isRecord(stage)) continue;
+		const consumer =
+			stage.type === "foreach" ||
+			stage.type === "dynamic" ||
+			stage.type === "dag" ||
+			stage.type === "loop"
+				? stage.type
+				: undefined;
+		if (!consumer) continue;
+		const from = stage.from;
+		const refs: Array<[string, string]> = isRecord(from)
+			? typeof from.source === "string"
+				? [[`${path}[${index}].from.source`, from.source]]
+				: []
+			: (Array.isArray(from) ? from : typeof from === "string" ? [from] : [])
+					.map((ref, refIndex): [string, string] => [
+						Array.isArray(from)
+							? `${path}[${index}].from[${refIndex}]`
+							: `${path}[${index}].from`,
+						ref,
+					])
+					.filter(([, ref]) => typeof ref === "string");
+		for (const [refPath, ref] of refs) {
+			if (!loopIds.has(ref)) continue;
+			issues.push({
+				path: refPath,
+				message: `loop "${ref}" cannot be the source of a ${consumer} stage; only single, reduce and support stages can read a loop's output (use after for ordering only)`,
+			});
+		}
+	}
 }
 
 function validateStreamingProducerDeclarations(
@@ -1039,6 +1100,14 @@ function collectStageSourceIds(stages: readonly unknown[]): Set<string> {
 	const ids = new Set<string>();
 	for (const stage of stages) {
 		if (!isRecord(stage)) continue;
+		if (stage.type === "loop" && typeof stage.id === "string") {
+			// A loop is not a source itself; its last round's children are, under round-independent names.
+			for (const child of Array.isArray(stage.stages) ? stage.stages : []) {
+				if (isRecord(child) && typeof child.id === "string")
+					ids.add(`${stage.id}.${child.id}`);
+			}
+			continue;
+		}
 		const sourceId = stageSourceId(stage);
 		if (sourceId) ids.add(sourceId);
 	}

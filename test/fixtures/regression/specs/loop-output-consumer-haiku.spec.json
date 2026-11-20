@@ -1,0 +1,50 @@
+{
+	"schemaVersion": 1,
+	"name": "draft-polish-read",
+	"description": "Iteratively improve a product announcement until a rubric passes.",
+	"input": {
+		"product": "Tidepool",
+		"maxWords": 45
+	},
+	"defaults": {
+		"agent": "scout",
+		"readOnly": true,
+		"tools": ["read"]
+	},
+	"artifactGraph": {
+		"stages": [
+			{
+				"id": "draft-loop",
+				"type": "loop",
+				"maxRounds": 4,
+				"progressPath": "$.blockingFailures",
+				"until": {
+					"stage": "review",
+					"path": "$.passed",
+					"equals": true
+				},
+				"stages": [
+					{
+						"id": "draft",
+						"type": "single",
+						"profileRole": "research-execution",
+						"prompt": "Do not use tools. Write a short launch announcement for the product named in the workflow input `product` (a note-taking app with an offline mode and a free tier). Round 1: write freely, enthusiastic. Later rounds: fix every failure the reviewer listed in the carry-forward context, keep what already passed. Put the announcement text in <analysis>; <control>{\"schema\":\"stage-control-v1\",\"digest\":\"draft\"}</control>."
+					},
+					{
+						"id": "review",
+						"type": "single",
+						"profileRole": "verification",
+						"prompt": "Do not use tools. Review the draft against this rubric, counting carefully word by word: R1 at most `maxWords` words (workflow input); R2 contains the exact phrase \"offline mode\"; R3 contains the exact phrase \"free tier\"; R4 the last sentence starts with \"Try\"; R5 no exclamation marks. Put in <control>: {\"schema\":\"stage-control-v1\",\"digest\":\"<n> failures\",\"passed\":true|false,\"blockingFailures\":<integer count of failed rules>,\"wordCount\":<integer>,\"failures\":[\"R1: 52 words, limit 45\"]}. passed is true only if blockingFailures is 0. In <analysis> quote the draft and give specific fixes."
+					}
+				]
+			},
+			{
+				"id": "final",
+				"type": "reduce",
+				"from": ["draft-loop"],
+				"profileRole": "synthesis",
+				"prompt": "Read the final round's draft with workflow_artifact (source draft-loop.draft, artifact analysis) and copy that announcement text verbatim into <analysis>, nothing added. Control: {\"schema\":\"stage-control-v1\",\"digest\":\"final\",\"rounds\":<integer rounds used, from the Loop Results block>,\"passed\":<boolean from the Loop Results block>}."
+			}
+		]
+	}
+}
