@@ -648,6 +648,75 @@ test("artifact graph loader rejects missing controlSchema files", async () => {
 	}
 });
 
+test("artifact graph loader rejects a control schema that forbids the schema/digest envelope", async () => {
+	const cwd = makeProject();
+	try {
+		const dir = join(cwd, "workflows", "closed-control");
+		mkdirSync(join(dir, "schemas"), { recursive: true });
+		const closed = (properties) =>
+			JSON.stringify({
+				type: "object",
+				additionalProperties: false,
+				required: Object.keys(properties),
+				properties,
+			});
+		writeFileSync(
+			join(dir, "schemas", "closed.json"),
+			closed({ text: { type: "string" } }),
+		);
+		writeFileSync(
+			join(dir, "schemas", "open-envelope.json"),
+			closed({
+				schema: { type: "string" },
+				digest: { type: "string" },
+				text: { type: "string" },
+			}),
+		);
+		const spec = (schemaFile) =>
+			JSON.stringify(
+				artifactGraphWorkflowSpec({
+					artifactGraph: {
+						stages: [
+							{
+								id: "polish",
+								type: "loop",
+								maxRounds: 2,
+								until: { stage: "check", path: "$.text", exists: true },
+								stages: [
+									{ id: "draft", type: "single", prompt: "Draft." },
+									{
+										id: "check",
+										type: "single",
+										prompt: "Check.",
+										output: { controlSchema: schemaFile },
+									},
+								],
+							},
+						],
+					},
+				}),
+			);
+		writeFileSync(join(dir, "spec.json"), spec("./schemas/closed.json"));
+		// Every control carries `schema` and `digest`; a closed schema without them can never validate.
+		await assert.rejects(
+			() => loadWorkflow("closed-control", cwd),
+			(error) =>
+				error instanceof WorkflowValidationError &&
+				/check\.output\.controlSchema/.test(String(error)) &&
+				/"schema", "digest"/.test(String(error)),
+		);
+		writeFileSync(join(dir, "spec.json"), spec("./schemas/open-envelope.json"));
+		await loadWorkflow("closed-control", cwd);
+	} finally {
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 5,
+			retryDelay: 10,
+		});
+	}
+});
+
 test("artifact graph schema rejects unknown output fields and invalid required reads", () => {
 	const invalid = assertThrowsFlow(() =>
 		parsePublicWorkflow(
