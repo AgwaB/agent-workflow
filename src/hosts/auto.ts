@@ -107,8 +107,13 @@ export interface AutoRequest
 }
 
 export type AutoPhase =
-	/** The classifier executor could not be resolved: nothing was sent. */
+	/** No classifier executor could be resolved: nothing was sent (only the local shortlist exists). */
 	| "classifier-unavailable"
+	/**
+	 * The comparison ran (or was attempted, or was cancelled after the executor resolved) and no
+	 * workflow was started; `status`/`reason` say why (`no-fit`, `routing-unavailable`, a cancel, …).
+	 */
+	| "not-launched"
 	/** The chosen workflow changed since the comparison: nothing started. */
 	| "stale"
 	/** The chosen workflow went through the launch path (see `launch`). */
@@ -561,7 +566,7 @@ export async function autoAction(
 			"auto",
 			"refused",
 			{
-				phase: "classifier-unavailable",
+				phase: "not-launched",
 				classifierCalled: sent,
 				classifier: target,
 				consent,
@@ -584,7 +589,7 @@ export async function autoAction(
 		);
 	const { ranked, recommendation } = rankCandidates(ctx, compared);
 	const data: AutoData = {
-		phase: "classifier-unavailable",
+		phase: "not-launched",
 		classifierCalled,
 		classifier: target,
 		consent,
@@ -681,7 +686,7 @@ export async function autoAction(
 			"refused",
 			{
 				...data,
-				phase: "classifier-unavailable",
+				phase: "not-launched",
 				selected: chosen,
 				launch: launched.data,
 			},

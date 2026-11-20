@@ -175,9 +175,65 @@ test("classifier failure starts nothing without a local fallback", async () => {
 	const { cwd, env } = await project();
 	shadow({ pi: READY, claude: READY, codex: READY }, "missing-candidate");
 	const out = await api.autoAction({ cwd, env, host: "cli" }, { task: TASK });
-	assert.equal(out.data.phase, "classifier-unavailable");
+	assert.equal(out.data.phase, "not-launched");
+	assert.equal(out.data.status, "no-fit");
+	assert.equal(out.data.classifierCalled, true);
 	assert.equal(out.outcome, "refused");
 	assert.equal(out.data.launch, undefined);
+	assert.equal(await runCount(cwd), 0);
+});
+
+test("a transmission restriction reports not-launched/routing-unavailable without a send", async () => {
+	const { cwd, env } = await project();
+	const logs = shadow({ pi: READY, claude: READY, codex: READY });
+	const out = await api.autoAction(
+		{ cwd, env, host: "cli" },
+		{ task: "Do not send this to any external model." },
+	);
+	assert.equal(out.data.phase, "not-launched");
+	assert.equal(out.data.status, "routing-unavailable");
+	assert.equal(out.data.classifierCalled, false);
+	assert.equal(
+		Object.values(allClassifierSubmits(logs)).reduce((a, b) => a + b, 0),
+		0,
+	);
+	assert.equal(await runCount(cwd), 0);
+});
+
+test("cancelling during the comparison reports not-launched", async () => {
+	const { cwd, env } = await project();
+	shadow({ pi: READY, claude: READY, codex: READY });
+	const controller = new AbortController();
+	const out = await api.autoAction(
+		{ cwd, env, host: "cli" },
+		{
+			task: TASK,
+			signal: controller.signal,
+			compare: async () => {
+				controller.abort();
+				return undefined;
+			},
+		},
+	);
+	assert.equal(out.data.phase, "not-launched");
+	assert.equal(out.data.classifierCalled, false);
+	assert.equal(out.data.launch, undefined);
+	assert.equal(await runCount(cwd), 0);
+});
+
+test("no resolvable classifier executor reports classifier-unavailable and sends nothing", async () => {
+	const { cwd, env } = await project();
+	const NOT_READY = { installed: false, cliVersion: null, auth: "unknown" };
+	const logs = shadow({ pi: NOT_READY, claude: NOT_READY, codex: NOT_READY });
+	const out = await api.autoAction({ cwd, env, host: "cli" }, { task: TASK });
+	assert.equal(out.data.phase, "classifier-unavailable");
+	assert.equal(out.data.classifierCalled, false);
+	assert.equal(out.data.classifier, undefined);
+	assert.equal(out.data.launch, undefined);
+	assert.equal(
+		Object.values(allClassifierSubmits(logs)).reduce((a, b) => a + b, 0),
+		0,
+	);
 	assert.equal(await runCount(cwd), 0);
 });
 test("a run flag and a saved user profile select the classifier executor (Q5: the run's rule)", async () => {
