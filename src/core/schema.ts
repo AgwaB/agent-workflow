@@ -80,6 +80,13 @@ async function validateArtifactGraphControlSchemaFiles(
 					message: issue.message,
 				});
 			}
+			const forbidden = forbiddenControlEnvelopeKeys(schema);
+			if (forbidden.length > 0) {
+				issues.push({
+					path: `${stage.id}.output.controlSchema`,
+					message: `${controlSchema} sets additionalProperties: false without ${forbidden.map((key) => `"${key}"`).join(", ")}, but every stage control carries "schema", "digest"; add them to its properties`,
+				});
+			}
 		} catch (error) {
 			issues.push({
 				path: `${stage.id}.output.controlSchema`,
@@ -88,6 +95,24 @@ async function validateArtifactGraphControlSchemaFiles(
 		}
 	}
 	if (issues.length > 0) throw new WorkflowValidationError(issues);
+}
+
+// Every control object carries the envelope keys: models must emit them (workflow-output-artifacts.ts
+// validateBaseControl) and support/dynamic results get them filled in. A closed root schema that omits
+// them can never validate, so the run would fail every attempt.
+const CONTROL_ENVELOPE_KEYS = ["schema", "digest"] as const;
+
+function forbiddenControlEnvelopeKeys(schema: unknown): string[] {
+	if (!schema || typeof schema !== "object" || Array.isArray(schema)) return [];
+	const record = schema as Record<string, unknown>;
+	if (record.additionalProperties !== false) return [];
+	const properties =
+		record.properties &&
+		typeof record.properties === "object" &&
+		!Array.isArray(record.properties)
+			? (record.properties as Record<string, unknown>)
+			: {};
+	return CONTROL_ENVELOPE_KEYS.filter((key) => !Object.hasOwn(properties, key));
 }
 
 function flattenArtifactGraphStages(stages: readonly any[]): any[] {

@@ -258,6 +258,9 @@ Validation passing means the spec is well-formed, not that it is good. These pat
 
 - Workflow specs are JSON-only; `.yaml` and `.yml` specs are not supported.
 - Keep `<control>` small and machine-readable. Put detailed reasoning, evidence, and caveats in `<analysis>`.
+- Every control carries `schema` and `digest` (a short non-empty summary string) next to your own fields. A control
+  schema with `additionalProperties: false` must list both in `properties` (validate rejects it otherwise), and
+  prompts and few-shot examples must show them.
 - Make every model control safe for small models (2026-11-04: gemini flash closed a four-level nested
   plan with one bracket too many on all three repair attempts): flat objects, arrays of strings or of
   one-level objects, `maxLength`/`maxItems` on every string and array with the same limits stated in
