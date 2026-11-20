@@ -802,7 +802,7 @@ Capability degradations are recorded and shown on every host, without confirmati
 | `type: "loop"` | Repeats fixed child stages until a deterministic `until`, `maxRounds` or no progress. |
 | `type: "dag"` | Container: lowers child stages to namespaced tasks and exposes an `outputFrom` child downstream. |
 | `type: "dynamic"` | Trusted bundle-local controller code adds workflow tasks at run time. |
-| `support: { uses }` | Runs a bundle-local `.mjs` helper over upstream `control.json` values, in process, no worker. |
+| `support: { uses }` | Runs a bundle-local `.mjs` helper over upstream `control.json` values, in process, no worker. It runs inline and delays launching other ready stages until it returns, so keep helpers short. |
 
 Use `foreach.from` for data-driven fan-out, `reduce.from` for fan-in, support `from` for helper
 inputs, and `dynamic` only when the work cannot be known before the run. A later plain `single` does
