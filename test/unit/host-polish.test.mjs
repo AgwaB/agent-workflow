@@ -83,7 +83,7 @@ function fixture(config = {}) {
 /** A launched, then stopped (interrupted) run: its texts carry Open/Resume hints. */
 async function interruptedRun() {
 	const { cwd, env } = await project();
-	const executor = fixture({ stepDelayMs: 1_500 });
+	const executor = fixture({ stepDelayMs: 1_500, cancelPromptly: true });
 	const ctx = { cwd, env, host: "cli" };
 	const launched = await api.runWorkflowAction(ctx, {
 		workflow: "wf.json",

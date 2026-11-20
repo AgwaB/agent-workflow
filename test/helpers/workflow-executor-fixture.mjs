@@ -18,6 +18,10 @@
 //   deleteResult  deleteOwnedSession result (default "deleted"); "missing": no deleteOwnedSession
 //   beforeOutputSteps normalized events / fake approval steps after started (blocked-action tests)
 //   stepDelayMs   delay between script steps
+//   cancelPromptly true: cancel() ends the observed stream at once with the cancelled failure, instead of
+//                 after the current stepDelayMs wait (the SDK fake only checks cancellation between steps). A real
+//                 executor stops on cancel; a worker that takes longer than the 3 s SIGTERM→SIGKILL grace to wind
+//                 down turns a stop into the slow kill/reconcile path (stop-ack-flake-20261120).
 //   capabilities  partial capability table over the SDK fake's (WP4d negotiation tests)
 //   probe         probe() result (default: installed, auth ok)
 //   inheritHostTools / fast / fastApi  Pi-only per-task descriptor config (WP35), logged per submit
@@ -330,6 +334,18 @@ export function createExecutor(config) {
 	if (typeof effectLog !== "string") throw new Error("fixture needs effectLog");
 	const id = config.id ?? "wf-fake";
 	const inners = new Map();
+	const cancelSignals = new Map();
+	const cancelSignalFor = (key) => {
+		let signal = cancelSignals.get(key);
+		if (signal === undefined) {
+			signal = {};
+			signal.promise = new Promise((resolve) => {
+				signal.fire = resolve;
+			});
+			cancelSignals.set(key, signal);
+		}
+		return signal;
+	};
 	const innerFor = (req) => {
 		let inner = inners.get(req.attemptKey);
 		if (inner === undefined) {
@@ -410,11 +426,36 @@ export function createExecutor(config) {
 					log(effectLog, { type: "effect", attemptKey: req.attemptKey });
 			}
 		},
-		observe: (ref) => inners.get(ref.attemptKey).observe(ref),
+		observe:
+			config.cancelPromptly === true
+				? async function* (ref) {
+						const iterator = inners
+							.get(ref.attemptKey)
+							.observe(ref)
+							[Symbol.asyncIterator]();
+						const cancelled = cancelSignalFor(ref.attemptKey).promise;
+						for (;;) {
+							const next = await Promise.race([iterator.next(), cancelled]);
+							if (next === "cancelled") {
+								yield {
+									type: "failed",
+									class: "cancelled",
+									message: "cancelled by request",
+									raw: null,
+								};
+								return;
+							}
+							if (next.done) return;
+							yield next.value;
+						}
+					}
+				: (ref) => inners.get(ref.attemptKey).observe(ref),
 		async cancel(ref, scope) {
 			const inner = inners.get(ref.attemptKey);
 			const result =
 				inner === undefined ? "no_active" : await inner.cancel(ref, scope);
+			if (config.cancelPromptly === true && result === "cancelled")
+				cancelSignalFor(ref.attemptKey).fire("cancelled");
 			log(effectLog, { type: "cancel", attemptKey: ref.attemptKey, result });
 			return result;
 		},
