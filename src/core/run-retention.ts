@@ -1,6 +1,6 @@
 import { stateBase } from "./state-location.js";
 // Delete owned sessions through the executor that reported them; keep the run if deletion fails.
-import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
+import { PROJECT_STATE_DIRECTORY, displayPathUnderHome } from "./home-dir.js";
 import {
 	lstat,
 	mkdir,
@@ -457,7 +457,9 @@ export function formatWorkflowPruneSummary(
 					: worktree.removed
 						? ` — removed${worktree.branchDeleted ? ", branch deleted" : worktree.branch ? ", branch kept" : ""}`
 						: "";
-				lines.push(`  Worktree: ${worktree.path} (${state.join("; ")})${done}`);
+				lines.push(
+					`  Worktree: ${displayPathUnderHome(worktree.path)} (${state.join("; ")})${done}`,
+				);
 			}
 			if (run.retainedEvidencePath)
 				lines.push(`  Retained run evidence: ${run.retainedEvidencePath}`);

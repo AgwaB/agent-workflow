@@ -234,3 +234,55 @@ test("formatLogs uses bounded tail IO for huge single-line output", async (t) =>
 	assert.ok(Buffer.byteLength(text) < 256 * 1024);
 	assert.match(text, /truncated/i);
 });
+
+test("managed worktree path under the user's home renders as ~/… and survives redaction", async () => {
+	const { formatRunWorktreeLines } = await import(
+		"../../dist/core/engine-format.js"
+	);
+	const { redactSensitiveWorkflowText } = await import(
+		"../../dist/core/workflow-sensitive-query.js"
+	);
+	// Built from parts: tracked text must not contain a literal macOS home path (public-surface check).
+	const fakeHome = ["", "Users", "fakeuser"].join("/");
+	const otherHome = ["", "Users", "otheruser"].join("/");
+	const saved = process.env.HOME;
+	const savedProfile = process.env.USERPROFILE;
+	process.env.HOME = fakeHome;
+	process.env.USERPROFILE = fakeHome;
+	try {
+		const run = {
+			tasks: [
+				{
+					specId: "a",
+					displayName: "edit.main",
+					worktree: {
+						enabled: true,
+						path: `${fakeHome}/proj/.wt/a`,
+						baseCwd: "/elsewhere",
+						branch: "b1",
+					},
+				},
+				{
+					specId: "c",
+					displayName: "edit.other",
+					worktree: {
+						enabled: true,
+						path: "/var/tmp/wt/c",
+						baseCwd: "/elsewhere",
+					},
+				},
+			],
+		};
+		const text = `${formatRunWorktreeLines(run).join("\n")}\ncwd=${otherHome}/secret`;
+		const shown = redactSensitiveWorkflowText(text);
+		assert.match(shown, /edit\.main: Worktree: ~\/proj\/\.wt\/a \(branch b1\)/);
+		assert.match(shown, /edit\.other: Worktree: \/var\/tmp\/wt\/c/);
+		assert.match(shown, /cwd=\/Users\/REDACTED/);
+		assert.doesNotMatch(shown, /otheruser|fakeuser/);
+	} finally {
+		if (saved === undefined) delete process.env.HOME;
+		else process.env.HOME = saved;
+		if (savedProfile === undefined) delete process.env.USERPROFILE;
+		else process.env.USERPROFILE = savedProfile;
+	}
+});
