@@ -429,7 +429,6 @@ test("scheduler preserves all-sources joins through skip propagation and fail-fa
 	);
 
 	run.tasks[1].status = "skipped";
-	assert.equal(markDagDependentsSkipped(run, flow), false);
 	assert.equal(
 		dependenciesReady(
 			join,
@@ -446,6 +445,82 @@ test("scheduler preserves all-sources joins through skip propagation and fail-fa
 		),
 		false,
 	);
+});
+
+test("all-sources barrier only delays the start; sourcePolicy decides once sources are terminal", () => {
+	const build = (sourcePolicy, sourceStatuses) => {
+		const join = {
+			id: "join.main",
+			stageId: "join",
+			dependsOn: ["each.ok", "each.bad"],
+			artifactGraph: { inputPolicy: { terminalBarrier: "all-sources" } },
+		};
+		const flow = {
+			tasks: [{ id: "each.ok" }, { id: "each.bad" }, join],
+			stages: [{ id: "join", ...(sourcePolicy ? { sourcePolicy } : {}) }],
+		};
+		const run = {
+			tasks: [
+				{ taskId: "task-1", specId: "each.ok", status: sourceStatuses[0] },
+				{ taskId: "task-2", specId: "each.bad", status: sourceStatuses[1] },
+				{ taskId: "task-3", specId: "join.main", status: "pending" },
+			],
+		};
+		return { flow, run };
+	};
+
+	// require-success (explicit and default): skipped like a non-barrier dependent.
+	for (const policy of ["require-success", undefined]) {
+		const { flow, run } = build(policy, ["completed", "failed"]);
+		assert.equal(markDagDependentsSkipped(run, flow), true);
+		assert.equal(run.tasks[2].status, "skipped");
+		assert.equal(run.tasks[2].statusDetail, "skipped_after_dependency_failure");
+		assert.match(
+			run.tasks[2].lastMessage,
+			/dependency each\.bad did not complete/,
+		);
+	}
+
+	// Skip propagates past the barrier stage to its own dependents.
+	{
+		const { flow, run } = build("require-success", ["completed", "failed"]);
+		flow.tasks.push({
+			id: "after.main",
+			stageId: "after",
+			dependsOn: ["join.main"],
+		});
+		flow.stages.push({ id: "after" });
+		run.tasks.push({
+			taskId: "task-4",
+			specId: "after.main",
+			status: "pending",
+		});
+		assert.equal(markDagDependentsSkipped(run, flow), true);
+		assert.equal(run.tasks[2].status, "skipped");
+		assert.equal(run.tasks[3].status, "skipped");
+	}
+
+	// Still waits while any source is non-terminal, even though one already failed.
+	{
+		const { flow, run } = build("require-success", ["running", "failed"]);
+		assert.equal(markDagDependentsSkipped(run, flow), false);
+		assert.equal(run.tasks[2].status, "pending");
+	}
+
+	// partial: barrier stage still runs on failed data.
+	{
+		const { flow, run } = build("partial", ["completed", "failed"]);
+		assert.equal(markDagDependentsSkipped(run, flow), false);
+		assert.equal(run.tasks[2].status, "pending");
+		assert.equal(
+			dependenciesReady(
+				flow.tasks[2],
+				new Map(run.tasks.map((task) => [task.specId, task])),
+				flow,
+			),
+			true,
+		);
+	}
 });
 
 test("generation reset removes mapped foreach children and restores the placeholder dependency", () => {
