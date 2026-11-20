@@ -2,6 +2,7 @@
 // `help` action (stage-2 hosts reuse the same text). WP17: `doctor` and the default-executor line.
 // WP31: profile roles, presets and per-workflow preferences.
 // WP36: statusline, watch, notify-check. WP32: auto.
+import { EFFORT_LEVELS } from "../core/types.js";
 import { HostUsageError } from "./args.js";
 import { type HostResult, result } from "./types.js";
 
@@ -12,7 +13,7 @@ const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, 
   --permission-mode free|safe  approvals/sandbox mode (default free; see docs/usage.md#permission-modes)
   --allow-unverified <a,b>     accept these unverified executor capabilities (B4 opt-in)
   --model <id>                 model override for every stage
-  --effort <level>             effort override: off, minimal, low, medium, high, xhigh, max
+  --effort <level>             effort override: ${EFFORT_LEVELS.join(", ")}
   --input <key=value>          set a workflow input the spec declares (repeatable; typed like
                                the declared default, e.g. --input depth=quick)
   --detach                     start a background supervisor and return immediately
