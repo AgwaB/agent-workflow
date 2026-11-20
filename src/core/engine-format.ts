@@ -3,6 +3,7 @@ import { blockedActionsLabel, runBlockedActions } from "./blocked-actions.js";
 // Task lines name each task's executor in mixed runs.
 import { lstat } from "node:fs/promises";
 import { isAbsolute, relative } from "node:path";
+import { displayPathUnderHome } from "./home-dir.js";
 import {
 	DEFAULT_COMMAND_HINTS,
 	type WorkflowCommandHints,
@@ -1120,7 +1121,9 @@ export function formatTaskWorktreeLocation(
 	const base = typeof worktree.baseCwd === "string" ? worktree.baseCwd : "";
 	const rel = base ? relative(base, worktree.path) : "";
 	const shown =
-		rel && !rel.startsWith("..") && !isAbsolute(rel) ? rel : worktree.path;
+		rel && !rel.startsWith("..") && !isAbsolute(rel)
+			? rel
+			: displayPathUnderHome(worktree.path);
 	return `${shown}${worktree.branch ? ` (branch ${worktree.branch})` : ""}`;
 }
 
