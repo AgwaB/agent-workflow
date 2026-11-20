@@ -6,6 +6,7 @@ import {
 	compiledTaskSpecId,
 	loopStageIdSet,
 	reconcileLoopTaskRecordsInMemory,
+	replaceLoopPlaceholderWithFinalRound,
 	upsertCompiledLoopTasksAtInsertion,
 } from "./engine-run-graph.js";
 import {
@@ -458,6 +459,17 @@ async function finalizeLoop(
 	state.status = status;
 	state.awaitingOnExhausted = false;
 	state.updatedAt = new Date().toISOString();
+	if (status !== "failed") {
+		replaceLoopPlaceholderWithFinalRound(
+			run,
+			compiledFlow,
+			placeholderRunTask.specId,
+			getLoopRoundRunTasks(run, compiledFlow, loopStage.id, round).map(
+				(task) => task.specId,
+			),
+		);
+		await writeJsonAtomic(compiledWorkflowPath(cwd, run.runId), compiledFlow);
+	}
 	setTaskTerminal(
 		placeholderRunTask,
 		status === "failed" ? "failed" : "completed",

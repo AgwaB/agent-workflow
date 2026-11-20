@@ -2,9 +2,13 @@ import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { parseWorkflow } from "../../dist/core/schema.js";
 import { setTaskTerminal, writeJsonAtomic } from "../../dist/core/store.js";
+import {
+	loopChildSourceIdentity,
+	sourceNameForTask,
+} from "../../dist/core/workflow-source-alias.js";
 import {
 	captureWorkerPrompts,
 	completeTask,
@@ -250,4 +254,260 @@ test("unlimited loop stops on execution failure and allows downstream partial cl
 			retryDelay: 100,
 		});
 	}
+});
+
+function loopWithConsumerSpec(loop, consumer = {}) {
+	const spec = loopWorkflowSpec(loop);
+	spec.artifactGraph.stages.push({
+		id: "publish",
+		type: "single",
+		from: ["fix-loop"],
+		prompt: "Publish the final loop output.",
+		inputPolicy: { requiredReads: ["fix-loop.implement.analysis"] },
+		...consumer,
+	});
+	return spec;
+}
+
+async function startLoopWithConsumer(cwd, spec) {
+	const specPath = join(cwd, "workflows", "loop.json");
+	mkdirSync(join(cwd, "workflows"), { recursive: true });
+	writeFileSync(specPath, JSON.stringify(spec));
+	const compiled = await compileWorkflow(spec, {
+		cwd,
+		specPath,
+		task: "Loop then publish",
+	});
+	const { run } = await createWorkflowRunRecord(cwd, compiled, specPath);
+	await writeStaticRunArtifacts(cwd, run, compiled, spec);
+	await writeRunRecord(cwd, run);
+	await scheduleRun(cwd, run.runId);
+	return run.runId;
+}
+
+async function finishLoopRound(cwd, runId, round, check) {
+	const current = await readRunRecord(cwd, runId);
+	const tag = `r${String(round).padStart(2, "0")}`;
+	await completeTask(cwd, taskBySpec(current, `fix-loop.${tag}.implement`), {
+		changed: true,
+	});
+	await completeTask(cwd, taskBySpec(current, `fix-loop.${tag}.check`), check);
+	await writeRunRecord(cwd, current);
+	await scheduleRun(cwd, runId);
+	return readRunRecord(cwd, runId);
+}
+
+function readConsumerManifest(cwd, run, specId) {
+	const task = taskBySpec(run, specId);
+	return JSON.parse(
+		readFileSync(
+			join(stateDir(cwd), dirname(task.files.result), "source-manifest.json"),
+			"utf8",
+		),
+	);
+}
+
+test("consumer of a completed loop receives the final round outputs under round-independent names and the loop status", async () => {
+	const cwd = makeProject();
+	const prompts = captureWorkerPrompts();
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		const runId = await startLoopWithConsumer(
+			cwd,
+			loopWithConsumerSpec({ maxRounds: 5 }),
+		);
+		await finishLoopRound(cwd, runId, 1, {
+			status: "fail",
+			verdict: "REJECT",
+			blockingFailures: ["a", "b"],
+		});
+		let current = await finishLoopRound(cwd, runId, 2, {
+			status: "pass",
+			verdict: "ACCEPT",
+			blockingFailures: [],
+		});
+		current = await scheduleRun(cwd, runId);
+		const loop = taskBySpec(current, "fix-loop.loop");
+		assert.equal(loop.status, "completed");
+		const publish = taskBySpec(current, "publish.main");
+		assert.deepEqual(publish.dependsOn, [
+			"fix-loop.r02.implement",
+			"fix-loop.r02.check",
+		]);
+		assert.notEqual(publish.status, "pending");
+
+		const manifest = readConsumerManifest(cwd, current, "publish.main");
+		assert.deepEqual(
+			manifest.sources.map((source) => [source.source, source.specId]),
+			[
+				["fix-loop.implement", "fix-loop.r02.implement"],
+				["fix-loop.check", "fix-loop.r02.check"],
+			],
+		);
+		const prompt = prompts.find((text) => text.includes("Publish the final"));
+		assert.ok(prompt, "consumer prompt was launched");
+		assert.match(prompt, /# Loop Results/);
+		assert.match(prompt, /loop=fix-loop status=completed roundsUsed=2/);
+		assert.match(prompt, /rubricMet=true/);
+		assert.match(
+			prompt,
+			/Required reads before final output:\n- fix-loop\.implement\.analysis/,
+		);
+		assert.doesNotMatch(prompt, /fix-loop\.r01\./);
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
+test("consumer of an exhausted loop sees the last round and an exhausted status", async () => {
+	const cwd = makeProject();
+	const prompts = captureWorkerPrompts();
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		const runId = await startLoopWithConsumer(
+			cwd,
+			loopWithConsumerSpec({ maxRounds: 2, progressPath: undefined }),
+		);
+		const fail = (failures) => ({
+			status: "fail",
+			verdict: "REJECT",
+			blockingFailures: failures,
+		});
+		await finishLoopRound(cwd, runId, 1, fail(["a", "b"]));
+		await finishLoopRound(cwd, runId, 2, fail(["a"]));
+		const current = await scheduleRun(cwd, runId);
+		assert.equal(current.loopResults[0].status, "exhausted");
+		const manifest = readConsumerManifest(cwd, current, "publish.main");
+		assert.deepEqual(
+			manifest.sources.map((source) => source.specId),
+			["fix-loop.r02.implement", "fix-loop.r02.check"],
+		);
+		const prompt = prompts.find((text) => text.includes("Publish the final"));
+		assert.match(prompt, /loop=fix-loop status=exhausted roundsUsed=2/);
+		assert.match(prompt, /rubricMet=false/);
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
+test("a consumer with after on a loop stays ordering-only and receives no loop sources", async () => {
+	const cwd = makeProject();
+	const prompts = captureWorkerPrompts();
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		const spec = loopWithConsumerSpec(
+			{ maxRounds: 5 },
+			{ from: undefined, after: ["fix-loop"], inputPolicy: undefined },
+		);
+		const runId = await startLoopWithConsumer(cwd, spec);
+		const current = await finishLoopRound(cwd, runId, 1, {
+			status: "pass",
+			verdict: "ACCEPT",
+			blockingFailures: [],
+		});
+		await scheduleRun(cwd, runId);
+		const after = await readRunRecord(cwd, runId);
+		assert.deepEqual(taskBySpec(after, "publish.main").dependsOn, [
+			"fix-loop.loop",
+		]);
+		const prompt = prompts.find((text) => text.includes("Publish the final"));
+		assert.ok(prompt);
+		assert.doesNotMatch(prompt, /# Loop Results/);
+		assert.equal(current.loopResults[0].status, "completed");
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
+test("a failed loop is an ordinary failed source: require-success skips, partial still runs", async () => {
+	for (const [policy, expected] of [
+		["require-success", "skipped"],
+		["partial", "completed"],
+	]) {
+		const cwd = makeProject();
+		captureWorkerPrompts();
+		try {
+			writeAgent(cwd, "unit-scout", "read");
+			mkdirSync(join(cwd, "workflows"), { recursive: true });
+			writeFileSync(
+				join(cwd, "workflows", "cleanup.mjs"),
+				'export default () => ({schema:"cleanup-v1",digest:"cleaned"});',
+			);
+			const spec = loopWorkflowSpec({ maxRounds: null });
+			spec.artifactGraph.stages.push({
+				id: "cleanup",
+				from: ["fix-loop"],
+				sourcePolicy: policy,
+				support: { uses: "./cleanup.mjs" },
+			});
+			const runId = await startLoopWithConsumer(cwd, spec);
+			const current = await readRunRecord(cwd, runId);
+			setTaskTerminal(
+				taskBySpec(current, "fix-loop.r01.implement"),
+				"failed",
+				"simulated_backend_failure",
+			);
+			await writeRunRecord(cwd, current);
+			await scheduleRun(cwd, runId);
+			const after = await scheduleRun(cwd, runId);
+			assert.equal(taskBySpec(after, "fix-loop.loop").status, "failed");
+			assert.deepEqual(taskBySpec(after, "cleanup.main").dependsOn, [
+				"fix-loop.loop",
+			]);
+			assert.equal(taskBySpec(after, "cleanup.main").status, expected);
+		} finally {
+			setTaskRuntimeApiForTests(undefined);
+			rmSync(cwd, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
+		}
+	}
+});
+
+test("loop child source names are round-independent only for consumers outside the loop", () => {
+	const child = {
+		specId: "fix-loop.r100.check",
+		stageId: "fix-loop.r100.check",
+	};
+	assert.deepEqual(loopChildSourceIdentity(child), {
+		loopId: "fix-loop",
+		alias: "fix-loop.check",
+	});
+	assert.equal(
+		sourceNameForTask(child, new Set(), { consumerSpecId: "publish.main" }),
+		"fix-loop.check",
+	);
+	// Inside the loop, the onExhausted helper still sees every round under distinct names.
+	assert.equal(
+		sourceNameForTask(child, new Set(), {
+			consumerSpecId: "fix-loop.onExhausted.summary",
+		}),
+		"fix-loop.r100.check",
+	);
+	assert.equal(sourceNameForTask(child, new Set()), "fix-loop.r100.check");
+	assert.equal(
+		loopChildSourceIdentity({ specId: "plain.main", stageId: "plain" }),
+		undefined,
+	);
 });

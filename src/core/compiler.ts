@@ -2191,6 +2191,7 @@ async function compileArtifactGraphPlan(
 	};
 
 	const topLevelSourceStageIds = new Map<string, string>();
+	const loopStageIds = new Set<string>();
 
 	const compileDagContainerStage = async (
 		containerStage: any,
@@ -2309,8 +2310,13 @@ async function compileArtifactGraphPlan(
 		const dependencyKeys = hasExplicitDependencyIntent
 			? explicitDependencyKeys
 			: previousStageTaskKeys;
+		// A stage that names a loop in `from` carries explicit context sources so the engine can swap the
+		// loop placeholder for the last round's children when the loop finishes.
+		const fromNamesLoop = stageIdsFromFrom(stage.from).some((stageId) =>
+			loopStageIds.has(stageId),
+		);
 		const contextDependencyOverrides: Partial<CompiledTask> =
-			stage.after !== undefined
+			stage.after !== undefined || fromNamesLoop
 				? { contextDependsOn: [...fromDependencyKeys] }
 				: {};
 
@@ -2333,6 +2339,7 @@ async function compileArtifactGraphPlan(
 
 		if (stageKind === "loop") {
 			const placeholderKey = `${stage.id}.loop`;
+			loopStageIds.add(stage.id);
 			const loopTemplates = await compileLoopChildTemplates(stage, buildTask);
 			stageRecords.push({
 				id: stage.id,

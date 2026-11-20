@@ -67,6 +67,7 @@ import {
 	sourceNameForTask,
 	dynamicOutputSourceName,
 	dynamicOutputTaskSpecIds,
+	loopChildSourceLoopId,
 } from "./workflow-source-alias.js";
 import { readTaskControlJsonSchema } from "./output-validation.js";
 export {
@@ -108,6 +109,7 @@ export async function executeSupportTask(
 					run,
 					compiledTask.dependsOn ?? [],
 					validationSnapshot,
+					task.specId,
 				)
 			: await readSupportSources(cwd, run, compiledTask.dependsOn ?? []);
 		await throwIfWorkflowStopRequested(cwd, run.runId);
@@ -143,6 +145,7 @@ export async function executeSupportTask(
 								run,
 								compiledTask.dependsOn ?? [],
 								validationSnapshot,
+								task.specId,
 							),
 						}
 					: {}),
@@ -243,13 +246,17 @@ export async function readSupportSources(
 function supportSourceNamesForDependencies(
 	run: WorkflowRunRecord,
 	dependsOn: readonly string[],
+	consumerSpecId?: string,
 ): Map<string, string> {
 	const names = new Map<string, string>();
 	const usedNames = new Set<string>();
 	for (const specId of dependsOn) {
 		const source = run.tasks.find((candidate) => candidate.specId === specId);
 		if (!source) continue;
-		names.set(source.specId, sourceNameForTask(source, usedNames));
+		names.set(
+			source.specId,
+			sourceNameForTask(source, usedNames, { consumerSpecId }),
+		);
 	}
 	return names;
 }
@@ -259,8 +266,13 @@ export async function readArtifactGraphSupportSources(
 	run: WorkflowRunRecord,
 	dependsOn: string[],
 	validationSnapshot: ArtifactGraphRuntimeValidationSnapshot,
+	consumerSpecId?: string,
 ): Promise<Record<string, unknown>> {
-	const sourceNames = supportSourceNamesForDependencies(run, dependsOn);
+	const sourceNames = supportSourceNamesForDependencies(
+		run,
+		dependsOn,
+		consumerSpecId,
+	);
 	const sources: Record<string, unknown> = {};
 	for (const specId of dependsOn) {
 		const source = run.tasks.find((candidate) => candidate.specId === specId);
@@ -281,9 +293,14 @@ function buildArtifactGraphSupportSourceStatuses(
 	run: WorkflowRunRecord,
 	dependsOn: readonly string[],
 	validationSnapshot: ArtifactGraphRuntimeValidationSnapshot,
+	consumerSpecId?: string,
 ): Array<Record<string, unknown>> {
 	const statuses: Array<Record<string, unknown>> = [];
-	const sourceNames = supportSourceNamesForDependencies(run, dependsOn);
+	const sourceNames = supportSourceNamesForDependencies(
+		run,
+		dependsOn,
+		consumerSpecId,
+	);
 	for (const specId of dependsOn) {
 		const source = run.tasks.find((candidate) => candidate.specId === specId);
 		if (!source) continue;
@@ -305,6 +322,9 @@ function buildArtifactGraphSupportSourceStatuses(
 				? {}
 				: { placeholderSpecId: source.foreachGenerated.placeholderSpecId }),
 			...sourceStatusForTask(source),
+			...(consumerSpecId === undefined
+				? {}
+				: loopStatusFields(run, source, consumerSpecId)),
 		});
 	}
 	return statuses;
@@ -1238,6 +1258,7 @@ async function prepareArtifactGraphTask(
 		{
 			partialLedgerProjection: perItemProjection !== undefined,
 			perItemProjection,
+			consumerSpecId: task.specId,
 		},
 	);
 	const manifest: WorkflowSourceManifest = {
@@ -1302,11 +1323,72 @@ async function prepareArtifactGraphTask(
 				requiredReads,
 				requiredReadPolicy,
 			),
+			formatLoopResultsContext(run, contextDependsOn, task.specId),
 			requiredReadContext || undefined,
 		]
 			.filter(Boolean)
 			.join("\n\n"),
 	};
+}
+
+function loopStatusFields(
+	run: WorkflowRunRecord,
+	source: WorkflowTaskRunRecord,
+	consumerSpecId: string,
+): Record<string, unknown> {
+	const loopId = loopChildSourceLoopId(source, consumerSpecId);
+	const result = loopId
+		? run.loopResults?.find((candidate) => candidate.loopId === loopId)
+		: undefined;
+	return result
+		? {
+				loop: {
+					loopId: result.loopId,
+					status: result.status,
+					roundsUsed: result.roundsUsed,
+				},
+			}
+		: {};
+}
+
+const LOOP_RESULTS_FINAL_CHECK_MAX_CHARS = 600;
+
+/**
+ * Terminal status of every loop whose last round feeds this task, so a consumer can tell that a rubric
+ * was not met (`exhausted`, `stopped_no_progress`) instead of assuming the final round passed.
+ */
+function formatLoopResultsContext(
+	run: WorkflowRunRecord,
+	contextDependsOn: readonly string[],
+	consumerSpecId: string,
+): string | undefined {
+	const bySpecId = new Map(run.tasks.map((task) => [task.specId, task]));
+	const loopIds = new Set<string>();
+	for (const dep of contextDependsOn) {
+		const sourceTask = bySpecId.get(dep);
+		const loopId = sourceTask
+			? loopChildSourceLoopId(sourceTask, consumerSpecId)
+			: undefined;
+		if (loopId) loopIds.add(loopId);
+	}
+	const lines: string[] = [];
+	for (const loopId of loopIds) {
+		const result = run.loopResults?.find(
+			(candidate) => candidate.loopId === loopId,
+		);
+		if (!result) continue;
+		const finalCheck = JSON.stringify(result.finalCheck ?? null);
+		lines.push(
+			`- loop=${loopId} status=${result.status} roundsUsed=${result.roundsUsed} rubricMet=${result.status === "completed"}`,
+			`  finalCheck=${finalCheck.length > LOOP_RESULTS_FINAL_CHECK_MAX_CHARS ? `${finalCheck.slice(0, LOOP_RESULTS_FINAL_CHECK_MAX_CHARS)}…` : finalCheck}`,
+		);
+	}
+	if (lines.length === 0) return undefined;
+	return [
+		"# Loop Results",
+		"Sources named <loop>.<child> hold the outputs of the final executed round of that loop. rubricMet=false means the loop stopped (exhausted or stopped_no_progress) before its until condition passed; treat that output as unfinished.",
+		...lines,
+	].join("\n");
 }
 
 function assertRequiredArtifactsInSourceManifest(
@@ -1454,6 +1536,7 @@ export async function buildArtifactGraphSourceManifestSources(
 	options?: {
 		partialLedgerProjection?: boolean;
 		perItemProjection?: PerItemLedgerProjection;
+		consumerSpecId?: string;
 	},
 ): Promise<WorkflowSourceManifestSource[]> {
 	const bySpecId = new Map(
@@ -1477,7 +1560,9 @@ export async function buildArtifactGraphSourceManifestSources(
 			sourceTask,
 			validationSnapshot,
 		);
-		const source = sourceNameForTask(sourceTask, usedNames);
+		const source = sourceNameForTask(sourceTask, usedNames, {
+			consumerSpecId: options?.consumerSpecId,
+		});
 		const status = sourceStatusForTask(sourceTask);
 		const perItemProjection =
 			options?.perItemProjection?.itemSourceSpecId === sourceTask.specId

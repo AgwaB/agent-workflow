@@ -29,6 +29,7 @@ import {
 	sourceNameForTask,
 	dynamicOutputSourceName,
 	dynamicOutputTaskSpecIds,
+	loopChildSourceIdentity,
 } from "./workflow-source-alias.js";
 
 // Host run records are the authority boundary. These hashes detect corruption;
@@ -115,7 +116,9 @@ async function assertRawSourceAlias(
 	// The spec ID is also the runtime's canonical collision fallback.
 	if (
 		expected.source === sourceNameForTask(task, new Set()) ||
-		expected.source === task.specId
+		expected.source === task.specId ||
+		// Round-independent name a consumer outside the loop sees for a loop child.
+		expected.source === loopChildSourceIdentity(task)?.alias
 	)
 		return;
 
@@ -136,7 +139,10 @@ async function assertRawSourceAlias(
 			if (source.source === expected.source) return;
 			continue;
 		}
-		if (source.source !== sourceNameForTask(current, usedNames)) fail();
+		const loopAlias = loopChildSourceIdentity(current)?.alias;
+		if (loopAlias !== undefined && source.source === loopAlias) {
+			usedNames.add(loopAlias);
+		} else if (source.source !== sourceNameForTask(current, usedNames)) fail();
 		if (current.kind !== "dynamic" || current.status !== "completed") continue;
 		if (!safeId(current.taskId)) fail();
 		const controllerDir = join(
