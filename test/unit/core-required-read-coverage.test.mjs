@@ -212,3 +212,14 @@ test("coverage scope: other sources, projected requirements and projection polic
 		[],
 	);
 });
+
+test("a missing path read says the path did not resolve", () => {
+	const message = formatRequiredReadFailureMessage({
+		missing: ["producer.control path=$.nope"],
+		projectionFailures: [],
+	});
+	assert.match(
+		message,
+		/path did not resolve or was never read: producer\.control path=\$\.nope/u,
+	);
+});
