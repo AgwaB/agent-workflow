@@ -110,6 +110,8 @@ test("global progress covers overlapping fetches, errors and reduced motion with
 		),
 		false,
 	);
+	// The release exists only once the held response has arrived.
+	await p.browser.waitFor(() => !!window.__release["/api/projects"]);
 	await p.browser.evaluate(() => {
 		window.__hold.clear();
 		window.__release["/api/projects"]();
