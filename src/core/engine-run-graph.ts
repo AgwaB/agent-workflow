@@ -1441,9 +1441,16 @@ export function replaceLoopPlaceholderWithFinalRound(
 ): void {
 	const runTaskBySpecId = new Map(run.tasks.map((task) => [task.specId, task]));
 	for (const task of compiledFlow.tasks) {
-		if (!task.contextDependsOn?.includes(placeholderSpecId)) continue;
+		const context = task.contextDependsOn;
+		if (!context) continue;
+		// Idempotent: a restart after the compiled flow was written but before the run record was
+		// leaves only the run record to swap.
+		const alreadySwapped =
+			finalRoundSpecIds.length > 0 &&
+			finalRoundSpecIds.every((id) => context.includes(id));
+		if (!context.includes(placeholderSpecId) && !alreadySwapped) continue;
 		task.contextDependsOn = replaceDependencyList(
-			task.contextDependsOn,
+			context,
 			placeholderSpecId,
 			finalRoundSpecIds,
 		);
