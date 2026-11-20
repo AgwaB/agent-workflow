@@ -159,6 +159,40 @@ test("the launch's capability text is short: each warning once, with the stages 
 	);
 });
 
+test("compactCapabilityText lists every counted degradation, including entries without a code", () => {
+	const entry = (key, note) => ({
+		key,
+		need: "required",
+		onMissing: "refuse",
+		observed: null,
+		outcome: "degraded",
+		note,
+	});
+	const stage = (label, entries) => ({
+		label,
+		stageId: label,
+		negotiatedAt: "pre-launch",
+		report: { entries, refusals: [], degradations: entries.map((e) => e.key) },
+	});
+	const text = compactCapabilityText({
+		preview:
+			"Capability check (x@0.1.0, 2 stages): accepted with 2 degradations",
+		stages: [
+			stage("a.main", [entry("cost", "tokens only")]),
+			stage("b.main", [entry("cost", "tokens only"), entry("tools")]),
+		],
+		forcedReadOnly: [],
+	});
+	assert.equal(
+		text,
+		[
+			"Capability check (x@0.1.0, 2 stages): accepted with 2 degradations",
+			"  ⚠ cost — tokens only (all 2 stages)",
+			"  ⚠ tools (b.main)",
+		].join("\n"),
+	);
+});
+
 test("check edge cases: its own action name; no dashboard even when auto-start is on; --detach starts nothing; allowed for workers", async (t) => {
 	const { ctx, executor, effects } = await project(t);
 	const autostart = { ...ctx, env: { ...ctx.env } };
