@@ -428,6 +428,75 @@ test("ready support helpers run after other ready launches and keep their relati
 	}
 });
 
+test("a ready support helper runs in the same pass when the worker pool is full", async () => {
+	const cwd = makeProject();
+	const key = `agent-workflow-test-support-full-pool:${cwd}`;
+	const events = [];
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		globalThis[Symbol.for(key)] = events;
+		mkdirSync(join(cwd, "workflows"), { recursive: true });
+		writeFileSync(
+			join(cwd, "workflows", "helper.mjs"),
+			`export default async function helper() {\n  globalThis[Symbol.for(${JSON.stringify(key)})].push("helper");\n  return { analysis: "done" };\n}\n`,
+		);
+		setTaskRuntimeApiForTests({
+			async runWorker() {
+				events.push("worker");
+				return {
+					runId: "run_support_full_pool",
+					attemptId: "attempt_support_full_pool",
+					status: "running",
+				};
+			},
+			async getWorkerStatus() {
+				return null;
+			},
+			async reconcileWorkerRun() {
+				return {};
+			},
+			async interruptWorker() {
+				return {};
+			},
+		});
+		const spec = workflowSpec("unit-scout", {
+			artifactGraph: {
+				maxConcurrency: 1,
+				stages: [
+					{ id: "worker-a", type: "single", prompt: "Root A.", after: [] },
+					{ id: "worker-b", type: "single", prompt: "Root B.", after: [] },
+					{
+						id: "helper",
+						prompt: "Helper.",
+						after: [],
+						support: { uses: "./helper.mjs" },
+					},
+				],
+			},
+		});
+		const specPath = join(cwd, "workflows", "unit.json");
+		writeFileSync(specPath, JSON.stringify(spec, null, 2));
+		const compiled = await compileWorkflow(spec, {
+			cwd,
+			task: "Full pool",
+			specPath: "workflows/unit.json",
+		});
+		const { run } = await createWorkflowRunRecord(cwd, compiled, specPath);
+		await writeStaticRunArtifacts(cwd, run, compiled, spec);
+		await writeRunRecord(cwd, run);
+		await scheduleRun(cwd, run.runId);
+		// One worker slot: worker-b waits, but the helper needs no slot.
+		assert.deepEqual(events, ["worker", "helper"]);
+		const finalRun = await readRunRecord(cwd, run.runId);
+		assert.equal(taskBySpec(finalRun, "helper.main").status, "completed");
+		assert.equal(taskBySpec(finalRun, "worker-b.main").status, "pending");
+	} finally {
+		delete globalThis[Symbol.for(key)];
+		setTaskRuntimeApiForTests(undefined);
+		cleanup(cwd);
+	}
+});
+
 test("stopRun reports pending when an in-process support helper ignores abort", async () => {
 	const cwd = makeProject();
 	let scheduling;

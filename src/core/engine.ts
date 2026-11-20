@@ -4224,11 +4224,15 @@ async function scheduleDagPass(
 	// Support helpers run inline and block this loop until they finish, so every
 	// other ready task launches first; ready support tasks follow in task order.
 	// After a helper returns, the non-support sweep restarts so stages it made
-	// ready still launch in this pass.
+	// ready still launch in this pass. Helpers take no worker slot, so a full
+	// pool ends only the non-support sweep.
 	let supportSweep = false;
 	const supportAttempted = new Set<number>();
-	for (let index = 0; running < maxConcurrency; index += 1) {
-		if (index >= run.tasks.length) {
+	for (let index = 0; ; index += 1) {
+		if (
+			index >= run.tasks.length ||
+			(!supportSweep && running >= maxConcurrency)
+		) {
 			if (supportSweep) return false;
 			supportSweep = true;
 			index = -1;
