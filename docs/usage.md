@@ -817,7 +817,8 @@ Top-level `artifactGraph.stages` is a DAG.
   through `workflow_artifact`; deterministic decisions read the source's `control.json`.
 - `after` is order-only (no artifact access); `after: []` marks an explicit parallel root.
 - `sourcePolicy` (`require-success`, `partial`) decides whether a failed source blocks the stage;
-  `inputPolicy.terminalBarrier: "all-sources"` waits for every source to be terminal first.
+  `inputPolicy.terminalBarrier: "all-sources"` waits for every source to be terminal first, then
+  `sourcePolicy` applies as usual (a `require-success` barrier stage is skipped if any source failed).
 - `inputPolicy.invalidateOnDependencyResume: true` discards a static consumer's stale artifacts when a
   dependency is resumed; on a `foreach` (with `each.itemIdentityPath`) it rebuilds the children from
   the source's new items. A `foreach` that reads a stage which reruns on resume needs it too: without

@@ -1768,7 +1768,16 @@ export function markDagDependentsSkipped(
 				);
 			});
 			if (!failedDep) continue;
-			if (terminalBarrierEnabled(compiledTask, task)) continue;
+			// The barrier only delays the start; once every source is terminal,
+			// sourcePolicy decides exactly as for a non-barrier stage.
+			if (
+				terminalBarrierEnabled(compiledTask, task) &&
+				!terminalBarrierSourceSpecIds(compiledTask).every((dep) => {
+					const status = bySpecId.get(dep)?.status;
+					return status !== undefined && isTerminalTaskStatus(status);
+				})
+			)
+				continue;
 			if (
 				stageSourcePolicy(compiledFlow, compiledTask.stageId ?? "") ===
 				"partial"
