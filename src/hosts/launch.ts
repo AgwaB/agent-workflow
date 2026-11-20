@@ -878,7 +878,7 @@ export function compactCapabilityText(
 	const groups = new Map<string, string[]>();
 	for (const stage of negotiation.stages)
 		for (const entry of stage.report.entries) {
-			if (entry.code === undefined) continue;
+			if (entry.outcome !== "degraded") continue;
 			const text = `${entry.key}${entry.note ? ` — ${entry.note}` : ""}`;
 			groups.set(text, [...(groups.get(text) ?? []), stage.label]);
 		}
