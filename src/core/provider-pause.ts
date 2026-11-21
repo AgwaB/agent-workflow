@@ -286,22 +286,57 @@ function runEntry(
 	return (run.providerPause[key] ??= { opens: 0, pausedMs: 0 });
 }
 
+// The scheduler's wait polls refresh `pausedSeenAt`; it is written to the run record at most this
+// often, so a run that stops or whose driver dies loses at most this much open pause time.
+const PAUSE_SEEN_PERSIST_MS = 60_000;
+
+/**
+ * Time the run spent waiting for the pause: closed intervals plus the open one. The open interval
+ * runs to now only while the run is running; a stopped/finished run counts it up to the last time
+ * its scheduler was seen waiting, so time spent stopped never drains the cap.
+ */
 function runPausedMs(
-	run: Pick<WorkflowRunRecord, "providerPause">,
+	run: Pick<WorkflowRunRecord, "providerPause"> &
+		Partial<Pick<WorkflowRunRecord, "status">>,
 	nowMs: number,
 ): number {
 	let total = 0;
 	for (const entry of Object.values(run.providerPause ?? {})) {
 		total += entry.pausedMs;
 		const since = Date.parse(entry.pausedSince ?? "");
-		if (Number.isFinite(since)) total += Math.max(0, nowMs - since);
+		if (!Number.isFinite(since)) continue;
+		const seen = Date.parse(entry.pausedSeenAt ?? "");
+		const end =
+			run.status === undefined || run.status === "running"
+				? nowMs
+				: Number.isFinite(seen)
+					? seen
+					: since;
+		total += Math.max(0, end - since);
 	}
 	return total;
 }
 
+/**
+ * The run is about to be driven again (resume): an interval still open belongs to the previous
+ * drive and ends where its scheduler was last seen waiting; the stopped time is not paused time.
+ */
+export function closeProviderPauseForResume(run: WorkflowRunRecord): void {
+	for (const entry of Object.values(run.providerPause ?? {})) {
+		const since = Date.parse(entry.pausedSince ?? "");
+		if (!Number.isFinite(since)) continue;
+		const seen = Date.parse(entry.pausedSeenAt ?? "");
+		entry.pausedMs += Number.isFinite(seen) ? Math.max(0, seen - since) : 0;
+		delete entry.pausedSince;
+		delete entry.pausedSeenAt;
+		delete entry.openUntil;
+	}
+}
+
 /** The run has used up its pause allowance: no more waiting and no more refunds. */
 export function providerPauseCapReached(
-	run: Pick<WorkflowRunRecord, "providerPause">,
+	run: Pick<WorkflowRunRecord, "providerPause"> &
+		Partial<Pick<WorkflowRunRecord, "status">>,
 	nowMs: number,
 	maxMs = providerPauseMaxMs(),
 ): boolean {
@@ -314,13 +349,19 @@ function markRunPaused(
 	nowMs: number,
 	openUntilMs: number,
 	pause: number,
-): void {
+): boolean {
 	const entry = runEntry(run, key);
 	if (entry.pausedSince === undefined || entry.pause !== pause)
 		entry.opens += 1;
 	entry.pausedSince ??= new Date(nowMs).toISOString();
+	const seen = Date.parse(entry.pausedSeenAt ?? "");
+	// Advanced only when it is to be written, so the value in memory is the one on disk.
+	const heartbeatDue =
+		!Number.isFinite(seen) || nowMs - seen >= PAUSE_SEEN_PERSIST_MS;
+	if (heartbeatDue) entry.pausedSeenAt = new Date(nowMs).toISOString();
 	entry.openUntil = new Date(openUntilMs).toISOString();
 	entry.pause = pause;
+	return heartbeatDue;
 }
 
 function markRunResumed(
@@ -333,6 +374,7 @@ function markRunResumed(
 	const since = Date.parse(entry.pausedSince);
 	if (Number.isFinite(since)) entry.pausedMs += Math.max(0, nowMs - since);
 	delete entry.pausedSince;
+	delete entry.pausedSeenAt;
 	delete entry.openUntil;
 }
 
@@ -390,7 +432,13 @@ function providerPauseHolder(
 
 export type ProviderPauseGate =
 	| { kind: "go" }
-	| { kind: "wait"; message: string; retryAfterMs: number };
+	| {
+			kind: "wait";
+			message: string;
+			retryAfterMs: number;
+			/** The run record should be written now (first wait, or the wait heartbeat is due). */
+			persist: boolean;
+	  };
 
 /**
  * Launch gate. `acquire: false` is the read-only early check; `acquire: true` (right before the
@@ -431,10 +479,17 @@ export async function providerPauseLaunchGate(
 			markCapReached(run, nowMs);
 			return { kind: "go" };
 		}
-		markRunPaused(run, key, nowMs, decision.openUntilMs, state?.opens ?? 1);
+		const persist = markRunPaused(
+			run,
+			key,
+			nowMs,
+			decision.openUntilMs,
+			state?.opens ?? 1,
+		);
 		// No paused-minutes count here: the task message must stay stable between polls.
 		return {
 			kind: "wait",
+			persist,
 			message: `provider ${key} overloaded: ${pauseStateText(decision.openUntilMs, nowMs)}; waiting before launching`,
 			retryAfterMs: decision.retryAfterMs,
 		};
@@ -451,6 +506,34 @@ export async function providerPauseReleaseLease(
 	key: string,
 ): Promise<void> {
 	await providerPauseObserveTerminal({ run, task, key, outcome: "release" });
+}
+
+/**
+ * The run is being stopped, interrupted or resumed: every probe lease its tasks hold is given back
+ * now, so another task need not wait for the lease timeout (a task that will not finish cannot
+ * report an outcome). Never throws.
+ */
+export async function providerPauseReleaseRunLeases(
+	runId: string,
+	nowMs = Date.now(),
+): Promise<void> {
+	try {
+		if (providerPauseMaxMs() <= 0) return;
+		const prefix = `${runId}/`;
+		const states = await readAllStates(nowMs);
+		const keys = [...states]
+			.filter(([, state]) => state.probe?.holder.startsWith(prefix))
+			.map(([key]) => key);
+		for (const key of keys)
+			await updateProviderPauseState(key, nowMs, (current) => ({
+				state: current?.probe?.holder.startsWith(prefix)
+					? applyProviderPauseOutcome(current, current.probe.holder, "release")
+					: current,
+				result: undefined,
+			}));
+	} catch {
+		// Advisory state: the lease times out on its own.
+	}
 }
 
 /**

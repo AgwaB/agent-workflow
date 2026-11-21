@@ -476,12 +476,25 @@ function defaultRateLimitBackoffMs(
 	return Math.min(profile.maxMs, profile.baseMs * 2 ** exponent);
 }
 
-const PROVIDER_OVERLOAD_TEXT =
-	/(?:\b(?:429|502|503|524|529)\b|overloaded|saturated|\bbusy\b|too many requests)/i;
-// Overload (provider pause): the executor said rate_limit, or a transient/model failure whose
-// text names an overload status. Mid-stream and socket failures carry none of these words.
+// A bare 429/502/503/524/529 is not evidence (`src/x.ts:503`, "prompt is 429 tokens"): a number
+// counts at the start of the text ("503: {...}", "502 Bad Gateway"), after a status word
+// (HTTP/status/code/error), or before a status phrase ("524 A timeout occurred").
+const OVERLOAD_STATUS = "(?:429|502|503|524|529)";
+const OVERLOAD_STATUS_NOT_A_QUANTITY =
+	"(?!\\s*(?:tokens?|chars?|characters?|bytes?|lines?|files?|items?|words?|ms|seconds?|minutes?)\\b)";
+const PROVIDER_OVERLOAD_TEXT = new RegExp(
+	[
+		`^\\W*(?:[a-z_ ]{1,24}:\\s*)?${OVERLOAD_STATUS}\\b${OVERLOAD_STATUS_NOT_A_QUANTITY}(?![./:-]?\\w)`,
+		`\\b(?:http(?:/\\d(?:\\.\\d)?)?[ /]?|status(?: code)?["']?\\s*[:=]?\\s*|code["']?\\s*[:=]?\\s*|error\\s*:?\\s*|response\\s*:?\\s*)["']?${OVERLOAD_STATUS}\\b${OVERLOAD_STATUS_NOT_A_QUANTITY}`,
+		`\\b${OVERLOAD_STATUS}\\s+(?:too many requests|service unavailable|bad gateway|gateway time-?out|a timeout occurred|overloaded|rate[_ -]?limit|upstream|session_limit)`,
+		"overloaded|saturated|\\bbusy\\b|too many requests",
+	].join("|"),
+	"i",
+);
+// Overload (provider pause): the executor said rate_limit, or a transient failure whose text
+// names an overload. A permanent `model` failure never counts; mid-stream and socket failures
+// carry none of these words.
 const PROVIDER_OVERLOAD_FAILURE_KINDS: ReadonlySet<string> = new Set([
-	"model",
 	"transient",
 	"rate_limit",
 ]);
@@ -715,6 +728,20 @@ export function resolveWorkflowRetryLimit(
 	return value;
 }
 
+/**
+ * Retries a task really spent. A provider-pause refund moves `launchRetry.attempts` (a new attempt
+ * identity) and `maxAttempts` together, so the attempts it spent are `attempts - refunds`; backoff
+ * and the "(n/max)" texts use this, not the raw counter.
+ */
+export function spentLaunchAttempts(
+	task: Pick<WorkflowTaskRunRecord, "launchRetry" | "providerPauseRefunds">,
+): number {
+	return Math.max(
+		0,
+		(task.launchRetry?.attempts ?? 0) - (task.providerPauseRefunds ?? 0),
+	);
+}
+
 export function retryOrFailTransientWorkerFailure(
 	task: WorkflowTaskRunRecord,
 	options: { reason: string; message: string; backoffMs?: number },
@@ -727,6 +754,9 @@ export function retryOrFailTransientWorkerFailure(
 			DEFAULT_TRANSIENT_MODEL_FAILURE_RETRIES,
 		);
 	const exhausted = attempt > maxAttempts;
+	const refunds = task.providerPauseRefunds ?? 0;
+	const shownAttempt = attempt - refunds;
+	const shownMax = maxAttempts - refunds;
 	const backoffMs =
 		options.backoffMs === undefined
 			? undefined
@@ -755,15 +785,15 @@ export function retryOrFailTransientWorkerFailure(
 		task.statusDetail = "retry_model_failure";
 		task.lastMessage =
 			nextEligibleAt === undefined
-				? `${options.message}; retrying transient-model failure (${attempt}/${maxAttempts})`
-				: `${options.message}; rate-limit backoff until ${nextEligibleAt} before retrying transient-model failure (${attempt}/${maxAttempts})`;
+				? `${options.message}; retrying transient-model failure (${shownAttempt}/${shownMax})`
+				: `${options.message}; rate-limit backoff until ${nextEligibleAt} before retrying transient-model failure (${shownAttempt}/${shownMax})`;
 		return true;
 	}
 	task.status = "failed";
 	task.statusDetail = task.launchRetry.reason ?? "model_exhausted";
 	task.exitCode = 1;
 	task.completedAt = nowIso();
-	task.lastMessage = `${options.message}; transient-model failure retries exhausted (${maxAttempts})`;
+	task.lastMessage = `${options.message}; transient-model failure retries exhausted (${shownMax})`;
 	return true;
 }
 

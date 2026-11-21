@@ -22,7 +22,7 @@ test("waits are 5 min doubling per consecutive open, capped at 60 min", () => {
 });
 
 test("overload classification: 429/502/503/524/529/overloaded/saturated/busy/rate limit; not mid-stream", () => {
-	const signal = (text, failureKind = "model") =>
+	const signal = (text, failureKind = "transient") =>
 		providerOverloadSignal({ failureKind, errorMessage: text, stderrText: "" });
 	for (const text of [
 		"HTTP 429 Too Many Requests",
@@ -72,6 +72,43 @@ test("overload classification: 429/502/503/524/529/overloaded/saturated/busy/rat
 		}).hintMs,
 		5 * MIN,
 	);
+});
+
+test("overload classification: real provider texts count, bare numbers and permanent model failures do not", () => {
+	const signal = (text, failureKind = "transient") =>
+		providerOverloadSignal({ failureKind, errorMessage: text, stderrText: "" });
+	// Texts of the DeepSeek study (deepseek-repeat-20261121) and the usual status forms.
+	for (const text of [
+		'503: {"message":"The service is busy right now. Please try again in a moment.","type":"server_error"}',
+		"503 upstream_saturated",
+		'502 {"type":"https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-errors/error-502/"}',
+		"524 A timeout occurred",
+		"Error 524",
+		"error: 529 Overloaded",
+		'{"status":503,"error":"unavailable"}',
+		"HTTP/1.1 503 Service Unavailable",
+		"429 session_limit_reached: 5 requests in use",
+		"upstream busy",
+	])
+		assert.equal(signal(text).overload, true, text);
+	// A number alone is no evidence, whatever the failure kind (transient or not).
+	for (const text of [
+		"TypeError at src/x.ts:503",
+		"Error in src/core/x.ts:529:12",
+		"prompt is 429 tokens long",
+		"the file has 502 lines",
+		"maximum context length is 8192 tokens, you requested 5029",
+		"model returned invalid JSON in stream chunk 5029",
+		"socket closed after 524 bytes",
+		"read ECONNRESET (mid-stream, 503 chunks received)",
+		"context length exceeded: 429 tokens over the limit",
+	]) {
+		assert.equal(signal(text).overload, false, text);
+		assert.equal(signal(text, "model").overload, false, `model: ${text}`);
+	}
+	// A permanent `model` failure is never overload, even with overload words.
+	assert.equal(signal("HTTP 503 overloaded", "model").overload, false);
+	assert.equal(signal("429 Too Many Requests", "model").overload, false);
 });
 
 test("opens at the third overload within 5 minutes; that failure is refunded, the first two are not", () => {

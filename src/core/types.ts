@@ -2007,6 +2007,8 @@ export interface WorkflowRunRecord {
 			pausedMs: number;
 			capReached?: true;
 			pausedSince?: string;
+			/** Last time the scheduler was seen waiting (bounds an interval left open by a stop). */
+			pausedSeenAt?: string;
 			openUntil?: string;
 			pause?: number;
 		}

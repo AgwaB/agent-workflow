@@ -26,6 +26,7 @@ import {
 } from "../helpers/unit-test-support.mjs";
 import { readFileSync } from "node:fs";
 import { fromStatePath } from "../../dist/core/store.js";
+import { cleanupWorkerRun } from "../../dist/core/task-cancellation.js";
 
 const setTaskRuntimeApiForTests = withMaterializedRawHost(setRawApi);
 const pause = await import("../../dist/core/provider-pause.js");
@@ -98,7 +99,7 @@ async function pending(cwd, options = {}) {
 async function failAttempt(
 	cwd,
 	item,
-	{ text, failureKind = "model", launchRetry } = {},
+	{ text, failureKind = "transient", launchRetry } = {},
 ) {
 	counter += 1;
 	const { run, task } = item;
@@ -397,6 +398,79 @@ test("probe success closes the pause, resets the escalation and releases every w
 	});
 });
 
+test("a probe whose holder cannot report an outcome never holds the provider: stop, launch error, non-overload failure", async () => {
+	await withPause("120", async (cwd) => {
+		await openPause(cwd);
+		launchApi();
+		const expire = () =>
+			rewriteState((state) => {
+				state.openUntilMs = Date.now() - 1_000;
+			});
+		const holderOf = (item) => `${item.run.runId}/${item.task.taskId}`;
+		expire();
+		// 1. The probe task's run is stopped (stop, interrupt, driver lost and resume all clean up the
+		// run): its lease goes back at once, not after the lease timeout.
+		const stopped = await pending(cwd);
+		const waiting = await pending(cwd);
+		assert.equal((await launch(cwd, stopped)).kind, "launched");
+		assert.equal(readState().probe.holder, holderOf(stopped));
+		assert.equal((await launch(cwd, waiting)).kind, "capacity");
+		stopped.task.status = "interrupted";
+		await cleanupWorkerRun(cwd, stopped.run);
+		assert.equal(readState().probe, undefined, "lease released by the stop");
+		assert.equal(
+			readState().openUntilMs !== undefined,
+			true,
+			"the pause stays half-open for the next probe",
+		);
+		assert.equal((await launch(cwd, waiting)).kind, "launched");
+		assert.equal(readState().probe.holder, holderOf(waiting));
+		// 2. The probe's launch throws: no worker exists, the lease is returned.
+		const failing = await pending(cwd);
+		rewriteState((state) => {
+			state.probe.leaseUntilMs = Date.now() - 1;
+		});
+		setTaskRuntimeApiForTests({
+			async runWorker() {
+				throw new Error("executor launch exploded");
+			},
+			async getWorkerStatus() {
+				return null;
+			},
+			async reconcileWorkerRun() {
+				return {};
+			},
+			async interruptWorker() {
+				return {};
+			},
+		});
+		await assert.rejects(
+			launchWorkerTask(
+				cwd,
+				failing.run,
+				failing.task,
+				failing.compiled.tasks[0],
+			),
+			/exploded/,
+		);
+		assert.equal(failing.task.status, "pending");
+		assert.equal(
+			readState().probe,
+			undefined,
+			"lease released by the launch error",
+		);
+		// 3. The probe ends with a failure that is not overload (permanent, kind != overload):
+		// the provider answered, so the pause closes instead of waiting for the lease.
+		const answered = await pending(cwd);
+		assert.equal((await launch(cwd, answered)).kind, "launched");
+		await failAttempt(cwd, answered, {
+			failureKind: "permanent_model_failure",
+			text: "invalid request: prompt is 429 tokens too long",
+		});
+		assert.equal(readState(), undefined, "closed by the non-overload outcome");
+	});
+});
+
 test("probe overload reopens the pause with the next longer wait and spends no attempt", async () => {
 	await withPause("120", async (cwd) => {
 		await openPause(cwd);
@@ -483,6 +557,103 @@ test("the cap counts time spent paused, including the pause in progress", async 
 		).toISOString();
 		assert.equal((await launch(cwd, item)).kind, "launched");
 		assert.equal(item.run.providerPause[KEY].capReached, true);
+	});
+});
+
+test("time a run spends stopped does not drain the cap; resume starts a fresh interval", async () => {
+	await withPause("120", async (cwd) => {
+		const [, , third] = await openPause(cwd);
+		const { run } = third;
+		// Paused at 10:00, the scheduler was last seen waiting at 10:01, the run was stopped
+		// overnight and is resumed 9 hours later.
+		const now = Date.now();
+		const since = now - 9 * 3_600_000;
+		const entry = run.providerPause[KEY];
+		entry.pausedSince = new Date(since).toISOString();
+		entry.pausedSeenAt = new Date(since + 60_000).toISOString();
+		run.status = "interrupted";
+		assert.equal(
+			pause.providerPauseCapReached(run, now),
+			false,
+			"a stopped run counts its open interval only up to the last wait",
+		);
+		run.status = "running";
+		pause.closeProviderPauseForResume(run);
+		assert.equal(entry.pausedMs, 60_000, "only the minute it really waited");
+		assert.equal(entry.pausedSince, undefined);
+		assert.equal(pause.providerPauseCapReached(run, now), false);
+		// The resumed run waits again: a fresh interval, still far from the cap.
+		launchApi();
+		const resumed = await launch(cwd, third);
+		assert.equal(resumed.kind, "capacity");
+		assert.ok(
+			Date.parse(entry.pausedSince) >= now - 1_000,
+			"the new interval starts at the resume",
+		);
+		assert.equal(entry.capReached, undefined);
+		assert.equal(entry.pausedMs, 60_000);
+	});
+});
+
+test("a waiting run refreshes its wait heartbeat and asks to be written once a minute", async () => {
+	await withPause("120", async (cwd) => {
+		const [, , third] = await openPause(cwd);
+		launchApi();
+		const key = pause;
+		const gate = (at) =>
+			key.providerPauseLaunchGate(
+				third.run,
+				third.task,
+				KEY,
+				{ acquire: false },
+				at,
+			);
+		// The opener was seen waiting just now; two minutes later the heartbeat is due.
+		const t0 = Date.now() + 120_000;
+		const first = await gate(t0);
+		assert.equal(first.kind, "wait");
+		assert.equal(first.persist, true, "the first wait after a gap is written");
+		assert.equal((await gate(t0 + 5_000)).persist, false);
+		assert.equal((await gate(t0 + 30_000)).persist, false);
+		const due = await gate(t0 + 61_000);
+		assert.equal(due.persist, true, "the heartbeat is due");
+		assert.equal(
+			third.run.providerPause[KEY].pausedSeenAt,
+			new Date(t0 + 61_000).toISOString(),
+		);
+	});
+});
+
+test("refunded attempts do not inflate the rate-limit backoff or the (n/max) text", async () => {
+	await withPause("120", async (cwd) => {
+		const plain = await pending(cwd);
+		await failAttempt(cwd, plain, {
+			failureKind: "rate_limit",
+			text: "HTTP 429 rate limit",
+		});
+		const baseline = plain.task.launchRetry.retryAfterMs;
+		assert.ok(baseline > 0, "a rate limit without a hint backs off");
+		assert.match(plain.task.lastMessage, /\(1\/5\)/);
+		await pause.removeProviderPauseStateForTests();
+		// Three refunds already moved the attempt counter and the maximum by 3 each.
+		const refunded = await pending(cwd);
+		refunded.task.providerPauseRefunds = 3;
+		await failAttempt(cwd, refunded, {
+			failureKind: "rate_limit",
+			text: "HTTP 429 rate limit",
+			launchRetry: { attempts: 3, maxAttempts: 8, reason: "provider_pause" },
+		});
+		assert.equal(
+			refunded.task.launchRetry.retryAfterMs,
+			baseline,
+			"the backoff exponent counts only the attempts really spent",
+		);
+		assert.equal(
+			refunded.task.launchRetry.attempts,
+			4,
+			"attempt identity still moves",
+		);
+		assert.match(refunded.task.lastMessage, /\(1\/5\)/);
 	});
 });
 

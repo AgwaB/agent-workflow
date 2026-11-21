@@ -93,9 +93,6 @@ function isolatedEnv(home, tmp) {
 		AGENT_WORKFLOW_DASHBOARD_WARM_PROBES: "0",
 		// Unit runs must not fetch cited web pages; the evidence tests enable it explicitly.
 		AGENT_WORKFLOW_EVIDENCE_REFETCH: "0",
-		// The provider pause (circuit breaker) keeps home-wide state that would couple the many
-		// retry tests of a file; it is off here and the pause tests switch it on explicitly.
-		AGENT_WORKFLOW_PROVIDER_PAUSE_MAX_MINUTES: "0",
 		HOME: home,
 		USERPROFILE: home,
 		AGENT_WORKFLOW_HOME: join(home, ".agent-workflow"),

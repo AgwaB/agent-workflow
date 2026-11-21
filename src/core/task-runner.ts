@@ -182,9 +182,10 @@ async function deferLaunchForProviderPause(
 	cwd: string,
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
-	wait: { message: string; retryAfterMs: number },
+	wait: { message: string; retryAfterMs: number; persist: boolean },
 ): Promise<TaskLaunchResult> {
 	const changed =
+		wait.persist ||
 		task.status !== "pending" ||
 		task.statusDetail !== "provider_pause" ||
 		task.startedAt !== undefined ||
@@ -202,6 +203,38 @@ async function deferLaunchForProviderPause(
 }
 
 export async function launchWorkerTask(
+	cwd: string,
+	run: WorkflowRunRecord,
+	task: WorkflowTaskRunRecord,
+	compiledTask: CompiledTask,
+	leaseSignal?: AbortSignal,
+	workflowStopSignal?: AbortSignal,
+	preparedLaunch?: PreparedWorkflowTaskLaunch,
+): Promise<TaskLaunchResult> {
+	try {
+		return await launchWorkerTaskGated(
+			cwd,
+			run,
+			task,
+			compiledTask,
+			leaseSignal,
+			workflowStopSignal,
+			preparedLaunch,
+		);
+	} catch (error) {
+		// The launch threw and the task is not running: no worker will report an outcome, so a
+		// probe lease taken for it goes back instead of holding the provider until it times out.
+		if (task.status === "pending")
+			await providerPauseReleaseLease(
+				run,
+				task,
+				modelRateLimitBackoffKey(task, compiledTask),
+			);
+		throw error;
+	}
+}
+
+async function launchWorkerTaskGated(
 	cwd: string,
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
@@ -665,6 +698,7 @@ export async function launchWorkerTask(
 		if (workflowStopSignal?.aborted || isWorkflowStopRequestedError(error)) {
 			releaseLiveModelWorkerSlot?.();
 			clearTaskToolResultBudgetPendingConfiguration(task);
+			await providerPauseReleaseLease(run, task, providerPauseKey);
 			throw error;
 		}
 		if (leaseSignal?.aborted) {

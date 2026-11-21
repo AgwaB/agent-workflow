@@ -22,6 +22,8 @@ import {
 	writeStaticRunArtifacts,
 } from "../helpers/unit-test-support.mjs";
 
+import { removeProviderPauseStateForTests } from "../../dist/core/provider-pause.js";
+
 const setTaskRuntimeApiForTests = withMaterializedRawHost(setRawApi);
 const ARTIFACT_TOOL = "mcp__workflow_artifact__workflow_artifact";
 const BUSY =
@@ -49,6 +51,9 @@ async function refreshFailedAttempt({
 	bootstrapTools = configuredTools, // null: no launch record
 	inheritHostTools,
 }) {
+	// These tests assert retry eligibility; three BUSY failures of one home would open the provider
+	// pause (default on) and turn the later retries into pause waits, so each attempt starts clean.
+	await removeProviderPauseStateForTests();
 	const cwd = makeProject();
 	try {
 		writeAgent(cwd, "unit-scout", "read");

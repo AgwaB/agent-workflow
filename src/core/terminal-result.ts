@@ -36,6 +36,7 @@ import {
 	shouldRetryTransientModelFailure,
 	taskConfiguredToolsSideEffectFree,
 	transientFailureAttemptPath,
+	spentLaunchAttempts,
 	transientModelRateLimitBackoffMs,
 } from "./retry-policy.js";
 import { fromStatePath, isTerminalTaskStatus, nowIso } from "./store.js";
@@ -401,7 +402,8 @@ export async function materializeTerminalWorkerResult(
 		}
 		const retryAttempt = (task.launchRetry?.attempts ?? 0) + 1;
 		const rateLimitBackoffMs = transientModelRateLimitBackoffMs({
-			attempt: retryAttempt,
+			// Refunded attempts spent no retry: they must not lengthen the rate-limit backoff.
+			attempt: spentLaunchAttempts(task) + 1,
 			failureKind: statusInfo.failureKind,
 			modelBackoffKey: modelRateLimitBackoffKey(task),
 			errorMessage,

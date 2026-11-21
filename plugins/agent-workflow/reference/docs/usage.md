@@ -407,15 +407,15 @@ A five-hour provider limit can therefore leave a task waiting for hours. Use `--
 occupying the terminal, and `status` or the dashboard to see the scheduled retry. Existing run
 limits and stop controls still apply; the engine does not bypass the provider's limit.
 
-When a provider is overloaded (rate limit, HTTP 429/502/503/524/529, "overloaded", "busy", "saturated",
-"too many requests"; not mid-stream or socket failures) the run pauses instead of burning retries. After
+When a provider is overloaded (rate limit, an HTTP 429/502/503/524/529 status, "overloaded", "busy", "saturated",
+"too many requests"; not a bare number such as a line number, nor mid-stream or socket failures) the run pauses instead of burning retries. After
 3 such failures of one provider within 5 minutes (across all runs on this machine) no task of that
 provider launches for 5 minutes, then 10, 20, 40 and at most 60 on each repeat. After the wait one task
 probes the provider; the others keep waiting until it succeeds (the pause closes) or hits the overload
 again (the wait doubles). Overload failures that open the pause or happen during it do not use a task's
 retry budget. `status`, `show` and `wait` show `provider <name> overloaded: paused until HH:MMZ (pause n, m
 of 120 min)` while it lasts, and the run record keeps a `providerPause` summary per provider. A run pauses
-for at most 120 minutes in total (`AGENT_WORKFLOW_PROVIDER_PAUSE_MAX_MINUTES`); after that its failures
+for at most 120 minutes in total (`AGENT_WORKFLOW_PROVIDER_PAUSE_MAX_MINUTES`; time a run spends stopped does not count); after that its failures
 are counted as usual and tasks fail as before. `AGENT_WORKFLOW_PROVIDER_PAUSE_MAX_MINUTES=0` turns the pause off.
 
 ## Executors
