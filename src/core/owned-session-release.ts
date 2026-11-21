@@ -14,7 +14,7 @@ import {
 	EXPERIMENTAL_SAME_SESSION_REPAIR_ENV,
 	runExperimentalFlagEnabled,
 } from "./experimental-speed-flags.js";
-import { deriveWorkflowStatus, nowIso, summarizeTasks } from "./store.js";
+import { deriveRunTaskStatus, nowIso } from "./store.js";
 import type {
 	WorkflowRunExecutorSelection,
 	WorkflowRunRecord,
@@ -61,7 +61,7 @@ function releasableSessions(
 export async function releaseUnneededOwnedSessions(
 	run: WorkflowRunRecord,
 ): Promise<boolean> {
-	const status = deriveWorkflowStatus(summarizeTasks(run.tasks));
+	const status = deriveRunTaskStatus(run);
 	const runTerminal = status === "completed" || status === "failed";
 	const work = run.tasks.flatMap((task) =>
 		releasableSessions(task, runTerminal),

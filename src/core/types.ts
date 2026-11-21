@@ -1406,6 +1406,8 @@ export interface WorkflowTaskRunRecord {
 		branchId?: string;
 		outputProfile?: string;
 	};
+	/** Loop round this task belongs to; absent on records written before it existed. */
+	loopChild?: Pick<CompiledLoopChildTaskRef, "loopId" | "round">;
 	foreachGenerated?: {
 		placeholderSpecId: string;
 		itemIdentity?: string;

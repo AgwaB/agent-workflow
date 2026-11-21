@@ -355,6 +355,43 @@ test("bounded loop retries after a failed round and completes when a later round
 	}
 });
 
+test("a run whose bounded loop recovered in a later round completes with degradation, not failed", async () => {
+	const cwd = makeProject();
+	captureWorkerPrompts();
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		const runId = await startLoopWithConsumer(
+			cwd,
+			loopWithConsumerSpec({ maxRounds: 3 }),
+		);
+		let current = await failImplement(cwd, runId, 1);
+		assert.equal(taskBySpec(current, "fix-loop.r01.check").status, "skipped");
+		current = await finishLoopRound(cwd, runId, 2, PASS);
+		current = await scheduleRun(cwd, runId);
+		assert.equal(current.loopResults[0].status, "completed");
+		await completeTask(cwd, taskBySpec(current, "publish.main"), {});
+		await writeRunRecord(cwd, current);
+		current = await scheduleRun(cwd, runId);
+		assert.equal(taskBySpec(current, "publish.main").status, "completed");
+		assert.equal(current.status, "completed");
+		assert.equal(current.taskSummary.failed, 1);
+		assert.equal(current.taskSummary.skipped, 1);
+		assert.match(
+			current.degradation.summary,
+			/final rendered, 1\/\d+ tasks failed/,
+		);
+		// A completed run is not resumable (engine.ts resumeRun), so superseded tasks are never rerun.
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
 test("bounded loop whose child fails in the last round ends failed and skips onExhausted", async () => {
 	const cwd = makeProject();
 	captureWorkerPrompts();

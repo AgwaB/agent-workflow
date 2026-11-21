@@ -3404,9 +3404,46 @@ function isIndexRecordLike(
 export function deriveRunStatus(run: WorkflowRunRecord): WorkflowRunRecord {
 	const next = { ...run, tasks: run.tasks };
 	next.taskSummary = summarizeTasks(next.tasks);
-	next.status = deriveWorkflowStatus(next.taskSummary);
+	next.status = deriveRunTaskStatus(next);
 	next.degradation = computeRunDegradation(next);
 	return next;
+}
+
+/**
+ * A failed/skipped/interrupted task of an earlier round of a loop that did not end `failed` was
+ * recovered by a later round: it stays in every list and count but does not decide the run status.
+ * Records without `loopChild` (written before it existed) are never superseded.
+ */
+export function isSupersededLoopTask(
+	run: Pick<WorkflowRunRecord, "loopResults">,
+	task: Pick<WorkflowTaskRunRecord, "status" | "loopChild">,
+): boolean {
+	if (!task.loopChild) return false;
+	if (
+		task.status !== "failed" &&
+		task.status !== "skipped" &&
+		task.status !== "interrupted"
+	)
+		return false;
+	const result = run.loopResults?.find(
+		(candidate) => candidate.loopId === task.loopChild?.loopId,
+	);
+	return (
+		result !== undefined &&
+		result.status !== "failed" &&
+		task.loopChild.round < result.roundsUsed
+	);
+}
+
+/** The run status: `deriveWorkflowStatus` over the tasks that are not superseded loop-round tasks. */
+export function deriveRunTaskStatus(
+	run: Pick<WorkflowRunRecord, "tasks" | "loopResults">,
+): WorkflowRunStatus {
+	return deriveWorkflowStatus(
+		summarizeTasks(
+			run.tasks.filter((task) => !isSupersededLoopTask(run, task)),
+		),
+	);
 }
 
 /**
@@ -3481,7 +3518,9 @@ export function computeRunDegradation(
 				(task.outputRetry?.attempts ?? 0) > 0,
 		)
 		.map((task) => task.taskId);
-	const finalTasks = finalStageTasks(run.tasks);
+	const finalTasks = finalStageTasks(
+		run.tasks.filter((task) => !isSupersededLoopTask(run, task)),
+	);
 	const finalOutputRendered =
 		finalTasks.length > 0 &&
 		finalTasks.every((task) => task.status === "completed");
@@ -3845,6 +3884,14 @@ export function createTaskRunRecord(
 		sourceGeneration: task.sourceGeneration,
 		dynamicGenerated: task.dynamicGenerated,
 		foreachGenerated: task.foreachGenerated,
+		...(task.loopChild === undefined
+			? {}
+			: {
+					loopChild: {
+						loopId: task.loopChild.loopId,
+						round: task.loopChild.round,
+					},
+				}),
 		files,
 		lastMessage: blocked ? task.safety.permission.reason : undefined,
 	};

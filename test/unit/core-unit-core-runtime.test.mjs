@@ -5536,6 +5536,87 @@ test("run that failed at the final stage records no degradation", async () => {
 	}
 });
 
+function supersededLoopRun({
+	loopStatus = "completed",
+	failedRound = 1,
+	legacy = false,
+} = {}) {
+	const task = (specId, status, round, extra = {}) => ({
+		taskId: specId,
+		specId,
+		displayName: specId,
+		status,
+		statusDetail: status,
+		kind: "single",
+		...(round === undefined || legacy
+			? {}
+			: { loopChild: { loopId: "fix-loop", round } }),
+		...extra,
+	});
+	const at = (round, status) => (failedRound === round ? status : "completed");
+	return {
+		runId: "workflow_superseded",
+		tasks: [
+			task(
+				"fix-loop.loop",
+				loopStatus === "failed" ? "failed" : "completed",
+				undefined,
+				{
+					kind: "loop",
+				},
+			),
+			task("fix-loop.r01.implement", at(1, "failed"), 1),
+			task("fix-loop.r01.check", at(1, "skipped"), 1),
+			task("fix-loop.r02.implement", at(2, "failed"), 2),
+			task("fix-loop.r02.check", at(2, "skipped"), 2),
+			task("publish.main", "completed", undefined, {
+				dependsOn: ["fix-loop.loop"],
+			}),
+		],
+		loopResults: [
+			{
+				loopId: "fix-loop",
+				status: loopStatus,
+				roundsUsed: 2,
+				worktreePath: null,
+				summary: "",
+			},
+		],
+	};
+}
+
+test("failed/skipped tasks of a superseded loop round do not fail a completed run but stay visible", () => {
+	const derived = deriveRunStatus(supersededLoopRun());
+	assert.equal(derived.status, "completed");
+	assert.equal(derived.taskSummary.failed, 1);
+	assert.equal(derived.taskSummary.skipped, 1);
+	assert.equal(derived.taskSummary.total, 6);
+	assert.equal(derived.degradation.finalOutputRendered, true);
+	assert.deepEqual(derived.degradation.failedTaskIds, [
+		"fix-loop.r01.implement",
+	]);
+	assert.equal(derived.degradation.summary, "final rendered, 1/6 tasks failed");
+});
+
+test("the same failed/skipped tasks in the final loop round, a failed loop, or a legacy record still fail the run", () => {
+	assert.equal(
+		deriveRunStatus(supersededLoopRun({ failedRound: 2 })).status,
+		"failed",
+	);
+	assert.equal(
+		deriveRunStatus(supersededLoopRun({ loopStatus: "failed" })).status,
+		"failed",
+	);
+	assert.equal(
+		deriveRunStatus(supersededLoopRun({ legacy: true })).status,
+		"failed",
+	);
+	const running = supersededLoopRun();
+	delete running.loopResults;
+	running.tasks.find((t) => t.specId === "publish.main").status = "pending";
+	assert.equal(deriveRunStatus(running).status, "running");
+});
+
 test("deep-review finding-pipeline dedups by file+title-token overlap and partitions verdicts with severity join", async () => {
 	const helperPath = join(
 		dirname(fileURLToPath(import.meta.url)),
