@@ -297,6 +297,215 @@ async function finishLoopRound(cwd, runId, round, check) {
 	return readRunRecord(cwd, runId);
 }
 
+const PASS = { status: "pass", verdict: "ACCEPT", blockingFailures: [] };
+const FAIL = (...failures) => ({
+	status: "fail",
+	verdict: "REJECT",
+	blockingFailures: failures,
+});
+
+async function failImplement(cwd, runId, round) {
+	const current = await readRunRecord(cwd, runId);
+	const tag = `r${String(round).padStart(2, "0")}`;
+	setTaskTerminal(
+		taskBySpec(current, `fix-loop.${tag}.implement`),
+		"failed",
+		"simulated_backend_failure",
+	);
+	await writeRunRecord(cwd, current);
+	await scheduleRun(cwd, runId);
+	return scheduleRun(cwd, runId);
+}
+
+const ON_EXHAUSTED = {
+	id: "loop-summary",
+	type: "reduce",
+	prompt: "Summarize remaining failures.",
+};
+
+test("bounded loop retries after a failed round and completes when a later round meets until", async () => {
+	const cwd = makeProject();
+	captureWorkerPrompts();
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		const runId = await startLoopWithConsumer(
+			cwd,
+			loopWorkflowSpec({ maxRounds: 3, onExhausted: ON_EXHAUSTED }),
+		);
+		let current = await failImplement(cwd, runId, 1);
+		assert.equal(current.loopResults?.length ?? 0, 0);
+		assert.ok(taskBySpec(current, "fix-loop.r02.implement"));
+		current = await finishLoopRound(cwd, runId, 2, PASS);
+		current = await scheduleRun(cwd, runId);
+		assert.equal(current.loopResults[0].status, "completed");
+		assert.equal(current.loopResults[0].roundsUsed, 2);
+		assert.equal(taskBySpec(current, "fix-loop.loop").status, "completed");
+		assert.equal(
+			current.tasks.some((task) => task.specId.includes("onExhausted")),
+			false,
+		);
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
+test("bounded loop whose child fails in the last round ends failed and skips onExhausted", async () => {
+	const cwd = makeProject();
+	captureWorkerPrompts();
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		const runId = await startLoopWithConsumer(
+			cwd,
+			loopWorkflowSpec({ maxRounds: 2, onExhausted: ON_EXHAUSTED }),
+		);
+		let current = await failImplement(cwd, runId, 1);
+		assert.equal(current.loopResults?.length ?? 0, 0);
+		current = await failImplement(cwd, runId, 2);
+		assert.equal(current.loopResults[0].status, "failed");
+		assert.equal(current.loopResults[0].roundsUsed, 2);
+		assert.match(
+			current.loopResults[0].summary,
+			/child did not complete successfully/,
+		);
+		const loop = taskBySpec(current, "fix-loop.loop");
+		assert.equal(loop.status, "failed");
+		assert.equal(loop.statusDetail, "loop_failed");
+		assert.equal(
+			current.tasks.some((task) => task.specId.includes("onExhausted")),
+			false,
+		);
+		assert.equal(
+			current.tasks.some((task) => task.specId.includes(".r03.")),
+			false,
+		);
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
+test("a partial consumer of a bounded loop that failed in its last round gets the failed loop as an ordinary source", async () => {
+	const cwd = makeProject();
+	const prompts = captureWorkerPrompts();
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		const runId = await startLoopWithConsumer(
+			cwd,
+			loopWithConsumerSpec(
+				{ maxRounds: 1 },
+				{ sourcePolicy: "partial", inputPolicy: undefined },
+			),
+		);
+		const current = await failImplement(cwd, runId, 1);
+		assert.equal(current.loopResults[0].status, "failed");
+		assert.equal(taskBySpec(current, "fix-loop.loop").status, "failed");
+		assert.deepEqual(taskBySpec(current, "publish.main").dependsOn, [
+			"fix-loop.loop",
+		]);
+		assert.notEqual(taskBySpec(current, "publish.main").status, "skipped");
+		const prompt = prompts.find((text) => text.includes("Publish the final"));
+		assert.ok(prompt, "partial consumer ran");
+		// A failed loop is not swapped for its last round, so no Loop Results block (as for unlimited loops).
+		assert.doesNotMatch(prompt, /# Loop Results/);
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
+test("bounded loop with a failed child in the round that triggers no-progress ends failed", async () => {
+	const cwd = makeProject();
+	captureWorkerPrompts();
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		const spec = loopWorkflowSpec({ maxRounds: 5, onExhausted: ON_EXHAUSTED });
+		// The check still runs after a failed implement, so both rounds expose a progress metric.
+		spec.artifactGraph.stages[0].stages[1].sourcePolicy = "partial";
+		const runId = await startLoopWithConsumer(cwd, spec);
+		await finishLoopRound(cwd, runId, 1, FAIL("same"));
+		let current = await readRunRecord(cwd, runId);
+		setTaskTerminal(
+			taskBySpec(current, "fix-loop.r02.implement"),
+			"failed",
+			"simulated_backend_failure",
+		);
+		await writeRunRecord(cwd, current);
+		await scheduleRun(cwd, runId);
+		current = await readRunRecord(cwd, runId);
+		await completeTask(
+			cwd,
+			taskBySpec(current, "fix-loop.r02.check"),
+			FAIL("same"),
+		);
+		await writeRunRecord(cwd, current);
+		current = await scheduleRun(cwd, runId);
+		assert.equal(current.loopResults[0].status, "failed");
+		assert.equal(current.loopResults[0].roundsUsed, 2);
+		assert.equal(taskBySpec(current, "fix-loop.loop").status, "failed");
+		assert.equal(
+			current.tasks.some((task) => task.specId.includes("onExhausted")),
+			false,
+		);
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
+test("bounded loop whose last round fully completed with until false is still exhausted and runs onExhausted", async () => {
+	const cwd = makeProject();
+	captureWorkerPrompts();
+	try {
+		writeAgent(cwd, "unit-scout", "read");
+		const runId = await startLoopWithConsumer(
+			cwd,
+			loopWorkflowSpec({
+				maxRounds: 2,
+				progressPath: undefined,
+				onExhausted: ON_EXHAUSTED,
+			}),
+		);
+		await finishLoopRound(cwd, runId, 1, FAIL("a", "b"));
+		let current = await finishLoopRound(cwd, runId, 2, FAIL("a"));
+		const summary = taskBySpec(current, "fix-loop.onExhausted.loop-summary");
+		assert.ok(summary);
+		await completeTask(cwd, summary, { summary: "follow-up needed" });
+		await writeRunRecord(cwd, current);
+		current = await scheduleRun(cwd, runId);
+		assert.equal(current.loopResults[0].status, "exhausted");
+		assert.equal(taskBySpec(current, "fix-loop.loop").status, "completed");
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
 function readConsumerManifest(cwd, run, specId) {
 	const task = taskBySpec(run, specId);
 	return JSON.parse(
@@ -424,6 +633,7 @@ test("a consumer with after on a loop stays ordering-only and receives no loop s
 		]);
 		const prompt = prompts.find((text) => text.includes("Publish the final"));
 		assert.ok(prompt);
+		// A failed loop is not swapped for its last round, so no Loop Results block (as for unlimited loops).
 		assert.doesNotMatch(prompt, /# Loop Results/);
 		assert.equal(current.loopResults[0].status, "completed");
 	} finally {

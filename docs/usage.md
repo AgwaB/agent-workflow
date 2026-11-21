@@ -1014,8 +1014,10 @@ combinators `all`/`any`). A loop ends `completed` (until true), `exhausted` (pos
 used up), `stopped_no_progress` (the `progressPath` metric, default `$.blockingFailures`, did not
 decrease; omitted `progressPath` on an unlimited loop disables this) or `failed`. Only `failed`
 fails the loop task; `exhausted` and `stopped_no_progress` end it `completed` (`loop_exhausted`,
-`loop_stopped_no_progress`), so the run can still complete. An optional
-`onExhausted` stage runs once on exhaustion or no progress. There is no auto-merge of worktree output
+`loop_stopped_no_progress`), so the run can still complete. An unlimited loop ends `failed` after
+any round with a non-completed child; a bounded loop retries in the next round, but ends `failed`
+(not `exhausted`/`stopped_no_progress`) when the last round it runs has a non-completed child. An optional
+`onExhausted` stage runs once on exhaustion or no progress, never when the loop ends `failed`. There is no auto-merge of worktree output
 (see "Worktrees" under Retention).
 
 A `single`, `reduce` or `support` stage that names a loop in `from` receives the outputs of every
