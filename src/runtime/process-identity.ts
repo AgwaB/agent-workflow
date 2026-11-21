@@ -165,9 +165,27 @@ export function setProcessIdentityInspectorForTests(
 	inspectorForTests = inspector;
 }
 
+/**
+ * ESRCH from `kill(pid, 0)` proves no process has this pid. Unlike a Darwin helper run (2 s bound,
+ * `unknown` on timeout under load) it is instant and cannot fail, so a SIGKILLed worker is `dead`
+ * at once instead of `unknown` until the stop's acknowledgement budget is gone. Any other outcome
+ * (alive, EPERM, error) proves nothing about identity and falls through to the full inspection.
+ */
+function pidIsAbsent(pid: number): boolean {
+	if (process.platform === "win32" || !Number.isSafeInteger(pid) || pid <= 0)
+		return false;
+	try {
+		process.kill(pid, 0);
+		return false;
+	} catch (error) {
+		return (error as NodeJS.ErrnoException)?.code === "ESRCH";
+	}
+}
+
 export async function inspectProcessIdentity(
 	pid: number,
 ): Promise<ProcessIdentityStatus> {
+	if (pidIsAbsent(pid)) return { state: "dead" };
 	if (inspectorForTests !== undefined)
 		return await inspectorForTests(pid, inspectProcessIdentityDirect);
 	return await inspectProcessIdentityDirect(pid);
