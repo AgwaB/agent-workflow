@@ -389,9 +389,16 @@ export function projectRun(
 			...(retry
 				? {
 						retry: {
-							attempt: retry.attempts,
+							// Provider-pause refunds moved both counters; show what the task spent.
+							attempt:
+								retry.attempts -
+								(task.launchRetry ? (task.providerPauseRefunds ?? 0) : 0),
 							...(retry.maxAttempts !== undefined
-								? { maxAttempts: retry.maxAttempts }
+								? {
+										maxAttempts:
+											retry.maxAttempts -
+											(task.launchRetry ? (task.providerPauseRefunds ?? 0) : 0),
+									}
 								: {}),
 							...(retry.message || retry.reason
 								? { reason: retry.message ?? retry.reason }

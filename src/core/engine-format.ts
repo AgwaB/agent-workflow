@@ -4,6 +4,7 @@ import { blockedActionsLabel, runBlockedActions } from "./blocked-actions.js";
 import { lstat } from "node:fs/promises";
 import { isAbsolute, relative } from "node:path";
 import { displayPathUnderHome } from "./home-dir.js";
+import { formatProviderPauseLine } from "./provider-pause.js";
 import {
 	DEFAULT_COMMAND_HINTS,
 	type WorkflowCommandHints,
@@ -182,7 +183,7 @@ export function runHasNoLiveDriver(
 export function formatRunStallWarning(
 	run: Pick<
 		WorkflowRunRecord,
-		"runId" | "status" | "createdAt" | "taskSummary"
+		"runId" | "status" | "createdAt" | "taskSummary" | "providerPause"
 	> & {
 		tasks?: WorkflowRunRecord["tasks"];
 	},
@@ -206,6 +207,8 @@ export function formatRunStallWarning(
 	const retry = scheduledRetryWait(run, nowMs);
 	if (retry)
 		return `⏳ ${formatScheduledRetryWait(retry)}; no task progress for ${formatStallAge(stall.ageMs)} is expected until then`;
+	// A provider pause is shown on its own line; no task progress is expected while it lasts.
+	if (formatProviderPauseLine(run, nowMs)) return undefined;
 	return `⚠ no task progress for ${formatStallAge(stall.ageMs)} (heartbeat alive — possible stall; inspect ${hints.logs(run.runId)})`;
 }
 
@@ -626,6 +629,7 @@ function isWaitingTask(task: WorkflowTaskRunRecord): boolean {
 		text.includes("backoff") ||
 		text.includes("waiting until") ||
 		text.includes("retry_model_failure") ||
+		text.includes("provider_pause") ||
 		text.includes("rate-limit")
 	);
 }
@@ -704,6 +708,8 @@ function formatWarnings(
 		const retry = scheduledRetryWait(run, options.nowMs ?? Date.now());
 		if (retry) lines.push(`⏳ ${formatScheduledRetryWait(retry)}`);
 	}
+	const pause = formatProviderPauseLine(run, options.nowMs ?? Date.now());
+	if (pause) lines.push(`⏳ ${pause}`);
 	return lines.length > 0 ? ["", ...lines] : [];
 }
 
@@ -997,6 +1003,8 @@ export function formatRun(
 		options.driverLive,
 	);
 	if (stallWarning) lines.push(stallWarning);
+	const pauseLine = formatProviderPauseLine(run, options.nowMs ?? Date.now());
+	if (pauseLine) lines.push(`⏳ ${pauseLine}`);
 	if (isDriverLostRun(run)) lines.push(DRIVER_LOST_RUN_SENTENCE);
 
 	for (const task of run.tasks) {

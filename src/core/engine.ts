@@ -300,6 +300,7 @@ import {
 	DRIVER_LOST_STATUS_DETAIL,
 	markRunStopped,
 } from "./run-stop-marking.js";
+import { closeProviderPauseForResume } from "./provider-pause.js";
 import {
 	requiredDynamicString,
 	remainingDynamicRuntimeMs,
@@ -3190,6 +3191,8 @@ export async function resumeRun(
 		await resumeLeaseMutation(cwd, run.runId, leaseSignal, () =>
 			workflowTaskRunner().cleanupRun(cwd, run),
 		);
+		// Time spent stopped is not provider-pause time: end any interval the stop left open.
+		closeProviderPauseForResume(run);
 		if (!planned) {
 			await resumeLeaseMutation(cwd, run.runId, leaseSignal, async () => {
 				const dependencyResumable = dependencyResumableBlocks(

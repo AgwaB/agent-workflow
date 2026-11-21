@@ -22,14 +22,21 @@ import {
 	resultCompletedAfterTimeout,
 } from "./result.js";
 import {
+	deferTaskForProviderPause,
+	providerPauseAttemptPath,
+	providerPauseObserveTerminal,
+} from "./provider-pause.js";
+import {
 	classifyDeterministicBootFailure,
 	classifyPermanentModelFailure,
 	modelRateLimitBackoffKey,
+	providerOverloadSignal,
 	recordSharedModelRateLimitBackoff,
 	retryOrFailTransientWorkerFailure,
 	shouldRetryTransientModelFailure,
 	taskConfiguredToolsSideEffectFree,
 	transientFailureAttemptPath,
+	spentLaunchAttempts,
 	transientModelRateLimitBackoffMs,
 } from "./retry-policy.js";
 import { fromStatePath, isTerminalTaskStatus, nowIso } from "./store.js";
@@ -183,6 +190,30 @@ export async function materializeTerminalWorkerResult(
 	if (blockedActions) task.blockedActions = blockedActions;
 	else delete task.blockedActions;
 	const activeForeachBatch = activeForeachBatchRecordForTask(run, task);
+	// Provider pause: overload failures open (or extend) the pause and may be refunded; any other
+	// outcome of the probe task closes it.
+	const providerKey = modelRateLimitBackoffKey(task);
+	const overload =
+		statusInfo.status === "failed"
+			? providerOverloadSignal({
+					failureKind: statusInfo.failureKind,
+					errorMessage,
+					stderrText,
+					workerResult,
+					snapshotMetadata: snapshot.metadata,
+				})
+			: { overload: false, hintMs: undefined };
+	const providerPause = await providerPauseObserveTerminal({
+		run,
+		task,
+		key: providerKey,
+		outcome: overload.overload
+			? "overload"
+			: statusInfo.status === "interrupted" || statusInfo.status === "blocked"
+				? "release"
+				: "success",
+		hintMs: overload.hintMs,
+	});
 	// B3: the runtime could not prove whether the attempt launched (reconcile `unknown`). Stop
 	// in a state that needs an owner decision; never retry, relaunch or fall back (a batch is
 	// stopped with both members blocked instead of falling back to per-item launches).
@@ -353,9 +384,26 @@ export async function materializeTerminalWorkerResult(
 			taskConfiguredToolsSideEffectFree(task),
 		)
 	) {
+		if (providerPause.refund && providerPause.openUntilMs !== undefined) {
+			await writeJson(
+				providerPauseAttemptPath(
+					resultFile,
+					(task.providerPauseRefunds ?? 0) + 1,
+				),
+				workflowResult,
+			);
+			deferTaskForProviderPause(task, {
+				key: providerKey,
+				message: errorMessage ?? "executor run failed before producing output",
+				openUntilMs: providerPause.openUntilMs,
+			});
+			await recordTerminalParentWorkerChildEvent(run, task, snapshot);
+			return true;
+		}
 		const retryAttempt = (task.launchRetry?.attempts ?? 0) + 1;
 		const rateLimitBackoffMs = transientModelRateLimitBackoffMs({
-			attempt: retryAttempt,
+			// Refunded attempts spent no retry: they must not lengthen the rate-limit backoff.
+			attempt: spentLaunchAttempts(task) + 1,
 			failureKind: statusInfo.failureKind,
 			modelBackoffKey: modelRateLimitBackoffKey(task),
 			errorMessage,

@@ -1,3 +1,4 @@
+import { activeProviderPause } from "./provider-pause.js";
 import type {
 	TaskRunStatus,
 	WorkflowRunRecord,
@@ -64,7 +65,7 @@ type TaskHealthInput = Pick<
 
 type RunHealthInput = Pick<
 	WorkflowRunRecord,
-	"status" | "taskSummary" | "createdAt" | "updatedAt"
+	"status" | "taskSummary" | "createdAt" | "updatedAt" | "providerPause"
 > & {
 	tasks?: TaskHealthInput[];
 };
@@ -221,6 +222,18 @@ function waitingWorkflowHealth(
 ): WorkflowProgressHealth {
 	const hasPending = run.taskSummary.pending > 0;
 	const lastActivityAgeMs = ageMs(run.updatedAt, nowMs);
+	// A provider pause is a deliberate wait (bounded by its per-run cap), never a stuck scheduler.
+	if (hasPending && activeProviderPause(run))
+		return {
+			state: "pending",
+			label: "provider paused",
+			summary: "waiting for the overloaded provider to recover",
+			tone: "dim",
+			suggestion: "wait",
+			reason: "the provider pause holds pending tasks until its probe succeeds",
+			lastActivityAt: run.updatedAt,
+			lastActivityAgeMs,
+		};
 	if (hasPending && lastActivityAgeMs !== undefined) {
 		if (lastActivityAgeMs >= STUCK_BY_DURATION.medium) {
 			return {

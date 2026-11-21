@@ -9,6 +9,7 @@ import {
 	sleep,
 } from "./launch-operations.js";
 import { releaseLiveModelWorkerSlotForTask } from "./launch-slots.js";
+import { providerPauseReleaseRunLeases } from "./provider-pause.js";
 import { nowIso, writeRunRecordDurable } from "./store.js";
 import { getWorkerHandle } from "./task-artifacts.js";
 import { type WorkflowRunRecord, type WorkflowTaskRunRecord } from "./types.js";
@@ -57,6 +58,8 @@ export async function cleanupWorkerRun(
 	run: WorkflowRunRecord,
 ): Promise<void> {
 	const errors: unknown[] = [];
+	// A stopped/interrupted/resumed run's probe lease must not hold the provider until it times out.
+	await providerPauseReleaseRunLeases(run.runId);
 	for (const task of run.tasks) {
 		if (task.status !== "running") continue;
 		const batch = activeForeachBatchRecordForTask(run, task);

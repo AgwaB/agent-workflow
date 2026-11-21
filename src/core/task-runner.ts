@@ -158,6 +158,10 @@ import {
 	recordTaskTimingTelemetry,
 	recordTaskToolResultBudgetPendingConfiguration,
 } from "./task-observability.js";
+import {
+	providerPauseLaunchGate,
+	providerPauseReleaseLease,
+} from "./provider-pause.js";
 import { materializeTerminalWorkerResult } from "./terminal-result.js";
 import {
 	type CompiledTask,
@@ -174,7 +178,63 @@ import {
 
 const STALE_LAUNCH_CLAIM_GRACE_MS = 30_000;
 const REFRESH_STATUS_RECONCILE_CONCURRENCY = 8;
+async function deferLaunchForProviderPause(
+	cwd: string,
+	run: WorkflowRunRecord,
+	task: WorkflowTaskRunRecord,
+	wait: { message: string; retryAfterMs: number; persist: boolean },
+): Promise<TaskLaunchResult> {
+	const changed =
+		wait.persist ||
+		task.status !== "pending" ||
+		task.statusDetail !== "provider_pause" ||
+		task.startedAt !== undefined ||
+		task.lastMessage !== wait.message;
+	task.status = "pending";
+	task.statusDetail = "provider_pause";
+	task.startedAt = undefined;
+	task.lastMessage = wait.message;
+	if (changed) await writeRunRecord(cwd, run);
+	return {
+		kind: "capacity",
+		message: wait.message,
+		retryAfterMs: wait.retryAfterMs,
+	};
+}
+
 export async function launchWorkerTask(
+	cwd: string,
+	run: WorkflowRunRecord,
+	task: WorkflowTaskRunRecord,
+	compiledTask: CompiledTask,
+	leaseSignal?: AbortSignal,
+	workflowStopSignal?: AbortSignal,
+	preparedLaunch?: PreparedWorkflowTaskLaunch,
+): Promise<TaskLaunchResult> {
+	try {
+		return await launchWorkerTaskGated(
+			cwd,
+			run,
+			task,
+			compiledTask,
+			leaseSignal,
+			workflowStopSignal,
+			preparedLaunch,
+		);
+	} catch (error) {
+		// The launch threw and the task is not running: no worker will report an outcome, so a
+		// probe lease taken for it goes back instead of holding the provider until it times out.
+		if (task.status === "pending")
+			await providerPauseReleaseLease(
+				run,
+				task,
+				modelRateLimitBackoffKey(task, compiledTask),
+			);
+		throw error;
+	}
+}
+
+async function launchWorkerTaskGated(
 	cwd: string,
 	run: WorkflowRunRecord,
 	task: WorkflowTaskRunRecord,
@@ -209,6 +269,19 @@ export async function launchWorkerTask(
 	// R#5 (D2): a task that requires a worktree must run inside its managed worktree. This is
 	// the last gate before an executor effect, whatever engine path prepared the task.
 	assertWorktreeEnforced(task, compiledTask);
+
+	// Provider pause: while the provider of this task is overloaded nothing of it launches.
+	const providerPauseKey = modelRateLimitBackoffKey(task, compiledTask);
+	const pausedEarly = await providerPauseLaunchGate(
+		run,
+		task,
+		providerPauseKey,
+		{
+			acquire: false,
+		},
+	);
+	if (pausedEarly.kind === "wait")
+		return await deferLaunchForProviderPause(cwd, run, task, pausedEarly);
 
 	const taskHasRateLimitRetry =
 		(task.launchRetry?.attempts ?? 0) > 0 &&
@@ -276,6 +349,18 @@ export async function launchWorkerTask(
 			retryAfterMs: sharedRateLimitBackoff.remainingMs,
 		};
 	}
+
+	// After `openUntil` exactly one task of the provider takes the probe lease here.
+	const pausedLate = await providerPauseLaunchGate(
+		run,
+		task,
+		providerPauseKey,
+		{
+			acquire: true,
+		},
+	);
+	if (pausedLate.kind === "wait")
+		return await deferLaunchForProviderPause(cwd, run, task, pausedLate);
 
 	const systemPromptFile = fromStatePath(cwd, task.files.systemPrompt);
 	const taskPromptFile = fromStatePath(cwd, task.files.taskPrompt);
@@ -370,6 +455,7 @@ export async function launchWorkerTask(
 			compiledTask,
 		});
 		if (liveModelWorkerAdmission.kind === "deferred") {
+			await providerPauseReleaseLease(run, task, providerPauseKey);
 			const launchQueuedAt = task.timing?.launchQueuedAt ?? nowIso();
 			task.status = "pending";
 			task.statusDetail = "pending";
@@ -612,6 +698,7 @@ export async function launchWorkerTask(
 		if (workflowStopSignal?.aborted || isWorkflowStopRequestedError(error)) {
 			releaseLiveModelWorkerSlot?.();
 			clearTaskToolResultBudgetPendingConfiguration(task);
+			await providerPauseReleaseLease(run, task, providerPauseKey);
 			throw error;
 		}
 		if (leaseSignal?.aborted) {

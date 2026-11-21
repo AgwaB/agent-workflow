@@ -35,6 +35,7 @@ import {
 	interruptDriverLostRuns,
 	readRunInterruptingDriverLost,
 } from "../core/driver-lost.js";
+import { formatProviderPauseLine } from "../core/provider-pause.js";
 import { isDriverLostRun } from "../core/run-stop-marking.js";
 import {
 	formatWorkflowPruneSummary,
@@ -806,6 +807,8 @@ export async function waitAction(
 		text = `Workflow still running: ${run.name ?? "workflow"}\nRun: ${run.runId}\nProgress: ${run.taskSummary.completed}/${run.taskSummary.total} completed, ${run.taskSummary.running} running (waited ${timeoutMs}ms; wait again to keep driving it)`;
 		if (nextRetry)
 			text += `\nNow ${formatScheduledRetryWait(nextRetry)}${nextRetry.message ? `: ${nextRetry.message}` : ""}; no progress before then.`;
+		const providerPause = formatProviderPauseLine(run);
+		if (providerPause) text += `\n${providerPause}; no progress before then.`;
 	} else if (
 		terminal.terminal &&
 		preview &&

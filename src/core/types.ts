@@ -1431,6 +1431,8 @@ export interface WorkflowTaskRunRecord {
 		nextEligibleAt?: string;
 		retryAfterMs?: number;
 	};
+	/** Overload failures refunded by the provider pause (each raised `launchRetry.maxAttempts` with `attempts`). */
+	providerPauseRefunds?: number;
 }
 
 export interface TaskSummary {
@@ -1997,6 +1999,20 @@ export interface WorkflowRunRecord {
 	foreachBatches?: WorkflowForeachBatchRecord[];
 	/** Task-usage rollup persisted when the run reaches a terminal status or blocks (WP12a). */
 	usage?: WorkflowRunUsageRollup;
+	/** Provider pause summary per provider key (provider-pause.ts); `pausedSince` only while paused. */
+	providerPause?: Record<
+		string,
+		{
+			opens: number;
+			pausedMs: number;
+			capReached?: true;
+			pausedSince?: string;
+			/** Last time the scheduler was seen waiting (bounds an interval left open by a stop). */
+			pausedSeenAt?: string;
+			openUntil?: string;
+			pause?: number;
+		}
+	>;
 	tasks: WorkflowTaskRunRecord[];
 }
 
