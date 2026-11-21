@@ -1,3 +1,4 @@
+import { isSupersededLoopTask } from "./store.js";
 import type { WorkflowRunRecord, WorkflowTaskRunRecord } from "./types.js";
 
 type StatusCounts = Partial<Record<WorkflowTaskRunRecord["status"], number>>;
@@ -53,6 +54,7 @@ export interface WorkflowTelemetrySummary {
 export function summarizeWorkflowTelemetry(
 	run: Pick<WorkflowRunRecord, "createdAt" | "updatedAt"> & {
 		tasks?: Array<Partial<WorkflowTaskRunRecord>>;
+		loopResults?: WorkflowRunRecord["loopResults"];
 	},
 	options: { outputBytesByTaskId?: Record<string, number> } = {},
 ): WorkflowTelemetrySummary {
@@ -89,7 +91,18 @@ export function summarizeWorkflowTelemetry(
 		accumulator.outputRetries +
 		accumulator.launchRetries +
 		accumulator.resumeEvents;
-	const health = completionHealth(tasks, repairEvents, accumulator);
+	// A loop round recovered by a later round counts as a repair, not as missing work.
+	const superseded = tasks.filter((task) =>
+		isSupersededLoopTask(
+			run,
+			task as Pick<WorkflowTaskRunRecord, "status" | "loopChild">,
+		),
+	);
+	const health = completionHealth(
+		tasks.filter((task) => !superseded.includes(task)),
+		repairEvents + superseded.length,
+		accumulator,
+	);
 
 	return {
 		taskCount: tasks.length,
