@@ -9,9 +9,11 @@ on:
 permissions:
   contents: read
 
+# A pull request keeps only its newest run. Every push to main gets its own complete run (owner 2026-11-21): a
+# landing watches the CI of its own merge, and back-to-back landings used to cancel each other's runs.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:
