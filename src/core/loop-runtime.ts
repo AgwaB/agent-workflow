@@ -107,10 +107,10 @@ export async function scheduleLoop(
 		return true;
 	}
 
-	if (
-		loopStage.maxRounds === null &&
-		roundTasks.some((task) => task.status !== "completed")
-	) {
+	const roundFailed = roundTasks.some((task) => task.status !== "completed");
+	// Unlimited loops stop on any failed round. Bounded loops retry a failed round, but
+	// a failed child in the last round they run is a failure, not rubric exhaustion.
+	if (loopStage.maxRounds === null && roundFailed) {
 		await finalizeLoop(
 			cwd,
 			run,
@@ -124,6 +124,18 @@ export async function scheduleLoop(
 	}
 
 	if (loopStage.maxRounds !== null && currentRound >= loopStage.maxRounds) {
+		if (roundFailed) {
+			await finalizeLoop(
+				cwd,
+				run,
+				compiledFlow,
+				placeholderRunTask,
+				loopStage,
+				"failed",
+				currentRound,
+			);
+			return true;
+		}
 		await stopLoopOrRunOnExhausted(
 			cwd,
 			run,
@@ -146,6 +158,18 @@ export async function scheduleLoop(
 			currentRound,
 		)
 	) {
+		if (roundFailed) {
+			await finalizeLoop(
+				cwd,
+				run,
+				compiledFlow,
+				placeholderRunTask,
+				loopStage,
+				"failed",
+				currentRound,
+			);
+			return true;
+		}
 		await stopLoopOrRunOnExhausted(
 			cwd,
 			run,
