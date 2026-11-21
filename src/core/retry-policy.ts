@@ -16,7 +16,7 @@ import { providerRetryAfterMs } from "./provider-retry.js";
 import { nowIso } from "./store.js";
 import { type CompiledTask, type WorkflowTaskRunRecord } from "./types.js";
 
-const DEFAULT_TRANSIENT_MODEL_FAILURE_RETRIES = 5;
+export const DEFAULT_TRANSIENT_MODEL_FAILURE_RETRIES = 5;
 const DEFAULT_ARTIFACT_OUTPUT_RETRIES = 2;
 export const TRANSIENT_MODEL_FAILURE_RETRIES_ENV =
 	"AGENT_WORKFLOW_TRANSIENT_MODEL_FAILURE_RETRIES";
@@ -117,7 +117,7 @@ async function loadPersistedSharedModelRateLimitBackoffs(): Promise<void> {
 	}
 }
 
-async function withSharedRateLimitBackoffLock<T>(
+export async function withSharedRateLimitBackoffLock<T>(
 	file: string,
 	action: () => Promise<T>,
 ): Promise<T> {
@@ -474,6 +474,62 @@ function defaultRateLimitBackoffMs(
 	const exponent = Math.max(0, Math.min(4, Math.floor(attempt) - 1));
 	const profile = rateLimitBackoffProfile(modelBackoffKey);
 	return Math.min(profile.maxMs, profile.baseMs * 2 ** exponent);
+}
+
+const PROVIDER_OVERLOAD_TEXT =
+	/(?:\b(?:429|502|503|524|529)\b|overloaded|saturated|\bbusy\b|too many requests)/i;
+// Overload (provider pause): the executor said rate_limit, or a transient/model failure whose
+// text names an overload status. Mid-stream and socket failures carry none of these words.
+const PROVIDER_OVERLOAD_FAILURE_KINDS: ReadonlySet<string> = new Set([
+	"model",
+	"transient",
+	"rate_limit",
+]);
+
+export function providerOverloadSignal(options: {
+	failureKind?: string;
+	errorMessage?: string;
+	stderrText: string;
+	workerResult?: Record<string, unknown>;
+	snapshotMetadata?: Record<string, unknown> | null;
+}): { overload: boolean; hintMs?: number } {
+	if (!PROVIDER_OVERLOAD_FAILURE_KINDS.has(options.failureKind ?? ""))
+		return { overload: false };
+	const candidates = failureTextCandidates(options);
+	const rateLimited =
+		options.failureKind === "rate_limit" ||
+		candidates.some(isRateLimitModelFailureText);
+	if (
+		!rateLimited &&
+		!candidates.some((text) => PROVIDER_OVERLOAD_TEXT.test(text))
+	)
+		return { overload: false };
+	const nowMs = Date.now();
+	const hints = candidates
+		.map((text) => providerRetryAfterMs(text, nowMs))
+		.filter((delay): delay is number => delay !== undefined);
+	if (!hints.length) return { overload: true };
+	const hint = Math.max(...hints);
+	return {
+		overload: true,
+		hintMs: rateLimited ? hint : Math.min(hint, TRANSIENT_HINT_BACKOFF_MAX_MS),
+	};
+}
+
+function failureTextCandidates(options: {
+	errorMessage?: string;
+	stderrText: string;
+	workerResult?: Record<string, unknown>;
+	snapshotMetadata?: Record<string, unknown> | null;
+}): string[] {
+	return [
+		options.errorMessage,
+		options.stderrText,
+		...metadataTextValues(options.workerResult?.metadata),
+		...metadataTextValues(options.snapshotMetadata),
+	].filter(
+		(value): value is string => typeof value === "string" && value.length > 0,
+	);
 }
 
 export function transientModelRateLimitBackoffMs(options: {

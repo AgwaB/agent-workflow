@@ -33,6 +33,9 @@
 //   controlSequence  { "<task id>": [control, …] }: the Nth submit for that task (counted in the
 //                 effect log, so across worker processes) answers with the Nth control (the last
 //                 one repeats) instead of the default `{schema, digest}` control
+//   failures      { "<task id>" | "*": [{class, message}, …] }: the Nth submit of that task (per task, counted in the
+//                 effect log) ends with a failed event of that class and message (provider overload / socket
+//                 failures for the provider-pause tests); once the list is used up the task answers normally
 //   replay        { file }: answer from a recorded run (test/helpers/regression-fixtures.mjs). The Nth submit of a
 //                 task answers with the Nth recorded output of its spec id (failed attempts first, the last one
 //                 repeats) after re-doing the recorded artifact reads; a spec id without a recording answers
@@ -261,6 +264,19 @@ function scriptFor(req, config) {
 						],
 					)
 				: workflowFinalText(label);
+	const failure = (config.failures?.[label] ?? config.failures?.["*"])?.[
+		submitsFor(config.effectLog, label) - 1
+	];
+	if (failure)
+		return [
+			{ type: "started", sessionId: null },
+			{
+				type: "failed",
+				class: failure.class,
+				message: failure.message,
+				raw: null,
+			},
+		];
 	return [
 		{ type: "started", sessionId: null },
 		...(config.beforeOutputSteps ?? []),

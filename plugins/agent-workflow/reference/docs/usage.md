@@ -407,6 +407,17 @@ A five-hour provider limit can therefore leave a task waiting for hours. Use `--
 occupying the terminal, and `status` or the dashboard to see the scheduled retry. Existing run
 limits and stop controls still apply; the engine does not bypass the provider's limit.
 
+When a provider is overloaded (rate limit, HTTP 429/502/503/524/529, "overloaded", "busy", "saturated",
+"too many requests"; not mid-stream or socket failures) the run pauses instead of burning retries. After
+3 such failures of one provider within 5 minutes (across all runs on this machine) no task of that
+provider launches for 5 minutes, then 10, 20, 40 and at most 60 on each repeat. After the wait one task
+probes the provider; the others keep waiting until it succeeds (the pause closes) or hits the overload
+again (the wait doubles). Overload failures that open the pause or happen during it do not use a task's
+retry budget. `status`, `show` and `wait` show `provider <name> overloaded: paused until HH:MMZ (pause n, m
+of 120 min)` while it lasts, and the run record keeps a `providerPause` summary per provider. A run pauses
+for at most 120 minutes in total (`AGENT_WORKFLOW_PROVIDER_PAUSE_MAX_MINUTES`); after that its failures
+are counted as usual and tasks fail as before. `AGENT_WORKFLOW_PROVIDER_PAUSE_MAX_MINUTES=0` turns the pause off.
+
 ## Executors
 
 | Executor | CLI | Notes |
@@ -1473,6 +1484,7 @@ own variables (`CODEX_HOME`, `ANTHROPIC_API_KEY`, …); see [executors.md](https
 | `AGENT_WORKFLOW_MAX_LIVE_MODEL_WORKERS` | Optional positive ceiling on live model workers. | unset (no ceiling) |
 | `AGENT_WORKFLOW_TRANSIENT_MODEL_FAILURE_RETRIES` | Retries of a task after a transient model/executor failure (non-negative). | `5` |
 | `AGENT_WORKFLOW_ARTIFACT_OUTPUT_RETRIES` | Retries of a task whose output fails the output contract (non-negative). | `2` |
+| `AGENT_WORKFLOW_PROVIDER_PAUSE_MAX_MINUTES` | Most minutes one run waits in a provider pause (overload circuit breaker, [Provider rate-limit waits](#provider-rate-limit-waits)); `0` turns the pause off, an invalid value uses the default. | `120` |
 | `AGENT_WORKFLOW_CANCEL_GRACE_MS` | Grace period between a cancel request and forced termination of a worker. | `10000` |
 | `AGENT_WORKFLOW_HEARTBEAT_MS` | Durable worker heartbeat interval (minimum 50). | `5000` |
 | `AGENT_WORKFLOW_CONTROL_POLL_MS` | Poll interval of the durable control mailbox (approval answers, cancel requests; minimum 5). | `50` |
