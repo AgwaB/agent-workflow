@@ -1,4 +1,5 @@
 // Agent-workflow state is separate from Pi project state.
+import { realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join, relative, resolve } from "node:path";
 
@@ -28,7 +29,23 @@ export const PI_PROJECT_DIRECTORY = ".pi";
 export function displayPathUnderHome(path: string): string {
 	const home = homedir();
 	if (!home) return path;
+	// Compare as written first, then as real paths: a symlinked home (macOS /var → /private/var) must
+	// still match the real paths the engine records.
+	const rel =
+		homeRelative(home, path) ??
+		homeRelative(realOrSelf(home), realOrSelf(path));
+	return rel === undefined ? path : `~/${rel.split("\\").join("/")}`;
+}
+
+function homeRelative(home: string, path: string): string | undefined {
 	const rel = relative(home, path);
-	if (!rel || rel.startsWith("..") || isAbsolute(rel)) return path;
-	return `~/${rel.split("\\").join("/")}`;
+	return !rel || rel.startsWith("..") || isAbsolute(rel) ? undefined : rel;
+}
+
+function realOrSelf(path: string): string {
+	try {
+		return realpathSync(path);
+	} catch {
+		return path;
+	}
 }

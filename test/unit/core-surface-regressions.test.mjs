@@ -286,3 +286,31 @@ test("managed worktree path under the user's home renders as ~/… and survives 
 		else process.env.USERPROFILE = savedProfile;
 	}
 });
+
+test("a worktree under a symlinked home still renders as ~/…", async () => {
+	const { displayPathUnderHome } = await import("../../dist/core/home-dir.js");
+	const { symlink } = await import("node:fs/promises");
+	const base = await mkdtemp(join(tmpdir(), "aw-home-link-"));
+	const saved = process.env.HOME;
+	const savedProfile = process.env.USERPROFILE;
+	try {
+		const real = join(base, "real");
+		await mkdir(join(real, "proj", "wt"), { recursive: true });
+		const link = join(base, "link");
+		await symlink(real, link);
+		// HOME is the symlink; the engine records worktrees by their real path (macOS /var → /private/var).
+		process.env.HOME = link;
+		process.env.USERPROFILE = link;
+		const { realpathSync } = await import("node:fs");
+		const worktree = join(realpathSync(real), "proj", "wt");
+		assert.equal(displayPathUnderHome(worktree), "~/proj/wt");
+		// Outside the home it is left as is.
+		assert.equal(displayPathUnderHome(base), base);
+	} finally {
+		if (saved === undefined) delete process.env.HOME;
+		else process.env.HOME = saved;
+		if (savedProfile === undefined) delete process.env.USERPROFILE;
+		else process.env.USERPROFILE = savedProfile;
+		await rm(base, { recursive: true, force: true });
+	}
+});

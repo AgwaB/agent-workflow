@@ -2012,6 +2012,31 @@ test("workflow artifact telemetry summarizes stage status, retries, wall clock, 
 	});
 	assert.equal(repaired.completion.health, "repaired");
 	assert.equal(repaired.completion.repaired, true);
+
+	// A loop that recovered in a later round: the superseded round-1 failure makes the run repaired, not incomplete.
+	const loopTasks = [
+		{ status: "failed", loopChild: { loopId: "polish", round: 1 } },
+		{ status: "skipped", loopChild: { loopId: "polish", round: 1 } },
+		{ status: "completed", loopChild: { loopId: "polish", round: 2 } },
+		{ status: "completed", loopChild: { loopId: "polish", round: 2 } },
+		{ status: "completed" },
+	];
+	const recovered = summarizeWorkflowTelemetry({
+		createdAt: "2026-06-08T00:00:00.000Z",
+		updatedAt: "2026-06-08T00:00:01.000Z",
+		tasks: loopTasks,
+		loopResults: [{ loopId: "polish", status: "completed", roundsUsed: 2 }],
+	});
+	assert.equal(recovered.completion.health, "repaired");
+	assert.equal(recovered.statusCounts.failed, 1);
+	// The same failure in a loop that ended failed stays incomplete.
+	const failedLoop = summarizeWorkflowTelemetry({
+		createdAt: "2026-06-08T00:00:00.000Z",
+		updatedAt: "2026-06-08T00:00:01.000Z",
+		tasks: loopTasks,
+		loopResults: [{ loopId: "polish", status: "failed", roundsUsed: 2 }],
+	});
+	assert.equal(failedLoop.completion.health, "incomplete");
 });
 
 test("workflow source context packet prefers structured output and caps raw previews", () => {
