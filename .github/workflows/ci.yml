@@ -31,7 +31,8 @@ jobs:
           - os: macos-latest
             node: "24"
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    # macOS jobs take 16-24 min and one slow runner was killed at 30 (owner 2026-11-21: 45 there, ubuntu stays 30).
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 45 || 30 }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
