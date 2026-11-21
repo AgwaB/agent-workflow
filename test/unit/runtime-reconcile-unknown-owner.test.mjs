@@ -189,3 +189,39 @@ test("a persistently unknown owner is kept running (unknown is not dead); a dead
 	assert.notEqual(reconciled.status, "running");
 	await access(effectLog);
 });
+
+test("an owner that is verifiably gone is dead even when the identity probe only answers unknown", async () => {
+	// A stop's cancellation acknowledgement waits for reconcile to see the SIGKILLed worker as gone.
+	// A helper that times out under load (always `unknown`) must not keep that from converging:
+	// the pid no longer existing (ESRCH) is proof, and costs no helper spawn.
+	const worker = spawn("sleep", ["30"], { detached: true, stdio: "ignore" });
+	children.push(worker);
+	const identity = await captureProcessIdentity(worker.pid);
+	const cwd = join(tempRoot, "gone");
+	const effectLog = join(tempRoot, "gone-effects.jsonl");
+	await runningAttemptOwnedBy(
+		cwd,
+		"run_wp12a_gone",
+		"attempt_1",
+		identity,
+		effectLog,
+	);
+	process.kill(-worker.pid, "SIGKILL");
+	await new Promise((resolveExit) => worker.once("exit", resolveExit));
+	setProcessIdentityInspectorForTests(async (pid, inspect) =>
+		pid === worker.pid
+			? { state: "unknown", reason: "helper timed out (simulated load)" }
+			: inspect(pid),
+	);
+	try {
+		const reconciled = await reconcileWorkerRun({
+			cwd,
+			runId: "run_wp12a_gone",
+			staleAfterMs: 1,
+		});
+		assert.notEqual(reconciled.status, "running");
+	} finally {
+		setProcessIdentityInspectorForTests(undefined);
+	}
+	await access(effectLog);
+});
