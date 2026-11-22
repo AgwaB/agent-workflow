@@ -12,7 +12,7 @@ import {
 	rmdir,
 	unlink,
 } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import {
 	AUTHORING_PATTERNS,
 	type AuthoringPatternId,
@@ -57,6 +57,11 @@ export interface NewCreatedData {
 	directory: string;
 	/** Paths relative to `directory`. */
 	files: string[];
+	/**
+	 * Agent definitions the bundle needs (absolute paths, in the agents directory of the scope: a bundle
+	 * cannot carry its own agent). Empty for patterns whose stages use the bundled agents.
+	 */
+	agentFiles: string[];
 	overwritten: string[];
 	notes: string[];
 	nextSteps: string[];
@@ -66,18 +71,23 @@ export type NewData = NewListData | NewCreatedData;
 
 function roots(
 	ctx: HostApiContext,
-): Record<NewScope, { workflows: string; label: string }> {
+): Record<NewScope, { workflows: string; agents: string; label: string }> {
+	const projectAgents = join(ctx.cwd, PROJECT_STATE_DIRECTORY, "agents");
 	return {
 		private: {
 			workflows: join(ctx.cwd, PROJECT_STATE_DIRECTORY, "workflows"),
+			agents: projectAgents,
 			label: "project-private",
 		},
 		shared: {
 			workflows: join(ctx.cwd, "workflows"),
+			// Agents resolve from `<project>/.agent-workflow/agents`, then the user's directory, then the bundled ones.
+			agents: projectAgents,
 			label: "project-shared",
 		},
 		global: {
 			workflows: join(agentWorkflowHome(hostEnv(ctx)), "workflows"),
+			agents: join(agentWorkflowHome(hostEnv(ctx)), "agents"),
 			label: "global",
 		},
 	};
@@ -103,11 +113,17 @@ const WINDOWS_RESERVED_NAME =
  * aside. If a move fails, everything this call placed is removed, replaced files are restored and the
  * directories this call created are removed.
  */
+interface PlannedFile {
+	target: string;
+	content: string;
+	/** The target exists and `--force` replaces it. */
+	replace: boolean;
+}
+
 async function writeBundle(
 	root: string,
 	directory: string,
-	files: GeneratedFile[],
-	existing: readonly string[],
+	files: PlannedFile[],
 ): Promise<void> {
 	const createdDirs: string[] = [];
 	const mkdirTracked = async (path: string): Promise<void> => {
@@ -131,8 +147,8 @@ async function writeBundle(
 		const staged = join(staging, "files");
 		const backups = join(staging, "backup");
 		await mkdir(backups);
-		for (const file of files) {
-			const path = join(staged, ...file.path.split("/"));
+		for (const [position, file] of files.entries()) {
+			const path = join(staged, String(position));
 			await mkdir(dirname(path), { recursive: true });
 			const handle = await open(path, "wx", 0o644);
 			try {
@@ -142,13 +158,12 @@ async function writeBundle(
 			}
 		}
 		await mkdirTracked(directory);
-		let index = 0;
-		for (const file of files) {
-			const source = join(staged, ...file.path.split("/"));
-			const target = join(directory, ...file.path.split("/"));
+		for (const [position, file] of files.entries()) {
+			const source = join(staged, String(position));
+			const target = file.target;
 			await mkdirTracked(dirname(target));
-			if (existing.includes(file.path)) {
-				const backup = join(backups, String(index++));
+			if (file.replace) {
+				const backup = join(backups, String(position));
 				await rename(target, backup);
 				moved.push({ original: target, backup });
 				await rename(source, target);
@@ -209,6 +224,10 @@ export function formatCreated(data: NewCreatedData, cwd: string): string {
 			(file) =>
 				`  ${file}${data.overwritten.includes(file) ? " (overwritten)" : ""}`,
 		),
+		...data.agentFiles.map(
+			(file) =>
+				`  ${toDisplayPath(file, cwd)} (agent${data.overwritten.includes(file) ? ", overwritten" : ""})`,
+		),
 		...data.notes.map((note) => `Note: ${note}`),
 		"Next:",
 		...data.nextSteps.map((step, index) => `  ${index + 1}. ${step}`),
@@ -260,30 +279,51 @@ export async function newAction(
 		throw new HostUsageError(
 			`${toDisplayPath(join(root, `${name}.json`), ctx.cwd)} already exists; a flat ${name}.json beside ${name}/ makes the name ambiguous. Choose another name.`,
 		);
+	const planned: PlannedFile[] = [];
 	const existing: string[] = [];
+	const agentRoot = all[scope].agents;
 	for (const file of files) {
-		const target = join(directory, ...file.path.split("/"));
-		for (const part of ["schemas", "helpers"]) {
+		const isAgent = file.location === "agents";
+		const base = isAgent ? agentRoot : directory;
+		const target = join(base, ...file.path.split("/"));
+		for (const part of isAgent ? [] : ["schemas", "helpers"]) {
 			const sub = await entry(join(directory, part));
 			if (file.path.startsWith(`${part}/`) && sub?.isSymbolicLink())
 				throw new HostUsageError(
 					`${toDisplayPath(join(directory, part), ctx.cwd)} is a symlink; refusing to write through it`,
 				);
 		}
+		if (isAgent) {
+			const agentsEntry = await entry(agentRoot);
+			if (agentsEntry?.isSymbolicLink())
+				throw new HostUsageError(
+					`${toDisplayPath(agentRoot, ctx.cwd)} is a symlink; refusing to write through it`,
+				);
+			if (agentsEntry !== undefined && !agentsEntry.isDirectory())
+				throw new HostUsageError(
+					`${toDisplayPath(agentRoot, ctx.cwd)} exists and is not a directory`,
+				);
+		}
 		const found = await entry(target);
-		if (found === undefined) continue;
-		if (found.isSymbolicLink() || !found.isFile())
-			throw new HostUsageError(
-				`${toDisplayPath(target, ctx.cwd)} is not a regular file; refusing to overwrite it`,
-			);
-		existing.push(file.path);
+		if (found !== undefined) {
+			if (found.isSymbolicLink() || !found.isFile())
+				throw new HostUsageError(
+					`${toDisplayPath(target, ctx.cwd)} is not a regular file; refusing to overwrite it`,
+				);
+			existing.push(isAgent ? target : file.path);
+		}
+		planned.push({
+			target,
+			content: file.content,
+			replace: found !== undefined,
+		});
 	}
 	if (existing.length > 0 && request.force !== true)
 		throw new HostUsageError(
-			`Refusing to overwrite existing files in ${toDisplayPath(directory, ctx.cwd)}: ${existing.join(", ")}. Pass --force to replace them.`,
+			`Refusing to overwrite existing files in ${toDisplayPath(directory, ctx.cwd)}: ${existing.map((path) => (isAbsolute(path) ? toDisplayPath(path, ctx.cwd) : path)).join(", ")}. Pass --force to replace them.`,
 		);
 
-	await writeBundle(root, directory, files, existing);
+	await writeBundle(root, directory, planned);
 
 	const notes: string[] = [];
 	const higher: NewScope[] =
@@ -303,12 +343,21 @@ export async function newAction(
 					`${toDisplayPath(candidate, ctx.cwd)} (${all[other].label}) has the same name and takes priority over this ${all[scope].label} workflow`,
 				);
 	}
+	if (scope === "shared" && files.some((file) => file.location === "agents"))
+		notes.push(
+			`the writer agent is project-private (${toDisplayPath(agentRoot, ctx.cwd)}); commit it deliberately or copy it next to the shared workflow's users`,
+		);
 	const data: NewCreatedData = {
 		pattern,
 		name,
 		scope,
 		directory,
-		files: files.map((file) => file.path),
+		files: files
+			.filter((file) => file.location !== "agents")
+			.map((file) => file.path),
+		agentFiles: planned
+			.filter((_, position) => files[position]?.location === "agents")
+			.map((file) => file.target),
 		overwritten: existing,
 		notes,
 		nextSteps: [

@@ -3,7 +3,7 @@
 // with no findings (N2), the same arguments give byte-identical files (N3), nothing is overwritten without
 // --force, scopes, usage errors, and the structural rules each generated spec must keep. No model, no network.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync } from "node:fs";
 import {
 	mkdir,
@@ -84,6 +84,29 @@ async function readTree(dir) {
 	return tree;
 }
 
+/** A project directory; write-verify needs a git repository with a commit (a writer gets a worktree). */
+async function projectFor(pattern, prefix = "p-") {
+	const dir = await mkdtemp(join(root, prefix));
+	await mkdir(join(dir, ".agent-workflow"), { recursive: true });
+	if (pattern === "write-verify") {
+		const git = (...args) =>
+			execFileSync("git", ["-C", dir, ...args], { stdio: "ignore" });
+		git("init", "-q");
+		git(
+			"-c",
+			"user.email=t@example.test",
+			"-c",
+			"user.name=t",
+			"commit",
+			"-q",
+			"--allow-empty",
+			"-m",
+			"init",
+		);
+	}
+	return dir;
+}
+
 function modelStages(spec) {
 	const found = [];
 	const visit = (stage) => {
@@ -120,20 +143,30 @@ test("--list prints every pattern with a one-line description", async () => {
 for (const pattern of AUTHORING_PATTERN_IDS) {
 	test(`${pattern}: validates with no warnings and rehearses with no findings (N2)`, async () => {
 		const name = `gen-${pattern}`;
-		const created = await run(["new", pattern, name]);
+		const dir = await projectFor(pattern);
+		const here = (argv) => run(argv, { cwd: dir });
+		const created = await here(["new", pattern, name]);
 		assert.equal(created.code, 0, created.err + created.out);
 		assert.match(created.out, new RegExp(`Created workflow "${name}"`, "u"));
 		assert.match(created.out, /agent-workflow validate gen-/u);
 		assert.match(created.out, /agent-workflow rehearse gen-/u);
 
-		const validated = JSON.parse((await run(["validate", name, "--json"])).out);
+		const validated = JSON.parse(
+			(await here(["validate", name, "--json"])).out,
+		);
 		assert.equal(validated.data.valid, true);
 		assert.deepEqual(validated.data.warnings, []);
 
 		for (const loop of pattern === "loop-refine"
 			? ["pass", "exhaust"]
 			: ["pass"]) {
-			const rehearsed = await run(["rehearse", name, "--json", "--loop", loop]);
+			const rehearsed = await here([
+				"rehearse",
+				name,
+				"--json",
+				"--loop",
+				loop,
+			]);
 			assert.equal(rehearsed.code, 0, rehearsed.out);
 			const report = JSON.parse(rehearsed.out).data;
 			assert.deepEqual(report.findings, []);
@@ -156,10 +189,9 @@ for (const pattern of AUTHORING_PATTERN_IDS) {
 
 	test(`${pattern}: structural rules hold (profileRole, maxItems, closed schemas with schema/digest, TODO, examples)`, async () => {
 		const files = Object.fromEntries(
-			generatePatternFiles(pattern, "shape").map((file) => [
-				file.path,
-				file.content,
-			]),
+			generatePatternFiles(pattern, "shape")
+				.filter((file) => file.location !== "agents")
+				.map((file) => [file.path, file.content]),
 		);
 		const spec = JSON.parse(files["spec.json"]);
 		assert.equal(spec.name, "shape");
@@ -171,7 +203,9 @@ for (const pattern of AUTHORING_PATTERN_IDS) {
 			);
 
 		const stages = modelStages(spec);
-		assert.ok(stages.length > 0);
+		// collect-render is the one deterministic-only pattern: no model stage at all.
+		if (pattern === "collect-render") assert.equal(stages.length, 0);
+		else assert.ok(stages.length > 0);
 		for (const stage of stages) {
 			assert.ok(stage.profileRole, `${stage.id} has a profileRole`);
 			const prompt = promptOf(stage);
@@ -261,22 +295,40 @@ for (const pattern of AUTHORING_PATTERN_IDS) {
 	test(`${pattern}: the same arguments give byte-identical files (N3)`, async () => {
 		const first = generatePatternFiles(pattern, "same");
 		assert.deepEqual(generatePatternFiles(pattern, "same"), first);
-		const a = await mkdtemp(join(root, "a-"));
-		const b = await mkdtemp(join(root, "b-"));
+		const a = await projectFor(pattern, "a-");
+		const b = await projectFor(pattern, "b-");
 		for (const dir of [a, b]) {
-			await mkdir(join(dir, ".agent-workflow"), { recursive: true });
 			const result = await run(["new", pattern, "same"], { cwd: dir });
 			assert.equal(result.code, 0, result.err);
 		}
 		const treeA = await readTree(join(a, ".agent-workflow/workflows/same"));
 		const treeB = await readTree(join(b, ".agent-workflow/workflows/same"));
 		assert.deepEqual(treeA, treeB);
-		assert.deepEqual(Object.keys(treeA), first.map((file) => file.path).sort());
-		for (const file of first) assert.equal(treeA[file.path], file.content);
+		const inBundle = first.filter((file) => file.location !== "agents");
+		assert.deepEqual(
+			Object.keys(treeA),
+			inBundle.map((file) => file.path).sort(),
+		);
+		for (const file of inBundle) assert.equal(treeA[file.path], file.content);
+		// Agent definitions go to the agents directory, byte-identical too.
+		const agentsDir = (dir) => join(dir, ".agent-workflow/agents");
+		const agentsA = existsSync(agentsDir(a))
+			? await readTree(agentsDir(a))
+			: {};
+		assert.deepEqual(
+			agentsA,
+			existsSync(agentsDir(b)) ? await readTree(agentsDir(b)) : {},
+		);
+		const agents = first.filter((file) => file.location === "agents");
+		assert.deepEqual(
+			Object.keys(agentsA),
+			agents.map((file) => file.path).sort(),
+		);
+		for (const file of agents) assert.equal(agentsA[file.path], file.content);
 		// A different name changes only the name (spec.json), nothing else.
 		const other = generatePatternFiles(pattern, "other");
 		for (const [index, file] of other.entries())
-			if (file.path !== "spec.json")
+			if (file.path !== "spec.json" && file.location !== "agents")
 				assert.equal(file.content, first[index].content);
 	});
 }
@@ -758,4 +810,407 @@ test("a failing --force restores the files it had already replaced", {
 		(await readdir(join(dir, ".agent-workflow/workflows"))).sort(),
 		["q"],
 	);
+});
+
+// ---------------------------------------------------------------- write-verify
+
+const GIT_ENV = {
+	...process.env,
+	GIT_AUTHOR_NAME: "t",
+	GIT_AUTHOR_EMAIL: "t@example.test",
+	GIT_COMMITTER_NAME: "t",
+	GIT_COMMITTER_EMAIL: "t@example.test",
+};
+function git(dir, ...args) {
+	return execFileSync("git", ["-C", dir, ...args], {
+		env: GIT_ENV,
+		encoding: "utf8",
+	});
+}
+
+async function withHelper(pattern, name, helperFile) {
+	const dir = await projectFor(pattern, `${pattern}-`);
+	assert.equal((await run(["new", pattern, name], { cwd: dir })).code, 0);
+	const bundle = join(dir, ".agent-workflow/workflows", name);
+	const module = await import(
+		`${pathToFileURL(join(bundle, "helpers", helperFile)).href}?${Math.random()}`
+	);
+	return { dir, bundle, helper: module.default };
+}
+
+test("write-verify: the writer is write-capable in a worktree, has a bundle-local agent, and nothing merges", async () => {
+	const dir = await projectFor("write-verify", "wv-shape-");
+	const created = await run(["new", "write-verify", "wv.shape"], { cwd: dir });
+	assert.equal(created.code, 0, created.err);
+	const spec = JSON.parse(
+		await readFile(
+			join(dir, ".agent-workflow/workflows/wv.shape/spec.json"),
+			"utf8",
+		),
+	);
+	const [write, verify] = spec.artifactGraph.stages;
+	assert.equal(write.readOnly, false);
+	assert.equal(write.worktreePolicy, "on");
+	assert.equal(write.agent, "wv-shape-writer");
+	assert.ok(write.tools.includes("write") && write.tools.includes("edit"));
+	assert.equal(write.tools.includes("bash"), false);
+	assert.deepEqual(verify.from, ["write"]);
+	assert.equal(verify.sourcePolicy, "require-success");
+	assert.deepEqual(verify.support.options.files, [
+		{ path: "OUTPUT.md", markers: ["# Output"] },
+	]);
+	// The agent lands in the project's agents directory and allows write tools.
+	const agent = await readFile(
+		join(dir, ".agent-workflow/agents/wv-shape-writer.md"),
+		"utf8",
+	);
+	assert.match(agent, /^tools: read, grep, find, ls, edit, write$/mu);
+	assert.match(agent, /^readOnly: false$/mu);
+	assert.match(created.out, /agents\/wv-shape-writer\.md \(agent\)/u);
+	assert.equal(existsSync(join(dir, "workflows")), false);
+	// No merge, no commit instruction anywhere.
+	assert.match(agent, /Never commit, stage, push/u);
+	assert.equal(JSON.stringify(spec).includes("merge"), false);
+	const listed = await run(["agents", "--json"], { cwd: dir });
+	assert.match(listed.out, /wv-shape-writer/u);
+});
+
+test("write-verify: the agent follows the scope and is never overwritten without --force", async () => {
+	const dir = await projectFor("write-verify", "wv-scope-");
+	const agentFile = join(dir, ".agent-workflow/agents/wv-writer.md");
+	const globalAgent = join(home, "agents/wvg-writer.md");
+	const shared = await run(["new", "write-verify", "wv", "--scope", "shared"], {
+		cwd: dir,
+	});
+	assert.equal(shared.code, 0, shared.err);
+	assert.ok(existsSync(join(dir, "workflows/wv/spec.json")));
+	assert.ok(existsSync(agentFile));
+	assert.match(shared.out, /the writer agent is project-private/u);
+	const mine = "my edited agent\n";
+	await writeFile(agentFile, mine);
+	const refused = await run(
+		["new", "write-verify", "wv", "--scope", "shared"],
+		{
+			cwd: dir,
+		},
+	);
+	assert.equal(refused.code, 2);
+	assert.match(refused.err, /agents\/wv-writer\.md/u);
+	assert.equal(await readFile(agentFile, "utf8"), mine);
+	// A foreign agent alone blocks the whole call: nothing else is written for a new name.
+	await mkdir(join(dir, ".agent-workflow/agents"), { recursive: true });
+	await writeFile(join(dir, ".agent-workflow/agents/z-writer.md"), mine);
+	const blocked = await run(["new", "write-verify", "z"], { cwd: dir });
+	assert.equal(blocked.code, 2);
+	assert.equal(
+		existsSync(join(dir, ".agent-workflow/workflows/z")),
+		false,
+		"nothing written when the agent file is refused",
+	);
+	const forced = await run(
+		["new", "write-verify", "wv", "--scope", "shared", "--force"],
+		{ cwd: dir },
+	);
+	assert.equal(forced.code, 0, forced.err);
+	assert.notEqual(await readFile(agentFile, "utf8"), mine);
+	assert.match(forced.out, /\(agent, overwritten\)/u);
+	// Global scope: the user's agents directory.
+	const global = await run(
+		["new", "write-verify", "wvg", "--scope", "global"],
+		{
+			cwd: dir,
+		},
+	);
+	assert.equal(global.code, 0, global.err);
+	assert.ok(existsSync(globalAgent));
+	assert.equal(
+		JSON.parse(
+			(await run(["new", "write-verify", "wvj", "--json"], { cwd: dir })).out,
+		).data.agentFiles[0],
+		join(dir, ".agent-workflow/agents/wvj-writer.md"),
+	);
+});
+
+test("write-verify: the verify helper checks existence, content and markers in the writer worktree", async () => {
+	const { dir, bundle, helper } = await withHelper(
+		"write-verify",
+		"wvh",
+		"verify-files.mjs",
+	);
+	const schema = JSON.parse(
+		await readFile(join(bundle, "schemas/write-check.schema.json"), "utf8"),
+	);
+	const branch = "agent-workflow/run1-task-1";
+	const tree = join(dir, "wt");
+	git(dir, "worktree", "add", "-q", "-b", branch, tree);
+	const context = {
+		runId: "run1",
+		cwd: dir,
+		sourceStatuses: [
+			{
+				stageId: "write",
+				taskId: "task-1",
+				source: "write",
+				status: "completed",
+			},
+		],
+	};
+	const options = {
+		writer: "write",
+		files: [
+			{ path: "OUTPUT.md", markers: ["# Output", "done"] },
+			{ path: "docs/more.md", markers: [] },
+		],
+	};
+	const check = async (opts = options, ctx = context) => {
+		const value = await helper({ options: opts, context: ctx });
+		assert.deepEqual(validateJsonSchema(value, schema).issues, []);
+		assert.equal(value.gates.passed, value.status === "passed");
+		return value;
+	};
+	// Nothing written: failed, and the worktree is named.
+	let value = await check();
+	assert.equal(value.status, "failed");
+	assert.equal(value.branch, branch);
+	assert.match(value.digest, /OUTPUT\.md missing/u);
+	assert.equal(await realpath(value.worktree), await realpath(tree));
+	// Empty and whitespace-only files fail.
+	await writeFile(join(tree, "OUTPUT.md"), "");
+	await mkdir(join(tree, "docs"));
+	await writeFile(join(tree, "docs/more.md"), "x\n");
+	value = await check();
+	assert.match(value.files[0].problem, /empty/u);
+	assert.equal(value.files[1].ok, true);
+	await writeFile(join(tree, "OUTPUT.md"), "  \n\t\n");
+	assert.match((await check()).files[0].problem, /only whitespace/u);
+	// A missing marker fails and is named; all markers present passes.
+	await writeFile(join(tree, "OUTPUT.md"), "# Output\nnot yet\n");
+	value = await check();
+	assert.equal(value.status, "failed");
+	assert.deepEqual(value.files[0].missingMarkers, ["done"]);
+	await writeFile(join(tree, "OUTPUT.md"), "# Output\nall done\n");
+	value = await check();
+	assert.equal(value.status, "passed");
+	assert.equal(value.gates.passed, true);
+	assert.match(value.markdown, /kept/u);
+	// The main checkout does not count: a file only there fails.
+	await rm(join(tree, "docs/more.md"));
+	await writeFile(join(dir, "docs-more.md"), "elsewhere\n");
+	assert.equal((await check()).status, "failed");
+	// A symlink out of the worktree is refused.
+	await writeFile(join(dir, "outside.md"), "# Output\ndone\n");
+	await rm(join(tree, "OUTPUT.md"));
+	await symlink(join(dir, "outside.md"), join(tree, "OUTPUT.md"));
+	await writeFile(join(tree, "docs-ok.md"), "x");
+	value = await check();
+	assert.match(value.files[0].problem, /symlink/u);
+	// No worktree for that run/task, or no writer row: failed, not thrown.
+	value = await check(options, { ...context, runId: "other" });
+	assert.equal(value.status, "failed");
+	assert.match(value.digest, /no managed worktree/u);
+	value = await check(options, { ...context, sourceStatuses: [] });
+	assert.equal(value.status, "failed");
+	// Rehearsal: the worktree is still required, the files are not read.
+	process.env.AGENT_WORKFLOW_REHEARSAL = "1";
+	try {
+		await rm(join(tree, "OUTPUT.md"));
+		assert.equal((await check()).status, "passed");
+		assert.equal(
+			(await check(options, { ...context, runId: "other" })).status,
+			"failed",
+		);
+	} finally {
+		delete process.env.AGENT_WORKFLOW_REHEARSAL;
+	}
+	// Bad options are an authoring error and throw.
+	for (const bad of [
+		{},
+		{ files: [] },
+		{ files: [{ path: "../x" }] },
+		{ files: [{ path: "/etc/passwd" }] },
+		{ files: [{ path: "a\\b" }] },
+		{ files: [{ path: "a", markers: [""] }] },
+		{ files: [{ path: "a", markers: "x" }] },
+	])
+		await assert.rejects(helper({ options: bad, context }), /verify:/u);
+});
+
+test("rehearse sets AGENT_WORKFLOW_REHEARSAL only while it runs", async () => {
+	const dir = await projectFor("write-verify", "wv-env-");
+	delete process.env.AGENT_WORKFLOW_REHEARSAL;
+	assert.equal((await run(["new", "write-verify", "e"], { cwd: dir })).code, 0);
+	assert.equal((await run(["rehearse", "e"], { cwd: dir })).code, 0);
+	assert.equal(process.env.AGENT_WORKFLOW_REHEARSAL, undefined);
+});
+
+// -------------------------------------------------------------- collect-render
+
+async function historyRepo(commits) {
+	const dir = await mkdtemp(join(root, "history-"));
+	await mkdir(join(dir, ".agent-workflow"), { recursive: true });
+	git(dir, "init", "-q");
+	let n = 0;
+	for (const message of commits)
+		git(
+			dir,
+			"commit",
+			"-q",
+			"--allow-empty",
+			"-m",
+			message,
+			"--no-gpg-sign",
+			`--date=2026-01-01T00:00:0${n++}`,
+		);
+	return dir;
+}
+
+test("collect-render: collect lists non-merge commits newest first, flags breaking ones, honours range and limit", async () => {
+	const { helper, bundle } = await withHelper(
+		"collect-render",
+		"cr",
+		"collect-history.mjs",
+	);
+	const schema = JSON.parse(
+		await readFile(join(bundle, "schemas/history.schema.json"), "utf8"),
+	);
+	const repo = await historyRepo([
+		"feat: first",
+		"fix(core): second",
+		"chore: third\n\nBREAKING CHANGE: gone",
+	]);
+	git(repo, "tag", "v0", "HEAD~2");
+	git(repo, "checkout", "-q", "-b", "side");
+	git(repo, "commit", "-q", "--allow-empty", "-m", "feat: side");
+	git(repo, "checkout", "-q", "-");
+	git(repo, "merge", "-q", "--no-ff", "-m", "Merge side", "side");
+	const collect = async (options = {}) => {
+		const value = await helper({ options, context: { cwd: repo } });
+		assert.deepEqual(validateJsonSchema(value, schema).issues, []);
+		return value;
+	};
+	let value = await collect();
+	// Git's own order (newest first, merge commit left out).
+	assert.deepEqual(
+		value.commits.map((commit) => commit.subject),
+		git(repo, "log", "--no-merges", "--format=%s").trim().split("\n"),
+	);
+	assert.deepEqual(
+		value.commits.filter((commit) => commit.breaking).map((c) => c.subject),
+		["chore: third"],
+	);
+	assert.equal(value.total, 4);
+	assert.equal(value.truncated, false);
+	value = await collect({ range: "v0..HEAD" });
+	assert.equal(value.total, 3);
+	value = await collect({ maxCommits: 2 });
+	assert.equal(value.total, 2);
+	assert.equal(value.truncated, true);
+	for (const bad of [
+		{ maxCommits: 0 },
+		{ maxCommits: 501 },
+		{ maxCommits: "5" },
+		{ range: "--output=/tmp/x" },
+		{ range: "a b" },
+		{ range: 5 },
+	])
+		await assert.rejects(
+			helper({ options: bad, context: { cwd: repo } }),
+			/collect:/u,
+			JSON.stringify(bad),
+		);
+	// An empty repository is an empty list; a non-git directory throws, except under rehearse.
+	const empty = await mkdtemp(join(root, "empty-"));
+	git(empty, "init", "-q");
+	assert.equal(
+		(await helper({ options: {}, context: { cwd: empty } })).total,
+		0,
+	);
+	const plain = await mkdtemp(join(root, "plain-"));
+	await assert.rejects(
+		helper({ options: {}, context: { cwd: plain } }),
+		/collect: git log failed/u,
+	);
+	process.env.AGENT_WORKFLOW_REHEARSAL = "1";
+	try {
+		assert.equal(
+			(await helper({ options: {}, context: { cwd: plain } })).total,
+			0,
+		);
+	} finally {
+		delete process.env.AGENT_WORKFLOW_REHEARSAL;
+	}
+});
+
+test("collect-render: render groups by type, escapes untrusted text and is deterministic", async () => {
+	const { helper, bundle } = await withHelper(
+		"collect-render",
+		"cr2",
+		"render-changelog.mjs",
+	);
+	const schema = JSON.parse(
+		await readFile(join(bundle, "schemas/changelog.schema.json"), "utf8"),
+	);
+	const commit = (sha, subject, breaking = false) => ({
+		sha,
+		subject,
+		breaking,
+	});
+	const history = {
+		total: 7,
+		truncated: true,
+		commits: [
+			commit("a".repeat(40), "feat(ui)!: drop old API"),
+			commit("b".repeat(40), "fix: crash on `empty` input"),
+			commit("c".repeat(40), "feat: add *bold* [link](x) <b>"),
+			commit("d".repeat(40), "docs: readme"),
+			commit("e".repeat(40), "Merge-ish free text\n# Injected heading"),
+			commit("f".repeat(40), "chore: cleanup", true),
+			commit("1".repeat(40), "FIX(Core): upper type"),
+		],
+	};
+	const render = () => helper({ sources: { collect: history } });
+	const value = await render();
+	assert.deepEqual(validateJsonSchema(value, schema).issues, []);
+	assert.deepEqual(value.counts, {
+		total: 7,
+		Breaking: 2,
+		Features: 1,
+		Fixes: 2,
+		Other: 2,
+	});
+	assert.equal(value.truncated, true);
+	const sections = value.markdown.split(/^## /mu).slice(1);
+	assert.deepEqual(
+		sections.map((section) => section.split("\n")[0]),
+		["Breaking", "Features", "Fixes", "Other"],
+	);
+	assert.match(sections[0], /\*\*ui:\*\* drop old API \(`aaaaaaa`\)/u);
+	assert.match(sections[0], /- cleanup \(`fffffff`\)/u);
+	assert.match(sections[3], /- \*\*docs:\*\* readme \(`ddddddd`\)/u);
+	assert.match(sections[2], /- \*\*Core:\*\* upper type/u);
+	assert.match(value.markdown, /crash on \\`empty\\` input/u);
+	assert.ok(value.markdown.includes("add \\*bold\\* \\[link\\](x) \\<b\\>"));
+	// A heading smuggled in a subject stays inside one list line.
+	assert.equal(/^# Injected/mu.test(value.markdown), false);
+	assert.match(value.markdown, /Older commits beyond/u);
+	assert.deepEqual(await render(), value);
+	// An empty history still renders every section.
+	const none = await helper({
+		sources: { collect: { total: 0, truncated: false, commits: [] } },
+	});
+	assert.equal(none.counts.total, 0);
+	assert.equal((none.markdown.match(/_None\._/gu) ?? []).length, 4);
+	await assert.rejects(helper({ sources: {} }), /no commit list/u);
+});
+
+test("collect-render: rehearses clean in a repository with history", async () => {
+	const repo = await historyRepo(["feat: alpha", "fix: beta"]);
+	assert.equal(
+		(await run(["new", "collect-render", "cl"], { cwd: repo })).code,
+		0,
+	);
+	const rehearsed = JSON.parse(
+		(await run(["rehearse", "cl", "--json"], { cwd: repo })).out,
+	).data;
+	assert.deepEqual(rehearsed.findings, []);
 });

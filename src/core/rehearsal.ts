@@ -48,6 +48,12 @@ import { EXECUTOR_CONTRACT_VERSION } from "../sdk/contract.js";
 
 export const REHEARSAL_SCHEMA = "agent-workflow-rehearsal-v1" as const;
 export const REHEARSAL_EXECUTOR_ID = "aw-rehearsal-synthetic";
+/**
+ * Set to "1" in the process environment while a rehearsal runs (helpers run in-process). A helper whose
+ * check can only pass on real output (files a writer stage wrote, a git history) may skip that check
+ * when it is set; the wiring around it is still exercised. Never set for a real run.
+ */
+export const REHEARSAL_ENV = "AGENT_WORKFLOW_REHEARSAL";
 export const REHEARSAL_DEFAULT_ITEMS = 2;
 export const REHEARSAL_MAX_ITEMS = 20;
 const RUN_WAIT_MS = 10 * 60_000;
@@ -597,6 +603,7 @@ export async function rehearseWorkflow(
 	const savedEnv = {
 		home: process.env[AGENT_WORKFLOW_HOME_ENV],
 		index: process.env[RUN_INDEX_DIR_ENV],
+		rehearsal: process.env[REHEARSAL_ENV],
 	};
 	let unregister: (() => void) | undefined;
 	let outcome: RehearsalResult | undefined;
@@ -624,6 +631,7 @@ export async function rehearseWorkflow(
 		});
 		process.env[AGENT_WORKFLOW_HOME_ENV] = tempHome;
 		process.env[RUN_INDEX_DIR_ENV] = join(tempHome, "run-index");
+		process.env[REHEARSAL_ENV] = "1";
 		const started = await runWorkflowSpec(loaded.specPath, cwd, {
 			task,
 			executor: REHEARSAL_EXECUTOR_ID,
@@ -661,6 +669,7 @@ export async function rehearseWorkflow(
 		for (const [name, previous] of [
 			[AGENT_WORKFLOW_HOME_ENV, savedEnv.home],
 			[RUN_INDEX_DIR_ENV, savedEnv.index],
+			[REHEARSAL_ENV, savedEnv.rehearsal],
 		] as const) {
 			if (previous === undefined) delete process.env[name];
 			else process.env[name] = previous;
