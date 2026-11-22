@@ -3,7 +3,7 @@
 // worker. Rehearses every bundled workflow and scaffold to completion, checks determinism, isolation (R3),
 // loop forcing (R5) and catches the lab defects of R6 in small specs. No model, no network.
 import assert from "node:assert/strict";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, realpathSync } from "node:fs";
 import {
 	mkdir,
 	mkdtemp,
@@ -17,6 +17,10 @@ import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import {
+	processesUsingRoot,
+	setRehearsalRemoveForTests,
+} from "../../dist/core/rehearsal-settle.js";
 import { workflowExecutorRegistration } from "../../dist/core/executor-registry.js";
 import {
 	REHEARSAL_EXECUTOR_ID,
@@ -547,4 +551,86 @@ test("option problems throw before anything runs", async () => {
 		rehearseWorkflow(cwd, { workflow: "x", loop: "maybe" }),
 		/--loop/u,
 	);
+});
+
+const ONE_STAGE = {
+	schemaVersion: 1,
+	name: "one",
+	defaults: DEFAULTS,
+	artifactGraph: {
+		stages: [{ id: "a", type: "single", prompt: "Summarize." }],
+	},
+};
+
+/**
+ * Deterministic slow-down: the durable worker's detached terminal finalizer starts 3s late (a worker
+ * hook wraps its spawn in `sleep 3; exec`). The engine can already see the run end by then.
+ */
+async function withLateFinalizer(dir, body) {
+	const hook = join(dir, "late-finalizer.mjs");
+	await writeFile(
+		hook,
+		`import cp from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
+const realSpawn = cp.spawn;
+if (String(process.argv[1]).endsWith("durable-worker.js")) {
+	cp.spawn = (command, args, options) =>
+		Array.isArray(args) && String(args[0]).endsWith("terminal-finalizer.js")
+			? realSpawn("/bin/sh", ["-c", 'sleep 3; exec "$0" "$@"', command, ...args], options)
+			: realSpawn(command, args, options);
+	syncBuiltinESMExports();
+}
+`,
+	);
+	const saved = { options: process.env.NODE_OPTIONS, tmp: process.env.TMPDIR };
+	process.env.NODE_OPTIONS = `${saved.options ?? ""} --import=${hook}`.trim();
+	try {
+		return await body();
+	} finally {
+		for (const [name, value] of [
+			["NODE_OPTIONS", saved.options],
+			["TMPDIR", saved.tmp],
+		]) {
+			if (value === undefined) delete process.env[name];
+			else process.env[name] = value;
+		}
+	}
+}
+
+test("a late durable finalizer is awaited: no process or file is left under the temporary root", {
+	skip: process.platform === "win32",
+}, async () => {
+	const cwd = await project();
+	const scratch = realpathSync(await mkdtemp(join(base, "tmp-")));
+	const path = await writeSpec(cwd, "one", ONE_STAGE);
+	const result = await withLateFinalizer(scratch, async () => {
+		process.env.TMPDIR = scratch;
+		return await rehearseWorkflow(cwd, { workflow: path });
+	});
+	assert.equal(result.report.ok, true, result.report.findings.join("\n"));
+	assert.equal(result.leftover, undefined);
+	assert.deepEqual(await processesUsingRoot(scratch), []);
+	// Only the hook file is in the scratch directory: the rehearsal root is gone and stays gone.
+	await new Promise((resolve) => setTimeout(resolve, 4000));
+	assert.deepEqual(readdirSync(scratch), ["late-finalizer.mjs"]);
+});
+
+test("a temporary root that cannot be removed is reported as leftover, not thrown", async () => {
+	const cwd = await project();
+	const path = await writeSpec(cwd, "one", ONE_STAGE);
+	setRehearsalRemoveForTests(() => {
+		throw Object.assign(new Error("ENOTEMPTY: directory not empty"), {
+			code: "ENOTEMPTY",
+		});
+	});
+	let result;
+	try {
+		result = await rehearseWorkflow(cwd, { workflow: path });
+	} finally {
+		setRehearsalRemoveForTests(undefined);
+	}
+	assert.equal(result.report.ok, true);
+	assert.match(result.leftover, /aw-rehearse-/u);
+	assert.ok(existsSync(result.leftover));
+	await rm(result.leftover, { recursive: true, force: true });
 });

@@ -16,7 +16,6 @@ import {
 	mkdtempSync,
 	readFileSync,
 	realpathSync,
-	rmSync,
 	symlinkSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -33,6 +32,10 @@ import {
 	foreachHintToJson,
 	type RehearsalForeachHint,
 } from "./rehearsal-executor.js";
+import {
+	removeRehearsalRoot,
+	waitForRootProcesses,
+} from "./rehearsal-settle.js";
 import { loadWorkflowSpec } from "./schema.js";
 import { finalStageTasks, readRunRecord, workflowRunDir } from "./store.js";
 import {
@@ -48,6 +51,8 @@ export const REHEARSAL_EXECUTOR_ID = "aw-rehearsal-synthetic";
 export const REHEARSAL_DEFAULT_ITEMS = 2;
 export const REHEARSAL_MAX_ITEMS = 20;
 const RUN_WAIT_MS = 10 * 60_000;
+/** How long to wait for the run's worker and finalizer processes to stop writing before cleanup. */
+const SETTLE_WAIT_MS = 30_000;
 const RUN_INDEX_DIR_ENV = "AGENT_WORKFLOW_RUN_INDEX_DIR";
 
 export type RehearsalLoopMode = "pass" | "exhaust";
@@ -122,6 +127,8 @@ export interface RehearsalResult {
 	report: RehearsalReport;
 	/** The temporary state root, only with `keep`. */
 	stateRoot?: string;
+	/** The temporary root that could not be fully removed (or that a process was still using). */
+	leftover?: string;
 }
 
 export function validateRehearsalOptions(options: RehearsalOptions): string[] {
@@ -568,6 +575,8 @@ export async function rehearseWorkflow(
 		index: process.env[RUN_INDEX_DIR_ENV],
 	};
 	let unregister: (() => void) | undefined;
+	let outcome: RehearsalResult | undefined;
+	let leftover: string | undefined;
 	// Everything after the temp root exists runs inside the try, so a failure here still restores the
 	// environment and removes the temp root (review 2026-11-22).
 	try {
@@ -619,7 +628,7 @@ export async function rehearseWorkflow(
 			),
 			normalize: normalizer(run.runId, [tempRoot, runDir]),
 		});
-		return {
+		outcome = {
 			report,
 			...(options.keep === true ? { stateRoot: tempRoot } : {}),
 		};
@@ -632,12 +641,16 @@ export async function rehearseWorkflow(
 			if (previous === undefined) delete process.env[name];
 			else process.env[name] = previous;
 		}
-		if (options.keep !== true)
-			rmSync(tempRoot, {
-				recursive: true,
-				force: true,
-				maxRetries: 10,
-				retryDelay: 50,
-			});
+		// The engine can see the run end while a durable worker or its detached terminal finalizer is
+		// still writing under the root: wait for every process that names it, then remove it. Cleanup
+		// never throws; what it cannot remove is reported.
+		const quiet = await waitForRootProcesses(tempRoot, SETTLE_WAIT_MS);
+		if (options.keep !== true) {
+			leftover = removeRehearsalRoot(tempRoot);
+			if (leftover === undefined && !quiet) leftover = tempRoot;
+		}
 	}
+	return leftover === undefined
+		? (outcome as RehearsalResult)
+		: { ...(outcome as RehearsalResult), leftover };
 }

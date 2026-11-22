@@ -27,6 +27,8 @@ export interface RehearseRequest {
 export interface RehearseData extends RehearsalReport {
 	/** Kept temporary state root (`--keep` only). */
 	stateRoot?: string;
+	/** Temporary root that could not be removed; safe to delete by hand. */
+	leftover?: string;
 }
 
 function plural(count: number, word: string): string {
@@ -85,6 +87,10 @@ export function formatRehearsal(data: RehearseData): string {
 	}
 	if (data.stateRoot !== undefined)
 		lines.push(`State kept at ${data.stateRoot}`);
+	if (data.leftover !== undefined)
+		lines.push(
+			`Temporary state could not be fully removed: ${data.leftover} (safe to delete by hand)`,
+		);
 	return lines.join("\n");
 }
 
@@ -104,6 +110,9 @@ export async function rehearseAction(
 		...(rehearsed.stateRoot === undefined
 			? {}
 			: { stateRoot: rehearsed.stateRoot }),
+		...(rehearsed.leftover === undefined
+			? {}
+			: { leftover: rehearsed.leftover }),
 	};
 	return result(
 		"rehearse",
