@@ -10,6 +10,7 @@ import {
 	workflowPromptSchemaDiagnostics,
 } from "../../dist/core/prompt-schema-diagnostics.js";
 import { loadWorkflowSpec } from "../../dist/core/schema.js";
+import { parseWorkflowOutput } from "../../dist/core/workflow-output-artifacts.js";
 
 // `validate` authoring-rule checks of the workflow-guide skill: profileRole, unsupported
 // placeholders, prompts that forbid tools on a stage with sources, unbounded foreach sources and
@@ -357,6 +358,86 @@ test("a foreach source array without maxItems warns; a schema cap or stage maxIt
 		{ "schemas/plan.json": planSchema() },
 	);
 	assert.equal(matching(helper, /has no maxItems/).length, 0);
+});
+
+test("a foreach source array without minItems warns once; minItems (even 0) or a helper silences it", async () => {
+	const stages = (source = {}) => [
+		single("plan", {
+			output: { controlSchema: "./schemas/plan.json" },
+			...source,
+		}),
+		{
+			id: "fe",
+			type: "foreach",
+			profileRole: "verification",
+			from: { source: "plan", path: "$.items" },
+			each: { prompt: "Check ${item}." },
+		},
+	];
+	const open = await validate(stages(), {
+		"schemas/plan.json": planSchema({ maxItems: 8 }),
+	});
+	const [warning] = matching(open, /has no minItems/);
+	assert.match(
+		warning,
+		/foreach stage "fe" fans out over "\$\.items" from model stage "plan"/,
+	);
+	assert.match(warning, /empty answer completes with 0 tasks/);
+	assert.match(warning, /minItems: 1/);
+	assert.equal(matching(open, /has no minItems/).length, 1);
+	assert.equal(matching(open, /has no maxItems/).length, 0);
+
+	// Both gaps give both warnings, each once.
+	const both = await validate(stages(), { "schemas/plan.json": planSchema() });
+	assert.equal(matching(both, /has no maxItems/).length, 1);
+	assert.equal(matching(both, /has no minItems/).length, 1);
+
+	for (const minItems of [0, 1]) {
+		const ok = await validate(stages(), {
+			"schemas/plan.json": planSchema({ minItems, maxItems: 8 }),
+		});
+		assert.equal(matching(ok, /has no minItems/).length, 0);
+	}
+	const helper = await validate(
+		[
+			{
+				id: "plan",
+				support: { uses: "./helper.mjs" },
+				output: { controlSchema: "./schemas/plan.json" },
+			},
+			stages()[1],
+		],
+		{ "schemas/plan.json": planSchema({ maxItems: 8 }) },
+	);
+	assert.equal(matching(helper, /has no minItems/).length, 0);
+});
+
+test("minItems: 1 on the source array makes an empty model answer an output-validation failure", () => {
+	const controlJsonSchema = schema({
+		items: { type: "array", items: { type: "string" }, minItems: 1 },
+	});
+	const output = (items) =>
+		`<control>${JSON.stringify({ schema: "s", digest: "d", items })}</control>\n<analysis>x</analysis>\n<refs>[]</refs>`;
+	const empty = parseWorkflowOutput(output([]), { controlJsonSchema });
+	assert.equal(empty.valid, false);
+	assert.match(
+		empty.issues.map((issue) => issue.message).join("\n"),
+		/array length must be >= 1/,
+	);
+	const filled = parseWorkflowOutput(output(["a"]), { controlJsonSchema });
+	assert.equal(filled.valid, true, JSON.stringify(filled.issues));
+});
+
+test("an array that feeds no foreach is not asked for minItems", async () => {
+	const compiled = await validate(
+		[
+			single("review", {
+				output: { controlSchema: "./schemas/plan.json" },
+			}),
+		],
+		{ "schemas/plan.json": planSchema({ maxItems: 8 }) },
+	);
+	assert.equal(matching(compiled, /minItems/).length, 0);
 });
 
 test("a foreach inside a dag is checked against its sibling source", async () => {

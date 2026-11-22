@@ -820,7 +820,7 @@ Capability degradations are recorded and shown on every host, without confirmati
 `agent-workflow new <pattern> <name>` (`new --list` shows the patterns) writes a workflow bundle that
 already passes `validate` with no warnings and `rehearse` with no findings: `single`, `foreach-reduce`,
 `loop-refine`, `parallel-review-merge` and `classify-count`. It carries closed control schemas with
-`schema` and `digest`, helpers for the code stages, a `profileRole` on every model stage, a `maxItems` on
+`schema` and `digest`, helpers for the code stages, a `profileRole` on every model stage, a `minItems` and `maxItems` on
 every foreach source array, and prompts whose `TODO:` paragraph you replace with your domain instructions;
 the generated Contract paragraph and few-shot `<control>` skeleton after it come from the schema. Then
 `validate`, `check`, `rehearse` and a cheap smoke run. It never overwrites files without `--force`
@@ -865,7 +865,8 @@ design feedback to fix before the first run:
 - a model stage (also loop and dag children, `onExhausted`, dynamic decision-loop profiles) without `profileRole`;
 - a `${...}` placeholder that the engine does not substitute (only `${item}` in a foreach `each.prompt`);
 - a `single`/`reduce` stage with sources whose prompt forbids tool use (sources are read through `workflow_artifact`);
-- a foreach over a model stage's array that sets no `maxItems` (in the array's schema or on the foreach stage);
+- a foreach over a model stage's array that sets no `maxItems` (in the array's schema or on the foreach stage) or no
+  `minItems` in the schema (`minItems: 1` if empty means failure, `0` if it is fine);
 - a loop `until` path missing from the final child's open control schema;
 - prompt/schema drift, a foreach or `sourceProjection` path the source schema lacks, and `readOnly` stages that lose
   tools.
@@ -908,7 +909,10 @@ Top-level `artifactGraph.stages` is a DAG.
 - A foreach keeps one bookkeeping task, `<stage>.item`: it ends `completed` (`foreach_materialized`;
   failures are on the children). An empty array creates no child: it ends `completed`
   (`foreach_empty`, no model call), stages after it still run (a reduce still makes its model call)
-  and a helper sees it as one row without `itemIdentity`. If the items cannot be expanded (invalid or
+  and a helper sees it as one row without `itemIdentity`. A completed run whose foreach stages all fanned
+  out over 0 items is reported as degraded (`foreach <stage> fanned out over 0 items`) in `status`,
+  `show` and `wait`; set `minItems: 1` on the source array so an empty model answer fails output
+  validation instead. If the items cannot be expanded (invalid or
   duplicate identity) it ends `blocked` (`foreach_expansion_blocked`), and so does the run; the
   message names the generated task id (`duplicate foreach generated task id "a" …`), not the
   identity path.
