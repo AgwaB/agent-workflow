@@ -32,6 +32,7 @@ import {
 	foreachHintToJson,
 	type RehearsalForeachHint,
 } from "./rehearsal-executor.js";
+import { createShadowProject, hasDynamicStage } from "./rehearsal-shadow.js";
 import {
 	removeRehearsalRoot,
 	waitForRootProcesses,
@@ -48,6 +49,12 @@ import { EXECUTOR_CONTRACT_VERSION } from "../sdk/contract.js";
 
 export const REHEARSAL_SCHEMA = "agent-workflow-rehearsal-v1" as const;
 export const REHEARSAL_EXECUTOR_ID = "aw-rehearsal-synthetic";
+/**
+ * Set to "1" in the process environment while a rehearsal runs (helpers run in-process). A helper whose
+ * check can only pass on real output (files a writer stage wrote, a git history) may skip that check
+ * when it is set; the wiring around it is still exercised. Never set for a real run.
+ */
+export const REHEARSAL_ENV = "AGENT_WORKFLOW_REHEARSAL";
 export const REHEARSAL_DEFAULT_ITEMS = 2;
 export const REHEARSAL_MAX_ITEMS = 20;
 const RUN_WAIT_MS = 10 * 60_000;
@@ -576,6 +583,7 @@ export async function rehearseWorkflow(
 	// Load and compile in the real home (user agents/workflows resolve), before the state root is swapped.
 	let loaded: Awaited<ReturnType<typeof loadWorkflowSpec>>;
 	let warnings: string[];
+	let canWrite = false;
 	try {
 		loaded = await loadWorkflowSpec(options.workflow.trim(), cwd);
 		const compiled = await compileWorkflow(loaded.spec, {
@@ -584,6 +592,12 @@ export async function rehearseWorkflow(
 			task,
 		});
 		warnings = [...compiled.warnings];
+		// A stage that can write gets a managed git worktree from the engine; see rehearsal-shadow.ts.
+		canWrite =
+			(compiled.tasks ?? []).some(
+				(compiledTask: { safety?: { requiresWorktree?: boolean } }) =>
+					compiledTask.safety?.requiresWorktree === true,
+			) || hasDynamicStage(loaded.spec.artifactGraph?.stages ?? []);
 	} catch (error) {
 		if (error instanceof WorkflowValidationError)
 			return { report: invalidSpecReport(options, settings, error.issues) };
@@ -597,6 +611,7 @@ export async function rehearseWorkflow(
 	const savedEnv = {
 		home: process.env[AGENT_WORKFLOW_HOME_ENV],
 		index: process.env[RUN_INDEX_DIR_ENV],
+		rehearsal: process.env[REHEARSAL_ENV],
 	};
 	let unregister: (() => void) | undefined;
 	let outcome: RehearsalResult | undefined;
@@ -606,6 +621,10 @@ export async function rehearseWorkflow(
 	try {
 		mkdirSync(tempHome, { recursive: true });
 		linkReadOnlyHomeEntries(realHome, tempHome);
+		// R3: a workflow that can write runs in a shadow clone of the project inside the temporary root, so
+		// the engine's worktrees and `agent-workflow/<run>-<task>` branches never reach the user's repository.
+		const runCwd =
+			(canWrite ? createShadowProject(cwd, tempRoot) : undefined) ?? cwd;
 		unregister = registerWorkflowExecutor({
 			id: REHEARSAL_EXECUTOR_ID,
 			version: REHEARSAL_EXECUTOR_VERSION,
@@ -614,7 +633,7 @@ export async function rehearseWorkflow(
 			config: {
 				id: REHEARSAL_EXECUTOR_ID,
 				effectLog,
-				projectCwd: cwd,
+				projectCwd: runCwd,
 				items: settings.items,
 				loop: settings.loop,
 				foreach: foreachHints(loaded.spec.artifactGraph?.stages ?? []).map(
@@ -624,18 +643,19 @@ export async function rehearseWorkflow(
 		});
 		process.env[AGENT_WORKFLOW_HOME_ENV] = tempHome;
 		process.env[RUN_INDEX_DIR_ENV] = join(tempHome, "run-index");
-		const started = await runWorkflowSpec(loaded.specPath, cwd, {
+		process.env[REHEARSAL_ENV] = "1";
+		const started = await runWorkflowSpec(loaded.specPath, runCwd, {
 			task,
 			executor: REHEARSAL_EXECUTOR_ID,
 			...(options.signal === undefined ? {} : { launchSignal: options.signal }),
 		});
 		let run: WorkflowRunRecord;
 		try {
-			run = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
+			run = await waitForRun(runCwd, started.runId, RUN_WAIT_MS);
 		} catch {
-			run = await readRunRecord(cwd, started.runId);
+			run = await readRunRecord(runCwd, started.runId);
 		}
-		const runDir = workflowRunDir(cwd, run.runId);
+		const runDir = workflowRunDir(runCwd, run.runId);
 		const report = buildRehearsalReport({
 			workflow: options.workflow,
 			options: settings,
@@ -661,6 +681,7 @@ export async function rehearseWorkflow(
 		for (const [name, previous] of [
 			[AGENT_WORKFLOW_HOME_ENV, savedEnv.home],
 			[RUN_INDEX_DIR_ENV, savedEnv.index],
+			[REHEARSAL_ENV, savedEnv.rehearsal],
 		] as const) {
 			if (previous === undefined) delete process.env[name];
 			else process.env[name] = previous;
