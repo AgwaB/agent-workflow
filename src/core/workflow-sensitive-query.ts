@@ -146,19 +146,23 @@ export function redactSensitiveWorkflowText(value: string): string {
 			return `${quote}${key}${quote}${delimiter}${space}${valueQuote}REDACTED${valueQuote}`;
 		},
 	);
-	return redactedAssignments
-		.replace(CREDENTIAL_HEADER_LINE, (whole, name, headerValue) =>
-			credentialHeaderValue(String(name), String(headerValue))
-				? `${name}: REDACTED`
-				: whole,
-		)
-		.replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer REDACTED")
-		.replace(/\/Users\/[^\s:'")]+/g, "/Users/REDACTED")
-		.replace(/\/home\/[^\s:'")]+/g, "/home/REDACTED")
-		.replace(
-			/\b([A-Za-z]):((?:\\){1,2})Users\2[^\s:'")]+/g,
-			"$1:$2Users$2REDACTED",
-		);
+	return (
+		redactedAssignments
+			.replace(CREDENTIAL_HEADER_LINE, (whole, name, headerValue) =>
+				credentialHeaderValue(String(name), String(headerValue))
+					? `${name}: REDACTED`
+					: whole,
+			)
+			.replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer REDACTED")
+			// 2026-11-23: a home path ends at a backtick too, so `~/x`에서 keeps its closing backtick
+			// and the words after it (the path itself is redacted as before).
+			.replace(/\/Users\/[^\s:'")`]+/g, "/Users/REDACTED")
+			.replace(/\/home\/[^\s:'")`]+/g, "/home/REDACTED")
+			.replace(
+				/\b([A-Za-z]):((?:\\){1,2})Users\2[^\s:'")`]+/g,
+				"$1:$2Users$2REDACTED",
+			)
+	);
 }
 
 /**
