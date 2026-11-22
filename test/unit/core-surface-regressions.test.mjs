@@ -314,3 +314,46 @@ test("a worktree under a symlinked home still renders as ~/…", async () => {
 		await rm(base, { recursive: true, force: true });
 	}
 });
+
+test("status says how many tasks a capped Now/Waiting/Next list leaves out", async () => {
+	const { formatHumanRunStatus } = await import(
+		"../../dist/core/engine-format.js"
+	);
+	const waitingTask = (n) => ({
+		taskId: `task-${n}`,
+		specId: `s${n}.main`,
+		displayName: `s${n}.main`,
+		agent: "scout",
+		status: "pending",
+		statusDetail: "provider_pause",
+		lastMessage:
+			"provider p overloaded: paused until 03:01Z; waiting before launching",
+		runtime: { model: "p/m" },
+		dependsOn: [],
+	});
+	const tasks = [1, 2, 3, 4, 5].map(waitingTask);
+	const run = {
+		runId: "workflow_more",
+		status: "running",
+		cwd: "/tmp/x",
+		createdAt: "2026-11-22T00:00:00.000Z",
+		updatedAt: "2026-11-22T00:00:00.000Z",
+		tasks,
+		taskSummary: {
+			total: 5,
+			pending: 5,
+			running: 0,
+			blocked: 0,
+			completed: 0,
+			failed: 0,
+			skipped: 0,
+			interrupted: 0,
+		},
+	};
+	const text = formatHumanRunStatus(run);
+	const section = text.slice(text.indexOf("Waiting:"));
+	assert.match(section, /s3\.main/);
+	assert.doesNotMatch(section, /s4\.main/);
+	// 2026-11-21 e2e: four tasks waited, three were listed and nothing said a fourth existed.
+	assert.match(section, /… and 2 more waiting/);
+});

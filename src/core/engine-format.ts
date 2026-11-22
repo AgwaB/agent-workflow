@@ -577,25 +577,34 @@ function taskSections(run: WorkflowRunRecord): string[] {
 	appendTaskSection(
 		sections,
 		"Now",
-		run.tasks.filter((task) => task.status === "running").slice(0, 3),
+		run.tasks.filter((task) => task.status === "running"),
 		true,
+		"running",
 	);
-	appendTaskSection(sections, "Waiting", waitingTasks(run).slice(0, 3), true);
-	appendTaskSection(sections, "Next", nextReadyTasks(run).slice(0, 3), false);
+	appendTaskSection(sections, "Waiting", waitingTasks(run), true, "waiting");
+	appendTaskSection(sections, "Next", nextReadyTasks(run), false, "ready");
 	return sections;
 }
+
+const TASK_SECTION_MAX = 3;
 
 function appendTaskSection(
 	lines: string[],
 	label: string,
 	tasks: WorkflowTaskRunRecord[],
 	includeRuntime: boolean,
+	noun: string,
 ): void {
 	if (tasks.length === 0) return;
+	const hidden = tasks.length - TASK_SECTION_MAX;
 	lines.push(
 		"",
 		`${label}:`,
-		...tasks.map((task) => `  • ${formatTaskHuman(task, includeRuntime)}`),
+		...tasks
+			.slice(0, TASK_SECTION_MAX)
+			.map((task) => `  • ${formatTaskHuman(task, includeRuntime)}`),
+		// The list is capped; say what it leaves out instead of dropping it silently.
+		...(hidden > 0 ? [`  … and ${hidden} more ${noun}`] : []),
 	);
 }
 
