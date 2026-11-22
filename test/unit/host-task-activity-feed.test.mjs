@@ -54,6 +54,23 @@ test("tokens join into messages; a call's start and end join into one line", () 
 				callId: "c2",
 				input: { query: "retry jitter" },
 			}),
+			// Pi ends a call without its input: the start's label stays.
+			line({
+				type: "tool_call",
+				name: "read",
+				kind: "read",
+				status: "running",
+				callId: "c3",
+				input: { path: "notes/w4/note-01.md" },
+			}),
+			line({
+				type: "tool_call",
+				name: "read",
+				kind: "read",
+				status: "completed",
+				callId: "c3",
+				output: "Note 1",
+			}),
 			line({ type: "message_delta", text: "   " }),
 			line({
 				type: "usage",
@@ -76,6 +93,12 @@ test("tokens join into messages; a call's start and end join into one line", () 
 			output: "ok 1\nok 2",
 		},
 		{ kind: "tool", label: 'Searching "retry jitter"', status: "completed" },
+		{
+			kind: "tool",
+			label: "Reading notes/w4/note-01.md",
+			status: "completed",
+			output: "Note 1",
+		},
 		{ kind: "failed", text: "boom" },
 	]);
 });
