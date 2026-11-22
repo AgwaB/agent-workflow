@@ -11,6 +11,7 @@ import {
 	lstatSync,
 	mkdirSync,
 	realpathSync,
+	rmSync,
 } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
@@ -83,8 +84,10 @@ export function createShadowProject(
 	for (const name of ["agents", "workflows"]) {
 		const source = join(realpathSync(cwd), PROJECT_STATE_DIRECTORY, name);
 		const target = join(shadowCwd, PROJECT_STATE_DIRECTORY, name);
-		if (!existsSync(source) || existsSync(target)) continue;
+		if (!existsSync(source)) continue;
 		if (!lstatSync(source).isDirectory()) continue;
+		// The working-tree copy wins over the clone's HEAD copy: uncommitted edits are what the user rehearses.
+		rmSync(target, { recursive: true, force: true });
 		mkdirSync(join(shadowCwd, PROJECT_STATE_DIRECTORY), { recursive: true });
 		// Copied, not linked: the agent loader refuses a symlinked project agents directory. Only regular
 		// files and directories are copied (no symlinks), and these directories hold definitions, not data.

@@ -157,8 +157,8 @@ The project must be a git repository with a commit: the writer runs in a managed
 project (`support.options`: `maxCommits`, `range`) and renders Conventional Commits groups; in a directory that is not a
 git repository the run fails (only `rehearse` gets an empty list); `run` still wants a task argument, any text will do. While `rehearse` runs, helpers see
 `AGENT_WORKFLOW_REHEARSAL=1`: `verify` then still looks up the worktree but skips the file checks, which the synthetic
-writer cannot satisfy. A `rehearse` of a workflow with a write stage runs in a throwaway clone of the project's `HEAD` (uncommitted changes
-are not copied), so the project's worktrees, branches and working tree stay unchanged.
+writer cannot satisfy. A `rehearse` of a workflow with a write stage runs in a throwaway clone of the project's `HEAD` plus the current
+`.agent-workflow/agents` and `.agent-workflow/workflows` (other uncommitted changes are not copied), so the project's worktrees, branches and working tree stay unchanged.
 
 `--scope private` (default) writes `.agent-workflow/workflows/<name>/` in the project, `shared` writes
 `workflows/<name>/`, `global` writes under `$AGENT_WORKFLOW_HOME/workflows/` ([where workflows are
