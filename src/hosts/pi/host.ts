@@ -25,6 +25,7 @@ export type PiHostApi = Pick<
 	| "profileAction"
 	| "workflowPreferenceAction"
 	| "executorModelsAction"
+	| "previewProjectSettingsRecoveryAction"
 	| "runWorkflowAction"
 	| "runDynamicAction"
 	| "statusAction"

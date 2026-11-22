@@ -105,8 +105,10 @@ private MCP config; only `--no-context-files` and/or `--no-skills` are dropped. 
 servers register on the built-in MCP implementation. Workflow stages always send a scope, so a workflow's
 Pi workers never load the user's extensions, prompt templates or themes, even when the agent inherits
 context; the adapter adds only `pi-web-access` (`-e`) for web tools. An extension a model provider needs
-(for example an authentication extension) is therefore not available to workflow stages; only an SDK
-caller's bare `inherit: true` loads it.
+(for example an authentication extension) is listed in `AGENT_WORKFLOW_PI_EXTENSIONS`: comma-separated
+paths or Pi package sources (`npm:@scope/name`) that every isolated Pi worker loads with `-e`, for example
+`AGENT_WORKFLOW_PI_EXTENSIONS=npm:@cortexkit/pi-anthropic-auth`. Set it where the workflow runs (the shell
+that starts Pi or the CLI). Nothing else from the user's extensions is loaded.
 
 User `settings.json` values not overridden by flags still apply, including retry, compaction,
 transport, shell prefix, `httpProxy` and cache warming. Pi has no per-run settings flag.

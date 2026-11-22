@@ -575,6 +575,14 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 				);
 			extensionsAfter.push(webAccess);
 		}
+		// Extensions the user lists for every isolated worker (for example the authentication
+		// extension a model provider needs), as pi-workflow's PI_WORKFLOW_SUBAGENT_EXTRA_EXTENSIONS.
+		if (isolated)
+			for (const extension of piWorkerExtensions(process.env))
+				if (!extensionsAfter.includes(extension)) {
+					extensionsAfter.push(extension);
+					notes.push(`${PI_WORKER_EXTENSIONS_ENV}: loaded ${extension}`);
+				}
 		const sessionId = req.resumeSessionId ?? req.sessionId;
 		if (
 			req.resumeSessionId !== undefined &&
@@ -1282,4 +1290,19 @@ export function createPiExecutor(rawConfig: JsonValue = null): PiExecutor {
 		},
 	};
 	return executor;
+}
+
+/** Environment variable: extensions (paths or Pi package sources) every isolated Pi worker loads. */
+export const PI_WORKER_EXTENSIONS_ENV = "AGENT_WORKFLOW_PI_EXTENSIONS";
+
+/** The listed worker extensions, comma-separated (`npm:` sources contain a colon, so not the path delimiter). */
+export function piWorkerExtensions(env: NodeJS.ProcessEnv): string[] {
+	return [
+		...new Set(
+			String(env[PI_WORKER_EXTENSIONS_ENV] ?? "")
+				.split(",")
+				.map((entry) => entry.trim())
+				.filter(Boolean),
+		),
+	];
 }

@@ -231,5 +231,11 @@ test("stop abandons a blocked run: the blocked task is interrupted and the run i
 			[task.status, task.statusDetail],
 			["interrupted", "workflow_stopped"],
 		);
+		// 2026-11-23: the blocked task keeps the time its work ended; waiting is not work.
+		assert.equal(
+			task.completedAt,
+			blocked.tasks.find((candidate) => candidate.taskId === taskId)
+				.completedAt,
+		);
 	}
 });

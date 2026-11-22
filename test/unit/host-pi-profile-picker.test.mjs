@@ -866,3 +866,57 @@ test("effortChoicesFor: executor levels, narrowed by the model's, else every lev
 		{ levels: ["off"], note: "b does not think on pi: its effort is off." },
 	);
 });
+
+// 2026-11-23 (owner: a Custom setting saved in the dashboard did not show in the CLI): the picker
+// names this project's dashboard settings, which come before any profile at launch.
+test("picker titles name the project's dashboard settings; other workflows and failures add nothing", async () => {
+	const affected = {
+		workflows: {
+			a: {
+				identity: { scope: "package", relativeSpec: "deep-research/spec.json" },
+				intent: {
+					defaults: { executor: "codex", model: "gpt-6.2-sol", effort: "high" },
+					slots: {
+						plan: { executor: "codex" },
+						retranslate: { executor: "codex" },
+					},
+				},
+			},
+			b: {
+				identity: { scope: "project", relativeSpec: "flows/my-flow.yaml" },
+				intent: { slots: { only: { executor: "claude" } } },
+			},
+		},
+	};
+	const api = {
+		previewProjectSettingsRecoveryAction: async () => ({ data: { affected } }),
+	};
+	assert.deepEqual(await picker.projectSettingsLines(api, {}), [
+		"This project's dashboard settings come first (change them in the dashboard):",
+		"  deep-research: codex · gpt-6.2-sol · high, 2 steps set separately",
+		"  my-flow: 1 step set separately",
+	]);
+	assert.deepEqual(
+		await picker.projectSettingsLines(api, {}, "deep-research"),
+		[
+			"This project's dashboard settings come first (change them in the dashboard):",
+			"  deep-research: codex · gpt-6.2-sol · high, 2 steps set separately",
+		],
+	);
+	assert.deepEqual(
+		await picker.projectSettingsLines(api, {}, "spec-review"),
+		[],
+	);
+	assert.deepEqual(
+		await picker.projectSettingsLines(
+			{
+				previewProjectSettingsRecoveryAction: async () => {
+					throw new Error("unreadable store");
+				},
+			},
+			{},
+		),
+		[],
+	);
+	assert.deepEqual(await picker.projectSettingsLines({}, {}), []);
+});
