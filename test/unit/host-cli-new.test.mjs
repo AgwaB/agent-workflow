@@ -25,6 +25,9 @@ const { validateJsonSchema } = await import("../../dist/core/json-schema.js");
 const { AUTHORING_PATTERN_IDS, generatePatternFiles } = await import(
 	"../../dist/core/authoring-patterns.js"
 );
+const { controlContract, exampleControl } = await import(
+	"../../dist/core/authoring-contract.js"
+);
 const BIN = fileURLToPath(
 	new URL("../../src/hosts/cli/cli.mjs", import.meta.url),
 );
@@ -224,6 +227,18 @@ for (const pattern of AUTHORING_PATTERN_IDS) {
 			assert.ok(Number.isInteger(cap) && cap > 0, `${stage.id} source capped`);
 			assert.ok(stage.each.itemIdentityPath);
 		}
+		// A required read names the artifact only: a read "with a path" counts only when the worker passes that
+		// path to the tool, and a cheap model did not (live run: two output retries on `path: "$"`).
+		for (const stage of spec.artifactGraph.stages)
+			for (const read of stage.inputPolicy?.requiredReads ?? []) {
+				assert.equal(typeof read, "object");
+				assert.equal(
+					read.path,
+					undefined,
+					`${stage.id} requiredRead has no path`,
+				);
+				assert.ok(read.source && read.artifact);
+			}
 		// Every referenced file exists and nothing else is shipped.
 		const referenced = new Set(["spec.json"]);
 		const collect = (stage) => {
@@ -553,4 +568,39 @@ test("the real bin lists patterns and creates a bundle", async () => {
 		{ cwd: dir, env, encoding: "utf8" },
 	);
 	assert.equal(again.status, 2);
+});
+
+test("the generated contract and example come from the schema and refuse a value the schema rejects", () => {
+	const schema = {
+		type: "object",
+		required: ["schema", "digest", "kind", "rows"],
+		properties: {
+			schema: { const: "demo-v1" },
+			digest: { type: "string", minLength: 1, maxLength: 50 },
+			kind: { enum: ["a", "b"] },
+			rows: {
+				type: "array",
+				items: { type: "string", maxLength: 20 },
+				maxItems: 3,
+			},
+		},
+		additionalProperties: false,
+	};
+	const contract = controlContract(schema, { kind: "b", rows: ["x"] });
+	assert.match(
+		contract,
+		/no top-level keys other than schema, digest, kind, rows/u,
+	);
+	assert.match(contract, /schema must be exactly "demo-v1"/u);
+	assert.match(contract, /kind must be exactly one of: a, b\./u);
+	assert.match(contract, /Array caps: rows<=3/u);
+	assert.match(
+		contract,
+		/<control>\{"schema":"demo-v1","digest":"digest","kind":"b","rows":\["x"\]\}<\/control>/u,
+	);
+	assert.equal(controlContract(schema, { kind: "b", rows: ["x"] }), contract);
+	assert.throws(
+		() => exampleControl(schema, { kind: "zzz" }),
+		/does not match its schema/u,
+	);
 });
