@@ -307,8 +307,11 @@ function ago(value, time = now()) {
 				: `${Math.floor(minutes / 1440)}d ago`;
 }
 const liveRun = (run) => ["running", "blocked"].includes(run.status);
+// 2026-11-23 (owner: a failed run's clock kept running until Stop): a blocked run waits for a
+// person and nothing works on it, so only a running run's clock moves.
+const ticking = (run) => run.status === "running";
 const elapsed = (run) =>
-	duration((liveRun(run) ? now() : date(run.updatedAt)) - date(run.createdAt));
+	duration((ticking(run) ? now() : date(run.updatedAt)) - date(run.createdAt));
 const retryDetails = new Set([
 	"retry_backoff",
 	"retry_model_failure",
@@ -950,7 +953,7 @@ function railCount(counts, agents) {
  * report do, so the same run never has two numbers.
  */
 const runElapsed = (run) =>
-	!liveRun(run) && run.activeMs != null ? duration(run.activeMs) : elapsed(run);
+	!ticking(run) && run.activeMs != null ? duration(run.activeMs) : elapsed(run);
 /** "6m" for "6m 00s", "1h" for "1h 00m": the rail rounds where nothing is lost. */
 const railElapsed = (run) => runElapsed(run).replace(/ 00[sm]$/, "");
 function progress(completed, total, status = "") {
@@ -1807,6 +1810,10 @@ export function deriveGraph(
 				? "skipped"
 				: "completed"
 			: priority.find((s) => states.includes(s)) || "pending";
+		// 2026-11-23 (owner: "Verify claims" showed a green check after the run failed): a fan-out
+		// that had no items ran nothing, so it reads as skipped, not done.
+		if (stage.status === "completed" && emptyForeach(stage))
+			stage.status = "skipped";
 		stage.done = stage.items.filter((t) => t.status === "completed").length;
 		for (const dep of stage.deps) stages.get(dep).kids.add(stage.id);
 	}
@@ -3637,7 +3644,7 @@ export function timelineRows(projection, stages, until) {
 }
 function renderTimeline() {
 	const t0 = date(run.createdAt);
-	const until = liveRun(run) ? now() : Math.max(date(run.updatedAt), t0);
+	const until = ticking(run) ? now() : Math.max(date(run.updatedAt), t0);
 	const rows = timelineRows(run, [...graphModel.stages.values()], until);
 	const total = Math.max(
 		1000,
@@ -4611,16 +4618,16 @@ function renderSingle(inspector, stage) {
 }
 function renderItems(inspector, stage, previous = new Map()) {
 	if (emptyForeach(stage)) {
-		const completed =
-			stage.status === "completed" &&
-			stage.tasks.every((task) => task.statusDetail === "foreach_empty");
+		const completed = stage.tasks.every(
+			(task) => task.statusDetail === "foreach_empty",
+		);
 		inspector.append(
 			inspectorHeader(humanize(stage.id), stage.status),
 			element(
 				"p",
 				{ class: "agents-meta" },
 				completed
-					? "No applicable items. No agents ran."
+					? "Skipped: there were no items, so no agents ran."
 					: `${humanize(stage.status)}. No generated agents yet. This stage has not completed an empty pass.`,
 			),
 			...(!completed

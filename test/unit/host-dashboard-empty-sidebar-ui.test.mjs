@@ -46,6 +46,19 @@ async function open(f, b, query = "", width = 1440) {
 test("empty foreach node and legacy placeholder links explain stage, not an executed agent", async (t) => {
 	const { f, b } = await setup(t);
 	await open(f, b);
+	// 2026-11-23: an empty fan-out ran nothing, so its card reads skipped, not done.
+	assert.deepEqual(
+		await b.evaluate(() => {
+			const node = document.querySelector(
+				'.node[data-stage="recheck-requirements"]',
+			);
+			return [
+				node.classList.contains("skipped"),
+				node.classList.contains("completed"),
+			];
+		}),
+		[true, false],
+	);
 	await b.click('.node[data-stage="recheck-requirements"]');
 	await b.waitFor(() => !document.querySelector("#inspector").hidden);
 	for (const legacy of [false, true]) {
@@ -54,8 +67,8 @@ test("empty foreach node and legacy placeholder links explain stage, not an exec
 			() => document.querySelector("#inspector").textContent,
 		);
 		assert.match(text, /Recheck requirements/);
-		assert.match(text, /No applicable items/);
-		assert.match(text, /No agents ran/);
+		assert.match(text, /Skipped: there were no items/);
+		assert.match(text, /no agents ran/);
 		assert.doesNotMatch(
 			text,
 			/unknown|No result files|Recorded model|Open agent|0 agents, 0 done/i,
@@ -81,7 +94,7 @@ test("empty foreach node and legacy placeholder links explain stage, not an exec
 		const text = await b.evaluate(
 			() => document.querySelector("#inspector").textContent,
 		);
-		assert.doesNotMatch(text, /No applicable items|No agents ran/);
+		assert.doesNotMatch(text, /there were no items|no agents ran/i);
 		assert.match(
 			text,
 			new RegExp(status === "pending" ? "Waiting|Pending" : status, "i"),
