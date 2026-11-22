@@ -80,11 +80,12 @@ export function markRunStopped(
 			interruptedTaskIds.push(task.taskId);
 		} else if (task.status === "blocked") {
 			// Stopping the run abandons blocked tasks, including decisions.
-			// They become interrupted and resume like any stopped task.
+			// They become interrupted and resume like any stopped task. A blocked task already
+			// ended its work: keep that time, or its duration grows by the time the run waited.
 			delete task.activity;
 			task.status = "interrupted";
 			task.statusDetail = statusDetail;
-			task.completedAt = new Date().toISOString();
+			task.completedAt ??= new Date().toISOString();
 			task.exitCode = 130;
 			task.lastMessage = lastMessage;
 			interruptedTaskIds.push(task.taskId);
