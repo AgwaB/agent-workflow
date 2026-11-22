@@ -580,9 +580,20 @@ export async function trackLaunched(
 	if (active) await beginRunParentUsage(ctx, data.runId);
 }
 
+/** Actions whose first argument is a workflow name (completed from the discovered catalog). */
+const WORKFLOW_NAME_ACTIONS = ["run", "validate", "check", "roles", "show"];
+
 export function awArgumentCompletions(
 	prefix: string,
+	workflows: readonly string[] = [],
 ): Array<{ value: string; label: string }> | null {
+	const named = /^(\S+) +(\S*)$/.exec(prefix.trimStart());
+	if (named && WORKFLOW_NAME_ACTIONS.includes(named[1]!)) {
+		const matches = workflows.filter((name) => name.startsWith(named[2]!));
+		return matches.length
+			? matches.map((name) => ({ value: `${named[1]} ${name} `, label: name }))
+			: null;
+	}
 	if (/\s/.test(prefix)) return null;
 	const matches = AW_ACTIONS.filter((action) => action.startsWith(prefix));
 	return matches.length

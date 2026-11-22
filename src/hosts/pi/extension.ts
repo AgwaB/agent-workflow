@@ -2,6 +2,7 @@
 // Restore tracking at session start and stop it at shutdown. Re-drive runs without a
 // live driver before showing notices. Runtime Pi presence checks belong to index.ts.
 import { isWorkflowSupervisorEnabled } from "../../core/process-role.js";
+import { listWorkflows } from "../../core/workflow-specs.js";
 import { awArgumentCompletions, handleAwCommand } from "./command.js";
 import type { PiRunFeedback } from "./feedback.js";
 import { createPiHostDeps, hostContext, type PiHostOptions } from "./host.js";
@@ -33,9 +34,16 @@ export function createAgentWorkflowPiExtension(
 		const supervisor = isWorkflowSupervisorEnabled(deps.env);
 		let session = 0;
 		let lastNotice: Promise<void> = Promise.resolve();
+		// Workflow names for `/aw run <Tab>` (as pi-workflow does): read once per session, never awaited.
+		let workflowNames: string[] = [];
 
 		pi.on("session_start", (_event, ctx) => {
 			session += 1;
+			void listWorkflows(ctx.cwd)
+				.then((found) => {
+					workflowNames = [...new Set(found.map((workflow) => workflow.name))];
+				})
+				.catch(() => undefined);
 			deps.feedback.stop();
 			if (!supervisor) return;
 			const current = session;
@@ -93,7 +101,8 @@ export function createAgentWorkflowPiExtension(
 		pi.registerCommand(AW_COMMAND, {
 			description:
 				"agent-workflow: list, validate and run workflows on Pi, Codex or Claude workers (/aw help)",
-			getArgumentCompletions: awArgumentCompletions,
+			getArgumentCompletions: (prefix: string) =>
+				awArgumentCompletions(prefix, workflowNames),
 			handler: (args, ctx) => handleAwCommand(deps, args, ctx),
 		});
 	};
