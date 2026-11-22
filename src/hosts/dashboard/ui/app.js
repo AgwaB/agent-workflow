@@ -475,6 +475,15 @@ let logController,
 	logError = "",
 	logLoading = false;
 // 2026-11-03: a finished task's result (digest, analysis, refs, control) for the Result tab.
+// 2026-11-23 (owner: watch an agent work like in a terminal): its latest activity, refreshed
+// every 2 s while the agent runs and the Activity tab is open.
+let activityController,
+	activityGeneration = 0,
+	activityKey = "",
+	activityData = null,
+	activityError = "",
+	activityTimer = 0;
+const ACTIVITY_POLL_MS = 2000;
 let resultController,
 	resultGeneration = 0,
 	resultKey = "",
@@ -4036,6 +4045,15 @@ function stopTaskLoads() {
 	resultGeneration++;
 	resultKey = "";
 	resultLoading = false;
+	stopActivity();
+}
+function stopActivity() {
+	activityController?.abort();
+	activityGeneration++;
+	clearTimeout(activityTimer);
+	activityKey = "";
+	activityData = null;
+	activityError = "";
 }
 function blockedChip(blocked) {
 	return blocked?.count
@@ -4095,6 +4113,16 @@ function renderSelection() {
 		: null;
 	const detailsOpen = same && inspector.querySelector("details")?.open;
 	const logScroll = same ? inspector.querySelector(".log")?.scrollTop || 0 : 0;
+	const activityView = same ? inspector.querySelector("#activity-view") : null;
+	const activityScroll =
+		activityView && !activityView.hidden
+			? {
+					top: activityView.scrollTop,
+					atBottom:
+						activityView.scrollTop + activityView.clientHeight >=
+						activityView.scrollHeight - 8,
+				}
+			: undefined;
 	const focusedField =
 		same &&
 		inspector.contains(document.activeElement) &&
@@ -4231,32 +4259,28 @@ function renderSelection() {
 				"div",
 				{ class: "tabs", role: "tablist", "aria-label": "Task logs" },
 				TASK_TABS.map((stream) =>
-					button(
-						stream[0].toUpperCase() + stream.slice(1),
-						() => go({ tab: stream }),
-						{
-							role: "tab",
-							id: `tab-${stream}`,
-							"data-tab": stream,
-							"aria-selected": String(tab === stream),
-							"aria-controls": "log-panel",
-							tabindex: tab === stream ? "0" : "-1",
-							onkeydown: (event) => {
-								if (["ArrowLeft", "ArrowRight"].includes(event.key)) {
-									event.preventDefault();
-									const tabs = TASK_TABS;
-									go({
-										tab: tabs[
-											(tabs.indexOf(stream) +
-												(event.key === "ArrowRight" ? 1 : tabs.length - 1)) %
-												tabs.length
-										],
-									});
-									document.querySelector(`[data-tab="${state.tab}"]`)?.focus();
-								}
-							},
+					button(tabLabel(stream), () => go({ tab: stream }), {
+						role: "tab",
+						id: `tab-${stream}`,
+						"data-tab": stream,
+						"aria-selected": String(tab === stream),
+						"aria-controls": "log-panel",
+						tabindex: tab === stream ? "0" : "-1",
+						onkeydown: (event) => {
+							if (["ArrowLeft", "ArrowRight"].includes(event.key)) {
+								event.preventDefault();
+								const tabs = TASK_TABS;
+								go({
+									tab: tabs[
+										(tabs.indexOf(stream) +
+											(event.key === "ArrowRight" ? 1 : tabs.length - 1)) %
+											tabs.length
+									],
+								});
+								document.querySelector(`[data-tab="${state.tab}"]`)?.focus();
+							}
 						},
-					),
+					}),
 				),
 			),
 		);
@@ -4285,7 +4309,15 @@ function renderSelection() {
 					class: "log",
 					id: "log-text",
 					tabindex: "0",
-					hidden: tab === "result" ? "" : null,
+					hidden: ["result", "events"].includes(tab) ? "" : null,
+				}),
+				element("div", {
+					class: "activity",
+					id: "activity-view",
+					tabindex: "0",
+					role: "log",
+					"aria-label": "Agent activity",
+					hidden: tab !== "events" ? "" : null,
 				}),
 				element("p", { class: "log-notice", id: "log-notice" }),
 			),
@@ -4338,6 +4370,19 @@ function renderSelection() {
 			loadResult();
 		}
 		paintLogs();
+		if (tab === "events") {
+			// One fetch per agent and state: a state change (finished, failed) reads once more.
+			const activityStamp = `${key}:${taskState(task)}`;
+			if (activityStamp !== activityKey) {
+				if (!activityKey.startsWith(`${key}:`)) {
+					activityData = null;
+					activityError = "";
+				}
+				activityKey = activityStamp;
+				loadActivity();
+			}
+			paintActivity(activityScroll);
+		} else stopActivity();
 	} else if (stage) renderItems(inspector, stage, previousItems);
 	if (!task) stopTaskLoads();
 	inspector.scrollTop = scroll;
@@ -4449,8 +4494,13 @@ function itemPositions(inspector) {
 const expandedItems = new Set();
 let justExpanded = null; // the row opened by this click: only its result animates in
 const itemResults = new Map();
+// 2026-11-23 (owner: reading an opened result in a running stage, the list kept jumping up):
+// a result already read is drawn at once, so a live redraw keeps the panel's height and scroll.
+const settledItemResults = new Map();
+const itemResultKey = (task) =>
+	`${run.runId}:${task.taskId}:${task.status}:${task.attempt ?? ""}`;
 function itemResult(task) {
-	const key = `${run.runId}:${task.taskId}:${task.status}:${task.attempt ?? ""}`;
+	const key = itemResultKey(task);
 	if (!itemResults.has(key))
 		itemResults.set(
 			key,
@@ -4458,7 +4508,11 @@ function itemResult(task) {
 				`/api/runs/${encodeURIComponent(run.runId)}/tasks/${encodeURIComponent(task.taskId)}/result`,
 				{ signal: AbortSignal.timeout(20000) },
 			).then(
-				(data) => ({ data: Object.keys(data || {}).length ? data : null }),
+				(data) => {
+					const value = { data: Object.keys(data || {}).length ? data : null };
+					settledItemResults.set(key, value);
+					return value;
+				},
 				(error) => {
 					itemResults.delete(key);
 					return { error: `Result unavailable: ${error.message}` };
@@ -4494,9 +4548,7 @@ function itemExpansion(task, id, entering = false, variant = "") {
 		);
 		return body;
 	}
-	body.append(element("p", { class: "muted" }, "Loading…"));
-	itemResult(task).then(({ data, error }) => {
-		if (!body.isConnected) return;
+	const fill = ({ data, error }) => {
 		const parts = [];
 		if (error) parts.push(element("p", { class: "muted" }, error));
 		else if (!data)
@@ -4513,6 +4565,15 @@ function itemExpansion(task, id, entering = false, variant = "") {
 			}
 		}
 		body.replaceChildren(...parts, open);
+	};
+	const settled = settledItemResults.get(itemResultKey(task));
+	if (settled) {
+		fill(settled);
+		return body;
+	}
+	body.append(element("p", { class: "muted" }, "Loading…"));
+	itemResult(task).then((value) => {
+		if (body.isConnected) fill(value);
 	});
 	return body;
 }
@@ -4871,13 +4932,16 @@ function renderItems(inspector, stage, previous = new Map()) {
 }
 
 const TASK_TABS = ["result", "output", "stderr", "events"];
-/** Failed/retrying → stderr; finished → result; otherwise the live output. */
+/** Failed/retrying → stderr; finished → result; otherwise what the agent is doing (Activity). */
 function defaultTaskTab(task) {
 	const status = taskState(task);
 	if (["retry", "failed"].includes(status)) return "stderr";
-	return status === "completed" ? "result" : "output";
+	return status === "completed" ? "result" : "events";
 }
+const tabLabel = (tab) =>
+	tab === "events" ? "Activity" : tab[0].toUpperCase() + tab.slice(1);
 function logText(tab) {
+	if (tab === "events") return activityText();
 	if (tab === "result")
 		return [resultData?.digest, resultData?.analysis]
 			.filter(Boolean)
@@ -4987,12 +5051,145 @@ async function loadResult() {
 		paintResult();
 	}
 }
+const ACTIVITY_MARKS = {
+	pending: "·",
+	approval_pending: "?",
+	running: "●",
+	completed: "✓",
+	failed: "✗",
+	denied: "⊘",
+	timed_out: "✗",
+};
+const activeTask = (task) =>
+	!!task && ["running", "pending", "retry"].includes(taskState(task));
+function activityText() {
+	return (activityData?.entries ?? [])
+		.map((entry) =>
+			entry.kind === "tool"
+				? [
+						`${ACTIVITY_MARKS[entry.status] ?? "·"} ${entry.label}`,
+						entry.output,
+					]
+						.filter(Boolean)
+						.join("\n")
+				: entry.text,
+		)
+		.join("\n\n");
+}
+function activityEntry(entry) {
+	if (entry.kind === "tool")
+		return element(
+			"div",
+			{ class: "activity-tool", "data-status": entry.status },
+			element(
+				"div",
+				{ class: "activity-line" },
+				element(
+					"span",
+					{ class: "activity-mark", "aria-label": entry.status },
+					ACTIVITY_MARKS[entry.status] ?? "·",
+				),
+				element("span", { class: "activity-label" }, entry.label),
+			),
+			entry.output
+				? element(
+						"pre",
+						{ class: "activity-output" },
+						entry.output + (entry.outputClipped ? "\n…" : ""),
+					)
+				: null,
+		);
+	return element(
+		"div",
+		{ class: `activity-${entry.kind === "message" ? "message" : "failed"}` },
+		(entry.kind === "message" && entry.clipped ? "…" : "") + entry.text,
+	);
+}
+/**
+ * Draw the activity list. It follows new lines only while the reader is at the bottom (as a
+ * terminal, and vibe-kanban's conversation list, do); a reader who scrolled up keeps their place.
+ */
+function paintActivity(scroll) {
+	const view = $("activity-view");
+	if (!view || view.hidden) return;
+	const before = scroll ?? {
+		top: view.scrollTop,
+		atBottom:
+			!view.querySelector(".activity-tool, .activity-message") ||
+			view.scrollTop + view.clientHeight >= view.scrollHeight - 8,
+	};
+	const task = selectedTask();
+	const entries = activityData?.entries ?? [];
+	view.replaceChildren(
+		...(entries.length
+			? [
+					activityData.truncated
+						? element(
+								"p",
+								{ class: "activity-note" },
+								"Earlier activity is not shown.",
+							)
+						: null,
+					...entries.map(activityEntry),
+				]
+			: [
+					element(
+						"p",
+						{ class: "muted" },
+						activityError ||
+							(!activityData
+								? "Loading…"
+								: activeTask(task)
+									? "No activity yet."
+									: "No activity was recorded for this agent."),
+					),
+				]
+		).filter(Boolean),
+	);
+	view.scrollTop = before.atBottom ? view.scrollHeight : before.top;
+}
+async function loadActivity() {
+	const task = selectedTask();
+	if (!task || !run) return;
+	clearTimeout(activityTimer);
+	activityController?.abort();
+	activityController = new AbortController();
+	const generation = ++activityGeneration,
+		key = activityKey,
+		id = run.runId;
+	try {
+		const data = await api(
+			`/api/runs/${encodeURIComponent(id)}/tasks/${encodeURIComponent(task.taskId)}/activity`,
+			{
+				signal: AbortSignal.any([
+					activityController.signal,
+					AbortSignal.timeout(20000),
+				]),
+			},
+		);
+		if (generation !== activityGeneration || key !== activityKey) return;
+		activityData = data;
+		activityError = "";
+	} catch (error) {
+		if (generation !== activityGeneration || error.name === "AbortError")
+			return;
+		activityError = `Activity unavailable: ${error.message}`;
+	}
+	paintActivity();
+	// Keep following a working agent; a finished one was read once more when it ended.
+	const current = selectedTask();
+	if (current?.taskId === task.taskId && activeTask(current))
+		activityTimer = setTimeout(() => {
+			if (key === activityKey && generation === activityGeneration)
+				loadActivity();
+		}, ACTIVITY_POLL_MS);
+}
 function paintLogs() {
 	if (!$("log-text")) return;
 	const task = selectedTask(),
 		tab = state.tab || defaultTaskTab(task);
-	if (tab === "result") {
-		paintResult();
+	if (tab === "result" || tab === "events") {
+		if (tab === "result") paintResult();
 		$("log-notice").textContent = "";
 		return;
 	}
@@ -6962,11 +7159,13 @@ async function loadRun(animate = false) {
 		center.inert = true;
 	} else
 		center.replaceChildren(
-			element("span", {
-				class: "project-settings-spinner",
-				role: "status",
-				"aria-label": "Loading run",
-			}),
+			// 2026-11-23 (owner: a spinner in the panel's top-left corner): the top progress bar shows
+			// loading; this status only tells screen readers.
+			element(
+				"span",
+				{ class: "sr-only", role: "status", "aria-label": "Loading run" },
+				"Loading run",
+			),
 		);
 	connection = "Reconnecting";
 	lastEvent = 0;

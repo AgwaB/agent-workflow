@@ -799,6 +799,25 @@ export async function startDashboardServer(
 			request.method === "GET" &&
 			parts.length === 6 &&
 			parts[3] === "tasks" &&
+			parts[5] === "activity"
+		) {
+			const taskId = parts[4]!;
+			if (!validTaskId(taskId)) throw new HttpError(400, "invalid task id");
+			const shownRun = await getRun(source, runId);
+			if (!shownRun.tasks?.some((task) => task.taskId === taskId))
+				throw new HttpError(404, "task not found");
+			const feed = (await source.taskActivity?.(runId, taskId)) ?? {
+				taskId,
+				entries: [],
+				truncated: false,
+			};
+			json(response, 200, safe(feed));
+			return;
+		}
+		if (
+			request.method === "GET" &&
+			parts.length === 6 &&
+			parts[3] === "tasks" &&
 			parts[5] === "result"
 		) {
 			const taskId = parts[4]!;

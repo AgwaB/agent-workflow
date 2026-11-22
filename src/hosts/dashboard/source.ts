@@ -9,6 +9,7 @@ import {
 	type LogsRequest,
 	type LogsTask,
 } from "../api.js";
+import { taskActivityAction } from "../logs.js";
 import { hostTextRedactor } from "../redaction.js";
 import type { RunReport } from "../run-artifacts.js";
 import {
@@ -44,6 +45,11 @@ export interface DashboardSource {
 		options: Pick<LogsRequest, "stream" | "lines">,
 	): Promise<LogsTask | undefined>;
 	report(runId: string): Promise<RunReport | undefined>;
+	/** 2026-11-23: one agent's latest activity (task-activity-feed.ts); absent: not offered. */
+	taskActivity?(
+		runId: string,
+		taskId: string,
+	): Promise<Awaited<ReturnType<typeof taskActivityAction>>>;
 	/** A finished task's digest, analysis, refs and control (2026-11-03); absent: not offered. */
 	taskResult?(
 		runId: string,
@@ -151,6 +157,10 @@ export function hostApiDashboardSource(ctx: HostApiContext): DashboardSource {
 					})
 				).data.tasks[0],
 			);
+		},
+		async taskActivity(runId, taskId) {
+			const feed = await taskActivityAction(ctx, { runId, task: taskId });
+			return feed === undefined ? undefined : safe(feed);
 		},
 		async taskResult(runId, taskId) {
 			const data = await detail(runId);
