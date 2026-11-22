@@ -193,9 +193,12 @@ report rendered. `--items N` (0-20, default 2) sets how many items an unbounded 
 `--loop exhaust` keeps every bounded loop's `until` false so `onExhausted` and the `exhausted`
 status are exercised (default `pass`: `until` holds on round 1). A support helper that itself
 declares `failed` or `blocked` because synthetic content cannot satisfy its content checks (for
-example a report renderer's evidence reconciliation) is listed as a gate, not as a wiring problem.
-Exit 0 when the rehearsal found nothing wrong, 1 when it found wiring problems or the spec is
-invalid, 2 for a usage error. `--json` prints `{action, ok, outcome, data}` with the report in `data`.
+example a report renderer's evidence reconciliation) is listed as a content gate, not as a wiring problem:
+the text names each gate helper and its reason, says this is expected for placeholder data, and lists the
+stages the gate made skip; `data.status` is then `content-gates` (`data.runStatus` keeps `failed` or `blocked`).
+Exit 0 when the wiring is sound (`wiring OK`, with or without content gates), 1 when it found wiring
+problems (a helper that throws is one) or the spec is invalid, 2 for a usage error. `--json` prints
+`{action, ok, outcome, data}` with the report in `data`.
 See [usage.md](usage.md#rehearse-a-workflow).
 
 ## Launch options (`run`, `dynamic`)

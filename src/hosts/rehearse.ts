@@ -36,8 +36,13 @@ function plural(count: number, word: string): string {
 }
 
 export function formatRehearsal(data: RehearseData): string {
+	const verdict = !data.ok
+		? "wiring problems found"
+		: data.status === "content-gates"
+			? "wiring OK, but content gates rejected the synthetic data (expected; not a wiring problem)"
+			: "wiring OK";
 	const lines = [
-		`Rehearsal of ${data.workflow}: ${data.ok ? "wiring OK" : "wiring problems found"} (run ${data.status}; items ${data.options.items}, loop ${data.options.loop})`,
+		`Rehearsal of ${data.workflow}: ${verdict} (run ${data.runStatus}; items ${data.options.items}, loop ${data.options.loop})`,
 		"No model was called; run state was temporary.",
 	];
 	if (data.stages.length > 0) lines.push("Stages:");
@@ -65,18 +70,37 @@ export function formatRehearsal(data: RehearseData): string {
 			);
 		lines.push(`  ${stage.stage}: ${parts.join("; ")}`);
 		for (const gate of stage.gates)
-			lines.push(
-				`    gate: ${gate.task} declared ${gate.status}${gate.reasons.length > 0 ? ` — ${gate.reasons.join("; ")}` : ""} (a content check synthetic output cannot satisfy)`,
-			);
+			lines.push(`    content gate: ${gate.task} declared ${gate.status}`);
 	}
 	for (const loop of data.loops)
 		lines.push(
 			`Loop ${loop.loop}: ${loop.status} after ${loop.maxRounds === null ? plural(loop.rounds, "round") : `${loop.rounds} of ${plural(loop.maxRounds, "round")}`}`,
 		);
-	const gated = data.stages.some((stage) => stage.gates.length > 0);
-	lines.push(
-		`Final report: ${data.finalReportRendered ? "rendered" : gated ? "not rendered (a helper declared failed; see gate)" : "not rendered"}`,
+	const gates = data.stages.flatMap((stage) =>
+		stage.gates.map((gate) => ({ stage: stage.stage, ...gate })),
 	);
+	lines.push(
+		`Final report: ${data.finalReportRendered ? "rendered" : gates.length > 0 ? "not rendered (stopped at a content gate; see below)" : "not rendered"}`,
+	);
+	if (gates.length > 0) {
+		lines.push(
+			data.ok
+				? "Content gates (the workflow's own checks of evidence, counts or files rejected the synthetic placeholder output; expected for placeholder data, not a wiring problem):"
+				: "Content gates (the workflow's own checks rejected the synthetic placeholder output; expected, not a wiring problem; the findings below are separate):",
+		);
+		for (const gate of gates)
+			lines.push(
+				`- ${gate.task} (stage ${gate.stage}) declared ${gate.status}: ${gate.reasons.length > 0 ? gate.reasons.join("; ") : "no reason given"}`,
+			);
+		if (data.skippedAfterGates.length > 0)
+			lines.push(
+				`  Stages skipped after the gate: ${data.skippedAfterGates.join(", ")}. Rehearsal cannot show whether real outputs would pass the gate.`,
+			);
+		else
+			lines.push(
+				"  Rehearsal cannot show whether real outputs would pass the gate.",
+			);
+	}
 	if (data.warnings.length > 0) {
 		lines.push("Warnings (same as validate):");
 		for (const warning of data.warnings) lines.push(`- ${warning}`);

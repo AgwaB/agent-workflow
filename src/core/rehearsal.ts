@@ -108,10 +108,18 @@ export interface RehearsalReport {
 	schema: typeof REHEARSAL_SCHEMA;
 	workflow: string;
 	options: { items: number; loop: RehearsalLoopMode };
-	/** The run's final status, or `invalid-spec` when the spec did not load or compile. */
+	/**
+	 * The rehearsal's outcome: `content-gates` when the wiring is fine and only the workflow's own content
+	 * gates rejected the synthetic data (see `gates`); `invalid-spec` when the spec did not load or compile;
+	 * otherwise the run's final status (`completed` or, with findings, `failed`, `blocked`, ...).
+	 */
 	status: string;
-	/** True when the rehearsal ran to the end and found nothing wrong with the wiring. */
+	/** The run's own final status (`failed`/`blocked` under `content-gates`), or `invalid-spec`. */
+	runStatus: string;
+	/** True when the rehearsal found nothing wrong with the wiring (also under `content-gates`). */
 	ok: boolean;
+	/** Stages with skipped tasks when content gates ended the run early (they never ran). */
+	skippedAfterGates: string[];
 	stages: RehearsalStageReport[];
 	loops: RehearsalLoopReport[];
 	finalReportRendered: boolean;
@@ -434,7 +442,7 @@ export function buildRehearsalReport(input: {
 		finalTasks.length > 0 &&
 		finalTasks.every((task) => task.status === "completed");
 	const onlyGates =
-		run.status === "failed" &&
+		(run.status === "failed" || run.status === "blocked") &&
 		stages.every(
 			(stage) => stage.failures.length === 0 && stage.helperErrors.length === 0,
 		) &&
@@ -443,12 +451,21 @@ export function buildRehearsalReport(input: {
 		findings.unshift(`the run ended ${run.status}, not completed`);
 	else if (run.status === "completed" && !finalReportRendered)
 		findings.push("the run completed but its final stage did not render");
+	const ok = findings.length === 0;
+	const contentGates =
+		ok && stages.some((stage) => stage.gates.length > 0) && onlyGates;
 	return {
 		schema: REHEARSAL_SCHEMA,
 		workflow: input.workflow,
 		options: input.options,
-		status: run.status,
-		ok: findings.length === 0,
+		status: contentGates ? "content-gates" : run.status,
+		runStatus: run.status,
+		ok,
+		skippedAfterGates: contentGates
+			? stages
+					.filter((stage) => (stage.statuses.skipped ?? 0) > 0)
+					.map((stage) => stage.stage)
+			: [],
 		stages,
 		loops,
 		finalReportRendered,
@@ -480,11 +497,16 @@ function readGateReasons(
 		}
 		if (typeof control !== "object" || control === null) continue;
 		const record = control as Record<string, unknown>;
+		// A gate helper states why in blockers/reasons or, as the lab helpers do, in the digest it must write.
 		const texts = [
 			record.blockers,
 			record.reasons,
 			record.reason,
 			record.message,
+			record.problems,
+			record.errors,
+			record.failures,
+			record.digest,
 		]
 			.flatMap((value) => (Array.isArray(value) ? value : [value]))
 			.filter(
@@ -525,7 +547,9 @@ function invalidSpecReport(
 		workflow: options.workflow,
 		options: settings,
 		status: "invalid-spec",
+		runStatus: "invalid-spec",
 		ok: false,
+		skippedAfterGates: [],
 		stages: [],
 		loops: [],
 		finalReportRendered: false,
