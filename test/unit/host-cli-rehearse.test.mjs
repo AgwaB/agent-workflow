@@ -11,6 +11,9 @@ import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const cli = await import("../../dist/hosts/cli/index.js");
+const { setRehearsalRemoveForTests } = await import(
+	"../../dist/core/rehearsal-settle.js"
+);
 const BIN = fileURLToPath(
 	new URL("../../src/hosts/cli/cli.mjs", import.meta.url),
 );
@@ -231,4 +234,28 @@ test("the real bin: exit codes 0 and 2, and the synthetic executor is not select
 	);
 	assert.notEqual(real.status, 0, real.stdout);
 	assert.match(real.stdout + real.stderr, /aw-rehearsal-synthetic/u);
+});
+
+test("a temporary root that cannot be removed does not fail the command; the text and --json name it", async () => {
+	setRehearsalRemoveForTests(() => {
+		throw Object.assign(new Error("ENOTEMPTY"), { code: "ENOTEMPTY" });
+	});
+	const leftovers = [];
+	try {
+		const text = await run(["rehearse", "good.json"]);
+		assert.equal(text.code, 0, text.out + text.err);
+		const named = /could not be fully removed: (\S+)/u.exec(text.out);
+		assert.ok(named, text.out);
+		leftovers.push(named[1]);
+		const json = JSON.parse(
+			(await run(["rehearse", "good.json", "--json"])).out,
+		);
+		assert.equal(json.ok, true);
+		assert.match(json.data.leftover, /aw-rehearse-/u);
+		leftovers.push(json.data.leftover);
+	} finally {
+		setRehearsalRemoveForTests(undefined);
+		for (const path of leftovers)
+			await rm(path, { recursive: true, force: true });
+	}
 });
