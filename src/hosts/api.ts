@@ -87,6 +87,11 @@ export {
 	effortChoicesFor,
 	modelListNote,
 } from "./executor-models.js";
+export {
+	type RehearseData,
+	type RehearseRequest,
+	rehearseAction,
+} from "./rehearse.js";
 export { COMMAND_HELP, GENERAL_HELP, helpAction } from "./help.js";
 export {
 	agentWorkflowCliPath,

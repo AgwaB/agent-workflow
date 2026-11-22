@@ -38,6 +38,17 @@ The launch preflight without the launch: picks the executor, compiles the spec a
 needs — executor installed and logged in, every stage's tools, model and effort available on the
 executor that would run it, capabilities. Prints the same short check as a launch; exit 1 and the
 reasons when something would stop the run. No run is created and no model is called.`,
+	rehearse: `Usage: agent-workflow rehearse <workflow-name-or-path> [<task...>] [--items N] [--loop pass|exhaust]
+                           [--keep] [--json]
+
+Run a workflow through the real engine with a synthetic worker: no model call, no network, run state
+in a temporary directory (removed unless --keep). Every model task gets a deterministic control made
+from its own control schema and reads its required artifacts through the real artifact tool; helpers
+and dynamic controllers run for real. Reports per stage the tasks, sources received, required reads
+that do not resolve, foreach item counts, loop rounds, helper errors and whether the final report
+rendered. --items N sets the item count of unbounded arrays (default 2); --loop exhaust keeps every
+loop's until false so onExhausted runs (default pass: until holds on round 1). Exit 0 when the wiring
+is sound, 1 when problems were found or the spec is invalid, 2 usage error.`,
 	roles: `Usage: agent-workflow roles <workflow-name-or-path> [--json]
 
 Show the compiled role context exactly as it is injected into task prompts.`,
@@ -222,6 +233,7 @@ Workflows:
   list                 list discoverable workflows
   validate <workflow>  validate a workflow spec
   check <workflow>     launch preflight: executor, tools, models, effort (no run, no model call)
+  rehearse <workflow>  run the real engine with a synthetic worker (no model call, temporary state)
   roles <workflow>     show compiled role context
   agents               list agent definitions
   show <workflow>      print a workflow spec

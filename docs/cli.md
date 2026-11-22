@@ -20,7 +20,7 @@ never a project, in the CLI, the MCP server and the Pi host alike: runs started 
 workflow name that only an enclosing project has then fails with "not found in <dir>; the project
 <ancestor> has it — … run from <ancestor> (or pass the spec path)".
 
-**Contents:** [Commands](#commands) · [`check`](#check) · [Launch options (`run`, `dynamic`)](#launch-options-run-dynamic) · [Saved user profiles](#saved-user-profiles) · [`doctor`](#doctor) · [`dashboard`](#dashboard) · [`statusline`, `watch`, `notify-check`](#statusline-watch-notify-check) · [Exit codes](#exit-codes) · [Environment](#environment) · [Examples](#examples) · [`host-command` hook entry](#host-command-hook-entry)
+**Contents:** [Commands](#commands) · [`check`](#check) · [`rehearse`](#rehearse) · [Launch options (`run`, `dynamic`)](#launch-options-run-dynamic) · [Saved user profiles](#saved-user-profiles) · [`doctor`](#doctor) · [`dashboard`](#dashboard) · [`statusline`, `watch`, `notify-check`](#statusline-watch-notify-check) · [Exit codes](#exit-codes) · [Environment](#environment) · [Examples](#examples) · [`host-command` hook entry](#host-command-hook-entry)
 
 ## Commands
 
@@ -29,6 +29,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `list [--query T] [--offset N] [--limit N]` | Discoverable workflows: project `workflows/` and `.agent-workflow/workflows/`, `~/.agent-workflow/workflows/`, bundled (Pi's directories are not read). `--limit` (1-20) pages the output and bounds it to 50 KB. |
 | `validate <workflow>` | Load and compile a spec without running it. Its `Tasks:` count is the compiled task count: a `foreach` or `loop` counts once, so a run has more ([task ids](usage.md#run-records)). Lists `Warnings:` ([what it checks](usage.md#what-validate-checks)). |
 | `check <workflow> [<task…>] [launch options]` | The launch preflight without the launch: executor, tools, models and effort for the executor that would run each stage (below). No run, no model call. |
+| `rehearse <workflow> [<task…>] [--items N] [--loop pass\|exhaust] [--keep] [--json]` | Run a workflow through the real engine with a synthetic worker: no model call, no network, temporary run state (below). Reports the wiring per stage. |
 | `roles <workflow>` | Compiled role context as injected into task prompts. |
 | `agents` | Agent definitions. |
 | `show <workflow>` | The resolved spec file. |
@@ -128,6 +129,33 @@ checks as `run` — executor installed and logged in, every stage's tools, model
 on the executor that would run it (names rewritten to that tool's form), capabilities. Prints the
 short check and exits 0, or `Not started: …` with each problem (`✗`) and exits 1. No run, no
 duplicate-launch claim, no model call. See [usage.md](usage.md#preflight-capability-tools-models-and-effort).
+
+## `rehearse`
+
+```sh
+agent-workflow rehearse <workflow> [<task...>] [--items N] [--loop pass|exhaust] [--keep] [--json]
+```
+
+`validate` checks form; `rehearse` checks wiring. It runs the workflow through the real engine
+(scheduler, foreach, loops, source manifests, support helpers, dynamic controllers, the final render) but
+every model task is answered by a synthetic worker: a control generated from the stage's own control
+schema (required fields, enums, bounds, `schema` and `digest`), with the required `workflow_artifact`
+reads made through the real tool. No model is called and no network is used. Run state goes to a
+temporary directory that is removed afterwards (`--keep` keeps it and prints its path); the project, the
+user's run state, credentials and the provider pause are not touched, and nothing can select the
+synthetic executor for a real run. The same spec and options give the same report.
+
+The report lists per stage the tasks and their statuses, whether a stage that names `from` sources
+received any, each required read (and the tool's message when its path does not resolve), foreach
+item counts, loop rounds and end status, helper errors with their message, and whether the final
+report rendered. `--items N` (0-20, default 2) sets how many items an unbounded array gets;
+`--loop exhaust` keeps every bounded loop's `until` false so `onExhausted` and the `exhausted`
+status are exercised (default `pass`: `until` holds on round 1). A support helper that itself
+declares `failed` or `blocked` because synthetic content cannot satisfy its content checks (for
+example a report renderer's evidence reconciliation) is listed as a gate, not as a wiring problem.
+Exit 0 when the rehearsal found nothing wrong, 1 when it found wiring problems or the spec is
+invalid, 2 for a usage error. `--json` prints `{action, ok, outcome, data}` with the report in `data`.
+See [usage.md](usage.md#rehearse-a-workflow).
 
 ## Launch options (`run`, `dynamic`)
 

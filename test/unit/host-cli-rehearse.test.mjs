@@ -1,0 +1,234 @@
+// test-tier: integration
+// `agent-workflow rehearse`: argv parsing, exit codes (0 sound, 1 problems or invalid spec, 2 usage), --json,
+// --keep, help. In-process through runAgentWorkflowCli plus one spawn of the real bin. No model, no network.
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { after, before, test } from "node:test";
+import { fileURLToPath } from "node:url";
+
+const cli = await import("../../dist/hosts/cli/index.js");
+const BIN = fileURLToPath(
+	new URL("../../src/hosts/cli/cli.mjs", import.meta.url),
+);
+const SCAFFOLD = fileURLToPath(
+	new URL(
+		"../../skills/workflow-guide/scaffolds/object-tool-fallback/spec.json",
+		import.meta.url,
+	),
+);
+
+let root;
+let cwd;
+
+const WORKFLOW = {
+	schemaVersion: 1,
+	name: "cli-rehearse",
+	defaults: { agent: "scout", readOnly: true, tools: ["read"] },
+	artifactGraph: {
+		stages: [
+			{ id: "a", type: "single", prompt: "Collect facts." },
+			{
+				id: "b",
+				type: "reduce",
+				from: ["a"],
+				inputPolicy: {
+					requiredReads: [
+						{ source: "a", artifact: "control", path: "$.nothere" },
+					],
+					enforcement: "fail",
+				},
+				prompt: "Summarize.",
+			},
+		],
+	},
+};
+
+before(async () => {
+	root = await realpath(await mkdtemp(join(tmpdir(), "aw-cli-rehearse-")));
+	cwd = join(root, "project");
+	await mkdir(join(cwd, ".agent-workflow"), { recursive: true });
+	await writeFile(join(cwd, "bad.json"), JSON.stringify(WORKFLOW));
+	await writeFile(
+		join(cwd, "good.json"),
+		JSON.stringify({
+			...WORKFLOW,
+			name: "cli-rehearse-good",
+			artifactGraph: {
+				stages: [
+					WORKFLOW.artifactGraph.stages[0],
+					{
+						...WORKFLOW.artifactGraph.stages[1],
+						inputPolicy: { requiredReads: ["a.control"], enforcement: "fail" },
+					},
+				],
+			},
+		}),
+	);
+});
+after(async () => {
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 5,
+		retryDelay: 50,
+	});
+});
+
+async function run(argv) {
+	const out = [];
+	const err = [];
+	const code = await cli.runAgentWorkflowCli(argv, {
+		cwd,
+		env: process.env,
+		stdout: (text) => out.push(text),
+		stderr: (text) => err.push(text),
+		isTTY: false,
+	});
+	return { code, out: out.join(""), err: err.join("") };
+}
+
+test("a sound workflow exits 0 and the text names the stages", async () => {
+	const result = await run(["rehearse", "good.json"]);
+	assert.equal(result.code, 0, result.out + result.err);
+	assert.match(result.out, /Rehearsal of good\.json: wiring OK/u);
+	assert.match(result.out, /No model was called/u);
+	assert.match(
+		result.out,
+		/b: reduce; 1 task; 1 completed; sources a received by 1\/1; required reads 1\/1/u,
+	);
+	assert.match(result.out, /Final report: rendered/u);
+});
+
+test("a wiring problem exits 1 and names the stage, the read and the tool's message", async () => {
+	const result = await run(["rehearse", "bad.json"]);
+	assert.equal(result.code, 1);
+	assert.match(result.out, /wiring problems found/u);
+	assert.match(
+		result.out,
+		/stage b: required read a\.control \$\.nothere does not resolve/u,
+	);
+});
+
+test("--json prints the same data as one object with the rehearsal schema", async () => {
+	const result = await run([
+		"rehearse",
+		"bad.json",
+		"--json",
+		"--items",
+		"3",
+		"--loop",
+		"exhaust",
+	]);
+	assert.equal(result.code, 1);
+	const parsed = JSON.parse(result.out);
+	assert.equal(parsed.action, "rehearse");
+	assert.equal(parsed.ok, false);
+	assert.equal(parsed.outcome, "failed");
+	assert.equal(parsed.data.schema, "agent-workflow-rehearsal-v1");
+	assert.deepEqual(parsed.data.options, { items: 3, loop: "exhaust" });
+	assert.equal(
+		parsed.data.stages.find((s) => s.stage === "b").requiredReads[0].satisfied,
+		false,
+	);
+	assert.ok(parsed.data.findings.length > 0);
+
+	const good = JSON.parse((await run(["rehearse", "good.json", "--json"])).out);
+	assert.equal(good.ok, true);
+	assert.equal(good.data.status, "completed");
+});
+
+test("an invalid spec exits 1 with the validation message; an unknown workflow likewise", async () => {
+	await writeFile(
+		join(cwd, "invalid.json"),
+		JSON.stringify({ schemaVersion: 1, name: "x" }),
+	);
+	for (const name of ["invalid.json", "no-such-workflow"]) {
+		const result = await run(["rehearse", name, "--json"]);
+		assert.equal(result.code, 1, name);
+		const parsed = JSON.parse(result.out);
+		assert.equal(parsed.data.status, "invalid-spec");
+		assert.ok(parsed.data.findings[0].startsWith("invalid spec:"));
+	}
+});
+
+test("usage errors exit 2", async () => {
+	for (const argv of [
+		["rehearse"],
+		["rehearse", "good.json", "--loop", "maybe"],
+		["rehearse", "good.json", "--items", "x"],
+		["rehearse", "good.json", "--items", "99"],
+		["rehearse", "good.json", "--bogus"],
+		["rehearse", "good.json", "--keep", "--keep"],
+	]) {
+		const result = await run(argv);
+		assert.equal(
+			result.code,
+			2,
+			`${argv.join(" ")}: ${result.out}${result.err}`,
+		);
+	}
+});
+
+test("--keep prints the kept state root; without it nothing is kept", async () => {
+	const kept = await run(["rehearse", "good.json", "--keep", "--json"]);
+	const { stateRoot } = JSON.parse(kept.out).data;
+	try {
+		assert.ok(stateRoot && existsSync(stateRoot));
+	} finally {
+		if (stateRoot)
+			await rm(stateRoot, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 50,
+			});
+	}
+	const plain = JSON.parse(
+		(await run(["rehearse", "good.json", "--json"])).out,
+	);
+	assert.equal(plain.data.stateRoot, undefined);
+});
+
+test("help lists the command and its options", async () => {
+	const help = await run(["help", "rehearse"]);
+	assert.equal(help.code, 0);
+	assert.match(help.out, /Usage: agent-workflow rehearse/u);
+	assert.match(help.out, /--items N/u);
+	assert.match(help.out, /--loop pass\|exhaust/u);
+	assert.match((await run(["help"])).out, /rehearse <workflow>/u);
+});
+
+test("the real bin: exit codes 0 and 2, and the synthetic executor is not selectable for a real run", () => {
+	const env = { ...process.env, AGENT_WORKFLOW_HOME: join(root, "bin-home") };
+	const ok = spawnSync(process.execPath, [BIN, "rehearse", SCAFFOLD], {
+		cwd,
+		env,
+		encoding: "utf8",
+	});
+	assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+	const usage = spawnSync(process.execPath, [BIN, "rehearse"], {
+		cwd,
+		env,
+		encoding: "utf8",
+	});
+	assert.equal(usage.status, 2);
+	const real = spawnSync(
+		process.execPath,
+		[
+			BIN,
+			"run",
+			"good.json",
+			"task",
+			"--executor",
+			"aw-rehearsal-synthetic",
+			"--detach",
+		],
+		{ cwd, env, encoding: "utf8" },
+	);
+	assert.notEqual(real.status, 0, real.stdout);
+	assert.match(real.stdout + real.stderr, /aw-rehearsal-synthetic/u);
+});
