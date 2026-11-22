@@ -2554,6 +2554,37 @@ main.signin code {
 	color: var(--muted);
 	padding: 0 10px;
 }
+/* 2026-11-23 (owner: the theme choice belongs in one global place): the top-bar button is the only
+   theme control; a sun/moon mark says what it is. */
+.theme-button::before {
+	content: "◐";
+	margin-right: 6px;
+}
+.theme-button[data-theme-choice="light"]::before {
+	content: "☀";
+}
+.theme-button[data-theme-choice="dark"]::before {
+	content: "☾";
+}
+.plan-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+.plan-table th,
+.plan-table td {
+	text-align: left;
+	padding: 6px 8px 6px 0;
+	border-bottom: 1px solid var(--line);
+	vertical-align: top;
+}
+.plan-table thead th {
+	color: var(--muted);
+	font-weight: 500;
+}
+.run-task-text {
+	margin-bottom: 16px;
+}
 .need-item {
 	display: flex;
 	align-items: flex-start;
@@ -3710,12 +3741,6 @@ button.danger:hover:not(:disabled) {
 }
 .report-view:focus {
 	outline: none;
-}
-.report-view[data-page="light"] {
-	color-scheme: light;
-}
-.report-view[data-page="dark"] {
-	color-scheme: dark;
 }
 .report-view [hidden] {
 	display: none !important;

@@ -4026,12 +4026,123 @@ function usageRows(usage, agents) {
 		usage?.note ? ["Note", usage.note] : null,
 	];
 }
-function commandBlock(command) {
+function commandBlock(command, copied = command) {
 	return element(
 		"div",
 		{ class: "command" },
 		element("pre", {}, command),
-		button("Copy", () => copy(command)),
+		button("Copy", () => copy(copied)),
+	);
+}
+function runTaskText(task) {
+	const body = element("div", { class: "result-analysis run-task-text" });
+	renderTextMarkdown(body, task, 4);
+	return body;
+}
+/**
+ * The launch command without a second copy of the task shown above it: a tool call's JSON becomes
+ * one argument per line, and the task text is named instead of repeated. Copy keeps the original.
+ */
+function launchCommandText(command, task) {
+	const call = /^([A-Za-z_][\w-]*) (\{[\s\S]*\})$/.exec(command.trim());
+	if (call) {
+		try {
+			const args = JSON.parse(call[2]);
+			if (args && typeof args === "object" && !Array.isArray(args))
+				return [
+					call[1],
+					...Object.entries(args).map(
+						([key, value]) =>
+							`  ${key}: ${
+								// The run's task is this argument (recorded with redaction, so not always equal).
+								key === "task" && task
+									? "(the task above)"
+									: typeof value === "string"
+										? value
+										: JSON.stringify(value)
+							}`,
+					),
+				].join("\n");
+		} catch {
+			// Not JSON after all: show it as recorded.
+		}
+	}
+	return task && task.length > 80 && command.includes(task)
+		? command.replace(task, "(the task above)")
+		: command;
+}
+const PLAN_SOURCES = {
+	"run-flag": "run option",
+	"project-slot": "this step's setting",
+	"project-default": "workflow default",
+	"workflow-preference": "workflow preference",
+	"workflow-profile": "workflow profile",
+	"user-profile": "saved profile",
+	"parent-stage": "parent step",
+	"host-default": "host default",
+	"installed-default": "installed default",
+	"executor-default": "executor default",
+};
+const planSource = (source) =>
+	PLAN_SOURCES[source] ?? (source ? humanize(source).toLowerCase() : "");
+/** The recorded per-step plan as one row per step (2026-11-23: the raw tree was unreadable). */
+function plannedModels(configuration) {
+	const slots = Object.entries(configuration.slots || {});
+	if (!slots.length) return element("p", {}, "No model steps recorded.");
+	const rows = slots.map(([slot, value]) => {
+		const effort = value.effort || {};
+		const sources = [
+			...new Set(
+				[value.executor?.source, value.model?.source, effort.source]
+					.filter(Boolean)
+					.map(planSource),
+			),
+		];
+		return element(
+			"tr",
+			{},
+			element("th", { scope: "row" }, humanize(slot)),
+			element("td", {}, value.executor?.value || "Automatic"),
+			element("td", {}, value.model?.value || "Automatic"),
+			element(
+				"td",
+				{},
+				effort.resolved &&
+					effort.requested &&
+					effort.resolved !== effort.requested
+					? `${effort.requested} → ${effort.resolved}`
+					: effort.resolved || effort.requested || "Automatic",
+			),
+			element("td", { class: "muted" }, sources.join(", ")),
+		);
+	});
+	const shadowed = (configuration.shadowed || []).map((entry) =>
+		element(
+			"li",
+			{},
+			`${humanize(entry.slot)} ${entry.field}: not used (${entry.reason})`,
+		),
+	);
+	return element(
+		"div",
+		{},
+		element(
+			"table",
+			{ class: "plan-table" },
+			element(
+				"thead",
+				{},
+				element(
+					"tr",
+					{},
+					...["Step", "Executor", "Model", "Effort", "From"].map((label) =>
+						element("th", { scope: "col" }, label),
+					),
+				),
+			),
+			element("tbody", {}, ...rows),
+		),
+		shadowed.length ? element("ul", { class: "muted" }, ...shadowed) : null,
 	);
 }
 const shellArg = (text) => `'${String(text).replaceAll("'", "'\\''")}'`;
@@ -4170,11 +4281,17 @@ function renderSelection() {
 				"div",
 				{ class: "details-section" },
 				element("h3", {}, "Task"),
-				element("p", {}, run.task || "No task text collected"),
+				// 2026-11-23 (owner: run details were not human-readable): the task keeps its Markdown.
+				run.task
+					? runTaskText(run.task)
+					: element("p", {}, "No task text collected"),
 				...(run.launch?.command?.trim()
 					? [
 							element("h3", {}, "Launch command"),
-							commandBlock(run.launch.command),
+							commandBlock(
+								launchCommandText(run.launch.command, run.task),
+								run.launch.command,
+							),
 						]
 					: []),
 				definition([
@@ -4188,15 +4305,15 @@ function renderSelection() {
 			element(
 				"section",
 				{ class: "details-section", "data-testid": "captured-run-plan" },
-				element("h3", {}, "Captured requested/resolved plan"),
+				element("h3", {}, "Planned models"),
 				element(
 					"p",
-					{},
-					"Recorded launch-time plan, not today's settings or provider-observed execution.",
+					{ class: "muted" },
+					"Recorded when the run started; not today's settings and not what the provider reported.",
 				),
 				run.configuration
-					? readableDiagnostic(run.configuration)
-					: element("p", {}, "Unknown: no captured configuration recorded."),
+					? plannedModels(run.configuration)
+					: element("p", {}, "Not recorded for this run."),
 			),
 		);
 		for (const affected of run.tasks.filter(
@@ -5915,60 +6032,6 @@ function reportBlocks(container) {
 	}
 }
 /**
- * Report page colour (2026-11-03, owner: white text on black is hard to read at length): the
- * report can be read on a light page while the dashboard stays dark, or the other way round.
- * Kept in this browser; without a choice the page follows the dashboard theme.
- */
-const REPORT_PAGE_KEY = "agent-workflow:report-page";
-function storedReportPage() {
-	try {
-		const value = localStorage.getItem(REPORT_PAGE_KEY);
-		return value === "light" || value === "dark" ? value : null;
-	} catch {
-		return null; // Storage unavailable: follow the dashboard.
-	}
-}
-/** The dashboard's own scheme: the chosen theme, else the system's. */
-const appScheme = () => {
-	const theme = document.documentElement.dataset.theme;
-	if (theme === "light" || theme === "dark") return theme;
-	return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-};
-function reportPage(view) {
-	const page = view.dataset.page;
-	return page === "light" || page === "dark" ? page : appScheme();
-}
-/** Called once the report page is drawn. */
-function reportPageButton(view) {
-	const stored = storedReportPage();
-	if (stored) view.dataset.page = stored;
-	const control = button(
-		"",
-		() => {
-			const next = reportPage(view) === "dark" ? "light" : "dark";
-			// 2026-11-12 (review, P3-6): choosing the dashboard's own scheme is no pin: the page
-			// follows the dashboard again, so there is always a way back.
-			const follow = next === appScheme();
-			try {
-				if (follow) localStorage.removeItem(REPORT_PAGE_KEY);
-				else localStorage.setItem(REPORT_PAGE_KEY, next);
-			} catch {
-				// The choice then lasts for this report only.
-			}
-			if (follow) delete view.dataset.page;
-			else view.dataset.page = next;
-			label();
-		},
-		{ class: "report-page" },
-	);
-	const label = () => {
-		control.textContent =
-			reportPage(view) === "dark" ? "Light page" : "Dark page";
-	};
-	label();
-	return control;
-}
-/**
  * 2026-11-12 (owner): the report is a page of its own, not a modal (`?run=…&view=report`: it can
  * be shared and the back button leaves it). Its structure is only what the report text says.
  * A deep-review style report writes each finding as `### finding-001 — title` with `Severity:` and
@@ -6705,7 +6768,6 @@ function renderReportPage() {
 			element("div", { class: "report-body" }, empty, content),
 		),
 	);
-	actions.insertBefore(reportPageButton(view), openButton);
 	const center = $("center");
 	graphControl?.destroy();
 	graphControl = null;
