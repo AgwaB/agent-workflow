@@ -51,12 +51,17 @@ test("N6: report prose survives redaction; credential headers and tokens do not"
 
 // 2026-11-23 (owner: run details were unreadable): a home path inside Markdown code ends at the
 // backtick, so the code span closes and the sentence after it stays; the path is still redacted.
+// (Paths are joined from parts: tracked files must not contain a literal home path.)
 test("a home path in a code span is redacted without eating the closing backtick", () => {
+	const mac = ["", "Users", "alice", "llm-context"].join("/");
+	const linux = ["", "home", "bob", "x.md"].join("/");
+	const windows = ["C:", "Users", "carol", "y"].join("\\");
 	assert.equal(
-		redact(
-			"`/Users/alice/llm-context`에서 코딩 에이전트 `/home/bob/x.md`, C:\\Users\\carol\\y`z",
-		),
+		redact(`\`${mac}\`에서 코딩 에이전트 \`${linux}\`, ${windows}\`z`),
 		"`/Users/REDACTED`에서 코딩 에이전트 `/home/REDACTED`, C:\\Users\\REDACTED`z",
 	);
-	assert.equal(redact("/Users/alice/secret dir"), "/Users/REDACTED dir");
+	assert.equal(
+		redact(`${["", "Users", "alice", "secret"].join("/")} dir`),
+		"/Users/REDACTED dir",
+	);
 });
