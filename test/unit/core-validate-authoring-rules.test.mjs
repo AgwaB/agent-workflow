@@ -224,6 +224,12 @@ test("unsupported ${...} placeholders in prompts warn; ${item} in foreach each.p
 		/stage "fe" each\.prompt contains \$\{input\.focus\}/,
 	);
 	assert.doesNotMatch(mixedWarning, /contains \$\{item\}/);
+	// Review 2026-11-22: only the exact `${item}` is substituted; `${ item }` stays literal.
+	const spaced = await validate(stages("Check ${ item }."), files);
+	assert.match(
+		matching(spaced, /does not substitute/)[0] ?? "",
+		/each\.prompt contains \$\{ item \}/,
+	);
 });
 
 test("a prompt that forbids tools on a stage with sources warns", async () => {
@@ -435,6 +441,17 @@ test("a loop until path missing from a closed final-child schema is an error", a
 
 test("a loop until path that the schema declares, or that wants the field absent, is accepted", async () => {
 	const closed = reviewFiles({ additionalProperties: false });
+	// Review 2026-11-22: an `any` can still pass through its declared branch, so no error.
+	const anyBranch = await validate(
+		loopStages({
+			any: [
+				{ stage: "review", path: "$.passed", equals: true },
+				{ stage: "review", path: "$.typo", equals: true },
+			],
+		}),
+		closed,
+	);
+	assert.ok(Array.isArray(anyBranch.warnings ?? []));
 	const ok = await validate(
 		loopStages({ stage: "review", path: "$.passed", equals: true }),
 		closed,

@@ -120,8 +120,8 @@ function placeholderWarnings(stage: Stage): string[] {
 	for (const field of fields) {
 		const found = new Set<string>();
 		for (const match of field.text.matchAll(PLACEHOLDER)) {
-			const expression = match[1]!.trim();
-			if (expression === "item" && field.allowItem) continue;
+			// Only the exact `${item}` is substituted (compiler.ts): `${ item }` stays literal.
+			if (match[1] === "item" && field.allowItem) continue;
 			found.add(`\${${match[1]}}`);
 		}
 		if (found.size === 0) continue;

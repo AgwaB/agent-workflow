@@ -117,29 +117,31 @@ function loopUntilSchemaIssues(
 		if (typeof controlSchema !== "string") continue;
 		const schema = parsedSchemas.get(controlSchema);
 		if (schema === undefined) continue;
-		for (const leaf of untilLeaves(stage.until)) {
-			if (typeof leaf.path !== "string" || leaf.exists === false) continue;
-			const lookup = lookupControlSchemaPath(schema, leaf.path);
-			if (lookup.status !== "missing" || !lookup.closed) continue;
+		// Missing paths read as undefined, which only `exists: false` accepts (loop-runtime.ts
+		// evaluateLoopUntil): report only when no combination of the leaves can ever be true.
+		const missing: Array<{ path: string; property: string }> = [];
+		const canPass = (node: any): boolean => {
+			if (!node || typeof node !== "object") return true;
+			for (const key of ["all", "any"]) {
+				if (Array.isArray(node[key])) {
+					const results = node[key].map(canPass);
+					return key === "all" ? results.every(Boolean) : results.some(Boolean);
+				}
+			}
+			if (typeof node.path !== "string") return true;
+			const lookup = lookupControlSchemaPath(schema, node.path);
+			if (lookup.status !== "missing" || !lookup.closed) return true;
+			missing.push({ path: node.path, property: String(lookup.property) });
+			return node.exists === false;
+		};
+		if (canPass(stage.until)) continue;
+		for (const leaf of missing)
 			issues.push({
 				path: `${stage.id}.until`,
-				message: `loop "${stage.id}" until path "${leaf.path}" is not in ${controlSchema}, the control schema of its final child "${finalChild.id}", which sets additionalProperties: false; the model can never emit "${lookup.property}", so the loop could only end exhausted. Add it to that schema's properties (and show it in the child's prompt), or point until at a declared field`,
+				message: `loop "${stage.id}" until path "${leaf.path}" is not in ${controlSchema}, the control schema of its final child "${finalChild.id}", which sets additionalProperties: false; the model can never emit "${leaf.property}", so the loop could only end exhausted. Add it to that schema's properties (and show it in the child's prompt), or point until at a declared field`,
 			});
-		}
 	}
 	return issues;
-}
-
-function untilLeaves(until: any, leaves: any[] = []): any[] {
-	if (!until || typeof until !== "object") return leaves;
-	for (const key of ["all", "any"]) {
-		if (Array.isArray(until[key])) {
-			for (const child of until[key]) untilLeaves(child, leaves);
-			return leaves;
-		}
-	}
-	leaves.push(until);
-	return leaves;
 }
 
 // Every control object carries the envelope keys: models must emit them (workflow-output-artifacts.ts
