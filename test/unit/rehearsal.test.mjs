@@ -122,7 +122,7 @@ for (const name of BUNDLED) {
 			assert.deepEqual(stage.failures, [], stage.stage);
 			assert.deepEqual(stage.helperErrors, [], stage.stage);
 		}
-		if (report.status === "failed")
+		if (report.status === "content-gates")
 			assert.ok(report.stages.some((stage) => stage.gates.length > 0));
 		else assert.equal(report.finalReportRendered, true);
 		// No state is left in the project: run state lives in the temporary root.
@@ -525,6 +525,93 @@ test("a helper that throws is reported with its message, not as a bare failed ru
 	const { report } = await rehearseWorkflow(cwd, { workflow: path });
 	assert.equal(report.ok, false);
 	assert.match(report.findings.join("\n"), /helper exploded on purpose/u);
+});
+
+/** A project with an `a` model stage, a support helper `g` that returns `control`, and a consumer `c` of `g`. */
+async function gateProject(name, control, extraStages = []) {
+	const cwd = await project();
+	await mkdir(join(cwd, "helpers"), { recursive: true });
+	await writeFile(
+		join(cwd, "helpers", "gate.mjs"),
+		`export default async function () { return ${JSON.stringify(control)}; }\n`,
+	);
+	const path = await writeSpec(cwd, name, {
+		schemaVersion: 1,
+		name,
+		defaults: DEFAULTS,
+		artifactGraph: {
+			stages: [
+				{ id: "a", type: "single", prompt: "Do a." },
+				{ id: "g", from: "a", support: { uses: "./helpers/gate.mjs" } },
+				{ id: "c", type: "reduce", from: ["g"], prompt: "Do c." },
+				...extraStages,
+			],
+		},
+	});
+	return { cwd, path };
+}
+
+test("wiring OK: a sound workflow is completed, ok, with no gates", async () => {
+	const { cwd, path } = await gateProject("sound", {
+		schema: "g-v1",
+		digest: "fine",
+		status: "passed",
+	});
+	const { report } = await rehearseWorkflow(cwd, { workflow: path });
+	assert.equal(report.ok, true);
+	assert.equal(report.status, "completed");
+	assert.equal(report.runStatus, "completed");
+	assert.deepEqual(report.skippedAfterGates, []);
+	assert.equal(report.stages.flatMap((stage) => stage.gates).length, 0);
+});
+
+for (const declared of ["failed", "blocked"]) {
+	test(`content-gates: a helper declaring ${declared} is ok, names the gate and its reason, and lists skipped stages`, async () => {
+		const { cwd, path } = await gateProject(`gate-${declared}`, {
+			schema: "g-v1",
+			digest: "3 of 20 tickets classified; 17 missing",
+			status: declared,
+		});
+		const { report } = await rehearseWorkflow(cwd, { workflow: path });
+		assert.equal(report.ok, true, report.findings.join("\n"));
+		assert.equal(report.status, "content-gates");
+		assert.equal(report.runStatus, declared);
+		assert.deepEqual(report.findings, []);
+		assert.deepEqual(report.skippedAfterGates, ["c"]);
+		const [gate] = stageOf(report, "g").gates;
+		assert.equal(gate.task, "g.main");
+		assert.equal(gate.status, declared);
+		assert.match(gate.reasons.join(), /17 missing/u);
+	});
+}
+
+test("wiring problems: a real finding next to a gate is still a finding (not content-gates)", async () => {
+	const { cwd, path } = await gateProject(
+		"gate-and-wiring",
+		{ schema: "g-v1", digest: "rejected", status: "failed" },
+		[
+			{
+				id: "r",
+				type: "reduce",
+				from: ["a"],
+				inputPolicy: {
+					requiredReads: [
+						{ source: "a", artifact: "control", path: "$.nothere" },
+					],
+					enforcement: "fail",
+				},
+				prompt: "Do r.",
+			},
+		],
+	);
+	const { report } = await rehearseWorkflow(cwd, { workflow: path });
+	assert.equal(report.ok, false);
+	assert.notEqual(report.status, "content-gates");
+	assert.match(
+		report.findings.join("\n"),
+		/required read a\.control \$\.nothere does not resolve/u,
+	);
+	assert.equal(stageOf(report, "g").gates.length, 1);
 });
 
 test("a spec that does not load is reported as invalid, not thrown", async () => {

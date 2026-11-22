@@ -116,6 +116,74 @@ test("a wiring problem exits 1 and names the stage, the read and the tool's mess
 	);
 });
 
+async function gateWorkflow(name, helperBody) {
+	await mkdir(join(cwd, "helpers"), { recursive: true });
+	await writeFile(join(cwd, "helpers", `${name}.mjs`), helperBody);
+	await writeFile(
+		join(cwd, `${name}.json`),
+		JSON.stringify({
+			schemaVersion: 1,
+			name,
+			defaults: WORKFLOW.defaults,
+			artifactGraph: {
+				stages: [
+					{ id: "a", type: "single", prompt: "Collect facts." },
+					{ id: "g", from: "a", support: { uses: `./helpers/${name}.mjs` } },
+					{ id: "c", type: "reduce", from: ["g"], prompt: "Summarize." },
+				],
+			},
+		}),
+	);
+	return `${name}.json`;
+}
+
+for (const declared of ["failed", "blocked"]) {
+	test(`content gates (${declared}): exit 0, the text names the gate helper and reason and says it is not a wiring problem`, async () => {
+		const file = await gateWorkflow(
+			`gated-${declared}`,
+			`export default async () => ({ schema: "g-v1", status: "${declared}", digest: "0 of 20 tickets classified" });\n`,
+		);
+		const result = await run(["rehearse", file]);
+		assert.equal(result.code, 0, result.out + result.err);
+		assert.match(
+			result.out,
+			/wiring OK, but content gates rejected the synthetic data \(expected; not a wiring problem\)/u,
+		);
+		assert.doesNotMatch(result.out, /wiring problems found/u);
+		assert.match(
+			result.out,
+			new RegExp(
+				`- g\\.main \\(stage g\\) declared ${declared}: 0 of 20 tickets classified`,
+				"u",
+			),
+		);
+		assert.match(
+			result.out,
+			/expected for placeholder data, not a wiring problem/u,
+		);
+		assert.match(result.out, /Stages skipped after the gate: c\./u);
+		assert.doesNotMatch(result.out, /Findings:/u);
+		const json = await run(["rehearse", file, "--json"]);
+		assert.equal(json.code, 0);
+		const parsed = JSON.parse(json.out);
+		assert.equal(parsed.ok, true);
+		assert.equal(parsed.data.status, "content-gates");
+		assert.equal(parsed.data.runStatus, declared);
+	});
+}
+
+test("a helper that throws stays a wiring finding (exit 1), not a content gate", async () => {
+	const file = await gateWorkflow(
+		"thrower",
+		'export default async () => { throw new Error("helper exploded on purpose"); };\n',
+	);
+	const result = await run(["rehearse", file]);
+	assert.equal(result.code, 1);
+	assert.match(result.out, /wiring problems found/u);
+	assert.match(result.out, /helper exploded on purpose/u);
+	assert.doesNotMatch(result.out, /Content gates/u);
+});
+
 test("--json prints the same data as one object with the rehearsal schema", async () => {
 	const result = await run([
 		"rehearse",
