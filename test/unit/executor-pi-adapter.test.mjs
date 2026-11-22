@@ -880,3 +880,30 @@ test("scoped inheritance keeps every other Pi isolation flag", () => {
 	);
 	assert.deepEqual(flags({ isolated: false }), []);
 });
+
+// 2026-11-23 (owner: a deep-research run failed "No API provider registered for api:
+// cortexkit-anthropic-messages"): AGENT_WORKFLOW_PI_EXTENSIONS lists extensions every isolated
+// worker loads, as pi-workflow's PI_WORKFLOW_SUBAGENT_EXTRA_EXTENSIONS did.
+test("AGENT_WORKFLOW_PI_EXTENSIONS: isolated workers load the listed extensions; others stay off", async (t) => {
+	const previous = process.env.AGENT_WORKFLOW_PI_EXTENSIONS;
+	process.env.AGENT_WORKFLOW_PI_EXTENSIONS =
+		" npm:@cortexkit/pi-anthropic-auth , /opt/ext/auth.ts,,npm:@cortexkit/pi-anthropic-auth";
+	t.after(() => {
+		if (previous === undefined) delete process.env.AGENT_WORKFLOW_PI_EXTENSIONS;
+		else process.env.AGENT_WORKFLOW_PI_EXTENSIONS = previous;
+	});
+	const { executor, cli } = await stage(await completeSteps());
+	await drain(executor, await executor.submit(request().req));
+	const [launch] = (await cli.invocations()).filter((entry) => entry.effect);
+	const loaded = launch.argv.flatMap((arg, index) =>
+		launch.argv[index - 1] === "-e" ? [arg] : [],
+	);
+	assert.ok(
+		launch.argv.includes("--no-extensions"),
+		"ambient discovery stays off",
+	);
+	assert.deepEqual(loaded.slice(1), [
+		"npm:@cortexkit/pi-anthropic-auth",
+		"/opt/ext/auth.ts",
+	]);
+});

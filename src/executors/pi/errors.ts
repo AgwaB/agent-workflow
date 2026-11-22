@@ -45,7 +45,7 @@ export const PI_ERROR_RULES: readonly PiErrorRule[] = [
 		class: "config",
 		match: /No API provider registered for api: ([^\s'"`,;]+)/,
 		evidence: "live",
-		hint: 'the model\'s provider api "$1" is registered by a Pi extension, and workflow stages run without user extensions. Pick a model whose provider is built into Pi, or run it outside a workflow. See docs/executors.md (Pi → Isolation).',
+		hint: 'the model\'s provider api "$1" is registered by a Pi extension, and workflow stages run without user extensions. List that extension in AGENT_WORKFLOW_PI_EXTENSIONS (comma-separated paths or npm: sources) or pick a model whose provider is built into Pi. See docs/executors.md (Pi → Isolation).',
 	},
 	// Missing credentials for a provider: exits 1 before any request (offline transcript).
 	{ class: "auth", match: "No API key found for", evidence: "offline" },
