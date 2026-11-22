@@ -50,6 +50,7 @@ import {
 	parsePermissionMode,
 	parseSuperviseArgs,
 	parseEffortLevel,
+	newAction,
 	profileAction,
 	pruneAction,
 	registerTestExecutorFromEnv,
@@ -555,6 +556,36 @@ async function dispatch(
 					...(loop === undefined ? {} : { loop }),
 					...(parsed.flags.has("--keep") ? { keep: true } : {}),
 					...(io.signal ? { signal: io.signal } : {}),
+				}),
+			);
+		}
+		case "new": {
+			// Generated starter bundle for a pattern; writes files, never a run, no model call.
+			const parsed = parseCommandArgs(argv, {
+				flags: ["--json", "--force", "--list"],
+				values: ["--scope"],
+			});
+			const list = parsed.flags.has("--list");
+			const [pattern, name, ...extra] = parsed.positionals;
+			if (extra.length > 0 || (list && pattern !== undefined))
+				throw new HostUsageError(
+					"Usage: agent-workflow new <pattern> <name> [--scope private|shared|global] [--force] | agent-workflow new --list",
+				);
+			const scope = parsed.values.get("--scope");
+			if (
+				scope !== undefined &&
+				scope !== "private" &&
+				scope !== "shared" &&
+				scope !== "global"
+			)
+				throw new HostUsageError("--scope must be private, shared or global");
+			return emit(
+				await newAction(ctx, {
+					...(list ? { list: true } : {}),
+					...(pattern === undefined ? {} : { pattern }),
+					...(name === undefined ? {} : { name }),
+					...(scope === undefined ? {} : { scope }),
+					...(parsed.flags.has("--force") ? { force: true } : {}),
 				}),
 			);
 		}

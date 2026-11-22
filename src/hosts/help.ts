@@ -49,6 +49,18 @@ that do not resolve, foreach item counts, loop rounds, helper errors and whether
 rendered. --items N sets the item count of unbounded arrays (default 2); --loop exhaust keeps every
 loop's until false so onExhausted runs (default pass: until holds on round 1). Exit 0 when the wiring
 is sound, 1 when problems were found or the spec is invalid, 2 usage error.`,
+	new: `Usage: agent-workflow new <pattern> <name> [--scope private|shared|global] [--force] [--json]
+       agent-workflow new --list
+
+Create a workflow from a pattern, ready to validate: spec.json, closed control schemas (with schema and
+digest), support helpers where the pattern has code stages, few-shot <control> skeletons generated from
+the schemas, a profileRole on every model stage and a maxItems on every foreach source array. The prompts
+carry a TODO: paragraph with working placeholder text: replace it with your domain instructions, then run
+validate, check and rehearse. Patterns: single, foreach-reduce, loop-refine, parallel-review-merge,
+classify-count (--list prints one line each). --scope private (default) writes .agent-workflow/workflows/<name>/
+in the project, shared writes workflows/<name>/, global writes under ~/.agent-workflow/workflows/. The same
+arguments always write byte-identical files. Existing files are never overwritten without --force; symlinks
+are never followed. No model is called.`,
 	roles: `Usage: agent-workflow roles <workflow-name-or-path> [--json]
 
 Show the compiled role context exactly as it is injected into task prompts.`,
@@ -234,6 +246,7 @@ Workflows:
   validate <workflow>  validate a workflow spec
   check <workflow>     launch preflight: executor, tools, models, effort (no run, no model call)
   rehearse <workflow>  run the real engine with a synthetic worker (no model call, temporary state)
+  new <pattern> <name> create a workflow from a pattern (--list shows them; no model call)
   roles <workflow>     show compiled role context
   agents               list agent definitions
   show <workflow>      print a workflow spec

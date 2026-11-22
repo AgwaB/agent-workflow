@@ -88,6 +88,11 @@ export {
 	modelListNote,
 } from "./executor-models.js";
 export {
+	type NewData,
+	type NewRequest,
+	newAction,
+} from "./new.js";
+export {
 	type RehearseData,
 	type RehearseRequest,
 	rehearseAction,

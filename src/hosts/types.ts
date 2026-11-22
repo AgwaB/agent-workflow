@@ -36,6 +36,7 @@ export type HostAction =
 	| "validate"
 	| "check"
 	| "rehearse"
+	| "new"
 	| "roles"
 	| "agents"
 	| "profile"
