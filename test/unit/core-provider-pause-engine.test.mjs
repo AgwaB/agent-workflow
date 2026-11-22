@@ -269,6 +269,32 @@ test("the third overload failure within the window opens the pause and is not co
 	});
 });
 
+test("a run counts one pause once while another of its tasks holds the probe", async () => {
+	await withPause("120", async (cwd) => {
+		const [, , third] = await openPause(cwd);
+		const { run } = third;
+		assert.equal(run.providerPause[KEY].opens, 1);
+		rewriteState((state) => {
+			state.openUntilMs = Date.now() - 1_000;
+		});
+		const prober = { ...third.task, taskId: "task-probe" };
+		const waiter = { ...third.task, taskId: "task-wait" };
+		// One task of the run takes the probe; another sees the busy lease and keeps waiting.
+		assert.equal(
+			(await pause.providerPauseLaunchGate(run, prober, KEY, { acquire: true }))
+				.kind,
+			"go",
+		);
+		assert.equal(
+			(await pause.providerPauseLaunchGate(run, waiter, KEY, { acquire: true }))
+				.kind,
+			"wait",
+		);
+		// Still the first pause (2026-11-22 e2e: opens read 4 for 2 pauses).
+		assert.equal(run.providerPause[KEY].opens, 1);
+	});
+});
+
 test("two overload failures, or failures more than 5 minutes apart, do not open it", async () => {
 	await withPause("120", async (cwd) => {
 		for (let i = 0; i < 2; i += 1) {
