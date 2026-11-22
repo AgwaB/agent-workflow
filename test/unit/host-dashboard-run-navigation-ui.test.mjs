@@ -24,7 +24,7 @@ async function setup(t, options = {}) {
 }
 async function entry(b, url) {
 	await b.open(url);
-	await b.waitFor(() => !!document.querySelector(".run-header, .report-page"));
+	await b.waitFor(() => !!document.querySelector(".run-header, .report-view"));
 }
 const state = (b) =>
 	b.evaluate(() => Object.fromEntries(new URLSearchParams(location.search)));
@@ -193,7 +193,7 @@ test("Run values are recorded, usage is separate/unknown, captured plan never ob
 			() =>
 				document.querySelector('[data-testid="captured-run-plan"]').textContent,
 		),
-		/requested\/resolved plan.*not today's settings or provider-observed.*captured-request/s,
+		/Planned models.*not today's settings and not what the provider reported.*captured-request/s,
 	);
 	await b.waitFor(() =>
 		document
@@ -436,7 +436,7 @@ test("primary Run history restores rich rail and observation; deletion stays sec
 		(r) => r.status === "completed" && r.reportAvailable,
 	);
 	await b.click(`[data-run="${completed.runId}"]`);
-	await b.waitFor(() => !!document.querySelector(".report-page"));
+	await b.waitFor(() => !!document.querySelector(".report-view"));
 	assert.equal((await state(b)).run, completed.runId);
 	assert.equal(
 		await b.evaluate(

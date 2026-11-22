@@ -812,27 +812,27 @@ test("dashboard Chrome: API, live DAG, dialogs, safe output, readonly and URL st
 			nested: ["Proposal"],
 		},
 	);
-	// The page colour is chosen in the report and kept in this browser.
-	const page = () =>
-		browser.evaluate(() => [
-			document.querySelector("#report-view").dataset.page ?? null,
-			document.querySelector(".report-page")?.textContent,
-		]);
-	const [initialPage] = await page();
-	await browser.evaluate(() => document.querySelector(".report-page").click());
-	const chosen = (await page())[0];
-	assert.notEqual(chosen, initialPage);
-	assert.deepEqual(await page(), [
-		chosen,
-		chosen === "light" ? "Dark page" : "Light page",
-	]);
+	// 2026-11-23 (owner): the theme is chosen only in the top bar; the report follows it, and a pin
+	// left by the removed "Light page" button is ignored.
+	await browser.evaluate(() =>
+		localStorage.setItem("agent-workflow:report-page", "light"),
+	);
 	await open(`run=${complete}&view=report`);
 	await browser.waitFor(() =>
 		document
 			.querySelector("#report-content")
 			?.textContent.includes("Review report"),
 	);
-	assert.equal((await page())[0], chosen);
+	assert.deepEqual(
+		await browser.evaluate(() => [
+			document.querySelector("#report-view").dataset.page ?? null,
+			document.querySelectorAll(".report-page").length,
+			getComputedStyle(document.querySelector("#report-view"))
+				.backgroundColor ===
+				getComputedStyle(document.documentElement).backgroundColor,
+		]),
+		[null, 0, true],
+	);
 	await browser.evaluate(() =>
 		localStorage.removeItem("agent-workflow:report-page"),
 	);
@@ -2523,7 +2523,7 @@ test("dashboard Chrome: a deep-review report is a page with a verdict header, an
 			"$0.28, 8 of 8 agents reported",
 		],
 		costTitle: "8 of 8 agents reported cost",
-		actions: ["Copy as Markdown", "Light page", "Open run"],
+		actions: ["Copy as Markdown", "Open run"],
 		dialog: false,
 	});
 	// Finding cards: a severity chip and a separate verifier pill, location chips from the Locations
@@ -3869,20 +3869,6 @@ test(
 			await browser.evaluate(() => document.activeElement.className),
 			"copy-report",
 		);
-		// "Light page"/"Dark page" is a pin only while it differs from the dashboard: pressing it again
-		// returns to following it.
-		const pinned = () =>
-			browser.evaluate(() => [
-				document.querySelector("#report-view").dataset.page ?? null,
-				localStorage.getItem("agent-workflow:report-page"),
-			]);
-		assert.deepEqual(await pinned(), [null, null]);
-		await browser.click(".report-page");
-		const [page, stored] = await pinned();
-		assert.ok(page === "light" || page === "dark");
-		assert.equal(stored, page);
-		await browser.click(".report-page");
-		assert.deepEqual(await pinned(), [null, null]);
 		// The overview's tab, and the heading's accessible name.
 		await browser.open(`${fixture.origin}/`);
 		await browser.waitFor(() => document.querySelector(".home-row.recent"));
@@ -4983,7 +4969,7 @@ test("dashboard Chrome: a recent result with a report opens the report; Needs wo
 });
 
 test(
-	"F2 report controls use page contrast in every shell/page pairing",
+	"F2 report controls keep contrast in the light and dark themes",
 	chromeOptions,
 	async (t) => {
 		const { browser, fixture } = await reviewFixture(t);
@@ -4993,9 +4979,10 @@ test(
 			deviceScaleFactor: 1,
 			mobile: false,
 		});
+		// 2026-11-23: the report follows the dashboard theme (the page's own pin was removed).
 		for (const shell of ["dark", "light"])
-			for (const page of ["light", "dark"])
-				for (const mode of ["toggle", "stored"]) {
+			for (const page of [shell])
+				for (const mode of ["follows"]) {
 					await browser.open(
 						`${fixture.origin}/?run=${complete}&view=report`,
 						980,
@@ -5005,14 +4992,7 @@ test(
 					);
 					await browser.evaluate((shell) => {
 						localStorage.setItem("agent-workflow:theme", shell);
-						localStorage.removeItem("agent-workflow:report-page");
 					}, shell);
-					if (mode === "stored")
-						await browser.evaluate(
-							(page) =>
-								localStorage.setItem("agent-workflow:report-page", page),
-							page,
-						);
 					await browser.open(
 						`${fixture.origin}/?run=${complete}&view=report`,
 						980,
@@ -5020,8 +5000,6 @@ test(
 					await browser.waitFor(
 						() => !!document.querySelector(".finding-card"),
 					);
-					if (mode === "toggle" && shell !== page)
-						await browser.click(".report-page");
 					await browser.waitFor(
 						`getComputedStyle(document.querySelector('.report-view')).backgroundColor === ${JSON.stringify(page === "light" ? "rgb(246, 245, 241)" : "rgb(20, 20, 20)")}`,
 					);
@@ -5053,7 +5031,7 @@ test(
 								);
 						return [
 							...document.querySelectorAll(
-								'.copy-report, .report-page, [data-action="open-run"], .filter-chip, .finding-card button, .outline-toggle',
+								'.copy-report, [data-action="open-run"], .filter-chip, .finding-card button, .outline-toggle',
 							),
 						]
 							.filter((n) => n.getClientRects().length && !n.disabled)
