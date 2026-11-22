@@ -562,32 +562,35 @@ export async function rehearseWorkflow(
 	const realHome = agentWorkflowHome();
 	const tempRoot = realpathSync(mkdtempSync(join(tmpdir(), "aw-rehearse-")));
 	const tempHome = join(tempRoot, "home");
-	mkdirSync(tempHome, { recursive: true });
-	linkReadOnlyHomeEntries(realHome, tempHome);
 	const effectLog = join(tempRoot, "effects.jsonl");
 	const savedEnv = {
 		home: process.env[AGENT_WORKFLOW_HOME_ENV],
 		index: process.env[RUN_INDEX_DIR_ENV],
 	};
-	process.env[AGENT_WORKFLOW_HOME_ENV] = tempHome;
-	process.env[RUN_INDEX_DIR_ENV] = join(tempHome, "run-index");
-	const unregister = registerWorkflowExecutor({
-		id: REHEARSAL_EXECUTOR_ID,
-		version: REHEARSAL_EXECUTOR_VERSION,
-		contractVersion: EXECUTOR_CONTRACT_VERSION,
-		module: new URL("./rehearsal-executor.js", import.meta.url).href,
-		config: {
-			id: REHEARSAL_EXECUTOR_ID,
-			effectLog,
-			projectCwd: cwd,
-			items: settings.items,
-			loop: settings.loop,
-			foreach: foreachHints(loaded.spec.artifactGraph?.stages ?? []).map(
-				foreachHintToJson,
-			),
-		},
-	});
+	let unregister: (() => void) | undefined;
+	// Everything after the temp root exists runs inside the try, so a failure here still restores the
+	// environment and removes the temp root (review 2026-11-22).
 	try {
+		mkdirSync(tempHome, { recursive: true });
+		linkReadOnlyHomeEntries(realHome, tempHome);
+		unregister = registerWorkflowExecutor({
+			id: REHEARSAL_EXECUTOR_ID,
+			version: REHEARSAL_EXECUTOR_VERSION,
+			contractVersion: EXECUTOR_CONTRACT_VERSION,
+			module: new URL("./rehearsal-executor.js", import.meta.url).href,
+			config: {
+				id: REHEARSAL_EXECUTOR_ID,
+				effectLog,
+				projectCwd: cwd,
+				items: settings.items,
+				loop: settings.loop,
+				foreach: foreachHints(loaded.spec.artifactGraph?.stages ?? []).map(
+					foreachHintToJson,
+				),
+			},
+		});
+		process.env[AGENT_WORKFLOW_HOME_ENV] = tempHome;
+		process.env[RUN_INDEX_DIR_ENV] = join(tempHome, "run-index");
 		const started = await runWorkflowSpec(loaded.specPath, cwd, {
 			task,
 			executor: REHEARSAL_EXECUTOR_ID,
@@ -621,7 +624,7 @@ export async function rehearseWorkflow(
 			...(options.keep === true ? { stateRoot: tempRoot } : {}),
 		};
 	} finally {
-		unregister();
+		unregister?.();
 		for (const [name, previous] of [
 			[AGENT_WORKFLOW_HOME_ENV, savedEnv.home],
 			[RUN_INDEX_DIR_ENV, savedEnv.index],
