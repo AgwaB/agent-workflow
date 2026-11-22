@@ -368,6 +368,17 @@ test("dashboard HTTP observes, streams and stops a real multi-task workflow", {
 	assert.ok(
 		logs.streams.find((stream) => stream.kind === "events").lines.length > 0,
 	);
+	// 2026-11-23: the same events as readable activity entries (Activity tab).
+	const activity = await json(server, `${path}/tasks/${taskId}/activity`);
+	assert.equal(activity.taskId, taskId);
+	assert.ok(Array.isArray(activity.entries) && activity.entries.length > 0);
+	assert.ok(
+		activity.entries.every((entry) =>
+			["message", "tool", "failed", "approval"].includes(entry.kind),
+		),
+	);
+	const missingTask = await http(server, `${path}/tasks/task-999/activity`);
+	assert.equal(missingTask.status, 404);
 	const progressed = await json(server, path);
 	assert.equal(progressed.usage.costUsd, null);
 	unknownCost(progressed);

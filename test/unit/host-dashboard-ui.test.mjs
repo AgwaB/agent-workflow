@@ -134,7 +134,7 @@ test("D Run inspector: coarse/narrow independent controls retain hit areas and p
 				new URL(location.href).searchParams.get("task") ===
 				"reviewers.webhook-retry-path",
 		);
-		for (const tab of ["Output", "Stderr", "Events", "Result"]) {
+		for (const tab of ["Output", "Stderr", "Activity", "Result"]) {
 			await browser.evaluate(
 				(tab) =>
 					[...document.querySelectorAll(".tabs button")]

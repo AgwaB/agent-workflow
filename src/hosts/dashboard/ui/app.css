@@ -1410,6 +1410,76 @@ pre {
 	max-height: 48vh;
 	overflow-y: auto;
 }
+/* 2026-11-23: an agent's activity reads like a terminal session: one line per tool call with its
+   status, a short dim output preview, and the agent's own words in between. */
+.activity {
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--surface);
+	max-height: 60vh;
+	overflow-y: auto;
+	font: 12.5px / 1.55 var(--mono);
+	overflow-wrap: anywhere;
+}
+.activity > * + * {
+	margin-top: 8px;
+}
+.activity-line {
+	display: flex;
+	gap: 8px;
+	align-items: baseline;
+}
+.activity-mark {
+	flex: none;
+	width: 1ch;
+	color: var(--faint);
+}
+.activity-tool[data-status="completed"] .activity-mark {
+	color: var(--accent);
+}
+.activity-tool[data-status="failed"] .activity-mark,
+.activity-tool[data-status="timed_out"] .activity-mark,
+.activity-tool[data-status="denied"] .activity-mark {
+	color: var(--err);
+}
+.activity-tool[data-status="running"] .activity-mark {
+	color: var(--warn);
+	animation: activity-pulse 1.2s ease-in-out infinite;
+}
+@keyframes activity-pulse {
+	50% {
+		opacity: 0.35;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.activity-tool[data-status="running"] .activity-mark {
+		animation: none;
+	}
+}
+.activity-label {
+	color: var(--text);
+}
+.activity-output {
+	margin: 4px 0 0 calc(1ch + 8px);
+	padding-left: 10px;
+	border-left: 1px solid var(--line2);
+	color: var(--faint);
+	font: inherit;
+	white-space: pre-wrap;
+}
+.activity-message {
+	white-space: pre-wrap;
+	color: var(--muted);
+	font-family: inherit;
+}
+.activity-failed {
+	white-space: pre-wrap;
+	color: var(--err);
+}
+.activity-note {
+	color: var(--faint);
+}
 .log-notice {
 	font-size: 14px;
 	color: var(--muted);

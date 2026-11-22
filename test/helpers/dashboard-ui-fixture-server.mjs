@@ -50,6 +50,8 @@ export async function createFixtureServer({
 		clients = new Set();
 	// Notice acknowledgements by run id; a run's state digest follows its status and update time.
 	const acknowledgements = new Map();
+	const activities = new Map(),
+		activityRequests = [];
 	const noticeDigest = (run) =>
 		createHash("sha256").update(`${run.status}|${run.updatedAt}`).digest("hex");
 	const start = Date.now(),
@@ -261,6 +263,25 @@ export async function createFixtureServer({
 					.lines.push(injection);
 				return json(data);
 			}
+			// 2026-11-23: an agent's activity feed; tests replace `activities.get(taskId)` to stream.
+			if (/^\/tasks\/[^/]+\/activity$/.test(suffix)) {
+				const taskId = decodeURIComponent(suffix.split("/")[2]);
+				activityRequests.push(taskId);
+				return json({
+					taskId,
+					truncated: false,
+					entries: activities.get(taskId) ?? [
+						{ kind: "message", text: `Looking at the retry code ${injection}` },
+						{
+							kind: "tool",
+							label: "Running npm test",
+							status: "completed",
+							output: "ok 1 - retries\nok 2 - backoff",
+						},
+						{ kind: "tool", label: "Reading src/retry.ts", status: "running" },
+					],
+				});
+			}
 			// 2026-11-03: a finished task's result (digest, analysis Markdown, refs, control JSON).
 			if (/^\/tasks\/[^/]+\/result$/.test(suffix))
 				return json({
@@ -331,6 +352,8 @@ export async function createFixtureServer({
 	return {
 		origin,
 		runs,
+		activities,
+		activityRequests,
 		reports,
 		mutations,
 		requests,

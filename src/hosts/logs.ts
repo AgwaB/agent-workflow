@@ -13,6 +13,7 @@ import { readFileLinesBounded } from "../core/workflow-preview.js";
 import { HostUsageError } from "./args.js";
 import { hostTextRedactor } from "./redaction.js";
 import { resolveContainedRunFile } from "./run-files.js";
+import { type ActivityFeed, readActivityFeed } from "./task-activity-feed.js";
 import {
 	assertActionAllowed,
 	type HostApiContext,
@@ -342,4 +343,43 @@ export async function logsAction(
 	if (data.truncated)
 		body.push("", `[output cut at ${LOGS_MAX_TEXT_CHARS} characters]`);
 	return result("logs", "success", data, [...header, ...body].join("\n"));
+}
+
+/**
+ * 2026-11-23: one task's latest-attempt activity as readable entries (task-activity-feed.ts),
+ * read from persisted state only and redacted like the log streams. `undefined`: no such task.
+ */
+export async function taskActivityAction(
+	ctx: HostApiContext,
+	request: { runId: string; task: string; limit?: number },
+): Promise<(ActivityFeed & { taskId: string; status: string }) | undefined> {
+	assertActionAllowed(ctx, "logs");
+	const run = await readRunRecord(ctx.cwd, request.runId);
+	const task = run.tasks.find(
+		(item) => item.taskId === request.task || item.specId === request.task,
+	);
+	if (!task) return undefined;
+	const empty = {
+		taskId: task.taskId,
+		status: task.status,
+		entries: [],
+		truncated: false,
+	};
+	const attempt = await latestAttemptDir(ctx.cwd, run.runId, task.taskId);
+	if (!attempt) return empty;
+	const contained = await resolveContainedRunFile(
+		ctx.cwd,
+		toStatePath(ctx.cwd, join(attempt, "exec-events.jsonl")),
+	);
+	if (contained.kind !== "ok") return empty;
+	const feed = await readActivityFeed(contained.path, ctx.cwd, request.limit);
+	if (!feed) return empty;
+	const redact = logRedactor(hostEnv(ctx));
+	for (const entry of feed.entries) {
+		if (entry.kind === "tool") {
+			entry.label = redact(entry.label);
+			if (entry.output !== undefined) entry.output = redact(entry.output);
+		} else entry.text = redact(entry.text);
+	}
+	return { taskId: task.taskId, status: task.status, ...feed };
 }
