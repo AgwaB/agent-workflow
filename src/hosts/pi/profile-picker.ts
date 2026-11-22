@@ -54,7 +54,70 @@ export type ProfilePickerApi = Pick<
 	| "workflowPreferenceAction"
 	| "executorModelsAction"
 	| "listWorkflowsAction"
->;
+> &
+	Partial<Pick<PiHostApi, "previewProjectSettingsRecoveryAction">>;
+
+type ProjectBinding = { executor?: string; model?: string; effort?: string };
+
+/**
+ * 2026-11-23 (owner: "a Custom setting saved in the dashboard does not show in the CLI"): the
+ * dashboard saves per-project workflow settings, which come before any profile at launch. The
+ * picker names them, so a profile choice is not mistaken for what this project will run.
+ */
+export async function projectSettingsLines(
+	api: ProfilePickerApi,
+	host: HostApiContext,
+	workflow?: string,
+): Promise<string[]> {
+	if (!api.previewProjectSettingsRecoveryAction) return [];
+	let listed: unknown;
+	try {
+		listed = (
+			await api.previewProjectSettingsRecoveryAction(host, { op: "list" })
+		).data.affected;
+	} catch {
+		return [];
+	}
+	const entries = Object.values(
+		((listed as { workflows?: Record<string, unknown> } | undefined)
+			?.workflows ?? {}) as Record<
+			string,
+			{
+				identity?: { relativeSpec?: string };
+				intent?: {
+					defaults?: ProjectBinding;
+					slots?: Record<string, ProjectBinding>;
+				};
+			}
+		>,
+	);
+	const lines: string[] = [];
+	for (const entry of entries) {
+		const spec = entry.identity?.relativeSpec ?? "";
+		const name = spec.endsWith("/spec.json")
+			? spec.slice(0, -"/spec.json".length).split("/").at(-1)
+			: spec
+					.split("/")
+					.at(-1)
+					?.replace(/\.(json|ya?ml)$/u, "");
+		if (!name || (workflow !== undefined && name !== workflow)) continue;
+		const defaults = entry.intent?.defaults ?? {};
+		const steps = Object.keys(entry.intent?.slots ?? {}).length;
+		const parts = [
+			[defaults.executor, defaults.model, defaults.effort]
+				.filter(Boolean)
+				.join(" · "),
+			steps ? `${steps} step${steps === 1 ? "" : "s"} set separately` : "",
+		].filter(Boolean);
+		if (parts.length) lines.push(`${name}: ${parts.join(", ")}`);
+	}
+	return lines.length
+		? [
+				"This project's dashboard settings come first (change them in the dashboard):",
+				...lines.map((line) => `  ${line}`),
+			]
+		: [];
+}
 
 export type ProfilePickerResult =
 	| { status: "cancelled" }
@@ -242,6 +305,12 @@ class Picker {
 		];
 		const current =
 			scope.kind === "workflow" ? preference?.profile : listedProfiles.default;
+		const project = await projectSettingsLines(
+			this.api,
+			this.host,
+			scope.kind === "workflow" ? workflowName : undefined,
+		);
+		const note = project.length ? `\n\n${project.join("\n")}` : "";
 		const mark = (choice: Choice) =>
 			choice.id === current
 				? scope.kind === "workflow"
@@ -255,8 +324,8 @@ class Picker {
 			];
 			const picked = await this.ui.select(
 				scope.kind === "workflow"
-					? `Execution profile for workflow ${workflowName}\nSaved as this workflow's preference (every host's launches use it).`
-					: "Execution profile for every workflow\nSaved as a user profile; make it the default to use it when a launch names none.",
+					? `Execution profile for workflow ${workflowName}\nSaved as this workflow's preference (every host's launches use it).${note}`
+					: `Execution profile for every workflow\nSaved as a user profile; make it the default to use it when a launch names none.${note}`,
 				labels,
 			);
 			if (picked === undefined) return { status: "cancelled" };
