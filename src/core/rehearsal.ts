@@ -32,6 +32,7 @@ import {
 	foreachHintToJson,
 	type RehearsalForeachHint,
 } from "./rehearsal-executor.js";
+import { createShadowProject, hasDynamicStage } from "./rehearsal-shadow.js";
 import {
 	removeRehearsalRoot,
 	waitForRootProcesses,
@@ -582,6 +583,7 @@ export async function rehearseWorkflow(
 	// Load and compile in the real home (user agents/workflows resolve), before the state root is swapped.
 	let loaded: Awaited<ReturnType<typeof loadWorkflowSpec>>;
 	let warnings: string[];
+	let canWrite = false;
 	try {
 		loaded = await loadWorkflowSpec(options.workflow.trim(), cwd);
 		const compiled = await compileWorkflow(loaded.spec, {
@@ -590,6 +592,12 @@ export async function rehearseWorkflow(
 			task,
 		});
 		warnings = [...compiled.warnings];
+		// A stage that can write gets a managed git worktree from the engine; see rehearsal-shadow.ts.
+		canWrite =
+			(compiled.tasks ?? []).some(
+				(compiledTask: { safety?: { requiresWorktree?: boolean } }) =>
+					compiledTask.safety?.requiresWorktree === true,
+			) || hasDynamicStage(loaded.spec.artifactGraph?.stages ?? []);
 	} catch (error) {
 		if (error instanceof WorkflowValidationError)
 			return { report: invalidSpecReport(options, settings, error.issues) };
@@ -613,6 +621,10 @@ export async function rehearseWorkflow(
 	try {
 		mkdirSync(tempHome, { recursive: true });
 		linkReadOnlyHomeEntries(realHome, tempHome);
+		// R3: a workflow that can write runs in a shadow clone of the project inside the temporary root, so
+		// the engine's worktrees and `agent-workflow/<run>-<task>` branches never reach the user's repository.
+		const runCwd =
+			(canWrite ? createShadowProject(cwd, tempRoot) : undefined) ?? cwd;
 		unregister = registerWorkflowExecutor({
 			id: REHEARSAL_EXECUTOR_ID,
 			version: REHEARSAL_EXECUTOR_VERSION,
@@ -621,7 +633,7 @@ export async function rehearseWorkflow(
 			config: {
 				id: REHEARSAL_EXECUTOR_ID,
 				effectLog,
-				projectCwd: cwd,
+				projectCwd: runCwd,
 				items: settings.items,
 				loop: settings.loop,
 				foreach: foreachHints(loaded.spec.artifactGraph?.stages ?? []).map(
@@ -632,18 +644,18 @@ export async function rehearseWorkflow(
 		process.env[AGENT_WORKFLOW_HOME_ENV] = tempHome;
 		process.env[RUN_INDEX_DIR_ENV] = join(tempHome, "run-index");
 		process.env[REHEARSAL_ENV] = "1";
-		const started = await runWorkflowSpec(loaded.specPath, cwd, {
+		const started = await runWorkflowSpec(loaded.specPath, runCwd, {
 			task,
 			executor: REHEARSAL_EXECUTOR_ID,
 			...(options.signal === undefined ? {} : { launchSignal: options.signal }),
 		});
 		let run: WorkflowRunRecord;
 		try {
-			run = await waitForRun(cwd, started.runId, RUN_WAIT_MS);
+			run = await waitForRun(runCwd, started.runId, RUN_WAIT_MS);
 		} catch {
-			run = await readRunRecord(cwd, started.runId);
+			run = await readRunRecord(runCwd, started.runId);
 		}
-		const runDir = workflowRunDir(cwd, run.runId);
+		const runDir = workflowRunDir(runCwd, run.runId);
 		const report = buildRehearsalReport({
 			workflow: options.workflow,
 			options: settings,

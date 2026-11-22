@@ -1043,6 +1043,61 @@ test("rehearse sets AGENT_WORKFLOW_REHEARSAL only while it runs", async () => {
 	assert.equal(process.env.AGENT_WORKFLOW_REHEARSAL, undefined);
 });
 
+/** Everything a rehearsal could leave in a repository: refs, worktree registrations, status, git admin dir. */
+function repoState(dir) {
+	const out = (...args) =>
+		execFileSync("git", ["-C", dir, ...args], { encoding: "utf8" });
+	const admin = join(dir, ".git");
+	return {
+		worktrees: out("worktree", "list", "--porcelain"),
+		branches: out("branch", "--all", "--format=%(refname) %(objectname)"),
+		refs: out("for-each-ref"),
+		status: out("status", "--porcelain=v1", "--untracked-files=all"),
+		registered: existsSync(join(admin, "worktrees"))
+			? execFileSync("ls", [join(admin, "worktrees")], { encoding: "utf8" })
+			: "",
+	};
+}
+
+test("rehearse of a write-capable workflow leaves the project's git repository untouched (R3)", async () => {
+	const dir = await projectFor("write-verify", "wv-iso-");
+	assert.equal(
+		(await run(["new", "write-verify", "iso"], { cwd: dir })).code,
+		0,
+	);
+	const commit = (...args) =>
+		execFileSync("git", ["-C", dir, ...args], { stdio: "ignore" });
+	commit("add", "-A", "-f");
+	commit(
+		"-c",
+		"user.email=t@example.test",
+		"-c",
+		"user.name=t",
+		"commit",
+		"-q",
+		"-m",
+		"add bundle",
+	);
+	const before = repoState(dir);
+	assert.equal(before.status, "", "the working tree starts clean");
+	assert.equal(before.registered, "");
+	for (const extra of [[], ["--keep"]]) {
+		const result = await run(["rehearse", "iso", "--json", ...extra], {
+			cwd: dir,
+		});
+		assert.equal(result.code, 0, result.out + result.err);
+		const report = JSON.parse(result.out).data;
+		const write = report.stages.find((stage) => stage.stage === "write");
+		// The writer stage did get its managed worktree (in the shadow clone) and the helper found it.
+		assert.deepEqual(write.failures, []);
+		assert.equal(report.status, "completed");
+		assert.deepEqual(repoState(dir), before);
+		const kept = JSON.parse(result.out).data.stateRoot;
+		if (kept !== undefined)
+			await rm(kept, { recursive: true, force: true, maxRetries: 5 });
+	}
+});
+
 // -------------------------------------------------------------- collect-render
 
 async function historyRepo(commits) {
