@@ -3450,7 +3450,10 @@ export function deriveRunTaskStatus(
  * Final-stage tasks are structural graph leaves: tasks whose specId no other
  * task depends on. Materializing a foreach replaces downstream dependencies
  * with its generated children, leaving the foreach task itself as an orphaned
- * leaf. Those tasks are scheduling placeholders, not model outputs.
+ * leaf. Those tasks are scheduling placeholders, not model outputs. A loop
+ * controller (`<loop>.loop`) is the same kind of placeholder once a later stage
+ * reads one of the loop's child tasks: the consumer is the final stage, not the
+ * controller left behind.
  */
 export function finalStageTasks(
 	tasks: WorkflowTaskRunRecord[],
@@ -3482,10 +3485,23 @@ export function finalStageTasks(
 			)
 			.map((task) => task.specId),
 	);
+	const consumedLoopIds = new Set<string>();
+	for (const task of tasks) {
+		for (const dependency of task.dependsOn ?? []) {
+			const loopId = tasks.find((candidate) => candidate.specId === dependency)
+				?.loopChild?.loopId;
+			if (loopId !== undefined && task.loopChild?.loopId !== loopId)
+				consumedLoopIds.add(loopId);
+		}
+	}
 	const leaves = tasks.filter(
 		(task) =>
 			!dependedOn.has(task.specId) &&
-			!foreachPlaceholderSpecIds.has(task.specId),
+			!foreachPlaceholderSpecIds.has(task.specId) &&
+			!(
+				task.kind === "loop" &&
+				consumedLoopIds.has(task.specId.replace(/\.loop$/u, ""))
+			),
 	);
 	const regularLeaves = leaves.filter(
 		(task) => task.kind !== "support" && task.kind !== "dynamic",
