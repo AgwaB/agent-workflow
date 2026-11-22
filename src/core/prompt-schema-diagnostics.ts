@@ -107,6 +107,16 @@ function classifyWarning(message: string): WorkflowCompileDiagnostic {
 	} else if (/projects .* via sourceProjection/.test(message)) {
 		code = "control_schema.source_projection_missing";
 		strictBlocking = true;
+	} else if (/has no profileRole\./.test(message)) {
+		code = "workflow.profile_role_missing";
+	} else if (/which the engine does not substitute/.test(message)) {
+		code = "prompt.placeholder_unsupported";
+	} else if (/but its prompt forbids tool use/.test(message)) {
+		code = "prompt.forbids_tools_with_sources";
+	} else if (/fans out over .* has no maxItems/.test(message)) {
+		code = "control_schema.foreach_unbounded";
+	} else if (/loop stage .* until path/.test(message)) {
+		code = "control_schema.loop_until_undeclared";
 	} else if (/declares readOnly: true/.test(message)) {
 		code = "tools.read_only_capability_advisory";
 	} else if (/High length-cutoff\/control-bloat risk/.test(message)) {

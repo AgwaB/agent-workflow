@@ -36,6 +36,7 @@
     },
     "shards": {
       "type": "array",
+      "maxItems": 40,
       "items": {
         "type": "object",
         "required": ["id", "sourceId", "axis", "title", "targetPaths", "keyQuestions", "priority"],

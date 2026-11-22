@@ -51,7 +51,14 @@ export const ONE_STAGE = {
 	name: "host-one-stage",
 	defaults: { agent: "reader", readOnly: true, tools: ["read"] },
 	artifactGraph: {
-		stages: [{ id: "a", type: "single", prompt: "Collect facts." }],
+		stages: [
+			{
+				id: "a",
+				type: "single",
+				profileRole: "research-execution",
+				prompt: "Collect facts.",
+			},
+		],
 	},
 };
 

@@ -1482,6 +1482,7 @@ test("compiler warns when a foreach path is absent from the source control schem
 						{
 							id: "analyze",
 							type: "foreach",
+							maxItems: 10,
 							from: { source: "scan", path: foreachPath },
 							each: { prompt: "Analyze ${item}" },
 						},
