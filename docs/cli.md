@@ -150,7 +150,10 @@ stage's Contract sentences and example with it. The same arguments always write 
 found](usage.md#where-workflows-are-found)). Existing files are never overwritten: the command lists them and
 exits 2, and `--force` replaces only the files the pattern writes (other files in the directory stay). A
 symlinked workflow directory, `schemas/` or `helpers/` directory, or target file is refused even with
-`--force`, and so is a flat `<name>.json` beside the new directory. When the same name exists in a
+`--force`, and so is a flat `<name>.json` beside the new directory. Names Windows reserves (`CON`, `PRN`, `AUX`,
+`NUL`, `COM1`-`COM9`, `LPT1`-`LPT9`, any case, with or without an extension) are a usage error. The bundle is
+written all-or-nothing: if a write fails part-way, the files and directories this call created are removed and
+replaced files are restored. When the same name exists in a
 higher-priority scope the output says it takes priority. The output lists the created paths and the next
 steps: edit the prompts → `validate` → `check` → `rehearse` → a smoke run on the cheapest model. Exit 0
 on success, 2 for a usage error or a refused write. Terminal CLI only (no MCP tool, no Pi command).

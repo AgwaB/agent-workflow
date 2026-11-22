@@ -4,7 +4,7 @@
 // --force, scopes, usage errors, and the structural rules each generated spec must keep. No model, no network.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { chmodSync, existsSync } from "node:fs";
 import {
 	mkdir,
 	mkdtemp,
@@ -602,5 +602,160 @@ test("the generated contract and example come from the schema and refuse a value
 	assert.throws(
 		() => exampleControl(schema, { kind: "zzz" }),
 		/does not match its schema/u,
+	);
+});
+
+// --- Review fixes (2026-11-22) ---
+
+test("the count helper reports duplicate loaded ids and keeps classified + missing = total", async () => {
+	const dir = await mkdtemp(join(root, "dup-"));
+	await mkdir(join(dir, ".agent-workflow"), { recursive: true });
+	assert.equal(
+		(await run(["new", "classify-count", "d"], { cwd: dir })).code,
+		0,
+	);
+	const helper = (
+		await import(
+			pathToFileURL(join(dir, ".agent-workflow/workflows/d/helpers/count.mjs"))
+		)
+	).default;
+	const load = {
+		items: [{ id: "A-1" }, { id: "A-2" }, { id: "A-1" }, { id: "A-3" }],
+	};
+	const status = (id, source) => ({
+		stageId: "classify",
+		itemIdentity: id,
+		source,
+		status: "completed",
+	});
+	const context = {
+		sourceStatuses: [
+			status("A-1", "classify.a-1"),
+			status("A-2", "classify.a-2"),
+		],
+	};
+	const sources = {
+		load,
+		"classify.a-1": { label: "label-a" },
+		"classify.a-2": { label: "label-b" },
+	};
+	const counted = await helper({ context, sources });
+	assert.deepEqual(counted.duplicates, ["A-1"]);
+	assert.equal(counted.total, 3);
+	assert.equal(counted.classified, 2);
+	assert.deepEqual(counted.missing, ["A-3"]);
+	assert.equal(counted.classified + counted.missing.length, counted.total);
+	assert.match(counted.digest, /1 duplicate id/u);
+	const schema = JSON.parse(
+		await readFile(
+			join(dir, ".agent-workflow/workflows/d/schemas/class-counts.schema.json"),
+			"utf8",
+		),
+	);
+	assert.deepEqual(validateJsonSchema(counted, schema).issues, []);
+	const clean = await helper({
+		context,
+		sources: { ...sources, load: { items: [{ id: "A-1" }, { id: "A-2" }] } },
+	});
+	assert.deepEqual(clean.duplicates, []);
+});
+
+test("Windows-reserved workflow names are a usage error, any case, with or without extension", async () => {
+	const dir = await mkdtemp(join(root, "reserved-"));
+	await mkdir(join(dir, ".agent-workflow"), { recursive: true });
+	for (const name of [
+		"CON",
+		"con",
+		"Prn",
+		"AUX",
+		"nul",
+		"COM1",
+		"com9",
+		"LPT1",
+		"lpt9",
+		"con.txt",
+		"NUL.v2",
+	]) {
+		const result = await run(["new", "single", name], { cwd: dir });
+		assert.equal(result.code, 2, `${name}: ${result.out}${result.err}`);
+		assert.match(result.err, /reserved/iu);
+	}
+	assert.equal(existsSync(join(dir, ".agent-workflow/workflows")), false);
+	for (const name of [
+		"console",
+		"com0",
+		"com10",
+		"lpt",
+		"auxiliary",
+		"con-1",
+	]) {
+		assert.equal(
+			(await run(["new", "single", name], { cwd: dir })).code,
+			0,
+			name,
+		);
+	}
+});
+
+const canChmod = process.platform !== "win32" && process.getuid?.() !== 0;
+
+test("a write failing part-way leaves nothing behind (all-or-nothing)", {
+	skip: !canChmod && "needs a non-root POSIX user",
+}, async () => {
+	const dir = await mkdtemp(join(root, "partial-"));
+	await mkdir(join(dir, ".agent-workflow"), { recursive: true });
+	const workflows = join(dir, ".agent-workflow/workflows");
+	const target = join(workflows, "p");
+	// classify-count writes spec.json, schemas/*, then helpers/count.mjs; make helpers/ unwritable.
+	await mkdir(join(target, "helpers"), { recursive: true });
+	chmodSync(join(target, "helpers"), 0o555);
+	try {
+		const failed = await run(["new", "classify-count", "p"], { cwd: dir });
+		assert.notEqual(failed.code, 0, failed.out);
+		assert.deepEqual(await listFiles(target), []);
+		assert.deepEqual(
+			(await readdir(target)).sort(),
+			["helpers"],
+			"no spec.json and no schemas/ directory left behind",
+		);
+		assert.deepEqual(
+			(await readdir(workflows)).sort(),
+			["p"],
+			"no staging directory left behind",
+		);
+	} finally {
+		chmodSync(join(target, "helpers"), 0o755);
+	}
+	const ok = await run(["new", "classify-count", "p"], { cwd: dir });
+	assert.equal(ok.code, 0, ok.err);
+	assert.deepEqual((await readdir(workflows)).sort(), ["p"]);
+});
+
+test("a failing --force restores the files it had already replaced", {
+	skip: !canChmod && "needs a non-root POSIX user",
+}, async () => {
+	const dir = await mkdtemp(join(root, "partial-force-"));
+	await mkdir(join(dir, ".agent-workflow"), { recursive: true });
+	const target = join(dir, ".agent-workflow/workflows/q");
+	assert.equal(
+		(await run(["new", "classify-count", "q"], { cwd: dir })).code,
+		0,
+	);
+	await writeFile(join(target, "spec.json"), "edited by the author\n");
+	await writeFile(join(target, "notes.md"), "mine\n");
+	const before = await readTree(target);
+	chmodSync(join(target, "helpers"), 0o555);
+	try {
+		const failed = await run(["new", "classify-count", "q", "--force"], {
+			cwd: dir,
+		});
+		assert.notEqual(failed.code, 0, failed.out);
+	} finally {
+		chmodSync(join(target, "helpers"), 0o755);
+	}
+	assert.deepEqual(await readTree(target), before);
+	assert.deepEqual(
+		(await readdir(join(dir, ".agent-workflow/workflows"))).sort(),
+		["q"],
 	);
 });
