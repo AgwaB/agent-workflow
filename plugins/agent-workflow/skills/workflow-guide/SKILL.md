@@ -9,6 +9,17 @@ description: Author, modify, review or validate agent-workflow workflow specs (a
 
 Use this skill before creating, editing, or reviewing an `agent-workflow` workflow. It does not apply to Claude Code's own workflows (Claude Code has a built-in `workflow-authoring` skill for those). Workflows run on any supported executor CLI (Pi, Codex, Claude, and experimental Antigravity); prefer executor-neutral wording in prompts. Name the artifact tool `workflow_artifact` in prompts (never an executor-specific `mcp__…` name): the engine renders it to the name the executor shows its model.
 
+## Start here: `new`, edit prompts, validate, check, rehearse
+
+For a new workflow, do not hand-write JSON when a pattern fits. `agent-workflow new --list` prints the patterns (`single`, `foreach-reduce`, `loop-refine`, `parallel-review-merge`, `classify-count`); `agent-workflow new <pattern> <name> [--scope private|shared|global]` (private by default; ask for the scope first, see "Authoring intake") writes a bundle that already passes `validate` with no warnings and `rehearse` with no findings: closed control schemas with `schema`/`digest`, helpers for the code stages, a `profileRole` on every model stage, a `maxItems` on every foreach source array, and few-shot `<control>` skeletons generated from the schemas. It never overwrites files without `--force`.
+
+1. `agent-workflow new <pattern> <name>`.
+2. Edit the prompts: replace each `TODO:` paragraph (and the spec `description`) with the domain instructions; that is the only edit you must make. The paragraph after it (the Contract: allowed keys, exact enum values, caps, example) is generated from the stage's schema: keep it, and when you change a schema (labels, fields, caps) change that stage's Contract sentences and example in the same edit. To add a reviewer or a stage, copy a sibling stage and keep `from`, schema files and helper expectations in step.
+3. `agent-workflow validate <name>`, then `agent-workflow check <name>`, then `agent-workflow rehearse <name>` (`--loop exhaust` for a loop); fix every warning and finding.
+4. A smoke run on the cheapest model ("Validate, smoke run, hand off").
+
+When no pattern fits, start from the closest bundled workflow or scaffold ("Scaffolds") and follow the same loop. The rules below apply to every edit you make to a generated bundle.
+
 ## Must know (most-violated rules)
 
 1. **`from` is the data edge; `after` is order-only.** A model stage gets prior artifacts only through `single.from` or `reduce.from` (`foreach.from` for array fan-out, support `from` for deterministic helpers). Stage order alone passes nothing. A stage with neither `from` nor `after` runs after the previous declared stage; write `after: []` for an independent root.
@@ -64,7 +75,7 @@ When the request is vague, broad, or self-contradictory, do not write a spec yet
 
 1. Identify the goal and whether an existing workflow can be reused or adapted.
 2. Choose the graph first: worker stages plus support nodes. Use `type: "dynamic"` only when static `foreach`/`dag`/`reduce` shapes cannot know the child work until runtime. State the approach briefly when it materially affects cost, safety, output shape, or storage. Then give every model-bearing stage/profile its semantic `profileRole`.
-3. If a scaffold fits, use it ("Scaffolds"). Define every data dependency explicitly.
+3. If a `new` pattern fits, generate it ("Start here") and edit its prompts; else if a scaffold fits, use it ("Scaffolds"). Define every data dependency explicitly.
 4. Add `output.controlSchema` files for model outputs consumed later, set tool ceilings and read/write policy, and keep helper/controller code bundle-local and trusted (`support.uses`, `dynamic.uses` and dynamic helper refs start with `./`, use a supported bundle-local extension, and stay inside the bundle).
 5. Apply "Quality design patterns"; do not stop at a spec that merely validates.
 6. Validate with `agent-workflow validate <workflow-or-file>` (or the `workflow_validate` tool), run from the project directory. Then work through "Validation warnings".
@@ -148,7 +159,7 @@ Do not ignore warnings.
 
 ## Scaffolds
 
-Scaffolds under `./scaffolds/` are validate-ready starter bundles. Use them to reduce JSON-shape mistakes, then adapt the copy. Scaffold paths here and in the scaffold README are relative to the skill directory, not the project: resolve them to absolute paths before running `cp` or `node` from the project directory (and `mkdir -p` the target first).
+Use these when no `agent-workflow new` pattern fits (patterns first: "Start here"). Scaffolds under `./scaffolds/` are validate-ready starter bundles. Use them to reduce JSON-shape mistakes, then adapt the copy. Scaffold paths here and in the scaffold README are relative to the skill directory, not the project: resolve them to absolute paths before running `cp` or `node` from the project directory (and `mkdir -p` the target first).
 
 - `fixed-inventory/`: caller-fixed 1–8 document inventory -> one model editorial question-extraction worker per document -> deterministic exact-owner join and escaped final render. Provider-free `initialize.mjs`; do not use it when inventory discovery or factual/conformance judgment is required.
 - `foreach-reduce/`: parallel mapping or planning, reduce to work items, foreach verification, final report.

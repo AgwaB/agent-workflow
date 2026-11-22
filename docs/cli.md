@@ -20,7 +20,7 @@ never a project, in the CLI, the MCP server and the Pi host alike: runs started 
 workflow name that only an enclosing project has then fails with "not found in <dir>; the project
 <ancestor> has it — … run from <ancestor> (or pass the spec path)".
 
-**Contents:** [Commands](#commands) · [`check`](#check) · [`rehearse`](#rehearse) · [Launch options (`run`, `dynamic`)](#launch-options-run-dynamic) · [Saved user profiles](#saved-user-profiles) · [`doctor`](#doctor) · [`dashboard`](#dashboard) · [`statusline`, `watch`, `notify-check`](#statusline-watch-notify-check) · [Exit codes](#exit-codes) · [Environment](#environment) · [Examples](#examples) · [`host-command` hook entry](#host-command-hook-entry)
+**Contents:** [Commands](#commands) · [`new`](#new) · [`check`](#check) · [`rehearse`](#rehearse) · [Launch options (`run`, `dynamic`)](#launch-options-run-dynamic) · [Saved user profiles](#saved-user-profiles) · [`doctor`](#doctor) · [`dashboard`](#dashboard) · [`statusline`, `watch`, `notify-check`](#statusline-watch-notify-check) · [Exit codes](#exit-codes) · [Environment](#environment) · [Examples](#examples) · [`host-command` hook entry](#host-command-hook-entry)
 
 ## Commands
 
@@ -28,6 +28,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 |---|---|
 | `list [--query T] [--offset N] [--limit N]` | Discoverable workflows: project `workflows/` and `.agent-workflow/workflows/`, `~/.agent-workflow/workflows/`, bundled (Pi's directories are not read). `--limit` (1-20) pages the output and bounds it to 50 KB. |
 | `validate <workflow>` | Load and compile a spec without running it. Its `Tasks:` count is the compiled task count: a `foreach` or `loop` counts once, so a run has more ([task ids](usage.md#run-records)). Lists `Warnings:` ([what it checks](usage.md#what-validate-checks)). |
+| `new <pattern> <name> [--scope private\|shared\|global] [--force]` / `new --list` | Create a workflow from a pattern (`single`, `foreach-reduce`, `loop-refine`, `parallel-review-merge`, `classify-count`) that already validates and rehearses clean; you replace the `TODO:` prompts (below). No model call. |
 | `check <workflow> [<task…>] [launch options]` | The launch preflight without the launch: executor, tools, models and effort for the executor that would run each stage (below). No run, no model call. |
 | `rehearse <workflow> [<task…>] [--items N] [--loop pass\|exhaust] [--keep] [--json]` | Run a workflow through the real engine with a synthetic worker: no model call, no network, temporary run state (below). Reports the wiring per stage. |
 | `roles <workflow>` | Compiled role context as injected into task prompts. |
@@ -60,7 +61,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 
 A run argument accepts the run id or an unambiguous prefix.
 
-Every command except `help`/`--version`, the hook entry `host-command` (below), and the terminal views `watch`, `dashboard`, `statusline`,
+Every command except `help`/`--version`, the hook entry `host-command` (below), the authoring commands `new` and `rehearse`, and the terminal views `watch`, `dashboard`, `statusline`,
 `notify-check`, whose data the `workflow_status`/`workflow_wait` tools already return, is also a host MCP tool (`workflow_<command>`,
 [host-mcp.md](hosts.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default`, `profile workflow set|clear` and
 `notices acknowledge|clear` and changing `project-settings` operations ask the user to confirm through MCP elicitation, and a client that
@@ -116,6 +117,46 @@ Ordinary stores are limited to 512 entries and 1 MiB. Neither clear nor recovery
 settings, discovers vanished definitions, supplies replacement metadata or edits existing Runs.
 For identity and precedence see [usage](usage.md#project-local-workflow-settings). The MCP tool is
 `workflow_project_settings`, with an additional user confirmation dialog for every change.
+
+## `new`
+
+```sh
+agent-workflow new <pattern> <name> [--scope private|shared|global] [--force] [--json]
+agent-workflow new --list
+```
+
+`new` writes a complete workflow bundle for a pattern, so authoring starts from something that already
+passes `validate` with no warnings and `rehearse` with no findings, and the one thing you must edit is the
+prompts. `new --list` prints the patterns:
+
+| Pattern | Stages |
+|---|---|
+| `single` | `run`: one model stage with a closed control schema |
+| `foreach-reduce` | `plan` → `work` (foreach over the plan's items) → `report` (partial fan-in) |
+| `loop-refine` | `refine` loop (`draft`, `review`; at most 3 rounds, until the review approves) → `publish` (reads the loop through `from`) |
+| `parallel-review-merge` | `reviewer-1..3` (independent roots) → `merge-findings` (code) → `summary` (`require-success`, required read of the merge) |
+| `classify-count` | `load` → `classify` (foreach with `itemIdentityPath`) → `count` (code; reconciles ids, lists missing ones) → `report` |
+
+Each bundle has `spec.json`, closed control schemas (`additionalProperties: false`, including `schema`
+and `digest`), support helpers where the pattern has code stages, a `profileRole` on every model stage and
+a `maxItems` on every foreach source array. Every prompt starts with a `TODO:` paragraph that already works
+as generic placeholder text: replace it with your domain instructions. The paragraph after it (the
+Contract) is generated from the stage's schema (allowed keys, exact enum values, caps, and a few-shot
+`<control>` skeleton that is checked against the schema); keep it, and if you change a schema, change its
+stage's Contract sentences and example with it. The same arguments always write byte-identical files.
+
+`--scope private` (default) writes `.agent-workflow/workflows/<name>/` in the project, `shared` writes
+`workflows/<name>/`, `global` writes under `$AGENT_WORKFLOW_HOME/workflows/` ([where workflows are
+found](usage.md#where-workflows-are-found)). Existing files are never overwritten: the command lists them and
+exits 2, and `--force` replaces only the files the pattern writes (other files in the directory stay). A
+symlinked workflow directory, `schemas/` or `helpers/` directory, or target file is refused even with
+`--force`, and so is a flat `<name>.json` beside the new directory. Names Windows reserves (`CON`, `PRN`, `AUX`,
+`NUL`, `COM1`-`COM9`, `LPT1`-`LPT9`, any case, with or without an extension) are a usage error. The bundle is
+written all-or-nothing: if a write fails part-way, the files and directories this call created are removed and
+replaced files are restored. When the same name exists in a
+higher-priority scope the output says it takes priority. The output lists the created paths and the next
+steps: edit the prompts → `validate` → `check` → `rehearse` → a smoke run on the cheapest model. Exit 0
+on success, 2 for a usage error or a refused write. Terminal CLI only (no MCP tool, no Pi command).
 
 ## `check`
 

@@ -815,6 +815,17 @@ Each need is `native`, `emulated`, **degraded** (runs, recorded in `run.capabili
 
 Capability degradations are recorded and shown on every host, without confirmation.
 
+### Start from a pattern
+
+`agent-workflow new <pattern> <name>` (`new --list` shows the patterns) writes a workflow bundle that
+already passes `validate` with no warnings and `rehearse` with no findings: `single`, `foreach-reduce`,
+`loop-refine`, `parallel-review-merge` and `classify-count`. It carries closed control schemas with
+`schema` and `digest`, helpers for the code stages, a `profileRole` on every model stage, a `maxItems` on
+every foreach source array, and prompts whose `TODO:` paragraph you replace with your domain instructions;
+the generated Contract paragraph and few-shot `<control>` skeleton after it come from the schema. Then
+`validate`, `check`, `rehearse` and a cheap smoke run. It never overwrites files without `--force`
+([cli.md](cli.md#new)).
+
 ### Rehearse a workflow
 
 `agent-workflow rehearse <workflow> [<task...>]` runs a workflow through the real engine with no model
