@@ -2823,10 +2823,16 @@ test("deep-review artifact-graph support lifecycle retains adverse needs-human a
 		const spec = workflowSpec("unit-scout", {
 			artifactGraph: {
 				stages: [
-					{ id: "dedup-findings", type: "single", prompt: "Dedup." },
+					{
+						id: "dedup-findings",
+						type: "single",
+						profileRole: "synthesis",
+						prompt: "Dedup.",
+					},
 					{
 						id: "devil-advocate",
 						type: "single",
+						profileRole: "verification",
 						after: [],
 						prompt: "Verify.",
 					},
@@ -2853,6 +2859,7 @@ test("deep-review artifact-graph support lifecycle retains adverse needs-human a
 					{
 						id: "report",
 						type: "reduce",
+						profileRole: "synthesis",
 						from: "report-packet",
 						sourcePolicy: "partial",
 						tools: [],

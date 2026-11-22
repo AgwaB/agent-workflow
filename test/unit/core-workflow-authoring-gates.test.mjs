@@ -110,6 +110,7 @@ test("strict prompt diagnostics skip dynamic helpers but still reject model prom
 					{
 						id: "helper",
 						type: "dynamic",
+						profileRole: "planning",
 						dynamic: { uses: "./helper.mjs", mode: "graph-splice" },
 						output: { controlSchema: "./control.json" },
 					},

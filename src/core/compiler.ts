@@ -4,6 +4,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
+import { collectAuthoringRuleWarnings } from "./authoring-rule-warnings.js";
 import { loadAgentByName } from "./agents.js";
 import {
 	configurationSlot,
@@ -893,6 +894,10 @@ export async function compileWorkflow(
 				foreachSpecDir,
 			)),
 			...(await collectWorkflowQualityWarnings(
+				spec.artifactGraph?.stages ?? [],
+				foreachSpecDir,
+			)),
+			...(await collectAuthoringRuleWarnings(
 				spec.artifactGraph?.stages ?? [],
 				foreachSpecDir,
 			)),

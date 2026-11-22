@@ -2,6 +2,7 @@ import { readFile, realpath } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 
 import { parseArtifactGraphWorkflowSpec } from "./artifact-graph-schema.js";
+import { lookupControlSchemaPath } from "./control-schema-path.js";
 import { validateJsonSchemaSubset } from "./json-schema.js";
 import {
 	type ArtifactGraphWorkflowSpec,
@@ -55,6 +56,7 @@ async function validateArtifactGraphControlSchemaFiles(
 	const issues: ValidationIssue[] = [];
 	const specDir = dirname(specPath);
 	const seen = new Set<string>();
+	const parsedSchemas = new Map<string, unknown>();
 	for (const stage of flattenArtifactGraphStages(spec.artifactGraph.stages)) {
 		const controlSchema = stage.output?.controlSchema;
 		if (!controlSchema || seen.has(controlSchema)) continue;
@@ -73,6 +75,7 @@ async function validateArtifactGraphControlSchemaFiles(
 				continue;
 			}
 			const schema = JSON.parse(await readFile(realSchemaPath, "utf8"));
+			parsedSchemas.set(controlSchema, schema);
 			const validation = validateJsonSchemaSubset(schema);
 			for (const issue of validation.issues) {
 				issues.push({
@@ -94,7 +97,49 @@ async function validateArtifactGraphControlSchemaFiles(
 			});
 		}
 	}
+	issues.push(...loopUntilSchemaIssues(spec, parsedSchemas));
 	if (issues.length > 0) throw new WorkflowValidationError(issues);
+}
+
+// A loop ends when its `until` reads a field of the final child's control. When that child's control
+// schema is closed (additionalProperties: false) and does not declare the field, the model can never
+// emit it and the loop can only end exhausted (a guaranteed outcome, so an error). An open schema
+// only gets a warning (compiler authoring-rule warnings). `exists: false` wants the field absent.
+function loopUntilSchemaIssues(
+	spec: ArtifactGraphWorkflowSpec,
+	parsedSchemas: ReadonlyMap<string, unknown>,
+): ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	for (const stage of flattenArtifactGraphStages(spec.artifactGraph.stages)) {
+		if (stage.type !== "loop" || !Array.isArray(stage.stages)) continue;
+		const finalChild = stage.stages.at(-1);
+		const controlSchema = finalChild?.output?.controlSchema;
+		if (typeof controlSchema !== "string") continue;
+		const schema = parsedSchemas.get(controlSchema);
+		if (schema === undefined) continue;
+		for (const leaf of untilLeaves(stage.until)) {
+			if (typeof leaf.path !== "string" || leaf.exists === false) continue;
+			const lookup = lookupControlSchemaPath(schema, leaf.path);
+			if (lookup.status !== "missing" || !lookup.closed) continue;
+			issues.push({
+				path: `${stage.id}.until`,
+				message: `loop "${stage.id}" until path "${leaf.path}" is not in ${controlSchema}, the control schema of its final child "${finalChild.id}", which sets additionalProperties: false; the model can never emit "${lookup.property}", so the loop could only end exhausted. Add it to that schema's properties (and show it in the child's prompt), or point until at a declared field`,
+			});
+		}
+	}
+	return issues;
+}
+
+function untilLeaves(until: any, leaves: any[] = []): any[] {
+	if (!until || typeof until !== "object") return leaves;
+	for (const key of ["all", "any"]) {
+		if (Array.isArray(until[key])) {
+			for (const child of until[key]) untilLeaves(child, leaves);
+			return leaves;
+		}
+	}
+	leaves.push(until);
+	return leaves;
 }
 
 // Every control object carries the envelope keys: models must emit them (workflow-output-artifacts.ts

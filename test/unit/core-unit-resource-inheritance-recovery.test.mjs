@@ -93,6 +93,7 @@ for (const path of ["resume repair", "repeated request"]) {
 							{
 								id: "adaptive",
 								type: "dynamic",
+								profileRole: "planning",
 								dynamic: {
 									uses: "./controller.mjs",
 									budget: {

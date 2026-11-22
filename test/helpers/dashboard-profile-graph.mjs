@@ -113,6 +113,7 @@ export async function projectSettingsGraphFixtures(cwd) {
 				{
 					id: "items",
 					type: "foreach",
+					profileRole: "research-execution",
 					from: "nested",
 					each: { agent: "reader", prompt: "Inspect {{item}}" },
 					output: { analysis: { required: true } },
@@ -120,12 +121,13 @@ export async function projectSettingsGraphFixtures(cwd) {
 				{
 					id: "adaptive",
 					type: "dynamic",
+					profileRole: "planning",
 					after: ["items"],
 					dynamic: {
 						uses: "./profile-controller.mjs",
 						decisionLoop: {
-							planner: { agent: "reader" },
-							workerDefaults: { agent: "reader" },
+							planner: { agent: "reader", profileRole: "planning" },
+							workerDefaults: { agent: "reader", profileRole: "verification" },
 						},
 					},
 				},
