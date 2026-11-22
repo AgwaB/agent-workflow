@@ -53,6 +53,7 @@ import {
 	profileAction,
 	pruneAction,
 	registerTestExecutorFromEnv,
+	rehearseAction,
 	resumeAction,
 	runDynamicAction,
 	checkWorkflowAction,
@@ -530,6 +531,32 @@ async function dispatch(
 				...(taskWords.length > 0 ? { task: taskWords.join(" ") } : {}),
 			});
 			return emit(checked);
+		}
+		case "rehearse": {
+			// Real engine, synthetic worker: no model call, no network, temporary run state.
+			const parsed = parseCommandArgs(argv, {
+				flags: ["--json", "--keep"],
+				values: ["--items", "--loop"],
+			});
+			const [workflow, ...taskWords] = parsed.positionals;
+			if (!workflow)
+				throw new HostUsageError(
+					"Usage: agent-workflow rehearse <workflow> [<task...>] [--items N] [--loop pass|exhaust] [--keep] [--json]",
+				);
+			const items = intValue(parsed.values.get("--items"), "--items");
+			const loop = parsed.values.get("--loop");
+			if (loop !== undefined && loop !== "pass" && loop !== "exhaust")
+				throw new HostUsageError("--loop must be pass or exhaust");
+			return emit(
+				await rehearseAction(ctx, {
+					workflow,
+					...(taskWords.length > 0 ? { task: taskWords.join(" ") } : {}),
+					...(items === undefined ? {} : { items }),
+					...(loop === undefined ? {} : { loop }),
+					...(parsed.flags.has("--keep") ? { keep: true } : {}),
+					...(io.signal ? { signal: io.signal } : {}),
+				}),
+			);
 		}
 		case "agents":
 			agentsRequest(argv, CLI_SYNTAX);

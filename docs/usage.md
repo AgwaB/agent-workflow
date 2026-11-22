@@ -815,6 +815,18 @@ Each need is `native`, `emulated`, **degraded** (runs, recorded in `run.capabili
 
 Capability degradations are recorded and shown on every host, without confirmation.
 
+### Rehearse a workflow
+
+`agent-workflow rehearse <workflow> [<task...>]` runs a workflow through the real engine with no model
+and no network, to catch wiring mistakes that `validate` cannot see: a stage that names `from` sources
+but receives none, a required read whose path does not resolve, a foreach that fans out over nothing,
+a loop whose `until` never holds, a helper that throws. Every model task gets a deterministic,
+schema-valid control from its own control schema and performs its required reads through the real
+artifact tool; helpers run for real; run state is temporary. Use `--loop exhaust` to exercise
+`onExhausted` and `--items N` to change the fan-out. It does not judge prompts or output quality: a
+rehearsal that passes says the graph is wired, not that a model will do the job. Run it after
+`validate` and `check` ([cli.md](cli.md#rehearse)).
+
 ## Stage model
 
 | Node | Behavior |
