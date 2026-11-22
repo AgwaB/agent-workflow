@@ -351,8 +351,9 @@ function markRunPaused(
 	pause: number,
 ): boolean {
 	const entry = runEntry(run, key);
-	if (entry.pausedSince === undefined || entry.pause !== pause)
-		entry.opens += 1;
+	// One count per pause: a task of this run holding the probe ends the paused interval but not
+	// the pause, so a sibling that keeps waiting on the busy lease is not a new one.
+	if (entry.pause !== pause) entry.opens += 1;
 	entry.pausedSince ??= new Date(nowMs).toISOString();
 	const seen = Date.parse(entry.pausedSeenAt ?? "");
 	// Advanced only when it is to be written, so the value in memory is the one on disk.
@@ -368,8 +369,11 @@ function markRunResumed(
 	run: WorkflowRunRecord,
 	key: string,
 	nowMs: number,
+	options: { closed?: boolean } = {},
 ): void {
 	const entry = run.providerPause?.[key];
+	// Closed for good: a later pause, whatever its number, is a new one.
+	if (entry && options.closed) delete entry.pause;
 	if (entry?.pausedSince === undefined) return;
 	const since = Date.parse(entry.pausedSince);
 	if (Number.isFinite(since)) entry.pausedMs += Math.max(0, nowMs - since);
@@ -472,7 +476,9 @@ export async function providerPauseLaunchGate(
 				};
 			});
 		if (decision.kind !== "wait") {
-			markRunResumed(run, key, nowMs);
+			markRunResumed(run, key, nowMs, {
+				closed: state?.openUntilMs === undefined,
+			});
 			return { kind: "go" };
 		}
 		if (providerPauseCapReached(run, nowMs, maxMs)) {
