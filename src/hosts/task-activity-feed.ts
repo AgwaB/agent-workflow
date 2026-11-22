@@ -38,6 +38,14 @@ export interface ActivityFeed {
 	truncated: boolean;
 }
 
+/** Labels a call gets when its input names nothing (see activityFromExecEvent). */
+const GENERIC_LABEL =
+	/^(?:Searching the web|Searching files|Reading files|Editing files|Writing files|Running command|Using |Opening $)/;
+const hasInput = (input: unknown): boolean =>
+	input !== undefined &&
+	input !== null &&
+	(typeof input !== "object" || Object.keys(input).length > 0);
+
 /** Read the tail of an events file, starting at a whole line. */
 async function readTail(path: string): Promise<{ text: string; cut: boolean }> {
 	const handle = await open(path, "r");
@@ -121,8 +129,9 @@ export function compactActivity(
 			const preview = outputPreview(event.output);
 			if (known) {
 				known.status = status;
-				// Codex names a web search only when it ends; a later, more specific label wins.
-				if (label && !/^(?:Searching the web|Using )/.test(label))
+				// Codex names a web search only when it ends; a later, more specific label wins. An end
+				// event without input (Pi) only gives a generic label, which never replaces the start's.
+				if (label && hasInput(event.input) && !GENERIC_LABEL.test(label))
 					known.label = label;
 				if (preview) {
 					known.output = preview.text;
