@@ -832,6 +832,24 @@ inputs, and `dynamic` only when the work cannot be known before the run. A later
 not see earlier output unless it declares `from`. Set `injectRuntimeTask: true` on a `foreach` or
 `reduce` to give its workers the runtime task too.
 
+### What `validate` checks
+
+`validate` rejects specs that cannot run (unknown keys, dangling `from`/`after`, `requiredReads` outside the
+stage's own `from`, a control schema with `additionalProperties: false` but no `schema`/`digest`, a loop
+`until` path that the final child's closed control schema cannot carry). It also lists warnings, which are
+design feedback to fix before the first run:
+
+- a model stage (also loop and dag children, `onExhausted`, dynamic decision-loop profiles) without `profileRole`;
+- a `${...}` placeholder that the engine does not substitute (only `${item}` in a foreach `each.prompt`);
+- a `single`/`reduce` stage with sources whose prompt forbids tool use (sources are read through `workflow_artifact`);
+- a foreach over a model stage's array that sets no `maxItems` (in the array's schema or on the foreach stage);
+- a loop `until` path missing from the final child's open control schema;
+- prompt/schema drift, a foreach or `sourceProjection` path the source schema lacks, and `readOnly` stages that lose
+  tools.
+
+Runtime-only facts (a `requiredReads` path, what a model returns, helper behavior) are not checked; use
+`check` and a cheap smoke run for those.
+
 ### DAG authoring
 
 Top-level `artifactGraph.stages` is a DAG.
