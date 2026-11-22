@@ -187,6 +187,7 @@ function foreachReducePattern(name: string): Bundle {
 				},
 				additionalProperties: false,
 			},
+			minItems: 1,
 			maxItems: 8,
 		},
 	});
@@ -209,7 +210,7 @@ function foreachReducePattern(name: string): Bundle {
 				prompt: [
 					todo(
 						"plan",
-						"list up to 8 distinct work items that the runtime task asks for, each with a short stable id such as W-01, a title and a one-sentence detail.",
+						"list 1 to 8 distinct work items that the runtime task asks for, each with a short stable id such as W-01, a title and a one-sentence detail.",
 					),
 					`${READ_ONLY} ${ANALYSIS} Give every item a unique id of 1 to 64 characters; the next stage works each item separately and sees only that item. ${controlContract(plan, { digest: "1 work item", items: [{ id: "W-01", title: "First work item", detail: "What to do for this item." }] })}`,
 				].join("\n\n"),
@@ -593,6 +594,7 @@ function classifyCountPattern(name: string): Bundle {
 				properties: { id: text(64, 1), text: text(1000, 1) },
 				additionalProperties: false,
 			},
+			minItems: 1,
 			maxItems: 50,
 		},
 	});
@@ -632,7 +634,7 @@ function classifyCountPattern(name: string): Bundle {
 				prompt: [
 					todo(
 						"load",
-						"read the files the runtime task names and list every item to classify, verbatim, one row each, up to 50.",
+						"read the files the runtime task names and list every item to classify, verbatim, one row each, 1 to 50.",
 					),
 					`${READ_ONLY} ${ANALYSIS} Give every item a unique id of 1 to 64 characters (reuse an id the source already has); text is the item verbatim. The next stage classifies each item separately and sees only that item. ${controlContract(load, { digest: "1 item loaded", items: [{ id: "T-01", text: "The item text, verbatim." }] })}`,
 				].join("\n\n"),

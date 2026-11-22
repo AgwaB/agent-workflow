@@ -26,6 +26,7 @@
           "priority": { "type": "string", "enum": ["high", "medium", "low"] }
         }
       },
+      "minItems": 1,
       "maxItems": 80
     },
     "crossCuttingClaims": { "type": "array", "items": { "type": "object" }, "maxItems": 40 },

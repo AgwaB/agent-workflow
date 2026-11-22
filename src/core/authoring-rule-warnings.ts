@@ -60,8 +60,9 @@ export async function collectAuthoringRuleWarnings(
 				warnings.push(...forbidsToolsWarnings(stage, sources));
 			}
 			if (stage.type === "foreach") {
-				const warning = await foreachCapWarning(stage, byId, loadSchema);
-				if (warning) warnings.push(warning);
+				warnings.push(
+					...(await foreachSourceWarnings(stage, byId, loadSchema)),
+				);
 			}
 			if (stage.type === "loop" && Array.isArray(stage.stages)) {
 				warnings.push(...(await loopUntilWarnings(stage, loadSchema)));
@@ -204,30 +205,36 @@ function forbidsToolsWarnings(
 	];
 }
 
-async function foreachCapWarning(
+async function foreachSourceWarnings(
 	stage: Stage,
 	byId: ReadonlyMap<string, Stage>,
 	loadSchema: (stage: Stage | undefined) => Promise<unknown>,
-): Promise<string | undefined> {
-	if (stage.maxItems !== undefined) return undefined;
+): Promise<string[]> {
 	const from = stage.from;
-	if (!isRecord(from)) return undefined;
+	if (!isRecord(from)) return [];
 	const sourceId = from.source ?? from.stage;
 	const path = from.path;
-	if (typeof sourceId !== "string" || typeof path !== "string")
-		return undefined;
+	if (typeof sourceId !== "string" || typeof path !== "string") return [];
 	const source = byId.get(sourceId);
 	// A support helper bounds its array in code, which a spec cannot show; a container has no schema.
-	if (!source || !isModelBacked(source) || source.type === "dynamic")
-		return undefined;
+	if (!source || !isModelBacked(source) || source.type === "dynamic") return [];
 	const schema = await loadSchema(source);
-	if (!schema) return undefined;
+	if (!schema) return [];
 	const lookup = lookupControlSchemaPath(schema, path);
-	if (lookup.status !== "found" || !isRecord(lookup.schema)) return undefined;
+	if (lookup.status !== "found" || !isRecord(lookup.schema)) return [];
 	const array = lookup.schema;
-	if (array.type !== "array" && !isRecord(array.items)) return undefined;
-	if (typeof array.maxItems === "number") return undefined;
-	return `foreach stage "${stage.id}" fans out over "${path}" from "${sourceId}", but that array in ${sourceId}'s control schema (${source.output.controlSchema}) has no maxItems, so the model decides the task count without bound. Add maxItems to the array (and state the cap in ${sourceId}'s prompt), or set maxItems on the foreach stage.`;
+	if (array.type !== "array" && !isRecord(array.items)) return [];
+	const warnings: string[] = [];
+	if (stage.maxItems === undefined && typeof array.maxItems !== "number")
+		warnings.push(
+			`foreach stage "${stage.id}" fans out over "${path}" from "${sourceId}", but that array in ${sourceId}'s control schema (${source.output.controlSchema}) has no maxItems, so the model decides the task count without bound. Add maxItems to the array (and state the cap in ${sourceId}'s prompt), or set maxItems on the foreach stage.`,
+		);
+	// An explicit minItems (even 0) says the author chose; only the unstated case is flagged.
+	if (typeof array.minItems !== "number")
+		warnings.push(
+			`foreach stage "${stage.id}" fans out over "${path}" from model stage "${sourceId}" whose array has no minItems, so an empty answer completes with 0 tasks. Add minItems: 1 if empty means failure (or minItems: 0 if it is fine), or find the items in a support stage.`,
+		);
+	return warnings;
 }
 
 function untilLeaves(until: unknown, leaves: Stage[] = []): Stage[] {

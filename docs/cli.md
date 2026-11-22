@@ -139,7 +139,7 @@ prompts. `new --list` prints the patterns:
 
 Each bundle has `spec.json`, closed control schemas (`additionalProperties: false`, including `schema`
 and `digest`), support helpers where the pattern has code stages, a `profileRole` on every model stage and
-a `maxItems` on every foreach source array. Every prompt starts with a `TODO:` paragraph that already works
+a `minItems` and `maxItems` on every foreach source array. Every prompt starts with a `TODO:` paragraph that already works
 as generic placeholder text: replace it with your domain instructions. The paragraph after it (the
 Contract) is generated from the stage's schema (allowed keys, exact enum values, caps, and a few-shot
 `<control>` skeleton that is checked against the schema); keep it, and if you change a schema, change its

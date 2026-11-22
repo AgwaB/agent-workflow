@@ -1465,7 +1465,7 @@ test("compiler warns when a foreach path is absent from the source control schem
 				properties: {
 					schema: { type: "string" },
 					digest: { type: "string" },
-					gapItems: { type: "array" },
+					gapItems: { type: "array", minItems: 1 },
 				},
 			}),
 		);

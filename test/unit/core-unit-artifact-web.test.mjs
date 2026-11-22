@@ -1444,6 +1444,16 @@ test("artifactGraph runtime foreach empty fanout completes terminal placeholder"
 		assert.equal(placeholder.status, "completed");
 		assert.equal(placeholder.statusDetail, "foreach_empty");
 		assert.equal(placeholder.lastMessage, "foreach produced 0 item(s)");
+		// A completed run that fanned out over nothing says so instead of looking clean.
+		assert.deepEqual(updated.degradation?.emptyForeachStageIds, ["verify"]);
+		assert.equal(
+			updated.degradation?.summary,
+			"foreach verify fanned out over 0 items",
+		);
+		assert.match(
+			formatRun(updated),
+			/\[completed\].*— degraded: foreach verify fanned out over 0 items/,
+		);
 	} finally {
 		rmSync(cwd, {
 			recursive: true,
