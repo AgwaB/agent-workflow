@@ -817,7 +817,7 @@ test("a temporary root that cannot be removed is reported as leftover, not throw
 	assert.equal(result.report.ok, true);
 	assert.match(result.leftover, /aw-rehearse-/u);
 	assert.ok(existsSync(result.leftover));
-	await rm(result.leftover, { recursive: true, force: true });
+	await removeKeptRoot(result.leftover);
 });
 
 test("a failing `ps` is not read as quiet: the wait keeps polling to the deadline and says unknown", async () => {
@@ -935,6 +935,23 @@ test("M6: the `ps` child the wait itself started ends with the wait, not when it
 	}
 });
 
+/**
+ * Remove a root a test rehearsal kept on purpose. Its durable worker or terminal finalizer may still be writing
+ * (the hooked `ps` let the rehearsal return without waiting), so wait for them with the real `ps` first and retry
+ * the removal: a plain rm raced them (ENOTEMPTY, 2 of ~5 runs).
+ */
+async function removeKeptRoot(root) {
+	if (typeof root !== "string") return;
+	setRehearsalPsForTests(undefined);
+	await waitForRootProcesses(root, 10_000);
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
+}
+
 /** Rehearse with a hooked `ps` and a spy on the removal; returns what the rehearsal left. */
 async function rehearseWithPs(ps) {
 	const cwd = await project();
@@ -983,8 +1000,7 @@ for (const [label, ps] of [
 			assert.match(result.leftover, /aw-rehearse-/u);
 			assert.ok(existsSync(result.leftover), "the reported path exists");
 		} finally {
-			if (result.leftover !== undefined)
-				await rm(result.leftover, { recursive: true, force: true });
+			await removeKeptRoot(result.leftover);
 		}
 	});
 }
@@ -1016,8 +1032,7 @@ test("N4: a rehearsal that throws after keeping its temporary root reports the k
 			`the message names the kept path: ${error.message}`,
 		);
 	} finally {
-		if (typeof error.retainedRoot === "string")
-			await rm(error.retainedRoot, { recursive: true, force: true });
+		await removeKeptRoot(error.retainedRoot);
 	}
 });
 
@@ -1056,8 +1071,7 @@ test("N4: a frozen abort reason is not mutated; the thrown error wraps it with c
 		);
 		assert.equal(Object.hasOwn(reason, "retainedRoot"), false);
 	} finally {
-		if (typeof error?.retainedRoot === "string")
-			await rm(error.retainedRoot, { recursive: true, force: true });
+		await removeKeptRoot(error?.retainedRoot);
 	}
 });
 
@@ -1190,8 +1204,7 @@ test("R3-3: the exception path never calls a root safe to delete when the last s
 			);
 			assert.doesNotMatch(error.message, /safe to delete by hand/u, label);
 		} finally {
-			if (typeof error?.retainedRoot === "string")
-				await rm(error.retainedRoot, { recursive: true, force: true });
+			await removeKeptRoot(error?.retainedRoot);
 		}
 	}
 });
