@@ -220,6 +220,25 @@ test("a support helper that declared failed or blocked shows its own reason", as
 		}),
 		"support declared failed: 1 of 1 file(s) failed: OUTPUT.md missing from the writer worktree",
 	);
+	// A helper that lists blockers/reasons is read before its digest; a renderer's verdict before its digest.
+	assert.equal(
+		message("blocked", {
+			digest: "Rendered 8 findings",
+			blockers: ["two source reads failed", "third"],
+		}),
+		"support declared blocked: two source reads failed (and 1 more)",
+	);
+	assert.equal(
+		message("failed", {
+			digest: "Rendered 8 findings: high=4, medium=4.",
+			verdict: "PARTIAL_REVIEW",
+		}),
+		"support declared failed: verdict PARTIAL_REVIEW",
+	);
+	assert.equal(
+		message("failed", { digest: "## Executive summary\nThe report text" }),
+		"support declared failed",
+	);
 	// No digest given (the default text says nothing): keep the plain verdict.
 	assert.equal(
 		message("blocked", { status: "blocked" }),

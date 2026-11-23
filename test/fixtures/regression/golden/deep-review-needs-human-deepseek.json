@@ -158,7 +158,7 @@
 			"specId": "final.main",
 			"status": "failed",
 			"statusDetail": "support_declared_failed",
-			"message": "support declared failed",
+			"message": "support declared failed: verdict PARTIAL_REVIEW",
 			"control": "0b25721897921c4a"
 		},
 		{
