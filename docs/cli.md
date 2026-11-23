@@ -211,6 +211,8 @@ declares `failed` or `blocked` because synthetic content cannot satisfy its cont
 example a report renderer's evidence reconciliation) is listed as a content gate, not as a wiring problem:
 the text names each gate helper and its reason, says this is expected for placeholder data, and lists the
 stages the gate made skip; `data.status` is then `content-gates` (`data.runStatus` keeps `failed` or `blocked`).
+A helper that asked `sources` for a name its stage does not declare is a wiring finding even when it then declares
+`failed` or `blocked` (the engine saw the lookup; helpers should throw for wiring and return `failed`/`blocked` for content).
 Exit 0 when the wiring is sound (`wiring OK`, with or without content gates), 1 when it found wiring
 problems (a helper that throws is one) or the spec is invalid, 2 for a usage error. `--json` prints
 `{action, ok, outcome, data}` with the report in `data`.
