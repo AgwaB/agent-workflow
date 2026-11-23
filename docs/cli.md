@@ -214,9 +214,11 @@ problem (the reason is the only evidence: a message about placeholder data versu
 setup, which is a wiring problem), and lists the stages it made skip; `data.status` is then `content-gates` (the name
 is kept; `data.runStatus` keeps `failed` or `blocked`).
 A support helper whose text looks up a literal source name its stage cannot receive (`sources.x`, `sources["x"]`,
-`Object.hasOwn(sources, "x")`, `"x" in sources`, `const { x } = sources`) gets a `validate` warning, and `rehearse`
-reports it as a wiring finding even when the helper then declares `failed` or `blocked`. It is a static scan of the
-helper file (computed or template names are not checked); the helper itself runs exactly as in the engine.
+`Object.hasOwn(sources, "x")`, `"x" in sources`, `const { x } = sources`) gets a `validate`/`compile` warning, and
+`rehearse` prints it among its warnings; it is advisory and never changes the exit code. It is a static scan of the
+helper file: computed or template names, field checks on a declared source (`"x" in sources.a`), object literals
+and regular expressions are not lookups, and a helper that reassigns `sources` is not judged. The helper itself runs
+exactly as in the engine.
 Exit 0 means no wiring fault was diagnosed (`wiring OK`, with or without declared failed/blocked), not that the
 wiring is proven; 1 means it found wiring problems (a helper that throws is one) or the spec is invalid, 2 a usage
 error. `--json` prints

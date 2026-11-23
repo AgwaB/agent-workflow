@@ -176,24 +176,24 @@ for (const declared of ["failed", "blocked"]) {
 	});
 }
 
-test("a helper that looks up a source it does not have and declares blocked is exit 1, not a content gate", async () => {
+test("a helper that looks up a source it does not have is an advisory warning: exit stays 0", async () => {
 	const file = await gateWorkflow(
 		"wrong-lookup",
 		'export default async ({ sources }) => sources.extract ? { schema: "g-v1", status: "passed", digest: "ok" } : { schema: "g-v1", status: "blocked", digest: "source extract is missing" };\n',
 	);
 	const result = await run(["rehearse", file]);
-	assert.equal(result.code, 1, result.out + result.err);
-	assert.match(result.out, /wiring problems found/u);
+	assert.equal(result.code, 0, result.out + result.err);
+	assert.doesNotMatch(result.out, /wiring problems found/u);
 	assert.match(
 		result.out,
 		/support helper "\.\/helpers\/wrong-lookup\.mjs" looks up source "extract", which is not one of its sources \(a\)/u,
 	);
 	const json = await run(["rehearse", file, "--json"]);
-	assert.equal(json.code, 1);
+	assert.equal(json.code, 0);
 	const parsed = JSON.parse(json.out);
-	assert.equal(parsed.ok, false);
-	assert.notEqual(parsed.data.status, "content-gates");
-	assert.equal(parsed.data.findings.length > 0, true);
+	assert.equal(parsed.ok, true);
+	assert.deepEqual(parsed.data.findings, []);
+	assert.match(parsed.data.warnings.join("\n"), /looks up source "extract"/u);
 });
 
 test("a helper that throws stays a wiring finding (exit 1), not a content gate", async () => {

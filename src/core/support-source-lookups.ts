@@ -2,10 +2,7 @@
 // A helper that asks `sources` for a wrong name and then declares failed/blocked looks like a content gate
 // but is a wiring error. The helper is not instrumented: the text is scanned (literal keys only, comments and
 // strings blanked), so `validate`, `compile` and `rehearse` agree and the helper runs as it does in the engine.
-
-/** Marks the warning text; `rehearse` reports warnings of this kind as wiring findings. */
-export const SUPPORT_SOURCE_LOOKUP_WARNING =
-	/\bsupport helper "[^"]*" looks up source "/u;
+// The result is advisory: a warning `rehearse` prints, never a rehearsal finding; when unsure it says nothing.
 
 /** Names the runtime and serializers probe on any object; never a helper's source lookup. */
 const PROBED_BY_RUNTIME = new Set(["toJSON", "then", "asymmetricMatch"]);
@@ -15,85 +12,151 @@ interface BlankedSource {
 	strings: string[];
 }
 
+/** Words after which a `/` starts a regular expression (after any other word, a number or `)`/`]` it divides). */
+const REGEX_AFTER_WORD = new Set([
+	"return",
+	"typeof",
+	"case",
+	"in",
+	"of",
+	"void",
+	"delete",
+	"throw",
+	"new",
+	"instanceof",
+	"else",
+	"do",
+	"yield",
+	"await",
+]);
+
+function regexMayStart(code: string): boolean {
+	const tail = code.trimEnd();
+	const last = tail.at(-1);
+	if (last === undefined) return true;
+	if (/[\w$]/u.test(last)) {
+		const word = /[A-Za-z_$][\w$]*$/u.exec(tail)?.[0];
+		return word !== undefined && REGEX_AFTER_WORD.has(word);
+	}
+	return "(,=:[!&|?{};+-*%<>~^".includes(last);
+}
+
 /**
- * Replaces comments with spaces and string literals with `"S<n>"` (n indexes `strings`; a literal with a
- * substitution or an escape becomes `"T"` and is never matched). Returns undefined for text it cannot tokenize.
+ * Replaces comments with spaces, string and regular-expression literals with `"S<n>"` (n indexes `strings`) or
+ * `"T"` (a literal with an escape, a regexp: never matched), and a template literal with `"T"` followed by its
+ * `${…}` expressions as code, `("T",(expr),…)`, so an expression inside one is scanned and its text is not.
+ * Returns undefined for text it cannot tokenize; the caller then declines to judge.
  */
 function blank(text: string): BlankedSource | undefined {
 	const strings: string[] = [];
-	let code = "";
 	let index = 0;
-	while (index < text.length) {
-		const char = text[index]!;
-		const next = text[index + 1];
-		if (char === "/" && next === "/") {
-			while (index < text.length && text[index] !== "\n") index += 1;
-			continue;
-		}
-		if (char === "/" && next === "*") {
-			const end = text.indexOf("*/", index + 2);
-			if (end === -1) return undefined;
-			code += " ";
-			index = end + 2;
-			continue;
-		}
-		if (char === '"' || char === "'") {
-			let value = "";
-			let dynamic = false;
-			index += 1;
-			for (;;) {
-				const current = text[index];
-				if (current === undefined || current === "\n") return undefined;
-				if (current === char) break;
-				if (current === "\\") {
-					dynamic = true;
-					index += 2;
-					continue;
-				}
-				value += current;
-				index += 1;
-			}
-			index += 1;
-			if (dynamic) code += '"T"';
-			else code += `"S${strings.push(value) - 1}"`;
-			continue;
-		}
-		if (char === "`") {
-			let value = "";
-			let dynamic = false;
-			index += 1;
-			for (;;) {
-				const current = text[index];
-				if (current === undefined) return undefined;
-				if (current === "`") break;
-				if (current === "\\") {
-					dynamic = true;
-					index += 2;
-					continue;
-				}
-				if (current === "$" && text[index + 1] === "{") {
-					dynamic = true;
-					let depth = 0;
-					while (index < text.length) {
-						if (text[index] === "{") depth += 1;
-						else if (text[index] === "}" && (depth -= 1) === 0) break;
+	// Scans code up to the end of the text, or, inside a template substitution, to its closing brace.
+	const scan = (inSubstitution: boolean): string | undefined => {
+		let code = "";
+		let depth = 0;
+		while (index < text.length) {
+			const char = text[index]!;
+			const next = text[index + 1];
+			if (inSubstitution) {
+				if (char === "{") depth += 1;
+				else if (char === "}") {
+					if (depth === 0) {
 						index += 1;
+						return code;
 					}
-					index += 1;
-					continue;
+					depth -= 1;
 				}
-				value += current;
-				index += 1;
 			}
+			if (char === "/" && next === "/") {
+				while (index < text.length && text[index] !== "\n") index += 1;
+				continue;
+			}
+			if (char === "/" && next === "*") {
+				const end = text.indexOf("*/", index + 2);
+				if (end === -1) return undefined;
+				code += " ";
+				index = end + 2;
+				continue;
+			}
+			if (char === "/" && regexMayStart(code)) {
+				index += 1;
+				let inClass = false;
+				for (;;) {
+					const current = text[index];
+					if (current === undefined || current === "\n") return undefined;
+					if (current === "\\") {
+						index += 2;
+						continue;
+					}
+					if (current === "[") inClass = true;
+					else if (current === "]") inClass = false;
+					else if (current === "/" && !inClass) break;
+					index += 1;
+				}
+				index += 1;
+				while (/[a-z]/u.test(text[index] ?? "")) index += 1;
+				code += '"T"';
+				continue;
+			}
+			if (char === '"' || char === "'") {
+				let value = "";
+				let dynamic = false;
+				index += 1;
+				for (;;) {
+					const current = text[index];
+					if (current === undefined || current === "\n") return undefined;
+					if (current === char) break;
+					if (current === "\\") {
+						dynamic = true;
+						index += 2;
+						continue;
+					}
+					value += current;
+					index += 1;
+				}
+				index += 1;
+				if (dynamic) code += '"T"';
+				else code += `"S${strings.push(value) - 1}"`;
+				continue;
+			}
+			if (char === "`") {
+				let value = "";
+				let dynamic = false;
+				const expressions: string[] = [];
+				index += 1;
+				for (;;) {
+					const current = text[index];
+					if (current === undefined) return undefined;
+					if (current === "`") break;
+					if (current === "\\") {
+						dynamic = true;
+						index += 2;
+						continue;
+					}
+					if (current === "$" && text[index + 1] === "{") {
+						index += 2;
+						const expression = scan(true);
+						if (expression === undefined) return undefined;
+						expressions.push(expression);
+						continue;
+					}
+					value += current;
+					index += 1;
+				}
+				index += 1;
+				if (expressions.length > 0)
+					code += `("T"${expressions.map((expression) => `,(${expression})`).join("")})`;
+				else if (dynamic) code += '"T"';
+				else code += `"S${strings.push(value) - 1}"`;
+				continue;
+			}
+			code += char;
 			index += 1;
-			if (dynamic) code += '"T"';
-			else code += `"S${strings.push(value) - 1}"`;
-			continue;
 		}
-		code += char;
-		index += 1;
-	}
-	return { code, strings };
+		return inSubstitution ? undefined : code;
+	};
+	const code = scan(false);
+	return code === undefined ? undefined : { code, strings };
 }
 
 const ID = String.raw`[A-Za-z_$][\w$]*`;
@@ -103,12 +166,80 @@ const SHADOWED = new RegExp(
 	[
 		String.raw`\b(?:const|let|var)\s+sources\b`,
 		String.raw`\bfunction\s*[\w$]*\s*\(\s*sources\b`,
-		String.raw`\(\s*(?:[^()]*,\s*)?sources\s*(?:=[^()]*)?\)\s*=>`,
+		String.raw`\(\s*(?:[^(){}]*,\s*)?sources\s*(?:=[^()]*)?\)\s*=>`,
 		String.raw`${SRC}\s*=>`,
-		String.raw`${SRC}\s*=(?![=>])`,
 	].join("|"),
 	"u",
 );
+
+/** Index of the bracket that encloses `index`, or -1. */
+function enclosingOpen(code: string, index: number): number {
+	let depth = 0;
+	for (let at = index - 1; at >= 0; at -= 1) {
+		const char = code[at]!;
+		if (char === ")" || char === "]" || char === "}") depth += 1;
+		else if (char === "(" || char === "[" || char === "{") {
+			if (depth === 0) return at;
+			depth -= 1;
+		}
+	}
+	return -1;
+}
+
+/** Index of the bracket closing the one at `open`, or -1. */
+function matchingClose(code: string, open: number): number {
+	let depth = 0;
+	for (let at = open; at < code.length; at += 1) {
+		const char = code[at]!;
+		if (char === "(" || char === "[" || char === "{") depth += 1;
+		else if (char === ")" || char === "]" || char === "}") {
+			depth -= 1;
+			if (depth === 0) return at;
+		}
+	}
+	return -1;
+}
+
+/**
+ * True when the `{` at `open` is a binding pattern: it follows `const`/`let`/`var` and is assigned, or it is a
+ * parameter of a function or arrow (`({ … }) =>`, `({ … } = {}) {`). An object literal, a call argument and
+ * anything else is not; an enclosing pattern level (`{ a: { … } }`) is followed up.
+ */
+function isBindingPattern(code: string, open: number): boolean {
+	let current = open;
+	for (;;) {
+		const close = matchingClose(code, current);
+		if (close === -1) return false;
+		const after = code.slice(close + 1);
+		const before = code.slice(0, current);
+		if (/\b(?:const|let|var)\s*$/u.test(before) && /^\s*=(?![=>])/u.test(after))
+			return true;
+		if (/^\s*(?:=\s*[^(){}]*)?\)\s*(?:=>|\{)/u.test(after)) return true;
+		if (!/^\s*[,}]/u.test(after)) return false;
+		const outer = enclosingOpen(code, current);
+		if (outer === -1 || code[outer] !== "{") return false;
+		current = outer;
+	}
+}
+
+/**
+ * True when the helper reassigns or redeclares `sources` itself. A default in a destructuring pattern
+ * (`({ sources = {} })`) names the argument's own property and rebinds nothing; a reassignment, or anything not
+ * clearly a pattern, does (the helper is then not judged).
+ */
+function rebindsSources(code: string): boolean {
+	if (SHADOWED.test(code)) return true;
+	for (const match of code.matchAll(new RegExp(`${SRC}\\s*=(?![=>])`, "gu"))) {
+		const index = match.index ?? 0;
+		const previous = code.slice(0, index).trimEnd().at(-1);
+		if (previous !== "{" && previous !== ",") return true;
+		const open = enclosingOpen(code, index);
+		// A block (the function body, `{ sources = x; }`) is not a pattern: that is a reassignment.
+		if (open === -1 || code[open] !== "{" || !isBindingPattern(code, open))
+			return true;
+	}
+	return false;
+}
 
 function patternNames(
 	code: string,
@@ -170,7 +301,7 @@ export function literalSourceLookups(text: string): string[] {
 	const blanked = blank(text);
 	if (blanked === undefined) return [];
 	const { code, strings } = blanked;
-	if (SHADOWED.test(code)) return [];
+	if (rebindsSources(code)) return [];
 	const written = new Set<string>();
 	const names: string[] = [];
 	const scan = (
@@ -204,14 +335,26 @@ export function literalSourceLookups(text: string): string[] {
 		"string",
 	);
 	// "name" in sources
-	scan(String.raw`"S(\d+)"\s+in\s+sources(?![\w$])`, 1, "string");
-	// const { name } = sources;  /  { sources: { name } }
-	for (const pattern of [
+	// (`"x" in sources.a` is a field check on a declared source, not a lookup)
+	scan(
+		String.raw`"S(\d+)"\s+in\s+sources(?![\w$])(?!\s*(?:\??\.|\[))`,
+		1,
+		"string",
+	);
+	// const { name } = sources;  /  a parameter or declaration pattern { sources: { name } } (an object literal
+	// that builds `{ sources: { … } }` is construction, not a lookup)
+	for (const match of code.matchAll(
 		/\b(?:const|let|var)\s*\{([^{}]*)\}\s*=\s*sources(?![\w$.[(])/gu,
-		/[{,]\s*sources\s*:\s*\{([^{}]*)\}/gu,
-	])
-		for (const match of code.matchAll(pattern))
+	))
+		names.push(...patternBodyNames(match[1] ?? "", strings));
+	for (const match of code.matchAll(/[{,]\s*sources\s*:\s*\{([^{}]*)\}/gu)) {
+		const open = enclosingOpen(
+			code,
+			(match.index ?? 0) + match[0].indexOf("sources"),
+		);
+		if (open !== -1 && code[open] === "{" && isBindingPattern(code, open))
 			names.push(...patternBodyNames(match[1] ?? "", strings));
+	}
 	const seen = new Set<string>();
 	const result: string[] = [];
 	for (const name of names) {

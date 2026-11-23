@@ -148,3 +148,97 @@ test("a missing or unreadable helper file adds no warning", async () => {
 	]);
 	assert.deepEqual(found, []);
 });
+
+// ---- round 4 (R4-1, R4-2): precise, advisory; decline when unsure ----
+
+test("R4-1: a field check on a declared source is not a lookup", async () => {
+	for (const code of [
+		'if (!("digest" in sources.a)) throw new Error("missing digest");',
+		'if (!("digest" in sources?.a)) throw new Error("missing digest");',
+		'if (!("digest" in sources["a"])) throw new Error("missing digest");',
+		'if (!Object.hasOwn(sources.a, "digest")) throw new Error("missing digest");',
+	])
+		assert.deepEqual(await warningsFor(wrap(code)), [], code);
+	// the real lookups stay red
+	for (const code of [
+		'if (!("wrongName" in sources)) throw new Error("x");',
+		'if (!Object.hasOwn(sources, "wrongName")) throw new Error("x");',
+		"const row = sources.wrongName;",
+	])
+		assert.equal((await warningsFor(wrap(code))).length, 1, code);
+});
+
+test("R4-1: an object literal that builds { sources: { … } } is construction, not destructuring", async () => {
+	for (const code of [
+		"const options = { sources: { mode: 'local' } };",
+		"const call = [{ sources: { mode: 'local' }, task: 1 }];",
+		"const nested = JSON.stringify({ sources: { mode: 'local' } });",
+	])
+		assert.deepEqual(await warningsFor(wrap(code)), [], code);
+});
+
+test("R4-1: regular-expression literals, strings and comments are not code", async () => {
+	for (const code of [
+		"const re = /sources.foo/u; const ok = re.test('x');",
+		"const parts = 'a/b'.split(/sources\\.foo|sources[\"bar\"]/);",
+		"const n = 10 / 2; const m = n / 5; // sources.afterDivision",
+		"const text = 'sources.inString'; /* sources.block */",
+		"const t = `sources.inTemplateText`;",
+	])
+		assert.deepEqual(await warningsFor(wrap(code)), [], code);
+});
+
+test("R4-2: a parameter default on the destructured `sources` is not a rebinding", async () => {
+	for (const [signature, body] of [
+		["{ sources = {} }", "const row = sources.wrongName;"],
+		[
+			"{ sources = {}, task }",
+			'const has = Object.hasOwn(sources, "wrongName");',
+		],
+		["{ task, sources = {} }", 'const has = "wrongName" in sources;'],
+	]) {
+		const found = await warningsFor(
+			`export default async function (${signature}) { ${body} return { schema: 'g-v1', status: 'passed', digest: 'ok' }; }\n`,
+		);
+		assert.equal(found.length, 1, `${signature}: ${found.join("\n")}`);
+		assert.match(found[0], /"wrongName"/u);
+	}
+	// a real reassignment is still not judged
+	assert.deepEqual(
+		await warningsFor(
+			wrap("sources = { other: 1 }; const row = sources.wrongName;"),
+		),
+		[],
+	);
+});
+
+test("R4-2: expressions inside a template literal are scanned, its text is not", async () => {
+	const found = await warningsFor(
+		wrap("const message = `missing: ${sources.wrongName} sources.textOnly`;"),
+	);
+	assert.equal(found.length, 1, found.join("\n"));
+	assert.match(found[0], /"wrongName"/u);
+	assert.deepEqual(
+		await warningsFor(wrap("const m = `fine: ${sources.a} and ${1 + 2}`;")),
+		[],
+	);
+	assert.equal(
+		(
+			await warningsFor(
+				wrap("const m = `outer ${`inner ${sources.wrongName}`}`;"),
+			)
+		).length,
+		1,
+	);
+});
+
+test("R4-1: parameter and declaration patterns naming a wrong source are still recognised", async () => {
+	for (const body of [
+		"export default async ({ sources: { wrongName } }) => ({ schema: 'g-v1', status: 'passed', digest: String(wrongName) });\n",
+		"export default async function ({ task, sources: { wrongName } = {} }) { return { schema: 'g-v1', status: 'passed', digest: String(wrongName) }; }\n",
+		"export default async function (input) { const { sources: { wrongName } } = input; return { schema: 'g-v1', status: 'passed', digest: String(wrongName) }; }\n",
+	]) {
+		const found = await warningsFor(body);
+		assert.equal(found.length, 1, `${body}: ${found.join("\n")}`);
+	}
+});

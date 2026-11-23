@@ -790,29 +790,30 @@ async function sourceLookupProject(name, body) {
 }
 
 for (const declared of ["failed", "blocked"]) {
-	test(`wiring: a helper that looks up an undeclared source and declares ${declared} is a finding, not a content gate`, async () => {
+	test(`wiring: a helper that looks up an undeclared source and declares ${declared} is an advisory warning, not a finding`, async () => {
 		const { cwd, path } = await sourceLookupProject(
 			`wrong-source-${declared}`,
 			`const row = sources.extract; if (!row) return { schema: "g-v1", status: "${declared}", digest: "source extract is missing" }; return { schema: "g-v1", status: "passed", digest: "ok" };`,
 		);
 		const { report } = await rehearseWorkflow(cwd, { workflow: path });
-		assert.equal(report.ok, false);
-		assert.notEqual(report.status, "content-gates");
+		// The static scan is advisory (R4-1/R4-2): it prints as a warning and never fails the rehearsal.
+		assert.equal(report.ok, true, report.findings.join("\n"));
+		assert.deepEqual(report.findings, []);
 		assert.match(
-			report.findings.join("\n"),
+			report.warnings.join("\n"),
 			/stage "g" support helper "\.\/helpers\/lookup\.mjs" looks up source "extract", which is not one of its sources \(a\)/u,
 		);
 	});
 }
 
-test("wiring: a probe with `in` or a bracket lookup of an undeclared source is reported too", async () => {
+test("wiring: a probe with `in` or a bracket lookup of an undeclared source is a warning too", async () => {
 	const { cwd, path } = await sourceLookupProject(
 		"wrong-source-in",
 		'if (!("extract" in sources)) return { schema: "g-v1", status: "blocked", digest: "nothing" }; return { schema: "g-v1", status: "passed", digest: "ok" };',
 	);
 	const { report } = await rehearseWorkflow(cwd, { workflow: path });
-	assert.equal(report.ok, false);
-	assert.match(report.findings.join("\n"), /looks up source "extract"/u);
+	assert.equal(report.ok, true, report.findings.join("\n"));
+	assert.match(report.warnings.join("\n"), /looks up source "extract"/u);
 });
 
 test("content gate stays green: declared source looked up correctly, helper rejects the data", async () => {
@@ -850,8 +851,8 @@ test("R3-1: a helper that only assigns a property of sources is no finding; a fa
 		'if (!Object.hasOwn(sources, "wrongName")) return { schema: "g-v1", status: "blocked", digest: "missing" }; return { schema: "g-v1", status: "passed", digest: "ok" };',
 	);
 	const bad = await rehearseWorkflow(hasOwn.cwd, { workflow: hasOwn.path });
-	assert.equal(bad.report.ok, false);
-	assert.match(bad.report.findings.join("\n"), /looks up source "wrongName"/u);
+	assert.equal(bad.report.ok, true, bad.report.findings.join("\n"));
+	assert.match(bad.report.warnings.join("\n"), /looks up source "wrongName"/u);
 });
 
 test("wiring problems: a real finding next to a gate is still a finding (not content-gates)", async () => {

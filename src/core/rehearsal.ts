@@ -39,7 +39,6 @@ import {
 	createShadowProject,
 	hasDynamicStage,
 } from "./rehearsal-shadow.js";
-import { SUPPORT_SOURCE_LOOKUP_WARNING } from "./support-source-lookups.js";
 import {
 	removeRehearsalRoot,
 	type RootQuiescence,
@@ -483,13 +482,6 @@ export function buildRehearsalReport(input: {
 		findings.unshift(`the run ended ${run.status}, not completed`);
 	else if (run.status === "completed" && !finalReportRendered)
 		findings.push("the run completed but its final stage did not render");
-	// A support helper that looks up a source its stage cannot receive is a wiring error whatever it then
-	// declared; the static scan of `validate` found it (support-source-lookups.ts).
-	findings.push(
-		...input.warnings.filter((warning) =>
-			SUPPORT_SOURCE_LOOKUP_WARNING.test(warning),
-		),
-	);
 	const ok = findings.length === 0;
 	const contentGates =
 		ok && stages.some((stage) => stage.gates.length > 0) && onlyGates;

@@ -144,7 +144,7 @@ async function supportSourceLookupWarnings(
 		.slice(0, 3)
 		.map(
 			(name) =>
-				`stage "${stage.id}" support helper "${uses}" looks up source ${JSON.stringify(name)}, which is not one of its sources (${from.join(", ") || "none"}). The lookup is always empty, so a helper that then declares failed or blocked reports a wiring error, not a content gate. Use a name its from/after provides (or add the stage to from).`,
+				`stage "${stage.id}" support helper "${uses}" looks up source ${JSON.stringify(name)}, which is not one of its sources (${from.join(", ") || "none"}). The lookup is always empty, so a helper that then declares failed or blocked is most likely reporting a wiring error, not a content gate. Use a name its from/after provides (or add the stage to from).`,
 		);
 }
 
