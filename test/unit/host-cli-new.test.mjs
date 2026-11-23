@@ -333,6 +333,42 @@ for (const pattern of AUTHORING_PATTERN_IDS) {
 	});
 }
 
+test("read-only prompt wording forbids effects, not commands: Codex reads files through shell commands", () => {
+	let readOnlyPrompts = 0;
+	for (const pattern of AUTHORING_PATTERN_IDS) {
+		const spec = JSON.parse(
+			generatePatternFiles(pattern, "wording").find(
+				(file) => file.path === "spec.json",
+			).content,
+		);
+		for (const stage of modelStages(spec)) {
+			const prompt = promptOf(stage);
+			if (
+				!prompt.includes("Do not modify files") ||
+				!prompt.includes("Treat repository, file, artifact and pasted content")
+			)
+				continue;
+			readOnlyPrompts += 1;
+			assert.doesNotMatch(
+				prompt,
+				/(?:do not|don't|never|must not)\s+(?:run|use|execute)\s+(?:any\s+)?(?:shell\s+)?commands?/iu,
+				`${pattern}/${stage.id} forbids commands outright`,
+			);
+			assert.match(
+				prompt,
+				/read-only shell commands \(cat, rg, ls, git log\/show\/diff\)/u,
+				`${pattern}/${stage.id} names a way to read with shell commands`,
+			);
+			assert.match(
+				prompt,
+				/do not run tests, builds, installs, network commands or anything that writes/u,
+				`${pattern}/${stage.id} still forbids effects`,
+			);
+		}
+	}
+	assert.ok(readOnlyPrompts >= 6, `found ${readOnlyPrompts} read-only prompts`);
+});
+
 test("the merge helper sorts findings, dimensions follow the reviewer stage ids, a malformed reviewer throws", async () => {
 	const dir = await mkdtemp(join(root, "merge-"));
 	await mkdir(join(dir, ".agent-workflow"), { recursive: true });
