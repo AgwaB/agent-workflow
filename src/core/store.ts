@@ -39,6 +39,7 @@ import {
 } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 
+import { tagRunInEngineScope } from "./engine-scope.js";
 import { parseWorkflow } from "./schema.js";
 import {
 	type CompiledWorkflow,
@@ -88,7 +89,12 @@ const pendingIndexUpdates = new Map<
 // asynchronous index update is still creating/releasing filesystem artifacts.
 // Keep those operations visible so test teardown can establish filesystem
 // quiescence before removing an isolated cwd.
-const inFlightIndexUpdates = new Set<Promise<unknown>>();
+// Each batch records its project and runs so a caller settling one run waits only for the batches that
+// name it, not for every process-global update.
+const inFlightIndexUpdates = new Map<
+	Promise<unknown>,
+	{ key: string; runIds: ReadonlySet<string> }
+>();
 const runLeaseContext = new AsyncLocalStorage<{
 	cwd: string;
 	runId: string;
@@ -2108,6 +2114,9 @@ export async function writeRunRecord(
 	run: WorkflowRunRecord,
 	abortSignal?: AbortSignal,
 ): Promise<void> {
+	// Every run the engine writes while an engine scope is open (a rehearsal's own and its descendants') is
+	// owned by that scope, which drains it before the environment is restored.
+	tagRunInEngineScope(cwd, run.runId);
 	await assertActiveRunLease(cwd, run.runId, abortSignal);
 	assertLeaseNotAborted(abortSignal);
 	const runFile = workflowRunPath(cwd, run.runId);
@@ -2206,6 +2215,7 @@ function cancelScheduledIndexUpdate(cwd: string, runId: string): void {
 }
 
 function scheduleIndexUpdate(cwd: string, runId: string): void {
+	tagRunInEngineScope(cwd, runId);
 	const key = indexUpdateKey(cwd);
 	const existing = pendingIndexUpdates.get(key);
 	const runIds = existing?.runIds ?? new Set<string>();
@@ -2214,8 +2224,9 @@ function scheduleIndexUpdate(cwd: string, runId: string): void {
 
 	const runUpdate = (): void => {
 		pendingIndexUpdates.delete(key);
-		const update = updateIndex(cwd, [...runIds]).catch(() => undefined);
-		inFlightIndexUpdates.add(update);
+		const batch = [...runIds];
+		const update = updateIndex(cwd, batch).catch(() => undefined);
+		inFlightIndexUpdates.set(update, { key, runIds: new Set(batch) });
 		void update.then(() => {
 			inFlightIndexUpdates.delete(update);
 		});
@@ -2261,19 +2272,38 @@ export async function flushPendingIndexUpdatesForTests(
 		const scheduled = pending.map((item) =>
 			updateIndex(item.cwd, [...item.runIds]),
 		);
-		const inFlight = [...inFlightIndexUpdates];
+		const inFlight = [...inFlightIndexUpdates.keys()];
 		if (scheduled.length === 0 && inFlight.length === 0) return flushed;
 		await Promise.all([...scheduled, ...inFlight]);
 		flushed += pending.length;
 	}
 }
 
+/** In-flight index batches (timer-started) that name `runId` in project `cwd`. */
+function inFlightIndexUpdatesForRun(
+	cwd: string,
+	runId: string,
+): Array<Promise<unknown>> {
+	const key = indexUpdateKey(cwd);
+	return [...inFlightIndexUpdates]
+		.filter(([, batch]) => batch.key === key && batch.runIds.has(runId))
+		.map(([update]) => update);
+}
+
+/** True while this process still owes advisory index work for the run (pending or in flight). */
+export function hasIndexUpdateWorkForRun(cwd: string, runId: string): boolean {
+	return (
+		pendingIndexUpdates.get(indexUpdateKey(cwd))?.runIds.has(runId) === true ||
+		inFlightIndexUpdatesForRun(cwd, runId).length > 0
+	);
+}
+
 /**
  * Finish the advisory index work this process still owes one run, now and under the current
  * environment: a pending debounced update that names the run is cancelled and run in place, and
- * every update already in flight is awaited. An in-process host that swaps the state root for a run
- * (rehearsal) calls this before restoring it, so no timer fires later against the wrong home.
- * Other runs' pending updates are left alone. Never rejects.
+ * every in-flight batch that names the run is awaited. An in-process host that swaps the state root
+ * for a run (rehearsal) calls this before restoring it, so no timer fires later against the wrong
+ * home. Other runs' pending updates and unrelated in-flight batches are left alone. Never rejects.
  */
 export async function settleIndexUpdatesForRun(
 	cwd: string,
@@ -2284,8 +2314,11 @@ export async function settleIndexUpdatesForRun(
 		cancelScheduledIndexUpdate(cwd, runId);
 		await updateIndex(cwd, runId).catch(() => undefined);
 	}
-	while (inFlightIndexUpdates.size > 0)
-		await Promise.all([...inFlightIndexUpdates]);
+	for (;;) {
+		const batches = inFlightIndexUpdatesForRun(cwd, runId);
+		if (batches.length === 0) return;
+		await Promise.all(batches);
+	}
 }
 
 export function setIndexUpdateDebounceMsForTests(value?: number): void {

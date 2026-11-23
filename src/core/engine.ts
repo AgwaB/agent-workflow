@@ -53,6 +53,7 @@ import {
 	prepareWorkflowLaunchCommandArtifactPath,
 	resetTaskForResume,
 	setTaskTerminal,
+	hasIndexUpdateWorkForRun,
 	settleIndexUpdatesForRun,
 	clearWorkflowStopIntent,
 	toStatePath,
@@ -65,6 +66,12 @@ import {
 	writeStaticRunArtifacts,
 	writeWorkflowLaunchCommandArtifact,
 } from "./store.js";
+import {
+	type EngineScope,
+	engineScopeClosed,
+	scopedRunKey,
+	tagRunInEngineScope,
+} from "./engine-scope.js";
 import { workflowTaskRunner } from "./task-launch.js";
 import { ensureRuntimeTaskRunnerRegistered } from "./task-runner.js";
 import {
@@ -3366,7 +3373,7 @@ export async function resumeSupervisors(
 }
 
 function unwatchRun(cwd: string, runId: string): void {
-	const key = `${cwd}\0${runId}`;
+	const key = scopedRunKey(cwd, runId);
 	const existing = supervisorTimers.get(key);
 	if (existing) clearInterval(existing);
 	supervisorTimers.delete(key);
@@ -3377,17 +3384,38 @@ function unwatchRun(cwd: string, runId: string): void {
 /**
  * Stop supervising one run in this process and wait until nothing it started is still running: the
  * watch timer is cleared, every supervisor tick already in flight finishes, and the run's pending
- * advisory index update is flushed. A host that scopes the state root to a run (rehearsal) calls this
- * before restoring the environment; the tick and the index writer resolve the project state from
+ * advisory index update is flushed. A host that scopes the state root to a run calls this before
+ * restoring the environment; the tick and the index writer resolve the project state from
  * `process.env` at every step, so one that outlived the swap would write into the user's home.
- * Never rejects.
+ * Never rejects. A run that starts descendants needs `drainEngineScope`.
  */
 export async function settleRunWork(cwd: string, runId: string): Promise<void> {
 	unwatchRun(cwd, runId);
-	const key = `${cwd}\0${runId}`;
+	const key = scopedRunKey(cwd, runId);
 	while (supervisorTicksInFlight.has(key))
 		await Promise.all([...(supervisorTicksInFlight.get(key) ?? [])]);
 	await settleIndexUpdatesForRun(cwd, runId);
+}
+
+/**
+ * Close an engine scope to new work and wait until everything tagged with it is idle: every watched or
+ * written run of the scope (descendants started with `ctx.workflow` included) is unwatched, its
+ * supervisor ticks in flight finish, and its pending and in-flight index batches are done. Work a
+ * draining tick starts is tagged too, so the drain repeats until a whole pass finds nothing new. Never
+ * rejects.
+ */
+export async function drainEngineScope(scope: EngineScope): Promise<void> {
+	scope.closed = true;
+	for (;;) {
+		const runs = [...scope.runs.values()];
+		for (const { cwd, runId } of runs) await settleRunWork(cwd, runId);
+		const busy = [...scope.runs.values()].some(
+			({ cwd, runId }) =>
+				supervisorTicksInFlight.has(scopedRunKey(cwd, runId)) ||
+				hasIndexUpdateWorkForRun(cwd, runId),
+		);
+		if (!busy && scope.runs.size === runs.length) return;
+	}
 }
 
 export function watchRun(
@@ -3395,7 +3423,11 @@ export function watchRun(
 	runId: string,
 	options: WorkflowScheduleOptions = {},
 ): void {
-	const key = `${cwd}\0${runId}`;
+	const key = scopedRunKey(cwd, runId);
+	// An open engine scope owns every run watched while it is open; once it is closed (its owner is
+	// draining it) nothing new may start.
+	if (engineScopeClosed()) return;
+	tagRunInEngineScope(cwd, runId);
 	if (supervisorTimers.has(key)) return;
 
 	const timer = setInterval(() => {

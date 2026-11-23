@@ -22,7 +22,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compileWorkflow } from "./compiler.js";
-import { runWorkflowSpec, settleRunWork, waitForRun } from "./engine.js";
+import { drainEngineScope, runWorkflowSpec, waitForRun } from "./engine.js";
+import { openEngineScope } from "./engine-scope.js";
 import { agentWorkflowHome, AGENT_WORKFLOW_HOME_ENV } from "./home-dir.js";
 import { registerWorkflowExecutor } from "./executor-registry.js";
 import {
@@ -761,7 +762,9 @@ async function rehearseWorkflowNow(
 	let quiescence: RootQuiescence | undefined;
 	let failed = false;
 	let failure: unknown;
-	let engineRun: { cwd: string; runId: string } | undefined;
+	// Every run the engine watches or writes while the environment is swapped (the rehearsal's own and its
+	// `ctx.workflow` descendants') is owned by this scope; it is drained before the environment is restored.
+	let engineScope: ReturnType<typeof openEngineScope> | undefined;
 	// Everything after the temp root exists runs inside the try, so a failure here still restores the
 	// environment and removes the temp root (review 2026-11-22).
 	try {
@@ -790,6 +793,7 @@ async function rehearseWorkflowNow(
 				),
 			},
 		});
+		engineScope = openEngineScope();
 		process.env[AGENT_WORKFLOW_HOME_ENV] = tempHome;
 		process.env[RUN_INDEX_DIR_ENV] = join(tempHome, "run-index");
 		process.env[REHEARSAL_ENV] = "1";
@@ -798,7 +802,6 @@ async function rehearseWorkflowNow(
 			executor: REHEARSAL_EXECUTOR_ID,
 			...(options.signal === undefined ? {} : { launchSignal: options.signal }),
 		});
-		engineRun = { cwd: runCwd, runId: started.runId };
 		let run: WorkflowRunRecord;
 		try {
 			run = await waitForRun(runCwd, started.runId, RUN_WAIT_MS);
@@ -831,13 +834,12 @@ async function rehearseWorkflowNow(
 		failed = true;
 		failure = error;
 	} finally {
-		// The engine resolves the state root from `process.env` at every step of its own async work (the
-		// supervisor tick, the debounced run-index update). Let that work for this run finish before the
-		// environment is restored, or a late step lands in the user's home (R3).
-		if (engineRun !== undefined)
-			await settleRunWork(engineRun.cwd, engineRun.runId).catch(
-				() => undefined,
-			);
+		// The engine resolves the state root from `process.env` at every step of its own async work (supervisor
+		// ticks, debounced run-index updates), for the run and for every descendant it started. Close the
+		// scope and let all of that work finish before the environment is restored, or a late step lands in
+		// the user's home (R3, R4).
+		if (engineScope !== undefined)
+			await drainEngineScope(engineScope.scope).catch(() => undefined);
 		unregister?.();
 		restoreGitEnv?.();
 		for (const [name, previous] of [
@@ -848,6 +850,7 @@ async function rehearseWorkflowNow(
 			if (previous === undefined) delete process.env[name];
 			else process.env[name] = previous;
 		}
+		engineScope?.release();
 		// The engine can see the run end while a durable worker or its detached terminal finalizer is
 		// still writing under the root: wait for every process that names it. Only a root known to be
 		// quiet is removed; one a process still uses, or whose users cannot be enumerated, is kept and

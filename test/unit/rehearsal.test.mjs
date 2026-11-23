@@ -314,6 +314,112 @@ test("isolation (R3): engine work still in flight when the run ends never writes
 	}
 });
 
+/** A dynamic parent whose controller only awaits one child workflow (a `ctx.workflow` descendant run). */
+async function nestedProject() {
+	const cwd = await project();
+	const stage = {
+		id: "main",
+		type: "single",
+		prompt: "Do the work.",
+	};
+	const spec = (stages) => ({
+		schemaVersion: 1,
+		name: "nested-demo",
+		defaults: DEFAULTS,
+		artifactGraph: { stages },
+	});
+	await mkdir(join(cwd, "child"), { recursive: true });
+	await writeFile(
+		join(cwd, "child", "spec.json"),
+		JSON.stringify(spec([stage])),
+	);
+	await writeFile(
+		join(cwd, "controller.mjs"),
+		"export default async ctx => { const child = await ctx.workflow('child', 'child'); return { control: { digest: 'done', child: child.status } }; };\n",
+	);
+	const path = join(cwd, "parent.json");
+	await writeFile(
+		path,
+		JSON.stringify(
+			spec([
+				{
+					id: "adaptive",
+					type: "dynamic",
+					dynamic: {
+						uses: "./controller.mjs",
+						workflows: { child: { uses: "./child/spec.json" } },
+					},
+				},
+			]),
+		),
+	);
+	return { cwd, path };
+}
+
+/**
+ * Hold the first supervisor tick of a run that satisfies `pick` (a descendant run; the parent's own tick is
+ * covered by the R3 test above, since a parent's watch starts only after its controller returned) until the
+ * user's environment is back (the unfixed order) or a bounded time passes, then report what the outer home holds.
+ */
+async function lateTickProbe({ pick }) {
+	const { cwd, path } = await nestedProject();
+	const outer = await mkdtemp(join(base, "outer-"));
+	const saved = {
+		home: process.env.AGENT_WORKFLOW_HOME,
+		index: process.env.AGENT_WORKFLOW_RUN_INDEX_DIR,
+	};
+	process.env.AGENT_WORKFLOW_HOME = outer;
+	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR = join(outer, "run-index");
+	const before = await readdir(outer);
+	const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+	let held;
+	setSupervisorTickForTests({
+		pollIntervalMs: 8,
+		hook: async (_phase, runId) => {
+			if (held !== undefined) return;
+			const run = await readRunRecord(cwd, runId).catch(() => undefined);
+			if (run === undefined || !pick(run)) return;
+			held = runId;
+			for (
+				let i = 0;
+				i < 150 && process.env.AGENT_WORKFLOW_HOME !== outer;
+				i += 1
+			)
+				await sleep(10);
+		},
+	});
+	try {
+		const { report } = await rehearseWorkflow(cwd, { workflow: path });
+		await sleep(800);
+		return { held, report, before, after: await readdir(outer) };
+	} finally {
+		setSupervisorTickForTests(undefined);
+		for (const [name, value] of [
+			["AGENT_WORKFLOW_HOME", saved.home],
+			["AGENT_WORKFLOW_RUN_INDEX_DIR", saved.index],
+		]) {
+			if (value === undefined) delete process.env[name];
+			else process.env[name] = value;
+		}
+	}
+}
+
+test("isolation (R4): a descendant run's supervisor tick held past the rehearsal never writes into the user's home", async () => {
+	const probe = await lateTickProbe({
+		pick: (run) => run.parentRunId !== undefined,
+	});
+	assert.ok(
+		probe.held !== undefined,
+		"a child supervisor tick reached the hook",
+	);
+	assert.equal(
+		probe.report.status,
+		"completed",
+		probe.report.findings.join("\n"),
+	);
+	assert.deepEqual(probe.after, probe.before);
+});
+
 function loopSpec(extra = {}) {
 	return {
 		schemaVersion: 1,
