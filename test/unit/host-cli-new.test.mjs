@@ -369,6 +369,44 @@ test("read-only prompt wording forbids effects, not commands: Codex reads files 
 	assert.ok(readOnlyPrompts >= 6, `found ${readOnlyPrompts} read-only prompts`);
 });
 
+test("a model stage whose list feeds a foreach lets the model report a block instead of inventing items", () => {
+	let sources = 0;
+	for (const pattern of AUTHORING_PATTERN_IDS) {
+		const files = generatePatternFiles(pattern, "noinvent");
+		const spec = JSON.parse(files.find((f) => f.path === "spec.json").content);
+		const stages = spec.artifactGraph.stages;
+		for (const foreach of stages.filter((st) => st.type === "foreach")) {
+			const source = stages.find((st) => st.id === foreach.from.source);
+			if (source.support !== undefined) continue;
+			sources += 1;
+			const file = source.output.controlSchema.replace("./", "");
+			const schema = JSON.parse(files.find((f) => f.path === file).content);
+			assert.ok(schema.properties.inputIntegrity, `${pattern}/${source.id}`);
+			assert.ok(!schema.required.includes("inputIntegrity"));
+			assert.equal(schema.additionalProperties, false);
+			const block = {
+				schema: schema.properties.schema.const,
+				digest: "none found",
+				[foreach.from.path.replace("$.", "")]: [],
+				inputIntegrity: {
+					status: "blocked",
+					reason: "inconsistent_input",
+					detail: "nothing to list",
+				},
+			};
+			// Not rejected for the unknown key; only the minItems of the empty list remains.
+			const issues = validateJsonSchema(block, schema).issues;
+			assert.ok(
+				issues.every((issue) => /length|items/u.test(issue.message)),
+				JSON.stringify(issues),
+			);
+			assert.match(source.prompt, /Do not invent items: if you find none/u);
+			assert.match(source.prompt, /"status":"blocked"/u);
+		}
+	}
+	assert.equal(sources, 2, "foreach-reduce plan and classify-count load");
+});
+
 test("the merge helper sorts findings, dimensions follow the reviewer stage ids, a malformed reviewer throws", async () => {
 	const dir = await mkdtemp(join(root, "merge-"));
 	await mkdir(join(dir, ".agent-workflow"), { recursive: true });

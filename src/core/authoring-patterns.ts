@@ -100,20 +100,46 @@ function digestProperty(): JsonSchemaObject {
 	return { type: "string", minLength: 1, maxLength: 200 };
 }
 
-/** A closed control schema: the envelope (`schema` const, `digest`) first, every property required. */
+/**
+ * An optional `inputIntegrity` block: the model's honest exit when it finds nothing to list or cannot
+ * read its inputs. The engine fails the stage visibly with `input_integrity_blocked` instead of
+ * completing on invented items (src/core/required-reads.ts).
+ */
+function inputIntegrityProperty(): JsonSchemaObject {
+	return {
+		type: "object",
+		required: ["status"],
+		properties: {
+			status: { enum: ["complete", "blocked"] },
+			reason: text(60),
+			detail: text(400),
+		},
+		additionalProperties: false,
+	};
+}
+
+/** One prompt sentence for a stage whose list feeds a foreach: report a block instead of inventing items. */
+const NO_INVENT =
+	'Do not invent items: if you find none or cannot read the inputs, report inputIntegrity {"status":"blocked","reason":"inconsistent_input","detail":"what was missing"} in <control> instead of making items up.';
+
+/**
+ * A closed control schema: the envelope (`schema` const, `digest`) first, every property required;
+ * `optional` properties follow and may be omitted.
+ */
 function closedSchema(
 	schemaId: string,
 	properties: Record<string, JsonSchemaObject>,
+	optional: Record<string, JsonSchemaObject> = {},
 ): JsonSchemaObject {
-	const all: Record<string, JsonSchemaObject> = {
+	const required: Record<string, JsonSchemaObject> = {
 		schema: { const: schemaId },
 		digest: digestProperty(),
 		...properties,
 	};
 	return {
 		type: "object",
-		required: Object.keys(all),
-		properties: all,
+		required: Object.keys(required),
+		properties: { ...required, ...optional },
 		additionalProperties: false,
 	};
 }
@@ -196,23 +222,27 @@ function singlePattern(name: string): Bundle {
 // -------------------------------------------------------- foreach-reduce
 
 function foreachReducePattern(name: string): Bundle {
-	const plan = closedSchema("plan-v1", {
-		items: {
-			type: "array",
+	const plan = closedSchema(
+		"plan-v1",
+		{
 			items: {
-				type: "object",
-				required: ["id", "title", "detail"],
-				properties: {
-					id: text(64, 1),
-					title: text(120, 1),
-					detail: text(400),
+				type: "array",
+				items: {
+					type: "object",
+					required: ["id", "title", "detail"],
+					properties: {
+						id: text(64, 1),
+						title: text(120, 1),
+						detail: text(400),
+					},
+					additionalProperties: false,
 				},
-				additionalProperties: false,
+				minItems: 1,
+				maxItems: 8,
 			},
-			minItems: 1,
-			maxItems: 8,
 		},
-	});
+		{ inputIntegrity: inputIntegrityProperty() },
+	);
 	const item = closedSchema("work-item-v1", {
 		id: text(64, 1),
 		status: { enum: ["done", "partial", "blocked"] },
@@ -234,7 +264,7 @@ function foreachReducePattern(name: string): Bundle {
 						"plan",
 						"list 1 to 8 distinct work items that the runtime task asks for, each with a short stable id such as W-01, a title and a one-sentence detail.",
 					),
-					`${READ_ONLY} ${ANALYSIS} Give every item a unique id of 1 to 64 characters; the next stage works each item separately and sees only that item. ${controlContract(plan, { digest: "1 work item", items: [{ id: "W-01", title: "First work item", detail: "What to do for this item." }] })}`,
+					`${READ_ONLY} ${ANALYSIS} Give every item a unique id of 1 to 64 characters; the next stage works each item separately and sees only that item. ${NO_INVENT} ${controlContract(plan, { digest: "1 work item", items: [{ id: "W-01", title: "First work item", detail: "What to do for this item." }], inputIntegrity: { status: "complete" } })}`,
 				].join("\n\n"),
 			},
 			{
@@ -607,19 +637,23 @@ export default async function helper({ context, sources }) {
 `;
 
 function classifyCountPattern(name: string): Bundle {
-	const load = closedSchema("load-items-v1", {
-		items: {
-			type: "array",
+	const load = closedSchema(
+		"load-items-v1",
+		{
 			items: {
-				type: "object",
-				required: ["id", "text"],
-				properties: { id: text(64, 1), text: text(1000, 1) },
-				additionalProperties: false,
+				type: "array",
+				items: {
+					type: "object",
+					required: ["id", "text"],
+					properties: { id: text(64, 1), text: text(1000, 1) },
+					additionalProperties: false,
+				},
+				minItems: 1,
+				maxItems: 50,
 			},
-			minItems: 1,
-			maxItems: 50,
 		},
-	});
+		{ inputIntegrity: inputIntegrityProperty() },
+	);
 	const classification = closedSchema("classification-v1", {
 		id: text(64, 1),
 		label: { enum: ["label-a", "label-b", "other"] },
@@ -658,7 +692,7 @@ function classifyCountPattern(name: string): Bundle {
 						"load",
 						"read the files the runtime task names and list every item to classify, verbatim, one row each, 1 to 50.",
 					),
-					`${READ_ONLY} ${ANALYSIS} Give every item a unique id of 1 to 64 characters (reuse an id the source already has); text is the item verbatim. The next stage classifies each item separately and sees only that item. ${controlContract(load, { digest: "1 item loaded", items: [{ id: "T-01", text: "The item text, verbatim." }] })}`,
+					`${READ_ONLY} ${ANALYSIS} Give every item a unique id of 1 to 64 characters (reuse an id the source already has); text is the item verbatim. The next stage classifies each item separately and sees only that item. ${NO_INVENT} ${controlContract(load, { digest: "1 item loaded", items: [{ id: "T-01", text: "The item text, verbatim." }], inputIntegrity: { status: "complete" } })}`,
 				].join("\n\n"),
 			},
 			{
