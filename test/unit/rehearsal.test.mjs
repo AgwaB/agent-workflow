@@ -3,7 +3,7 @@
 // worker. Rehearses every bundled workflow and scaffold to completion, checks determinism, isolation (R3),
 // loop forcing (R5) and catches the lab defects of R6 in small specs. No model, no network.
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, realpathSync } from "node:fs";
+import { existsSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import {
 	mkdir,
 	mkdtemp,
@@ -27,6 +27,7 @@ import { workflowExecutorRegistration } from "../../dist/core/executor-registry.
 import {
 	REHEARSAL_EXECUTOR_ID,
 	rehearseWorkflow,
+	setRehearsalSettleWaitForTests,
 } from "../../dist/core/rehearsal.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -794,7 +795,7 @@ test("a temporary root that cannot be removed is reported as leftover, not throw
 	await rm(result.leftover, { recursive: true, force: true });
 });
 
-test("a failing `ps` is not read as quiet: the wait keeps polling to the deadline", async () => {
+test("a failing `ps` is not read as quiet: the wait keeps polling to the deadline and says unknown", async () => {
 	let calls = 0;
 	setRehearsalPsForTests(async () => {
 		calls += 1;
@@ -803,7 +804,10 @@ test("a failing `ps` is not read as quiet: the wait keeps polling to the deadlin
 		});
 	});
 	try {
-		assert.equal(await waitForRootProcesses("/tmp/aw-root", 300, 20), false);
+		assert.equal(
+			await waitForRootProcesses("/tmp/aw-root", 300, 20),
+			"unknown",
+		);
 		assert.ok(calls > 3, `polled ${calls} times`);
 		// A scan that recovers is believed: the root has no process.
 		let failures = 2;
@@ -811,7 +815,7 @@ test("a failing `ps` is not read as quiet: the wait keeps polling to the deadlin
 			if (failures-- > 0) throw new Error("transient");
 			return "  1 /sbin/launchd\n";
 		});
-		assert.equal(await waitForRootProcesses("/tmp/aw-root", 2000, 10), true);
+		assert.equal(await waitForRootProcesses("/tmp/aw-root", 2000, 10), "quiet");
 		assert.equal(failures, -1);
 		// A process naming the root is waited for even after a failed scan.
 		let step = 0;
@@ -820,14 +824,28 @@ test("a failing `ps` is not read as quiet: the wait keeps polling to the deadlin
 			if (step === 1) throw new Error("transient");
 			return step < 4 ? "  42 node /tmp/aw-root/worker.mjs\n" : "";
 		});
-		assert.equal(await waitForRootProcesses("/tmp/aw-root", 2000, 10), true);
+		assert.equal(await waitForRootProcesses("/tmp/aw-root", 2000, 10), "quiet");
 		assert.equal(step, 4);
 	} finally {
 		setRehearsalPsForTests(undefined);
 	}
 });
 
-test("a missing `ps` (ENOENT) returns at once: there is nothing to wait on", async () => {
+test("a process still using the root at the deadline is busy, even if later scans fail", async () => {
+	let step = 0;
+	setRehearsalPsForTests(async () => {
+		step += 1;
+		if (step > 2) throw new Error("transient");
+		return "  42 node /tmp/aw-root/worker.mjs\n";
+	});
+	try {
+		assert.equal(await waitForRootProcesses("/tmp/aw-root", 200, 20), "busy");
+	} finally {
+		setRehearsalPsForTests(undefined);
+	}
+});
+
+test("a missing `ps` (ENOENT) is unknown at once: nothing can be said about the root", async () => {
 	let calls = 0;
 	setRehearsalPsForTests(async () => {
 		calls += 1;
@@ -835,10 +853,92 @@ test("a missing `ps` (ENOENT) returns at once: there is nothing to wait on", asy
 	});
 	try {
 		const started = Date.now();
-		assert.equal(await waitForRootProcesses("/tmp/aw-root", 5000, 20), true);
+		assert.equal(
+			await waitForRootProcesses("/tmp/aw-root", 5000, 20),
+			"unknown",
+		);
 		assert.equal(calls, 1);
 		assert.ok(Date.now() - started < 1000);
 	} finally {
 		setRehearsalPsForTests(undefined);
 	}
+});
+
+test("each `ps` call is bounded by the deadline: a hung ps cannot hold the wait past it", async () => {
+	setRehearsalPsForTests(() => new Promise(() => {}));
+	try {
+		const started = Date.now();
+		assert.equal(
+			await waitForRootProcesses("/tmp/aw-root", 300, 20),
+			"unknown",
+		);
+		assert.ok(Date.now() - started < 2000, `took ${Date.now() - started}ms`);
+	} finally {
+		setRehearsalPsForTests(undefined);
+	}
+});
+
+/** Rehearse with a hooked `ps` and a spy on the removal; returns what the rehearsal left. */
+async function rehearseWithPs(ps) {
+	const cwd = await project();
+	const path = await writeSpec(cwd, "one", ONE_STAGE);
+	const removed = [];
+	setRehearsalPsForTests(ps);
+	setRehearsalRemoveForTests((root) => {
+		removed.push(root);
+		rmSync(root, { recursive: true, force: true });
+	});
+	setRehearsalSettleWaitForTests(300);
+	try {
+		const result = await rehearseWorkflow(cwd, { workflow: path });
+		return { result, removed };
+	} finally {
+		setRehearsalPsForTests(undefined);
+		setRehearsalRemoveForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+	}
+}
+
+for (const [label, ps] of [
+	[
+		"ps failing until the deadline",
+		async () => {
+			throw Object.assign(new Error("EAGAIN"), { code: "EAGAIN" });
+		},
+	],
+	[
+		"ps unavailable",
+		async () => {
+			throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+		},
+	],
+	["ps hanging", () => new Promise(() => {})],
+	[
+		"a writer still alive at the deadline",
+		async (root) => `  4242 node ${root}/home/worker.mjs\n`,
+	],
+]) {
+	test(`settle: ${label} keeps the temporary root and reports it as left behind`, async () => {
+		const { result, removed } = await rehearseWithPs(ps);
+		try {
+			assert.equal(result.report.ok, true, result.report.findings.join("\n"));
+			assert.deepEqual(removed, [], "the root was not removed");
+			assert.match(result.leftover, /aw-rehearse-/u);
+			assert.ok(existsSync(result.leftover), "the reported path exists");
+		} finally {
+			if (result.leftover !== undefined)
+				await rm(result.leftover, { recursive: true, force: true });
+		}
+	});
+}
+
+test("settle: a quiet root is still removed (no regression of the eventual-quiet path)", async () => {
+	let calls = 0;
+	const { result, removed } = await rehearseWithPs(async (root) => {
+		calls += 1;
+		return calls < 3 ? `  4242 node ${root}/home/worker.mjs\n` : "";
+	});
+	assert.equal(result.leftover, undefined);
+	assert.equal(removed.length, 1);
+	assert.equal(existsSync(removed[0]), false);
 });

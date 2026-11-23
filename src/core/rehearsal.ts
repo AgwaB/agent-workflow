@@ -64,7 +64,12 @@ export const REHEARSAL_DEFAULT_ITEMS = 2;
 export const REHEARSAL_MAX_ITEMS = 20;
 const RUN_WAIT_MS = 10 * 60_000;
 /** How long to wait for the run's worker and finalizer processes to stop writing before cleanup. */
-const SETTLE_WAIT_MS = 30_000;
+let settleWaitMs = 30_000;
+
+/** Test seam: shorten (or restore, with `undefined`) the settle wait. */
+export function setRehearsalSettleWaitForTests(ms: number | undefined): void {
+	settleWaitMs = ms ?? 30_000;
+}
 const RUN_INDEX_DIR_ENV = "AGENT_WORKFLOW_RUN_INDEX_DIR";
 
 export type RehearsalLoopMode = "pass" | "exhaust";
@@ -783,13 +788,13 @@ export async function rehearseWorkflow(
 			else process.env[name] = previous;
 		}
 		// The engine can see the run end while a durable worker or its detached terminal finalizer is
-		// still writing under the root: wait for every process that names it, then remove it. Cleanup
-		// never throws; what it cannot remove is reported.
-		const quiet = await waitForRootProcesses(tempRoot, SETTLE_WAIT_MS);
-		if (options.keep !== true) {
-			leftover = removeRehearsalRoot(tempRoot);
-			if (leftover === undefined && !quiet) leftover = tempRoot;
-		}
+		// still writing under the root: wait for every process that names it. Only a root known to be
+		// quiet is removed; one a process still uses, or whose users cannot be enumerated, is kept and
+		// reported as left behind (the path exists). Cleanup never throws and never signals a process.
+		const quiescence = await waitForRootProcesses(tempRoot, settleWaitMs);
+		if (options.keep !== true)
+			leftover =
+				quiescence === "quiet" ? removeRehearsalRoot(tempRoot) : tempRoot;
 	}
 	return leftover === undefined
 		? (outcome as RehearsalResult)
