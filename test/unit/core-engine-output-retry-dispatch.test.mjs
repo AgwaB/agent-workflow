@@ -375,7 +375,7 @@ test("workflow-invalid output triggers exactly one bounded repair launch, then n
 	}
 });
 
-test("an empty required list fails the task in plain words and skips later stages", async () => {
+async function runEmptyInventory(control, check) {
 	const cwd = makeProject();
 	const runs = new Map();
 	let launchCount = 0;
@@ -430,14 +430,12 @@ test("an empty required list fails the task in plain words and skips later stage
 		);
 		const emptyAnswer = [
 			"<control>",
-			JSON.stringify({
-				digest: "There are no items to list.",
-				items: [],
-			}),
+			JSON.stringify(control),
 			"</control>",
 			"<analysis>",
 			"Nothing to inventory.",
 			"</analysis>",
+			"<refs>[]</refs>",
 		].join("\n");
 		const api = makeFakeWorkerApi({
 			cwd,
@@ -460,6 +458,10 @@ test("an empty required list fails the task in plain words and skips later stage
 		});
 		const failed = await waitForRun(cwd, started.runId, 20_000);
 		assert.equal(failed.status, "failed");
+		if (check) {
+			check(failed);
+			return;
+		}
 		assert.equal(launchCount, 3, "default 2 retries = 3 attempts");
 		const inventory = failed.tasks.find((t) => t.specId === "inventory.main");
 		assert.equal(inventory.status, "failed");
@@ -498,4 +500,22 @@ test("an empty required list fails the task in plain words and skips later stage
 			retryDelay: 100,
 		});
 	}
-});
+}
+
+test("an empty required list fails the task in plain words and skips later stages", () =>
+	runEmptyInventory({
+		schema: "inventory-v1",
+		digest: "There are no items to list.",
+		items: [],
+	}));
+
+test("an empty list next to another output problem keeps the full validation message", () =>
+	runEmptyInventory(
+		{ schema: "inventory-v1", digest: 42, items: [] },
+		(failed) => {
+			const inventory = failed.tasks.find((t) => t.specId === "inventory.main");
+			assert.equal(inventory.status, "failed");
+			assert.doesNotMatch(inventory.lastMessage, /returned an empty/);
+			assert.match(inventory.lastMessage, /digest/);
+		},
+	));

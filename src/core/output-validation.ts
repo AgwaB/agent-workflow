@@ -100,7 +100,9 @@ function emptyRequiredListFailure(
 	attempts: number,
 ): string | undefined {
 	const empties = issues.filter((issue) => issue.emptyRequiredList);
-	if (empties.length === 0) return undefined;
+	// Only when the empty list is the whole problem; otherwise the full validation text stays.
+	if (empties.length === 0 || empties.length !== issues.length)
+		return undefined;
 	const names = empties.map(
 		(issue) => `\`${(issue.path ?? "$").replace(/^\$\.?/, "") || "(root)"}\``,
 	);
