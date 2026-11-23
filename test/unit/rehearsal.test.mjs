@@ -1021,6 +1021,46 @@ test("N4: a rehearsal that throws after keeping its temporary root reports the k
 	}
 });
 
+test("N4: a frozen abort reason is not mutated; the thrown error wraps it with cause, reason and the kept path", async () => {
+	const cwd = await project();
+	const path = await writeSpec(cwd, "one", ONE_STAGE);
+	setRehearsalPsForTests(async () => {
+		throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+	});
+	setRehearsalSettleWaitForTests(100);
+	const reason = Object.freeze(new Error("cancelled by host"));
+	let error;
+	try {
+		await rehearseWorkflow(cwd, {
+			workflow: path,
+			signal: AbortSignal.abort(reason),
+		});
+	} catch (caught) {
+		error = caught;
+	} finally {
+		setRehearsalPsForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+	}
+	try {
+		assert.ok(error instanceof Error, "an error was thrown");
+		assert.notEqual(error, reason, "a fresh error, not the caller's");
+		assert.equal(error.cause, reason);
+		assert.match(error.message, /cancelled by host/u);
+		assert.match(error.retainedRoot, /aw-rehearse-/u);
+		assert.ok(error.message.includes(error.retainedRoot));
+		assert.ok(existsSync(error.retainedRoot), "the reported path exists");
+		assert.equal(
+			reason.message,
+			"cancelled by host",
+			"the reason is untouched",
+		);
+		assert.equal(Object.hasOwn(reason, "retainedRoot"), false);
+	} finally {
+		if (typeof error?.retainedRoot === "string")
+			await rm(error.retainedRoot, { recursive: true, force: true });
+	}
+});
+
 test("settle: a quiet root is still removed (no regression of the eventual-quiet path)", async () => {
 	let calls = 0;
 	const { result, removed } = await rehearseWithPs(async (root) => {

@@ -633,24 +633,34 @@ export function rehearseWorkflow(
 	return turn;
 }
 
-/** The error with the temporary root that was kept or could not be removed: `retainedRoot` and a message note. */
+/**
+ * A fresh error for a failed rehearsal whose temporary root stays behind: the original message and reason as
+ * `cause`, the root as `retainedRoot` and in the message. The caller's error (it can be frozen, e.g. an abort
+ * reason) is never modified.
+ */
 function withRetainedRoot(failure: unknown, root: string): Error {
-	const error = failure instanceof Error ? failure : new Error(String(failure));
+	const original = failure instanceof Error ? failure : undefined;
 	const note = `Temporary state kept at ${root} (safe to delete by hand)`;
+	const reason = original?.message ?? String(failure);
+	const error = new Error(
+		reason.includes(root) ? reason : `${reason}\n${note}`,
+		{ cause: failure },
+	);
+	if (original !== undefined && original.name !== "Error")
+		Object.defineProperty(error, "name", {
+			value: original.name,
+			enumerable: false,
+			configurable: true,
+			writable: true,
+		});
+	const code = (original as { code?: unknown } | undefined)?.code;
+	if (code !== undefined) Object.assign(error, { code });
 	Object.defineProperty(error, "retainedRoot", {
 		value: root,
 		enumerable: false,
 		configurable: true,
 		writable: true,
 	});
-	// Some error classes expose `message` as a getter only: define it on the instance.
-	if (!error.message.includes(root))
-		Object.defineProperty(error, "message", {
-			value: `${error.message}\n${note}`,
-			enumerable: false,
-			configurable: true,
-			writable: true,
-		});
 	return error;
 }
 
