@@ -207,19 +207,26 @@ item counts, loop rounds and end status, helper errors with their message, and w
 report rendered. `--items N` (0-20, default 2) sets how many items an unbounded array gets;
 `--loop exhaust` keeps every bounded loop's `until` false so `onExhausted` and the `exhausted`
 status are exercised (default `pass`: `until` holds on round 1). A support helper that itself
-declares `failed` or `blocked` because synthetic content cannot satisfy its content checks (for
-example a report renderer's evidence reconciliation) is listed as a content gate, not as a wiring problem:
-the text names each gate helper and its reason, says this is expected for placeholder data, and lists the
-stages the gate made skip; `data.status` is then `content-gates` (`data.runStatus` keeps `failed` or `blocked`).
+declares `failed` or `blocked` on the synthetic data is listed as a declared failed/blocked, not as a wiring problem:
+the text names each such helper and its reason, says the rehearsal cannot tell a content check from a setup
+problem (an expected rejection of placeholder evidence, counts or files versus a message naming a missing source or
+setup, which is a wiring problem), and lists the stages it made skip; `data.status` is then `content-gates` (the name
+is kept; `data.runStatus` keeps `failed` or `blocked`).
 A helper that asked `sources` for a name its stage does not declare is a wiring finding even when it then declares
 `failed` or `blocked` (the engine saw the lookup; helpers should throw for wiring and return `failed`/`blocked` for content).
-Exit 0 when the wiring is sound (`wiring OK`, with or without content gates), 1 when it found wiring
+Exit 0 when the wiring is sound (`wiring OK`, with or without declared failed/blocked), 1 when it found wiring
 problems (a helper that throws is one) or the spec is invalid, 2 for a usage error. `--json` prints
 `{action, ok, outcome, data}` with the report in `data`.
-A rehearsal never writes outside its temporary root: a write stage (also inside a `loop` or `onExhausted`)
-runs in the throwaway clone, git runs without your system or global git config, and a task whose `cwd`
-names the real project is refused with an error. If a process still uses the temporary root when the
-wait ends (or `ps` cannot say), the root is kept and its path reported as left behind; remove it yourself.
+What a rehearsal confines: the engine's managed worktrees, branches and run state live in the temporary root
+(a write stage, also inside a `loop` or `onExhausted`, runs in a throwaway clone), its own git commands run without your
+system or global git config and with an empty template and hooks path, and a managed writer whose `cwd` names the real
+project is refused with an error. It does not sandbox helpers: a support helper is trusted bundle code run as ordinary
+JavaScript in the rehearsing process and can write anywhere you can (its fallback `cwd` can even be the real project),
+so only rehearse workflows whose helpers you trust. The clone holds the repository's raw blobs: no clean/smudge filter
+or LFS download runs (the global config is ignored), so a tracked file that normally materializes through a filter
+appears as its stored text. Rehearsals in one process run one after another. If a process still uses the temporary
+root when the wait ends (or `ps` cannot say), the root is kept and its path reported as left behind (also on the error
+when a rehearsal throws); remove it yourself.
 See [usage.md](usage.md#rehearse-a-workflow).
 
 ## Launch options (`run`, `dynamic`)
