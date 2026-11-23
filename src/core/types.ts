@@ -1905,16 +1905,14 @@ export interface WorkflowDynamicRunAudit {
  * Optional degradation metadata computed when a run reaches a terminal
  * "completed" or "failed" status. Present only when the terminal status hides
  * a partial outcome: work was delivered despite task failures (final-stage
- * tasks completed while other tasks failed), a completed run leaned on
- * degraded helper output, or every foreach of a completed run fanned out over nothing. The run `status` enum is intentionally unchanged;
+ * tasks completed while other tasks failed), or a completed run leaned on
+ * degraded helper output. The run `status` enum is intentionally unchanged;
  * consumers that need the distinction read this field.
  */
 export interface WorkflowRunDegradation {
 	finalOutputRendered: boolean;
 	failedTaskIds: string[];
 	degradedHelperTaskIds: string[];
-	/** Foreach stages of a completed run where every foreach fanned out over 0 items. */
-	emptyForeachStageIds?: string[];
 	summary: string;
 }
 

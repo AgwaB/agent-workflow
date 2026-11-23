@@ -33,6 +33,7 @@ import {
 import { type WorkflowRunRecord, type WorkflowTaskRunRecord } from "./types.js";
 import {
 	type WorkflowTaskFailedToolCallSummary,
+	type WorkflowOutputIssue,
 	buildWorkflowOutputRetryInstructions,
 	parseWorkflowOutputForBundle,
 	writeWorkflowTaskArtifactBundle,
@@ -84,6 +85,45 @@ function artifactGraphRetrySession(
 		repairMode: "new_session",
 		sessionId: retryWorkflowTaskSessionId(run, task, attempt),
 	};
+}
+
+const EMPTY_LIST_DIGEST_CHARS = 300;
+
+/**
+ * Plain-words failure text when the model answered an empty list where the schema requires at
+ * least `minItems` entries (e.g. a foreach inventory). Undefined for any other validation issue.
+ */
+function emptyRequiredListFailure(
+	task: WorkflowTaskRunRecord,
+	issues: readonly WorkflowOutputIssue[],
+	control: Record<string, unknown> | undefined,
+	attempts: number,
+): string | undefined {
+	const empties = issues.filter((issue) => issue.emptyRequiredList);
+	// Only when the empty list is the whole problem; otherwise the full validation text stays.
+	if (empties.length === 0 || empties.length !== issues.length)
+		return undefined;
+	const names = empties.map(
+		(issue) => `\`${(issue.path ?? "$").replace(/^\$\.?/, "") || "(root)"}\``,
+	);
+	const minItems = Math.max(
+		...empties.map((issue) => issue.emptyRequiredList?.minItems ?? 1),
+	);
+	const stage = task.stageId ?? task.specId.replace(/\.main$/, "");
+	const lists =
+		names.length === 1 ? `${names[0]} list` : `${names.join(", ")} lists`;
+	const digest =
+		typeof control?.digest === "string" ? control.digest.trim() : "";
+	const shown =
+		digest.length > EMPTY_LIST_DIGEST_CHARS
+			? `${digest.slice(0, EMPTY_LIST_DIGEST_CHARS)}…`
+			: digest;
+	return [
+		`${stage} returned an empty ${lists} (at least ${minItems} required) after ${attempts} attempt${attempts === 1 ? "" : "s"}.`,
+		shown ? `The model said: "${shown}"` : undefined,
+	]
+		.filter(Boolean)
+		.join(" ");
 }
 
 async function measureTerminalArtifactBundleWrite<T>(
@@ -222,6 +262,12 @@ async function materializeTerminalArtifactGraphResultInner(
 			message: buildWorkflowOutputRetryInstructions(
 				parsed.issues,
 				parseOptions,
+			),
+			finalMessage: emptyRequiredListFailure(
+				task,
+				parsed.issues,
+				parsed.control,
+				attempt,
 			),
 			...retrySession,
 		});
@@ -368,6 +414,12 @@ async function materializeTerminalArtifactGraphResultInner(
 			message: buildWorkflowOutputRetryInstructions(
 				written.parsed.issues,
 				parseOptions,
+			),
+			finalMessage: emptyRequiredListFailure(
+				task,
+				written.parsed.issues,
+				written.parsed.control,
+				attempt,
 			),
 			...retrySession,
 		});

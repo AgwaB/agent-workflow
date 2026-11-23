@@ -5536,7 +5536,7 @@ test("run that failed at the final stage records no degradation", async () => {
 	}
 });
 
-function emptyForeachRun(extraTasks = []) {
+test("a completed run whose only foreach fanned out over 0 items is plain completed", () => {
 	const task = (specId, statusDetail, extra = {}) => ({
 		taskId: specId,
 		specId,
@@ -5546,56 +5546,16 @@ function emptyForeachRun(extraTasks = []) {
 		kind: "single",
 		...extra,
 	});
-	return {
+	const derived = deriveRunStatus({
 		runId: "workflow_empty_foreach",
 		tasks: [
 			task("inventory.main", "completed"),
 			task("fan.item", "foreach_empty", { kind: "foreach", stageId: "fan" }),
 			task("plan.main", "completed", { dependsOn: ["fan.item"] }),
-			...extraTasks,
 		],
-	};
-}
-
-test("a completed run whose only foreach fanned out over 0 items says so in its degradation", () => {
-	const derived = deriveRunStatus(emptyForeachRun());
+	});
 	assert.equal(derived.status, "completed");
-	assert.deepEqual(derived.degradation.emptyForeachStageIds, ["fan"]);
-	assert.equal(
-		derived.degradation.summary,
-		"foreach fan fanned out over 0 items",
-	);
-});
-
-test("an empty foreach next to one that fanned out, or in a failed run, is not flagged", () => {
-	const fanned = deriveRunStatus(
-		emptyForeachRun([
-			{
-				taskId: "other.item",
-				specId: "other.item",
-				displayName: "other.item",
-				status: "completed",
-				statusDetail: "foreach_materialized",
-				kind: "foreach",
-			},
-			{
-				taskId: "other.a",
-				specId: "other.a",
-				displayName: "other.a",
-				status: "completed",
-				statusDetail: "completed",
-				kind: "single",
-				foreachGenerated: { placeholderSpecId: "other.item" },
-			},
-		]),
-	);
-	assert.equal(fanned.status, "completed");
-	assert.equal(fanned.degradation, undefined);
-	const failed = emptyForeachRun();
-	failed.tasks[2].status = "failed";
-	const derived = deriveRunStatus(failed);
-	assert.equal(derived.status, "failed");
-	assert.equal(derived.degradation?.emptyForeachStageIds, undefined);
+	assert.equal(derived.degradation, undefined);
 });
 
 function supersededLoopRun({

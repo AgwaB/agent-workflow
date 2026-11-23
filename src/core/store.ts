@@ -3541,20 +3541,8 @@ export function computeRunDegradation(
 		finalTasks.length > 0 &&
 		finalTasks.every((task) => task.status === "completed");
 	const degradedDelivery = failedTaskIds.length > 0 && finalOutputRendered;
-	const emptyForeachStageIds = emptyFanOutStageIds(run);
-	if (
-		!degradedDelivery &&
-		degradedHelperTaskIds.length === 0 &&
-		emptyForeachStageIds.length === 0
-	)
-		return undefined;
-	const parts: string[] = [];
-	if (degradedDelivery || degradedHelperTaskIds.length > 0)
-		parts.push(finalOutputRendered ? "final rendered" : "final not rendered");
-	if (emptyForeachStageIds.length > 0)
-		parts.push(
-			`foreach ${emptyForeachStageIds.join(", ")} fanned out over 0 items`,
-		);
+	if (!degradedDelivery && degradedHelperTaskIds.length === 0) return undefined;
+	const parts = [finalOutputRendered ? "final rendered" : "final not rendered"];
 	if (failedTaskIds.length > 0)
 		parts.push(
 			`${failedTaskIds.length}/${run.tasks.length} task${run.tasks.length === 1 ? "" : "s"} failed`,
@@ -3567,30 +3555,8 @@ export function computeRunDegradation(
 		finalOutputRendered,
 		failedTaskIds,
 		degradedHelperTaskIds,
-		...(emptyForeachStageIds.length > 0 ? { emptyForeachStageIds } : {}),
 		summary: parts.join(", "),
 	};
-}
-
-/**
- * Foreach stages that ran 0 items in a completed run whose foreach stages all did. A run where some
- * foreach fanned out is not flagged: an empty sibling (no corrections to redo) is routine there.
- */
-function emptyFanOutStageIds(run: WorkflowRunRecord): string[] {
-	if (run.status !== "completed") return [];
-	if (run.tasks.some((task) => task.foreachGenerated)) return [];
-	const placeholders = run.tasks.filter(
-		(task) =>
-			task.status === "completed" &&
-			(task.statusDetail === "foreach_empty" ||
-				task.statusDetail === "foreach_materialized" ||
-				task.statusDetail === "foreach_streaming_complete"),
-	);
-	if (placeholders.some((task) => task.statusDetail !== "foreach_empty"))
-		return [];
-	return placeholders.map(
-		(task) => task.stageId ?? task.specId.replace(/\.item$/, ""),
-	);
 }
 
 export function summarizeTasks(tasks: WorkflowTaskRunRecord[]): TaskSummary {

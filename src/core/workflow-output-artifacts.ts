@@ -98,6 +98,8 @@ export interface WorkflowOutputIssue {
 	message: string;
 	section?: WorkflowOutputSectionName;
 	path?: string;
+	/** The control had an empty array where the schema requires at least `minItems` entries. */
+	emptyRequiredList?: { minItems: number };
 }
 
 export type WorkflowOutputRepairCode =
@@ -464,6 +466,13 @@ function retryRepairGuidance(issues: readonly WorkflowOutputIssue[]): string[] {
 		guidance.push(
 			"JSON repair guidance:",
 			"- Return parseable JSON inside <control> and <refs>; do not append prose or a second object inside JSON sections.",
+		);
+	}
+	for (const issue of issues) {
+		if (!issue.emptyRequiredList) continue;
+		guidance.push(
+			"Empty list guidance:",
+			`- ${issue.path ?? "A list"} was empty, but it must contain at least ${issue.emptyRequiredList.minItems} item(s). Do not answer with [].`,
 		);
 	}
 	const hasSchemaIssue = issues.some(
@@ -3357,6 +3366,9 @@ function jsonSchemaIssue(issue: JsonSchemaIssue): WorkflowOutputIssue {
 		section: SECTION_CONTROL,
 		path: issue.path,
 		message: `control JSON schema failed: ${issue.message}`,
+		...(issue.emptyRequiredList
+			? { emptyRequiredList: issue.emptyRequiredList }
+			: {}),
 	};
 }
 
