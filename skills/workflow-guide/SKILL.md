@@ -103,7 +103,7 @@ Do not ignore warnings.
 - `inputPolicy.maxCompiledPromptChars` when the final prompt needs a hard code-point ceiling. These three `inputPolicy` options are opt-in; unsupported replay ownership fails closed.
 - Bound fan-out and scope in code. Cap every foreach source (`maxItems` in the planning schema, which `validate` checks, and a support check), cap per-item work, and when the user's goal names a path or area, have a support step clip discovery to it rather than trusting the planning model. Whatever a cap or the scope drops is reported (and makes the result partial), never silently lost.
 - A verdict about the target (findings, gaps, broken links, needs work) is the result, not a failure: return it with `status: "passed"` and the run finishes normally, verdict shown. Return `status: "failed"`/`"blocked"` only when the workflow itself could not do its job (required sources missing, ledger integrity broken, nothing to conclude from); every host then reports the run as failed. When some findings are confirmed and part of the work is unsettled, let the confirmed findings decide the verdict and list the rest as limitations.
-- The final support render publishes the run's report: return it as `markdown` (hosts and the dashboard open it as the report) or write `final-report.md` in the task directory and return `sidecarPath`; return `completionSummaryMarkdown` as the short result. See "Report" in `docs/usage.md`.
+- The final support render publishes the run's report (`markdown` or `sidecarPath`, see "Support helpers"); its `completionSummaryMarkdown` is the short result.
 - Put already-known, caller-authorized inventory, canonical task binding, IDs, schemas, joins, counts, escaping, and rendering in static code instead of asking a model to restate or transform them. Keep models for requirements, topology, unknown discovery, domain semantics, and substantive judgment. Never substitute a fixed inventory when the workflow must discover the inventory.
 
 ## Loops
@@ -116,8 +116,20 @@ Do not ignore warnings.
 
 ## Support helpers
 
-- Declare `support` with `support.uses` pointing to a bundle-local `./*.mjs` helper. Support is trusted local code, not a sandboxed worker.
-- In a helper, collect a foreach stage's items through `context.sourceStatuses` (rows with that `stageId` and an `itemIdentity`; read `sources[row.source]`), never by `<stage>.` key prefix: the first item is keyed by the bare stage id. See "Source names" in `docs/usage.md`.
+A support stage declares `support: {uses: "./helpers/x.mjs", options: {…}}` plus the sources it reads in `from`. The helper is trusted bundle-local code run in the engine process (no sandbox). Full contract: "Support helpers" in `docs/usage.md`. API, checked against the engine:
+
+```js
+export default async function helper({ sources, options, context }) {
+  return { schema: "x-v1", digest: "one line", /* …your control fields… */ };
+}
+```
+
+- `sources`: control JSON of each *completed* source, keyed by source name: the stage id, and for foreach items `<stage>.<item id>`, except the first item, which takes the bare stage id. Failed or skipped sources are absent. `options`: the stage's `support.options`.
+- `context.sourceStatuses`: one row per source: `source` (its key in `sources`), `stageId`, `specId`, `taskId`, `status`, `itemIdentity` (foreach items), and `errorType`/`lastMessage` when not completed. Collect items and failures through it, never by key prefix: `rows.filter((r) => r.stageId === "analyze" && r.itemIdentity !== undefined).map((r) => sources[r.source])`.
+- Other `context` members: `cwd` (project directory: read repository files from it), `stateCwd` (run-state base), `runId`, `taskId`, `stageId`, `specPath` (the run's snapshot of `spec.json`; bundle files sit beside it), `signal` (`AbortSignal`), `evidence` (web quote check, "Quality design patterns" 3). A helper gets no workflow input or runtime task (pass values in `support.options` or an upstream model control) and only the sources' control JSON, not their analysis text.
+- The returned object is the stage's control and is checked against its `controlSchema`: declare every key you return, `markdown` and `completionSummaryMarkdown` included. A missing `schema`/`digest` is filled in. `markdown` (or `analysis`) becomes `analysis.md`, the run's report when the stage is final (or write `final-report.md` and return `sidecarPath`); `completionSummaryMarkdown` is the short result. `status: "failed"`/`"blocked"` or `gates: {passed: false}` ends the task failed/blocked.
+- A writer stage's changes are not in the project files: take its `taskId` from its status row and find the managed worktree on branch `agent-workflow/<runId>-<taskId>` (`git -C context.cwd worktree list --porcelain`); nothing is merged. `write-verify` does this.
+- Byte-checking local files: the scaffold's `local-evidence-reader.mjs` exports `readLocalText(cwd, file, signal)`, `localRange(text, start, end)` and `locateEvidence(text, quote, start, end, file)`.
 
 ## Dynamic stages
 
