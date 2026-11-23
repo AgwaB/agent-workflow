@@ -36,6 +36,16 @@ async function scaffoldSpecFiles() {
 	);
 }
 
+test("no bundled or scaffold prompt forbids running commands outright: Codex reads files through shell commands", async () => {
+	const specs = [...BUNDLED_SPEC_FILES, ...(await scaffoldSpecFiles())];
+	const outright =
+		/(?:do not|don't|never|must not)(?: modify files and do not| modify files or)?\s+(?:run|use|execute)\s+(?:any\s+)?(?:shell\s+)?commands?/iu;
+	for (const file of specs) {
+		const text = await readFile(join(root, file), "utf8");
+		assert.doesNotMatch(text, outright, file);
+	}
+});
+
 test("every bundled workflow and scaffold validates and compiles with the bundled agents", async () => {
 	// A project without its own agents: the bundled scout/researcher agents resolve.
 	const cwd = await mkdtemp(join(tmpdir(), "aw-bundled-compile-"));
