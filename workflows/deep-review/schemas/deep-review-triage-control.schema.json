@@ -23,7 +23,17 @@
     },
     "triageSummary": { "type": "string", "minLength": 1, "maxLength": 2000 },
     "riskLevel": { "type": "string", "enum": ["critical", "high", "medium", "low", "unknown"] },
-    "skippedLenses": { "type": "array", "maxItems": 20, "items": { "type": "string", "minLength": 1, "maxLength": 200 } }
+    "skippedLenses": { "type": "array", "maxItems": 20, "items": { "type": "string", "minLength": 1, "maxLength": 200 } },
+    "inputIntegrity": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["complete", "blocked"] },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "detail": { "type": "string", "minLength": 1, "maxLength": 400 }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }

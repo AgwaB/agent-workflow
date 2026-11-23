@@ -57,8 +57,8 @@
 	},
 	"workflows/deep-review/spec.json": {
 		"triage.main": {
-			"chars": 2848,
-			"sha256": "0e8d0cc95261a868682127f379647090d054f9c3747d2da1b6f495de368ff284"
+			"chars": 3094,
+			"sha256": "cf345234e303bf0739dd4ccea9cbfdd80bd20262593a105adefcf386e500bbbf"
 		},
 		"reviewers.item": {
 			"chars": 5463,
@@ -125,8 +125,8 @@
 	},
 	"workflows/spec-review/spec.json": {
 		"extract-spec.main": {
-			"chars": 3003,
-			"sha256": "e10e0996eab68e04edb7f6cc2248841618c3505785fa13645717de6fef9dbe79"
+			"chars": 3249,
+			"sha256": "7dfa310ca4544fb0e8d849d9c8707d28e4c840bc229285b2b1ad8b0bda29347d"
 		},
 		"map-implementation.main": {
 			"chars": 2060,
