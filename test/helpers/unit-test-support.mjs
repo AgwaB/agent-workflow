@@ -560,7 +560,8 @@ async function createFailFastPolicyRun(cwd, policy = {}) {
 				{
 					id: "partial-child",
 					type: "single",
-					after: "failed",
+					// Also waits for the running stage: a partial model stage whose only source failed is skipped.
+					after: ["failed", "running"],
 					sourcePolicy: "partial",
 					prompt: "Partial child.",
 				},
@@ -778,6 +779,7 @@ function captureWorkerPrompts(prompts = []) {
 function dagContainerRuntimeSpec({
 	finalSourcePolicy,
 	reportSourcePolicy,
+	sideSource = false,
 } = {}) {
 	return workflowSpec("unit-scout", {
 		artifactGraph: {
@@ -806,10 +808,16 @@ function dagContainerRuntimeSpec({
 							after: "scan",
 							prompt: "Review.",
 						},
+						// An independent third source: a partial final then has one that can complete.
+						...(sideSource
+							? [{ id: "side", type: "single", after: [], prompt: "Side." }]
+							: []),
 						{
 							id: "final",
 							type: "reduce",
-							from: ["scan", "review"],
+							from: sideSource
+								? ["scan", "review", "side"]
+								: ["scan", "review"],
 							output: { format: "json" },
 							prompt: "Finalize.",
 							...(finalSourcePolicy ? { sourcePolicy: finalSourcePolicy } : {}),

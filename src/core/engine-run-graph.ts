@@ -1793,8 +1793,10 @@ function descendantSpecIdsFor(
  * `sourcePolicy: "partial"` lets a stage run on whatever its sources produced, but a model stage
  * (anything that launches a worker) with nothing to read is skipped rather than launched: every
  * direct source is terminal and none completed. A source that completed with an empty list counts
- * as completed. Support helpers (deterministic code, e.g. a bundled final renderer) and loop
- * controllers are not model stages here and keep running on failed inputs. For a foreach, the
+ * as completed. Support helpers (deterministic code, e.g. a bundled final renderer) keep running
+ * on failed inputs, and so do loop controllers and loop round children (a later round retries after
+ * a failed one; the loop decides, not this rule). A loop as a source (it may hold earlier rounds'
+ * artifacts) counts as input, so its consumer runs as before. For a foreach, the
  * direct sources are the dependsOn entries: the source stage before expansion, the generated
  * children after it. A terminalBarrier only delays this decision until every source is terminal.
  * Returns the plain skip reason, or undefined when the stage should run.
@@ -1803,7 +1805,11 @@ function partialModelStageNoInputReason(
 	compiledTask: CompiledTask,
 	bySpecId: Map<string, WorkflowTaskRunRecord>,
 ): string | undefined {
-	if (compiledTask.kind === "support" || compiledTask.kind === "loop")
+	if (
+		compiledTask.kind === "support" ||
+		compiledTask.kind === "loop" ||
+		compiledTask.loopChild
+	)
 		return undefined;
 	const deps = [...new Set(compiledTask.dependsOn ?? [])];
 	if (deps.length === 0) return undefined;
@@ -1812,6 +1818,8 @@ function partialModelStageNoInputReason(
 		const source = bySpecId.get(dep);
 		if (!source || !isTerminalTaskStatus(source.status)) return undefined;
 		if (source.status === "completed") return undefined;
+		// A failed loop still holds its earlier rounds' artifacts, so it is never "nothing to read".
+		if (source.kind === "loop" || source.loopChild) return undefined;
 		const part = `${source.stageId ?? source.specId} ${source.status}`;
 		if (!parts.includes(part)) parts.push(part);
 	}
