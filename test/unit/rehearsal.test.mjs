@@ -1061,6 +1061,92 @@ test("N4: a frozen abort reason is not mutated; the thrown error wraps it with c
 	}
 });
 
+test("R3-2: a rehearsal waiting in the queue rejects promptly on its own abort and never runs its body", async () => {
+	const a = await project();
+	const aPath = await writeSpec(a, "one", ONE_STAGE);
+	const b = await project();
+	const mark = join(b, "ran.txt");
+	await mkdir(join(b, "helpers"), { recursive: true });
+	await writeFile(
+		join(b, "helpers", "mark.mjs"),
+		`import { writeFileSync } from "node:fs"; export default async function () { writeFileSync(${JSON.stringify(mark)}, "ran"); return { schema: "g-v1", status: "passed", digest: "ok" }; }\n`,
+	);
+	const bPath = await writeSpec(b, "marked", {
+		schemaVersion: 1,
+		name: "marked",
+		defaults: DEFAULTS,
+		artifactGraph: {
+			stages: [
+				{ id: "a", type: "single", prompt: "Do a." },
+				{ id: "g", from: "a", support: { uses: "./helpers/mark.mjs" } },
+			],
+		},
+	});
+	let release;
+	const gate = new Promise((resolve) => {
+		release = resolve;
+	});
+	let held;
+	const holding = new Promise((resolve) => {
+		held = resolve;
+	});
+	setRehearsalPsForTests(async () => {
+		held();
+		await gate;
+		return "";
+	});
+	setRehearsalSettleWaitForTests(20_000);
+	let first;
+	try {
+		// A is held at its final process scan; B queues behind it and is cancelled while queued.
+		first = rehearseWorkflow(a, { workflow: aPath });
+		await holding;
+		const controller = new AbortController();
+		const second = rehearseWorkflow(b, {
+			workflow: bPath,
+			keep: true,
+			signal: controller.signal,
+		});
+		controller.abort(new Error("cancelled while queued"));
+		const outcome = await Promise.race([
+			second.then(
+				() => "resolved",
+				(error) => error,
+			),
+			new Promise((resolve) => setTimeout(() => resolve("pending"), 1500)),
+		]);
+		assert.notEqual(outcome, "pending", "B rejected without waiting for A");
+		assert.match(String(outcome?.message), /cancelled while queued/u);
+		assert.equal(outcome?.retainedRoot, undefined, "B never created a root");
+		// A pre-aborted signal behind a busy queue is the same.
+		const early = AbortSignal.abort(new Error("already aborted"));
+		const third = await Promise.race([
+			rehearseWorkflow(b, { workflow: bPath, signal: early }).then(
+				() => "resolved",
+				(error) => error,
+			),
+			new Promise((resolve) => setTimeout(() => resolve("pending"), 1500)),
+		]);
+		assert.notEqual(third, "pending");
+		assert.match(String(third?.message), /already aborted/u);
+		release();
+		await first;
+		// A later call runs after the skipped ones: B's helper never executed.
+		const later = await rehearseWorkflow(a, { workflow: aPath });
+		assert.equal(later.report.ok, true, later.report.findings.join("\n"));
+		assert.equal(
+			existsSync(mark),
+			false,
+			"the cancelled rehearsal's body did not run",
+		);
+	} finally {
+		release();
+		await first?.catch(() => undefined);
+		setRehearsalPsForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+	}
+});
+
 test("settle: a quiet root is still removed (no regression of the eventual-quiet path)", async () => {
 	let calls = 0;
 	const { result, removed } = await rehearseWithPs(async (root) => {

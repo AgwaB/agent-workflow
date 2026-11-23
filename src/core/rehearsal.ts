@@ -620,17 +620,44 @@ function compiledCanWrite(compiled: {
 // order. They run one after the other: save/restore is strictly nested, and a call that loads and compiles
 // the workflow never sees another rehearsal's temporary home.
 let rehearsalQueue: Promise<unknown> = Promise.resolve();
+let rehearsalsInQueue = 0;
 
 export function rehearseWorkflow(
 	cwd: string,
 	options: RehearsalOptions,
 ): Promise<RehearsalResult> {
-	const turn = rehearsalQueue.then(() => rehearseWorkflowNow(cwd, options));
-	rehearsalQueue = turn.then(
+	const signal = options.signal;
+	const mustWait = rehearsalsInQueue > 0;
+	// "queued" until its turn: a call whose own signal aborts while it waits is rejected at once and its body is
+	// skipped when its turn comes (the actual runs stay one after the other).
+	let state: "queued" | "running" | "cancelled" = "queued";
+	rehearsalsInQueue += 1;
+	const turn = rehearsalQueue.then(() => {
+		if (state === "cancelled") return undefined as unknown as RehearsalResult;
+		state = "running";
+		return rehearseWorkflowNow(cwd, options);
+	});
+	const settled = turn.then(
 		() => undefined,
 		() => undefined,
 	);
-	return turn;
+	rehearsalQueue = settled;
+	void settled.then(() => {
+		rehearsalsInQueue -= 1;
+	});
+	if (signal === undefined || !mustWait) return turn;
+	return new Promise<RehearsalResult>((resolve, reject) => {
+		const cancel = (): void => {
+			if (state !== "queued") return;
+			state = "cancelled";
+			reject(signal.reason ?? new Error("rehearsal cancelled"));
+		};
+		if (signal.aborted) cancel();
+		else signal.addEventListener("abort", cancel, { once: true });
+		turn.then(resolve, reject).finally(() => {
+			signal.removeEventListener("abort", cancel);
+		});
+	});
 }
 
 /**
