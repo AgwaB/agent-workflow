@@ -18,9 +18,11 @@ export interface SupportSourceProbe {
 }
 
 /**
- * Wraps the helper's `sources` so a lookup (`sources.x`, `sources["x"]`, `"x" in sources`) of a name that is
- * neither present nor declared is recorded. The entries stay own properties of a plain object (keys,
- * spread, JSON and structuredClone behave as before); only misses fall through to a prototype that records.
+ * Wraps the helper's `sources` so a lookup (`sources.x`, `sources["x"]`, `"x" in sources`, `Object.hasOwn`) of
+ * a name that is neither present nor declared is recorded. The result is a Proxy over a plain object: its
+ * prototype is `Object.prototype` (a helper's plain-object check passes, as with the engine's own object) and
+ * keys, spread and JSON behave as before. A Proxy cannot be passed to `structuredClone` directly; clone a copy
+ * (`structuredClone({ ...sources })`) or its entries.
  */
 export function probeSupportSources(
 	sources: Record<string, unknown>,
@@ -33,21 +35,22 @@ export function probeSupportSources(
 		if (PROBED_BY_RUNTIME.has(name)) return;
 		missed.add(name);
 	};
-	const recorder = new Proxy(
-		{},
-		{
-			get(target, name, receiver) {
-				if (!Reflect.has(target, name)) note(name);
-				return Reflect.get(target, name, receiver);
-			},
-			has(target, name) {
-				if (!Reflect.has(target, name)) note(name);
-				return Reflect.has(target, name);
-			},
+	const target: Record<string, unknown> = {};
+	for (const key of Object.keys(sources)) target[key] = sources[key];
+	const wrapped = new Proxy(target, {
+		get(object, name, receiver) {
+			if (!Reflect.has(object, name)) note(name);
+			return Reflect.get(object, name, receiver);
 		},
-	);
-	const wrapped = Object.create(recorder) as Record<string, unknown>;
-	for (const key of Object.keys(sources)) wrapped[key] = sources[key];
+		has(object, name) {
+			if (!Reflect.has(object, name)) note(name);
+			return Reflect.has(object, name);
+		},
+		getOwnPropertyDescriptor(object, name) {
+			if (!Reflect.has(object, name)) note(name);
+			return Reflect.getOwnPropertyDescriptor(object, name);
+		},
+	});
 	return { sources: wrapped, misses: () => [...missed] };
 }
 

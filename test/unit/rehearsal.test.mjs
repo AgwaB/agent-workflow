@@ -655,14 +655,35 @@ test("content gate stays green: declared source looked up correctly, helper reje
 	assert.deepEqual(report.findings, []);
 });
 
-test("sources stay an ordinary object for helpers (keys, spread, JSON, structuredClone, inherited methods)", async () => {
+test("sources stay an ordinary object for helpers (keys, spread, JSON, inherited methods, plain prototype)", async () => {
 	const { cwd, path } = await sourceLookupProject(
 		"ordinary-sources",
-		'const copy = structuredClone(sources); const text = JSON.stringify({ ...sources }); if (Object.keys(sources).join() !== "a" || !Object.hasOwn(copy, "a") || !text.includes("a") || !sources.hasOwnProperty("a") || String(sources) !== "[object Object]") throw new Error("sources is not ordinary"); return { schema: "g-v1", status: "passed", digest: "ok" };',
+		'const copy = structuredClone({ ...sources }); const text = JSON.stringify({ ...sources }); if (Object.keys(sources).join() !== "a" || !Object.hasOwn(copy, "a") || !text.includes("a") || !sources.hasOwnProperty("a") || String(sources) !== "[object Object]") throw new Error("sources is not ordinary"); return { schema: "g-v1", status: "passed", digest: "ok" };',
 	);
 	const { report } = await rehearseWorkflow(cwd, { workflow: path });
 	assert.equal(report.ok, true, report.findings.join("\n"));
 	assert.equal(report.status, "completed");
+});
+
+test("N3: sources has the plain-object prototype and passes the sdk plain-object check, still recording misses", async () => {
+	const { isPlainObject } = await import("../../dist/sdk/json.js");
+	const { probeSupportSources } = await import(
+		"../../dist/core/support-source-probe.js"
+	);
+	const probe = probeSupportSources({ a: { x: 1 } }, ["a"]);
+	assert.equal(Object.getPrototypeOf(probe.sources), Object.prototype);
+	assert.equal(isPlainObject(probe.sources), true);
+	assert.deepEqual({ ...probe.sources }, { a: { x: 1 } });
+	assert.equal(probe.sources.nope, undefined);
+	assert.equal("nope2" in probe.sources, false);
+	assert.equal(Object.hasOwn(probe.sources, "nope3"), false);
+	assert.deepEqual(probe.misses(), ["nope", "nope2", "nope3"]);
+	const { cwd, path } = await sourceLookupProject(
+		"plain-check",
+		'const proto = Object.getPrototypeOf(sources); if (proto !== Object.prototype) throw new Error("sources is not a plain object"); return { schema: "g-v1", status: "passed", digest: "ok" };',
+	);
+	const { report } = await rehearseWorkflow(cwd, { workflow: path });
+	assert.equal(report.ok, true, report.findings.join("\n"));
 });
 
 test("wiring problems: a real finding next to a gate is still a finding (not content-gates)", async () => {
