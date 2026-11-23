@@ -196,6 +196,10 @@ export function createShadowProject(
 		return undefined;
 	}
 	const shadowRoot = join(root, "project");
+	// An empty template directory: the user's ambient template (init.templateDir, GIT_TEMPLATE_DIR) would
+	// copy its hooks and info files into the clone.
+	const template = join(root, "git-isolation", "template");
+	mkdirSync(template, { recursive: true });
 	// The clone is private to the rehearsal: no hooks, no filters, no prompts, no system/global config
 	// (`env`, see rehearsalGitEnv); the empty hooks path is also persisted in the clone's own configuration.
 	git(
@@ -206,6 +210,7 @@ export function createShadowProject(
 			"clone",
 			"--quiet",
 			"--no-checkout",
+			`--template=${template}`,
 			gitRoot,
 			shadowRoot,
 		],

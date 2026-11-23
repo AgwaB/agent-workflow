@@ -179,3 +179,36 @@ test("a symlinked directory on the cwd path in HEAD makes the shadow refuse inst
 		await rm(base, { recursive: true, force: true });
 	}
 });
+
+test("M9: the clone uses an empty template directory, not the ambient one (hooks, info, description)", async () => {
+	const base = await realpath(await mkdtemp(join(tmpdir(), "aw-shadow-tpl-")));
+	const saved = process.env.GIT_TEMPLATE_DIR;
+	try {
+		const template = join(base, "template");
+		await mkdir(join(template, "hooks"), { recursive: true });
+		await writeFile(join(template, "hooks", "post-checkout"), "#!/bin/sh\n");
+		await writeFile(join(template, "ambient-template-marker"), "x\n");
+		const repo = join(base, "repo");
+		await mkdir(repo);
+		await writeFile(join(repo, "README.md"), "x\n");
+		commitAll(repo);
+		const root = join(base, "root");
+		await mkdir(root);
+		process.env.GIT_TEMPLATE_DIR = template;
+		const shadow = createShadowProject(repo, root);
+		assert.ok(shadow !== undefined);
+		assert.equal(
+			existsSync(join(shadow, ".git", "ambient-template-marker")),
+			false,
+			"the ambient template was not applied",
+		);
+		assert.equal(
+			existsSync(join(shadow, ".git", "hooks", "post-checkout")),
+			false,
+		);
+	} finally {
+		if (saved === undefined) delete process.env.GIT_TEMPLATE_DIR;
+		else process.env.GIT_TEMPLATE_DIR = saved;
+		await rm(base, { recursive: true, force: true });
+	}
+});
