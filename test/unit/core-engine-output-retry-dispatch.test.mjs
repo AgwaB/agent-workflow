@@ -378,7 +378,7 @@ test("workflow-invalid output triggers exactly one bounded repair launch, then n
 async function runEmptyInventory(
 	control,
 	check,
-	{ closedSchema = false } = {},
+	{ closedSchema = false, extraList = false } = {},
 ) {
 	const cwd = makeProject();
 	const runs = new Map();
@@ -422,6 +422,15 @@ async function runEmptyInventory(
 				properties: {
 					...(closedSchema ? { schema: { type: "string" } } : {}),
 					digest: { type: "string" },
+					...(extraList
+						? {
+								extra: {
+									type: "array",
+									minItems: 4,
+									items: { type: "string" },
+								},
+							}
+						: {}),
 					items: {
 						type: "array",
 						minItems: 1,
@@ -533,6 +542,23 @@ test("an empty list next to another output problem keeps the full validation mes
 			assert.doesNotMatch(inventory.lastMessage, /returned an empty/);
 			assert.match(inventory.lastMessage, /digest/);
 		},
+	));
+
+// 2026-11-23 (review m2): lists with different minima are each named with their own minimum.
+test("empty lists with different minimums each state their own", () =>
+	runEmptyInventory(
+		{ schema: "inventory-v1", digest: "Nothing found.", extra: [], items: [] },
+		(failed) => {
+			const inventory = failed.tasks.find((t) => t.specId === "inventory.main");
+			assert.equal(inventory.status, "failed");
+			assert.match(
+				inventory.lastMessage,
+				/^inventory returned empty lists: `extra` \(at least 4 required\), `items` \(at least 1 required\) after 3 attempts\./,
+			);
+			assert.doesNotMatch(inventory.lastMessage, /at least 4 required\) after/);
+			assert.match(inventory.lastMessage, /The model said: "Nothing found\."/);
+		},
+		{ extraList: true },
 	));
 
 const BLOCK = {

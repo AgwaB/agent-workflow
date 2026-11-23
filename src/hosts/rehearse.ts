@@ -1,9 +1,11 @@
 // `rehearse`: run a workflow through the real engine with a synthetic worker (src/core/rehearsal.ts).
-// No model, no network, no run state in the project or the user's home. Terminal CLI only.
+// The synthetic worker calls no model and uses no network; the engine's run state is temporary, not in the project
+// or the user's home. Support helpers are trusted code and are not confined. Terminal CLI only.
 import {
 	REHEARSAL_DEFAULT_ITEMS,
 	type RehearsalLoopMode,
 	type RehearsalReport,
+	keptRootAdvice,
 	rehearseWorkflow,
 	validateRehearsalOptions,
 } from "../core/rehearsal.js";
@@ -27,8 +29,10 @@ export interface RehearseRequest {
 export interface RehearseData extends RehearsalReport {
 	/** Kept temporary state root (`--keep` only). */
 	stateRoot?: string;
-	/** Temporary root that could not be removed; safe to delete by hand. */
+	/** Temporary root that could not be removed or that a process may still use (see `leftoverState`). */
 	leftover?: string;
+	/** What the last process scan said about `leftover`: `quiet`, `busy` or `unknown`. */
+	leftoverState?: "quiet" | "busy" | "unknown";
 }
 
 function plural(count: number, word: string): string {
@@ -39,11 +43,11 @@ export function formatRehearsal(data: RehearseData): string {
 	const verdict = !data.ok
 		? "wiring problems found"
 		: data.status === "content-gates"
-			? "wiring OK, but content gates rejected the synthetic data (expected; not a wiring problem)"
+			? "wiring OK so far, but a helper declared failed/blocked on the synthetic data (read the reason below)"
 			: "wiring OK";
 	const lines = [
 		`Rehearsal of ${data.workflow}: ${verdict} (run ${data.runStatus}; items ${data.options.items}, loop ${data.options.loop})`,
-		"No model was called; run state was temporary.",
+		"The synthetic worker made no model call; the engine's run state was temporary. Helpers are trusted code and were not confined.",
 	];
 	if (data.stages.length > 0) lines.push("Stages:");
 	for (const stage of data.stages) {
@@ -70,7 +74,7 @@ export function formatRehearsal(data: RehearseData): string {
 			);
 		lines.push(`  ${stage.stage}: ${parts.join("; ")}`);
 		for (const gate of stage.gates)
-			lines.push(`    content gate: ${gate.task} declared ${gate.status}`);
+			lines.push(`    ${gate.task} declared ${gate.status} on synthetic data`);
 	}
 	for (const loop of data.loops)
 		lines.push(
@@ -80,17 +84,17 @@ export function formatRehearsal(data: RehearseData): string {
 		stage.gates.map((gate) => ({ stage: stage.stage, ...gate })),
 	);
 	lines.push(
-		`Final report: ${data.finalReportRendered ? "rendered" : gates.length > 0 ? "not rendered (stopped at a content gate; see below)" : "not rendered"}`,
+		`Final report: ${data.finalReportRendered ? "rendered" : gates.length > 0 ? "not rendered (stopped at a declared failed/blocked; see below)" : "not rendered"}`,
 	);
 	if (gates.length > 0) {
 		lines.push(
 			data.ok
-				? "Content gates (the workflow's own checks of evidence, counts or files rejected the synthetic placeholder output; expected for placeholder data, not a wiring problem):"
-				: "Content gates (the workflow's own checks rejected the synthetic placeholder output; expected, not a wiring problem; the findings below are separate):",
+				? "Declared failed/blocked on synthetic data (the helper's own decision; the rehearsal cannot tell a content check from a setup problem, so read the reason):"
+				: "Declared failed/blocked on synthetic data (the helper's own decision; the findings below are separate):",
 		);
 		for (const gate of gates)
 			lines.push(
-				`- ${gate.task} (stage ${gate.stage}) declared ${gate.status}: ${gate.reasons.length > 0 ? gate.reasons.join("; ") : "no reason given"}`,
+				`- ${gate.task} (stage ${gate.stage}) declared ${gate.status} on synthetic data: ${gate.reasons.length > 0 ? gate.reasons.join("; ") : "no reason given"} — expected for a content check; if it names a missing source or setup, it is a wiring problem`,
 			);
 		if (data.skippedAfterGates.length > 0)
 			lines.push(
@@ -113,7 +117,9 @@ export function formatRehearsal(data: RehearseData): string {
 		lines.push(`State kept at ${data.stateRoot}`);
 	if (data.leftover !== undefined)
 		lines.push(
-			`Temporary state could not be fully removed: ${data.leftover} (safe to delete by hand)`,
+			data.leftoverState === "busy" || data.leftoverState === "unknown"
+				? `Temporary state kept at ${data.leftover} (${keptRootAdvice(data.leftoverState)})`
+				: `Temporary state could not be fully removed: ${data.leftover} (${keptRootAdvice("quiet")})`,
 		);
 	return lines.join("\n");
 }
@@ -136,7 +142,12 @@ export async function rehearseAction(
 			: { stateRoot: rehearsed.stateRoot }),
 		...(rehearsed.leftover === undefined
 			? {}
-			: { leftover: rehearsed.leftover }),
+			: {
+					leftover: rehearsed.leftover,
+					...(rehearsed.leftoverState === undefined
+						? {}
+						: { leftoverState: rehearsed.leftoverState }),
+				}),
 	};
 	return result(
 		"rehearse",

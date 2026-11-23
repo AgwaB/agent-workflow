@@ -3,7 +3,13 @@
 // worker. Rehearses every bundled workflow and scaffold to completion, checks determinism, isolation (R3),
 // loop forcing (R5) and catches the lab defects of R6 in small specs. No model, no network.
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, realpathSync } from "node:fs";
+import {
+	existsSync,
+	readdirSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+} from "node:fs";
 import {
 	mkdir,
 	mkdtemp,
@@ -19,14 +25,25 @@ import { fileURLToPath } from "node:url";
 
 import {
 	processesUsingRoot,
+	setRehearsalPsCommandForTests,
 	setRehearsalPsForTests,
 	setRehearsalRemoveForTests,
 	waitForRootProcesses,
 } from "../../dist/core/rehearsal-settle.js";
 import { workflowExecutorRegistration } from "../../dist/core/executor-registry.js";
 import {
+	settleRunWork,
+	setSupervisorTickForTests,
+} from "../../dist/core/engine.js";
+import {
+	isTerminalWorkflowStatus,
+	readRunRecord,
+	setRunLeaseTestHooksForTests,
+} from "../../dist/core/store.js";
+import {
 	REHEARSAL_EXECUTOR_ID,
 	rehearseWorkflow,
+	setRehearsalSettleWaitForTests,
 } from "../../dist/core/rehearsal.js";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -239,6 +256,169 @@ test("isolation (R3): nothing lands in the user's home or the project; --keep ke
 			retryDelay: 50,
 		});
 	}
+});
+
+test("isolation (R3): engine work still in flight when the run ends never writes into the user's home", async () => {
+	// A supervisor tick is an async chain that outlives the run it watches. Hold one between its read of
+	// the run and its scheduling step until the run is terminal and the rehearsal is done with it: before
+	// the fix the rehearsal restored the environment first, so the tick then resolved its project state
+	// from the user's home and created `projects/<id>` there.
+	const cwd = await project();
+	const outer = await mkdtemp(join(base, "outer-"));
+	const saved = {
+		home: process.env.AGENT_WORKFLOW_HOME,
+		index: process.env.AGENT_WORKFLOW_RUN_INDEX_DIR,
+	};
+	process.env.AGENT_WORKFLOW_HOME = outer;
+	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR = join(outer, "run-index");
+	const before = await readdir(outer);
+	const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+	let heldRun;
+	setSupervisorTickForTests({
+		pollIntervalMs: 5,
+		hook: async (_phase, runId) => {
+			if (heldRun !== undefined) return;
+			heldRun = runId;
+			for (let i = 0; i < 1000; i += 1) {
+				const run = await readRunRecord(cwd, runId).catch(() => undefined);
+				if (run === undefined || isTerminalWorkflowStatus(run.status)) break;
+				await sleep(10);
+			}
+			// Released once the user's environment is back (the unfixed order), or after a bounded hold.
+			for (
+				let i = 0;
+				i < 200 && process.env.AGENT_WORKFLOW_HOME !== outer;
+				i += 1
+			)
+				await sleep(10);
+		},
+	});
+	try {
+		await rehearseWorkflow(cwd, {
+			workflow: join(
+				root,
+				"skills/workflow-guide/scaffolds/object-tool-fallback/spec.json",
+			),
+		});
+		assert.ok(heldRun !== undefined, "a supervisor tick reached the hook");
+		await settleRunWork(cwd, heldRun); // the held tick finishes; under the user's environment now
+		assert.deepEqual(await readdir(outer), before);
+	} finally {
+		setSupervisorTickForTests(undefined);
+		for (const [name, value] of [
+			["AGENT_WORKFLOW_HOME", saved.home],
+			["AGENT_WORKFLOW_RUN_INDEX_DIR", saved.index],
+		]) {
+			if (value === undefined) delete process.env[name];
+			else process.env[name] = value;
+		}
+	}
+});
+
+/** A dynamic parent whose controller only awaits one child workflow (a `ctx.workflow` descendant run). */
+async function nestedProject() {
+	const cwd = await project();
+	const stage = {
+		id: "main",
+		type: "single",
+		prompt: "Do the work.",
+	};
+	const spec = (stages) => ({
+		schemaVersion: 1,
+		name: "nested-demo",
+		defaults: DEFAULTS,
+		artifactGraph: { stages },
+	});
+	await mkdir(join(cwd, "child"), { recursive: true });
+	await writeFile(
+		join(cwd, "child", "spec.json"),
+		JSON.stringify(spec([stage])),
+	);
+	await writeFile(
+		join(cwd, "controller.mjs"),
+		"export default async ctx => { const child = await ctx.workflow('child', 'child'); return { control: { digest: 'done', child: child.status } }; };\n",
+	);
+	const path = join(cwd, "parent.json");
+	await writeFile(
+		path,
+		JSON.stringify(
+			spec([
+				{
+					id: "adaptive",
+					type: "dynamic",
+					dynamic: {
+						uses: "./controller.mjs",
+						workflows: { child: { uses: "./child/spec.json" } },
+					},
+				},
+			]),
+		),
+	);
+	return { cwd, path };
+}
+
+/**
+ * Hold the first supervisor tick of a run that satisfies `pick` (a descendant run; the parent's own tick is
+ * covered by the R3 test above, since a parent's watch starts only after its controller returned) until the
+ * user's environment is back (the unfixed order) or a bounded time passes, then report what the outer home holds.
+ */
+async function lateTickProbe({ pick }) {
+	const { cwd, path } = await nestedProject();
+	const outer = await mkdtemp(join(base, "outer-"));
+	const saved = {
+		home: process.env.AGENT_WORKFLOW_HOME,
+		index: process.env.AGENT_WORKFLOW_RUN_INDEX_DIR,
+	};
+	process.env.AGENT_WORKFLOW_HOME = outer;
+	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR = join(outer, "run-index");
+	const before = await readdir(outer);
+	const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+	let held;
+	setSupervisorTickForTests({
+		pollIntervalMs: 8,
+		hook: async (_phase, runId) => {
+			if (held !== undefined) return;
+			const run = await readRunRecord(cwd, runId).catch(() => undefined);
+			if (run === undefined || !pick(run)) return;
+			held = runId;
+			for (
+				let i = 0;
+				i < 150 && process.env.AGENT_WORKFLOW_HOME !== outer;
+				i += 1
+			)
+				await sleep(10);
+		},
+	});
+	try {
+		const { report } = await rehearseWorkflow(cwd, { workflow: path });
+		await sleep(800);
+		return { held, report, before, after: await readdir(outer) };
+	} finally {
+		setSupervisorTickForTests(undefined);
+		for (const [name, value] of [
+			["AGENT_WORKFLOW_HOME", saved.home],
+			["AGENT_WORKFLOW_RUN_INDEX_DIR", saved.index],
+		]) {
+			if (value === undefined) delete process.env[name];
+			else process.env[name] = value;
+		}
+	}
+}
+
+test("isolation (R4): a descendant run's supervisor tick held past the rehearsal never writes into the user's home", async () => {
+	const probe = await lateTickProbe({
+		pick: (run) => run.parentRunId !== undefined,
+	});
+	assert.ok(
+		probe.held !== undefined,
+		"a child supervisor tick reached the hook",
+	);
+	assert.equal(
+		probe.report.status,
+		"completed",
+		probe.report.findings.join("\n"),
+	);
+	assert.deepEqual(probe.after, probe.before);
 });
 
 function loopSpec(extra = {}) {
@@ -587,6 +767,95 @@ for (const declared of ["failed", "blocked"]) {
 	});
 }
 
+/** A project whose helper `g` (wired from `a`) runs `body`, a function body over `{ sources }`. */
+async function sourceLookupProject(name, body) {
+	const cwd = await project();
+	await mkdir(join(cwd, "helpers"), { recursive: true });
+	await writeFile(
+		join(cwd, "helpers", "lookup.mjs"),
+		`export default async function ({ sources }) { ${body} }\n`,
+	);
+	const path = await writeSpec(cwd, name, {
+		schemaVersion: 1,
+		name,
+		defaults: DEFAULTS,
+		artifactGraph: {
+			stages: [
+				{ id: "a", type: "single", prompt: "Do a." },
+				{ id: "g", from: "a", support: { uses: "./helpers/lookup.mjs" } },
+				{ id: "c", type: "reduce", from: ["g"], prompt: "Do c." },
+			],
+		},
+	});
+	return { cwd, path };
+}
+
+for (const declared of ["failed", "blocked"]) {
+	test(`wiring: a helper that looks up an undeclared source and declares ${declared} is an advisory warning, not a finding`, async () => {
+		const { cwd, path } = await sourceLookupProject(
+			`wrong-source-${declared}`,
+			`const row = sources.extract; if (!row) return { schema: "g-v1", status: "${declared}", digest: "source extract is missing" }; return { schema: "g-v1", status: "passed", digest: "ok" };`,
+		);
+		const { report } = await rehearseWorkflow(cwd, { workflow: path });
+		// The static scan is advisory (R4-1/R4-2): it prints as a warning and never fails the rehearsal.
+		assert.equal(report.ok, true, report.findings.join("\n"));
+		assert.deepEqual(report.findings, []);
+		assert.match(
+			report.warnings.join("\n"),
+			/stage "g" support helper "\.\/helpers\/lookup\.mjs" looks up source "extract", which is not one of its sources \(a\)/u,
+		);
+	});
+}
+
+test("wiring: a probe with `in` or a bracket lookup of an undeclared source is a warning too", async () => {
+	const { cwd, path } = await sourceLookupProject(
+		"wrong-source-in",
+		'if (!("extract" in sources)) return { schema: "g-v1", status: "blocked", digest: "nothing" }; return { schema: "g-v1", status: "passed", digest: "ok" };',
+	);
+	const { report } = await rehearseWorkflow(cwd, { workflow: path });
+	assert.equal(report.ok, true, report.findings.join("\n"));
+	assert.match(report.warnings.join("\n"), /looks up source "extract"/u);
+});
+
+test("content gate stays green: declared source looked up correctly, helper rejects the data", async () => {
+	const { cwd, path } = await sourceLookupProject(
+		"right-source",
+		'const row = sources.a; return { schema: "g-v1", status: row ? "blocked" : "passed", digest: "0 of 20 classified" };',
+	);
+	const { report } = await rehearseWorkflow(cwd, { workflow: path });
+	assert.equal(report.ok, true, report.findings.join("\n"));
+	assert.equal(report.status, "content-gates");
+	assert.deepEqual(report.findings, []);
+});
+
+test("sources is the engine's plain object: structuredClone, spread, JSON, keys and property writes all work", async () => {
+	const { cwd, path } = await sourceLookupProject(
+		"ordinary-sources",
+		'const whole = structuredClone(sources); const copy = structuredClone({ ...sources }); const text = JSON.stringify({ ...sources }); sources.derived = { n: 1 }; if (Object.getPrototypeOf(sources) !== Object.prototype || Object.keys(whole).join() !== "a" || !Object.hasOwn(copy, "a") || !text.includes("a") || !sources.hasOwnProperty("a") || sources.derived.n !== 1 || String(sources) !== "[object Object]") throw new Error("sources is not ordinary"); return { schema: "g-v1", status: "passed", digest: "ok" };',
+	);
+	const { report } = await rehearseWorkflow(cwd, { workflow: path });
+	assert.equal(report.ok, true, report.findings.join("\n"));
+	assert.equal(report.status, "completed");
+	assert.deepEqual(report.findings, []);
+});
+
+test("R3-1: a helper that only assigns a property of sources is no finding; a failed hasOwn check on a wrong name is", async () => {
+	const written = await sourceLookupProject(
+		"assign-only",
+		'sources.derived = { n: 1 }; return { schema: "g-v1", status: "passed", digest: "ok" };',
+	);
+	const ok = await rehearseWorkflow(written.cwd, { workflow: written.path });
+	assert.equal(ok.report.ok, true, ok.report.findings.join("\n"));
+	assert.equal(ok.report.status, "completed");
+	const hasOwn = await sourceLookupProject(
+		"has-own-wrong",
+		'if (!Object.hasOwn(sources, "wrongName")) return { schema: "g-v1", status: "blocked", digest: "missing" }; return { schema: "g-v1", status: "passed", digest: "ok" };',
+	);
+	const bad = await rehearseWorkflow(hasOwn.cwd, { workflow: hasOwn.path });
+	assert.equal(bad.report.ok, true, bad.report.findings.join("\n"));
+	assert.match(bad.report.warnings.join("\n"), /looks up source "wrongName"/u);
+});
+
 test("wiring problems: a real finding next to a gate is still a finding (not content-gates)", async () => {
 	const { cwd, path } = await gateProject(
 		"gate-and-wiring",
@@ -721,10 +990,10 @@ test("a temporary root that cannot be removed is reported as leftover, not throw
 	assert.equal(result.report.ok, true);
 	assert.match(result.leftover, /aw-rehearse-/u);
 	assert.ok(existsSync(result.leftover));
-	await rm(result.leftover, { recursive: true, force: true });
+	await removeKeptRoot(result.leftover);
 });
 
-test("a failing `ps` is not read as quiet: the wait keeps polling to the deadline", async () => {
+test("a failing `ps` is not read as quiet: the wait keeps polling to the deadline and says unknown", async () => {
 	let calls = 0;
 	setRehearsalPsForTests(async () => {
 		calls += 1;
@@ -733,7 +1002,10 @@ test("a failing `ps` is not read as quiet: the wait keeps polling to the deadlin
 		});
 	});
 	try {
-		assert.equal(await waitForRootProcesses("/tmp/aw-root", 300, 20), false);
+		assert.equal(
+			await waitForRootProcesses("/tmp/aw-root", 300, 20),
+			"unknown",
+		);
 		assert.ok(calls > 3, `polled ${calls} times`);
 		// A scan that recovers is believed: the root has no process.
 		let failures = 2;
@@ -741,7 +1013,7 @@ test("a failing `ps` is not read as quiet: the wait keeps polling to the deadlin
 			if (failures-- > 0) throw new Error("transient");
 			return "  1 /sbin/launchd\n";
 		});
-		assert.equal(await waitForRootProcesses("/tmp/aw-root", 2000, 10), true);
+		assert.equal(await waitForRootProcesses("/tmp/aw-root", 2000, 10), "quiet");
 		assert.equal(failures, -1);
 		// A process naming the root is waited for even after a failed scan.
 		let step = 0;
@@ -750,14 +1022,28 @@ test("a failing `ps` is not read as quiet: the wait keeps polling to the deadlin
 			if (step === 1) throw new Error("transient");
 			return step < 4 ? "  42 node /tmp/aw-root/worker.mjs\n" : "";
 		});
-		assert.equal(await waitForRootProcesses("/tmp/aw-root", 2000, 10), true);
+		assert.equal(await waitForRootProcesses("/tmp/aw-root", 2000, 10), "quiet");
 		assert.equal(step, 4);
 	} finally {
 		setRehearsalPsForTests(undefined);
 	}
 });
 
-test("a missing `ps` (ENOENT) returns at once: there is nothing to wait on", async () => {
+test("a process still using the root at the deadline is busy, even if later scans fail", async () => {
+	let step = 0;
+	setRehearsalPsForTests(async () => {
+		step += 1;
+		if (step > 2) throw new Error("transient");
+		return "  42 node /tmp/aw-root/worker.mjs\n";
+	});
+	try {
+		assert.equal(await waitForRootProcesses("/tmp/aw-root", 200, 20), "busy");
+	} finally {
+		setRehearsalPsForTests(undefined);
+	}
+});
+
+test("a missing `ps` (ENOENT) is unknown at once: nothing can be said about the root", async () => {
 	let calls = 0;
 	setRehearsalPsForTests(async () => {
 		calls += 1;
@@ -765,10 +1051,386 @@ test("a missing `ps` (ENOENT) returns at once: there is nothing to wait on", asy
 	});
 	try {
 		const started = Date.now();
-		assert.equal(await waitForRootProcesses("/tmp/aw-root", 5000, 20), true);
+		assert.equal(
+			await waitForRootProcesses("/tmp/aw-root", 5000, 20),
+			"unknown",
+		);
 		assert.equal(calls, 1);
 		assert.ok(Date.now() - started < 1000);
 	} finally {
 		setRehearsalPsForTests(undefined);
 	}
+});
+
+test("each `ps` call is bounded by the deadline: a hung ps cannot hold the wait past it", async () => {
+	setRehearsalPsForTests(() => new Promise(() => {}));
+	try {
+		const started = Date.now();
+		assert.equal(
+			await waitForRootProcesses("/tmp/aw-root", 300, 20),
+			"unknown",
+		);
+		assert.ok(Date.now() - started < 2000, `took ${Date.now() - started}ms`);
+	} finally {
+		setRehearsalPsForTests(undefined);
+	}
+});
+
+test("M6: the `ps` child the wait itself started ends with the wait, not when it would have finished", async () => {
+	const script = join(base, "slow-ps.mjs");
+	const pidFile = join(base, "slow-ps.pid");
+	await writeFile(
+		script,
+		`import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(pidFile)}, String(process.pid));\nsetTimeout(() => {}, 3000);\n`,
+	);
+	setRehearsalPsCommandForTests(process.execPath, [script]);
+	try {
+		assert.equal(
+			await waitForRootProcesses("/tmp/aw-root", 400, 20),
+			"unknown",
+		);
+		const pid = Number(readFileSync(pidFile, "utf8"));
+		assert.ok(pid > 0);
+		const waited = Date.now();
+		let alive = true;
+		while (alive && Date.now() - waited < 1000) {
+			try {
+				process.kill(pid, 0);
+				await new Promise((resolve) => setTimeout(resolve, 20));
+			} catch {
+				alive = false;
+			}
+		}
+		assert.equal(alive, false, "the scanner child was ended with the wait");
+		assert.ok(Date.now() - waited < 600, "ended within a small margin");
+	} finally {
+		setRehearsalPsCommandForTests(undefined);
+	}
+});
+
+/**
+ * Remove a root a test rehearsal kept on purpose. Its durable worker or terminal finalizer may still be writing
+ * (the hooked `ps` let the rehearsal return without waiting), so wait for them with the real `ps` first and retry
+ * the removal: a plain rm raced them (ENOTEMPTY, 2 of ~5 runs).
+ */
+async function removeKeptRoot(root) {
+	if (typeof root !== "string") return;
+	setRehearsalPsForTests(undefined);
+	await waitForRootProcesses(root, 10_000);
+	await rm(root, {
+		recursive: true,
+		force: true,
+		maxRetries: 10,
+		retryDelay: 100,
+	});
+}
+
+/** Rehearse with a hooked `ps` and a spy on the removal; returns what the rehearsal left. */
+async function rehearseWithPs(ps) {
+	const cwd = await project();
+	const path = await writeSpec(cwd, "one", ONE_STAGE);
+	const removed = [];
+	setRehearsalPsForTests(ps);
+	setRehearsalRemoveForTests((root) => {
+		removed.push(root);
+		rmSync(root, { recursive: true, force: true });
+	});
+	setRehearsalSettleWaitForTests(300);
+	try {
+		const result = await rehearseWorkflow(cwd, { workflow: path });
+		return { result, removed };
+	} finally {
+		setRehearsalPsForTests(undefined);
+		setRehearsalRemoveForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+	}
+}
+
+for (const [label, ps] of [
+	[
+		"ps failing until the deadline",
+		async () => {
+			throw Object.assign(new Error("EAGAIN"), { code: "EAGAIN" });
+		},
+	],
+	[
+		"ps unavailable",
+		async () => {
+			throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+		},
+	],
+	["ps hanging", () => new Promise(() => {})],
+	[
+		"a writer still alive at the deadline",
+		async (root) => `  4242 node ${root}/home/worker.mjs\n`,
+	],
+]) {
+	test(`settle: ${label} keeps the temporary root and reports it as left behind`, async () => {
+		const { result, removed } = await rehearseWithPs(ps);
+		try {
+			assert.equal(result.report.ok, true, result.report.findings.join("\n"));
+			assert.deepEqual(removed, [], "the root was not removed");
+			assert.match(result.leftover, /aw-rehearse-/u);
+			assert.ok(existsSync(result.leftover), "the reported path exists");
+		} finally {
+			await removeKeptRoot(result.leftover);
+		}
+	});
+}
+
+test("N4: a rehearsal that throws after keeping its temporary root reports the kept path on the error", async () => {
+	const cwd = await project();
+	const path = await writeSpec(cwd, "one", ONE_STAGE);
+	setRehearsalPsForTests(async () => {
+		throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+	});
+	setRehearsalSettleWaitForTests(100);
+	const controller = new AbortController();
+	controller.abort();
+	let error;
+	try {
+		await rehearseWorkflow(cwd, { workflow: path, signal: controller.signal });
+	} catch (caught) {
+		error = caught;
+	} finally {
+		setRehearsalPsForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+	}
+	assert.ok(error instanceof Error, "the cancelled rehearsal threw");
+	try {
+		assert.match(error.retainedRoot, /aw-rehearse-/u);
+		assert.ok(existsSync(error.retainedRoot), "the reported path exists");
+		assert.ok(
+			error.message.includes(error.retainedRoot),
+			`the message names the kept path: ${error.message}`,
+		);
+	} finally {
+		await removeKeptRoot(error.retainedRoot);
+	}
+});
+
+test("N4: a frozen abort reason is not mutated; the thrown error wraps it with cause, reason and the kept path", async () => {
+	const cwd = await project();
+	const path = await writeSpec(cwd, "one", ONE_STAGE);
+	setRehearsalPsForTests(async () => {
+		throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+	});
+	setRehearsalSettleWaitForTests(100);
+	const reason = Object.freeze(new Error("cancelled by host"));
+	let error;
+	try {
+		await rehearseWorkflow(cwd, {
+			workflow: path,
+			signal: AbortSignal.abort(reason),
+		});
+	} catch (caught) {
+		error = caught;
+	} finally {
+		setRehearsalPsForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+	}
+	try {
+		assert.ok(error instanceof Error, "an error was thrown");
+		assert.notEqual(error, reason, "a fresh error, not the caller's");
+		assert.equal(error.cause, reason);
+		assert.match(error.message, /cancelled by host/u);
+		assert.match(error.retainedRoot, /aw-rehearse-/u);
+		assert.ok(error.message.includes(error.retainedRoot));
+		assert.ok(existsSync(error.retainedRoot), "the reported path exists");
+		assert.equal(
+			reason.message,
+			"cancelled by host",
+			"the reason is untouched",
+		);
+		assert.equal(Object.hasOwn(reason, "retainedRoot"), false);
+	} finally {
+		await removeKeptRoot(error?.retainedRoot);
+	}
+});
+
+test("R3-2: a rehearsal waiting in the queue rejects promptly on its own abort and never runs its body", async () => {
+	const a = await project();
+	const aPath = await writeSpec(a, "one", ONE_STAGE);
+	const b = await project();
+	const mark = join(b, "ran.txt");
+	await mkdir(join(b, "helpers"), { recursive: true });
+	await writeFile(
+		join(b, "helpers", "mark.mjs"),
+		`import { writeFileSync } from "node:fs"; export default async function () { writeFileSync(${JSON.stringify(mark)}, "ran"); return { schema: "g-v1", status: "passed", digest: "ok" }; }\n`,
+	);
+	const bPath = await writeSpec(b, "marked", {
+		schemaVersion: 1,
+		name: "marked",
+		defaults: DEFAULTS,
+		artifactGraph: {
+			stages: [
+				{ id: "a", type: "single", prompt: "Do a." },
+				{ id: "g", from: "a", support: { uses: "./helpers/mark.mjs" } },
+			],
+		},
+	});
+	let release;
+	const gate = new Promise((resolve) => {
+		release = resolve;
+	});
+	let held;
+	const holding = new Promise((resolve) => {
+		held = resolve;
+	});
+	setRehearsalPsForTests(async () => {
+		held();
+		await gate;
+		return "";
+	});
+	setRehearsalSettleWaitForTests(20_000);
+	let first;
+	try {
+		// A is held at its final process scan; B queues behind it and is cancelled while queued.
+		first = rehearseWorkflow(a, { workflow: aPath });
+		await holding;
+		const controller = new AbortController();
+		const second = rehearseWorkflow(b, {
+			workflow: bPath,
+			keep: true,
+			signal: controller.signal,
+		});
+		controller.abort(new Error("cancelled while queued"));
+		const outcome = await Promise.race([
+			second.then(
+				() => "resolved",
+				(error) => error,
+			),
+			new Promise((resolve) => setTimeout(() => resolve("pending"), 1500)),
+		]);
+		assert.notEqual(outcome, "pending", "B rejected without waiting for A");
+		assert.match(String(outcome?.message), /cancelled while queued/u);
+		assert.equal(outcome?.retainedRoot, undefined, "B never created a root");
+		// A pre-aborted signal behind a busy queue is the same.
+		const early = AbortSignal.abort(new Error("already aborted"));
+		const third = await Promise.race([
+			rehearseWorkflow(b, { workflow: bPath, signal: early }).then(
+				() => "resolved",
+				(error) => error,
+			),
+			new Promise((resolve) => setTimeout(() => resolve("pending"), 1500)),
+		]);
+		assert.notEqual(third, "pending");
+		assert.match(String(third?.message), /already aborted/u);
+		release();
+		await first;
+		// A later call runs after the skipped ones: B's helper never executed.
+		const later = await rehearseWorkflow(a, { workflow: aPath });
+		assert.equal(later.report.ok, true, later.report.findings.join("\n"));
+		assert.equal(
+			existsSync(mark),
+			false,
+			"the cancelled rehearsal's body did not run",
+		);
+	} finally {
+		release();
+		await first?.catch(() => undefined);
+		setRehearsalPsForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+	}
+});
+
+test("R3-3: the exception path never calls a root safe to delete when the last scan was busy or unknown", async () => {
+	for (const [label, ps, expected] of [
+		[
+			"busy",
+			async (root) => `  4242 node ${root}/home/worker.mjs\n`,
+			/a worker process was still using it/u,
+		],
+		[
+			"unknown",
+			async () => {
+				throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+			},
+			/could not be checked/u,
+		],
+	]) {
+		const cwd = await project();
+		const path = await writeSpec(cwd, "one", ONE_STAGE);
+		setRehearsalPsForTests(ps);
+		setRehearsalSettleWaitForTests(100);
+		const controller = new AbortController();
+		controller.abort();
+		let error;
+		try {
+			await rehearseWorkflow(cwd, {
+				workflow: path,
+				signal: controller.signal,
+			});
+		} catch (caught) {
+			error = caught;
+		} finally {
+			setRehearsalPsForTests(undefined);
+			setRehearsalSettleWaitForTests(undefined);
+		}
+		try {
+			assert.ok(error instanceof Error, label);
+			assert.ok(error.message.includes(error.retainedRoot), label);
+			assert.match(error.message, expected, label);
+			assert.match(
+				error.message,
+				/wait for workers to exit before removing it/u,
+			);
+			assert.doesNotMatch(error.message, /safe to delete by hand/u, label);
+		} finally {
+			await removeKeptRoot(error?.retainedRoot);
+		}
+	}
+});
+
+test("R3-3 (R4): the retained-root note is appended even when the original message already names a file under the root", async () => {
+	const cwd = await project();
+	const path = await writeSpec(cwd, "one", ONE_STAGE);
+	setRehearsalPsForTests(async () => {
+		throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+	});
+	setRehearsalSettleWaitForTests(100);
+	setRunLeaseTestHooksForTests({
+		onBeforeAtomicRename: ({ file }) => {
+			if (file.endsWith("run.json"))
+				throw Object.assign(new Error(`I/O error writing ${file}`), {
+					code: "EIO",
+				});
+		},
+	});
+	let error;
+	try {
+		await rehearseWorkflow(cwd, { workflow: path });
+	} catch (caught) {
+		error = caught;
+	} finally {
+		setRunLeaseTestHooksForTests(undefined);
+		setRehearsalPsForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+	}
+	try {
+		assert.ok(error instanceof Error);
+		assert.equal(error.code, "EIO");
+		assert.ok(existsSync(error.retainedRoot));
+		assert.match(error.cause.message, /^I\/O error writing /u);
+		assert.ok(
+			error.cause.message.includes(error.retainedRoot),
+			"the original message names a file under the root",
+		);
+		assert.match(error.message, /Temporary state kept at /u);
+		assert.match(error.message, /wait for workers to exit before removing it/u);
+		assert.doesNotMatch(error.message, /safe to delete by hand/u);
+	} finally {
+		await removeKeptRoot(error?.retainedRoot);
+	}
+});
+
+test("settle: a quiet root is still removed (no regression of the eventual-quiet path)", async () => {
+	let calls = 0;
+	const { result, removed } = await rehearseWithPs(async (root) => {
+		calls += 1;
+		return calls < 3 ? `  4242 node ${root}/home/worker.mjs\n` : "";
+	});
+	assert.equal(result.leftover, undefined);
+	assert.equal(removed.length, 1);
+	assert.equal(existsSync(removed[0]), false);
 });

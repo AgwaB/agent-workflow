@@ -1,4 +1,5 @@
-// `agent-workflow rehearse`: run a workflow through the real engine with no model and no network.
+// `agent-workflow rehearse`: run a workflow through the real engine with a synthetic worker in place of the
+// model (the worker calls no model and uses no network; support helpers are trusted code and are not confined).
 // Every model task is answered by the synthetic executor (src/core/rehearsal-executor.ts) with a control
 // generated from the stage's own control schema; support helpers and dynamic controllers run for real
 // (trusted local code); required artifact reads go through the real workflow_artifact tool. The result is a
@@ -21,7 +22,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { compileWorkflow } from "./compiler.js";
-import { runWorkflowSpec, waitForRun } from "./engine.js";
+import { drainEngineScope, runWorkflowSpec, waitForRun } from "./engine.js";
+import { openEngineScope } from "./engine-scope.js";
 import { agentWorkflowHome, AGENT_WORKFLOW_HOME_ENV } from "./home-dir.js";
 import { registerWorkflowExecutor } from "./executor-registry.js";
 import {
@@ -32,9 +34,14 @@ import {
 	foreachHintToJson,
 	type RehearsalForeachHint,
 } from "./rehearsal-executor.js";
-import { createShadowProject, hasDynamicStage } from "./rehearsal-shadow.js";
+import {
+	applyRehearsalGitEnv,
+	createShadowProject,
+	hasDynamicStage,
+} from "./rehearsal-shadow.js";
 import {
 	removeRehearsalRoot,
+	type RootQuiescence,
 	waitForRootProcesses,
 } from "./rehearsal-settle.js";
 import { loadWorkflowSpec } from "./schema.js";
@@ -59,7 +66,12 @@ export const REHEARSAL_DEFAULT_ITEMS = 2;
 export const REHEARSAL_MAX_ITEMS = 20;
 const RUN_WAIT_MS = 10 * 60_000;
 /** How long to wait for the run's worker and finalizer processes to stop writing before cleanup. */
-const SETTLE_WAIT_MS = 30_000;
+let settleWaitMs = 30_000;
+
+/** Test seam: shorten (or restore, with `undefined`) the settle wait. */
+export function setRehearsalSettleWaitForTests(ms: number | undefined): void {
+	settleWaitMs = ms ?? 30_000;
+}
 const RUN_INDEX_DIR_ENV = "AGENT_WORKFLOW_RUN_INDEX_DIR";
 
 export type RehearsalLoopMode = "pass" | "exhaust";
@@ -97,8 +109,9 @@ export interface RehearsalStageReport {
 	/** Support/dynamic helper tasks that failed, with the helper's message. */
 	helperErrors: string[];
 	/**
-	 * Support helpers that ran and declared `failed`/`blocked` themselves: a content gate (for example an
-	 * owner-ledger reconciliation) that synthetic outputs cannot satisfy. Reported, not a wiring failure.
+	 * Support helpers that ran and declared `failed`/`blocked` themselves. Rehearsal cannot tell a content gate
+	 * that synthetic outputs cannot satisfy (for example an owner-ledger reconciliation) from a setup problem:
+	 * the helper's own reason is the only evidence. Reported, not counted as a wiring failure.
 	 */
 	gates: Array<{ task: string; status: string; reasons: string[] }>;
 }
@@ -116,14 +129,14 @@ export interface RehearsalReport {
 	workflow: string;
 	options: { items: number; loop: RehearsalLoopMode };
 	/**
-	 * The rehearsal's outcome: `content-gates` when the wiring is fine and only the workflow's own content
-	 * gates rejected the synthetic data (see `gates`); `invalid-spec` when the spec did not load or compile;
+	 * The rehearsal's outcome: `content-gates` when no wiring fault was diagnosed and a helper declared
+	 * `failed`/`blocked` on the synthetic data (see `gates`); `invalid-spec` when the spec did not load or compile;
 	 * otherwise the run's final status (`completed` or, with findings, `failed`, `blocked`, ...).
 	 */
 	status: string;
 	/** The run's own final status (`failed`/`blocked` under `content-gates`), or `invalid-spec`. */
 	runStatus: string;
-	/** True when the rehearsal found nothing wrong with the wiring (also under `content-gates`). */
+	/** True when no wiring fault was diagnosed (also under `content-gates`); that is not proof the wiring is right. */
 	ok: boolean;
 	/** Stages with skipped tasks when content gates ended the run early (they never ran). */
 	skippedAfterGates: string[];
@@ -144,6 +157,17 @@ export interface RehearsalResult {
 	stateRoot?: string;
 	/** The temporary root that could not be fully removed (or that a process was still using). */
 	leftover?: string;
+	/** What the last process scan said about `leftover`: only `quiet` means nothing was using it. */
+	leftoverState?: RootQuiescence;
+}
+
+/** What to tell the user about a kept root: it is safe to delete by hand only when the last scan found it quiet. */
+export function keptRootAdvice(state: RootQuiescence | undefined): string {
+	if (state === "busy")
+		return "a worker process was still using it at the last check; wait for workers to exit before removing it";
+	if (state === "unknown")
+		return "whether a worker process still uses it could not be checked; wait for workers to exit before removing it";
+	return "no process was using it at the last check; safe to delete by hand";
 }
 
 export function validateRehearsalOptions(options: RehearsalOptions): string[] {
@@ -568,7 +592,118 @@ function invalidSpecReport(
 	};
 }
 
-export async function rehearseWorkflow(
+/**
+ * True when any compiled task needs a managed worktree: the top-level tasks and the templates the engine
+ * materializes later (a loop's child stages and its onExhausted stage; the placeholder of a loop itself is
+ * read-only), review 2026-11-23 M7.
+ */
+function compiledCanWrite(compiled: {
+	tasks?: Array<{ safety?: { requiresWorktree?: boolean } }>;
+	stages?: Array<Record<string, unknown>>;
+}): boolean {
+	const writes = (task: { safety?: { requiresWorktree?: boolean } }): boolean =>
+		task.safety?.requiresWorktree === true;
+	if ((compiled.tasks ?? []).some(writes)) return true;
+	for (const stage of compiled.stages ?? []) {
+		const templates = stage.childTemplates;
+		if (
+			Array.isArray(templates) &&
+			(templates as Array<{ safety?: { requiresWorktree?: boolean } }>).some(
+				writes,
+			)
+		)
+			return true;
+		const exhausted = stage.onExhausted as
+			| { template?: { safety?: { requiresWorktree?: boolean } } }
+			| undefined;
+		if (exhausted?.template !== undefined && writes(exhausted.template))
+			return true;
+	}
+	return false;
+}
+
+// A rehearsal swaps process-global state (the agent-workflow home, the run index, the git environment) and
+// restores it afterwards, so two overlapping calls in one process would restore each other's values out of
+// order. They run one after the other: save/restore is strictly nested, and a call that loads and compiles
+// the workflow never sees another rehearsal's temporary home.
+let rehearsalQueue: Promise<unknown> = Promise.resolve();
+let rehearsalsInQueue = 0;
+
+export function rehearseWorkflow(
+	cwd: string,
+	options: RehearsalOptions,
+): Promise<RehearsalResult> {
+	const signal = options.signal;
+	const mustWait = rehearsalsInQueue > 0;
+	// "queued" until its turn: a call whose own signal aborts while it waits is rejected at once and its body is
+	// skipped when its turn comes (the actual runs stay one after the other).
+	let state: "queued" | "running" | "cancelled" = "queued";
+	rehearsalsInQueue += 1;
+	const turn = rehearsalQueue.then(() => {
+		// SAFETY: a cancelled call's returned promise was rejected when it was cancelled, so this resolution is
+		// never observed; only the queue's tail (which ignores values) sees it.
+		if (state === "cancelled") return undefined as unknown as RehearsalResult;
+		state = "running";
+		return rehearseWorkflowNow(cwd, options);
+	});
+	const settled = turn.then(
+		() => undefined,
+		() => undefined,
+	);
+	rehearsalQueue = settled;
+	void settled.then(() => {
+		rehearsalsInQueue -= 1;
+	});
+	if (signal === undefined || !mustWait) return turn;
+	return new Promise<RehearsalResult>((resolve, reject) => {
+		const cancel = (): void => {
+			if (state !== "queued") return;
+			state = "cancelled";
+			reject(signal.reason ?? new Error("rehearsal cancelled"));
+		};
+		if (signal.aborted) cancel();
+		else signal.addEventListener("abort", cancel, { once: true });
+		turn.then(resolve, reject).finally(() => {
+			signal.removeEventListener("abort", cancel);
+		});
+	});
+}
+
+/**
+ * A fresh error for a failed rehearsal whose temporary root stays behind: the original message and reason as
+ * `cause`, the root as `retainedRoot` and in the message. The caller's error (it can be frozen, e.g. an abort
+ * reason) is never modified.
+ */
+function withRetainedRoot(
+	failure: unknown,
+	root: string,
+	state: RootQuiescence | undefined,
+): Error {
+	const original = failure instanceof Error ? failure : undefined;
+	const note = `Temporary state kept at ${root} (${keptRootAdvice(state)})`;
+	const reason = original?.message ?? String(failure);
+	// The note is always appended: an original message that names a file inside the root (an I/O error does)
+	// still says nothing about the root being kept or whether it is safe to touch.
+	const error = new Error(`${reason}\n${note}`, { cause: failure });
+	if (original !== undefined && original.name !== "Error")
+		Object.defineProperty(error, "name", {
+			value: original.name,
+			enumerable: false,
+			configurable: true,
+			writable: true,
+		});
+	const code = (original as { code?: unknown } | undefined)?.code;
+	if (code !== undefined) Object.assign(error, { code });
+	Object.defineProperty(error, "retainedRoot", {
+		value: root,
+		enumerable: false,
+		configurable: true,
+		writable: true,
+	});
+	return error;
+}
+
+async function rehearseWorkflowNow(
 	cwd: string,
 	options: RehearsalOptions,
 ): Promise<RehearsalResult> {
@@ -594,10 +729,8 @@ export async function rehearseWorkflow(
 		warnings = [...compiled.warnings];
 		// A stage that can write gets a managed git worktree from the engine; see rehearsal-shadow.ts.
 		canWrite =
-			(compiled.tasks ?? []).some(
-				(compiledTask: { safety?: { requiresWorktree?: boolean } }) =>
-					compiledTask.safety?.requiresWorktree === true,
-			) || hasDynamicStage(loaded.spec.artifactGraph?.stages ?? []);
+			compiledCanWrite(compiled) ||
+			hasDynamicStage(loaded.spec.artifactGraph?.stages ?? []);
 	} catch (error) {
 		if (error instanceof WorkflowValidationError)
 			return { report: invalidSpecReport(options, settings, error.issues) };
@@ -614,13 +747,23 @@ export async function rehearseWorkflow(
 		rehearsal: process.env[REHEARSAL_ENV],
 	};
 	let unregister: (() => void) | undefined;
+	let restoreGitEnv: (() => void) | undefined;
 	let outcome: RehearsalResult | undefined;
 	let leftover: string | undefined;
+	let quiescence: RootQuiescence | undefined;
+	let failed = false;
+	let failure: unknown;
+	// Every run the engine watches or writes while the environment is swapped (the rehearsal's own and its
+	// `ctx.workflow` descendants') is owned by this scope; it is drained before the environment is restored.
+	let engineScope: ReturnType<typeof openEngineScope> | undefined;
 	// Everything after the temp root exists runs inside the try, so a failure here still restores the
 	// environment and removes the temp root (review 2026-11-22).
 	try {
 		mkdirSync(tempHome, { recursive: true });
 		linkReadOnlyHomeEntries(realHome, tempHome);
+		// All git of the rehearsal (the clone, the engine's worktrees) runs without the user's system/global
+		// configuration; the root also arms the worktree guard (see assertRehearsalGitRoot).
+		restoreGitEnv = applyRehearsalGitEnv(tempRoot);
 		// R3: a workflow that can write runs in a shadow clone of the project inside the temporary root, so
 		// the engine's worktrees and `agent-workflow/<run>-<task>` branches never reach the user's repository.
 		const runCwd =
@@ -641,6 +784,7 @@ export async function rehearseWorkflow(
 				),
 			},
 		});
+		engineScope = openEngineScope();
 		process.env[AGENT_WORKFLOW_HOME_ENV] = tempHome;
 		process.env[RUN_INDEX_DIR_ENV] = join(tempHome, "run-index");
 		process.env[REHEARSAL_ENV] = "1";
@@ -676,8 +820,19 @@ export async function rehearseWorkflow(
 			report,
 			...(options.keep === true ? { stateRoot: tempRoot } : {}),
 		};
+	} catch (error) {
+		// Rethrown after the cleanup below, with the path of any root that stays behind.
+		failed = true;
+		failure = error;
 	} finally {
+		// The engine resolves the state root from `process.env` at every step of its own async work (supervisor
+		// ticks, debounced run-index updates), for the run and for every descendant it started. Close the
+		// scope and let all of that work finish before the environment is restored, or a late step lands in
+		// the user's home (R3, R4).
+		if (engineScope !== undefined)
+			await drainEngineScope(engineScope.scope).catch(() => undefined);
 		unregister?.();
+		restoreGitEnv?.();
 		for (const [name, previous] of [
 			[AGENT_WORKFLOW_HOME_ENV, savedEnv.home],
 			[RUN_INDEX_DIR_ENV, savedEnv.index],
@@ -686,16 +841,27 @@ export async function rehearseWorkflow(
 			if (previous === undefined) delete process.env[name];
 			else process.env[name] = previous;
 		}
+		engineScope?.release();
 		// The engine can see the run end while a durable worker or its detached terminal finalizer is
-		// still writing under the root: wait for every process that names it, then remove it. Cleanup
-		// never throws; what it cannot remove is reported.
-		const quiet = await waitForRootProcesses(tempRoot, SETTLE_WAIT_MS);
-		if (options.keep !== true) {
-			leftover = removeRehearsalRoot(tempRoot);
-			if (leftover === undefined && !quiet) leftover = tempRoot;
-		}
+		// still writing under the root: wait for every process that names it. Only a root known to be
+		// quiet is removed; one a process still uses, or whose users cannot be enumerated, is kept and
+		// reported as left behind (the path exists). Cleanup never throws and never signals a process.
+		quiescence = await waitForRootProcesses(tempRoot, settleWaitMs);
+		if (options.keep !== true)
+			leftover =
+				quiescence === "quiet" ? removeRehearsalRoot(tempRoot) : tempRoot;
+	}
+	if (failed) {
+		const retained = options.keep === true ? tempRoot : leftover;
+		if (retained !== undefined && existsSync(retained))
+			throw withRetainedRoot(failure, retained, quiescence);
+		throw failure;
 	}
 	return leftover === undefined
 		? (outcome as RehearsalResult)
-		: { ...(outcome as RehearsalResult), leftover };
+		: {
+				...(outcome as RehearsalResult),
+				leftover,
+				...(quiescence === undefined ? {} : { leftoverState: quiescence }),
+			};
 }

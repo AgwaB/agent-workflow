@@ -412,6 +412,140 @@ test("a foreach source array without minItems warns once; minItems (even 0) or a
 	assert.equal(matching(helper, /has no minItems/).length, 0);
 });
 
+test("array bounds proven through allOf count; unprovable leaf combinators and hyphenated paths are handled", async () => {
+	const stages = (path = "$.items") => [
+		single("plan", {
+			output: { controlSchema: "./schemas/plan.json" },
+		}),
+		{
+			id: "fe",
+			type: "foreach",
+			profileRole: "verification",
+			from: { source: "plan", path },
+			each: { prompt: "Check ${item}." },
+		},
+	];
+	const withItems = (items, key = "items") =>
+		schema({ [key]: { type: "array", items: { type: "string" }, ...items } });
+	const run = (items, path, key) =>
+		validate(stages(path), { "schemas/plan.json": withItems(items, key) });
+
+	// False positive: a lower/upper bound proven through allOf is present.
+	const proven = await run({ allOf: [{ minItems: 1 }, { maxItems: 8 }] });
+	assert.equal(matching(proven, /has no minItems/).length, 0);
+	assert.equal(matching(proven, /has no maxItems/).length, 0);
+	const nested = await run({ allOf: [{ allOf: [{ minItems: 1 }] }] });
+	assert.equal(matching(nested, /has no minItems/).length, 0);
+	// An allOf that proves nothing is still absent.
+	const absent = await run({ allOf: [{ description: "x" }] });
+	assert.equal(matching(absent, /has no minItems/).length, 1);
+	assert.equal(matching(absent, /has no maxItems/).length, 1);
+
+	// Leaf combinators that cannot be proven give no warning either way.
+	for (const extra of [
+		{ anyOf: [{ minItems: 1 }, { maxItems: 3 }] },
+		{ oneOf: [{ minItems: 1 }, { minItems: 2 }] },
+		{ allOf: [{ anyOf: [{ minItems: 1 }] }] },
+		// Constraints the scan does not evaluate: a finite domain decides what [] and the size are.
+		{ allOf: [{ enum: [["one"], ["two"]] }] },
+		{ enum: [["one"], ["two"]] },
+		{ const: ["one"] },
+		{ allOf: [{ const: ["one", "two"] }] },
+		{ allOf: [{ oneOf: [{ minItems: 1 }, { minItems: 2 }] }] },
+	]) {
+		const unknown = await run(extra);
+		assert.equal(matching(unknown, /has no minItems/).length, 0);
+		assert.equal(matching(unknown, /has no maxItems/).length, 0);
+	}
+
+	// False negative: a hyphenated key reads at runtime, so the scan sees the same array.
+	const hyphen = await run({}, "$.work-items", "work-items");
+	assert.equal(matching(hyphen, /has no minItems/).length, 1);
+	assert.equal(matching(hyphen, /has no maxItems/).length, 1);
+	const hyphenOk = await run(
+		{ minItems: 0, maxItems: 4 },
+		"$.work-items",
+		"work-items",
+	);
+	assert.equal(matching(hyphenOk, /has no minItems/).length, 0);
+	assert.equal(matching(hyphenOk, /has no maxItems/).length, 0);
+	const hyphenProven = await run(
+		{ allOf: [{ minItems: 1, maxItems: 4 }] },
+		"$.work-items",
+		"work-items",
+	);
+	assert.equal(matching(hyphenProven, /has no minItems/).length, 0);
+});
+
+test("m3: a const/enum on an ANCESTOR of the foreach array makes the array bounds unknown, other path checks stay", async () => {
+	const stages = (path) => [
+		single("plan", { output: { controlSchema: "./schemas/plan.json" } }),
+		{
+			id: "fe",
+			type: "foreach",
+			profileRole: "verification",
+			from: { source: "plan", path },
+			each: { prompt: "Check ${item}." },
+		},
+	];
+	const items = { type: "array", items: { type: "string" } };
+	const batchSchemas = {
+		const: schema({
+			batch: {
+				type: "object",
+				const: { items: ["one"] },
+				properties: { items },
+			},
+		}),
+		enum: schema({
+			batch: {
+				type: "object",
+				enum: [{ items: ["one"] }, { items: ["two"] }],
+				properties: { items },
+			},
+		}),
+		deeper: schema({
+			rows: {
+				type: "array",
+				items: {
+					type: "object",
+					const: { items: ["one"] },
+					properties: { items },
+				},
+			},
+		}),
+	};
+	for (const [name, path] of [
+		["const", "$.batch.items"],
+		["enum", "$.batch.items"],
+		["deeper", "$.rows[*].items"],
+	]) {
+		const compiled = await validate(stages(path), {
+			"schemas/plan.json": batchSchemas[name],
+		});
+		assert.equal(matching(compiled, /has no minItems/).length, 0, name);
+		assert.equal(matching(compiled, /has no maxItems/).length, 0, name);
+	}
+	// The same shape without the ancestor constraint still warns (the array is not exempt by position).
+	const plain = await validate(stages("$.batch.items"), {
+		"schemas/plan.json": schema({
+			batch: { type: "object", properties: { items } },
+		}),
+	});
+	assert.equal(matching(plain, /has no minItems/).length, 1);
+	assert.equal(matching(plain, /has no maxItems/).length, 1);
+	// An ancestor constraint does not hide an undeclared loop `until` path (the lookup is still "missing").
+	const { lookupControlSchemaPath } = await import(
+		"../../dist/core/control-schema-path.js"
+	);
+	const missing = lookupControlSchemaPath(
+		batchSchemas.const,
+		"$.batch.nothere",
+	);
+	assert.equal(missing.status, "missing");
+	assert.equal(missing.property, "nothere");
+});
+
 test("minItems: 1 on the source array makes an empty model answer an output-validation failure", () => {
 	const controlJsonSchema = schema({
 		items: { type: "array", items: { type: "string" }, minItems: 1 },

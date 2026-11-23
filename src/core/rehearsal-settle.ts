@@ -8,14 +8,34 @@ import { rmSync } from "node:fs";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+// A standalone `processesUsingRoot` call has no deadline; the scanner is still bounded.
+const PS_UNBOUNDED_MS = 30_000;
 const PAYLOAD_TOKEN = /^[A-Za-z0-9_-]{24,}$/u;
 
-type PsRunner = () => Promise<string>;
+type PsRunner = (root: string, timeoutMs: number) => Promise<string>;
 
-async function runPs(): Promise<string> {
+let psCommandForTests: { file: string; args: string[] } | undefined;
+
+/** Test seam: run another command in place of `ps` (a finite stand-in the rehearsal starts and must end). */
+export function setRehearsalPsCommandForTests(
+	file: string | undefined,
+	args: string[] = [],
+): void {
+	psCommandForTests = file === undefined ? undefined : { file, args };
+}
+
+// The scanner is this rehearsal's own child, not an enumerated process: when the wait gives up, Node ends it
+// (`timeout` + `killSignal`), so it never outlives the wait in an embedding host.
+async function runPs(_root: string, timeoutMs: number): Promise<string> {
+	const command = psCommandForTests ?? {
+		file: "ps",
+		args: ["-A", "-o", "pid=", "-o", "args="],
+	};
 	return (
-		await execFileAsync("ps", ["-A", "-o", "pid=", "-o", "args="], {
+		await execFileAsync(command.file, command.args, {
 			maxBuffer: 64 * 1024 * 1024,
+			timeout: Math.max(timeoutMs, 1),
+			killSignal: "SIGKILL",
 		})
 	).stdout;
 }
@@ -29,15 +49,18 @@ export function setRehearsalPsForTests(hook: PsRunner | undefined): void {
 
 type ProcessScan =
 	| { kind: "pids"; pids: number[] }
-	// `ps` does not exist here (e.g. Windows): there is nothing to wait on, and never will be.
+	// `ps` does not exist here (e.g. Windows): the root cannot be checked, and never will be.
 	| { kind: "unavailable" }
 	// `ps` exists but this call failed (load, EAGAIN, a signal): says nothing about the root.
 	| { kind: "failed" };
 
-async function scanProcesses(root: string): Promise<ProcessScan> {
+async function scanProcesses(
+	root: string,
+	timeoutMs: number,
+): Promise<ProcessScan> {
 	let text: string;
 	try {
-		text = await (psForTests ?? runPs)();
+		text = await (psForTests ?? runPs)(root, timeoutMs);
 	} catch (error) {
 		return (error as NodeJS.ErrnoException | undefined)?.code === "ENOENT"
 			? { kind: "unavailable" }
@@ -59,7 +82,7 @@ async function scanProcesses(root: string): Promise<ProcessScan> {
 export async function processesUsingRoot(
 	root: string,
 ): Promise<number[] | undefined> {
-	const scan = await scanProcesses(root);
+	const scan = await scanProcesses(root, PS_UNBOUNDED_MS);
 	return scan.kind === "pids" ? scan.pids : undefined;
 }
 
@@ -76,22 +99,47 @@ function payloadNamesRoot(args: string, root: string): boolean {
 	return false;
 }
 
+/** What is known about `root` at the end of a wait: only `quiet` allows removing it. */
+export type RootQuiescence = "quiet" | "busy" | "unknown";
+
+/** `scanProcesses` bounded by `budgetMs`: a `ps` that does not answer in time reads as a failed scan (never killed). */
+async function scanWithin(
+	root: string,
+	budgetMs: number,
+): Promise<ProcessScan> {
+	let timer: NodeJS.Timeout | undefined;
+	const expired = new Promise<ProcessScan>((resolve) => {
+		timer = setTimeout(() => resolve({ kind: "failed" }), budgetMs);
+	});
+	try {
+		return await Promise.race([scanProcesses(root, budgetMs), expired]);
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
 /**
- * Wait until no process refers to `root`. Returns false when some still do at the deadline, or when `ps`
- * kept failing until then (a failed scan is not evidence of quiet). Returns true at once only when `ps`
- * does not exist on this platform; the caller then relies on removal retries and the leftover report.
+ * Wait until no process refers to `root`; every `ps` call is bounded by the time left. Three outcomes:
+ * `quiet` — a scan saw no process; `busy` — a process was still using the root when the deadline came;
+ * `unknown` — no scan succeeded (`ps` missing, failing or hanging until the deadline), which is not evidence of
+ * quiet. The caller removes the root only on `quiet`. Nothing is ever signalled.
  */
 export async function waitForRootProcesses(
 	root: string,
 	timeoutMs: number,
 	pollMs = 50,
-): Promise<boolean> {
+): Promise<RootQuiescence> {
 	const deadline = Date.now() + timeoutMs;
+	let seenBusy = false;
 	for (;;) {
-		const scan = await scanProcesses(root);
-		if (scan.kind === "unavailable") return true;
-		if (scan.kind === "pids" && scan.pids.length === 0) return true;
-		if (Date.now() >= deadline) return false;
+		const scan = await scanWithin(root, Math.max(deadline - Date.now(), 1));
+		// `ps` does not exist here (e.g. Windows): it never will, and nothing can be said about the root.
+		if (scan.kind === "unavailable") return "unknown";
+		if (scan.kind === "pids") {
+			if (scan.pids.length === 0) return "quiet";
+			seenBusy = true;
+		}
+		if (Date.now() >= deadline) return seenBusy ? "busy" : "unknown";
 		await new Promise((resolve) => setTimeout(resolve, pollMs));
 	}
 }

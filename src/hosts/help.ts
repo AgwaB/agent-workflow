@@ -41,14 +41,16 @@ reasons when something would stop the run. No run is created and no model is cal
 	rehearse: `Usage: agent-workflow rehearse <workflow-name-or-path> [<task...>] [--items N] [--loop pass|exhaust]
                            [--keep] [--json]
 
-Run a workflow through the real engine with a synthetic worker: no model call, no network, run state
-in a temporary directory (removed unless --keep). Every model task gets a deterministic control made
-from its own control schema and reads its required artifacts through the real artifact tool; helpers
-and dynamic controllers run for real. Reports per stage the tasks, sources received, required reads
-that do not resolve, foreach item counts, loop rounds, helper errors and whether the final report
-rendered. --items N sets the item count of unbounded arrays (default 2); --loop exhaust keeps every
-loop's until false so onExhausted runs (default pass: until holds on round 1). Exit 0 when the wiring
-is sound, 1 when problems were found or the spec is invalid, 2 usage error.`,
+Run a workflow through the real engine with a synthetic worker. The synthetic worker makes no model call
+and no network request; the engine's run state is a temporary directory, removed only when no process
+still uses it (--keep keeps it). Support helpers and dynamic controllers run for real as trusted code that
+rehearse does not confine. Every model task gets a deterministic control made from its own control
+schema and reads its required artifacts through the real artifact tool. Reports per stage the tasks,
+sources received, required reads that do not resolve, foreach item counts, loop rounds, helper errors and
+whether the final report rendered. --items N sets the item count of unbounded arrays (default 2);
+--loop exhaust keeps every loop's until false so onExhausted runs (default pass: until holds on round 1).
+Exit 0 means no wiring fault was diagnosed (not proof the wiring is sound), 1 when problems were found
+or the spec is invalid, 2 usage error.`,
 	new: `Usage: agent-workflow new <pattern> <name> [--scope private|shared|global] [--force] [--json]
        agent-workflow new --list
 

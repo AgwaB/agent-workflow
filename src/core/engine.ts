@@ -53,6 +53,8 @@ import {
 	prepareWorkflowLaunchCommandArtifactPath,
 	resetTaskForResume,
 	setTaskTerminal,
+	hasIndexUpdateWorkForRun,
+	settleIndexUpdatesForRun,
 	clearWorkflowStopIntent,
 	toStatePath,
 	updateIndex,
@@ -64,6 +66,12 @@ import {
 	writeStaticRunArtifacts,
 	writeWorkflowLaunchCommandArtifact,
 } from "./store.js";
+import {
+	type EngineScope,
+	engineScopeClosed,
+	scopedRunKey,
+	tagRunInEngineScope,
+} from "./engine-scope.js";
 import { workflowTaskRunner } from "./task-launch.js";
 import { ensureRuntimeTaskRunnerRegistered } from "./task-runner.js";
 import {
@@ -146,6 +154,7 @@ import {
 	foreachStreamingEnabled,
 	foreachStreamingMinChunk,
 	markDagDependentsSkipped,
+	partialModelStageNoInputReason,
 	compiledTaskSpecId,
 	markFailFastCancellations,
 	nextTaskRecordIndex,
@@ -157,6 +166,7 @@ import {
 	replaceDependencyList,
 	sourceStageIdsForFrom,
 	stageSourcePolicy,
+	stagePolicyIndex,
 	updateDownstreamDependencies,
 	synchronizeTerminalBarrierSourceSpecIds,
 } from "./engine-run-graph.js";
@@ -391,6 +401,20 @@ export function setForeachMaterializationPersistenceHookForTests(
 const supervisorTimers = new Map<string, ReturnType<typeof setInterval>>();
 const supervisorRunMtimes = new Map<string, number>();
 const supervisorErrorCounts = new Map<string, number>();
+// A supervisor tick is an async chain that outlives the interval callback that started it.
+const supervisorTicksInFlight = new Map<string, Set<Promise<void>>>();
+let supervisorTickHookForTests:
+	| ((phase: "before-schedule", runId: string) => Promise<void>)
+	| undefined;
+let supervisorPollIntervalMs = POLL_INTERVAL_MS;
+
+export function setSupervisorTickForTests(options?: {
+	hook?: (phase: "before-schedule", runId: string) => Promise<void>;
+	pollIntervalMs?: number;
+}): void {
+	supervisorTickHookForTests = options?.hook;
+	supervisorPollIntervalMs = options?.pollIntervalMs ?? POLL_INTERVAL_MS;
+}
 const MAX_SUPERVISOR_CONSECUTIVE_ERRORS = 3;
 
 /** WP37: the saved user profile fields that sit below a declared profile (B2 precedence). */
@@ -3349,7 +3373,7 @@ export async function resumeSupervisors(
 }
 
 function unwatchRun(cwd: string, runId: string): void {
-	const key = `${cwd}\0${runId}`;
+	const key = scopedRunKey(cwd, runId);
 	const existing = supervisorTimers.get(key);
 	if (existing) clearInterval(existing);
 	supervisorTimers.delete(key);
@@ -3357,16 +3381,57 @@ function unwatchRun(cwd: string, runId: string): void {
 	supervisorErrorCounts.delete(key);
 }
 
+/**
+ * Stop supervising one run in this process and wait until nothing it started is still running: the
+ * watch timer is cleared, every supervisor tick already in flight finishes, and the run's pending
+ * advisory index update is flushed. A host that scopes the state root to a run calls this before
+ * restoring the environment; the tick and the index writer resolve the project state from
+ * `process.env` at every step, so one that outlived the swap would write into the user's home.
+ * Never rejects. A run that starts descendants needs `drainEngineScope`.
+ */
+export async function settleRunWork(cwd: string, runId: string): Promise<void> {
+	unwatchRun(cwd, runId);
+	const key = scopedRunKey(cwd, runId);
+	while (supervisorTicksInFlight.has(key))
+		await Promise.all([...(supervisorTicksInFlight.get(key) ?? [])]);
+	await settleIndexUpdatesForRun(cwd, runId);
+}
+
+/**
+ * Close an engine scope to new work and wait until everything tagged with it is idle: every watched or
+ * written run of the scope (descendants started with `ctx.workflow` included) is unwatched, its
+ * supervisor ticks in flight finish, and its pending and in-flight index batches are done. Work a
+ * draining tick starts is tagged too, so the drain repeats until a whole pass finds nothing new. Never
+ * rejects.
+ */
+export async function drainEngineScope(scope: EngineScope): Promise<void> {
+	scope.closed = true;
+	for (;;) {
+		const runs = [...scope.runs.values()];
+		for (const { cwd, runId } of runs) await settleRunWork(cwd, runId);
+		const busy = [...scope.runs.values()].some(
+			({ cwd, runId }) =>
+				supervisorTicksInFlight.has(scopedRunKey(cwd, runId)) ||
+				hasIndexUpdateWorkForRun(cwd, runId),
+		);
+		if (!busy && scope.runs.size === runs.length) return;
+	}
+}
+
 export function watchRun(
 	cwd: string,
 	runId: string,
 	options: WorkflowScheduleOptions = {},
 ): void {
-	const key = `${cwd}\0${runId}`;
+	const key = scopedRunKey(cwd, runId);
+	// An open engine scope owns every run watched while it is open; once it is closed (its owner is
+	// draining it) nothing new may start.
+	if (engineScopeClosed()) return;
+	tagRunInEngineScope(cwd, runId);
 	if (supervisorTimers.has(key)) return;
 
 	const timer = setInterval(() => {
-		void (async () => {
+		const tick = (async () => {
 			const previousMtime = supervisorRunMtimes.get(key);
 			const beforeMtime = await readRunMtimeMs(cwd, runId);
 			const refreshed = await refreshRun(cwd, runId);
@@ -3380,7 +3445,10 @@ export function watchRun(
 					previousMtime !== undefined &&
 					currentMtime !== undefined &&
 					currentMtime <= previousMtime;
-				if (!unchanged) await scheduleRun(cwd, runId, undefined, options);
+				if (!unchanged) {
+					await supervisorTickHookForTests?.("before-schedule", runId);
+					await scheduleRun(cwd, runId, undefined, options);
+				}
 				supervisorErrorCounts.delete(key);
 				return;
 			}
@@ -3394,12 +3462,22 @@ export function watchRun(
 			}
 			const failures = (supervisorErrorCounts.get(key) ?? 0) + 1;
 			supervisorErrorCounts.set(key, failures);
-			void recordSupervisorError(cwd, runId, error).finally(() => {
-				if (failures >= MAX_SUPERVISOR_CONSECUTIVE_ERRORS)
-					unwatchRun(cwd, runId);
-			});
+			return recordSupervisorError(cwd, runId, error)
+				.catch(() => undefined)
+				.finally(() => {
+					if (failures >= MAX_SUPERVISOR_CONSECUTIVE_ERRORS)
+						unwatchRun(cwd, runId);
+				});
 		});
-	}, POLL_INTERVAL_MS);
+		const ticks = supervisorTicksInFlight.get(key) ?? new Set<Promise<void>>();
+		supervisorTicksInFlight.set(key, ticks);
+		ticks.add(tick);
+		void tick.finally(() => {
+			ticks.delete(tick);
+			if (ticks.size === 0 && supervisorTicksInFlight.get(key) === ticks)
+				supervisorTicksInFlight.delete(key);
+		});
+	}, supervisorPollIntervalMs);
 
 	timer.unref?.();
 	supervisorTimers.set(key, timer);
@@ -4208,7 +4286,27 @@ async function scheduleDagPass(
 
 	if (await finalizeStopIntentIfRequested(cwd, run)) return false;
 
-	const changed = markDagDependentsSkipped(run, compiledFlow);
+	// One spec-id index of the compiled graph and one stage-policy index per scheduling pass, each built only
+	// when a decision needs it (and rebuilt if the graph grew with generated tasks); the pass-start
+	// propagation and the dispatch decisions share them.
+	let compiledIndexCache:
+		| { size: number; map: ReadonlyMap<string, CompiledTask> }
+		| undefined;
+	const compiledIndex = (): ReadonlyMap<string, CompiledTask> => {
+		if (compiledIndexCache?.size !== compiledFlow.tasks.length)
+			compiledIndexCache = {
+				size: compiledFlow.tasks.length,
+				map: new Map(
+					compiledFlow.tasks.map((task) => [compiledTaskSpecId(task), task]),
+				),
+			};
+		return compiledIndexCache.map;
+	};
+	const policies = stagePolicyIndex(compiledFlow);
+	const changed = markDagDependentsSkipped(run, compiledFlow, {
+		compiledIndex,
+		policies,
+	});
 	if (changed) {
 		await writeRunRecord(cwd, run);
 		run = await readRunRecord(cwd, run.runId);
@@ -4265,8 +4363,29 @@ async function scheduleDagPass(
 			await writeRunRecord(cwd, run);
 			continue;
 		}
-		if (!dependenciesReady(compiledTask, bySpecId, compiledFlow, task))
+		if (
+			!dependenciesReady(compiledTask, bySpecId, compiledFlow, task, policies)
+		)
 			continue;
+		// Final run/skip decision before anything is dispatched. A source can reach its terminal state
+		// after the pass-start propagation (a support helper finishes inline above), so decide again
+		// here: no partial model stage launches on inputs that all failed.
+		if (
+			stageSourcePolicy(compiledFlow, compiledTask.stageId ?? "", policies) ===
+				"partial" &&
+			partialModelStageNoInputReason(
+				compiledTask,
+				bySpecId,
+				compiledFlow,
+				compiledIndex,
+			) !== undefined
+		) {
+			if (
+				markDagDependentsSkipped(run, compiledFlow, { compiledIndex, policies })
+			)
+				await writeRunRecord(cwd, run);
+			if (task.status !== "pending") continue;
+		}
 
 		if (compiledTask.kind === "loop" && compiledTask.loopPlaceholder) {
 			const changed = await scheduleLoop(

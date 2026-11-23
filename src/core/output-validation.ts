@@ -92,27 +92,37 @@ function taskStageName(task: WorkflowTaskRunRecord): string {
 }
 
 /**
- * An accepted `inputIntegrity` block (not disprovable by the read ledger) on an output that failed
- * validation. Undefined when there is no block, the ledger contradicts it, or required reads are
- * missing (those keep their own retry path).
+ * What the read ledger and the worker's `inputIntegrity` claim say about an attempt, in the order
+ * they are resolved: required reads that were not done, a block the ledger contradicts, an
+ * accepted block. `none` means the control declares nothing the engine acts on here.
  */
-async function acceptedBlockBeforeSchema(
+type InputIntegrityOutcome =
+	| { kind: "none" }
+	| {
+			kind: "reads_failed";
+			reason:
+				| "required_reads_ledger_unavailable"
+				| "required_read_projection_failed"
+				| "required_reads_missing";
+			message: string;
+			artifacts: string[];
+			missing: string[];
+			projectionFailures: string[];
+	  }
+	| { kind: "contradicted"; message: string }
+	| { kind: "blocked"; message: string };
+
+async function resolveInputIntegrity(
 	task: WorkflowTaskRunRecord,
 	control: Record<string, unknown> | undefined,
 	resultFile: string,
 	startedAt: string | undefined,
-): Promise<ReturnType<typeof acceptedInputIntegrityBlock>> {
+	options: { onlyWhenBlockDeclared: boolean },
+): Promise<InputIntegrityOutcome> {
 	const block = acceptedInputIntegrityBlock(control, taskStageName(task));
-	if (!block) return undefined;
+	if (options.onlyWhenBlockDeclared && !block) return { kind: "none" };
 	const requiredReads = task.artifactGraph?.requiredReads ?? [];
 	const requiredReadPolicy = task.artifactGraph?.requiredReadPolicy ?? [];
-	if (
-		inputIntegrityContradiction(
-			control,
-			requiredReads.length + requiredReadPolicy.length,
-		)
-	)
-		return undefined;
 	const readCheck = await checkRequiredArtifactReads(
 		dirname(resultFile),
 		requiredReads,
@@ -123,9 +133,99 @@ async function acceptedBlockBeforeSchema(
 		readCheck.missing.length > 0 ||
 		readCheck.projectionFailures.length > 0 ||
 		readCheck.ledgerError
-	)
-		return undefined;
-	return block;
+	) {
+		const reason = readCheck.ledgerError
+			? "required_reads_ledger_unavailable"
+			: readCheck.projectionFailures.length > 0
+				? "required_read_projection_failed"
+				: "required_reads_missing";
+		const artifacts = readCheck.ledgerError
+			? [
+					...requiredReads.map(formatRequiredArtifactRead),
+					...requiredReadPolicy.map(formatRequiredReadPolicyName),
+				]
+			: [...readCheck.missing, ...readCheck.projectionFailures];
+		return {
+			kind: "reads_failed",
+			reason,
+			message: readCheck.ledgerError
+				? `required workflow artifact read ledger was unavailable or corrupt: ${readCheck.ledgerError}; required reads could not be verified: ${artifacts.join(", ")}`
+				: formatRequiredReadFailureMessage(readCheck),
+			artifacts,
+			missing: [...readCheck.missing],
+			projectionFailures: [...readCheck.projectionFailures],
+		};
+	}
+	// Required reads were all delivered complete: a worker that still withholds its result as
+	// "truncated"/"missing" input misjudged it, so retry with the ledger as evidence.
+	const contradiction = inputIntegrityContradiction(
+		control,
+		requiredReads.length + requiredReadPolicy.length,
+	);
+	if (contradiction) return { kind: "contradicted", message: contradiction };
+	// K3 (2026-11-08): a block the ledger cannot disprove (inconsistent_input, budget_block) is the
+	// worker's blocked handoff: fail the task visibly (resumable) instead of completing on it.
+	if (block) return { kind: "blocked", message: block.message };
+	return { kind: "none" };
+}
+
+/**
+ * Records the attempt and retries or fails the task for an input-integrity outcome. `invalid` is
+ * set when the output also failed validation: its issues are kept in the attempt record.
+ */
+async function applyInputIntegrityOutcome(
+	task: WorkflowTaskRunRecord,
+	outcome: Exclude<InputIntegrityOutcome, { kind: "none" }>,
+	context: {
+		taskDir: string;
+		rawOutput: string;
+		attempt: number;
+		completedAt: string;
+		retrySession: {
+			repairMode: "same_session" | "new_session";
+			sessionId: string;
+		};
+		invalid?: { issues: readonly WorkflowOutputIssue[] };
+	},
+): Promise<boolean> {
+	const { taskDir, rawOutput, attempt, completedAt, retrySession } = context;
+	const failureKind =
+		outcome.kind === "reads_failed"
+			? outcome.reason
+			: outcome.kind === "contradicted"
+				? "input_integrity_contradicted"
+				: "input_integrity_blocked";
+	await measureTerminalArtifactBundleWrite(task, () =>
+		writeArtifactGraphMissingReadsAttempt(
+			taskDir,
+			rawOutput,
+			attempt,
+			outcome.kind === "reads_failed" ? outcome.missing : [],
+			completedAt,
+			{
+				failureKind,
+				errorMessage: outcome.message,
+				...(outcome.kind === "reads_failed"
+					? { projectionFailures: outcome.projectionFailures }
+					: {}),
+				...(context.invalid ? { invalidIssues: context.invalid.issues } : {}),
+			},
+		),
+	);
+	if (outcome.kind === "blocked")
+		return failArtifactGraphTask(task, {
+			statusDetail: "input_integrity_blocked",
+			message: outcome.message,
+		});
+	return retryOrFailArtifactGraphTask(task, {
+		reason: failureKind,
+		attempt,
+		message: outcome.message,
+		...(outcome.kind === "reads_failed"
+			? { artifacts: outcome.artifacts }
+			: {}),
+		...retrySession,
+	});
 }
 
 const EMPTY_LIST_DIGEST_CHARS = 300;
@@ -144,15 +244,19 @@ function emptyRequiredListFailure(
 	// Only when the empty list is the whole problem; otherwise the full validation text stays.
 	if (empties.length === 0 || empties.length !== issues.length)
 		return undefined;
-	const names = empties.map(
-		(issue) => `\`${(issue.path ?? "$").replace(/^\$\.?/, "") || "(root)"}\``,
-	);
-	const minItems = Math.max(
-		...empties.map((issue) => issue.emptyRequiredList?.minItems ?? 1),
-	);
+	const pathName = (issue: WorkflowOutputIssue): string =>
+		`\`${(issue.path ?? "$").replace(/^\$\.?/, "") || "(root)"}\``;
+	const minimum = (issue: WorkflowOutputIssue): number =>
+		issue.emptyRequiredList?.minItems ?? 1;
 	const stage = taskStageName(task);
-	const lists =
-		names.length === 1 ? `${names[0]} list` : `${names.join(", ")} lists`;
+	const sameMinimum = empties.every(
+		(issue) => minimum(issue) === minimum(empties[0] as WorkflowOutputIssue),
+	);
+	// One minimum for every list: say it once; different minima: say each list's own.
+	const emptied = sameMinimum
+		? `${empties.length === 1 ? `${pathName(empties[0] as WorkflowOutputIssue)} list` : `${empties.map(pathName).join(", ")} lists`} (at least ${minimum(empties[0] as WorkflowOutputIssue)} required)`
+		: `${empties.map((issue) => `${pathName(issue)} (at least ${minimum(issue)} required)`).join(", ")}`;
+	const returned = sameMinimum ? "an empty" : "empty lists:";
 	const digest =
 		typeof control?.digest === "string" ? control.digest.trim() : "";
 	const shown =
@@ -160,7 +264,7 @@ function emptyRequiredListFailure(
 			? `${digest.slice(0, EMPTY_LIST_DIGEST_CHARS)}…`
 			: digest;
 	return [
-		`${stage} returned an empty ${lists} (at least ${minItems} required) after ${attempts} attempt${attempts === 1 ? "" : "s"}.`,
+		`${stage} returned ${returned} ${emptied} after ${attempts} attempt${attempts === 1 ? "" : "s"}.`,
 		shown ? `The model said: "${shown}"` : undefined,
 	]
 		.filter(Boolean)
@@ -287,34 +391,35 @@ async function materializeTerminalArtifactGraphResultInner(
 		attempt,
 	);
 	if (!parsed.valid) {
-		// 2026-11-23: an honest "I found nothing / could not read the inputs" block is the model's
-		// exit from a schema that demands items (minItems, closed schema): honour it instead of
-		// retrying the schema error, so the model is never pushed to invent items.
-		const earlyBlock = await acceptedBlockBeforeSchema(
-			task,
-			parsed.control,
-			options.resultFile,
-			options.startedAt,
+		// 2026-11-23: a control that declares an inputIntegrity block is resolved before the schema
+		// issues, in the same order as for a valid output: reads not done, then a block the ledger
+		// contradicts, then an accepted block (the model's exit from a schema that demands items,
+		// so it is never pushed to invent them). The attempt record keeps the schema issues.
+		// Only an unambiguous control counts: with a second <control> the first one is not known to
+		// be the model's answer, so the output is repaired as a protocol error instead. Missing
+		// analysis or refs do not make an honest block invalid.
+		const controlAmbiguous = parsed.issues.some(
+			(issue) =>
+				issue.code === "duplicate_section" && issue.section === "control",
 		);
-		if (earlyBlock) {
-			await measureTerminalArtifactBundleWrite(task, () =>
-				writeArtifactGraphMissingReadsAttempt(
-					dirname(options.resultFile),
-					rawOutput,
-					attempt,
-					[],
-					options.completedAt,
-					{
-						failureKind: "input_integrity_blocked",
-						errorMessage: earlyBlock.message,
-					},
-				),
-			);
-			return failArtifactGraphTask(task, {
-				statusDetail: "input_integrity_blocked",
-				message: earlyBlock.message,
+		const integrity = controlAmbiguous
+			? ({ kind: "none" } as const)
+			: await resolveInputIntegrity(
+					task,
+					parsed.control,
+					options.resultFile,
+					options.startedAt,
+					{ onlyWhenBlockDeclared: true },
+				);
+		if (integrity.kind !== "none")
+			return applyInputIntegrityOutcome(task, integrity, {
+				taskDir: dirname(options.resultFile),
+				rawOutput,
+				attempt,
+				completedAt: options.completedAt,
+				retrySession,
+				invalid: { issues: parsed.issues },
 			});
-		}
 		await measureTerminalArtifactBundleWrite(task, () =>
 			writeWorkflowTaskArtifactBundle({
 				...(task.blockedActions ? { blockedActions: task.blockedActions } : {}),
@@ -342,112 +447,21 @@ async function materializeTerminalArtifactGraphResultInner(
 		});
 	}
 
-	const readCheck = await checkRequiredArtifactReads(
-		dirname(options.resultFile),
-		task.artifactGraph?.requiredReads ?? [],
-		task.artifactGraph?.requiredReadPolicy ?? [],
-		{ startedAt: options.startedAt },
-	);
-	if (
-		readCheck.missing.length > 0 ||
-		readCheck.projectionFailures.length > 0 ||
-		readCheck.ledgerError
-	) {
-		const reason = readCheck.ledgerError
-			? "required_reads_ledger_unavailable"
-			: readCheck.projectionFailures.length > 0
-				? "required_read_projection_failed"
-				: "required_reads_missing";
-		const artifacts = readCheck.ledgerError
-			? [
-					...(task.artifactGraph?.requiredReads ?? []).map(
-						formatRequiredArtifactRead,
-					),
-					...(task.artifactGraph?.requiredReadPolicy ?? []).map(
-						formatRequiredReadPolicyName,
-					),
-				]
-			: [...readCheck.missing, ...readCheck.projectionFailures];
-		const message = readCheck.ledgerError
-			? `required workflow artifact read ledger was unavailable or corrupt: ${readCheck.ledgerError}; required reads could not be verified: ${artifacts.join(", ")}`
-			: formatRequiredReadFailureMessage(readCheck);
-		await measureTerminalArtifactBundleWrite(task, () =>
-			writeArtifactGraphMissingReadsAttempt(
-				dirname(options.resultFile),
-				rawOutput,
-				attempt,
-				readCheck.missing,
-				options.completedAt,
-				{
-					failureKind: reason,
-					errorMessage: message,
-					projectionFailures: readCheck.projectionFailures,
-				},
-			),
-		);
-		return retryOrFailArtifactGraphTask(task, {
-			reason,
-			attempt,
-			message,
-			artifacts,
-			...retrySession,
-		});
-	}
-
-	// Required reads were all delivered complete (the check above): a worker that still withholds
-	// its result as "truncated"/"missing" input misjudged it — retry with the ledger as evidence.
-	const contradiction = inputIntegrityContradiction(
+	const integrity = await resolveInputIntegrity(
+		task,
 		parsed.control,
-		(task.artifactGraph?.requiredReads ?? []).length +
-			(task.artifactGraph?.requiredReadPolicy ?? []).length,
+		options.resultFile,
+		options.startedAt,
+		{ onlyWhenBlockDeclared: false },
 	);
-	if (contradiction) {
-		await measureTerminalArtifactBundleWrite(task, () =>
-			writeArtifactGraphMissingReadsAttempt(
-				dirname(options.resultFile),
-				rawOutput,
-				attempt,
-				[],
-				options.completedAt,
-				{
-					failureKind: "input_integrity_contradicted",
-					errorMessage: contradiction,
-				},
-			),
-		);
-		return retryOrFailArtifactGraphTask(task, {
-			reason: "input_integrity_contradicted",
+	if (integrity.kind !== "none")
+		return applyInputIntegrityOutcome(task, integrity, {
+			taskDir: dirname(options.resultFile),
+			rawOutput,
 			attempt,
-			message: contradiction,
-			...retrySession,
+			completedAt: options.completedAt,
+			retrySession,
 		});
-	}
-
-	// K3 (2026-11-08): a block the ledger cannot disprove (inconsistent_input, budget_block) is the
-	// worker's blocked handoff: fail the task visibly (resumable) instead of completing on it.
-	const integrityBlock = acceptedInputIntegrityBlock(
-		parsed.control,
-		taskStageName(task),
-	);
-	if (integrityBlock) {
-		await measureTerminalArtifactBundleWrite(task, () =>
-			writeArtifactGraphMissingReadsAttempt(
-				dirname(options.resultFile),
-				rawOutput,
-				attempt,
-				[],
-				options.completedAt,
-				{
-					failureKind: "input_integrity_blocked",
-					errorMessage: integrityBlock.message,
-				},
-			),
-		);
-		return failArtifactGraphTask(task, {
-			statusDetail: "input_integrity_blocked",
-			message: integrityBlock.message,
-		});
-	}
 
 	const stderr = await readFile(options.stderrFile, "utf8").catch(() => "");
 	const written = await measureTerminalArtifactBundleWrite(task, () =>
@@ -733,6 +747,8 @@ async function writeArtifactGraphMissingReadsAttempt(
 		failureKind?: string;
 		errorMessage?: string;
 		projectionFailures?: readonly string[];
+		/** Validation issues of the same output: the integrity outcome took precedence over them. */
+		invalidIssues?: readonly WorkflowOutputIssue[];
 	} = {},
 ): Promise<void> {
 	await writeFile(
@@ -754,7 +770,13 @@ async function writeArtifactGraphMissingReadsAttempt(
 		...(options.projectionFailures && options.projectionFailures.length > 0
 			? { requiredReadProjectionFailures: [...options.projectionFailures] }
 			: {}),
-		outputValidation: { valid: true, issues: [] },
+		outputValidation: options.invalidIssues
+			? {
+					valid: false,
+					issues: [...options.invalidIssues],
+					supersededBy: options.failureKind ?? "required_reads_missing",
+				}
+			: { valid: true, issues: [] },
 	});
 }
 

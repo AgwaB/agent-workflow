@@ -782,8 +782,12 @@ function readOptions(options) {
   if (!Array.isArray(files) || files.length === 0 || files.length > MAX_FILES) {
     throw new Error("verify: support.options.files must list 1 to " + MAX_FILES + " files");
   }
+  if (options.writer !== undefined && (typeof options.writer !== "string" || options.writer === "")) {
+    throw new Error("verify: support.options.writer must be the id of the writer stage");
+  }
   return {
     writer: typeof options.writer === "string" ? options.writer : "write",
+    explicit: options.writer !== undefined,
     files: files.map((entry) => {
       const file = entry && entry.path;
       const markers = entry && entry.markers !== undefined ? entry.markers : [];
@@ -919,19 +923,30 @@ function result(status, branch, worktree, rows, digest, problem) {
 export default async function helper({ options, context }) {
   const wanted = readOptions(options);
   const rows = context.sourceStatuses || [];
-  const writer = rows.find((row) => row.stageId === wanted.writer && row.taskId) || (rows.length === 1 ? rows[0] : undefined);
+  // A named writer must match exactly; only an omitted option may fall back to the sole upstream row.
+  const matching = rows.filter((row) => row.stageId === wanted.writer && row.taskId);
+  if (matching.length > 1) {
+    throw new Error("verify: more than one task of the writer stage " + wanted.writer + " (" + matching.map((row) => row.taskId).join(", ") + "): verify one writer task, not several");
+  }
+  const writer = wanted.explicit
+    ? matching[0]
+    : matching[0] || (rows.length === 1 ? rows[0] : undefined);
+  // Setup and input-binding problems throw (the stage is wired wrongly); only the written files can fail the check.
   if (!writer || !writer.taskId) {
-    return result("failed", "", "", [], "no task of the writer stage " + wanted.writer + " (set support.options.writer to its id)", "");
+    throw new Error("verify: no task of the writer stage " + wanted.writer + (wanted.explicit ? " among the sources (" + rows.map((row) => row.stageId).join(", ") + "): fix support.options.writer" : " (set support.options.writer to its id)"));
+  }
+  if (writer.status !== undefined && writer.status !== "completed") {
+    return result("failed", "", "", [], "the writer task " + writer.taskId + " ended " + writer.status + " before any file could be checked", "");
   }
   const branch = "agent-workflow/" + context.runId + "-" + writer.taskId;
   let worktree;
   try {
     worktree = await findWorktree(context.cwd, branch, context.signal);
   } catch (error) {
-    return result("failed", branch, "", [], "git worktree list failed: " + clip(error.message, 120), "");
+    throw new Error("verify: git worktree list failed: " + clip(error.message, 120));
   }
   if (!worktree) {
-    return result("failed", branch, "", [], "no managed worktree on branch " + branch, "The writer stage did not get a managed worktree (is the project a git repository?).");
+    throw new Error("verify: no managed worktree on branch " + branch + ": the writer stage did not get one (is the project a git repository?)");
   }
   if (process.env.AGENT_WORKFLOW_REHEARSAL === "1") {
     return result("passed", branch, worktree, [], "rehearsal: worktree found, file checks skipped", "Rehearsal: the synthetic writer writes no files, so the file checks were skipped.");

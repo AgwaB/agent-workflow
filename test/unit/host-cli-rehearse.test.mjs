@@ -11,8 +11,11 @@ import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const cli = await import("../../dist/hosts/cli/index.js");
-const { setRehearsalRemoveForTests } = await import(
+const { setRehearsalPsForTests, setRehearsalRemoveForTests } = await import(
 	"../../dist/core/rehearsal-settle.js"
+);
+const { setRehearsalSettleWaitForTests } = await import(
+	"../../dist/core/rehearsal.js"
 );
 const BIN = fileURLToPath(
 	new URL("../../src/hosts/cli/cli.mjs", import.meta.url),
@@ -98,7 +101,8 @@ test("a sound workflow exits 0 and the text names the stages", async () => {
 	const result = await run(["rehearse", "good.json"]);
 	assert.equal(result.code, 0, result.out + result.err);
 	assert.match(result.out, /Rehearsal of good\.json: wiring OK/u);
-	assert.match(result.out, /No model was called/u);
+	assert.match(result.out, /The synthetic worker made no model call/u);
+	assert.doesNotMatch(result.out, /No model was called/u);
 	assert.match(
 		result.out,
 		/b: reduce; 1 task; 1 completed; sources a received by 1\/1; required reads 1\/1/u,
@@ -138,7 +142,7 @@ async function gateWorkflow(name, helperBody) {
 }
 
 for (const declared of ["failed", "blocked"]) {
-	test(`content gates (${declared}): exit 0, the text names the gate helper and reason and says it is not a wiring problem`, async () => {
+	test(`content gates (${declared}): exit 0, the text names the helper and reason and does not claim it is proven not to be wiring`, async () => {
 		const file = await gateWorkflow(
 			`gated-${declared}`,
 			`export default async () => ({ schema: "g-v1", status: "${declared}", digest: "0 of 20 tickets classified" });\n`,
@@ -147,19 +151,20 @@ for (const declared of ["failed", "blocked"]) {
 		assert.equal(result.code, 0, result.out + result.err);
 		assert.match(
 			result.out,
-			/wiring OK, but content gates rejected the synthetic data \(expected; not a wiring problem\)/u,
+			/wiring OK so far, but a helper declared failed\/blocked on the synthetic data \(read the reason below\)/u,
 		);
+		assert.doesNotMatch(result.out, /not a wiring problem/u);
 		assert.doesNotMatch(result.out, /wiring problems found/u);
 		assert.match(
 			result.out,
 			new RegExp(
-				`- g\\.main \\(stage g\\) declared ${declared}: 0 of 20 tickets classified`,
+				`- g\\.main \\(stage g\\) declared ${declared} on synthetic data: 0 of 20 tickets classified`,
 				"u",
 			),
 		);
 		assert.match(
 			result.out,
-			/expected for placeholder data, not a wiring problem/u,
+			/expected for a content check; if it names a missing source or setup, it is a wiring problem/u,
 		);
 		assert.match(result.out, /Stages skipped after the gate: c\./u);
 		assert.doesNotMatch(result.out, /Findings:/u);
@@ -172,6 +177,26 @@ for (const declared of ["failed", "blocked"]) {
 	});
 }
 
+test("a helper that looks up a source it does not have is an advisory warning: exit stays 0", async () => {
+	const file = await gateWorkflow(
+		"wrong-lookup",
+		'export default async ({ sources }) => sources.extract ? { schema: "g-v1", status: "passed", digest: "ok" } : { schema: "g-v1", status: "blocked", digest: "source extract is missing" };\n',
+	);
+	const result = await run(["rehearse", file]);
+	assert.equal(result.code, 0, result.out + result.err);
+	assert.doesNotMatch(result.out, /wiring problems found/u);
+	assert.match(
+		result.out,
+		/support helper "\.\/helpers\/wrong-lookup\.mjs" looks up source "extract", which is not one of its sources \(a\)/u,
+	);
+	const json = await run(["rehearse", file, "--json"]);
+	assert.equal(json.code, 0);
+	const parsed = JSON.parse(json.out);
+	assert.equal(parsed.ok, true);
+	assert.deepEqual(parsed.data.findings, []);
+	assert.match(parsed.data.warnings.join("\n"), /looks up source "extract"/u);
+});
+
 test("a helper that throws stays a wiring finding (exit 1), not a content gate", async () => {
 	const file = await gateWorkflow(
 		"thrower",
@@ -181,7 +206,10 @@ test("a helper that throws stays a wiring finding (exit 1), not a content gate",
 	assert.equal(result.code, 1);
 	assert.match(result.out, /wiring problems found/u);
 	assert.match(result.out, /helper exploded on purpose/u);
-	assert.doesNotMatch(result.out, /Content gates/u);
+	assert.doesNotMatch(
+		result.out,
+		/Declared failed\/blocked on synthetic data/u,
+	);
 });
 
 test("--json prints the same data as one object with the rehearsal schema", async () => {
@@ -270,6 +298,12 @@ test("help lists the command and its options", async () => {
 	assert.match(help.out, /Usage: agent-workflow rehearse/u);
 	assert.match(help.out, /--items N/u);
 	assert.match(help.out, /--loop pass\|exhaust/u);
+	// R4: the entry point states what the synthetic worker confines and what exit 0 means.
+	assert.match(help.out, /synthetic worker makes no model call/u);
+	assert.match(help.out, /helpers .*trusted/su);
+	assert.match(help.out, /removed only when/u);
+	assert.match(help.out, /no wiring fault was diagnosed/u);
+	assert.doesNotMatch(help.out, /when the wiring\s+is sound|removed unless/u);
 	assert.match((await run(["help"])).out, /rehearse <workflow>/u);
 });
 
@@ -325,5 +359,50 @@ test("a temporary root that cannot be removed does not fail the command; the tex
 		setRehearsalRemoveForTests(undefined);
 		for (const path of leftovers)
 			await rm(path, { recursive: true, force: true });
+	}
+});
+
+test("R3-3: a root kept because a worker may still use it says to wait, not that it is safe to delete", async () => {
+	const leftovers = [];
+	try {
+		for (const [label, ps, expected] of [
+			[
+				"busy",
+				async (root) => `  4242 node ${root}/home/worker.mjs\n`,
+				/a worker process was still using it/u,
+			],
+			[
+				"unknown",
+				async () => {
+					throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+				},
+				/could not be checked/u,
+			],
+		]) {
+			setRehearsalPsForTests(ps);
+			setRehearsalSettleWaitForTests(150);
+			const text = await run(["rehearse", "good.json"]);
+			assert.equal(text.code, 0, `${label}: ${text.out}${text.err}`);
+			const line = text.out
+				.split("\n")
+				.find((entry) => /aw-rehearse-/u.test(entry) && /kept/u.test(entry));
+			assert.ok(line, `${label}: ${text.out}`);
+			assert.match(line, expected, label);
+			assert.match(line, /wait for workers to exit before removing it/u, label);
+			assert.doesNotMatch(line, /safe to delete by hand/u, label);
+			const path = /(\S*aw-rehearse-\w+)/u.exec(line)?.[1];
+			leftovers.push(path);
+			const json = JSON.parse(
+				(await run(["rehearse", "good.json", "--json"])).out,
+			);
+			assert.match(json.data.leftover, /aw-rehearse-/u);
+			assert.equal(json.data.leftoverState, label);
+			leftovers.push(json.data.leftover);
+		}
+	} finally {
+		setRehearsalPsForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+		for (const path of leftovers)
+			if (path) await rm(path, { recursive: true, force: true });
 	}
 });

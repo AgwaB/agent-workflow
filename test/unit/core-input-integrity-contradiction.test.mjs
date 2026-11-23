@@ -205,7 +205,11 @@ async function project(name, minItems = false) {
 	return { cwd, specPath };
 }
 
-async function runWith(name, sequence, { minItems = false } = {}) {
+async function runWith(
+	name,
+	sequence,
+	{ minItems = false, reads = [{ source: "a", artifact: "control" }] } = {},
+) {
 	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
@@ -218,7 +222,8 @@ async function runWith(name, sequence, { minItems = false } = {}) {
 			workflowFixtureDescriptor({
 				id,
 				effectLog,
-				reads: [{ source: "a", artifact: "control" }],
+				reads,
+				logPrompt: true,
 				controlSequence: { "task-2": sequence },
 			}),
 		),
@@ -237,11 +242,18 @@ async function runWith(name, sequence, { minItems = false } = {}) {
 		"tasks",
 		b.taskId,
 	);
-	const submits = readFixtureLog(effectLog).filter(
+	const submitted = readFixtureLog(effectLog).filter(
 		(entry) =>
 			entry.type === "submit" && entry.attemptKey.includes(`:${b.taskId}:`),
-	).length;
-	return { run, b, taskDir, submits, cwd };
+	);
+	return {
+		run,
+		b,
+		taskDir,
+		submits: submitted.length,
+		prompts: submitted.map((entry) => entry.prompt ?? ""),
+		cwd,
+	};
 }
 
 const claim = (reason) => ({
@@ -368,4 +380,163 @@ test("a disproved truncated-read block with empty items under minItems is still 
 	assert.equal(run.status, "completed", JSON.stringify(b, null, 1));
 	assert.equal(submits, 2);
 	assert.equal(b.outputRetry?.attempts, 1);
+});
+
+const readJson = async (file) => JSON.parse(await readFile(file, "utf8"));
+
+// 2026-11-23 (review M4): the ledger outcomes are resolved before the schema issues, so the
+// worker is told what is actually wrong with its attempt.
+test("a block with empty items and the required read not done gets the missing-read retry", async () => {
+	const { b, taskDir, submits, prompts } = await runWith(
+		"order-missing",
+		[
+			{
+				schema: "x",
+				digest: "none",
+				items: [],
+				inputIntegrity: {
+					status: "blocked",
+					reason: "inconsistent_input",
+					detail: "stage a listed nothing",
+				},
+			},
+		],
+		{ minItems: true, reads: [] },
+	);
+	assert.equal(b.status, "failed", JSON.stringify(b, null, 1));
+	assert.equal(submits, b.outputRetry.maxAttempts + 1);
+	assert.equal(b.outputRetry?.reason, "required_reads_missing_exhausted");
+	const invalid = await readJson(
+		join(taskDir, "result.invalid-attempt-1.json"),
+	);
+	assert.equal(invalid.failureKind, "required_reads_missing");
+	assert.deepEqual(invalid.missingRequiredReads, ["a.control"]);
+	assert.match(
+		prompts[1],
+		/did not read required workflow artifacts:\n- a\.control/,
+	);
+	assert.doesNotMatch(prompts[1], /Empty list guidance/);
+});
+
+test("a contradicted block with empty items gets the ledger-evidence retry", async () => {
+	const { run, b, taskDir, submits, prompts } = await runWith(
+		"order-contradicted",
+		[
+			{
+				schema: "x",
+				digest: "none",
+				items: [],
+				inputIntegrity: { status: "blocked", reason: "truncated_read" },
+			},
+			{ schema: "x", digest: "ok", items: ["a"] },
+		],
+		{ minItems: true },
+	);
+	assert.equal(run.status, "completed", JSON.stringify(b, null, 1));
+	assert.equal(submits, 2);
+	assert.equal(b.outputRetry?.reason, "input_integrity_contradicted");
+	const invalid = await readJson(
+		join(taskDir, "result.invalid-attempt-1.json"),
+	);
+	assert.equal(invalid.failureKind, "input_integrity_contradicted");
+	assert.match(invalid.errorMessage, /delivered complete/);
+	assert.match(prompts[1], /read ledger shows all 1 required/);
+	assert.doesNotMatch(prompts[1], /Empty list guidance/);
+});
+
+test("an accepted block over a failed minItems records the issues and that the block took precedence", async () => {
+	const { b, taskDir, submits } = await runWith(
+		"order-record",
+		[
+			{
+				schema: "x",
+				digest: "none",
+				items: [],
+				inputIntegrity: {
+					status: "blocked",
+					reason: "inconsistent_input",
+					detail: "stage a listed nothing",
+				},
+			},
+		],
+		{ minItems: true },
+	);
+	assert.equal(b.statusDetail, "input_integrity_blocked");
+	assert.equal(submits, 1);
+	const invalid = await readJson(
+		join(taskDir, "result.invalid-attempt-1.json"),
+	);
+	assert.equal(invalid.failureKind, "input_integrity_blocked");
+	assert.equal(invalid.outputValidation.valid, false);
+	assert.ok(
+		invalid.outputValidation.issues.some((issue) =>
+			/\$\.items/.test(issue.path ?? issue.message),
+		),
+		JSON.stringify(invalid.outputValidation),
+	);
+	assert.equal(
+		invalid.outputValidation.supersededBy,
+		"input_integrity_blocked",
+	);
+});
+
+test("a valid output keeps outputValidation valid in the blocked attempt record", async () => {
+	const { taskDir } = await runWith("order-valid-record", [
+		claim("inconsistent_input"),
+	]);
+	const invalid = await readJson(
+		join(taskDir, "result.invalid-attempt-1.json"),
+	);
+	assert.deepEqual(invalid.outputValidation, { valid: true, issues: [] });
+});
+
+// 2026-11-23 (review m1): a blocked control followed by a conflicting populated control is
+// ambiguous; it is repaired as a protocol error, not taken as the model's definitive block.
+test("two controls, the first a block, are repaired instead of honoured", async () => {
+	const twoControls = [
+		"<control>",
+		JSON.stringify({
+			schema: "x",
+			digest: "none",
+			inputIntegrity: { status: "blocked", reason: "inconsistent_input" },
+		}),
+		"</control>",
+		"<analysis>",
+		"first thoughts",
+		"</analysis>",
+		"<control>",
+		JSON.stringify({ schema: "x", digest: "found", items: ["a"] }),
+		"</control>",
+		"<refs>",
+		"[]",
+		"</refs>",
+	].join("\n");
+	const { run, b, taskDir, submits, prompts } = await runWith(
+		"order-ambiguous",
+		[twoControls, complete],
+	);
+	assert.equal(run.status, "completed", JSON.stringify(b, null, 1));
+	assert.equal(submits, 2);
+	assert.equal(b.outputRetry?.reason, "workflow_output_invalid");
+	assert.match(prompts[1], /control section must appear exactly once/);
+	const invalid = await readJson(
+		join(taskDir, "result.invalid-attempt-1.json"),
+	);
+	assert.equal(invalid.outputValidation.valid, false);
+});
+
+test("a blocked control missing analysis and refs is still an honest block", async () => {
+	const { b, submits } = await runWith("order-bare-block", [
+		[
+			"<control>",
+			JSON.stringify({
+				schema: "x",
+				digest: "none",
+				inputIntegrity: { status: "blocked", reason: "inconsistent_input" },
+			}),
+			"</control>",
+		].join("\n"),
+	]);
+	assert.equal(b.statusDetail, "input_integrity_blocked");
+	assert.equal(submits, 1);
 });
