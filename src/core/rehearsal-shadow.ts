@@ -12,8 +12,9 @@ import {
 	mkdirSync,
 	realpathSync,
 	rmSync,
+	unlinkSync,
 } from "node:fs";
-import { join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { PROJECT_STATE_DIRECTORY } from "./home-dir.js";
 import type { ArtifactGraphStageSpec } from "./types.js";
 
@@ -35,6 +36,45 @@ export function hasDynamicStage(
 			stage.type === "dynamic" ||
 			(stage.stages !== undefined && hasDynamicStage(stage.stages)),
 	);
+}
+
+/**
+ * Throw unless `path` — or, when it does not exist yet, its nearest existing ancestor — resolves inside `root`.
+ * The clone's own tracked symlinks (HEAD may differ from the working tree) must never steer a mkdir, removal or
+ * copy outside the temporary clone (review 2026-11-23, B1).
+ */
+function assertInsideClone(root: string, path: string): void {
+	const realRoot = realpathSync(root);
+	let probe = path;
+	for (;;) {
+		try {
+			lstatSync(probe);
+			break;
+		} catch {
+			const parent = dirname(probe);
+			if (parent === probe) break;
+			probe = parent;
+		}
+	}
+	let real: string;
+	try {
+		real = realpathSync(probe);
+	} catch {
+		real = "";
+	}
+	if (real !== realRoot && !real.startsWith(realRoot + sep))
+		throw new Error(
+			`rehearse: refusing to build the shadow project: ${path} resolves outside the temporary clone (a tracked symlink in HEAD)`,
+		);
+}
+
+/** Replace a symlink at `path` (inside the clone) by nothing, so a real directory can be created there. */
+function unlinkIfSymlink(path: string): void {
+	try {
+		if (lstatSync(path).isSymbolicLink()) unlinkSync(path);
+	} catch {
+		// absent
+	}
 }
 
 /**
@@ -80,15 +120,24 @@ export function createShadowProject(
 	const rel = relative(gitRoot, realpathSync(cwd));
 	const shadowCwd =
 		rel === "" || rel.startsWith("..") ? shadowRoot : resolve(shadowRoot, rel);
+	assertInsideClone(shadowRoot, shadowCwd);
 	mkdirSync(shadowCwd, { recursive: true });
+	assertInsideClone(shadowRoot, shadowCwd);
+	const stateDir = join(shadowCwd, PROJECT_STATE_DIRECTORY);
 	for (const name of ["agents", "workflows"]) {
 		const source = join(realpathSync(cwd), PROJECT_STATE_DIRECTORY, name);
-		const target = join(shadowCwd, PROJECT_STATE_DIRECTORY, name);
+		const target = join(stateDir, name);
 		if (!existsSync(source)) continue;
 		if (!lstatSync(source).isDirectory()) continue;
+		// A link in the clone (HEAD) is replaced, never followed: removing or writing through it would reach
+		// whatever it points to.
+		unlinkIfSymlink(stateDir);
+		mkdirSync(stateDir, { recursive: true });
+		assertInsideClone(shadowRoot, stateDir);
+		unlinkIfSymlink(target);
+		assertInsideClone(shadowRoot, target);
 		// The working-tree copy wins over the clone's HEAD copy: uncommitted edits are what the user rehearses.
 		rmSync(target, { recursive: true, force: true });
-		mkdirSync(join(shadowCwd, PROJECT_STATE_DIRECTORY), { recursive: true });
 		// Copied, not linked: the agent loader refuses a symlinked project agents directory. Only regular
 		// files and directories are copied (no symlinks), and these directories hold definitions, not data.
 		cpSync(source, target, {
@@ -96,7 +145,5 @@ export function createShadowProject(
 			filter: (path) => !lstatSync(path).isSymbolicLink(),
 		});
 	}
-	if (!shadowCwd.startsWith(shadowRoot + sep) && shadowCwd !== shadowRoot)
-		return undefined;
 	return shadowCwd;
 }
