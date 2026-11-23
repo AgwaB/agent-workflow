@@ -912,7 +912,8 @@ Top-level `artifactGraph.stages` is a DAG.
   (`foreach_empty`, no model call), stages after it still run (a reduce still makes its model call)
   and a helper sees it as one row without `itemIdentity`. Such a run is plain `completed`; set
   `minItems: 1` on the source array so an empty model answer fails the task instead (`inventory
-  returned an empty "items" list (at least 1 required) after 3 attempts …`). If the items cannot
+  returned an empty "items" list (at least 1 required) after 3 attempts …`), and tell the model not to invent
+  items but to report `inputIntegrity` `blocked` when it found none. If the items cannot
   be expanded (invalid or duplicate identity) it ends `blocked` (`foreach_expansion_blocked`), and so does the run; the
   message names the generated task id (`duplicate foreach generated task id "a" …`), not the
   identity path.
@@ -1190,7 +1191,11 @@ the stage if the claim persists (`input_integrity_contradicted_exhausted`). `inc
 worker's blocked handoff and the stage fails with `input_integrity_blocked` (the output is kept as
 `raw.invalid-attempt-N.md`), so a run never completes on a result its author declared unusable;
 `resume` reruns the stage, and a repeated block points at the stage's input. deep-research's final
-audit requires the field, and its renderer refuses a blocked synthesis for the same reason.
+audit requires the field, and its renderer refuses a blocked synthesis for the same reason. The
+block is also a model's honest exit from a list it cannot fill: it is honoured before the schema
+check (an empty `items` under `minItems: 1`, or a closed schema without the field, fails once with
+`input_integrity_blocked` and the model's `detail`, not a retry), so tell the model to report it
+instead of inventing items.
 
 **Paging.** Each executor's CLI cuts long MCP results (Pi 1.1 at about 20 KB, Claude at 22,500
 chars, Codex at about 32,000 chars). The engine starts the artifact server with a limit below the

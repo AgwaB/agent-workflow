@@ -466,11 +466,12 @@ export interface AcceptedInputIntegrityBlock {
  * 2026-11-08 (K3): a worker that reports `inputIntegrity.status="blocked"` with a reason the read
  * ledger cannot disprove (`inconsistent_input`, `budget_block`, or one the ledger did not judge)
  * has withheld its result: the stage must not complete on that output. Call after
- * `inputIntegrityContradiction` returned undefined. Returns the block, or undefined when the
- * control reports no block.
+ * `inputIntegrityContradiction` returned undefined. Returns the block (with a plain-words message
+ * naming `stage` and quoting the worker's detail), or undefined when the control reports no block.
  */
 export function acceptedInputIntegrityBlock(
 	control: Record<string, unknown> | undefined,
+	stage?: string,
 ): AcceptedInputIntegrityBlock | undefined {
 	const integrity = control?.inputIntegrity;
 	if (!integrity || typeof integrity !== "object" || Array.isArray(integrity))
@@ -486,6 +487,6 @@ export function acceptedInputIntegrityBlock(
 	return {
 		reason: reasonText,
 		...(detailText === undefined ? {} : { detail: detailText }),
-		message: `worker reported inputIntegrity.status="blocked" with reason="${reasonText}"${detailText ? ` (${JSON.stringify(detailText)})` : ""}; the engine cannot disprove a content claim, so the stage is not completed on this output. Resume reruns the stage; a repeated block points at the stage's input.`,
+		message: `${stage ?? "the stage"} stopped: the model reported it could not do the task${detailText ? `: ${JSON.stringify(detailText)}` : ` (reason: ${reasonText})`}. Resume reruns the stage; a repeated block points at the stage's input.`,
 	};
 }

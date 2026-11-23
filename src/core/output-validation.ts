@@ -87,6 +87,47 @@ function artifactGraphRetrySession(
 	};
 }
 
+function taskStageName(task: WorkflowTaskRunRecord): string {
+	return task.stageId ?? task.specId.replace(/\.main$/, "");
+}
+
+/**
+ * An accepted `inputIntegrity` block (not disprovable by the read ledger) on an output that failed
+ * validation. Undefined when there is no block, the ledger contradicts it, or required reads are
+ * missing (those keep their own retry path).
+ */
+async function acceptedBlockBeforeSchema(
+	task: WorkflowTaskRunRecord,
+	control: Record<string, unknown> | undefined,
+	resultFile: string,
+	startedAt: string | undefined,
+): Promise<ReturnType<typeof acceptedInputIntegrityBlock>> {
+	const block = acceptedInputIntegrityBlock(control, taskStageName(task));
+	if (!block) return undefined;
+	const requiredReads = task.artifactGraph?.requiredReads ?? [];
+	const requiredReadPolicy = task.artifactGraph?.requiredReadPolicy ?? [];
+	if (
+		inputIntegrityContradiction(
+			control,
+			requiredReads.length + requiredReadPolicy.length,
+		)
+	)
+		return undefined;
+	const readCheck = await checkRequiredArtifactReads(
+		dirname(resultFile),
+		requiredReads,
+		requiredReadPolicy,
+		{ startedAt },
+	);
+	if (
+		readCheck.missing.length > 0 ||
+		readCheck.projectionFailures.length > 0 ||
+		readCheck.ledgerError
+	)
+		return undefined;
+	return block;
+}
+
 const EMPTY_LIST_DIGEST_CHARS = 300;
 
 /**
@@ -109,7 +150,7 @@ function emptyRequiredListFailure(
 	const minItems = Math.max(
 		...empties.map((issue) => issue.emptyRequiredList?.minItems ?? 1),
 	);
-	const stage = task.stageId ?? task.specId.replace(/\.main$/, "");
+	const stage = taskStageName(task);
 	const lists =
 		names.length === 1 ? `${names[0]} list` : `${names.join(", ")} lists`;
 	const digest =
@@ -246,6 +287,34 @@ async function materializeTerminalArtifactGraphResultInner(
 		attempt,
 	);
 	if (!parsed.valid) {
+		// 2026-11-23: an honest "I found nothing / could not read the inputs" block is the model's
+		// exit from a schema that demands items (minItems, closed schema): honour it instead of
+		// retrying the schema error, so the model is never pushed to invent items.
+		const earlyBlock = await acceptedBlockBeforeSchema(
+			task,
+			parsed.control,
+			options.resultFile,
+			options.startedAt,
+		);
+		if (earlyBlock) {
+			await measureTerminalArtifactBundleWrite(task, () =>
+				writeArtifactGraphMissingReadsAttempt(
+					dirname(options.resultFile),
+					rawOutput,
+					attempt,
+					[],
+					options.completedAt,
+					{
+						failureKind: "input_integrity_blocked",
+						errorMessage: earlyBlock.message,
+					},
+				),
+			);
+			return failArtifactGraphTask(task, {
+				statusDetail: "input_integrity_blocked",
+				message: earlyBlock.message,
+			});
+		}
 		await measureTerminalArtifactBundleWrite(task, () =>
 			writeWorkflowTaskArtifactBundle({
 				...(task.blockedActions ? { blockedActions: task.blockedActions } : {}),
@@ -356,7 +425,10 @@ async function materializeTerminalArtifactGraphResultInner(
 
 	// K3 (2026-11-08): a block the ledger cannot disprove (inconsistent_input, budget_block) is the
 	// worker's blocked handoff: fail the task visibly (resumable) instead of completing on it.
-	const integrityBlock = acceptedInputIntegrityBlock(parsed.control);
+	const integrityBlock = acceptedInputIntegrityBlock(
+		parsed.control,
+		taskStageName(task),
+	);
 	if (integrityBlock) {
 		await measureTerminalArtifactBundleWrite(task, () =>
 			writeArtifactGraphMissingReadsAttempt(

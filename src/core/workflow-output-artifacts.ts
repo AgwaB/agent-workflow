@@ -472,7 +472,7 @@ function retryRepairGuidance(issues: readonly WorkflowOutputIssue[]): string[] {
 		if (!issue.emptyRequiredList) continue;
 		guidance.push(
 			"Empty list guidance:",
-			`- ${issue.path ?? "A list"} was empty, but it must contain at least ${issue.emptyRequiredList.minItems} item(s). Do not answer with [].`,
+			`- ${issue.path ?? "A list"} was empty, but it must contain at least ${issue.emptyRequiredList.minItems} item(s). Do not invent items. If you found none or could not read the inputs, report control.inputIntegrity {status: "blocked", reason: "inconsistent_input", detail: what you could not do} instead.`,
 		);
 	}
 	const hasSchemaIssue = issues.some(

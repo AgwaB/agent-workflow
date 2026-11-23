@@ -29,6 +29,16 @@
       "minItems": 1,
       "maxItems": 80
     },
+    "inputIntegrity": {
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "type": "string", "enum": ["complete", "blocked"] },
+        "reason": { "type": "string" },
+        "detail": { "type": "string" }
+      }
+    },
     "crossCuttingClaims": { "type": "array", "items": { "type": "object" }, "maxItems": 40 },
     "needsHuman": { "type": "array", "items": { "type": "object" }, "maxItems": 40 },
     "noIssueNotes": { "type": "array", "items": { "type": "object" }, "maxItems": 40 }
