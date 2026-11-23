@@ -216,6 +216,10 @@ A helper that asked `sources` for a name its stage does not declare is a wiring 
 Exit 0 when the wiring is sound (`wiring OK`, with or without content gates), 1 when it found wiring
 problems (a helper that throws is one) or the spec is invalid, 2 for a usage error. `--json` prints
 `{action, ok, outcome, data}` with the report in `data`.
+A rehearsal never writes outside its temporary root: a write stage (also inside a `loop` or `onExhausted`)
+runs in the throwaway clone, git runs without your system or global git config, and a task whose `cwd`
+names the real project is refused with an error. If a process still uses the temporary root when the
+wait ends (or `ps` cannot say), the root is kept and its path reported as left behind; remove it yourself.
 See [usage.md](usage.md#rehearse-a-workflow).
 
 ## Launch options (`run`, `dynamic`)
