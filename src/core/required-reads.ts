@@ -487,6 +487,6 @@ export function acceptedInputIntegrityBlock(
 	return {
 		reason: reasonText,
 		...(detailText === undefined ? {} : { detail: detailText }),
-		message: `${stage ?? "the stage"} stopped: the model reported it could not do the task${detailText ? `: ${JSON.stringify(detailText)}` : ` (reason: ${reasonText})`}. Resume reruns the stage; a repeated block points at the stage's input.`,
+		message: `${stage ?? "the stage"} stopped: the model reported it could not do the task${detailText ? `: ${JSON.stringify(detailText)}` : ` (reason: ${reasonText})`}${detailText && /[.!?]$/u.test(detailText) ? "" : "."} Resume reruns the stage; a repeated block points at the stage's input.`,
 	};
 }
