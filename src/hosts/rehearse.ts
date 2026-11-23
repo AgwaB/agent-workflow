@@ -4,6 +4,7 @@ import {
 	REHEARSAL_DEFAULT_ITEMS,
 	type RehearsalLoopMode,
 	type RehearsalReport,
+	keptRootAdvice,
 	rehearseWorkflow,
 	validateRehearsalOptions,
 } from "../core/rehearsal.js";
@@ -27,8 +28,10 @@ export interface RehearseRequest {
 export interface RehearseData extends RehearsalReport {
 	/** Kept temporary state root (`--keep` only). */
 	stateRoot?: string;
-	/** Temporary root that could not be removed; safe to delete by hand. */
+	/** Temporary root that could not be removed or that a process may still use (see `leftoverState`). */
 	leftover?: string;
+	/** What the last process scan said about `leftover`: `quiet`, `busy` or `unknown`. */
+	leftoverState?: "quiet" | "busy" | "unknown";
 }
 
 function plural(count: number, word: string): string {
@@ -113,7 +116,9 @@ export function formatRehearsal(data: RehearseData): string {
 		lines.push(`State kept at ${data.stateRoot}`);
 	if (data.leftover !== undefined)
 		lines.push(
-			`Temporary state could not be fully removed: ${data.leftover} (safe to delete by hand)`,
+			data.leftoverState === "busy" || data.leftoverState === "unknown"
+				? `Temporary state kept at ${data.leftover} (${keptRootAdvice(data.leftoverState)})`
+				: `Temporary state could not be fully removed: ${data.leftover} (${keptRootAdvice("quiet")})`,
 		);
 	return lines.join("\n");
 }
@@ -136,7 +141,12 @@ export async function rehearseAction(
 			: { stateRoot: rehearsed.stateRoot }),
 		...(rehearsed.leftover === undefined
 			? {}
-			: { leftover: rehearsed.leftover }),
+			: {
+					leftover: rehearsed.leftover,
+					...(rehearsed.leftoverState === undefined
+						? {}
+						: { leftoverState: rehearsed.leftoverState }),
+				}),
 	};
 	return result(
 		"rehearse",

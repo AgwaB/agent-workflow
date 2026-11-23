@@ -40,6 +40,7 @@ import {
 import { SUPPORT_SOURCE_LOOKUP_WARNING } from "./support-source-lookups.js";
 import {
 	removeRehearsalRoot,
+	type RootQuiescence,
 	waitForRootProcesses,
 } from "./rehearsal-settle.js";
 import { loadWorkflowSpec } from "./schema.js";
@@ -154,6 +155,17 @@ export interface RehearsalResult {
 	stateRoot?: string;
 	/** The temporary root that could not be fully removed (or that a process was still using). */
 	leftover?: string;
+	/** What the last process scan said about `leftover`: only `quiet` means nothing was using it. */
+	leftoverState?: RootQuiescence;
+}
+
+/** What to tell the user about a kept root: it is safe to delete by hand only when the last scan found it quiet. */
+export function keptRootAdvice(state: RootQuiescence | undefined): string {
+	if (state === "busy")
+		return "a worker process was still using it at the last check; wait for workers to exit before removing it";
+	if (state === "unknown")
+		return "whether a worker process still uses it could not be checked; wait for workers to exit before removing it";
+	return "no process was using it at the last check; safe to delete by hand";
 }
 
 export function validateRehearsalOptions(options: RehearsalOptions): string[] {
@@ -633,6 +645,8 @@ export function rehearseWorkflow(
 	let state: "queued" | "running" | "cancelled" = "queued";
 	rehearsalsInQueue += 1;
 	const turn = rehearsalQueue.then(() => {
+		// SAFETY: a cancelled call's returned promise was rejected when it was cancelled, so this resolution is
+		// never observed; only the queue's tail (which ignores values) sees it.
 		if (state === "cancelled") return undefined as unknown as RehearsalResult;
 		state = "running";
 		return rehearseWorkflowNow(cwd, options);
@@ -665,9 +679,13 @@ export function rehearseWorkflow(
  * `cause`, the root as `retainedRoot` and in the message. The caller's error (it can be frozen, e.g. an abort
  * reason) is never modified.
  */
-function withRetainedRoot(failure: unknown, root: string): Error {
+function withRetainedRoot(
+	failure: unknown,
+	root: string,
+	state: RootQuiescence | undefined,
+): Error {
 	const original = failure instanceof Error ? failure : undefined;
-	const note = `Temporary state kept at ${root} (safe to delete by hand)`;
+	const note = `Temporary state kept at ${root} (${keptRootAdvice(state)})`;
 	const reason = original?.message ?? String(failure);
 	const error = new Error(
 		reason.includes(root) ? reason : `${reason}\n${note}`,
@@ -738,6 +756,7 @@ async function rehearseWorkflowNow(
 	let restoreGitEnv: (() => void) | undefined;
 	let outcome: RehearsalResult | undefined;
 	let leftover: string | undefined;
+	let quiescence: RootQuiescence | undefined;
 	let failed = false;
 	let failure: unknown;
 	// Everything after the temp root exists runs inside the try, so a failure here still restores the
@@ -822,7 +841,7 @@ async function rehearseWorkflowNow(
 		// still writing under the root: wait for every process that names it. Only a root known to be
 		// quiet is removed; one a process still uses, or whose users cannot be enumerated, is kept and
 		// reported as left behind (the path exists). Cleanup never throws and never signals a process.
-		const quiescence = await waitForRootProcesses(tempRoot, settleWaitMs);
+		quiescence = await waitForRootProcesses(tempRoot, settleWaitMs);
 		if (options.keep !== true)
 			leftover =
 				quiescence === "quiet" ? removeRehearsalRoot(tempRoot) : tempRoot;
@@ -830,10 +849,14 @@ async function rehearseWorkflowNow(
 	if (failed) {
 		const retained = options.keep === true ? tempRoot : leftover;
 		if (retained !== undefined && existsSync(retained))
-			throw withRetainedRoot(failure, retained);
+			throw withRetainedRoot(failure, retained, quiescence);
 		throw failure;
 	}
 	return leftover === undefined
 		? (outcome as RehearsalResult)
-		: { ...(outcome as RehearsalResult), leftover };
+		: {
+				...(outcome as RehearsalResult),
+				leftover,
+				...(quiescence === undefined ? {} : { leftoverState: quiescence }),
+			};
 }

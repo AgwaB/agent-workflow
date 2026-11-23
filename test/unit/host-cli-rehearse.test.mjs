@@ -11,8 +11,11 @@ import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const cli = await import("../../dist/hosts/cli/index.js");
-const { setRehearsalRemoveForTests } = await import(
+const { setRehearsalPsForTests, setRehearsalRemoveForTests } = await import(
 	"../../dist/core/rehearsal-settle.js"
+);
+const { setRehearsalSettleWaitForTests } = await import(
+	"../../dist/core/rehearsal.js"
 );
 const BIN = fileURLToPath(
 	new URL("../../src/hosts/cli/cli.mjs", import.meta.url),
@@ -349,5 +352,50 @@ test("a temporary root that cannot be removed does not fail the command; the tex
 		setRehearsalRemoveForTests(undefined);
 		for (const path of leftovers)
 			await rm(path, { recursive: true, force: true });
+	}
+});
+
+test("R3-3: a root kept because a worker may still use it says to wait, not that it is safe to delete", async () => {
+	const leftovers = [];
+	try {
+		for (const [label, ps, expected] of [
+			[
+				"busy",
+				async (root) => `  4242 node ${root}/home/worker.mjs\n`,
+				/a worker process was still using it/u,
+			],
+			[
+				"unknown",
+				async () => {
+					throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+				},
+				/could not be checked/u,
+			],
+		]) {
+			setRehearsalPsForTests(ps);
+			setRehearsalSettleWaitForTests(150);
+			const text = await run(["rehearse", "good.json"]);
+			assert.equal(text.code, 0, `${label}: ${text.out}${text.err}`);
+			const line = text.out
+				.split("\n")
+				.find((entry) => /aw-rehearse-/u.test(entry) && /kept/u.test(entry));
+			assert.ok(line, `${label}: ${text.out}`);
+			assert.match(line, expected, label);
+			assert.match(line, /wait for workers to exit before removing it/u, label);
+			assert.doesNotMatch(line, /safe to delete by hand/u, label);
+			const path = /(\S*aw-rehearse-\w+)/u.exec(line)?.[1];
+			leftovers.push(path);
+			const json = JSON.parse(
+				(await run(["rehearse", "good.json", "--json"])).out,
+			);
+			assert.match(json.data.leftover, /aw-rehearse-/u);
+			assert.equal(json.data.leftoverState, label);
+			leftovers.push(json.data.leftover);
+		}
+	} finally {
+		setRehearsalPsForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+		for (const path of leftovers)
+			if (path) await rm(path, { recursive: true, force: true });
 	}
 });

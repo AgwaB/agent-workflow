@@ -1147,6 +1147,55 @@ test("R3-2: a rehearsal waiting in the queue rejects promptly on its own abort a
 	}
 });
 
+test("R3-3: the exception path never calls a root safe to delete when the last scan was busy or unknown", async () => {
+	for (const [label, ps, expected] of [
+		[
+			"busy",
+			async (root) => `  4242 node ${root}/home/worker.mjs\n`,
+			/a worker process was still using it/u,
+		],
+		[
+			"unknown",
+			async () => {
+				throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+			},
+			/could not be checked/u,
+		],
+	]) {
+		const cwd = await project();
+		const path = await writeSpec(cwd, "one", ONE_STAGE);
+		setRehearsalPsForTests(ps);
+		setRehearsalSettleWaitForTests(100);
+		const controller = new AbortController();
+		controller.abort();
+		let error;
+		try {
+			await rehearseWorkflow(cwd, {
+				workflow: path,
+				signal: controller.signal,
+			});
+		} catch (caught) {
+			error = caught;
+		} finally {
+			setRehearsalPsForTests(undefined);
+			setRehearsalSettleWaitForTests(undefined);
+		}
+		try {
+			assert.ok(error instanceof Error, label);
+			assert.ok(error.message.includes(error.retainedRoot), label);
+			assert.match(error.message, expected, label);
+			assert.match(
+				error.message,
+				/wait for workers to exit before removing it/u,
+			);
+			assert.doesNotMatch(error.message, /safe to delete by hand/u, label);
+		} finally {
+			if (typeof error?.retainedRoot === "string")
+				await rm(error.retainedRoot, { recursive: true, force: true });
+		}
+	}
+});
+
 test("settle: a quiet root is still removed (no regression of the eventual-quiet path)", async () => {
 	let calls = 0;
 	const { result, removed } = await rehearseWithPs(async (root) => {
