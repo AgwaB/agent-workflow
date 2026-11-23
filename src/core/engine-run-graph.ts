@@ -873,6 +873,7 @@ export function dependenciesReady(
 	bySpecId: Map<string, WorkflowTaskRunRecord>,
 	compiledFlow: CompiledWorkflow,
 	runTask?: WorkflowTaskRunRecord,
+	policies?: StagePolicyIndex,
 ): boolean {
 	const deps = compiledTask.dependsOn ?? [];
 	if (terminalBarrierEnabled(compiledTask, runTask)) {
@@ -883,7 +884,8 @@ export function dependenciesReady(
 	}
 	if (deps.length === 0) return true;
 	const partial =
-		stageSourcePolicy(compiledFlow, compiledTask.stageId ?? "") === "partial";
+		stageSourcePolicy(compiledFlow, compiledTask.stageId ?? "", policies) ===
+		"partial";
 	if (foreachStreamingEnabled(compiledTask)) {
 		const sourceStageIds = new Set(
 			sourceStageIdsForFrom(compiledTask.foreach?.from),
@@ -1394,10 +1396,34 @@ export function sourceStageIdsForFrom(from: unknown): string[] {
 	return [];
 }
 
+/** stage id → source policy, the first stage of an id winning (as `find` did). */
+export type StagePolicyIndex = () => ReadonlyMap<string, string>;
+
+/** A lazy, memoized policy index of one compiled flow: share it across the lookups of a scheduling pass. */
+export function stagePolicyIndex(
+	compiledFlow: CompiledWorkflow,
+): StagePolicyIndex {
+	let cache: { size: number; map: ReadonlyMap<string, string> } | undefined;
+	return () => {
+		const stages: any[] = (compiledFlow as any).stages ?? [];
+		if (cache?.size !== stages.length) {
+			const map = new Map<string, string>();
+			for (const stage of stages)
+				if (!map.has(stage.id))
+					map.set(stage.id, stage.sourcePolicy ?? "require-success");
+			cache = { size: stages.length, map };
+		}
+		return cache.map;
+	};
+}
+
 export function stageSourcePolicy(
 	compiledFlow: CompiledWorkflow,
 	stageId: string,
+	policies?: StagePolicyIndex,
 ): string {
+	if (policies !== undefined)
+		return policies().get(stageId) ?? "require-success";
 	return (
 		((compiledFlow as any).stages ?? []).find(
 			(stage: any) => stage.id === stageId,
@@ -1868,7 +1894,22 @@ export function partialModelStageNoInputReason(
 export function markDagDependentsSkipped(
 	run: WorkflowRunRecord,
 	compiledFlow: CompiledWorkflow,
+	shared?: {
+		compiledIndex?: () => ReadonlyMap<string, CompiledTask>;
+		policies?: StagePolicyIndex;
+	},
 ): boolean {
+	// One policy index and (when a decision needs it) one spec-id index per call, not per candidate.
+	const policies = shared?.policies ?? stagePolicyIndex(compiledFlow);
+	let ownIndex: ReadonlyMap<string, CompiledTask> | undefined;
+	const compiledIndex =
+		shared?.compiledIndex ??
+		((): ReadonlyMap<string, CompiledTask> => {
+			ownIndex ??= new Map(
+				compiledFlow.tasks.map((task) => [compiledTaskSpecId(task), task]),
+			);
+			return ownIndex;
+		});
 	const bySpecId = new Map(run.tasks.map((task) => [task.specId, task]));
 	let changed = false;
 	let passChanged = true;
@@ -1900,13 +1941,17 @@ export function markDagDependentsSkipped(
 			)
 				continue;
 			if (
-				stageSourcePolicy(compiledFlow, compiledTask.stageId ?? "") ===
-				"partial"
+				stageSourcePolicy(
+					compiledFlow,
+					compiledTask.stageId ?? "",
+					policies,
+				) === "partial"
 			) {
 				const reason = partialModelStageNoInputReason(
 					compiledTask,
 					bySpecId,
 					compiledFlow,
+					compiledIndex,
 				);
 				if (!reason) continue;
 				setTaskTerminal(task, "skipped", "skipped_every_input_failed", {

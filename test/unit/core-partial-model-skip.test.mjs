@@ -504,6 +504,93 @@ test("N5: the decision checks cheap conditions first and builds the whole-graph 
 	assert.equal(builds, 1);
 });
 
+test("N5b: pass-start propagation and policy lookups stay linear in the number of dependents", async () => {
+	const { markDagDependentsSkipped } = await import(
+		"../../dist/core/engine-run-graph.js"
+	);
+	const streaming = { enabled: true, minChunk: 1 };
+	const measure = (count) => {
+		let idReads = 0;
+		const counted = (task) =>
+			Object.defineProperty({ ...task }, "id", {
+				get() {
+					idReads += 1;
+					return task.id;
+				},
+				enumerable: true,
+			});
+		const tasks = [
+			counted({
+				id: "p.main",
+				stageId: "p",
+			}),
+			counted({
+				id: "work.item",
+				stageId: "work",
+				kind: "foreach",
+				dependsOn: ["p.main"],
+				foreach: { from: { stage: "p", streaming } },
+			}),
+			counted({
+				id: "work.item-001",
+				stageId: "work",
+				dependsOn: ["work.item"],
+				foreachGenerated: { placeholderSpecId: "work.item" },
+			}),
+		];
+		const stages = [];
+		const records = [
+			{ taskId: "t1", specId: "p.main", status: "completed" },
+			{
+				taskId: "t2",
+				specId: "work.item",
+				kind: "foreach",
+				status: "completed",
+			},
+			{
+				taskId: "t3",
+				specId: "work.item-001",
+				status: "failed",
+				foreachGenerated: { placeholderSpecId: "work.item" },
+			},
+		];
+		for (let index = 0; index < count; index += 1) {
+			tasks.push(
+				counted({
+					id: `d${index}.main`,
+					stageId: `d${index}`,
+					dependsOn: ["work.item", "work.item-001"],
+				}),
+			);
+			stages.push(
+				Object.defineProperty({ sourcePolicy: "partial" }, "id", {
+					get() {
+						idReads += 1;
+						return `d${index}`;
+					},
+					enumerable: true,
+				}),
+			);
+			records.push({
+				taskId: `t${index + 10}`,
+				specId: `d${index}.main`,
+				status: "pending",
+			});
+		}
+		const run = { tasks: records };
+		assert.equal(markDagDependentsSkipped(run, { tasks, stages }), true);
+		assert.ok(
+			records.slice(3).every((record) => record.status === "skipped"),
+			"every partial dependent was skipped",
+		);
+		return idReads;
+	};
+	const small = measure(64);
+	const large = measure(256);
+	assert.ok(small <= 64 * 12, `64 dependents read ids ${small} times`);
+	assert.ok(large <= 256 * 12, `256 dependents read ids ${large} times`);
+});
+
 for (const declared of ["failed", "blocked"]) {
 	for (const barrier of [false, true]) {
 		test(`M2: a support source that declares ${declared} inline leaves its partial model consumer skipped${barrier ? " (terminal barrier)" : ""}`, async () => {

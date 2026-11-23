@@ -158,6 +158,7 @@ import {
 	replaceDependencyList,
 	sourceStageIdsForFrom,
 	stageSourcePolicy,
+	stagePolicyIndex,
 	updateDownstreamDependencies,
 	synchronizeTerminalBarrierSourceSpecIds,
 } from "./engine-run-graph.js";
@@ -4209,7 +4210,27 @@ async function scheduleDagPass(
 
 	if (await finalizeStopIntentIfRequested(cwd, run)) return false;
 
-	const changed = markDagDependentsSkipped(run, compiledFlow);
+	// One spec-id index of the compiled graph and one stage-policy index per scheduling pass, each built only
+	// when a decision needs it (and rebuilt if the graph grew with generated tasks); the pass-start
+	// propagation and the dispatch decisions share them.
+	let compiledIndexCache:
+		| { size: number; map: ReadonlyMap<string, CompiledTask> }
+		| undefined;
+	const compiledIndex = (): ReadonlyMap<string, CompiledTask> => {
+		if (compiledIndexCache?.size !== compiledFlow.tasks.length)
+			compiledIndexCache = {
+				size: compiledFlow.tasks.length,
+				map: new Map(
+					compiledFlow.tasks.map((task) => [compiledTaskSpecId(task), task]),
+				),
+			};
+		return compiledIndexCache.map;
+	};
+	const policies = stagePolicyIndex(compiledFlow);
+	const changed = markDagDependentsSkipped(run, compiledFlow, {
+		compiledIndex,
+		policies,
+	});
 	if (changed) {
 		await writeRunRecord(cwd, run);
 		run = await readRunRecord(cwd, run.runId);
@@ -4232,21 +4253,6 @@ async function scheduleDagPass(
 	// pool ends only the non-support sweep.
 	let supportSweep = false;
 	const supportAttempted = new Set<number>();
-	// One spec-id index of the compiled graph per scheduling pass, built only when a decision needs it and
-	// rebuilt if the graph grew (generated tasks).
-	let compiledIndexCache:
-		| { size: number; map: ReadonlyMap<string, CompiledTask> }
-		| undefined;
-	const compiledIndex = (): ReadonlyMap<string, CompiledTask> => {
-		if (compiledIndexCache?.size !== compiledFlow.tasks.length)
-			compiledIndexCache = {
-				size: compiledFlow.tasks.length,
-				map: new Map(
-					compiledFlow.tasks.map((task) => [compiledTaskSpecId(task), task]),
-				),
-			};
-		return compiledIndexCache.map;
-	};
 	for (let index = 0; ; index += 1) {
 		if (
 			index >= run.tasks.length ||
@@ -4281,13 +4287,15 @@ async function scheduleDagPass(
 			await writeRunRecord(cwd, run);
 			continue;
 		}
-		if (!dependenciesReady(compiledTask, bySpecId, compiledFlow, task))
+		if (
+			!dependenciesReady(compiledTask, bySpecId, compiledFlow, task, policies)
+		)
 			continue;
 		// Final run/skip decision before anything is dispatched. A source can reach its terminal state
 		// after the pass-start propagation (a support helper finishes inline above), so decide again
 		// here: no partial model stage launches on inputs that all failed.
 		if (
-			stageSourcePolicy(compiledFlow, compiledTask.stageId ?? "") ===
+			stageSourcePolicy(compiledFlow, compiledTask.stageId ?? "", policies) ===
 				"partial" &&
 			partialModelStageNoInputReason(
 				compiledTask,
@@ -4296,7 +4304,9 @@ async function scheduleDagPass(
 				compiledIndex,
 			) !== undefined
 		) {
-			if (markDagDependentsSkipped(run, compiledFlow))
+			if (
+				markDagDependentsSkipped(run, compiledFlow, { compiledIndex, policies })
+			)
 				await writeRunRecord(cwd, run);
 			if (task.status !== "pending") continue;
 		}
