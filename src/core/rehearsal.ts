@@ -32,7 +32,11 @@ import {
 	foreachHintToJson,
 	type RehearsalForeachHint,
 } from "./rehearsal-executor.js";
-import { createShadowProject, hasDynamicStage } from "./rehearsal-shadow.js";
+import {
+	applyRehearsalGitEnv,
+	createShadowProject,
+	hasDynamicStage,
+} from "./rehearsal-shadow.js";
 import { SUPPORT_SOURCE_MISSES_FILE } from "./support-source-probe.js";
 import {
 	removeRehearsalRoot,
@@ -626,6 +630,36 @@ function invalidSpecReport(
 	};
 }
 
+/**
+ * True when any compiled task needs a managed worktree: the top-level tasks and the templates the engine
+ * materializes later (a loop's child stages and its onExhausted stage; the placeholder of a loop itself is
+ * read-only), review 2026-11-23 M7.
+ */
+function compiledCanWrite(compiled: {
+	tasks?: Array<{ safety?: { requiresWorktree?: boolean } }>;
+	stages?: Array<Record<string, unknown>>;
+}): boolean {
+	const writes = (task: { safety?: { requiresWorktree?: boolean } }): boolean =>
+		task.safety?.requiresWorktree === true;
+	if ((compiled.tasks ?? []).some(writes)) return true;
+	for (const stage of compiled.stages ?? []) {
+		const templates = stage.childTemplates;
+		if (
+			Array.isArray(templates) &&
+			(templates as Array<{ safety?: { requiresWorktree?: boolean } }>).some(
+				writes,
+			)
+		)
+			return true;
+		const exhausted = stage.onExhausted as
+			| { template?: { safety?: { requiresWorktree?: boolean } } }
+			| undefined;
+		if (exhausted?.template !== undefined && writes(exhausted.template))
+			return true;
+	}
+	return false;
+}
+
 export async function rehearseWorkflow(
 	cwd: string,
 	options: RehearsalOptions,
@@ -652,10 +686,8 @@ export async function rehearseWorkflow(
 		warnings = [...compiled.warnings];
 		// A stage that can write gets a managed git worktree from the engine; see rehearsal-shadow.ts.
 		canWrite =
-			(compiled.tasks ?? []).some(
-				(compiledTask: { safety?: { requiresWorktree?: boolean } }) =>
-					compiledTask.safety?.requiresWorktree === true,
-			) || hasDynamicStage(loaded.spec.artifactGraph?.stages ?? []);
+			compiledCanWrite(compiled) ||
+			hasDynamicStage(loaded.spec.artifactGraph?.stages ?? []);
 	} catch (error) {
 		if (error instanceof WorkflowValidationError)
 			return { report: invalidSpecReport(options, settings, error.issues) };
@@ -672,6 +704,7 @@ export async function rehearseWorkflow(
 		rehearsal: process.env[REHEARSAL_ENV],
 	};
 	let unregister: (() => void) | undefined;
+	let restoreGitEnv: (() => void) | undefined;
 	let outcome: RehearsalResult | undefined;
 	let leftover: string | undefined;
 	// Everything after the temp root exists runs inside the try, so a failure here still restores the
@@ -679,6 +712,9 @@ export async function rehearseWorkflow(
 	try {
 		mkdirSync(tempHome, { recursive: true });
 		linkReadOnlyHomeEntries(realHome, tempHome);
+		// All git of the rehearsal (the clone, the engine's worktrees) runs without the user's system/global
+		// configuration; the root also arms the worktree guard (see assertRehearsalGitRoot).
+		restoreGitEnv = applyRehearsalGitEnv(tempRoot);
 		// R3: a workflow that can write runs in a shadow clone of the project inside the temporary root, so
 		// the engine's worktrees and `agent-workflow/<run>-<task>` branches never reach the user's repository.
 		const runCwd =
@@ -737,6 +773,7 @@ export async function rehearseWorkflow(
 		};
 	} finally {
 		unregister?.();
+		restoreGitEnv?.();
 		for (const [name, previous] of [
 			[AGENT_WORKFLOW_HOME_ENV, savedEnv.home],
 			[RUN_INDEX_DIR_ENV, savedEnv.index],

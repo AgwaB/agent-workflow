@@ -24,6 +24,7 @@ import {
 	resolve,
 } from "node:path";
 
+import { assertRehearsalGitRoot } from "./rehearsal-shadow.js";
 import { workflowRunDir, managedWorktreePath, toStatePath } from "./store.js";
 import type {
 	CompiledTask,
@@ -55,6 +56,9 @@ export async function ensureManagedWorktree(
 			`managed worktree required for ${task.taskId}, but ${compiledTask.cwd} is not inside a git repository`,
 		);
 	}
+
+	// A rehearsal never creates a worktree or branch in a repository outside its temporary root.
+	assertRehearsalGitRoot(gitRoot, task.taskId);
 
 	const path = managedWorktreePath(projectCwd, run.runId, task.taskId);
 	const branch = `agent-workflow/${run.runId}-${task.taskId}`;
