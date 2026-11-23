@@ -412,6 +412,65 @@ test("a foreach source array without minItems warns once; minItems (even 0) or a
 	assert.equal(matching(helper, /has no minItems/).length, 0);
 });
 
+test("array bounds proven through allOf count; unprovable leaf combinators and hyphenated paths are handled", async () => {
+	const stages = (path = "$.items") => [
+		single("plan", {
+			output: { controlSchema: "./schemas/plan.json" },
+		}),
+		{
+			id: "fe",
+			type: "foreach",
+			profileRole: "verification",
+			from: { source: "plan", path },
+			each: { prompt: "Check ${item}." },
+		},
+	];
+	const withItems = (items, key = "items") =>
+		schema({ [key]: { type: "array", items: { type: "string" }, ...items } });
+	const run = (items, path, key) =>
+		validate(stages(path), { "schemas/plan.json": withItems(items, key) });
+
+	// False positive: a lower/upper bound proven through allOf is present.
+	const proven = await run({ allOf: [{ minItems: 1 }, { maxItems: 8 }] });
+	assert.equal(matching(proven, /has no minItems/).length, 0);
+	assert.equal(matching(proven, /has no maxItems/).length, 0);
+	const nested = await run({ allOf: [{ allOf: [{ minItems: 1 }] }] });
+	assert.equal(matching(nested, /has no minItems/).length, 0);
+	// An allOf that proves nothing is still absent.
+	const absent = await run({ allOf: [{ description: "x" }] });
+	assert.equal(matching(absent, /has no minItems/).length, 1);
+	assert.equal(matching(absent, /has no maxItems/).length, 1);
+
+	// Leaf combinators that cannot be proven give no warning either way.
+	for (const extra of [
+		{ anyOf: [{ minItems: 1 }, { maxItems: 3 }] },
+		{ oneOf: [{ minItems: 1 }, { minItems: 2 }] },
+		{ allOf: [{ anyOf: [{ minItems: 1 }] }] },
+	]) {
+		const unknown = await run(extra);
+		assert.equal(matching(unknown, /has no minItems/).length, 0);
+		assert.equal(matching(unknown, /has no maxItems/).length, 0);
+	}
+
+	// False negative: a hyphenated key reads at runtime, so the scan sees the same array.
+	const hyphen = await run({}, "$.work-items", "work-items");
+	assert.equal(matching(hyphen, /has no minItems/).length, 1);
+	assert.equal(matching(hyphen, /has no maxItems/).length, 1);
+	const hyphenOk = await run(
+		{ minItems: 0, maxItems: 4 },
+		"$.work-items",
+		"work-items",
+	);
+	assert.equal(matching(hyphenOk, /has no minItems/).length, 0);
+	assert.equal(matching(hyphenOk, /has no maxItems/).length, 0);
+	const hyphenProven = await run(
+		{ allOf: [{ minItems: 1, maxItems: 4 }] },
+		"$.work-items",
+		"work-items",
+	);
+	assert.equal(matching(hyphenProven, /has no minItems/).length, 0);
+});
+
 test("minItems: 1 on the source array makes an empty model answer an output-validation failure", () => {
 	const controlJsonSchema = schema({
 		items: { type: "array", items: { type: "string" }, minItems: 1 },

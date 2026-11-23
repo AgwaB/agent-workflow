@@ -1,7 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { lookupControlSchemaPath } from "./control-schema-path.js";
+import {
+	lookupArrayBound,
+	lookupControlSchemaPath,
+} from "./control-schema-path.js";
 
 // Advisory authoring-rule checks for the workflow-guide skill's "Must know" rules that a spec
 // alone can decide. They are warnings (heuristics or conventions with a runtime effect), listed by
@@ -225,12 +228,15 @@ async function foreachSourceWarnings(
 	const array = lookup.schema;
 	if (array.type !== "array" && !isRecord(array.items)) return [];
 	const warnings: string[] = [];
-	if (stage.maxItems === undefined && typeof array.maxItems !== "number")
+	if (
+		stage.maxItems === undefined &&
+		lookupArrayBound(array, "maxItems") === "absent"
+	)
 		warnings.push(
 			`foreach stage "${stage.id}" fans out over "${path}" from "${sourceId}", but that array in ${sourceId}'s control schema (${source.output.controlSchema}) has no maxItems, so the model decides the task count without bound. Add maxItems to the array (and state the cap in ${sourceId}'s prompt), or set maxItems on the foreach stage.`,
 		);
 	// An explicit minItems (even 0) says the author chose; only the unstated case is flagged.
-	if (typeof array.minItems !== "number")
+	if (lookupArrayBound(array, "minItems") === "absent")
 		warnings.push(
 			`foreach stage "${stage.id}" fans out over "${path}" from model stage "${sourceId}" whose array has no minItems, so an empty answer completes with 0 tasks. Add minItems: 1 if empty means failure (or minItems: 0 if it is fine), or find the items in a support stage.`,
 		);

@@ -350,7 +350,7 @@ export function canStageProceedAfterPreviousFailure(
 	return stage.sourcePolicy === "partial";
 }
 
-type SimpleJsonPathToken =
+export type SimpleJsonPathToken =
 	| { type: "property"; key: string }
 	| { type: "index"; index: number }
 	| { type: "slice"; start?: number; end?: number }
@@ -378,7 +378,10 @@ export function readSimpleJsonPath(value: unknown, path: string): unknown {
 	return unwrapJsonPathSelection(current);
 }
 
-function parseSimpleJsonPath(path: string): SimpleJsonPathToken[] | undefined {
+// The runtime tokenizer, also used by the static control-schema scan so both read a path alike.
+export function parseSimpleJsonPath(
+	path: string,
+): SimpleJsonPathToken[] | undefined {
 	if (path === "$" || path.length === 1) return path === "$" ? [] : undefined;
 	if (!path.startsWith("$")) return undefined;
 	const tokens: SimpleJsonPathToken[] = [];
