@@ -39,7 +39,7 @@ export function formatRehearsal(data: RehearseData): string {
 	const verdict = !data.ok
 		? "wiring problems found"
 		: data.status === "content-gates"
-			? "wiring OK, but content gates rejected the synthetic data (expected; not a wiring problem)"
+			? "wiring OK so far, but a helper declared failed/blocked on the synthetic data (read the reason below)"
 			: "wiring OK";
 	const lines = [
 		`Rehearsal of ${data.workflow}: ${verdict} (run ${data.runStatus}; items ${data.options.items}, loop ${data.options.loop})`,
@@ -70,7 +70,7 @@ export function formatRehearsal(data: RehearseData): string {
 			);
 		lines.push(`  ${stage.stage}: ${parts.join("; ")}`);
 		for (const gate of stage.gates)
-			lines.push(`    content gate: ${gate.task} declared ${gate.status}`);
+			lines.push(`    ${gate.task} declared ${gate.status} on synthetic data`);
 	}
 	for (const loop of data.loops)
 		lines.push(
@@ -80,17 +80,17 @@ export function formatRehearsal(data: RehearseData): string {
 		stage.gates.map((gate) => ({ stage: stage.stage, ...gate })),
 	);
 	lines.push(
-		`Final report: ${data.finalReportRendered ? "rendered" : gates.length > 0 ? "not rendered (stopped at a content gate; see below)" : "not rendered"}`,
+		`Final report: ${data.finalReportRendered ? "rendered" : gates.length > 0 ? "not rendered (stopped at a declared failed/blocked; see below)" : "not rendered"}`,
 	);
 	if (gates.length > 0) {
 		lines.push(
 			data.ok
-				? "Content gates (the workflow's own checks of evidence, counts or files rejected the synthetic placeholder output; expected for placeholder data, not a wiring problem):"
-				: "Content gates (the workflow's own checks rejected the synthetic placeholder output; expected, not a wiring problem; the findings below are separate):",
+				? "Declared failed/blocked on synthetic data (a helper's own checks of evidence, counts or files rejected the placeholder output; the rehearsal cannot tell a content check from a setup problem):"
+				: "Declared failed/blocked on synthetic data (a helper's own checks rejected the placeholder output; the findings below are separate):",
 		);
 		for (const gate of gates)
 			lines.push(
-				`- ${gate.task} (stage ${gate.stage}) declared ${gate.status}: ${gate.reasons.length > 0 ? gate.reasons.join("; ") : "no reason given"}`,
+				`- ${gate.task} (stage ${gate.stage}) declared ${gate.status} on synthetic data: ${gate.reasons.length > 0 ? gate.reasons.join("; ") : "no reason given"} — expected for a content check; if it names a missing source or setup, it is a wiring problem`,
 			);
 		if (data.skippedAfterGates.length > 0)
 			lines.push(

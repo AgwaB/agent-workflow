@@ -1163,7 +1163,10 @@ test("rehearse of write-verify with a misspelled support.options.writer is a wir
 	const result = await run(["rehearse", "typo"], { cwd: dir });
 	assert.equal(result.code, 1, result.out + result.err);
 	assert.match(result.out, /no task of the writer stage wirte/u);
-	assert.doesNotMatch(result.out, /Content gates/u);
+	assert.doesNotMatch(
+		result.out,
+		/Declared failed\/blocked on synthetic data/u,
+	);
 });
 
 test("rehearse sets AGENT_WORKFLOW_REHEARSAL only while it runs", async () => {

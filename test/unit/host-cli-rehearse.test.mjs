@@ -138,7 +138,7 @@ async function gateWorkflow(name, helperBody) {
 }
 
 for (const declared of ["failed", "blocked"]) {
-	test(`content gates (${declared}): exit 0, the text names the gate helper and reason and says it is not a wiring problem`, async () => {
+	test(`content gates (${declared}): exit 0, the text names the helper and reason and does not claim it is proven not to be wiring`, async () => {
 		const file = await gateWorkflow(
 			`gated-${declared}`,
 			`export default async () => ({ schema: "g-v1", status: "${declared}", digest: "0 of 20 tickets classified" });\n`,
@@ -147,19 +147,20 @@ for (const declared of ["failed", "blocked"]) {
 		assert.equal(result.code, 0, result.out + result.err);
 		assert.match(
 			result.out,
-			/wiring OK, but content gates rejected the synthetic data \(expected; not a wiring problem\)/u,
+			/wiring OK so far, but a helper declared failed\/blocked on the synthetic data \(read the reason below\)/u,
 		);
+		assert.doesNotMatch(result.out, /not a wiring problem/u);
 		assert.doesNotMatch(result.out, /wiring problems found/u);
 		assert.match(
 			result.out,
 			new RegExp(
-				`- g\\.main \\(stage g\\) declared ${declared}: 0 of 20 tickets classified`,
+				`- g\\.main \\(stage g\\) declared ${declared} on synthetic data: 0 of 20 tickets classified`,
 				"u",
 			),
 		);
 		assert.match(
 			result.out,
-			/expected for placeholder data, not a wiring problem/u,
+			/expected for a content check; if it names a missing source or setup, it is a wiring problem/u,
 		);
 		assert.match(result.out, /Stages skipped after the gate: c\./u);
 		assert.doesNotMatch(result.out, /Findings:/u);
@@ -184,7 +185,10 @@ test("a helper that looks up a source it does not have and declares blocked is e
 		result.out,
 		/helper g\.main asked for source "extract", which is not one of its sources \(a\)/u,
 	);
-	assert.doesNotMatch(result.out, /Content gates/u);
+	assert.doesNotMatch(
+		result.out,
+		/Declared failed\/blocked on synthetic data/u,
+	);
 	const json = await run(["rehearse", file, "--json"]);
 	assert.equal(json.code, 1);
 	const parsed = JSON.parse(json.out);
@@ -202,7 +206,10 @@ test("a helper that throws stays a wiring finding (exit 1), not a content gate",
 	assert.equal(result.code, 1);
 	assert.match(result.out, /wiring problems found/u);
 	assert.match(result.out, /helper exploded on purpose/u);
-	assert.doesNotMatch(result.out, /Content gates/u);
+	assert.doesNotMatch(
+		result.out,
+		/Declared failed\/blocked on synthetic data/u,
+	);
 });
 
 test("--json prints the same data as one object with the rehearsal schema", async () => {
