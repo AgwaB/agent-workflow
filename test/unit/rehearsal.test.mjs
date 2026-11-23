@@ -992,6 +992,38 @@ for (const [label, ps] of [
 	});
 }
 
+test("N4: a rehearsal that throws after keeping its temporary root reports the kept path on the error", async () => {
+	const cwd = await project();
+	const path = await writeSpec(cwd, "one", ONE_STAGE);
+	setRehearsalPsForTests(async () => {
+		throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+	});
+	setRehearsalSettleWaitForTests(100);
+	const controller = new AbortController();
+	controller.abort();
+	let error;
+	try {
+		await rehearseWorkflow(cwd, { workflow: path, signal: controller.signal });
+	} catch (caught) {
+		error = caught;
+	} finally {
+		setRehearsalPsForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+	}
+	assert.ok(error instanceof Error, "the cancelled rehearsal threw");
+	try {
+		assert.match(error.retainedRoot, /aw-rehearse-/u);
+		assert.ok(existsSync(error.retainedRoot), "the reported path exists");
+		assert.ok(
+			error.message.includes(error.retainedRoot),
+			`the message names the kept path: ${error.message}`,
+		);
+	} finally {
+		if (typeof error.retainedRoot === "string")
+			await rm(error.retainedRoot, { recursive: true, force: true });
+	}
+});
+
 test("settle: a quiet root is still removed (no regression of the eventual-quiet path)", async () => {
 	let calls = 0;
 	const { result, removed } = await rehearseWithPs(async (root) => {

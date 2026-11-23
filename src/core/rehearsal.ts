@@ -683,6 +683,27 @@ export function rehearseWorkflow(
 	return turn;
 }
 
+/** The error with the temporary root that was kept or could not be removed: `retainedRoot` and a message note. */
+function withRetainedRoot(failure: unknown, root: string): Error {
+	const error = failure instanceof Error ? failure : new Error(String(failure));
+	const note = `Temporary state kept at ${root} (safe to delete by hand)`;
+	Object.defineProperty(error, "retainedRoot", {
+		value: root,
+		enumerable: false,
+		configurable: true,
+		writable: true,
+	});
+	// Some error classes expose `message` as a getter only: define it on the instance.
+	if (!error.message.includes(root))
+		Object.defineProperty(error, "message", {
+			value: `${error.message}\n${note}`,
+			enumerable: false,
+			configurable: true,
+			writable: true,
+		});
+	return error;
+}
+
 async function rehearseWorkflowNow(
 	cwd: string,
 	options: RehearsalOptions,
@@ -730,6 +751,8 @@ async function rehearseWorkflowNow(
 	let restoreGitEnv: (() => void) | undefined;
 	let outcome: RehearsalResult | undefined;
 	let leftover: string | undefined;
+	let failed = false;
+	let failure: unknown;
 	// Everything after the temp root exists runs inside the try, so a failure here still restores the
 	// environment and removes the temp root (review 2026-11-22).
 	try {
@@ -794,6 +817,10 @@ async function rehearseWorkflowNow(
 			report,
 			...(options.keep === true ? { stateRoot: tempRoot } : {}),
 		};
+	} catch (error) {
+		// Rethrown after the cleanup below, with the path of any root that stays behind.
+		failed = true;
+		failure = error;
 	} finally {
 		unregister?.();
 		restoreGitEnv?.();
@@ -813,6 +840,12 @@ async function rehearseWorkflowNow(
 		if (options.keep !== true)
 			leftover =
 				quiescence === "quiet" ? removeRehearsalRoot(tempRoot) : tempRoot;
+	}
+	if (failed) {
+		const retained = options.keep === true ? tempRoot : leftover;
+		if (retained !== undefined && existsSync(retained))
+			throw withRetainedRoot(failure, retained);
+		throw failure;
 	}
 	return leftover === undefined
 		? (outcome as RehearsalResult)
