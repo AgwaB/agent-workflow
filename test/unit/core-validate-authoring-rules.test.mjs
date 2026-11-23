@@ -446,6 +446,12 @@ test("array bounds proven through allOf count; unprovable leaf combinators and h
 		{ anyOf: [{ minItems: 1 }, { maxItems: 3 }] },
 		{ oneOf: [{ minItems: 1 }, { minItems: 2 }] },
 		{ allOf: [{ anyOf: [{ minItems: 1 }] }] },
+		// Constraints the scan does not evaluate: a finite domain decides what [] and the size are.
+		{ allOf: [{ enum: [["one"], ["two"]] }] },
+		{ enum: [["one"], ["two"]] },
+		{ const: ["one"] },
+		{ allOf: [{ const: ["one", "two"] }] },
+		{ allOf: [{ oneOf: [{ minItems: 1 }, { minItems: 2 }] }] },
 	]) {
 		const unknown = await run(extra);
 		assert.equal(matching(unknown, /has no minItems/).length, 0);

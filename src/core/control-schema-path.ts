@@ -65,7 +65,10 @@ export function lookupControlSchemaPath(
 export type ArrayBoundLookup = "present" | "absent" | "unknown";
 
 // Keywords through which a schema may bound an array in a way this scan does not follow.
+// `enum` and `const` fix the whole array (its size and whether `[]` is valid), which this scan does not evaluate.
 const UNPROVABLE_BOUND_KEYS = [
+	"enum",
+	"const",
 	"anyOf",
 	"oneOf",
 	"not",
