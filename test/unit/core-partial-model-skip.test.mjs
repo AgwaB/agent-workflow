@@ -361,6 +361,78 @@ test("M1c: a streaming foreach whose generated items all failed leaves the parti
 	assert.equal(submits(effectLog), 3, "plan and the two items; no reducer");
 });
 
+test("N1: an OPEN streaming foreach keeps the partial reducer waiting after its first item failed", async () => {
+	const { markDagDependentsSkipped } = await import(
+		"../../dist/core/engine-run-graph.js"
+	);
+	const streaming = { enabled: true, minChunk: 1 };
+	const flow = {
+		tasks: [
+			{ id: "p1.main", stageId: "p1" },
+			{ id: "p2.main", stageId: "p2" },
+			{
+				id: "work.item",
+				stageId: "work",
+				kind: "foreach",
+				dependsOn: ["p1.main", "p2.main"],
+				foreach: { from: { stage: "p1", streaming } },
+			},
+			{
+				id: "work.item-001",
+				stageId: "work",
+				dependsOn: ["work.item"],
+				foreachGenerated: { placeholderSpecId: "work.item" },
+			},
+			{
+				id: "report.main",
+				stageId: "report",
+				dependsOn: ["work.item", "work.item-001"],
+			},
+		],
+		stages: [{ id: "report", sourcePolicy: "partial" }],
+	};
+	const build = (placeholder, second) => ({
+		tasks: [
+			{ taskId: "t1", specId: "p1.main", status: "completed" },
+			{ taskId: "t2", specId: "p2.main", status: "running" },
+			{ taskId: "t3", specId: "work.item", status: placeholder },
+			{
+				taskId: "t4",
+				specId: "work.item-001",
+				status: "failed",
+				foreachGenerated: { placeholderSpecId: "work.item" },
+			},
+			...(second
+				? [
+						{
+							taskId: "t5",
+							specId: "work.item-002",
+							status: second,
+							foreachGenerated: { placeholderSpecId: "work.item" },
+						},
+					]
+				: []),
+			{ taskId: "t9", specId: "report.main", status: "pending" },
+		],
+	});
+
+	// Still open: producer 2 is running, the placeholder is pending. Nothing is decided yet.
+	const open = build("pending");
+	assert.equal(markDagDependentsSkipped(open, flow), false);
+	assert.equal(open.tasks.at(-1).status, "pending");
+
+	// Membership final (placeholder completed) and every generated item failed: skipped.
+	const closed = build("completed");
+	assert.equal(markDagDependentsSkipped(closed, flow), true);
+	assert.equal(closed.tasks.at(-1).status, "skipped");
+	assert.equal(closed.tasks.at(-1).statusDetail, "skipped_every_input_failed");
+
+	// Membership final and a later item completed: the reducer runs.
+	const later = build("completed", "completed");
+	assert.equal(markDagDependentsSkipped(later, flow), false);
+	assert.equal(later.tasks.at(-1).status, "pending");
+});
+
 for (const declared of ["failed", "blocked"]) {
 	for (const barrier of [false, true]) {
 		test(`M2: a support source that declares ${declared} inline leaves its partial model consumer skipped${barrier ? " (terminal barrier)" : ""}`, async () => {

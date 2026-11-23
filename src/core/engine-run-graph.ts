@@ -1797,8 +1797,8 @@ function descendantSpecIdsFor(
  *
  * Data sources are the ones the stage reads (`contextDependsOn`, else `dependsOn`): `after` only
  * orders, so a failed `after` neither feeds a stage nor, with no `from`, makes it skip. A streaming
- * foreach keeps its completed placeholder next to the generated items; once items exist the
- * placeholder is bookkeeping and does not count.
+ * foreach keeps its placeholder next to the generated items: while the placeholder is open more items
+ * may come, so it keeps the stage waiting; once it is terminal and items exist it is bookkeeping.
  *
  * Not model stages, so they run as before: support helpers (deterministic code, e.g. a bundled final
  * renderer), dynamic controllers without a decision loop (a helper that decides itself whether to
@@ -1828,6 +1828,11 @@ export function partialModelStageNoInputReason(
 	const deps = sources.filter((dep) => {
 		const compiled = compiledBySpecId.get(dep);
 		if (!compiled?.foreach || !foreachStreamingEnabled(compiled)) return true;
+		// An open placeholder (not yet terminal) means more items may still come, so it stays a
+		// readiness condition. Once it is terminal the membership is final and its own success is
+		// bookkeeping next to the generated items.
+		const open = !isTerminalTaskStatus(bySpecId.get(dep)?.status ?? "pending");
+		if (open) return true;
 		return !sources.some(
 			(other) =>
 				compiledBySpecId.get(other)?.foreachGenerated?.placeholderSpecId ===
