@@ -4374,6 +4374,7 @@
   "sanitizerDiagnostics": {
    "inputCandidateCount": 18,
    "keptCandidateCount": 18,
+   "mergedDuplicateCount": 0,
    "demotedCandidateCount": 0,
    "rewrittenCandidateCount": 13,
    "webUrlOnlyDemotedCount": 0,
@@ -4404,6 +4405,7 @@
     "claim-017",
     "claim-018"
    ],
+   "mergedDuplicateIds": [],
    "demotedCandidateIds": [],
    "webUrlOnlyDemotedIds": [],
    "promotedCandidateIds": [],
@@ -9896,6 +9898,7 @@
     "sanitizer": {
      "inputCandidateCount": 18,
      "keptCandidateCount": 18,
+     "mergedDuplicateCount": 0,
      "demotedCandidateCount": 0,
      "rewrittenCandidateCount": 13,
      "webUrlOnlyDemotedCount": 0,
@@ -9926,6 +9929,7 @@
       "claim-017",
       "claim-018"
      ],
+     "mergedDuplicateIds": [],
      "demotedCandidateIds": [],
      "webUrlOnlyDemotedIds": [],
      "promotedCandidateIds": [],
@@ -12344,6 +12348,7 @@
          "sanitizer": {
           "inputCandidateCount": 18,
           "keptCandidateCount": 18,
+          "mergedDuplicateCount": 0,
           "demotedCandidateCount": 0,
           "rewrittenCandidateCount": 13,
           "webUrlOnlyDemotedCount": 0,
@@ -12374,6 +12379,7 @@
            "claim-017",
            "claim-018"
           ],
+          "mergedDuplicateIds": [],
           "demotedCandidateIds": [],
           "webUrlOnlyDemotedIds": [],
           "promotedCandidateIds": [],

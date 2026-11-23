@@ -1,0 +1,1776 @@
+{
+	"_provenance": "Controls of agent-workflow run workflow_mwt0o0kf_362bc9 (deep-research, depth=quick, codex gpt-6-luna, 2026-11-23, Node.js Active LTS question): normalize-input-packet=task-3, normalize-claims=task-4, final-audit-packet=task-9, final-audit=task-10.",
+	"normalize-input-packet": {
+		"schema": "deep-research-normalize-input-packet-v2",
+		"digest": "Support helper completed.",
+		"packet": {
+			"plan": {
+				"depth": "quick",
+				"taskType": "research_survey",
+				"expectedFinalShape": "research_brief",
+				"sourcePolicy": {
+					"preferredSourceClasses": [
+						"official Node.js release schedule",
+						"official Node.js release page or announcements"
+					],
+					"primaryRequiredFactTypes": ["version", "date"],
+					"sourceQualityRules": [
+						"Use official Node.js sources for the current line and lifecycle dates.",
+						"Preserve the schedule's exact line naming and date precision.",
+						"Distinguish the maintenance phase end from other lifecycle milestones if the official schedule labels them separately."
+					]
+				},
+				"factSlots": [
+					{
+						"id": "slot-001",
+						"label": "Current Active LTS Node.js line as of 2026-11-23",
+						"type": "version",
+						"required": true,
+						"entities": ["Node.js"],
+						"sourcePriority": "primary_required",
+						"verificationPriority": "core"
+					},
+					{
+						"id": "slot-002",
+						"label": "Maintenance phase end date for the current Active LTS line",
+						"type": "date",
+						"required": true,
+						"entities": ["Node.js current Active LTS line"],
+						"sourcePriority": "primary_required",
+						"verificationPriority": "core"
+					}
+				],
+				"verificationPriorities": [
+					{
+						"id": "priority-001",
+						"targetSlots": ["slot-001"],
+						"claimFamily": "current release status",
+						"priority": "core",
+						"reason": "The answer must identify the line that is Active LTS on the specified current date.",
+						"evidenceRequirement": "Official Node.js source showing the line's lifecycle status and schedule timing."
+					},
+					{
+						"id": "priority-002",
+						"targetSlots": ["slot-002"],
+						"claimFamily": "maintenance end date",
+						"priority": "core",
+						"reason": "The requested date is lifecycle-specific and could be confused with another milestone.",
+						"evidenceRequirement": "Official Node.js schedule stating the maintenance phase end or equivalent lifecycle date for that line."
+					}
+				],
+				"researchScopeCoverage": [
+					{
+						"scopeItem": "Current Active LTS Node.js line",
+						"coveredBy": ["rq-001"],
+						"status": "covered"
+					},
+					{
+						"scopeItem": "Maintenance end date for that line",
+						"coveredBy": ["rq-002", "rq-003"],
+						"status": "covered"
+					},
+					{
+						"scopeItem": "Official source citations",
+						"coveredBy": ["rq-001", "rq-002", "rq-003"],
+						"status": "covered"
+					}
+				]
+			},
+			"research": {
+				"sourceCount": 3,
+				"extractedFacts": [
+					{
+						"id": "research-questions.fact-001",
+						"sourceId": "research-questions",
+						"supports": [],
+						"slotId": "slot-001",
+						"slotLabel": "Current Active LTS Node.js line as of 2026-11-23",
+						"entity": "Node.js",
+						"value": "v26 (Lithium)",
+						"factType": "version",
+						"sourceUrls": ["https://nodejs.org/en/about/previous-releases"],
+						"sourceRefs": [],
+						"sourceTitleOrPublisher": "Node.js Releases / Node.js",
+						"sourceQuality": "primary",
+						"confidence": "high",
+						"quote": "v26  | Lithium  | May 05, 2026  | Nov 10, 2026  | LTS",
+						"notes": "The release schedule page says v26 is LTS; at the specified date, v26 is the current LTS line and v24 and v22 remain LTS. The requested maintenance end date belongs to other planned questions."
+					},
+					{
+						"id": "research-questions.rq-002.fact-001",
+						"sourceId": "research-questions.rq-002",
+						"supports": [],
+						"slotId": "slot-002",
+						"slotLabel": "Maintenance phase end date for the current Active LTS line",
+						"entity": "Node.js 26",
+						"value": "October 2027",
+						"factType": "date",
+						"sourceUrls": [
+							"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+						],
+						"sourceRefs": [],
+						"sourceTitleOrPublisher": "Evolving the Node.js Release Schedule — Node.js Releasers",
+						"dateOrYear": "2026",
+						"sourceQuality": "primary",
+						"confidence": "high",
+						"quote": "Maintenance  | October 2027",
+						"notes": "The official schedule labels this milestone “Maintenance”; it is distinct from End of Life, listed as April 2029."
+					},
+					{
+						"id": "research-questions.rq-003.fact-001",
+						"sourceId": "research-questions.rq-003",
+						"supports": [],
+						"slotId": "slot-002",
+						"slotLabel": "Maintenance phase end date for the current Active LTS line",
+						"entity": "Node.js 26",
+						"value": "October 2027",
+						"factType": "date",
+						"sourceUrls": [
+							"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+						],
+						"sourceRefs": [],
+						"sourceTitleOrPublisher": "Evolving the Node.js Release Schedule — Node.js Releasers",
+						"dateOrYear": "2026",
+						"sourceQuality": "primary",
+						"confidence": "high",
+						"quote": "Maintenance  | October 2027",
+						"notes": "The same schedule separately lists End of Life as April 2029; date precision is month and year, not a specific day."
+					}
+				],
+				"claims": [
+					{
+						"originLocator": "research-questions.claim-001",
+						"sourceId": "research-questions",
+						"supports": [],
+						"claim": "As of 2026-11-23, Node.js v26 (Lithium) is the current LTS line; the official release page marks v26 as LTS.",
+						"sourceUrls": ["https://nodejs.org/en/about/previous-releases"],
+						"sourceRefs": ["source-001"],
+						"sourceTitleOrPublisher": "Node.js Releases / Node.js",
+						"dateOrYear": "2026-11-23",
+						"sourceQuality": "primary",
+						"scopeItems": ["Current Active LTS Node.js line"],
+						"factSlotIds": ["slot-001"]
+					},
+					{
+						"originLocator": "research-questions.rq-002.claim-001",
+						"sourceId": "research-questions.rq-002",
+						"supports": [],
+						"claim": "The official Node.js 26 schedule lists its Maintenance milestone as October 2027.",
+						"sourceUrls": [
+							"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+						],
+						"sourceRefs": ["source-001"],
+						"sourceTitleOrPublisher": "Evolving the Node.js Release Schedule — Node.js Releasers",
+						"dateOrYear": "2026",
+						"sourceQuality": "primary",
+						"scopeItems": ["Maintenance end date for that line"],
+						"factSlotIds": ["slot-002"]
+					},
+					{
+						"originLocator": "research-questions.rq-002.claim-002",
+						"sourceId": "research-questions.rq-002",
+						"supports": [],
+						"claim": "The Node.js 26 schedule lists End of Life as April 2029, separately from Maintenance in October 2027.",
+						"sourceUrls": [
+							"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+						],
+						"sourceRefs": ["source-001"],
+						"sourceTitleOrPublisher": "Evolving the Node.js Release Schedule — Node.js Releasers",
+						"dateOrYear": "2026",
+						"sourceQuality": "primary",
+						"scopeItems": ["Maintenance end date for that line"],
+						"factSlotIds": ["slot-002"]
+					},
+					{
+						"originLocator": "research-questions.rq-003.claim-001",
+						"sourceId": "research-questions.rq-003",
+						"supports": [],
+						"claim": "The official Node.js schedule lists Node.js 26 maintenance in October 2027 and End of Life separately in April 2029.",
+						"sourceUrls": [
+							"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+						],
+						"sourceRefs": [],
+						"sourceTitleOrPublisher": "Evolving the Node.js Release Schedule — Node.js Releasers",
+						"dateOrYear": "2026",
+						"sourceQuality": "primary",
+						"scopeItems": [
+							"Maintenance end date for that line",
+							"Official source citations"
+						],
+						"factSlotIds": ["slot-002"]
+					},
+					{
+						"originLocator": "research-questions.rq-003.claim-002",
+						"sourceId": "research-questions.rq-003",
+						"supports": [],
+						"claim": "The schedule specifies the maintenance and EOL dates only to month and year.",
+						"sourceUrls": [
+							"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+						],
+						"sourceRefs": [],
+						"sourceTitleOrPublisher": "Evolving the Node.js Release Schedule — Node.js Releasers",
+						"dateOrYear": "2026",
+						"sourceQuality": "primary",
+						"scopeItems": ["Maintenance end date for that line"],
+						"factSlotIds": ["slot-002"]
+					}
+				],
+				"sources": [
+					{
+						"originLocator": "research-questions.source-001",
+						"sourceId": "research-questions",
+						"supports": [],
+						"quote": "v26  | Lithium  | May 05, 2026  | Nov 10, 2026  | LTS",
+						"url": "https://nodejs.org/en/about/previous-releases",
+						"sourceUrl": "https://nodejs.org/en/about/previous-releases",
+						"sourceUrls": ["https://nodejs.org/en/about/previous-releases"],
+						"sourceRef": "source-001",
+						"sourceRefs": ["source-001"],
+						"title": "Node.js Releases"
+					},
+					{
+						"originLocator": "research-questions.rq-002.source-001",
+						"sourceId": "research-questions.rq-002",
+						"supports": [],
+						"quote": "Maintenance  | October 2027",
+						"url": "https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule",
+						"sourceUrl": "https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule",
+						"sourceUrls": [
+							"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+						],
+						"sourceRef": "source-001",
+						"sourceRefs": ["source-001"],
+						"title": "Evolving the Node.js Release Schedule"
+					},
+					{
+						"originLocator": "research-questions.rq-003.source-001",
+						"sourceId": "research-questions.rq-003",
+						"supports": [],
+						"quote": "Maintenance  | October 2027",
+						"url": "https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule",
+						"sourceUrl": "https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule",
+						"sourceUrls": [
+							"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+						],
+						"sourceRef": "source-001",
+						"sourceRefs": ["source-001"],
+						"title": "Evolving the Node.js Release Schedule — Node.js Releasers"
+					},
+					{
+						"originLocator": "research-questions.rq-003.source-002",
+						"sourceId": "research-questions.rq-003",
+						"supports": [],
+						"quote": "after a planned maintenance period, a Node.js major release line will stop being maintained by the project.",
+						"url": "https://nodejs.org/en/about/eol",
+						"sourceUrl": "https://nodejs.org/en/about/eol",
+						"sourceUrls": ["https://nodejs.org/en/about/eol"],
+						"sourceRef": "source-002",
+						"sourceRefs": ["source-002"],
+						"title": "End-Of-Life (EOL) — Node.js"
+					}
+				],
+				"evidenceGaps": [],
+				"questionBudgetLedger": [
+					{
+						"sourceId": "research-questions",
+						"question": "Which Node.js line is marked Active LTS as of 2026-11-23 in the official release schedule?",
+						"searchBudget": 3,
+						"searchCallsUsed": 1,
+						"searchQueriesAttempted": [
+							"site:nodejs.org/en/about/previous-releases Active LTS Node.js release schedule"
+						],
+						"omittedSearchQueries": [],
+						"budgetExhausted": false,
+						"gapRecorded": false
+					},
+					{
+						"sourceId": "research-questions.rq-002",
+						"question": "What maintenance phase end date does the official Node.js schedule give for the identified Active LTS line?",
+						"searchBudget": 3,
+						"searchCallsUsed": 1,
+						"searchQueriesAttempted": [
+							"site:nodejs.org/en/about/previous-releases Node.js release schedule maintenance end-of-life",
+							"site:nodejs.org Node.js 24 schedule maintenance end Active LTS"
+						],
+						"omittedSearchQueries": [],
+						"budgetExhausted": false,
+						"gapRecorded": false
+					},
+					{
+						"sourceId": "research-questions.rq-003",
+						"question": "Does an official Node.js source clarify whether the schedule's maintenance end is distinct from end-of-life, and what date precision does it provide?",
+						"searchBudget": 3,
+						"searchCallsUsed": 1,
+						"searchQueriesAttempted": [
+							"site:nodejs.org/en/about/previous-releases Node.js maintenance end-of-life schedule"
+						],
+						"omittedSearchQueries": [],
+						"budgetExhausted": false,
+						"gapRecorded": false
+					}
+				]
+			},
+			"researchQuestionCoverage": {
+				"plannedIds": ["rq-001", "rq-002", "rq-003"],
+				"completedIds": ["rq-001", "rq-002", "rq-003"],
+				"missingIds": [],
+				"duplicateIds": [],
+				"extraIds": [],
+				"failedIds": [],
+				"invalidPlannedQuestionCount": 0,
+				"plannedDuplicateIds": [],
+				"invalidOutputSourceIds": [],
+				"rows": [
+					{
+						"questionId": "rq-001",
+						"status": "completed",
+						"sourceIds": ["research-questions"]
+					},
+					{
+						"questionId": "rq-002",
+						"status": "completed",
+						"sourceIds": ["research-questions.rq-002"]
+					},
+					{
+						"questionId": "rq-003",
+						"status": "completed",
+						"sourceIds": ["research-questions.rq-003"]
+					}
+				],
+				"passed": true
+			},
+			"slotPreservation": {
+				"requiredOrCriticalSlots": [
+					{
+						"slotId": "slot-001",
+						"label": "Current Active LTS Node.js line as of 2026-11-23",
+						"type": "version",
+						"required": true,
+						"sourcePriority": "primary_required",
+						"verificationPriority": "core",
+						"observationCount": 1,
+						"representativeFactIds": ["research-questions.fact-001"],
+						"sourceRefs": [],
+						"sourceUrls": ["https://nodejs.org/en/about/previous-releases"],
+						"preservationNeed": "select_or_preserve_exact_slot_evidence"
+					},
+					{
+						"slotId": "slot-002",
+						"label": "Maintenance phase end date for the current Active LTS line",
+						"type": "date",
+						"required": true,
+						"sourcePriority": "primary_required",
+						"verificationPriority": "core",
+						"observationCount": 2,
+						"representativeFactIds": [
+							"research-questions.rq-002.fact-001",
+							"research-questions.rq-003.fact-001"
+						],
+						"sourceRefs": [],
+						"sourceUrls": [
+							"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+						],
+						"preservationNeed": "select_or_preserve_exact_slot_evidence"
+					}
+				],
+				"slotsWithEvidence": ["slot-001", "slot-002"],
+				"missingRequiredOrCriticalSlots": []
+			},
+			"precisionGuard": {
+				"schema": "deep-research-precision-guard-v1",
+				"summary": {
+					"totalClaims": 5,
+					"flaggedClaims": 1,
+					"issueCounts": {
+						"overbroad_quantifier": 1,
+						"multi_obligation_claim": 1
+					}
+				},
+				"claims": [
+					{
+						"id": "research-questions.rq-003.claim-002",
+						"factSlotIds": ["slot-002"],
+						"issues": ["overbroad_quantifier", "multi_obligation_claim"],
+						"action": "split_or_narrow_before_verification",
+						"sourceBacked": true,
+						"claim": "The schedule specifies the maintenance and EOL dates only to month and year."
+					}
+				],
+				"instructions": {
+					"split": "Claims flagged bundled_slots, compound_or_bundled_text, multi_obligation_claim, or entity_blend_risk should be split into atomic slot/entity-specific candidates before verification, while preserving source-backed measurement atoms needed for required slots.",
+					"demote": "Claims flagged normative_language or overbroad_quantifier should be narrowed to a source-backed factual statement or preserved as unverified context rather than promoted as a core recommendation.",
+					"sourceGuard": "Claims flagged quantitative_without_visible_source should not be promoted to core verification candidates until sourceUrls or sourceRefs are present; keep the slot as partial/missing or preserved evidence.",
+					"retrievalGap": "Claims flagged retrieval_gap_inference should be verification candidates only when framed as doc-scoped evidence about the exact retrieved sourceRefs; otherwise prefer a positive source-backed claim for the same slot or record a coverage gap.",
+					"derivedRecommendation": "Claims flagged derived_recommendation should split source-stated atoms into verificationCandidates and keep the product/design recommendation caveated in preservedClaims or final recommendations."
+				}
+			},
+			"slotConflicts": {
+				"schema": "deep-research-slot-conflicts-v1",
+				"summary": {
+					"comparedGroups": 1,
+					"localDocumentFacts": 0,
+					"mappedLocalDocumentFacts": 0,
+					"conflictCount": 0,
+					"contestedSlotIds": []
+				},
+				"conflicts": []
+			},
+			"ledgers": {
+				"overflow": {},
+				"overflowBySlot": {
+					"factsBySlot": {
+						"slot-001": 1,
+						"slot-002": 2
+					},
+					"claimsBySlot": {
+						"slot-001": 1,
+						"slot-002": 4
+					},
+					"evidenceGapsBySlot": {}
+				},
+				"slotFactCounts": {
+					"slot-001": 1,
+					"slot-002": 2
+				},
+				"claimSlotCounts": {
+					"slot-001": 1,
+					"slot-002": 4
+				},
+				"sourceRefCoverage": {
+					"extractedFactsWithSourceRefs": 0,
+					"claimsWithSourceRefs": 3,
+					"sourcesWithSourceRefs": 4
+				}
+			},
+			"instructions": {
+				"selectionBoundary": "Use this packet for mechanical lookup/coverage context only; semantic claim selection and verification priority remain the normalizer responsibility.",
+				"noSilentLoss": "If ledgers.overflow has non-zero counts, summarize omitted material in normalizationNotes instead of implying full coverage.",
+				"precisionGuard": "Use precisionGuard to split or demote broad, normative, bundled, source-weak, retrieval-gap, or derived-recommendation claims before verification; use slotPreservation so required/critical slot evidence is selected, preserved, or marked as an explicit gap.",
+				"slotConflicts": "slotConflicts lists slots where research observations of the same entity disagree on a date or number (code-compared; free text is not compared). For each entry, set that slot's factSlotCoverage status to conflicting, quote the competing values and their sources in gapReason, and create at least one verificationCandidate with verificationNeed core whose claim states one value exactly and whose sourceUrls/sourceRefs include both sides' sources, naming the competing value in reasonToVerify; the verifier adjudicates. Do not pick a value silently. The final packet keeps the slot conflicting until a verified claim states one of the values.",
+				"claimForm": "Each verificationCandidates[].claim is a statement that names its subject (\"RFC 9000 was published in May 2021.\"), never a copied heading, field label or JSON line (\"# RFC 9000\", \"Published: May 2021\", \"\\\"edge\\\": \\\"mirror\\\"\"); keep the source's exact words for the value.",
+				"claimLanguage": "Write each claim's text (verificationCandidates[].claim, preservedClaims[].claim) in the language of its source evidence, normally that of the quoted passage, even when the runtime task uses another language, so it can be checked word for word against its source; the final synthesis translates what the reader sees. whyItMatters and reasonToVerify may follow the task's language."
+			}
+		}
+	},
+	"normalize-claims": {
+		"schema": "stage-control-v1",
+		"digest": "Two official-source claims selected for the required version and maintenance-date slots.",
+		"claimInventory": {
+			"verificationCandidates": [
+				{
+					"id": "claim-001",
+					"claim": "The Node.js releases page labels v26 (Lithium) as LTS.",
+					"sourceUrls": ["https://nodejs.org/en/about/previous-releases"],
+					"sourceRefs": ["source-001"],
+					"sourceQuality": "primary",
+					"reasonToVerify": "Covers slot-001; verify LTS status for the specified date.",
+					"scopeItems": [
+						"Current Active LTS Node.js line",
+						"Official source citations"
+					],
+					"factSlotIds": ["slot-001"],
+					"verificationNeed": "core"
+				},
+				{
+					"id": "claim-002",
+					"claim": "The official Node.js schedule lists Node.js 26 Maintenance in October 2027.",
+					"sourceUrls": [
+						"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+					],
+					"sourceRefs": ["source-001"],
+					"sourceQuality": "primary",
+					"reasonToVerify": "Covers slot-002; confirm the maintenance milestone and month-level date.",
+					"scopeItems": [
+						"Maintenance end date for that line",
+						"Official source citations"
+					],
+					"factSlotIds": ["slot-002"],
+					"verificationNeed": "core"
+				}
+			],
+			"preservedClaims": [
+				{
+					"id": "preserved-001",
+					"factSlotIds": ["slot-002"],
+					"claim": "The Node.js 26 schedule lists End of Life as April 2029.",
+					"sourceUrls": [
+						"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+					],
+					"whyItMatters": "Distinguishes EOL from Maintenance; the captured quote does not show the EOL value."
+				}
+			],
+			"duplicates": [
+				{
+					"claim": "Repeated Node.js 26 Maintenance date claim across rq-002 and rq-003.",
+					"canonicalClaimId": "claim-002"
+				}
+			]
+		},
+		"factSlotCoverage": [
+			{
+				"slotId": "slot-001",
+				"label": "Current Active LTS Node.js line as of 2026-11-23",
+				"status": "partial",
+				"bestValue": "The official release listing quote labels v26 (Lithium) as LTS.",
+				"sourceUrls": ["https://nodejs.org/en/about/previous-releases"],
+				"sourceQuality": "primary",
+				"verificationCandidateIds": ["claim-001"],
+				"gapReason": "Captured quote says LTS but does not explicitly show Active LTS status as of 2026-11-23.",
+				"parentImpact": "Required current-line identification needs date-specific Active LTS confirmation."
+			},
+			{
+				"slotId": "slot-002",
+				"label": "Maintenance phase end date for the current Active LTS line",
+				"status": "filled",
+				"bestValue": "Node.js 26 Maintenance: October 2027.",
+				"sourceUrls": [
+					"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+				],
+				"sourceQuality": "primary",
+				"verificationCandidateIds": ["claim-002"],
+				"gapReason": "",
+				"parentImpact": "Required date is reported at month and year precision."
+			}
+		],
+		"coverageGaps": [
+			{
+				"scopeItem": "Current Active LTS Node.js line",
+				"relatedFactSlotIds": ["slot-001"],
+				"status": "partial",
+				"reason": "Captured primary-source quote labels v26 LTS but does not explicitly establish Active LTS status on 2026-11-23."
+			},
+			{
+				"scopeItem": "Maintenance end date for that line",
+				"relatedFactSlotIds": ["slot-002"],
+				"status": "partial",
+				"reason": "Maintenance is quoted as October 2027; the captured quote does not show the separate EOL date or its label."
+			}
+		],
+		"researchScopeCoverage": [
+			{
+				"scopeItem": "Current Active LTS Node.js line",
+				"status": "partial",
+				"relatedFactSlotIds": ["slot-001"]
+			},
+			{
+				"scopeItem": "Maintenance end date for that line",
+				"status": "covered",
+				"relatedFactSlotIds": ["slot-002"]
+			},
+			{
+				"scopeItem": "Official source citations",
+				"status": "covered",
+				"relatedFactSlotIds": ["slot-001", "slot-002"]
+			}
+		],
+		"normalizationNotes": [
+			"Narrowed slot-001 to wording visible in the captured quote; date-specific Active LTS status remains for verification.",
+			"Precision guard flagged a compound maintenance/EOL claim; split and narrow before verification."
+		]
+	},
+	"final-audit-packet": {
+		"schema": "deep-research-final-audit-packet-v1",
+		"digest": "Prepared final-audit packet with 2 audited claim(s), 2 fact slot(s), and 3 gap row(s).",
+		"packet": {
+			"researchMetadataSeed": {
+				"depth": "quick",
+				"taskType": "research_survey",
+				"expectedFinalShape": "research_brief",
+				"researchQuestions": 3,
+				"sourcePolicy": {
+					"preferredSourceClasses": [
+						"official Node.js release schedule",
+						"official Node.js release page or announcements"
+					],
+					"primaryRequiredFactTypes": ["version", "date"],
+					"sourceQualityRules": [
+						"Use official Node.js sources for the current line and lifecycle dates.",
+						"Preserve the schedule's exact line naming and date precision.",
+						"Distinguish the maintenance phase end from other lifecycle milestones if the official schedule labels them separately."
+					]
+				},
+				"plannedFactSlots": 2,
+				"filledFactSlots": 1,
+				"partialFactSlots": 1,
+				"missingOnlyFactSlots": 0,
+				"missingFactSlots": 0,
+				"missingFactSlotsIncludesConflicting": true,
+				"conflictingFactSlots": 0
+			},
+			"verdictCounts": {
+				"verified": 1,
+				"partiallySupported": 1,
+				"unsupported": 0,
+				"conflicting": 0,
+				"verificationBlocked": 0,
+				"other": 0
+			},
+			"statusPartitions": {
+				"verified": ["claim-002"],
+				"partiallySupported": ["claim-001"],
+				"unsupported": [],
+				"conflicting": [],
+				"verificationBlocked": [],
+				"other": []
+			},
+			"factSlotCoverage": [
+				{
+					"slotId": "slot-001",
+					"label": "Current Active LTS Node.js line as of 2026-11-23",
+					"status": "partial",
+					"bestValue": "The official release listing quote labels v26 (Lithium) as LTS.",
+					"sourceUrls": ["https://nodejs.org/en/about/previous-releases"],
+					"sourceRefs": [],
+					"sourceQuality": "primary",
+					"verificationCandidateIds": ["claim-001"],
+					"gapReason": "Captured quote says LTS but does not explicitly show Active LTS status as of 2026-11-23.",
+					"parentImpact": "Required current-line identification needs date-specific Active LTS confirmation."
+				},
+				{
+					"slotId": "slot-002",
+					"label": "Maintenance phase end date for the current Active LTS line",
+					"status": "filled",
+					"bestValue": "Node.js 26 Maintenance: October 2027.",
+					"sourceUrls": [
+						"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+					],
+					"sourceRefs": [],
+					"sourceQuality": "primary",
+					"verificationCandidateIds": ["claim-002"],
+					"gapReason": "",
+					"parentImpact": "Required date is reported at month and year precision."
+				}
+			],
+			"factSlotStatusCounts": {
+				"partial": 1,
+				"filled": 1
+			},
+			"coverageGaps": [
+				{
+					"id": "gap-coverage-001",
+					"reason": "Captured primary-source quote labels v26 LTS but does not explicitly establish Active LTS status on 2026-11-23.",
+					"sourceUrls": [],
+					"sourceRefs": [],
+					"relatedFactSlotIds": ["slot-001"],
+					"scopeItem": "Current Active LTS Node.js line"
+				},
+				{
+					"id": "gap-coverage-002",
+					"reason": "Maintenance is quoted as October 2027; the captured quote does not show the separate EOL date or its label.",
+					"sourceUrls": [],
+					"sourceRefs": [],
+					"relatedFactSlotIds": ["slot-002"],
+					"scopeItem": "Maintenance end date for that line"
+				}
+			],
+			"remainingGaps": [
+				{
+					"id": "gap-remaining-001",
+					"claimId": "claim-001",
+					"evidenceState": "web_quote_not_on_page",
+					"reason": "the engine fetched the cited page and did not find the verifier's quote on it",
+					"nextStep": "Fetch or inspect primary source evidence for the exact claim before using it as verified.",
+					"sourceUrls": ["https://nodejs.org/en/about/previous-releases"],
+					"sourceRefs": ["source-001"],
+					"relatedFactSlotIds": []
+				}
+			],
+			"sourceRefJoinFailures": [],
+			"contestedSlots": [],
+			"claimVerdictLedger": [
+				{
+					"id": "claim-001",
+					"claim": "Node.js — v26  | Lithium  | May 05, 2026  | Nov 10, 2026  | LTS",
+					"status": "partially_supported",
+					"confidence": "high",
+					"factSlotIds": ["slot-001"],
+					"sourceRefs": ["source-001"],
+					"sourceUrls": ["https://nodejs.org/en/about/previous-releases"],
+					"verifierOwner": {
+						"source": "verify-claims",
+						"stageId": "verify-claims",
+						"specId": "verify-claims.claim-001",
+						"taskId": "task-17",
+						"itemIdentity": "claim-001",
+						"placeholderSpecId": "verify-claims.item",
+						"status": "completed"
+					},
+					"support": "The official Node.js releases page lists v26, codename Lithium, with status LTS, and identifies v26 as the latest LTS.",
+					"correctionOrCounterclaim": "",
+					"evidence": [
+						{
+							"source": "Node.js Releases",
+							"url": "https://nodejs.org/en/about/previous-releases",
+							"quote": "v26  | Lithium  | May 05, 2026  | Nov 10, 2026  | LTS",
+							"relevance": "The releases table identifies v26 (Lithium) as LTS; the page also marks v26 as the latest LTS."
+						}
+					]
+				},
+				{
+					"id": "claim-002",
+					"claim": "The official Node.js schedule lists Node.js 26 Maintenance in October 2027.",
+					"status": "verified",
+					"confidence": "high",
+					"factSlotIds": ["slot-002"],
+					"sourceRefs": ["source-001"],
+					"sourceUrls": [
+						"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+					],
+					"verifierOwner": {
+						"source": "verify-claims.claim-002",
+						"stageId": "verify-claims",
+						"specId": "verify-claims.claim-002",
+						"taskId": "task-18",
+						"itemIdentity": "claim-002",
+						"placeholderSpecId": "verify-claims.item",
+						"status": "completed"
+					},
+					"support": "The official Node.js release schedule lists the Node.js 26 Maintenance milestone as October 2027.",
+					"correctionOrCounterclaim": "",
+					"evidence": [
+						{
+							"source": "Evolving the Node.js Release Schedule — Node.js Releasers",
+							"url": "https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule",
+							"dateOrYear": "2026",
+							"quote": "Maintenance  | October 2027",
+							"relevance": "This appears in the Node.js 26 Schedule table and directly supports the claimed milestone and month."
+						}
+					]
+				}
+			],
+			"verifierIntegrity": {
+				"gateSummary": {
+					"total": 2,
+					"unchanged": 1,
+					"downgraded": 1,
+					"identityRejoined": 2,
+					"sourceRefsRejoined": 0,
+					"sourceRefsBackfilledFromUrls": 0,
+					"sourceRefJoinFailures": 0,
+					"verifierRowsTotal": 2,
+					"validVerifierRows": 2,
+					"invalidVerifierRows": 0,
+					"missingVerifierResults": 0,
+					"duplicateVerifierClaims": 0,
+					"duplicateVerifierRows": 0,
+					"duplicateStatusConflicts": 0,
+					"invalidNormalizedCandidates": 0,
+					"refsNoneMultiClaimBatches": 0,
+					"sourceEvidenceCompatibilityFailures": 0,
+					"sourceEvidenceCompatibilityMismatches": 0,
+					"verifierOwnerIssues": 0,
+					"additionalEvidenceSourceDowngrades": 0,
+					"zeroCandidateFloorBlockers": 0,
+					"webQuoteCheck": "applied",
+					"webQuoteNotOnPageDowngrades": 1
+				},
+				"researchQuestionIntegrity": {
+					"plannedIds": ["rq-001", "rq-002", "rq-003"],
+					"completedIds": ["rq-001", "rq-002", "rq-003"],
+					"missingIds": [],
+					"duplicateIds": [],
+					"extraIds": [],
+					"failedIds": [],
+					"invalidPlannedQuestionCount": 0,
+					"plannedDuplicateIds": [],
+					"invalidOutputSourceIds": [],
+					"rows": [
+						{
+							"questionId": "rq-001",
+							"status": "completed",
+							"sourceIds": ["research-questions"]
+						},
+						{
+							"questionId": "rq-002",
+							"status": "completed",
+							"sourceIds": ["research-questions.rq-002"]
+						},
+						{
+							"questionId": "rq-003",
+							"status": "completed",
+							"sourceIds": ["research-questions.rq-003"]
+						}
+					],
+					"passed": true
+				},
+				"invalidVerifierRows": [],
+				"duplicateVerifierRows": [],
+				"invalidNormalizedCandidateCount": 0,
+				"invalidNormalizedCandidateRows": [],
+				"verifierOwnerLedger": [
+					{
+						"source": "verify-claims",
+						"stageId": "verify-claims",
+						"specId": "verify-claims.claim-001",
+						"taskId": "task-17",
+						"itemIdentity": "claim-001",
+						"placeholderSpecId": "verify-claims.item",
+						"status": "completed"
+					},
+					{
+						"source": "verify-claims.claim-002",
+						"stageId": "verify-claims",
+						"specId": "verify-claims.claim-002",
+						"taskId": "task-18",
+						"itemIdentity": "claim-002",
+						"placeholderSpecId": "verify-claims.item",
+						"status": "completed"
+					}
+				],
+				"verifierOwnerIssues": [],
+				"batchAdoptionReadiness": {
+					"status": "eligible_for_canary",
+					"adopted": false,
+					"canaryRequired": true,
+					"reason": "Verifier identity/sourceRef integrity is clean; batch adoption still requires a non-holdout canary before use.",
+					"blockers": []
+				}
+			},
+			"normalizerDiagnostics": {
+				"precisionGuard": {
+					"totalClaims": 5,
+					"flaggedClaims": 1,
+					"issueCounts": {
+						"overbroad_quantifier": 1,
+						"multi_obligation_claim": 1
+					}
+				},
+				"sanitizer": {
+					"inputCandidateCount": 2,
+					"keptCandidateCount": 2,
+					"demotedCandidateCount": 0,
+					"rewrittenCandidateCount": 1,
+					"webUrlOnlyDemotedCount": 0,
+					"promotedCandidateCount": 0,
+					"crossScriptCandidateCount": 0,
+					"crossScriptCandidateIds": [],
+					"demotionReasonCounts": {},
+					"rewriteReasonCounts": {
+						"source_hint_claim_mismatch": 1
+					},
+					"keptCandidateIds": ["claim-001", "claim-002"],
+					"demotedCandidateIds": [],
+					"webUrlOnlyDemotedIds": [],
+					"promotedCandidateIds": [],
+					"rewrittenCandidateIds": ["claim-001"],
+					"entityNamedCandidateIds": [],
+					"verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+					"sourceEvidenceHintRows": 3,
+					"schemaCaps": {
+						"verificationCandidates": 48,
+						"preservedClaims": 24,
+						"factSlotCoverage": 64
+					},
+					"schemaCapDrops": [],
+					"degraded": false,
+					"degradationReasons": []
+				}
+			},
+			"preservedClaims": [
+				{
+					"id": "preserved-001",
+					"claim": "The Node.js 26 schedule lists End of Life as April 2029.",
+					"factSlotIds": ["slot-002"],
+					"sourceRefs": [],
+					"sourceUrls": [
+						"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+					],
+					"whyItMatters": "Distinguishes EOL from Maintenance; the captured quote does not show the EOL value."
+				},
+				{
+					"id": "preserved-claim-001",
+					"claim": "The Node.js releases page labels v26 (Lithium) as LTS.",
+					"factSlotIds": ["slot-001"],
+					"sourceRefs": ["source-001"],
+					"sourceUrls": ["https://nodejs.org/en/about/previous-releases"],
+					"whyItMatters": "Covers slot-001; verify LTS status for the specified date."
+				}
+			],
+			"researchScopeCoverage": [
+				{
+					"scopeItem": "Current Active LTS Node.js line",
+					"status": "partial",
+					"relatedFactSlotIds": ["slot-001"]
+				},
+				{
+					"scopeItem": "Maintenance end date for that line",
+					"status": "covered",
+					"relatedFactSlotIds": ["slot-002"]
+				},
+				{
+					"scopeItem": "Official source citations",
+					"status": "covered",
+					"relatedFactSlotIds": ["slot-001", "slot-002"]
+				}
+			],
+			"researchQuestionCoverage": [
+				{
+					"questionId": "rq-001",
+					"status": "completed",
+					"sourceIds": ["research-questions"]
+				},
+				{
+					"questionId": "rq-002",
+					"status": "completed",
+					"sourceIds": ["research-questions.rq-002"]
+				},
+				{
+					"questionId": "rq-003",
+					"status": "completed",
+					"sourceIds": ["research-questions.rq-003"]
+				}
+			],
+			"factSlotReconciliation": {
+				"source": "canonical normalized claim factSlotIds",
+				"addedReverseBindings": [],
+				"preservedReverseBindings": [],
+				"invalidCanonicalMemberships": [],
+				"contestedSlotIds": [],
+				"unresolvedContestedSlotIds": []
+			},
+			"invariantChecks": {
+				"candidateCount": 2,
+				"factSlotReconciliation": {
+					"source": "canonical normalized claim factSlotIds",
+					"addedReverseBindings": [],
+					"preservedReverseBindings": [],
+					"invalidCanonicalMemberships": []
+				},
+				"auditedClaimCount": 2,
+				"candidateIds": ["claim-001", "claim-002"],
+				"auditedClaimIds": ["claim-001", "claim-002"],
+				"statusPartitionIds": {
+					"verified": ["claim-002"],
+					"partiallySupported": ["claim-001"],
+					"unsupported": [],
+					"conflicting": [],
+					"verificationBlocked": [],
+					"other": []
+				},
+				"omittedCandidateIds": [],
+				"droppedSlotIds": [],
+				"researchQuestionIntegrity": {
+					"plannedIds": ["rq-001", "rq-002", "rq-003"],
+					"completedIds": ["rq-001", "rq-002", "rq-003"],
+					"missingIds": [],
+					"duplicateIds": [],
+					"extraIds": [],
+					"failedIds": [],
+					"invalidPlannedQuestionCount": 0,
+					"plannedDuplicateIds": [],
+					"invalidOutputSourceIds": [],
+					"rows": [
+						{
+							"questionId": "rq-001",
+							"status": "completed",
+							"sourceIds": ["research-questions"]
+						},
+						{
+							"questionId": "rq-002",
+							"status": "completed",
+							"sourceIds": ["research-questions.rq-002"]
+						},
+						{
+							"questionId": "rq-003",
+							"status": "completed",
+							"sourceIds": ["research-questions.rq-003"]
+						}
+					],
+					"passed": true
+				},
+				"sourceRefCoverage": {
+					"verificationCandidatesWithSourceRefs": 2,
+					"auditedClaimsWithSourceRefs": 2,
+					"sourceRefJoinFailures": 0
+				},
+				"verifierIntegrity": {
+					"invalidVerifierRows": 0,
+					"researchQuestionIntegrity": {
+						"plannedIds": ["rq-001", "rq-002", "rq-003"],
+						"completedIds": ["rq-001", "rq-002", "rq-003"],
+						"missingIds": [],
+						"duplicateIds": [],
+						"extraIds": [],
+						"failedIds": [],
+						"invalidPlannedQuestionCount": 0,
+						"plannedDuplicateIds": [],
+						"invalidOutputSourceIds": [],
+						"rows": [
+							{
+								"questionId": "rq-001",
+								"status": "completed",
+								"sourceIds": ["research-questions"]
+							},
+							{
+								"questionId": "rq-002",
+								"status": "completed",
+								"sourceIds": ["research-questions.rq-002"]
+							},
+							{
+								"questionId": "rq-003",
+								"status": "completed",
+								"sourceIds": ["research-questions.rq-003"]
+							}
+						],
+						"passed": true
+					},
+					"duplicateVerifierRows": 0,
+					"invalidNormalizedCandidateCount": 0,
+					"verifierOwnerIssues": 0,
+					"missingVerifierResults": 0,
+					"zeroCandidateFloorBlockers": 0,
+					"batchAdoptionStatus": "eligible_for_canary"
+				}
+			},
+			"overflowLedger": {
+				"preservedClaimCount": 2,
+				"coverageGapCount": 2,
+				"remainingGapCount": 1,
+				"omittedVerificationCandidateCount": 0,
+				"invalidVerifierRowCount": 0,
+				"duplicateVerifierRowCount": 0,
+				"invalidNormalizedCandidateCount": 0,
+				"verifierOwnerIssueCount": 0
+			},
+			"synthesisInput": {
+				"header": {
+					"schema": "deep-research-synthesis-pages-v1",
+					"pageCount": 16,
+					"maxChars": 16000,
+					"fields": [
+						{
+							"field": "researchMetadataSeed",
+							"kind": "value",
+							"count": 1
+						},
+						{
+							"field": "verdictCounts",
+							"kind": "value",
+							"count": 1
+						},
+						{
+							"field": "statusPartitions",
+							"kind": "value",
+							"count": 1
+						},
+						{
+							"field": "factSlotCoverage",
+							"kind": "array",
+							"count": 2
+						},
+						{
+							"field": "factSlotStatusCounts",
+							"kind": "value",
+							"count": 1
+						},
+						{
+							"field": "coverageGaps",
+							"kind": "array",
+							"count": 2
+						},
+						{
+							"field": "remainingGaps",
+							"kind": "array",
+							"count": 1
+						},
+						{
+							"field": "sourceRefJoinFailures",
+							"kind": "array",
+							"count": 0
+						},
+						{
+							"field": "contestedSlots",
+							"kind": "array",
+							"count": 0
+						},
+						{
+							"field": "claimVerdictLedger",
+							"kind": "array",
+							"count": 2
+						},
+						{
+							"field": "verifierIntegrity",
+							"kind": "value",
+							"count": 1
+						},
+						{
+							"field": "normalizerDiagnostics",
+							"kind": "value",
+							"count": 1
+						},
+						{
+							"field": "preservedClaims",
+							"kind": "array",
+							"count": 2
+						},
+						{
+							"field": "researchScopeCoverage",
+							"kind": "array",
+							"count": 3
+						},
+						{
+							"field": "researchQuestionCoverage",
+							"kind": "array",
+							"count": 3
+						},
+						{
+							"field": "factSlotReconciliation",
+							"kind": "value",
+							"count": 1
+						},
+						{
+							"field": "invariantChecks",
+							"kind": "value",
+							"count": 1
+						},
+						{
+							"field": "overflowLedger",
+							"kind": "value",
+							"count": 1
+						}
+					],
+					"pageEntryCounts": [24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+				},
+				"pages": [
+					{
+						"index": 0,
+						"entries": [
+							{
+								"field": "researchMetadataSeed",
+								"value": {
+									"depth": "quick",
+									"taskType": "research_survey",
+									"expectedFinalShape": "research_brief",
+									"researchQuestions": 3,
+									"sourcePolicy": {
+										"preferredSourceClasses": [
+											"official Node.js release schedule",
+											"official Node.js release page or announcements"
+										],
+										"primaryRequiredFactTypes": ["version", "date"],
+										"sourceQualityRules": [
+											"Use official Node.js sources for the current line and lifecycle dates.",
+											"Preserve the schedule's exact line naming and date precision.",
+											"Distinguish the maintenance phase end from other lifecycle milestones if the official schedule labels them separately."
+										]
+									},
+									"plannedFactSlots": 2,
+									"filledFactSlots": 1,
+									"partialFactSlots": 1,
+									"missingOnlyFactSlots": 0,
+									"missingFactSlots": 0,
+									"missingFactSlotsIncludesConflicting": true,
+									"conflictingFactSlots": 0
+								}
+							},
+							{
+								"field": "verdictCounts",
+								"value": {
+									"verified": 1,
+									"partiallySupported": 1,
+									"unsupported": 0,
+									"conflicting": 0,
+									"verificationBlocked": 0,
+									"other": 0
+								}
+							},
+							{
+								"field": "statusPartitions",
+								"value": {
+									"verified": ["claim-002"],
+									"partiallySupported": ["claim-001"],
+									"unsupported": [],
+									"conflicting": [],
+									"verificationBlocked": [],
+									"other": []
+								}
+							},
+							{
+								"field": "factSlotCoverage",
+								"index": 0,
+								"value": {
+									"slotId": "slot-001",
+									"label": "Current Active LTS Node.js line as of 2026-11-23",
+									"status": "partial",
+									"bestValue": "The official release listing quote labels v26 (Lithium) as LTS.",
+									"sourceUrls": [
+										"https://nodejs.org/en/about/previous-releases"
+									],
+									"sourceRefs": [],
+									"sourceQuality": "primary",
+									"verificationCandidateIds": ["claim-001"],
+									"gapReason": "Captured quote says LTS but does not explicitly show Active LTS status as of 2026-11-23.",
+									"parentImpact": "Required current-line identification needs date-specific Active LTS confirmation."
+								}
+							},
+							{
+								"field": "factSlotCoverage",
+								"index": 1,
+								"value": {
+									"slotId": "slot-002",
+									"label": "Maintenance phase end date for the current Active LTS line",
+									"status": "filled",
+									"bestValue": "Node.js 26 Maintenance: October 2027.",
+									"sourceUrls": [
+										"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+									],
+									"sourceRefs": [],
+									"sourceQuality": "primary",
+									"verificationCandidateIds": ["claim-002"],
+									"gapReason": "",
+									"parentImpact": "Required date is reported at month and year precision."
+								}
+							},
+							{
+								"field": "factSlotStatusCounts",
+								"value": {
+									"partial": 1,
+									"filled": 1
+								}
+							},
+							{
+								"field": "coverageGaps",
+								"index": 0,
+								"value": {
+									"id": "gap-coverage-001",
+									"reason": "Captured primary-source quote labels v26 LTS but does not explicitly establish Active LTS status on 2026-11-23.",
+									"sourceUrls": [],
+									"sourceRefs": [],
+									"relatedFactSlotIds": ["slot-001"],
+									"scopeItem": "Current Active LTS Node.js line"
+								}
+							},
+							{
+								"field": "coverageGaps",
+								"index": 1,
+								"value": {
+									"id": "gap-coverage-002",
+									"reason": "Maintenance is quoted as October 2027; the captured quote does not show the separate EOL date or its label.",
+									"sourceUrls": [],
+									"sourceRefs": [],
+									"relatedFactSlotIds": ["slot-002"],
+									"scopeItem": "Maintenance end date for that line"
+								}
+							},
+							{
+								"field": "remainingGaps",
+								"index": 0,
+								"value": {
+									"id": "gap-remaining-001",
+									"claimId": "claim-001",
+									"evidenceState": "web_quote_not_on_page",
+									"reason": "the engine fetched the cited page and did not find the verifier's quote on it",
+									"nextStep": "Fetch or inspect primary source evidence for the exact claim before using it as verified.",
+									"sourceUrls": [
+										"https://nodejs.org/en/about/previous-releases"
+									],
+									"sourceRefs": ["source-001"],
+									"relatedFactSlotIds": []
+								}
+							},
+							{
+								"field": "claimVerdictLedger",
+								"index": 0,
+								"value": {
+									"id": "claim-001",
+									"claim": "Node.js — v26  | Lithium  | May 05, 2026  | Nov 10, 2026  | LTS",
+									"status": "partially_supported",
+									"confidence": "high",
+									"factSlotIds": ["slot-001"],
+									"sourceRefs": ["source-001"],
+									"sourceUrls": [
+										"https://nodejs.org/en/about/previous-releases"
+									],
+									"verifierOwner": {
+										"source": "verify-claims",
+										"stageId": "verify-claims",
+										"specId": "verify-claims.claim-001",
+										"taskId": "task-17",
+										"itemIdentity": "claim-001",
+										"placeholderSpecId": "verify-claims.item",
+										"status": "completed"
+									},
+									"support": "The official Node.js releases page lists v26, codename Lithium, with status LTS, and identifies v26 as the latest LTS.",
+									"correctionOrCounterclaim": "",
+									"evidence": [
+										{
+											"source": "Node.js Releases",
+											"url": "https://nodejs.org/en/about/previous-releases",
+											"quote": "v26  | Lithium  | May 05, 2026  | Nov 10, 2026  | LTS",
+											"relevance": "The releases table identifies v26 (Lithium) as LTS; the page also marks v26 as the latest LTS."
+										}
+									]
+								}
+							},
+							{
+								"field": "claimVerdictLedger",
+								"index": 1,
+								"value": {
+									"id": "claim-002",
+									"claim": "The official Node.js schedule lists Node.js 26 Maintenance in October 2027.",
+									"status": "verified",
+									"confidence": "high",
+									"factSlotIds": ["slot-002"],
+									"sourceRefs": ["source-001"],
+									"sourceUrls": [
+										"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+									],
+									"verifierOwner": {
+										"source": "verify-claims.claim-002",
+										"stageId": "verify-claims",
+										"specId": "verify-claims.claim-002",
+										"taskId": "task-18",
+										"itemIdentity": "claim-002",
+										"placeholderSpecId": "verify-claims.item",
+										"status": "completed"
+									},
+									"support": "The official Node.js release schedule lists the Node.js 26 Maintenance milestone as October 2027.",
+									"correctionOrCounterclaim": "",
+									"evidence": [
+										{
+											"source": "Evolving the Node.js Release Schedule — Node.js Releasers",
+											"url": "https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule",
+											"dateOrYear": "2026",
+											"quote": "Maintenance  | October 2027",
+											"relevance": "This appears in the Node.js 26 Schedule table and directly supports the claimed milestone and month."
+										}
+									]
+								}
+							},
+							{
+								"field": "verifierIntegrity",
+								"value": {
+									"gateSummary": {
+										"total": 2,
+										"unchanged": 1,
+										"downgraded": 1,
+										"identityRejoined": 2,
+										"sourceRefsRejoined": 0,
+										"sourceRefsBackfilledFromUrls": 0,
+										"sourceRefJoinFailures": 0,
+										"verifierRowsTotal": 2,
+										"validVerifierRows": 2,
+										"invalidVerifierRows": 0,
+										"missingVerifierResults": 0,
+										"duplicateVerifierClaims": 0,
+										"duplicateVerifierRows": 0,
+										"duplicateStatusConflicts": 0,
+										"invalidNormalizedCandidates": 0,
+										"refsNoneMultiClaimBatches": 0,
+										"sourceEvidenceCompatibilityFailures": 0,
+										"sourceEvidenceCompatibilityMismatches": 0,
+										"verifierOwnerIssues": 0,
+										"additionalEvidenceSourceDowngrades": 0,
+										"zeroCandidateFloorBlockers": 0,
+										"webQuoteCheck": "applied",
+										"webQuoteNotOnPageDowngrades": 1
+									},
+									"researchQuestionIntegrity": {
+										"plannedIds": ["rq-001", "rq-002", "rq-003"],
+										"completedIds": ["rq-001", "rq-002", "rq-003"],
+										"missingIds": [],
+										"duplicateIds": [],
+										"extraIds": [],
+										"failedIds": [],
+										"invalidPlannedQuestionCount": 0,
+										"plannedDuplicateIds": [],
+										"invalidOutputSourceIds": [],
+										"rows": [
+											{
+												"questionId": "rq-001",
+												"status": "completed",
+												"sourceIds": ["research-questions"]
+											},
+											{
+												"questionId": "rq-002",
+												"status": "completed",
+												"sourceIds": ["research-questions.rq-002"]
+											},
+											{
+												"questionId": "rq-003",
+												"status": "completed",
+												"sourceIds": ["research-questions.rq-003"]
+											}
+										],
+										"passed": true
+									},
+									"invalidVerifierRows": [],
+									"duplicateVerifierRows": [],
+									"invalidNormalizedCandidateCount": 0,
+									"invalidNormalizedCandidateRows": [],
+									"verifierOwnerLedger": [
+										{
+											"source": "verify-claims",
+											"stageId": "verify-claims",
+											"specId": "verify-claims.claim-001",
+											"taskId": "task-17",
+											"itemIdentity": "claim-001",
+											"placeholderSpecId": "verify-claims.item",
+											"status": "completed"
+										},
+										{
+											"source": "verify-claims.claim-002",
+											"stageId": "verify-claims",
+											"specId": "verify-claims.claim-002",
+											"taskId": "task-18",
+											"itemIdentity": "claim-002",
+											"placeholderSpecId": "verify-claims.item",
+											"status": "completed"
+										}
+									],
+									"verifierOwnerIssues": [],
+									"batchAdoptionReadiness": {
+										"status": "eligible_for_canary",
+										"adopted": false,
+										"canaryRequired": true,
+										"reason": "Verifier identity/sourceRef integrity is clean; batch adoption still requires a non-holdout canary before use.",
+										"blockers": []
+									}
+								}
+							},
+							{
+								"field": "normalizerDiagnostics",
+								"value": {
+									"precisionGuard": {
+										"totalClaims": 5,
+										"flaggedClaims": 1,
+										"issueCounts": {
+											"overbroad_quantifier": 1,
+											"multi_obligation_claim": 1
+										}
+									},
+									"sanitizer": {
+										"inputCandidateCount": 2,
+										"keptCandidateCount": 2,
+										"demotedCandidateCount": 0,
+										"rewrittenCandidateCount": 1,
+										"webUrlOnlyDemotedCount": 0,
+										"promotedCandidateCount": 0,
+										"crossScriptCandidateCount": 0,
+										"crossScriptCandidateIds": [],
+										"demotionReasonCounts": {},
+										"rewriteReasonCounts": {
+											"source_hint_claim_mismatch": 1
+										},
+										"keptCandidateIds": ["claim-001", "claim-002"],
+										"demotedCandidateIds": [],
+										"webUrlOnlyDemotedIds": [],
+										"promotedCandidateIds": [],
+										"rewrittenCandidateIds": ["claim-001"],
+										"entityNamedCandidateIds": [],
+										"verifierInputPolicy": "use_sourceRefs_or_sourceUrls_only_do_not_call_workflow_artifact",
+										"sourceEvidenceHintRows": 3,
+										"schemaCaps": {
+											"verificationCandidates": 48,
+											"preservedClaims": 24,
+											"factSlotCoverage": 64
+										},
+										"schemaCapDrops": [],
+										"degraded": false,
+										"degradationReasons": []
+									}
+								}
+							},
+							{
+								"field": "preservedClaims",
+								"index": 0,
+								"value": {
+									"id": "preserved-001",
+									"claim": "The Node.js 26 schedule lists End of Life as April 2029.",
+									"factSlotIds": ["slot-002"],
+									"sourceRefs": [],
+									"sourceUrls": [
+										"https://nodejs.org/en/blog/announcements/evolving-the-nodejs-release-schedule"
+									],
+									"whyItMatters": "Distinguishes EOL from Maintenance; the captured quote does not show the EOL value."
+								}
+							},
+							{
+								"field": "preservedClaims",
+								"index": 1,
+								"value": {
+									"id": "preserved-claim-001",
+									"claim": "The Node.js releases page labels v26 (Lithium) as LTS.",
+									"factSlotIds": ["slot-001"],
+									"sourceRefs": ["source-001"],
+									"sourceUrls": [
+										"https://nodejs.org/en/about/previous-releases"
+									],
+									"whyItMatters": "Covers slot-001; verify LTS status for the specified date."
+								}
+							},
+							{
+								"field": "researchScopeCoverage",
+								"index": 0,
+								"value": {
+									"scopeItem": "Current Active LTS Node.js line",
+									"status": "partial",
+									"relatedFactSlotIds": ["slot-001"]
+								}
+							},
+							{
+								"field": "researchScopeCoverage",
+								"index": 1,
+								"value": {
+									"scopeItem": "Maintenance end date for that line",
+									"status": "covered",
+									"relatedFactSlotIds": ["slot-002"]
+								}
+							},
+							{
+								"field": "researchScopeCoverage",
+								"index": 2,
+								"value": {
+									"scopeItem": "Official source citations",
+									"status": "covered",
+									"relatedFactSlotIds": ["slot-001", "slot-002"]
+								}
+							},
+							{
+								"field": "researchQuestionCoverage",
+								"index": 0,
+								"value": {
+									"questionId": "rq-001",
+									"status": "completed",
+									"sourceIds": ["research-questions"]
+								}
+							},
+							{
+								"field": "researchQuestionCoverage",
+								"index": 1,
+								"value": {
+									"questionId": "rq-002",
+									"status": "completed",
+									"sourceIds": ["research-questions.rq-002"]
+								}
+							},
+							{
+								"field": "researchQuestionCoverage",
+								"index": 2,
+								"value": {
+									"questionId": "rq-003",
+									"status": "completed",
+									"sourceIds": ["research-questions.rq-003"]
+								}
+							},
+							{
+								"field": "factSlotReconciliation",
+								"value": {
+									"source": "canonical normalized claim factSlotIds",
+									"addedReverseBindings": [],
+									"preservedReverseBindings": [],
+									"invalidCanonicalMemberships": [],
+									"contestedSlotIds": [],
+									"unresolvedContestedSlotIds": []
+								}
+							},
+							{
+								"field": "invariantChecks",
+								"value": {
+									"candidateCount": 2,
+									"factSlotReconciliation": {
+										"source": "canonical normalized claim factSlotIds",
+										"addedReverseBindings": [],
+										"preservedReverseBindings": [],
+										"invalidCanonicalMemberships": []
+									},
+									"auditedClaimCount": 2,
+									"candidateIds": ["claim-001", "claim-002"],
+									"auditedClaimIds": ["claim-001", "claim-002"],
+									"statusPartitionIds": {
+										"verified": ["claim-002"],
+										"partiallySupported": ["claim-001"],
+										"unsupported": [],
+										"conflicting": [],
+										"verificationBlocked": [],
+										"other": []
+									},
+									"omittedCandidateIds": [],
+									"droppedSlotIds": [],
+									"researchQuestionIntegrity": {
+										"plannedIds": ["rq-001", "rq-002", "rq-003"],
+										"completedIds": ["rq-001", "rq-002", "rq-003"],
+										"missingIds": [],
+										"duplicateIds": [],
+										"extraIds": [],
+										"failedIds": [],
+										"invalidPlannedQuestionCount": 0,
+										"plannedDuplicateIds": [],
+										"invalidOutputSourceIds": [],
+										"rows": [
+											{
+												"questionId": "rq-001",
+												"status": "completed",
+												"sourceIds": ["research-questions"]
+											},
+											{
+												"questionId": "rq-002",
+												"status": "completed",
+												"sourceIds": ["research-questions.rq-002"]
+											},
+											{
+												"questionId": "rq-003",
+												"status": "completed",
+												"sourceIds": ["research-questions.rq-003"]
+											}
+										],
+										"passed": true
+									},
+									"sourceRefCoverage": {
+										"verificationCandidatesWithSourceRefs": 2,
+										"auditedClaimsWithSourceRefs": 2,
+										"sourceRefJoinFailures": 0
+									},
+									"verifierIntegrity": {
+										"invalidVerifierRows": 0,
+										"researchQuestionIntegrity": {
+											"plannedIds": ["rq-001", "rq-002", "rq-003"],
+											"completedIds": ["rq-001", "rq-002", "rq-003"],
+											"missingIds": [],
+											"duplicateIds": [],
+											"extraIds": [],
+											"failedIds": [],
+											"invalidPlannedQuestionCount": 0,
+											"plannedDuplicateIds": [],
+											"invalidOutputSourceIds": [],
+											"rows": [
+												{
+													"questionId": "rq-001",
+													"status": "completed",
+													"sourceIds": ["research-questions"]
+												},
+												{
+													"questionId": "rq-002",
+													"status": "completed",
+													"sourceIds": ["research-questions.rq-002"]
+												},
+												{
+													"questionId": "rq-003",
+													"status": "completed",
+													"sourceIds": ["research-questions.rq-003"]
+												}
+											],
+											"passed": true
+										},
+										"duplicateVerifierRows": 0,
+										"invalidNormalizedCandidateCount": 0,
+										"verifierOwnerIssues": 0,
+										"missingVerifierResults": 0,
+										"zeroCandidateFloorBlockers": 0,
+										"batchAdoptionStatus": "eligible_for_canary"
+									}
+								}
+							},
+							{
+								"field": "overflowLedger",
+								"value": {
+									"preservedClaimCount": 2,
+									"coverageGapCount": 2,
+									"remainingGapCount": 1,
+									"omittedVerificationCandidateCount": 0,
+									"invalidVerifierRowCount": 0,
+									"duplicateVerifierRowCount": 0,
+									"invalidNormalizedCandidateCount": 0,
+									"verifierOwnerIssueCount": 0
+								}
+							}
+						]
+					},
+					{
+						"index": 1,
+						"entries": []
+					},
+					{
+						"index": 2,
+						"entries": []
+					},
+					{
+						"index": 3,
+						"entries": []
+					},
+					{
+						"index": 4,
+						"entries": []
+					},
+					{
+						"index": 5,
+						"entries": []
+					},
+					{
+						"index": 6,
+						"entries": []
+					},
+					{
+						"index": 7,
+						"entries": []
+					},
+					{
+						"index": 8,
+						"entries": []
+					},
+					{
+						"index": 9,
+						"entries": []
+					},
+					{
+						"index": 10,
+						"entries": []
+					},
+					{
+						"index": 11,
+						"entries": []
+					},
+					{
+						"index": 12,
+						"entries": []
+					},
+					{
+						"index": 13,
+						"entries": []
+					},
+					{
+						"index": 14,
+						"entries": []
+					},
+					{
+						"index": 15,
+						"entries": []
+					}
+				]
+			}
+		}
+	},
+	"final-audit": {
+		"schema": "deep-research-final-synthesis-v2",
+		"digest": "Node.js 26 has a verified Maintenance milestone of October 2027; its Active LTS status on 2026-11-23 remains unconfirmed.",
+		"inputIntegrity": {
+			"status": "complete"
+		},
+		"synthesis": {
+			"bottomLine": "The audited evidence identifies Node.js 26 (Lithium) as the latest LTS and lists its Maintenance milestone as October 2027. It does not confirm that v26 is specifically in the Active LTS phase as of November 23, 2026.",
+			"comparisonRows": [],
+			"keyFindingIds": ["claim-002", "claim-001"],
+			"recommendations": [
+				{
+					"recommendation": "Confirm v26's Active LTS phase on the official Node.js release page before relying on that status.",
+					"supportingClaimIds": ["claim-001"]
+				}
+			],
+			"actionPlan": [
+				{
+					"action": "Check the official release listing for a date-specific Active LTS status for v26.",
+					"supportingClaimIds": ["claim-001"]
+				}
+			],
+			"caveatNotes": [
+				{
+					"note": "The claim that v26 is the current Active LTS line is only partially supported: the packet records it as the latest LTS, but the captured evidence does not establish Active LTS status as of the task date. The verifier also did not find the quoted release-table row on the cited page.",
+					"readerNote": "Node.js 26 is identified as the latest LTS, but the available evidence does not confirm its Active LTS phase on November 23, 2026. Check the live release listing before relying on that status.",
+					"relatedClaimIds": ["claim-001"],
+					"gapIds": ["gap-coverage-001", "gap-remaining-001"]
+				}
+			],
+			"parentDecisionNotes": []
+		}
+	}
+}

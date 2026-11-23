@@ -34,7 +34,7 @@
 			"specId": "final-audit-packet.main",
 			"status": "completed",
 			"statusDetail": "support_completed",
-			"control": "f4e8a01c3bb549a2"
+			"control": "90e305fda41a874c"
 		},
 		{
 			"specId": "final-audit.main",
@@ -124,7 +124,7 @@
 			"specId": "sanitize-claims.main",
 			"status": "completed",
 			"statusDetail": "support_completed",
-			"control": "fbe2a7738256b981"
+			"control": "692a09d5d245508f"
 		},
 		{
 			"specId": "translation-check.main",

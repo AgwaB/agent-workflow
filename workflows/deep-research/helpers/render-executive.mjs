@@ -76,6 +76,23 @@ function cleanText(value) {
 		.trim();
 }
 
+/**
+ * 2026-11-23: a claim the sanitizer rewrote to its source quote is often a Markdown table row
+ * ("Node.js — v26 | Lithium | May 05, 2026 | Nov 10, 2026 | LTS"); shown as a heading or list item the pipes
+ * read as raw source markup. The same words are rendered from the row's cells. Anything that is not clearly a
+ * row (inline code, `||`, a separator-only row, fewer than two cells) is left exactly as it was.
+ */
+function readableClaimText(value) {
+	const text = cleanText(value);
+	if (!text || /^[{[]/.test(text) || text.includes("`") || !/\S\s*\|\s*\S/.test(text)) return text;
+	const cells = text
+		.split(/(?<!\|)\|(?!\|)/)
+		.map((cell) => cell.trim())
+		.filter((cell) => cell && !/^:?-{2,}:?$/.test(cell));
+	if (cells.length < 2 || /\|\|/.test(text)) return text;
+	return cells.join(" · ");
+}
+
 function escapeMarkdownText(value) {
 	return cleanText(value)
 		.replace(/([\\`*_[\]{}#+!<>])/g, "\\$1")
@@ -1329,7 +1346,7 @@ function claimToFinding(row) {
 	});
 	return {
 		id: claimIdOf(row),
-		finding: cleanText(row?.claim ?? row?.support ?? stringifyItem(row)),
+		finding: readableClaimText(row?.claim ?? row?.support ?? stringifyItem(row)),
 		evidenceStatus: normalizeClaimStatus(row?.status) || row?.status,
 		confidence: row?.confidence,
 		sourceUrls: asArray(row?.sourceUrls),
@@ -3049,10 +3066,12 @@ function renderAuditMarkdown(
 			const id = escapeTableCell(row.id ?? row.claimId ?? "—");
 			const status = escapeTableCell(row.status ?? row.confidence ?? "—");
 			const support = escapeTableCell(
-				row.claim ??
-					row.support ??
-					row.verdictDigest?.support ??
-					stringifyItem(row),
+				readableClaimText(
+					row.claim ??
+						row.support ??
+						row.verdictDigest?.support ??
+						stringifyItem(row),
+				),
 			);
 			// 2026-11-10 (owner): the packet keeps an empty caveat as "", which hid the verifier's correction behind
 			// `??`; a claim the verifier did not verify shows its correction next to the caveat. Other rows unchanged.
@@ -3101,7 +3120,7 @@ function renderAuditMarkdown(
 		out.push("", "## Claims used in executive synthesis", "");
 		for (const claim of claims) {
 			out.push(
-				`- **${escapeMarkdownText(claim.id ?? "claim")}** (${escapeMarkdownText(claim.status ?? "unknown")}): ${escapeMarkdownText(claim.claim ?? claim.support ?? stringifyItem(claim))}`,
+				`- **${escapeMarkdownText(claim.id ?? "claim")}** (${escapeMarkdownText(claim.status ?? "unknown")}): ${escapeMarkdownText(readableClaimText(claim.claim ?? claim.support ?? stringifyItem(claim)))}`,
 			);
 		}
 	}
