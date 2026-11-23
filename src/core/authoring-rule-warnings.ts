@@ -293,6 +293,9 @@ async function foreachSourceWarnings(
 	if (!schema) return [];
 	const lookup = lookupControlSchemaPath(schema, path);
 	if (lookup.status !== "found" || !isRecord(lookup.schema)) return [];
+	// A `const`/`enum`/`$ref` above the array decides its size and whether `[]` is valid; the bounds of the array
+	// schema itself then prove nothing, so say nothing about them (the path itself was still checked).
+	if (lookup.constrainedByAncestor) return [];
 	const array = lookup.schema;
 	if (array.type !== "array" && !isRecord(array.items)) return [];
 	const warnings: string[] = [];

@@ -477,6 +477,75 @@ test("array bounds proven through allOf count; unprovable leaf combinators and h
 	assert.equal(matching(hyphenProven, /has no minItems/).length, 0);
 });
 
+test("m3: a const/enum on an ANCESTOR of the foreach array makes the array bounds unknown, other path checks stay", async () => {
+	const stages = (path) => [
+		single("plan", { output: { controlSchema: "./schemas/plan.json" } }),
+		{
+			id: "fe",
+			type: "foreach",
+			profileRole: "verification",
+			from: { source: "plan", path },
+			each: { prompt: "Check ${item}." },
+		},
+	];
+	const items = { type: "array", items: { type: "string" } };
+	const batchSchemas = {
+		const: schema({
+			batch: {
+				type: "object",
+				const: { items: ["one"] },
+				properties: { items },
+			},
+		}),
+		enum: schema({
+			batch: {
+				type: "object",
+				enum: [{ items: ["one"] }, { items: ["two"] }],
+				properties: { items },
+			},
+		}),
+		deeper: schema({
+			rows: {
+				type: "array",
+				items: {
+					type: "object",
+					const: { items: ["one"] },
+					properties: { items },
+				},
+			},
+		}),
+	};
+	for (const [name, path] of [
+		["const", "$.batch.items"],
+		["enum", "$.batch.items"],
+		["deeper", "$.rows[*].items"],
+	]) {
+		const compiled = await validate(stages(path), {
+			"schemas/plan.json": batchSchemas[name],
+		});
+		assert.equal(matching(compiled, /has no minItems/).length, 0, name);
+		assert.equal(matching(compiled, /has no maxItems/).length, 0, name);
+	}
+	// The same shape without the ancestor constraint still warns (the array is not exempt by position).
+	const plain = await validate(stages("$.batch.items"), {
+		"schemas/plan.json": schema({
+			batch: { type: "object", properties: { items } },
+		}),
+	});
+	assert.equal(matching(plain, /has no minItems/).length, 1);
+	assert.equal(matching(plain, /has no maxItems/).length, 1);
+	// An ancestor constraint does not hide an undeclared loop `until` path (the lookup is still "missing").
+	const { lookupControlSchemaPath } = await import(
+		"../../dist/core/control-schema-path.js"
+	);
+	const missing = lookupControlSchemaPath(
+		batchSchemas.const,
+		"$.batch.nothere",
+	);
+	assert.equal(missing.status, "missing");
+	assert.equal(missing.property, "nothere");
+});
+
 test("minItems: 1 on the source array makes an empty model answer an output-validation failure", () => {
 	const controlJsonSchema = schema({
 		items: { type: "array", items: { type: "string" }, minItems: 1 },

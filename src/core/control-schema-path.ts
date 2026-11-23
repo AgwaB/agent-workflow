@@ -5,7 +5,16 @@ import { parseSimpleJsonPath } from "./workflow-runtime.js";
 // Conservative: anything the lookup cannot decide is `unknown`, never `missing`.
 
 export type ControlSchemaPathLookup =
-	| { status: "found"; schema: unknown }
+	| {
+			status: "found";
+			schema: unknown;
+			/**
+			 * A schema level above the found one (not the found schema itself) fixes or references its value with a
+			 * keyword the scan does not evaluate (`const`, `enum`, `$ref`), so the found schema's own bounds do not
+			 * say what the value can be.
+			 */
+			constrainedByAncestor: boolean;
+	  }
 	| { status: "unknown" }
 	| {
 			status: "missing";
@@ -29,6 +38,9 @@ const COMBINATOR_KEYS = [
 	"else",
 ];
 
+// Keywords on an ancestor level that decide the value below it in a way this scan does not evaluate.
+const ANCESTOR_UNEVALUATED_KEYS = ["const", "enum", "$ref", "$dynamicRef"];
+
 export function lookupControlSchemaPath(
 	schema: unknown,
 	path: string,
@@ -38,8 +50,15 @@ export function lookupControlSchemaPath(
 	const tokens = parseSimpleJsonPath(path);
 	if (!tokens) return { status: "unknown" };
 	let current: unknown = schema;
+	let constrainedByAncestor = false;
 	for (const token of tokens) {
 		if (!isRecord(current)) return { status: "unknown" };
+		if (
+			ANCESTOR_UNEVALUATED_KEYS.some((key) =>
+				Object.hasOwn(current as object, key),
+			)
+		)
+			constrainedByAncestor = true;
 		if (COMBINATOR_KEYS.some((key) => Object.hasOwn(current as object, key))) {
 			return { status: "unknown" };
 		}
@@ -59,7 +78,7 @@ export function lookupControlSchemaPath(
 		if (!isRecord(current.items)) return { status: "unknown" };
 		current = current.items;
 	}
-	return { status: "found", schema: current };
+	return { status: "found", schema: current, constrainedByAncestor };
 }
 
 export type ArrayBoundLookup = "present" | "absent" | "unknown";
