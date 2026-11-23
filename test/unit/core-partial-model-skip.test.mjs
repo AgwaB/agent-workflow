@@ -233,3 +233,237 @@ test("a partial model stage behind a terminal barrier is skipped once every sour
 		"skipped: every input failed (plan failed, work skipped)",
 	);
 });
+
+// ---- what counts as a source (review findings M1-M3 on 5e51343) ----
+
+const taskIdsSubmitted = (effectLog) =>
+	readFixtureLog(effectLog)
+		.filter((entry) => entry.type === "submit")
+		.map((entry) => entry.attemptKey.split(":")[2]);
+
+test("M1a: `after` is ordering only, so a partial reduce whose only `from` source failed is skipped", async () => {
+	// task ids are positional: task-1 = good, task-2 = bad, task-3 = report
+	const { run, effectLog } = await scenario(
+		"after-is-order",
+		[
+			{ id: "good", type: "single", after: [], prompt: "Good." },
+			{ id: "bad", type: "single", after: [], prompt: "Bad." },
+			{
+				id: "report",
+				type: "reduce",
+				from: "bad",
+				after: "good",
+				sourcePolicy: "partial",
+				prompt: "Report.",
+			},
+		],
+		{ failures: { "task-2": FAIL } },
+	);
+	assert.equal(one(run, "good").status, "completed", states(run));
+	assert.equal(one(run, "bad").status, "failed", states(run));
+	const report = one(run, "report");
+	assert.equal(report.status, "skipped", states(run));
+	assert.equal(report.statusDetail, "skipped_every_input_failed");
+	assert.equal(report.lastMessage, "skipped: every input failed (bad failed)");
+	assert.deepEqual(taskIdsSubmitted(effectLog).sort(), ["task-1", "task-2"]);
+});
+
+test("M1b: a partial stage with no `from` and only a failed `after` has no data source and runs", async () => {
+	const { run, effectLog } = await scenario(
+		"after-only",
+		[
+			{ id: "bad", type: "single", after: [], prompt: "Bad." },
+			{
+				id: "solo",
+				type: "single",
+				after: "bad",
+				sourcePolicy: "partial",
+				prompt: "Solo.",
+			},
+		],
+		{ failures: { "task-1": FAIL } },
+	);
+	assert.equal(one(run, "bad").status, "failed", states(run));
+	assert.equal(one(run, "solo").status, "completed", states(run));
+	assert.deepEqual(taskIdsSubmitted(effectLog).sort(), ["task-1", "task-2"]);
+});
+
+test("M1a/M1b: a completed `from` source still lets the stage run whatever `after` did", async () => {
+	const { run } = await scenario(
+		"from-good-after-bad",
+		[
+			{ id: "good", type: "single", after: [], prompt: "Good." },
+			{ id: "bad", type: "single", after: [], prompt: "Bad." },
+			{
+				id: "report",
+				type: "reduce",
+				from: "good",
+				after: "bad",
+				sourcePolicy: "partial",
+				prompt: "Report.",
+			},
+		],
+		{ failures: { "task-2": FAIL } },
+	);
+	assert.equal(one(run, "report").status, "completed", states(run));
+});
+
+test("M1c: a streaming foreach whose generated items all failed leaves the partial reducer skipped", async () => {
+	const stages = [
+		{
+			id: "plan",
+			type: "single",
+			prompt: "Plan the items.",
+			output: { partial: { paths: ["$.items"] } },
+		},
+		{
+			id: "work",
+			type: "foreach",
+			from: {
+				source: "plan",
+				path: "$.items",
+				streaming: { enabled: true, minChunk: 1 },
+			},
+			each: { prompt: "Work ${item}." },
+		},
+		{
+			id: "report",
+			type: "reduce",
+			from: "work",
+			sourcePolicy: "partial",
+			prompt: "Report.",
+		},
+	];
+	const { run, effectLog } = await scenario("streaming", stages, {
+		controlSequence: {
+			"task-1": [
+				{
+					schema: "plan-v1",
+					digest: "two",
+					items: [
+						{ id: "a", text: "A" },
+						{ id: "b", text: "B" },
+					],
+				},
+			],
+		},
+		failures: { "*": FAIL, "task-1": [] },
+	});
+	assert.equal(one(run, "plan").status, "completed", states(run));
+	const items = run.tasks.filter(
+		(task) => task.stageId === "work" && task.foreachGenerated,
+	);
+	assert.equal(items.length, 2, states(run));
+	for (const item of items) assert.equal(item.status, "failed", states(run));
+	const report = one(run, "report");
+	assert.equal(report.status, "skipped", states(run));
+	assert.equal(report.statusDetail, "skipped_every_input_failed");
+	assert.equal(submits(effectLog), 3, "plan and the two items; no reducer");
+});
+
+for (const declared of ["failed", "blocked"]) {
+	for (const barrier of [false, true]) {
+		test(`M2: a support source that declares ${declared} inline leaves its partial model consumer skipped${barrier ? " (terminal barrier)" : ""}`, async () => {
+			const { run, effectLog } = await scenario(
+				`support-${declared}${barrier ? "-barrier" : ""}`,
+				[
+					{
+						id: "gate",
+						support: { uses: "./helpers/gate.mjs" },
+					},
+					{
+						id: "use",
+						type: "single",
+						from: "gate",
+						sourcePolicy: "partial",
+						prompt: "Use the gate.",
+						...(barrier
+							? { inputPolicy: { terminalBarrier: "all-sources" } }
+							: {}),
+					},
+				],
+				{},
+				{
+					"gate.mjs": `export default async function gate() {
+	return { schema: "gate-v1", digest: "declined", status: "${declared}" };
+}
+`,
+				},
+			);
+			assert.equal(one(run, "gate").status, declared, states(run));
+			const use = one(run, "use");
+			assert.equal(use.status, "skipped", states(run));
+			assert.equal(use.statusDetail, "skipped_every_input_failed");
+			assert.equal(submits(effectLog), 0, "no model task was submitted");
+		});
+	}
+}
+
+const dynamicStages = (dynamic) => [
+	{ id: "plan", type: "single", prompt: "Plan." },
+	{
+		id: "adaptive",
+		type: "dynamic",
+		from: "plan",
+		sourcePolicy: "partial",
+		dynamic: { uses: "./helpers/controller.mjs", ...dynamic },
+	},
+];
+const stoppingController = {
+	"controller.mjs": `export default async function controller(ctx) {
+	const failed = Object.keys(ctx.sources).length === 0;
+	return {
+		control: {
+			schema: "dynamic-controller-result-v1",
+			digest: "handled",
+			status: "stopped",
+			decisions: [{ round: 0, decisionId: "decide-r0", status: "stop" }],
+			generatedTasks: [],
+			stateIndexes: [],
+			blockers: [failed ? "input failed; generated no work" : "input present"],
+			omissions: [],
+			caveats: [],
+		},
+		analysis: "stopped",
+		refs: [],
+	};
+}
+`,
+};
+
+test("M3: a helper-driven dynamic controller (no model) runs on a failed source and decides itself", async () => {
+	const { run, effectLog } = await scenario(
+		"dynamic-helper",
+		dynamicStages({}),
+		{ failures: { "task-1": FAIL } },
+		stoppingController,
+	);
+	assert.equal(one(run, "plan").status, "failed", states(run));
+	const controller = one(run, "adaptive");
+	assert.equal(controller.status, "completed", states(run));
+	assert.equal(controller.statusDetail, "dynamic_stopped");
+	assert.equal(submits(effectLog), 1, "only the plan was submitted");
+});
+
+test("M3: a model-driven dynamic controller (decision loop) keeps the every-input-failed skip", async () => {
+	const { run } = await scenario(
+		"dynamic-model",
+		dynamicStages({
+			decisionLoop: {
+				planner: { agent: "reader", tools: ["read"] },
+				workerDefaults: { agent: "reader", tools: ["read"] },
+				allowedAgents: ["reader"],
+				allowedTools: ["read"],
+				maxDecisionRounds: 1,
+				maxActionsPerRound: 1,
+				repair: { maxAttempts: 1 },
+				stopPolicy: { maxStalls: 1 },
+			},
+		}),
+		{ failures: { "task-1": FAIL } },
+		stoppingController,
+	);
+	const controller = one(run, "adaptive");
+	assert.equal(controller.status, "skipped", states(run));
+	assert.equal(controller.statusDetail, "skipped_every_input_failed");
+});

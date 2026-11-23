@@ -1790,28 +1790,50 @@ function descendantSpecIdsFor(
 }
 
 /**
- * `sourcePolicy: "partial"` lets a stage run on whatever its sources produced, but a model stage
- * (anything that launches a worker) with nothing to read is skipped rather than launched: every
- * direct source is terminal and none completed. A source that completed with an empty list counts
- * as completed. Support helpers (deterministic code, e.g. a bundled final renderer) keep running
- * on failed inputs, and so do loop controllers and loop round children (a later round retries after
- * a failed one; the loop decides, not this rule). A loop as a source (it may hold earlier rounds'
- * artifacts) counts as input, so its consumer runs as before. For a foreach, the
- * direct sources are the dependsOn entries: the source stage before expansion, the generated
- * children after it. A terminalBarrier only delays this decision until every source is terminal.
- * Returns the plain skip reason, or undefined when the stage should run.
+ * `sourcePolicy: "partial"` lets a stage run on whatever its sources produced, but a stage that
+ * dispatches a model with nothing to read is skipped rather than launched: it has at least one DATA
+ * source, every data source is terminal and none completed. A source that completed with an empty
+ * list counts as completed.
+ *
+ * Data sources are the ones the stage reads (`contextDependsOn`, else `dependsOn`): `after` only
+ * orders, so a failed `after` neither feeds a stage nor, with no `from`, makes it skip. A streaming
+ * foreach keeps its completed placeholder next to the generated items; once items exist the
+ * placeholder is bookkeeping and does not count.
+ *
+ * Not model stages, so they run as before: support helpers (deterministic code, e.g. a bundled final
+ * renderer), dynamic controllers without a decision loop (a helper that decides itself whether to
+ * generate work; a controller with `decisionLoop` plans through a model and keeps the rule), loop
+ * controllers and loop round children (a later round retries after a failed one), and any stage with
+ * a loop as a source (it may hold earlier rounds' artifacts). A terminalBarrier only delays the
+ * decision until every source is terminal. Returns the plain skip reason, or undefined to run.
  */
-function partialModelStageNoInputReason(
+export function partialModelStageNoInputReason(
 	compiledTask: CompiledTask,
-	bySpecId: Map<string, WorkflowTaskRunRecord>,
+	bySpecId: ReadonlyMap<string, WorkflowTaskRunRecord>,
+	compiledFlow: CompiledWorkflow,
 ): string | undefined {
 	if (
 		compiledTask.kind === "support" ||
 		compiledTask.kind === "loop" ||
-		compiledTask.loopChild
+		compiledTask.loopChild ||
+		(compiledTask.kind === "dynamic" && !compiledTask.dynamic?.decisionLoop)
 	)
 		return undefined;
-	const deps = [...new Set(compiledTask.dependsOn ?? [])];
+	const sources = [
+		...new Set(compiledTask.contextDependsOn ?? compiledTask.dependsOn ?? []),
+	];
+	const compiledBySpecId = new Map(
+		compiledFlow.tasks.map((task) => [compiledTaskSpecId(task), task]),
+	);
+	const deps = sources.filter((dep) => {
+		const compiled = compiledBySpecId.get(dep);
+		if (!compiled?.foreach || !foreachStreamingEnabled(compiled)) return true;
+		return !sources.some(
+			(other) =>
+				compiledBySpecId.get(other)?.foreachGenerated?.placeholderSpecId ===
+				dep,
+		);
+	});
 	if (deps.length === 0) return undefined;
 	const parts: string[] = [];
 	for (const dep of deps) {
@@ -1866,7 +1888,11 @@ export function markDagDependentsSkipped(
 				stageSourcePolicy(compiledFlow, compiledTask.stageId ?? "") ===
 				"partial"
 			) {
-				const reason = partialModelStageNoInputReason(compiledTask, bySpecId);
+				const reason = partialModelStageNoInputReason(
+					compiledTask,
+					bySpecId,
+					compiledFlow,
+				);
 				if (!reason) continue;
 				setTaskTerminal(task, "skipped", "skipped_every_input_failed", {
 					lastMessage: reason,

@@ -146,6 +146,7 @@ import {
 	foreachStreamingEnabled,
 	foreachStreamingMinChunk,
 	markDagDependentsSkipped,
+	partialModelStageNoInputReason,
 	compiledTaskSpecId,
 	markFailFastCancellations,
 	nextTaskRecordIndex,
@@ -4267,6 +4268,17 @@ async function scheduleDagPass(
 		}
 		if (!dependenciesReady(compiledTask, bySpecId, compiledFlow, task))
 			continue;
+		// Final run/skip decision before anything is dispatched. A source can reach its terminal state
+		// after the pass-start propagation (a support helper finishes inline above), so decide again
+		// here: no partial model stage launches on inputs that all failed.
+		if (
+			partialModelStageNoInputReason(compiledTask, bySpecId, compiledFlow) !==
+			undefined
+		) {
+			if (markDagDependentsSkipped(run, compiledFlow))
+				await writeRunRecord(cwd, run);
+			if (task.status !== "pending") continue;
+		}
 
 		if (compiledTask.kind === "loop" && compiledTask.loopPlaceholder) {
 			const changed = await scheduleLoop(
