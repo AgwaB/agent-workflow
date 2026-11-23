@@ -591,7 +591,7 @@ test("impact-review renderer reconciles joins, preserves rows, and writes a safe
 	}
 });
 
-test("impact-review renderer applies blocking and unknown precedence and fails closed on contradictions", async () => {
+test("impact-review renderer applies blocking and unknown precedence, completes on insufficient evidence and fails closed on contradictions", async () => {
 	const cwd = mkdtempSync(join(tmpdir(), "impact-review-render-fail-"));
 	try {
 		const context = impactContext(cwd);
@@ -620,9 +620,14 @@ test("impact-review renderer applies blocking and unknown precedence and fails c
 			sources: unknown,
 			context,
 		});
-		assert.equal(unknownVerdict.status, "failed");
+		// 2026-11-23 (owner): insufficient evidence is a verdict, not a failed run.
+		assert.equal(unknownVerdict.status, "passed");
 		assert.equal(unknownVerdict.verdict, "UNKNOWN");
 		assert.equal(unknownVerdict.gates.riskGatePassed, false);
+		assert.match(
+			unknownVerdict.completionSummaryMarkdown,
+			/insufficient evidence/i,
+		);
 		assert.match(unknownVerdict.markdown, /HUMAN-1/);
 
 		// 2026-11-10 (owner): a synthesis verdict that differs from the required one no longer fails the render; the
