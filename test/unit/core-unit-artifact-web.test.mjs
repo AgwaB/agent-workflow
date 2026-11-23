@@ -3680,6 +3680,7 @@ test("artifactGraph runtime partial dag join proceeds and exposes outputFrom dow
 		const spec = dagContainerRuntimeSpec({
 			finalSourcePolicy: "partial",
 			reportSourcePolicy: "partial",
+			sideSource: true,
 		});
 		const compiled = await compileWorkflow(spec, {
 			cwd,
@@ -3708,6 +3709,9 @@ test("artifactGraph runtime partial dag join proceeds and exposes outputFrom dow
 			{ marker: "scan-failed-output" },
 			"failed",
 		);
+		await completeTask(cwd, taskBySpec(current, "analysis.side.main"), {
+			marker: "side completed",
+		});
 		await writeRunRecord(cwd, current);
 
 		await scheduleRun(cwd, run.runId);
