@@ -19,7 +19,9 @@ import { fileURLToPath } from "node:url";
 
 import {
 	processesUsingRoot,
+	setRehearsalPsForTests,
 	setRehearsalRemoveForTests,
+	waitForRootProcesses,
 } from "../../dist/core/rehearsal-settle.js";
 import { workflowExecutorRegistration } from "../../dist/core/executor-registry.js";
 import {
@@ -720,4 +722,53 @@ test("a temporary root that cannot be removed is reported as leftover, not throw
 	assert.match(result.leftover, /aw-rehearse-/u);
 	assert.ok(existsSync(result.leftover));
 	await rm(result.leftover, { recursive: true, force: true });
+});
+
+test("a failing `ps` is not read as quiet: the wait keeps polling to the deadline", async () => {
+	let calls = 0;
+	setRehearsalPsForTests(async () => {
+		calls += 1;
+		throw Object.assign(new Error("fork: Resource temporarily unavailable"), {
+			code: "EAGAIN",
+		});
+	});
+	try {
+		assert.equal(await waitForRootProcesses("/tmp/aw-root", 300, 20), false);
+		assert.ok(calls > 3, `polled ${calls} times`);
+		// A scan that recovers is believed: the root has no process.
+		let failures = 2;
+		setRehearsalPsForTests(async () => {
+			if (failures-- > 0) throw new Error("transient");
+			return "  1 /sbin/launchd\n";
+		});
+		assert.equal(await waitForRootProcesses("/tmp/aw-root", 2000, 10), true);
+		assert.equal(failures, -1);
+		// A process naming the root is waited for even after a failed scan.
+		let step = 0;
+		setRehearsalPsForTests(async () => {
+			step += 1;
+			if (step === 1) throw new Error("transient");
+			return step < 4 ? "  42 node /tmp/aw-root/worker.mjs\n" : "";
+		});
+		assert.equal(await waitForRootProcesses("/tmp/aw-root", 2000, 10), true);
+		assert.equal(step, 4);
+	} finally {
+		setRehearsalPsForTests(undefined);
+	}
+});
+
+test("a missing `ps` (ENOENT) returns at once: there is nothing to wait on", async () => {
+	let calls = 0;
+	setRehearsalPsForTests(async () => {
+		calls += 1;
+		throw Object.assign(new Error("spawn ps ENOENT"), { code: "ENOENT" });
+	});
+	try {
+		const started = Date.now();
+		assert.equal(await waitForRootProcesses("/tmp/aw-root", 5000, 20), true);
+		assert.equal(calls, 1);
+		assert.ok(Date.now() - started < 1000);
+	} finally {
+		setRehearsalPsForTests(undefined);
+	}
 });

@@ -34,6 +34,16 @@
         ]
       }
     },
+    "inputIntegrity": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["complete", "blocked"] },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "detail": { "type": "string", "minLength": 1, "maxLength": 400 }
+      },
+      "additionalProperties": false
+    },
     "requirements": {
       "type": "array",
       "items": {

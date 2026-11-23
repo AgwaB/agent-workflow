@@ -10,19 +10,38 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const PAYLOAD_TOKEN = /^[A-Za-z0-9_-]{24,}$/u;
 
-/** PIDs of processes (other than this one) whose command line refers to `root`; `undefined` if `ps` is unusable. */
-export async function processesUsingRoot(
-	root: string,
-): Promise<number[] | undefined> {
+type PsRunner = () => Promise<string>;
+
+async function runPs(): Promise<string> {
+	return (
+		await execFileAsync("ps", ["-A", "-o", "pid=", "-o", "args="], {
+			maxBuffer: 64 * 1024 * 1024,
+		})
+	).stdout;
+}
+
+let psForTests: PsRunner | undefined;
+
+/** Test seam: replace the `ps` call (the runner returns its stdout or throws like `execFile`). */
+export function setRehearsalPsForTests(hook: PsRunner | undefined): void {
+	psForTests = hook;
+}
+
+type ProcessScan =
+	| { kind: "pids"; pids: number[] }
+	// `ps` does not exist here (e.g. Windows): there is nothing to wait on, and never will be.
+	| { kind: "unavailable" }
+	// `ps` exists but this call failed (load, EAGAIN, a signal): says nothing about the root.
+	| { kind: "failed" };
+
+async function scanProcesses(root: string): Promise<ProcessScan> {
 	let text: string;
 	try {
-		text = (
-			await execFileAsync("ps", ["-A", "-o", "pid=", "-o", "args="], {
-				maxBuffer: 64 * 1024 * 1024,
-			})
-		).stdout;
-	} catch {
-		return undefined;
+		text = await (psForTests ?? runPs)();
+	} catch (error) {
+		return (error as NodeJS.ErrnoException | undefined)?.code === "ENOENT"
+			? { kind: "unavailable" }
+			: { kind: "failed" };
 	}
 	const pids: number[] = [];
 	for (const line of text.split("\n")) {
@@ -33,7 +52,15 @@ export async function processesUsingRoot(
 		if (pid === process.pid) continue;
 		if (args.includes(root) || payloadNamesRoot(args, root)) pids.push(pid);
 	}
-	return pids;
+	return { kind: "pids", pids };
+}
+
+/** PIDs of processes (other than this one) whose command line refers to `root`; `undefined` if `ps` is unusable. */
+export async function processesUsingRoot(
+	root: string,
+): Promise<number[] | undefined> {
+	const scan = await scanProcesses(root);
+	return scan.kind === "pids" ? scan.pids : undefined;
 }
 
 function payloadNamesRoot(args: string, root: string): boolean {
@@ -49,7 +76,11 @@ function payloadNamesRoot(args: string, root: string): boolean {
 	return false;
 }
 
-/** Wait until no process refers to `root`. Returns false when some still do at the deadline. */
+/**
+ * Wait until no process refers to `root`. Returns false when some still do at the deadline, or when `ps`
+ * kept failing until then (a failed scan is not evidence of quiet). Returns true at once only when `ps`
+ * does not exist on this platform; the caller then relies on removal retries and the leftover report.
+ */
 export async function waitForRootProcesses(
 	root: string,
 	timeoutMs: number,
@@ -57,8 +88,9 @@ export async function waitForRootProcesses(
 ): Promise<boolean> {
 	const deadline = Date.now() + timeoutMs;
 	for (;;) {
-		const pids = await processesUsingRoot(root);
-		if (pids === undefined || pids.length === 0) return true;
+		const scan = await scanProcesses(root);
+		if (scan.kind === "unavailable") return true;
+		if (scan.kind === "pids" && scan.pids.length === 0) return true;
 		if (Date.now() >= deadline) return false;
 		await new Promise((resolve) => setTimeout(resolve, pollMs));
 	}

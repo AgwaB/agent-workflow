@@ -99,6 +99,37 @@ test("a block the ledger cannot disprove is accepted as the worker's blocked han
 		).message,
 		/^inventory stopped: the model reported it could not do the task: "no files"\./,
 	);
+	// A detail that already ends a sentence is not followed by a second full stop.
+	for (const end of [".", "!", "?"]) {
+		const { message } = acceptedInputIntegrityBlock(
+			{
+				inputIntegrity: {
+					status: "blocked",
+					detail: `no src/ directory${end}`,
+				},
+			},
+			"plan",
+		);
+		assert.ok(
+			message.startsWith(
+				`plan stopped: the model reported it could not do the task: "no src/ directory${end}" Resume reruns`,
+			),
+			message,
+		);
+		assert.doesNotMatch(message, /[.!?]"\./);
+	}
+	assert.match(
+		acceptedInputIntegrityBlock(
+			{ inputIntegrity: { status: "blocked", detail: "no files" } },
+			"plan",
+		).message,
+		/"no files"\. Resume reruns/,
+	);
+	assert.match(
+		acceptedInputIntegrityBlock({ inputIntegrity: { status: "blocked" } })
+			.message,
+		/\(reason: unspecified\)\. Resume reruns/,
+	);
 	assert.equal(
 		acceptedInputIntegrityBlock({ inputIntegrity: { status: "blocked" } })
 			.reason,

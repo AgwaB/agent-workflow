@@ -475,6 +475,7 @@ async function runEmptyInventory(
 		assert.match(message, /^inventory returned an empty `items` list/);
 		assert.match(message, /\(at least 1 required\) after 3 attempts/);
 		assert.match(message, /The model said: "There are no items to list\."/);
+		assert.doesNotMatch(message, /[.!?]"\./, "no doubled punctuation");
 		assert.doesNotMatch(message, /array length must be/);
 		// Later stages never ran on nothing.
 		const downstream = failed.tasks.filter((t) => t !== inventory);
