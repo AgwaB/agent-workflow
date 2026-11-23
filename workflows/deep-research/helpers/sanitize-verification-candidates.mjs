@@ -782,6 +782,9 @@ function rewrittenCandidate(
 		return null;
 	return {
 		...candidate,
+		// Dropped by sanitizedCandidate; only the merge step reads it. A claim that is just the hint's quote
+		// (plus an entity label) is identified by the quote, so two labels on one quote are one claim.
+		_dedupeKey: claimDedupeKey(raw === stringOf(hint?.quote) ? raw : replacement),
 		originalClaim: claimText(candidate),
 		claim: replacement,
 		sourceRefs: refs,
@@ -794,8 +797,9 @@ function rewrittenCandidate(
 }
 
 function sanitizedCandidate(candidate, hints, urlToSourceRef) {
+	const { _dedupeKey, ...rest } = candidate;
 	return {
-		...candidate,
+		...rest,
 		id: candidateId(candidate),
 		claim: claimText(candidate),
 		sourceRefs: backfillSourceRefs(candidate, hints, urlToSourceRef),
@@ -811,6 +815,134 @@ function withoutSanitizerGapReason(value) {
 		.map((part) => part.trim())
 		.filter((part) => part && !part.startsWith("sanitized verifier candidates:"))
 		.join("; ");
+}
+
+/**
+ * 2026-11-23 (skill-tools-check run workflow_mwrnt675_966ff4: "findings 1-3 are near-duplicates"): the
+ * rewrite above replaces every mismatched claim with the best hint's raw quote, so several candidates that
+ * cite one source span come out as the same sentence and each one costs a verifier and shows up as its own
+ * finding. Candidates whose claim text is the same after case/punctuation/whitespace folding (digits and
+ * letters are kept, so a different number or negation is a different claim) AND that cover the same fact
+ * slots AND cite the same page are one claim: the first stays and the others' scope items, sources and hints
+ * are folded into it. Wording that only a model could call equivalent is not merged here.
+ */
+function claimDedupeKey(text) {
+	return stringOf(text)
+		.normalize("NFKC")
+		.toLocaleLowerCase()
+		.replace(/[^\p{L}\p{N}]+/gu, " ")
+		.trim();
+}
+
+// The fact slot is the fact's identity: the same words on the same page can state two facts ("Stability: 2 -
+// Stable" for AbortSignal.any() and for AbortSignal.timeout() in the recorded tiered-verification run), so a
+// candidate is only merged into one that covers exactly the same slots.
+function sameSlots(left, right) {
+	const slots = (candidate) => compactStrings(candidate?.factSlotIds, 64).sort();
+	const a = slots(left);
+	const b = slots(right);
+	return a.length > 0 && a.join("\u0000") === b.join("\u0000");
+}
+
+function candidateUrlKeys(candidate) {
+	return new Set(sourceUrls(candidate).map(canonicalUrl).filter(Boolean));
+}
+
+const NEED_RANK = { core: 3, useful: 2, optional: 1 };
+
+function mergedDuplicate(canonical, duplicate) {
+	const hints = [];
+	const seenHints = new Set();
+	for (const hint of [
+		...asArray(canonical.sourceEvidenceHints),
+		...asArray(duplicate.sourceEvidenceHints),
+	]) {
+		const key = `${canonicalUrl(hint?.url)}\u0000${claimDedupeKey(hint?.quote)}\u0000${claimDedupeKey(hint?.value)}`;
+		if (seenHints.has(key)) continue;
+		seenHints.add(key);
+		hints.push(hint);
+	}
+	const need =
+		(NEED_RANK[duplicate.verificationNeed] ?? 0) >
+		(NEED_RANK[canonical.verificationNeed] ?? 0)
+			? duplicate.verificationNeed
+			: canonical.verificationNeed;
+	return {
+		...canonical,
+		sourceUrls: compactStrings(
+			[...sourceUrls(canonical), ...sourceUrls(duplicate)],
+			Infinity,
+		),
+		sourceRefs: compactStrings(
+			[...sourceRefs(canonical), ...sourceRefs(duplicate)],
+			Infinity,
+		),
+		scopeItems: compactStrings(
+			[...asArray(canonical.scopeItems), ...asArray(duplicate.scopeItems)],
+			Infinity,
+		),
+		factSlotIds: compactStrings(
+			[...asArray(canonical.factSlotIds), ...asArray(duplicate.factSlotIds)],
+			Infinity,
+		),
+		...(need ? { verificationNeed: need } : {}),
+		...(hints.length > 0 ? { sourceEvidenceHints: hints } : {}),
+		mergedCandidateIds: compactStrings(
+			[...asArray(canonical.mergedCandidateIds), candidateId(duplicate)],
+			Infinity,
+		),
+	};
+}
+
+function mergeDuplicateCandidates(candidates, dedupeKeys = new Map()) {
+	const keyOf = (row) =>
+		dedupeKeys.get(candidateId(row)) ?? claimDedupeKey(claimText(row));
+	const kept = [];
+	const mergedInto = new Map();
+	const duplicates = [];
+	for (const candidate of candidates) {
+		const key = keyOf(candidate);
+		const urls = candidateUrlKeys(candidate);
+		const id = candidateId(candidate);
+		const index =
+			key && id && urls.size > 0
+				? kept.findIndex(
+						(row) =>
+							keyOf(row) === key &&
+							sameSlots(row, candidate) &&
+							[...candidateUrlKeys(row)].some((url) => urls.has(url)),
+					)
+				: -1;
+		if (index < 0) {
+			kept.push(candidate);
+			continue;
+		}
+		const canonicalId = candidateId(kept[index]);
+		kept[index] = mergedDuplicate(kept[index], candidate);
+		mergedInto.set(id, canonicalId);
+		duplicates.push({
+			id,
+			claim: claimText(candidate),
+			canonicalClaimId: canonicalId,
+			reason: "identical_claim_same_source",
+		});
+	}
+	return { kept, mergedInto, duplicates };
+}
+
+function remapCandidateIds(rows, mergedInto) {
+	if (mergedInto.size === 0) return asArray(rows);
+	return asArray(rows).map((row) => {
+		const ids = asArray(asObject(row).verificationCandidateIds);
+		if (!ids.some((id) => mergedInto.has(stringOf(id)))) return row;
+		return {
+			...row,
+			verificationCandidateIds: compactStrings(
+				ids.map((id) => mergedInto.get(stringOf(id)) ?? id),
+				24,
+			),
+		};
+	});
 }
 
 function adjustFactSlotCoverage(rows, demotedBySlot, keptIds) {
@@ -857,6 +989,7 @@ export default async function sanitizeVerificationCandidates({
 	const claimInventory = asObject(normalized.claimInventory);
 	const originalCandidates = asArray(claimInventory.verificationCandidates);
 	const keptCandidates = [];
+	const dedupeKeys = new Map();
 	const preservedClaims = [...asArray(claimInventory.preservedClaims)];
 	const coverageGaps = [...asArray(normalized.coverageGaps)];
 	const demotedBySlot = new Map();
@@ -894,6 +1027,7 @@ export default async function sanitizeVerificationCandidates({
 					id: `preserved-${id}`,
 					status: "preserved_rewritten_before_verification",
 				});
+				dedupeKeys.set(id, claimDedupeKey(claimText(candidate)));
 				keptCandidates.push(
 					sanitizedCandidate(
 						{
@@ -929,6 +1063,7 @@ export default async function sanitizeVerificationCandidates({
 				id: `preserved-${id}`,
 				status: "preserved_rewritten_before_verification",
 			});
+			if (id) dedupeKeys.set(id, rewrite._dedupeKey);
 			keptCandidates.push(sanitizedCandidate(rewrite, hints, urlToSourceRef));
 			continue;
 		}
@@ -954,9 +1089,10 @@ export default async function sanitizeVerificationCandidates({
 	const promotedBySlot = new Map();
 	const promotedPreservedClaims = new Set();
 
-	const keptIds = new Set(keptCandidates.map((candidate) => candidate.id));
+	const merged = mergeDuplicateCandidates(keptCandidates, dedupeKeys);
+	const keptIds = new Set(merged.kept.map((candidate) => candidate.id));
 	const factSlotCoverageRows = adjustFactSlotCoverage(
-		normalized.factSlotCoverage,
+		remapCandidateIds(normalized.factSlotCoverage, merged.mergedInto),
 		demotedBySlot,
 		keptIds,
 	).map((row) => {
@@ -983,7 +1119,7 @@ export default async function sanitizeVerificationCandidates({
 			? preservedClaims
 			: preservedClaims.filter((claim) => !promotedPreservedClaims.has(claim));
 	const cappedVerificationCandidates = clampArrayToSchemaCap(
-		keptCandidates,
+		merged.kept,
 		schemaCaps.verificationCandidates,
 		"claimInventory.verificationCandidates",
 	);
@@ -1011,7 +1147,7 @@ export default async function sanitizeVerificationCandidates({
 		claimInventory: {
 			verificationCandidates: cappedVerificationCandidates.rows,
 			preservedClaims: cappedPreservedClaims.rows,
-			duplicates: asArray(claimInventory.duplicates),
+			duplicates: [...asArray(claimInventory.duplicates), ...merged.duplicates],
 		},
 		factSlotCoverage: cappedFactSlotCoverage.rows,
 		coverageGaps: outputCoverageGaps,
@@ -1019,7 +1155,8 @@ export default async function sanitizeVerificationCandidates({
 		normalizationNotes: normalized.normalizationNotes,
 		sanitizerDiagnostics: {
 			inputCandidateCount: originalCandidates.length,
-			keptCandidateCount: keptCandidates.length,
+			keptCandidateCount: merged.kept.length,
+			mergedDuplicateCount: merged.duplicates.length,
 			demotedCandidateCount: demotedCandidateIds.length,
 			rewrittenCandidateCount: rewrittenCandidateIds.length,
 			webUrlOnlyDemotedCount: webUrlOnlyDemotedIds.length,
@@ -1029,7 +1166,8 @@ export default async function sanitizeVerificationCandidates({
 			crossScriptCandidateIds,
 			demotionReasonCounts,
 			rewriteReasonCounts,
-			keptCandidateIds: keptCandidates.map((candidate) => candidate.id),
+			keptCandidateIds: merged.kept.map((candidate) => candidate.id),
+			mergedDuplicateIds: merged.duplicates.map((row) => row.id),
 			demotedCandidateIds,
 			webUrlOnlyDemotedIds,
 			promotedCandidateIds,
