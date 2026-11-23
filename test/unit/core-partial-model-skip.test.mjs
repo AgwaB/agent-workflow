@@ -395,7 +395,12 @@ test("N1: an OPEN streaming foreach keeps the partial reducer waiting after its 
 		tasks: [
 			{ taskId: "t1", specId: "p1.main", status: "completed" },
 			{ taskId: "t2", specId: "p2.main", status: "running" },
-			{ taskId: "t3", specId: "work.item", status: placeholder },
+			{
+				taskId: "t3",
+				specId: "work.item",
+				kind: "foreach",
+				status: placeholder,
+			},
 			{
 				taskId: "t4",
 				specId: "work.item-001",
@@ -431,6 +436,72 @@ test("N1: an OPEN streaming foreach keeps the partial reducer waiting after its 
 	const later = build("completed", "completed");
 	assert.equal(markDagDependentsSkipped(later, flow), false);
 	assert.equal(later.tasks.at(-1).status, "pending");
+});
+
+test("N5: the decision checks cheap conditions first and builds the whole-graph index only for a streaming placeholder", async () => {
+	const { partialModelStageNoInputReason } = await import(
+		"../../dist/core/engine-run-graph.js"
+	);
+	let builds = 0;
+	const index = () => {
+		builds += 1;
+		return new Map();
+	};
+	const flow = { tasks: [], stages: [] };
+	const run = (specId, status, kind = "single") => ({
+		specId,
+		status,
+		kind,
+		stageId: specId,
+	});
+	const by = (...records) => new Map(records.map((r) => [r.specId, r]));
+	// No data source, a source that is not terminal, and a completed plain source: no index.
+	assert.equal(
+		partialModelStageNoInputReason(
+			{ id: "r", dependsOn: [] },
+			by(),
+			flow,
+			index,
+		),
+		undefined,
+	);
+	assert.equal(
+		partialModelStageNoInputReason(
+			{ id: "r", dependsOn: ["a"] },
+			by(run("a", "running")),
+			flow,
+			index,
+		),
+		undefined,
+	);
+	assert.equal(
+		partialModelStageNoInputReason(
+			{ id: "r", dependsOn: ["a"] },
+			by(run("a", "completed")),
+			flow,
+			index,
+		),
+		undefined,
+	);
+	// Every source failed and none is a foreach placeholder: decided without the index.
+	assert.match(
+		partialModelStageNoInputReason(
+			{ id: "r", dependsOn: ["a"] },
+			by(run("a", "failed")),
+			flow,
+			index,
+		),
+		/every input failed/u,
+	);
+	assert.equal(builds, 0, "no whole-graph index was built");
+	// A foreach placeholder source does need it.
+	partialModelStageNoInputReason(
+		{ id: "r", dependsOn: ["w"] },
+		by(run("w", "failed", "foreach")),
+		flow,
+		index,
+	);
+	assert.equal(builds, 1);
 });
 
 for (const declared of ["failed", "blocked"]) {

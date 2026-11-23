@@ -1811,6 +1811,7 @@ export function partialModelStageNoInputReason(
 	compiledTask: CompiledTask,
 	bySpecId: ReadonlyMap<string, WorkflowTaskRunRecord>,
 	compiledFlow: CompiledWorkflow,
+	compiledIndex?: () => ReadonlyMap<string, CompiledTask>,
 ): string | undefined {
 	if (
 		compiledTask.kind === "support" ||
@@ -1822,23 +1823,32 @@ export function partialModelStageNoInputReason(
 	const sources = [
 		...new Set(compiledTask.contextDependsOn ?? compiledTask.dependsOn ?? []),
 	];
-	const compiledBySpecId = new Map(
-		compiledFlow.tasks.map((task) => [compiledTaskSpecId(task), task]),
-	);
-	const deps = sources.filter((dep) => {
-		const compiled = compiledBySpecId.get(dep);
-		if (!compiled?.foreach || !foreachStreamingEnabled(compiled)) return true;
-		// An open placeholder (not yet terminal) means more items may still come, so it stays a
-		// readiness condition. Once it is terminal the membership is final and its own success is
-		// bookkeeping next to the generated items.
-		const open = !isTerminalTaskStatus(bySpecId.get(dep)?.status ?? "pending");
-		if (open) return true;
-		return !sources.some(
-			(other) =>
-				compiledBySpecId.get(other)?.foreachGenerated?.placeholderSpecId ===
-				dep,
-		);
-	});
+	// Cheap exits first (no whole-graph work): no data source, or one that is not terminal yet.
+	if (sources.length === 0) return undefined;
+	for (const dep of sources) {
+		const source = bySpecId.get(dep);
+		if (!source || !isTerminalTaskStatus(source.status)) return undefined;
+	}
+	// A streaming foreach placeholder can sit next to its generated items; only then is the compiled
+	// graph needed to tell the placeholder from its items. Once it is terminal, its membership is final
+	// and its own success is bookkeeping.
+	let deps = sources;
+	if (sources.some((dep) => bySpecId.get(dep)?.kind === "foreach")) {
+		const compiledBySpecId =
+			compiledIndex?.() ??
+			new Map(
+				compiledFlow.tasks.map((task) => [compiledTaskSpecId(task), task]),
+			);
+		deps = sources.filter((dep) => {
+			const compiled = compiledBySpecId.get(dep);
+			if (!compiled?.foreach || !foreachStreamingEnabled(compiled)) return true;
+			return !sources.some(
+				(other) =>
+					compiledBySpecId.get(other)?.foreachGenerated?.placeholderSpecId ===
+					dep,
+			);
+		});
+	}
 	if (deps.length === 0) return undefined;
 	const parts: string[] = [];
 	for (const dep of deps) {

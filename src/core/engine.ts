@@ -4232,6 +4232,21 @@ async function scheduleDagPass(
 	// pool ends only the non-support sweep.
 	let supportSweep = false;
 	const supportAttempted = new Set<number>();
+	// One spec-id index of the compiled graph per scheduling pass, built only when a decision needs it and
+	// rebuilt if the graph grew (generated tasks).
+	let compiledIndexCache:
+		| { size: number; map: ReadonlyMap<string, CompiledTask> }
+		| undefined;
+	const compiledIndex = (): ReadonlyMap<string, CompiledTask> => {
+		if (compiledIndexCache?.size !== compiledFlow.tasks.length)
+			compiledIndexCache = {
+				size: compiledFlow.tasks.length,
+				map: new Map(
+					compiledFlow.tasks.map((task) => [compiledTaskSpecId(task), task]),
+				),
+			};
+		return compiledIndexCache.map;
+	};
 	for (let index = 0; ; index += 1) {
 		if (
 			index >= run.tasks.length ||
@@ -4272,8 +4287,14 @@ async function scheduleDagPass(
 		// after the pass-start propagation (a support helper finishes inline above), so decide again
 		// here: no partial model stage launches on inputs that all failed.
 		if (
-			partialModelStageNoInputReason(compiledTask, bySpecId, compiledFlow) !==
-			undefined
+			stageSourcePolicy(compiledFlow, compiledTask.stageId ?? "") ===
+				"partial" &&
+			partialModelStageNoInputReason(
+				compiledTask,
+				bySpecId,
+				compiledFlow,
+				compiledIndex,
+			) !== undefined
 		) {
 			if (markDagDependentsSkipped(run, compiledFlow))
 				await writeRunRecord(cwd, run);
