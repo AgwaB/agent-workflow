@@ -1078,20 +1078,45 @@ test("write-verify: the verify helper checks existence, content and markers in t
 	await writeFile(join(tree, "docs-ok.md"), "x");
 	value = await check();
 	assert.match(value.files[0].problem, /symlink/u);
-	// No worktree for that run/task, or no writer row: failed, not thrown.
-	value = await check(options, { ...context, runId: "other" });
+	// Setup and input-binding problems throw (they are wiring, not content): no worktree for that
+	// run/task, no row of the writer stage, a misspelled writer even when exactly one row exists.
+	await assert.rejects(
+		helper({ options, context: { ...context, runId: "other" } }),
+		/verify: no managed worktree on branch agent-workflow\/other-task-1/u,
+	);
+	await assert.rejects(
+		helper({ options, context: { ...context, sourceStatuses: [] } }),
+		/verify: no task of the writer stage write/u,
+	);
+	await assert.rejects(
+		helper({ options: { ...options, writer: "wirte" }, context }),
+		/verify: no task of the writer stage wirte among the sources \(write\): fix support\.options\.writer/u,
+	);
+	// An omitted writer option may still use the sole upstream row.
+	const { writer: _omitted, ...withoutWriter } = options;
+	const sole = await helper({
+		options: withoutWriter,
+		context: {
+			...context,
+			sourceStatuses: [{ ...context.sourceStatuses[0], stageId: "draft" }],
+		},
+	});
+	assert.equal(sole.branch, branch);
+	// A writer that did not complete is the writer's failure, declared (content), not a thrown setup error.
+	value = await check(options, {
+		...context,
+		sourceStatuses: [{ ...context.sourceStatuses[0], status: "failed" }],
+	});
 	assert.equal(value.status, "failed");
-	assert.match(value.digest, /no managed worktree/u);
-	value = await check(options, { ...context, sourceStatuses: [] });
-	assert.equal(value.status, "failed");
+	assert.match(value.digest, /writer task task-1 ended failed/u);
 	// Rehearsal: the worktree is still required, the files are not read.
 	process.env.AGENT_WORKFLOW_REHEARSAL = "1";
 	try {
 		await rm(join(tree, "OUTPUT.md"));
 		assert.equal((await check()).status, "passed");
-		assert.equal(
-			(await check(options, { ...context, runId: "other" })).status,
-			"failed",
+		await assert.rejects(
+			helper({ options, context: { ...context, runId: "other" } }),
+			/no managed worktree/u,
 		);
 	} finally {
 		delete process.env.AGENT_WORKFLOW_REHEARSAL;
@@ -1105,8 +1130,26 @@ test("write-verify: the verify helper checks existence, content and markers in t
 		{ files: [{ path: "a\\b" }] },
 		{ files: [{ path: "a", markers: [""] }] },
 		{ files: [{ path: "a", markers: "x" }] },
+		{ files: [{ path: "a" }], writer: 3 },
+		{ files: [{ path: "a" }], writer: "" },
 	])
 		await assert.rejects(helper({ options: bad, context }), /verify:/u);
+});
+
+test("rehearse of write-verify with a misspelled support.options.writer is a wiring error (exit 1)", async () => {
+	const dir = await projectFor("write-verify", "wv-typo-");
+	assert.equal(
+		(await run(["new", "write-verify", "typo"], { cwd: dir })).code,
+		0,
+	);
+	const specPath = join(dir, ".agent-workflow/workflows/typo/spec.json");
+	const spec = JSON.parse(await readFile(specPath, "utf8"));
+	spec.artifactGraph.stages[1].support.options.writer = "wirte";
+	await writeFile(specPath, JSON.stringify(spec, null, 2));
+	const result = await run(["rehearse", "typo"], { cwd: dir });
+	assert.equal(result.code, 1, result.out + result.err);
+	assert.match(result.out, /no task of the writer stage wirte/u);
+	assert.doesNotMatch(result.out, /Content gates/u);
 });
 
 test("rehearse sets AGENT_WORKFLOW_REHEARSAL only while it runs", async () => {
