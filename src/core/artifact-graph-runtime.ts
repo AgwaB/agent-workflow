@@ -171,7 +171,10 @@ export async function executeSupportTask(
 					`support_declared_${declaredStatus}`,
 					{
 						exitCode: 1,
-						lastMessage: `support declared ${declaredStatus}`,
+						lastMessage: supportDeclaredMessage(
+							declaredStatus,
+							structuredOutput,
+						),
 					},
 				);
 				await writeRunRecord(cwd, run);
@@ -899,6 +902,31 @@ export async function writeArtifactGraphDynamicResult(
 				.join("; ")}`,
 		);
 	}
+}
+
+const SUPPORT_REASON_MAX = 200;
+
+/** `support declared failed: <the helper's own digest>`: why a helper failed or blocked, on one bounded line. */
+export function supportDeclaredMessage(
+	declaredStatus: "failed" | "blocked",
+	structuredOutput: unknown,
+): string {
+	const plain = `support declared ${declaredStatus}`;
+	if (
+		!structuredOutput ||
+		typeof structuredOutput !== "object" ||
+		Array.isArray(structuredOutput)
+	)
+		return plain;
+	const digest = (structuredOutput as Record<string, unknown>).digest;
+	if (typeof digest !== "string") return plain;
+	const reason = digest.replace(/\s+/gu, " ").trim();
+	if (reason === "") return plain;
+	const clipped =
+		reason.length > SUPPORT_REASON_MAX
+			? `${reason.slice(0, SUPPORT_REASON_MAX - 1).trimEnd()}…`
+			: reason;
+	return `${plain}: ${clipped}`;
 }
 
 function supportControlTerminalStatus(
