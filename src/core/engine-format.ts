@@ -551,6 +551,7 @@ function formatHumanRunCard(
 		}
 	}
 	lines.push(...taskSections(run));
+	lines.push(...skippedNoInputSection(run));
 	const affected = run.tasks.filter((task) => task.blockedActions?.count);
 	if (affected.length)
 		lines.push(
@@ -587,6 +588,28 @@ function taskSections(run: WorkflowRunRecord): string[] {
 }
 
 const TASK_SECTION_MAX = 3;
+
+// A partial model stage skipped because every source failed: say why, in the engine's own words.
+function skippedNoInputSection(run: WorkflowRunRecord): string[] {
+	const skipped = run.tasks.filter(
+		(task) =>
+			task.status === "skipped" &&
+			task.statusDetail === "skipped_every_input_failed",
+	);
+	if (skipped.length === 0) return [];
+	const hidden = skipped.length - TASK_SECTION_MAX;
+	return [
+		"",
+		"Skipped:",
+		...skipped
+			.slice(0, TASK_SECTION_MAX)
+			.map(
+				(task) =>
+					`  • ${task.displayName || task.specId} — ${taskReason(task).replace(/^skipped: /u, "")}`,
+			),
+		...(hidden > 0 ? [`  … and ${hidden} more skipped`] : []),
+	];
+}
 
 function appendTaskSection(
 	lines: string[],

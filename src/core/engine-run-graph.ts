@@ -1789,6 +1789,37 @@ function descendantSpecIdsFor(
 	return descendants;
 }
 
+/**
+ * `sourcePolicy: "partial"` lets a stage run on whatever its sources produced, but a model stage
+ * (anything that launches a worker) with nothing to read is skipped rather than launched: every
+ * direct source is terminal and none completed. A source that completed with an empty list counts
+ * as completed. Support helpers (deterministic code, e.g. a bundled final renderer) and loop
+ * controllers are not model stages here and keep running on failed inputs. For a foreach, the
+ * direct sources are the dependsOn entries: the source stage before expansion, the generated
+ * children after it. A terminalBarrier only delays this decision until every source is terminal.
+ * Returns the plain skip reason, or undefined when the stage should run.
+ */
+function partialModelStageNoInputReason(
+	compiledTask: CompiledTask,
+	bySpecId: Map<string, WorkflowTaskRunRecord>,
+): string | undefined {
+	if (compiledTask.kind === "support" || compiledTask.kind === "loop")
+		return undefined;
+	const deps = [...new Set(compiledTask.dependsOn ?? [])];
+	if (deps.length === 0) return undefined;
+	const parts: string[] = [];
+	for (const dep of deps) {
+		const source = bySpecId.get(dep);
+		if (!source || !isTerminalTaskStatus(source.status)) return undefined;
+		if (source.status === "completed") return undefined;
+		const part = `${source.stageId ?? source.specId} ${source.status}`;
+		if (!parts.includes(part)) parts.push(part);
+	}
+	const shown = parts.slice(0, 4).join(", ");
+	const more = parts.length > 4 ? `, +${parts.length - 4} more` : "";
+	return `skipped: every input failed (${shown}${more})`;
+}
+
 export function markDagDependentsSkipped(
 	run: WorkflowRunRecord,
 	compiledFlow: CompiledWorkflow,
@@ -1826,8 +1857,16 @@ export function markDagDependentsSkipped(
 			if (
 				stageSourcePolicy(compiledFlow, compiledTask.stageId ?? "") ===
 				"partial"
-			)
+			) {
+				const reason = partialModelStageNoInputReason(compiledTask, bySpecId);
+				if (!reason) continue;
+				setTaskTerminal(task, "skipped", "skipped_every_input_failed", {
+					lastMessage: reason,
+				});
+				changed = true;
+				passChanged = true;
 				continue;
+			}
 			setTaskTerminal(task, "skipped", "skipped_after_dependency_failure", {
 				lastMessage: `skipped because dependency ${failedDep} did not complete`,
 			});
