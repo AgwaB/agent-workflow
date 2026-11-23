@@ -803,6 +803,8 @@ export function retryOrFailArtifactGraphTask(
 		reason: string;
 		attempt: number;
 		message: string;
+		/** Plain-words failure text shown instead of `message` once retries are exhausted. */
+		finalMessage?: string;
 		artifacts?: string[];
 		repairMode?: "same_session" | "new_session";
 		sessionId?: string;
@@ -845,7 +847,7 @@ export function retryOrFailArtifactGraphTask(
 	task.statusDetail = outputRetry.reason ?? "artifact_graph_output_invalid";
 	task.exitCode = 1;
 	task.completedAt = nowIso();
-	task.lastMessage = options.message;
+	task.lastMessage = options.finalMessage ?? options.message;
 	return true;
 }
 

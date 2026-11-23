@@ -7,6 +7,11 @@ import { join } from "node:path";
 import { after, test } from "node:test";
 
 import { refreshRun, runWorkflow, waitForRun } from "../../dist/core/engine.js";
+import {
+	formatHumanRunOutcome,
+	formatHumanRunStatus,
+	formatRun,
+} from "../../dist/core/engine-format.js";
 import { ARTIFACT_OUTPUT_RETRIES_ENV } from "../../dist/core/retry-policy.js";
 import { setTaskRuntimeApiForTests as setRawApi } from "../../dist/core/runtime-port.js";
 
@@ -359,6 +364,131 @@ test("workflow-invalid output triggers exactly one bounded repair launch, then n
 			assert.equal(refreshed.tasks[0].status, "completed");
 		}
 		assert.equal(launchCount, 2);
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 100,
+		});
+	}
+});
+
+test("an empty required list fails the task in plain words and skips later stages", async () => {
+	const cwd = makeProject();
+	const runs = new Map();
+	let launchCount = 0;
+	const prompts = [];
+	try {
+		writeAgent(cwd, "unit-scout");
+		const name = "empty-inventory";
+		writeWorkflow(cwd, name, [
+			{
+				id: "inventory",
+				type: "single",
+				output: {
+					analysis: { required: true },
+					controlSchema: "./schemas/inventory.schema.json",
+				},
+				prompt: "List the items.",
+			},
+			{
+				id: "work",
+				type: "foreach",
+				from: { source: "inventory", path: "$.items" },
+				output: { analysis: { required: true } },
+				each: { itemIdentityPath: "$.id", prompt: "Work ${item}." },
+			},
+			{
+				id: "report",
+				type: "reduce",
+				from: ["inventory", "work"],
+				output: { analysis: { required: true } },
+				prompt: "Report.",
+			},
+		]);
+		mkdirSync(join(cwd, "workflows", name, "schemas"), { recursive: true });
+		writeFileSync(
+			join(cwd, "workflows", name, "schemas", "inventory.schema.json"),
+			JSON.stringify({
+				type: "object",
+				required: ["digest", "items"],
+				properties: {
+					digest: { type: "string" },
+					items: {
+						type: "array",
+						minItems: 1,
+						items: {
+							type: "object",
+							required: ["id"],
+							properties: { id: { type: "string" } },
+						},
+					},
+				},
+			}),
+		);
+		const emptyAnswer = [
+			"<control>",
+			JSON.stringify({
+				digest: "There are no items to list.",
+				items: [],
+			}),
+			"</control>",
+			"<analysis>",
+			"Nothing to inventory.",
+			"</analysis>",
+		].join("\n");
+		const api = makeFakeWorkerApi({
+			cwd,
+			runs,
+			outputsByLaunch: [emptyAnswer],
+			onLaunch: () => {
+				launchCount += 1;
+				return launchCount;
+			},
+		});
+		const runWorker = api.runWorker;
+		api.runWorker = async (options) => {
+			prompts.push(String(options.prompt ?? options.task ?? ""));
+			return runWorker(options);
+		};
+		setTaskRuntimeApiForTests(api);
+
+		const started = await runWorkflow(name, cwd, {
+			task: "Exercise an empty required list.",
+		});
+		const failed = await waitForRun(cwd, started.runId, 20_000);
+		assert.equal(failed.status, "failed");
+		assert.equal(launchCount, 3, "default 2 retries = 3 attempts");
+		const inventory = failed.tasks.find((t) => t.specId === "inventory.main");
+		assert.equal(inventory.status, "failed");
+		const message = inventory.lastMessage;
+		assert.match(message, /^inventory returned an empty `items` list/);
+		assert.match(message, /\(at least 1 required\) after 3 attempts/);
+		assert.match(message, /The model said: "There are no items to list\."/);
+		assert.doesNotMatch(message, /array length must be/);
+		// Later stages never ran on nothing.
+		const downstream = failed.tasks.filter((t) => t !== inventory);
+		assert.deepEqual(
+			downstream.map((t) => [t.specId, t.status]),
+			[
+				["work.item", "skipped"],
+				["report.main", "skipped"],
+			],
+		);
+		assert.equal(launchCount, 3, "no launch for the skipped stages");
+		for (const text of [
+			formatRun(failed),
+			formatHumanRunStatus(failed),
+			formatHumanRunOutcome(failed),
+		])
+			assert.ok(text.includes(message), text);
+		// The retry prompt tells the model the list must not be empty.
+		assert.match(
+			inventory.outputRetry?.message ?? "",
+			/must contain at least 1 item\(s\)\. Do not answer with \[\]/,
+		);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
 		rmSync(cwd, {

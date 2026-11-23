@@ -28,6 +28,8 @@ export interface JsonSchemaObject {
 export interface JsonSchemaIssue {
 	path: string;
 	message: string;
+	/** Set when an array shorter than `minItems` is empty, so callers can phrase it plainly. */
+	emptyRequiredList?: { minItems: number };
 }
 
 export interface JsonSchemaValidationResult {
@@ -445,6 +447,9 @@ function validateArrayConstraints(
 		issues.push({
 			path,
 			message: `array length must be >= ${schema.minItems}`,
+			...(value.length === 0
+				? { emptyRequiredList: { minItems: schema.minItems } }
+				: {}),
 		});
 	}
 	if (typeof schema.maxItems === "number" && value.length > schema.maxItems) {
