@@ -1092,6 +1092,20 @@ test("write-verify: the verify helper checks existence, content and markers in t
 		helper({ options: { ...options, writer: "wirte" }, context }),
 		/verify: no task of the writer stage wirte among the sources \(write\): fix support\.options\.writer/u,
 	);
+	// Two rows of the writer stage are ambiguous: throw, naming both, instead of checking only the first.
+	await assert.rejects(
+		helper({
+			options,
+			context: {
+				...context,
+				sourceStatuses: [
+					...context.sourceStatuses,
+					{ ...context.sourceStatuses[0], taskId: "task-2" },
+				],
+			},
+		}),
+		/verify: more than one task of the writer stage write \(task-1, task-2\)/u,
+	);
 	// An omitted writer option may still use the sole upstream row.
 	const { writer: _omitted, ...withoutWriter } = options;
 	const sole = await helper({

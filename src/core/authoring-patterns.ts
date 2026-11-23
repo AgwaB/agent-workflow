@@ -924,9 +924,13 @@ export default async function helper({ options, context }) {
   const wanted = readOptions(options);
   const rows = context.sourceStatuses || [];
   // A named writer must match exactly; only an omitted option may fall back to the sole upstream row.
+  const matching = rows.filter((row) => row.stageId === wanted.writer && row.taskId);
+  if (matching.length > 1) {
+    throw new Error("verify: more than one task of the writer stage " + wanted.writer + " (" + matching.map((row) => row.taskId).join(", ") + "): verify one writer task, not several");
+  }
   const writer = wanted.explicit
-    ? rows.find((row) => row.stageId === wanted.writer && row.taskId)
-    : rows.find((row) => row.stageId === wanted.writer && row.taskId) || (rows.length === 1 ? rows[0] : undefined);
+    ? matching[0]
+    : matching[0] || (rows.length === 1 ? rows[0] : undefined);
   // Setup and input-binding problems throw (the stage is wired wrongly); only the written files can fail the check.
   if (!writer || !writer.taskId) {
     throw new Error("verify: no task of the writer stage " + wanted.writer + (wanted.explicit ? " among the sources (" + rows.map((row) => row.stageId).join(", ") + "): fix support.options.writer" : " (set support.options.writer to its id)"));
