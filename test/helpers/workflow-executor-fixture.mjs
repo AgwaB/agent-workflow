@@ -32,7 +32,8 @@
 //                 partial fit)
 //   controlSequence  { "<task id>": [control, …] }: the Nth submit for that task (counted in the
 //                 effect log, so across worker processes) answers with the Nth control (the last
-//                 one repeats) instead of the default `{schema, digest}` control
+//                 one repeats) instead of the default `{schema, digest}` control; a string entry is the whole
+//                 answer text, verbatim
 //   failures      { "<task id>" | "*": [{class, message}, …] }: the Nth submit of that task (per task, counted in the
 //                 effect log) ends with a failed event of that class and message (provider overload / socket
 //                 failures for the provider-pause tests); once the list is used up the task answers normally
@@ -247,6 +248,10 @@ function replayText(req, config) {
 		.join(req.cwd);
 }
 
+function sequenceAnswerText(entry) {
+	return typeof entry === "string" ? entry : workflowControlText(entry);
+}
+
 function scriptFor(req, config) {
 	const label = req.attemptKey.split(":")[2] ?? "task";
 	const sequence = config.controlSequence?.[label];
@@ -255,7 +260,7 @@ function scriptFor(req, config) {
 		: config.autoRecommend !== undefined && isAutoClassifierRequest(req)
 			? autoComparisonText(req.prompt, config.autoRecommend, config.autoStatus)
 			: sequence
-				? workflowControlText(
+				? sequenceAnswerText(
 						sequence[
 							Math.min(
 								submitsFor(config.effectLog, label) - 1,
