@@ -1,3 +1,4 @@
+import { outputRetriesUsed } from "../core/output-retry-count.js";
 import {
 	blockedActionsLabel,
 	runBlockedActions,
@@ -477,7 +478,7 @@ export interface InspectData {
 	launch?: LaunchSummary;
 }
 
-function summarizeReliability(
+export function summarizeReliability(
 	tasks: WorkflowRunRecord["tasks"],
 ): InspectData["reliability"] {
 	let outputRetries = 0;
@@ -487,8 +488,12 @@ function summarizeReliability(
 	for (const raw of tasks) {
 		// SAFETY: read-only field probing of a persisted record; every field is type-checked below.
 		const task = raw as unknown as Record<string, unknown>;
-		outputRetries += positiveCount(
-			(task.outputRetry as { attempts?: unknown } | undefined)?.attempts,
+		const outputRetry = task.outputRetry as
+			| { attempts?: unknown; reason?: unknown }
+			| undefined;
+		outputRetries += outputRetriesUsed(
+			outputRetry?.attempts,
+			outputRetry?.reason,
 		);
 		launchRetries += positiveCount(
 			(task.launchRetry as { attempts?: unknown } | undefined)?.attempts,
@@ -497,7 +502,10 @@ function summarizeReliability(
 		const events = Array.isArray(task.resumeEvents) ? task.resumeEvents : [];
 		for (const event of events as Array<Record<string, unknown>>) {
 			resumeEvents += 1;
-			outputRetries += positiveCount(event.outputRetryAttempts);
+			outputRetries += outputRetriesUsed(
+				event.outputRetryAttempts,
+				event.outputRetryReason,
+			);
 			launchRetries += positiveCount(event.launchRetryAttempts);
 			if (hasContextLimitFailure(event)) contextLimitFailures += 1;
 		}

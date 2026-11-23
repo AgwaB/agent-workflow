@@ -27,6 +27,7 @@ import {
 	isMockRunProvenance,
 	isWorkflowRunLeaseLive,
 	LEASE_STALE_MS,
+	finalStageTasks,
 	listRunRecords,
 	readFreshIndex,
 	readIndex,
@@ -539,19 +540,20 @@ function formatHumanRunCard(
 			`    ${taskReason(problem)}`,
 		);
 	if (options.mode === "details") {
-		const completed = run.tasks
-			.filter((task) => task.status === "completed")
-			.slice(0, 5);
+		const done = run.tasks.filter((task) => task.status === "completed");
+		const completed = cappedCompleted(run, done);
 		if (completed.length > 0) {
+			const hidden = done.length - completed.length;
 			lines.push(
 				"",
 				"Completed:",
 				...completed.map((task) => `  ✓ ${task.displayName || task.specId}`),
+				...(hidden > 0 ? [`  … and ${hidden} more completed`] : []),
 			);
 		}
 	}
 	lines.push(...taskSections(run));
-	lines.push(...skippedNoInputSection(run));
+	lines.push(...skippedSection(run));
 	const affected = run.tasks.filter((task) => task.blockedActions?.count);
 	if (affected.length)
 		lines.push(
@@ -573,6 +575,28 @@ function formatHumanRunCard(
 	return lines.join("\n");
 }
 
+const COMPLETED_LIST_MAX = 5;
+
+// The cap must not hide the stage that produced the run's result: list the final-stage tasks first (a loop's own
+// rounds are leaves too, but they are not the result), then fill in run order.
+function cappedCompleted(
+	run: WorkflowRunRecord,
+	done: WorkflowTaskRunRecord[],
+): WorkflowTaskRunRecord[] {
+	if (done.length <= COMPLETED_LIST_MAX) return done;
+	const final = new Set(
+		finalStageTasks(run.tasks).filter((task) => task.loopChild === undefined),
+	);
+	const chosen = new Set<WorkflowTaskRunRecord>(
+		done.filter((task) => final.has(task)).slice(0, COMPLETED_LIST_MAX),
+	);
+	for (const task of done) {
+		if (chosen.size >= COMPLETED_LIST_MAX) break;
+		chosen.add(task);
+	}
+	return done.filter((task) => chosen.has(task));
+}
+
 function taskSections(run: WorkflowRunRecord): string[] {
 	const sections: string[] = [];
 	appendTaskSection(
@@ -589,13 +613,9 @@ function taskSections(run: WorkflowRunRecord): string[] {
 
 const TASK_SECTION_MAX = 3;
 
-// A partial model stage skipped because every source failed: say why, in the engine's own words.
-function skippedNoInputSection(run: WorkflowRunRecord): string[] {
-	const skipped = run.tasks.filter(
-		(task) =>
-			task.status === "skipped" &&
-			task.statusDetail === "skipped_every_input_failed",
-	);
+// Skipped tasks, each with its own plain reason: every input failed (partial model stage) or a needed input did not finish.
+function skippedSection(run: WorkflowRunRecord): string[] {
+	const skipped = run.tasks.filter((task) => task.status === "skipped");
 	if (skipped.length === 0) return [];
 	const hidden = skipped.length - TASK_SECTION_MAX;
 	return [
@@ -605,10 +625,30 @@ function skippedNoInputSection(run: WorkflowRunRecord): string[] {
 			.slice(0, TASK_SECTION_MAX)
 			.map(
 				(task) =>
-					`  • ${task.displayName || task.specId} — ${taskReason(task).replace(/^skipped: /u, "")}`,
+					`  • ${task.displayName || task.specId} — ${skippedReason(run, task)}`,
 			),
 		...(hidden > 0 ? [`  … and ${hidden} more skipped`] : []),
 	];
+}
+
+const DEPENDENCY_SKIP_MESSAGE =
+	/^skipped because dependency (.+) did not complete$/u;
+
+function skippedReason(
+	run: WorkflowRunRecord,
+	task: WorkflowTaskRunRecord,
+): string {
+	const dependency = DEPENDENCY_SKIP_MESSAGE.exec(task.lastMessage ?? "")?.[1];
+	if (dependency === undefined)
+		return taskReason(task).replace(/^skipped: /u, "");
+	const status = run.tasks.find((item) => item.specId === dependency)?.status;
+	const what =
+		status === "failed"
+			? "failed"
+			: status === "blocked" || status === "interrupted" || status === "skipped"
+				? `was ${status}`
+				: "did not complete";
+	return `its input ${dependency} ${what}`;
 }
 
 function appendTaskSection(
@@ -674,13 +714,35 @@ function firstProblemTask(
 	);
 }
 
+const OUTPUT_PROTOCOL_ERROR_PREFIX =
+	"Validation error: workflow output protocol was invalid.";
+const VALIDATION_ISSUES_MAX = 3;
+
+/**
+ * The retry prompt ("Return exactly these sections … Schema repair guidance …") is instructions for the
+ * model, not a reason for the reader: show the issues it lists and leave the full text in the task record.
+ */
+function plainValidationMessage(message: string): string {
+	if (!message.startsWith(OUTPUT_PROTOCOL_ERROR_PREFIX)) return message;
+	const marker = message.indexOf("\nIssues:\n");
+	if (marker < 0) return message;
+	const issues = message
+		.slice(marker + "\nIssues:\n".length)
+		.split("\n")
+		.map((line) => line.replace(/^- /u, "").trim())
+		.filter((line) => line !== "");
+	if (issues.length === 0) return message;
+	const hidden = issues.length - VALIDATION_ISSUES_MAX;
+	return `the model's output was invalid: ${issues.slice(0, VALIDATION_ISSUES_MAX).join("; ")}${hidden > 0 ? ` (and ${hidden} more)` : ""}`;
+}
+
 function taskReason(task: WorkflowTaskRunRecord): string {
-	return (
+	return plainValidationMessage(
 		task.lastMessage ||
-		task.launchRetry?.message ||
-		task.outputRetry?.message ||
-		task.statusDetail ||
-		task.status
+			task.launchRetry?.message ||
+			task.outputRetry?.message ||
+			task.statusDetail ||
+			task.status,
 	);
 }
 
@@ -849,6 +911,7 @@ function formatHumanProgress(run: WorkflowRunRecord): string {
 	if (summary.blocked > 0) parts.push(`${summary.blocked} blocked`);
 	if (summary.failed > 0) parts.push(`${summary.failed} failed`);
 	if (summary.interrupted > 0) parts.push(`${summary.interrupted} interrupted`);
+	if ((summary.skipped ?? 0) > 0) parts.push(`${summary.skipped} skipped`);
 	const blocked = runBlockedActions(run);
 	if (blocked) parts.push(blockedActionsLabel(blocked));
 	return parts.join(" · ");

@@ -171,7 +171,10 @@ export async function executeSupportTask(
 					`support_declared_${declaredStatus}`,
 					{
 						exitCode: 1,
-						lastMessage: `support declared ${declaredStatus}`,
+						lastMessage: supportDeclaredMessage(
+							declaredStatus,
+							structuredOutput,
+						),
 					},
 				);
 				await writeRunRecord(cwd, run);
@@ -899,6 +902,69 @@ export async function writeArtifactGraphDynamicResult(
 				.join("; ")}`,
 		);
 	}
+}
+
+const SUPPORT_REASON_MAX = 200;
+// Where a helper says why it declared failed/blocked, in the order rehearsal's gate reasons read them.
+const SUPPORT_REASON_FIELDS = [
+	"blockers",
+	"reasons",
+	"reason",
+	"message",
+	"problems",
+	"errors",
+	"failures",
+] as const;
+
+function oneLine(text: string): string {
+	const line = text.replace(/\s+/gu, " ").trim();
+	return line.length > SUPPORT_REASON_MAX
+		? `${line.slice(0, SUPPORT_REASON_MAX - 1).trimEnd()}…`
+		: line;
+}
+
+function supportDeclaredReason(
+	record: Record<string, unknown>,
+): string | undefined {
+	const gates =
+		record.gates && typeof record.gates === "object"
+			? (record.gates as Record<string, unknown>)
+			: {};
+	for (const field of SUPPORT_REASON_FIELDS) {
+		const value = record[field] ?? gates[field];
+		const texts = (Array.isArray(value) ? value : [value]).filter(
+			(item): item is string => typeof item === "string" && item.trim() !== "",
+		);
+		const first = texts[0];
+		if (first === undefined) continue;
+		return `${oneLine(first)}${texts.length > 1 ? ` (and ${texts.length - 1} more)` : ""}`;
+	}
+	// A renderer states its gate through its verdict; its digest only counts what it rendered.
+	if (typeof record.verdict === "string" && record.verdict.trim() !== "")
+		return `verdict ${oneLine(record.verdict)}`;
+	const digest = record.digest;
+	// A digest that is the rendered report itself (a markdown heading first) is not a reason.
+	if (typeof digest === "string" && /^[^#\s]/u.test(digest.trim()))
+		return oneLine(digest);
+	return undefined;
+}
+
+/** `support declared failed: <the helper's own reason>`: why a helper failed or blocked, on one bounded line. */
+export function supportDeclaredMessage(
+	declaredStatus: "failed" | "blocked",
+	structuredOutput: unknown,
+): string {
+	const plain = `support declared ${declaredStatus}`;
+	if (
+		!structuredOutput ||
+		typeof structuredOutput !== "object" ||
+		Array.isArray(structuredOutput)
+	)
+		return plain;
+	const reason = supportDeclaredReason(
+		structuredOutput as Record<string, unknown>,
+	);
+	return reason === undefined ? plain : `${plain}: ${reason}`;
 }
 
 function supportControlTerminalStatus(
