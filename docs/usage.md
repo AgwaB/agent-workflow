@@ -910,11 +910,10 @@ Top-level `artifactGraph.stages` is a DAG.
 - A foreach keeps one bookkeeping task, `<stage>.item`: it ends `completed` (`foreach_materialized`;
   failures are on the children). An empty array creates no child: it ends `completed`
   (`foreach_empty`, no model call), stages after it still run (a reduce still makes its model call)
-  and a helper sees it as one row without `itemIdentity`. A completed run whose foreach stages all fanned
-  out over 0 items is reported as degraded (`foreach <stage> fanned out over 0 items`) in `status`,
-  `show` and `wait`; set `minItems: 1` on the source array so an empty model answer fails output
-  validation instead. If the items cannot be expanded (invalid or
-  duplicate identity) it ends `blocked` (`foreach_expansion_blocked`), and so does the run; the
+  and a helper sees it as one row without `itemIdentity`. Such a run is plain `completed`; set
+  `minItems: 1` on the source array so an empty model answer fails the task instead (`inventory
+  returned an empty "items" list (at least 1 required) after 3 attempts …`). If the items cannot
+  be expanded (invalid or duplicate identity) it ends `blocked` (`foreach_expansion_blocked`), and so does the run; the
   message names the generated task id (`duplicate foreach generated task id "a" …`), not the
   identity path.
 - `sourceProjection` (`include` paths) only trims the inline `controlProjection` snippet in the
