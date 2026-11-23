@@ -432,9 +432,25 @@ test("unquantified observations cannot authorize READY or hide an understated kn
 		sources: source,
 		context: contextFor(),
 	});
-	assert.equal(unknown.status, "failed");
+	// 2026-11-23 (owner): insufficient evidence completes with an explicit UNKNOWN verdict, never READY.
+	assert.equal(unknown.status, "passed");
 	assert.equal(unknown.verdict, "UNKNOWN");
+	assert.equal(unknown.gates.riskGatePassed, false);
+	// The engine fails the task on status failed/blocked or gates.passed === false; neither may be set.
+	assert.equal(unknown.gates.passed, true);
 	assert.equal(unknown.riskUncertainty.present, true);
+	assert.match(
+		unknown.completionSummaryMarkdown,
+		/Verdict: \*\*UNKNOWN\*\* \(insufficient evidence\)/,
+	);
+	assert.match(
+		unknown.completionSummaryMarkdown,
+		/Insufficient evidence: the impact risk could not be established/,
+	);
+	assert.match(
+		unknown.markdown,
+		/Insufficient evidence: the impact risk could not be established/,
+	);
 	source["impact-analysis.security-performance-impact"].impacts.push(
 		item("HIGH", "Tenant isolation risk.", { severity: "high" }),
 	);
@@ -461,7 +477,8 @@ test("material unknown scope remains visible and conservative rather than being 
 		context: contextFor(),
 	});
 	assert.equal(result.riskLevel, "unknown");
-	assert.notEqual(result.status, "passed");
+	assert.equal(result.verdict, "UNKNOWN");
+	assert.equal(result.status, "passed");
 	assert.ok(
 		result.impactLedger.some(
 			(row) => row.text === "Required validation scope unavailable",

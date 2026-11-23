@@ -753,7 +753,7 @@ function renderCompletionSummary({
 	const out = [
 		"## Core conclusion",
 		"",
-		`Verdict: **${verdict}**; risk: **${riskLevel}**. ${completionText(synthesis.summary, 850)}`,
+		`Verdict: **${verdict}**${verdict === "UNKNOWN" ? " (insufficient evidence)" : ""}; risk: **${riskLevel}**. ${completionText(synthesis.summary, 850)}`,
 		"",
 		"## Key actions",
 		"",
@@ -1119,8 +1119,17 @@ export default async function renderImpactReport({ sources, context = {} }) {
 		limitations.push(
 			`Synthesis risk ${synthesisRisk || "unavailable"} understates or obscures the known source risk floor ${canonicalRisk} (regression risk ${regressionRisk || "unavailable"}).`,
 		);
+	// 2026-11-23 (owner): "evidence is insufficient" is a verdict, not a failed run. When every source is present
+	// and joined and the verdict is UNKNOWN, the run completes and the report says why the evidence did not
+	// suffice. A verdict that stays BLOCKED/NEEDS_WORK/READY still needs the risk gates to pass.
+	const insufficientEvidence =
+		allLedgerSourcesAvailable && coverageComplete && verdict === "UNKNOWN";
 	if (!riskGatePassed)
-		limitations.push("Unknown impact risk prevents a successful readiness gate.");
+		limitations.unshift(
+			insufficientEvidence
+				? "Insufficient evidence: the impact risk could not be established from the supplied change and repository, so the verdict is UNKNOWN rather than READY."
+				: "Unknown impact risk prevents a successful readiness gate.",
+		);
 	const provisional = renderMarkdown({
 		verdict,
 		riskLevel,
@@ -1143,7 +1152,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 		allLedgerSourcesAvailable &&
 		coverageComplete &&
 		riskConsistent &&
-		riskGatePassed &&
+		(insufficientEvidence || riskGatePassed) &&
 		renderedAllStructuredItems;
 	let status =
 		!allLedgerSourcesAvailable || !coverageComplete
