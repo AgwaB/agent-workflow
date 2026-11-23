@@ -135,7 +135,7 @@ test("foreach-reduce: the inventory fails, the foreach is skipped and the partia
 	for (const text of [status, details]) {
 		assert.match(
 			text,
-			/Skipped:\n {2}• report\.main — every input failed \(plan failed, work skipped\)/u,
+			/Skipped:\n {2}• work\.item — its input plan\.main failed\n {2}• report\.main — every input failed \(plan failed, work skipped\)/u,
 		);
 	}
 	assert.match(
