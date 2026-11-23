@@ -1,10 +1,14 @@
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { isAbsolute, relative, resolve } from "node:path";
 
 import {
 	lookupArrayBound,
 	lookupControlSchemaPath,
 } from "./control-schema-path.js";
+import {
+	literalSourceLookups,
+	sourceNameReachable,
+} from "./support-source-lookups.js";
 
 // Advisory authoring-rule checks for the workflow-guide skill's "Must know" rules that a spec
 // alone can decide. They are warnings (heuristics or conventions with a runtime effect), listed by
@@ -58,6 +62,15 @@ export async function collectAuthoringRuleWarnings(
 			if (!isRecord(stage) || typeof stage.id !== "string") continue;
 			warnings.push(...profileRoleWarnings(stage));
 			warnings.push(...placeholderWarnings(stage));
+			warnings.push(
+				...(await supportSourceLookupWarnings(
+					stage,
+					siblings,
+					index,
+					mode,
+					specDir,
+				)),
+			);
 			const sources = stageSourceIds(siblings, index, mode);
 			if (sources.length > 0 || (mode === "loop" && index > 0)) {
 				warnings.push(...forbidsToolsWarnings(stage, sources));
@@ -78,6 +91,61 @@ export async function collectAuthoringRuleWarnings(
 	};
 	await walk(stages, "top");
 	return warnings;
+}
+
+/** Source ids a support stage is fed by: `from` and `after`, or the previous top-level stage; undefined = unknown. */
+function supportStageSourceIds(
+	siblings: readonly unknown[],
+	index: number,
+	mode: "top" | "dag" | "loop",
+): string[] | undefined {
+	const stage = siblings[index] as Stage;
+	if (stage.from !== undefined || stage.after !== undefined) {
+		const after = Array.isArray(stage.after)
+			? stage.after
+			: stage.after === undefined
+				? []
+				: [stage.after];
+		return [
+			...refStrings(stage.from),
+			...after.filter((id: unknown): id is string => typeof id === "string"),
+		];
+	}
+	if (mode !== "top") return undefined;
+	if (index === 0) return [];
+	const previous = siblings[index - 1];
+	return isRecord(previous) && typeof previous.id === "string"
+		? [previous.id]
+		: undefined;
+}
+
+async function supportSourceLookupWarnings(
+	stage: Stage,
+	siblings: readonly unknown[],
+	index: number,
+	mode: "top" | "dag" | "loop",
+	specDir: string,
+): Promise<string[]> {
+	const uses = stage.support?.uses;
+	if (typeof uses !== "string" || !uses.startsWith("./")) return [];
+	const from = supportStageSourceIds(siblings, index, mode);
+	if (from === undefined) return [];
+	const path = resolve(specDir, uses);
+	const inside = relative(resolve(specDir), path);
+	if (inside.startsWith("..") || isAbsolute(inside)) return [];
+	let text: string;
+	try {
+		text = await readFile(path, "utf8");
+	} catch {
+		return [];
+	}
+	return literalSourceLookups(text)
+		.filter((name) => !sourceNameReachable(name, from, mode !== "top"))
+		.slice(0, 3)
+		.map(
+			(name) =>
+				`stage "${stage.id}" support helper "${uses}" looks up source ${JSON.stringify(name)}, which is not one of its sources (${from.join(", ") || "none"}). The lookup is always empty, so a helper that then declares failed or blocked reports a wiring error, not a content gate. Use a name its from/after provides (or add the stage to from).`,
+		);
 }
 
 function isModelBacked(stage: Stage): boolean {

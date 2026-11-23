@@ -183,11 +183,7 @@ test("a helper that looks up a source it does not have and declares blocked is e
 	assert.match(result.out, /wiring problems found/u);
 	assert.match(
 		result.out,
-		/helper g\.main asked for source "extract", which is not one of its sources \(a\)/u,
-	);
-	assert.doesNotMatch(
-		result.out,
-		/Declared failed\/blocked on synthetic data/u,
+		/support helper "\.\/helpers\/wrong-lookup\.mjs" looks up source "extract", which is not one of its sources \(a\)/u,
 	);
 	const json = await run(["rehearse", file, "--json"]);
 	assert.equal(json.code, 1);

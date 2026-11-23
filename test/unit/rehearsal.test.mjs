@@ -629,7 +629,7 @@ for (const declared of ["failed", "blocked"]) {
 		assert.notEqual(report.status, "content-gates");
 		assert.match(
 			report.findings.join("\n"),
-			/stage g: helper g\.main asked for source "extract", which is not one of its sources \(a\)/u,
+			/stage "g" support helper "\.\/helpers\/lookup\.mjs" looks up source "extract", which is not one of its sources \(a\)/u,
 		);
 	});
 }
@@ -641,7 +641,7 @@ test("wiring: a probe with `in` or a bracket lookup of an undeclared source is r
 	);
 	const { report } = await rehearseWorkflow(cwd, { workflow: path });
 	assert.equal(report.ok, false);
-	assert.match(report.findings.join("\n"), /asked for source "extract"/u);
+	assert.match(report.findings.join("\n"), /looks up source "extract"/u);
 });
 
 test("content gate stays green: declared source looked up correctly, helper rejects the data", async () => {
@@ -655,35 +655,32 @@ test("content gate stays green: declared source looked up correctly, helper reje
 	assert.deepEqual(report.findings, []);
 });
 
-test("sources stay an ordinary object for helpers (keys, spread, JSON, inherited methods, plain prototype)", async () => {
+test("sources is the engine's plain object: structuredClone, spread, JSON, keys and property writes all work", async () => {
 	const { cwd, path } = await sourceLookupProject(
 		"ordinary-sources",
-		'const copy = structuredClone({ ...sources }); const text = JSON.stringify({ ...sources }); if (Object.keys(sources).join() !== "a" || !Object.hasOwn(copy, "a") || !text.includes("a") || !sources.hasOwnProperty("a") || String(sources) !== "[object Object]") throw new Error("sources is not ordinary"); return { schema: "g-v1", status: "passed", digest: "ok" };',
+		'const whole = structuredClone(sources); const copy = structuredClone({ ...sources }); const text = JSON.stringify({ ...sources }); sources.derived = { n: 1 }; if (Object.getPrototypeOf(sources) !== Object.prototype || Object.keys(whole).join() !== "a" || !Object.hasOwn(copy, "a") || !text.includes("a") || !sources.hasOwnProperty("a") || sources.derived.n !== 1 || String(sources) !== "[object Object]") throw new Error("sources is not ordinary"); return { schema: "g-v1", status: "passed", digest: "ok" };',
 	);
 	const { report } = await rehearseWorkflow(cwd, { workflow: path });
 	assert.equal(report.ok, true, report.findings.join("\n"));
 	assert.equal(report.status, "completed");
+	assert.deepEqual(report.findings, []);
 });
 
-test("N3: sources has the plain-object prototype and passes the sdk plain-object check, still recording misses", async () => {
-	const { isPlainObject } = await import("../../dist/sdk/json.js");
-	const { probeSupportSources } = await import(
-		"../../dist/core/support-source-probe.js"
+test("R3-1: a helper that only assigns a property of sources is no finding; a failed hasOwn check on a wrong name is", async () => {
+	const written = await sourceLookupProject(
+		"assign-only",
+		'sources.derived = { n: 1 }; return { schema: "g-v1", status: "passed", digest: "ok" };',
 	);
-	const probe = probeSupportSources({ a: { x: 1 } }, ["a"]);
-	assert.equal(Object.getPrototypeOf(probe.sources), Object.prototype);
-	assert.equal(isPlainObject(probe.sources), true);
-	assert.deepEqual({ ...probe.sources }, { a: { x: 1 } });
-	assert.equal(probe.sources.nope, undefined);
-	assert.equal("nope2" in probe.sources, false);
-	assert.equal(Object.hasOwn(probe.sources, "nope3"), false);
-	assert.deepEqual(probe.misses(), ["nope", "nope2", "nope3"]);
-	const { cwd, path } = await sourceLookupProject(
-		"plain-check",
-		'const proto = Object.getPrototypeOf(sources); if (proto !== Object.prototype) throw new Error("sources is not a plain object"); return { schema: "g-v1", status: "passed", digest: "ok" };',
+	const ok = await rehearseWorkflow(written.cwd, { workflow: written.path });
+	assert.equal(ok.report.ok, true, ok.report.findings.join("\n"));
+	assert.equal(ok.report.status, "completed");
+	const hasOwn = await sourceLookupProject(
+		"has-own-wrong",
+		'if (!Object.hasOwn(sources, "wrongName")) return { schema: "g-v1", status: "blocked", digest: "missing" }; return { schema: "g-v1", status: "passed", digest: "ok" };',
 	);
-	const { report } = await rehearseWorkflow(cwd, { workflow: path });
-	assert.equal(report.ok, true, report.findings.join("\n"));
+	const bad = await rehearseWorkflow(hasOwn.cwd, { workflow: hasOwn.path });
+	assert.equal(bad.report.ok, false);
+	assert.match(bad.report.findings.join("\n"), /looks up source "wrongName"/u);
 });
 
 test("wiring problems: a real finding next to a gate is still a finding (not content-gates)", async () => {
