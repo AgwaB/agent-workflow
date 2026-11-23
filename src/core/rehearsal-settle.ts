@@ -8,14 +8,34 @@ import { rmSync } from "node:fs";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+// A standalone `processesUsingRoot` call has no deadline; the scanner is still bounded.
+const PS_UNBOUNDED_MS = 30_000;
 const PAYLOAD_TOKEN = /^[A-Za-z0-9_-]{24,}$/u;
 
-type PsRunner = (root: string) => Promise<string>;
+type PsRunner = (root: string, timeoutMs: number) => Promise<string>;
 
-async function runPs(_root: string): Promise<string> {
+let psCommandForTests: { file: string; args: string[] } | undefined;
+
+/** Test seam: run another command in place of `ps` (a finite stand-in the rehearsal starts and must end). */
+export function setRehearsalPsCommandForTests(
+	file: string | undefined,
+	args: string[] = [],
+): void {
+	psCommandForTests = file === undefined ? undefined : { file, args };
+}
+
+// The scanner is this rehearsal's own child, not an enumerated process: when the wait gives up, Node ends it
+// (`timeout` + `killSignal`), so it never outlives the wait in an embedding host.
+async function runPs(_root: string, timeoutMs: number): Promise<string> {
+	const command = psCommandForTests ?? {
+		file: "ps",
+		args: ["-A", "-o", "pid=", "-o", "args="],
+	};
 	return (
-		await execFileAsync("ps", ["-A", "-o", "pid=", "-o", "args="], {
+		await execFileAsync(command.file, command.args, {
 			maxBuffer: 64 * 1024 * 1024,
+			timeout: Math.max(timeoutMs, 1),
+			killSignal: "SIGKILL",
 		})
 	).stdout;
 }
@@ -34,10 +54,13 @@ type ProcessScan =
 	// `ps` exists but this call failed (load, EAGAIN, a signal): says nothing about the root.
 	| { kind: "failed" };
 
-async function scanProcesses(root: string): Promise<ProcessScan> {
+async function scanProcesses(
+	root: string,
+	timeoutMs: number,
+): Promise<ProcessScan> {
 	let text: string;
 	try {
-		text = await (psForTests ?? runPs)(root);
+		text = await (psForTests ?? runPs)(root, timeoutMs);
 	} catch (error) {
 		return (error as NodeJS.ErrnoException | undefined)?.code === "ENOENT"
 			? { kind: "unavailable" }
@@ -59,7 +82,7 @@ async function scanProcesses(root: string): Promise<ProcessScan> {
 export async function processesUsingRoot(
 	root: string,
 ): Promise<number[] | undefined> {
-	const scan = await scanProcesses(root);
+	const scan = await scanProcesses(root, PS_UNBOUNDED_MS);
 	return scan.kind === "pids" ? scan.pids : undefined;
 }
 
@@ -89,7 +112,7 @@ async function scanWithin(
 		timer = setTimeout(() => resolve({ kind: "failed" }), budgetMs);
 	});
 	try {
-		return await Promise.race([scanProcesses(root), expired]);
+		return await Promise.race([scanProcesses(root, budgetMs), expired]);
 	} finally {
 		clearTimeout(timer);
 	}

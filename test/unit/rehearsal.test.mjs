@@ -3,7 +3,13 @@
 // worker. Rehearses every bundled workflow and scaffold to completion, checks determinism, isolation (R3),
 // loop forcing (R5) and catches the lab defects of R6 in small specs. No model, no network.
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, realpathSync, rmSync } from "node:fs";
+import {
+	existsSync,
+	readdirSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+} from "node:fs";
 import {
 	mkdir,
 	mkdtemp,
@@ -19,6 +25,7 @@ import { fileURLToPath } from "node:url";
 
 import {
 	processesUsingRoot,
+	setRehearsalPsCommandForTests,
 	setRehearsalPsForTests,
 	setRehearsalRemoveForTests,
 	waitForRootProcesses,
@@ -875,6 +882,38 @@ test("each `ps` call is bounded by the deadline: a hung ps cannot hold the wait 
 		assert.ok(Date.now() - started < 2000, `took ${Date.now() - started}ms`);
 	} finally {
 		setRehearsalPsForTests(undefined);
+	}
+});
+
+test("M6: the `ps` child the wait itself started ends with the wait, not when it would have finished", async () => {
+	const script = join(base, "slow-ps.mjs");
+	const pidFile = join(base, "slow-ps.pid");
+	await writeFile(
+		script,
+		`import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(pidFile)}, String(process.pid));\nsetTimeout(() => {}, 3000);\n`,
+	);
+	setRehearsalPsCommandForTests(process.execPath, [script]);
+	try {
+		assert.equal(
+			await waitForRootProcesses("/tmp/aw-root", 400, 20),
+			"unknown",
+		);
+		const pid = Number(readFileSync(pidFile, "utf8"));
+		assert.ok(pid > 0);
+		const waited = Date.now();
+		let alive = true;
+		while (alive && Date.now() - waited < 1000) {
+			try {
+				process.kill(pid, 0);
+				await new Promise((resolve) => setTimeout(resolve, 20));
+			} catch {
+				alive = false;
+			}
+		}
+		assert.equal(alive, false, "the scanner child was ended with the wait");
+		assert.ok(Date.now() - waited < 600, "ended within a small margin");
+	} finally {
+		setRehearsalPsCommandForTests(undefined);
 	}
 });
 
