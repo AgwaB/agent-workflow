@@ -230,7 +230,7 @@ project is refused with an error. It does not sandbox helpers: a support helper 
 JavaScript in the rehearsing process and can write anywhere you can (its fallback `cwd` can even be the real project),
 so only rehearse workflows whose helpers you trust. The clone holds the repository's raw blobs: no clean/smudge filter
 or LFS download runs (the global config is ignored), so a tracked file that normally materializes through a filter
-appears as its stored text. Rehearsals in one process run one after another. If a process still uses the temporary
+appears as its stored text. Rehearsals in one process run one after another. An in-process rehearsal swaps process-wide environment (the state home, the run index and git settings), so an embedding host must not run other engine work in the same process at the same time (the CLI runs it in its own process); a rehearsal waits for the supervision and index work of its run and of every nested workflow it started before restoring that environment. If a process still uses the temporary
 root when the wait ends (or `ps` cannot say), the root is kept and its path reported as left behind (also on the error
 when a rehearsal throws). Only a root whose last check found no process using it is safe to delete by hand; when the
 report says a worker may still use it, or that this could not be checked, wait for workers to exit before removing it.
