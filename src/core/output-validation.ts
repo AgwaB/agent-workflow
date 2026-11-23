@@ -244,15 +244,19 @@ function emptyRequiredListFailure(
 	// Only when the empty list is the whole problem; otherwise the full validation text stays.
 	if (empties.length === 0 || empties.length !== issues.length)
 		return undefined;
-	const names = empties.map(
-		(issue) => `\`${(issue.path ?? "$").replace(/^\$\.?/, "") || "(root)"}\``,
-	);
-	const minItems = Math.max(
-		...empties.map((issue) => issue.emptyRequiredList?.minItems ?? 1),
-	);
+	const pathName = (issue: WorkflowOutputIssue): string =>
+		`\`${(issue.path ?? "$").replace(/^\$\.?/, "") || "(root)"}\``;
+	const minimum = (issue: WorkflowOutputIssue): number =>
+		issue.emptyRequiredList?.minItems ?? 1;
 	const stage = taskStageName(task);
-	const lists =
-		names.length === 1 ? `${names[0]} list` : `${names.join(", ")} lists`;
+	const sameMinimum = empties.every(
+		(issue) => minimum(issue) === minimum(empties[0] as WorkflowOutputIssue),
+	);
+	// One minimum for every list: say it once; different minima: say each list's own.
+	const emptied = sameMinimum
+		? `${empties.length === 1 ? `${pathName(empties[0] as WorkflowOutputIssue)} list` : `${empties.map(pathName).join(", ")} lists`} (at least ${minimum(empties[0] as WorkflowOutputIssue)} required)`
+		: `${empties.map((issue) => `${pathName(issue)} (at least ${minimum(issue)} required)`).join(", ")}`;
+	const returned = sameMinimum ? "an empty" : "empty lists:";
 	const digest =
 		typeof control?.digest === "string" ? control.digest.trim() : "";
 	const shown =
@@ -260,7 +264,7 @@ function emptyRequiredListFailure(
 			? `${digest.slice(0, EMPTY_LIST_DIGEST_CHARS)}…`
 			: digest;
 	return [
-		`${stage} returned an empty ${lists} (at least ${minItems} required) after ${attempts} attempt${attempts === 1 ? "" : "s"}.`,
+		`${stage} returned ${returned} ${emptied} after ${attempts} attempt${attempts === 1 ? "" : "s"}.`,
 		shown ? `The model said: "${shown}"` : undefined,
 	]
 		.filter(Boolean)
