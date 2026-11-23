@@ -9,8 +9,8 @@
 			"sha256": "3cb52f2475249ec1da20488dc5ca3694192cc012828630814a871c770212c492"
 		},
 		"normalize-claims.main": {
-			"chars": 8270,
-			"sha256": "d95d83cdd0c77231ce4706a88454036a6d7fe8244fa89ffe2604967bb36f09e7"
+			"chars": 8293,
+			"sha256": "b64b4344e8df621e6d6852e5286e6feb6a65467079a922f14d4f15dc064fdcad"
 		},
 		"verify-claims.item": {
 			"chars": 6969,
@@ -35,8 +35,8 @@
 			"sha256": "d6cfa1669465bfc33daaba376a86f7aac625fbb6b5da6bf970e03fc062f8c74a"
 		},
 		"normalize-claims.main": {
-			"chars": 8242,
-			"sha256": "bf6ea98dde6dba7e9a25b6caa5aafa253bdfd0bf98a0f606733e615c74d55f73"
+			"chars": 8265,
+			"sha256": "0186068b329dd30da6e42a3f1e8809405743a36b58c4209b9a05b767931d28a9"
 		},
 		"verify-core-claims.item": {
 			"chars": 6600,
