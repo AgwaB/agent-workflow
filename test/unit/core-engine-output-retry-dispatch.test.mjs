@@ -375,7 +375,11 @@ test("workflow-invalid output triggers exactly one bounded repair launch, then n
 	}
 });
 
-async function runEmptyInventory(control, check) {
+async function runEmptyInventory(
+	control,
+	check,
+	{ closedSchema = false } = {},
+) {
 	const cwd = makeProject();
 	const runs = new Map();
 	let launchCount = 0;
@@ -414,7 +418,9 @@ async function runEmptyInventory(control, check) {
 			JSON.stringify({
 				type: "object",
 				required: ["digest", "items"],
+				...(closedSchema ? { additionalProperties: false } : {}),
 				properties: {
+					...(closedSchema ? { schema: { type: "string" } } : {}),
 					digest: { type: "string" },
 					items: {
 						type: "array",
@@ -459,7 +465,7 @@ async function runEmptyInventory(control, check) {
 		const failed = await waitForRun(cwd, started.runId, 20_000);
 		assert.equal(failed.status, "failed");
 		if (check) {
-			check(failed);
+			check(failed, { launchCount, prompts });
 			return;
 		}
 		assert.equal(launchCount, 3, "default 2 retries = 3 attempts");
@@ -489,7 +495,15 @@ async function runEmptyInventory(control, check) {
 		// The retry prompt tells the model the list must not be empty.
 		assert.match(
 			inventory.outputRetry?.message ?? "",
-			/must contain at least 1 item\(s\)\. Do not answer with \[\]/,
+			/must contain at least 1 item\(s\)\. Do not invent items\./,
+		);
+		assert.doesNotMatch(
+			inventory.outputRetry?.message ?? "",
+			/answer with \[\]/,
+		);
+		assert.match(
+			inventory.outputRetry?.message ?? "",
+			/inputIntegrity \{status: "blocked", reason: "inconsistent_input", detail:/,
 		);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
@@ -518,4 +532,61 @@ test("an empty list next to another output problem keeps the full validation mes
 			assert.doesNotMatch(inventory.lastMessage, /returned an empty/);
 			assert.match(inventory.lastMessage, /digest/);
 		},
+	));
+
+const BLOCK = {
+	status: "blocked",
+	reason: "inconsistent_input",
+	detail: "src/ has no exported functions to list",
+};
+
+function assertHonestBlock(failed, { launchCount }) {
+	const inventory = failed.tasks.find((t) => t.specId === "inventory.main");
+	assert.equal(launchCount, 1, "an accepted block is not retried");
+	assert.equal(inventory.status, "failed");
+	assert.equal(inventory.statusDetail, "input_integrity_blocked");
+	assert.equal(inventory.outputRetry, undefined);
+	assert.match(
+		inventory.lastMessage,
+		/^inventory stopped: the model reported it could not do the task: "src\/ has no exported functions to list"/,
+	);
+	assert.doesNotMatch(inventory.lastMessage, /inputIntegrity\.status/);
+	assert.deepEqual(
+		failed.tasks
+			.filter((t) => t !== inventory)
+			.map((t) => [t.specId, t.status]),
+		[
+			["work.item", "skipped"],
+			["report.main", "skipped"],
+		],
+	);
+	for (const text of [
+		formatRun(failed),
+		formatHumanRunStatus(failed),
+		formatHumanRunOutcome(failed),
+	])
+		assert.ok(text.includes(inventory.lastMessage), text);
+}
+
+test("empty items plus an accepted inputIntegrity block under minItems fails once, no retry", () =>
+	runEmptyInventory(
+		{
+			schema: "inventory-v1",
+			digest: "none",
+			items: [],
+			inputIntegrity: BLOCK,
+		},
+		assertHonestBlock,
+	));
+
+test("a closed schema without inputIntegrity still honours the block", () =>
+	runEmptyInventory(
+		{
+			schema: "inventory-v1",
+			digest: "none",
+			items: [],
+			inputIntegrity: BLOCK,
+		},
+		assertHonestBlock,
+		{ closedSchema: true },
 	));

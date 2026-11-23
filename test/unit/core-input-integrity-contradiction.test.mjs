@@ -87,8 +87,18 @@ test("a block the ledger cannot disprove is accepted as the worker's blocked han
 		},
 	});
 	assert.equal(block.reason, "inconsistent_input");
-	assert.match(block.message, /reason="inconsistent_input" \("header\.fields/);
-	assert.match(block.message, /not completed on this output/);
+	assert.match(
+		block.message,
+		/the model reported it could not do the task: "header\.fields/,
+	);
+	assert.doesNotMatch(block.message, /worker reported inputIntegrity/);
+	assert.match(
+		acceptedInputIntegrityBlock(
+			{ inputIntegrity: { status: "blocked", detail: "no files" } },
+			"inventory",
+		).message,
+		/^inventory stopped: the model reported it could not do the task: "no files"\./,
+	);
 	assert.equal(
 		acceptedInputIntegrityBlock({ inputIntegrity: { status: "blocked" } })
 			.reason,
@@ -118,7 +128,7 @@ test("a block the ledger cannot disprove is accepted as the worker's blocked han
 	);
 });
 
-async function project(name) {
+async function project(name, minItems = false) {
 	const cwd = join(root, name);
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
 	await writeFile(
@@ -126,6 +136,18 @@ async function project(name) {
 		"---\nname: reader\ndescription: reads and reports\ntools: read\n---\nYou read workflow artifacts and report.\n",
 	);
 	const specPath = join(cwd, "workflow.json");
+	await mkdir(join(cwd, "schemas"), { recursive: true });
+	await writeFile(
+		join(cwd, "schemas", "b.schema.json"),
+		JSON.stringify({
+			type: "object",
+			required: ["digest", "items"],
+			properties: {
+				digest: { type: "string" },
+				items: { type: "array", minItems: 1, items: { type: "string" } },
+			},
+		}),
+	);
 	await writeFile(
 		specPath,
 		JSON.stringify({
@@ -140,6 +162,9 @@ async function project(name) {
 						type: "single",
 						prompt: "Summarize stage a.",
 						from: "a",
+						...(minItems
+							? { output: { controlSchema: "./schemas/b.schema.json" } }
+							: {}),
 						inputPolicy: { requiredReads: ["a.control"], enforcement: "fail" },
 					},
 				],
@@ -149,12 +174,12 @@ async function project(name) {
 	return { cwd, specPath };
 }
 
-async function runWith(name, sequence) {
+async function runWith(name, sequence, { minItems = false } = {}) {
 	slots.setWorkerLaunchControlsForTests({
 		releaseDelayMs: 0,
 		retryJitterMs: 0,
 	});
-	const { cwd, specPath } = await project(name);
+	const { cwd, specPath } = await project(name, minItems);
 	const effectLog = join(root, `${name}-effects.jsonl`);
 	const id = `wf-integrity-${name}`;
 	unregister.push(
@@ -238,7 +263,7 @@ test("an inconsistent-input block fails the stage visibly without automatic retr
 	assert.equal(b.statusDetail, "input_integrity_blocked");
 	assert.match(
 		b.lastMessage,
-		/reason="inconsistent_input" \("the combined tool output was cut"\)/,
+		/^b stopped: the model reported it could not do the task: "the combined tool output was cut"/,
 	);
 	assert.equal(submits, 1);
 	assert.equal(b.outputRetry, undefined);
@@ -267,4 +292,49 @@ test("a persistent missing-read claim fails the task after the output retries", 
 	assert.equal(b.status, "failed", JSON.stringify(b, null, 1));
 	assert.equal(b.outputRetry?.reason, "input_integrity_contradicted_exhausted");
 	assert.equal(submits, b.outputRetry.maxAttempts + 1);
+});
+
+// 2026-11-23: an accepted block wins over the schema's minItems (the model must not invent items);
+// a block the read ledger disproves is still retried with the evidence.
+test("an accepted block with empty items under minItems fails once, no retry", async () => {
+	const { run, b, submits } = await runWith(
+		"minitems-accept",
+		[
+			{
+				schema: "x",
+				digest: "none",
+				items: [],
+				inputIntegrity: {
+					status: "blocked",
+					reason: "inconsistent_input",
+					detail: "stage a listed nothing",
+				},
+			},
+		],
+		{ minItems: true },
+	);
+	assert.equal(run.status, "failed", JSON.stringify(b, null, 1));
+	assert.equal(b.statusDetail, "input_integrity_blocked");
+	assert.equal(submits, 1);
+	assert.equal(b.outputRetry, undefined);
+	assert.match(b.lastMessage, /"stage a listed nothing"/);
+});
+
+test("a disproved truncated-read block with empty items under minItems is still retried", async () => {
+	const { run, b, submits } = await runWith(
+		"minitems-contradicted",
+		[
+			{
+				schema: "x",
+				digest: "none",
+				items: [],
+				inputIntegrity: { status: "blocked", reason: "truncated_read" },
+			},
+			{ schema: "x", digest: "ok", items: ["a"] },
+		],
+		{ minItems: true },
+	);
+	assert.equal(run.status, "completed", JSON.stringify(b, null, 1));
+	assert.equal(submits, 2);
+	assert.equal(b.outputRetry?.attempts, 1);
 });
