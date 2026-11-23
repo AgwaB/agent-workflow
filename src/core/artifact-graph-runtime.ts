@@ -44,6 +44,7 @@ import {
 	fromStatePath,
 	readJson,
 	setTaskTerminal,
+	taskDir,
 	workflowRunDir,
 	writeJsonAtomic,
 	writeRunRecord,
@@ -70,6 +71,10 @@ import {
 	loopChildSourceLoopId,
 } from "./workflow-source-alias.js";
 import { readTaskControlJsonSchema } from "./output-validation.js";
+import {
+	probeSupportSources,
+	writeSupportSourceMisses,
+} from "./support-source-probe.js";
 export {
 	sourceNameForTask,
 	dynamicOutputSourceName,
@@ -121,8 +126,18 @@ export async function executeSupportTask(
 		);
 		await supportHelperPreparedHookForTests?.();
 		await throwIfWorkflowStopRequested(cwd, run.runId);
+		// Rehearsal only: remember lookups of names that are not this stage's sources (wiring evidence).
+		const declaredNames = declaredSupportSourceNames(
+			run,
+			compiledTask.dependsOn ?? [],
+			task.specId,
+		);
+		const probe =
+			process.env.AGENT_WORKFLOW_REHEARSAL === "1"
+				? probeSupportSources(sources, declaredNames)
+				: undefined;
 		structuredOutput = await helper({
-			sources,
+			sources: probe?.sources ?? sources,
 			options: compiledTask.support.options,
 			context: {
 				specPath: helperSpecPath,
@@ -151,6 +166,11 @@ export async function executeSupportTask(
 					: {}),
 			},
 		});
+		if (probe !== undefined) {
+			const dir = taskDir(cwd, run.runId, task.taskId);
+			await mkdir(dir, { recursive: true });
+			await writeSupportSourceMisses(dir, declaredNames, probe.misses());
+		}
 		if (stop.signal.aborted) {
 			throw stop.signal.reason instanceof Error
 				? stop.signal.reason
@@ -221,6 +241,28 @@ export async function executeSupportTask(
 	} finally {
 		stop.dispose();
 	}
+}
+
+/** Every name a helper may legitimately ask `sources` for: each declared source's spec id, stage id and alias. */
+function declaredSupportSourceNames(
+	run: WorkflowRunRecord,
+	dependsOn: readonly string[],
+	consumerSpecId: string,
+): string[] {
+	const aliases = supportSourceNamesForDependencies(
+		run,
+		dependsOn,
+		consumerSpecId,
+	);
+	const names = new Set<string>();
+	for (const specId of dependsOn) {
+		names.add(specId);
+		const source = run.tasks.find((candidate) => candidate.specId === specId);
+		if (source?.stageId !== undefined) names.add(source.stageId);
+		const alias = aliases.get(specId);
+		if (alias !== undefined) names.add(alias);
+	}
+	return [...names];
 }
 
 export async function readSupportSources(

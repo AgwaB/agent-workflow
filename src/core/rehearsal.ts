@@ -33,6 +33,7 @@ import {
 	type RehearsalForeachHint,
 } from "./rehearsal-executor.js";
 import { createShadowProject, hasDynamicStage } from "./rehearsal-shadow.js";
+import { SUPPORT_SOURCE_MISSES_FILE } from "./support-source-probe.js";
 import {
 	removeRehearsalRoot,
 	waitForRootProcesses,
@@ -270,6 +271,8 @@ export function buildRehearsalReport(input: {
 	declared: ReadonlyMap<string, string[]>;
 	/** task id → the reasons a support helper gave when it declared failed/blocked. */
 	gateReasons?: ReadonlyMap<string, string[]>;
+	/** task id → source names a support helper asked for that are not among its stage's sources. */
+	sourceMisses?: ReadonlyMap<string, string[]>;
 	maxRounds?: ReadonlyMap<string, number | null>;
 	warnings: string[];
 	normalize: (text: string) => string;
@@ -295,6 +298,7 @@ export function buildRehearsalReport(input: {
 	}
 	const findings: string[] = [];
 	const stages: RehearsalStageReport[] = [];
+	let lookupDeclared = false;
 	for (const [stage, tasks] of [...byStage].sort(([a], [b]) =>
 		a.localeCompare(b),
 	)) {
@@ -349,8 +353,12 @@ export function buildRehearsalReport(input: {
 					reads.set(label, { read: label, satisfied: true });
 			}
 		}
+		// A helper that asked for a source it does not have is a wiring error whatever it then declared.
+		const misses = (task: WorkflowTaskRunRecord): string[] =>
+			input.sourceMisses?.get(task.taskId) ?? [];
 		const isGate = (task: WorkflowTaskRunRecord): boolean =>
-			/^support_declared_(failed|blocked)$/u.test(task.statusDetail);
+			/^support_declared_(failed|blocked)$/u.test(task.statusDetail) &&
+			misses(task).length === 0;
 		const gates = tasks.filter(isGate).map((task) => ({
 			task: task.specId,
 			status: task.status,
@@ -360,7 +368,8 @@ export function buildRehearsalReport(input: {
 			.filter(
 				(task) =>
 					(task.status === "failed" || task.status === "blocked") &&
-					!isGate(task),
+					!isGate(task) &&
+					misses(task).length === 0,
 			)
 			.map((task) => ({
 				task: task.specId,
@@ -372,12 +381,27 @@ export function buildRehearsalReport(input: {
 				(task) =>
 					(task.kind === "support" || task.kind === "dynamic") &&
 					(task.status === "failed" || task.status === "blocked") &&
-					!isGate(task),
+					!isGate(task) &&
+					misses(task).length === 0,
 			)
 			.map(
 				(task) =>
 					`${task.specId}: ${normalize(String(task.lastMessage ?? task.statusDetail).slice(0, 400))}`,
 			);
+		const lookupFindings = tasks
+			.filter((task) => misses(task).length > 0)
+			.map((task) => {
+				const names = misses(task)
+					.slice(0, 3)
+					.map((name) => JSON.stringify(normalize(name)))
+					.join(", ");
+				const outcome = /^support_declared_(failed|blocked)$/u.test(
+					task.statusDetail,
+				)
+					? `; it then declared ${task.status}, which is a wiring error, not a content gate`
+					: "";
+				return `stage ${stage}: helper ${task.specId} asked for source ${names}, which is not one of its sources (${declaredSources.join(", ") || "none"})${outcome}`;
+			});
 		const items = tasks.filter(
 			(task) =>
 				task.foreachGenerated !== undefined &&
@@ -408,6 +432,14 @@ export function buildRehearsalReport(input: {
 				findings.push(
 					`stage ${stage}: required read ${read.read} does not resolve (${read.message})`,
 				);
+		findings.push(...lookupFindings);
+		if (
+			lookupFindings.length > 0 &&
+			tasks.some(
+				(t) => !isGate(t) && /^support_declared_/u.test(t.statusDetail),
+			)
+		)
+			lookupDeclared = true;
 		for (const error of helperErrors)
 			findings.push(`stage ${stage}: helper failed: ${error}`);
 		for (const failure of failures) {
@@ -453,7 +485,7 @@ export function buildRehearsalReport(input: {
 		stages.every(
 			(stage) => stage.failures.length === 0 && stage.helperErrors.length === 0,
 		) &&
-		stages.some((stage) => stage.gates.length > 0);
+		(stages.some((stage) => stage.gates.length > 0) || lookupDeclared);
 	if (run.status !== "completed" && !onlyGates)
 		findings.unshift(`the run ended ${run.status}, not completed`);
 	else if (run.status === "completed" && !finalReportRendered)
@@ -480,6 +512,32 @@ export function buildRehearsalReport(input: {
 		warnings: input.warnings,
 		validationIssues: [],
 	};
+}
+
+/** Source names each support helper asked for that were not its stage's sources (engine evidence, see support-source-probe.ts). */
+function readSourceMisses(
+	runDir: string,
+	run: WorkflowRunRecord,
+): Map<string, string[]> {
+	const out = new Map<string, string[]>();
+	for (const task of run.tasks) {
+		if (task.kind !== "support") continue;
+		try {
+			const parsed = JSON.parse(
+				readFileSync(
+					join(runDir, "tasks", task.taskId, SUPPORT_SOURCE_MISSES_FILE),
+					"utf8",
+				),
+			) as { misses?: unknown };
+			const misses = Array.isArray(parsed.misses)
+				? parsed.misses.filter((m): m is string => typeof m === "string")
+				: [];
+			if (misses.length > 0) out.set(task.taskId, misses);
+		} catch {
+			// no evidence recorded for this task
+		}
+	}
+	return out;
 }
 
 /** Why support helpers that declared failed/blocked said so (their control's blockers or reason text). */
@@ -664,6 +722,7 @@ export async function rehearseWorkflow(
 			declared: declaredSourcesByStage(loaded.spec.artifactGraph?.stages ?? []),
 			maxRounds: loopRoundCaps(loaded.spec.artifactGraph?.stages ?? []),
 			warnings,
+			sourceMisses: readSourceMisses(runDir, run),
 			gateReasons: new Map(
 				[...readGateReasons(runDir, run)].map(([id, reasons]) => [
 					id,

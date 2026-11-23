@@ -587,6 +587,76 @@ for (const declared of ["failed", "blocked"]) {
 	});
 }
 
+/** A project whose helper `g` (wired from `a`) runs `body`, a function body over `{ sources }`. */
+async function sourceLookupProject(name, body) {
+	const cwd = await project();
+	await mkdir(join(cwd, "helpers"), { recursive: true });
+	await writeFile(
+		join(cwd, "helpers", "lookup.mjs"),
+		`export default async function ({ sources }) { ${body} }\n`,
+	);
+	const path = await writeSpec(cwd, name, {
+		schemaVersion: 1,
+		name,
+		defaults: DEFAULTS,
+		artifactGraph: {
+			stages: [
+				{ id: "a", type: "single", prompt: "Do a." },
+				{ id: "g", from: "a", support: { uses: "./helpers/lookup.mjs" } },
+				{ id: "c", type: "reduce", from: ["g"], prompt: "Do c." },
+			],
+		},
+	});
+	return { cwd, path };
+}
+
+for (const declared of ["failed", "blocked"]) {
+	test(`wiring: a helper that looks up an undeclared source and declares ${declared} is a finding, not a content gate`, async () => {
+		const { cwd, path } = await sourceLookupProject(
+			`wrong-source-${declared}`,
+			`const row = sources.extract; if (!row) return { schema: "g-v1", status: "${declared}", digest: "source extract is missing" }; return { schema: "g-v1", status: "passed", digest: "ok" };`,
+		);
+		const { report } = await rehearseWorkflow(cwd, { workflow: path });
+		assert.equal(report.ok, false);
+		assert.notEqual(report.status, "content-gates");
+		assert.match(
+			report.findings.join("\n"),
+			/stage g: helper g\.main asked for source "extract", which is not one of its sources \(a\)/u,
+		);
+	});
+}
+
+test("wiring: a probe with `in` or a bracket lookup of an undeclared source is reported too", async () => {
+	const { cwd, path } = await sourceLookupProject(
+		"wrong-source-in",
+		'if (!("extract" in sources)) return { schema: "g-v1", status: "blocked", digest: "nothing" }; return { schema: "g-v1", status: "passed", digest: "ok" };',
+	);
+	const { report } = await rehearseWorkflow(cwd, { workflow: path });
+	assert.equal(report.ok, false);
+	assert.match(report.findings.join("\n"), /asked for source "extract"/u);
+});
+
+test("content gate stays green: declared source looked up correctly, helper rejects the data", async () => {
+	const { cwd, path } = await sourceLookupProject(
+		"right-source",
+		'const row = sources.a; return { schema: "g-v1", status: row ? "blocked" : "passed", digest: "0 of 20 classified" };',
+	);
+	const { report } = await rehearseWorkflow(cwd, { workflow: path });
+	assert.equal(report.ok, true, report.findings.join("\n"));
+	assert.equal(report.status, "content-gates");
+	assert.deepEqual(report.findings, []);
+});
+
+test("sources stay an ordinary object for helpers (keys, spread, JSON, structuredClone, inherited methods)", async () => {
+	const { cwd, path } = await sourceLookupProject(
+		"ordinary-sources",
+		'const copy = structuredClone(sources); const text = JSON.stringify({ ...sources }); if (Object.keys(sources).join() !== "a" || !Object.hasOwn(copy, "a") || !text.includes("a") || !sources.hasOwnProperty("a") || String(sources) !== "[object Object]") throw new Error("sources is not ordinary"); return { schema: "g-v1", status: "passed", digest: "ok" };',
+	);
+	const { report } = await rehearseWorkflow(cwd, { workflow: path });
+	assert.equal(report.ok, true, report.findings.join("\n"));
+	assert.equal(report.status, "completed");
+});
+
 test("wiring problems: a real finding next to a gate is still a finding (not content-gates)", async () => {
 	const { cwd, path } = await gateProject(
 		"gate-and-wiring",
