@@ -1,4 +1,5 @@
-// `agent-workflow rehearse`: run a workflow through the real engine with no model and no network.
+// `agent-workflow rehearse`: run a workflow through the real engine with a synthetic worker in place of the
+// model (the worker calls no model and uses no network; support helpers are trusted code and are not confined).
 // Every model task is answered by the synthetic executor (src/core/rehearsal-executor.ts) with a control
 // generated from the stage's own control schema; support helpers and dynamic controllers run for real
 // (trusted local code); required artifact reads go through the real workflow_artifact tool. The result is a
@@ -108,8 +109,9 @@ export interface RehearsalStageReport {
 	/** Support/dynamic helper tasks that failed, with the helper's message. */
 	helperErrors: string[];
 	/**
-	 * Support helpers that ran and declared `failed`/`blocked` themselves: a content gate (for example an
-	 * owner-ledger reconciliation) that synthetic outputs cannot satisfy. Reported, not a wiring failure.
+	 * Support helpers that ran and declared `failed`/`blocked` themselves. Rehearsal cannot tell a content gate
+	 * that synthetic outputs cannot satisfy (for example an owner-ledger reconciliation) from a setup problem:
+	 * the helper's own reason is the only evidence. Reported, not counted as a wiring failure.
 	 */
 	gates: Array<{ task: string; status: string; reasons: string[] }>;
 }
@@ -127,14 +129,14 @@ export interface RehearsalReport {
 	workflow: string;
 	options: { items: number; loop: RehearsalLoopMode };
 	/**
-	 * The rehearsal's outcome: `content-gates` when the wiring is fine and only the workflow's own content
-	 * gates rejected the synthetic data (see `gates`); `invalid-spec` when the spec did not load or compile;
+	 * The rehearsal's outcome: `content-gates` when no wiring fault was diagnosed and a helper declared
+	 * `failed`/`blocked` on the synthetic data (see `gates`); `invalid-spec` when the spec did not load or compile;
 	 * otherwise the run's final status (`completed` or, with findings, `failed`, `blocked`, ...).
 	 */
 	status: string;
 	/** The run's own final status (`failed`/`blocked` under `content-gates`), or `invalid-spec`. */
 	runStatus: string;
-	/** True when the rehearsal found nothing wrong with the wiring (also under `content-gates`). */
+	/** True when no wiring fault was diagnosed (also under `content-gates`); that is not proof the wiring is right. */
 	ok: boolean;
 	/** Stages with skipped tasks when content gates ended the run early (they never ran). */
 	skippedAfterGates: string[];

@@ -1,5 +1,6 @@
 // `rehearse`: run a workflow through the real engine with a synthetic worker (src/core/rehearsal.ts).
-// No model, no network, no run state in the project or the user's home. Terminal CLI only.
+// The synthetic worker calls no model and uses no network; the engine's run state is temporary, not in the project
+// or the user's home. Support helpers are trusted code and are not confined. Terminal CLI only.
 import {
 	REHEARSAL_DEFAULT_ITEMS,
 	type RehearsalLoopMode,
@@ -88,8 +89,8 @@ export function formatRehearsal(data: RehearseData): string {
 	if (gates.length > 0) {
 		lines.push(
 			data.ok
-				? "Declared failed/blocked on synthetic data (a helper's own checks of evidence, counts or files rejected the placeholder output; the rehearsal cannot tell a content check from a setup problem):"
-				: "Declared failed/blocked on synthetic data (a helper's own checks rejected the placeholder output; the findings below are separate):",
+				? "Declared failed/blocked on synthetic data (the helper's own decision; the rehearsal cannot tell a content check from a setup problem, so read the reason):"
+				: "Declared failed/blocked on synthetic data (the helper's own decision; the findings below are separate):",
 		);
 		for (const gate of gates)
 			lines.push(

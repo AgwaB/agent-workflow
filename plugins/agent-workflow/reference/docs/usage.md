@@ -829,14 +829,15 @@ the generated Contract paragraph and few-shot `<control>` skeleton after it come
 
 ### Rehearse a workflow
 
-`agent-workflow rehearse <workflow> [<task...>]` runs a workflow through the real engine with no model
-and no network, to catch wiring mistakes that `validate` cannot see: a stage that names `from` sources
+`agent-workflow rehearse <workflow> [<task...>]` runs a workflow through the real engine with a synthetic
+worker instead of a model (the worker calls no model and uses no network; helpers are trusted code and run as
+ordinary JavaScript), to catch wiring mistakes that `validate` cannot see: a stage that names `from` sources
 but receives none, a required read whose path does not resolve, a foreach that fans out over nothing,
 a loop whose `until` never holds, a helper that throws. Every model task gets a deterministic,
 schema-valid control from its own control schema and performs its required reads through the real
 artifact tool; helpers run for real; run state is temporary. Use `--loop exhaust` to exercise
 `onExhausted` and `--items N` to change the fan-out. It does not judge prompts or output quality: a
-rehearsal that passes says the graph is wired, not that a model will do the job. Run it after
+rehearsal that exits 0 says no wiring fault was diagnosed, not that the wiring is proven or that a model will do the job. Run it after
 `validate` and `check` ([cli.md](https://github.com/AgwaB/agent-workflow/blob/main/docs/cli.md#rehearse)).
 
 ## Stage model

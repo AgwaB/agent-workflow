@@ -30,7 +30,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `validate <workflow>` | Load and compile a spec without running it. Its `Tasks:` count is the compiled task count: a `foreach` or `loop` counts once, so a run has more ([task ids](usage.md#run-records)). Lists `Warnings:` ([what it checks](usage.md#what-validate-checks)). |
 | `new <pattern> <name> [--scope private\|shared\|global] [--force]` / `new --list` | Create a workflow from a pattern (`single`, `foreach-reduce`, `loop-refine`, `parallel-review-merge`, `classify-count`, `write-verify`, `collect-render`) that already validates and rehearses clean; you replace the `TODO:` prompts (below). No model call. |
 | `check <workflow> [<task…>] [launch options]` | The launch preflight without the launch: executor, tools, models and effort for the executor that would run each stage (below). No run, no model call. |
-| `rehearse <workflow> [<task…>] [--items N] [--loop pass\|exhaust] [--keep] [--json]` | Run a workflow through the real engine with a synthetic worker: no model call, no network, temporary run state (below). Reports the wiring per stage. |
+| `rehearse <workflow> [<task…>] [--items N] [--loop pass\|exhaust] [--keep] [--json]` | Run a workflow through the real engine with a synthetic worker (no model call or network by the worker; temporary engine run state; helpers are trusted code, below). Reports the wiring per stage. |
 | `roles <workflow>` | Compiled role context as injected into task prompts. |
 | `agents` | Agent definitions. |
 | `show <workflow>` | The resolved spec file. |
@@ -196,10 +196,11 @@ agent-workflow rehearse <workflow> [<task...>] [--items N] [--loop pass|exhaust]
 (scheduler, foreach, loops, source manifests, support helpers, dynamic controllers, the final render) but
 every model task is answered by a synthetic worker: a control generated from the stage's own control
 schema (required fields, enums, bounds, `schema` and `digest`), with the required `workflow_artifact`
-reads made through the real tool. No model is called and no network is used. Run state goes to a
-temporary directory that is removed afterwards (`--keep` keeps it and prints its path); the project, the
-user's run state, credentials and the provider pause are not touched, and nothing can select the
-synthetic executor for a real run. The same spec and options give the same report.
+reads made through the real tool. The synthetic worker calls no model and uses no network. The engine's
+run state goes to a temporary directory that is removed afterwards (`--keep` keeps it and prints its
+path); the engine does not touch the user's run state, credentials or provider pause, and nothing can
+select the synthetic executor for a real run. Support helpers are trusted code that is not confined
+(see "What a rehearsal confines" below). The same spec and options give the same report.
 
 The report lists per stage the tasks and their statuses, whether a stage that names `from` sources
 received any, each required read (and the tool's message when its path does not resolve), foreach
@@ -208,14 +209,17 @@ report rendered. `--items N` (0-20, default 2) sets how many items an unbounded 
 `--loop exhaust` keeps every bounded loop's `until` false so `onExhausted` and the `exhausted`
 status are exercised (default `pass`: `until` holds on round 1). A support helper that itself
 declares `failed` or `blocked` on the synthetic data is listed as a declared failed/blocked, not as a wiring problem:
-the text names each such helper and its reason, says the rehearsal cannot tell a content check from a setup
-problem (an expected rejection of placeholder evidence, counts or files versus a message naming a missing source or
+the text names each such helper and its reason and says the rehearsal cannot tell a content check from a setup
+problem (the reason is the only evidence: a message about placeholder data versus one naming a missing source or
 setup, which is a wiring problem), and lists the stages it made skip; `data.status` is then `content-gates` (the name
 is kept; `data.runStatus` keeps `failed` or `blocked`).
-A helper that asked `sources` for a name its stage does not declare is a wiring finding even when it then declares
-`failed` or `blocked` (the engine saw the lookup; helpers should throw for wiring and return `failed`/`blocked` for content).
-Exit 0 when the wiring is sound (`wiring OK`, with or without declared failed/blocked), 1 when it found wiring
-problems (a helper that throws is one) or the spec is invalid, 2 for a usage error. `--json` prints
+A support helper whose text looks up a literal source name its stage cannot receive (`sources.x`, `sources["x"]`,
+`Object.hasOwn(sources, "x")`, `"x" in sources`, `const { x } = sources`) gets a `validate` warning, and `rehearse`
+reports it as a wiring finding even when the helper then declares `failed` or `blocked`. It is a static scan of the
+helper file (computed or template names are not checked); the helper itself runs exactly as in the engine.
+Exit 0 means no wiring fault was diagnosed (`wiring OK`, with or without declared failed/blocked), not that the
+wiring is proven; 1 means it found wiring problems (a helper that throws is one) or the spec is invalid, 2 a usage
+error. `--json` prints
 `{action, ok, outcome, data}` with the report in `data`.
 What a rehearsal confines: the engine's managed worktrees, branches and run state live in the temporary root
 (a write stage, also inside a `loop` or `onExhausted`, runs in a throwaway clone), its own git commands run without your
@@ -226,7 +230,8 @@ so only rehearse workflows whose helpers you trust. The clone holds the reposito
 or LFS download runs (the global config is ignored), so a tracked file that normally materializes through a filter
 appears as its stored text. Rehearsals in one process run one after another. If a process still uses the temporary
 root when the wait ends (or `ps` cannot say), the root is kept and its path reported as left behind (also on the error
-when a rehearsal throws); remove it yourself.
+when a rehearsal throws). Only a root whose last check found no process using it is safe to delete by hand; when the
+report says a worker may still use it, or that this could not be checked, wait for workers to exit before removing it.
 See [usage.md](usage.md#rehearse-a-workflow).
 
 ## Launch options (`run`, `dynamic`)
