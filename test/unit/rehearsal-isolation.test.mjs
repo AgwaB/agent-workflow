@@ -326,3 +326,43 @@ test("M9: a whole rehearsal (clone and the engine's worktree add) runs no global
 	assert.equal(process.env.GIT_CONFIG_GLOBAL, undefined);
 	assert.equal(process.env.GIT_CONFIG_NOSYSTEM, undefined);
 });
+
+test("N2: overlapping in-process rehearsals end with the original environment and each sees its own", async () => {
+	const names = [
+		"GIT_CONFIG_GLOBAL",
+		"GIT_CONFIG_NOSYSTEM",
+		"GIT_CONFIG_COUNT",
+		"GIT_TERMINAL_PROMPT",
+		"AGENT_WORKFLOW_HOME",
+		"AGENT_WORKFLOW_RUN_INDEX_DIR",
+		"AGENT_WORKFLOW_REHEARSAL",
+		"AGENT_WORKFLOW_REHEARSAL_ROOT",
+	];
+	const original = Object.fromEntries(names.map((n) => [n, process.env[n]]));
+	const a = await fixture(loopWithWriter());
+	const b = await fixture(loopWithWriter());
+	const stateA = repoState(a.repo);
+	const stateB = repoState(b.repo);
+	const results = await Promise.all([
+		rehearseWorkflow(a.repo, { workflow: a.spec, keep: true }),
+		rehearseWorkflow(b.repo, { workflow: b.spec, keep: true }),
+	]);
+	try {
+		for (const result of results)
+			assert.equal(result.report.ok, true, result.report.findings.join("\n"));
+		assert.notEqual(results[0].stateRoot, results[1].stateRoot);
+		for (const name of names)
+			assert.equal(process.env[name], original[name], `${name} is restored`);
+		assert.equal(repoState(a.repo), stateA);
+		assert.equal(repoState(b.repo), stateB);
+	} finally {
+		for (const result of results)
+			if (result.stateRoot !== undefined)
+				await rm(result.stateRoot, {
+					recursive: true,
+					force: true,
+					maxRetries: 10,
+					retryDelay: 50,
+				});
+	}
+});

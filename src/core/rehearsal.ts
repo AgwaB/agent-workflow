@@ -665,7 +665,25 @@ function compiledCanWrite(compiled: {
 	return false;
 }
 
-export async function rehearseWorkflow(
+// A rehearsal swaps process-global state (the agent-workflow home, the run index, the git environment) and
+// restores it afterwards, so two overlapping calls in one process would restore each other's values out of
+// order. They run one after the other: save/restore is strictly nested, and a call that loads and compiles
+// the workflow never sees another rehearsal's temporary home.
+let rehearsalQueue: Promise<unknown> = Promise.resolve();
+
+export function rehearseWorkflow(
+	cwd: string,
+	options: RehearsalOptions,
+): Promise<RehearsalResult> {
+	const turn = rehearsalQueue.then(() => rehearseWorkflowNow(cwd, options));
+	rehearsalQueue = turn.then(
+		() => undefined,
+		() => undefined,
+	);
+	return turn;
+}
+
+async function rehearseWorkflowNow(
 	cwd: string,
 	options: RehearsalOptions,
 ): Promise<RehearsalResult> {
