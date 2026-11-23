@@ -101,7 +101,8 @@ test("a sound workflow exits 0 and the text names the stages", async () => {
 	const result = await run(["rehearse", "good.json"]);
 	assert.equal(result.code, 0, result.out + result.err);
 	assert.match(result.out, /Rehearsal of good\.json: wiring OK/u);
-	assert.match(result.out, /No model was called/u);
+	assert.match(result.out, /The synthetic worker made no model call/u);
+	assert.doesNotMatch(result.out, /No model was called/u);
 	assert.match(
 		result.out,
 		/b: reduce; 1 task; 1 completed; sources a received by 1\/1; required reads 1\/1/u,
@@ -297,6 +298,12 @@ test("help lists the command and its options", async () => {
 	assert.match(help.out, /Usage: agent-workflow rehearse/u);
 	assert.match(help.out, /--items N/u);
 	assert.match(help.out, /--loop pass\|exhaust/u);
+	// R4: the entry point states what the synthetic worker confines and what exit 0 means.
+	assert.match(help.out, /synthetic worker makes no model call/u);
+	assert.match(help.out, /helpers .*trusted/su);
+	assert.match(help.out, /removed only when/u);
+	assert.match(help.out, /no wiring fault was diagnosed/u);
+	assert.doesNotMatch(help.out, /when the wiring\s+is sound|removed unless/u);
 	assert.match((await run(["help"])).out, /rehearse <workflow>/u);
 });
 

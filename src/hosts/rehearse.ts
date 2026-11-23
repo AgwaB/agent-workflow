@@ -47,7 +47,7 @@ export function formatRehearsal(data: RehearseData): string {
 			: "wiring OK";
 	const lines = [
 		`Rehearsal of ${data.workflow}: ${verdict} (run ${data.runStatus}; items ${data.options.items}, loop ${data.options.loop})`,
-		"No model was called; run state was temporary.",
+		"The synthetic worker made no model call; the engine's run state was temporary. Helpers are trusted code and were not confined.",
 	];
 	if (data.stages.length > 0) lines.push("Stages:");
 	for (const stage of data.stages) {

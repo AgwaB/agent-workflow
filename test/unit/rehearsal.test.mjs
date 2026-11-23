@@ -38,6 +38,7 @@ import {
 import {
 	isTerminalWorkflowStatus,
 	readRunRecord,
+	setRunLeaseTestHooksForTests,
 } from "../../dist/core/store.js";
 import {
 	REHEARSAL_EXECUTOR_ID,
@@ -1378,6 +1379,48 @@ test("R3-3: the exception path never calls a root safe to delete when the last s
 		} finally {
 			await removeKeptRoot(error?.retainedRoot);
 		}
+	}
+});
+
+test("R3-3 (R4): the retained-root note is appended even when the original message already names a file under the root", async () => {
+	const cwd = await project();
+	const path = await writeSpec(cwd, "one", ONE_STAGE);
+	setRehearsalPsForTests(async () => {
+		throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+	});
+	setRehearsalSettleWaitForTests(100);
+	setRunLeaseTestHooksForTests({
+		onBeforeAtomicRename: ({ file }) => {
+			if (file.endsWith("run.json"))
+				throw Object.assign(new Error(`I/O error writing ${file}`), {
+					code: "EIO",
+				});
+		},
+	});
+	let error;
+	try {
+		await rehearseWorkflow(cwd, { workflow: path });
+	} catch (caught) {
+		error = caught;
+	} finally {
+		setRunLeaseTestHooksForTests(undefined);
+		setRehearsalPsForTests(undefined);
+		setRehearsalSettleWaitForTests(undefined);
+	}
+	try {
+		assert.ok(error instanceof Error);
+		assert.equal(error.code, "EIO");
+		assert.ok(existsSync(error.retainedRoot));
+		assert.match(error.cause.message, /^I\/O error writing /u);
+		assert.ok(
+			error.cause.message.includes(error.retainedRoot),
+			"the original message names a file under the root",
+		);
+		assert.match(error.message, /Temporary state kept at /u);
+		assert.match(error.message, /wait for workers to exit before removing it/u);
+		assert.doesNotMatch(error.message, /safe to delete by hand/u);
+	} finally {
+		await removeKeptRoot(error?.retainedRoot);
 	}
 });
 

@@ -682,10 +682,9 @@ function withRetainedRoot(
 	const original = failure instanceof Error ? failure : undefined;
 	const note = `Temporary state kept at ${root} (${keptRootAdvice(state)})`;
 	const reason = original?.message ?? String(failure);
-	const error = new Error(
-		reason.includes(root) ? reason : `${reason}\n${note}`,
-		{ cause: failure },
-	);
+	// The note is always appended: an original message that names a file inside the root (an I/O error does)
+	// still says nothing about the root being kept or whether it is safe to touch.
+	const error = new Error(`${reason}\n${note}`, { cause: failure });
 	if (original !== undefined && original.name !== "Error")
 		Object.defineProperty(error, "name", {
 			value: original.name,
