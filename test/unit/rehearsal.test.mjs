@@ -32,6 +32,14 @@ import {
 } from "../../dist/core/rehearsal-settle.js";
 import { workflowExecutorRegistration } from "../../dist/core/executor-registry.js";
 import {
+	settleRunWork,
+	setSupervisorTickForTests,
+} from "../../dist/core/engine.js";
+import {
+	isTerminalWorkflowStatus,
+	readRunRecord,
+} from "../../dist/core/store.js";
+import {
 	REHEARSAL_EXECUTOR_ID,
 	rehearseWorkflow,
 	setRehearsalSettleWaitForTests,
@@ -246,6 +254,63 @@ test("isolation (R3): nothing lands in the user's home or the project; --keep ke
 			maxRetries: 10,
 			retryDelay: 50,
 		});
+	}
+});
+
+test("isolation (R3): engine work still in flight when the run ends never writes into the user's home", async () => {
+	// A supervisor tick is an async chain that outlives the run it watches. Hold one between its read of
+	// the run and its scheduling step until the run is terminal and the rehearsal is done with it: before
+	// the fix the rehearsal restored the environment first, so the tick then resolved its project state
+	// from the user's home and created `projects/<id>` there.
+	const cwd = await project();
+	const outer = await mkdtemp(join(base, "outer-"));
+	const saved = {
+		home: process.env.AGENT_WORKFLOW_HOME,
+		index: process.env.AGENT_WORKFLOW_RUN_INDEX_DIR,
+	};
+	process.env.AGENT_WORKFLOW_HOME = outer;
+	process.env.AGENT_WORKFLOW_RUN_INDEX_DIR = join(outer, "run-index");
+	const before = await readdir(outer);
+	const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+	let heldRun;
+	setSupervisorTickForTests({
+		pollIntervalMs: 5,
+		hook: async (_phase, runId) => {
+			if (heldRun !== undefined) return;
+			heldRun = runId;
+			for (let i = 0; i < 1000; i += 1) {
+				const run = await readRunRecord(cwd, runId).catch(() => undefined);
+				if (run === undefined || isTerminalWorkflowStatus(run.status)) break;
+				await sleep(10);
+			}
+			// Released once the user's environment is back (the unfixed order), or after a bounded hold.
+			for (
+				let i = 0;
+				i < 200 && process.env.AGENT_WORKFLOW_HOME !== outer;
+				i += 1
+			)
+				await sleep(10);
+		},
+	});
+	try {
+		await rehearseWorkflow(cwd, {
+			workflow: join(
+				root,
+				"skills/workflow-guide/scaffolds/object-tool-fallback/spec.json",
+			),
+		});
+		assert.ok(heldRun !== undefined, "a supervisor tick reached the hook");
+		await settleRunWork(cwd, heldRun); // the held tick finishes; under the user's environment now
+		assert.deepEqual(await readdir(outer), before);
+	} finally {
+		setSupervisorTickForTests(undefined);
+		for (const [name, value] of [
+			["AGENT_WORKFLOW_HOME", saved.home],
+			["AGENT_WORKFLOW_RUN_INDEX_DIR", saved.index],
+		]) {
+			if (value === undefined) delete process.env[name];
+			else process.env[name] = value;
+		}
 	}
 });
 

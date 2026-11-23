@@ -2268,6 +2268,26 @@ export async function flushPendingIndexUpdatesForTests(
 	}
 }
 
+/**
+ * Finish the advisory index work this process still owes one run, now and under the current
+ * environment: a pending debounced update that names the run is cancelled and run in place, and
+ * every update already in flight is awaited. An in-process host that swaps the state root for a run
+ * (rehearsal) calls this before restoring it, so no timer fires later against the wrong home.
+ * Other runs' pending updates are left alone. Never rejects.
+ */
+export async function settleIndexUpdatesForRun(
+	cwd: string,
+	runId: string,
+): Promise<void> {
+	const pending = pendingIndexUpdates.get(indexUpdateKey(cwd));
+	if (pending?.runIds.has(runId) === true) {
+		cancelScheduledIndexUpdate(cwd, runId);
+		await updateIndex(cwd, runId).catch(() => undefined);
+	}
+	while (inFlightIndexUpdates.size > 0)
+		await Promise.all([...inFlightIndexUpdates]);
+}
+
 export function setIndexUpdateDebounceMsForTests(value?: number): void {
 	indexUpdateDebounceMs =
 		value === undefined

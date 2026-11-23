@@ -53,6 +53,7 @@ import {
 	prepareWorkflowLaunchCommandArtifactPath,
 	resetTaskForResume,
 	setTaskTerminal,
+	settleIndexUpdatesForRun,
 	clearWorkflowStopIntent,
 	toStatePath,
 	updateIndex,
@@ -393,6 +394,20 @@ export function setForeachMaterializationPersistenceHookForTests(
 const supervisorTimers = new Map<string, ReturnType<typeof setInterval>>();
 const supervisorRunMtimes = new Map<string, number>();
 const supervisorErrorCounts = new Map<string, number>();
+// A supervisor tick is an async chain that outlives the interval callback that started it.
+const supervisorTicksInFlight = new Map<string, Set<Promise<void>>>();
+let supervisorTickHookForTests:
+	| ((phase: "before-schedule", runId: string) => Promise<void>)
+	| undefined;
+let supervisorPollIntervalMs = POLL_INTERVAL_MS;
+
+export function setSupervisorTickForTests(options?: {
+	hook?: (phase: "before-schedule", runId: string) => Promise<void>;
+	pollIntervalMs?: number;
+}): void {
+	supervisorTickHookForTests = options?.hook;
+	supervisorPollIntervalMs = options?.pollIntervalMs ?? POLL_INTERVAL_MS;
+}
 const MAX_SUPERVISOR_CONSECUTIVE_ERRORS = 3;
 
 /** WP37: the saved user profile fields that sit below a declared profile (B2 precedence). */
@@ -3359,6 +3374,22 @@ function unwatchRun(cwd: string, runId: string): void {
 	supervisorErrorCounts.delete(key);
 }
 
+/**
+ * Stop supervising one run in this process and wait until nothing it started is still running: the
+ * watch timer is cleared, every supervisor tick already in flight finishes, and the run's pending
+ * advisory index update is flushed. A host that scopes the state root to a run (rehearsal) calls this
+ * before restoring the environment; the tick and the index writer resolve the project state from
+ * `process.env` at every step, so one that outlived the swap would write into the user's home.
+ * Never rejects.
+ */
+export async function settleRunWork(cwd: string, runId: string): Promise<void> {
+	unwatchRun(cwd, runId);
+	const key = `${cwd}\0${runId}`;
+	while (supervisorTicksInFlight.has(key))
+		await Promise.all([...(supervisorTicksInFlight.get(key) ?? [])]);
+	await settleIndexUpdatesForRun(cwd, runId);
+}
+
 export function watchRun(
 	cwd: string,
 	runId: string,
@@ -3368,7 +3399,7 @@ export function watchRun(
 	if (supervisorTimers.has(key)) return;
 
 	const timer = setInterval(() => {
-		void (async () => {
+		const tick = (async () => {
 			const previousMtime = supervisorRunMtimes.get(key);
 			const beforeMtime = await readRunMtimeMs(cwd, runId);
 			const refreshed = await refreshRun(cwd, runId);
@@ -3382,7 +3413,10 @@ export function watchRun(
 					previousMtime !== undefined &&
 					currentMtime !== undefined &&
 					currentMtime <= previousMtime;
-				if (!unchanged) await scheduleRun(cwd, runId, undefined, options);
+				if (!unchanged) {
+					await supervisorTickHookForTests?.("before-schedule", runId);
+					await scheduleRun(cwd, runId, undefined, options);
+				}
 				supervisorErrorCounts.delete(key);
 				return;
 			}
@@ -3396,12 +3430,22 @@ export function watchRun(
 			}
 			const failures = (supervisorErrorCounts.get(key) ?? 0) + 1;
 			supervisorErrorCounts.set(key, failures);
-			void recordSupervisorError(cwd, runId, error).finally(() => {
-				if (failures >= MAX_SUPERVISOR_CONSECUTIVE_ERRORS)
-					unwatchRun(cwd, runId);
-			});
+			return recordSupervisorError(cwd, runId, error)
+				.catch(() => undefined)
+				.finally(() => {
+					if (failures >= MAX_SUPERVISOR_CONSECUTIVE_ERRORS)
+						unwatchRun(cwd, runId);
+				});
 		});
-	}, POLL_INTERVAL_MS);
+		const ticks = supervisorTicksInFlight.get(key) ?? new Set<Promise<void>>();
+		supervisorTicksInFlight.set(key, ticks);
+		ticks.add(tick);
+		void tick.finally(() => {
+			ticks.delete(tick);
+			if (ticks.size === 0 && supervisorTicksInFlight.get(key) === ticks)
+				supervisorTicksInFlight.delete(key);
+		});
+	}, supervisorPollIntervalMs);
 
 	timer.unref?.();
 	supervisorTimers.set(key, timer);
