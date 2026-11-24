@@ -1882,6 +1882,14 @@ function excerpt(text) {
   return chosen.join("\\n").slice(0, 1200);
 }
 
+// The command's environment: the engine's own, without a node:test parent marker (a "node --test" run that
+// inherits NODE_TEST_CONTEXT thinks it is a child of a runner and reports nothing, which would read as green).
+function commandEnv() {
+  const env = { ...process.env, CI: "1", FORCE_COLOR: "0", NO_COLOR: "1" };
+  delete env.NODE_TEST_CONTEXT;
+  return env;
+}
+
 function execute(command, cwd, timeoutMs, signal) {
   return new Promise((resolve) => {
     let output = "";
@@ -1909,7 +1917,7 @@ function execute(command, cwd, timeoutMs, signal) {
         cwd,
         detached: process.platform !== "win32",
         stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env, CI: "1", FORCE_COLOR: "0", NO_COLOR: "1" },
+        env: commandEnv(),
       });
     } catch (error) {
       resolve({ code: -1, output: "", timedOut: false, startError: clip(error.message, 200) });
@@ -2017,7 +2025,7 @@ function clip(value, max) {
 }
 
 function cell(value, max) {
-  return clip(value, max).replace(/\\|/g, "\\\\|").replace(/([\\\\\`*_[\\]<>])/g, "\\\\$1");
+  return clip(value, max).replace(/([\\\\|\`*_[\\]<>])/g, "\\\\$1");
 }
 
 function readOptions(options) {
@@ -2733,7 +2741,7 @@ function clip(value, max) {
 }
 
 function cell(value, max) {
-  return clip(value, max).replace(/\\|/g, "\\\\|").replace(/([\\\\\`*_[\\]<>])/g, "\\\\$1");
+  return clip(value, max).replace(/([\\\\|\`*_[\\]<>])/g, "\\\\$1");
 }
 
 export default async function helper({ sources }) {
