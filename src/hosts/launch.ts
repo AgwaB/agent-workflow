@@ -202,6 +202,8 @@ export interface LaunchData {
 	duplicateOf?: string;
 	/** Not started: capability refusal, unavailable executor. */
 	refusal?: { code: string; executorId?: string; preview?: string };
+	/** `check` only: other installed executors that would refuse a workflow whose executor is pinned. */
+	wouldRefuse?: Array<{ executor: string; reason: string }>;
 }
 
 /**
@@ -895,6 +897,30 @@ export function compactCapabilityText(
 	return lines.join("\n");
 }
 
+/**
+ * ` (pinned by …)` after the executor `check` negotiated against, when the workflow, a saved profile
+ * or the project chose it (not the run flag or a default): the author sees which executor was checked.
+ */
+function pinnedExecutorNote(
+	executor: { source: string; profile?: string } | undefined,
+): string {
+	if (executor === undefined) return "";
+	const quoted = executor.profile === undefined ? "" : ` "${executor.profile}"`;
+	switch (executor.source) {
+		case "workflow-profile":
+			return ` (pinned by workflow execution profile${quoted})`;
+		case "workflow-preference":
+			return ` (pinned by saved workflow preference${quoted})`;
+		case "user-profile":
+			return ` (pinned by saved user profile${quoted})`;
+		case "project-default":
+		case "project-slot":
+			return " (pinned by project workflow settings)";
+		default:
+			return "";
+	}
+}
+
 function refusalResult(
 	action: "run" | "dynamic",
 	mode: LaunchData["mode"],
@@ -1404,6 +1430,7 @@ async function launchClaimed(
 					mode,
 					...(configuration ? { configuration } : {}),
 					...(profile.info ? { profile: profile.info } : {}),
+					...(error.executor ? { executor: { ...error.executor } } : {}),
 					capability: {
 						preview: error.negotiation.preview,
 						degradations: [...error.negotiation.degradations],
@@ -1414,7 +1441,7 @@ async function launchClaimed(
 					},
 				},
 				[
-					`Preflight passed: ${loaded.spec.name ?? "workflow"} on ${error.negotiation.executorId} — no run was started.`,
+					`Preflight passed: ${loaded.spec.name ?? "workflow"} on ${error.negotiation.executorId}${pinnedExecutorNote(error.executor)} — no run was started.`,
 					compactCapabilityText(error.negotiation),
 				].join("\n"),
 			);
@@ -1533,7 +1560,80 @@ export async function checkWorkflowAction(
 	ctx: HostApiContext,
 	request: Omit<RunWorkflowRequest, "task"> & { task?: string },
 ): Promise<HostResult<LaunchData>> {
-	return checkWorkflowConfiguration(ctx, request);
+	const checked = await checkWorkflowConfiguration(ctx, request);
+	return withOtherExecutorHint(ctx, request, checked);
+}
+
+/** Budget for the other-executor look in `check`; a slow probe is skipped, never waited on. */
+const OTHER_EXECUTOR_CHECK_MS = 8_000;
+
+/**
+ * `check` negotiated against the executor the workflow pins (`executionProfileExecutors`, a saved
+ * profile). A later `run --executor <other>` overrides the pin and can refuse (a capability the other
+ * executor lacks), which `check` alone never showed. Preflight the other installed executors too
+ * (offline: probe + negotiation, no model) and add one line naming the ones that would refuse.
+ * Only after a passed check that a pin chose and no explicit `--executor`; probe failures, logged-out
+ * or missing executors say nothing (they are `doctor`'s business, not a capability refusal).
+ */
+async function withOtherExecutorHint(
+	ctx: HostApiContext,
+	request: Omit<RunWorkflowRequest, "task"> & { task?: string },
+	checked: HostResult<LaunchData>,
+): Promise<HostResult<LaunchData>> {
+	const pinned = checked.data.executor;
+	if (
+		request.executor !== undefined ||
+		checked.outcome !== "success" ||
+		pinned === undefined ||
+		pinnedExecutorNote(pinned) === ""
+	)
+		return checked;
+	const others = (
+		ctx.checkAlternativeExecutors ?? INSTALLED_DEFAULT_ORDER
+	).filter((id) => id !== pinned.id);
+	const signal = AbortSignal.timeout(OTHER_EXECUTOR_CHECK_MS);
+	const looked = await Promise.all(
+		others.map(async (id) => {
+			try {
+				const other = await checkWorkflowConfiguration(ctx, {
+					...request,
+					executor: id,
+					signal,
+				});
+				return other.outcome === "refused" &&
+					other.data.refusal?.code === "CAPABILITY_REFUSED"
+					? { executor: id, reason: refusalReason(other.text) }
+					: undefined;
+			} catch {
+				return undefined;
+			}
+		}),
+	);
+	const refusing = looked.filter(
+		(entry): entry is { executor: string; reason: string } =>
+			entry !== undefined,
+	);
+	if (refusing.length === 0) return checked;
+	const names = refusing.map((entry) => entry.executor).join(", ");
+	const first = refusing[0]!;
+	const line = `Hint: checked on ${pinned.id} only; ${refusing.length === 1 ? `${names} would` : `${names} would each`} refuse this workflow (${first.reason}) — \`run --executor ${first.executor}\` will not start; \`agent-workflow check ${request.workflow.trim()} --executor ${first.executor}\` shows why.`;
+	return {
+		...checked,
+		data: {
+			...checked.data,
+			wouldRefuse: refusing.map((entry) => ({ ...entry })),
+		},
+		text: `${checked.text}\n${line}`,
+	};
+}
+
+/** First refused stage of a refusal text as `stage "x": capability` (no remedy prose). */
+function refusalReason(text: string): string {
+	const line = text.split("\n").find((entry) => /^\s*- /.test(entry));
+	if (line === undefined) return "capability refused";
+	const body = line.replace(/^\s*- /, "");
+	const cut = body.search(/ — | \(/);
+	return cut > 0 ? body.slice(0, cut) : body;
 }
 
 /** Trusted draft seam: never accepts client identity, paths or slot authorization. */
