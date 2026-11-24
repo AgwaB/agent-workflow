@@ -1821,7 +1821,8 @@ function descendantSpecIdsFor(
  * source, every data source is terminal and none completed. A source that completed with an empty
  * list counts as completed.
  *
- * Data sources are the ones the stage reads (`contextDependsOn`, else `dependsOn`): `after` only
+ * Data sources are the ones the stage reads (`contextDependsOn`, else `dependsOn`, which for a stage with
+ * neither `from` nor `after` is the implicitly chained previous stage): `after` only
  * orders, so a failed `after` neither feeds a stage nor, with no `from`, makes it skip. A streaming
  * foreach keeps its placeholder next to the generated items: while the placeholder is open more items
  * may come, so it keeps the stage waiting; once it is terminal and items exist it is bookkeeping.
