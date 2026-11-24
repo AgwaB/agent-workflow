@@ -30,10 +30,42 @@ const REGEX_AFTER_WORD = new Set([
 	"await",
 ]);
 
+/** Words whose parenthesised head is followed by a statement, so a `/` after its `)` starts a regular expression. */
+const CONTROL_HEAD = new Set(["if", "while", "for", "with"]);
+
+/** True when the `)` ending `tail` closes the head of an if/while/for/with statement (not a call or a group). */
+function closesControlHead(tail: string): boolean {
+	let depth = 0;
+	for (let at = tail.length - 1; at >= 0; at -= 1) {
+		const char = tail[at]!;
+		if (char === ")" || char === "]" || char === "}") depth += 1;
+		else if (char === "(" || char === "[" || char === "{") {
+			depth -= 1;
+			if (depth === 0) {
+				if (char !== "(") return false;
+				const word = /[A-Za-z_$][\w$]*(?:\s+await)?\s*$/u.exec(
+					tail.slice(0, at),
+				)?.[0];
+				const head = word?.trim().split(/\s+/u)[0];
+				// `x.if (a) / 2` is a method call; a property named like a keyword is not a head
+				return (
+					head !== undefined &&
+					CONTROL_HEAD.has(head) &&
+					!/\.\s*[\w$]+\s*$/u.test(tail.slice(0, at))
+				);
+			}
+		}
+	}
+	return false;
+}
+
 function regexMayStart(code: string): boolean {
 	const tail = code.trimEnd();
 	const last = tail.at(-1);
 	if (last === undefined) return true;
+	// a postfix `x++ / 2` divides; a prefix `++` cannot be followed by a regexp
+	if (tail.endsWith("++") || tail.endsWith("--")) return false;
+	if (last === ")") return closesControlHead(tail);
 	if (/[\w$]/u.test(last)) {
 		const word = /[A-Za-z_$][\w$]*$/u.exec(tail)?.[0];
 		return word !== undefined && REGEX_AFTER_WORD.has(word);
@@ -201,6 +233,25 @@ function matchingClose(code: string, open: number): number {
 }
 
 /**
+ * Index just past a default (`= expression`) that follows at `from`, up to the `,`, `)`, `]` or `}` that ends it
+ * at the same depth; `from` itself when no default follows. The expression may hold any balanced brackets.
+ */
+function skipDefault(code: string, from: number): number {
+	const start = /^\s*=(?![=>])/u.exec(code.slice(from));
+	if (!start) return from;
+	let depth = 0;
+	for (let at = from + start[0].length; at < code.length; at += 1) {
+		const char = code[at]!;
+		if (char === "(" || char === "[" || char === "{") depth += 1;
+		else if (char === ")" || char === "]" || char === "}") {
+			if (depth === 0) return at;
+			depth -= 1;
+		} else if (char === "," && depth === 0) return at;
+	}
+	return from;
+}
+
+/**
  * True when the `{` at `open` is a binding pattern: it follows `const`/`let`/`var` and is assigned, or it is a
  * parameter of a function or arrow (`({ … }) =>`, `({ … } = {}) {`). An object literal, a call argument and
  * anything else is not; an enclosing pattern level (`{ a: { … } }`) is followed up.
@@ -214,8 +265,10 @@ function isBindingPattern(code: string, open: number): boolean {
 		const before = code.slice(0, current);
 		if (/\b(?:const|let|var)\s*$/u.test(before) && /^\s*=(?![=>])/u.test(after))
 			return true;
-		if (/^\s*(?:=\s*[^(){}]*)?\)\s*(?:=>|\{)/u.test(after)) return true;
-		if (!/^\s*[,}]/u.test(after)) return false;
+		// a default on the whole pattern (`({ … } = {}) =>`) may hold any balanced expression
+		const rest = code.slice(skipDefault(code, close + 1));
+		if (/^\s*\)\s*(?:=>|\{)/u.test(rest)) return true;
+		if (!/^\s*[,}]/u.test(rest)) return false;
 		const outer = enclosingOpen(code, current);
 		if (outer === -1 || code[outer] !== "{") return false;
 		current = outer;

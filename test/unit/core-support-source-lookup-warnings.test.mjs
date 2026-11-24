@@ -242,3 +242,56 @@ test("R4-1: parameter and declaration patterns naming a wrong source are still r
 		assert.equal(found.length, 1, `${body}: ${found.join("\n")}`);
 	}
 });
+
+// ---- minor follow-ups (2026-11-24): scan precision, still advisory and declining when unsure ----
+
+test("a default on the whole argument does not hide a nested lookup", async () => {
+	for (const body of [
+		"export default async function ({ sources: { wrongName } } = {}) { return { schema: 'g-v1', status: 'passed', digest: String(wrongName) }; }\n",
+		"export default async ({ task, sources: { wrongName } } = { task: 1 }) => ({ schema: 'g-v1', status: 'passed', digest: String(wrongName) });\n",
+		"export default async function ({ sources: { wrongName } } = { sources: {} }) { return { schema: 'g-v1', status: 'passed', digest: String(wrongName) }; }\n",
+	]) {
+		const found = await warningsFor(body);
+		assert.equal(found.length, 1, `${body}: ${found.join("\n")}`);
+		assert.match(found[0], /"wrongName"/u);
+	}
+	// construction in a call argument stays a non-lookup
+	assert.deepEqual(
+		await warningsFor(
+			wrap("const r = run({ sources: { mode: 'local' } } = {});"),
+		),
+		[],
+	);
+});
+
+test("a postfix operator before a division does not hide a later lookup", async () => {
+	for (const code of [
+		"let count = 4; const half = count++ / 2; const row = sources.wrongName;",
+		"let count = 4; const half = count-- / 2; const row = sources.wrongName;",
+		"const list = [4]; const half = list[0] / 2; const row = sources.wrongName;",
+		"const half = (1 + 3) / 2; const row = sources.wrongName;",
+	]) {
+		const found = await warningsFor(wrap(code));
+		assert.equal(found.length, 1, `${code}: ${found.join("\n")}`);
+		assert.match(found[0], /"wrongName"/u);
+	}
+});
+
+test("a regexp literal after a control-statement head is not code", async () => {
+	for (const code of [
+		"if (sources.a) /sources.foo/u.test('text');",
+		"while (sources.a) /sources.foo/u.test('text');",
+		"for (const k of [1]) /sources.foo/u.test('text');",
+		"if (sources.a) /sources.foo/u.test('text'); else /sources.bar/u.test('x');",
+	])
+		assert.deepEqual(await warningsFor(wrap(code)), [], code);
+	// a division after a call's `)` still divides
+	assert.equal(
+		(
+			await warningsFor(
+				wrap("const h = Math.abs(4) / 2; const row = sources.wrongName;"),
+			)
+		).length,
+		1,
+	);
+});
