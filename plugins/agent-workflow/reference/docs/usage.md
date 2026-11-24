@@ -820,8 +820,8 @@ Capability degradations are recorded and shown on every host, without confirmati
 ### Start from a pattern
 
 `agent-workflow new <pattern> <name>` (`new --list` shows the patterns) writes a workflow bundle that
-already passes `validate` with no warnings and `rehearse` with no findings: `single`, `foreach-reduce`,
-`loop-refine`, `parallel-review-merge`, `classify-count`, `write-verify` (a worktree writer plus a code check of the
+already passes `validate` with no warnings and `rehearse` with no findings: `single`, `foreach-reduce` (items from the task), `inventory-foreach` (items that exist in repo files, each
+checked by code against its quote), `loop-refine`, `parallel-review-merge`, `classify-count`, `write-verify` (a worktree writer plus a code check of the
 files it wrote) and `collect-render` (code only: git history to a Markdown changelog, no model). It carries closed control schemas with
 `schema` and `digest`, helpers for the code stages, a `profileRole` on every model stage, a `minItems` and `maxItems` on
 every foreach source array, and prompts whose `TODO:` paragraph you replace with your domain instructions;
