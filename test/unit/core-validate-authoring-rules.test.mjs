@@ -768,6 +768,73 @@ test("the until-key warning skips exists:false leaves and a path the schema lack
 	assert.equal(matching(undeclared, /until path/).length, 1);
 });
 
+test("a readOnly stage whose prompt forbids running commands warns; narrowed or effect wording does not", async () => {
+	for (const phrase of [
+		"Do not run commands.",
+		"Never execute any shell commands.",
+		"You must not use the shell.",
+		"Run no commands: answer from the text.",
+		"Avoid running bash commands.",
+		"Do not use any command line tools.",
+	]) {
+		const compiled = await validate([
+			single("main", { prompt: `Audit. ${phrase}` }),
+		]);
+		const [warning] = matching(compiled, /forbids running commands/);
+		assert.ok(warning, `expected a warning for: ${phrase}`);
+		assert.match(warning, /stage "main" is readOnly/);
+		assert.match(warning, /Codex reads files through shell commands/);
+		assert.match(warning, /do not modify files/);
+	}
+	for (const prompt of [
+		"Audit. Do not run commands that modify files.",
+		"Audit. Do not run commands other than git log and cat.",
+		"Audit. Never execute shell commands to write or build anything.",
+		"Audit. Do not run any command which changes the checkout.",
+		"Audit. Do not run tests, builds or installs; do not modify files.",
+		"Audit. Do not use tools other than read.",
+		"Audit. Running commands that write is forbidden.",
+	]) {
+		const compiled = await validate([single("main", { prompt })]);
+		assert.equal(
+			matching(compiled, /forbids running commands/).length,
+			0,
+			prompt,
+		);
+	}
+});
+
+test("the command-forbidding warning needs readOnly: a stage-level readOnly:false or an each prompt decides", async () => {
+	const prompt = "Audit. Do not run commands.";
+	const writer = await validate([single("main", { prompt, readOnly: false })]);
+	assert.equal(matching(writer, /forbids running commands/).length, 0);
+	const files = {
+		"schemas/plan.json": schema({
+			items: {
+				type: "array",
+				minItems: 1,
+				maxItems: 3,
+				items: { type: "string" },
+			},
+		}),
+	};
+	const foreach = await validate(
+		[
+			single("plan", { output: { controlSchema: "./schemas/plan.json" } }),
+			{
+				id: "fe",
+				type: "foreach",
+				profileRole: "verification",
+				from: { source: "plan", path: "$.items" },
+				each: { prompt: "Check ${item}. Do not execute commands." },
+			},
+		],
+		files,
+	);
+	const [warning] = matching(foreach, /forbids running commands/);
+	assert.match(warning, /stage "fe" is readOnly/);
+});
+
 test("new authoring-rule warnings are advisory: classified, not strict-blocking", async () => {
 	const compiled = await validate([
 		single("main", { prompt: "Use ${input.x}.", profileRole: undefined }),

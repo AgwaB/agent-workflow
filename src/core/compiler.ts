@@ -958,6 +958,7 @@ export async function compileWorkflow(
 			...(await collectAuthoringRuleWarnings(
 				spec.artifactGraph?.stages ?? [],
 				foreachSpecDir,
+				spec.defaults?.readOnly ?? (spec as { readOnly?: boolean }).readOnly,
 			)),
 		);
 	}

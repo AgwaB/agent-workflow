@@ -31,6 +31,8 @@ const PROFILE_ROLES =
 export async function collectAuthoringRuleWarnings(
 	stages: readonly unknown[],
 	specDir: string,
+	/** `defaults.readOnly` or the spec's own `readOnly`: what a stage without its own setting gets. */
+	readOnlyDefault?: boolean,
 ): Promise<string[]> {
 	const warnings: string[] = [];
 	const schemaCache = new Map<string, unknown>();
@@ -64,6 +66,7 @@ export async function collectAuthoringRuleWarnings(
 			warnings.push(...profileRoleWarnings(stage));
 			warnings.push(...placeholderWarnings(stage));
 			warnings.push(...implicitChainWarnings(stage, siblings, index, mode));
+			warnings.push(...readOnlyCommandWarnings(stage, readOnlyDefault));
 			warnings.push(
 				...(await supportSourceLookupWarnings(
 					stage,
@@ -264,12 +267,55 @@ function stageSourceIds(
 // disabled". Phrases that only narrow the tools ("do not use tools other than ...", "tools that
 // write", "tools to modify files", "never call workflow_artifact with maxChars and no path") are not
 // matches.
+// Words after the noun that narrow a prohibition to some tools or commands ("other than", "that write").
+const NOT_NARROWED_BY_CLAUSE =
+	"(?!\\s+(?:other than|except|apart from|besides|beyond|that|which|with|on|when|if|unless|before|after|again)\\b)";
+const NOT_NARROWED_BY_PURPOSE =
+	"(?!\\s+(?:to|for)\\s+(?:write|writing|modify|modifying|edit|editing|change|changing|mutate|mutating|delete|deleting|run|running)\\b)";
+const FORBID_WORD =
+	"(?:do not|don't|never|must not|mustn't|cannot|can't|should not|shouldn't|without|avoid)";
+
 const FORBIDS_TOOLS: RegExp[] = [
-	/\b(?:do not|don't|never|must not|mustn't|cannot|can't|should not|shouldn't|without|avoid)\s+(?:(?:to\s+)?(?:use|using|call|calling|invoke|invoking|rely on|relying on)\s+)?(?:(?:any|the|your|available|more|further)\s+)*(?:tools?|tool calls?|tool use|workflow_artifact)\b(?!\s+(?:other than|except|apart from|besides|beyond|that|which|with|on|when|if|unless|before|after|again)\b)(?!\s+(?:to|for)\s+(?:write|writing|modify|modifying|edit|editing|change|changing|mutate|mutating|delete|deleting|run|running)\b)/i,
+	new RegExp(
+		`\\b${FORBID_WORD}\\s+(?:(?:to\\s+)?(?:use|using|call|calling|invoke|invoking|rely on|relying on)\\s+)?(?:(?:any|the|your|available|more|further)\\s+)*(?:tools?|tool calls?|tool use|workflow_artifact)\\b${NOT_NARROWED_BY_CLAUSE}${NOT_NARROWED_BY_PURPOSE}`,
+		"i",
+	),
 	/\bno\s+(?:further\s+|additional\s+|extra\s+)?tool(?:s| calls?| use)\b/i,
 	/\btool[- ]free\b/i,
 	/\btools?\s+(?:are|is)\s+(?:not\s+available|unavailable|disabled|forbidden|not\s+allowed)\b/i,
 ];
+
+// "do not run commands", "never execute any shell commands", "avoid using the shell", "run no commands".
+// The same narrowing exemptions as the tool check, plus "such as"/"like"/"including" ("do not run commands
+// such as rm"), and wording about effects ("do not run tests", "do not modify files") is not a match.
+const FORBIDS_COMMANDS: RegExp[] = [
+	new RegExp(
+		`\\b${FORBID_WORD}\\s+(?:to\\s+)?(?:run|running|execute|executing|use|using|call|calling|invoke|invoking)\\s+(?:(?:any|the|your|available|more|further|shell|bash|terminal)\\s+)*(?:commands?|shell|bash|terminal|command[- ]line(?:\\s+tools?)?)\\b(?!\\s+(?:commands?|line)\\b)${NOT_NARROWED_BY_CLAUSE}(?!\\s+(?:such as|like|including|e\\.g\\.))${NOT_NARROWED_BY_PURPOSE}`,
+		"i",
+	),
+	/\b(?:run|execute|use)\s+no\s+(?:shell\s+)?commands?\b/i,
+];
+
+function readOnlyCommandWarnings(
+	stage: Stage,
+	readOnlyDefault: boolean | undefined,
+): string[] {
+	if (!isModelBacked(stage) || stage.type === "dynamic") return [];
+	const readOnly = stage.each?.readOnly ?? stage.readOnly ?? readOnlyDefault;
+	if (readOnly !== true) return [];
+	const prompt = [stage.prompt, stage.each?.prompt]
+		.filter((text): text is string => typeof text === "string")
+		.join("\n");
+	let phrase: string | undefined;
+	for (const pattern of FORBIDS_COMMANDS) {
+		phrase = pattern.exec(prompt)?.[0];
+		if (phrase) break;
+	}
+	if (!phrase) return [];
+	return [
+		`stage "${stage.id}" is readOnly and its prompt forbids running commands ("${phrase}"). Codex reads files through shell commands, so this can leave it with no way to read. Forbid the effect instead (for example "do not modify files, run tests or run builds").`,
+	];
+}
 
 function forbidsToolsWarnings(
 	stage: Stage,
