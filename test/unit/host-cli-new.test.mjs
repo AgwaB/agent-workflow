@@ -1412,7 +1412,7 @@ test("inventory-foreach: new --list says in one line which pattern is for items 
 		json.data.patterns.map((pattern) => [pattern.id, pattern.description]),
 	);
 	assert.match(byId["inventory-foreach"], /exist in repo files/u);
-	assert.match(byId["inventory-foreach"], /quote is not in its file/u);
+	assert.match(byId["inventory-foreach"], /name is not in its cited file/u);
 	assert.match(byId["foreach-reduce"], /not for items found in files/u);
 	assert.match(byId["foreach-reduce"], /inventory-foreach/u);
 	for (const description of Object.values(byId))
@@ -1443,7 +1443,7 @@ test("inventory-foreach: the foreach reads only the verified list, the check sit
 	const row = planSchema.properties.items.items;
 	assert.deepEqual(row.required, ["id", "name", "detail", "evidence"]);
 	assert.deepEqual(row.properties.evidence.required, ["file", "quote"]);
-	assert.match(plan.prompt, /Code checks every quote in its file/u);
+	assert.match(plan.prompt, /Code checks every row against its file/u);
 	// The stored files are the same bytes for the same arguments.
 	assert.deepEqual(
 		generatePatternFiles("inventory-foreach", "shape"),
@@ -1488,6 +1488,8 @@ async function inventoryFixture() {
 		assert.equal(value.gates.passed, value.status === "passed");
 		assert.equal(value.proposed, items.length);
 		assert.equal(value.verified, value.items.length);
+		assert.equal(value.verifiedExact + value.verifiedCorrected, value.verified);
+		assert.equal(value.verifiedCorrected, value.corrected.length);
 		return value;
 	};
 	return { dir, helper, check, row, schema };
@@ -1523,7 +1525,13 @@ test("inventory-foreach: a row whose quote is in its file is verified, with its 
 	);
 	assert.deepEqual(value.rejected, []);
 	assert.equal(value.digest, "2 of 2 items verified");
-	assert.match(value.markdown, /Verified: 2/u);
+	assert.match(value.markdown, /Verified \(exact\): 2/u);
+	assert.match(value.markdown, /Verified \(corrected\): 0/u);
+	assert.deepEqual(value.corrected, []);
+	assert.deepEqual(
+		value.items.map((item) => item.quoteCorrected),
+		[false, false],
+	);
 });
 
 test("inventory-foreach: a phantom row in the wrong file is rejected, the real ones pass on (B3)", async () => {
@@ -1571,12 +1579,12 @@ test("inventory-foreach: quote absent, quote too short, quote without the name, 
 	const value = await check([
 		row(
 			"A",
-			"slugify",
+			"slugifier",
 			"src/format.ts",
-			"export function slugify(text: number)",
+			"export function slugifier(text: number)",
 		),
 		row("B", "x", "src/format.ts", "x"),
-		row("C", "findUser", "src/users.ts", "export interface User {"),
+		row("C", "Nothing", "src/users.ts", "export interface User {"),
 		row("D", "gone", "src/gone.ts", "export function gone() {}"),
 		row(
 			"E",
@@ -1596,10 +1604,138 @@ test("inventory-foreach: quote absent, quote too short, quote without the name, 
 	);
 	assert.match(reasons.A, /quote is not in src\/format\.ts/u);
 	assert.match(reasons.B, /too short/u);
-	assert.match(reasons.C, /does not contain the name "findUser"/u);
+	assert.match(reasons.C, /does not contain the name "Nothing"/u);
 	assert.match(reasons.D, /does not exist/u);
 	assert.match(reasons.E, /id is already used/u);
 	assert.match(reasons.F, /lacks an id, a name or its evidence/u);
+});
+
+test("inventory-foreach: a whitespace-different quote still counts as exact", async () => {
+	const { check, row } = await inventoryFixture();
+	const value = await check([
+		row(
+			"W-01",
+			"slugify",
+			"src/format.ts",
+			"export  function slugify(text:\n    string): string {",
+		),
+		row(
+			"W-02",
+			"findUser",
+			"src/users.ts",
+			"  export function findUser(id: string): User {  ",
+		),
+	]);
+	assert.equal(value.status, "passed");
+	assert.equal(value.verifiedExact, 2);
+	assert.deepEqual(value.corrected, []);
+	assert.deepEqual(
+		value.items.map((item) => [item.quoteCorrected, item.evidence.line]),
+		[
+			[false, 5],
+			[false, 4],
+		],
+	);
+	assert.equal(value.items[0].evidence.quote.includes("  "), true);
+});
+
+test("inventory-foreach: a misquote of a name that is in the file is corrected to the first line with the name", async () => {
+	const { check, row } = await inventoryFixture();
+	const value = await check([
+		row("W-01", "slugify", "src/format.ts", "function slugify(txt: strin)"),
+		row("W-02", "findUser", "src/users.ts", "export interface User {"),
+		row("W-03", "formatName", "src/format.ts", "fmt()"),
+		row("W-04", "User", "src/users.ts", "export User thing"),
+	]);
+	assert.equal(value.status, "passed");
+	assert.deepEqual(
+		value.items.map((item) => [
+			item.id,
+			item.quoteCorrected,
+			item.evidence.line,
+			item.evidence.quote,
+		]),
+		[
+			["W-01", true, 5, "export function slugify(text: string): string {"],
+			["W-02", true, 4, "export function findUser(id: string): User {"],
+			["W-03", true, 1, "export function formatName(user: string): string {"],
+			["W-04", true, 1, "export interface User {"],
+		],
+	);
+	assert.equal(value.verifiedExact, 0);
+	assert.equal(value.verifiedCorrected, 4);
+	assert.deepEqual(value.corrected[0], {
+		id: "W-01",
+		file: "src/format.ts",
+		line: 5,
+		originalQuote: "function slugify(txt: strin)",
+	});
+	assert.equal(
+		value.digest,
+		"4 of 4 items verified (4 with a corrected quote)",
+	);
+	assert.match(value.markdown, /Verified \(exact\): 0/u);
+	assert.match(value.markdown, /Verified \(corrected\): 4/u);
+	assert.match(value.markdown, /Corrected rows/u);
+	assert.match(value.markdown, /function slugify\(txt: strin\)/u);
+});
+
+test("inventory-foreach: exact and corrected rows are counted apart, a phantom beside them is rejected", async () => {
+	const { check, row } = await inventoryFixture();
+	const value = await check([
+		row("W-01", "formatName", "src/format.ts", "export function formatName("),
+		row("W-02", "slugify", "src/format.ts", "export fn slugify(text)"),
+		row(
+			"W-03",
+			"hashPassword",
+			"src/format.ts",
+			"export function hashPassword(pw)",
+		),
+	]);
+	assert.equal(value.status, "passed");
+	assert.deepEqual(
+		[
+			value.proposed,
+			value.verifiedExact,
+			value.verifiedCorrected,
+			value.rejected.length,
+		],
+		[3, 1, 1, 1],
+	);
+	assert.deepEqual(
+		value.items.map((item) => [item.id, item.quoteCorrected]),
+		[
+			["W-01", false],
+			["W-02", true],
+		],
+	);
+	assert.equal(value.rejected[0].id, "W-03");
+	assert.match(value.rejected[0].reason, /quote is not in src\/format\.ts/u);
+	assert.equal(
+		value.digest,
+		"2 of 3 items verified (1 with a corrected quote), 1 rejected",
+	);
+});
+
+test("inventory-foreach: a name only inside a longer identifier is not in the file", async () => {
+	const { dir, check, row } = await inventoryFixture();
+	await writeFile(
+		join(dir, "src/all.ts"),
+		"export function slugifyAll(xs: string[]) {}\nconst my_slugify = 1;\nconst $slugify = 2;\n",
+	);
+	const value = await check([
+		row("W-01", "slugify", "src/all.ts", "export function slugifyAll("),
+		row("W-02", "slugify", "src/all.ts", "const my_slugify = 1;"),
+		row("W-03", "slugify", "src/all.ts", "const slugify = 2;"),
+	]);
+	assert.equal(value.status, "failed");
+	assert.deepEqual(value.items, []);
+	assert.equal(value.rejected.length, 3);
+	assert.match(
+		value.rejected[0].reason,
+		/does not contain the name "slugify"/u,
+	);
+	assert.match(value.rejected[2].reason, /quote is not in src\/all\.ts/u);
 });
 
 test("inventory-foreach: paths that escape the project, absolute paths, urls and symlinks are refused", async () => {
@@ -1678,16 +1814,24 @@ test("inventory-foreach: a CRLF file still verifies a quote copied with LF line 
 		row("C", "a", "src/crlf.ts", "export function a(\n  x: number,\n)"),
 		row("U", "e", "src/bad.ts", "eeeeeeee"),
 		row("T", "formatName", "src/format.ts", "Export function formatName("),
+		row("V", "formatNam", "src/format.ts", "Export function formatNam("),
 	]);
 	assert.deepEqual(
-		value.items.map((item) => [item.id, item.evidence.line]),
-		[["C", 2]],
+		value.items.map((item) => [
+			item.id,
+			item.evidence.line,
+			item.quoteCorrected,
+		]),
+		[
+			["C", 2, false],
+			["T", 1, true],
+		],
 	);
 	const reasons = Object.fromEntries(
 		value.rejected.map((rejected) => [rejected.id, rejected.reason]),
 	);
 	assert.match(reasons.U, /not valid UTF-8/u);
-	assert.match(reasons.T, /quote is not in/u);
+	assert.match(reasons.V, /quote is not in/u);
 });
 
 test("inventory-foreach: a helper whose plan has no items list is a wiring error (throws)", async () => {
