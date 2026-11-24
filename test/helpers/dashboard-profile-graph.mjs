@@ -101,7 +101,11 @@ export async function projectSettingsGraphFixtures(cwd) {
 					until: { stage: "check", path: "$.status", equals: "verified" },
 					stages: [
 						{ ...single("work"), after: undefined },
-						{ ...single("check"), after: undefined },
+						{
+							...single("check"),
+							after: undefined,
+							prompt: 'EDITOR-PROMPT-NOT-EXECUTED {"status":"verified"}',
+						},
 					],
 				},
 				{
