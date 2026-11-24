@@ -1,4 +1,5 @@
 // Support tasks have no observed usage: values are null, not zero.
+import { outputRetriesUsed } from "./output-retry-count.js";
 import type {
 	TaskRunStatus,
 	WorkflowRunRecord,
@@ -459,6 +460,12 @@ function sumResumeRetryAttempts(
 	key: "launchRetryAttempts" | "outputRetryAttempts",
 ): number {
 	return (task.resumeEvents ?? []).reduce((total, event) => {
+		// output: retries made, not the exhausted last attempt (see output-retry-count.ts)
+		if (key === "outputRetryAttempts")
+			return (
+				total +
+				outputRetriesUsed(event.outputRetryAttempts, event.outputRetryReason)
+			);
 		const attempts = event[key];
 		return typeof attempts === "number" && Number.isFinite(attempts)
 			? total + attempts
@@ -471,7 +478,7 @@ function taskRetryMetrics(task: WorkflowTaskRunRecord): WorkflowRetryMetrics {
 		(task.launchRetry?.attempts ?? 0) +
 		sumResumeRetryAttempts(task, "launchRetryAttempts");
 	const outputRetries =
-		(task.outputRetry?.attempts ?? 0) +
+		outputRetriesUsed(task.outputRetry?.attempts, task.outputRetry?.reason) +
 		sumResumeRetryAttempts(task, "outputRetryAttempts");
 	const resumeEvents = task.resumeEvents?.length ?? 0;
 	const totalRetryEvents = launchRetries + outputRetries + resumeEvents;

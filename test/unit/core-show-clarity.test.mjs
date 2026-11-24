@@ -208,6 +208,106 @@ test("inspect does not count the last, exhausted attempt as an output retry", as
 	);
 });
 
+// 2026-11-24: "retries" means attempts made after the first, on every surface. `outputRetry.attempts` (the raw task
+// record, docs/usage.md) stays the number of the invalid attempt just recorded; only the counters derive from it.
+test("every output-retry counter agrees: retries are attempts after the first", async () => {
+	const { summarizeReliability } = await import("../../dist/hosts/runs.js");
+	const { summarizeWorkflowTelemetry } = await import(
+		"../../dist/core/workflow-artifacts.js"
+	);
+	const { buildWorkflowRunMetrics } = await import(
+		"../../dist/core/workflow-metrics.js"
+	);
+	const { summarizeWorkflowTerminal } = await import(
+		"../../dist/core/workflow-terminal.js"
+	);
+	const cases = [
+		// AGENT_WORKFLOW_ARTIFACT_OUTPUT_RETRIES=0: one failing attempt, no retry.
+		[
+			{
+				attempts: 1,
+				maxAttempts: 0,
+				reason: "workflow_output_invalid_exhausted",
+			},
+			0,
+		],
+		// default budget of 2 repairs: three attempts, two retries.
+		[
+			{
+				attempts: 3,
+				maxAttempts: 2,
+				reason: "workflow_output_invalid_exhausted",
+			},
+			2,
+		],
+		// a repair that is scheduled but not yet made is already a retry.
+		[{ attempts: 1, maxAttempts: 2, reason: "workflow_output_invalid" }, 1],
+	];
+	for (const [outputRetry, expected] of cases) {
+		const exhausted = outputRetry.reason.endsWith("_exhausted");
+		const tasks = [
+			task("a", exhausted ? "failed" : "pending", { outputRetry }),
+		];
+		const run = runOf(tasks);
+		const label = JSON.stringify(outputRetry);
+		assert.equal(summarizeReliability(tasks).outputRetries, expected, label);
+		assert.equal(
+			summarizeWorkflowTelemetry(run).retryCounts.output,
+			expected,
+			`telemetry ${label}`,
+		);
+		assert.equal(
+			buildWorkflowRunMetrics(run).totals.retries.outputRetries,
+			expected,
+			`metrics ${label}`,
+		);
+		assert.equal(
+			(await summarizeWorkflowTerminal("/tmp/x", run)).outputRetryAttempts,
+			expected,
+			`terminal ${label}`,
+		);
+		assert.equal(
+			summarizeWorkflowTelemetry(run).completion.repairEvents,
+			expected,
+			`repair events ${label}`,
+		);
+	}
+	// the reason and repair-mode histograms count retries, not a final attempt that was never retried
+	const exhaustedOnly = runOf([
+		task("a", "failed", {
+			outputRetry: {
+				attempts: 1,
+				maxAttempts: 0,
+				reason: "workflow_output_invalid_exhausted",
+				repairMode: "new_session",
+			},
+		}),
+	]);
+	const telemetry = summarizeWorkflowTelemetry(exhaustedOnly);
+	assert.deepEqual(telemetry.retryReasons.output, {});
+	assert.deepEqual(telemetry.outputRepairCounts, {
+		sameSession: 0,
+		newSession: 0,
+		unknown: 0,
+	});
+	// a resume event records the same raw attempts and is read the same way on every surface
+	const resumed = runOf([
+		task("a", "completed", {
+			resumeEvents: [
+				{
+					outputRetryAttempts: 3,
+					outputRetryReason: "workflow_output_invalid_exhausted",
+				},
+			],
+		}),
+	]);
+	assert.equal(summarizeWorkflowTelemetry(resumed).retryCounts.output, 2);
+	assert.equal(
+		buildWorkflowRunMetrics(resumed).totals.retries.outputRetries,
+		2,
+	);
+});
+
 test("a support helper that declared failed or blocked shows its own reason", async () => {
 	const runtime = await import("../../dist/core/artifact-graph-runtime.js");
 	const message = runtime.supportDeclaredMessage;

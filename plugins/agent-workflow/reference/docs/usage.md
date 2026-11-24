@@ -969,7 +969,9 @@ Exactly one of each, in this order, no prose outside. The engine writes `control
 `analysis.md`, `refs.json` and `raw.md`, and retries invalid output within the stage's repair budget
 (`AGENT_WORKFLOW_ARTIFACT_OUTPUT_RETRIES`, default 2: retries, so a task fails after 3 attempts;
 `tasks[].outputRetry` records `attempts: 3`, `maxAttempts: 2`, and each invalid attempt leaves
-`raw.invalid-attempt-N.md` and `result.invalid-attempt-N.json` in the task directory). Before retrying, a few breaks are repaired and
+`raw.invalid-attempt-N.md` and `result.invalid-attempt-N.json` in the task directory). Every "output retries" counter (`Output retries:` in the terminal
+summary, `outputRetryAttempts` of `wait`, `inspect`'s `retries: output=`, run telemetry and metrics) counts retries, the attempts
+after the first: 2 for that task, 0 with `AGENT_WORKFLOW_ARTIFACT_OUTPUT_RETRIES=0`, never the final exhausted attempt. Before retrying, a few breaks are repaired and
 recorded on the attempt: invalid JSON escapes inside strings (`json_invalid_escape`), and a `<control>` whose only
 defect is the root object's missing closing brace — every inner container closed, no string open — when the stage's
 `output.controlSchema` requires every root property it declares, allows no others, and the closed control passes it

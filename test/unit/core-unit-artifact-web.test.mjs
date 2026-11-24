@@ -1982,9 +1982,12 @@ test("workflow artifact telemetry summarizes stage status, retries, wall clock, 
 	assert.equal(summary.completion.health, "incomplete");
 	assert.equal(summary.completion.clean, false);
 	assert.equal(summary.completion.repaired, false);
-	assert.equal(summary.completion.repairEvents, 5);
+	// 2026-11-24: output retries are attempts after the first, as `inspect` counts them. The resume event recorded
+	// 2 invalid attempts with the exhausted reason: 1 retry (the last attempt was never retried), plus the current
+	// task's scheduled repair = 2 (this used to read 3, which counted the exhausted attempt).
+	assert.equal(summary.completion.repairEvents, 4);
 	assert.equal(summary.completion.contextLimitFailures, 1);
-	assert.equal(summary.retryCounts.output, 3);
+	assert.equal(summary.retryCounts.output, 2);
 	assert.equal(summary.retryCounts.launch, 1);
 	assert.equal(summary.retryReasons.output.workflow_output_invalid, 1);
 	assert.equal(
