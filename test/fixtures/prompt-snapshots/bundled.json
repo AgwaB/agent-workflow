@@ -17,12 +17,12 @@
 			"sha256": "e8f9c9b0a80bbf85a385c484f3707d86c5136f58c4d846c9f016c26118984200"
 		},
 		"final-audit.main": {
-			"chars": 9797,
-			"sha256": "aae2c8a6790ae8693808b63a8b87a550a33ce032b54213360e81137aaffd232c"
+			"chars": 9733,
+			"sha256": "f7f6d7f085e97db00ffb606d07c54c7fb96a3e694c0c7cb8b5284174d7955221"
 		},
 		"retranslate.item": {
-			"chars": 1959,
-			"sha256": "52ffb197cff43495e5b13131e5f3163799c690cf5bc3d24f826cf9c764484ba4"
+			"chars": 1891,
+			"sha256": "e5481a5dff65b3b7343b3f1a996afbd03a5638c863cd9fd6de9f73bd208ecf7e"
 		}
 	},
 	"workflows/deep-research/tiered-verification.spec.json": {
@@ -47,30 +47,30 @@
 			"sha256": "0760b07c9796827155413e0a2c8109a0b965c7318b2b12c776fba3a594cd18e1"
 		},
 		"final-audit.main": {
-			"chars": 9979,
-			"sha256": "bd90336b83740fb0f43e5778e1190e3c68aea22673ebdb44be3bba5d948215c4"
+			"chars": 9915,
+			"sha256": "2d0abec09137276f3b86d1d78cad751c6f2b710471aaba8d1491bd8a25de39a9"
 		},
 		"retranslate.item": {
-			"chars": 1959,
-			"sha256": "52ffb197cff43495e5b13131e5f3163799c690cf5bc3d24f826cf9c764484ba4"
+			"chars": 1891,
+			"sha256": "e5481a5dff65b3b7343b3f1a996afbd03a5638c863cd9fd6de9f73bd208ecf7e"
 		}
 	},
 	"workflows/deep-review/spec.json": {
 		"triage.main": {
-			"chars": 3094,
-			"sha256": "cf345234e303bf0739dd4ccea9cbfdd80bd20262593a105adefcf386e500bbbf"
+			"chars": 3014,
+			"sha256": "1956e7fd1133dbc27e6de297b469245698b6187ca6ec1816e8876ee650baaa15"
 		},
 		"reviewers.item": {
-			"chars": 5463,
-			"sha256": "930c50c1c490aca52ac32d94bd7023022dfb2f45b62b9434d65025f41585b834"
+			"chars": 5383,
+			"sha256": "c71de0bd107295f98cd2025a2c36c52053106cc1691f9735133486ac1796655f"
 		},
 		"devil-advocate.item": {
-			"chars": 3936,
-			"sha256": "80f1694b303c68fbbfbbd81dd1be3edb8869bbdb4575e99a6abe40ffb081c05c"
+			"chars": 3856,
+			"sha256": "4fb9775acb49f399c6b418678afd60f32d811ca3d7c4a677be9df26bc86e0aeb"
 		},
 		"report.main": {
-			"chars": 4507,
-			"sha256": "703316ac756cc27d4888e89d707cc84edd5ab3d70e7f135ecc1454579d39b273"
+			"chars": 4427,
+			"sha256": "a32821bc829e7b6a3235b62c277cd748a307b039568f659fc161c6b25969cb95"
 		}
 	},
 	"workflows/impact-review/spec.json": {
@@ -149,8 +149,8 @@
 			"sha256": "72a7b36339ff71120d2c11b81d5ee03c4b97a7fbddb21f5f3bad252eda1e1831"
 		},
 		"report.main": {
-			"chars": 5883,
-			"sha256": "2e9dbb0c67fa10abea20a7fd0c964985a5f8c300568388a17e708466dc7b3fd5"
+			"chars": 5808,
+			"sha256": "6ddb4ec11f536e79786513c75f075986f21e60caa93eaa8bfca9e88436ce5748"
 		}
 	}
 }

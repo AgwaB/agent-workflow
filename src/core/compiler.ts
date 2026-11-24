@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 import { collectAuthoringRuleWarnings } from "./authoring-rule-warnings.js";
+import { pinnedControlSchemaId } from "./control-protocol-facts.js";
 import { loadAgentByName } from "./agents.js";
 import {
 	configurationSlot,
@@ -187,10 +188,41 @@ function compileWorkflowFailurePolicy(
 	};
 }
 
-function buildArtifactGraphCompilePlan(
+// Control schemas by their `output.controlSchema` name, for the output protocol. Best effort: a file
+// that cannot be read is left out (loading the spec already reports it as an error).
+async function readControlSchemas(
+	stages: readonly ArtifactGraphStageSpec[],
+	specDir: string,
+): Promise<Map<string, unknown>> {
+	const schemas = new Map<string, unknown>();
+	const names = new Set<string>();
+	const collect = (list: readonly ArtifactGraphStageSpec[]): void => {
+		for (const stage of list) {
+			const name = stage.output?.controlSchema;
+			if (typeof name === "string") names.add(name);
+			if (Array.isArray(stage.stages)) collect(stage.stages);
+			if (stage.onExhausted) collect([stage.onExhausted]);
+		}
+	};
+	collect(stages);
+	for (const name of names) {
+		if (schemas.has(name)) continue;
+		try {
+			schemas.set(
+				name,
+				JSON.parse(await readFile(resolve(specDir, name), "utf8")),
+			);
+		} catch {
+			// not readable: no facts from it
+		}
+	}
+	return schemas;
+}
+
+async function buildArtifactGraphCompilePlan(
 	spec: ArtifactGraphWorkflowSpec,
 	options: CompileOptions,
-): ArtifactGraphCompilePlanBuildResult {
+): Promise<ArtifactGraphCompilePlanBuildResult> {
 	const stageMetadata = new Map<
 		string,
 		NonNullable<CompiledTask["artifactGraph"]>
@@ -216,30 +248,35 @@ function buildArtifactGraphCompilePlan(
 			stages: lowerArtifactGraphStages(spec.artifactGraph.stages, {
 				metadata: stageMetadata,
 				specDir,
+				controlSchemas: await readControlSchemas(
+					spec.artifactGraph.stages,
+					specDir,
+				),
 			}),
 		},
 		stageMetadata,
 	};
 }
 
+// What the lowering needs besides the stage: where the bundle is, and the control schemas that could be
+// read (by their `output.controlSchema` name) so the output protocol can state facts they decide.
+interface LowerContext {
+	metadata: Map<string, NonNullable<CompiledTask["artifactGraph"]>>;
+	specDir: string;
+	namespace?: string;
+	controlSchemas: ReadonlyMap<string, unknown>;
+}
+
 function lowerArtifactGraphStages(
 	stages: readonly ArtifactGraphStageSpec[],
-	context: {
-		metadata: Map<string, NonNullable<CompiledTask["artifactGraph"]>>;
-		specDir: string;
-		namespace?: string;
-	},
+	context: LowerContext,
 ): any[] {
 	return stages.map((stage) => lowerArtifactGraphStage(stage, context));
 }
 
 function lowerArtifactGraphStage(
 	stage: ArtifactGraphStageSpec,
-	context: {
-		metadata: Map<string, NonNullable<CompiledTask["artifactGraph"]>>;
-		specDir: string;
-		namespace?: string;
-	},
+	context: LowerContext,
 ): any {
 	const stageId = context.namespace
 		? `${context.namespace}.${stage.id}`
@@ -248,7 +285,7 @@ function lowerArtifactGraphStage(
 		...stage,
 		[COMPILE_CANONICAL_SLOT]: stageId,
 		from: lowerArtifactGraphFrom(stage.from),
-		prompt: lowerArtifactGraphPrompt(stage),
+		prompt: lowerArtifactGraphPrompt(stage, context.controlSchemas),
 		artifactGraphOutput: stage.output,
 	};
 	delete lowered.inputPolicy;
@@ -257,22 +294,24 @@ function lowerArtifactGraphStage(
 	if (stage.output !== undefined) delete lowered.output;
 	if (stage.stages) {
 		lowered.stages = lowerArtifactGraphStages(stage.stages, {
-			metadata: context.metadata,
-			specDir: context.specDir,
+			...context,
 			namespace: stageId,
 		});
 	}
 	if (stage.each && typeof stage.each === "object") {
 		lowered.each = {
 			...stage.each,
-			prompt: appendWorkflowOutputInstructions(stage.each.prompt, stage),
+			prompt: appendWorkflowOutputInstructions(
+				stage.each.prompt,
+				stage,
+				context.controlSchemas,
+			),
 		};
 	}
 	if (stage.onExhausted) {
 		lowered.onExhausted = {
 			...lowerArtifactGraphStage(stage.onExhausted, {
-				metadata: context.metadata,
-				specDir: context.specDir,
+				...context,
 				namespace: stageId,
 			}),
 			[COMPILE_CANONICAL_SLOT]: `${stageId}.$onExhausted`,
@@ -307,16 +346,24 @@ function lowerArtifactGraphFrom(
 
 function lowerArtifactGraphPrompt(
 	stage: ArtifactGraphStageSpec,
+	controlSchemas: ReadonlyMap<string, unknown>,
 ): string | undefined {
 	if (stage.type === "dag" || isSupportStage(stage)) return stage.prompt;
-	return appendWorkflowOutputInstructions(stage.prompt ?? "", stage);
+	return appendWorkflowOutputInstructions(
+		stage.prompt ?? "",
+		stage,
+		controlSchemas,
+	);
 }
 
 function appendWorkflowOutputInstructions(
 	prompt: string,
 	stage: ArtifactGraphStageSpec,
+	controlSchemas: ReadonlyMap<string, unknown>,
 ): string {
 	const controlSchema = stage.output?.controlSchema;
+	const schemaFile =
+		controlSchema === undefined ? undefined : controlSchemas.get(controlSchema);
 	const analysisRequired = stage.output?.analysis?.required ?? true;
 	const refsRequired =
 		(stage.output?.refs?.required ?? true) ||
@@ -334,7 +381,11 @@ function appendWorkflowOutputInstructions(
 		refsRequired ? "<refs>[]</refs>" : "<refs>[]</refs> (optional)",
 		"The <control> section must be valid JSON object data for the workflow control plane.",
 		"The control object must include a non-empty string `schema` and a concise non-empty string `digest`.",
-		...controlSchemaOutputInstructions(controlSchema, "stage-control-v1"),
+		...controlSchemaOutputInstructions(
+			controlSchema,
+			"stage-control-v1",
+			pinnedControlSchemaId(schemaFile),
+		),
 		"Put detailed prose, reasoning, and evidence discussion in <analysis> only.",
 		"Put structured evidence pointers in <refs> as a JSON array; use [] if none.",
 		...partialOutputInstructions(stage.output?.partial?.paths),
@@ -346,6 +397,7 @@ function appendWorkflowOutputInstructions(
 function controlSchemaOutputInstructions(
 	controlSchema: string | undefined,
 	defaultSchema: string,
+	pinnedSchemaId?: string,
 ): string[] {
 	if (!controlSchema) {
 		return [
@@ -355,7 +407,9 @@ function controlSchemaOutputInstructions(
 	return [
 		`Validate the control object against the workflow-local control schema file: ${controlSchema}`,
 		"That file path identifies the validation contract only. Never emit the file path or file name as the value of `control.schema`.",
-		`Use the exact \`control.schema\` value required by the stage prompt or example. If none is specified, use \`${defaultSchema}\`; do not derive a value from the schema file name.`,
+		pinnedSchemaId === undefined
+			? `Use the exact \`control.schema\` value required by the stage prompt or example. If none is specified, use \`${defaultSchema}\`; do not derive a value from the schema file name.`
+			: `Set \`control.schema\` to exactly ${JSON.stringify(pinnedSchemaId)}, the one value the control schema allows.`,
 	];
 }
 
@@ -876,7 +930,7 @@ export async function compileWorkflow(
 		runtimeDefaults?: WorkflowRuntimeDefaults;
 	},
 ): Promise<any> {
-	const compilePlan = buildArtifactGraphCompilePlan(spec, options);
+	const compilePlan = await buildArtifactGraphCompilePlan(spec, options);
 	const compiled = await compileArtifactGraphPlan(compilePlan.plan, options);
 	annotateArtifactGraphCompiledWorkflow(compiled, compilePlan.stageMetadata);
 	validateStaticCompiledPromptCaps(compiled);
