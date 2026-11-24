@@ -40,7 +40,7 @@ export const AUTHORING_PATTERNS: ReadonlyArray<{
 	{
 		id: "inventory-foreach",
 		description:
-			"For items that exist in repo files (functions, endpoints, configs): code drops any row whose quote is not in its file, then work each verified row.",
+			"For items that exist in repo files (functions, endpoints, configs): code drops any row whose name is not in its cited file, then work each verified row.",
 		stages: "plan -> verify-inventory (code) -> work (foreach) -> report",
 	},
 	{
@@ -324,9 +324,14 @@ const INVENTORY_HELPER = `// Deterministic check of a model-built inventory agai
 // (lstat, realpath, one bounded read per cited file) and writes nothing.
 // Every row of the plan stage carries evidence { file, quote }. A row survives only when
 //   - its file is a relative path of a regular file inside the project directory (the workflow's cwd), reached
-//     without a symlink anywhere on the path, at most 4 MiB, valid UTF-8,
-//   - its quote (at least 8 non-blank characters) occurs byte for byte in that file, and
-//   - its quote contains the row's name (so a real line cannot vouch for an invented item).
+//     without a symlink anywhere on the path, at most 4 MiB, valid UTF-8, and then
+//   - exact: its quote (at least 8 non-blank characters, whitespace runs count as one) occurs in that file and
+//     contains the row's name as a whole identifier; or
+//   - corrected: otherwise, the row's name occurs as a whole word (identifier boundaries) in that file. The row
+//     passes with quoteCorrected: true and its evidence becomes the first line of the file holding the name;
+//     the model's original quote is kept in "corrected".
+// Trade-off: a row whose name occurs in the cited file passes even when its quote is wrong; a row naming
+// something absent from the file (or only part of a longer identifier there) is still rejected.
 // Rows that fail are dropped from "items" and listed in "rejected" with the reason; only "items" reach the
 // foreach. If the plan listed nothing or no row survives, this stage declares "failed" in plain words, so
 // the foreach never runs on an invented list. Duplicate ids: the first row wins, later ones are rejected.
@@ -415,15 +420,59 @@ async function readProjectFile(cwd, file) {
   }
 }
 
+const IDENT = /[\\p{L}\\p{N}_$]/u;
+
+// Index of the first occurrence of name in text that is not glued to identifier characters, else -1.
+function wordAt(text, name) {
+  const first = IDENT.test(name[0]);
+  const last = IDENT.test(name[name.length - 1]);
+  for (let at = text.indexOf(name); at >= 0; at = text.indexOf(name, at + 1)) {
+    if (first && at > 0 && IDENT.test(text[at - 1])) continue;
+    const end = at + name.length;
+    if (last && end < text.length && IDENT.test(text[end])) continue;
+    return at;
+  }
+  return -1;
+}
+
+const lineAt = (text, at) => text.slice(0, at).split("\\n").length;
+
+// Line of the quote in the text, 0 when absent. Line endings and runs of whitespace are not told apart.
 function lineOf(text, quote) {
   let at = text.indexOf(quote);
-  let haystack = text;
-  if (at < 0) {
-    // Only a line-ending difference is forgiven (a quote copied from a CRLF file).
-    haystack = text.replace(/\\r\\n/g, "\\n");
-    at = haystack.indexOf(quote.replace(/\\r\\n/g, "\\n"));
+  if (at >= 0) return lineAt(text, at);
+  const lf = text.replace(/\\r\\n/g, "\\n");
+  at = lf.indexOf(quote.replace(/\\r\\n/g, "\\n"));
+  if (at >= 0) return lineAt(lf, at);
+  const wanted = quote.replace(/\\s+/g, " ").trim();
+  if (wanted === "") return 0;
+  let squashed = "";
+  const origin = [];
+  let blank = false;
+  for (let i = 0; i < text.length; i++) {
+    if (/\\s/.test(text[i])) {
+      if (!blank) {
+        squashed += " ";
+        origin.push(i);
+      }
+      blank = true;
+    } else {
+      squashed += text[i];
+      origin.push(i);
+      blank = false;
+    }
   }
-  return at < 0 ? 0 : haystack.slice(0, at).split("\\n").length;
+  at = squashed.indexOf(wanted);
+  return at < 0 ? 0 : lineAt(text, origin[at]);
+}
+
+// The first line of the text that holds the name as a whole word: its trimmed text and 1-based number.
+function firstLineWith(text, name) {
+  const at = wordAt(text, name);
+  if (at < 0) return undefined;
+  const start = text.lastIndexOf("\\n", at - 1) + 1;
+  const stop = text.indexOf("\\n", at);
+  return { quote: text.slice(start, stop < 0 ? text.length : stop).trim().slice(0, 600), line: lineAt(text, at) };
 }
 
 function shape(row) {
@@ -441,9 +490,6 @@ async function judge(cwd, row, cache) {
   if (row.id === "" || row.name === "" || row.file === "" || row.quote === "") {
     return { reason: "the row lacks an id, a name or its evidence file and quote" };
   }
-  if (row.quote.replace(/\\s/g, "").length < MIN_QUOTE) {
-    return { reason: "the quote is too short to prove anything (under " + MIN_QUOTE + " non-blank characters)" };
-  }
   if (!cache.has(row.file)) {
     try {
       cache.set(row.file, { text: await readProjectFile(cwd, row.file) });
@@ -454,15 +500,33 @@ async function judge(cwd, row, cache) {
   }
   const read = cache.get(row.file);
   if (read.reason !== undefined) return { reason: read.reason };
-  const line = lineOf(read.text, row.quote);
-  if (line === 0) return { reason: "the quote is not in " + clip(row.file, 120) };
-  if (!row.quote.includes(row.name)) return { reason: "the quote does not contain the name " + JSON.stringify(clip(row.name, 60)) };
-  return { line };
+  const long = row.quote.replace(/\\s/g, "").length >= MIN_QUOTE;
+  const line = long && wordAt(row.quote.replace(/\\s+/g, " "), row.name.replace(/\\s+/g, " ")) >= 0 ? lineOf(read.text, row.quote) : 0;
+  if (line > 0) return { line, quote: row.quote, corrected: false };
+  const found = firstLineWith(read.text, row.name);
+  if (found) return { line: found.line, quote: found.quote, corrected: true };
+  if (!long) return { reason: "the quote is too short to prove anything (under " + MIN_QUOTE + " non-blank characters)" };
+  if (lineOf(read.text, row.quote) === 0) return { reason: "the quote is not in " + clip(row.file, 120) };
+  return { reason: "the quote does not contain the name " + JSON.stringify(clip(row.name, 60)) };
 }
 
-function report(status, proposed, items, rejected, note) {
-  const lines = ["# Inventory check", "", "- Status: **" + status + "**", "- Proposed: " + proposed, "- Verified: " + items.length, "- Rejected: " + rejected.length, ""];
+function report(status, proposed, items, rejected, corrected, note) {
+  const lines = [
+    "# Inventory check",
+    "",
+    "- Status: **" + status + "**",
+    "- Proposed: " + proposed,
+    "- Verified (exact): " + (items.length - corrected.length),
+    "- Verified (corrected): " + corrected.length,
+    "- Rejected: " + rejected.length,
+    "",
+  ];
   if (note) lines.push(note, "");
+  if (corrected.length > 0) {
+    lines.push("## Corrected rows (the name is in the file, the quote was not; evidence replaced by the first line with the name)", "");
+    for (const row of corrected) lines.push("- \\\`" + row.id + "\\\` (\\\`" + row.file + ":" + row.line + "\\\`): the model quoted " + JSON.stringify(clip(row.originalQuote, 160)));
+    lines.push("");
+  }
   if (rejected.length > 0) {
     lines.push("## Rejected rows", "");
     for (const row of rejected) lines.push("- \\\`" + row.id + "\\\` (\\\`" + row.file + "\\\`): " + row.reason);
@@ -476,7 +540,7 @@ function report(status, proposed, items, rejected, note) {
   return lines.join("\\n");
 }
 
-function result(status, proposed, items, rejected, digest, note) {
+function result(status, proposed, items, rejected, corrected, digest, note) {
   return {
     schema: "verified-inventory-v1",
     digest: clip(digest, 200),
@@ -484,9 +548,12 @@ function result(status, proposed, items, rejected, digest, note) {
     gates: { passed: status === "passed" },
     proposed,
     verified: items.length,
+    verifiedExact: items.length - corrected.length,
+    verifiedCorrected: corrected.length,
     items,
     rejected,
-    markdown: report(status, proposed, items, rejected, note),
+    corrected,
+    markdown: report(status, proposed, items, rejected, corrected, note),
     completionSummaryMarkdown: clip(status === "passed" ? "Inventory check: " + digest : "Inventory check failed: " + digest, 900),
   };
 }
@@ -496,11 +563,12 @@ export default async function helper({ sources, context }) {
   if (!plan || !Array.isArray(plan.items)) throw new Error("inventory: the plan stage has no items list");
   const proposed = plan.items.length;
   if (proposed === 0) {
-    return result("failed", 0, [], [], "the plan listed no items, so there is nothing to work on", "");
+    return result("failed", 0, [], [], [], "the plan listed no items, so there is nothing to work on", "");
   }
   const rehearsal = process.env.AGENT_WORKFLOW_REHEARSAL === "1";
   const items = [];
   const rejected = [];
+  const corrected = [];
   const cache = new Map();
   const used = new Set();
   for (const original of plan.items) {
@@ -516,11 +584,14 @@ export default async function helper({ sources, context }) {
       continue;
     }
     used.add(row.id);
+    const fixed = verdict.corrected === true;
+    if (fixed) corrected.push({ id: clip(row.id, 64), file: clip(row.file, 240), line: verdict.line, originalQuote: clip(row.quote, 600) || "(blank)" });
     items.push({
       id: row.id.slice(0, 64),
       name: row.name.slice(0, 120),
       detail: row.detail.slice(0, 400),
-      evidence: { file: row.file, quote: row.quote.slice(0, 600), line: verdict.line },
+      quoteCorrected: fixed,
+      evidence: { file: row.file, quote: (verdict.quote ?? row.quote).slice(0, 600), line: verdict.line },
     });
   }
   if (items.length === 0) {
@@ -529,12 +600,13 @@ export default async function helper({ sources, context }) {
       proposed,
       [],
       rejected,
+      [],
       "no item survived: " + proposed + " proposed, 0 verified (" + rejected[0].id + ": " + rejected[0].reason + ")",
       "Every proposed row was rejected, so nothing was passed on. Fix the evidence the plan cites, or the task, and run again.",
     );
   }
-  const digest = items.length + " of " + proposed + " items verified" + (rejected.length > 0 ? ", " + rejected.length + " rejected" : "");
-  return result("passed", proposed, items, rejected, digest, rehearsal ? "Rehearsal: the files were not read, every row was passed on." : "");
+  const digest = items.length + " of " + proposed + " items verified" + (corrected.length > 0 ? " (" + corrected.length + " with a corrected quote)" : "") + (rejected.length > 0 ? ", " + rejected.length + " rejected" : "");
+  return result("passed", proposed, items, rejected, corrected, digest, rehearsal ? "Rehearsal: the files were not read, every row was passed on." : "");
 }
 `;
 
@@ -576,15 +648,18 @@ function inventoryForeachPattern(name: string): Bundle {
 		},
 		proposed: { type: "integer", minimum: 0, maximum: 30 },
 		verified: { type: "integer", minimum: 0, maximum: 30 },
+		verifiedExact: { type: "integer", minimum: 0, maximum: 30 },
+		verifiedCorrected: { type: "integer", minimum: 0, maximum: 30 },
 		items: {
 			type: "array",
 			items: {
 				type: "object",
-				required: ["id", "name", "detail", "evidence"],
+				required: ["id", "name", "detail", "quoteCorrected", "evidence"],
 				properties: {
 					id: text(64, 1),
 					name: text(120, 1),
 					detail: text(400),
+					quoteCorrected: { type: "boolean" },
 					evidence: {
 						type: "object",
 						required: ["file", "quote", "line"],
@@ -614,6 +689,21 @@ function inventoryForeachPattern(name: string): Bundle {
 			},
 			maxItems: 30,
 		},
+		corrected: {
+			type: "array",
+			items: {
+				type: "object",
+				required: ["id", "file", "line", "originalQuote"],
+				properties: {
+					id: text(64, 1),
+					file: text(240, 1),
+					line: { type: "integer", minimum: 1 },
+					originalQuote: text(600, 1),
+				},
+				additionalProperties: false,
+			},
+			maxItems: 30,
+		},
 		markdown: { type: "string", minLength: 1, maxLength: 20000 },
 		completionSummaryMarkdown: text(1000, 1),
 	});
@@ -638,7 +728,7 @@ function inventoryForeachPattern(name: string): Bundle {
 						"plan",
 						"list up to 30 distinct items that exist in the project files and that the runtime task asks for, each with a short stable id such as W-01, the exact name as written in the file and a one-sentence detail.",
 					),
-					`${READ_ONLY} ${ANALYSIS} List only items you saw in a file you read in this run. Every item needs evidence: file is the path relative to the project root, quote is text copied byte for byte from that file (at least 8 characters, for example the declaration line) and it must contain the item's name exactly as written. Code checks every quote in its file and drops the rows that fail; do not guess a file for an item. Give every item a unique id of 1 to 64 characters; the next stage works each verified item separately and sees only that item. ${NO_INVENT} ${controlContract(plan, { digest: "1 work item", items: [{ id: "W-01", name: "parseConfig", detail: "What this item is.", evidence: { file: "src/config.ts", quote: "export function parseConfig(" } }], inputIntegrity: { status: "complete" } })}`,
+					`${READ_ONLY} ${ANALYSIS} List only items you saw in a file you read in this run. Every item needs evidence: file is the path relative to the project root, quote is text copied byte for byte from that file (at least 8 characters, for example the declaration line) and it must contain the item's name exactly as written. Code checks every row against its file and drops the rows whose name is not in that file (a wrong quote of a name that is there is replaced by the first line with the name); do not guess a file for an item. Give every item a unique id of 1 to 64 characters; the next stage works each verified item separately and sees only that item. ${NO_INVENT} ${controlContract(plan, { digest: "1 work item", items: [{ id: "W-01", name: "parseConfig", detail: "What this item is.", evidence: { file: "src/config.ts", quote: "export function parseConfig(" } }], inputIntegrity: { status: "complete" } })}`,
 				].join("\n\n"),
 			},
 			{
@@ -686,7 +776,7 @@ function inventoryForeachPattern(name: string): Bundle {
 						"report",
 						"write a short report that states, per verified item, what was found.",
 					),
-					`${READ_ONLY} ${ANALYSIS} First read the control of the verify-inventory stage with workflow_artifact; it is required and holds the verified items and the rejected rows. Then read the control of every work item with workflow_artifact (the digests in the source list are only hints). Put the full report in <analysis> as markdown: state how many rows were proposed, verified and rejected, name every rejected row with its reason, and report only on the verified items. If any upstream work item did not complete, assemble the report from the items that completed, list the missing item ids in openIssues and do not fabricate results. ${controlContract(report, { digest: "1 of 1 items done", headline: "All verified items were worked; nothing blocked.", openIssues: [] })}`,
+					`${READ_ONLY} ${ANALYSIS} First read the control of the verify-inventory stage with workflow_artifact; it is required and holds the verified items and the rejected rows. Then read the control of every work item with workflow_artifact (the digests in the source list are only hints). Put the full report in <analysis> as markdown: state how many rows were proposed, verified (exact), verified (corrected) and rejected, name every rejected row with its reason and every corrected row, and report only on the verified items. If any upstream work item did not complete, assemble the report from the items that completed, list the missing item ids in openIssues and do not fabricate results. ${controlContract(report, { digest: "1 of 1 items done", headline: "All verified items were worked; nothing blocked.", openIssues: [] })}`,
 				].join("\n\n"),
 			},
 		]),
