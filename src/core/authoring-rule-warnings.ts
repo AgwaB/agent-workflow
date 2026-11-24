@@ -55,6 +55,7 @@ export async function collectAuthoringRuleWarnings(
 	const walk = async (
 		siblings: readonly unknown[],
 		mode: "top" | "dag" | "loop",
+		everyStage: ReadonlyMap<string, Stage>,
 	): Promise<void> => {
 		const byId = new Map<string, Stage>();
 		for (const stage of siblings) {
@@ -67,6 +68,7 @@ export async function collectAuthoringRuleWarnings(
 			warnings.push(...placeholderWarnings(stage));
 			warnings.push(...implicitChainWarnings(stage, siblings, index, mode));
 			warnings.push(...readOnlyCommandWarnings(stage, readOnlyDefault));
+			warnings.push(...verifyFilesWarnings(stage, everyStage));
 			warnings.push(
 				...(await supportSourceLookupWarnings(
 					stage,
@@ -87,14 +89,26 @@ export async function collectAuthoringRuleWarnings(
 			}
 			if (stage.type === "loop" && Array.isArray(stage.stages)) {
 				warnings.push(...(await loopUntilWarnings(stage, loadSchema)));
-				await walk(stage.stages, "loop");
-				if (isRecord(stage.onExhausted)) await walk([stage.onExhausted], "dag");
+				await walk(stage.stages, "loop", everyStage);
+				if (isRecord(stage.onExhausted))
+					await walk([stage.onExhausted], "dag", everyStage);
 			} else if (stage.type === "dag" && Array.isArray(stage.stages)) {
-				await walk(stage.stages, "dag");
+				await walk(stage.stages, "dag", everyStage);
 			}
 		}
 	};
-	await walk(stages, "top");
+	const everyStage = new Map<string, Stage>();
+	const collectStages = (list: readonly unknown[]): void => {
+		for (const stage of list) {
+			if (!isRecord(stage)) continue;
+			if (typeof stage.id === "string" && !everyStage.has(stage.id))
+				everyStage.set(stage.id, stage);
+			if (Array.isArray(stage.stages)) collectStages(stage.stages);
+			if (isRecord(stage.onExhausted)) collectStages([stage.onExhausted]);
+		}
+	};
+	collectStages(stages);
+	await walk(stages, "top", everyStage);
 	return warnings;
 }
 
@@ -295,6 +309,40 @@ const FORBIDS_COMMANDS: RegExp[] = [
 	),
 	/\b(?:run|execute|use)\s+no\s+(?:shell\s+)?commands?\b/i,
 ];
+
+/**
+ * The write-verify helper shape: a support stage whose `options.files` lists `{ path }` entries is checked
+ * against the writer stage (`options.writer`, default "write"). A path the writer's prompt never names is a
+ * file the writer has no reason to create. Only this shape is judged; a writer that is not found is skipped.
+ */
+function verifyFilesWarnings(
+	stage: Stage,
+	everyStage: ReadonlyMap<string, Stage>,
+): string[] {
+	const options = stage.support?.options;
+	if (!isRecord(options) || !Array.isArray(options.files)) return [];
+	const files = options.files;
+	if (files.length === 0) return [];
+	const paths: string[] = [];
+	for (const entry of files) {
+		if (!isRecord(entry) || typeof entry.path !== "string" || entry.path === "")
+			return [];
+		paths.push(entry.path);
+	}
+	const writerId =
+		typeof options.writer === "string" ? options.writer : "write";
+	const writer = everyStage.get(writerId);
+	if (!writer || !isModelBacked(writer)) return [];
+	const prompt = [writer.prompt, writer.each?.prompt]
+		.filter((text): text is string => typeof text === "string")
+		.join("\n");
+	return paths
+		.filter((path) => !prompt.includes(path))
+		.map(
+			(path) =>
+				`stage "${stage.id}" checks ${JSON.stringify(path)} (support.options.files) but the prompt of its writer "${writerId}" does not name that path, so the writer has no reason to create it and the check would fail. Name the path in the writer's prompt, or correct the path.`,
+		);
+}
 
 function readOnlyCommandWarnings(
 	stage: Stage,

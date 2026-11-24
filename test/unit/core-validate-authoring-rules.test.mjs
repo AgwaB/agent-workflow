@@ -835,6 +835,80 @@ test("the command-forbidding warning needs readOnly: a stage-level readOnly:fals
 	assert.match(warning, /stage "fe" is readOnly/);
 });
 
+const verifyStage = (files, options = {}, extra = {}) => ({
+	id: "verify",
+	from: ["write"],
+	support: { uses: "./verify.mjs", options: { files, ...options } },
+	...extra,
+});
+
+test("a write-verify helper whose file path is missing from the writer prompt warns, naming stage, path and writer", async () => {
+	const compiled = await validate(
+		[
+			single("write", { prompt: "Create OUTPUT.md with a heading." }),
+			verifyStage([
+				{ path: "OUTPUT.md", markers: ["# Output"] },
+				{ path: "docs/NOTES.md" },
+				{ path: "extra/report.md" },
+			]),
+		],
+		{ "verify.mjs": {} },
+	);
+	const found = matching(compiled, /does not name that path/);
+	assert.equal(found.length, 2, found.join("\n"));
+	assert.match(found[0], /stage "verify" checks "docs\/NOTES\.md"/);
+	assert.match(found[0], /writer "write"/);
+	assert.match(found[1], /"extra\/report\.md"/);
+});
+
+test("the writer is options.writer or write; a named path, an unknown writer or another helper shape does not warn", async () => {
+	const named = await validate(
+		[
+			single("author", { prompt: "Write docs/NOTES.md and OUTPUT.md." }),
+			single("write", { prompt: "Unrelated." }),
+			verifyStage(
+				[{ path: "docs/NOTES.md" }, { path: "OUTPUT.md" }],
+				{ writer: "author" },
+				{ from: ["author"] },
+			),
+		],
+		{ "verify.mjs": {} },
+	);
+	assert.equal(matching(named, /does not name that path/).length, 0);
+	const wrongWriter = await validate(
+		[
+			single("author", { prompt: "Write docs/NOTES.md." }),
+			verifyStage([{ path: "docs/NOTES.md" }], {}, { from: ["author"] }),
+		],
+		{ "verify.mjs": {} },
+	);
+	assert.equal(
+		matching(wrongWriter, /does not name that path/).length,
+		0,
+		"no stage called write: nothing to compare",
+	);
+	const otherShape = await validate(
+		[
+			single("write", { prompt: "Write something." }),
+			{
+				id: "check",
+				from: ["write"],
+				support: {
+					uses: "./verify.mjs",
+					options: { files: ["a.md"], limit: 3 },
+				},
+			},
+			{
+				id: "check2",
+				from: ["write"],
+				support: { uses: "./verify.mjs", options: { threshold: 2 } },
+			},
+		],
+		{ "verify.mjs": {} },
+	);
+	assert.equal(matching(otherShape, /does not name that path/).length, 0);
+});
+
 test("new authoring-rule warnings are advisory: classified, not strict-blocking", async () => {
 	const compiled = await validate([
 		single("main", { prompt: "Use ${input.x}.", profileRole: undefined }),
