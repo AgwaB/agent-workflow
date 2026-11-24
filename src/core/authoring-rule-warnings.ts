@@ -62,11 +62,11 @@ export async function collectAuthoringRuleWarnings(
 			if (isRecord(stage) && typeof stage.id === "string")
 				byId.set(stage.id, stage);
 		}
+		warnings.push(...implicitChainWarnings(siblings, mode));
 		for (const [index, stage] of siblings.entries()) {
 			if (!isRecord(stage) || typeof stage.id !== "string") continue;
 			warnings.push(...profileRoleWarnings(stage));
 			warnings.push(...placeholderWarnings(stage));
-			warnings.push(...implicitChainWarnings(stage, siblings, index, mode));
 			warnings.push(...readOnlyCommandWarnings(stage, readOnlyDefault));
 			warnings.push(...verifyFilesWarnings(stage, everyStage));
 			warnings.push(
@@ -167,19 +167,28 @@ async function supportSourceLookupWarnings(
 		);
 }
 
-/** A top-level stage (not the first) with neither `from` nor `after` runs after and reads the previous stage. */
+/**
+ * Top-level stages (not the first) with neither `from` nor `after` run after and read the previous stage.
+ * One warning per spec names them all, so a linear spec is not flagged once per stage on every launch.
+ */
 function implicitChainWarnings(
-	stage: Stage,
 	siblings: readonly unknown[],
-	index: number,
 	mode: "top" | "dag" | "loop",
 ): string[] {
-	if (mode !== "top" || index === 0) return [];
-	if (stage.from !== undefined || stage.after !== undefined) return [];
-	const previous = siblings[index - 1];
-	if (!isRecord(previous) || typeof previous.id !== "string") return [];
+	if (mode !== "top") return [];
+	const chained: string[] = [];
+	for (const [index, stage] of siblings.entries()) {
+		if (index === 0 || !isRecord(stage) || typeof stage.id !== "string")
+			continue;
+		if (stage.from !== undefined || stage.after !== undefined) continue;
+		const previous = siblings[index - 1];
+		if (!isRecord(previous) || typeof previous.id !== "string") continue;
+		chained.push(stage.id);
+	}
+	if (chained.length === 0) return [];
+	const names = chained.map((id) => `"${id}"`).join(", ");
 	return [
-		`stage "${stage.id}" has neither from nor after, so it runs after "${previous.id}" and reads it implicitly (the previous stage is its source, except after a loop). Say what you mean: from: ["${previous.id}"] to read it, or after: [] to start without it.`,
+		`stage${chained.length === 1 ? "" : "s"} ${names} ${chained.length === 1 ? "has" : "have"} neither from nor after, so ${chained.length === 1 ? "it runs" : "they run"} after and read${chained.length === 1 ? "s" : ""} the previous stage implicitly (the previous stage is the source, except after a loop). Declare from: [...] to read a stage, or after: [] to start without one, to make it explicit.`,
 	];
 }
 

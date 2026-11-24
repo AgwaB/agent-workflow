@@ -938,10 +938,23 @@ test("a top-level stage with neither from nor after warns that it reads the prev
 	]);
 	const found = matching(implicit, /neither from nor after/);
 	assert.equal(found.length, 1, found.join("\n"));
-	assert.match(found[0], /stage "b"/);
-	assert.match(found[0], /"a"/);
-	assert.match(found[0], /from: \["a"\]/);
+	assert.match(found[0], /stage "b" has neither from nor after/);
+	assert.doesNotMatch(found[0], /"[acde]"/);
+	assert.match(found[0], /from: \[\.\.\.\]/);
 	assert.match(found[0], /after: \[\]/);
+});
+
+test("a linear spec gets one implicit-chain warning naming every chained stage, not one per stage", async () => {
+	const linear = await validate([
+		single("a"),
+		single("b"),
+		single("c"),
+		single("d"),
+	]);
+	const found = matching(linear, /neither from nor after/);
+	assert.equal(found.length, 1, found.join("\n"));
+	assert.match(found[0], /stages "b", "c", "d" have neither from nor after/);
+	assert.doesNotMatch(found[0], /"a"/);
 });
 
 test("the first stage, explicit from/after and children of a dag or loop do not warn about an implicit chain", async () => {
