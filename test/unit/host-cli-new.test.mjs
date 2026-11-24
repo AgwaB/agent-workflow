@@ -1403,3 +1403,357 @@ test("collect-render: rehearses clean in a repository with history", async () =>
 	).data;
 	assert.deepEqual(rehearsed.findings, []);
 });
+
+// ------------------------------------------------------------ inventory-foreach
+
+test("inventory-foreach: new --list says in one line which pattern is for items found in files", async () => {
+	const json = JSON.parse((await run(["new", "--list", "--json"])).out);
+	const byId = Object.fromEntries(
+		json.data.patterns.map((pattern) => [pattern.id, pattern.description]),
+	);
+	assert.match(byId["inventory-foreach"], /exist in repo files/u);
+	assert.match(byId["inventory-foreach"], /quote is not in its file/u);
+	assert.match(byId["foreach-reduce"], /not for items found in files/u);
+	assert.match(byId["foreach-reduce"], /inventory-foreach/u);
+	for (const description of Object.values(byId))
+		assert.ok(!description.includes("\n"));
+});
+
+test("inventory-foreach: the foreach reads only the verified list, the check sits between plan and work", async () => {
+	const files = Object.fromEntries(
+		generatePatternFiles("inventory-foreach", "shape").map((file) => [
+			file.path,
+			file.content,
+		]),
+	);
+	const spec = JSON.parse(files["spec.json"]);
+	const ids = spec.artifactGraph.stages.map((stage) => stage.id);
+	assert.deepEqual(ids, ["plan", "verify-inventory", "work", "report"]);
+	const [plan, verify, work, report] = spec.artifactGraph.stages;
+	assert.equal(verify.type, undefined);
+	assert.deepEqual(verify.from, ["plan"]);
+	assert.equal(verify.sourcePolicy, "require-success");
+	assert.deepEqual(work.from, { source: "verify-inventory", path: "$.items" });
+	assert.ok(report.from.includes("verify-inventory"));
+	assert.deepEqual(report.inputPolicy.requiredReads, [
+		{ source: "verify-inventory", artifact: "control" },
+	]);
+	// Every plan row carries evidence { file, quote }, and the plan prompt says code checks it.
+	const planSchema = JSON.parse(files["schemas/plan.schema.json"]);
+	const row = planSchema.properties.items.items;
+	assert.deepEqual(row.required, ["id", "name", "detail", "evidence"]);
+	assert.deepEqual(row.properties.evidence.required, ["file", "quote"]);
+	assert.match(plan.prompt, /Code checks every quote in its file/u);
+	// The stored files are the same bytes for the same arguments.
+	assert.deepEqual(
+		generatePatternFiles("inventory-foreach", "shape"),
+		generatePatternFiles("inventory-foreach", "shape"),
+	);
+});
+
+/** A project with src/ files, the helper of a freshly generated inventory-foreach bundle, and a call wrapper. */
+async function inventoryFixture() {
+	const { dir, bundle, helper } = await withHelper(
+		"inventory-foreach",
+		"inv",
+		"verify-inventory.mjs",
+	);
+	await mkdir(join(dir, "src"));
+	await writeFile(
+		join(dir, "src/format.ts"),
+		"export function formatName(user: string): string {\n  return user.trim();\n}\n\nexport function slugify(text: string): string {\n  return text.toLowerCase();\n}\n",
+	);
+	await writeFile(
+		join(dir, "src/users.ts"),
+		"export interface User {\n  id: string;\n}\nexport function findUser(id: string): User {\n  return { id };\n}\n",
+	);
+	const schema = JSON.parse(
+		await readFile(
+			join(bundle, "schemas/verified-inventory.schema.json"),
+			"utf8",
+		),
+	);
+	const row = (id, name, file, quote) => ({
+		id,
+		name,
+		detail: `${name} detail`,
+		evidence: { file, quote },
+	});
+	const check = async (items, cwd = dir) => {
+		const value = await helper({
+			sources: { plan: { items } },
+			context: { cwd, runId: "r", sourceStatuses: [] },
+		});
+		assert.deepEqual(validateJsonSchema(value, schema).issues, []);
+		assert.equal(value.gates.passed, value.status === "passed");
+		assert.equal(value.proposed, items.length);
+		assert.equal(value.verified, value.items.length);
+		return value;
+	};
+	return { dir, helper, check, row, schema };
+}
+
+test("inventory-foreach: a row whose quote is in its file is verified, with its line", async () => {
+	const { check, row } = await inventoryFixture();
+	const value = await check([
+		row(
+			"W-01",
+			"formatName",
+			"src/format.ts",
+			"export function formatName(user: string)",
+		),
+		row(
+			"W-02",
+			"findUser",
+			"src/users.ts",
+			"export function findUser(id: string): User {",
+		),
+	]);
+	assert.equal(value.status, "passed");
+	assert.deepEqual(
+		value.items.map((item) => [
+			item.id,
+			item.evidence.file,
+			item.evidence.line,
+		]),
+		[
+			["W-01", "src/format.ts", 1],
+			["W-02", "src/users.ts", 4],
+		],
+	);
+	assert.deepEqual(value.rejected, []);
+	assert.equal(value.digest, "2 of 2 items verified");
+	assert.match(value.markdown, /Verified: 2/u);
+});
+
+test("inventory-foreach: a phantom row in the wrong file is rejected, the real ones pass on (B3)", async () => {
+	const { check, row } = await inventoryFixture();
+	const value = await check([
+		row(
+			"W-01",
+			"formatName",
+			"src/format.ts",
+			"export function formatName(user: string)",
+		),
+		row(
+			"W-02",
+			"formatName",
+			"src/users.ts",
+			"export function formatName(user: string)",
+		),
+		row(
+			"W-03",
+			"slugify",
+			"src/users.ts",
+			"export function slugify(text: string)",
+		),
+	]);
+	assert.equal(value.status, "passed");
+	assert.deepEqual(
+		value.items.map((item) => item.id),
+		["W-01"],
+	);
+	assert.deepEqual(
+		value.rejected.map((rejected) => [rejected.id, rejected.file]),
+		[
+			["W-02", "src/users.ts"],
+			["W-03", "src/users.ts"],
+		],
+	);
+	assert.match(value.rejected[0].reason, /quote is not in src\/users\.ts/u);
+	assert.equal(value.digest, "1 of 3 items verified, 2 rejected");
+	assert.match(value.markdown, /Rejected rows/u);
+	assert.match(value.markdown, /`W-02`/u);
+});
+
+test("inventory-foreach: quote absent, quote too short, quote without the name, missing file and duplicate id are rejected with a reason", async () => {
+	const { check, row } = await inventoryFixture();
+	const value = await check([
+		row(
+			"A",
+			"slugify",
+			"src/format.ts",
+			"export function slugify(text: number)",
+		),
+		row("B", "x", "src/format.ts", "x"),
+		row("C", "findUser", "src/users.ts", "export interface User {"),
+		row("D", "gone", "src/gone.ts", "export function gone() {}"),
+		row(
+			"E",
+			"slugify",
+			"src/format.ts",
+			"export function slugify(text: string)",
+		),
+		row("E", "formatName", "src/format.ts", "export function formatName("),
+		{ id: "F", name: "no evidence", detail: "" },
+	]);
+	assert.deepEqual(
+		value.items.map((item) => item.id),
+		["E"],
+	);
+	const reasons = Object.fromEntries(
+		value.rejected.map((rejected) => [rejected.id, rejected.reason]),
+	);
+	assert.match(reasons.A, /quote is not in src\/format\.ts/u);
+	assert.match(reasons.B, /too short/u);
+	assert.match(reasons.C, /does not contain the name "findUser"/u);
+	assert.match(reasons.D, /does not exist/u);
+	assert.match(reasons.E, /id is already used/u);
+	assert.match(reasons.F, /lacks an id, a name or its evidence/u);
+});
+
+test("inventory-foreach: paths that escape the project, absolute paths, urls and symlinks are refused", async () => {
+	const { dir, check, row } = await inventoryFixture();
+	const outside = await mkdtemp(join(root, "outside-"));
+	await writeFile(join(outside, "secret.ts"), "export function secret() {}\n");
+	await symlink(join(outside, "secret.ts"), join(dir, "src/link.ts"));
+	await symlink(outside, join(dir, "src/linked"));
+	await symlink(join(dir, "src/format.ts"), join(dir, "src/alias.ts"));
+	const quote = "export function secret()";
+	const value = await check([
+		row("P1", "secret", "../" + outside.split("/").pop() + "/secret.ts", quote),
+		row("P2", "secret", join(outside, "secret.ts"), quote),
+		row("P3", "secret", "src/../../x.ts", quote),
+		row("P4", "secret", "file:///etc/passwd", quote),
+		row("P5", "secret", "src/link.ts", quote),
+		row("P6", "secret", "src/linked/secret.ts", quote),
+		row("P7", "formatName", "src/alias.ts", "export function formatName("),
+		row("P8", "secret", "src", quote),
+		row("P9", "secret", ".", quote),
+	]);
+	assert.equal(value.status, "failed");
+	assert.deepEqual(value.items, []);
+	const reasons = Object.fromEntries(
+		value.rejected.map((rejected) => [rejected.id, rejected.reason]),
+	);
+	assert.match(reasons.P1, /leaves the project directory/u);
+	assert.match(reasons.P2, /not a relative path/u);
+	assert.match(reasons.P3, /leaves the project directory/u);
+	assert.match(reasons.P4, /not a relative path/u);
+	assert.match(reasons.P5, /symlink/u);
+	assert.match(reasons.P6, /symlink/u);
+	assert.match(reasons.P7, /symlink/u);
+	assert.match(reasons.P8, /not a regular file/u);
+	assert.match(reasons.P9, /leaves the project directory/u);
+});
+
+test("inventory-foreach: an empty list and a list with no survivor fail in plain words", async () => {
+	const { check, row } = await inventoryFixture();
+	const empty = await check([]);
+	assert.equal(empty.status, "failed");
+	assert.equal(empty.gates.passed, false);
+	assert.equal(
+		empty.digest,
+		"the plan listed no items, so there is nothing to work on",
+	);
+	const none = await check([
+		row("W-01", "slugify", "src/users.ts", "export function slugify(text"),
+		row("W-02", "formatName", "src/users.ts", "export function formatName("),
+	]);
+	assert.equal(none.status, "failed");
+	assert.deepEqual(none.items, []);
+	assert.equal(none.rejected.length, 2);
+	assert.match(
+		none.digest,
+		/^no item survived: 2 proposed, 0 verified \(W-01: the quote is not in src\/users\.ts\)$/u,
+	);
+	assert.match(
+		none.completionSummaryMarkdown,
+		/^Inventory check failed: no item survived/u,
+	);
+	assert.match(none.markdown, /Every proposed row was rejected/u);
+});
+
+test("inventory-foreach: a CRLF file still verifies a quote copied with LF line endings, and the file is read as bytes", async () => {
+	const { dir, check, row } = await inventoryFixture();
+	await writeFile(
+		join(dir, "src/crlf.ts"),
+		"// head\r\nexport function a(\r\n  x: number,\r\n) {}\r\n",
+	);
+	await writeFile(
+		join(dir, "src/bad.ts"),
+		Buffer.from([0x65, 0xff, 0xfe, 0x0a]),
+	);
+	const value = await check([
+		row("C", "a", "src/crlf.ts", "export function a(\n  x: number,\n)"),
+		row("U", "e", "src/bad.ts", "eeeeeeee"),
+		row("T", "formatName", "src/format.ts", "Export function formatName("),
+	]);
+	assert.deepEqual(
+		value.items.map((item) => [item.id, item.evidence.line]),
+		[["C", 2]],
+	);
+	const reasons = Object.fromEntries(
+		value.rejected.map((rejected) => [rejected.id, rejected.reason]),
+	);
+	assert.match(reasons.U, /not valid UTF-8/u);
+	assert.match(reasons.T, /quote is not in/u);
+});
+
+test("inventory-foreach: a helper whose plan has no items list is a wiring error (throws)", async () => {
+	const { helper, dir } = await inventoryFixture();
+	await assert.rejects(
+		helper({ sources: {}, context: { cwd: dir } }),
+		/inventory: the plan stage has no items list/u,
+	);
+	await assert.rejects(
+		helper({ sources: { plan: { items: "x" } }, context: { cwd: dir } }),
+		/inventory: the plan stage has no items list/u,
+	);
+});
+
+test("inventory-foreach: under rehearsal the check passes every row on and reads no file", async () => {
+	const { helper } = await inventoryFixture();
+	const nowhere = join(root, "does-not-exist");
+	const items = [
+		{
+			id: "S-1",
+			name: "x",
+			detail: "",
+			evidence: { file: "nowhere.ts", quote: "x" },
+		},
+		{
+			id: "S-2",
+			name: "y",
+			detail: "",
+			evidence: { file: "../escape.ts", quote: "y" },
+		},
+	];
+	process.env.AGENT_WORKFLOW_REHEARSAL = "1";
+	try {
+		const value = await helper({
+			sources: { plan: { items } },
+			context: { cwd: nowhere },
+		});
+		assert.equal(value.status, "passed");
+		assert.deepEqual(
+			value.items.map((item) => item.id),
+			["S-1", "S-2"],
+		);
+		assert.deepEqual(value.rejected, []);
+		assert.match(value.markdown, /Rehearsal: the files were not read/u);
+	} finally {
+		delete process.env.AGENT_WORKFLOW_REHEARSAL;
+	}
+	// The same rows outside a rehearsal are all rejected.
+	const { dir } = await inventoryFixture();
+	const real = await helper({
+		sources: { plan: { items } },
+		context: { cwd: dir },
+	});
+	assert.equal(real.status, "failed");
+});
+
+test("inventory-foreach: rehearsal fans the foreach out over the verified list and exits 0", async () => {
+	const dir = await projectFor("inventory-foreach", "inv-run-");
+	assert.equal(
+		(await run(["new", "inventory-foreach", "g"], { cwd: dir })).code,
+		0,
+	);
+	const rehearsed = await run(["rehearse", "g", "--json"], { cwd: dir });
+	assert.equal(rehearsed.code, 0, rehearsed.out);
+	const report = JSON.parse(rehearsed.out).data;
+	assert.equal(report.status, "completed");
+	const work = report.stages.find((stage) => stage.stage === "work");
+	assert.equal(work.statuses.completed >= 1, true);
+});
