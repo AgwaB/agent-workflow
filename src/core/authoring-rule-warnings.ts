@@ -62,6 +62,7 @@ export async function collectAuthoringRuleWarnings(
 			if (!isRecord(stage) || typeof stage.id !== "string") continue;
 			warnings.push(...profileRoleWarnings(stage));
 			warnings.push(...placeholderWarnings(stage));
+			warnings.push(...implicitChainWarnings(stage, siblings, index, mode));
 			warnings.push(
 				...(await supportSourceLookupWarnings(
 					stage,
@@ -146,6 +147,22 @@ async function supportSourceLookupWarnings(
 			(name) =>
 				`stage "${stage.id}" support helper "${uses}" looks up source ${JSON.stringify(name)}, which is not one of its sources (${from.join(", ") || "none"}). The lookup is always empty, so a helper that then declares failed or blocked is most likely reporting a wiring error, not a content gate. Use a name its from/after provides (or add the stage to from).`,
 		);
+}
+
+/** A top-level stage (not the first) with neither `from` nor `after` runs after and reads the previous stage. */
+function implicitChainWarnings(
+	stage: Stage,
+	siblings: readonly unknown[],
+	index: number,
+	mode: "top" | "dag" | "loop",
+): string[] {
+	if (mode !== "top" || index === 0) return [];
+	if (stage.from !== undefined || stage.after !== undefined) return [];
+	const previous = siblings[index - 1];
+	if (!isRecord(previous) || typeof previous.id !== "string") return [];
+	return [
+		`stage "${stage.id}" has neither from nor after, so it runs after "${previous.id}" and reads it implicitly (the previous stage is its source, except after a loop). Say what you mean: from: ["${previous.id}"] to read it, or after: [] to start without it.`,
+	];
 }
 
 function isModelBacked(stage: Stage): boolean {

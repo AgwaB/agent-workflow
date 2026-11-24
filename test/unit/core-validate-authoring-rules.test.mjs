@@ -720,3 +720,48 @@ test("new authoring-rule warnings are advisory: classified, not strict-blocking"
 		}),
 	);
 });
+
+test("a top-level stage with neither from nor after warns that it reads the previous stage implicitly", async () => {
+	const implicit = await validate([
+		single("a"),
+		single("b"),
+		single("c", { from: ["b"] }),
+		single("d", { after: [] }),
+		single("e", { after: ["a"] }),
+	]);
+	const found = matching(implicit, /neither from nor after/);
+	assert.equal(found.length, 1, found.join("\n"));
+	assert.match(found[0], /stage "b"/);
+	assert.match(found[0], /"a"/);
+	assert.match(found[0], /from: \["a"\]/);
+	assert.match(found[0], /after: \[\]/);
+});
+
+test("the first stage, explicit from/after and children of a dag or loop do not warn about an implicit chain", async () => {
+	const compiled = await validate(
+		[
+			single("a"),
+			single("b", { after: [] }),
+			{
+				id: "fan",
+				type: "dag",
+				after: ["b"],
+				outputFrom: "y",
+				stages: [single("x"), single("y")],
+			},
+			{
+				id: "refine",
+				type: "loop",
+				after: ["fan"],
+				maxRounds: 2,
+				until: { stage: "z", path: "$.ok", equals: true },
+				stages: [
+					single("w"),
+					single("z", { output: { controlSchema: "./z.json" } }),
+				],
+			},
+		],
+		{ "z.json": schema({ ok: { type: "boolean" } }) },
+	);
+	assert.equal(matching(compiled, /neither from nor after/).length, 0);
+});
