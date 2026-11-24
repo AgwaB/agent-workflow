@@ -5,7 +5,10 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 import { collectAuthoringRuleWarnings } from "./authoring-rule-warnings.js";
-import { pinnedControlSchemaId } from "./control-protocol-facts.js";
+import {
+	noInventSentence,
+	pinnedControlSchemaId,
+} from "./control-protocol-facts.js";
 import { loadAgentByName } from "./agents.js";
 import {
 	configurationSlot,
@@ -386,6 +389,7 @@ function appendWorkflowOutputInstructions(
 			"stage-control-v1",
 			pinnedControlSchemaId(schemaFile),
 		),
+		noInventSentence(schemaFile, prompt),
 		"Put detailed prose, reasoning, and evidence discussion in <analysis> only.",
 		"Put structured evidence pointers in <refs> as a JSON array; use [] if none.",
 		...partialOutputInstructions(stage.output?.partial?.paths),

@@ -1,8 +1,8 @@
 {
 	"workflows/deep-research/spec.json": {
 		"plan.main": {
-			"chars": 8266,
-			"sha256": "cf1d7b1a46c4de1184ddce812769c6fdbc0c943c52b48377bcc6c2b2c008cde8"
+			"chars": 8604,
+			"sha256": "6111ac976f94a4ff33d5c4b74f3ab4f7f09abc77e7e7036932e98c653d3b45af"
 		},
 		"research-questions.item": {
 			"chars": 6937,
@@ -27,8 +27,8 @@
 	},
 	"workflows/deep-research/tiered-verification.spec.json": {
 		"plan.main": {
-			"chars": 6944,
-			"sha256": "80efed20dfc0e7f329793b2ea4757dae59d09929cc4a7f2aac8f560f7a7b14af"
+			"chars": 7282,
+			"sha256": "cb57d2641ab1150f152035223e6dd475a18042040cb77696e6aaa77133c96ff2"
 		},
 		"research-questions.item": {
 			"chars": 5745,
@@ -61,8 +61,8 @@
 			"sha256": "1956e7fd1133dbc27e6de297b469245698b6187ca6ec1816e8876ee650baaa15"
 		},
 		"reviewers.item": {
-			"chars": 5383,
-			"sha256": "c71de0bd107295f98cd2025a2c36c52053106cc1691f9735133486ac1796655f"
+			"chars": 5640,
+			"sha256": "6a8a995df0ec6b550fe42496d3e806b0c4d3d2bb465a86db9a44b127afd2d1a3"
 		},
 		"devil-advocate.item": {
 			"chars": 3856,
