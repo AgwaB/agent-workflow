@@ -56,6 +56,7 @@ export async function collectAuthoringRuleWarnings(
 		siblings: readonly unknown[],
 		mode: "top" | "dag" | "loop",
 		everyStage: ReadonlyMap<string, Stage>,
+		inLoop = false,
 	): Promise<void> => {
 		const byId = new Map<string, Stage>();
 		for (const stage of siblings) {
@@ -68,6 +69,7 @@ export async function collectAuthoringRuleWarnings(
 			warnings.push(...profileRoleWarnings(stage));
 			warnings.push(...placeholderWarnings(stage));
 			warnings.push(...readOnlyCommandWarnings(stage, readOnlyDefault));
+			if (!inLoop) warnings.push(...selfManagedControlWarnings(stage));
 			warnings.push(...verifyFilesWarnings(stage, everyStage));
 			warnings.push(
 				...(await supportSourceLookupWarnings(
@@ -89,11 +91,11 @@ export async function collectAuthoringRuleWarnings(
 			}
 			if (stage.type === "loop" && Array.isArray(stage.stages)) {
 				warnings.push(...(await loopUntilWarnings(stage, loadSchema)));
-				await walk(stage.stages, "loop", everyStage);
+				await walk(stage.stages, "loop", everyStage, true);
 				if (isRecord(stage.onExhausted))
-					await walk([stage.onExhausted], "dag", everyStage);
+					await walk([stage.onExhausted], "dag", everyStage, inLoop);
 			} else if (stage.type === "dag" && Array.isArray(stage.stages)) {
-				await walk(stage.stages, "dag", everyStage);
+				await walk(stage.stages, "dag", everyStage, inLoop);
 			}
 		}
 	};
@@ -351,6 +353,75 @@ function verifyFilesWarnings(
 			(path) =>
 				`stage "${stage.id}" checks ${JSON.stringify(path)} (support.options.files) but the prompt of its writer "${writerId}" does not name that path, so the writer has no reason to create it and the check would fail. Name the path in the writer's prompt, or correct the path.`,
 		);
+}
+
+// Retries or attempts the model is asked to manage inside one stage ("make at most 3 repair attempts",
+// "retry up to 3 times", "repeat until the tests pass", "stop as soon as npm test exits 0"). The engine
+// can neither enforce nor observe those attempts, and a loop with a code-decided exit can. Precision over
+// recall: each pattern needs the count, the "until" or the stop condition next to the attempt word, so a
+// domain noun ("retry logic", "payment retries") never matches.
+const COUNT_WORD =
+	"(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|several|multiple)";
+const SELF_RETRY: RegExp[] = [
+	new RegExp(
+		`\\b(?:at most|up to|no more than|maximum of|max(?:imum)?|never (?:run )?more than|a limit of)\\s+${COUNT_WORD}\\s+(?:[\\w-]+\\s+){0,3}?(?:attempts?|tries|retries|re-?runs?)\\b`,
+		"i",
+	),
+	/\b(?:retry|retries|try again|re-?try|re-?run|repeat)\b[^.\n]{0,80}\b(?:up to|at most|until|as many times as)\b/i,
+	/\b(?:up to|at most)\s+\S+\s+(?:times|retries|rounds|iterations)\b[^.\n]{0,40}\b(?:retry|try|repeat|fix|re-?run)/i,
+	/\b(?:until|till)\b[^.\n]{0,60}\b(?:pass(?:es|ed|ing)?|green|succeeds?|succeeded|exits? (?:with )?(?:status |code )?0)\b/i,
+	/\bkeep (?:trying|fixing|iterating|retrying)\b/i,
+	/\bstop (?:early |immediately )?(?:as soon as|when|once|after the first)\b[^.\n]{0,60}\b(?:pass(?:es|ed|ing)?|green|exits? (?:with )?(?:status |code )?0|succeeds?)\b/i,
+];
+
+// Re-reading with a larger window or after a truncated tool result ("if the projection is truncated, retry
+// with a larger maxChars") is one tool call repeated, not an attempt loop the engine could own.
+const TOOL_READ_RETRY =
+	/\b(?:maxChars|originalChars|truncat\w*|larger|continuation|next page|pagination)\b/i;
+
+// Depth tiers the model is asked to apply to itself per item ("deeper investigation for hard items",
+// "for trivial inspect at most 1 file; for deep do 3 steps", "follow the item's depth cap").
+const TIER_WORD =
+	"(?:trivial|quick|easy|simple|light|shallow|focused|standard|medium|deep|hard|complex|difficult)";
+const SELF_TIER: RegExp[] = [
+	/\b(?:depth|effort|step)s?\s+(?:cap|budget|limit)s?\b/i,
+	new RegExp(
+		`\\bfor\\s+(?:a\\s+|an\\s+)?${TIER_WORD}\\s+(?:items?|issues?|cases?|problems?|findings?|questions?)?[^.\\n;]{0,60}\\b(?:at most|up to|exactly|no more than)\\s+${COUNT_WORD}\\s+(?:[\\w-]+\\s+){0,2}?(?:steps?|files?|passes?|rounds?|checks?|tool calls?|searches|reads)\\b`,
+		"i",
+	),
+	/\b(?:deeper|more (?:steps|passes|rounds|effort|investigation)|extra (?:steps|passes|rounds)|additional (?:steps|passes|rounds))\b[^.\n]{0,60}\b(?:hard|harder|difficult|complex|complicated|deep|risky)\s+(?:items?|issues?|cases?|problems?|findings?|questions?)\b/i,
+	/\b(?:hard|harder|difficult|complex|complicated|deep|risky)\s+(?:items?|issues?|cases?|problems?|findings?|questions?)\b[^.\n]{0,60}\b(?:deeper|more (?:steps|passes|rounds|effort|investigation)|extra (?:steps|passes|rounds)|additional (?:steps|passes|rounds))\b/i,
+];
+
+function selfManagedControlWarnings(stage: Stage): string[] {
+	// A dynamic controller decides rounds and depth in the engine's own loop; support stages run code.
+	if (!isModelBacked(stage) || stage.type === "dynamic") return [];
+	const prompt = [stage.prompt, stage.each?.prompt]
+		.filter((text): text is string => typeof text === "string")
+		.join("\n");
+	const warnings: string[] = [];
+	let phrase: string | undefined;
+	for (const pattern of SELF_RETRY) {
+		const found = pattern.exec(prompt)?.[0];
+		if (found !== undefined && !TOOL_READ_RETRY.test(found)) {
+			phrase = found;
+			break;
+		}
+	}
+	if (phrase)
+		warnings.push(
+			`stage "${stage.id}" asks the model to manage its own retries or attempts ("${phrase.trim()}"), outside a loop. The engine cannot enforce or observe that count or when it stops. Use a \`loop\` stage (bounded \`maxRounds\`, an exit decided in code from a check stage or helper) and give each round one attempt.`,
+		);
+	phrase = undefined;
+	for (const pattern of SELF_TIER) {
+		phrase = pattern.exec(prompt)?.[0];
+		if (phrase) break;
+	}
+	if (phrase)
+		warnings.push(
+			`stage "${stage.id}" asks the model to scale its own depth by item difficulty ("${phrase.trim()}"). The engine cannot enforce or observe tiers written as prompt text. Have a plan or support stage assign each item a tier in code and give each tier its own bounded stage (or a dynamic controller), instead of one prompt with all tiers.`,
+		);
+	return warnings;
 }
 
 function readOnlyCommandWarnings(

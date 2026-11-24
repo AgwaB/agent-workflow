@@ -113,6 +113,14 @@ function classifyWarning(message: string): WorkflowCompileDiagnostic {
 		code = "prompt.placeholder_unsupported";
 	} else if (/but its prompt forbids tool use/.test(message)) {
 		code = "prompt.forbids_tools_with_sources";
+	} else if (
+		/asks the model to manage its own retries or attempts/.test(message)
+	) {
+		code = "prompt.self_managed_retries";
+	} else if (
+		/asks the model to scale its own depth by item difficulty/.test(message)
+	) {
+		code = "prompt.self_managed_depth_tiers";
 	} else if (/fans out over .* has no maxItems/.test(message)) {
 		code = "control_schema.foreach_unbounded";
 	} else if (/loop stage .* until path/.test(message)) {
