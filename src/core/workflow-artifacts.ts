@@ -1,3 +1,4 @@
+import { outputRetriesUsed } from "./output-retry-count.js";
 import { isSupersededLoopTask } from "./store.js";
 import type { WorkflowRunRecord, WorkflowTaskRunRecord } from "./types.js";
 
@@ -149,7 +150,11 @@ function accumulateTaskReliability(
 	accumulator: WorkflowTelemetryAccumulator,
 ): void {
 	if (taskHasContextLimitFailure(task)) accumulator.contextLimitFailures += 1;
-	const currentOutputAttempts = positiveCount(task.outputRetry?.attempts);
+	// retries made: the last, exhausted attempt is not one (see output-retry-count.ts)
+	const currentOutputAttempts = outputRetriesUsed(
+		task.outputRetry?.attempts,
+		task.outputRetry?.reason,
+	);
 	accumulator.outputRetries += currentOutputAttempts;
 	if (currentOutputAttempts > 0) {
 		countReason(accumulator.retryReasons.output, task.outputRetry?.reason);
@@ -194,7 +199,10 @@ function accumulateResumeEvent(
 		(accumulator.resumeStatusCounts[event.fromStatus] ?? 0) + 1;
 	if (resumeEventHasContextLimitFailure(event))
 		accumulator.contextLimitFailures += 1;
-	const previousOutputAttempts = positiveCount(event.outputRetryAttempts);
+	const previousOutputAttempts = outputRetriesUsed(
+		event.outputRetryAttempts,
+		event.outputRetryReason,
+	);
 	accumulator.outputRetries += previousOutputAttempts;
 	if (previousOutputAttempts > 0) {
 		countReason(accumulator.retryReasons.output, event.outputRetryReason);

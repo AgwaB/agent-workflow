@@ -769,7 +769,7 @@ A normal call drives scheduling for at most 45 s (default and cap; minimum 1 s).
 per-call limits: default 30 minutes, cap 4 hours. `timeoutMs` in data is the effective bound.
 
 `WaitData`: runId, status, semanticStatus, terminal, actionRequired, stillRunning, timeoutMs,
-blockedTaskIds, taskSummary, outputTaskIds, outputRetryAttempts, launchRetryAttempts, artifactRoot,
+blockedTaskIds, taskSummary, outputTaskIds, outputRetryAttempts (output retries made, not counting the first attempt), launchRetryAttempts, artifactRoot,
 nextRetry?, verdict?, verdictGate?, preview?, reportArtifacts, usage?, degradation?, pendingApprovals?,
 dashboard?. `onProgress` receives a RunSummary.
 

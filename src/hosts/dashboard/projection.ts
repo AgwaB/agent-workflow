@@ -11,6 +11,7 @@ import {
 import type { RunSummary, StatusData, showRunAction } from "../api.js";
 import type { WorkflowTaskUsageValues } from "../../core/types.js";
 import { EXECUTOR_NEEDS_DECISION_STATUS_DETAIL } from "../../core/terminal-result.js";
+import { outputRetriesUsed } from "../../core/output-retry-count.js";
 import { isUserStoppedRun } from "../../core/run-stop-marking.js";
 import type { TaskOutcome } from "./task-text.js";
 import type {
@@ -353,7 +354,16 @@ export function projectRun(
 	const record = shown.run;
 	const tasks: DashboardTask[] = record.tasks.map((task) => {
 		const runtime = run.tasks.find((item) => item.taskId === task.taskId);
-		const retry = task.launchRetry ?? task.outputRetry;
+		// "Attempt N of M" counts retries made: a task that exhausted its repairs shows M of M, none shows nothing.
+		const outputRetriesMade = outputRetriesUsed(
+			task.outputRetry?.attempts,
+			task.outputRetry?.reason,
+		);
+		const retry =
+			task.launchRetry ??
+			(task.outputRetry && outputRetriesMade > 0
+				? { ...task.outputRetry, attempts: outputRetriesMade }
+				: undefined);
 		const generated = Boolean(task.foreachGenerated || task.dynamicGenerated);
 		const executor =
 			runtime?.executor ?? task.runtime?.executor ?? run.executor;

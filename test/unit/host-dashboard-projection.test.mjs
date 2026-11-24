@@ -596,3 +596,35 @@ test("active time counts a running task until now, and a task with no completion
 	shown.run.tasks = [];
 	assert.equal(projectRunSummary(run, shown).activeMs, 0);
 });
+
+test("a task that exhausted its output repairs shows the retries made, and none when it made none", () => {
+	// "retries" are attempts after the first; `outputRetry.attempts` also counts the final, exhausted attempt
+	const retryOf = (outputRetry) => {
+		const { run, shown } = data();
+		const task = shown.run.tasks[1];
+		delete task.launchRetry;
+		task.status = "failed";
+		task.outputRetry = outputRetry;
+		return projectRun(run, shown).tasks[1].retry;
+	};
+	const exhausted = retryOf({
+		attempts: 3,
+		maxAttempts: 2,
+		reason: "workflow_output_invalid_exhausted",
+	});
+	assert.equal(exhausted.attempt, 2);
+	assert.equal(exhausted.maxAttempts, 2);
+	assert.equal(
+		retryOf({
+			attempts: 1,
+			maxAttempts: 0,
+			reason: "workflow_output_invalid_exhausted",
+		}),
+		undefined,
+	);
+	assert.equal(
+		retryOf({ attempts: 1, maxAttempts: 2, reason: "workflow_output_invalid" })
+			.attempt,
+		1,
+	);
+});

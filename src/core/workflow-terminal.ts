@@ -1,5 +1,6 @@
 import { dirname, join } from "node:path";
 
+import { outputRetriesUsed } from "./output-retry-count.js";
 import {
 	finalStageTasks,
 	fromStatePath,
@@ -29,6 +30,7 @@ export interface WorkflowTerminalSummary {
 	engineStatus: WorkflowRunRecord["status"];
 	semanticStatus: WorkflowSemanticStatus;
 	outputTaskIds: string[];
+	/** Output retries made (attempts after the first); the exhausted last attempt is not one. */
 	outputRetryAttempts: number;
 	launchRetryAttempts: number;
 	artifactRoot: string;
@@ -101,7 +103,9 @@ export async function summarizeWorkflowTerminal(
 		semanticStatus,
 		outputTaskIds,
 		outputRetryAttempts: run.tasks.reduce(
-			(total, task) => total + (task.outputRetry?.attempts ?? 0),
+			(total, task) =>
+				total +
+				outputRetriesUsed(task.outputRetry?.attempts, task.outputRetry?.reason),
 			0,
 		),
 		launchRetryAttempts: run.tasks.reduce(
