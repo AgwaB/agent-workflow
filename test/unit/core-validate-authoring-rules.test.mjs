@@ -1011,6 +1011,7 @@ test("a model stage that asks for its own retries or attempts warns; a loop chil
 		);
 		assert.match(warning, /cannot enforce or observe/);
 		assert.match(warning, /`loop` stage/);
+		assert.match(warning, /`agent-workflow new fix-loop <name>`/);
 	}
 	for (const prompt of [
 		"Audit the retry logic of the payment client and report the retry count it configures.",
@@ -1092,6 +1093,7 @@ test("a model stage that scales its own depth by item difficulty warns; structur
 	assert.ok(warning);
 	assert.match(warning, /stage "work" asks the model to scale its own depth/);
 	assert.match(warning, /cannot enforce or observe/);
+	assert.match(warning, /`agent-workflow new adaptive-depth <name>`/);
 	for (const phrase of [
 		"Give deeper investigation to hard items than to easy ones.",
 		"Hard issues need more steps than simple ones.",

@@ -410,7 +410,7 @@ function selfManagedControlWarnings(stage: Stage): string[] {
 	}
 	if (phrase)
 		warnings.push(
-			`stage "${stage.id}" asks the model to manage its own retries or attempts ("${phrase.trim()}"), outside a loop. The engine cannot enforce or observe that count or when it stops. Use a \`loop\` stage (bounded \`maxRounds\`, an exit decided in code from a check stage or helper) and give each round one attempt.`,
+			`stage "${stage.id}" asks the model to manage its own retries or attempts ("${phrase.trim()}"), outside a loop. The engine cannot enforce or observe that count or when it stops. Use a \`loop\` stage (bounded \`maxRounds\`, an exit decided in code from a check stage or helper) and give each round one attempt; \`agent-workflow new fix-loop <name>\` generates one for fixing failing tests.`,
 		);
 	phrase = undefined;
 	for (const pattern of SELF_TIER) {
@@ -419,7 +419,7 @@ function selfManagedControlWarnings(stage: Stage): string[] {
 	}
 	if (phrase)
 		warnings.push(
-			`stage "${stage.id}" asks the model to scale its own depth by item difficulty ("${phrase.trim()}"). The engine cannot enforce or observe tiers written as prompt text. Have a plan or support stage assign each item a tier in code and give each tier its own bounded stage (or a dynamic controller), instead of one prompt with all tiers.`,
+			`stage "${stage.id}" asks the model to scale its own depth by item difficulty ("${phrase.trim()}"). The engine cannot enforce or observe tiers written as prompt text. Have a plan or support stage assign each item a tier in code and give each tier its own bounded stage (or a dynamic controller), instead of one prompt with all tiers; \`agent-workflow new adaptive-depth <name>\` generates that triage.`,
 		);
 	return warnings;
 }
