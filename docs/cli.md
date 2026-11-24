@@ -182,7 +182,8 @@ agent-workflow check <workflow> [<task...>] [--executor <id>] [--profile <name>]
 
 The launch preflight without the launch: the same executor selection, compile and
 checks as `run` — executor installed and logged in, every stage's tools, model and effort available
-on the executor that would run it (names rewritten to that tool's form), capabilities. Prints the
+on the executor that would run it (names rewritten to that tool's form), capabilities, and a git repository with a commit for
+every write-capable stage (its managed worktree). Prints the
 short check and exits 0, or `Not started: …` with each problem (`✗`) and exits 1. No run, no
 duplicate-launch claim, no model call. See [usage.md](usage.md#preflight-capability-tools-models-and-effort).
 

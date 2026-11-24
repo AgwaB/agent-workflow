@@ -787,7 +787,9 @@ exit 1, no run record):
   confirm (Codex and Claude lists are not exhaustive) gets a one-line notice;
 - **effort** levels: a level the tool lacks becomes its nearest level with a notice (`minimal` →
   `low` on codex/claude, `ultra` → `max` on claude/pi); an unknown level is refused;
-- **capabilities** (below).
+- **capabilities** (below);
+- **a managed worktree** for a write-capable stage: `check` (not `run`, which fails when the writer starts)
+  refuses a working directory that is not inside a git repository or whose repository has no commit yet.
 
 The same check runs alone with `agent-workflow check <workflow> [--executor …] [--model …] …`
 (no run). The launch prints it short: the summary line, then each warning once with the stages it
@@ -854,8 +856,9 @@ rehearsal that exits 0 says no wiring fault was diagnosed, not that the wiring i
 
 Use `foreach.from` for data-driven fan-out, `reduce.from` for fan-in, support `from` for helper
 inputs, and `dynamic` only when the work cannot be known before the run. A later plain `single` does
-not see earlier output unless it declares `from`. Set `injectRuntimeTask: true` on a `foreach` or
-`reduce` to give its workers the runtime task too.
+not see earlier output unless it declares `from` or has neither `from` nor `after`: that stage is chained
+after the previous declared stage and reads it as a source (not after a loop; see "DAG authoring" below).
+Set `injectRuntimeTask: true` on a `foreach` or `reduce` to give its workers the runtime task too.
 
 ### What `validate` checks
 
@@ -869,7 +872,13 @@ design feedback to fix before the first run:
 - a `single`/`reduce` stage with sources whose prompt forbids tool use (sources are read through `workflow_artifact`);
 - a foreach over a model stage's array that sets no `maxItems` (in the array's schema or on the foreach stage) or no
   `minItems` in the schema (`minItems: 1` if empty means failure, `0` if it is fine);
-- a loop `until` path missing from the final child's open control schema;
+- a loop `until` path missing from the final child's open control schema, and a loop `until` key that the final
+  child's prompt does not show as a JSON key;
+- a top-level stage (not the first) with neither `from` nor `after`: it reads the previous stage implicitly;
+- a `readOnly` model stage whose prompt forbids running commands (Codex reads files through shell commands; forbid
+  effects such as writes, tests and builds instead);
+- a write-verify support stage whose `options.files[].path` its writer's prompt (`options.writer`, default `write`)
+  does not name;
 - prompt/schema drift, a foreach or `sourceProjection` path the source schema lacks, and `readOnly` stages that lose
   tools.
 
@@ -882,9 +891,11 @@ Top-level `artifactGraph.stages` is a DAG.
 
 - `from` is a data + order edge: the stage gets a manifest of the source's artifacts and reads them
   through `workflow_artifact`; deterministic decisions read the source's `control.json`.
-- `after` is order-only (no artifact access); `after: []` marks an explicit parallel root. A stage
-  with neither `from` nor `after` is chained after the previous declared stage; write `after: []` when
-  it is independent.
+- `after` is order-only for a model stage (no artifact access); a support helper's `sources` and
+  `context.sourceStatuses` do include its `after` stages. `after: []` marks an explicit parallel root.
+  A stage with neither `from` nor `after` is chained after the previous declared stage **and reads it
+  as a source** (after a loop it gets no loop sources); `validate` warns about it. Write `from: ["<previous>"]`
+  to say so, or `after: []` when the stage is independent.
 - `sourcePolicy` (`require-success`, the default, or `partial`; `success` is accepted and behaves like
   `require-success`) decides whether a failed source blocks the stage;
   `inputPolicy.terminalBarrier: "all-sources"` waits for every source to be terminal first, then
@@ -985,7 +996,10 @@ sections optional. When quoting a whole protocol response inside analysis, write
 with a JSON Schema subset: `type`, `required`, `properties`, `items`, `enum`, `const`,
 length/item/number bounds, `additionalProperties`, simple `allOf`/`anyOf`/`oneOf`. `$ref`, `$defs`,
 `definitions` and `pattern` are rejected at load time. String lengths count code points. When the
-schema pins `control.schema` with `const`/`enum`, prompts must emit exactly that value.
+schema pins `control.schema` with `const` or a one-value `enum`, the Workflow Output Protocol the engine appends
+names that value, so the prompt need not repeat it (a larger `enum` still needs the value in the prompt). A root
+`required` array with `minItems >= 1` also adds one sentence to the protocol: do not invent items, report
+`control.inputIntegrity` `blocked` instead (left out when the stage prompt already mentions `inputIntegrity`).
 
 **Partial output for streaming foreach.** A producer may declare `output.partial.paths: ["$.items"]`
 and publish stable items early in standalone `<partial-control>{"schema":"workflow-partial-output-v1",
@@ -1089,9 +1103,11 @@ decide the run status (the final round and a `failed` loop still do). An optiona
 
 A `single`, `reduce` or `support` stage that names a loop in `from` receives the outputs of every
 child of the loop's last executed round, as sources named `<loop>.<child>` (for example
-`fix-loop.check`; `requiredReads` use the same names) plus a `# Loop Results` block (`status`,
-`roundsUsed`, `rubricMet`, `finalCheck`), so a consumer can tell that an `exhausted` or
-`stopped_no_progress` loop did not meet its rubric. A `failed` loop is an ordinary failed source under
+`fix-loop.check`; `requiredReads` use the same names). A `single`/`reduce` also gets a `# Loop Results`
+block (`status`, `roundsUsed`, `rubricMet`, `finalCheck`), so a consumer can tell that an `exhausted` or
+`stopped_no_progress` loop did not meet its rubric. A `support` helper has no prompt, so it gets no such
+block: each of its `context.sourceStatuses` rows for a loop child carries `loop: { loopId, status,
+roundsUsed }` instead. A `failed` loop is an ordinary failed source under
 the consumer's `sourcePolicy`; `after` stays ordering-only. `foreach`, `dynamic`, `dag` and `loop`
 stages cannot read a loop (rejected at validate).
 
