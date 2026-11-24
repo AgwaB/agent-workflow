@@ -3,6 +3,7 @@ import { stateDir } from "../helpers/state-dir.mjs";
 // `agent-workflow check` (2026-10-30, owner): the launch preflight without the launch, and the short
 // preflight text a launch prints. Fixture executor only; no model or agent-CLI calls.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -87,6 +88,95 @@ test("check: the launch preflight passes without creating a run, claiming a laun
 	});
 	assert.equal(run.outcome, "running", run.text);
 	await waitAction(ctx, { runId: run.data.runId, timeoutMs: 15_000 });
+});
+
+// 2026-11-24: a write-capable stage runs in a managed git worktree, which needs a repository with a
+// commit. `check` says so at preflight instead of the writer failing at launch (worktree.ts).
+async function writeProject(t) {
+	const made = await project(t);
+	await writeFile(
+		join(made.ctx.cwd, ".agent-workflow/agents/writer.md"),
+		"---\nname: writer\ndescription: writes\ntools: read, edit, write\nreadOnly: false\n---\nWrite.\n",
+	);
+	await writeFile(
+		join(made.ctx.cwd, "wfw.json"),
+		JSON.stringify({
+			schemaVersion: 1,
+			name: "check-writer",
+			defaults: { agent: "reader", readOnly: true, tools: ["read"] },
+			artifactGraph: {
+				stages: [
+					{ id: "read", type: "single", prompt: "Read." },
+					{
+						id: "write",
+						type: "single",
+						prompt: "Write OUTPUT.md.",
+						after: ["read"],
+						agent: "writer",
+						readOnly: false,
+						worktreePolicy: "on",
+						tools: ["read", "edit", "write"],
+					},
+				],
+			},
+		}),
+	);
+	return made;
+}
+
+const git = (cwd, ...args) =>
+	execFileSync("git", args, {
+		cwd,
+		stdio: "ignore",
+		env: {
+			...process.env,
+			GIT_CONFIG_GLOBAL: "/dev/null",
+			GIT_CONFIG_SYSTEM: "/dev/null",
+			GIT_AUTHOR_NAME: "t",
+			GIT_AUTHOR_EMAIL: "t@example.com",
+			GIT_COMMITTER_NAME: "t",
+			GIT_COMMITTER_EMAIL: "t@example.com",
+		},
+	});
+
+test("check: a write-capable workflow outside a git repository is refused at preflight, naming the stage", async (t) => {
+	const { ctx, executor, effects } = await writeProject(t);
+	const checked = await checkWorkflowAction(ctx, {
+		workflow: "wfw.json",
+		executor,
+	});
+	assert.equal(checked.outcome, "refused", checked.text);
+	assert.match(checked.text, /^Not started: /);
+	assert.match(checked.text, /✗ write\.main: .*not inside a git repository/);
+	assert.match(checked.text, /git init/);
+	assert.equal(checked.data.runId, undefined);
+	assert.equal(existsSync(effects), false, "the executor was never asked");
+});
+
+test("check: a repository without a commit is refused; with a commit the write workflow passes", async (t) => {
+	const { ctx, executor } = await writeProject(t);
+	git(ctx.cwd, "init", "-q");
+	const empty = await checkWorkflowAction(ctx, {
+		workflow: "wfw.json",
+		executor,
+	});
+	assert.equal(empty.outcome, "refused", empty.text);
+	assert.match(empty.text, /✗ write\.main: .*has no commit yet/);
+	git(ctx.cwd, "commit", "-q", "--allow-empty", "-m", "init");
+	const committed = await checkWorkflowAction(ctx, {
+		workflow: "wfw.json",
+		executor,
+	});
+	assert.equal(committed.outcome, "success", committed.text);
+});
+
+test("check: a read-only workflow needs no git repository", async (t) => {
+	const { ctx, executor } = await writeProject(t);
+	const checked = await checkWorkflowAction(ctx, {
+		workflow: "wf.json",
+		executor,
+	});
+	assert.equal(checked.outcome, "success", checked.text);
 });
 
 test("check CLI: exit 0 and the short check; unknown workflow is a usage error", async (t) => {
