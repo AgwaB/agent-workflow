@@ -5,6 +5,7 @@ import {
 	lookupArrayBound,
 	lookupControlSchemaPath,
 } from "./control-schema-path.js";
+import { parseSimpleJsonPath } from "./workflow-runtime.js";
 import {
 	literalSourceLookups,
 	sourceNameReachable,
@@ -354,21 +355,51 @@ async function loopUntilWarnings(
 		(leaf) => typeof leaf.path === "string" && leaf.exists !== false,
 	);
 	if (leaves.length === 0) return [];
+	const warnings: string[] = [];
 	// Without a control schema there is nothing to check the path against.
 	const controlSchema = finalChild.output?.controlSchema;
-	if (typeof controlSchema !== "string") return [];
-	const schema = await loadSchema(finalChild);
-	if (!schema) return [];
-	const warnings: string[] = [];
-	for (const leaf of leaves) {
-		const lookup = lookupControlSchemaPath(schema, leaf.path);
-		if (lookup.status !== "missing") continue;
-		const consequence = lookup.closed
-			? "the schema sets additionalProperties: false, so the model can never emit it and the loop can only end exhausted"
-			: "nothing makes the model emit it";
-		warnings.push(
-			`loop stage "${loop.id}" until path "${leaf.path}" is not declared in the control schema (${controlSchema}) of its final child "${finalChild.id}": ${consequence}. Add "${lookup.property}" to that schema's properties and show it in the child's prompt, or point until at a declared field.`,
-		);
+	const schema =
+		typeof controlSchema === "string"
+			? await loadSchema(finalChild)
+			: undefined;
+	const undeclared = new Set<unknown>();
+	if (schema) {
+		for (const leaf of leaves) {
+			const lookup = lookupControlSchemaPath(schema, leaf.path);
+			if (lookup.status !== "missing") continue;
+			undeclared.add(leaf);
+			const consequence = lookup.closed
+				? "the schema sets additionalProperties: false, so the model can never emit it and the loop can only end exhausted"
+				: "nothing makes the model emit it";
+			warnings.push(
+				`loop stage "${loop.id}" until path "${leaf.path}" is not declared in the control schema (${controlSchema}) of its final child "${finalChild.id}": ${consequence}. Add "${lookup.property}" to that schema's properties and show it in the child's prompt, or point until at a declared field.`,
+			);
+		}
+	}
+	// The key the loop ends on has to appear in the child's prompt as a JSON key, or the model has no
+	// reason to emit it (a missing key reads as "not done", so the loop runs to maxRounds).
+	if (isModelBacked(finalChild)) {
+		const prompt = [finalChild.prompt, finalChild.each?.prompt]
+			.filter((text): text is string => typeof text === "string")
+			.join("\n");
+		for (const leaf of leaves) {
+			if (undeclared.has(leaf)) continue;
+			const key = lastPropertyKey(leaf.path);
+			if (key === undefined || promptShowsJsonKey(prompt, key)) continue;
+			warnings.push(
+				`loop stage "${loop.id}" until reads "${key}" from its final child "${finalChild.id}", but that child's prompt does not show "${key}": as a JSON key. Show it in the <control> example (for example {"${key}": true}) so the model emits it; otherwise the loop can only end exhausted.`,
+			);
+		}
 	}
 	return warnings;
+}
+
+function lastPropertyKey(path: string): string | undefined {
+	const tokens = parseSimpleJsonPath(path);
+	const last = tokens?.at(-1);
+	return last?.type === "property" ? last.key : undefined;
+}
+
+function promptShowsJsonKey(prompt: string, key: string): boolean {
+	return prompt.includes(`"${key}":`) || prompt.includes(`"${key}" :`);
 }

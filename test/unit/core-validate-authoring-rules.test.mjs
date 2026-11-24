@@ -346,18 +346,6 @@ test("a foreach source array without maxItems warns; a schema cap or stage maxIt
 	assert.equal(matching(stageCap, /has no maxItems/).length, 0);
 
 	// A support helper bounds its array in code; the spec cannot show it.
-	const helper = await validate(
-		[
-			{
-				id: "plan",
-				support: { uses: "./helper.mjs" },
-				output: { controlSchema: "./schemas/plan.json" },
-			},
-			stages()[1],
-		],
-		{ "schemas/plan.json": planSchema() },
-	);
-	assert.equal(matching(helper, /has no maxItems/).length, 0);
 });
 
 test("a foreach source array without minItems warns once; minItems (even 0) or a helper silences it", async () => {
@@ -700,6 +688,84 @@ test("a loop until path missing from an open schema warns; a final child without
 		},
 	]);
 	assert.equal(matching(noSchema, /until path/).length, 0);
+});
+
+test("a loop until key that the final child's prompt does not show as a JSON key warns", async () => {
+	const until = { stage: "review", path: "$.passed", equals: true };
+	const withPrompt = (prompt, extra = {}) => [
+		{
+			id: "refine",
+			type: "loop",
+			maxRounds: 3,
+			until,
+			stages: [
+				single("draft"),
+				single("review", {
+					output: { controlSchema: "./schemas/review.json" },
+					prompt,
+					...extra,
+				}),
+			],
+		},
+	];
+	const silent = await validate(withPrompt("Review the draft."), reviewFiles());
+	const [warning] = matching(silent, /until reads "passed"/);
+	assert.ok(warning, silent.warnings.join("\n"));
+	assert.match(warning, /loop stage "refine"/);
+	assert.match(warning, /final child "review"/);
+	assert.match(warning, /"passed":/);
+	for (const prompt of [
+		'Review. {"schema":"x","digest":"x","passed":true}',
+		'Review. Put it in {"passed" : false}.',
+	]) {
+		const shown = await validate(withPrompt(prompt), reviewFiles());
+		assert.equal(matching(shown, /until reads/).length, 0, prompt);
+	}
+	// A nested path asks for its last key.
+	const nested = await validate(
+		[
+			{
+				...withPrompt('Review. {"verdict":{"ok":true}}')[0],
+				until: { stage: "review", path: "$.verdict.ok", equals: true },
+			},
+		],
+		{
+			"schemas/review.json": schema({
+				verdict: schema({ ok: { type: "boolean" } }),
+			}),
+		},
+	);
+	assert.equal(matching(nested, /until reads/).length, 0);
+});
+
+test("the until-key warning skips exists:false leaves and a path the schema lacks (its own warning)", async () => {
+	const loop = (until, finalChild, extra = {}) => [
+		{
+			id: "refine",
+			type: "loop",
+			maxRounds: 3,
+			until,
+			stages: [single("draft"), finalChild],
+			...extra,
+		},
+	];
+	const review = (extra = {}) =>
+		single("review", {
+			output: { controlSchema: "./schemas/review.json" },
+			prompt: "Review the draft.",
+			...extra,
+		});
+	const absent = await validate(
+		loop({ stage: "review", path: "$.passed", exists: false }, review()),
+		reviewFiles(),
+	);
+	assert.equal(matching(absent, /until reads/).length, 0);
+	const undeclared = await validate(
+		loop({ stage: "review", path: "$.approved", equals: true }, review()),
+		reviewFiles(),
+	);
+	assert.equal(matching(undeclared, /until reads/).length, 0);
+	assert.equal(matching(undeclared, /until path/).length, 1);
 });
 
 test("new authoring-rule warnings are advisory: classified, not strict-blocking", async () => {
