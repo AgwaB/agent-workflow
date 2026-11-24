@@ -53,6 +53,8 @@ Exit 0 means no wiring fault was diagnosed (not proof the wiring is sound), 1 wh
 or the spec is invalid, 2 usage error.`,
 	new: `Usage: agent-workflow new <pattern> <name> [--scope private|shared|global] [--force] [--json]
        agent-workflow new --list
+       agent-workflow new helper <helper> <workflow> [--scope private|shared|global] [--force] [--json]
+       agent-workflow new helper --list
 
 Create a workflow from a pattern, ready to validate: spec.json, closed control schemas (with schema and
 digest), support helpers where the pattern has code stages, few-shot <control> skeletons generated from
@@ -62,7 +64,12 @@ validate, check and rehearse. Patterns: single, foreach-reduce, inventory-foreac
 classify-count, write-verify, collect-render (--list prints one line each). --scope private (default) writes .agent-workflow/workflows/<name>/
 in the project, shared writes workflows/<name>/, global writes under ~/.agent-workflow/workflows/. The same
 arguments always write byte-identical files. Existing files are never overwritten without --force; symlinks
-are never followed. No model is called.`,
+are never followed. No model is called.
+
+new helper copies a verified, tested helper (evidence-locate, evidence-gate, keyed-join, graph-edges,
+render-report) into helpers/ of an existing workflow, with its contract in the file header, instead of
+hand-writing that logic. spec.json is not changed: add the support stage yourself, then validate and
+rehearse. Same scope, --force and symlink rules; the same helper always writes the same bytes.`,
 	roles: `Usage: agent-workflow roles <workflow-name-or-path> [--json]
 
 Show the compiled role context exactly as it is injected into task prompts.`,
@@ -249,6 +256,7 @@ Workflows:
   check <workflow>     launch preflight: executor, tools, models, effort (no run, no model call)
   rehearse <workflow>  run the real engine with a synthetic worker (no model call, temporary state)
   new <pattern> <name> create a workflow from a pattern (--list shows them; no model call)
+  new helper <h> <wf>  add a verified helper (evidence gate, keyed join, ...) to a workflow
   roles <workflow>     show compiled role context
   agents               list agent definitions
   show <workflow>      print a workflow spec
