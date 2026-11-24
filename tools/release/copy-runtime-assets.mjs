@@ -24,6 +24,13 @@ const assets = [
 		mode: 0o644,
 		optional: true,
 	})),
+	// Verified helper sources `agent-workflow new helper` copies into a bundle (src/core/helper-library.ts).
+	...(await readdir(join(root, "src/core/helper-library")).catch(() => []))
+		.filter((file) => file.endsWith(".mjs"))
+		.map((file) => ({
+			path: `core/helper-library/${file}`,
+			mode: 0o644,
+		})),
 	{ path: "runtime/native/darwin-process-identity", mode: 0o755 },
 	{ path: "runtime/native/darwin-process-identity.manifest.json", mode: 0o644 },
 ];

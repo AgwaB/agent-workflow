@@ -123,6 +123,8 @@ For identity and precedence see [usage](usage.md#project-local-workflow-settings
 ```sh
 agent-workflow new <pattern> <name> [--scope private|shared|global] [--force] [--json]
 agent-workflow new --list
+agent-workflow new helper <helper> <workflow> [--scope private|shared|global] [--force] [--json]
+agent-workflow new helper --list
 ```
 
 `new` writes a complete workflow bundle for a pattern, so authoring starts from something that already
@@ -187,6 +189,31 @@ replaced files are restored. When the same name exists in a
 higher-priority scope the output says it takes priority. The output lists the created paths and the next
 steps: edit the prompts → `validate` → `check` → `rehearse` → a smoke run on the cheapest model. Exit 0
 on success, 2 for a usage error or a refused write. Terminal CLI only (no MCP tool, no Pi command).
+
+### `new helper`
+
+Hand-written helper logic was the largest failure class in authored workflows outside the patterns: an evidence
+gate that required exact line numbers and dropped true findings when a model was off by one, a diff keyed by path
+instead of method + path, `[object Object]` in a report, no cycle detection. `new helper <helper> <workflow>` copies
+a generated, tested helper into the `helpers/` directory of an existing bundle (same `--scope`, `--force`, symlink
+and byte-identical rules as the patterns; the workflow must exist in that scope), so the bundle stays
+self-contained: a run snapshots its bundle and the helpers are plain `.mjs` files the engine runs as support
+helpers, never imports from the installed package. Each file starts with a header that states its options and the
+keys it returns. `spec.json` is not edited: you add the support stage (the command prints an example) and give it an
+`output.controlSchema`; an open schema (`schema`, `digest`, `status` required) is enough, a closed one must list
+every returned key. `new helper --list` names the helpers:
+
+| Helper | Files written | What it does |
+|---|---|---|
+| `evidence-locate` | `evidence-locate.mjs` | Library (no stage): finds a claim's evidence by its quote in a project file, whitespace-normalised, and returns the real line range; verdict `exact` / `located` / `rejected`. Model line numbers are never trusted; a name or term can be required in the quote; the file must be a regular file inside the project with no symlink on the way |
+| `evidence-gate` | `evidence-locate.mjs`, `evidence-gate.mjs` | Support stage: applies `evidence-locate` to every row. `policy: "drop"` (default) keeps the verified rows with corrected lines and lists the rejected ones with the reason; `"block"` declares the stage blocked when any row fails. Plain counts |
+| `keyed-join` | `keyed-join.mjs` | Support stage: joins two row lists by a composite key (for example `method` + `path`): `onlyLeft`, `onlyRight`, `both`, `conflicts` on named fields. Key normalisation: case, trailing slash, query, `:id` / `{id}` / `<id>` placeholders |
+| `graph-edges` | `graph-edges.mjs` | Support stage: a directed graph from `(from, to)` rows: simple cycles up to a length bound, strongly connected components and hubs by degree |
+| `render-report` | `render-report.mjs` | Support stage: Markdown tables and lists from rows; `\|`, backslashes and newlines are escaped and an object or array renders as compact JSON or a field you pick, never `[object Object]` |
+
+A helper whose own file already exists is refused without `--force`; a dependency file (`evidence-locate.mjs`
+for the gate) that is already there with the same bytes is left alone, one you edited is refused. Exit 0 on
+success, 2 for a usage error or a refused write. Terminal CLI only.
 
 ## `check`
 
