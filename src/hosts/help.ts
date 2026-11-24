@@ -58,7 +58,7 @@ Create a workflow from a pattern, ready to validate: spec.json, closed control s
 digest), support helpers where the pattern has code stages, few-shot <control> skeletons generated from
 the schemas, a profileRole on every model stage and a maxItems on every foreach source array. The prompts
 carry a TODO: paragraph with working placeholder text: replace it with your domain instructions, then run
-validate, check and rehearse. Patterns: single, foreach-reduce, loop-refine, parallel-review-merge,
+validate, check and rehearse. Patterns: single, foreach-reduce, inventory-foreach, loop-refine, parallel-review-merge,
 classify-count, write-verify, collect-render (--list prints one line each). --scope private (default) writes .agent-workflow/workflows/<name>/
 in the project, shared writes workflows/<name>/, global writes under ~/.agent-workflow/workflows/. The same
 arguments always write byte-identical files. Existing files are never overwritten without --force; symlinks
