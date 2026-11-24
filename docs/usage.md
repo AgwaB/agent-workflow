@@ -822,7 +822,8 @@ Capability degradations are recorded and shown on every host, without confirmati
 `agent-workflow new <pattern> <name>` (`new --list` shows the patterns) writes a workflow bundle that
 already passes `validate` with no warnings and `rehearse` with no findings: `single`, `foreach-reduce` (items from the task), `inventory-foreach` (items that exist in repo files, each
 checked by code against its file: the row's name must occur there), `loop-refine`, `parallel-review-merge`, `classify-count`, `write-verify` (a worktree writer plus a code check of the
-files it wrote) and `collect-render` (code only: git history to a Markdown changelog, no model). It carries closed control schemas with
+files it wrote), `collect-render` (code only: git history to a Markdown changelog, no model), `fix-loop` (fix failing tests in a
+never-merged worktree, bounded rounds, final status from a code test run) and `adaptive-depth` (triage into quick and deep items, caps in code, one disposition per item). It carries closed control schemas with
 `schema` and `digest`, helpers for the code stages, a `profileRole` on every model stage, a `minItems` and `maxItems` on
 every foreach source array, and prompts whose `TODO:` paragraph you replace with your domain instructions;
 the generated Contract paragraph and few-shot `<control>` skeleton after it come from the schema. Then
@@ -880,7 +881,7 @@ design feedback to fix before the first run:
   effects such as writes, tests and builds instead);
 - a model stage outside a `loop` whose prompt asks for its own retries or attempts ("at most 3 attempts", "retry up to
   N times", "until the tests pass") or for depth tiers by item difficulty ("depth cap", "for trivial inspect at most 1
-  file"): the engine can neither enforce nor observe them; use a `loop` with a code-decided exit or one stage per tier;
+  file"): the engine can neither enforce nor observe them; use a `loop` with a code-decided exit (`new fix-loop`) or one stage per tier (`new adaptive-depth`);
 - a write-verify support stage whose `options.files[].path` its writer's prompt (`options.writer`, default `write`)
   does not name;
 - prompt/schema drift, a foreach or `sourceProjection` path the source schema lacks, and `readOnly` stages that lose
