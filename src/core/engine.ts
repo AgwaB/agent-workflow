@@ -290,6 +290,7 @@ import {
 	type WorkflowRunLaunchMetadata,
 	type WorkflowRunRecord,
 	type WorkflowRunCapabilityNegotiation,
+	type WorkflowRunExecutorSource,
 	type WorkflowCapturedExecutionProfile,
 	type WorkflowRoleMap,
 	type WorkflowRunRouting,
@@ -626,6 +627,12 @@ export class WorkflowPreflightPassed extends Error {
 	constructor(
 		readonly negotiation: WorkflowRunCapabilityNegotiation,
 		readonly stages: number,
+		/** The executor the preflight negotiated against and what selected it (run flag, profile, default). */
+		readonly executor?: {
+			id: string;
+			source: WorkflowRunExecutorSource;
+			profile?: string;
+		},
 	) {
 		super("preflight passed; no run was started");
 		this.name = "WorkflowPreflightPassed";
@@ -1129,6 +1136,13 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		throw new WorkflowPreflightPassed(
 			capabilityNegotiation,
 			workflowNegotiationTargets(compiled).length,
+			{
+				id: executor.id,
+				source: executor.source,
+				...(executor.profile === undefined
+					? {}
+					: { profile: executor.profile }),
+			},
 		);
 	// Diagnostics are an explicit named-workflow policy. Direct-dynamic uses its
 	// runtime bundle and intentionally does not adopt named-spec warnings.

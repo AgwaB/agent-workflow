@@ -186,7 +186,7 @@ checks as `run` — executor installed and logged in, every stage's tools, model
 on the executor that would run it (names rewritten to that tool's form), capabilities, and a git repository with a commit for
 every write-capable stage (its managed worktree). Prints the
 short check and exits 0, or `Not started: …` with each problem (`✗`) and exits 1. No run, no
-duplicate-launch claim, no model call. See [usage.md](usage.md#preflight-capability-tools-models-and-effort).
+duplicate-launch claim, no model call. When the workflow pins its executor (`executionProfileExecutors`, a profile) and you pass no `--executor`, it names the pinned executor and adds one `Hint:` line if another installed executor (pi, claude, codex) would refuse the workflow, since `run --executor <other>` overrides the pin. See [usage.md](usage.md#preflight-capability-tools-models-and-effort).
 
 ## `rehearse`
 

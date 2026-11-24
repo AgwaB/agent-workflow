@@ -179,6 +179,121 @@ test("check: a read-only workflow needs no git repository", async (t) => {
 	assert.equal(checked.outcome, "success", checked.text);
 });
 
+// 2026-11-25: `check` negotiated against the executor the spec pins, while `run --executor <other>`
+// overrides the pin and can refuse (a2-N2-1). `check` names the pinned executor and says which other
+// installed executors would refuse, without any model call.
+async function pinnedProject(t) {
+	const made = await writeProject(t);
+	git(made.ctx.cwd, "init", "-q");
+	git(made.ctx.cwd, "commit", "-q", "--allow-empty", "-m", "init");
+	const refusing = `check-coarse-${++counter}`;
+	const accepting = `check-fine-${++counter}`;
+	const effects = join(made.ctx.cwd, "effects-other.jsonl");
+	const undoRefusing = registerWorkflowExecutor(
+		workflowFixtureDescriptor({
+			id: refusing,
+			effectLog: effects,
+			capabilities: {
+				toolAllowlist: {
+					level: "native",
+					source: "declared",
+					detail: "coarse",
+				},
+			},
+		}),
+	);
+	const undoAccepting = registerWorkflowExecutor(
+		workflowFixtureDescriptor({ id: accepting, effectLog: effects }),
+	);
+	t.after(() => {
+		undoRefusing();
+		undoAccepting();
+	});
+	await writeFile(
+		join(made.ctx.cwd, "wfpin.json"),
+		JSON.stringify({
+			schemaVersion: 1,
+			name: "check-pinned",
+			executionProfiles: { "isolated-safe": {} },
+			executionProfileExecutors: { "isolated-safe": made.executor },
+			executionProfilePermissionModes: { "isolated-safe": "safe" },
+			defaultExecutionProfile: "isolated-safe",
+			defaults: { agent: "writer", readOnly: false, tools: ["read", "edit"] },
+			artifactGraph: {
+				stages: [
+					{
+						id: "write",
+						type: "single",
+						prompt: "Write OUTPUT.md.",
+						worktreePolicy: "on",
+					},
+				],
+			},
+		}),
+	);
+	return {
+		...made,
+		refusing,
+		accepting,
+		ctx: { ...made.ctx, checkAlternativeExecutors: [refusing, accepting] },
+	};
+}
+
+test("check: a pinned executor is named, and the other installed executors that would refuse it get one hint line", async (t) => {
+	const { ctx, executor, refusing, effects } = await pinnedProject(t);
+	const checked = await checkWorkflowAction(ctx, { workflow: "wfpin.json" });
+	assert.equal(checked.outcome, "success", checked.text);
+	const lines = checked.text.split("\n");
+	assert.equal(
+		lines[0],
+		`Preflight passed: check-pinned on ${executor} (pinned by workflow execution profile "isolated-safe") — no run was started.`,
+	);
+	assert.equal(checked.data.executor.id, executor);
+	assert.equal(checked.data.executor.source, "workflow-profile");
+	const hints = lines.filter((line) => line.startsWith("Hint: "));
+	assert.equal(hints.length, 1, checked.text);
+	assert.match(
+		hints[0],
+		new RegExp(`checked on ${executor} only; ${refusing} would refuse`),
+	);
+	assert.match(hints[0], /toolAllowlist\.fine/);
+	assert.match(hints[0], new RegExp(`check wfpin.json --executor ${refusing}`));
+	assert.deepEqual(
+		checked.data.wouldRefuse.map((entry) => entry.executor),
+		[refusing],
+	);
+	assert.equal(existsSync(effects), false, "no executor was asked");
+	// The refusal the hint predicts is what `run --executor` gives.
+	const explicit = await checkWorkflowAction(ctx, {
+		workflow: "wfpin.json",
+		executor: refusing,
+	});
+	assert.equal(explicit.outcome, "refused", explicit.text);
+	assert.equal(explicit.data.refusal.code, "CAPABILITY_REFUSED");
+});
+
+test("check: no hint when no other executor refuses, with an explicit --executor, or when nothing is pinned", async (t) => {
+	const { ctx, executor, accepting } = await pinnedProject(t);
+	const quiet = await checkWorkflowAction(
+		{ ...ctx, checkAlternativeExecutors: [accepting, "check-not-registered"] },
+		{ workflow: "wfpin.json" },
+	);
+	assert.equal(quiet.outcome, "success", quiet.text);
+	assert.doesNotMatch(quiet.text, /Hint:/);
+	assert.equal(quiet.data.wouldRefuse, undefined);
+	const flagged = await checkWorkflowAction(ctx, {
+		workflow: "wfpin.json",
+		executor,
+	});
+	assert.equal(flagged.outcome, "success", flagged.text);
+	assert.doesNotMatch(flagged.text, /Hint:|pinned by/);
+	const plain = await checkWorkflowAction(ctx, {
+		workflow: "wf.json",
+		executor,
+	});
+	assert.doesNotMatch(plain.text, /Hint:|pinned by/);
+});
+
 test("check CLI: exit 0 and the short check; unknown workflow is a usage error", async (t) => {
 	const { ctx, executor } = await project(t);
 	let out = "";

@@ -985,3 +985,138 @@ test("the first stage, explicit from/after and children of a dag or loop do not 
 	);
 	assert.equal(matching(compiled, /neither from nor after/).length, 0);
 });
+
+// 2026-11-25 (novel-briefs a1-N2-2, a2-N2-1/2, a2-N4-2): "retry up to 3 times, stop when green" and
+// "deeper issues get more steps" were written into one model stage's prompt. The engine cannot enforce
+// or observe either; a loop with a code-decided exit (or per-tier stages) can.
+test("a model stage that asks for its own retries or attempts warns; a loop child and domain wording do not", async () => {
+	for (const phrase of [
+		"Make at most 3 repair attempts, then stop.",
+		"Continue for at most 3 fix-and-test attempts total.",
+		"You have at most 3 attempts. Never run more than 3 attempts.",
+		"If the tests fail, retry up to 3 times.",
+		"Try again until the build is green.",
+		"Repeat the check up to five times.",
+		"Keep fixing until npm test passes.",
+		"Stop as soon as npm test exits 0.",
+	]) {
+		const compiled = await validate([
+			single("fix", { prompt: `Fix the code. ${phrase}` }),
+		]);
+		const [warning] = matching(compiled, /manage its own retries/);
+		assert.ok(warning, `expected a warning for: ${phrase}`);
+		assert.match(
+			warning,
+			/stage "fix" asks the model to manage its own retries/,
+		);
+		assert.match(warning, /cannot enforce or observe/);
+		assert.match(warning, /`loop` stage/);
+	}
+	for (const prompt of [
+		"Audit the retry logic of the payment client and report the retry count it configures.",
+		"List the retries in src/net.js. Report one attempt per row.",
+		"Fetch the page; if the projection is truncated, retry with an explicitly larger maxChars until complete.",
+		"Run the tests once and report the result.",
+		"The first attempt failed in production; explain why.",
+	]) {
+		const compiled = await validate([single("main", { prompt })]);
+		assert.equal(
+			matching(compiled, /manage its own retries/).length,
+			0,
+			prompt,
+		);
+	}
+	const retry = "Make at most 3 repair attempts.";
+	const inLoop = await validate(
+		[
+			{
+				id: "fix-loop",
+				type: "loop",
+				maxRounds: 3,
+				until: { stage: "check", path: "$.green", equals: true },
+				stages: [
+					single("fix", { prompt: retry }),
+					single("check", {
+						prompt: "Report green.",
+						output: { controlSchema: "./schemas/check.json" },
+					}),
+				],
+				onExhausted: single("give-up", { prompt: retry }),
+			},
+			{
+				id: "dagged",
+				type: "dag",
+				stages: [single("inner", { prompt: retry })],
+			},
+		],
+		{ "schemas/check.json": schema({ green: { type: "boolean" } }) },
+	);
+	assert.deepEqual(
+		matching(inLoop, /manage its own retries/).map(
+			(warning) => /stage "([^"]+)"/.exec(warning)[1],
+		),
+		["give-up", "inner"],
+		"a loop's children are exempt; onExhausted (one run after the loop) and a plain dag are not",
+	);
+});
+
+test("a model stage that scales its own depth by item difficulty warns; structural tiers and plain depth wording do not", async () => {
+	const tiered = await validate(
+		[
+			single("plan", { output: { controlSchema: "./schemas/plan.json" } }),
+			{
+				id: "work",
+				type: "foreach",
+				profileRole: "research-execution",
+				from: { source: "plan", path: "$.items" },
+				maxItems: 5,
+				after: ["plan"],
+				each: {
+					prompt:
+						"Investigate ${item}. Follow the item's depth cap exactly. For trivial, inspect at most 1 relevant file. For deep, do exactly 3 steps.",
+				},
+			},
+		],
+		{
+			"schemas/plan.json": schema({
+				items: {
+					type: "array",
+					minItems: 1,
+					maxItems: 3,
+					items: { type: "string" },
+				},
+			}),
+		},
+	);
+	const [warning] = matching(tiered, /scale its own depth/);
+	assert.ok(warning);
+	assert.match(warning, /stage "work" asks the model to scale its own depth/);
+	assert.match(warning, /cannot enforce or observe/);
+	for (const phrase of [
+		"Give deeper investigation to hard items than to easy ones.",
+		"Hard issues need more steps than simple ones.",
+		"For standard items inspect at most 3 files.",
+	]) {
+		const compiled = await validate([single("main", { prompt: phrase })]);
+		assert.equal(matching(compiled, /scale its own depth/).length, 1, phrase);
+	}
+	for (const phrase of [
+		"Classify the issue as quick, standard or deep.",
+		"Report the depth of each section of the document.",
+		"Inspect at most 3 files and cite one quote per finding.",
+		"Retry logic is deep in this repository; describe it.",
+	]) {
+		const compiled = await validate([single("main", { prompt: phrase })]);
+		assert.equal(matching(compiled, /scale its own depth/).length, 0, phrase);
+	}
+	const diagnostics = workflowPromptSchemaDiagnostics(
+		await validate([
+			single("main", { prompt: "Make at most 3 repair attempts." }),
+		]),
+	);
+	assert.deepEqual(
+		diagnostics.map((diagnostic) => diagnostic.code),
+		["prompt.self_managed_retries"],
+	);
+	assert.ok(diagnostics.every((diagnostic) => !diagnostic.strictBlocking));
+});

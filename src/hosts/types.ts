@@ -119,6 +119,11 @@ export interface HostApiContext {
 	 * decision; the engine honors it only when the run's executor is pi.
 	 */
 	hostTools?: { projectTrusted: boolean };
+	/**
+	 * Executors `check` also preflights when the workflow pins its executor, to warn which others
+	 * would refuse it. Unset: the installed defaults (pi, claude, codex). Tests narrow it.
+	 */
+	checkAlternativeExecutors?: readonly string[];
 }
 
 export function hostEnv(ctx: HostApiContext): NodeJS.ProcessEnv {
