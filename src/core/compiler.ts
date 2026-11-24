@@ -6,6 +6,7 @@ import { dirname, resolve } from "node:path";
 
 import { collectAuthoringRuleWarnings } from "./authoring-rule-warnings.js";
 import {
+	foreachReadKeys,
 	noInventSentence,
 	pinnedControlSchemaId,
 } from "./control-protocol-facts.js";
@@ -268,13 +269,17 @@ interface LowerContext {
 	specDir: string;
 	namespace?: string;
 	controlSchemas: ReadonlyMap<string, unknown>;
+	// The sibling list the stage sits in, to find the foreach stages that read its control output.
+	siblings?: readonly ArtifactGraphStageSpec[];
 }
 
 function lowerArtifactGraphStages(
 	stages: readonly ArtifactGraphStageSpec[],
 	context: LowerContext,
 ): any[] {
-	return stages.map((stage) => lowerArtifactGraphStage(stage, context));
+	return stages.map((stage) =>
+		lowerArtifactGraphStage(stage, { ...context, siblings: stages }),
+	);
 }
 
 function lowerArtifactGraphStage(
@@ -288,7 +293,7 @@ function lowerArtifactGraphStage(
 		...stage,
 		[COMPILE_CANONICAL_SLOT]: stageId,
 		from: lowerArtifactGraphFrom(stage.from),
-		prompt: lowerArtifactGraphPrompt(stage, context.controlSchemas),
+		prompt: lowerArtifactGraphPrompt(stage, context),
 		artifactGraphOutput: stage.output,
 	};
 	delete lowered.inputPolicy;
@@ -307,7 +312,7 @@ function lowerArtifactGraphStage(
 			prompt: appendWorkflowOutputInstructions(
 				stage.each.prompt,
 				stage,
-				context.controlSchemas,
+				context,
 			),
 		};
 	}
@@ -316,6 +321,7 @@ function lowerArtifactGraphStage(
 			...lowerArtifactGraphStage(stage.onExhausted, {
 				...context,
 				namespace: stageId,
+				siblings: [],
 			}),
 			[COMPILE_CANONICAL_SLOT]: `${stageId}.$onExhausted`,
 		};
@@ -349,24 +355,22 @@ function lowerArtifactGraphFrom(
 
 function lowerArtifactGraphPrompt(
 	stage: ArtifactGraphStageSpec,
-	controlSchemas: ReadonlyMap<string, unknown>,
+	context: LowerContext,
 ): string | undefined {
 	if (stage.type === "dag" || isSupportStage(stage)) return stage.prompt;
-	return appendWorkflowOutputInstructions(
-		stage.prompt ?? "",
-		stage,
-		controlSchemas,
-	);
+	return appendWorkflowOutputInstructions(stage.prompt ?? "", stage, context);
 }
 
 function appendWorkflowOutputInstructions(
 	prompt: string,
 	stage: ArtifactGraphStageSpec,
-	controlSchemas: ReadonlyMap<string, unknown>,
+	context: LowerContext,
 ): string {
 	const controlSchema = stage.output?.controlSchema;
 	const schemaFile =
-		controlSchema === undefined ? undefined : controlSchemas.get(controlSchema);
+		controlSchema === undefined
+			? undefined
+			: context.controlSchemas.get(controlSchema);
 	const analysisRequired = stage.output?.analysis?.required ?? true;
 	const refsRequired =
 		(stage.output?.refs?.required ?? true) ||
@@ -389,7 +393,11 @@ function appendWorkflowOutputInstructions(
 			"stage-control-v1",
 			pinnedControlSchemaId(schemaFile),
 		),
-		noInventSentence(schemaFile, prompt),
+		noInventSentence(
+			schemaFile,
+			prompt,
+			foreachReadKeys(context.siblings ?? [], stage.id),
+		),
 		"Put detailed prose, reasoning, and evidence discussion in <analysis> only.",
 		"Put structured evidence pointers in <refs> as a JSON array; use [] if none.",
 		...partialOutputInstructions(stage.output?.partial?.paths),
