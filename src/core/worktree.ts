@@ -42,6 +42,28 @@ const CLONE_RUNTIME_ARTIFACT_DIRS_ENV =
 const ALLOW_FULL_RUNTIME_ARTIFACT_COPY_ENV =
 	"AGENT_WORKFLOW_ALLOW_FULL_RUNTIME_ARTIFACT_COPY";
 
+/**
+ * Why a write-capable task could not get its managed worktree in `cwd`, as one phrase; undefined when it can
+ * (`git worktree add -b <branch> <path> HEAD` needs a repository and a commit to branch from). `check`
+ * reports this at preflight instead of the writer failing at launch.
+ */
+export function managedWorktreePreflightProblem(
+	cwd: string,
+): string | undefined {
+	const gitRoot = findGitRoot(cwd);
+	if (!gitRoot)
+		return `${cwd} is not inside a git repository (run git init and make a first commit)`;
+	try {
+		execFileSync("git", ["rev-parse", "--verify", "--quiet", "HEAD"], {
+			cwd: gitRoot,
+			stdio: "ignore",
+		});
+	} catch {
+		return `the git repository at ${gitRoot} has no commit yet (make a first commit)`;
+	}
+	return undefined;
+}
+
 export async function ensureManagedWorktree(
 	projectCwd: string,
 	run: WorkflowRunRecord,

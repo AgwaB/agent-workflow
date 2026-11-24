@@ -3088,7 +3088,7 @@ test("bundled workflows compile warning-free and deep-review leaves reviewer fan
 		);
 		assert.match(
 			reviewers?.compiledPrompt ?? "",
-			/If none is specified, use `stage-control-v1`; do not derive a value from the schema file name\./,
+			/Set `control\.schema` to exactly "stage-control-v1", the one value the control schema allows\./,
 		);
 		assert.doesNotMatch(
 			reviewers?.compiledPrompt ?? "",

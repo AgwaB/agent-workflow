@@ -308,6 +308,38 @@ test("M1a/M1b: a completed `from` source still lets the stage run whatever `afte
 	assert.equal(one(run, "report").status, "completed", states(run));
 });
 
+test("M1d: the implicitly chained previous stage is a data source, so a partial model stage with no from/after is skipped when it failed", async () => {
+	const { run, effectLog } = await scenario(
+		"implicit-chain",
+		[
+			{ id: "bad", type: "single", prompt: "Bad." },
+			{ id: "solo", type: "single", sourcePolicy: "partial", prompt: "Solo." },
+			{ id: "last", type: "single", sourcePolicy: "partial", prompt: "Last." },
+		],
+		{ failures: { "task-1": FAIL } },
+	);
+	assert.equal(one(run, "bad").status, "failed", states(run));
+	const solo = one(run, "solo");
+	assert.equal(solo.status, "skipped", states(run));
+	assert.equal(solo.statusDetail, "skipped_every_input_failed");
+	assert.equal(solo.lastMessage, "skipped: every input failed (bad failed)");
+	// The skipped stage is itself the next stage's implicit source: terminal, none completed.
+	assert.equal(one(run, "last").status, "skipped", states(run));
+	assert.deepEqual(taskIdsSubmitted(effectLog), ["task-1"]);
+});
+
+test("M1d: an implicit previous source that completed lets the partial stage run", async () => {
+	const { run } = await scenario(
+		"implicit-chain-ok",
+		[
+			{ id: "good", type: "single", prompt: "Good." },
+			{ id: "solo", type: "single", sourcePolicy: "partial", prompt: "Solo." },
+		],
+		{},
+	);
+	assert.equal(one(run, "solo").status, "completed", states(run));
+});
+
 test("M1c: a streaming foreach whose generated items all failed leaves the partial reducer skipped", async () => {
 	const stages = [
 		{

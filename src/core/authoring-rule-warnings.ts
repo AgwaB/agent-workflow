@@ -5,6 +5,7 @@ import {
 	lookupArrayBound,
 	lookupControlSchemaPath,
 } from "./control-schema-path.js";
+import { parseSimpleJsonPath } from "./workflow-runtime.js";
 import {
 	literalSourceLookups,
 	sourceNameReachable,
@@ -30,6 +31,8 @@ const PROFILE_ROLES =
 export async function collectAuthoringRuleWarnings(
 	stages: readonly unknown[],
 	specDir: string,
+	/** `defaults.readOnly` or the spec's own `readOnly`: what a stage without its own setting gets. */
+	readOnlyDefault?: boolean,
 ): Promise<string[]> {
 	const warnings: string[] = [];
 	const schemaCache = new Map<string, unknown>();
@@ -52,16 +55,20 @@ export async function collectAuthoringRuleWarnings(
 	const walk = async (
 		siblings: readonly unknown[],
 		mode: "top" | "dag" | "loop",
+		everyStage: ReadonlyMap<string, Stage>,
 	): Promise<void> => {
 		const byId = new Map<string, Stage>();
 		for (const stage of siblings) {
 			if (isRecord(stage) && typeof stage.id === "string")
 				byId.set(stage.id, stage);
 		}
+		warnings.push(...implicitChainWarnings(siblings, mode));
 		for (const [index, stage] of siblings.entries()) {
 			if (!isRecord(stage) || typeof stage.id !== "string") continue;
 			warnings.push(...profileRoleWarnings(stage));
 			warnings.push(...placeholderWarnings(stage));
+			warnings.push(...readOnlyCommandWarnings(stage, readOnlyDefault));
+			warnings.push(...verifyFilesWarnings(stage, everyStage));
 			warnings.push(
 				...(await supportSourceLookupWarnings(
 					stage,
@@ -82,14 +89,26 @@ export async function collectAuthoringRuleWarnings(
 			}
 			if (stage.type === "loop" && Array.isArray(stage.stages)) {
 				warnings.push(...(await loopUntilWarnings(stage, loadSchema)));
-				await walk(stage.stages, "loop");
-				if (isRecord(stage.onExhausted)) await walk([stage.onExhausted], "dag");
+				await walk(stage.stages, "loop", everyStage);
+				if (isRecord(stage.onExhausted))
+					await walk([stage.onExhausted], "dag", everyStage);
 			} else if (stage.type === "dag" && Array.isArray(stage.stages)) {
-				await walk(stage.stages, "dag");
+				await walk(stage.stages, "dag", everyStage);
 			}
 		}
 	};
-	await walk(stages, "top");
+	const everyStage = new Map<string, Stage>();
+	const collectStages = (list: readonly unknown[]): void => {
+		for (const stage of list) {
+			if (!isRecord(stage)) continue;
+			if (typeof stage.id === "string" && !everyStage.has(stage.id))
+				everyStage.set(stage.id, stage);
+			if (Array.isArray(stage.stages)) collectStages(stage.stages);
+			if (isRecord(stage.onExhausted)) collectStages([stage.onExhausted]);
+		}
+	};
+	collectStages(stages);
+	await walk(stages, "top", everyStage);
 	return warnings;
 }
 
@@ -146,6 +165,31 @@ async function supportSourceLookupWarnings(
 			(name) =>
 				`stage "${stage.id}" support helper "${uses}" looks up source ${JSON.stringify(name)}, which is not one of its sources (${from.join(", ") || "none"}). The lookup is always empty, so a helper that then declares failed or blocked is most likely reporting a wiring error, not a content gate. Use a name its from/after provides (or add the stage to from).`,
 		);
+}
+
+/**
+ * Top-level stages (not the first) with neither `from` nor `after` run after and read the previous stage.
+ * One warning per spec names them all, so a linear spec is not flagged once per stage on every launch.
+ */
+function implicitChainWarnings(
+	siblings: readonly unknown[],
+	mode: "top" | "dag" | "loop",
+): string[] {
+	if (mode !== "top") return [];
+	const chained: string[] = [];
+	for (const [index, stage] of siblings.entries()) {
+		if (index === 0 || !isRecord(stage) || typeof stage.id !== "string")
+			continue;
+		if (stage.from !== undefined || stage.after !== undefined) continue;
+		const previous = siblings[index - 1];
+		if (!isRecord(previous) || typeof previous.id !== "string") continue;
+		chained.push(stage.id);
+	}
+	if (chained.length === 0) return [];
+	const names = chained.map((id) => `"${id}"`).join(", ");
+	return [
+		`stage${chained.length === 1 ? "" : "s"} ${names} ${chained.length === 1 ? "has" : "have"} neither from nor after, so ${chained.length === 1 ? "it runs" : "they run"} after and read${chained.length === 1 ? "s" : ""} the previous stage implicitly (the previous stage is the source, except after a loop). Declare from: [...] to read a stage, or after: [] to start without one, to make it explicit.`,
+	];
 }
 
 function isModelBacked(stage: Stage): boolean {
@@ -246,12 +290,89 @@ function stageSourceIds(
 // disabled". Phrases that only narrow the tools ("do not use tools other than ...", "tools that
 // write", "tools to modify files", "never call workflow_artifact with maxChars and no path") are not
 // matches.
+// Words after the noun that narrow a prohibition to some tools or commands ("other than", "that write").
+const NOT_NARROWED_BY_CLAUSE =
+	"(?!\\s+(?:other than|except|apart from|besides|beyond|that|which|with|on|when|if|unless|before|after|again)\\b)";
+const NOT_NARROWED_BY_PURPOSE =
+	"(?!\\s+(?:to|for)\\s+(?:write|writing|modify|modifying|edit|editing|change|changing|mutate|mutating|delete|deleting|run|running)\\b)";
+const FORBID_WORD =
+	"(?:do not|don't|never|must not|mustn't|cannot|can't|should not|shouldn't|without|avoid)";
+
 const FORBIDS_TOOLS: RegExp[] = [
-	/\b(?:do not|don't|never|must not|mustn't|cannot|can't|should not|shouldn't|without|avoid)\s+(?:(?:to\s+)?(?:use|using|call|calling|invoke|invoking|rely on|relying on)\s+)?(?:(?:any|the|your|available|more|further)\s+)*(?:tools?|tool calls?|tool use|workflow_artifact)\b(?!\s+(?:other than|except|apart from|besides|beyond|that|which|with|on|when|if|unless|before|after|again)\b)(?!\s+(?:to|for)\s+(?:write|writing|modify|modifying|edit|editing|change|changing|mutate|mutating|delete|deleting|run|running)\b)/i,
+	new RegExp(
+		`\\b${FORBID_WORD}\\s+(?:(?:to\\s+)?(?:use|using|call|calling|invoke|invoking|rely on|relying on)\\s+)?(?:(?:any|the|your|available|more|further)\\s+)*(?:tools?|tool calls?|tool use|workflow_artifact)\\b${NOT_NARROWED_BY_CLAUSE}${NOT_NARROWED_BY_PURPOSE}`,
+		"i",
+	),
 	/\bno\s+(?:further\s+|additional\s+|extra\s+)?tool(?:s| calls?| use)\b/i,
 	/\btool[- ]free\b/i,
 	/\btools?\s+(?:are|is)\s+(?:not\s+available|unavailable|disabled|forbidden|not\s+allowed)\b/i,
 ];
+
+// "do not run commands", "never execute any shell commands", "avoid using the shell", "run no commands".
+// The same narrowing exemptions as the tool check, plus "such as"/"like"/"including" ("do not run commands
+// such as rm"), and wording about effects ("do not run tests", "do not modify files") is not a match.
+const FORBIDS_COMMANDS: RegExp[] = [
+	new RegExp(
+		`\\b${FORBID_WORD}\\s+(?:to\\s+)?(?:run|running|execute|executing|use|using|call|calling|invoke|invoking)\\s+(?:(?:any|the|your|available|more|further|shell|bash|terminal)\\s+)*(?:commands?|shell|bash|terminal|command[- ]line(?:\\s+tools?)?)\\b(?!\\s+(?:commands?|line)\\b)${NOT_NARROWED_BY_CLAUSE}(?!\\s+(?:such as|like|including|e\\.g\\.))${NOT_NARROWED_BY_PURPOSE}`,
+		"i",
+	),
+	/\b(?:run|execute|use)\s+no\s+(?:shell\s+)?commands?\b/i,
+];
+
+/**
+ * The write-verify helper shape: a support stage whose `options.files` lists `{ path }` entries is checked
+ * against the writer stage (`options.writer`, default "write"). A path the writer's prompt never names is a
+ * file the writer has no reason to create. Only this shape is judged; a writer that is not found is skipped.
+ */
+function verifyFilesWarnings(
+	stage: Stage,
+	everyStage: ReadonlyMap<string, Stage>,
+): string[] {
+	const options = stage.support?.options;
+	if (!isRecord(options) || !Array.isArray(options.files)) return [];
+	const files = options.files;
+	if (files.length === 0) return [];
+	const paths: string[] = [];
+	for (const entry of files) {
+		if (!isRecord(entry) || typeof entry.path !== "string" || entry.path === "")
+			return [];
+		paths.push(entry.path);
+	}
+	const writerId =
+		typeof options.writer === "string" ? options.writer : "write";
+	const writer = everyStage.get(writerId);
+	if (!writer || !isModelBacked(writer)) return [];
+	const prompt = [writer.prompt, writer.each?.prompt]
+		.filter((text): text is string => typeof text === "string")
+		.join("\n");
+	return paths
+		.filter((path) => !prompt.includes(path))
+		.map(
+			(path) =>
+				`stage "${stage.id}" checks ${JSON.stringify(path)} (support.options.files) but the prompt of its writer "${writerId}" does not name that path, so the writer has no reason to create it and the check would fail. Name the path in the writer's prompt, or correct the path.`,
+		);
+}
+
+function readOnlyCommandWarnings(
+	stage: Stage,
+	readOnlyDefault: boolean | undefined,
+): string[] {
+	if (!isModelBacked(stage) || stage.type === "dynamic") return [];
+	const readOnly = stage.each?.readOnly ?? stage.readOnly ?? readOnlyDefault;
+	if (readOnly !== true) return [];
+	const prompt = [stage.prompt, stage.each?.prompt]
+		.filter((text): text is string => typeof text === "string")
+		.join("\n");
+	let phrase: string | undefined;
+	for (const pattern of FORBIDS_COMMANDS) {
+		phrase = pattern.exec(prompt)?.[0];
+		if (phrase) break;
+	}
+	if (!phrase) return [];
+	return [
+		`stage "${stage.id}" is readOnly and its prompt forbids running commands ("${phrase}"). Codex reads files through shell commands, so this can leave it with no way to read. Forbid the effect instead (for example "do not modify files, run tests or run builds").`,
+	];
+}
 
 function forbidsToolsWarnings(
 	stage: Stage,
@@ -337,21 +458,51 @@ async function loopUntilWarnings(
 		(leaf) => typeof leaf.path === "string" && leaf.exists !== false,
 	);
 	if (leaves.length === 0) return [];
+	const warnings: string[] = [];
 	// Without a control schema there is nothing to check the path against.
 	const controlSchema = finalChild.output?.controlSchema;
-	if (typeof controlSchema !== "string") return [];
-	const schema = await loadSchema(finalChild);
-	if (!schema) return [];
-	const warnings: string[] = [];
-	for (const leaf of leaves) {
-		const lookup = lookupControlSchemaPath(schema, leaf.path);
-		if (lookup.status !== "missing") continue;
-		const consequence = lookup.closed
-			? "the schema sets additionalProperties: false, so the model can never emit it and the loop can only end exhausted"
-			: "nothing makes the model emit it";
-		warnings.push(
-			`loop stage "${loop.id}" until path "${leaf.path}" is not declared in the control schema (${controlSchema}) of its final child "${finalChild.id}": ${consequence}. Add "${lookup.property}" to that schema's properties and show it in the child's prompt, or point until at a declared field.`,
-		);
+	const schema =
+		typeof controlSchema === "string"
+			? await loadSchema(finalChild)
+			: undefined;
+	const undeclared = new Set<unknown>();
+	if (schema) {
+		for (const leaf of leaves) {
+			const lookup = lookupControlSchemaPath(schema, leaf.path);
+			if (lookup.status !== "missing") continue;
+			undeclared.add(leaf);
+			const consequence = lookup.closed
+				? "the schema sets additionalProperties: false, so the model can never emit it and the loop can only end exhausted"
+				: "nothing makes the model emit it";
+			warnings.push(
+				`loop stage "${loop.id}" until path "${leaf.path}" is not declared in the control schema (${controlSchema}) of its final child "${finalChild.id}": ${consequence}. Add "${lookup.property}" to that schema's properties and show it in the child's prompt, or point until at a declared field.`,
+			);
+		}
+	}
+	// The key the loop ends on has to appear in the child's prompt as a JSON key, or the model has no
+	// reason to emit it (a missing key reads as "not done", so the loop runs to maxRounds).
+	if (isModelBacked(finalChild)) {
+		const prompt = [finalChild.prompt, finalChild.each?.prompt]
+			.filter((text): text is string => typeof text === "string")
+			.join("\n");
+		for (const leaf of leaves) {
+			if (undeclared.has(leaf)) continue;
+			const key = lastPropertyKey(leaf.path);
+			if (key === undefined || promptShowsJsonKey(prompt, key)) continue;
+			warnings.push(
+				`loop stage "${loop.id}" until reads "${key}" from its final child "${finalChild.id}", but that child's prompt does not show "${key}": as a JSON key. Show it in the <control> example (for example {"${key}": true}) so the model emits it; otherwise the loop can only end exhausted.`,
+			);
+		}
 	}
 	return warnings;
+}
+
+function lastPropertyKey(path: string): string | undefined {
+	const tokens = parseSimpleJsonPath(path);
+	const last = tokens?.at(-1);
+	return last?.type === "property" ? last.key : undefined;
+}
+
+function promptShowsJsonKey(prompt: string, key: string): boolean {
+	return prompt.includes(`"${key}":`) || prompt.includes(`"${key}" :`);
 }

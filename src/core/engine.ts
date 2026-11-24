@@ -82,7 +82,10 @@ import {
 	createWorkflowLaunchAuthority,
 	issueWorkflowLaunchAuthority,
 } from "./launch-authority.js";
-import { ensureManagedWorktree } from "./worktree.js";
+import {
+	ensureManagedWorktree,
+	managedWorktreePreflightProblem,
+} from "./worktree.js";
 import { resolveWorkflowHelperRef } from "./workflow-helpers.js";
 import { buildAvailableToolView } from "./tool-metadata.js";
 import {
@@ -261,6 +264,7 @@ import {
 import {
 	negotiateWorkflowRun,
 	probeWorkflowExecutor,
+	WorkflowCapabilityError,
 	type WorkflowExecutorProber,
 	workflowNegotiationTargets,
 	workflowProfileStrictCapabilities,
@@ -596,6 +600,26 @@ export const WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT: unique symbol = Symbol(
 );
 
 /** WP19 round 3 (R5): the workflow file changed between the host's load and the engine's. */
+/** One `  ✗ <stages>: <problem>` line per working directory where a task needs a managed worktree it cannot get. */
+function worktreePreflightRefusals(tasks: readonly CompiledTask[]): string[] {
+	const stagesByProblem = new Map<string, string[]>();
+	const problemByCwd = new Map<string, string | undefined>();
+	for (const task of tasks) {
+		if (!task.safety.requiresWorktree) continue;
+		if (!problemByCwd.has(task.cwd))
+			problemByCwd.set(task.cwd, managedWorktreePreflightProblem(task.cwd));
+		const problem = problemByCwd.get(task.cwd);
+		if (problem === undefined) continue;
+		stagesByProblem.set(problem, [
+			...(stagesByProblem.get(problem) ?? []),
+			task.id,
+		]);
+	}
+	return [...stagesByProblem].map(
+		([problem, stages]) => `  ✗ ${stages.join(", ")}: ${problem}`,
+	);
+}
+
 /** `preflightOnly`: the launch would have started; this is what its preflight found. */
 export class WorkflowPreflightPassed extends Error {
 	readonly code = "WORKFLOW_PREFLIGHT_PASSED" as const;
@@ -1085,6 +1109,22 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			: {}),
 	});
 	options.launchSignal?.throwIfAborted();
+	if (options.preflightOnly) {
+		// A write-capable stage runs in a managed git worktree: say now that none can be made.
+		const worktreeRefusals = worktreePreflightRefusals(
+			workflowNegotiationTargets(compiled),
+		);
+		if (worktreeRefusals.length > 0)
+			throw new WorkflowCapabilityError(
+				"CAPABILITY_REFUSED",
+				[
+					"a write-capable stage cannot get its managed git worktree; the run was not started and no task was launched:",
+					...worktreeRefusals,
+				].join("\n"),
+				executor.id,
+				capabilityNegotiation.preview,
+			);
+	}
 	if (options.preflightOnly)
 		throw new WorkflowPreflightPassed(
 			capabilityNegotiation,

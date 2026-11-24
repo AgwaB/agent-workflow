@@ -346,18 +346,6 @@ test("a foreach source array without maxItems warns; a schema cap or stage maxIt
 	assert.equal(matching(stageCap, /has no maxItems/).length, 0);
 
 	// A support helper bounds its array in code; the spec cannot show it.
-	const helper = await validate(
-		[
-			{
-				id: "plan",
-				support: { uses: "./helper.mjs" },
-				output: { controlSchema: "./schemas/plan.json" },
-			},
-			stages()[1],
-		],
-		{ "schemas/plan.json": planSchema() },
-	);
-	assert.equal(matching(helper, /has no maxItems/).length, 0);
 });
 
 test("a foreach source array without minItems warns once; minItems (even 0) or a helper silences it", async () => {
@@ -702,6 +690,225 @@ test("a loop until path missing from an open schema warns; a final child without
 	assert.equal(matching(noSchema, /until path/).length, 0);
 });
 
+test("a loop until key that the final child's prompt does not show as a JSON key warns", async () => {
+	const until = { stage: "review", path: "$.passed", equals: true };
+	const withPrompt = (prompt, extra = {}) => [
+		{
+			id: "refine",
+			type: "loop",
+			maxRounds: 3,
+			until,
+			stages: [
+				single("draft"),
+				single("review", {
+					output: { controlSchema: "./schemas/review.json" },
+					prompt,
+					...extra,
+				}),
+			],
+		},
+	];
+	const silent = await validate(withPrompt("Review the draft."), reviewFiles());
+	const [warning] = matching(silent, /until reads "passed"/);
+	assert.ok(warning, silent.warnings.join("\n"));
+	assert.match(warning, /loop stage "refine"/);
+	assert.match(warning, /final child "review"/);
+	assert.match(warning, /"passed":/);
+	for (const prompt of [
+		'Review. {"schema":"x","digest":"x","passed":true}',
+		'Review. Put it in {"passed" : false}.',
+	]) {
+		const shown = await validate(withPrompt(prompt), reviewFiles());
+		assert.equal(matching(shown, /until reads/).length, 0, prompt);
+	}
+	// A nested path asks for its last key.
+	const nested = await validate(
+		[
+			{
+				...withPrompt('Review. {"verdict":{"ok":true}}')[0],
+				until: { stage: "review", path: "$.verdict.ok", equals: true },
+			},
+		],
+		{
+			"schemas/review.json": schema({
+				verdict: schema({ ok: { type: "boolean" } }),
+			}),
+		},
+	);
+	assert.equal(matching(nested, /until reads/).length, 0);
+});
+
+test("the until-key warning skips exists:false leaves and a path the schema lacks (its own warning)", async () => {
+	const loop = (until, finalChild, extra = {}) => [
+		{
+			id: "refine",
+			type: "loop",
+			maxRounds: 3,
+			until,
+			stages: [single("draft"), finalChild],
+			...extra,
+		},
+	];
+	const review = (extra = {}) =>
+		single("review", {
+			output: { controlSchema: "./schemas/review.json" },
+			prompt: "Review the draft.",
+			...extra,
+		});
+	const absent = await validate(
+		loop({ stage: "review", path: "$.passed", exists: false }, review()),
+		reviewFiles(),
+	);
+	assert.equal(matching(absent, /until reads/).length, 0);
+	const undeclared = await validate(
+		loop({ stage: "review", path: "$.approved", equals: true }, review()),
+		reviewFiles(),
+	);
+	assert.equal(matching(undeclared, /until reads/).length, 0);
+	assert.equal(matching(undeclared, /until path/).length, 1);
+});
+
+test("a readOnly stage whose prompt forbids running commands warns; narrowed or effect wording does not", async () => {
+	for (const phrase of [
+		"Do not run commands.",
+		"Never execute any shell commands.",
+		"You must not use the shell.",
+		"Run no commands: answer from the text.",
+		"Avoid running bash commands.",
+		"Do not use any command line tools.",
+	]) {
+		const compiled = await validate([
+			single("main", { prompt: `Audit. ${phrase}` }),
+		]);
+		const [warning] = matching(compiled, /forbids running commands/);
+		assert.ok(warning, `expected a warning for: ${phrase}`);
+		assert.match(warning, /stage "main" is readOnly/);
+		assert.match(warning, /Codex reads files through shell commands/);
+		assert.match(warning, /do not modify files/);
+	}
+	for (const prompt of [
+		"Audit. Do not run commands that modify files.",
+		"Audit. Do not run commands other than git log and cat.",
+		"Audit. Never execute shell commands to write or build anything.",
+		"Audit. Do not run any command which changes the checkout.",
+		"Audit. Do not run tests, builds or installs; do not modify files.",
+		"Audit. Do not use tools other than read.",
+		"Audit. Running commands that write is forbidden.",
+	]) {
+		const compiled = await validate([single("main", { prompt })]);
+		assert.equal(
+			matching(compiled, /forbids running commands/).length,
+			0,
+			prompt,
+		);
+	}
+});
+
+test("the command-forbidding warning needs readOnly: a stage-level readOnly:false or an each prompt decides", async () => {
+	const prompt = "Audit. Do not run commands.";
+	const writer = await validate([single("main", { prompt, readOnly: false })]);
+	assert.equal(matching(writer, /forbids running commands/).length, 0);
+	const files = {
+		"schemas/plan.json": schema({
+			items: {
+				type: "array",
+				minItems: 1,
+				maxItems: 3,
+				items: { type: "string" },
+			},
+		}),
+	};
+	const foreach = await validate(
+		[
+			single("plan", { output: { controlSchema: "./schemas/plan.json" } }),
+			{
+				id: "fe",
+				type: "foreach",
+				profileRole: "verification",
+				from: { source: "plan", path: "$.items" },
+				each: { prompt: "Check ${item}. Do not execute commands." },
+			},
+		],
+		files,
+	);
+	const [warning] = matching(foreach, /forbids running commands/);
+	assert.match(warning, /stage "fe" is readOnly/);
+});
+
+const verifyStage = (files, options = {}, extra = {}) => ({
+	id: "verify",
+	from: ["write"],
+	support: { uses: "./verify.mjs", options: { files, ...options } },
+	...extra,
+});
+
+test("a write-verify helper whose file path is missing from the writer prompt warns, naming stage, path and writer", async () => {
+	const compiled = await validate(
+		[
+			single("write", { prompt: "Create OUTPUT.md with a heading." }),
+			verifyStage([
+				{ path: "OUTPUT.md", markers: ["# Output"] },
+				{ path: "docs/NOTES.md" },
+				{ path: "extra/report.md" },
+			]),
+		],
+		{ "verify.mjs": {} },
+	);
+	const found = matching(compiled, /does not name that path/);
+	assert.equal(found.length, 2, found.join("\n"));
+	assert.match(found[0], /stage "verify" checks "docs\/NOTES\.md"/);
+	assert.match(found[0], /writer "write"/);
+	assert.match(found[1], /"extra\/report\.md"/);
+});
+
+test("the writer is options.writer or write; a named path, an unknown writer or another helper shape does not warn", async () => {
+	const named = await validate(
+		[
+			single("author", { prompt: "Write docs/NOTES.md and OUTPUT.md." }),
+			single("write", { prompt: "Unrelated." }),
+			verifyStage(
+				[{ path: "docs/NOTES.md" }, { path: "OUTPUT.md" }],
+				{ writer: "author" },
+				{ from: ["author"] },
+			),
+		],
+		{ "verify.mjs": {} },
+	);
+	assert.equal(matching(named, /does not name that path/).length, 0);
+	const wrongWriter = await validate(
+		[
+			single("author", { prompt: "Write docs/NOTES.md." }),
+			verifyStage([{ path: "docs/NOTES.md" }], {}, { from: ["author"] }),
+		],
+		{ "verify.mjs": {} },
+	);
+	assert.equal(
+		matching(wrongWriter, /does not name that path/).length,
+		0,
+		"no stage called write: nothing to compare",
+	);
+	const otherShape = await validate(
+		[
+			single("write", { prompt: "Write something." }),
+			{
+				id: "check",
+				from: ["write"],
+				support: {
+					uses: "./verify.mjs",
+					options: { files: ["a.md"], limit: 3 },
+				},
+			},
+			{
+				id: "check2",
+				from: ["write"],
+				support: { uses: "./verify.mjs", options: { threshold: 2 } },
+			},
+		],
+		{ "verify.mjs": {} },
+	);
+	assert.equal(matching(otherShape, /does not name that path/).length, 0);
+});
+
 test("new authoring-rule warnings are advisory: classified, not strict-blocking", async () => {
 	const compiled = await validate([
 		single("main", { prompt: "Use ${input.x}.", profileRole: undefined }),
@@ -719,4 +926,62 @@ test("new authoring-rule warnings are advisory: classified, not strict-blocking"
 			AGENT_WORKFLOW_STRICT_PROMPT_SCHEMA: "1",
 		}),
 	);
+});
+
+test("a top-level stage with neither from nor after warns that it reads the previous stage implicitly", async () => {
+	const implicit = await validate([
+		single("a"),
+		single("b"),
+		single("c", { from: ["b"] }),
+		single("d", { after: [] }),
+		single("e", { after: ["a"] }),
+	]);
+	const found = matching(implicit, /neither from nor after/);
+	assert.equal(found.length, 1, found.join("\n"));
+	assert.match(found[0], /stage "b" has neither from nor after/);
+	assert.doesNotMatch(found[0], /"[acde]"/);
+	assert.match(found[0], /from: \[\.\.\.\]/);
+	assert.match(found[0], /after: \[\]/);
+});
+
+test("a linear spec gets one implicit-chain warning naming every chained stage, not one per stage", async () => {
+	const linear = await validate([
+		single("a"),
+		single("b"),
+		single("c"),
+		single("d"),
+	]);
+	const found = matching(linear, /neither from nor after/);
+	assert.equal(found.length, 1, found.join("\n"));
+	assert.match(found[0], /stages "b", "c", "d" have neither from nor after/);
+	assert.doesNotMatch(found[0], /"a"/);
+});
+
+test("the first stage, explicit from/after and children of a dag or loop do not warn about an implicit chain", async () => {
+	const compiled = await validate(
+		[
+			single("a"),
+			single("b", { after: [] }),
+			{
+				id: "fan",
+				type: "dag",
+				after: ["b"],
+				outputFrom: "y",
+				stages: [single("x"), single("y")],
+			},
+			{
+				id: "refine",
+				type: "loop",
+				after: ["fan"],
+				maxRounds: 2,
+				until: { stage: "z", path: "$.ok", equals: true },
+				stages: [
+					single("w"),
+					single("z", { output: { controlSchema: "./z.json" } }),
+				],
+			},
+		],
+		{ "z.json": schema({ ok: { type: "boolean" } }) },
+	);
+	assert.equal(matching(compiled, /neither from nor after/).length, 0);
 });
