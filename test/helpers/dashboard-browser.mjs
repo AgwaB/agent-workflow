@@ -68,6 +68,9 @@ async function createBrowserOnce(
 			"--no-default-browser-check",
 			"--disable-background-networking",
 			"--disable-component-update",
+			// Chrome clones its app bundle per launch (code_sign_clone.*) and only removes it on a clean exit;
+			// killed test Chromes leak ~1 GiB-apparent clones. Verified on Chrome 158 (macOS).
+			"--disable-features=MacAppCodeSignClone",
 			"--disable-sync",
 			// The unit runner isolates HOME; without these, a fresh-profile Chrome on macOS can block on
 			// the login keychain ("Chrome Safe Storage") and never answer the first navigation.

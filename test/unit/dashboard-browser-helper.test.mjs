@@ -173,3 +173,21 @@ test("a Chrome that hangs at startup is relaunched once; two hangs fail with bot
 	);
 	assert.equal(attempts, 2);
 });
+
+test("Chrome is launched with the code-sign-clone feature disabled so killed runs leak no clones", async () => {
+	let launchedArgs;
+	await assert.rejects(
+		createBrowser("/nonexistent/chrome", {
+			launch: (_executable, args) => {
+				launchedArgs = args;
+				throw new Error("stop after capturing args");
+			},
+		}),
+		/stop after capturing args/,
+	);
+	assert.ok(launchedArgs.includes("--disable-features=MacAppCodeSignClone"));
+	assert.equal(
+		launchedArgs.filter((a) => a.startsWith("--disable-features=")).length,
+		1,
+	);
+});
