@@ -874,7 +874,8 @@ design feedback to fix before the first run:
   `minItems` in the schema (`minItems: 1` if empty means failure, `0` if it is fine);
 - a loop `until` path missing from the final child's open control schema, and a loop `until` key that the final
   child's prompt does not show as a JSON key;
-- a top-level stage (not the first) with neither `from` nor `after`: it reads the previous stage implicitly;
+- top-level stages (not the first) with neither `from` nor `after`: they read the previous stage implicitly (one
+  warning per spec names them all);
 - a `readOnly` model stage whose prompt forbids running commands (Codex reads files through shell commands; forbid
   effects such as writes, tests and builds instead);
 - a write-verify support stage whose `options.files[].path` its writer's prompt (`options.writer`, default `write`)
@@ -998,8 +999,9 @@ length/item/number bounds, `additionalProperties`, simple `allOf`/`anyOf`/`oneOf
 `definitions` and `pattern` are rejected at load time. String lengths count code points. When the
 schema pins `control.schema` with `const` or a one-value `enum`, the Workflow Output Protocol the engine appends
 names that value, so the prompt need not repeat it (a larger `enum` still needs the value in the prompt). A root
-`required` array with `minItems >= 1` also adds one sentence to the protocol: do not invent items, report
-`control.inputIntegrity` `blocked` instead (left out when the stage prompt already mentions `inputIntegrity`).
+`required` array with `minItems >= 1` that a `foreach` stage fans out over (its `from.path` starts with that key)
+also adds one sentence to the protocol: do not invent items, report
+`control.inputIntegrity` `blocked` instead (not added for lists no foreach reads; left out when the stage prompt already mentions `inputIntegrity`).
 
 **Partial output for streaming foreach.** A producer may declare `output.partial.paths: ["$.items"]`
 and publish stable items early in standalone `<partial-control>{"schema":"workflow-partial-output-v1",
