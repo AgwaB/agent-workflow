@@ -88,7 +88,7 @@ async function readTree(dir) {
 async function projectFor(pattern, prefix = "p-") {
 	const dir = await mkdtemp(join(root, prefix));
 	await mkdir(join(dir, ".agent-workflow"), { recursive: true });
-	if (pattern === "write-verify") {
+	if (pattern === "write-verify" || pattern === "fix-loop") {
 		const git = (...args) =>
 			execFileSync("git", ["-C", dir, ...args], { stdio: "ignore" });
 		git("init", "-q");
@@ -157,7 +157,7 @@ for (const pattern of AUTHORING_PATTERN_IDS) {
 		assert.equal(validated.data.valid, true);
 		assert.deepEqual(validated.data.warnings, []);
 
-		for (const loop of pattern === "loop-refine"
+		for (const loop of pattern === "loop-refine" || pattern === "fix-loop"
 			? ["pass", "exhaust"]
 			: ["pass"]) {
 			const rehearsed = await here([

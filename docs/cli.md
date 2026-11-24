@@ -28,7 +28,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 |---|---|
 | `list [--query T] [--offset N] [--limit N]` | Discoverable workflows: project `workflows/` and `.agent-workflow/workflows/`, `~/.agent-workflow/workflows/`, bundled (Pi's directories are not read). `--limit` (1-20) pages the output and bounds it to 50 KB. |
 | `validate <workflow>` | Load and compile a spec without running it. Its `Tasks:` count is the compiled task count: a `foreach` or `loop` counts once, so a run has more ([task ids](usage.md#run-records)). Lists `Warnings:` ([what it checks](usage.md#what-validate-checks)). |
-| `new <pattern> <name> [--scope private\|shared\|global] [--force]` / `new --list` | Create a workflow from a pattern (`single`, `foreach-reduce`, `inventory-foreach`, `loop-refine`, `parallel-review-merge`, `classify-count`, `write-verify`, `collect-render`) that already validates and rehearses clean; you replace the `TODO:` prompts (below). No model call. |
+| `new <pattern> <name> [--scope private\|shared\|global] [--force]` / `new --list` | Create a workflow from a pattern (`single`, `foreach-reduce`, `inventory-foreach`, `loop-refine`, `parallel-review-merge`, `classify-count`, `write-verify`, `collect-render`, `fix-loop`, `adaptive-depth`) that already validates and rehearses clean; you replace the `TODO:` prompts (below). No model call. |
 | `check <workflow> [<task…>] [launch options]` | The launch preflight without the launch: executor, tools, models and effort for the executor that would run each stage (below). No run, no model call. |
 | `rehearse <workflow> [<task…>] [--items N] [--loop pass\|exhaust] [--keep] [--json]` | Run a workflow through the real engine with a synthetic worker (no model call or network by the worker; temporary engine run state; helpers are trusted code, below). Reports the wiring per stage. |
 | `roles <workflow>` | Compiled role context as injected into task prompts. |
@@ -139,6 +139,8 @@ prompts. `new --list` prints the patterns:
 | `classify-count` | `load` → `classify` (foreach with `itemIdentityPath`) → `count` (code; reconciles ids, lists missing ones) → `report` |
 | `write-verify` | `write` (write-capable, `readOnly: false`, `worktreePolicy: "on"`, edits files in its managed worktree; never merged) → `verify` (code; the files exist, are non-empty and hold the markers set in `support.options.files`, else the run fails) |
 | `collect-render` | `collect` (code; `git log` → commit list) → `render` (code; grouped Markdown changelog). No model stage, no `TODO:` prompt, no model call at run time |
+| `fix-loop` | Use when a task says "fix the failing tests, retry up to N times, stop when green": `fix-loop` (loop, at most 3 rounds: `write` in a managed worktree, then `check` runs the test command once; `until` is the exit code it copied, `exitCode == 0`) → `test` (code; reruns the command in the loop's worktree with a timeout, counts, failure excerpt, changed files, changed protected paths) → `report` (code; per-round changes and the final status, taken from the code run only). Never merged; ending red is a plain "still failing after N rounds" |
+| `adaptive-depth` | Use when items need different effort ("investigate each as deeply as it needs"): `load` (code; items file) → `triage` (model: `quick` or `deep` per item with a reason) → `plan` (code; caps: `maxDeep`, `maxSteps` model calls) → `quick` (foreach, one call per item) and `investigate` → `attach-findings` (code) → `challenge` (foreach; two model steps per deep item) → `collect` (code; one disposition per item, a missing one fails the run) → `report` (code; table) |
 
 Each bundle has `spec.json`, closed control schemas (`additionalProperties: false`, including `schema`
 and `digest`), support helpers where the pattern has code stages, a `profileRole` on every model stage and
@@ -160,6 +162,18 @@ git repository the run fails (only `rehearse` gets an empty list); `run` still w
 `AGENT_WORKFLOW_REHEARSAL=1`: `verify` then still looks up the worktree but skips the file checks, which the synthetic
 writer cannot satisfy. A `rehearse` of a workflow with a write stage runs in a throwaway clone of the project's `HEAD` plus the current
 `.agent-workflow/agents` and `.agent-workflow/workflows` (other uncommitted changes are not copied), so the project's worktrees, branches and working tree stay unchanged.
+
+`fix-loop` writes a writer agent and a checker agent (`<name>-writer.md`, `<name>-checker.md`) and needs a git repository with
+a commit. A loop cannot contain a code step (loop children must be `single` or `reduce`), so the loop exit is the exit code the
+`check` model copied from one run of the command, and the authoritative result is the `test` stage after the loop. Keep the
+test command (default `npm test`) equal in the `write` prompt, the `check` prompt and `test` `support.options.command` (an
+argument array run without a shell; also `timeoutMs`, `protectedPrefixes`, default `test/` and `tests/`: a change there makes the
+status `protected-changed`). The per-round rows come from the writer's `history` as reported; the files really changed are
+verified by `git status` in code. `adaptive-depth` loads items from a JSON array or lines file (`load` `support.options`: `file`,
+`format`, `idPath`, `maxItems` up to 50); `plan` demotes the last deep items to quick when `maxDeep` (default 5) or
+`maxSteps` (default 60: one triage call, one per quick item, two per deep item) is exceeded and fails when even an all-quick run
+does not fit. Edit the verdict labels in `schemas/disposition.schema.json` and the Contract together. While `rehearse` runs,
+`test` runs no command and `plan` takes the first item as deep so the deep path is rehearsed.
 
 `--scope private` (default) writes `.agent-workflow/workflows/<name>/` in the project, `shared` writes
 `workflows/<name>/`, `global` writes under `$AGENT_WORKFLOW_HOME/workflows/` ([where workflows are
