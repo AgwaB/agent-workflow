@@ -9,15 +9,18 @@ Use this skill before creating, editing, or reviewing an `agent-workflow` workfl
 
 ## Start here: `new`, edit prompts, validate, check, rehearse
 
-For a new workflow, do not hand-write JSON when a pattern fits. `agent-workflow new --list` prints the patterns (`single`, `foreach-reduce`, `loop-refine`, `parallel-review-merge`, `classify-count`, `write-verify` for a worktree writer checked by code, `collect-render` for a deterministic collect→render with no model); `agent-workflow new <pattern> <name> [--scope private|shared|global]` (private by default; ask for the scope first, see "Authoring intake") writes a bundle that already passes `validate` with no warnings and `rehearse` with no findings: closed control schemas with `schema`/`digest`, helpers for the code stages, a `profileRole` on every model stage, a `minItems` and `maxItems` on every foreach source array, and few-shot `<control>` skeletons generated from the schemas. It never overwrites files without `--force`.
+Reuse before building: a bundled workflow that already does the job, else an `agent-workflow new` pattern, else a scaffold ("Scaffolds"). Do not hand-write JSON or invent a topology that one of them covers. Choose the graph first (worker stages plus support nodes), define every data dependency explicitly, and state the approach briefly when it materially affects cost, safety, output shape, or storage.
+
+`agent-workflow new --list` prints the patterns: `single`, `foreach-reduce`, `loop-refine`, `parallel-review-merge`, `classify-count`, `write-verify` (a worktree writer checked by code) and `collect-render` (a deterministic collect→render with no model). `agent-workflow new <pattern> <name> [--scope private|shared|global]` (private by default; ask for the scope first, see "Authoring intake") writes a bundle that already passes `validate` with no warnings and `rehearse` with no findings: closed control schemas with `schema`/`digest`, helpers for the code stages, a `profileRole` on every model stage, a `minItems` and `maxItems` on every foreach source array, and few-shot `<control>` skeletons generated from the schemas. It never overwrites files without `--force`. `new` and `rehearse` exist only in the `agent-workflow` CLI.
 
 1. `agent-workflow new <pattern> <name>`.
 2. Edit the prompts: replace each `TODO:` paragraph (and the spec `description`) with the domain instructions; that is the only edit you must make. The paragraph after it (the Contract: allowed keys, exact enum values, caps, example) is generated from the stage's schema: keep it, and when you change a schema (labels, fields, caps) change that stage's Contract sentences and example in the same edit. To add a reviewer or a stage, copy a sibling stage and keep `from`, schema files and helper expectations in step.
    `write-verify` also writes a writer agent (`<name>-writer.md`, in the project's or user's `agents/` directory) and needs a git repository with a commit; keep the `write` prompt in step with `verify`'s `support.options.files` (paths and required markers); the worktree is kept and never merged. `collect-render` has no prompts: set `support.options` (`maxCommits`, `range`) and adapt the render helper.
-3. `agent-workflow validate <name>`, then `agent-workflow check <name>`, then `agent-workflow rehearse <name>` (`--loop exhaust` for a loop); fix every warning and finding.
-4. A smoke run on the cheapest model ("Validate, smoke run, hand off").
+3. Validate with `agent-workflow validate <workflow-or-file>` (or `/aw validate <workflow-or-file>` in Pi), run from the project directory. Then `agent-workflow check <name>`, then `agent-workflow rehearse <name>` (`--loop exhaust` for a loop); fix every warning and finding ("Validation warnings").
+4. Apply "Quality design patterns"; do not stop at a spec that merely validates.
+5. Offer a smoke run on the cheapest model and hand off ("Validate, smoke run, hand off").
 
-When no pattern fits, start from the closest bundled workflow or scaffold ("Scaffolds") and follow the same loop. The rules below apply to every edit you make to a generated bundle.
+When no pattern fits, start from the closest bundled workflow or scaffold and follow the same loop. The rules below apply to every edit you make to a generated bundle.
 
 ## Must know (most-violated rules)
 
@@ -31,22 +34,19 @@ When no pattern fits, start from the closest bundled workflow or scaffold ("Scaf
 8. **Declared input reaches prompts only as a `# Workflow Input` block.** Declared `input` values (with `--input` overrides) appear as a JSON block in each compiled stage task's prompt, not in foreach children (put what they need in the item). There is no `${input.x}` substitution; `${item}` (in a foreach `each.prompt`) is the only placeholder, and `validate` warns on any other `${...}`.
 9. **Validate, check and rehearse before handing off.** Run `agent-workflow validate` and fix every warning, then the `check` preflight, then `agent-workflow rehearse <workflow>` (real engine, synthetic worker, no model call) and fix every finding; see "Validate, smoke run, hand off".
 
-## Read first
+## Read only what the task needs
 
-Read the public usage guide and bundled workflow notes before giving workflow-authoring advice:
+This skill plus a `new` bundle is enough to author a pattern-based workflow, write its helpers ("Support helpers") and validate it: do not read the docs first. Open a doc only for what the task needs, and only the named section. Paths resolve relative to this skill directory; `../../docs/usage.md` is the source of truth (command surface, workflow resolution, artifact-graph semantics, safety policy, validation) where this skill is silent.
 
-- `../../docs/usage.md` — start with its sections "Where workflows are found", "Stage model", "DAG authoring", "Output contracts", "Support helpers", "Loop behavior", "Roles", "Tool allowlists" (with "Write-capable stages"), "Local review evidence" and "Artifacts and required reads".
-- `../../workflows/README.md`
-
-Resolve paths relative to this skill directory. Treat those docs as the source of truth for command surface, workflow resolution, artifact-graph semantics, safety policy, and validation.
-
-Then read at least one shipped bundled spec as a quality reference, not only the scaffolds: the scaffolds show correct JSON shape; the bundled specs show correct *quality* (prompt discipline, evidence gates, partial-failure handling, control/analysis split proven on real runs). Prefer the closest match, and copy its conventions (see "Quality design patterns"), not just its structure:
-
-- `../../workflows/deep-research/spec.json` — plan -> foreach research -> normalize/verify/audit -> synthesis; strong evidence and verification discipline, expensive/cheap stage separation.
-- `../../workflows/deep-review/spec.json` — triage -> foreach reviewers -> support dedup -> foreach devil's-advocate -> support partition -> report; multi-pass challenge and deterministic verdict joins.
-- `../../workflows/spec-review/spec.json` and `../../workflows/impact-review/spec.json` — mapping/synthesis shapes.
-
-Prefer a bundled workflow before inventing a new topology. When a scaffold topology fits, start from `./scaffolds/<name>/` rather than inventing the JSON shape.
+- Stage shapes no pattern gives you (`dag`, `sourceProjection`, streaming, `output` options): "Stage model", "DAG authoring", "Output contracts". Loops beyond `loop-refine`: "Loop behavior".
+- `requiredReads` projections, `inputIntegrity`, paging: "Artifacts and required reads".
+- Write-capable stages, tool lists, custom tools: "Tool allowlists" (with "Write-capable stages"). Role context: "Roles".
+- Evidence gates: "Local review evidence"; web quotes: "Web quote check" in "Support helpers" (the rest of that section is the API block below).
+- Name resolution: "Where workflows are found". What the bundled workflows do: `../../workflows/README.md`.
+- Evidence, verification or verdict stages, or a review of an existing workflow: read the closest bundled spec as the quality reference and copy its conventions ("Quality design patterns"), not just its structure. Patterns and scaffolds show correct JSON shape; bundled specs show correct *quality* (prompt discipline, evidence gates, partial-failure handling, control/analysis split proven on real runs):
+  - `../../workflows/deep-research/spec.json`: plan -> foreach research -> normalize/verify/audit -> synthesis; strong evidence and verification discipline, expensive/cheap stage separation.
+  - `../../workflows/deep-review/spec.json`: triage -> foreach reviewers -> support dedup -> foreach devil's-advocate -> support partition -> report; multi-pass challenge and deterministic verdict joins.
+  - `../../workflows/spec-review/spec.json` and `../../workflows/impact-review/spec.json`: mapping/synthesis shapes.
 
 ## Authoring intake
 
@@ -69,16 +69,6 @@ When the request is vague, broad, or self-contradictory, do not write a spec yet
 5. Survey existing workflows only when choosing a base template, adapting a known workflow, or checking whether a new one is unnecessary. Do not invent a topology when an existing workflow already satisfies the request.
 6. If the request is contradictory (for example "read-only" plus "edit and commit"), name the conflict and offer concrete alternatives rather than silently resolving it. Workflow workers do not commit; mutation goes through a managed worktree for human review with no auto-merge.
 7. Before writing, briefly note the chosen stage graph (nodes, `from`/`foreach.from`/`reduce.from`/support edges, read/write policy, schemas/helpers, storage path) when it materially affects cost, safety, or output shape. Ask the user to approve it only if the choice changes user-visible behavior, cost, storage scope, or mutation risk.
-
-## Authoring steps
-
-1. Identify the goal and whether an existing workflow can be reused or adapted.
-2. Choose the graph first: worker stages plus support nodes. Use `type: "dynamic"` only when static `foreach`/`dag`/`reduce` shapes cannot know the child work until runtime. State the approach briefly when it materially affects cost, safety, output shape, or storage. Then give every model-bearing stage/profile its semantic `profileRole`.
-3. If a `new` pattern fits, generate it ("Start here") and edit its prompts; else if a scaffold fits, use it ("Scaffolds"). Define every data dependency explicitly.
-4. Add `output.controlSchema` files for model outputs consumed later, set tool ceilings and read/write policy, and keep helper/controller code bundle-local and trusted (`support.uses`, `dynamic.uses` and dynamic helper refs start with `./`, end in `.mjs` and stay inside the bundle; `validate` rejects others).
-5. Apply "Quality design patterns"; do not stop at a spec that merely validates.
-6. Validate with `agent-workflow validate <workflow-or-file>` (or `/aw validate <workflow-or-file>` in Pi), run from the project directory. Then work through "Validation warnings".
-7. Offer a smoke run and hand off ("Validate, smoke run, hand off").
 
 ## Validation warnings
 
@@ -116,7 +106,7 @@ Do not ignore warnings.
 
 ## Support helpers
 
-A support stage declares `support: {uses: "./helpers/x.mjs", options: {…}}` plus its sources. The helper is trusted bundle-local code run in the engine process (no sandbox). Full contract: "Support helpers" in `docs/usage.md`. API, checked against the engine:
+A support stage declares `support: {uses: "./helpers/x.mjs", options: {…}}` plus its sources. The helper is trusted bundle-local code run in the engine process (no sandbox): `support.uses`, `dynamic.uses` and dynamic helper refs start with `./`, end in `.mjs` and stay inside the bundle (`validate` rejects others). Full contract: "Support helpers" in `docs/usage.md`. API, checked against the engine:
 
 ```js
 export default async function helper({ sources, options, context }) {
@@ -133,13 +123,13 @@ export default async function helper({ sources, options, context }) {
 
 ## Dynamic stages
 
-- Use `type: "dynamic"` only for trusted adaptive orchestration that must create official child tasks at runtime with `ctx.agent()`, `ctx.helper()`, or `ctx.workflow()`.
+- Use `type: "dynamic"` only for trusted adaptive orchestration that must create official child tasks at runtime with `ctx.agent()`, `ctx.helper()`, or `ctx.workflow()`, when static `foreach`/`dag`/`reduce` shapes cannot know the child work until then.
 - `maxNestedWorkflowDepth` is actual ancestor-relative nonconsumable headroom: depth 1 allows sibling children, not grandchildren; child settings cannot widen ancestor allowances. Missing/ambiguous ancestry grants no new depth. Keep the other work/runtime/tool budgets; depth is not a sibling-work cap.
 - Hot `counters.nestedWorkflowDepth` is only a local 0/1 launch projection. Full retained historical depth requires explicit `readOrRebuildDynamicState(cwd, runId, { observeDescendants: true })` runtime inspection, is not persisted into the hot cache, and is never launch authority. Do not import private runtime modules into reusable helpers.
 
 ## Tools, roles and write policy
 
-- Agent-declared tools are the authority ceiling; workflow `tools` can only narrow them. The bundled `scout` and `researcher` agents are read-only, so a stage that needs `bash`, `edit` or `write` needs your own agent (in `.agent-workflow/agents/` or the user `agents/` directory) declaring it (validate otherwise says `tool "bash" expands agent scout; allowed tools: …`).
+- Set each stage's tool ceiling and read/write policy deliberately. Agent-declared tools are the authority ceiling; workflow `tools` can only narrow them. The bundled `scout` and `researcher` agents are read-only, so a stage that needs `bash`, `edit` or `write` needs your own agent (in `.agent-workflow/agents/` or the user `agents/` directory) declaring it (validate otherwise says `tool "bash" expands agent scout; allowed tools: …`).
 - To reuse agent knowledge across stages, declare top-level `roles` (`fromAgent` extracts safe agent sections; `prompt` appends literal text). Compiled role text is injected as a `# Role Context` block; check the result with `agent-workflow roles <workflow>` (Pi: `/aw roles <workflow>`). See "Roles" in `docs/usage.md`.
 - Classify every model-backed stage with `profileRole`: `planning`, `research-execution`, `synthesis`, `verification`, or `final-judgment`. A stage without one matches only `agent:<name>` and `default` entries of a role profile (Codex/Codex High/Claude/Mixed/Custom). The value must reflect the work's semantic purpose, never a stage-name guess. Put it on `single`/`foreach`/`reduce`/`dynamic` stages, nested DAG/loop children, and model-backed `onExhausted`; a dynamic stage's role classifies its generated-agent runtime defaults, and each present decision-loop `planner`/`workerDefaults`/`verifier`/`synthesis` profile object also needs its own role. Do not put it on support stages or DAG/loop containers. `profileRole` is not the agent-context `role` field.
 - Keep review/research workflows read-only unless the workflow explicitly documents managed-worktree mutation.
