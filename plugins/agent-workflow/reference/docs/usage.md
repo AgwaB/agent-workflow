@@ -1114,10 +1114,9 @@ fails the loop task; `exhausted` and `stopped_no_progress` end it `completed` (`
 `loop_stopped_no_progress`), so the run can still complete. An unlimited loop ends `failed` after
 any round with a non-completed child; a bounded loop retries in the next round, but ends `failed`
 (not `exhausted`/`stopped_no_progress`) when the last round it runs has a non-completed child. Failed, declared-blocked, skipped or interrupted tasks of an earlier round of a loop that did not end `failed` are superseded by
-the later round: they stay in task lists and `taskSummary` counts and add to the run's degradation note, but do not
-decide the run status (the final round and a `failed` loop still do). An optional
+the later round: they stay in task lists and `taskSummary` counts but do not decide the run status (the final round and a `failed` loop still do). An optional
 `onExhausted` stage runs once on exhaustion or no progress, never when the loop ends `failed`. There is no auto-merge of worktree output
-(see "Worktrees" under Retention).
+(see "Worktrees" under Retention). The run degradation note counts recovered declared blocks separately from failed tasks.
 
 A `single`, `reduce` or `support` stage that names a loop in `from` receives the outputs of every
 child of the loop's last executed round, as sources named `<loop>.<child>` (for example
@@ -1128,8 +1127,16 @@ block: each of its `context.sourceStatuses` rows for a loop child carries `loop:
 roundsUsed }` instead. To inspect earlier rounds, a helper can call `await context.readLoopHistory(loopId,
 childId)` for its own loop or a loop it receives as a source. It returns earlier rows with `round`,
 `status`, and `control` for completed tasks, not the current/final round. A `failed` loop is an ordinary failed source under
-the consumer's `sourcePolicy`; `after` stays ordering-only. `foreach`, `dynamic`, `dag` and `loop`
+the consumer's `sourcePolicy`; `after` stays ordering-only. A `partial` support consumer explicitly naming
+that failed loop in `from` sees its terminal metadata on the placeholder status row, and its scoped
+history includes the final round (without controls for non-completed tasks). `foreach`, `dynamic`, `dag` and `loop`
 stages cannot read a loop (rejected at validate).
+
+The generated fix-loop checks the registered worktree and branch before and after the test command.
+Only run trusted project test code: the worktree is not a sandbox. A normal stop or timeout kills its
+process group on Unix. If the scheduler dies during the command, the detached group can outlive it;
+stale support recovery does not know that group's identity and cannot reap it before the next round.
+Check for leftover test processes before restarting work in the retained worktree.
 
 ### Roles
 
