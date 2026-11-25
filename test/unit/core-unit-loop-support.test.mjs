@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { generatePatternFiles } from "../../dist/core/authoring-patterns.js";
 import { loadWorkflowSpec, parseWorkflow } from "../../dist/core/schema.js";
 import { readArtifactGraphControl } from "../../dist/core/artifact-graph-runtime.js";
 import {
@@ -88,6 +89,7 @@ async function start(
 		first = false,
 		onExhausted,
 		progressPath,
+		generatedReport = false,
 	} = {},
 ) {
 	writeAgent(cwd, "unit-scout", "read");
@@ -102,6 +104,13 @@ async function start(
 		from: ["fix-loop"],
 		support: { uses: "./report.mjs" },
 	});
+	if (generatedReport)
+		spec.artifactGraph.stages.push({
+			id: "strict",
+			from: ["fix-loop"],
+			sourcePolicy: "require-success",
+			support: { uses: "./never.mjs" },
+		});
 	const dir = join(cwd, "workflows");
 	mkdirSync(dir, { recursive: true });
 	const specPath = join(dir, "loop.json");
@@ -122,6 +131,24 @@ async function start(
 		join(dir, "report.mjs"),
 		`export default async ({ sources, context }) => ({ sources, rows: context.sourceStatuses, history: await context.readLoopHistory("fix-loop", "check") });`,
 	);
+	if (generatedReport) {
+		const stage = spec.artifactGraph.stages.find((row) => row.id === "report");
+		stage.sourcePolicy = "partial";
+		stage.support.options = { tester: "check" };
+		writeFileSync(
+			join(dir, "never.mjs"),
+			'export default () => { throw Error("unexpected dispatch") };',
+		);
+		const render = generatePatternFiles("fix-loop", "evidence").find(
+			(file) => file.path === "helpers/report-fix.mjs",
+		);
+		writeFileSync(join(dir, "render.mjs"), render.content);
+		writeFileSync(
+			join(dir, "report.mjs"),
+			`import render from "./render.mjs";
+			export default async (input) => ({ ...await render(input), keys: Object.keys(input.sources), history: await input.context.readLoopHistory("fix-loop", "check"), foreign: await input.context.readLoopHistory("other", "check") });`,
+		);
+	}
 	const compiled = await compileWorkflow(parseWorkflow(spec), {
 		cwd,
 		specPath,
@@ -192,6 +219,44 @@ test("support runs in each round and a downstream helper sees final aliases and 
 			roundsUsed: 2,
 		});
 		assert.equal(report.history[0].control.exitCode, 1);
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, { recursive: true, force: true });
+	}
+});
+
+test("failed fix-loop partial report keeps real round evidence without publishing controls", async () => {
+	const cwd = makeProject();
+	captureWorkerPrompts();
+	try {
+		const runId = await start(cwd, {
+			maxRounds: 2,
+			generatedReport: true,
+			helper: `export default ({ context }) => context.loop.round === 1
+				? { exitCode: 1, outcome: "red", failed: 1, roundFiles: ["src/a.js"] }
+				: { exitCode: 5, status: "blocked" };`,
+		});
+		await finishWrite(cwd, runId, 1);
+		const run = await finishWrite(cwd, runId, 2);
+		assert.equal(run.status, "failed");
+		assert.equal(taskBySpec(run, "strict.main").status, "skipped");
+		const result = await readArtifactGraphControl(
+			cwd,
+			taskBySpec(run, "report.main"),
+		);
+		assert.equal(result.loopStatus, "failed");
+		assert.equal(result.rounds, 2);
+		assert.equal(result.status, "unverified");
+		assert.deepEqual(
+			result.rows.map(({ files, tests }) => [files, tests]),
+			[
+				[["src/a.js"], "red, exit 1, 1 failing"],
+				[[], "not verified"],
+			],
+		);
+		assert.deepEqual(result.keys, []);
+		assert.deepEqual(result.foreign, []);
+		assert.deepEqual(result.history[1], { round: 2, status: "blocked" });
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
 		rmSync(cwd, { recursive: true, force: true });

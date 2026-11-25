@@ -58,6 +58,7 @@ import type {
 	ArtifactGraphRequiredRead,
 	CompiledTask,
 	CompiledWorkflow,
+	LoopResultRecord,
 	RequiredWorkflowArtifactReadPolicy,
 	WorkflowRunRecord,
 	WorkflowTaskRunRecord,
@@ -91,6 +92,7 @@ export async function executeSupportTask(
 	task: WorkflowTaskRunRecord,
 	compiledTask: CompiledWorkflow["tasks"][number],
 	validationSnapshot: ArtifactGraphRuntimeValidationSnapshot,
+	partialSources = false,
 ): Promise<boolean> {
 	if (!compiledTask.support) {
 		throw new Error("support metadata is missing");
@@ -125,6 +127,19 @@ export async function executeSupportTask(
 		const loop = compiledTask.loopChild;
 		const worktree =
 			loop && run.loopWorktrees?.find((row) => row.loopId === loop.loopId);
+		const failedLoopSources = new Map(
+			partialSources
+				? (run.loopResults ?? [])
+						.filter(
+							(result) =>
+								result.status === "failed" &&
+								compiledTask.contextDependsOn?.includes(
+									`${result.loopId}.loop`,
+								),
+						)
+						.map((result) => [`${result.loopId}.loop`, result] as const)
+				: [],
+		);
 		structuredOutput = await helper({
 			sources,
 			options: compiledTask.support.options,
@@ -163,12 +178,14 @@ export async function executeSupportTask(
 									compiledTask.dependsOn ?? [],
 									loopId,
 									childId,
+									failedLoopSources.get(`${loopId}.loop`)?.roundsUsed,
 								),
 							sourceStatuses: buildArtifactGraphSupportSourceStatuses(
 								run,
 								compiledTask.dependsOn ?? [],
 								validationSnapshot,
 								task.specId,
+								failedLoopSources,
 							),
 						}
 					: {}),
@@ -319,7 +336,8 @@ function buildArtifactGraphSupportSourceStatuses(
 	run: WorkflowRunRecord,
 	dependsOn: readonly string[],
 	validationSnapshot: ArtifactGraphRuntimeValidationSnapshot,
-	consumerSpecId?: string,
+	consumerSpecId: string,
+	failedLoopSources: ReadonlyMap<string, LoopResultRecord>,
 ): Array<Record<string, unknown>> {
 	const statuses: Array<Record<string, unknown>> = [];
 	const sourceNames = supportSourceNamesForDependencies(
@@ -348,16 +366,19 @@ function buildArtifactGraphSupportSourceStatuses(
 				? {}
 				: { placeholderSpecId: source.foreachGenerated.placeholderSpecId }),
 			...sourceStatusForTask(source),
-			...(consumerSpecId === undefined
-				? {}
-				: loopStatusFields(run, source, consumerSpecId)),
+			...loopStatusFields(
+				run,
+				source,
+				consumerSpecId,
+				failedLoopSources.get(specId),
+			),
 		});
 	}
 	return statuses;
 }
 
 // History is opt-in and scoped to the helper's own loop or a loop explicitly supplied as a source.
-// The current/final round is already available via normal sources and is not repeated here.
+// A failed explicit partial source only has a placeholder, so its history includes the final round.
 async function readSupportLoopHistory(
 	cwd: string,
 	run: WorkflowRunRecord,
@@ -365,10 +386,13 @@ async function readSupportLoopHistory(
 	dependencies: readonly string[],
 	loopId: string,
 	childId: string,
+	failedRoundsUsed?: number,
 ): Promise<Array<{ round: number; status: string; control?: unknown }>> {
 	let beforeRound: number | undefined;
 	if (consumer.loopChild?.loopId === loopId) {
 		beforeRound = consumer.loopChild.round;
+	} else if (failedRoundsUsed !== undefined) {
+		beforeRound = failedRoundsUsed + 1;
 	} else if (
 		run.tasks.some(
 			(task) =>
@@ -1465,6 +1489,7 @@ function loopStatusFields(
 	run: WorkflowRunRecord,
 	source: WorkflowTaskRunRecord,
 	consumerSpecId: string,
+	failedLoop?: LoopResultRecord,
 ): Record<string, unknown> {
 	const child = source.loopChild;
 	if (child && consumerSpecId.startsWith(`${child.loopId}.`)) {
@@ -1480,9 +1505,11 @@ function loopStatusFields(
 			};
 	}
 	const loopId = loopChildSourceLoopId(source, consumerSpecId);
-	const result = loopId
-		? run.loopResults?.find((candidate) => candidate.loopId === loopId)
-		: undefined;
+	const result =
+		failedLoop ??
+		(loopId
+			? run.loopResults?.find((candidate) => candidate.loopId === loopId)
+			: undefined);
 	return result
 		? {
 				loop: {

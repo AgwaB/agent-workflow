@@ -1128,7 +1128,9 @@ block: each of its `context.sourceStatuses` rows for a loop child carries `loop:
 roundsUsed }` instead. To inspect earlier rounds, a helper can call `await context.readLoopHistory(loopId,
 childId)` for its own loop or a loop it receives as a source. It returns earlier rows with `round`,
 `status`, and `control` for completed tasks, not the current/final round. A `failed` loop is an ordinary failed source under
-the consumer's `sourcePolicy`; `after` stays ordering-only. `foreach`, `dynamic`, `dag` and `loop`
+the consumer's `sourcePolicy`; `after` stays ordering-only. A `partial` support consumer explicitly naming
+that failed loop in `from` sees its terminal metadata on the placeholder status row, and its scoped
+history includes the final round (without controls for non-completed tasks). `foreach`, `dynamic`, `dag` and `loop`
 stages cannot read a loop (rejected at validate).
 
 ### Roles

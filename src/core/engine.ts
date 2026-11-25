@@ -6279,6 +6279,7 @@ async function launchPendingTaskAt(
 				task,
 				launchTask,
 				validationSnapshot,
+				stageSourcePolicy(compiledFlow, launchTask.stageId ?? "") === "partial",
 			);
 		}
 		if (launchTask.kind === "dynamic") {

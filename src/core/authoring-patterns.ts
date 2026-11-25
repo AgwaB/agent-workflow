@@ -2053,11 +2053,11 @@ export default async function helper({ sources, options, context }) {
   const rowsOfSources = Array.isArray(context.sourceStatuses) ? context.sourceStatuses : [];
   const loopRow = rowsOfSources.find((row) => row.loop && row.loop.loopId === names.loop);
   const loopInfo = loopRow ? loopRow.loop : undefined;
-  const write = sources[names.loop + "." + names.writer];
-  const test = sources[names.loop + "." + names.tester];
   const rounds = loopInfo?.roundsUsed ?? 0;
   const earlierTests = await context.readLoopHistory(names.loop, names.tester);
   const earlierWrites = await context.readLoopHistory(names.loop, names.writer);
+  const write = sources[names.loop + "." + names.writer] ?? earlierWrites.find((row) => row.round === rounds)?.control;
+  const test = sources[names.loop + "." + names.tester] ?? earlierTests.find((row) => row.round === rounds)?.control;
   const verified = Boolean(test && !test.rehearsal && typeof test.outcome === "string");
   const green = verified && test.outcome === "green";
   const protectedChanged = verified && Array.isArray(test.protectedChanged) ? test.protectedChanged : [];
