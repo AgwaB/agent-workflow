@@ -1964,6 +1964,9 @@ export default async function helper({ options, context }) {
   if (ran.timedOut) {
     return result({ ...base, outcome: "timeout", exitCode: -1, ...counts(text), text: excerpt(text), note: "killed after " + wanted.timeoutMs + " ms" });
   }
+  if (ran.killedBy) {
+    return result({ ...base, outcome: "error", exitCode: -1, passed: -1, failed: -1, text: excerpt(text), note: "command terminated by " + ran.killedBy });
+  }
   const tally = counts(text);
   return result({ ...base, outcome: ran.code === 0 ? "green" : "red", exitCode: ran.code, ...tally, text: excerpt(text) });
 }
@@ -1974,6 +1977,8 @@ const FIX_REPORT_HELPER = `// Renders the loop's code-tested rounds. Writer summ
 const STATUS_TEXT = {
   green: "green",
   "still-failing": "still failing",
+  "command-error": "test command error",
+  timeout: "test command timed out",
   "protected-changed": "green but protected files changed",
   unverified: "not verified",
 };
@@ -2011,9 +2016,9 @@ function markdownFor(view) {
     lines.push("");
   }
   lines.push("## Verified state of the worktree", "");
-  if (view.verified) {
+  if (view.measured) {
     lines.push(
-      "- Test command: \`" + view.command.replace(/\`/g, "'") + "\`, exit " + view.exitCode + (view.passed >= 0 ? ", " + view.passed + " passed" : "") + (view.failed >= 0 ? ", " + view.failed + " failed" : ""),
+      "- Test command: \`" + view.command.replace(/\`/g, "'") + "\`" + (view.verified ? ", exit " + view.exitCode + (view.passed >= 0 ? ", " + view.passed + " passed" : "") + (view.failed >= 0 ? ", " + view.failed + " failed" : "") : ": " + STATUS_TEXT[view.status]),
       "- Final dirt vs HEAD (" + view.changedTotal + "): " + (view.changed.length > 0 ? view.changed.map((file) => "\`" + clip(file, 120).replace(/\`/g, "'") + "\`").join(", ") : "none"),
       "- Changed protected paths: " + (view.runBaselineKnown === false ? "unknown (baseline unavailable)" : view.protectedChanged.length > 0 ? view.protectedChanged.map((file) => "\`" + clip(file, 120).replace(/\`/g, "'") + "\`").join(", ") : "none"),
     );
@@ -2023,8 +2028,9 @@ function markdownFor(view) {
       lines.push("- Net changes during this run: " + (view.runBaselineKnown ? list(view.runFiles) : "unknown (baseline unavailable)"));
     }
     if (view.unreported.length > 0) lines.push("- Changes no round reported: " + view.unreported.map((file) => "\`" + clip(file, 120).replace(/\`/g, "'") + "\`").join(", "));
+    if (view.note) lines.push("- Diagnostic: " + cell(view.note, 300));
     lines.push("");
-    if (view.excerpt) lines.push("Last failure output:", "", "\`\`\`", view.excerpt.replace(/\`\`\`/g, "'''"), "\`\`\`", "");
+    if (view.excerpt) lines.push("Last test output:", "", "\`\`\`", view.excerpt.replace(/\`\`\`/g, "'''"), "\`\`\`", "");
   } else {
     lines.push("The project test result is unavailable, so nothing was verified.", "");
   }
@@ -2042,11 +2048,14 @@ export default async function helper({ sources, options, context }) {
   const earlierWrites = await context.readLoopHistory(names.loop, names.writer);
   const write = sources[names.loop + "." + names.writer] ?? earlierWrites.find((row) => row.round === rounds)?.control;
   const test = sources[names.loop + "." + names.tester] ?? earlierTests.find((row) => row.round === rounds)?.control;
-  const verified = Boolean(test && !test.rehearsal && typeof test.outcome === "string");
+  const measured = Boolean(test && !test.rehearsal && typeof test.outcome === "string");
+  const verified = measured && ((test.outcome === "green" && test.exitCode === 0) || (test.outcome === "red" && test.exitCode > 0));
   const green = verified && test.outcome === "green";
-  const protectedChanged = verified && Array.isArray(test.protectedChanged) ? test.protectedChanged : [];
+  const protectedChanged = measured && Array.isArray(test.protectedChanged) ? test.protectedChanged : [];
   let status;
-  if (!verified) status = "unverified";
+  if (measured && test.outcome === "timeout") status = "timeout";
+  else if (measured && test.outcome === "error") status = "command-error";
+  else if (!verified) status = "unverified";
   else if (!green) status = "still-failing";
   else if (protectedChanged.length > 0) status = "protected-changed";
   else status = "green";
@@ -2057,25 +2066,27 @@ export default async function helper({ sources, options, context }) {
     const writer = round === rounds ? write : earlierWrites.find((row) => row.round === round)?.control;
     const measured = round === rounds ? test : earlierTests.find((row) => row.round === round)?.control;
     const tests = !measured ? "not verified" : measured.rehearsal ? "rehearsal worktree probe"
+      : measured.outcome === "error" || measured.outcome === "timeout" ? STATUS_TEXT[measured.outcome === "error" ? "command-error" : "timeout"] + (measured.note ? ": " + measured.note : "")
       : measured.outcome + ", exit " + measured.exitCode + (measured.failed >= 0 ? ", " + measured.failed + " failing" : "");
     if (Array.isArray(writer?.files)) for (const file of writer.files) named.add(file);
     rows.push({ round, summary: clip(writer?.summary ?? "", 200), files: measured?.roundFiles?.slice(0, 6) ?? [], baselineKnown: measured?.roundBaselineKnown, tests: clip(tests, 200) });
   }
-  const changed = verified && Array.isArray(test.changedFiles) ? test.changedFiles : [];
+  const changed = measured && Array.isArray(test.changedFiles) ? test.changedFiles : [];
   const unreported = (test?.runFiles ?? changed).filter((file) => !named.has(file));
 
   let headline;
   if (status === "green") headline = "Tests are green after " + rounds + " round" + (rounds === 1 ? "" : "s") + ": the test command exited 0 in the kept worktree.";
   else if (status === "protected-changed") headline = "Tests are green after " + rounds + " round(s), but the fix changed protected path(s): " + protectedChanged.join(", ") + ". Review them before trusting the result.";
   else if (status === "still-failing") headline = "Tests still failing after " + rounds + " round" + (rounds === 1 ? "" : "s") + (loopInfo ? " (loop " + loopInfo.status + ")" : "") + ".";
+  else if (status === "timeout" || status === "command-error") headline = "The " + STATUS_TEXT[status] + "; no completed test verdict.";
   else if (test?.rehearsal) headline = "Rehearsal verified the worktree and loop wiring only: project tests were not run.";
   else headline = "The final test run did not happen, so the result is not verified" + (loopInfo ? " (loop " + loopInfo.status + ")" : "") + ".";
 
   const view = {
-    status, rounds, loopStatus: loopInfo ? loopInfo.status : "", branch: test?.branch ?? "", worktree: test?.worktree ?? "", headline, rows, verified,
-    command: verified ? String(test.command) : "", exitCode: verified ? test.exitCode : -1, passed: verified ? test.passed : -1, failed: verified ? test.failed : -1,
+    status, rounds, loopStatus: loopInfo ? loopInfo.status : "", branch: test?.branch ?? "", worktree: test?.worktree ?? "", headline, rows, verified, measured, note: measured ? String(test.note || "") : "",
+    command: measured ? String(test.command) : "", exitCode: verified ? test.exitCode : -1, passed: verified ? test.passed : -1, failed: verified ? test.failed : -1,
     runBaselineKnown: test?.runBaselineKnown, preExistingFiles: test?.preExistingFiles, runFiles: test?.runFiles,
-    changed, changedTotal: verified ? test.changedTotal : 0, protectedChanged, unreported, excerpt: verified && !green ? String(test.excerpt || "") : "",
+    changed, changedTotal: measured ? test.changedTotal : 0, protectedChanged, unreported, excerpt: measured && !green ? String(test.excerpt || "") : "",
   };
   const markdown = markdownFor(view);
   return {
@@ -2146,7 +2157,14 @@ function fixLoopPattern(name: string): Bundle {
 	});
 	const reported = closedSchema("fix-report-v1", {
 		status: {
-			enum: ["green", "still-failing", "protected-changed", "unverified"],
+			enum: [
+				"green",
+				"still-failing",
+				"protected-changed",
+				"unverified",
+				"command-error",
+				"timeout",
+			],
 		},
 		rounds: { type: "integer", minimum: 0, maximum: 99 },
 		loopStatus: text(40),

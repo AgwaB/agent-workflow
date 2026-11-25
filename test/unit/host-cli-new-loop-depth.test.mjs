@@ -721,6 +721,41 @@ test("fix-loop: renamed tester feeds two real rounds to the report without dupli
 	);
 });
 
+test("fix-loop: the report distinguishes command errors and timeouts from observed red tests", async () => {
+	const { dir, helpers, schema } = await generated(
+		"fix-loop",
+		"diagnostics",
+		FIX_HELPERS,
+	);
+	await testWorktree(dir, "exports.value = () => 2;\n");
+	for (const [command, status, diagnostic] of [
+		[["aw-no-such-command-xyz"], "command-error", /ENOENT/u],
+		[
+			["node", "-e", "setInterval(() => {}, 1000)"],
+			"timeout",
+			/killed after 1000 ms/u,
+		],
+	]) {
+		const result = await helpers["run-tests.mjs"]({
+			context: TEST_CONTEXT(dir),
+			options: { command, timeoutMs: 1000 },
+		});
+		const report = await helpers["report-fix.mjs"](
+			reportInput({
+				loop: { loopId: "fix-loop", status: "exhausted", roundsUsed: 1 },
+				test: result,
+			}),
+		);
+		assert.equal(report.status, status);
+		assert.match(report.markdown, diagnostic);
+		assert.doesNotMatch(report.markdown, /still failing|exit -1/u);
+		assert.deepEqual(
+			validateJsonSchema(report, await schema("fix-report.schema.json")).issues,
+			[],
+		);
+	}
+});
+
 // -------------------------------------------------------------- adaptive-depth
 
 const DEPTH_HELPERS = [
