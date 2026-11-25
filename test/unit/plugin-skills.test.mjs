@@ -191,3 +191,33 @@ test("the completion-check line is described as a line containing agent-workflow
 		assert.doesNotMatch(flat, /at the start of a later turn/, where);
 	}
 });
+
+test("fix-loop authoring guidance describes the code tester and model-only loop forcing", async () => {
+	const guide = readFileSync(
+		join(root, "skills/workflow-guide/SKILL.md"),
+		"utf8",
+	);
+	const manual = readFileSync(join(root, "docs/cli.md"), "utf8");
+	for (const text of [
+		guide,
+		manual,
+		skill("workflow-guide"),
+		readFileSync(
+			join(root, plugins.PI_SKILLS_DIR, "workflow-guide/SKILL.md"),
+			"utf8",
+		),
+	]) {
+		assert.match(text, /writer → code test → report/u);
+		assert.match(text, /support\.options\.command/u);
+		assert.match(text, /Git-derived/u);
+		assert.match(text, /model-decided loops/u);
+		assert.doesNotMatch(
+			text,
+			/writer and checker agents|a loop cannot contain a code step/iu,
+		);
+	}
+	assert.ok(Buffer.byteLength(guide) <= 44000);
+	const { COMMAND_HELP } = await import("../../dist/hosts/help.js");
+	assert.match(COMMAND_HELP.rehearse, /model-decided loops/u);
+	assert.doesNotMatch(COMMAND_HELP.rehearse, /every loop's until/u);
+});

@@ -141,7 +141,7 @@ prompts. `new --list` prints the patterns:
 | `classify-count` | `load` → `classify` (foreach with `itemIdentityPath`) → `count` (code; reconciles ids, lists missing ones) → `report` |
 | `write-verify` | `write` (write-capable, `readOnly: false`, `worktreePolicy: "on"`, edits files in its managed worktree; never merged) → `verify` (code; the files exist, are non-empty and hold the markers set in `support.options.files`, else the run fails) |
 | `collect-render` | `collect` (code; `git log` → commit list) → `render` (code; grouped Markdown changelog). No model stage, no `TODO:` prompt, no model call at run time |
-| `fix-loop` | Use when a task says "fix the failing tests, retry up to N times, stop when green": `fix-loop` (loop, at most 3 rounds: `write` in a managed worktree, then `check` runs the test command once; `until` is the exit code it copied, `exitCode == 0`) → `test` (code; reruns the command in the loop's worktree with a timeout, counts, failure excerpt, changed files, changed protected paths) → `report` (code; per-round changes and the final status, taken from the code run only). Never merged; ending red is a plain "still failing after N rounds" |
+| `fix-loop` | Fix failing tests with bounded retries: writer → code test → report. Every round runs `write` in the same managed worktree and `test` runs the configured command with a timeout. A zero exit stops the loop; `report` uses Git-derived deltas and test evidence without rerunning the command. Nothing is merged. |
 | `adaptive-depth` | Use when items need different effort ("investigate each as deeply as it needs"): `load` (code; items file) → `triage` (model: `quick` or `deep` per item with a reason) → `plan` (code; caps: `maxDeep`, `maxSteps` model calls) → `quick` (foreach, one call per item) and `investigate` → `attach-findings` (code) → `challenge` (foreach; two model steps per deep item) → `collect` (code; one disposition per item, a missing one fails the run) → `report` (code; table) |
 
 Each bundle has `spec.json`, closed control schemas (`additionalProperties: false`, including `schema`
@@ -165,17 +165,18 @@ git repository the run fails (only `rehearse` gets an empty list); `run` still w
 writer cannot satisfy. A `rehearse` of a workflow with a write stage runs in a throwaway clone of the project's `HEAD` plus the current
 `.agent-workflow/agents` and `.agent-workflow/workflows` (other uncommitted changes are not copied), so the project's worktrees, branches and working tree stay unchanged.
 
-`fix-loop` writes a writer agent and a checker agent (`<name>-writer.md`, `<name>-checker.md`) and needs a git repository with
-a commit. A loop cannot contain a code step (loop children must be `single` or `reduce`), so the loop exit is the exit code the
-`check` model copied from one run of the command, and the authoritative result is the `test` stage after the loop. Keep the
-test command (default `npm test`) equal in the `write` prompt, the `check` prompt and `test` `support.options.command` (an
-argument array run without a shell; also `timeoutMs`, `protectedPrefixes`, default `test/` and `tests/`: a change there makes the
-status `protected-changed`). The per-round rows come from the writer's `history` as reported; the files really changed are
-verified by `git status` in code. `adaptive-depth` loads items from a JSON array or lines file (`load` `support.options`: `file`,
+`fix-loop` writes a writer agent (`<name>-writer.md`) and needs a Git repository with a commit. Set the test
+command on the loop's `test` child in `support.options.command` (an argument array run without a shell;
+default `["npm", "test"]`) and keep the `write` prompt in step. Options also include `timeoutMs` and
+`protectedPrefixes` (default `test/` and `tests/`). The report separates pre-existing dirt, net changes since
+worktree setup, and final dirt relative to HEAD. Per-round Git-derived deltas are unknown if the baseline
+is missing. A nonzero exit is a real failure; a timeout or a command that could not run is not. Only run
+trusted project tests: the worktree is not a sandbox. `rehearse` runs a Git worktree probe, not project tests.
+`adaptive-depth` loads items from a JSON array or lines file (`load` `support.options`: `file`,
 `format`, `idPath`, `maxItems` up to 50); `plan` demotes the last deep items to quick when `maxDeep` (default 5) or
 `maxSteps` (default 60: one triage call, one per quick item, two per deep item) is exceeded and fails when even an all-quick run
 does not fit. Edit the verdict labels in `schemas/disposition.schema.json` and the Contract together. While `rehearse` runs,
-`test` runs no command and `plan` takes the first item as deep so the deep path is rehearsed.
+`plan` takes the first item as deep so the deep path is rehearsed.
 
 `--scope private` (default) writes `.agent-workflow/workflows/<name>/` in the project, `shared` writes
 `workflows/<name>/`, `global` writes under `$AGENT_WORKFLOW_HOME/workflows/` ([where workflows are
@@ -249,8 +250,9 @@ The report lists per stage the tasks and their statuses, whether a stage that na
 received any, each required read (and the tool's message when its path does not resolve), foreach
 item counts, loop rounds and end status, helper errors with their message, and whether the final
 report rendered. `--items N` (0-20, default 2) sets how many items an unbounded array gets;
-`--loop exhaust` keeps every bounded loop's `until` false so `onExhausted` and the `exhausted`
-status are exercised (default `pass`: `until` holds on round 1). A support helper that itself
+For model-decided loops, `--loop exhaust` keeps a bounded loop's `until` false to exercise
+`onExhausted` (default `pass`: `until` holds on round 1). Neither mode changes a support helper's
+control. `new fix-loop` rehearses the managed worktree and wiring, not the project test command. A support helper that itself
 declares `failed` or `blocked` on the synthetic data is listed as a declared failed/blocked, not as a wiring problem:
 the text names each such helper and its reason and says the rehearsal cannot tell a content check from a setup
 problem (the reason is the only evidence: a message about placeholder data versus one naming a missing source or

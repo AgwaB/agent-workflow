@@ -844,8 +844,10 @@ ordinary JavaScript), to catch wiring mistakes that `validate` cannot see: a sta
 but receives none, a required read whose path does not resolve, a foreach that fans out over nothing,
 a loop whose `until` never holds, a helper that throws. Every model task gets a deterministic,
 schema-valid control from its own control schema and performs its required reads through the real
-artifact tool; helpers run for real; run state is temporary. Use `--loop exhaust` to exercise
-`onExhausted` and `--items N` to change the fan-out. It does not judge prompts or output quality: a
+artifact tool; helpers run for real; run state is temporary. `--loop pass|exhaust` only forces model outputs;
+with a support final child, the real helper control decides whether to continue. `new fix-loop` probes the
+managed worktree during rehearsal instead of running project tests on synthetic writer output. Use `--items N`
+to change the fan-out. It does not judge prompts or output quality: a
 rehearsal that exits 0 says no wiring fault was diagnosed, not that the wiring is proven or that a model will do the job. Run it after
 `validate` and `check` ([cli.md](cli.md#rehearse)).
 
@@ -1093,25 +1095,32 @@ listed in the results (`page.stored`), so the check can be repeated later agains
 
 ### Loop behavior
 
-A `loop` stage repeats at least two child stages (`single`/`reduce`, run in order) per round, with
-runtime ids such as `fix-loop.r01.check`. Children must not declare `from`/`after`: each child
-sources the earlier children of its round, and the first child of a later round gets the previous
-round plus a `# Loop Carry-Forward Context` block (only that first child gets it, so the final child
-that `until` reads never sees it; every child gets a `# Loop Round` block with `loop`, `round` and
-`childStage`). A `support`, `foreach`, `dag`, `dynamic` or `loop` child is rejected at validate.
+A `loop` stage repeats at least two child stages (`single`, `reduce` or `support`, run in order) per
+round, with runtime ids such as `fix-loop.r01.test`. Children must not declare `from`/`after`.
+Support children have no model prompt and receive all earlier children of their round; model children
+implicitly source the preceding child. The first child of round one inherits the loop's data inputs:
+`from` (or the implicit previous stage when neither `from` nor `after` is set). The loop's own `after`
+only orders entry, even when its first child is a helper; it grants no controls, status rows, or
+history access. This differs from a top-level support stage's own `after`, which also supplies sources.
+The first child of each later round sources the previous round.
+Models get a `# Loop Round` block and, for the first child, a `# Loop Carry-Forward Context` block.
+A helper gets `context.loop` with `loopId`, `round`, and `worktreePath` / `worktreeBranch` (null until
+created). Loop writers share the first managed worktree across rounds. Intra-loop `sourceStatuses`
+rows include `loop: { loopId, status, roundsUsed, round }`, with `status: "running"` during rounds and
+`round` referring to the source row. `foreach`, `dag`, `dynamic`, and `loop` children are rejected.
 Required: `id`, `maxRounds` (a positive integer, or `null` for no cap), `until` (must reference the
 final child: `{"stage": "<final-child>", "path": "$.field", "equals": true}`, predicates `equals`, `notEquals`, `lengthEquals`, `exists`,
-combinators `all`/`any`). A loop ends `completed` (until true), `exhausted` (positive `maxRounds`
+combinators `all`/`any`). A support final child must declare a control schema for `until`; `progressPath`
+can also read its control. A loop ends `completed` (until true), `exhausted` (positive `maxRounds`
 used up), `stopped_no_progress` (the `progressPath` metric, default `$.blockingFailures`, did not
 decrease; omitted `progressPath` on an unlimited loop disables this) or `failed`. Only `failed`
 fails the loop task; `exhausted` and `stopped_no_progress` end it `completed` (`loop_exhausted`,
 `loop_stopped_no_progress`), so the run can still complete. An unlimited loop ends `failed` after
 any round with a non-completed child; a bounded loop retries in the next round, but ends `failed`
-(not `exhausted`/`stopped_no_progress`) when the last round it runs has a non-completed child. Failed, skipped or interrupted tasks of an earlier round of a loop that did not end `failed` are superseded by
-the later round: they stay in task lists and `taskSummary` counts and add to the run's degradation note, but do not
-decide the run status (the final round and a `failed` loop still do). An optional
+(not `exhausted`/`stopped_no_progress`) when the last round it runs has a non-completed child. Failed, declared-blocked, skipped or interrupted tasks of an earlier round of a loop that did not end `failed` are superseded by
+the later round: they stay in task lists and `taskSummary` counts but do not decide the run status (the final round and a `failed` loop still do). An optional
 `onExhausted` stage runs once on exhaustion or no progress, never when the loop ends `failed`. There is no auto-merge of worktree output
-(see "Worktrees" under Retention).
+(see "Worktrees" under Retention). The run degradation note counts recovered declared blocks separately from failed tasks.
 
 A `single`, `reduce` or `support` stage that names a loop in `from` receives the outputs of every
 child of the loop's last executed round, as sources named `<loop>.<child>` (for example
@@ -1119,9 +1128,21 @@ child of the loop's last executed round, as sources named `<loop>.<child>` (for 
 block (`status`, `roundsUsed`, `rubricMet`, `finalCheck`), so a consumer can tell that an `exhausted` or
 `stopped_no_progress` loop did not meet its rubric. A `support` helper has no prompt, so it gets no such
 block: each of its `context.sourceStatuses` rows for a loop child carries `loop: { loopId, status,
-roundsUsed }` instead. A `failed` loop is an ordinary failed source under
-the consumer's `sourcePolicy`; `after` stays ordering-only. `foreach`, `dynamic`, `dag` and `loop`
+roundsUsed }` instead. Terminal rows can also carry `worktreePath` and `worktreeBranch` when recorded;
+these identify the retained checkout, not a test verdict. To inspect earlier rounds, a helper can call
+`await context.readLoopHistory(loopId,
+childId)` for its own loop or a loop it receives as a source. It returns earlier rows with `round`,
+`status`, and `control` for completed tasks, not the current/final round. A `failed` loop is an ordinary failed source under
+the consumer's `sourcePolicy`; `after` stays ordering-only. A `partial` support consumer explicitly naming
+that failed loop in `from` sees its terminal metadata on the placeholder status row, and its scoped
+history includes the final round (without controls for non-completed tasks). `foreach`, `dynamic`, `dag` and `loop`
 stages cannot read a loop (rejected at validate).
+
+The generated fix-loop checks the registered worktree and branch before and after the test command.
+Only run trusted project test code: the worktree is not a sandbox. A normal stop or timeout kills its
+process group on Unix. If the scheduler dies during the command, the detached group can outlive it;
+stale support recovery does not know that group's identity and cannot reap it before the next round.
+Check for leftover test processes before restarting work in the retained worktree.
 
 ### Roles
 

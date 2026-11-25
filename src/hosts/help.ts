@@ -48,7 +48,8 @@ rehearse does not confine. Every model task gets a deterministic control made fr
 schema and reads its required artifacts through the real artifact tool. Reports per stage the tasks,
 sources received, required reads that do not resolve, foreach item counts, loop rounds, helper errors and
 whether the final report rendered. --items N sets the item count of unbounded arrays (default 2);
---loop exhaust keeps every loop's until false so onExhausted runs (default pass: until holds on round 1).
+For model-decided loops, --loop exhaust keeps until false to exercise onExhausted (default pass).
+Neither mode overrides a code-decided result; fix-loop rehearses a Git probe, not project tests.
 Exit 0 means no wiring fault was diagnosed (not proof the wiring is sound), 1 when problems were found
 or the spec is invalid, 2 usage error.`,
 	new: `Usage: agent-workflow new <pattern> <name> [--scope private|shared|global] [--force] [--json]

@@ -138,7 +138,7 @@ function loopUntilSchemaIssues(
 		for (const leaf of missing)
 			issues.push({
 				path: `${stage.id}.until`,
-				message: `loop "${stage.id}" until path "${leaf.path}" is not in ${controlSchema}, the control schema of its final child "${finalChild.id}", which sets additionalProperties: false; the model can never emit "${leaf.property}", so the loop could only end exhausted. Add it to that schema's properties (and show it in the child's prompt), or point until at a declared field`,
+				message: `loop "${stage.id}" until path "${leaf.path}" is not in ${controlSchema}, the control schema of its final child "${finalChild.id}", which sets additionalProperties: false; ${finalChild.support ? "the helper cannot return" : "the model can never emit"} "${leaf.property}", so the loop could only end exhausted. Add it to that schema's properties${finalChild.support ? "" : " (and show it in the child's prompt)"}, or point until at a declared field`,
 			});
 	}
 	return issues;

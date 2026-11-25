@@ -2384,6 +2384,19 @@ function validateLoopStage(
 		.filter(isRecord)
 		.map((child) => child.id)
 		.filter((id): id is string => typeof id === "string");
+	const finalChild = stage.stages.at(-1);
+	if (
+		isRecord(finalChild) &&
+		finalChild.support !== undefined &&
+		(!isRecord(finalChild.output) ||
+			finalChild.output.controlSchema === undefined)
+	) {
+		issues.push({
+			path: `${path}.stages[${stage.stages.length - 1}].output.controlSchema`,
+			message:
+				"a final support child must declare a controlSchema for the loop condition",
+		});
+	}
 	const finalChildId = childIds.at(-1);
 	if (until) {
 		validateLoopUntil(until, `${path}.until`, issues, childIds, finalChildId);
@@ -2488,13 +2501,7 @@ function validateLoopChildren(
 		if (["loop", "foreach", "dag", "dynamic"].includes(String(child.type))) {
 			issues.push({
 				path: `${childPath}.type`,
-				message: "loop child stages must be single or reduce stages",
-			});
-		}
-		if (child.support !== undefined) {
-			issues.push({
-				path: `${childPath}.support`,
-				message: "loop child stages must be single or reduce stages",
+				message: "loop child stages must be single, reduce or support stages",
 			});
 		}
 		if (child.from !== undefined || child.after !== undefined) {

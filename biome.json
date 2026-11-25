@@ -22,6 +22,15 @@
 	"formatter": {
 		"enabled": true
 	},
+	"overrides": [
+		{
+			"includes": [
+				"src/core/helper-library/fix-loop-run-tests.mjs",
+				"src/core/helper-library/fix-loop-report.mjs"
+			],
+			"formatter": { "enabled": false }
+		}
+	],
 	"linter": {
 		"enabled": false
 	},

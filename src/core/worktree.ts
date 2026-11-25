@@ -24,8 +24,20 @@ import {
 	resolve,
 } from "node:path";
 
+import {
+	gitHead,
+	gitLegacySnapshot,
+	gitSnapshot,
+	verifyWorktree,
+} from "./fix-loop-git.js";
 import { assertRehearsalGitRoot } from "./rehearsal-shadow.js";
-import { workflowRunDir, managedWorktreePath, toStatePath } from "./store.js";
+import {
+	workflowRunDir,
+	managedWorktreePath,
+	toStatePath,
+	readJson,
+	writeJsonAtomic,
+} from "./store.js";
 import type {
 	CompiledTask,
 	WorkflowRunRecord,
@@ -152,6 +164,80 @@ export async function ensureManagedWorktree(
 			: null,
 		snapshot: snapshot.record,
 	};
+}
+
+type LoopWorktreeSnapshot = Array<{ path: string; fingerprint: string }>;
+type LoopWorktreeBaseline = {
+	head: string;
+	snapshot: LoopWorktreeSnapshot;
+	legacySnapshot?: LoopWorktreeSnapshot;
+};
+
+function loopWorktreeBaselinePath(
+	cwd: string,
+	runId: string,
+	loopId: string,
+): string {
+	return join(
+		workflowRunDir(cwd, runId),
+		"loop-baselines",
+		encodeURIComponent(loopId) + ".json",
+	);
+}
+
+// Previously generated helpers expect an array here. Only new helpers may opt into the pinned record.
+export async function readLoopWorktreeBaseline(
+	cwd: string,
+	runId: string,
+	loopId: string,
+): Promise<LoopWorktreeSnapshot | undefined> {
+	const record = await readJson<LoopWorktreeBaseline | LoopWorktreeSnapshot>(
+		loopWorktreeBaselinePath(cwd, runId, loopId),
+	);
+	return Array.isArray(record) ? record : record?.legacySnapshot;
+}
+
+export async function readLoopWorktreeBaselineRecord(
+	cwd: string,
+	runId: string,
+	loopId: string,
+): Promise<LoopWorktreeBaseline | undefined> {
+	const record = await readJson<LoopWorktreeBaseline>(
+		loopWorktreeBaselinePath(cwd, runId, loopId),
+	);
+	// Older records contain only fingerprints against a mutable HEAD.
+	return record &&
+		/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(record.head) &&
+		Array.isArray(record.snapshot)
+		? record
+		: undefined;
+}
+
+// Keep this in run state, not in the checkout or in each rewritten run record.
+export async function captureLoopWorktreeBaseline(
+	cwd: string,
+	runId: string,
+	loopId: string,
+	worktree: WorkflowTaskRunRecord["worktree"],
+	signal?: AbortSignal,
+): Promise<void> {
+	if (!worktree.path || !worktree.branch || !worktree.baseCwd) return;
+	const file = loopWorktreeBaselinePath(cwd, runId, loopId);
+	try {
+		if (await exists(file)) return;
+		const path = await verifyWorktree(
+			worktree.path,
+			worktree.branch,
+			worktree.baseCwd,
+			signal,
+		);
+		const head = await gitHead(path, signal);
+		const snapshot = await gitSnapshot(path, head, signal);
+		const legacySnapshot = await gitLegacySnapshot(path, signal, snapshot);
+		await writeJsonAtomic(file, { head, snapshot, legacySnapshot });
+	} catch {
+		// Snapshot limits, unavailable Git or interruption leave attribution unknown.
+	}
 }
 
 interface CapturedWorktreeSnapshot {

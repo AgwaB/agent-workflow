@@ -3009,39 +3009,25 @@ async function compileLoopChildTemplates(
 		sourcePolicy?: string;
 	}> = [];
 	let previousChildTaskKeys: string[] = [];
-	const childTaskKeys = new Map<string, string[]>();
+	const earlierChildTaskKeys: string[] = [];
 
 	for (const childStage of loopStage.stages ?? []) {
+		const kind = runtimeStageKindFor(childStage);
 		childStageIds.push(childStage.id);
 		childStageRecords.push({
 			id: childStage.id,
-			type: childStage.type,
+			type: kind,
 			sourcePolicy: childStage.sourcePolicy ?? "require-success",
 		});
-		const currentChildTaskKeys: string[] = [];
-		const explicitDependencyKeys = dependencyKeysForStage(
+		const template = await buildTask(
 			childStage,
-			childTaskKeys,
+			"main",
+			childStage.prompt ?? "",
+			kind === "support" ? earlierChildTaskKeys : previousChildTaskKeys,
 		);
-		const dependencyKeys =
-			explicitDependencyKeys.length > 0
-				? explicitDependencyKeys
-				: previousChildTaskKeys;
-		const addChildTask = async (taskId: string, prompt: string) => {
-			const template = await buildTask(
-				childStage,
-				taskId,
-				prompt,
-				dependencyKeys,
-			);
-			childTemplates.push(template);
-			currentChildTaskKeys.push(template.id);
-		};
-
-		await addChildTask("main", childStage.prompt ?? "");
-
-		previousChildTaskKeys = currentChildTaskKeys;
-		childTaskKeys.set(childStage.id, currentChildTaskKeys);
+		childTemplates.push(template);
+		previousChildTaskKeys = [template.id];
+		earlierChildTaskKeys.push(template.id);
 	}
 
 	const onExhaustedStage = loopStage.onExhausted;

@@ -83,6 +83,7 @@ import {
 	issueWorkflowLaunchAuthority,
 } from "./launch-authority.js";
 import {
+	captureLoopWorktreeBaseline,
 	ensureManagedWorktree,
 	managedWorktreePreflightProblem,
 } from "./worktree.js";
@@ -6279,6 +6280,7 @@ async function launchPendingTaskAt(
 				task,
 				launchTask,
 				validationSnapshot,
+				stageSourcePolicy(compiledFlow, launchTask.stageId ?? "") === "partial",
 			);
 		}
 		if (launchTask.kind === "dynamic") {
@@ -6297,6 +6299,15 @@ async function launchPendingTaskAt(
 		const worktreeLaunchTask = applyExistingLoopWorktree(run, task, launchTask);
 		await ensureManagedWorktree(cwd, run, task, worktreeLaunchTask);
 		await throwIfWorkflowStopRequested(cwd, run.runId);
+		const loopChild = worktreeLaunchTask.loopChild;
+		if (loopChild?.round === 1 && worktreeLaunchTask.safety.requiresWorktree)
+			await captureLoopWorktreeBaseline(
+				cwd,
+				run.runId,
+				loopChild.loopId,
+				task.worktree,
+				leaseSignal,
+			);
 		recordCreatedLoopWorktree(run, task, worktreeLaunchTask);
 		await writeRunRecord(cwd, run);
 		const runner = workflowTaskRunner();

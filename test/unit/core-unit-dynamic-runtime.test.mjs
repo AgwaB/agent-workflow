@@ -8945,7 +8945,7 @@ test("artifact graph schema rejects dynamic loop children", () => {
 	assertIssue(
 		error,
 		"$.artifactGraph.stages[0].stages[0].type",
-		"loop child stages must be single or reduce stages",
+		"loop child stages must be single, reduce or support stages",
 	);
 });
 

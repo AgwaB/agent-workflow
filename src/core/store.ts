@@ -3469,13 +3469,15 @@ export function deriveRunStatus(run: WorkflowRunRecord): WorkflowRunRecord {
  */
 export function isSupersededLoopTask(
 	run: Pick<WorkflowRunRecord, "loopResults">,
-	task: Pick<WorkflowTaskRunRecord, "status" | "loopChild">,
+	task: Pick<WorkflowTaskRunRecord, "status" | "loopChild"> &
+		Partial<Pick<WorkflowTaskRunRecord, "statusDetail">>,
 ): boolean {
 	if (!task.loopChild) return false;
 	if (
 		task.status !== "failed" &&
 		task.status !== "skipped" &&
-		task.status !== "interrupted"
+		task.status !== "interrupted" &&
+		!isLoopDeclaredSupportBlock(task)
 	)
 		return false;
 	const result = run.loopResults?.find(
@@ -3488,13 +3490,29 @@ export function isSupersededLoopTask(
 	);
 }
 
+function isLoopDeclaredSupportBlock(
+	task: Pick<WorkflowTaskRunRecord, "status" | "loopChild"> &
+		Partial<Pick<WorkflowTaskRunRecord, "statusDetail">>,
+): boolean {
+	return (
+		task.loopChild !== undefined &&
+		task.status === "blocked" &&
+		task.statusDetail === "support_declared_blocked"
+	);
+}
+
 /** The run status: `deriveWorkflowStatus` over the tasks that are not superseded loop-round tasks. */
 export function deriveRunTaskStatus(
 	run: Pick<WorkflowRunRecord, "tasks" | "loopResults">,
 ): WorkflowRunStatus {
 	return deriveWorkflowStatus(
 		summarizeTasks(
-			run.tasks.filter((task) => !isSupersededLoopTask(run, task)),
+			run.tasks.filter(
+				(task) =>
+					!isSupersededLoopTask(run, task) &&
+					// A declared support block is governed by the loop placeholder (retry or fail).
+					!isLoopDeclaredSupportBlock(task),
+			),
 		),
 	);
 }
@@ -3579,6 +3597,10 @@ export function computeRunDegradation(
 	const failedTaskIds = run.tasks
 		.filter((task) => task.status === "failed")
 		.map((task) => task.taskId);
+	const recoveredBlocks = run.tasks.filter(
+		(task) =>
+			isLoopDeclaredSupportBlock(task) && isSupersededLoopTask(run, task),
+	).length;
 	const degradedHelperTaskIds = run.tasks
 		.filter(
 			(task) =>
@@ -3594,11 +3616,20 @@ export function computeRunDegradation(
 		finalTasks.length > 0 &&
 		finalTasks.every((task) => task.status === "completed");
 	const degradedDelivery = failedTaskIds.length > 0 && finalOutputRendered;
-	if (!degradedDelivery && degradedHelperTaskIds.length === 0) return undefined;
+	if (
+		!degradedDelivery &&
+		degradedHelperTaskIds.length === 0 &&
+		recoveredBlocks === 0
+	)
+		return undefined;
 	const parts = [finalOutputRendered ? "final rendered" : "final not rendered"];
 	if (failedTaskIds.length > 0)
 		parts.push(
 			`${failedTaskIds.length}/${run.tasks.length} task${run.tasks.length === 1 ? "" : "s"} failed`,
+		);
+	if (recoveredBlocks > 0)
+		parts.push(
+			`${recoveredBlocks} recovered loop block${recoveredBlocks === 1 ? "" : "s"}`,
 		);
 	if (degradedHelperTaskIds.length > 0)
 		parts.push(

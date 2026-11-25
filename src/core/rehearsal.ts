@@ -317,6 +317,34 @@ export function buildRehearsalReport(input: {
 				effect,
 			]);
 	}
+	const isGate = (task: WorkflowTaskRunRecord): boolean =>
+		/^support_declared_(failed|blocked)$/u.test(task.statusDetail);
+	// loop_failed is derived from non-completed round children; don't count it as an
+	// independent failure when the round stopped only on a declared content gate.
+	const isGateLoopPlaceholder = (task: WorkflowTaskRunRecord): boolean => {
+		if (task.kind !== "loop" || task.statusDetail !== "loop_failed")
+			return false;
+		const result = run.loopResults?.find((row) => row.loopId === task.stageId);
+		if (!result || result.status !== "failed") return false;
+		const round = run.tasks.filter(
+			(child) =>
+				child.loopChild?.loopId === result.loopId &&
+				child.loopChild.round === result.roundsUsed,
+		);
+		return (
+			round.some(isGate) &&
+			round.every(
+				(child) =>
+					isGate(child) ||
+					child.status === "completed" ||
+					(child.status === "skipped" &&
+						[
+							"skipped_after_dependency_failure",
+							"skipped_every_input_failed",
+						].includes(child.statusDetail)),
+			)
+		);
+	};
 	const findings: string[] = [];
 	const stages: RehearsalStageReport[] = [];
 	for (const [stage, tasks] of [...byStage].sort(([a], [b]) =>
@@ -373,8 +401,6 @@ export function buildRehearsalReport(input: {
 					reads.set(label, { read: label, satisfied: true });
 			}
 		}
-		const isGate = (task: WorkflowTaskRunRecord): boolean =>
-			/^support_declared_(failed|blocked)$/u.test(task.statusDetail);
 		const gates = tasks.filter(isGate).map((task) => ({
 			task: task.specId,
 			status: task.status,
@@ -384,7 +410,8 @@ export function buildRehearsalReport(input: {
 			.filter(
 				(task) =>
 					(task.status === "failed" || task.status === "blocked") &&
-					!isGate(task),
+					!isGate(task) &&
+					!isGateLoopPlaceholder(task),
 			)
 			.map((task) => ({
 				task: task.specId,

@@ -19,6 +19,10 @@ import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { pathToFileURL } from "node:url";
 
+import { readArtifactGraphControl } from "../../dist/core/artifact-graph-runtime.js";
+import { loadWorkflowSpec } from "../../dist/core/schema.js";
+import * as h from "../helpers/unit-test-support.mjs";
+
 const cli = await import("../../dist/hosts/cli/index.js");
 const { validateJsonSchema } = await import("../../dist/core/json-schema.js");
 
@@ -110,50 +114,40 @@ async function withEnv(values, body) {
 
 const FIX_HELPERS = ["run-tests.mjs", "report-fix.mjs"];
 
-test("fix-loop: a bounded loop of writer and checker, an exit on the copied exit code, code stages after it", async () => {
+test("fix-loop: a bounded writer/test loop with a code-decided exit and no model checker", async () => {
 	const { spec, dir } = await generated("fix-loop", "fl", FIX_HELPERS);
-	const [loop, test, report] = spec.artifactGraph.stages;
+	const [loop, report] = spec.artifactGraph.stages;
+	assert.equal(spec.artifactGraph.stages.length, 2);
 	assert.equal(loop.type, "loop");
 	assert.equal(loop.maxRounds, 3);
 	assert.deepEqual(loop.until, {
-		stage: "check",
+		stage: "test",
 		path: "$.exitCode",
 		equals: 0,
 	});
-	const [write, check] = loop.stages;
+	const [write, test] = loop.stages;
 	assert.equal(write.id, "write");
 	assert.equal(write.readOnly, false);
 	assert.equal(write.worktreePolicy, "on");
 	assert.ok(write.tools.includes("edit") && write.tools.includes("bash"));
 	assert.equal(write.profileRole, "research-execution");
-	assert.equal(check.id, "check");
-	assert.equal(check.profileRole, "verification");
-	assert.equal(check.tools.includes("edit"), false);
-	// The loop's children are model stages only; the code runs after the loop and reads it through from.
+	assert.equal(test.id, "test");
 	assert.equal(test.support.uses, "./helpers/run-tests.mjs");
-	assert.deepEqual(test.from, ["fix-loop"]);
+	assert.equal(test.from, undefined);
+	assert.equal(test.prompt, undefined);
 	assert.equal(report.support.uses, "./helpers/report-fix.mjs");
-	assert.deepEqual(report.from, ["fix-loop", "test"]);
+	assert.deepEqual(report.from, ["fix-loop"]);
 	assert.equal(report.sourcePolicy, "partial");
-	// The test command is one value in three places: the writer prompt, the checker prompt and the test stage.
-	const command = test.support.options.command;
-	assert.deepEqual(command, ["npm", "test"]);
-	for (const stage of [write, check])
-		assert.ok(stage.prompt.includes(command.join(" ")), stage.id);
-	// The exit code is the checker's own field, shown as a key in its example (validate checks the until path).
-	assert.match(check.prompt, /"exitCode":/u);
-	// Two bundle-local agents in the agents directory, with the tool ceilings the stages need.
-	const agent = async (file) =>
-		readFile(join(dir, ".agent-workflow/agents", file), "utf8");
+	assert.deepEqual(test.support.options.command, ["npm", "test"]);
+	assert.ok(write.prompt.includes("npm test"));
 	assert.match(
-		await agent("fl-writer.md"),
+		await readFile(join(dir, ".agent-workflow/agents/fl-writer.md"), "utf8"),
 		/^tools: read, grep, find, ls, edit, write, bash$/mu,
 	);
-	assert.match(
-		await agent("fl-checker.md"),
-		/^tools: read, grep, find, ls, bash$/mu,
+	await assert.rejects(
+		readFile(join(dir, ".agent-workflow/agents/fl-checker.md")),
+		/ENOENT/u,
 	);
-	assert.match(await agent("fl-checker.md"), /^readOnly: false$/mu);
 });
 
 /** A worktree of `dir` on the branch the engine would give task-1 of run1, holding a node:test suite. */
@@ -179,10 +173,22 @@ async function testWorktree(dir, source) {
 	return tree;
 }
 
-const TEST_CONTEXT = (dir) => ({
+const TEST_CONTEXT = (dir, previous = undefined) => ({
 	runId: "run1",
 	cwd: dir,
-	sourceStatuses: [],
+	loop: {
+		loopId: "fix-loop",
+		round: previous ? 2 : 1,
+		childStageId: "test",
+		worktreePath: join(dir, "wt"),
+		worktreeBranch: "agent-workflow/run1-task-1",
+	},
+	readLoopWorktreeBaselineRecord: async () => ({
+		head: git(dir, "rev-parse", "HEAD").trim(),
+		snapshot: [],
+	}),
+	readLoopHistory: async () =>
+		previous ? [{ round: 1, status: "completed", control: previous }] : [],
 });
 
 test("fix-loop: the test stage runs the command in the loop worktree and records pass, fail, excerpt and changes", async () => {
@@ -236,6 +242,29 @@ test("fix-loop: the test stage runs the command in the loop worktree and records
 	assert.deepEqual(value.protectedChanged, []);
 });
 
+test("fix-loop: git detects already-dirty edits, reversions and new paths by round", async () => {
+	const { dir, helpers } = await generated("fix-loop", "delta", FIX_HELPERS);
+	const tree = await testWorktree(dir, "exports.value = () => 3;\n");
+	const run = (previous) =>
+		helpers["run-tests.mjs"]({
+			options: { command: ["node", "--test"] },
+			context: TEST_CONTEXT(dir, previous),
+		});
+	const path = join(tree, "src/value.js");
+	await writeFile(path, "exports.value = () => 2;\n");
+	const first = await run();
+	assert.deepEqual(first.roundFiles, ["src/value.js"]);
+	assert.deepEqual((await run(first)).roundFiles, []);
+	await writeFile(path, "exports.value = () => 4;\n");
+	const second = await run(first);
+	assert.deepEqual(second.roundFiles, ["src/value.js"]);
+	await writeFile(path, "exports.value = () => 3;\n");
+	await writeFile(join(tree, "a -> b.txt"), "new\n");
+	const third = await run(second);
+	assert.deepEqual(third.roundFiles, ["a -> b.txt", "src/value.js"]);
+	assert.deepEqual(third.changedFiles, ["a -> b.txt"]);
+});
+
 test("fix-loop: a command that never ends is killed with its children at the timeout", async () => {
 	const { dir, helpers, schema } = await generated(
 		"fix-loop",
@@ -287,7 +316,7 @@ test("fix-loop: a command that never ends is killed with its children at the tim
 	assert.equal(alive(grandchild), false);
 });
 
-test("fix-loop: a command that cannot start is an error outcome; bad options and a missing or double worktree throw", async () => {
+test("fix-loop: a command that cannot start is an error outcome; bad options and a missing worktree throw", async () => {
 	const { dir, helpers, schema } = await generated(
 		"fix-loop",
 		"t3",
@@ -296,8 +325,8 @@ test("fix-loop: a command that cannot start is an error outcome; bad options and
 	const helper = helpers["run-tests.mjs"];
 	// No worktree of this run yet: a wiring problem, not a result.
 	await assert.rejects(
-		helper({ options: {}, context: TEST_CONTEXT(dir) }),
-		/no managed worktree of this run/u,
+		helper({ options: {}, context: { ...TEST_CONTEXT(dir), loop: undefined } }),
+		/no managed worktree for this loop/u,
 	);
 	await testWorktree(dir, "exports.value = () => 2;\n");
 	const value = await helper({
@@ -324,7 +353,7 @@ test("fix-loop: a command that cannot start is an error outcome; bad options and
 			pattern,
 			JSON.stringify(options),
 		);
-	// A second managed worktree of the same run is ambiguous and refused, naming both branches.
+	// Another loop's branch in the same run does not change this helper's worktree.
 	git(
 		dir,
 		"worktree",
@@ -334,10 +363,12 @@ test("fix-loop: a command that cannot start is an error outcome; bad options and
 		"agent-workflow/run1-task-2",
 		join(dir, "wt2"),
 	);
-	await assert.rejects(
-		helper({ options: {}, context: TEST_CONTEXT(dir) }),
-		/more than one managed worktree.*run1-task-1.*run1-task-2/u,
-	);
+	const routed = await helper({
+		options: { command: ["node", "--test"] },
+		context: TEST_CONTEXT(dir),
+	});
+	assert.equal(routed.worktree, join(dir, "wt"));
+	assert.equal(routed.exitCode, 0);
 });
 
 test("fix-loop: under rehearsal the test stage finds the worktree and runs no command", async () => {
@@ -386,38 +417,21 @@ test("fix-loop: the output counts of node:test, jest, mocha and pytest are read,
 	}
 });
 
-/** Report helper input: a finished loop and, optionally, the test stage's control. */
-function reportInput({ loop, write, check, test }) {
-	const rows = [];
-	const sources = {};
-	if (write) {
-		rows.push({
-			source: "fix-loop.write",
-			stageId: "write",
-			status: "completed",
-			loop,
-		});
-		sources["fix-loop.write"] = write;
-	}
-	if (check) {
-		rows.push({
-			source: "fix-loop.check",
-			stageId: "check",
-			status: "completed",
-			loop,
-		});
-		sources["fix-loop.check"] = check;
-	}
-	if (test) {
-		rows.push({ source: "test", stageId: "test", status: "completed" });
-		sources.test = test;
-	}
-	return { sources, options: {}, context: { sourceStatuses: rows } };
+/** Report helper input: round-independent final sources and real earlier results. */
+function reportInput({ loop, write, test, earlier = {} }) {
+	return {
+		sources: { "fix-loop.write": write, "fix-loop.test": test },
+		options: {},
+		context: {
+			sourceStatuses: [{ source: "fix-loop.write", loop }],
+			readLoopHistory: async (_loop, child) => earlier[child] ?? [],
+		},
+	};
 }
 
-const HISTORY = [
-	{ round: 1, summary: "Round the total", files: ["src/pricing.js"] },
-	{ round: 2, summary: "Start pages at 0", files: ["src/paginate.js"] },
+const WRITES = [
+	{ summary: "Round the total", files: ["src/pricing.js"] },
+	{ summary: "Start pages at 1", files: ["src/paginate.js"] },
 ];
 const TEST_GREEN = {
 	outcome: "green",
@@ -430,171 +444,652 @@ const TEST_GREEN = {
 	worktree: "/tmp/wt",
 	changedTotal: 2,
 	changedFiles: ["src/paginate.js", "src/pricing.js"],
+	roundFiles: ["src/paginate.js"],
 	protectedChanged: [],
 };
+const TEST_RED = {
+	...TEST_GREEN,
+	outcome: "red",
+	exitCode: 1,
+	failed: 1,
+	roundFiles: ["src/pricing.js"],
+	excerpt: "not ok 3 - rounds",
+};
 
-test("fix-loop: the report takes its status from the code run, lists per-round changes and flags unreported files", async () => {
+test("fix-loop: report renders actual per-round verdicts, git files, protected paths and missing evidence", async () => {
 	const { helpers, schema } = await generated("fix-loop", "r1", FIX_HELPERS);
 	const report = helpers["report-fix.mjs"];
 	const reportSchema = await schema("fix-report.schema.json");
-	const valid = (value) =>
-		assert.deepEqual(validateJsonSchema(value, reportSchema).issues, []);
 	const loop = { loopId: "fix-loop", status: "completed", roundsUsed: 2 };
-	const check = { exitCode: 0, history: HISTORY };
-
-	let value = await report(reportInput({ loop, check, test: TEST_GREEN }));
-	valid(value);
-	assert.equal(value.status, "green");
-	assert.equal(value.rounds, 2);
+	const earlier = {
+		write: [{ round: 1, control: WRITES[0] }],
+		test: [{ round: 1, control: TEST_RED }],
+	};
+	const render = async (test, overrides = {}) => {
+		const value = await report(
+			reportInput({ loop, test, write: WRITES[1], earlier, ...overrides }),
+		);
+		assert.deepEqual(validateJsonSchema(value, reportSchema).issues, []);
+		return value;
+	};
+	const green = await render(TEST_GREEN);
+	assert.equal(green.status, "green");
+	assert.equal(green.rounds, 2);
 	assert.deepEqual(
-		value.rows.map((row) => [row.round, row.tests]),
+		green.rows.map(({ files, tests }) => [files, tests]),
 		[
-			[1, "red (the loop went on)"],
-			[2, "green"],
+			[["src/pricing.js"], "red, exit 1, 1 failing"],
+			[["src/paginate.js"], "green, exit 0, 0 failing"],
 		],
 	);
-	assert.deepEqual(value.rows[0].files, ["src/pricing.js"]);
-	assert.deepEqual(value.unreportedFiles, []);
-	assert.match(value.markdown, /Status: \*\*green\*\*/u);
-	assert.match(value.markdown, /Nothing is merged automatically/u);
-	assert.match(value.completionSummaryMarkdown, /green after 2 rounds/u);
-
-	// A changed file no round mentioned is listed.
-	value = await report(
-		reportInput({
-			loop,
-			check,
-			test: {
-				...TEST_GREEN,
-				changedFiles: [...TEST_GREEN.changedFiles, "src/secret.js"],
-				changedTotal: 3,
-			},
-		}),
-	);
-	valid(value);
-	assert.deepEqual(value.unreportedFiles, ["src/secret.js"]);
-	assert.match(value.markdown, /Changes no round reported: `src\/secret\.js`/u);
-
-	// The checker claimed exit 0, the code run is red: red it is, and the mismatch is said.
-	value = await report(
-		reportInput({
-			loop,
-			check,
-			test: {
-				...TEST_GREEN,
-				outcome: "red",
-				exitCode: 1,
-				failed: 1,
-				excerpt: "not ok 3 - rounds",
-			},
-		}),
-	);
-	valid(value);
-	assert.equal(value.status, "still-failing");
+	assert.deepEqual(green.unreportedFiles, []);
+	assert.match(green.markdown, /Status: \*\*green\*\*/u);
+	assert.match(green.markdown, /Nothing is merged automatically/u);
+	assert.match(green.completionSummaryMarkdown, /green after 2 rounds/u);
+	const unreported = await render({
+		...TEST_GREEN,
+		changedFiles: [...TEST_GREEN.changedFiles, "src/secret.js"],
+		changedTotal: 3,
+	});
+	assert.deepEqual(unreported.unreportedFiles, ["src/secret.js"]);
 	assert.match(
-		value.completionSummaryMarkdown,
-		/last check reported exit 0 but the verified run is red/u,
+		unreported.markdown,
+		/Changes no round reported \(1\): `src\/secret\.js`/u,
 	);
-	assert.match(value.markdown, /not ok 3 - rounds/u);
-
-	// The loop ran out of rounds: a plain outcome, not a failure of the report.
-	const exhausted = { loopId: "fix-loop", status: "exhausted", roundsUsed: 3 };
-	value = await report(
-		reportInput({
-			loop: exhausted,
-			check: {
-				exitCode: 1,
-				history: [...HISTORY, { round: 3, summary: "Try again", files: [] }],
-			},
-			test: { ...TEST_GREEN, outcome: "red", exitCode: 1, failed: 2 },
-		}),
-	);
-	valid(value);
-	assert.equal(value.status, "still-failing");
-	assert.equal(value.status === "failed", false);
+	const exhausted = await render(TEST_RED, {
+		loop: { ...loop, status: "exhausted", roundsUsed: 3 },
+	});
+	assert.equal(exhausted.status, "still-failing");
 	assert.match(
-		value.completionSummaryMarkdown,
+		exhausted.completionSummaryMarkdown,
 		/Tests still failing after 3 rounds/u,
 	);
-	assert.equal(value.rows.length, 3);
-
-	// Green, but the fix edited the tests: flagged, not green.
-	value = await report(
-		reportInput({
-			loop,
-			check,
-			test: { ...TEST_GREEN, protectedChanged: ["test/pricing.test.js"] },
-		}),
+	assert.match(exhausted.markdown, /not ok 3 - rounds/u);
+	assert.equal(exhausted.rows.length, 3);
+	const protectedPath = await render({
+		...TEST_GREEN,
+		protectedChanged: ["test/pricing.test.js"],
+	});
+	assert.equal(protectedPath.status, "protected-changed");
+	assert.match(
+		protectedPath.completionSummaryMarkdown,
+		/test\/pricing\.test\.js/u,
 	);
-	valid(value);
-	assert.equal(value.status, "protected-changed");
-	assert.match(value.completionSummaryMarkdown, /test\/pricing\.test\.js/u);
-
-	// No test result (the loop or the test stage failed): not verified, with whatever the loop reported.
-	value = await report(
-		reportInput({
-			loop: { loopId: "fix-loop", status: "failed", roundsUsed: 1 },
-			write: { history: HISTORY.slice(0, 1) },
-		}),
+	const missing = await render(undefined, {
+		earlier: {},
+		loop: { ...loop, status: "failed", roundsUsed: 1 },
+	});
+	assert.equal(missing.status, "unverified");
+	assert.equal(missing.rows[0].tests, "not verified");
+	assert.match(missing.markdown, /nothing was verified/u);
+	const rehearsal = await render({ ...TEST_GREEN, rehearsal: true });
+	assert.equal(rehearsal.status, "unverified");
+	assert.match(
+		rehearsal.completionSummaryMarkdown,
+		/project tests were not run/u,
 	);
-	valid(value);
-	assert.equal(value.status, "unverified");
-	assert.equal(value.rows[0].tests, "not verified");
-	assert.match(value.markdown, /nothing was verified/u);
 });
 
-test("fix-loop: report text from the model is escaped, one line, and the options name the loop's stages", async () => {
+test("fix-loop: report escapes writer text and supports renamed stages", async () => {
 	const { helpers } = await generated("fix-loop", "r2", FIX_HELPERS);
 	const report = helpers["report-fix.mjs"];
-	const loop = { loopId: "fix-loop", status: "completed", roundsUsed: 1 };
-	const value = await report(
-		reportInput({
-			loop,
-			check: {
-				exitCode: 0,
-				history: [
-					{
-						round: 1,
-						summary: "a | b\n# heading `x` <b>",
-						files: ["src/a|b.js"],
-					},
-				],
-			},
-			test: { ...TEST_GREEN, changedFiles: ["src/a|b.js"] },
-		}),
-	);
-	const row = value.markdown
-		.split("\n")
-		.find((line) => line.startsWith("| 1 |"));
-	assert.ok(row);
-	assert.equal(row.split("\n").length, 1);
-	assert.match(row, /a \\\| b # heading \\`x\\` \\<b\\>/u);
-	// Renamed stages are found through options; a wrong option throws.
-	const renamed = await report({
+	const value = await report({
 		sources: {
-			"loop.fix": { history: HISTORY },
-			"loop.run": { exitCode: 0, history: HISTORY },
-			test: TEST_GREEN,
+			"loop.fix": {
+				summary: "a | b\n# heading `x` <b>",
+				files: ["src/a|b.js"],
+			},
+			"loop.run": TEST_GREEN,
 		},
-		options: { loop: "loop", writer: "fix", checker: "run" },
+		options: { loop: "loop", writer: "fix", tester: "run" },
 		context: {
 			sourceStatuses: [
 				{
 					source: "loop.run",
-					loop: { loopId: "loop", status: "completed", roundsUsed: 2 },
+					loop: { loopId: "loop", status: "completed", roundsUsed: 1 },
 				},
 			],
+			readLoopHistory: async () => [],
 		},
 	});
-	assert.equal(renamed.rounds, 2);
+	const row = value.markdown
+		.split("\n")
+		.find((line) => line.startsWith("| 1 |"));
+	assert.ok(row);
+	assert.ok(row.includes(String.raw`a \| b # heading`));
+	assert.ok(row.includes(String.raw`\<b\>`));
+	assert.equal(value.status, "green");
 	await assert.rejects(
-		report({
-			sources: {},
-			options: { loop: "" },
-			context: { sourceStatuses: [] },
-		}),
+		report({ sources: {}, options: { loop: "" }, context: {} }),
 		/must be a stage id/u,
 	);
+});
+
+test("fix-loop: wrong branch or unregistered cwd fails before running tests, even with redirected Git", async () => {
+	const { dir, helpers } = await generated("fix-loop", "identity", FIX_HELPERS);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	const context = TEST_CONTEXT(dir);
+	const options = {
+		command: ["node", "-e", 'require("node:fs").writeFileSync("ran", "yes")'],
+	};
+	const check = () => helpers["run-tests.mjs"]({ options, context });
+	await withEnv(
+		{
+			GIT_DIR: join(dir, ".git"),
+			GIT_WORK_TREE: dir,
+			GIT_INDEX_FILE: join(dir, "not-an-index"),
+		},
+		check,
+	);
+	await rm(join(tree, "ran"));
+	git(tree, "switch", "-c", "local-review");
+	await assert.rejects(check(), /worktree identity/u);
+	await assert.rejects(readFile(join(tree, "ran")), /ENOENT/u);
+	context.loop.worktreePath = join(tree, "src");
+	await assert.rejects(check(), /worktree identity/u);
+	await assert.rejects(readFile(join(tree, "src/ran")), /ENOENT/u);
+	context.loop.worktreePath = tree;
+	git(tree, "switch", context.loop.worktreeBranch);
+	await assert.rejects(
+		helpers["run-tests.mjs"]({
+			context,
+			options: { command: ["git", "switch", "local-review"] },
+		}),
+		/worktree identity/u,
+	);
+});
+
+test("fix-loop: cancellation during history lookup starts no command", async () => {
+	const { dir, helpers } = await generated("fix-loop", "cancel", FIX_HELPERS);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	const stop = new AbortController();
+	const context = {
+		...TEST_CONTEXT(dir),
+		signal: stop.signal,
+		readLoopHistory: async () => {
+			stop.abort();
+			return [];
+		},
+	};
+	await assert.rejects(
+		helpers["run-tests.mjs"]({
+			context,
+			options: {
+				command: [
+					"node",
+					"-e",
+					'require("node:fs").writeFileSync("ran", "yes")',
+				],
+			},
+		}),
+		{ name: "AbortError" },
+	);
+	await assert.rejects(readFile(join(tree, "ran")), /ENOENT/u);
+});
+
+test("fix-loop: a protected edit in the managed dirty overlay is not this run's change", async () => {
+	const { dir, helpers } = await generated("fix-loop", "dirty", FIX_HELPERS);
+	await testWorktree(dir, "exports.value = () => 2;\n");
+	git(dir, "worktree", "remove", join(dir, "wt"));
+	git(dir, "branch", "-D", "agent-workflow/run1-task-1");
+	await writeFile(join(dir, "test/value.test.js"), "// owner's prior edit\n");
+	const {
+		ensureManagedWorktree,
+		captureLoopWorktreeBaseline,
+		readLoopWorktreeBaseline,
+		readLoopWorktreeBaselineRecord,
+	} = await import("../../dist/core/worktree.js");
+	const task = { taskId: "task-1", cwd: dir, worktree: {} };
+	await withEnv({ AGENT_WORKFLOW_HOME: home }, () =>
+		ensureManagedWorktree(dir, { runId: "run1" }, task, {
+			cwd: dir,
+			safety: { requiresWorktree: true },
+		}),
+	);
+	const baseline = await withEnv({ AGENT_WORKFLOW_HOME: home }, async () => {
+		await captureLoopWorktreeBaseline(dir, "run1", "fix-loop", task.worktree);
+		const record = await readLoopWorktreeBaselineRecord(
+			dir,
+			"run1",
+			"fix-loop",
+		);
+		assert.deepEqual(
+			await readLoopWorktreeBaseline(dir, "run1", "fix-loop"),
+			record.snapshot.map(({ path, fingerprint }) => ({
+				path,
+				fingerprint: " M:" + fingerprint,
+			})),
+		);
+		return record;
+	});
+	assert.deepEqual(
+		baseline.snapshot.map((row) => row.path),
+		["test/value.test.js"],
+	);
+	const context = TEST_CONTEXT(dir);
+	context.loop.worktreePath = task.worktree.path;
+	context.readLoopWorktreeBaselineRecord = async () => baseline;
+	const check = () =>
+		helpers["run-tests.mjs"]({
+			options: { command: ["node", "-e", "void 0"] },
+			context,
+		});
+	const test = await check();
+	assert.deepEqual(test.roundFiles, []);
+	assert.deepEqual(test.protectedChanged, []);
+	assert.deepEqual(test.preExistingFiles, ["test/value.test.js"]);
+	assert.deepEqual(test.runFiles, []);
+	assert.deepEqual(test.changedFiles, ["test/value.test.js"]);
+	const loop = { loopId: "fix-loop", status: "completed", roundsUsed: 1 };
+	const report = await helpers["report-fix.mjs"](reportInput({ loop, test }));
+	assert.equal(report.status, "green");
+	assert.match(report.markdown, /Pre-existing dirt.*test\/value\.test\.js/u);
+	assert.match(report.markdown, /Net changes during this run.*none/u);
+	await writeFile(
+		join(task.worktree.path, "test/value.test.js"),
+		"// writer edit\n",
+	);
+	assert.deepEqual((await check()).protectedChanged, ["test/value.test.js"]);
+	context.loop.round = 3;
+	context.readLoopHistory = async () => [
+		{ round: 1, status: "completed", control: test },
+	];
+	const unknown = await check();
+	assert.equal(unknown.roundBaselineKnown, false);
+	assert.deepEqual(unknown.roundFiles, []);
+	assert.match(
+		(
+			await helpers["report-fix.mjs"](
+				reportInput({ loop: { ...loop, roundsUsed: 3 }, test: unknown }),
+			)
+		).markdown,
+		/unknown \(baseline unavailable\)/u,
+	);
+});
+
+test("fix-loop: a protected test committed on the managed branch is not cleared", async () => {
+	const { dir, helpers, schema } = await generated(
+		"fix-loop",
+		"committed",
+		FIX_HELPERS,
+	);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	const { captureLoopWorktreeBaseline, readLoopWorktreeBaselineRecord } =
+		await import("../../dist/core/worktree.js");
+	const context = TEST_CONTEXT(dir);
+	await captureLoopWorktreeBaseline(dir, "run1", "fix-loop", {
+		path: tree,
+		branch: context.loop.worktreeBranch,
+		baseCwd: dir,
+	});
+	context.readLoopWorktreeBaselineRecord = () =>
+		readLoopWorktreeBaselineRecord(dir, "run1", "fix-loop");
+	const file = "test/extra.test.js";
+	await writeFile(
+		join(tree, file),
+		'require("node:test")("extra", () => {});\n',
+	);
+	git(tree, "add", file);
+	git(tree, "commit", "-qm", "add test on managed branch");
+	const loop = { loopId: "fix-loop", status: "completed", roundsUsed: 1 };
+	const measure = () =>
+		helpers["run-tests.mjs"]({
+			options: { command: ["node", "--test"] },
+			context,
+		});
+	const test = await measure();
+	assert.equal(test.exitCode, 0);
+	assert.equal(test.runBaselineKnown, true);
+	assert.deepEqual(test.changedFiles, []);
+	const report = await helpers["report-fix.mjs"](reportInput({ loop, test }));
+	assert.equal(report.status, "protected-changed");
+	assert.deepEqual(report.protectedChanged, [file]);
+	assert.deepEqual(report.runFiles, [file]);
+	assert.deepEqual(test.roundFiles, [file]);
+	assert.deepEqual(
+		validateJsonSchema(report, await schema("fix-report.schema.json")).issues,
+		[],
+	);
+	// Uncommitted removal restores the baseline while remaining dirty vs the moved HEAD.
+	await rm(join(tree, file));
+	context.loop.round = 2;
+	context.readLoopHistory = async () => [
+		{ round: 1, status: "completed", control: test },
+	];
+	const reverted = await measure();
+	assert.deepEqual(reverted.runFiles, []);
+	assert.deepEqual(reverted.roundFiles, [file]);
+	assert.deepEqual(reverted.changedFiles, [file]);
+});
+
+test("fix-loop: the scheduler completes with a schema-valid report for 90 dirty overlay files", async () => {
+	const { dir, bundle, spec, schema } = await generated(
+		"fix-loop",
+		"large-overlay",
+		FIX_HELPERS,
+	);
+	git(dir, "add", "-f", ".agent-workflow/workflows");
+	git(dir, "commit", "-qm", "store generated bundle");
+	const nested = "src/" + "nested-fixture-directory/".repeat(5);
+	await mkdir(join(dir, nested), { recursive: true });
+	const files = Array.from(
+		{ length: 90 },
+		(_, i) => nested + `file-${String(i).padStart(2, "0")}.txt`,
+	);
+	await Promise.all(
+		files.map((file) => writeFile(join(dir, file), "owner overlay\n")),
+	);
+	const specPath = join(bundle, "spec.json");
+	spec.artifactGraph.stages[0].stages[1].support.options.command = [
+		"node",
+		"-e",
+		"void 0",
+	];
+	await writeFile(specPath, JSON.stringify(spec));
+	git(dir, "add", "-u");
+	git(dir, "commit", "-qm", "configure benign test command");
+	const loaded = await loadWorkflowSpec(specPath, dir);
+	const compiled = await h.compileWorkflow(loaded.spec, {
+		cwd: dir,
+		specPath,
+		task: "Leave the overlay untouched.",
+	});
+	const { run } = await h.createWorkflowRunRecord(dir, compiled, specPath);
+	await h.writeStaticRunArtifacts(dir, run, compiled, loaded.spec);
+	await h.writeRunRecord(dir, run);
+	h.captureWorkerPrompts();
+	try {
+		const active = await h.scheduleRun(dir, run.runId);
+		const writer = h.taskBySpec(active, "fix-loop.r01.write");
+		assert.equal(writer.status, "running", writer.lastMessage);
+		await h.completeTask(dir, writer, {
+			schema: "fix-write-v1",
+			files: [],
+			summary: "No edits.",
+		});
+		await h.writeRunRecord(dir, active);
+		const end = await h.scheduleRun(dir, run.runId);
+		const tester = h.taskBySpec(end, "fix-loop.r01.test");
+		const reporter = h.taskBySpec(end, "report.main");
+		assert.equal(tester.status, "completed", tester.lastMessage);
+		assert.equal(reporter.status, "completed", reporter.lastMessage);
+		assert.equal(end.status, "completed");
+		const report = await readArtifactGraphControl(dir, reporter);
+		assert.deepEqual(
+			validateJsonSchema(report, await schema("fix-report.schema.json")).issues,
+			[],
+		);
+		assert.deepEqual(report.preExistingFiles, files);
+		assert.deepEqual(report.changedFiles, files);
+		assert.deepEqual(report.runFiles, []);
+		assert.match(
+			report.markdown,
+			/Final dirt vs HEAD \(90\):.*\d+ more omitted/u,
+		);
+		assert.match(
+			report.markdown,
+			/Pre-existing dirt \(90\):.*\d+ more omitted/u,
+		);
+	} finally {
+		h.setTaskRuntimeApiForTests(undefined);
+	}
+});
+
+test("fix-loop round 3: an unrelated commit does not change a protected directory overlay", async () => {
+	const { dir, helpers } = await generated(
+		"fix-loop",
+		"dir-overlay",
+		FIX_HELPERS,
+	);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	const path = "test/sample";
+	await writeFile(join(tree, path), "original file\n");
+	git(tree, "add", path);
+	git(tree, "commit", "-qm", "tracked fixture");
+	await rm(join(tree, path));
+	await mkdir(join(tree, path));
+	await writeFile(join(tree, path, "data.txt"), "owner directory overlay\n");
+	const { captureLoopWorktreeBaseline, readLoopWorktreeBaselineRecord } =
+		await import("../../dist/core/worktree.js");
+	const context = TEST_CONTEXT(dir);
+	await captureLoopWorktreeBaseline(dir, "run1", "fix-loop", {
+		path: tree,
+		branch: context.loop.worktreeBranch,
+		baseCwd: dir,
+	});
+	const baseline = await readLoopWorktreeBaselineRecord(
+		dir,
+		"run1",
+		"fix-loop",
+	);
+	assert.deepEqual(
+		baseline.snapshot.map((row) => row.path),
+		[path, `${path}/data.txt`],
+	);
+	context.readLoopWorktreeBaselineRecord = async () => baseline;
+	await writeFile(join(tree, "src/note.txt"), "unrelated\n");
+	git(tree, "add", "src/note.txt");
+	git(tree, "commit", "-qm", "unrelated source commit");
+	const test = await helpers["run-tests.mjs"]({
+		options: { command: ["node", "--test"] },
+		context,
+	});
+	assert.equal(test.exitCode, 0);
+	assert.deepEqual(test.protectedChanged, []);
+	assert.deepEqual(test.runFiles, ["src/note.txt"]);
+});
+
+test("fix-loop round 3: a capped list gives only a lower bound for unreported changes", async () => {
+	const { dir, helpers } = await generated("fix-loop", "capped", FIX_HELPERS);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	await Promise.all(
+		Array.from({ length: 121 }, (_, i) =>
+			writeFile(join(tree, "src", `new-${i}.txt`), "new\n"),
+		),
+	);
+	const test = await helpers["run-tests.mjs"]({
+		options: { command: ["node", "--test"] },
+		context: TEST_CONTEXT(dir),
+	});
+	assert.equal(test.runTotal, 121);
+	assert.equal(test.runFiles.length, 100);
+	const value = await helpers["report-fix.mjs"](
+		reportInput({
+			loop: { loopId: "fix-loop", status: "completed", roundsUsed: 1 },
+			test,
+		}),
+	);
+	assert.equal(value.unreportedFiles.length, 100);
+	assert.match(value.markdown, /Changes no round reported \(at least 100\)/u);
+	assert.match(value.markdown, /Net changes during this run \(121\)/u);
+});
+
+test("fix-loop round 3: a missing measurement is distinct from a measured zero", async () => {
+	const { helpers } = await generated("fix-loop", "unmeasured", FIX_HELPERS);
+	const report = helpers["report-fix.mjs"];
+	const loop = { loopId: "fix-loop", status: "failed", roundsUsed: 2 };
+	const value = await report(
+		reportInput({
+			loop,
+			earlier: {
+				test: [
+					{
+						round: 1,
+						status: "completed",
+						control: {
+							...TEST_RED,
+							roundFiles: [],
+							roundTotal: 0,
+							roundBaselineKnown: true,
+						},
+					},
+				],
+			},
+		}),
+	);
+	assert.match(value.markdown, /\| 1 \| - \| \(0\) - \| red/u);
+	assert.match(
+		value.markdown,
+		/\| 2 \| - \| unknown \(not measured\) \| not verified/u,
+	);
+	assert.equal(value.rows[1].baselineKnown, false);
+});
+
+test("fix-loop round 3: the report names the retained checkout without a tester control", async () => {
+	const { dir, bundle, spec } = await generated(
+		"fix-loop",
+		"retained",
+		FIX_HELPERS,
+	);
+	const specPath = join(bundle, "spec.json");
+	spec.artifactGraph.stages[0].maxRounds = 1;
+	await writeFile(specPath, JSON.stringify(spec));
+	await writeFile(
+		join(bundle, "helpers/run-tests.mjs"),
+		'export default () => { throw Error("test did not start"); };\n',
+	);
+	git(dir, "add", "-f", ".agent-workflow/workflows");
+	git(dir, "commit", "-qm", "store generated bundle");
+	const loaded = await loadWorkflowSpec(specPath, dir);
+	const compiled = await h.compileWorkflow(loaded.spec, { cwd: dir, specPath });
+	const { run } = await h.createWorkflowRunRecord(dir, compiled, specPath);
+	await h.writeStaticRunArtifacts(dir, run, compiled, loaded.spec);
+	await h.writeRunRecord(dir, run);
+	h.captureWorkerPrompts();
+	try {
+		const active = await h.scheduleRun(dir, run.runId);
+		const writer = h.taskBySpec(active, "fix-loop.r01.write");
+		assert.equal(writer.status, "running", writer.lastMessage);
+		await h.completeTask(dir, writer, {
+			schema: "fix-write-v1",
+			files: [],
+			summary: "No edits.",
+		});
+		await h.writeRunRecord(dir, active);
+		const end = await h.scheduleRun(dir, run.runId);
+		const tester = h.taskBySpec(end, "fix-loop.r01.test");
+		assert.equal(tester.status, "failed", tester.lastMessage);
+		assert.equal(end.status, "failed");
+		const recorded = end.loopWorktrees.find(
+			({ loopId }) => loopId === "fix-loop",
+		);
+		const result = end.loopResults.find(({ loopId }) => loopId === "fix-loop");
+		assert.ok(recorded.branch);
+		assert.equal(
+			await realpath(result.worktreePath),
+			await realpath(writer.worktree.path),
+		);
+		const report = await readArtifactGraphControl(
+			dir,
+			h.taskBySpec(end, "report.main"),
+		);
+		assert.equal(report.status, "unverified");
+		assert.equal(report.finalExitCode, -1);
+		assert.equal(report.branch, recorded.branch);
+		assert.equal(report.worktree, result.worktreePath);
+		assert.ok(report.markdown.includes(`- Branch: \`${recorded.branch}\``));
+		assert.ok(
+			report.markdown.includes(`- Worktree: \`${result.worktreePath}\``),
+		);
+		assert.match(
+			report.markdown,
+			/recorded checkout.*not a final test verdict/u,
+		);
+	} finally {
+		h.setTaskRuntimeApiForTests(undefined);
+	}
+});
+
+test("fix-loop: renamed tester feeds two real rounds to the report without duplicating a delta", async () => {
+	const { dir, helpers } = await generated("fix-loop", "rename", FIX_HELPERS);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	const history = [];
+	const check = (round) =>
+		helpers["run-tests.mjs"]({
+			options: { command: ["node", "-e", "void 0"] },
+			context: {
+				...TEST_CONTEXT(dir),
+				loop: { ...TEST_CONTEXT(dir).loop, round, childStageId: "verify" },
+				readLoopHistory: async (_loop, child) =>
+					child === "verify" ? history : [],
+			},
+		});
+	await writeFile(join(tree, "src/value.js"), "exports.value = () => 3;\n");
+	history.push({ round: 1, status: "completed", control: await check(1) });
+	const last = await check(2);
+	const report = await helpers["report-fix.mjs"]({
+		sources: { "fix-loop.verify": last },
+		options: { tester: "verify" },
+		context: {
+			sourceStatuses: [
+				{ loop: { loopId: "fix-loop", status: "completed", roundsUsed: 2 } },
+			],
+			readLoopHistory: async (_loop, child) =>
+				child === "verify" ? history : [],
+		},
+	});
+	assert.deepEqual(
+		report.rows.map((row) => row.files),
+		[["src/value.js"], []],
+	);
+});
+
+test("fix-loop: the report distinguishes command errors and timeouts from observed red tests", async () => {
+	const { dir, helpers, schema } = await generated(
+		"fix-loop",
+		"diagnostics",
+		FIX_HELPERS,
+	);
+	await testWorktree(dir, "exports.value = () => 2;\n");
+	for (const [command, status, diagnostic] of [
+		[["aw-no-such-command-xyz"], "command-error", /ENOENT/u],
+		[
+			["node", "-e", "setInterval(() => {}, 1000)"],
+			"timeout",
+			/killed after 1000 ms/u,
+		],
+	]) {
+		const result = await helpers["run-tests.mjs"]({
+			context: TEST_CONTEXT(dir),
+			options: { command, timeoutMs: 1000 },
+		});
+		const report = await helpers["report-fix.mjs"](
+			reportInput({
+				loop: { loopId: "fix-loop", status: "exhausted", roundsUsed: 1 },
+				test: result,
+			}),
+		);
+		assert.equal(report.status, status);
+		assert.match(report.markdown, diagnostic);
+		assert.doesNotMatch(report.markdown, /still failing|exit -1/u);
+		assert.deepEqual(
+			validateJsonSchema(report, await schema("fix-report.schema.json")).issues,
+			[],
+		);
+	}
+});
+
+test("fix-loop: a 9 MiB test log retains the trailing failure and summary", async () => {
+	const { dir, helpers } = await generated(
+		"fix-loop",
+		"large-log",
+		FIX_HELPERS,
+	);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	await writeFile(
+		join(tree, "large.cjs"),
+		'process.stdout.write("x".repeat(9 * 1024 * 1024) + "\\nnot ok 3 - trailing failure\\n# pass 2\\n# fail 1\\n"); process.exitCode = 1;',
+	);
+	const result = await helpers["run-tests.mjs"]({
+		context: TEST_CONTEXT(dir),
+		options: { command: ["node", "large.cjs"] },
+	});
+	assert.equal(result.outcome, "red");
+	assert.deepEqual([result.passed, result.failed], [2, 1]);
+	assert.match(result.excerpt, /trailing failure/u);
+	assert.match(result.excerpt, /truncated/u);
+	assert.equal(result.outputTruncated, true);
+	assert.ok(result.excerpt.length <= 1200);
 });
 
 // -------------------------------------------------------------- adaptive-depth

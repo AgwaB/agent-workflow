@@ -1,3 +1,7 @@
+import {
+	readLoopWorktreeBaseline,
+	readLoopWorktreeBaselineRecord,
+} from "./worktree.js";
 import { stateBase } from "./state-location.js";
 // Artifact access binds workflow_artifact to the MCP server; tool policy uses the run permission mode.
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
@@ -58,6 +62,7 @@ import type {
 	ArtifactGraphRequiredRead,
 	CompiledTask,
 	CompiledWorkflow,
+	LoopResultRecord,
 	RequiredWorkflowArtifactReadPolicy,
 	WorkflowRunRecord,
 	WorkflowTaskRunRecord,
@@ -68,6 +73,7 @@ import {
 	dynamicOutputSourceName,
 	dynamicOutputTaskSpecIds,
 	loopChildSourceLoopId,
+	loopChildSourceIdentity,
 } from "./workflow-source-alias.js";
 import { readTaskControlJsonSchema } from "./output-validation.js";
 export {
@@ -90,6 +96,7 @@ export async function executeSupportTask(
 	task: WorkflowTaskRunRecord,
 	compiledTask: CompiledWorkflow["tasks"][number],
 	validationSnapshot: ArtifactGraphRuntimeValidationSnapshot,
+	partialSources = false,
 ): Promise<boolean> {
 	if (!compiledTask.support) {
 		throw new Error("support metadata is missing");
@@ -103,15 +110,21 @@ export async function executeSupportTask(
 	let structuredOutput: unknown;
 	try {
 		await throwIfWorkflowStopRequested(cwd, run.runId);
+		// A support stage's own `after` edges are inputs for compatibility. A loop
+		// child inherits only the container's data edges, not its ordering edges.
+		const sourceDependencies =
+			(compiledTask.loopChild ? compiledTask.contextDependsOn : undefined) ??
+			compiledTask.dependsOn ??
+			[];
 		const sources = compiledTask.artifactGraph?.enabled
 			? await readArtifactGraphSupportSources(
 					cwd,
 					run,
-					compiledTask.dependsOn ?? [],
+					sourceDependencies,
 					validationSnapshot,
 					task.specId,
 				)
-			: await readSupportSources(cwd, run, compiledTask.dependsOn ?? []);
+			: await readSupportSources(cwd, run, sourceDependencies);
 		await throwIfWorkflowStopRequested(cwd, run.runId);
 		const helperSpecPath = await workflowBundleSpecPath(cwd, run);
 		await throwIfWorkflowStopRequested(cwd, run.runId);
@@ -121,6 +134,22 @@ export async function executeSupportTask(
 		);
 		await supportHelperPreparedHookForTests?.();
 		await throwIfWorkflowStopRequested(cwd, run.runId);
+		const loop = compiledTask.loopChild;
+		const worktree =
+			loop && run.loopWorktrees?.find((row) => row.loopId === loop.loopId);
+		const failedLoopSources = new Map(
+			partialSources
+				? (run.loopResults ?? [])
+						.filter(
+							(result) =>
+								result.status === "failed" &&
+								compiledTask.contextDependsOn?.includes(
+									`${result.loopId}.loop`,
+								),
+						)
+						.map((result) => [`${result.loopId}.loop`, result] as const)
+				: [],
+		);
 		structuredOutput = await helper({
 			sources,
 			options: compiledTask.support.options,
@@ -133,6 +162,22 @@ export async function executeSupportTask(
 				cwd,
 				stateCwd: stateBase(cwd),
 				signal: stop.signal,
+				...(loop
+					? {
+							readLoopWorktreeBaseline: () =>
+								readLoopWorktreeBaseline(cwd, run.runId, loop.loopId),
+							readLoopWorktreeBaselineRecord: () =>
+								readLoopWorktreeBaselineRecord(cwd, run.runId, loop.loopId),
+							loop: {
+								loopId: loop.loopId,
+								round: loop.round,
+								childStageId: loop.childStageId,
+								worktreePath: worktree?.path ?? null,
+								worktreeBranch: worktree?.branch ?? null,
+								worktreeBaseCwd: worktree?.baseCwd ?? null,
+							},
+						}
+					: {}),
 				evidence: supportEvidenceContext({
 					cwd,
 					runId: run.runId,
@@ -141,11 +186,22 @@ export async function executeSupportTask(
 				}),
 				...(compiledTask.artifactGraph?.enabled
 					? {
+							readLoopHistory: (loopId: string, childId: string) =>
+								readSupportLoopHistory(
+									cwd,
+									run,
+									task,
+									sourceDependencies,
+									loopId,
+									childId,
+									failedLoopSources.get(`${loopId}.loop`)?.roundsUsed,
+								),
 							sourceStatuses: buildArtifactGraphSupportSourceStatuses(
 								run,
-								compiledTask.dependsOn ?? [],
+								sourceDependencies,
 								validationSnapshot,
 								task.specId,
+								failedLoopSources,
 							),
 						}
 					: {}),
@@ -296,7 +352,8 @@ function buildArtifactGraphSupportSourceStatuses(
 	run: WorkflowRunRecord,
 	dependsOn: readonly string[],
 	validationSnapshot: ArtifactGraphRuntimeValidationSnapshot,
-	consumerSpecId?: string,
+	consumerSpecId: string,
+	failedLoopSources: ReadonlyMap<string, LoopResultRecord>,
 ): Array<Record<string, unknown>> {
 	const statuses: Array<Record<string, unknown>> = [];
 	const sourceNames = supportSourceNamesForDependencies(
@@ -325,12 +382,59 @@ function buildArtifactGraphSupportSourceStatuses(
 				? {}
 				: { placeholderSpecId: source.foreachGenerated.placeholderSpecId }),
 			...sourceStatusForTask(source),
-			...(consumerSpecId === undefined
-				? {}
-				: loopStatusFields(run, source, consumerSpecId)),
+			...loopStatusFields(
+				run,
+				source,
+				consumerSpecId,
+				failedLoopSources.get(specId),
+			),
 		});
 	}
 	return statuses;
+}
+
+// History is opt-in and scoped to the helper's own loop or a loop explicitly supplied as a source.
+// A failed explicit partial source only has a placeholder, so its history includes the final round.
+async function readSupportLoopHistory(
+	cwd: string,
+	run: WorkflowRunRecord,
+	consumer: WorkflowTaskRunRecord,
+	dependencies: readonly string[],
+	loopId: string,
+	childId: string,
+	failedRoundsUsed?: number,
+): Promise<Array<{ round: number; status: string; control?: unknown }>> {
+	let beforeRound: number | undefined;
+	if (consumer.loopChild?.loopId === loopId) {
+		beforeRound = consumer.loopChild.round;
+	} else if (failedRoundsUsed !== undefined) {
+		beforeRound = failedRoundsUsed + 1;
+	} else if (
+		run.tasks.some(
+			(task) =>
+				task.loopChild?.loopId === loopId && dependencies.includes(task.specId),
+		)
+	) {
+		beforeRound = run.loopResults?.find(
+			(row) => row.loopId === loopId,
+		)?.roundsUsed;
+	}
+	if (beforeRound === undefined) return [];
+	const rows = run.tasks.filter(
+		(task) =>
+			task.loopChild?.loopId === loopId &&
+			task.loopChild.round < beforeRound! &&
+			loopChildSourceIdentity(task)?.alias === `${loopId}.${childId}`,
+	);
+	return Promise.all(
+		rows.map(async (task) => ({
+			round: task.loopChild!.round,
+			status: task.status,
+			...(task.status === "completed"
+				? { control: await readArtifactGraphControl(cwd, task) }
+				: {}),
+		})),
+	);
 }
 
 function sourceStatusForTask(task: WorkflowTaskRunRecord): {
@@ -1401,20 +1505,41 @@ function loopStatusFields(
 	run: WorkflowRunRecord,
 	source: WorkflowTaskRunRecord,
 	consumerSpecId: string,
+	failedLoop?: LoopResultRecord,
 ): Record<string, unknown> {
-	const loopId = loopChildSourceLoopId(source, consumerSpecId);
-	const result = loopId
-		? run.loopResults?.find((candidate) => candidate.loopId === loopId)
-		: undefined;
-	return result
-		? {
+	const child = source.loopChild;
+	if (child && consumerSpecId.startsWith(`${child.loopId}.`)) {
+		const state = run.loopStates?.find((row) => row.loopId === child.loopId);
+		if (state)
+			return {
 				loop: {
-					loopId: result.loopId,
-					status: result.status,
-					roundsUsed: result.roundsUsed,
+					loopId: child.loopId,
+					status: state.status ?? "running",
+					roundsUsed: state.round,
+					round: child.round,
 				},
-			}
-		: {};
+			};
+	}
+	const loopId = loopChildSourceLoopId(source, consumerSpecId);
+	const result =
+		failedLoop ??
+		(loopId
+			? run.loopResults?.find((candidate) => candidate.loopId === loopId)
+			: undefined);
+	if (!result) return {};
+	const checkout = run.loopWorktrees?.find(
+		({ loopId }) => loopId === result.loopId,
+	);
+	const worktreePath = checkout?.path ?? result.worktreePath;
+	return {
+		loop: {
+			loopId: result.loopId,
+			status: result.status,
+			roundsUsed: result.roundsUsed,
+			...(worktreePath ? { worktreePath } : {}),
+			...(checkout?.branch ? { worktreeBranch: checkout.branch } : {}),
+		},
+	};
 }
 
 const LOOP_RESULTS_FINAL_CHECK_MAX_CHARS = 600;

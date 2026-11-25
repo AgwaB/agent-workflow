@@ -888,6 +888,96 @@ test("auto revalidates resolved profile/runtime tools against explicit safety co
 	);
 });
 
+test("auto discovery and resolved safety include loop children and onExhausted", async () => {
+	const cwd = project();
+	writeAgent(cwd);
+	const model = {
+		id: "review",
+		type: "single",
+		prompt: "Review.",
+		output: { controlSchema: "./result.json" },
+	};
+	const helper = {
+		id: "probe",
+		support: { uses: "./probe.mjs" },
+		output: model.output,
+	};
+	const specs = {};
+	for (const [name, child, onExhausted] of [
+		["model-loop", model],
+		["helper-loop", helper],
+		["exhausted-helper", model, helper],
+	]) {
+		const loop = {
+			id: "cycle",
+			type: "loop",
+			maxRounds: 2,
+			until: { stage: child.id, path: "$.ok", equals: true },
+			stages: [{ id: "draft", type: "single", prompt: "Draft." }, child],
+			...(onExhausted ? { onExhausted } : {}),
+		};
+		const specPath = writeSpec(cwd, name, {
+			artifactGraph: { stages: [loop] },
+		});
+		writeFileSync(
+			join(cwd, "workflows", name, "probe.mjs"),
+			"export default () => ({ok:true});\n",
+		);
+		writeFileSync(
+			join(cwd, "workflows", name, "result.json"),
+			JSON.stringify({
+				type: "object",
+				properties: { ok: { type: "boolean" } },
+			}),
+		);
+
+		specs[name] = { specPath, loop };
+	}
+	setTaskRuntimeApiForTests({
+		async runWorker() {
+			throw new Error("classifier not needed");
+		},
+	});
+	const task = "Perform a read-only review with no changes.";
+	const result = await recommendWorkflowAuto({
+		executor: "pi",
+		cwd,
+		task,
+		transmissionPolicy: "allowed",
+		availableAgentNames: ["unit-agent"],
+	});
+	const { compileWorkflow } = await import("../../dist/core/compiler.js");
+	for (const [name, { specPath, loop }] of Object.entries(specs)) {
+		const card = result.candidates.find(
+			(candidate) => candidate.label === name,
+		);
+		assert.ok(card, JSON.stringify(result.catalog.issues));
+
+		const hasSupport = name !== "model-loop";
+		assert.equal(card.facts.hasSupport, hasSupport, name);
+		assert.equal(
+			card.facts.effective?.network,
+			hasSupport ? "unknown" : "local",
+			name,
+		);
+		assert.equal(card.readiness.startAllowed, !hasSupport, name);
+		if (!hasSupport) assert.equal(card.facts.readOnly, true);
+		const compiled = await compileWorkflow(
+			parseArtifactGraphWorkflowSpec({
+				schemaVersion: 1,
+				defaults: { agent: "unit-agent", readOnly: true, tools: ["read"] },
+				artifactGraph: { stages: [loop] },
+			}),
+			{ cwd, specPath, metadataOnly: true },
+		);
+		const check = () =>
+			assertWorkflowAutoResolvedCandidateSafety(card, compiled, task);
+		if (hasSupport)
+			assert.throws(check, /resolved profile\/runtime capability/);
+		else assert.doesNotThrow(check);
+	}
+});
+
 test("auto comparison reads only its bounded canonical output artifact", {
 	skip: process.platform === "win32",
 }, async () => {

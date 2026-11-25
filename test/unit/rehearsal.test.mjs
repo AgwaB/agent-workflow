@@ -501,6 +501,100 @@ test("loops (R5): until passes on round 1 by default; --loop exhaust runs every 
 	assert.equal(exhaust.finalReportRendered, true);
 });
 
+test("code-decided loops rehearse real controls, without model loop forcing", async () => {
+	const cwd = await project();
+	const spec = loopSpec();
+	const loop = spec.artifactGraph.stages[0];
+	loop.progressPath = "$.blockingFailures";
+	delete loop.onExhausted;
+	loop.stages[1] = {
+		id: "review",
+		support: { uses: "./review.mjs" },
+		output: { controlSchema: "./s/review.schema.json" },
+	};
+	const path = await writeSpec(cwd, "loop-code", spec, {
+		"review.schema.json": REVIEW_SCHEMA,
+	});
+	await writeFile(
+		join(path, "..", "review.mjs"),
+		`export default ({ context }) => ({ passed: context.loop.round === 2, blockingFailures: 3 - context.loop.round });`,
+	);
+	for (const mode of ["pass", "exhaust"]) {
+		const { report } = await rehearseWorkflow(cwd, {
+			workflow: path,
+			loop: mode,
+		});
+		assert.equal(report.ok, true, report.findings.join("\n"));
+		assert.deepEqual(
+			report.loops.map(({ status, rounds, forced }) => [
+				status,
+				rounds,
+				forced,
+			]),
+			[["completed", 2, []]],
+		);
+	}
+});
+
+test("loop rehearsal accepts a declared gate only, not exceptions, invalid controls or independent failures", async () => {
+	for (const kind of ["gate", "error", "invalid", "independent"]) {
+		const cwd = await project();
+		const spec = loopSpec({ maxRounds: 1 });
+		const loop = spec.artifactGraph.stages[0];
+		delete loop.onExhausted;
+		loop.stages[1] = {
+			id: "review",
+			support: { uses: "./review.mjs" },
+			output: { controlSchema: "./s/review.schema.json" },
+		};
+		if (kind === "independent")
+			spec.artifactGraph.stages.push({
+				id: "independent",
+				after: [],
+				support: { uses: "./error.mjs" },
+			});
+		const path = await writeSpec(cwd, `loop-${kind}`, spec, {
+			"review.schema.json": {
+				type: "object",
+				required: ["passed"],
+				properties: { passed: { type: "boolean" } },
+			},
+		});
+		const error = `export default () => { throw Error("broken helper"); };`;
+		await writeFile(join(path, "..", "error.mjs"), error);
+		await writeFile(
+			join(path, "..", "review.mjs"),
+			kind === "error"
+				? error
+				: kind === "invalid"
+					? `export default () => ({ passed: "no", status: "blocked" });`
+					: `export default () => ({ passed: false, status: "blocked", reason: "proof missing" });`,
+		);
+		const { report } = await rehearseWorkflow(cwd, { workflow: path });
+		assert.equal(
+			report.runStatus,
+			"failed",
+			kind + ": " + report.findings.join("; "),
+		);
+		assert.equal(
+			report.ok,
+			kind === "gate",
+			kind + ": " + report.findings.join("; "),
+		);
+		assert.equal(
+			report.status,
+			kind === "gate" ? "content-gates" : "failed",
+			kind,
+		);
+		if (kind === "gate")
+			assert.ok(
+				report.stages
+					.flatMap((stage) => stage.gates)
+					.some((gate) => gate.reasons.includes("proof missing")),
+			);
+	}
+});
+
 // ---- R6: the lab defects, as small specs ----
 
 test("R6 empty from:[<loop>] consumer: the consumer receives the loop's last round, and a consumer that gets nothing is flagged", async () => {

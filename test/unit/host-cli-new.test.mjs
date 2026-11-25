@@ -16,7 +16,7 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -283,6 +283,14 @@ for (const pattern of AUTHORING_PATTERN_IDS) {
 			for (const child of stage.stages ?? []) collect(child);
 		};
 		for (const stage of spec.artifactGraph.stages) collect(stage);
+		// A generated helper can import another local file in its bundle.
+		for (const path of referenced) {
+			if (!path.endsWith(".mjs")) continue;
+			for (const [, local] of (files[path] ?? "").matchAll(
+				/from ["'](\.\.?\/[^"']+)["']/gu,
+			))
+				referenced.add(posix.join(posix.dirname(path), local));
+		}
 		assert.deepEqual(Object.keys(files).sort(), [...referenced].sort());
 		// Support stages declare no type and no profileRole.
 		for (const stage of spec.artifactGraph.stages)
