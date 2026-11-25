@@ -28,6 +28,7 @@ import {
 	prepareWorkerExecution,
 	readRunEvents,
 	readRunRecord,
+	readRunResult,
 	recordAttemptHeartbeat,
 	runtimeWorkerPath,
 	startAsyncWorkerRun,
@@ -949,7 +950,7 @@ test("lifecycle: child event summary survives a torn line; event cache is copy-o
 	);
 });
 
-test("lifecycle: terminal publication waits for the worker to exit; a delayed worker is interruptible", async () => {
+test("lifecycle: terminal publication waits for the worker to exit", async () => {
 	const asyncFalse = await startAsyncWorkerRun({
 		cwd,
 		input: { executor, task: "quick", sandbox: false, onComplete: "detach" },
@@ -972,15 +973,23 @@ test("lifecycle: terminal publication waits for the worker to exit; a delayed wo
 		"dead",
 		"terminal publication must wait for the durable worker to exit",
 	);
+});
 
+test("lifecycle: an interrupt before the startup delay cancels without executing", async (t) => {
+	const previousNodeOptions = process.env.NODE_OPTIONS;
+	const barrier = new URL(
+		"../fixtures/runtime/durable-worker-signal-barrier.mjs",
+		import.meta.url,
+	);
 	const previousDelay =
 		process.env.AGENT_WORKFLOW_DURABLE_WORKER_START_DELAY_MS;
 	const previousTerminalDelay =
 		process.env.AGENT_WORKFLOW_DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS;
-	const previousHeartbeat = process.env.AGENT_WORKFLOW_HEARTBEAT_MS;
+	process.env.NODE_OPTIONS = [previousNodeOptions, `--import=${barrier.href}`]
+		.filter(Boolean)
+		.join(" ");
 	process.env.AGENT_WORKFLOW_DURABLE_WORKER_START_DELAY_MS = "3000";
 	process.env.AGENT_WORKFLOW_DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS = "250";
-	process.env.AGENT_WORKFLOW_HEARTBEAT_MS = "50";
 	try {
 		const before = readEffectLog(effectLog).length;
 		const interruptible = await startAsyncWorkerRun({
@@ -991,23 +1000,28 @@ test("lifecycle: terminal publication waits for the worker to exit; a delayed wo
 				onComplete: "detach",
 			},
 		});
-		// WP2b: interrupt once the worker runs JavaScript (its own registry write moves
-		// heartbeatAt past the launcher's). A fixed 250 ms raced node's own startup under load: a
-		// SIGTERM delivered before the worker's first statement kills it by default, and nothing
-		// writes a terminal result until a later reconcile.
-		const launched = (await readRunRecord({ cwd, runId: interruptible.runId }))
-			?.attempts[0]?.heartbeatAt;
+		// The preload only releases the worker after its own SIGTERM handlers have run.
+		// The worker therefore enters the delay with an already-aborted signal.
+		const payload = interruptible.artifacts.find(
+			({ type }) => type === "worker",
+		);
+		assert.ok(payload);
+		const readyPath = join(cwd, `${payload.path}.awaiting-sigterm`);
 		const startedBy = Date.now() + 20_000;
-		while (
-			Date.now() < startedBy &&
-			(await readRunRecord({ cwd, runId: interruptible.runId }))?.attempts[0]
-				?.heartbeatAt === launched
-		)
+		while (!(await stat(readyPath).catch(() => null))) {
+			assert.ok(
+				Date.now() < startedBy,
+				"worker did not reach the signal barrier",
+			);
 			await new Promise((resolve) => setTimeout(resolve, 20));
-		const interrupted = await interruptWorker({
+		}
+		const ref = {
 			cwd,
 			runId: interruptible.runId,
 			attemptId: interruptible.attemptId,
+		};
+		const interrupted = await interruptWorker({
+			...ref,
 			reason: "lifecycle test cancellation",
 			escalateAfterMs: 10,
 			killAfterMs: 3000,
@@ -1015,18 +1029,27 @@ test("lifecycle: terminal publication waits for the worker to exit; a delayed wo
 		assert.equal(interrupted.status, "interrupt-requested");
 		assert.equal(interrupted.signal, "SIGTERM");
 		const wait = await waitForWorker({
-			cwd,
-			runId: interruptible.runId,
-			attemptId: interruptible.attemptId,
+			...ref,
 			timeoutMs: 5000,
 			pollIntervalMs: 50,
 		});
-		assert.equal(wait.snapshot?.status, "cancelled");
+		if (wait.outcome === "timeout") {
+			const process = (await readRunRecord(ref))?.attempts[0]?.process;
+			const owner = process
+				? await verifyProcessIdentity({
+						pid: process.workerPid,
+						processGroupId: process.workerProcessGroupId,
+						birthIdentity: process.workerProcessBirthIdentity,
+					})
+				: "unrecorded";
+			t.diagnostic(
+				`worker=${owner}, result=${(await readRunResult(ref))?.status}`,
+			);
+		}
+		assert.equal(wait.snapshot?.status, "cancelled", JSON.stringify(wait));
+		assert.equal(wait.outcome, "terminal");
 		assert.equal(wait.snapshot?.failureKind, "user_cancelled");
-		const events = await readRunEvents(
-			{ cwd, runId: interruptible.runId },
-			Infinity,
-		);
+		const events = await readRunEvents(ref, Infinity);
 		assert.equal(
 			events.some((event) => event.type === "attempt.stale_result_ignored"),
 			false,
@@ -1046,9 +1069,8 @@ test("lifecycle: terminal publication waits for the worker to exit; a delayed wo
 		else
 			process.env.AGENT_WORKFLOW_DURABLE_WORKER_TERMINAL_WRITE_DELAY_MS =
 				previousTerminalDelay;
-		if (previousHeartbeat === undefined)
-			delete process.env.AGENT_WORKFLOW_HEARTBEAT_MS;
-		else process.env.AGENT_WORKFLOW_HEARTBEAT_MS = previousHeartbeat;
+		if (previousNodeOptions === undefined) delete process.env.NODE_OPTIONS;
+		else process.env.NODE_OPTIONS = previousNodeOptions;
 	}
 });
 
