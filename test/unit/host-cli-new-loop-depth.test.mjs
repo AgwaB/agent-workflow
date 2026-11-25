@@ -179,7 +179,10 @@ const TEST_CONTEXT = (dir, previous = undefined) => ({
 		worktreePath: join(dir, "wt"),
 		worktreeBranch: "agent-workflow/run1-task-1",
 	},
-	readLoopWorktreeBaseline: async () => [],
+	readLoopWorktreeBaseline: async () => ({
+		head: git(dir, "rev-parse", "HEAD").trim(),
+		snapshot: [],
+	}),
 	readLoopHistory: async () =>
 		previous ? [{ round: 1, status: "completed", control: previous }] : [],
 });
@@ -643,7 +646,7 @@ test("fix-loop: a protected edit in the managed dirty overlay is not this run's 
 		return await readLoopWorktreeBaseline(dir, "run1", "fix-loop");
 	});
 	assert.deepEqual(
-		baseline.map((row) => row.path),
+		baseline.snapshot.map((row) => row.path),
 		["test/value.test.js"],
 	);
 	const context = TEST_CONTEXT(dir);
@@ -685,6 +688,61 @@ test("fix-loop: a protected edit in the managed dirty overlay is not this run's 
 		).markdown,
 		/unknown \(baseline unavailable\)/u,
 	);
+});
+
+test("fix-loop: a protected test committed on the managed branch is not cleared", async () => {
+	const { dir, helpers, schema } = await generated(
+		"fix-loop",
+		"committed",
+		FIX_HELPERS,
+	);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	const { captureLoopWorktreeBaseline, readLoopWorktreeBaseline } =
+		await import("../../dist/core/worktree.js");
+	const context = TEST_CONTEXT(dir);
+	await captureLoopWorktreeBaseline(dir, "run1", "fix-loop", {
+		path: tree,
+		branch: context.loop.worktreeBranch,
+		baseCwd: dir,
+	});
+	context.readLoopWorktreeBaseline = () =>
+		readLoopWorktreeBaseline(dir, "run1", "fix-loop");
+	const file = "test/extra.test.js";
+	await writeFile(
+		join(tree, file),
+		'require("node:test")("extra", () => {});\n',
+	);
+	git(tree, "add", file);
+	git(tree, "commit", "-qm", "add test on managed branch");
+	const loop = { loopId: "fix-loop", status: "completed", roundsUsed: 1 };
+	const measure = () =>
+		helpers["run-tests.mjs"]({
+			options: { command: ["node", "--test"] },
+			context,
+		});
+	const test = await measure();
+	assert.equal(test.exitCode, 0);
+	assert.equal(test.runBaselineKnown, true);
+	assert.deepEqual(test.changedFiles, []);
+	const report = await helpers["report-fix.mjs"](reportInput({ loop, test }));
+	assert.equal(report.status, "protected-changed");
+	assert.deepEqual(report.protectedChanged, [file]);
+	assert.deepEqual(report.runFiles, [file]);
+	assert.deepEqual(test.roundFiles, [file]);
+	assert.deepEqual(
+		validateJsonSchema(report, await schema("fix-report.schema.json")).issues,
+		[],
+	);
+	// Uncommitted removal restores the baseline while remaining dirty vs the moved HEAD.
+	await rm(join(tree, file));
+	context.loop.round = 2;
+	context.readLoopHistory = async () => [
+		{ round: 1, status: "completed", control: test },
+	];
+	const reverted = await measure();
+	assert.deepEqual(reverted.runFiles, []);
+	assert.deepEqual(reverted.roundFiles, [file]);
+	assert.deepEqual(reverted.changedFiles, [file]);
 });
 
 test("fix-loop: renamed tester feeds two real rounds to the report without duplicating a delta", async () => {

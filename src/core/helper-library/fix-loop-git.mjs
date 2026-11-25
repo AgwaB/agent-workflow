@@ -88,28 +88,51 @@ function missingPath(error) {
 	if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
 }
 
-// Each snapshot lists dirty paths relative to HEAD. Include content and mode so a later edit of
-// an already-dirty file (or a reversion to HEAD) still appears in that round's delta.
-export async function gitSnapshot(worktree, signal) {
+export async function gitHead(worktree, signal) {
+	return (
+		await gitOutput(worktree, ["rev-parse", "--verify", "HEAD"], signal)
+	).trim();
+}
+
+export async function gitDirtyPaths(worktree, signal) {
+	const status = await gitOutput(
+		worktree,
+		["status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all"],
+		signal,
+	);
+	return status
+		.split("\0")
+		.filter(Boolean)
+		.map((entry) => entry.slice(3))
+		.sort();
+}
+
+// Compare every round to the same tree, not the tip of the managed branch.
+// Fingerprint content and mode, so staging or committing alone does not change a fingerprint.
+export async function gitSnapshot(worktree, head, signal) {
 	const git = (args) => gitOutput(worktree, args, signal);
-	const entries = (
-		await git([
-			"status",
-			"--porcelain=v1",
+	const [tracked, untracked] = await Promise.all([
+		git([
+			"diff",
+			"--name-only",
 			"-z",
 			"--no-renames",
-			"--untracked-files=all",
-		])
-	)
-		.split("\0")
-		.filter(Boolean);
-	if (entries.length > 1000)
+			"--no-ext-diff",
+			"--no-textconv",
+			head,
+			"--",
+		]),
+		git(["ls-files", "-z", "--others", "--exclude-standard", "--"]),
+	]);
+	const paths = [
+		...new Set(
+			[...tracked.split("\0"), ...untracked.split("\0")].filter(Boolean),
+		),
+	].sort();
+	if (paths.length > 1000)
 		throw new Error("test: more than 1000 paths changed in the loop worktree");
 	const snapshot = [];
-	for (const entry of entries.sort((a, b) =>
-		a.slice(3) < b.slice(3) ? -1 : 1,
-	)) {
-		const path = entry.slice(3);
+	for (const path of paths) {
 		const absolute = join(worktree, path);
 		// Never follow an ancestor symlink when fingerprinting a status path.
 		let parent = worktree;
@@ -134,7 +157,7 @@ export async function gitSnapshot(worktree, signal) {
 						: "special";
 		snapshot.push({
 			path,
-			fingerprint: entry.slice(0, 2) + ":" + (info?.mode ?? 0) + ":" + content,
+			fingerprint: (info?.mode ?? 0) + ":" + content,
 		});
 	}
 	return snapshot;

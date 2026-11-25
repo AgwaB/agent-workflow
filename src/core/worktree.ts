@@ -24,7 +24,11 @@ import {
 	resolve,
 } from "node:path";
 
-import { gitSnapshot, verifyWorktree } from "./helper-library/fix-loop-git.mjs";
+import {
+	gitHead,
+	gitSnapshot,
+	verifyWorktree,
+} from "./helper-library/fix-loop-git.mjs";
 import { assertRehearsalGitRoot } from "./rehearsal-shadow.js";
 import {
 	workflowRunDir,
@@ -161,7 +165,10 @@ export async function ensureManagedWorktree(
 	};
 }
 
-type LoopWorktreeBaseline = Array<{ path: string; fingerprint: string }>;
+type LoopWorktreeBaseline = {
+	head: string;
+	snapshot: Array<{ path: string; fingerprint: string }>;
+};
 
 function loopWorktreeBaselinePath(
 	cwd: string,
@@ -180,9 +187,15 @@ export async function readLoopWorktreeBaseline(
 	runId: string,
 	loopId: string,
 ): Promise<LoopWorktreeBaseline | undefined> {
-	return readJson<LoopWorktreeBaseline>(
+	const record = await readJson<LoopWorktreeBaseline>(
 		loopWorktreeBaselinePath(cwd, runId, loopId),
 	);
+	// Older records contain only fingerprints against a mutable HEAD.
+	return record &&
+		/^[a-f0-9]{40}(?:[a-f0-9]{24})?$/.test(record.head) &&
+		Array.isArray(record.snapshot)
+		? record
+		: undefined;
 }
 
 // Keep this in run state, not in the checkout or in each rewritten run record.
@@ -203,8 +216,9 @@ export async function captureLoopWorktreeBaseline(
 			worktree.baseCwd,
 			signal,
 		);
-		const snapshot = await gitSnapshot(path, signal);
-		await writeJsonAtomic(file, snapshot);
+		const head = await gitHead(path, signal);
+		const snapshot = await gitSnapshot(path, head, signal);
+		await writeJsonAtomic(file, { head, snapshot });
 	} catch {
 		// Snapshot limits, unavailable Git or interruption leave attribution unknown.
 	}

@@ -1763,7 +1763,7 @@ const FIX_TEST_HELPER = `// Runs the configured argument array (without a shell)
 // timeoutMs defaults to 180000; protectedPrefixes defaults to ["test/", "tests/"]. Rehearsal probes the
 // worktree and exercises git accounting but does not run project code on synthetic writer output.
 import { spawn } from "node:child_process";
-import { commandEnv, gitSnapshot, verifyWorktree } from "./git-worktree.mjs";
+import { commandEnv, gitDirtyPaths, gitSnapshot, verifyWorktree } from "./git-worktree.mjs";
 const MAX_TAIL = 64 * 1024;
 const FAILURE_LINE = /(^|\\s)(not ok|✖|✗|FAIL\\b|FAILED|failing|AssertionError|Error:|expected|actual|Expected|Received)/;
 const MAX_FILES = 100;
@@ -1963,17 +1963,18 @@ export default async function helper({ options, context }) {
   const { worktreePath: worktree, worktreeBranch: branch, worktreeBaseCwd, loopId, round, childStageId } = context.loop ?? {};
   if (!worktree || !branch) throw new Error("test: no managed worktree for this loop (did the writer get one?)");
   const history = await context.readLoopHistory(loopId, childStageId);
-  const baseline = await context.readLoopWorktreeBaseline?.();
-  const previous = round === 1 ? baseline : history.find((row) => row.round === round - 1 && row.status === "completed")?.control?.snapshot;
+  const baselineRecord = await context.readLoopWorktreeBaseline?.();
+  const baseline = baselineRecord?.snapshot;
+  const previous = !baseline ? undefined : round === 1 ? baseline : history.find((row) => row.round === round - 1 && row.status === "completed")?.control?.snapshot;
   const rehearsal = process.env.AGENT_WORKFLOW_REHEARSAL === "1";
   const physical = await verifyWorktree(worktree, branch, worktreeBaseCwd ?? context.cwd, context.signal);
   const started = Date.now();
   const ran = await execute(rehearsal ? ["git", "rev-parse", "--is-inside-work-tree"] : wanted.command, physical, wanted.timeoutMs, context.signal);
   const durationMs = Date.now() - started;
   await verifyWorktree(worktree, branch, worktreeBaseCwd ?? context.cwd, context.signal, physical);
-  const snapshot = await gitSnapshot(physical, context.signal);
+  const files = await gitDirtyPaths(physical, context.signal);
+  const snapshot = baseline ? await gitSnapshot(physical, baselineRecord.head, context.signal) : [];
   await verifyWorktree(worktree, branch, worktreeBaseCwd ?? context.cwd, context.signal, physical);
-  const files = snapshot.map(({ path }) => path);
   const roundFiles = previous ? delta(previous, snapshot) : [];
   const runFiles = baseline ? delta(baseline, snapshot) : [];
   const protectedChanged = runFiles.filter((file) => wanted.protectedPrefixes.some((prefix) => file.startsWith(prefix)));
