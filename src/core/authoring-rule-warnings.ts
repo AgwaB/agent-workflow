@@ -542,11 +542,13 @@ async function loopUntilWarnings(
 			const lookup = lookupControlSchemaPath(schema, leaf.path);
 			if (lookup.status !== "missing") continue;
 			undeclared.add(leaf);
-			const consequence = lookup.closed
-				? "the schema sets additionalProperties: false, so the model can never emit it and the loop can only end exhausted"
-				: "nothing makes the model emit it";
+			const consequence = !isModelBacked(finalChild)
+				? "the helper should return this field explicitly"
+				: lookup.closed
+					? "the schema sets additionalProperties: false, so the model can never emit it and the loop can only end exhausted"
+					: "nothing makes the model emit it";
 			warnings.push(
-				`loop stage "${loop.id}" until path "${leaf.path}" is not declared in the control schema (${controlSchema}) of its final child "${finalChild.id}": ${consequence}. Add "${lookup.property}" to that schema's properties and show it in the child's prompt, or point until at a declared field.`,
+				`loop stage "${loop.id}" until path "${leaf.path}" is not declared in the control schema (${controlSchema}) of its final child "${finalChild.id}": ${consequence}. Add "${lookup.property}" to that schema's properties${isModelBacked(finalChild) ? " and show it in the child's prompt" : ""}, or point until at a declared field.`,
 			);
 		}
 	}
