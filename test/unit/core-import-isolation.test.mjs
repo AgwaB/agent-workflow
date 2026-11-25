@@ -123,6 +123,15 @@ test("every dist/core/*.js imports in a child process from a temp dist/ copy wit
 			if (dirname(dir) === dir) break;
 		}
 		const script = [
+			'import assert from "node:assert/strict";',
+			'import { readFile } from "node:fs/promises";',
+			'import { generatePatternFiles } from "./dist/core/authoring-patterns.js";',
+			'const assets = { "run-tests.mjs": "fix-loop-run-tests.mjs", "git-worktree.mjs": "fix-loop-git.mjs", "report-fix.mjs": "fix-loop-report.mjs" };',
+			'const helpers = generatePatternFiles("fix-loop", "isolated").filter(({ path }) => path.startsWith("helpers/"));',
+			"assert.equal(helpers.length, Object.keys(assets).length);",
+			"for (const { path, content } of helpers) {",
+			'  assert.equal(content, await readFile("./dist/core/helper-library/" + assets[path.slice(8)], "utf8"));',
+			"}",
 			`const names = ${JSON.stringify(modules)};`,
 			"const loaded = [];",
 			"for (const name of names) {",

@@ -29,7 +29,7 @@ import {
 	gitLegacySnapshot,
 	gitSnapshot,
 	verifyWorktree,
-} from "./helper-library/fix-loop-git.mjs";
+} from "./fix-loop-git.js";
 import { assertRehearsalGitRoot } from "./rehearsal-shadow.js";
 import {
 	workflowRunDir,
