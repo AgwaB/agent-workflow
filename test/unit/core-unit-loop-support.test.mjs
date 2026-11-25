@@ -1,3 +1,5 @@
+// test-tier: integration
+
 import assert from "node:assert/strict";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
