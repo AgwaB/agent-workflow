@@ -32,29 +32,14 @@
 //   occurs twice on one side the first row is joined and the repeat is listed in `duplicates`.
 //   Everything is sorted by key, so the same rows always give the same bytes.
 
+import { applyOps, normalizeValue } from "./key-normalize.mjs";
+export { NORMALIZERS, normalizeValue } from "./key-normalize.mjs";
+
 const clip = (value, max) =>
 	String(value ?? "")
 		.replace(/\s+/g, " ")
 		.trim()
 		.slice(0, max);
-
-export const NORMALIZERS = {
-	trim: (text) => text.trim(),
-	lower: (text) => text.toLowerCase(),
-	upper: (text) => text.toUpperCase(),
-	"collapse-space": (text) => text.replace(/\s+/g, " "),
-	"strip-query": (text) => text.replace(/[?#].*$/s, ""),
-	"trailing-slash": (text) =>
-		text.length > 1 ? text.replace(/\/+$/, "") || "/" : text,
-	"leading-slash": (text) => (text.startsWith("/") ? text : `/${text}`),
-	"path-params": (text) =>
-		text
-			.replace(/\$\{[^}/]*\}/g, "{}")
-			.replace(/\{[^}/]*\}/g, "{}")
-			.replace(/<[^>/]*>/g, "{}")
-			.replace(/\[[^\]/]*\]/g, "{}")
-			.replace(/(^|\/):[A-Za-z_][\w-]*/g, "$1{}"),
-};
 
 function pick(value, path) {
 	let cursor = value;
@@ -66,26 +51,6 @@ function pick(value, path) {
 		cursor = cursor[part];
 	}
 	return cursor;
-}
-
-function applyOps(text, ops, hooks, where) {
-	let out = text;
-	for (const op of ops) {
-		const fn = typeof op === "function" ? op : (hooks?.[op] ?? NORMALIZERS[op]);
-		if (typeof fn !== "function")
-			throw new Error(`keyed-join: unknown normalize op "${op}" for ${where}`);
-		out = fn(out);
-	}
-	return out;
-}
-
-/** The normalised text of one key value, or undefined when the row has none (missing, blank, object). */
-export function normalizeValue(value, ops, hooks, where = "key") {
-	if (typeof value === "number" || typeof value === "boolean")
-		value = String(value);
-	if (typeof value !== "string") return undefined;
-	const out = applyOps(value, ops ?? ["trim"], hooks, where);
-	return out === "" ? undefined : out;
 }
 
 const canonical = (value) =>

@@ -12,22 +12,26 @@
 //
 // Options
 //   title      the report's H1 (optional); intro: one paragraph of plain text (optional).
-//   sections   [{ title, from, rows, type, columns | template | field, sortBy, limit, emptyText }]
+//   sections   [{ title, from, rows, type, columns | template | textField/hrefField, sortBy, limit, countBy, emptyText }]
 //     from/rows   stage id or source key (or an array) and the row-array path (default "items"); a stage id
 //                 with foreach items collects every completed item.
-//     type        "table" (default) or "list".
-//     columns     table columns: a field path, or { field, title, select, code, max }. `select` picks a field
+//     type        "table" (default), "list" or "index".
+//     columns     table columns: a field path, or { field, title, select, code, max, empty }. `select` picks a field
 //                 out of an object value (or out of every element of an array value); `code` renders a code
-//                 span; `max` caps the cell (default 300 characters, then "…"). With no columns a table shows
+//                 span; `max` caps the cell (default 300 characters, ending at a word boundary with "…"); `empty` sets
+//                 a placeholder for missing fields. With no columns a table shows
 //                 every top-level key of the first row.
 //     template    list item text with {field.path} placeholders ("{name}: {detail}"); or `field`: one path.
 //                 With neither, an item is the row as compact JSON. `ordered: true` numbers the items.
+//     textField/hrefField  index entry paths (default "text" and "href"); hrefs are relative file paths.
 //     sortBy      a field path, ascending (numbers numerically, text by code point); stable.
 //     limit       show at most this many rows and say how many more there were (default: all).
+//     countBy     group the displayed rows by a field path and show the counts beside the section.
 //     emptyText   the line shown when there are no rows (default "None.").
 // Library (pure; pass rows directly)
 //   renderTable(rows, columns, options), renderList(rows, options), renderCell(value, options),
-//   escapeText(text), codeSpan(text), jsonText(value)
+//   escapeText(text), codeSpan(text), jsonText(value), link(text, href), clipWords(text, max),
+//   valueOr(value, fallback), countBy(rows, field), renderIndex(entries, options)
 // Output (declare these keys in the stage's controlSchema)
 //   { schema: "render-report-v1", digest, status: "passed", markdown, completionSummaryMarkdown }
 
@@ -53,7 +57,7 @@ function pick(value, path) {
 
 /** Text with Markdown, HTML and table characters escaped and every whitespace run (newlines too) one space. */
 export function escapeText(text) {
-	return String(text)
+	return String(valueOr(text, ""))
 		.replace(/\s+/g, " ")
 		.trim()
 		.replace(/([\\`*_[\]<>|&~])/g, "\\$1");
@@ -61,7 +65,10 @@ export function escapeText(text) {
 
 /** An inline code span that survives backticks and pipes inside the text. */
 export function codeSpan(text) {
-	const flat = String(text).replace(/\s+/g, " ").trim().replace(/\|/g, "\\|");
+	const flat = String(valueOr(text, ""))
+		.replace(/\s+/g, " ")
+		.trim()
+		.replace(/\|/g, "\\|");
 	if (flat === "") return "";
 	const longest = Math.max(
 		0,
@@ -93,15 +100,84 @@ const isPlain = (value) =>
 	value === null ||
 	["string", "number", "boolean", "bigint"].includes(typeof value);
 
-function shorten(text, max) {
-	const chars = [...text];
-	return chars.length > max
-		? `${chars.slice(0, Math.max(0, max - 1)).join("")}…`
-		: text;
+/** Use the fallback only for null or undefined; keep 0, false, and empty strings. */
+export function valueOr(value, fallback) {
+	return value ?? fallback;
 }
 
-function plainText(value) {
-	return value === null || value === undefined ? "" : String(value);
+/** Flatten whitespace and clip at a word boundary, including the ellipsis in the code-point budget. */
+export function clipWords(text, max) {
+	if (!Number.isInteger(max) || max < 0)
+		throw new RangeError("render-report: max must be a non-negative integer");
+	const flat = String(valueOr(text, "")).replace(/\s+/g, " ").trim();
+	const chars = [...flat];
+	if (chars.length <= max) return flat;
+	if (max === 0) return "";
+	const budget = max - 1;
+	const boundary =
+		chars[budget] === " " ? budget : chars.lastIndexOf(" ", budget - 1);
+	return `${boundary > 0 && budget > 0 ? chars.slice(0, boundary).join("") : ""}…`;
+}
+
+/** Count the values of a dotted field on the same rows passed to the renderer. */
+export function countBy(rows, field, fallback = "(missing)") {
+	const counts = new Map();
+	for (const row of rows) {
+		const value = valueOr(pick(row, field), fallback);
+		const key = typeof value === "object" ? jsonText(value) : String(value);
+		counts.set(key, (counts.get(key) ?? 0) + 1);
+	}
+	return Object.fromEntries(counts);
+}
+
+/** A Markdown link to a file under the current report's directory (lexically; no FS access). */
+export function link(text, href) {
+	const fail = () => {
+		throw new Error(
+			"render-report: link href must be a contained relative file path",
+		);
+	};
+	if (
+		typeof href !== "string" ||
+		href === "" ||
+		href !== href.trim() ||
+		href.startsWith("/") ||
+		href.endsWith("/") ||
+		/[\\:\u0000-\u001f\u007f]/u.test(href)
+	)
+		fail();
+	const parts = [];
+	for (const part of href.split("/")) {
+		if (part === "" || part === ".") continue;
+		if (part === "..") {
+			if (parts.length === 0) fail();
+			parts.pop();
+		} else parts.push(part);
+	}
+	if (parts.length === 0 || /(?:^|\/)\.{1,2}$/.test(href)) fail();
+	// Treat input as a file path, not a URI. Percent signs and link syntax are literal filename bytes.
+	const destination = parts
+		.map((part) =>
+			encodeURIComponent(part).replace(
+				/[!'()*]/g,
+				(ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`,
+			),
+		)
+		.join("/");
+	return `[${escapeText(valueOr(text, href)) || escapeText(href)}](${destination})`;
+}
+
+/** A Markdown list of links. Entries default to { text, href }; options can name other field paths. */
+export function renderIndex(entries, options) {
+	const opts = options ?? {};
+	return renderList(entries, {
+		...opts,
+		format: (entry) =>
+			link(
+				pick(entry, opts.textField ?? "text"),
+				pick(entry, opts.hrefField ?? "href"),
+			),
+	});
 }
 
 /**
@@ -121,15 +197,15 @@ export function renderCell(value, options) {
 				? shown
 				: pick(shown, opts.select);
 	}
-	if (shown === null || shown === undefined) return opts.empty ?? "";
+	shown = valueOr(shown, opts.empty ?? "");
 	// Plain values (and arrays of them) are text; anything nested is JSON, as code.
 	const asText = isPlain(shown)
-		? plainText(shown)
+		? String(shown)
 		: Array.isArray(shown) && shown.every(isPlain)
-			? shown.map(plainText).join(", ")
+			? shown.map((entry) => valueOr(entry, "")).join(", ")
 			: undefined;
-	if (asText === undefined) return codeSpan(shorten(jsonText(shown), max));
-	const clipped = shorten(asText.replace(/\s+/g, " ").trim(), max);
+	if (asText === undefined) return codeSpan(clipWords(jsonText(shown), max));
+	const clipped = clipWords(asText, max);
 	return opts.code === true ? codeSpan(clipped) : escapeText(clipped);
 }
 
@@ -138,6 +214,11 @@ function column(entry) {
 	if (typeof spec.field !== "string" || spec.field === "")
 		throw new Error("render-report: every column needs a field path");
 	return { ...spec, title: spec.title ?? spec.field };
+}
+
+/** Assemble already-rendered inline cells. Use renderCell for untrusted text. */
+export function tableRow(cells) {
+	return `| ${cells.join(" | ")} |`;
 }
 
 /** A Markdown table. `columns` default to the first row's top-level keys. options.emptyText for no rows. */
@@ -154,14 +235,11 @@ export function renderTable(rows, columns, options) {
 				).sort(order)
 	).map(column);
 	const head = (spec) => escapeText(spec.title) || " ";
-	const lines = [
-		`| ${specs.map(head).join(" | ")} |`,
-		`| ${specs.map(() => "---").join(" | ")} |`,
-	];
+	const lines = [tableRow(specs.map(head)), tableRow(specs.map(() => "---"))];
 	for (const row of rows)
 		lines.push(
-			`| ${specs
-				.map((spec) => {
+			tableRow(
+				specs.map((spec) => {
 					const value =
 						row !== null && typeof row === "object"
 							? pick(row, spec.field)
@@ -169,8 +247,8 @@ export function renderTable(rows, columns, options) {
 								? row
 								: undefined;
 					return renderCell(value, spec) || " ";
-				})
-				.join(" | ")} |`,
+				}),
+			),
 		);
 	return lines.join("\n");
 }
@@ -181,7 +259,8 @@ function fill(template, row, options) {
 	);
 }
 
-/** A Markdown list. options: template ("{a}: {b}"), field, ordered, emptyText, max (per placeholder). */
+/** A Markdown list. options: template ("{a}: {b}"), field, ordered, emptyText, max (per placeholder).
+ * Code callers may pass format(row) for already-rendered inline Markdown. */
 export function renderList(rows, options) {
 	const opts = options ?? {};
 	if (rows.length === 0) return opts.emptyText ?? "None.";
@@ -189,11 +268,13 @@ export function renderList(rows, options) {
 		.map((row, index) => {
 			const marker = opts.ordered === true ? `${index + 1}.` : "-";
 			const text =
-				typeof opts.template === "string"
-					? fill(opts.template, row, opts)
-					: typeof opts.field === "string"
-						? renderCell(pick(row, opts.field), opts)
-						: renderCell(row, opts);
+				typeof opts.format === "function"
+					? opts.format(row)
+					: typeof opts.template === "string"
+						? fill(opts.template, row, opts)
+						: typeof opts.field === "string"
+							? renderCell(pick(row, opts.field), opts)
+							: renderCell(row, opts);
 			return `${marker} ${text}`;
 		})
 		.join("\n");
@@ -276,11 +357,19 @@ export default async function helper({ sources, options, context }) {
 		const body =
 			section.type === "list"
 				? renderList(shown, section)
-				: renderTable(shown, section.columns, section);
+				: section.type === "index"
+					? renderIndex(shown, section)
+					: renderTable(shown, section.columns, section);
+		const groups =
+			typeof section.countBy === "string" && shown.length > 0
+				? Object.entries(countBy(shown, section.countBy))
+						.map(([key, count]) => `${escapeText(key)}: ${count}`)
+						.join("; ")
+				: "";
 		const more =
 			total > shown.length ? `\n\n_… and ${total - shown.length} more._` : "";
 		parts.push(
-			`${typeof section.title === "string" && section.title !== "" ? `## ${escapeText(section.title)} (${total})\n\n` : ""}${body}${more}`,
+			`${typeof section.title === "string" && section.title !== "" ? `## ${escapeText(section.title)} (${total})\n\n` : ""}${groups ? `Counts by ${escapeText(section.countBy)}: ${groups}\n\n` : ""}${body}${more}`,
 		);
 		sizes.push(`${clip(section.title ?? section.from, 40)}: ${total}`);
 	}

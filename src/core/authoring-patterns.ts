@@ -7,6 +7,7 @@
 // pattern and name always give byte-identical files.
 import { readFileSync } from "node:fs";
 import { controlContract } from "./authoring-contract.js";
+import { readHelperFile } from "./helper-library.js";
 import type { JsonSchemaObject } from "./json-schema.js";
 
 export const AUTHORING_PATTERN_IDS = [
@@ -353,6 +354,8 @@ const INVENTORY_HELPER = `// Deterministic check of a model-built inventory agai
 // the foreach never runs on an invented list. Duplicate ids: the first row wins, later ones are rejected.
 // "agent-workflow rehearse" runs a synthetic planner whose files do not exist: while it runs
 // (AGENT_WORKFLOW_REHEARSAL=1) every row is passed on and the file checks are skipped.
+import { codeSpan, escapeText, renderList } from "./render-report.mjs";
+
 import { constants } from "node:fs";
 import { lstat, open, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
@@ -540,17 +543,17 @@ function report(status, proposed, items, rejected, corrected, note) {
   if (note) lines.push(note, "");
   if (corrected.length > 0) {
     lines.push("## Corrected rows (the name is in the file, the quote was not; evidence replaced by the first line with the name)", "");
-    for (const row of corrected) lines.push("- \\\`" + row.id + "\\\` (\\\`" + row.file + ":" + row.line + "\\\`): the model quoted " + JSON.stringify(clip(row.originalQuote, 160)));
+    lines.push(renderList(corrected, { format: (row) => codeSpan(row.id) + " (" + codeSpan(row.file + ":" + row.line) + "): the model quoted " + escapeText(JSON.stringify(clip(row.originalQuote, 160))) }));
     lines.push("");
   }
   if (rejected.length > 0) {
     lines.push("## Rejected rows", "");
-    for (const row of rejected) lines.push("- \\\`" + row.id + "\\\` (\\\`" + row.file + "\\\`): " + row.reason);
+    lines.push(renderList(rejected, { format: (row) => codeSpan(row.id) + " (" + codeSpan(row.file) + "): " + escapeText(row.reason) }));
     lines.push("");
   }
   if (items.length > 0) {
     lines.push("## Verified rows", "");
-    for (const item of items) lines.push("- \\\`" + item.id + "\\\` " + item.name + " (\\\`" + item.evidence.file + ":" + item.evidence.line + "\\\`)");
+    lines.push(renderList(items, { format: (item) => codeSpan(item.id) + " " + escapeText(item.name) + " (" + codeSpan(item.evidence.file + ":" + item.evidence.line) + ")" }));
     lines.push("");
   }
   return lines.join("\\n");
@@ -802,7 +805,10 @@ function inventoryForeachPattern(name: string): Bundle {
 			"work-item.schema.json": item,
 			"report.schema.json": report,
 		},
-		helpers: { "verify-inventory.mjs": INVENTORY_HELPER },
+		helpers: {
+			"verify-inventory.mjs": INVENTORY_HELPER,
+			"render-report.mjs": readHelperFile("render-report.mjs"),
+		},
 	};
 }
 
@@ -1073,6 +1079,8 @@ const COUNT_HELPER = `// Deterministic count of the classifications. No model ca
 // An id listed more than once cannot be classified separately (the foreach rejects duplicate identities),
 // so it is listed in "duplicates" and counted once in "total"; classified + missing = total always holds.
 
+import { normalizeValue } from "./key-normalize.mjs";
+
 function compare(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
@@ -1082,7 +1090,8 @@ export default async function helper({ context, sources }) {
   if (!loaded || !Array.isArray(loaded.items)) {
     throw new Error("count: the load control has no items list");
   }
-  const listed = loaded.items.map((row) => row && row.id);
+  // Engine-bound identities are case-sensitive. Never collapse two real items.
+  const listed = loaded.items.map((row) => typeof row?.id === "string" ? normalizeValue(row.id, []) : undefined);
   if (listed.some((id) => typeof id !== "string")) {
     throw new Error("count: a loaded item has no string id");
   }
@@ -1098,9 +1107,11 @@ export default async function helper({ context, sources }) {
   const labels = new Map();
   for (const row of context.sourceStatuses) {
     if (row.stageId !== "classify" || row.itemIdentity === undefined) continue;
+    const id = normalizeValue(row.itemIdentity, []);
+    if (id === undefined) continue;
     const control = sources[row.source];
-    if (control && typeof control.label === "string" && !labels.has(row.itemIdentity)) {
-      labels.set(row.itemIdentity, control.label);
+    if (control && typeof control.label === "string" && !labels.has(id)) {
+      labels.set(id, control.label);
     }
   }
 
@@ -1240,7 +1251,10 @@ function classifyCountPattern(name: string): Bundle {
 			"class-counts.schema.json": counts,
 			"class-report.schema.json": report,
 		},
-		helpers: { "count.mjs": COUNT_HELPER },
+		helpers: {
+			"count.mjs": COUNT_HELPER,
+			"key-normalize.mjs": readHelperFile("key-normalize.mjs"),
+		},
 	};
 }
 
@@ -1258,6 +1272,8 @@ const VERIFY_HELPER = `// Deterministic check of the files a writer stage left i
 // "Write-capable stages"); nothing is merged and the worktree is kept for review.
 // "agent-workflow rehearse" runs a synthetic worker that writes no files: while it runs
 // (AGENT_WORKFLOW_REHEARSAL=1) the worktree is still looked up but the file checks are skipped.
+import { codeSpan, renderList, renderCell } from "./render-report.mjs";
+
 import { execFile } from "node:child_process";
 import { lstat, open, realpath } from "node:fs/promises";
 import path from "node:path";
@@ -1375,16 +1391,14 @@ function report(status, branch, worktree, rows, problem) {
     "# Write check",
     "",
     "- Status: **" + status + "**",
-    "- Branch: \`" + (branch || "(none)") + "\`",
-    "- Worktree: \`" + (worktree || "(none)") + "\`",
+    "- Branch: " + codeSpan(branch || "(none)"),
+    "- Worktree: " + codeSpan(worktree || "(none)"),
     "",
   ];
-  if (problem) lines.push(problem, "");
+  if (problem) lines.push(renderCell(problem, { max: 1200 }), "");
   if (rows.length > 0) {
     lines.push("## Files", "");
-    for (const row of rows) {
-      lines.push("- \`" + row.path + "\`: " + (row.ok ? "ok, " + row.bytes + " bytes" : row.problem + (row.missingMarkers.length > 0 ? " (" + row.missingMarkers.map((m) => JSON.stringify(m)).join(", ") + ")" : "")));
-    }
+    lines.push(renderList(rows, { format: (row) => codeSpan(row.path) + ": " + (row.ok ? "ok, " + row.bytes + " bytes" : renderCell(row.problem) + (row.missingMarkers.length > 0 ? " (" + row.missingMarkers.map((m) => renderCell(JSON.stringify(m), { max: 200 })).join(", ") + ")" : "")) }));
     lines.push("");
   }
   lines.push("Nothing is merged automatically: review the worktree, then merge or copy the files yourself. The worktree is kept.", "");
@@ -1538,7 +1552,10 @@ function writeVerifyPattern(name: string): Bundle {
 			"write-result.schema.json": written,
 			"write-check.schema.json": checked,
 		},
-		helpers: { "verify-files.mjs": VERIFY_HELPER },
+		helpers: {
+			"verify-files.mjs": VERIFY_HELPER,
+			"render-report.mjs": readHelperFile("render-report.mjs"),
+		},
 		agents: {
 			[`${agent}.md`]: [
 				"---",
@@ -1632,19 +1649,17 @@ const RENDER_HELPER = `// Deterministic changelog rendering for collect-render. 
 // Entries keep the collected order (newest first). Commit subjects are untrusted text: Markdown
 // characters are escaped and each entry stays on one line. The same history always gives the same bytes.
 
+import { codeSpan, countBy, escapeText, renderList } from "./render-report.mjs";
+
 const SUBJECT = /^([A-Za-z]+)(\\(([^)]*)\\))?(!)?:\\s*(.+)$/;
 const SECTIONS = ["Breaking", "Features", "Fixes", "Other"];
-
-function escapeMarkdown(text) {
-  return text.replace(/\\s+/g, " ").trim().replace(/([\\\\\`*_[\\]<>|])/g, "\\\\$1");
-}
 
 export default async function helper({ sources }) {
   const history = sources.collect;
   if (!history || !Array.isArray(history.commits)) {
     throw new Error("render: the collect stage has no commit list");
   }
-  const groups = { Breaking: [], Features: [], Fixes: [], Other: [] };
+  const entries = [];
   for (const commit of history.commits) {
     const match = SUBJECT.exec(commit.subject);
     const type = match ? match[1].toLowerCase() : "";
@@ -1654,18 +1669,19 @@ export default async function helper({ sources }) {
     else if (type === "fix") section = "Fixes";
     // The scope labels an entry; in Other the type does too (docs, chore, ...), since the heading no longer says it.
     const label = match ? (section === "Other" ? type + (match[3] ? "(" + match[3] + ")" : "") : match[3] || "") : "";
-    const text = match ? (label ? "**" + escapeMarkdown(label) + ":** " : "") + escapeMarkdown(match[5]) : escapeMarkdown(commit.subject);
-    groups[section].push("- " + text + " (\`" + commit.sha.slice(0, 7) + "\`)");
+    const text = match ? (label ? "**" + escapeText(label) + ":** " : "") + escapeText(match[5]) : escapeText(commit.subject);
+    entries.push({ section, text: text + " (" + codeSpan(commit.sha.slice(0, 7)) + ")" });
   }
 
-  const counts = { total: history.commits.length };
-  for (const section of SECTIONS) counts[section] = groups[section].length;
+  const bySection = countBy(entries, "section");
+  const counts = { total: entries.length };
+  for (const section of SECTIONS) counts[section] = bySection[section] ?? 0;
   const lines = ["# Changelog", ""];
   lines.push(counts.total + " commit" + (counts.total === 1 ? "" : "s") + " from git history (merge commits left out).");
   if (history.truncated) lines.push("", "> Older commits beyond the configured limit are not listed.");
   for (const section of SECTIONS) {
     lines.push("", "## " + section, "");
-    lines.push(...(groups[section].length > 0 ? groups[section] : ["_None._"]));
+    lines.push(renderList(entries.filter((row) => row.section === section), { format: (row) => row.text, emptyText: "_None._" }));
   }
   const summary = "Breaking " + counts.Breaking + ", Features " + counts.Features + ", Fixes " + counts.Fixes + ", Other " + counts.Other;
   return {
@@ -1751,6 +1767,7 @@ function collectRenderPattern(name: string): Bundle {
 		},
 		helpers: {
 			"collect-history.mjs": COLLECT_HELPER,
+			"render-report.mjs": readHelperFile("render-report.mjs"),
 			"render-changelog.mjs": RENDER_HELPER,
 		},
 	};
@@ -1922,6 +1939,7 @@ function fixLoopPattern(name: string): Bundle {
 				new URL("./fix-loop-git.js", import.meta.url),
 				"utf8",
 			),
+			"render-report.mjs": readHelperFile("render-report.mjs"),
 			"report-fix.mjs": readFileSync(
 				new URL("./helper-library/fix-loop-report.mjs", import.meta.url),
 				"utf8",
@@ -2088,6 +2106,8 @@ const DEPTH_PLAN_HELPER = `// Deterministic depth plan for adaptive-depth. No mo
 // "untriaged"; a triage row for an id nobody loaded, or a second row for the same id, is listed in "ignored".
 // A demoted item keeps its triage reason and is listed in "demoted" with why. The triage cannot widen the caps.
 
+import { keyResolver } from "./key-normalize.mjs";
+
 function compare(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
@@ -2114,11 +2134,12 @@ export default async function helper({ sources, options }) {
 
   const tierOf = new Map();
   const ignored = [];
-  const known = new Set(loaded.items.map((item) => item.id));
+  const resolve = keyResolver(loaded.items.map((item) => item.id));
   for (const row of triaged.tiers) {
-    const id = row && row.id;
-    if (typeof id !== "string" || !known.has(id) || tierOf.has(id)) {
-      ignored.push(clip(typeof id === "string" ? id : "(no id)", 64));
+    const reported = row && row.id;
+    const id = resolve(reported);
+    if (id === undefined || tierOf.has(id)) {
+      ignored.push(clip(typeof reported === "string" ? reported : "(no id)", 64));
       continue;
     }
     tierOf.set(id, { tier: row.tier === "deep" ? "deep" : "quick", reason: clip(row.reason || "", 200) });
@@ -2184,6 +2205,8 @@ const DEPTH_ATTACH_HELPER = `// Deterministic hand-over between the two deep ste
 // back is not passed on; its id is listed in "withoutFinding", and the collect stage reports it as missing.
 // An empty deep list gives an empty items list (the challenge foreach then makes no model call).
 
+import { normalizeValue } from "./key-normalize.mjs";
+
 function clip(value, max) {
   return String(value).replace(/\\s+/g, " ").trim().slice(0, max);
 }
@@ -2194,15 +2217,17 @@ export default async function helper({ sources, context }) {
   const findings = new Map();
   for (const row of context.sourceStatuses) {
     if (row.stageId !== "investigate" || row.itemIdentity === undefined) continue;
+    const id = normalizeValue(row.itemIdentity, []);
+    if (id === undefined) continue;
     const control = sources[row.source];
-    if (row.status === "completed" && control && typeof control.summary === "string" && !findings.has(row.itemIdentity)) {
-      findings.set(row.itemIdentity, control);
+    if (row.status === "completed" && control && typeof control.summary === "string" && !findings.has(id)) {
+      findings.set(id, control);
     }
   }
   const items = [];
   const withoutFinding = [];
   for (const item of plan.deep) {
-    const found = findings.get(item.id);
+    const found = findings.get(normalizeValue(item.id, []));
     if (!found) {
       withoutFinding.push(item.id);
       continue;
@@ -2237,6 +2262,8 @@ const DEPTH_COLLECT_HELPER = `// Deterministic collection of the dispositions of
 // Under "agent-workflow rehearse" (AGENT_WORKFLOW_REHEARSAL=1) the synthetic workers cannot follow the tiers, so
 // a gap does not fail the stage there.
 
+import { normalizeValue } from "./key-normalize.mjs";
+
 function compare(a, b) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
@@ -2250,10 +2277,12 @@ function pick(context, sources, stageId) {
   const extra = [];
   for (const row of context.sourceStatuses) {
     if (row.stageId !== stageId || row.itemIdentity === undefined) continue;
+    const id = normalizeValue(row.itemIdentity, []);
+    if (id === undefined) continue;
     const control = sources[row.source];
     if (row.status !== "completed" || !control || typeof control.verdict !== "string") continue;
-    if (found.has(row.itemIdentity)) extra.push(row.itemIdentity);
-    else found.set(row.itemIdentity, control);
+    if (found.has(id)) extra.push(id);
+    else found.set(id, control);
   }
   return { found, extra };
 }
@@ -2265,6 +2294,7 @@ export default async function helper({ sources, context }) {
   if (!plan || !Array.isArray(plan.quick) || !Array.isArray(plan.deep)) throw new Error("collect: the plan control has no quick and deep lists");
   const quick = pick(context, sources, "quick");
   const deep = pick(context, sources, "challenge");
+  // These are engine-bound IDs, not model echoes: preserve case-sensitive identities.
   const quickIds = new Set(plan.quick.map((item) => item.id));
   const deepIds = new Set(plan.deep.map((item) => item.id));
   const reasonOf = new Map([...plan.quick, ...plan.deep].map((item) => [item.id, item.reason]));
@@ -2328,37 +2358,50 @@ const DEPTH_REPORT_HELPER = `// Deterministic report for adaptive-depth. No mode
 // disposition makes this stage declare "failed" too (its report still lists every row, the missing ones marked).
 // Untrusted text from the workers is escaped and kept on one line.
 
-function clip(value, max) {
-  return String(value).replace(/\\s+/g, " ").trim().slice(0, max);
-}
+import { codeSpan, countBy, renderCell, renderList, renderTable, tableRow } from "./render-report.mjs";
 
-function cell(value, max) {
-  return clip(value, max).replace(/([\\\\|\`*_[\\]<>])/g, "\\\\$1");
-}
+const clip = (value, max) => String(value).replace(/\\s+/g, " ").trim().slice(0, max);
+const cell = (value, max) => renderCell(value, { max });
+const columns = [
+  { field: "id", title: "Item", max: 64 },
+  { field: "depth", title: "Depth" },
+  { field: "verdict", title: "Verdict", max: 64 },
+  { field: "answer", title: "Answer", max: 300 },
+  { field: "evidenceText", title: "Evidence", max: 200 },
+  { field: "confidence", title: "Confidence", max: 16 },
+];
 
 export default async function helper({ sources }) {
   const collected = sources.collect;
   if (!collected || !Array.isArray(collected.rows)) throw new Error("report: the collect stage has no rows");
   const failed = collected.status === "failed";
+  const rows = collected.rows.map((row) => ({
+    ...row,
+    depth: row.tier + (row.steps > 1 ? " (" + row.steps + " steps)" : ""),
+    answer: row.answer || "-",
+    evidenceText: row.evidence.join(", ") || "-",
+    confidence: row.confidence || "-",
+  }));
+  const tiers = countBy(rows, "tier");
+  const quick = tiers.quick ?? 0;
+  const deep = tiers.deep ?? 0;
+  const capped = countBy(rows, "capped").true ?? 0;
   const lines = ["# Disposition report", ""];
   lines.push(
     "- Items: " + collected.total + " (" + collected.covered + " with a disposition)",
-    "- Depth: " + collected.byTier.quick + " quick, " + collected.byTier.deep + " deep" + (collected.byTier.capped > 0 ? " (" + collected.byTier.capped + " cut back to quick by a cap)" : ""),
+    "- Depth: " + quick + " quick, " + deep + " deep" + (capped > 0 ? " (" + capped + " cut back to quick by a cap)" : ""),
     "- Model steps used, triage included: " + collected.modelSteps,
     "",
   );
-  if (failed) lines.push("**Incomplete:** no disposition for " + collected.missing.map((id) => "\`" + clip(id, 64).replace(/\`/g, "'") + "\`").join(", ") + ".", "");
-  if (collected.unexpected.length > 0) lines.push("Dispositions that came back twice or from the wrong path: " + collected.unexpected.map((id) => "\`" + clip(id, 64).replace(/\`/g, "'") + "\`").join(", ") + ".", "");
-  lines.push("| Item | Depth | Verdict | Answer | Evidence | Confidence |", "| --- | --- | --- | --- | --- | --- |");
-  for (const row of collected.rows) {
-    lines.push("| " + cell(row.id, 64) + " | " + row.tier + (row.steps > 1 ? " (" + row.steps + " steps)" : "") + " | " + cell(row.verdict, 64) + " | " + cell(row.answer || "-", 300) + " | " + cell(row.evidence.join(", ") || "-", 200) + " | " + cell(row.confidence || "-", 16) + " |");
-  }
+  if (failed) lines.push("**Incomplete:** no disposition for " + collected.missing.map((id) => codeSpan(id)).join(", ") + ".", "");
+  if (collected.unexpected.length > 0) lines.push("Dispositions that came back twice or from the wrong path: " + collected.unexpected.map((id) => codeSpan(id)).join(", ") + ".", "");
+  lines.push(rows.length ? renderTable(rows, columns) : tableRow(columns.map((col) => col.title)) + "\\n" + tableRow(columns.map(() => "---")));
   lines.push("", "## Why each depth", "");
-  for (const row of collected.rows) lines.push("- " + cell(row.id, 64) + " (" + row.tier + (row.capped ? ", cut back by a cap" : "") + "): " + cell(row.reason || "no reason given", 200));
+  if (rows.length) lines.push(renderList(rows, { format: (row) => cell(row.id, 64) + " (" + row.tier + (row.capped ? ", cut back by a cap" : "") + "): " + cell(row.reason || "no reason given", 200) }));
   lines.push("");
   const summary = failed
     ? "Disposition report incomplete: " + collected.missing.length + " of " + collected.total + " item(s) have no disposition."
-    : "Disposition report: " + collected.total + " item(s), " + collected.byTier.quick + " quick, " + collected.byTier.deep + " deep, " + collected.modelSteps + " model step(s).";
+    : "Disposition report: " + collected.total + " item(s), " + quick + " quick, " + deep + " deep, " + collected.modelSteps + " model step(s).";
   return {
     schema: "depth-report-v1",
     digest: clip(failed ? "incomplete: " + collected.missing.length + " missing" : collected.total + " dispositions", 200),
@@ -2686,10 +2729,12 @@ function adaptiveDepthPattern(name: string): Bundle {
 			"depth-report.schema.json": reported,
 		},
 		helpers: {
+			"key-normalize.mjs": readHelperFile("key-normalize.mjs"),
 			"load-items.mjs": DEPTH_LOAD_HELPER,
 			"plan-depth.mjs": DEPTH_PLAN_HELPER,
 			"attach-findings.mjs": DEPTH_ATTACH_HELPER,
 			"collect-dispositions.mjs": DEPTH_COLLECT_HELPER,
+			"render-report.mjs": readHelperFile("render-report.mjs"),
 			"render-depth.mjs": DEPTH_REPORT_HELPER,
 		},
 	};

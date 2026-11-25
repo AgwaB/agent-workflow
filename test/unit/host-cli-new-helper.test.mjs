@@ -1,7 +1,7 @@
 // test-tier: integration
 // `agent-workflow new helper <helper> <workflow>`: adds a verified helper to an existing bundle's helpers/
 // (byte-identical to the library source), refuses to overwrite without --force, never follows a symlink,
-// leaves spec.json alone, and a bundle that uses all five helpers validates with no warnings and rehearses
+// leaves spec.json alone, and a bundle that uses all six helpers validates with no warnings and rehearses
 // clean. No model, no network.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
@@ -381,12 +381,13 @@ function supportStage(id, from, uses, options) {
 	};
 }
 
-test("a bundle using all five helpers validates with no warnings and rehearses clean", async () => {
+test("a bundle using all six helpers validates with no warnings and rehearses clean", async () => {
 	const dir = await project();
 	assert.equal((await run(dir, ["new", "single", "w"])).code, 0);
 	for (const id of [
 		"evidence-gate",
 		"keyed-join",
+		"coverage-gate",
 		"graph-edges",
 		"render-report",
 	])
@@ -416,6 +417,11 @@ test("a bundle using all five helpers validates with no warnings and rehearses c
 				method: ["trim", "upper"],
 				path: ["path-params", "trailing-slash"],
 			},
+		}),
+		supportStage("coverage", ["rows", "docs"], "./helpers/coverage-gate.mjs", {
+			expected: { from: "rows", rows: "items" },
+			produced: { from: "docs", rows: "items" },
+			policy: "drop",
 		}),
 		supportStage("graph", ["rows"], "./helpers/graph-edges.mjs", {
 			from: "rows",

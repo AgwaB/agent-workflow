@@ -9,6 +9,7 @@ export const HELPER_LIBRARY_IDS = [
 	"evidence-locate",
 	"evidence-gate",
 	"keyed-join",
+	"coverage-gate",
 	"graph-edges",
 	"render-report",
 ] as const;
@@ -41,8 +42,15 @@ export const HELPER_LIBRARY: ReadonlyArray<HelperLibraryEntry> = [
 		id: "keyed-join",
 		description:
 			"support stage: join/diff two row lists by a composite key (method + path): only left, only right, both, field conflicts; key normalisation (case, :id vs {id})",
-		files: ["keyed-join.mjs"],
+		files: ["key-normalize.mjs", "keyed-join.mjs"],
 		stage: `{ "id": "diff", "from": ["<left stage>", "<right stage>"], "support": { "uses": "./helpers/keyed-join.mjs", "options": { "left": { "from": "<left stage>", "rows": "items" }, "right": { "from": "<right stage>", "rows": "items" }, "key": ["method", "path"], "normalize": { "method": ["trim", "upper"], "path": ["path-params", "trailing-slash"] }, "compare": ["handler"] } } }`,
+	},
+	{
+		id: "coverage-gate",
+		description:
+			"support stage: compare expected and produced IDs (by default trim and case-fold); report missing, extra and duplicates; policy drop or block",
+		files: ["key-normalize.mjs", "coverage-gate.mjs"],
+		stage: `{ "id": "coverage", "from": ["<inventory>", "<workers>"], "sourcePolicy": "partial", "support": { "uses": "./helpers/coverage-gate.mjs", "options": { "expected": { "from": "<inventory>", "rows": "items" }, "produced": { "from": "<workers>", "identity": true }, "policy": "block" } } }`,
 	},
 	{
 		id: "graph-edges",
@@ -54,7 +62,7 @@ export const HELPER_LIBRARY: ReadonlyArray<HelperLibraryEntry> = [
 	{
 		id: "render-report",
 		description:
-			"support stage: safe Markdown tables and lists from rows (escapes | and newlines; nested values as JSON or a chosen field, never [object Object])",
+			"support stage: safe Markdown tables, lists and linked indexes; word-boundary clipping and placeholders; also a library for code-built reports",
 		files: ["render-report.mjs"],
 		stage: `{ "id": "report", "from": ["<rows stage>"], "support": { "uses": "./helpers/render-report.mjs", "options": { "title": "Report", "sections": [{ "title": "Rows", "from": "<rows stage>", "rows": "items", "type": "table", "columns": ["id", "name"] }] } } }`,
 	},

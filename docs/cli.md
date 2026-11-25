@@ -208,9 +208,10 @@ every returned key. `new helper --list` names the helpers:
 |---|---|---|
 | `evidence-locate` | `evidence-locate.mjs` | Library (no stage): finds a claim's evidence by its quote in a project file, whitespace-normalised, and returns the real line range; verdict `exact` / `located` / `rejected`. Model line numbers are never trusted; a name or term can be required in the quote; the file must be a regular file inside the project with no symlink on the way |
 | `evidence-gate` | `evidence-locate.mjs`, `evidence-gate.mjs` | Support stage: applies `evidence-locate` to every row. `policy: "drop"` (default) keeps the verified rows with corrected lines and lists the rejected ones with the reason; `"block"` declares the stage blocked when any row fails. Plain counts |
-| `keyed-join` | `keyed-join.mjs` | Support stage: joins two row lists by a composite key (for example `method` + `path`): `onlyLeft`, `onlyRight`, `both`, `conflicts` on named fields. Key normalisation: case, trailing slash, query, `:id` / `{id}` / `<id>` placeholders |
+| `keyed-join` | `key-normalize.mjs`, `keyed-join.mjs` | Support stage: joins two row lists by a composite key (for example `method` + `path`): `onlyLeft`, `onlyRight`, `both`, `conflicts` on named fields. Key normalisation: case, trailing slash, query, `:id` / `{id}` / `<id>` placeholders |
+| `coverage-gate` | `key-normalize.mjs`, `coverage-gate.mjs` | Support stage: compare expected vs produced IDs (prefer completed foreach identities over model echoes); trim and case-fold by default, with optional prefixes and aliases. `drop` reports discrepancies and keeps covered IDs; `block` stops on missing, extra, duplicate or invalid IDs |
 | `graph-edges` | `graph-edges.mjs` | Support stage: a directed graph from `(from, to)` rows: simple cycles up to a length bound, strongly connected components and hubs by degree |
-| `render-report` | `render-report.mjs` | Support stage: Markdown tables and lists from rows; `\|`, backslashes and newlines are escaped and an object or array renders as compact JSON or a field you pick, never `[object Object]` |
+| `render-report` | `render-report.mjs` | Support stage or library: escaped Markdown tables, lists and indexes of relative file links, word-boundary clipping, placeholders for missing values, and counts from rendered rows |
 
 A helper whose own file already exists is refused without `--force`; a dependency file (`evidence-locate.mjs`
 for the gate) that is already there with the same bytes is left alone, one you edited is refused. Exit 0 on
