@@ -53,6 +53,7 @@ function markdownFor(view) {
   // five path lists (1,400 each), and bounded headings, diagnostics and output.
   const lines = ["# Fix loop report", "", "- Status: **" + STATUS_TEXT[view.status] + "**", "- Rounds used: " + view.rounds + " (loop " + clip(view.loopStatus || "unknown", 40) + ")", "- Branch: " + code(view.branch || "(none)", 200), "- Worktree: " + code(view.worktree || "(none)", 500), ""];
   if (view.lastObserved) lines.push("Branch and worktree above are the last observed location, not a final test verdict.", "");
+  else if (view.recorded) lines.push("The recorded checkout above identifies the retained location, not a final test verdict.", "");
   if (view.headline) lines.push(clip(view.headline, 850), "");
   lines.push("## Rounds", "");
   if (view.rows.length === 0) {
@@ -151,9 +152,10 @@ export default async function helper({ sources, options, context }) {
   else headline = "The final test run did not happen, so the result is not verified" + (loopInfo ? " (loop " + loopInfo.status + ")" : "") + ".";
 
   const lastObserved = !test && earlierTests.findLast(({ control }) => control?.branch && control?.worktree)?.control;
-  const location = test ?? lastObserved;
+  const recorded = !test && !lastObserved && loopInfo?.worktreePath;
+  const location = test ?? (lastObserved || (recorded ? { branch: loopInfo.worktreeBranch, worktree: recorded } : undefined));
   const view = {
-    status, rounds, loopStatus: loopInfo ? loopInfo.status : "", branch: location?.branch ?? "", worktree: location?.worktree ?? "", lastObserved, headline, rows, verified, measured, note: measured ? String(test.note || "") : "",
+    status, rounds, loopStatus: loopInfo ? loopInfo.status : "", branch: location?.branch ?? "", worktree: location?.worktree ?? "", lastObserved, recorded, headline, rows, verified, measured, note: measured ? String(test.note || "") : "",
     command: measured ? String(test.command) : "", exitCode: verified ? test.exitCode : -1, passed: verified ? test.passed : -1, failed: verified ? test.failed : -1,
     outputTruncated: test?.outputTruncated, runBaselineKnown: test?.runBaselineKnown,
     preExistingFiles: test?.preExistingFiles ?? [], preExistingTotal: test?.preExistingTotal ?? test?.preExistingFiles?.length ?? 0,

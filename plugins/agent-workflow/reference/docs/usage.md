@@ -1128,7 +1128,9 @@ child of the loop's last executed round, as sources named `<loop>.<child>` (for 
 block (`status`, `roundsUsed`, `rubricMet`, `finalCheck`), so a consumer can tell that an `exhausted` or
 `stopped_no_progress` loop did not meet its rubric. A `support` helper has no prompt, so it gets no such
 block: each of its `context.sourceStatuses` rows for a loop child carries `loop: { loopId, status,
-roundsUsed }` instead. To inspect earlier rounds, a helper can call `await context.readLoopHistory(loopId,
+roundsUsed }` instead. Terminal rows can also carry `worktreePath` and `worktreeBranch` when recorded;
+these identify the retained checkout, not a test verdict. To inspect earlier rounds, a helper can call
+`await context.readLoopHistory(loopId,
 childId)` for its own loop or a loop it receives as a source. It returns earlier rows with `round`,
 `status`, and `control` for completed tasks, not the current/final round. A `failed` loop is an ordinary failed source under
 the consumer's `sourcePolicy`; `after` stays ordering-only. A `partial` support consumer explicitly naming

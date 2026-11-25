@@ -935,6 +935,71 @@ test("fix-loop round 3: a missing measurement is distinct from a measured zero",
 	assert.equal(value.rows[1].baselineKnown, false);
 });
 
+test("fix-loop round 3: the report names the retained checkout without a tester control", async () => {
+	const { dir, bundle, spec } = await generated(
+		"fix-loop",
+		"retained",
+		FIX_HELPERS,
+	);
+	const specPath = join(bundle, "spec.json");
+	spec.artifactGraph.stages[0].maxRounds = 1;
+	await writeFile(specPath, JSON.stringify(spec));
+	await writeFile(
+		join(bundle, "helpers/run-tests.mjs"),
+		'export default () => { throw Error("test did not start"); };\n',
+	);
+	git(dir, "add", "-f", ".agent-workflow/workflows");
+	git(dir, "commit", "-qm", "store generated bundle");
+	const loaded = await loadWorkflowSpec(specPath, dir);
+	const compiled = await h.compileWorkflow(loaded.spec, { cwd: dir, specPath });
+	const { run } = await h.createWorkflowRunRecord(dir, compiled, specPath);
+	await h.writeStaticRunArtifacts(dir, run, compiled, loaded.spec);
+	await h.writeRunRecord(dir, run);
+	h.captureWorkerPrompts();
+	try {
+		const active = await h.scheduleRun(dir, run.runId);
+		const writer = h.taskBySpec(active, "fix-loop.r01.write");
+		assert.equal(writer.status, "running", writer.lastMessage);
+		await h.completeTask(dir, writer, {
+			schema: "fix-write-v1",
+			files: [],
+			summary: "No edits.",
+		});
+		await h.writeRunRecord(dir, active);
+		const end = await h.scheduleRun(dir, run.runId);
+		const tester = h.taskBySpec(end, "fix-loop.r01.test");
+		assert.equal(tester.status, "failed", tester.lastMessage);
+		assert.equal(end.status, "failed");
+		const recorded = end.loopWorktrees.find(
+			({ loopId }) => loopId === "fix-loop",
+		);
+		const result = end.loopResults.find(({ loopId }) => loopId === "fix-loop");
+		assert.ok(recorded.branch);
+		assert.equal(
+			await realpath(result.worktreePath),
+			await realpath(writer.worktree.path),
+		);
+		const report = await readArtifactGraphControl(
+			dir,
+			h.taskBySpec(end, "report.main"),
+		);
+		assert.equal(report.status, "unverified");
+		assert.equal(report.finalExitCode, -1);
+		assert.equal(report.branch, recorded.branch);
+		assert.equal(report.worktree, result.worktreePath);
+		assert.ok(report.markdown.includes(`- Branch: \`${recorded.branch}\``));
+		assert.ok(
+			report.markdown.includes(`- Worktree: \`${result.worktreePath}\``),
+		);
+		assert.match(
+			report.markdown,
+			/recorded checkout.*not a final test verdict/u,
+		);
+	} finally {
+		h.setTaskRuntimeApiForTests(undefined);
+	}
+});
+
 test("fix-loop: renamed tester feeds two real rounds to the report without duplicating a delta", async () => {
 	const { dir, helpers } = await generated("fix-loop", "rename", FIX_HELPERS);
 	const tree = await testWorktree(dir, "exports.value = () => 2;\n");

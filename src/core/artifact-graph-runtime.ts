@@ -1526,15 +1526,20 @@ function loopStatusFields(
 		(loopId
 			? run.loopResults?.find((candidate) => candidate.loopId === loopId)
 			: undefined);
-	return result
-		? {
-				loop: {
-					loopId: result.loopId,
-					status: result.status,
-					roundsUsed: result.roundsUsed,
-				},
-			}
-		: {};
+	if (!result) return {};
+	const checkout = run.loopWorktrees?.find(
+		({ loopId }) => loopId === result.loopId,
+	);
+	const worktreePath = checkout?.path ?? result.worktreePath;
+	return {
+		loop: {
+			loopId: result.loopId,
+			status: result.status,
+			roundsUsed: result.roundsUsed,
+			...(worktreePath ? { worktreePath } : {}),
+			...(checkout?.branch ? { worktreeBranch: checkout.branch } : {}),
+		},
+	};
 }
 
 const LOOP_RESULTS_FINAL_CHECK_MAX_CHARS = 600;
