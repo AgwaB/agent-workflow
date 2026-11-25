@@ -183,7 +183,7 @@ const TEST_CONTEXT = (dir, previous = undefined) => ({
 		worktreePath: join(dir, "wt"),
 		worktreeBranch: "agent-workflow/run1-task-1",
 	},
-	readLoopWorktreeBaseline: async () => ({
+	readLoopWorktreeBaselineRecord: async () => ({
 		head: git(dir, "rev-parse", "HEAD").trim(),
 		snapshot: [],
 	}),
@@ -637,6 +637,7 @@ test("fix-loop: a protected edit in the managed dirty overlay is not this run's 
 		ensureManagedWorktree,
 		captureLoopWorktreeBaseline,
 		readLoopWorktreeBaseline,
+		readLoopWorktreeBaselineRecord,
 	} = await import("../../dist/core/worktree.js");
 	const task = { taskId: "task-1", cwd: dir, worktree: {} };
 	await withEnv({ AGENT_WORKFLOW_HOME: home }, () =>
@@ -647,7 +648,16 @@ test("fix-loop: a protected edit in the managed dirty overlay is not this run's 
 	);
 	const baseline = await withEnv({ AGENT_WORKFLOW_HOME: home }, async () => {
 		await captureLoopWorktreeBaseline(dir, "run1", "fix-loop", task.worktree);
-		return await readLoopWorktreeBaseline(dir, "run1", "fix-loop");
+		const record = await readLoopWorktreeBaselineRecord(
+			dir,
+			"run1",
+			"fix-loop",
+		);
+		assert.deepEqual(
+			await readLoopWorktreeBaseline(dir, "run1", "fix-loop"),
+			record.snapshot,
+		);
+		return record;
 	});
 	assert.deepEqual(
 		baseline.snapshot.map((row) => row.path),
@@ -655,7 +665,7 @@ test("fix-loop: a protected edit in the managed dirty overlay is not this run's 
 	);
 	const context = TEST_CONTEXT(dir);
 	context.loop.worktreePath = task.worktree.path;
-	context.readLoopWorktreeBaseline = async () => baseline;
+	context.readLoopWorktreeBaselineRecord = async () => baseline;
 	const check = () =>
 		helpers["run-tests.mjs"]({
 			options: { command: ["node", "-e", "void 0"] },
@@ -701,7 +711,7 @@ test("fix-loop: a protected test committed on the managed branch is not cleared"
 		FIX_HELPERS,
 	);
 	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
-	const { captureLoopWorktreeBaseline, readLoopWorktreeBaseline } =
+	const { captureLoopWorktreeBaseline, readLoopWorktreeBaselineRecord } =
 		await import("../../dist/core/worktree.js");
 	const context = TEST_CONTEXT(dir);
 	await captureLoopWorktreeBaseline(dir, "run1", "fix-loop", {
@@ -709,8 +719,8 @@ test("fix-loop: a protected test committed on the managed branch is not cleared"
 		branch: context.loop.worktreeBranch,
 		baseCwd: dir,
 	});
-	context.readLoopWorktreeBaseline = () =>
-		readLoopWorktreeBaseline(dir, "run1", "fix-loop");
+	context.readLoopWorktreeBaselineRecord = () =>
+		readLoopWorktreeBaselineRecord(dir, "run1", "fix-loop");
 	const file = "test/extra.test.js";
 	await writeFile(
 		join(tree, file),

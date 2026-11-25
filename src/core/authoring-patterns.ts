@@ -1967,7 +1967,7 @@ export default async function helper({ options, context }) {
   const { worktreePath: worktree, worktreeBranch: branch, worktreeBaseCwd, loopId, round, childStageId } = context.loop ?? {};
   if (!worktree || !branch) throw new Error("test: no managed worktree for this loop (did the writer get one?)");
   const history = await context.readLoopHistory(loopId, childStageId);
-  const baselineRecord = await context.readLoopWorktreeBaseline?.();
+  const baselineRecord = await context.readLoopWorktreeBaselineRecord?.();
   const baseline = baselineRecord?.snapshot;
   const previous = !baseline ? undefined : round === 1 ? baseline : history.find((row) => row.round === round - 1 && row.status === "completed")?.control?.snapshot;
   const rehearsal = process.env.AGENT_WORKFLOW_REHEARSAL === "1";

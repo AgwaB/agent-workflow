@@ -165,10 +165,8 @@ export async function ensureManagedWorktree(
 	};
 }
 
-type LoopWorktreeBaseline = {
-	head: string;
-	snapshot: Array<{ path: string; fingerprint: string }>;
-};
+type LoopWorktreeSnapshot = Array<{ path: string; fingerprint: string }>;
+type LoopWorktreeBaseline = { head: string; snapshot: LoopWorktreeSnapshot };
 
 function loopWorktreeBaselinePath(
 	cwd: string,
@@ -182,7 +180,19 @@ function loopWorktreeBaselinePath(
 	);
 }
 
+// Previously generated helpers expect an array here. Only new helpers may opt into the pinned record.
 export async function readLoopWorktreeBaseline(
+	cwd: string,
+	runId: string,
+	loopId: string,
+): Promise<LoopWorktreeSnapshot | undefined> {
+	const record = await readJson<LoopWorktreeBaseline | LoopWorktreeSnapshot>(
+		loopWorktreeBaselinePath(cwd, runId, loopId),
+	);
+	return Array.isArray(record) ? record : record?.snapshot;
+}
+
+export async function readLoopWorktreeBaselineRecord(
 	cwd: string,
 	runId: string,
 	loopId: string,
