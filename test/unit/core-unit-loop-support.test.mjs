@@ -155,10 +155,14 @@ async function start(
 			join(dir, "never.mjs"),
 			'export default () => { throw Error("unexpected dispatch") };',
 		);
-		const render = generatePatternFiles("fix-loop", "evidence").find(
-			(file) => file.path === "helpers/report-fix.mjs",
-		);
+		const files = generatePatternFiles("fix-loop", "evidence");
+		const render = files.find((file) => file.path === "helpers/report-fix.mjs");
 		writeFileSync(join(dir, "render.mjs"), render.content);
+		// The generated report helper imports the bundled renderer next to it.
+		const renderer = files.find(
+			(file) => file.path === "helpers/render-report.mjs",
+		);
+		writeFileSync(join(dir, "render-report.mjs"), renderer.content);
 		writeFileSync(
 			join(dir, "report.mjs"),
 			`import render from "./render.mjs";

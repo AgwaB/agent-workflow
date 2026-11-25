@@ -1,5 +1,7 @@
 // Renders the loop's code-tested rounds. Writer summaries are labelled as reported;
 // file deltas and test verdicts are from the same-round helper, not the writer.
+import { codeSpan, renderCell, tableRow } from "./render-report.mjs";
+
 const STATUS_TEXT = {
   green: "green",
   "still-failing": "still failing",
@@ -14,7 +16,7 @@ function clip(value, max) {
 }
 
 function cell(value, max) {
-  return clip(value, max).replace(/([\\|`*_[\]<>])/g, "\\$1");
+  return renderCell(value, { max });
 }
 
 function readOptions(options) {
@@ -45,7 +47,7 @@ function pathList(paths, total, budget, format, empty = "none") {
 }
 
 function code(value, max) {
-  return "`" + clip(value, max).replace(/`/g, "'") + "`";
+  return codeSpan(clip(value, max));
 }
 
 function markdownFor(view) {
@@ -59,14 +61,14 @@ function markdownFor(view) {
   if (view.rows.length === 0) {
     lines.push("No round reported what it changed.", "");
   } else {
-    lines.push("| Round | What changed (as reported) | Files changed (git) | Tests |", "| --- | --- | --- | --- |");
+    lines.push(tableRow(["Round", "What changed (as reported)", "Files changed (git)", "Tests"]), tableRow(["---", "---", "---", "---"]));
     let budget = 8000;
     let shown = 0;
     for (const row of view.rows) {
       const files = !row.measured ? "unknown (not measured)"
         : row.baselineKnown === false ? "unknown (baseline unavailable)"
         : "(" + row.total + ") " + pathList(row.files, row.total, 250, (file) => cell(file, 120), "-");
-      const line = "| " + row.round + " | " + cell(row.summary || "-", 160) + " | " + files + " | " + cell(row.tests, 160) + " |";
+      const line = tableRow([row.round, cell(row.summary || "-", 160), files, cell(row.tests, 160)]);
       if (line.length + 1 > budget) break;
       lines.push(line);
       budget -= line.length + 1;

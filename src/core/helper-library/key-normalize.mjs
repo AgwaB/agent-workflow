@@ -40,3 +40,15 @@ export function normalizeValue(value, ops, hooks, where = "key") {
 	const out = applyOps(value, ops ?? ["trim"], hooks, where);
 	return out === "" ? undefined : out;
 }
+
+/** Resolve a model-echoed key to an original ID: exact first, then a unique normalized match. */
+export function keyResolver(ids, ops = ["trim", "lower"]) {
+	const exact = new Set(ids);
+	const folded = new Map();
+	for (const id of exact) {
+		const key = normalizeValue(id, ops);
+		if (key !== undefined) folded.set(key, folded.has(key) ? undefined : id);
+	}
+	return (value) =>
+		exact.has(value) ? value : folded.get(normalizeValue(value, ops));
+}

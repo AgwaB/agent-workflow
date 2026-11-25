@@ -1389,6 +1389,29 @@ test("adaptive-depth: plan gives every item one tier, caps deep items and model 
 	assert.equal(value.deep.length + value.quick.length, LOADED.items.length);
 });
 
+test("adaptive-depth: folded triage IDs match only if unambiguous; exact engine IDs stay distinct", async () => {
+	const { helpers } = await generated("adaptive-depth", "fold", DEPTH_HELPERS);
+	const load = {
+		items: [
+			{ id: "I-1", text: "one" },
+			{ id: "MOD", text: "upper" },
+			{ id: "mod", text: "lower" },
+		],
+	};
+	const value = await helpers["plan-depth.mjs"]({
+		sources: {
+			load,
+			triage: tiers({ " i-1 ": "deep", Mod: "deep", mod: "deep" }),
+		},
+	});
+	assert.deepEqual(
+		value.deep.map(({ id }) => id),
+		["I-1", "mod"],
+	);
+	assert.deepEqual(value.ignored, ["Mod"]);
+	assert.deepEqual(value.untriaged, ["MOD"]);
+});
+
 test("adaptive-depth: plan rejects bad options and a missing list", async () => {
 	const { helpers } = await generated("adaptive-depth", "p2", DEPTH_HELPERS);
 	const plan = helpers["plan-depth.mjs"];
@@ -1636,7 +1659,10 @@ test("adaptive-depth: the report renders one row per item, flags what is missing
 			],
 		},
 	});
+	complete.byTier = { quick: 80, deep: 90, capped: 100 }; // A stale upstream summary must not become the report.
 	const ok = await render({ sources: { collect: complete } });
+	assert.deepEqual(await render({ sources: { collect: complete } }), ok);
+	assert.match(ok.markdown, /Depth: 2 quick, 1 deep/u);
 	assert.equal(ok.status, "passed");
 	assert.match(ok.markdown, /\| I-5 \| deep \(2 steps\) \|/u);
 	assert.match(

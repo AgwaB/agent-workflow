@@ -341,6 +341,30 @@ for (const pattern of AUTHORING_PATTERN_IDS) {
 	});
 }
 
+test("every code-report pattern bundles and imports the same renderer", async () => {
+	const renderer = await readFile(
+		new URL("../../src/core/helper-library/render-report.mjs", import.meta.url),
+		"utf8",
+	);
+	for (const [pattern, helper] of [
+		["adaptive-depth", "render-depth"],
+		["collect-render", "render-changelog"],
+		["fix-loop", "report-fix"],
+		["inventory-foreach", "verify-inventory"],
+		["write-verify", "verify-files"],
+	]) {
+		const files = generatePatternFiles(pattern, "self-contained");
+		assert.equal(
+			files.find((file) => file.path === "helpers/render-report.mjs").content,
+			renderer,
+		);
+		assert.match(
+			files.find((file) => file.path === `helpers/${helper}.mjs`).content,
+			/from "\.\/render-report\.mjs"/u,
+		);
+	}
+});
+
 test("read-only prompt wording forbids effects, not commands: Codex reads files through shell commands", () => {
 	let readOnlyPrompts = 0;
 	for (const pattern of AUTHORING_PATTERN_IDS) {
