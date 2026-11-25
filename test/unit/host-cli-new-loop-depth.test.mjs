@@ -19,6 +19,10 @@ import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { pathToFileURL } from "node:url";
 
+import { readArtifactGraphControl } from "../../dist/core/artifact-graph-runtime.js";
+import { loadWorkflowSpec } from "../../dist/core/schema.js";
+import * as h from "../helpers/unit-test-support.mjs";
+
 const cli = await import("../../dist/hosts/cli/index.js");
 const { validateJsonSchema } = await import("../../dist/core/json-schema.js");
 
@@ -490,7 +494,7 @@ test("fix-loop: report renders actual per-round verdicts, git files, protected p
 	assert.deepEqual(unreported.unreportedFiles, ["src/secret.js"]);
 	assert.match(
 		unreported.markdown,
-		/Changes no round reported: `src\/secret\.js`/u,
+		/Changes no round reported \(1\): `src\/secret\.js`/u,
 	);
 	const exhausted = await render(TEST_RED, {
 		loop: { ...loop, status: "exhausted", roundsUsed: 3 },
@@ -743,6 +747,79 @@ test("fix-loop: a protected test committed on the managed branch is not cleared"
 	assert.deepEqual(reverted.runFiles, []);
 	assert.deepEqual(reverted.roundFiles, [file]);
 	assert.deepEqual(reverted.changedFiles, [file]);
+});
+
+test("fix-loop: the scheduler completes with a schema-valid report for 90 dirty overlay files", async () => {
+	const { dir, bundle, spec, schema } = await generated(
+		"fix-loop",
+		"large-overlay",
+		FIX_HELPERS,
+	);
+	git(dir, "add", "-f", ".agent-workflow/workflows");
+	git(dir, "commit", "-qm", "store generated bundle");
+	const nested = "src/" + "nested-fixture-directory/".repeat(5);
+	await mkdir(join(dir, nested), { recursive: true });
+	const files = Array.from(
+		{ length: 90 },
+		(_, i) => nested + `file-${String(i).padStart(2, "0")}.txt`,
+	);
+	await Promise.all(
+		files.map((file) => writeFile(join(dir, file), "owner overlay\n")),
+	);
+	const specPath = join(bundle, "spec.json");
+	spec.artifactGraph.stages[0].stages[1].support.options.command = [
+		"node",
+		"-e",
+		"void 0",
+	];
+	await writeFile(specPath, JSON.stringify(spec));
+	git(dir, "add", "-u");
+	git(dir, "commit", "-qm", "configure benign test command");
+	const loaded = await loadWorkflowSpec(specPath, dir);
+	const compiled = await h.compileWorkflow(loaded.spec, {
+		cwd: dir,
+		specPath,
+		task: "Leave the overlay untouched.",
+	});
+	const { run } = await h.createWorkflowRunRecord(dir, compiled, specPath);
+	await h.writeStaticRunArtifacts(dir, run, compiled, loaded.spec);
+	await h.writeRunRecord(dir, run);
+	h.captureWorkerPrompts();
+	try {
+		const active = await h.scheduleRun(dir, run.runId);
+		const writer = h.taskBySpec(active, "fix-loop.r01.write");
+		assert.equal(writer.status, "running", writer.lastMessage);
+		await h.completeTask(dir, writer, {
+			schema: "fix-write-v1",
+			files: [],
+			summary: "No edits.",
+		});
+		await h.writeRunRecord(dir, active);
+		const end = await h.scheduleRun(dir, run.runId);
+		const tester = h.taskBySpec(end, "fix-loop.r01.test");
+		const reporter = h.taskBySpec(end, "report.main");
+		assert.equal(tester.status, "completed", tester.lastMessage);
+		assert.equal(reporter.status, "completed", reporter.lastMessage);
+		assert.equal(end.status, "completed");
+		const report = await readArtifactGraphControl(dir, reporter);
+		assert.deepEqual(
+			validateJsonSchema(report, await schema("fix-report.schema.json")).issues,
+			[],
+		);
+		assert.deepEqual(report.preExistingFiles, files);
+		assert.deepEqual(report.changedFiles, files);
+		assert.deepEqual(report.runFiles, []);
+		assert.match(
+			report.markdown,
+			/Final dirt vs HEAD \(90\):.*\d+ more omitted/u,
+		);
+		assert.match(
+			report.markdown,
+			/Pre-existing dirt \(90\):.*\d+ more omitted/u,
+		);
+	} finally {
+		h.setTaskRuntimeApiForTests(undefined);
+	}
 });
 
 test("fix-loop: renamed tester feeds two real rounds to the report without duplicating a delta", async () => {
