@@ -5,6 +5,7 @@
 // schema (src/core/authoring-contract.ts). The only edit an author must make is the `TODO:` paragraph of
 // each prompt (plus the domain labels in a schema where a pattern has some). Deterministic: the same
 // pattern and name always give byte-identical files.
+import { readFileSync } from "node:fs";
 import { controlContract } from "./authoring-contract.js";
 import type { JsonSchemaObject } from "./json-schema.js";
 
@@ -1761,12 +1762,8 @@ const FIX_TEST_HELPER = `// Runs the configured argument array (without a shell)
 // A nonzero command exit is evidence, not a failed workflow task: the next writer can fix it.
 // timeoutMs defaults to 180000; protectedPrefixes defaults to ["test/", "tests/"]. Rehearsal probes the
 // worktree and exercises git accounting but does not run project code on synthetic writer output.
-import { execFile, spawn } from "node:child_process";
-import { lstat, readlink } from "node:fs/promises";
-import { join } from "node:path";
-import { promisify } from "node:util";
-
-const run = promisify(execFile);
+import { spawn } from "node:child_process";
+import { commandEnv, gitSnapshot, verifyWorktree } from "./git-worktree.mjs";
 const MAX_BUFFER = 8 * 1024 * 1024;
 const MAX_FILES = 100;
 
@@ -1795,27 +1792,6 @@ function readOptions(options) {
     throw new Error("test: support.options.protectedPrefixes must be at most 20 relative directories ending in /");
   }
   return { command, timeoutMs, protectedPrefixes };
-}
-
-// Each snapshot lists dirty paths relative to HEAD. Include content and mode so a later edit of
-// an already-dirty file (or a reversion to HEAD) still appears in that round's delta.
-async function gitSnapshot(worktree, signal) {
-  const git = async (args) => (await run("git", ["-C", worktree, ...args], { signal, maxBuffer: MAX_BUFFER })).stdout;
-  const entries = (await git(["status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all"])).split("\\0").filter(Boolean);
-  if (entries.length > 1000) throw new Error("test: more than 1000 paths changed in the loop worktree");
-  const snapshot = [];
-  for (const entry of entries.sort((a, b) => (a.slice(3) < b.slice(3) ? -1 : 1))) {
-    const path = entry.slice(3);
-    const absolute = join(worktree, path);
-    const info = await lstat(absolute).catch((error) => {
-      if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
-    });
-    const content = !info ? "deleted" : info.isSymbolicLink() ? await readlink(absolute)
-      : info.isFile() ? (await git(["hash-object", "--no-filters", "--", path])).trim()
-      : info.isDirectory() ? (await run("git", ["-C", absolute, "rev-parse", "HEAD"], { signal, maxBuffer: MAX_BUFFER })).stdout.trim() : "special";
-    snapshot.push({ path, fingerprint: entry.slice(0, 2) + ":" + (info?.mode ?? 0) + ":" + content });
-  }
-  return snapshot;
 }
 
 function delta(previous, current) {
@@ -1874,16 +1850,9 @@ function excerpt(text) {
   return chosen.join("\\n").slice(0, 1200);
 }
 
-// The command's environment: the engine's own, without a node:test parent marker (a "node --test" run that
-// inherits NODE_TEST_CONTEXT thinks it is a child of a runner and reports nothing, which would read as green).
-function commandEnv() {
-  const env = { ...process.env, CI: "1", FORCE_COLOR: "0", NO_COLOR: "1" };
-  delete env.NODE_TEST_CONTEXT;
-  return env;
-}
-
 function execute(command, cwd, timeoutMs, signal) {
   return new Promise((resolve) => {
+    signal?.throwIfAborted();
     let output = "";
     let timedOut = false;
     let settled = false;
@@ -1920,6 +1889,7 @@ function execute(command, cwd, timeoutMs, signal) {
       killGroup();
     }, timeoutMs);
     signal?.addEventListener("abort", stop, { once: true });
+    if (signal?.aborted) stop();
     const take = (chunk) => {
       if (output.length < MAX_BUFFER) output += chunk.toString("utf8");
     };
@@ -1962,15 +1932,18 @@ function result(fields) {
 
 export default async function helper({ options, context }) {
   const wanted = readOptions(options);
-  const { worktreePath: worktree, worktreeBranch: branch, loopId } = context.loop ?? {};
+  const { worktreePath: worktree, worktreeBranch: branch, worktreeBaseCwd, loopId } = context.loop ?? {};
   if (!worktree || !branch) throw new Error("test: no managed worktree for this loop (did the writer get one?)");
   const history = await context.readLoopHistory(loopId, "test");
   const previous = history.findLast((row) => row.status === "completed")?.control?.snapshot ?? [];
   const rehearsal = process.env.AGENT_WORKFLOW_REHEARSAL === "1";
+  const physical = await verifyWorktree(worktree, branch, worktreeBaseCwd ?? context.cwd, context.signal);
   const started = Date.now();
-  const ran = await execute(rehearsal ? ["git", "rev-parse", "--is-inside-work-tree"] : wanted.command, worktree, wanted.timeoutMs, context.signal);
+  const ran = await execute(rehearsal ? ["git", "rev-parse", "--is-inside-work-tree"] : wanted.command, physical, wanted.timeoutMs, context.signal);
   const durationMs = Date.now() - started;
-  const snapshot = await gitSnapshot(worktree, context.signal);
+  await verifyWorktree(worktree, branch, worktreeBaseCwd ?? context.cwd, context.signal, physical);
+  const snapshot = await gitSnapshot(physical, context.signal);
+  await verifyWorktree(worktree, branch, worktreeBaseCwd ?? context.cwd, context.signal, physical);
   const files = snapshot.map(({ path }) => path);
   const roundFiles = delta(previous, snapshot);
   const protectedChanged = files.filter((file) => wanted.protectedPrefixes.some((prefix) => file.startsWith(prefix)));
@@ -2248,6 +2221,10 @@ function fixLoopPattern(name: string): Bundle {
 		},
 		helpers: {
 			"run-tests.mjs": FIX_TEST_HELPER,
+			"git-worktree.mjs": readFileSync(
+				new URL("./helper-library/fix-loop-git.mjs", import.meta.url),
+				"utf8",
+			),
 			"report-fix.mjs": FIX_REPORT_HELPER,
 		},
 		agents: {

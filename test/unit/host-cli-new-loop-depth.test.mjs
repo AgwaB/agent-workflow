@@ -555,6 +555,68 @@ test("fix-loop: report escapes writer text and supports renamed stages", async (
 	);
 });
 
+test("fix-loop: wrong branch or unregistered cwd fails before running tests, even with redirected Git", async () => {
+	const { dir, helpers } = await generated("fix-loop", "identity", FIX_HELPERS);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	const context = TEST_CONTEXT(dir);
+	const options = {
+		command: ["node", "-e", 'require("node:fs").writeFileSync("ran", "yes")'],
+	};
+	const check = () => helpers["run-tests.mjs"]({ options, context });
+	await withEnv(
+		{
+			GIT_DIR: join(dir, ".git"),
+			GIT_WORK_TREE: dir,
+			GIT_INDEX_FILE: join(dir, "not-an-index"),
+		},
+		check,
+	);
+	await rm(join(tree, "ran"));
+	git(tree, "switch", "-c", "local-review");
+	await assert.rejects(check(), /worktree identity/u);
+	await assert.rejects(readFile(join(tree, "ran")), /ENOENT/u);
+	context.loop.worktreePath = join(tree, "src");
+	await assert.rejects(check(), /worktree identity/u);
+	await assert.rejects(readFile(join(tree, "src/ran")), /ENOENT/u);
+	context.loop.worktreePath = tree;
+	git(tree, "switch", context.loop.worktreeBranch);
+	await assert.rejects(
+		helpers["run-tests.mjs"]({
+			context,
+			options: { command: ["git", "switch", "local-review"] },
+		}),
+		/worktree identity/u,
+	);
+});
+
+test("fix-loop: cancellation during history lookup starts no command", async () => {
+	const { dir, helpers } = await generated("fix-loop", "cancel", FIX_HELPERS);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	const stop = new AbortController();
+	const context = {
+		...TEST_CONTEXT(dir),
+		signal: stop.signal,
+		readLoopHistory: async () => {
+			stop.abort();
+			return [];
+		},
+	};
+	await assert.rejects(
+		helpers["run-tests.mjs"]({
+			context,
+			options: {
+				command: [
+					"node",
+					"-e",
+					'require("node:fs").writeFileSync("ran", "yes")',
+				],
+			},
+		}),
+		{ name: "AbortError" },
+	);
+	await assert.rejects(readFile(join(tree, "ran")), /ENOENT/u);
+});
+
 // -------------------------------------------------------------- adaptive-depth
 
 const DEPTH_HELPERS = [

@@ -159,6 +159,7 @@ export async function executeSupportTask(
 								round: loop.round,
 								worktreePath: worktree?.path ?? null,
 								worktreeBranch: worktree?.branch ?? null,
+								worktreeBaseCwd: worktree?.baseCwd ?? null,
 							},
 						}
 					: {}),

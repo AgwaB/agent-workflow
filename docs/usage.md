@@ -1132,6 +1132,12 @@ that failed loop in `from` sees its terminal metadata on the placeholder status 
 history includes the final round (without controls for non-completed tasks). `foreach`, `dynamic`, `dag` and `loop`
 stages cannot read a loop (rejected at validate).
 
+The generated fix-loop checks the registered worktree and branch before and after the test command.
+Only run trusted project test code: the worktree is not a sandbox. A normal stop or timeout kills its
+process group on Unix. If the scheduler dies during the command, the detached group can outlive it;
+stale support recovery does not know that group's identity and cannot reap it before the next round.
+Check for leftover test processes before restarting work in the retained worktree.
+
 ### Roles
 
 Top-level `roles` declare reusable context injected as a `# Role Context` block: `fromAgent`

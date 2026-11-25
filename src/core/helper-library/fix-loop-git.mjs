@@ -1,0 +1,141 @@
+// Shared by the fix-loop engine baseline and generated test helper. A checked cwd
+// is not a sandbox: only trusted project code belongs in the configured command.
+import { execFile } from "node:child_process";
+import { lstat, readlink, realpath } from "node:fs/promises";
+import { join } from "node:path";
+import { promisify } from "node:util";
+
+const exec = promisify(execFile);
+const MAX_BUFFER = 8 * 1024 * 1024;
+
+// Don't pass ambient credentials, Git redirections or NODE_TEST_CONTEXT to the command.
+export function commandEnv() {
+	const env = {};
+	for (const name of [
+		"PATH",
+		"HOME",
+		"USERPROFILE",
+		"SYSTEMROOT",
+		"WINDIR",
+		"TEMP",
+		"TMP",
+		"TMPDIR",
+		"LANG",
+		"LC_ALL",
+		"LC_CTYPE",
+		"TZ",
+	]) {
+		if (process.env[name] !== undefined) env[name] = process.env[name];
+	}
+	return { ...env, CI: "1", FORCE_COLOR: "0", NO_COLOR: "1" };
+}
+
+async function gitOutput(cwd, args, signal) {
+	return (
+		await exec("git", ["-C", cwd, ...args], {
+			env: commandEnv(),
+			signal,
+			maxBuffer: MAX_BUFFER,
+		})
+	).stdout;
+}
+
+export async function verifyWorktree(
+	path,
+	branch,
+	base,
+	signal,
+	expectedPhysical,
+) {
+	try {
+		signal?.throwIfAborted();
+		const physical = await realpath(path);
+		if (expectedPhysical !== undefined && expectedPhysical !== physical)
+			throw new Error("physical path changed");
+		const [top, head, list] = await Promise.all([
+			gitOutput(physical, ["rev-parse", "--show-toplevel"], signal),
+			gitOutput(physical, ["symbolic-ref", "HEAD"], signal),
+			gitOutput(base, ["worktree", "list", "--porcelain", "-z"], signal),
+		]);
+		const expectedRef = "refs/heads/" + branch;
+		let registered = false;
+		for (const record of list.split("\0\0")) {
+			const [entry, ...fields] = record.split("\0");
+			if (
+				entry.startsWith("worktree ") &&
+				fields.includes("branch " + expectedRef) &&
+				(await realpath(entry.slice(9)).catch(() => null)) === physical
+			)
+				registered = true;
+		}
+		if (
+			(await realpath(top.replace(/\r?\n$/, ""))) !== physical ||
+			head.trimEnd() !== expectedRef ||
+			!registered
+		) {
+			throw new Error("expected the registered checkout for " + branch);
+		}
+		return physical;
+	} catch (error) {
+		signal?.throwIfAborted();
+		throw new Error("test: worktree identity mismatch: " + error.message, {
+			cause: error,
+		});
+	}
+}
+
+function missingPath(error) {
+	if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
+}
+
+// Each snapshot lists dirty paths relative to HEAD. Include content and mode so a later edit of
+// an already-dirty file (or a reversion to HEAD) still appears in that round's delta.
+export async function gitSnapshot(worktree, signal) {
+	const git = (args) => gitOutput(worktree, args, signal);
+	const entries = (
+		await git([
+			"status",
+			"--porcelain=v1",
+			"-z",
+			"--no-renames",
+			"--untracked-files=all",
+		])
+	)
+		.split("\0")
+		.filter(Boolean);
+	if (entries.length > 1000)
+		throw new Error("test: more than 1000 paths changed in the loop worktree");
+	const snapshot = [];
+	for (const entry of entries.sort((a, b) =>
+		a.slice(3) < b.slice(3) ? -1 : 1,
+	)) {
+		const path = entry.slice(3);
+		const absolute = join(worktree, path);
+		// Never follow an ancestor symlink when fingerprinting a status path.
+		let parent = worktree;
+		let missing = false;
+		for (const part of path.split("/").slice(0, -1)) {
+			parent = join(parent, part);
+			const ancestor = await lstat(parent).catch(missingPath);
+			if (!ancestor || !ancestor.isDirectory()) {
+				missing = true;
+				break;
+			}
+		}
+		const info = missing ? undefined : await lstat(absolute).catch(missingPath);
+		const content = !info
+			? "deleted"
+			: info.isSymbolicLink()
+				? await readlink(absolute)
+				: info.isFile()
+					? (await git(["hash-object", "--no-filters", "--", path])).trim()
+					: info.isDirectory()
+						? (await gitOutput(absolute, ["rev-parse", "HEAD"], signal)).trim()
+						: "special";
+		snapshot.push({
+			path,
+			fingerprint: entry.slice(0, 2) + ":" + (info?.mode ?? 0) + ":" + content,
+		});
+	}
+	return snapshot;
+}
