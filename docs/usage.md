@@ -1114,10 +1114,9 @@ fails the loop task; `exhausted` and `stopped_no_progress` end it `completed` (`
 `loop_stopped_no_progress`), so the run can still complete. An unlimited loop ends `failed` after
 any round with a non-completed child; a bounded loop retries in the next round, but ends `failed`
 (not `exhausted`/`stopped_no_progress`) when the last round it runs has a non-completed child. Failed, declared-blocked, skipped or interrupted tasks of an earlier round of a loop that did not end `failed` are superseded by
-the later round: they stay in task lists and `taskSummary` counts and add to the run's degradation note, but do not
-decide the run status (the final round and a `failed` loop still do). An optional
+the later round: they stay in task lists and `taskSummary` counts but do not decide the run status (the final round and a `failed` loop still do). An optional
 `onExhausted` stage runs once on exhaustion or no progress, never when the loop ends `failed`. There is no auto-merge of worktree output
-(see "Worktrees" under Retention).
+(see "Worktrees" under Retention). The run degradation note counts recovered declared blocks separately from failed tasks.
 
 A `single`, `reduce` or `support` stage that names a loop in `from` receives the outputs of every
 child of the loop's last executed round, as sources named `<loop>.<child>` (for example

@@ -281,6 +281,13 @@ for (const status of ["failed", "blocked"]) {
 				if (retry) run = await finishWrite(cwd, runId, 2);
 				assert.equal(run.status, retry ? "completed" : "failed");
 				assert.equal(run.loopResults[0].status, retry ? "completed" : "failed");
+				if (retry && status === "blocked") {
+					assert.equal(run.taskSummary.blocked, 1);
+					assert.match(
+						run.degradation?.summary ?? "",
+						/1 recovered loop block/,
+					);
+				}
 			} finally {
 				setTaskRuntimeApiForTests(undefined);
 				rmSync(cwd, { recursive: true, force: true });

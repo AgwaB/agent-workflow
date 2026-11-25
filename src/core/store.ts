@@ -3597,6 +3597,10 @@ export function computeRunDegradation(
 	const failedTaskIds = run.tasks
 		.filter((task) => task.status === "failed")
 		.map((task) => task.taskId);
+	const recoveredBlocks = run.tasks.filter(
+		(task) =>
+			isLoopDeclaredSupportBlock(task) && isSupersededLoopTask(run, task),
+	).length;
 	const degradedHelperTaskIds = run.tasks
 		.filter(
 			(task) =>
@@ -3612,11 +3616,20 @@ export function computeRunDegradation(
 		finalTasks.length > 0 &&
 		finalTasks.every((task) => task.status === "completed");
 	const degradedDelivery = failedTaskIds.length > 0 && finalOutputRendered;
-	if (!degradedDelivery && degradedHelperTaskIds.length === 0) return undefined;
+	if (
+		!degradedDelivery &&
+		degradedHelperTaskIds.length === 0 &&
+		recoveredBlocks === 0
+	)
+		return undefined;
 	const parts = [finalOutputRendered ? "final rendered" : "final not rendered"];
 	if (failedTaskIds.length > 0)
 		parts.push(
 			`${failedTaskIds.length}/${run.tasks.length} task${run.tasks.length === 1 ? "" : "s"} failed`,
+		);
+	if (recoveredBlocks > 0)
+		parts.push(
+			`${recoveredBlocks} recovered loop block${recoveredBlocks === 1 ? "" : "s"}`,
 		);
 	if (degradedHelperTaskIds.length > 0)
 		parts.push(
