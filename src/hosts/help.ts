@@ -67,7 +67,7 @@ in the project, shared writes workflows/<name>/, global writes under ~/.agent-wo
 arguments always write byte-identical files. Existing files are never overwritten without --force; symlinks
 are never followed. No model is called.
 
-new helper copies a verified, tested helper (evidence-locate, evidence-gate, keyed-join, graph-edges,
+new helper copies a verified, tested helper (evidence-locate, evidence-gate, keyed-join, coverage-gate, graph-edges,
 render-report) into helpers/ of an existing workflow, with its contract in the file header, instead of
 hand-writing that logic. spec.json is not changed: add the support stage yourself, then validate and
 rehearse. Same scope, --force and symlink rules; the same helper always writes the same bytes.`,
