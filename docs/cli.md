@@ -249,8 +249,9 @@ The report lists per stage the tasks and their statuses, whether a stage that na
 received any, each required read (and the tool's message when its path does not resolve), foreach
 item counts, loop rounds and end status, helper errors with their message, and whether the final
 report rendered. `--items N` (0-20, default 2) sets how many items an unbounded array gets;
-`--loop exhaust` keeps every bounded loop's `until` false so `onExhausted` and the `exhausted`
-status are exercised (default `pass`: `until` holds on round 1). A support helper that itself
+For model-decided loops, `--loop exhaust` keeps a bounded loop's `until` false to exercise
+`onExhausted` (default `pass`: `until` holds on round 1). Neither mode changes a support helper's
+control. `new fix-loop` rehearses the managed worktree and wiring, not the project test command. A support helper that itself
 declares `failed` or `blocked` on the synthetic data is listed as a declared failed/blocked, not as a wiring problem:
 the text names each such helper and its reason and says the rehearsal cannot tell a content check from a setup
 problem (the reason is the only evidence: a message about placeholder data versus one naming a missing source or
