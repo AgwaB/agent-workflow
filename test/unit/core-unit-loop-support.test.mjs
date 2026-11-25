@@ -10,6 +10,7 @@ import {
 	compileWorkflow,
 	createWorkflowRunRecord,
 	readRunRecord,
+	resumeRun,
 	scheduleRun,
 	setTaskRuntimeApiForTests,
 	taskBySpec,
@@ -248,6 +249,46 @@ test("nonzero support controls exhaust, invoking onExhausted with the real check
 		const final = await scheduleRun(cwd, runId);
 		assert.equal(final.loopResults[0].status, "exhausted");
 		assert.equal(final.status, "completed");
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, { recursive: true, force: true });
+	}
+});
+
+test("support output can stop a loop for no progress", async () => {
+	const cwd = makeProject();
+	captureWorkerPrompts();
+	try {
+		const runId = await start(cwd, {
+			helper: `export default () => ({ exitCode: 2 });`,
+			progressPath: "$.exitCode",
+		});
+		await finishWrite(cwd, runId, 1);
+		const run = await finishWrite(cwd, runId, 2);
+		assert.equal(run.loopResults[0].status, "stopped_no_progress");
+		assert.equal(run.loopResults[0].roundsUsed, 2);
+		assert.equal(run.status, "completed");
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, { recursive: true, force: true });
+	}
+});
+
+test("an absent-path until does not turn a failed support child into success; public resume still rejects loop ownership", async () => {
+	const cwd = makeProject();
+	captureWorkerPrompts();
+	try {
+		const runId = await start(cwd, {
+			helper: `export default () => ({ exitCode: 2, status: "failed" });`,
+			until: { stage: "check", path: "$.exitCode", exists: false },
+			maxRounds: 1,
+		});
+		const run = await finishWrite(cwd, runId, 1);
+		assert.equal(run.loopResults[0].status, "failed");
+		await assert.rejects(
+			resumeRun(cwd, runId),
+			/resume does not support loop workflows/,
+		);
 	} finally {
 		setTaskRuntimeApiForTests(undefined);
 		rmSync(cwd, { recursive: true, force: true });
