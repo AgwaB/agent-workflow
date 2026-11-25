@@ -1098,7 +1098,11 @@ listed in the results (`page.stored`), so the check can be repeated later agains
 A `loop` stage repeats at least two child stages (`single`, `reduce` or `support`, run in order) per
 round, with runtime ids such as `fix-loop.r01.test`. Children must not declare `from`/`after`.
 Support children have no model prompt and receive all earlier children of their round; model children
-implicitly source the preceding child. The first child of each later round sources the previous round.
+implicitly source the preceding child. The first child of round one inherits the loop's data inputs:
+`from` (or the implicit previous stage when neither `from` nor `after` is set). The loop's own `after`
+only orders entry, even when its first child is a helper; it grants no controls, status rows, or
+history access. This differs from a top-level support stage's own `after`, which also supplies sources.
+The first child of each later round sources the previous round.
 Models get a `# Loop Round` block and, for the first child, a `# Loop Carry-Forward Context` block.
 A helper gets `context.loop` with `loopId`, `round`, and `worktreePath` / `worktreeBranch` (null until
 created). Loop writers share the first managed worktree across rounds. Intra-loop `sourceStatuses`

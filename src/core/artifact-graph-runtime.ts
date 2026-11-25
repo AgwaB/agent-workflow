@@ -107,15 +107,21 @@ export async function executeSupportTask(
 	let structuredOutput: unknown;
 	try {
 		await throwIfWorkflowStopRequested(cwd, run.runId);
+		// A support stage's own `after` edges are inputs for compatibility. A loop
+		// child inherits only the container's data edges, not its ordering edges.
+		const sourceDependencies =
+			(compiledTask.loopChild ? compiledTask.contextDependsOn : undefined) ??
+			compiledTask.dependsOn ??
+			[];
 		const sources = compiledTask.artifactGraph?.enabled
 			? await readArtifactGraphSupportSources(
 					cwd,
 					run,
-					compiledTask.dependsOn ?? [],
+					sourceDependencies,
 					validationSnapshot,
 					task.specId,
 				)
-			: await readSupportSources(cwd, run, compiledTask.dependsOn ?? []);
+			: await readSupportSources(cwd, run, sourceDependencies);
 		await throwIfWorkflowStopRequested(cwd, run.runId);
 		const helperSpecPath = await workflowBundleSpecPath(cwd, run);
 		await throwIfWorkflowStopRequested(cwd, run.runId);
@@ -180,14 +186,14 @@ export async function executeSupportTask(
 									cwd,
 									run,
 									task,
-									compiledTask.dependsOn ?? [],
+									sourceDependencies,
 									loopId,
 									childId,
 									failedLoopSources.get(`${loopId}.loop`)?.roundsUsed,
 								),
 							sourceStatuses: buildArtifactGraphSupportSourceStatuses(
 								run,
-								compiledTask.dependsOn ?? [],
+								sourceDependencies,
 								validationSnapshot,
 								task.specId,
 								failedLoopSources,

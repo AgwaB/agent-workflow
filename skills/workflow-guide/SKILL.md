@@ -86,7 +86,7 @@ Do not ignore warnings.
 ## Loops
 
 - Use `loop` for iteration, with fixed child stages, `maxRounds` (positive, or explicit `null` for no cap) and a deterministic `until`. "Loop behavior" in `docs/usage.md` is the exact contract, also for unlimited loops, `progressPath` (no-progress stopping; a `$.` control path), task time limits (`maxRuntimeMs`, `0` disables), the `# Loop Round` block and superseded earlier rounds.
-- `single`/`reduce`/`support` children run serially without `from`/`after`; support sees earlier children, and the first child sources the previous round (models also get carry-forward text). `until` reads the final child's control schema, e.g. `{ "stage": "test", "path": "$.exitCode", "equals": 0 }`. Show the key in model prompts only.
+- `single`/`reduce`/`support` children run serially without `from`/`after`; support sees earlier children. Round one inherits loop data inputs, not its order-only `after`; later rounds start with previous-round sources (models get carry-forward text). `until` reads the final child's control schema, e.g. `{ "stage": "test", "path": "$.exitCode", "equals": 0 }`. Show the key in model prompts only.
 - End states: `completed` when `until` is true; `failed` (no `onExhausted`) when the last round of a bounded loop has a failed or skipped child; `exhausted` (last round completed, `until` still false) and `stopped_no_progress` still complete the loop, so the run can finish `completed`, and `onExhausted` runs on both.
 - Loops cannot be resumed: start a fresh run after changing the spec, and say so in the acceptance plan.
 

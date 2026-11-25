@@ -341,6 +341,11 @@ async function materializeLoopRound(
 			taskId: childTaskId,
 			stageId: roundStageId,
 			dependsOn,
+			...(round === 1 &&
+			rawDependsOn.length === 0 &&
+			placeholder.contextDependsOn !== undefined
+				? { contextDependsOn: [...placeholder.contextDependsOn] }
+				: {}),
 			foreach: undefined,
 			compiledPrompt: loopRoundPrompt,
 			loopChild: {

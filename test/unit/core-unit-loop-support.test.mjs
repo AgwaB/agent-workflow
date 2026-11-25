@@ -92,6 +92,7 @@ async function start(
 		onExhausted,
 		progressPath,
 		generatedReport = false,
+		entry,
 	} = {},
 ) {
 	writeAgent(cwd, "unit-scout", "read");
@@ -106,6 +107,14 @@ async function start(
 		from: ["fix-loop"],
 		support: { uses: "./report.mjs" },
 	});
+	if (entry) {
+		Object.assign(loop, entry);
+		spec.artifactGraph.stages.unshift(
+			{ id: "data", support: { uses: "./seed.mjs" } },
+			{ id: "order", type: "single", after: [], prompt: "Order only." },
+			{ id: "direct", after: ["order"], support: { uses: "./prepare.mjs" } },
+		);
+	}
 	if (generatedReport)
 		spec.artifactGraph.stages.push({
 			id: "strict",
@@ -125,6 +134,11 @@ async function start(
 		}),
 	);
 	writeFileSync(join(dir, "check.mjs"), helper);
+	if (entry)
+		writeFileSync(
+			join(dir, "seed.mjs"),
+			`export default () => ({ seed: true });`,
+		);
 	writeFileSync(
 		join(dir, "prepare.mjs"),
 		`export default ({ sources, context }) => ({ keys: Object.keys(sources), rows: context.sourceStatuses });`,
@@ -173,6 +187,42 @@ async function finishWrite(cwd, runId, round) {
 }
 
 const roundCheck = `export default ({ sources, context }) => ({ exitCode: context.loop.round === 2 ? 0 : 1, keys: Object.keys(sources), rows: context.sourceStatuses });`;
+
+for (const from of [undefined, ["data"]]) {
+	test(`first loop child waits for after but reads ${from ? "only from" : "no data"}`, async () => {
+		const cwd = makeProject();
+		captureWorkerPrompts();
+		try {
+			const runId = await start(cwd, {
+				helper: roundCheck,
+				first: true,
+				entry: { after: ["order"], from },
+			});
+			const before = await readRunRecord(cwd, runId);
+			assert.equal(taskBySpec(before, "order.main").status, "running");
+			assert.ok(!before.tasks.some((task) => task.loopChild));
+			await completeTask(cwd, taskBySpec(before, "order.main"));
+			await writeRunRecord(cwd, before);
+			const run = await scheduleRun(cwd, runId);
+			const read = (id) => readArtifactGraphControl(cwd, taskBySpec(run, id));
+			const prepare = await read("fix-loop.r01.prepare");
+			assert.deepEqual(prepare.keys, from ?? []);
+			assert.deepEqual(
+				prepare.rows.map((row) => row.source),
+				from ?? [],
+			);
+			const direct = await read("direct.main");
+			assert.deepEqual(direct.keys, ["order"]);
+			assert.deepEqual(
+				direct.rows.map((row) => row.source),
+				["order"],
+			);
+		} finally {
+			setTaskRuntimeApiForTests(undefined);
+			rmSync(cwd, { recursive: true, force: true });
+		}
+	});
+}
 
 test("support runs in each round and a downstream helper sees final aliases and earlier history after scheduler reload", async () => {
 	const cwd = makeProject();
