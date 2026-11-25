@@ -85,15 +85,18 @@ export async function scheduleLoop(
 	if (roundTasks.some((task) => !isTerminalTaskStatus(task.status)))
 		return false;
 
+	const roundFailed = roundTasks.some((task) => task.status !== "completed");
 	if (
-		await evaluateLoopUntilCondition(
+		// A failed support round must not accidentally satisfy e.g. `exists: false`.
+		!(roundFailed && roundTasks.some((task) => task.kind === "support")) &&
+		(await evaluateLoopUntilCondition(
 			cwd,
 			run,
 			compiledFlow,
 			loopId,
 			currentRound,
 			loopStage.until,
-		)
+		))
 	) {
 		await finalizeLoop(
 			cwd,
@@ -107,7 +110,6 @@ export async function scheduleLoop(
 		return true;
 	}
 
-	const roundFailed = roundTasks.some((task) => task.status !== "completed");
 	// Unlimited loops stop on any failed round. Bounded loops retry a failed round, but
 	// a failed child in the last round they run is a failure, not rubric exhaustion.
 	if (loopStage.maxRounds === null && roundFailed) {
@@ -285,7 +287,7 @@ async function materializeLoopRound(
 				);
 	const firstChildStageId = loopStage.childStageIds?.[0];
 	const carryForward =
-		round > 1
+		round > 1 && childTemplates[0]?.kind !== "support"
 			? await buildLoopCarryForwardContext(
 					cwd,
 					run,
@@ -315,18 +317,21 @@ async function materializeLoopRound(
 			template.kind,
 			sourcePolicy,
 		);
-		const loopRoundPrompt = [
-			template.compiledPrompt,
-			"# Loop Round",
-			`loop=${loopStage.id}`,
-			`round=${round}`,
-			`childStage=${childStageId}`,
-			carryForward && childStageId === firstChildStageId
-				? `# Loop Carry-Forward Context\n\n${carryForward}`
-				: undefined,
-		]
-			.filter(Boolean)
-			.join("\n\n");
+		const loopRoundPrompt =
+			template.kind === "support"
+				? template.compiledPrompt
+				: [
+						template.compiledPrompt,
+						"# Loop Round",
+						`loop=${loopStage.id}`,
+						`round=${round}`,
+						`childStage=${childStageId}`,
+						carryForward && childStageId === firstChildStageId
+							? `# Loop Carry-Forward Context\n\n${carryForward}`
+							: undefined,
+					]
+						.filter(Boolean)
+						.join("\n\n");
 		const specId = localToRoundSpecId.get(template.id)!;
 		return {
 			...template,

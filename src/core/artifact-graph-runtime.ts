@@ -68,6 +68,7 @@ import {
 	dynamicOutputSourceName,
 	dynamicOutputTaskSpecIds,
 	loopChildSourceLoopId,
+	loopChildSourceIdentity,
 } from "./workflow-source-alias.js";
 import { readTaskControlJsonSchema } from "./output-validation.js";
 export {
@@ -121,6 +122,9 @@ export async function executeSupportTask(
 		);
 		await supportHelperPreparedHookForTests?.();
 		await throwIfWorkflowStopRequested(cwd, run.runId);
+		const loop = compiledTask.loopChild;
+		const worktree =
+			loop && run.loopWorktrees?.find((row) => row.loopId === loop.loopId);
 		structuredOutput = await helper({
 			sources,
 			options: compiledTask.support.options,
@@ -133,6 +137,16 @@ export async function executeSupportTask(
 				cwd,
 				stateCwd: stateBase(cwd),
 				signal: stop.signal,
+				...(loop
+					? {
+							loop: {
+								loopId: loop.loopId,
+								round: loop.round,
+								worktreePath: worktree?.path ?? null,
+								worktreeBranch: worktree?.branch ?? null,
+							},
+						}
+					: {}),
 				evidence: supportEvidenceContext({
 					cwd,
 					runId: run.runId,
@@ -141,6 +155,15 @@ export async function executeSupportTask(
 				}),
 				...(compiledTask.artifactGraph?.enabled
 					? {
+							readLoopHistory: (loopId: string, childId: string) =>
+								readSupportLoopHistory(
+									cwd,
+									run,
+									task,
+									compiledTask.dependsOn ?? [],
+									loopId,
+									childId,
+								),
 							sourceStatuses: buildArtifactGraphSupportSourceStatuses(
 								run,
 								compiledTask.dependsOn ?? [],
@@ -331,6 +354,47 @@ function buildArtifactGraphSupportSourceStatuses(
 		});
 	}
 	return statuses;
+}
+
+// History is opt-in and scoped to the helper's own loop or a loop explicitly supplied as a source.
+// The current/final round is already available via normal sources and is not repeated here.
+async function readSupportLoopHistory(
+	cwd: string,
+	run: WorkflowRunRecord,
+	consumer: WorkflowTaskRunRecord,
+	dependencies: readonly string[],
+	loopId: string,
+	childId: string,
+): Promise<Array<{ round: number; status: string; control?: unknown }>> {
+	let beforeRound: number | undefined;
+	if (consumer.loopChild?.loopId === loopId) {
+		beforeRound = consumer.loopChild.round;
+	} else if (
+		run.tasks.some(
+			(task) =>
+				task.loopChild?.loopId === loopId && dependencies.includes(task.specId),
+		)
+	) {
+		beforeRound = run.loopResults?.find(
+			(row) => row.loopId === loopId,
+		)?.roundsUsed;
+	}
+	if (beforeRound === undefined) return [];
+	const rows = run.tasks.filter(
+		(task) =>
+			task.loopChild?.loopId === loopId &&
+			task.loopChild.round < beforeRound! &&
+			loopChildSourceIdentity(task)?.alias === `${loopId}.${childId}`,
+	);
+	return Promise.all(
+		rows.map(async (task) => ({
+			round: task.loopChild!.round,
+			status: task.status,
+			...(task.status === "completed"
+				? { control: await readArtifactGraphControl(cwd, task) }
+				: {}),
+		})),
+	);
 }
 
 function sourceStatusForTask(task: WorkflowTaskRunRecord): {
@@ -1402,6 +1466,19 @@ function loopStatusFields(
 	source: WorkflowTaskRunRecord,
 	consumerSpecId: string,
 ): Record<string, unknown> {
+	const child = source.loopChild;
+	if (child && consumerSpecId.startsWith(`${child.loopId}.`)) {
+		const state = run.loopStates?.find((row) => row.loopId === child.loopId);
+		if (state)
+			return {
+				loop: {
+					loopId: child.loopId,
+					status: state.status ?? "running",
+					roundsUsed: state.round,
+					round: child.round,
+				},
+			};
+	}
 	const loopId = loopChildSourceLoopId(source, consumerSpecId);
 	const result = loopId
 		? run.loopResults?.find((candidate) => candidate.loopId === loopId)

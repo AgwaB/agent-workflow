@@ -501,6 +501,41 @@ test("loops (R5): until passes on round 1 by default; --loop exhaust runs every 
 	assert.equal(exhaust.finalReportRendered, true);
 });
 
+test("code-decided loops rehearse real controls, without model loop forcing", async () => {
+	const cwd = await project();
+	const spec = loopSpec();
+	const loop = spec.artifactGraph.stages[0];
+	loop.progressPath = "$.blockingFailures";
+	delete loop.onExhausted;
+	loop.stages[1] = {
+		id: "review",
+		support: { uses: "./review.mjs" },
+		output: { controlSchema: "./s/review.schema.json" },
+	};
+	const path = await writeSpec(cwd, "loop-code", spec, {
+		"review.schema.json": REVIEW_SCHEMA,
+	});
+	await writeFile(
+		join(path, "..", "review.mjs"),
+		`export default ({ context }) => ({ passed: context.loop.round === 2, blockingFailures: 3 - context.loop.round });`,
+	);
+	for (const mode of ["pass", "exhaust"]) {
+		const { report } = await rehearseWorkflow(cwd, {
+			workflow: path,
+			loop: mode,
+		});
+		assert.equal(report.ok, true, report.findings.join("\n"));
+		assert.deepEqual(
+			report.loops.map(({ status, rounds, forced }) => [
+				status,
+				rounds,
+				forced,
+			]),
+			[["completed", 2, []]],
+		);
+	}
+});
+
 // ---- R6: the lab defects, as small specs ----
 
 test("R6 empty from:[<loop>] consumer: the consumer receives the loop's last round, and a consumer that gets nothing is flagged", async () => {

@@ -3,7 +3,19 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { loadWorkflowSpec, parseWorkflow } from "../../dist/core/schema.js";
+import { readArtifactGraphControl } from "../../dist/core/artifact-graph-runtime.js";
 import {
+	captureWorkerPrompts,
+	completeTask,
+	compileWorkflow,
+	createWorkflowRunRecord,
+	readRunRecord,
+	scheduleRun,
+	setTaskRuntimeApiForTests,
+	taskBySpec,
+	writeAgent,
+	writeRunRecord,
+	writeStaticRunArtifacts,
 	loopWorkflowSpec,
 	makeProject,
 } from "../helpers/unit-test-support.mjs";
@@ -62,6 +74,182 @@ test("a support child uses the same closed-schema until checks", async () => {
 		writeFileSync(join(dir, "check.json"), JSON.stringify(schema));
 		assert.ok(await loadWorkflowSpec(path, cwd));
 	} finally {
+		rmSync(cwd, { recursive: true, force: true });
+	}
+});
+
+async function start(
+	cwd,
+	{
+		helper,
+		maxRounds = 3,
+		until,
+		first = false,
+		onExhausted,
+		progressPath,
+	} = {},
+) {
+	writeAgent(cwd, "unit-scout", "read");
+	const spec = specWith();
+	const loop = spec.artifactGraph.stages[0];
+	Object.assign(loop, { maxRounds, onExhausted, progressPath });
+	if (until) loop.until = until;
+	if (first)
+		loop.stages.unshift({ id: "prepare", support: { uses: "./prepare.mjs" } });
+	spec.artifactGraph.stages.push({
+		id: "report",
+		from: ["fix-loop"],
+		support: { uses: "./report.mjs" },
+	});
+	const dir = join(cwd, "workflows");
+	mkdirSync(dir, { recursive: true });
+	const specPath = join(dir, "loop.json");
+	writeFileSync(specPath, JSON.stringify(spec));
+	writeFileSync(
+		join(dir, "check.json"),
+		JSON.stringify({
+			type: "object",
+			properties: { exitCode: { type: "integer" } },
+		}),
+	);
+	writeFileSync(join(dir, "check.mjs"), helper);
+	writeFileSync(
+		join(dir, "prepare.mjs"),
+		`export default ({ sources, context }) => ({ keys: Object.keys(sources), rows: context.sourceStatuses });`,
+	);
+	writeFileSync(
+		join(dir, "report.mjs"),
+		`export default async ({ sources, context }) => ({ sources, rows: context.sourceStatuses, history: await context.readLoopHistory("fix-loop", "check") });`,
+	);
+	const compiled = await compileWorkflow(parseWorkflow(spec), {
+		cwd,
+		specPath,
+	});
+	const { run } = await createWorkflowRunRecord(cwd, compiled, specPath);
+	await writeStaticRunArtifacts(cwd, run, compiled, spec);
+	await writeRunRecord(cwd, run);
+	await scheduleRun(cwd, run.runId);
+	return run.runId;
+}
+
+async function finishWrite(cwd, runId, round) {
+	const run = await readRunRecord(cwd, runId);
+	const tag = String(round).padStart(2, "0");
+	await completeTask(cwd, taskBySpec(run, `fix-loop.r${tag}.write`), {
+		changed: true,
+	});
+	await writeRunRecord(cwd, run);
+	return scheduleRun(cwd, runId);
+}
+
+const roundCheck = `export default ({ sources, context }) => ({ exitCode: context.loop.round === 2 ? 0 : 1, keys: Object.keys(sources), rows: context.sourceStatuses });`;
+
+test("support runs in each round and a downstream helper sees final aliases and earlier history after scheduler reload", async () => {
+	const cwd = makeProject();
+	let prompts = captureWorkerPrompts();
+	try {
+		const runId = await start(cwd, { helper: roundCheck, first: true });
+		await finishWrite(cwd, runId, 1);
+
+		// A fresh scheduler invocation reads the materialized round from disk.
+		prompts = captureWorkerPrompts();
+		const run = await finishWrite(cwd, runId, 2);
+		assert.equal(prompts.length, 0);
+		assert.equal(run.status, "completed");
+		assert.equal(run.loopResults[0].roundsUsed, 2);
+		assert.equal(run.loopResults[0].finalCheck.exitCode, 0);
+		const read = (id) => readArtifactGraphControl(cwd, taskBySpec(run, id));
+		const first = await read("fix-loop.r01.check");
+		assert.equal(first.exitCode, 1);
+		assert.deepEqual(first.keys, [
+			"fix-loop.r01.prepare",
+			"fix-loop.r01.write",
+		]);
+		assert.deepEqual(first.rows[0].loop, {
+			loopId: "fix-loop",
+			status: "running",
+			roundsUsed: 1,
+			round: 1,
+		});
+		const prepare = await read("fix-loop.r02.prepare");
+		assert.deepEqual(prepare.keys, [
+			"fix-loop.r01.prepare",
+			"fix-loop.r01.write",
+			"fix-loop.r01.check",
+		]);
+		assert.deepEqual(prepare.rows[2].loop, {
+			loopId: "fix-loop",
+			status: "running",
+			roundsUsed: 2,
+			round: 1,
+		});
+		const report = await read("report.main");
+		assert.equal(report.sources["fix-loop.check"].exitCode, 0);
+		assert.deepEqual(report.rows.at(-1).loop, {
+			loopId: "fix-loop",
+			status: "completed",
+			roundsUsed: 2,
+		});
+		assert.equal(report.history[0].control.exitCode, 1);
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
+		rmSync(cwd, { recursive: true, force: true });
+	}
+});
+
+for (const status of ["failed", "blocked"]) {
+	test(`a declared-${status} support result retries, and fails the loop if last`, async () => {
+		for (const retry of [true, false]) {
+			const cwd = makeProject();
+			captureWorkerPrompts();
+			try {
+				const helper = `export default ({ context }) => context.loop.round === 1 ? { exitCode: 1, status: "${status}" } : { exitCode: 0 };`;
+				const runId = await start(cwd, { helper, maxRounds: retry ? 2 : 1 });
+				let run = await finishWrite(cwd, runId, 1);
+				const task = taskBySpec(run, "fix-loop.r01.check");
+				assert.equal(task.statusDetail, `support_declared_${status}`);
+				assert.equal(
+					(await readArtifactGraphControl(cwd, task)).status,
+					status,
+				);
+				if (retry) run = await finishWrite(cwd, runId, 2);
+				assert.equal(run.status, retry ? "completed" : "failed");
+				assert.equal(run.loopResults[0].status, retry ? "completed" : "failed");
+			} finally {
+				setTaskRuntimeApiForTests(undefined);
+				rmSync(cwd, { recursive: true, force: true });
+			}
+		}
+	});
+}
+
+test("nonzero support controls exhaust, invoking onExhausted with the real check output", async () => {
+	const cwd = makeProject();
+	const prompts = captureWorkerPrompts();
+	try {
+		const runId = await start(cwd, {
+			helper: `export default () => ({ exitCode: 2 });`,
+			maxRounds: 2,
+			onExhausted: { id: "summary", type: "reduce", prompt: "Summarize." },
+		});
+		await finishWrite(cwd, runId, 1);
+		assert.match(
+			prompts.at(-1),
+			/Latest check structured output:\n.*"exitCode":2/,
+		);
+		const run = await finishWrite(cwd, runId, 2);
+		assert.match(prompts.at(-1), /Loop Exhaustion Context[\s\S]*"exitCode":2/);
+		await completeTask(
+			cwd,
+			taskBySpec(run, "fix-loop.onExhausted.summary"),
+			{},
+		);
+		await writeRunRecord(cwd, run);
+		const final = await scheduleRun(cwd, runId);
+		assert.equal(final.loopResults[0].status, "exhausted");
+		assert.equal(final.status, "completed");
+	} finally {
+		setTaskRuntimeApiForTests(undefined);
 		rmSync(cwd, { recursive: true, force: true });
 	}
 });
