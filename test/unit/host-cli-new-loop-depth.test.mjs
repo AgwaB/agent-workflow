@@ -756,6 +756,29 @@ test("fix-loop: the report distinguishes command errors and timeouts from observ
 	}
 });
 
+test("fix-loop: a 9 MiB test log retains the trailing failure and summary", async () => {
+	const { dir, helpers } = await generated(
+		"fix-loop",
+		"large-log",
+		FIX_HELPERS,
+	);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	await writeFile(
+		join(tree, "large.cjs"),
+		'process.stdout.write("x".repeat(9 * 1024 * 1024) + "\\nnot ok 3 - trailing failure\\n# pass 2\\n# fail 1\\n"); process.exitCode = 1;',
+	);
+	const result = await helpers["run-tests.mjs"]({
+		context: TEST_CONTEXT(dir),
+		options: { command: ["node", "large.cjs"] },
+	});
+	assert.equal(result.outcome, "red");
+	assert.deepEqual([result.passed, result.failed], [2, 1]);
+	assert.match(result.excerpt, /trailing failure/u);
+	assert.match(result.excerpt, /truncated/u);
+	assert.equal(result.outputTruncated, true);
+	assert.ok(result.excerpt.length <= 1200);
+});
+
 // -------------------------------------------------------------- adaptive-depth
 
 const DEPTH_HELPERS = [

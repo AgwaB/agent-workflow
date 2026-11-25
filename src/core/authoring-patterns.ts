@@ -1764,7 +1764,8 @@ const FIX_TEST_HELPER = `// Runs the configured argument array (without a shell)
 // worktree and exercises git accounting but does not run project code on synthetic writer output.
 import { spawn } from "node:child_process";
 import { commandEnv, gitSnapshot, verifyWorktree } from "./git-worktree.mjs";
-const MAX_BUFFER = 8 * 1024 * 1024;
+const MAX_TAIL = 64 * 1024;
+const FAILURE_LINE = /(^|\\s)(not ok|✖|✗|FAIL\\b|FAILED|failing|AssertionError|Error:|expected|actual|Expected|Received)/;
 const MAX_FILES = 100;
 
 function clip(value, max) {
@@ -1841,19 +1842,20 @@ function counts(text) {
   };
 }
 
-// A short failure excerpt: the lines that name a failure, else the end of the output.
-function excerpt(text) {
-  const lines = text.split("\\n").map((line) => line.replace(/\\s+$/, "")).filter((line) => line.trim() !== "");
-  const marker = /(^|\\s)(not ok|✖|✗|FAIL\\b|FAILED|failing|AssertionError|Error:|expected|actual|Expected|Received)/;
-  const hits = lines.filter((line) => marker.test(line));
-  const chosen = (hits.length > 0 ? hits.slice(0, 14) : lines.slice(-14)).map((line) => line.trim().slice(0, 160));
-  return chosen.join("\\n").slice(0, 1200);
+// Prefer recent failure lines (even from before the retained tail); otherwise show the end.
+function excerpt({ output, failureLines, truncated }) {
+  const lines = output.split("\\n").filter((line) => line.trim() !== "").slice(-14);
+  const chosen = (failureLines.length ? failureLines : lines).map((line) => line.trim().slice(0, 160));
+  return ((truncated ? "[output truncated; showing retained evidence]\\n" : "") + chosen.join("\\n")).slice(0, 1200);
 }
 
 function execute(command, cwd, timeoutMs, signal) {
   return new Promise((resolve) => {
     signal?.throwIfAborted();
     let output = "";
+    let truncated = false;
+    const failureLines = [];
+    const flush = [];
     let timedOut = false;
     let settled = false;
     const finish = (value) => {
@@ -1861,7 +1863,8 @@ function execute(command, cwd, timeoutMs, signal) {
       settled = true;
       clearTimeout(timer);
       signal?.removeEventListener("abort", stop);
-      resolve({ ...value, output, timedOut });
+      for (const end of flush) end();
+      resolve({ ...value, output, timedOut, truncated, failureLines });
     };
     const killGroup = () => {
       try {
@@ -1881,7 +1884,7 @@ function execute(command, cwd, timeoutMs, signal) {
         env: commandEnv(),
       });
     } catch (error) {
-      resolve({ code: -1, output: "", timedOut: false, startError: clip(error.message, 200) });
+      resolve({ code: -1, output: "", timedOut: false, truncated: false, failureLines: [], startError: clip(error.message, 200) });
       return;
     }
     const timer = setTimeout(() => {
@@ -1890,18 +1893,38 @@ function execute(command, cwd, timeoutMs, signal) {
     }, timeoutMs);
     signal?.addEventListener("abort", stop, { once: true });
     if (signal?.aborted) stop();
-    const take = (chunk) => {
-      if (output.length < MAX_BUFFER) output += chunk.toString("utf8");
+    const collect = (stream) => {
+      let line = "";
+      const scan = () => {
+        if (FAILURE_LINE.test(line)) {
+          failureLines.push(line.trim().slice(0, 160));
+          if (failureLines.length > 14) failureLines.shift();
+        }
+        line = "";
+      };
+      flush.push(scan);
+      stream.setEncoding("utf8");
+      stream.on("data", (chunk) => {
+        truncated ||= output.length + chunk.length > MAX_TAIL;
+        output = (output + chunk).slice(-MAX_TAIL);
+        let from = 0;
+        for (let next = chunk.indexOf("\\n"); next !== -1; next = chunk.indexOf("\\n", from)) {
+          line = (line + chunk.slice(from, next)).slice(0, 1024);
+          scan();
+          from = next + 1;
+        }
+        line = (line + chunk.slice(from)).slice(0, 1024);
+      });
     };
-    child.stdout.on("data", take);
-    child.stderr.on("data", take);
+    collect(child.stdout);
+    collect(child.stderr);
     child.on("error", (error) => finish({ code: -1, startError: clip(error.message, 200) }));
     child.on("close", (code, killedBy) => finish({ code: typeof code === "number" ? code : -1, killedBy }));
   });
 }
 
 function result(fields) {
-  const { outcome, branch, worktree, command, exitCode, passed, failed, durationMs, text, files, protectedChanged, note, roundFiles, snapshot, rehearsal, baseline, previous, runFiles } = fields;
+  const { outcome, branch, worktree, command, exitCode, passed, failed, durationMs, text, files, protectedChanged, note, roundFiles, snapshot, rehearsal, baseline, previous, runFiles, outputTruncated } = fields;
   return {
     schema: "test-run-v1",
     digest: clip(
@@ -1929,6 +1952,7 @@ function result(fields) {
     runFiles: runFiles.slice(0, MAX_FILES).map((file) => file.slice(0, 200)),
     runBaselineKnown: Array.isArray(baseline),
     roundBaselineKnown: Array.isArray(previous),
+    outputTruncated,
     rehearsal,
     snapshot,
   };
@@ -1954,7 +1978,7 @@ export default async function helper({ options, context }) {
   const runFiles = baseline ? delta(baseline, snapshot) : [];
   const protectedChanged = runFiles.filter((file) => wanted.protectedPrefixes.some((prefix) => file.startsWith(prefix)));
   const text = ran.output;
-  const base = { branch, worktree, command: wanted.command, durationMs, files, protectedChanged, roundFiles, snapshot, rehearsal, baseline, previous, runFiles };
+  const base = { branch, worktree, command: wanted.command, durationMs, files, protectedChanged, roundFiles, snapshot, rehearsal, baseline, previous, runFiles, outputTruncated: ran.truncated };
   if (rehearsal && ran.code === 0) {
     return result({ ...base, outcome: "green", exitCode: 0, passed: -1, failed: -1, text: "", note: "rehearsal: worktree probe passed; project tests were not run" });
   }
@@ -1962,13 +1986,13 @@ export default async function helper({ options, context }) {
     return result({ ...base, outcome: "error", exitCode: -1, passed: -1, failed: -1, text: ran.startError, note: "the command could not start: " + ran.startError });
   }
   if (ran.timedOut) {
-    return result({ ...base, outcome: "timeout", exitCode: -1, ...counts(text), text: excerpt(text), note: "killed after " + wanted.timeoutMs + " ms" });
+    return result({ ...base, outcome: "timeout", exitCode: -1, ...counts(text), text: excerpt(ran), note: "killed after " + wanted.timeoutMs + " ms" });
   }
   if (ran.killedBy) {
-    return result({ ...base, outcome: "error", exitCode: -1, passed: -1, failed: -1, text: excerpt(text), note: "command terminated by " + ran.killedBy });
+    return result({ ...base, outcome: "error", exitCode: -1, passed: -1, failed: -1, text: excerpt(ran), note: "command terminated by " + ran.killedBy });
   }
   const tally = counts(text);
-  return result({ ...base, outcome: ran.code === 0 ? "green" : "red", exitCode: ran.code, ...tally, text: excerpt(text) });
+  return result({ ...base, outcome: ran.code === 0 ? "green" : "red", exitCode: ran.code, ...tally, text: excerpt(ran) });
 }
 `;
 
@@ -2028,6 +2052,7 @@ function markdownFor(view) {
       lines.push("- Net changes during this run: " + (view.runBaselineKnown ? list(view.runFiles) : "unknown (baseline unavailable)"));
     }
     if (view.unreported.length > 0) lines.push("- Changes no round reported: " + view.unreported.map((file) => "\`" + clip(file, 120).replace(/\`/g, "'") + "\`").join(", "));
+    if (view.outputTruncated) lines.push("- Test output was truncated.");
     if (view.note) lines.push("- Diagnostic: " + cell(view.note, 300));
     lines.push("");
     if (view.excerpt) lines.push("Last test output:", "", "\`\`\`", view.excerpt.replace(/\`\`\`/g, "'''"), "\`\`\`", "");
@@ -2085,7 +2110,7 @@ export default async function helper({ sources, options, context }) {
   const view = {
     status, rounds, loopStatus: loopInfo ? loopInfo.status : "", branch: test?.branch ?? "", worktree: test?.worktree ?? "", headline, rows, verified, measured, note: measured ? String(test.note || "") : "",
     command: measured ? String(test.command) : "", exitCode: verified ? test.exitCode : -1, passed: verified ? test.passed : -1, failed: verified ? test.failed : -1,
-    runBaselineKnown: test?.runBaselineKnown, preExistingFiles: test?.preExistingFiles, runFiles: test?.runFiles,
+    outputTruncated: test?.outputTruncated, runBaselineKnown: test?.runBaselineKnown, preExistingFiles: test?.preExistingFiles, runFiles: test?.runFiles,
     changed, changedTotal: measured ? test.changedTotal : 0, protectedChanged, unreported, excerpt: measured && !green ? String(test.excerpt || "") : "",
   };
   const markdown = markdownFor(view);
@@ -2140,6 +2165,7 @@ function fixLoopPattern(name: string): Bundle {
 		runFiles: stringArray(100, 200),
 		runBaselineKnown: { type: "boolean" },
 		roundBaselineKnown: { type: "boolean" },
+		outputTruncated: { type: "boolean" },
 		rehearsal: { type: "boolean" },
 		snapshot: {
 			type: "array",
