@@ -1901,7 +1901,7 @@ function execute(command, cwd, timeoutMs, signal) {
 }
 
 function result(fields) {
-  const { outcome, branch, worktree, command, exitCode, passed, failed, durationMs, text, files, protectedChanged, note, roundFiles, snapshot, rehearsal } = fields;
+  const { outcome, branch, worktree, command, exitCode, passed, failed, durationMs, text, files, protectedChanged, note, roundFiles, snapshot, rehearsal, baseline, previous, runFiles } = fields;
   return {
     schema: "test-run-v1",
     digest: clip(
@@ -1925,6 +1925,10 @@ function result(fields) {
     protectedChanged: protectedChanged.slice(0, MAX_FILES).map((file) => file.slice(0, 200)),
     note: clip(note || "", 300),
     roundFiles: roundFiles.slice(0, MAX_FILES).map((file) => file.slice(0, 200)),
+    preExistingFiles: (baseline ?? []).slice(0, MAX_FILES).map(({ path }) => path.slice(0, 200)),
+    runFiles: runFiles.slice(0, MAX_FILES).map((file) => file.slice(0, 200)),
+    runBaselineKnown: Array.isArray(baseline),
+    roundBaselineKnown: Array.isArray(previous),
     rehearsal,
     snapshot,
   };
@@ -1932,10 +1936,11 @@ function result(fields) {
 
 export default async function helper({ options, context }) {
   const wanted = readOptions(options);
-  const { worktreePath: worktree, worktreeBranch: branch, worktreeBaseCwd, loopId } = context.loop ?? {};
+  const { worktreePath: worktree, worktreeBranch: branch, worktreeBaseCwd, loopId, round, childStageId } = context.loop ?? {};
   if (!worktree || !branch) throw new Error("test: no managed worktree for this loop (did the writer get one?)");
-  const history = await context.readLoopHistory(loopId, "test");
-  const previous = history.findLast((row) => row.status === "completed")?.control?.snapshot ?? [];
+  const history = await context.readLoopHistory(loopId, childStageId);
+  const baseline = await context.readLoopWorktreeBaseline?.();
+  const previous = round === 1 ? baseline : history.find((row) => row.round === round - 1 && row.status === "completed")?.control?.snapshot;
   const rehearsal = process.env.AGENT_WORKFLOW_REHEARSAL === "1";
   const physical = await verifyWorktree(worktree, branch, worktreeBaseCwd ?? context.cwd, context.signal);
   const started = Date.now();
@@ -1945,10 +1950,11 @@ export default async function helper({ options, context }) {
   const snapshot = await gitSnapshot(physical, context.signal);
   await verifyWorktree(worktree, branch, worktreeBaseCwd ?? context.cwd, context.signal, physical);
   const files = snapshot.map(({ path }) => path);
-  const roundFiles = delta(previous, snapshot);
-  const protectedChanged = files.filter((file) => wanted.protectedPrefixes.some((prefix) => file.startsWith(prefix)));
+  const roundFiles = previous ? delta(previous, snapshot) : [];
+  const runFiles = baseline ? delta(baseline, snapshot) : [];
+  const protectedChanged = runFiles.filter((file) => wanted.protectedPrefixes.some((prefix) => file.startsWith(prefix)));
   const text = ran.output;
-  const base = { branch, worktree, command: wanted.command, durationMs, files, protectedChanged, roundFiles, snapshot, rehearsal };
+  const base = { branch, worktree, command: wanted.command, durationMs, files, protectedChanged, roundFiles, snapshot, rehearsal, baseline, previous, runFiles };
   if (rehearsal && ran.code === 0) {
     return result({ ...base, outcome: "green", exitCode: 0, passed: -1, failed: -1, text: "", note: "rehearsal: worktree probe passed; project tests were not run" });
   }
@@ -2000,7 +2006,7 @@ function markdownFor(view) {
   } else {
     lines.push("| Round | What changed (as reported) | Files changed (git) | Tests |", "| --- | --- | --- | --- |");
     for (const row of view.rows) {
-      lines.push("| " + row.round + " | " + cell(row.summary || "-", 160) + " | " + cell(row.files.join(", ") || "-", 160) + " | " + cell(row.tests, 160) + " |");
+      lines.push("| " + row.round + " | " + cell(row.summary || "-", 160) + " | " + cell(row.baselineKnown === false ? "unknown (baseline unavailable)" : row.files.join(", ") || "-", 160) + " | " + cell(row.tests, 160) + " |");
     }
     lines.push("");
   }
@@ -2008,9 +2014,14 @@ function markdownFor(view) {
   if (view.verified) {
     lines.push(
       "- Test command: \`" + view.command.replace(/\`/g, "'") + "\`, exit " + view.exitCode + (view.passed >= 0 ? ", " + view.passed + " passed" : "") + (view.failed >= 0 ? ", " + view.failed + " failed" : ""),
-      "- Changed files (" + view.changedTotal + "): " + (view.changed.length > 0 ? view.changed.map((file) => "\`" + clip(file, 120).replace(/\`/g, "'") + "\`").join(", ") : "none"),
-      "- Changed protected paths: " + (view.protectedChanged.length > 0 ? view.protectedChanged.map((file) => "\`" + clip(file, 120).replace(/\`/g, "'") + "\`").join(", ") : "none"),
+      "- Final dirt vs HEAD (" + view.changedTotal + "): " + (view.changed.length > 0 ? view.changed.map((file) => "\`" + clip(file, 120).replace(/\`/g, "'") + "\`").join(", ") : "none"),
+      "- Changed protected paths: " + (view.runBaselineKnown === false ? "unknown (baseline unavailable)" : view.protectedChanged.length > 0 ? view.protectedChanged.map((file) => "\`" + clip(file, 120).replace(/\`/g, "'") + "\`").join(", ") : "none"),
     );
+    if (view.runBaselineKnown !== undefined) {
+      const list = (paths) => paths.map((file) => "\`" + clip(file, 120).replace(/\`/g, "'") + "\`").join(", ") || "none";
+      lines.push("- Pre-existing dirt: " + (view.runBaselineKnown ? list(view.preExistingFiles) : "unknown (baseline unavailable)"));
+      lines.push("- Net changes during this run: " + (view.runBaselineKnown ? list(view.runFiles) : "unknown (baseline unavailable)"));
+    }
     if (view.unreported.length > 0) lines.push("- Changes no round reported: " + view.unreported.map((file) => "\`" + clip(file, 120).replace(/\`/g, "'") + "\`").join(", "));
     lines.push("");
     if (view.excerpt) lines.push("Last failure output:", "", "\`\`\`", view.excerpt.replace(/\`\`\`/g, "'''"), "\`\`\`", "");
@@ -2048,10 +2059,10 @@ export default async function helper({ sources, options, context }) {
     const tests = !measured ? "not verified" : measured.rehearsal ? "rehearsal worktree probe"
       : measured.outcome + ", exit " + measured.exitCode + (measured.failed >= 0 ? ", " + measured.failed + " failing" : "");
     if (Array.isArray(writer?.files)) for (const file of writer.files) named.add(file);
-    rows.push({ round, summary: clip(writer?.summary ?? "", 200), files: measured?.roundFiles?.slice(0, 6) ?? [], tests: clip(tests, 200) });
+    rows.push({ round, summary: clip(writer?.summary ?? "", 200), files: measured?.roundFiles?.slice(0, 6) ?? [], baselineKnown: measured?.roundBaselineKnown, tests: clip(tests, 200) });
   }
   const changed = verified && Array.isArray(test.changedFiles) ? test.changedFiles : [];
-  const unreported = changed.filter((file) => !named.has(file));
+  const unreported = (test?.runFiles ?? changed).filter((file) => !named.has(file));
 
   let headline;
   if (status === "green") headline = "Tests are green after " + rounds + " round" + (rounds === 1 ? "" : "s") + ": the test command exited 0 in the kept worktree.";
@@ -2063,6 +2074,7 @@ export default async function helper({ sources, options, context }) {
   const view = {
     status, rounds, loopStatus: loopInfo ? loopInfo.status : "", branch: test?.branch ?? "", worktree: test?.worktree ?? "", headline, rows, verified,
     command: verified ? String(test.command) : "", exitCode: verified ? test.exitCode : -1, passed: verified ? test.passed : -1, failed: verified ? test.failed : -1,
+    runBaselineKnown: test?.runBaselineKnown, preExistingFiles: test?.preExistingFiles, runFiles: test?.runFiles,
     changed, changedTotal: verified ? test.changedTotal : 0, protectedChanged, unreported, excerpt: verified && !green ? String(test.excerpt || "") : "",
   };
   const markdown = markdownFor(view);
@@ -2075,8 +2087,11 @@ export default async function helper({ sources, options, context }) {
     branch: clip(view.branch, 200),
     worktree: clip(view.worktree, 500),
     finalExitCode: view.exitCode,
-    rows: rows.map((row) => ({ round: row.round, summary: row.summary, files: row.files.map((file) => file.slice(0, 60)), tests: row.tests })).slice(0, 20),
+    rows: rows.map((row) => ({ round: row.round, summary: row.summary, files: row.files.map((file) => file.slice(0, 60)), baselineKnown: row.baselineKnown ?? false, tests: row.tests })).slice(0, 20),
     changedFiles: changed.slice(0, 100),
+    preExistingFiles: (test?.preExistingFiles ?? []).slice(0, 100),
+    runFiles: (test?.runFiles ?? []).slice(0, 100),
+    runBaselineKnown: test?.runBaselineKnown ?? false,
     unreportedFiles: unreported.slice(0, 100),
     protectedChanged: protectedChanged.slice(0, 100),
     markdown,
@@ -2110,6 +2125,10 @@ function fixLoopPattern(name: string): Bundle {
 		protectedChanged: stringArray(100, 200),
 		note: text(300),
 		roundFiles: stringArray(100, 200),
+		preExistingFiles: stringArray(100, 200),
+		runFiles: stringArray(100, 200),
+		runBaselineKnown: { type: "boolean" },
+		roundBaselineKnown: { type: "boolean" },
 		rehearsal: { type: "boolean" },
 		snapshot: {
 			type: "array",
@@ -2138,11 +2157,12 @@ function fixLoopPattern(name: string): Bundle {
 			type: "array",
 			items: {
 				type: "object",
-				required: ["round", "summary", "files", "tests"],
+				required: ["round", "summary", "files", "baselineKnown", "tests"],
 				properties: {
 					round: { type: "integer", minimum: 1, maximum: 99 },
 					summary: text(200),
 					files: stringArray(6, 60),
+					baselineKnown: { type: "boolean" },
 					tests: text(200),
 				},
 				additionalProperties: false,
@@ -2150,6 +2170,9 @@ function fixLoopPattern(name: string): Bundle {
 			maxItems: 20,
 		},
 		changedFiles: stringArray(100, 200),
+		preExistingFiles: stringArray(100, 200),
+		runFiles: stringArray(100, 200),
+		runBaselineKnown: { type: "boolean" },
 		unreportedFiles: stringArray(100, 200),
 		protectedChanged: stringArray(100, 200),
 		markdown: { type: "string", minLength: 1, maxLength: 20000 },

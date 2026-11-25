@@ -24,8 +24,15 @@ import {
 	resolve,
 } from "node:path";
 
+import { gitSnapshot, verifyWorktree } from "./helper-library/fix-loop-git.mjs";
 import { assertRehearsalGitRoot } from "./rehearsal-shadow.js";
-import { workflowRunDir, managedWorktreePath, toStatePath } from "./store.js";
+import {
+	workflowRunDir,
+	managedWorktreePath,
+	toStatePath,
+	readJson,
+	writeJsonAtomic,
+} from "./store.js";
 import type {
 	CompiledTask,
 	WorkflowRunRecord,
@@ -152,6 +159,55 @@ export async function ensureManagedWorktree(
 			: null,
 		snapshot: snapshot.record,
 	};
+}
+
+type LoopWorktreeBaseline = Array<{ path: string; fingerprint: string }>;
+
+function loopWorktreeBaselinePath(
+	cwd: string,
+	runId: string,
+	loopId: string,
+): string {
+	return join(
+		workflowRunDir(cwd, runId),
+		"loop-baselines",
+		encodeURIComponent(loopId) + ".json",
+	);
+}
+
+export async function readLoopWorktreeBaseline(
+	cwd: string,
+	runId: string,
+	loopId: string,
+): Promise<LoopWorktreeBaseline | undefined> {
+	return readJson<LoopWorktreeBaseline>(
+		loopWorktreeBaselinePath(cwd, runId, loopId),
+	);
+}
+
+// Keep this in run state, not in the checkout or in each rewritten run record.
+export async function captureLoopWorktreeBaseline(
+	cwd: string,
+	runId: string,
+	loopId: string,
+	worktree: WorkflowTaskRunRecord["worktree"],
+	signal?: AbortSignal,
+): Promise<void> {
+	if (!worktree.path || !worktree.branch || !worktree.baseCwd) return;
+	const file = loopWorktreeBaselinePath(cwd, runId, loopId);
+	try {
+		if (await exists(file)) return;
+		const path = await verifyWorktree(
+			worktree.path,
+			worktree.branch,
+			worktree.baseCwd,
+			signal,
+		);
+		const snapshot = await gitSnapshot(path, signal);
+		await writeJsonAtomic(file, snapshot);
+	} catch {
+		// Snapshot limits, unavailable Git or interruption leave attribution unknown.
+	}
 }
 
 interface CapturedWorktreeSnapshot {

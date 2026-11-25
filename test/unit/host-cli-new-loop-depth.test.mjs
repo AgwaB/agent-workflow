@@ -175,9 +175,11 @@ const TEST_CONTEXT = (dir, previous = undefined) => ({
 	loop: {
 		loopId: "fix-loop",
 		round: previous ? 2 : 1,
+		childStageId: "test",
 		worktreePath: join(dir, "wt"),
 		worktreeBranch: "agent-workflow/run1-task-1",
 	},
+	readLoopWorktreeBaseline: async () => [],
 	readLoopHistory: async () =>
 		previous ? [{ round: 1, status: "completed", control: previous }] : [],
 });
@@ -507,6 +509,7 @@ test("fix-loop: report renders actual per-round verdicts, git files, protected p
 		/test\/pricing\.test\.js/u,
 	);
 	const missing = await render(undefined, {
+		earlier: {},
 		loop: { ...loop, status: "failed", roundsUsed: 1 },
 	});
 	assert.equal(missing.status, "unverified");
@@ -615,6 +618,107 @@ test("fix-loop: cancellation during history lookup starts no command", async () 
 		{ name: "AbortError" },
 	);
 	await assert.rejects(readFile(join(tree, "ran")), /ENOENT/u);
+});
+
+test("fix-loop: a protected edit in the managed dirty overlay is not this run's change", async () => {
+	const { dir, helpers } = await generated("fix-loop", "dirty", FIX_HELPERS);
+	await testWorktree(dir, "exports.value = () => 2;\n");
+	git(dir, "worktree", "remove", join(dir, "wt"));
+	git(dir, "branch", "-D", "agent-workflow/run1-task-1");
+	await writeFile(join(dir, "test/value.test.js"), "// owner's prior edit\n");
+	const {
+		ensureManagedWorktree,
+		captureLoopWorktreeBaseline,
+		readLoopWorktreeBaseline,
+	} = await import("../../dist/core/worktree.js");
+	const task = { taskId: "task-1", cwd: dir, worktree: {} };
+	await withEnv({ AGENT_WORKFLOW_HOME: home }, () =>
+		ensureManagedWorktree(dir, { runId: "run1" }, task, {
+			cwd: dir,
+			safety: { requiresWorktree: true },
+		}),
+	);
+	const baseline = await withEnv({ AGENT_WORKFLOW_HOME: home }, async () => {
+		await captureLoopWorktreeBaseline(dir, "run1", "fix-loop", task.worktree);
+		return await readLoopWorktreeBaseline(dir, "run1", "fix-loop");
+	});
+	assert.deepEqual(
+		baseline.map((row) => row.path),
+		["test/value.test.js"],
+	);
+	const context = TEST_CONTEXT(dir);
+	context.loop.worktreePath = task.worktree.path;
+	context.readLoopWorktreeBaseline = async () => baseline;
+	const check = () =>
+		helpers["run-tests.mjs"]({
+			options: { command: ["node", "-e", "void 0"] },
+			context,
+		});
+	const test = await check();
+	assert.deepEqual(test.roundFiles, []);
+	assert.deepEqual(test.protectedChanged, []);
+	assert.deepEqual(test.preExistingFiles, ["test/value.test.js"]);
+	assert.deepEqual(test.runFiles, []);
+	assert.deepEqual(test.changedFiles, ["test/value.test.js"]);
+	const loop = { loopId: "fix-loop", status: "completed", roundsUsed: 1 };
+	const report = await helpers["report-fix.mjs"](reportInput({ loop, test }));
+	assert.equal(report.status, "green");
+	assert.match(report.markdown, /Pre-existing dirt.*test\/value\.test\.js/u);
+	assert.match(report.markdown, /Net changes during this run.*none/u);
+	await writeFile(
+		join(task.worktree.path, "test/value.test.js"),
+		"// writer edit\n",
+	);
+	assert.deepEqual((await check()).protectedChanged, ["test/value.test.js"]);
+	context.loop.round = 3;
+	context.readLoopHistory = async () => [
+		{ round: 1, status: "completed", control: test },
+	];
+	const unknown = await check();
+	assert.equal(unknown.roundBaselineKnown, false);
+	assert.deepEqual(unknown.roundFiles, []);
+	assert.match(
+		(
+			await helpers["report-fix.mjs"](
+				reportInput({ loop: { ...loop, roundsUsed: 3 }, test: unknown }),
+			)
+		).markdown,
+		/unknown \(baseline unavailable\)/u,
+	);
+});
+
+test("fix-loop: renamed tester feeds two real rounds to the report without duplicating a delta", async () => {
+	const { dir, helpers } = await generated("fix-loop", "rename", FIX_HELPERS);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	const history = [];
+	const check = (round) =>
+		helpers["run-tests.mjs"]({
+			options: { command: ["node", "-e", "void 0"] },
+			context: {
+				...TEST_CONTEXT(dir),
+				loop: { ...TEST_CONTEXT(dir).loop, round, childStageId: "verify" },
+				readLoopHistory: async (_loop, child) =>
+					child === "verify" ? history : [],
+			},
+		});
+	await writeFile(join(tree, "src/value.js"), "exports.value = () => 3;\n");
+	history.push({ round: 1, status: "completed", control: await check(1) });
+	const last = await check(2);
+	const report = await helpers["report-fix.mjs"]({
+		sources: { "fix-loop.verify": last },
+		options: { tester: "verify" },
+		context: {
+			sourceStatuses: [
+				{ loop: { loopId: "fix-loop", status: "completed", roundsUsed: 2 } },
+			],
+			readLoopHistory: async (_loop, child) =>
+				child === "verify" ? history : [],
+		},
+	});
+	assert.deepEqual(
+		report.rows.map((row) => row.files),
+		[["src/value.js"], []],
+	);
 });
 
 // -------------------------------------------------------------- adaptive-depth

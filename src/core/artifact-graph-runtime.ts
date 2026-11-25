@@ -1,3 +1,4 @@
+import { readLoopWorktreeBaseline } from "./worktree.js";
 import { stateBase } from "./state-location.js";
 // Artifact access binds workflow_artifact to the MCP server; tool policy uses the run permission mode.
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
@@ -154,9 +155,12 @@ export async function executeSupportTask(
 				signal: stop.signal,
 				...(loop
 					? {
+							readLoopWorktreeBaseline: () =>
+								readLoopWorktreeBaseline(cwd, run.runId, loop.loopId),
 							loop: {
 								loopId: loop.loopId,
 								round: loop.round,
+								childStageId: loop.childStageId,
 								worktreePath: worktree?.path ?? null,
 								worktreeBranch: worktree?.branch ?? null,
 								worktreeBaseCwd: worktree?.baseCwd ?? null,
