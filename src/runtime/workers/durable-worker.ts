@@ -545,7 +545,14 @@ async function maybeDelayStartForTests(): Promise<void> {
 		process.env.AGENT_WORKFLOW_DURABLE_WORKER_START_DELAY_MS ?? "0",
 		10,
 	);
-	if (!Number.isFinite(delayMs) || delayMs <= 0) return;
+	// An interrupt during startup may already have aborted execution. The abort
+	// event is not replayed for listeners installed below in that case.
+	if (
+		executionAbort.signal.aborted ||
+		!Number.isFinite(delayMs) ||
+		delayMs <= 0
+	)
+		return;
 	await Promise.race([
 		sleep(delayMs),
 		new Promise((resolveAbort) =>
