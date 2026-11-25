@@ -2028,6 +2028,7 @@ function readOptions(options) {
 
 function markdownFor(view) {
   const lines = ["# Fix loop report", "", "- Status: **" + STATUS_TEXT[view.status] + "**", "- Rounds used: " + view.rounds + " (loop " + (view.loopStatus || "unknown") + ")", "- Branch: \`" + (view.branch || "(none)") + "\`", "- Worktree: \`" + (view.worktree || "(none)") + "\`", ""];
+  if (view.lastObserved) lines.push("Branch and worktree above are the last observed location, not a final test verdict.", "");
   if (view.headline) lines.push(view.headline, "");
   lines.push("## Rounds", "");
   if (view.rows.length === 0) {
@@ -2107,8 +2108,10 @@ export default async function helper({ sources, options, context }) {
   else if (test?.rehearsal) headline = "Rehearsal verified the worktree and loop wiring only: project tests were not run.";
   else headline = "The final test run did not happen, so the result is not verified" + (loopInfo ? " (loop " + loopInfo.status + ")" : "") + ".";
 
+  const lastObserved = !test && earlierTests.findLast(({ control }) => control?.branch && control?.worktree)?.control;
+  const location = test ?? lastObserved;
   const view = {
-    status, rounds, loopStatus: loopInfo ? loopInfo.status : "", branch: test?.branch ?? "", worktree: test?.worktree ?? "", headline, rows, verified, measured, note: measured ? String(test.note || "") : "",
+    status, rounds, loopStatus: loopInfo ? loopInfo.status : "", branch: location?.branch ?? "", worktree: location?.worktree ?? "", lastObserved, headline, rows, verified, measured, note: measured ? String(test.note || "") : "",
     command: measured ? String(test.command) : "", exitCode: verified ? test.exitCode : -1, passed: verified ? test.passed : -1, failed: verified ? test.failed : -1,
     outputTruncated: test?.outputTruncated, runBaselineKnown: test?.runBaselineKnown, preExistingFiles: test?.preExistingFiles, runFiles: test?.runFiles,
     changed, changedTotal: measured ? test.changedTotal : 0, protectedChanged, unreported, excerpt: measured && !green ? String(test.excerpt || "") : "",

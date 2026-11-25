@@ -285,7 +285,7 @@ test("failed fix-loop partial report keeps real round evidence without publishin
 			maxRounds: 2,
 			generatedReport: true,
 			helper: `export default ({ context }) => context.loop.round === 1
-				? { exitCode: 1, outcome: "red", failed: 1, roundFiles: ["src/a.js"] }
+				? { exitCode: 1, outcome: "red", failed: 1, roundFiles: ["src/a.js"], branch: "kept-branch", worktree: "/kept/tree" }
 				: { exitCode: 5, status: "blocked" };`,
 		});
 		await finishWrite(cwd, runId, 1);
@@ -299,6 +299,10 @@ test("failed fix-loop partial report keeps real round evidence without publishin
 		assert.equal(result.loopStatus, "failed");
 		assert.equal(result.rounds, 2);
 		assert.equal(result.status, "unverified");
+		assert.equal(result.finalExitCode, -1);
+		assert.equal(result.branch, "kept-branch");
+		assert.equal(result.worktree, "/kept/tree");
+		assert.match(result.markdown, /last observed location/iu);
 		assert.deepEqual(
 			result.rows.map(({ files, tests }) => [files, tests]),
 			[
