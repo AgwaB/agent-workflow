@@ -91,6 +91,9 @@ test("dist/core modules import only node builtins and sibling core modules", () 
 			assert.ok(
 				specifier.startsWith("node:") ||
 					/^\.\/[a-z0-9-]+\.js$/.test(specifier) ||
+					// These imports appear only in emitted bundle templates, not in core itself.
+					(name === "authoring-patterns.js" &&
+						/^\.\/(?:render-report|key-normalize)\.mjs$/.test(specifier)) ||
 					/^\.\.\/(sdk|runtime)\/[a-z0-9/-]+\.js$/.test(specifier) ||
 					// Built-in executor identity and pre-launch policy only (never the adapter itself).
 					/^\.\.\/executors\/[a-z0-9-]+\/(?:version|policy)\.js$/.test(
@@ -126,7 +129,7 @@ test("every dist/core/*.js imports in a child process from a temp dist/ copy wit
 			'import assert from "node:assert/strict";',
 			'import { readFile } from "node:fs/promises";',
 			'import { generatePatternFiles } from "./dist/core/authoring-patterns.js";',
-			'const assets = { "run-tests.mjs": "helper-library/fix-loop-run-tests.mjs", "git-worktree.mjs": "fix-loop-git.js", "report-fix.mjs": "helper-library/fix-loop-report.mjs" };',
+			'const assets = { "run-tests.mjs": "helper-library/fix-loop-run-tests.mjs", "git-worktree.mjs": "fix-loop-git.js", "report-fix.mjs": "helper-library/fix-loop-report.mjs", "render-report.mjs": "helper-library/render-report.mjs" };',
 			'const helpers = generatePatternFiles("fix-loop", "isolated").filter(({ path }) => path.startsWith("helpers/"));',
 			"assert.equal(helpers.length, Object.keys(assets).length);",
 			"for (const { path, content } of helpers) {",
