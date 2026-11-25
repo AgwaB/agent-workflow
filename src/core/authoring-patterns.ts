@@ -1919,7 +1919,7 @@ function fixLoopPattern(name: string): Bundle {
 				"utf8",
 			),
 			"git-worktree.mjs": readFileSync(
-				new URL("./helper-library/fix-loop-git.mjs", import.meta.url),
+				new URL("./fix-loop-git.js", import.meta.url),
 				"utf8",
 			),
 			"report-fix.mjs": readFileSync(

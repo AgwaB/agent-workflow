@@ -835,6 +835,50 @@ test("fix-loop: the scheduler completes with a schema-valid report for 90 dirty 
 	}
 });
 
+test("fix-loop round 3: an unrelated commit does not change a protected directory overlay", async () => {
+	const { dir, helpers } = await generated(
+		"fix-loop",
+		"dir-overlay",
+		FIX_HELPERS,
+	);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	const path = "test/sample";
+	await writeFile(join(tree, path), "original file\n");
+	git(tree, "add", path);
+	git(tree, "commit", "-qm", "tracked fixture");
+	await rm(join(tree, path));
+	await mkdir(join(tree, path));
+	await writeFile(join(tree, path, "data.txt"), "owner directory overlay\n");
+	const { captureLoopWorktreeBaseline, readLoopWorktreeBaselineRecord } =
+		await import("../../dist/core/worktree.js");
+	const context = TEST_CONTEXT(dir);
+	await captureLoopWorktreeBaseline(dir, "run1", "fix-loop", {
+		path: tree,
+		branch: context.loop.worktreeBranch,
+		baseCwd: dir,
+	});
+	const baseline = await readLoopWorktreeBaselineRecord(
+		dir,
+		"run1",
+		"fix-loop",
+	);
+	assert.deepEqual(
+		baseline.snapshot.map((row) => row.path),
+		[path, `${path}/data.txt`],
+	);
+	context.readLoopWorktreeBaselineRecord = async () => baseline;
+	await writeFile(join(tree, "src/note.txt"), "unrelated\n");
+	git(tree, "add", "src/note.txt");
+	git(tree, "commit", "-qm", "unrelated source commit");
+	const test = await helpers["run-tests.mjs"]({
+		options: { command: ["node", "--test"] },
+		context,
+	});
+	assert.equal(test.exitCode, 0);
+	assert.deepEqual(test.protectedChanged, []);
+	assert.deepEqual(test.runFiles, ["src/note.txt"]);
+});
+
 test("fix-loop: renamed tester feeds two real rounds to the report without duplicating a delta", async () => {
 	const { dir, helpers } = await generated("fix-loop", "rename", FIX_HELPERS);
 	const tree = await testWorktree(dir, "exports.value = () => 2;\n");

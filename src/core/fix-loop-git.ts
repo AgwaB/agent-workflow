@@ -4,7 +4,8 @@ import { execFile } from "node:child_process";
 import { lstat, readlink, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import type { WorktreeSnapshotRecord } from "./types.js";
+
+type PathFingerprint = { path: string; fingerprint: string };
 
 const exec = promisify(execFile);
 const MAX_BUFFER = 8 * 1024 * 1024;
@@ -119,7 +120,7 @@ export async function gitDirtyPaths(worktree: string, signal?: AbortSignal) {
 export async function gitLegacySnapshot(
 	worktree: string,
 	signal: AbortSignal | undefined,
-	snapshot: WorktreeSnapshotRecord[],
+	snapshot: readonly PathFingerprint[],
 ) {
 	const entries = (await gitStatusEntries(worktree, signal)).sort((a, b) =>
 		a.slice(3) < b.slice(3) ? -1 : 1,
@@ -170,6 +171,17 @@ export async function gitSnapshot(
 	return fingerprintPaths(worktree, paths, signal);
 }
 
+async function directoryFingerprint(path: string, signal?: AbortSignal) {
+	const [prefix, revision] = (
+		await gitOutput(path, ["rev-parse", "--show-prefix", "HEAD"], signal)
+	)
+		.trimEnd()
+		.split("\n");
+	// A normal directory resolves to the enclosing repo. Its children are
+	// fingerprinted separately; only an actual nested checkout has its own HEAD.
+	return prefix === "" && revision ? revision : "directory";
+}
+
 async function fingerprintPaths(
 	worktree: string,
 	paths: string[],
@@ -200,7 +212,7 @@ async function fingerprintPaths(
 				: info.isFile()
 					? (await git(["hash-object", "--no-filters", "--", path])).trim()
 					: info.isDirectory()
-						? (await gitOutput(absolute, ["rev-parse", "HEAD"], signal)).trim()
+						? await directoryFingerprint(absolute, signal)
 						: "special";
 		snapshot.push({
 			path,
