@@ -94,17 +94,41 @@ export async function gitHead(worktree, signal) {
 	).trim();
 }
 
-export async function gitDirtyPaths(worktree, signal) {
+async function gitStatusEntries(worktree, signal) {
 	const status = await gitOutput(
 		worktree,
 		["status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all"],
 		signal,
 	);
-	return status
-		.split("\0")
-		.filter(Boolean)
+	return status.split("\0").filter(Boolean);
+}
+
+export async function gitDirtyPaths(worktree, signal) {
+	return (await gitStatusEntries(worktree, signal))
 		.map((entry) => entry.slice(3))
 		.sort();
+}
+
+// Old generated bundles include the porcelain status in each fingerprint.
+export async function gitLegacySnapshot(worktree, signal, snapshot) {
+	const entries = (await gitStatusEntries(worktree, signal)).sort((a, b) =>
+		a.slice(3) < b.slice(3) ? -1 : 1,
+	);
+	const byPath = new Map(snapshot.map((row) => [row.path, row.fingerprint]));
+	const missing = [
+		...new Set(
+			entries
+				.map((entry) => entry.slice(3))
+				.filter((path) => !byPath.has(path)),
+		),
+	];
+	for (const row of await fingerprintPaths(worktree, missing, signal)) {
+		byPath.set(row.path, row.fingerprint);
+	}
+	return entries.map((entry) => ({
+		path: entry.slice(3),
+		fingerprint: entry.slice(0, 2) + ":" + byPath.get(entry.slice(3)),
+	}));
 }
 
 // Compare every round to the same tree, not the tip of the managed branch.
@@ -129,6 +153,11 @@ export async function gitSnapshot(worktree, head, signal) {
 			[...tracked.split("\0"), ...untracked.split("\0")].filter(Boolean),
 		),
 	].sort();
+	return fingerprintPaths(worktree, paths, signal);
+}
+
+async function fingerprintPaths(worktree, paths, signal) {
+	const git = (args) => gitOutput(worktree, args, signal);
 	if (paths.length > 1000)
 		throw new Error("test: more than 1000 paths changed in the loop worktree");
 	const snapshot = [];

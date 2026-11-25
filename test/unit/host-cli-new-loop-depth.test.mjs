@@ -655,7 +655,10 @@ test("fix-loop: a protected edit in the managed dirty overlay is not this run's 
 		);
 		assert.deepEqual(
 			await readLoopWorktreeBaseline(dir, "run1", "fix-loop"),
-			record.snapshot,
+			record.snapshot.map(({ path, fingerprint }) => ({
+				path,
+				fingerprint: " M:" + fingerprint,
+			})),
 		);
 		return record;
 	});

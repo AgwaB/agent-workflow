@@ -26,6 +26,7 @@ import {
 
 import {
 	gitHead,
+	gitLegacySnapshot,
 	gitSnapshot,
 	verifyWorktree,
 } from "./helper-library/fix-loop-git.mjs";
@@ -166,7 +167,11 @@ export async function ensureManagedWorktree(
 }
 
 type LoopWorktreeSnapshot = Array<{ path: string; fingerprint: string }>;
-type LoopWorktreeBaseline = { head: string; snapshot: LoopWorktreeSnapshot };
+type LoopWorktreeBaseline = {
+	head: string;
+	snapshot: LoopWorktreeSnapshot;
+	legacySnapshot?: LoopWorktreeSnapshot;
+};
 
 function loopWorktreeBaselinePath(
 	cwd: string,
@@ -189,7 +194,7 @@ export async function readLoopWorktreeBaseline(
 	const record = await readJson<LoopWorktreeBaseline | LoopWorktreeSnapshot>(
 		loopWorktreeBaselinePath(cwd, runId, loopId),
 	);
-	return Array.isArray(record) ? record : record?.snapshot;
+	return Array.isArray(record) ? record : record?.legacySnapshot;
 }
 
 export async function readLoopWorktreeBaselineRecord(
@@ -228,7 +233,8 @@ export async function captureLoopWorktreeBaseline(
 		);
 		const head = await gitHead(path, signal);
 		const snapshot = await gitSnapshot(path, head, signal);
-		await writeJsonAtomic(file, { head, snapshot });
+		const legacySnapshot = await gitLegacySnapshot(path, signal, snapshot);
+		await writeJsonAtomic(file, { head, snapshot, legacySnapshot });
 	} catch {
 		// Snapshot limits, unavailable Git or interruption leave attribution unknown.
 	}
