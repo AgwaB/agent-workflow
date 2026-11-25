@@ -38,6 +38,9 @@ import {
 import type {
 	ArtifactGraphStageSpec,
 	ArtifactGraphWorkflowSpec,
+	CompiledLoopStageRecord,
+	CompiledTask,
+	CompiledWorkflow,
 	WorkflowAutoRoute,
 	WorkflowToolSpec,
 } from "./types.js";
@@ -877,10 +880,7 @@ async function resolveEffectiveCandidateFacts(
 			}
 		}
 
-		candidate.facts = deriveEffectiveWorkflowFacts(
-			{ tasks: compiled.flatMap((item) => item.tasks) },
-			candidate.facts,
-		);
+		candidate.facts = deriveEffectiveWorkflowFacts(compiled, candidate.facts);
 		candidate.comparison = comparisonFromSpec(candidate.spec, candidate.facts);
 	} catch (error) {
 		// Preselection remains a bounded metadata surface. Source-code closure and
@@ -1089,8 +1089,23 @@ function assertBoundedWorkflowAutoJson(value: unknown): void {
 	}
 }
 
+// Dag children are already flattened into tasks; loop children and exhaustion are templates.
+function* executableTemplates(
+	workflows: readonly Pick<CompiledWorkflow, "tasks" | "stages">[],
+): Iterable<CompiledTask> {
+	for (const workflow of workflows) {
+		yield* workflow.tasks;
+		for (const stage of workflow.stages ?? []) {
+			if (stage.type !== "loop") continue;
+			const loop = stage as CompiledLoopStageRecord;
+			yield* loop.childTemplates;
+			if (loop.onExhausted) yield loop.onExhausted.template;
+		}
+	}
+}
+
 function deriveEffectiveWorkflowFacts(
-	compiled: { tasks: any[] },
+	workflows: readonly Pick<CompiledWorkflow, "tasks" | "stages">[],
 	fallback: WorkflowAutoCandidateFacts,
 ): WorkflowAutoCandidateFacts {
 	const agents = new Set<string>();
@@ -1127,7 +1142,8 @@ function deriveEffectiveWorkflowFacts(
 			else if (posture === "unknown") sawUnknownNetwork = true;
 		}
 	};
-	for (const task of compiled.tasks) {
+	const templates = [...executableTemplates(workflows)];
+	for (const task of templates) {
 		if (task.agent !== "dynamic" && task.agent !== "support")
 			agents.add(task.agent);
 		addRuntime(task.runtime);
@@ -1165,21 +1181,22 @@ function deriveEffectiveWorkflowFacts(
 		: sawUnknownNetwork
 			? "unknown"
 			: "local";
-	const capability = unknownTools.size
-		? "unknown"
-		: capabilities.has("mutation-capable")
-			? "mutation-capable"
-			: capabilities.has("write-capable")
-				? "write-capable"
-				: capabilities.has("read-only")
-					? "read-only"
-					: "unknown";
+	const capability =
+		hasSupport || unknownTools.size
+			? "unknown"
+			: capabilities.has("mutation-capable")
+				? "mutation-capable"
+				: capabilities.has("write-capable")
+					? "write-capable"
+					: capabilities.has("read-only")
+						? "read-only"
+						: "unknown";
 	return {
 		...fallback,
-		stageCount: compiled.tasks.length,
+		stageCount: templates.length,
 		stageTypes: [
 			...new Set<string>(
-				(compiled.tasks as Array<{ kind?: string; support?: unknown }>).map(
+				templates.map(
 					(task) => task.kind ?? (task.support ? "support" : "single"),
 				),
 			),
@@ -1216,7 +1233,7 @@ export function assertWorkflowAutoResolvedCandidateSafety(
 ): void {
 	const revalidated: WorkflowAutoCandidate = {
 		...candidate,
-		facts: deriveEffectiveWorkflowFacts(compiled, candidate.facts),
+		facts: deriveEffectiveWorkflowFacts([compiled], candidate.facts),
 		readiness: {
 			status: "ready",
 			startAllowed: true,
