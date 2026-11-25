@@ -12,7 +12,7 @@
 //
 // Options
 //   title      the report's H1 (optional); intro: one paragraph of plain text (optional).
-//   sections   [{ title, from, rows, type, columns | template | textField/hrefField, sortBy, limit, emptyText }]
+//   sections   [{ title, from, rows, type, columns | template | textField/hrefField, sortBy, limit, countBy, emptyText }]
 //     from/rows   stage id or source key (or an array) and the row-array path (default "items"); a stage id
 //                 with foreach items collects every completed item.
 //     type        "table" (default), "list" or "index".
@@ -26,6 +26,7 @@
 //     textField/hrefField  index entry paths (default "text" and "href"); hrefs are relative file paths.
 //     sortBy      a field path, ascending (numbers numerically, text by code point); stable.
 //     limit       show at most this many rows and say how many more there were (default: all).
+//     countBy     group the displayed rows by a field path and show the counts beside the section.
 //     emptyText   the line shown when there are no rows (default "None.").
 // Library (pure; pass rows directly)
 //   renderTable(rows, columns, options), renderList(rows, options), renderCell(value, options),
@@ -56,7 +57,7 @@ function pick(value, path) {
 
 /** Text with Markdown, HTML and table characters escaped and every whitespace run (newlines too) one space. */
 export function escapeText(text) {
-	return String(text)
+	return String(valueOr(text, ""))
 		.replace(/\s+/g, " ")
 		.trim()
 		.replace(/([\\`*_[\]<>|&~])/g, "\\$1");
@@ -64,7 +65,10 @@ export function escapeText(text) {
 
 /** An inline code span that survives backticks and pipes inside the text. */
 export function codeSpan(text) {
-	const flat = String(text).replace(/\s+/g, " ").trim().replace(/\|/g, "\\|");
+	const flat = String(valueOr(text, ""))
+		.replace(/\s+/g, " ")
+		.trim()
+		.replace(/\|/g, "\\|");
 	if (flat === "") return "";
 	const longest = Math.max(
 		0,
@@ -356,10 +360,16 @@ export default async function helper({ sources, options, context }) {
 				: section.type === "index"
 					? renderIndex(shown, section)
 					: renderTable(shown, section.columns, section);
+		const groups =
+			typeof section.countBy === "string" && shown.length > 0
+				? Object.entries(countBy(shown, section.countBy))
+						.map(([key, count]) => `${escapeText(key)}: ${count}`)
+						.join("; ")
+				: "";
 		const more =
 			total > shown.length ? `\n\n_… and ${total - shown.length} more._` : "";
 		parts.push(
-			`${typeof section.title === "string" && section.title !== "" ? `## ${escapeText(section.title)} (${total})\n\n` : ""}${body}${more}`,
+			`${typeof section.title === "string" && section.title !== "" ? `## ${escapeText(section.title)} (${total})\n\n` : ""}${groups ? `Counts by ${escapeText(section.countBy)}: ${groups}\n\n` : ""}${body}${more}`,
 		);
 		sizes.push(`${clip(section.title ?? section.from, 40)}: ${total}`);
 	}

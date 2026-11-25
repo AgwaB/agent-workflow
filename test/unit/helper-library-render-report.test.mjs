@@ -263,7 +263,7 @@ test("long verdicts clip at words and missing evidence fields use a chosen place
 		assert.equal(render.valueOr(value, "missing"), "missing");
 });
 
-test("severity counts come from rendered rows, including rows with missing or unusual keys", () => {
+test("severity counts come from rendered rows, including rows with missing or unusual keys", async () => {
 	const rows = [
 		{ severity: "high" },
 		{ severity: "medium" },
@@ -280,5 +280,17 @@ test("severity counts come from rendered rows, including rows with missing or un
 	assert.equal(
 		Object.values(render.countBy(rows, "severity")).reduce((a, b) => a + b),
 		rows.length,
+	);
+	const stage = await helper({
+		sources: { find: { items: rows } },
+		options: {
+			sections: [
+				{ from: "find", columns: ["severity"], limit: 2, countBy: "severity" },
+			],
+		},
+	});
+	assert.match(
+		stage.markdown,
+		/^Counts by severity: high: 1; medium: 1\n\n\| severity \|/,
 	);
 });
