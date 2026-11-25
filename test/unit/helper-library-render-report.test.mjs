@@ -59,7 +59,7 @@ test("null, numbers, booleans, long text and empty tables", () => {
 	assert.equal(render.renderCell(undefined, { empty: "-" }), "-");
 	assert.equal(render.renderCell(0), "0");
 	assert.equal(render.renderCell(false), "false");
-	assert.equal(render.renderCell("x".repeat(20), { max: 10 }), "xxxxxxxxx…");
+	assert.equal(render.renderCell("x".repeat(20), { max: 10 }), "…");
 	assert.equal(render.renderTable([], ["a"]), "None.");
 	assert.equal(
 		render.renderTable([], ["a"], { emptyText: "Nothing found." }),
@@ -175,5 +175,110 @@ test("the helper throws for wiring faults: no sections, no from, a missing or no
 			options: { sections: [{ from: "x" }] },
 		}),
 		/no array/,
+	);
+});
+
+test("report index links to files, escapes labels and URL-encodes paths", async () => {
+	const entries = [
+		{ title: "Risk [notes]", file: "./risks.md" },
+		{
+			title: "Architecture | dependencies",
+			file: "reports/design (final)#1.md",
+		},
+	];
+	const markdown =
+		"- [Risk \\[notes\\]](risks.md)\n- [Architecture \\| dependencies](reports/design%20%28final%29%231.md)";
+	const section = {
+		type: "index",
+		from: "reports",
+		textField: "title",
+		hrefField: "file",
+	};
+	assert.equal(render.renderIndex(entries, section), markdown);
+	assert.equal(
+		(
+			await helper({
+				sources: { reports: { items: entries } },
+				options: { sections: [section] },
+			})
+		).markdown,
+		`${markdown}\n`,
+	);
+	assert.equal(
+		render.link(null, "reports/../risk.md"),
+		"[reports/../risk.md](risk.md)",
+	);
+	assert.equal(
+		render.link("Literal", "%2e%2e/file.md"),
+		"[Literal](%252e%252e/file.md)",
+	);
+	for (const href of [
+		"/risks.md",
+		"../risks.md",
+		"out/../../risk.md",
+		"C:/risk.md",
+		"a\\..\\risk.md",
+		"//host/x",
+		"https://host/x",
+		"javascript:alert(1)",
+		".",
+		"docs/..",
+		" docs.md",
+		"",
+		null,
+	]) {
+		assert.throws(
+			() => render.link("Report", href),
+			/relative file path/,
+			href,
+		);
+	}
+});
+
+test("long verdicts clip at words and missing evidence fields use a chosen placeholder", () => {
+	assert.equal(
+		render.clipWords("Redelivery overlaps\n the active charge", 24),
+		"Redelivery overlaps the…",
+	);
+	assert.equal(render.clipWords("redelivery", 4), "…");
+	assert.equal(render.clipWords("word", 4), "word");
+	assert.equal(render.clipWords("😀 next", 3), "😀…");
+	assert.equal(render.clipWords("x y z", 1), "…");
+	assert.equal(render.clipWords("x", 0), "");
+	assert.equal(
+		render.renderTable(
+			[{ file: "queue.js", startLine: null }],
+			[
+				"file",
+				{ field: "startLine", empty: "(unknown)" },
+				{ field: "endLine", empty: "(unknown)" },
+			],
+		),
+		"| file | startLine | endLine |\n| --- | --- | --- |\n| queue.js | (unknown) | (unknown) |",
+	);
+	assert.equal(render.renderCell(null, { empty: "a | b" }), "a \\| b");
+	for (const value of [0, false, ""])
+		assert.equal(render.valueOr(value, "missing"), value);
+	for (const value of [null, undefined])
+		assert.equal(render.valueOr(value, "missing"), "missing");
+});
+
+test("severity counts come from rendered rows, including rows with missing or unusual keys", () => {
+	const rows = [
+		{ severity: "high" },
+		{ severity: "medium" },
+		{ severity: "high" },
+		{},
+		{ severity: "__proto__" },
+	];
+	assert.deepEqual(render.countBy(rows, "severity"), {
+		high: 2,
+		medium: 1,
+		"(missing)": 1,
+		["__proto__"]: 1,
+	});
+	assert.equal(
+		Object.values(render.countBy(rows, "severity")).reduce((a, b) => a + b),
+		rows.length,
 	);
 });
