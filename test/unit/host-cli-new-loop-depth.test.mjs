@@ -879,6 +879,62 @@ test("fix-loop round 3: an unrelated commit does not change a protected director
 	assert.deepEqual(test.runFiles, ["src/note.txt"]);
 });
 
+test("fix-loop round 3: a capped list gives only a lower bound for unreported changes", async () => {
+	const { dir, helpers } = await generated("fix-loop", "capped", FIX_HELPERS);
+	const tree = await testWorktree(dir, "exports.value = () => 2;\n");
+	await Promise.all(
+		Array.from({ length: 121 }, (_, i) =>
+			writeFile(join(tree, "src", `new-${i}.txt`), "new\n"),
+		),
+	);
+	const test = await helpers["run-tests.mjs"]({
+		options: { command: ["node", "--test"] },
+		context: TEST_CONTEXT(dir),
+	});
+	assert.equal(test.runTotal, 121);
+	assert.equal(test.runFiles.length, 100);
+	const value = await helpers["report-fix.mjs"](
+		reportInput({
+			loop: { loopId: "fix-loop", status: "completed", roundsUsed: 1 },
+			test,
+		}),
+	);
+	assert.equal(value.unreportedFiles.length, 100);
+	assert.match(value.markdown, /Changes no round reported \(at least 100\)/u);
+	assert.match(value.markdown, /Net changes during this run \(121\)/u);
+});
+
+test("fix-loop round 3: a missing measurement is distinct from a measured zero", async () => {
+	const { helpers } = await generated("fix-loop", "unmeasured", FIX_HELPERS);
+	const report = helpers["report-fix.mjs"];
+	const loop = { loopId: "fix-loop", status: "failed", roundsUsed: 2 };
+	const value = await report(
+		reportInput({
+			loop,
+			earlier: {
+				test: [
+					{
+						round: 1,
+						status: "completed",
+						control: {
+							...TEST_RED,
+							roundFiles: [],
+							roundTotal: 0,
+							roundBaselineKnown: true,
+						},
+					},
+				],
+			},
+		}),
+	);
+	assert.match(value.markdown, /\| 1 \| - \| \(0\) - \| red/u);
+	assert.match(
+		value.markdown,
+		/\| 2 \| - \| unknown \(not measured\) \| not verified/u,
+	);
+	assert.equal(value.rows[1].baselineKnown, false);
+});
+
 test("fix-loop: renamed tester feeds two real rounds to the report without duplicating a delta", async () => {
 	const { dir, helpers } = await generated("fix-loop", "rename", FIX_HELPERS);
 	const tree = await testWorktree(dir, "exports.value = () => 2;\n");

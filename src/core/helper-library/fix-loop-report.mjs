@@ -62,7 +62,8 @@ function markdownFor(view) {
     let budget = 8000;
     let shown = 0;
     for (const row of view.rows) {
-      const files = row.baselineKnown === false ? "unknown (baseline unavailable)"
+      const files = !row.measured ? "unknown (not measured)"
+        : row.baselineKnown === false ? "unknown (baseline unavailable)"
         : "(" + row.total + ") " + pathList(row.files, row.total, 250, (file) => cell(file, 120), "-");
       const line = "| " + row.round + " | " + cell(row.summary || "-", 160) + " | " + files + " | " + cell(row.tests, 160) + " |";
       if (line.length + 1 > budget) break;
@@ -75,7 +76,7 @@ function markdownFor(view) {
   }
   lines.push("## Verified state of the worktree", "");
   if (view.measured) {
-    const paths = (label, values, total) => "- " + label + " (" + total + "): " + pathList(values, total, 1400, (file) => code(file, 120));
+    const paths = (label, values, total, lowerBound = false) => "- " + label + " (" + (lowerBound ? "at least " : "") + total + "): " + pathList(values, total, 1400, (file) => code(file, 120));
     const unknown = ": unknown (baseline unavailable)";
     lines.push(
       "- Test command: " + code(view.command, 300) + (view.verified ? ", exit " + view.exitCode + (view.passed >= 0 ? ", " + view.passed + " passed" : "") + (view.failed >= 0 ? ", " + view.failed + " failed" : "") : ": " + STATUS_TEXT[view.status]),
@@ -88,7 +89,8 @@ function markdownFor(view) {
         view.runBaselineKnown ? paths("Net changes during this run", view.runFiles, view.runTotal) : "- Net changes during this run" + unknown,
       );
     }
-    if (view.unreported.length > 0) lines.push(paths("Changes no round reported", view.unreported, view.unreported.length));
+    if (view.unreported.length > 0) lines.push(paths("Changes no round reported", view.unreported, view.unreported.length, view.unreportedCapped));
+    else if (view.unreportedCapped) lines.push("- Changes no round reported: unknown (path list truncated)");
     if (view.outputTruncated) lines.push("- Test output was truncated.");
     if (view.note) lines.push("- Diagnostic: " + cell(view.note, 300));
     lines.push("");
@@ -132,10 +134,13 @@ export default async function helper({ sources, options, context }) {
       : measured.outcome + ", exit " + measured.exitCode + (measured.failed >= 0 ? ", " + measured.failed + " failing" : "");
     if (Array.isArray(writer?.files)) for (const file of writer.files) named.add(file);
     const files = measured?.roundFiles ?? [];
-    rows.push({ round, summary: clip(writer?.summary ?? "", 200), files: files.slice(0, 6), total: measured?.roundTotal ?? files.length, baselineKnown: measured?.roundBaselineKnown, tests: clip(tests, 200) });
+    rows.push({ round, summary: clip(writer?.summary ?? "", 200), files: files.slice(0, 6), total: measured?.roundTotal ?? files.length, baselineKnown: measured?.roundBaselineKnown, measured: Boolean(measured), tests: clip(tests, 200) });
   }
   const changed = measured && Array.isArray(test.changedFiles) ? test.changedFiles : [];
-  const unreported = (test?.runFiles ?? changed).filter((file) => !named.has(file));
+  const compared = test?.runFiles ?? changed;
+  const comparedTotal = (Array.isArray(test?.runFiles) ? test.runTotal : test?.changedTotal) ?? compared.length;
+  const unreported = compared.filter((file) => !named.has(file));
+  const unreportedCapped = comparedTotal > compared.length;
 
   let headline;
   if (status === "green") headline = "Tests are green after " + rounds + " round" + (rounds === 1 ? "" : "s") + ": the test command exited 0 in the kept worktree.";
@@ -154,7 +159,7 @@ export default async function helper({ sources, options, context }) {
     preExistingFiles: test?.preExistingFiles ?? [], preExistingTotal: test?.preExistingTotal ?? test?.preExistingFiles?.length ?? 0,
     runFiles: test?.runFiles ?? [], runTotal: test?.runTotal ?? test?.runFiles?.length ?? 0,
     changed, changedTotal: test?.changedTotal ?? changed.length,
-    protectedChanged, protectedTotal: test?.protectedTotal ?? protectedChanged.length, unreported, excerpt: measured && !green ? String(test.excerpt || "") : "",
+    protectedChanged, protectedTotal: test?.protectedTotal ?? protectedChanged.length, unreported, unreportedCapped, excerpt: measured && !green ? String(test.excerpt || "") : "",
   };
   const markdown = markdownFor(view);
   return {
