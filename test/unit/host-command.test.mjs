@@ -12,13 +12,14 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
 import {
 	listRunRecords,
 	readRunRecord,
+	setRunLeaseTestHooksForTests,
 	writeRunRecord,
 } from "../../dist/core/store.js";
 import { projectId } from "../../dist/core/state-location.js";
@@ -344,6 +345,38 @@ test("auto: injected classifier starts the top candidate and records command con
 		1,
 	);
 });
+
+for (const args of [
+	"run hook-alpha Review the parser",
+	"auto Do a careful code review of the parser module",
+]) {
+	test(`${args}: a spawn failure reports wait, not a future notification`, async (t) => {
+		const { cwd, env, invoke } = await project(t);
+		env.AGENT_WORKFLOW_HOST_WAKE = "1";
+		setRunLeaseTestHooksForTests({
+			async onBeforeReleaseLockRename({ lockFile }) {
+				if (
+					basename(lockFile) === "supervisor.lock" &&
+					existsSync(join(dirname(lockFile), "run.json"))
+				)
+					await mkdir(join(dirname(lockFile), "supervise.log"), {
+						recursive: true,
+					});
+			},
+		});
+		let out;
+		try {
+			out = await invoke("codex", args);
+		} finally {
+			setRunLeaseTestHooksForTests();
+		}
+		const id = runId(out);
+		assert.match(out.reason, /Could not start detached supervisor/);
+		assert.match(out.reason, new RegExp(`Wait.*workflow_wait.*${id}`));
+		assert.doesNotMatch(out.reason, /You'll get the result here/);
+		assert.deepEqual(await runHostSessions(cwd, id), []);
+	});
+}
 
 test("auto: classifier failure starts nothing, never silently uses local ranking", async (t) => {
 	const { cwd, invoke } = await project(t, {

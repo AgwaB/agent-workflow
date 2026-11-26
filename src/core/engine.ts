@@ -501,6 +501,8 @@ export interface WorkflowRunOptions {
 	launch?: WorkflowRunLaunchCapture;
 	/** Owned foreground cancellation, never persisted with run authority. */
 	launchSignal?: AbortSignal;
+	/** Publish without dispatching or starting a watcher; another driver must schedule the run. */
+	deferScheduling?: boolean;
 	/**
 	 * Overrides for inputs the workflow spec declares (for example depth).
 	 * Keys the spec does not declare are ignored.
@@ -1269,6 +1271,8 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			`Could not acquire supervisor lease to initialize ${run.runId}; another supervisor may be active`,
 		);
 	}
+
+	if (options.deferScheduling) return initialized;
 
 	const scheduleOptions = {
 		availableModels: options.availableModels,
@@ -3226,7 +3230,8 @@ async function runStopRecordedForResume(
 export async function resumeRun(
 	cwd: string,
 	runIdOrPrefix: string,
-	options: WorkflowScheduleOptions = {},
+	options: WorkflowScheduleOptions &
+		Pick<WorkflowRunOptions, "deferScheduling"> = {},
 ): Promise<ResumeRunSummary> {
 	let current = await readRunRecord(cwd, runIdOrPrefix);
 	// A `running` run whose driver is clearly gone is interrupted first, so resume is one step.
@@ -3394,6 +3399,8 @@ export async function resumeRun(
 		throw new Error(
 			`No failed, interrupted, skipped, or resumable blocked tasks to resume in ${current.runId}`,
 		);
+
+	if (options.deferScheduling) return { run: updated, resetTaskIds };
 
 	const scheduled =
 		(await scheduleRun(cwd, current.runId, undefined, options)) ??

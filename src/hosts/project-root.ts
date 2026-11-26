@@ -14,6 +14,10 @@ import {
 	PROJECT_STATE_DIRECTORY,
 } from "../core/home-dir.js";
 
+/** An internal supervise child must use its host-selected cwd, not rediscover a project. */
+export const SUPERVISOR_PROJECT_FROM_CWD_ENV =
+	"AGENT_WORKFLOW_SUPERVISOR_PROJECT_FROM_CWD";
+
 function samePath(left: string, right: string): boolean {
 	try {
 		return realpathSync(left) === realpathSync(right);

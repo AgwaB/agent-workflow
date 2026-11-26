@@ -1560,7 +1560,8 @@ export function createHostMcpService(
 		data: LaunchData | undefined,
 		call: McpToolCallContext,
 	): Promise<Delivery> => {
-		if (!data?.runId || data.status !== "running") return "wait";
+		if (!data?.runId || data.detachError || data.status !== "running")
+			return "wait";
 		if (options.host === "claude-code") {
 			const session = env.CLAUDE_CODE_SESSION_ID;
 			if (!isHostSessionId(session)) return "wait";

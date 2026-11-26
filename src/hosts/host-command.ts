@@ -212,6 +212,7 @@ async function launchText(
 	text: string,
 	session: unknown,
 ): Promise<string> {
+	if (data.detachError) return data.detachError;
 	if (!data.runId) return text;
 	if (
 		isHostSessionId(session) &&
