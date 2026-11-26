@@ -832,13 +832,12 @@ the generated Contract paragraph and few-shot `<control>` skeleton after it come
 `validate`, `check`, `rehearse` and a cheap smoke run. It never overwrites files without `--force`
 ([cli.md](cli.md#new)).
 
-Logic that authors tend to get wrong by hand is available as tested building blocks:
-`agent-workflow new helper <helper> <workflow>` copies `evidence-gate` (finds a claim's quote in its file and
-corrects the model's line numbers instead of dropping the finding), `keyed-join` (a diff by method + path),
-`graph-edges` (cycles and hubs) or `render-report` (Markdown tables that never print `[object Object]`) into the
-bundle's `helpers/`; you add the support stage and its `controlSchema` ([cli.md](cli.md#new-helper)). Use
-`render-report` (stage or library) for Markdown assembled by a support helper, and `coverage-gate` to check
-that a fan-out covered every expected ID.
+When authoring by hand, copy tested `.mjs` files into the workflow's `helpers/` from `dist/core/helper-library/`
+in the npm package (including Pi) or `reference/helpers/` in the Claude Code/Codex plugin. Use `evidence-locate`
+and `evidence-gate` for quote checks, `keyed-join` for composite-key diffs, `graph-edges` for cycles and hubs,
+`render-report` (stage or library) for Markdown, and `coverage-gate` for fan-out completeness. Copy imported
+siblings too: `evidence-locate.mjs` for the evidence gate and `key-normalize.mjs` for keyed join or coverage.
+The headers show options and outputs for writing the support stage and its `output.controlSchema`.
 
 ### Rehearse a workflow
 

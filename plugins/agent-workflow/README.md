@@ -18,7 +18,7 @@ Contents:
   `.claude-plugin/plugin.json`, Codex reads `.codex-plugin/plugin.json`; each passes its own `--host`.
 - Skills: `agent-workflow` (tool call protocol), `aw` (command fallback), `workflow-guide` (authoring workflows),
   `execution-router` (choosing a route without running anything).
-- `reference/`: copies of the agent-workflow usage guide and bundled workflow specs used by
+- `reference/`: the usage guide, bundled workflow specs and copyable helpers used by
   `workflow-guide`.
 
 Install:
