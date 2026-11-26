@@ -100,6 +100,20 @@ async function createBrowserOnce(
 			resolve();
 		}),
 	);
+	const whenExited = new Promise((resolve) => chrome.once("exit", resolve));
+	const waitUpTo = async (done, timeoutMs) => {
+		let timer;
+		try {
+			await Promise.race([
+				done,
+				new Promise((resolve) => (timer = setTimeout(resolve, timeoutMs))),
+			]);
+		} finally {
+			clearTimeout(timer);
+		}
+	};
+	const isChromeRunning = () =>
+		chrome.pid && chrome.exitCode === null && chrome.signalCode === null;
 	chrome.stderr.on("data", (chunk) => {
 		stderrTail = (stderrTail + chunk.toString()).slice(-4000);
 	});
@@ -530,34 +544,22 @@ async function createBrowserOnce(
 		}
 		eventWaiters.clear();
 		try {
-			// Bounded: an unresponsive Chrome is killed below rather than awaited for 60 s.
 			await send("Browser.close", {}, null, 3000);
-		} catch {}
-		// Its DevTools pipe already gone, Chrome cannot answer Browser.close. 2026-11-10 (CI 42762043887, ubuntu): a
-		// Chrome that closes its pipe and then prints why it failed lost that line to an immediate kill; it gets a
-		// moment to end on its own (and drain its stderr) before it is stopped.
-		if (chrome.exitCode === null && chrome.signalCode === null && exitError) {
-			await Promise.race([
-				whenClosed,
-				new Promise((resolve) => setTimeout(resolve, 1000).unref()),
-			]);
-			if (!closed) chrome.kill();
+			await waitUpTo(whenClosed, 3000);
+		} catch {
+			// Chrome can close the DevTools pipe before printing why it failed (CI 42762043887).
+			if (exitError) await waitUpTo(whenClosed, 1000);
 		}
-		if (!closed && !startupError)
-			await Promise.race([
-				whenClosed,
-				new Promise((resolve) =>
-					setTimeout(() => {
-						chrome.kill();
-						resolve();
-					}, 3000).unref(),
-				),
-			]);
-		for (const p of pending.values()) {
-			clearTimeout(p.timer);
-			p.reject(new Error("Browser closed"));
+		if (!closed) {
+			// SIGTERM can leave a hung Chrome alive. Kill only this child, and release our ends of
+			// the pipes even if one of its descendants still holds Chrome's ends open.
+			if (isChromeRunning()) chrome.kill("SIGKILL");
+			for (const stream of chrome.stdio) stream?.destroy();
+			if (isChromeRunning()) await waitUpTo(whenExited, 1000);
+			// Don't let a child stuck in the kernel pin the test process even after SIGKILL.
+			if (isChromeRunning()) chrome.unref();
 		}
-		pending.clear();
+		failPending(new Error("Browser closed"));
 		await rm(profile, {
 			recursive: true,
 			force: true,
