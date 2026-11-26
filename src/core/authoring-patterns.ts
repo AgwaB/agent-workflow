@@ -786,6 +786,7 @@ function inventoryForeachPattern(name: string): Bundle {
 				from: ["verify-inventory", "work"],
 				sourcePolicy: "partial",
 				inputPolicy: {
+					invalidateOnDependencyResume: true,
 					requiredReads: [{ source: "verify-inventory", artifact: "control" }],
 					enforcement: "fail",
 				},
@@ -2686,6 +2687,7 @@ function adaptiveDepthPattern(name: string): Bundle {
 				type: "foreach",
 				profileRole: "verification",
 				from: { source: "attach-findings", path: "$.items" },
+				inputPolicy: { invalidateOnDependencyResume: true },
 				injectRuntimeTask: true,
 				output: output("disposition.schema.json"),
 				each: {
@@ -2711,6 +2713,7 @@ function adaptiveDepthPattern(name: string): Bundle {
 				id: "report",
 				from: ["collect"],
 				sourcePolicy: "partial",
+				inputPolicy: { invalidateOnDependencyResume: true },
 				support: { uses: "./helpers/render-depth.mjs" },
 				output: {
 					analysis: { required: true },

@@ -2846,6 +2846,7 @@ test("deep-review artifact-graph support lifecycle retains adverse needs-human a
 						id: "partition-verdicts",
 						from: ["dedup-findings", "devil-advocate"],
 						sourcePolicy: "partial",
+						inputPolicy: { invalidateOnDependencyResume: true },
 						support: {
 							uses: "./helpers/finding-pipeline.mjs",
 							options: {
@@ -2875,6 +2876,7 @@ test("deep-review artifact-graph support lifecycle retains adverse needs-human a
 						id: "final",
 						from: ["report", "partition-verdicts"],
 						sourcePolicy: "partial",
+						inputPolicy: { invalidateOnDependencyResume: true },
 						support: { uses: "./helpers/render-review-report.mjs" },
 					},
 				],
@@ -8183,7 +8185,8 @@ test("workflow output parser repairs known workflow control schema slips before 
 		readFileSync(
 			join(
 				repoRoot,
-				"workflows",
+				"test",
+				"fixtures",
 				"deep-research",
 				"schemas",
 				"deep-research-final-synthesis-control.schema.json",

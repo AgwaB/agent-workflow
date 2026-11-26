@@ -38,6 +38,10 @@ The launch preflight without the launch: picks the executor, compiles the spec a
 needs — executor installed and logged in, every stage's tools, model and effort available on the
 executor that would run it, capabilities. Prints the same short check as a launch; exit 1 and the
 reasons when something would stop the run. No run is created and no model is called.`,
+	contract: `Usage: agent-workflow contract <workflow-name-or-path> <stage> [--json]
+
+Print the schema-generated Contract paragraph for a stage (use a dotted id for a nested stage).
+No run or model call. Paste it into the prompt and adapt the illustrative values if needed.`,
 	rehearse: `Usage: agent-workflow rehearse <workflow-name-or-path> [<task...>] [--items N] [--loop pass|exhaust]
                            [--keep] [--json]
 
@@ -255,6 +259,7 @@ Workflows:
   list                 list discoverable workflows
   validate <workflow>  validate a workflow spec
   check <workflow>     launch preflight: executor, tools, models, effort (no run, no model call)
+  contract <workflow> <stage>  print a stage's schema-generated prompt Contract
   rehearse <workflow>  run the real engine with a synthetic worker (no model call, temporary state)
   new <pattern> <name> create a workflow from a pattern (--list shows them; no model call)
   new helper <h> <wf>  add a verified helper (evidence gate, keyed join, ...) to a workflow

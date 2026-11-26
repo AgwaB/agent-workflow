@@ -315,7 +315,7 @@ test("live research correction reconciles canonical slots and preserves blocked/
 	const synthesisSchema = JSON.parse(
 		await readFile(
 			new URL(
-				"../../workflows/deep-research/schemas/deep-research-final-synthesis-control.schema.json",
+				"../fixtures/deep-research/schemas/deep-research-final-synthesis-control.schema.json",
 				import.meta.url,
 			),
 			"utf8",

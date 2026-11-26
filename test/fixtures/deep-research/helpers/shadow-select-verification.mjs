@@ -1,4 +1,4 @@
-import { findSource as canonicalSource } from "./source-access.mjs";
+import { findSource as canonicalSource } from "../../../../workflows/deep-research/helpers/source-access.mjs";
 // Shadow-only selective verification reporter for deep-research.
 //
 // This helper never skips verification. It records which candidates a future

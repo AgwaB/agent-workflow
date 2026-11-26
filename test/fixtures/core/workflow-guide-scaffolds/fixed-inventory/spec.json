@@ -74,7 +74,8 @@
 				"from": ["inventory", "questions"],
 				"sourcePolicy": "partial",
 				"inputPolicy": {
-					"terminalBarrier": "all-sources"
+					"terminalBarrier": "all-sources",
+					"invalidateOnDependencyResume": true
 				},
 				"output": {
 					"analysis": {
