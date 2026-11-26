@@ -175,6 +175,34 @@ test("the same report enables folds, localized chips and trust styling only in r
 	}
 });
 
+test("an unmatched backtick in a list item does not hide the next deep-review finding", {
+	timeout: 30000,
+}, async (t) => {
+	const { browser, open } = await reportBrowser(
+		t,
+		[
+			"# Review report",
+			"",
+			"- Unmatched ` in preceding item",
+			"### finding-001 — Correct `src/main.ts`",
+			"Severity: high",
+		].join("\n"),
+		[runFixture],
+	);
+	await open(runFixture);
+	const out = await browser.evaluate(() => {
+		const content = document.querySelector(".report-content");
+		return [
+			content.querySelector("li")?.textContent,
+			content.querySelector(".finding-card .finding-title")?.textContent,
+		];
+	});
+	assert.deepEqual(out, [
+		"Unmatched ` in preceding item",
+		"Correct src/main.ts",
+	]);
+});
+
 test("an ambiguous fold stays literal and code regions never create folds or finding cards", {
 	timeout: 30000,
 }, async (t) => {
@@ -334,4 +362,22 @@ test("the written report restores literal quote and source text in the dashboard
 	assert.equal(out.quote, '"One  two\\n  <quote> *literal* [detail](target)"');
 	assert.match(out.text, /<step> \[check\]\(target\)/);
 	assert.match(out.text, /https:\/\/\[invalid <bad-url>/);
+});
+
+test("the dashboard decodes angle-delimited links with reserved path and query characters", {
+	timeout: 30000,
+}, async (t) => {
+	const { browser, open } = await reportBrowser(
+		t,
+		[
+			"# Research report",
+			"",
+			"[Download](<https://example.org/file(a)?sig=(XYZ)&amp;x=&amp;amp;#line>)",
+		].join("\n"),
+	);
+	await open(research);
+	const target = await browser.evaluate(
+		() => document.querySelector(".report-content .md-url")?.textContent,
+	);
+	assert.equal(target, " (https://example.org/file(a)?sig=(XYZ)&x=&amp;#line)");
 });

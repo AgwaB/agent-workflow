@@ -3,7 +3,14 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { validateJsonSchema } from "../../dist/core/json-schema.js";
+import {
+	validateJsonSchema,
+	validateJsonSchemaSubset,
+} from "../../dist/core/json-schema.js";
+import {
+	buildWorkflowOutputRetryInstructions,
+	parseWorkflowOutputForBundle,
+} from "../../dist/core/workflow-output-artifacts.js";
 import finalPacket from "../../workflows/deep-research/helpers/final-audit-packet.mjs";
 import render, {
 	numbersDroppedBy,
@@ -1122,6 +1129,105 @@ test("written report keeps untrusted markup and invalid destinations literal", a
 	);
 });
 
+// No GFM parser is in devDependencies. Test the raw delimiter triggers for
+// www/URL, email and explicit angle autolinks, then decode one Markdown layer.
+const decodeEntities = (text) =>
+	text.replace(
+		/&(amp|lt|gt|#\d+);/g,
+		(_, name) =>
+			({ amp: "&", lt: "<", gt: ">" })[name] ??
+			String.fromCodePoint(Number(name.slice(1))),
+	);
+const decodeLiteral = (text) =>
+	decodeEntities(text.replace(/\\([!-/:-@[-`{-~])/g, "$1"));
+
+test("GFM keeps rejected URLs and emails literal without changing quote text", async () => {
+	const quote =
+		"Write editor+docs@example.org or visit WWW.Example.org and HTTPS://Example.org.";
+	const rejected = [
+		"<mailto:editor@example.org>",
+		"editor+docs@example.org",
+		"www.Example.org",
+		"https://[broken",
+	];
+	const result = await render({
+		sources: legacyReport({
+			mainFindings: [
+				{
+					finding: "Literal references",
+					evidence: [{ quote }],
+					sourceUrls: rejected,
+				},
+			],
+		}),
+	});
+	assert.equal(result.status, "passed");
+	const lines = result.reportMarkdown.split("\n");
+	const quoteLine = lines.find((line) => line.includes("Write editor"));
+	const refsLine = lines.find((line) => line.includes("mailto"));
+	for (const line of [quoteLine, refsLine]) {
+		assert.doesNotMatch(line, /https?:\/\/|www\.|@|<[^>]+>|(?<!\\)\]\(/i);
+	}
+	assert.ok(decodeLiteral(quoteLine).includes(JSON.stringify(quote)));
+	for (const ref of rejected)
+		assert.ok(decodeLiteral(refsLine).includes(ref), ref);
+});
+
+test("published Markdown destinations preserve the original HTTP URL bytes", async () => {
+	const url = "HTTPS://Example.org:443/v1/../file(a)|b?sig=(XYZ)&a=&amp;#line.";
+	const result = await render({
+		sources: legacyReport({
+			mainFindings: [{ finding: "Signed URL", sourceUrls: [url] }],
+		}),
+	});
+	assert.equal(result.status, "passed");
+	assert.deepEqual(result.sourceUrls, [url]);
+	assert.deepEqual(
+		[...result.reportMarkdown.matchAll(/(?<!\\)\]\(<([^>]+)>\)/g)].map((m) =>
+			decodeLiteral(m[1]),
+		),
+		[url, url],
+	);
+});
+
+test("live validation retries blank reader entries and the stored reader blocks them", async () => {
+	const sources = await inputs();
+	const control = liveControl(sources["final-audit"]);
+	sources["final-audit"] = control;
+	assert.equal(validateJsonSchemaSubset(schema).valid, true);
+	for (const [fields, path] of [
+		[{ conclusion: [" ", "\t\u00a0"] }, "$.synthesis.conclusion[0]"],
+		[{ conclusion: ["Ask Dr. Lee.", "\u3000"] }, "$.synthesis.conclusion[1]"],
+		[
+			{ keyPoints: [{ title: " ", text: "Nonblank" }] },
+			"$.synthesis.keyPoints[0].title",
+		],
+		[
+			{ keyPoints: [{ title: "Nonblank", text: " \n " }] },
+			"$.synthesis.keyPoints[0].text",
+		],
+	]) {
+		const candidate = {
+			...control,
+			synthesis: { ...control.synthesis, ...fields },
+		};
+		const options = { controlJsonSchema: schema };
+		const parsed = parseWorkflowOutputForBundle(
+			`<control>${JSON.stringify(candidate)}</control>\n<analysis>Analysis</analysis>\n<refs>[]</refs>`,
+			options,
+		);
+		const stored = await render({
+			sources: { ...sources, "final-audit": candidate },
+		});
+		assert.deepEqual([parsed.valid, stored.status], [false, "blocked"], path);
+		assert.ok(
+			buildWorkflowOutputRetryInstructions(parsed.issues, options).includes(
+				`${path}: control JSON schema failed: string must not be blank`,
+			),
+		);
+	}
+});
+
 test("live synthesis requires the pair; stored paragraphs and bounded abbreviated entries still render", async () => {
 	const sources = await inputs();
 	const control = sources["final-audit"];
@@ -1204,7 +1310,12 @@ test("trust line counts canonical local files and web hosts but not citation lab
 		mainFindings: [
 			{
 				finding: "One finding",
-				sourceRefs: ["RFC 9204, Section 3.1", "file:src/main.ts#L4"],
+				sourceRefs: [
+					"RFC 9204, Section 3.1",
+					"file:src/main.ts#L4-L8",
+					"repo:src/main.ts#L20-22",
+					"file:docs/배포 Notes.md#L2",
+				],
 				sourceUrls: [
 					"https://example.org/path",
 					"https://www.example.org/next",
@@ -1212,19 +1323,31 @@ test("trust line counts canonical local files and web hosts but not citation lab
 				evidence: [
 					{ file: "example.org", quote: "One local quote" },
 					{ file: "./src/main.ts", quote: "Another local quote" },
+					{
+						file: "docs/배포 Notes.md",
+						lineStart: 2,
+						lineEnd: 3,
+						quote: "A release note",
+					},
 				],
 			},
 		],
 	});
 	const result = await render({ sources });
-	assert.match(result.reportMarkdown.split("\n")[2], /Sources: 3/);
+	assert.match(result.reportMarkdown.split("\n")[2], /Sources: 4/);
 	assert.deepEqual(
 		[...result.reportMarkdown.matchAll(/^- Local source: (.+)$/gm)]
 			.map((m) => m[1].replaceAll("`", ""))
 			.sort(),
-		["example.org", "src/main.ts"],
+		["docs/배포 Notes.md", "example.org", "src/main.ts"],
 	);
-	assert.match(result.reportMarkdown, /RFC 9204, Section 3\.1/);
+	for (const citation of [
+		"`src/main.ts#L4-L8`",
+		"`src/main.ts#L20-22`",
+		"`docs/배포 Notes.md#L2`",
+		"RFC 9204, Section 3.1",
+	])
+		assert.ok(result.reportMarkdown.includes(citation), citation);
 	assert.doesNotMatch(result.reportMarkdown, /Local source: .*RFC/);
 });
 
@@ -1248,4 +1371,43 @@ test("contradicted file attribution appears in visible limits and the audit", as
 		/## Limits to keep in mind[\s\S]*?- Engine check:/,
 	);
 	assert.match(result.auditMarkdown, /values not in the file: 9204/);
+});
+
+test("a word cap cannot publish disputed advice without its visible correction", async (t) => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-reader-capped-"));
+	t.after(() => rm(cwd, { recursive: true, force: true }));
+	await writeFile(
+		join(cwd, "notes.md"),
+		"There are no protocol numbers here.\n",
+	);
+	const action = "Fix the incorrect RFC 9204 in notes.md.";
+	const sources = legacyReport({ actionPlan: [{ action }] });
+	const context = { cwd, runId: "run", taskId: "task" };
+	const full = await render({ sources, context });
+	assert.equal(full.status, "passed");
+	const maxWords = full.reportMarkdown
+		.split("## Limits to keep in mind")[0]
+		.match(/\S+/g).length;
+	const capped = await render({ sources, context, options: { maxWords } });
+	assert.equal(capped.status, "failed");
+	assert.equal(capped.completionSummaryMarkdown, "");
+	assert.doesNotMatch(capped.reportMarkdown, /Fix the incorrect RFC/);
+	assert.equal(capped.gates.truncatedWithAttributionWarnings, true);
+	assert.ok(capped.wordCount <= maxWords);
+	assert.equal(
+		await readFile(
+			join(
+				cwd,
+				".agent-workflow",
+				"workflows",
+				"run",
+				"tasks",
+				"task",
+				capped.sidecarPath,
+			),
+			"utf8",
+		),
+		`${capped.reportMarkdown}\n`,
+	);
+	assert.match(capped.auditMarkdown, /values not in the file: 9204/);
 });

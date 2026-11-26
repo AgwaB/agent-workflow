@@ -1016,8 +1016,9 @@ sections optional. When quoting a whole protocol response inside analysis, write
 `output.controlSchema: "./schemas/x.schema.json"` (relative to the spec) validates `control.json`
 with a JSON Schema subset: `type`, `required`, `properties`, `items`, `enum`, `const`,
 length/item/number bounds, `additionalProperties`, simple `allOf`/`anyOf`/`oneOf`. `$ref`, `$defs`,
-`definitions` and `pattern` are rejected at load time. String lengths count code points. When the
-schema pins `control.schema` with `const` or a one-value `enum`, the Workflow Output Protocol the engine appends
+`definitions` and `pattern` are rejected at load time. String lengths count code points. The
+workflow-specific `nonBlank: true` keyword rejects strings that are empty after trimming whitespace.
+When the schema pins `control.schema` with `const` or a one-value `enum`, the Workflow Output Protocol the engine appends
 names that value, so the prompt need not repeat it (a larger `enum` still needs the value in the prompt). A root
 `required` array with `minItems >= 1` that a `foreach` stage fans out over (its `from.path` starts with that key)
 also adds one sentence to the protocol: do not invent items, report

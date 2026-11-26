@@ -104,9 +104,10 @@ function escapeMarkdownText(value, { quote = false } = {}) {
 		.replace(/([\\`*_[\]{}#+!|])/g, "\\$1")
 		.replace(/^([-~=])(?=\s|[-~=]|$)/u, "\\$1")
 		.replace(/^(\d{1,9})([.)])(?=\s|$)/u, "$1\\$2")
-		// GFM can autolink bare web URLs, independently of explicit Markdown links.
-		.replace(/\b(https?):(?=\/\/)/gi, "$1&#58;")
-		.replace(/\bwww\.(?=[\w-])/gi, "www&#46;");
+		// Hide GFM's autolink delimiters in the Markdown source, not the rendered text.
+		.replace(/(https?):(?=\/\/)/gi, "$1&#58;")
+		.replace(/(www)\./gi, "$1&#46;")
+		.replace(/@/g, "&#64;");
 }
 
 function completionText(value) {
@@ -187,16 +188,13 @@ function hostOf(url) {
 	}
 }
 
-function normalizeUrl(url) {
-	if (typeof url !== "string") return null;
-	const trimmed = url.trim().replace(/[.,;:]+$/, "");
-	if (!/^https?:\/\//i.test(trimmed) || /[\x00-\x20\x7f-\x9f\\]/u.test(trimmed)) return null;
+function validHttpUrl(text) {
+	if (!/^https?:\/\/[^/?#]/i.test(text) || /[\x00-\x20\x7f-\x9f\\]/u.test(text)) return null;
 	try {
-		const parsed = new URL(trimmed);
-		if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname || parsed.username || parsed.password)
-			return null;
-		parsed.hash = "";
-		return parsed.toString();
+		const parsed = new URL(text);
+		if (!parsed.hostname || parsed.username || parsed.password) return null;
+		// Use URL only for validation: its serialization changes request targets.
+		return text;
 	} catch {
 		return null;
 	}
@@ -206,12 +204,19 @@ const REFERENCE_FIELDS = /^(sourceUrls?|evidenceUrls?|urls?|url|uri|href|links?|
 const LOCAL_FIELDS = /^(files?|paths?|repo)$/i;
 const URL_FIELDS = /^(sourceUrls?|evidenceUrls?|urls?|url|uri|href|links?|references?|refs?|basis|sources?)$/i;
 
-function localIdentity(text, field, cwd) {
+function localLocator(text, field) {
 	const prefix = /^(?:file|repo):/i.exec(text);
 	if (!prefix && !LOCAL_FIELDS.test(field)) return null;
-	const file = text.slice(prefix?.[0].length ?? 0).replace(/#L\d+(?:-L?\d+)?$/i, "");
-	// Only fields explicitly carrying file/path identities, not suffix matches on labels.
-	if (!/^[\w./-]+$/u.test(file)) return null;
+	const locator = text.slice(prefix?.[0].length ?? 0);
+	// Typed references may use spaces and Unicode, but are not prose or URLs.
+	if (!locator || /[\p{Cc}\u2028\u2029]|^[a-z][a-z0-9+.-]*:\/\//iu.test(locator)) return null;
+	return locator;
+}
+
+function localIdentity(text, field, cwd) {
+	const locator = localLocator(text, field);
+	if (!locator) return null;
+	const file = locator.replace(/#L\d+(?:-L?\d+)?$/i, "");
 	const path = normalize(file);
 	if (path === "." || path === "..") return null;
 	if (!cwd || !isAbsolute(path)) return path;
@@ -236,7 +241,7 @@ function uniqueStructuredUrls(...values) {
 	const out = new Set();
 	for (const [text, field] of references(values)) {
 		if (!URL_FIELDS.test(field)) continue;
-		const url = normalizeUrl(text);
+		const url = validHttpUrl(text);
 		if (url) out.add(url);
 	}
 	return [...out];
@@ -260,20 +265,26 @@ function referenceList(item, limit = 3) {
 	const urls = new Set();
 	const rest = new Set();
 	for (const [text, field] of references(item)) {
-		const url = URL_FIELDS.test(field) ? normalizeUrl(text) : null;
+		const url = URL_FIELDS.test(field) ? validHttpUrl(text) : null;
 		if (url) urls.add(url);
 		else {
-			const path = localIdentity(text, field);
-			rest.add(path ? `\`${path}\`` : escapeMarkdownText(text));
+			const locator = localLocator(text, field);
+			rest.add(locator ? renderLocalLocator(locator) : escapeMarkdownText(text));
 		}
 	}
 	return [markdownLinkList([...urls], limit), [...rest].slice(0, limit).join(", ")].filter(Boolean).join("; ");
 }
 
+function renderLocalLocator(locator) {
+	// Backticks could end a code span; pipes can split a GFM table cell.
+	return /[`|]/.test(locator) ? escapeMarkdownText(locator) : `\`${locator}\``;
+}
+
 function markdownLinkList(urls, maxItems = 3) {
 	return urls.slice(0, maxItems).map((url) => {
-		// Serialized URL from normalizeUrl; encode remaining Markdown delimiters and entities.
-		const destination = url.replace(/[<>()|\\]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`).replace(/&/g, "&amp;");
+		// Angle destinations already allow parentheses. Entities protect only
+		// Markdown syntax (including pipes when a link appears in a GFM table).
+		const destination = url.replace(/[&<>|]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "|": "&#124;" })[char]);
 		return `[${escapeMarkdownText(hostOf(url))}](<${destination}>)`;
 	}).join(", ");
 }
@@ -487,6 +498,10 @@ function boundedString(value, minLength, maxLength) {
 	return typeof value === "string" && length >= minLength && length <= maxLength;
 }
 
+function boundedNonBlankString(value, maxLength) {
+	return boundedString(value, 1, maxLength) && value.trim() !== "";
+}
+
 function boundedArray(value, maxItems, itemCheck) {
 	return (
 		Array.isArray(value) && value.length <= maxItems && value.every(itemCheck)
@@ -527,17 +542,17 @@ export function synthesisSummary(synthesis) {
 
 function synthesisConclusionValid(synthesis) {
 	return !hasOwn(synthesis, "bottomLine") &&
-		boundedArray(synthesis.conclusion, 3, (line) => boundedString(line, 1, 220)) &&
+		boundedArray(synthesis.conclusion, 3, (line) => boundedNonBlankString(line, 220)) &&
 		synthesis.conclusion.length >= 2 &&
 		boundedArray(synthesis.keyPoints, 6, (point) =>
-			exactKeys(point, ["title", "text"]) && boundedString(point.title, 1, 64) && boundedString(point.text, 1, 160));
+			exactKeys(point, ["title", "text"]) && boundedNonBlankString(point.title, 64) && boundedNonBlankString(point.text, 160));
 }
 
 // Stored v1/v2 controls predate the live conclusion/keyPoints pair. A mixed
 // control is neither contract and must not silently fall back to its paragraph.
 function storedParagraphValid(synthesis) {
 	return !hasOwn(synthesis, "conclusion") && !hasOwn(synthesis, "keyPoints") &&
-		boundedString(synthesis?.bottomLine, 1, 4000);
+		boundedNonBlankString(synthesis?.bottomLine, 4000);
 }
 
 function modernActionValid(item) {
@@ -2548,7 +2563,7 @@ function renderSourceIndex(sourceIndex, localSourceIndex, ko) {
 	}
 	return [
 		...[...grouped].map(([host, urls]) => `- **${escapeMarkdownText(host)}**: ${markdownLinkList(urls, urls.length)}`),
-		...localSourceIndex.map((ref) => `- ${ko ? "로컬 출처" : "Local source"}: \`${ref}\``),
+		...localSourceIndex.map((ref) => `- ${ko ? "로컬 출처" : "Local source"}: ${renderLocalLocator(ref)}`),
 	];
 }
 
@@ -3297,11 +3312,16 @@ export default async function renderExecutive({
 	if (attributionWarnings.length)
 		rendered = renderResearchMarkdown(control, auditPacket, { ...renderOptions, attributionWarnings });
 	let { markdown, completionSummaryMarkdown } = rendered;
-	let truncated = false;
-	if (Number.isFinite(opts.maxWords) && countWords(markdown) > opts.maxWords) {
-		truncated = true;
-		markdown = truncateWords(markdown, opts.maxWords);
-	}
+	const truncated = Number.isFinite(opts.maxWords) && countWords(markdown) > opts.maxWords;
+	const truncatedWithAttributionWarnings = truncated && attributionWarnings.length > 0;
+	if (truncatedWithAttributionWarnings) {
+		// Do not publish a fragment that might keep disputed advice but drop
+		// its visible correction. The full attribution record is in the audit.
+		const diagnostic = rendered.ko
+			? "출처 정정을 포함한 보고서가 단어 제한을 초과했습니다. 감사 자료를 확인하세요."
+			: "The report with source attribution corrections exceeds the word cap. See the audit.";
+		markdown = opts.maxWords < 1 ? "" : truncateWords(diagnostic, opts.maxWords);
+	} else if (truncated) markdown = truncateWords(markdown, opts.maxWords);
 	const auditMarkdown = renderAuditMarkdown(
 		control,
 		auditPacket,
@@ -3324,6 +3344,7 @@ export default async function renderExecutive({
 		renderedAllStructuredItems &&
 		rendered.comparisonShapeSatisfied &&
 		!truncatedWithOpenGaps &&
+		!truncatedWithAttributionWarnings &&
 		!serializationArtifact &&
 		packetReconciliation.passed;
 
@@ -3391,6 +3412,7 @@ export default async function renderExecutive({
 			maxUrls: Number.isFinite(opts.maxUrls) ? opts.maxUrls : null,
 			truncated,
 			truncatedWithOpenGaps,
+			...(truncatedWithAttributionWarnings ? { truncatedWithAttributionWarnings } : {}),
 			serializationArtifact,
 			expectedOutputShapeSatisfied: rendered.comparisonShapeSatisfied,
 			sidecarWriteSucceeded: sidecarErrors.length === 0,

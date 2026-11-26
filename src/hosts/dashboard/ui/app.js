@@ -5634,6 +5634,9 @@ const markdownIndent = (line) =>
 		0,
 	);
 const textToken = (raw) => ({ kind: "text", raw });
+const MARKDOWN_LIST_ITEM = /^( *)(?:[-*+]|\d{1,9}[.)]) +(?!\s|$)/;
+const NON_PARAGRAPH_LINE =
+	/^ *(?:#{1,6}(?:\s|$)|>|\||(?:-{3,}|\*{3,}|_{3,}|=+) *$)/;
 
 // The splitter, finding parser and renderer share these tokens. Only plain text
 // tokens can be structural Markdown; code and invalid fold ranges are atomic.
@@ -5681,25 +5684,29 @@ function markdownTokens(text, researchReport = false) {
 			const raw = lines.slice(start, index + 1).join("\n");
 			blocks.push({ kind: "code", raw, body: raw });
 		} else {
-			const item = /^( *)(?:[-*+]|\d{1,9}[.)]) +(?!\s|$)/.exec(line);
+			const item = MARKDOWN_LIST_ITEM.exec(line);
 			if (item) list.push(item[0].length);
 			blocks.push(textToken(line));
 		}
 	}
 
-	// Match equal-length backtick runs within a nonblank text region. The same
-	// indices that suppress heading/fold recognition also render the code span.
+	// Match equal-length runs within a block, not across list items or into a
+	// heading. Research also treats its explicit fold examples as span content.
+	const spanText = (token) =>
+		token.kind === "text" &&
+		token.raw.trim() &&
+		(researchReport || !NON_PARAGRAPH_LINE.test(token.raw));
 	const spans = [];
 	for (let index = 0; index < blocks.length; ) {
-		if (blocks[index].kind !== "text" || !blocks[index].raw.trim()) {
+		if (!spanText(blocks[index])) {
 			spans.push(blocks[index++]);
 			continue;
 		}
-		const start = index;
+		const start = index++;
 		while (
 			index < blocks.length &&
-			blocks[index].kind === "text" &&
-			blocks[index].raw.trim()
+			spanText(blocks[index]) &&
+			(researchReport || !MARKDOWN_LIST_ITEM.test(blocks[index].raw))
 		)
 			index++;
 		const raw = blocks
@@ -5924,18 +5931,23 @@ function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 		"#39": "'",
 		"#58": ":",
 		"#46": ".",
+		"#64": "@",
+		"#124": "|",
 	};
 	const unpark = (value) =>
 		value
 			.replace(/[\ue000-\ue07f]/g, (c) =>
 				String.fromCharCode(c.charCodeAt(0) - 0xe000),
 			)
-			.replace(/&(amp|lt|gt|quot|#39|#58|#46);/g, (_, name) => entities[name]);
+			.replace(
+				/&(amp|lt|gt|quot|#39|#58|#46|#64|#124);/g,
+				(_, name) => entities[name],
+			);
 	const inline = (raw) => {
 		const value = park(raw);
 		const nodes = [];
 		const re =
-			/!\[([^\]]*)\]\(<?[^)>\s]*>?\)|\[([^\]]+)\]\(<?([^)>\s]+)>?\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\s](?:[^*]*[^*\s])?)\*|"([^"]{8,})"/g;
+			/!\[([^\]]*)\]\((?:<[^<>\s]*>|[^)<>\s]*)\)|\[([^\]]+)\]\((<[^<>\s]+>|[^)<>\s]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\s](?:[^*]*[^*\s])?)\*|"([^"]{8,})"/g;
 		let last = 0;
 		for (const m of value.matchAll(re)) {
 			if (m.index > last) nodes.push(unpark(value.slice(last, m.index)));
@@ -5951,7 +5963,7 @@ function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 				// A link named by its host reads as host + quiet path ("arxiv.org/abs/2307.03172");
 				// any other link keeps its whole address in brackets.
 				const label = unpark(m[2]),
-					target = unpark(m[3]);
+					target = unpark(m[3].startsWith("<") ? m[3].slice(1, -1) : m[3]);
 				let address = ` (${target})`;
 				try {
 					const url = new URL(target);
@@ -6317,7 +6329,7 @@ const plainMd = (value) =>
 	value
 		.replace(/\\([\\`*_{}[\]()#+\-.!|<>~&])/g, "$1")
 		.replace(
-			/&(amp|lt|gt|quot|#39|#58|#46);/g,
+			/&(amp|lt|gt|quot|#39|#58|#46|#64|#124);/g,
 			(_, name) =>
 				({
 					amp: "&",
@@ -6327,6 +6339,8 @@ const plainMd = (value) =>
 					"#39": "'",
 					"#58": ":",
 					"#46": ".",
+					"#64": "@",
+					"#124": "|",
 				})[name],
 		)
 		.replace(/\*\*([^*]+)\*\*/g, "$1");

@@ -17,6 +17,7 @@ export interface JsonSchemaObject {
 	maxItems?: number;
 	minLength?: number;
 	maxLength?: number;
+	nonBlank?: boolean;
 	minimum?: number;
 	maximum?: number;
 	pattern?: string;
@@ -53,6 +54,7 @@ const SUPPORTED_SCHEMA_KEYS = new Set([
 	"maxItems",
 	"minLength",
 	"maxLength",
+	"nonBlank",
 	"minimum",
 	"maximum",
 	"allOf",
@@ -239,6 +241,8 @@ function validateSchemaKeywordValues(
 		)
 			issue(key, "must be a non-negative integer");
 	}
+	if (Object.hasOwn(schema, "nonBlank") && typeof schema.nonBlank !== "boolean")
+		issue("nonBlank", "must be a boolean");
 	for (const key of ["minimum", "maximum"]) {
 		if (
 			Object.hasOwn(schema, key) &&
@@ -411,6 +415,9 @@ function validateStringConstraints(
 			path,
 			message: `string length must be <= ${schema.maxLength}`,
 		});
+	}
+	if (schema.nonBlank === true && value.trim() === "") {
+		issues.push({ path, message: "string must not be blank" });
 	}
 	if (typeof schema.pattern === "string") {
 		issues.push({
