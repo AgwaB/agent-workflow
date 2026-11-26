@@ -10,7 +10,7 @@
 		},
 		"normalize-claims.main": {
 			"chars": 8293,
-			"sha256": "b64b4344e8df621e6d6852e5286e6feb6a65467079a922f14d4f15dc064fdcad"
+			"sha256": "ba2d9d982c239924a70001f00664fab9e19545e7d130833164260fdb57f36a1f"
 		},
 		"verify-claims.item": {
 			"chars": 6969,
@@ -21,8 +21,8 @@
 			"sha256": "f7f6d7f085e97db00ffb606d07c54c7fb96a3e694c0c7cb8b5284174d7955221"
 		},
 		"retranslate.item": {
-			"chars": 1891,
-			"sha256": "e5481a5dff65b3b7343b3f1a996afbd03a5638c863cd9fd6de9f73bd208ecf7e"
+			"chars": 1956,
+			"sha256": "b3cf7e7d41b63d792722ebd223e096a75c5c6593ffe37268454fb5553e76323f"
 		}
 	},
 	"workflows/deep-research/tiered-verification.spec.json": {
@@ -36,7 +36,7 @@
 		},
 		"normalize-claims.main": {
 			"chars": 8265,
-			"sha256": "0186068b329dd30da6e42a3f1e8809405743a36b58c4209b9a05b767931d28a9"
+			"sha256": "37ac253a26032a5a58e6f0ca46e608f9847c9ef49f4db8710bc411e2f3fe18b6"
 		},
 		"verify-core-claims.item": {
 			"chars": 6600,
@@ -51,14 +51,14 @@
 			"sha256": "2d0abec09137276f3b86d1d78cad751c6f2b710471aaba8d1491bd8a25de39a9"
 		},
 		"retranslate.item": {
-			"chars": 1891,
-			"sha256": "e5481a5dff65b3b7343b3f1a996afbd03a5638c863cd9fd6de9f73bd208ecf7e"
+			"chars": 1956,
+			"sha256": "b3cf7e7d41b63d792722ebd223e096a75c5c6593ffe37268454fb5553e76323f"
 		}
 	},
 	"workflows/deep-review/spec.json": {
 		"triage.main": {
-			"chars": 3014,
-			"sha256": "1956e7fd1133dbc27e6de297b469245698b6187ca6ec1816e8876ee650baaa15"
+			"chars": 3003,
+			"sha256": "f577275ad3e09e0c9b16392d90ee1eded57dc3d66f24c8316b612f43a87ce5f8"
 		},
 		"reviewers.item": {
 			"chars": 5383,
@@ -125,12 +125,12 @@
 	},
 	"workflows/spec-review/spec.json": {
 		"extract-spec.main": {
-			"chars": 3249,
-			"sha256": "7dfa310ca4544fb0e8d849d9c8707d28e4c840bc229285b2b1ad8b0bda29347d"
+			"chars": 3238,
+			"sha256": "ac1302027625b8db86aafb7299f67380eb0470fab732d7da8b67c4a318ed709e"
 		},
 		"map-implementation.main": {
 			"chars": 2060,
-			"sha256": "fb294a12b01856266669de346d3d97a968926248ee61b9fdaec48e2f7dbd10b4"
+			"sha256": "ea649cfe0068c5a5ff2a8be08ec92d7d7b90be72e14315ab2ff92d8768cf72bc"
 		},
 		"inspect-tests.main": {
 			"chars": 3099,
