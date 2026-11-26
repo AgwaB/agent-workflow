@@ -295,7 +295,7 @@ These options also apply to `auto`.
 | `--model <id>` | Model override for every stage. |
 | `--effort <level>` | Effort override: `off minimal low medium high xhigh max ultra`. Each executor and model gets the nearest level it supports, the lower one on a tie (Codex `ultra` on Luna → `max`; Claude/Pi `ultra` → `max`; Codex `off`/`minimal` → `low`), and `check`/the launch text says so. |
 | `--input <key=value>` | Set a workflow input the spec declares (repeatable; `--input=key=value` also works). Typed like the declared default: string as is, number, `true`/`false`, JSON for arrays, objects and `null`. An undeclared key, a wrong type, a repeated key or a missing `=` is a usage error (exit 2, nothing starts). Declared inputs reach prompts only as a `# Workflow Input` block, never as `${input.x}` ([details](usage.md#workflow-inputs---input-keyvalue)). Example: `--input depth=quick`. |
-| `--detach` | Start a background supervisor (`agent-workflow supervise <id>`, log in `<run dir>/supervise.log`) and return the run id at once. |
+| `--detach` | After preflight, hand off all stages to a background supervisor (`agent-workflow supervise <id>`, log in `<run dir>/supervise.log`) and return the run id without waiting for any stage. |
 | `--force-new` | Start a new run although an identical launch (same workflow, task, inputs and options) is still active; without it, the guard prints that run (`outcome: "existing"`, exit 0) and, in the foreground, waits for it. Applies to `--detach` too. |
 | `--timeout <d>` | Stop waiting after `d` (`30000`, `30s`, `5m`, `1h`). The run continues. Not with `--detach`. |
 | `--json` | Print one JSON object `{action, ok, outcome, data}` (for `run`/`resume` without `--detach`, `data.wait` holds the final wait result; `ok` and `outcome` describe that wait, while the rest of `data`, including `status` and `taskSummary`, is the launch snapshot, so read the final state from `data.wait`). |
@@ -357,9 +357,12 @@ Degradations are always recorded and shown, never confirmed. Refusals still star
 ### Foreground, detach, wait
 
 `run` without `--detach` waits in the foreground: it drives the run in bounded 45 s waits and prints
-progress to stderr. Ctrl-C stops waiting, not the run; continue with `agent-workflow wait <id>` (or
-`resume`/`supervise`). With `--detach` a background supervisor keeps the run going after the CLI
-exits; any later process can `status`, `wait` or `stop` it.
+progress to stderr. Ctrl-C exits the foreground driver. Durable workers can continue, but an
+in-process helper running in the CLI dies with it. The next scheduler fails that helper closed
+without replaying its side effects. Use `status <id>` to inspect the run, `wait <id>` or
+`supervise <id>` to drive unfinished work, or `resume <id>` to explicitly retry a failed stage.
+Use `--detach` to keep the driver and in-process helpers alive after the CLI exits. Any later
+process can `status`, `wait` or `stop` the run.
 
 `wait` without `--timeout` loops until the run is terminal or blocked. With `--timeout` it returns
 when the time is up; a run still running then exits 1 with `data.stillRunning: true`.

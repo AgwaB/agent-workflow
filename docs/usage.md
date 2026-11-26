@@ -287,8 +287,10 @@ agent-workflow dynamic "Map the error handling in src/hosts and propose fixes." 
 
 The task is required. `run` prints the capability preview, starts the run (id `workflow_…`) and
 waits in the foreground, printing progress to stderr, until it is terminal; then it prints the
-result. Ctrl-C stops waiting, not the run. Use `--detach` to hand the run to a background supervisor
-(`agent-workflow supervise <id>`, log in `<run dir>/supervise.log`) and return immediately. In Pi,
+result. Ctrl-C exits the foreground driver. Durable workers may continue, but an in-process
+helper dies with the launcher and is not replayed automatically. Use `--detach` to hand the run
+to a background supervisor (`agent-workflow supervise <id>`, log in `<run dir>/supervise.log`)
+and return immediately. In Pi,
 `/aw run` returns once the run is launched; the Pi session keeps driving it while it lives.
 When a run's driver dies (Pi session quit, killed supervisor) it stays `running` for a short time.
 `status`, `show` and the run list say `no live driver — not progressing` (no lease and no live

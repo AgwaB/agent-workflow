@@ -436,7 +436,7 @@ async function followLaunch(
 		return json ? emit(launched) : exitCodeFor(launched);
 	if (!json)
 		io.stderr(
-			`Waiting for ${data.runId} (Ctrl-C stops waiting; the run can be continued with \`agent-workflow wait ${data.runId}\`)\n`,
+			`Waiting for ${data.runId} (Ctrl-C exits the foreground driver and kills any helper it is running; inspect with \`agent-workflow status ${data.runId}\`)\n`,
 		);
 	const waited = await waitUntilSettled(
 		ctx,
