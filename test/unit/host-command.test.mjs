@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import {
+import fs, {
 	mkdir,
 	mkdtemp,
 	readFile,
@@ -11,9 +11,11 @@ import {
 	symlink,
 	writeFile,
 } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
 import {
@@ -375,6 +377,79 @@ for (const args of [
 		assert.match(out.reason, new RegExp(`Wait.*workflow_wait.*${id}`));
 		assert.doesNotMatch(out.reason, /You'll get the result here/);
 		assert.deepEqual(await runHostSessions(cwd, id), []);
+	});
+}
+
+for (const args of [
+	"run hook-alpha Review the parser",
+	"auto Do a careful code review of the parser module",
+]) {
+	test(`${args}: Codex reports a helper run that settled before binding`, async (t) => {
+		const { cwd, env, invoke } = await project(t);
+		env.AGENT_WORKFLOW_HOST_WAKE = "1";
+		const dir = join(cwd, "workflows", "hook-alpha");
+		const specFile = join(dir, "spec.json");
+		const spec = JSON.parse(await readFile(specFile, "utf8"));
+		spec.artifactGraph.stages = [
+			{ id: "only", support: { uses: "./helper.mjs" } },
+		];
+		await writeFile(specFile, JSON.stringify(spec));
+		await writeFile(
+			join(dir, "helper.mjs"),
+			"export default () => ({ ok: true });\n",
+		);
+
+		const binding = Promise.withResolvers();
+		const release = Promise.withResolvers();
+		const open = fs.open;
+		const mock = t.mock.method(fs, "open", async (...args) => {
+			const [file] = args;
+			const id = basename(String(file)).match(
+				new RegExp(`^session-${session}\\.(workflow_.*)\\.link$`),
+			)?.[1];
+			if (id) {
+				binding.resolve(id);
+				await release.promise;
+			}
+			return open(...args);
+		});
+		syncBuiltinESMExports();
+		const calling = invoke("codex", args);
+		let id;
+		let out;
+		try {
+			id = await Promise.race([
+				binding.promise,
+				calling.then((out) =>
+					assert.fail(`command bypassed binding: ${out.reason}`),
+				),
+			]);
+			const logFile = join(
+				stateDir(cwd),
+				".agent-workflow/workflows",
+				id,
+				"supervise.log",
+			);
+			// The supervisor logs done only after the notifier has checked its audience.
+			const deadline = performance.now() + 10_000;
+			let log;
+			do {
+				log = await readFile(logFile, "utf8");
+				if (log.includes(`done: ${id} completed`)) break;
+				assert.ok(performance.now() < deadline, log);
+				await sleep(25);
+			} while (true);
+			assert.deepEqual(await runHostSessions(cwd, id), []);
+			assert.doesNotMatch(log, /host wake: codex queue/);
+		} finally {
+			release.resolve();
+			out = await calling;
+			mock.mock.restore();
+			syncBuiltinESMExports();
+		}
+		assert.equal(runId(out), id);
+		assert.match(out.reason, /\(completed; executor/);
+		assert.doesNotMatch(out.reason, /You'll get the result here/);
 	});
 }
 

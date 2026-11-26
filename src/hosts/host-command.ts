@@ -20,7 +20,8 @@ import {
 	mintLaunchUrl,
 	openInBrowser,
 } from "./dashboard/discovery.js";
-import { hostWakeEnabled } from "./host-wake.js";
+import { hostCommandHints } from "./hints.js";
+import { hostWakeEnabled, reconcileCodexDelivery } from "./host-wake.js";
 import { isHostSessionId, recordRunHostSession } from "./notify-check.js";
 import { findProjectRoot, runProject } from "./project-root.js";
 import { hostTextRedactor } from "./redaction.js";
@@ -214,22 +215,45 @@ async function launchText(
 ): Promise<string> {
 	if (data.detachError) return data.detachError;
 	if (!data.runId) return text;
-	if (
-		isHostSessionId(session) &&
-		(ctx.host === "claude-code" || (hostWakeEnabled(ctx.env) && data.detached))
-	)
-		await recordRunHostSession(ctx.cwd, data.runId, session);
 	if (data.duplicateOf) return text;
+	let status = data.status;
+	let next: string | undefined;
+	const notification = "You'll get the result here when it finishes.";
+	if (ctx.host === "codex" && data.detached) {
+		const wait = `Wait for the result: ${hostCommandHints(ctx.host).wait(data.runId)}`;
+		next = wait;
+		if (isHostSessionId(session) && hostWakeEnabled(ctx.env)) {
+			await recordRunHostSession(ctx.cwd, data.runId, session);
+			const delivery = await reconcileCodexDelivery(
+				ctx.cwd,
+				data.runId,
+				session,
+			);
+			if (delivery.kind === "codex-queue") next = notification;
+			else if (delivery.kind === "codex-claimed")
+				next = "The result is being queued to this Codex session.";
+			else if (delivery.run) {
+				status = delivery.run.status;
+				next = undefined;
+			}
+		}
+	} else if (ctx.host === "claude-code") {
+		if (isHostSessionId(session))
+			await recordRunHostSession(ctx.cwd, data.runId, session);
+		next = notification;
+	}
 	const dashboard =
 		data.dashboard ??
 		(await runDashboardLink(ctx, data.runId, { start: true }));
 	return [
-		`${data.name ?? "dynamic"}: ${data.runId} (${data.status}; executor ${data.executor?.id ?? "default"})`,
+		`${data.name ?? "dynamic"}: ${data.runId} (${status}; executor ${data.executor?.id ?? "default"})`,
 		dashboard
 			? `Dashboard: ${dashboard.url}`
 			: "Dashboard unavailable; use aw dashboard.",
-		"You'll get the result here when it finishes.",
-	].join("\n");
+		next,
+	]
+		.filter(Boolean)
+		.join("\n");
 }
 
 async function dispatchCommand(
