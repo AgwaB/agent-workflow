@@ -211,7 +211,8 @@ async function pruneMarkers(cwd: string, dir: string): Promise<void> {
 		// Receipts, and (2026-11-05) the session links of runs that are gone.
 		const match =
 			/^(.+)\.[0-9a-f]{24}\.json$/u.exec(name) ??
-			/^session-[A-Za-z0-9_-]+\.(.+)\.link$/u.exec(name);
+			/^session-[A-Za-z0-9_-]+\.(.+)\.link$/u.exec(name) ??
+			/^codex-[A-Za-z0-9_-]+\.(.+)\.[0-9a-f]{24}\.receipt$/u.exec(name);
 		if (!match) continue;
 		const runId = match[1]!;
 		if (!isSafeRunId(runId)) continue;
@@ -295,6 +296,33 @@ export async function runHostSessions(
 		.map((name) => name.slice("session-".length, -suffix.length))
 		.filter(isHostSessionId)
 		.sort();
+}
+
+/** The launch's wait fallback and the supervisor's push compete for this thread and epoch. */
+export async function claimCodexDelivery(
+	cwd: string,
+	run: WorkflowRunRecord,
+	threadId: string,
+): Promise<boolean> {
+	if (
+		!isHostSessionId(threadId) ||
+		!isSafeRunId(run.runId) ||
+		!isSettledRun(run)
+	)
+		throw new Error("Invalid Codex delivery claim");
+	const dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, true);
+	if (!dir) throw new Error("No notification receipt directory");
+	try {
+		await writeFile(
+			join(dir, `codex-${threadId}.${run.runId}.${notifyEpoch(run)}.receipt`),
+			"",
+			{ flag: "wx", mode: 0o600 },
+		);
+		return true;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+		throw error;
+	}
 }
 
 /** 2026-11-05: how long a launch waits for a monitor that starts with the project's first run. */
@@ -462,6 +490,8 @@ export async function notifyCheck(
 		stamp?: string;
 		/** 2026-11-05: only this run. */
 		runId?: string;
+		/** A targeted wake must not claim a different epoch after a concurrent resume. */
+		expectedEpoch?: string;
 		/** 2026-11-05: only the runs this host session launched; refreshes its monitor stamp. */
 		session?: string;
 		/**
@@ -582,6 +612,7 @@ async function checkOnce(
 		now?: number;
 		env?: NodeJS.ProcessEnv;
 		runId?: string;
+		expectedEpoch?: string;
 		session?: string;
 	},
 ): Promise<{ data: NotifyCheckData; text: string }> {
@@ -618,6 +649,11 @@ async function checkOnce(
 	for (const entry of candidates) {
 		const run = await readRunRecord(cwd, entry.runId).catch(() => undefined);
 		if (!run || run.parentRunId || !isSettledRun(run)) continue;
+		if (
+			options.expectedEpoch !== undefined &&
+			notifyEpoch(run) !== options.expectedEpoch
+		)
+			continue;
 		const updated = Date.parse(run.updatedAt);
 		if (Number.isFinite(updated) && updated < since) continue;
 		if (existing.has(markerName(run))) continue;

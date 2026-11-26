@@ -5,7 +5,8 @@ import { stateDir } from "../helpers/state-dir.mjs";
 // run has settled (`codex queue`), so the agent ends its turn instead of calling workflow_wait.
 // `codex exec` launches and non-detached runs still wait. The Codex CLI is faked here.
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import fs, { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
@@ -53,6 +54,7 @@ async function writeRun(cwd, runId, status, source = "mcp:codex") {
 				displayName: "a.main",
 				status,
 				statusDetail: status,
+				runtime: {},
 				files: {
 					systemPrompt: "",
 					taskPrompt: "",
@@ -183,6 +185,7 @@ test("the detached supervisor wakes the linked Codex session when the run settle
 
 test("a Codex launch's next step: end the turn for an interactive, detached launch; else workflow_wait", async () => {
 	const cwd = await project();
+	await writeRun(cwd, "workflow_launched", "running");
 	const fakeApi = (detached) =>
 		new Proxy(
 			{},
@@ -249,6 +252,112 @@ test("a Codex launch's next step: end the turn for an interactive, detached laun
 	);
 	assert.match(await text({}), WAIT);
 });
+
+for (const first of ["settled before binding", "queued before reread"]) {
+	test(`a fast Codex launch reports exactly once: ${first}`, async (t) => {
+		const cwd = await project();
+		const runId = "workflow_fast";
+		await writeRun(cwd, runId, "running");
+		const reached = Promise.withResolvers();
+		const release = Promise.withResolvers();
+		const beforeBinding = first === "settled before binding";
+		if (!beforeBinding) {
+			// Let the supervisor see the link, but don't let MCP proceed to reread the run.
+			const open = fs.open;
+			const mock = t.mock.method(fs, "open", async (...args) => {
+				const handle = await open(...args);
+				if (String(args[0]).endsWith(`session-${THREAD}.${runId}.link`)) {
+					reached.resolve();
+					await release.promise;
+				}
+				return handle;
+			});
+			syncBuiltinESMExports();
+			t.after(() => {
+				mock.mock.restore();
+				syncBuiltinESMExports();
+			});
+		}
+		const service = mcpTools.createHostMcpService({
+			root: cwd,
+			host: "codex",
+			env: process.env,
+			api: {
+				...api,
+				async runWorkflowAction() {
+					if (beforeBinding) {
+						reached.resolve();
+						await release.promise;
+					}
+					return {
+						action: "run",
+						ok: true,
+						outcome: "running",
+						text: "Workflow started",
+						data: {
+							runId,
+							status: "running",
+							detached: { pid: 1, logPath: "x" },
+						},
+					};
+				},
+			},
+		});
+		const context = {
+			protocolVersion: "2025-06-18",
+			clientCapabilities: {},
+			meta: turn("user"),
+		};
+		const calling = service.call(
+			"workflow_run",
+			{ workflow: "deep-review", task: "t" },
+			context,
+		);
+		const queued = [];
+		const push = (run) =>
+			wake.wakeLaunchingHostSessions(cwd, run, {
+				run: async (_command, args) => {
+					queued.push(args);
+					return { ok: true, output: "Queued message" };
+				},
+			});
+		let settled;
+		try {
+			await Promise.race([
+				reached.promise,
+				calling.then(() => assert.fail("launch bypassed the barrier")),
+			]);
+			assert.deepEqual(
+				await notify.runHostSessions(cwd, runId),
+				beforeBinding ? [] : [THREAD],
+			);
+			settled = await writeRun(cwd, runId, "completed");
+			await push(settled);
+			assert.equal(queued.length, beforeBinding ? 0 : 1);
+		} finally {
+			release.resolve();
+		}
+		const result = await calling;
+		assert.deepEqual(await notify.runHostSessions(cwd, runId), [THREAD]);
+		const text = result.content[0].text;
+		if (beforeBinding) {
+			assert.match(text, /Then call workflow_wait \{"runId":"workflow_fast"\}/);
+			assert.doesNotMatch(text, /end your turn now/);
+			// A late notifier cannot also queue this epoch, even before the directed wait.
+			await push(settled);
+			assert.equal(queued.length, 0);
+			const waited = await service.call("workflow_wait", { runId }, context);
+			assert.equal(waited.isError, false, waited.content[0].text);
+			assert.equal(waited.structuredContent.data.status, "completed");
+		} else {
+			assert.doesNotMatch(text, /Then call workflow_wait|Wait for the result:/);
+			assert.match(text, /queued message/);
+			assert.equal(queued[0][2], THREAD);
+			await push(settled);
+			assert.equal(queued.length, 1);
+		}
+	});
+}
 
 test("a wake command that ignores SIGTERM cannot hold the supervisor: it is killed at the timeout", async () => {
 	const t0 = Date.now();

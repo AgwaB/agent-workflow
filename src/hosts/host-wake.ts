@@ -10,7 +10,12 @@
 import { execFile } from "node:child_process";
 
 import type { WorkflowRunRecord } from "../core/types.js";
-import { notifyCheck, runHostSessions } from "./notify-check.js";
+import {
+	claimCodexDelivery,
+	notifyCheck,
+	notifyEpoch,
+	runHostSessions,
+} from "./notify-check.js";
 
 export const HOST_WAKE_ENV = "AGENT_WORKFLOW_HOST_WAKE";
 
@@ -80,6 +85,7 @@ export async function wakeLaunchingHostSessions(
 		const checked = await notifyCheck(cwd, {
 			host: "codex",
 			runId: run.runId,
+			expectedEpoch: notifyEpoch(run),
 			env,
 		});
 		const line = checked.data.notifications[0]?.text;
@@ -91,6 +97,9 @@ export async function wakeLaunchingHostSessions(
 		// completion line only; the launch already told the agent what to do when it arrives.
 		const message = line;
 		for (const thread of sessions) {
+			// The global receipt still prevents repeat prompt-hook notifications; this
+			// thread's receipt arbitrates with the MCP launch's wait fallback.
+			if (!(await claimCodexDelivery(cwd, run, thread))) continue;
 			const queued = await (options.run ?? runWakeCommand)("codex", [
 				"queue",
 				"--thread",
