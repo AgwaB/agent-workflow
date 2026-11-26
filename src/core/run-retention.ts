@@ -425,6 +425,8 @@ async function prunePlan(
 
 export function formatWorkflowPruneSummary(
 	summary: WorkflowPruneSummary,
+	/** The project directory the worktree paths are relative to; without it they are shown as recorded. */
+	cwd?: string,
 ): string {
 	const lines = [
 		summary.dryRun ? "Workflow prune (dry run)" : "Workflow prune",
@@ -458,7 +460,7 @@ export function formatWorkflowPruneSummary(
 						? ` — removed${worktree.branchDeleted ? ", branch deleted" : worktree.branch ? ", branch kept" : ""}`
 						: "";
 				lines.push(
-					`  Worktree: ${displayPathUnderHome(worktree.path)} (${state.join("; ")})${done}`,
+					`  Worktree: ${displayPathUnderHome(cwd ? resolve(cwd, worktree.path) : worktree.path)} (${state.join("; ")})${done}`,
 				);
 			}
 			if (run.retainedEvidencePath)
