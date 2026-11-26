@@ -157,10 +157,8 @@ test("demoted research claims keep their IDs through gaps, synthesis and renderi
 	assert.equal(result.claimSummary.verified, 1);
 	assert.match(result.reportMarkdown, /publication date was not sent/);
 	assert.match(
-		result.reportMarkdown
-			.split("## Recommendations")[1]
-			.split("## Action plan")[0],
-		/Evidence status: unverified/,
+		result.reportMarkdown.split("## To do")[1].split("## Appendix")[0],
+		/\*\*Unverified\*\*/,
 	);
 });
 

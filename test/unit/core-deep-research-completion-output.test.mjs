@@ -141,7 +141,10 @@ test("deep-research v2 renders a side-by-side completion with explicit evidence 
 		result.completionSummaryMarkdown,
 		/Actual demand has not been established/,
 	);
-	assert.match(result.completionSummaryMarkdown, /Questions remain unanswered/);
+	assert.doesNotMatch(
+		result.completionSummaryMarkdown,
+		/Questions remain unanswered/,
+	);
 	assert.doesNotMatch(
 		result.completionSummaryMarkdown,
 		/Audited claims|Fact slots|schema.cap|denominator|evidence:|claim-\d/,
@@ -175,7 +178,10 @@ test("deep-research v2 keeps omitted verification candidates outside the audited
 		/1 verification candidate omitted from audit/,
 	);
 	assert.doesNotMatch(result.auditMarkdown, /Audited claims \(49 total\)/);
-	assert.match(result.completionSummaryMarkdown, /Questions remain unanswered/);
+	assert.doesNotMatch(
+		result.completionSummaryMarkdown,
+		/Questions remain unanswered/,
+	);
 	assert.doesNotMatch(
 		result.completionSummaryMarkdown,
 		/candidate omitted|denominator|Audited claims/,

@@ -3,8 +3,8 @@
 // key finding or lead the audit left untranslated while the report is in another script is listed too (81 of 109
 // English leads in recorded Korean reports). The retranslate stage translates each once; with none, this lists no
 // batch and retranslate starts no worker.
-import { refusedReaderTranslations } from "./render-executive.mjs";
-import { findSource, stringOf } from "./source-access.mjs";
+import { refusedReaderTranslations, synthesisSummary } from "./render-executive.mjs";
+import { findSource } from "./source-access.mjs";
 
 const MAX_ITEMS = 40;
 // 2026-11-10 (live check): one malformed entry fails the whole control, and a retry with the preview repeated it, so
@@ -20,7 +20,7 @@ export default async function translationCheck({ sources }) {
 			? {}
 			: { refusedTranslation: translated, droppedNumbers: dropped }),
 	}));
-	const sample = stringOf(findSource(sources, "final-audit")?.synthesis?.bottomLine);
+	const sample = synthesisSummary(findSource(sources, "final-audit")?.synthesis);
 	return {
 		schema: "deep-research-translation-check-v1",
 		digest:

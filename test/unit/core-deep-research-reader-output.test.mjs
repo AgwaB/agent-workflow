@@ -81,7 +81,10 @@ test("historical synthesis stays readable without copying audit-only caveats or 
 		result.completionSummaryMarkdown,
 		/Audited claims|Fact slots|schema.cap|fact slots|claim-001|source-ref|denominator|evidence:/,
 	);
-	assert.match(result.completionSummaryMarkdown, /추가로 확인할 질문이 남아/);
+	assert.doesNotMatch(
+		result.completionSummaryMarkdown,
+		/추가로 확인할 질문이 남아/,
+	);
 	assert.match(result.auditMarkdown, /claim-001 source-ref join/);
 	assert.match(result.auditMarkdown, /Audited claims \(48 total\)/);
 	assert.equal(result.claimSummary.total, 48);
@@ -194,25 +197,20 @@ for (const [status, qualifier] of [
 		});
 		assert.equal(result.status, "passed");
 		assert.ok(result.completionSummaryMarkdown.includes(qualifier));
-		assert.match(
+		assert.match(result.completionSummaryMarkdown, /No claims were verified/);
+		assert.doesNotMatch(
 			result.completionSummaryMarkdown,
-			/not enough verified evidence/,
-		);
-		assert.match(
-			result.completionSummaryMarkdown,
-			/does not establish that all requested areas were covered/,
+			/all requested areas were covered/,
 		);
 		assert.doesNotMatch(
 			result.completionSummaryMarkdown,
 			/claim-001|evidence:|Fact slots/,
 		);
-		if (status === "conflicting")
-			assert.match(result.completionSummaryMarkdown, /Some sources disagree/);
 		assert.match(result.auditMarkdown, /claim-001/);
 	});
 }
 
-test("a verified subset does not hide unclassified legacy evidence or coverage", async () => {
+test("a verified subset discloses unclassified evidence in the report, not as generic limits", async () => {
 	for (const kind of [
 		"unclassified-claim",
 		"unknown-slot",
@@ -256,11 +254,19 @@ test("a verified subset does not hide unclassified legacy evidence or coverage",
 			});
 		const result = await render({ sources: { "final-audit": control } });
 		assert.equal(result.status, "passed");
-		assert.match(
+		assert.doesNotMatch(
 			result.completionSummaryMarkdown,
-			/Some evidence could not be fully checked|Questions remain unanswered|Some sources disagree/,
+			/Questions remain unanswered/,
 			kind,
 		);
+		const marker = {
+			"unclassified-claim": /1 verified, 0 partly supported, 2 total/,
+			"unknown-slot": /Unknown/,
+			"unverified-lead": /Demand is unknown/,
+			contested: /Sources disagree/,
+			unsupported: /No support found/,
+		}[kind];
+		assert.match(result.reportMarkdown, marker, kind);
 	}
 });
 
@@ -328,23 +334,17 @@ test("translations put claim, lead and fact-slot text into the task's language; 
 	const report = result.reportMarkdown;
 	assert.match(
 		report,
-		/### 1\. 리전-01은 캐시 항목에 21초 신선도 창을 적용한다\./,
+		/### \*\*확인됨\*\* 리전-01은 캐시 항목에 21초 신선도 창을 적용한다\./,
 	);
 	assert.match(report, /\n리전-01 참조 문서가 이 값을 따로 명시한다\./);
-	assert.match(
-		report,
-		/\*\*Unverified lead:\*\* 리전-01은 선택형 캐시 무효화를/,
-	);
+	assert.match(report, /- 리전-01은 선택형 캐시 무효화를/);
 	assert.match(
 		report,
 		/\| 지역 정책 차원 01 \| [^|]+ \| .+ \| 지역 만료 정책을 일반화하지 않는다\. \|/,
 	);
-	// Labels and statuses stay; untranslated rows keep their original text.
-	assert.match(
-		report,
-		/## Main findings[\s\S]*Evidence status: \*\*verified\*\*/,
-	);
-	assert.match(report, /\*\*Unverified lead:\*\* Region-02 may expose/);
+	// Labels and statuses localize; untranslated rows keep their original text.
+	assert.match(report, /## 근거가 된 발견[\s\S]*\*\*확인됨\*\*/);
+	assert.match(report, /- Region-02 may expose/);
 	assert.match(report, /\| Regional policy dimension 02 \|/);
 	// The audit keeps the original claim and reports what was applied.
 	assert.ok(result.auditMarkdown.includes(claim.claim.slice(0, 40)));
@@ -368,15 +368,12 @@ test("a translation with an unknown or repeated id or empty text is ignored, not
 	assert.equal(validateJsonSchema(sources["final-audit"], schema).valid, true);
 	const result = await render({ sources });
 	assert.equal(result.status, "passed", JSON.stringify(result.gates));
-	assert.match(result.reportMarkdown, /### 1\. 번역된 주장\./);
+	assert.match(result.reportMarkdown, /### \*\*확인됨\*\* 번역된 주장\./);
 	assert.doesNotMatch(
 		result.reportMarkdown,
 		/두 번째 번역|없는 주장|없는 영역/,
 	);
-	assert.match(
-		result.reportMarkdown,
-		/\*\*Unverified lead:\*\* Region-02 may expose/,
-	);
+	assert.match(result.reportMarkdown, /- Region-02 may expose/);
 	assert.match(
 		result.auditMarkdown,
 		/- Reader translations: 1 applied, 4 ignored \(claim-001, claim-999, lead-002, slot-999\), 24 left untranslated\./,
@@ -407,12 +404,12 @@ test("a translation that drops a number of its source is not used; the original 
 		if (applied)
 			assert.match(
 				result.reportMarkdown,
-				/### 1\. RFC 9000은 2021년 5월에 발행되었다\./,
+				/### \*\*확인됨\*\* RFC 9000은 2021년 5월에 발행되었다\./,
 			);
 		else {
 			assert.match(
 				result.reportMarkdown,
-				/### 1\. RFC 9000 was published in May 2021\./,
+				/### \*\*확인됨\*\* RFC 9000 was published in May 2021\./,
 			);
 			assert.doesNotMatch(result.reportMarkdown, /RFC 9000은 발행되었다/);
 		}
@@ -521,7 +518,7 @@ test("refused translations are listed for one retranslation, which the report us
 	assert.equal(result.status, "passed", JSON.stringify(result.gates));
 	assert.match(
 		result.reportMarkdown,
-		/### 1\. RFC 9000은 2021년 5월에 발행되었다\./,
+		/### \*\*확인됨\*\* RFC 9000은 2021년 5월에 발행되었다\./,
 	);
 	assert.match(
 		result.reportMarkdown,
@@ -555,7 +552,7 @@ test("the reader sees an engine note when the report blames a file for values it
 	]) {
 		const at = markdown.indexOf(note);
 		assert.ok(at > 0, markdown.slice(-600));
-		assert.match(markdown.slice(0, at), /Source verification: [^\n]+\n\n$/);
+		assert.match(markdown.slice(0, at), /출처 검증: [^\n]+\n\n$/);
 	}
 	const plain = await render({ sources: await inputs(), context: { cwd } });
 	assert.doesNotMatch(plain.reportMarkdown, /엔진 확인|Engine check/);
@@ -655,11 +652,11 @@ test("a coverage gap without its own text names its areas, not its ids", async (
 	assert.equal(result.status, "passed", JSON.stringify(result.gates));
 	assert.ok(
 		result.reportMarkdown.includes(
-			`**Gap:** ${slot.label}: ${slot.gapReason.replace(/[.]$/, "")}`,
+			`- ${slot.label}: ${slot.gapReason.replace(/[.]$/, "")}`,
 		),
 		"named gap",
 	);
-	assert.ok(result.reportMarkdown.includes(`**Gap:** ${bare.scopeItem}`));
+	assert.ok(result.reportMarkdown.includes(`- ${bare.scopeItem}`));
 	assert.doesNotMatch(result.reportMarkdown, /related slots: slot-/);
 	// With a translated slot the gap reads in the task's language.
 	withTranslations(sources, {
@@ -669,9 +666,7 @@ test("a coverage gap without its own text names its areas, not its ids", async (
 	});
 	result = await render({ sources });
 	assert.ok(
-		result.reportMarkdown.includes(
-			`**Gap:** 이전 범위 영역: 확인이 더 필요하다`,
-		),
+		result.reportMarkdown.includes(`- 이전 범위 영역: 확인이 더 필요하다`),
 	);
 });
 
@@ -706,7 +701,7 @@ test("both research prompts ask for faithful translations of the shown audit tex
 	}
 });
 
-test("claims the sanitizer held back read as one reader line, and pipeline notes leave gap text", async () => {
+test("the sanitizer summary preserves each gap but removes redundant pipeline notes", async () => {
 	// 2026-11-03 (owner: the report listed "sanitized from verifier candidates:
 	// source_hint_claim_mismatch" once per claim, and "sanitized verifier candidates: claim-004"
 	// inside gap text).
@@ -726,18 +721,12 @@ test("claims the sanitizer held back read as one reader line, and pipeline notes
 	];
 	const result = await render({ sources });
 	const section = result.reportMarkdown.slice(
-		result.reportMarkdown.indexOf("## Caveats and remaining gaps"),
+		result.reportMarkdown.indexOf("<summary>검증 공백과 미확인 단서"),
 	);
 	assert.doesNotMatch(section, /sanitized|source\\_hint|claim-00[89]/);
-	assert.match(
-		section,
-		/- \*\*Held back before verification:\*\* 5 candidate claims did not reach the verifiers — the claim's wording did not match the quoted source passage\. The evidence audit has the details\. \(\[example\.com\]\(<https:\/\/example\.com\/a0>\), \[example\.com\]\(<https:\/\/example\.com\/a1>\)\)/,
-	);
+	assert.match(section, /검증 전 보류: 5개/);
 	assert.match(section, /Memory limits: decay rates were not found\./);
-	assert.equal(
-		(section.match(/Held back before verification/g) ?? []).length,
-		1,
-	);
+	assert.equal((section.match(/검증 전 보류/g) ?? []).length, 1);
 });
 
 // 2026-11-10 (owner, after the P3 hard-claim round): verifiers rate a false claim partially_supported or unsupported
@@ -822,9 +811,15 @@ async function withRejectedClaims(changes, claimText = {}) {
 	});
 }
 const caveatLine = (result, kind, needle) => {
-	const line = result.reportMarkdown
-		.split("\n")
-		.find((row) => row.startsWith(`- **${kind}:**`) && row.includes(needle));
+	const label = result.reportMarkdown.startsWith("# 조사")
+		? { Unsupported: "근거 부족", Contested: "출처 상충" }[kind]
+		: kind;
+	const body = result.reportMarkdown
+		.split(`<summary>${label} (`)[1]
+		?.split("</details>")[0];
+	const line = body
+		?.split("\n")
+		.find((row) => row.startsWith("- ") && row.includes(needle));
 	assert.ok(line, `no ${kind} line with ${needle}`);
 	return line;
 };
@@ -933,3 +928,98 @@ test("a legacy report row gets the correction from the claim index", async () =>
 		/ Correction: New value\./,
 	);
 });
+
+for (const ko of [false, true]) {
+	test(`conclusion-first ${ko ? "Korean" : "English"} report conserves every displayed row and source`, async () => {
+		const sources = await inputs();
+		const overlay = sources["final-audit"].synthesis;
+		const conclusion = ko
+			? ["첫 번째 결론입니다.", "두 번째 결론입니다."]
+			: ["The first conclusion.", "The second conclusion."];
+		overlay.keyFindingIds = ["claim-001", "claim-002"];
+		overlay.recommendations = [
+			{
+				recommendation: "Matched recommendation one",
+				supportingClaimIds: ["claim-002"],
+			},
+			{
+				recommendation: "Standalone recommendation two",
+				supportingClaimIds: [],
+			},
+		];
+		overlay.actionPlan = [
+			{
+				action: "First plan step",
+				recommendationNumbers: [1],
+				supportingClaimIds: ["claim-001"],
+			},
+			{
+				action: "Second plan step",
+				recommendationNumbers: [],
+				supportingClaimIds: [],
+			},
+		];
+		overlay.caveatNotes = [
+			{ note: "Unique audit caveat", readerNote: "Unique practical limit" },
+		];
+		for (const structured of [true, false]) {
+			if (structured) {
+				delete overlay.bottomLine;
+				overlay.conclusion = conclusion;
+				overlay.keyPoints = [
+					{ title: "Short title", text: "A separate point" },
+				];
+				overlay.openQuestion = ko
+					? "남은 문제가 무엇인가요?"
+					: "What remains unresolved?";
+			} else {
+				delete overlay.conclusion;
+				delete overlay.keyPoints;
+				delete overlay.openQuestion;
+				overlay.bottomLine = conclusion.join(" ");
+				delete overlay.actionPlan[0].recommendationNumbers;
+				delete overlay.actionPlan[1].recommendationNumbers;
+			}
+			assert.equal(
+				validateJsonSchema(sources["final-audit"], schema).valid,
+				true,
+			);
+			const result = await render({ sources });
+			assert.equal(result.status, "passed");
+			const md = result.reportMarkdown;
+			assert.ok(md.includes(conclusion.join("\n\n")));
+			assert.match(
+				md,
+				ko ? /^# 조사 보고서\n\n주장 / : /^# Research report\n\nClaims: /,
+			);
+			assert.match(
+				md,
+				ko ? /<summary>근거 보기<\/summary>/ : /<summary>Evidence<\/summary>/,
+			);
+			if (structured) {
+				assert.ok(md.includes("**Short title** — A separate point"));
+				assert.ok(md.split("\n")[2].includes(overlay.openQuestion));
+				assert.match(
+					md,
+					/1\. \*\*[^*]+\*\* First plan step\n +<details>[\s\S]+?Matched recommendation one[\s\S]+?<\/details>\n2\./,
+				);
+			}
+			const expected = [
+				...overlay.recommendations.map((row) => row.recommendation),
+				...overlay.actionPlan.map((row) => row.action),
+				overlay.caveatNotes[0].note,
+				overlay.caveatNotes[0].readerNote,
+			];
+			for (const row of sources[
+				"final-audit-packet"
+			].packet.claimVerdictLedger.filter((row) =>
+				overlay.keyFindingIds.includes(row.id),
+			))
+				expected.push(row.claim);
+			for (const item of expected) assert.ok(md.includes(item), item);
+			for (const url of result.sourceUrls) assert.ok(md.includes(url), url);
+			assert.equal(md.match(/Matched recommendation one/g)?.length, 1);
+			assert.equal(md.match(/Standalone recommendation two/g)?.length, 1);
+		}
+	});
+}
