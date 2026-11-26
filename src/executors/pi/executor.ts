@@ -105,7 +105,8 @@ export const PI_MCP_OUTPUT_LIMIT_CHARS = 20 * 1024;
  */
 export const PI_MCP_OUTPUT_NOTICE_CHARS = 1024;
 /** Evidence string for capability rows proven against a live Pi (docs/executors.md#pi). */
-export const PI_VERIFIED_WITH = "pi 1.1.0, WP6 live runs 2026-10-26";
+export const PI_VERIFIED_WITH =
+	"pi 1.5.2, live tier 2026-11-26 (WP6 live runs with pi 1.1.0, 2026-10-26)";
 /** Rows proven offline with the real Pi CLI and a scripted (faux) provider: no model turn. */
 export const PI_VERIFIED_OFFLINE =
 	"pi 1.1.0, faux provider (no model call), WP6 2026-10-26";

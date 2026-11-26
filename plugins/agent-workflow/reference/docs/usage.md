@@ -1463,8 +1463,8 @@ run choice takes precedence over profiles and host defaults. See the generated
 
 | Executor | Adapter | Verified CLI | Documentation |
 |---|---|---|---|
-| `pi` | 0.1.0 | Pi 1.1.0 (minimum 1.1.0 for native MCP) | [Pi](https://github.com/AgwaB/agent-workflow/blob/main/docs/executors.md#pi) |
-| `codex` | 0.1.0 | codex-cli 0.166.0 | [Codex](https://github.com/AgwaB/agent-workflow/blob/main/docs/executors.md#codex) |
+| `pi` | 0.1.0 | Pi 1.5.2 (minimum 1.1.0 for native MCP) | [Pi](https://github.com/AgwaB/agent-workflow/blob/main/docs/executors.md#pi) |
+| `codex` | 0.1.0 | codex-cli 0.170.0 | [Codex](https://github.com/AgwaB/agent-workflow/blob/main/docs/executors.md#codex) |
 | `claude` | 0.1.0 | claude-code 2.1.322 | [Claude](https://github.com/AgwaB/agent-workflow/blob/main/docs/executors.md#claude-code) |
 | `antigravity` (experimental) | ACP adapter | `agy_acp_server` 1.4.5 | [ACP](https://github.com/AgwaB/agent-workflow/blob/main/docs/executors.md#antigravity-acp) |
 

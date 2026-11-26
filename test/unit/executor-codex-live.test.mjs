@@ -121,10 +121,19 @@ test("codex live: conformance kit live tier", { skip }, async () => {
 			]),
 		}),
 	);
+	const failed = report.results
+		.filter((result) => result.status === "fail")
+		.map((result) => [result.id, result.violations]);
+	// Owner decision 2026-11-09 (7b45c4f6): a kept session lives in the attempt's private home, which
+	// ends with the attempt, so an isolated resumeSessionId is refused instead of resuming in the
+	// user's home (docs/executors.md#codex). The kit's resume check must meet exactly that refusal.
+	const resume = failed.find(([id]) => id === "live.resume");
+	assert.match(
+		String(resume?.[1]?.[0] ?? ""),
+		/cannot be resumed with context isolation/,
+	);
 	assert.deepEqual(
-		report.results
-			.filter((result) => result.status === "fail")
-			.map((result) => [result.id, result.violations]),
+		failed.filter(([id]) => id !== "live.resume"),
 		[],
 	);
 });
