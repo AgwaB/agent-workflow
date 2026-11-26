@@ -79,7 +79,7 @@ import {
 	formatHumanRunDetails,
 	readDriverLive,
 } from "../core/engine-format.js";
-import { markRunNotifySeen } from "./notify-check.js";
+import { claimCodexDelivery, markRunNotifySeen } from "./notify-check.js";
 import {
 	formatLaunch,
 	formatParentUsage,
@@ -639,6 +639,8 @@ export interface WaitRequest {
 	longWait?: boolean;
 	signal?: AbortSignal;
 	onProgress?: (run: RunSummary) => void;
+	/** The interactive Codex thread that will receive this wait result. */
+	codexThreadId?: string;
 }
 
 export interface WaitData {
@@ -808,8 +810,14 @@ export async function waitAction(
 		});
 		if (dashboard) data.dashboard = dashboard;
 	}
-	// WP36: a settled state this wait returns is not repeated by `notify-check`.
-	if (!stillRunning) await markRunNotifySeen(ctx.cwd, run).catch(() => {});
+	if (!stillRunning) {
+		if (request.codexThreadId && run.launch?.source === "mcp:codex")
+			await claimCodexDelivery(ctx.cwd, run, request.codexThreadId).catch(
+				() => {},
+			);
+		// WP36: a settled state this wait returns is not repeated by `notify-check`.
+		await markRunNotifySeen(ctx.cwd, run).catch(() => {});
+	}
 	const hints = hostCommandHints(ctx.host);
 	let text: string;
 	if (stillRunning) {

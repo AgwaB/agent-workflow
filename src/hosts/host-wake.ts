@@ -108,21 +108,21 @@ export async function wakeLaunchingHostSessions(
 		const checked = await notifyCheck(cwd, {
 			host: "codex",
 			runId: run.runId,
-			expectedEpoch: notifyEpoch(run),
+			codexWakeEpoch: notifyEpoch(run),
 			env,
 		});
-		const line = checked.data.notifications[0]?.text;
-		if (!line) {
-			log(`host wake: ${run.runId} already reported; no Codex session woken`);
+		// The queued message shows as the user's own message: send only the completion line.
+		const message = checked.data.notifications[0]?.text;
+		if (!message) {
+			log(
+				`host wake: ${run.runId} epoch not reportable; no Codex session woken`,
+			);
 			return;
 		}
-		// 2026-11-05 (owner: the queued message shows as the user's own message in the session): the
-		// completion line only; the launch already told the agent what to do when it arrives.
-		const message = line;
+		let claimed = false;
 		for (const thread of sessions) {
-			// The global receipt still prevents repeat prompt-hook notifications; this
-			// thread's receipt arbitrates with the foreground reply.
 			if (!(await claimCodexDelivery(cwd, run, thread))) continue;
+			claimed = true;
 			const queued = await (options.run ?? runWakeCommand)("codex", [
 				"queue",
 				"--thread",
@@ -134,6 +134,8 @@ export async function wakeLaunchingHostSessions(
 				`host wake: codex queue ${thread}: ${queued.ok ? "queued" : "failed"} ${queued.output}`,
 			);
 		}
+		if (!claimed)
+			log(`host wake: ${run.runId} already reported; no Codex session woken`);
 	} catch (error) {
 		log(
 			`host wake failed: ${error instanceof Error ? error.message : String(error)}`,

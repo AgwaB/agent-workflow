@@ -2117,8 +2117,12 @@ export function createHostMcpService(
 				throw new UsageError("timeoutMs must be a number");
 			let progress = 0;
 			let lastLine = "";
-			const waited = await api.waitAction(await context(args, call), {
+			const ctx = await context(args, call);
+			const codex =
+				ctx.host === "codex" ? codexTurnSession(call.meta) : undefined;
+			const waited = await api.waitAction(ctx, {
 				runId: requiredString(args, "runId"),
+				...(codex?.interactive ? { codexThreadId: codex.threadId } : {}),
 				// 2026-11-05: a host with a long per-call limit waits up to waitSliceMs (hostMcpWaitSliceMs).
 				...(longWait
 					? {

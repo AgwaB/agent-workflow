@@ -490,8 +490,8 @@ export async function notifyCheck(
 		stamp?: string;
 		/** 2026-11-05: only this run. */
 		runId?: string;
-		/** A targeted wake must not claim a different epoch after a concurrent resume. */
-		expectedEpoch?: string;
+		/** Internal targeted Codex wake: read this epoch even if another waiter marked it seen. */
+		codexWakeEpoch?: string;
 		/** 2026-11-05: only the runs this host session launched; refreshes its monitor stamp. */
 		session?: string;
 		/**
@@ -612,10 +612,12 @@ async function checkOnce(
 		now?: number;
 		env?: NodeJS.ProcessEnv;
 		runId?: string;
-		expectedEpoch?: string;
+		codexWakeEpoch?: string;
 		session?: string;
 	},
 ): Promise<{ data: NotifyCheckData; text: string }> {
+	const wakeEpoch =
+		options.runId === undefined ? undefined : options.codexWakeEpoch;
 	const now = options.now ?? Date.now();
 	const host = options.host ?? "cli";
 	const empty = { data: { notifications: [], deferred: 0 }, text: "" };
@@ -649,20 +651,18 @@ async function checkOnce(
 	for (const entry of candidates) {
 		const run = await readRunRecord(cwd, entry.runId).catch(() => undefined);
 		if (!run || run.parentRunId || !isSettledRun(run)) continue;
-		if (
-			options.expectedEpoch !== undefined &&
-			notifyEpoch(run) !== options.expectedEpoch
-		)
-			continue;
+		if (wakeEpoch !== undefined && notifyEpoch(run) !== wakeEpoch) continue;
 		const updated = Date.parse(run.updatedAt);
 		if (Number.isFinite(updated) && updated < since) continue;
-		if (existing.has(markerName(run))) continue;
+		if (wakeEpoch === undefined && existing.has(markerName(run))) continue;
 		if (notifications.length >= NOTIFY_CHECK_MAX_RUNS) {
 			deferred += 1;
 			continue;
 		}
 		const notification = await describe(cwd, run, host);
-		if (!(await claimMarker(dir, run, "notify-check", now))) continue;
+		// Keep prompt-hook deduplication, but the wake arbitrates per thread, not globally.
+		const claimed = await claimMarker(dir, run, "notify-check", now);
+		if (!claimed && wakeEpoch === undefined) continue;
 		notifications.push(notification);
 	}
 	await pruneMarkers(cwd, dir);

@@ -11,6 +11,8 @@ import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { waitUntil } from "../helpers/wait-until.mjs";
 import { waitForRun } from "../../dist/core/engine.js";
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
 import { drainWorkflowFixture } from "../helpers/workflow-fixture-lifecycle.mjs";
@@ -162,6 +164,38 @@ test("wakeLaunchingHostSessions queues the line once into each linked Codex thre
 	await notify.recordRunHostSession(cwd, "workflow_claude", THREAD);
 	await wake.wakeLaunchingHostSessions(cwd, other, { run: runner });
 	assert.equal(calls.length, 1);
+});
+
+test("workflow_wait suppresses wake for its own Codex thread only", async () => {
+	const cwd = await project();
+	const env = { ...process.env, AGENT_WORKFLOW_HOST_WAKE: "1" };
+	const runId = "workflow_waited";
+	const run = await writeRun(cwd, runId, "completed");
+	const otherThread = "01a1a9fc-37e9-7613-b590-05c91fcc4e85";
+	await notify.recordRunHostSession(cwd, runId, THREAD);
+	await notify.recordRunHostSession(cwd, runId, otherThread);
+	const waited = await mcpTools
+		.createHostMcpService({ root: cwd, host: "codex", env })
+		.call(
+			"workflow_wait",
+			{ runId },
+			{
+				protocolVersion: "2025-06-18",
+				clientCapabilities: {},
+				meta: turn("user"),
+			},
+		);
+	assert.equal(waited.isError, false, waited.content[0].text);
+	assert.equal(waited.structuredContent.data.status, "completed");
+	const queued = [];
+	await wake.wakeLaunchingHostSessions(cwd, run, {
+		env,
+		run: async (_command, args) => {
+			queued.push(args[2]);
+			return { ok: true, output: "Queued message" };
+		},
+	});
+	assert.deepEqual(queued, [otherThread]);
 });
 
 test("the detached supervisor wakes the linked Codex session when the run settles", async () => {
@@ -364,8 +398,10 @@ for (const first of ["settled before binding", "queued before reread"]) {
 	});
 }
 
-for (const wakeFirst of [true, false]) {
-	test(`a fast Codex resume reports exactly once: ${wakeFirst ? "wake wins" : "wait wins"}`, async (t) => {
+for (const order of ["wake wins", "wait wins", "reply before settlement"]) {
+	test(`a Codex resume reports exactly once: ${order}`, async (t) => {
+		const wakeFirst = order === "wake wins";
+		const replyFirst = order === "reply before settlement";
 		const cwd = await project();
 		const env = { ...process.env, AGENT_WORKFLOW_HOST_WAKE: "1" };
 		const ctx = { cwd, host: "codex", env };
@@ -392,9 +428,17 @@ for (const wakeFirst of [true, false]) {
 		await writeFile(
 			join(cwd, "report.mjs"),
 			`
-import { existsSync } from "node:fs";
-export default () => {
+import { existsSync, watch, writeFileSync } from "node:fs";
+export default async () => {
 	if (!existsSync(${JSON.stringify(join(cwd, "retry"))})) throw new Error("first attempt fails");
+	const released = ${JSON.stringify(join(cwd, "released"))};
+	await new Promise((done, fail) => {
+		const check = () => { if (existsSync(released)) { watcher.close(); done(); } };
+		const watcher = watch(${JSON.stringify(cwd)}, check);
+		watcher.on("error", fail);
+		writeFileSync(${JSON.stringify(join(cwd, "entered"))}, "");
+		check();
+	});
 	return { ok: true };
 };
 `,
@@ -469,6 +513,7 @@ export default () => {
 					return { ok: true, output: "Queued message" };
 				},
 			});
+		let settling;
 		let settled;
 		let result;
 		try {
@@ -481,14 +526,71 @@ export default () => {
 			assert.equal(resumed.data.status, "running", resumed.text);
 			assert.ok(resumed.data.detached, resumed.text);
 			assert.equal(resumed.data.resetTaskIds.length, 1);
-			settled = await waitForRun(cwd, runId, 10_000);
+			settling = waitForRun(cwd, runId, 10_000);
+			if (replyFirst) {
+				await waitUntil(
+					() =>
+						fs.stat(join(cwd, "entered")).then(
+							() => true,
+							() => false,
+						),
+					"retry helper entry",
+					{ timeoutMs: 5_000 },
+				);
+				reply.resolve();
+				result = await calling; // The helper cannot settle until after the reply.
+			}
+			await writeFile(join(cwd, "released"), "");
+			settled = await settling;
 			assert.equal(settled.status, "completed");
 			if (wakeFirst) await push(settled);
 		} finally {
 			reply.resolve();
-			result = await calling;
+			await writeFile(join(cwd, "released"), "");
+			await settling;
+			result ??= await calling;
 		}
 		const text = result.content[0].text;
+		if (replyFirst) {
+			assert.match(text, /queued message.*end your turn now/);
+			assert.doesNotMatch(
+				text,
+				/Next: call workflow_wait|Wait for the result:/,
+			);
+			assert.equal(await notify.runSettledStateSeen(cwd, runId), false);
+			const waited = childProcess.spawnSync(
+				process.execPath,
+				[
+					fileURLToPath(
+						new URL("../../src/hosts/cli/cli.mjs", import.meta.url),
+					),
+					"wait",
+					runId,
+					"--json",
+				],
+				{
+					cwd,
+					env: { ...env, AGENT_WORKFLOW_DASHBOARD_AUTOSTART: "0" },
+					encoding: "utf8",
+					timeout: 10_000,
+				},
+			);
+			assert.equal(waited.status, 0, waited.stderr || String(waited.error));
+			assert.equal(JSON.parse(waited.stdout).data.status, "completed");
+			assert.equal(await notify.runSettledStateSeen(cwd, runId), true);
+			assert.deepEqual(
+				(await notify.notifyCheck(cwd, { host: "codex", runId })).data
+					.notifications,
+				[],
+			);
+			await push(settled);
+			assert.equal(queued.length, 1);
+			assert.equal(queued[0][2], THREAD);
+			assert.match(queued[0][4], /finished.*status completed/);
+			await push(settled);
+			assert.equal(queued.length, 1);
+			return;
+		}
 		if (wakeFirst) {
 			assert.equal(queued[0]?.[2], THREAD);
 			assert.doesNotMatch(
