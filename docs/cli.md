@@ -20,7 +20,7 @@ never a project, in the CLI, the MCP server and the Pi host alike: runs started 
 workflow name that only an enclosing project has then fails with "not found in <dir>; the project
 <ancestor> has it — … run from <ancestor> (or pass the spec path)".
 
-**Contents:** [Commands](#commands) · [`new`](#new) · [`contract`](#contract) · [`check`](#check) · [`rehearse`](#rehearse) · [Launch options (`run`, `dynamic`)](#launch-options-run-dynamic) · [Saved user profiles](#saved-user-profiles) · [`doctor`](#doctor) · [`dashboard`](#dashboard) · [`statusline`, `watch`, `notify-check`](#statusline-watch-notify-check) · [Exit codes](#exit-codes) · [Environment](#environment) · [Examples](#examples) · [`host-command` hook entry](#host-command-hook-entry)
+**Contents:** [Commands](#commands) · [`new`](#new) · [`check`](#check) · [`rehearse`](#rehearse) · [Launch options (`run`, `dynamic`)](#launch-options-run-dynamic) · [Saved user profiles](#saved-user-profiles) · [`doctor`](#doctor) · [`dashboard`](#dashboard) · [`statusline`, `watch`, `notify-check`](#statusline-watch-notify-check) · [Exit codes](#exit-codes) · [Environment](#environment) · [Examples](#examples) · [`host-command` hook entry](#host-command-hook-entry)
 
 ## Commands
 
@@ -29,7 +29,6 @@ workflow name that only an enclosing project has then fails with "not found in <
 | `list [--query T] [--offset N] [--limit N]` | Discoverable workflows: project `workflows/` and `.agent-workflow/workflows/`, `~/.agent-workflow/workflows/`, bundled (Pi's directories are not read). `--limit` (1-20) pages the output and bounds it to 50 KB. |
 | `validate <workflow>` | Load and compile a spec without running it. Its `Tasks:` count is the compiled task count: a `foreach` or `loop` counts once, so a run has more ([task ids](usage.md#run-records)). Lists `Warnings:` ([what it checks](usage.md#what-validate-checks)). |
 | `new <pattern> <name> [--scope private\|shared\|global] [--force]` / `new --list` | Create a workflow from a pattern (`single`, `foreach-reduce`, `inventory-foreach`, `loop-refine`, `parallel-review-merge`, `classify-count`, `write-verify`, `collect-render`, `fix-loop`, `adaptive-depth`) that already validates and rehearses clean; you replace the `TODO:` prompts (below). No model call. |
-| `contract <workflow> <stage> [--json]` | Print a stage's generated prompt Contract from its control schema (below). No model call. |
 | `check <workflow> [<task…>] [launch options]` | The launch preflight without the launch: executor, tools, models and effort for the executor that would run each stage (below). No run, no model call. |
 | `rehearse <workflow> [<task…>] [--items N] [--loop pass\|exhaust] [--keep] [--json]` | Run a workflow through the real engine with a synthetic worker (no model call or network by the worker; temporary engine run state; helpers are trusted code, below). Reports the wiring per stage. |
 | `roles <workflow>` | Compiled role context as injected into task prompts. |
@@ -62,7 +61,7 @@ workflow name that only an enclosing project has then fails with "not found in <
 
 A run argument accepts the run id or an unambiguous prefix.
 
-Every command except `help`/`--version`, the hook entry `host-command` (below), the authoring commands `new`, `contract` and `rehearse`, and the terminal views `watch`, `dashboard`, `statusline`,
+Every command except `help`/`--version`, the hook entry `host-command` (below), the authoring commands `new` and `rehearse`, and the terminal views `watch`, `dashboard`, `statusline`,
 `notify-check`, whose data the `workflow_status`/`workflow_wait` tools already return, is also a host MCP tool (`workflow_<command>`,
 [host-mcp.md](hosts.md#tools)); the MCP forms of `prune --yes`, `profile set|delete|default`, `profile workflow set|clear` and
 `notices acknowledge|clear` and changing `project-settings` operations ask the user to confirm through MCP elicitation, and a client that
@@ -150,7 +149,8 @@ and `digest`), support helpers where the pattern has code stages, a `profileRole
 a `minItems` and `maxItems` on every foreach source array. Every prompt starts with a `TODO:` paragraph that already works
 as generic placeholder text: replace it with your domain instructions. The paragraph after it (the
 Contract) is generated from the stage's schema (allowed keys, exact enum values, caps, and a few-shot
-`<control>` skeleton that is checked against the schema); keep it, and regenerate it with `contract` when its schema changes. The same arguments always write byte-identical files.
+`<control>` skeleton that is checked against the schema); keep it, and if you change a schema, change its
+stage's Contract sentences and example with it. The same arguments always write byte-identical files.
 
 `write-verify` also writes the writer agent, `<name>-writer.md` (tools `read, grep, find, ls, edit, write`, `readOnly:
 false`), because a bundle cannot carry its own agent: it goes to `<project>/.agent-workflow/agents/` (scopes `private` and
@@ -216,23 +216,6 @@ every returned key. `new helper --list` names the helpers:
 A helper whose own file already exists is refused without `--force`; a dependency file (`evidence-locate.mjs`
 for the gate) that is already there with the same bytes is left alone, one you edited is refused. Exit 0 on
 success, 2 for a usage error or a refused write. Terminal CLI only.
-
-## `contract`
-
-```sh
-agent-workflow contract <workflow-name-or-path> <stage> [--json]
-agent-workflow contract impact-review impact-analysis.impact-synthesis
-```
-
-Use the stage id, not the runtime task id. For DAG and loop children, use `container.child` (with
-additional segments for deeper nesting); use `loop.$onExhausted` for a loop's exhaustion handler
-(quote the id in the shell). The selected stage must declare `output.controlSchema`.
-
-Paste the printed paragraph into the stage prompt and replace the illustrative values with domain
-examples if useful, keeping them schema-valid. The command prints the same kind of Contract as
-`new`; an open schema lists declared keys without forbidding others. It reads the spec and schema
-without compiling agents, running helpers or making a model call. The JSON form includes
-`data.stage` and `data.contract`.
 
 ## `check`
 

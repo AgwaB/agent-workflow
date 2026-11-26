@@ -1,4 +1,4 @@
-// Prompt text generated from a control schema, for `agent-workflow new` and `contract`.
+// Prompt text generated from a control schema, for `agent-workflow new`.
 // The "Contract" paragraph of a generated prompt (allowed keys, exact enum values, caps, the few-shot
 // `<control>` skeleton) is derived from the stage's own schema, so the prompt and the schema start
 // in sync and the example is schema-valid by construction. Pure and deterministic: no clock, no randomness.
@@ -105,22 +105,14 @@ export function controlContract(
 	const keys = Object.keys(properties);
 	const required = schema.required ?? [];
 	const parts: string[] = [];
-	const closed = schema.additionalProperties === false;
 	parts.push(
-		closed && keys.length > 0
-			? `Put machine-readable JSON in <control>. Emit no top-level keys other than ${keys.join(", ")}.`
-			: "Put machine-readable JSON in <control>.",
+		`Put machine-readable JSON in <control>. Emit no top-level keys other than ${keys.join(", ")}.`,
 	);
-	if (!closed && keys.length > 0)
-		parts.push(`Declared top-level keys: ${keys.join(", ")}.`);
-	if (required.length > 0)
-		parts.push(
-			closed &&
-				keys.every((key) => required.includes(key)) &&
-				required.length === keys.length
-				? "Every listed key is required."
-				: `Required keys: ${required.join(", ")}.`,
-		);
+	parts.push(
+		required.length === keys.length
+			? "Every listed key is required."
+			: `Required keys: ${required.join(", ")}.`,
+	);
 	for (const [key, child] of Object.entries(properties))
 		if (isObject(child) && Object.hasOwn(child, "const"))
 			parts.push(`${key} must be exactly ${JSON.stringify(child.const)}.`);
