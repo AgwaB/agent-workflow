@@ -1207,12 +1207,14 @@ test("published Markdown destinations preserve the original HTTP URL bytes", asy
 		}),
 	});
 	assert.equal(result.status, "passed");
-	assert.deepEqual(result.sourceUrls, [url]);
+	// The source index lists pages (no fragment); a link in the report body keeps its exact destination.
+	const page = url.split("#")[0];
+	assert.deepEqual(result.sourceUrls, [page]);
 	assert.deepEqual(
 		[...result.reportMarkdown.matchAll(/(?<!\\)\]\(<([^>]+)>\)/g)].map((m) =>
 			decodeLiteral(m[1]),
 		),
-		[url, url],
+		[url, page],
 	);
 });
 

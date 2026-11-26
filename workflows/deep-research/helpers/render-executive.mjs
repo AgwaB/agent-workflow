@@ -2790,7 +2790,11 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 		report.unverifiedButRelevant,
 		composed.ledger,
 	];
-	const allSourceIndex = uniqueStructuredUrls(...sourceRows);
+	// The source index (control `sourceUrls`) lists pages, so a fragment does not make a new source; links in
+	// the report body keep their exact destination.
+	const allSourceIndex = [
+		...new Set(uniqueStructuredUrls(...sourceRows).map((url) => url.split("#")[0])),
+	];
 	const localSourceIndex = localRefsOf(sourceRows, Infinity, options.cwd);
 	const maxUrls = Number.isFinite(Number(options.maxUrls))
 		? Math.max(0, Number(options.maxUrls))
