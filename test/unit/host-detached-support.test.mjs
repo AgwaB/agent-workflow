@@ -10,6 +10,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const host = new URL("../../dist/hosts/api.js", import.meta.url);
+const engine = new URL("../../dist/core/engine.js", import.meta.url);
 const store = new URL("../../dist/core/store.js", import.meta.url);
 const entry = new URL("../../dist/hosts/cli/index.js", import.meta.url);
 const executorHook = new URL(
@@ -50,6 +51,11 @@ const model = (id, extra = {}) => ({
 	...extra,
 });
 const support = { id: "slow", support: { uses: "./helpers/barrier.mjs" } };
+const approval = model("approval", {
+	approvalMode: "on-request",
+	tools: ["read", "edit"],
+});
+const independentSupport = { ...support, after: [] };
 
 async function fixture(t, { stages = [support], layout = "plain" } = {}) {
 	const root = await mkdtemp(join(tmpdir(), "aw-detached-support-"));
@@ -111,7 +117,14 @@ export default async () => {
 				"-e",
 				`
 import { runAgentWorkflowCli } from ${JSON.stringify(entry.href)};
-process.on("message", () => {});
+const abort = new AbortController();
+const publication = Promise.withResolvers();
+const stopIntent = Promise.withResolvers();
+const abortAtPublication = process.env.AW_PUBLICATION_HOOK?.startsWith("abort");
+process.on("message", (message) => {
+	if (message === "abort") { abort.abort(); publication.resolve(); }
+	if (message === "release-stop-intent") stopIntent.resolve();
+});
 if (process.env.AW_STATUS_CLOCK_OFFSET) {
 	const now = Date.now;
 	Date.now = () => now() + Number(process.env.AW_STATUS_CLOCK_OFFSET);
@@ -121,6 +134,19 @@ if (process.env.AW_PUBLICATION_HOOK) {
 	const { existsSync, mkdirSync } = await import("node:fs");
 	const { basename, dirname, join } = await import("node:path");
 	setRunLeaseTestHooksForTests({
+		async onAfterAtomicRename({ file }) {
+			if (!abortAtPublication || basename(file) !== "run.json") return;
+			setRunLeaseTestHooksForTests({
+				async onBeforeAtomicRename({ file }) {
+					if (process.env.AW_PUBLICATION_HOOK === "abort" && basename(file) === "stop-intent.json")
+						await stopIntent.promise;
+					if (process.env.AW_PUBLICATION_HOOK === "abort-fail" && basename(file) === "run.json")
+						throw new Error("injected stop write failure");
+				},
+			});
+			process.send({ runFile: file });
+			await publication.promise;
+		},
 		async onBeforeReleaseLockRename({ lockFile }) {
 			const runFile = join(dirname(lockFile), "run.json");
 			if (basename(lockFile) !== "supervisor.lock" || !existsSync(runFile)) return;
@@ -143,6 +169,7 @@ if (process.env.AW_DIRECT_HOST === "1") {
 	if (env.AW_HOST_HOME) env.AGENT_WORKFLOW_HOME = env.AW_HOST_HOME;
 	const result = await runWorkflowAction({ cwd: process.cwd(), host: "generic", env }, {
 		workflow: "spec.json", task: "probe", executor: "test-fixture", detach: true,
+		...(abortAtPublication ? { signal: abort.signal } : {}),
 	});
 	code = result.ok ? 0 : 1;
 	stdout = JSON.stringify(result);
@@ -190,10 +217,28 @@ process.send({ code, stdout, stderr });
 			return exit;
 		};
 		t.after(kill);
-		return { pid: child.pid, kill, result };
+		return {
+			pid: child.pid,
+			kill,
+			result,
+			releaseStopIntent: () => child.send("release-stop-intent"),
+			abort: () => {
+				const response = Promise.race([
+					once(child, "message").then(([message]) => message),
+					exit.then((state) =>
+						assert.fail(
+							`launcher exited after abort: ${JSON.stringify(state)}`,
+						),
+					),
+				]);
+				child.send("abort");
+				return response;
+			},
+		};
 	}
 	return {
 		launch,
+		cwd,
 		release,
 		helperStarted: () => existsSync(started),
 		helperPid: async () => Number(await readWhen(t, started)),
@@ -219,17 +264,7 @@ for (const command of ["run", "resume", "blocked run"]) {
 		const blocked = command === "blocked run";
 		const f = await fixture(
 			t,
-			blocked
-				? {
-						stages: [
-							model("approval", {
-								approvalMode: "on-request",
-								tools: ["read", "edit"],
-							}),
-							{ ...support, after: [] },
-						],
-					}
-				: {},
+			blocked ? { stages: [approval, independentSupport] } : {},
 		);
 		let args = f.runArgs;
 		if (command === "resume") {
@@ -411,3 +446,64 @@ for (const [name, layout, env] of [
 		assert.match(log, new RegExp(`done: ${data.runId} completed`));
 	});
 }
+
+for (const [label, stages] of [
+	["pending helper", [support]],
+	["permission block", [approval]],
+]) {
+	test(`an abort at publication stops the exact run before a waiter dispatches: ${label}`, async (t) => {
+		const f = await fixture(t, { stages });
+		const launcher = f.launch(f.runArgs, {
+			AW_DIRECT_HOST: "1",
+			AW_PUBLICATION_HOOK: "abort",
+		});
+		const { runFile } = await launcher.result;
+		assert.ok(runFile, "expected the publication barrier");
+		const runId = basename(dirname(runFile));
+		const { waitForRun } = await import(engine.href);
+		const observed = Promise.withResolvers();
+		const waiting = waitForRun(f.cwd, runId, 10_000, {
+			onWaitProgress: observed.resolve,
+		});
+		await observed.promise;
+		await f.release();
+		const response = launcher.abort();
+		// If the launcher tries the old post-lease stop-intent path, hold that
+		// write until the competing wait has had a chance to dispatch.
+		const [waited, { stdout }] = await Promise.all([
+			waiting.finally(launcher.releaseStopIntent),
+			response,
+		]);
+		if (label === "pending helper") assert.equal(waited.status, "interrupted");
+		const { data } = JSON.parse(stdout);
+		assert.equal(data.runId, runId);
+		assert.equal(data.detached, undefined);
+		const run = JSON.parse(await readFile(runFile, "utf8"));
+		assert.equal(run.status, "interrupted");
+		assert.equal(run.tasks[0].statusDetail, "workflow_stopped");
+		assert.equal(f.helperStarted(), false);
+	});
+}
+
+test("a failed stop write reports the error and the already-published run ID", async (t) => {
+	const f = await fixture(t);
+	const launcher = f.launch(f.runArgs, {
+		AW_DIRECT_HOST: "1",
+		AW_PUBLICATION_HOOK: "abort-fail",
+	});
+	const { runFile } = await launcher.result;
+	assert.ok(runFile, "expected the publication barrier");
+	const runId = basename(dirname(runFile));
+	const { code, stdout } = await launcher.abort();
+	assert.equal(code, 1, stdout);
+	const result = JSON.parse(stdout);
+	assert.equal(result.outcome, "failed");
+	assert.equal(result.data.runId, runId);
+	assert.equal(result.data.detached, undefined);
+	assert.match(result.text, new RegExp(runId));
+	assert.match(result.text, /injected stop write failure/);
+	assert.doesNotMatch(result.text, /before the run was published/);
+	const run = JSON.parse(await readFile(runFile, "utf8"));
+	assert.equal(run.tasks[0].status, "pending");
+	assert.equal(f.helperStarted(), false);
+});

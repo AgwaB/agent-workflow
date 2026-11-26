@@ -62,6 +62,7 @@ import {
 	workflowRunPath,
 	writeJsonAtomic,
 	writeRunRecord,
+	writeRunRecordDurable,
 	writeCompiledRunArtifact,
 	writeStaticRunArtifacts,
 	writeWorkflowLaunchCommandArtifact,
@@ -653,7 +654,27 @@ export class WorkflowDefinitionChangedError extends Error {
 	}
 }
 
+/** Internal host handoff for a signaled detach, before another driver can schedule the run. */
+export const WORKFLOW_DETACHED_HANDOFF: unique symbol = Symbol(
+	"workflowDetachedHandoff",
+);
+
+export class DetachedLaunchStopError extends Error {
+	constructor(
+		readonly run: WorkflowRunRecord,
+		cause: unknown,
+	) {
+		super(`Could not confirm cancellation of published run ${run.runId}`, {
+			cause,
+		});
+	}
+}
+
 type WorkflowRunDiagnosticOptions = WorkflowRunOptions & {
+	[WORKFLOW_DETACHED_HANDOFF]?: (
+		run: WorkflowRunRecord,
+		leaseSignal: AbortSignal,
+	) => Promise<void>;
 	[WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK]?: (
 		notice: string,
 		digest: string,
@@ -1258,7 +1279,29 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					`Cannot initialize workflow run ${run.runId}: persisted run identity changed`,
 				);
 			}
-			return persisted;
+			const launchSignal = options.launchSignal;
+			if (!options.deferScheduling || !launchSignal) return persisted;
+			const stopBeforeDispatch = async (): Promise<WorkflowRunRecord> => {
+				if (!launchSignal.aborted) return persisted;
+				const stopped = structuredClone(persisted);
+				if (markRunStopped(stopped).length === 0) return persisted;
+				try {
+					// Publication still owns the lease; there are no workers to cancel.
+					await writeRunRecordDurable(cwd, stopped, leaseSignal);
+				} catch (error) {
+					throw new DetachedLaunchStopError(persisted, error);
+				}
+				return stopped;
+			};
+			// Stop an abort already observed during publication before doing any host I/O.
+			let published = await stopBeforeDispatch();
+			try {
+				await options[WORKFLOW_DETACHED_HANDOFF]?.(published, leaseSignal);
+			} finally {
+				// The guard/dashboard awaits can also observe cancellation while the lease is held.
+				if (published === persisted) published = await stopBeforeDispatch();
+			}
+			return published;
 		});
 	} catch (error) {
 		// WP42: a foreground-cancelled launch leaves no unpublished run directory behind either.
