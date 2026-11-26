@@ -1059,7 +1059,7 @@ export async function pruneAction(
 		"prune",
 		summary.error ? "failed" : "success",
 		{ ...summary, adapterState, hostLaunchClaims },
-		`${formatWorkflowPruneSummary(summary)}\n${formatExecutorStatePrune(adapterState)}\n${claimsText}`,
+		`${formatWorkflowPruneSummary(summary, ctx.cwd)}\n${formatExecutorStatePrune(adapterState)}\n${claimsText}`,
 	);
 }
 

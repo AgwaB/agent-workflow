@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, join, relative } from "node:path";
 import { after, test } from "node:test";
 
@@ -99,6 +99,7 @@ test("the dirty snapshot never copies .agent-workflow/ state into a worktree, ev
 const { pruneWorkflowRuns, formatWorkflowPruneSummary } = await import(
 	"../../dist/core/run-retention.js"
 );
+const { displayPathUnderHome } = await import("../../dist/core/home-dir.js");
 
 /** A terminal run whose tasks ran in managed worktrees (created with the real helper). */
 async function runWithWorktrees(cwd, runId, taskIds) {
@@ -196,10 +197,19 @@ test("prune: managed worktrees are listed in the dry run and removed with --yes;
 			},
 		],
 	);
-	const text = formatWorkflowPruneSummary(preview);
+	// The summary's worktree paths are relative to the project; the text resolves them against that
+	// project, not this process's working directory (an MCP host server runs elsewhere).
+	const elsewhere = process.cwd();
+	process.chdir(homedir());
+	let text;
+	try {
+		text = formatWorkflowPruneSummary(preview, cwd);
+	} finally {
+		process.chdir(elsewhere);
+	}
 	assert.ok(
 		text.includes(
-			`Worktree: ${relative(cwd, dirty.cwd)} (branch agent-workflow/workflow_wtprune-task-1; uncommitted changes)`,
+			`Worktree: ${displayPathUnderHome(dirty.cwd)} (branch agent-workflow/workflow_wtprune-task-1; uncommitted changes)`,
 		),
 		text,
 	);
