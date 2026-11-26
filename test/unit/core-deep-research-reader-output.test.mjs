@@ -1216,6 +1216,26 @@ test("published Markdown destinations preserve the original HTTP URL bytes", asy
 	);
 });
 
+test("legacy action matching keeps hosts with $ distinct", async () => {
+	const stepUrl = "https://a$$.example/docs";
+	const otherUrl = "https://a$.example/docs";
+	const result = await render({
+		sources: legacyReport({
+			actionPlan: [{ action: "Read the docs", sourceUrls: [stepUrl] }],
+			recommendations: [
+				{ recommendation: "Review the other host", sourceUrls: [otherUrl] },
+			],
+		}),
+	});
+	assert.equal(result.status, "passed");
+	const actions = result.reportMarkdown
+		.split("## To do\n")[1]
+		.split("\n## ")[0];
+	assert.deepEqual(
+		[...actions.matchAll(/^\d+\. \*\*.*?\*\* (.+)$/gm)].map((m) => m[1]),
+		["Read the docs", "Review the other host"],
+	);
+});
 test("legacy actions match canonical URLs without rewriting their citations", async () => {
 	const stepUrl = "HTTPS://EXAMPLE.org:443/docs?sig=ABC#part.";
 	const relatedUrl = "https://example.org/docs?sig=ABC#part.";

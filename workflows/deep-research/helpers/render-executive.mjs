@@ -2152,7 +2152,8 @@ function relatedActionRefs(item) {
 	// Normalize only the origin for matching. Leave paths, queries and fragments
 	// distinct, and keep the original URL for citation rendering.
 	const urls = urlsOf(item, Infinity).map((url) =>
-		url.replace(/^https?:\/\/[^/?#]+/i, new URL(url).origin),
+		// A callback: a replacement string would turn "$$" in a host into "$".
+		url.replace(/^https?:\/\/[^/?#]+/i, () => new URL(url).origin),
 	);
 	return new Set([...urls, ...localRefsOf(item, Infinity)]);
 }
