@@ -191,6 +191,18 @@ function blank(text: string): BlankedSource | undefined {
 	return code === undefined ? undefined : { code, strings };
 }
 
+/** Literal relative imports (including re-exports and literal import()) without executing a helper. */
+export function literalModuleImports(text: string): string[] {
+	const blanked = blank(text);
+	if (!blanked) return [];
+	const imports =
+		/(?<![\w$.])(?:import\s*\(\s*"S(\d+)"\s*(?=[,)])|(?:import\s*|(?:import|export)\s+[\w$*,\s{}]*?\bfrom\s*)"S(\d+)")/gu;
+	return [...blanked.code.matchAll(imports)].flatMap((match) => {
+		const value = blanked.strings[Number(match[1] ?? match[2])];
+		return value?.startsWith("./") || value?.startsWith("../") ? [value] : [];
+	});
+}
+
 const ID = String.raw`[A-Za-z_$][\w$]*`;
 const SRC = String.raw`(?<![\w$.])sources(?![\w$])`;
 const WRITE = String.raw`\s*(?:\+\+|--|(?:[-+*/%&|^]|\*\*|<<|>>>?|\?\?|\|\||&&)?=(?![=>]))`;

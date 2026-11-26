@@ -211,9 +211,9 @@ test("bundled deep-research carries materialized claim owners through runtime au
 	const audit = await control(cwd, run, "audit-claims.main");
 	const packet = await control(cwd, run, "final-audit-packet.main");
 	const synthesisSchema = await readJson(
-		join(
-			dirname(specPath),
-			"schemas/deep-research-final-synthesis-control.schema.json",
+		new URL(
+			"../fixtures/deep-research/schemas/deep-research-final-synthesis-control.schema.json",
+			import.meta.url,
 		),
 	);
 	assert.equal(validateJsonSchema(synthesis, synthesisSchema).valid, true);

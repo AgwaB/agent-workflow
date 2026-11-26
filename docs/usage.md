@@ -896,6 +896,9 @@ design feedback to fix before the first run:
   `foreach` over such a consumer, without `inputPolicy.invalidateOnDependencyResume`;
 - a write-verify support stage whose `options.files[].path` its writer's prompt (`options.writer`, default `write`)
   does not name;
+- possibly orphaned `schemas/*.json` and `helpers/*.mjs` in `<name>/spec.json` bundles. References from sibling
+  `*.spec.json` variants and transitive relative helper imports count; computed `import()` and filesystem reads
+  are invisible, so verify before deleting. Flat specs are not scanned.
 - prompt/schema drift, a foreach or `sourceProjection` path the source schema lacks, and `readOnly` stages that lose
   tools.
 

@@ -8185,7 +8185,8 @@ test("workflow output parser repairs known workflow control schema slips before 
 		readFileSync(
 			join(
 				repoRoot,
-				"workflows",
+				"test",
+				"fixtures",
 				"deep-research",
 				"schemas",
 				"deep-research-final-synthesis-control.schema.json",

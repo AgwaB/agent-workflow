@@ -8,6 +8,7 @@ import {
 	collectAuthoringRuleWarnings,
 	dependencyResumeWarnings,
 } from "./authoring-rule-warnings.js";
+import { bundleFileWarnings } from "./bundle-file-warnings.js";
 import {
 	foreachReadKeys,
 	noInventSentence,
@@ -955,6 +956,9 @@ export async function compileWorkflow(
 	if (!options.metadataOnly) {
 		compiled.warnings.push(
 			...dependencyResumeWarnings(compiled),
+			...(options.specPath
+				? await bundleFileWarnings(spec, resolve(options.cwd, options.specPath))
+				: []),
 			...(await collectForeachPathWarnings(
 				spec.artifactGraph?.stages ?? [],
 				foreachSpecDir,
