@@ -120,7 +120,9 @@ import { runAgentWorkflowCli } from ${JSON.stringify(entry.href)};
 const abort = new AbortController();
 const publication = Promise.withResolvers();
 const stopIntent = Promise.withResolvers();
-const abortAtPublication = process.env.AW_PUBLICATION_HOOK?.startsWith("abort");
+const publicationHook = process.env.AW_PUBLICATION_HOOK;
+const abortAtRelease = publicationHook === "abort-release";
+const abortAtPublication = !abortAtRelease && publicationHook?.startsWith("abort");
 process.on("message", (message) => {
 	if (message === "abort") { abort.abort(); publication.resolve(); }
 	if (message === "release-stop-intent") stopIntent.resolve();
@@ -136,9 +138,13 @@ if (process.env.AW_PUBLICATION_HOOK) {
 	setRunLeaseTestHooksForTests({
 		async onAfterAtomicRename({ file }) {
 			if (!abortAtPublication || basename(file) !== "run.json") return;
+			let releasing = false;
 			setRunLeaseTestHooksForTests({
+				onBeforeReleaseLockRename({ lockFile }) {
+					if (lockFile === join(dirname(file), "supervisor.lock")) releasing = true;
+				},
 				async onBeforeAtomicRename({ file }) {
-					if (process.env.AW_PUBLICATION_HOOK === "abort" && basename(file) === "stop-intent.json")
+					if (publicationHook === "abort" && releasing && basename(file) === "stop-intent.json")
 						await stopIntent.promise;
 					if (process.env.AW_PUBLICATION_HOOK === "abort-fail" && basename(file) === "run.json")
 						throw new Error("injected stop write failure");
@@ -152,6 +158,12 @@ if (process.env.AW_PUBLICATION_HOOK) {
 			if (basename(lockFile) !== "supervisor.lock" || !existsSync(runFile)) return;
 			if (process.env.AW_PUBLICATION_HOOK === "break-log") {
 				mkdirSync(join(dirname(lockFile), "supervise.log"), { recursive: true });
+				return;
+			}
+			if (abortAtRelease) {
+				setRunLeaseTestHooksForTests();
+				process.send({ runFile });
+				await publication.promise;
 				return;
 			}
 			process.send({ lockFile });
@@ -169,7 +181,7 @@ if (process.env.AW_DIRECT_HOST === "1") {
 	if (env.AW_HOST_HOME) env.AGENT_WORKFLOW_HOME = env.AW_HOST_HOME;
 	const result = await runWorkflowAction({ cwd: process.cwd(), host: "generic", env }, {
 		workflow: "spec.json", task: "probe", executor: "test-fixture", detach: true,
-		...(abortAtPublication ? { signal: abort.signal } : {}),
+		...(abortAtPublication || abortAtRelease ? { signal: abort.signal } : {}),
 	});
 	code = result.ok ? 0 : 1;
 	stdout = JSON.stringify(result);
@@ -519,7 +531,7 @@ for (const [label, stages] of [
 	});
 }
 
-test("a failed stop write reports the error and the already-published run ID", async (t) => {
+test("a failed stop write reports the published run ID and fences a later waiter", async (t) => {
 	const f = await fixture(t);
 	const launcher = f.launch(f.runArgs, {
 		AW_DIRECT_HOST: "1",
@@ -539,7 +551,49 @@ test("a failed stop write reports the error and the already-published run ID", a
 	assert.doesNotMatch(result.text, /before the run was published/);
 	const run = JSON.parse(await readFile(runFile, "utf8"));
 	assert.equal(run.tasks[0].status, "pending");
+	await f.release();
+	const { waitForRun } = await import(engine.href);
+	const waited = await waitForRun(f.cwd, runId, 10_000);
 	assert.equal(f.helperStarted(), false);
+	assert.equal(waited.status, "interrupted");
+	assert.equal(waited.tasks[0].statusDetail, "workflow_stopped");
+});
+
+test("an abort during publication-lease release stops a permission-only run", async (t) => {
+	const f = await fixture(t, { stages: [approval] });
+	const launcher = f.launch(f.runArgs, {
+		AW_DIRECT_HOST: "1",
+		AW_PUBLICATION_HOOK: "abort-release",
+	});
+	const { runFile } = await launcher.result;
+	assert.ok(runFile, "expected the lease release barrier");
+	assert.equal(JSON.parse(await readFile(runFile, "utf8")).status, "blocked");
+	const { stdout } = await launcher.abort();
+	const { data } = JSON.parse(stdout);
+	assert.equal(data.runId, basename(dirname(runFile)));
+	assert.equal(data.detached, undefined);
+	assert.equal(data.status, "interrupted");
+	const run = JSON.parse(await readFile(runFile, "utf8"));
+	assert.equal(run.tasks[0].statusDetail, "workflow_stopped");
+});
+
+test("an abort at lease release does not cancel a successful handoff", async (t) => {
+	const f = await fixture(t);
+	const launcher = f.launch(f.runArgs, {
+		AW_DIRECT_HOST: "1",
+		AW_PUBLICATION_HOOK: "abort-release",
+	});
+	const { runFile } = await launcher.result;
+	assert.ok(runFile, "expected the lease release barrier");
+	const { stdout } = await launcher.abort();
+	const { data } = JSON.parse(stdout);
+	assert.ok(data.detached, stdout);
+	assert.equal(await f.helperPid(), data.detached.pid);
+	await f.release();
+	assert.match(
+		await supervisorLog(t, data.detached.logPath),
+		new RegExp(`done: ${data.runId} completed`),
+	);
 });
 
 test("a detached resume with a failed spawn never says it scheduled work", async (t) => {

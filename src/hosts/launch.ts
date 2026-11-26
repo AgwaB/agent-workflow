@@ -1364,12 +1364,14 @@ async function launchClaimed(
 			request.signal?.aborted ||
 			!hasActiveSchedulerWork(run)
 		)
-			return;
+			return false;
 		leaseSignal?.throwIfAborted();
 		try {
 			detached = spawnDetachedSupervisor(ctx.cwd, run.runId, hostEnv(ctx));
+			return true;
 		} catch (error) {
 			detachError = detachedSupervisorFailure(error, run.runId, hints);
+			return false;
 		}
 	};
 	// Keep competing waiters out during the cancellable handoff. Unsignaled launches

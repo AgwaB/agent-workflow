@@ -654,7 +654,7 @@ export class WorkflowDefinitionChangedError extends Error {
 	}
 }
 
-/** Internal host handoff for a signaled detach, before another driver can schedule the run. */
+/** Internal host handoff for a signaled detach; true only once a supervisor was spawned. */
 export const WORKFLOW_DETACHED_HANDOFF: unique symbol = Symbol(
 	"workflowDetachedHandoff",
 );
@@ -674,7 +674,7 @@ type WorkflowRunDiagnosticOptions = WorkflowRunOptions & {
 	[WORKFLOW_DETACHED_HANDOFF]?: (
 		run: WorkflowRunRecord,
 		leaseSignal: AbortSignal,
-	) => Promise<void>;
+	) => Promise<boolean>;
 	[WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK]?: (
 		notice: string,
 		digest: string,
@@ -1239,6 +1239,8 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		run.executorDefaults = recordedDefaults;
 	run.capabilityNegotiation = capabilityNegotiation;
 	let initialized: WorkflowRunRecord | undefined;
+	let releaseStop: ReturnType<typeof requestWorkflowStop> | undefined;
+	let unbindReleaseStop: (() => void) | undefined;
 	try {
 		if (launchCapture?.command.state === "captured")
 			await prepareWorkflowLaunchCommandArtifactPath(cwd, runId);
@@ -1286,8 +1288,10 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 				const stopped = structuredClone(persisted);
 				if (markRunStopped(stopped).length === 0) return persisted;
 				try {
-					// Publication still owns the lease; there are no workers to cancel.
+					// The independent intent fences the next driver even if the stopped record fails.
+					await requestWorkflowStop(cwd, run.runId);
 					await writeRunRecordDurable(cwd, stopped, leaseSignal);
+					await clearWorkflowStopIntent(cwd, run.runId);
 				} catch (error) {
 					throw new DetachedLaunchStopError(persisted, error);
 				}
@@ -1295,19 +1299,48 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 			};
 			// Stop an abort already observed during publication before doing any host I/O.
 			let published = await stopBeforeDispatch();
+			let handedOff = false;
 			try {
-				await options[WORKFLOW_DETACHED_HANDOFF]?.(published, leaseSignal);
+				handedOff =
+					(await options[WORKFLOW_DETACHED_HANDOFF]?.(
+						published,
+						leaseSignal,
+					)) ?? false;
 			} finally {
-				// The guard/dashboard awaits can also observe cancellation while the lease is held.
-				if (published === persisted) published = await stopBeforeDispatch();
+				if (!handedOff && published === persisted) {
+					// Keep cancellation active during the guard/dashboard awaits and lock release.
+					published = await stopBeforeDispatch();
+					if (published === persisted) {
+						const onAbort = () => {
+							releaseStop ??= requestWorkflowStop(cwd, run.runId);
+							void releaseStop.catch(() => undefined);
+						};
+						launchSignal.addEventListener("abort", onAbort, { once: true });
+						unbindReleaseStop = () =>
+							launchSignal.removeEventListener("abort", onAbort);
+						if (launchSignal.aborted) onAbort();
+					}
+				}
 			}
 			return published;
 		});
+		if (initialized && releaseStop) {
+			try {
+				await releaseStop;
+				initialized = (
+					await confirmRequestedWorkflowStop(cwd, run.runId, initialized)
+				).run;
+			} catch (error) {
+				throw new DetachedLaunchStopError(initialized, error);
+			}
+		}
 	} catch (error) {
 		// WP42: a foreground-cancelled launch leaves no unpublished run directory behind either.
 		if (options.launchSignal?.aborted)
 			await removeUnpublishedAutoRunDirectory(cwd, run.runId);
 		throw error;
+	} finally {
+		unbindReleaseStop?.();
 	}
 	if (!initialized) {
 		throw new Error(
