@@ -294,6 +294,7 @@ export default async () => {
 			const launched = runId(out);
 			assert.match(out.reason, new RegExp(`hook-alpha.*executor ${id}`));
 			assert.match(out.reason, /You'll get the result here when it finishes\./);
+			assert.doesNotMatch(out.reason, /workflow_wait/);
 			assert.match(
 				out.reason,
 				new RegExp(`project=${projectId(cwd)}&run=${launched}`),
@@ -482,6 +483,9 @@ for (const args of [
 		}
 		assert.equal(runId(out), id);
 		assert.match(out.reason, /\(completed; executor/);
+		assert.ok(
+			out.reason.includes(`workflow_wait ${JSON.stringify({ runId: id })}`),
+		);
 		assert.doesNotMatch(out.reason, /You'll get the result here/);
 	});
 }

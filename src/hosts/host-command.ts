@@ -15,14 +15,20 @@ import {
 	stopAction,
 } from "./api.js";
 import { projectId } from "../core/state-location.js";
+import { readRunRecord } from "../core/store.js";
 import {
 	ensureDashboard,
 	mintLaunchUrl,
 	openInBrowser,
 } from "./dashboard/discovery.js";
 import { hostCommandHints } from "./hints.js";
-import { hostWakeEnabled, reconcileCodexDelivery } from "./host-wake.js";
-import { isHostSessionId, recordRunHostSession } from "./notify-check.js";
+import { hostWakeEnabled } from "./host-wake.js";
+import {
+	isHostSessionId,
+	isSettledRun,
+	recordRunHostSession,
+	runHostSessions,
+} from "./notify-check.js";
 import { findProjectRoot, runProject } from "./project-root.js";
 import { hostTextRedactor } from "./redaction.js";
 import { containedProjectStateDir } from "./run-files.js";
@@ -227,17 +233,15 @@ async function launchText(
 		next = wait;
 		if (isHostSessionId(session) && hostWakeEnabled(ctx.env)) {
 			await recordRunHostSession(ctx.cwd, data.runId, session);
-			const delivery = await reconcileCodexDelivery(
-				ctx.cwd,
-				data.runId,
-				session,
-			);
-			if (delivery.kind === "codex-queue") next = notification;
-			else if (delivery.kind === "codex-claimed")
-				next = "The result is being queued to this Codex session.";
-			else if (delivery.run) {
-				status = delivery.run.status;
-				next = undefined;
+			if ((await runHostSessions(ctx.cwd, data.runId)).includes(session)) {
+				// Settlement can beat binding. Report it without suppressing a supervisor wake.
+				const run = await readRunRecord(ctx.cwd, data.runId).catch(
+					() => undefined,
+				);
+				if (run?.launch?.source === "mcp:codex") {
+					if (isSettledRun(run)) status = run.status;
+					else next = notification;
+				}
 			}
 		}
 	} else if (ctx.host === "claude-code") {

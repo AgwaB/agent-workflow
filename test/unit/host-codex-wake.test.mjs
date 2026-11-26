@@ -284,14 +284,21 @@ test("a Codex launch's next step: end the turn for an interactive, detached laun
 	assert.match(await text({}), WAIT);
 });
 
-for (const first of ["settled before binding", "queued before reread"]) {
-	test(`a fast Codex launch reports exactly once: ${first}`, async (t) => {
+for (const [tool, method, beforeBinding] of [
+	["workflow_run", "runWorkflowAction", true],
+	["workflow_run", "runWorkflowAction", false],
+	["workflow_auto", "autoAction", true],
+	["workflow_auto", "autoAction", false],
+]) {
+	const first = beforeBinding
+		? "settled before binding"
+		: "queued before reread";
+	test(`${tool} directs a wait when already settled: ${first}`, async (t) => {
 		const cwd = await project();
 		const runId = "workflow_fast";
 		await writeRun(cwd, runId, "running");
 		const reached = Promise.withResolvers();
 		const release = Promise.withResolvers();
-		const beforeBinding = first === "settled before binding";
 		if (!beforeBinding) {
 			// Let the supervisor see the link, but don't let MCP proceed to reread the run.
 			const open = fs.open;
@@ -315,21 +322,23 @@ for (const first of ["settled before binding", "queued before reread"]) {
 			env: process.env,
 			api: {
 				...api,
-				async runWorkflowAction() {
+				async [method]() {
 					if (beforeBinding) {
 						reached.resolve();
 						await release.promise;
 					}
+					const launch = {
+						runId,
+						status: "running",
+						detached: { pid: 1, logPath: "x" },
+					};
 					return {
-						action: "run",
+						action: tool === "workflow_auto" ? "auto" : "run",
 						ok: true,
 						outcome: "running",
 						text: "Workflow started",
-						data: {
-							runId,
-							status: "running",
-							detached: { pid: 1, logPath: "x" },
-						},
+						data:
+							tool === "workflow_auto" ? { phase: "launched", launch } : launch,
 					};
 				},
 			},
@@ -340,8 +349,10 @@ for (const first of ["settled before binding", "queued before reread"]) {
 			meta: turn("user"),
 		};
 		const calling = service.call(
-			"workflow_run",
-			{ workflow: "deep-review", task: "t" },
+			tool,
+			tool === "workflow_auto"
+				? { task: "t" }
+				: { workflow: "deep-review", task: "t" },
 			context,
 		);
 		const queued = [];
@@ -371,22 +382,18 @@ for (const first of ["settled before binding", "queued before reread"]) {
 		const result = await calling;
 		assert.deepEqual(await notify.runHostSessions(cwd, runId), [THREAD]);
 		const text = result.content[0].text;
-		if (beforeBinding) {
-			assert.match(text, /Then call workflow_wait \{"runId":"workflow_fast"\}/);
-			assert.doesNotMatch(text, /end your turn now/);
-			// A late notifier cannot also queue this epoch, even before the directed wait.
-			await push(settled);
-			assert.equal(queued.length, 0);
-			const waited = await service.call("workflow_wait", { runId }, context);
-			assert.equal(waited.isError, false, waited.content[0].text);
-			assert.equal(waited.structuredContent.data.status, "completed");
-		} else {
-			assert.doesNotMatch(text, /Then call workflow_wait|Wait for the result:/);
-			assert.match(text, /queued message/);
-			assert.equal(queued[0][2], THREAD);
-			await push(settled);
-			assert.equal(queued.length, 1);
+		assert.equal(result.isError, false, text);
+		assert.match(text, /Then call workflow_wait \{"runId":"workflow_fast"\}/);
+		assert.doesNotMatch(text, /end your turn now|queued message/);
+		await push(settled);
+		assert.ok(queued.length <= 1, "at most one extra delivery by push");
+		for (const args of queued) {
+			assert.equal(args[2], THREAD);
+			assert.match(args[4], /run workflow_fast\) finished/);
 		}
+		const waited = await service.call("workflow_wait", { runId }, context);
+		assert.equal(waited.isError, false, waited.content[0].text);
+		assert.equal(waited.structuredContent.data.status, "completed");
 	});
 }
 
@@ -409,9 +416,8 @@ test("a detached Codex resume directs an explicit wait after the same thread has
 		meta: turn("user"),
 	};
 	const calling = service.call("workflow_resume", { runId }, context);
-	let settled;
 	try {
-		settled = await writeRun(cwd, runId, "completed");
+		await writeRun(cwd, runId, "completed");
 		const waited = await service.call("workflow_wait", { runId }, context);
 		assert.equal(waited.isError, false, waited.content[0].text);
 		assert.equal(waited.structuredContent.data.status, "completed");
@@ -428,16 +434,7 @@ test("a detached Codex resume directs an explicit wait after the same thread has
 	const text = resumed.content[0].text;
 	assert.equal(resumed.isError, false, text);
 	assert.match(text, /Next: call workflow_wait \{"runId":"workflow_resumed"\}/);
-	assert.doesNotMatch(text, /queued message/);
-	const queued = [];
-	await wake.wakeLaunchingHostSessions(cwd, settled, {
-		env,
-		run: async (_command, args) => {
-			queued.push(args);
-			return { ok: true, output: "Queued message" };
-		},
-	});
-	assert.deepEqual(queued, []);
+	assert.doesNotMatch(text, /end your turn now|queued message/);
 });
 
 test("a wake command that ignores SIGTERM cannot hold the supervisor: it is killed at the timeout", async () => {

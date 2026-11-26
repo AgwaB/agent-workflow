@@ -35,7 +35,6 @@ import {
 import { assertActionAllowed } from "../../hosts/types.js";
 import {
 	awaitHostSessionMonitor,
-	claimCodexDelivery,
 	hostSessionMonitorAlive,
 	isHostSessionId,
 	isSettledRun,
@@ -1470,7 +1469,7 @@ function profileSetFromArguments(params: Record<string, unknown>): {
  * asked the agent to start a Monitor with a local command; a live haiku host refused that as an
  * instruction from a tool result — rightly — so the plugin starts the monitor itself.)
  */
-type Delivery = "wait" | "claude-monitor" | "codex-queue" | "codex-claimed";
+type Delivery = "wait" | "claude-monitor" | "codex-queue";
 
 /**
  * 2026-11-05: when the result comes to the session by itself (monitor, codex queue), the launch text
@@ -1496,13 +1495,11 @@ function launchNext(
 ): string | undefined {
 	if (data.runId && data.status === "running") {
 		const wait =
-			delivery === "codex-claimed"
-				? `The detached supervisor is delivering the result to this Codex session as a queued message. Use that message to report the result; do not call ${WORKFLOW_WAIT_TOOL}.`
-				: delivery === "codex-queue"
-					? `agent-workflow puts the result into this Codex session when the run has finished (a queued message): end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When the message "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
-					: delivery === "claude-monitor"
-						? `This session's agent-workflow completion monitor (from the plugin) reports the run when it has finished: end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When its line "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
-						: `Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.${waitHint}`;
+			delivery === "codex-queue"
+				? `agent-workflow puts the result into this Codex session when the run has finished (a queued message): end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When the message "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
+				: delivery === "claude-monitor"
+					? `This session's agent-workflow completion monitor (from the plugin) reports the run when it has finished: end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When its line "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
+					: `Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.${waitHint}`;
 		return data.dashboard
 			? `Now tell the user, in your own message (some apps fold tool results): run ${data.runId}, Dashboard: ${data.dashboard.url} — the link as is${data.dashboard.auth ? `; if it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL}` : ""}. ${wait}`
 			: `Now tell the user the run id ${data.runId} in your own message; the dashboard is not running (${WORKFLOW_DASHBOARD_TOOL} opens it when they want it). ${wait}`;
@@ -1596,18 +1593,11 @@ export function createHostMcpService(
 			if (!(await runHostSessions(ctx.cwd, data.runId)).includes(turn.threadId))
 				return "wait";
 			// If settlement happens after this read, the supervisor can see our link.
-			// If it already settled, claim the wait path unless the notifier owns it.
+			// If it already settled, direct a wait without suppressing a supervisor wake.
 			const current = await readRunRecord(ctx.cwd, data.runId).catch(
 				() => undefined,
 			);
-			if (!current) return "wait";
-			if (!isSettledRun(current)) return "codex-queue";
-			const pull = await claimCodexDelivery(
-				ctx.cwd,
-				current,
-				turn.threadId,
-			).catch(() => true);
-			return pull ? "wait" : "codex-claimed";
+			return current && !isSettledRun(current) ? "codex-queue" : "wait";
 		}
 		return "wait";
 	};

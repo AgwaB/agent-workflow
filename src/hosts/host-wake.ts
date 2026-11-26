@@ -9,15 +9,8 @@
 // wakes nothing. AGENT_WORKFLOW_HOST_WAKE=0 turns it off.
 import { execFile } from "node:child_process";
 
-import { readRunRecord } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
-import {
-	claimCodexDelivery,
-	isSettledRun,
-	notifyCheck,
-	notifyEpoch,
-	runHostSessions,
-} from "./notify-check.js";
+import { notifyCheck, runHostSessions } from "./notify-check.js";
 
 export const HOST_WAKE_ENV = "AGENT_WORKFLOW_HOST_WAKE";
 
@@ -39,27 +32,6 @@ export function codexTurnSession(
 	if (typeof threadId !== "string" || !/^[0-9a-f-]{8,64}$/u.test(threadId))
 		return undefined;
 	return { threadId, interactive: trigger !== "exec" };
-}
-
-/** Reconcile a detached launch after linking the Codex session. */
-export async function reconcileCodexDelivery(
-	cwd: string,
-	runId: string,
-	threadId: string,
-): Promise<
-	| { kind: "wait"; run?: WorkflowRunRecord }
-	| { kind: "codex-queue" }
-	| { kind: "codex-claimed" }
-> {
-	if (!(await runHostSessions(cwd, runId)).includes(threadId))
-		return { kind: "wait" };
-	const run = await readRunRecord(cwd, runId).catch(() => undefined);
-	if (run?.launch?.source !== "mcp:codex") return { kind: "wait" };
-	// If settlement happens after this read, the supervisor can see our link.
-	// If it already settled, claim the pull path unless the notifier owns it.
-	if (!isSettledRun(run)) return { kind: "codex-queue" };
-	const pull = await claimCodexDelivery(cwd, run, threadId).catch(() => true);
-	return pull ? { kind: "wait", run } : { kind: "codex-claimed" };
 }
 
 export type HostWakeRunner = (
@@ -108,7 +80,6 @@ export async function wakeLaunchingHostSessions(
 		const checked = await notifyCheck(cwd, {
 			host: "codex",
 			runId: run.runId,
-			expectedEpoch: notifyEpoch(run),
 			env,
 		});
 		const line = checked.data.notifications[0]?.text;
@@ -120,9 +91,6 @@ export async function wakeLaunchingHostSessions(
 		// completion line only; the launch already told the agent what to do when it arrives.
 		const message = line;
 		for (const thread of sessions) {
-			// The global receipt still prevents repeat prompt-hook notifications; this
-			// thread's receipt arbitrates with the foreground launch reply.
-			if (!(await claimCodexDelivery(cwd, run, thread))) continue;
 			const queued = await (options.run ?? runWakeCommand)("codex", [
 				"queue",
 				"--thread",
