@@ -418,8 +418,10 @@ function taskLine(task) {
 }
 const cost = (usage) =>
 	usage?.costUsd == null ? "Not collected" : formatUsd(usage.costUsd);
+const noInspectorSelection = { task: null, stage: null, tab: null };
 function readState(href = location.href) {
 	const params = new URL(href, location.href).searchParams;
+	const report = params.get("view") === "report";
 	// Keep old bookmarks useful, without retaining a Profiles route or editor state.
 	if (params.get("view") === "profiles") {
 		params.set("view", "executors");
@@ -431,9 +433,11 @@ function readState(href = location.href) {
 	return {
 		project: params.get("project"),
 		run: params.get("run"),
-		task: params.get("task"),
-		stage: params.get("stage"),
-		tab: choice("tab", ["result", "output", "stderr", "events"]),
+		task: report ? null : params.get("task"),
+		stage: report ? null : params.get("stage"),
+		tab: report
+			? null
+			: choice("tab", ["result", "output", "stderr", "events"]),
 		view: choice("view", [
 			// "runs" opens the latest run (the nav's Runs item); the overview has no view of its own.
 			"runs",
@@ -656,6 +660,8 @@ function go(patch, replace = false) {
 	if (Object.hasOwn(patch, "stage")) state.task = null;
 	if (patch.task || patch.stage) state.view = null;
 	state = { ...state, ...patch };
+	// Report is a separate page. The preceding graph entry keeps its own selection.
+	if (state.view === "report") Object.assign(state, noInspectorSelection);
 	urlState(replace);
 	if (railOpen) toggleRail(false);
 	if (switching) loadRun(true);
@@ -1661,7 +1667,7 @@ function renderHeader() {
 	actions.append(
 		button(
 			"Run details ›",
-			() => go({ view: "details", task: null, stage: null }),
+			() => go({ view: "details", ...noInspectorSelection }),
 			{ "aria-label": "Run details" },
 		),
 	);
@@ -3970,7 +3976,7 @@ function inspectorHeader(name, status, children = []) {
 }
 function closeInspector() {
 	const id = selectedStage();
-	go({ task: null, stage: null, view: null });
+	go({ ...noInspectorSelection, view: null });
 	if (id)
 		document
 			.querySelector(`[data-stage="${CSS.escape(id)}"]`)
@@ -7053,11 +7059,6 @@ function acceptRun(data) {
 				["failed", "interrupted", "blocked"].includes(task.status),
 			);
 			if (stopped) state.task = stopped.specId;
-		} else if (liveRun(data)) {
-			const active = data.tasks.find(
-				(task) => task.status === "running" && !task.placeholder,
-			);
-			if (active) state.task = active.specId;
 		}
 		urlState(true);
 	}
