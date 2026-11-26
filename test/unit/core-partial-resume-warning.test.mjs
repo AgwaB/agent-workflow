@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { generatePatternFiles } from "../../dist/core/authoring-patterns.js";
 import { compileWorkflow } from "../../dist/core/compiler.js";
 import {
 	applyDependencyResumeInvalidationForTests,
@@ -163,16 +164,14 @@ test("nested DAG output feeding a stable-identity foreach warns; only real sourc
 		[],
 	);
 	const withLoop = [
-		...stages
-			.slice(0, 3)
-			.map((stage) =>
-				stage.id === "container"
-					? {
-							...stage,
-							stages: stage.stages.map(({ inputPolicy, ...child }) => child),
-						}
-					: stage,
-			),
+		...stages.slice(0, 3).map((stage) =>
+			stage.id === "container"
+				? {
+						...stage,
+						stages: stage.stages.map(({ inputPolicy, ...child }) => child),
+					}
+				: stage,
+		),
 		{
 			id: "iterate",
 			type: "loop",
@@ -186,4 +185,25 @@ test("nested DAG output feeding a stable-identity foreach warns; only real sourc
 		},
 	];
 	assert.deepEqual(warnings(await compile(withLoop)), []);
+});
+
+// Keep these opt-ins next to the generated partial consumers; `new` must produce specs
+// that can be resumed, not merely suppress the advisory at validation time.
+test("inventory and adaptive-depth patterns opt in to partial resume invalidation", () => {
+	for (const [pattern, required] of [
+		["inventory-foreach", ["report"]],
+		["adaptive-depth", ["challenge", "report"]],
+	]) {
+		const { artifactGraph } = JSON.parse(
+			generatePatternFiles(pattern, "resume")[0].content,
+		);
+		for (const id of required) {
+			const stage = artifactGraph.stages.find((stage) => stage.id === id);
+			assert.equal(
+				stage?.inputPolicy?.invalidateOnDependencyResume,
+				true,
+				`${pattern}: ${id}`,
+			);
+		}
+	}
 });
