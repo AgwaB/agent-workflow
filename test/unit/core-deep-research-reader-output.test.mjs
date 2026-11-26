@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
+import {
+	createArtifactGraphRuntimeValidationSnapshot,
+	executeSupportTask,
+} from "../../dist/core/artifact-graph-runtime.js";
 import {
 	validateJsonSchema,
 	validateJsonSchemaSubset,
 } from "../../dist/core/json-schema.js";
+import { fromStatePath } from "../../dist/core/store.js";
 import {
 	buildWorkflowOutputRetryInstructions,
 	parseWorkflowOutputForBundle,
@@ -17,6 +22,7 @@ import render, {
 } from "../../workflows/deep-research/helpers/render-executive.mjs";
 import { buildSynthesisPages } from "../../workflows/deep-research/helpers/synthesis-pages.mjs";
 import translationCheck from "../../workflows/deep-research/helpers/translation-check.mjs";
+import * as h from "../helpers/unit-test-support.mjs";
 
 const fixture = JSON.parse(
 	await readFile(
@@ -1129,8 +1135,8 @@ test("written report keeps untrusted markup and invalid destinations literal", a
 	);
 });
 
-// No GFM parser is in devDependencies. Test the raw delimiter triggers for
-// www/URL, email and explicit angle autolinks, then decode one Markdown layer.
+// Check raw GFM delimiter triggers even without the optional Marked test parser,
+// then decode one Markdown layer.
 const decodeEntities = (text) =>
 	text.replace(
 		/&(amp|lt|gt|#\d+);/g,
@@ -1141,7 +1147,7 @@ const decodeEntities = (text) =>
 const decodeLiteral = (text) =>
 	decodeEntities(text.replace(/\\([!-/:-@[-`{-~])/g, "$1"));
 
-test("GFM keeps rejected URLs and emails literal without changing quote text", async () => {
+test("GFM keeps rejected URLs and emails literal without changing quote text", async (t) => {
 	const quote =
 		"Write editor+docs@example.org or visit WWW.Example.org and HTTPS://Example.org.";
 	const rejected = [
@@ -1149,6 +1155,9 @@ test("GFM keeps rejected URLs and emails literal without changing quote text", a
 		"editor+docs@example.org",
 		"www.Example.org",
 		"https://[broken",
+		"ftp://example.org/manual",
+		"<ssh://example.org/repo>",
+		"x+custom://example.org/manual",
 	];
 	const result = await render({
 		sources: legacyReport({
@@ -1165,8 +1174,25 @@ test("GFM keeps rejected URLs and emails literal without changing quote text", a
 	const lines = result.reportMarkdown.split("\n");
 	const quoteLine = lines.find((line) => line.includes("Write editor"));
 	const refsLine = lines.find((line) => line.includes("mailto"));
+	await t.test(
+		"Marked does not emit anchors for rejected references",
+		async (t) => {
+			let parser;
+			try {
+				parser = import.meta.resolve("marked");
+			} catch (err) {
+				if (err.code !== "ERR_MODULE_NOT_FOUND") throw err;
+				return t.skip("Marked is not installed");
+			}
+			const { marked } = await import(parser);
+			const html = marked.parseInline(refsLine, { gfm: true });
+			assert.doesNotMatch(html, /<a\b/i);
+			for (const ref of rejected)
+				assert.ok(decodeEntities(html).includes(ref), ref);
+		},
+	);
 	for (const line of [quoteLine, refsLine]) {
-		assert.doesNotMatch(line, /https?:\/\/|www\.|@|<[^>]+>|(?<!\\)\]\(/i);
+		assert.doesNotMatch(line, /:\/\/|www\.|@|<[^>]+>|(?<!\\)\]\(/i);
 	}
 	assert.ok(decodeLiteral(quoteLine).includes(JSON.stringify(quote)));
 	for (const ref of rejected)
@@ -1187,6 +1213,34 @@ test("published Markdown destinations preserve the original HTTP URL bytes", asy
 			decodeLiteral(m[1]),
 		),
 		[url, url],
+	);
+});
+
+test("legacy actions match canonical URLs without rewriting their citations", async () => {
+	const stepUrl = "HTTPS://EXAMPLE.org:443/docs?sig=ABC#part.";
+	const relatedUrl = "https://example.org/docs?sig=ABC#part.";
+	const otherUrl = "https://example.org/docs?sig=DEF#part.";
+	const result = await render({
+		sources: legacyReport({
+			actionPlan: [{ action: "Read the docs", sourceUrls: [stepUrl] }],
+			recommendations: [
+				{ recommendation: "Review the same page", sourceUrls: [relatedUrl] },
+				{ recommendation: "Review another page", sourceUrls: [otherUrl] },
+			],
+		}),
+	});
+	assert.equal(result.status, "passed");
+	const actions = result.reportMarkdown
+		.split("## To do\n")[1]
+		.split("\n## ")[0];
+	assert.deepEqual(
+		[...actions.matchAll(/^\d+\. \*\*.*?\*\* (.+)$/gm)].map((m) => m[1]),
+		["Read the docs", "Review another page"],
+	);
+	assert.match(actions, /^ +\- \*\*.*?\*\* Review the same page/m);
+	assert.deepEqual(
+		[...actions.matchAll(/\]\(<([^>]+)>\)/g)].map((m) => m[1]),
+		[stepUrl, relatedUrl, otherUrl],
 	);
 });
 
@@ -1410,4 +1464,65 @@ test("a word cap cannot publish disputed advice without its visible correction",
 		`${capped.reportMarkdown}\n`,
 	);
 	assert.match(capped.auditMarkdown, /values not in the file: 9204/);
+});
+
+test("the engine stores the cap diagnostic instead of the disputed conclusion", async (t) => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-reader-capped-engine-"));
+	t.after(async () => {
+		await h.flushPendingIndexUpdatesForTests();
+		await rm(cwd, { recursive: true, force: true });
+	});
+	await writeFile(join(cwd, "notes.md"), "No protocol numbers here.\n");
+	const action = "Fix the incorrect RFC 9204 in notes.md.";
+	const sources = legacyReport({ summary: action, actionPlan: [{ action }] });
+	const specPath = join(cwd, "spec.json");
+	const spec = h.artifactGraphWorkflowSpec({
+		artifactGraph: {
+			stages: [
+				{
+					id: "render",
+					support: { uses: "./render.mjs", options: { maxWords: 1 } },
+				},
+			],
+		},
+	});
+	h.writeAgent(cwd, "unit-scout");
+	await writeFile(specPath, JSON.stringify(spec));
+	const renderer = new URL(
+		"../../workflows/deep-research/helpers/render-executive.mjs",
+		import.meta.url,
+	);
+	await writeFile(
+		join(cwd, "render.mjs"),
+		`import render from ${JSON.stringify(renderer.href)};\nexport default (args) => render({ ...args, sources: ${JSON.stringify(sources)} });`,
+	);
+	const compiled = await h.compileWorkflow(spec, {
+		cwd,
+		specPath,
+		task: "Render",
+	});
+	const { run } = await h.createWorkflowRunRecord(cwd, compiled, specPath);
+	await h.writeStaticRunArtifacts(cwd, run, compiled, spec);
+	const [task] = run.tasks;
+	assert.equal(
+		await executeSupportTask(
+			cwd,
+			run,
+			task,
+			compiled.tasks[0],
+			createArtifactGraphRuntimeValidationSnapshot(run),
+		),
+		false,
+	);
+	const {
+		tasks: [stored],
+	} = await h.readRunRecord(cwd, run.runId);
+	assert.equal(stored.statusDetail, "support_declared_failed");
+	const dir = dirname(fromStatePath(cwd, task.files.result));
+	const control = JSON.parse(await readFile(join(dir, "control.json"), "utf8"));
+	assert.equal(control.gates.truncatedWithAttributionWarnings, true);
+	const diagnostic =
+		"The report with source attribution corrections exceeds the word cap. See the audit.";
+	assert.equal(stored.lastMessage, `support declared failed: ${diagnostic}`);
+	assert.equal(control.digest, diagnostic);
 });

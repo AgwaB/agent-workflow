@@ -105,7 +105,7 @@ function escapeMarkdownText(value, { quote = false } = {}) {
 		.replace(/^([-~=])(?=\s|[-~=]|$)/u, "\\$1")
 		.replace(/^(\d{1,9})([.)])(?=\s|$)/u, "$1\\$2")
 		// Hide GFM's autolink delimiters in the Markdown source, not the rendered text.
-		.replace(/(https?):(?=\/\/)/gi, "$1&#58;")
+		.replace(/:(?=\/\/)/g, "&#58;")
 		.replace(/(www)\./gi, "$1&#46;")
 		.replace(/@/g, "&#64;");
 }
@@ -2148,12 +2148,21 @@ function renderMainFindings(report, ko) {
 	return out;
 }
 
+function relatedActionRefs(item) {
+	// Normalize only the origin for matching. Leave paths, queries and fragments
+	// distinct, and keep the original URL for citation rendering.
+	const urls = urlsOf(item, Infinity).map((url) =>
+		url.replace(/^https?:\/\/[^/?#]+/i, new URL(url).origin),
+	);
+	return new Set([...urls, ...localRefsOf(item, Infinity)]);
+}
+
 function bestRelatedAction(recommendation, actions) {
 	const claimIds = new Set(supportingClaimIds(recommendation));
-	const refs = new Set([...urlsOf(recommendation, Infinity), ...localRefsOf(recommendation, Infinity)]);
+	const refs = relatedActionRefs(recommendation);
 	const scores = actions.map(({ item }) => [
 		supportingClaimIds(item).filter((id) => claimIds.has(id)).length,
-		[...urlsOf(item, Infinity), ...localRefsOf(item, Infinity)].filter((ref) => refs.has(ref)).length,
+		[...relatedActionRefs(item)].filter((ref) => refs.has(ref)).length,
 	]);
 	let best = -1, tied = false;
 	for (const [index, [claims, sources]] of scores.entries()) {
@@ -3314,13 +3323,15 @@ export default async function renderExecutive({
 	let { markdown, completionSummaryMarkdown } = rendered;
 	const truncated = Number.isFinite(opts.maxWords) && countWords(markdown) > opts.maxWords;
 	const truncatedWithAttributionWarnings = truncated && attributionWarnings.length > 0;
-	if (truncatedWithAttributionWarnings) {
+	const capDiagnostic = truncatedWithAttributionWarnings
+		? (rendered.ko
+			? "출처 정정을 포함한 보고서가 단어 제한을 초과했습니다. 감사 자료를 확인하세요."
+			: "The report with source attribution corrections exceeds the word cap. See the audit.")
+		: null;
+	if (capDiagnostic) {
 		// Do not publish a fragment that might keep disputed advice but drop
 		// its visible correction. The full attribution record is in the audit.
-		const diagnostic = rendered.ko
-			? "출처 정정을 포함한 보고서가 단어 제한을 초과했습니다. 감사 자료를 확인하세요."
-			: "The report with source attribution corrections exceeds the word cap. See the audit.";
-		markdown = opts.maxWords < 1 ? "" : truncateWords(diagnostic, opts.maxWords);
+		markdown = opts.maxWords < 1 ? "" : truncateWords(capDiagnostic, opts.maxWords);
 	} else if (truncated) markdown = truncateWords(markdown, opts.maxWords);
 	const auditMarkdown = renderAuditMarkdown(
 		control,
@@ -3383,7 +3394,7 @@ export default async function renderExecutive({
 
 	return {
 		schema: "deep-research-executive-render-v1",
-		digest: truncateWords(summaryText(rendered.report, control.digest), 45),
+		digest: capDiagnostic ?? truncateWords(summaryText(rendered.report, control.digest), 45),
 		status: passed ? "passed" : "failed",
 		renderMode: "evidence-backed-report",
 		completionSummaryMarkdown: passed ? completionSummaryMarkdown : "",
