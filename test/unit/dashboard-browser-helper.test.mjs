@@ -5,6 +5,7 @@
 // timeout.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -172,6 +173,92 @@ test("a Chrome that hangs at startup is relaunched once; two hangs fail with bot
 		},
 	);
 	assert.equal(attempts, 2);
+});
+
+test("the Node process exits after relaunching a Chrome that ignores SIGTERM", {
+	skip: process.platform === "win32" && "requires catchable SIGTERM",
+}, async () => {
+	const helper = new URL("../helpers/dashboard-browser.mjs", import.meta.url);
+	const driver = `
+		import assert from 'node:assert/strict';
+		import { spawn } from 'node:child_process';
+		import { once } from 'node:events';
+		import { createBrowser } from ${JSON.stringify(helper.href)};
+
+		const hung = spawn(process.execPath, ['-e', \`
+			process.on('SIGTERM', () => {});
+			setTimeout(() => {}, 30000);
+			console.error('ready');
+		\`], { stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe'] });
+		// Start the short CDP timeout only after the fake is listening for SIGTERM.
+		const [ready] = await once(hung.stderr, 'data');
+		assert.match(ready.toString(), /ready/);
+		process.env.AW_TEST_CHROME_STARTUP_TIMEOUT_MS = '100';
+		let attempts = 0;
+		const browser = await createBrowser(process.execPath, {
+			launch(executable, _args, options) {
+				if (++attempts === 1) return hung;
+				process.env.AW_TEST_CHROME_STARTUP_TIMEOUT_MS = '5000';
+				return spawn(executable, ['-e', \`
+					const { createReadStream, writeSync } = require('node:fs');
+					let buffer = '';
+					createReadStream(null, { fd: 3, encoding: 'utf8' }).on('data', chunk => {
+						const packets = (buffer + chunk).split('\\\\0');
+						buffer = packets.pop();
+						for (const packet of packets) {
+							const { id, method } = JSON.parse(packet);
+							writeSync(4, JSON.stringify({ id, result: { targetId: 'target', sessionId: 'session' } }) + '\\\\0');
+							if (method === 'Browser.close') process.exit(0);
+						}
+					});
+				\`], options);
+			},
+		});
+		assert.equal(attempts, 2);
+		await browser.close();
+		console.log('relaunch complete', process.getActiveResourcesInfo());
+	`;
+	const child = spawn(process.execPath, ["--input-type=module", "-e", driver], {
+		detached: true,
+		stdio: ["ignore", "pipe", "pipe"],
+	});
+	// This group belongs to the test. On a red run, do not leave the fake running.
+	const killDriver = () => {
+		if (!child.pid || child.exitCode !== null || child.signalCode !== null)
+			return;
+		try {
+			process.kill(-child.pid, "SIGKILL");
+		} catch (error) {
+			if (error.code !== "ESRCH") throw error;
+		}
+	};
+	let deadline = setTimeout(killDriver, 15_000);
+	let stdout = "";
+	let stderr = "";
+	child.stdout.setEncoding("utf8").on("data", (chunk) => {
+		stdout += chunk;
+		if (stdout.includes("relaunch complete")) {
+			clearTimeout(deadline);
+			deadline = setTimeout(killDriver, 2_000);
+		}
+	});
+	child.stderr.setEncoding("utf8").on("data", (chunk) => (stderr += chunk));
+	try {
+		const [code, signal] = await once(child, "close");
+		assert.match(
+			stderr,
+			/Chrome hung at startup; relaunching once: .*Target.createTarget/,
+		);
+		assert.match(stdout, /relaunch complete/);
+		assert.equal(
+			code,
+			0,
+			`Node did not exit cleanly (${signal}): ${stdout}${stderr}`,
+		);
+	} finally {
+		clearTimeout(deadline);
+		killDriver();
+	}
 });
 
 test("Chrome is launched with the code-sign-clone feature disabled so killed runs leak no clones", async () => {
