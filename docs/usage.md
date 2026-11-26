@@ -892,6 +892,8 @@ design feedback to fix before the first run:
 - a model stage outside a `loop` whose prompt asks for its own retries or attempts ("at most 3 attempts", "retry up to
   N times", "until the tests pass") or for depth tiers by item difficulty ("depth cap", "for trivial inspect at most 1
   file"): the engine can neither enforce nor observe them; use a `loop` with a code-decided exit (`new fix-loop`) or one stage per tier (`new adaptive-depth`);
+- in a resumable spec, a `partial` static consumer that can finish with a missing input, or a stable-identity
+  `foreach` over such a consumer, without `inputPolicy.invalidateOnDependencyResume`;
 - a write-verify support stage whose `options.files[].path` its writer's prompt (`options.writer`, default `write`)
   does not name;
 - prompt/schema drift, a foreach or `sourceProjection` path the source schema lacks, and `readOnly` stages that lose

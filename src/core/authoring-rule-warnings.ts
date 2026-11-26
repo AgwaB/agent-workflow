@@ -5,6 +5,7 @@ import {
 	lookupArrayBound,
 	lookupControlSchemaPath,
 } from "./control-schema-path.js";
+import type { CompiledTask, CompiledWorkflow } from "./types.js";
 import { parseSimpleJsonPath } from "./workflow-runtime.js";
 import {
 	literalSourceLookups,
@@ -111,6 +112,55 @@ export async function collectAuthoringRuleWarnings(
 	};
 	collectStages(stages);
 	await walk(stages, "top", everyStage);
+	return warnings;
+}
+
+/** Use compiled edges so nested DAG outputs, inherited policies and implicit chaining agree with resume. */
+export function dependencyResumeWarnings(compiled: CompiledWorkflow): string[] {
+	if (compiled.stages?.some((stage) => stage.type === "loop")) return [];
+	const partial = new Set(
+		compiled.stages
+			?.filter((stage) => stage.sourcePolicy === "partial")
+			.map((stage) => stage.id),
+	);
+	const dataSources = (task: CompiledTask) =>
+		task.contextDependsOn ?? task.dependsOn ?? [];
+	const byTaskId = new Map(compiled.tasks.map((task) => [task.id, task]));
+	const partialConsumers = new Set(
+		compiled.tasks
+			.filter((task) => {
+				if (task.foreach || task.dynamic || !partial.has(task.stageId))
+					return false;
+				// Helpers also receive `after`. A model with one non-foreach input never completes
+				// from a failed source: the scheduler skips it if no data source completed.
+				const sources = dataSources(task);
+				return task.support
+					? (task.dependsOn?.length ?? 0) > 0
+					: sources.length > 1 ||
+							sources.some((id) => byTaskId.get(id)?.foreach);
+			})
+			.map((task) => task.stageId),
+	);
+	const warnings: string[] = [];
+	for (const task of compiled.tasks) {
+		if (task.artifactGraph?.inputPolicy?.invalidateOnDependencyResume) continue;
+		if (partialConsumers.has(task.stageId)) {
+			warnings.push(
+				`stage "${task.stageId}" can complete with partial inputs and keep stale output when a source is resumed. Set inputPolicy.invalidateOnDependencyResume: true to rerun it.`,
+			);
+		} else if (
+			task.foreach?.itemIdentityPath &&
+			task.foreach.from &&
+			typeof task.foreach.from === "object" &&
+			"stage" in task.foreach.from &&
+			typeof task.foreach.from.stage === "string" &&
+			partialConsumers.has(task.foreach.from.stage)
+		) {
+			warnings.push(
+				`foreach stage "${task.stageId}" reads partial consumer "${task.foreach.from.stage}". Set inputPolicy.invalidateOnDependencyResume: true to rebuild its items rather than keep a stale dispatch map when that source is invalidated.`,
+			);
+		}
+	}
 	return warnings;
 }
 

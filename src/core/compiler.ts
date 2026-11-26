@@ -4,7 +4,10 @@
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-import { collectAuthoringRuleWarnings } from "./authoring-rule-warnings.js";
+import {
+	collectAuthoringRuleWarnings,
+	dependencyResumeWarnings,
+} from "./authoring-rule-warnings.js";
 import {
 	foreachReadKeys,
 	noInventSentence,
@@ -951,6 +954,7 @@ export async function compileWorkflow(
 		: options.cwd;
 	if (!options.metadataOnly) {
 		compiled.warnings.push(
+			...dependencyResumeWarnings(compiled),
 			...(await collectForeachPathWarnings(
 				spec.artifactGraph?.stages ?? [],
 				foreachSpecDir,
