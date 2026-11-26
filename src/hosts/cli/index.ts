@@ -1,3 +1,4 @@
+import { printStageContract } from "./contract.js";
 import { runHostCommandHook } from "../host-command.js";
 import {
 	projectSettingsRecoveryAction,
@@ -558,6 +559,15 @@ async function dispatch(
 					...(io.signal ? { signal: io.signal } : {}),
 				}),
 			);
+		}
+		case "contract": {
+			const parsed = parseCommandArgs(argv, { flags: ["--json"] });
+			const [workflow, stage] = only(
+				parsed,
+				2,
+				"contract <workflow> <stage> [--json]",
+			);
+			return emit(await printStageContract(workflow!, stage!, ctx.cwd));
 		}
 		case "new": {
 			// Generated starter bundle for a pattern; writes files, never a run, no model call.

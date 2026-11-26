@@ -635,7 +635,8 @@
             ],
             "sourcePolicy": "partial",
             "inputPolicy": {
-              "terminalBarrier": "all-sources"
+              "terminalBarrier": "all-sources",
+              "invalidateOnDependencyResume": true
             },
             "output": {
               "controlSchema": "./schemas/impact-render-control.schema.json"
