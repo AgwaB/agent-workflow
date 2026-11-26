@@ -1699,6 +1699,7 @@ export function createHostMcpService(
 		next?: string,
 		/** 2026-11-05: a launch that waits for the user's OK in the chat is a question, not a failure. */
 		question = false,
+		handoffFailed = false,
 	): HostMcpToolResult => {
 		const text = boundedText(outcome.text);
 		const structured = hostMcpSendsStructuredContent(
@@ -1721,9 +1722,29 @@ export function createHostMcpService(
 				: {}),
 			// 2026-11-05 (live, the Claude desktop app's chat showed the "ask the user" result as a failed
 			// tool call): a launch that only waits for the user's OK is no error.
-			isError: outcome.outcome === "refused" && !question,
+			isError: handoffFailed || (outcome.outcome === "refused" && !question),
 		};
 	};
+
+	const finishFailedHandoff = <T>(
+		call: McpToolCallContext,
+		outcome: HostResult<T>,
+		detachError: string,
+	): HostMcpToolResult =>
+		finish(
+			call,
+			{
+				...outcome,
+				text:
+					outcome.text === detachError
+						? detachError
+						: `${detachError}\n\n${outcome.text.replace(`\n${detachError}`, "")}`,
+			},
+			outcome.data,
+			undefined,
+			false,
+			true,
+		);
 
 	/** WP31: `workflow_profile` op workflow-list|workflow-show|workflow-set|workflow-clear. */
 	const workflowPreferenceCall = async (
@@ -2026,6 +2047,8 @@ export function createHostMcpService(
 					arguments: { ...args },
 				},
 			});
+			if (launched.data.detachError)
+				return finishFailedHandoff(call, launched, launched.data.detachError);
 			const how = await delivery(ctx, launched.data, call);
 			return finish(
 				call,
@@ -2044,6 +2067,8 @@ export function createHostMcpService(
 					arguments: { ...args },
 				},
 			});
+			if (launched.data.detachError)
+				return finishFailedHandoff(call, launched, launched.data.detachError);
 			const how = await delivery(ctx, launched.data, call);
 			return finish(
 				call,
@@ -2064,6 +2089,8 @@ export function createHostMcpService(
 				...(call.signal ? { signal: call.signal } : {}),
 			});
 			const data = auto.data;
+			if (data.launch?.detachError)
+				return finishFailedHandoff(call, auto, data.launch.detachError);
 			const how = data.launch ? await delivery(ctx, data.launch, call) : "wait";
 			return finish(
 				call,
@@ -2193,6 +2220,8 @@ export function createHostMcpService(
 				runId,
 				...(detach ? { detach: true } : {}),
 			});
+			if (resumed.data.detachError)
+				return finishFailedHandoff(call, resumed, resumed.data.detachError);
 			return finish(
 				call,
 				resumed,

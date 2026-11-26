@@ -507,3 +507,18 @@ test("a failed stop write reports the error and the already-published run ID", a
 	assert.equal(run.tasks[0].status, "pending");
 	assert.equal(f.helperStarted(), false);
 });
+
+test("a detached resume with a failed spawn never says it scheduled work", async (t) => {
+	const f = await fixture(t);
+	const first = await f.launch(f.runArgs, { AW_FAIL_SUPPORT: "1" }).result;
+	const { runId } = JSON.parse(first.stdout).data;
+	const resumed = await f.launch(["resume", runId, "--detach"], {
+		AW_PUBLICATION_HOOK: "break-log",
+	}).result;
+	assert.equal(resumed.code, 1);
+	assert.match(
+		resumed.stdout,
+		new RegExp(`Could not start detached supervisor for ${runId}`),
+	);
+	assert.doesNotMatch(resumed.stdout, /and scheduled remaining work/);
+});

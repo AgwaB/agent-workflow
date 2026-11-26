@@ -934,7 +934,10 @@ export async function resumeAction(
 		"resume",
 		data.detachError ? "failed" : outcomeForRunStatus(run.status),
 		data,
-		formatHumanRunResume(run, resetTaskIds.length, { hints }) + note,
+		formatHumanRunResume(run, resetTaskIds.length, {
+			hints,
+			handoffFailed: data.detachError !== undefined,
+		}) + note,
 	);
 }
 

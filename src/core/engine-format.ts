@@ -430,7 +430,7 @@ export function formatHumanRunOutcome(
 export function formatHumanRunResume(
 	run: WorkflowRunRecord,
 	resetCount: number,
-	options: HumanRunFormatOptions = {},
+	options: HumanRunFormatOptions & { handoffFailed?: boolean } = {},
 ): string {
 	return [
 		`Workflow ${run.status === "running" ? "resumed" : "resume result"}: ${workflowName(run)}`,
@@ -438,7 +438,9 @@ export function formatHumanRunResume(
 		"",
 		resetCount === 0
 			? "No tasks were reset."
-			: `Reset ${resetCount} task(s) and scheduled remaining work.`,
+			: options.handoffFailed
+				? `Reset ${resetCount} task(s); remaining work was not scheduled.`
+				: `Reset ${resetCount} task(s) and scheduled remaining work.`,
 		`Progress: ${formatHumanProgress(run)}`,
 		...formatWarnings(run, options),
 		...taskSections(run),
