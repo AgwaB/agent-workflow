@@ -16,7 +16,7 @@ const LAUNCH_FLAGS = `  --executor <id>              executor for this run (pi, 
   --effort <level>             effort override: ${EFFORT_LEVELS.join(", ")}
   --input <key=value>          set a workflow input the spec declares (repeatable; typed like
                                the declared default, e.g. --input depth=quick)
-  --detach                     start a background supervisor and return immediately
+  --detach                     hand off stages to a background supervisor and return
   --open                       open the dashboard for this run (even in an agent environment)
   --force-new                  start a new run even if an identical launch is still active
                                (otherwise the active run is returned)
@@ -122,9 +122,10 @@ workflow-declared profile > saved user profile > default. A saved profile named 
 stages; \`profile show <executor>\` shows it, \`profile delete <executor>\` restores the built-in one.`,
 	run: `Usage: agent-workflow run <workflow-name-or-path> <task...> [options]
 
-Start exactly the named workflow and wait in the foreground until it is terminal (Ctrl-C stops
-waiting, not the run; continue with \`agent-workflow wait <run-id>\`). With --detach, a background
-supervisor drives the run and the command returns the run id.
+Start exactly the named workflow and wait in the foreground until it settles. Ctrl-C exits the
+foreground driver. Any in-process helper running there dies; the next scheduler fails it closed
+without replaying it. Use --detach to hand off all stages to a background supervisor and return
+the run id after preflight.
 
 Capability degradations are recorded and shown without confirmation. Refusals still start nothing.
 

@@ -78,7 +78,11 @@ import {
 } from "../notify-check.js";
 import { runWatch, WATCH_DEFAULT_INTERVAL_MS } from "../watch.js";
 import { runStatusLine } from "./statusline.js";
-import { findProjectRoot, runProject } from "../project-root.js";
+import {
+	findProjectRoot,
+	runProject,
+	SUPERVISOR_PROJECT_FROM_CWD_ENV,
+} from "../project-root.js";
 import { clearExecutorProbeCache } from "../../core/executor-default.js";
 import { readRunRecord } from "../../core/store.js";
 import {
@@ -436,7 +440,7 @@ async function followLaunch(
 		return json ? emit(launched) : exitCodeFor(launched);
 	if (!json)
 		io.stderr(
-			`Waiting for ${data.runId} (Ctrl-C stops waiting; the run can be continued with \`agent-workflow wait ${data.runId}\`)\n`,
+			`Waiting for ${data.runId} (Ctrl-C exits the foreground driver and kills any helper it is running; inspect with \`agent-workflow status ${data.runId}\`)\n`,
 		);
 	const waited = await waitUntilSettled(
 		ctx,
@@ -1182,8 +1186,15 @@ export async function runAgentWorkflowCli(
 			return EXIT_OK;
 		}
 		// 2026-11-04: the nearest enclosing project (src/hosts/project-root.ts) is the project.
-		const projectRoot = findProjectRoot(io.cwd, io.env);
-		const project = runProject(projectRoot, io.env);
+		const hostSelected =
+			command === "supervise" &&
+			io.env[SUPERVISOR_PROJECT_FROM_CWD_ENV] === "1";
+		const projectRoot = hostSelected
+			? resolve(io.cwd)
+			: findProjectRoot(io.cwd, io.env);
+		const project = hostSelected
+			? projectRoot
+			: runProject(projectRoot, io.env);
 		if (project !== resolve(io.cwd)) {
 			if (command !== "statusline" && command !== "notify-check")
 				io.stderr(

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import {
+import fs, {
 	mkdir,
 	mkdtemp,
 	readFile,
@@ -11,14 +11,17 @@ import {
 	symlink,
 	writeFile,
 } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import { registerWorkflowExecutor } from "../../dist/core/index.js";
 import {
 	listRunRecords,
 	readRunRecord,
+	setRunLeaseTestHooksForTests,
 	writeRunRecord,
 } from "../../dist/core/store.js";
 import { projectId } from "../../dist/core/state-location.js";
@@ -38,6 +41,7 @@ import {
 	readFixtureLog,
 } from "../helpers/workflow-executor-fixture.mjs";
 import { stateDir } from "../helpers/state-dir.mjs";
+import { waitUntil } from "../helpers/wait-until.mjs";
 import * as plugins from "../../tools/release/plugins.mjs";
 
 setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
@@ -258,44 +262,77 @@ for (const host of ["claude-code", "codex"]) {
 	test(`${host}: run launches detached with profile defaults, links the session, and duplicates start nothing`, async (t) => {
 		const { cwd, env, id, invoke } = await project(t);
 		env.AGENT_WORKFLOW_HOST_WAKE = "1";
-		const out = await invoke(
-			host,
-			'run hook-alpha "Review the parser --force-new"',
+		const args = 'run hook-alpha "Review the parser --force-new"';
+		const dir = join(cwd, "workflows", "hook-alpha");
+		const specFile = join(dir, "spec.json");
+		const spec = JSON.parse(await readFile(specFile, "utf8"));
+		spec.artifactGraph.stages = [
+			{ id: "hold", support: { uses: "./hold.mjs" } },
+		];
+		await writeFile(specFile, JSON.stringify(spec));
+		const entered = join(cwd, "entered");
+		const released = join(cwd, "released");
+		await writeFile(
+			join(dir, "hold.mjs"),
+			`
+import { existsSync, watch, writeFileSync } from "node:fs";
+export default async () => {
+	await new Promise((done, fail) => {
+		const check = () => {
+			if (existsSync(${JSON.stringify(released)})) { watcher.close(); done(); }
+		};
+		const watcher = watch(${JSON.stringify(cwd)}, check);
+		watcher.on("error", fail);
+		writeFileSync(${JSON.stringify(entered)}, "");
+		check();
+	});
+	return { ok: true };
+};\n`,
 		);
-		const launched = runId(out);
-		assert.match(out.reason, new RegExp(`hook-alpha.*executor ${id}`));
-		assert.match(out.reason, /You'll get the result here when it finishes\./);
-		assert.match(
-			out.reason,
-			new RegExp(`project=${projectId(cwd)}&run=${launched}`),
-		);
-		assert.doesNotMatch(out.reason, /launchKey|token=/);
-		assert.deepEqual(await runHostSessions(cwd, launched), [session]);
-		assert.ok(
-			existsSync(
-				join(
-					stateDir(cwd),
-					".agent-workflow/workflows",
-					launched,
-					"supervise.log",
+		try {
+			const out = await invoke(host, args);
+			const launched = runId(out);
+			assert.match(out.reason, new RegExp(`hook-alpha.*executor ${id}`));
+			assert.match(out.reason, /You'll get the result here when it finishes\./);
+			assert.doesNotMatch(out.reason, /workflow_wait/);
+			assert.match(
+				out.reason,
+				new RegExp(`project=${projectId(cwd)}&run=${launched}`),
+			);
+			assert.doesNotMatch(out.reason, /launchKey|token=/);
+			assert.deepEqual(await runHostSessions(cwd, launched), [session]);
+			assert.ok(
+				existsSync(
+					join(
+						stateDir(cwd),
+						".agent-workflow/workflows",
+						launched,
+						"supervise.log",
+					),
 				),
-			),
-			"detached supervisor log created by the launch path",
-		);
-		const record = await readRunRecord(cwd, launched);
-		assert.equal(record.launch.source, `mcp:${host}`);
-		assert.equal(record.launch.entry.kind, "command");
-		// Detached supervisors are durable children; no foreground wait happened in the hook.
-		const duplicate = await invoke(
-			host,
-			'run hook-alpha "Review the parser --force-new"',
-		);
-		assert.equal(runId(duplicate), launched);
-		assert.match(duplicate.reason, /existing|already|active/i);
-		assert.equal(
-			(await listRunRecords(cwd)).filter((r) => !r.parentRunId).length,
-			1,
-		);
+				"detached supervisor log created by the launch path",
+			);
+			const record = await readRunRecord(cwd, launched);
+			assert.equal(record.launch.source, `mcp:${host}`);
+			assert.equal(record.launch.entry.kind, "command");
+			await waitUntil(() => existsSync(entered), "detached helper entry", {
+				timeoutMs: 5_000,
+			});
+			const otherSession = "bbccddee-2233-4455-6677-bbccddeeff00";
+			const duplicate = await invoke(host, args, { session_id: otherSession });
+			assert.equal(runId(duplicate), launched);
+			assert.match(duplicate.reason, /existing|already|active/i);
+			assert.equal(
+				(await listRunRecords(cwd)).filter((r) => !r.parentRunId).length,
+				1,
+			);
+			assert.deepEqual(
+				await runHostSessions(cwd, launched),
+				host === "claude-code" ? [session, otherSession] : [session],
+			);
+		} finally {
+			await writeFile(released, "");
+		}
 	});
 
 	test(`${host}: dynamic launches detached and is linked; stop resolves a prefix`, async (t) => {
@@ -344,6 +381,114 @@ test("auto: injected classifier starts the top candidate and records command con
 		1,
 	);
 });
+
+for (const args of [
+	"run hook-alpha Review the parser",
+	"auto Do a careful code review of the parser module",
+]) {
+	test(`${args}: a spawn failure reports wait, not a future notification`, async (t) => {
+		const { cwd, env, invoke } = await project(t);
+		env.AGENT_WORKFLOW_HOST_WAKE = "1";
+		setRunLeaseTestHooksForTests({
+			async onBeforeReleaseLockRename({ lockFile }) {
+				if (
+					basename(lockFile) === "supervisor.lock" &&
+					existsSync(join(dirname(lockFile), "run.json"))
+				)
+					await mkdir(join(dirname(lockFile), "supervise.log"), {
+						recursive: true,
+					});
+			},
+		});
+		let out;
+		try {
+			out = await invoke("codex", args);
+		} finally {
+			setRunLeaseTestHooksForTests();
+		}
+		const id = runId(out);
+		assert.match(out.reason, /Could not start detached supervisor/);
+		assert.match(out.reason, new RegExp(`Wait.*workflow_wait.*${id}`));
+		assert.doesNotMatch(out.reason, /You'll get the result here/);
+		assert.deepEqual(await runHostSessions(cwd, id), []);
+	});
+}
+
+for (const args of [
+	"run hook-alpha Review the parser",
+	"auto Do a careful code review of the parser module",
+]) {
+	test(`${args}: Codex reports a helper run that settled before binding`, async (t) => {
+		const { cwd, env, invoke } = await project(t);
+		env.AGENT_WORKFLOW_HOST_WAKE = "1";
+		const dir = join(cwd, "workflows", "hook-alpha");
+		const specFile = join(dir, "spec.json");
+		const spec = JSON.parse(await readFile(specFile, "utf8"));
+		spec.artifactGraph.stages = [
+			{ id: "only", support: { uses: "./helper.mjs" } },
+		];
+		await writeFile(specFile, JSON.stringify(spec));
+		await writeFile(
+			join(dir, "helper.mjs"),
+			"export default () => ({ ok: true });\n",
+		);
+
+		const binding = Promise.withResolvers();
+		const release = Promise.withResolvers();
+		const open = fs.open;
+		const mock = t.mock.method(fs, "open", async (...args) => {
+			const [file] = args;
+			const id = basename(String(file)).match(
+				new RegExp(`^session-${session}\\.(workflow_.*)\\.link$`),
+			)?.[1];
+			if (id) {
+				binding.resolve(id);
+				await release.promise;
+			}
+			return open(...args);
+		});
+		syncBuiltinESMExports();
+		const calling = invoke("codex", args);
+		let id;
+		let out;
+		try {
+			id = await Promise.race([
+				binding.promise,
+				calling.then((out) =>
+					assert.fail(`command bypassed binding: ${out.reason}`),
+				),
+			]);
+			const logFile = join(
+				stateDir(cwd),
+				".agent-workflow/workflows",
+				id,
+				"supervise.log",
+			);
+			// The supervisor logs done only after the notifier has checked its audience.
+			const deadline = performance.now() + 10_000;
+			let log;
+			do {
+				log = await readFile(logFile, "utf8");
+				if (log.includes(`done: ${id} completed`)) break;
+				assert.ok(performance.now() < deadline, log);
+				await sleep(25);
+			} while (true);
+			assert.deepEqual(await runHostSessions(cwd, id), []);
+			assert.doesNotMatch(log, /host wake: codex queue/);
+		} finally {
+			release.resolve();
+			out = await calling;
+			mock.mock.restore();
+			syncBuiltinESMExports();
+		}
+		assert.equal(runId(out), id);
+		assert.match(out.reason, /\(completed; executor/);
+		assert.ok(
+			out.reason.includes(`workflow_wait ${JSON.stringify({ runId: id })}`),
+		);
+		assert.doesNotMatch(out.reason, /You'll get the result here/);
+	});
+}
 
 test("auto: classifier failure starts nothing, never silently uses local ranking", async (t) => {
 	const { cwd, invoke } = await project(t, {

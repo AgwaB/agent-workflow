@@ -69,11 +69,15 @@ import {
 	pruneExecutorAdapterState,
 } from "./adapter-state.js";
 import { hostCommandHints, type WorkflowCommandHints } from "./hints.js";
-import { spawnDetachedSupervisor } from "./launch.js";
+import {
+	detachedSupervisorFailure,
+	spawnDetachedSupervisor,
+} from "./launch.js";
 import {
 	formatTaskWorktreeLocation,
 	formatHumanRunStatus,
 	formatHumanRunDetails,
+	readDriverLive,
 } from "../core/engine-format.js";
 import { markRunNotifySeen } from "./notify-check.js";
 import {
@@ -255,15 +259,12 @@ export async function statusAction(
 		ctx.cwd,
 		await readRunRecord(ctx.cwd, ref),
 	);
-	const live =
-		run.status === "running"
-			? await isWorkflowRunLeaseLive(ctx.cwd, run.runId).catch(() => false)
-			: false;
+	const driverLive = await readDriverLive(ctx.cwd, run);
 	const card =
 		refreshedCard ??
 		formatHumanRunStatus(run, {
 			hints: hostCommandHints(ctx.host),
-			...(run.status === "running" ? { driverLive: live } : {}),
+			driverLive,
 		});
 	// WP18b: a terminal run shows its domain verdict and report; a verdict-gate run leads with
 	// "finished — verdict: X (report ready)".
@@ -305,7 +306,7 @@ export async function statusAction(
 		{
 			run: {
 				...summarizeRun(run),
-				live,
+				live: driverLive ?? false,
 				...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
 				...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
 				reportArtifacts: presentation?.artifacts ?? [],
@@ -892,6 +893,7 @@ export interface ResumeData {
 	resetTaskIds: string[];
 	taskSummary: WorkflowRunRecord["taskSummary"];
 	detached?: { pid?: number; logPath: string };
+	detachError?: string;
 }
 
 /** `resume <run> [detach]`: reset failed/interrupted/resumable-blocked tasks and schedule. */
@@ -905,6 +907,7 @@ export async function resumeAction(
 		requireRunRef(request.runId, "resume"),
 		{
 			...(ctx.availableModels ? { availableModels: ctx.availableModels } : {}),
+			...(request.detach ? { deferScheduling: true } : {}),
 			// WP29: an attached resume re-asks an open dynamic-controller approval.
 		},
 	);
@@ -914,17 +917,24 @@ export async function resumeAction(
 		resetTaskIds,
 		taskSummary: run.taskSummary,
 	};
+	const hints = hostCommandHints(ctx.host);
 	let note = "";
-	if (request.detach && run.status === "running") {
-		data.detached = spawnDetachedSupervisor(ctx.cwd, run.runId, hostEnv(ctx));
-		note = `\nDetached supervisor: pid ${data.detached.pid ?? "unknown"}`;
+	if (request.detach && hasActiveSchedulerWork(run)) {
+		try {
+			data.detached = spawnDetachedSupervisor(ctx.cwd, run.runId, hostEnv(ctx));
+			note = `\nDetached supervisor: pid ${data.detached.pid ?? "unknown"}`;
+		} catch (error) {
+			data.detachError = detachedSupervisorFailure(error, run.runId, hints);
+			note = `\n${data.detachError}`;
+		}
 	}
 	return result(
 		"resume",
-		outcomeForRunStatus(run.status),
+		data.detachError ? "failed" : outcomeForRunStatus(run.status),
 		data,
 		formatHumanRunResume(run, resetTaskIds.length, {
-			hints: hostCommandHints(ctx.host),
+			hints,
+			handoffFailed: data.detachError !== undefined,
 		}) + note,
 	);
 }
@@ -1302,7 +1312,8 @@ export async function superviseAction(
 	const runId = initial?.runId;
 	if (
 		runId &&
-		initial?.status === "running" &&
+		initial &&
+		hasActiveSchedulerWork(initial) &&
 		request.maxRuntimeMs === undefined
 	) {
 		const compiled = parseJsonText(
@@ -1352,7 +1363,7 @@ export async function superviseAction(
 					(run) => run.status === "running" && !run.parentRunId,
 				);
 		for (const run of runs) {
-			if (run.status !== "running") continue;
+			if (!hasActiveSchedulerWork(run)) continue;
 			supervised.add(run.runId);
 			await schedule(cwd, run.runId).catch((error) =>
 				log(`schedule error ${run.runId}: ${error?.message ?? error}`),
@@ -1371,7 +1382,7 @@ export async function superviseAction(
 		}
 		if (runId) {
 			const run = refreshed[0]!;
-			if (run.status !== "running") {
+			if (!hasActiveSchedulerWork(run)) {
 				// 2026-11-05: an interactive Codex session that launched the run gets the result.
 				await wakeLaunchingHostSessions(cwd, run, { env: hostEnv(ctx), log });
 				return finish(

@@ -878,3 +878,47 @@ test("worker-role processes may only validate (role check of the host API)", asy
 	});
 	assert.equal(validated.isError, false, text(validated));
 });
+
+for (const [tool, method, args] of [
+	["run", "runWorkflowAction", { workflow: "wf.json", task: "probe" }],
+	["auto", "autoAction", { task: "probe" }],
+	["resume", "resumeAction", { runId: "workflow_published" }],
+]) {
+	test(`workflow_${tool} preserves the failed handoff before a long preview`, async () => {
+		const { cwd, env } = await project();
+		const runId = "workflow_published";
+		const detachError = `Could not start detached supervisor for ${runId}: EISDIR\nWait for the result: workflow_wait ${runId}`;
+		const run = { runId, status: "running", detachError };
+		for (const host of ["claude-code", "codex"]) {
+			const client = await connect(
+				{
+					root: cwd,
+					env,
+					host,
+					api: {
+						...api,
+						[method]: async () => ({
+							action: tool,
+							outcome: "failed",
+							ok: false,
+							data: tool === "auto" ? { phase: "launched", launch: run } : run,
+							text: `${"long launch preview ".repeat(5000)}\n${detachError}`,
+						}),
+					},
+				},
+				"2025-06-18",
+			);
+			const response = await client.call(`workflow_${tool}`, args);
+			assert.equal(response.isError, true);
+			assert.match(
+				text(response),
+				/^Could not start detached supervisor for workflow_published: EISDIR\n[^\n]*workflow_wait[^\n]*workflow_published/,
+			);
+			assert.match(text(response), /truncated/);
+			if (host === "codex") {
+				const data = response.structuredContent.data;
+				assert.equal((tool === "auto" ? data.launch : data).runId, runId);
+			} else assert.equal(response.structuredContent, undefined);
+		}
+	});
+}

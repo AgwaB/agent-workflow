@@ -37,8 +37,10 @@ import {
 	awaitHostSessionMonitor,
 	hostSessionMonitorAlive,
 	isHostSessionId,
+	isSettledRun,
 	monitorStartsWithRun,
 	recordRunHostSession,
+	runHostSessions,
 } from "../../hosts/notify-check.js";
 import { codexTurnSession, hostWakeEnabled } from "../../hosts/host-wake.js";
 import { WORKFLOW_DASHBOARD_TOOL } from "../visible-names.js";
@@ -52,6 +54,7 @@ import type {
 	LaunchRequestBase,
 	WaitData,
 } from "../../hosts/api.js";
+import { readRunRecord } from "../../core/store.js";
 import { EXECUTOR_PRESET_IDS } from "../../core/executor-presets.js";
 import {
 	formatRoleAssignment,
@@ -1560,7 +1563,8 @@ export function createHostMcpService(
 		data: LaunchData | undefined,
 		call: McpToolCallContext,
 	): Promise<Delivery> => {
-		if (!data?.runId || data.status !== "running") return "wait";
+		if (!data?.runId || data.detachError || data.status !== "running")
+			return "wait";
 		if (options.host === "claude-code") {
 			const session = env.CLAUDE_CODE_SESSION_ID;
 			if (!isHostSessionId(session)) return "wait";
@@ -1586,7 +1590,14 @@ export function createHostMcpService(
 			const turn = codexTurnSession(call.meta);
 			if (!turn?.interactive) return "wait";
 			await recordRunHostSession(ctx.cwd, data.runId, turn.threadId);
-			return "codex-queue";
+			if (!(await runHostSessions(ctx.cwd, data.runId)).includes(turn.threadId))
+				return "wait";
+			// If settlement happens after this read, the supervisor can see our link.
+			// If it already settled, direct a wait without suppressing a supervisor wake.
+			const current = await readRunRecord(ctx.cwd, data.runId).catch(
+				() => undefined,
+			);
+			return current && !isSettledRun(current) ? "codex-queue" : "wait";
 		}
 		return "wait";
 	};
@@ -1678,6 +1689,7 @@ export function createHostMcpService(
 		next?: string,
 		/** 2026-11-05: a launch that waits for the user's OK in the chat is a question, not a failure. */
 		question = false,
+		handoffFailed = false,
 	): HostMcpToolResult => {
 		const text = boundedText(outcome.text);
 		const structured = hostMcpSendsStructuredContent(
@@ -1700,9 +1712,29 @@ export function createHostMcpService(
 				: {}),
 			// 2026-11-05 (live, the Claude desktop app's chat showed the "ask the user" result as a failed
 			// tool call): a launch that only waits for the user's OK is no error.
-			isError: outcome.outcome === "refused" && !question,
+			isError: handoffFailed || (outcome.outcome === "refused" && !question),
 		};
 	};
+
+	const finishFailedHandoff = <T>(
+		call: McpToolCallContext,
+		outcome: HostResult<T>,
+		detachError: string,
+	): HostMcpToolResult =>
+		finish(
+			call,
+			{
+				...outcome,
+				text:
+					outcome.text === detachError
+						? detachError
+						: `${detachError}\n\n${outcome.text.replace(`\n${detachError}`, "")}`,
+			},
+			outcome.data,
+			undefined,
+			false,
+			true,
+		);
 
 	/** WP31: `workflow_profile` op workflow-list|workflow-show|workflow-set|workflow-clear. */
 	const workflowPreferenceCall = async (
@@ -2005,6 +2037,8 @@ export function createHostMcpService(
 					arguments: { ...args },
 				},
 			});
+			if (launched.data.detachError)
+				return finishFailedHandoff(call, launched, launched.data.detachError);
 			const how = await delivery(ctx, launched.data, call);
 			return finish(
 				call,
@@ -2023,6 +2057,8 @@ export function createHostMcpService(
 					arguments: { ...args },
 				},
 			});
+			if (launched.data.detachError)
+				return finishFailedHandoff(call, launched, launched.data.detachError);
 			const how = await delivery(ctx, launched.data, call);
 			return finish(
 				call,
@@ -2043,6 +2079,8 @@ export function createHostMcpService(
 				...(call.signal ? { signal: call.signal } : {}),
 			});
 			const data = auto.data;
+			if (data.launch?.detachError)
+				return finishFailedHandoff(call, auto, data.launch.detachError);
 			const how = data.launch ? await delivery(ctx, data.launch, call) : "wait";
 			return finish(
 				call,
@@ -2172,6 +2210,8 @@ export function createHostMcpService(
 				runId,
 				...(detach ? { detach: true } : {}),
 			});
+			if (resumed.data.detachError)
+				return finishFailedHandoff(call, resumed, resumed.data.detachError);
 			return finish(
 				call,
 				resumed,

@@ -5,7 +5,8 @@ import { stateDir } from "../helpers/state-dir.mjs";
 // run has settled (`codex queue`), so the agent ends its turn instead of calling workflow_wait.
 // `codex exec` launches and non-detached runs still wait. The Codex CLI is faked here.
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import fs, { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
@@ -14,6 +15,7 @@ const wake = await import("../../dist/hosts/host-wake.js");
 const notify = await import("../../dist/hosts/notify-check.js");
 const mcpTools = await import("../../dist/mcp/host-server/tools.js");
 const api = await import("../../dist/hosts/api.js");
+const cli = await import("../../dist/hosts/cli/index.js");
 
 const THREAD = "01a1a9fc-37e9-7613-b590-05c91fcc4e84";
 let root;
@@ -53,6 +55,7 @@ async function writeRun(cwd, runId, status, source = "mcp:codex") {
 				displayName: "a.main",
 				status,
 				statusDetail: status,
+				runtime: {},
 				files: {
 					systemPrompt: "",
 					taskPrompt: "",
@@ -157,6 +160,36 @@ test("wakeLaunchingHostSessions queues the line once into each linked Codex thre
 	assert.equal(calls.length, 1);
 });
 
+test("a Codex prompt hook's global receipt suppresses the supervisor wake", async () => {
+	const cwd = await project();
+	const env = { ...process.env, AGENT_WORKFLOW_HOST_WAKE: "1" };
+	const runId = "workflow_prompt";
+	const run = await writeRun(cwd, runId, "completed");
+	await notify.recordRunHostSession(cwd, runId, THREAD);
+	const output = [];
+	const code = await cli.runAgentWorkflowCli(
+		["notify-check", "--host", "codex", "--stamp", "hook-codex", "--hook"],
+		{
+			cwd,
+			env,
+			stdout: (line) => output.push(line),
+			stderr: () => undefined,
+			isTTY: false,
+		},
+	);
+	assert.equal(code, 0);
+	assert.match(output.join(""), /run workflow_prompt\) finished/);
+	const queued = [];
+	await wake.wakeLaunchingHostSessions(cwd, run, {
+		env,
+		run: async (_command, args) => {
+			queued.push(args);
+			return { ok: true, output: "Queued message" };
+		},
+	});
+	assert.deepEqual(queued, []);
+});
+
 test("the detached supervisor wakes the linked Codex session when the run settles", async () => {
 	const cwd = await project();
 	await writeRun(cwd, "workflow_sup", "completed");
@@ -183,6 +216,7 @@ test("the detached supervisor wakes the linked Codex session when the run settle
 
 test("a Codex launch's next step: end the turn for an interactive, detached launch; else workflow_wait", async () => {
 	const cwd = await project();
+	await writeRun(cwd, "workflow_launched", "running");
 	const fakeApi = (detached) =>
 		new Proxy(
 			{},
@@ -248,6 +282,159 @@ test("a Codex launch's next step: end the turn for an interactive, detached laun
 		WAIT,
 	);
 	assert.match(await text({}), WAIT);
+});
+
+for (const [tool, method, beforeBinding] of [
+	["workflow_run", "runWorkflowAction", true],
+	["workflow_run", "runWorkflowAction", false],
+	["workflow_auto", "autoAction", true],
+	["workflow_auto", "autoAction", false],
+]) {
+	const first = beforeBinding
+		? "settled before binding"
+		: "queued before reread";
+	test(`${tool} directs a wait when already settled: ${first}`, async (t) => {
+		const cwd = await project();
+		const runId = "workflow_fast";
+		await writeRun(cwd, runId, "running");
+		const reached = Promise.withResolvers();
+		const release = Promise.withResolvers();
+		if (!beforeBinding) {
+			// Let the supervisor see the link, but don't let MCP proceed to reread the run.
+			const open = fs.open;
+			const mock = t.mock.method(fs, "open", async (...args) => {
+				const handle = await open(...args);
+				if (String(args[0]).endsWith(`session-${THREAD}.${runId}.link`)) {
+					reached.resolve();
+					await release.promise;
+				}
+				return handle;
+			});
+			syncBuiltinESMExports();
+			t.after(() => {
+				mock.mock.restore();
+				syncBuiltinESMExports();
+			});
+		}
+		const service = mcpTools.createHostMcpService({
+			root: cwd,
+			host: "codex",
+			env: process.env,
+			api: {
+				...api,
+				async [method]() {
+					if (beforeBinding) {
+						reached.resolve();
+						await release.promise;
+					}
+					const launch = {
+						runId,
+						status: "running",
+						detached: { pid: 1, logPath: "x" },
+					};
+					return {
+						action: tool === "workflow_auto" ? "auto" : "run",
+						ok: true,
+						outcome: "running",
+						text: "Workflow started",
+						data:
+							tool === "workflow_auto" ? { phase: "launched", launch } : launch,
+					};
+				},
+			},
+		});
+		const context = {
+			protocolVersion: "2025-06-18",
+			clientCapabilities: {},
+			meta: turn("user"),
+		};
+		const calling = service.call(
+			tool,
+			tool === "workflow_auto"
+				? { task: "t" }
+				: { workflow: "deep-review", task: "t" },
+			context,
+		);
+		const queued = [];
+		const push = (run) =>
+			wake.wakeLaunchingHostSessions(cwd, run, {
+				run: async (_command, args) => {
+					queued.push(args);
+					return { ok: true, output: "Queued message" };
+				},
+			});
+		let settled;
+		try {
+			await Promise.race([
+				reached.promise,
+				calling.then(() => assert.fail("launch bypassed the barrier")),
+			]);
+			assert.deepEqual(
+				await notify.runHostSessions(cwd, runId),
+				beforeBinding ? [] : [THREAD],
+			);
+			settled = await writeRun(cwd, runId, "completed");
+			await push(settled);
+			assert.equal(queued.length, beforeBinding ? 0 : 1);
+		} finally {
+			release.resolve();
+		}
+		const result = await calling;
+		assert.deepEqual(await notify.runHostSessions(cwd, runId), [THREAD]);
+		const text = result.content[0].text;
+		assert.equal(result.isError, false, text);
+		assert.match(text, /Then call workflow_wait \{"runId":"workflow_fast"\}/);
+		assert.doesNotMatch(text, /end your turn now|queued message/);
+		await push(settled);
+		assert.ok(queued.length <= 1, "at most one extra delivery by push");
+		for (const args of queued) {
+			assert.equal(args[2], THREAD);
+			assert.match(args[4], /run workflow_fast\) finished/);
+		}
+		const waited = await service.call("workflow_wait", { runId }, context);
+		assert.equal(waited.isError, false, waited.content[0].text);
+		assert.equal(waited.structuredContent.data.status, "completed");
+	});
+}
+
+test("a detached Codex resume directs an explicit wait after the same thread has waited", async () => {
+	const cwd = await project();
+	const env = { ...process.env, AGENT_WORKFLOW_HOST_WAKE: "1" };
+	const runId = "workflow_resumed";
+	await writeRun(cwd, runId, "running");
+	await notify.recordRunHostSession(cwd, runId, THREAD);
+	const reply = Promise.withResolvers();
+	const service = mcpTools.createHostMcpService({
+		root: cwd,
+		host: "codex",
+		env,
+		api: { ...api, resumeAction: () => reply.promise },
+	});
+	const context = {
+		protocolVersion: "2025-06-18",
+		clientCapabilities: {},
+		meta: turn("user"),
+	};
+	const calling = service.call("workflow_resume", { runId }, context);
+	try {
+		await writeRun(cwd, runId, "completed");
+		const waited = await service.call("workflow_wait", { runId }, context);
+		assert.equal(waited.isError, false, waited.content[0].text);
+		assert.equal(waited.structuredContent.data.status, "completed");
+	} finally {
+		reply.resolve({
+			action: "resume",
+			ok: true,
+			outcome: "running",
+			text: "Workflow resumed",
+			data: { runId, status: "running", detached: { pid: 1, logPath: "x" } },
+		});
+	}
+	const resumed = await calling;
+	const text = resumed.content[0].text;
+	assert.equal(resumed.isError, false, text);
+	assert.match(text, /Next: call workflow_wait \{"runId":"workflow_resumed"\}/);
+	assert.doesNotMatch(text, /end your turn now|queued message/);
 });
 
 test("a wake command that ignores SIGTERM cannot hold the supervisor: it is killed at the timeout", async () => {

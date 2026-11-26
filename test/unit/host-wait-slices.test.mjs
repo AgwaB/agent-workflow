@@ -7,7 +7,7 @@ import { stateDir } from "../helpers/state-dir.mjs";
 // to workflow_wait. Fake host API; no model calls.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
@@ -243,13 +243,31 @@ test("Codex with a long slice is told to keep the code-mode cell from yielding; 
 	assert.ok(!(await run("codex")).includes("@exec"));
 	assert.ok(!(await run("generic", MIN30)).includes("@exec"));
 	// An interactive Codex turn gets the result queued: no wait line, no pragma.
+	const queuedApi = fakeApi({
+		async onRun(ctx, runId) {
+			const dir = join(
+				stateDir(ctx.cwd),
+				".agent-workflow",
+				"workflows",
+				runId,
+			);
+			await mkdir(dir, { recursive: true });
+			await writeFile(
+				join(dir, "run.json"),
+				JSON.stringify({
+					runId,
+					tasks: [{ taskId: "work", specId: "work.main", status: "pending" }],
+				}),
+			);
+		},
+	});
 	const queued = textOf(
 		await tools
 			.createHostMcpService({
 				root: cwd,
 				host: "codex",
 				env: {},
-				api: fakeApi(),
+				api: queuedApi,
 				waitSliceMs: MIN30,
 			})
 			.call(

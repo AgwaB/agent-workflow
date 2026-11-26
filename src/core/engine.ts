@@ -62,6 +62,7 @@ import {
 	workflowRunPath,
 	writeJsonAtomic,
 	writeRunRecord,
+	writeRunRecordDurable,
 	writeCompiledRunArtifact,
 	writeStaticRunArtifacts,
 	writeWorkflowLaunchCommandArtifact,
@@ -501,6 +502,8 @@ export interface WorkflowRunOptions {
 	launch?: WorkflowRunLaunchCapture;
 	/** Owned foreground cancellation, never persisted with run authority. */
 	launchSignal?: AbortSignal;
+	/** Publish without dispatching or starting a watcher; another driver must schedule the run. */
+	deferScheduling?: boolean;
 	/**
 	 * Overrides for inputs the workflow spec declares (for example depth).
 	 * Keys the spec does not declare are ignored.
@@ -651,7 +654,27 @@ export class WorkflowDefinitionChangedError extends Error {
 	}
 }
 
+/** Internal host handoff for a signaled detach; true only once a supervisor was spawned. */
+export const WORKFLOW_DETACHED_HANDOFF: unique symbol = Symbol(
+	"workflowDetachedHandoff",
+);
+
+export class DetachedLaunchStopError extends Error {
+	constructor(
+		readonly run: WorkflowRunRecord,
+		cause: unknown,
+	) {
+		super(`Could not confirm cancellation of published run ${run.runId}`, {
+			cause,
+		});
+	}
+}
+
 type WorkflowRunDiagnosticOptions = WorkflowRunOptions & {
+	[WORKFLOW_DETACHED_HANDOFF]?: (
+		run: WorkflowRunRecord,
+		leaseSignal: AbortSignal,
+	) => Promise<boolean>;
 	[WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK]?: (
 		notice: string,
 		digest: string,
@@ -1216,6 +1239,8 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 		run.executorDefaults = recordedDefaults;
 	run.capabilityNegotiation = capabilityNegotiation;
 	let initialized: WorkflowRunRecord | undefined;
+	let releaseStop: ReturnType<typeof requestWorkflowStop> | undefined;
+	let unbindReleaseStop: (() => void) | undefined;
 	try {
 		if (launchCapture?.command.state === "captured")
 			await prepareWorkflowLaunchCommandArtifactPath(cwd, runId);
@@ -1256,19 +1281,74 @@ async function runLoadedWorkflowSpecInNativeHostScope(
 					`Cannot initialize workflow run ${run.runId}: persisted run identity changed`,
 				);
 			}
-			return persisted;
+			const launchSignal = options.launchSignal;
+			if (!options.deferScheduling || !launchSignal) return persisted;
+			const stopBeforeDispatch = async (): Promise<WorkflowRunRecord> => {
+				if (!launchSignal.aborted) return persisted;
+				const stopped = structuredClone(persisted);
+				if (markRunStopped(stopped).length === 0) return persisted;
+				try {
+					// The independent intent fences the next driver even if the stopped record fails.
+					await requestWorkflowStop(cwd, run.runId);
+					await writeRunRecordDurable(cwd, stopped, leaseSignal);
+					await clearWorkflowStopIntent(cwd, run.runId);
+				} catch (error) {
+					throw new DetachedLaunchStopError(persisted, error);
+				}
+				return stopped;
+			};
+			// Stop an abort already observed during publication before doing any host I/O.
+			let published = await stopBeforeDispatch();
+			let handedOff = false;
+			try {
+				handedOff =
+					(await options[WORKFLOW_DETACHED_HANDOFF]?.(
+						published,
+						leaseSignal,
+					)) ?? false;
+			} finally {
+				if (!handedOff && published === persisted) {
+					// Keep cancellation active during the guard/dashboard awaits and lock release.
+					published = await stopBeforeDispatch();
+					if (published === persisted) {
+						const onAbort = () => {
+							releaseStop ??= requestWorkflowStop(cwd, run.runId);
+							void releaseStop.catch(() => undefined);
+						};
+						launchSignal.addEventListener("abort", onAbort, { once: true });
+						unbindReleaseStop = () =>
+							launchSignal.removeEventListener("abort", onAbort);
+						if (launchSignal.aborted) onAbort();
+					}
+				}
+			}
+			return published;
 		});
+		if (initialized && releaseStop) {
+			try {
+				await releaseStop;
+				initialized = (
+					await confirmRequestedWorkflowStop(cwd, run.runId, initialized)
+				).run;
+			} catch (error) {
+				throw new DetachedLaunchStopError(initialized, error);
+			}
+		}
 	} catch (error) {
 		// WP42: a foreground-cancelled launch leaves no unpublished run directory behind either.
 		if (options.launchSignal?.aborted)
 			await removeUnpublishedAutoRunDirectory(cwd, run.runId);
 		throw error;
+	} finally {
+		unbindReleaseStop?.();
 	}
 	if (!initialized) {
 		throw new Error(
 			`Could not acquire supervisor lease to initialize ${run.runId}; another supervisor may be active`,
 		);
 	}
+
+	if (options.deferScheduling) return initialized;
 
 	const scheduleOptions = {
 		availableModels: options.availableModels,
@@ -3226,7 +3306,8 @@ async function runStopRecordedForResume(
 export async function resumeRun(
 	cwd: string,
 	runIdOrPrefix: string,
-	options: WorkflowScheduleOptions = {},
+	options: WorkflowScheduleOptions &
+		Pick<WorkflowRunOptions, "deferScheduling"> = {},
 ): Promise<ResumeRunSummary> {
 	let current = await readRunRecord(cwd, runIdOrPrefix);
 	// A `running` run whose driver is clearly gone is interrupted first, so resume is one step.
@@ -3394,6 +3475,8 @@ export async function resumeRun(
 		throw new Error(
 			`No failed, interrupted, skipped, or resumable blocked tasks to resume in ${current.runId}`,
 		);
+
+	if (options.deferScheduling) return { run: updated, resetTaskIds };
 
 	const scheduled =
 		(await scheduleRun(cwd, current.runId, undefined, options)) ??

@@ -8,9 +8,11 @@ import { WorkflowCapabilityError } from "../core/capability-negotiation.js";
 import { hostLaunchCapture, type LaunchOrigin } from "./launch-capture.js";
 import { ensureDirectDynamicRuntimeBundle } from "../core/dynamic-runtime-bundle.js";
 import {
+	DetachedLaunchStopError,
 	formatHumanRunLaunch,
 	runDynamicTask,
 	runWorkflowSpec,
+	WORKFLOW_DETACHED_HANDOFF,
 	WORKFLOW_EXPECTED_DEFINITION_FINGERPRINT,
 	WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK,
 	WorkflowDefinitionChangedError,
@@ -18,6 +20,11 @@ import {
 	type WorkflowRunOptions,
 	type WorkflowSavedUserProfileLayer,
 } from "../core/engine.js";
+import { hasActiveSchedulerWork } from "../core/engine-wait.js";
+import {
+	AGENT_WORKFLOW_HOME_ENV,
+	agentWorkflowHome,
+} from "../core/home-dir.js";
 import { workflowDefinitionFingerprint } from "../core/execution-profile.js";
 import { resolveProjectWorkflowSettingsTarget } from "../core/workflow-specs.js";
 import {
@@ -57,6 +64,7 @@ import type {
 } from "../core/types.js";
 import type { WorkflowRuntimeDefaults } from "../core/workflow-runtime.js";
 import { hostCommandHints, type WorkflowCommandHints } from "./hints.js";
+import { SUPERVISOR_PROJECT_FROM_CWD_ENV } from "./project-root.js";
 import { HostUsageError, isEffortLevel, parseCapabilityList } from "./args.js";
 import {
 	type RunDashboardLink,
@@ -67,6 +75,7 @@ import {
 	type HostAction,
 	type HostApiContext,
 	type HostResult,
+	formatHostError,
 	hostEnv,
 	outcomeForRunStatus,
 	result,
@@ -197,6 +206,8 @@ export interface LaunchData {
 	};
 	taskSummary?: WorkflowRunRecord["taskSummary"];
 	detached?: { pid?: number; logPath: string };
+	/** Supervisor spawn or post-publication cancellation could not be confirmed. */
+	detachError?: string;
 	promptSchemaNotice?: string;
 	/** Duplicate-launch guard: the active run with the same workflow and task. */
 	duplicateOf?: string;
@@ -846,16 +857,35 @@ export function spawnDetachedSupervisor(
 			[agentWorkflowCliPath(), "supervise", runId],
 			{
 				cwd,
-				env,
+				env: {
+					...env,
+					// Use the same effective home as workflowRunDir above, even with a different cwd.
+					[AGENT_WORKFLOW_HOME_ENV]: agentWorkflowHome(),
+					[SUPERVISOR_PROJECT_FROM_CWD_ENV]: "1",
+				},
 				detached: env.AGENT_WORKFLOW_CONTAIN_DETACHED_SUPERVISOR !== "1",
 				stdio: ["ignore", fd, fd],
 			},
 		);
+		if (child.pid === undefined) {
+			// Node reports OS spawn failures on the next tick. Do not claim a supervisor
+			// was started, or let the pending error become an uncaught exception.
+			child.once("error", () => undefined);
+			throw new Error(`Could not spawn ${process.execPath} in ${cwd}`);
+		}
 		child.unref();
 		return { pid: child.pid, logPath };
 	} finally {
 		closeSync(fd);
 	}
+}
+
+export function detachedSupervisorFailure(
+	error: unknown,
+	runId: string,
+	hints: WorkflowCommandHints,
+): string {
+	return `Could not start detached supervisor for ${runId}: ${formatHostError(error)}\nWait for the result: ${hints.wait(runId)}`;
 }
 
 function isRefusal(error: unknown): boolean {
@@ -1319,7 +1349,36 @@ async function launchClaimed(
 	const runtimeDefaults = profile.runtimeDefaults ?? ctx.runtimeDefaults;
 	const overrides = runtimeOverrides(request);
 	let configuration: WorkflowConfiguration | undefined;
+	let dashboard: RunDashboardLink | undefined;
+	let detached: LaunchData["detached"];
+	let detachError: string | undefined;
+	const hints = hostCommandHints(ctx.host);
+	const handoff = async (run: WorkflowRunRecord, leaseSignal?: AbortSignal) => {
+		await launch.onStarted(run.runId).catch(() => undefined);
+		// Dashboard discovery is best effort and bounded by dashboardStartBudgetMs.
+		dashboard = await runDashboardLink(ctx, run.runId, {
+			start: ["running", "completed", "blocked"].includes(run.status),
+		});
+		if (
+			!request.detach ||
+			request.signal?.aborted ||
+			!hasActiveSchedulerWork(run)
+		)
+			return false;
+		leaseSignal?.throwIfAborted();
+		try {
+			detached = spawnDetachedSupervisor(ctx.cwd, run.runId, hostEnv(ctx));
+			return true;
+		} catch (error) {
+			detachError = detachedSupervisorFailure(error, run.runId, hints);
+			return false;
+		}
+	};
+	// Keep competing waiters out during the cancellable handoff. Unsignaled launches
+	// keep the ordinary order: publish and unlock, record the guard, then spawn.
+	const fencedHandoff = request.detach && request.signal !== undefined;
 	const options: WorkflowRunOptions & {
+		[WORKFLOW_DETACHED_HANDOFF]?: typeof handoff;
 		[WORKFLOW_PROMPT_SCHEMA_DIAGNOSTIC_SINK]: (
 			notice: string,
 			digest: string,
@@ -1384,6 +1443,8 @@ async function launchClaimed(
 		// WP42: the engine's foreground fence (after the capability confirm, before publication and
 		// before the first dispatch; exact-run stop once published).
 		...(request.signal ? { launchSignal: request.signal } : {}),
+		...(request.detach ? { deferScheduling: true } : {}),
+		...(fencedHandoff ? { [WORKFLOW_DETACHED_HANDOFF]: handoff } : {}),
 		// WP33: host-neutral launch capture (launch-command.txt + run.launch).
 		launch: hostLaunchCapture(
 			ctx.host,
@@ -1419,6 +1480,12 @@ async function launchClaimed(
 				)
 			: start(options));
 	} catch (error) {
+		if (error instanceof DetachedLaunchStopError) {
+			await launch.onStarted(error.run.runId).catch(() => undefined);
+			const data = launchData(ctx, error.run, mode, profile.info);
+			data.detachError = `${error.message}: ${formatHostError(error.cause)}\nConfirm the stop: ${hints.stop(error.run.runId)}`;
+			return result(action, "failed", data, data.detachError);
+		}
 		// WP42: aborted before publication (the engine's launchSignal fence threw): nothing started.
 		if (request.signal?.aborted)
 			return cancelledLaunchResult(action, mode, profile.info);
@@ -1468,21 +1535,18 @@ async function launchClaimed(
 		}
 		throw error;
 	}
-	await launch.onStarted(run.runId).catch(() => undefined);
+	if (!fencedHandoff) await handoff(run);
 	const data = launchData(ctx, run, mode, profile.info);
-	// Dashboard discovery/start is best effort and adds at most the 3 s discovery budget
-	// (`dashboardStartBudgetMs`); a dashboard failure never fails the launch.
-	const dashboard = await runDashboardLink(ctx, run.runId, {
-		start: ["running", "completed", "blocked"].includes(run.status),
-	});
 	if (dashboard) data.dashboard = dashboard;
 	if (promptSchemaNotice) data.promptSchemaNotice = promptSchemaNotice;
-	let detachNote = "";
-	if (request.detach && run.status === "running") {
-		data.detached = spawnDetachedSupervisor(ctx.cwd, run.runId, hostEnv(ctx));
-		const hints = hostCommandHints(ctx.host);
-		detachNote = `\nDetached supervisor: pid ${data.detached.pid ?? "unknown"}, log ${toDisplayPath(data.detached.logPath, ctx.cwd)}\nCheck progress: ${hints.status(run.runId)}\nWait for the result: ${hints.wait(run.runId)}`;
-	}
+	if (detached && hasActiveSchedulerWork(run)) data.detached = detached;
+	if (detachError && hasActiveSchedulerWork(run))
+		data.detachError = detachError;
+	const detachNote = data.detached
+		? `\nDetached supervisor: pid ${data.detached.pid ?? "unknown"}, log ${toDisplayPath(data.detached.logPath, ctx.cwd)}\nCheck progress: ${hints.status(run.runId)}\nWait for the result: ${hints.wait(run.runId)}`
+		: data.detachError
+			? `\n${data.detachError}`
+			: "";
 	const verb =
 		run.status === "running"
 			? "started"
@@ -1525,7 +1589,12 @@ async function launchClaimed(
 		.filter((line): line is string => Boolean(line))
 		.join("\n")
 		.concat(detachNote);
-	return result(action, outcomeForRunStatus(run.status), data, text);
+	return result(
+		action,
+		data.detachError ? "failed" : outcomeForRunStatus(run.status),
+		data,
+		text,
+	);
 }
 
 /** `run`: start exactly the named workflow. Returns once launched (status usually `running`). */
