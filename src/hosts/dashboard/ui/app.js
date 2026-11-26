@@ -5563,10 +5563,44 @@ const STATUS_WORDS = {
 	medium: ["", "Medium", "neutral"],
 	low: ["", "Low", "neutral"],
 };
-function statusBadge(word) {
+const REPORT_STATUS = new Map([
+	["Verified", "done"],
+	["확인됨", "done"],
+	["Covered", "done"],
+	["충분", "done"],
+	["Partly supported", "warn"],
+	["일부 확인", "warn"],
+	["Partly covered", "warn"],
+	["일부", "warn"],
+	["Sources disagree", "bad"],
+	["출처 상충", "bad"],
+	["Unsupported", "bad"],
+	["근거 부족", "bad"],
+	["Missing", "bad"],
+	["없음", "bad"],
+	["Not checked", "warn"],
+	["검증 불가", "warn"],
+	["Unverified", "neutral"],
+	["미확인", "neutral"],
+	["Proposal", "neutral"],
+	["제안", "neutral"],
+	["Not specified", "neutral"],
+	["표시 없음", "neutral"],
+	["Not applicable", "neutral"],
+	["해당 없음", "neutral"],
+]);
+function statusBadge(word, report = false) {
 	const raw = word.trim();
-	const known = STATUS_WORDS[raw.toLowerCase()];
-	if (!known) return null;
+	const reportTone = report ? REPORT_STATUS.get(raw) : null;
+	if (reportTone)
+		return element(
+			"span",
+			{ class: "md-status md-status-chip", "data-tone": reportTone },
+			raw,
+		);
+	const key = raw.toLowerCase();
+	if (!Object.hasOwn(STATUS_WORDS, key)) return null;
+	const known = STATUS_WORDS[key];
 	const [glyph, label, tone] = known;
 	return element(
 		"span",
@@ -5579,11 +5613,57 @@ function statusBadge(word) {
 		label,
 	);
 }
+const MARKDOWN_FENCE = /^\s*(`{3,}|~{3,})\s*([\w+.#-]*)\s*$/;
+
+// Recognize only balanced, no-attribute folds with an immediate single-line summary.
+// All content (including the summary) still goes through the text-node renderer.
+function markdownFolds(lines) {
+	const starts = new Map();
+	const stack = [];
+	let fence = null;
+	for (let index = 0; index < lines.length; index++) {
+		const line = lines[index];
+		const mark = MARKDOWN_FENCE.exec(line);
+		if (fence) {
+			if (
+				mark &&
+				!mark[2] &&
+				mark[1][0] === fence[0] &&
+				mark[1].length >= fence.length
+			)
+				fence = null;
+			continue;
+		}
+		if (mark) {
+			fence = mark[1];
+			continue;
+		}
+		const open = /^( *)<details>$/.exec(line);
+		if (open) {
+			const summary = /^( *)<summary>(.+)<\/summary>$/.exec(
+				lines[index + 1] ?? "",
+			);
+			if (summary?.[1] === open[1]) {
+				stack.push({ index, indent: open[1].length, label: summary[2] });
+				index++;
+			}
+			continue;
+		}
+		const close = /^( *)<\/details>$/.exec(line);
+		const active = stack.at(-1);
+		if (close && active?.indent === close[1].length) {
+			stack.pop();
+			starts.set(active.index, { ...active, end: index });
+		}
+	}
+	return starts;
+}
+
 /**
  * Untrusted Markdown as text nodes: headings (by level), bullet and numbered lists (an indented
  * bullet nests under the item above, a list keeps its first number), pipe tables, rules, paragraphs
  * whose single line breaks are kept, inline `**bold**` / `*emphasis*` / `` `code` `` and backslash
- * escapes. No links, HTML, images or content-derived URLs: a Markdown link shows its text with the
+ * escapes. No links, arbitrary HTML, images or content-derived URLs: a Markdown link shows its text with the
  * address as plain text, an image only its alt text (report and task result).
  * Fenced code blocks show verbatim (whitespace kept, no Markdown inside); a list item that is one
  * flat JSON object reads as its main text and "key: value" fields.
@@ -5669,7 +5749,8 @@ const ROW_MAIN_KEYS = [
 	"assumption",
 	"area",
 ];
-function renderTextMarkdown(container, text, headingBase = 3) {
+function renderTextMarkdown(root, text, headingBase = 3, report = false) {
+	let container = root;
 	// Escaped punctuation is parked in the private-use area so it is never read as Markdown.
 	const park = (value) =>
 		value.replace(/\\([\\`*_{}\[\]()#+\-.!|<>~])/g, (_, c) =>
@@ -5723,7 +5804,7 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 				const bold = unpark(m[4]);
 				const readable = readableCodes(bold);
 				nodes.push(
-					statusBadge(bold) ??
+					statusBadge(bold, report) ??
 						element(
 							"strong",
 							{ title: readable === bold ? null : bold },
@@ -5749,7 +5830,7 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 		return [
 			element("span", { class: "md-label" }, `${m[1]}:`),
 			value ? " " : null,
-			value ? (statusBadge(plain) ?? inline(value)) : null,
+			value ? (statusBadge(plain, report) ?? inline(value)) : null,
 		];
 	};
 	// An older report row written as one flat JSON object ({"item":…,"owner":…}) reads as its main
@@ -5805,8 +5886,35 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 		);
 		fence = null;
 	};
-	for (const line of text.split("\n")) {
-		const fenceMark = /^\s*(`{3,}|~{3,})\s*([\w+.#-]*)\s*$/.exec(line);
+	const lines = text.split("\n").map((line) => line.replace(/\r$/, ""));
+	const folds = report ? markdownFolds(lines) : new Map();
+	const frames = [];
+	for (let index = 0; index < lines.length; index++) {
+		const line = lines[index];
+		const start = folds.get(index);
+		const frame = frames.at(-1);
+		if (start || frame?.end === index) {
+			paragraph = table = group = null;
+			if (start) {
+				const listItem =
+					start.indent > (frame?.indent ?? 0) ? list?.lastElementChild : null;
+				const details = element(
+					"details",
+					{ class: "md-fold" },
+					element("summary", {}, inline(start.label)),
+				);
+				(listItem ?? container).append(details);
+				frames.push({ ...start, container, list: listItem ? list : null });
+				container = details;
+				list = null;
+				index++; // summary was rendered as phrasing-only content
+			} else {
+				frames.pop();
+				({ container, list } = frame);
+			}
+			continue;
+		}
+		const fenceMark = MARKDOWN_FENCE.exec(line);
 		if (fence) {
 			if (
 				fenceMark &&
@@ -5850,7 +5958,7 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 							tag,
 							{},
 							...(tag === "td"
-								? [statusBadge(unpark(park(c))) ?? inline(c)]
+								? [statusBadge(unpark(park(c)), report) ?? inline(c)]
 								: inline(c)),
 						),
 					),
@@ -5913,7 +6021,10 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 				...(jsonRow((item ?? numbered)[1]) ?? field((item ?? numbered)[1])),
 			);
 			const parent = list?.lastElementChild;
-			if (/^\s{2,}/.test(line) && parent) {
+			if (
+				line.length - line.trimStart().length >= (frame?.indent ?? 0) + 2 &&
+				parent
+			) {
 				// An indented item nests under the item above (the numbered list keeps counting).
 				let nested = parent.lastElementChild;
 				if (nested?.tagName.toLowerCase() !== tag) {
@@ -5944,9 +6055,9 @@ function renderTextMarkdown(container, text, headingBase = 3) {
 		}
 	}
 	if (fence) closeFence();
-	for (const table of container.querySelectorAll("table.report-table"))
+	for (const table of root.querySelectorAll("table.report-table"))
 		stackWideTable(table);
-	colourCode(container);
+	colourCode(root);
 }
 /**
  * A table of four or more columns reads as one entry per row (2026-11-03, owner: the report's
@@ -6065,8 +6176,17 @@ export function splitReport(text) {
 		if (current.kind === "finding" || current.lines.some((line) => line.trim()))
 			segments.push(current);
 	};
-	for (const line of text.split("\n")) {
-		const mark = /^\s*(`{3,}|~{3,})\s*([\w+.#-]*)\s*$/.exec(line);
+	const lines = text.split("\n").map((line) => line.replace(/\r$/, ""));
+	const folds = markdownFolds(lines);
+	for (let index = 0; index < lines.length; index++) {
+		const line = lines[index];
+		const fold = folds.get(index);
+		if (fold) {
+			for (; index < fold.end; index++) current.lines.push(lines[index]);
+			current.lines.push(lines[index]);
+			continue;
+		}
+		const mark = MARKDOWN_FENCE.exec(line);
 		if (fence) {
 			if (
 				mark &&
@@ -6328,8 +6448,17 @@ function renderReport(container, text) {
 					"\n",
 				),
 				2,
+				true,
 			);
 	}
+	const first = container.firstElementChild;
+	const trust = first?.nextElementSibling;
+	if (
+		first?.matches(".md-h1") &&
+		trust?.matches("p") &&
+		/^(?:Claims: |주장 ).+ · .+ · /.test(trust.textContent)
+	)
+		trust.classList.add("md-trust");
 	reportBlocks(container);
 	return found;
 }
