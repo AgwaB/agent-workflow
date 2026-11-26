@@ -46,7 +46,7 @@ after(async () => {
 });
 
 const READY = { installed: true, cliVersion: "2.1.322", auth: "ok" };
-const UNKNOWN = { installed: true, cliVersion: "1.1.0", auth: "unknown" };
+const UNKNOWN = { installed: true, cliVersion: "1.5.2", auth: "unknown" };
 const LOGGED_OUT = { installed: true, cliVersion: "0.150.0", auth: "missing" };
 const NOT_INSTALLED = { installed: false, cliVersion: null, auth: "unknown" };
 
@@ -222,7 +222,7 @@ test("doctorAction: host default, saved default profile, unsupported Node, unusa
 	);
 	assert.match(
 		hosted.text,
-		/pi\s+usable\s+installed 1\.1\.0 \(verified 1\.1\.0\), auth unknown \(counts as usable\)/,
+		/pi\s+usable\s+installed 1\.5\.2 \(verified 1\.5\.2\), auth unknown \(counts as usable\)/,
 	);
 
 	await api.profileAction(

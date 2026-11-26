@@ -10,8 +10,8 @@ import {
 } from "../../sdk/capabilities.js";
 
 /** CLI version the probed rows were verified with. */
-export const CODEX_VERIFIED_CLI_VERSION = "0.166.0";
-export const CODEX_VERIFIED_WITH = `codex-cli ${CODEX_VERIFIED_CLI_VERSION}, WP7 live 2026-10-26, re-verified 2026-11-04`;
+export const CODEX_VERIFIED_CLI_VERSION = "0.170.0";
+export const CODEX_VERIFIED_WITH = `codex-cli ${CODEX_VERIFIED_CLI_VERSION}, WP7 live 2026-10-26, re-verified 2026-11-04 and 2026-11-26`;
 
 /**
  * Characters of one MCP tool result the model receives (R#9), measured live with the per-run

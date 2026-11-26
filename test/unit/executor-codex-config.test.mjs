@@ -346,7 +346,7 @@ test("capabilities are valid, honest about web safety and below the artifact ser
 		if (entry?.source === "probed")
 			assert.match(
 				entry.verifiedWith,
-				/codex-cli 0\.166\.0, WP7 live 2026-10-26, re-verified 2026-11-04/,
+				/codex-cli 0\.170\.0, WP7 live 2026-10-26, re-verified 2026-11-04 and 2026-11-26/,
 				name,
 			);
 	assert.ok(CODEX_MCP_OUTPUT_LIMIT_CHARS > DEFAULT_MCP_OUTPUT_LIMIT_CHARS);

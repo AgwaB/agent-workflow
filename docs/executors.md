@@ -17,8 +17,8 @@ and `bash`; SDK constants are `WORKFLOW_TOOL_NAMES` / `WORKFLOW_TOOL_KINDS`. Cod
 
 | Executor | CLI and verified version | Invocation | Isolation | Permission modes | Web tools | Artifact MCP | Notable limits |
 |---|---|---|---|---|---|---|---|
-| Pi | Pi 1.1.0 | `pi --mode json --print` | Resource-disabling flags; auth retained | Free: requested tools; safe readOnly: read-only allowlist | pi-web-access 0.44.0, search+fetch | `mcp__workflow_artifact__workflow_artifact`; 18,432 artifact output chars/bytes | No sandbox or approvals; fast tier live-unverified |
-| Codex | codex-cli 0.166.0 | `codex app-server` | Per-thread config; global instructions/rules remain | Safe: mapped sandbox + `on-request`; free: `danger-full-access` + `never` | Hosted search; fetch mapping unverified | `mcp__workflow_artifact__workflow_artifact`; 30,400 artifact output chars/bytes | Coarse tools; global exec-policy allow rules |
+| Pi | Pi 1.5.2 | `pi --mode json --print` | Resource-disabling flags; auth retained | Free: requested tools; safe readOnly: read-only allowlist | pi-web-access 0.44.0, search+fetch | `mcp__workflow_artifact__workflow_artifact`; 18,432 artifact output chars/bytes | No sandbox or approvals; fast tier live-unverified |
+| Codex | codex-cli 0.170.0 | `codex app-server` | Per-thread config; global instructions/rules remain | Safe: mapped sandbox + `on-request`; free: `danger-full-access` + `never` | Hosted search; fetch mapping unverified | `mcp__workflow_artifact__workflow_artifact`; 30,400 artifact output chars/bytes | Coarse tools; global exec-policy allow rules |
 | Claude Code | claude-code 2.1.322 | `claude -p`, stream-json | Settings/MCP isolation; built-in agents/plugins remain | Safe: `default`; free: `bypassPermissions` | `WebSearch`, `WebFetch` | `mcp__workflow_artifact__workflow_artifact`; 21,375 artifact output chars/bytes | Read-tool auto-allow; MCP spill files |
 | Antigravity (ACP) | agy_acp_server 1.4.5 | No args on macOS; `--uid=` on Linux | Private `GEMINI_HOME`; workspace skills remain | Free: `yolo`; safe `default`; safe readOnly emulated | `search_web`, `read_url_content` + `view_file` | `call_mcp_tool`; 131,072-byte MCP override | No resume or filesystem sandbox; declared capabilities |
 
@@ -39,7 +39,8 @@ Source: `src/executors/pi/` (`executor.ts`, `argv.ts`, `parse.ts`, `errors.ts`, 
 
 ### CLI and version
 
-Verified with **Pi 1.1.0** on macOS. `PI_MIN_CLI_VERSION = 1.1.0`;
+Verified with **Pi 1.5.2** on macOS (live tier, 2026-11-26); the rows below marked "Pi 1.1.0" were
+established on 1.1.0. `PI_MIN_CLI_VERSION = 1.1.0`;
 native MCP (`pi.registerMcpServer`, `createMcpExtension`) needs 1.1. Older versions probe as
 `mcpInjection: none`.
 
@@ -297,8 +298,8 @@ Entry point: `@agwab/agent-workflow/executors/codex`; source: `src/executors/cod
 Use `createExecutor(config)` with descriptor
 `{ id: "codex", version: "0.1.0", contractVersion: "0.1.0", module: "@agwab/agent-workflow/executors/codex", config: {} }`.
 
-Verified with **codex-cli 0.166.0** using ChatGPT login. Live coverage also exists for **0.159.2**
-and **0.165.0**. Protocol details were established on 0.159.2; MCP output bounds were rechecked
+Verified with **codex-cli 0.170.0** using ChatGPT login (live tier, 2026-11-26). Live coverage also
+exists for **0.159.2**, **0.165.0** and **0.166.0**. Protocol details were established on 0.159.2; MCP output bounds were rechecked
 on 0.165.0 and 0.166.0.
 
 ### Invocation: `codex app-server`
@@ -572,7 +573,7 @@ remote-control notifications are redacted. Messages sent to the CLI remain uncha
 | webTools | native, search, safetyPolicy **unknown** | probed | hosted search; live, 0.159.2 |
 
 Capability metadata retains the original 0.159.2 verification baseline; the latest verified CLI is
-0.166.0. A differing installed version is noted by the probe.
+0.170.0. A differing installed version is noted by the probe.
 
 ### Error classification
 
