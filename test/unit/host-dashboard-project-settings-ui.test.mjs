@@ -2388,24 +2388,41 @@ test("late preview/save responses cannot replace a newer selection/draft or depa
 	const p = await open(t);
 	await load(p);
 	await settled(p);
-	await set(p, "All steps Executor", "management-fake");
+	// Hold the executor-only preview before issuing the effort edit. Custom needs
+	// the current draft's calculation, so the effort preview must not be held.
 	await p.browser.evaluate(() => {
 		window.__holds.preview = true;
 	});
-	await set(p, "All steps Effort", "high");
+	await set(p, "All steps Executor", "management-fake");
 	await p.browser.waitFor(() => !!window.__releases.preview);
+	const heldPreview = await p.browser.evaluate(() =>
+		window.__requests.findLastIndex((r) => r.path.endsWith("/preview")),
+	);
+	await set(p, "All steps Effort", "high");
 	await select(p, "iterate.check");
-	await set(p, "Slot iterate.check Executor", "management-fake");
+	const customRadio = '[name="task-settings-scope"][value="custom"]:enabled';
+	await p.browser.waitFor(
+		`!!document.querySelector(${JSON.stringify(customRadio)})`,
+	);
+	await p.browser.click(customRadio);
 	await set(p, "Slot iterate.check Effort", "low");
-	await settled(p); // Newer response wins before the held older response is released.
-	await p.browser.evaluate(() => {
-		window.__releases.preview();
-		window.__previewReleased = true;
-	});
-	// Ordered evaluation after releasing the fetch promise, not a fixed timing sleep.
-	await p.browser.evaluate(async () => {
-		await new Promise((resolve) => requestAnimationFrame(resolve));
-	});
+	const calculatedLow = () =>
+		document
+			.querySelector(
+				'.role-inspector [data-binding="iterate.check"] [data-calculated="effort"]:not([hidden])',
+			)
+			?.textContent.startsWith("requested: low;");
+	await p.browser.waitFor(calculatedLow); // The newer calculation rendered while the old one was held.
+	await p.browser.evaluate(() => window.__releases.preview());
+	// A released POST can be a 202; wait for the old calculation's final result too.
+	await p.browser.waitFor(
+		`window.__requests[${heldPreview}].response?.status === 200`,
+	);
+	await p.browser.evaluate(() => new Promise(requestAnimationFrame));
+	assert.ok(
+		await p.browser.evaluate(calculatedLow),
+		"the older result cannot replace the newer calculation",
+	);
 	assert.equal(
 		await p.browser.evaluate(
 			() =>
