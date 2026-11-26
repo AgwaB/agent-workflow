@@ -256,10 +256,6 @@ test("Codex with a long slice is told to keep the code-mode cell from yielding; 
 				join(dir, "run.json"),
 				JSON.stringify({
 					runId,
-					launch: {
-						schema: "agent-workflow-run-launch-v1",
-						source: "mcp:codex",
-					},
 					tasks: [{ taskId: "work", specId: "work.main", status: "pending" }],
 				}),
 			);

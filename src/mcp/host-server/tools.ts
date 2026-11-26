@@ -35,16 +35,15 @@ import {
 import { assertActionAllowed } from "../../hosts/types.js";
 import {
 	awaitHostSessionMonitor,
+	claimCodexDelivery,
 	hostSessionMonitorAlive,
 	isHostSessionId,
+	isSettledRun,
 	monitorStartsWithRun,
 	recordRunHostSession,
+	runHostSessions,
 } from "../../hosts/notify-check.js";
-import {
-	codexTurnSession,
-	hostWakeEnabled,
-	reconcileCodexDelivery,
-} from "../../hosts/host-wake.js";
+import { codexTurnSession, hostWakeEnabled } from "../../hosts/host-wake.js";
 import { WORKFLOW_DASHBOARD_TOOL } from "../visible-names.js";
 export { WORKFLOW_DASHBOARD_TOOL } from "../visible-names.js";
 import type {
@@ -56,6 +55,7 @@ import type {
 	LaunchRequestBase,
 	WaitData,
 } from "../../hosts/api.js";
+import { readRunRecord } from "../../core/store.js";
 import { EXECUTOR_PRESET_IDS } from "../../core/executor-presets.js";
 import {
 	formatRoleAssignment,
@@ -1489,17 +1489,6 @@ function withoutWaitLine<T>(
 			};
 }
 
-function codexDeliveryNext(
-	runId: string,
-	delivery: Delivery,
-): string | undefined {
-	if (delivery === "codex-claimed")
-		return `The detached supervisor is delivering the result to this Codex session as a queued message. Use that message to report the result; do not call ${WORKFLOW_WAIT_TOOL}.`;
-	if (delivery === "codex-queue")
-		return `agent-workflow puts the result into this Codex session when the run has finished (a queued message): end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When the message "agent-workflow: workflow … (run ${runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${runId}"} only if the user asks you to wait here.`;
-	return undefined;
-}
-
 function launchNext(
 	data: LaunchData,
 	delivery: Delivery = "wait",
@@ -1507,10 +1496,13 @@ function launchNext(
 ): string | undefined {
 	if (data.runId && data.status === "running") {
 		const wait =
-			codexDeliveryNext(data.runId, delivery) ??
-			(delivery === "claude-monitor"
-				? `This session's agent-workflow completion monitor (from the plugin) reports the run when it has finished: end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When its line "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
-				: `Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.${waitHint}`);
+			delivery === "codex-claimed"
+				? `The detached supervisor is delivering the result to this Codex session as a queued message. Use that message to report the result; do not call ${WORKFLOW_WAIT_TOOL}.`
+				: delivery === "codex-queue"
+					? `agent-workflow puts the result into this Codex session when the run has finished (a queued message): end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When the message "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
+					: delivery === "claude-monitor"
+						? `This session's agent-workflow completion monitor (from the plugin) reports the run when it has finished: end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When its line "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
+						: `Then call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.${waitHint}`;
 		return data.dashboard
 			? `Now tell the user, in your own message (some apps fold tool results): run ${data.runId}, Dashboard: ${data.dashboard.url} — the link as is${data.dashboard.auth ? `; if it asks them to sign in, call ${WORKFLOW_DASHBOARD_TOOL}` : ""}. ${wait}`
 			: `Now tell the user the run id ${data.runId} in your own message; the dashboard is not running (${WORKFLOW_DASHBOARD_TOOL} opens it when they want it). ${wait}`;
@@ -1564,19 +1556,6 @@ export function createHostMcpService(
 	// (`// @exec` pragma; Codex sets no maximum). So a long workflow_wait needs the cell to say so.
 	const waitHint = longWaitAdvice(waitSliceMs, options.host);
 
-	const codexDelivery = async (
-		ctx: HostApiContext,
-		runId: string,
-		call: McpToolCallContext,
-		bind: boolean,
-	): Promise<Delivery> => {
-		if (options.host !== "codex" || !hostWakeEnabled(env)) return "wait";
-		const turn = codexTurnSession(call.meta);
-		if (!turn?.interactive) return "wait";
-		if (bind) await recordRunHostSession(ctx.cwd, runId, turn.threadId);
-		return (await reconcileCodexDelivery(ctx.cwd, runId, turn.threadId)).kind;
-	};
-
 	// 2026-11-05 (owner: wait in code, wake the host once): how this launch's result reaches the
 	// session without workflow_wait. Claude Code: the session id (CLAUDE_CODE_SESSION_ID) is linked to
 	// the run, and a live completion monitor of that session reports it. Codex: the thread of the call
@@ -1610,7 +1589,27 @@ export function createHostMcpService(
 				? "claude-monitor"
 				: "wait";
 		}
-		return data.detached ? codexDelivery(ctx, data.runId, call, true) : "wait";
+		if (options.host === "codex" && hostWakeEnabled(env) && data.detached) {
+			const turn = codexTurnSession(call.meta);
+			if (!turn?.interactive) return "wait";
+			await recordRunHostSession(ctx.cwd, data.runId, turn.threadId);
+			if (!(await runHostSessions(ctx.cwd, data.runId)).includes(turn.threadId))
+				return "wait";
+			// If settlement happens after this read, the supervisor can see our link.
+			// If it already settled, claim the wait path unless the notifier owns it.
+			const current = await readRunRecord(ctx.cwd, data.runId).catch(
+				() => undefined,
+			);
+			if (!current) return "wait";
+			if (!isSettledRun(current)) return "codex-queue";
+			const pull = await claimCodexDelivery(
+				ctx.cwd,
+				current,
+				turn.threadId,
+			).catch(() => true);
+			return pull ? "wait" : "codex-claimed";
+		}
+		return "wait";
 	};
 
 	const context = async (
@@ -2117,12 +2116,8 @@ export function createHostMcpService(
 				throw new UsageError("timeoutMs must be a number");
 			let progress = 0;
 			let lastLine = "";
-			const ctx = await context(args, call);
-			const codex =
-				ctx.host === "codex" ? codexTurnSession(call.meta) : undefined;
-			const waited = await api.waitAction(ctx, {
+			const waited = await api.waitAction(await context(args, call), {
 				runId: requiredString(args, "runId"),
-				...(codex?.interactive ? { codexThreadId: codex.threadId } : {}),
 				// 2026-11-05: a host with a long per-call limit waits up to waitSliceMs (hostMcpWaitSliceMs).
 				...(longWait
 					? {
@@ -2221,26 +2216,19 @@ export function createHostMcpService(
 			const runId = requiredString(args, "runId");
 			// Time-limited calls: detach unless the caller opts out (as launches).
 			const detach = optionalBoolean(args, "detach") ?? true;
-			const ctx = await context(args, call);
-			const resumed = await api.resumeAction(ctx, {
+			const resumed = await api.resumeAction(await context(args, call), {
 				runId,
 				...(detach ? { detach: true } : {}),
 			});
 			if (resumed.data.detachError)
 				return finishFailedHandoff(call, resumed, resumed.data.detachError);
-			const data = resumed.data;
-			const how =
-				data.detached && data.status === "running"
-					? await codexDelivery(ctx, data.runId, call, false)
-					: "wait";
 			return finish(
 				call,
-				withoutWaitLine(resumed, how),
-				data,
-				codexDeliveryNext(data.runId, how) ??
-					(data.status === "running"
-						? `Next: call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} and repeat while stillRunning is true.`
-						: undefined),
+				resumed,
+				resumed.data,
+				resumed.data.status === "running"
+					? `Next: call ${WORKFLOW_WAIT_TOOL} {"runId":"${resumed.data.runId}"} and repeat while stillRunning is true.`
+					: undefined,
 			);
 		},
 
