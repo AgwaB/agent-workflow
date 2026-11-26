@@ -215,6 +215,9 @@ async function launchText(
 ): Promise<string> {
 	if (data.detachError) return data.detachError;
 	if (!data.runId) return text;
+	// A Claude monitor also follows an existing run requested by this session.
+	if (ctx.host === "claude-code" && isHostSessionId(session))
+		await recordRunHostSession(ctx.cwd, data.runId, session);
 	if (data.duplicateOf) return text;
 	let status = data.status;
 	let next: string | undefined;
@@ -238,8 +241,6 @@ async function launchText(
 			}
 		}
 	} else if (ctx.host === "claude-code") {
-		if (isHostSessionId(session))
-			await recordRunHostSession(ctx.cwd, data.runId, session);
 		next = notification;
 	}
 	const dashboard =

@@ -41,6 +41,7 @@ import {
 	readFixtureLog,
 } from "../helpers/workflow-executor-fixture.mjs";
 import { stateDir } from "../helpers/state-dir.mjs";
+import { waitUntil } from "../helpers/wait-until.mjs";
 import * as plugins from "../../tools/release/plugins.mjs";
 
 setWorkerLaunchControlsForTests({ releaseDelayMs: 0, retryJitterMs: 0 });
@@ -261,44 +262,76 @@ for (const host of ["claude-code", "codex"]) {
 	test(`${host}: run launches detached with profile defaults, links the session, and duplicates start nothing`, async (t) => {
 		const { cwd, env, id, invoke } = await project(t);
 		env.AGENT_WORKFLOW_HOST_WAKE = "1";
-		const out = await invoke(
-			host,
-			'run hook-alpha "Review the parser --force-new"',
+		const args = 'run hook-alpha "Review the parser --force-new"';
+		const dir = join(cwd, "workflows", "hook-alpha");
+		const specFile = join(dir, "spec.json");
+		const spec = JSON.parse(await readFile(specFile, "utf8"));
+		spec.artifactGraph.stages = [
+			{ id: "hold", support: { uses: "./hold.mjs" } },
+		];
+		await writeFile(specFile, JSON.stringify(spec));
+		const entered = join(cwd, "entered");
+		const released = join(cwd, "released");
+		await writeFile(
+			join(dir, "hold.mjs"),
+			`
+import { existsSync, watch, writeFileSync } from "node:fs";
+export default async () => {
+	await new Promise((done, fail) => {
+		const check = () => {
+			if (existsSync(${JSON.stringify(released)})) { watcher.close(); done(); }
+		};
+		const watcher = watch(${JSON.stringify(cwd)}, check);
+		watcher.on("error", fail);
+		writeFileSync(${JSON.stringify(entered)}, "");
+		check();
+	});
+	return { ok: true };
+};\n`,
 		);
-		const launched = runId(out);
-		assert.match(out.reason, new RegExp(`hook-alpha.*executor ${id}`));
-		assert.match(out.reason, /You'll get the result here when it finishes\./);
-		assert.match(
-			out.reason,
-			new RegExp(`project=${projectId(cwd)}&run=${launched}`),
-		);
-		assert.doesNotMatch(out.reason, /launchKey|token=/);
-		assert.deepEqual(await runHostSessions(cwd, launched), [session]);
-		assert.ok(
-			existsSync(
-				join(
-					stateDir(cwd),
-					".agent-workflow/workflows",
-					launched,
-					"supervise.log",
+		try {
+			const out = await invoke(host, args);
+			const launched = runId(out);
+			assert.match(out.reason, new RegExp(`hook-alpha.*executor ${id}`));
+			assert.match(out.reason, /You'll get the result here when it finishes\./);
+			assert.match(
+				out.reason,
+				new RegExp(`project=${projectId(cwd)}&run=${launched}`),
+			);
+			assert.doesNotMatch(out.reason, /launchKey|token=/);
+			assert.deepEqual(await runHostSessions(cwd, launched), [session]);
+			assert.ok(
+				existsSync(
+					join(
+						stateDir(cwd),
+						".agent-workflow/workflows",
+						launched,
+						"supervise.log",
+					),
 				),
-			),
-			"detached supervisor log created by the launch path",
-		);
-		const record = await readRunRecord(cwd, launched);
-		assert.equal(record.launch.source, `mcp:${host}`);
-		assert.equal(record.launch.entry.kind, "command");
-		// Detached supervisors are durable children; no foreground wait happened in the hook.
-		const duplicate = await invoke(
-			host,
-			'run hook-alpha "Review the parser --force-new"',
-		);
-		assert.equal(runId(duplicate), launched);
-		assert.match(duplicate.reason, /existing|already|active/i);
-		assert.equal(
-			(await listRunRecords(cwd)).filter((r) => !r.parentRunId).length,
-			1,
-		);
+				"detached supervisor log created by the launch path",
+			);
+			const record = await readRunRecord(cwd, launched);
+			assert.equal(record.launch.source, `mcp:${host}`);
+			assert.equal(record.launch.entry.kind, "command");
+			await waitUntil(() => existsSync(entered), "detached helper entry", {
+				timeoutMs: 5_000,
+			});
+			const otherSession = "bbccddee-2233-4455-6677-bbccddeeff00";
+			const duplicate = await invoke(host, args, { session_id: otherSession });
+			assert.equal(runId(duplicate), launched);
+			assert.match(duplicate.reason, /existing|already|active/i);
+			assert.equal(
+				(await listRunRecords(cwd)).filter((r) => !r.parentRunId).length,
+				1,
+			);
+			assert.deepEqual(
+				await runHostSessions(cwd, launched),
+				host === "claude-code" ? [session, otherSession] : [session],
+			);
+		} finally {
+			await writeFile(released, "");
+		}
 	});
 
 	test(`${host}: dynamic launches detached and is linked; stop resolves a prefix`, async (t) => {
