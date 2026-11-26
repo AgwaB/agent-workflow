@@ -5,11 +5,16 @@ import { stateDir } from "../helpers/state-dir.mjs";
 // run has settled (`codex queue`), so the agent ends its turn instead of calling workflow_wait.
 // `codex exec` launches and non-detached runs still wait. The Codex CLI is faked here.
 import assert from "node:assert/strict";
+import childProcess from "node:child_process";
 import fs, { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
+import { waitForRun } from "../../dist/core/engine.js";
+import { registerWorkflowExecutor } from "../../dist/core/index.js";
+import { drainWorkflowFixture } from "../helpers/workflow-fixture-lifecycle.mjs";
+import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 
 const wake = await import("../../dist/hosts/host-wake.js");
 const notify = await import("../../dist/hosts/notify-check.js");
@@ -355,6 +360,152 @@ for (const first of ["settled before binding", "queued before reread"]) {
 			assert.equal(queued[0][2], THREAD);
 			await push(settled);
 			assert.equal(queued.length, 1);
+		}
+	});
+}
+
+for (const wakeFirst of [true, false]) {
+	test(`a fast Codex resume reports exactly once: ${wakeFirst ? "wake wins" : "wait wins"}`, async (t) => {
+		const cwd = await project();
+		const env = { ...process.env, AGENT_WORKFLOW_HOST_WAKE: "1" };
+		const ctx = { cwd, host: "codex", env };
+		const agents = join(cwd, ".agent-workflow/agents");
+		await mkdir(agents, { recursive: true });
+		await writeFile(
+			join(agents, "reader.md"),
+			"---\nname: reader\ndescription: reads and reports\ntools: read\n---\nRead and report.\n",
+		);
+		await writeFile(
+			join(cwd, "spec.json"),
+			JSON.stringify({
+				schemaVersion: 1,
+				name: "retry-support",
+				defaults: { agent: "reader", readOnly: true, tools: ["read"] },
+				artifactGraph: {
+					stages: [
+						{ id: "collect", type: "single", prompt: "Collect facts." },
+						{ id: "report", support: { uses: "./report.mjs" } },
+					],
+				},
+			}),
+		);
+		await writeFile(
+			join(cwd, "report.mjs"),
+			`
+import { existsSync } from "node:fs";
+export default () => {
+	if (!existsSync(${JSON.stringify(join(cwd, "retry"))})) throw new Error("first attempt fails");
+	return { ok: true };
+};
+`,
+		);
+		const executor = "test-codex-resume";
+		t.after(
+			registerWorkflowExecutor(
+				workflowFixtureDescriptor({
+					id: executor,
+					effectLog: join(cwd, "effects.jsonl"),
+				}),
+			),
+		);
+		const launch = await api.runWorkflowAction(ctx, {
+			workflow: "spec.json",
+			task: "test",
+			executor,
+		});
+		const runId = launch.data.runId;
+		assert.ok(runId, launch.text);
+		t.after(() => drainWorkflowFixture(cwd, runId));
+		const failed = await api.waitAction(ctx, { runId, timeoutMs: 10_000 });
+		assert.equal(failed.data.status, "failed", failed.text);
+		assert.equal(failed.data.taskSummary.completed, 1);
+		assert.equal(failed.data.taskSummary.failed, 1);
+		await notify.recordRunHostSession(cwd, runId, THREAD);
+		await writeFile(join(cwd, "retry"), "");
+
+		// Keep the real detached reset, but drive that supervisor's schedule and wake separately.
+		const spawn = childProcess.spawn;
+		const mock = t.mock.method(
+			childProcess,
+			"spawn",
+			(command, args, options) =>
+				args?.[1] === "supervise" && args[2] === runId
+					? { pid: 1, unref() {} }
+					: spawn(command, args, options),
+		);
+		syncBuiltinESMExports();
+		t.after(() => {
+			mock.mock.restore();
+			syncBuiltinESMExports();
+		});
+		const reset = Promise.withResolvers();
+		const reply = Promise.withResolvers();
+		const service = mcpTools.createHostMcpService({
+			root: cwd,
+			host: "codex",
+			env,
+			api: {
+				...api,
+				async resumeAction(ctx, request) {
+					const resumed = await api.resumeAction(ctx, request);
+					reset.resolve(resumed);
+					await reply.promise;
+					return resumed;
+				},
+			},
+		});
+		const context = {
+			protocolVersion: "2025-06-18",
+			clientCapabilities: {},
+			meta: turn("user"),
+		};
+		const calling = service.call("workflow_resume", { runId }, context);
+		const queued = [];
+		const push = (run) =>
+			wake.wakeLaunchingHostSessions(cwd, run, {
+				env,
+				run: async (_command, args) => {
+					queued.push(args);
+					return { ok: true, output: "Queued message" };
+				},
+			});
+		let settled;
+		let result;
+		try {
+			const resumed = await Promise.race([
+				reset.promise,
+				calling.then((result) =>
+					assert.fail(`resume bypassed the barrier: ${result.content[0].text}`),
+				),
+			]);
+			assert.equal(resumed.data.status, "running", resumed.text);
+			assert.ok(resumed.data.detached, resumed.text);
+			assert.equal(resumed.data.resetTaskIds.length, 1);
+			settled = await waitForRun(cwd, runId, 10_000);
+			assert.equal(settled.status, "completed");
+			if (wakeFirst) await push(settled);
+		} finally {
+			reply.resolve();
+			result = await calling;
+		}
+		const text = result.content[0].text;
+		if (wakeFirst) {
+			assert.equal(queued[0]?.[2], THREAD);
+			assert.doesNotMatch(
+				text,
+				/Next: call workflow_wait|Wait for the result:/,
+			);
+			assert.match(text, /queued message/);
+		} else {
+			assert.match(text, /Next: call workflow_wait/);
+			assert.doesNotMatch(text, /queued message/);
+		}
+		await push(settled); // The receipt prevents a duplicate, even before the directed wait.
+		assert.equal(queued.length, wakeFirst ? 1 : 0);
+		if (!wakeFirst) {
+			const waited = await service.call("workflow_wait", { runId }, context);
+			assert.equal(waited.isError, false, waited.content[0].text);
+			assert.equal(waited.structuredContent.data.status, "completed");
 		}
 	});
 }
