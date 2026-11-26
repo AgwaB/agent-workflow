@@ -2098,6 +2098,7 @@ dialog footer .muted {
 	font-variant-numeric: tabular-nums;
 }
 .md-quote {
+	white-space: pre-wrap;
 	font-style: italic;
 	color: var(--muted);
 }

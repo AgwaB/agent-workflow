@@ -743,7 +743,7 @@ test("the final packet keeps a contested slot conflicting until a verified claim
 		assert.match(rendered.auditMarkdown, /## Contested values \(engine\)/);
 		assert.match(
 			rendered.auditMarkdown,
-			/\| slot-001 \| RFC 9000 \| date \| 2021-05 \(https:\/\/www\.rfc-editor\.org\/rfc\/rfc9000\.html\) vs 2022-05 \(notes\.md, notes-md\) \|/,
+			/\| slot-001 \| RFC 9000 \| date \| 2021-05 \(https&#58;\/\/www&#46;rfc-editor\.org\/rfc\/rfc9000\.html\) vs 2022-05 \(notes\.md, notes-md\) \|/,
 		);
 		if (expectResolved) {
 			assert.match(rendered.auditMarkdown, /\| 2021-05 by claim-001 \|/);

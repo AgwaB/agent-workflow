@@ -5586,6 +5586,20 @@ const REPORT_STATUS = new Map([
 	["제안", "neutral"],
 	["Not specified", "neutral"],
 	["표시 없음", "neutral"],
+	["Covered with conflicts", "warn"],
+	["상충 포함", "warn"],
+	["Gap", "warn"],
+	["공백", "warn"],
+	["Out of scope", "neutral"],
+	["범위 밖", "neutral"],
+	["Unknown", "neutral"],
+	["알 수 없음", "neutral"],
+	["High", "neutral"],
+	["Medium", "neutral"],
+	["Low", "neutral"],
+	["높음", "neutral"],
+	["보통", "neutral"],
+	["낮음", "neutral"],
 	["Not applicable", "neutral"],
 	["해당 없음", "neutral"],
 ]);
@@ -5613,50 +5627,193 @@ function statusBadge(word, report = false) {
 		label,
 	);
 }
-const MARKDOWN_FENCE = /^\s*(`{3,}|~{3,})\s*([\w+.#-]*)\s*$/;
+const MARKDOWN_FENCE = /^(`{3,})([^`]*?)\s*$|^(~{3,})(.*?)\s*$/;
+const markdownIndent = (line) =>
+	[.../^\s*/.exec(line)[0]].reduce(
+		(n, c) => (c === "\t" ? n + 4 - (n % 4) : n + 1),
+		0,
+	);
+const textToken = (raw) => ({ kind: "text", raw });
 
-// Recognize only balanced, no-attribute folds with an immediate single-line summary.
-// All content (including the summary) still goes through the text-node renderer.
-function markdownFolds(lines) {
-	const starts = new Map();
-	const stack = [];
-	let fence = null;
+// The splitter, finding parser and renderer share these tokens. Only plain text
+// tokens can be structural Markdown; code and invalid fold ranges are atomic.
+function markdownTokens(text, researchReport = false) {
+	const lines = text.split("\n").map((line) => line.replace(/\r$/, ""));
+	const blocks = [];
+	const list = [];
 	for (let index = 0; index < lines.length; index++) {
 		const line = lines[index];
-		const mark = MARKDOWN_FENCE.exec(line);
-		if (fence) {
-			if (
-				mark &&
-				!mark[2] &&
-				mark[1][0] === fence[0] &&
-				mark[1].length >= fence.length
-			)
-				fence = null;
-			continue;
-		}
+		const indent = markdownIndent(line);
+		if (line.trim()) while (list.length && indent < list.at(-1)) list.pop();
+		const base = list.at(-1) ?? 0;
+		const mark =
+			indent < base + 4 ? MARKDOWN_FENCE.exec(line.trimStart()) : null;
 		if (mark) {
-			fence = mark[1];
-			continue;
-		}
-		const open = /^( *)<details>$/.exec(line);
-		if (open) {
-			const summary = /^( *)<summary>(.+)<\/summary>$/.exec(
-				lines[index + 1] ?? "",
-			);
-			if (summary?.[1] === open[1]) {
-				stack.push({ index, indent: open[1].length, label: summary[2] });
-				index++;
+			const fence = mark[1] ?? mark[3];
+			const lang = (mark[2] ?? mark[4]).trim().split(/\s+/, 1)[0];
+			const body = [];
+			const start = index;
+			while (++index < lines.length) {
+				const candidate = lines[index];
+				const closer = candidate.trim();
+				if (
+					markdownIndent(candidate) < base + 4 &&
+					closer.length >= fence.length &&
+					[...closer].every((c) => c === fence[0])
+				)
+					break;
+				body.push(candidate);
 			}
-			continue;
-		}
-		const close = /^( *)<\/details>$/.exec(line);
-		const active = stack.at(-1);
-		if (close && active?.indent === close[1].length) {
-			stack.pop();
-			starts.set(active.index, { ...active, end: index });
+			blocks.push({
+				kind: "code",
+				raw: lines.slice(start, index + 1).join("\n"),
+				body: body.join("\n"),
+				lang,
+			});
+		} else if (line.trim() && indent >= base + 4) {
+			const start = index;
+			while (
+				index + 1 < lines.length &&
+				lines[index + 1].trim() &&
+				markdownIndent(lines[index + 1]) >= base + 4
+			)
+				index++;
+			const raw = lines.slice(start, index + 1).join("\n");
+			blocks.push({ kind: "code", raw, body: raw });
+		} else {
+			const item = /^( *)(?:[-*+]|\d{1,9}[.)]) +(?!\s|$)/.exec(line);
+			if (item) list.push(item[0].length);
+			blocks.push(textToken(line));
 		}
 	}
-	return starts;
+
+	// Match equal-length backtick runs within a nonblank text region. The same
+	// indices that suppress heading/fold recognition also render the code span.
+	const spans = [];
+	for (let index = 0; index < blocks.length; ) {
+		if (blocks[index].kind !== "text" || !blocks[index].raw.trim()) {
+			spans.push(blocks[index++]);
+			continue;
+		}
+		const start = index;
+		while (
+			index < blocks.length &&
+			blocks[index].kind === "text" &&
+			blocks[index].raw.trim()
+		)
+			index++;
+		const raw = blocks
+			.slice(start, index)
+			.map((token) => token.raw)
+			.join("\n");
+		const runs = [...raw.matchAll(/`+/g)];
+		const next = new Map();
+		const ends = runs.map(() => undefined);
+		for (let n = runs.length - 1; n >= 0; n--) {
+			const length = runs[n][0].length;
+			ends[n] = next.get(length);
+			next.set(length, n);
+		}
+		let from = 0;
+		for (let n = 0; n < runs.length; n++) {
+			const open = runs[n];
+			let before = open.index;
+			while (before > 0 && raw[before - 1] === "\\") before--;
+			if ((open.index - before) % 2 || ends[n] === undefined) continue;
+			n = ends[n];
+			const close = runs[n];
+			const code = raw.slice(open.index + open[0].length, close.index);
+			if (!code.includes("\n")) continue;
+			const lo = raw.lastIndexOf("\n", open.index - 1) + 1;
+			const hi = raw.indexOf("\n", close.index + close[0].length);
+			const end = hi < 0 ? raw.length : hi;
+			if (lo > from)
+				for (const line of raw.slice(from, lo - 1).split("\n"))
+					spans.push(textToken(line));
+			spans.push({
+				kind: "span",
+				raw: raw.slice(Math.max(from, lo), end),
+				before: raw.slice(Math.max(from, lo), open.index),
+				code,
+				after: raw.slice(close.index + close[0].length, end),
+			});
+			from = end + 1;
+			while (runs[n + 1]?.index < from) n++;
+		}
+		if (from < raw.length)
+			for (const line of raw.slice(from).split("\n"))
+				spans.push(textToken(line));
+	}
+	return researchReport ? tokenizeFolds(spans) : spans;
+}
+
+// Even a malformed inner delimiter owns its close. Reject the entire outer
+// range on ambiguity rather than borrowing the close or hiding later evidence.
+function tokenizeFolds(tokens) {
+	const output = [];
+	const stack = [];
+	let outerStart;
+	let valid;
+	const literal = (start, end) => ({
+		kind: "literal",
+		raw: tokens
+			.slice(start, end)
+			.map(({ raw }) => raw)
+			.join("\n"),
+	});
+	for (let index = 0; index < tokens.length; index++) {
+		const token = tokens[index];
+		const line = token.kind === "text" ? token.raw : "";
+		const opener = /^( *)<details\b/i.exec(line);
+		const closer = /^( *)<\/details\b/i.exec(line);
+		const parent = stack.at(-1);
+		if (opener) {
+			if (!parent) {
+				outerStart = index;
+				valid = true;
+			}
+			const maybe = tokens[index + 1];
+			const summary =
+				maybe?.kind === "text" &&
+				/^( *)<summary>(.+)<\/summary>$/.exec(maybe.raw);
+			const indent = opener[1].length;
+			const allowed =
+				line === `${opener[1]}<details>` &&
+				summary &&
+				summary[1] === opener[1] &&
+				!/<\/?(?:details|summary)\b/i.test(summary[2]) &&
+				(!parent || indent >= parent.indent);
+			if (!allowed || stack.length >= 64) valid = false;
+			stack.push({
+				kind: "fold",
+				indent,
+				label: allowed ? summary[2] : "",
+				children: [],
+			});
+			if (allowed) index++;
+		} else if (closer && parent) {
+			if (
+				line !== `${closer[1]}</details>` ||
+				closer[1].length !== parent.indent
+			)
+				valid = false;
+			stack.pop();
+			if (valid) {
+				// Raw is needed only at the split boundary (copying a finding prompt).
+				if (!stack.length)
+					parent.raw = tokens
+						.slice(outerStart, index + 1)
+						.map(({ raw }) => raw)
+						.join("\n");
+				(stack.at(-1)?.children ?? output).push(parent);
+			} else if (!stack.length) output.push(literal(outerStart, index + 1));
+		} else if (parent) {
+			if (/^ *<\/?summary\b/i.test(line)) valid = false;
+			parent.children.push(token);
+		} else output.push(token);
+	}
+	if (stack.length) output.push(literal(outerStart, tokens.length));
+	return output;
 }
 
 /**
@@ -5750,6 +5907,7 @@ const ROW_MAIN_KEYS = [
 	"area",
 ];
 function renderTextMarkdown(root, text, headingBase = 3, report = false) {
+	const tokens = typeof text === "string" ? markdownTokens(text, report) : text;
 	let container = root;
 	// Escaped punctuation is parked in the private-use area so it is never read as Markdown.
 	const park = (value) =>
@@ -5758,13 +5916,21 @@ function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 		);
 	// Report renderers write &, < and > as entities (2026-11-03: "cd sample &amp;&amp; npm test"
 	// showed literally); they become plain characters again — still text nodes, never markup.
-	const entities = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" };
+	const entities = {
+		amp: "&",
+		lt: "<",
+		gt: ">",
+		quot: '"',
+		"#39": "'",
+		"#58": ":",
+		"#46": ".",
+	};
 	const unpark = (value) =>
 		value
 			.replace(/[\ue000-\ue07f]/g, (c) =>
 				String.fromCharCode(c.charCodeAt(0) - 0xe000),
 			)
-			.replace(/&(amp|lt|gt|quot|#39);/g, (_, name) => entities[name]);
+			.replace(/&(amp|lt|gt|quot|#39|#58|#46);/g, (_, name) => entities[name]);
 	const inline = (raw) => {
 		const value = park(raw);
 		const nodes = [];
@@ -5874,187 +6040,176 @@ function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 	let table = null;
 	// Consecutive "- **Gap:** …" items: the label is said once, above them, with a count.
 	let group = null;
-	// A fenced block (```ts … ```) is shown verbatim, whitespace kept, no Markdown inside.
-	let fence = null;
-	const closeFence = () => {
-		container.append(
-			element(
-				"pre",
-				{ class: "md-code", "data-lang": fence.lang || null },
-				element("code", {}, fence.lines.join("\n")),
-			),
-		);
-		fence = null;
-	};
-	const lines = text.split("\n").map((line) => line.replace(/\r$/, ""));
-	const folds = report ? markdownFolds(lines) : new Map();
-	const frames = [];
-	for (let index = 0; index < lines.length; index++) {
-		const line = lines[index];
-		const start = folds.get(index);
-		const frame = frames.at(-1);
-		if (start || frame?.end === index) {
-			paragraph = table = group = null;
-			if (start) {
-				const listItem =
-					start.indent > (frame?.indent ?? 0) ? list?.lastElementChild : null;
-				const details = element(
-					"details",
-					{ class: "md-fold" },
-					element("summary", {}, inline(start.label)),
-				);
-				(listItem ?? container).append(details);
-				frames.push({ ...start, container, list: listItem ? list : null });
-				container = details;
+	const walk = (tokens, indent = 0) => {
+		for (const token of tokens) {
+			if (token.kind !== "text") {
+				paragraph = table = group = null;
+				if (token.kind === "fold") {
+					const listItem =
+						token.indent > indent ? list?.lastElementChild : null;
+					const details = element(
+						"details",
+						{ class: "md-fold" },
+						element("summary", {}, inline(token.label)),
+					);
+					(listItem ?? container).append(details);
+					const parent = container;
+					const parentList = listItem ? list : null;
+					container = details;
+					list = null;
+					walk(token.children, token.indent);
+					container = parent;
+					list = parentList;
+					paragraph = table = group = null;
+				} else {
+					list = null;
+					if (token.kind === "code")
+						container.append(
+							element(
+								"pre",
+								{ class: "md-code", "data-lang": token.lang || null },
+								element("code", {}, token.body),
+							),
+						);
+					else if (token.kind === "span")
+						container.append(
+							element(
+								"p",
+								{},
+								inline(token.before),
+								element("code", {}, token.code),
+								inline(token.after),
+							),
+						);
+					else container.append(element("p", {}, token.raw));
+				}
+				continue;
+			}
+			const line = token.raw;
+			const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line),
+				item = /^\s*[-*+]\s+(.+)$/.exec(line),
+				numbered = /^\s*\d+[.)]\s+(.+)$/.exec(line),
+				rule = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line),
+				row = /^\s*\|(.+)\|\s*$/.exec(line);
+			if (row) {
+				// Pipe tables: a separator row (|---|:--:|) is skipped; cells are text nodes.
 				list = null;
-				index++; // summary was rendered as phrasing-only content
-			} else {
-				frames.pop();
-				({ container, list } = frame);
-			}
-			continue;
-		}
-		const fenceMark = MARKDOWN_FENCE.exec(line);
-		if (fence) {
-			if (
-				fenceMark &&
-				!fenceMark[2] &&
-				fenceMark[1][0] === fence.mark[0] &&
-				fenceMark[1].length >= fence.mark.length
-			)
-				closeFence();
-			else fence.lines.push(line);
-			continue;
-		}
-		if (fenceMark) {
-			list = null;
-			paragraph = null;
-			table = null;
-			fence = { mark: fenceMark[1], lang: fenceMark[2], lines: [] };
-			continue;
-		}
-		const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line),
-			item = /^\s*[-*+]\s+(.+)$/.exec(line),
-			numbered = /^\s*\d+[.)]\s+(.+)$/.exec(line),
-			rule = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line),
-			row = /^\s*\|(.+)\|\s*$/.exec(line);
-		if (row) {
-			// Pipe tables: a separator row (|---|:--:|) is skipped; cells are text nodes.
-			list = null;
-			paragraph = null;
-			const cells = row[1].split("|").map((c) => c.trim());
-			if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue;
-			if (!table) {
-				table = element("table", { class: "report-table" });
-				container.append(table);
-			}
-			const tag = table.childElementCount === 0 ? "th" : "td";
-			table.append(
-				element(
-					"tr",
-					{},
-					...cells.map((c) =>
-						element(
-							tag,
-							{},
-							...(tag === "td"
-								? [statusBadge(unpark(park(c)), report) ?? inline(c)]
-								: inline(c)),
+				paragraph = null;
+				const cells = splitPipeCells(row[1]);
+				if (cells.every((c) => /^:?-{2,}:?$/.test(c))) continue;
+				if (!table) {
+					table = element("table", { class: "report-table" });
+					container.append(table);
+				}
+				const tag = table.childElementCount === 0 ? "th" : "td";
+				table.append(
+					element(
+						"tr",
+						{},
+						...cells.map((c) =>
+							element(
+								tag,
+								{},
+								...(tag === "td"
+									? [statusBadge(unpark(park(c)), report) ?? inline(c)]
+									: inline(c)),
+							),
 						),
 					),
-				),
-			);
-			continue;
-		}
-		table = null;
-		if (rule) {
-			list = null;
-			paragraph = null;
-			container.append(element("hr"));
-		} else if (heading) {
-			list = null;
-			paragraph = null;
-			const level = Math.min(6, headingBase + heading[1].length - 1);
-			const numberedHeading = /^(\d+)\.\s+(.+)$/.exec(heading[2]);
-			container.append(
-				element(
-					`h${level}`,
-					{ class: `md-h${heading[1].length}` },
-					numberedHeading
-						? [
-								element("span", { class: "md-index" }, numberedHeading[1]),
-								inline(numberedHeading[2]),
-							]
-						: inline(heading[2]),
-				),
-			);
-		} else if (item || numbered) {
-			paragraph = null;
-			const tag = item ? "ul" : "ol";
-			const labelled =
-				item && !/^\s{2,}/.test(line)
-					? /^\*\*([^*]{1,40}):\*\*\s*(.*)$/.exec(item[1])
-					: null;
-			if (labelled) {
-				if (!group || group.label !== labelled[1] || list !== group.list) {
-					const count = element("span", { class: "md-count" });
-					container.append(
-						element(
-							"p",
-							{ class: "md-group" },
-							readableCodes(labelled[1]),
-							" ",
-							count,
-						),
-					);
-					list = element("ul", { class: "md-grouped" });
+				);
+				continue;
+			}
+			table = null;
+			if (rule) {
+				list = null;
+				paragraph = null;
+				container.append(element("hr"));
+			} else if (heading) {
+				list = null;
+				paragraph = null;
+				const level = Math.min(6, headingBase + heading[1].length - 1);
+				const numberedHeading = /^(\d+)\.\s+(.+)$/.exec(heading[2]);
+				container.append(
+					element(
+						`h${level}`,
+						{ class: `md-h${heading[1].length}` },
+						numberedHeading
+							? [
+									element("span", { class: "md-index" }, numberedHeading[1]),
+									inline(numberedHeading[2]),
+								]
+							: inline(heading[2]),
+					),
+				);
+			} else if (item || numbered) {
+				paragraph = null;
+				const tag = item ? "ul" : "ol";
+				const labelled =
+					item && !/^\s{2,}/.test(line)
+						? /^\*\*([^*]{1,40}):\*\*\s*(.*)$/.exec(item[1])
+						: null;
+				if (labelled) {
+					if (!group || group.label !== labelled[1] || list !== group.list) {
+						const count = element("span", { class: "md-count" });
+						container.append(
+							element(
+								"p",
+								{ class: "md-group" },
+								readableCodes(labelled[1]),
+								" ",
+								count,
+							),
+						);
+						list = element("ul", { class: "md-grouped" });
+						container.append(list);
+						group = { label: labelled[1], list, count, size: 0 };
+					}
+					group.count.textContent = String(++group.size);
+					list.append(element("li", {}, ...inline(labelled[2])));
+					continue;
+				}
+				const entry = element(
+					"li",
+					{},
+					...(jsonRow((item ?? numbered)[1]) ?? field((item ?? numbered)[1])),
+				);
+				const parent = list?.lastElementChild;
+				if (line.length - line.trimStart().length >= indent + 2 && parent) {
+					// An indented item nests under the item above (the numbered list keeps counting).
+					let nested = parent.lastElementChild;
+					if (nested?.tagName.toLowerCase() !== tag) {
+						nested = element(tag);
+						parent.append(nested);
+					}
+					nested.append(entry);
+					continue;
+				}
+				if (
+					!list ||
+					list.tagName.toLowerCase() !== tag ||
+					list === group?.list
+				) {
+					list = element(tag, {
+						start: numbered ? /^\s*(\d+)/.exec(line)[1] : null,
+					});
 					container.append(list);
-					group = { label: labelled[1], list, count, size: 0 };
 				}
-				group.count.textContent = String(++group.size);
-				list.append(element("li", {}, ...inline(labelled[2])));
-				continue;
+				list.append(entry);
+			} else if (!line.trim()) {
+				list = null;
+				paragraph = null;
+			} else {
+				list = null;
+				// A paragraph keeps its line breaks: generated reports put one fact per line.
+				if (!paragraph) {
+					paragraph = element("p");
+					container.append(paragraph);
+				} else paragraph.append(element("br"));
+				append(paragraph, field(line.trimEnd()));
 			}
-			const entry = element(
-				"li",
-				{},
-				...(jsonRow((item ?? numbered)[1]) ?? field((item ?? numbered)[1])),
-			);
-			const parent = list?.lastElementChild;
-			if (
-				line.length - line.trimStart().length >= (frame?.indent ?? 0) + 2 &&
-				parent
-			) {
-				// An indented item nests under the item above (the numbered list keeps counting).
-				let nested = parent.lastElementChild;
-				if (nested?.tagName.toLowerCase() !== tag) {
-					nested = element(tag);
-					parent.append(nested);
-				}
-				nested.append(entry);
-				continue;
-			}
-			if (!list || list.tagName.toLowerCase() !== tag || list === group?.list) {
-				list = element(tag, {
-					start: numbered ? /^\s*(\d+)/.exec(line)[1] : null,
-				});
-				container.append(list);
-			}
-			list.append(entry);
-		} else if (!line.trim()) {
-			list = null;
-			paragraph = null;
-		} else {
-			list = null;
-			// A paragraph keeps its line breaks: generated reports put one fact per line.
-			if (!paragraph) {
-				paragraph = element("p");
-				container.append(paragraph);
-			} else paragraph.append(element("br"));
-			append(paragraph, field(line.trimEnd()));
 		}
-	}
-	if (fence) closeFence();
+	};
+	walk(tokens);
 	for (const table of root.querySelectorAll("table.report-table"))
 		stackWideTable(table);
 	colourCode(root);
@@ -6162,48 +6317,40 @@ const plainMd = (value) =>
 	value
 		.replace(/\\([\\`*_{}[\]()#+\-.!|<>~&])/g, "$1")
 		.replace(
-			/&(amp|lt|gt|quot|#39);/g,
+			/&(amp|lt|gt|quot|#39|#58|#46);/g,
 			(_, name) =>
-				({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" })[name],
+				({
+					amp: "&",
+					lt: "<",
+					gt: ">",
+					quot: '"',
+					"#39": "'",
+					"#58": ":",
+					"#46": ".",
+				})[name],
 		)
 		.replace(/\*\*([^*]+)\*\*/g, "$1");
-/** The report as plain Markdown parts and finding parts, in order (fenced code is never split). */
-export function splitReport(text) {
+// Split only on unescaped pipes, retaining all escapes for the inline renderer.
+function splitPipeCells(row) {
+	return (row.match(/(?:\\.|[^|\\])+|(?<=^|\|)(?=\||$)/g) ?? []).map((cell) =>
+		cell.trim(),
+	);
+}
+
+/** The report as plain Markdown parts and finding parts, in order. */
+export function splitReport(text, researchReport = false) {
 	const segments = [];
-	let current = { kind: "markdown", lines: [] };
-	let fence = null;
+	let current = { kind: "markdown", tokens: [] };
 	const finish = () => {
-		if (current.kind === "finding" || current.lines.some((line) => line.trim()))
+		if (
+			current.kind === "finding" ||
+			current.tokens.some((token) => token.raw.trim())
+		)
 			segments.push(current);
 	};
-	const lines = text.split("\n").map((line) => line.replace(/\r$/, ""));
-	const folds = markdownFolds(lines);
-	for (let index = 0; index < lines.length; index++) {
-		const line = lines[index];
-		const fold = folds.get(index);
-		if (fold) {
-			for (; index < fold.end; index++) current.lines.push(lines[index]);
-			current.lines.push(lines[index]);
-			continue;
-		}
-		const mark = MARKDOWN_FENCE.exec(line);
-		if (fence) {
-			if (
-				mark &&
-				!mark[2] &&
-				mark[1][0] === fence[0] &&
-				mark[1].length >= fence.length
-			)
-				fence = null;
-			current.lines.push(line);
-			continue;
-		}
-		if (mark) {
-			fence = mark[1];
-			current.lines.push(line);
-			continue;
-		}
-		const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
+	for (const token of markdownTokens(text, researchReport)) {
+		const heading =
+			token.kind === "text" && /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(token.raw);
 		if (heading && heading[1].length <= 3) {
 			const finding =
 				heading[1].length === 3 ? FINDING_HEADING.exec(heading[2]) : null;
@@ -6213,17 +6360,17 @@ export function splitReport(text) {
 					kind: "finding",
 					id: finding[1],
 					title: finding[2],
-					heading: line,
-					lines: [],
+					heading: token,
+					tokens: [],
 				};
 				continue;
 			}
 			if (current.kind === "finding") {
 				finish();
-				current = { kind: "markdown", lines: [] };
+				current = { kind: "markdown", tokens: [] };
 			}
 		}
-		current.lines.push(line);
+		current.tokens.push(token);
 	}
 	finish();
 	return segments;
@@ -6232,44 +6379,29 @@ export function splitReport(text) {
 export function parseFinding(segment) {
 	const head = [],
 		blocks = [];
-	let block = null,
-		fence = null;
-	for (const line of segment.lines) {
-		const mark = /^\s*(`{3,}|~{3,})/.exec(line);
-		if (fence) {
-			if (
-				mark &&
-				mark[1][0] === fence[0] &&
-				mark[1].length >= fence.length &&
-				!line.replace(/^\s*[`~]+/, "").trim()
-			)
-				fence = null;
-			(block?.lines ?? head).push(line);
-			continue;
-		}
-		if (mark) {
-			fence = mark[1];
-			(block?.lines ?? head).push(line);
-			continue;
-		}
-		const label = LABEL_LINE.exec(line.trim());
+	let block = null;
+	for (const token of segment.tokens) {
+		const label = token.kind === "text" && LABEL_LINE.exec(token.raw.trim());
 		if (label) {
-			block = { label: label[1], lines: [] };
+			block = { label: label[1], tokens: [] };
 			blocks.push(block);
 			continue;
 		}
-		(block?.lines ?? head).push(line);
+		(block?.tokens ?? head).push(token);
 	}
 	const pick = (name) =>
 		new RegExp(`^${name}:\\s*\\**([A-Za-z\\\\_-]+)\\**`, "m").exec(
-			head.join("\n"),
+			head
+				.filter((token) => token.kind === "text")
+				.map(({ raw }) => raw)
+				.join("\n"),
 		)?.[1];
 	const locations = (
-		blocks.find((item) => item.label === "Locations")?.lines ?? []
+		blocks.find((item) => item.label === "Locations")?.tokens ?? []
 	)
-		.map((line) => /^\s*\|(.+)\|\s*$/.exec(line))
+		.map((token) => token.kind === "text" && /^\s*\|(.+)\|\s*$/.exec(token.raw))
 		.filter(Boolean)
-		.map((match) => match[1].split("|").map((cell) => cell.trim()))
+		.map((match) => splitPipeCells(match[1]))
 		.filter((cells) => !cells.every((cell) => /^:?-{2,}:?$/.test(cell)))
 		.slice(1)
 		.map(([file, line, symbol]) => ({
@@ -6283,13 +6415,16 @@ export function parseFinding(segment) {
 		severity: pick("Severity")?.replaceAll("\\", ""),
 		verdict: pick("Verifier verdict")?.replaceAll("\\", ""),
 		locations,
-		intro: head
-			.filter(
-				(line) => !/^(?:Severity|Verifier verdict|Root cause):/.test(line),
-			)
-			.join("\n"),
+		intro: head.filter(
+			(token) =>
+				token.kind !== "text" ||
+				!/^(?:Severity|Verifier verdict|Root cause):/.test(token.raw),
+		),
 		blocks: blocks.filter((item) => item.label !== "Locations"),
-		raw: `${segment.heading}\n${segment.lines.join("\n")}`.trimEnd(),
+		raw: [segment.heading, ...segment.tokens]
+			.map(({ raw }) => raw)
+			.join("\n")
+			.trimEnd(),
 	};
 }
 const SEVERITIES = {
@@ -6324,35 +6459,43 @@ function verifierInfo(word, ledgerKept) {
 		VERDICTS[key] ?? [key.replace(/_/g, "-"), "pending", verdictWord(word)]
 	);
 }
-function findingCard(finding, ledgerKept) {
+function findingCard(finding, ledgerKept, researchReport) {
 	const [severity, , severityWord] = severityInfo(finding.severity);
 	const verifier = verifierInfo(finding.verdict, ledgerKept);
 	const title = element("div");
-	renderTextMarkdown(title, `### ${finding.title}`, 1);
+	renderTextMarkdown(
+		title,
+		[textToken(`### ${finding.title}`)],
+		1,
+		researchReport,
+	);
 	const heading = title.firstElementChild;
 	heading?.classList.add("finding-title");
 	const text = (lines) => {
 		const box = element("div", { class: "finding-text" });
-		renderTextMarkdown(box, lines, 4);
+		renderTextMarkdown(box, lines, 4, researchReport);
 		return box;
 	};
 	// 2026-11-12 (owner, review P3-1): what is wrong and what to do come first, directly under the
 	// title; the evidence and caveat folds follow them.
 	const folded = (block) => /evidence|caveat|counter/i.test(block.label);
 	const parts = finding.blocks
-		.filter((block) => block.lines.some((line) => line.trim()))
+		.filter((block) => block.tokens.some(({ raw }) => raw.trim()))
 		.sort((a, b) => Number(folded(a)) - Number(folded(b)))
 		.map((block) => {
-			const body = block.lines.join("\n");
-			const count = block.lines.filter((line) =>
-				/^\s*(?:```|~~~|[-*+]\s)/.test(line),
+			const body = block.tokens;
+			const size = body.filter(
+				(token) =>
+					token.kind === "code" ||
+					(token.kind === "text" && /^\s*[-*+]\s/.test(token.raw)),
 			).length;
-			// A code block has two fences; a list one mark per item.
-			const size = /^\s*(?:```|~~~)/m.test(body) ? Math.ceil(count / 2) : count;
 			const label = `${block.label}${folded(block) && size ? ` (${size})` : ""}`;
 			// Short source blocks are readable without a disclosure, independent of viewport.
-			const long =
-				body.trim().length > 600 || body.trim().split("\n").length > 8;
+			const raw = body
+				.map((token) => token.raw)
+				.join("\n")
+				.trim();
+			const long = raw.length > 600 || raw.split("\n").length > 8;
 			if (!folded(block) || !long)
 				return element(
 					"section",
@@ -6416,7 +6559,7 @@ function findingCard(finding, ledgerKept) {
 						),
 					)
 				: null,
-			finding.intro.trim() ? text(finding.intro) : null,
+			finding.intro.some(({ raw }) => raw.trim()) ? text(finding.intro) : null,
 			parts,
 			element(
 				"div",
@@ -6430,30 +6573,29 @@ function findingCard(finding, ledgerKept) {
 	};
 }
 /** Render the report into `container`; returns its finding cards (none for a plain report). */
-function renderReport(container, text) {
+function renderReport(container, text, researchReport) {
 	const ledgerKept = /kept or weakened findings/i.test(text);
 	const found = [];
-	for (const segment of splitReport(text)) {
+	for (const segment of splitReport(text, researchReport)) {
 		const finding = segment.kind === "finding" ? parseFinding(segment) : null;
 		// A finding heading without its own "Severity:" line (another workflow's report) is not a
 		// card: it stays Markdown, as written.
 		if (finding?.severity) {
-			const built = findingCard(finding, ledgerKept);
+			const built = findingCard(finding, ledgerKept, researchReport);
 			found.push(built);
 			container.append(built.card);
 		} else
 			renderTextMarkdown(
 				container,
-				(finding ? [segment.heading, ...segment.lines] : segment.lines).join(
-					"\n",
-				),
+				finding ? [segment.heading, ...segment.tokens] : segment.tokens,
 				2,
-				true,
+				researchReport,
 			);
 	}
 	const first = container.firstElementChild;
 	const trust = first?.nextElementSibling;
 	if (
+		researchReport &&
 		first?.matches(".md-h1") &&
 		trust?.matches("p") &&
 		/^(?:Claims: |주장 ).+ · .+ · /.test(trust.textContent)
@@ -6921,7 +7063,11 @@ function renderReportPage() {
 			content.replaceChildren();
 			loaded = data.text;
 			copyButton.disabled = false;
-			const found = renderReport(content, data.text);
+			// Only the run metadata opts into research report structure, never report text.
+			const researchReport =
+				run.name === "deep-research" ||
+				run.name === "deep-research-tiered-verification-opt-in";
+			const found = renderReport(content, data.text, researchReport);
 			const filters = findingFilters(content, found, empty);
 			if (filters) chips.replaceChildren(filters);
 			const nav = reportOutline(content, view);

@@ -29,6 +29,19 @@ const schema = JSON.parse(
 		"utf8",
 	),
 );
+// Validate live output independently from the historical input used by most renderer tests.
+function liveControl(control) {
+	const { bottomLine, ...synthesis } = control.synthesis;
+	return {
+		...control,
+		synthesis: {
+			...synthesis,
+			conclusion: [bottomLine, "Check the evidence."],
+			keyPoints: [],
+		},
+	};
+}
+
 async function inputs(edit = (_sources) => {}) {
 	const packetSources = structuredClone(fixture.sources);
 	edit(packetSources);
@@ -120,7 +133,10 @@ test("reader limitations are distinct and bounded while all audit notes remain",
 		readerNote: `Practical limitation ${Math.floor(i / 2)} changes the decision.`,
 		relatedClaimIds: ["claim-001"],
 	}));
-	assert.equal(validateJsonSchema(sources["final-audit"], schema).valid, true);
+	assert.equal(
+		validateJsonSchema(liveControl(sources["final-audit"]), schema).valid,
+		true,
+	);
 	const result = await render({ sources });
 	assert.equal(result.status, "passed");
 	assert.equal(
@@ -141,7 +157,7 @@ test("invalid readerNote is rejected by schema and renderer rather than object-s
 		const sources = await inputs();
 		sources["final-audit"].synthesis.caveatNotes[0].readerNote = readerNote;
 		assert.equal(
-			validateJsonSchema(sources["final-audit"], schema).valid,
+			validateJsonSchema(liveControl(sources["final-audit"]), schema).valid,
 			false,
 		);
 		const result = await render({ sources });
@@ -322,7 +338,10 @@ test("translations put claim, lead and fact-slot text into the task's language; 
 			},
 		],
 	});
-	assert.equal(validateJsonSchema(sources["final-audit"], schema).valid, true);
+	assert.equal(
+		validateJsonSchema(liveControl(sources["final-audit"]), schema).valid,
+		true,
+	);
 	const original = (
 		await finalPacket({ sources: structuredClone(fixture.sources) })
 	).packet;
@@ -365,7 +384,10 @@ test("a translation with an unknown or repeated id or empty text is ignored, not
 		],
 		factSlots: [{ id: "slot-999", area: "없는 영역" }],
 	});
-	assert.equal(validateJsonSchema(sources["final-audit"], schema).valid, true);
+	assert.equal(
+		validateJsonSchema(liveControl(sources["final-audit"]), schema).valid,
+		true,
+	);
 	const result = await render({ sources });
 	assert.equal(result.status, "passed", JSON.stringify(result.gates));
 	assert.match(result.reportMarkdown, /### \*\*확인됨\*\* 번역된 주장\./);
@@ -552,7 +574,7 @@ test("the reader sees an engine note when the report blames a file for values it
 	]) {
 		const at = markdown.indexOf(note);
 		assert.ok(at > 0, markdown.slice(-600));
-		assert.match(markdown.slice(0, at), /출처 검증: [^\n]+\n\n$/);
+		assert.match(markdown.slice(0, at), /## 알아둘 한계\n\n(?:- [^\n]+\n)*- $/);
 	}
 	const plain = await render({ sources: await inputs(), context: { cwd } });
 	assert.doesNotMatch(plain.reportMarkdown, /엔진 확인|Engine check/);
@@ -626,7 +648,7 @@ test("a malformed translations container is rejected by schema and renderer", as
 	for (const translations of [[], { claims: "x" }, { notes: [] }]) {
 		const sources = withTranslations(await inputs(), translations);
 		assert.equal(
-			validateJsonSchema(sources["final-audit"], schema).valid,
+			validateJsonSchema(liveControl(sources["final-audit"]), schema).valid,
 			false,
 		);
 		const result = await render({ sources });
@@ -982,7 +1004,7 @@ for (const ko of [false, true]) {
 			}
 			assert.equal(
 				validateJsonSchema(sources["final-audit"], schema).valid,
-				true,
+				structured,
 			);
 			const result = await render({ sources });
 			assert.equal(result.status, "passed");
@@ -1023,3 +1045,207 @@ for (const ko of [false, true]) {
 		}
 	});
 }
+
+function legacyReport(fields) {
+	return {
+		"final-audit": {
+			schema: "legacy-audit",
+			digest: "Read the evidence.",
+			claimVerdictIndex: { claims: [] },
+			finalReport: {
+				summary: "Read the evidence.",
+				researchMetadata: {},
+				coverageSummary: {},
+				factSlotCoverage: [],
+				mainFindings: [],
+				recommendations: [],
+				actionPlan: [],
+				remainingGaps: [],
+				parentDecisionNotes: [],
+				unverifiedButRelevant: [],
+				...fields,
+			},
+		},
+	};
+}
+
+test("written report keeps untrusted markup and invalid destinations literal", async (t) => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-reader-literal-"));
+	t.after(() => rm(cwd, { recursive: true, force: true }));
+	const sources = legacyReport({
+		coverageSummary: { researchQuestions: "unchecked\n<untrusted-count>" },
+		actionPlan: [{ step: "<untrusted-step> [step](target)" }],
+		mainFindings: [
+			{
+				finding: "Quoted evidence",
+				evidence: [
+					{
+						quote: "one  two\n  <untrusted-quote> *emphasis* [quote](target)",
+					},
+				],
+				sourceUrls: [
+					"https://[broken\n<untrusted-url>",
+					"data:rejected",
+					"https://example.org/path",
+				],
+			},
+		],
+	});
+	const result = await render({
+		sources,
+		context: { cwd, runId: "run", taskId: "task" },
+	});
+	assert.equal(result.status, "passed");
+	const md = await readFile(
+		join(
+			cwd,
+			".agent-workflow",
+			"workflows",
+			"run",
+			"tasks",
+			"task",
+			result.sidecarPath,
+		),
+		"utf8",
+	);
+	assert.doesNotMatch(
+		md,
+		/<untrusted-|\[(?:step|quote)\]\(target\)|(?<!\\)\*emphasis\*|unchecked/,
+	);
+	assert.match(md, /one  two\\+n  &lt;untrusted-quote&gt;/);
+	assert.match(md, /&lt;untrusted-step&gt;/);
+	assert.match(md, /&lt;untrusted-url&gt;/);
+	assert.match(md, /data:rejected/);
+	assert.deepEqual(
+		[...md.matchAll(/(?<!\\)\]\(<([^>]+)>\)/g)].map((m) => m[1]),
+		["https://example.org/path", "https://example.org/path"],
+	);
+});
+
+test("live synthesis requires the pair; stored paragraphs and bounded abbreviated entries still render", async () => {
+	const sources = await inputs();
+	const control = sources["final-audit"];
+	const legacy = control.synthesis;
+	const { bottomLine, ...rest } = legacy;
+	const conclusion = ["Ask Dr. Lee before publishing.", "Then check the data."];
+	const keyPoints = [{ title: "Review", text: "Only after checking." }];
+	for (const [fields, live, stored] of [
+		[{ bottomLine }, false, true],
+		[{}, false, false],
+		[{ conclusion }, false, false],
+		[{ keyPoints }, false, false],
+		[{ bottomLine, conclusion }, false, false],
+		[{ bottomLine, keyPoints }, false, false],
+		[{ bottomLine, conclusion, keyPoints }, false, false],
+		[{ conclusion, keyPoints }, true, true],
+	]) {
+		control.synthesis = { ...rest, ...fields };
+		assert.equal(
+			validateJsonSchema(control, schema).valid,
+			live,
+			JSON.stringify(fields),
+		);
+		const result = await render({ sources });
+		assert.equal(
+			result.status,
+			stored ? "passed" : "blocked",
+			JSON.stringify(fields),
+		);
+		if (live)
+			assert.ok(result.reportMarkdown.includes(conclusion.join("\n\n")));
+	}
+});
+
+test("legacy caveat aliases retain grouped notes, corrections and sources", async () => {
+	const sources = legacyReport({
+		contestedAreas: {
+			topic: {
+				note: "A grouped contested note.",
+				correctionOrCounterclaim: "The actual correction.",
+				sourceUrls: ["https://example.org/only-source"],
+			},
+		},
+		contestedFindings: "A second contested note.",
+		notableUnsupportedClaims: "A first unsupported note.",
+		unsupportedFindings: { topic: { note: "A second unsupported note." } },
+	});
+	const result = await render({ sources });
+	assert.equal(result.status, "passed");
+	for (const text of [
+		"A grouped contested note.",
+		"The actual correction.",
+		"https://example.org/only-source",
+		"A second contested note.",
+		"A first unsupported note.",
+		"A second unsupported note.",
+	])
+		assert.ok(result.reportMarkdown.includes(text), text);
+});
+
+test("coverage status is localized and unfamiliar status and confidence stay literal", async () => {
+	const sources = legacyReport({
+		researchScopeCoverage: [{ status: "covered_with_conflicts" }],
+		mainFindings: [
+			{
+				finding: "One finding",
+				evidenceStatus: "custom <status>",
+				confidence: "Custom <confidence>",
+			},
+		],
+	});
+	const result = await render({ sources });
+	assert.match(result.reportMarkdown, /Covered with conflicts 1/);
+	assert.match(result.reportMarkdown, /custom &lt;status&gt;/);
+	assert.match(result.reportMarkdown, /Confidence: Custom &lt;confidence&gt;/);
+});
+
+test("trust line counts canonical local files and web hosts but not citation labels", async () => {
+	const sources = legacyReport({
+		mainFindings: [
+			{
+				finding: "One finding",
+				sourceRefs: ["RFC 9204, Section 3.1", "file:src/main.ts#L4"],
+				sourceUrls: [
+					"https://example.org/path",
+					"https://www.example.org/next",
+				],
+				evidence: [
+					{ file: "example.org", quote: "One local quote" },
+					{ file: "./src/main.ts", quote: "Another local quote" },
+				],
+			},
+		],
+	});
+	const result = await render({ sources });
+	assert.match(result.reportMarkdown.split("\n")[2], /Sources: 3/);
+	assert.deepEqual(
+		[...result.reportMarkdown.matchAll(/^- Local source: (.+)$/gm)]
+			.map((m) => m[1].replaceAll("`", ""))
+			.sort(),
+		["example.org", "src/main.ts"],
+	);
+	assert.match(result.reportMarkdown, /RFC 9204, Section 3\.1/);
+	assert.doesNotMatch(result.reportMarkdown, /Local source: .*RFC/);
+});
+
+test("contradicted file attribution appears in visible limits and the audit", async (t) => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-reader-attribution-"));
+	t.after(() => rm(cwd, { recursive: true, force: true }));
+	await writeFile(
+		join(cwd, "notes.md"),
+		"The notes contain no protocol numbers.\n",
+	);
+	const sources = legacyReport({
+		actionPlan: [{ action: "Fix the incorrect RFC 9204 in notes.md." }],
+	});
+	const result = await render({ sources, context: { cwd } });
+	assert.match(
+		result.reportMarkdown,
+		/## Limits to keep in mind\n\n- Engine check:[^\n]+notes\.md[^\n]+9204/,
+	);
+	assert.match(
+		result.completionSummaryMarkdown,
+		/## Limits to keep in mind[\s\S]*?- Engine check:/,
+	);
+	assert.match(result.auditMarkdown, /values not in the file: 9204/);
+});

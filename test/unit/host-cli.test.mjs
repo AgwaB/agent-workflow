@@ -8,7 +8,14 @@ import { stateDir } from "../helpers/state-dir.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	mkdtemp,
+	readFile,
+	realpath,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
@@ -563,4 +570,57 @@ test("test-executor hook: guarded by an explicit ack, an absolute path and a tes
 		/executor "test-fixture" from run flag is unknown/,
 	);
 	assert.doesNotMatch(unhooked.stderr, /registered/);
+});
+
+test("terminal completion strips controls without changing JSON or the stored summary", async () => {
+	const cwd = await project();
+	const summary = "First line\nSecond\tline\x1b\x07\x08\r\x7f\x9b end.";
+	const id = fixture({
+		controlSequence: {
+			"task-1": [
+				{
+					schema: "stage-control-v1",
+					digest: "Complete",
+					completionSummaryMarkdown: summary,
+				},
+			],
+		},
+	});
+	const foreground = await runCli(cwd, [
+		"run",
+		"wf.json",
+		"collect facts",
+		"--executor",
+		id,
+	]);
+	assert.equal(foreground.code, 0, foreground.err());
+	const runId = foreground.out().match(/workflow_[a-z\d]+_[a-f\d]{6}/u)?.[0];
+	assert.ok(runId);
+	const humanWait = await runCli(cwd, ["wait", runId]);
+	for (const result of [foreground, humanWait]) {
+		assert.equal(result.code, 0, result.err());
+		assert.match(result.out(), /First line\nSecond\tline/);
+		assert.doesNotMatch(result.out(), /[\x07\x08\r\x1b\x7f\x9b]/u);
+	}
+	const machine = await runCli(cwd, ["wait", runId, "--json"]);
+	assert.ok(
+		JSON.stringify(JSON.parse(machine.out()).data).includes(
+			JSON.stringify(summary),
+		),
+	);
+	const stored = JSON.parse(
+		await readFile(
+			join(
+				stateDir(cwd),
+				".agent-workflow",
+				"workflows",
+				runId,
+				"tasks",
+				"task-1",
+				"control.json",
+			),
+			"utf8",
+		),
+	);
+	assert.equal(stored.completionSummaryMarkdown, summary);
 });

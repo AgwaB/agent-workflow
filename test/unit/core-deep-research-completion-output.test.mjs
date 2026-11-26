@@ -33,8 +33,11 @@ function synthesis(comparisonRows) {
 		digest: "Evidence-qualified comparison with explicit denominator limits.",
 		inputIntegrity: { status: "complete" },
 		synthesis: {
-			bottomLine:
+			conclusion: [
 				"The subject has verified strengths, but the evidence does not establish every reference capability.",
+				"Treat remaining capabilities as unknown.",
+			],
+			keyPoints: [],
 			comparisonRows,
 			keyFindingIds: ["claim-001", "claim-018", "claim-019"],
 			recommendations: [

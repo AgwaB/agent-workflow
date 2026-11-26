@@ -9,7 +9,7 @@ import { validateSynthesisPages } from "./synthesis-pages.mjs";
 // renders a bounded view. It does not re-verify or invent evidence.
 
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
-import { join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import { structuredDatesIn } from "./slot-conflicts.mjs";
 import { canonicalVerificationStatus } from "./verification-ontology.mjs";
 import { findSource, asArray, stringOf } from "./source-access.mjs";
@@ -93,14 +93,24 @@ function readableClaimText(value) {
 	return cells.join(" · ");
 }
 
-function escapeMarkdownText(value) {
-	return cleanText(value)
-		.replace(/([\\`*_[\]{}#+!<>])/g, "\\$1")
-		.replace(/^(\s*)([-+>]\s)/gm, "$1\\$2");
+// Serialize data, never report structure. Preserve quote whitespace using JSON notation
+// for line breaks/tabs (no raw line can become a Markdown block).
+function escapeMarkdownText(value, { quote = false } = {}) {
+	const text = quote ? JSON.stringify(value) : cleanText(value);
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/([\\`*_[\]{}#+!|])/g, "\\$1")
+		.replace(/^([-~=])(?=\s|[-~=]|$)/u, "\\$1")
+		.replace(/^(\d{1,9})([.)])(?=\s|$)/u, "$1\\$2")
+		// GFM can autolink bare web URLs, independently of explicit Markdown links.
+		.replace(/\b(https?):(?=\/\/)/gi, "$1&#58;")
+		.replace(/\bwww\.(?=[\w-])/gi, "www&#46;");
 }
 
 function completionText(value) {
-	return cleanText(value)
+	return escapeMarkdownText(cleanText(value)
 		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became "[run omitted]", a reviewed
 		// file's "control.json" became "[artifact omitted]"): only this engine's own names are hidden —
 		// paths under .agent-workflow/workflows, run ids (workflow_<id>_<hex6>), task ids (task-<n>),
@@ -113,16 +123,10 @@ function completionText(value) {
 		.replace(/(?<=[.\\/])(?:refs|control)\.json\b/gi, "[artifact omitted]")
 		.replace(/\brelated[\s-]+artifacts\b/gi, "[section title omitted]")
 		.replace(/\bworkflow\\?_[a-z0-9]+\\?_[a-f0-9]{6}\b/gi, "[run omitted]")
-		.replace(/\btask-\d+\b/gi, "[task omitted]")
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/([\\`*_[\]{}#+|])/g, "\\$1");
+		.replace(/\btask-\d+\b/gi, "[task omitted]"));
 }
 
-function escapeTableCell(value) {
-	return escapeMarkdownText(value).replace(/\|/g, "\\|");
-}
+const escapeTableCell = escapeMarkdownText;
 
 function stringifyItem(item) {
 	if (typeof item === "string") return cleanText(item) || "(empty string)";
@@ -186,126 +190,96 @@ function hostOf(url) {
 function normalizeUrl(url) {
 	if (typeof url !== "string") return null;
 	const trimmed = url.trim().replace(/[.,;:]+$/, "");
-	if (!/^https?:\/\//i.test(trimmed)) return null;
+	if (!/^https?:\/\//i.test(trimmed) || /[\x00-\x20\x7f-\x9f\\]/u.test(trimmed)) return null;
 	try {
 		const parsed = new URL(trimmed);
+		if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname || parsed.username || parsed.password)
+			return null;
 		parsed.hash = "";
 		return parsed.toString();
 	} catch {
-		return trimmed;
+		return null;
 	}
 }
 
-function collectStructuredUrls(value, urls = []) {
-	if (!value || typeof value !== "object") return urls;
+const REFERENCE_FIELDS = /^(sourceUrls?|evidenceUrls?|urls?|url|uri|href|links?|references?|refs?|basis|sources?|sourceRefs?|files?|paths?|repo)$/i;
+const LOCAL_FIELDS = /^(files?|paths?|repo)$/i;
+const URL_FIELDS = /^(sourceUrls?|evidenceUrls?|urls?|url|uri|href|links?|references?|refs?|basis|sources?)$/i;
+
+function localIdentity(text, field, cwd) {
+	const prefix = /^(?:file|repo):/i.exec(text);
+	if (!prefix && !LOCAL_FIELDS.test(field)) return null;
+	const file = text.slice(prefix?.[0].length ?? 0).replace(/#L\d+(?:-L?\d+)?$/i, "");
+	// Only fields explicitly carrying file/path identities, not suffix matches on labels.
+	if (!/^[\w./-]+$/u.test(file)) return null;
+	const path = normalize(file);
+	if (path === "." || path === "..") return null;
+	if (!cwd || !isAbsolute(path)) return path;
+	const inside = relative(resolve(cwd), path);
+	return inside && inside !== ".." && !inside.startsWith(`..${sep}`) ? inside : path;
+}
+
+function* references(value, field = "") {
 	if (Array.isArray(value)) {
-		for (const item of value) collectStructuredUrls(item, urls);
-		return urls;
+		for (const item of value) yield* references(item, field);
+	} else if (isRecord(value)) {
+		for (const [key, item] of Object.entries(value)) yield* references(item, key);
+	} else if (typeof value === "string" && REFERENCE_FIELDS.test(field)) {
+		const text = value.trim();
+		if (text && !/^wsrc_[a-z0-9]{16,}$/i.test(text) &&
+			!/^research-questions(?:\.question-\d+)?\.(?:fact|source)-\d+$/u.test(text))
+			yield [text, field];
 	}
-	for (const [key, item] of Object.entries(value)) {
-		if (
-			/^(sourceUrls?|evidenceUrls?|urls?|url|uri|href|links?|references?|refs?|basis|sources)$/i.test(
-				key,
-			)
-		) {
-			for (const candidate of asArray(item).length ? item : [item]) {
-				const normalized = normalizeUrl(candidate);
-				if (normalized) urls.push(normalized);
-				else if (candidate && typeof candidate === "object") {
-					collectStructuredUrls(candidate, urls);
-				}
-			}
-			continue;
-		}
-		if (item && typeof item === "object") collectStructuredUrls(item, urls);
-	}
-	return urls;
 }
 
 function uniqueStructuredUrls(...values) {
-	const out = [];
-	const seen = new Set();
-	for (const value of values) {
-		for (const url of collectStructuredUrls(value, [])) {
-			if (seen.has(url)) continue;
-			seen.add(url);
-			out.push(url);
-		}
+	const out = new Set();
+	for (const [text, field] of references(values)) {
+		if (!URL_FIELDS.test(field)) continue;
+		const url = normalizeUrl(text);
+		if (url) out.add(url);
 	}
-	return out;
+	return [...out];
 }
 
 function urlsOf(item, limit = 3) {
 	return uniqueStructuredUrls(item).slice(0, limit);
 }
 
-function normalizeLocalRef(value) {
-	if (typeof value !== "string") return null;
-	const text = value.trim();
-	if (!text || /[\r\n`]/u.test(text) || /^https?:\/\//i.test(text) || isWorkflowSourceRefText(text))
-		return null;
-	const stripped = text.replace(/^(?:file|repo):/i, "");
-	if (!/[\w./-]+\.[\w]+(?:#L\d+(?:-L?\d+)?)?$/i.test(stripped)) return null;
-	return stripped;
-}
-
-function isWorkflowSourceRefText(value) {
-	return /^wsrc_[a-z0-9]{16,}$/i.test(String(value ?? "").trim());
-}
-
-function collectLocalRefs(value, refs = []) {
-	if (!value || typeof value !== "object") return refs;
-	if (Array.isArray(value)) {
-		for (const item of value) collectLocalRefs(item, refs);
-		return refs;
+function localRefsOf(item, limit = 3, cwd) {
+	const out = new Set();
+	for (const [text, field] of references(item)) {
+		const file = localIdentity(text, field, cwd);
+		if (file) out.add(file);
+		if (out.size >= limit) break;
 	}
-	for (const [key, item] of Object.entries(value)) {
-		if (/^(files?|paths?|sourceRefs?|sourceUrls?|sources?)$/i.test(key)) {
-			for (const candidate of asArray(item).length ? item : [item]) {
-				const ref = normalizeLocalRef(candidate);
-				if (ref) refs.push(ref);
-				else if (candidate && typeof candidate === "object")
-					collectLocalRefs(candidate, refs);
-			}
-			continue;
-		}
-		if (item && typeof item === "object") collectLocalRefs(item, refs);
-	}
-	return refs;
-}
-
-function localRefsOf(item, limit = 3) {
-	const out = [];
-	const seen = new Set();
-	for (const ref of collectLocalRefs(item, [])) {
-		if (seen.has(ref)) continue;
-		seen.add(ref);
-		out.push(ref);
-		if (out.length >= limit) break;
-	}
-	return out;
+	return [...out];
 }
 
 function referenceList(item, limit = 3) {
-	const urls = markdownLinkList(urlsOf(item, limit), limit);
-	const localRefs = localRefsOf(item, limit)
-		.map((ref) => `\`${ref}\``)
-		.join(", ");
-	return [urls, localRefs].filter(Boolean).join("; ");
+	const urls = new Set();
+	const rest = new Set();
+	for (const [text, field] of references(item)) {
+		const url = URL_FIELDS.test(field) ? normalizeUrl(text) : null;
+		if (url) urls.add(url);
+		else {
+			const path = localIdentity(text, field);
+			rest.add(path ? `\`${path}\`` : escapeMarkdownText(text));
+		}
+	}
+	return [markdownLinkList([...urls], limit), [...rest].slice(0, limit).join(", ")].filter(Boolean).join("; ");
 }
 
 function markdownLinkList(urls, maxItems = 3) {
-	return urls
-		.slice(0, maxItems)
-		.map(
-			(url) =>
-				`[${escapeMarkdownText(hostOf(url))}](<${normalizeUrl(url) ?? ""}>)`,
-		)
-		.join(", ");
+	return urls.slice(0, maxItems).map((url) => {
+		// Serialized URL from normalizeUrl; encode remaining Markdown delimiters and entities.
+		const destination = url.replace(/[<>()|\\]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`).replace(/&/g, "&amp;");
+		return `[${escapeMarkdownText(hostOf(url))}](<${destination}>)`;
+	}).join(", ");
 }
 
 function itemText(item, fields, fallback = "") {
-	if (typeof item === "string") return escapeMarkdownText(item) || fallback;
+	if (typeof item === "string") return escapeMarkdownText(item) || escapeMarkdownText(fallback);
 	if (!item || typeof item !== "object") return escapeMarkdownText(fallback);
 	for (const field of fields) {
 		if (typeof item[field] === "string" && item[field].trim()) {
@@ -324,6 +298,10 @@ function evidenceStatusOf(item) {
 			item.sourceQuality ??
 			"not specified",
 	);
+}
+
+function isCount(value) {
+	return Number.isSafeInteger(value) && value >= 0;
 }
 
 function finiteNumber(value) {
@@ -543,22 +521,23 @@ function modernRecommendationValid(item) {
 	);
 }
 
-function singleLine(value, maxLength) {
-	return boundedString(value, 1, maxLength) && /\S/u.test(value) && !/[\r\n]/u.test(value);
-}
-
 export function synthesisSummary(synthesis) {
 	return Array.isArray(synthesis?.conclusion) ? synthesis.conclusion.join(" ") : stringOf(synthesis?.bottomLine);
 }
 
 function synthesisConclusionValid(synthesis) {
-	if (!hasOwn(synthesis, "conclusion") && !hasOwn(synthesis, "keyPoints"))
-		return boundedString(synthesis?.bottomLine, 1, 4000);
 	return !hasOwn(synthesis, "bottomLine") &&
-		boundedArray(synthesis.conclusion, 3, (line) => singleLine(line, 220) && sentences(line).length === 1) &&
+		boundedArray(synthesis.conclusion, 3, (line) => boundedString(line, 1, 220)) &&
 		synthesis.conclusion.length >= 2 &&
 		boundedArray(synthesis.keyPoints, 6, (point) =>
-			exactKeys(point, ["title", "text"]) && singleLine(point.title, 64) && singleLine(point.text, 160));
+			exactKeys(point, ["title", "text"]) && boundedString(point.title, 1, 64) && boundedString(point.text, 1, 160));
+}
+
+// Stored v1/v2 controls predate the live conclusion/keyPoints pair. A mixed
+// control is neither contract and must not silently fall back to its paragraph.
+function storedParagraphValid(synthesis) {
+	return !hasOwn(synthesis, "conclusion") && !hasOwn(synthesis, "keyPoints") &&
+		boundedString(synthesis?.bottomLine, 1, 4000);
 }
 
 function modernActionValid(item) {
@@ -623,7 +602,7 @@ function inputIntegrityValid(control) {
 	);
 }
 
-function validModernFinalAudit(control) {
+function validStoredSynthesis(control) {
 	const synthesis = control?.synthesis;
 	const synthesisKeys = [
 		"bottomLine",
@@ -652,8 +631,8 @@ function validModernFinalAudit(control) {
 			modernSchema &&
 			boundedString(control.digest, 1, 1200) &&
 			exactKeys(synthesis, synthesisKeys) &&
-			synthesisConclusionValid(synthesis) &&
-			(!hasOwn(synthesis, "openQuestion") || singleLine(synthesis.openQuestion, 180)) &&
+			(synthesisConclusionValid(synthesis) || storedParagraphValid(synthesis)) &&
+			(!hasOwn(synthesis, "openQuestion") || boundedString(synthesis.openQuestion, 1, 180)) &&
 			comparisonRowsValid &&
 			boundedStringArray(synthesis.keyFindingIds, 12) &&
 			boundedArray(synthesis.recommendations, 12, modernRecommendationValid) &&
@@ -981,7 +960,7 @@ function packetHasCompleteContract(packet) {
 
 function reconcileFinalPacket(packet, control) {
 	const blockers =
-		validModernFinalAudit(control) ||
+		validStoredSynthesis(control) ||
 		packetHasCompleteContract(packet) ||
 		packet?.synthesisInput
 			? validateSynthesisPages(packet)
@@ -1391,13 +1370,10 @@ function evidenceCitationText(row, ko = false, quoteFirst = false) {
 		location += ` ${cleanText(row.excerptLocation)}`;
 	}
 	const quote = typeof row.quote === "string" ? row.quote : "";
-	const exactQuote = quote
-		? JSON.stringify(quote)
-				.replace(/([\\`*_[\\]{}#+!<>|])/g, "\\$1")
-				.replace(/\r?\n/g, "\\n")
-		: "";
-	if (quoteFirst) return [exactQuote, escapeMarkdownText(location || (ko ? "출처" : "source"))].filter(Boolean).join(" — ");
-	return [location || "source", exactQuote ? `quote ${exactQuote}` : ""]
+	const exactQuote = quote ? escapeMarkdownText(quote, { quote: true }) : "";
+	const label = escapeMarkdownText(location || (ko ? "출처" : "source"));
+	if (quoteFirst) return [exactQuote, label].filter(Boolean).join(" — ");
+	return [label, exactQuote ? `quote ${exactQuote}` : ""]
 		.filter(Boolean)
 		.join(": ");
 }
@@ -1774,8 +1750,8 @@ function composeResearchReport(
 	if (!synthesis) {
 		const report = {
 			...legacyReport,
-			notableUnsupportedClaims: [...asArray(legacyReport.notableUnsupportedClaims), ...asArray(legacyReport.unsupportedFindings)],
-			contestedAreas: [...asArray(legacyReport.contestedAreas), ...asArray(legacyReport.contestedFindings)],
+			notableUnsupportedClaims: [...flattenItems(legacyReport.notableUnsupportedClaims), ...flattenItems(legacyReport.unsupportedFindings)],
+			contestedAreas: [...flattenItems(legacyReport.contestedAreas), ...flattenItems(legacyReport.contestedFindings)],
 		};
 		// A legacy report row may name the claim without the verifier's correction the ledger holds.
 		for (const key of ["notableUnsupportedClaims", "contestedAreas"])
@@ -2013,6 +1989,7 @@ const STATUS_LABELS = new Map(Object.entries({
 	unsupported: ["Unsupported", "근거 부족"], conflicting: ["Sources disagree", "출처 상충"],
 	verification_blocked: ["Not checked", "검증 불가"], unverified: ["Unverified", "미확인"],
 	derived: ["Proposal", "제안"], filled: ["Covered", "충분"], covered: ["Covered", "충분"],
+	covered_with_conflicts: ["Covered with conflicts", "상충 포함"],
 	partial: ["Partly covered", "일부"], missing: ["Missing", "없음"], gap: ["Gap", "공백"],
 	out_of_scope: ["Out of scope", "범위 밖"], not_applicable: ["Not applicable", "해당 없음"],
 	unknown: ["Unknown", "알 수 없음"], "not specified": ["Not specified", "표시 없음"],
@@ -2021,7 +1998,7 @@ const STATUS_LABELS = new Map(Object.entries({
 function statusLabel(status, ko) {
 	return STATUS_LABELS.get(status.toLowerCase().replace(/[ -]+/g, "_"))?.[ko ? 1 : 0] ??
 		STATUS_LABELS.get(status.toLowerCase())?.[ko ? 1 : 0] ??
-		STATUS_LABELS.get("not specified")[ko ? 1 : 0];
+		escapeMarkdownText(status);
 }
 
 function sentences(text) {
@@ -2058,9 +2035,7 @@ function renderEvidenceStrength(report, ko) {
 				(ko ? "근거 항목" : "Evidence area"),
 		);
 		const status = statusLabel(evidenceStatusOf(slot), ko);
-		// referenceList is already Markdown (escaped host, <url>, `ref`): only the cell's pipes are
-		// escaped (2026-11-03: escaping it again printed \[host\](\<url\>) instead of a link).
-		const evidence = referenceList(slot, Infinity).replace(/\|/g, "\\|") || "—";
+		const evidence = referenceList(slot, Infinity) || "—";
 		const impact = escapeTableCell(
 			slot.readerImpact ??
 				slot.parentImpact ??
@@ -2114,10 +2089,7 @@ function recommendationEntries(report) {
 function actionEntries(report) {
 	return asArray(report.actionPlan).map((item) => ({
 		item,
-		text:
-			itemText(item, ["action", "recommendation", "note"]) ||
-			(typeof item?.step === "string" && cleanText(item.step)) ||
-			stringifyItem(item),
+		text: itemText(item, ["action", "recommendation", "note", "step"], stringifyItem(item)),
 	}));
 }
 
@@ -2151,9 +2123,9 @@ function renderMainFindings(report, ko) {
 		const evidence = asArray(finding?.evidence).map((row) => evidenceCitationText(row, ko, true)).filter(Boolean).map((row) => `- ${row}`);
 		const explanation = itemText(finding, ["readerExplanation", "rationale", "explanation", "details", "notes"]);
 		if (explanation && explanation !== text) evidence.push("", explanation);
-		const confidence = cleanText(finding?.confidence).toLowerCase();
-		const level = new Map([["high", ["High", "높음"]], ["medium", ["Medium", "보통"]], ["low", ["Low", "낮음"]]]).get(confidence);
-		if (level) evidence.push("", `${ko ? "신뢰도" : "Confidence"}: ${level[ko ? 1 : 0]}`);
+		const confidence = cleanText(finding?.confidence);
+		const level = new Map([["high", ["High", "높음"]], ["medium", ["Medium", "보통"]], ["low", ["Low", "낮음"]]]).get(confidence.toLowerCase());
+		if (confidence) evidence.push("", `${ko ? "신뢰도" : "Confidence"}: ${level?.[ko ? 1 : 0] ?? escapeMarkdownText(confidence)}`);
 		const sources = referenceList(finding, Infinity);
 		if (sources) evidence.push("", `${ko ? "출처" : "Sources"}: ${sources}`);
 		if (evidence.length) out.push(...fold(ko ? "근거 보기" : "Evidence", evidence), "");
@@ -2340,7 +2312,7 @@ export const SOURCE_VERIFICATION_STATEMENT =
 // themselves stay model-judged. Without the check (off, or older runs) the C2 statement stands.
 export function sourceVerificationStatement(quoteCheck, ko = false) {
 	if (!quoteCheck) return ko ? "출처 검증: 모델 보고 기준입니다(출처 원문은 대조하지 않았습니다)." : SOURCE_VERIFICATION_STATEMENT;
-	const summary = quoteCheck.summary;
+	const summary = quotePresentationCounts(quoteCheck.summary);
 	if (ko) return `출처 검증: 엔진이 웹 인용 ${summary.quotes}개 중 ${summary.verified}개를 출처 본문에서 찾았습니다(자세한 내용은 근거 감사 참고). 가져온 본문에서 인용을 찾지 못한 주장은 확인됨으로 표시하지 않습니다. 인용이 주장을 뒷받침하는지는 검증 모델이 판단합니다.`;
 	return `Source verification: the engine found ${summary.verified} of ${summary.quotes} quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.`;
 }
@@ -2359,7 +2331,7 @@ function readerContestedLimits(contestedSlots, korean) {
 		});
 }
 
-function renderCompletionSummary(report, claimSummary, fallback, quoteCheck = null, contestedSlots = []) {
+function renderCompletionSummary(report, claimSummary, fallback, quoteCheck = null, contestedSlots = [], attributionWarnings = []) {
 	const summary = summaryText(report, fallback);
 	// Fixed presentation labels follow Korean prose when present; other prose is
 	// retained verbatim and the parent may translate fixed labels as before.
@@ -2391,7 +2363,7 @@ function renderCompletionSummary(report, claimSummary, fallback, quoteCheck = nu
 	const limits = readerLimits(report, contestedSlots, korean);
 	// Unlike the report, the compact handoff has no trust line to signal zero verified claims.
 	if (claimSummary.verified === 0) limits.unshift(korean ? "확인된 주장이 없어 결론을 확정할 수 없습니다." : "No claims were verified; the conclusion is not established.");
-	if (limits.length) out.push(korean ? "## 알아둘 한계" : "## Limits to keep in mind", "", ...limits.map(text => `- ${completionText(text)}`), "");
+	out.push(...visibleLimits([...limits.map(completionText), ...attributionNotes(attributionWarnings, korean)], korean));
 	out.push(sourceVerificationStatement(quoteCheck, korean), "");
 	return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -2470,8 +2442,8 @@ function renderResearchScopeAndMethod(report, ko) {
 	const rows = [];
 	if (cleanText(metadata.taskType)) rows.push(`- ${ko ? "조사 유형" : "Task type"}: ${escapeMarkdownText(metadata.taskType)}.`);
 	if (cleanText(metadata.depth)) rows.push(`- ${ko ? "조사 깊이" : "Research depth"}: ${escapeMarkdownText(metadata.depth)}.`);
-	if (Number.isFinite(Number(metadata.researchQuestions))) rows.push(`- ${ko ? "조사 질문" : "Research questions"}: ${Number(metadata.researchQuestions)}.`);
-	if (Number.isFinite(Number(metadata.plannedFactSlots))) rows.push(`- ${ko ? "계획한 검증 항목" : "Planned fact slots"}: ${Number(metadata.plannedFactSlots)}.`);
+	if (isCount(metadata.researchQuestions)) rows.push(`- ${ko ? "조사 질문" : "Research questions"}: ${metadata.researchQuestions}.`);
+	if (isCount(metadata.plannedFactSlots)) rows.push(`- ${ko ? "계획한 검증 항목" : "Planned fact slots"}: ${metadata.plannedFactSlots}.`);
 	if (cleanText(metadata.expectedFinalShape)) rows.push(`- ${ko ? "보고서 형식" : "Expected output shape"}: ${escapeMarkdownText(metadata.expectedFinalShape)}.`);
 	if (scopeCounts.size) rows.push(`- ${ko ? "조사 범위 충족도" : "Scope coverage"}: ${[...scopeCounts].map(([status, count]) => `${statusLabel(status, ko)} ${count}`).join(", ")}.`);
 	rows.push(ko
@@ -2593,7 +2565,7 @@ function renderAuditSummary(report, claimSummary, slots, quoteCheck, ko) {
 		...(mismatches.length ? [
 			`- ${ko ? "감사 집계와 모델 집계가 다른 항목(감사 집계 사용)" : "Coverage summary mismatch (using audited counts)"}: ${mismatches.map(({ field }) => escapeMarkdownText(field)).join(", ")}.`,
 		] : []),
-		...(coverage.researchQuestions != null ? [`- ${ko ? "조사 질문" : "Research questions"}: ${coverage.researchQuestions}.`] : []),
+		...(isCount(coverage.researchQuestions) ? [`- ${ko ? "조사 질문" : "Research questions"}: ${coverage.researchQuestions}.`] : []),
 		...renderQuoteCheckSummaryLine(quoteCheck, ko), "", sourceVerificationStatement(quoteCheck, ko),
 	];
 }
@@ -2631,11 +2603,26 @@ function quoteCheckOf(source) {
 	return source;
 }
 
+function quotePresentationCounts(summary) {
+	const count = (value, fallback = 0) => isCount(value) ? value : fallback;
+	const { inWorkerSummary } = summary;
+	return {
+		...summary,
+		quotes: count(summary.quotes), verified: count(summary.verified),
+		unverified: count(summary.unverified), pages: count(summary.pages),
+		verifiedCaptured: count(summary.verifiedCaptured),
+		verifiedRefetched: count(summary.verifiedRefetched, count(summary.verified)),
+		inWorkerSummary: isRecord(inWorkerSummary) ? Object.fromEntries(
+			["total", "onPage", "notOnPage", "unchecked"].map((key) => [key, count(inWorkerSummary[key])]),
+		) : null,
+	};
+}
+
 function quoteCheckReasonText(byReason) {
 	return Object.entries(isRecord(byReason) ? byReason : {})
-		.filter(([, count]) => Number(count) > 0)
+		.filter(([, count]) => isCount(count) && count > 0)
 		.sort((a, b) => Number(b[1]) - Number(a[1]))
-		.map(([reason, count]) => `${QUOTE_CHECK_REASONS[reason] ?? reason} ${count}`)
+		.map(([reason, count]) => `${escapeMarkdownText(Object.hasOwn(QUOTE_CHECK_REASONS, reason) ? QUOTE_CHECK_REASONS[reason] : reason)} ${count}`)
 		.join(", ");
 }
 
@@ -2659,7 +2646,7 @@ function quoteCheckSummaryText(summary) {
 
 function renderQuoteCheckSummaryLine(quoteCheck, ko) {
 	if (!quoteCheck) return [];
-	const summary = quoteCheck.summary;
+	const summary = quotePresentationCounts(quoteCheck.summary);
 	if (ko) {
 		const summarized = summary.inWorkerSummary;
 		return [
@@ -2680,7 +2667,7 @@ function renderQuoteCheckSummaryLine(quoteCheck, ko) {
 
 function renderQuoteCheckAudit(quoteCheck) {
 	if (!quoteCheck) return [];
-	const summary = quoteCheck.summary;
+	const summary = quotePresentationCounts(quoteCheck.summary);
 	const levels = isRecord(summary.byLevel) ? summary.byLevel : {};
 	const out = [
 		"",
@@ -2721,7 +2708,7 @@ function renderRelatedArtifacts(ko) {
 }
 
 function trustLine(claims, quoteCheck, sourceCount, question, ko) {
-	const summary = quoteCheck?.summary;
+	const summary = quoteCheck ? quotePresentationCounts(quoteCheck.summary) : null;
 	return [
 		ko ? `주장 ${claims.total}개 중 ${claims.verified}개 확인, ${claims.partially_supported}개 일부 확인` : `Claims: ${claims.verified} verified, ${claims.partially_supported} partly supported, ${claims.total} total`,
 		summary ? (ko ? `인용 ${summary.quotes}개 중 ${summary.verified}개 원문 일치` : `Quotes: ${summary.verified}/${summary.quotes} matched`) : (ko ? "웹 인용 원문 대조 없음" : "Web quotes: not checked"),
@@ -2779,7 +2766,7 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 		composed.ledger,
 	];
 	const allSourceIndex = uniqueStructuredUrls(...sourceRows);
-	const localSourceIndex = localRefsOf(sourceRows, Infinity);
+	const localSourceIndex = localRefsOf(sourceRows, Infinity, options.cwd);
 	const maxUrls = Number.isFinite(Number(options.maxUrls))
 		? Math.max(0, Number(options.maxUrls))
 		: Infinity;
@@ -2827,7 +2814,7 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 		});
 	}
 	const contestedSlots = asArray(composed.packet.contestedSlots);
-	const completionSummaryMarkdown = renderCompletionSummary(report, claimSummary, control.digest, options.quoteCheck, contestedSlots);
+	const completionSummaryMarkdown = renderCompletionSummary(report, claimSummary, control.digest, options.quoteCheck, contestedSlots, options.attributionWarnings);
 	const ko = scriptOf(summaryText(report, control.digest)) === "hangul";
 	const limits = readerLimits(report, contestedSlots, ko);
 	const openQuestion = report.openQuestion ?? limits.flatMap(sentences).find((text) => /[?？]$/u.test(text)) ??
@@ -2841,7 +2828,7 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 		[ko ? "출처 목록" : "Source index", renderSourceIndex(sourceIndex, localSourceIndex, ko)],
 		[ko ? "관련 자료" : "Related artifacts", renderRelatedArtifacts(ko)],
 	];
-	const sourceCount = new Set([...allSourceIndex.map(hostOf), ...localSourceIndex.map((ref) => ref.replace(/#L\d+(?:-L?\d+)?$/i, ""))]).size;
+	const sourceCount = new Set([...allSourceIndex.map((url) => `web:${hostOf(url)}`), ...localSourceIndex.map((file) => `file:${file}`)]).size;
 	const sections = [
 		ko ? "# 조사 보고서" : "# Research report", "",
 		trustLine(claimSummary, options.quoteCheck, sourceCount, openQuestion, ko), "",
@@ -2850,7 +2837,7 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 		...renderKeyPoints(report, ko, escapeMarkdownText, "###"),
 		...renderComparisonSnapshot(report, ko),
 		...renderActions(report, ko),
-		...(limits.length ? [ko ? "## 알아둘 한계" : "## Limits to keep in mind", "", ...limits.map((line) => `- ${escapeMarkdownText(line)}`), ""] : []),
+		...visibleLimits([...limits.map(escapeMarkdownText), ...attributionNotes(options.attributionWarnings, ko)], ko),
 		...renderMainFindings(report, ko),
 		ko ? "## 자세한 근거" : "## Appendix", "",
 		...appendix.flatMap(([title, body]) => body.length ? [...fold(title, body), ""] : []),
@@ -3002,25 +2989,23 @@ export async function sourceAttributionWarnings(texts, cwd) {
 	return warnings;
 }
 
-/** One reader line per file the report blames for values it does not contain, after the source-verification line. */
-function withAttributionNotes(markdown, warnings, quoteCheck, korean) {
-	if (!markdown || !warnings?.length) return markdown;
+function visibleLimits(lines, korean) {
+	return lines.length ? [korean ? "## 알아둘 한계" : "## Limits to keep in mind", "", ...lines.map((line) => `- ${line}`), ""] : [];
+}
+
+/** One visible correction per file; the audit keeps every triggering sentence. */
+function attributionNotes(warnings = [], korean) {
 	const byFile = new Map();
 	for (const warning of warnings)
 		byFile.set(warning.file, [
 			...new Set([...(byFile.get(warning.file) ?? []), ...warning.values]),
 		]);
-	const notes = [...byFile].map(([file, values]) => {
+	return [...byFile].map(([file, values]) => {
 		const shown = values.slice(0, 6).map(escapeMarkdownText).join(", ");
 		return korean
 			? `엔진 확인: 이 보고서가 \`${escapeMarkdownText(file)}\`에서 고치라고 한 값(${shown})은 그 파일에 없습니다. 그 값이 이 파일에서 나왔다는 설명은 확인되지 않았습니다.`
 			: `Engine check: \`${escapeMarkdownText(file)}\` does not contain the values this report says to correct in it (${shown}); that attribution is unconfirmed.`;
 	});
-	const statement = sourceVerificationStatement(quoteCheck, korean);
-	const at = markdown.indexOf(statement);
-	if (at < 0) return `${markdown}\n\n${notes.join("\n\n")}`;
-	const end = at + statement.length;
-	return `${markdown.slice(0, end)}\n\n${notes.join("\n\n")}${markdown.slice(end)}`;
 }
 
 function renderSourceAttributionAudit(warnings) {
@@ -3105,12 +3090,9 @@ function renderAuditMarkdown(
 					? caveatNote
 						? `${caveatNote} Correction: ${correction}`
 						: correction
-					: (row.caveat ??
-							row.correctionOrCounterclaim ??
-							markdownLinkList(urlsOf(row, 3), 3) ??
-							"—"),
+					: (row.caveat ?? row.correctionOrCounterclaim ?? ""),
 			);
-			out.push(`| ${id} | ${status} | ${support} | ${caveat || "—"} |`);
+			out.push(`| ${id} | ${status} | ${support} | ${caveat || (!hasOwn(row, "caveat") ? referenceList(row) : "") || "—"} |`);
 		}
 	} else {
 		out.push("No compact claim ledger was provided.");
@@ -3129,7 +3111,7 @@ function renderAuditMarkdown(
 	out.push("", "## Remaining gaps", "");
 	if (gaps.length > 0) {
 		for (const gap of gaps)
-			out.push(`- ${caveatText(gap) || stringifyItem(gap)}`);
+			out.push(`- ${caveatText(gap) || escapeMarkdownText(stringifyItem(gap))}`);
 	} else {
 		out.push("No remaining gaps were reported.");
 	}
@@ -3225,7 +3207,7 @@ export default async function renderExecutive({
 			error instanceof Error ? error.message : String(error),
 		);
 	}
-	const modernControl = validModernFinalAudit(control);
+	const modernControl = validStoredSynthesis(control);
 	const legacyControl = validLegacyFinalAudit(control);
 	let controlBlocker = "";
 	if (!control || typeof control !== "object")
@@ -3301,30 +3283,25 @@ export default async function renderExecutive({
 			? Math.max(0, Number(options.maxUrls))
 			: Infinity,
 	};
-	const rendered = renderResearchMarkdown(control, auditPacket, {
+	const renderOptions = {
 		...opts,
+		cwd: context.cwd,
 		quoteCheck,
 		retranslations: retranslationsFrom(sources),
-	});
-	let markdown = rendered.markdown;
+	};
+	let rendered = renderResearchMarkdown(control, auditPacket, renderOptions);
+	const attributionWarnings = await sourceAttributionWarnings(
+		[rendered.completionSummaryMarkdown, rendered.markdown],
+		context.cwd,
+	);
+	if (attributionWarnings.length)
+		rendered = renderResearchMarkdown(control, auditPacket, { ...renderOptions, attributionWarnings });
+	let { markdown, completionSummaryMarkdown } = rendered;
 	let truncated = false;
 	if (Number.isFinite(opts.maxWords) && countWords(markdown) > opts.maxWords) {
 		truncated = true;
 		markdown = truncateWords(markdown, opts.maxWords);
 	}
-	const attributionWarnings = await sourceAttributionWarnings(
-		[rendered.completionSummaryMarkdown, markdown],
-		context.cwd,
-	);
-	// 2026-11-10 (E8): the reader sees the check too, beside the source-verification line; it was audit-only, so a
-	// report that blamed a file for a value it does not state still read as confirmed.
-	markdown = withAttributionNotes(markdown, attributionWarnings, quoteCheck, rendered.ko);
-	const completionSummaryMarkdown = withAttributionNotes(
-		rendered.completionSummaryMarkdown,
-		attributionWarnings,
-		quoteCheck,
-		rendered.ko,
-	);
 	const auditMarkdown = renderAuditMarkdown(
 		control,
 		auditPacket,

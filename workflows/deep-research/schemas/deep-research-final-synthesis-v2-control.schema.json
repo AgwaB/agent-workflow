@@ -27,16 +27,14 @@
     "synthesis": {
       "type": "object",
       "required": [
+        "conclusion",
+        "keyPoints",
         "comparisonRows",
         "keyFindingIds",
         "recommendations",
         "actionPlan",
         "caveatNotes",
         "parentDecisionNotes"
-      ],
-      "oneOf": [
-        { "required": ["conclusion", "keyPoints"] },
-        { "required": ["bottomLine"] }
       ],
       "properties": {
         "conclusion": {
@@ -55,11 +53,6 @@
           }
         },
         "openQuestion": { "type": "string", "minLength": 1, "maxLength": 180 },
-        "bottomLine": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 4000
-        },
         "comparisonRows": {
           "type": "array",
           "items": {
