@@ -362,7 +362,9 @@ in-process helper running in the CLI dies with it. The next scheduler fails that
 without replaying its side effects. Use `status <id>` to inspect the run, `wait <id>` or
 `supervise <id>` to drive unfinished work, or `resume <id>` to explicitly retry a failed stage.
 Use `--detach` to keep the driver and in-process helpers alive after the CLI exits. Any later
-process can `status`, `wait` or `stop` the run.
+process can `status`, `wait` or `stop` the run. Publishing the run and spawning its supervisor
+are separate steps. If the launcher dies before printing the supervisor PID, run
+`agent-workflow wait <id>` promptly to drive the published run.
 
 `wait` without `--timeout` loops until the run is terminal or blocked. With `--timeout` it returns
 when the time is up; a run still running then exits 1 with `data.stillRunning: true`.

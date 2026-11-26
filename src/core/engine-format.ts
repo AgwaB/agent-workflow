@@ -25,6 +25,7 @@ import {
 } from "./engine-wait.js";
 import {
 	isMockRunProvenance,
+	isTerminalWorkflowStatus,
 	isWorkflowRunLeaseLive,
 	LEASE_STALE_MS,
 	finalStageTasks,
@@ -164,8 +165,14 @@ export function formatScheduledRetryWait(
 	return `waiting for scheduled retry at ${friendlyTimestamp(wait.at)} (${why})`;
 }
 
+function expectsLiveDriver(
+	run: Pick<WorkflowRunRecord, "status" | "taskSummary">,
+): boolean {
+	return !isTerminalWorkflowStatus(run.status) && hasActiveSchedulerWork(run);
+}
+
 /**
- * A run that says `running` with scheduler work left, while no process drives it (`driverLive` is
+ * A run with scheduler work left, while no process drives it (`driverLive` is
  * the run lease / live-pid heartbeat check; `undefined` = not checked). Runs younger than the
  * lease-stale window are not judged: a launch may not have taken its lease yet. (`createdAt`, not
  * `updatedAt`: a refreshing read rewrites `run.json` and would keep a dead run looking young.)
@@ -175,8 +182,7 @@ export function runHasNoLiveDriver(
 	driverLive: boolean | undefined,
 	nowMs = Date.now(),
 ): boolean {
-	if (driverLive !== false || !hasActiveSchedulerWork(run)) return false;
-	if (run.status !== "running") return false;
+	if (driverLive !== false || !expectsLiveDriver(run)) return false;
 	const createdMs = parseIsoTimeMs(run.createdAt);
 	return createdMs === undefined || nowMs - createdMs > LEASE_STALE_MS;
 }
@@ -235,12 +241,12 @@ function parseIsoTimeMs(value: string | undefined): number | undefined {
 	return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-/** Lease check for a `running` run (undefined for other statuses: no driver is expected). */
+/** Lease check for runs with scheduler work (undefined if no driver is expected). */
 export async function readDriverLive(
 	cwd: string,
-	run: Pick<WorkflowRunRecord, "runId" | "status">,
+	run: Pick<WorkflowRunRecord, "runId" | "status" | "taskSummary">,
 ): Promise<boolean | undefined> {
-	if (run.status !== "running") return undefined;
+	if (!expectsLiveDriver(run)) return undefined;
 	return await isWorkflowRunLeaseLive(cwd, run.runId).catch(() => undefined);
 }
 
@@ -976,12 +982,9 @@ async function formatHumanRunList(
 		.filter((run) => run.status === "completed")
 		.slice(0, 5);
 	const mockTags = await mockTagMap(cwd, [...active, ...completed]);
-	// A running run nobody drives is not "Active": say so on its row.
+	// Say when a run with active work has nobody driving it.
 	for (const run of active) {
-		if (
-			run.status === "running" &&
-			runHasNoLiveDriver(run, await readDriverLive(cwd, run))
-		)
+		if (runHasNoLiveDriver(run, await readDriverLive(cwd, run)))
 			mockTags.set(
 				run.runId,
 				`${mockTags.get(run.runId) ?? ""} (no live driver — not progressing)`,

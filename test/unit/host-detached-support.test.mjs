@@ -301,6 +301,10 @@ for (const command of ["run", "resume", "blocked run"]) {
 		assert.equal(data.status, blocked ? "blocked" : "running");
 		assert.equal(data.taskSummary.pending, 1);
 		assert.equal(data.detached.pid, helperPid);
+		if (blocked) {
+			const snapshot = await f.launch(["status", data.runId, "--json"]).result;
+			assert.equal(JSON.parse(snapshot.stdout).data.run.live, true);
+		}
 		assert.deepEqual(await launcher.kill(), [null, "SIGKILL"]);
 		await f.release();
 		const { logPath } = data.detached;
@@ -338,8 +342,14 @@ test("foreground run still executes and waits for the support stage in the launc
 	assert.equal(JSON.parse(stdout).data.status, "completed");
 });
 
-for (const command of ["run", "run with loop", "resume"]) {
+for (const command of [
+	"run",
+	"run with loop",
+	"resume",
+	"blocked with pending",
+]) {
 	test(`${command}: wait recovers a publication whose launcher dies before spawn`, async (t) => {
+		const blocked = command === "blocked with pending";
 		const f = await fixture(
 			t,
 			command === "run with loop"
@@ -359,7 +369,9 @@ for (const command of ["run", "run with loop", "resume"]) {
 							},
 						],
 					}
-				: {},
+				: blocked
+					? { stages: [approval, independentSupport] }
+					: {},
 		);
 		let args = f.runArgs;
 		if (command === "resume") {
@@ -392,12 +404,34 @@ for (const command of ["run", "run with loop", "resume"]) {
 			AW_STATUS_CLOCK_OFFSET: "60000",
 		}).result;
 		assert.match(status.stdout, /no live driver/);
+		if (blocked) {
+			const list = await f.launch(["status"], {
+				AW_STATUS_CLOCK_OFFSET: "60000",
+			}).result;
+			assert.match(list.stdout, /no live driver/);
+		}
 		const waiter = f.launch(["wait", runId, "--json"]);
 		assert.equal(await f.helperPid(), waiter.pid);
 		await f.release();
 		const result = await waiter.result;
-		assert.equal(result.code, 0, result.stderr + result.stdout);
-		assert.equal(JSON.parse(result.stdout).data.status, "completed");
+		assert.equal(result.code, blocked ? 1 : 0, result.stderr + result.stdout);
+		const { data } = JSON.parse(result.stdout);
+		assert.equal(data.runId, runId);
+		assert.equal(data.status, blocked ? "blocked" : "completed");
+		if (blocked) {
+			const run = JSON.parse(await readFile(join(dir, "run.json"), "utf8"));
+			assert.deepEqual(
+				run.tasks.map(({ status, statusDetail }) => [status, statusDetail]),
+				[
+					["blocked", "pending_approval"],
+					["completed", "support_completed"],
+				],
+			);
+			const settled = await f.launch(["status", runId], {
+				AW_STATUS_CLOCK_OFFSET: "60000",
+			}).result;
+			assert.doesNotMatch(settled.stdout, /no live driver/);
+		}
 	});
 }
 

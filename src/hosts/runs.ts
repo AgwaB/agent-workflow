@@ -77,6 +77,7 @@ import {
 	formatTaskWorktreeLocation,
 	formatHumanRunStatus,
 	formatHumanRunDetails,
+	readDriverLive,
 } from "../core/engine-format.js";
 import { markRunNotifySeen } from "./notify-check.js";
 import {
@@ -258,15 +259,12 @@ export async function statusAction(
 		ctx.cwd,
 		await readRunRecord(ctx.cwd, ref),
 	);
-	const live =
-		run.status === "running"
-			? await isWorkflowRunLeaseLive(ctx.cwd, run.runId).catch(() => false)
-			: false;
+	const driverLive = await readDriverLive(ctx.cwd, run);
 	const card =
 		refreshedCard ??
 		formatHumanRunStatus(run, {
 			hints: hostCommandHints(ctx.host),
-			...(run.status === "running" ? { driverLive: live } : {}),
+			driverLive,
 		});
 	// WP18b: a terminal run shows its domain verdict and report; a verdict-gate run leads with
 	// "finished — verdict: X (report ready)".
@@ -308,7 +306,7 @@ export async function statusAction(
 		{
 			run: {
 				...summarizeRun(run),
-				live,
+				live: driverLive ?? false,
 				...(presentation?.verdict ? { verdict: presentation.verdict } : {}),
 				...(presentation?.verdictGate ? { verdictGate: true as const } : {}),
 				reportArtifacts: presentation?.artifacts ?? [],
