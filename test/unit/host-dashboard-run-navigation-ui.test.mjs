@@ -28,6 +28,19 @@ async function entry(b, url) {
 }
 const state = (b) =>
 	b.evaluate(() => Object.fromEntries(new URLSearchParams(location.search)));
+async function assertNoSelection(b) {
+	const { task, stage, tab } = await state(b);
+	assert.deepEqual(
+		{ task, stage, tab },
+		{
+			task: undefined,
+			stage: undefined,
+			tab: undefined,
+		},
+	);
+}
+const inspectorHidden = (b) =>
+	b.evaluate(() => document.querySelector("#inspector").hidden);
 
 test("first entry matrix uses recorded state once; explicit view/task/stage/tab/layout wins", {
 	timeout: 120000,
@@ -44,13 +57,31 @@ test("first entry matrix uses recorded state once; explicit view/task/stage/tab/
 		(r) => r.status === "interrupted",
 	);
 	for (const r of [active, completed, failed, interrupted]) assert.ok(r);
+	const running = active.tasks.find(
+		(t) => t.status === "running" && !t.placeholder,
+	);
+	assert.ok(running);
 	await entry(b, `${f.origin}/?run=${active.runId}`);
+	assert.ok(await b.evaluate(() => !!document.querySelector(".canvas svg")));
+	assert.ok(
+		await inspectorHidden(b),
+		"a clean live entry must show only the graph",
+	);
+	await assertNoSelection(b);
+	await entry(b, `${f.origin}/?run=${active.runId}&task=${running.specId}`);
+	assert.equal((await state(b)).task, running.specId);
+	assert.equal(await inspectorHidden(b), false);
 	assert.equal(
-		(await state(b)).task,
-		active.tasks.find((t) => t.status === "running" && !t.placeholder)?.specId,
+		await b.evaluate(
+			() =>
+				document.querySelector('#inspector [aria-selected="true"]').dataset.tab,
+		),
+		"events",
 	);
 	await entry(b, `${f.origin}/?run=${completed.runId}`);
 	assert.equal((await state(b)).view, "report");
+	assert.ok(await b.evaluate(() => !!document.querySelector(".report-view")));
+	assert.ok(await inspectorHidden(b));
 	assert.match(
 		await b.evaluate(() => document.querySelector("#center").textContent),
 		/Needs work/i,
@@ -74,6 +105,7 @@ test("first entry matrix uses recorded state once; explicit view/task/stage/tab/
 			await b.evaluate(() => document.querySelector("#center").textContent),
 			/Failed|Stopped/,
 		);
+		assert.equal(await inspectorHidden(b), false);
 	}
 	completed.reportAvailable = true;
 	for (const query of [
@@ -93,6 +125,115 @@ test("first entry matrix uses recorded state once; explicit view/task/stage/tab/
 	}
 	await entry(b, `${f.origin}/?run=${active.runId}&view=report`);
 	assert.equal((await state(b)).view, "report");
+});
+
+test("a dirty report bookmark opens a clean report and returns to an unselected graph", {
+	timeout: 90000,
+}, async (t) => {
+	const { f, b } = await setup(t);
+	const r = [...f.runs.values()].find(
+		(r) => r.status === "completed" && r.reportAvailable,
+	);
+	await entry(
+		b,
+		`${f.origin}/?run=${r.runId}&stage=${r.tasks[0].stageId}&tab=events&view=report`,
+	);
+	assert.equal((await state(b)).view, "report");
+	assert.ok(await inspectorHidden(b));
+	await assertNoSelection(b);
+	await b.click('[data-action="open-run"]');
+	await b.waitFor(() => !!document.querySelector(".canvas svg"));
+	assert.ok(await inspectorHidden(b));
+	await assertNoSelection(b);
+});
+
+test("header and rail reports clear inspector state without changing the prior graph history entry", {
+	timeout: 90000,
+}, async (t) => {
+	const { f, b } = await setup(t);
+	const r = [...f.runs.values()].find(
+		(r) => r.status === "completed" && r.reportAvailable,
+	);
+	// A narrow viewport collapses the rail when the inspector is open.
+	await b.send("Emulation.setDeviceMetricsOverride", {
+		width: 1440,
+		height: 900,
+		deviceScaleFactor: 1,
+		mobile: false,
+	});
+	const task = r.tasks[0].specId;
+	const graph = `${f.origin}/?run=${r.runId}&task=${task}&tab=output`;
+	for (const reportLink of [
+		"#run-header .actions .primary",
+		'.run-row[aria-current="true"] .run-report',
+	]) {
+		await entry(b, graph);
+		assert.equal(await inspectorHidden(b), false);
+		await b.click(reportLink);
+		await b.waitFor(() => !!document.querySelector(".report-view"));
+		assert.ok(await inspectorHidden(b));
+		await assertNoSelection(b);
+		await b.click('[data-action="open-run"]');
+		await b.waitFor(() => !!document.querySelector(".canvas svg"));
+		assert.ok(await inspectorHidden(b));
+		await assertNoSelection(b);
+		await b.evaluate(() => history.back());
+		await b.waitFor(() => !!document.querySelector(".report-view"));
+		await assertNoSelection(b);
+		await b.evaluate(() => history.back());
+		await b.waitFor(
+			() =>
+				!document.querySelector("#inspector").hidden &&
+				!!document.querySelector(".canvas svg"),
+		);
+		assert.equal((await state(b)).task, task);
+		assert.equal((await state(b)).tab, "output");
+		assert.equal(
+			await b.evaluate(
+				() =>
+					document.querySelector('#inspector [aria-selected="true"]').dataset
+						.tab,
+			),
+			"output",
+		);
+		await b.evaluate(() => history.forward());
+		await b.waitFor(() => !!document.querySelector(".report-view"));
+		assert.ok(await inspectorHidden(b));
+		await assertNoSelection(b);
+	}
+});
+
+test("inspector dismissal and Run details leave the next task on its default tab", {
+	timeout: 90000,
+}, async (t) => {
+	const { f, b } = await setup(t);
+	const r = [...f.runs.values()].find((r) => r.status === "running");
+	for (const leave of ["close", "escape", "details"]) {
+		await entry(b, `${f.origin}/?run=${r.runId}&task=triage.main&tab=output`);
+		if (leave === "escape")
+			await b.send("Input.dispatchKeyEvent", {
+				type: "keyDown",
+				key: "Escape",
+			});
+		else
+			await b.click(
+				leave === "close"
+					? '[aria-label="Close inspector"]'
+					: '[aria-label="Run details"]',
+			);
+		assert.equal(await inspectorHidden(b), leave !== "details");
+		await assertNoSelection(b);
+		await b.click('[data-task="reviewers.refund-idempotency"]');
+		assert.equal((await state(b)).task, "reviewers.refund-idempotency");
+		assert.equal(
+			await b.evaluate(
+				() =>
+					document.querySelector('#inspector [aria-selected="true"]').dataset
+						.tab,
+			),
+			"result",
+		);
+	}
 });
 
 test("live completion preserves deliberate stage, camera and history; Escape restores graph", {
