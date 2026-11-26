@@ -148,7 +148,7 @@ test("every ../../reference path named by a plugin skill exists", () => {
 	let count = 0;
 	for (const name of plugins.PLUGIN_SKILLS) {
 		const skillDir = join(pluginDir, "skills", name);
-		for (const [, path] of skill(name).matchAll(/`(\.\.\/\.\.\/[^`\s]+)`/g)) {
+		for (const [, path] of skill(name).matchAll(/`(\.\.\/\.\.\/[^`<\s]+)`/g)) {
 			count += 1;
 			assert.ok(existsSync(join(skillDir, path)), `${name}: ${path}`);
 		}
@@ -162,6 +162,39 @@ test("every ../../reference path named by a plugin skill exists", () => {
 			),
 			readFileSync(join(root, "workflows", workflow, "spec.json"), "utf8"),
 		);
+});
+
+test("each workflow guide points to byte-identical, copyable helper sources", () => {
+	for (const [guideDir, helperDir] of [
+		["skills/workflow-guide", "dist/core/helper-library"],
+		["plugins/pi/skills/workflow-guide", "dist/core/helper-library"],
+		[
+			`${plugins.PLUGIN_DIR}/skills/workflow-guide`,
+			`${plugins.PLUGIN_DIR}/reference/helpers`,
+		],
+	]) {
+		const guide = readFileSync(join(root, guideDir, "SKILL.md"), "utf8");
+		const path = guide.match(/Copy `([^`]+\/<helper>\.mjs)`/)?.[1];
+		assert.ok(path, guideDir);
+		assert.ok(Buffer.byteLength(guide) <= 44_000, guideDir);
+		for (const helper of [
+			"coverage-gate",
+			"evidence-gate",
+			"evidence-locate",
+			"graph-edges",
+			"key-normalize",
+			"keyed-join",
+			"render-report",
+		]) {
+			const file = `${helper}.mjs`;
+			const actual = join(root, guideDir, path.replace("<helper>", helper));
+			assert.equal(actual, join(root, helperDir, file));
+			assert.deepEqual(
+				readFileSync(actual),
+				readFileSync(join(root, "src/core/helper-library", file)),
+			);
+		}
+	}
 });
 
 test("the adaptation fails loudly when the source skill text changes", () => {

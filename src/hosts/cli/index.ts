@@ -570,20 +570,11 @@ async function dispatch(
 				values: ["--scope"],
 			});
 			const list = parsed.flags.has("--list");
-			const [pattern, first, second, ...extra] = parsed.positionals;
-			// `new helper <helper> <workflow>` adds a verified helper to a bundle; `new helper --list` names them.
-			const isHelper = pattern === "helper";
-			if (
-				extra.length > 0 ||
-				(!isHelper && second !== undefined) ||
-				(list && (isHelper ? first !== undefined : pattern !== undefined))
-			)
+			const [pattern, name, ...extra] = parsed.positionals;
+			if (extra.length > 0 || (list && pattern !== undefined))
 				throw new HostUsageError(
-					isHelper
-						? "Usage: agent-workflow new helper <helper> <workflow> [--scope private|shared|global] [--force] | agent-workflow new helper --list"
-						: "Usage: agent-workflow new <pattern> <name> [--scope private|shared|global] [--force] | agent-workflow new --list",
+					"Usage: agent-workflow new <pattern> <name> [--scope private|shared|global] [--force] | agent-workflow new --list",
 				);
-			const name = isHelper ? second : first;
 			const scope = parsed.values.get("--scope");
 			if (
 				scope !== undefined &&
@@ -596,7 +587,6 @@ async function dispatch(
 				await newAction(ctx, {
 					...(list ? { list: true } : {}),
 					...(pattern === undefined ? {} : { pattern }),
-					...(isHelper && first !== undefined ? { helper: first } : {}),
 					...(name === undefined ? {} : { name }),
 					...(scope === undefined ? {} : { scope }),
 					...(parsed.flags.has("--force") ? { force: true } : {}),

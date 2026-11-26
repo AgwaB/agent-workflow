@@ -24,7 +24,7 @@ const assets = [
 		mode: 0o644,
 		optional: true,
 	})),
-	// Verified helper sources `agent-workflow new helper` copies into a bundle (src/core/helper-library.ts).
+	// Tested helper sources for generated patterns and hand-authored bundles.
 	...(await readdir(join(root, "src/core/helper-library")).catch(() => []))
 		.filter((file) => file.endsWith(".mjs"))
 		.map((file) => ({

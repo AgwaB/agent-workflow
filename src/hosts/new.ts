@@ -7,7 +7,6 @@ import {
 	mkdir,
 	mkdtemp,
 	open,
-	readFile,
 	rename,
 	rm,
 	rmdir,
@@ -21,12 +20,6 @@ import {
 	generatePatternFiles,
 	isAuthoringPattern,
 } from "../core/authoring-patterns.js";
-import {
-	HELPER_LIBRARY,
-	HELPER_LIBRARY_IDS,
-	isHelperLibraryId,
-	readHelperFile,
-} from "../core/helper-library.js";
 import {
 	agentWorkflowHome,
 	PROJECT_STATE_DIRECTORY,
@@ -46,10 +39,7 @@ export const NEW_SCOPES = ["private", "shared", "global"] as const;
 export type NewScope = (typeof NEW_SCOPES)[number];
 
 export interface NewRequest {
-	/** A pattern id, or "helper" with `helper` set: add a helper block to an existing workflow. */
 	pattern?: string;
-	/** With pattern "helper": the helper to add (`new helper --list` names them). */
-	helper?: string;
 	name?: string;
 	scope?: NewScope;
 	force?: boolean;
@@ -77,32 +67,7 @@ export interface NewCreatedData {
 	nextSteps: string[];
 }
 
-export interface NewHelperListData {
-	helpers: Array<{ id: string; description: string; files: string[] }>;
-}
-
-export interface NewHelperData {
-	kind: "helper";
-	helper: string;
-	name: string;
-	scope: NewScope;
-	directory: string;
-	/** Files written, relative to `directory`. */
-	files: string[];
-	/** Dependency files that were already there with the same bytes (left alone). */
-	unchanged: string[];
-	overwritten: string[];
-	/** A support stage that uses the helper (a library helper has none). */
-	stage?: string;
-	notes: string[];
-	nextSteps: string[];
-}
-
-export type NewData =
-	| NewListData
-	| NewCreatedData
-	| NewHelperListData
-	| NewHelperData;
+export type NewData = NewListData | NewCreatedData;
 
 function roots(
 	ctx: HostApiContext,
@@ -269,183 +234,10 @@ export function formatCreated(data: NewCreatedData, cwd: string): string {
 	].join("\n");
 }
 
-export function formatHelperList(data: NewHelperListData): string {
-	const width = Math.max(...data.helpers.map((helper) => helper.id.length));
-	return [
-		"Helpers for `agent-workflow new helper <helper> <workflow>`:",
-		...data.helpers.map(
-			(helper) =>
-				`  ${helper.id.padEnd(width)}  ${helper.description}\n  ${"".padEnd(width)}  files: ${helper.files.map((file) => `helpers/${file}`).join(", ")}`,
-		),
-	].join("\n");
-}
-
-export function formatHelperAdded(data: NewHelperData, cwd: string): string {
-	return [
-		`Added helper "${data.helper}" to workflow "${data.name}" (scope ${data.scope}) in ${toDisplayPath(data.directory, cwd)}:`,
-		...data.files.map(
-			(file) =>
-				`  ${file}${data.overwritten.includes(file) ? " (overwritten)" : ""}`,
-		),
-		...data.unchanged.map((file) => `  ${file} (already there, unchanged)`),
-		...data.notes.map((note) => `Note: ${note}`),
-		"Next:",
-		...data.nextSteps.map((step, index) => `  ${index + 1}. ${step}`),
-	].join("\n");
-}
-
-const HELPER_USAGE =
-	"Usage: agent-workflow new helper <helper> <workflow> [--scope private|shared|global] [--force]  (helpers: agent-workflow new helper --list)";
-
-/**
- * `new helper <helper> <workflow>`: copy a verified helper (src/core/helper-library) into the helpers/
- * directory of an existing workflow bundle. spec.json is never edited. Same refusal rules as the pattern
- * bundles: no symlinks, no overwrite without `force`, all-or-nothing. A dependency file (a library the
- * helper imports) that already holds the same bytes is left alone.
- */
-async function helperAction(
-	ctx: HostApiContext,
-	request: NewRequest,
-): Promise<HostResult<NewData>> {
-	if (request.list === true) {
-		const data: NewHelperListData = {
-			helpers: HELPER_LIBRARY.map((helper) => ({
-				id: helper.id,
-				description: helper.description,
-				files: [...helper.files],
-			})),
-		};
-		return result("new", "success", data, formatHelperList(data));
-	}
-	const { helper, name } = request;
-	if (!helper || !name) throw new HostUsageError(HELPER_USAGE);
-	if (!isHelperLibraryId(helper))
-		throw new HostUsageError(
-			`Unknown helper "${helper}". Helpers: ${HELPER_LIBRARY_IDS.join(", ")}`,
-		);
-	if (!isValidWorkflowName(name))
-		throw new HostUsageError(
-			`Invalid workflow name "${name}": use letters, numbers, dot, underscore and dash, not starting with a dot`,
-		);
-	const scope = request.scope ?? "private";
-	if (!(NEW_SCOPES as readonly string[]).includes(scope))
-		throw new HostUsageError("--scope must be private, shared or global");
-	const entryOfHelper = HELPER_LIBRARY.find(
-		(candidate) => candidate.id === helper,
-	);
-	if (entryOfHelper === undefined) throw new HostUsageError(HELPER_USAGE);
-
-	const all = roots(ctx);
-	const directory = join(all[scope].workflows, name);
-	const dirEntry = await entry(directory);
-	if (dirEntry?.isSymbolicLink())
-		throw new HostUsageError(
-			`${toDisplayPath(directory, ctx.cwd)} is a symlink; refusing to write through it`,
-		);
-	if (dirEntry === undefined || !dirEntry.isDirectory()) {
-		const elsewhere: string[] = [];
-		for (const other of NEW_SCOPES)
-			if (
-				other !== scope &&
-				(await entry(join(all[other].workflows, name)))?.isDirectory() === true
-			)
-				elsewhere.push(other);
-		throw new HostUsageError(
-			dirEntry !== undefined
-				? `${toDisplayPath(directory, ctx.cwd)} exists and is not a directory`
-				: `No workflow "${name}" in scope ${scope} (${toDisplayPath(directory, ctx.cwd)}). Create it first with agent-workflow new <pattern> ${name}${elsewhere.length > 0 ? `, or pass --scope ${elsewhere.join("|")} (a bundle of that name exists there)` : ""}.`,
-		);
-	}
-	const helpersDir = join(directory, "helpers");
-	const helpersEntry = await entry(helpersDir);
-	if (helpersEntry?.isSymbolicLink())
-		throw new HostUsageError(
-			`${toDisplayPath(helpersDir, ctx.cwd)} is a symlink; refusing to write through it`,
-		);
-	if (helpersEntry !== undefined && !helpersEntry.isDirectory())
-		throw new HostUsageError(
-			`${toDisplayPath(helpersDir, ctx.cwd)} exists and is not a directory`,
-		);
-
-	const planned: PlannedFile[] = [];
-	const written: string[] = [];
-	const unchanged: string[] = [];
-	const existing: string[] = [];
-	for (const file of entryOfHelper.files) {
-		const relativePath = `helpers/${file}`;
-		const target = join(helpersDir, file);
-		const content = readHelperFile(file);
-		const found = await entry(target);
-		if (found !== undefined) {
-			if (found.isSymbolicLink() || !found.isFile())
-				throw new HostUsageError(
-					`${toDisplayPath(target, ctx.cwd)} is not a regular file; refusing to overwrite it`,
-				);
-			const isDependency = file !== entryOfHelper.files.at(-1);
-			if (
-				isDependency &&
-				(await readFile(target, "utf8").catch(() => undefined)) === content
-			) {
-				unchanged.push(relativePath);
-				continue;
-			}
-			existing.push(relativePath);
-		}
-		planned.push({ target, content, replace: found !== undefined });
-		written.push(relativePath);
-	}
-	if (existing.length > 0 && request.force !== true)
-		throw new HostUsageError(
-			`Refusing to overwrite existing files in ${toDisplayPath(directory, ctx.cwd)}: ${existing.join(", ")}. Pass --force to replace them.`,
-		);
-	await writeBundle(all[scope].workflows, directory, planned);
-
-	const notes: string[] = [
-		"spec.json was not changed: add the support stage yourself with an output.controlSchema. An open schema (type object, required schema, digest, status) is enough; a closed one must list every key the helper returns (its header lists them).",
-	];
-	const higher: NewScope[] =
-		scope === "private"
-			? ["shared"]
-			: scope === "global"
-				? ["shared", "private"]
-				: [];
-	for (const other of higher)
-		if ((await entry(join(all[other].workflows, name))) !== undefined)
-			notes.push(
-				`${toDisplayPath(join(all[other].workflows, name), ctx.cwd)} (${all[other].label}) has the same name and takes priority over this ${all[scope].label} workflow`,
-			);
-	const data: NewHelperData = {
-		kind: "helper",
-		helper,
-		name,
-		scope,
-		directory,
-		files: written,
-		unchanged,
-		overwritten: existing,
-		...(entryOfHelper.stage === undefined
-			? {}
-			: { stage: entryOfHelper.stage }),
-		notes,
-		nextSteps: [
-			entryOfHelper.stage === undefined
-				? `import it from your own helper: import { locateEvidence } from "./${helper}.mjs" (the header of helpers/${helper}.mjs lists its exports)`
-				: `add a support stage to spec.json, for example ${entryOfHelper.stage}   (options are listed in the header of helpers/${helper}.mjs)`,
-			`agent-workflow validate ${name}   (fix every warning)`,
-			`agent-workflow rehearse ${name}   (wiring with a synthetic worker; no model call)`,
-		],
-	};
-	return result("new", "success", data, formatHelperAdded(data, ctx.cwd));
-}
-
 export async function newAction(
 	ctx: HostApiContext,
 	request: NewRequest,
 ): Promise<HostResult<NewData>> {
-	if (request.pattern === "helper") {
-		assertActionAllowed(ctx, "new");
-		return helperAction(ctx, request);
-	}
 	if (request.list === true) return listAction(ctx);
 	assertActionAllowed(ctx, "new");
 	const usage =

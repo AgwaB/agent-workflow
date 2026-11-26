@@ -86,6 +86,17 @@ export const REFERENCE_WORKFLOWS = Object.freeze([
 	"spec-review",
 ]);
 
+// Copyable helpers for hand-authored bundles, including their sibling imports.
+const REFERENCE_HELPERS = [
+	"coverage-gate.mjs",
+	"evidence-gate.mjs",
+	"evidence-locate.mjs",
+	"graph-edges.mjs",
+	"key-normalize.mjs",
+	"keyed-join.mjs",
+	"render-report.mjs",
+];
+
 const REPOSITORY = "https://github.com/AgwaB/agent-workflow";
 const AUTHOR = Object.freeze({
 	name: "AgwaB",
@@ -565,6 +576,7 @@ export function adaptWorkflowGuide(text, version) {
 		["# Workflow Guide\n\n", `# Workflow Guide\n\n${pluginNote(version)}`],
 		["`../../docs/usage.md`", "`../../reference/docs/usage.md`"],
 		["`../../workflows/", "`../../reference/workflows/"],
+		["`../../dist/core/helper-library/", "`../../reference/helpers/"],
 		[
 			"check the result with `agent-workflow roles <workflow>` (Pi: `/aw roles <workflow>`).",
 			"check the result with `agent-workflow roles <workflow>`.",
@@ -659,7 +671,7 @@ Contents:
   \`.claude-plugin/plugin.json\`, Codex reads \`.codex-plugin/plugin.json\`; each passes its own \`--host\`.
 - Skills: \`agent-workflow\` (tool call protocol), \`aw\` (command fallback), \`workflow-guide\` (authoring workflows),
   \`execution-router\` (choosing a route without running anything).
-- \`reference/\`: copies of the agent-workflow usage guide and bundled workflow specs used by
+- \`reference/\`: the usage guide, bundled workflow specs and copyable helpers used by
   \`workflow-guide\`.
 
 Install:
@@ -740,6 +752,11 @@ export async function renderPluginFiles({
 		"reference/docs/usage.md",
 		referenceDocLinks(await read("docs/usage.md")),
 	);
+	for (const file of REFERENCE_HELPERS)
+		files.set(
+			`reference/helpers/${file}`,
+			await readFile(join(root, "src/core/helper-library", file)),
+		);
 	files.set("reference/workflows/README.md", await read("workflows/README.md"));
 	for (const name of REFERENCE_WORKFLOWS)
 		files.set(
@@ -767,6 +784,10 @@ export function adaptPiWorkflowGuide(text) {
 	return replaceAll(text, file, [
 		["`../../docs/", `\`${PI_SKILL_TO_ROOT}docs/`],
 		["`../../workflows/", `\`${PI_SKILL_TO_ROOT}workflows/`],
+		[
+			"`../../dist/core/helper-library/",
+			`\`${PI_SKILL_TO_ROOT}dist/core/helper-library/`,
+		],
 		["./scaffolds/", `${PI_SKILL_TO_ROOT}skills/workflow-guide/scaffolds/`],
 	]);
 }

@@ -428,7 +428,7 @@ plugins/agent-workflow/
   skills/agent-workflow/
   skills/workflow-guide/
   skills/execution-router/
-  reference/                            Usage guide, workflow guide and bundled specs
+  reference/                            Usage guide, bundled specs and copyable helpers
 ```
 
 The plugin uses two manifests so each host passes its own `--host`. It has no `.mcp.json`, which Claude Code would load as a second server. Codex's compatibility manifest starts the server in the session directory; portable Agent Plugins manifests use the plugin root instead.

@@ -1,5 +1,5 @@
 // evidence-gate.mjs: a support stage that checks every row's cited quote against the project files with
-// evidence-locate.mjs (same folder; `agent-workflow new helper evidence-gate <workflow>` adds both). It looks
+// evidence-locate.mjs (copy both files into the same folder). It looks
 // for the QUOTE, never trusts the model's line numbers, and replaces them with the real range. Deterministic,
 // read-only, no model call.
 //

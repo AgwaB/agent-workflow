@@ -1,4 +1,4 @@
-// The evidence-locate and evidence-gate helpers that `agent-workflow new helper` adds to a bundle. The
+// The evidence-locate and evidence-gate helpers for workflow bundles. The
 // failure cases are the ones novel-briefs-20261124 measured: a model's line numbers off by one must still
 // locate the real quote, a bad row is dropped (not the whole run), and a path never leaves the project.
 import assert from "node:assert/strict";
