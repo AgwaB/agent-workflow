@@ -402,7 +402,15 @@ test("R3-3: a root kept because a worker may still use it says to wait, not that
 	} finally {
 		setRehearsalPsForTests(undefined);
 		setRehearsalSettleWaitForTests(undefined);
+		// The kept root is kept because a worker may still write into it (the point of this test), so the
+		// cleanup does what the message says: wait for the writes to stop (ENOTEMPTY retries) before removing it.
 		for (const path of leftovers)
-			if (path) await rm(path, { recursive: true, force: true });
+			if (path)
+				await rm(path, {
+					recursive: true,
+					force: true,
+					maxRetries: 20,
+					retryDelay: 200,
+				});
 	}
 });
