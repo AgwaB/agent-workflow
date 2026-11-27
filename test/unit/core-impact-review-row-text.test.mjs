@@ -291,6 +291,10 @@ test("impact report language prefers the request, then reader prose, then task s
 		"Review the patch and write the report in Korean.",
 		"# 영향 검토 보고서",
 	);
+	await check(
+		"Do not write the report in English; write the report in Korean.",
+		"# 영향 검토 보고서",
+	);
 	delete sources["impact-analysis.impact-synthesis"];
 	sources["impact-analysis.ship-readiness"].assumptions = [
 		{ text: "검토 범위를 확인했습니다." },

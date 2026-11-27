@@ -225,6 +225,10 @@ test("spec report language prefers the request, then reader prose, then task scr
 	};
 	for (const [runtimeTask, heading] of [
 		["Review the patch and write the report in Korean.", "# 명세 검토 보고서"],
+		[
+			"Do not write the report in English; write the report in Korean.",
+			"# 명세 검토 보고서",
+		],
 		["Review the patch.", "# 명세 검토 보고서"],
 		["검토 후 보고서는 영어로 작성하세요.", "# Spec review report"],
 	]) {
