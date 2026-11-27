@@ -198,3 +198,31 @@ test("deep report language prefers the request, then reader prose, then task scr
 		assert.equal(markdown.split("\n")[0], heading);
 	}
 });
+
+test("deep report ignores forced-English identity when a missing verdict has no reader prose", async () => {
+	const item = {
+		findingId: "finding-001",
+		title: "Shipping threshold is exclusive",
+		claim: "Shipping is charged at the threshold.",
+		verdict: "NEEDS_HUMAN",
+		needsHumanCause: "verifier_missing",
+		note: "no devil-advocate verdict received for this finding",
+	};
+	const sources = {
+		"partition-verdicts.main": {
+			partitions: { keep: [], weaken: [], drop: [], needsHuman: [item] },
+		},
+	};
+	for (const [runtimeTask, heading] of [
+		["이 변경 사항을 검토해 주세요.", "# 심층 검토 보고서"],
+		["Review this change.", "# Deep review report"],
+	]) {
+		const { markdown, verdict } = await render({
+			sources,
+			context: { runtimeTask },
+		});
+		assert.equal(markdown.split("\n")[0], heading);
+		assert.equal(verdict, "PARTIAL_REVIEW");
+		assert.ok(markdown.includes(item.title), "identity remains unchanged");
+	}
+});

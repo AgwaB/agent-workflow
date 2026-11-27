@@ -1766,7 +1766,8 @@ function renderMarkdown({
 		...readerRows.map((row) => row?.readerTitle),
 		...readerRows.map((row) => row?.readerRationale),
 		...readerRows.map((row) => row?.rationale),
-		...readerRows.map((row) => row?.title ?? row?.finding ?? row?.summary),
+		// title, finding and claim are English identity fields, not reader prose.
+		...readerRows.map((row) => row?.summary),
 	);
 	const rendered = renderFindings(sortedFindings, t);
 	const representedIds = rendered.representedIds ?? [];
