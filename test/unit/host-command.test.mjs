@@ -1,7 +1,8 @@
 // test-tier: integration
 // Phase 4: the hook is a deterministic command boundary, not a model or shell interpreter.
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
 import { existsSync } from "node:fs";
 import fs, {
 	mkdir,
@@ -293,8 +294,19 @@ export default async () => {
 			const out = await invoke(host, args);
 			const launched = runId(out);
 			assert.match(out.reason, new RegExp(`hook-alpha.*executor ${id}`));
-			assert.match(out.reason, /You'll get the result here when it finishes\./);
-			assert.doesNotMatch(out.reason, /workflow_wait/);
+			if (host === "claude-code") {
+				assert.match(
+					out.reason,
+					new RegExp(`Wait for the result: workflow_wait .*${launched}`),
+				);
+				assert.doesNotMatch(out.reason, /You'll get the result here/);
+			} else {
+				assert.match(
+					out.reason,
+					/You'll get the result here when it finishes\./,
+				);
+				assert.doesNotMatch(out.reason, /workflow_wait/);
+			}
 			assert.match(
 				out.reason,
 				new RegExp(`project=${projectId(cwd)}&run=${launched}`),
@@ -315,9 +327,7 @@ export default async () => {
 			const record = await readRunRecord(cwd, launched);
 			assert.equal(record.launch.source, `mcp:${host}`);
 			assert.equal(record.launch.entry.kind, "command");
-			await waitUntil(() => existsSync(entered), "detached helper entry", {
-				timeoutMs: 5_000,
-			});
+			await waitUntil(() => existsSync(entered), "detached helper entry");
 			const otherSession = "bbccddee-2233-4455-6677-bbccddeeff00";
 			const duplicate = await invoke(host, args, { session_id: otherSession });
 			assert.equal(runId(duplicate), launched);
@@ -414,11 +424,13 @@ for (const args of [
 	});
 }
 
-for (const args of [
-	"run hook-alpha Review the parser",
-	"auto Do a careful code review of the parser module",
+for (const [args, resumed] of [
+	["run hook-alpha Review the parser", false],
+	["auto Do a careful code review of the parser module", false],
+	["run hook-alpha Review the parser", true],
 ]) {
-	test(`${args}: Codex reports a helper run that settled before binding`, async (t) => {
+	const state = resumed ? "was resumed attached" : "settled";
+	test(`${args}: Codex directs a wait when a helper ${state} before binding`, async (t) => {
 		const { cwd, env, invoke } = await project(t);
 		env.AGENT_WORKFLOW_HOST_WAKE = "1";
 		const dir = join(cwd, "workflows", "hook-alpha");
@@ -428,9 +440,31 @@ for (const args of [
 			{ id: "only", support: { uses: "./helper.mjs" } },
 		];
 		await writeFile(specFile, JSON.stringify(spec));
+		const first = join(cwd, "first-pid");
+		const retry = join(cwd, "retry-pid");
+		const retryRelease = join(cwd, "release-retry");
 		await writeFile(
 			join(dir, "helper.mjs"),
-			"export default () => ({ ok: true });\n",
+			resumed
+				? `
+import { existsSync, watch, writeFileSync } from "node:fs";
+export default async () => {
+	if (process.env.AW_ATTACHED_RETRY !== "1") {
+		writeFileSync(${JSON.stringify(first)}, String(process.pid));
+		throw new Error("fail before binding");
+	}
+	const released = ${JSON.stringify(retryRelease)};
+	await new Promise((done, fail) => {
+		const check = () => { if (existsSync(released)) { watcher.close(); done(); } };
+		const watcher = watch(${JSON.stringify(cwd)}, check);
+		watcher.on("error", fail);
+		writeFileSync(${JSON.stringify(retry)}, String(process.pid));
+		check();
+	});
+	return { ok: true };
+};
+`
+				: "export default () => ({ ok: true });\n",
 		);
 
 		const binding = Promise.withResolvers();
@@ -451,6 +485,7 @@ for (const args of [
 		const calling = invoke("codex", args);
 		let id;
 		let out;
+		let attached;
 		try {
 			id = await Promise.race([
 				binding.promise,
@@ -465,24 +500,63 @@ for (const args of [
 				"supervise.log",
 			);
 			// The supervisor logs done only after the notifier has checked its audience.
-			const deadline = performance.now() + 10_000;
-			let log;
-			do {
-				log = await readFile(logFile, "utf8");
-				if (log.includes(`done: ${id} completed`)) break;
-				assert.ok(performance.now() < deadline, log);
-				await sleep(25);
-			} while (true);
+			const log = await waitUntil(
+				() => readFile(logFile, "utf8"),
+				"original supervisor done",
+				{
+					accepts: (text) =>
+						text.includes(`done: ${id} ${resumed ? "failed" : "completed"}`),
+				},
+			);
 			assert.deepEqual(await runHostSessions(cwd, id), []);
 			assert.doesNotMatch(log, /host wake: codex queue/);
+			if (resumed) {
+				const pid = Number(await readFile(first, "utf8"));
+				await waitUntil(() => {
+					try {
+						process.kill(pid, 0);
+						return false;
+					} catch (error) {
+						if (error.code !== "ESRCH") throw error;
+						return true;
+					}
+				}, "original supervisor exit");
+				const child = spawn(
+					process.execPath,
+					[join(repo, "src/hosts/cli/cli.mjs"), "resume", id],
+					{ cwd, env: { ...env, AW_ATTACHED_RETRY: "1" }, stdio: "ignore" },
+				);
+				attached = once(child, "exit");
+				await Promise.race([
+					waitUntil(() => existsSync(retry), "attached retry helper"),
+					attached.then((exit) =>
+						assert.fail(`attached resume exited early: ${exit}`),
+					),
+				]);
+				assert.equal(Number(await readFile(retry, "utf8")), child.pid);
+				const run = await readRunRecord(cwd, id);
+				assert.equal(run.status, "running");
+				assert.ok(run.tasks.some((task) => task.resumeEvents?.length));
+			}
 		} finally {
 			release.resolve();
-			out = await calling;
-			mock.mock.restore();
-			syncBuiltinESMExports();
+			try {
+				out = await calling;
+			} finally {
+				mock.mock.restore();
+				syncBuiltinESMExports();
+				if (attached) {
+					await writeFile(retryRelease, "");
+					assert.deepEqual(await attached, [0, null]);
+					assert.equal((await readRunRecord(cwd, id)).status, "completed");
+				}
+			}
 		}
 		assert.equal(runId(out), id);
-		assert.match(out.reason, /\(completed; executor/);
+		assert.match(
+			out.reason,
+			resumed ? /\(running; executor/ : /\(completed; executor/,
+		);
 		assert.ok(
 			out.reason.includes(`workflow_wait ${JSON.stringify({ runId: id })}`),
 		);

@@ -22,12 +22,13 @@ import {
 	openInBrowser,
 } from "./dashboard/discovery.js";
 import { hostCommandHints } from "./hints.js";
+import { codexLaunchNotifierCanWake } from "./launch-delivery.js";
 import { hostWakeEnabled } from "./host-wake.js";
 import {
+	hostSessionMonitorAlive,
 	isHostSessionId,
 	isSettledRun,
 	recordRunHostSession,
-	runHostSessions,
 } from "./notify-check.js";
 import { findProjectRoot, runProject } from "./project-root.js";
 import { hostTextRedactor } from "./redaction.js";
@@ -222,30 +223,41 @@ async function launchText(
 	if (data.detachError) return data.detachError;
 	if (!data.runId) return text;
 	// A Claude monitor also follows an existing run requested by this session.
-	if (ctx.host === "claude-code" && isHostSessionId(session))
-		await recordRunHostSession(ctx.cwd, data.runId, session);
+	const claudeLinked =
+		ctx.host === "claude-code" &&
+		isHostSessionId(session) &&
+		(await recordRunHostSession(ctx.cwd, data.runId, session));
 	if (data.duplicateOf) return text;
 	let status = data.status;
 	let next: string | undefined;
 	const notification = "You'll get the result here when it finishes.";
+	const wait = `Wait for the result: ${hostCommandHints(ctx.host).wait(data.runId)}`;
 	if (ctx.host === "codex" && data.detached) {
-		const wait = `Wait for the result: ${hostCommandHints(ctx.host).wait(data.runId)}`;
 		next = wait;
-		if (isHostSessionId(session) && hostWakeEnabled(ctx.env)) {
-			await recordRunHostSession(ctx.cwd, data.runId, session);
-			if ((await runHostSessions(ctx.cwd, data.runId)).includes(session)) {
-				// Settlement can beat binding. Report it without suppressing a supervisor wake.
-				const run = await readRunRecord(ctx.cwd, data.runId).catch(
-					() => undefined,
-				);
-				if (run?.launch?.source === "mcp:codex") {
-					if (isSettledRun(run)) status = run.status;
-					else next = notification;
-				}
-			}
+		if (
+			isHostSessionId(session) &&
+			hostWakeEnabled(ctx.env) &&
+			(await recordRunHostSession(ctx.cwd, data.runId, session))
+		) {
+			// Settlement can beat binding. Report it without suppressing a supervisor wake.
+			const run = await readRunRecord(ctx.cwd, data.runId).catch(
+				() => undefined,
+			);
+			if (run && isSettledRun(run)) status = run.status;
+			else if (codexLaunchNotifierCanWake(run, data.detached.pid))
+				next = notification;
 		}
-	} else if (ctx.host === "claude-code") {
-		next = notification;
+	} else if (
+		ctx.host === "claude-code" &&
+		(status === "running" || data.detached)
+	) {
+		const monitor =
+			claudeLinked &&
+			isHostSessionId(session) &&
+			(await hostSessionMonitorAlive(ctx.cwd, session));
+		const run = await readRunRecord(ctx.cwd, data.runId).catch(() => undefined);
+		if (run && isSettledRun(run)) status = run.status;
+		else next = monitor ? notification : wait;
 	}
 	const dashboard =
 		data.dashboard ??
