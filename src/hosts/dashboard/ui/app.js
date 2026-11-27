@@ -5602,6 +5602,67 @@ const REPORT_STATUS = new Map([
 	["낮음", "neutral"],
 	["Not applicable", "neutral"],
 	["해당 없음", "neutral"],
+	["Review complete", "done"],
+	["검토 완료", "done"],
+	["Ready", "done"],
+	["배포 가능", "done"],
+	["Conforms", "done"],
+	["요구사항 충족", "done"],
+	["Kept", "done"],
+	["유지", "done"],
+	["Consistent", "done"],
+	["일관됨", "done"],
+	["충족", "done"],
+	["Confirmed safe", "done"],
+	["안전 확인", "done"],
+	["Confirmed consistency", "done"],
+	["일관성 확인", "done"],
+	["Risk reducer", "done"],
+	["위험 완화", "done"],
+	["Needs work", "warn"],
+	["수정 필요", "warn"],
+	["Partial review", "warn"],
+	["부분 검토", "warn"],
+	["Weakened", "warn"],
+	["완화", "warn"],
+	["Needs human review", "warn"],
+	["사람 검토 필요", "warn"],
+	["Unclear", "warn"],
+	["불명확", "warn"],
+	["Inconclusive", "warn"],
+	["판단 보류", "warn"],
+	["Non-blocking issue", "warn"],
+	["비차단 문제", "warn"],
+	["Regression risk", "warn"],
+	["회귀 위험", "warn"],
+	["Contract issue", "warn"],
+	["계약 문제", "warn"],
+	["Required before ship", "warn"],
+	["배포 전 필수", "warn"],
+	["Validation", "warn"],
+	["검증", "warn"],
+	["Blocked", "bad"],
+	["차단됨", "bad"],
+	["Gaps found", "bad"],
+	["요구사항 미충족", "bad"],
+	["Critical", "bad"],
+	["치명적", "bad"],
+	["누락", "bad"],
+	["Inconsistent", "bad"],
+	["불일치", "bad"],
+	["Blocking issue", "bad"],
+	["차단 문제", "bad"],
+	["Dropped", "neutral"],
+	["제외", "neutral"],
+	["None", "neutral"],
+	["Unavailable", "neutral"],
+	["자료 없음", "neutral"],
+	["Informational", "neutral"],
+	["정보", "neutral"],
+	["Optional", "neutral"],
+	["선택 사항", "neutral"],
+	["Recommendation", "neutral"],
+	["권고", "neutral"],
 ]);
 function statusBadge(word, report = false) {
 	const raw = word.trim();
@@ -5695,7 +5756,7 @@ function markdownTokens(text, researchReport = false) {
 	const spanText = (token) =>
 		token.kind === "text" &&
 		token.raw.trim() &&
-		(researchReport || !NON_PARAGRAPH_LINE.test(token.raw));
+		(researchReport === true || !NON_PARAGRAPH_LINE.test(token.raw));
 	const spans = [];
 	for (let index = 0; index < blocks.length; ) {
 		if (!spanText(blocks[index])) {
@@ -5706,7 +5767,7 @@ function markdownTokens(text, researchReport = false) {
 		while (
 			index < blocks.length &&
 			spanText(blocks[index]) &&
-			(researchReport || !MARKDOWN_LIST_ITEM.test(blocks[index].raw))
+			(researchReport === true || !MARKDOWN_LIST_ITEM.test(blocks[index].raw))
 		)
 			index++;
 		const raw = blocks
@@ -6403,13 +6464,18 @@ export function parseFinding(segment) {
 		}
 		(block?.tokens ?? head).push(token);
 	}
-	const pick = (name) =>
-		new RegExp(`^${name}:\\s*\\**([A-Za-z\\\\_-]+)\\**`, "m").exec(
-			head
-				.filter((token) => token.kind === "text")
-				.map(({ raw }) => raw)
-				.join("\n"),
-		)?.[1];
+	const pick = (names) =>
+		head
+			.filter((token) => token.kind === "text")
+			.map(({ raw }) => raw.trim())
+			.flatMap((raw) =>
+				names.map((name) =>
+					raw.startsWith(`${name}:`) ? raw.slice(name.length + 1).trim() : "",
+				),
+			)
+			.find(Boolean)
+			?.replace(/^\*\*(.+)\*\*$/, "$1")
+			.replaceAll("\\", "");
 	const locations = (
 		blocks.find((item) => item.label === "Locations")?.tokens ?? []
 	)
@@ -6426,13 +6492,15 @@ export function parseFinding(segment) {
 	return {
 		id: segment.id,
 		title: segment.title,
-		severity: pick("Severity")?.replaceAll("\\", ""),
-		verdict: pick("Verifier verdict")?.replaceAll("\\", ""),
+		severity: pick(["Severity", "심각도"]),
+		verdict: pick(["Verifier verdict", "검증 판정"]),
 		locations,
 		intro: head.filter(
 			(token) =>
 				token.kind !== "text" ||
-				!/^(?:Severity|Verifier verdict|Root cause):/.test(token.raw),
+				!/^(?:Severity|Verifier verdict|Root cause|심각도|검증 판정):/.test(
+					token.raw,
+				),
 		),
 		blocks: blocks.filter((item) => item.label !== "Locations"),
 		raw: [segment.heading, ...segment.tokens]
@@ -6473,9 +6541,29 @@ function verifierInfo(word, ledgerKept) {
 		VERDICTS[key] ?? [key.replace(/_/g, "-"), "pending", verdictWord(word)]
 	);
 }
-function findingCard(finding, ledgerKept, researchReport) {
-	const [severity, , severityWord] = severityInfo(finding.severity);
-	const verifier = verifierInfo(finding.verdict, ledgerKept);
+const REVIEW_SEVERITY_CODES = new Map([
+	["치명적", "critical"],
+	["높음", "high"],
+	["보통", "medium"],
+	["낮음", "low"],
+	["정보", "info"],
+	["알 수 없음", "unknown"],
+]);
+const REVIEW_VERDICT_CODES = new Map([
+	["유지", "keep"],
+	["완화", "weaken"],
+	["제외", "drop"],
+	["Needs human review", "needs_human"],
+	["사람 검토 필요", "needs_human"],
+]);
+function findingCard(finding, ledgerKept, researchReport, action) {
+	const severityCode = REVIEW_SEVERITY_CODES.get(finding.severity);
+	const [severity, , severityWord] = severityInfo(
+		severityCode ?? finding.severity,
+	);
+	const verdictCode = REVIEW_VERDICT_CODES.get(finding.verdict);
+	const verifier = verifierInfo(verdictCode ?? finding.verdict, ledgerKept);
+	const ko = Boolean(severityCode || /[가-힣]/u.test(finding.verdict ?? ""));
 	const title = element("div");
 	renderTextMarkdown(
 		title,
@@ -6543,14 +6631,14 @@ function findingCard(finding, ledgerKept, researchReport) {
 					{ class: `severity-chip ${severity}`, title: finding.severity },
 					// 2026-11-12 (review, P2-10): a dot, so a cross only ever means "failed".
 					element("span", { class: `outline-dot ${severity}` }),
-					severityWord,
+					severityCode ? finding.severity : severityWord,
 				),
 				verifier
 					? element(
 							"span",
 							{ class: `verifier-pill ${verifier[0]}`, title: finding.verdict },
 							glyph(verifier[1]),
-							verifier[2],
+							verdictCode ? finding.verdict : verifier[2],
 						)
 					: null,
 				element("span", { class: "finding-id" }, finding.id),
@@ -6578,24 +6666,70 @@ function findingCard(finding, ledgerKept, researchReport) {
 			element(
 				"div",
 				{ class: "finding-foot" },
-				button("Copy fix prompt", () => copy(finding.raw), {
-					class: "small",
-					"data-copy-finding": finding.id,
-				}),
+				button(
+					ko ? "수정 요청 복사" : "Copy fix prompt",
+					() =>
+						copy(
+							action
+								? `${finding.raw}\n\n${ko ? "권장 조치" : "Recommended action"}: ${action}`
+								: finding.raw,
+						),
+					{
+						class: "small",
+						"data-copy-finding": finding.id,
+					},
+				),
 			),
 		),
 	};
 }
 /** Render the report into `container`; returns its finding cards (none for a plain report). */
+const REVIEW_REPORT_NAMES = new Set([
+	"deep-review",
+	"impact-review",
+	"spec-review",
+]);
+const REVIEW_TRUST = /^(?:Evidence: |근거: ).+ · .+ · /;
+function readerReportMode(runName, text) {
+	if (
+		runName === "deep-research" ||
+		runName === "deep-research-tiered-verification-opt-in"
+	)
+		return true;
+	// Historical review Markdown has no reader trust strip; keep its literal folds and cards.
+	const trustLine = text.split(/\r?\n/, 3)[2] ?? "";
+	return REVIEW_REPORT_NAMES.has(runName) && REVIEW_TRUST.test(trustLine)
+		? "review"
+		: false;
+}
 function renderReport(container, text, researchReport) {
 	const ledgerKept = /kept or weakened findings/i.test(text);
 	const found = [];
-	for (const segment of splitReport(text, researchReport)) {
+	const segments = splitReport(text, researchReport);
+	const reviewActions = new Map();
+	if (researchReport === "review") {
+		// Never take a fix instruction from a fenced quote or an appendix disclosure.
+		for (const segment of segments) {
+			if (segment.kind !== "markdown") continue;
+			for (const token of segment.tokens) {
+				if (token.kind !== "text") continue;
+				const action = /^1\. \*\*(finding-\d+)\*\* — (.+)$/.exec(token.raw);
+				if (action && !reviewActions.has(action[1]))
+					reviewActions.set(action[1], action[2]);
+			}
+		}
+	}
+	for (const segment of segments) {
 		const finding = segment.kind === "finding" ? parseFinding(segment) : null;
 		// A finding heading without its own "Severity:" line (another workflow's report) is not a
 		// card: it stays Markdown, as written.
 		if (finding?.severity) {
-			const built = findingCard(finding, ledgerKept, researchReport);
+			const built = findingCard(
+				finding,
+				ledgerKept,
+				researchReport,
+				reviewActions.get(finding.id),
+			);
 			found.push(built);
 			container.append(built.card);
 		} else
@@ -6612,7 +6746,8 @@ function renderReport(container, text, researchReport) {
 		researchReport &&
 		first?.matches(".md-h1") &&
 		trust?.matches("p") &&
-		/^(?:Claims: |주장 ).+ · .+ · /.test(trust.textContent)
+		(/^(?:Claims: |주장 ).+ · .+ · /.test(trust.textContent) ||
+			(researchReport === "review" && REVIEW_TRUST.test(trust.textContent)))
 	)
 		trust.classList.add("md-trust");
 	reportBlocks(container);
@@ -7078,9 +7213,7 @@ function renderReportPage() {
 			loaded = data.text;
 			copyButton.disabled = false;
 			// Only the run metadata opts into research report structure, never report text.
-			const researchReport =
-				run.name === "deep-research" ||
-				run.name === "deep-research-tiered-verification-opt-in";
+			const researchReport = readerReportMode(run.name, data.text);
 			const found = renderReport(content, data.text, researchReport);
 			const filters = findingFilters(content, found, empty);
 			if (filters) chips.replaceChildren(filters);

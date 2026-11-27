@@ -1,0 +1,96 @@
+// Canonical report Markdown helpers. Run tools/release/sync-report-markdown.mjs after edits.
+
+export function cleanText(value) {
+	return String(value ?? "")
+		.replace(/\s+/g, " ")
+		// Only before punctuation that ends a word: ".agent-workflow/…", " .env" keep their space (2026-11-04).
+		.replace(/\s+([,.;:!?])(?=\s|$)/g, "$1")
+		.trim();
+}
+
+// Serialize data, never structure. Quote line breaks and tabs are made visible as JSON escapes.
+
+export function escapeMarkdownText(value, { quote = false } = {}) {
+	const text = quote ? JSON.stringify(value) : cleanText(value);
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/([\\`*_[\]{}#+!|])/g, "\\$1")
+		.replace(/^([-~=])(?=\s|[-~=]|$)/u, "\\$1")
+		.replace(/^(\d{1,9})([.)])(?=\s|$)/u, "$1\\$2")
+		// Hide GFM's autolink delimiters in the Markdown source, not the rendered text.
+		.replace(/:(?=\/\/)/g, "&#58;")
+		.replace(/(www)\./gi, "$1&#46;")
+		.replace(/@/g, "&#64;");
+}
+
+export function validHttpUrl(text) {
+	if (!/^https?:\/\/[^/?#]/i.test(text) || /[\x00-\x20\x7f-\x9f\\]/u.test(text)) return null;
+	try {
+		const parsed = new URL(text);
+		if (!parsed.hostname || parsed.username || parsed.password) return null;
+		// Use URL only for validation: its serialization changes request targets.
+		return text;
+	} catch {
+		return null;
+	}
+}
+
+export function sentences(text) {
+	const ko = /[가-힣]/u.test(text);
+	return [...new Intl.Segmenter(ko ? "ko" : "en", { granularity: "sentence" }).segment(text)]
+		.map(({ segment }) => segment.trim()).filter(Boolean);
+}
+
+export function fold(title, body, indent = "") {
+	return ["<details>", `<summary>${title}</summary>`, "", ...body, "", "</details>"].map(
+		(line) => line ? `${indent}${line}` : "",
+	);
+}
+
+export function reportLocale(...prose) {
+	// Prefer the first informative field (usually the model's narrative, not machine keys).
+	const text = prose.find((value) => typeof value === "string" && /\p{L}/u.test(value)) ?? "";
+	const hangul = text.match(/[가-힣]/gu)?.length ?? 0;
+	const latin = text.match(/[A-Za-z]/g)?.length ?? 0;
+	return (en, ko) => hangul > 0 && hangul * 3 >= latin ? ko : en;
+}
+
+export function shortNarrative(value, max = 180) {
+	const parts = sentences(cleanText(value));
+	if (!parts.length || parts.length > 2 || parts.some((part) => part.length > max)) return [];
+	return parts.flatMap((part) => [escapeMarkdownText(part), ""]);
+}
+
+export function reportSection(level, title, body) {
+	return body.length ? [`${"#".repeat(level)} ${title}`, "", ...body, ""] : [];
+}
+
+export function reportActions(title, rows) {
+	return reportSection(2, title, rows.filter(({ value }) => cleanText(value)).map(({ label, value }) =>
+		`1. **${escapeMarkdownText(label)}** — ${escapeMarkdownText(value)}`,
+	));
+}
+
+export function reportStatus(value, t) {
+	const statuses = {
+		REVIEW_COMPLETE: ["Review complete", "검토 완료"], NEEDS_WORK: ["Needs work", "수정 필요"],
+		PARTIAL_REVIEW: ["Partial review", "부분 검토"], READY: ["Ready", "배포 가능"],
+		BLOCKED: ["Blocked", "차단됨"], UNKNOWN: ["Unknown", "알 수 없음"],
+		CONFORMS: ["Conforms", "요구사항 충족"], GAPS_FOUND: ["Gaps found", "요구사항 미충족"],
+		INCONCLUSIVE: ["Inconclusive", "판단 보류"], KEEP: ["Kept", "유지"],
+		WEAKEN: ["Weakened", "완화"], DROP: ["Dropped", "제외"],
+		NEEDS_HUMAN: ["Needs human review", "사람 검토 필요"], CRITICAL: ["Critical", "치명적"],
+		HIGH: ["High", "높음"], MEDIUM: ["Medium", "보통"], LOW: ["Low", "낮음"],
+		NONE: ["None", "없음"], INFO: ["Informational", "정보"], COVERED: ["Covered", "충족"], UNCLEAR: ["Unclear", "불명확"],
+		MISSING: ["Missing", "누락"], CONSISTENT: ["Consistent", "일관됨"],
+		INCONSISTENT: ["Inconsistent", "불일치"], NOT_APPLICABLE: ["Not applicable", "해당 없음"],
+		PASS: ["Pass", "통과"], WARN: ["Warning", "주의"], FAIL: ["Fail", "실패"],
+		SKIPPED: ["Skipped", "건너뜀"], PARTIAL: ["Partial", "일부"], COMPLETE: ["Complete", "완료"],
+		COMPLETED: ["Completed", "완료"], FAILED: ["Failed", "실패"], UNAVAILABLE: ["Unavailable", "자료 없음"],
+	};
+	const text = cleanText(value);
+	const key = text.toUpperCase().replace(/[ -]/g, "_");
+	return Object.hasOwn(statuses, key) ? t(...statuses[key]) : text;
+}

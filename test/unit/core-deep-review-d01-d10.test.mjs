@@ -531,7 +531,7 @@ test("D07 preserves escaped synthesis risks/actions and finding rationale", asyn
 	assert.match(r.markdown, /RISK\\_SENTINEL/u);
 	assert.match(r.markdown, /ACTION\\_SENTINEL/u);
 	assert.match(r.markdown, /Rationale:\n\nRationale narrative/u);
-	assert.match(r.markdown, /Recommended action:\n\nAction narrative/u);
+	assert.match(r.markdown, /1\. \*\*narrative\*\* — Action narrative/u);
 });
 
 test("D08 escapes source-gap output while evidence remains fenced", async (t) => {

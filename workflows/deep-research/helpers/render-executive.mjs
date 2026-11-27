@@ -1,3 +1,4 @@
+import { cleanText, escapeMarkdownText, validHttpUrl, sentences, fold } from "./report-markdown.mjs";
 import { validateSynthesisPages } from "./synthesis-pages.mjs";
 
 // Deterministic evidence-backed renderer for deep-research.
@@ -68,14 +69,6 @@ function countWords(text) {
 	return words(text).length;
 }
 
-function cleanText(value) {
-	return String(value ?? "")
-		.replace(/\s+/g, " ")
-		// Only before punctuation that ends a word: ".agent-workflow/…", " .env" keep their space (2026-11-04).
-		.replace(/\s+([,.;:!?])(?=\s|$)/g, "$1")
-		.trim();
-}
-
 /**
  * 2026-11-23: a claim the sanitizer rewrote to its source quote is often a Markdown table row
  * ("Node.js — v26 | Lithium | May 05, 2026 | Nov 10, 2026 | LTS"); shown as a heading or list item the pipes
@@ -91,23 +84,6 @@ function readableClaimText(value) {
 		.filter((cell) => cell && !/^:?-{2,}:?$/.test(cell));
 	if (cells.length < 2 || /\|\|/.test(text)) return text;
 	return cells.join(" · ");
-}
-
-// Serialize data, never report structure. Preserve quote whitespace using JSON notation
-// for line breaks/tabs (no raw line can become a Markdown block).
-function escapeMarkdownText(value, { quote = false } = {}) {
-	const text = quote ? JSON.stringify(value) : cleanText(value);
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/([\\`*_[\]{}#+!|])/g, "\\$1")
-		.replace(/^([-~=])(?=\s|[-~=]|$)/u, "\\$1")
-		.replace(/^(\d{1,9})([.)])(?=\s|$)/u, "$1\\$2")
-		// Hide GFM's autolink delimiters in the Markdown source, not the rendered text.
-		.replace(/:(?=\/\/)/g, "&#58;")
-		.replace(/(www)\./gi, "$1&#46;")
-		.replace(/@/g, "&#64;");
 }
 
 function completionText(value) {
@@ -185,18 +161,6 @@ function hostOf(url) {
 		return new URL(url).host.replace(/^www\./, "");
 	} catch {
 		return "source";
-	}
-}
-
-function validHttpUrl(text) {
-	if (!/^https?:\/\/[^/?#]/i.test(text) || /[\x00-\x20\x7f-\x9f\\]/u.test(text)) return null;
-	try {
-		const parsed = new URL(text);
-		if (!parsed.hostname || parsed.username || parsed.password) return null;
-		// Use URL only for validation: its serialization changes request targets.
-		return text;
-	} catch {
-		return null;
 	}
 }
 
@@ -2016,12 +1980,6 @@ function statusLabel(status, ko) {
 		escapeMarkdownText(status);
 }
 
-function sentences(text) {
-	const ko = /[가-힣]/u.test(text);
-	return [...new Intl.Segmenter(ko ? "ko" : "en", { granularity: "sentence" }).segment(text)]
-		.map(({ segment }) => segment.trim()).filter(Boolean);
-}
-
 function conclusionLines(report, fallback, format) {
 	return (report.conclusion ?? sentences(summaryText(report, fallback))).flatMap((line) => [format(line), ""]);
 }
@@ -2031,12 +1989,6 @@ function renderKeyPoints(report, ko, format, level) {
 		`${level} ${ko ? "핵심 포인트" : "Key points"}`, "",
 		...report.keyPoints.map(({ title, text }) => `- **${format(title)}** — ${format(text)}`), "",
 	] : [];
-}
-
-function fold(title, body, indent = "") {
-	return ["<details>", `<summary>${title}</summary>`, "", ...body, "", "</details>"].map(
-		(line) => line ? `${indent}${line}` : "",
-	);
 }
 
 function renderEvidenceStrength(report, ko) {

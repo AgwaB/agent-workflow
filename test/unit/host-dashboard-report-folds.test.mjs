@@ -381,3 +381,97 @@ test("the dashboard decodes angle-delimited links with reserved path and query c
 	);
 	assert.equal(target, " (https://example.org/file(a)?sig=(XYZ)&x=&amp;#line)");
 });
+
+test("trusted review reports share collapsed folds and chips without losing deep-review cards", {
+	timeout: 50000,
+}, async (t) => {
+	const names = [
+		"deep-review",
+		"impact-review",
+		"spec-review",
+		"other-workflow",
+	];
+	const snapshots = names.map((name, index) => ({
+		...runFixture,
+		name,
+		runId: `workflow_mvt23704_20000${index}`,
+	}));
+	const server = await createFixtureServer({ snapshots, readonly: true });
+	t.after(() => server.close());
+	const browser = await createBrowser(await findChrome());
+	t.after(() => browser.close());
+	for (const snapshot of snapshots) {
+		const card = snapshot.name === "deep-review";
+		const trusted = snapshot.name !== "other-workflow";
+		server.reports.set(
+			snapshot.runId,
+			[
+				"# 검토 보고서",
+				"",
+				"근거: 항목 1건 · 출처 1곳 · 검토 완료",
+				"",
+				"## 결론",
+				"",
+				"판정: **수정 필요**.",
+				"",
+				"## 발견 사항",
+				"",
+				...(card
+					? [
+							"### finding-001 — 경계값 불일치",
+							"",
+							"심각도: **높음**",
+							"검증 판정: **유지**",
+						]
+					: ["### **회귀 위험** — 경계값 불일치"]),
+				"",
+				"<details>",
+				"<summary>근거 보기</summary>",
+				"",
+				"&lt;details&gt; \\[unsafe\\](javascript:fake) ftp&#58;//example.org",
+				"",
+				"```text",
+				"<details>",
+				"<summary>Not a fold</summary>",
+				"</details>",
+				"```",
+				"",
+				"</details>",
+				"",
+				"## 부록",
+				"",
+				"<details>",
+				"<summary>검토 기록</summary>",
+				"",
+				"출처 1곳",
+				"",
+				"</details>",
+			].join("\n"),
+		);
+		await browser.open(`${server.origin}/?run=${snapshot.runId}&view=report`);
+		await browser.waitFor(() =>
+			document
+				.querySelector(".report-content")
+				?.textContent.includes("경계값 불일치"),
+		);
+		const dom = await browser.evaluate(() => {
+			const root = document.querySelector(".report-content");
+			return {
+				trust: root.querySelectorAll(".md-trust").length,
+				folds: root.querySelectorAll("details:not([open])").length,
+				unsafe: root.querySelectorAll(
+					"a[href^='javascript:'], a[href^='ftp:'], script, [onclick]",
+				).length,
+				severity: root.querySelector(".finding-card")?.dataset.severity,
+				verdict: root.querySelector(".finding-card")?.dataset.verdict,
+				chip: root.querySelector(".md-status-chip")?.textContent,
+			};
+		});
+		assert.equal(dom.trust, Number(trusted), snapshot.name);
+		assert.equal(dom.folds, trusted ? 2 : 0, snapshot.name);
+		assert.equal(dom.unsafe, 0, snapshot.name);
+		assert.equal(dom.severity, card ? "high" : undefined);
+		assert.equal(dom.verdict, card ? "kept" : undefined);
+		assert.equal(dom.chip, trusted ? "수정 필요" : undefined);
+	}
+});

@@ -337,7 +337,7 @@ test("deep-review verifies exact read/OCR coverage and fails partial rendering c
 		mutate(invalid);
 		assert.equal(validateJsonSchema(invalid, renderSchema).valid, false);
 	}
-	assert.match(output.markdown, /Verdict: \*\*PARTIAL_REVIEW\*\*/u);
+	assert.match(output.markdown, /Verdict: \*\*Partial review\*\*/u);
 	assert.match(output.markdown, /Required source coverage gaps/u);
 	assert.match(output.markdown, /image-only\.pdf/u);
 	assert.match(output.markdown, /unreadable/u);
