@@ -26,7 +26,6 @@ import { agentWorkflowHome } from "../../core/home-dir.js";
 import { startDashboardServer } from "../dashboard/server.js";
 import { addWorkflowInputAssignment } from "../args.js";
 import { cliLaunchCommand } from "../launch-capture.js";
-import { terminalText } from "../terminal-markdown.js";
 import { createInterface } from "node:readline";
 
 import {
@@ -380,6 +379,11 @@ function launchOptionsFromArgs(parsed: ParsedArgs): CliLaunchOptions {
 		totalTimeoutMs,
 		open: parsed.flags.has("--open"),
 	};
+}
+
+/** Human output only: keep line feeds and tabs, not terminal control codes. */
+function terminalText(text: string): string {
+	return text.replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "");
 }
 
 /** After a launch: print it and, unless detached, wait in the foreground until it settles. */
@@ -1211,7 +1215,6 @@ export async function runAgentWorkflowCli(
 			cwd: io.cwd,
 			env: io.env,
 			host: "cli",
-			plainTextCompletion: !json,
 			// WP29: only a terminal can answer; detached launches/resumes never ask (host API).
 		};
 		// notices prints its own JSON form (`notices list --json`).

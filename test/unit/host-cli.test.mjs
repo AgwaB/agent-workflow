@@ -574,18 +574,7 @@ test("test-executor hook: guarded by an explicit ack, an absolute path and a tes
 
 test("terminal completion strips controls without changing JSON or the stored summary", async () => {
 	const cwd = await project();
-	const summary = [
-		"## Important limitations",
-		"",
-		String.raw`- finding-001 (REQ-001): total이 50,000일 때 \`total \&gt; 50000\` 조건이 거짓입니다.`,
-		"- Real &gt; and literal &amp;gt;; `A&B &gt;` and [guide](<https://example.com/a(b)?x=1&amp;y=2>).",
-		"- Phase 1: &lt;파일&gt;; encoded controls &#27;&#x9b; stay out.",
-		"- Controls \x1b\x07\x08\r\x7f\x9b end.",
-		"- Hebrew עברית: raw \u202e and encoded &#x2067;end&#8297;.",
-		"- [x] Confirmed",
-		"- [ ] Check ~~obsolete advice~~",
-		"- ![](https://example.com/evidence.png) and ![diagram](https://example.com/diagram.png)",
-	].join("\n");
+	const summary = "First line\nSecond\tline\x1b\x07\x08\r\x7f\x9b end.";
 	const id = fixture({
 		controlSequence: {
 			"task-1": [
@@ -610,37 +599,8 @@ test("terminal completion strips controls without changing JSON or the stored su
 	const humanWait = await runCli(cwd, ["wait", runId]);
 	for (const result of [foreground, humanWait]) {
 		assert.equal(result.code, 0, result.err());
-		assert.match(
-			result.out(),
-			/- finding-001 \(REQ-001\): total이 50,000일 때 `total &gt; 50000` 조건이 거짓입니다\./u,
-		);
-		assert.match(
-			result.out(),
-			/Real > and literal &gt;; A&B &gt; and guide \(https:\/\/example\.com\/a\(b\)\?x=1&y=2\)\./u,
-		);
-		assert.match(
-			result.out(),
-			/Phase 1: <파일>; encoded controls  stay out\./u,
-		);
-		assert.doesNotMatch(
-			result.out(),
-			/[\x07\x08\r\x1b\x7f\x9b\u202e\u2067\u2069]/u,
-		);
-		assert.ok(
-			result
-				.out()
-				.includes(
-					String.raw`Hebrew עברית: raw \u202E and encoded \u2067end\u2069.`,
-				),
-		);
-		assert.match(
-			result.out(),
-			/- \[x\] Confirmed\n- \[ \] Check ~~obsolete advice~~/u,
-		);
-		assert.match(
-			result.out(),
-			/\[image\] \(https:\/\/example\.com\/evidence\.png\) and \[image: diagram\] \(https:\/\/example\.com\/diagram\.png\)/u,
-		);
+		assert.match(result.out(), /First line\nSecond\tline/);
+		assert.doesNotMatch(result.out(), /[\x07\x08\r\x1b\x7f\x9b]/u);
 	}
 	const machine = await runCli(cwd, ["wait", runId, "--json"]);
 	assert.ok(

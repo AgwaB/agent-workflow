@@ -1,7 +1,6 @@
 // Present a verdict-gate failure only with a non-empty domain verdict and an existing
 // final-report artifact inside the run directory; a generic support failure stays a failure.
 import { realpath, readFile, open } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import {
 	dirname,
 	isAbsolute as isAbsolutePath,
@@ -13,7 +12,6 @@ import {
 
 import { fromStatePath, toStatePath, workflowRunDir } from "../core/store.js";
 import type { WorkflowRunRecord } from "../core/types.js";
-import { completionPlainText, terminalText } from "./terminal-markdown.js";
 import { projectArtifactRoot } from "./run-files.js";
 
 export interface WorkflowResultArtifact {
@@ -24,9 +22,6 @@ export interface WorkflowResultArtifact {
 
 export interface WorkflowResultPresentation {
 	preview?: string;
-	completionMarkdown?: true;
-	terminalCompletionMarkdown?: string;
-	legacyGtEscape?: true;
 	artifacts: WorkflowResultArtifact[];
 	/**
 	 * WP18b: the workflow's domain verdict, `verdict` of the output task's control (for example
@@ -270,49 +265,16 @@ async function collectWorkflowResultArtifacts(
 export function formatWorkflowResultPresentation(
 	preview: string,
 	artifacts: readonly WorkflowResultArtifact[],
-	plainText = false,
 ): string {
 	if (artifacts.length === 0) return preview;
 	return [
 		preview,
-		plainText ? "Detailed reports" : "## Detailed reports",
+		"## Detailed reports",
 		artifacts
-			.map(
-				(artifact) =>
-					`- ${artifact.label}: ${plainText ? terminalText(artifact.path) : `\`${artifact.path}\``}`,
-			)
+			.map((artifact) => `- ${artifact.label}: \`${artifact.path}\``)
 			.join("\n"),
 	].join("\n\n");
 }
-
-export function formatHumanWorkflowResult(
-	presentation: WorkflowResultPresentation,
-	plainText = false,
-): string {
-	const preview = presentation.preview ?? "";
-	return formatWorkflowResultPresentation(
-		plainText && presentation.completionMarkdown
-			? completionPlainText(
-					presentation.terminalCompletionMarkdown ?? preview,
-					presentation.legacyGtEscape,
-				)
-			: preview,
-		presentation.artifacts,
-		plainText,
-	);
-}
-
-const deepResearchSpecPath = fileURLToPath(
-	new URL("../../workflows/deep-research/spec.json", import.meta.url),
-);
-
-const legacyGtProducers = new Set(
-	["spec-review", "impact-review"].map((name) =>
-		fileURLToPath(
-			new URL(`../../workflows/${name}/spec.json`, import.meta.url),
-		),
-	),
-);
 
 /**
  * Bounded authoritative-result preview of a terminal run (first completed output task; WP18b: else
@@ -415,36 +377,8 @@ export async function readWorkflowResultPresentation(
 	if (
 		completionSummaryMarkdown !== undefined &&
 		completionSummaryMarkdown.trim() !== ""
-	) {
-		const producer =
-			task.kind === "support" && task.specId === "final.main"
-				? resolvePath(run.cwd, run.specPath)
-				: "";
-		const result: WorkflowResultPresentation = {
-			...presentation(completionSummaryMarkdown, true),
-			completionMarkdown: true,
-			// Only these bundled renderers use the legacy backslash-before-entity spelling.
-			...(legacyGtProducers.has(producer) ? { legacyGtEscape: true } : {}),
-		};
-		const warnings = control?.sourceAttributionWarnings;
-		if (
-			producer === deepResearchSpecPath &&
-			Array.isArray(warnings) &&
-			warnings.length
-		) {
-			const { terminalAttributionMarkdown } = await import(
-				new URL(
-					"../../workflows/deep-research/helpers/render-executive.mjs",
-					import.meta.url,
-				).href
-			);
-			result.terminalCompletionMarkdown = terminalAttributionMarkdown(
-				completionSummaryMarkdown,
-				warnings,
-			);
-		}
-		return result;
-	}
+	)
+		return presentation(completionSummaryMarkdown, true);
 
 	if (isDirectDynamicSynthesisTask(run, task)) {
 		// Direct dynamic workers have protocol output in raw.md/output.log. Only

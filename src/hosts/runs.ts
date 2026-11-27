@@ -103,13 +103,12 @@ import {
 import { resolveContainedRunFile } from "./run-files.js";
 import {
 	formatVerdictGateHeadline,
-	formatHumanWorkflowResult,
+	formatWorkflowResultPresentation,
 	isResultOnlyWorkflowSuccess,
 	readWorkflowResultPresentation,
 	type WorkflowResultArtifact,
 	type WorkflowResultPresentation,
 } from "./result-presentation.js";
-import { terminalText } from "./terminal-markdown.js";
 import {
 	type RunDashboardLink,
 	runDashboardLink,
@@ -821,18 +820,12 @@ export async function waitAction(
 		if (providerPause) text += `\n${providerPause}; no progress before then.`;
 	} else if (
 		terminal.terminal &&
-		presentation &&
 		preview &&
 		isResultOnlyWorkflowSuccess(terminal.semanticStatus, preview)
 	) {
-		text = formatHumanWorkflowResult(presentation, ctx.plainTextCompletion);
+		text = formatWorkflowResultPresentation(preview, artifacts);
 	} else if (presentation?.verdictGate) {
-		text = formatVerdictGateText(
-			run,
-			presentation,
-			hints,
-			ctx.plainTextCompletion,
-		);
+		text = formatVerdictGateText(run, presentation, hints);
 	} else {
 		text = [
 			terminal.terminal
@@ -846,8 +839,8 @@ export async function waitAction(
 			`Output retries: ${terminal.outputRetryAttempts}; launch retries: ${terminal.launchRetryAttempts}`,
 			`Artifacts: ${data.artifactRoot}`,
 			terminal.terminal
-				? preview && presentation
-					? `Final result preview:\n${formatHumanWorkflowResult(presentation, ctx.plainTextCompletion)}`
+				? preview
+					? `Final result preview:\n${formatWorkflowResultPresentation(preview, artifacts)}`
 					: "Final result preview: unavailable"
 				: `Blocked tasks: ${blockedTaskIds.join(", ") || "unknown"}; inspect with: ${hints.inspectFailures(run.runId)}; resume with: ${hints.resume(run.runId)}`,
 		].join("\n");
@@ -863,7 +856,7 @@ export async function waitAction(
 		"wait",
 		stillRunning ? "running" : outcomeForRunStatus(run.status),
 		data,
-		redact(ctx.plainTextCompletion ? terminalText(text) : text),
+		redact(text),
 	);
 }
 
@@ -875,7 +868,6 @@ function formatVerdictGateText(
 	run: WorkflowRunRecord,
 	presentation: WorkflowResultPresentation,
 	hints: WorkflowCommandHints,
-	plainText = false,
 ): string {
 	return [
 		`Workflow ${formatVerdictGateHeadline(presentation)}: ${run.name ?? "workflow"}`,
@@ -883,12 +875,12 @@ function formatVerdictGateText(
 		`Run status: ${run.status} (only the final verdict gate did not pass; every other task completed)`,
 		"",
 		presentation.preview
-			? formatHumanWorkflowResult(presentation, plainText)
+			? formatWorkflowResultPresentation(
+					presentation.preview,
+					presentation.artifacts,
+				)
 			: presentation.artifacts
-					.map(
-						(artifact) =>
-							`- ${artifact.label}: ${plainText ? artifact.path : `\`${artifact.path}\``}`,
-					)
+					.map((artifact) => `- ${artifact.label}: \`${artifact.path}\``)
 					.join("\n"),
 		"",
 		`Open: ${hints.status(run.runId)}`,
