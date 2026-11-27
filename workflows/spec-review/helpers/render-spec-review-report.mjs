@@ -21,7 +21,7 @@ const REPORT_VERDICTS = new Set([
 ]);
 
 import {
-	escapeMarkdownText, fold, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
+	escapeMarkdownText, escapeTableCell, fold, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
 } from "./report-markdown.mjs";
 
 function findSource(sources, stageId) {
@@ -56,7 +56,7 @@ function cleanText(value) {
 function safeInline(value) {
 	return cleanText(value)
 		.replace(/\\/g, "\\\\")
-		.replace(/([`*_[\]{}#+|>])/g, "\\$1")
+		.replace(/([`*_[\]{}#+|])/g, "\\$1")
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
 		.replace(/>/g, "&gt;");
@@ -536,9 +536,15 @@ function renderFindingRows(rows, prefix, t) {
 		const row = input ?? {};
 		const id = rowIdentity(row, prefix, index);
 		const title = rowTitle(row, row.reason ?? row.message ?? t("Untitled finding", "제목 없는 발견"));
-		const disposition = row.verdict ?? { "needs-human": "NEEDS_HUMAN", dropped: "DROP" }[prefix] ?? "unknown";
+		const bucket = { "needs-human": "NEEDS_HUMAN", dropped: "DROP" }[prefix];
+		const disposition = bucket ?? row.verdict ?? "unknown";
+		const historical = bucket ? [...new Set([row.originalVerdict, row.verdict].filter((value) => value && value !== bucket))] : [];
 		const claim = row.claim ?? row.reason ?? row.message;
 		const body = [
+			...(historical.length ? [`- ${t("Historical verifier verdict", "이전 검증 판정")}: ${historical.map(status).join(" · ")}`] : []),
+			...(row.finalClaim ? [`- ${t("Final claim", "최종 주장")}: ${escapeMarkdownText(row.finalClaim)}`] : []),
+			...(row.origin ? [`- ${t("Origin", "발생 경위")}: ${escapeMarkdownText(isRecord(row.origin) ? stableStringify(row.origin) : row.origin)}`] : []),
+			...(row.evidenceStatus ? [`- ${t("Evidence status", "근거 상태")}: ${status(row.evidenceStatus)}`] : []),
 			...(claim && claim !== title ? [`- ${t("Claim", "주장")}: ${escapeMarkdownText(claim)}`] : []),
 			...(row.reason && row.reason !== claim && row.reason !== title ? [`- ${t("Reason", "이유")}: ${escapeMarkdownText(row.reason)}`] : []),
 			...(row.source ? [`- ${t("Source", "출처")}: ${escapeMarkdownText(row.source)}`] : []),
@@ -558,18 +564,29 @@ function renderFindingRows(rows, prefix, t) {
 	});
 }
 
-function renderRequirementCoverage(rows, t) {
+function renderRequirementCoverage(rows, gateRows, t) {
 	if (!rows.length) return [];
-	const status = (value) => escapeMarkdownText(reportStatus(value ?? "unknown", t));
+	const status = (value) => escapeTableCell(reportStatus(value ?? "unknown", t));
 	const cells = (input) => {
 		const row = input ?? {};
 		const reason = row.reason ?? row.note ?? row.summary ?? "";
 		const recheck = isRecord(row.recheck) ? row.recheck : null;
-		const checked = recheck ? `${t("Re-checked", "재확인")}: ${status(recheck.from ?? row.status)} → ${status(recheck.status)}${recheck.reason ? ` — ${escapeMarkdownText(recheck.reason)}` : ""}` : "";
-		return `| ${escapeMarkdownText(row.requirementId ?? row.id ?? "unknown")} | ${status(row.status)} | ${[escapeMarkdownText(reason), checked].filter(Boolean).join(" · ")} |`;
+		const checked = recheck ? `${t("Re-checked", "재확인")}: ${status(recheck.from ?? row.status)} → ${status(recheck.status)}${recheck.reason ? ` — ${escapeTableCell(recheck.reason)}` : ""}` : "";
+		return `| ${escapeTableCell(row.requirementId ?? row.id ?? "unknown")} | ${status(row.status)} | ${[escapeTableCell(reason), checked].filter(Boolean).join(" · ")} |`;
 	};
 	return reportSection(3, t("Requirement coverage", "요구사항 검토 범위"), [
 		t("| Requirement | Status | Notes |", "| 요구사항 | 상태 | 메모 |"), "|---|---|---|", ...rows.map(cells),
+		"",
+		...rows.flatMap((row, index) => {
+			const recorded = asArray(gateRows).find((check) => check?.index === index && check.id === row?.requirementId);
+			// The byte audit already carries checked citations. Legacy locators never count as proof.
+			const evidence = asArray(row?.evidence).filter((citation) =>
+				!asArray(recorded?.rows).some(({ citation: audited }) => stableStringify(audited) === stableStringify(citation)));
+			return evidence.length ? reportSection(4,
+				`${t("Coverage citations (display-only; not byte verification)", "검토 범위 인용(참고용, 원문 미검증)")} — ${escapeMarkdownText(row?.requirementId ?? row?.id ?? "unknown")}`,
+				evidence.flatMap((citation) => [...fenced(citation, isRecord(citation) ? "json" : "text"), ""]),
+			) : [];
+		}),
 	]);
 }
 
@@ -733,7 +750,7 @@ function renderCompletionSummary({ verdict, report, partition, limitations }) {
 		.trim();
 }
 
-function renderMarkdown({ verdict, report, partition, limitations, verdictConsistent, evidenceComplete, sourceCoverageComplete, t }) {
+function renderMarkdown({ verdict, report, partition, limitations, verdictConsistent, evidenceComplete, sourceCoverageComplete, verifiedCoverage, t }) {
 	const final = asArray(partition.finalFindings);
 	const needs = asArray(partition.needsHuman);
 	const dropped = asArray(partition.droppedFindings);
@@ -742,27 +759,30 @@ function renderMarkdown({ verdict, report, partition, limitations, verdictConsis
 	const outcome = {
 		CONFORMS: t("The reviewed implementation meets the checked requirements.", "검토한 구현은 확인한 요구사항을 충족합니다."),
 		GAPS_FOUND: t("The review confirmed gaps between the requirements and implementation.", "요구사항과 구현 사이의 차이가 확인되었습니다."),
+		NEEDS_HUMAN: t("Unresolved items require human review.", "미해결 항목은 사람의 검토가 필요합니다."),
 		INCONCLUSIVE: t("The evidence does not establish conformance.", "현재 근거로는 요구사항 충족 여부를 판단할 수 없습니다."),
 	}[verdict];
-	const covered = reqs.filter((row) => cleanText(row?.status).toLowerCase() === "covered").length;
+	const coverage = verifiedCoverage
+		? t(`${verifiedCoverage.covered}/${verifiedCoverage.total} requirements covered`, `요구사항 ${verifiedCoverage.total}개 중 ${verifiedCoverage.covered}개 충족`)
+		: t("requirement coverage unproven", "요구사항 충족 범위 미입증");
 	const actions = [
 		{ label: t("Recommendation", "권고"), value: report.recommendedNextAction ?? t("Resolve renderer blockers, then rerun the spec review.", "보고서를 막는 문제를 해결한 뒤 명세 검토를 다시 실행하세요.") },
 		...[[final, "finding"], [needs, "needs-human"]].flatMap(([rows, prefix]) => rows.map((row, index) => ({ label: rowIdentity(row, prefix, index), value: row?.recommendedAction }))),
 	];
 	const caveats = [
-		...asArray(partition.scopeLimitations).filter((row) => isRecord(row) && row.text).map((row) => row.text),
+		...asArray(partition.scopeLimitations).filter((row) => isRecord(row) && row.text).map((row) => row.kind === "NONBLOCKING" ? `${t("NONBLOCKING scope limitation", "NONBLOCKING 범위 제한")}: ${row.text}` : row.text),
 		...asArray(report.risks).map((risk) => typeof risk === "string" ? risk : stableStringify(risk)),
 		...limitations,
 	];
 	return [
 		`# ${t("Spec review report", "명세 검토 보고서")}`, "",
-		t(`Evidence: ${covered}/${reqs.length} requirements covered · ${final.length} actionable gaps · ${needs.length} need human review · byte checks ${evidenceComplete ? "complete" : "incomplete"}`, `근거: 요구사항 ${reqs.length}개 중 ${covered}개 충족 · 수정할 차이 ${final.length}건 · 사람 검토 ${needs.length}건 · 원문 대조 ${evidenceComplete ? "완료" : "미완료"}`), "",
+		t(`Evidence: ${coverage} · ${final.length} actionable gaps · ${needs.length} need human review · byte checks ${evidenceComplete ? "complete" : "incomplete"}`, `근거: ${coverage} · 수정할 차이 ${final.length}건 · 사람 검토 ${needs.length}건 · 원문 대조 ${evidenceComplete ? "완료" : "미완료"}`), "",
 		`## ${t("Conclusion", "결론")}`, "",
-		`${t("Verdict", "판정")}: **${reportStatus(verdict, t)}**.`, "",
+		`${t("Verdict", "판정")}: **${escapeMarkdownText(reportStatus(verdict, t))}**.`, "",
 		...(narrative.length ? narrative : [outcome, ""]),
 		...reportSection(3, t("Key points", "핵심 포인트"), [
 			`- **${t("Source coverage", "출처 범위")}** — ${sourceCoverageComplete ? t("Complete", "완료") : t("Incomplete", "미완료")}`,
-			`- **${t("Requirements not marked covered", "충족이 확인되지 않은 요구사항")}** — ${reqs.length - covered}`,
+			`- **${t("Requirements not verified covered", "충족이 확인되지 않은 요구사항")}** — ${verifiedCoverage ? verifiedCoverage.total - verifiedCoverage.covered : t("Unproven", "미입증")}`,
 		]),
 		...reportSection(2, t("Limitations", "알아둘 한계"), [...new Set(caveats)].map((limit) => `- ${escapeMarkdownText(limit)}`)),
 		...reportActions(t("Actions", "할 일"), actions),
@@ -770,7 +790,8 @@ function renderMarkdown({ verdict, report, partition, limitations, verdictConsis
 		...reportSection(2, t("Needs human review", "사람 검토 필요"), renderFindingRows(needs, "needs-human", t)),
 		...reportSection(2, t("Appendix", "부록"), fold(t("Conformance review records", "명세 검토 기록"), [
 			...(!narrative.length && report.summary ? reportSection(3, t("Synthesis narrative", "종합 의견 원문"), [escapeMarkdownText(report.summary)]) : []),
-			...renderRequirementCoverage(reqs, t),
+			...renderRequirementCoverage(reqs, partition.evidenceGate?.coverage, t),
+			...reportSection(3, t("Ignored rechecks", "반영하지 않은 재확인"), asArray(partition.requirementRechecks?.ignored).flatMap((row) => [...fenced(row, "json"), ""])),
 			...reportSection(3, t("Dropped findings", "제외한 발견 사항"), renderFindingRows(dropped, "dropped", t)),
 			...reportSection(3, t("Preliminary no-issue observations (unverified)", "문제가 없다는 예비 관찰(미확인)"), asArray(partition.noIssueNotes).map((row) => `- ${escapeMarkdownText(typeof row === "string" ? row : stableStringify(row))}`)),
 			...renderVerifierIntegrity(partition, t), ...renderEvidenceCorrections(partition, t),
@@ -929,7 +950,7 @@ export default async function renderSpecReviewReport({
 		report: report ?? {},
 		partition,
 		limitations: limitationRows({ ...limitationInputs, t }),
-		verdictConsistent, evidenceComplete, sourceCoverageComplete, t,
+		verdictConsistent, evidenceComplete, sourceCoverageComplete, verifiedCoverage: evidenceAudit.verifiedCoverage, t,
 	});
 	const blockers = limitations.slice(0, 32);
 	const controlForDigest = {

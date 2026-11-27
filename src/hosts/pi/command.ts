@@ -376,12 +376,15 @@ async function dispatch(
 				ctx,
 				`Waiting for ${runId} (Esc stops waiting; the run continues)…`,
 				(signal) =>
-					api.waitAction(host(), {
-						runId: runId!,
-						longWait: true,
-						timeoutMs,
-						...(signal ? { signal } : {}),
-					}),
+					api.waitAction(
+						{ ...host(), plainTextCompletion: true },
+						{
+							runId: runId!,
+							longWait: true,
+							timeoutMs,
+							...(signal ? { signal } : {}),
+						},
+					),
 				deps.foregroundLoader,
 			);
 			if (waited === FOREGROUND_CANCELLED)

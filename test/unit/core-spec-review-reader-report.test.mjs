@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import render from "../../workflows/spec-review/helpers/render-spec-review-report.mjs";
 
@@ -82,4 +85,57 @@ test("spec reader keeps every gap, requirement, caveat, source and action", asyn
 		assert.ok(appendix.includes(text), text);
 	assert.match(appendix, /&lt;\/details&gt; ftp&#58;\/\/example.org/);
 	assert.doesNotMatch(appendix, /(?<!\\)\]\(javascript:/u);
+});
+
+test("spec dispositions and audit fields survive publication independently of historical verdicts", async (t) => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-spec-reader-"));
+	t.after(() => rm(cwd, { recursive: true, force: true }));
+	await render({
+		context: { cwd, runId: "reader", taskId: "task-1" },
+		sources: {
+			"partition-findings.main": {
+				needsHuman: [
+					{
+						id: "H1",
+						title: "Distinct title",
+						verdict: "KEEP",
+						finalClaim: "Distinct claim",
+						reason: "Distinct reason",
+						source: "Distinct source",
+						origin: { kind: "Distinct origin" },
+						evidenceStatus: "Distinct status",
+					},
+				],
+				droppedFindings: [
+					{ id: "D1", title: "Archived title", verdict: "WEAKEN" },
+				],
+				requirementCoverage: [
+					{
+						requirementId: "R1",
+						status: "needsHuman",
+						evidence: ["legacy-source.ts:7"],
+					},
+				],
+				requirementRechecks: {
+					ignored: [{ itemIdentity: "R1", reason: "Distinct ignored reason" }],
+				},
+				scopeLimitations: [{ kind: "NONBLOCKING", text: "Distinct caveat" }],
+			},
+		},
+	});
+	const md = await readFile(
+		join(cwd, ".agent-workflow/workflows/reader/tasks/task-1/final-report.md"),
+		"utf8",
+	);
+	const [front, appendix] = md.split("## Appendix");
+	assert.match(front, /#### \*\*Needs human review\*\* — H1 · Distinct title/);
+	assert.match(front, /Historical verifier verdict: Kept/);
+	for (const field of ["claim", "reason", "source", "origin", "status"])
+		assert.ok(front.includes(`Distinct ${field}`), field);
+	assert.match(front, /NONBLOCKING.*Distinct caveat/);
+	assert.match(appendix, /#### \*\*Dropped\*\* — D1 · Archived title/);
+	assert.match(appendix, /Historical verifier verdict: Weakened/);
+	assert.match(appendix, /\| R1 \| Needs human review \|/);
+	assert.match(appendix, /display-only[\s\S]*legacy-source\.ts:7/);
+	assert.match(appendix, /Ignored rechecks[\s\S]*Distinct ignored reason/);
 });

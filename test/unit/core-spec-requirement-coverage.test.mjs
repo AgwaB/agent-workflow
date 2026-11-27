@@ -547,25 +547,73 @@ for (const mode of modes)
 					"not a directory",
 				);
 			}
+			const context = {
+				cwd: sidecarRoot ?? cwd,
+				stateCwd: stateDir(sidecarRoot ?? cwd),
+				runId: run.runId,
+				taskId: directTaskId,
+				sourceStatuses: [
+					partitionTask,
+					h.taskBySpec(current, "report.main"),
+				].map((task) => ({
+					source: task.stageId,
+					stageId: task.stageId,
+					specId: task.specId,
+					taskId: task.taskId,
+					status: "completed",
+				})),
+			};
 			const direct = await render({
 				sources: { "partition-findings": p, report },
-				context: {
-					cwd: sidecarRoot ?? cwd,
-					stateCwd: stateDir(sidecarRoot ?? cwd),
-					runId: run.runId,
-					taskId: directTaskId,
-					sourceStatuses: [
-						partitionTask,
-						h.taskBySpec(current, "report.main"),
-					].map((task) => ({
-						source: task.stageId,
-						stageId: task.stageId,
-						specId: task.specId,
-						taskId: task.taskId,
-						status: "completed",
-					})),
-				},
+				context,
 			});
+			const trust = direct.markdown.split("\n")[2];
+			if (mode === "legacy-positive")
+				assert.match(trust, /0\/1 requirements covered/u);
+			if (mode === "coverage-missing")
+				assert.match(trust, /1\/2 requirements covered/u);
+			if (mode === "extract-duplicate")
+				assert.match(trust, /requirement coverage unproven/u);
+			const fallbacks = {
+				"all-covered-drop": [
+					"CONFORMS",
+					"The reviewed implementation meets the checked requirements.",
+				],
+				"gap-keep": [
+					"GAPS_FOUND",
+					"The review confirmed gaps between the requirements and implementation.",
+				],
+				"legacy-positive": [
+					"INCONCLUSIVE",
+					"The evidence does not establish conformance.",
+				],
+				"needs-human-shape": [
+					"NEEDS_HUMAN",
+					"Unresolved items require human review.",
+				],
+			};
+			if (Object.hasOwn(fallbacks, mode)) {
+				const [verdict, sentence] = fallbacks[mode];
+				for (const synthesis of [
+					undefined,
+					{ ...report, verdict, summary: "Long ".repeat(90) },
+				]) {
+					const fallback = await render({
+						sources: { "partition-findings": p, report: synthesis },
+						context,
+					});
+					assert.equal(fallback.verdict, verdict);
+					assert.ok(
+						fallback.markdown.split("## Appendix")[0].includes(sentence),
+						sentence,
+					);
+				}
+			}
+			if (mode === "unclear-recheck-wrong-id")
+				assert.match(
+					direct.markdown,
+					/Ignored rechecks[\s\S]*requirementId differs from the item/u,
+				);
 			current = await step();
 			const final = h.taskBySpec(current, "final.main");
 			let result;

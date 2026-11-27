@@ -94,3 +94,27 @@ test("standalone workflow bundles carry the canonical report Markdown serializer
 	for (const name of ["deep-review", "impact-review", "spec-review"])
 		assert.equal(await helper(name), source, name);
 });
+
+test("unknown legacy severity is text, not markup or a GFM autolink, even in the summary", async () => {
+	const { marked } = await import("marked");
+	const severity = "www.example.org <em>legacy</em>";
+	const { markdown } = await render({
+		sources: {
+			"partition-verdicts.main": {
+				partitions: {
+					keep: [{ ...finding("finding-001", "A retained finding"), severity }],
+				},
+			},
+		},
+	});
+	const { decodeHTML } = await import("entities");
+	const html = marked.parse(markdown, { gfm: true });
+	assert.match(
+		decodeHTML(html),
+		/<strong>www\.example\.org <em>legacy<\/em><\/strong> — 1 findings/,
+	);
+	assert.doesNotMatch(
+		html,
+		/<a href="http:\/\/www\.example\.org|<em>legacy<\/em>/,
+	);
+});

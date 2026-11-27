@@ -574,7 +574,14 @@ test("test-executor hook: guarded by an explicit ack, an absolute path and a tes
 
 test("terminal completion strips controls without changing JSON or the stored summary", async () => {
 	const cwd = await project();
-	const summary = "First line\nSecond\tline\x1b\x07\x08\r\x7f\x9b end.";
+	const summary = [
+		"## Important limitations",
+		"",
+		String.raw`- finding-001 (REQ-001): total이 50,000일 때 \`total \&gt; 50000\` 조건이 거짓입니다.`,
+		"- Real &gt; and literal &amp;gt;; `A&B &gt;` and [guide](<https://example.com/a(b)?x=1&amp;y=2>).",
+		"- Phase 1: &lt;파일&gt;; encoded controls &#27;&#x9b; stay out.",
+		"- Controls \x1b\x07\x08\r\x7f\x9b end.",
+	].join("\n");
 	const id = fixture({
 		controlSequence: {
 			"task-1": [
@@ -599,7 +606,18 @@ test("terminal completion strips controls without changing JSON or the stored su
 	const humanWait = await runCli(cwd, ["wait", runId]);
 	for (const result of [foreground, humanWait]) {
 		assert.equal(result.code, 0, result.err());
-		assert.match(result.out(), /First line\nSecond\tline/);
+		assert.match(
+			result.out(),
+			/- finding-001 \(REQ-001\): total이 50,000일 때 `total > 50000` 조건이 거짓입니다\./u,
+		);
+		assert.match(
+			result.out(),
+			/Real > and literal &gt;; A&B &gt; and guide \(https:\/\/example\.com\/a\(b\)\?x=1&y=2\)\./u,
+		);
+		assert.match(
+			result.out(),
+			/Phase 1: <파일>; encoded controls  stay out\./u,
+		);
 		assert.doesNotMatch(result.out(), /[\x07\x08\r\x1b\x7f\x9b]/u);
 	}
 	const machine = await runCli(cwd, ["wait", runId, "--json"]);

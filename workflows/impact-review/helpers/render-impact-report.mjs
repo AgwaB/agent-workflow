@@ -9,7 +9,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
-	escapeMarkdownText, fold, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
+	escapeMarkdownText, fold, reportActions, reportLocale, reportSection, reportRiskStatus, reportStatus, shortNarrative,
 } from "./report-markdown.mjs";
 
 const STAGES = [
@@ -550,6 +550,7 @@ function summarizeCanonicalRisk(rows, unverifiedResolutions = []) {
 const ROW_MAIN_KEYS = [
 	"text",
 	"issue",
+	"finding",
 	"title",
 	"summary",
 	"description",
@@ -572,7 +573,7 @@ function isRowScalar(value) {
 	);
 }
 
-function readableRow(row) {
+function readableRow(row, { includeClaim = true } = {}) {
 	if (typeof row === "string") return row;
 	if (!isRecord(row)) return stableStringify(row);
 	const keys = Object.keys(row).sort();
@@ -584,9 +585,7 @@ function readableRow(row) {
 				(Array.isArray(row[key]) && row[key].every(isRowScalar)),
 		);
 	if (!flat) return stableStringify(row);
-	const main = ROW_MAIN_KEYS.find(
-		(key) => typeof row[key] === "string" && row[key].trim() !== "",
-	);
+	const main = includeClaim ? impactClaimKey(row) : undefined;
 	const fields = keys
 		.filter((key) => key !== main)
 		.map(
@@ -597,9 +596,18 @@ function readableRow(row) {
 	return fields.length > 0 ? `${row[main]} — ${fields.join("; ")}` : row[main];
 }
 
-function impactClaim(row) {
-	if (typeof row === "string") return row;
-	return ROW_MAIN_KEYS.map((key) => row?.[key]).find((value) => typeof value === "string" && value.trim()) ?? readableRow(row);
+function impactClaimKey(row) {
+	return ROW_MAIN_KEYS.find((key) => typeof row?.[key] === "string" && row[key].trim());
+}
+
+function impactFinding(row, label, index) {
+	if (typeof row === "string") return { claim: row };
+	const main = impactClaimKey(row);
+	const id = isRowScalar(row?.id) ? cleanText(row.id) : "";
+	const claim = main ? row[main] : id && id.length <= 60 ? id : `${label} ${index + 1}`;
+	const remaining = main ? Object.fromEntries(Object.entries(row).filter(([key]) => key !== main)) : row;
+	const details = isRecord(remaining) && !Object.keys(remaining).length ? "" : readableRow(remaining, { includeClaim: false });
+	return { claim, details };
 }
 
 function rowCollections({ synthesis, contract, regression, ship }) {
@@ -744,6 +752,7 @@ function renderMarkdown({ verdict, riskLevel, synthesis, contract, regression, s
 	sources, coverageCount, coverageComplete, verdictConsistent, riskConsistent, readerLimitations, t,
 }) {
 	const status = (value) => escapeMarkdownText(reportStatus(value || "unavailable", t));
+	const risk = (value) => escapeMarkdownText(reportRiskStatus(value || "unavailable", t));
 	const text = (row) => escapeMarkdownText(readableRow(row));
 	const count = {};
 	const actions = [], findings = [], assumptions = [];
@@ -754,10 +763,9 @@ function renderMarkdown({ verdict, riskLevel, synthesis, contract, regression, s
 			if (group === "action") actions.push({ label, value: readableRow(row) || stableStringify(row) });
 			else if (group === "appendix") assumptions.push(`- ${text(row)}`);
 			else {
-				const claim = impactClaim(row);
-				const detail = readableRow(row);
-				findings.push(`### **${label}** — ${escapeMarkdownText(claim)}`, "");
-				if (detail !== claim) findings.push(...fold(t("Evidence", "근거 보기"), [text(row)]), "");
+				const { claim, details } = impactFinding(row, label, count[key]);
+				findings.push(`### **${escapeMarkdownText(label)}** — ${escapeMarkdownText(claim)}`, "");
+				if (details) findings.push(...fold(t("Evidence", "근거 보기"), [escapeMarkdownText(details)]), "");
 			}
 			count[key]++;
 		}
@@ -782,7 +790,7 @@ function renderMarkdown({ verdict, riskLevel, synthesis, contract, regression, s
 		`# ${t("Impact review report", "영향 검토 보고서")}`, "",
 		t(`Evidence: ${coverageCount}/${LEDGER_STAGES.length} sources joined · coverage ${coverageComplete ? "complete" : "partial"} · historical file bytes not attested`, `근거: 출처 ${coverageCount}/${LEDGER_STAGES.length}개 연결 · 검토 범위 ${coverageComplete ? "완료" : "일부"} · 이전 파일 원문 미검증`), "",
 		`## ${t("Conclusion", "결론")}`, "",
-		`${t("Verdict", "판정")}: **${status(verdict)}** · ${t("Risk", "위험도")}: **${status(riskLevel)}**.`, "",
+		`${t("Verdict", "판정")}: **${status(verdict)}** · ${t("Risk", "위험도")}: **${risk(riskLevel)}**.`, "",
 		...(narrative.length ? narrative : [outcome, ""]),
 		...reportSection(3, t("Key points", "핵심 포인트"), keyPoints.length ? keyPoints : [`- ${t("Contract consistency", "계약 일관성")}: **${status(contract.status)}**`, `- ${t("Ship readiness", "배포 준비")}: **${status(ship.status)}**`]),
 		...reportSection(2, t("Limitations", "알아둘 한계"), readerLimitations.map((row) => `- ${escapeMarkdownText(row)}`)),
@@ -791,8 +799,8 @@ function renderMarkdown({ verdict, riskLevel, synthesis, contract, regression, s
 		...reportSection(2, t("Appendix", "부록"), fold(t("Impact review records", "영향 검토 기록"), [
 			...(!narrative.length && synthesis.summary ? reportSection(3, t("Synthesis narrative", "종합 의견 원문"), [escapeMarkdownText(synthesis.summary)]) : []),
 			...reportSection(3, t("Lens statuses", "관점별 판정"), [
-				`- ${t("Synthesis verdict and risk", "종합 판정 및 위험도")}: **${status(synthesis.verdict)}** / **${status(synthesis.riskLevel)}**`,
-				`- ${t("Canonical regression risk", "원장 기준 회귀 위험도")}: **${status(regression.riskLevel)}**`,
+				`- ${t("Synthesis verdict and risk", "종합 판정 및 위험도")}: **${status(synthesis.verdict)}** / **${risk(synthesis.riskLevel)}**`,
+				`- ${t("Canonical regression risk", "원장 기준 회귀 위험도")}: **${risk(regression.riskLevel)}**`,
 				`- ${t("Ship readiness", "배포 준비")}: **${status(ship.status)}**`,
 				`- ${t("Contract consistency", "계약 일관성")}: **${status(contract.status)}**`,
 			]),
@@ -988,7 +996,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 	});
 	const summary = issueSummary(collections);
 	const limitations = [];
-	const t = reportLocale(safeSynthesis.summary, ...collections.flatMap(([, , , rows]) => asArray(rows).map(impactClaim)));
+	const t = reportLocale(safeSynthesis.summary, ...collections.flatMap(([, , , rows]) => asArray(rows).map((row) => typeof row === "string" ? row : row?.[impactClaimKey(row)])));
 	const readerLimitations = [];
 	const limit = (en, ko) => { limitations.push(en); readerLimitations.push(t(en, ko)); };
 	if (!canonicalSourcesAvailable) {
@@ -1013,7 +1021,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 			`Resolution claims are model-assessed and lack externally bound approval/evidence authority: ${ledgerCoverage.unverifiedResolutions.join(", ")}.`, `해결됐다는 모델 판단에 외부 승인 또는 근거가 없습니다: ${ledgerCoverage.unverifiedResolutions.join(", ")}.`,
 		);
 	if (ledgerMode && canonicalRisk !== "none")
-		limit(`Known canonical impact risk floor is ${canonicalRisk}.`, `원장에서 확인한 최소 위험도: ${reportStatus(canonicalRisk, t)}.`);
+		limit(`Known canonical impact risk floor is ${canonicalRisk}.`, `원장에서 확인한 최소 위험도: ${reportRiskStatus(canonicalRisk, t)}.`);
 	if (riskUncertainty.present)
 		limit(`${riskUncertainty.observationIds.length} original risk observations remain unquantified; they are retained separately from the known risk floor and cannot establish READY.`, `위험 관찰 ${riskUncertainty.observationIds.length}건은 수준을 판단하지 못해, 배포 가능 판정의 근거로 삼을 수 없습니다.`);
 	limitations.push(
@@ -1029,7 +1037,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 		);
 	if (allLedgerSourcesAvailable && !riskConsistent)
 		limit(
-			`Synthesis risk ${synthesisRisk || "unavailable"} understates or obscures the known source risk floor ${canonicalRisk} (regression risk ${regressionRisk || "unavailable"}).`, `종합 위험도(${reportStatus(synthesisRisk || "unavailable", t)})가 출처에서 확인한 최소 위험도(${reportStatus(canonicalRisk, t)})를 반영하지 않습니다(회귀 위험도: ${reportStatus(regressionRisk || "unavailable", t)}).`,
+			`Synthesis risk ${synthesisRisk || "unavailable"} understates or obscures the known source risk floor ${canonicalRisk} (regression risk ${regressionRisk || "unavailable"}).`, `종합 위험도(${reportRiskStatus(synthesisRisk || "unavailable", t)})가 출처에서 확인한 최소 위험도(${reportRiskStatus(canonicalRisk, t)})를 반영하지 않습니다(회귀 위험도: ${reportRiskStatus(regressionRisk || "unavailable", t)}).`,
 		);
 	// 2026-11-23 (owner): "evidence is insufficient" is a verdict, not a failed run. When every source is present
 	// and joined and the verdict is UNKNOWN, the run completes and the report says why the evidence did not

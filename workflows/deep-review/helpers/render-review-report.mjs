@@ -14,7 +14,7 @@ import {
 } from "./review-verdict.mjs";
 
 import {
-	escapeMarkdownText, fold, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
+	escapeMarkdownText, escapeTableCell, fold, inlineCode, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
 } from "./report-markdown.mjs";
 
 const SEVERITY_ORDER = ["critical", "high", "medium", "low", "info", "unknown"];
@@ -78,31 +78,6 @@ function evidenceText(value) {
 }
 
 const escapeHeadingText = escapeMarkdownText;
-
-function escapeTableCell(value) {
-	// Table cells are untrusted output too. Escape HTML before Markdown table
-	// separators; do not allow a gap reason or path to become viewer markup.
-	return escapeHeadingText(value);
-}
-
-// A code span is literal in CommonMark: Markdown escapes (`_` -> `\_`) would show as written.
-// Only what the span or a table cell cannot carry changes: HTML (viewers differ), whitespace runs
-// and, in a table cell, `|` — GFM splits cells on unescaped pipes even inside code spans and
-// unescapes `\|` in the cell text, so the escape is invisible there (GFM spec, "Tables").
-function inlineCode(value, { table = false } = {}) {
-	let text = cleanText(value)
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;");
-	if (table) text = text.replace(/\|/g, "\\|");
-	const longestRun = Math.max(
-		0,
-		...[...text.matchAll(/`+/g)].map((match) => match[0].length),
-	);
-	const fence = "`".repeat(Math.max(1, longestRun + 1));
-	const padded = /^`|`$|^\s|\s$/.test(text) ? ` ${text} ` : text;
-	return `${fence}${padded}${fence}`;
-}
 
 function completionText(value) {
 	const withoutArtifactPaths = cleanText(value)
@@ -1821,7 +1796,7 @@ function renderMarkdown({
 	const severity = severityCounts(sortedFindings);
 	const keyPoints = [
 		...Object.entries(severity).filter(([, count]) => count).map(([level, count]) =>
-			`- **${reportStatus(level, t)}** — ${t(`${count} findings`, `발견 ${count}건`)}`),
+			`- **${escapeMarkdownText(reportStatus(level, t))}** — ${t(`${count} findings`, `발견 ${count}건`)}`),
 		...(needsHuman.length ? [`- **${t("Needs human review", "사람 검토 필요")}** — ${needsHuman.length}`] : []),
 		...(report?.risks?.length ? [`- **${t("Main risk", "주요 위험")}** — ${escapeMarkdownText(typeof report.risks[0] === "string" ? report.risks[0] : report.risks[0]?.risk ?? report.risks[0]?.note ?? report.risks[0]?.summary ?? "")}`] : []),
 	].slice(0, 6);
@@ -1845,7 +1820,7 @@ function renderMarkdown({
 		`# ${t("Deep review report", "심층 검토 보고서")}`, "",
 		t(`Evidence: ${sortedFindings.length} kept or weakened findings · ${needsHuman.length} needs human review · ${supportNotes.length} supporting observations · coverage ${partial ? "partial" : "complete"}`, `근거: 유지·완화 ${sortedFindings.length}건 · 사람 검토 ${needsHuman.length}건 · 보조 관찰 ${supportNotes.length}건 · 검토 범위 ${partial ? "일부" : "완료"}`), "",
 		`## ${t("Conclusion", "결론")}`, "",
-		`${t("Verdict", "판정")}: **${reportStatus(effectiveVerdict, t)}**.`, "",
+		`${t("Verdict", "판정")}: **${escapeMarkdownText(reportStatus(effectiveVerdict, t))}**.`, "",
 		...(narrative.length ? narrative : [outcome, ""]),
 		...reportSection(3, t("Key points", "핵심 포인트"), keyPoints.length ? keyPoints : [
 			`- **${t("Source coverage", "출처 범위")}** — ${partial ? t("Partial", "일부") : t("Complete", "완료")}`,

@@ -239,12 +239,7 @@ export async function gateRequirementCoverage(
 
 // Persist both the exact universe and its actual runtime/control-byte binding.
 // A set alone is insufficient: stale controls with unchanged IDs also fail.
-export function reconcileRequirementCoverage(
-  coverage,
-  checked,
-  finalFindings,
-  source,
-) {
+function reconcileRequirementSource(source) {
   const issues = [];
   const requirements = Array.isArray(source?.requirements)
     ? source.requirements
@@ -280,6 +275,21 @@ export function reconcileRequirementCoverage(
       issues.push(`missing_requirement_signal_shape:${row?.id ?? "unknown"}`);
   }
   requirementIds.sort();
+  return { issues, requirements, requirementIds, sourceEvidence };
+}
+
+export function reconcileRequirementCoverage(
+  coverage,
+  checked,
+  finalFindings,
+  source,
+) {
+  return reconcileCoverage(coverage, checked, finalFindings, source, reconcileRequirementSource(source));
+}
+
+function reconcileCoverage(coverage, checked, finalFindings, source, scope) {
+  const { requirements, requirementIds, sourceEvidence } = scope;
+  const issues = [...scope.issues];
   if (!Array.isArray(coverage) || coverage.length > 40)
     issues.push("missing_or_invalid_coverage_array");
   const coverageIds = [];
@@ -353,12 +363,22 @@ async function requirementCoverageAudit(partition, context = {}) {
     context,
     partition?.finalFindings ?? [],
   );
-  const actual = reconcileRequirementCoverage(
+  const scope = reconcileRequirementSource(source);
+  const actual = reconcileCoverage(
     partition?.requirementCoverage,
     checked,
     partition?.finalFindings ?? [],
     source,
+    scope,
   );
+  // Missing coverage rows cannot shrink the extracted scope or count as covered.
+  const verifiedCoverage = scope.issues.length === 0 ? {
+    total: scope.requirementIds.length,
+    covered: scope.requirementIds.filter((id) => {
+      const rows = checked.filter((row) => row.id === id);
+      return rows.length === 1 && rows[0].positive && rows[0].complete;
+    }).length,
+  } : null;
   const matchesSaved =
     canonical(actual) ===
     canonical(partition?.evidenceGate?.requirementReconciliation);
@@ -366,7 +386,7 @@ async function requirementCoverageAudit(partition, context = {}) {
     ...actual,
     complete: actual.complete && matchesSaved,
   };
-  return { checked, requirementReconciliation, actual, matchesSaved };
+  return { checked, requirementReconciliation, actual, matchesSaved, verifiedCoverage };
 }
 
 export async function partitionRequirementReconciliation(
@@ -443,6 +463,7 @@ export async function auditPartitionEvidence(partition, context = {}) {
     requirementReconciliation,
     actual,
     matchesSaved,
+    verifiedCoverage,
   } = await requirementCoverageAudit(partition, context);
   const ledgerShape =
     gate?.protocol === EVIDENCE_PROTOCOL &&
@@ -510,7 +531,7 @@ export async function auditPartitionEvidence(partition, context = {}) {
     coverageExact &&
     matchesSaved &&
     requirementSetProven(actual);
-  return { evidenceComplete, requirementReconciliation, gapsGrounded };
+  return { evidenceComplete, requirementReconciliation, gapsGrounded, verifiedCoverage };
 }
 
 // The renderer reconciles canonical rows and recomputes actual bytes. It does

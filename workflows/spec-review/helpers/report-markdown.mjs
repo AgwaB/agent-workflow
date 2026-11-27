@@ -10,19 +10,42 @@ export function cleanText(value) {
 
 // Serialize data, never structure. Quote line breaks and tabs are made visible as JSON escapes.
 
-export function escapeMarkdownText(value, { quote = false } = {}) {
+function serializeText(value, { quote = false, table = false } = {}) {
 	const text = quote ? JSON.stringify(value) : cleanText(value);
 	return text
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
 		.replace(/>/g, "&gt;")
-		.replace(/([\\`*_[\]{}#+!|])/g, "\\$1")
-		.replace(/^([-~=])(?=\s|[-~=]|$)/u, "\\$1")
+		.replace(/([\\`*_[\]{}#+!~])/g, "\\$1")
+		.replace(/\|/g, table ? "&#124;" : "\\|")
+		.replace(/^([-=])(?=\s|[-=]|$)/u, "\\$1")
 		.replace(/^(\d{1,9})([.)])(?=\s|$)/u, "$1\\$2")
 		// Hide GFM's autolink delimiters in the Markdown source, not the rendered text.
 		.replace(/:(?=\/\/)/g, "&#58;")
 		.replace(/(www)\./gi, "$1&#46;")
 		.replace(/@/g, "&#64;");
+}
+
+export function escapeMarkdownText(value, options) {
+	return serializeText(value, options);
+}
+
+export function escapeTableCell(value) {
+	return serializeText(value, { table: true });
+}
+
+export function inlineCode(value, { table = false } = {}) {
+	let text = String(value ?? "").replace(/\r\n?|\n/g, " ");
+	if (!text) return "";
+	if (table) {
+		// GFM cannot carry an odd run of literal backslashes before a pipe in a
+		// code cell: one more slash would make it a separator. Preserve it as prose.
+		if (/(?:^|[^\\])(?:\\\\)*\\\|/.test(text)) return escapeTableCell(text);
+		text = text.replace(/\|/g, "\\|");
+	}
+	const fence = "`".repeat(1 + Math.max(0, ...Array.from(text.matchAll(/`+/g), ([run]) => run.length)));
+	const padded = /^`|`$|^ .* $/.test(text) && /[^ ]/.test(text) ? ` ${text} ` : text;
+	return `${fence}${padded}${fence}`;
 }
 
 export function validHttpUrl(text) {
@@ -83,7 +106,9 @@ export function reportStatus(value, t) {
 		WEAKEN: ["Weakened", "완화"], DROP: ["Dropped", "제외"],
 		NEEDS_HUMAN: ["Needs human review", "사람 검토 필요"], CRITICAL: ["Critical", "치명적"],
 		HIGH: ["High", "높음"], MEDIUM: ["Medium", "보통"], LOW: ["Low", "낮음"],
-		NONE: ["None", "없음"], INFO: ["Informational", "정보"], COVERED: ["Covered", "충족"], UNCLEAR: ["Unclear", "불명확"],
+		NONE: ["None", "표시 없음"], RISK_NONE: ["None", "위험 없음"], INFO: ["Informational", "정보"], COVERED: ["Covered", "충족"], UNCLEAR: ["Unclear", "불명확"],
+		GAP: ["Gap", "공백"], NEEDSHUMAN: ["Needs human review", "사람 검토 필요"],
+		UNVERIFIED_OR_INCOMPLETE: ["Unverified or incomplete", "미검증 또는 불완전"],
 		MISSING: ["Missing", "누락"], CONSISTENT: ["Consistent", "일관됨"],
 		INCONSISTENT: ["Inconsistent", "불일치"], NOT_APPLICABLE: ["Not applicable", "해당 없음"],
 		PASS: ["Pass", "통과"], WARN: ["Warning", "주의"], FAIL: ["Fail", "실패"],
@@ -93,4 +118,8 @@ export function reportStatus(value, t) {
 	const text = cleanText(value);
 	const key = text.toUpperCase().replace(/[ -]/g, "_");
 	return Object.hasOwn(statuses, key) ? t(...statuses[key]) : text;
+}
+
+export function reportRiskStatus(value, t) {
+	return reportStatus(cleanText(value).toLowerCase() === "none" ? "RISK_NONE" : value, t);
 }

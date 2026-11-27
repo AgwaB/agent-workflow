@@ -45,7 +45,7 @@ after(async () => {
 	await rm(root, { recursive: true, force: true, maxRetries: 5 });
 });
 
-async function project(stepDelayMs = 200) {
+async function project(stepDelayMs = 200, controlSequence) {
 	counter += 1;
 	const cwd = join(root, `p${counter}`);
 	await mkdir(join(cwd, ".agent-workflow", "agents"), { recursive: true });
@@ -60,6 +60,7 @@ async function project(stepDelayMs = 200) {
 			workflowFixtureDescriptor({
 				id,
 				stepDelayMs,
+				...(controlSequence ? { controlSequence } : {}),
 				effectLog: join(root, `${id}-effects.jsonl`),
 			}),
 		),
@@ -327,7 +328,20 @@ test("aw_dynamic awaitTerminal waits for the launched run and validates its para
 });
 
 test("/aw wait <run> [timeout]: until terminal or the timeout; default 60 s, max 4 h", async () => {
-	const { cwd, env, executor, ctx: apiCtx } = await project(150);
+	const {
+		cwd,
+		env,
+		executor,
+		ctx: apiCtx,
+	} = await project(150, {
+		"task-1": [
+			{
+				schema: "stage-control-v1",
+				digest: "Complete",
+				completionSummaryMarkdown: "**Done:** &lt;파일&gt; and &amp;gt;.",
+			},
+		],
+	});
 	const { command, calls } = install(env);
 	const ctx = fakeCtx(cwd);
 	const launched = await api.runWorkflowAction(apiCtx, {
@@ -352,6 +366,9 @@ test("/aw wait <run> [timeout]: until terminal or the timeout; default 60 s, max
 	assert.equal(
 		(await api.statusAction(apiCtx, { runId })).data.run.status,
 		"completed",
+	);
+	assert.ok(
+		ctx.notes.some(({ message }) => message.includes("Done: <파일> and &gt;.")),
 	);
 	const before = ctx.notes.length;
 	await command.handler(`wait ${runId} 5h`, ctx);

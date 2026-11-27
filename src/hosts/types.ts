@@ -86,6 +86,8 @@ export interface HostResult<T> {
 
 /** Per-call host context. No Pi objects: hosts pass plain values. */
 export interface HostApiContext {
+	/** Plain-text completion for a terminal or notification; structured data stays Markdown. */
+	plainTextCompletion?: boolean;
 	/** Read-only host contexts must not auto-start dashboard processes. */
 	readonly?: boolean;
 	/** Project directory (run records live under `<cwd>/.agent-workflow/`). */

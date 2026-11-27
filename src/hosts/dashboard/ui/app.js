@@ -5655,6 +5655,7 @@ const REPORT_STATUS = new Map([
 	["Dropped", "neutral"],
 	["제외", "neutral"],
 	["None", "neutral"],
+	["위험 없음", "neutral"],
 	["Unavailable", "neutral"],
 	["자료 없음", "neutral"],
 	["Informational", "neutral"],
@@ -5701,6 +5702,31 @@ const NON_PARAGRAPH_LINE =
 
 // The splitter, finding parser and renderer share these tokens. Only plain text
 // tokens can be structural Markdown; code and invalid fold ranges are atomic.
+/** Match equal-length delimiter runs; backslashes only escape an opener. */
+function* codeSpans(raw) {
+	const runs = [...raw.matchAll(/`+/g)];
+	const next = new Map();
+	const ends = Array(runs.length);
+	for (let i = runs.length - 1; i >= 0; i--) {
+		const length = runs[i][0].length;
+		ends[i] = next.get(length);
+		next.set(length, i);
+	}
+	for (let i = 0; i < runs.length; i++) {
+		const open = runs[i];
+		let start = open.index;
+		while (start > 0 && raw[start - 1] === "\\") start--;
+		if ((open.index - start) % 2 || ends[i] === undefined) continue;
+		i = ends[i];
+		const close = runs[i];
+		yield {
+			start: open.index,
+			end: close.index + close[0].length,
+			code: raw.slice(open.index + open[0].length, close.index),
+		};
+	}
+}
+
 function markdownTokens(text, researchReport = false) {
 	const lines = text.split("\n").map((line) => line.replace(/\r$/, ""));
 	const blocks = [];
@@ -5774,26 +5800,11 @@ function markdownTokens(text, researchReport = false) {
 			.slice(start, index)
 			.map((token) => token.raw)
 			.join("\n");
-		const runs = [...raw.matchAll(/`+/g)];
-		const next = new Map();
-		const ends = runs.map(() => undefined);
-		for (let n = runs.length - 1; n >= 0; n--) {
-			const length = runs[n][0].length;
-			ends[n] = next.get(length);
-			next.set(length, n);
-		}
 		let from = 0;
-		for (let n = 0; n < runs.length; n++) {
-			const open = runs[n];
-			let before = open.index;
-			while (before > 0 && raw[before - 1] === "\\") before--;
-			if ((open.index - before) % 2 || ends[n] === undefined) continue;
-			n = ends[n];
-			const close = runs[n];
-			const code = raw.slice(open.index + open[0].length, close.index);
-			if (!code.includes("\n")) continue;
-			const lo = raw.lastIndexOf("\n", open.index - 1) + 1;
-			const hi = raw.indexOf("\n", close.index + close[0].length);
+		for (const span of codeSpans(raw)) {
+			if (span.start < from || !span.code.includes("\n")) continue;
+			const lo = raw.lastIndexOf("\n", span.start - 1) + 1;
+			const hi = raw.indexOf("\n", span.end);
 			const end = hi < 0 ? raw.length : hi;
 			if (lo > from)
 				for (const line of raw.slice(from, lo - 1).split("\n"))
@@ -5801,12 +5812,11 @@ function markdownTokens(text, researchReport = false) {
 			spans.push({
 				kind: "span",
 				raw: raw.slice(Math.max(from, lo), end),
-				before: raw.slice(Math.max(from, lo), open.index),
-				code,
-				after: raw.slice(close.index + close[0].length, end),
+				before: raw.slice(Math.max(from, lo), span.start),
+				code: span.code,
+				after: raw.slice(span.end, end),
 			});
 			from = end + 1;
-			while (runs[n + 1]?.index < from) n++;
 		}
 		if (from < raw.length)
 			for (const line of raw.slice(from).split("\n"))
@@ -5961,6 +5971,7 @@ function colourCode(container) {
 const ROW_MAIN_KEYS = [
 	"text",
 	"issue",
+	"finding",
 	"title",
 	"summary",
 	"description",
@@ -5974,6 +5985,13 @@ const ROW_MAIN_KEYS = [
 	"assumption",
 	"area",
 ];
+function codeSpanText(raw) {
+	const text = raw.replace(/\n/g, " ");
+	return text.startsWith(" ") && text.endsWith(" ") && /[^ ]/.test(text)
+		? text.slice(1, -1)
+		: text;
+}
+
 function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 	const tokens = typeof text === "string" ? markdownTokens(text, report) : text;
 	let container = root;
@@ -6005,26 +6023,50 @@ function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 				(_, name) => entities[name],
 			);
 	const inline = (raw) => {
-		const value = park(raw);
+		// Match whole delimiter runs before parking Markdown escapes. Inside a
+		// code span even a backslash or an entity is literal.
+		const code = [];
+		let value = "";
+		let from = 0;
+		// A marker absent from source can't collide with a code token in user text.
+		const marker = raw.includes("\ue100")
+			? `\ue100${"\ue101".repeat(1 + Math.max(0, ...Array.from(raw.matchAll(/\ue100\ue101*/g), ([run]) => run.length - 1)))}`
+			: "\ue100";
+		for (const span of codeSpans(raw)) {
+			value += `${park(raw.slice(from, span.start))}${marker}${code.length}\ue102`;
+			code.push(codeSpanText(span.code));
+			from = span.end;
+		}
+		value += park(raw.slice(from));
 		const nodes = [];
-		const re =
-			/!\[([^\]]*)\]\((?:<[^<>\s]*>|[^)<>\s]*)\)|\[([^\]]+)\]\((<[^<>\s]+>|[^)<>\s]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\s](?:[^*]*[^*\s])?)\*|"([^"]{8,})"/g;
+		const formatting =
+			/!\[([^\]]*)\]\((?:<[^<>\s]*>|[^)<>\s]*)\)|\[([^\]]+)\]\((<[^<>\s]+>|[^)<>\s]+)\)|\*\*([^*]+)\*\*|\*([^*\s](?:[^*]*[^*\s])?)\*|"([^"]{8,})"/;
+		const re = new RegExp(`${marker}(\\d+)\ue102|${formatting.source}`, "g");
+		const textParts = (part) =>
+			part
+				.split(new RegExp(`${marker}(\\d+)\ue102`, "g"))
+				.map((piece, i) =>
+					i % 2 ? element("code", {}, code[Number(piece)]) : unpark(piece),
+				);
 		let last = 0;
 		for (const m of value.matchAll(re)) {
 			if (m.index > last) nodes.push(unpark(value.slice(last, m.index)));
-			if (m[0].startsWith("!"))
+			if (m[1] !== undefined)
+				nodes.push(element("code", {}, code[Number(m[1])]));
+			else if (m[0].startsWith("!"))
 				nodes.push(
 					element(
 						"span",
 						{ class: "muted" },
-						`[image${m[1] ? `: ${unpark(m[1])}` : ""}]`,
+						"[image",
+						...(m[2] ? [": ", ...textParts(m[2])] : []),
+						"]",
 					),
 				);
-			else if (m[2] !== undefined) {
-				// A link named by its host reads as host + quiet path ("arxiv.org/abs/2307.03172");
-				// any other link keeps its whole address in brackets.
-				const label = unpark(m[2]),
-					target = unpark(m[3].startsWith("<") ? m[3].slice(1, -1) : m[3]);
+			else if (m[3] !== undefined) {
+				// A link named by its host reads as host + quiet path.
+				const label = unpark(m[3]),
+					target = unpark(m[4].startsWith("<") ? m[4].slice(1, -1) : m[4]);
 				let address = ` (${target})`;
 				try {
 					const url = new URL(target);
@@ -6034,27 +6076,28 @@ function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 					// Not an absolute URL: keep it as written.
 				}
 				nodes.push(
-					label,
+					...textParts(m[3]),
 					target !== label && address
 						? element("span", { class: "md-url" }, address)
 						: null,
 				);
-			} else if (m[4] !== undefined) {
-				const bold = unpark(m[4]);
+			} else if (m[5] !== undefined) {
+				const bold = unpark(m[5]);
 				const readable = readableCodes(bold);
 				nodes.push(
 					statusBadge(bold, report) ??
 						element(
 							"strong",
 							{ title: readable === bold ? null : bold },
-							readable,
+							...(readable === bold ? textParts(m[5]) : [readable]),
 						),
 				);
-			} else if (m[5] !== undefined)
-				nodes.push(element("code", {}, unpark(m[5])));
-			else if (m[6] !== undefined) nodes.push(element("em", {}, unpark(m[6])));
+			} else if (m[6] !== undefined)
+				nodes.push(element("em", {}, ...textParts(m[6])));
 			else
-				nodes.push(element("span", { class: "md-quote" }, `"${unpark(m[7])}"`));
+				nodes.push(
+					element("span", { class: "md-quote" }, '"', ...textParts(m[7]), '"'),
+				);
 			last = m.index + m[0].length;
 		}
 		if (last < value.length) nodes.push(unpark(value.slice(last)));
@@ -6150,7 +6193,7 @@ function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 								"p",
 								{},
 								inline(token.before),
-								element("code", {}, token.code),
+								element("code", {}, codeSpanText(token.code)),
 								inline(token.after),
 							),
 						);
@@ -6383,7 +6426,13 @@ function reportBlocks(container) {
  * `Verifier verdict:` lines and a Locations table; those parts become a card. Any other report
  * (or any other part of this one) stays plain rendered Markdown, so nothing is ever invented.
  */
-const FINDING_HEADING = /^(finding-\d+)\s+[—–-]+\s+(.+)$/;
+const FINDING_ID = String.raw`(?:finding|reviewer-coverage)-\d+`;
+const FINDING_HEADING = new RegExp(
+	String.raw`^(${FINDING_ID})\s+[—–-]+\s+(.+)$`,
+);
+const FINDING_ACTION = new RegExp(
+	String.raw`^1\. \*\*(${FINDING_ID})\*\* — (.+)$`,
+);
 const LABEL_LINE = /^([A-Z][A-Za-z-]*(?:(?: \/ | |\/)[A-Za-z-]+){0,4}):\s*$/;
 /** Markdown escapes and entities, as plain text (for chips, never for rendering). */
 const plainMd = (value) =>
@@ -6405,10 +6454,10 @@ const plainMd = (value) =>
 				})[name],
 		)
 		.replace(/\*\*([^*]+)\*\*/g, "$1");
-// Split only on unescaped pipes, retaining all escapes for the inline renderer.
+// Split only on unescaped pipes. GFM consumes the pipe escape before inline parsing.
 function splitPipeCells(row) {
 	return (row.match(/(?:\\.|[^|\\])+|(?<=^|\|)(?=\||$)/g) ?? []).map((cell) =>
-		cell.trim(),
+		cell.trim().replace(/\\\|/g, "|"),
 	);
 }
 
@@ -6713,7 +6762,7 @@ function renderReport(container, text, researchReport) {
 			if (segment.kind !== "markdown") continue;
 			for (const token of segment.tokens) {
 				if (token.kind !== "text") continue;
-				const action = /^1\. \*\*(finding-\d+)\*\* — (.+)$/.exec(token.raw);
+				const action = FINDING_ACTION.exec(token.raw);
 				if (action && !reviewActions.has(action[1]))
 					reviewActions.set(action[1], action[2]);
 			}
@@ -6763,6 +6812,7 @@ function reportOutline(content, scroller) {
 		.filter(
 			(node) =>
 				!node.matches(".finding-title") &&
+				!node.closest("details:not([open])") &&
 				(!node.matches(".md-h3") || FINDING_HEADING.test(node.textContent)),
 		)
 		.map((node) => {
