@@ -245,7 +245,7 @@ test("live research correction reconciles canonical slots and preserves blocked/
 		"passed",
 		JSON.stringify(rendered.packetReconciliation),
 	);
-	assert.match(rendered.reportMarkdown, /Evidence citations:/);
+	assert.match(rendered.reportMarkdown, /<summary>Evidence<\/summary>/);
 	assert.match(rendered.reportMarkdown, /facts\.md lines 1-1/);
 	assert.match(
 		rendered.reportMarkdown,
@@ -339,13 +339,10 @@ test("live research correction reconciles canonical slots and preserves blocked/
 	);
 	assert.deepEqual(referenced.claimSummary, rendered.claimSummary);
 	const recommendationSection = referenced.reportMarkdown
-		.split("## Recommendations")[1]
-		.split("## Action plan")[0];
-	assert.match(recommendationSection, /Evidence status: unverified/);
-	assert.doesNotMatch(
-		recommendationSection,
-		/Evidence status: (verified|derived)/,
-	);
+		.split("## To do")[1]
+		.split("\n## ")[0];
+	assert.match(recommendationSection, /\*\*Unverified\*\*/);
+	assert.doesNotMatch(recommendationSection, /\*\*(Verified|Proposal)\*\*/);
 	assert.equal(referenced.renderWarnings.length, 0);
 
 	const unknownReference = structuredClone(referenceSynthesis);

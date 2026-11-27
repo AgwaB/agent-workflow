@@ -153,7 +153,8 @@ test("the deep-research final-audit schema: root brace repaired, a truncated not
 		digest: "d",
 		inputIntegrity: { status: "complete" },
 		synthesis: {
-			bottomLine: "b",
+			conclusion: ["First.", "Second."],
+			keyPoints: [],
 			comparisonRows: [],
 			keyFindingIds: ["claim-001"],
 			recommendations: [],

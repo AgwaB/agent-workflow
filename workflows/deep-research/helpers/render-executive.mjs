@@ -9,7 +9,7 @@ import { validateSynthesisPages } from "./synthesis-pages.mjs";
 // renders a bounded view. It does not re-verify or invent evidence.
 
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
-import { join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import { structuredDatesIn } from "./slot-conflicts.mjs";
 import { canonicalVerificationStatus } from "./verification-ontology.mjs";
 import { findSource, asArray, stringOf } from "./source-access.mjs";
@@ -93,14 +93,25 @@ function readableClaimText(value) {
 	return cells.join(" · ");
 }
 
-function escapeMarkdownText(value) {
-	return cleanText(value)
-		.replace(/([\\`*_[\]{}#+!<>])/g, "\\$1")
-		.replace(/^(\s*)([-+>]\s)/gm, "$1\\$2");
+// Serialize data, never report structure. Preserve quote whitespace using JSON notation
+// for line breaks/tabs (no raw line can become a Markdown block).
+function escapeMarkdownText(value, { quote = false } = {}) {
+	const text = quote ? JSON.stringify(value) : cleanText(value);
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/([\\`*_[\]{}#+!|])/g, "\\$1")
+		.replace(/^([-~=])(?=\s|[-~=]|$)/u, "\\$1")
+		.replace(/^(\d{1,9})([.)])(?=\s|$)/u, "$1\\$2")
+		// Hide GFM's autolink delimiters in the Markdown source, not the rendered text.
+		.replace(/:(?=\/\/)/g, "&#58;")
+		.replace(/(www)\./gi, "$1&#46;")
+		.replace(/@/g, "&#64;");
 }
 
 function completionText(value) {
-	return cleanText(value)
+	return escapeMarkdownText(cleanText(value)
 		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became "[run omitted]", a reviewed
 		// file's "control.json" became "[artifact omitted]"): only this engine's own names are hidden —
 		// paths under .agent-workflow/workflows, run ids (workflow_<id>_<hex6>), task ids (task-<n>),
@@ -113,16 +124,10 @@ function completionText(value) {
 		.replace(/(?<=[.\\/])(?:refs|control)\.json\b/gi, "[artifact omitted]")
 		.replace(/\brelated[\s-]+artifacts\b/gi, "[section title omitted]")
 		.replace(/\bworkflow\\?_[a-z0-9]+\\?_[a-f0-9]{6}\b/gi, "[run omitted]")
-		.replace(/\btask-\d+\b/gi, "[task omitted]")
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/([\\`*_[\]{}#+|])/g, "\\$1");
+		.replace(/\btask-\d+\b/gi, "[task omitted]"));
 }
 
-function escapeTableCell(value) {
-	return escapeMarkdownText(value).replace(/\|/g, "\\|");
-}
+const escapeTableCell = escapeMarkdownText;
 
 function stringifyItem(item) {
 	if (typeof item === "string") return cleanText(item) || "(empty string)";
@@ -183,129 +188,109 @@ function hostOf(url) {
 	}
 }
 
-function normalizeUrl(url) {
-	if (typeof url !== "string") return null;
-	const trimmed = url.trim().replace(/[.,;:]+$/, "");
-	if (!/^https?:\/\//i.test(trimmed)) return null;
+function validHttpUrl(text) {
+	if (!/^https?:\/\/[^/?#]/i.test(text) || /[\x00-\x20\x7f-\x9f\\]/u.test(text)) return null;
 	try {
-		const parsed = new URL(trimmed);
-		parsed.hash = "";
-		return parsed.toString();
+		const parsed = new URL(text);
+		if (!parsed.hostname || parsed.username || parsed.password) return null;
+		// Use URL only for validation: its serialization changes request targets.
+		return text;
 	} catch {
-		return trimmed;
+		return null;
 	}
 }
 
-function collectStructuredUrls(value, urls = []) {
-	if (!value || typeof value !== "object") return urls;
+const REFERENCE_FIELDS = /^(sourceUrls?|evidenceUrls?|urls?|url|uri|href|links?|references?|refs?|basis|sources?|sourceRefs?|files?|paths?|repo)$/i;
+const LOCAL_FIELDS = /^(files?|paths?|repo)$/i;
+const URL_FIELDS = /^(sourceUrls?|evidenceUrls?|urls?|url|uri|href|links?|references?|refs?|basis|sources?)$/i;
+
+function localLocator(text, field) {
+	const prefix = /^(?:file|repo):/i.exec(text);
+	if (!prefix && !LOCAL_FIELDS.test(field)) return null;
+	const locator = text.slice(prefix?.[0].length ?? 0);
+	// Typed references may use spaces and Unicode, but are not prose or URLs.
+	if (!locator || /[\p{Cc}\u2028\u2029]|^[a-z][a-z0-9+.-]*:\/\//iu.test(locator)) return null;
+	return locator;
+}
+
+function localIdentity(text, field, cwd) {
+	const locator = localLocator(text, field);
+	if (!locator) return null;
+	const file = locator.replace(/#L\d+(?:-L?\d+)?$/i, "");
+	const path = normalize(file);
+	if (path === "." || path === "..") return null;
+	if (!cwd || !isAbsolute(path)) return path;
+	const inside = relative(resolve(cwd), path);
+	return inside && inside !== ".." && !inside.startsWith(`..${sep}`) ? inside : path;
+}
+
+function* references(value, field = "") {
 	if (Array.isArray(value)) {
-		for (const item of value) collectStructuredUrls(item, urls);
-		return urls;
+		for (const item of value) yield* references(item, field);
+	} else if (isRecord(value)) {
+		for (const [key, item] of Object.entries(value)) yield* references(item, key);
+	} else if (typeof value === "string" && REFERENCE_FIELDS.test(field)) {
+		const text = value.trim();
+		if (text && !/^wsrc_[a-z0-9]{16,}$/i.test(text) &&
+			!/^research-questions(?:\.question-\d+)?\.(?:fact|source)-\d+$/u.test(text))
+			yield [text, field];
 	}
-	for (const [key, item] of Object.entries(value)) {
-		if (
-			/^(sourceUrls?|evidenceUrls?|urls?|url|uri|href|links?|references?|refs?|basis|sources)$/i.test(
-				key,
-			)
-		) {
-			for (const candidate of asArray(item).length ? item : [item]) {
-				const normalized = normalizeUrl(candidate);
-				if (normalized) urls.push(normalized);
-				else if (candidate && typeof candidate === "object") {
-					collectStructuredUrls(candidate, urls);
-				}
-			}
-			continue;
-		}
-		if (item && typeof item === "object") collectStructuredUrls(item, urls);
-	}
-	return urls;
 }
 
 function uniqueStructuredUrls(...values) {
-	const out = [];
-	const seen = new Set();
-	for (const value of values) {
-		for (const url of collectStructuredUrls(value, [])) {
-			if (seen.has(url)) continue;
-			seen.add(url);
-			out.push(url);
-		}
+	const out = new Set();
+	for (const [text, field] of references(values)) {
+		if (!URL_FIELDS.test(field)) continue;
+		const url = validHttpUrl(text);
+		if (url) out.add(url);
 	}
-	return out;
+	return [...out];
 }
 
 function urlsOf(item, limit = 3) {
 	return uniqueStructuredUrls(item).slice(0, limit);
 }
 
-function normalizeLocalRef(value) {
-	if (typeof value !== "string") return null;
-	const text = value.trim();
-	if (!text || /^https?:\/\//i.test(text) || isWorkflowSourceRefText(text))
-		return null;
-	const stripped = text.replace(/^(?:file|repo):/i, "");
-	if (!/[\w./-]+\.[\w]+(?:#L\d+(?:-L?\d+)?)?$/i.test(stripped)) return null;
-	return stripped;
-}
-
-function isWorkflowSourceRefText(value) {
-	return /^wsrc_[a-z0-9]{16,}$/i.test(String(value ?? "").trim());
-}
-
-function collectLocalRefs(value, refs = []) {
-	if (!value || typeof value !== "object") return refs;
-	if (Array.isArray(value)) {
-		for (const item of value) collectLocalRefs(item, refs);
-		return refs;
+function localRefsOf(item, limit = 3, cwd) {
+	const out = new Set();
+	for (const [text, field] of references(item)) {
+		const file = localIdentity(text, field, cwd);
+		if (file) out.add(file);
+		if (out.size >= limit) break;
 	}
-	for (const [key, item] of Object.entries(value)) {
-		if (/^(files?|paths?|sourceRefs?|sourceUrls?|sources?)$/i.test(key)) {
-			for (const candidate of asArray(item).length ? item : [item]) {
-				const ref = normalizeLocalRef(candidate);
-				if (ref) refs.push(ref);
-				else if (candidate && typeof candidate === "object")
-					collectLocalRefs(candidate, refs);
-			}
-			continue;
-		}
-		if (item && typeof item === "object") collectLocalRefs(item, refs);
-	}
-	return refs;
-}
-
-function localRefsOf(item, limit = 3) {
-	const out = [];
-	const seen = new Set();
-	for (const ref of collectLocalRefs(item, [])) {
-		if (seen.has(ref)) continue;
-		seen.add(ref);
-		out.push(ref);
-		if (out.length >= limit) break;
-	}
-	return out;
+	return [...out];
 }
 
 function referenceList(item, limit = 3) {
-	const urls = markdownLinkList(urlsOf(item, limit), limit);
-	const localRefs = localRefsOf(item, limit)
-		.map((ref) => `\`${ref}\``)
-		.join(", ");
-	return [urls, localRefs].filter(Boolean).join("; ");
+	const urls = new Set();
+	const rest = new Set();
+	for (const [text, field] of references(item)) {
+		const url = URL_FIELDS.test(field) ? validHttpUrl(text) : null;
+		if (url) urls.add(url);
+		else {
+			const locator = localLocator(text, field);
+			rest.add(locator ? renderLocalLocator(locator) : escapeMarkdownText(text));
+		}
+	}
+	return [markdownLinkList([...urls], limit), [...rest].slice(0, limit).join(", ")].filter(Boolean).join("; ");
+}
+
+function renderLocalLocator(locator) {
+	// Backticks could end a code span; pipes can split a GFM table cell.
+	return /[`|]/.test(locator) ? escapeMarkdownText(locator) : `\`${locator}\``;
 }
 
 function markdownLinkList(urls, maxItems = 3) {
-	return urls
-		.slice(0, maxItems)
-		.map(
-			(url) =>
-				`[${escapeMarkdownText(hostOf(url))}](<${normalizeUrl(url) ?? ""}>)`,
-		)
-		.join(", ");
+	return urls.slice(0, maxItems).map((url) => {
+		// Angle destinations already allow parentheses. Entities protect only
+		// Markdown syntax (including pipes when a link appears in a GFM table).
+		const destination = url.replace(/[&<>|]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "|": "&#124;" })[char]);
+		return `[${escapeMarkdownText(hostOf(url))}](<${destination}>)`;
+	}).join(", ");
 }
 
 function itemText(item, fields, fallback = "") {
-	if (typeof item === "string") return escapeMarkdownText(item) || fallback;
+	if (typeof item === "string") return escapeMarkdownText(item) || escapeMarkdownText(fallback);
 	if (!item || typeof item !== "object") return escapeMarkdownText(fallback);
 	for (const field of fields) {
 		if (typeof item[field] === "string" && item[field].trim()) {
@@ -326,9 +311,8 @@ function evidenceStatusOf(item) {
 	);
 }
 
-function confidenceOf(item) {
-	if (!item || typeof item !== "object") return "";
-	return cleanText(item.confidence ?? item.evidenceStatus ?? "");
+function isCount(value) {
+	return Number.isSafeInteger(value) && value >= 0;
 }
 
 function finiteNumber(value) {
@@ -514,6 +498,10 @@ function boundedString(value, minLength, maxLength) {
 	return typeof value === "string" && length >= minLength && length <= maxLength;
 }
 
+function boundedNonBlankString(value, maxLength) {
+	return boundedString(value, 1, maxLength) && value.trim() !== "";
+}
+
 function boundedArray(value, maxItems, itemCheck) {
 	return (
 		Array.isArray(value) && value.length <= maxItems && value.every(itemCheck)
@@ -548,10 +536,32 @@ function modernRecommendationValid(item) {
 	);
 }
 
+export function synthesisSummary(synthesis) {
+	return Array.isArray(synthesis?.conclusion) ? synthesis.conclusion.join(" ") : stringOf(synthesis?.bottomLine);
+}
+
+function synthesisConclusionValid(synthesis) {
+	return !hasOwn(synthesis, "bottomLine") &&
+		boundedArray(synthesis.conclusion, 3, (line) => boundedNonBlankString(line, 220)) &&
+		synthesis.conclusion.length >= 2 &&
+		boundedArray(synthesis.keyPoints, 6, (point) =>
+			exactKeys(point, ["title", "text"]) && boundedNonBlankString(point.title, 64) && boundedNonBlankString(point.text, 160));
+}
+
+// Stored v1/v2 controls predate the live conclusion/keyPoints pair. A mixed
+// control is neither contract and must not silently fall back to its paragraph.
+function storedParagraphValid(synthesis) {
+	return !hasOwn(synthesis, "conclusion") && !hasOwn(synthesis, "keyPoints") &&
+		boundedNonBlankString(synthesis?.bottomLine, 4000);
+}
+
 function modernActionValid(item) {
 	return Boolean(
 		isRecord(item) &&
 			boundedString(item.action, 1, 1200) &&
+			(!hasOwn(item, "recommendationNumbers") ||
+				(boundedArray(item.recommendationNumbers, 12, (n) => Number.isInteger(n) && n >= 1 && n <= 12) &&
+				new Set(item.recommendationNumbers).size === item.recommendationNumbers.length)) &&
 			boundedStringArray(item.supportingClaimIds, 8) &&
 			(!hasOwn(item, "evidenceStatus") || typeof item.evidenceStatus === "string"),
 	);
@@ -607,10 +617,13 @@ function inputIntegrityValid(control) {
 	);
 }
 
-function validModernFinalAudit(control) {
+function validStoredSynthesis(control) {
 	const synthesis = control?.synthesis;
 	const synthesisKeys = [
 		"bottomLine",
+		"conclusion",
+		"keyPoints",
+		"openQuestion",
 		"comparisonRows",
 		"keyFindingIds",
 		"recommendations",
@@ -633,7 +646,8 @@ function validModernFinalAudit(control) {
 			modernSchema &&
 			boundedString(control.digest, 1, 1200) &&
 			exactKeys(synthesis, synthesisKeys) &&
-			boundedString(synthesis.bottomLine, 1, 4000) &&
+			(synthesisConclusionValid(synthesis) || storedParagraphValid(synthesis)) &&
+			(!hasOwn(synthesis, "openQuestion") || boundedString(synthesis.openQuestion, 1, 180)) &&
 			comparisonRowsValid &&
 			boundedStringArray(synthesis.keyFindingIds, 12) &&
 			boundedArray(synthesis.recommendations, 12, modernRecommendationValid) &&
@@ -961,7 +975,7 @@ function packetHasCompleteContract(packet) {
 
 function reconcileFinalPacket(packet, control) {
 	const blockers =
-		validModernFinalAudit(control) ||
+		validStoredSynthesis(control) ||
 		packetHasCompleteContract(packet) ||
 		packet?.synthesisInput
 			? validateSynthesisPages(packet)
@@ -1358,24 +1372,23 @@ function claimToFinding(row) {
 	};
 }
 
-function evidenceCitationText(row) {
+function evidenceCitationText(row, ko = false, quoteFirst = false) {
 	if (!isRecord(row)) return "";
 	const source = row.file ?? row.repo ?? row.sourceRef ?? row.source ?? row.url;
 	const lineStart = Number(row.lineStart ?? row.line);
 	const lineEnd = Number(row.lineEnd ?? row.lineStart ?? row.line);
 	let location = cleanText(source);
 	if (Number.isSafeInteger(lineStart) && lineStart > 0) {
-		location += ` lines ${lineStart}-${Number.isSafeInteger(lineEnd) && lineEnd > 0 ? lineEnd : lineStart}`;
+		const range = `${lineStart}-${Number.isSafeInteger(lineEnd) && lineEnd > 0 ? lineEnd : lineStart}`;
+		location += ko ? ` ${range}행` : ` lines ${range}`;
 	} else if (row.excerptLocation) {
 		location += ` ${cleanText(row.excerptLocation)}`;
 	}
 	const quote = typeof row.quote === "string" ? row.quote : "";
-	const exactQuote = quote
-		? JSON.stringify(quote)
-				.replace(/([\\`*_[\\]{}#+!<>|])/g, "\\$1")
-				.replace(/\r?\n/g, "\\n")
-		: "";
-	return [location || "source", exactQuote ? `quote ${exactQuote}` : ""]
+	const exactQuote = quote ? escapeMarkdownText(quote, { quote: true }) : "";
+	const label = escapeMarkdownText(location || (ko ? "출처" : "source"));
+	if (quoteFirst) return [exactQuote, label].filter(Boolean).join(" — ");
+	return [label, exactQuote ? `quote ${exactQuote}` : ""]
 		.filter(Boolean)
 		.join(": ");
 }
@@ -1405,12 +1418,10 @@ function withSupportingEvidence(item, claimRows) {
 		...item,
 		evidenceStatus,
 		sourceUrls: uniqueStrings(
-			[...asArray(item?.sourceUrls), ...claimSourceUrls(claimRows)],
-			8,
+			[...asArray(item?.sourceUrls), ...claimSourceUrls(claimRows, Infinity)],
 		),
 		sourceRefs: uniqueStrings(
-			[...asArray(item?.sourceRefs), ...claimSourceRefs(claimRows)],
-			8,
+			[...asArray(item?.sourceRefs), ...claimSourceRefs(claimRows, Infinity)],
 		),
 	};
 }
@@ -1521,7 +1532,7 @@ function readerTranslations(
 	}
 	// 2026-11-10: a shown key finding or lead that the audit left untranslated while the report is in another
 	// script (recorded: 81 of 109 English leads in Korean reports) is listed too; the retranslate stage translates it.
-	const target = scriptOf(synthesis?.bottomLine);
+	const target = scriptOf(synthesisSummary(synthesis));
 	if (target !== "latin" && synthesis?.translations)
 		for (const id of new Set(expectedClaimIds)) {
 			if (attempted.has(id) || !claimIds.has(id)) continue;
@@ -1752,7 +1763,11 @@ function composeResearchReport(
 	const warnings = [];
 
 	if (!synthesis) {
-		const report = { ...legacyReport };
+		const report = {
+			...legacyReport,
+			notableUnsupportedClaims: [...flattenItems(legacyReport.notableUnsupportedClaims), ...flattenItems(legacyReport.unsupportedFindings)],
+			contestedAreas: [...flattenItems(legacyReport.contestedAreas), ...flattenItems(legacyReport.contestedFindings)],
+		};
 		// A legacy report row may name the claim without the verifier's correction the ledger holds.
 		for (const key of ["notableUnsupportedClaims", "contestedAreas"])
 			if (Array.isArray(report[key]))
@@ -1892,7 +1907,10 @@ function composeResearchReport(
 
 	return {
 		report: {
-			summary: synthesis.bottomLine ?? control?.digest,
+			summary: synthesisSummary(synthesis) ?? control?.digest,
+			conclusion: synthesis.conclusion,
+			keyPoints: synthesis.keyPoints,
+			openQuestion: synthesis.openQuestion,
 			researchMetadata: packet.researchMetadataSeed ?? {},
 			coverageSummary: coverageSummaryFromPacket(packet, {}),
 			factSlotCoverage,
@@ -1980,7 +1998,48 @@ function sortedFactSlots(report) {
 		);
 }
 
-function renderEvidenceStrength(report) {
+// Presentation only. Keep the machine statuses and the canonical audit unchanged.
+const STATUS_LABELS = new Map(Object.entries({
+	verified: ["Verified", "확인됨"], partially_supported: ["Partly supported", "일부 확인"],
+	unsupported: ["Unsupported", "근거 부족"], conflicting: ["Sources disagree", "출처 상충"],
+	verification_blocked: ["Not checked", "검증 불가"], unverified: ["Unverified", "미확인"],
+	derived: ["Proposal", "제안"], filled: ["Covered", "충분"], covered: ["Covered", "충분"],
+	covered_with_conflicts: ["Covered with conflicts", "상충 포함"],
+	partial: ["Partly covered", "일부"], missing: ["Missing", "없음"], gap: ["Gap", "공백"],
+	out_of_scope: ["Out of scope", "범위 밖"], not_applicable: ["Not applicable", "해당 없음"],
+	unknown: ["Unknown", "알 수 없음"], "not specified": ["Not specified", "표시 없음"],
+}));
+
+function statusLabel(status, ko) {
+	return STATUS_LABELS.get(status.toLowerCase().replace(/[ -]+/g, "_"))?.[ko ? 1 : 0] ??
+		STATUS_LABELS.get(status.toLowerCase())?.[ko ? 1 : 0] ??
+		escapeMarkdownText(status);
+}
+
+function sentences(text) {
+	const ko = /[가-힣]/u.test(text);
+	return [...new Intl.Segmenter(ko ? "ko" : "en", { granularity: "sentence" }).segment(text)]
+		.map(({ segment }) => segment.trim()).filter(Boolean);
+}
+
+function conclusionLines(report, fallback, format) {
+	return (report.conclusion ?? sentences(summaryText(report, fallback))).flatMap((line) => [format(line), ""]);
+}
+
+function renderKeyPoints(report, ko, format, level) {
+	return asArray(report.keyPoints).length ? [
+		`${level} ${ko ? "핵심 포인트" : "Key points"}`, "",
+		...report.keyPoints.map(({ title, text }) => `- **${format(title)}** — ${format(text)}`), "",
+	] : [];
+}
+
+function fold(title, body, indent = "") {
+	return ["<details>", `<summary>${title}</summary>`, "", ...body, "", "</details>"].map(
+		(line) => line ? `${indent}${line}` : "",
+	);
+}
+
+function renderEvidenceStrength(report, ko) {
 	const slots = sortedFactSlots(report);
 	const rows = slots.map((slot) => {
 		const area = escapeTableCell(
@@ -1988,12 +2047,10 @@ function renderEvidenceStrength(report) {
 				slot.label ??
 				slot.slotId ??
 				slot.bestValue ??
-				"Evidence area",
+				(ko ? "근거 항목" : "Evidence area"),
 		);
-		const status = escapeTableCell(evidenceStatusOf(slot));
-		// referenceList is already Markdown (escaped host, <url>, `ref`): only the cell's pipes are
-		// escaped (2026-11-03: escaping it again printed \[host\](\<url\>) instead of a link).
-		const evidence = referenceList(slot, 2).replace(/\|/g, "\\|") || "—";
+		const status = statusLabel(evidenceStatusOf(slot), ko);
+		const evidence = referenceList(slot, Infinity) || "—";
 		const impact = escapeTableCell(
 			slot.readerImpact ??
 				slot.parentImpact ??
@@ -2001,13 +2058,11 @@ function renderEvidenceStrength(report) {
 				slot.notes ??
 				"",
 		);
-		return `| ${area || "Evidence area"} | ${status || "—"} | ${evidence} | ${impact || "—"} |`;
+		return `| ${area || (ko ? "근거 항목" : "Evidence area")} | ${status || "—"} | ${evidence} | ${impact || "—"} |`;
 	});
 	if (rows.length === 0) return [];
 	return [
-		"## Evidence strength",
-		"",
-		"| Area | Status | Evidence | Why it matters |",
+		ko ? "| 항목 | 상태 | 근거 | 중요한 이유 |" : "| Area | Status | Evidence | Why it matters |",
 		"|---|---|---|---|",
 		...rows,
 		"",
@@ -2049,97 +2104,117 @@ function recommendationEntries(report) {
 function actionEntries(report) {
 	return asArray(report.actionPlan).map((item) => ({
 		item,
-		text:
-			itemText(item, ["action", "recommendation", "note"]) ||
-			(typeof item?.step === "string" && cleanText(item.step)) ||
-			stringifyItem(item),
+		text: itemText(item, ["action", "recommendation", "note", "step"], stringifyItem(item)),
 	}));
 }
 
-function renderComparisonSnapshot(report) {
+function comparisonHeading(ko) {
+	return ko ? "비교 요약" : "Comparison snapshot";
+}
+
+function comparisonTableHeader(ko) {
+	return ko ? "| 항목 | 대상의 현재 상태 | 참고 사례 | 평가 |" : "| Area | Subject / current state | Reference pattern | Assessment |";
+}
+
+function renderComparisonSnapshot(report, ko) {
 	const comparisons = comparisonEntries(report);
 	if (comparisons.length === 0) return [];
-	const out = [
-		"## Comparison snapshot",
-		"",
-		"| Area | Subject / current state | Reference pattern | Assessment |",
-		"|---|---|---|---|",
-	];
+	const out = [`## ${comparisonHeading(ko)}`, "", comparisonTableHeader(ko), "|---|---|---|---|"];
 	for (const { item, area, subjectStatus, referencePattern, assessment } of comparisons) {
-		const status = evidenceStatusOf(item) || "not specified";
-		out.push(
-			`| ${escapeTableCell(area)} | ${escapeTableCell(subjectStatus)} | ${escapeTableCell(referencePattern)} | ${escapeTableCell(`${assessment} — evidence: ${status}`)} |`,
-		);
+		const status = statusLabel(evidenceStatusOf(item), ko);
+		out.push(`| ${escapeTableCell(area)} | ${escapeTableCell(subjectStatus)} | ${escapeTableCell(referencePattern)} | **${status}** ${escapeTableCell(assessment)} |`);
 	}
 	out.push("");
 	return out;
 }
 
-function renderMainFindings(report) {
+function renderMainFindings(report, ko) {
 	const findings = mainFindingEntries(report);
 	if (findings.length === 0) return [];
-	const out = ["## Main findings", ""];
-	findings.forEach(({ item: finding, text }, index) => {
-		const status = escapeMarkdownText(evidenceStatusOf(finding));
-		const confidence = escapeMarkdownText(confidenceOf(finding));
-		const urls = referenceList(finding, 4);
-		out.push(`### ${index + 1}. ${text}`);
-		out.push("");
-		out.push(
-			`Evidence status: **${status || "not specified"}**${confidence && confidence !== status ? `  \nConfidence: **${confidence}**` : ""}`,
-		);
-		if (urls) out.push(`Sources: ${urls}`);
-		const citations = asArray(finding?.evidence)
-			.map(evidenceCitationText)
-			.filter(Boolean);
-		if (citations.length > 0) {
-			out.push("Evidence citations:");
-			for (const citation of citations) out.push(`- ${citation}`);
-		}
-		const explanation = itemText(finding, [
-			"readerExplanation",
-			"rationale",
-			"explanation",
-			"details",
-			"notes",
-		]);
-		if (explanation && explanation !== text) out.push("", explanation);
-		out.push("");
-	});
+	const out = [ko ? "## 근거가 된 발견" : "## Findings", ""];
+	for (const { item: finding, text } of findings) {
+		const status = statusLabel(evidenceStatusOf(finding), ko);
+		out.push(`### **${status}** ${text}`, "");
+		const evidence = asArray(finding?.evidence).map((row) => evidenceCitationText(row, ko, true)).filter(Boolean).map((row) => `- ${row}`);
+		const explanation = itemText(finding, ["readerExplanation", "rationale", "explanation", "details", "notes"]);
+		if (explanation && explanation !== text) evidence.push("", explanation);
+		const confidence = cleanText(finding?.confidence);
+		const level = new Map([["high", ["High", "높음"]], ["medium", ["Medium", "보통"]], ["low", ["Low", "낮음"]]]).get(confidence.toLowerCase());
+		if (confidence) evidence.push("", `${ko ? "신뢰도" : "Confidence"}: ${level?.[ko ? 1 : 0] ?? escapeMarkdownText(confidence)}`);
+		const sources = referenceList(finding, Infinity);
+		if (sources) evidence.push("", `${ko ? "출처" : "Sources"}: ${sources}`);
+		if (evidence.length) out.push(...fold(ko ? "근거 보기" : "Evidence", evidence), "");
+	}
 	return out;
 }
 
-function renderRecommendations(report) {
+function relatedActionRefs(item) {
+	// Normalize only the origin for matching. Leave paths, queries and fragments
+	// distinct, and keep the original URL for citation rendering.
+	const urls = urlsOf(item, Infinity).map((url) =>
+		// A callback: a replacement string would turn "$$" in a host into "$".
+		url.replace(/^https?:\/\/[^/?#]+/i, () => new URL(url).origin),
+	);
+	return new Set([...urls, ...localRefsOf(item, Infinity)]);
+}
+
+function bestRelatedAction(recommendation, actions) {
+	const claimIds = new Set(supportingClaimIds(recommendation));
+	const refs = relatedActionRefs(recommendation);
+	const scores = actions.map(({ item }) => [
+		supportingClaimIds(item).filter((id) => claimIds.has(id)).length,
+		[...relatedActionRefs(item)].filter((ref) => refs.has(ref)).length,
+	]);
+	let best = -1, tied = false;
+	for (const [index, [claims, sources]] of scores.entries()) {
+		if (!claims && !sources) continue;
+		const [prevClaims, prevSources] = scores[best] ?? [0, 0];
+		if (claims > prevClaims || (claims === prevClaims && sources > prevSources)) {
+			best = index;
+			tied = false;
+		} else if (claims === prevClaims && sources === prevSources) tied = true;
+	}
+	return tied ? -1 : best;
+}
+
+function renderActions(report, ko) {
+	const actions = actionEntries(report).map((entry) => ({ ...entry, related: [] }));
 	const recommendations = recommendationEntries(report);
-	if (recommendations.length === 0) return [];
-	const out = ["## Recommendations", ""];
-	recommendations.forEach(({ item, text }, index) => {
-		const status = escapeMarkdownText(evidenceStatusOf(item));
-		const urls = referenceList(item, 4);
-		out.push(`${index + 1}. **${text}**`);
-		out.push(`   - Evidence status: ${status || "not specified"}`);
-		if (urls) out.push(`   - Sources: ${urls}`);
-		out.push("");
-	});
-	return out;
-}
-
-function renderActionPlan(report) {
-	const actions = actionEntries(report);
-	if (actions.length === 0) return [];
-	const out = ["## Action plan", ""];
-	actions.forEach(({ item, text }, index) => {
-		const numericStep = Number(item?.step);
-		const step = Number.isFinite(numericStep) ? numericStep : index + 1;
-		const urls = referenceList(item, 3);
-		const evidence = escapeMarkdownText(evidenceStatusOf(item));
-		out.push(`${step}. ${text}`);
-		if (evidence && evidence !== "not specified")
-			out.push(`   - Evidence: ${evidence}`);
-		if (urls) out.push(`   - Sources: ${urls}`);
-		out.push("");
-	});
-	return out;
+	const standalone = [];
+	const owners = new Map();
+	const explicit = actions.some(({ item }) => Array.isArray(item?.recommendationNumbers));
+	for (const [index, { item }] of actions.entries()) {
+		for (const number of asArray(item?.recommendationNumbers))
+			if (recommendations[number - 1] && !owners.has(number - 1)) owners.set(number - 1, index);
+	}
+	for (const [index, entry] of recommendations.entries()) {
+		const owner = owners.get(index) ?? (explicit ? -1 : bestRelatedAction(entry.item, actions));
+		if (owner < 0) standalone.push({ ...entry, related: [] });
+		else actions[owner].related.push(entry);
+	}
+	actions.push(...standalone);
+	if (!actions.length) return [];
+	const out = [ko ? "## 할 일" : "## To do", ""];
+	const textWithStatus = (item, text) => `**${statusLabel(evidenceStatusOf(item), ko)}** ${text}`;
+	const sourceLine = (item) => {
+		const sources = referenceList(item, Infinity);
+		return sources ? `${ko ? "출처" : "Sources"}: ${sources}` : "";
+	};
+	for (const [index, { item, text, related }] of actions.entries()) {
+		const n = `${index + 1}. `;
+		const indent = " ".repeat(n.length);
+		out.push(`${n}${textWithStatus(item, text)}`);
+		const sources = sourceLine(item);
+		const rationale = itemText(item, ["rationale"]);
+		const body = [...(rationale ? [rationale, ""] : []), ...(sources ? [sources, ""] : [])];
+		for (const entry of related) {
+			const relatedSources = sourceLine(entry.item);
+			const rationale = itemText(entry.item, ["rationale"]);
+			body.push(`- ${textWithStatus(entry.item, entry.text)}${rationale ? ` — ${rationale}` : ""}${relatedSources ? ` (${relatedSources})` : ""}`);
+		}
+		if (body.length) out.push(...fold(related.length ? (ko ? "관련 권고와 출처" : "Related recommendations and sources") : (ko ? "자세히 보기" : "Details"), body, indent));
+	}
+	return [...out, ""];
 }
 
 function fallbackCaveatText(item) {
@@ -2244,34 +2319,11 @@ function readerEvidenceQualifier(item, korean) {
 	return labels[normalizeClaimStatus(status)] ?? labels.unverified;
 }
 
-function readerEvidenceLimits(report, claimSummary, slots, korean) {
-	const limits = [];
-	if (claimSummary.total === 0 || claimSummary.verified === 0) {
-		limits.push(korean
-			? "충분히 검증된 근거가 없어 결론을 확정할 수 없습니다."
-			: "There is not enough verified evidence to treat the conclusions as established.");
-	} else if (claimSummary.verified + claimSummary.conflicting < claimSummary.total || asArray(report.unsupportedFindings).length > 0) {
-		limits.push(korean
-			? "일부 근거를 충분히 확인하지 못했습니다. 해당 내용을 확정된 사실로 받아들이지 마세요."
-			: "Some evidence could not be fully checked. Do not treat those statements as established facts.");
-	}
-	if (claimSummary.conflicting > 0 || asArray(report.contestedFindings).length > 0) {
-		limits.push(korean
-			? "출처 간 설명이 일치하지 않는 부분이 있어 추가 확인이 필요합니다."
-			: "Some sources disagree; those conclusions need further checking.");
-	}
-	const coverage = report?.coverageSummary ?? {};
-	const counts = ["preserved", "omittedPreserved", "omittedVerificationCandidates", "coverageGaps"].map(key => finiteNumber(coverage[key]));
-	if (slots.filled < slots.total || counts.some(count => (count ?? 0) > 0) || asArray(report.remainingGaps).length > 0 || asArray(report.unverifiedButRelevant).length > 0) {
-		limits.push(korean
-			? "추가로 확인할 질문이 남아 있습니다. 확인된 일부 사실만으로 전체 결론이 입증된 것은 아닙니다."
-			: "Questions remain unanswered. Verifying some facts does not establish the whole conclusion.");
-	} else if (slots.total === 0 || counts.some(count => count === undefined)) {
-		limits.push(korean
-			? "조사가 필요한 범위를 모두 충족했는지는 확인하지 못했습니다."
-			: "The available record does not establish that all requested areas were covered.");
-	}
-	return limits;
+function readerLimits(report, contestedSlots, ko) {
+	return uniqueStrings([
+		...readerContestedLimits(contestedSlots, ko),
+		...uniqueStrings(asArray(report.caveatedFindings).map((item) => item?.readerNote), 4),
+	]);
 }
 
 // C2 (agent-workflow WP10): the user-facing source-verification statement. Plan wording (Korean):
@@ -2283,9 +2335,10 @@ export const SOURCE_VERIFICATION_STATEMENT =
 
 // 2026-11-01: when the engine's web quote check ran, the statement says what it checked; claims
 // themselves stay model-judged. Without the check (off, or older runs) the C2 statement stands.
-export function sourceVerificationStatement(quoteCheck) {
-	if (!quoteCheck) return SOURCE_VERIFICATION_STATEMENT;
-	const summary = quoteCheck.summary;
+export function sourceVerificationStatement(quoteCheck, ko = false) {
+	if (!quoteCheck) return ko ? "출처 검증: 모델 보고 기준입니다(출처 원문은 대조하지 않았습니다)." : SOURCE_VERIFICATION_STATEMENT;
+	const summary = quotePresentationCounts(quoteCheck.summary);
+	if (ko) return `출처 검증: 엔진이 웹 인용 ${summary.quotes}개 중 ${summary.verified}개를 출처 본문에서 찾았습니다(자세한 내용은 근거 감사 참고). 가져온 본문에서 인용을 찾지 못한 주장은 확인됨으로 표시하지 않습니다. 인용이 주장을 뒷받침하는지는 검증 모델이 판단합니다.`;
 	return `Source verification: the engine found ${summary.verified} of ${summary.quotes} quoted web passages on the cited pages (see Quote check in the audit); a claim whose quotes were not on their fetched page is not reported as verified; whether a found quote supports its claim is the verifiers' judgment.`;
 }
 
@@ -2303,18 +2356,18 @@ function readerContestedLimits(contestedSlots, korean) {
 		});
 }
 
-function renderCompletionSummary(report, claimSummary, slots, fallback, quoteCheck = null, contestedSlots = []) {
+function renderCompletionSummary(report, claimSummary, fallback, quoteCheck = null, contestedSlots = [], attributionWarnings = []) {
 	const summary = summaryText(report, fallback);
 	// Fixed presentation labels follow Korean prose when present; other prose is
 	// retained verbatim and the parent may translate fixed labels as before.
-	const korean = /[가-힣]/u.test(summary);
+	const korean = scriptOf(summary) === "hangul";
 	const comparisons = comparisonEntries(report).slice(0, 8);
 	const recommendations = asArray(report.recommendations);
 	const primary = (recommendations.length ? recommendations : asArray(report.mainFindings))
 		.slice(0, comparisons.length ? 6 : 8);
-	const out = ["## Core conclusion", "", completionText(summary), ""];
+	const out = [korean ? "## 결론" : "## Core conclusion", "", ...conclusionLines(report, fallback, completionText), ...renderKeyPoints(report, korean, completionText, "###")];
 	if (comparisons.length) {
-		out.push("## Comparison snapshot", "", "| Area | Subject / current state | Reference pattern | Assessment |", "|---|---|---|---|");
+		out.push(`## ${comparisonHeading(korean)}`, "", comparisonTableHeader(korean), "|---|---|---|---|");
 		for (const { item, area, subjectStatus, referencePattern, assessment } of comparisons) {
 			const qualifier = readerEvidenceQualifier(item, korean);
 			const cells = [area, subjectStatus, referencePattern, `${assessment}${qualifier ? ` (${qualifier})` : ""}`];
@@ -2323,25 +2376,20 @@ function renderCompletionSummary(report, claimSummary, slots, fallback, quoteChe
 		out.push("");
 	}
 	if (primary.length) {
-		out.push("## Main recommendations", "");
-		if (recommendations.length) out.push(korean ? "아래 권고는 조사 결과를 바탕으로 한 제안입니다." : "These recommendations are proposals based on the research, not validated outcomes.", "");
+		out.push(korean ? "## 주요 권고" : "## Main recommendations", "");
 		for (const item of primary) {
 			const text = completionItemText(item);
 			if (!text) continue;
-			const qualifier = recommendations.length && evidenceStatusOf(item) === "derived" ? "" : readerEvidenceQualifier(item, korean);
+			const qualifier = readerEvidenceQualifier(item, korean);
 			out.push(`- ${completionText(`${text}${qualifier ? ` (${qualifier})` : ""}`)}`);
 		}
 		out.push("");
 	}
-	// Internal notes are retained in the report/audit, never copied as a fallback.
-	// Older controls have no readerNote: deterministic evidence limits still
-	// disclose incomplete/unknown coverage without exposing bookkeeping jargon.
-	const readerNotes = uniqueStrings(asArray(report.caveatedFindings).map(item => item?.readerNote), 4);
-	const limits = uniqueStrings([...readerEvidenceLimits(report, claimSummary, slots, korean), ...readerContestedLimits(contestedSlots, korean), ...readerNotes]);
-	if (limits.length) {
-		out.push("## Limits to keep in mind", "", ...limits.map(text => `- ${completionText(text)}`), "");
-	}
-	out.push(sourceVerificationStatement(quoteCheck), "");
+	const limits = readerLimits(report, contestedSlots, korean);
+	// Unlike the report, the compact handoff has no trust line to signal zero verified claims.
+	if (claimSummary.verified === 0) limits.unshift(korean ? "확인된 주장이 없어 결론을 확정할 수 없습니다." : "No claims were verified; the conclusion is not established.");
+	out.push(...visibleLimits([...limits.map(completionText), ...attributionNotes(attributionWarnings, korean)], korean));
+	out.push(sourceVerificationStatement(quoteCheck, korean), "");
 	return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
@@ -2409,40 +2457,24 @@ function renderEvidenceAuditSummary(report, claimSummary, slots) {
 		.trim();
 }
 
-function renderResearchScopeAndMethod(report) {
-	const metadata = isRecord(report?.researchMetadata)
-		? report.researchMetadata
-		: {};
-	const scopeCoverage = asArray(report?.researchScopeCoverage);
+function renderResearchScopeAndMethod(report, ko) {
+	const metadata = isRecord(report?.researchMetadata) ? report.researchMetadata : {};
 	const scopeCounts = new Map();
-	for (const row of scopeCoverage) {
-		const status = cleanText(row?.status ?? "unknown") || "unknown";
+	for (const row of asArray(report.researchScopeCoverage)) {
+		const status = cleanText(row?.status) || "unknown";
 		scopeCounts.set(status, (scopeCounts.get(status) ?? 0) + 1);
 	}
 	const rows = [];
-	if (cleanText(metadata.taskType))
-		rows.push(`- Task type: ${escapeMarkdownText(metadata.taskType)}.`);
-	if (cleanText(metadata.depth))
-		rows.push(`- Research depth: ${escapeMarkdownText(metadata.depth)}.`);
-	if (Number.isFinite(Number(metadata.researchQuestions)))
-		rows.push(`- Research questions: ${Number(metadata.researchQuestions)}.`);
-	if (Number.isFinite(Number(metadata.plannedFactSlots)))
-		rows.push(`- Planned fact slots: ${Number(metadata.plannedFactSlots)}.`);
-	if (cleanText(metadata.expectedFinalShape))
-		rows.push(
-			`- Expected output shape: ${escapeMarkdownText(metadata.expectedFinalShape)}.`,
-		);
-	if (scopeCoverage.length > 0) {
-		rows.push(
-			`- Scope coverage: ${[...scopeCounts.entries()]
-				.map(([status, count]) => `${escapeMarkdownText(status)} ${count}`)
-				.join(", ")}.`,
-		);
-	}
-	rows.push(
-		"- Method: plan research questions, collect source evidence, normalize claims, verify selected claims, apply deterministic audit gates, and synthesize the report.",
-	);
-	return ["## Research scope and method", "", ...rows, ""];
+	if (cleanText(metadata.taskType)) rows.push(`- ${ko ? "조사 유형" : "Task type"}: ${escapeMarkdownText(metadata.taskType)}.`);
+	if (cleanText(metadata.depth)) rows.push(`- ${ko ? "조사 깊이" : "Research depth"}: ${escapeMarkdownText(metadata.depth)}.`);
+	if (isCount(metadata.researchQuestions)) rows.push(`- ${ko ? "조사 질문" : "Research questions"}: ${metadata.researchQuestions}.`);
+	if (isCount(metadata.plannedFactSlots)) rows.push(`- ${ko ? "계획한 검증 항목" : "Planned fact slots"}: ${metadata.plannedFactSlots}.`);
+	if (cleanText(metadata.expectedFinalShape)) rows.push(`- ${ko ? "보고서 형식" : "Expected output shape"}: ${escapeMarkdownText(metadata.expectedFinalShape)}.`);
+	if (scopeCounts.size) rows.push(`- ${ko ? "조사 범위 충족도" : "Scope coverage"}: ${[...scopeCounts].map(([status, count]) => `${statusLabel(status, ko)} ${count}`).join(", ")}.`);
+	rows.push(ko
+		? "- 방법: 질문을 계획하고 출처를 조사한 뒤, 주장을 정리하고 일부를 검증했습니다. 자동 감사 결과를 반영해 보고서를 작성했습니다."
+		: "- Method: plan research questions, collect source evidence, normalize claims, verify selected claims, apply deterministic audit gates, and synthesize the report.");
+	return rows;
 }
 
 // Why the pre-verifier sanitizer held a candidate claim back, in reader words (2026-11-03, owner:
@@ -2509,88 +2541,57 @@ function correctionSuffix(kind, item, korean) {
 	return ` ${korean ? "정정" : "Correction"}: ${escapeMarkdownText(correction)}`;
 }
 
-function renderCaveats(report) {
-	const selection = selectCaveats(report);
-	if (selection.total === 0) return [];
-	const korean = selection.selected.some(({ text }) => /[가-힣]/u.test(text));
-	const reportKorean = korean || /[가-힣]/u.test(cleanText(report?.summary ?? ""));
-	const lines = [];
-	const held = { count: 0, reasons: new Map(), urls: [] };
-	for (const { kind, item, text } of selection.selected) {
-		const reasons = heldBackReasons(item);
-		if (reasons) {
-			// Claims held back before verification read as one line: how many, why, which sources.
-			held.count += 1;
-			for (const code of reasons)
-				held.reasons.set(code, (held.reasons.get(code) ?? 0) + 1);
-			for (const url of urlsOf(item, 3))
-				if (!held.urls.includes(url)) held.urls.push(url);
-			continue;
-		}
-		const readable = withoutSanitizerNotes(text);
-		if (!readable) continue;
-		const urls = referenceList(item, 3);
-		lines.push(
-			`- **${escapeMarkdownText(kind)}:** ${readable}${correctionSuffix(kind, item, reportKorean)}${urls ? ` (${urls})` : ""}`,
-		);
-	}
-	if (held.count > 0) {
-		const why = [...held.reasons.keys()]
-			.map((code) =>
-				escapeMarkdownText(
-					HELD_BACK_REASONS[code]?.[korean ? 1 : 0] ?? code.replaceAll("_", " "),
-				),
-			)
-			.join(korean ? ", " : "; ");
-		const sources = markdownLinkList(held.urls, 6);
-		const more = held.urls.length > 6 ? ` +${held.urls.length - 6}` : "";
-		lines.unshift(
-			korean
-				? `- **검증 전 보류:** 후보 주장 ${held.count}개가 검증 단계로 넘어가지 못했습니다 — ${why}. 자세한 내용은 Evidence audit에 있습니다.${sources ? ` (${sources}${more})` : ""}`
-				: `- **Held back before verification:** ${held.count} candidate claim${held.count === 1 ? "" : "s"} did not reach the verifiers — ${why}. The evidence audit has the details.${sources ? ` (${sources}${more})` : ""}`,
-		);
-	}
-	return ["## Caveats and remaining gaps", "", ...lines, ""];
+const CAVEAT_LABELS_KO = new Map([
+	["Gap", "검증 공백"], ["Unsupported", "근거 부족"], ["Contested", "출처 상충"],
+	["Caveat", "주의"], ["Unverified lead", "미확인 단서"], ["Decision note", "결정 메모"],
+]);
+
+function renderCaveats(report, ko) {
+	return caveatCategories(report).flatMap(({ kind, entries }) => {
+		let heldCount = 0;
+		const lines = entries.map(({ item, text }) => {
+			const reasons = heldBackReasons(item);
+			if (reasons) heldCount += 1;
+			const why = reasons?.map((code) => escapeMarkdownText(HELD_BACK_REASONS[code]?.[ko ? 1 : 0] ?? code)).join("; ");
+			const sources = referenceList(item, Infinity);
+			if (why && /^sanitized from verifier candidates:/i.test(text))
+				return `- ${why}${sources ? ` (${sources})` : ""}`;
+			const extra = kind === "Decision note" ? [item?.whyItMatters, item?.suggestedParentDecision].filter(Boolean).map(escapeMarkdownText) : [];
+			return `- ${withoutSanitizerNotes(text) || text}${correctionSuffix(kind, item, ko)}${why ? ` — ${why}` : ""}${extra.length ? ` — ${extra.join(" — ")}` : ""}${sources ? ` (${sources})` : ""}`;
+		});
+		if (heldCount) lines.unshift(ko ? `검증 전 보류: ${heldCount}개.` : `Held back before verification: ${heldCount}.`, "");
+		return [...fold(`${ko ? CAVEAT_LABELS_KO.get(kind) : kind} (${entries.length})`, lines), ""];
+	});
 }
 
-function renderSourceIndex(sourceIndex) {
-	if (sourceIndex.length === 0) return [];
+function renderSourceIndex(sourceIndex, localSourceIndex, ko) {
 	const grouped = new Map();
 	for (const url of sourceIndex) {
 		const host = hostOf(url);
 		if (!grouped.has(host)) grouped.set(host, []);
 		grouped.get(host).push(url);
 	}
-	const out = ["## Source index", ""];
-	for (const [host, urls] of grouped) {
-		out.push(
-			`- **${escapeMarkdownText(host)}**: ${markdownLinkList(urls, urls.length)}`,
-		);
-	}
-	out.push("");
-	return out;
+	return [
+		...[...grouped].map(([host, urls]) => `- **${escapeMarkdownText(host)}**: ${markdownLinkList(urls, urls.length)}`),
+		...localSourceIndex.map((ref) => `- ${ko ? "로컬 출처" : "Local source"}: ${renderLocalLocator(ref)}`),
+	];
 }
 
-function renderAuditSummary(report, claimSummary, slots, quoteCheck = null) {
+function renderAuditSummary(report, claimSummary, slots, quoteCheck, ko) {
 	const coverage = report?.coverageSummary ?? {};
 	const mismatches = asArray(claimSummary.coverageSummaryMismatch);
 	return [
-		"## Audit summary",
-		"",
-		`- Claims: ${claimSummary.verified} verified, ${claimSummary.partially_supported} partially supported, ${claimSummary.unsupported} unsupported, ${claimSummary.conflicting} conflicting, ${claimSummary.verification_blocked} verification blocked.`,
-		`- Fact slots: ${slots.filled} filled, ${slots.partial} partial, ${slots.missingOrConflicting} missing/conflicting, ${slots.total} total.`,
-		...(mismatches.length > 0
-			? [
-					`- Coverage summary mismatch: displayed claim counts come from \`claimVerdictIndex\`; model coverageSummary disagreed on ${mismatches
-						.map((mismatch) => mismatch.field)
-						.join(", ")}.`,
-				]
-			: []),
-		...(coverage.researchQuestions != null
-			? [`- Research questions: ${coverage.researchQuestions}.`]
-			: []),
-		...renderQuoteCheckSummaryLine(quoteCheck),
-		"",
+		ko
+			? `- 주장: 확인됨 ${claimSummary.verified}, 일부 확인 ${claimSummary.partially_supported}, 근거 부족 ${claimSummary.unsupported}, 출처 상충 ${claimSummary.conflicting}, 검증 불가 ${claimSummary.verification_blocked}.`
+			: `- Claims: ${claimSummary.verified} verified, ${claimSummary.partially_supported} partially supported, ${claimSummary.unsupported} unsupported, ${claimSummary.conflicting} conflicting, ${claimSummary.verification_blocked} verification blocked.`,
+		ko
+			? `- 검증 항목: 전체 ${slots.total}, 충분 ${slots.filled}, 일부 ${slots.partial}, 누락·상충 ${slots.missingOrConflicting}.`
+			: `- Fact slots: ${slots.filled} filled, ${slots.partial} partial, ${slots.missingOrConflicting} missing/conflicting, ${slots.total} total.`,
+		...(mismatches.length ? [
+			`- ${ko ? "감사 집계와 모델 집계가 다른 항목(감사 집계 사용)" : "Coverage summary mismatch (using audited counts)"}: ${mismatches.map(({ field }) => escapeMarkdownText(field)).join(", ")}.`,
+		] : []),
+		...(isCount(coverage.researchQuestions) ? [`- ${ko ? "조사 질문" : "Research questions"}: ${coverage.researchQuestions}.`] : []),
+		...renderQuoteCheckSummaryLine(quoteCheck, ko), "", sourceVerificationStatement(quoteCheck, ko),
 	];
 }
 
@@ -2627,11 +2628,26 @@ function quoteCheckOf(source) {
 	return source;
 }
 
+function quotePresentationCounts(summary) {
+	const count = (value, fallback = 0) => isCount(value) ? value : fallback;
+	const { inWorkerSummary } = summary;
+	return {
+		...summary,
+		quotes: count(summary.quotes), verified: count(summary.verified),
+		unverified: count(summary.unverified), pages: count(summary.pages),
+		verifiedCaptured: count(summary.verifiedCaptured),
+		verifiedRefetched: count(summary.verifiedRefetched, count(summary.verified)),
+		inWorkerSummary: isRecord(inWorkerSummary) ? Object.fromEntries(
+			["total", "onPage", "notOnPage", "unchecked"].map((key) => [key, count(inWorkerSummary[key])]),
+		) : null,
+	};
+}
+
 function quoteCheckReasonText(byReason) {
 	return Object.entries(isRecord(byReason) ? byReason : {})
-		.filter(([, count]) => Number(count) > 0)
+		.filter(([, count]) => isCount(count) && count > 0)
 		.sort((a, b) => Number(b[1]) - Number(a[1]))
-		.map(([reason, count]) => `${QUOTE_CHECK_REASONS[reason] ?? reason} ${count}`)
+		.map(([reason, count]) => `${escapeMarkdownText(Object.hasOwn(QUOTE_CHECK_REASONS, reason) ? QUOTE_CHECK_REASONS[reason] : reason)} ${count}`)
 		.join(", ");
 }
 
@@ -2653,9 +2669,16 @@ function quoteCheckSummaryText(summary) {
 	];
 }
 
-function renderQuoteCheckSummaryLine(quoteCheck) {
+function renderQuoteCheckSummaryLine(quoteCheck, ko) {
 	if (!quoteCheck) return [];
-	const summary = quoteCheck.summary;
+	const summary = quotePresentationCounts(quoteCheck.summary);
+	if (ko) {
+		const summarized = summary.inWorkerSummary;
+		return [
+			`- 인용 대조(엔진): 전체 ${summary.quotes}개 중 ${summary.verified}개 일치(검증 모델이 가져온 본문 ${Number(summary.verifiedCaptured ?? 0)}개, 엔진이 다시 가져온 본문 ${Number(summary.verifiedRefetched ?? summary.verified)}개). 미확인 ${summary.unverified}개와 사유는 [근거 감사](audit.md)에 나옵니다.`,
+			...(summarized?.total > 0 ? [`- 도구 요약에서만 발견된 인용: ${summarized.total}개 — 본문 일치 ${summarized.onPage ?? 0}개, 불일치 ${summarized.notOnPage ?? 0}개, 확인 불가 ${summarized.unchecked ?? 0}개.`] : []),
+		];
+	}
 	const reasons = quoteCheckReasonText(summary.byReason);
 	return [
 		`- Quote check (engine): ${summary.verified} of ${summary.quotes} quotes found on the cited page${quoteCheckSources(summary)}${
@@ -2669,7 +2692,7 @@ function renderQuoteCheckSummaryLine(quoteCheck) {
 
 function renderQuoteCheckAudit(quoteCheck) {
 	if (!quoteCheck) return [];
-	const summary = quoteCheck.summary;
+	const summary = quotePresentationCounts(quoteCheck.summary);
 	const levels = isRecord(summary.byLevel) ? summary.byLevel : {};
 	const out = [
 		"",
@@ -2697,15 +2720,26 @@ function renderQuoteCheckAudit(quoteCheck) {
 	return out;
 }
 
-function renderRelatedArtifacts() {
-	return [
-		"## Related artifacts",
-		"",
+function renderRelatedArtifacts(ko) {
+	return ko ? [
+		"- [근거 감사](audit.md) — 주장 판정, 검증 항목, 공백, 렌더링 진단.",
+		"- [구조화된 출처 참조](refs.json) — 최종 작업에 사용한 출처 참조 목록.",
+		"- [구조화된 보고서](control.json) — 최종 보고서 데이터와 완료 요약.",
+	] : [
 		"- [Evidence audit](audit.md) — claim verdicts, fact-slot coverage, gaps, and renderer diagnostics.",
 		"- [Structured source references](refs.json) — machine-readable source pointers used by the final task.",
 		"- [Machine-readable report](control.json) — the structured final report and completion-summary contract.",
-		"",
 	];
+}
+
+function trustLine(claims, quoteCheck, sourceCount, question, ko) {
+	const summary = quoteCheck ? quotePresentationCounts(quoteCheck.summary) : null;
+	return [
+		ko ? `주장 ${claims.total}개 중 ${claims.verified}개 확인, ${claims.partially_supported}개 일부 확인` : `Claims: ${claims.verified} verified, ${claims.partially_supported} partly supported, ${claims.total} total`,
+		summary ? (ko ? `인용 ${summary.quotes}개 중 ${summary.verified}개 원문 일치` : `Quotes: ${summary.verified}/${summary.quotes} matched`) : (ko ? "웹 인용 원문 대조 없음" : "Web quotes: not checked"),
+		ko ? `출처 ${sourceCount}곳` : `Sources: ${sourceCount}`,
+		question ? `${ko ? "남은 질문" : "Open question"}: ${escapeMarkdownText(question)}` : "",
+	].filter(Boolean).join(" · ");
 }
 
 function renderWarnings(sectionCounts) {
@@ -2742,7 +2776,7 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 	const recommendations = recommendationEntries(report);
 	const actions = actionEntries(report);
 	const caveats = selectCaveats(report);
-	const allSourceIndex = uniqueStructuredUrls(
+	const sourceRows = [
 		report.factSlotCoverage,
 		report.mainFindings,
 		report.comparisonRows,
@@ -2755,7 +2789,13 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 		report.parentDecisionNotes,
 		report.unverifiedButRelevant,
 		composed.ledger,
-	);
+	];
+	// The source index (control `sourceUrls`) lists pages, so a fragment does not make a new source; links in
+	// the report body keep their exact destination.
+	const allSourceIndex = [
+		...new Set(uniqueStructuredUrls(...sourceRows).map((url) => url.split("#")[0])),
+	];
+	const localSourceIndex = localRefsOf(sourceRows, Infinity, options.cwd);
 	const maxUrls = Number.isFinite(Number(options.maxUrls))
 		? Math.max(0, Number(options.maxUrls))
 		: Infinity;
@@ -2802,36 +2842,34 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 			rendered: 0,
 		});
 	}
-	const completionSummaryMarkdown = renderCompletionSummary(
-		report,
-		claimSummary,
-		slots,
-		control.digest,
-		options.quoteCheck,
-		asArray(packetSource?.packet?.contestedSlots),
-	);
-	const reportExecutiveSummary = completionSummaryMarkdown.replace(
-		/^## /gm,
-		"### ",
-	);
-
+	const contestedSlots = asArray(composed.packet.contestedSlots);
+	const completionSummaryMarkdown = renderCompletionSummary(report, claimSummary, control.digest, options.quoteCheck, contestedSlots, options.attributionWarnings);
+	const ko = scriptOf(summaryText(report, control.digest)) === "hangul";
+	const limits = readerLimits(report, contestedSlots, ko);
+	const openQuestion = report.openQuestion ?? limits.flatMap(sentences).find((text) => /[?？]$/u.test(text)) ??
+		asArray(report.parentDecisionNotes).map((item) => completionItemText(item)).flatMap(sentences)
+			.find((text) => text.length <= 180 && /(?:아직.{0,14}(?:않|모르)|\b(?:still unknown|not yet (?:known|decided|settled))\b)/iu.test(text));
+	const appendix = [
+		[ko ? "근거 강도" : "Evidence strength", renderEvidenceStrength(report, ko)],
+		[ko ? "검증 공백과 미확인 단서" : "Caveats and remaining gaps", renderCaveats(report, ko)],
+		[ko ? "조사 범위와 방법" : "Research scope and method", renderResearchScopeAndMethod(report, ko)],
+		[ko ? "감사 요약" : "Audit summary", renderAuditSummary(report, claimSummary, slots, options.quoteCheck, ko)],
+		[ko ? "출처 목록" : "Source index", renderSourceIndex(sourceIndex, localSourceIndex, ko)],
+		[ko ? "관련 자료" : "Related artifacts", renderRelatedArtifacts(ko)],
+	];
+	const sourceCount = new Set([...allSourceIndex.map((url) => `web:${hostOf(url)}`), ...localSourceIndex.map((file) => `file:${file}`)]).size;
 	const sections = [
-		"# Research report",
-		"",
-		"## Executive summary",
-		"",
-		reportExecutiveSummary,
-		"",
-		...renderResearchScopeAndMethod(report),
-		...renderComparisonSnapshot(report),
-		...renderMainFindings(report),
-		...renderRecommendations(report),
-		...renderActionPlan(report),
-		...renderEvidenceStrength(report),
-		...renderCaveats(report),
-		...renderSourceIndex(sourceIndex),
-		...renderAuditSummary(report, claimSummary, slots, options.quoteCheck),
-		...renderRelatedArtifacts(),
+		ko ? "# 조사 보고서" : "# Research report", "",
+		trustLine(claimSummary, options.quoteCheck, sourceCount, openQuestion, ko), "",
+		ko ? "## 결론" : "## Conclusion", "",
+		...conclusionLines(report, control.digest, escapeMarkdownText),
+		...renderKeyPoints(report, ko, escapeMarkdownText, "###"),
+		...renderComparisonSnapshot(report, ko),
+		...renderActions(report, ko),
+		...visibleLimits([...limits.map(escapeMarkdownText), ...attributionNotes(options.attributionWarnings, ko)], ko),
+		...renderMainFindings(report, ko),
+		ko ? "## 자세한 근거" : "## Appendix", "",
+		...appendix.flatMap(([title, body]) => body.length ? [...fold(title, body), ""] : []),
 	];
 
 	const markdown = sections
@@ -2840,6 +2878,7 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 		.trim();
 	return {
 		markdown,
+		ko,
 		report,
 		completionSummaryMarkdown,
 		sourceIndex,
@@ -2850,10 +2889,6 @@ function renderResearchMarkdown(control, packetSource, options = {}) {
 		comparisonShapeSatisfied,
 		renderWarnings: warnings,
 	};
-}
-
-function stripLeadingHeading(markdown) {
-	return String(markdown ?? "").replace(/^#\s+[^\n]+\n*/i, "");
 }
 
 function synthesisClaimRows(control, rows) {
@@ -2983,26 +3018,23 @@ export async function sourceAttributionWarnings(texts, cwd) {
 	return warnings;
 }
 
-/** One reader line per file the report blames for values it does not contain, after the source-verification line. */
-function withAttributionNotes(markdown, warnings, quoteCheck) {
-	if (!markdown || !warnings?.length) return markdown;
-	const korean = /[가-힣]/u.test(markdown);
+function visibleLimits(lines, korean) {
+	return lines.length ? [korean ? "## 알아둘 한계" : "## Limits to keep in mind", "", ...lines.map((line) => `- ${line}`), ""] : [];
+}
+
+/** One visible correction per file; the audit keeps every triggering sentence. */
+function attributionNotes(warnings = [], korean) {
 	const byFile = new Map();
 	for (const warning of warnings)
 		byFile.set(warning.file, [
 			...new Set([...(byFile.get(warning.file) ?? []), ...warning.values]),
 		]);
-	const notes = [...byFile].map(([file, values]) => {
+	return [...byFile].map(([file, values]) => {
 		const shown = values.slice(0, 6).map(escapeMarkdownText).join(", ");
 		return korean
 			? `엔진 확인: 이 보고서가 \`${escapeMarkdownText(file)}\`에서 고치라고 한 값(${shown})은 그 파일에 없습니다. 그 값이 이 파일에서 나왔다는 설명은 확인되지 않았습니다.`
 			: `Engine check: \`${escapeMarkdownText(file)}\` does not contain the values this report says to correct in it (${shown}); that attribution is unconfirmed.`;
 	});
-	const statement = sourceVerificationStatement(quoteCheck);
-	const at = markdown.indexOf(statement);
-	if (at < 0) return `${markdown}\n\n${notes.join("\n\n")}`;
-	const end = at + statement.length;
-	return `${markdown.slice(0, end)}\n\n${notes.join("\n\n")}${markdown.slice(end)}`;
 }
 
 function renderSourceAttributionAudit(warnings) {
@@ -3087,12 +3119,9 @@ function renderAuditMarkdown(
 					? caveatNote
 						? `${caveatNote} Correction: ${correction}`
 						: correction
-					: (row.caveat ??
-							row.correctionOrCounterclaim ??
-							markdownLinkList(urlsOf(row, 3), 3) ??
-							"—"),
+					: (row.caveat ?? row.correctionOrCounterclaim ?? ""),
 			);
-			out.push(`| ${id} | ${status} | ${support} | ${caveat || "—"} |`);
+			out.push(`| ${id} | ${status} | ${support} | ${caveat || (!hasOwn(row, "caveat") ? referenceList(row) : "") || "—"} |`);
 		}
 	} else {
 		out.push("No compact claim ledger was provided.");
@@ -3111,7 +3140,7 @@ function renderAuditMarkdown(
 	out.push("", "## Remaining gaps", "");
 	if (gaps.length > 0) {
 		for (const gap of gaps)
-			out.push(`- ${caveatText(gap) || stringifyItem(gap)}`);
+			out.push(`- ${caveatText(gap) || escapeMarkdownText(stringifyItem(gap))}`);
 	} else {
 		out.push("No remaining gaps were reported.");
 	}
@@ -3207,7 +3236,7 @@ export default async function renderExecutive({
 			error instanceof Error ? error.message : String(error),
 		);
 	}
-	const modernControl = validModernFinalAudit(control);
+	const modernControl = validStoredSynthesis(control);
 	const legacyControl = validLegacyFinalAudit(control);
 	let controlBlocker = "";
 	if (!control || typeof control !== "object")
@@ -3283,29 +3312,32 @@ export default async function renderExecutive({
 			? Math.max(0, Number(options.maxUrls))
 			: Infinity,
 	};
-	const rendered = renderResearchMarkdown(control, auditPacket, {
+	const renderOptions = {
 		...opts,
+		cwd: context.cwd,
 		quoteCheck,
 		retranslations: retranslationsFrom(sources),
-	});
-	let markdown = rendered.markdown;
-	let truncated = false;
-	if (Number.isFinite(opts.maxWords) && countWords(markdown) > opts.maxWords) {
-		truncated = true;
-		markdown = truncateWords(markdown, opts.maxWords);
-	}
+	};
+	let rendered = renderResearchMarkdown(control, auditPacket, renderOptions);
 	const attributionWarnings = await sourceAttributionWarnings(
-		[rendered.completionSummaryMarkdown, markdown],
+		[rendered.completionSummaryMarkdown, rendered.markdown],
 		context.cwd,
 	);
-	// 2026-11-10 (E8): the reader sees the check too, beside the source-verification line; it was audit-only, so a
-	// report that blamed a file for a value it does not state still read as confirmed.
-	markdown = withAttributionNotes(markdown, attributionWarnings, quoteCheck);
-	const completionSummaryMarkdown = withAttributionNotes(
-		rendered.completionSummaryMarkdown,
-		attributionWarnings,
-		quoteCheck,
-	);
+	if (attributionWarnings.length)
+		rendered = renderResearchMarkdown(control, auditPacket, { ...renderOptions, attributionWarnings });
+	let { markdown, completionSummaryMarkdown } = rendered;
+	const truncated = Number.isFinite(opts.maxWords) && countWords(markdown) > opts.maxWords;
+	const truncatedWithAttributionWarnings = truncated && attributionWarnings.length > 0;
+	const capDiagnostic = truncatedWithAttributionWarnings
+		? (rendered.ko
+			? "출처 정정을 포함한 보고서가 단어 제한을 초과했습니다. 감사 자료를 확인하세요."
+			: "The report with source attribution corrections exceeds the word cap. See the audit.")
+		: null;
+	if (capDiagnostic) {
+		// Do not publish a fragment that might keep disputed advice but drop
+		// its visible correction. The full attribution record is in the audit.
+		markdown = opts.maxWords < 1 ? "" : truncateWords(capDiagnostic, opts.maxWords);
+	} else if (truncated) markdown = truncateWords(markdown, opts.maxWords);
 	const auditMarkdown = renderAuditMarkdown(
 		control,
 		auditPacket,
@@ -3328,6 +3360,7 @@ export default async function renderExecutive({
 		renderedAllStructuredItems &&
 		rendered.comparisonShapeSatisfied &&
 		!truncatedWithOpenGaps &&
+		!truncatedWithAttributionWarnings &&
 		!serializationArtifact &&
 		packetReconciliation.passed;
 
@@ -3366,7 +3399,7 @@ export default async function renderExecutive({
 
 	return {
 		schema: "deep-research-executive-render-v1",
-		digest: truncateWords(stripLeadingHeading(markdown), 45),
+		digest: capDiagnostic ?? truncateWords(summaryText(rendered.report, control.digest), 45),
 		status: passed ? "passed" : "failed",
 		renderMode: "evidence-backed-report",
 		completionSummaryMarkdown: passed ? completionSummaryMarkdown : "",
@@ -3395,6 +3428,7 @@ export default async function renderExecutive({
 			maxUrls: Number.isFinite(opts.maxUrls) ? opts.maxUrls : null,
 			truncated,
 			truncatedWithOpenGaps,
+			...(truncatedWithAttributionWarnings ? { truncatedWithAttributionWarnings } : {}),
 			serializationArtifact,
 			expectedOutputShapeSatisfied: rendered.comparisonShapeSatisfied,
 			sidecarWriteSucceeded: sidecarErrors.length === 0,

@@ -183,13 +183,13 @@ test("recorded run: a table-row claim is rendered from its cells in the finding 
 	assert.equal(result.status, "passed");
 	assert.match(
 		result.reportMarkdown,
-		/^### 2\. Node\.js — v26 · Lithium · May 05, 2026 · Nov 10, 2026 · LTS$/mu,
+		/^### \*\*Partly supported\*\* Node\.js — v26 · Lithium · May 05, 2026 · Nov 10, 2026 · LTS$/mu,
 	);
 	assert.doesNotMatch(result.reportMarkdown, /^### \d+\..*\|/mu);
 	// the verifier's quote stays verbatim: it is what the engine checks against the page
 	assert.match(
 		result.reportMarkdown,
-		/quote "v26 {2}\| Lithium {2}\| May 05, 2026 {2}\| Nov 10, 2026 {2}\| LTS"/u,
+		/"v26 {2}\\\| Lithium {2}\\\| May 05, 2026 {2}\\\| Nov 10, 2026 {2}\\\| LTS"/u,
 	);
 	assert.match(
 		result.auditMarkdown,
@@ -204,8 +204,8 @@ test("a claim that is not a table row keeps its text exactly", async () => {
 	);
 	assert.ok(row, "fixture has claim-001 in the ledger");
 	const cases = [
-		["a || b is falsy", "a || b is falsy"],
-		["use `a | b` for union", "use \\`a | b\\` for union"],
+		["a || b is falsy", "a \\|\\| b is falsy"],
+		["use `a | b` for union", "use \\`a \\| b\\` for union"],
 		["Plain sentence.", "Plain sentence."],
 	];
 	for (const [claim, heading] of cases) {
@@ -217,7 +217,9 @@ test("a claim that is not a table row keeps its text exactly", async () => {
 			},
 		});
 		assert.ok(
-			result.reportMarkdown.split("\n").includes(`### 2. ${heading}`),
+			result.reportMarkdown
+				.split("\n")
+				.includes(`### **Partly supported** ${heading}`),
 			`heading for ${claim}`,
 		);
 	}

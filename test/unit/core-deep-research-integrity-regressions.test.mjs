@@ -460,8 +460,8 @@ test("deep-research positive overlays preserve the weakest linked evidence statu
 		},
 	});
 	assert.equal(rendered.status, "passed");
-	assert.match(rendered.reportMarkdown, /Evidence status: unsupported/);
-	assert.doesNotMatch(rendered.reportMarkdown, /Evidence status: derived/);
+	assert.match(rendered.reportMarkdown, /\*\*Unsupported\*\*/);
+	assert.doesNotMatch(rendered.reportMarkdown, /\*\*Proposal\*\*/);
 });
 
 test("deep-research hostile synthesis identities produce an explicit budget block", async () => {
@@ -781,8 +781,8 @@ test("deep-research final packet bounds the required synthesis read and rejects 
 		},
 	});
 	assert.equal(rendered.status, "passed", JSON.stringify(rendered.gates));
-	assert.match(rendered.reportMarkdown, /Evidence status: unverified/);
-	assert.doesNotMatch(rendered.reportMarkdown, /Evidence status: derived/);
+	assert.match(rendered.reportMarkdown, /\*\*Unverified\*\*/);
+	assert.doesNotMatch(rendered.reportMarkdown, /\*\*Proposal\*\*/);
 	const hostileSynthesis = {
 		...cleanSynthesis,
 		synthesis: {

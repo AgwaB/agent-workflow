@@ -381,6 +381,11 @@ function launchOptionsFromArgs(parsed: ParsedArgs): CliLaunchOptions {
 	};
 }
 
+/** Human output only: keep line feeds and tabs, not terminal control codes. */
+function terminalText(text: string): string {
+	return text.replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "");
+}
+
 /** After a launch: print it and, unless detached, wait in the foreground until it settles. */
 async function followLaunch(
 	command: "run" | "dynamic" | "auto",
@@ -398,7 +403,7 @@ async function followLaunch(
 	emit: Emit,
 ): Promise<number> {
 	const { json, detach, totalTimeoutMs } = options;
-	if (!json) io.stdout(`${launched.text}\n`);
+	if (!json) io.stdout(`${terminalText(launched.text)}\n`);
 	if (launched.ok && data?.runId) {
 		const fromEnv = io.env.AGENT_WORKFLOW_DASHBOARD_OPEN === "1";
 		if (
@@ -455,7 +460,7 @@ async function followLaunch(
 		data: { ...(launched.data as object), wait: waited.data },
 	};
 	if (json) return emit(final, exitCodeFor(waited));
-	io.stdout(`${waited.text}\n`);
+	io.stdout(`${terminalText(waited.text)}\n`);
 	return exitCodeFor(waited);
 }
 
@@ -679,7 +684,8 @@ async function dispatch(
 				...(detach ? { detach: true } : {}),
 			});
 			if (detach || resumed.data.status !== "running") return emit(resumed);
-			if (!parsed.flags.has("--json")) io.stdout(`${resumed.text}\n`);
+			if (!parsed.flags.has("--json"))
+				io.stdout(`${terminalText(resumed.text)}\n`);
 			const waited = await waitUntilSettled(
 				ctx,
 				io,
@@ -1226,7 +1232,7 @@ export async function runAgentWorkflowCli(
 						2,
 					)}\n`,
 				);
-			else io.stdout(`${result.text}\n`);
+			else io.stdout(`${json ? result.text : terminalText(result.text)}\n`);
 			return exitCode ?? exitCodeFor(result);
 		};
 		return await dispatch(command, rest, ctx, io, emit);

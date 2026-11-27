@@ -27,7 +27,8 @@
     "synthesis": {
       "type": "object",
       "required": [
-        "bottomLine",
+        "conclusion",
+        "keyPoints",
         "comparisonRows",
         "keyFindingIds",
         "recommendations",
@@ -36,11 +37,22 @@
         "parentDecisionNotes"
       ],
       "properties": {
-        "bottomLine": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 4000
+        "conclusion": {
+          "type": "array", "minItems": 2, "maxItems": 3,
+          "items": { "type": "string", "minLength": 1, "maxLength": 220, "nonBlank": true }
         },
+        "keyPoints": {
+          "type": "array", "maxItems": 6,
+          "items": {
+            "type": "object", "required": ["title", "text"],
+            "properties": {
+              "title": { "type": "string", "minLength": 1, "maxLength": 64, "nonBlank": true },
+              "text": { "type": "string", "minLength": 1, "maxLength": 160, "nonBlank": true }
+            },
+            "additionalProperties": false
+          }
+        },
+        "openQuestion": { "type": "string", "minLength": 1, "maxLength": 180 },
         "comparisonRows": {
           "type": "array",
           "items": {
@@ -85,6 +97,10 @@
             "required": ["action", "supportingClaimIds"],
             "properties": {
               "step": {},
+              "recommendationNumbers": {
+                "type": "array", "maxItems": 12,
+                "items": { "type": "integer", "minimum": 1, "maximum": 12 }
+              },
               "action": { "type": "string", "minLength": 1, "maxLength": 1200 },
               "supportingClaimIds": { "type": "array", "items": { "type": "string" }, "maxItems": 8 },
               "evidenceStatus": { "type": "string" }

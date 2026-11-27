@@ -247,7 +247,7 @@ test("the report shows the counts and lists unchecked quotes with reasons; verdi
 	assert.match(checked.auditMarkdown, /## Quote check \(engine\)/);
 	assert.match(
 		checked.auditMarkdown,
-		/\| claim-001 \| https:\/\/img\.example\.com\/t\.png \| 96\.6 — at Table 1 \(image\) \| image \|/,
+		/\| claim-001 \| https&#58;\/\/img\.example\.com\/t\.png \| 96\.6 — at Table 1 \(image\) \| image \|/,
 	);
 	assert.deepEqual(checked.claimSummary, plain.claimSummary);
 	assert.equal(checked.quoteCheck.verified, 1);
@@ -339,6 +339,6 @@ test("the report separates the verifier's own captures from re-fetches and shows
 	);
 	assert.match(
 		result.auditMarkdown,
-		/\| claim-002 \| http:\/\/docs\.example\.com\/b \|  \| not found on the page \(it was in the verifier's page summary\) \|/,
+		/\| claim-002 \| http&#58;\/\/docs\.example\.com\/b \|  \| not found on the page \(it was in the verifier's page summary\) \|/,
 	);
 });

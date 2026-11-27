@@ -3079,7 +3079,10 @@ test("deep-research renderer emits evidence-backed report and sidecars", async (
 		assert.equal(result.renderMode, "evidence-backed-report");
 		assert.match(result.completionSummaryMarkdown, /## Core conclusion/);
 		assert.match(result.completionSummaryMarkdown, /## Main recommendations/);
-		assert.match(result.completionSummaryMarkdown, /## Limits to keep in mind/);
+		assert.doesNotMatch(
+			result.completionSummaryMarkdown,
+			/Questions remain unanswered/,
+		);
 		assert.doesNotMatch(
 			result.completionSummaryMarkdown,
 			/final-report\.md|audit\.md|refs\.json|workflow_exec|task-final/,
@@ -3094,24 +3097,30 @@ test("deep-research renderer emits evidence-backed report and sidecars", async (
 		);
 		assert.ok(result.completionSummaryMarkdown.includes("\\*"));
 		assert.match(result.executiveMarkdown, /# Research report/);
-		assert.match(result.executiveMarkdown, /## Executive summary/);
-		assert.match(result.executiveMarkdown, /## Research scope and method/);
+		assert.match(result.executiveMarkdown, /## Conclusion/);
+		assert.match(
+			result.executiveMarkdown,
+			/<summary>Research scope and method<\/summary>/,
+		);
 		assert.match(result.executiveMarkdown, /Evidence strength/);
 		assert.match(result.executiveMarkdown, /Source index/);
 		assert.match(result.executiveMarkdown, /Audit summary/);
-		assert.match(result.executiveMarkdown, /## Related artifacts/);
+		assert.match(
+			result.executiveMarkdown,
+			/<summary>Related artifacts<\/summary>/,
+		);
 		assert.match(result.executiveMarkdown, /\[Evidence audit\]\(audit\.md\)/);
 		assert.match(
 			result.executiveMarkdown,
 			/\[Structured source references\]\(refs\.json\)/,
 		);
 		assert.ok(
-			result.executiveMarkdown.indexOf("## Executive summary") <
-				result.executiveMarkdown.indexOf("## Main findings"),
+			result.executiveMarkdown.indexOf("## Conclusion") <
+				result.executiveMarkdown.indexOf("## Findings"),
 		);
 		assert.ok(
-			result.executiveMarkdown.indexOf("## Main findings") <
-				result.executiveMarkdown.indexOf("## Evidence strength"),
+			result.executiveMarkdown.indexOf("## Findings") <
+				result.executiveMarkdown.indexOf("<summary>Evidence strength"),
 		);
 		assert.equal(result.claimSummary.verified, 1);
 		assert.equal(result.factSlotSummary.missingOrConflicting, 1);
@@ -3335,7 +3344,7 @@ test("deep-research renderer joins synthesis overlay against packet ledgers", as
 	assert.equal(result.claimSummary.unsupported, 1);
 	assert.equal(result.claimSummary.verification_blocked, 1);
 	assert.match(result.executiveMarkdown, /Verified packet claim/);
-	assert.match(result.executiveMarkdown, /Evidence: partially\\_supported/);
+	assert.match(result.executiveMarkdown, /\*\*Partly supported\*\*/);
 	assert.match(result.executiveMarkdown, /Unsupported packet claim/);
 	assert.match(result.executiveMarkdown, /1 verification blocked/);
 	assert.match(result.executiveMarkdown, /Blocked support must stay blocked/);
@@ -3345,10 +3354,7 @@ test("deep-research renderer joins synthesis overlay against packet ledgers", as
 		result.executiveMarkdown,
 		/Do not treat blocked verification as verified support\.[\s\S]{0,120}derived/,
 	);
-	assert.doesNotMatch(
-		result.executiveMarkdown,
-		/Evidence status: verification_blocked/,
-	);
+	assert.match(result.executiveMarkdown, /\*\*Not checked\*\*/);
 	assert.doesNotMatch(result.executiveMarkdown, /Blocked packet claim/);
 	assert.match(result.executiveMarkdown, /Need a dated primary source/);
 	assert.match(
@@ -3405,10 +3411,7 @@ test("deep-research renderer does not promote unverified fallback findings", asy
 
 	assert.equal(result.status, "passed");
 	assert.doesNotMatch(result.executiveMarkdown, /Unverified packet claim/);
-	assert.doesNotMatch(
-		result.executiveMarkdown,
-		/Evidence status: \*\*verified\*\*/,
-	);
+	assert.doesNotMatch(result.executiveMarkdown, /\*\*Verified\*\*/);
 });
 
 test("deep-research executive renderer preserves object gaps zeros and recommendation labels", async () => {
@@ -3494,7 +3497,7 @@ test("deep-research executive renderer preserves object gaps zeros and recommend
 		);
 		assert.doesNotMatch(result.executiveMarkdown, /\[object Object\]/);
 		assert.doesNotMatch(result.auditMarkdown, /\[object Object\]/);
-		assert.match(result.executiveMarkdown, /Evidence status: not specified/);
+		assert.match(result.executiveMarkdown, /\*\*Not specified\*\*/);
 		assert.match(
 			result.executiveMarkdown,
 			/Verify any claim before promoting it/,

@@ -1,15 +1,28 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
-import { validateJsonSchema } from "../../dist/core/json-schema.js";
+import {
+	createArtifactGraphRuntimeValidationSnapshot,
+	executeSupportTask,
+} from "../../dist/core/artifact-graph-runtime.js";
+import {
+	validateJsonSchema,
+	validateJsonSchemaSubset,
+} from "../../dist/core/json-schema.js";
+import { fromStatePath } from "../../dist/core/store.js";
+import {
+	buildWorkflowOutputRetryInstructions,
+	parseWorkflowOutputForBundle,
+} from "../../dist/core/workflow-output-artifacts.js";
 import finalPacket from "../../workflows/deep-research/helpers/final-audit-packet.mjs";
 import render, {
 	numbersDroppedBy,
 } from "../../workflows/deep-research/helpers/render-executive.mjs";
 import { buildSynthesisPages } from "../../workflows/deep-research/helpers/synthesis-pages.mjs";
 import translationCheck from "../../workflows/deep-research/helpers/translation-check.mjs";
+import * as h from "../helpers/unit-test-support.mjs";
 
 const fixture = JSON.parse(
 	await readFile(
@@ -29,6 +42,19 @@ const schema = JSON.parse(
 		"utf8",
 	),
 );
+// Validate live output independently from the historical input used by most renderer tests.
+function liveControl(control) {
+	const { bottomLine, ...synthesis } = control.synthesis;
+	return {
+		...control,
+		synthesis: {
+			...synthesis,
+			conclusion: [bottomLine, "Check the evidence."],
+			keyPoints: [],
+		},
+	};
+}
+
 async function inputs(edit = (_sources) => {}) {
 	const packetSources = structuredClone(fixture.sources);
 	edit(packetSources);
@@ -81,7 +107,10 @@ test("historical synthesis stays readable without copying audit-only caveats or 
 		result.completionSummaryMarkdown,
 		/Audited claims|Fact slots|schema.cap|fact slots|claim-001|source-ref|denominator|evidence:/,
 	);
-	assert.match(result.completionSummaryMarkdown, /추가로 확인할 질문이 남아/);
+	assert.doesNotMatch(
+		result.completionSummaryMarkdown,
+		/추가로 확인할 질문이 남아/,
+	);
 	assert.match(result.auditMarkdown, /claim-001 source-ref join/);
 	assert.match(result.auditMarkdown, /Audited claims \(48 total\)/);
 	assert.equal(result.claimSummary.total, 48);
@@ -117,7 +146,10 @@ test("reader limitations are distinct and bounded while all audit notes remain",
 		readerNote: `Practical limitation ${Math.floor(i / 2)} changes the decision.`,
 		relatedClaimIds: ["claim-001"],
 	}));
-	assert.equal(validateJsonSchema(sources["final-audit"], schema).valid, true);
+	assert.equal(
+		validateJsonSchema(liveControl(sources["final-audit"]), schema).valid,
+		true,
+	);
 	const result = await render({ sources });
 	assert.equal(result.status, "passed");
 	assert.equal(
@@ -138,7 +170,7 @@ test("invalid readerNote is rejected by schema and renderer rather than object-s
 		const sources = await inputs();
 		sources["final-audit"].synthesis.caveatNotes[0].readerNote = readerNote;
 		assert.equal(
-			validateJsonSchema(sources["final-audit"], schema).valid,
+			validateJsonSchema(liveControl(sources["final-audit"]), schema).valid,
 			false,
 		);
 		const result = await render({ sources });
@@ -194,25 +226,20 @@ for (const [status, qualifier] of [
 		});
 		assert.equal(result.status, "passed");
 		assert.ok(result.completionSummaryMarkdown.includes(qualifier));
-		assert.match(
+		assert.match(result.completionSummaryMarkdown, /No claims were verified/);
+		assert.doesNotMatch(
 			result.completionSummaryMarkdown,
-			/not enough verified evidence/,
-		);
-		assert.match(
-			result.completionSummaryMarkdown,
-			/does not establish that all requested areas were covered/,
+			/all requested areas were covered/,
 		);
 		assert.doesNotMatch(
 			result.completionSummaryMarkdown,
 			/claim-001|evidence:|Fact slots/,
 		);
-		if (status === "conflicting")
-			assert.match(result.completionSummaryMarkdown, /Some sources disagree/);
 		assert.match(result.auditMarkdown, /claim-001/);
 	});
 }
 
-test("a verified subset does not hide unclassified legacy evidence or coverage", async () => {
+test("a verified subset discloses unclassified evidence in the report, not as generic limits", async () => {
 	for (const kind of [
 		"unclassified-claim",
 		"unknown-slot",
@@ -256,11 +283,19 @@ test("a verified subset does not hide unclassified legacy evidence or coverage",
 			});
 		const result = await render({ sources: { "final-audit": control } });
 		assert.equal(result.status, "passed");
-		assert.match(
+		assert.doesNotMatch(
 			result.completionSummaryMarkdown,
-			/Some evidence could not be fully checked|Questions remain unanswered|Some sources disagree/,
+			/Questions remain unanswered/,
 			kind,
 		);
+		const marker = {
+			"unclassified-claim": /1 verified, 0 partly supported, 2 total/,
+			"unknown-slot": /Unknown/,
+			"unverified-lead": /Demand is unknown/,
+			contested: /Sources disagree/,
+			unsupported: /No support found/,
+		}[kind];
+		assert.match(result.reportMarkdown, marker, kind);
 	}
 });
 
@@ -316,7 +351,10 @@ test("translations put claim, lead and fact-slot text into the task's language; 
 			},
 		],
 	});
-	assert.equal(validateJsonSchema(sources["final-audit"], schema).valid, true);
+	assert.equal(
+		validateJsonSchema(liveControl(sources["final-audit"]), schema).valid,
+		true,
+	);
 	const original = (
 		await finalPacket({ sources: structuredClone(fixture.sources) })
 	).packet;
@@ -328,23 +366,17 @@ test("translations put claim, lead and fact-slot text into the task's language; 
 	const report = result.reportMarkdown;
 	assert.match(
 		report,
-		/### 1\. 리전-01은 캐시 항목에 21초 신선도 창을 적용한다\./,
+		/### \*\*확인됨\*\* 리전-01은 캐시 항목에 21초 신선도 창을 적용한다\./,
 	);
 	assert.match(report, /\n리전-01 참조 문서가 이 값을 따로 명시한다\./);
-	assert.match(
-		report,
-		/\*\*Unverified lead:\*\* 리전-01은 선택형 캐시 무효화를/,
-	);
+	assert.match(report, /- 리전-01은 선택형 캐시 무효화를/);
 	assert.match(
 		report,
 		/\| 지역 정책 차원 01 \| [^|]+ \| .+ \| 지역 만료 정책을 일반화하지 않는다\. \|/,
 	);
-	// Labels and statuses stay; untranslated rows keep their original text.
-	assert.match(
-		report,
-		/## Main findings[\s\S]*Evidence status: \*\*verified\*\*/,
-	);
-	assert.match(report, /\*\*Unverified lead:\*\* Region-02 may expose/);
+	// Labels and statuses localize; untranslated rows keep their original text.
+	assert.match(report, /## 근거가 된 발견[\s\S]*\*\*확인됨\*\*/);
+	assert.match(report, /- Region-02 may expose/);
 	assert.match(report, /\| Regional policy dimension 02 \|/);
 	// The audit keeps the original claim and reports what was applied.
 	assert.ok(result.auditMarkdown.includes(claim.claim.slice(0, 40)));
@@ -365,18 +397,18 @@ test("a translation with an unknown or repeated id or empty text is ignored, not
 		],
 		factSlots: [{ id: "slot-999", area: "없는 영역" }],
 	});
-	assert.equal(validateJsonSchema(sources["final-audit"], schema).valid, true);
+	assert.equal(
+		validateJsonSchema(liveControl(sources["final-audit"]), schema).valid,
+		true,
+	);
 	const result = await render({ sources });
 	assert.equal(result.status, "passed", JSON.stringify(result.gates));
-	assert.match(result.reportMarkdown, /### 1\. 번역된 주장\./);
+	assert.match(result.reportMarkdown, /### \*\*확인됨\*\* 번역된 주장\./);
 	assert.doesNotMatch(
 		result.reportMarkdown,
 		/두 번째 번역|없는 주장|없는 영역/,
 	);
-	assert.match(
-		result.reportMarkdown,
-		/\*\*Unverified lead:\*\* Region-02 may expose/,
-	);
+	assert.match(result.reportMarkdown, /- Region-02 may expose/);
 	assert.match(
 		result.auditMarkdown,
 		/- Reader translations: 1 applied, 4 ignored \(claim-001, claim-999, lead-002, slot-999\), 24 left untranslated\./,
@@ -407,12 +439,12 @@ test("a translation that drops a number of its source is not used; the original 
 		if (applied)
 			assert.match(
 				result.reportMarkdown,
-				/### 1\. RFC 9000은 2021년 5월에 발행되었다\./,
+				/### \*\*확인됨\*\* RFC 9000은 2021년 5월에 발행되었다\./,
 			);
 		else {
 			assert.match(
 				result.reportMarkdown,
-				/### 1\. RFC 9000 was published in May 2021\./,
+				/### \*\*확인됨\*\* RFC 9000 was published in May 2021\./,
 			);
 			assert.doesNotMatch(result.reportMarkdown, /RFC 9000은 발행되었다/);
 		}
@@ -521,7 +553,7 @@ test("refused translations are listed for one retranslation, which the report us
 	assert.equal(result.status, "passed", JSON.stringify(result.gates));
 	assert.match(
 		result.reportMarkdown,
-		/### 1\. RFC 9000은 2021년 5월에 발행되었다\./,
+		/### \*\*확인됨\*\* RFC 9000은 2021년 5월에 발행되었다\./,
 	);
 	assert.match(
 		result.reportMarkdown,
@@ -555,7 +587,7 @@ test("the reader sees an engine note when the report blames a file for values it
 	]) {
 		const at = markdown.indexOf(note);
 		assert.ok(at > 0, markdown.slice(-600));
-		assert.match(markdown.slice(0, at), /Source verification: [^\n]+\n\n$/);
+		assert.match(markdown.slice(0, at), /## 알아둘 한계\n\n(?:- [^\n]+\n)*- $/);
 	}
 	const plain = await render({ sources: await inputs(), context: { cwd } });
 	assert.doesNotMatch(plain.reportMarkdown, /엔진 확인|Engine check/);
@@ -629,7 +661,7 @@ test("a malformed translations container is rejected by schema and renderer", as
 	for (const translations of [[], { claims: "x" }, { notes: [] }]) {
 		const sources = withTranslations(await inputs(), translations);
 		assert.equal(
-			validateJsonSchema(sources["final-audit"], schema).valid,
+			validateJsonSchema(liveControl(sources["final-audit"]), schema).valid,
 			false,
 		);
 		const result = await render({ sources });
@@ -655,11 +687,11 @@ test("a coverage gap without its own text names its areas, not its ids", async (
 	assert.equal(result.status, "passed", JSON.stringify(result.gates));
 	assert.ok(
 		result.reportMarkdown.includes(
-			`**Gap:** ${slot.label}: ${slot.gapReason.replace(/[.]$/, "")}`,
+			`- ${slot.label}: ${slot.gapReason.replace(/[.]$/, "")}`,
 		),
 		"named gap",
 	);
-	assert.ok(result.reportMarkdown.includes(`**Gap:** ${bare.scopeItem}`));
+	assert.ok(result.reportMarkdown.includes(`- ${bare.scopeItem}`));
 	assert.doesNotMatch(result.reportMarkdown, /related slots: slot-/);
 	// With a translated slot the gap reads in the task's language.
 	withTranslations(sources, {
@@ -669,9 +701,7 @@ test("a coverage gap without its own text names its areas, not its ids", async (
 	});
 	result = await render({ sources });
 	assert.ok(
-		result.reportMarkdown.includes(
-			`**Gap:** 이전 범위 영역: 확인이 더 필요하다`,
-		),
+		result.reportMarkdown.includes(`- 이전 범위 영역: 확인이 더 필요하다`),
 	);
 });
 
@@ -706,7 +736,7 @@ test("both research prompts ask for faithful translations of the shown audit tex
 	}
 });
 
-test("claims the sanitizer held back read as one reader line, and pipeline notes leave gap text", async () => {
+test("the sanitizer summary preserves each gap but removes redundant pipeline notes", async () => {
 	// 2026-11-03 (owner: the report listed "sanitized from verifier candidates:
 	// source_hint_claim_mismatch" once per claim, and "sanitized verifier candidates: claim-004"
 	// inside gap text).
@@ -726,18 +756,12 @@ test("claims the sanitizer held back read as one reader line, and pipeline notes
 	];
 	const result = await render({ sources });
 	const section = result.reportMarkdown.slice(
-		result.reportMarkdown.indexOf("## Caveats and remaining gaps"),
+		result.reportMarkdown.indexOf("<summary>검증 공백과 미확인 단서"),
 	);
 	assert.doesNotMatch(section, /sanitized|source\\_hint|claim-00[89]/);
-	assert.match(
-		section,
-		/- \*\*Held back before verification:\*\* 5 candidate claims did not reach the verifiers — the claim's wording did not match the quoted source passage\. The evidence audit has the details\. \(\[example\.com\]\(<https:\/\/example\.com\/a0>\), \[example\.com\]\(<https:\/\/example\.com\/a1>\)\)/,
-	);
+	assert.match(section, /검증 전 보류: 5개/);
 	assert.match(section, /Memory limits: decay rates were not found\./);
-	assert.equal(
-		(section.match(/Held back before verification/g) ?? []).length,
-		1,
-	);
+	assert.equal((section.match(/검증 전 보류/g) ?? []).length, 1);
 });
 
 // 2026-11-10 (owner, after the P3 hard-claim round): verifiers rate a false claim partially_supported or unsupported
@@ -822,9 +846,15 @@ async function withRejectedClaims(changes, claimText = {}) {
 	});
 }
 const caveatLine = (result, kind, needle) => {
-	const line = result.reportMarkdown
-		.split("\n")
-		.find((row) => row.startsWith(`- **${kind}:**`) && row.includes(needle));
+	const label = result.reportMarkdown.startsWith("# 조사")
+		? { Unsupported: "근거 부족", Contested: "출처 상충" }[kind]
+		: kind;
+	const body = result.reportMarkdown
+		.split(`<summary>${label} (`)[1]
+		?.split("</details>")[0];
+	const line = body
+		?.split("\n")
+		.find((row) => row.startsWith("- ") && row.includes(needle));
 	assert.ok(line, `no ${kind} line with ${needle}`);
 	return line;
 };
@@ -932,4 +962,589 @@ test("a legacy report row gets the correction from the claim index", async () =>
 		caveatLine(result, "Unsupported", "Old value."),
 		/ Correction: New value\./,
 	);
+});
+
+for (const ko of [false, true]) {
+	test(`conclusion-first ${ko ? "Korean" : "English"} report conserves every displayed row and source`, async () => {
+		const sources = await inputs();
+		const overlay = sources["final-audit"].synthesis;
+		const conclusion = ko
+			? ["첫 번째 결론입니다.", "두 번째 결론입니다."]
+			: ["The first conclusion.", "The second conclusion."];
+		overlay.keyFindingIds = ["claim-001", "claim-002"];
+		overlay.recommendations = [
+			{
+				recommendation: "Matched recommendation one",
+				supportingClaimIds: ["claim-002"],
+			},
+			{
+				recommendation: "Standalone recommendation two",
+				supportingClaimIds: [],
+			},
+		];
+		overlay.actionPlan = [
+			{
+				action: "First plan step",
+				recommendationNumbers: [1],
+				supportingClaimIds: ["claim-001"],
+			},
+			{
+				action: "Second plan step",
+				recommendationNumbers: [],
+				supportingClaimIds: [],
+			},
+		];
+		overlay.caveatNotes = [
+			{ note: "Unique audit caveat", readerNote: "Unique practical limit" },
+		];
+		for (const structured of [true, false]) {
+			if (structured) {
+				delete overlay.bottomLine;
+				overlay.conclusion = conclusion;
+				overlay.keyPoints = [
+					{ title: "Short title", text: "A separate point" },
+				];
+				overlay.openQuestion = ko
+					? "남은 문제가 무엇인가요?"
+					: "What remains unresolved?";
+			} else {
+				delete overlay.conclusion;
+				delete overlay.keyPoints;
+				delete overlay.openQuestion;
+				overlay.bottomLine = conclusion.join(" ");
+				delete overlay.actionPlan[0].recommendationNumbers;
+				delete overlay.actionPlan[1].recommendationNumbers;
+			}
+			assert.equal(
+				validateJsonSchema(sources["final-audit"], schema).valid,
+				structured,
+			);
+			const result = await render({ sources });
+			assert.equal(result.status, "passed");
+			const md = result.reportMarkdown;
+			assert.ok(md.includes(conclusion.join("\n\n")));
+			assert.match(
+				md,
+				ko ? /^# 조사 보고서\n\n주장 / : /^# Research report\n\nClaims: /,
+			);
+			assert.match(
+				md,
+				ko ? /<summary>근거 보기<\/summary>/ : /<summary>Evidence<\/summary>/,
+			);
+			if (structured) {
+				assert.ok(md.includes("**Short title** — A separate point"));
+				assert.ok(md.split("\n")[2].includes(overlay.openQuestion));
+				assert.match(
+					md,
+					/1\. \*\*[^*]+\*\* First plan step\n +<details>[\s\S]+?Matched recommendation one[\s\S]+?<\/details>\n2\./,
+				);
+			}
+			const expected = [
+				...overlay.recommendations.map((row) => row.recommendation),
+				...overlay.actionPlan.map((row) => row.action),
+				overlay.caveatNotes[0].note,
+				overlay.caveatNotes[0].readerNote,
+			];
+			for (const row of sources[
+				"final-audit-packet"
+			].packet.claimVerdictLedger.filter((row) =>
+				overlay.keyFindingIds.includes(row.id),
+			))
+				expected.push(row.claim);
+			for (const item of expected) assert.ok(md.includes(item), item);
+			for (const url of result.sourceUrls) assert.ok(md.includes(url), url);
+			assert.equal(md.match(/Matched recommendation one/g)?.length, 1);
+			assert.equal(md.match(/Standalone recommendation two/g)?.length, 1);
+		}
+	});
+}
+
+function legacyReport(fields) {
+	return {
+		"final-audit": {
+			schema: "legacy-audit",
+			digest: "Read the evidence.",
+			claimVerdictIndex: { claims: [] },
+			finalReport: {
+				summary: "Read the evidence.",
+				researchMetadata: {},
+				coverageSummary: {},
+				factSlotCoverage: [],
+				mainFindings: [],
+				recommendations: [],
+				actionPlan: [],
+				remainingGaps: [],
+				parentDecisionNotes: [],
+				unverifiedButRelevant: [],
+				...fields,
+			},
+		},
+	};
+}
+
+test("written report keeps untrusted markup and invalid destinations literal", async (t) => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-reader-literal-"));
+	t.after(() => rm(cwd, { recursive: true, force: true }));
+	const sources = legacyReport({
+		coverageSummary: { researchQuestions: "unchecked\n<untrusted-count>" },
+		actionPlan: [{ step: "<untrusted-step> [step](target)" }],
+		mainFindings: [
+			{
+				finding: "Quoted evidence",
+				evidence: [
+					{
+						quote: "one  two\n  <untrusted-quote> *emphasis* [quote](target)",
+					},
+				],
+				sourceUrls: [
+					"https://[broken\n<untrusted-url>",
+					"data:rejected",
+					"https://example.org/path",
+				],
+			},
+		],
+	});
+	const result = await render({
+		sources,
+		context: { cwd, runId: "run", taskId: "task" },
+	});
+	assert.equal(result.status, "passed");
+	const md = await readFile(
+		join(
+			cwd,
+			".agent-workflow",
+			"workflows",
+			"run",
+			"tasks",
+			"task",
+			result.sidecarPath,
+		),
+		"utf8",
+	);
+	assert.doesNotMatch(
+		md,
+		/<untrusted-|\[(?:step|quote)\]\(target\)|(?<!\\)\*emphasis\*|unchecked/,
+	);
+	assert.match(md, /one  two\\+n  &lt;untrusted-quote&gt;/);
+	assert.match(md, /&lt;untrusted-step&gt;/);
+	assert.match(md, /&lt;untrusted-url&gt;/);
+	assert.match(md, /data:rejected/);
+	assert.deepEqual(
+		[...md.matchAll(/(?<!\\)\]\(<([^>]+)>\)/g)].map((m) => m[1]),
+		["https://example.org/path", "https://example.org/path"],
+	);
+});
+
+// Check raw GFM delimiter triggers even without the optional Marked test parser,
+// then decode one Markdown layer.
+const decodeEntities = (text) =>
+	text.replace(
+		/&(amp|lt|gt|#\d+);/g,
+		(_, name) =>
+			({ amp: "&", lt: "<", gt: ">" })[name] ??
+			String.fromCodePoint(Number(name.slice(1))),
+	);
+const decodeLiteral = (text) =>
+	decodeEntities(text.replace(/\\([!-/:-@[-`{-~])/g, "$1"));
+
+test("GFM keeps rejected URLs and emails literal without changing quote text", async (t) => {
+	const quote =
+		"Write editor+docs@example.org or visit WWW.Example.org and HTTPS://Example.org.";
+	const rejected = [
+		"<mailto:editor@example.org>",
+		"editor+docs@example.org",
+		"www.Example.org",
+		"https://[broken",
+		"ftp://example.org/manual",
+		"<ssh://example.org/repo>",
+		"x+custom://example.org/manual",
+	];
+	const result = await render({
+		sources: legacyReport({
+			mainFindings: [
+				{
+					finding: "Literal references",
+					evidence: [{ quote }],
+					sourceUrls: rejected,
+				},
+			],
+		}),
+	});
+	assert.equal(result.status, "passed");
+	const lines = result.reportMarkdown.split("\n");
+	const quoteLine = lines.find((line) => line.includes("Write editor"));
+	const refsLine = lines.find((line) => line.includes("mailto"));
+	await t.test(
+		"Marked does not emit anchors for rejected references",
+		async (t) => {
+			let parser;
+			try {
+				parser = import.meta.resolve("marked");
+			} catch (err) {
+				if (err.code !== "ERR_MODULE_NOT_FOUND") throw err;
+				return t.skip("Marked is not installed");
+			}
+			const { marked } = await import(parser);
+			const html = marked.parseInline(refsLine, { gfm: true });
+			assert.doesNotMatch(html, /<a\b/i);
+			for (const ref of rejected)
+				assert.ok(decodeEntities(html).includes(ref), ref);
+		},
+	);
+	for (const line of [quoteLine, refsLine]) {
+		assert.doesNotMatch(line, /:\/\/|www\.|@|<[^>]+>|(?<!\\)\]\(/i);
+	}
+	assert.ok(decodeLiteral(quoteLine).includes(JSON.stringify(quote)));
+	for (const ref of rejected)
+		assert.ok(decodeLiteral(refsLine).includes(ref), ref);
+});
+
+test("published Markdown destinations preserve the original HTTP URL bytes", async () => {
+	const url = "HTTPS://Example.org:443/v1/../file(a)|b?sig=(XYZ)&a=&amp;#line.";
+	const result = await render({
+		sources: legacyReport({
+			mainFindings: [{ finding: "Signed URL", sourceUrls: [url] }],
+		}),
+	});
+	assert.equal(result.status, "passed");
+	// The source index lists pages (no fragment); a link in the report body keeps its exact destination.
+	const page = url.split("#")[0];
+	assert.deepEqual(result.sourceUrls, [page]);
+	assert.deepEqual(
+		[...result.reportMarkdown.matchAll(/(?<!\\)\]\(<([^>]+)>\)/g)].map((m) =>
+			decodeLiteral(m[1]),
+		),
+		[url, page],
+	);
+});
+
+test("legacy action matching keeps hosts with $ distinct", async () => {
+	const stepUrl = "https://a$$.example/docs";
+	const otherUrl = "https://a$.example/docs";
+	const result = await render({
+		sources: legacyReport({
+			actionPlan: [{ action: "Read the docs", sourceUrls: [stepUrl] }],
+			recommendations: [
+				{ recommendation: "Review the other host", sourceUrls: [otherUrl] },
+			],
+		}),
+	});
+	assert.equal(result.status, "passed");
+	const actions = result.reportMarkdown
+		.split("## To do\n")[1]
+		.split("\n## ")[0];
+	assert.deepEqual(
+		[...actions.matchAll(/^\d+\. \*\*.*?\*\* (.+)$/gm)].map((m) => m[1]),
+		["Read the docs", "Review the other host"],
+	);
+});
+test("legacy actions match canonical URLs without rewriting their citations", async () => {
+	const stepUrl = "HTTPS://EXAMPLE.org:443/docs?sig=ABC#part.";
+	const relatedUrl = "https://example.org/docs?sig=ABC#part.";
+	const otherUrl = "https://example.org/docs?sig=DEF#part.";
+	const result = await render({
+		sources: legacyReport({
+			actionPlan: [{ action: "Read the docs", sourceUrls: [stepUrl] }],
+			recommendations: [
+				{ recommendation: "Review the same page", sourceUrls: [relatedUrl] },
+				{ recommendation: "Review another page", sourceUrls: [otherUrl] },
+			],
+		}),
+	});
+	assert.equal(result.status, "passed");
+	const actions = result.reportMarkdown
+		.split("## To do\n")[1]
+		.split("\n## ")[0];
+	assert.deepEqual(
+		[...actions.matchAll(/^\d+\. \*\*.*?\*\* (.+)$/gm)].map((m) => m[1]),
+		["Read the docs", "Review another page"],
+	);
+	assert.match(actions, /^ +\- \*\*.*?\*\* Review the same page/m);
+	assert.deepEqual(
+		[...actions.matchAll(/\]\(<([^>]+)>\)/g)].map((m) => m[1]),
+		[stepUrl, relatedUrl, otherUrl],
+	);
+});
+
+test("live validation retries blank reader entries and the stored reader blocks them", async () => {
+	const sources = await inputs();
+	const control = liveControl(sources["final-audit"]);
+	sources["final-audit"] = control;
+	assert.equal(validateJsonSchemaSubset(schema).valid, true);
+	for (const [fields, path] of [
+		[{ conclusion: [" ", "\t\u00a0"] }, "$.synthesis.conclusion[0]"],
+		[{ conclusion: ["Ask Dr. Lee.", "\u3000"] }, "$.synthesis.conclusion[1]"],
+		[
+			{ keyPoints: [{ title: " ", text: "Nonblank" }] },
+			"$.synthesis.keyPoints[0].title",
+		],
+		[
+			{ keyPoints: [{ title: "Nonblank", text: " \n " }] },
+			"$.synthesis.keyPoints[0].text",
+		],
+	]) {
+		const candidate = {
+			...control,
+			synthesis: { ...control.synthesis, ...fields },
+		};
+		const options = { controlJsonSchema: schema };
+		const parsed = parseWorkflowOutputForBundle(
+			`<control>${JSON.stringify(candidate)}</control>\n<analysis>Analysis</analysis>\n<refs>[]</refs>`,
+			options,
+		);
+		const stored = await render({
+			sources: { ...sources, "final-audit": candidate },
+		});
+		assert.deepEqual([parsed.valid, stored.status], [false, "blocked"], path);
+		assert.ok(
+			buildWorkflowOutputRetryInstructions(parsed.issues, options).includes(
+				`${path}: control JSON schema failed: string must not be blank`,
+			),
+		);
+	}
+});
+
+test("live synthesis requires the pair; stored paragraphs and bounded abbreviated entries still render", async () => {
+	const sources = await inputs();
+	const control = sources["final-audit"];
+	const legacy = control.synthesis;
+	const { bottomLine, ...rest } = legacy;
+	const conclusion = ["Ask Dr. Lee before publishing.", "Then check the data."];
+	const keyPoints = [{ title: "Review", text: "Only after checking." }];
+	for (const [fields, live, stored] of [
+		[{ bottomLine }, false, true],
+		[{}, false, false],
+		[{ conclusion }, false, false],
+		[{ keyPoints }, false, false],
+		[{ bottomLine, conclusion }, false, false],
+		[{ bottomLine, keyPoints }, false, false],
+		[{ bottomLine, conclusion, keyPoints }, false, false],
+		[{ conclusion, keyPoints }, true, true],
+	]) {
+		control.synthesis = { ...rest, ...fields };
+		assert.equal(
+			validateJsonSchema(control, schema).valid,
+			live,
+			JSON.stringify(fields),
+		);
+		const result = await render({ sources });
+		assert.equal(
+			result.status,
+			stored ? "passed" : "blocked",
+			JSON.stringify(fields),
+		);
+		if (live)
+			assert.ok(result.reportMarkdown.includes(conclusion.join("\n\n")));
+	}
+});
+
+test("legacy caveat aliases retain grouped notes, corrections and sources", async () => {
+	const sources = legacyReport({
+		contestedAreas: {
+			topic: {
+				note: "A grouped contested note.",
+				correctionOrCounterclaim: "The actual correction.",
+				sourceUrls: ["https://example.org/only-source"],
+			},
+		},
+		contestedFindings: "A second contested note.",
+		notableUnsupportedClaims: "A first unsupported note.",
+		unsupportedFindings: { topic: { note: "A second unsupported note." } },
+	});
+	const result = await render({ sources });
+	assert.equal(result.status, "passed");
+	for (const text of [
+		"A grouped contested note.",
+		"The actual correction.",
+		"https://example.org/only-source",
+		"A second contested note.",
+		"A first unsupported note.",
+		"A second unsupported note.",
+	])
+		assert.ok(result.reportMarkdown.includes(text), text);
+});
+
+test("coverage status is localized and unfamiliar status and confidence stay literal", async () => {
+	const sources = legacyReport({
+		researchScopeCoverage: [{ status: "covered_with_conflicts" }],
+		mainFindings: [
+			{
+				finding: "One finding",
+				evidenceStatus: "custom <status>",
+				confidence: "Custom <confidence>",
+			},
+		],
+	});
+	const result = await render({ sources });
+	assert.match(result.reportMarkdown, /Covered with conflicts 1/);
+	assert.match(result.reportMarkdown, /custom &lt;status&gt;/);
+	assert.match(result.reportMarkdown, /Confidence: Custom &lt;confidence&gt;/);
+});
+
+test("trust line counts canonical local files and web hosts but not citation labels", async () => {
+	const sources = legacyReport({
+		mainFindings: [
+			{
+				finding: "One finding",
+				sourceRefs: [
+					"RFC 9204, Section 3.1",
+					"file:src/main.ts#L4-L8",
+					"repo:src/main.ts#L20-22",
+					"file:docs/배포 Notes.md#L2",
+				],
+				sourceUrls: [
+					"https://example.org/path",
+					"https://www.example.org/next",
+				],
+				evidence: [
+					{ file: "example.org", quote: "One local quote" },
+					{ file: "./src/main.ts", quote: "Another local quote" },
+					{
+						file: "docs/배포 Notes.md",
+						lineStart: 2,
+						lineEnd: 3,
+						quote: "A release note",
+					},
+				],
+			},
+		],
+	});
+	const result = await render({ sources });
+	assert.match(result.reportMarkdown.split("\n")[2], /Sources: 4/);
+	assert.deepEqual(
+		[...result.reportMarkdown.matchAll(/^- Local source: (.+)$/gm)]
+			.map((m) => m[1].replaceAll("`", ""))
+			.sort(),
+		["docs/배포 Notes.md", "example.org", "src/main.ts"],
+	);
+	for (const citation of [
+		"`src/main.ts#L4-L8`",
+		"`src/main.ts#L20-22`",
+		"`docs/배포 Notes.md#L2`",
+		"RFC 9204, Section 3.1",
+	])
+		assert.ok(result.reportMarkdown.includes(citation), citation);
+	assert.doesNotMatch(result.reportMarkdown, /Local source: .*RFC/);
+});
+
+test("contradicted file attribution appears in visible limits and the audit", async (t) => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-reader-attribution-"));
+	t.after(() => rm(cwd, { recursive: true, force: true }));
+	await writeFile(
+		join(cwd, "notes.md"),
+		"The notes contain no protocol numbers.\n",
+	);
+	const sources = legacyReport({
+		actionPlan: [{ action: "Fix the incorrect RFC 9204 in notes.md." }],
+	});
+	const result = await render({ sources, context: { cwd } });
+	assert.match(
+		result.reportMarkdown,
+		/## Limits to keep in mind\n\n- Engine check:[^\n]+notes\.md[^\n]+9204/,
+	);
+	assert.match(
+		result.completionSummaryMarkdown,
+		/## Limits to keep in mind[\s\S]*?- Engine check:/,
+	);
+	assert.match(result.auditMarkdown, /values not in the file: 9204/);
+});
+
+test("a word cap cannot publish disputed advice without its visible correction", async (t) => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-reader-capped-"));
+	t.after(() => rm(cwd, { recursive: true, force: true }));
+	await writeFile(
+		join(cwd, "notes.md"),
+		"There are no protocol numbers here.\n",
+	);
+	const action = "Fix the incorrect RFC 9204 in notes.md.";
+	const sources = legacyReport({ actionPlan: [{ action }] });
+	const context = { cwd, runId: "run", taskId: "task" };
+	const full = await render({ sources, context });
+	assert.equal(full.status, "passed");
+	const maxWords = full.reportMarkdown
+		.split("## Limits to keep in mind")[0]
+		.match(/\S+/g).length;
+	const capped = await render({ sources, context, options: { maxWords } });
+	assert.equal(capped.status, "failed");
+	assert.equal(capped.completionSummaryMarkdown, "");
+	assert.doesNotMatch(capped.reportMarkdown, /Fix the incorrect RFC/);
+	assert.equal(capped.gates.truncatedWithAttributionWarnings, true);
+	assert.ok(capped.wordCount <= maxWords);
+	assert.equal(
+		await readFile(
+			join(
+				cwd,
+				".agent-workflow",
+				"workflows",
+				"run",
+				"tasks",
+				"task",
+				capped.sidecarPath,
+			),
+			"utf8",
+		),
+		`${capped.reportMarkdown}\n`,
+	);
+	assert.match(capped.auditMarkdown, /values not in the file: 9204/);
+});
+
+test("the engine stores the cap diagnostic instead of the disputed conclusion", async (t) => {
+	const cwd = await mkdtemp(join(tmpdir(), "aw-reader-capped-engine-"));
+	t.after(async () => {
+		await h.flushPendingIndexUpdatesForTests();
+		await rm(cwd, { recursive: true, force: true });
+	});
+	await writeFile(join(cwd, "notes.md"), "No protocol numbers here.\n");
+	const action = "Fix the incorrect RFC 9204 in notes.md.";
+	const sources = legacyReport({ summary: action, actionPlan: [{ action }] });
+	const specPath = join(cwd, "spec.json");
+	const spec = h.artifactGraphWorkflowSpec({
+		artifactGraph: {
+			stages: [
+				{
+					id: "render",
+					support: { uses: "./render.mjs", options: { maxWords: 1 } },
+				},
+			],
+		},
+	});
+	h.writeAgent(cwd, "unit-scout");
+	await writeFile(specPath, JSON.stringify(spec));
+	const renderer = new URL(
+		"../../workflows/deep-research/helpers/render-executive.mjs",
+		import.meta.url,
+	);
+	await writeFile(
+		join(cwd, "render.mjs"),
+		`import render from ${JSON.stringify(renderer.href)};\nexport default (args) => render({ ...args, sources: ${JSON.stringify(sources)} });`,
+	);
+	const compiled = await h.compileWorkflow(spec, {
+		cwd,
+		specPath,
+		task: "Render",
+	});
+	const { run } = await h.createWorkflowRunRecord(cwd, compiled, specPath);
+	await h.writeStaticRunArtifacts(cwd, run, compiled, spec);
+	const [task] = run.tasks;
+	assert.equal(
+		await executeSupportTask(
+			cwd,
+			run,
+			task,
+			compiled.tasks[0],
+			createArtifactGraphRuntimeValidationSnapshot(run),
+		),
+		false,
+	);
+	const {
+		tasks: [stored],
+	} = await h.readRunRecord(cwd, run.runId);
+	assert.equal(stored.statusDetail, "support_declared_failed");
+	const dir = dirname(fromStatePath(cwd, task.files.result));
+	const control = JSON.parse(await readFile(join(dir, "control.json"), "utf8"));
+	assert.equal(control.gates.truncatedWithAttributionWarnings, true);
+	const diagnostic =
+		"The report with source attribution corrections exceeds the word cap. See the audit.";
+	assert.equal(stored.lastMessage, `support declared failed: ${diagnostic}`);
+	assert.equal(control.digest, diagnostic);
 });

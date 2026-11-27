@@ -123,10 +123,46 @@ function normalize(text, cwd, runId) {
 const sha = (text) =>
 	createHash("sha256").update(text).digest("hex").slice(0, 16);
 
+// A replay acts as today's worker at the live validation boundary. Adapt only the
+// historical paragraph field, without editing the recording or repairing its envelope.
+function adaptResearchSynthesis(fixture) {
+	const final = fixture.tasks["final-audit.main"];
+	if (!final || fixture.spec !== "workflows/deep-research/spec.json") return;
+	final.attempts = final.attempts.map((text) =>
+		text.replace(
+			/("synthesis"\s*:\s*\{\s*)"bottomLine"\s*:\s*("(?:[^"\\]|\\.)*")/u,
+			(_, prefix, json) => {
+				const original = JSON.parse(json);
+				const remaining = original.trim().split(/\s+/u);
+				const take = (max) => {
+					const words = [remaining.shift()];
+					while (
+						remaining.length &&
+						[...`${words.join(" ")} ${remaining[0]}`].length <= max
+					)
+						words.push(remaining.shift());
+					return words.join(" ");
+				};
+				// Keep every word, in order. Long paragraphs spill into keyed continuation points.
+				const conclusion = [take(220), take(220)];
+				if (remaining.length) conclusion.push(take(220));
+				const keyPoints = [];
+				while (remaining.length)
+					keyPoints.push({
+						title: `${/[가-힣]/u.test(original) ? "계속" : "Continued"} ${keyPoints.length + 1}`,
+						text: take(160),
+					});
+				return `${prefix}"conclusion":${JSON.stringify(conclusion)},"keyPoints":${JSON.stringify(keyPoints)}`;
+			},
+		),
+	);
+}
+
 async function replay(name) {
 	const fixture = JSON.parse(
 		gunzipSync(readFileSync(join(REGRESSION_FIXTURES, name))).toString("utf8"),
 	);
+	adaptResearchSynthesis(fixture);
 	const label = name.replace(/\.json\.gz$/, "");
 	const cwd = join(root, label);
 	for (const [path, text] of Object.entries(fixture.files)) {
