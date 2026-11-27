@@ -29,6 +29,7 @@ import {
 	isHostSessionId,
 	isSettledRun,
 	recordRunHostSession,
+	runHostSessions,
 } from "./notify-check.js";
 import { findProjectRoot, runProject } from "./project-root.js";
 import { hostTextRedactor } from "./redaction.js";
@@ -239,12 +240,15 @@ async function launchText(
 			hostWakeEnabled(ctx.env) &&
 			(await recordRunHostSession(ctx.cwd, data.runId, session))
 		) {
-			// Settlement can beat binding. Report it without suppressing a supervisor wake.
+			// Verify the supervisor can list the link before checking for settlement.
+			const visible = (await runHostSessions(ctx.cwd, data.runId)).includes(
+				session,
+			);
 			const run = await readRunRecord(ctx.cwd, data.runId).catch(
 				() => undefined,
 			);
 			if (run && isSettledRun(run)) status = run.status;
-			else if (codexLaunchNotifierCanWake(run, data.detached.pid))
+			else if (visible && codexLaunchNotifierCanWake(run, data.detached.pid))
 				next = notification;
 		}
 	} else if (
@@ -254,7 +258,8 @@ async function launchText(
 		const monitor =
 			claudeLinked &&
 			isHostSessionId(session) &&
-			(await hostSessionMonitorAlive(ctx.cwd, session));
+			(await hostSessionMonitorAlive(ctx.cwd, session)) &&
+			(await runHostSessions(ctx.cwd, data.runId)).includes(session);
 		const run = await readRunRecord(ctx.cwd, data.runId).catch(() => undefined);
 		if (run && isSettledRun(run)) status = run.status;
 		else next = monitor ? notification : wait;

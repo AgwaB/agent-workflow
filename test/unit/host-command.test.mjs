@@ -34,7 +34,10 @@ import {
 	runHostCommandHook,
 } from "../../dist/hosts/host-command.js";
 import { profileAction } from "../../dist/hosts/api.js";
-import { runHostSessions } from "../../dist/hosts/notify-check.js";
+import {
+	hostSessionMonitorAlive,
+	runHostSessions,
+} from "../../dist/hosts/notify-check.js";
 import { dashboardProject } from "../helpers/dashboard-project.mjs";
 import { drainWorkflowFixture } from "../helpers/workflow-fixture-lifecycle.mjs";
 import {
@@ -259,8 +262,13 @@ function runId(out) {
 	return id;
 }
 
-for (const host of ["claude-code", "codex"]) {
-	test(`${host}: run launches detached with profile defaults, links the session, and duplicates start nothing`, async (t) => {
+for (const [host, unlistable] of [
+	["claude-code", false],
+	["codex", false],
+	["claude-code", true],
+	["codex", true],
+]) {
+	test(`${host}: ${unlistable ? "run directs a wait when the session link cannot be listed" : "run launches detached with profile defaults, links the session, and duplicates start nothing"}`, async (t) => {
 		const { cwd, env, id, invoke } = await project(t);
 		env.AGENT_WORKFLOW_HOST_WAKE = "1";
 		const args = 'run hook-alpha "Review the parser --force-new"';
@@ -291,10 +299,35 @@ export default async () => {
 };\n`,
 		);
 		try {
-			const out = await invoke(host, args);
+			const notifyDir = join(stateDir(cwd), ".agent-workflow", "notify-check");
+			let out;
+			if (unlistable) {
+				await mkdir(notifyDir, { recursive: true });
+				const readdir = fs.readdir;
+				const listing = t.mock.method(fs, "readdir", async (...args) => {
+					if (args[0] === notifyDir)
+						throw Object.assign(new Error("notify directory listing fault"), {
+							code: "EACCES",
+						});
+					return readdir(...args);
+				});
+				syncBuiltinESMExports();
+				try {
+					if (host === "claude-code") {
+						await writeFile(join(notifyDir, `monitor-${session}.stamp`), "");
+						assert.equal(await hostSessionMonitorAlive(cwd, session), true);
+					}
+					out = await invoke(host, args);
+					const link = join(notifyDir, `session-${session}.${runId(out)}.link`);
+					assert.ok((await fs.lstat(link)).isFile());
+				} finally {
+					listing.mock.restore();
+					syncBuiltinESMExports();
+				}
+			} else out = await invoke(host, args);
 			const launched = runId(out);
 			assert.match(out.reason, new RegExp(`hook-alpha.*executor ${id}`));
-			if (host === "claude-code") {
+			if (host === "claude-code" || unlistable) {
 				assert.match(
 					out.reason,
 					new RegExp(`Wait for the result: workflow_wait .*${launched}`),
