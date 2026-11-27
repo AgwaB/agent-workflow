@@ -61,12 +61,12 @@
 			"sha256": "27ccca8b868ae2a9e28131e4a28523b00a817e0f8bd1aee2af603c6990d2951a"
 		},
 		"reviewers.item": {
-			"chars": 5946,
-			"sha256": "e711ece901187256a5798133c5d296c7ff30d453590af07f444a05b3c7eeb2f1"
+			"chars": 6149,
+			"sha256": "5f583abba047ff754442d101fdb0b95b81cf7509d1ce279abdf5ad5751c62dac"
 		},
 		"devil-advocate.item": {
-			"chars": 3942,
-			"sha256": "f4a12c4ca004cfe05bd602c909dd5e0234336b317dbf758fb0d3767a028727ac"
+			"chars": 4150,
+			"sha256": "4508b82ca194654a8619d3d986fc74b82ef4a0399448a93b5c83dca4d679e4d6"
 		},
 		"report.main": {
 			"chars": 4548,
@@ -75,16 +75,16 @@
 	},
 	"workflows/impact-review/spec.json": {
 		"impact-analysis.change-scope.main": {
-			"chars": 2340,
-			"sha256": "6fa208afa426915701adcc8e74855a060cf2671df92b30622873b7ba4551e3aa"
+			"chars": 2557,
+			"sha256": "39fea57647678aec332e11178a249f6a5dea6218e8a363873bdd7f673b61afaa"
 		},
 		"impact-analysis.implementation-map.main": {
-			"chars": 2213,
-			"sha256": "3776139191680c64ae170a957b3d42437e061d3fe7302962f6923dba9876a538"
+			"chars": 2411,
+			"sha256": "c139893c6d110126a1b9ab5eb6c40f236a668d791aa2006d48cabf5179802c0b"
 		},
 		"impact-analysis.validation-map.main": {
-			"chars": 2333,
-			"sha256": "f10fce092ac0cea28844b8f85a4002b618c0b135d2e096d13cfeee4234bd8f0d"
+			"chars": 2534,
+			"sha256": "f29f943dcc6b6dc42a5ea0aee94951dc63dd98cfb15888b82602e4850a25c4f3"
 		},
 		"impact-analysis.api-contract-impact.main": {
 			"chars": 2856,
@@ -95,8 +95,8 @@
 			"sha256": "383af35a8ba1f24a3c344e81873a69960f14db692963526995df55b7a4bd53d7"
 		},
 		"impact-analysis.validation-impact.main": {
-			"chars": 3027,
-			"sha256": "c588c5b46dc05088776068f690cc68a5cc12a87dda1a0f62555c95db37a52f23"
+			"chars": 3239,
+			"sha256": "27e9a4e194978c244107928c9204ea37752cdbad4a2a2d3eff30dd73264df10c"
 		},
 		"impact-analysis.docs-release-impact.main": {
 			"chars": 2716,
@@ -129,24 +129,24 @@
 			"sha256": "d7536fd13411517bcd57e5d5925b4fa782397fc15c3b3f147e48b0a86b8517b0"
 		},
 		"map-implementation.main": {
-			"chars": 2408,
-			"sha256": "5fb49b3156790c36c7435e1cc2b8162ca8b17cc950fd67e0fb1ceaf0bdc1fd4b"
+			"chars": 2617,
+			"sha256": "9afbafe40c57f36d1ee26c65999c66060af3cd10b0517449cede7d1c10ee6aba"
 		},
 		"inspect-tests.main": {
-			"chars": 3447,
-			"sha256": "02d8380175a2fb57f66c452d22e0f83f5c9b7f25925d6befe400249d82648de3"
+			"chars": 3658,
+			"sha256": "933909e72d0de06f30c20e8a13b7699c1b1c9bac8666d8f56d712afb58f9ff92"
 		},
 		"candidate-findings.main": {
 			"chars": 6433,
 			"sha256": "0dfb734a0d386dbd637e5165984a4096cf9f2ae5c96bb28333776b5a7c691942"
 		},
 		"verify-findings.item": {
-			"chars": 4798,
-			"sha256": "d5f954e79834f447a1ca0c7b8593cd5922f437ff771cc2a3ff49a0df22c403c9"
+			"chars": 5026,
+			"sha256": "2ef912ce2b63f4400c2cb19807b68b79387ab7c729c46250ad24cfb32d4a00ae"
 		},
 		"recheck-requirements.item": {
-			"chars": 3109,
-			"sha256": "fc147d9fc98bc75d11bd552fe02d2981b9a2daf7f91d5d62b5cc41de1c57f802"
+			"chars": 3324,
+			"sha256": "0aa75e48ba0f994abcd1c376f574b2be6785a10010dfa0f8099446576aab431e"
 		},
 		"report.main": {
 			"chars": 5875,
