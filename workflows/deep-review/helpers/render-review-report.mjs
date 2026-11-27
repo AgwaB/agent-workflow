@@ -17,6 +17,8 @@ import {
 	escapeCompletionText, escapeMarkdownText, escapeTableCell, fold, inlineCode, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
 } from "./report-markdown.mjs";
 
+import { readerCoverageDetail, readerDiagnostic } from "./reader-diagnostics.mjs";
+
 const SEVERITY_ORDER = ["critical", "high", "medium", "low", "info", "unknown"];
 const REPORT_VERDICTS = new Set([
 	"REVIEW_COMPLETE",
@@ -79,23 +81,23 @@ function evidenceText(value) {
 
 const escapeHeadingText = escapeMarkdownText;
 
-function completionText(value) {
+function completionText(value, t) {
 	const withoutArtifactPaths = cleanText(value)
-		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became "[run omitted]", a reviewed
-		// file's "control.json" became "[artifact omitted]"): only this engine's own names are hidden —
+		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became t("[run omitted]", "[실행 ID 생략]"), a reviewed
+		// file's "control.json" became t("[artifact omitted]", "[자료 생략]")): only this engine's own names are hidden —
 		// paths under .agent-workflow/workflows, run ids (workflow_<id>_<hex6>), task ids (task-<n>),
 		// sidecar names, and refs/control JSON only as a stage-qualified or path-qualified name.
 		.replace(
 			/(?<![\w-])\.agent-workflow[\\/]workflows(?:[\\/][^\s]*)?/gi,
-			"[artifact omitted]",
+			t("[artifact omitted]", "[자료 생략]"),
 		)
-		.replace(/\b(?:final-report|audit)\.md\b/gi, "[artifact omitted]")
+		.replace(/\b(?:final-report|audit)\.md\b/gi, t("[artifact omitted]", "[자료 생략]"))
 		.replace(
 			/\b(?:partition-verdicts\.control|report\.control)\.json\b|(?<=[.\\/])(?:refs|control)\.json\b/gi,
-			"[artifact omitted]",
+			t("[artifact omitted]", "[자료 생략]"),
 		)
-		.replace(/\bworkflow\\?_[a-z0-9]+\\?_[a-f0-9]{6}\b/gi, "[run omitted]")
-		.replace(/\btask-\d+\b/gi, "[task omitted]");
+		.replace(/\bworkflow\\?_[a-z0-9]+\\?_[a-f0-9]{6}\b/gi, t("[run omitted]", "[실행 ID 생략]"))
+		.replace(/\btask-\d+\b/gi, t("[task omitted]", "[작업 ID 생략]"));
 	return cleanText(withoutArtifactPaths)
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
@@ -966,7 +968,7 @@ function renderMergedProvenance(finding, t) {
 		);
 		const severity = severityOf(member);
 		out.push(
-			`- ${inlineCode(id)} — ${escapeMarkdownText(title)} (${t("original verdict", "원래 판정")}: **${escapeMarkdownText(reportStatus(verdict, t))}**, ${t("original severity", "원래 심각도")}: **${escapeMarkdownText(reportStatus(member.originalSeverity ?? severity, t))}**)`,
+			`- ${inlineCode(id)} — ${escapeMarkdownText(readerDiagnostic(title, t))} (${t("original verdict", "원래 판정")}: **${escapeMarkdownText(reportStatus(verdict, t))}**, ${t("original severity", "원래 심각도")}: **${escapeMarkdownText(reportStatus(member.originalSeverity ?? severity, t))}**)`,
 		);
 		out.push(`  ${exactField(t("Finding ID", "발견 ID"), id)}`);
 		out.push(`  ${exactField(t("Original finding ID", "원래 발견 ID"), member.originalFindingId)}`);
@@ -1032,7 +1034,7 @@ function renderCounterEvidence(finding, t) {
 	return [
 		t("Caveat / counter-evidence:", "주의 사항과 반증:"),
 		"",
-		...(finding?.note ? [`- ${escapeHeadingText(finding.note)}`] : []),
+		...(finding?.note ? [`- ${escapeHeadingText(readerDiagnostic(finding.note, t))}`] : []),
 		...counter.map((item) => `- ${item}`),
 		"",
 	];
@@ -1104,7 +1106,7 @@ function renderFindingCard(finding, t, actionInList = true) {
 		...renderCounterEvidence(finding, t),
 	];
 	return [
-		`### ${escapeHeadingText(finding.findingId)} — ${escapeHeadingText(readerTitleOf(finding))}`, "",
+		`### ${escapeHeadingText(finding.findingId)} — ${escapeHeadingText(readerDiagnostic(readerTitleOf(finding), t))}`, "",
 		`${t("Severity", "심각도")}: **${escapeMarkdownText(reportStatus(finding.severity, t))}**  `,
 		`${t("Verifier verdict", "검증 판정")}: **${escapeMarkdownText(reportStatus(finding.verdict, t))}**`, "",
 		...fold(t("Evidence", "근거 보기"), body), "",
@@ -1324,12 +1326,12 @@ function renderSupportNotes(partition, t) {
 		representedRows += 1;
 		const noteId = findingIdOf(note, 0);
 		out.push(
-			`### ${noteId ? `${inlineCode(noteId)} — ` : ""}${escapeMarkdownText(readerTitleOf(note))}`,
+			`### ${noteId ? `${inlineCode(noteId)} — ` : ""}${escapeMarkdownText(readerDiagnostic(readerTitleOf(note), t))}`,
 			"",
 			`${t("Severity", "심각도")}: **${escapeMarkdownText(reportStatus(severityOf(note), t))}**  `,
 		);
 		const reason = cleanText(note?.reason);
-		if (reason) out.push(`${t("Reason", "이유")}: ${escapeMarkdownText(reason)}  `);
+		if (reason) out.push(`${t("Reason", "이유")}: ${escapeMarkdownText(readerDiagnostic(reason, t))}  `);
 		const rationale = escapeMarkdownText(
 			note?.readerRationale ?? note?.rationale ?? "",
 		);
@@ -1437,7 +1439,7 @@ function renderRisks(report, partition, t) {
 		);
 	}
 	for (const note of notes)
-		out.push(`- ${t("Normalization note", "정규화 메모")}: ${escapeMarkdownText(note)}`);
+		out.push(`- ${t("Normalization note", "정규화 메모")}: ${escapeMarkdownText(readerDiagnostic(note, t))}`);
 	out.push("");
 	return out;
 }
@@ -1481,7 +1483,7 @@ function renderSourceCoverageGaps(partition, t) {
 	];
 	for (const gap of gaps) {
 		lines.push(
-			`| ${escapeTableCell(gap.displayName ?? gap.specId ?? gap.source ?? "unknown")} | ${escapeTableCell(gap.sourcePath ?? "unknown")} | ${escapeTableCell(reportStatus(gap.coverageStatus ?? gap.status ?? "unknown", t))} | ${escapeTableCell(gap.extractionArtifact ?? "—")} | ${escapeTableCell(gap.statusDetail ?? "Required source content was not read.")} |`,
+			`| ${escapeTableCell(gap.displayName ?? gap.specId ?? gap.source ?? "unknown")} | ${escapeTableCell(gap.sourcePath ?? "unknown")} | ${escapeTableCell(reportStatus(gap.coverageStatus ?? gap.status ?? "unknown", t))} | ${escapeTableCell(gap.extractionArtifact ?? "—")} | ${escapeTableCell(readerCoverageDetail(gap.statusDetail, t) ?? t("Required source content was not read.", "필수 출처에 있는 내용을 읽지 못했습니다."))} |`,
 		);
 	}
 	lines.push("");
@@ -1489,16 +1491,16 @@ function renderSourceCoverageGaps(partition, t) {
 }
 
 
-function deterministicSummary(partition, findings) {
+function deterministicSummary(partition, findings, t) {
 	const ledger = partition?.partitions ?? partition?.reportContext;
 	const needsHuman = asArray(ledger?.needsHuman).length;
 	if (hasPartialFailures(partition)) {
-		return `Review coverage is partial. The deterministic ledger contains ${findings.length} kept or weakened findings and ${needsHuman} needs-human items.`;
+		return t(`Review coverage is partial. The deterministic ledger contains ${findings.length} kept or weakened findings and ${needsHuman} needs-human items.`, `검토 범위가 일부에 그쳤습니다. 원장에 유지·완화된 발견 사항 ${findings.length}건과 사람 검토 항목 ${needsHuman}건이 있습니다.`);
 	}
 	if (findings.length > 0 || needsHuman > 0) {
-		return `The deterministic ledger contains ${findings.length} kept or weakened findings and ${needsHuman} needs-human items.`;
+		return t(`The deterministic ledger contains ${findings.length} kept or weakened findings and ${needsHuman} needs-human items.`, `원장에 유지·완화된 발견 사항 ${findings.length}건과 사람 검토 항목 ${needsHuman}건이 있습니다.`);
 	}
-	return "The deterministic ledger contains no kept, weakened, or needs-human findings.";
+	return t("The deterministic ledger contains no kept, weakened, or needs-human findings.", "원장에 유지·완화되었거나 사람 검토가 필요한 발견 사항이 없습니다.");
 }
 
 function deterministicNextAction(verdict) {
@@ -1573,6 +1575,7 @@ function renderCompletionSummary({
 	partition,
 	findings,
 	limitations,
+	t,
 }) {
 	const ledger = partition?.partitions ?? partition?.reportContext;
 	const needsHuman = asArray(ledger?.needsHuman);
@@ -1590,48 +1593,48 @@ function renderCompletionSummary({
 		})),
 	].slice(0, 6);
 	const out = [
-		"## Core conclusion",
+		`## ${t("Core conclusion", "핵심 결론")}`,
 		"",
-		`Verdict: **${cleanText(effectiveVerdict)}**. ${completionText(deterministicSummary(partition, findings))}`,
+		`${t("Verdict", "판정")}: **${cleanText(effectiveVerdict)}**. ${completionText(deterministicSummary(partition, findings, t), t)}`,
 		"",
-		"## Key findings",
+		`## ${t("Key findings", "주요 발견 사항")}`,
 		"",
 	];
 	if (keyRows.length === 0) {
-		out.push("- No kept, weakened, or needs-human findings were present.");
+		out.push(`- ${t("No kept, weakened, or needs-human findings were present.", "유지, 완화 또는 사람 검토가 필요한 발견 사항이 없습니다.")}`);
 	} else {
 		for (const row of keyRows) {
 			out.push(
-				`- **${escapeCompletionText(row.severity)} / ${escapeCompletionText(row.label)}:** ${completionText(row.title)}`,
+				`- **${escapeCompletionText(row.severity)} / ${escapeCompletionText(row.label)}:** ${completionText(readerDiagnostic(row.title, t), t)}`,
 			);
 		}
 		const omitted = findings.length + needsHuman.length - keyRows.length;
 		if (omitted > 0)
 			out.push(
-				`- ${omitted} additional finding row(s) are included in the full report.`,
+				`- ${t(`${omitted} additional finding row(s) are included in the full report.`, `나머지 발견 사항 ${omitted}건은 전체 보고서에 있습니다.`)}`,
 			);
 	}
 	out.push(
 		"",
-		"## Evidence level",
+		`## ${t("Evidence level", "근거 수준")}`,
 		"",
-		`- Canonical rows: ${findings.length} kept or weakened findings, ${needsHuman.length} needs-human items, and ${supportNotes.length} supporting observations.`,
-		`- Coverage: ${hasPartialFailures(partition) ? "partial" : "complete according to source-status accounting"}.`,
+		`- ${t(`Canonical rows: ${findings.length} kept or weakened findings, ${needsHuman.length} needs-human items, and ${supportNotes.length} supporting observations.`, `원장 집계: 유지·완화 ${findings.length}건, 사람 검토 ${needsHuman.length}건, 보조 관찰 ${supportNotes.length}건.`)}`,
+		`- ${t(`Coverage: ${hasPartialFailures(partition) ? "partial" : "complete according to source-status accounting"}.`, `검토 범위: ${hasPartialFailures(partition) ? "일부" : "출처 상태 집계 기준 완료"}.`)}`,
 		"",
-		"## Important limitations",
+		`## ${t("Important limitations", "중요한 한계")}`,
 		"",
 	);
 	if (limitations.length === 0) {
 		out.push(
-			"- No incomplete source coverage or renderer integrity limitation was recorded.",
+			`- ${t("No incomplete source coverage or renderer integrity limitation was recorded.", "불완전한 출처 범위나 보고서 무결성 한계가 기록되지 않았습니다.")}`,
 		);
 	} else {
 		for (const limitation of limitations.slice(0, 8)) {
-			out.push(`- ${completionText(limitation)}`);
+			out.push(`- ${completionText(limitation, t)}`);
 		}
 		if (limitations.length > 8)
 			out.push(
-				`- ${limitations.length - 8} additional limitation(s) are detailed in the full report.`,
+				`- ${t(`${limitations.length - 8} additional limitation(s) are detailed in the full report.`, `나머지 한계 ${limitations.length - 8}건은 전체 보고서에 있습니다.`)}`,
 			);
 	}
 	return out
@@ -1676,7 +1679,7 @@ function renderEvidenceCorrections(partition, t) {
 			correction.kind === "coverage-quote" ||
 			correction.kind === "blank-planned-range";
 		const stage = isPlan
-			? `${correction.kind === "coverage-quote" ? t("reviewer", "검토자") : t("triage plan", "검토 계획")} for ${correction.lens || correction.source || "unknown"}`
+			? t(`${correction.kind === "coverage-quote" ? "reviewer" : "triage plan"} for ${correction.lens || correction.source || "unknown"}`, `${correction.lens || correction.source || "알 수 없는 관점"} ${correction.kind === "coverage-quote" ? "검토자" : "검토 계획"}`)
 			: `${t("Verifier", "검증자")}: ${correction.findingId || correction.source || "unknown"}`;
 		const file = isPlan ? (pointer?.[1] ?? correction.path ?? "unknown") : (correction.file ?? "unknown");
 		const given = isPlan ? (pointer?.[2] ?? t("whole file", "파일 전체")) : (correction.cited ?? "");
@@ -1732,6 +1735,7 @@ function renderNarrativeVerdictNote(report, effectiveVerdict, partition, t) {
 }
 
 function renderMarkdown({
+	runtimeTask,
 	report,
 	reportAvailable,
 	reportVerdictConsistent,
@@ -1755,7 +1759,7 @@ function renderMarkdown({
 	const ledger = partition?.partitions ?? partition?.reportContext;
 	const needsHuman = asArray(ledger?.needsHuman);
 	const supportNotes = asArray(partition?.supportNotes);
-	const t = reportLocale(report?.summary, ...sortedFindings.map(readerTitleOf), ...needsHuman.map(readerTitleOf));
+	const t = reportLocale(report?.summary, runtimeTask, ...sortedFindings.map(readerTitleOf), ...needsHuman.map(readerTitleOf));
 	const rendered = renderFindings(sortedFindings, t);
 	const representedIds = rendered.representedIds ?? [];
 	const renderedNeedsHuman = renderNeedsHuman(partition, t);
@@ -1776,17 +1780,17 @@ function renderMarkdown({
 		supportNoteMetadataMissing,
 		supportNoteEvidenceIncomplete,
 	};
-	const limitations = completionLimitations(limitationInputs);
+	const caveats = completionLimitations({ ...limitationInputs, t });
 	const completionSummaryMarkdown = renderCompletionSummary({
 		reportAvailable,
 		effectiveVerdict,
 		partition,
 		findings: sortedFindings,
-		limitations,
+		limitations: caveats,
+		t,
 	});
 	const partial = hasPartialFailures(partition) || rendererIntegrityFailed;
 	const risks = renderRisks(report, partition, t);
-	const caveats = completionLimitations({ ...limitationInputs, t });
 	const outcome = {
 		NEEDS_WORK: t("Resolve the findings or open questions before release.", "배포 전에 발견 사항이나 미해결 질문을 처리하세요."),
 		PARTIAL_REVIEW: t("Some review work could not be completed reliably.", "일부 검토 작업을 신뢰할 수 있는 수준으로 마치지 못했습니다."),
@@ -1994,6 +1998,7 @@ export default async function renderReviewReport({ sources, context = {} }) {
 	let rendererIntegrityFailed = false;
 	const renderCurrentVerdict = () =>
 		renderMarkdown({
+			runtimeTask: context.runtimeTask,
 			report: report ?? {},
 			reportAvailable,
 			reportVerdictConsistent,

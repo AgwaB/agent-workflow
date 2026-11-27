@@ -12,6 +12,8 @@ export interface WorkflowHelperContext {
 	stageId?: string;
 	taskId?: string;
 	runId?: string;
+	/** Original runtime task, for presentation defaults when no narrative is available. */
+	runtimeTask?: string;
 	cwd: string;
 	/** Private storage base; source and worker paths still resolve against cwd. */
 	stateCwd?: string;

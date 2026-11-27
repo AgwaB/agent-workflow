@@ -643,21 +643,21 @@ function issueSummary(collections) {
 	);
 }
 
-function completionText(value, maxChars = 300) {
+function completionText(value, maxChars, t) {
 	const sanitized = safeInline(value)
-		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became "[run omitted]", a reviewed
-		// file's "control.json" became "[artifact omitted]"): only this engine's own names are hidden —
+		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became t("[run omitted]", "[실행 ID 생략]"), a reviewed
+		// file's "control.json" became t("[artifact omitted]", "[자료 생략]")): only this engine's own names are hidden —
 		// paths under .agent-workflow/workflows, run ids (workflow_<id>_<hex6>), task ids (task-<n>),
 		// sidecar names, and refs/control JSON only as a stage-qualified or path-qualified name.
 		.replace(
 			/(?<![\w-])\.agent-workflow[\\/]workflows(?:[\\/][^\s]*)?/gi,
-			"[artifact omitted]",
+			t("[artifact omitted]", "[자료 생략]"),
 		)
-		.replace(/\b(?:final-report|audit|executive)\.md\b/gi, "[artifact omitted]")
-		.replace(/(?<=[.\\/])(?:refs|control)\.json\b/gi, "[artifact omitted]")
-		.replace(/\brelated[\s-]+artifacts\b/gi, "[section title omitted]")
-		.replace(/\bworkflow\\?_[a-z0-9]+\\?_[a-f0-9]{6}\b/gi, "[run omitted]")
-		.replace(/\btask-\d+\b/gi, "[task omitted]");
+		.replace(/\b(?:final-report|audit|executive)\.md\b/gi, t("[artifact omitted]", "[자료 생략]"))
+		.replace(/(?<=[.\\/])(?:refs|control)\.json\b/gi, t("[artifact omitted]", "[자료 생략]"))
+		.replace(/\brelated[\s-]+artifacts\b/gi, t("[section title omitted]", "[절 제목 생략]"))
+		.replace(/\bworkflow\\?_[a-z0-9]+\\?_[a-f0-9]{6}\b/gi, t("[run omitted]", "[실행 ID 생략]"))
+		.replace(/\btask-\d+\b/gi, t("[task omitted]", "[작업 ID 생략]"));
 	const chars = Array.from(sanitized);
 	return chars.length <= maxChars
 		? sanitized
@@ -696,19 +696,20 @@ function renderCompletionSummary({
 	ship,
 	summary,
 	limitations,
+	t,
 }) {
 	const actions = actionSummaryRows(synthesis, ship);
 	const out = [
-		"## Core conclusion",
+		`## ${t("Core conclusion", "핵심 결론")}`,
 		"",
-		`Verdict: **${verdict}**${verdict === "UNKNOWN" ? " (insufficient evidence)" : ""}; risk: **${riskLevel}**. ${completionText(synthesis.summary, 850)}`,
+		`${t("Verdict", "판정")}: **${verdict}**${verdict === "UNKNOWN" ? t(" (insufficient evidence)", " (근거 불충분)") : ""}; ${t("risk", "위험도")}: **${riskLevel}**. ${completionText(synthesis.summary, 850, t)}`,
 		"",
-		"## Key actions",
+		`## ${t("Key actions", "주요 조치")}`,
 		"",
 	];
 	if (actions.length === 0)
 		out.push(
-			"- No blocking issue, follow-up action, or validation command was recorded.",
+			`- ${t("No blocking issue, follow-up action, or validation command was recorded.", "차단 문제, 후속 조치 또는 검증 명령이 기록되지 않았습니다.")}`,
 		);
 	else {
 		// agent-workflow 2026-11-04 (live: Claude and Antigravity runs failed their own control schema,
@@ -717,21 +718,21 @@ function renderCompletionSummary({
 		actions
 			.slice(0, COMPLETION_ACTION_ROWS)
 			.forEach((row) =>
-				out.push(`- ${completionText(readableRow(row), 420)}`),
+				out.push(`- ${completionText(readableRow(row), 420, t)}`),
 			);
 		if (actions.length > COMPLETION_ACTION_ROWS)
 			out.push(
-				`- ${actions.length - COMPLETION_ACTION_ROWS} additional action row(s) are covered in the full report.`,
+				`- ${t(`${actions.length - COMPLETION_ACTION_ROWS} additional action row(s) are covered in the full report.`, `나머지 조치 ${actions.length - COMPLETION_ACTION_ROWS}건은 전체 보고서에 있습니다.`)}`,
 			);
 	}
 	out.push(
 		"",
-		"## Evidence level",
+		`## ${t("Evidence level", "근거 수준")}`,
 		"",
-		`- Deterministic joins recorded ${summary.contractIssues} contract issue(s), ${summary.regressionRisks} regression risk(s), and ${summary.requiredBeforeShip} required-before-ship row(s).`,
-		"- Contract consistency, regression risk, ship readiness, and synthesis controls passed source-completeness checks.",
+		`- ${t(`Deterministic joins recorded ${summary.contractIssues} contract issue(s), ${summary.regressionRisks} regression risk(s), and ${summary.requiredBeforeShip} required-before-ship row(s).`, `확인된 원장 항목: 계약 문제 ${summary.contractIssues}건, 회귀 위험 ${summary.regressionRisks}건, 배포 전 필수 ${summary.requiredBeforeShip}건.`)}`,
+		`- ${t("Contract consistency, regression risk, ship readiness, and synthesis controls passed source-completeness checks.", "계약 일관성, 회귀 위험, 배포 준비와 종합 자료가 출처 완전성 검사를 통과했습니다.")}`,
 		"",
-		"## Important limitations",
+		`## ${t("Important limitations", "중요한 한계")}`,
 		"",
 	);
 	const importantLimitations = [
@@ -741,14 +742,14 @@ function renderCompletionSummary({
 	];
 	if (importantLimitations.length === 0)
 		out.push(
-			"- No source-coverage, open-decision, readiness-assumption, or renderer-integrity limitation was recorded.",
+			`- ${t("No source-coverage, open-decision, readiness-assumption, or renderer-integrity limitation was recorded.", "출처 범위, 미해결 결정, 배포 준비 가정 또는 보고서 무결성에 관한 한계가 기록되지 않았습니다.")}`,
 		);
 	else
 		importantLimitations
 			.slice(0, 8)
 			.forEach((row) =>
 				out.push(
-					`- ${completionText(readableRow(row), 300)}`,
+					`- ${completionText(readableRow(row), 300, t)}`,
 				),
 			);
 	return out
@@ -922,15 +923,16 @@ export default async function renderImpactReport({ sources, context = {} }) {
 	const safeContract = isRecord(contract) ? contract : {};
 	const safeRegression = isRecord(regression) ? regression : {};
 	const safeShip = isRecord(ship) ? ship : {};
+	const t = reportLocale(safeSynthesis.summary, context.runtimeTask, ...rowCollections({ synthesis: safeSynthesis, contract: safeContract, regression: safeRegression, ship: safeShip }).flatMap(([, , , rows]) => asArray(rows).map((row) => typeof row === "string" ? row : row?.[impactClaimKey(row)])));
 	const unverifiedResolutionNeedsHuman = ledgerCoverage.unverifiedResolutions.map(
 		(id) => ({
 			id: `UNVERIFIED-RESOLUTION-${id}`,
-			text: `Resolution claim for ${id} is model-assessed only; verify owner authority and evidence before relying on it.`,
+			text: t(`Resolution claim for ${id} is model-assessed only; verify owner authority and evidence before relying on it.`, `${id}의 해결 여부는 모델만 판단했습니다. 그 판단을 사용하기 전에 담당자의 권한과 근거를 확인하세요.`),
 			kind: "gap",
 			severity: "unknown",
 			scope: "known",
 			resolution: "unresolved",
-			resolutionNote: "No externally bound approval or evidence was supplied.",
+			resolutionNote: t("No externally bound approval or evidence was supplied.", "외부에서 확인할 수 있는 승인이나 근거가 제공되지 않았습니다."),
 			origin: "impact-renderer",
 			sourceIds: [id],
 		}),
@@ -1005,9 +1007,9 @@ export default async function renderImpactReport({ sources, context = {} }) {
 	});
 	const summary = issueSummary(collections);
 	const limitations = [];
-	const t = reportLocale(safeSynthesis.summary, ...collections.flatMap(([, , , rows]) => asArray(rows).map((row) => typeof row === "string" ? row : row?.[impactClaimKey(row)])));
 	const readerLimitations = [];
-	const limit = (en, ko) => { limitations.push(en); readerLimitations.push(t(en, ko)); };
+	const completionCaveats = [];
+	const limit = (en, ko) => { limitations.push(en); readerLimitations.push(t(en, ko)); completionCaveats.push(t(en, ko)); };
 	if (!canonicalSourcesAvailable) {
 		const unavailable = STAGES.filter((stageId) => !validity[stageId]);
 		limit(
@@ -1036,6 +1038,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 	limitations.push(
 		"Impact review does not attest historical source-file bytes; content hashes cover host-supplied control values only, and citations are unverified unless an authoritative byte snapshot is supplied.",
 	);
+	completionCaveats.push(t("Impact review does not attest historical source-file bytes; content hashes cover host-supplied control values only, and citations are unverified unless an authoritative byte snapshot is supplied.", "영향 검토는 이전 파일의 원문을 검증하지 않습니다. 해시는 호스트가 제공한 제어 값에만 적용되며, 신뢰할 수 있는 원문 스냅샷이 없으면 인용은 미검증 상태입니다."));
 	if (!coverageComplete)
 		limit(
 			"Canonical source lifecycle metadata is missing, duplicated, non-terminal, or incomplete.", "출처의 작업 상태에 누락, 중복, 미종료 또는 불완전한 항목이 있습니다.",
@@ -1057,6 +1060,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 		readerLimitations.unshift(insufficientEvidence
 			? t("Insufficient evidence: the impact risk could not be established from the supplied change and repository, so the verdict is UNKNOWN rather than READY.", "제공된 변경과 저장소만으로는 위험도를 판단할 수 없어 배포 가능 여부를 알 수 없습니다.")
 			: t("Unknown impact risk prevents a successful readiness gate.", "영향 위험도를 판단하지 못해 배포 준비 검사를 통과하지 못했습니다."));
+		completionCaveats.unshift(readerLimitations[0]);
 		limitations.unshift(
 			insufficientEvidence
 				? "Insufficient evidence: the impact risk could not be established from the supplied change and repository, so the verdict is UNKNOWN rather than READY."
@@ -1100,7 +1104,8 @@ export default async function renderImpactReport({ sources, context = {} }) {
 				synthesis: effectiveSynthesis,
 				ship: safeShip,
 				summary,
-				limitations,
+				limitations: completionCaveats,
+				t,
 			})
 		: "";
 	let rendered = renderMarkdown({

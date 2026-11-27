@@ -97,6 +97,7 @@ export async function executeSupportTask(
 	compiledTask: CompiledWorkflow["tasks"][number],
 	validationSnapshot: ArtifactGraphRuntimeValidationSnapshot,
 	partialSources = false,
+	runtimeTask?: string,
 ): Promise<boolean> {
 	if (!compiledTask.support) {
 		throw new Error("support metadata is missing");
@@ -158,6 +159,7 @@ export async function executeSupportTask(
 				originalSpecPath: run.specPath,
 				stageId: task.stageId,
 				taskId: task.taskId,
+				runtimeTask,
 				runId: run.runId,
 				cwd,
 				stateCwd: stateBase(cwd),

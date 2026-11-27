@@ -2806,12 +2806,10 @@ test("deep-review artifact-graph support lifecycle retains adverse needs-human a
 		const workflowDir = join(cwd, "workflows", "deep-review-adverse");
 		const helperDir = join(workflowDir, "helpers");
 		mkdirSync(helperDir, { recursive: true });
-		for (const helperName of [
-			"finding-pipeline.mjs",
-			"render-review-report.mjs",
-			"report-markdown.mjs",
-			"review-verdict.mjs",
-		]) {
+		// Copy every bundled helper: the renderer imports siblings (reader-diagnostics.mjs, …).
+		for (const helperName of readdirSync(
+			join(process.cwd(), "workflows", "deep-review", "helpers"),
+		)) {
 			writeFileSync(
 				join(helperDir, helperName),
 				readFileSync(

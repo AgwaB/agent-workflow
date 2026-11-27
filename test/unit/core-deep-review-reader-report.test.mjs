@@ -114,3 +114,47 @@ test("unknown legacy severity is text, not markup or a GFM autolink, even in the
 	);
 	assert.doesNotMatch(markdown, /\*\*www\.example\.org|<em>legacy<\/em>/);
 });
+
+test("deep review localizes fallback diagnostics and completion without rewriting source data", async () => {
+	const item = {
+		...finding("finding-001", "배송비 경계값 오류"),
+		note: "no devil-advocate verdict received for this finding",
+		needsHumanCause: "verifier_missing",
+	};
+	const partition = {
+		partitions: { keep: [], weaken: [], drop: [], needsHuman: [item] },
+		normalizationNotes: [
+			'reviewer finding "배송비 경계값 오류" had no verdict; routed to NEEDS_HUMAN',
+		],
+		sourceStatusSummary: {
+			partialFailures: [
+				{
+					status: "source_coverage_incomplete",
+					specId: "reviewers.correctness",
+					sourcePath: "shipping.mjs:2",
+					statusDetail:
+						"correctness: shipping.mjs:2: missing (coverage row missing)",
+				},
+			],
+		},
+	};
+	const { markdown, completionSummaryMarkdown, verdict } = await render({
+		sources: { "partition-verdicts": partition },
+		context: { runtimeTask: "배송비 계산을 검토해 주세요." },
+	});
+	assert.equal(verdict, "PARTIAL_REVIEW");
+	assert.match(markdown, /^# 심층 검토 보고서/u);
+	assert.match(markdown, /이 발견 사항에 대한 검증 판정이 없습니다/u);
+	assert.match(markdown, /검증 판정이 없어 NEEDS\\_HUMAN으로 보냈습니다/u);
+	assert.match(
+		markdown,
+		/shipping\.mjs:2: missing \(범위 확인 항목이 없습니다\)/u,
+	);
+	assert.ok(markdown.includes(quote));
+	assert.equal(
+		completionSummaryMarkdown,
+		"",
+		"failed runs do not publish a compact summary",
+	);
+	assert.match(item.note, /^no devil-advocate/u);
+});
