@@ -628,11 +628,11 @@ for (const mode of modes)
 					});
 					assert.match(
 						direct.markdown,
-						/unclear, re-checked: covered — Fixture recheck\./u,
+						/Re-checked: Unclear → Covered — Fixture recheck\./u,
 					);
 				}
 				if (mode === "unclear-keep")
-					assert.match(direct.markdown, /unclear, re-checked: gap/u);
+					assert.match(direct.markdown, /Re-checked: Unclear → Gap/u);
 			} else {
 				if (mode !== "sidecar-failure")
 					assert.notEqual(result?.status, "passed");

@@ -1,9 +1,9 @@
 // Support-step regression net (2026-11-04, before refactoring): every recorded live run under
 // test/fixtures/support-replay/ is replayed through the current bundle helpers and must give the
-// committed golden controls. An intended change: `node test/helpers/support-replay.mjs --write`, then
-// review the golden diff. See test/helpers/support-replay.mjs.
+// committed golden controls. For intentional changes, set AGENT_WORKFLOW_WRITE_REGRESSION=1
+// on this file via test/run-unit.mjs with a test-name pattern, then review the golden diff.
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
@@ -31,6 +31,10 @@ test("support-replay fixtures cover every bundled workflow", () => {
 for (const label of labels)
 	test(`support replay equals the golden output: ${label}`, async () => {
 		const actual = await replayFixture(label);
+		if (process.env.AGENT_WORKFLOW_WRITE_REGRESSION === "1") {
+			writeFileSync(goldenPath(label), `${JSON.stringify(actual, null, 1)}\n`);
+			return;
+		}
 		assert.ok(
 			existsSync(goldenPath(label)),
 			`missing golden ${goldenPath(label)}`,
@@ -41,7 +45,7 @@ for (const label of labels)
 			diff,
 			null,
 			diff
-				? `${label} differs at ${diff.path}\n  actual:   ${JSON.stringify(diff.actual)?.slice(0, 400)}\n  expected: ${JSON.stringify(diff.expected)?.slice(0, 400)}\n(intended? node test/helpers/support-replay.mjs --write)`
+				? `${label} differs at ${diff.path}\n  actual:   ${JSON.stringify(diff.actual)?.slice(0, 400)}\n  expected: ${JSON.stringify(diff.expected)?.slice(0, 400)}\n(intended? set AGENT_WORKFLOW_WRITE_REGRESSION=1 and re-run this case)`
 				: "",
 		);
 	});

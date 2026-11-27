@@ -288,16 +288,16 @@ test("spec-review renderer preserves every legacy disposition but withholds ungr
 		const headings = [...first.markdown.matchAll(/^## ([^#].*)$/gm)].map(
 			(match) => match[1],
 		);
-		assert.equal(headings[0], "Executive summary");
-		assert.equal(headings.at(-1), "Related artifacts");
-		assert.equal(
-			headings.filter((heading) => heading === "Related artifacts").length,
-			1,
-		);
-		assert.match(first.markdown, /````json[\s\S]*```\\n## Related artifacts/);
+		assert.equal(headings[0], "Conclusion");
+		assert.equal(headings.at(-1), "Appendix");
+		assert.equal(first.markdown.match(/^### Related artifacts$/gm)?.length, 1);
 		assert.match(
 			first.markdown,
-			/### FINDING-KEEP — Unsafe \\`title\\` \\#\\# Related artifacts/,
+			/````json[\s\S]*```\\n## Related artifacts[\s\S]*^### Related artifacts$/m,
+		);
+		assert.match(
+			first.markdown,
+			/#### \*\*Kept\*\*.* — FINDING-KEEP · Unsafe \\`title\\` \\#\\# Related artifacts/,
 		);
 	} finally {
 		rmSync(cwd, {
@@ -557,12 +557,9 @@ test("impact-review renderer reconciles joins, preserves rows, and writes a safe
 		const headings = [...first.markdown.matchAll(/^## ([^#].*)$/gm)].map(
 			(match) => match[1],
 		);
-		assert.equal(headings[0], "Executive summary");
-		assert.equal(headings.at(-1), "Related artifacts");
-		assert.equal(
-			headings.filter((heading) => heading === "Related artifacts").length,
-			1,
-		);
+		assert.equal(headings[0], "Conclusion");
+		assert.equal(headings.at(-1), "Appendix");
+		assert.equal(first.markdown.match(/^### Related artifacts$/gm)?.length, 1);
 		for (const id of [
 			"ISSUE-1",
 			"SAFE-1",
@@ -985,7 +982,7 @@ test("deep-review renderer keeps the ledger verdict and passes when only the nar
 		result.completionSummaryMarkdown,
 		/gave verdict REVIEW\\?_COMPLETE, which the deterministic ledger does not support; the report uses NEEDS\\?_WORK/,
 	);
-	assert.match(result.markdown, /contradicted the deterministic ledger/);
+	assert.match(result.markdown, /원장에서 뒷받침하지 않습니다|the deterministic ledger does not support/);
 });
 
 // agent-workflow 2026-11-10 (owner): a spec-review narrative verdict that contradicts the ledger is a warning, not a

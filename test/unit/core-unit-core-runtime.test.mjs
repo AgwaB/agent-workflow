@@ -7183,7 +7183,7 @@ test("deep-review finding-pipeline dedups by file+title-token overlap and partit
 		},
 	});
 	assert.equal(renderedLineage.status, "failed");
-	assert.match(renderedLineage.markdown, /original verdict: \*\*WEAKEN\*\*/u);
+	assert.match(renderedLineage.markdown, /original verdict: \*\*Weakened\*\*/u);
 	assert.match(renderedLineage.markdown, /Reassess scope/u);
 	assert.deepEqual(renderedLineage.verifierCoverage.missingFindingIds, []);
 	assert.deepEqual(renderedLineage.verifierCoverage.orphanFindingIds, []);
@@ -8507,8 +8507,8 @@ test("deep-review report synthesis stays conservative for partial sources", asyn
 	assert.equal(rendered.status, "failed");
 	assert.equal(rendered.gates.reportVerdictConsistent, false);
 	assert.equal(rendered.completionSummaryMarkdown, "");
-	assert.match(rendered.markdown, /Verdict: \*\*PARTIAL_REVIEW\*\*/);
-	assert.match(rendered.markdown, /Review coverage is partial/);
+	assert.match(rendered.markdown, /Verdict: \*\*Partial review\*\*/);
+	assert.match(rendered.markdown, /coverage partial/);
 	assert.match(rendered.markdown, /A completed verifier kept this finding/);
 });
 
@@ -8661,20 +8661,17 @@ test("deep-review render-review-report emits finding cards from partition ledger
 		assert.match(result.markdown, /# Deep review report/);
 		assert.match(
 			result.markdown,
-			/^# Deep review report\n\n## Executive summary/,
+			/^# Deep review report\n\nEvidence: [^\n]+\n\n## Conclusion/,
 		);
-		assert.match(result.markdown, /Verdict: \*\*PARTIAL_REVIEW\*\*/);
+		assert.match(result.markdown, /Verdict: \*\*Partial review\*\*/);
 		assert.match(result.markdown, /Renderer integrity checks failed/);
-		assert.match(result.markdown, /## Evidence and review coverage/);
+		assert.match(result.markdown, /<summary>Review records<\/summary>/);
 		assert.match(result.markdown, /## Limitations/);
 		assert.match(result.markdown, /## Related artifacts/);
-		assert.equal(
-			result.markdown.match(/^## .+$/gm)?.at(-1),
-			"## Related artifacts",
-		);
+		assert.equal(result.markdown.match(/^## .+$/gm)?.at(-1), "## Appendix");
 		assert.equal(result.completionSummaryMarkdown, "");
 		assert.equal(result.gates.requiredLedgersPresent, false);
-		assert.match(result.markdown, /Critical findings/);
+		assert.match(result.markdown, /Severity: \*\*Critical\*\*/);
 		assert.match(
 			result.markdown,
 			/\| `src\/auth\.ts` \| 14 \| `JWT_SECRET` \|/,
@@ -8699,7 +8696,7 @@ test("deep-review render-review-report emits finding cards from partition ledger
 		assert.match(result.markdown, /tests\/auth\.test\.ts/);
 		assert.match(result.markdown, /test\.todo\('rejects default secret'\)/);
 		assert.doesNotMatch(result.markdown, /overflow index/);
-		assert.match(result.markdown, /Verifier verdict: \*\*WEAKEN\*\*/);
+		assert.match(result.markdown, /Verifier verdict: \*\*Weakened\*\*/);
 		assert.ok(
 			result.markdown.includes(
 				"### finding-002 — Test-only issue should be weakened \\#\\# forged \\`heading\\` final-report.md workflow\\_exec task-final",
@@ -8711,12 +8708,12 @@ test("deep-review render-review-report emits finding cards from partition ledger
 		);
 		assert.ok(
 			result.markdown.includes(
-				"Run \\[unsafe\\](https://example.test) \\*\\*now\\*\\* \\#\\# forged action.",
+				"Run \\[unsafe\\](https&#58;//example.test) \\*\\*now\\*\\* \\#\\# forged action.",
 			),
 		);
 		assert.ok(
 			result.markdown.includes(
-				"This is \\*\\*support\\*\\* \\[context\\](https://example.test), not the root defect. \\#\\# forged counter",
+				"This is \\*\\*support\\*\\* \\[context\\](https&#58;//example.test), not the root defect. \\#\\# forged counter",
 			),
 		);
 		assert.equal(result.completionSummaryMarkdown, "");
@@ -8818,8 +8815,8 @@ test("deep-review render-review-report surfaces count mismatches and missing par
 	assert.deepEqual(reportFailure.sourceArtifacts, [
 		"partition-verdicts.control.json",
 	]);
-	assert.match(reportFailure.markdown, /Verdict: \*\*PARTIAL_REVIEW\*\*/);
-	assert.match(reportFailure.markdown, /Narrative synthesis was unavailable/);
+	assert.match(reportFailure.markdown, /Verdict: \*\*Partial review\*\*/);
+	assert.match(reportFailure.markdown, /Executive synthesis was unavailable/);
 	assert.match(reportFailure.markdown, /Evidence survives report failure/);
 	assert.doesNotMatch(reportFailure.markdown, /Deep review completed/);
 
@@ -8858,11 +8855,11 @@ test("deep-review render-review-report surfaces count mismatches and missing par
 	assert.equal(contradictoryVerdict.completionSummaryMarkdown, "");
 	assert.match(
 		contradictoryVerdict.markdown,
-		/Verdict: \*\*PARTIAL_REVIEW\*\*/,
+		/Verdict: \*\*Partial review\*\*/,
 	);
 	assert.match(
 		contradictoryVerdict.markdown,
-		/contradicted the deterministic ledger/,
+		/the deterministic ledger does not support/,
 	);
 	assert.match(contradictoryVerdict.markdown, /No issue remains/);
 	assert.match(contradictoryVerdict.markdown, /Ship\./);
@@ -8908,7 +8905,7 @@ test("deep-review render-review-report surfaces count mismatches and missing par
 	assert.equal(matchingVerdictWithContradictoryNarrative.status, "failed");
 	assert.match(
 		matchingVerdictWithContradictoryNarrative.markdown,
-		/Verdict: \*\*PARTIAL_REVIEW\*\*/,
+		/Verdict: \*\*Partial review\*\*/,
 	);
 	assert.match(
 		matchingVerdictWithContradictoryNarrative.markdown,
@@ -8916,7 +8913,7 @@ test("deep-review render-review-report surfaces count mismatches and missing par
 	);
 	assert.match(
 		matchingVerdictWithContradictoryNarrative.markdown,
-		/The deterministic ledger contains 1 kept or weakened findings/,
+		/Evidence: 1 kept or weakened findings/,
 	);
 	assert.match(
 		matchingVerdictWithContradictoryNarrative.markdown,
@@ -8986,8 +8983,8 @@ test("deep-review render-review-report surfaces count mismatches and missing par
 		context: {},
 	});
 	assert.equal(nonCompletedSource.status, "failed");
-	assert.match(nonCompletedSource.markdown, /Verdict: \*\*PARTIAL_REVIEW\*\*/);
-	assert.match(nonCompletedSource.markdown, /Review coverage is partial/);
+	assert.match(nonCompletedSource.markdown, /Verdict: \*\*Partial review\*\*/);
+	assert.match(nonCompletedSource.markdown, /coverage partial/);
 
 	const blankNeedsHumanEvidence = await helper({
 		sources: {
@@ -9060,7 +9057,7 @@ test("deep-review render-review-report surfaces count mismatches and missing par
 	assert.equal(missingSupportMetadata.gates.supportNoteMetadataMissing, true);
 	assert.match(
 		missingSupportMetadata.markdown,
-		/omitted required support-note metadata/,
+		/Supporting-observation metadata or row counts are incomplete/,
 	);
 
 	const supportNoteMismatch = await helper({
@@ -9088,7 +9085,10 @@ test("deep-review render-review-report surfaces count mismatches and missing par
 	});
 	assert.equal(supportNoteMismatch.status, "failed");
 	assert.equal(supportNoteMismatch.gates.supportNoteCountMismatch, true);
-	assert.match(supportNoteMismatch.markdown, /support-note counts/);
+	assert.match(
+		supportNoteMismatch.markdown,
+		/Supporting-observation metadata or row counts are incomplete/,
+	);
 
 	const blankSupportNoteEvidence = await helper({
 		sources: {
@@ -9124,7 +9124,10 @@ test("deep-review render-review-report surfaces count mismatches and missing par
 		blankSupportNoteEvidence.gates.supportNoteEvidenceIncomplete,
 		true,
 	);
-	assert.match(blankSupportNoteEvidence.markdown, /non-blank evidence quote/);
+	assert.match(
+		blankSupportNoteEvidence.markdown,
+		/lacks complete location or quote evidence/,
+	);
 
 	const mismatch = await helper({
 		sources: {
@@ -9150,7 +9153,7 @@ test("deep-review render-review-report surfaces count mismatches and missing par
 	});
 	assert.equal(mismatch.status, "failed");
 	assert.equal(mismatch.gates.findingCountMismatch, true);
-	assert.match(mismatch.markdown, /Renderer warning/);
+	assert.match(mismatch.markdown, /declared finding count does not match/);
 });
 
 test("deep-research claim-evidence-gate enforces structured evidence, rejoins identity, and partitions statuses", async (t) => {
