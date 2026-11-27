@@ -5702,9 +5702,11 @@ const NON_PARAGRAPH_LINE =
 
 // The splitter, finding parser and renderer share these tokens. Only plain text
 // tokens can be structural Markdown; code and invalid fold ranges are atomic.
-/** Match equal-length delimiter runs; backslashes only escape an opener. */
-function* codeSpans(raw) {
+/** Links own their destinations; only inline text can open a code span. */
+function* inlineAtoms(raw) {
+	const link = /(!?)\[((?:\\.|[^\]\\\n])*)\]\((<[^<>\s]*>|[^)<>\s]*)\)/y;
 	const runs = [...raw.matchAll(/`+/g)];
+	const starts = new Map(runs.map((run, i) => [run.index, i]));
 	const next = new Map();
 	const ends = Array(runs.length);
 	for (let i = runs.length - 1; i >= 0; i--) {
@@ -5712,18 +5714,41 @@ function* codeSpans(raw) {
 		ends[i] = next.get(length);
 		next.set(length, i);
 	}
-	for (let i = 0; i < runs.length; i++) {
-		const open = runs[i];
-		let start = open.index;
-		while (start > 0 && raw[start - 1] === "\\") start--;
-		if ((open.index - start) % 2 || ends[i] === undefined) continue;
-		i = ends[i];
-		const close = runs[i];
-		yield {
-			start: open.index,
-			end: close.index + close[0].length,
-			code: raw.slice(open.index + open[0].length, close.index),
-		};
+	for (let start = 0; start < raw.length; ) {
+		if (raw[start] === "\\" && /[!-/:-@\[-`{-~]/.test(raw[start + 1] ?? "")) {
+			start += 2;
+			continue;
+		}
+		if (raw[start] === "[" || raw[start] === "!") {
+			link.lastIndex = start;
+			const match = link.exec(raw);
+			if (match) {
+				const end = link.lastIndex;
+				yield {
+					kind: match[1] ? "image" : "link",
+					start,
+					end,
+					label: match[2],
+					target: match[3],
+				};
+				start = end;
+				continue;
+			}
+		}
+		const index = starts.get(start);
+		if (index !== undefined && ends[index] !== undefined) {
+			const close = runs[ends[index]];
+			const end = close.index + close[0].length;
+			yield {
+				kind: "code",
+				start,
+				end,
+				code: raw.slice(start + runs[index][0].length, close.index),
+			};
+			start = end;
+			continue;
+		}
+		start++;
 	}
 }
 
@@ -5801,8 +5826,13 @@ function markdownTokens(text, researchReport = false) {
 			.map((token) => token.raw)
 			.join("\n");
 		let from = 0;
-		for (const span of codeSpans(raw)) {
-			if (span.start < from || !span.code.includes("\n")) continue;
+		for (const span of inlineAtoms(raw)) {
+			if (
+				span.kind !== "code" ||
+				span.start < from ||
+				!span.code.includes("\n")
+			)
+				continue;
 			const lo = raw.lastIndexOf("\n", span.start - 1) + 1;
 			const hi = raw.indexOf("\n", span.end);
 			const end = hi < 0 ? raw.length : hi;
@@ -6022,85 +6052,102 @@ function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 				/&(amp|lt|gt|quot|#39|#58|#46|#64|#124);/g,
 				(_, name) => entities[name],
 			);
-	const inline = (raw) => {
-		// Match whole delimiter runs before parking Markdown escapes. Inside a
-		// code span even a backslash or an entity is literal.
-		const code = [];
+	const inline = (raw, translate = false) => {
+		const atoms = [];
 		let value = "";
 		let from = 0;
-		// A marker absent from source can't collide with a code token in user text.
-		const marker = raw.includes("\ue100")
-			? `\ue100${"\ue101".repeat(1 + Math.max(0, ...Array.from(raw.matchAll(/\ue100\ue101*/g), ([run]) => run.length - 1)))}`
-			: "\ue100";
-		for (const span of codeSpans(raw)) {
-			value += `${park(raw.slice(from, span.start))}${marker}${code.length}\ue102`;
-			code.push(codeSpanText(span.code));
-			from = span.end;
+		// Choose a marker absent from the original text.
+		let marker = "\ue100";
+		while (raw.includes(marker)) marker += "\ue101";
+		for (const atom of inlineAtoms(raw)) {
+			value += `${park(raw.slice(from, atom.start))}${marker}${atoms.length}\ue102`;
+			atoms.push(atom);
+			from = atom.end;
 		}
 		value += park(raw.slice(from));
-		const nodes = [];
-		const formatting =
-			/!\[([^\]]*)\]\((?:<[^<>\s]*>|[^)<>\s]*)\)|\[([^\]]+)\]\((<[^<>\s]+>|[^)<>\s]+)\)|\*\*([^*]+)\*\*|\*([^*\s](?:[^*]*[^*\s])?)\*|"([^"]{8,})"/;
-		const re = new RegExp(`${marker}(\\d+)\ue102|${formatting.source}`, "g");
-		const textParts = (part) =>
-			part
-				.split(new RegExp(`${marker}(\\d+)\ue102`, "g"))
-				.map((piece, i) =>
-					i % 2 ? element("code", {}, code[Number(piece)]) : unpark(piece),
-				);
-		let last = 0;
-		for (const m of value.matchAll(re)) {
-			if (m.index > last) nodes.push(unpark(value.slice(last, m.index)));
-			if (m[1] !== undefined)
-				nodes.push(element("code", {}, code[Number(m[1])]));
-			else if (m[0].startsWith("!"))
-				nodes.push(
+		const text = (part, readable = translate) => {
+			const decoded = unpark(part);
+			return readable ? readableCodes(decoded) : decoded;
+		};
+		const renderAtom = (atom, readable) => {
+			if (atom.kind === "code")
+				return [element("code", {}, codeSpanText(atom.code))];
+			const labelNodes = inline(atom.label, readable);
+			if (atom.kind === "image")
+				return [
 					element(
 						"span",
 						{ class: "muted" },
 						"[image",
-						...(m[2] ? [": ", ...textParts(m[2])] : []),
+						...(atom.label ? [": ", ...labelNodes] : []),
 						"]",
 					),
+				];
+			const label = unpark(park(atom.label));
+			const target = unpark(
+				park(
+					atom.target.startsWith("<") ? atom.target.slice(1, -1) : atom.target,
+				),
+			);
+			let address = ` (${target})`;
+			try {
+				const url = new URL(target);
+				if (url.host.replace(/^www\./, "") === label.replace(/^www\./, ""))
+					// Slice the original target, not URL's encoded pathname (e.g. literal backticks).
+					address = target
+						.replace(/^[a-z]+:\/\/[^/?#]+/i, "")
+						.replace(/^\/(?=[?#]|$)/, "");
+			} catch {
+				// Not an absolute URL: keep it as written.
+			}
+			return [
+				...labelNodes,
+				target !== label && address
+					? element("span", { class: "md-url" }, address)
+					: null,
+			];
+		};
+		const token = `${marker}(\\d+)\ue102`;
+		const textParts = (part, readable = translate) =>
+			part
+				.split(new RegExp(token, "g"))
+				.flatMap((piece, i) =>
+					i % 2
+						? renderAtom(atoms[Number(piece)], readable)
+						: [text(piece, readable)],
 				);
-			else if (m[3] !== undefined) {
-				// A link named by its host reads as host + quiet path.
-				const label = unpark(m[3]),
-					target = unpark(m[4].startsWith("<") ? m[4].slice(1, -1) : m[4]);
-				let address = ` (${target})`;
-				try {
-					const url = new URL(target);
-					if (url.host.replace(/^www\./, "") === label.replace(/^www\./, ""))
-						address = `${url.pathname === "/" ? "" : url.pathname}${url.search}${url.hash}`;
-				} catch {
-					// Not an absolute URL: keep it as written.
-				}
+		const nodes = [];
+		const formatting =
+			/\*\*([^*]+)\*\*|\*([^*\s](?:[^*]*[^*\s])?)\*|"([^"]{8,})"/;
+		const re = new RegExp(`${token}|${formatting.source}`, "g");
+		let last = 0;
+		for (const m of value.matchAll(re)) {
+			if (m.index > last) nodes.push(text(value.slice(last, m.index)));
+			if (m[1] !== undefined)
+				nodes.push(...renderAtom(atoms[Number(m[1])], translate));
+			else if (m[2] !== undefined) {
+				const bold = m[2].includes(marker) ? null : unpark(m[2]);
+				const badge = bold === null ? null : statusBadge(bold, report);
 				nodes.push(
-					...textParts(m[3]),
-					target !== label && address
-						? element("span", { class: "md-url" }, address)
-						: null,
-				);
-			} else if (m[5] !== undefined) {
-				const bold = unpark(m[5]);
-				const readable = readableCodes(bold);
-				nodes.push(
-					statusBadge(bold, report) ??
+					badge ??
 						element(
 							"strong",
-							{ title: readable === bold ? null : bold },
-							...(readable === bold ? textParts(m[5]) : [readable]),
+							{
+								title:
+									bold !== null && readableCodes(bold) !== bold ? bold : null,
+							},
+							...textParts(m[2], true),
 						),
 				);
-			} else if (m[6] !== undefined)
-				nodes.push(element("em", {}, ...textParts(m[6])));
+			} else if (m[3] !== undefined)
+				nodes.push(element("em", {}, ...textParts(m[3])));
 			else
 				nodes.push(
-					element("span", { class: "md-quote" }, '"', ...textParts(m[7]), '"'),
+					element("span", { class: "md-quote" }, '"', ...textParts(m[4]), '"'),
 				);
 			last = m.index + m[0].length;
 		}
-		if (last < value.length) nodes.push(unpark(value.slice(last)));
+		if (last < value.length) nodes.push(text(value.slice(last)));
 		return nodes;
 	};
 	// "Evidence status: verified", "Sources: …": a short English label, then its value.

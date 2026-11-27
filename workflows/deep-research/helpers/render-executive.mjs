@@ -1,4 +1,4 @@
-import { cleanText, escapeMarkdownText, escapeTableCell, inlineCode, validHttpUrl, sentences, fold } from "./report-markdown.mjs";
+import { cleanText, escapeCompletionText, escapeMarkdownText, escapeTableCell, inlineCode, validHttpUrl, sentences, fold } from "./report-markdown.mjs";
 import { validateSynthesisPages } from "./synthesis-pages.mjs";
 
 // Deterministic evidence-backed renderer for deep-research.
@@ -2338,7 +2338,7 @@ function renderCompletionSummary(report, claimSummary, fallback, quoteCheck = nu
 	const limits = readerLimits(report, contestedSlots, korean);
 	// Unlike the report, the compact handoff has no trust line to signal zero verified claims.
 	if (claimSummary.verified === 0) limits.unshift(korean ? "확인된 주장이 없어 결론을 확정할 수 없습니다." : "No claims were verified; the conclusion is not established.");
-	out.push(...visibleLimits([...limits.map(completionText), ...attributionNotes(attributionWarnings, korean)], korean));
+	out.push(...visibleLimits([...limits.map(completionText), ...attributionNotes(attributionWarnings, korean, true)], korean));
 	out.push(sourceVerificationStatement(quoteCheck, korean), "");
 	return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -2973,17 +2973,18 @@ function visibleLimits(lines, korean) {
 }
 
 /** One visible correction per file; the audit keeps every triggering sentence. */
-function attributionNotes(warnings = [], korean) {
+function attributionNotes(warnings = [], korean, completion = false) {
 	const byFile = new Map();
 	for (const warning of warnings)
 		byFile.set(warning.file, [
 			...new Set([...(byFile.get(warning.file) ?? []), ...warning.values]),
 		]);
 	return [...byFile].map(([file, values]) => {
-		const shown = values.slice(0, 6).map(escapeMarkdownText).join(", ");
+		const shown = values.slice(0, 6).map(completion ? escapeCompletionText : escapeMarkdownText).join(", ");
+		const path = completion ? `\`${escapeCompletionText(file)}\`` : inlineCode(file);
 		return korean
-			? `엔진 확인: 이 보고서가 ${inlineCode(file)}에서 고치라고 한 값(${shown})은 그 파일에 없습니다. 그 값이 이 파일에서 나왔다는 설명은 확인되지 않았습니다.`
-			: `Engine check: ${inlineCode(file)} does not contain the values this report says to correct in it (${shown}); that attribution is unconfirmed.`;
+			? `엔진 확인: 이 보고서가 ${path}에서 고치라고 한 값(${shown})은 그 파일에 없습니다. 그 값이 이 파일에서 나왔다는 설명은 확인되지 않았습니다.`
+			: `Engine check: ${path} does not contain the values this report says to correct in it (${shown}); that attribution is unconfirmed.`;
 	});
 }
 

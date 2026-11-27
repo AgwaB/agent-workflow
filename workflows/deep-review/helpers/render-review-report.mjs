@@ -14,7 +14,7 @@ import {
 } from "./review-verdict.mjs";
 
 import {
-	escapeMarkdownText, escapeTableCell, fold, inlineCode, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
+	escapeCompletionText, escapeMarkdownText, escapeTableCell, fold, inlineCode, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
 } from "./report-markdown.mjs";
 
 const SEVERITY_ORDER = ["critical", "high", "medium", "low", "info", "unknown"];
@@ -1602,7 +1602,7 @@ function renderCompletionSummary({
 	} else {
 		for (const row of keyRows) {
 			out.push(
-				`- **${escapeMarkdownText(row.severity)} / ${escapeMarkdownText(row.label)}:** ${completionText(row.title)}`,
+				`- **${escapeCompletionText(row.severity)} / ${escapeCompletionText(row.label)}:** ${completionText(row.title)}`,
 			);
 		}
 		const omitted = findings.length + needsHuman.length - keyRows.length;

@@ -10,15 +10,15 @@ export function cleanText(value) {
 
 // Serialize data, never structure. Quote line breaks and tabs are made visible as JSON escapes.
 
-function serializeText(value, { quote = false, table = false } = {}) {
+function serializeText(value, { quote = false, table = false, completion = false } = {}) {
 	const text = quote ? JSON.stringify(value) : cleanText(value);
 	return text
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
 		.replace(/>/g, "&gt;")
-		.replace(/([\\`*_[\]{}#+!~])/g, "\\$1")
+		.replace(completion ? /([\\`*_[\]{}#+!])/g : /([\\`*_[\]{}#+!~])/g, "\\$1")
 		.replace(/\|/g, table ? "&#124;" : "\\|")
-		.replace(/^([-=])(?=\s|[-=]|$)/u, "\\$1")
+		.replace(completion ? /^([-~=])(?=\s|[-~=]|$)/u : /^([-=])(?=\s|[-=]|$)/u, "\\$1")
 		.replace(/^(\d{1,9})([.)])(?=\s|$)/u, "$1\\$2")
 		// Hide GFM's autolink delimiters in the Markdown source, not the rendered text.
 		.replace(/:(?=\/\/)/g, "&#58;")
@@ -28,6 +28,11 @@ function serializeText(value, { quote = false, table = false } = {}) {
 
 export function escapeMarkdownText(value, options) {
 	return serializeText(value, options);
+}
+
+// Keep the established Markdown sent to structured and Markdown hosts.
+export function escapeCompletionText(value) {
+	return serializeText(value, { completion: true });
 }
 
 export function escapeTableCell(value) {

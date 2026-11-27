@@ -100,7 +100,8 @@ test("flat rows render as readable text with every field; nested rows stay JSON"
 		"1. **Validation** — npm test — purpose: regressions",
 		"Which diff? — reason: No diff was supplied",
 		"1. **Recommendation** — Add tests — id: A1; owner: team; steps: unit, e2e",
-		'### **Non-blocking issue** — \\{"detail":\\{"nested":true\\},"id":"N1"\\}',
+		"### **Non-blocking issue** — N1",
+		'\\{"detail":\\{"nested":true\\},"id":"N1"\\}',
 	])
 		assert.ok(md.split("\n").includes(line), `missing line: ${line}`);
 	assert.doesNotMatch(
@@ -111,6 +112,26 @@ test("flat rows render as readable text with every field; nested rows stay JSON"
 	assert.match(
 		result.completionSummaryMarkdown,
 		/Store contract is missing — action: Restore it/u,
+	);
+});
+
+test("impact completion bytes keep the legacy finding label in compact rows", async () => {
+	const sources = blockedControls();
+	sources["impact-analysis.impact-synthesis"].blockingIssues = [
+		{
+			finding: "Store contract is missing",
+			action: "Restore it",
+			owner: "team",
+		},
+	];
+	const result = await renderImpactReport({ sources, context });
+	assert.equal(
+		result.completionSummaryMarkdown.split("\n")[6],
+		"- Restore it — finding: Store contract is missing; owner: team",
+	);
+	assert.match(
+		result.markdown,
+		/^### \*\*Blocking issue\*\* — Store contract is missing$/m,
 	);
 });
 

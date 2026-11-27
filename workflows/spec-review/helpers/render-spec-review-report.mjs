@@ -53,17 +53,18 @@ function cleanText(value) {
 		.trim();
 }
 
-function safeInline(value) {
+// Preserve the existing machine/Markdown completion-summary bytes.
+function completionInline(value) {
 	return cleanText(value)
 		.replace(/\\/g, "\\\\")
-		.replace(/([`*_[\]{}#+|])/g, "\\$1")
+		.replace(/([`*_[\]{}#+|>])/g, "\\$1")
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
 		.replace(/>/g, "&gt;");
 }
 
 function completionText(value, maxChars = 220) {
-	const sanitized = safeInline(value)
+	const sanitized = completionInline(value)
 		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became "[run omitted]", a reviewed
 		// file's "control.json" became "[artifact omitted]"): only this engine's own names are hidden —
 		// paths under .agent-workflow/workflows, run ids (workflow_<id>_<hex6>), task ids (task-<n>),
@@ -581,7 +582,10 @@ function renderRequirementCoverage(rows, gateRows, t) {
 			const recorded = asArray(gateRows).find((check) => check?.index === index && check.id === row?.requirementId);
 			// The byte audit already carries checked citations. Legacy locators never count as proof.
 			const evidence = asArray(row?.evidence).filter((citation) =>
-				!asArray(recorded?.rows).some(({ citation: audited }) => stableStringify(audited) === stableStringify(citation)));
+				!asArray(recorded?.rows).some((audit) => isRecord(audit) &&
+					audit.field === "evidence" && Number.isSafeInteger(audit.index) && audit.index >= 0 &&
+					["verified", "mismatch", "unreadable", "unverified"].includes(audit.status) &&
+					Object.hasOwn(audit, "citation") && stableStringify(audit.citation) === stableStringify(citation)));
 			return evidence.length ? reportSection(4,
 				`${t("Coverage citations (display-only; not byte verification)", "검토 범위 인용(참고용, 원문 미검증)")} — ${escapeMarkdownText(row?.requirementId ?? row?.id ?? "unknown")}`,
 				evidence.flatMap((citation) => [...fenced(citation, isRecord(citation) ? "json" : "text"), ""]),
@@ -710,7 +714,7 @@ function renderCompletionSummary({ verdict, report, partition, limitations }) {
 		for (const { label, row } of keyRows) {
 			const action = cleanText(row?.recommendedAction ?? row?.reason ?? "");
 			out.push(
-				`- **${safeInline(label)}:** ${completionText(rowTitle(row, "Unresolved item"), 220)}${action ? ` — Action: ${completionText(action, 240)}` : ""}`,
+				`- **${completionInline(label)}:** ${completionText(rowTitle(row, "Unresolved item"), 220)}${action ? ` — Action: ${completionText(action, 240)}` : ""}`,
 			);
 		}
 		out.push(

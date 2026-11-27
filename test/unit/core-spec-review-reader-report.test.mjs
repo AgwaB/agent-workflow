@@ -116,6 +116,9 @@ test("spec dispositions and audit fields survive publication independently of hi
 						evidence: ["legacy-source.ts:7"],
 					},
 				],
+				evidenceGate: {
+					coverage: [{ index: 0, id: "R1", rows: [null, {}, 4] }],
+				},
 				requirementRechecks: {
 					ignored: [{ itemIdentity: "R1", reason: "Distinct ignored reason" }],
 				},

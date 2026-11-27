@@ -581,6 +581,10 @@ test("terminal completion strips controls without changing JSON or the stored su
 		"- Real &gt; and literal &amp;gt;; `A&B &gt;` and [guide](<https://example.com/a(b)?x=1&amp;y=2>).",
 		"- Phase 1: &lt;파일&gt;; encoded controls &#27;&#x9b; stay out.",
 		"- Controls \x1b\x07\x08\r\x7f\x9b end.",
+		"- Hebrew עברית: raw \u202e and encoded &#x2067;end&#8297;.",
+		"- [x] Confirmed",
+		"- [ ] Check ~~obsolete advice~~",
+		"- ![](https://example.com/evidence.png) and ![diagram](https://example.com/diagram.png)",
 	].join("\n");
 	const id = fixture({
 		controlSequence: {
@@ -608,7 +612,7 @@ test("terminal completion strips controls without changing JSON or the stored su
 		assert.equal(result.code, 0, result.err());
 		assert.match(
 			result.out(),
-			/- finding-001 \(REQ-001\): total이 50,000일 때 `total > 50000` 조건이 거짓입니다\./u,
+			/- finding-001 \(REQ-001\): total이 50,000일 때 `total &gt; 50000` 조건이 거짓입니다\./u,
 		);
 		assert.match(
 			result.out(),
@@ -618,7 +622,25 @@ test("terminal completion strips controls without changing JSON or the stored su
 			result.out(),
 			/Phase 1: <파일>; encoded controls  stay out\./u,
 		);
-		assert.doesNotMatch(result.out(), /[\x07\x08\r\x1b\x7f\x9b]/u);
+		assert.doesNotMatch(
+			result.out(),
+			/[\x07\x08\r\x1b\x7f\x9b\u202e\u2067\u2069]/u,
+		);
+		assert.ok(
+			result
+				.out()
+				.includes(
+					String.raw`Hebrew עברית: raw \u202E and encoded \u2067end\u2069.`,
+				),
+		);
+		assert.match(
+			result.out(),
+			/- \[x\] Confirmed\n- \[ \] Check ~~obsolete advice~~/u,
+		);
+		assert.match(
+			result.out(),
+			/\[image\] \(https:\/\/example\.com\/evidence\.png\) and \[image: diagram\] \(https:\/\/example\.com\/diagram\.png\)/u,
+		);
 	}
 	const machine = await runCli(cwd, ["wait", runId, "--json"]);
 	assert.ok(

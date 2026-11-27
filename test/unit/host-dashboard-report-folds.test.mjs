@@ -536,50 +536,37 @@ async function literalReport() {
 	return `${markdown}\n\n## Literal cells\n\n| Comparison |\n|---|\n| ${escapeTableCell(prose)} |`;
 }
 
-async function checkLiteralViewer(browser, selector, exported) {
-	const result = await browser.evaluate(
-		(rootSelector, gfm) => {
-			const root = document.querySelector(rootSelector);
-			const h = gfm
-				? [...root.querySelectorAll("h3")].find((el) =>
-						el.textContent.startsWith("finding-001 — "),
-					)
-				: root.querySelector(".finding-title");
-			return {
-				heading: h?.textContent.replace(/^finding-001 — /, ""),
-				locations: [...root.querySelectorAll("td code")]
-					.slice(0, 2)
-					.map((node) => node.textContent),
-				cell: [...root.querySelectorAll("td")].at(-1)?.textContent,
-				deletions: root.querySelectorAll("del").length,
-			};
-		},
-		selector,
-		exported,
-	);
+async function checkLiteralViewer(browser) {
+	const result = await browser.evaluate(() => {
+		const root = document.querySelector(".report-content");
+		const h = root.querySelector(".finding-title");
+		return {
+			heading: h?.textContent.replace(/^finding-001 — /, ""),
+			locations: [...root.querySelectorAll("td code")]
+				.slice(0, 2)
+				.map((node) => node.textContent),
+			cell: [...root.querySelectorAll("td")].at(-1)?.textContent,
+			deletions: root.querySelectorAll("del").length,
+		};
+	});
 	assert.equal(result.heading, prose);
 	assert.deepEqual(result.locations, [filename, symbol]);
 	assert.equal(result.cell, prose);
 	assert.equal(result.deletions, 0);
 }
 
-test("report text and code span table cells round-trip through Marked GFM", {
-	timeout: 30000,
-}, async (t) => {
-	const { marked } = await import("marked");
+test("exported report uses GFM escapes for literal prose and code table cells", async () => {
 	const md = await literalReport();
-	const { browser, open } = await reportBrowser(t, md, [deepReviewRun]);
-	await open(deepReviewRun);
-	await browser.evaluate(
-		(html) => {
-			const root = document.createElement("div");
-			root.id = "marked-fixture";
-			root.innerHTML = html;
-			document.body.append(root);
-		},
-		marked.parse(md, { gfm: true }),
+	assert.ok(
+		md.includes("Keep \\~\\~draft\\~\\~ &amp; &amp;gt; \\`word\\` \\| literal"),
 	);
-	await checkLiteralViewer(browser, "#marked-fixture", true);
+	assert.ok(
+		md.includes(
+			"| Keep \\~\\~draft\\~\\~ &amp; &amp;gt; \\`word\\` &#124; literal |",
+		),
+	);
+	assert.ok(md.includes("``A&B &amp; `x`\\|a.ts``"));
+	assert.ok(md.includes("`` `~~foo~~ &lt; \\|` ``"));
 });
 
 test("report text and code span table cells round-trip through the dashboard", {
@@ -588,7 +575,7 @@ test("report text and code span table cells round-trip through the dashboard", {
 	const md = await literalReport();
 	const { browser, open } = await reportBrowser(t, md, [deepReviewRun]);
 	await open(deepReviewRun);
-	await checkLiteralViewer(browser, ".report-content", false);
+	await checkLiteralViewer(browser);
 });
 
 test("review outline skips closed records and links reviewer coverage cards to their actions", {
@@ -658,5 +645,42 @@ test("Korean impact risk none is neutral and distinct from missing", {
 			["위험 없음", "neutral"],
 			["없음", "bad"],
 		],
+	);
+});
+
+test("dashboard translates bold prose without consuming code or changing link targets", {
+	timeout: 30000,
+}, async (t) => {
+	const { browser, open } = await reportBrowser(
+		t,
+		[
+			"# Deep review report",
+			"",
+			"Evidence: one observation",
+			"",
+			"**READY with `READY &gt;`**",
+			"",
+			"[a `symbol`](https://example.com/`literal`?x=1&amp;y=2)",
+		].join("\n"),
+		[deepReviewRun],
+	);
+	await open(deepReviewRun);
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const root = document.querySelector(".report-content");
+			return {
+				bold: root.querySelector("strong")?.textContent,
+				code: root.querySelector("strong code")?.textContent,
+				linkCode:
+					root.querySelector(".md-url")?.previousElementSibling?.textContent,
+				target: root.querySelector(".md-url")?.textContent,
+			};
+		}),
+		{
+			bold: "Ready with READY &gt;",
+			code: "READY &gt;",
+			linkCode: "symbol",
+			target: " (https://example.com/`literal`?x=1&y=2)",
+		},
 	);
 });

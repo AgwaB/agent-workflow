@@ -96,7 +96,6 @@ test("standalone workflow bundles carry the canonical report Markdown serializer
 });
 
 test("unknown legacy severity is text, not markup or a GFM autolink, even in the summary", async () => {
-	const { marked } = await import("marked");
 	const severity = "www.example.org <em>legacy</em>";
 	const { markdown } = await render({
 		sources: {
@@ -107,14 +106,11 @@ test("unknown legacy severity is text, not markup or a GFM autolink, even in the
 			},
 		},
 	});
-	const { decodeHTML } = await import("entities");
-	const html = marked.parse(markdown, { gfm: true });
+	// Pin the GFM source sent to external Markdown hosts: neither the www.
+	// autolink trigger nor the raw tag can be recognized by a consumer.
 	assert.match(
-		decodeHTML(html),
-		/<strong>www\.example\.org <em>legacy<\/em><\/strong> — 1 findings/,
+		markdown,
+		/\*\*www&#46;example\.org &lt;em&gt;legacy&lt;\/em&gt;\*\* — 1 findings/,
 	);
-	assert.doesNotMatch(
-		html,
-		/<a href="http:\/\/www\.example\.org|<em>legacy<\/em>/,
-	);
+	assert.doesNotMatch(markdown, /\*\*www\.example\.org|<em>legacy<\/em>/);
 });

@@ -287,6 +287,12 @@ export function reconcileRequirementCoverage(
   return reconcileCoverage(coverage, checked, finalFindings, source, reconcileRequirementSource(source));
 }
 
+function matchesCandidateCoverage(coverage, source) {
+  return canonical(coverage) === canonical(
+    applyRechecks(source?.candidate?.requirementCoverage, source?.rechecks),
+  );
+}
+
 function reconcileCoverage(coverage, checked, finalFindings, source, scope) {
   const { requirements, requirementIds, sourceEvidence } = scope;
   const issues = [...scope.issues];
@@ -309,10 +315,7 @@ function reconcileCoverage(coverage, checked, finalFindings, source, scope) {
   const missingIds = requirementIds.filter((id) => !coverageIds.includes(id));
   if (missingIds.length) issues.push("missing_requirement_coverage");
   // The candidate's rows with the rechecks applied (applyRechecks); with no rechecks, its rows as written.
-  if (
-    canonical(coverage) !==
-    canonical(applyRechecks(source?.candidate?.requirementCoverage, source?.rechecks))
-  )
+  if (!matchesCandidateCoverage(coverage, source))
     issues.push("coverage_differs_from_candidate_control");
   // Accounted gaps must use the candidate's exact explicit linkage, not a
   // post-hoc forged finding link, alias, title or inferred positional ID.
@@ -371,14 +374,6 @@ async function requirementCoverageAudit(partition, context = {}) {
     source,
     scope,
   );
-  // Missing coverage rows cannot shrink the extracted scope or count as covered.
-  const verifiedCoverage = scope.issues.length === 0 ? {
-    total: scope.requirementIds.length,
-    covered: scope.requirementIds.filter((id) => {
-      const rows = checked.filter((row) => row.id === id);
-      return rows.length === 1 && rows[0].positive && rows[0].complete;
-    }).length,
-  } : null;
   const matchesSaved =
     canonical(actual) ===
     canonical(partition?.evidenceGate?.requirementReconciliation);
@@ -386,7 +381,10 @@ async function requirementCoverageAudit(partition, context = {}) {
     ...actual,
     complete: actual.complete && matchesSaved,
   };
-  return { checked, requirementReconciliation, actual, matchesSaved, verifiedCoverage };
+  return { checked, requirementReconciliation, actual, matchesSaved,
+    coverageScopeBound: scope.issues.length === 0 &&
+      !actual.issues.includes("coverage_differs_from_candidate_control"),
+  };
 }
 
 export async function partitionRequirementReconciliation(
@@ -463,7 +461,7 @@ export async function auditPartitionEvidence(partition, context = {}) {
     requirementReconciliation,
     actual,
     matchesSaved,
-    verifiedCoverage,
+    coverageScopeBound,
   } = await requirementCoverageAudit(partition, context);
   const ledgerShape =
     gate?.protocol === EVIDENCE_PROTOCOL &&
@@ -514,6 +512,15 @@ export async function auditPartitionEvidence(partition, context = {}) {
     }
   }
   const coverageExact = ledgerShape && canonical(gate.coverage) === canonical(coverage);
+  // The numerator uses recomputed checks only when their candidate/recheck and
+  // saved byte-audit bindings hold. Missing rows still count in the denominator.
+  const verifiedCoverage = coverageScopeBound && matchesSaved && coverageExact ? {
+    total: actual.requirementIds.length,
+    covered: actual.requirementIds.filter((id) => {
+      const rows = coverage.filter((row) => row.id === id);
+      return rows.length === 1 && rows[0].positive && rows[0].complete;
+    }).length,
+  } : null;
   const evidenceComplete =
     ledgerShape &&
     gate.complete === true &&

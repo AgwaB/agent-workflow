@@ -547,10 +547,9 @@ function summarizeCanonicalRisk(rows, unverifiedResolutions = []) {
 // freely ({issue, action}, {question, reason}, {id, text}, …) and every row used to print as JSON. A
 // flat row now reads as its main text followed by its other fields; no field is dropped. Rows with
 // nested values keep the stable JSON form. (The ledger text and row keys are unchanged.)
-const ROW_MAIN_KEYS = [
+const COMPACT_ROW_MAIN_KEYS = [
 	"text",
 	"issue",
-	"finding",
 	"title",
 	"summary",
 	"description",
@@ -564,6 +563,9 @@ const ROW_MAIN_KEYS = [
 	"assumption",
 	"area",
 ];
+
+// The report recognizes `finding` as a heading; compact rows keep their old key order.
+const REPORT_CLAIM_KEYS = ["text", "issue", "finding", ...COMPACT_ROW_MAIN_KEYS.slice(2)];
 
 function isRowScalar(value) {
 	return (
@@ -585,7 +587,9 @@ function readableRow(row, { includeClaim = true } = {}) {
 				(Array.isArray(row[key]) && row[key].every(isRowScalar)),
 		);
 	if (!flat) return stableStringify(row);
-	const main = includeClaim ? impactClaimKey(row) : undefined;
+	const main = includeClaim
+		? COMPACT_ROW_MAIN_KEYS.find((key) => typeof row[key] === "string" && row[key].trim())
+		: undefined;
 	const fields = keys
 		.filter((key) => key !== main)
 		.map(
@@ -597,7 +601,7 @@ function readableRow(row, { includeClaim = true } = {}) {
 }
 
 function impactClaimKey(row) {
-	return ROW_MAIN_KEYS.find((key) => typeof row?.[key] === "string" && row[key].trim());
+	return REPORT_CLAIM_KEYS.find((key) => typeof row?.[key] === "string" && row[key].trim());
 }
 
 function impactFinding(row, label, index) {
@@ -605,8 +609,11 @@ function impactFinding(row, label, index) {
 	const main = impactClaimKey(row);
 	const id = isRowScalar(row?.id) ? cleanText(row.id) : "";
 	const claim = main ? row[main] : id && id.length <= 60 ? id : `${label} ${index + 1}`;
-	const remaining = main ? Object.fromEntries(Object.entries(row).filter(([key]) => key !== main)) : row;
-	const details = isRecord(remaining) && !Object.keys(remaining).length ? "" : readableRow(remaining, { includeClaim: false });
+	// Keep the readable claim + fields together in the fold. A report-only
+	// finding headline is already explicit, so its fold needs only the fields.
+	const details = main === "finding"
+		? readableRow(Object.fromEntries(Object.entries(row).filter(([key]) => key !== main)), { includeClaim: false })
+		: readableRow(row);
 	return { claim, details };
 }
 
@@ -765,7 +772,7 @@ function renderMarkdown({ verdict, riskLevel, synthesis, contract, regression, s
 			else {
 				const { claim, details } = impactFinding(row, label, count[key]);
 				findings.push(`### **${escapeMarkdownText(label)}** — ${escapeMarkdownText(claim)}`, "");
-				if (details) findings.push(...fold(t("Evidence", "근거 보기"), [escapeMarkdownText(details)]), "");
+				if (details && details !== claim) findings.push(...fold(t("Evidence", "근거 보기"), [escapeMarkdownText(details)]), "");
 			}
 			count[key]++;
 		}

@@ -109,6 +109,7 @@ import {
 	type WorkflowResultArtifact,
 	type WorkflowResultPresentation,
 } from "./result-presentation.js";
+import { terminalText } from "./terminal-markdown.js";
 import {
 	type RunDashboardLink,
 	runDashboardLink,
@@ -862,7 +863,7 @@ export async function waitAction(
 		"wait",
 		stillRunning ? "running" : outcomeForRunStatus(run.status),
 		data,
-		redact(text),
+		redact(ctx.plainTextCompletion ? terminalText(text) : text),
 	);
 }
 

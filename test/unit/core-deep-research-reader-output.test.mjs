@@ -571,22 +571,25 @@ test("the reader sees an engine note when the report blames a file for values it
 	const cwd = await mkdtemp(join(tmpdir(), "aw-attribution-reader-"));
 	t.after(() => rm(cwd, { recursive: true, force: true }));
 	await writeFile(
-		join(cwd, "notes.md"),
+		join(cwd, "--notes.md"),
 		"# QUIC notes\n- QUIC에는 버전 1 이후의 새 버전도 있다.\n",
 	);
 	const blamed = await inputs();
 	blamed["final-audit"].synthesis.bottomLine =
-		"notes.md의 QUIC v2 번호를 9369로 수정하고 RFC 9368의 역할을 별도로 명시하세요.";
+		"근거 파일 --notes.md의 QUIC v2 번호를 9369로 수정하고 RFC 9368의 역할을 별도로 명시하세요.";
 	const result = await render({ sources: blamed, context: { cwd } });
 	assert.equal(result.status, "passed", JSON.stringify(result.gates));
 	const note =
-		"엔진 확인: 이 보고서가 `notes.md`에서 고치라고 한 값(9369, 9368)은 그 파일에 없습니다. 그 값이 이 파일에서 나왔다는 설명은 확인되지 않았습니다.";
-	for (const markdown of [
-		result.reportMarkdown,
-		result.completionSummaryMarkdown,
+		"엔진 확인: 이 보고서가 `--notes.md`에서 고치라고 한 값(9369, 9368)은 그 파일에 없습니다. 그 값이 이 파일에서 나왔다는 설명은 확인되지 않았습니다.";
+	for (const [markdown, expectedNote] of [
+		[result.reportMarkdown, note],
+		[
+			result.completionSummaryMarkdown,
+			note.replace("--notes.md", "\\--notes.md"),
+		],
 	]) {
-		const at = markdown.indexOf(note);
-		assert.ok(at > 0, markdown.slice(-600));
+		const at = markdown.indexOf(expectedNote);
+		assert.ok(at > 0, JSON.stringify(result.sourceAttributionWarnings));
 		assert.match(markdown.slice(0, at), /## 알아둘 한계\n\n(?:- [^\n]+\n)*- $/);
 	}
 	const plain = await render({ sources: await inputs(), context: { cwd } });

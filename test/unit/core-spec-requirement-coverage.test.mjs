@@ -517,7 +517,10 @@ for (const mode of modes)
 				assert.equal(p.readProjection.ledgerVerdict, expectedVerdict, mode);
 			const report = {
 				schema: "spec-review-report-v1",
-				summary: "Coverage fixture",
+				summary:
+					mode === "report-risks"
+						? "Size > limit & literal &gt;."
+						: "Coverage fixture",
 				verdict:
 					mode === "needs-human-lineage" ? "NEEDS_HUMAN" : expectedVerdict,
 				ownerLedger: p.verifierCoverage.ownerLedger,
@@ -572,8 +575,51 @@ for (const mode of modes)
 				assert.match(trust, /0\/1 requirements covered/u);
 			if (mode === "coverage-missing")
 				assert.match(trust, /1\/2 requirements covered/u);
-			if (mode === "extract-duplicate")
-				assert.match(trust, /requirement coverage unproven/u);
+			if (
+				[
+					"extract-duplicate",
+					"candidate-stale",
+					"saved-missing",
+					"source-stale",
+				].includes(mode)
+			)
+				assert.match(trust, /requirement coverage unproven/u, mode);
+			if (mode === "report-risks") {
+				assert.equal(
+					direct.completionSummaryMarkdown.split("\n")[2],
+					String.raw`Verdict: **CONFORMS**. Size \&gt; limit &amp; literal &amp;gt;.`,
+				);
+				const staleAudit = structuredClone(p);
+				staleAudit.evidenceGate.coverage = [];
+				const unbound = await render({
+					sources: { "partition-findings": staleAudit, report },
+					context,
+				});
+				assert.match(
+					unbound.markdown.split("\n")[2],
+					/requirement coverage unproven/u,
+				);
+			}
+			if (mode === "unclear-rechecked-covered") {
+				assert.match(trust, /1\/1 requirements covered/u);
+				const original = await readFile(path(rechecker), "utf8");
+				const edited = JSON.parse(original);
+				edited.reason = "Edited recheck while leaving the evidence intact.";
+				await writeFile(path(rechecker), JSON.stringify(edited));
+				try {
+					const staleRecheck = await render({
+						sources: { "partition-findings": p, report },
+						context,
+					});
+					assert.match(
+						staleRecheck.markdown.split("\n")[2],
+						/requirement coverage unproven/u,
+					);
+				} finally {
+					await writeFile(path(rechecker), original);
+				}
+			}
+
 			const fallbacks = {
 				"all-covered-drop": [
 					"CONFORMS",

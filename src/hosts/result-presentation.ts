@@ -1,6 +1,7 @@
 // Present a verdict-gate failure only with a non-empty domain verdict and an existing
 // final-report artifact inside the run directory; a generic support failure stays a failure.
 import { realpath, readFile, open } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import {
 	dirname,
 	isAbsolute as isAbsolutePath,
@@ -24,6 +25,7 @@ export interface WorkflowResultArtifact {
 export interface WorkflowResultPresentation {
 	preview?: string;
 	completionMarkdown?: true;
+	legacyGtEscape?: true;
 	artifacts: WorkflowResultArtifact[];
 	/**
 	 * WP18b: the workflow's domain verdict, `verdict` of the output task's control (for example
@@ -289,12 +291,20 @@ export function formatHumanWorkflowResult(
 	const preview = presentation.preview ?? "";
 	return formatWorkflowResultPresentation(
 		plainText && presentation.completionMarkdown
-			? completionPlainText(preview)
+			? completionPlainText(preview, presentation.legacyGtEscape)
 			: preview,
 		presentation.artifacts,
 		plainText,
 	);
 }
+
+const legacyGtProducers = new Set(
+	["spec-review", "impact-review"].map((name) =>
+		fileURLToPath(
+			new URL(`../../workflows/${name}/spec.json`, import.meta.url),
+		),
+	),
+);
 
 /**
  * Bounded authoritative-result preview of a terminal run (first completed output task; WP18b: else
@@ -401,6 +411,12 @@ export async function readWorkflowResultPresentation(
 		return {
 			...presentation(completionSummaryMarkdown, true),
 			completionMarkdown: true,
+			// Only these bundled renderers use the legacy backslash-before-entity spelling.
+			...(task.kind === "support" &&
+			task.specId === "final.main" &&
+			legacyGtProducers.has(resolvePath(run.cwd, run.specPath))
+				? { legacyGtEscape: true as const }
+				: {}),
 		};
 
 	if (isDirectDynamicSynthesisTask(run, task)) {

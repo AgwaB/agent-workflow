@@ -1,105 +1,201 @@
-import { decodeHTMLStrict } from "entities";
-import { Marked, type Token } from "marked";
-
-const markdown = new Marked({
-	gfm: true,
-	tokenizer: {
-		escape(src: string) {
-			// Older spec-review summaries escaped `>` before encoding it. Handle
-			// that spelling only in Markdown prose, never inside code or a URL.
-			if (src.startsWith("\\&gt;"))
-				return { type: "escape" as const, raw: "\\&gt;", text: "&gt;" };
-			return false;
-		},
-	},
-});
-
+// This is a terminal reading view of our Markdown, not a CommonMark/HTML renderer.
+const namedEntities: Readonly<Record<string, string>> = {
+	amp: "&",
+	lt: "<",
+	gt: ">",
+	quot: '"',
+	apos: "'",
+	nbsp: "\u00a0",
+};
+const entity = /&(?:#(\d+)|#[xX]([\da-fA-F]+)|(amp|lt|gt|quot|apos|nbsp));/g;
+const entityAt = new RegExp(entity.source, "y");
 function decodeProse(text: string): string {
-	// HTML remaps some legacy C1 references to printable Windows-1252 glyphs.
-	// Do not give encoded terminal controls a different meaning in this view.
-	return decodeHTMLStrict(
-		text.replace(/&#(?:(\d+)|[xX]([\da-fA-F]+));/g, (entity, dec, hex) => {
-			const value = dec === undefined ? Number.parseInt(hex, 16) : Number(dec);
-			return (value < 32 && value !== 9 && value !== 10) ||
-				(value >= 127 && value <= 159)
-				? ""
-				: entity;
-		}),
-	);
+	return text.replace(entity, (_, decimal, hex, name) => {
+		if (name) return namedEntities[name];
+		const value =
+			decimal === undefined ? Number.parseInt(hex, 16) : Number(decimal);
+		return value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff)
+			? "\ufffd"
+			: String.fromCodePoint(value);
+	});
 }
 
-/** Human terminal output: keep line feeds and tabs, not terminal control codes. */
+/** Keep line feeds, tabs and RTL letters; expose invisible direction controls. */
 export function terminalText(text: string): string {
-	return text.replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "");
+	return text
+		.replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "")
+		.replace(
+			/\p{Bidi_Control}/gu,
+			(char) =>
+				`\\u${char.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")}`,
+		);
 }
 
-/** Render completion Markdown without invoking an HTML renderer or opening links. */
-export function completionPlainText(source: string): string {
-	const inline = (tokens: Token[]): string =>
-		tokens
-			.map((token) => {
-				switch (token.type) {
-					case "link": {
-						const label = inline(token.tokens ?? []);
-						const href = decodeProse(token.href);
-						return label === href ? label : `${label} (${href})`;
+// Match links/images as atoms, before interpreting delimiters in a destination.
+// Angle destinations and the usual bare destinations with balanced parentheses.
+const link =
+	/(!?)\[((?:\\.|[^\]\\])*)\]\(\s*(?:<([^<>\n]*)>|((?:\\.|[^\s()\\]|\((?:\\.|[^()\\])*\))*))(?:[ \t]+(?:"[^"]*"|'[^']*'|\([^()]*\)))?\s*\)/y;
+const targetToken = new RegExp(
+	/\\([!-/:-@\[-`{-~])/.source + "|" + entity.source,
+	"g",
+);
+const delimiter = /`+|\*{1,3}|_{1,3}/y;
+const punctuation = /[!-/:-@\[-`{-~]/;
+
+function inline(
+	raw: string,
+	legacyGtEscape: boolean,
+	allowLinks = true,
+): string {
+	const parts: string[] = [];
+	const emphasis: { marker: string; part: number }[] = [];
+	for (let i = 0; i < raw.length; ) {
+		const c = raw[i];
+		if (c === "\\") {
+			if (legacyGtEscape && raw.startsWith("\\&gt;", i)) {
+				parts.push(">");
+				i += 5;
+				continue;
+			}
+			if (i + 1 < raw.length && punctuation.test(raw[i + 1])) {
+				parts.push(raw[i + 1]);
+				i += 2;
+				continue;
+			}
+		}
+		if (allowLinks && (c === "[" || c === "!")) {
+			link.lastIndex = i;
+			const match = link.exec(raw);
+			if (match) {
+				const end = link.lastIndex;
+				const label = inline(match[2], legacyGtEscape, false);
+				const target = (match[3] ?? match[4]).replace(
+					targetToken,
+					(token, escaped) => escaped ?? decodeProse(token),
+				);
+				parts.push(
+					match[1]
+						? `[image${label ? `: ${label}` : ""}] (${target})`
+						: label === target || !target
+							? label
+							: label
+								? `${label} (${target})`
+								: target,
+				);
+				i = end;
+				continue;
+			}
+		}
+		if (c === "&") {
+			entityAt.lastIndex = i;
+			const match = entityAt.exec(raw);
+			if (match) {
+				i += match[0].length;
+				parts.push(decodeProse(match[0]));
+				continue;
+			}
+		}
+		if (c === "`" || c === "*" || c === "_") {
+			delimiter.lastIndex = i;
+			const marker = delimiter.exec(raw)?.[0];
+			if (marker) {
+				const start = i;
+				i += marker.length;
+				if (c === "`") {
+					const ticks = /`+/g;
+					ticks.lastIndex = i;
+					for (let close = ticks.exec(raw); close; close = ticks.exec(raw)) {
+						if (close[0].length !== marker.length) continue;
+						const code = raw.slice(i, close.index).replace(/\n/g, " ");
+						parts.push(
+							/^ .* $/.test(code) && /[^ ]/.test(code)
+								? code.slice(1, -1)
+								: code,
+						);
+						i = ticks.lastIndex;
+						break;
 					}
-					case "image":
-						return decodeProse(token.text);
-					case "br":
-						return "\n";
-					case "codespan":
-						// Marked HTML-encodes every ampersand in a code span; decode that one layer.
-						return decodeHTMLStrict(token.text);
-					default:
-						return "tokens" in token && token.tokens
-							? inline(token.tokens)
-							: decodeProse("text" in token ? token.text : token.raw);
+					if (i === start + marker.length) parts.push(marker);
+					continue;
 				}
-			})
-			.join("");
-	const blocks = (tokens: Token[], gap = "\n\n"): string =>
-		tokens
-			.flatMap((token) => {
-				switch (token.type) {
-					case "space":
-					case "def":
-						return [];
-					case "code":
-						return token.text;
-					case "blockquote":
-						return blocks(token.tokens ?? []);
-					case "hr":
-						return "---";
-					case "list":
-						return token.items
-							.map((item: { tokens: Token[] }, index: number) => {
-								const prefix = token.ordered
-									? `${Number(token.start) + index}. `
-									: "- ";
-								return (
-									prefix +
-									blocks(item.tokens, "\n").replace(
-										/\n/g,
-										`\n${" ".repeat(prefix.length)}`,
-									)
-								);
-							})
-							.join("\n");
-					case "table":
-						return [token.header, ...token.rows]
-							.map((row) =>
-								row
-									.map((cell: { tokens: Token[] }) => inline(cell.tokens))
-									.join(" | "),
-							)
-							.join("\n");
-					default:
-						return inline([token]);
+				const left = raw[start - 1] ?? " ";
+				const right = raw[i] ?? " ";
+				const wordUnderscore =
+					c === "_" &&
+					/[\p{L}\p{N}]/u.test(left) &&
+					/[\p{L}\p{N}]/u.test(right);
+				const open = emphasis.at(-1);
+				if (!wordUnderscore && open?.marker === marker && /\S/.test(left)) {
+					parts[open.part] = "";
+					emphasis.pop();
+					continue;
 				}
-			})
-			.join(gap);
-	return terminalText(
-		blocks(markdown.lexer(terminalText(source.replace(/\r\n/g, "\n")))),
-	);
+				if (!wordUnderscore && /\S/.test(right))
+					emphasis.push({ marker, part: parts.length });
+				parts.push(marker);
+				continue;
+			}
+		}
+		// Leave ~~deletions~~ visibly marked in plain text.
+		parts.push(c);
+		i++;
+	}
+	return parts.join("");
+}
+
+function tableCells(line: string): string[] {
+	// GFM's table escape is removed even within a code cell.
+	return line
+		.trim()
+		.replace(/^\|/, "")
+		.replace(/(?<!\\)\|$/, "")
+		.split(/(?<!\\)\|/)
+		.map((cell) => cell.trim().replace(/\\\|/g, "|"));
+}
+const tableSeparator = /^ *\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|? *$/;
+
+/** Render completion Markdown without opening links, loading images or interpreting HTML. */
+export function completionPlainText(
+	source: string,
+	legacyGtEscape = false,
+): string {
+	const prose = (text: string) => inline(text, legacyGtEscape);
+	const lines = source.replace(/\r\n/g, "\n").split("\n");
+	const output: string[] = [];
+	let fence: string | undefined;
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+		const run = /^ *(?<fence>`{3,}|~{3,})(?<info>.*)$/.exec(line)?.groups;
+		if (fence) {
+			if (run?.fence.startsWith(fence) && !run.info.trim()) fence = undefined;
+			else output.push(line);
+			continue;
+		}
+		if (run && (run.fence[0] === "~" || !run.info.includes("`"))) {
+			fence = run.fence;
+			continue;
+		}
+		if (line.includes("|") && tableSeparator.test(lines[i + 1] ?? "")) {
+			output.push(tableCells(line).map(prose).join(" | "));
+			i++;
+			while (lines[i + 1]?.includes("|"))
+				output.push(tableCells(lines[++i]).map(prose).join(" | "));
+			continue;
+		}
+		const heading = /^ {0,3}#{1,6}(?:[ \t]+|$)(.*)$/.exec(line);
+		if (heading) {
+			output.push(prose(heading[1].replace(/\s+#+\s*$/, "")));
+			continue;
+		}
+		if (line.trim() && /^ {0,3}(?:=+|-+)$/.test(lines[i + 1] ?? "")) i++;
+		const item = /^(\s*)([-*+]|\d{1,9}[.)])[ \t]+(.*)$/.exec(line);
+		if (item) {
+			const task = /^\[([ xX])\]\s+(.*)$/.exec(item[3]);
+			const marker = item[2].replace(/^[-*+]$/, "-").replace(/\)$/, ".");
+			output.push(
+				`${item[1]}${marker} ${task ? `[${task[1].toLowerCase()}] ${prose(task[2])}` : prose(item[3])}`,
+			);
+		} else output.push(prose(line.replace(/^ {0,3}>[ \t]?/, "")));
+	}
+	return terminalText(output.join("\n"));
 }
