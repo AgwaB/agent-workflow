@@ -25,6 +25,7 @@ export interface WorkflowResultArtifact {
 export interface WorkflowResultPresentation {
 	preview?: string;
 	completionMarkdown?: true;
+	terminalCompletionMarkdown?: string;
 	legacyGtEscape?: true;
 	artifacts: WorkflowResultArtifact[];
 	/**
@@ -291,12 +292,19 @@ export function formatHumanWorkflowResult(
 	const preview = presentation.preview ?? "";
 	return formatWorkflowResultPresentation(
 		plainText && presentation.completionMarkdown
-			? completionPlainText(preview, presentation.legacyGtEscape)
+			? completionPlainText(
+					presentation.terminalCompletionMarkdown ?? preview,
+					presentation.legacyGtEscape,
+				)
 			: preview,
 		presentation.artifacts,
 		plainText,
 	);
 }
+
+const deepResearchSpecPath = fileURLToPath(
+	new URL("../../workflows/deep-research/spec.json", import.meta.url),
+);
 
 const legacyGtProducers = new Set(
 	["spec-review", "impact-review"].map((name) =>
@@ -407,17 +415,36 @@ export async function readWorkflowResultPresentation(
 	if (
 		completionSummaryMarkdown !== undefined &&
 		completionSummaryMarkdown.trim() !== ""
-	)
-		return {
+	) {
+		const producer =
+			task.kind === "support" && task.specId === "final.main"
+				? resolvePath(run.cwd, run.specPath)
+				: "";
+		const result: WorkflowResultPresentation = {
 			...presentation(completionSummaryMarkdown, true),
 			completionMarkdown: true,
 			// Only these bundled renderers use the legacy backslash-before-entity spelling.
-			...(task.kind === "support" &&
-			task.specId === "final.main" &&
-			legacyGtProducers.has(resolvePath(run.cwd, run.specPath))
-				? { legacyGtEscape: true as const }
-				: {}),
+			...(legacyGtProducers.has(producer) ? { legacyGtEscape: true } : {}),
 		};
+		const warnings = control?.sourceAttributionWarnings;
+		if (
+			producer === deepResearchSpecPath &&
+			Array.isArray(warnings) &&
+			warnings.length
+		) {
+			const { terminalAttributionMarkdown } = await import(
+				new URL(
+					"../../workflows/deep-research/helpers/render-executive.mjs",
+					import.meta.url,
+				).href
+			);
+			result.terminalCompletionMarkdown = terminalAttributionMarkdown(
+				completionSummaryMarkdown,
+				warnings,
+			);
+		}
+		return result;
+	}
 
 	if (isDirectDynamicSynthesisTask(run, task)) {
 		// Direct dynamic workers have protocol output in raw.md/output.log. Only

@@ -46,6 +46,15 @@ test("terminal reading view handles lists, headings, GFM cells and literal code"
 	);
 });
 
+test("terminal resolves multiline code before decoding paragraph prose", () => {
+	const markdown =
+		"Value: `A\n&gt; \\-flag` and &gt;.\nNext line.\n\n`open\n\nclose`";
+	assert.equal(
+		completionPlainText(markdown),
+		"Value: A &gt; \\-flag and >.\nNext line.\n\n`open\n\nclose`",
+	);
+});
+
 test("only the bundled spec and impact final producers get the legacy escaped-entity interpretation", async (t) => {
 	const cwd = await mkdtemp(join(tmpdir(), "aw-terminal-"));
 	t.after(() => rm(cwd, { recursive: true, force: true }));

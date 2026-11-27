@@ -514,7 +514,8 @@ export async function auditPartitionEvidence(partition, context = {}) {
   const coverageExact = ledgerShape && canonical(gate.coverage) === canonical(coverage);
   // The numerator uses recomputed checks only when their candidate/recheck and
   // saved byte-audit bindings hold. Missing rows still count in the denominator.
-  const verifiedCoverage = coverageScopeBound && matchesSaved && coverageExact ? {
+  const coverageBound = coverageScopeBound && matchesSaved && coverageExact;
+  const verifiedCoverage = coverageBound ? {
     total: actual.requirementIds.length,
     covered: actual.requirementIds.filter((id) => {
       const rows = coverage.filter((row) => row.id === id);
@@ -538,7 +539,7 @@ export async function auditPartitionEvidence(partition, context = {}) {
     coverageExact &&
     matchesSaved &&
     requirementSetProven(actual);
-  return { evidenceComplete, requirementReconciliation, gapsGrounded, verifiedCoverage };
+  return { evidenceComplete, requirementReconciliation, gapsGrounded, verifiedCoverage, boundCoverage: coverageBound ? coverage : [] };
 }
 
 // The renderer reconciles canonical rows and recomputes actual bytes. It does

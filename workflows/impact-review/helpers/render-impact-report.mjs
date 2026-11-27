@@ -611,10 +611,12 @@ function impactFinding(row, label, index) {
 	const claim = main ? row[main] : id && id.length <= 60 ? id : `${label} ${index + 1}`;
 	// Keep the readable claim + fields together in the fold. A report-only
 	// finding headline is already explicit, so its fold needs only the fields.
-	const details = main === "finding"
-		? readableRow(Object.fromEntries(Object.entries(row).filter(([key]) => key !== main)), { includeClaim: false })
-		: readableRow(row);
-	return { claim, details };
+	if (main && Object.keys(row).length === 1) return { claim };
+	if (main === "finding") {
+		const { finding: _heading, ...fields } = row;
+		return { claim, details: readableRow(fields, { includeClaim: false }) };
+	}
+	return { claim, details: readableRow(row) };
 }
 
 function rowCollections({ synthesis, contract, regression, ship }) {
@@ -772,7 +774,7 @@ function renderMarkdown({ verdict, riskLevel, synthesis, contract, regression, s
 			else {
 				const { claim, details } = impactFinding(row, label, count[key]);
 				findings.push(`### **${escapeMarkdownText(label)}** — ${escapeMarkdownText(claim)}`, "");
-				if (details && details !== claim) findings.push(...fold(t("Evidence", "근거 보기"), [escapeMarkdownText(details)]), "");
+				if (details) findings.push(...fold(t("Evidence", "근거 보기"), [escapeMarkdownText(details)]), "");
 			}
 			count[key]++;
 		}

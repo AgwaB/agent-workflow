@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
 	createArtifactGraphRuntimeValidationSnapshot,
 	executeSupportTask,
@@ -16,6 +17,10 @@ import {
 	buildWorkflowOutputRetryInstructions,
 	parseWorkflowOutputForBundle,
 } from "../../dist/core/workflow-output-artifacts.js";
+import {
+	formatHumanWorkflowResult,
+	readWorkflowResultPresentation,
+} from "../../dist/hosts/result-presentation.js";
 import finalPacket from "../../workflows/deep-research/helpers/final-audit-packet.mjs";
 import render, {
 	numbersDroppedBy,
@@ -23,6 +28,7 @@ import render, {
 import { buildSynthesisPages } from "../../workflows/deep-research/helpers/synthesis-pages.mjs";
 import translationCheck from "../../workflows/deep-research/helpers/translation-check.mjs";
 import * as h from "../helpers/unit-test-support.mjs";
+import { stateDir } from "../helpers/state-dir.mjs";
 
 const fixture = JSON.parse(
 	await readFile(
@@ -136,6 +142,32 @@ test("completion escapes raw prose exactly once including comparison cells", asy
 	);
 	assert.ok(!result.completionSummaryMarkdown.includes("\\\\\\+"));
 	assert.doesNotMatch(result.completionSummaryMarkdown, /<script>|&amp;lt;/);
+});
+
+test("deep-research keeps the established completion bytes for tilde prose", async () => {
+	const sources = await inputs();
+	const synthesis = sources["final-audit"].synthesis;
+	const text = "Keep ~~draft~~ wording";
+	synthesis.bottomLine = `${text}.`;
+	sources["final-audit"] = liveControl(sources["final-audit"]);
+	sources["final-audit"].synthesis.keyPoints = [
+		{ title: "~~draft~~ guidance", text },
+	];
+	synthesis.comparisonRows[0].assessment = text;
+	synthesis.recommendations[0].recommendation = text;
+	const result = await render({ sources });
+	assert.equal(result.status, "passed");
+	assert.deepEqual(
+		result.completionSummaryMarkdown
+			.split("\n")
+			.filter((line) => line.includes("draft")),
+		[
+			`${text}.`,
+			String.raw`- **\~~draft~~ guidance** — ${text}`,
+			`| A | Current | Reference | ${text} (Proposal) |`,
+			`- ${text} (Proposal)`,
+		],
+	);
 });
 
 test("reader limitations are distinct and bounded while all audit notes remain", async () => {
@@ -592,6 +624,47 @@ test("the reader sees an engine note when the report blames a file for values it
 		assert.ok(at > 0, JSON.stringify(result.sourceAttributionWarnings));
 		assert.match(markdown.slice(0, at), /## 알아둘 한계\n\n(?:- [^\n]+\n)*- $/);
 	}
+	const dir = join(
+		stateDir(cwd),
+		".agent-workflow/workflows/reader/tasks/task-1",
+	);
+	await mkdir(dir, { recursive: true });
+	const markdown = `${result.completionSummaryMarkdown}\n\nExtra code: \`\\--notes.md\`.`;
+	await writeFile(
+		join(dir, "control.json"),
+		JSON.stringify({ ...result, completionSummaryMarkdown: markdown }),
+	);
+	const run = {
+		cwd,
+		specPath: fileURLToPath(
+			new URL("../../workflows/deep-research/spec.json", import.meta.url),
+		),
+		tasks: [
+			{
+				kind: "support",
+				specId: "final.main",
+				status: "completed",
+				files: { output: join(dir, "output.md") },
+			},
+		],
+	};
+	const presentation = await readWorkflowResultPresentation(cwd, run, [
+		"final.main",
+	]);
+	assert.equal(formatHumanWorkflowResult(presentation), markdown);
+	const terminal = formatHumanWorkflowResult(presentation, true);
+	assert.ok(terminal.includes(note.replaceAll("`", "")), terminal);
+	assert.ok(terminal.includes("Extra code: \\--notes.md."), terminal);
+	const custom = await readWorkflowResultPresentation(
+		cwd,
+		{ ...run, specPath: "custom/spec.json" },
+		["final.main"],
+	);
+	assert.ok(
+		formatHumanWorkflowResult(custom, true).includes(
+			note.replace("`--notes.md`", "\\--notes.md"),
+		),
+	);
 	const plain = await render({ sources: await inputs(), context: { cwd } });
 	assert.doesNotMatch(plain.reportMarkdown, /엔진 확인|Engine check/);
 });

@@ -565,7 +565,7 @@ function renderFindingRows(rows, prefix, t) {
 	});
 }
 
-function renderRequirementCoverage(rows, gateRows, t) {
+function renderRequirementCoverage(rows, boundCoverage, t) {
 	if (!rows.length) return [];
 	const status = (value) => escapeTableCell(reportStatus(value ?? "unknown", t));
 	const cells = (input) => {
@@ -579,13 +579,16 @@ function renderRequirementCoverage(rows, gateRows, t) {
 		t("| Requirement | Status | Notes |", "| 요구사항 | 상태 | 메모 |"), "|---|---|---|", ...rows.map(cells),
 		"",
 		...rows.flatMap((row, index) => {
-			const recorded = asArray(gateRows).find((check) => check?.index === index && check.id === row?.requirementId);
-			// The byte audit already carries checked citations. Legacy locators never count as proof.
-			const evidence = asArray(row?.evidence).filter((citation) =>
-				!asArray(recorded?.rows).some((audit) => isRecord(audit) &&
-					audit.field === "evidence" && Number.isSafeInteger(audit.index) && audit.index >= 0 &&
-					["verified", "mismatch", "unreadable", "unverified"].includes(audit.status) &&
-					Object.hasOwn(audit, "citation") && stableStringify(audit.citation) === stableStringify(citation)));
+			const checked = boundCoverage[index];
+			// Only a recomputed, bound audit of this exact citation (not a legacy
+			// locator or its corrected replacement) already shows it as evidence.
+			const evidence = asArray(row?.evidence).filter((citation, citationIndex) => {
+				const audit = checked?.index === index && checked.id === row?.requirementId
+					? checked.rows[citationIndex]
+					: undefined;
+				return !(audit?.field === "evidence" && audit.index === citationIndex && audit.status === "verified" &&
+					stableStringify(audit.citation) === stableStringify(citation));
+			});
 			return evidence.length ? reportSection(4,
 				`${t("Coverage citations (display-only; not byte verification)", "검토 범위 인용(참고용, 원문 미검증)")} — ${escapeMarkdownText(row?.requirementId ?? row?.id ?? "unknown")}`,
 				evidence.flatMap((citation) => [...fenced(citation, isRecord(citation) ? "json" : "text"), ""]),
@@ -754,7 +757,7 @@ function renderCompletionSummary({ verdict, report, partition, limitations }) {
 		.trim();
 }
 
-function renderMarkdown({ verdict, report, partition, limitations, verdictConsistent, evidenceComplete, sourceCoverageComplete, verifiedCoverage, t }) {
+function renderMarkdown({ verdict, report, partition, limitations, verdictConsistent, evidenceComplete, sourceCoverageComplete, verifiedCoverage, boundCoverage, t }) {
 	const final = asArray(partition.finalFindings);
 	const needs = asArray(partition.needsHuman);
 	const dropped = asArray(partition.droppedFindings);
@@ -794,7 +797,7 @@ function renderMarkdown({ verdict, report, partition, limitations, verdictConsis
 		...reportSection(2, t("Needs human review", "사람 검토 필요"), renderFindingRows(needs, "needs-human", t)),
 		...reportSection(2, t("Appendix", "부록"), fold(t("Conformance review records", "명세 검토 기록"), [
 			...(!narrative.length && report.summary ? reportSection(3, t("Synthesis narrative", "종합 의견 원문"), [escapeMarkdownText(report.summary)]) : []),
-			...renderRequirementCoverage(reqs, partition.evidenceGate?.coverage, t),
+			...renderRequirementCoverage(reqs, boundCoverage, t),
 			...reportSection(3, t("Ignored rechecks", "반영하지 않은 재확인"), asArray(partition.requirementRechecks?.ignored).flatMap((row) => [...fenced(row, "json"), ""])),
 			...reportSection(3, t("Dropped findings", "제외한 발견 사항"), renderFindingRows(dropped, "dropped", t)),
 			...reportSection(3, t("Preliminary no-issue observations (unverified)", "문제가 없다는 예비 관찰(미확인)"), asArray(partition.noIssueNotes).map((row) => `- ${escapeMarkdownText(typeof row === "string" ? row : stableStringify(row))}`)),
@@ -954,7 +957,7 @@ export default async function renderSpecReviewReport({
 		report: report ?? {},
 		partition,
 		limitations: limitationRows({ ...limitationInputs, t }),
-		verdictConsistent, evidenceComplete, sourceCoverageComplete, verifiedCoverage: evidenceAudit.verifiedCoverage, t,
+		verdictConsistent, evidenceComplete, sourceCoverageComplete, verifiedCoverage: evidenceAudit.verifiedCoverage, boundCoverage: evidenceAudit.boundCoverage, t,
 	});
 	const blockers = limitations.slice(0, 32);
 	const controlForDigest = {

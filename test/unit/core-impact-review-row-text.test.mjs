@@ -135,6 +135,19 @@ test("impact completion bytes keep the legacy finding label in compact rows", as
 	);
 });
 
+test("a claim-only impact finding has no empty Evidence fold", async () => {
+	const sources = blockedControls();
+	sources["impact-analysis.impact-synthesis"].blockingIssues = [
+		{ finding: "Missing contract" },
+		{ finding: "owner: team", owner: "team" },
+	];
+	const result = await renderImpactReport({ sources, context });
+	assert.match(
+		result.markdown,
+		/Missing contract\n\n### \*\*Blocking issue\*\* — owner: team\n\n<details>\n<summary>Evidence<\/summary>\n\nowner: team/u,
+	);
+});
+
 test("the completion summary stays within its schema limit however many action rows there are", async () => {
 	// Live 2026-11-04: 7,132 chars (Claude, Antigravity) failed the render control schema (6,000).
 	const sources = blockedControls();

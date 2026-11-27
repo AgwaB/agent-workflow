@@ -571,8 +571,13 @@ for (const mode of modes)
 				context,
 			});
 			const trust = direct.markdown.split("\n")[2];
-			if (mode === "legacy-positive")
+			if (mode === "legacy-positive") {
 				assert.match(trust, /0\/1 requirements covered/u);
+				assert.match(
+					direct.markdown,
+					/display-only[^\n]*REQ-001\n\n```text\nsource\.ts:1/u,
+				);
+			}
 			if (mode === "coverage-missing")
 				assert.match(trust, /1\/2 requirements covered/u);
 			if (
@@ -589,8 +594,12 @@ for (const mode of modes)
 					direct.completionSummaryMarkdown.split("\n")[2],
 					String.raw`Verdict: **CONFORMS**. Size \&gt; limit &amp; literal &amp;gt;.`,
 				);
+				assert.doesNotMatch(
+					direct.markdown,
+					/Coverage citations \(display-only/u,
+				);
 				const staleAudit = structuredClone(p);
-				staleAudit.evidenceGate.coverage = [];
+				staleAudit.evidenceGate.coverage[0].rows[0].index = 99;
 				const unbound = await render({
 					sources: { "partition-findings": staleAudit, report },
 					context,
@@ -598,6 +607,10 @@ for (const mode of modes)
 				assert.match(
 					unbound.markdown.split("\n")[2],
 					/requirement coverage unproven/u,
+				);
+				assert.match(
+					unbound.markdown,
+					/display-only[^\n]*REQ-001\n\n```json\n/u,
 				);
 			}
 			if (mode === "unclear-rechecked-covered") {

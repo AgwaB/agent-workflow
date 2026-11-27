@@ -142,3 +142,37 @@ test("spec dispositions and audit fields survive publication independently of hi
 	assert.match(appendix, /display-only[\s\S]*legacy-source\.ts:7/);
 	assert.match(appendix, /Ignored rechecks[\s\S]*Distinct ignored reason/);
 });
+
+test("unbound audit rows never replace the original coverage citation", async () => {
+	const citation = "legacy-source.ts:7";
+	for (const [index, status] of [
+		[99, "verified"],
+		[0, "verified"],
+		[0, "unverified"],
+	]) {
+		const result = await render({
+			sources: {
+				"partition-findings.main": {
+					requirementCoverage: [
+						{ requirementId: "R1", status: "needsHuman", evidence: [citation] },
+					],
+					evidenceGate: {
+						coverage: [
+							{
+								index: 0,
+								id: "R1",
+								rows: [{ field: "evidence", index, status, citation }],
+							},
+						],
+					},
+				},
+			},
+		});
+		const [coverage] = result.markdown.split("### Byte evidence audit");
+		assert.match(
+			coverage,
+			/display-only[^\n]*R1\n\n```text\nlegacy-source\.ts:7\n```/,
+			`${index}, ${status}`,
+		);
+	}
+});

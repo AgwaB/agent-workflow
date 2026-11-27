@@ -5704,7 +5704,8 @@ const NON_PARAGRAPH_LINE =
 // tokens can be structural Markdown; code and invalid fold ranges are atomic.
 /** Links own their destinations; only inline text can open a code span. */
 function* inlineAtoms(raw) {
-	const link = /(!?)\[((?:\\.|[^\]\\\n])*)\]\((<[^<>\s]*>|[^)<>\s]*)\)/y;
+	const link =
+		/(!?)\[((?:\\.|[^\]\\\n])*)\]\((<(?:\\[^\s]|[^<>\s\\])*>|(?:\\[^\s]|[^()<>\s\\]|\((?:\\[^\s]|[^()<>\s\\])*\))*)\)/y;
 	const runs = [...raw.matchAll(/`+/g)];
 	const starts = new Map(runs.map((run, i) => [run.index, i]));
 	const next = new Map();

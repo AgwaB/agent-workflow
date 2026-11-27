@@ -87,7 +87,7 @@ function readableClaimText(value) {
 }
 
 function completionText(value) {
-	return escapeMarkdownText(cleanText(value)
+	return escapeCompletionText(cleanText(value)
 		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became "[run omitted]", a reviewed
 		// file's "control.json" became "[artifact omitted]"): only this engine's own names are hidden —
 		// paths under .agent-workflow/workflows, run ids (workflow_<id>_<hex6>), task ids (task-<n>),
@@ -2338,7 +2338,7 @@ function renderCompletionSummary(report, claimSummary, fallback, quoteCheck = nu
 	const limits = readerLimits(report, contestedSlots, korean);
 	// Unlike the report, the compact handoff has no trust line to signal zero verified claims.
 	if (claimSummary.verified === 0) limits.unshift(korean ? "확인된 주장이 없어 결론을 확정할 수 없습니다." : "No claims were verified; the conclusion is not established.");
-	out.push(...visibleLimits([...limits.map(completionText), ...attributionNotes(attributionWarnings, korean, true)], korean));
+	out.push(...visibleLimits([...limits.map(completionText), ...attributionNotes(attributionWarnings, korean, { completion: true })], korean));
 	out.push(sourceVerificationStatement(quoteCheck, korean), "");
 	return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -2973,7 +2973,7 @@ function visibleLimits(lines, korean) {
 }
 
 /** One visible correction per file; the audit keeps every triggering sentence. */
-function attributionNotes(warnings = [], korean, completion = false) {
+function attributionNotes(warnings = [], korean, { completion = false, originalPath = false } = {}) {
 	const byFile = new Map();
 	for (const warning of warnings)
 		byFile.set(warning.file, [
@@ -2981,11 +2981,25 @@ function attributionNotes(warnings = [], korean, completion = false) {
 		]);
 	return [...byFile].map(([file, values]) => {
 		const shown = values.slice(0, 6).map(completion ? escapeCompletionText : escapeMarkdownText).join(", ");
-		const path = completion ? `\`${escapeCompletionText(file)}\`` : inlineCode(file);
+		const path = completion && !originalPath ? `\`${escapeCompletionText(file)}\`` : inlineCode(file);
 		return korean
 			? `엔진 확인: 이 보고서가 ${path}에서 고치라고 한 값(${shown})은 그 파일에 없습니다. 그 값이 이 파일에서 나왔다는 설명은 확인되지 않았습니다.`
 			: `Engine check: ${path} does not contain the values this report says to correct in it (${shown}); that attribution is unconfirmed.`;
 	});
+}
+
+// The stored completion uses legacy prose escapes in its attribution code span.
+// Rebuild only the engine-generated note lines from the recorded original paths.
+export function terminalAttributionMarkdown(markdown, warnings) {
+	const valid = warnings.filter((row) => typeof row?.file === "string" && Array.isArray(row.values) && row.values.every((value) => typeof value === "string"));
+	const notes = new Map();
+	for (const korean of [false, true]) {
+		const stored = attributionNotes(valid, korean, { completion: true });
+		const terminal = attributionNotes(valid, korean, { completion: true, originalPath: true });
+		for (const [index, note] of stored.entries())
+			if (note !== terminal[index]) notes.set(`- ${note}`, `- ${terminal[index]}`);
+	}
+	return notes.size ? markdown.split("\n").map((line) => notes.get(line) ?? line).join("\n") : markdown;
 }
 
 function renderSourceAttributionAudit(warnings) {

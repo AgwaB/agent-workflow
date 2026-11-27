@@ -661,6 +661,8 @@ test("dashboard translates bold prose without consuming code or changing link ta
 			"**READY with `READY &gt;`**",
 			"",
 			"[a `symbol`](https://example.com/`literal`?x=1&amp;y=2)",
+			"",
+			String.raw`[guide](docs/a\(v2\).md)`,
 		].join("\n"),
 		[deepReviewRun],
 	);
@@ -673,14 +675,16 @@ test("dashboard translates bold prose without consuming code or changing link ta
 				code: root.querySelector("strong code")?.textContent,
 				linkCode:
 					root.querySelector(".md-url")?.previousElementSibling?.textContent,
-				target: root.querySelector(".md-url")?.textContent,
+				targets: [...root.querySelectorAll(".md-url")].map(
+					(n) => n.textContent,
+				),
 			};
 		}),
 		{
 			bold: "Ready with READY &gt;",
 			code: "READY &gt;",
 			linkCode: "symbol",
-			target: " (https://example.com/`literal`?x=1&y=2)",
+			targets: [" (https://example.com/`literal`?x=1&y=2)", " (docs/a(v2).md)"],
 		},
 	);
 });

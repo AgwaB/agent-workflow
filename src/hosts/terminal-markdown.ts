@@ -162,6 +162,13 @@ export function completionPlainText(
 	const prose = (text: string) => inline(text, legacyGtEscape);
 	const lines = source.replace(/\r\n/g, "\n").split("\n");
 	const output: string[] = [];
+	// Inline code spans may cross soft line breaks, but not block boundaries.
+	const paragraph: string[] = [];
+	const flushParagraph = () => {
+		if (paragraph.length) output.push(prose(paragraph.join("\n")));
+		paragraph.length = 0;
+	};
+	let quoted = false;
 	let fence: string | undefined;
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
@@ -172,10 +179,12 @@ export function completionPlainText(
 			continue;
 		}
 		if (run && (run.fence[0] === "~" || !run.info.includes("`"))) {
+			flushParagraph();
 			fence = run.fence;
 			continue;
 		}
 		if (line.includes("|") && tableSeparator.test(lines[i + 1] ?? "")) {
+			flushParagraph();
 			output.push(tableCells(line).map(prose).join(" | "));
 			i++;
 			while (lines[i + 1]?.includes("|"))
@@ -184,18 +193,34 @@ export function completionPlainText(
 		}
 		const heading = /^ {0,3}#{1,6}(?:[ \t]+|$)(.*)$/.exec(line);
 		if (heading) {
+			flushParagraph();
 			output.push(prose(heading[1].replace(/\s+#+\s*$/, "")));
 			continue;
 		}
-		if (line.trim() && /^ {0,3}(?:=+|-+)$/.test(lines[i + 1] ?? "")) i++;
+		const setext = line.trim() && /^ {0,3}(?:=+|-+)$/.test(lines[i + 1] ?? "");
 		const item = /^(\s*)([-*+]|\d{1,9}[.)])[ \t]+(.*)$/.exec(line);
-		if (item) {
+		const quote = /^ {0,3}>[ \t]?/.exec(line);
+		if (item || Boolean(quote) !== quoted) flushParagraph();
+		quoted = Boolean(quote);
+		const text = quote ? line.slice(quote[0].length) : line;
+		if (
+			!text.trim() ||
+			/^ {0,3}(?:(?:- *){3,}|(?:\* *){3,}|(?:_ *){3,})$/.test(text)
+		) {
+			flushParagraph();
+			output.push(prose(text));
+		} else if (item) {
 			const task = /^\[([ xX])\]\s+(.*)$/.exec(item[3]);
 			const marker = item[2].replace(/^[-*+]$/, "-").replace(/\)$/, ".");
-			output.push(
-				`${item[1]}${marker} ${task ? `[${task[1].toLowerCase()}] ${prose(task[2])}` : prose(item[3])}`,
+			paragraph.push(
+				`${item[1]}${marker} ${task ? `[${task[1].toLowerCase()}] ${task[2]}` : item[3]}`,
 			);
-		} else output.push(prose(line.replace(/^ {0,3}>[ \t]?/, "")));
+		} else paragraph.push(text);
+		if (setext) {
+			flushParagraph();
+			i++;
+		}
 	}
+	flushParagraph();
 	return terminalText(output.join("\n"));
 }
