@@ -45,6 +45,7 @@ import {
 	isSettledRun,
 	monitorStartsWithRun,
 	recordRunHostSession,
+	runHostSessions,
 } from "../../hosts/notify-check.js";
 import { codexTurnSession, hostWakeEnabled } from "../../hosts/host-wake.js";
 import { WORKFLOW_DASHBOARD_TOOL } from "../visible-names.js";
@@ -1493,6 +1494,28 @@ function withoutWaitLine<T>(
 			};
 }
 
+function settledLaunchText(
+	text: string,
+	run: { runId: string; status: string },
+): string {
+	// The launch renderer puts its notices (and auto's selection) before the run card.
+	// Replace the card and launch heading, not the notices or dashboard line.
+	const card = text.lastIndexOf(`\nRun: ${run.runId}\n\nProgress: `);
+	const notices = (card === -1 ? text : text.slice(0, card))
+		.replace(
+			/^(?:Workflow (?:started|blocked|completed|failed to start): |Dynamic workflow (?:started|blocked|completed|failed to start)$)[^\n]*\n?/gmu,
+			"",
+		)
+		.replace(
+			/^(?:Detached supervisor: |Check progress: |Wait for the result: )[^\n]*\n?/gmu,
+			"",
+		)
+		.trimEnd();
+	return [`Run ${run.runId} settled with status ${run.status}.`, notices]
+		.filter(Boolean)
+		.join("\n");
+}
+
 function launchNext(
 	data: LaunchData,
 	delivery: Delivery = "wait",
@@ -1580,27 +1603,32 @@ export function createHostMcpService(
 				!(await recordRunHostSession(ctx.cwd, data.runId, session))
 			)
 				return "wait";
-			if (await hostSessionMonitorAlive(ctx.cwd, session))
-				return "claude-monitor";
 			// 2026-11-05: the project's first run. The monitor (none in print mode or the Agent SDK,
 			// CLAUDE_CODE_ENTRYPOINT sdk-*) waits in its shell for the run directory this launch created.
 			const projectDir = env.CLAUDE_PROJECT_DIR;
-			return projectDir &&
-				!/^sdk-/u.test(env.CLAUDE_CODE_ENTRYPOINT ?? "") &&
-				(await monitorStartsWithRun(projectDir, data.runId)) &&
-				(await awaitHostSessionMonitor(
-					ctx.cwd,
-					session,
-					options.monitorStartWaitMs,
-					call.signal,
-				))
+			const alive =
+				(await hostSessionMonitorAlive(ctx.cwd, session)) ||
+				(projectDir &&
+					!/^sdk-/u.test(env.CLAUDE_CODE_ENTRYPOINT ?? "") &&
+					(await monitorStartsWithRun(projectDir, data.runId)) &&
+					(await awaitHostSessionMonitor(
+						ctx.cwd,
+						session,
+						options.monitorStartWaitMs,
+						call.signal,
+					)));
+			return alive &&
+				(await runHostSessions(ctx.cwd, data.runId)).includes(session)
 				? "claude-monitor"
 				: "wait";
 		}
 		if (options.host === "codex" && hostWakeEnabled(env) && data.detached) {
 			const turn = codexTurnSession(call.meta);
 			if (!turn?.interactive) return "wait";
-			if (!(await recordRunHostSession(ctx.cwd, data.runId, turn.threadId)))
+			if (
+				!(await recordRunHostSession(ctx.cwd, data.runId, turn.threadId)) ||
+				!(await runHostSessions(ctx.cwd, data.runId)).includes(turn.threadId)
+			)
 				return "wait";
 			// If settlement happens after this read, the supervisor can see our link.
 			// If it already settled, direct a wait without suppressing a supervisor wake.
@@ -1781,7 +1809,7 @@ export function createHostMcpService(
 					outcome.action,
 					outcomeForRunStatus(run.status),
 					updated,
-					`Run ${run.runId} settled with status ${run.status}.${launch.dashboard ? `\nDashboard: ${launch.dashboard.url}` : ""}`,
+					settledLaunchText(outcome.text, run),
 				);
 				return finish(call, reply, updated);
 			}

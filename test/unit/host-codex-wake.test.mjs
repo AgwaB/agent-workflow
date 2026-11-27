@@ -216,7 +216,7 @@ test("the detached supervisor wakes the linked Codex session when the run settle
 	);
 });
 
-test("a Codex launch's next step: end the turn for an interactive, detached launch; else workflow_wait", async () => {
+test("a Codex launch's next step: end the turn for an interactive, detached launch; else workflow_wait", async (t) => {
 	const cwd = await project();
 	await writeRun(cwd, "workflow_launched", "running");
 	const exited = spawn(process.execPath, ["-e", ""]);
@@ -271,6 +271,28 @@ test("a Codex launch's next step: end the turn for an interactive, detached laun
 			.join("\n");
 	const WAIT =
 		/Then call workflow_wait \{"runId":"workflow_launched"\} and repeat while stillRunning is true\./;
+	const dir = join(stateDir(cwd), ".agent-workflow", "notify-check");
+	const readdir = fs.readdir;
+	const listing = t.mock.method(fs, "readdir", async (...args) => {
+		if (args[0] === dir)
+			throw Object.assign(new Error("notify directory listing fault"), {
+				code: "EACCES",
+			});
+		return readdir(...args);
+	});
+	syncBuiltinESMExports();
+	let unlistable;
+	try {
+		unlistable = await text({ meta: turn("user") });
+		const link = join(dir, `session-${THREAD}.workflow_launched.link`);
+		assert.ok((await fs.lstat(link)).isFile());
+	} finally {
+		listing.mock.restore();
+		syncBuiltinESMExports();
+	}
+	assert.match(unlistable, WAIT);
+	assert.doesNotMatch(unlistable, /end your turn now/);
+
 	const queued = await text({ meta: turn("user") });
 	assert.match(
 		queued,

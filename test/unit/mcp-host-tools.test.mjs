@@ -925,8 +925,12 @@ for (const [tool, method, args] of [
 	});
 }
 
-for (const status of ["running", "completed"]) {
-	test(`Claude with a fresh monitor but a failed link write reports ${status === "running" ? "an explicit wait" : "settlement"}`, async (t) => {
+for (const [status, fault] of [
+	["running", "open"],
+	["running", "readdir"],
+	["completed", "open"],
+]) {
+	test(`Claude with a fresh monitor but a failed ${fault} reports ${status === "running" ? "an explicit wait" : "settlement with launch notices"}`, async (t) => {
 		const { cwd, env } = await project();
 		const session = "claude-fault";
 		const runId = "workflow_monitor_fault";
@@ -942,17 +946,27 @@ for (const status of ["running", "completed"]) {
 			}),
 		);
 		const link = join(notifyDir, `session-${session}.${runId}.link`);
-		const open = fs.open;
-		const mock = t.mock.method(fs, "open", async (...args) => {
-			if (args[0] === link)
-				throw Object.assign(new Error("link write fault"), { code: "EIO" });
-			return open(...args);
+		const monitored = await import("../../dist/hosts/notify-check.js");
+		const path = fault === "open" ? link : notifyDir;
+		const original = fs[fault];
+		const mock = t.mock.method(fs, fault, async (...args) => {
+			if (args[0] === path)
+				throw Object.assign(new Error(`notify ${fault} fault`), {
+					code: "EACCES",
+				});
+			return original(...args);
 		});
 		syncBuiltinESMExports();
 		t.after(() => {
 			mock.mock.restore();
 			syncBuiltinESMExports();
 		});
+		const warning = "  ⚠ readOnly enforced on: distinctive-stage";
+		const selected = "Selected: Distinctive workflow (recommended)";
+		const dashboard = {
+			url: "https://example.test/run",
+			portReason: "test port",
+		};
 		const client = await connect(
 			{
 				root: cwd,
@@ -960,29 +974,50 @@ for (const status of ["running", "completed"]) {
 				host: "claude-code",
 				api: {
 					...api,
-					async runWorkflowAction() {
+					async autoAction() {
 						await writeFile(join(notifyDir, `monitor-${session}.stamp`), "");
+						assert.equal(
+							await monitored.hostSessionMonitorAlive(cwd, session),
+							true,
+						);
 						return {
-							action: "run",
+							action: "auto",
 							ok: true,
 							outcome: "running",
-							text: `Workflow started\nWait for the result: workflow_wait ${runId}`,
-							data: { runId, status: "running", mode: "named-workflow" },
+							text: [
+								selected,
+								warning,
+								"Workflow started: Distinctive workflow",
+								`Dashboard: ${dashboard.url} · ${dashboard.portReason}`,
+								`Run: ${runId}`,
+								"",
+								"Progress: 0/1 completed, 1 running",
+								`Check progress: workflow_status ${runId}`,
+								`Wait for the result: workflow_wait ${runId}`,
+							].join("\n"),
+							data: {
+								phase: "launched",
+								launch: {
+									runId,
+									status: "running",
+									mode: "named-workflow",
+									dashboard,
+								},
+							},
 						};
 					},
 				},
 			},
 			"2025-06-18",
 		);
-		const result = await client.call("workflow_run", {
-			workflow: "wf.json",
-			task: "probe",
-		});
+		const result = await client.call("workflow_auto", { task: "probe" });
 		assert.equal(result.isError, false, text(result));
-		assert.equal(
-			mock.mock.calls.filter(({ arguments: [path] }) => path === link).length,
-			1,
-		);
+		if (fault === "open")
+			assert.equal(
+				mock.mock.calls.filter(({ arguments: [file] }) => file === link).length,
+				1,
+			);
+		else assert.ok((await fs.lstat(link)).isFile());
 		if (status === "running")
 			assert.match(
 				text(result),
@@ -990,7 +1025,18 @@ for (const status of ["running", "completed"]) {
 			);
 		else {
 			assert.match(text(result), /workflow_monitor_fault.*completed/);
-			assert.doesNotMatch(text(result), /workflow_wait/);
+			assert.ok(text(result).includes(warning), text(result));
+			assert.ok(text(result).includes(selected), text(result));
+			assert.ok(
+				text(result).includes(
+					`Dashboard: ${dashboard.url} · ${dashboard.portReason}`,
+				),
+				text(result),
+			);
+			assert.doesNotMatch(
+				text(result),
+				/workflow_(wait|status)|Workflow started|1 running/,
+			);
 		}
 		assert.doesNotMatch(text(result), /end your turn now|monitor .*reports/);
 	});
