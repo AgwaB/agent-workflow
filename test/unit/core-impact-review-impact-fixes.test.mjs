@@ -134,7 +134,6 @@ async function schemas() {
 }
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
-const sourceMap = (value) => value;
 
 async function validSourceSet(source) {
 	const all = await schemas();
@@ -331,6 +330,45 @@ test("omitted observation severity does not invent unknown risk for a known bloc
 			.severity,
 		"none",
 	);
+});
+
+test("list-item prose language does not change impact gates or counts", async () => {
+	for (const options of [
+		{},
+		{ unknown: true },
+		{ blocked: true, high: true },
+	]) {
+		const results = [];
+		for (const text of [
+			"No tests are present; release is blocked pending validation.",
+			"테스트가 없으며 검증 전까지 배포가 차단됩니다.",
+		]) {
+			const source = controls(options);
+			for (const [stage, field] of [
+				["validation-map", "knownGaps"],
+				["change-scope", "assumptions"],
+				["implementation-map", "unknowns"],
+				["regression-risk", "risks"],
+				["ship-readiness", "assumptions"],
+			]) {
+				source[`impact-analysis.${stage}`][field].push(item(field, text));
+			}
+			const result = await renderImpactReport({
+				sources: source,
+				context: contextFor(),
+			});
+			assert.ok(result.markdown.includes(text));
+			results.push({
+				status: result.status,
+				verdict: result.verdict,
+				riskLevel: result.riskLevel,
+				issueSummary: result.issueSummary,
+				gates: result.gates,
+				ledgerCount: result.impactLedger.length,
+			});
+		}
+		assert.deepEqual(results[0], results[1]);
+	}
 });
 
 test("source-level risk is not lost when observation severity is absent", async () => {

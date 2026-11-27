@@ -75,52 +75,52 @@
 	},
 	"workflows/impact-review/spec.json": {
 		"impact-analysis.change-scope.main": {
-			"chars": 2080,
-			"sha256": "eaf8794ae0111ec9a7f76d216bb95c72df246fb77ae7a0af3c2d63180add2ee5"
+			"chars": 2340,
+			"sha256": "6fa208afa426915701adcc8e74855a060cf2671df92b30622873b7ba4551e3aa"
 		},
 		"impact-analysis.implementation-map.main": {
-			"chars": 1953,
-			"sha256": "362fdb6eb0e8e1e316153092e2e8ed894b34ec3bdcf371f0950cbb7707c5be03"
+			"chars": 2213,
+			"sha256": "3776139191680c64ae170a957b3d42437e061d3fe7302962f6923dba9876a538"
 		},
 		"impact-analysis.validation-map.main": {
-			"chars": 2073,
-			"sha256": "4aacb94393a7cf062574213c008a877c9e55e8b0475c1e7dcc2ebf83e0bd2163"
+			"chars": 2333,
+			"sha256": "f10fce092ac0cea28844b8f85a4002b618c0b135d2e096d13cfeee4234bd8f0d"
 		},
 		"impact-analysis.api-contract-impact.main": {
-			"chars": 2596,
-			"sha256": "03b6e3fd1f79c9a8a4eca0daa959d2633c91b606b3c46390403ad1e341eaa5f1"
+			"chars": 2856,
+			"sha256": "7b01568cca5ee89c64f14ede551c441c92f287ecf07f5a85e8f8dc4e87f810c1"
 		},
 		"impact-analysis.state-data-impact.main": {
-			"chars": 2511,
-			"sha256": "a290b98ecdf85a4dffc2e826ac3415477c27bbb532e5db390e95e2406b788058"
+			"chars": 2771,
+			"sha256": "383af35a8ba1f24a3c344e81873a69960f14db692963526995df55b7a4bd53d7"
 		},
 		"impact-analysis.validation-impact.main": {
-			"chars": 2767,
-			"sha256": "544f65058858ae012f3abb56dd643f113101953cd803378f69095a53987e9232"
+			"chars": 3027,
+			"sha256": "c588c5b46dc05088776068f690cc68a5cc12a87dda1a0f62555c95db37a52f23"
 		},
 		"impact-analysis.docs-release-impact.main": {
-			"chars": 2456,
-			"sha256": "11653504da279b42ae5da1f99418273d99f484d57eda043969dda0a2680a8eff"
+			"chars": 2716,
+			"sha256": "d4a20cb4589194692aab47ed50eaa836e3bdf75747ff531de48df2c64c31c08a"
 		},
 		"impact-analysis.security-performance-impact.main": {
-			"chars": 2404,
-			"sha256": "b4cb9e8a8cdabeb0743a62b742b85c87dbedbfde98d8370f5f4e8d971cf45141"
+			"chars": 2664,
+			"sha256": "701622e96731cf91148f206c2ea4ee1a5e259f5f1e98bd32509e80c5a1c3810b"
 		},
 		"impact-analysis.contract-consistency.main": {
-			"chars": 2581,
-			"sha256": "1f1f5a3f2458452a30864f8c83e695a78e36d9b3e5f5591c6911dd192f5be383"
+			"chars": 2841,
+			"sha256": "dc9a0e8ef79182e95a58e332fb7e232ccc54e771f56ad5d5b1fe43bbd0a582ef"
 		},
 		"impact-analysis.regression-risk.main": {
-			"chars": 2510,
-			"sha256": "7a2666b04353710b9e38fc0b208ec23878403c378e5c7bbf6d2d1c10f50fcbdb"
+			"chars": 2770,
+			"sha256": "28d62a8ac33a4e794b5e5ae2a42ac3116affc5f6010326837eb3cb3756ca8d51"
 		},
 		"impact-analysis.ship-readiness.main": {
-			"chars": 2293,
-			"sha256": "cf5d7354499fb833f88e875afae5882ca5f4d6aa9343ce2dde9e8ae5afd8bf25"
+			"chars": 2553,
+			"sha256": "e45610443de8fe157b4c8b8ef892384cabba14f92fca86c04114dc2ff509d8ec"
 		},
 		"impact-analysis.impact-synthesis.main": {
-			"chars": 2988,
-			"sha256": "3380c2d94d31cc7e658b8d46ca753191290a70580e5cbeb4ec162ef8a4f9a63f"
+			"chars": 3248,
+			"sha256": "bcd5b7445c72a869d812789d23ec1fa788604e12ed76324df11b49c552c91d28"
 		}
 	},
 	"workflows/spec-review/spec.json": {
