@@ -239,12 +239,7 @@ export async function gateRequirementCoverage(
 
 // Persist both the exact universe and its actual runtime/control-byte binding.
 // A set alone is insufficient: stale controls with unchanged IDs also fail.
-export function reconcileRequirementCoverage(
-  coverage,
-  checked,
-  finalFindings,
-  source,
-) {
+function reconcileRequirementSource(source) {
   const issues = [];
   const requirements = Array.isArray(source?.requirements)
     ? source.requirements
@@ -280,6 +275,27 @@ export function reconcileRequirementCoverage(
       issues.push(`missing_requirement_signal_shape:${row?.id ?? "unknown"}`);
   }
   requirementIds.sort();
+  return { issues, requirements, requirementIds, sourceEvidence };
+}
+
+export function reconcileRequirementCoverage(
+  coverage,
+  checked,
+  finalFindings,
+  source,
+) {
+  return reconcileCoverage(coverage, checked, finalFindings, source, reconcileRequirementSource(source));
+}
+
+function matchesCandidateCoverage(coverage, source) {
+  return canonical(coverage) === canonical(
+    applyRechecks(source?.candidate?.requirementCoverage, source?.rechecks),
+  );
+}
+
+function reconcileCoverage(coverage, checked, finalFindings, source, scope) {
+  const { requirements, requirementIds, sourceEvidence } = scope;
+  const issues = [...scope.issues];
   if (!Array.isArray(coverage) || coverage.length > 40)
     issues.push("missing_or_invalid_coverage_array");
   const coverageIds = [];
@@ -299,10 +315,7 @@ export function reconcileRequirementCoverage(
   const missingIds = requirementIds.filter((id) => !coverageIds.includes(id));
   if (missingIds.length) issues.push("missing_requirement_coverage");
   // The candidate's rows with the rechecks applied (applyRechecks); with no rechecks, its rows as written.
-  if (
-    canonical(coverage) !==
-    canonical(applyRechecks(source?.candidate?.requirementCoverage, source?.rechecks))
-  )
+  if (!matchesCandidateCoverage(coverage, source))
     issues.push("coverage_differs_from_candidate_control");
   // Accounted gaps must use the candidate's exact explicit linkage, not a
   // post-hoc forged finding link, alias, title or inferred positional ID.
@@ -353,11 +366,13 @@ async function requirementCoverageAudit(partition, context = {}) {
     context,
     partition?.finalFindings ?? [],
   );
-  const actual = reconcileRequirementCoverage(
+  const scope = reconcileRequirementSource(source);
+  const actual = reconcileCoverage(
     partition?.requirementCoverage,
     checked,
     partition?.finalFindings ?? [],
     source,
+    scope,
   );
   const matchesSaved =
     canonical(actual) ===
@@ -366,7 +381,10 @@ async function requirementCoverageAudit(partition, context = {}) {
     ...actual,
     complete: actual.complete && matchesSaved,
   };
-  return { checked, requirementReconciliation, actual, matchesSaved };
+  return { checked, requirementReconciliation, actual, matchesSaved,
+    coverageScopeBound: scope.issues.length === 0 &&
+      !actual.issues.includes("coverage_differs_from_candidate_control"),
+  };
 }
 
 export async function partitionRequirementReconciliation(
@@ -443,6 +461,7 @@ export async function auditPartitionEvidence(partition, context = {}) {
     requirementReconciliation,
     actual,
     matchesSaved,
+    coverageScopeBound,
   } = await requirementCoverageAudit(partition, context);
   const ledgerShape =
     gate?.protocol === EVIDENCE_PROTOCOL &&
@@ -493,6 +512,16 @@ export async function auditPartitionEvidence(partition, context = {}) {
     }
   }
   const coverageExact = ledgerShape && canonical(gate.coverage) === canonical(coverage);
+  // The numerator uses recomputed checks only when their candidate/recheck and
+  // saved byte-audit bindings hold. Missing rows still count in the denominator.
+  const coverageBound = coverageScopeBound && matchesSaved && coverageExact;
+  const verifiedCoverage = coverageBound ? {
+    total: actual.requirementIds.length,
+    covered: actual.requirementIds.filter((id) => {
+      const rows = coverage.filter((row) => row.id === id);
+      return rows.length === 1 && rows[0].positive && rows[0].complete;
+    }).length,
+  } : null;
   const evidenceComplete =
     ledgerShape &&
     gate.complete === true &&
@@ -510,7 +539,7 @@ export async function auditPartitionEvidence(partition, context = {}) {
     coverageExact &&
     matchesSaved &&
     requirementSetProven(actual);
-  return { evidenceComplete, requirementReconciliation, gapsGrounded };
+  return { evidenceComplete, requirementReconciliation, gapsGrounded, verifiedCoverage, boundCoverage: coverageBound ? coverage : [] };
 }
 
 // The renderer reconciles canonical rows and recomputes actual bytes. It does

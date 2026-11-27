@@ -381,3 +381,310 @@ test("the dashboard decodes angle-delimited links with reserved path and query c
 	);
 	assert.equal(target, " (https://example.org/file(a)?sig=(XYZ)&x=&amp;#line)");
 });
+
+test("trusted review reports share collapsed folds and chips without losing deep-review cards", {
+	timeout: 50000,
+}, async (t) => {
+	const names = [
+		"deep-review",
+		"impact-review",
+		"spec-review",
+		"other-workflow",
+	];
+	const snapshots = names.map((name, index) => ({
+		...runFixture,
+		name,
+		runId: `workflow_mvt23704_20000${index}`,
+	}));
+	const server = await createFixtureServer({ snapshots, readonly: true });
+	t.after(() => server.close());
+	const browser = await createBrowser(await findChrome());
+	t.after(() => browser.close());
+	for (const snapshot of snapshots) {
+		const card = snapshot.name === "deep-review";
+		const trusted = snapshot.name !== "other-workflow";
+		server.reports.set(
+			snapshot.runId,
+			[
+				"# 검토 보고서",
+				"",
+				"근거: 항목 1건 · 출처 1곳 · 검토 완료",
+				"",
+				"## 결론",
+				"",
+				"판정: **수정 필요**.",
+				"",
+				"## 발견 사항",
+				"",
+				...(card
+					? [
+							"### finding-001 — 경계값 불일치",
+							"",
+							"심각도: **높음**",
+							"검증 판정: **유지**",
+						]
+					: ["### **회귀 위험** — 경계값 불일치"]),
+				"",
+				"<details>",
+				"<summary>근거 보기</summary>",
+				"",
+				"&lt;details&gt; \\[unsafe\\](javascript:fake) ftp&#58;//example.org",
+				"",
+				"```text",
+				"<details>",
+				"<summary>Not a fold</summary>",
+				"</details>",
+				"```",
+				"",
+				"</details>",
+				"",
+				"## 부록",
+				"",
+				"<details>",
+				"<summary>검토 기록</summary>",
+				"",
+				"출처 1곳",
+				"",
+				"</details>",
+			].join("\n"),
+		);
+		await browser.open(`${server.origin}/?run=${snapshot.runId}&view=report`);
+		await browser.waitFor(() =>
+			document
+				.querySelector(".report-content")
+				?.textContent.includes("경계값 불일치"),
+		);
+		const dom = await browser.evaluate(() => {
+			const root = document.querySelector(".report-content");
+			return {
+				trust: root.querySelectorAll(".md-trust").length,
+				folds: root.querySelectorAll("details:not([open])").length,
+				unsafe: root.querySelectorAll(
+					"a[href^='javascript:'], a[href^='ftp:'], script, [onclick]",
+				).length,
+				severity: root.querySelector(".finding-card")?.dataset.severity,
+				verdict: root.querySelector(".finding-card")?.dataset.verdict,
+				chip: root.querySelector(".md-status-chip")?.textContent,
+			};
+		});
+		assert.equal(dom.trust, Number(trusted), snapshot.name);
+		assert.equal(dom.folds, trusted ? 2 : 0, snapshot.name);
+		assert.equal(dom.unsafe, 0, snapshot.name);
+		assert.equal(dom.severity, card ? "high" : undefined);
+		assert.equal(dom.verdict, card ? "kept" : undefined);
+		assert.equal(dom.chip, trusted ? "수정 필요" : undefined);
+	}
+});
+
+async function deepReviewFixture({
+	title = "Active observation",
+	file = "source.ts",
+	symbol = "entry",
+} = {}) {
+	const { default: deepReview } = await import(
+		"../../workflows/deep-review/helpers/render-review-report.mjs"
+	);
+	return (
+		await deepReview({
+			sources: {
+				"partition-verdicts.main": {
+					partitions: {
+						keep: [
+							{
+								findingId: "finding-001",
+								title,
+								severity: "high",
+								locations: [{ file, line: 7, symbol }],
+							},
+						],
+						drop: [
+							{
+								findingId: "finding-002",
+								title: "Archived observation",
+								severity: "low",
+							},
+						],
+						needsHuman: [
+							{
+								findingId: "reviewer-coverage-003",
+								title: "Live coverage observation",
+								severity: "high",
+								recommendedAction: "Recheck the missing source",
+							},
+						],
+					},
+				},
+			},
+		})
+	).markdown;
+}
+
+const deepReviewRun = { ...research, name: "deep-review" };
+const prose = "Keep ~~draft~~ & &gt; `word` | literal";
+const filename = "A&B &amp; `x`|a.ts";
+const symbol = "`~~foo~~ &lt; |`";
+
+async function literalReport() {
+	const { escapeTableCell } = await import(
+		"../../workflows/deep-review/helpers/report-markdown.mjs"
+	);
+	const markdown = await deepReviewFixture({
+		title: prose,
+		file: filename,
+		symbol,
+	});
+	return `${markdown}\n\n## Literal cells\n\n| Comparison |\n|---|\n| ${escapeTableCell(prose)} |`;
+}
+
+async function checkLiteralViewer(browser) {
+	const result = await browser.evaluate(() => {
+		const root = document.querySelector(".report-content");
+		const h = root.querySelector(".finding-title");
+		return {
+			heading: h?.textContent.replace(/^finding-001 — /, ""),
+			locations: [...root.querySelectorAll("td code")]
+				.slice(0, 2)
+				.map((node) => node.textContent),
+			cell: [...root.querySelectorAll("td")].at(-1)?.textContent,
+			deletions: root.querySelectorAll("del").length,
+		};
+	});
+	assert.equal(result.heading, prose);
+	assert.deepEqual(result.locations, [filename, symbol]);
+	assert.equal(result.cell, prose);
+	assert.equal(result.deletions, 0);
+}
+
+test("exported report uses GFM escapes for literal prose and code table cells", async () => {
+	const md = await literalReport();
+	assert.ok(
+		md.includes("Keep \\~\\~draft\\~\\~ &amp; &amp;gt; \\`word\\` \\| literal"),
+	);
+	assert.ok(
+		md.includes(
+			"| Keep \\~\\~draft\\~\\~ &amp; &amp;gt; \\`word\\` &#124; literal |",
+		),
+	);
+	assert.ok(md.includes("``A&B &amp; `x`\\|a.ts``"));
+	assert.ok(md.includes("`` `~~foo~~ &lt; \\|` ``"));
+});
+
+test("report text and code span table cells round-trip through the dashboard", {
+	timeout: 30000,
+}, async (t) => {
+	const md = await literalReport();
+	const { browser, open } = await reportBrowser(t, md, [deepReviewRun]);
+	await open(deepReviewRun);
+	await checkLiteralViewer(browser);
+});
+
+test("review outline skips closed records and links reviewer coverage cards to their actions", {
+	timeout: 30000,
+}, async (t) => {
+	const { browser, open } = await reportBrowser(t, await deepReviewFixture(), [
+		deepReviewRun,
+	]);
+	await open(deepReviewRun);
+	const data = await browser.evaluate(() => ({
+		links: [...document.querySelectorAll(".report-outline .outline-text")].map(
+			(node) => node.textContent,
+		),
+		archived: [
+			...document.querySelectorAll(
+				".report-content details:not([open]) .md-h3",
+			),
+		].some((node) => node.textContent.includes("Archived observation")),
+		card: document.querySelector(
+			'.finding-card[aria-label="reviewer-coverage-003"] .finding-title',
+		)?.textContent,
+	}));
+	assert.ok(data.archived);
+	assert.ok(!data.links.includes("Archived observation"));
+	assert.ok(data.links.includes("Live coverage observation"));
+	assert.equal(data.card, "Live coverage observation");
+	await browser.evaluate(() => {
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: {
+				writeText: async (s) => {
+					window.copied = s;
+				},
+			},
+		});
+		document
+			.querySelector('[data-copy-finding="reviewer-coverage-003"]')
+			.click();
+	});
+	assert.match(
+		await browser.evaluate(() => window.copied),
+		/Recommended action: Recheck the missing source/,
+	);
+});
+
+test("Korean impact risk none is neutral and distinct from missing", {
+	timeout: 30000,
+}, async (t) => {
+	const { reportRiskStatus } = await import(
+		"../../workflows/impact-review/helpers/report-markdown.mjs"
+	);
+	const none = reportRiskStatus("none", (_en, ko) => ko);
+	const run = { ...research, name: "impact-review" };
+	const { browser, open } = await reportBrowser(
+		t,
+		`# 보고서\n\n근거: 출처 7개 · 검토 완료 · 검증됨\n\n위험도: **${none}**.\n\n**없음**`,
+		[run],
+	);
+	await open(run);
+	assert.deepEqual(
+		await browser.evaluate(() =>
+			[...document.querySelectorAll(".report-content .md-status-chip")].map(
+				(n) => [n.textContent, n.dataset.tone],
+			),
+		),
+		[
+			["위험 없음", "neutral"],
+			["없음", "bad"],
+		],
+	);
+});
+
+test("dashboard translates bold prose without consuming code or changing link targets", {
+	timeout: 30000,
+}, async (t) => {
+	const { browser, open } = await reportBrowser(
+		t,
+		[
+			"# Deep review report",
+			"",
+			"Evidence: one observation",
+			"",
+			"**READY with `READY &gt;`**",
+			"",
+			"[a `symbol`](https://example.com/`literal`?x=1&amp;y=2)",
+			"",
+			String.raw`[guide](docs/a\(v2\).md)`,
+		].join("\n"),
+		[deepReviewRun],
+	);
+	await open(deepReviewRun);
+	assert.deepEqual(
+		await browser.evaluate(() => {
+			const root = document.querySelector(".report-content");
+			return {
+				bold: root.querySelector("strong")?.textContent,
+				code: root.querySelector("strong code")?.textContent,
+				linkCode:
+					root.querySelector(".md-url")?.previousElementSibling?.textContent,
+				targets: [...root.querySelectorAll(".md-url")].map(
+					(n) => n.textContent,
+				),
+			};
+		}),
+		{
+			bold: "Ready with READY &gt;",
+			code: "READY &gt;",
+			linkCode: "symbol",
+			targets: [" (https://example.com/`literal`?x=1&y=2)", " (docs/a(v2).md)"],
+		},
+	);
+});

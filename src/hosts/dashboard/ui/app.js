@@ -5602,6 +5602,68 @@ const REPORT_STATUS = new Map([
 	["낮음", "neutral"],
 	["Not applicable", "neutral"],
 	["해당 없음", "neutral"],
+	["Review complete", "done"],
+	["검토 완료", "done"],
+	["Ready", "done"],
+	["배포 가능", "done"],
+	["Conforms", "done"],
+	["요구사항 충족", "done"],
+	["Kept", "done"],
+	["유지", "done"],
+	["Consistent", "done"],
+	["일관됨", "done"],
+	["충족", "done"],
+	["Confirmed safe", "done"],
+	["안전 확인", "done"],
+	["Confirmed consistency", "done"],
+	["일관성 확인", "done"],
+	["Risk reducer", "done"],
+	["위험 완화", "done"],
+	["Needs work", "warn"],
+	["수정 필요", "warn"],
+	["Partial review", "warn"],
+	["부분 검토", "warn"],
+	["Weakened", "warn"],
+	["완화", "warn"],
+	["Needs human review", "warn"],
+	["사람 검토 필요", "warn"],
+	["Unclear", "warn"],
+	["불명확", "warn"],
+	["Inconclusive", "warn"],
+	["판단 보류", "warn"],
+	["Non-blocking issue", "warn"],
+	["비차단 문제", "warn"],
+	["Regression risk", "warn"],
+	["회귀 위험", "warn"],
+	["Contract issue", "warn"],
+	["계약 문제", "warn"],
+	["Required before ship", "warn"],
+	["배포 전 필수", "warn"],
+	["Validation", "warn"],
+	["검증", "warn"],
+	["Blocked", "bad"],
+	["차단됨", "bad"],
+	["Gaps found", "bad"],
+	["요구사항 미충족", "bad"],
+	["Critical", "bad"],
+	["치명적", "bad"],
+	["누락", "bad"],
+	["Inconsistent", "bad"],
+	["불일치", "bad"],
+	["Blocking issue", "bad"],
+	["차단 문제", "bad"],
+	["Dropped", "neutral"],
+	["제외", "neutral"],
+	["None", "neutral"],
+	["위험 없음", "neutral"],
+	["Unavailable", "neutral"],
+	["자료 없음", "neutral"],
+	["Informational", "neutral"],
+	["정보", "neutral"],
+	["Optional", "neutral"],
+	["선택 사항", "neutral"],
+	["Recommendation", "neutral"],
+	["권고", "neutral"],
 ]);
 function statusBadge(word, report = false) {
 	const raw = word.trim();
@@ -5640,6 +5702,57 @@ const NON_PARAGRAPH_LINE =
 
 // The splitter, finding parser and renderer share these tokens. Only plain text
 // tokens can be structural Markdown; code and invalid fold ranges are atomic.
+/** Links own their destinations; only inline text can open a code span. */
+function* inlineAtoms(raw) {
+	const link =
+		/(!?)\[((?:\\.|[^\]\\\n])*)\]\((<(?:\\[^\s]|[^<>\s\\])*>|(?:\\[^\s]|[^()<>\s\\]|\((?:\\[^\s]|[^()<>\s\\])*\))*)\)/y;
+	const runs = [...raw.matchAll(/`+/g)];
+	const starts = new Map(runs.map((run, i) => [run.index, i]));
+	const next = new Map();
+	const ends = Array(runs.length);
+	for (let i = runs.length - 1; i >= 0; i--) {
+		const length = runs[i][0].length;
+		ends[i] = next.get(length);
+		next.set(length, i);
+	}
+	for (let start = 0; start < raw.length; ) {
+		if (raw[start] === "\\" && /[!-/:-@\[-`{-~]/.test(raw[start + 1] ?? "")) {
+			start += 2;
+			continue;
+		}
+		if (raw[start] === "[" || raw[start] === "!") {
+			link.lastIndex = start;
+			const match = link.exec(raw);
+			if (match) {
+				const end = link.lastIndex;
+				yield {
+					kind: match[1] ? "image" : "link",
+					start,
+					end,
+					label: match[2],
+					target: match[3],
+				};
+				start = end;
+				continue;
+			}
+		}
+		const index = starts.get(start);
+		if (index !== undefined && ends[index] !== undefined) {
+			const close = runs[ends[index]];
+			const end = close.index + close[0].length;
+			yield {
+				kind: "code",
+				start,
+				end,
+				code: raw.slice(start + runs[index][0].length, close.index),
+			};
+			start = end;
+			continue;
+		}
+		start++;
+	}
+}
+
 function markdownTokens(text, researchReport = false) {
 	const lines = text.split("\n").map((line) => line.replace(/\r$/, ""));
 	const blocks = [];
@@ -5695,7 +5808,7 @@ function markdownTokens(text, researchReport = false) {
 	const spanText = (token) =>
 		token.kind === "text" &&
 		token.raw.trim() &&
-		(researchReport || !NON_PARAGRAPH_LINE.test(token.raw));
+		(researchReport === true || !NON_PARAGRAPH_LINE.test(token.raw));
 	const spans = [];
 	for (let index = 0; index < blocks.length; ) {
 		if (!spanText(blocks[index])) {
@@ -5706,33 +5819,23 @@ function markdownTokens(text, researchReport = false) {
 		while (
 			index < blocks.length &&
 			spanText(blocks[index]) &&
-			(researchReport || !MARKDOWN_LIST_ITEM.test(blocks[index].raw))
+			(researchReport === true || !MARKDOWN_LIST_ITEM.test(blocks[index].raw))
 		)
 			index++;
 		const raw = blocks
 			.slice(start, index)
 			.map((token) => token.raw)
 			.join("\n");
-		const runs = [...raw.matchAll(/`+/g)];
-		const next = new Map();
-		const ends = runs.map(() => undefined);
-		for (let n = runs.length - 1; n >= 0; n--) {
-			const length = runs[n][0].length;
-			ends[n] = next.get(length);
-			next.set(length, n);
-		}
 		let from = 0;
-		for (let n = 0; n < runs.length; n++) {
-			const open = runs[n];
-			let before = open.index;
-			while (before > 0 && raw[before - 1] === "\\") before--;
-			if ((open.index - before) % 2 || ends[n] === undefined) continue;
-			n = ends[n];
-			const close = runs[n];
-			const code = raw.slice(open.index + open[0].length, close.index);
-			if (!code.includes("\n")) continue;
-			const lo = raw.lastIndexOf("\n", open.index - 1) + 1;
-			const hi = raw.indexOf("\n", close.index + close[0].length);
+		for (const span of inlineAtoms(raw)) {
+			if (
+				span.kind !== "code" ||
+				span.start < from ||
+				!span.code.includes("\n")
+			)
+				continue;
+			const lo = raw.lastIndexOf("\n", span.start - 1) + 1;
+			const hi = raw.indexOf("\n", span.end);
 			const end = hi < 0 ? raw.length : hi;
 			if (lo > from)
 				for (const line of raw.slice(from, lo - 1).split("\n"))
@@ -5740,12 +5843,11 @@ function markdownTokens(text, researchReport = false) {
 			spans.push({
 				kind: "span",
 				raw: raw.slice(Math.max(from, lo), end),
-				before: raw.slice(Math.max(from, lo), open.index),
-				code,
-				after: raw.slice(close.index + close[0].length, end),
+				before: raw.slice(Math.max(from, lo), span.start),
+				code: span.code,
+				after: raw.slice(span.end, end),
 			});
 			from = end + 1;
-			while (runs[n + 1]?.index < from) n++;
 		}
 		if (from < raw.length)
 			for (const line of raw.slice(from).split("\n"))
@@ -5900,6 +6002,7 @@ function colourCode(container) {
 const ROW_MAIN_KEYS = [
 	"text",
 	"issue",
+	"finding",
 	"title",
 	"summary",
 	"description",
@@ -5913,6 +6016,13 @@ const ROW_MAIN_KEYS = [
 	"assumption",
 	"area",
 ];
+function codeSpanText(raw) {
+	const text = raw.replace(/\n/g, " ");
+	return text.startsWith(" ") && text.endsWith(" ") && /[^ ]/.test(text)
+		? text.slice(1, -1)
+		: text;
+}
+
 function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 	const tokens = typeof text === "string" ? markdownTokens(text, report) : text;
 	let container = root;
@@ -5943,60 +6053,102 @@ function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 				/&(amp|lt|gt|quot|#39|#58|#46|#64|#124);/g,
 				(_, name) => entities[name],
 			);
-	const inline = (raw) => {
-		const value = park(raw);
-		const nodes = [];
-		const re =
-			/!\[([^\]]*)\]\((?:<[^<>\s]*>|[^)<>\s]*)\)|\[([^\]]+)\]\((<[^<>\s]+>|[^)<>\s]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*\s](?:[^*]*[^*\s])?)\*|"([^"]{8,})"/g;
-		let last = 0;
-		for (const m of value.matchAll(re)) {
-			if (m.index > last) nodes.push(unpark(value.slice(last, m.index)));
-			if (m[0].startsWith("!"))
-				nodes.push(
+	const inline = (raw, translate = false) => {
+		const atoms = [];
+		let value = "";
+		let from = 0;
+		// Choose a marker absent from the original text.
+		let marker = "\ue100";
+		while (raw.includes(marker)) marker += "\ue101";
+		for (const atom of inlineAtoms(raw)) {
+			value += `${park(raw.slice(from, atom.start))}${marker}${atoms.length}\ue102`;
+			atoms.push(atom);
+			from = atom.end;
+		}
+		value += park(raw.slice(from));
+		const text = (part, readable = translate) => {
+			const decoded = unpark(part);
+			return readable ? readableCodes(decoded) : decoded;
+		};
+		const renderAtom = (atom, readable) => {
+			if (atom.kind === "code")
+				return [element("code", {}, codeSpanText(atom.code))];
+			const labelNodes = inline(atom.label, readable);
+			if (atom.kind === "image")
+				return [
 					element(
 						"span",
 						{ class: "muted" },
-						`[image${m[1] ? `: ${unpark(m[1])}` : ""}]`,
+						"[image",
+						...(atom.label ? [": ", ...labelNodes] : []),
+						"]",
 					),
+				];
+			const label = unpark(park(atom.label));
+			const target = unpark(
+				park(
+					atom.target.startsWith("<") ? atom.target.slice(1, -1) : atom.target,
+				),
+			);
+			let address = ` (${target})`;
+			try {
+				const url = new URL(target);
+				if (url.host.replace(/^www\./, "") === label.replace(/^www\./, ""))
+					// Slice the original target, not URL's encoded pathname (e.g. literal backticks).
+					address = target
+						.replace(/^[a-z]+:\/\/[^/?#]+/i, "")
+						.replace(/^\/(?=[?#]|$)/, "");
+			} catch {
+				// Not an absolute URL: keep it as written.
+			}
+			return [
+				...labelNodes,
+				target !== label && address
+					? element("span", { class: "md-url" }, address)
+					: null,
+			];
+		};
+		const token = `${marker}(\\d+)\ue102`;
+		const textParts = (part, readable = translate) =>
+			part
+				.split(new RegExp(token, "g"))
+				.flatMap((piece, i) =>
+					i % 2
+						? renderAtom(atoms[Number(piece)], readable)
+						: [text(piece, readable)],
 				);
+		const nodes = [];
+		const formatting =
+			/\*\*([^*]+)\*\*|\*([^*\s](?:[^*]*[^*\s])?)\*|"([^"]{8,})"/;
+		const re = new RegExp(`${token}|${formatting.source}`, "g");
+		let last = 0;
+		for (const m of value.matchAll(re)) {
+			if (m.index > last) nodes.push(text(value.slice(last, m.index)));
+			if (m[1] !== undefined)
+				nodes.push(...renderAtom(atoms[Number(m[1])], translate));
 			else if (m[2] !== undefined) {
-				// A link named by its host reads as host + quiet path ("arxiv.org/abs/2307.03172");
-				// any other link keeps its whole address in brackets.
-				const label = unpark(m[2]),
-					target = unpark(m[3].startsWith("<") ? m[3].slice(1, -1) : m[3]);
-				let address = ` (${target})`;
-				try {
-					const url = new URL(target);
-					if (url.host.replace(/^www\./, "") === label.replace(/^www\./, ""))
-						address = `${url.pathname === "/" ? "" : url.pathname}${url.search}${url.hash}`;
-				} catch {
-					// Not an absolute URL: keep it as written.
-				}
+				const bold = m[2].includes(marker) ? null : unpark(m[2]);
+				const badge = bold === null ? null : statusBadge(bold, report);
 				nodes.push(
-					label,
-					target !== label && address
-						? element("span", { class: "md-url" }, address)
-						: null,
-				);
-			} else if (m[4] !== undefined) {
-				const bold = unpark(m[4]);
-				const readable = readableCodes(bold);
-				nodes.push(
-					statusBadge(bold, report) ??
+					badge ??
 						element(
 							"strong",
-							{ title: readable === bold ? null : bold },
-							readable,
+							{
+								title:
+									bold !== null && readableCodes(bold) !== bold ? bold : null,
+							},
+							...textParts(m[2], true),
 						),
 				);
-			} else if (m[5] !== undefined)
-				nodes.push(element("code", {}, unpark(m[5])));
-			else if (m[6] !== undefined) nodes.push(element("em", {}, unpark(m[6])));
+			} else if (m[3] !== undefined)
+				nodes.push(element("em", {}, ...textParts(m[3])));
 			else
-				nodes.push(element("span", { class: "md-quote" }, `"${unpark(m[7])}"`));
+				nodes.push(
+					element("span", { class: "md-quote" }, '"', ...textParts(m[4]), '"'),
+				);
 			last = m.index + m[0].length;
 		}
-		if (last < value.length) nodes.push(unpark(value.slice(last)));
+		if (last < value.length) nodes.push(text(value.slice(last)));
 		return nodes;
 	};
 	// "Evidence status: verified", "Sources: …": a short English label, then its value.
@@ -6089,7 +6241,7 @@ function renderTextMarkdown(root, text, headingBase = 3, report = false) {
 								"p",
 								{},
 								inline(token.before),
-								element("code", {}, token.code),
+								element("code", {}, codeSpanText(token.code)),
 								inline(token.after),
 							),
 						);
@@ -6322,7 +6474,13 @@ function reportBlocks(container) {
  * `Verifier verdict:` lines and a Locations table; those parts become a card. Any other report
  * (or any other part of this one) stays plain rendered Markdown, so nothing is ever invented.
  */
-const FINDING_HEADING = /^(finding-\d+)\s+[—–-]+\s+(.+)$/;
+const FINDING_ID = String.raw`(?:finding|reviewer-coverage)-\d+`;
+const FINDING_HEADING = new RegExp(
+	String.raw`^(${FINDING_ID})\s+[—–-]+\s+(.+)$`,
+);
+const FINDING_ACTION = new RegExp(
+	String.raw`^1\. \*\*(${FINDING_ID})\*\* — (.+)$`,
+);
 const LABEL_LINE = /^([A-Z][A-Za-z-]*(?:(?: \/ | |\/)[A-Za-z-]+){0,4}):\s*$/;
 /** Markdown escapes and entities, as plain text (for chips, never for rendering). */
 const plainMd = (value) =>
@@ -6344,10 +6502,10 @@ const plainMd = (value) =>
 				})[name],
 		)
 		.replace(/\*\*([^*]+)\*\*/g, "$1");
-// Split only on unescaped pipes, retaining all escapes for the inline renderer.
+// Split only on unescaped pipes. GFM consumes the pipe escape before inline parsing.
 function splitPipeCells(row) {
 	return (row.match(/(?:\\.|[^|\\])+|(?<=^|\|)(?=\||$)/g) ?? []).map((cell) =>
-		cell.trim(),
+		cell.trim().replace(/\\\|/g, "|"),
 	);
 }
 
@@ -6403,13 +6561,18 @@ export function parseFinding(segment) {
 		}
 		(block?.tokens ?? head).push(token);
 	}
-	const pick = (name) =>
-		new RegExp(`^${name}:\\s*\\**([A-Za-z\\\\_-]+)\\**`, "m").exec(
-			head
-				.filter((token) => token.kind === "text")
-				.map(({ raw }) => raw)
-				.join("\n"),
-		)?.[1];
+	const pick = (names) =>
+		head
+			.filter((token) => token.kind === "text")
+			.map(({ raw }) => raw.trim())
+			.flatMap((raw) =>
+				names.map((name) =>
+					raw.startsWith(`${name}:`) ? raw.slice(name.length + 1).trim() : "",
+				),
+			)
+			.find(Boolean)
+			?.replace(/^\*\*(.+)\*\*$/, "$1")
+			.replaceAll("\\", "");
 	const locations = (
 		blocks.find((item) => item.label === "Locations")?.tokens ?? []
 	)
@@ -6426,13 +6589,15 @@ export function parseFinding(segment) {
 	return {
 		id: segment.id,
 		title: segment.title,
-		severity: pick("Severity")?.replaceAll("\\", ""),
-		verdict: pick("Verifier verdict")?.replaceAll("\\", ""),
+		severity: pick(["Severity", "심각도"]),
+		verdict: pick(["Verifier verdict", "검증 판정"]),
 		locations,
 		intro: head.filter(
 			(token) =>
 				token.kind !== "text" ||
-				!/^(?:Severity|Verifier verdict|Root cause):/.test(token.raw),
+				!/^(?:Severity|Verifier verdict|Root cause|심각도|검증 판정):/.test(
+					token.raw,
+				),
 		),
 		blocks: blocks.filter((item) => item.label !== "Locations"),
 		raw: [segment.heading, ...segment.tokens]
@@ -6473,9 +6638,29 @@ function verifierInfo(word, ledgerKept) {
 		VERDICTS[key] ?? [key.replace(/_/g, "-"), "pending", verdictWord(word)]
 	);
 }
-function findingCard(finding, ledgerKept, researchReport) {
-	const [severity, , severityWord] = severityInfo(finding.severity);
-	const verifier = verifierInfo(finding.verdict, ledgerKept);
+const REVIEW_SEVERITY_CODES = new Map([
+	["치명적", "critical"],
+	["높음", "high"],
+	["보통", "medium"],
+	["낮음", "low"],
+	["정보", "info"],
+	["알 수 없음", "unknown"],
+]);
+const REVIEW_VERDICT_CODES = new Map([
+	["유지", "keep"],
+	["완화", "weaken"],
+	["제외", "drop"],
+	["Needs human review", "needs_human"],
+	["사람 검토 필요", "needs_human"],
+]);
+function findingCard(finding, ledgerKept, researchReport, action) {
+	const severityCode = REVIEW_SEVERITY_CODES.get(finding.severity);
+	const [severity, , severityWord] = severityInfo(
+		severityCode ?? finding.severity,
+	);
+	const verdictCode = REVIEW_VERDICT_CODES.get(finding.verdict);
+	const verifier = verifierInfo(verdictCode ?? finding.verdict, ledgerKept);
+	const ko = Boolean(severityCode || /[가-힣]/u.test(finding.verdict ?? ""));
 	const title = element("div");
 	renderTextMarkdown(
 		title,
@@ -6543,14 +6728,14 @@ function findingCard(finding, ledgerKept, researchReport) {
 					{ class: `severity-chip ${severity}`, title: finding.severity },
 					// 2026-11-12 (review, P2-10): a dot, so a cross only ever means "failed".
 					element("span", { class: `outline-dot ${severity}` }),
-					severityWord,
+					severityCode ? finding.severity : severityWord,
 				),
 				verifier
 					? element(
 							"span",
 							{ class: `verifier-pill ${verifier[0]}`, title: finding.verdict },
 							glyph(verifier[1]),
-							verifier[2],
+							verdictCode ? finding.verdict : verifier[2],
 						)
 					: null,
 				element("span", { class: "finding-id" }, finding.id),
@@ -6578,24 +6763,70 @@ function findingCard(finding, ledgerKept, researchReport) {
 			element(
 				"div",
 				{ class: "finding-foot" },
-				button("Copy fix prompt", () => copy(finding.raw), {
-					class: "small",
-					"data-copy-finding": finding.id,
-				}),
+				button(
+					ko ? "수정 요청 복사" : "Copy fix prompt",
+					() =>
+						copy(
+							action
+								? `${finding.raw}\n\n${ko ? "권장 조치" : "Recommended action"}: ${action}`
+								: finding.raw,
+						),
+					{
+						class: "small",
+						"data-copy-finding": finding.id,
+					},
+				),
 			),
 		),
 	};
 }
 /** Render the report into `container`; returns its finding cards (none for a plain report). */
+const REVIEW_REPORT_NAMES = new Set([
+	"deep-review",
+	"impact-review",
+	"spec-review",
+]);
+const REVIEW_TRUST = /^(?:Evidence: |근거: ).+ · .+ · /;
+function readerReportMode(runName, text) {
+	if (
+		runName === "deep-research" ||
+		runName === "deep-research-tiered-verification-opt-in"
+	)
+		return true;
+	// Historical review Markdown has no reader trust strip; keep its literal folds and cards.
+	const trustLine = text.split(/\r?\n/, 3)[2] ?? "";
+	return REVIEW_REPORT_NAMES.has(runName) && REVIEW_TRUST.test(trustLine)
+		? "review"
+		: false;
+}
 function renderReport(container, text, researchReport) {
 	const ledgerKept = /kept or weakened findings/i.test(text);
 	const found = [];
-	for (const segment of splitReport(text, researchReport)) {
+	const segments = splitReport(text, researchReport);
+	const reviewActions = new Map();
+	if (researchReport === "review") {
+		// Never take a fix instruction from a fenced quote or an appendix disclosure.
+		for (const segment of segments) {
+			if (segment.kind !== "markdown") continue;
+			for (const token of segment.tokens) {
+				if (token.kind !== "text") continue;
+				const action = FINDING_ACTION.exec(token.raw);
+				if (action && !reviewActions.has(action[1]))
+					reviewActions.set(action[1], action[2]);
+			}
+		}
+	}
+	for (const segment of segments) {
 		const finding = segment.kind === "finding" ? parseFinding(segment) : null;
 		// A finding heading without its own "Severity:" line (another workflow's report) is not a
 		// card: it stays Markdown, as written.
 		if (finding?.severity) {
-			const built = findingCard(finding, ledgerKept, researchReport);
+			const built = findingCard(
+				finding,
+				ledgerKept,
+				researchReport,
+				reviewActions.get(finding.id),
+			);
 			found.push(built);
 			container.append(built.card);
 		} else
@@ -6612,7 +6843,8 @@ function renderReport(container, text, researchReport) {
 		researchReport &&
 		first?.matches(".md-h1") &&
 		trust?.matches("p") &&
-		/^(?:Claims: |주장 ).+ · .+ · /.test(trust.textContent)
+		(/^(?:Claims: |주장 ).+ · .+ · /.test(trust.textContent) ||
+			(researchReport === "review" && REVIEW_TRUST.test(trust.textContent)))
 	)
 		trust.classList.add("md-trust");
 	reportBlocks(container);
@@ -6628,6 +6860,7 @@ function reportOutline(content, scroller) {
 		.filter(
 			(node) =>
 				!node.matches(".finding-title") &&
+				!node.closest("details:not([open])") &&
 				(!node.matches(".md-h3") || FINDING_HEADING.test(node.textContent)),
 		)
 		.map((node) => {
@@ -7078,9 +7311,7 @@ function renderReportPage() {
 			loaded = data.text;
 			copyButton.disabled = false;
 			// Only the run metadata opts into research report structure, never report text.
-			const researchReport =
-				run.name === "deep-research" ||
-				run.name === "deep-research-tiered-verification-opt-in";
+			const researchReport = readerReportMode(run.name, data.text);
 			const found = renderReport(content, data.text, researchReport);
 			const filters = findingFilters(content, found, empty);
 			if (filters) chips.replaceChildren(filters);

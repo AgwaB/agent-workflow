@@ -517,7 +517,10 @@ for (const mode of modes)
 				assert.equal(p.readProjection.ledgerVerdict, expectedVerdict, mode);
 			const report = {
 				schema: "spec-review-report-v1",
-				summary: "Coverage fixture",
+				summary:
+					mode === "report-risks"
+						? "Size > limit & literal &gt;."
+						: "Coverage fixture",
 				verdict:
 					mode === "needs-human-lineage" ? "NEEDS_HUMAN" : expectedVerdict,
 				ownerLedger: p.verifierCoverage.ownerLedger,
@@ -547,25 +550,129 @@ for (const mode of modes)
 					"not a directory",
 				);
 			}
+			const context = {
+				cwd: sidecarRoot ?? cwd,
+				stateCwd: stateDir(sidecarRoot ?? cwd),
+				runId: run.runId,
+				taskId: directTaskId,
+				sourceStatuses: [
+					partitionTask,
+					h.taskBySpec(current, "report.main"),
+				].map((task) => ({
+					source: task.stageId,
+					stageId: task.stageId,
+					specId: task.specId,
+					taskId: task.taskId,
+					status: "completed",
+				})),
+			};
 			const direct = await render({
 				sources: { "partition-findings": p, report },
-				context: {
-					cwd: sidecarRoot ?? cwd,
-					stateCwd: stateDir(sidecarRoot ?? cwd),
-					runId: run.runId,
-					taskId: directTaskId,
-					sourceStatuses: [
-						partitionTask,
-						h.taskBySpec(current, "report.main"),
-					].map((task) => ({
-						source: task.stageId,
-						stageId: task.stageId,
-						specId: task.specId,
-						taskId: task.taskId,
-						status: "completed",
-					})),
-				},
+				context,
 			});
+			const trust = direct.markdown.split("\n")[2];
+			if (mode === "legacy-positive") {
+				assert.match(trust, /0\/1 requirements covered/u);
+				assert.match(
+					direct.markdown,
+					/display-only[^\n]*REQ-001\n\n```text\nsource\.ts:1/u,
+				);
+			}
+			if (mode === "coverage-missing")
+				assert.match(trust, /1\/2 requirements covered/u);
+			if (
+				[
+					"extract-duplicate",
+					"candidate-stale",
+					"saved-missing",
+					"source-stale",
+				].includes(mode)
+			)
+				assert.match(trust, /requirement coverage unproven/u, mode);
+			if (mode === "report-risks") {
+				assert.equal(
+					direct.completionSummaryMarkdown.split("\n")[2],
+					String.raw`Verdict: **CONFORMS**. Size \&gt; limit &amp; literal &amp;gt;.`,
+				);
+				assert.doesNotMatch(
+					direct.markdown,
+					/Coverage citations \(display-only/u,
+				);
+				const staleAudit = structuredClone(p);
+				staleAudit.evidenceGate.coverage[0].rows[0].index = 99;
+				const unbound = await render({
+					sources: { "partition-findings": staleAudit, report },
+					context,
+				});
+				assert.match(
+					unbound.markdown.split("\n")[2],
+					/requirement coverage unproven/u,
+				);
+				assert.match(
+					unbound.markdown,
+					/display-only[^\n]*REQ-001\n\n```json\n/u,
+				);
+			}
+			if (mode === "unclear-rechecked-covered") {
+				assert.match(trust, /1\/1 requirements covered/u);
+				const original = await readFile(path(rechecker), "utf8");
+				const edited = JSON.parse(original);
+				edited.reason = "Edited recheck while leaving the evidence intact.";
+				await writeFile(path(rechecker), JSON.stringify(edited));
+				try {
+					const staleRecheck = await render({
+						sources: { "partition-findings": p, report },
+						context,
+					});
+					assert.match(
+						staleRecheck.markdown.split("\n")[2],
+						/requirement coverage unproven/u,
+					);
+				} finally {
+					await writeFile(path(rechecker), original);
+				}
+			}
+
+			const fallbacks = {
+				"all-covered-drop": [
+					"CONFORMS",
+					"The reviewed implementation meets the checked requirements.",
+				],
+				"gap-keep": [
+					"GAPS_FOUND",
+					"The review confirmed gaps between the requirements and implementation.",
+				],
+				"legacy-positive": [
+					"INCONCLUSIVE",
+					"The evidence does not establish conformance.",
+				],
+				"needs-human-shape": [
+					"NEEDS_HUMAN",
+					"Unresolved items require human review.",
+				],
+			};
+			if (Object.hasOwn(fallbacks, mode)) {
+				const [verdict, sentence] = fallbacks[mode];
+				for (const synthesis of [
+					undefined,
+					{ ...report, verdict, summary: "Long ".repeat(90) },
+				]) {
+					const fallback = await render({
+						sources: { "partition-findings": p, report: synthesis },
+						context,
+					});
+					assert.equal(fallback.verdict, verdict);
+					assert.ok(
+						fallback.markdown.split("## Appendix")[0].includes(sentence),
+						sentence,
+					);
+				}
+			}
+			if (mode === "unclear-recheck-wrong-id")
+				assert.match(
+					direct.markdown,
+					/Ignored rechecks[\s\S]*requirementId differs from the item/u,
+				);
 			current = await step();
 			const final = h.taskBySpec(current, "final.main");
 			let result;
@@ -628,11 +735,11 @@ for (const mode of modes)
 					});
 					assert.match(
 						direct.markdown,
-						/unclear, re-checked: covered — Fixture recheck\./u,
+						/Re-checked: Unclear → Covered — Fixture recheck\./u,
 					);
 				}
 				if (mode === "unclear-keep")
-					assert.match(direct.markdown, /unclear, re-checked: gap/u);
+					assert.match(direct.markdown, /Re-checked: Unclear → Gap/u);
 			} else {
 				if (mode !== "sidecar-failure")
 					assert.notEqual(result?.status, "passed");

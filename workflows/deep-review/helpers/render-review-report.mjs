@@ -13,6 +13,10 @@ import {
 	requiredReportVerdict,
 } from "./review-verdict.mjs";
 
+import {
+	escapeCompletionText, escapeMarkdownText, escapeTableCell, fold, inlineCode, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
+} from "./report-markdown.mjs";
+
 const SEVERITY_ORDER = ["critical", "high", "medium", "low", "info", "unknown"];
 const REPORT_VERDICTS = new Set([
 	"REVIEW_COMPLETE",
@@ -73,42 +77,7 @@ function evidenceText(value) {
 	return String(value ?? "");
 }
 
-function escapeHeadingText(value) {
-	return cleanText(value)
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/([\\`*_[\]{}#+|])/g, "\\$1");
-}
-
-function escapeMarkdownText(value) {
-	return escapeHeadingText(value);
-}
-
-function escapeTableCell(value) {
-	// Table cells are untrusted output too. Escape HTML before Markdown table
-	// separators; do not allow a gap reason or path to become viewer markup.
-	return escapeHeadingText(value);
-}
-
-// A code span is literal in CommonMark: Markdown escapes (`_` -> `\_`) would show as written.
-// Only what the span or a table cell cannot carry changes: HTML (viewers differ), whitespace runs
-// and, in a table cell, `|` — GFM splits cells on unescaped pipes even inside code spans and
-// unescapes `\|` in the cell text, so the escape is invisible there (GFM spec, "Tables").
-function inlineCode(value, { table = false } = {}) {
-	let text = cleanText(value)
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;");
-	if (table) text = text.replace(/\|/g, "\\|");
-	const longestRun = Math.max(
-		0,
-		...[...text.matchAll(/`+/g)].map((match) => match[0].length),
-	);
-	const fence = "`".repeat(Math.max(1, longestRun + 1));
-	const padded = /^`|`$|^\s|\s$/.test(text) ? ` ${text} ` : text;
-	return `${fence}${padded}${fence}`;
-}
+const escapeHeadingText = escapeMarkdownText;
 
 function completionText(value) {
 	const withoutArtifactPaths = cleanText(value)
@@ -951,12 +920,12 @@ function markdownFenceInfo(quote) {
 	return "text";
 }
 
-function renderLocationsTable(locations) {
-	if (locations.length === 0) return ["Locations: _not provided_", ""];
+function renderLocationsTable(locations, t) {
+	if (locations.length === 0) return [t("Locations: _not provided_", "위치: _자료 없음_"), ""];
 	return [
-		"Locations:",
+		t("Locations:", "위치:"),
 		"",
-		"| File | Line | Symbol |",
+		t("| File | Line | Symbol |", "| 파일 | 줄 | 심볼 |"),
 		"|---|---:|---|",
 		...locations.map((location) => {
 			const line =
@@ -985,10 +954,10 @@ function renderEvidenceQuotes(quotes, label = "Evidence") {
 	return out;
 }
 
-function renderMergedProvenance(finding) {
+function renderMergedProvenance(finding, t) {
 	const lineage = mergedLineageOf(finding);
 	if (lineage.length === 0) return [];
-	const out = ["Merged provenance:", ""];
+	const out = [t("Merged provenance:", "병합 출처:"), ""];
 	for (const [index, member] of lineage.entries()) {
 		const id = findingIdOf(member, index);
 		const title = titleOf(member);
@@ -997,22 +966,22 @@ function renderMergedProvenance(finding) {
 		);
 		const severity = severityOf(member);
 		out.push(
-			`- ${inlineCode(id)} — ${escapeMarkdownText(title)} (original verdict: **${escapeMarkdownText(verdict)}**, original severity: **${escapeMarkdownText(member.originalSeverity ?? severity)}**)`,
+			`- ${inlineCode(id)} — ${escapeMarkdownText(title)} (${t("original verdict", "원래 판정")}: **${escapeMarkdownText(reportStatus(verdict, t))}**, ${t("original severity", "원래 심각도")}: **${escapeMarkdownText(reportStatus(member.originalSeverity ?? severity, t))}**)`,
 		);
-		out.push(`  ${exactField("Finding ID", id)}`);
-		out.push(`  ${exactField("Original finding ID", member.originalFindingId)}`);
-		out.push(`  ${exactField("Root cause ID", member.rootCauseId)}`);
+		out.push(`  ${exactField(t("Finding ID", "발견 ID"), id)}`);
+		out.push(`  ${exactField(t("Original finding ID", "원래 발견 ID"), member.originalFindingId)}`);
+		out.push(`  ${exactField(t("Root cause ID", "근본 원인 ID"), member.rootCauseId)}`);
 		if (member.reviewerIdentity) {
-			out.push(`  Reviewer source: ${inlineCode(member.reviewerIdentity.source)}`);
-			out.push(`  Reviewer task: ${inlineCode(member.reviewerIdentity.taskId)}`);
+			out.push(`  ${t("Reviewer source", "검토자 출처")}: ${inlineCode(member.reviewerIdentity.source)}`);
+			out.push(`  ${t("Reviewer task", "검토자 작업")}: ${inlineCode(member.reviewerIdentity.taskId)}`);
 		}
 		if (member.source || asArray(member.sourceLineage).length > 0) {
 			const lineageSources = asArray(member.sourceLineage).filter(
 				(value) => typeof value === "string",
 			);
-			out.push(`  Source: ${inlineCode(member.source ?? "")}`);
+			out.push(`  ${t("Source", "출처")}: ${inlineCode(member.source ?? "")}`);
 			out.push(
-				`  Source lineage: ${lineageSources.map((value) => inlineCode(value)).join(", ")}`,
+				`  ${t("Source lineage", "출처 이력")}: ${lineageSources.map((value) => inlineCode(value)).join(", ")}`,
 			);
 		}
 		for (const location of locationsOf(member)) {
@@ -1023,7 +992,7 @@ function renderMergedProvenance(finding) {
 						? `${location.line}-${location.lineEnd}`
 						: `${location.line}`;
 			out.push(
-				`  Location: ${inlineCode(location.file)}:${escapeTableCell(line)}`,
+				`  ${t("Location", "위치")}: ${inlineCode(location.file)}:${escapeTableCell(line)}`,
 			);
 		}
 		for (const quote of evidenceQuotesOf(member)) {
@@ -1031,26 +1000,26 @@ function renderMergedProvenance(finding) {
 			const runs = String(quote).match(/`+/g) ?? [];
 			const fence = "`".repeat(Math.max(3, ...runs.map((run) => run.length + 1)));
 			out.push(
-				`  Evidence (${info}):`,
+				`  ${t("Evidence", "근거")} (${info}):`,
 				`  ${fence}${info}`,
 				`  ${String(quote).replace(/\n/g, "\n  ")}`,
 				`  ${fence}`,
 			);
 		}
 		const action = cleanText(member.recommendedAction);
-		if (action) out.push(`  Action: ${escapeMarkdownText(action)}`);
+		if (action) out.push(`  ${t("Action", "조치")}: ${escapeMarkdownText(action)}`);
 		for (const counter of asArray(member.counterEvidence)) {
 			const text = cleanText(
 				typeof counter === "string" ? counter : JSON.stringify(counter),
 			);
-			if (text) out.push(`  Counter-evidence: ${escapeMarkdownText(text)}`);
+			if (text) out.push(`  ${t("Counter-evidence", "반증")}: ${escapeMarkdownText(text)}`);
 		}
 	}
 	out.push("");
 	return out;
 }
 
-function renderCounterEvidence(finding) {
+function renderCounterEvidence(finding, t) {
 	const counter = asArray(finding?.counterEvidence)
 		.map((item) =>
 			typeof item === "string"
@@ -1061,7 +1030,7 @@ function renderCounterEvidence(finding) {
 		.filter(Boolean);
 	if (counter.length === 0 && !finding?.note) return [];
 	return [
-		"Caveat / counter-evidence:",
+		t("Caveat / counter-evidence:", "주의 사항과 반증:"),
 		"",
 		...(finding?.note ? [`- ${escapeHeadingText(finding.note)}`] : []),
 		...counter.map((item) => `- ${item}`),
@@ -1103,18 +1072,6 @@ function expectedFindingCount(partition, allFindings) {
 	return allFindings.length;
 }
 
-function groupBySeverity(findings) {
-	const grouped = new Map();
-	for (const finding of findings) {
-		const severity = severityOf(finding);
-		if (!grouped.has(severity)) grouped.set(severity, []);
-		grouped.get(severity).push(finding);
-	}
-	return [...grouped.entries()].sort(
-		([a], [b]) => severityRank(a) - severityRank(b) || a.localeCompare(b),
-	);
-}
-
 function severityCounts(findings) {
 	const counts = {};
 	for (const finding of findings) {
@@ -1124,103 +1081,53 @@ function severityCounts(findings) {
 	return counts;
 }
 
-function renderSeveritySummary(findings) {
-	const counts = severityCounts(findings);
-	if (Object.keys(counts).length === 0) return [];
-	return [
-		"## Finding summary",
-		"",
-		"| Severity | Count |",
-		"|---|---:|",
-		...Object.entries(counts)
-			.sort(([a], [b]) => severityRank(a) - severityRank(b) || a.localeCompare(b))
-			.map(([severity, count]) => `| ${escapeTableCell(severity)} | ${count} |`),
-		"",
-	];
-}
-
-function renderFindingCard(finding) {
-	const locations = locationsOf(finding);
-	const reviewerQuotes = reviewerEvidenceQuotesOf(finding);
+function renderFindingCard(finding, t, actionInList = true) {
 	const verifierQuotes = verifierEvidenceQuotesOf(finding);
-	const out = [
-		`### ${escapeHeadingText(finding.findingId)} — ${escapeHeadingText(readerTitleOf(finding))}`,
-		"",
-		`Severity: **${escapeMarkdownText(finding.severity)}**  `,
-		...(finding.rootCauseId
-			? [`Root cause: ${inlineCode(finding.rootCauseId)}  `]
-			: []),
-		...(finding.verdict && finding.verdict !== "KEEP"
-			? [`Verifier verdict: **${escapeMarkdownText(finding.verdict)}**  `]
-			: []),
-		...(finding.verdict === "NEEDS_HUMAN" && cleanText(finding.needsHumanCause)
-			? [
-					`Needs-human cause: ${needsHumanCauseCode(cleanText(finding.needsHumanCause))} — ${escapeMarkdownText(needsHumanCauseLabel(cleanText(finding.needsHumanCause)))}  `,
-				]
-			: []),
-		"",
-		...renderLocationsTable(locations),
-		...renderEvidenceQuotes(reviewerQuotes, "Reviewer/source evidence"),
-		...renderEvidenceQuotes(verifierQuotes, "Verifier evidence"),
-		...(finding.verdict === "NEEDS_HUMAN" && verifierQuotes.length === 0
-			? [
-					"Verifier evidence: unavailable.",
-					...(finding.evidenceUnavailableReason
-						? [
-							"",
-							`Reason: ${escapeMarkdownText(finding.evidenceUnavailableReason)}`,
-						]
-						: []),
-					"",
-				]
-			: []),
-		...renderMergedProvenance(finding),
+	const reason = cleanText(finding.evidenceUnavailableReason);
+	const rationale = finding.readerRationale ?? finding.rationale;
+	const sources = [finding.source, ...asArray(finding.sourceLineage)].filter((value) => cleanText(value));
+	const action = finding.recommendedAction ?? finding.concreteFix;
+	const body = [
+		...(finding.rootCauseId ? [`${t("Root cause", "근본 원인")}: ${inlineCode(finding.rootCauseId)}`, ""] : []),
+		...(finding.verdict === "NEEDS_HUMAN" && finding.needsHumanCause ? [
+			`${t("Needs-human cause", "사람 검토가 필요한 이유")}: ${needsHumanCauseCode(cleanText(finding.needsHumanCause))} — ${needsHumanCauseLabel(cleanText(finding.needsHumanCause), t)}`, "",
+		] : []),
+		...renderLocationsTable(locationsOf(finding), t),
+		...(sources.length ? [`${t("Sources", "출처")}: ${[...new Set(sources)].map((value) => escapeMarkdownText(value)).join(" · ")}`, ""] : []),
+		...renderEvidenceQuotes(reviewerEvidenceQuotesOf(finding), t("Reviewer/source evidence", "검토자 근거")),
+		...renderEvidenceQuotes(verifierQuotes, t("Verifier evidence", "검증자 근거")),
+		...(finding.verdict === "NEEDS_HUMAN" && !verifierQuotes.length ? [t("Verifier evidence: unavailable.", "검증자 근거: 자료 없음."), ""] : []),
+		...(reason ? [`${t("Reason", "이유")}: ${escapeMarkdownText(reason)}`, ""] : []),
+		...(rationale ? [t("Rationale:", "판단 이유:"), "", escapeMarkdownText(rationale), ""] : []),
+		...(!actionInList && action ? [t("Recorded action:", "기록된 조치:"), "", escapeMarkdownText(action), ""] : []),
+		...renderMergedProvenance(finding, t),
+		...renderCounterEvidence(finding, t),
 	];
-	const rationale = escapeMarkdownText(
-		finding.readerRationale ?? finding.rationale ?? "",
-	);
-	if (rationale) out.push("Rationale:", "", rationale, "");
-	const note = escapeMarkdownText(
-		finding.note ?? finding.evidenceUnavailableReason ?? "",
-	);
-	if (note) out.push("Review note:", "", note, "");
-	const action = escapeHeadingText(
-		finding.recommendedAction ?? finding.concreteFix ?? "",
-	);
-	if (action) {
-		out.push("Recommended action:", "", action, "");
-	}
-	out.push(...renderCounterEvidence(finding));
-	return out;
+	return [
+		`### ${escapeHeadingText(finding.findingId)} — ${escapeHeadingText(readerTitleOf(finding))}`, "",
+		`${t("Severity", "심각도")}: **${escapeMarkdownText(reportStatus(finding.severity, t))}**  `,
+		`${t("Verifier verdict", "검증 판정")}: **${escapeMarkdownText(reportStatus(finding.verdict, t))}**`, "",
+		...fold(t("Evidence", "근거 보기"), body), "",
+	];
 }
 
-function renderFindings(findings) {
-	if (findings.length === 0)
-		return [
-			"## Findings",
-			"",
-			"No kept or weakened findings were present in the partition ledger.",
-			"",
-		];
-	const representedIds = findings.map((finding) => finding.findingId);
-	const out = [];
-	for (const [severity, group] of groupBySeverity(findings)) {
-		out.push(`## ${severity[0].toUpperCase()}${severity.slice(1)} findings`, "");
-		for (const finding of group) out.push(...renderFindingCard(finding));
-	}
-	return { lines: out, representedIds };
+function renderFindings(findings, t) {
+	return {
+		lines: reportSection(2, t("Findings", "발견 사항"), findings.flatMap((finding) => renderFindingCard(finding, t))),
+		representedIds: findings.map((finding) => finding.findingId),
+	};
 }
 
-function renderDropped(partition) {
+function renderDropped(partition, t) {
 	const ledger = partition?.partitions ?? partition?.reportContext;
 	const items = asArray(ledger?.drop);
 	if (items.length === 0) return { lines: [], representedIds: [] };
-	const out = ["## Dropped findings", ""];
+	const out = [`### ${t("Dropped findings", "제외한 발견 사항")}`, ""];
 	const representedIds = [];
 	for (const [index, raw] of items.entries()) {
 		const finding = normalizeFinding(raw, index, "DROP");
 		representedIds.push(finding.findingId);
-		out.push(...renderFindingCard(finding));
+		out.push(...renderFindingCard(finding, t, false));
 	}
 	out.push("");
 	return { lines: out, representedIds };
@@ -1242,11 +1149,18 @@ function needsHumanCauseCode(cause) {
 	return /^[a-z_]+$/u.test(cause) ? `\`${cause}\`` : inlineCode(cause);
 }
 
-function needsHumanCauseLabel(cause) {
-	return NEEDS_HUMAN_CAUSE_LABELS[cause] ?? "cause not recorded";
+function needsHumanCauseLabel(cause, t) {
+	const ko = {
+		verifier_missing: "검증 판정이 돌아오지 않음", verifier_output_invalid: "검증 결과의 형식 오류 또는 중복",
+		verifier_evidence_ungrounded: "검증 근거가 출처에서 확인되지 않음", source_coverage_incomplete: "검토자가 필수 자료를 다 확인하지 못함",
+		batch_evidence_demoted: "일괄 판정의 근거 부족", evidence_insufficient: "판정에 필요한 근거 부족",
+		coverage_gap: "계획한 검토 범위 누락", support_unassociated: "연결된 근본 원인을 확인하지 못함",
+		verifier_needs_human: "검증자가 모호하다고 판단함",
+	};
+	return Object.hasOwn(ko, cause) ? t(NEEDS_HUMAN_CAUSE_LABELS[cause], ko[cause]) : t("cause not recorded", "이유가 기록되지 않음");
 }
 
-function renderNeedsHumanBreakdown(items) {
+function renderNeedsHumanBreakdown(items, t) {
 	const counts = new Map();
 	for (const item of items) {
 		const cause = cleanText(item?.needsHumanCause) || "unspecified";
@@ -1256,27 +1170,26 @@ function renderNeedsHumanBreakdown(items) {
 		return [];
 	}
 	return [
-		"Causes:",
+		t("Causes:", "원인별 집계:"),
 		"",
 		...[...counts].map(
 			([cause, count]) =>
-				`- ${count} × ${needsHumanCauseCode(cause)} — ${needsHumanCauseLabel(cause)}`,
+				`- ${count} × ${needsHumanCauseCode(cause)} — ${needsHumanCauseLabel(cause, t)}`,
 		),
 		"",
 	];
 }
 
-function renderNeedsHuman(partition) {
+function renderNeedsHuman(partition, t) {
 	const ledger = partition?.partitions ?? partition?.reportContext;
 	const items = asArray(ledger?.needsHuman);
 	if (items.length === 0) return { lines: [], representedIds: [] };
-	const out = ["## Needs human review", ""];
-	out.push(...renderNeedsHumanBreakdown(items));
+	const out = [`## ${t("Needs human review", "사람 검토 필요")}`, ""];
 	const representedIds = [];
 	for (const [index, raw] of items.entries()) {
 		const finding = normalizeFinding(raw, index, "NEEDS_HUMAN");
 		representedIds.push(finding.findingId);
-		out.push(...renderFindingCard(finding));
+		out.push(...renderFindingCard(finding, t));
 	}
 	return { lines: out, representedIds };
 }
@@ -1322,13 +1235,13 @@ function exactField(label, value) {
 	return `${label}: ${inlineCode(text)}`;
 }
 
-function renderReviewerOwner(owner) {
+function renderReviewerOwner(owner, t) {
 	if (!owner || typeof owner !== "object")
-		return ["Reviewer owner: _not provided_", ""];
+		return [t("Reviewer owner: _not provided_", "검토 담당: _자료 없음_"), ""];
 	return [
-		"Reviewer owner:",
+		t("Reviewer owner:", "검토 담당:"),
 		"",
-		exactField("- source", owner.source),
+		exactField(t("- source", "- 출처"), owner.source),
 		exactField("- specId", owner.specId),
 		exactField("- taskId", owner.taskId),
 		exactField("- itemIdentity", owner.itemIdentity),
@@ -1337,29 +1250,29 @@ function renderReviewerOwner(owner) {
 	];
 }
 
-function renderSupportProvenance(note) {
+function renderSupportProvenance(note, t) {
 	const sourceLineage = asArray(note?.sourceLineage).filter(
 		(value) => typeof value === "string",
 	);
 	return [
-		"Support provenance:",
+		t("Support provenance:", "보조 관찰 출처:"),
 		"",
-		exactField("Finding ID", note?.findingId),
-		exactField("Original finding ID", note?.originalFindingId),
-		exactField("Root cause ID", note?.rootCauseId),
-		...renderReviewerOwner(note?.reviewerIdentity),
+		exactField(t("Finding ID", "발견 ID"), note?.findingId),
+		exactField(t("Original finding ID", "원래 발견 ID"), note?.originalFindingId),
+		exactField(t("Root cause ID", "근본 원인 ID"), note?.rootCauseId),
+		...renderReviewerOwner(note?.reviewerIdentity, t),
 		...(note?.verifierOwner
-			? ["Verifier owner:", ...renderReviewerOwner(note.verifierOwner)]
+			? [t("Verifier owner:", "검증 담당:"), ...renderReviewerOwner(note.verifierOwner, t)]
 			: []),
-		exactField("Source", note?.source),
-		`Source lineage: ${sourceLineage.length > 0 ? sourceLineage.map((value) => inlineCode(value)).join(", ") : "_not provided_"}`,
-		exactField("Supporting finding ID", note?.supportingFindingId),
-		`Merged lineage: ${
+		exactField(t("Source", "출처"), note?.source),
+		`${t("Source lineage", "출처 이력")}: ${sourceLineage.length > 0 ? sourceLineage.map((value) => inlineCode(value)).join(", ") : t("_not provided_", "_자료 없음_")}`,
+		exactField(t("Supporting finding ID", "보조 발견 ID"), note?.supportingFindingId),
+		`${t("Merged lineage", "병합 이력")}: ${
 			mergedLineageOf(note).length > 0
 				? mergedLineageOf(note)
 						.map((member, index) => inlineCode(findingIdOf(member, index)))
 						.join(", ")
-				: "_none_"
+				: t("_none_", "_없음_")
 		}`,
 		"",
 	];
@@ -1402,10 +1315,10 @@ function supportEmissionRow(note, index) {
 	};
 }
 
-function renderSupportNotes(partition) {
+function renderSupportNotes(partition, t) {
 	const notes = asArray(partition?.supportNotes);
 	if (notes.length === 0) return { lines: [], representedRows: 0 };
-	const out = ["## Supporting observations", ""];
+	const out = [`### ${t("Supporting observations", "보조 관찰")}`, ""];
 	let representedRows = 0;
 	for (const note of notes) {
 		representedRows += 1;
@@ -1413,26 +1326,23 @@ function renderSupportNotes(partition) {
 		out.push(
 			`### ${noteId ? `${inlineCode(noteId)} — ` : ""}${escapeMarkdownText(readerTitleOf(note))}`,
 			"",
-			`Severity: **${escapeMarkdownText(severityOf(note))}**  `,
+			`${t("Severity", "심각도")}: **${escapeMarkdownText(reportStatus(severityOf(note), t))}**  `,
 		);
 		const reason = cleanText(note?.reason);
-		if (reason) out.push(`Reason: ${escapeMarkdownText(reason)}  `);
+		if (reason) out.push(`${t("Reason", "이유")}: ${escapeMarkdownText(reason)}  `);
 		const rationale = escapeMarkdownText(
 			note?.readerRationale ?? note?.rationale ?? "",
 		);
-		if (rationale) out.push("Rationale:", "", rationale, "");
+		if (rationale) out.push(t("Rationale:", "판단 이유:"), "", rationale, "");
 		const related = cleanText(note?.supportingFindingOf);
-		if (related) out.push(`Supports: ${escapeMarkdownText(related)}  `);
+		if (related) out.push(`${t("Supports", "관련 발견")}: ${escapeMarkdownText(related)}  `);
 		out.push(
 			"",
-			...renderSupportProvenance(note),
-			...renderLocationsTable(locationsOf(note)),
-			...renderEvidenceQuotes(evidenceQuotesOf(note)),
-			...renderMergedProvenance(note),
+			...renderSupportProvenance(note, t),
+			...renderLocationsTable(locationsOf(note), t),
+			...renderEvidenceQuotes(evidenceQuotesOf(note), t("Evidence", "근거")),
+			...renderMergedProvenance(note, t),
 		);
-		const action = cleanText(note?.recommendedAction);
-		if (action)
-			out.push("Recommended action:", "", escapeMarkdownText(action), "");
 	}
 	return { lines: out, representedRows };
 }
@@ -1497,7 +1407,7 @@ function supportNoteCounts(partition) {
 	};
 }
 
-function renderRisks(report, partition) {
+function renderRisks(report, partition, t) {
 	const risks = asArray(report?.risks).map((risk) =>
 		typeof risk === "string"
 			? risk
@@ -1519,15 +1429,15 @@ function renderRisks(report, partition) {
 	);
 	if (risks.length === 0 && partialFailures.length === 0 && notes.length === 0)
 		return [];
-	const out = ["## Risks and partial-review limitations", ""];
+	const out = [];
 	for (const risk of risks) out.push(`- ${escapeMarkdownText(risk)}`);
 	for (const failure of partialFailures) {
 		out.push(
-			`- Partial source: ${escapeMarkdownText(failure.displayName ?? failure.specId ?? failure.source ?? JSON.stringify(failure))} (${escapeMarkdownText(failure.status ?? "unknown")})`,
+			`- ${t("Partial source", "불완전한 출처")}: ${escapeMarkdownText(failure.displayName ?? failure.specId ?? failure.source ?? JSON.stringify(failure))} (${escapeMarkdownText(reportStatus(failure.status ?? "unknown", t))})`,
 		);
 	}
 	for (const note of notes)
-		out.push(`- Normalization note: ${escapeMarkdownText(note)}`);
+		out.push(`- ${t("Normalization note", "정규화 메모")}: ${escapeMarkdownText(note)}`);
 	out.push("");
 	return out;
 }
@@ -1560,18 +1470,18 @@ function sourceCoverageGaps(partition) {
 	});
 }
 
-function renderSourceCoverageGaps(partition) {
+function renderSourceCoverageGaps(partition, t) {
 	const gaps = sourceCoverageGaps(partition);
 	if (gaps.length === 0) return [];
 	const lines = [
-		"## Required source coverage gaps",
+		`### ${t("Required source coverage gaps", "누락된 필수 출처")}`,
 		"",
-		"| Reviewer source | Required source | Status | Extraction artifact | Detail |",
+		t("| Reviewer source | Required source | Status | Extraction artifact | Detail |", "| 검토자 출처 | 필수 출처 | 상태 | 추출 자료 | 상세 |"),
 		"|---|---|---|---|---|",
 	];
 	for (const gap of gaps) {
 		lines.push(
-			`| ${escapeTableCell(gap.displayName ?? gap.specId ?? gap.source ?? "unknown")} | ${escapeTableCell(gap.sourcePath ?? "unknown")} | ${escapeTableCell(gap.coverageStatus ?? gap.status ?? "unknown")} | ${escapeTableCell(gap.extractionArtifact ?? "—")} | ${escapeTableCell(gap.statusDetail ?? "Required source content was not read.")} |`,
+			`| ${escapeTableCell(gap.displayName ?? gap.specId ?? gap.source ?? "unknown")} | ${escapeTableCell(gap.sourcePath ?? "unknown")} | ${escapeTableCell(reportStatus(gap.coverageStatus ?? gap.status ?? "unknown", t))} | ${escapeTableCell(gap.extractionArtifact ?? "—")} | ${escapeTableCell(gap.statusDetail ?? "Required source content was not read.")} |`,
 		);
 	}
 	lines.push("");
@@ -1604,6 +1514,7 @@ function completionLimitations({
 	reportVerdictConsistent,
 	narrativeVerdict,
 	effectiveVerdict,
+	t = (en) => en,
 	rendererIntegrityFailed,
 	partition,
 	findingCountMismatch,
@@ -1615,44 +1526,44 @@ function completionLimitations({
 	supportNoteEvidenceIncomplete,
 }) {
 	const limitations = [
-		"Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.",
+		t("Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.", "근거와 인용은 검토 당시의 스냅샷을 기준으로 합니다. 보고서를 만들 때 현재 파일을 다시 확인하지 않았습니다."),
 	];
 	if (rendererIntegrityFailed)
 		limitations.push(
-			"Renderer integrity checks failed, so counts, provenance, or canonical ledgers must be repaired before relying on the conclusion.",
+			t("Renderer integrity checks failed, so counts, provenance, or canonical ledgers must be repaired before relying on the conclusion.", "보고서 무결성 검사에 실패했습니다. 결론을 사용하기 전에 건수, 출처 또는 원장을 확인하세요."),
 		);
 	if (hasPartialFailures(partition))
 		limitations.push(
-			"Review coverage is partial because a task did not complete or required source content was unavailable.",
+			t("Review coverage is partial because a task did not complete or required source content was unavailable.", "일부 작업이 끝나지 않았거나 필요한 자료를 읽지 못했습니다."),
 		);
 	const synthesisAvailable = Boolean(_reportAvailable);
 	if (!synthesisAvailable)
 		limitations.push(
-			"Executive synthesis was unavailable, so no complete review conclusion can be claimed.",
+			t("Executive synthesis was unavailable, so no complete review conclusion can be claimed.", "종합 의견이 없어 검토가 완전하다고 볼 수 없습니다."),
 		);
 	else if (!reportVerdictConsistent)
 		limitations.push(
-			`The executive synthesis gave verdict ${cleanText(narrativeVerdict) || "none"}, which the deterministic ledger does not support; the report uses ${cleanText(effectiveVerdict)}.`,
+			t(`The executive synthesis gave verdict ${cleanText(narrativeVerdict) || "none"}, which the deterministic ledger does not support; the report uses ${cleanText(effectiveVerdict)}.`, `종합 의견의 판정(${reportStatus(narrativeVerdict || "none", t)})을 원장에서 뒷받침하지 않습니다. 보고서 판정은 ${reportStatus(effectiveVerdict, t)}입니다.`),
 		);
 	if (findingCountMismatch)
 		limitations.push(
-			"The declared finding count does not match the available finding rows.",
+			t("The declared finding count does not match the available finding rows.", "기록된 발견 건수가 실제 항목 수와 일치하지 않습니다."),
 		);
 	if (needsHumanMetadataMissing || needsHumanCountMismatch)
 		limitations.push(
-			"Needs-human metadata or row counts are incomplete or inconsistent.",
+			t("Needs-human metadata or row counts are incomplete or inconsistent.", "사람 검토 항목의 상세 정보나 건수가 누락되었거나 일치하지 않습니다."),
 		);
 	if (needsHumanEvidenceIncomplete)
 		limitations.push(
-			"At least one needs-human row lacks verifier evidence; any reviewer/source quote shown for it is not verifier evidence.",
+			t("At least one needs-human row lacks verifier evidence; any reviewer/source quote shown for it is not verifier evidence.", "일부 사람 검토 항목에 검증자 근거가 없습니다. 검토자가 제시한 인용은 검증자 근거가 아닙니다."),
 		);
 	if (supportNoteMetadataMissing || supportNoteCountMismatch)
 		limitations.push(
-			"Supporting-observation metadata or row counts are incomplete or inconsistent.",
+			t("Supporting-observation metadata or row counts are incomplete or inconsistent.", "보조 관찰의 상세 정보나 건수가 누락되었거나 일치하지 않습니다."),
 		);
 	if (supportNoteEvidenceIncomplete)
 		limitations.push(
-			"At least one supporting observation lacks complete location or quote evidence.",
+			t("At least one supporting observation lacks complete location or quote evidence.", "일부 보조 관찰에 위치 또는 인용 근거가 없습니다."),
 		);
 	return [...new Set(limitations)];
 }
@@ -1691,7 +1602,7 @@ function renderCompletionSummary({
 	} else {
 		for (const row of keyRows) {
 			out.push(
-				`- **${escapeMarkdownText(row.severity)} / ${escapeMarkdownText(row.label)}:** ${completionText(row.title)}`,
+				`- **${escapeCompletionText(row.severity)} / ${escapeCompletionText(row.label)}:** ${completionText(row.title)}`,
 			);
 		}
 		const omitted = findings.length + needsHuman.length - keyRows.length;
@@ -1729,46 +1640,33 @@ function renderCompletionSummary({
 		.trim();
 }
 
-function renderEvidenceCoverage(partition, findings) {
-	const ledger = partition?.partitions ?? partition?.reportContext;
-	return [
-		"## Evidence and review coverage",
-		"",
-		`- Canonical ledger rows rendered: ${findings.length} kept or weakened findings, ${asArray(ledger?.needsHuman).length} needs-human items, and ${asArray(partition?.supportNotes).length} supporting observations.`,
-		`- Source coverage: ${hasPartialFailures(partition) ? "partial; see limitations below" : "complete according to deterministic source-status accounting"}.`,
-		"- Finding cards preserve ledger locations, evidence quotes, verifier dispositions, counter-evidence, and recommended actions where present.",
-		"- Counts, dispositions, and the effective verdict come from deterministic partition state; narrative synthesis cannot override them.",
-		"",
-	];
-}
-
 /**
  * agent-workflow 2026-11-01: evidence the pipeline matched with a correction (finding-pipeline
  * `evidenceCorrections`): cited lines off by at most ten, a planned range ending past the file, or
  * whitespace / quote and dash characters. The stored evidence is the reviewed file's own text.
  */
-function renderEvidenceCorrections(partition) {
+function renderEvidenceCorrections(partition, t) {
 	const corrections = asArray(partition?.evidenceCorrections).filter(
 		(correction) => correction && typeof correction === "object",
 	);
 	if (corrections.length === 0) return [];
 	const why = (correction) => {
 		if (correction.kind === "planned-range-end")
-			return `the planned range ends past the file (${correction.fileLines} lines)`;
+			return t(`the planned range ends past the file (${correction.fileLines} lines)`, `계획 범위가 파일 끝(${correction.fileLines}줄)을 넘음`);
 		if (correction.kind === "blank-planned-range")
-			return "the planned lines are blank, so there was nothing to quote";
+			return t("the planned lines are blank, so there was nothing to quote", "계획한 줄이 비어 있어 인용할 내용이 없음");
 		if (correction.reason === "whitespace")
-			return "matches the file except whitespace or quote/dash characters; the file's text is stored";
+			return t("matches the file except whitespace or quote/dash characters; the file's text is stored", "공백 또는 인용 부호·대시를 빼면 일치해 파일 원문을 보존함");
 		return correction.kind === "coverage-quote"
-			? "the quote is a few lines outside the planned range"
-			: "the quote occurs once in the file, at these lines";
+			? t("the quote is a few lines outside the planned range", "인용이 계획 범위와 몇 줄 차이 남")
+			: t("the quote occurs once in the file, at these lines", "파일에서 이 줄에만 인용이 있음");
 	};
 	const lines = [
-		"## Evidence corrections",
+		`### ${t("Evidence corrections", "근거 위치 보정")}`,
 		"",
-		"Evidence that differed from the reviewed file only in cited lines or whitespace was matched against the file; the stored evidence is the file's own text.",
+		t("Evidence that differed from the reviewed file only in cited lines or whitespace was matched against the file; the stored evidence is the file's own text.", "인용 위치나 공백만 다른 근거는 검토한 파일과 대조했습니다. 보존된 근거는 파일의 원문입니다."),
 		"",
-		"| Stage | File | Lines given | Lines checked | Why |",
+		t("| Stage | File | Lines given | Lines checked | Why |", "| 단계 | 파일 | 제시한 줄 | 확인한 줄 | 이유 |"),
 		"|---|---|---|---|---|",
 	];
 	for (const correction of corrections) {
@@ -1778,10 +1676,10 @@ function renderEvidenceCorrections(partition) {
 			correction.kind === "coverage-quote" ||
 			correction.kind === "blank-planned-range";
 		const stage = isPlan
-			? `${correction.kind === "coverage-quote" ? "reviewer" : "triage plan"} for ${correction.lens || correction.source || "unknown"}`
-			: `verifier of ${correction.findingId || correction.source || "unknown"}`;
+			? `${correction.kind === "coverage-quote" ? t("reviewer", "검토자") : t("triage plan", "검토 계획")} for ${correction.lens || correction.source || "unknown"}`
+			: `${t("Verifier", "검증자")}: ${correction.findingId || correction.source || "unknown"}`;
 		const file = isPlan ? (pointer?.[1] ?? correction.path ?? "unknown") : (correction.file ?? "unknown");
-		const given = isPlan ? (pointer?.[2] ?? "whole file") : (correction.cited ?? "");
+		const given = isPlan ? (pointer?.[2] ?? t("whole file", "파일 전체")) : (correction.cited ?? "");
 		const checked =
 			correction.kind === "planned-range-end"
 				? correction.checked
@@ -1796,28 +1694,12 @@ function renderEvidenceCorrections(partition) {
 	return lines;
 }
 
-function renderLimitations(limitations) {
-	return [
-		"## Limitations",
-		"",
-		...(limitations.length > 0
-			? limitations.map((limitation) => `- ${escapeMarkdownText(limitation)}`)
-			: [
-					"- No incomplete source coverage or renderer integrity limitation was recorded.",
-				]),
-		"",
-	];
-}
-
-function renderRelatedArtifacts() {
-	return [
-		"## Related artifacts",
-		"",
-		"- [Machine-readable report](control.json) — structured renderer output and completion-summary contract.",
-		"- [Structured source references](refs.json) — source pointers retained by the final workflow task.",
-		"- [Legacy compatibility report](review.md) — byte-identical copy of this report.",
-		"",
-	];
+function renderRelatedArtifacts(t) {
+	return reportSection(3, t("Related artifacts", "관련 자료"), [
+		`- [${t("Machine-readable report", "기계 판독용 보고서")}](control.json)`,
+		`- [${t("Structured source references", "구조화된 출처")}](refs.json)`,
+		`- [${t("Legacy compatibility report", "이전 형식 호환 보고서")}](review.md)`,
+	]);
 }
 
 // agent-workflow 2026-11-17 (owner "다 진행"): the narrative is written before the renderer's integrity checks.
@@ -1836,7 +1718,7 @@ function narrativeVerdictNoteReasons(partition) {
 	return reasons;
 }
 
-function renderNarrativeVerdictNote(report, effectiveVerdict, partition) {
+function renderNarrativeVerdictNote(report, effectiveVerdict, partition, t) {
 	const narrativeVerdict = cleanText(report?.verdict);
 	if (!narrativeVerdict || narrativeVerdict === effectiveVerdict) return [];
 	const reasons = narrativeVerdictNoteReasons(partition);
@@ -1844,7 +1726,7 @@ function renderNarrativeVerdictNote(report, effectiveVerdict, partition) {
 		? reasons.join("; ")
 		: "the renderer's integrity checks did not pass";
 	return [
-		`> Verdict note: this narrative was written for verdict ${inlineCode(narrativeVerdict)}, but the final report verdict is ${inlineCode(effectiveVerdict)} (${reason}). Where the narrative describes review coverage or integrity, the final verdict and the limitations above take precedence.`,
+		t(`> Verdict note: this narrative was written for verdict ${inlineCode(narrativeVerdict)}, but the final report verdict is ${inlineCode(effectiveVerdict)} (${reason}). Where the narrative describes review coverage or integrity, the final verdict and the limitations above take precedence.`, `> 종합 의견은 ${escapeMarkdownText(reportStatus(narrativeVerdict, t))} 판정을 기준으로 작성되었습니다. 위의 최종 판정과 한계를 우선하세요.`),
 		"",
 	];
 }
@@ -1870,12 +1752,16 @@ function renderMarkdown({
 			severityRank(a.severity) - severityRank(b.severity) ||
 			a.findingId.localeCompare(b.findingId),
 	);
-	const rendered = renderFindings(sortedFindings);
+	const ledger = partition?.partitions ?? partition?.reportContext;
+	const needsHuman = asArray(ledger?.needsHuman);
+	const supportNotes = asArray(partition?.supportNotes);
+	const t = reportLocale(report?.summary, ...sortedFindings.map(readerTitleOf), ...needsHuman.map(readerTitleOf));
+	const rendered = renderFindings(sortedFindings, t);
 	const representedIds = rendered.representedIds ?? [];
-	const renderedNeedsHuman = renderNeedsHuman(partition);
-	const renderedDropped = renderDropped(partition);
-	const renderedSupportNotes = renderSupportNotes(partition);
-	const limitations = completionLimitations({
+	const renderedNeedsHuman = renderNeedsHuman(partition, t);
+	const renderedDropped = renderDropped(partition, t);
+	const renderedSupportNotes = renderSupportNotes(partition, t);
+	const limitationInputs = {
 		_reportAvailable: reportAvailable,
 		reportVerdictConsistent,
 		narrativeVerdict: report?.verdict,
@@ -1889,7 +1775,8 @@ function renderMarkdown({
 		supportNoteCountMismatch,
 		supportNoteMetadataMissing,
 		supportNoteEvidenceIncomplete,
-	});
+	};
+	const limitations = completionLimitations(limitationInputs);
 	const completionSummaryMarkdown = renderCompletionSummary({
 		reportAvailable,
 		effectiveVerdict,
@@ -1897,114 +1784,54 @@ function renderMarkdown({
 		findings: sortedFindings,
 		limitations,
 	});
-	const executiveSummary = completionSummaryMarkdown.replace(/^## /gm, "### ");
-	const lines = [
-		"# Deep review report",
-		"",
-		"## Executive summary",
-		"",
-		executiveSummary,
-		"",
-		...renderSeveritySummary(sortedFindings),
+	const partial = hasPartialFailures(partition) || rendererIntegrityFailed;
+	const risks = renderRisks(report, partition, t);
+	const caveats = completionLimitations({ ...limitationInputs, t });
+	const outcome = {
+		NEEDS_WORK: t("Resolve the findings or open questions before release.", "배포 전에 발견 사항이나 미해결 질문을 처리하세요."),
+		PARTIAL_REVIEW: t("Some review work could not be completed reliably.", "일부 검토 작업을 신뢰할 수 있는 수준으로 마치지 못했습니다."),
+		REVIEW_COMPLETE: t("No findings require remediation or further review.", "수정하거나 추가로 검토할 발견 사항이 없습니다."),
+	}[effectiveVerdict];
+	const narrative = reportVerdictConsistent && report.verdict === effectiveVerdict ? shortNarrative(report.summary) : [];
+	const severity = severityCounts(sortedFindings);
+	const keyPoints = [
+		...Object.entries(severity).filter(([, count]) => count).map(([level, count]) =>
+			`- **${escapeMarkdownText(reportStatus(level, t))}** — ${t(`${count} findings`, `발견 ${count}건`)}`),
+		...(needsHuman.length ? [`- **${t("Needs human review", "사람 검토 필요")}** — ${needsHuman.length}`] : []),
+		...(report?.risks?.length ? [`- **${t("Main risk", "주요 위험")}** — ${escapeMarkdownText(typeof report.risks[0] === "string" ? report.risks[0] : report.risks[0]?.risk ?? report.risks[0]?.note ?? report.risks[0]?.summary ?? "")}`] : []),
+	].slice(0, 6);
+	const actions = [
+		...(effectiveVerdict === "REVIEW_COMPLETE" ? [] : [{ label: t("Review decision", "검토 결과에 따른 조치"), value: effectiveVerdict === "PARTIAL_REVIEW" ? t(deterministicNextAction(effectiveVerdict), "빠졌거나 실패한 검토를 마친 뒤 배포 전에 다시 검토하세요.") : t(deterministicNextAction(effectiveVerdict), "유지되거나 완화된 발견 사항을 처리하고 사람이 검토할 항목을 해결하세요.") }]),
+		...(report?.recommendedNextAction ? [{ label: t("Synthesis recommendation", "종합 의견의 권고"), value: report.recommendedNextAction }] : []),
+		...([sortedFindings, needsHuman, supportNotes].flatMap((group) => group.map((row, idx) => ({ label: findingIdOf(row, idx), value: row.recommendedAction ?? row.concreteFix })))),
 	];
-	if (reportAvailable) {
-		lines.push(
-			"## Synthesis narrative",
-			"",
-			...(reportVerdictConsistent
-				? renderNarrativeVerdictNote(report, effectiveVerdict, partition)
-				: []),
-			`Summary: ${escapeMarkdownText(report.summary)}`,
-			"",
-			...renderRisks(report, partition),
-			`Recommended synthesis action: ${escapeMarkdownText(report.recommendedNextAction)}`,
-			"",
-		);
-	}
-	if (!reportAvailable) {
-		lines.push(
-			"## Renderer warning",
-			"",
-			"Narrative synthesis was unavailable; the deterministic renderer downgraded the user-facing verdict to `PARTIAL_REVIEW`.",
-			"",
-		);
-	} else if (!reportVerdictConsistent) {
-		lines.push(
-			"## Renderer warning",
-			"",
-			`The narrative verdict ${inlineCode(report.verdict)} contradicted the deterministic ledger and was rendered conservatively as ${inlineCode(effectiveVerdict)}.`,
-			"",
-		);
-	}
-	if (needsHumanMetadataMissing) {
-		lines.push(
-			"## Renderer warning",
-			"",
-			"The canonical partition ledger omitted required needs-human metadata. Inspect the detailed ledger evidence before acting on this report.",
-			"",
-		);
-	}
-	if (needsHumanEvidenceIncomplete) {
-		lines.push(
-			"## Evidence limitation",
-			"",
-			"At least one needs-human finding has no verifier evidence. Reviewer/source quotes, when present, are displayed separately and do not establish verifier support; inspect each unavailable reason before acting on this report.",
-			"",
-		);
-	}
-	if (needsHumanCountMismatch) {
-		lines.push(
-			"## Renderer warning",
-			"",
-			"The deterministic renderer found a mismatch between the declared and available needs-human counts. Inspect the detailed ledger evidence before acting on this report.",
-			"",
-		);
-	}
-	if (supportNoteMetadataMissing) {
-		lines.push(
-			"## Renderer warning",
-			"",
-			"The canonical partition ledger omitted required support-note metadata. Inspect the detailed ledger evidence before acting on this report.",
-			"",
-		);
-	}
-	if (supportNoteEvidenceIncomplete) {
-		lines.push(
-			"## Renderer warning",
-			"",
-			"At least one supporting observation lacked a usable location or non-blank evidence quote. Inspect the detailed ledger evidence before acting on this report.",
-			"",
-		);
-	}
-	if (supportNoteCountMismatch) {
-		lines.push(
-			"## Renderer warning",
-			"",
-			"The deterministic renderer found a mismatch between the declared and available support-note counts. Inspect the detailed ledger evidence before acting on this report.",
-			"",
-		);
-	}
-	if (findingCountMismatch) {
-		lines.push(
-			"## Renderer warning",
-			"",
-			"The deterministic renderer found a mismatch between expected findings and represented finding IDs. Inspect the detailed ledger evidence before acting on this report.",
-			"",
-		);
-	}
-	lines.push(...(rendered.lines ?? rendered));
-	lines.push(...renderedDropped.lines);
-	lines.push(...renderedSupportNotes.lines);
-	lines.push(...renderedNeedsHuman.lines);
-	const nextAction = deterministicNextAction(effectiveVerdict);
-	if (nextAction) {
-		lines.push("## Recommended next action", "", nextAction, "");
-	}
-	lines.push(...renderEvidenceCoverage(partition, sortedFindings));
-	lines.push(...renderSourceCoverageGaps(partition));
-	lines.push(...renderEvidenceCorrections(partition));
-	lines.push(...renderLimitations(limitations));
-	lines.push(...renderRelatedArtifacts());
+	const appendix = [
+		...(!narrative.length && report?.summary ? reportSection(3, t("Synthesis narrative", "종합 의견 원문"), [
+			...renderNarrativeVerdictNote(report, effectiveVerdict, partition, t), `${t("Summary", "요약")}: ${escapeMarkdownText(report.summary)}`,
+		]) : []),
+		...renderedDropped.lines,
+		...renderedSupportNotes.lines,
+		...reportSection(3, t("Needs-human causes", "사람 검토가 필요한 이유"), renderNeedsHumanBreakdown(needsHuman, t)),
+		...renderSourceCoverageGaps(partition, t),
+		...renderEvidenceCorrections(partition, t),
+		...renderRelatedArtifacts(t),
+	];
+	const lines = [
+		`# ${t("Deep review report", "심층 검토 보고서")}`, "",
+		t(`Evidence: ${sortedFindings.length} kept or weakened findings · ${needsHuman.length} needs human review · ${supportNotes.length} supporting observations · coverage ${partial ? "partial" : "complete"}`, `근거: 유지·완화 ${sortedFindings.length}건 · 사람 검토 ${needsHuman.length}건 · 보조 관찰 ${supportNotes.length}건 · 검토 범위 ${partial ? "일부" : "완료"}`), "",
+		`## ${t("Conclusion", "결론")}`, "",
+		`${t("Verdict", "판정")}: **${escapeMarkdownText(reportStatus(effectiveVerdict, t))}**.`, "",
+		...(narrative.length ? narrative : [outcome, ""]),
+		...reportSection(3, t("Key points", "핵심 포인트"), keyPoints.length ? keyPoints : [
+			`- **${t("Source coverage", "출처 범위")}** — ${partial ? t("Partial", "일부") : t("Complete", "완료")}`,
+		]),
+		...reportSection(2, t("Limitations", "알아둘 한계"), [...risks.filter(Boolean), ...caveats.slice(1).map((value) => `- ${escapeMarkdownText(value)}`)]),
+		...reportActions(t("Actions", "할 일"), actions),
+		...rendered.lines, ...renderedNeedsHuman.lines,
+		...reportSection(2, t("Appendix", "부록"), fold(t("Review records", "검토 기록"), [
+			`- ${escapeMarkdownText(caveats[0])}`, "", ...appendix,
+		])),
+	];
 	return {
 		// Do not normalize the completed document: evidence fences contain exact
 		// reviewed quote bytes, including repeated LF and CRLF sequences.

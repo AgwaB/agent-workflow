@@ -2809,6 +2809,7 @@ test("deep-review artifact-graph support lifecycle retains adverse needs-human a
 		for (const helperName of [
 			"finding-pipeline.mjs",
 			"render-review-report.mjs",
+			"report-markdown.mjs",
 			"review-verdict.mjs",
 		]) {
 			writeFileSync(
@@ -2966,9 +2967,9 @@ test("deep-review artifact-graph support lifecycle retains adverse needs-human a
 		assert.deepEqual(finalControl.sourceArtifacts, [
 			"partition-verdicts.control.json",
 		]);
-		assert.match(finalControl.markdown, /Verdict: \*\*PARTIAL_REVIEW\*\*/);
-		assert.match(finalControl.markdown, /Narrative synthesis was unavailable/);
-		assert.match(finalControl.markdown, /Review coverage is partial/);
+		assert.match(finalControl.markdown, /Verdict: \*\*Partial review\*\*/);
+		assert.match(finalControl.markdown, /Executive synthesis was unavailable/);
+		assert.match(finalControl.markdown, /coverage partial/);
 		assert.match(finalControl.markdown, /Ambiguous adverse lifecycle behavior/);
 		assert.equal(finalResult.status, "failed");
 		assert.ok(readFileSync(join(finalDir, "analysis.md"), "utf8").length > 0);

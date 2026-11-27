@@ -288,7 +288,7 @@ test("the report lists the corrections; without corrections there is no section"
 	});
 	assert.equal(out.verdict, "NEEDS_WORK");
 	const lines = out.markdown.split("\n");
-	assert.ok(lines.includes("## Evidence corrections"));
+	assert.ok(lines.includes("### Evidence corrections"));
 	assert.ok(
 		lines.includes(
 			"| triage plan for runtime | src/a.ts | 1-12 | 1-6 | the planned range ends past the file (6 lines) |",
@@ -296,7 +296,7 @@ test("the report lists the corrections; without corrections there is no section"
 	);
 	assert.ok(
 		lines.includes(
-			"| verifier of f1 | src/a.ts | 6 | 4 | the quote occurs once in the file, at these lines |",
+			"| Verifier: f1 | src/a.ts | 6 | 4 | the quote occurs once in the file, at these lines |",
 		),
 	);
 
@@ -308,7 +308,7 @@ test("the report lists the corrections; without corrections there is no section"
 	const plain = await render({
 		sources: { "partition-verdicts.main": clean, report },
 	});
-	assert.equal(plain.markdown.includes("## Evidence corrections"), false);
+	assert.equal(plain.markdown.includes("### Evidence corrections"), false);
 });
 
 // agent-workflow 2026-11-04 (live run of every bundled workflow, Codex deep-review PARTIAL_REVIEW):

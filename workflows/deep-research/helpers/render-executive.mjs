@@ -1,3 +1,4 @@
+import { cleanText, escapeCompletionText, escapeMarkdownText, escapeTableCell, inlineCode, validHttpUrl, sentences, fold } from "./report-markdown.mjs";
 import { validateSynthesisPages } from "./synthesis-pages.mjs";
 
 // Deterministic evidence-backed renderer for deep-research.
@@ -68,14 +69,6 @@ function countWords(text) {
 	return words(text).length;
 }
 
-function cleanText(value) {
-	return String(value ?? "")
-		.replace(/\s+/g, " ")
-		// Only before punctuation that ends a word: ".agent-workflow/…", " .env" keep their space (2026-11-04).
-		.replace(/\s+([,.;:!?])(?=\s|$)/g, "$1")
-		.trim();
-}
-
 /**
  * 2026-11-23: a claim the sanitizer rewrote to its source quote is often a Markdown table row
  * ("Node.js — v26 | Lithium | May 05, 2026 | Nov 10, 2026 | LTS"); shown as a heading or list item the pipes
@@ -93,25 +86,8 @@ function readableClaimText(value) {
 	return cells.join(" · ");
 }
 
-// Serialize data, never report structure. Preserve quote whitespace using JSON notation
-// for line breaks/tabs (no raw line can become a Markdown block).
-function escapeMarkdownText(value, { quote = false } = {}) {
-	const text = quote ? JSON.stringify(value) : cleanText(value);
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/([\\`*_[\]{}#+!|])/g, "\\$1")
-		.replace(/^([-~=])(?=\s|[-~=]|$)/u, "\\$1")
-		.replace(/^(\d{1,9})([.)])(?=\s|$)/u, "$1\\$2")
-		// Hide GFM's autolink delimiters in the Markdown source, not the rendered text.
-		.replace(/:(?=\/\/)/g, "&#58;")
-		.replace(/(www)\./gi, "$1&#46;")
-		.replace(/@/g, "&#64;");
-}
-
 function completionText(value) {
-	return escapeMarkdownText(cleanText(value)
+	return escapeCompletionText(cleanText(value)
 		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became "[run omitted]", a reviewed
 		// file's "control.json" became "[artifact omitted]"): only this engine's own names are hidden —
 		// paths under .agent-workflow/workflows, run ids (workflow_<id>_<hex6>), task ids (task-<n>),
@@ -126,8 +102,6 @@ function completionText(value) {
 		.replace(/\bworkflow\\?_[a-z0-9]+\\?_[a-f0-9]{6}\b/gi, "[run omitted]")
 		.replace(/\btask-\d+\b/gi, "[task omitted]"));
 }
-
-const escapeTableCell = escapeMarkdownText;
 
 function stringifyItem(item) {
 	if (typeof item === "string") return cleanText(item) || "(empty string)";
@@ -185,18 +159,6 @@ function hostOf(url) {
 		return new URL(url).host.replace(/^www\./, "");
 	} catch {
 		return "source";
-	}
-}
-
-function validHttpUrl(text) {
-	if (!/^https?:\/\/[^/?#]/i.test(text) || /[\x00-\x20\x7f-\x9f\\]/u.test(text)) return null;
-	try {
-		const parsed = new URL(text);
-		if (!parsed.hostname || parsed.username || parsed.password) return null;
-		// Use URL only for validation: its serialization changes request targets.
-		return text;
-	} catch {
-		return null;
 	}
 }
 
@@ -261,7 +223,8 @@ function localRefsOf(item, limit = 3, cwd) {
 	return [...out];
 }
 
-function referenceList(item, limit = 3) {
+function referenceList(item, limit = 3, { table = false } = {}) {
+	const prose = table ? escapeTableCell : escapeMarkdownText;
 	const urls = new Set();
 	const rest = new Set();
 	for (const [text, field] of references(item)) {
@@ -269,15 +232,14 @@ function referenceList(item, limit = 3) {
 		if (url) urls.add(url);
 		else {
 			const locator = localLocator(text, field);
-			rest.add(locator ? renderLocalLocator(locator) : escapeMarkdownText(text));
+			rest.add(locator ? inlineCode(locator, { table }) : prose(text));
 		}
 	}
 	return [markdownLinkList([...urls], limit), [...rest].slice(0, limit).join(", ")].filter(Boolean).join("; ");
 }
 
 function renderLocalLocator(locator) {
-	// Backticks could end a code span; pipes can split a GFM table cell.
-	return /[`|]/.test(locator) ? escapeMarkdownText(locator) : `\`${locator}\``;
+	return inlineCode(locator);
 }
 
 function markdownLinkList(urls, maxItems = 3) {
@@ -2010,16 +1972,10 @@ const STATUS_LABELS = new Map(Object.entries({
 	unknown: ["Unknown", "알 수 없음"], "not specified": ["Not specified", "표시 없음"],
 }));
 
-function statusLabel(status, ko) {
+function statusLabel(status, ko, serialize = escapeMarkdownText) {
 	return STATUS_LABELS.get(status.toLowerCase().replace(/[ -]+/g, "_"))?.[ko ? 1 : 0] ??
 		STATUS_LABELS.get(status.toLowerCase())?.[ko ? 1 : 0] ??
-		escapeMarkdownText(status);
-}
-
-function sentences(text) {
-	const ko = /[가-힣]/u.test(text);
-	return [...new Intl.Segmenter(ko ? "ko" : "en", { granularity: "sentence" }).segment(text)]
-		.map(({ segment }) => segment.trim()).filter(Boolean);
+		serialize(status);
 }
 
 function conclusionLines(report, fallback, format) {
@@ -2033,12 +1989,6 @@ function renderKeyPoints(report, ko, format, level) {
 	] : [];
 }
 
-function fold(title, body, indent = "") {
-	return ["<details>", `<summary>${title}</summary>`, "", ...body, "", "</details>"].map(
-		(line) => line ? `${indent}${line}` : "",
-	);
-}
-
 function renderEvidenceStrength(report, ko) {
 	const slots = sortedFactSlots(report);
 	const rows = slots.map((slot) => {
@@ -2049,8 +1999,8 @@ function renderEvidenceStrength(report, ko) {
 				slot.bestValue ??
 				(ko ? "근거 항목" : "Evidence area"),
 		);
-		const status = statusLabel(evidenceStatusOf(slot), ko);
-		const evidence = referenceList(slot, Infinity) || "—";
+		const status = statusLabel(evidenceStatusOf(slot), ko, escapeTableCell);
+		const evidence = referenceList(slot, Infinity, { table: true }) || "—";
 		const impact = escapeTableCell(
 			slot.readerImpact ??
 				slot.parentImpact ??
@@ -2121,7 +2071,7 @@ function renderComparisonSnapshot(report, ko) {
 	if (comparisons.length === 0) return [];
 	const out = [`## ${comparisonHeading(ko)}`, "", comparisonTableHeader(ko), "|---|---|---|---|"];
 	for (const { item, area, subjectStatus, referencePattern, assessment } of comparisons) {
-		const status = statusLabel(evidenceStatusOf(item), ko);
+		const status = statusLabel(evidenceStatusOf(item), ko, escapeTableCell);
 		out.push(`| ${escapeTableCell(area)} | ${escapeTableCell(subjectStatus)} | ${escapeTableCell(referencePattern)} | **${status}** ${escapeTableCell(assessment)} |`);
 	}
 	out.push("");
@@ -2388,7 +2338,7 @@ function renderCompletionSummary(report, claimSummary, fallback, quoteCheck = nu
 	const limits = readerLimits(report, contestedSlots, korean);
 	// Unlike the report, the compact handoff has no trust line to signal zero verified claims.
 	if (claimSummary.verified === 0) limits.unshift(korean ? "확인된 주장이 없어 결론을 확정할 수 없습니다." : "No claims were verified; the conclusion is not established.");
-	out.push(...visibleLimits([...limits.map(completionText), ...attributionNotes(attributionWarnings, korean)], korean));
+	out.push(...visibleLimits([...limits.map(completionText), ...attributionNotes(attributionWarnings, korean, { completion: true })], korean));
 	out.push(sourceVerificationStatement(quoteCheck, korean), "");
 	return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -3023,17 +2973,18 @@ function visibleLimits(lines, korean) {
 }
 
 /** One visible correction per file; the audit keeps every triggering sentence. */
-function attributionNotes(warnings = [], korean) {
+function attributionNotes(warnings = [], korean, { completion = false } = {}) {
 	const byFile = new Map();
 	for (const warning of warnings)
 		byFile.set(warning.file, [
 			...new Set([...(byFile.get(warning.file) ?? []), ...warning.values]),
 		]);
 	return [...byFile].map(([file, values]) => {
-		const shown = values.slice(0, 6).map(escapeMarkdownText).join(", ");
+		const shown = values.slice(0, 6).map(completion ? escapeCompletionText : escapeMarkdownText).join(", ");
+		const path = completion ? `\`${escapeCompletionText(file)}\`` : inlineCode(file);
 		return korean
-			? `엔진 확인: 이 보고서가 \`${escapeMarkdownText(file)}\`에서 고치라고 한 값(${shown})은 그 파일에 없습니다. 그 값이 이 파일에서 나왔다는 설명은 확인되지 않았습니다.`
-			: `Engine check: \`${escapeMarkdownText(file)}\` does not contain the values this report says to correct in it (${shown}); that attribution is unconfirmed.`;
+			? `엔진 확인: 이 보고서가 ${path}에서 고치라고 한 값(${shown})은 그 파일에 없습니다. 그 값이 이 파일에서 나왔다는 설명은 확인되지 않았습니다.`
+			: `Engine check: ${path} does not contain the values this report says to correct in it (${shown}); that attribution is unconfirmed.`;
 	});
 }
 
@@ -3047,7 +2998,7 @@ function renderSourceAttributionAudit(warnings) {
 		"",
 		...warnings.map(
 			(warning) =>
-				`- \`${escapeMarkdownText(warning.file)}\` — values not in the file: ${warning.values.map(escapeMarkdownText).join(", ")} — “${escapeMarkdownText(warning.sentence)}”`,
+				`- ${inlineCode(warning.file)} — values not in the file: ${warning.values.map(escapeMarkdownText).join(", ")} — “${escapeMarkdownText(warning.sentence)}”`,
 		),
 	];
 }
@@ -3121,7 +3072,7 @@ function renderAuditMarkdown(
 						: correction
 					: (row.caveat ?? row.correctionOrCounterclaim ?? ""),
 			);
-			out.push(`| ${id} | ${status} | ${support} | ${caveat || (!hasOwn(row, "caveat") ? referenceList(row) : "") || "—"} |`);
+			out.push(`| ${id} | ${status} | ${support} | ${caveat || (!hasOwn(row, "caveat") ? referenceList(row, 3, { table: true }) : "") || "—"} |`);
 		}
 	} else {
 		out.push("No compact claim ledger was provided.");

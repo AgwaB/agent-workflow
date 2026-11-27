@@ -144,8 +144,8 @@ test("a verifier's readerTitle and readerRationale are what the report shows; th
 	assert.equal(kept.readerTitle, "위험 플래그가 켜진 채로 남음");
 	assert.equal(out.verdict, "NEEDS_WORK");
 	assert.match(out.markdown, /### f1 — 위험 플래그가 켜진 채로 남음/);
-	assert.match(out.markdown, /Rationale:\n\n플래그가 다시 꺼지지 않아/);
-	assert.match(out.markdown, /Recommended action:\n\n플래그를 끄세요\./);
+	assert.match(out.markdown, /판단 이유:\n\n플래그가 다시 꺼지지 않아/);
+	assert.match(out.markdown, /1\. \*\*f1\*\* — 플래그를 끄세요\./);
 	assert.doesNotMatch(out.markdown, /### f1 — Danger flag stays on/);
 	assert.match(
 		out.completionSummaryMarkdown ?? out.markdown,
@@ -159,7 +159,7 @@ test("without reader text, or with an empty one, the original title and rational
 		assert.equal(partition.partitions.keep.length, 1, JSON.stringify(extra));
 		assert.equal(partition.partitions.keep[0].readerTitle, undefined);
 		assert.match(out.markdown, /### f1 — Danger flag stays on/);
-		assert.match(out.markdown, /Rationale:\n\nThe flag is never reset/);
+		assert.match(out.markdown, /판단 이유:\n\nThe flag is never reset/);
 	}
 });
 

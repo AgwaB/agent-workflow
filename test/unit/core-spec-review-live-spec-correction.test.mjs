@@ -161,7 +161,7 @@ test("NONBLOCKING scope limits survive a positive zero-candidate chain", async (
 	assert.equal(result.verdict, "CONFORMS");
 	assert.deepEqual(result.scopeLimitations, [limitation]);
 	assert.equal(result.testExecutionAttested, false);
-	assert.match(result.markdown, /Nonblocking scope limitations/);
+	assert.match(result.markdown, /## Limitations/);
 	for (const [name, value] of [
 		[
 			"candidate-findings",

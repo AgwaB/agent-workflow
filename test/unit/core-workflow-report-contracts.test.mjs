@@ -288,16 +288,16 @@ test("spec-review renderer preserves every legacy disposition but withholds ungr
 		const headings = [...first.markdown.matchAll(/^## ([^#].*)$/gm)].map(
 			(match) => match[1],
 		);
-		assert.equal(headings[0], "Executive summary");
-		assert.equal(headings.at(-1), "Related artifacts");
-		assert.equal(
-			headings.filter((heading) => heading === "Related artifacts").length,
-			1,
-		);
-		assert.match(first.markdown, /````json[\s\S]*```\\n## Related artifacts/);
+		assert.equal(headings[0], "Conclusion");
+		assert.equal(headings.at(-1), "Appendix");
+		assert.equal(first.markdown.match(/^### Related artifacts$/gm)?.length, 1);
 		assert.match(
 			first.markdown,
-			/### FINDING-KEEP — Unsafe \\`title\\` \\#\\# Related artifacts/,
+			/````json[\s\S]*```\\n## Related artifacts[\s\S]*^### Related artifacts$/m,
+		);
+		assert.match(
+			first.markdown,
+			/#### \*\*Kept\*\*.* — FINDING-KEEP · Unsafe \\`title\\` \\#\\# Related artifacts/,
 		);
 	} finally {
 		rmSync(cwd, {
@@ -557,12 +557,9 @@ test("impact-review renderer reconciles joins, preserves rows, and writes a safe
 		const headings = [...first.markdown.matchAll(/^## ([^#].*)$/gm)].map(
 			(match) => match[1],
 		);
-		assert.equal(headings[0], "Executive summary");
-		assert.equal(headings.at(-1), "Related artifacts");
-		assert.equal(
-			headings.filter((heading) => heading === "Related artifacts").length,
-			1,
-		);
+		assert.equal(headings[0], "Conclusion");
+		assert.equal(headings.at(-1), "Appendix");
+		assert.equal(first.markdown.match(/^### Related artifacts$/gm)?.length, 1);
 		for (const id of [
 			"ISSUE-1",
 			"SAFE-1",
@@ -985,7 +982,10 @@ test("deep-review renderer keeps the ledger verdict and passes when only the nar
 		result.completionSummaryMarkdown,
 		/gave verdict REVIEW\\?_COMPLETE, which the deterministic ledger does not support; the report uses NEEDS\\?_WORK/,
 	);
-	assert.match(result.markdown, /contradicted the deterministic ledger/);
+	assert.match(
+		result.markdown,
+		/원장에서 뒷받침하지 않습니다|the deterministic ledger does not support/,
+	);
 });
 
 // agent-workflow 2026-11-10 (owner): a spec-review narrative verdict that contradicts the ledger is a warning, not a
@@ -1024,4 +1024,38 @@ test("spec-review renderer keeps the ledger verdict and passes when only the nar
 	} finally {
 		rmSync(cwd, { recursive: true, force: true });
 	}
+});
+
+test("impact finding headings use the finding or short ID and fold remaining fields", async () => {
+	const sources = impactSources();
+	sources["impact-analysis.impact-synthesis"].nonBlockingIssues = [
+		{
+			id: "M1",
+			finding: "A distinct observation",
+			evidenceRefs: ["proof.ts"],
+			status: "pending",
+		},
+		{ id: "M2", customEvidence: { detail: "unknown shape retained" } },
+	];
+	const { markdown } = await renderImpactReport({
+		sources,
+		context: impactContext(),
+	});
+	assert.match(
+		markdown,
+		/^### \*\*Non-blocking issue\*\* — A distinct observation$/m,
+	);
+	assert.match(markdown, /^### \*\*Non-blocking issue\*\* — M2$/m);
+	const first = markdown
+		.split("— A distinct observation\n")[1]
+		?.split("</details>")[0];
+	assert.match(
+		first,
+		/<summary>Evidence<\/summary>[\s\S]*evidenceRefs: proof\.ts[\s\S]*id: M1[\s\S]*status: pending/,
+	);
+	const second = markdown.split("— M2\n")[1]?.split("</details>")[0];
+	assert.match(
+		second,
+		/<summary>Evidence<\/summary>[\s\S]*unknown shape retained/,
+	);
 });

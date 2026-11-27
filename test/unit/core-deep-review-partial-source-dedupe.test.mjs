@@ -41,6 +41,6 @@ test("a partial source present in both partition summaries is rendered once", as
 		.split("\n")
 		.filter((line) => line.startsWith("- Partial source:"));
 	assert.deepEqual(lines, [
-		"- Partial source: devil-advocate.finding-009 (failed)",
+		"- Partial source: devil-advocate.finding-009 (Failed)",
 	]);
 });
