@@ -157,12 +157,12 @@ function fakeApi({ onWait, onRun } = {}) {
 							action: "run",
 							ok: true,
 							outcome: "running",
-							text: `Workflow started: deep-review\nDetached supervisor: pid 1, log x\nWait for the result: workflow_wait {"runId":"${runId}"}`,
+							text: `Workflow started: deep-review\nDetached supervisor: pid ${process.pid}, log x\nWait for the result: workflow_wait {"runId":"${runId}"}`,
 							data: {
 								runId,
 								status: "running",
 								name: "deep-review",
-								detached: { pid: 1, logPath: "x" },
+								detached: { pid: process.pid, logPath: "x" },
 							},
 						};
 					};
@@ -256,6 +256,8 @@ test("Codex with a long slice is told to keep the code-mode cell from yielding; 
 				join(dir, "run.json"),
 				JSON.stringify({
 					runId,
+					status: "running",
+					launch: { source: "mcp:codex" },
 					tasks: [{ taskId: "work", specId: "work.main", status: "pending" }],
 				}),
 			);

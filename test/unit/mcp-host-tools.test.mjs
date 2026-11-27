@@ -6,7 +6,7 @@
 // confirmation through elicitation (accept / decline / absent / unsupported revision), the cwd
 // restriction, usage errors, host identity, cancellation and progress.
 import assert from "node:assert/strict";
-import {
+import fs, {
 	mkdir,
 	mkdtemp,
 	realpath,
@@ -14,11 +14,13 @@ import {
 	symlink,
 	writeFile,
 } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 
 import { inProcessHostServer, waitLoop } from "../helpers/mcp-host-client.mjs";
+import { stateDir } from "../helpers/state-dir.mjs";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 
 const api = await import("../../dist/hosts/api.js");
@@ -920,5 +922,76 @@ for (const [tool, method, args] of [
 				assert.equal((tool === "auto" ? data.launch : data).runId, runId);
 			} else assert.equal(response.structuredContent, undefined);
 		}
+	});
+}
+
+for (const status of ["running", "completed"]) {
+	test(`Claude with a fresh monitor but a failed link write reports ${status === "running" ? "an explicit wait" : "settlement"}`, async (t) => {
+		const { cwd, env } = await project();
+		const session = "claude-fault";
+		const runId = "workflow_monitor_fault";
+		const notifyDir = join(stateDir(cwd), ".agent-workflow", "notify-check");
+		const runDir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
+		await mkdir(notifyDir, { recursive: true });
+		await mkdir(runDir, { recursive: true });
+		await writeFile(
+			join(runDir, "run.json"),
+			JSON.stringify({
+				runId,
+				tasks: [{ taskId: "helper", status }],
+			}),
+		);
+		const link = join(notifyDir, `session-${session}.${runId}.link`);
+		const open = fs.open;
+		const mock = t.mock.method(fs, "open", async (...args) => {
+			if (args[0] === link)
+				throw Object.assign(new Error("link write fault"), { code: "EIO" });
+			return open(...args);
+		});
+		syncBuiltinESMExports();
+		t.after(() => {
+			mock.mock.restore();
+			syncBuiltinESMExports();
+		});
+		const client = await connect(
+			{
+				root: cwd,
+				env: { ...env, CLAUDE_CODE_SESSION_ID: session },
+				host: "claude-code",
+				api: {
+					...api,
+					async runWorkflowAction() {
+						await writeFile(join(notifyDir, `monitor-${session}.stamp`), "");
+						return {
+							action: "run",
+							ok: true,
+							outcome: "running",
+							text: `Workflow started\nWait for the result: workflow_wait ${runId}`,
+							data: { runId, status: "running", mode: "named-workflow" },
+						};
+					},
+				},
+			},
+			"2025-06-18",
+		);
+		const result = await client.call("workflow_run", {
+			workflow: "wf.json",
+			task: "probe",
+		});
+		assert.equal(result.isError, false, text(result));
+		assert.equal(
+			mock.mock.calls.filter(({ arguments: [path] }) => path === link).length,
+			1,
+		);
+		if (status === "running")
+			assert.match(
+				text(result),
+				/Then call workflow_wait .*workflow_monitor_fault/,
+			);
+		else {
+			assert.match(text(result), /workflow_monitor_fault.*completed/);
+			assert.doesNotMatch(text(result), /workflow_wait/);
+		}
+		assert.doesNotMatch(text(result), /end your turn now|monitor .*reports/);
 	});
 }
