@@ -384,6 +384,14 @@
      "stageId": "reviewers",
      "status": "source_coverage_incomplete",
      "statusDetail": "test-hygiene: src/workflow-terminal.ts: read (unexpected coverage row)",
+     "coverageReviewer": "test-hygiene",
+     "coverageIssues": [
+      {
+       "path": "src/workflow-terminal.ts",
+       "status": "read",
+       "reason": "unexpected coverage row"
+      }
+     ],
      "errorType": "source_coverage",
      "sourcePath": "src/workflow-terminal.ts",
      "coverageStatus": "read"
@@ -447,6 +455,14 @@
      "coverageStatus": "read",
      "status": "source_coverage_incomplete",
      "statusDetail": "test-hygiene: src/workflow-terminal.ts: read (unexpected coverage row)",
+     "coverageIssues": [
+      {
+       "path": "src/workflow-terminal.ts",
+       "status": "read",
+       "reason": "unexpected coverage row"
+      }
+     ],
+     "coverageReviewer": "test-hygiene",
      "errorType": "source_coverage"
     }
    ]
@@ -1020,13 +1036,21 @@
      "coverageStatus": "read",
      "status": "source_coverage_incomplete",
      "statusDetail": "test-hygiene: src/workflow-terminal.ts: read (unexpected coverage row)",
+     "coverageIssues": [
+      {
+       "path": "src/workflow-terminal.ts",
+       "status": "read",
+       "reason": "unexpected coverage row"
+      }
+     ],
+     "coverageReviewer": "test-hygiene",
      "errorType": "source_coverage"
     }
    ]
   },
   "reportPacket": {
    "schema": "deep-review-report-packet-v1",
-   "digest": "caeca0cf58d279da46ff8d0d1632d0d75a88552c552369994964681bcebb5803",
+   "digest": "1ce733d0fac935d65ddb962aa4cea852a3cf22239f2544041defc47940279f4f",
    "maxChars": 15000,
    "actualChars": 2937,
    "expectedVerdict": "NEEDS_WORK",
@@ -1277,6 +1301,14 @@
      "stageId": "reviewers",
      "status": "source_coverage_incomplete",
      "statusDetail": "test-hygiene: src/workflow-terminal.ts: read (unexpected coverage row)",
+     "coverageReviewer": "test-hygiene",
+     "coverageIssues": [
+      {
+       "path": "src/workflow-terminal.ts",
+       "status": "read",
+       "reason": "unexpected coverage row"
+      }
+     ],
      "errorType": "source_coverage",
      "sourcePath": "src/workflow-terminal.ts",
      "coverageStatus": "read"
@@ -1542,7 +1574,7 @@
    ],
    "digest": "8c8e4573c41e41b7e9958cd1c16bbcea4d94a36604a08fb0f0e5591ff77684c6"
   },
-  "digest": "partition: keep=3, weaken=0, drop=0, needsHuman=3, missingVerdicts=0, partialFailures=1, supportNotes=0, ledgerDigest=caeca0cf58d279da46ff8d0d1632d0d75a88552c552369994964681bcebb5803",
+  "digest": "partition: keep=3, weaken=0, drop=0, needsHuman=3, missingVerdicts=0, partialFailures=1, supportNotes=0, ledgerDigest=1ce733d0fac935d65ddb962aa4cea852a3cf22239f2544041defc47940279f4f",
   "sourceStatusSummary": {
    "total": 8,
    "completed": 7,
@@ -1557,6 +1589,14 @@
      "coverageStatus": "read",
      "status": "source_coverage_incomplete",
      "statusDetail": "test-hygiene: src/workflow-terminal.ts: read (unexpected coverage row)",
+     "coverageIssues": [
+      {
+       "path": "src/workflow-terminal.ts",
+       "status": "read",
+       "reason": "unexpected coverage row"
+      }
+     ],
+     "coverageReviewer": "test-hygiene",
      "errorType": "source_coverage"
     }
    ]
@@ -1601,7 +1641,7 @@
  },
  "report-packet.main": {
   "schema": "deep-review-report-packet-v1",
-  "digest": "caeca0cf58d279da46ff8d0d1632d0d75a88552c552369994964681bcebb5803",
+  "digest": "1ce733d0fac935d65ddb962aa4cea852a3cf22239f2544041defc47940279f4f",
   "maxChars": 15000,
   "actualChars": 2937,
   "expectedVerdict": "NEEDS_WORK",

@@ -277,3 +277,27 @@ test("impact review shares the reader locale with the compact completion and kee
 		/## Evidence level|historical source-file bytes/u,
 	);
 });
+
+test("impact report language prefers the request, then reader prose, then task script", async () => {
+	const sources = blockedControls();
+	const check = async (runtimeTask, heading) => {
+		const { markdown } = await renderImpactReport({
+			sources,
+			context: { ...context, runtimeTask },
+		});
+		assert.equal(markdown.split("\n")[0], heading);
+	};
+	await check(
+		"Review the patch and write the report in Korean.",
+		"# 영향 검토 보고서",
+	);
+	delete sources["impact-analysis.impact-synthesis"];
+	sources["impact-analysis.ship-readiness"].assumptions = [
+		{ text: "검토 범위를 확인했습니다." },
+	];
+	await check("Review the patch.", "# 영향 검토 보고서");
+	await check(
+		"변경을 검토하고 보고서는 영어로 작성하세요.",
+		"# Impact review report",
+	);
+});

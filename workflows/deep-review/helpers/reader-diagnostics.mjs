@@ -76,6 +76,7 @@ const templates = [
 	[/^reviewer finding "(.*)" had no verdict; routed to NEEDS_HUMAN$/su, (title) => `“${title}”에 검증 판정이 없어 NEEDS_HUMAN으로 보냈습니다.`],
 ];
 const batchReasons = new Map([
+	["lacked exact row-local contextPacket refs or supplied unverified counterEvidence", "해당 항목의 정확한 contextPacket 참조가 없거나 반증을 검증할 수 없습니다"],
 	["lacked concrete context to rule out finding", "발견 사항을 제외할 구체적인 맥락이 없습니다"],
 	["did not cite row-local contextPacket evidence", "해당 항목의 contextPacket 근거를 인용하지 않았습니다"],
 	["lacked evidence or counterEvidence", "evidence 또는 counterEvidence가 없습니다"],
@@ -97,10 +98,12 @@ export function readerDiagnostic(text, t) {
 	return typeof text === "string" && t(false, true) ? ko(text) : text;
 }
 
-export function readerCoverageDetail(text, t) {
-	if (typeof text !== "string" || !t(false, true)) return text;
-	// sourceCoverageFailure stores path/status/reason triples with the reason
-	// parenthesized. Localize the reason, not paths or arbitrary reviewer prose.
-	return text.replace(/(: [\w-]+ \()([^)]*)(?=\))/gu,
-		(_match, prefix, reason) => prefix + ko(reason));
+export function readerCoverageDetail(gap, t) {
+	if (!t(false, true) || !Array.isArray(gap.coverageIssues)) return gap.statusDetail;
+	const issues = gap.coverageIssues.filter((row) =>
+		typeof row?.path === "string" && typeof row.status === "string" && typeof row.reason === "string");
+	if (!issues.length) return gap.statusDetail;
+	const details = issues.map(({ path, status, reason }) =>
+		`${path}: ${status} (${messages.get(reason) ?? reason})`).join("; ");
+	return `${gap.coverageReviewer || gap.displayName || gap.specId || gap.source || "unknown"}: ${details}`;
 }

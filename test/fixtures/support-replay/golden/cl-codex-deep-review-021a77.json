@@ -252,6 +252,14 @@
      "stageId": "reviewers",
      "status": "source_coverage_incomplete",
      "statusDetail": "runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range)",
+     "coverageReviewer": "runtime-correctness",
+     "coverageIssues": [
+      {
+       "path": "SPEC.md:13-16",
+       "status": "read",
+       "reason": "content quote was not found in required source range"
+      }
+     ],
      "errorType": "source_coverage",
      "sourcePath": "SPEC.md:13-16",
      "coverageStatus": "read"
@@ -310,6 +318,14 @@
      "coverageStatus": "read",
      "status": "source_coverage_incomplete",
      "statusDetail": "runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range)",
+     "coverageIssues": [
+      {
+       "path": "SPEC.md:13-16",
+       "status": "read",
+       "reason": "content quote was not found in required source range"
+      }
+     ],
+     "coverageReviewer": "runtime-correctness",
      "errorType": "source_coverage"
     }
    ]
@@ -650,13 +666,21 @@
      "coverageStatus": "read",
      "status": "source_coverage_incomplete",
      "statusDetail": "runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range)",
+     "coverageIssues": [
+      {
+       "path": "SPEC.md:13-16",
+       "status": "read",
+       "reason": "content quote was not found in required source range"
+      }
+     ],
+     "coverageReviewer": "runtime-correctness",
      "errorType": "source_coverage"
     }
    ]
   },
   "reportPacket": {
    "schema": "deep-review-report-packet-v1",
-   "digest": "b916d2c199a3efcaa4fd306e51d5da723ee696303a6082341ba3ed5db3d64d69",
+   "digest": "3e1a62e6997430979964c9648c5a4b4e641a57f70879a8c3cea7e787606d023c",
    "maxChars": 15000,
    "actualChars": 2174,
    "expectedVerdict": "NEEDS_WORK",
@@ -854,6 +878,14 @@
      "stageId": "reviewers",
      "status": "source_coverage_incomplete",
      "statusDetail": "runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range)",
+     "coverageReviewer": "runtime-correctness",
+     "coverageIssues": [
+      {
+       "path": "SPEC.md:13-16",
+       "status": "read",
+       "reason": "content quote was not found in required source range"
+      }
+     ],
      "errorType": "source_coverage",
      "sourcePath": "SPEC.md:13-16",
      "coverageStatus": "read"
@@ -1021,7 +1053,7 @@
    ],
    "digest": "2722af3ed685b0466c7c916695cb39520f460f567e4ef3b233bc0db559537954"
   },
-  "digest": "partition: keep=1, weaken=0, drop=0, needsHuman=2, missingVerdicts=0, partialFailures=1, supportNotes=0, ledgerDigest=b916d2c199a3efcaa4fd306e51d5da723ee696303a6082341ba3ed5db3d64d69",
+  "digest": "partition: keep=1, weaken=0, drop=0, needsHuman=2, missingVerdicts=0, partialFailures=1, supportNotes=0, ledgerDigest=3e1a62e6997430979964c9648c5a4b4e641a57f70879a8c3cea7e787606d023c",
   "sourceStatusSummary": {
    "total": 5,
    "completed": 4,
@@ -1036,6 +1068,14 @@
      "coverageStatus": "read",
      "status": "source_coverage_incomplete",
      "statusDetail": "runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range)",
+     "coverageIssues": [
+      {
+       "path": "SPEC.md:13-16",
+       "status": "read",
+       "reason": "content quote was not found in required source range"
+      }
+     ],
+     "coverageReviewer": "runtime-correctness",
      "errorType": "source_coverage"
     }
    ]
@@ -1075,7 +1115,7 @@
  },
  "report-packet.main": {
   "schema": "deep-review-report-packet-v1",
-  "digest": "b916d2c199a3efcaa4fd306e51d5da723ee696303a6082341ba3ed5db3d64d69",
+  "digest": "3e1a62e6997430979964c9648c5a4b4e641a57f70879a8c3cea7e787606d023c",
   "maxChars": 15000,
   "actualChars": 2174,
   "expectedVerdict": "NEEDS_WORK",

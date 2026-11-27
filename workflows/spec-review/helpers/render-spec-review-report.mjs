@@ -23,7 +23,7 @@ const REPORT_VERDICTS = new Set([
 ]);
 
 import {
-	escapeMarkdownText, escapeTableCell, fold, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
+	escapeMarkdownText, escapeTableCell, fold, reportActions, reviewReportLocale, reportSection, reportStatus, shortNarrative,
 } from "./report-markdown.mjs";
 
 function findSource(sources, stageId) {
@@ -693,7 +693,7 @@ function limitationRows({
 		);
 	else if (!verdictConsistent)
 		rows.push(
-			t(`The narrative report gave verdict ${narrativeVerdict || "none"}, which the deterministic ledger does not support; the report uses ${verdict}.`, `원장으로 뒷받침되지 않는 종합 판정(${reportStatus(narrativeVerdict || "none", t)}) 대신 ${reportStatus(verdict, t)} 판정을 적용합니다.`),
+			t(`The narrative report gave verdict ${narrativeVerdict || "none"}, which the deterministic ledger does not support; the report uses ${verdict}.`, `원장으로 뒷받침되지 않는 종합 판정(${narrativeVerdict || "none"}) 대신 ${verdict} 판정을 적용합니다.`),
 		);
 	return rows;
 }
@@ -950,7 +950,12 @@ export default async function renderSpecReviewReport({
 		renderedAllCanonicalRows &&
 		duplicates.length === 0 &&
 		(evidenceComplete || gapsStand);
-	const t = reportLocale(report?.summary, context.runtimeTask, ...finalFindings.map((row) => rowTitle(row, "")), ...needsHuman.map((row) => rowTitle(row, "")));
+	const t = reviewReportLocale(
+		context.runtimeTask,
+		report?.summary,
+		...finalFindings.map((row) => rowTitle(row, "")),
+		...needsHuman.map((row) => rowTitle(row, "")),
+	);
 	const readerLimitations = limitationRows({ ...limitationInputs, t });
 	const completionSummaryMarkdown = passed
 		? renderCompletionSummary({ verdict, report, partition, limitations: readerLimitations, t })

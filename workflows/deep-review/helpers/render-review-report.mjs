@@ -14,7 +14,7 @@ import {
 } from "./review-verdict.mjs";
 
 import {
-	escapeCompletionText, escapeMarkdownText, escapeTableCell, fold, inlineCode, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
+	escapeCompletionText, escapeMarkdownText, escapeTableCell, fold, inlineCode, reportActions, reviewReportLocale, reportSection, reportStatus, shortNarrative,
 } from "./report-markdown.mjs";
 
 import { readerCoverageDetail, readerDiagnostic } from "./reader-diagnostics.mjs";
@@ -1483,7 +1483,7 @@ function renderSourceCoverageGaps(partition, t) {
 	];
 	for (const gap of gaps) {
 		lines.push(
-			`| ${escapeTableCell(gap.displayName ?? gap.specId ?? gap.source ?? "unknown")} | ${escapeTableCell(gap.sourcePath ?? "unknown")} | ${escapeTableCell(reportStatus(gap.coverageStatus ?? gap.status ?? "unknown", t))} | ${escapeTableCell(gap.extractionArtifact ?? "—")} | ${escapeTableCell(readerCoverageDetail(gap.statusDetail, t) ?? t("Required source content was not read.", "필수 출처에 있는 내용을 읽지 못했습니다."))} |`,
+			`| ${escapeTableCell(gap.displayName ?? gap.specId ?? gap.source ?? "unknown")} | ${escapeTableCell(gap.sourcePath ?? "unknown")} | ${escapeTableCell(reportStatus(gap.coverageStatus ?? gap.status ?? "unknown", t))} | ${escapeTableCell(gap.extractionArtifact ?? "—")} | ${escapeTableCell(readerCoverageDetail(gap, t) ?? t("Required source content was not read.", "필수 출처에 있는 내용을 읽지 못했습니다."))} |`,
 		);
 	}
 	lines.push("");
@@ -1545,7 +1545,7 @@ function completionLimitations({
 		);
 	else if (!reportVerdictConsistent)
 		limitations.push(
-			t(`The executive synthesis gave verdict ${cleanText(narrativeVerdict) || "none"}, which the deterministic ledger does not support; the report uses ${cleanText(effectiveVerdict)}.`, `종합 의견의 판정(${reportStatus(narrativeVerdict || "none", t)})을 원장에서 뒷받침하지 않습니다. 보고서 판정은 ${reportStatus(effectiveVerdict, t)}입니다.`),
+			t(`The executive synthesis gave verdict ${cleanText(narrativeVerdict) || "none"}, which the deterministic ledger does not support; the report uses ${cleanText(effectiveVerdict)}.`, `종합 의견의 판정(${cleanText(narrativeVerdict) || "none"})을 원장에서 뒷받침하지 않습니다. 보고서 판정은 ${cleanText(effectiveVerdict)}입니다.`),
 		);
 	if (findingCountMismatch)
 		limitations.push(
@@ -1729,7 +1729,7 @@ function renderNarrativeVerdictNote(report, effectiveVerdict, partition, t) {
 		? reasons.join("; ")
 		: "the renderer's integrity checks did not pass";
 	return [
-		t(`> Verdict note: this narrative was written for verdict ${inlineCode(narrativeVerdict)}, but the final report verdict is ${inlineCode(effectiveVerdict)} (${reason}). Where the narrative describes review coverage or integrity, the final verdict and the limitations above take precedence.`, `> 종합 의견은 ${escapeMarkdownText(reportStatus(narrativeVerdict, t))} 판정을 기준으로 작성되었습니다. 위의 최종 판정과 한계를 우선하세요.`),
+		t(`> Verdict note: this narrative was written for verdict ${inlineCode(narrativeVerdict)}, but the final report verdict is ${inlineCode(effectiveVerdict)} (${reason}). Where the narrative describes review coverage or integrity, the final verdict and the limitations above take precedence.`, `> 종합 의견은 ${inlineCode(narrativeVerdict)} 판정을 기준으로 작성되었습니다. 최종 판정 ${inlineCode(effectiveVerdict)}과 위의 한계를 우선하세요.`),
 		"",
 	];
 }
@@ -1759,7 +1759,15 @@ function renderMarkdown({
 	const ledger = partition?.partitions ?? partition?.reportContext;
 	const needsHuman = asArray(ledger?.needsHuman);
 	const supportNotes = asArray(partition?.supportNotes);
-	const t = reportLocale(report?.summary, runtimeTask, ...sortedFindings.map(readerTitleOf), ...needsHuman.map(readerTitleOf));
+	const readerRows = [...sortedFindings, ...needsHuman, ...supportNotes];
+	const t = reviewReportLocale(
+		runtimeTask,
+		report?.summary,
+		...readerRows.map((row) => row?.readerTitle),
+		...readerRows.map((row) => row?.readerRationale),
+		...readerRows.map((row) => row?.rationale),
+		...readerRows.map((row) => row?.title ?? row?.finding ?? row?.summary),
+	);
 	const rendered = renderFindings(sortedFindings, t);
 	const representedIds = rendered.representedIds ?? [];
 	const renderedNeedsHuman = renderNeedsHuman(partition, t);

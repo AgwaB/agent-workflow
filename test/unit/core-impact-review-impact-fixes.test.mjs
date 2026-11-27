@@ -683,3 +683,31 @@ test("sidecar failure is visible and cannot claim passed", async () => {
 		retryDelay: 100,
 	});
 });
+
+test("unresolved unknown risk cannot authorize READY in English or Korean", async () => {
+	for (const text of [
+		"Cannot validate `read-only` mode.",
+		"`read-only` 모드를 검증할 수 없습니다.",
+		"Informational note about `read-only` mode.",
+		"`read-only` 모드에 대한 참고 사항입니다.",
+	]) {
+		const sources = controls();
+		sources["impact-analysis.state-data-impact"].impacts.push(
+			item("UNKNOWN-SCOPE", text, { severity: "unknown" }),
+		);
+		const out = await renderImpactReport({ sources, context: contextFor() });
+		assert.equal(out.verdict, "UNKNOWN", text);
+		assert.equal(out.gates.riskGatePassed, false, text);
+		assert.equal(out.riskUncertainty.observationIds.length, 1, text);
+	}
+});
+
+test("localized verdict discrepancies name both raw tokens", async () => {
+	const sources = controls();
+	sources["impact-analysis.impact-synthesis"].summary = "검토를 마쳤습니다.";
+	sources["impact-analysis.ship-readiness"].status = "needs-work";
+	const out = await renderImpactReport({ sources, context: contextFor() });
+	assert.equal(out.verdict, "NEEDS_WORK");
+	for (const text of [out.markdown, out.completionSummaryMarkdown])
+		assert.match(text, /종합 의견 판정은[^\n]*READY[^\n]*NEEDS\\?_WORK/u);
+});

@@ -185,6 +185,16 @@ test("a misquoted coverage row holds back only the findings in that file", async
 	);
 	// The review is still partial: the gap stays recorded and reported.
 	assert.equal(partitioned.partitionSummary.partialFailures, 1);
+	assert.deepEqual(
+		partitioned.sourceStatusSummary.partialFailures[0].coverageIssues,
+		[
+			{
+				path: "src/auth.js:1",
+				status: "read",
+				reason: "content quote was not found in required source range",
+			},
+		],
+	);
 
 	const output = await render({
 		sources: {

@@ -119,70 +119,72 @@ test("spec-review batch fallback IDs preserve end-to-end candidate coverage", as
 		rm(cwd, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }),
 	);
 	await writeFile(join(cwd, "source.ts"), "The gap is present.\n");
-	const plan = await specReview({
-		sources: {
-			"candidate-findings": {
-				candidateFindings: [{ title: "Fallback candidate", severity: "high" }],
+	for (const title of ["Fallback candidate", "검토할후보"]) {
+		const plan = await specReview({
+			sources: {
+				"candidate-findings": {
+					candidateFindings: [{ title, severity: "high" }],
+				},
 			},
-		},
-		options: { mode: "batch-candidates", maxBatchSize: 2 },
-	});
-	assert.deepEqual(plan.batches[0].candidateIds, ["candidate-001"]);
-	assert.equal(plan.batches[0].candidates[0].id, "candidate-001");
+			options: { mode: "batch-candidates", maxBatchSize: 2 },
+		});
+		assert.deepEqual(plan.batches[0].candidateIds, ["candidate-001"]);
+		assert.equal(plan.batches[0].candidates[0].id, "candidate-001");
 
-	const result = await specReview({
-		sources: {
-			"candidate-findings": {
-				candidateFindings: [{ title: "Fallback candidate", severity: "high" }],
+		const result = await specReview({
+			sources: {
+				"candidate-findings": {
+					candidateFindings: [{ title, severity: "high" }],
+				},
+				"verification-batches": plan,
+				"verify-findings": {
+					schema: "spec-review-verify-findings-batch-v1",
+					results: [
+						{
+							id: "candidate-001",
+							title,
+							verdict: "KEEP",
+							severity: "high",
+							evidence: [
+								{
+									file: "source.ts",
+									lineStart: 1,
+									lineEnd: 1,
+									quote: "The gap is present.",
+								},
+							],
+							counterEvidence: [],
+							finalClaim: "The gap is present.",
+							recommendedAction: "Fix it.",
+						},
+					],
+				},
 			},
-			"verification-batches": plan,
-			"verify-findings": {
-				schema: "spec-review-verify-findings-batch-v1",
-				results: [
+			context: {
+				cwd,
+				stateCwd: cwd ? stateDir(cwd) : undefined,
+				sourceStatuses: [
 					{
-						id: "candidate-001",
-						title: "Fallback candidate",
-						verdict: "KEEP",
-						severity: "high",
-						evidence: [
-							{
-								file: "source.ts",
-								lineStart: 1,
-								lineEnd: 1,
-								quote: "The gap is present.",
-							},
-						],
-						counterEvidence: [],
-						finalClaim: "The gap is present.",
-						recommendedAction: "Fix it.",
+						source: "verify-findings",
+						specId: "verify-findings.vbatch-001",
+						taskId: "batch-task-001",
+						stageId: "verify-findings",
+						itemIdentity: "vbatch-001",
+						placeholderSpecId: "verify-findings.item",
+						status: "completed",
 					},
 				],
 			},
-		},
-		context: {
-			cwd,
-			stateCwd: cwd ? stateDir(cwd) : undefined,
-			sourceStatuses: [
-				{
-					source: "verify-findings",
-					specId: "verify-findings.vbatch-001",
-					taskId: "batch-task-001",
-					stageId: "verify-findings",
-					itemIdentity: "vbatch-001",
-					placeholderSpecId: "verify-findings.item",
-					status: "completed",
-				},
-			],
-		},
-		options: { mode: "partition" },
-	});
-	assert.equal(result.verifierCoverage.candidateCount, 1);
-	assert.equal(result.verifierCoverage.uniqueCandidateCount, 1);
-	assert.deepEqual(result.verifierCoverage.missingIds, []);
-	assert.deepEqual(
-		result.finalFindings.map((finding) => finding.id),
-		["candidate-001"],
-	);
+			options: { mode: "partition" },
+		});
+		assert.equal(result.verifierCoverage.candidateCount, 1);
+		assert.equal(result.verifierCoverage.uniqueCandidateCount, 1);
+		assert.deepEqual(result.verifierCoverage.missingIds, []);
+		assert.deepEqual(
+			result.finalFindings.map((finding) => finding.id),
+			["candidate-001"],
+		);
+	}
 });
 
 test("deep-research batch carriers require one exact completed materialized owner", async () => {

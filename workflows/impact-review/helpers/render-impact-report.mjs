@@ -9,7 +9,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
-	escapeMarkdownText, fold, reportActions, reportLocale, reportSection, reportRiskStatus, reportStatus, shortNarrative,
+	escapeMarkdownText, fold, reportActions, reviewReportLocale, reportSection, reportRiskStatus, reportStatus, shortNarrative,
 } from "./report-markdown.mjs";
 
 const STAGES = [
@@ -519,13 +519,6 @@ function effectiveRiskLevel(
 	return RISKS[Math.max(...indexes)] ?? "unknown";
 }
 
-function informationalUnknown(row) {
-	if (row?.severity !== "unknown") return false;
-	const text = cleanText(row.text).toLowerCase();
-	return /out[- ]of[- ]scope|read[- ]only|unknown caller|caller(?:s)? unavailable|informational note/.test(text) &&
-		!/(required|missing|block|must|unavailable baseline|cannot|critical)/.test(text);
-}
-
 function summarizeCanonicalRisk(rows, unverifiedResolutions = []) {
 	const unverified = new Set(unverifiedResolutions);
 	const observationIds = new Set();
@@ -535,7 +528,8 @@ function summarizeCanonicalRisk(rows, unverifiedResolutions = []) {
 		// unquantified observation. Unknown is not an ordinal above "high".
 		if (row.resolution !== "unresolved" && !unverified.has(row.id)) continue;
 		if (row.severity === "unknown") {
-			if (!informationalUnknown(row)) observationIds.add(row.id ?? `${row.stageId}.status`);
+			// Only structured resolution may clear explicit uncertainty.
+			observationIds.add(row.id ?? `${row.stageId}.status`);
 			continue;
 		}
 		if (RISKS.indexOf(row.severity) > RISKS.indexOf(knownFloor)) knownFloor = row.severity;
@@ -923,7 +917,13 @@ export default async function renderImpactReport({ sources, context = {} }) {
 	const safeContract = isRecord(contract) ? contract : {};
 	const safeRegression = isRecord(regression) ? regression : {};
 	const safeShip = isRecord(ship) ? ship : {};
-	const t = reportLocale(safeSynthesis.summary, context.runtimeTask, ...rowCollections({ synthesis: safeSynthesis, contract: safeContract, regression: safeRegression, ship: safeShip }).flatMap(([, , , rows]) => asArray(rows).map((row) => typeof row === "string" ? row : row?.[impactClaimKey(row)])));
+	const t = reviewReportLocale(
+		context.runtimeTask,
+		safeSynthesis.summary,
+		...rowCollections({ synthesis: safeSynthesis, contract: safeContract, regression: safeRegression, ship: safeShip })
+			.flatMap(([, , , rows]) => asArray(rows).map((row) => typeof row === "string" ? row : row?.[impactClaimKey(row)])),
+		findSource(sources, "change-scope")?.changeSummary,
+	);
 	const unverifiedResolutionNeedsHuman = ledgerCoverage.unverifiedResolutions.map(
 		(id) => ({
 			id: `UNVERIFIED-RESOLUTION-${id}`,
@@ -960,7 +960,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 	const sourceRiskRows = ["api-contract-impact", "state-data-impact", "docs-release-impact", "security-performance-impact"]
 		.map((stageId) => ({ stageId, severity: cleanText(findSource(sources, stageId)?.status) }))
 		.filter((row) => RISK_LEVELS.has(row.severity))
-		.map((row) => ({ ...row, resolution: "unresolved", text: `${row.stageId} aggregate risk` }));
+		.map((row) => ({ ...row, resolution: "unresolved" }));
 	const riskUncertainty = ledgerMode
 		? summarizeCanonicalRisk([...ledgerCoverage.impactLedger, ...sourceRiskRows], ledgerCoverage.unverifiedResolutions)
 		: { present: false, knownFloor: "none", observationIds: [] };
@@ -1045,7 +1045,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 		);
 	if (allLedgerSourcesAvailable && !verdictConsistent)
 		limit(
-			`The synthesis gave verdict ${cleanText(safeSynthesis.verdict) || "none"}, but the lens results require ${requiredReportVerdict}; the report uses ${verdict}.`, `종합 의견 판정은 ${reportStatus(safeSynthesis.verdict || "none", t)}이지만 관점별 결과는 ${reportStatus(requiredReportVerdict, t)}입니다. 보고서는 ${reportStatus(verdict, t)} 판정을 적용합니다.`,
+			`The synthesis gave verdict ${cleanText(safeSynthesis.verdict) || "none"}, but the lens results require ${requiredReportVerdict}; the report uses ${verdict}.`, `종합 의견 판정은 ${cleanText(safeSynthesis.verdict) || "none"}이지만 관점별 결과는 ${requiredReportVerdict}입니다. 보고서는 ${verdict} 판정을 적용합니다.`,
 		);
 	if (allLedgerSourcesAvailable && !riskConsistent)
 		limit(

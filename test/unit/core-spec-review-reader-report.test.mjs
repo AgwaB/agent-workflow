@@ -216,3 +216,19 @@ test("spec review localizes machine diagnostics but preserves model prose and ex
 	assert.ok(markdown.includes(quote));
 	assert.equal(scopeLimitations[0].kind, "NONBLOCKING");
 });
+
+test("spec report language prefers the request, then reader prose, then task script", async () => {
+	const sources = {
+		"partition-findings.main": {
+			finalFindings: [finding("F-1", "확인된 차이", "KEEP")],
+		},
+	};
+	for (const [runtimeTask, heading] of [
+		["Review the patch and write the report in Korean.", "# 명세 검토 보고서"],
+		["Review the patch.", "# 명세 검토 보고서"],
+		["검토 후 보고서는 영어로 작성하세요.", "# Spec review report"],
+	]) {
+		const { markdown } = await render({ sources, context: { runtimeTask } });
+		assert.equal(markdown.split("\n")[0], heading);
+	}
+});
