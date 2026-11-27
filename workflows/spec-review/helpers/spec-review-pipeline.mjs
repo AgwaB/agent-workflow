@@ -981,7 +981,7 @@ function buildBatchMembership(batchSource) {
 				});
 				continue;
 			}
-			members.set(id, { id, title, titleKey: titleKeyOf(title) });
+			members.set(id, { id, title });
 			if (!candidatesById.has(id)) candidatesById.set(id, candidate);
 		}
 		const candidateIds = Array.isArray(batch.candidateIds)
@@ -994,7 +994,7 @@ function buildBatchMembership(batchSource) {
 				continue;
 			}
 			if (members.has(id)) continue;
-			members.set(id, { id, title: "", titleKey: "" });
+			members.set(id, { id, title: "" });
 		}
 		for (const id of members.keys()) {
 			const batchesForId = candidateBatchIds.get(id) ?? [];
@@ -1227,7 +1227,7 @@ function collectBatchVerifierRows({
 				});
 				continue;
 			}
-			if (!expected.titleKey) {
+			if (!expected.title) {
 				issues.push({
 					...base,
 					reason: "batch_membership_missing_title",
@@ -1286,14 +1286,6 @@ function malformedBatchRowReason(row) {
 	if (typeof row.recommendedAction !== "string")
 		return "malformed_batch_row_missing_recommendedAction";
 	return null;
-}
-
-function titleKeyOf(value) {
-	return String(value ?? "")
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, " ")
-		.replace(/\s+/g, " ")
-		.trim();
 }
 
 // --- shared helpers ------------------------------------------------------------

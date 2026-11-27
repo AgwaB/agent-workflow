@@ -252,6 +252,14 @@
      "stageId": "reviewers",
      "status": "source_coverage_incomplete",
      "statusDetail": "runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range)",
+     "coverageReviewer": "runtime-correctness",
+     "coverageIssues": [
+      {
+       "path": "SPEC.md:13-16",
+       "status": "read",
+       "reason": "content quote was not found in required source range"
+      }
+     ],
      "errorType": "source_coverage",
      "sourcePath": "SPEC.md:13-16",
      "coverageStatus": "read"
@@ -310,6 +318,14 @@
      "coverageStatus": "read",
      "status": "source_coverage_incomplete",
      "statusDetail": "runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range)",
+     "coverageIssues": [
+      {
+       "path": "SPEC.md:13-16",
+       "status": "read",
+       "reason": "content quote was not found in required source range"
+      }
+     ],
+     "coverageReviewer": "runtime-correctness",
      "errorType": "source_coverage"
     }
    ]
@@ -650,13 +666,21 @@
      "coverageStatus": "read",
      "status": "source_coverage_incomplete",
      "statusDetail": "runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range)",
+     "coverageIssues": [
+      {
+       "path": "SPEC.md:13-16",
+       "status": "read",
+       "reason": "content quote was not found in required source range"
+      }
+     ],
+     "coverageReviewer": "runtime-correctness",
      "errorType": "source_coverage"
     }
    ]
   },
   "reportPacket": {
    "schema": "deep-review-report-packet-v1",
-   "digest": "b916d2c199a3efcaa4fd306e51d5da723ee696303a6082341ba3ed5db3d64d69",
+   "digest": "3e1a62e6997430979964c9648c5a4b4e641a57f70879a8c3cea7e787606d023c",
    "maxChars": 15000,
    "actualChars": 2174,
    "expectedVerdict": "NEEDS_WORK",
@@ -854,6 +878,14 @@
      "stageId": "reviewers",
      "status": "source_coverage_incomplete",
      "statusDetail": "runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range)",
+     "coverageReviewer": "runtime-correctness",
+     "coverageIssues": [
+      {
+       "path": "SPEC.md:13-16",
+       "status": "read",
+       "reason": "content quote was not found in required source range"
+      }
+     ],
      "errorType": "source_coverage",
      "sourcePath": "SPEC.md:13-16",
      "coverageStatus": "read"
@@ -1021,7 +1053,7 @@
    ],
    "digest": "2722af3ed685b0466c7c916695cb39520f460f567e4ef3b233bc0db559537954"
   },
-  "digest": "partition: keep=1, weaken=0, drop=0, needsHuman=2, missingVerdicts=0, partialFailures=1, supportNotes=0, ledgerDigest=b916d2c199a3efcaa4fd306e51d5da723ee696303a6082341ba3ed5db3d64d69",
+  "digest": "partition: keep=1, weaken=0, drop=0, needsHuman=2, missingVerdicts=0, partialFailures=1, supportNotes=0, ledgerDigest=3e1a62e6997430979964c9648c5a4b4e641a57f70879a8c3cea7e787606d023c",
   "sourceStatusSummary": {
    "total": 5,
    "completed": 4,
@@ -1036,6 +1068,14 @@
      "coverageStatus": "read",
      "status": "source_coverage_incomplete",
      "statusDetail": "runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range)",
+     "coverageIssues": [
+      {
+       "path": "SPEC.md:13-16",
+       "status": "read",
+       "reason": "content quote was not found in required source range"
+      }
+     ],
+     "coverageReviewer": "runtime-correctness",
      "errorType": "source_coverage"
     }
    ]
@@ -1075,7 +1115,7 @@
  },
  "report-packet.main": {
   "schema": "deep-review-report-packet-v1",
-  "digest": "b916d2c199a3efcaa4fd306e51d5da723ee696303a6082341ba3ed5db3d64d69",
+  "digest": "3e1a62e6997430979964c9648c5a4b4e641a57f70879a8c3cea7e787606d023c",
   "maxChars": 15000,
   "actualChars": 2174,
   "expectedVerdict": "NEEDS_WORK",
@@ -1166,8 +1206,8 @@
   "digest": "Rendered 1 findings: high=1.",
   "status": "passed",
   "verdict": "NEEDS_WORK",
-  "completionSummaryMarkdown": "## Core conclusion\n\nVerdict: **NEEDS_WORK**. Review coverage is partial. The deterministic ledger contains 1 kept or weakened findings and 2 needs-human items.\n\n## Key findings\n\n- **high / KEEP:** 공개 종료 요약 필드명이 launchRetryAttempts에서 launchRetries로 변경됨\n- **high / NEEDS\\_HUMAN:** 중지 폴링 기본값과 최소값이 명세보다 완화되어 중지 지연 및 busy loop가 발생할 수 있음\n- **high / NEEDS\\_HUMAN:** 허용 목록에 cancelled와 timeout을 추가해 정상 provider 오류를 취소로 오인할 수 있음\n\n## Evidence level\n\n- Canonical rows: 1 kept or weakened findings, 2 needs-human items, and 0 supporting observations.\n- Coverage: partial.\n\n## Important limitations\n\n- Evidence and quotes are bound to the reviewed snapshot available to the partition stage; final rendering does not re-read repository files and therefore does not attest current-tree bytes.\n- Review coverage is partial because a task did not complete or required source content was unavailable.",
-  "markdown": "# 심층 검토 보고서\n\n근거: 유지·완화 1건 · 사람 검토 2건 · 보조 관찰 0건 · 검토 범위 일부\n\n## 결론\n\n판정: **수정 필요**.\n\n고위험 신뢰성·호환성 우려가 하나 유지되었고, 두 가지 추가 우려는 검토 범위 불완전으로 사람의 확인이 필요합니다.\n\n### 핵심 포인트\n\n- **높음** — 발견 1건\n- **사람 검토 필요** — 2\n- **주요 위험** — 공개 종료 요약 계약과 관련된 고위험 문제가 유지되었습니다.\n\n## 알아둘 한계\n\n- 공개 종료 요약 계약과 관련된 고위험 문제가 유지되었습니다.\n- 중지·취소 처리 관련 두 우려는 필요한 소스 범위가 완전히 검토되지 않아 확정되지 않았습니다.\n- 리뷰 입력 5건 중 4건만 완료되어 해당 영역의 결론이 부분적으로 제한됩니다.\n- 불완전한 출처: reviewers (source\\_coverage\\_incomplete)\n- 정규화 메모: verdict for \"중지 폴링 기본값과 최소값이 명세보다 완화되어 중지 지연 및 busy loop가 발생할 수 있음\" came from incomplete source coverage; routed to NEEDS\\_HUMAN instead of KEEP\n- 정규화 메모: verdict for \"허용 목록에 cancelled와 timeout을 추가해 정상 provider 오류를 취소로 오인할 수 있음\" came from incomplete source coverage; routed to NEEDS\\_HUMAN instead of KEEP\n- 일부 작업이 끝나지 않았거나 필요한 자료를 읽지 못했습니다.\n\n## 할 일\n\n1. **검토 결과에 따른 조치** — 유지되거나 완화된 발견 사항을 처리하고 사람이 검토할 항목을 해결하세요.\n1. **종합 의견의 권고** — 유지된 고위험 문제를 수정하고, 누락된 소스 범위를 보완한 뒤 두 보류 우려를 재검토하십시오.\n1. **finding-003** — 공개 필드명 launchRetryAttempts를 복원하고, 필요하면 launchRetries를 별도 alias로 추가한 뒤 충분한 마이그레이션 기간 후 폐기하십시오.\n1. **finding-001** — pollMs 계산을 Math.max(10, options.pollMs ?? 50)로 수정하고 회귀 테스트를 추가한다.\n1. **finding-002** — 문자열 판별을 \\`aborted\\`, \\`AbortError\\`, \\`ABORT\\_ERR\\` 세 값으로 제한하고, 추가 provider 형태가 필요하면 명세와 공개 계약을 먼저 갱신한다.\n\n## 발견 사항\n\n### finding-003 — 공개 종료 요약 필드명이 launchRetryAttempts에서 launchRetries로 변경됨\n\n심각도: **높음**  \n검증 판정: **유지**\n\n<details>\n<summary>근거 보기</summary>\n\n근본 원인: `root-003`\n\n위치:\n\n| 파일 | 줄 | 심볼 |\n|---|---:|---|\n| `src/workflow-terminal.ts` | 33 | `WorkflowTerminalSummary.launchRetries` |\n| `src/workflow-terminal.ts` | 107-110 | `summarizeWorkflowTerminal` |\n\n출처: reviewers.api-compatibility\n\n검토자 근거:\n\n```text\n-\tlaunchRetryAttempts: number;\n```\n\n```text\n+\tlaunchRetries: number;\n```\n\n```text\n-\tlaunchRetryAttempts: run.tasks.reduce(\n```\n\n```text\n+\tlaunchRetries: run.tasks.reduce(\n```\n\n```text\n\tlaunchRetries: number;\n```\n\n```text\n\t\tlaunchRetries: run.tasks.reduce(\n```\n\n```text\n이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).\n```\n\n검증자 근거:\n\n```text\n요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n```\n\n```text\n이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).\n```\n\n```text\nlaunchRetries: number;\n```\n\n```text\nlaunchRetries: run.tasks.reduce(\n```\n\n판단 이유:\n\n이 변경은 기존 키를 유지하지 않고 제거하므로 저장된 요약을 읽거나 launchRetryAttempts를 참조하는 외부 도구가 값을 찾지 못합니다. 저장소 내 기존 소비자가 검색되지 않더라도 SPEC.md가 외부 도구 소비를 명시하므로 호환성 회귀입니다. 재시도 횟수 계산식 자체는 동일하지만 공개 키 변경만으로 계약이 깨집니다.\n\n\n</details>\n\n\n## 사람 검토 필요\n\n### finding-001 — 중지 폴링 기본값과 최소값이 명세보다 완화되어 중지 지연 및 busy loop가 발생할 수 있음\n\n심각도: **높음**  \n검증 판정: **사람 검토 필요**\n\n<details>\n<summary>근거 보기</summary>\n\n근본 원인: `root-001`\n\n사람 검토가 필요한 이유: `source_coverage_incomplete` — 검토자가 필수 자료를 다 확인하지 못함\n\n위치:\n\n| 파일 | 줄 | 심볼 |\n|---|---:|---|\n| `src/workflow-stop.ts` | 67 | `createWorkflowStopSignal` |\n| `SPEC.md` | 13-14 | `S3` |\n\n출처: reviewers\n\n검토자 근거:\n\n```text\n+\tconst pollMs = Math.max(1, options.pollMs ?? 200);\n```\n\n```text\n- **S3.** 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다.\n```\n\n검증자 근거:\n\n```ts\nconst pollMs = Math.max(1, options.pollMs ?? 200);\n```\n\n```text\n기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n```\n\n판단 이유:\n\n옵션을 생략하면 디스크 중지 의도 감지가 기존 계약보다 최대 4배 늦어질 수 있다. pollMs가 1\\~9ms이면 매우 잦은 setInterval과 디스크 읽기로 busy loop가 발생할 수 있다.\n\n주의 사항과 반증:\n\n- originating reviewer did not complete required source coverage: SPEC.md:13-16\n\n\n</details>\n\n### finding-002 — 허용 목록에 cancelled와 timeout을 추가해 정상 provider 오류를 취소로 오인할 수 있음\n\n심각도: **높음**  \n검증 판정: **사람 검토 필요**\n\n<details>\n<summary>근거 보기</summary>\n\n근본 원인: `root-002`\n\n사람 검토가 필요한 이유: `source_coverage_incomplete` — 검토자가 필수 자료를 다 확인하지 못함\n\n위치:\n\n| 파일 | 줄 | 심볼 |\n|---|---:|---|\n| `src/workflow-cancellation.ts` | 20 | `isWorkflowReturnedCancellation` |\n| `SPEC.md` | 25-26 | `C1` |\n\n출처: reviewers\n\n검토자 근거:\n\n```text\n+\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;\n```\n\n```text\n- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.\n```\n\n검증자 근거:\n\n```ts\nif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;\n```\n\n```text\n**C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.\n```\n\n판단 이유:\n\nprovider가 일반 오류의 error/reason으로 cancelled 또는 timeout을 사용하면 isWorkflowReturnedCancellation이 true를 반환한다. 호출자가 실제 장애를 취소로 처리해 진단과 오류 전파를 잃을 수 있으며, 이는 C1의 명시적 exact-match 계약 위반이다.\n\n주의 사항과 반증:\n\n- originating reviewer did not complete required source coverage: SPEC.md:13-16\n\n\n</details>\n\n## 부록\n\n<details>\n<summary>검토 기록</summary>\n\n- 근거와 인용은 검토 당시의 스냅샷을 기준으로 합니다. 보고서를 만들 때 현재 파일을 다시 확인하지 않았습니다.\n\n### 사람 검토가 필요한 이유\n\n원인별 집계:\n\n- 2 × `source_coverage_incomplete` — 검토자가 필수 자료를 다 확인하지 못함\n\n\n### 누락된 필수 출처\n\n| 검토자 출처 | 필수 출처 | 상태 | 추출 자료 | 상세 |\n|---|---|---|---|---|\n| reviewers | SPEC.md:13-16 | read | — | runtime-correctness: SPEC.md:13-16: read (content quote was not found in required source range) |\n\n### 근거 위치 보정\n\n인용 위치나 공백만 다른 근거는 검토한 파일과 대조했습니다. 보존된 근거는 파일의 원문입니다.\n\n| 단계 | 파일 | 제시한 줄 | 확인한 줄 | 이유 |\n|---|---|---|---|---|\n| 검토자 for runtime-correctness | SPEC.md | 25-28 | 25-26 | 공백 또는 인용 부호·대시를 빼면 일치해 파일 원문을 보존함 |\n\n### 관련 자료\n\n- [기계 판독용 보고서](control.json)\n- [구조화된 출처](refs.json)\n- [이전 형식 호환 보고서](review.md)\n\n\n</details>",
+  "completionSummaryMarkdown": "## 핵심 결론\n\n판정: **NEEDS_WORK**. 검토 범위가 일부에 그쳤습니다. 원장에 유지·완화된 발견 사항 1건과 사람 검토 항목 2건이 있습니다.\n\n## 주요 발견 사항\n\n- **high / KEEP:** 공개 종료 요약 필드명이 launchRetryAttempts에서 launchRetries로 변경됨\n- **high / NEEDS\\_HUMAN:** 중지 폴링 기본값과 최소값이 명세보다 완화되어 중지 지연 및 busy loop가 발생할 수 있음\n- **high / NEEDS\\_HUMAN:** 허용 목록에 cancelled와 timeout을 추가해 정상 provider 오류를 취소로 오인할 수 있음\n\n## 근거 수준\n\n- 원장 집계: 유지·완화 1건, 사람 검토 2건, 보조 관찰 0건.\n- 검토 범위: 일부.\n\n## 중요한 한계\n\n- 근거와 인용은 검토 당시의 스냅샷을 기준으로 합니다. 보고서를 만들 때 현재 파일을 다시 확인하지 않았습니다.\n- 일부 작업이 끝나지 않았거나 필요한 자료를 읽지 못했습니다.",
+  "markdown": "# 심층 검토 보고서\n\n근거: 유지·완화 1건 · 사람 검토 2건 · 보조 관찰 0건 · 검토 범위 일부\n\n## 결론\n\n판정: **수정 필요**.\n\n고위험 신뢰성·호환성 우려가 하나 유지되었고, 두 가지 추가 우려는 검토 범위 불완전으로 사람의 확인이 필요합니다.\n\n### 핵심 포인트\n\n- **높음** — 발견 1건\n- **사람 검토 필요** — 2\n- **주요 위험** — 공개 종료 요약 계약과 관련된 고위험 문제가 유지되었습니다.\n\n## 알아둘 한계\n\n- 공개 종료 요약 계약과 관련된 고위험 문제가 유지되었습니다.\n- 중지·취소 처리 관련 두 우려는 필요한 소스 범위가 완전히 검토되지 않아 확정되지 않았습니다.\n- 리뷰 입력 5건 중 4건만 완료되어 해당 영역의 결론이 부분적으로 제한됩니다.\n- 불완전한 출처: reviewers (source\\_coverage\\_incomplete)\n- 정규화 메모: “중지 폴링 기본값과 최소값이 명세보다 완화되어 중지 지연 및 busy loop가 발생할 수 있음”: 출처 검토가 불완전함. KEEP 대신 NEEDS\\_HUMAN으로 보냈습니다.\n- 정규화 메모: “허용 목록에 cancelled와 timeout을 추가해 정상 provider 오류를 취소로 오인할 수 있음”: 출처 검토가 불완전함. KEEP 대신 NEEDS\\_HUMAN으로 보냈습니다.\n- 일부 작업이 끝나지 않았거나 필요한 자료를 읽지 못했습니다.\n\n## 할 일\n\n1. **검토 결과에 따른 조치** — 유지되거나 완화된 발견 사항을 처리하고 사람이 검토할 항목을 해결하세요.\n1. **종합 의견의 권고** — 유지된 고위험 문제를 수정하고, 누락된 소스 범위를 보완한 뒤 두 보류 우려를 재검토하십시오.\n1. **finding-003** — 공개 필드명 launchRetryAttempts를 복원하고, 필요하면 launchRetries를 별도 alias로 추가한 뒤 충분한 마이그레이션 기간 후 폐기하십시오.\n1. **finding-001** — pollMs 계산을 Math.max(10, options.pollMs ?? 50)로 수정하고 회귀 테스트를 추가한다.\n1. **finding-002** — 문자열 판별을 \\`aborted\\`, \\`AbortError\\`, \\`ABORT\\_ERR\\` 세 값으로 제한하고, 추가 provider 형태가 필요하면 명세와 공개 계약을 먼저 갱신한다.\n\n## 발견 사항\n\n### finding-003 — 공개 종료 요약 필드명이 launchRetryAttempts에서 launchRetries로 변경됨\n\n심각도: **높음**  \n검증 판정: **유지**\n\n<details>\n<summary>근거 보기</summary>\n\n근본 원인: `root-003`\n\n위치:\n\n| 파일 | 줄 | 심볼 |\n|---|---:|---|\n| `src/workflow-terminal.ts` | 33 | `WorkflowTerminalSummary.launchRetries` |\n| `src/workflow-terminal.ts` | 107-110 | `summarizeWorkflowTerminal` |\n\n출처: reviewers.api-compatibility\n\n검토자 근거:\n\n```text\n-\tlaunchRetryAttempts: number;\n```\n\n```text\n+\tlaunchRetries: number;\n```\n\n```text\n-\tlaunchRetryAttempts: run.tasks.reduce(\n```\n\n```text\n+\tlaunchRetries: run.tasks.reduce(\n```\n\n```text\n\tlaunchRetries: number;\n```\n\n```text\n\t\tlaunchRetries: run.tasks.reduce(\n```\n\n```text\n이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).\n```\n\n검증자 근거:\n\n```text\n요약의 `outputRetryAttempts`와 `launchRetryAttempts`는 모든 작업의 재시도 횟수 합이며,\n```\n\n```text\n이 두 필드 이름은 공개 계약이다(외부 도구가 읽는다).\n```\n\n```text\nlaunchRetries: number;\n```\n\n```text\nlaunchRetries: run.tasks.reduce(\n```\n\n판단 이유:\n\n이 변경은 기존 키를 유지하지 않고 제거하므로 저장된 요약을 읽거나 launchRetryAttempts를 참조하는 외부 도구가 값을 찾지 못합니다. 저장소 내 기존 소비자가 검색되지 않더라도 SPEC.md가 외부 도구 소비를 명시하므로 호환성 회귀입니다. 재시도 횟수 계산식 자체는 동일하지만 공개 키 변경만으로 계약이 깨집니다.\n\n\n</details>\n\n\n## 사람 검토 필요\n\n### finding-001 — 중지 폴링 기본값과 최소값이 명세보다 완화되어 중지 지연 및 busy loop가 발생할 수 있음\n\n심각도: **높음**  \n검증 판정: **사람 검토 필요**\n\n<details>\n<summary>근거 보기</summary>\n\n근본 원인: `root-001`\n\n사람 검토가 필요한 이유: `source_coverage_incomplete` — 검토자가 필수 자료를 다 확인하지 못함\n\n위치:\n\n| 파일 | 줄 | 심볼 |\n|---|---:|---|\n| `src/workflow-stop.ts` | 67 | `createWorkflowStopSignal` |\n| `SPEC.md` | 13-14 | `S3` |\n\n출처: reviewers\n\n검토자 근거:\n\n```text\n+\tconst pollMs = Math.max(1, options.pollMs ?? 200);\n```\n\n```text\n- **S3.** 감시 주기(`pollMs`)의 기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다 짧아지면 안 된다.\n```\n\n검증자 근거:\n\n```ts\nconst pollMs = Math.max(1, options.pollMs ?? 200);\n```\n\n```text\n기본값은 50ms이고, 호출자가 더 작은 값을 주어도 10ms보다\n```\n\n판단 이유:\n\n옵션을 생략하면 디스크 중지 의도 감지가 기존 계약보다 최대 4배 늦어질 수 있다. pollMs가 1\\~9ms이면 매우 잦은 setInterval과 디스크 읽기로 busy loop가 발생할 수 있다.\n\n주의 사항과 반증:\n\n- 검토자가 필수 출처 검토를 마치지 못했습니다: SPEC.md:13-16\n\n\n</details>\n\n### finding-002 — 허용 목록에 cancelled와 timeout을 추가해 정상 provider 오류를 취소로 오인할 수 있음\n\n심각도: **높음**  \n검증 판정: **사람 검토 필요**\n\n<details>\n<summary>근거 보기</summary>\n\n근본 원인: `root-002`\n\n사람 검토가 필요한 이유: `source_coverage_incomplete` — 검토자가 필수 자료를 다 확인하지 못함\n\n위치:\n\n| 파일 | 줄 | 심볼 |\n|---|---:|---|\n| `src/workflow-cancellation.ts` | 20 | `isWorkflowReturnedCancellation` |\n| `SPEC.md` | 25-26 | `C1` |\n\n출처: reviewers\n\n검토자 근거:\n\n```text\n+\t\tif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;\n```\n\n```text\n- **C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.\n```\n\n검증자 근거:\n\n```ts\nif (candidate === \"aborted\" || candidate === \"AbortError\" || candidate === \"ABORT_ERR\" || candidate === \"cancelled\" || candidate === \"timeout\") return true;\n```\n\n```text\n**C1.** provider가 돌려준 값이 취소인지 판별할 때, 오류·사유 문자열은 정확히 `aborted`, `AbortError`, `ABORT_ERR` 세 가지만 취소로 인정한다. 다른 provider 오류를 취소로 승격해서는 안 된다.\n```\n\n판단 이유:\n\nprovider가 일반 오류의 error/reason으로 cancelled 또는 timeout을 사용하면 isWorkflowReturnedCancellation이 true를 반환한다. 호출자가 실제 장애를 취소로 처리해 진단과 오류 전파를 잃을 수 있으며, 이는 C1의 명시적 exact-match 계약 위반이다.\n\n주의 사항과 반증:\n\n- 검토자가 필수 출처 검토를 마치지 못했습니다: SPEC.md:13-16\n\n\n</details>\n\n## 부록\n\n<details>\n<summary>검토 기록</summary>\n\n- 근거와 인용은 검토 당시의 스냅샷을 기준으로 합니다. 보고서를 만들 때 현재 파일을 다시 확인하지 않았습니다.\n\n### 사람 검토가 필요한 이유\n\n원인별 집계:\n\n- 2 × `source_coverage_incomplete` — 검토자가 필수 자료를 다 확인하지 못함\n\n\n### 누락된 필수 출처\n\n| 검토자 출처 | 필수 출처 | 상태 | 추출 자료 | 상세 |\n|---|---|---|---|---|\n| reviewers | SPEC.md:13-16 | read | — | runtime-correctness: SPEC.md:13-16: read (필수 출처의 해당 범위에서 인용문을 찾지 못했습니다) |\n\n### 근거 위치 보정\n\n인용 위치나 공백만 다른 근거는 검토한 파일과 대조했습니다. 보존된 근거는 파일의 원문입니다.\n\n| 단계 | 파일 | 제시한 줄 | 확인한 줄 | 이유 |\n|---|---|---|---|---|\n| runtime-correctness 검토자 | SPEC.md | 25-28 | 25-26 | 공백 또는 인용 부호·대시를 빼면 일치해 파일 원문을 보존함 |\n\n### 관련 자료\n\n- [기계 판독용 보고서](control.json)\n- [구조화된 출처](refs.json)\n- [이전 형식 호환 보고서](review.md)\n\n\n</details>",
   "findingSummary": {
    "total": 1,
    "bySeverity": {

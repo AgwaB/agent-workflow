@@ -980,7 +980,7 @@ test("deep-review renderer keeps the ledger verdict and passes when only the nar
 	assert.equal(result.gates.reportVerdictConsistent, false);
 	assert.match(
 		result.completionSummaryMarkdown,
-		/gave verdict REVIEW\\?_COMPLETE, which the deterministic ledger does not support; the report uses NEEDS\\?_WORK/,
+		/종합 의견의 판정\(REVIEW\\?_COMPLETE\)을 원장에서 뒷받침하지 않습니다\. 보고서 판정은 NEEDS\\?_WORK입니다\./,
 	);
 	assert.match(
 		result.markdown,
@@ -1019,7 +1019,7 @@ test("spec-review renderer keeps the ledger verdict and passes when only the nar
 		assert.equal(result.gates.reportVerdictConsistent, false);
 		assert.match(
 			result.completionSummaryMarkdown,
-			/gave verdict CONFORMS, which the deterministic ledger does not support; the report uses GAPS\\?_FOUND/,
+			/원장으로 뒷받침되지 않는 종합 판정\(CONFORMS\) 대신 GAPS\\?_FOUND 판정을 적용합니다\./,
 		);
 	} finally {
 		rmSync(cwd, { recursive: true, force: true });

@@ -178,10 +178,7 @@ test("the completion summary stays within its schema limit however many action r
 		Array.from(summary).length <= 6000,
 		`${Array.from(summary).length} chars`,
 	);
-	assert.match(
-		summary,
-		/- 30 additional action row\(s\) are covered in the full report\./u,
-	);
+	assert.match(summary, /- 나머지 조치 30건은 전체 보고서에 있습니다\./u);
 	// The full report keeps every row.
 	for (let i = 0; i < 6; i++)
 		assert.match(result.markdown, new RegExp(`next ${i}:`, "u"));
@@ -255,4 +252,56 @@ test("impact reader retains every lens row and closes evidence, actions and sour
 	assert.match(appendix, /영향 분석 원본 항목/);
 	for (const token of tokens) assert.ok(out.markdown.includes(token), token);
 	assert.match(out.markdown, /ref-1\.md/);
+});
+
+test("impact review shares the reader locale with the compact completion and keeps tokens", async () => {
+	const sources = blockedControls();
+	Object.assign(sources["impact-analysis.impact-synthesis"], {
+		summary: "배송비 변경은 배포할 수 없습니다.",
+		blockingIssues: [{ finding: "경계값을 수정하세요.", file: "shipping.mjs" }],
+	});
+	const result = await renderImpactReport({ sources, context });
+	assert.equal(result.verdict, "BLOCKED");
+	assert.match(result.markdown, /^# 영향 검토 보고서/u);
+	assert.match(result.markdown, /shipping\.mjs/u);
+	assert.match(
+		result.completionSummaryMarkdown,
+		/^## 핵심 결론\n\n판정: \*\*BLOCKED\*\*; 위험도: \*\*low\*\*/u,
+	);
+	assert.match(
+		result.completionSummaryMarkdown,
+		/이전 파일의 원문을 검증하지 않습니다/u,
+	);
+	assert.doesNotMatch(
+		result.completionSummaryMarkdown,
+		/## Evidence level|historical source-file bytes/u,
+	);
+});
+
+test("impact report language prefers the request, then reader prose, then task script", async () => {
+	const sources = blockedControls();
+	const check = async (runtimeTask, heading) => {
+		const { markdown } = await renderImpactReport({
+			sources,
+			context: { ...context, runtimeTask },
+		});
+		assert.equal(markdown.split("\n")[0], heading);
+	};
+	await check(
+		"Review the patch and write the report in Korean.",
+		"# 영향 검토 보고서",
+	);
+	await check(
+		"Do not write the report in English; write the report in Korean.",
+		"# 영향 검토 보고서",
+	);
+	delete sources["impact-analysis.impact-synthesis"];
+	sources["impact-analysis.ship-readiness"].assumptions = [
+		{ text: "검토 범위를 확인했습니다." },
+	];
+	await check("Review the patch.", "# 영향 검토 보고서");
+	await check(
+		"변경을 검토하고 보고서는 영어로 작성하세요.",
+		"# Impact review report",
+	);
 });

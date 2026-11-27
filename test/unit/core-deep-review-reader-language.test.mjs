@@ -143,6 +143,10 @@ test("a verifier's readerTitle and readerRationale are what the report shows; th
 	assert.equal(kept.rationale, finding.rationale);
 	assert.equal(kept.readerTitle, "위험 플래그가 켜진 채로 남음");
 	assert.equal(out.verdict, "NEEDS_WORK");
+	assert.match(
+		out.completionSummaryMarkdown,
+		/^## 핵심 결론\n\n판정: \*\*NEEDS_WORK\*\*/u,
+	);
 	assert.match(out.markdown, /### f1 — 위험 플래그가 켜진 채로 남음/);
 	assert.match(out.markdown, /판단 이유:\n\n플래그가 다시 꺼지지 않아/);
 	assert.match(out.markdown, /1\. \*\*f1\*\* — 플래그를 끄세요\./);
@@ -163,30 +167,40 @@ test("without reader text, or with an empty one, the original title and rational
 	}
 });
 
-test("deep-review and spec-review prompts ask for the task's language; the verifier schema allows the reader fields", () => {
-	const spec = JSON.parse(
-		readFileSync("workflows/deep-review/spec.json", "utf8"),
-	);
-	const stage = (id) => spec.artifactGraph.stages.find((s) => s.id === id);
-	assert.match(
-		stage("report").prompt,
-		/summary, risks and recommendedNextAction in the runtime task's requested language/,
-	);
-	assert.match(
-		stage("devil-advocate").each.prompt,
-		/add readerTitle and readerRationale: faithful translations/,
-	);
-	assert.match(
-		stage("devil-advocate").each.prompt,
-		/evidenceUnavailableReason, readerTitle, and readerRationale\./,
-	);
-	const spec2 = JSON.parse(
-		readFileSync("workflows/spec-review/spec.json", "utf8"),
-	);
-	assert.match(
-		spec2.artifactGraph.stages.find((s) => s.id === "report").prompt,
-		/in the runtime task's requested language/,
-	);
+test("all review producers require task-language prose and preserve exact quotes", () => {
+	function* producers(stages) {
+		for (const stage of stages) {
+			if (stage.stages) yield* producers(stage.stages);
+			const prompt = stage.each?.prompt ?? stage.prompt;
+			if (prompt) yield [stage.id, prompt];
+		}
+	}
+	for (const name of ["deep-review", "impact-review", "spec-review"]) {
+		const spec = JSON.parse(
+			readFileSync(`workflows/${name}/spec.json`, "utf8"),
+		);
+		const stages = [...producers(spec.artifactGraph.stages)];
+		assert.ok(stages.length > 0, name);
+		for (const [id, prompt] of stages) {
+			assert.match(
+				prompt,
+				/human-readable prose in <control> and <analysis> in the runtime task's requested language/u,
+				`${name}:${id}`,
+			);
+			assert.match(prompt, /exact evidence quotes unchanged/u, `${name}:${id}`);
+		}
+		if (name === "deep-review") {
+			const verifier = new Map(stages).get("devil-advocate");
+			assert.match(
+				verifier,
+				/add readerTitle and readerRationale: faithful translations/u,
+			);
+			assert.match(
+				verifier,
+				/evidenceUnavailableReason, readerTitle, and readerRationale\./u,
+			);
+		}
+	}
 	const schema = JSON.parse(
 		readFileSync(
 			"workflows/deep-review/schemas/deep-review-devil-advocate-control.schema.json",

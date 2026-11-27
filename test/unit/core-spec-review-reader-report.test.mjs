@@ -176,3 +176,63 @@ test("unbound audit rows never replace the original coverage citation", async ()
 		);
 	}
 });
+
+test("spec review localizes machine diagnostics but preserves model prose and exact evidence", async () => {
+	const item = {
+		...finding("H-1", "배송비 경계값", "NEEDS_HUMAN"),
+		claim: undefined,
+		reason:
+			"Unverified DROP: exact local byte evidence required in counterEvidence before removal",
+		finalClaim:
+			"No final verifier claim was supplied; the item remains unresolved.",
+		recommendedAction:
+			"Reconcile the unresolved evidence and rerun the review.",
+		uncertainty: "Whether this applies to guest orders is unclear.",
+	};
+	const { markdown, verdict, scopeLimitations } = await render({
+		context: { runtimeTask: "명세에서 정한 배송비를 검토해 주세요." },
+		sources: {
+			"partition-findings": {
+				needsHuman: [item],
+				scopeLimitations: [
+					{ kind: "NONBLOCKING", text: "테스트를 실행하지 않았습니다." },
+				],
+			},
+		},
+	});
+	assert.equal(verdict, "INCONCLUSIVE");
+	assert.match(markdown, /^# 명세 검토 보고서/u);
+	assert.match(markdown, /비차단 범위 제한: 테스트를 실행하지 않았습니다/u);
+	assert.match(
+		markdown,
+		/DROP 미검증: 제외하려면 저장소 원문과 정확히 일치하는 반증이 필요합니다/u,
+	);
+	assert.match(markdown, /최종 검증 주장이 없어 이 항목이 미해결 상태입니다/u);
+	assert.match(
+		markdown,
+		/\*\*H-1\*\* — 미해결 근거를 대조한 뒤 검토를 다시 실행하세요/u,
+	);
+	assert.ok(markdown.includes(item.uncertainty));
+	assert.ok(markdown.includes(quote));
+	assert.equal(scopeLimitations[0].kind, "NONBLOCKING");
+});
+
+test("spec report language prefers the request, then reader prose, then task script", async () => {
+	const sources = {
+		"partition-findings.main": {
+			finalFindings: [finding("F-1", "확인된 차이", "KEEP")],
+		},
+	};
+	for (const [runtimeTask, heading] of [
+		["Review the patch and write the report in Korean.", "# 명세 검토 보고서"],
+		[
+			"Do not write the report in English; write the report in Korean.",
+			"# 명세 검토 보고서",
+		],
+		["Review the patch.", "# 명세 검토 보고서"],
+		["검토 후 보고서는 영어로 작성하세요.", "# Spec review report"],
+	]) {
+		const { markdown } = await render({ sources, context: { runtimeTask } });
+		assert.equal(markdown.split("\n")[0], heading);
+	}
+});

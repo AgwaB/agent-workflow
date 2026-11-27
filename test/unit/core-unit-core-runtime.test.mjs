@@ -5642,7 +5642,7 @@ test("the same failed/skipped tasks in the final loop round, a failed loop, or a
 	assert.equal(deriveRunStatus(running).status, "running");
 });
 
-test("deep-review finding-pipeline dedups by file+title-token overlap and partitions verdicts with severity join", async () => {
+test("deep-review finding-pipeline dedups by structured location and exact identity and partitions verdicts with severity join", async () => {
 	const helperPath = join(
 		dirname(fileURLToPath(import.meta.url)),
 		"..",
@@ -5721,6 +5721,7 @@ test("deep-review finding-pipeline dedups by file+title-token overlap and partit
 						rootCauseId: "root-match-hostname",
 						title: "matchHostname drops trailing anchor",
 						file: "host/src/host/patterns.ts",
+						locations: [{ file: "host/src/host/patterns.ts", line: 42 }],
 						evidence: "patterns.ts:42",
 						evidenceQuotes: ["const matchHostname = /exact/;"],
 					},
@@ -5739,6 +5740,7 @@ test("deep-review finding-pipeline dedups by file+title-token overlap and partit
 						rootCauseId: "root-match-hostname",
 						title: "matchHostname drops trailing anchor",
 						file: "host/src/host/patterns.ts",
+						locations: [{ file: "host/src/host/patterns.ts", line: 42 }],
 						evidence: "patterns.ts:42 with longer supporting evidence",
 						evidenceQuotes: ["const matchHostname = /exact/;"],
 					},
@@ -6609,21 +6611,17 @@ test("deep-review finding-pipeline dedups by file+title-token overlap and partit
 		},
 		options: { mode: "partition", dedupStage: "dedup-findings" },
 	});
+	// Wording that sounds like several narrower findings cannot prove coverage.
 	assert.deepEqual(
 		lifecycleRootPreservation.partitions.keep.map((finding) => finding.title),
 		[
+			"Start no longer waits for journal recovery or reports setup failure",
 			"TrackAll can race journal writer state before setup completes",
 			"Stop no longer returns journal close failures",
 			"Journal setup failures are no longer reported by Start",
 		],
 	);
-	assert.equal(lifecycleRootPreservation.partitionSummary.mergedFindings, 1);
-	assert.deepEqual(
-		lifecycleRootPreservation.partitions.keep[2].mergedFindings.map(
-			(finding) => finding.title,
-		),
-		["Start no longer waits for journal recovery or reports setup failure"],
-	);
+	assert.equal(lifecycleRootPreservation.partitionSummary.mergedFindings, 0);
 
 	const generatorLifecycleRootCollapse = await helper({
 		sources: {
@@ -7231,8 +7229,7 @@ test("deep-review finding-pipeline preserves structured locations through dedup 
 						severity: "high",
 						title: "Path boundary bypass in isPathInsideRoot",
 						file: "host/src/alpine/rootfs.ts",
-						// Line numbers live only in prose evidence here; the pipeline
-						// must reconstruct them into structured locations.
+						// Legacy prose may mention lines but cannot attest their locations.
 						evidence:
 							"Gates resolveWritePath (line 46) and assertSafeWritePath (line 90).",
 						evidenceQuote: "if (!isPathInsideRoot(target, root)) throw",
@@ -7265,11 +7262,8 @@ test("deep-review finding-pipeline preserves structured locations through dedup 
 	const boundary = dedup.findings.find((f) =>
 		f.title.includes("Path boundary"),
 	);
-	// Reconstructed from prose: two distinct line locations on the cited file.
-	assert.deepEqual(boundary.locations, [
-		{ file: "host/src/alpine/rootfs.ts", line: 46 },
-		{ file: "host/src/alpine/rootfs.ts", line: 90 },
-	]);
+	// Only the structured file survives; line numbers are not inferred.
+	assert.deepEqual(boundary.locations, [{ file: "host/src/alpine/rootfs.ts" }]);
 	assert.deepEqual(boundary.evidenceQuotes, [
 		"if (!isPathInsideRoot(target, root)) throw",
 	]);
@@ -7312,8 +7306,7 @@ test("deep-review finding-pipeline preserves structured locations through dedup 
 		k.title.includes("Path boundary"),
 	);
 	assert.equal(keepBoundary.file, "host/src/alpine/rootfs.ts");
-	assert.ok(keepBoundary.locations.some((loc) => loc.line === 46));
-	assert.ok(keepBoundary.locations.some((loc) => loc.line === 90));
+	assert.deepEqual(keepBoundary.locations, boundary.locations);
 	assert.ok(
 		keepBoundary.evidenceQuotes.includes(
 			"if (!isPathInsideRoot(target, root)) throw",
@@ -8135,7 +8128,7 @@ test("deep-review batch partition demotes summary-only KEEP verdicts", async () 
 			maxBatchSize: 6,
 		},
 	});
-	const partition = await helper({
+	const partitionArgs = {
 		sources: {
 			"dedup-findings.main": { findings },
 			"devil-advocate-batches.main": batches,
@@ -8175,13 +8168,8 @@ test("deep-review batch partition demotes summary-only KEEP verdicts", async () 
 						title: "Repository context with missing tests",
 						verdict: "KEEP",
 						evidenceSourceType: "repository_context",
-						evidence: [
-							"CTX-F-004-1: Repository context shows cache lookup by userId.",
-						],
-						counterEvidence: [
-							"The change is missing test coverage and does not contain tests for cache expiry.",
-							"Repository search found only no in-repo callers for this public API compatibility path.",
-						],
+						evidence: ["CTX-F-004-1"],
+						counterEvidence: [],
 						recommendedAction: "Keep finding but add tests.",
 					},
 					{
@@ -8212,7 +8200,8 @@ test("deep-review batch partition demotes summary-only KEEP verdicts", async () 
 			dedupStage: "dedup-findings",
 			devilAdvocateBatchStage: "devil-advocate-batches",
 		},
-	});
+	};
+	const partition = await helper(partitionArgs);
 	assert.deepEqual(
 		partition.partitions.keep.map((finding) => finding.findingId),
 		["F-003", "F-004"],
@@ -8232,7 +8221,7 @@ test("deep-review batch partition demotes summary-only KEEP verdicts", async () 
 			(candidate) =>
 				candidate.findingId === "F-002" &&
 				candidate.batchEvidenceIssue?.reason.includes(
-					"missing-context counterEvidence",
+					"lacked exact row-local contextPacket refs or supplied unverified counterEvidence",
 				),
 		),
 	);
@@ -8241,7 +8230,7 @@ test("deep-review batch partition demotes summary-only KEEP verdicts", async () 
 			(candidate) =>
 				candidate.findingId === "F-005" &&
 				candidate.batchEvidenceIssue?.reason.includes(
-					"missing-context counterEvidence",
+					"lacked exact row-local contextPacket refs or supplied unverified counterEvidence",
 				),
 		),
 	);
@@ -8268,6 +8257,19 @@ test("deep-review batch partition demotes summary-only KEEP verdicts", async () 
 		partition.partitionSummary.needsHumanByCause.batch_evidence_demoted,
 		partition.partitionSummary.needsHuman,
 	);
+	const planned =
+		partitionArgs.sources["devil-advocate.dabatch-001"].results[3];
+	for (const text of [
+		"No src/cache.ts file could be found.",
+		"src/cache.ts 파일을 찾을 수 없습니다.",
+	]) {
+		planned.counterEvidence = [text];
+		const out = await helper(partitionArgs);
+		assert.ok(
+			out.partitions.needsHuman.some((row) => row.findingId === "F-004"),
+			text,
+		);
+	}
 });
 
 test("deep-review bounded report packet caps a >50KiB ledger while the renderer emits every finding", async () => {

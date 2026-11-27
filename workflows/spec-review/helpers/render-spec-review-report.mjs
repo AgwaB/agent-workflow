@@ -13,6 +13,8 @@ import {
 } from "./spec-evidence-gate.mjs";
 import { rendererCandidateUniverse } from "./spec-requirement-source.mjs";
 
+import { readerDiagnostic } from "./reader-diagnostics.mjs";
+
 const REPORT_VERDICTS = new Set([
 	"CONFORMS",
 	"GAPS_FOUND",
@@ -21,7 +23,7 @@ const REPORT_VERDICTS = new Set([
 ]);
 
 import {
-	escapeMarkdownText, escapeTableCell, fold, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
+	escapeMarkdownText, escapeTableCell, fold, reportActions, reviewReportLocale, reportSection, reportStatus, shortNarrative,
 } from "./report-markdown.mjs";
 
 function findSource(sources, stageId) {
@@ -63,21 +65,21 @@ function completionInline(value) {
 		.replace(/>/g, "&gt;");
 }
 
-function completionText(value, maxChars = 220) {
+function completionText(value, maxChars, t) {
 	const sanitized = completionInline(value)
-		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became "[run omitted]", a reviewed
-		// file's "control.json" became "[artifact omitted]"): only this engine's own names are hidden —
+		// agent-workflow 2026-11-04 (live runs: "workflow-stop.ts" became t("[run omitted]", "[실행 ID 생략]"), a reviewed
+		// file's "control.json" became t("[artifact omitted]", "[자료 생략]")): only this engine's own names are hidden —
 		// paths under .agent-workflow/workflows, run ids (workflow_<id>_<hex6>), task ids (task-<n>),
 		// sidecar names, and refs/control JSON only as a stage-qualified or path-qualified name.
 		.replace(
 			/(?<![\w-])\.agent-workflow[\\/]workflows(?:[\\/][^\s]*)?/gi,
-			"[artifact omitted]",
+			t("[artifact omitted]", "[자료 생략]"),
 		)
-		.replace(/\b(?:final-report|audit|executive)\.md\b/gi, "[artifact omitted]")
-		.replace(/(?<=[.\\/])(?:refs|control)\.json\b/gi, "[artifact omitted]")
-		.replace(/\brelated[\s-]+artifacts\b/gi, "[section title omitted]")
-		.replace(/\bworkflow\\?_[a-z0-9]+\\?_[a-f0-9]{6}\b/gi, "[run omitted]")
-		.replace(/\btask-\d+\b/gi, "[task omitted]");
+		.replace(/\b(?:final-report|audit|executive)\.md\b/gi, t("[artifact omitted]", "[자료 생략]"))
+		.replace(/(?<=[.\\/])(?:refs|control)\.json\b/gi, t("[artifact omitted]", "[자료 생략]"))
+		.replace(/\brelated[\s-]+artifacts\b/gi, t("[section title omitted]", "[절 제목 생략]"))
+		.replace(/\bworkflow\\?_[a-z0-9]+\\?_[a-f0-9]{6}\b/gi, t("[run omitted]", "[실행 ID 생략]"))
+		.replace(/\btask-\d+\b/gi, t("[task omitted]", "[작업 ID 생략]"));
 	const chars = Array.from(sanitized);
 	return chars.length <= maxChars
 		? sanitized
@@ -543,22 +545,22 @@ function renderFindingRows(rows, prefix, t) {
 		const claim = row.claim ?? row.reason ?? row.message;
 		const body = [
 			...(historical.length ? [`- ${t("Historical verifier verdict", "이전 검증 판정")}: ${historical.map(status).join(" · ")}`] : []),
-			...(row.finalClaim ? [`- ${t("Final claim", "최종 주장")}: ${escapeMarkdownText(row.finalClaim)}`] : []),
+			...(row.finalClaim ? [`- ${t("Final claim", "최종 주장")}: ${escapeMarkdownText(readerDiagnostic(row.finalClaim, t))}`] : []),
 			...(row.origin ? [`- ${t("Origin", "발생 경위")}: ${escapeMarkdownText(isRecord(row.origin) ? stableStringify(row.origin) : row.origin)}`] : []),
 			...(row.evidenceStatus ? [`- ${t("Evidence status", "근거 상태")}: ${status(row.evidenceStatus)}`] : []),
-			...(claim && claim !== title ? [`- ${t("Claim", "주장")}: ${escapeMarkdownText(claim)}`] : []),
-			...(row.reason && row.reason !== claim && row.reason !== title ? [`- ${t("Reason", "이유")}: ${escapeMarkdownText(row.reason)}`] : []),
+			...(claim && claim !== title ? [`- ${t("Claim", "주장")}: ${escapeMarkdownText(readerDiagnostic(claim, t))}`] : []),
+			...(row.reason && row.reason !== claim && row.reason !== title ? [`- ${t("Reason", "이유")}: ${escapeMarkdownText(readerDiagnostic(row.reason, t))}`] : []),
 			...(row.source ? [`- ${t("Source", "출처")}: ${escapeMarkdownText(row.source)}`] : []),
 			...(asArray(row.requirementIds).length ? [`- ${t("Requirements", "요구사항")}: ${row.requirementIds.map((value) => escapeMarkdownText(value)).join(", ")}`] : []),
-			...(row.uncertainty ? [`- ${t("Uncertainty", "불확실성")}: ${escapeMarkdownText(row.uncertainty)}`] : []),
-			...(prefix === "dropped" && row.recommendedAction ? [`- ${t("Recorded action", "기록된 조치")}: ${escapeMarkdownText(row.recommendedAction)}`] : []),
+			...(row.uncertainty ? [`- ${t("Uncertainty", "불확실성")}: ${escapeMarkdownText(readerDiagnostic(row.uncertainty, t))}`] : []),
+			...(prefix === "dropped" && row.recommendedAction ? [`- ${t("Recorded action", "기록된 조치")}: ${escapeMarkdownText(readerDiagnostic(row.recommendedAction, t))}`] : []),
 			"", ...renderEvidence(row.evidence, t),
 			...reportSection(5, t("Counter-evidence", "반증"), asArray(row.counterEvidence).flatMap((item) => [...fenced(item, isRecord(item) ? "json" : "text"), ""])),
 			...(row.verifierResult ? reportSection(5, t("Verifier record", "검증 기록"), fenced(row.verifierResult, "json")) : []),
 			...(row.originalCandidate ? reportSection(5, t("Original candidate", "검토 후보 원본"), fenced(row.originalCandidate, "json")) : []),
 		];
 		return [
-			`#### **${status(disposition)}**${row.severity ? ` **${status(row.severity)}**` : ""} — ${escapeMarkdownText(id)} · ${escapeMarkdownText(title)}`,
+			`#### **${status(disposition)}**${row.severity ? ` **${status(row.severity)}**` : ""} — ${escapeMarkdownText(id)} · ${escapeMarkdownText(row.title ? title : readerDiagnostic(title, t))}`,
 			"",
 			...(body.some(Boolean) ? [...fold(t("Evidence", "근거 보기"), body), ""] : []),
 		];
@@ -691,12 +693,12 @@ function limitationRows({
 		);
 	else if (!verdictConsistent)
 		rows.push(
-			t(`The narrative report gave verdict ${narrativeVerdict || "none"}, which the deterministic ledger does not support; the report uses ${verdict}.`, `원장으로 뒷받침되지 않는 종합 판정(${reportStatus(narrativeVerdict || "none", t)}) 대신 ${reportStatus(verdict, t)} 판정을 적용합니다.`),
+			t(`The narrative report gave verdict ${narrativeVerdict || "none"}, which the deterministic ledger does not support; the report uses ${verdict}.`, `원장으로 뒷받침되지 않는 종합 판정(${narrativeVerdict || "none"}) 대신 ${verdict} 판정을 적용합니다.`),
 		);
 	return rows;
 }
 
-function renderCompletionSummary({ verdict, report, partition, limitations }) {
+function renderCompletionSummary({ verdict, report, partition, limitations, t }) {
 	const finalFindings = asArray(partition.finalFindings);
 	const needsHuman = asArray(partition.needsHuman);
 	const keyRows = [
@@ -704,53 +706,53 @@ function renderCompletionSummary({ verdict, report, partition, limitations }) {
 		...needsHuman.map((row) => ({ label: "NEEDS_HUMAN", row })),
 	].slice(0, 4);
 	const out = [
-		"## Core conclusion",
+		`## ${t("Core conclusion", "핵심 결론")}`,
 		"",
-		`Verdict: **${verdict}**. ${completionText(report.summary, 800)}`,
+		`${t("Verdict", "판정")}: **${verdict}**. ${completionText(report.summary, 800, t)}`,
 		"",
-		"## Key gaps and actions",
+		`## ${t("Key gaps and actions", "주요 차이와 조치")}`,
 		"",
 	];
 	if (keyRows.length === 0)
-		out.push("- No actionable or unresolved finding disposition remains.");
+		out.push(`- ${t("No actionable or unresolved finding disposition remains.", "조치가 필요하거나 미해결인 발견 사항이 없습니다.")}`);
 	else {
 		for (const { label, row } of keyRows) {
-			const action = cleanText(row?.recommendedAction ?? row?.reason ?? "");
+			const action = cleanText(readerDiagnostic(row?.recommendedAction ?? row?.reason ?? "", t));
 			out.push(
-				`- **${completionInline(label)}:** ${completionText(rowTitle(row, "Unresolved item"), 220)}${action ? ` — Action: ${completionText(action, 240)}` : ""}`,
+				`- **${completionInline(label)}:** ${completionText(rowTitle(row, t("Unresolved item", "미해결 항목")), 220, t)}${action ? ` — ${t("Action", "조치")}: ${completionText(action, 240, t)}` : ""}`,
 			);
 		}
 		out.push(
-			`- **Next action:** ${completionText(report.recommendedNextAction, 350)}`,
+			`- **${t("Next action", "다음 조치")}:** ${completionText(report.recommendedNextAction, 350, t)}`,
 		);
 		const omitted = finalFindings.length + needsHuman.length - keyRows.length;
 		if (omitted > 0)
 			out.push(
-				`- ${omitted} additional disposition row(s) are covered in the full report.`,
+				`- ${t(`${omitted} additional disposition row(s) are covered in the full report.`, `나머지 판정 ${omitted}건은 전체 보고서에 있습니다.`)}`,
 			);
 	}
 	out.push(
 		"",
-		"## Evidence level",
+		`## ${t("Evidence level", "근거 수준")}`,
 		"",
-		`- ${finalFindings.length} actionable, ${needsHuman.length} needs-human, and ${asArray(partition.droppedFindings).length} dropped canonical disposition row(s).`,
-		"- Source lifecycle and candidate/verifier accounting passed deterministic completeness checks.",
+		`- ${t(`${finalFindings.length} actionable, ${needsHuman.length} needs-human, and ${asArray(partition.droppedFindings).length} dropped canonical disposition row(s).`, `원장 집계: 조치 필요 ${finalFindings.length}건, 사람 검토 ${needsHuman.length}건, 제외 ${asArray(partition.droppedFindings).length}건.`)}`,
+		`- ${t("Source lifecycle and candidate/verifier accounting passed deterministic completeness checks.", "출처 상태와 검토 후보·검증 항목이 완전성 검사를 통과했습니다.")}`,
 		"",
-		"## Important limitations",
+		`## ${t("Important limitations", "중요한 한계")}`,
 		"",
 	);
 	const reportRisks = asArray(report.risks).map(cleanText).filter(Boolean);
 	const scopeLimitations = asArray(partition.scopeLimitations)
 		.filter((row) => row?.kind === "NONBLOCKING" && cleanText(row?.text))
-		.map((row) => `NONBLOCKING scope limitation: ${cleanText(row.text)}`);
+		.map((row) => `${t("NONBLOCKING scope limitation", "비차단 범위 제한")}: ${cleanText(row.text)}`);
 	const combined = [...limitations, ...scopeLimitations, ...reportRisks];
 	if (combined.length === 0)
 		out.push(
-			"- No source-coverage or renderer-integrity limitation was recorded.",
+			`- ${t("No source-coverage or renderer-integrity limitation was recorded.", "출처 범위나 보고서 무결성 한계가 기록되지 않았습니다.")}`,
 		);
 	else
 		for (const row of combined.slice(0, 6))
-			out.push(`- ${completionText(row, 220)}`);
+			out.push(`- ${completionText(row, 220, t)}`);
 	return out
 		.join("\n")
 		.replace(/\n{3,}/g, "\n\n")
@@ -774,10 +776,10 @@ function renderMarkdown({ verdict, report, partition, limitations, verdictConsis
 		: t("requirement coverage unproven", "요구사항 충족 범위 미입증");
 	const actions = [
 		{ label: t("Recommendation", "권고"), value: report.recommendedNextAction ?? t("Resolve renderer blockers, then rerun the spec review.", "보고서를 막는 문제를 해결한 뒤 명세 검토를 다시 실행하세요.") },
-		...[[final, "finding"], [needs, "needs-human"]].flatMap(([rows, prefix]) => rows.map((row, index) => ({ label: rowIdentity(row, prefix, index), value: row?.recommendedAction }))),
+		...[[final, "finding"], [needs, "needs-human"]].flatMap(([rows, prefix]) => rows.map((row, index) => ({ label: rowIdentity(row, prefix, index), value: readerDiagnostic(row?.recommendedAction, t) }))),
 	];
 	const caveats = [
-		...asArray(partition.scopeLimitations).filter((row) => isRecord(row) && row.text).map((row) => row.kind === "NONBLOCKING" ? `${t("NONBLOCKING scope limitation", "NONBLOCKING 범위 제한")}: ${row.text}` : row.text),
+		...asArray(partition.scopeLimitations).filter((row) => isRecord(row) && row.text).map((row) => row.kind === "NONBLOCKING" ? `${t("NONBLOCKING scope limitation", "비차단 범위 제한")}: ${row.text}` : row.text),
 		...asArray(report.risks).map((risk) => typeof risk === "string" ? risk : stableStringify(risk)),
 		...limitations,
 	];
@@ -804,7 +806,7 @@ function renderMarkdown({ verdict, report, partition, limitations, verdictConsis
 			...renderVerifierIntegrity(partition, t), ...renderEvidenceCorrections(partition, t),
 			...reportSection(3, t("Byte evidence audit", "원문 대조 감사"), [
 				`- ${partition.testExecutionAttested === false ? t("Tests were not run (read-only inspection).", "읽기 전용 검토로 테스트를 실행하지 않았습니다.") : t("Test execution was not attested.", "테스트 실행은 검증되지 않았습니다.")}`,
-				"", ...fenced(partition.evidenceGate ?? { complete: false, reason: "legacy partition has no byte gate" }, "json"),
+				"", ...fenced(partition.evidenceGate ?? { complete: false, reason: t("legacy partition has no byte gate", "이전 원장에 원문 대조 기록이 없습니다.") }, "json"),
 			]),
 			...reportSection(3, t("Related artifacts", "관련 자료"), [
 				`- [${t("Machine-readable renderer control", "기계 판독용 보고서")}](control.json)`,
@@ -948,15 +950,21 @@ export default async function renderSpecReviewReport({
 		renderedAllCanonicalRows &&
 		duplicates.length === 0 &&
 		(evidenceComplete || gapsStand);
+	const t = reviewReportLocale(
+		context.runtimeTask,
+		report?.summary,
+		...finalFindings.map((row) => rowTitle(row, "")),
+		...needsHuman.map((row) => rowTitle(row, "")),
+	);
+	const readerLimitations = limitationRows({ ...limitationInputs, t });
 	const completionSummaryMarkdown = passed
-		? renderCompletionSummary({ verdict, report, partition, limitations })
+		? renderCompletionSummary({ verdict, report, partition, limitations: readerLimitations, t })
 		: "";
-	const t = reportLocale(report?.summary, ...finalFindings.map((row) => rowTitle(row, "")), ...needsHuman.map((row) => rowTitle(row, "")));
 	const markdown = renderMarkdown({
 		verdict,
 		report: report ?? {},
 		partition,
-		limitations: limitationRows({ ...limitationInputs, t }),
+		limitations: readerLimitations,
 		verdictConsistent, evidenceComplete, sourceCoverageComplete, verifiedCoverage: evidenceAudit.verifiedCoverage, boundCoverage: evidenceAudit.boundCoverage, t,
 	});
 	const blockers = limitations.slice(0, 32);

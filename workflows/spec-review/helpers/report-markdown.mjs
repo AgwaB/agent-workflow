@@ -85,6 +85,20 @@ export function reportLocale(...prose) {
 	return (en, ko) => hangul > 0 && hangul * 3 >= latin ? ko : en;
 }
 
+// The renderer chrome has two translations. Match a request for the output
+// language, not a bare mention (e.g. "review the Korean API").
+export function reviewReportLocale(runtimeTask, ...readerProse) {
+	const task = typeof runtimeTask === "string" ? runtimeTask : "";
+	// Consume negated directives as a whole so their nested "report in ..."
+	// cannot be mistaken for an affirmative request by the noun-form fallback.
+	const directives = task.matchAll(/\b(?:(not|never|don['’]t|doesn['’]t|didn['’]t|can['’]t|cannot|shouldn['’]t|mustn['’]t|won['’]t)\s+)?(?:(?:write|render|produce|provide|deliver|present|output|respond|answer)\s+(?:(?:(?:the|your|a|final)\s+)*(?:report|review|summary|findings|results)\s+)?in\s+|(?:report|review|summary)\s+(?:language\s*[:=]\s*|in\s+))(Korean|English)\b/gi);
+	const explicit = [...directives].find((match) => !match[1]);
+	if (explicit) return (en, ko) => /^Korean$/i.test(explicit[2]) ? ko : en;
+	const koreanRequest = task.match(/(?:보고서|검토\s*결과|요약)(?:는|를|을|은)?\s*(?:[:：]\s*)?(한국어|영어)(?:로|으로)\s*(?:작성|출력|제공|보고|정리)/u);
+	if (koreanRequest) return (en, ko) => koreanRequest[1] === "한국어" ? ko : en;
+	return reportLocale(...readerProse, task);
+}
+
 export function shortNarrative(value, max = 180) {
 	const parts = sentences(cleanText(value));
 	if (!parts.length || parts.length > 2 || parts.some((part) => part.length > max)) return [];

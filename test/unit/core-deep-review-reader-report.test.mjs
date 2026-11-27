@@ -114,3 +114,119 @@ test("unknown legacy severity is text, not markup or a GFM autolink, even in the
 	);
 	assert.doesNotMatch(markdown, /\*\*www\.example\.org|<em>legacy<\/em>/);
 });
+
+test("deep review localizes fallback diagnostics and completion without rewriting source data", async () => {
+	const item = {
+		...finding("finding-001", "배송비 경계값 오류"),
+		rationale: "경계에서 가격이 달라집니다.",
+		note: "no devil-advocate verdict received for this finding",
+		needsHumanCause: "verifier_missing",
+	};
+	const partition = {
+		partitions: { keep: [], weaken: [], drop: [], needsHuman: [item] },
+		normalizationNotes: [
+			'reviewer finding "배송비 경계값 오류" had no verdict; routed to NEEDS_HUMAN',
+		],
+		sourceStatusSummary: {
+			partialFailures: [
+				{
+					status: "source_coverage_incomplete",
+					specId: "reviewers.correctness",
+					sourcePath: "shipping.mjs:2",
+					statusDetail:
+						"correctness: shipping.mjs:2: missing (coverage row missing)",
+					coverageIssues: [
+						{
+							path: "shipping.mjs:2",
+							status: "missing",
+							reason: "coverage row missing",
+						},
+					],
+				},
+				{
+					status: "source_coverage_incomplete",
+					specId: "reviewers.legacy",
+					sourcePath: "legacy",
+					statusDetail: "src/example: missing (coverage row missing).mjs",
+				},
+			],
+		},
+	};
+	const { markdown, completionSummaryMarkdown, verdict } = await render({
+		sources: { "partition-verdicts": partition },
+		context: { runtimeTask: "배송비 계산을 검토해 주세요." },
+	});
+	assert.equal(verdict, "PARTIAL_REVIEW");
+	assert.match(markdown, /^# 심층 검토 보고서/u);
+	assert.match(markdown, /이 발견 사항에 대한 검증 판정이 없습니다/u);
+	assert.match(markdown, /검증 판정이 없어 NEEDS\\_HUMAN으로 보냈습니다/u);
+	assert.match(
+		markdown,
+		/shipping\.mjs:2: missing \(범위 확인 항목이 없습니다\)/u,
+	);
+	assert.ok(markdown.includes(quote));
+	assert.ok(
+		markdown.includes("src/example: missing (coverage row missing).mjs"),
+	);
+	assert.equal(
+		completionSummaryMarkdown,
+		"",
+		"failed runs do not publish a compact summary",
+	);
+	assert.match(item.note, /^no devil-advocate/u);
+});
+
+test("deep report language prefers the request, then reader prose, then task script", async () => {
+	const sources = {
+		"partition-verdicts.main": {
+			partitions: {
+				keep: [
+					{
+						...finding("F-1", "Exact identity title"),
+						rationale: "확인된 차이입니다.",
+					},
+				],
+			},
+		},
+	};
+	for (const [runtimeTask, heading] of [
+		["Review the patch and write the report in Korean.", "# 심층 검토 보고서"],
+		[
+			"Do not write the report in English; write the report in Korean.",
+			"# 심층 검토 보고서",
+		],
+		["Review the patch.", "# 심층 검토 보고서"],
+		["검토 후 보고서는 영어로 작성하세요.", "# Deep review report"],
+	]) {
+		const { markdown } = await render({ sources, context: { runtimeTask } });
+		assert.equal(markdown.split("\n")[0], heading);
+	}
+});
+
+test("deep report ignores forced-English identity when a missing verdict has no reader prose", async () => {
+	const item = {
+		findingId: "finding-001",
+		title: "Shipping threshold is exclusive",
+		claim: "Shipping is charged at the threshold.",
+		verdict: "NEEDS_HUMAN",
+		needsHumanCause: "verifier_missing",
+		note: "no devil-advocate verdict received for this finding",
+	};
+	const sources = {
+		"partition-verdicts.main": {
+			partitions: { keep: [], weaken: [], drop: [], needsHuman: [item] },
+		},
+	};
+	for (const [runtimeTask, heading] of [
+		["이 변경 사항을 검토해 주세요.", "# 심층 검토 보고서"],
+		["Review this change.", "# Deep review report"],
+	]) {
+		const { markdown, verdict } = await render({
+			sources,
+			context: { runtimeTask },
+		});
+		assert.equal(markdown.split("\n")[0], heading);
+		assert.equal(verdict, "PARTIAL_REVIEW");
+		assert.ok(markdown.includes(item.title), "identity remains unchanged");
+	}
+});
