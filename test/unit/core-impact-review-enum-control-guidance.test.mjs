@@ -92,6 +92,31 @@ const cases = [
 	},
 ];
 
+test("impact-review prompts classify list-item prose separately from machine tokens", async () => {
+	const loaded = await loadWorkflowSpec(specPath, repoRoot);
+	const compiled = await compileWorkflow(loaded.spec, {
+		cwd: repoRoot,
+		specPath,
+		task: "변경 영향과 검증 공백을 검토하고 한국어로 답하세요.",
+	});
+	const producers = compiled.tasks.filter((task) => task.kind !== "support");
+	assert.equal(producers.length, 12);
+	for (const task of producers) {
+		assert.ok(
+			task.compiledPrompt.includes(
+				"List items such as knownGaps, assumptions, unknowns and risks, including nested text, title, description and reason fields, are human prose too, not enum tokens: write them in that same language while preserving embedded ids, paths, commands and exact quotes.",
+			),
+			`${task.stageId} omitted list-item language guidance`,
+		);
+		assert.ok(
+			task.compiledPrompt.includes(
+				"keep control keys, ids, verdict and other enum tokens, file paths, symbols, code and exact evidence quotes unchanged",
+			),
+			`${task.stageId} omitted machine-token preservation guidance`,
+		);
+	}
+});
+
 function rawOutput(control) {
 	return [
 		`<control>${JSON.stringify(control)}</control>`,
