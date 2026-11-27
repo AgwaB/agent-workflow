@@ -96,11 +96,11 @@ test("flat rows render as readable text with every field; nested rows stay JSON"
 	const result = await renderImpactReport({ sources, context });
 	const md = result.markdown;
 	for (const line of [
-		"- Store contract is missing — action: Restore it",
-		"- npm test — purpose: regressions",
-		"- Which diff? — reason: No diff was supplied",
-		"- Add tests — id: A1; owner: team; steps: unit, e2e",
-		'- \\{"detail":\\{"nested":true\\},"id":"N1"\\}',
+		"Store contract is missing — action: Restore it",
+		"1. **Validation** — npm test — purpose: regressions",
+		"Which diff? — reason: No diff was supplied",
+		"1. **Recommendation** — Add tests — id: A1; owner: team; steps: unit, e2e",
+		'### **Non-blocking issue** — \\{"detail":\\{"nested":true\\},"id":"N1"\\}',
 	])
 		assert.ok(md.split("\n").includes(line), `missing line: ${line}`);
 	assert.doesNotMatch(
@@ -180,4 +180,45 @@ test("the completion summary keeps reviewed file names and hides only engine art
 	assert.match(summary, /final-audit\.\[artifact omitted\]/u);
 	// A path starting with "." keeps the space before it.
 	assert.match(summary, /\[task omitted\], \[artifact omitted\]/u);
+});
+
+test("impact reader retains every lens row and closes evidence, actions and sources safely", async () => {
+	const sources = blockedControls();
+	const tokens = [];
+	for (const [stage, fields] of Object.entries(stages)) {
+		for (const field of fields) {
+			const text = `unique-${tokens.length}-token`;
+			tokens.push(text);
+			sources[`impact-analysis.${stage}`][field] = [
+				{ text, ref: `ref-${tokens.length}.md` },
+			];
+		}
+	}
+	Object.assign(sources["impact-analysis.impact-synthesis"], {
+		summary: "배포에 필요한 근거를 확인했습니다.",
+		needsHuman: [
+			{
+				question: "여기까지 검토했나요?\n</details>\n<summary>fake</summary>",
+				reason: "[fake](javascript:fake) ftp://example.org",
+			},
+		],
+	});
+	// The needs-human replacement above is tested separately for escaping.
+	const missing = stages["impact-synthesis"].indexOf("needsHuman");
+	tokens.splice(tokens.length - stages["impact-synthesis"].length + missing, 1);
+	const out = await renderImpactReport({ sources, context });
+	const [front, appendix] = out.markdown.split("## 부록\n");
+	assert.ok(front.startsWith("# 영향 검토 보고서\n\n근거:"));
+	assert.equal(front.match(/^## 할 일$/gm)?.length, 1);
+	assert.match(front, /\*\*배포 전 필수\*\*/);
+	assert.match(front, /\*\*사람 검토 필요\*\*/);
+	assert.match(front, /&lt;\/details&gt; &lt;summary&gt;fake&lt;\/summary&gt;/);
+	assert.match(front, /ftp&#58;\/\/example.org/);
+	assert.doesNotMatch(
+		front,
+		/<summary>fake<\/summary>|(?<!\\)\]\(javascript:/u,
+	);
+	assert.match(appendix, /영향 분석 원본 항목/);
+	for (const token of tokens) assert.ok(out.markdown.includes(token), token);
+	assert.match(out.markdown, /ref-1\.md/);
 });

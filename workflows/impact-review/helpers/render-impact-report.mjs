@@ -8,6 +8,10 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import {
+	escapeMarkdownText, fold, reportActions, reportLocale, reportSection, reportStatus, shortNarrative,
+} from "./report-markdown.mjs";
+
 const STAGES = [
 	"impact-synthesis",
 	"contract-consistency",
@@ -593,105 +597,32 @@ function readableRow(row) {
 	return fields.length > 0 ? `${row[main]} — ${fields.join("; ")}` : row[main];
 }
 
-function rowText(row) {
-	return safeInline(readableRow(row));
-}
-
-function renderRows(heading, rows, emptyText) {
-	const values = asArray(rows);
-	const lines = [`### ${heading}`, ""];
-	if (values.length === 0) lines.push(emptyText);
-	else values.forEach((row) => lines.push(`- ${rowText(row)}`));
-	lines.push("");
-	return { lines, rendered: values.length };
+function impactClaim(row) {
+	if (typeof row === "string") return row;
+	return ROW_MAIN_KEYS.map((key) => row?.[key]).find((value) => typeof value === "string" && value.trim()) ?? readableRow(row);
 }
 
 function rowCollections({ synthesis, contract, regression, ship }) {
 	return [
-		[
-			"blockingIssues",
-			"Blocking issues",
-			synthesis.blockingIssues,
-			"No blocking issue was recorded.",
-		],
-		[
-			"nonBlockingIssues",
-			"Non-blocking issues",
-			synthesis.nonBlockingIssues,
-			"No non-blocking issue was recorded.",
-		],
-		[
-			"recommendedNextActions",
-			"Recommended next actions",
-			synthesis.recommendedNextActions,
-			"No recommended action was recorded.",
-		],
-		[
-			"validationToRun",
-			"Validation to run",
-			synthesis.validationToRun,
-			"No validation command was recorded.",
-		],
-		[
-			"needsHuman",
-			"Needs human review",
-			synthesis.needsHuman,
-			"No needs-human row was recorded.",
-		],
-		[
-			"confirmedSafeAreas",
-			"Confirmed safe areas",
-			synthesis.confirmedSafeAreas,
-			"No confirmed-safe row was recorded.",
-		],
-		[
-			"contractIssues",
-			"Contract issues",
-			contract.issues,
-			"No contract inconsistency was recorded.",
-		],
-		[
-			"confirmedConsistencies",
-			"Confirmed consistencies",
-			contract.confirmedConsistencies,
-			"No confirmed consistency was recorded.",
-		],
-		[
-			"regressionRisks",
-			"Regression risks",
-			regression.risks,
-			"No regression-risk row was recorded.",
-		],
-		[
-			"riskReducers",
-			"Risk reducers",
-			regression.riskReducers,
-			"No risk-reducer row was recorded.",
-		],
-		[
-			"requiredBeforeShip",
-			"Required before ship",
-			ship.requiredBeforeShip,
-			"No required-before-ship row was recorded.",
-		],
-		[
-			"niceToHave",
-			"Nice to have",
-			ship.niceToHave,
-			"No nice-to-have row was recorded.",
-		],
-		[
-			"readinessAssumptions",
-			"Readiness assumptions",
-			ship.assumptions,
-			"No readiness assumption was recorded.",
-		],
+		["blockingIssues", "Blocking issue", "차단 문제", synthesis.blockingIssues],
+		["nonBlockingIssues", "Non-blocking issue", "비차단 문제", synthesis.nonBlockingIssues],
+		["recommendedNextActions", "Recommendation", "권고", synthesis.recommendedNextActions, "action"],
+		["validationToRun", "Validation", "검증", synthesis.validationToRun, "action"],
+		["needsHuman", "Needs human review", "사람 검토 필요", synthesis.needsHuman],
+		["confirmedSafeAreas", "Confirmed safe", "안전 확인", synthesis.confirmedSafeAreas],
+		["contractIssues", "Contract issue", "계약 문제", contract.issues],
+		["confirmedConsistencies", "Confirmed consistency", "일관성 확인", contract.confirmedConsistencies],
+		["regressionRisks", "Regression risk", "회귀 위험", regression.risks],
+		["riskReducers", "Risk reducer", "위험 완화", regression.riskReducers],
+		["requiredBeforeShip", "Required before ship", "배포 전 필수", ship.requiredBeforeShip, "action"],
+		["niceToHave", "Optional", "선택 사항", ship.niceToHave, "action"],
+		["readinessAssumptions", "Readiness assumptions", "배포 준비 가정", ship.assumptions, "appendix"],
 	];
 }
 
 function issueSummary(collections) {
 	return Object.fromEntries(
-		collections.map(([key, _heading, rows]) => [key, asArray(rows).length]),
+		collections.map(([key, _en, _ko, rows]) => [key, asArray(rows).length]),
 	);
 }
 
@@ -809,94 +740,72 @@ function renderCompletionSummary({
 		.trim();
 }
 
-function renderMarkdown({
-	verdict,
-	riskLevel,
-	synthesis,
-	contract,
-	regression,
-	ship,
-	collections,
-	completionSummaryMarkdown,
-	limitations,
+function renderMarkdown({ verdict, riskLevel, synthesis, contract, regression, ship, collections,
+	sources, coverageCount, coverageComplete, verdictConsistent, riskConsistent, readerLimitations, t,
 }) {
-	const executive = completionSummaryMarkdown
-		? completionSummaryMarkdown.replace(/^## /gm, "### ")
-		: [
-				"### Core conclusion",
-				"",
-				`Renderer status is not passed. The conservative verdict is **${verdict}** with **${riskLevel}** risk.`,
-				"",
-				`Narrative synthesis: ${safeInline(synthesis.summary ?? "unavailable")}`,
-			].join("\n");
-	const rendered = Object.fromEntries(
-		collections.map(([key, heading, rows, emptyText]) => [
-			key,
-			renderRows(heading, rows, emptyText),
-		]),
-	);
+	const status = (value) => escapeMarkdownText(reportStatus(value || "unavailable", t));
+	const text = (row) => escapeMarkdownText(readableRow(row));
+	const count = {};
+	const actions = [], findings = [], assumptions = [];
+	for (const [key, en, ko, rows, group] of collections) {
+		count[key] = 0;
+		const label = t(en, ko);
+		for (const row of asArray(rows)) {
+			if (group === "action") actions.push({ label, value: readableRow(row) || stableStringify(row) });
+			else if (group === "appendix") assumptions.push(`- ${text(row)}`);
+			else {
+				const claim = impactClaim(row);
+				const detail = readableRow(row);
+				findings.push(`### **${label}** — ${escapeMarkdownText(claim)}`, "");
+				if (detail !== claim) findings.push(...fold(t("Evidence", "근거 보기"), [text(row)]), "");
+			}
+			count[key]++;
+		}
+	}
+	const narrative = verdictConsistent && riskConsistent && synthesis.verdict === verdict ? shortNarrative(synthesis.summary) : [];
+	const outcome = {
+		READY: t("No readiness blocker was established by this review.", "이번 검토에서 배포를 막는 문제가 확인되지 않았습니다."),
+		NEEDS_WORK: t("Address the open issues before shipping.", "배포 전에 미해결 문제를 처리하세요."),
+		BLOCKED: t("Do not ship until the blocking issues are resolved.", "차단 문제를 해결하기 전에는 배포하지 마세요."),
+		UNKNOWN: t("The available evidence does not establish readiness.", "현재 근거로는 배포 준비 여부를 판단할 수 없습니다."),
+	}[verdict];
+	const keyPoints = collections.filter(([key, , , rows, group]) => key !== "confirmedConsistencies" && group !== "appendix" && asArray(rows).length)
+		.slice(0, 5).map(([, en, ko, rows]) => `- **${t(en, ko)}** — ${t(`${rows.length} recorded`, `${rows.length}건`)}`);
+	// The four visible controls have their rows above. Keep every original row from the other
+	// lenses in the report as well, including raw nested evidence and distinct repeated rows.
+	const originals = LEDGER_STAGES.filter((stage) => !STAGES.includes(stage)).flatMap((stage) => {
+		const control = findSource(sources, stage);
+		const rows = (ORIGINAL_FIELDS[stage] ?? []).flatMap(([field]) => asArray(control?.[field]).map((row) => `- ${escapeMarkdownText(field)}: ${text(row)}`));
+		return reportSection(4, stage, rows);
+	});
 	const lines = [
-		"# Impact review report",
-		"",
-		"## Executive summary",
-		"",
-		executive,
-		"",
-		"## Impact conclusion",
-		"",
-		`- Effective verdict: **${verdict}**`,
-		`- Effective risk level: **${riskLevel}**`,
-		`- Synthesis verdict/risk: **${safeInline(synthesis.verdict ?? "unavailable")}** / **${safeInline(synthesis.riskLevel ?? "unavailable")}**`,
-		`- Ship readiness: **${safeInline(ship.status ?? "unavailable")}**`,
-		`- Contract consistency: **${safeInline(contract.status ?? "unavailable")}**`,
-		"",
-		"## Findings and actions",
-		"",
-		...rendered.blockingIssues.lines,
-		...rendered.nonBlockingIssues.lines,
-		...rendered.recommendedNextActions.lines,
-		...rendered.validationToRun.lines,
-		...rendered.needsHuman.lines,
-		...rendered.confirmedSafeAreas.lines,
-		"## Contract consistency",
-		"",
-		...rendered.contractIssues.lines,
-		...rendered.confirmedConsistencies.lines,
-		"## Regression risk",
-		"",
-		`Canonical risk level: **${safeInline(regression.riskLevel ?? "unavailable")}**`,
-		"",
-		...rendered.regressionRisks.lines,
-		...rendered.riskReducers.lines,
-		"## Ship readiness",
-		"",
-		...rendered.requiredBeforeShip.lines,
-		...rendered.niceToHave.lines,
-		...rendered.readinessAssumptions.lines,
-		"## Evidence and limitations",
-		"",
-		"- The three joined controls are authoritative for contract state, regression risk, and ship readiness; synthesis cannot lower their verdict or risk floor.",
-		...(limitations.length > 0
-			? limitations.map((row) => `- ${safeInline(row)}`)
-			: [
-					"- No source-coverage, contradiction, risk-floor, or rendering limitation was recorded.",
-				]),
-		"",
-		"## Related artifacts",
-		"",
-		"- [Machine-readable renderer control](control.json)",
-		"- [Structured source references](refs.json)",
-		"- [Canonical impact source ledger](source-ledger.json)",
+		`# ${t("Impact review report", "영향 검토 보고서")}`, "",
+		t(`Evidence: ${coverageCount}/${LEDGER_STAGES.length} sources joined · coverage ${coverageComplete ? "complete" : "partial"} · historical file bytes not attested`, `근거: 출처 ${coverageCount}/${LEDGER_STAGES.length}개 연결 · 검토 범위 ${coverageComplete ? "완료" : "일부"} · 이전 파일 원문 미검증`), "",
+		`## ${t("Conclusion", "결론")}`, "",
+		`${t("Verdict", "판정")}: **${status(verdict)}** · ${t("Risk", "위험도")}: **${status(riskLevel)}**.`, "",
+		...(narrative.length ? narrative : [outcome, ""]),
+		...reportSection(3, t("Key points", "핵심 포인트"), keyPoints.length ? keyPoints : [`- ${t("Contract consistency", "계약 일관성")}: **${status(contract.status)}**`, `- ${t("Ship readiness", "배포 준비")}: **${status(ship.status)}**`]),
+		...reportSection(2, t("Limitations", "알아둘 한계"), readerLimitations.map((row) => `- ${escapeMarkdownText(row)}`)),
+		...reportActions(t("Actions", "할 일"), actions),
+		...reportSection(2, t("Findings", "발견 사항"), findings),
+		...reportSection(2, t("Appendix", "부록"), fold(t("Impact review records", "영향 검토 기록"), [
+			...(!narrative.length && synthesis.summary ? reportSection(3, t("Synthesis narrative", "종합 의견 원문"), [escapeMarkdownText(synthesis.summary)]) : []),
+			...reportSection(3, t("Lens statuses", "관점별 판정"), [
+				`- ${t("Synthesis verdict and risk", "종합 판정 및 위험도")}: **${status(synthesis.verdict)}** / **${status(synthesis.riskLevel)}**`,
+				`- ${t("Canonical regression risk", "원장 기준 회귀 위험도")}: **${status(regression.riskLevel)}**`,
+				`- ${t("Ship readiness", "배포 준비")}: **${status(ship.status)}**`,
+				`- ${t("Contract consistency", "계약 일관성")}: **${status(contract.status)}**`,
+			]),
+			...reportSection(3, t("Readiness assumptions", "배포 준비 가정"), assumptions),
+			...reportSection(3, t("Original impact rows", "영향 분석 원본 항목"), originals),
+			...reportSection(3, t("Related artifacts", "관련 자료"), [
+				`- [${t("Machine-readable renderer control", "기계 판독용 보고서") }](control.json)`,
+				`- [${t("Structured source references", "구조화된 출처") }](refs.json)`,
+				`- [${t("Canonical impact source ledger", "영향 분석 출처 원장") }](source-ledger.json)`,
+			]),
+		])),
 	];
-	return {
-		markdown: lines
-			.join("\n")
-			.replace(/\n{3,}/g, "\n\n")
-			.trim(),
-		renderedCounts: Object.fromEntries(
-			Object.entries(rendered).map(([key, value]) => [key, value.rendered]),
-		),
-	};
+	return { markdown: lines.join("\n").replace(/\n{3,}/g, "\n\n").trim(), renderedCounts: count };
 }
 
 function blockedImpactResult(reason) {
@@ -1079,58 +988,67 @@ export default async function renderImpactReport({ sources, context = {} }) {
 	});
 	const summary = issueSummary(collections);
 	const limitations = [];
+	const t = reportLocale(safeSynthesis.summary, ...collections.flatMap(([, , , rows]) => asArray(rows).map(impactClaim)));
+	const readerLimitations = [];
+	const limit = (en, ko) => { limitations.push(en); readerLimitations.push(t(en, ko)); };
 	if (!canonicalSourcesAvailable) {
 		const unavailable = STAGES.filter((stageId) => !validity[stageId]);
-		limitations.push(
-			`Missing or malformed canonical source control(s): ${unavailable.join(", ") || "unknown"}.`,
+		limit(
+			`Missing or malformed canonical source control(s): ${unavailable.join(", ") || "unknown"}.`, `원본 출처 자료가 없거나 형식이 잘못됨: ${unavailable.join(", ")}.`,
 		);
 	}
 	if (!ledgerStatusComplete && canonicalSourcesAvailable)
-		limitations.push("Canonical source controls or runtime source provenance are incomplete.");
+		limit("Canonical source controls or runtime source provenance are incomplete.", "원본 출처 자료 또는 실행 출처 정보가 불완전합니다.");
 	if (ledgerMode && !ledgerCoverage.complete) {
-		limitations.push(
-			`Impact ledger reconciliation failed: missing=${ledgerCoverage.missingIds.length}, duplicate=${ledgerCoverage.duplicateIds.length}, fabricated=${ledgerCoverage.fabricatedSourceIds.length}.`,
+		limit(
+			`Impact ledger reconciliation failed: missing=${ledgerCoverage.missingIds.length}, duplicate=${ledgerCoverage.duplicateIds.length}, fabricated=${ledgerCoverage.fabricatedSourceIds.length}.`, `영향 원장 대조 실패: 누락 ${ledgerCoverage.missingIds.length}, 중복 ${ledgerCoverage.duplicateIds.length}, 확인되지 않은 출처 ${ledgerCoverage.fabricatedSourceIds.length}.`,
 		);
 	}
 	if (ledgerMode && ledgerCoverage.status !== "complete")
-		limitations.push(
-			`Impact ledger status is ${ledgerCoverage.status}; only complete ledger status can pass.`,
+		limit(
+			`Impact ledger status is ${ledgerCoverage.status}; only complete ledger status can pass.`, "영향 원장이 완전하지 않습니다.",
 		);
 	if (ledgerMode && ledgerCoverage.unverifiedResolutions.length > 0)
-		limitations.push(
-			`Resolution claims are model-assessed and lack externally bound approval/evidence authority: ${ledgerCoverage.unverifiedResolutions.join(", ")}.`,
+		limit(
+			`Resolution claims are model-assessed and lack externally bound approval/evidence authority: ${ledgerCoverage.unverifiedResolutions.join(", ")}.`, `해결됐다는 모델 판단에 외부 승인 또는 근거가 없습니다: ${ledgerCoverage.unverifiedResolutions.join(", ")}.`,
 		);
 	if (ledgerMode && canonicalRisk !== "none")
-		limitations.push(`Known canonical impact risk floor is ${canonicalRisk}.`);
+		limit(`Known canonical impact risk floor is ${canonicalRisk}.`, `원장에서 확인한 최소 위험도: ${reportStatus(canonicalRisk, t)}.`);
 	if (riskUncertainty.present)
-		limitations.push(`${riskUncertainty.observationIds.length} original risk observations remain unquantified; they are retained separately from the known risk floor and cannot establish READY.`);
+		limit(`${riskUncertainty.observationIds.length} original risk observations remain unquantified; they are retained separately from the known risk floor and cannot establish READY.`, `위험 관찰 ${riskUncertainty.observationIds.length}건은 수준을 판단하지 못해, 배포 가능 판정의 근거로 삼을 수 없습니다.`);
 	limitations.push(
 		"Impact review does not attest historical source-file bytes; content hashes cover host-supplied control values only, and citations are unverified unless an authoritative byte snapshot is supplied.",
 	);
 	if (!coverageComplete)
-		limitations.push(
-			"Canonical source lifecycle metadata is missing, duplicated, non-terminal, or incomplete.",
+		limit(
+			"Canonical source lifecycle metadata is missing, duplicated, non-terminal, or incomplete.", "출처의 작업 상태에 누락, 중복, 미종료 또는 불완전한 항목이 있습니다.",
 		);
 	if (allLedgerSourcesAvailable && !verdictConsistent)
-		limitations.push(
-			`The synthesis gave verdict ${cleanText(safeSynthesis.verdict) || "none"}, but the lens results require ${requiredReportVerdict}; the report uses ${verdict}.`,
+		limit(
+			`The synthesis gave verdict ${cleanText(safeSynthesis.verdict) || "none"}, but the lens results require ${requiredReportVerdict}; the report uses ${verdict}.`, `종합 의견 판정은 ${reportStatus(safeSynthesis.verdict || "none", t)}이지만 관점별 결과는 ${reportStatus(requiredReportVerdict, t)}입니다. 보고서는 ${reportStatus(verdict, t)} 판정을 적용합니다.`,
 		);
 	if (allLedgerSourcesAvailable && !riskConsistent)
-		limitations.push(
-			`Synthesis risk ${synthesisRisk || "unavailable"} understates or obscures the known source risk floor ${canonicalRisk} (regression risk ${regressionRisk || "unavailable"}).`,
+		limit(
+			`Synthesis risk ${synthesisRisk || "unavailable"} understates or obscures the known source risk floor ${canonicalRisk} (regression risk ${regressionRisk || "unavailable"}).`, `종합 위험도(${reportStatus(synthesisRisk || "unavailable", t)})가 출처에서 확인한 최소 위험도(${reportStatus(canonicalRisk, t)})를 반영하지 않습니다(회귀 위험도: ${reportStatus(regressionRisk || "unavailable", t)}).`,
 		);
 	// 2026-11-23 (owner): "evidence is insufficient" is a verdict, not a failed run. When every source is present
 	// and joined and the verdict is UNKNOWN, the run completes and the report says why the evidence did not
 	// suffice. A verdict that stays BLOCKED/NEEDS_WORK/READY still needs the risk gates to pass.
 	const insufficientEvidence =
 		allLedgerSourcesAvailable && coverageComplete && verdict === "UNKNOWN";
-	if (!riskGatePassed)
+	if (!riskGatePassed) {
+		readerLimitations.unshift(insufficientEvidence
+			? t("Insufficient evidence: the impact risk could not be established from the supplied change and repository, so the verdict is UNKNOWN rather than READY.", "제공된 변경과 저장소만으로는 위험도를 판단할 수 없어 배포 가능 여부를 알 수 없습니다.")
+			: t("Unknown impact risk prevents a successful readiness gate.", "영향 위험도를 판단하지 못해 배포 준비 검사를 통과하지 못했습니다."));
 		limitations.unshift(
 			insufficientEvidence
 				? "Insufficient evidence: the impact risk could not be established from the supplied change and repository, so the verdict is UNKNOWN rather than READY."
 				: "Unknown impact risk prevents a successful readiness gate.",
 		);
+	}
+	const readerInputs = { sources, coverageCount: LEDGER_STAGES.filter((stage) => findSource(sources, stage)).length, coverageComplete, verdictConsistent, riskConsistent, readerLimitations, t };
 	const provisional = renderMarkdown({
+		...readerInputs,
 		verdict,
 		riskLevel,
 		synthesis: effectiveSynthesis,
@@ -1138,8 +1056,6 @@ export default async function renderImpactReport({ sources, context = {} }) {
 		regression: safeRegression,
 		ship: safeShip,
 		collections,
-		completionSummaryMarkdown: "",
-		limitations,
 	});
 	const renderedAllStructuredItems = Object.keys(summary).every(
 		(key) => summary[key] === provisional.renderedCounts[key],
@@ -1171,6 +1087,7 @@ export default async function renderImpactReport({ sources, context = {} }) {
 			})
 		: "";
 	let rendered = renderMarkdown({
+		...readerInputs,
 		verdict,
 		riskLevel,
 		synthesis: effectiveSynthesis,
@@ -1178,8 +1095,6 @@ export default async function renderImpactReport({ sources, context = {} }) {
 		regression: safeRegression,
 		ship: safeShip,
 		collections,
-		completionSummaryMarkdown,
-		limitations,
 	});
 	const gates = {
 		allLedgerSourcesAvailable,
@@ -1242,12 +1157,13 @@ export default async function renderImpactReport({ sources, context = {} }) {
 	} catch {
 		sidecarError =
 			"Sidecar publication failed; final report and source ledger were not written.";
-		limitations.push(sidecarError);
+		limit(sidecarError, "최종 보고서와 출처 원장을 저장하지 못했습니다.");
 	}
 	if (sidecarRequired && !sidecarPath) {
 		status = "failed";
 		completionSummaryMarkdown = "";
 		rendered = renderMarkdown({
+			...readerInputs,
 			verdict,
 			riskLevel,
 			synthesis: effectiveSynthesis,
@@ -1255,8 +1171,6 @@ export default async function renderImpactReport({ sources, context = {} }) {
 			regression: safeRegression,
 			ship: safeShip,
 			collections,
-			completionSummaryMarkdown,
-			limitations,
 		});
 	}
 	gates.sidecarPublished = !sidecarRequired || Boolean(sidecarPath);
