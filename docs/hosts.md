@@ -286,7 +286,7 @@ See [blocked actions](usage.md#blocked-actions) for the counting and attribution
 The Claude Code plugin declares `experimental.monitors` → `run-completion` for interactive sessions, not `-p`. It runs `agent-workflow notify-check --follow --host claude-code --session $CLAUDE_CODE_SESSION_ID`; each output line wakes the idle session. Verified with Claude Code 2.1.318.
 
 Session links in `.agent-workflow/notify-check/session-<id>.<run>.link` in the
-[state directory](usage.md#where-run-state-lives) scope delivery to the launching session. A monitor stamp younger than 20 s makes launch guidance say to end the turn without `workflow_wait`. Otherwise use a long wait below.
+[state directory](usage.md#where-run-state-lives) scope delivery to the launching session. Launch guidance relies on the monitor only when the session link exists and its monitor stamp is younger than 20 s; otherwise it reports the settled status or directs a wait.
 
 The monitor resolves the project path with `realpath` and a SHA-256 tool, finds its state directory
 via `$AGENT_WORKFLOW_HOME/projects/*-<hash>` (default home `~/.agent-workflow`), and checks every
@@ -315,6 +315,8 @@ For a known limit, the bound is `min(1 800 000, limit - 120 000)` ms when that e
 For interactive Codex launches driven by a detached supervisor, turn metadata (`params._meta["x-codex-turn-metadata"]`) links the run to its thread. When it settles, the supervisor invokes `codex queue --thread <id> --message <completion line>`. The next step tells the agent to end its turn, not call `workflow_wait`. Closed threads receive the message when resumed. Verified with Codex 0.166.0.
 
 This works with the plugin or `codex mcp add … --host codex`. `codex exec` still waits; servers registered with another `--host` do not wake Codex. A state already returned by `workflow_wait` is not queued again. The supervisor finds `codex` on PATH; the queue call is killed with SIGKILL after 30 s. Set `AGENT_WORKFLOW_HOST_WAKE=0` in the server environment to disable it.
+
+A CLI `agent-workflow wait` that returns the settled result claims the same global receipt, so it can suppress the Codex queue even when run from an unrelated terminal.
 
 ### The client's roots
 

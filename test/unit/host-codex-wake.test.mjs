@@ -5,6 +5,8 @@ import { stateDir } from "../helpers/state-dir.mjs";
 // run has settled (`codex queue`), so the agent ends its turn instead of calling workflow_wait.
 // `codex exec` launches and non-detached runs still wait. The Codex CLI is faked here.
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import fs, { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
@@ -214,10 +216,12 @@ test("the detached supervisor wakes the linked Codex session when the run settle
 	);
 });
 
-test("a Codex launch's next step: end the turn for an interactive, detached launch; else workflow_wait", async () => {
+test("a Codex launch's next step: end the turn for an interactive, detached launch; else workflow_wait", async (t) => {
 	const cwd = await project();
 	await writeRun(cwd, "workflow_launched", "running");
-	const fakeApi = (detached) =>
+	const exited = spawn(process.execPath, ["-e", ""]);
+	await once(exited, "exit");
+	const fakeApi = (detached, pid) =>
 		new Proxy(
 			{},
 			{
@@ -234,21 +238,21 @@ test("a Codex launch's next step: end the turn for an interactive, detached laun
 								runId: "workflow_launched",
 								status: "running",
 								name: "deep-review",
-								...(detached ? { detached: { pid: 1, logPath: "x" } } : {}),
+								...(detached ? { detached: { pid, logPath: "x" } } : {}),
 							},
 						});
 					return undefined;
 				},
 			},
 		);
-	const text = async ({ meta, detached = true, env = {} }) =>
+	const text = async ({ meta, detached = true, pid = process.pid, env = {} }) =>
 		(
 			await mcpTools
 				.createHostMcpService({
 					root: cwd,
 					host: "codex",
 					env: { ...process.env, ...env },
-					api: fakeApi(detached),
+					api: fakeApi(detached, pid),
 				})
 				.call(
 					"workflow_run",
@@ -267,6 +271,28 @@ test("a Codex launch's next step: end the turn for an interactive, detached laun
 			.join("\n");
 	const WAIT =
 		/Then call workflow_wait \{"runId":"workflow_launched"\} and repeat while stillRunning is true\./;
+	const dir = join(stateDir(cwd), ".agent-workflow", "notify-check");
+	const readdir = fs.readdir;
+	const listing = t.mock.method(fs, "readdir", async (...args) => {
+		if (args[0] === dir)
+			throw Object.assign(new Error("notify directory listing fault"), {
+				code: "EACCES",
+			});
+		return readdir(...args);
+	});
+	syncBuiltinESMExports();
+	let unlistable;
+	try {
+		unlistable = await text({ meta: turn("user") });
+		const link = join(dir, `session-${THREAD}.workflow_launched.link`);
+		assert.ok((await fs.lstat(link)).isFile());
+	} finally {
+		listing.mock.restore();
+		syncBuiltinESMExports();
+	}
+	assert.match(unlistable, WAIT);
+	assert.doesNotMatch(unlistable, /end your turn now/);
+
 	const queued = await text({ meta: turn("user") });
 	assert.match(
 		queued,
@@ -282,6 +308,15 @@ test("a Codex launch's next step: end the turn for an interactive, detached laun
 		WAIT,
 	);
 	assert.match(await text({}), WAIT);
+	assert.match(await text({ meta: turn("user"), pid: exited.pid }), WAIT);
+	const resumed = await writeRun(cwd, "workflow_launched", "running");
+	resumed.tasks[0].resumeEvents = [{ status: "failed" }];
+	await writeFile(
+		join(stateDir(cwd), ".agent-workflow/workflows", resumed.runId, "run.json"),
+		JSON.stringify(resumed),
+	);
+	// Liveness is not enough: the launch's notifier may already be exiting after a previous epoch.
+	assert.match(await text({ meta: turn("user") }), WAIT);
 });
 
 for (const [tool, method, beforeBinding] of [

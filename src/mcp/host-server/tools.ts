@@ -32,7 +32,12 @@ import {
 	mintLaunchUrl,
 	openInBrowser,
 } from "../../hosts/dashboard/discovery.js";
-import { assertActionAllowed } from "../../hosts/types.js";
+import {
+	assertActionAllowed,
+	outcomeForRunStatus,
+	result,
+} from "../../hosts/types.js";
+import { codexLaunchNotifierCanWake } from "../../hosts/launch-delivery.js";
 import {
 	awaitHostSessionMonitor,
 	hostSessionMonitorAlive,
@@ -46,6 +51,7 @@ import { codexTurnSession, hostWakeEnabled } from "../../hosts/host-wake.js";
 import { WORKFLOW_DASHBOARD_TOOL } from "../visible-names.js";
 export { WORKFLOW_DASHBOARD_TOOL } from "../visible-names.js";
 import type {
+	AutoData,
 	HostAction,
 	HostApiContext,
 	HostResult,
@@ -1488,12 +1494,37 @@ function withoutWaitLine<T>(
 			};
 }
 
+function settledLaunchText(
+	text: string,
+	run: { runId: string; status: string },
+): string {
+	// The launch renderer puts its notices (and auto's selection) before the run card.
+	// Replace the card and launch heading, not the notices or dashboard line.
+	const card = text.lastIndexOf(`\nRun: ${run.runId}\n\nProgress: `);
+	const notices = (card === -1 ? text : text.slice(0, card))
+		.replace(
+			/^(?:Workflow (?:started|blocked|completed|failed to start): |Dynamic workflow (?:started|blocked|completed|failed to start)$)[^\n]*\n?/gmu,
+			"",
+		)
+		.replace(
+			/^(?:Detached supervisor: |Check progress: |Wait for the result: )[^\n]*\n?/gmu,
+			"",
+		)
+		.trimEnd();
+	return [`Run ${run.runId} settled with status ${run.status}.`, notices]
+		.filter(Boolean)
+		.join("\n");
+}
+
 function launchNext(
 	data: LaunchData,
 	delivery: Delivery = "wait",
 	waitHint = "",
 ): string | undefined {
-	if (data.runId && data.status === "running") {
+	if (
+		data.runId &&
+		(data.status === "running" || (data.status === "blocked" && data.detached))
+	) {
 		const wait =
 			delivery === "codex-queue"
 				? `agent-workflow puts the result into this Codex session when the run has finished (a queued message): end your turn now and do not call ${WORKFLOW_WAIT_TOOL}. When the message "agent-workflow: workflow … (run ${data.runId}) finished — …" arrives, tell the user the verdict, the run id and the link. Call ${WORKFLOW_WAIT_TOOL} {"runId":"${data.runId}"} only if the user asks you to wait here.`
@@ -1563,41 +1594,50 @@ export function createHostMcpService(
 		data: LaunchData | undefined,
 		call: McpToolCallContext,
 	): Promise<Delivery> => {
-		if (!data?.runId || data.detachError || data.status !== "running")
+		if (!data?.runId || (data.status !== "running" && !data.detached))
 			return "wait";
 		if (options.host === "claude-code") {
 			const session = env.CLAUDE_CODE_SESSION_ID;
-			if (!isHostSessionId(session)) return "wait";
-			await recordRunHostSession(ctx.cwd, data.runId, session);
-			if (await hostSessionMonitorAlive(ctx.cwd, session))
-				return "claude-monitor";
+			if (
+				!isHostSessionId(session) ||
+				!(await recordRunHostSession(ctx.cwd, data.runId, session))
+			)
+				return "wait";
 			// 2026-11-05: the project's first run. The monitor (none in print mode or the Agent SDK,
 			// CLAUDE_CODE_ENTRYPOINT sdk-*) waits in its shell for the run directory this launch created.
 			const projectDir = env.CLAUDE_PROJECT_DIR;
-			return projectDir &&
-				!/^sdk-/u.test(env.CLAUDE_CODE_ENTRYPOINT ?? "") &&
-				(await monitorStartsWithRun(projectDir, data.runId)) &&
-				(await awaitHostSessionMonitor(
-					ctx.cwd,
-					session,
-					options.monitorStartWaitMs,
-					call.signal,
-				))
+			const alive =
+				(await hostSessionMonitorAlive(ctx.cwd, session)) ||
+				(projectDir &&
+					!/^sdk-/u.test(env.CLAUDE_CODE_ENTRYPOINT ?? "") &&
+					(await monitorStartsWithRun(projectDir, data.runId)) &&
+					(await awaitHostSessionMonitor(
+						ctx.cwd,
+						session,
+						options.monitorStartWaitMs,
+						call.signal,
+					)));
+			return alive &&
+				(await runHostSessions(ctx.cwd, data.runId)).includes(session)
 				? "claude-monitor"
 				: "wait";
 		}
 		if (options.host === "codex" && hostWakeEnabled(env) && data.detached) {
 			const turn = codexTurnSession(call.meta);
 			if (!turn?.interactive) return "wait";
-			await recordRunHostSession(ctx.cwd, data.runId, turn.threadId);
-			if (!(await runHostSessions(ctx.cwd, data.runId)).includes(turn.threadId))
+			if (
+				!(await recordRunHostSession(ctx.cwd, data.runId, turn.threadId)) ||
+				!(await runHostSessions(ctx.cwd, data.runId)).includes(turn.threadId)
+			)
 				return "wait";
 			// If settlement happens after this read, the supervisor can see our link.
 			// If it already settled, direct a wait without suppressing a supervisor wake.
 			const current = await readRunRecord(ctx.cwd, data.runId).catch(
 				() => undefined,
 			);
-			return current && !isSettledRun(current) ? "codex-queue" : "wait";
+			return codexLaunchNotifierCanWake(current, data.detached.pid)
+				? "codex-queue"
+				: "wait";
 		}
 		return "wait";
 	};
@@ -1735,6 +1775,52 @@ export function createHostMcpService(
 			false,
 			true,
 		);
+
+	const finishLaunch = async (
+		ctx: HostApiContext,
+		call: McpToolCallContext,
+		outcome: HostResult<LaunchData | AutoData>,
+	): Promise<HostMcpToolResult> => {
+		const data = outcome.data;
+		const launch = "phase" in data ? data.launch : data;
+		if (launch?.detachError)
+			return finishFailedHandoff(call, outcome, launch.detachError);
+		const how = await delivery(ctx, launch, call);
+		if (
+			options.host === "claude-code" &&
+			launch?.runId &&
+			(launch.status === "running" || launch.detached)
+		) {
+			// Binding or first-run monitor startup can outlast a short helper. Report the
+			// settled snapshot without claiming a receipt (a monitor may also report it).
+			const run = await readRunRecord(ctx.cwd, launch.runId).catch(
+				() => undefined,
+			);
+			if (run && isSettledRun(run)) {
+				const settled = {
+					...launch,
+					status: run.status,
+					taskSummary: run.taskSummary,
+					detached: undefined,
+				};
+				const updated =
+					"phase" in data ? { ...data, launch: settled } : settled;
+				const reply = result(
+					outcome.action,
+					outcomeForRunStatus(run.status),
+					updated,
+					settledLaunchText(outcome.text, run),
+				);
+				return finish(call, reply, updated);
+			}
+		}
+		return finish(
+			call,
+			withoutWaitLine(outcome, how),
+			data,
+			launch ? launchNext(launch, how, waitHint) : undefined,
+		);
+	};
 
 	/** WP31: `workflow_profile` op workflow-list|workflow-show|workflow-set|workflow-clear. */
 	const workflowPreferenceCall = async (
@@ -2037,15 +2123,7 @@ export function createHostMcpService(
 					arguments: { ...args },
 				},
 			});
-			if (launched.data.detachError)
-				return finishFailedHandoff(call, launched, launched.data.detachError);
-			const how = await delivery(ctx, launched.data, call);
-			return finish(
-				call,
-				withoutWaitLine(launched, how),
-				launched.data,
-				launchNext(launched.data, how, waitHint),
-			);
+			return finishLaunch(ctx, call, launched);
 		},
 		[WORKFLOW_DYNAMIC_TOOL]: async (args, call) => {
 			const ctx = await context(args, call);
@@ -2057,15 +2135,7 @@ export function createHostMcpService(
 					arguments: { ...args },
 				},
 			});
-			if (launched.data.detachError)
-				return finishFailedHandoff(call, launched, launched.data.detachError);
-			const how = await delivery(ctx, launched.data, call);
-			return finish(
-				call,
-				withoutWaitLine(launched, how),
-				launched.data,
-				launchNext(launched.data, how, waitHint),
-			);
+			return finishLaunch(ctx, call, launched);
 		},
 		[WORKFLOW_AUTO_TOOL]: async (args, call) => {
 			const ctx = await context(args, call);
@@ -2078,16 +2148,7 @@ export function createHostMcpService(
 				},
 				...(call.signal ? { signal: call.signal } : {}),
 			});
-			const data = auto.data;
-			if (data.launch?.detachError)
-				return finishFailedHandoff(call, auto, data.launch.detachError);
-			const how = data.launch ? await delivery(ctx, data.launch, call) : "wait";
-			return finish(
-				call,
-				withoutWaitLine(auto, how),
-				data,
-				data.launch ? launchNext(data.launch, how, waitHint) : undefined,
-			);
+			return finishLaunch(ctx, call, auto);
 		},
 		[WORKFLOW_STATUS_TOOL]: async (args, call) => {
 			const runId = optionalString(args, "runId");

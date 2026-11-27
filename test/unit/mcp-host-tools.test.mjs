@@ -6,7 +6,7 @@
 // confirmation through elicitation (accept / decline / absent / unsupported revision), the cwd
 // restriction, usage errors, host identity, cancellation and progress.
 import assert from "node:assert/strict";
-import {
+import fs, {
 	mkdir,
 	mkdtemp,
 	realpath,
@@ -14,11 +14,13 @@ import {
 	symlink,
 	writeFile,
 } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 
 import { inProcessHostServer, waitLoop } from "../helpers/mcp-host-client.mjs";
+import { stateDir } from "../helpers/state-dir.mjs";
 import { workflowFixtureDescriptor } from "../helpers/workflow-executor-fixture.mjs";
 
 const api = await import("../../dist/hosts/api.js");
@@ -920,5 +922,122 @@ for (const [tool, method, args] of [
 				assert.equal((tool === "auto" ? data.launch : data).runId, runId);
 			} else assert.equal(response.structuredContent, undefined);
 		}
+	});
+}
+
+for (const [status, fault] of [
+	["running", "open"],
+	["running", "readdir"],
+	["completed", "open"],
+]) {
+	test(`Claude with a fresh monitor but a failed ${fault} reports ${status === "running" ? "an explicit wait" : "settlement with launch notices"}`, async (t) => {
+		const { cwd, env } = await project();
+		const session = "claude-fault";
+		const runId = "workflow_monitor_fault";
+		const notifyDir = join(stateDir(cwd), ".agent-workflow", "notify-check");
+		const runDir = join(stateDir(cwd), ".agent-workflow", "workflows", runId);
+		await mkdir(notifyDir, { recursive: true });
+		await mkdir(runDir, { recursive: true });
+		await writeFile(
+			join(runDir, "run.json"),
+			JSON.stringify({
+				runId,
+				tasks: [{ taskId: "helper", status }],
+			}),
+		);
+		const link = join(notifyDir, `session-${session}.${runId}.link`);
+		const monitored = await import("../../dist/hosts/notify-check.js");
+		const path = fault === "open" ? link : notifyDir;
+		const original = fs[fault];
+		const mock = t.mock.method(fs, fault, async (...args) => {
+			if (args[0] === path)
+				throw Object.assign(new Error(`notify ${fault} fault`), {
+					code: "EACCES",
+				});
+			return original(...args);
+		});
+		syncBuiltinESMExports();
+		t.after(() => {
+			mock.mock.restore();
+			syncBuiltinESMExports();
+		});
+		const warning = "  ⚠ readOnly enforced on: distinctive-stage";
+		const selected = "Selected: Distinctive workflow (recommended)";
+		const dashboard = {
+			url: "https://example.test/run",
+			portReason: "test port",
+		};
+		const client = await connect(
+			{
+				root: cwd,
+				env: { ...env, CLAUDE_CODE_SESSION_ID: session },
+				host: "claude-code",
+				api: {
+					...api,
+					async autoAction() {
+						await writeFile(join(notifyDir, `monitor-${session}.stamp`), "");
+						assert.equal(
+							await monitored.hostSessionMonitorAlive(cwd, session),
+							true,
+						);
+						return {
+							action: "auto",
+							ok: true,
+							outcome: "running",
+							text: [
+								selected,
+								warning,
+								"Workflow started: Distinctive workflow",
+								`Dashboard: ${dashboard.url} · ${dashboard.portReason}`,
+								`Run: ${runId}`,
+								"",
+								"Progress: 0/1 completed, 1 running",
+								`Check progress: workflow_status ${runId}`,
+								`Wait for the result: workflow_wait ${runId}`,
+							].join("\n"),
+							data: {
+								phase: "launched",
+								launch: {
+									runId,
+									status: "running",
+									mode: "named-workflow",
+									dashboard,
+								},
+							},
+						};
+					},
+				},
+			},
+			"2025-06-18",
+		);
+		const result = await client.call("workflow_auto", { task: "probe" });
+		assert.equal(result.isError, false, text(result));
+		if (fault === "open")
+			assert.equal(
+				mock.mock.calls.filter(({ arguments: [file] }) => file === link).length,
+				1,
+			);
+		else assert.ok((await fs.lstat(link)).isFile());
+		if (status === "running")
+			assert.match(
+				text(result),
+				/Then call workflow_wait .*workflow_monitor_fault/,
+			);
+		else {
+			assert.match(text(result), /workflow_monitor_fault.*completed/);
+			assert.ok(text(result).includes(warning), text(result));
+			assert.ok(text(result).includes(selected), text(result));
+			assert.ok(
+				text(result).includes(
+					`Dashboard: ${dashboard.url} · ${dashboard.portReason}`,
+				),
+				text(result),
+			);
+			assert.doesNotMatch(
+				text(result),
+				/workflow_(wait|status)|Workflow started|1 running/,
+			);
+		}
+		assert.doesNotMatch(text(result), /end your turn now|monitor .*reports/);
 	});
 }

@@ -31,6 +31,7 @@ import { stateBase } from "../core/state-location.js";
 import { createHash, randomBytes } from "node:crypto";
 import {
 	access,
+	lstat,
 	open,
 	readdir,
 	readFile,
@@ -255,25 +256,30 @@ function monitorStampName(session: string): string {
 	return `monitor-${session}`;
 }
 
-/** The MCP server, after a launch: this host session started the run (best effort). */
+/** Link this host session after launch; true only when a regular link file exists. */
 export async function recordRunHostSession(
 	cwd: string,
 	runId: string,
 	session: string,
-): Promise<void> {
-	if (!isHostSessionId(session) || !isSafeRunId(runId)) return;
+): Promise<boolean> {
+	if (!isHostSessionId(session) || !isSafeRunId(runId)) return false;
 	try {
 		const dir = await containedProjectStateDir(cwd, NOTIFY_CHECK_DIR, true);
-		if (!dir) return;
-		// O_EXCL never follows a symlink at the link path.
-		const handle = await open(
-			join(dir, sessionLinkName(session, runId)),
-			"wx",
-			0o600,
-		);
-		await handle.close();
+		if (!dir) return false;
+		const path = join(dir, sessionLinkName(session, runId));
+		try {
+			// O_EXCL never follows a symlink at the link path.
+			const handle = await open(path, "wx", 0o600);
+			await handle.close();
+			return true;
+		} catch (error) {
+			return (
+				(error as NodeJS.ErrnoException).code === "EEXIST" &&
+				(await lstat(path)).isFile()
+			);
+		}
 	} catch {
-		// Present already, or no state directory: the run is then reported by the prompt hook.
+		return false;
 	}
 }
 
